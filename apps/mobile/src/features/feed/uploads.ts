@@ -123,10 +123,12 @@ export async function pickFeedPollOptionPhoto(): Promise<FeedPickedMedia | null>
   if (photo.kind !== "photo") throw new Error("Для варианта опроса можно выбрать только фото.");
   return photo;
 }
-export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedia, onProgress?: (loaded: number, total: number) => void): Promise<string> {
+export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedia,
+  onProgress?: (loaded: number, total: number) => void, purpose?: "comment"): Promise<string> {
   let reserved = await feedApi.reserveUpload(postId, {
     filename: item.filename, kind: item.kind, declaredMime: item.mime,
     declaredBytes: item.bytes, clientRequestId: item.requestId,
+    ...(purpose === "comment" ? { purpose: "comment" as const } : {}),
   });
   if (["uploaded", "processing", "ready"].includes(reserved.status)) return reserved.mediaId;
   if (["expired", "failed", "cancelled"].includes(reserved.status)) {

@@ -2,6 +2,33 @@ import { describe, expect, it } from "vitest";
 import { scopedMediaCacheKey } from "./scopedMediaCache";
 const key = "posts/owner/post/attachments/id/full.webp";
 describe("private mobile media cache isolation", () => {
+  it("caches modern immutable Feed Media V2 per object/version/viewer, not CDN token", () => {
+    const now = 180_000_001;
+    const first = `https://garaquachegasourn.begetcdn.cloud/media/v2/media1/v2/image/m.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
+    const nextSignature = first.replace('A'.repeat(22),'B'.repeat(22));
+    const key1 = scopedMediaCacheKey(first,'actor',now);
+    expect(key1).toBe(scopedMediaCacheKey(nextSignature,'actor',now));
+    expect(key1).not.toContain('md5=');
+    expect(key1).not.toContain('1999999999');
+    expect(key1).not.toBe(scopedMediaCacheKey(first.replace('/v2/image/','/v3/image/'),'actor',now));
+    expect(key1).not.toBe(scopedMediaCacheKey(first,'other',now));
+    expect(key1).not.toBe(scopedMediaCacheKey(first,'actor',now+180_000));
+    const cloud = `https://s3.cloud.ru/gafus-feed-private/media/v2/media1/v2/image/m.webp?X-Amz-Signature=test`;
+    expect(scopedMediaCacheKey(cloud,'actor',now)).toContain('/media/v2/media1/v2/image/m.webp');
+  });
+  it("never treats unsigned or foreign Feed V2 objects as cacheable", () => {
+    const base=`https://garaquachegasourn.begetcdn.cloud/media/v2/media1/v2/image/s.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
+    for (const candidate of [
+      base.replace('?md5=','?bad='), base+'&extra=1',
+      base.replace('garaquachegasourn','mepsuduyokabib'),
+      base.replace('image/s.webp','image/source.webp'),
+      base.replace('image/s.webp','../../admin.json'),
+      base.replace('https:','http:'),
+      base.replace('/v2/image/','/v0/image/'),
+      'https://s3.cloud.ru/gafus-feed-private/media/v2/media1/v2/image/s.webp',
+      'https://s3.cloud.ru/other/media/v2/media1/v2/image/s.webp?X-Amz-Signature=test',
+    ]) expect(()=>scopedMediaCacheKey(candidate,'actor')).toThrow();
+  });
   it("does not create a different disk key for every new signed token", () => {
     const now = 180_000_001;
     const first = `https://garaquachegasourn.begetcdn.cloud/md5(${'A'.repeat(22)},1800000000)/${key}`;

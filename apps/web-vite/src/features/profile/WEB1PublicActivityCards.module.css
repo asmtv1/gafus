@@ -1,0 +1,102 @@
+/* Public author activity: a cohesive surface instead of floating list text.
+ * This is intentionally local to read-only visitor lists, never feed/editor UI. */
+.collection { width: 100%; min-width: 0; }
+.panel {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: clamp(20px, 3vw, 32px);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.2);
+  border-radius: 24px;
+  background: var(--surface, #f7f2e8);
+  box-shadow: 0 8px 24px rgba(59,72,34,.09);
+}
+.headingGroup { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 0 0 22px; }
+.overline {
+  display: inline-flex; align-items: center;
+  border-radius: 999px;
+  padding: 5px 13px;
+  background: var(--surface-strong, #e8e6d7);
+  color: var(--accent-secondary, #3b4822);
+  font: 700 12px/1.4 var(--font-montserrat),system-ui,sans-serif;
+}
+:global(.gafus-app .shell) .title.title {
+  margin: 0;
+  color: var(--text-primary, #352e2e);
+  font: 750 clamp(21px, 2.6vw, 30px)/1.25 var(--font-montserrat),system-ui,sans-serif;
+  letter-spacing: -.025em;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.state {
+  box-sizing: border-box;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 22px 18px;
+  border: 1px dashed rgba(var(--accent-primary-rgb), .3);
+  border-radius: 16px;
+  background: var(--surface-muted, #eee8d8);
+  color: var(--text-secondary, #686540);
+  font: 500 clamp(14px,1.6vw,17px)/1.6 var(--font-montserrat),system-ui,sans-serif;
+  text-align: center;
+}
+.list.list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.card.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+  padding: clamp(16px, 2.4vw, 22px);
+  border: 1px solid rgba(var(--accent-primary-rgb), .19);
+  border-radius: 18px;
+  background: var(--surface-muted, #eee8d8);
+  box-shadow: 0 3px 9px rgba(59,72,34,.045);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.card:hover, .card:focus-within {
+  border-color: rgba(var(--accent-primary-rgb), .48);
+  box-shadow: 0 6px 14px rgba(59,72,34,.11);
+}
+.typeTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 11px;
+  border: 1px solid rgba(var(--accent-primary-rgb), .19);
+  border-radius: 999px;
+  background: var(--surface-strong, #e8e6d7);
+  color: var(--accent-primary, #4d5c2d);
+  font: 750 12px/1.4 var(--font-montserrat),system-ui,sans-serif;
+}
+.cardLink.cardLink {
+  display: block;
+  max-width: 100%;
+  color: var(--text-primary, #352e2e);
+  font: 650 clamp(16px,1.8vw,20px)/1.5 var(--font-montserrat),system-ui,sans-serif;
+  text-decoration: none;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.cardLink:hover { color: var(--accent-primary, #4d5c2d); text-decoration: underline; }
+.cardLink:focus-visible { outline: 2px solid var(--accent-primary, #4d5c2d); outline-offset: 4px; border-radius: 3px; }
+.cardMeta {
+  color: var(--text-secondary, #686540);
+  font: 500 13px/1.4 var(--font-montserrat),system-ui,sans-serif;
+}
+@media (max-width: 560px) {
+  .panel { border-radius: 18px; padding: 18px 14px; }
+  .headingGroup { margin-bottom: 16px; }
+  .card.card { padding: 16px; border-radius: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+}

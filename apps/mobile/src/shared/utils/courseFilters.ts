@@ -2,7 +2,9 @@
  * Логика фильтрации и сортировки курсов (как в web).
  * Используется на экране «Курсы».
  */
-import type { Course } from "@/shared/lib/api";
+import type { Course, CourseListItem } from "@/shared/lib/api";
+
+type ReadableCourse = Course | CourseListItem;
 
 export type CourseTabType = "all" | "free" | "paid" | "private";
 export type TrainingLevelType =
@@ -30,10 +32,10 @@ export interface CourseFiltersState {
   sorting: SortingType;
 }
 
-export function filterCoursesByTab(
-  courses: Course[],
+export function filterCoursesByTab<T extends ReadableCourse>(
+  courses: T[],
   tab: CourseTabType,
-): Course[] {
+): T[] {
   switch (tab) {
     case "all":
       return courses;
@@ -48,26 +50,26 @@ export function filterCoursesByTab(
   }
 }
 
-export function filterCoursesByLevel(
-  courses: Course[],
+export function filterCoursesByLevel<T extends ReadableCourse>(
+  courses: T[],
   level: TrainingLevelType,
-): Course[] {
+): T[] {
   if (level === "ALL") return courses;
   return courses.filter((c) => c.trainingLevel === level);
 }
 
-export function filterCoursesByProgress(
-  courses: Course[],
+export function filterCoursesByProgress<T extends ReadableCourse>(
+  courses: T[],
   status: ProgressFilterType,
-): Course[] {
+): T[] {
   if (status === "ALL") return courses;
   return courses.filter((c) => c.userStatus === status);
 }
 
-export function filterCoursesByRating(
-  courses: Course[],
+export function filterCoursesByRating<T extends ReadableCourse>(
+  courses: T[],
   rating: RatingFilterType,
-): Course[] {
+): T[] {
   switch (rating) {
     case "4+":
       return courses.filter((c) => c.avgRating != null && c.avgRating >= 4);
@@ -81,10 +83,10 @@ export function filterCoursesByRating(
   }
 }
 
-export function filterCoursesBySearch(
-  courses: Course[],
+export function filterCoursesBySearch<T extends ReadableCourse>(
+  courses: T[],
   searchQuery: string,
-): Course[] {
+): T[] {
   if (!searchQuery.trim()) return courses;
   const query = searchQuery.toLowerCase().trim();
   return courses.filter(
@@ -96,10 +98,10 @@ export function filterCoursesBySearch(
   );
 }
 
-export function sortCourses(
-  courses: Course[],
+export function sortCourses<T extends ReadableCourse>(
+  courses: T[],
   sorting: SortingType,
-): Course[] {
+): T[] {
   switch (sorting) {
     case "newest":
       return [...courses].sort(
@@ -134,10 +136,10 @@ export function sortCourses(
   }
 }
 
-export function filterAndSortCourses(
-  courses: Course[],
+export function filterAndSortCourses<T extends ReadableCourse>(
+  courses: T[],
   filters: CourseFiltersState,
-): Course[] {
+): T[] {
   let result = courses;
   result = filterCoursesByTab(result, filters.tab);
   result = filterCoursesByLevel(result, filters.level);
@@ -152,7 +154,7 @@ export function filterAndSortCourses(
 }
 
 export function getTabCounts(
-  courses: Course[],
+  courses: ReadableCourse[],
 ): Record<CourseTabType, number> {
   return {
     all: courses.length,

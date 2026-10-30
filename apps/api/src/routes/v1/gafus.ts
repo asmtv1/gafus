@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import {
   getGafusStatus, listGafusTransactions, unlockContentWithGafus, listGafusMiniGuides,
@@ -9,6 +9,17 @@ import {
 
 export const gafusRoutes = new Hono();
 
+/** Classify only malformed request JSON as 400; internal Core SyntaxError stays 500. */
+class MalformedUnlockJson extends Error {}
+async function readUnlockJson(c: Context): Promise<unknown> {
+  try {
+    return await c.req.json();
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new MalformedUnlockJson();
+    throw error;
+  }
+}
+
 const targetSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("COURSE_STEP"),
@@ -18,6 +29,10 @@ const targetSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("MINI_GUIDE"),
     courseId: z.string().min(1).max(128),
+  }).strict(),
+  z.object({
+    type: z.literal("ARTICLE"),
+    articleId: z.string().min(1).max(128),
   }).strict(),
 ]);
 
@@ -30,13 +45,21 @@ function errorResponse(error: unknown) {
   if (error instanceof Error && error.message === "FORBIDDEN") {
     return { status: 403 as const, body: { success: false, error: "Недостаточно прав", code: "GAFUS_FORBIDDEN" } };
   }
-  if (error instanceof Error && /^(INVALID_SETTING|INVALID_SETTINGS_KEYS|REASON_REQUIRED|INVALID_REQUEST_ID)/.test(error.message)) {
+  if (
+    error instanceof Error &&
+    /^(INVALID_SETTING|INVALID_SETTINGS_KEYS|REASON_REQUIRED|INVALID_REQUEST_ID)/.test(
+      error.message,
+    )
+  ) {
     return { status: 400 as const, body: { success: false, error: "Некорректные настройки или причина", code: "GAFUS_VALIDATION_ERROR" } };
   }
-  if (error instanceof Error && /^(SETTINGS_REVISION_CONFLICT|REQUEST_CONFLICT)$/.test(error.message)) {
+  if (
+    error instanceof Error &&
+    /^(SETTINGS_REVISION_CONFLICT|REQUEST_CONFLICT)$/.test(error.message)
+  ) {
     return { status: 409 as const, body: { success: false, error: "Конфликт версии или запроса", code: "GAFUS_CONFLICT" } };
   }
-  if (error instanceof z.ZodError) {
+  if (error instanceof MalformedUnlockJson || error instanceof z.ZodError) {
     return { status: 400 as const, body: { success: false, error: "Некорректные данные", code: "GAFUS_VALIDATION_ERROR" } };
   }
   if (error instanceof GafusError) {
@@ -89,7 +112,7 @@ gafusRoutes.get("/history", async c => {
 gafusRoutes.post("/unlock", async c => {
   try {
     // No userId, price, duration or balance accepted from the client.
-    const body = unlockSchema.parse(await c.req.json());
+    const body = unlockSchema.parse(await readUnlockJson(c));
     const result = await unlockContentWithGafus({
       userId: c.get("user").id,
       target: body.target,

@@ -1,0 +1,361 @@
+/* Full-width owner editor: inline edit opens BELOW the toolbar rather than in
+   its narrow right-hand action rail. Only the live owner-editing state changes. */
+.gafus-app .shell .web4-question-detail .web4-question-footer:has(.web4-question-edit-form) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+}
+.gafus-app .shell .web4-question-detail .web4-question-footer:has(.web4-question-edit-form)
+  > .web4-question-main-actions {
+  display: none;
+}
+.gafus-app .shell .web4-question-detail .web4-question-footer:has(.web4-question-edit-form)
+  > .web4-question-owner-actions {
+  display: block;
+  flex: 1 1 auto;
+  align-self: stretch;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.gafus-app .shell .web4-question-detail .web4-question-owner-actions:has(.web4-question-edit-form)
+  > .question-owner-controls {
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+}
+.gafus-app .question-owner-controls > button[hidden] {
+  display: none !important;
+}
+/* The same editor is also reachable from /questions/:id/edit. */
+.gafus-app .shell .web4-question-edit-page {
+  box-sizing: border-box;
+  width: min(100%, 1080px);
+  min-width: 0;
+  max-width: 1080px;
+  margin: 12px auto 45px;
+  padding: clamp(12px,3vw,28px);
+}
+.gafus-app .shell .web4-question-edit-page > p:first-child a {
+  color: #4d5c2d;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+}
+.gafus-app .shell .web4-question-edit-page .question-owner-controls { width: 100%; min-width: 0; }
+.gafus-app .shell .web4-question-detail .web4-question-edit-form,
+.gafus-app .shell .web4-question-edit-page .web4-question-edit-form {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  flex: 1 1 100%;
+  margin: 0;
+  padding: clamp(18px,3.5vw,30px);
+  border: 1px solid rgba(77,92,45,.19);
+  border-radius: 16px;
+  background: #fffdf8;
+  box-shadow: 0 8px 24px rgba(53,46,46,.06);
+  color: #352e2e;
+}
+.gafus-app .shell .web4-question-edit-page .web4-question-edit-form {
+  margin-top: 18px;
+}
+.gafus-app .web4-question-edit-form .web4-question-edit-heading {
+  margin: 0 0 12px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid #e5e6d9;
+}
+.gafus-app .web4-question-edit-heading h2 {
+  margin: 0 0 7px;
+  font: 750 clamp(21px,3vw,27px)/1.25 var(--font-montserrat),system-ui,sans-serif;
+  color: #353b31;
+}
+.gafus-app .web4-question-edit-heading p {
+  margin: 0;
+  color: #72776d;
+  font: 400 13px/1.6 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .shell .web4-question-edit-form > label {
+  display: block;
+  min-width: 0;
+  margin: 7px 0 0;
+  color: #434a3d;
+  font: 650 14px/1.4 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .shell .web4-question-edit-form > :is(input,textarea,select) {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 46px;
+  margin: 0 0 5px;
+  padding: 12px 14px;
+  border: 1px solid #c5cdb9;
+  border-radius: 10px;
+  background: #fff;
+  color: #352e2e;
+  font: 400 14px/1.55 var(--font-montserrat),system-ui,sans-serif;
+  box-shadow: none;
+}
+.gafus-app .shell .web4-question-edit-form > textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+.gafus-app .shell .web4-question-edit-form > :is(input,textarea,select):focus-visible {
+  outline: 2px solid #738952;
+  outline-offset: 2px;
+  border-color: #738952;
+}
+.gafus-app .web4-question-edit-form > fieldset {
+  min-width: 0;
+  margin: 10px 0 0;
+  padding: 15px;
+  border: 1px solid #e2e5d7;
+  border-radius: 12px;
+  background: #f8f9f4;
+}
+.gafus-app .web4-question-edit-form > fieldset legend {
+  padding: 0 7px;
+  color: #485c3d;
+  font: 700 13px/1.5 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .web4-question-edit-form > fieldset p {
+  margin: 7px 0 11px;
+  color: #6d7169;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.gafus-app .web4-question-edit-form .web4-question-edit-photo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid #e3e7db;
+  font-size: 13px;
+}
+.gafus-app .web4-question-edit-form .web4-question-edit-photo-row:last-of-type {
+  border-bottom: 0;
+}
+.gafus-app .web4-question-edit-form .question-photo-picker {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 2px 0 8px;
+}
+.gafus-app .web4-question-edit-form .web4-question-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid #e5e6d9;
+}
+.gafus-app .shell .web4-question-edit-form .web4-question-edit-actions button {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 130px;
+  min-height: 46px;
+  max-width: 100%;
+  padding: 10px 20px;
+  white-space: normal;
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .gafus-app .shell .web4-question-detail .web4-question-edit-form,
+  .gafus-app .shell .web4-question-edit-page .web4-question-edit-form {
+    padding: 16px 13px;
+    border-radius: 14px;
+  }
+  .gafus-app .web4-question-edit-form > fieldset { padding: 12px; }
+  .gafus-app .shell .web4-question-edit-form > textarea { min-height: 132px; }
+  .gafus-app .shell .web4-question-edit-form .web4-question-edit-actions button {
+    flex: 1 1 130px;
+  }
+}
+
+/* Keep deletion guard mounted for concurrent-action protection, but do not
+   present a destructive action alongside save/cancel while editing. */
+.gafus-app .question-owner-controls:has(.web4-question-edit-form)
+  > button[data-gafus-shared-button="secondary"][data-gafus-variant="red"] {
+  display: none !important;
+}
+
+
+/* The photo picker belongs INSIDE the attached-photo fieldset.
+   Override the general discussion-toolbar nowrap/font rules on its tile. */
+.gafus-app .shell .web4-question-detail .web4-question-edit-form > fieldset .question-photo-picker-next,
+.gafus-app .shell .web4-question-edit-page .web4-question-edit-form > fieldset .question-photo-picker-next {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 12px;
+}
+.gafus-app .shell .web4-question-edit-form .question-photo-picker-next .question-photo-picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+.gafus-app .shell .web4-question-edit-form .question-photo-picker-next
+  .question-photo-add[data-gafus-shared-button="secondary"] {
+  box-sizing: border-box;
+  flex: 0 0 104px;
+  width: 104px;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 104px;
+  height: 104px;
+  padding: 8px;
+  overflow: hidden;
+  white-space: normal !important;
+  text-align: center;
+  font: 700 11px/1.35 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .shell .web4-question-edit-form .question-photo-picker-next
+  .question-photo-add[data-gafus-shared-button="secondary"] span {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.gafus-app .shell .web4-question-edit-form .question-photo-picker-next .question-photo-hint {
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+/* While confirming deletion, move the warning BELOW the discussion toolbar,
+   out of the owner's narrow right-hand action column. */
+.gafus-app .shell .web4-question-detail .web4-question-footer:has(.web4-question-delete-confirm) {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  min-width: 0;
+}
+.gafus-app .shell .web4-question-detail .web4-question-footer:has(.web4-question-delete-confirm)
+  > .web4-question-owner-actions {
+  display: block;
+  align-self: stretch;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.gafus-app .shell .web4-question-detail .web4-question-owner-actions:has(.web4-question-delete-confirm)
+  > .question-owner-controls {
+  display: block;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+}
+/* The trigger remains mounted for safe focus restoration, but it should not
+   compete visually with the active delete confirmation. */
+.gafus-app .question-owner-controls:has(.web4-question-delete-confirm)
+  > button[data-gafus-shared-button="purple"] {
+  display: none !important;
+}
+.gafus-app .shell .web4-question-detail .web4-question-delete-confirm {
+  box-sizing: border-box;
+  display: grid;
+  gap: 18px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: clamp(16px,2.5vw,24px);
+  border: 1px solid #e4beb4;
+  border-radius: 16px;
+  background: #fff9f5;
+  box-shadow: 0 5px 16px rgba(123,64,52,.06);
+}
+.gafus-app .web4-question-delete-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+.gafus-app .web4-question-delete-icon {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #f9e6df;
+  color: #a35044;
+}
+.gafus-app .web4-question-delete-icon svg { width: 23px; height: 23px; }
+.gafus-app .web4-question-delete-message > div { min-width: 0; }
+.gafus-app .shell .web4-question-detail .web4-question-delete-message h3 {
+  margin: 0 0 7px;
+  color: #503b35;
+  font: 750 18px/1.3 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .shell .web4-question-detail .web4-question-delete-message p {
+  margin: 0;
+  max-width: 70ch;
+  color: #75665e;
+  font: 400 13px/1.6 var(--font-montserrat),system-ui,sans-serif;
+  white-space: normal;
+}
+.gafus-app .web4-question-delete-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+.gafus-app .shell .web4-question-detail .web4-question-delete-actions button {
+  box-sizing: border-box;
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 100%;
+  min-width: 160px;
+  min-height: 46px;
+  padding: 10px 18px;
+  white-space: normal;
+  font-size: 13px;
+  line-height: 1.4;
+}
+@media (max-width: 600px) {
+  .gafus-app .shell .web4-question-detail .web4-question-delete-confirm {
+    gap: 14px;
+    padding: 16px 13px;
+  }
+  .gafus-app .web4-question-delete-message { gap: 10px; }
+  .gafus-app .web4-question-delete-icon {
+    flex-basis: 36px;
+    width: 36px;
+    height: 36px;
+  }
+  .gafus-app .shell .web4-question-detail .web4-question-delete-actions button {
+    flex: 1 1 150px;
+  }
+}

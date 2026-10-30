@@ -1,0 +1,50 @@
+:root { font-family: system-ui,-apple-system,"Segoe UI",sans-serif; color: #252f29; background: #f8f9f5; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+button,input,textarea,select { font: inherit; }
+button { cursor: pointer; background: #647651; border: 0; border-radius: 8px; color: white; padding: .65rem 1rem; }
+button:disabled { opacity: .55; cursor: default; }
+a { color: #576b44; }
+.trainer-shell { display: grid; grid-template-columns: minmax(215px,250px) minmax(0,1fr); min-height: 100vh; }
+.trainer-shell>aside { background: white; border-right: 1px solid #e2e7dc; padding: 1.25rem; }
+.trainer-shell nav { display: grid; gap: .25rem; }
+.trainer-shell nav a { padding: .7rem; text-decoration: none; border-radius: 8px; }
+.trainer-shell nav a[aria-current="page"] { color: white; background: #647651; }
+.trainer-main { min-width: 0; padding: 1.5rem; }
+.trainer-main main { max-width: 1200px; }
+.trainer-main input:not([type="checkbox"]),.trainer-main textarea,.trainer-main select { max-width: 750px; min-width: 160px; padding: .6rem; border: 1px solid #ccd3c7; border-radius: 6px; }
+.trainer-main form { display: grid; gap: 1rem; max-width: 920px; }
+.trainer-main form>label { display: grid; gap: .4rem; }
+.trainer-main fieldset { border: 1px solid #dce3d5; border-radius: 8px; display: grid; gap: .8rem; }
+.trainer-main li { padding: .3rem 0; }
+.trainer-main table { width: 100%; border-collapse: collapse; }
+.trainer-main td,.trainer-main th { text-align: left; padding: .65rem; border-bottom: 1px solid #e1e5dd; }
+.trainer-live-notice { background: #eef1e9; padding: 1rem; border-radius: 8px; }
+.trainer-auth { max-width: 420px; margin: min(14vh,100px) auto; padding: 2rem; background: white; border-radius: 14px; }
+.trainer-auth form { display: grid; gap: .9rem; }
+.trainer-auth label { display: grid; gap: .3rem; }
+.trainer-auth input { padding: .75rem; }
+@media (max-width: 780px) {
+  .trainer-shell { grid-template-columns: minmax(0, 1fr); }
+  .trainer-shell > aside {
+    min-width: 0;
+    max-width: 100%;
+    border-right: 0;
+    border-bottom: 1px solid #e2e7dc;
+  }
+  .trainer-shell nav {
+    min-width: 0;
+    max-width: 100%;
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  .trainer-shell nav a { flex-shrink: 0; }
+  .trainer-main { min-width: 0; padding: 1rem; }
+  .trainer-main form,
+  .trainer-main input:not([type="checkbox"]),
+  .trainer-main textarea,
+  .trainer-main select { min-width: 0; max-width: 100%; width: 100%; }
+  .trainer-main fieldset { min-width: 0; }
+  .trainer-main table { display: block; max-width: 100%; overflow-x: auto; }
+}

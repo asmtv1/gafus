@@ -1,0 +1,76 @@
+# Base stage - для сборки
+FROM mirror.gcr.io/library/node:20-alpine AS base
+
+WORKDIR /app
+
+# Включаем pnpm
+RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
+
+# Копируем файлы конфигурации
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY patches ./patches
+
+# Копируем исходный код
+COPY packages ./packages
+COPY apps/api ./apps/api
+
+# Устанавливаем зависимости
+RUN pnpm install --frozen-lockfile
+
+# Копируем tsconfig файлы
+COPY packages/*/tsconfig.json ./packages/*/
+COPY apps/api/tsconfig.json ./apps/api/
+
+# Генерируем Prisma client (без ERD в контейнере)
+RUN cd packages/prisma \
+  && cp schema.prisma schema.prisma.bak \
+  && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
+  && mv schema.tmp schema.prisma \
+  && for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5); done \
+  && mv schema.prisma.bak schema.prisma
+
+# Собираем API вместе со всем графом workspace-зависимостей.
+RUN pnpm exec turbo run build --filter='@gafus/api...' --concurrency=2
+
+# pnpm deploy создаёт самодостаточный production node_modules.
+# Server-only deploy subsets do not contain mobile dependencies and their patches.
+RUN printf '\nallowUnusedPatches: true\n' >> pnpm-workspace.yaml && \
+    pnpm deploy --legacy --filter @gafus/api --prod --no-optional /app/deploy
+# Prisma генерируется после install; переносим клиент в его runtime virtual store.
+RUN node -e "const {createRequire}=require('node:module'); const {dirname,join}=require('node:path'); const {cpSync}=require('node:fs'); const source=createRequire('/app/packages/prisma/package.json'); const deployed=createRequire('/app/deploy/package.json'); const target=createRequire(deployed.resolve('@gafus/prisma')); cpSync(join(dirname(source.resolve('@prisma/client')), '../../.prisma'), join(dirname(target.resolve('@prisma/client')), '../../.prisma'), {recursive:true});"
+
+# Production stage - только runtime
+FROM mirror.gcr.io/library/node:20-alpine AS runner
+
+WORKDIR /app
+
+# Создаем пользователя
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 hono
+
+# Устанавливаем только необходимые пакеты
+RUN apk add --no-cache curl wget ffmpeg
+
+# Копируем production-ready структуру из deploy
+COPY --from=base --chown=hono:nodejs /app/deploy/ ./
+# Копируем собранные файлы API (перезаписываем если нужно)
+COPY --from=base --chown=hono:nodejs /app/apps/api/dist ./dist
+# Проверяем новые runtime imports до выкладки, без подключения к сервисам.
+RUN node --input-type=module -e "const {createRequire} = await import('node:module'); await import(createRequire(import.meta.resolve('@gafus/gallery-server')).resolve('@gafus/gallery-storage')); createRequire(import.meta.resolve('@gafus/core')).resolve('file-type');"
+# Fail image creation if any extracted server/client package is missing its compiled exports.
+COPY ci-cd/docker/check-runtime-package-exports.mjs /app/check-runtime-package-exports.mjs
+RUN node /app/check-runtime-package-exports.mjs api
+
+USER hono
+
+# Устанавливаем переменные окружения
+ENV NODE_ENV=production
+ENV API_PORT=3001
+
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+
+CMD ["node", "dist/index.js"]

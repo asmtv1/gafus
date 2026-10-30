@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const VALID_ACCESS_SECRET = "a".repeat(32);
-const { userFindUnique } = vi.hoisted(() => ({ userFindUnique: vi.fn() }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: userFindUnique } } }));
+const { userFindUnique, refreshFindUnique } = vi.hoisted(() => ({ userFindUnique: vi.fn(), refreshFindUnique: vi.fn() }));
+vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: userFindUnique }, refreshToken: { findUnique: refreshFindUnique } } }));
 const VALID_REFRESH_SECRET = "b".repeat(32);
 
 const authUser = {
@@ -13,7 +13,8 @@ const authUser = {
 
 describe("jwt", () => {
   beforeEach(() => {
-    userFindUnique.mockResolvedValue({ registrationPending: false, sessionsRevokedAt: null });
+    userFindUnique.mockResolvedValue({ registrationPending: false, sessionsRevokedAt: null, role: "USER" });
+    refreshFindUnique.mockResolvedValue({ userId: "user-1", revokedAt: null, expiresAt: new Date(Date.now() + 60_000) });
     vi.stubEnv("JWT_SECRET", VALID_ACCESS_SECRET);
     vi.stubEnv("JWT_REFRESH_SECRET", VALID_REFRESH_SECRET);
     vi.resetModules();
@@ -41,6 +42,21 @@ describe("jwt", () => {
       expect(payload!.id).toBe("user-1");
       expect(payload!.username).toBe("testuser");
       expect(payload!.role).toBe("USER");
+    });
+
+    it("bound access JWT dies immediately when refresh session is revoked", async () => {
+      const { generateAccessToken, verifyAccessToken } = await import("./jwt");
+      const jwt = await generateAccessToken(authUser, "session-1");
+      expect(await verifyAccessToken(jwt)).not.toBeNull();
+      refreshFindUnique.mockResolvedValue({ userId: "user-1", revokedAt: new Date(), expiresAt: new Date(Date.now() + 60_000) });
+      expect(await verifyAccessToken(jwt)).toBeNull();
+    });
+
+    it("rejects JWT after DB role changes", async () => {
+      const { generateAccessToken, verifyAccessToken } = await import("./jwt");
+      const jwt = await generateAccessToken(authUser, "session-1");
+      userFindUnique.mockResolvedValue({ registrationPending: false, sessionsRevokedAt: null, role: "MODERATOR" });
+      expect(await verifyAccessToken(jwt)).toBeNull();
     });
 
     it("verifyAccessToken с невалидным токеном возвращает null", async () => {

@@ -1,4 +1,3 @@
-import { createFeedPlayback } from "./playback.js";
 import { FeedError, feedParse, feedListSchema, feedPostListSchema, feedReactionListSchema,
   feedCreatePostSchema, feedRevisionSchema, feedPublishSchema, feedCommentSchema, feedCommentEditSchema,
   feedReactionSchema, feedUploadSchema, feedCopyPhotoSchema, feedIdSchema, feedPollSaveSchema, feedPollVoteSchema,
@@ -64,7 +63,10 @@ function assertEmpty(body: unknown) {
     throw new FeedError("VALIDATION_ERROR", "Тело должно быть пустым объектом", 400);
 }
 function partsFromPath(path: string) {
-  if (path.length > 2048 || path.includes("\\")) throw new FeedError("NOT_FOUND", undefined, 404);
+  // Never normalize away empty interior segments: /posts//id could otherwise
+  // become the destructive /posts/id DELETE or a publish/revision mutation.
+  if (path.length > 2048 || path.includes("\\") || path.includes("//"))
+    throw new FeedError("NOT_FOUND", undefined, 404);
   try {
     return path.split("/").filter(Boolean).map(decodeURIComponent);
   } catch {
@@ -129,6 +131,8 @@ export async function dispatchFeedRequest(
   },
 ): Promise<unknown> {
   const method = request.method.toUpperCase();
+  if (process.env.GAFUS_LOCAL_READONLY_CDN === "enabled" && method !== "GET")
+    throw new FeedError("FEED_READONLY_LIVE_CDN", "Просмотр реальных медиа: изменения отключены", 405);
   if (!allowed.has(method)) throw new FeedError("VALIDATION_ERROR", "Метод не поддерживается", 405);
   const pathParts = partsFromPath(path), url = new URL(request.url);
   const [one, two, three] = pathParts;
@@ -272,21 +276,11 @@ export async function dispatchFeedRequest(
         throw new FeedError("NOT_FOUND", undefined, 404);
       if (!input || typeof input !== "object" || Array.isArray(input) ||
           Object.keys(input).length !== 1 || !("variant" in input) ||
-          !["thumb", "full", "poster"].includes(String(input.variant)))
+          !["thumb", "full", "poster", "video360", "video720", "video1080"].includes(String(input.variant)))
         throw new FeedError("VALIDATION_ERROR", "Недопустимый вариант файла", 400);
-      const { key } = await posts.fallbackSource(actorId, mediaId, input.variant as "thumb" | "full" | "poster");
+      const { key } = await posts.fallbackSource(actorId, mediaId, input.variant as "thumb" | "full" | "poster" | "video360" | "video720" | "video1080");
       const fallbackUrl = await signFeedCloudruFallback(key);
       return { url: fallbackUrl, source: "cloudru", expiresAt: new Date(Date.now() + 120_000).toISOString() };
-    }
-    if (three === "playback" && method === "POST") {
-      assertEmpty(input);
-      if (url.search) throw new FeedError("VALIDATION_ERROR", undefined, 400);
-      return playbackService(posts).ticket(actorId, mediaId);
-    }
-    if (three === "manifest" && method === "GET") {
-      const entries = [...url.searchParams];
-      if (entries.length !== 1 || entries[0]?.[0] !== "ticket") throw new FeedError("VALIDATION_ERROR", undefined, 400);
-      return playbackService(posts).manifest(mediaId, entries[0][1], actorId);
     }
   }
   if (len === 2 && one === "me" && two === "bookmarks" && method === "GET") return posts.list(actorId, parseQuery(url), true);
@@ -303,6 +297,10 @@ export async function dispatchFeedRequest(
     return posts.pending(actorId, parseQuery(url));
   if (is(1, "posts") && method === "POST")
     return posts.create(actorId, feedParse(feedCreatePostSchema, input));
+  if (len === 3 && one === "posts" && three === "draft-poll" && method === "GET") {
+    if (url.search) throw new FeedError("VALIDATION_ERROR", undefined, 400);
+    return pollActions.getDraftOptional(actorId, routeId(two!));
+  }
   if (len === 3 && one === "posts" && three === "poll") {
     if (url.search) throw new FeedError("VALIDATION_ERROR", undefined, 400);
     const postId = routeId(two!);
@@ -310,9 +308,40 @@ export async function dispatchFeedRequest(
     if (method === "PUT") return pollActions.save(actorId, postId, feedParse(feedPollSaveSchema, input));
     if (method === "DELETE") { assertEmpty(input); return pollActions.remove(actorId, postId); }
   }
-  if (len === 4 && one === "posts" && three === "poll" && pathParts[3] === "vote" && method === "POST") {
+  if (len === 6 && one === "posts" && three === "poll" &&
+      pathParts[3] === "options" && pathParts[5] === "voters" && method === "GET") {
+    const query = parseQuery(url);
+    if (query.pageSize > 20) throw new FeedError("VALIDATION_ERROR", undefined, 400);
+    if (!("listVoters" in pollActions) || typeof pollActions.listVoters !== "function")
+      throw new FeedError("INTERNAL_ERROR", undefined, 500);
+    return pollActions.listVoters(actorId, routeId(two!), routeId(pathParts[4]!), query);
+  }
+  if (len === 4 && one === "posts" && three === "poll" &&
+      pathParts[3] === "close" && method === "POST") {
     if (url.search) throw new FeedError("VALIDATION_ERROR", undefined, 400);
-    return pollActions.vote(actorId, routeId(two!), feedParse(feedPollVoteSchema, input));
+    assertEmpty(input);
+    if (!("close" in pollActions) || typeof pollActions.close !== "function")
+      throw new FeedError("INTERNAL_ERROR", undefined, 500);
+    return pollActions.close(actorId, routeId(two!));
+  }
+  if (len === 4 && one === "posts" && three === "poll" && pathParts[3] === "vote" &&
+    (method === "POST" || method === "PUT" || method === "DELETE")) {
+    if (url.search) throw new FeedError("VALIDATION_ERROR", undefined, 400);
+    const postId = routeId(two!);
+    if (method === "POST") return pollActions.vote(actorId, postId, feedParse(feedPollVoteSchema, input));
+    // The Core package's emitted .d.ts can lag source until the approved build.
+    // Narrow capabilities at runtime rather than silently casting the stale type.
+    if (method === "DELETE") {
+      assertEmpty(input);
+      if (!("cancelVote" in pollActions) || typeof pollActions.cancelVote !== "function") {
+        throw new FeedError("INTERNAL_ERROR", undefined, 500);
+      }
+      return pollActions.cancelVote(actorId, postId);
+    }
+    if (!("changeVote" in pollActions) || typeof pollActions.changeVote !== "function") {
+      throw new FeedError("INTERNAL_ERROR", undefined, 500);
+    }
+    return pollActions.changeVote(actorId, postId, feedParse(feedPollVoteSchema, input));
   }
   if (len >= 2 && one === "posts") {
     const id = routeId(two!);
@@ -387,36 +416,3 @@ export async function dispatchFeedRequest(
 }
 
 export { createFeedInternalDispatcher, dispatchFeedInternalRequest, FEED_INTERNAL_MAX_BODY_BYTES } from "./internal.js";
-
-function playbackService(posts: FeedService = service) {
-  if (!flag() || !storage.enabled) throw new FeedError("FEED_DISABLED", undefined, 503);
-  const key = Buffer.from(process.env.FEED_PLAYBACK_SECRET ?? process.env.FEED_INTERNAL_HMAC_SECRET ?? "", "utf8");
-  return createFeedPlayback({ posts, storage, key,
-    cdnHost: new URL(process.env.FEED_CDN_BASE_URL!).hostname,
-    fallbackSign: process.env.FEED_MEDIA_FALLBACK_ENABLED === "true"
-      ? (objectKey, ttl) => signFeedCloudruFallback(objectKey, ttl)
-      : undefined,
-  });
-}
-/** A narrowly scoped bearer ticket is required; this endpoint never serves sources or arbitrary keys. */
-export async function feedPlaybackResponse(request: Request): Promise<Response> {
-  try {
-    const url = new URL(request.url);
-    const match = /^\/api\/v1\/feed-playback\/([A-Za-z0-9_-]{1,128})$/.exec(url.pathname);
-    const source = url.searchParams.get("source");
-    const direct = source === "cloudru";
-    const validQuery = direct
-      ? [...url.searchParams].length === 2 && url.searchParams.has("ticket")
-      : source === null && [...url.searchParams].length === 1 && url.searchParams.has("ticket");
-    if (request.method !== "GET" || !match || !validQuery ||
-        (direct && process.env.FEED_MEDIA_FALLBACK_ENABLED !== "true"))
-      throw new FeedError("NOT_FOUND", undefined, 404);
-    const result = await playbackService().manifest(routeId(match[1]), url.searchParams.get("ticket")!, undefined,
-      direct ? "cloudru" : "cdn");
-    return new Response(result.playlist, { headers: { "Content-Type": "application/vnd.apple.mpegurl", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
-  } catch (error) {
-    const mapped = feedHttpError(error);
-    return Response.json(mapped.body, { status: mapped.status, headers: { "Cache-Control": "no-store" } });
-  }
-}
-export { createFeedPlayback } from "./playback.js";

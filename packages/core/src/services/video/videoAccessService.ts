@@ -86,17 +86,8 @@ export async function checkVideoAccess(params: CheckVideoAccessParams): Promise<
           if (!target) continue;
           const entitlement = await resolveCourseStepAccessTx(prisma, userId, target, now);
           if (entitlement.allowed) return true;
-          // Rewarded ads grant one occurrence's step, never a private course.
-          if (!target.isPrivate) {
-            const rewarded = await prisma.rewardedTargetAccess.findFirst({
-              where: {
-                userId, targetType: "COURSE_STEP", targetId: link.id,
-                expiresAt: { gt: now },
-              },
-              select: { id: true },
-            });
-            if (rewarded) return true;
-          }
+          // Never authorize lesson video from historical rewarded-ad rows.
+          // The common entitlement above is the only source of playback rights.
         }
       }
     }

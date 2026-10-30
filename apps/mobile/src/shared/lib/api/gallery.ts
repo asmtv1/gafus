@@ -1,13 +1,25 @@
-import { createGalleryClient, type GalleryTransport } from "@gafus/types";
+import { createGalleryClient } from "@gafus/types";
 import { apiClient } from "./client";
 
-export const galleryTransport: GalleryTransport = async <T>(
+export const galleryTransport = async <T>(
   path: string,
-  options: { method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE"; body?: unknown } = {},
+  options: {
+    method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+    body?: unknown;
+    requestGuard?: () => boolean;
+    // Non-idempotent owner mutations must never be repeated after 401 refresh.
+    skipAuthRefreshReplay?: boolean;
+  } = {},
 ) => {
-  const response = await apiClient<T>(`/api/v1/gallery/${path}`, { ...options, suppressSubscriptionPaywall: true });
+  const response = await apiClient<T>(`/api/v1/gallery/${path}`, {
+    ...options,
+    suppressSubscriptionPaywall: true,
+  });
   if (!response.success || response.data === undefined) {
-    const error = new Error(response.error ?? "Не удалось выполнить запрос галереи") as Error & { code?: string; details?: Record<string, unknown> };
+    const error = new Error(response.error ?? "Не удалось выполнить запрос галереи") as Error & {
+      code?: string;
+      details?: Record<string, unknown>;
+    };
     error.code = response.code;
     error.details = response.details;
     throw error;

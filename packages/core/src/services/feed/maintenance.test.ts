@@ -9,7 +9,8 @@ function dbFake(changed = true) {
   const postUpdateMany = vi.fn(async () => ({ count: changed ? 1 : 0 }));
   const tx = {
     feedUpload: { updateMany: uploadUpdateMany, findMany: vi.fn(async () => [{
-      sourceKey: "posts/u/p/incoming/upload_1/source.jpg", postExpiresAt: now,
+      sourceKey: "posts/u/p/incoming/upload_1/source.jpg",
+      postExpiresAt: now, reservationExpiresAt: new Date(now.getTime() + 3 * 60_000),
     }]) },
     feedMediaAsset: { updateMany: vi.fn(async () => ({ count: 1 })),
       findMany: vi.fn(async () => [{ id: "media_1", thumbKey: "posts/u/p/attachments/media_1/thumb.webp",

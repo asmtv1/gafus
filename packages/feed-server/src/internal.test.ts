@@ -11,7 +11,7 @@ function setup() {
   const deps = { key, nonces: { consume: vi.fn(async (id: string) => {
     if (seen.has(id)) return false; seen.add(id); return true;
   }) }, jobs: { renew: vi.fn(async () => ({ accepted: true })), claim: vi.fn(async () => []), complete: vi.fn(async () => ({ accepted: true })),
-    fail: vi.fn(async () => ({ accepted: true })) }, maintenance: { run: vi.fn(async () => ({ expired: 1, deleted: 0 })) } };
+    fail: vi.fn(async () => ({ accepted: true })) }, maintenance: { run: vi.fn(async () => ({ expired: 1, deleted: 0, orphaned: 0 })) } };
   return { deps, dispatch: createFeedInternalDispatcher(deps) };
 }
 function request(route = path, body = '{"batchSize":2}', extra: Record<string, string> = {}) {
@@ -45,8 +45,8 @@ describe("feed internal dispatch", () => {
     await expect(dispatch(request(), path)).rejects.toMatchObject({ status: 503 });
     expect(deps.jobs.claim).not.toHaveBeenCalled();
   });
-  it.each(['{"batchSize":21}', '{"batchSize":1,"extra":true}', '{"batchSize":"1"}', 'null', '{'])
-  ("rejects malformed signed commands %s", async body => {
+  it.each(['{"batchSize":21}', '{"batchSize":1,"extra":true}', '{"batchSize":"1"}', 'null', '{'])(
+    "rejects malformed signed commands %s", async body => {
     const { deps, dispatch } = setup();
     await expect(dispatch(request(path, body), path)).rejects.toMatchObject({ status: 400 });
     expect(deps.jobs.claim).not.toHaveBeenCalled();
@@ -68,6 +68,25 @@ describe("feed internal dispatch", () => {
     expect(await dispatch(request(route, JSON.stringify({ jobId: "job", attemptToken: token, output })), route)).toEqual({ accepted: true });
     expect(deps.jobs.complete).toHaveBeenCalledWith("job", token, output);
   });
+  it("accepts MP4 completion with bounded rendition list; rejects overflow", async () => {
+    const { deps, dispatch } = setup();
+    const route = "/internal/feed/jobs/complete";
+    const base = { width: 1280, height: 720, durationSeconds: 120,
+      posterKey: "media/v2/m/v1/poster.webp",
+      mp4Keys: ["media/v2/m/v1/video/360.mp4", "media/v2/m/v1/video/720.mp4"],
+    };
+    expect(await dispatch(request(route, JSON.stringify({ jobId: "job", attemptToken: token,
+      output: base })), route)).toEqual({ accepted: true });
+    expect(deps.jobs.complete).toHaveBeenCalledWith("job", token, base);
+    for (const invalid of [{ ...base, durationSeconds: 121 },
+      { ...base, mp4Keys: [...base.mp4Keys, "c", "d"] },
+      { ...base, durationSeconds: 0 }]) {
+      const before = deps.jobs.complete.mock.calls.length;
+      await expect(dispatch(request(route, JSON.stringify({ jobId: "job", attemptToken: token,
+        output: invalid })), route)).rejects.toMatchObject({ status: 400 });
+      expect(deps.jobs.complete).toHaveBeenCalledTimes(before);
+    }
+  });
   it("passes failure and rejects unbounded error details", async () => {
     const { deps, dispatch } = setup(); const route = "/internal/feed/jobs/fail";
     await dispatch(request(route, JSON.stringify({ jobId: "job", attemptToken: token, code: "MEDIA_PROCESSING_FAILED" })), route);
@@ -77,7 +96,7 @@ describe("feed internal dispatch", () => {
   it("allows maintenance with feature flags disabled", async () => {
     vi.stubEnv("FEED_ENABLED", "false"); vi.stubEnv("FEED_PROCESSOR_READY", "false");
     const { deps, dispatch } = setup(); const route = "/internal/feed/maintenance";
-    expect(await dispatch(request(route), route)).toEqual({ expired: 1, deleted: 0 });
+    expect(await dispatch(request(route), route)).toEqual({ expired: 1, deleted: 0, orphaned: 0 });
     expect(deps.maintenance.run).toHaveBeenCalledWith(2);
   });
 });

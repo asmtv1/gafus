@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { createWorkerLogger } from "@gafus/logger";
 import { renderAppSubscriptionMetricsPrometheus } from "./app-subscription-metrics";
 import { renderMailDeliveryMetricsPrometheus } from "./mail-delivery-monitor";
+import { chat2PollIsFresh, hasChat2ReadinessKey } from "./chat2-readiness";
 
 const HEALTH_BODY = '{"ok":true}';
 
@@ -18,6 +19,18 @@ export function startHealthServer(): Server {
     const method = req.method ?? "";
     const path = (req.url ?? "").split("?")[0];
 
+    // Only reachable within the private worker network and requires a shared
+    // server-only broker key. Never publish a readiness result for a guest.
+    if (path === "/internal/chat2/ready") {
+      const authenticated = method === "GET" &&
+        hasChat2ReadinessKey(req.headers["x-chat2-readiness-key"]);
+      const ready = authenticated && chat2PollIsFresh();
+      res.writeHead(!authenticated ? 404 : ready ? 200 : 503, {
+        "Content-Type": "application/json", "Cache-Control": "no-store",
+      });
+      res.end(ready ? '{"ready":true}' : '{"ready":false}');
+      return;
+    }
     if ((method === "GET" || method === "HEAD") && path === "/health") {
       res.writeHead(200, {
         "Content-Type": "application/json",

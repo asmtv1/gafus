@@ -30,7 +30,7 @@ describe("consultationsApi", () => {
     await consultationsApi.verifySlotFree("trainer-1", "slot-1");
     await consultationsApi.book({
       slotId: "slot-1",
-      idempotencyKey: "idem-1",
+      idempotencyKey: "16a7a49f-16a7-4ed3-8c8b-4823c61f4821",
       clientOwnerName: "Анна",
       clientPhone: "+79990000000",
       petName: "Бим",
@@ -50,7 +50,7 @@ describe("consultationsApi", () => {
       method: "POST",
       body: {
         slotId: "slot-1",
-        idempotencyKey: "idem-1",
+        idempotencyKey: "16a7a49f-16a7-4ed3-8c8b-4823c61f4821",
         clientOwnerName: "Анна",
         clientPhone: "+79990000000",
         petName: "Бим",

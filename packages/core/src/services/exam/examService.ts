@@ -179,11 +179,24 @@ const examResultDataSelect = {
 function parseExamTestAnswers(value: unknown): Record<string, number> | null {
   if (!value) return null;
   try {
-    return typeof value === "string"
-      ? (JSON.parse(value) as Record<string, number>)
-      : (value as Record<string, number>);
-  } catch (error) {
-    logger.error("Ошибка парсинга testAnswers", error as Error);
+    const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+
+    const prototype: unknown = Object.getPrototypeOf(parsed);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+
+    const answers = parsed as Record<string, unknown>;
+    if (
+      !Object.values(answers).every(
+        (answer) => typeof answer === "number" && Number.isFinite(answer),
+      )
+    ) {
+      return null;
+    }
+    return answers as Record<string, number>;
+  } catch {
+    // Parsing errors can include stored answers; never log their raw contents.
+    logger.error("Ошибка парсинга testAnswers");
     return null;
   }
 }
@@ -1094,7 +1107,10 @@ const EXAM_RESULTS_INCLUDE = {
           dayOnCourse: {
             include: {
               day: true,
-              course: true,
+              // Only the exact fields in ExamResultWithDetails are required.
+              // A full Course selection would read the newer version column
+              // even in an old, otherwise compatible exam-result database.
+              course: { select: { id: true, name: true, type: true } },
             },
           },
         },

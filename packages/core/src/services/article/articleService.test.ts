@@ -12,6 +12,7 @@ import {
 } from "./articleService";
 
 const mockArticleFindMany = vi.fn();
+const mockGafusAccessFindMany = vi.fn();
 const mockArticleFindUnique = vi.fn();
 const mockArticleCreate = vi.fn();
 const mockArticleUpdate = vi.fn();
@@ -47,6 +48,9 @@ vi.mock("@gafus/prisma", () => ({
       update: (...args: unknown[]) => mockArticleUpdate(...args),
       delete: (...args: unknown[]) => mockArticleDelete(...args),
       updateMany: (...args: unknown[]) => mockArticleUpdateMany(...args),
+    },
+    gafusTargetAccess: {
+      findMany: (...args: unknown[]) => mockGafusAccessFindMany(...args),
     },
     articleViewer: {
       create: (...args: unknown[]) => mockArticleViewerCreate(...args),
@@ -106,6 +110,7 @@ function listRow(overrides: Record<string, unknown> = {}) {
 describe("getArticles", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGafusAccessFindMany.mockResolvedValue([]);
   });
 
   it("возвращает список DTO", async () => {
@@ -134,6 +139,23 @@ describe("getArticles", () => {
       expect(result.data[0].imageUrls).toEqual(["preview.jpg"]);
       expect(result.data[0].hasAccess).toBe(false);
     }
+  });
+
+  it("one individually unlocked article is present and readable in the catalog", async () => {
+    mockArticleFindMany.mockResolvedValue([
+      listRow({ id: "a1", videoUrl: "https://example.com/a1.mp4" }),
+      listRow({ id: "a2", slug: "second" }),
+    ]);
+    mockGafusAccessFindMany.mockResolvedValue([{ targetKey: "article:a1" }]);
+    const result = await getArticles("viewer");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.map(article => article.hasAccess)).toEqual([true, false]);
+      expect(result.data[0]?.videoUrl).toBe("https://example.com/a1.mp4");
+    }
+    expect(mockGafusAccessFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ userId: "viewer", targetType: "ARTICLE" }),
+    }));
   });
 
   it("subscribers receive complete article media in the catalog", async () => {

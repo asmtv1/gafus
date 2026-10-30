@@ -30,7 +30,6 @@ import { useAuthStore } from "@/shared/stores";
 import { COLORS } from "@/shared/config";
 import { useAppFonts } from "@/shared/hooks/useAppFonts";
 import { warmUpYandexMobileAds } from "@/features/rewarded-ads";
-import { warmUpLoadingMascot } from "@/shared/components/ui/loadingMascotAssets";
 import { StartupLoader } from "@/shared/components/StartupLoader";
 
 // Initialize before React mounts so startup and provider errors are captured.
@@ -110,21 +109,9 @@ export default function RootLayout() {
 
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const { fontsReady, fontError } = useAppFonts();
-  const [loadingMascotReady, setLoadingMascotReady] = useState(false);
   const authLoading = useAuthStore((s) => s.isLoading);
   const [startupVisible, setStartupVisible] = useState(true);
   const [startupImageReady, setStartupImageReady] = useState(false);
-
-  useEffect(() => {
-    void warmUpLoadingMascot()
-      .catch((error) => {
-        reportClientError(error instanceof Error ? error : new Error(String(error)), {
-          severity: "warning",
-          issueKey: "LoadingMascotWarmUp",
-        });
-      })
-      .finally(() => setLoadingMascotReady(true));
-  }, []);
 
   useEffect(() => {
     if (startupImageReady) {
@@ -133,10 +120,10 @@ export default function RootLayout() {
   }, [startupImageReady]);
 
   useEffect(() => {
-    if ((fontsReady || fontError) && loadingMascotReady && !authLoading && startupImageReady) {
+    if ((fontsReady || fontError) && !authLoading && startupImageReady) {
       setStartupVisible(false);
     }
-  }, [fontsReady, fontError, loadingMascotReady, authLoading, startupImageReady]);
+  }, [fontsReady, fontError, authLoading, startupImageReady]);
 
   useEffect(() => {
     void checkAuth();
@@ -170,7 +157,7 @@ export default function RootLayout() {
   }, []);
 
   // Native fonts are embedded at build time; this gate only matters on web.
-  if ((!fontsReady && !fontError) || !loadingMascotReady) {
+  if (!fontsReady && !fontError) {
     return <StartupLoader onReady={() => setStartupImageReady(true)} />;
   }
 

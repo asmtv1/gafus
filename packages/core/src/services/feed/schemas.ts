@@ -20,13 +20,20 @@ export const feedUploadSchema = z.object({
   declaredMime: z.enum([...FEED_PHOTO_MIME_TYPES, ...FEED_VIDEO_MIME_TYPES] as const),
   declaredBytes: z.number().int().positive().max(L.videoBytes),
   clientRequestId: requestId,
+  purpose: z.literal("comment").optional(),
 }).strict().superRefine((v, ctx) => {
   const types: readonly string[] = v.kind === "photo" ? FEED_PHOTO_MIME_TYPES : FEED_VIDEO_MIME_TYPES;
   if (!types.includes(v.declaredMime)) ctx.addIssue({ code: "custom", message: "Incompatible format", path: ["declaredMime"] });
   if (v.kind === "photo" && v.declaredBytes > L.photoBytes) ctx.addIssue({ code: "custom", message: "UPLOAD_TOO_LARGE", path: ["declaredBytes"] });
 });
 export const feedCopyPhotoSchema = z.object({ photoId: feedIdSchema, clientRequestId: requestId }).strict();
-export const feedCommentSchema = z.object({ text: commentText, replyToId: feedIdSchema.nullable().optional(), clientRequestId: requestId }).strict();
+export const feedCommentSchema = z.object({
+  text: z.string().trim().refine(value => countFeedCharacters(value) <= L.commentCharacters, "COMMENT_TOO_LONG"),
+  mediaIds: z.array(feedIdSchema).max(L.maxCommentAttachments)
+    .refine(ids => new Set(ids).size === ids.length, "Duplicate comment media").optional(),
+  replyToId: feedIdSchema.nullable().optional(),
+  clientRequestId: requestId,
+}).strict().refine(value => !!value.text || !!value.mediaIds?.length, "EMPTY_COMMENT");
 export const feedCommentEditSchema = z.object({ text: commentText }).strict();
 export const feedReactionSchema = z.object({ reaction: z.enum(FEED_REACTIONS) }).strict();
 export const feedPollSaveSchema = z.object({

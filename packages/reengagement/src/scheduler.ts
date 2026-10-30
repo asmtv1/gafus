@@ -72,6 +72,9 @@ async function addNotificationJob(
     };
 
     await reengagementQueue.add("send-reengagement-notification", jobData, {
+      // BullMQ deduplicates concurrent schedulers while a campaign/level job exists.
+      // Avoid ':' in the ID: BullMQ reserves that delimiter internally.
+      jobId: `reengagement-${campaignId}-level-${level}`,
       attempts: 3,
       backoff: {
         type: "exponential",

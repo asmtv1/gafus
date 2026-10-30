@@ -3,15 +3,16 @@ const prefix = `albums/(${id})/(${id})`;
 export const sourcePattern = new RegExp(`^${prefix}/incoming/(${id})/source\\.(jpg|png|webp)$`);
 export const finalPattern = new RegExp(`^${prefix}/photos/(${id})/(thumb|full)\\.webp$`);
 const attemptPattern = new RegExp(`^${prefix}/incoming/(${id})/attempts/(${id})/(thumb|full)\\.webp$`);
+export const v2FinalPattern = new RegExp(`^gallery/(${id})/media/(${id})/v2/(thumb|full)\\.webp$`);
 const vetPrefix = `users/${id}/pets/${id}/vet-visits/${id}/${id}`;
 export const vetPreviewPattern = new RegExp(`^${vetPrefix}/thumb\\.webp$`);
 const vetOriginalPattern = new RegExp(`^${vetPrefix}/original\\.(jpg|png|webp|pdf)$`);
 export function assertGalleryKey(key: string): void {
-  if (typeof key !== 'string' || !(sourcePattern.test(key) || finalPattern.test(key) || attemptPattern.test(key) || vetPreviewPattern.test(key) || vetOriginalPattern.test(key)))
+  if (typeof key !== 'string' || !(sourcePattern.test(key) || finalPattern.test(key) || v2FinalPattern.test(key) || attemptPattern.test(key) || vetPreviewPattern.test(key) || vetOriginalPattern.test(key)))
     throw new Error('UNTRUSTED_KEY');
 }
 export function assertFinalKey(key: string): void {
-  if (!finalPattern.test(key) && !vetPreviewPattern.test(key)) throw new Error('UNTRUSTED_FINAL_KEY');
+  if (!finalPattern.test(key) && !v2FinalPattern.test(key) && !vetPreviewPattern.test(key)) throw new Error('UNTRUSTED_FINAL_KEY');
 }
 export function sourceUploadId(key: string): string | null { return sourcePattern.exec(key)?.[3] ?? null; }
 /** Validate the raw route before URL parsing or decoding, which could normalize traversal. */

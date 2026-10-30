@@ -1,0 +1,173 @@
+/* WEB3 source-proven sky composite: original Next and Vite serve the
+ * identical site-background.css and image SHA256. The Vite :root background
+ * shorthand overwrote --app-background-color (#e6e2d8), causing uniform
+ * +11/+16/+21 RGB error in the 16 actual original Next/Vite route pairs.
+ * Fix only the matching WEB3 page, never other agents' global background. */
+html:root:has(.next-articles-index),
+html:root:has(.article-detail) {
+  background-color: var(--app-background-color, #e6e2d8);
+}
+
+/* WEB3 confirmed *loaded* original Next vs Vite on one SQL fixture,
+ * desktop 1280x800 + mobile 390x844 (2026-10-26, same-run pairs).
+ * Overwrite only route-specific global .collection-section and title rules:
+ * the shared routes keep their default shell and general typography. */
+/* /articles should use more of the wide screen: old 1280px shell left
+ * 231px gutters on 1644px screens. Widen only the article catalog shell;
+ * article details retain their independently verified 1280px shell. */
+.gafus-app .shell:has(.next-articles-index) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1500px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0;
+}
+.gafus-app .shell:has(.article-detail) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0;
+}
+
+/* Next main directly contains its page title, then the original article grid.
+ * No global .collection-section 16px inset or legacy 1200px maximum. */
+.gafus-app .shell .collection-section.next-articles-index {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0 auto;
+  /* 1644px: ~96px side margins instead of 231px; 1280px: ~19px
+   * instead of 38px. Original card 16:9 ratio and 22px gaps unchanged. */
+  padding: 0 clamp(12px, 1.5vw, 24px) 40px;
+}
+
+/* Next /articles page: the page h1 is a sibling BEFORE the catalog,
+ * not inside its section. Reproduce courses.module.css title spacing,
+ * keeping the original 58/38/30px title offset rather than shrinking it
+ * or allowing the outer collection-section margin to double the gap. */
+.gafus-app .shell #main-content > h1.next-articles-heading {
+  margin: 58px 0 34px;
+  color: #352e2e;
+  font: 400 80px/1 var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  letter-spacing: 0;
+  text-align: center;
+}
+@media (max-width: 768px) {
+  .gafus-app .shell #main-content > h1.next-articles-heading {
+    margin: 38px 0 26px;
+    font-size: 64px;
+  }
+}
+@media (max-width: 480px) {
+  .gafus-app .shell #main-content > h1.next-articles-heading {
+    margin: 30px 0 22px;
+    font-size: 52px;
+  }
+}
+
+/* Next ArticleDetailClient.module.css: exact outer 860px surface, not
+ * 828px after the generic .collection-section adds 16px on each side. */
+.gafus-app .shell .collection-section.article-detail {
+  box-sizing: border-box;
+  width: min(100% - 32px, 860px);
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 0 56px;
+}
+
+/* Next articles.module.css uses 4 columns at >=1700px, otherwise 3,
+ * dropping to 2/1 at 1150/720px. The more-specific Vite override had
+ * inadvertently frozen the grid at 3 columns even on wide desktops.
+ * Preserve the original 22px gap and its exact responsive breakpoints. */
+.gafus-app .shell .collection-section.next-articles-index .article-catalog-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+@media (min-width: 1700px) {
+  .gafus-app .shell .collection-section.next-articles-index .article-catalog-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1150px) {
+  .gafus-app .shell .collection-section.next-articles-index .article-catalog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .gafus-app .shell .collection-section.next-articles-index .article-catalog-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Next/Image fill renders the cover out of the normal grid flow.
+ * Vite's previous <img> was an in-flow grid child and its intrinsic height
+ * could change the artwork box/card rows. Reproduce fill without changing
+ * the original, checksum-identical ArticleCard.module.css. The 16:9 frame
+ * and `contain` policy remain exactly those of the Next source. */
+.gafus-app .shell .next-articles-index .article-catalog-cover {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+.gafus-app .shell .next-articles-index .article-catalog-cover > img.article-catalog-cover-image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+/* The shared Vite brand-parity stylesheet changes every h1 into Impact.
+ * Original Next article h1 is *Montserrat*, size 48px desktop / 31.2px
+ * mobile and left aligned. Preserve source only on this article route. */
+.gafus-app .shell .article-detail-card > header > h1 {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  text-align: left;
+  margin: 0 0 10px;
+}
+
+@media (max-width: 600px) {
+  .gafus-app .shell .collection-section.next-articles-index {
+    padding: 0 8px 28px;
+  }
+  .gafus-app .shell .collection-section.article-detail {
+    width: min(100% - 20px, 860px);
+    padding: 14px 0 56px;
+  }
+  .gafus-app .shell .article-detail-card > header > h1 {
+    font-size: clamp(1.55rem, 8vw, 2.2rem);
+  }
+}
+
+/* Original Next ArticleDetailClient.module.css keeps article-body heading
+ * typography separate from the page heading (Montserrat 800, 1.25 line-height).
+ * The global Vite Impact h1 and generic article-card h2 otherwise enlarge
+ * Markdown/HTML h1 and h2 to the page-title 48px at desktop. */
+.gafus-app .shell .article-detail-card :is(.article-body, .article-description) :is(h1, h2, h3, h4, h5, h6) {
+  margin: 1.5em 0 .55em;
+  color: var(--text-primary);
+  font-family: var(--font-montserrat, var(--font-sans-fallback));
+  font-weight: 800;
+  font-style: normal;
+  line-height: 1.25;
+  letter-spacing: normal;
+  text-align: left;
+}
+.gafus-app .shell .article-detail-card :is(.article-body, .article-description) h1 { font-size: 2em; }
+.gafus-app .shell .article-detail-card :is(.article-body, .article-description) h2 { font-size: 1.5rem; }
+.gafus-app .shell .article-detail-card :is(.article-body, .article-description) h3 { font-size: 1.2rem; }
+.gafus-app .shell .article-detail-card :is(.article-body, .article-description) h4 { font-size: 1em; }
+.gafus-app .shell .article-detail-card :is(.article-body, .article-description) h5 { font-size: .83em; }
+.gafus-app .shell .article-detail-card :is(.article-body, .article-description) h6 { font-size: .67em; }

@@ -18,6 +18,7 @@ export {
 export {
   coursesApi,
   type Course,
+  type CourseListItem,
   type CoursesResponse,
   type CourseFilters,
   type CourseReview,
@@ -31,6 +32,7 @@ export {
   type StepContent,
   type TrainingDay,
   type TrainingDaysResponse,
+  type PublicPaidCourseOutline,
   type UserStep,
   type TrainingDayResponse,
   type StepActionParams,

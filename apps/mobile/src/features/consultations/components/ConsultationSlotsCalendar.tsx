@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +26,8 @@ import { consultationsApi, isSubscriptionRequiredCode } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import {
   openConsultationAccessPaywall,
   showConsultationBookingNotIncludedAlert,
@@ -56,17 +58,65 @@ function slotStatusLabel(status: string): string {
 /**
  * Календарь слотов и выбор времени — паритет с web (CynologistSlotsClient).
  */
-export function ConsultationSlotsCalendar({
+type CalendarActor = { ownerId: string; authEpoch: string };
+
+/** One trainer-calendar instance per verified native actor and epoch. */
+export function ConsultationSlotsCalendar(props: ConsultationSlotsCalendarProps) {
+  const ownerId = useAuthStore((state) =>
+    state.isAuthenticated && !state.isLoading ? state.user?.id : null,
+  );
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const actor: CalendarActor | null =
+    ownerId && binding?.principalId === ownerId && binding.authEpoch
+      ? { ownerId, authEpoch: binding.authEpoch }
+      : null;
+  return (
+    <ActorSlotsCalendar
+      key={`${props.cynologistUserId}:${actor?.ownerId ?? "guest"}:${actor?.authEpoch ?? "unverified"}`}
+      {...props}
+      actor={actor}
+    />
+  );
+}
+
+function ActorSlotsCalendar({
   cynologistUserId,
   slotDurationMin,
   displayName,
-}: ConsultationSlotsCalendarProps) {
+  actor,
+}: ConsultationSlotsCalendarProps & { actor: CalendarActor | null }) {
   const router = useRouter();
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const [selectedDayKey, setSelectedDayKey] = useState("");
   const [selectedMonthKey, setSelectedMonthKey] = useState("");
   const [verifyingSlotId, setVerifyingSlotId] = useState<string | null>(null);
+  const actorOwnerId = actor?.ownerId;
+  const actorEpoch = actor?.authEpoch;
+  const mounted = useRef(true);
+  const flight = useRef(false);
+  const unknown = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const currentActor = useCallback(() => {
+    const state = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    return (
+      mounted.current &&
+      !!actorOwnerId &&
+      !!actorEpoch &&
+      !!cynologistUserId &&
+      state.isAuthenticated &&
+      !state.isLoading &&
+      state.user?.id === actorOwnerId &&
+      binding?.principalId === actorOwnerId &&
+      binding.authEpoch === actorEpoch
+    );
+  }, [actorOwnerId, actorEpoch, cynologistUserId]);
 
   const { fromDate, toDate, fromIso, toIso } = useMemo(() => {
     const window = consultationBookingCalendarWindowMsk(14);
@@ -81,28 +131,53 @@ export function ConsultationSlotsCalendar({
   const slotsQuery = useQuery({
     refetchInterval: 60_000,
     staleTime: 0,
-    queryKey: ["consultations", "slotsCalendar", cynologistUserId, fromIso, toIso],
+    queryKey: [
+      "consultations",
+      "slotsCalendar",
+      cynologistUserId,
+      actor?.ownerId,
+      actor?.authEpoch,
+      fromIso,
+      toIso,
+    ],
+    enabled: actor !== null && !!cynologistUserId,
+    retry: false,
     queryFn: async () => {
+      if (!currentActor()) throw new Error("CONSULTATION_CALENDAR_SESSION_CHANGED");
       const res = await consultationsApi.getSlotsCalendar(cynologistUserId, fromIso, toIso);
+      if (!currentActor()) throw new Error("CONSULTATION_CALENDAR_SESSION_CHANGED");
       if (!res.success || !res.data) {
         if (isSubscriptionRequiredCode(res.code)) {
           openConsultationAccessPaywall();
           return { slots: EMPTY_SLOTS, dayOffDates: EMPTY_DAY_OFF_DATES, accessRequired: true };
         }
-        throw new Error(res.error ?? "Ошибка загрузки слотов");
+        throw new Error("CONSULTATION_CALENDAR_READ_UNKNOWN");
       }
       const raw = res.data.filter((s) => s.status !== "BLOCKED");
       const dayOffDates = Array.isArray(res.dayOffDates) ? res.dayOffDates : [];
       return {
-        slots: raw, dayOffDates, accessRequired: false,
+        slots: raw,
+        dayOffDates,
+        accessRequired: false,
         bookingEligibility: res.bookingEligibility,
       };
     },
   });
 
-  useFocusEffect(useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ["consultations", "slotsCalendar", cynologistUserId] });
-  }, [queryClient, cynologistUserId]));
+  useFocusEffect(
+    useCallback(() => {
+      if (!currentActor()) return;
+      void queryClient.invalidateQueries({
+        queryKey: [
+          "consultations",
+          "slotsCalendar",
+          cynologistUserId,
+          actor?.ownerId,
+          actor?.authEpoch,
+        ],
+      });
+    }, [queryClient, cynologistUserId, actor?.ownerId, actor?.authEpoch, currentActor]),
+  );
 
   const slots = slotsQuery.data?.slots ?? EMPTY_SLOTS;
   const dayOffDates = slotsQuery.data?.dayOffDates ?? EMPTY_DAY_OFF_DATES;
@@ -180,6 +255,7 @@ export function ConsultationSlotsCalendar({
 
   const openConfirm = useCallback(
     (slot: ConsultationSlotDto) => {
+      if (!currentActor()) return;
       const qs = new URLSearchParams({
         cynologistUserId,
         slotId: slot.id,
@@ -189,12 +265,21 @@ export function ConsultationSlotsCalendar({
       });
       router.push(`/consultations/booking-confirm?${qs.toString()}` as Href);
     },
-    [cynologistUserId, displayName, router],
+    [cynologistUserId, displayName, router, currentActor],
   );
 
   const verifyAndBook = useCallback(
     async (slot: ConsultationSlotDto) => {
-      if (slot.status !== "FREE") return;
+      if (
+        !currentActor() ||
+        flight.current ||
+        unknown.current ||
+        slot.status !== "FREE" ||
+        slotsQuery.data?.bookingEligibility?.canBook === false ||
+        !visibleSlots.some((item) => item.id === slot.id && item.status === "FREE")
+      )
+        return;
+      flight.current = true;
       hapticFeedback.medium();
       trackEvent({
         eventName: "button_click",
@@ -205,7 +290,9 @@ export function ConsultationSlotsCalendar({
       setVerifyingSlotId(slot.id);
       try {
         const res = await consultationsApi.verifySlotFree(cynologistUserId, slot.id);
-        if (res.success) {
+        if (!currentActor()) return;
+        // Existing Hono GET /verify ACK is {success:true} with no data payload.
+        if (res.success === true) {
           trackEvent({
             eventName: "button_click",
             platform: "mobile",
@@ -216,7 +303,7 @@ export function ConsultationSlotsCalendar({
           return;
         }
         if (isSubscriptionRequiredCode(res.code)) {
-          openConsultationAccessPaywall();
+          if (currentActor()) openConsultationAccessPaywall();
           return;
         }
         if (res.code === "CONSULTATION_BOOKING_NOT_INCLUDED") {
@@ -229,23 +316,53 @@ export function ConsultationSlotsCalendar({
           res.error?.toLowerCase().includes("занят")
         ) {
           Alert.alert("Слот занят", "Извините, этот слот уже занят. Выберите другое время.");
-          await queryClient.invalidateQueries({
-            queryKey: ["consultations", "slotsCalendar", cynologistUserId],
-          });
+          try {
+            await queryClient.invalidateQueries({
+              queryKey: [
+                "consultations",
+                "slotsCalendar",
+                cynologistUserId,
+                actor?.ownerId,
+                actor?.authEpoch,
+              ],
+            });
+          } catch {
+            if (currentActor())
+              reportClientError(new Error("CONSULTATION_CALENDAR_REFRESH_FAILED"), {
+                issueKey: "consultation",
+                keys: { screen: "slots", op: "refresh" },
+              });
+          }
           return;
         }
-        Alert.alert("Не удалось проверить слот", res.error ?? "Попробуйте ещё раз.");
-      } catch (e) {
-        reportClientError(e instanceof Error ? e : new Error(String(e)), {
+        unknown.current = true;
+        Alert.alert(
+          "Не удалось проверить слот",
+          "Результат проверки неизвестен. Обновите календарь перед новой попыткой.",
+        );
+      } catch {
+        if (!currentActor()) return;
+        unknown.current = true;
+        reportClientError(new Error("CONSULTATION_SLOT_VERIFY_UNCONFIRMED"), {
           issueKey: "consultation",
           keys: { screen: "slots", op: "verify" },
         });
-        Alert.alert("Ошибка", "Не удалось проверить слот.");
+        Alert.alert("Ошибка", "Результат проверки слота неизвестен.");
       } finally {
-        setVerifyingSlotId(null);
+        flight.current = false;
+        if (currentActor()) setVerifyingSlotId(null);
       }
     },
-    [cynologistUserId, openConfirm, queryClient],
+    [
+      cynologistUserId,
+      openConfirm,
+      queryClient,
+      slotsQuery.data,
+      visibleSlots,
+      actor?.ownerId,
+      actor?.authEpoch,
+      currentActor,
+    ],
   );
 
   useEffect(() => {
@@ -261,10 +378,16 @@ export function ConsultationSlotsCalendar({
   if (!slotsQuery.isPending && bookingEligibility && !bookingEligibility.canBook) {
     return (
       <ScrollView contentContainerStyle={{ padding: SPACING.md, gap: SPACING.md }}>
-        <Text accessibilityRole="alert" style={{ fontFamily: FONTS.montserrat, fontSize: 16, lineHeight: 24 }}>
+        <Text
+          accessibilityRole="alert"
+          style={{ fontFamily: FONTS.montserrat, fontSize: 16, lineHeight: 24 }}
+        >
           {bookingEligibility.message}
         </Text>
-        <Button label="Мои консультации" onPress={() => router.push("/consultations/mine" as Href)} />
+        <Button
+          label="Мои консультации"
+          onPress={() => router.push("/consultations/mine" as Href)}
+        />
         <Button label="Обновить" onPress={() => void slotsQuery.refetch()} />
       </ScrollView>
     );
@@ -277,9 +400,7 @@ export function ConsultationSlotsCalendar({
         <Text style={styles.metaPill}>Длительность консультации: до {slotDurationMin} мин</Text>
       </View>
 
-      {slotsQuery.isLoading ? (
-        <Loading message="Загрузка свободного времени…" />
-      ) : null}
+      {slotsQuery.isLoading ? <Loading message="Загрузка свободного времени…" /> : null}
       {slotsQuery.isError ? <Text style={styles.error}>Не удалось загрузить слоты.</Text> : null}
 
       {slotsQuery.data?.accessRequired ? (
@@ -421,14 +542,28 @@ export function ConsultationSlotsCalendar({
                       animatedPress
                       haptic={false}
                       loading={isVerifying}
-                      disabled={!isFree || isVerifying}
+                      disabled={
+                        !isFree ||
+                        isVerifying ||
+                        flight.current ||
+                        unknown.current ||
+                        !currentActor()
+                      }
                       onPress={() => void verifyAndBook(slot)}
                       accessibilityLabel={
                         isFree
                           ? `Выбрать слот ${formatTimeMsk(start)} — ${formatTimeMsk(end)}`
                           : `Слот ${formatTimeMsk(start)} — ${formatTimeMsk(end)} недоступен`
                       }
-                      accessibilityState={{ disabled: !isFree || isVerifying, busy: isVerifying }}
+                      accessibilityState={{
+                        disabled:
+                          !isFree ||
+                          isVerifying ||
+                          flight.current ||
+                          unknown.current ||
+                          !currentActor(),
+                        busy: isVerifying,
+                      }}
                     />
                   </View>
                 );

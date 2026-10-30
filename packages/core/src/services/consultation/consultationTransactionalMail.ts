@@ -4,13 +4,14 @@
 import type { ConsultationEmailType, ConsultationPetGender } from "@gafus/prisma";
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
+import type { TransactionalMailDisposition } from "@gafus/mailer";
 
 import {
   ctaButtonHtml,
   escapeHtml,
   paragraphHtml,
   plainLinkFallbackHtml,
-  sendTransactionalEmailWithLayout,
+  sendTransactionalEmailWithLayoutDisposition,
 } from "../mail/transactionalEmailLayout";
 import { getPublicWebBaseUrl } from "../mail/publicWebBaseUrl";
 import { formatConsultationPetGenderRu } from "./consultationIntakeDisplay";
@@ -689,7 +690,7 @@ function buildPayload(
 export async function sendConsultationEmailFromLog(
   emailLogId: string,
   type: ConsultationEmailType,
-): Promise<void> {
+): Promise<TransactionalMailDisposition> {
   const b = await loadBookingForLog(emailLogId);
   const to = recipientForType(b, type);
   if (!to) {
@@ -707,16 +708,16 @@ export async function sendConsultationEmailFromLog(
     const isTimeCritical = type === "CLIENT_CONSULTATION_REMINDER_30M" ||
       type === "TRAINER_CONSULTATION_REMINDER_30M" ||
       type === "CLIENT_CONSULTATION_START";
-    await sendTransactionalEmailWithLayout({
+    return await sendTransactionalEmailWithLayoutDisposition({
       to, subject, text, blocksHtml, deliveryKey: `consultation-${emailLogId}`,
       category: "consultation",
       maxQueueAgeMs: isTimeCritical ? 10 * 60_000 : 4 * 60 * 60_000,
     });
   } catch (e) {
+    // Provider errors can embed recipient email, tokens and request payloads.
     logger.error(
       "Ошибка отправки письма по консультации",
-      e instanceof Error ? e : new Error(String(e)),
-      { emailLogId, type, bookingId: b.id },
+      new Error("CONSULTATION_MAIL_TRANSPORT_FAILED"),
     );
     throw e;
   }

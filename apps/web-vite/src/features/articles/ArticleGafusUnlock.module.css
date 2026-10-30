@@ -1,0 +1,25 @@
+.card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #d9dec8;
+  border-radius: 16px;
+  background: #f7f8f1;
+  padding: 20px;
+  margin: 20px 0;
+  color: #27301d;
+}
+.card strong { font-size: 1.12rem; }
+.card p { margin: 7px 0 0; line-height: 1.5; }
+.action { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.action span { color: #4f583d; }
+.action small { width: 100%; color: #776144; }
+.verify {
+  background: transparent;
+  border: 0;
+  padding: 7px 0;
+  color: #596a3e;
+  text-decoration: underline;
+  cursor: pointer;
+  justify-self: start;
+}
+.error { color: #ad3434; }

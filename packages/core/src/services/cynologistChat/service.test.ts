@@ -83,6 +83,40 @@ describe("chat access and retries", () => {
       },
     ]);
   });
+  it("retries exactly once for an idempotent temporary provider user-sync 503", async () => {
+    mock.users.mockResolvedValue([
+      { id: "client", username: "owner", profile: { avatarUrl: null } },
+      { id: "trainer", username: "trainer", profile: { avatarUrl: null } },
+    ]);
+    mock.upsertUsers.mockRejectedValueOnce({ response: { status: 503 } })
+      .mockResolvedValueOnce({});
+    await expect(getChatSession("client")).resolves.toMatchObject({
+      userId: "gafus-client", channelId: "channel",
+    });
+    expect(mock.upsertUsers).toHaveBeenCalledTimes(2);
+    expect(mock.upsertUsers.mock.calls[1][0]).toEqual(mock.upsertUsers.mock.calls[0][0]);
+  });
+  it("does not retry a provider permission rejection or an unknown error", async () => {
+    mock.users.mockResolvedValue([]);
+    const denial = { code: 17, response: { status: 403 } };
+    mock.upsertUsers.mockRejectedValueOnce(denial);
+    await expect(getChatSession("client")).rejects.toBe(denial);
+    expect(mock.upsertUsers).toHaveBeenCalledTimes(1);
+    mock.upsertUsers.mockReset().mockRejectedValueOnce({ code: "ECONNRESET", response: { status: 403 } });
+    await expect(getChatSession("client")).rejects.toMatchObject({ response: { status: 403 } });
+    expect(mock.upsertUsers).toHaveBeenCalledTimes(1);
+    mock.upsertUsers.mockReset().mockRejectedValueOnce(Error("UNCLASSIFIED_PROVIDER_ERROR"));
+    await expect(getChatSession("client")).rejects.toThrow("UNCLASSIFIED_PROVIDER_ERROR");
+    expect(mock.upsertUsers).toHaveBeenCalledTimes(1);
+  });
+  it("fails closed when both temporary provider attempts fail", async () => {
+    mock.users.mockResolvedValue([]);
+    const transient = { code: "ECONNRESET" };
+    const secondFailure = { response: { status: 503 } };
+    mock.upsertUsers.mockRejectedValueOnce(transient).mockRejectedValueOnce(secondFailure);
+    await expect(getChatSession("client")).rejects.toBe(secondFailure);
+    expect(mock.upsertUsers).toHaveBeenCalledTimes(2);
+  });
   it("rejects another client before querying Stream", async () => {
     await expect(chatForActor("intruder", "chat")).rejects.toMatchObject({
       code: "CHAT_FORBIDDEN",

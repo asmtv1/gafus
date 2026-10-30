@@ -36,3 +36,11 @@ export {
   FEED_PROCESSING_QUEUE_NAME,
 } from "./feed-processing-queue.js";
 export type { FeedProcessingJobData, FeedProcessingKind } from "./feed-processing-queue.js";
+
+export { enqueueChat2MediaProcessing,chat2MediaProcessingQueue,CHAT2_MEDIA_PROCESSING_QUEUE_NAME } from "./chat2-media-processing-queue.js";
+export type { Chat2MediaProcessingJobData,Chat2MediaProcessingKind } from "./chat2-media-processing-queue.js";
+
+// Questions photo-only V2: Redis never contains image data.
+export { enqueueQuestionsPhoto,questionsMediaProcessingQueue,
+  QUESTIONS_MEDIA_PROCESSING_QUEUE_NAME } from "./questions-media-processing-queue.js";
+export type { QuestionsMediaJobData } from "./questions-media-processing-queue.js";

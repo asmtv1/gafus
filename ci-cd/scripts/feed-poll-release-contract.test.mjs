@@ -17,16 +17,18 @@ function composeService(name) {
 }
 
 test('polls require no separate feature flag in Web, API or background worker', () => {
-  for (const name of ['web', 'api', 'worker']) {
+  for (const name of ['api', 'worker']) {
     const service = composeService(name);
     assert.match(service, /^      - FEED_ENABLED=\$\{FEED_ENABLED:-false\}$/m);
     assert.doesNotMatch(service, /FEED_POLLS_ENABLED/);
   }
+  assert.doesNotMatch(composeService('web'), /FEED_ENABLED|FEED_POLLS_ENABLED/);
 });
 
 test('CI exercises migrations and real PostgreSQL poll end-to-end before deploying main', () => {
   assert.match(ci, /test-feed-polls-ci\.py/);
-  assert.match(ci, /FeedPollComposer\.test\.tsx/);
+  assert.match(ci, /MomentPoll\.test\.tsx/);
+  assert.match(ci, /MomentComposer\.unifiedPoll\.test\.tsx/);
   assert.match(ci, /publication-client\.test\.ts/);
   assert.match(ci, /feed-poll-release-contract\.test\.mjs/);
   assert.match(ci, /deploy-production:\s+needs: \[security, build-apps, build-images, cloudru-prepare-media\]/);
@@ -45,7 +47,7 @@ test('poll migration remains additive and polls use Feed availability without a 
   assert.match(sql, /CREATE TABLE "FeedPollVote"/);
   assert.match(sql, /CREATE TABLE "FeedPollVoteSelection"/);
   assert.doesNotMatch(sql, /\bDROP (TABLE|COLUMN|INDEX)\b/i);
-  const web = read('../../apps/web/src/features/feed/FeedViews.tsx');
+  const web = read('../../apps/web-vite/src/features/moments/MomentsCatalog.tsx');
   const mobile = read('../../apps/mobile/src/features/feed/screens.tsx');
   const http = read('../../packages/feed-server/src/index.ts');
   for (const source of [runtime, publish, dto, web, mobile, http]) {
@@ -54,6 +56,6 @@ test('poll migration remains additive and polls use Feed availability without a 
   assert.match(runtime, /polls: createFeedPolls\(\{ db: prisma, storage, enabled \}\)/);
   assert.match(publish, /await tx\.feedPoll\.findUnique/);
   assert.match(dto, /db\.feedPoll\.findMany/);
-  assert.match(web, /access\.enabled\.data\?\.enabled/);
+  assert.match(web, /status\.data\.enabled/);
   assert.match(mobile, /status\.data\?\.enabled/);
 });

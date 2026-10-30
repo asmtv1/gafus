@@ -1,8 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, RefreshControl, Pressable } from "react-native";
+import { View, StyleSheet, RefreshControl, Pressable, Alert } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Text } from "react-native-paper";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -17,6 +17,9 @@ import { articlesQueryOptions } from "@/shared/lib/api/articlesQuery";
 import { getArticleLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
+import { useAuthStore } from "@/shared/stores";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import { reportClientError } from "@/shared/lib/tracer";
 
 const ARTICLE_COVER_PLACEHOLDER_DELAY_MS = 140;
 /** Сколько обложек префетчим в фоне (ускорение без привязки к снятию оверлея). */
@@ -61,15 +64,16 @@ function getArticleCoverPrefetchUris(
 interface ArticleCardProps {
   article: ArticleListDto;
   onLike: (articleId: string) => void;
+  onOpen: (slug: string) => void;
   isLikePending: boolean;
 }
 
 const ArticleCard = memo(function ArticleCard({
   article,
   onLike,
+  onOpen,
   isLikePending,
 }: ArticleCardProps) {
-  const router = useRouter();
   const rawCover = article.logoImg || article.imageUrls?.[0];
   const coverUrl = getVersionedImageUrl(rawCover, article.updatedAt);
   const coverCandidates = useMemo(() => getArticleLogoVariantCandidates(coverUrl), [coverUrl]);
@@ -116,15 +120,7 @@ const ArticleCard = memo(function ArticleCard({
     onLike(article.id);
   };
 
-  const handleOpenArticle = useCallback(() => {
-    console.log("[rewarded-unlock] article card open detail", {
-      articleId: article.id,
-      slug: article.slug,
-      visibility: article.visibility,
-      hasAccess: article.hasAccess,
-    });
-    router.push(`/articles/${article.slug}` as Parameters<typeof router.push>[0]);
-  }, [article.hasAccess, article.id, article.slug, article.visibility, router]);
+  const handleOpenArticle = useCallback(() => onOpen(article.slug), [article.slug, onOpen]);
 
   return (
     <Pressable
@@ -232,11 +228,11 @@ const ArticleCard = memo(function ArticleCard({
                   p && styles.likeButtonPressed,
                 ]}
                 onPress={handleLikePress}
-                disabled={isLikePending}
+                disabled={isLikePending || !article.hasAccess}
                 hitSlop={8}
                 accessibilityLabel={article.isLiked ? "Убрать лайк" : "Нравится"}
                 accessibilityRole="button"
-                accessibilityState={{ disabled: isLikePending }}
+                accessibilityState={{ disabled: isLikePending || !article.hasAccess }}
               >
                 <MaterialCommunityIcons
                   name={article.isLiked ? "heart" : "heart-outline"}
@@ -273,51 +269,201 @@ const ArticleCard = memo(function ArticleCard({
 });
 
 export default function ArticlesScreen() {
-  const [refreshing, setRefreshing] = useState(false);
+  const owner = useAuthStore((s) =>
+    s.isAuthenticated && !s.isLoading ? (s.user?.id ?? null) : null,
+  );
+  const authenticated = useAuthStore((s) => s.isAuthenticated);
+  const authLoading = useAuthStore((s) => s.isLoading);
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const epoch = owner && binding?.principalId === owner ? binding.authEpoch : null;
+  if (authLoading || (authenticated && (!owner || !epoch))) {
+    return <Loading fullScreen message="Загрузка статей..." />;
+  }
+  const scope = owner && epoch ? `${owner}:${epoch}` : "guest";
+  return <ArticlesActor key={scope} owner={owner} epoch={epoch} />;
+}
+
+function ArticlesActor({ owner, epoch }: { owner: string | null; epoch: string | null }) {
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const mounted = useRef(true);
+  const inRefresh = useRef(false);
+  const inLike = useRef(false);
+  const unknownLikes = useRef(new Set<string>());
+  const confirmedLikes = useRef(new Map<string, boolean>());
+  const [refreshing, setRefreshing] = useState(false);
+  const [likePendingId, setLikePendingId] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  const current = useCallback(() => {
+    const auth = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    if (!mounted.current || auth.isLoading) return false;
+    if (owner && epoch) {
+      return (
+        auth.isAuthenticated &&
+        auth.user?.id === owner &&
+        binding?.principalId === owner &&
+        binding.authEpoch === epoch
+      );
+    }
+    return !auth.isAuthenticated;
+  }, [owner, epoch]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
-  const { data, isPending, error, refetch } = useQuery(articlesQueryOptions);
-
+  const scope = owner && epoch ? `${owner}:${epoch}` : "guest";
+  const { data, isPending, isError, refetch } = useQuery({
+    ...articlesQueryOptions,
+    queryKey: ["articles", "list", scope],
+    queryFn: async () => {
+      if (!current()) throw new Error("ARTICLES_ACTOR_CHANGED");
+      const response = await articlesApi.getAll();
+      // Do not cache a B-session list under A's existing private query key.
+      if (!current()) throw new Error("ARTICLES_ACTOR_CHANGED");
+      if (!response.success) throw new Error("ARTICLES_LIST_GET_FAILED");
+      return response;
+    },
+    enabled: current(), retry: false, staleTime: 0, gcTime: 0,
+  });
+  const articles = useMemo(() => (isError ? [] : (data?.data ?? [])), [data?.data, isError]);
+  const focusSeen = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      void queryClient.invalidateQueries({ queryKey: ["articles"] });
-    }, [queryClient]),
+      if (!focusSeen.current) {
+        focusSeen.current = true;
+        return;
+      }
+      if (current())
+        void queryClient.invalidateQueries({ queryKey: ["articles", "list", scope] }).catch(() => {
+          if (current())
+            reportClientError(new Error("ARTICLES_FOCUS_INVALIDATION_FAILED"), {
+              issueKey: "ArticlesScreen",
+              keys: { operation: "focus" },
+            });
+        });
+    }, [queryClient, current, scope]),
   );
-
-  const articles = useMemo(() => data?.data ?? [], [data?.data]);
-
   useEffect(() => {
-    if (isPending || articles.length === 0) return;
+    if (!current() || isPending || isError || !articles.length) return;
     const uris = getArticleCoverPrefetchUris(articles, ARTICLE_COVER_PREFETCH_LIMIT);
-    if (uris.length === 0) return;
-    void Image.prefetch(uris, { cachePolicy: "memory-disk" });
-  }, [isPending, articles]);
+    if (uris.length)
+      void Image.prefetch(uris, { cachePolicy: "memory-disk" }).catch(() => {
+        if (current())
+          reportClientError(new Error("ARTICLE_COVER_PREFETCH_FAILED"), {
+            issueKey: "ArticlesScreen",
+            keys: { operation: "image_prefetch" },
+          });
+      });
+  }, [isPending, isError, articles, current]);
+  useEffect(() => {
+    if (!current()) return;
+    for (const item of articles) {
+      if (confirmedLikes.current.get(item.id) === item.isLiked)
+        confirmedLikes.current.delete(item.id);
+    }
+  }, [articles, current]);
 
   const onRefresh = useCallback(async () => {
+    if (inRefresh.current || !current()) return;
+    inRefresh.current = true;
     setRefreshing(true);
+    setNotice("");
     try {
-      await refetch();
+      const result = await refetch();
+      if (current() && result.isError) setNotice("Не удалось обновить статьи. Попробуйте ещё раз.");
+    } catch {
+      if (current()) {
+        reportClientError(new Error("ARTICLES_REFETCH_FAILED"), {
+          issueKey: "ArticlesScreen",
+          keys: { operation: "refresh" },
+        });
+        setNotice("Не удалось обновить статьи. Попробуйте ещё раз.");
+      }
     } finally {
-      setRefreshing(false);
+      inRefresh.current = false;
+      if (current()) setRefreshing(false);
     }
-  }, [refetch]);
+  }, [refetch, current]);
 
-  const likeMutation = useMutation({
-    mutationFn: (articleId: string) => articlesApi.toggleLike(articleId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+  const handleOpen = useCallback(
+    (slug: string) => {
+      if (current() && slug.trim())
+        router.push(`/articles/${encodeURIComponent(slug)}` as Parameters<typeof router.push>[0]);
     },
-  });
-
-  const handleLike = useCallback((id: string) => likeMutation.mutate(id), [likeMutation]);
+    [current, router],
+  );
+  const handleLike = useCallback(
+    async (id: string) => {
+      if (
+        !current() ||
+        inLike.current ||
+        unknownLikes.current.has(id) ||
+        confirmedLikes.current.has(id)
+      )
+        return;
+      if (!owner || !epoch) {
+        Alert.alert("Статьи", "Чтобы поставить лайк, войдите в аккаунт.");
+        return;
+      }
+      inLike.current = true;
+      setLikePendingId(id);
+      setNotice("");
+      try {
+        const response = await articlesApi.toggleLike(id, current);
+        if (!current()) return;
+        if (!response.success || !response.data || typeof response.data.isLiked !== "boolean") {
+          unknownLikes.current.add(id);
+          setNotice("Результат реакции неизвестен. Повторная отправка заблокирована.");
+          return;
+        }
+        confirmedLikes.current.set(id, response.data.isLiked);
+        try {
+          await queryClient.invalidateQueries({ queryKey: ["articles"] });
+        } catch {
+          if (current()) {
+            reportClientError(new Error("ARTICLE_LIKE_CACHE_FAILED"), {
+              issueKey: "ArticlesScreen",
+              keys: { operation: "invalidate" },
+            });
+            setNotice("Реакция сохранена. Обновите список для отображения.");
+          }
+        }
+      } catch {
+        if (current()) {
+          unknownLikes.current.add(id);
+          reportClientError(new Error("ARTICLE_LIKE_OUTCOME_UNKNOWN"), {
+            issueKey: "ArticlesScreen",
+            keys: { operation: "like" },
+          });
+          setNotice("Результат реакции неизвестен. Повторная отправка заблокирована.");
+        }
+      } finally {
+        inLike.current = false;
+        if (current()) setLikePendingId(null);
+      }
+    },
+    [current, owner, epoch, queryClient],
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: ArticleListDto }) => (
-      <ArticleCard article={item} onLike={handleLike} isLikePending={likeMutation.isPending} />
+      <ArticleCard
+        article={item}
+        onOpen={handleOpen}
+        onLike={(id) => void handleLike(id)}
+        isLikePending={
+          likePendingId !== null ||
+          unknownLikes.current.has(item.id) ||
+          confirmedLikes.current.has(item.id)
+        }
+      />
     ),
-    [handleLike, likeMutation.isPending],
+    [handleOpen, handleLike, likePendingId],
   );
-
   const listHeader = (
     <View style={styles.header}>
       <Image
@@ -330,25 +476,29 @@ export default function ArticlesScreen() {
     </View>
   );
 
-  if (!error && !refreshing && isPending) {
-    return <Loading fullScreen message="Загрузка статей..." />;
-  }
-
+  if (isPending) return <Loading fullScreen message="Загрузка статей..." />;
   return (
     <TexturedSafeAreaView style={styles.container} edges={[]}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
-      {error ? (
+      {isError ? (
         <View style={styles.errorContainer}>
           {listHeader}
-          <Text style={styles.errorText}>
-            Ошибка загрузки статей: {error instanceof Error ? error.message : "Неизвестная ошибка"}
-          </Text>
-          <Pressable onPress={() => refetch()}>
+          <Text style={styles.errorText}>Не удалось загрузить статьи.</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Повторить загрузку статей"
+            onPress={() => void onRefresh()}
+          >
             <Text style={styles.retryText}>Попробовать снова</Text>
           </Pressable>
         </View>
       ) : (
         <View style={styles.listWrap}>
+          {!!notice && (
+            <Text accessibilityRole="alert" style={styles.errorText}>
+              {notice}
+            </Text>
+          )}
           <FlashList
             data={articles}
             renderItem={renderItem}

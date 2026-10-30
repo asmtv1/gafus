@@ -1,0 +1,57 @@
+.embedded { min-width: 0; padding: 0; width: 100%; }
+.card { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid rgba(255,253,244,.94); border-radius: 16px; background: rgba(255,248,229,.86); padding: 28px; color: #352e2e; }
+.hero { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
+.kicker { margin: 0; color: #636128; font-family: var(--font-montserrat),system-ui,sans-serif; font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.title { color: #352e2e; font-family: var(--font-impact),var(--font-montserrat),system-ui,sans-serif; font-weight: 400; font-size: clamp(30px,4.4vw,52px); line-height: .98; margin: 12px 0 14px; }
+/* Shared Vite .article-detail-card h2 is Montserrat 800 and overrides our
+ * original Next Impact paywall heading. This intentionally stronger local
+ * selector restores only the paywall title, not unrelated article h2s. */
+:global(.gafus-app .article-detail-card) .title {
+  color: #352e2e;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(30px, 4.4vw, 52px);
+  line-height: .98;
+  margin: 12px 0 14px;
+}
+
+.subtitle { font-family: var(--font-montserrat),system-ui,sans-serif; color: #352e2e; font-size: clamp(20px,2.1vw,30px); line-height: 1.2; max-width: 24ch; margin: 0; }
+.priceCard { color: #fff8e5; min-width: 0; box-sizing: border-box; border-radius: 18px; background: linear-gradient(160deg,rgba(99,97,40,.94),rgba(77,76,31,.96)); padding: 18px 18px 16px; box-shadow: 0 14px 30px rgba(70,67,24,.3),inset 0 1px rgba(255,255,255,.24); }
+.priceLabel { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .9; }
+.price { font-size: clamp(26px,3.5vw,46px); font-weight: 700; line-height: 1.05; margin: 8px 0; overflow-wrap: anywhere; }
+.priceNote { font-size: 13px; line-height: 1.35; margin: 0; opacity: .95; }
+.planSection { margin-top: 24px; padding: 18px; border-radius: 18px; background: #fff8e5; min-width: 0; }
+.planSectionHeader { display: grid; grid-template-columns: minmax(0,.8fr) minmax(0,1.2fr);
+  gap: 6px 18px; align-items: end; }
+.planSectionHeader .planKicker { grid-column: 1/-1; }
+
+.planKicker { color: #636128; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 6px; }
+.planSection h3 { margin: 0; color: #352e2e; font-size: clamp(22px,2.1vw,28px); line-height: 1.1; }
+.planNote { margin: 0; font-size: 14px; line-height: 1.45; }
+.planGrid { margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,190px),1fr)); gap: 14px; }
+.planButton { box-sizing: border-box; min-width: 0; display: flex; flex-direction: column; gap: 10px; text-align: left; padding: 16px; border: 2px solid transparent; border-radius: 16px; background: #fbf7ef; color: #352e2e; cursor: pointer; box-shadow: 0 4px 9px rgba(74,74,30,.12); }
+.planButton[aria-checked=true] { border-color: #636128; background: #e3dcc8; }
+.planRadio { font-size: 20px; color: #636128; }
+.planBadge { align-self: flex-end; font-size: 12px; background: #636128; color: white; padding: 5px 9px; border-radius: 999px; }
+.planPrice { font-size: 24px; font-weight: 800; }
+.planPeriod { font-size: 13px; }
+.unavailable { padding: 16px; margin: 16px 0 0; border-radius: 12px; background: #f1ead8; color: #352e2e; }
+.recheck { border-radius: 12px; background: #636128; color: #fff8e5; min-height: 44px; padding: 12px 20px; border: 0; cursor: pointer; margin-top: 22px; font: 700 14px/1.2 var(--font-montserrat),system-ui,sans-serif; }
+.recheck:focus-visible,.planButton:focus-visible,.signIn:focus-visible { outline: 3px solid #636128; outline-offset: 3px; }
+.assurance { color: #352e2e; opacity: .8; font-size: 12px; line-height: 1.5; margin: 12px 0 0; }
+.guest { text-align: center; padding: 26px; margin-top: 22px; border: 1px solid rgba(99,97,40,.23); border-radius: 18px; background: #f8f1de; }
+.guest h2 { font-size: 24px; margin: 0 0 12px; }
+.guest p { margin: 0 0 12px; }
+.signIn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; margin-top: 8px; padding: 12px 24px; background: #636128; color: #fff8e5; font-weight: 700; text-decoration: none; border-radius: 12px; }
+/* Next original @media 768: .page padding 12px (even when embedded),
+ * while .embedded .card padding 28px wins over .card mobile padding.
+ * At 390px this puts the hero at x66, not the previous x50. */
+@media (max-width: 768px) {
+  .embedded { padding: 12px; }
+  .card { padding: 28px; }
+  .hero { grid-template-columns: 1fr; gap: 14px; }
+  .planSection { padding: 14px; }
+  .planSectionHeader { grid-template-columns: 1fr; gap: 6px; }
+  .planGrid { grid-template-columns: 1fr; }
+  .title { font-size: clamp(30px, 4.4vw, 52px); }
+}

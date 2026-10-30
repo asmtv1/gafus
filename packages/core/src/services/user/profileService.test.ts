@@ -51,6 +51,32 @@ describe("core profile city ownership", () => {
     expect(args.create).not.toHaveProperty("city");
   });
 
+  it("keeps all omitted fields and existing birthDate/socials untouched", async () => {
+    await updateUserProfile("user-1", { city: "Тюмень" });
+    const args = upsert.mock.calls[0][0];
+    expect(args.update).toEqual({ city: "Тюмень" });
+    expect(args.create).toEqual({
+      user: { connect: { id: "user-1" } },
+      city: "Тюмень",
+    });
+  });
+
+  it("explicitly clears selected fields while preserving all others", async () => {
+    await updateUserProfile("user-1", { telegram: "  ", birthDate: "" });
+    const args = upsert.mock.calls[0][0];
+    expect(args.update).toEqual({ telegram: null, birthDate: null });
+    expect(args.create).toEqual({
+      user: { connect: { id: "user-1" } },
+      telegram: null, birthDate: null,
+    });
+  });
+
+  it("rejects invalid birth dates before accessing the database", async () => {
+    await expect(updateUserProfile("user-1", { birthDate: "not-a-date" }))
+      .rejects.toThrow("Неверная дата");
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
   it("returns city on the public profile", async () => {
     userFindFirst.mockResolvedValue({
       id: "user-1", username: "tester", role: "USER",

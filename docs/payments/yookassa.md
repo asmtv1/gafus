@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Оплата платных курсов реализована через [ЮKassa](https://yookassa.ru). Оплата курса в **приложении iOS** — через **Apple IAP** (отдельный API и поле `Course.appleIapProductId`); см. [apple-iap.md](./apple-iap.md). Создавать платные курсы в тренер-панели могут только администратор и тренер с ником **gafus** (см. [Trainer Panel](../apps/trainer-panel.md)). Пользователь нажимает «Оплатить» в drawer платного курса → создаётся платёж в БД и в ЮKassa → редирект на страницу оплаты ЮKassa → после успешной оплаты webhook создаёт доступ к курсу.
+Оплата платных курсов реализована через [ЮKassa](https://yookassa.ru). Оплата курса в **приложении iOS** — через **Apple IAP** (отдельный API и поле `Course.appleIapProductId`); см. [apple-iap.md](./apple-iap.md). Создавать платные курсы в тренер-панели могут только администратор и тренер с ником **gafus** (см. [Trainer Panel](../current/FUNCTIONAL_DOMAINS.md)). Пользователь нажимает «Оплатить» в drawer платного курса → создаётся платёж в БД и в ЮKassa → редирект на страницу оплаты ЮKassa → после успешной оплаты webhook создаёт доступ к курсу.
 
 ## Схема Payment (Prisma)
 
@@ -42,7 +42,7 @@ YOOKASSA_SECRET_KEY=ваш_секретный_ключ
 - **YOOKASSA_SHOP_ID** — идентификатор магазина из личного кабинета ЮKassa.
 - **YOOKASSA_SECRET_KEY** — секретный ключ (не публиковать).
 
-Используются только в API routes: `apps/web/src/app/api/v1/payments/create/route.ts`, webhook читает данные из тела запроса.
+Используются только в API routes: `apps/api/src/routes/v1/payments.ts`, webhook читает данные из тела запроса.
 
 ## Webhook в личном кабинете ЮKassa
 

@@ -36,6 +36,8 @@ export async function startWorkers(): Promise<void> {
     { startCronJobs },
     { startGalleryProcessingTriggerWorker },
     { startFeedProcessingTriggerWorker },
+    { startChat2MediaProcessingTriggerWorker },
+    { startQuestionsPhotoTriggerWorker },
   ] = await Promise.all([
     import("./push-worker"),
     import("./reengagement-worker"),
@@ -52,6 +54,8 @@ export async function startWorkers(): Promise<void> {
     import("./cron-scheduler"),
     import("./gallery-processing-trigger-worker"),
     import("./feed-processing-trigger-worker"),
+    import("./chat2-media-processing-trigger-worker"),
+    import("./questions-photo-trigger-worker"),
   ]);
 
   // Запускаем exam cleanup worker
@@ -76,8 +80,9 @@ export async function startWorkers(): Promise<void> {
     logger.error("Failed to setup pet prevention reminder schedule", error as Error);
   });
 
-  const { startCynologistChatWorker } = await import("./cynologist-chat-worker");
-  await startCynologistChatWorker();
+  // Stream chat polling/push is retired; only Chat2 worker can deliver chat events.
+  const { startChat2OutboxWorker } = await import("./chat2-outbox-worker");
+  startChat2OutboxWorker();
   startConsultationSlaWorker();
   startConsultationMailWorker();
   startConsultationReminderWorker();
@@ -85,6 +90,8 @@ export async function startWorkers(): Promise<void> {
   // Immediate wake-ups for completed gallery uploads; cron remains recovery.
   startGalleryProcessingTriggerWorker();
   startFeedProcessingTriggerWorker();
+  startChat2MediaProcessingTriggerWorker();
+  startQuestionsPhotoTriggerWorker();
 
   // Запускаем cron-планировщик для re-engagement
   startCronJobs();

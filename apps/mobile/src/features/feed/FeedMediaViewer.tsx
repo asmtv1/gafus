@@ -1,114 +1,27 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { CdnImage } from "@/shared/components/media/CdnImage";
 import { StatusBar } from "expo-status-bar";
-import { useVideoPlayer, VideoView } from "expo-video";
 import { useQuery } from "@tanstack/react-query";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import type { FeedMediaDto } from "@gafus/types";
-import { API_BASE_URL, FONTS } from "@/shared/config";
+import { FONTS } from "@/shared/config";
 import { feedApi } from "@/shared/lib/api/feed";
-import { cloudruFallbackManifestUrl, probeHlsCdnOutage } from "@gafus/core/services/mediaDelivery";
+import { FeedV2Image, FeedV2Video } from "./FeedV2Media";
 
-function FullscreenVideo({ media, active }: { media: FeedMediaDto; active: boolean }) {
-  const [uri, setUri] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [attempt, setAttempt] = useState(0);
-  const currentManifest = useRef<string | null>(null);
-  const triedDirect = useRef(false);
-
-  useEffect(() => {
-    if (!active) {
-      currentManifest.current = null;
-      setUri(null);
-      return;
-    }
-    let mounted = true;
-    currentManifest.current = null;
-    triedDirect.current = false;
-    setUri(null);
-    setError("");
-    setLoading(true);
-    void feedApi.requestPlayback(media.id).then(ticket => {
-      if (!mounted) return;
-      if (!/^\/api\/v1\/feed-playback\/[A-Za-z0-9_-]+\?ticket=/.test(ticket.manifestUrl)) {
-        throw new Error("Не удалось открыть видео.");
-      }
-      currentManifest.current = ticket.manifestUrl;
-      setUri(API_BASE_URL.replace(/\/$/, "") + ticket.manifestUrl);
-    }).catch(reason => {
-      if (mounted) setError(reason instanceof Error ? reason.message : "Не удалось загрузить видео.");
-    }).finally(() => {
-      if (mounted) setLoading(false);
-    });
-    return () => { mounted = false; };
-  }, [media.id, active, attempt]);
-
-  return (
-    <View style={styles.media}>
-      {media.posterUrl && !uri && (
-        <CdnImage cdnUrl={media.posterUrl} requestFallback={() => feedApi.requestMediaFallback(media.id, "poster")}
-          contentFit="contain" style={StyleSheet.absoluteFill} />
-      )}
-      {uri && active ? (
-        <PlayingVideo key={uri} uri={uri} onError={() => {
-          const original = currentManifest.current;
-          if (triedDirect.current || !original) {
-            setUri(null); setError("Видео не загрузилось. Попробуйте ещё раз."); return;
-          }
-          triedDirect.current = true;
-          void (async () => {
-            const outage = await probeHlsCdnOutage(API_BASE_URL.replace(/\/$/, "") + original, { nativeNetwork: true });
-            if (!active || currentManifest.current !== original) return;
-            if (outage) {
-              setUri(API_BASE_URL.replace(/\/$/, "") + cloudruFallbackManifestUrl(original));
-              return;
-            }
-            setUri(null); setError("Видео не загрузилось. Попробуйте ещё раз.");
-          })().catch(() => { setUri(null); setError("Видео не загрузилось. Попробуйте ещё раз."); });
-        }} />
-      ) : (
-        <View style={styles.videoFallback}>
-          {loading ? (
-            <>
-              <ActivityIndicator color="#FFF8EB" size="large" />
-              <Text style={styles.message}>Загружаем видео…</Text>
-            </>
-          ) : error ? (
-            <>
-              <Text accessibilityRole="alert" style={styles.message}>{error}</Text>
-              <Pressable style={styles.retry} onPress={() => setAttempt(value => value + 1)}
-                accessibilityRole="button" accessibilityLabel="Повторить загрузку видео">
-                <Text style={styles.retryText}>Повторить</Text>
-              </Pressable>
-            </>
-          ) : null}
-        </View>
-      )}
-    </View>
-  );
+/** The feed already contains authorized MP4 URLs; fullscreen opens without a ticket. */
+function FullscreenVideo({ postId, media, active }: { postId: string; media: FeedMediaDto; active: boolean }) {
+  if (!media.mp4Urls?.[360]) return <Text style={styles.message}>Видео недоступно.</Text>;
+  return <FeedV2Video postId={postId} visible={active} fullscreen media={{
+    id: media.id, kind: "video", status: "ready", width: media.width ?? 1280,
+    height: media.height ?? 720, durationSeconds: media.durationSeconds ?? 0,
+    access: "viewer", expiresAt: media.urlsExpireAt, placeholder: null,
+    posterUrl: media.posterUrl ?? "", mp4: media.mp4Urls,
+  }} />;
 }
 
-function PlayingVideo({ uri, onError }: { uri: string; onError: () => void }) {
-  const player = useVideoPlayer({ uri, contentType: "hls", useCaching: false }, instance => {
-    instance.staysActiveInBackground = false;
-    instance.showNowPlayingNotification = false;
-    instance.play();
-  });
-  useEffect(() => {
-    const subscription = player.addListener("statusChange", ({ status }) => {
-      if (status === "error") onError();
-    });
-    return () => subscription.remove();
-  }, [onError, player]);
-  return <VideoView player={player} style={styles.media} contentFit="contain"
-    nativeControls allowsPictureInPicture={false} />;
-}
-
-/** Full-screen swipeable viewer for a post's photos and videos, without navigating to the post again. */
 export function FeedMediaViewer({
   postId,
   initialMedia,
@@ -123,13 +36,15 @@ export function FeedMediaViewer({
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(start);
   // Refresh signed photo links when opening: feed media URLs have a short lifetime.
+  const expired = initialMedia.some(item =>
+    item.urlsExpireAt && Date.parse(item.urlsExpireAt) <= Date.now() + 15_000);
   const fresh = useQuery({
     queryKey: ["feed", "media-viewer", postId],
-    queryFn: () => feedApi.getPost(postId),
-    staleTime: 0,
-    retry: 1,
+    queryFn: () => feedApi.getPost(postId), enabled: expired,
+    staleTime: 0, retry: 1,
   });
-  const media = (fresh.data?.attachments ?? initialMedia).filter(item => item.status === "ready");
+  const media = (expired ? fresh.data?.attachments ?? [] : initialMedia)
+    .filter(item => item.status === "ready");
   const position = Math.min(Math.max(0, index), Math.max(0, media.length - 1));
   const closeViewer = () => close();
 
@@ -172,7 +87,7 @@ export function FeedMediaViewer({
                       accessibilityLabel={`Фотография ${itemIndex + 1}`} />
                   ) : <Text style={styles.message}>Фотография недоступна.</Text>
                 ) : (
-                  <FullscreenVideo media={item} active={itemIndex === position} />
+                  <FullscreenVideo postId={postId} media={item} active={itemIndex === position} />
                 )}
               </View>
             )}
@@ -182,6 +97,38 @@ export function FeedMediaViewer({
       </SafeAreaProvider>
     </Modal>
   );
+}
+
+/** Inline comment gallery uses the same CDN-first V2 players as post media. */
+export function FeedCommentAttachments({ postId, media }: {
+  postId: string; media: FeedMediaDto[];
+}) {
+  return <View style={{ gap: 8, marginTop: 6 }}>
+          {media.map(media => media.status === "ready" ? <View key={media.id}
+            style={{ width: "100%", maxWidth: 290, borderRadius: 10, overflow: "hidden" }}>
+            {media.kind === "photo" && (media.thumbUrl || media.smallUrl || media.fullUrl)
+              ? <FeedV2Image width={260} media={{
+                  id: media.id, kind: "image", status: "ready",
+                  width: media.width ?? 720, height: media.height ?? 720,
+                  access: "viewer", expiresAt: media.urlsExpireAt, placeholder: null,
+                  urls: { small: media.smallUrl ?? media.thumbUrl ?? media.fullUrl ?? "",
+                    medium: media.thumbUrl ?? media.fullUrl ?? media.smallUrl ?? "",
+                    large: media.fullUrl ?? media.thumbUrl ?? media.smallUrl ?? "" },
+                }} />
+              : media.kind === "video" && media.mp4Urls?.[360]
+                ? <FeedV2Video postId={postId} visible media={{
+                    id: media.id, kind: "video", status: "ready",
+                    width: media.width ?? 1280, height: media.height ?? 720,
+                    durationSeconds: media.durationSeconds ?? 0,
+                    access: "viewer", expiresAt: media.urlsExpireAt, placeholder: null,
+                    posterUrl: media.posterUrl ?? "", mp4: media.mp4Urls,
+                  }} />
+                : <Text style={styles.message}>Медиа недоступно</Text>}
+          </View> : <Text key={media.id} style={styles.message}>
+            {media.status === "failed" ? "Ошибка обработки вложения"
+              : "Обрабатываем вложение…"}
+          </Text>)}
+  </View>;
 }
 
 const styles = StyleSheet.create({

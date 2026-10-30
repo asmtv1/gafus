@@ -1,1 +1,0 @@
-export { TrainingOverview } from "./TrainingOverview";

@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mock = vi.hoisted(() => ({ findUnique: vi.fn(), send: vi.fn() }));
+const mock = vi.hoisted(() => ({
+  findUnique: vi.fn(), send: vi.fn(), error: vi.fn(),
+}));
 vi.mock("@gafus/prisma", () => ({
   prisma: { consultationEmailLog: { findUnique: mock.findUnique } },
 }));
 vi.mock("@gafus/logger", () => ({
-  createWebLogger: () => ({ error: vi.fn(), warn: vi.fn() }),
+  createWebLogger: () => ({ error: mock.error, warn: vi.fn() }),
 }));
 vi.mock("../mail/publicWebBaseUrl", () => ({ getPublicWebBaseUrl: () => "https://gafus.ru" }));
 vi.mock("../mail/transactionalEmailLayout", () => ({
-  sendTransactionalEmailWithLayout: mock.send,
+  sendTransactionalEmailWithLayoutDisposition: mock.send,
   ctaButtonHtml: (url: string, label: string) => label + url,
   plainLinkFallbackHtml: (url: string) => url,
   paragraphHtml: (text: string) => text,
@@ -31,7 +33,7 @@ const booking = {
 beforeEach(() => {
   vi.clearAllMocks();
   mock.findUnique.mockResolvedValue({ booking });
-  mock.send.mockResolvedValue(undefined);
+  mock.send.mockResolvedValue({ kind: "QUEUED" });
 });
 
 describe("consultation mail delivery policy", () => {
@@ -42,6 +44,24 @@ describe("consultation mail delivery policy", () => {
       category: "consultation", maxQueueAgeMs: 4 * 60 * 60_000,
     }));
   });
+  it("transport failure logs only safe codes, still rethrows for worker retry", async () => {
+    const canary = "PRIVATE_MAIL_PROVIDER_TOKEN_CLIENT_EMAIL";
+    const failure = new Error(canary);
+    failure.stack = "PRIVATE_PROVIDER_TRACE";
+    mock.send.mockRejectedValueOnce(failure);
+    await expect(sendConsultationEmailFromLog(
+      "log-private", "CLIENT_BOOKING_RECEIVED" as ConsultationEmailType,
+    )).rejects.toBe(failure);
+    const logged = mock.error.mock.calls.flat().map((value: unknown) =>
+      value instanceof Error ? [value.message, value.stack].join(" ") : JSON.stringify(value)
+    ).join(" ");
+    expect(mock.error).toHaveBeenCalledTimes(1);
+    expect(logged).not.toContain(canary);
+    expect(logged).not.toContain("PRIVATE_PROVIDER_TRACE");
+    expect(logged).not.toContain("client@example.test");
+    expect(logged).not.toContain("booking-1");
+  });
+
   it("expires appointment reminders quickly", async () => {
     await sendConsultationEmailFromLog("log-2", "CLIENT_CONSULTATION_REMINDER_30M" as ConsultationEmailType);
     expect(mock.send).toHaveBeenCalledWith(expect.objectContaining({

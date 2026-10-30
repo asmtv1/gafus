@@ -12,7 +12,6 @@ export async function listGafusMiniGuides(userId: string, now = new Date()) {
       getGafusSettingsTx(tx),
       tx.course.findMany({
         where: {
-          isPaid: false,
           isPrivate: false,
           guideContent: { not: null },
         },

@@ -1,0 +1,11 @@
+/* Align the empty bookmarks state with the centered page title.
+   The surrounding collection grid and actions keep their own layouts. */
+.emptyState {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin: 24px auto 0;
+  padding: 8px 12px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}

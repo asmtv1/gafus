@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { StyleSheet, ScrollView, View } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
@@ -7,6 +7,8 @@ import { ProfileIcon } from "@/features/profile";
 
 import { Button, Input, Card } from "@/shared/components/ui";
 import { userApi } from "@/shared/lib/api/user";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { BORDER_RADIUS, COLORS, SPACING } from "@/shared/config";
@@ -16,11 +18,61 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function ChangeEmailScreen() {
   const router = useRouter();
   const [newEmail, setNewEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [fieldError, setFieldError] = useState("");
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const [unknown, setUnknown] = useState(false);
+  const mounted = useRef(true);
+  const inFlight = useRef(false);
+  const unknownRef = useRef(false);
+  const confirmedRef = useRef(false);
+  const backTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const authUser = useAuthStore((state) => state.user);
+  const authenticated = useAuthStore((state) => state.isAuthenticated);
+  const authLoading = useAuthStore((state) => state.isLoading);
+  const owner = authenticated && !authLoading ? (authUser?.id ?? null) : null;
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const epoch = owner && binding?.principalId === owner ? binding.authEpoch : null;
+  const current = (actor: { ownerId: string; authEpoch: string }) => {
+    const state = useAuthStore.getState();
+    const verified = newOnlyV2NativeQueues.getVerifiedBinding();
+    return (
+      mounted.current &&
+      state.isAuthenticated &&
+      !state.isLoading &&
+      state.user?.id === actor.ownerId &&
+      verified?.principalId === actor.ownerId &&
+      verified.authEpoch === actor.authEpoch
+    );
+  };
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (backTimer.current !== null) clearTimeout(backTimer.current);
+      backTimer.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    // Changing verified actor never reuses prior account email form state.
+    unknownRef.current = false;
+    confirmedRef.current = false;
+    inFlight.current = false;
+    setUnknown(false);
+    setLoading(false);
+    setNewEmail("");
+    setCurrentPassword("");
+    setFieldError("");
+    setSnackbar({ visible: false, message: "" });
+    if (backTimer.current !== null) clearTimeout(backTimer.current);
+    backTimer.current = null;
+  }, [owner, epoch]);
 
   const onSend = async () => {
+    if (inFlight.current || unknownRef.current || confirmedRef.current || !owner || !epoch) return;
+    const actor = { ownerId: owner, authEpoch: epoch };
+    if (!current(actor)) return;
     const trimmed = newEmail.trim().toLowerCase();
     setFieldError("");
     if (!trimmed) {
@@ -31,28 +83,56 @@ export default function ChangeEmailScreen() {
       setFieldError("Некорректный формат email");
       return;
     }
+    inFlight.current = true;
     setLoading(true);
     setSnackbar({ visible: false, message: "" });
     try {
-      const result = await userApi.requestEmailChange(trimmed);
+      const result = await userApi.requestEmailChange(
+        trimmed, () => current(actor), currentPassword || undefined,
+      );
+      if (!current(actor)) return;
       if (result.success) {
+        confirmedRef.current = true;
+        setCurrentPassword("");
         hapticFeedback.success();
         setSnackbar({
           visible: true,
           message: "Письмо отправлено. Проверьте новый почтовый ящик.",
         });
-        setTimeout(() => router.back(), 2200);
+        backTimer.current = setTimeout(() => {
+          backTimer.current = null;
+          if (current(actor) && confirmedRef.current) router.back();
+        }, 2200);
+      } else if (!result.code && result.error === "Неверный текущий пароль") {
+        setSnackbar({ visible: true, message: "Введите правильный текущий пароль." });
       } else {
+        unknownRef.current = true;
+        setUnknown(true);
         setSnackbar({
           visible: true,
-          message: result.error || "Не удалось отправить письмо",
+          message:
+            "Результат отправки неизвестен. Проверьте почту; повторная отправка заблокирована.",
         });
       }
-    } catch (err) {
-      reportClientError(err, { issueKey: "ChangeEmail", keys: { operation: "send" } });
-      setSnackbar({ visible: true, message: "Ошибка подключения" });
+    } catch {
+      if (current(actor)) {
+        reportClientError(new Error("EMAIL_CHANGE_SEND_UNKNOWN"), {
+          issueKey: "ChangeEmail",
+          keys: { operation: "send" },
+        });
+        unknownRef.current = true;
+        setUnknown(true);
+        setSnackbar({
+          visible: true,
+          message:
+            "Результат отправки неизвестен. Проверьте почту; повторная отправка заблокирована.",
+        });
+      }
     } finally {
-      setLoading(false);
+      if (current(actor)) {
+        inFlight.current = false;
+        setLoading(false);
+      }
     }
   };
 
@@ -95,15 +175,29 @@ export default function ChangeEmailScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="email"
+                editable={!loading && !unknown}
                 error={fieldError}
                 style={styles.input}
               />
+              <Input
+                label="Текущий пароль (если установлен)"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                secureTextEntry
+                autoComplete="password"
+                editable={!loading && !unknown}
+                style={styles.input}
+              />
+              <Text variant="bodySmall" style={styles.hint}>
+                Для аккаунта с паролем его нужно указать. При входе только через VK ID
+                поле оставьте пустым.
+              </Text>
               <View style={styles.actions}>
                 <Button
                   label={loading ? "Отправка…" : "Отправить письмо"}
                   onPress={onSend}
                   loading={loading}
-                  disabled={loading}
+                  disabled={loading || unknown || !owner || !epoch}
                   animatedPress
                 />
                 <Button

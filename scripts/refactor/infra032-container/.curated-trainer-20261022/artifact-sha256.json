@@ -1,0 +1,17 @@
+{
+  "schema": "ag4-curated-static-v1",
+  "files": [
+    {
+      "path": "assets/index-Cs6AsiU8.js",
+      "sha256": "040bafc562f9ff679e444d0e2411a3099d805907421350141bdbb4ba437f87f8"
+    },
+    {
+      "path": "index.html",
+      "sha256": "218a3e4c0c191c0bba15b3ddb9bd5d49946c23d2676f9961b980cb8c0f049dc8"
+    },
+    {
+      "path": "nginx.conf",
+      "sha256": "d51e7b60c51c8b1d7a9f7da7298cb8fc3f5471b4fd9c2f4034fe0614bd051a30"
+    }
+  ]
+}

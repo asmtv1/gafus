@@ -1,0 +1,104 @@
+/* Layout-only additions to shared GAFUS button skins, scoped to /reminders.
+   Global `form { width: min(100%, 24rem) }` previously shrank the editor. */
+.toolbar {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 16px;
+  margin-bottom: 18px;
+}
+.toolbar > .addButton {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline: 18px;
+}
+.toolbar > .refreshButton {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding-inline: 20px;
+}
+/* Collapsed cards contain only display text, not a silent name editor. */
+.reminderName {
+  flex: 1;
+  min-width: 0;
+  font: 600 15px/1.45 var(--font-montserrat, system-ui, sans-serif);
+  color: #352e2e;
+  overflow-wrap: anywhere;
+}
+/* The same full-width form appears directly in an expanded reminder card;
+ * there is no nested second card or duplicate immediate time/day controls. */
+.inlineEditor {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin-top: 18px;
+  padding: 18px 0 0;
+  border-top: 1px solid #d5d0b5;
+}
+.editorCard, .confirmPanel {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin-top: 14px;
+  padding: clamp(14px, 3vw, 22px);
+  border-radius: 16px;
+  background: #f5f1e5;
+  border: 1px solid #c9c49d;
+  box-shadow: 0 3px 12px rgba(64, 63, 37, .045);
+}
+.editorTitle {
+  margin: 0 0 20px;
+  font: 700 19px/1.35 var(--font-montserrat, system-ui, sans-serif);
+  color: #55572b;
+}
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 16px; }
+.field { display: flex; flex-direction: column; gap: 8px; min-width: 0;
+  font: 600 14px/1.4 var(--font-montserrat, system-ui, sans-serif); color: #464636; }
+.field > :is(input, select) {
+  box-sizing: border-box;
+  width: 100%; min-width: 0;
+  min-height: 46px;
+  padding: 10px 13px;
+  border: 1px solid #cbc8b5;
+  border-radius: 12px;
+  background: #fffdf7;
+  color: #352f29;
+  font: 500 15px/1.4 var(--font-montserrat, system-ui, sans-serif);
+}
+.field > :is(input, select):focus { outline: 2px solid #72764b; outline-offset: 1px; border-color: #72764b; }
+.field > :is(input, select):disabled { opacity: .55; }
+.field > select {
+  appearance: auto;
+  cursor: pointer;
+  padding-right: 30px;
+}
+.daysFieldset { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px;
+  min-width: 0; margin: 0; padding: 0; border: 0; }
+.daysFieldset legend { width: 100%; margin-bottom: 9px; padding: 0;
+  font: 600 14px/1.4 var(--font-montserrat, system-ui, sans-serif); color: #464636; }
+.daysFieldset legend span { font-weight: 400; color: #777557; }
+.dayOption { display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; min-height: 42px; padding: 7px 13px; border-radius: 11px;
+  background: #fffcf4; border: 1px solid #d5d1bc; color: #55572b;
+  font: 600 14px/1.3 var(--font-montserrat, system-ui, sans-serif);
+  cursor: pointer; }
+.dayOption:has(input:checked) { background: #e3e9d7; border-color: #687947; }
+.dayOption input { margin: 0; accent-color: #636128; width: 17px; height: 17px; }
+.editorActions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.editorActions > button { min-width: 0; padding-inline: 18px; }
+.confirmPanel > p { margin: 0; font-size: 15px; color: #494334; font-weight: 600; }
+.limitMessage { margin: 12px 0 0; color: #636128; font-weight: 600; }
+.infoBox { background: #f1f3e8; border: 1px solid #c9d2af; color: #565f39; }
+.infoBox strong { color: #47582f; }
+@media (max-width: 640px) {
+  .toolbar { gap: 8px; }
+  .toolbar > .addButton { flex: 1 1 60%; min-height: 56px; font-size: 13px; padding: 9px 8px; }
+  .toolbar > .refreshButton { flex: 0 1 40%; min-height: 56px; font-size: 13px; padding: 9px 8px; }
+  .fields { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .daysFieldset { gap: 7px; }
+  .dayOption { flex: 1 1 64px; }
+  .editorActions { flex-direction: column; }
+  .editorActions > button { width: 100%; }
+}

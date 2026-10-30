@@ -1,11 +1,16 @@
+import { cdnIsolatedAcceptance } from "./cdn-isolated-acceptance.js";
+import { isolatedNonprodS3Config } from "@gafus/cdn-upload/isolated-nonprod-s3";
+import { localReadonlyCdnSecret } from "@gafus/cdn-upload/local-readonly-cdn";
 import { createHash } from "node:crypto";
 import { S3Client, HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { FeedStoragePort } from "@gafus/core/services/feed";
 import { feedSourcePattern, assertFeedObjectKey, assertFeedFinalKey } from "./keys.js";
 
 export interface FeedStorageConfig {
   enabled: boolean;
+  isolatedNonprod?: boolean;
   bucket: string;
   endpoint: string;
   accessKeyId: string;
@@ -30,6 +35,17 @@ export function feedStorageConfigFromEnv(
       throw new Error("INVALID_FEED_FLAG");
   }
   if (env.FEED_BUCKET_PUBLIC === "true") throw new Error("PUBLIC_FEED_BUCKET");
+  if (cdnIsolatedAcceptance(env)) return {
+    enabled: env.FEED_ENABLED === "true", isolatedNonprod: true,
+    bucket: "gafus-refactor-agent2-feed-test", endpoint: "http://127.0.0.1:58390",
+    accessKeyId: env.GAFUS_CDN_LOCAL_S3_KEY!, secretAccessKey: env.GAFUS_CDN_LOCAL_S3_SECRET!,
+    cdnBaseUrl: "", cdnSecret: "",
+  };
+  const local = isolatedNonprodS3Config("feed", env);
+  if (local) return {
+    enabled: env.FEED_ENABLED === "true", isolatedNonprod: true,
+    ...local, cdnBaseUrl: "", cdnSecret: "",
+  };
   const config: FeedStorageConfig = {
     enabled: env.FEED_ENABLED === "true" && env.FEED_PROCESSOR_READY === "true",
     bucket: env.FEED_BUCKET ?? "",
@@ -55,13 +71,17 @@ function validateFeedStorageConfig(config: FeedStorageConfig) {
   if (
     !/^[a-z0-9][a-z0-9.-]{2,62}$/.test(config.bucket) ||
     /^(gafus-media|gafus-public)$/.test(config.bucket) ||
-    config.endpoint !== "https://s3.cloud.ru" ||
+    (config.isolatedNonprod === true
+      ? !((config.endpoint === "http://127.0.0.1:9000" && config.bucket === "gafus-refactor-feed-test") ||
+          (config.endpoint === "http://127.0.0.1:9500" && config.bucket === "gafus-refactor-web4-feed-test") ||
+          (cdnIsolatedAcceptance() && config.endpoint === "http://127.0.0.1:58390" && config.bucket === "gafus-refactor-agent2-feed-test"))
+      : config.endpoint !== "https://s3.cloud.ru") ||
     !config.accessKeyId ||
     !config.secretAccessKey ||
-    !/^[A-Za-z0-9_-]{24,32}$/.test(config.cdnSecret)
+    (!config.isolatedNonprod && !/^[A-Za-z0-9_-]{24,32}$/.test(config.cdnSecret))
   )
     throw new Error("INVALID_FEED_STORAGE_CONFIG");
-  safeOrigin(config.cdnBaseUrl);
+  if (!config.isolatedNonprod) safeOrigin(config.cdnBaseUrl);
 }
 export function signFeedCdnUrl(
   baseUrl: string,
@@ -84,23 +104,29 @@ export function signFeedCdnUrl(
   if (provider !== undefined && provider !== "beget")
     throw new Error("CDN_PROVIDER_MISMATCH");
   const path = `/${key}`;
-  const md5 = createHash("md5").update(`${secret}${path}${expires}`).digest("base64url");
-  return `${origin}/md5(${md5},${expires})${path}`;
-}
-export interface FeedPlaybackStoragePort extends FeedStoragePort {
-  readPlaylist(key: string): Promise<string>;
+  // Beget Cloud CDN Secure Token (without IP binding):
+  // md5 = base64url(MD5(`${expires}${path} ${secret}`)), passed as query parameters.
+  // Do not substitute the legacy /md5(...)/ path-based CDNvideo dialect.
+  const md5 = createHash("md5").update(`${expires}${path} ${secret}`).digest("base64url");
+  return `${origin}${path}?md5=${md5}&expires=${expires}`;
 }
 export function createFeedStorage(
   config: FeedStorageConfig,
   injectedClient?: Pick<S3Client, "send">,
-): FeedPlaybackStoragePort {
+  runtimeEnv: Record<string, string | undefined> = process.env,
+): FeedStoragePort {
   if (config.enabled) validateFeedStorageConfig(config);
   const hasCredentials = Boolean(config.bucket && config.accessKeyId && config.secretAccessKey);
+  const liveCdnSecret = localReadonlyCdnSecret("feed", runtimeEnv);
   if (
     hasCredentials &&
     (!/^[a-z0-9][a-z0-9.-]{2,62}$/.test(config.bucket) ||
       /^(gafus-media|gafus-public)$/.test(config.bucket) ||
-      config.endpoint !== "https://s3.cloud.ru")
+      (config.isolatedNonprod === true
+        ? !((config.endpoint === "http://127.0.0.1:9000" && config.bucket === "gafus-refactor-feed-test") ||
+          (config.endpoint === "http://127.0.0.1:9500" && config.bucket === "gafus-refactor-web4-feed-test") ||
+          (cdnIsolatedAcceptance() && config.endpoint === "http://127.0.0.1:58390" && config.bucket === "gafus-refactor-agent2-feed-test"))
+        : config.endpoint !== "https://s3.cloud.ru"))
   )
     throw new Error("INVALID_FEED_STORAGE_CONFIG");
   const client =
@@ -108,7 +134,7 @@ export function createFeedStorage(
     (hasCredentials
       ? new S3Client({
           endpoint: config.endpoint,
-          region: config.endpoint === "https://s3.cloud.ru" ? "ru-central-1" : "ru-central1",
+          region: config.isolatedNonprod ? "us-east-1" : "ru-central-1",
           forcePathStyle: true,
           credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
           maxAttempts: 2,
@@ -188,48 +214,29 @@ export function createFeedStorage(
         throw error;
       }
     },
-    async readPlaylist(key) {
-      assertFeedFinalKey(key);
-      if (!key.endsWith("/hls/playlist.m3u8")) throw new Error("INVALID_FEED_PLAYLIST_KEY");
-      const result = await requireClient().send(
-        new GetObjectCommand({ Bucket: config.bucket, Key: key }),
-        {
-          abortSignal: AbortSignal.timeout(5000),
-        },
-      );
-      const body = result.Body;
-      const destroy = () => (body as { destroy?: () => void } | undefined)?.destroy?.();
-      if (
-        !body ||
-        !Number.isSafeInteger(result.ContentLength) ||
-        !result.ContentLength ||
-        result.ContentLength > 65536
-      ) {
-        destroy();
-        throw new Error("INVALID_FEED_PLAYLIST_SIZE");
-      }
-      const chunks: Buffer[] = [];
-      let size = 0;
-      try {
-        for await (const packet of body as AsyncIterable<Uint8Array>) {
-          size += packet.byteLength;
-          if (size > 65536) throw new Error("FEED_PLAYLIST_SIZE");
-          chunks.push(Buffer.from(packet));
-        }
-        if (size !== result.ContentLength) throw new Error("FEED_PLAYLIST_SIZE");
-        return new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
-      } finally {
-        destroy();
-      }
-    },
     async signCdn(input) {
       requireClient();
+      if (liveCdnSecret) {
+        assertFeedFinalKey(input.key);
+        return signFeedCdnUrl("https://garaquachegasourn.begetcdn.cloud", input.key,
+          input.expiresAt, liveCdnSecret, Date.now(), "beget");
+      }
+      if (config.isolatedNonprod) {
+        assertFeedFinalKey(input.key); // Never sign incoming/unprocessed uploads.
+        const now = Math.floor(Date.now() / 1000);
+        const expires = Math.floor(input.expiresAt.getTime() / 1000);
+        if (!Number.isSafeInteger(expires) || expires <= now || expires > now + 360)
+          throw new Error("INVALID_LOCAL_S3_EXPIRY");
+        return getSignedUrl(client as S3Client, new GetObjectCommand({
+          Bucket: config.bucket, Key: input.key, ResponseCacheControl: "private, no-store",
+        }), { expiresIn: expires - now });
+      }
       return signFeedCdnUrl(config.cdnBaseUrl, input.key, input.expiresAt, config.cdnSecret, Date.now(), config.cdnProvider);
     },
   };
 }
 export function createFeedStorageFromEnv(
   env: Record<string, string | undefined> = process.env,
-): FeedPlaybackStoragePort {
-  return createFeedStorage(feedStorageConfigFromEnv(env));
+): FeedStoragePort {
+  return createFeedStorage(feedStorageConfigFromEnv(env), undefined, env);
 }

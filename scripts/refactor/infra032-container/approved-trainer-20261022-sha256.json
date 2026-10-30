@@ -1,0 +1,13 @@
+{
+  "schema": "ag4-static-artifact-hashes-v1",
+  "files": [
+    {
+      "path": "index.html",
+      "sha256": "218a3e4c0c191c0bba15b3ddb9bd5d49946c23d2676f9961b980cb8c0f049dc8"
+    },
+    {
+      "path": "assets/index-Cs6AsiU8.js",
+      "sha256": "040bafc562f9ff679e444d0e2411a3099d805907421350141bdbb4ba437f87f8"
+    }
+  ]
+}

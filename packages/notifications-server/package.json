@@ -1,0 +1,53 @@
+{
+  "name": "@gafus/notifications-server",
+  "version": "1.7.0",
+  "private": true,
+  "sideEffects": true,
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "stepNotificationService": [
+        "dist/stepNotificationService.d.ts"
+      ],
+      "pushWorkerService": [
+        "dist/pushWorkerService.d.ts"
+      ],
+      "immediatePushService": [
+        "dist/immediatePushService.d.ts"
+      ]
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./stepNotificationService": {
+      "types": "./dist/stepNotificationService.d.ts",
+      "default": "./dist/stepNotificationService.js"
+    },
+    "./pushWorkerService": {
+      "types": "./dist/pushWorkerService.d.ts",
+      "default": "./dist/pushWorkerService.js"
+    },
+    "./immediatePushService": {
+      "types": "./dist/immediatePushService.d.ts",
+      "default": "./dist/immediatePushService.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/queues": "workspace:*",
+    "@gafus/logger": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6"
+  }
+}

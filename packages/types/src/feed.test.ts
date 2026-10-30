@@ -26,7 +26,7 @@ describe("feed contracts", () => {
     expect(FEED_LIMITS.postCharacters).toBe(5000);
     expect(FEED_LIMITS.maxAttachments).toBe(10);
     expect(FEED_LIMITS.maxVideos).toBe(3);
-    expect(FEED_LIMITS.videoSeconds).toBe(60);
+    expect(FEED_LIMITS.videoSeconds).toBe(120);
     expect(FEED_REACTIONS).toEqual(["❤️", "😂", "🐶", "🔥", "👍"]);
     expect(countFeedCharacters("🐶🐶")).toBe(2);
     expect(countFeedCharacters("a🐶b")).toBe(3);

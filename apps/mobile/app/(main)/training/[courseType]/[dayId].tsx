@@ -1,17 +1,9 @@
 import { useCallback, useMemo, useEffect, useRef } from "react";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  Pressable,
-  Linking,
-} from "react-native";
+import { View, StyleSheet, ScrollView, RefreshControl, Pressable, Linking } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Button, Loading } from "@/shared/components/ui";
 import { AppBackButton, MarkdownText } from "@/shared/components";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
@@ -35,12 +27,16 @@ import { getDayTitle } from "@/shared/lib/training/dayTypes";
 import { reportClientError } from "@/shared/lib/tracer";
 import { trackEvent } from "@/shared/lib/analytics";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import { usePracticePendingScreen } from "@/features/training/usePracticePendingScreen";
+import { useVerifiedOnlineCompletion } from "@/features/training/useVerifiedOnlineCompletion";
+import { PendingPracticeNotice } from "@/features/training/PendingPracticeNotice";
 import {
-  getRewardedAccessPrompt,
-  openAppSubscriptionPaywall,
-  RewardedAccessGate,
-} from "@/features/app-subscription";
-import { openTargetWithRewardedAd, rewardedAdsApi } from "@/features/rewarded-ads";
+  readOwnPendingTimers,
+  type PendingTimer,
+} from "@/shared/lib/offline/newOnlyV2TimerPending";
+import { openAppSubscriptionPaywall } from "@/features/app-subscription";
 
 /**
  * Экран дня тренировки с шагами
@@ -56,11 +52,6 @@ export default function TrainingDayScreen() {
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
   const [isExporting, setIsExporting] = useState(false);
-  const [unlockingStepIndex, setUnlockingStepIndex] = useState<number | null>(null);
-  const [stepAccessError, setStepAccessError] = useState<string | null>(null);
-  const [rewardedDailyLimitReached, setRewardedDailyLimitReached] = useState(false);
-  const rewardedUnlockInFlightRef = useRef(false);
-  const recoveredCompletedStepsRef = useRef<Set<string>>(new Set());
   /** Инкремент при сохранении дневника: отбрасываем устаревший ответ GET, пришедший после локального обновления. */
   const diaryListFetchGenerationRef = useRef(0);
   const isOffline = useIsOffline();
@@ -81,7 +72,6 @@ export default function TrainingDayScreen() {
   const startStep = useStepStore((s) => s.startStep);
   const pauseStep = useStepStore((s) => s.pauseStep);
   const resumeStep = useStepStore((s) => s.resumeStep);
-  const completeStep = useStepStore((s) => s.completeStep);
   const initializeStep = useStepStore((s) => s.initializeStep);
   const stopTimer = useTimerStore((s) => s.stopTimer);
 
@@ -92,9 +82,74 @@ export default function TrainingDayScreen() {
   const resetStepMutation = useResetStep();
   const completeTheoryMutation = useCompleteTheoryStep();
   const completePracticeMutation = useCompletePracticeStep();
-
   const dayData = data?.data;
   const courseId = dayData?.courseId ?? courseType;
+  const verifiedProfile = useAuthStore((state) => state.user);
+  const ownerId = verifiedProfile?.id ?? null;
+  const onlineReceipt = useVerifiedOnlineCompletion(
+    verifiedProfile,
+    newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null,
+    `${courseId}:${dayId}`,
+  );
+  const { pendingPractice, pendingReadStatus, refreshPendingPractice, activate, deactivate } =
+    usePracticePendingScreen(ownerId, courseId, dayId);
+  const [pendingTimers, setPendingTimers] = useState<PendingTimer[]>([]);
+  const timerBinding = useRef<{ owner: string; epoch: string } | null>(null);
+  const timerGeneration = useRef(0);
+  const practiceScreenGeneration = useRef(0);
+  const refreshPendingTimers = useCallback(async () => {
+    const generation = ++timerGeneration.current;
+    setPendingTimers([]);
+    timerBinding.current = null;
+    const before = newOnlyV2NativeQueues.getVerifiedBinding();
+    if (
+      !ownerId ||
+      !before ||
+      before.principalId !== ownerId ||
+      useAuthStore.getState().user?.id !== ownerId
+    )
+      return;
+    try {
+      const timers = await readOwnPendingTimers(newOnlyV2NativeQueues, ownerId, courseId, dayId);
+      const after = newOnlyV2NativeQueues.getVerifiedBinding();
+      if (
+        generation !== timerGeneration.current ||
+        !after ||
+        after.principalId !== ownerId ||
+        after.authEpoch !== before.authEpoch ||
+        useAuthStore.getState().user?.id !== ownerId
+      )
+        return;
+      timerBinding.current = { owner: ownerId, epoch: before.authEpoch };
+      setPendingTimers(timers);
+    } catch {
+      if (generation === timerGeneration.current) setPendingTimers([]);
+    }
+  }, [ownerId, courseId, dayId]);
+  useFocusEffect(
+    useCallback(() => {
+      ++practiceScreenGeneration.current;
+      activate();
+      void refreshPendingPractice();
+      void refreshPendingTimers();
+      return () => {
+        ++practiceScreenGeneration.current;
+        deactivate();
+        ++timerGeneration.current;
+        timerBinding.current = null;
+        setPendingTimers([]);
+      };
+    }, [activate, deactivate, refreshPendingPractice, refreshPendingTimers, verifiedProfile]),
+  );
+  const verifiedTimerBinding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const visiblePendingTimers =
+    timerBinding.current?.owner === ownerId &&
+    verifiedTimerBinding?.principalId === ownerId &&
+    verifiedTimerBinding.authEpoch === timerBinding.current.epoch &&
+    useAuthStore.getState().user?.id === ownerId
+      ? pendingTimers
+      : [];
+
   const localStepStatuses = useDayStepStatuses(courseId, dayId, dayData?.steps?.length ?? 0);
 
   const openIndexRaw = useTrainingStore((s) => {
@@ -103,45 +158,6 @@ export default function TrainingDayScreen() {
     return s.openIndexes[key] ?? null;
   });
   const openIndex = openIndexRaw ?? -1;
-  const activeLockedStep =
-    openIndex >= 0 &&
-    dayData?.steps?.[openIndex]?.locked &&
-    dayData.steps[openIndex].monetizationTarget
-      ? dayData.steps[openIndex]
-      : null;
-  const activeRewardedTarget = activeLockedStep?.monetizationTarget ?? null;
-  const rewardedStatusQuery = useQuery({
-    queryKey: [
-      "rewarded-ads",
-      "status",
-      activeRewardedTarget?.targetType ?? null,
-      activeRewardedTarget?.targetId ?? null,
-    ],
-    queryFn: () => rewardedAdsApi.getStatus(activeRewardedTarget!),
-    enabled: Boolean(activeRewardedTarget),
-    staleTime: 30_000,
-  });
-  const rewardedStatus =
-    rewardedStatusQuery.data?.success && rewardedStatusQuery.data.data
-      ? rewardedStatusQuery.data.data
-      : null;
-  const rewardedPrompt = getRewardedAccessPrompt({
-    isLoading: rewardedStatusQuery.isFetching,
-    status: rewardedStatus,
-    dailyLimitReached: rewardedDailyLimitReached,
-  });
-  const loadingRewardedPrompt = getRewardedAccessPrompt({
-    isLoading: true,
-    status: null,
-  });
-
-  useEffect(() => {
-    if (!rewardedStatusQuery.data?.success || !rewardedStatusQuery.data.data) return;
-    setRewardedDailyLimitReached(
-      rewardedStatusQuery.data.data.canWatchAdReason === "DAILY_LIMIT_REACHED",
-    );
-  }, [rewardedStatusQuery.data]);
-
   useEffect(() => {
     if (!courseId) return;
     let cancelled = false;
@@ -186,130 +202,16 @@ export default function TrainingDayScreen() {
     }
   }, [dayData?.steps, courseId, dayId, initializeStep]);
 
-  useEffect(() => {
-    if (isOffline || !dayData?.steps?.length || !courseId || !dayId) return;
-
-    let cancelled = false;
-    const recoverCompletedSteps = async () => {
-      let recoveredAny = false;
-
-      for (let index = 0; index < dayData.steps.length; index += 1) {
-        const serverStep = dayData.steps[index];
-        const serverStatus = "status" in serverStep ? serverStep.status : "NOT_STARTED";
-        if (serverStatus === "COMPLETED") continue;
-
-        const localState = useStepStore.getState().getStepState(courseId, dayId, index);
-        if (localState?.status !== "COMPLETED") continue;
-
-        const recoveryKey = `${courseId}:${dayId}:${index}`;
-        if (recoveredCompletedStepsRef.current.has(recoveryKey)) continue;
-        recoveredCompletedStepsRef.current.add(recoveryKey);
-
-        const stepData = getStepContent(serverStep);
-        const params = {
-          courseId,
-          dayOnCourseId: dayId,
-          stepIndex: index,
-          stepTitle: stepData.title,
-          stepOrder: stepData.order,
-        };
-
-        const response =
-          stepData.type === "THEORY" || stepData.type === "DIARY"
-            ? await trainingApi.completeTheoryStep(params)
-            : await trainingApi.completePracticeStep(params);
-
-        if (!response.success) {
-          recoveredCompletedStepsRef.current.delete(recoveryKey);
-          reportClientError(new Error(response.error ?? "Не удалось восстановить прогресс шага"), {
-            issueKey: "TrainingDay",
-            keys: {
-              operation: "recover_completed_step",
-              courseId,
-              dayId,
-              stepIndex: String(index),
-              code: response.code ?? "",
-            },
-          });
-          continue;
-        }
-
-        recoveredAny = true;
-      }
-
-      if (recoveredAny && !cancelled) {
-        void refetch();
-      }
-    };
-
-    void recoverCompletedSteps();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [courseId, dayData?.steps, dayId, isOffline, refetch]);
+  // Phase1 policy: ownerless persisted stepStore completion is NOT a durable
+  // owner/authEpoch-attested receipt. NEVER auto-send complete*Step POST on
+  // focus/restart to "recover" it. Phase2 replay/ACK is explicitly closed.
+  // Server-confirmed status and current-session exact v2 pending stay read-only.
 
   // Обработчики
-  const unlockStepWithRewardedAd = useCallback(
-    async (index: number) => {
-      if (rewardedUnlockInFlightRef.current) return;
-      const target = dayData?.steps?.[index]?.monetizationTarget;
-      if (!target || target.targetType !== "COURSE_STEP") return;
-
-      rewardedUnlockInFlightRef.current = true;
-      setStepAccessError(null);
-      setUnlockingStepIndex(index);
-      try {
-        const result = await openTargetWithRewardedAd(target);
-        if (!result.success) {
-          if (result.failure === "DAILY_LIMIT") {
-            setRewardedDailyLimitReached(true);
-            await rewardedStatusQuery.refetch();
-            return;
-          }
-          setStepAccessError(result.message);
-          setSnackbar({ visible: true, message: result.message });
-          return;
-        }
-        if (result.data) {
-          trackEvent({
-            eventName: "rewarded_access_granted",
-            platform: "mobile",
-            pathOrScreen: `/training/${courseType}/${dayId}`,
-            targetType: result.data.targetType,
-            targetId: result.data.targetId,
-            expiresAt: result.data.expiresAt,
-            provider: "YANDEX",
-          });
-        }
-        await Promise.all([refetch(), rewardedStatusQuery.refetch()]);
-        setOpenIndex(courseId, dayId, index);
-      } catch (error) {
-        reportClientError(error instanceof Error ? error : new Error(String(error)), {
-          issueKey: "TrainingDay",
-          keys: {
-            operation: "open_step_with_rewarded_ad",
-            dayId,
-            courseId,
-            stepIndex: String(index),
-          },
-        });
-        const message = "Ошибка сервиса Гафус. Попробуйте ещё раз или обратитесь к администрации";
-        setStepAccessError(message);
-        setSnackbar({ visible: true, message });
-      } finally {
-        rewardedUnlockInFlightRef.current = false;
-        setUnlockingStepIndex(null);
-      }
-    },
-    [courseId, courseType, dayData?.steps, dayId, refetch, rewardedStatusQuery, setOpenIndex],
-  );
-
   const handleToggleStep = useCallback(
     (index: number) => {
       const step = dayData?.steps?.[index];
       if (step?.locked && step.monetizationTarget) {
-        setStepAccessError(null);
         setOpenIndex(courseId, dayId, openIndex === index ? null : index);
         return;
       }
@@ -323,7 +225,9 @@ export default function TrainingDayScreen() {
   }, []);
 
   const handleStartStep = useCallback(
-    async (stepIndex: number, durationSec: number) => {
+    async (stepIndex: number, durationSec: number): Promise<boolean> => {
+      const ownerAtStart = useAuthStore.getState().user;
+      const epochAtStart = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
       try {
         const activeTimer = useTimerStore.getState().activeTimer;
         if (activeTimer?.isRunning) {
@@ -333,95 +237,168 @@ export default function TrainingDayScreen() {
             activeTimer.stepIndex !== stepIndex;
           if (isOtherStep) {
             setSnackbar({ visible: true, message: "Сначала остановите текущий шаг" });
-            return;
+            return false;
           }
         }
 
         const currentStepState = getStepState(courseId, dayId, stepIndex);
         if (currentStepState?.status === "IN_PROGRESS") {
-          return;
+          return false;
         }
 
-        // Локальное обновление
-        startStep(courseId, dayId, stepIndex, durationSec);
-
-        // Отправка на сервер
-        await startStepMutation.mutateAsync({
+        // New offline event must be durable before optimistic timer mutation.
+        const startingOffline = isOffline;
+        const result = await startStepMutation.mutateAsync({
           courseId,
           dayOnCourseId: dayId,
           stepIndex,
           status: "IN_PROGRESS",
           durationSec,
         });
+        if (!result.success) throw new Error("Не удалось начать шаг");
+        if (
+          useAuthStore.getState().user !== ownerAtStart ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtStart
+        )
+          return false;
+        startStep(courseId, dayId, stepIndex, durationSec);
+        if (startingOffline && "code" in result && result.code === "OFFLINE_QUEUED") {
+          setSnackbar({
+            visible: true,
+            message: "Начало шага сохранено только на устройстве · не отправлено",
+          });
+        }
+        return true;
       } catch (error) {
         reportClientError(error instanceof Error ? error : new Error(String(error)), {
           issueKey: "TrainingDay",
           keys: { operation: "start", dayId, courseId },
         });
         setSnackbar({ visible: true, message: "Ошибка старта шага" });
+        return false;
       }
     },
-    [courseId, dayId, getStepState, startStep, startStepMutation],
+    [courseId, dayId, getStepState, isOffline, startStep, startStepMutation],
   );
 
   const handlePauseStep = useCallback(
-    async (stepIndex: number, remainingSec: number) => {
+    async (stepIndex: number, remainingSec: number): Promise<boolean> => {
+      const ownerAtAction = useAuthStore.getState().user;
+      const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
       try {
-        pauseStep(courseId, dayId, stepIndex, remainingSec);
-
-        await pauseStepMutation.mutateAsync({
+        const result = await pauseStepMutation.mutateAsync({
           courseId,
           dayOnCourseId: dayId,
           stepIndex,
           timeLeftSec: remainingSec,
         });
+        if (!result.success) throw new Error("Не удалось сохранить паузу");
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
+        if ("code" in result && result.code === "OFFLINE_QUEUED") {
+          setSnackbar({
+            visible: true,
+            message: "Пауза сохранена только на устройстве · не отправлена",
+          });
+        }
+        return true;
       } catch (error) {
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
         reportClientError(error instanceof Error ? error : new Error(String(error)), {
           issueKey: "TrainingDay",
           keys: { operation: "pause", dayId, courseId },
         });
         setSnackbar({ visible: true, message: "Ошибка паузы" });
+        return false;
       }
     },
-    [courseId, dayId, pauseStep, pauseStepMutation],
+    [courseId, dayId, pauseStepMutation],
   );
 
   const handleResumeStep = useCallback(
-    async (stepIndex: number) => {
+    async (stepIndex: number): Promise<boolean> => {
+      const ownerAtAction = useAuthStore.getState().user;
+      const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
       try {
-        resumeStep(courseId, dayId, stepIndex);
-        await resumeStepMutation.mutateAsync({
+        const result = await resumeStepMutation.mutateAsync({
           courseId,
           dayOnCourseId: dayId,
           stepIndex,
         });
+        if (!result.success) throw new Error("Не удалось возобновить шаг");
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
+        if ("code" in result && result.code === "OFFLINE_QUEUED") {
+          setSnackbar({
+            visible: true,
+            message: "Возобновление сохранено только на устройстве · не отправлено",
+          });
+        }
+        return true;
       } catch (error) {
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
         reportClientError(error instanceof Error ? error : new Error(String(error)), {
           issueKey: "TrainingDay",
           keys: { operation: "resume", dayId, courseId },
         });
         setSnackbar({ visible: true, message: "Ошибка возобновления" });
+        return false;
       }
     },
-    [courseId, dayId, resumeStep, resumeStepMutation],
+    [courseId, dayId, resumeStepMutation],
   );
 
   const handleResetStep = useCallback(
-    async (stepIndex: number, durationSec: number) => {
+    async (stepIndex: number, durationSec: number): Promise<boolean> => {
+      const ownerAtAction = useAuthStore.getState().user;
+      const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
       try {
-        stopTimer(courseId, dayId, stepIndex);
-        await resetStepMutation.mutateAsync({
+        const result = await resetStepMutation.mutateAsync({
           courseId,
           dayOnCourseId: dayId,
           stepIndex,
           durationSec,
         });
+        if (!result.success) throw new Error("Не удалось сбросить шаг");
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
+        stopTimer(courseId, dayId, stepIndex);
+        if ("code" in result && result.code === "OFFLINE_QUEUED") {
+          setSnackbar({
+            visible: true,
+            message: "Сброс сохранён только на устройстве · не отправлен",
+          });
+        }
+        return true;
       } catch (error) {
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
         reportClientError(error instanceof Error ? error : new Error(String(error)), {
           issueKey: "TrainingDay",
           keys: { operation: "reset", dayId, courseId },
         });
         setSnackbar({ visible: true, message: "Ошибка сброса шага" });
+        return false;
       }
     },
     [courseId, dayId, resetStepMutation, stopTimer],
@@ -429,10 +406,11 @@ export default function TrainingDayScreen() {
 
   const handleCompleteStep = useCallback(
     async (stepIndex: number, isTheory: boolean, stepTitle?: string, stepOrder?: number) => {
+      const requestGeneration = practiceScreenGeneration.current;
+      const currentOwner = useAuthStore.getState().user?.id ?? null;
+      const initialBinding = newOnlyV2NativeQueues.getVerifiedBinding();
+      const initialEpoch = initialBinding?.authEpoch ?? null;
       try {
-        stopTimer(courseId, dayId, stepIndex);
-        completeStep(courseId, dayId, stepIndex);
-
         const params = {
           courseId,
           dayOnCourseId: dayId,
@@ -445,31 +423,79 @@ export default function TrainingDayScreen() {
           ? await completeTheoryMutation.mutateAsync(params)
           : await completePracticeMutation.mutateAsync(params);
 
+        if (
+          requestGeneration !== practiceScreenGeneration.current ||
+          useAuthStore.getState().user !== verifiedProfile ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== initialEpoch
+        )
+          return;
+        if ("code" in result && result.code === "OFFLINE_QUEUED") {
+          const after = newOnlyV2NativeQueues.getVerifiedBinding();
+          if (
+            !currentOwner ||
+            !initialBinding ||
+            initialBinding.principalId !== currentOwner ||
+            !after ||
+            after.principalId !== currentOwner ||
+            after.authEpoch !== initialBinding.authEpoch ||
+            useAuthStore.getState().user?.id !== currentOwner
+          )
+            return;
+        }
         if (!result.success) {
           throw new Error(result.error ?? "Не удалось сохранить прогресс");
         }
 
-        setSnackbar({ visible: true, message: "Шаг выполнен!" });
+        if ("code" in result && result.code === "OFFLINE_QUEUED") {
+          // The durable v2 write has resolved; refresh the owner-scoped preview now.
+          void refreshPendingPractice();
+          void refreshPendingTimers();
+        }
+        if (!("code" in result && result.code === "OFFLINE_QUEUED"))
+          onlineReceipt.markConfirmed(stepIndex);
+        stopTimer(courseId, dayId, stepIndex);
+        setSnackbar({
+          visible: true,
+          message:
+            "code" in result && result.code === "OFFLINE_QUEUED"
+              ? "Шаг сохранён только на устройстве · не отправлен"
+              : "Шаг выполнен!",
+        });
 
         const nextIndex = stepIndex + 1;
         if (dayData?.steps && nextIndex < dayData.steps.length) {
           setOpenIndex(courseId, dayId, nextIndex);
         }
       } catch (error) {
+        if (
+          requestGeneration !== practiceScreenGeneration.current ||
+          useAuthStore.getState().user !== verifiedProfile ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== initialEpoch
+        )
+          return;
         reportClientError(error instanceof Error ? error : new Error(String(error)), {
           issueKey: "TrainingDay",
           keys: { operation: "complete", dayId, courseId },
         });
-        setSnackbar({ visible: true, message: "Ошибка сохранения" });
+        setSnackbar({
+          visible: true,
+          message: isOffline
+            ? "Результат локального сохранения не подтверждён · проверьте записи перед повтором"
+            : "Ошибка сохранения",
+        });
       }
     },
     [
       courseId,
       dayId,
       stopTimer,
-      completeStep,
       completeTheoryMutation,
       completePracticeMutation,
+      refreshPendingPractice,
+      refreshPendingTimers,
+      isOffline,
+      onlineReceipt.markConfirmed,
+      verifiedProfile,
       dayData?.steps,
       setOpenIndex,
     ],
@@ -561,7 +587,6 @@ export default function TrainingDayScreen() {
             >
               {snackbar.message}
             </Snackbar>
-
           </SafeAreaView>
         </>
       );
@@ -633,10 +658,13 @@ export default function TrainingDayScreen() {
       <>
         <Stack.Screen options={{ headerShown: false }} />
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-          <AppBackButton style={styles.backRow} onPress={() => {
-            void hapticFeedback.light();
-            router.back();
-          }} />
+          <AppBackButton
+            style={styles.backRow}
+            onPress={() => {
+              void hapticFeedback.light();
+              router.back();
+            }}
+          />
           <View style={styles.errorContainer}>
             <MaterialCommunityIcons name="alert-circle" size={48} color={COLORS.error} />
             <Text style={styles.errorText}>{errorMessage}</Text>
@@ -681,6 +709,24 @@ export default function TrainingDayScreen() {
           nestedScrollEnabled
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />}
         >
+          {visiblePendingTimers.length > 0 ? (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
+              <Text>Локальные изменения шагов · только на устройстве · не отправлено</Text>
+              {visiblePendingTimers.map((item) => (
+                <Text key={item.stepIndex}>
+                  Шаг {item.stepIndex + 1}:{" "}
+                  {item.status === "IN_PROGRESS"
+                    ? "В процессе"
+                    : item.status === "PAUSED"
+                      ? "Пауза"
+                      : item.status === "RESET"
+                        ? "Сброшен"
+                        : "Завершён локально"}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+          <PendingPracticeNotice entries={pendingPractice} status={pendingReadStatus} />
           {/* Заголовок дня по типу (как на web Day.tsx) */}
           {dayData && (
             <View style={styles.dayHeader}>
@@ -817,7 +863,7 @@ export default function TrainingDayScreen() {
 
                   const stepId = "id" in step ? step.id : stepData.id;
                   const uniqueKey = `${dayId}-${stepData.order ?? index}-${stepId}-${index}`;
-                  const isLockedRewardedStep = Boolean(step.locked && step.monetizationTarget);
+                  const isLockedGafusStep = Boolean(step.locked && step.monetizationTarget);
 
                   return (
                     <AccordionStep
@@ -827,18 +873,19 @@ export default function TrainingDayScreen() {
                       stepNumber={exerciseNumber}
                       isOpen={openIndex === index}
                       localState={getStepState(courseId, dayId, index)}
+                      verifiedLocalCompleted={
+                        onlineReceipt.isConfirmed(index) ||
+                        visiblePendingTimers.some(
+                          (row) => row.stepIndex === index && row.status === "COMPLETED",
+                        )
+                      }
                       courseId={courseId}
+                      offlineCourseType={courseType}
                       dayOnCourseId={dayId}
                       onToggle={() => handleToggleStep(index)}
-                      onStart={() => {
-                        void handleStartStep(index, durationSec);
-                      }}
-                      onPause={(remainingSec) => {
-                        void handlePauseStep(index, remainingSec);
-                      }}
-                      onResume={() => {
-                        void handleResumeStep(index);
-                      }}
+                      onStart={() => handleStartStep(index, durationSec)}
+                      onPause={(remainingSec) => handlePauseStep(index, remainingSec)}
+                      onResume={() => handleResumeStep(index)}
                       onComplete={() =>
                         handleCompleteStep(
                           index,
@@ -847,13 +894,11 @@ export default function TrainingDayScreen() {
                           index,
                         )
                       }
-                      onReset={(durationSecReset) => {
-                        void handleResetStep(index, durationSecReset);
-                      }}
+                      onReset={(durationSecReset) => handleResetStep(index, durationSecReset)}
                       diaryEntries={diaryEntries}
                       onSaveDiary={stepType === "DIARY" ? handleSaveDiaryForStep : undefined}
                       accessGate={
-                        isLockedRewardedStep ? (
+                        isLockedGafusStep ? (
                           <>
                             {openIndex === index && step.monetizationTarget && (
                               <GafusStepUnlock
@@ -863,15 +908,15 @@ export default function TrainingDayScreen() {
                                 onUnlocked={refetch}
                               />
                             )}
-                            <RewardedAccessGate
-                              title="Продолжить обучение"
-                              subtitle="С подпиской будет доступно всё!"
-                              prompt={openIndex === index ? rewardedPrompt : loadingRewardedPrompt}
-                              errorText={openIndex === index ? stepAccessError : null}
-                              isBusy={unlockingStepIndex === index}
-                              onPrimaryPress={() => void unlockStepWithRewardedAd(index)}
-                              onSubscriptionPress={handleSubscriptionPaywall}
-                            />
+                            {openIndex === index && <Button
+                              label="Оформить подписку"
+                              variant="caramel"
+                              gradient={false}
+                              buttonColor="#D4AF37"
+                              textColor="#3F3218"
+                              borderRadius={16}
+                              onPress={handleSubscriptionPaywall}
+                            />}
                           </>
                         ) : undefined
                       }
@@ -901,7 +946,6 @@ export default function TrainingDayScreen() {
         >
           {snackbar.message}
         </Snackbar>
-
       </SafeAreaView>
     </>
   );

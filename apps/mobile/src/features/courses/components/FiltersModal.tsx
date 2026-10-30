@@ -8,7 +8,7 @@ import {
   Text,
 } from "react-native";
 
-import { STEP_STATUS_FILTER_LABELS } from "@gafus/core/utils/training";
+import { STEP_STATUS_FILTER_LABELS } from "@gafus/core-client/utils/training";
 import { TrainingStatus } from "@gafus/types";
 import {
   type CourseTabType,

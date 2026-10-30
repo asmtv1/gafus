@@ -6,7 +6,6 @@ import {
   getAppSubscriptionAccess,
   getAppSubscriptionOffer,
   previewAppSubscriptionPromoCode,
-  reconcilePendingYookassaAppSubscription,
   restoreAppleAppSubscription,
   startYookassaAppSubscriptionPayment,
   SubscriptionRequiredError,
@@ -22,6 +21,11 @@ import { getClientAppContext } from "../../lib/client-app-context.js";
 
 const logger = createWebLogger("api-app-subscription");
 export const appSubscriptionRoutes = new Hono();
+// Also protect isolated route consumers; app.ts handles pre-auth 401/403.
+appSubscriptionRoutes.use("*", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  await next();
+});
 
 const verifyAppleSchema = z.object({
   signedTransactionInfo: z.string().min(1),
@@ -34,6 +38,7 @@ const restoreAppleSchema = z.object({
 
 const startYookassaSchema = z.object({
   planCode: z.enum(["TWO_WEEKS", "MONTHLY", "THREE_MONTHS"]),
+  returnPath: z.string().regex(/^\/consultations\/[A-Za-z0-9_-]{1,128}$/).optional(),
   promoCode: z
     .object({
       code: z.string(),
@@ -90,11 +95,8 @@ function jsonAppleResult(c: Context, data: AppleAppSubscriptionResult) {
 appSubscriptionRoutes.get("/status", async (c) => {
   try {
     const user = c.get("user");
-    const shopId = process.env.YOOKASSA_SHOP_ID;
-    const secretKey = process.env.YOOKASSA_SECRET_KEY;
-    if (shopId && secretKey) {
-      await reconcilePendingYookassaAppSubscription({ userId: user.id, shopId, secretKey });
-    }
+    // Snapshot only: payment reconciliation is a write/provider operation and is
+    // scheduled by the existing worker, never triggered by reading the paywall.
     const data = await getAppSubscriptionAccess(user.id);
     return c.json({ success: true, data });
   } catch (error) {
@@ -108,12 +110,6 @@ appSubscriptionRoutes.get("/offer", async (c) => {
     const user = c.get("user");
     const clientContext = getClientAppContext(c);
     const data = await getAppSubscriptionOffer(user.id, clientContext);
-    console.log("[api app-subscription/offer] resolved", {
-      userId: user.id,
-      clientPlatform: clientContext.platform,
-      clientVersion: clientContext.version,
-      iosRuCardPaymentEnabled: data.iosRuCardPaymentEnabled,
-    });
     return c.json({ success: true, data });
   } catch (error) {
     logger.error("GET /offer error", error as Error);
@@ -173,15 +169,9 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
         403,
       );
     }
-    console.log("[api app-subscription/yookassa/start] request", { userId: user.id });
     const shopId = process.env.YOOKASSA_SHOP_ID;
     const secretKey = process.env.YOOKASSA_SECRET_KEY;
     if (!shopId || !secretKey) {
-      console.log("[api app-subscription/yookassa/start] YooKassa config missing", {
-        userId: user.id,
-        hasShopId: Boolean(shopId),
-        hasSecretKey: Boolean(secretKey),
-      });
       return c.json({ success: false, error: "Платежи недоступны", code: "CONFIG" }, 500);
     }
 
@@ -200,7 +190,6 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
       process.env.NEXT_PUBLIC_APP_URL ??
       process.env.NEXTAUTH_URL;
     if (!originRaw) {
-      console.log("[api app-subscription/yookassa/start] web origin missing", { userId: user.id });
       return c.json(
         { success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" },
         500,
@@ -208,19 +197,11 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
     }
     const originUrl = new URL(originRaw);
     if (!["http:", "https:"].includes(originUrl.protocol)) {
-      console.log("[api app-subscription/yookassa/start] invalid web origin protocol", {
-        userId: user.id,
-        origin: originRaw,
-      });
       return c.json(
         { success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" },
         500,
       );
     }
-    console.log("[api app-subscription/yookassa/start] starting payment", {
-      userId: user.id,
-      origin: originUrl.origin,
-    });
     const data = await startYookassaAppSubscriptionPayment({
       userId: user.id,
       origin: originUrl.origin,
@@ -228,14 +209,8 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
       secretKey,
       planCode: parsed.data.planCode,
       promoCode: parsed.data.promoCode,
+      returnPath: parsed.data.returnPath,
       clientContext,
-    });
-    console.log("[api app-subscription/yookassa/start] payment service result", {
-      userId: user.id,
-      success: data.success,
-      error: data.success ? null : data.error,
-      hasConfirmationUrl: data.success ? Boolean(data.confirmationUrl) : false,
-      localSubscriptionId: data.success ? data.localSubscriptionId : null,
     });
     if (!data.success) {
       return c.json(

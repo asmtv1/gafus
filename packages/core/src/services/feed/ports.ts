@@ -3,7 +3,7 @@ export type FeedDb = Pick<
   PrismaClient,
   "$transaction" | "$queryRaw" | "user" | "feedPost" | "feedPostRevision" | "feedMediaAsset" |
   "feedUpload" | "feedRevisionAttachment" | "galleryPhoto" | "feedStorageJob" |
-  "feedComment" | "feedPostReaction" | "feedCommentReaction" | "feedPostView" |
+  "feedComment" | "feedCommentMedia" | "feedPostReaction" | "feedCommentReaction" | "feedPostView" |
   "feedNotification" | "feedNotificationOutbox" | "feedBookmark" | "feedAuthorPreference" | "feedReport" | "feedModerationAction" |
   "feedPersonalizationPreference" | "feedImpression" | "feedUserAuthorAffinity" | "feedPostStats" | "feedUserPostFeedback" |
   "feedSmartRankerModel" | "feedRankingEvent" | "feedPoll" | "feedPollOption" |

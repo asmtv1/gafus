@@ -52,7 +52,10 @@ describe("reengagement scheduler queue adapter", () => {
     expect(mocks.sendJob).toHaveBeenCalledWith(
       "send-reengagement-notification",
       { campaignId: "camp-1", userId: "user-1", level: 1 },
-      expect.objectContaining({ attempts: 3 }),
+      expect.objectContaining({
+        attempts: 3,
+        jobId: "reengagement-camp-1-level-1",
+      }),
     );
   });
 

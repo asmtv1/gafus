@@ -25,11 +25,17 @@ vi.mock("@gafus/queues", () => ({
   },
 }));
 
-import { healthRoutes } from "./health";
+import { createHealthRoutes } from "./health";
 
 function createTestApp() {
   const app = new Hono();
-  app.route("/", healthRoutes);
+  app.route(
+    "/",
+    createHealthRoutes(async () => ({
+      checkDatabase: prismaQueryRawMock,
+      pingRedis: redisPingMock,
+    })),
+  );
   return app;
 }
 
@@ -88,5 +94,115 @@ describe("health route contracts", () => {
     await expect(response.json()).resolves.toMatchObject({
       status: "not ready",
     });
+  });
+
+  it("DB probe never settles: readiness responds with bounded sanitized 503", async () => {
+    vi.useFakeTimers();
+    try {
+      prismaQueryRawMock.mockImplementationOnce(() => new Promise(() => undefined));
+      const pending = Promise.resolve(createTestApp().request("/ready"));
+      const observed = vi.fn();
+      void pending.then(observed, observed);
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(observed).toHaveBeenCalledTimes(1);
+      const response = observed.mock.calls[0]![0] as Response;
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        status: "not ready",
+        error: "Readiness probe failed",
+      });
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it("Redis probe never settles: shared 5s deadline returns sanitized 503", async () => {
+    vi.useFakeTimers();
+    try {
+      redisPingMock.mockImplementationOnce(() => new Promise(() => undefined));
+      const pending = Promise.resolve(createTestApp().request("/ready"));
+      await vi.advanceTimersByTimeAsync(4_999);
+      let done = false;
+      void pending.then(() => {
+        done = true;
+      });
+      await Promise.resolve();
+      expect(done).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      const response = await pending;
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        status: "not ready",
+        error: "Readiness probe failed",
+      });
+      expect(prismaQueryRawMock).toHaveBeenCalledTimes(1);
+      expect(redisPingMock).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it("raw DB/Redis exceptions never appear in 503 and timer is cleared", async () => {
+    vi.useFakeTimers();
+    try {
+      const secret = "PRIVATE_DATABASE_URL_AND_REDIS_TOKEN";
+      prismaQueryRawMock.mockRejectedValueOnce(new Error(secret));
+      const response = await createTestApp().request("/ready");
+      expect(response.status).toBe(503);
+      const text = await response.text();
+      expect(JSON.parse(text)).toEqual({ status: "not ready", error: "Readiness probe failed" });
+      expect(text).not.toContain(secret);
+      expect(redisPingMock).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it("both successful probes before deadline return 200 without remaining timers", async () => {
+    vi.useFakeTimers();
+    try {
+      const response = await createTestApp().request("/ready");
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ status: "ready" });
+      expect(prismaQueryRawMock).toHaveBeenCalledOnce();
+      expect(redisPingMock).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
+  });
+
+  it("late DB rejection after timeout cannot change settled 503 or leave a timer", async () => {
+    vi.useFakeTimers();
+    try {
+      let rejectDb!: (reason: Error) => void;
+      prismaQueryRawMock.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectDb = reject;
+          }),
+      );
+      const pending = Promise.resolve(createTestApp().request("/ready"));
+      await vi.advanceTimersByTimeAsync(5_000);
+      const response = await pending;
+      expect(response.status).toBe(503);
+      const before = await response.text();
+      expect(JSON.parse(before)).toEqual({ status: "not ready", error: "Readiness probe failed" });
+      rejectDb(new Error("SECRET_LATE_DB_CONNECTION_ERROR"));
+      for (let i = 0; i < 6; i += 1) await Promise.resolve();
+      expect(response.status).toBe(503);
+      expect(before).not.toContain("SECRET_LATE_DB_CONNECTION_ERROR");
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
   });
 });

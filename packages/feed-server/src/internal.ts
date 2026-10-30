@@ -1,7 +1,8 @@
 import { createFeedStorageFromEnv } from "@gafus/feed-storage";
 import { z } from "zod";
+import { FEED_LIMITS } from "@gafus/types";
 import { createFeedRequestVerifier, type FeedNonceStore } from "@gafus/feed-cloud";
-import { createFeedStorageJobs, createFeedMaintenance, createFeedUploadRecovery, FeedError } from "@gafus/core/services/feed";
+import { FeedError, type createFeedStorageJobs, type createFeedMaintenance } from "@gafus/core/services/feed";
 import { createCurrentFeedInternalRuntime } from "@gafus/core/services/feed";
 import { connection as redis } from "@gafus/queues";
 
@@ -12,10 +13,11 @@ const claimSchema = batch.extend({ workerType: z.enum(["photo", "video"]).option
 const identity = { jobId: z.string().min(1).max(128), attemptToken: z.string().uuid() };
 const output = z.object({
   width: z.number().int().positive(), height: z.number().int().positive(),
-  durationSeconds: z.number().positive().max(60).optional(),
+  durationSeconds: z.number().positive().max(FEED_LIMITS.videoSeconds).optional(),
+  smallKey: z.string().max(1024).optional(),
   thumbKey: z.string().max(1024).optional(), fullKey: z.string().max(1024).optional(),
-  posterKey: z.string().max(1024).optional(), playlistKey: z.string().max(1024).optional(),
-  videoSegmentKeys: z.array(z.string().max(1024)).max(60).optional(),
+  posterKey: z.string().max(1024).optional(),
+  mp4Keys: z.array(z.string().max(1024)).max(3).optional(),
 }).strict();
 const completion = z.object({ ...identity, output: output.optional() }).strict();
 const renewal = z.object(identity).strict();

@@ -1,0 +1,31 @@
+{
+  "name": "@gafus/tracking-server",
+  "version": "1.7.0",
+  "private": true,
+  "sideEffects": true,
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "typesVersions": { "*": { "trackingService": ["dist/trackingService.d.ts"] } },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./trackingService": {
+      "types": "./dist/trackingService.d.ts",
+      "default": "./dist/trackingService.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/logger": "workspace:*",
+    "@gafus/prisma": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "^4.0.17"
+  }
+}

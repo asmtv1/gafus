@@ -11,6 +11,8 @@ for (const kind of ["photo", "video"]) {
   assert.equal(pool.length, 2);
   for (const job of pool) {
     assert.equal(job.template.containers[0].env.find(item => item.name === "FEED_WORKER_TYPE").value, kind);
+    assert.deepEqual(job.template.containers[0].resources,
+      kind === "photo" ? { cpu: "1", memory: "2048Mi" } : { cpu: "2", memory: "8192Mi" });
   }
   assert.deepEqual(pool[0].template.containers[0].resources, pool[1].template.containers[0].resources);
   assert.equal(pool[0].template.containers[0].image, pool[1].template.containers[0].image);
@@ -44,7 +46,7 @@ for (const job of jobs) {
 }
 assert(
   jobs.some(
-    (x) => x.name.includes("video") && x.template.containers[0].resources.memory === "4096Mi",
+    (x) => x.name.includes("video") && x.template.containers[0].resources.memory === "8192Mi",
   ),
 );
 assert.throws(() => cloudruMediaManifests("bad", revision), /INVALID_CLOUDRU_RELEASE_ID/);

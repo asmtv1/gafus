@@ -34,6 +34,20 @@ describe("Gafus economy initial flags", () => {
     expect(mocks.findUnique).toHaveBeenCalledWith({ where: { key: "default" } });
   });
 
+  it("ignores historical override prices and keeps exactly one Gafus / 168 hours", async () => {
+    mocks.findUnique.mockResolvedValue({
+      ...DEFAULT_GAFUS_SETTINGS,
+      revision: 9,
+      courseStepCost: 7, miniGuideCost: 4,
+      accessDurationSeconds: 123456,
+    });
+    const settings = await getGafusSettingsTx(tx());
+    expect(settings).toMatchObject({
+      revision: 9, courseStepCost: 1, miniGuideCost: 1,
+      accessDurationSeconds: 604800,
+    });
+  });
+
   it("preserves existing explicit administrator choices instead of silently re-enabling", async () => {
     mocks.findUnique.mockResolvedValue({
       ...DEFAULT_GAFUS_SETTINGS,

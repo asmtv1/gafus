@@ -1,5 +1,2 @@
-export * from "./stepNotificationService";
-
-export * from "./pushWorkerService";
-
-export * from "./immediatePushService";
+/** Legacy server facade; implementation in @gafus/notifications-server. */
+export * from "@gafus/notifications-server";

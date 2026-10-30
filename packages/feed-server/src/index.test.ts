@@ -22,6 +22,21 @@ function invoke(
   );
 }
 describe("feed shared HTTP dispatcher", () => {
+  it("keeps CDN preview mutation-free and rejects removed playback tickets", async () => {
+    vi.stubEnv("GAFUS_LOCAL_READONLY_CDN", "enabled");
+    await expect(invoke("posts", "POST", "{}"))
+      .rejects.toMatchObject({ code: "FEED_READONLY_LIVE_CDN", status: 405 });
+    await expect(invoke("media/m1/fallback", "POST", "{}"))
+      .rejects.toMatchObject({ code: "FEED_READONLY_LIVE_CDN", status: 405 });
+    await expect(invoke("media/m1/playback/extra", "POST", "{}"))
+      .rejects.toMatchObject({ code: "FEED_READONLY_LIVE_CDN", status: 405 });
+    // The ticket endpoint only reads access rights and creates an expiring HLS token.
+    // In this isolated unit configuration the playback service is intentionally off:
+    // Removed playback tickets must be blocked before any media signing.
+    await expect(invoke("media/m1/playback", "POST", "{}"))
+      .rejects.toMatchObject({ code: "FEED_READONLY_LIVE_CDN", status: 405 });
+    await expect(invoke("posts", "GET")).resolves.toBeDefined();
+  });
   it("protects personalization routes behind the migration rollout flag", async () => {
     vi.stubEnv("FEED_SMART_ENABLED", "false");
     await expect(invoke("personalization", "GET")).rejects.toMatchObject({
@@ -186,6 +201,9 @@ describe("feed S3 fallback authorization", () => {
     await expect(invoke("media/media123/fallback", "POST", '{"variant":"poster"}', posts))
       .rejects.toThrow("NOT_VISIBLE");
     expect(posts.fallbackSource).toHaveBeenCalledWith(actor, "media123", "poster");
+    await expect(invoke("media/media123/fallback", "POST", '{"variant":"video720"}', posts))
+      .rejects.toThrow("NOT_VISIBLE");
+    expect(posts.fallbackSource).toHaveBeenCalledWith(actor, "media123", "video720");
   });
 });
 
@@ -210,10 +228,34 @@ describe("feed personal actions routing", () => {
 });
 
 describe("feed poll HTTP routing", () => {
+  it("routes owner-only optional draft poll without changing public poll 404 semantics", async () => {
+    const getDraftOptional = vi.fn().mockResolvedValue(null);
+    const get = vi.fn().mockRejectedValue({ code: "NOT_FOUND", status: 404 });
+    const pollActions = { getDraftOptional, get };
+    const run = (path: string, method = "GET") => {
+      const request = new Request("https://example.test/api/v1/feed" + path, { method });
+      return dispatchFeedRequest(actor, request, path.split("?")[0]!,
+        {} as FeedService, {} as FeedSocialService,
+        {} as NonNullable<Parameters<typeof dispatchFeedRequest>[5]>,
+        pollActions as unknown as NonNullable<Parameters<typeof dispatchFeedRequest>[6]>);
+    };
+    await expect(run("/posts/post_1/draft-poll")).resolves.toBeNull();
+    expect(getDraftOptional).toHaveBeenCalledExactlyOnceWith(actor, "post_1");
+    expect(get).not.toHaveBeenCalled();
+    await expect(run("/posts/post_1/poll")).rejects.toMatchObject({ status: 404 });
+    await expect(run("/posts/post_1/draft-poll?bad=1"))
+      .rejects.toMatchObject({ status: 400 });
+    await expect(run("/posts/..%2Funsafe/draft-poll"))
+      .rejects.toMatchObject({ status: 400 });
+    expect(getDraftOptional).toHaveBeenCalledTimes(1);
+  });
+
   it("routes read, draft save and vote through core with session actor, never a client user ID", async () => {
     const pollActions = { get: vi.fn().mockResolvedValue({ id: "poll_1" }),
       save: vi.fn().mockResolvedValue({ id: "poll_1" }),
       vote: vi.fn().mockResolvedValue({ id: "poll_1" }),
+      changeVote: vi.fn().mockResolvedValue({ id: "poll_1", myOptionIds: ["option_2"] }),
+      cancelVote: vi.fn().mockResolvedValue({ id: "poll_1", myOptionIds: [] }),
       remove: vi.fn().mockResolvedValue({ removed: true }) };
     const run = (path: string, method: string, body?: unknown) => dispatchFeedRequest(
       actor, new Request(`https://example.test/api/v1/feed${path}`, {
@@ -236,6 +278,13 @@ describe("feed poll HTTP routing", () => {
     expect(pollActions.remove).toHaveBeenCalledWith(actor, "post_1");
     await run("/posts/post_1/poll/vote", "POST", { optionIds: ["option_1"] });
     expect(pollActions.vote).toHaveBeenCalledWith(actor, "post_1", { optionIds: ["option_1"] });
+    await run("/posts/post_1/poll/vote", "PUT", { optionIds: ["option_2"] });
+    expect(pollActions.changeVote).toHaveBeenCalledExactlyOnceWith(actor, "post_1", {
+      optionIds: ["option_2"],
+    });
+    await run("/posts/post_1/poll/vote", "DELETE", {});
+    expect(pollActions.cancelVote).toHaveBeenCalledExactlyOnceWith(actor, "post_1");
+    expect(pollActions.vote).toHaveBeenCalledOnce();
     await expect(run("/posts/post_1/poll/vote", "POST", { optionIds: ["option_1"], userId: "other" }))
       .rejects.toMatchObject({ status: 400 });
     await expect(run("/posts/post_1/poll", "PUT", { ...value, authorId: "other" }))
@@ -244,5 +293,18 @@ describe("feed poll HTTP routing", () => {
       .rejects.toMatchObject({ status: 400 });
     await expect(run("/posts/post_1/poll/vote?untrusted=x", "POST", { optionIds: ["option_1"] }))
       .rejects.toMatchObject({ status: 400 });
+    await expect(run("/posts/post_1/poll/vote?untrusted=x", "PUT", { optionIds: ["option_1"] }))
+      .rejects.toMatchObject({ status: 400 });
+    await expect(run("/posts/post_1/poll/vote?untrusted=x", "DELETE", {}))
+      .rejects.toMatchObject({ status: 400 });
+    await expect(run("/posts/post_1/poll/vote", "PUT", { optionIds: [] }))
+      .rejects.toMatchObject({ status: 400 });
+    await expect(run("/posts/post_1/poll/vote", "PUT", {
+      optionIds: ["option_1"], userId: "forged",
+    })).rejects.toMatchObject({ status: 400 });
+    await expect(run("/posts/post_1/poll/vote", "DELETE", { userId: "forged" }))
+      .rejects.toMatchObject({ status: 400 });
+    expect(pollActions.changeVote).toHaveBeenCalledOnce();
+    expect(pollActions.cancelVote).toHaveBeenCalledOnce();
   });
 });

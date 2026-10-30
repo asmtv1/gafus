@@ -1,0 +1,181 @@
+/* Question detail footer inspired by the compact action strip in the supplied
+   reference: one olive CTA, quiet sand utility buttons, violet edit, red delete.
+   All state, permission and shared-button handlers remain in their owners. */
+.gafus-app .shell .web4-question-detail .web4-question-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: 20px;
+  row-gap: 12px;
+  margin-top: 28px;
+  padding-top: 18px;
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-main-actions,
+.gafus-app .shell .web4-question-detail .web4-question-owner-actions .question-owner-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-owner-actions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  border-left: 1px solid rgba(77,92,45,.15);
+  padding-left: 18px;
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-footer :is(button,a) {
+  min-height: 46px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-main-actions > button[data-gafus-shared-button="primary"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 18px;
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-main-actions > :is(.web4-question-share-trigger,.question-report .web4-question-report-icon) {
+  display: inline-flex;
+  flex: 0 0 46px;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  min-height: 46px;
+  height: 46px;
+  padding: 0;
+  border: 1px solid #d9d3b8;
+  border-radius: 13px;
+  color: #46532f;
+  background: #eee8d3;
+  box-shadow: 0 3px 9px rgba(77,72,48,.08);
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-main-actions > .question-report {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-main-actions > .question-report > .web4-question-report-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  min-height: 46px;
+  padding: 0;
+  border: 1px solid #d9d3b8;
+  border-radius: 13px;
+  color: #46532f;
+  background: #eee8d3;
+  box-shadow: 0 3px 9px rgba(77,72,48,.08);
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-main-actions .web4-question-close-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 16px;
+  border: 1px solid #d4cdae !important;
+  border-radius: 13px !important;
+  color: #46532f !important;
+  background: #eee8d3 !important;
+  box-shadow: 0 3px 9px rgba(77,72,48,.08) !important;
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-owner-actions .question-owner-controls > button[data-gafus-shared-button="purple"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 10px 16px;
+  border: 1px solid #75628d;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(180deg,#9180a9,#75628d 67%,#67517f);
+  box-shadow: 0 6px 12px rgba(77,53,105,.2);
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-owner-actions .question-owner-controls > button[data-gafus-shared-button="secondary"][data-gafus-variant="red"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 10px 16px;
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-footer .web4-question-button-icon {
+  display: block;
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-counts {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  color: #767369;
+  font-size: 12px;
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-count-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.gafus-app .shell .web4-question-detail .web4-question-count-item svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 700px) {
+  .gafus-app .shell .web4-question-detail .web4-question-footer {
+    justify-content: flex-start;
+    gap: 10px;
+  }
+  .gafus-app .shell .web4-question-detail .web4-question-owner-actions {
+    flex-basis: 100%;
+    margin: 0;
+    padding: 12px 0 0;
+    border-left: 0;
+    border-top: 1px solid rgba(77,92,45,.12);
+  }
+  .gafus-app .shell .web4-question-detail .web4-question-footer :is(button,a) {
+    min-height: 42px;
+    font-size: 12px;
+  }
+  .gafus-app .shell .web4-question-detail .web4-question-main-actions .web4-question-close-trigger {
+    min-height: 42px;
+  }
+  .gafus-app .shell .web4-question-detail .web4-question-main-actions > .web4-question-share-trigger,
+  .gafus-app .shell .web4-question-detail .web4-question-main-actions > .question-report > .web4-question-report-icon {
+    flex-basis: 42px;
+    width: 42px;
+    min-height: 42px;
+    height: 42px;
+  }
+}

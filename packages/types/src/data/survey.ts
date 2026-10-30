@@ -74,3 +74,15 @@ export interface SurveyComparisonDto {
   finalSubmittedAt: string;
   items: SurveyComparisonItemDto[];
 }
+
+/** Existing successful GET /surveys/:slug JSON envelope (unknown slug is HTTP 400). */
+export interface SurveyBySlugRead {
+  success: true;
+  data: { template: SurveyTemplate; response: SurveyResponseDto | null };
+}
+
+/** Existing successful GET /surveys/comparison JSON envelope (missing pair is 200/null). */
+export interface SurveyComparisonRead {
+  success: true;
+  data: SurveyComparisonDto | null;
+}

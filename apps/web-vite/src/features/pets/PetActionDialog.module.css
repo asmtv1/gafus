@@ -1,0 +1,208 @@
+/* Dialog mirrors Next SweetAlert owner actions without nesting the form into
+   the expanded-card flow. No global CSS or browser profile modification. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(31, 31, 25, 0.57);
+  box-sizing: border-box;
+}
+.dialog {
+  width: min(100%, 560px);
+  max-height: min(90vh, 860px);
+  overflow: auto;
+  padding: 22px;
+  box-sizing: border-box;
+  background: #fffaf0;
+  border-radius: 18px;
+  color: #352e2e;
+  box-shadow: 0 14px 48px rgba(21, 24, 15, .34);
+  font-family: var(--font-montserrat), sans-serif;
+}
+.title { margin: 0 0 17px; font-size: 23px; line-height: 1.22; text-align: center; }
+.dialog form { display: grid; gap: 12px; margin: 0; }
+.dialog label { display: grid; gap: 5px; font-size: 13px; font-weight: 600; }
+.dialog input:not([type="checkbox"]), .dialog select, .dialog textarea {
+  width: 100%; min-height: 42px; padding: 9px 11px; box-sizing: border-box;
+  border: 2px solid #636128; border-radius: 7px;
+  color: #352e2e; background: white; font: 400 14px var(--font-montserrat), sans-serif;
+}
+.dialog textarea { resize: vertical; min-height: 80px; }
+.dialog label:has(input[type="checkbox"]) { display: flex; gap: 9px; align-items: center; }
+.dialog input[type="checkbox"] { width: 19px; height: 19px; }
+.dialog:not(.preventionDialog):not(.editDialog) form button { min-height: 44px; border-radius: 12px; padding: 10px; }
+.dialog:not(.preventionDialog):not(.editDialog) form button[type="submit"] { background: #4d5c2d; border: none; color: #fff; font-weight: 700; }
+.dialog:not(.preventionDialog):not(.editDialog) form button[type="submit"][data-destructive="true"] { background: #a33732; }
+.dialog:not(.preventionDialog):not(.editDialog) form button[type="button"] { background: #f5f0e8; color: #352e2e; border: 1px solid #d8ccb3; }
+.dialog:not(.preventionDialog):not(.editDialog) form button:disabled { opacity: .52; cursor: not-allowed; }
+@media (max-width: 600px) {
+  .backdrop { padding: 10px; }
+  .dialog { padding: 17px 15px; max-height: 93vh; border-radius: 14px; }
+  .title { font-size: 20px; }
+}
+
+/* Source: retained Next PreventionEntryForm Dialog maxWidth="sm", fullWidth,
+   prevention-ui.dialogPaper/.dialogTitle/.dialogContent/.dialogActions.
+   This variant is deliberately NOT applied to other pet action dialogs. */
+.preventionDialog {
+  width: min(600px, calc(100vw - 32px));
+  max-height: calc(100dvh - 64px);
+  padding: 0;
+  border: 1px solid #d4c4a8;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #f5f0e8 0%, #ece5d2 100%);
+  box-shadow: 0 8px 32px rgba(53, 46, 46, .12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.preventionTitle {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 16px 24px 8px;
+  font: 600 1.35rem/1.4 var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  color: #352e2e;
+  text-align: left;
+}
+.preventionDialog form {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+  margin: 0;
+}
+@media(max-width:600px) {
+  .preventionDialog { max-height: calc(100dvh - 32px); }
+  .preventionTitle { padding: 16px 16px 8px; }
+}
+
+/* Owner edit only: restored Next SweetAlert form scale and palette.
+   Other pet dialogs (delete / prevention) are intentionally untouched. */
+.editDialog {
+  width: min(100%, 512px);
+  max-height: calc(100dvh - 32px);
+  padding: 22px 25px 18px;
+  border: 1px solid rgba(99, 97, 40, .18);
+  border-radius: 10px;
+  background: #dad3c1;
+  box-shadow: 0 20px 50px rgba(25, 29, 21, .30);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.editLogo {
+  display: block;
+  width: 64px;
+  height: 64px;
+  max-width: 100%;
+  object-fit: contain;
+  margin: 0 auto 8px;
+}
+.editTitle {
+  margin: 0 0 19px;
+  color: #636128;
+  font: 400 1.75rem/1.1 var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  text-align: center;
+}
+.editDialog .editForm {
+  display: grid;
+  gap: 15px;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.editDialog .editForm > label {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  min-width: 0;
+  color: #352e2e;
+  font: 600 14px/1.4 var(--font-montserrat), system-ui, sans-serif;
+}
+.required { color: #a4473d; }
+.editDialog .editForm input:not([type="checkbox"]),
+.editDialog .editForm select,
+.editDialog .editForm textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 2px solid #636128;
+  border-radius: 6px;
+  background: #fff;
+  color: #352e2e;
+  font: 400 14px/1.45 var(--font-montserrat), system-ui, sans-serif;
+  box-shadow: none;
+}
+.editDialog .editForm textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+.editDialog .editForm :is(input,select,textarea):focus-visible {
+  outline: 2px solid #788b4d;
+  outline-offset: 2px;
+}
+.editDialog .editForm label small {
+  margin-top: 1px;
+  color: #636128;
+  font: 400 12px/1.4 var(--font-montserrat), system-ui, sans-serif;
+}
+.editDialog .editForm .editVisibility {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid rgba(99, 97, 40, .25);
+  border-radius: 8px;
+  background: rgba(255, 250, 240, .45);
+}
+.editDialog .editForm .editVisibility input {
+  flex-shrink: 0;
+  margin: 0;
+  accent-color: #636128;
+}
+.editActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: center;
+  gap: 12px;
+  margin: 2px 0 0;
+  padding-top: 15px;
+  border-top: 1px solid rgba(99, 97, 40, .22);
+}
+.editDialog .editActions button {
+  max-width: 100%;
+  line-height: 1.35;
+}
+.editDialog .editActions button[type="button"][data-gafus-variant="red"] {
+  /* Retain the shared destructive/cancel button rather than reproducing its palette. */
+  min-width: 112px;
+}
+.inlineActions { display: flex; flex-wrap: wrap; gap: 12px; }
+@media (max-width: 600px) {
+  .editDialog {
+    width: min(100%, 480px);
+    max-height: calc(100dvh - 20px);
+    padding: 18px 16px;
+    border-radius: 10px;
+  }
+  .editTitle { font-size: 1.5rem; }
+  .editLogo { width: 54px; height: 54px; }
+  .editDialog .editForm { gap: 13px; }
+  .editActions button { flex: 1 1 140px; }
+}
+@media (max-width: 360px) {
+  .editActions { flex-direction: column; }
+  .editActions button { flex-basis: auto; width: 100%; }
+}

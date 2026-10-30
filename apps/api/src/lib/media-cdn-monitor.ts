@@ -92,9 +92,13 @@ export function monitorConfigFromEnv(
   };
 }
 
-/** Unique signed, valid final-media key guaranteed not to exist. A 404 from
- * the CDN means the origin answered; 504/5xx means the delivery path failed.
- * Reusing a fixed missing key is unsafe because edges may cache its 404.
+/** Unique signed, valid final-media key guaranteed not to exist.
+ * 404 is expected for this probe and confirms the edge can reach an origin.
+ * 410 means the edge has retired the route/host; like 5xx, two consecutive
+ * independent probes are required before CDN-wide fallback. Unlike a 410 on
+ * a real individual media URL, this synthetic probe cannot indicate that an
+ * actual user object was deleted. 403/401 are never outage evidence.
+ * Reusing a fixed missing key is unsafe because edges may cache its response.
  */
 export function createSignedMonitorUrl(kind: Kind, config: MonitorConfig,
   now = Date.now(), id = randomUUID().replace(/-/g, "")): string | null {
@@ -102,13 +106,20 @@ export function createSignedMonitorUrl(kind: Kind, config: MonitorConfig,
   if (!enabled || !host ||
       !(kind === "gallery" ? /^[A-Za-z0-9_-]{24,128}$/ : /^[A-Za-z0-9_-]{24,32}$/).test(secret) ||
       !/^[a-f0-9]{32}$/.test(id)) return null;
+  // Use the *same final-media path family* as each real signer. Testing the
+  // retired Feed /posts/... dialect would misclassify a healthy Feed V2 CDN.
   const key = kind === "gallery"
     ? `albums/__cdn_monitor__/__cdn_monitor__/photos/${id}/thumb.webp`
-    : `posts/__cdn_monitor__/__cdn_monitor__/attachments/${id}/thumb.webp`;
+    : `media/v2/${id}/v1/image/s.webp`;
   const path = `/${key}`;
   const expires = Math.floor(now / 1000) + 90;
   if (provider !== "beget" || host !== (kind === "gallery" ? "mepsuduyokabib.begetcdn.cloud" : "garaquachegasourn.begetcdn.cloud"))
     return null;
+  if (kind === "feed") {
+    // Feed Media V2 uses Beget Cloud CDN query-token signing, unlike Gallery.
+    const md5 = createHash("md5").update(`${expires}${path} ${secret}`).digest("base64url");
+    return `https://${host}${path}?md5=${md5}&expires=${expires}`;
+  }
   const md5 = createHash("md5").update(`${secret}${path}${expires}`).digest("base64url");
   return `https://${host}/md5(${md5},${expires})${path}`;
 }
@@ -124,7 +135,8 @@ export async function probeMediaCdn(kind: Kind, config: MonitorConfig,
     });
     void response.body?.cancel();
     if (response.status === 404) return "healthy";
-    if (response.status >= 500 && response.status <= 599) return "failed";
+    if (response.status === 410 || (response.status >= 500 && response.status <= 599))
+      return "failed";
     return "unknown"; // 403, 401, 200, redirects are not origin-health evidence.
   } catch { return "failed"; }
 }

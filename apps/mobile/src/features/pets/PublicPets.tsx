@@ -1,7 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { Image } from "expo-image";
-import { formatPetAge, getPetTypeLabel } from "@gafus/core/utils";
+import { formatPetAge, getPetTypeLabel } from "@gafus/core-client/utils/pet";
 
 import type { PublicProfile } from "@/shared/lib/api/user";
 import { COLORS, FONTS, SPACING } from "@/shared/config";

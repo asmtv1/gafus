@@ -21,9 +21,11 @@ import { checklistSchema } from "./schemas";
 const logger = createWebLogger("trainer-step");
 
 /** Return only the validated data needed by the trainer edit form. */
-export async function getStepForEdit(id: string) {
+export type TrainerStepMutationActor = { id: string; role: "TRAINER" | "ADMIN" };
+
+export async function getStepForEdit(id: string, actor?: TrainerStepMutationActor) {
   const step = await prisma.step.findUnique({
-    where: { id },
+    where: { id, ...(actor?.role === "TRAINER" ? { authorId: actor.id } : {}) },
     select: {
       id: true,
       title: true,
@@ -188,6 +190,7 @@ export async function createStep(
  */
 export async function updateStep(
   input: UpdateStepInput,
+  actor?: TrainerStepMutationActor,
 ): Promise<ActionResult> {
   try {
     const checklistValue =
@@ -196,7 +199,7 @@ export async function updateStep(
         : Prisma.JsonNull;
 
     await prisma.step.update({
-      where: { id: input.id },
+      where: { id: input.id, ...(actor?.role === "TRAINER" ? { authorId: actor.id } : {}) },
       data: {
         title: input.title,
         description: input.description,
@@ -251,8 +254,29 @@ export async function updateStep(
  */
 export async function deleteSteps(
   input: DeleteStepsInput,
+  actor?: TrainerStepMutationActor,
 ): Promise<DeleteStepsResult> {
   try {
+    if (actor) {
+      // The old Next action uses the legacy unrestricted path below.
+      // The new Hono surface must check all IDs AND delete them atomically.
+      const uniqueIds = [...new Set(input.stepIds)];
+      if (uniqueIds.length !== input.stepIds.length) return { success: false };
+      const where = { id: { in: uniqueIds },
+        ...(actor.role === "TRAINER" ? { authorId: actor.id } : {}) };
+      const removed = await prisma.$transaction(async (tx) => {
+        const targets = await tx.step.findMany({
+          where, select: { id: true, imageUrls: true },
+        });
+        if (targets.length !== uniqueIds.length) throw Error("STEP_NOT_FOUND");
+        const outcome = await tx.step.deleteMany({ where });
+        if (outcome.count !== uniqueIds.length) throw Error("STEP_DELETE_RACE");
+        return targets;
+      });
+      invalidateStepsContentCache(uniqueIds);
+      await publishCourseContentChange();
+      return { success: true, imageUrls: removed.flatMap(row => row.imageUrls) };
+    }
     const stepsToDelete = await prisma.step.findMany({
       where: { id: { in: input.stepIds } },
       select: { id: true, imageUrls: true },

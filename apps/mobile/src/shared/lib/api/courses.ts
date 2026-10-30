@@ -1,3 +1,4 @@
+import type { CourseWithProgressWire } from "@gafus/types";
 import { apiClient, type ApiResponse } from "./client";
 
 // Интерфейс курса соответствует CourseWithProgressData из API
@@ -48,8 +49,11 @@ export interface Course {
   }[];
 }
 
-// API возвращает массив курсов напрямую, а не объект с полем courses
-export type CoursesResponse = Course[];
+// Authenticated GET /api/v1/courses returns AG1's serialized Date-to-string wire.
+// Keep legacy Course separate for favorites, detail, reviews and stored/native flows.
+export type CourseListItem = CourseWithProgressWire;
+// API возвращает массив курсов напрямую, а не объект с полем courses.
+export type CoursesResponse = CourseListItem[];
 
 export interface CourseFilters {
   type?: string;
@@ -101,11 +105,14 @@ export const coursesApi = {
    * Получение списка всех курсов с прогрессом пользователя
    * API возвращает массив курсов напрямую
    */
-  getAll: async (_filters?: CourseFilters): Promise<ApiResponse<CoursesResponse>> => {
+  getAll: async (
+    _filters?: CourseFilters,
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<CoursesResponse>> => {
     // API не поддерживает фильтры через query params, фильтрация делается на клиенте
     const endpoint = "/api/v1/courses";
 
-    return apiClient<CoursesResponse>(endpoint);
+    return apiClient<CoursesResponse>(endpoint, requestGuard ? { requestGuard } : {});
   },
 
   /**
@@ -118,8 +125,14 @@ export const coursesApi = {
   /**
    * Проверить доступ к курсу
    */
-  checkAccess: async (courseType: string): Promise<ApiResponse<{ hasAccess: boolean }>> => {
-    return apiClient<{ hasAccess: boolean }>(`/api/v1/courses/access?courseType=${courseType}`);
+  checkAccess: async (
+    courseType: string,
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<{ hasAccess: boolean }>> => {
+    return apiClient<{ hasAccess: boolean }>(
+      `/api/v1/courses/access?courseType=${encodeURIComponent(courseType)}`,
+      { ...(requestGuard ? { requestGuard } : {}) },
+    );
   },
 
   /**
@@ -145,8 +158,14 @@ export const coursesApi = {
   /**
    * Получение отзывов к курсу
    */
-  getReviews: async (courseType: string): Promise<ApiResponse<CourseReviewsResponse>> => {
-    return apiClient<CourseReviewsResponse>(`/api/v1/courses/reviews?courseType=${courseType}`);
+  getReviews: async (
+    courseType: string,
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<CourseReviewsResponse>> => {
+    const endpoint = `/api/v1/courses/reviews?courseType=${encodeURIComponent(courseType)}`;
+    return requestGuard
+      ? apiClient<CourseReviewsResponse>(endpoint, { requestGuard })
+      : apiClient<CourseReviewsResponse>(endpoint);
   },
 
   /**

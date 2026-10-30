@@ -33,23 +33,44 @@ describe('fail-closed object snapshots and immutable writes',()=>{
    const body=Readable.from([Buffer.alloc(1_750_001)]); const send=vi.fn().mockResolvedValue({...meta,Body:body});
    await expect(store(send).read(key,undefined,undefined,1_750_000)).rejects.toThrow('IMAGE_SIZE'); expect(body.destroyed).toBe(true);
  });
- it('uses create-if-absent and verifies persisted result',async()=>{
-   const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:404}}).mockResolvedValueOnce({ETag:meta.ETag}).mockResolvedValueOnce(meta);
+ it('single conditional PUT on acknowledged success without redundant HEAD',async()=>{
+   const send=vi.fn().mockResolvedValueOnce({ETag:meta.ETag});
    expect((await store(send).create(key,bytes,'image/webp')).etag).toBe(meta.ETag);
-   expect(send.mock.calls[1][0].input).toMatchObject({IfNoneMatch:'*',ContentMD5:Buffer.from(meta.ETag.slice(1,-1),'hex').toString('base64'),CacheControl:'no-store'});
+   expect(send).toHaveBeenCalledTimes(1);
+   expect(send.mock.calls[0][0].input).toMatchObject({
+     IfNoneMatch:'*',
+     ContentMD5:Buffer.from(meta.ETag.slice(1,-1),'hex').toString('base64'),
+     CacheControl:'no-store',
+   });
  });
- it('identical retry skips PUT',async()=>{
-   const send=vi.fn().mockResolvedValue(meta); await store(send).create(key,bytes,'image/webp'); expect(send).toHaveBeenCalledTimes(1);
+ it('identical retry uses conditional PUT and one HEAD on 412',async()=>{
+   const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:412}}).mockResolvedValueOnce(meta);
+   await expect(store(send).create(key,bytes,'image/webp')).resolves.toMatchObject({etag:meta.ETag});
+   expect(send).toHaveBeenCalledTimes(2);
  });
- it('existing conflicting output is never overwritten',async()=>{
-   const send=vi.fn().mockResolvedValue({...meta,ContentLength:99}); await expect(store(send).create(key,bytes,'image/webp')).rejects.toThrow('IMMUTABLE_CONFLICT'); expect(send).toHaveBeenCalledTimes(1);
+ it('conflicting output on 412 is never overwritten',async()=>{
+   const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:412}}).mockResolvedValueOnce({...meta,ContentLength:99});
+   await expect(store(send).create(key,bytes,'image/webp')).rejects.toThrow('IMMUTABLE_CONFLICT');
+   expect(send).toHaveBeenCalledTimes(2);
  });
- it('conditional race verifies identical winner without overwriting',async()=>{
-   const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:404}}).mockRejectedValueOnce({$metadata:{httpStatusCode:412}}).mockResolvedValueOnce(meta);
-   await expect(store(send).create(key,bytes,'image/webp')).resolves.toMatchObject({etag:meta.ETag}); expect(send).toHaveBeenCalledTimes(3);
+ it('conditional 409 verifies identical winner without overwriting',async()=>{
+   const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:409}}).mockResolvedValueOnce(meta);
+   await expect(store(send).create(key,bytes,'image/webp')).resolves.toMatchObject({etag:meta.ETag});
+   expect(send).toHaveBeenCalledTimes(2);
  });
- it('aborted lease prevents a PUT',async()=>{
-   const controller=new AbortController(); controller.abort(); const send=vi.fn().mockRejectedValue({$metadata:{httpStatusCode:404}});
-   await expect(store(send).create(key,bytes,'image/webp',controller.signal)).rejects.toThrow('LEASE_EXPIRED'); expect(send).toHaveBeenCalledTimes(1);
+ it('missing ETag on success requires one independent HEAD',async()=>{
+   const send=vi.fn().mockResolvedValueOnce({}).mockResolvedValueOnce(meta);
+   await expect(store(send).create(key,bytes,'image/webp')).resolves.toMatchObject({etag:meta.ETag});
+   expect(send).toHaveBeenCalledTimes(2);
+ });
+ it('unexpected ETag fails closed instead of publishing unverified bytes',async()=>{
+   const send=vi.fn().mockResolvedValue({ETag:'"'+ '0'.repeat(32)+'"'});
+   await expect(store(send).create(key,bytes,'image/webp')).rejects.toThrow('WRITE_ETAG_MISMATCH');
+   expect(send).toHaveBeenCalledTimes(1);
+ });
+ it('aborted lease prevents all S3 requests',async()=>{
+   const controller=new AbortController(); controller.abort(); const send=vi.fn();
+   await expect(store(send).create(key,bytes,'image/webp',controller.signal)).rejects.toThrow('LEASE_EXPIRED');
+   expect(send).not.toHaveBeenCalled();
  });
 });

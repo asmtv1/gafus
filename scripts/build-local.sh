@@ -1,50 +1,7 @@
-#!/bin/bash
-
-# Скрипт для локальной сборки как в CI
-# Запускает те же команды, что и в .github/workflows/ci-cd.yml
-
-set -e
-
-echo "🔨 Запуск локальной сборки (как в CI)..."
-echo "=================================="
-
-# Проверяем что мы в корне проекта
-if [ ! -f "package.json" ] || [ ! -f "pnpm-lock.yaml" ]; then
-    echo "❌ Ошибка: запустите скрипт из корня проекта"
-    exit 1
-fi
-
-# Устанавливаем зависимости (как в CI)
-echo "📦 Установка зависимостей..."
-pnpm install
-
-# Генерируем Prisma Client (как в CI - ТОЧНО ТАК ЖЕ!)
-echo "🗄️ Генерация Prisma Client..."
-cd packages/prisma
-pnpm db:generate
-cd ../..
-
-# Собираем web приложение (как в CI)
-echo "🌐 Сборка web приложения..."
-cd apps/web
-USE_STANDALONE=true pnpm build
-cd ../..
-
-# Собираем trainer-panel (как в CI)
-echo "👨‍🏫 Сборка trainer-panel..."
-cd apps/trainer-panel
-USE_STANDALONE=true pnpm build
-cd ../..
-
-# НЕ собираем все пакеты - в CI этого нет!
-# В CI используется только pnpm build в каждой директории приложения
-echo "📦 Пропускаем сборку пакетов (в CI этого нет!)"
-
-echo "=================================="
-echo "✅ Локальная сборка завершена успешно!"
-echo "🎯 Теперь локальная сборка точно соответствует CI"
-echo "💡 Используйте этот скрипт перед коммитом!"
-
-echo "=================================="
-echo "✅ Локальная сборка завершена успешно!"
-echo "🎯 Теперь локальная сборка точно соответствует CI"
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+pnpm install --frozen-lockfile
+pnpm --filter @gafus/prisma db:generate
+pnpm -r --if-present run build
+node scripts/check-builds.js

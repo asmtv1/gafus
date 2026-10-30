@@ -1,1 +1,1 @@
-export { processAccountStorageCleanup } from "./worker";
+export { processAccountStorageCleanup, processPrivateAccountStorageCleanupForOwner } from "./worker";

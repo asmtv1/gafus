@@ -38,9 +38,11 @@ export async function getGafusSettingsTx(tx: GafusTx): Promise<GafusSettingsConf
     reactionThreshold: row.reactionThreshold,
     reactionReward: row.reactionReward,
     bestAnswerReward: row.bestAnswerReward,
-    courseStepCost: row.courseStepCost,
-    miniGuideCost: row.miniGuideCost,
-    accessDurationSeconds: row.accessDurationSeconds,
+    // Agreed product economics are not mutable tariff knobs: one Gafus,
+    // seven calendar-day equivalents (168 hours), for every content target.
+    courseStepCost: DEFAULT_GAFUS_SETTINGS.courseStepCost,
+    miniGuideCost: DEFAULT_GAFUS_SETTINGS.miniGuideCost,
+    accessDurationSeconds: DEFAULT_GAFUS_SETTINGS.accessDurationSeconds,
   };
 }
 

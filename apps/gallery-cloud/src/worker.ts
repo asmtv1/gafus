@@ -2,7 +2,7 @@ import {
   createGalleryImageProcessor,
   type GalleryImageEngine,
 } from "@gafus/core/services/gallery/imageProcessing";
-import { sourceUploadId, assertGalleryKey, assertFinalKey } from "@gafus/gallery-storage/keys";
+import { sourceUploadId, assertGalleryKey, assertFinalKey, v2FinalPattern } from "@gafus/gallery-storage/keys";
 import { objectMd5, normalizeETag, type GalleryObjectStore } from "@gafus/gallery-storage/objects";
 import type { GalleryStorageJobClaim } from "@gafus/core/services/gallery";
 import type { GalleryInternalClient } from "./internal.js";
@@ -85,8 +85,13 @@ export function createGalleryCloudWorker(input: {
       const expected = `${prefix}/attempts/${claim.attemptToken}`;
       assertGalleryKey(claim.thumbKey);
       assertGalleryKey(claim.fullKey);
-      if (claim.thumbKey !== `${expected}/thumb.webp` || claim.fullKey !== `${expected}/full.webp`)
-        throw new Error("UNTRUSTED_CLAIM");
+      const v2 = `gallery/${claim.sourceKey.split("/")[1]}/media/${claim.photoId}/v2`;
+      const isV2 = v2FinalPattern.test(claim.thumbKey) &&
+        claim.thumbKey === `${v2}/thumb.webp` &&
+        claim.fullKey === `${v2}/full.webp`;
+      const isLegacy = claim.thumbKey === `${expected}/thumb.webp` &&
+        claim.fullKey === `${expected}/full.webp`;
+      if (!isV2 && !isLegacy) throw new Error("UNTRUSTED_CLAIM");
       guard.check();
       const sourceObject = await input.objects.read(
         claim.sourceKey,
@@ -97,10 +102,12 @@ export function createGalleryCloudWorker(input: {
         throw new Error("SOURCE_CHANGED");
       const images = await processImage(sourceObject.bytes);
       guard.check();
-      await input.objects.create(claim.thumbKey, images.thumb.bytes, "image/webp", guard.signal);
+      const thumbStored = await input.objects.create(claim.thumbKey, images.thumb.bytes, "image/webp", guard.signal);
       guard.check();
-      await input.objects.create(claim.fullKey, images.full.bytes, "image/webp", guard.signal);
+      const fullStored = await input.objects.create(claim.fullKey, images.full.bytes, "image/webp", guard.signal);
       guard.check();
+      if (thumbStored.contentType !== "image/webp" || fullStored.contentType !== "image/webp")
+        throw new Error("INVALID_OUTPUT");
       completing = true;
       const result = await input.core.completeUpload({
         uploadId,
@@ -108,14 +115,20 @@ export function createGalleryCloudWorker(input: {
         sourceETag: claim.sourceETag,
         width: images.full.width,
         height: images.full.height,
+        ...(isV2 ? { manifest: {
+          thumb: { ...thumbStored, width: images.thumb.width, height: images.thumb.height,
+                   contentType: "image/webp" as const },
+          full: { ...fullStored, width: images.full.width, height: images.full.height,
+                  contentType: "image/webp" as const },
+        } } : {}),
       });
       if (!result.accepted) throw new Error("CALLBACK_REJECTED");
       record({ operation: "upload", outcome: "success", durationMs: now() - started });
-      // The core transaction already persisted the publish job. Claim only this
+      // Legacy uploads may still have a publish job. Claim only this
       // upload's job immediately instead of waiting for the five-minute timer.
       // Errors here must not invalidate a successfully staged image: maintenance
       // can safely retry the durable job after its lease/backoff expires.
-      if (result.status !== "ready" && now() + 10_000 < invocationDeadline) {
+      if (!isV2 && result.status !== "ready" && now() + 10_000 < invocationDeadline) {
         try {
           const jobs = await input.core.claimJobs(1, uploadId);
           if (jobs.length > 1 || jobs.some((job) => job.kind !== "publish"))

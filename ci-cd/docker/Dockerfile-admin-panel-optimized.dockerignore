@@ -1,0 +1,9 @@
+# Default deny. Runtime image contains only the compiled Vite app and Nginx configuration.
+**
+!apps
+!apps/admin-panel
+!apps/admin-panel/dist
+!apps/admin-panel/dist/**
+!ci-cd
+!ci-cd/docker
+!ci-cd/docker/nginx-admin-panel-vite.conf

@@ -6,16 +6,12 @@
  */
 import { reportClientError } from "@/shared/lib/tracer";
 
-export function redirectSystemPath({
-  path,
-}: {
-  path: string;
-  initial: boolean;
-}): string {
+export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
     if (!path || typeof path !== "string") return path;
-    // VK redirect: vk54804685://vk.ru/blank.html или vk123://vk.ru?code=...
-    if (path.includes("vk.ru")) {
+    // Intercept only the native VK OAuth callback, never ordinary app URLs
+    // whose path or query happens to mention vk.ru.
+    if (/^vk[0-9]+:\/\/vk\.ru(?:\/blank\.html)?(?:[?#][^\r\n]*)?$/i.test(path)) {
       return "/(auth)/welcome";
     }
     return path;

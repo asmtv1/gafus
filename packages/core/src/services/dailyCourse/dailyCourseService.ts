@@ -64,6 +64,8 @@ export interface DailyCourseActor {
 
 export interface DailyCourseStepDto {
   id: string;
+  /** Immutable identity of this occurrence within its daily bundle. */
+  bundleStepId: string;
   stepId: string;
   stepIndex: number;
   status: TrainingStatus;
@@ -71,6 +73,8 @@ export interface DailyCourseStepDto {
   completedAt: string | null;
   isPausedOnServer: boolean;
   remainingSecOnServer?: number;
+  /** Negotiated Web GET only. Derived from actual persisted remainingSec/updatedAt. */
+  timerSnapshot?: { remainingSecAtServerNow: number | null; expiresAt: string | null };
   step: {
     id: string;
     title: string;
@@ -110,6 +114,8 @@ export interface TodayDailyCourseResponse {
 }
 
 export interface DailyCourseDayResponse {
+  /** Read timestamp used to compute the opt-in Web countdown; legacy HTTP omits it. */
+  serverNow?: string;
   scheduleId: string;
   mskDate: string;
   trainingDayId: string;
@@ -456,13 +462,32 @@ function mapDailyCourseSteps(
     remainingSec: number | null;
     updatedAt: Date;
   }[],
+  readAt?: Date,
 ): DailyCourseStepDto[] {
   const byBundleStepId = new Map(userSteps.map((step) => [step.bundleStepId, step]));
   return stepLinks.map((link, index) => {
     const userStep = byBundleStepId.get(link.id);
     const status = mapStepStatus(userStep?.status);
+    const running = status === TrainingStatus.IN_PROGRESS && !userStep?.paused;
+    const stored = userStep?.remainingSec;
+    const expiresAt =
+      running && userStep && stored != null
+        ? new Date(userStep.updatedAt.getTime() + Math.max(0, stored) * 1000)
+        : null;
+    const timerSnapshot = readAt
+      ? {
+          remainingSecAtServerNow:
+            status === TrainingStatus.IN_PROGRESS && stored != null
+              ? expiresAt
+                ? Math.max(0, Math.ceil((expiresAt.getTime() - readAt.getTime()) / 1000))
+                : Math.max(0, stored)
+              : null,
+          expiresAt: expiresAt?.toISOString() ?? null,
+        }
+      : undefined;
     return {
       id: userStep?.id ?? link.step.id,
+      bundleStepId: link.id,
       stepId: link.step.id,
       stepIndex: index,
       status,
@@ -471,6 +496,7 @@ function mapDailyCourseSteps(
         status === TrainingStatus.COMPLETED && userStep ? userStep.updatedAt.toISOString() : null,
       isPausedOnServer: Boolean(userStep?.paused),
       remainingSecOnServer: userStep?.remainingSec ?? undefined,
+      ...(readAt ? { timerSnapshot } : {}),
       step: {
         id: link.step.id,
         title: link.step.title,
@@ -635,7 +661,9 @@ export async function getDailyCourseDayWithUserSteps(
       })
     : [];
 
-  if (userTrainingId) {
+  // A GET with createIfMissing=false must never materialize missing progress.
+  // Keep explicit createIfMissing=true for legacy initialization callers.
+  if (userTrainingId && options?.createIfMissing === true) {
     const existing = new Set(userSteps.map((step) => step.bundleStepId));
     const missing = stepLinks.filter((link) => !existing.has(link.id));
     if (missing.length > 0) {
@@ -665,8 +693,10 @@ export async function getDailyCourseDayWithUserSteps(
   }
 
   const userStatus = calculateDailyCourseUserStatus(stepLinks, userSteps);
+  const readAt = new Date();
 
   return {
+    serverNow: readAt.toISOString(),
     scheduleId: schedule.id,
     mskDate: toDateKey(schedule.date),
     trainingDayId: schedule.bundle.id,
@@ -675,7 +705,7 @@ export async function getDailyCourseDayWithUserSteps(
     description: schedule.bundle.description,
     type: schedule.bundle.type,
     userStatus,
-    steps: mapDailyCourseSteps(stepLinks, userSteps),
+    steps: mapDailyCourseSteps(stepLinks, userSteps, readAt),
   };
 }
 
@@ -684,9 +714,38 @@ export async function updateDailyCourseStepAndDay(
   scheduleId: string,
   stepIndex: number,
   operation: DailyCourseStepOperation,
+  binding?: { expectedBundleStepId: string; expectedStepId: string },
 ): Promise<{ allCompleted: boolean; stepJustCompleted: boolean }> {
   return prisma.$transaction(
     async (tx: Tx) => {
+      // Same-learner bound HTTP commands must serialize BEFORE the potentially
+      // conflicting DailyCourseUserTraining unique upsert. Without this actor
+      // lock two new concurrent starts can return a Prisma P2002 / HTTP 500.
+      // NO KEY UPDATE leaves FK KEY SHARE compatible; other actors stay free.
+      // Legacy Native index-only mutations are intentionally untouched.
+      if (binding) {
+        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR NO KEY UPDATE`;
+      }
+      // A bound Web mutation locks schedule and bundle occurrence before reading
+      // ordering or writing progress. A trainer's reorder/delete/reassignment
+      // waits for this transaction, or makes this request fail with 409.
+      if (binding) {
+        const scheduleRows = await tx.$queryRaw<{ bundleId: string }[]>`
+          SELECT "bundleId" FROM "DailyCourseSchedule"
+          WHERE "id" = ${scheduleId} FOR SHARE
+        `;
+        if (scheduleRows.length !== 1) throw new Error("STALE_DAILY_STEP_BINDING");
+        const linkRows = await tx.$queryRaw<{ bundleId: string; stepId: string }[]>`
+          SELECT "bundleId", "stepId" FROM "DailyCourseBundleStep"
+          WHERE "id" = ${binding.expectedBundleStepId} FOR SHARE
+        `;
+        if (
+          linkRows.length !== 1 ||
+          linkRows[0].bundleId !== scheduleRows[0].bundleId ||
+          linkRows[0].stepId !== binding.expectedStepId
+        )
+          throw new Error("STALE_DAILY_STEP_BINDING");
+      }
       const schedule = await tx.dailyCourseSchedule.findFirst({
         where: { id: scheduleId, isPublished: true, date: { lte: getTodayDate() } },
         select: {
@@ -695,7 +754,7 @@ export async function updateDailyCourseStepAndDay(
             select: {
               stepLinks: {
                 orderBy: { order: "asc" },
-                select: { id: true, step: { select: { durationSec: true } } },
+                select: { id: true, stepId: true, step: { select: { durationSec: true } } },
               },
             },
           },
@@ -706,7 +765,12 @@ export async function updateDailyCourseStepAndDay(
         throw new Error("SCHEDULE_NOT_FOUND");
       }
 
-      const stepLink = schedule.bundle.stepLinks[stepIndex];
+      const stepLink = binding
+        ? schedule.bundle.stepLinks.find((link) => link.id === binding.expectedBundleStepId)
+        : schedule.bundle.stepLinks[stepIndex];
+      if (binding && (!stepLink || stepLink.stepId !== binding.expectedStepId)) {
+        throw new Error("STALE_DAILY_STEP_BINDING");
+      }
       if (!stepLink) {
         throw new Error("STEP_NOT_FOUND");
       }

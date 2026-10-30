@@ -2,7 +2,7 @@ import {
   formatIsoBirthDateToDdMmYyyy as formatIsoBirthDateToDdMmYyyyCore,
   parsePetBirthDateInput as parsePetBirthDateInputCore,
   validatePetBirthDateInput as validatePetBirthDateInputCore,
-} from "@gafus/core/validation/pet";
+} from "@gafus/core-client/validation/pet";
 
 function toApiIsoDate(d: Date): string {
   const y = d.getFullYear();

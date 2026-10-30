@@ -1,0 +1,300 @@
+/* Learner journal and exam forms only. Shared GAFUS olive PrimaryButton skin
+ * is preserved; this file owns layout, hierarchy and input appearance. */
+.gafus-app .training-diary,
+.gafus-app .training-exam {
+  box-sizing: border-box;
+  width: min(100%, 1020px);
+  max-width: 100%;
+  min-width: 0;
+  margin: 20px auto 24px;
+  padding: clamp(20px, 3vw, 34px);
+  border: 1px solid #d9dfc9;
+  border-radius: 24px;
+  background: linear-gradient(160deg, #fffefa 0%, #fbfaf5 60%, #f6f2e7 100%);
+  box-shadow: 0 14px 34px rgba(55, 66, 38, .08);
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.gafus-app .training-diary *,
+.gafus-app .training-exam * { box-sizing: border-box; }
+.gafus-app .training-diary-header,
+.gafus-app .training-exam-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  margin: 0 0 22px;
+  padding: 0 0 22px;
+  border-bottom: 1px solid #e2e4d5;
+}
+.gafus-app .training-diary-icon,
+.gafus-app .training-exam-header-icon {
+  display: grid;
+  flex: 0 0 60px;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border: 1px solid #d7dfc1;
+  border-radius: 19px;
+  background: linear-gradient(145deg, #f1f4e6, #e1e9d0);
+  color: #526337;
+  font: 700 34px/1 system-ui, sans-serif;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8);
+}
+.gafus-app .training-exam-header-icon { font-size: 27px; }
+.gafus-app .training-diary-intro,
+.gafus-app .training-exam-header > div { min-width: 0; }
+.gafus-app .training-learner-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: #6f7e52;
+  font: 750 10px/1.5 var(--font-montserrat), system-ui, sans-serif;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.gafus-app .training-diary h4,
+.gafus-app .training-exam h5 {
+  margin: 0;
+  color: #342f2a;
+  font: 750 clamp(21px, 2.8vw, 28px)/1.26 var(--font-montserrat), system-ui, sans-serif;
+  letter-spacing: -.028em;
+}
+.gafus-app .training-diary-header p,
+.gafus-app .training-exam-header p {
+  margin: 6px 0 0;
+  color: #767366;
+  font: 450 13px/1.55 var(--font-montserrat), system-ui, sans-serif;
+}
+/* Journal: distinct empty/history state, followed by an inset writing surface. */
+.gafus-app .training-diary-empty {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 22px 18px;
+  margin: 0 0 18px;
+  border: 1px dashed #d4dac3;
+  border-radius: 17px;
+  background: #f8f9f3;
+  text-align: center;
+}
+.gafus-app .training-diary-empty > span {
+  color: #7e9161;
+  font-size: 24px;
+  line-height: 1.2;
+}
+.gafus-app .training-diary-empty p {
+  margin: 0;
+  color: #485537;
+  font: 700 15px/1.5 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .training-diary-empty small {
+  color: #77796b;
+  font: 450 12px/1.55 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .training-diary-history-heading {
+  margin: 0 0 12px;
+  font: 750 16px/1.4 var(--font-montserrat), system-ui, sans-serif;
+  color: #4b5935;
+}
+.gafus-app .training-diary-history {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0 0 20px;
+  list-style: none;
+}
+.gafus-app .training-diary-history li {
+  min-width: 0;
+  padding: 15px 18px;
+  border: 1px solid #e2e3d5;
+  border-radius: 15px;
+  background: #f7f7f0;
+}
+.gafus-app .training-diary-history strong { font-size: 14px; color: #475634; }
+.gafus-app .training-diary-history p {
+  margin: 6px 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.gafus-app .training-diary-history time { color: #807e72; font-size: 11px; }
+.gafus-app .training-diary-form,
+.gafus-app .training-exam .training-exam-form {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  width: 100%;
+  padding: clamp(16px, 2.5vw, 24px);
+  margin: 0;
+  border: 1px solid #e3e6d8;
+  border-radius: 19px;
+  background: #fff;
+  box-shadow: 0 5px 18px rgba(53, 65, 42, .035);
+}
+.gafus-app .training-learner-field-heading,
+.gafus-app .training-learner-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  min-width: 0;
+}
+.gafus-app .training-diary-form label,
+.gafus-app .training-exam-form > label {
+  display: block;
+  color: #3f4d30;
+  font: 750 15px/1.4 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .training-learner-optional {
+  color: #859071;
+  font: 600 11px/1.4 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .training-learner-field-hint {
+  margin: -7px 0 1px;
+  color: #898678;
+  font: 450 12px/1.5 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .training-diary textarea,
+.gafus-app .training-exam textarea {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 172px;
+  padding: 16px 18px;
+  resize: vertical;
+  border: 1.5px solid #cbd4bc;
+  border-radius: 15px;
+  outline: none;
+  background: #fefefb;
+  color: #352e2e;
+  font: 450 15px/1.75 var(--font-montserrat), system-ui, sans-serif;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.gafus-app .training-diary textarea::placeholder,
+.gafus-app .training-exam textarea::placeholder { color: #aaa99a; opacity: 1; }
+.gafus-app .training-diary textarea:focus-visible,
+.gafus-app .training-exam textarea:focus-visible {
+  border-color: #82965d;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(115, 137, 76, .14);
+}
+.gafus-app .training-diary textarea:disabled,
+.gafus-app .training-exam textarea:disabled { background: #f1f1eb; cursor: not-allowed; }
+.gafus-app .training-learner-form-footer { padding-top: 2px; }
+.gafus-app .training-learner-counter {
+  color: #87887a;
+  font: 550 11px/1.5 var(--font-montserrat), system-ui, sans-serif;
+  white-space: normal;
+}
+/* Use the existing olive PrimaryButton: sizing only, never override its skin. */
+.gafus-app .training-learner-form-footer [data-gafus-shared-button="primary"],
+.gafus-app .training-diary-form [data-gafus-shared-button="primary"] {
+  max-width: 100%;
+  min-height: 46px;
+  margin: 0;
+  justify-self: start;
+}
+.gafus-app .training-diary [role="status"],
+.gafus-app .training-exam [role="status"] {
+  min-width: 0;
+  color: #526640;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.gafus-app .training-diary [role="alert"],
+.gafus-app .training-exam [role="alert"] { color: #a44235; font-size: 13px; }
+/* Exam: several clearly grouped tasks on a unified surface. */
+.gafus-app .training-exam {
+  gap: 17px;
+  background: linear-gradient(165deg, #fffefa 0%, #f9f8f1 100%);
+}
+.gafus-app .training-exam .training-exam-form {
+  border-top: 1px solid #e3e6d8;
+  gap: 17px;
+}
+.gafus-app .training-exam-form-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  min-width: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eceee5;
+}
+.gafus-app .training-exam-form-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #edf2e3;
+  color: #50693b;
+  font: 800 18px/1 system-ui, sans-serif;
+}
+.gafus-app .training-exam h6 {
+  margin: 0;
+  color: #3c4533;
+  font: 750 clamp(16px, 2vw, 20px)/1.4 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .training-exam-form-title p {
+  margin: 5px 0 0;
+  color: #7e7e73;
+  font: 450 12px/1.55 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .training-exam fieldset {
+  border: 1px solid #e3e6d8;
+  background: #fafbf6;
+  border-radius: 14px;
+  padding: 17px;
+}
+.gafus-app .training-exam legend { color: #455538; font-size: 14px; }
+.gafus-app .training-exam-option {
+  margin-top: 6px;
+  border-radius: 9px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #eff0e8;
+  font-size: 14px;
+}
+.gafus-app .training-exam-option:has(input:checked) {
+  background: #f0f5e7;
+  border-color: #bdcfa7;
+}
+.gafus-app .training-exam input[type="file"] {
+  padding: 13px;
+  border-radius: 12px;
+  border: 1px dashed #b7c7a7;
+  background: #f9faf5;
+}
+@media (max-width: 600px) {
+  .gafus-app .training-diary,
+  .gafus-app .training-exam {
+    margin: 12px auto 18px;
+    padding: 18px 14px;
+    border-radius: 18px;
+  }
+  .gafus-app .training-diary-header,
+  .gafus-app .training-exam-header { gap: 12px; padding-bottom: 17px; margin-bottom: 17px; }
+  .gafus-app .training-diary-icon,
+  .gafus-app .training-exam-header-icon {
+    flex-basis: 46px; width: 46px; height: 46px; border-radius: 15px; font-size: 26px;
+  }
+  .gafus-app .training-diary-form,
+  .gafus-app .training-exam .training-exam-form { padding: 16px 13px; border-radius: 16px; }
+  .gafus-app .training-diary textarea,
+  .gafus-app .training-exam textarea { min-height: 158px; padding: 13px 14px; font-size: 14px; }
+  .gafus-app .training-learner-form-footer [data-gafus-shared-button="primary"] {
+    width: 100%;
+  }
+  .gafus-app .training-exam-option { padding: 9px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gafus-app .training-diary textarea,
+  .gafus-app .training-exam textarea { transition: none; }
+}

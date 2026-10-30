@@ -1,7 +1,8 @@
 import { stableMediaExpiry } from "../mediaDelivery/signedExpiry";
+import { signFeedMediaUrls } from "./media-urls";
 import { assertFeedPublishingAllowed } from "./preferences";
 import { activateFeedPostRevisionTx } from "./publish";
-import { enqueueFeedPostCleanup } from "./cleanup";
+import { enqueueFeedPostCleanup, feedPossibleOutputKeys } from "./cleanup";
 import { createHash, randomUUID } from "node:crypto";
 import { Prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
@@ -113,15 +114,17 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
     }
     const myMap = new Map(mine.map(row => [row.postId, reactions[row.kind]]));
     const expire = stableMediaExpiry(at, L.mediaUrlSeconds);
-    const sign = (key: string | null) => key ? storage.signCdn({ key, expiresAt: expire }) : Promise.resolve(null);
     return Promise.all(posts.map(async post => {
       const revision = post.activeRevisionId ? versionById.get(post.activeRevisionId) : undefined;
-      const attachments: FeedMediaDto[] = await Promise.all((revision?.attachments ?? []).map(async ({ media, position }) => ({
-        id: media.id, kind: media.kind, position, status: media.status, width: media.width, height: media.height,
-        durationSeconds: media.durationSeconds, thumbUrl: await sign(media.thumbKey),
-        fullUrl: await sign(media.fullKey), posterUrl: await sign(media.posterKey),
-        urlsExpireAt: media.status === "ready" ? expire.toISOString() : null,
-      })));
+      const attachments: FeedMediaDto[] = await Promise.all((revision?.attachments ?? []).map(async ({ media, position }) => {
+        const signed = await signFeedMediaUrls(media, key => storage.signCdn({ key, expiresAt: expire }));
+        return {
+          id: media.id, kind: media.kind, position, status: media.status,
+          width: media.width, height: media.height, durationSeconds: media.durationSeconds,
+          ...signed,
+          urlsExpireAt: media.status === "ready" ? expire.toISOString() : null,
+        };
+      }));
       const editUntil = post.publishedAt ? new Date(post.publishedAt.getTime() + L.editSeconds * 1000) : null;
       const published = post.status === "published" && !!revision;
       return {
@@ -477,11 +480,11 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
     },
     editor,
     /** Authoritative media lookup for short-lived outage fallback, never trusting a client path. */
-    async fallbackSource(actorId: string, mediaId: string, variant: "thumb" | "full" | "poster") {
+    async fallbackSource(actorId: string, mediaId: string, variant: "thumb" | "full" | "poster" | "video360" | "video720" | "video1080") {
       await actor(actorId);
       s.feedParse(s.feedIdSchema, mediaId);
       const media = await db.feedMediaAsset.findFirst({ where: { id: mediaId, status: "ready" } });
-      if (!media || (variant === "poster" ? media.kind !== "video" : media.kind !== "photo"))
+      if (!media || (variant === "poster" || variant.startsWith("video") ? media.kind !== "video" : media.kind !== "photo"))
         throw new FeedError("NOT_FOUND", undefined, 404);
       const post = await db.feedPost.findFirst({
         where: { id: media.postId, status: "published", deletedAt: null, moderationState: "visible" },
@@ -494,22 +497,20 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
         ? await db.feedPollOption.findFirst({
             where: { imageMediaId: mediaId, poll: { postId: post.id } }, select: { id: true },
           }) : null;
-      if (!linked && !pollPhoto) throw new FeedError("NOT_FOUND", undefined, 404);
-      const key = variant === "thumb" ? media.thumbKey : variant === "full" ? media.fullKey : media.posterKey;
+      // Comment media uses canonical Feed V2 keys without a post revision link.
+      const commentMedia = !linked && !pollPhoto
+        ? await db.feedCommentMedia.findFirst({
+            where: { mediaId, comment: { postId: post.id, deletedAt: null,
+              moderationState: "visible" } }, select: { mediaId: true },
+          }) : null;
+      if (!linked && !pollPhoto && !commentMedia) throw new FeedError("NOT_FOUND", undefined, 404);
+      const videoQuality = /^video(360|720|1080)$/.exec(variant)?.[1];
+      const expectedVideoKey = videoQuality ? `media/v2/${media.id}/v1/video/${videoQuality}.mp4` : null;
+      const key = expectedVideoKey
+        ? media.mp4Keys.includes(expectedVideoKey) ? expectedVideoKey : null
+        : variant === "thumb" ? media.thumbKey : variant === "full" ? media.fullKey : media.posterKey;
       if (!key) throw new FeedError("NOT_FOUND", undefined, 404);
       return { key };
-    },
-    async playbackSource(actorId: string, mediaId: string) {
-      await actor(actorId);
-      s.feedParse(s.feedIdSchema, mediaId);
-      const media = await db.feedMediaAsset.findFirst({ where: { id: mediaId, kind: "video", status: "ready" } });
-      if (!media?.playlistKey) throw new FeedError("NOT_FOUND", undefined, 404);
-      const post = await db.feedPost.findFirst({ where: { id: media.postId, status: "published", deletedAt: null, moderationState: "visible" } });
-      if (!post?.activeRevisionId || !await db.feedRevisionAttachment.findFirst({
-        where: { revisionId: post.activeRevisionId, mediaId }, select: { mediaId: true },
-      })) throw new FeedError("NOT_FOUND", undefined, 404);
-      return { ownerId: media.ownerId, postId: media.postId, mediaId: media.id,
-        playlistKey: media.playlistKey, segmentKeys: media.videoSegmentKeys };
     },
     async create(actorId: string, input: FeedPostCreateInput) {
       await actor(actorId);
@@ -552,7 +553,12 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
           const poll = await tx.feedPoll.findUnique({ where: { postId }, select: { id: true } });
           if (!poll) throw new FeedError("EMPTY_POST", undefined, 400);
         }
-        const media = await tx.feedMediaAsset.findMany({ where: { id: { in: value.attachmentIds }, postId, ownerId: actorId, status: { notIn: ["failed", "cancelled", "expired"] } } });
+        const media = await tx.feedMediaAsset.findMany({ where: {
+          id: { in: value.attachmentIds }, postId, ownerId: actorId,
+          status: { notIn: ["failed", "cancelled", "expired"] },
+          commentAttachments: { none: {} },
+          OR: [{ upload: { is: null } }, { upload: { is: { purpose: "post" } } }],
+        } });
         if (media.length !== value.attachmentIds.length) throw new FeedError("VALIDATION_ERROR", "Недоступное вложение", 400);
         if (media.filter(a => a.kind === "video").length > L.maxVideos) throw new FeedError("VIDEO_LIMIT", undefined, 400);
         await tx.feedPostRevision.updateMany({ where: { postId, status: { in: ["draft", "pending", "failed"] } }, data: { status: "superseded" } });
@@ -602,25 +608,86 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       await actor(actorId);
       if (!storage.enabled) throw new FeedError("FEED_DISABLED", "Обработка вложений пока недоступна", 503);
       const value = s.feedParse(s.feedUploadSchema, input);
+      // Purpose determines authorization, not a second storage/processing pipeline.
+      // A published post allows comment-media uploads by other authenticated users.
+      // A draft only allows uploads by its author.
+      // A signed POST may have succeeded while its Complete ACK was lost.
+      // Probe the existing owner's key OUTSIDE the PostgreSQL transaction;
+      // do not expire a valid uploaded object merely because the POST URL aged.
+      const prior = await db.feedUpload.findUnique({
+        where: { ownerId_clientRequestId: {
+          ownerId: actorId, clientRequestId: value.clientRequestId,
+        } },
+      });
+      let recoveredSource: { id: string; etag: string } | null = null;
+      if (prior?.status === "reserved" && prior.postExpiresAt <= now() &&
+          prior.reservationExpiresAt > now()) {
+        let metadata: Awaited<ReturnType<FeedStoragePort["head"]>>;
+        try { metadata = await storage.head(prior.sourceKey); }
+        catch { throw new FeedError("FEED_DISABLED", "Хранилище временно недоступно", 503); }
+        const maxBytes = prior.declaredMime.startsWith("image/") ? L.photoBytes : L.videoBytes;
+        if (metadata && metadata.contentType === prior.declaredMime &&
+            metadata.bytes === prior.declaredBytes && metadata.bytes > 0 &&
+            metadata.bytes <= maxBytes) {
+          recoveredSource = { id: prior.id, etag: metadata.etag };
+        }
+      }
       const row = await transact(async tx => {
         await lock(tx, postId);
-        const post = await ownedPost(tx, actorId, postId);
-        checkEditable(post, now());
+        if (value.purpose === "comment") await assertFeedPublishingAllowed(tx, actorId);
+        const post = value.purpose === "comment"
+          ? await tx.feedPost.findFirst({ where: { id: postId, status: "published", deletedAt: null, moderationState: "visible" } })
+          : await ownedPost(tx, actorId, postId);
+        if (!post) throw new FeedError("NOT_FOUND", undefined, 404);
+        if (value.purpose !== "comment") checkEditable(post, now());
         const previous = await tx.feedUpload.findUnique({ where: { ownerId_clientRequestId: { ownerId: actorId, clientRequestId: value.clientRequestId } }, include: { media: true } });
         if (previous) {
-          const fingerprint = createHash("sha256").update(JSON.stringify({ postId, kind: value.kind, declaredMime: value.declaredMime, declaredBytes: value.declaredBytes, filename: value.filename })).digest("hex");
+          const fingerprint = createHash("sha256").update(JSON.stringify({ postId, kind: value.kind, declaredMime: value.declaredMime, declaredBytes: value.declaredBytes, filename: value.filename, ...(value.purpose === "comment" ? { purpose: "comment" } : {}) })).digest("hex");
           if (previous.requestFingerprint !== fingerprint) throw new FeedError("VERSION_CONFLICT", undefined, 409);
+          if (previous.status === "reserved" && previous.postExpiresAt <= now()) {
+            if (previous.reservationExpiresAt > now() &&
+                recoveredSource?.id === previous.id) {
+              // Same verified object, recovered after a lost Complete ACK.
+              // Preserve its original media ID and enqueue the normal worker.
+              await tx.feedUpload.update({ where: { id: previous.id },
+                data: { status: "uploaded", sourceETag: recoveredSource.etag } });
+              await tx.feedMediaAsset.update({ where: { id: previous.mediaId },
+                data: { status: "uploaded" } });
+              await tx.feedStorageJob.create({ data: {
+                dedupeKey: `feed-process:${previous.id}`,
+                postId, ownerId: actorId, uploadId: previous.id,
+                mediaId: previous.mediaId,
+                kind: previous.declaredMime.startsWith("image/") ? "publish_photo" : "publish_video",
+                sourceKeys: [previous.sourceKey],
+              } });
+              return { ...previous, status: "uploaded" as const };
+            }
+            // A POST URL expires before its reservation. Make that reservation
+            // retryable immediately and clean up any late-written source key.
+            await tx.feedUpload.update({ where: { id: previous.id }, data: { status: "expired" } });
+            await tx.feedMediaAsset.update({ where: { id: previous.mediaId }, data: { status: "expired" } });
+            await tx.feedStorageJob.create({ data: {
+              dedupeKey: `feed-upload-cleanup:${previous.id}`,
+              postId, ownerId: actorId, uploadId: previous.id,
+              kind: "delete_keys", sourceKeys: [previous.sourceKey],
+              availableAt: new Date(Math.max(
+                now().getTime(), previous.postExpiresAt.getTime(),
+                previous.reservationExpiresAt.getTime(), previous.leaseUntil?.getTime() ?? 0,
+              ) + 60_000),
+            } });
+            return { ...previous, status: "expired" as const };
+          }
           return previous;
         }
         const mediaId = randomUUID(), uploadId = randomUUID(), at = now();
         const ext: Record<string,string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm" };
         const sourceKey = `posts/${actorId}/${postId}/incoming/${uploadId}/source.${ext[value.declaredMime]}`;
-        const fingerprint = createHash("sha256").update(JSON.stringify({ postId, kind: value.kind, declaredMime: value.declaredMime, declaredBytes: value.declaredBytes, filename: value.filename })).digest("hex");
+        const fingerprint = createHash("sha256").update(JSON.stringify({ postId, kind: value.kind, declaredMime: value.declaredMime, declaredBytes: value.declaredBytes, filename: value.filename, ...(value.purpose === "comment" ? { purpose: "comment" } : {}) })).digest("hex");
         await tx.feedMediaAsset.create({ data: { id: mediaId, postId, ownerId: actorId, kind: value.kind } });
         return tx.feedUpload.create({ data: {
           id: uploadId, postId, ownerId: actorId, mediaId, clientRequestId: value.clientRequestId,
           requestFingerprint: fingerprint, filename: value.filename, declaredMime: value.declaredMime,
-          declaredBytes: value.declaredBytes, sourceKey,
+          declaredBytes: value.declaredBytes, purpose: value.purpose ?? "post", sourceKey,
           postExpiresAt: new Date(at.getTime() + L.uploadUrlSeconds * 1000),
           reservationExpiresAt: new Date(at.getTime() + L.reservationSeconds * 1000),
         }, include: { media: true } });
@@ -672,8 +739,11 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       }
       await transact(async tx => {
         await lock(tx, existing.postId);
-        const post = await ownedPost(tx, actorId, existing.postId);
-        if (post.deletedAt) throw new FeedError("NOT_FOUND", undefined, 404);
+        const post = existing.purpose === "comment"
+          ? await tx.feedPost.findFirst({ where: {
+              id: existing.postId, status: "published", deletedAt: null, moderationState: "visible",
+            } }) : await ownedPost(tx, actorId, existing.postId);
+        if (!post || post.deletedAt) throw new FeedError("NOT_FOUND", undefined, 404);
         const fresh = await tx.feedUpload.findUnique({ where: { id: uploadId } });
         if (fresh?.status !== "reserved") return;
         if (fresh.reservationExpiresAt <= now()) throw new FeedError("UPLOAD_EXPIRED", undefined, 409);
@@ -712,7 +782,17 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
           data: {
             dedupeKey: `feed-upload-cleanup:${uploadId}`,
             postId: row.postId, ownerId: actorId, uploadId,
-            kind: "delete_keys", sourceKeys: [row.sourceKey],
+            kind: "delete_keys", sourceKeys: row.purpose === "comment"
+              ? [row.sourceKey, ...feedPossibleOutputKeys(actorId, row.postId, row.mediaId,
+                  row.declaredMime.startsWith("image/") ? "photo" : "video")]
+              : [row.sourceKey],
+            // An outstanding signed POST can still write this key after cancellation.
+            // Delay final deletion until every reservation/lease has expired, plus
+            // a safety interval; otherwise a late client upload leaves an orphan.
+            availableAt: new Date(Math.max(
+              now().getTime(), row.postExpiresAt.getTime(),
+              row.reservationExpiresAt.getTime(), row.leaseUntil?.getTime() ?? 0,
+            ) + 60_000),
           },
         });
       });
@@ -732,6 +812,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
         kind: previous.declaredMime.startsWith("image/") ? "photo" : "video",
         declaredMime: previous.declaredMime as FeedReserveUploadInput["declaredMime"],
         declaredBytes: previous.declaredBytes,
+        ...(previous.purpose === "comment" ? { purpose: "comment" as const } : {}),
         clientRequestId: validated.clientRequestId,
       });
     },
@@ -766,12 +847,12 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
         });
         if (!photo?.thumbKey || !photo.fullKey) throw new FeedError("NOT_FOUND", "Фотография недоступна", 404);
         const id = randomUUID();
-        const base = `posts/${actorId}/${postId}/attachments/${id}`;
+        const base = `media/v2/${id}/v1/image`;
         await tx.feedMediaAsset.create({ data: { id, postId, ownerId: actorId, kind: "photo", status: "processing" } });
         await tx.feedStorageJob.create({ data: {
           dedupeKey: `copy-album:${postId}:${value.clientRequestId}`, ownerId: actorId, postId, mediaId: id,
           kind: "copy_album", sourceKeys: [photo.thumbKey, photo.fullKey],
-          targetKeys: [`${base}/thumb.webp`, `${base}/full.webp`],
+          targetKeys: [`${base}/s.webp`, `${base}/m.webp`, `${base}/l.webp`],
         } });
         return { id, kind: "photo" as const, position: 0, status: "processing" as const,
           width: photo.width, height: photo.height, durationSeconds: null, thumbUrl: null,

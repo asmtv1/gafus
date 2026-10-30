@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { useRef, useState, useCallback, useEffect, useLayoutEffect, useMemo } from "react";
 import { ActivityIndicator, AppState, Modal, View, StyleSheet, Pressable } from "react-native";
 import { useEvent, useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -21,7 +21,7 @@ import {
   pauseVideoPlayerSafely,
   releaseVideoPlayer,
 } from "@/shared/lib/videoPlaybackCoordinator";
-import { getSafeVideoResumePosition } from "@gafus/core/utils";
+import { getSafeVideoResumePosition } from "@gafus/core-client/utils/video";
 
 /** Скорости воспроизведения для обучающих видео */
 const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 1.75, 2] as const;
@@ -240,6 +240,24 @@ export function VideoPlayer({
     setIsQualitySwitching(false);
   });
 
+  const flushCurrentPosition = useCallback(() => {
+    if (hasEndedRef.current) return;
+    // Native pause may occur between timeUpdate events; consult the real player clock.
+    const livePosition =
+      Number.isFinite(player.currentTime) && player.currentTime >= 0
+        ? player.currentTime
+        : currentPositionRef.current;
+    const position = Math.max(0, Math.floor(livePosition));
+    currentPositionRef.current = position;
+    if (
+      (position > 0 || lastSavedPositionRef.current !== null) &&
+      lastSavedPositionRef.current !== position
+    ) {
+      lastSavedPositionRef.current = position;
+      onSaveProgressRef.current?.(position);
+    }
+  }, [player]);
+
   useEventListener(player, "playingChange", ({ isPlaying: nowPlaying }) => {
     if (nowPlaying) {
       hasEndedRef.current = false;
@@ -247,11 +265,7 @@ export function VideoPlayer({
       return;
     }
     releaseVideoPlayer(player);
-    const position = Math.max(0, Math.floor(currentPositionRef.current));
-    if (position > 0 && lastSavedPositionRef.current !== position) {
-      lastSavedPositionRef.current = position;
-      onSaveProgressRef.current?.(position);
-    }
+    flushCurrentPosition();
   });
 
   const isLoaded = status === "readyToPlay";
@@ -380,37 +394,38 @@ export function VideoPlayer({
   useEffect(() => {
     const unsubscribe = navigation.addListener("blur", () => {
       pauseVideoPlayerSafely(player);
+      flushCurrentPosition();
       releaseVideoPlayer(player);
     });
     return unsubscribe;
-  }, [navigation, player]);
+  }, [navigation, player, flushCurrentPosition]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active") {
         pauseVideoPlayerSafely(player);
+        flushCurrentPosition();
         releaseVideoPlayer(player);
       }
     });
     return () => subscription.remove();
-  }, [player]);
+  }, [player, flushCurrentPosition]);
 
   useEffect(() => {
     player.playbackRate = PLAYBACK_SPEEDS[speedIndex];
   }, [speedIndex, player]);
 
-  useEffect(
+  // Flush the final native clock in layout cleanup while the parent
+  // useVideoProgress session-bound callback is still mounted/attested.
+  useLayoutEffect(
     () => () => {
       if (singleTapTimeoutRef.current) {
         clearTimeout(singleTapTimeoutRef.current);
       }
       releaseVideoPlayer(player);
-      const position = Math.max(0, Math.floor(currentPositionRef.current));
-      if (!hasEndedRef.current && position > 0 && lastSavedPositionRef.current !== position) {
-        onSaveProgressRef.current?.(position);
-      }
+      flushCurrentPosition();
     },
-    [player],
+    [player, flushCurrentPosition],
   );
 
   const cycleSpeed = useCallback(() => {

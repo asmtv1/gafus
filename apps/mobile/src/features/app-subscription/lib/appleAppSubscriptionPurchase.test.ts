@@ -43,7 +43,7 @@ describe("runAppleAppSubscriptionPurchase", () => {
 
   it("passes appAccountToken to StoreKit purchase request", async () => {
     const result = await runAppleAppSubscriptionPurchase("premium-week", {
-      appAccountToken: "account-token-1",
+      appAccountToken: "b713906f-c774-41d9-84ae-1585fb13f232",
     });
 
     expect(result).toEqual({ ok: true });
@@ -51,7 +51,7 @@ describe("runAppleAppSubscriptionPurchase", () => {
       request: {
         apple: {
           sku: "premium-week",
-          appAccountToken: "account-token-1",
+          appAccountToken: "b713906f-c774-41d9-84ae-1585fb13f232",
         },
       },
       type: "subs",
@@ -72,7 +72,7 @@ describe("runAppleAppSubscriptionPurchase", () => {
     });
 
     const result = await runAppleAppSubscriptionPurchase("premium-week", {
-      appAccountToken: "account-token-1",
+      appAccountToken: "b713906f-c774-41d9-84ae-1585fb13f232",
     });
 
     expect(result).toEqual({

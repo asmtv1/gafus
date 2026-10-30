@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-const core = vi.hoisted(() => ({ listQuestions: vi.fn(), createQuestion: vi.fn(), uploadQuestionPhoto: vi.fn(), setQuestionHeart: vi.fn() }));
+const core = vi.hoisted(() => ({ listQuestions: vi.fn(), createQuestion: vi.fn(), setQuestionHeart: vi.fn() }));
 vi.mock("@gafus/core/services/questions", () => ({
   ...core,
   QuestionError: class extends Error { constructor(public code: string, message: string, public status: number) { super(message); } },
@@ -24,10 +24,12 @@ describe("questions HTTP decoding", () => {
     await expect(dispatchQuestionsRequest("account-1", new Request("https://example.test/questions/answers/a/heart", { method: "POST", body: '{"liked":"true"}' }), "answers/a/heart")).rejects.toBeDefined();
     expect(core.setQuestionHeart).not.toHaveBeenCalled();
   });
-  it("decodes multipart bytes and leaves file inspection to core", async () => {
-    const form = new FormData(); form.append("file", new Blob([new Uint8Array([1, 2, 3])]), "photo.jpg");
-    await dispatchQuestionsRequest("account-1", new Request("https://example.test/questions/photos", { method: "POST", body: form }), "photos");
-    expect(core.uploadQuestionPhoto).toHaveBeenCalledWith("account-1", new Uint8Array([1, 2, 3]));
+  it("rejects old backend multipart upload instead of keeping a second pipeline", async () => {
+    const form=new FormData();
+    form.append("file",new Blob([new Uint8Array([1,2,3])]),"photo.jpg");
+    await expect(dispatchQuestionsRequest("account-1",
+      new Request("https://example.test/questions/photos",{method:"POST",body:form}),
+      "photos")).rejects.toMatchObject({status:410,code:"PHOTO_UPLOAD_V2_REQUIRED"});
   });
   it("returns 404 for unsupported routes and methods", async () => {
     await expect(dispatchQuestionsRequest("account-1", new Request("https://example.test/questions", { method: "PUT" }), "")).rejects.toMatchObject({ status: 404 });

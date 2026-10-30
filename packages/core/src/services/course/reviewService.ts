@@ -55,7 +55,11 @@ export async function getCourseReviews(
       id: true,
       name: true,
       reviews: {
-        include: {
+        select: {
+          id: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
           user: {
             select: {
               id: true,
@@ -79,6 +83,20 @@ export async function getCourseReviews(
     return null;
   }
 
+  // Explicit public DTO prevents private Prisma fields from reaching reviewers
+  // or the actor-specific userStatus.userReview when the schema expands.
+  const reviews: CourseReviewData[] = course.reviews.map((review) => ({
+    id: review.id,
+    rating: review.rating,
+    comment: review.comment,
+    createdAt: review.createdAt,
+    user: {
+      id: review.user.id,
+      username: review.user.username,
+      profile: review.user.profile ? { avatarUrl: review.user.profile.avatarUrl } : null,
+    },
+  }));
+
   // Статус прохождения курса текущим пользователем
   const userStatus: UserReviewStatus = {
     hasCompleted: false,
@@ -98,7 +116,7 @@ export async function getCourseReviews(
 
     userStatus.hasCompleted = userCourse?.status === TrainingStatus.COMPLETED;
 
-    const userReview = course.reviews.find((review) => review.user.id === userId);
+    const userReview = reviews.find((review) => review.user.id === userId);
     if (userReview) {
       userStatus.userReview = userReview;
     }
@@ -106,7 +124,7 @@ export async function getCourseReviews(
 
   return {
     courseName: course.name,
-    reviews: course.reviews,
+    reviews,
     userStatus,
   };
 }

@@ -52,6 +52,19 @@ export type RequestAccountDeletionCodeResult =
       code?: DeleteUserAccountErrorCode;
     };
 
+/** Minimal self-delete preflight deliberately avoids avatar/CDN signing.
+ *  Never expose the email address or challenge token to the browser.
+ */
+export async function readAccountDeletionPreflight(actorUserId: string) {
+  if (!actorUserId?.trim()) return null;
+  const user = await prisma.user.findUnique({
+    where: { id: actorUserId },
+    select: { id: true, username: true, email: true },
+  });
+  if (!user) return null;
+  return { id: user.id, username: user.username, hasEmail: !!user.email?.trim() };
+}
+
 const ROLE_SELF_DELETE = new Set(["USER"]);
 
 function randomSixDigitCode(): string {

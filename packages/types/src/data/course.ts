@@ -1,6 +1,34 @@
 // Типы для курсов и связанных данных
 import type { TrainingStatus } from "../utils/training-status";
 
+/**
+ * Existing anonymous GET /api/v1/public/courses wire projection.
+ * Deliberately distinct from CourseWithProgressData: no Date, owner/user IDs,
+ * media, reviews, relations, progress or private access records in this DTO.
+ * Boolean hasAccess remains the producer's exact !isPaid projection.
+ */
+export interface PublicCourseCatalogItem {
+  /** Only allowlisted unsigned public CDN artwork, omitted when unavailable. */
+  logoImg?: string;
+  id: string;
+  name: string;
+  type: string;
+  shortDesc: string;
+  duration: string;
+  isPaid: boolean;
+  isPrivate: false;
+  hasAccess: boolean;
+  isFavorite: false;
+  userStatus: "NOT_STARTED";
+  trainingLevel: CourseWithProgressData["trainingLevel"];
+}
+
+/** Exact success envelope of the existing public-only 11-field list. */
+export interface PublicCourseCatalogResponse {
+  success: true;
+  data: PublicCourseCatalogItem[];
+}
+
 export interface CourseWithProgressData {
   id: string;
   name: string;
@@ -29,6 +57,39 @@ export interface CourseWithProgressData {
   dayLinks: DayLink[];
   /** Мини-гайд (чек-лист, справочник) — без дней, только HTML */
 }
+
+/**
+ * JSON body of authenticated GET /api/v1/courses.
+ * Core remains a Date-valued domain object; Hono JSON serialization converts
+ * Date to ISO strings (also inside reviews and userCourses), preserving
+ * optional fields, nulls, enum values and the existing nested object shape.
+ *
+ * This is distinct from the 11-field anonymous PublicCourseCatalogItem.
+ * It does not request a new runtime projection or change user entitlements.
+ */
+type CourseJsonValue<T> =
+  T extends Date ? string
+    : T extends readonly (infer Item)[] ? CourseJsonValue<Item>[]
+      : T extends object ? { [Key in keyof T]: CourseJsonValue<T[Key]> }
+        : T;
+
+export type CourseWithProgressWire = CourseJsonValue<CourseWithProgressData>;
+
+export interface CourseWithProgressWireResponse {
+  success: true;
+  data: CourseWithProgressWire[];
+}
+
+/**
+ * Compile-only producer guard: a domain response must JSON-serialize into
+ * precisely the shared authenticated wire envelope. Returns original T so
+ * the Hono c.json input remains Date-valued and runtime JSON is unchanged.
+ */
+export type CourseWithProgressWireConformance<T> =
+  [CourseJsonValue<T>] extends [CourseWithProgressWireResponse]
+    ? [CourseWithProgressWireResponse] extends [CourseJsonValue<T>]
+      ? T : never
+    : never;
 
 export interface CourseReview {
   rating: number | null;

@@ -24,7 +24,7 @@ export type NpdAdminPage = {
     id: string; paymentId: string; user: { id: string; username: string; fullName: string | null; email: string | null };
     planCode: string; amountRub: number; currency: string; status: NpdAdminReceiptStatus;
     emailDelivery: string | null; retryAt: string | null; printUrl: string | null; lastErrorRedacted: string | null;
-    operationAt: string;
+    canRetry: boolean; canReconcile: boolean; operationAt: string;
   }[];
 };
 
@@ -48,7 +48,8 @@ export async function getNpdAdminPage(params: { page: number; pageSize: number; 
     id: true, paymentId: true, amountKopecks: true, currency: true, planCode: true, status: true,
     operationAt: true, printUrl: true,
     payment: { select: { user: { select: { id: true, username: true, email: true, profile: { select: { fullName: true } } } } } },
-    operations: { select: { type: true, status: true, nextAttemptAt: true, lastErrorRedacted: true }, orderBy: { updatedAt: "desc" as const } },
+    operations: { select: { type: true, status: true, nextAttemptAt: true,
+      lastErrorCode: true, lastErrorRedacted: true }, orderBy: { updatedAt: "desc" as const } },
     emailDelivery: { select: { status: true, nextAttemptAt: true, lastErrorRedacted: true } },
   } as const;
   const [connection, total, rows, backlog] = await Promise.all([
@@ -63,7 +64,13 @@ export async function getNpdAdminPage(params: { page: number; pageSize: number; 
     items: rows.map((row) => {
       const op = row.operations.find((item) => item.status !== "NOT_REQUIRED") ?? row.operations[0];
       const retryAt = op?.nextAttemptAt ?? row.emailDelivery?.nextAttemptAt ?? null;
-      return { id: row.id, paymentId: row.paymentId, user: { id: row.payment.user.id, username: row.payment.user.username, fullName: row.payment.user.profile?.fullName ?? null, email: params.role === "ADMIN" ? row.payment.user.email : null }, planCode: row.planCode, amountRub: row.amountKopecks / 100, currency: row.currency, status: row.status, emailDelivery: row.emailDelivery?.status ?? null, retryAt: retryAt?.toISOString() ?? null, printUrl: params.role === "ADMIN" ? row.printUrl : null, lastErrorRedacted: op?.lastErrorRedacted ?? row.emailDelivery?.lastErrorRedacted ?? null, operationAt: row.operationAt.toISOString() };
+      return { id: row.id, paymentId: row.paymentId, user: { id: row.payment.user.id, username: row.payment.user.username, fullName: row.payment.user.profile?.fullName ?? null, email: params.role === "ADMIN" ? row.payment.user.email : null }, planCode: row.planCode, amountRub: row.amountKopecks / 100, currency: row.currency, status: row.status, emailDelivery: row.emailDelivery?.status ?? null, retryAt: retryAt?.toISOString() ?? null, printUrl: params.role === "ADMIN" ? row.printUrl : null, lastErrorRedacted: op?.lastErrorRedacted ?? row.emailDelivery?.lastErrorRedacted ?? null,
+        canRetry: row.status === "FAILED" && row.operations.some((item) => item.status === "FAILED"),
+        canReconcile: row.status === "RECONCILIATION_REQUIRED" && row.operations.some(
+          (item) => item.status === "RECONCILIATION_REQUIRED" &&
+            item.lastErrorCode !== "ADMIN_RECONCILIATION_REQUESTED",
+        ),
+        operationAt: row.operationAt.toISOString() };
     }),
   };
 }
@@ -72,10 +79,18 @@ export async function adminRetryNpdReceiptOperation(receiptId: string) {
   const receipt = await prisma.npdReceipt.findUnique({ where: { id: receiptId }, select: { status: true, operations: { select: { id: true, type: true, status: true } } } });
   if (!receipt) return { ok: false as const, code: "NOT_FOUND" };
   if (receipt.status === "RECONCILIATION_REQUIRED") return { ok: false as const, code: "RECONCILIATION_REQUIRED" };
-  const operation = receipt.operations.find((item) => ["FAILED", "RETRY"].includes(item.status));
+  // A pending RETRY has already been scheduled. Replaying the admin request must
+  // not move nextAttemptAt or accidentally schedule another provider operation.
+  const operation = receipt.operations.find((item) => item.status === "FAILED");
   if (!operation) return { ok: false as const, code: "NOT_RETRYABLE" };
-  await prisma.npdReceiptOperation.updateMany({ where: { id: operation.id, status: { in: ["FAILED", "RETRY"] } }, data: { status: "RETRY", nextAttemptAt: new Date(), completedAt: null, lastErrorCode: null, lastErrorRedacted: null } });
-  return { ok: true as const };
+  const changed = await prisma.npdReceiptOperation.updateMany({
+    where: { id: operation.id, status: "FAILED" },
+    data: { status: "RETRY", nextAttemptAt: new Date(), completedAt: null, lastErrorCode: null, lastErrorRedacted: null },
+  });
+  // Another operator or worker may have changed the row between read and CAS.
+  return changed.count === 1
+    ? { ok: true as const }
+    : { ok: false as const, code: "NOT_RETRYABLE" };
 }
 
 export async function adminQueueNpdReconciliation(receiptId: string) {
@@ -83,8 +98,21 @@ export async function adminQueueNpdReconciliation(receiptId: string) {
   if (!receipt || receipt.status !== "RECONCILIATION_REQUIRED") return { ok: false as const, code: "NOT_AMBIGUOUS" };
   const operation = receipt.operations.find((item) => item.status === "RECONCILIATION_REQUIRED");
   if (!operation) return { ok: false as const, code: "NOT_AMBIGUOUS" };
-  await prisma.npdReceiptOperation.updateMany({ where: { id: operation.id, status: "RECONCILIATION_REQUIRED" }, data: { lastErrorCode: "ADMIN_RECONCILIATION_REQUESTED", lastErrorRedacted: "Сверка запрошена администратором; внешняя проверка недоступна" } });
-  return { ok: true as const };
+  const changed = await prisma.npdReceiptOperation.updateMany({
+    where: {
+      id: operation.id,
+      status: "RECONCILIATION_REQUIRED",
+      OR: [{ lastErrorCode: null },
+        { lastErrorCode: { not: "ADMIN_RECONCILIATION_REQUESTED" } }],
+    },
+    data: {
+      lastErrorCode: "ADMIN_RECONCILIATION_REQUESTED",
+      lastErrorRedacted: "Сверка запрошена администратором; внешняя проверка недоступна",
+    },
+  });
+  return changed.count === 1
+    ? { ok: true as const }
+    : { ok: false as const, code: "NOT_AMBIGUOUS" };
 }
 
 export type AppSubscriptionAdminAttention =
@@ -598,7 +626,14 @@ export async function updateDefaultAppSubscriptionSettings(params: {
   monthlyAppleProductId: string | null;
   actorId: string;
 }) {
-  return prisma.appSubscriptionSettings.upsert({
+  return prisma.$transaction(async (tx) => {
+    // Serialize price updates with concurrent role revocation.
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${params.actorId} FOR UPDATE`;
+    const actor = await tx.user.findUnique({
+      where: { id: params.actorId }, select: { role: true },
+    });
+    if (actor?.role !== "ADMIN") throw new Error("FORBIDDEN");
+    return tx.appSubscriptionSettings.upsert({
     where: { key: "default" },
     create: {
       key: "default",
@@ -629,6 +664,7 @@ export async function updateDefaultAppSubscriptionSettings(params: {
       monthlyAppleProductId: params.monthlyAppleProductId,
       updatedById: params.actorId,
     },
+    });
   });
 }
 
@@ -673,6 +709,27 @@ export async function getUserAppSubscriptionAdminSummary(userId: string) {
   };
 }
 
+/** Lock both sides of a manual grant before checking staff authority or modifying access.
+ * It also serializes concurrent grants to the same account, so two concurrent
+ * admins cannot both create an active MANUAL row after seeing none.
+ */
+async function withLockedManualGrantAdmin<T>(
+  adminUserId: string,
+  userId: string,
+  action: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" IN (${adminUserId}, ${userId}) ORDER BY "id" FOR UPDATE`;
+    const [actor, target] = await Promise.all([
+      tx.user.findUnique({ where: { id: adminUserId }, select: { role: true } }),
+      tx.user.findUnique({ where: { id: userId }, select: { id: true } }),
+    ]);
+    if (actor?.role !== "ADMIN") throw new Error("FORBIDDEN");
+    if (!target) throw new Error("USER_NOT_FOUND");
+    return action(tx);
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
 export async function adminGrantPaidUntil(params: {
   userId: string;
   adminUserId: string;
@@ -681,45 +738,36 @@ export async function adminGrantPaidUntil(params: {
 }) {
   const periodStart = new Date();
   const periodEnd = params.paidUntil;
-  if (periodEnd <= periodStart) {
-    throw new Error("paidUntil должен быть в будущем");
-  }
+  if (periodEnd <= periodStart) throw new Error("paidUntil должен быть в будущем");
 
-  const existing = await prisma.appSubscription.findFirst({
-    where: {
-      userId: params.userId,
-      provider: "MANUAL",
-      status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
-    },
-    select: { id: true },
-  });
-
-  if (existing) {
-    await prisma.appSubscription.update({
-      where: { id: existing.id },
-      data: {
-        status: "ACTIVE",
-        isLifetime: false,
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-        manualGrantedById: params.adminUserId,
-        manualReason: params.reason ?? null,
-      },
-    });
-  } else {
-    await prisma.appSubscription.create({
-      data: {
+  return withLockedManualGrantAdmin(params.adminUserId, params.userId, async (tx) => {
+    const existing = await tx.appSubscription.findFirst({
+      where: {
         userId: params.userId,
         provider: "MANUAL",
-        status: "ACTIVE",
-        isLifetime: false,
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-        manualGrantedById: params.adminUserId,
-        manualReason: params.reason ?? null,
+        status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
       },
+      select: { id: true },
     });
-  }
+    if (existing) {
+      await tx.appSubscription.update({
+        where: { id: existing.id },
+        data: {
+          status: "ACTIVE", isLifetime: false,
+          currentPeriodStart: periodStart, currentPeriodEnd: periodEnd,
+          manualGrantedById: params.adminUserId, manualReason: params.reason ?? null,
+        },
+      });
+    } else {
+      await tx.appSubscription.create({
+        data: {
+          userId: params.userId, provider: "MANUAL", status: "ACTIVE",
+          isLifetime: false, currentPeriodStart: periodStart, currentPeriodEnd: periodEnd,
+          manualGrantedById: params.adminUserId, manualReason: params.reason ?? null,
+        },
+      });
+    }
+  });
 }
 
 export async function adminGrantLifetime(params: {
@@ -727,54 +775,51 @@ export async function adminGrantLifetime(params: {
   adminUserId: string;
   reason?: string;
 }) {
-  const existing = await prisma.appSubscription.findFirst({
-    where: {
-      userId: params.userId,
-      provider: "MANUAL",
-      status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
-    },
-    select: { id: true },
-  });
-
-  if (existing) {
-    await prisma.appSubscription.update({
-      where: { id: existing.id },
-      data: {
-        status: "ACTIVE",
-        isLifetime: true,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: null,
-        manualGrantedById: params.adminUserId,
-        manualReason: params.reason ?? null,
-      },
-    });
-  } else {
-    await prisma.appSubscription.create({
-      data: {
+  return withLockedManualGrantAdmin(params.adminUserId, params.userId, async (tx) => {
+    const existing = await tx.appSubscription.findFirst({
+      where: {
         userId: params.userId,
         provider: "MANUAL",
-        status: "ACTIVE",
-        isLifetime: true,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: null,
-        manualGrantedById: params.adminUserId,
-        manualReason: params.reason ?? null,
+        status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
       },
+      select: { id: true },
     });
-  }
+    if (existing) {
+      await tx.appSubscription.update({
+        where: { id: existing.id },
+        data: {
+          status: "ACTIVE", isLifetime: true,
+          currentPeriodStart: new Date(), currentPeriodEnd: null,
+          manualGrantedById: params.adminUserId, manualReason: params.reason ?? null,
+        },
+      });
+    } else {
+      await tx.appSubscription.create({
+        data: {
+          userId: params.userId, provider: "MANUAL", status: "ACTIVE",
+          isLifetime: true, currentPeriodStart: new Date(), currentPeriodEnd: null,
+          manualGrantedById: params.adminUserId, manualReason: params.reason ?? null,
+        },
+      });
+    }
+  });
 }
 
-export async function adminClearManualGrant(params: { userId: string; adminUserId: string }) {
-  await prisma.appSubscription.updateMany({
-    where: {
-      userId: params.userId,
-      provider: "MANUAL",
-      status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
-    },
-    data: {
-      status: "CANCELED",
-      canceledAt: new Date(),
-      manualGrantedById: params.adminUserId,
-    },
+export async function adminClearManualGrant(params: {
+  userId: string;
+  adminUserId: string;
+}) {
+  return withLockedManualGrantAdmin(params.adminUserId, params.userId, async (tx) => {
+    await tx.appSubscription.updateMany({
+      where: {
+        userId: params.userId,
+        provider: "MANUAL",
+        status: { in: ["ACTIVE", "PENDING", "PAST_DUE"] },
+      },
+      data: {
+        status: "CANCELED", canceledAt: new Date(),
+        manualGrantedById: params.adminUserId,
+      },
+    });
   });
 }

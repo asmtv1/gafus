@@ -1,0 +1,65 @@
+/* A reading step stays open after completion; this is a manual fallback for
+ * short content and keyboard/screen reader users when there is no scroll. */
+.training-theory-reading-end {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 12px 12px;
+  margin-top: 16px;
+  border-top: 1px solid rgba(var(--accent-primary-rgb), .18);
+  text-align: center;
+}
+.training-theory-reading-end > p {
+  margin: 0;
+  color: var(--accent-secondary, #3b4822);
+  font: 600 14px/1.5 var(--font-montserrat), system-ui, sans-serif;
+}
+.training-theory-reading-end > button {
+  min-height: 44px;
+  cursor: pointer;
+  font: 650 14px/1.4 var(--font-montserrat), system-ui, sans-serif;
+}
+.training-theory-end-marker { height: 1px; width: 100%; }
+
+/* The original olive "Прочитано" pseudo-button is a confirmed read-only
+ * status, never a second submit control. Keep material expanded. */
+.gafus-app .training-theory-reading-end .training-theory-read-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 52px;
+  padding: 12px 28px;
+  border: 1px solid #4d5c2d;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #71804b 0%, #62743b 18%, #4d5c2d 56%, #465429 84%, #3b4822 100%);
+  color: #f6f0df;
+  box-shadow: 0 7px 12px rgba(45, 56, 27, .23);
+  font: 700 16px/1.3 var(--font-montserrat), system-ui, sans-serif;
+  text-align: center;
+  cursor: default;
+}
+.gafus-app .training-theory-reading-end .training-theory-read-badge::before {
+  content: "✓";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 23px;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .18);
+  color: inherit;
+  font-size: 14px;
+}
+@media (max-width: 600px) {
+  .gafus-app .training-theory-reading-end .training-theory-read-badge {
+    min-height: 48px;
+    padding: 11px 22px;
+    font-size: 15px;
+  }
+}

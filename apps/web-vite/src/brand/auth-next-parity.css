@@ -1,0 +1,270 @@
+/* Refactor App mounts <main> directly under #root, without a .gafus-app ancestor. */
+#root .shell.gafus-auth-screen {
+  box-sizing: border-box; max-width: none; min-height: 100dvh; width: 100%;
+  margin: 0; padding: 24px 32px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px; color: #636128;
+}
+@media (max-width: 480px) {
+  #root .shell.gafus-auth-screen { padding: 24px 32px; }
+  #root .shell.gafus-auth-screen:has(.gafus-register-panel) { padding-top: 26px; }
+}
+/* Source-derived auth parity: apps/web/src/app/(auth) login/register/passwordReset.
+ * Scoped to auth routes; leave the Hono/Auth request flow untouched. */
+#root .shell.gafus-auth-screen .gafus-auth-panel {
+  position: relative;
+  box-sizing: border-box; width: min(100%, 320px); gap: 10px;
+}
+#root .shell.gafus-auth-screen .gafus-login-logo {
+  display: block; width: min(303px, 100%); height: auto;
+}
+#root .shell.gafus-auth-screen .gafus-login-prompt {
+  box-sizing: border-box; width: 100%; margin: 0;
+  font: 400 12px/1.5 var(--font-montserrat), sans-serif;
+}
+#root .shell.gafus-auth-screen .gafus-auth-panel form {
+  box-sizing: border-box; width: min(100%, 280px);
+  display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0;
+}
+#root .shell.gafus-auth-screen .gafus-auth-panel form input {
+  box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px 10px;
+  border: 2px solid #636128; border-radius: 5px; background: #fff8e5;
+  color: #636128; font: 400 16px/1.4 var(--font-montserrat), sans-serif;
+  caret-color: #636128; box-shadow: none;
+}
+#root .shell.gafus-auth-screen input::placeholder {
+  color: #636128; opacity: .85;
+}
+#root .shell.gafus-auth-screen input:focus-visible,
+#root .shell.gafus-auth-screen button:focus-visible,
+#root .shell.gafus-auth-screen a:focus-visible {
+  outline: 3px solid #d7837b; outline-offset: 2px;
+}
+#root .shell.gafus-auth-screen .gafus-login-links {
+  display: flex; justify-content: space-between; gap: 12px; align-items: center;
+  width: 100%; margin-top: 5px;
+}
+#root .shell.gafus-auth-screen .gafus-login-links a {
+  display: inline-flex; align-items: center; min-height: 32px;
+  color: #636128; font: 400 12px/1.4 var(--font-montserrat), sans-serif;
+  text-decoration: none;
+}
+#root .shell.gafus-auth-screen .gafus-login-links a:hover { text-decoration: underline; }
+#root .shell.gafus-auth-screen .gafus-auth-panel form .gafus-login-submit {
+  display: grid; align-self: center; place-items: center;
+  box-sizing: border-box; width: 150px; height: 150px;
+  margin: 5px 0 0; padding: 0; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none; cursor: pointer;
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+#root .shell.gafus-auth-screen .gafus-auth-panel form .gafus-login-submit img {
+  display: block; width: 120px; height: 125px; object-fit: contain;
+}
+#root .shell.gafus-auth-screen .gafus-auth-panel form .gafus-login-submit:disabled {
+  opacity: .65; cursor: wait;
+}
+#root .shell.gafus-auth-screen .gafus-register-panel {
+  box-sizing: border-box; width: 100%; gap: 8px;
+}
+#root .shell.gafus-auth-screen .gafus-register-logo-container {
+  display: flex; justify-content: center; width: min(100%, 320px);
+}
+#root .shell.gafus-auth-screen .gafus-register-logo {
+  display: block; width: 80%; max-width: none; height: auto;
+}
+#root .shell.gafus-auth-screen .gafus-register-panel form {
+  box-sizing: border-box; width: min(100%, 320px);
+  display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0;
+}
+#root .shell.gafus-auth-screen .gafus-register-panel form input:not([type="checkbox"]) {
+  box-sizing: border-box; width: 100%; min-height: 44px;
+  padding: 8px 10px; border: 2px solid #636128; border-radius: 5px;
+  background: #fff8e5; color: #636128;
+  font: 400 16px/1.4 var(--font-montserrat), sans-serif; box-shadow: none;
+}
+#root .shell.gafus-auth-screen .registration-promo-controls {
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 100%;
+}
+#root .shell.gafus-auth-screen .registration-promo-controls button {
+  min-height: 36px; margin: 8px 0; padding: 0 12px;
+  border-radius: 12px; font-size: 13px; line-height: 18px;
+}
+#root .shell.gafus-auth-screen .gafus-register-panel form > p[role="status"] {
+  width: 100%; margin: 4px 0;
+  font: 400 11px/1.45 var(--font-montserrat), sans-serif;
+}
+#root .shell.gafus-auth-screen .registration-consents {
+  box-sizing: border-box; width: 100%;
+  display: flex; flex-direction: column; gap: 5px; margin: 0;
+}
+#root .shell.gafus-auth-screen .registration-consents .registration-checkbox {
+  box-sizing: border-box; display: flex; align-items: center; gap: 8px;
+  width: 100%; min-height: 36px; margin: 0;
+  color: #636128; cursor: pointer;
+  font: 400 11px/1.4 var(--font-montserrat), sans-serif;
+}
+#root .shell.gafus-auth-screen .registration-consents .registration-checkbox input {
+  flex: 0 0 24px; width: 24px; height: 24px;
+  margin: 0 8px 0 0; accent-color: #636128;
+}
+#root .shell.gafus-auth-screen .registration-consents .registration-checkbox a {
+  color: inherit; text-decoration: underline; text-underline-offset: 2px;
+}
+#root .shell.gafus-auth-screen .gafus-register-panel form button[type="submit"] {
+  box-sizing: border-box; width: 100%; min-height: 48px; margin-top: 20px; padding: 0;
+  font: 400 22px/26px var(--font-impact), sans-serif;
+}
+#root .shell.gafus-auth-screen .gafus-register-login-link {
+  display: flex; justify-content: center; align-items: center;
+  min-height: 44px; width: 100%; margin-top: 4px;
+  border: 0; background: transparent; box-shadow: none;
+  color: #636128; cursor: pointer;
+  font: 400 12px/18px var(--font-montserrat), sans-serif;
+  text-decoration: underline;
+}
+/* Next passwordReset standalone design, not the generic shell form. */
+#root .shell.gafus-reset-screen {
+  box-sizing: border-box; max-width: none; width: 100%; padding: 0; margin: 0;
+}
+#root .gafus-password-reset {
+  position: relative; box-sizing: border-box; min-height: 100dvh; width: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 32px 16px 96px; color: var(--text-primary);
+  overflow: hidden;
+}
+#root .gafus-password-reset .gafus-reset-title {
+  z-index: 1; margin: 0; color: var(--bg-2);
+  font: 400 clamp(40px, 7vw, 64px)/.98 var(--font-impact), var(--font-montserrat), sans-serif;
+  text-align: center;
+}
+#root .gafus-password-reset .gafus-reset-subtitle {
+  z-index: 1; max-width: 420px; margin: 0;
+  color: var(--text-secondary); font: 500 14px/1.5 var(--font-montserrat), sans-serif;
+  text-align: center;
+}
+#root .gafus-password-reset .gafus-reset-form {
+  z-index: 1; box-sizing: border-box; width: min(100%, 420px);
+  display: flex; flex-direction: column; gap: 12px;
+  padding: clamp(20px, 4vw, 28px);
+  border: 1px solid rgba(var(--accent-primary-rgb), .16);
+  border-radius: 22px; background: rgba(255, 248, 229, .82);
+  box-shadow: var(--shadow-card);
+}
+#root .gafus-password-reset .gafus-reset-form input {
+  box-sizing: border-box; width: 100%; min-height: 48px;
+  padding: 12px 14px; border: 1px solid rgba(var(--accent-primary-rgb), .3);
+  border-radius: 12px; background: #fbf7ef; color: var(--text-primary);
+  font: 500 14px/1.35 var(--font-montserrat), sans-serif;
+  box-shadow: 0 3px 7px rgba(74, 74, 30, .12);
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+#root .gafus-password-reset .gafus-reset-form input:focus {
+  outline: 3px solid rgba(215, 131, 123, .55); outline-offset: 2px;
+  border-color: var(--bg-2); background: #fff8e5;
+}
+#root .gafus-password-reset .gafus-reset-form button[type="submit"] {
+  box-sizing: border-box; width: 100%; padding: 12px 16px;
+  font-size: 14px; line-height: 1.3;
+}
+#root .gafus-password-reset .gafus-reset-status {
+  margin: 4px 0 0; color: var(--text-secondary);
+  font: 500 14px/1.5 var(--font-montserrat), sans-serif; text-align: center;
+}
+#root .gafus-password-reset .gafus-reset-error {
+  margin: 0; color: #a52f2f;
+  font: 600 13px/1.4 var(--font-montserrat), sans-serif;
+}
+#root .gafus-password-reset .gafus-reset-enter-link {
+  box-sizing: border-box; display: inline-flex; align-items: center;
+  justify-content: center; width: 100%; min-height: 52px;
+  padding: 12px 16px; border-radius: 14px;
+  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
+  color: #fff8e5; box-shadow: var(--shadow-button);
+  font: 700 14px/1.3 var(--font-montserrat), sans-serif;
+  text-align: center; text-decoration: none;
+}
+#root .gafus-password-reset .gafus-reset-wizard {
+  z-index: 1; display: block; width: min(260px, 70vw); height: auto;
+  aspect-ratio: 3 / 2; object-fit: contain; flex-shrink: 0;
+}
+#root .gafus-password-reset .gafus-reset-back {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+  z-index: 1; font: 400 12px/1.5 var(--font-montserrat), sans-serif;
+  color: var(--text-secondary);
+}
+#root .gafus-password-reset .gafus-reset-paws {
+  position: absolute; z-index: 0; top: 0; left: 0; width: 100%; pointer-events: none;
+}
+#root .gafus-password-reset .gafus-reset-paws img {
+  position: absolute; top: 2rem; left: -.5rem;
+  width: 87px; height: 84px; opacity: .55;
+  rotate: 35deg;
+}
+#root .gafus-password-reset .gafus-reset-paws img:nth-child(2) { top: 4rem; left: 5.5rem; }
+#root .gafus-password-reset .gafus-reset-paws img:nth-child(3) { top: 0; left: 11.5rem; }
+#root .gafus-password-reset .gafus-reset-paws img:nth-child(4) { top: 3rem; left: 17.5rem; rotate: 32deg; }
+@media (min-width: 481px) { #root .gafus-password-reset .gafus-reset-paws { display: none; } }
+@media (max-width: 480px) {
+  #root .gafus-password-reset { justify-content: flex-start; padding-top: 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .shell.gafus-auth-screen button,
+  #root .gafus-password-reset input { transition: none; }
+}
+
+/* Visually hidden labels must beat legacy generic form-label width rules. */
+#root .shell.gafus-auth-screen .gafus-visually-hidden,
+#root .gafus-password-reset .gafus-visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+#root .shell.gafus-auth-screen .gafus-password-control,
+#root .shell.gafus-auth-screen .gafus-password-inner {
+  box-sizing: border-box; width: 100%; position: relative;
+}
+#root .shell.gafus-auth-screen .gafus-password-inner input {
+  padding-right: 44px;
+}
+#root .shell.gafus-auth-screen form .gafus-password-toggle {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  box-sizing: border-box; display: flex; justify-content: center; align-items: center;
+  width: 36px; height: 36px; padding: 4px;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  cursor: pointer;
+}
+#root .shell.gafus-auth-screen form .gafus-password-toggle img {
+  display: block; width: 20px; height: 20px;
+}
+#root .gafus-password-reset .gafus-reset-bottom-paw {
+  position: absolute; right: 0; bottom: 0; width: min(220px, 36vw);
+  height: auto; opacity: .85; pointer-events: none;
+}
+
+/* Keep the new VK-ID option functional without shifting the original Next
+ * login wizard, input and paw positions on either viewport. */
+#root .shell.gafus-auth-screen .gafus-auth-vk-entry {
+  position: absolute; top: 100%; left: 0; width: 100%;
+}
+#root .shell.gafus-auth-screen .gafus-auth-vk-entry > div {
+  margin-top: 8px;
+}
+
+#root .shell.gafus-auth-screen .gafus-email-typo-hint {
+  box-sizing: border-box; display: flex; flex-direction: column;
+  align-items: flex-start; width: 100%; gap: 8px; padding: 8px 10px;
+  border: 1px solid #636128; border-radius: 5px;
+  background: rgba(99,97,40,.08); color: #636128;
+  font: 400 12px/1.4 var(--font-montserrat), sans-serif;
+}
+#root .shell.gafus-auth-screen .gafus-email-typo-hint button {
+  box-sizing: border-box; min-height: 36px; margin: 0;
+  padding: 4px 10px; border-radius: 4px; font-size: 12px;
+}
+
+@media (max-width: 480px) {
+  #root .shell.gafus-auth-screen form .gafus-password-toggle { right: 12px; }
+}
+/* The original Next mobile registration artwork sits one physical px lower. */
+@media (max-width: 480px) {
+  #root .shell.gafus-auth-screen .gafus-register-logo { transform: translateY(1px); }
+}

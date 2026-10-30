@@ -2,21 +2,28 @@ import { GalleryPreview } from "@/features/gallery";
 import { ProfileFeedPreview } from "@/features/feed/ProfileFeedPreview";
 import { ProfileIcon, ProfileMetaRow } from "@/features/profile";
 import { PublicPets } from "@/features/pets/PublicPets";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, StyleSheet, ScrollView, Pressable, Linking, Alert } from "react-native";
 import { Text } from "react-native-paper";
 import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
-import { useFocusEffect, useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter, Stack, type Href } from "expo-router";
 import { FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 
 import { API_BASE_URL, COLORS, FONTS, SPACING } from "@/shared/config";
-import { Button, Loading } from "@/shared/components/ui";
+import { Loading } from "@/shared/components/ui";
 import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
+import { chat2 } from "@/features/chat2/api";
 import { coursesApi } from "@/shared/lib/api/courses";
 import { reportClientError } from "@/shared/lib/tracer";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import {
+  projectPublicProfile,
+  publicContactLinks,
+} from "@/features/profile/public-profile-privacy";
 
 // Функция для получения возраста
 const getAge = (birthDate: string | null): number | null => {
@@ -145,35 +152,93 @@ const getTrainingLevelLabel = (
   }
 };
 
+/** Guest reads remain available; authenticated requests must stay bound to a verified native epoch. */
+function currentPublicSessionKey(): string | null {
+  const state = useAuthStore.getState();
+  if (state.isLoading) return null;
+  if (!state.isAuthenticated) return "guest";
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  if (!state.user?.id || binding?.principalId !== state.user.id || !binding.authEpoch) return null;
+  return `${state.user.id}:${binding.authEpoch}`;
+}
+
 /**
  * Страница публичного профиля пользователя
  */
 export default function PublicProfileScreen() {
   const router = useRouter();
-  const { username } = useLocalSearchParams<{ username: string }>();
+  const params = useLocalSearchParams<{ username: string }>();
+  const username = typeof params.username === "string" ? params.username.trim() : "";
+  // Subscribe to auth changes; native epoch is included in the cache key separately.
+  const authVersion = useAuthStore(
+    (state) => `${state.isLoading}:${state.isAuthenticated}:${state.user?.id ?? ""}`,
+  );
+  void authVersion;
+  const sessionKey = currentPublicSessionKey();
+  const mounted = useRef(true);
+  const focused = useRef(true);
+  const activeUsername = useRef(username);
+  activeUsername.current = username;
+  const courseAccessInFlight = useRef(false);
+  const [openingChat, setOpeningChat] = useState(false);
+  const currentView = (
+    expectedUsername: string,
+    expectedSession: string | null,
+    requireFocus = true,
+  ) =>
+    mounted.current &&
+    (!requireFocus || focused.current) &&
+    !!expectedUsername &&
+    activeUsername.current === expectedUsername &&
+    !!expectedSession &&
+    currentPublicSessionKey() === expectedSession;
 
-  // Загрузка публичного профиля
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      focused.current = false;
+    };
+  }, []);
+
+  // Public endpoint is readable by guests, but even a delayed authorized GET
+  // may not repopulate a different user's/epoch's query cache.
   const {
-    data: profileResponse,
+    data: publicData,
     isLoading,
+    isError,
     refetch,
   } = useQuery({
-    queryKey: ["public-profile", username],
+    queryKey: ["public-profile", username, sessionKey],
+    enabled: !!username && !!sessionKey,
+    retry: false,
     queryFn: async () => {
-      const res = await userApi.getPublicProfile(username as string);
-      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки профиля");
-      return res;
+      const captured = { username, sessionKey };
+      if (!currentView(captured.username, captured.sessionKey, false))
+        throw new Error("PUBLIC_PROFILE_SESSION_CHANGED");
+      const res = await userApi.getPublicProfile(captured.username, () =>
+        currentView(captured.username, captured.sessionKey, false),
+      );
+      if (!currentView(captured.username, captured.sessionKey, false))
+        throw new Error("PUBLIC_PROFILE_SESSION_CHANGED");
+      if (!res.success || !res.data) throw new Error("PUBLIC_PROFILE_READ_UNKNOWN");
+      const projected = projectPublicProfile(res.data);
+      if (!projected) throw new Error("PUBLIC_PROFILE_INVALID_RESPONSE");
+      return projected;
     },
-    enabled: !!username,
   });
 
   useFocusEffect(
     useCallback(() => {
-      void refetch();
-    }, [refetch]),
+      focused.current = true;
+      if (username && sessionKey) void refetch();
+      return () => {
+        focused.current = false;
+      };
+    }, [username, sessionKey, refetch]),
   );
 
-  const publicData = profileResponse?.data;
+  const contacts = publicContactLinks(publicData?.profile ?? null);
   const profile = publicData?.profile;
   const displayRole = getRoleLabel(publicData?.role);
   const roleColor = getRoleColor(publicData?.role);
@@ -181,11 +246,11 @@ export default function PublicProfileScreen() {
   const birthDateStr =
     rawBirth == null ? null : typeof rawBirth === "string" ? rawBirth : String(rawBirth);
   const age = birthDateStr ? getAge(birthDateStr) : null;
-  const hasSocialLinks = profile?.instagram || profile?.telegram || profile?.website;
+  const hasSocialLinks = contacts.instagram || contacts.telegram || contacts.website;
   const rawTrainerCourses = publicData?.role === "TRAINER" ? (publicData?.courses ?? []) : [];
   const courses = rawTrainerCourses;
 
-  if (isLoading) {
+  if (isLoading || (!!username && !sessionKey)) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <Stack.Screen options={{ title: "Загрузка..." }} />
@@ -200,28 +265,95 @@ export default function PublicProfileScreen() {
       <SafeAreaView style={styles.container} edges={["top"]}>
         <Stack.Screen options={{ title: "Профиль не найден" }} />
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Профиль не найден</Text>
+          <Text style={styles.errorText}>
+            {isError ? "Не удалось загрузить профиль" : "Профиль не найден"}
+          </Text>
           <AppBackButton onPress={() => router.back()} />
         </View>
       </SafeAreaView>
     );
   }
 
-  const handleCoursePress = async (course: PublicProfileCourse) => {
-    if (course.isPrivate) {
-      const accessRes = await coursesApi.checkAccess(course.type);
-      if (!accessRes.success || !accessRes.data?.hasAccess) {
-        const { Alert } = await import("react-native");
+  const handleMessagePress = async () => {
+    const captured = { username, sessionKey };
+    if (openingChat || sessionKey === "guest" || !currentView(captured.username, captured.sessionKey)) return;
+    setOpeningChat(true);
+    try {
+      const { conversationId } = await chat2.directByUsername(publicData.username);
+      if (!currentView(captured.username, captured.sessionKey)) return;
+      router.push({ pathname: "/(main)/chats/[id]", params: { id: conversationId } } as Href);
+    } catch (error) {
+      reportClientError(new Error("CHAT2_PUBLIC_PROFILE_DIRECT_FAILED"), {
+        issueKey: "PublicProfile",
+        keys: { operation: "open_direct" },
+      });
+      if (currentView(captured.username, captured.sessionKey)) {
         Alert.alert(
-          "Доступ закрыт",
-          "Этот курс для вас закрыт. Обратитесь к кинологу для получения доступа",
+          "Не удалось открыть переписку",
+          error instanceof Error ? error.message : "Повторите попытку",
         );
+      }
+    } finally {
+      if (currentView(captured.username, captured.sessionKey, false)) setOpeningChat(false);
+    }
+  };
+
+  const handleCoursePress = async (course: PublicProfileCourse) => {
+    const captured = { username, sessionKey };
+    if (!currentView(captured.username, captured.sessionKey) || courseAccessInFlight.current)
+      return;
+    if (course.isPrivate) {
+      // Private course access is always an authenticated, verified-owner decision.
+      if (!sessionKey || sessionKey === "guest") {
+        Alert.alert("Доступ закрыт", "Войдите, чтобы проверить доступ к курсу");
         return;
       }
+      courseAccessInFlight.current = true;
+      try {
+        const accessRes = await coursesApi.checkAccess(course.type, () =>
+          currentView(captured.username, captured.sessionKey),
+        );
+        if (!currentView(captured.username, captured.sessionKey)) return;
+        if (!accessRes.success || !accessRes.data) {
+          Alert.alert("Не удалось проверить доступ", "Повторите проверку позднее");
+          return;
+        }
+        if (!accessRes.data.hasAccess) {
+          Alert.alert(
+            "Доступ закрыт",
+            "Этот курс для вас закрыт. Обратитесь к кинологу для получения доступа",
+          );
+          return;
+        }
+      } catch {
+        // Native transport may contain tokens: never report raw errors or URLs.
+        reportClientError(new Error("PUBLIC_PRIVATE_COURSE_ACCESS_UNKNOWN"), {
+          issueKey: "PublicProfile",
+          keys: { operation: "check_course_access" },
+        });
+        if (currentView(captured.username, captured.sessionKey))
+          Alert.alert("Не удалось проверить доступ", "Повторите проверку позднее");
+        return;
+      } finally {
+        courseAccessInFlight.current = false;
+      }
     }
+    if (!currentView(captured.username, captured.sessionKey)) return;
     router.push({
       pathname: "/training/[courseType]",
       params: { courseType: course.type },
+    });
+  };
+
+  const openContact = (uri: string) => {
+    const captured = { username, sessionKey };
+    if (!currentView(captured.username, captured.sessionKey)) return;
+    void Linking.openURL(uri).catch(() => {
+      // Fixed error code only; do not put contacts or external URL in telemetry.
+      reportClientError(new Error("PUBLIC_CONTACT_OPEN_FAILED"), {
+        issueKey: "PublicProfile",
+        keys: { operation: "open_contact" },
+      });
     });
   };
 
@@ -251,7 +383,7 @@ export default function PublicProfileScreen() {
             </Text>
             <View style={styles.profileMeta}>
               <Text style={styles.contactInfo} numberOfLines={1}>
-                @{profile?.telegram || publicData.username}
+                @{contacts.telegram?.name || publicData.username}
               </Text>
               {displayRole && (
                 <View style={[styles.roleBadge, { backgroundColor: roleColor }]}>
@@ -262,11 +394,32 @@ export default function PublicProfileScreen() {
           </View>
         </View>
 
+        {sessionKey && sessionKey !== "guest" &&
+          useAuthStore.getState().user?.username?.toLowerCase() !==
+            publicData.username.toLowerCase() &&
+          publicData.username.toLowerCase() !== "lana" &&
+          /^[A-Za-z0-9_-]{2,128}$/.test(publicData.username) && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Написать сообщение"
+              disabled={openingChat}
+              onPress={() => void handleMessagePress()}
+              style={[styles.messageButton, openingChat && styles.messageButtonBusy]}
+            >
+              <MaterialCommunityIcons name="message-text-outline" size={19} color="#fff" />
+              <Text style={styles.messageButtonText}>
+                {openingChat ? "Открываем переписку…" : "Написать сообщение"}
+              </Text>
+            </Pressable>
+          )}
+
         {/* Информация о пользователе */}
         <View style={styles.infoContainer}>
           <ProfileMetaRow
             city={profile?.city}
-            ageLabel={age !== null ? `Возраст: ${age} ${declOfNum(age, ["год", "года", "лет"])}` : null}
+            ageLabel={
+              age !== null ? `Возраст: ${age} ${declOfNum(age, ["год", "года", "лет"])}` : null
+            }
           />
 
           {/* О себе */}
@@ -294,10 +447,10 @@ export default function PublicProfileScreen() {
                 <Text style={styles.socialLinksTitle}>КОНТАКТЫ</Text>
               </View>
               <View style={styles.socialLinksList}>
-                {profile.instagram && (
+                {contacts.instagram && (
                   <Pressable
                     style={styles.socialLink}
-                    onPress={() => Linking.openURL(`https://instagram.com/${profile.instagram}`)}
+                    onPress={() => contacts.instagram && openContact(contacts.instagram.url)}
                   >
                     <FontAwesome5
                       name="instagram"
@@ -307,13 +460,13 @@ export default function PublicProfileScreen() {
                       style={styles.socialBrandIcon}
                     />
                     <Text style={styles.socialLabel}>Instagram</Text>
-                    <Text style={styles.socialUsername}>{profile.instagram}</Text>
+                    <Text style={styles.socialUsername}>{contacts.instagram.name}</Text>
                   </Pressable>
                 )}
-                {profile.telegram && (
+                {contacts.telegram && (
                   <Pressable
                     style={styles.socialLink}
-                    onPress={() => Linking.openURL(`https://t.me/${profile.telegram}`)}
+                    onPress={() => contacts.telegram && openContact(contacts.telegram.url)}
                   >
                     <FontAwesome5
                       name="telegram-plane"
@@ -322,14 +475,14 @@ export default function PublicProfileScreen() {
                       color="#229ED9"
                       style={styles.socialBrandIcon}
                     />
-                    <Text style={styles.socialLabel}>Telegram</Text>
-                    <Text style={styles.socialUsername}>{profile.telegram}</Text>
+                    <Text style={styles.socialLabel}>Телеграм</Text>
+                    <Text style={styles.socialUsername}>{contacts.telegram.name}</Text>
                   </Pressable>
                 )}
-                {profile.website && (
+                {contacts.website && (
                   <Pressable
                     style={styles.socialLink}
-                    onPress={() => Linking.openURL(profile.website!)}
+                    onPress={() => contacts.website && openContact(contacts.website.url)}
                   >
                     <MaterialCommunityIcons
                       name="web"
@@ -338,7 +491,7 @@ export default function PublicProfileScreen() {
                       style={styles.socialBrandIcon}
                     />
                     <Text style={styles.socialLabel}>Сайт</Text>
-                    <Text style={styles.socialUsername}>{profile.website}</Text>
+                    <Text style={styles.socialUsername}>{contacts.website.name}</Text>
                   </Pressable>
                 )}
               </View>
@@ -444,6 +597,24 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: "500",
     fontFamily: FONTS.montserrat,
+  },
+  messageButton: {
+    minHeight: 46,
+    backgroundColor: "#4B5C2E",
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+  },
+  messageButtonBusy: { opacity: 0.7 },
+  messageButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    fontFamily: FONTS.montserratMedium,
   },
   profileBanner: {
     flexDirection: "row",

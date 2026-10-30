@@ -1,22 +1,18 @@
 import { apiClient, type ApiResponse } from "./client";
+import type {
+  StudentNoteEntryWire,
+  StudentNoteWire,
+} from "../../../../../../packages/types/src/data/notes";
 
-export interface StudentNoteEntry {
-  id: string;
-  content: string;
-  createdAt: string;
-}
+/** Existing Mobile text-only subset of the canonical student-notes JSON wire. */
+export type StudentNoteEntry = Pick<StudentNoteEntryWire, "id" | "content" | "createdAt">;
 
-export interface StudentNote {
-  id: string;
-  title: string;
-  createdAt: string;
+export type StudentNote = Pick<StudentNoteWire, "id" | "title" | "createdAt"> & {
   trainer?: {
-    profile?: {
-      fullName: string | null;
-    } | null;
+    profile?: Pick<NonNullable<StudentNoteWire["trainer"]["profile"]>, "fullName"> | null;
   } | null;
   entries: StudentNoteEntry[];
-}
+};
 
 export const notesApi = {
   getStudentNotes: async (): Promise<ApiResponse<StudentNote[]>> => {

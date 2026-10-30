@@ -68,7 +68,7 @@ export interface ValidateRefreshSuccess {
 /** Результат невалидного refresh-токена */
 export interface ValidateRefreshFailure {
   valid: false;
-  reason: "not_found" | "expired" | "revoked" | "token_reuse";
+  reason: "not_found" | "expired" | "revoked" | "recently_consumed" | "token_reuse";
   userId?: string;
 }
 
@@ -283,6 +283,11 @@ export async function validateRefreshToken(
   });
   if (!stored) return { valid: false, reason: "not_found" };
   if (stored.revokedAt) {
+    // A competing refresh can observe the just-rotated token. Reject without
+    // punishing every other device; stale replays still trigger compromise flow.
+    if (Date.now() - stored.revokedAt.getTime() < 10_000) {
+      return { valid: false, reason: "recently_consumed" };
+    }
     return { valid: false, reason: "token_reuse", userId: stored.userId };
   }
   if (stored.expiresAt < new Date()) {
@@ -300,6 +305,10 @@ export async function validateRefreshToken(
 /**
  * Атомарно отзывает старый токен и создаёт новый (rotation).
  */
+export class RefreshRotationConflictError extends Error {
+  constructor() { super("Refresh token already consumed or expired"); this.name = "RefreshRotationConflictError"; }
+}
+
 export async function rotateRefreshToken(
   oldTokenHash: string,
   userId: string,
@@ -314,7 +323,7 @@ export async function rotateRefreshToken(
       where: { tokenHash: oldTokenHash, userId, revokedAt: null, expiresAt: { gt: new Date() } },
       data: { revokedAt: new Date() },
     });
-    if (consumed.count !== 1) throw new Error("Refresh token already consumed or expired");
+    if (consumed.count !== 1) throw new RefreshRotationConflictError();
     await tx.refreshToken.create({
       data: {
         id: newTokenId,
@@ -343,9 +352,14 @@ export async function revokeRefreshToken(tokenHash: string): Promise<void> {
  * Отзывает все refresh-токены пользователя.
  */
 export async function revokeAllUserTokens(userId: string): Promise<void> {
-  await prisma.refreshToken.updateMany({
-    where: { userId, revokedAt: null },
-    data: { revokedAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const at = new Date();
+    // A compromise revokes both stored refresh tokens AND existing access JWTs.
+    await tx.user.update({ where: { id: userId }, data: { sessionsRevokedAt: at } });
+    await tx.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: at },
+    });
   });
 }
 
@@ -397,9 +411,21 @@ export async function setPassword(userId: string, newPassword: string): Promise<
 
   newPasswordSchema.parse(newPassword);
   const hash = await bcrypt.hash(newPassword, 12);
-  await prisma.user.update({
-    where: { id: userId },
-    data: { password: hash, passwordSetAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const at = new Date();
+    // Concurrent set-password requests must not both overwrite credentials.
+    const updated = await tx.user.updateMany({
+      where: { id: userId, passwordSetAt: null },
+      data: { password: hash, passwordSetAt: at, sessionsRevokedAt: at },
+    });
+    if (updated.count !== 1) {
+      throw new Error("Пароль уже установлен, используйте смену пароля");
+    }
+    // JWT checks sessionsRevokedAt; DB refresh rows must be revoked atomically.
+    await tx.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: at },
+    });
   });
   logger.success("setPassword completed", { userId });
 
@@ -440,9 +466,19 @@ export async function changePassword(
 
   newPasswordSchema.parse(newPassword);
   const hash = await bcrypt.hash(newPassword, 12);
-  await prisma.user.update({
-    where: { id: userId },
-    data: { password: hash, passwordSetAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const at = new Date();
+    // Compare-and-swap prevents a stale concurrent current-password check
+    // from overwriting a newly changed password or double-ACKing a retry.
+    const updated = await tx.user.updateMany({
+      where: { id: userId, password: user.password, passwordSetAt: { not: null } },
+      data: { password: hash, passwordSetAt: at, sessionsRevokedAt: at },
+    });
+    if (updated.count !== 1) throw new Error("Неверный текущий пароль");
+    await tx.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: at },
+    });
   });
   logger.success("changePassword completed", { userId });
 

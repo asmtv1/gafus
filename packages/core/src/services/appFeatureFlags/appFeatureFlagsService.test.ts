@@ -90,7 +90,13 @@ const prismaMock = vi.hoisted(() => {
       return Promise.resolve(state.rewarded);
     }),
   };
-  const client = { appFeatureFlag, mobileAppReleasePolicy, rewardedAdSettings };
+  const user = {
+    findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }),
+  };
+  const client = {
+    appFeatureFlag, mobileAppReleasePolicy, rewardedAdSettings, user,
+    $queryRaw: vi.fn().mockResolvedValue([{ id: "admin-1" }]),
+  };
   return {
     ...client,
     $transaction: vi.fn((callback: (tx: typeof client) => Promise<unknown>) => callback(client)),
@@ -108,7 +114,9 @@ import {
   APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
   APP_FEATURE_MOBILE_VK_LOGIN_IOS,
   MobileReleaseControlConflictError,
+  RetiredRewardedAdsReadOnlyError,
   getMobileAppPublicConfig,
+  getMobileReleaseControl,
   resolveMobileFeatureProfile,
   setAppFeatureFlagEnabled,
   updateMobileReleaseControl,
@@ -196,7 +204,24 @@ describe("app feature flags", () => {
     });
   });
 
-  it("updates all profiles atomically and dual-writes released iOS ads", async () => {
+  it("rejects a demoted admin while holding the DB row lock", async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({ role: "USER" });
+    await expect(updateMobileReleaseControl({
+      revision: 1,
+      iosReviewVersion: null,
+      released: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
+        iosRuCardPaymentHint: false, rewardedAds: false },
+      review: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
+        iosRuCardPaymentHint: false, rewardedAds: false },
+      global: { appSubscriptionPaywall: true, appSubscriptionGating: true },
+      rewardedAds: { androidEnabled: false, dailyAdLimit: 1,
+        yandexAndroidPlacementId: null, yandexIosPlacementId: null, testMode: true },
+    }, "admin-1")).rejects.toThrow("FORBIDDEN");
+    expect(prismaMock.mobileAppReleasePolicy.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.$queryRaw).toHaveBeenCalledOnce();
+  });
+
+  it("updates supported profiles without touching archived ads", async () => {
     const result = await updateMobileReleaseControl(
       {
         revision: 1,
@@ -206,7 +231,7 @@ describe("app feature flags", () => {
           iosRuCardPayment: true,
           iosRuCardPaymentHint: true,
           subscriptionPromoCodes: true,
-          rewardedAds: true,
+          rewardedAds: false,
         },
         review: {
           vkLogin: false,
@@ -220,23 +245,67 @@ describe("app feature flags", () => {
           appSubscriptionGating: true,
         },
         rewardedAds: {
-          androidEnabled: true,
-          dailyAdLimit: 100,
-          yandexAndroidPlacementId: "android-id",
-          yandexIosPlacementId: "ios-id",
-          testMode: false,
+          androidEnabled: false,
+          dailyAdLimit: 1,
+          yandexAndroidPlacementId: null,
+          yandexIosPlacementId: null,
+          testMode: true,
         },
       },
       "admin-1",
     );
 
     expect(result.revision).toBe(2);
-    expect(state.flags.get(APP_FEATURE_MOBILE_REWARDED_ADS_IOS)).toEqual({
-      enabled: true,
-      reviewEnabled: false,
+    expect(state.flags.get(APP_FEATURE_MOBILE_REWARDED_ADS_IOS)).toBeUndefined();
+    expect(state.rewarded).toBeNull();
+    expect(prismaMock.rewardedAdSettings.upsert).not.toHaveBeenCalled();
+    expect(result.rewardedAds.dailyAdLimit).toBe(1);
+  });
+
+  it("preserves existing historic ad settings while updating unrelated mobile flags", async () => {
+    state.flags.set(APP_FEATURE_MOBILE_REWARDED_ADS_IOS, {
+      enabled: true, reviewEnabled: true,
     });
-    expect(state.rewarded?.iosEnabled).toBe(true);
-    expect(result.rewardedAds.dailyAdLimit).toBe(100);
+    state.rewarded = {
+      key: "default", androidEnabled: true, iosEnabled: true,
+      dailyAdLimit: 9, yandexAndroidPlacementId: "historical-android",
+      yandexIosPlacementId: "historical-ios", testMode: false,
+    };
+    const snapshot = await getMobileReleaseControl();
+    const historical = { ...state.rewarded };
+    const result = await updateMobileReleaseControl({
+      revision: snapshot.revision,
+      iosReviewVersion: "1.7.0",
+      released: { ...snapshot.released, vkLogin: true },
+      review: snapshot.review,
+      global: snapshot.global,
+      rewardedAds: snapshot.rewardedAds,
+    }, "admin-1");
+    expect(result.revision).toBe(2);
+    expect(result.released.vkLogin).toBe(true);
+    expect(result.released.rewardedAds).toBe(true);
+    expect(result.review.rewardedAds).toBe(true);
+    expect(state.rewarded).toEqual(historical);
+    expect(prismaMock.rewardedAdSettings.upsert).not.toHaveBeenCalled();
+    expect(prismaMock.appFeatureFlag.upsert.mock.calls.some(([arg]) =>
+      arg.where.key === APP_FEATURE_MOBILE_REWARDED_ADS_IOS)).toBe(false);
+  });
+
+  it("rejects direct Core attempts to enable retired iOS ads before writes", async () => {
+    const archived = {
+      revision: 1, iosReviewVersion: null,
+      released: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
+        iosRuCardPaymentHint: false, rewardedAds: true },
+      review: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
+        iosRuCardPaymentHint: false, rewardedAds: false },
+      global: { appSubscriptionPaywall: true, appSubscriptionGating: true },
+      rewardedAds: { androidEnabled: false, dailyAdLimit: 1,
+        yandexAndroidPlacementId: null, yandexIosPlacementId: null, testMode: true },
+    };
+    await expect(updateMobileReleaseControl(archived, "admin-1"))
+      .rejects.toBeInstanceOf(RetiredRewardedAdsReadOnlyError);
+    expect(prismaMock.mobileAppReleasePolicy.updateMany).not.toHaveBeenCalled();
+    expect(prismaMock.rewardedAdSettings.upsert).not.toHaveBeenCalled();
   });
 
   it("rejects a stale revision before changing flags", async () => {
@@ -251,7 +320,7 @@ describe("app feature flags", () => {
             iosRuCardPayment: true,
             iosRuCardPaymentHint: true,
             subscriptionPromoCodes: true,
-            rewardedAds: true,
+            rewardedAds: false,
           },
           review: {
             vkLogin: false,
@@ -266,7 +335,7 @@ describe("app feature flags", () => {
           },
           rewardedAds: {
             androidEnabled: false,
-            dailyAdLimit: 0,
+            dailyAdLimit: 1,
             yandexAndroidPlacementId: null,
             yandexIosPlacementId: null,
             testMode: true,
@@ -278,7 +347,7 @@ describe("app feature flags", () => {
     expect(state.flags.size).toBe(0);
   });
 
-  it.each([-1, 101, 1.5])("rejects invalid rewarded daily limit %s", async (dailyAdLimit) => {
+  it.each([-1, 101, 1.5])("rejects mutation of retired ad limit %s", async (dailyAdLimit) => {
     await expect(
       updateMobileReleaseControl(
         {
@@ -309,7 +378,7 @@ describe("app feature flags", () => {
         },
         "admin-1",
       ),
-    ).rejects.toThrow("целым числом от 0 до 100");
+    ).rejects.toBeInstanceOf(RetiredRewardedAdsReadOnlyError);
     expect(state.policy.revision).toBe(1);
   });
 

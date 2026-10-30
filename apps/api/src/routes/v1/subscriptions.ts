@@ -4,19 +4,44 @@ import { zValidator } from "@hono/zod-validator";
 import {
   getUserSubscriptionStatus,
   getPushSubscriptionStatusForEndpoints,
-  savePushSubscription,
   deletePushSubscriptionByEndpoint,
   deleteAllPushSubscriptions,
 } from "@gafus/core/services/subscriptions";
 import { createWebLogger } from "@gafus/logger";
+import { getBrowserAccessToken } from "../../lib/browser-auth.js";
+import { decodeJwt } from "jose";
+import type { Context } from "hono";
+// The shared Core dist is stale until AG4's serialized build gate. Import
+// the AG1-owned security-critical source for this Hono route, not old dist.
+import {
+  savePushSubscription,
+  PushEndpointOwnerConflictError,
+  PushSessionStaleError,
+} from "../../../../../packages/core/src/services/subscriptions/pushSubscriptionService.js";
 
 const logger = createWebLogger("api-subscriptions");
 export const subscriptionsRoutes = new Hono();
 
+/** After parent authMiddleware has verified the EXACT JWT, derive the signed
+ * epoch from that same credential, not from JSON or untrusted HTTP headers. */
+function signedSessionAuthenticatedAt(c: Context): number | null {
+  const header = c.req.header("authorization");
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : getBrowserAccessToken(c);
+  if (!token) return null;
+  try {
+    const payload = decodeJwt(token);
+    const at = typeof payload.authenticatedAt === "number"
+      ? payload.authenticatedAt : (payload.iat ?? 0) * 1000;
+    return Number.isSafeInteger(at) && at > 0 ? at : null;
+  } catch {
+    return null;
+  }
+}
+
 const saveSchema = z.object({
   endpoint: z.string().min(1),
   keys: z.object({ p256dh: z.string(), auth: z.string() }),
-});
+}).strict();
 
 const deleteSchema = z.object({
   endpoint: z.string().optional(),
@@ -58,13 +83,26 @@ const deviceStatusSchema = z
     });
   });
 
+// Public portion of the server's WebPush VAPID pair (never the private key).
+// Auth middleware applies to /subscriptions/*; no keys are bundled in Vite.
+subscriptionsRoutes.get("/push/public-key", (c) => {
+  c.header("Cache-Control", "private, no-store");
+  c.header("Referrer-Policy", "no-referrer");
+  const publicKey = process.env.VAPID_PUBLIC_KEY?.trim();
+  if (!publicKey || !/^[A-Za-z0-9_-]{80,120}$/.test(publicKey)) {
+    return c.json({success:false,code:"WEB_PUSH_NOT_CONFIGURED",
+      error:"Веб-уведомления пока не настроены"},503);
+  }
+  return c.json({success:true,data:{publicKey}});
+});
+
 subscriptionsRoutes.get("/push", async (c) => {
   try {
     const user = c.get("user");
     const result = await getUserSubscriptionStatus(user.id);
     return c.json({ success: true, data: result });
-  } catch (error) {
-    logger.error("GET push error", error as Error);
+  } catch {
+    logger.error("GET push failed", new Error("PUSH_OPERATION_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
   }
 });
@@ -73,10 +111,22 @@ subscriptionsRoutes.post("/push", zValidator("json", saveSchema), async (c) => {
   try {
     const user = c.get("user");
     const { endpoint, keys } = c.req.valid("json");
-    await savePushSubscription({ userId: user.id, endpoint, keys });
+    const verifiedSessionAuthenticatedAtMs = signedSessionAuthenticatedAt(c);
+    if (!verifiedSessionAuthenticatedAtMs) {
+      return c.json({ success: false, code: "PUSH_SESSION_STALE" }, 401);
+    }
+    await savePushSubscription({
+      userId: user.id, endpoint, keys, verifiedSessionAuthenticatedAtMs,
+    });
     return c.json({ success: true });
   } catch (error) {
-    logger.error("POST push error", error as Error);
+    if (error instanceof PushEndpointOwnerConflictError) {
+      return c.json({ success: false, code: error.code }, 409);
+    }
+    if (error instanceof PushSessionStaleError) {
+      return c.json({ success: false, code: error.code }, 401);
+    }
+    logger.error("POST push failed", new Error("PUSH_OPERATION_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
   }
 });
@@ -91,8 +141,8 @@ subscriptionsRoutes.post(
       const { endpoints } = c.req.valid("json");
       const data = await getPushSubscriptionStatusForEndpoints(user.id, endpoints);
       return c.json({ success: true, data });
-    } catch (error) {
-      logger.error("POST push/device-status error", error as Error);
+    } catch {
+      logger.error("POST push/device-status failed", new Error("PUSH_OPERATION_FAILED"));
       return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
     }
   },
@@ -110,8 +160,8 @@ subscriptionsRoutes.delete("/push", zValidator("json", deleteSchema), async (c) 
       return c.json({ success: false, error: "Нужен endpoint или deleteAll: true" }, 400);
     }
     return c.json({ success: true });
-  } catch (error) {
-    logger.error("DELETE push error", error as Error);
+  } catch {
+    logger.error("DELETE push failed", new Error("PUSH_OPERATION_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
   }
 });

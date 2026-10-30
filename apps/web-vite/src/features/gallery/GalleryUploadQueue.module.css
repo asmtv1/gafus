@@ -1,0 +1,12 @@
+/* Next recovery picker appears as a secondary action, not a permanently
+   visible native file input. Keep the real input linked to its label. */
+.recoveryPicker { display: inline-flex !important; width: fit-content;
+  align-items: center; justify-content: center; min-height: 42px; padding: 9px 16px;
+  background: transparent; color: var(--accent-secondary, #3b4822);
+  border: 1px solid var(--accent-secondary, #3b4822); border-radius: 12px;
+  cursor: pointer; font-size: 13px; font-weight: 600; }
+.recoveryPicker:focus-within { outline: 2px solid var(--accent-primary, #4d5c2d);
+  outline-offset: 3px; }
+.recoveryPicker input { position: absolute; width: 1px !important;
+  height: 1px !important; padding: 0 !important; margin: -1px; opacity: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

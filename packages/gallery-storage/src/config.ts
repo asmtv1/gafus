@@ -1,5 +1,8 @@
+import { cdnIsolatedAcceptance } from "./cdn-isolated-acceptance.js";
+import { isolatedNonprodS3Config } from "@gafus/cdn-upload/isolated-nonprod-s3";
 export interface GalleryStorageConfig {
   enabled: boolean;
+  isolatedNonprod?: boolean;
   bucket: string;
   endpoint: string;
   accessKeyId: string;
@@ -17,7 +20,18 @@ export function galleryStorageConfigFromEnv(
     env.GALLERY_ENABLED !== undefined
   )
     throw new Error("INVALID_GALLERY_FLAG");
+  if (cdnIsolatedAcceptance(env)) return {
+    enabled: env.GALLERY_ENABLED === "true", isolatedNonprod: true,
+    bucket: "gafus-refactor-agent2-gallery-test", endpoint: "http://127.0.0.1:58390",
+    accessKeyId: env.GAFUS_CDN_LOCAL_S3_KEY!, secretAccessKey: env.GAFUS_CDN_LOCAL_S3_SECRET!,
+    cdnBaseUrl: "", cdnSecret: "",
+  };
+  const local = isolatedNonprodS3Config("gallery", env);
   const enabled = env.GALLERY_ENABLED === "true";
+  if (local) {
+    if (env.GALLERY_BUCKET_PUBLIC === "true") throw new Error("PUBLIC_GALLERY_BUCKET");
+    return { enabled, isolatedNonprod: true, ...local, cdnBaseUrl: "", cdnSecret: "" };
+  }
   const config = {
     enabled,
     bucket: env.GALLERY_BUCKET ?? "",
@@ -70,14 +84,18 @@ export function galleryStorageConfigFromEnv(
   return config;
 }
 export function validateGalleryObjectConfig(
-  c: Pick<GalleryStorageConfig, "bucket" | "endpoint" | "accessKeyId" | "secretAccessKey">,
+  c: Pick<GalleryStorageConfig, "bucket" | "endpoint" | "accessKeyId" | "secretAccessKey" | "isolatedNonprod">,
 ) {
   if (
     !/^[a-z0-9][a-z0-9.-]{2,62}$/.test(c.bucket) ||
     /^(gafus-media|gafus-public)$/.test(c.bucket) ||
     !c.accessKeyId ||
     !c.secretAccessKey ||
-    c.endpoint !== "https://s3.cloud.ru"
+    (c.isolatedNonprod === true
+      ? !((c.endpoint === "http://127.0.0.1:9000" && c.bucket === "gafus-refactor-gallery-test") ||
+        (c.endpoint === "http://127.0.0.1:9500" && c.bucket === "gafus-refactor-web4-gallery-test") ||
+        (cdnIsolatedAcceptance() && c.endpoint === "http://127.0.0.1:58390" && c.bucket === "gafus-refactor-agent2-gallery-test"))
+      : c.endpoint !== "https://s3.cloud.ru")
   )
     throw new Error("UNSAFE_GALLERY_STORAGE_CONFIG");
 }

@@ -118,7 +118,10 @@ function getVisibleEntryContents(
  * @param studentId - ID ученика
  * @returns Массив заметок с видимыми записями
  */
-export async function getStudentNotes(studentId: string): Promise<StudentNote[]> {
+export async function getStudentNotes(
+  studentId: string,
+  options: { throwOnError?: boolean } = {},
+): Promise<StudentNote[]> {
   try {
     const notes = await prisma.trainerNote.findMany({
       where: {
@@ -169,11 +172,14 @@ export async function getStudentNotes(studentId: string): Promise<StudentNote[]>
     });
 
     return notes as StudentNote[];
-  } catch (error) {
-    logger.error("Ошибка при получении заметок ученика", error as Error, {
-      operation: "get_student_notes_error",
-      studentId,
-    });
+  } catch {
+    // Never log a provider exception or a student identifier: both may be private.
+    logger.error("Student notes read failed");
+    if (options.throwOnError) {
+      // Strict API callers must distinguish a failed read from a genuine empty list.
+      throw new Error("STUDENT_NOTES_READ_FAILED");
+    }
+    // Preserve the existing empty-array behavior for legacy direct Core callers.
     return [];
   }
 }
@@ -330,8 +336,7 @@ export async function updateTrainerNote(
     const hasNewVisibleEntry =
       input.entries?.some(
         (entry) =>
-          entry.isVisibleToStudent === true &&
-          !previousVisibleContents.has(entry.content.trim()),
+          entry.isVisibleToStudent === true && !previousVisibleContents.has(entry.content.trim()),
       ) ?? false;
     const previousStudentIdSet = new Set(previousStudentIds);
     const newlyAttachedStudentIds = nextStudentIds.filter(

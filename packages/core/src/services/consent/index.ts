@@ -1,2 +1,2 @@
-export * from "./consentService";
-export * from "./types";
+/** Legacy Core public entry point; domain implementation: @gafus/consent-server. */
+export * from "@gafus/consent-server";

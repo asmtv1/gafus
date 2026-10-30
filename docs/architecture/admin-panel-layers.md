@@ -75,5 +75,5 @@ export async function getAllUsers() {
 
 ## См. также
 
-- [docs/apps/admin-panel.md](../apps/admin-panel.md)
+- [docs/apps/admin-panel.md](../current/ARCHITECTURE.md)
 - [docs/packages/core.md](../packages/core.md)

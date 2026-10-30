@@ -1,0 +1,446 @@
+.section {
+  display: grid;
+  gap: 1rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.section h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.section button {
+  padding: 0.55rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid #636128;
+  cursor: pointer;
+}
+.section button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.section button[type="submit"] {
+  background: #636128;
+  color: white;
+}
+.form {
+  display: grid;
+  gap: 0.7rem;
+  border: 1px solid #dddccb;
+  border-radius: 12px;
+  padding: 1rem;
+  min-width: 0;
+}
+.form label {
+  display: grid;
+  gap: 0.3rem;
+  font-weight: 500;
+}
+.form input,
+.form textarea {
+  padding: 0.6rem;
+  border: 1px solid #aaa990;
+  border-radius: 8px;
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+.list {
+  display: grid;
+  gap: 0.7rem;
+}
+.card {
+  border: 1px solid #dddccb;
+  border-radius: 12px;
+  padding: 1rem;
+  display: grid;
+  gap: 0.5rem;
+  background: #fff;
+}
+.card h4,
+.card p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.attachments {
+  display: grid;
+  gap: 0.6rem;
+}
+.attachments img {
+  display: block;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+/* The retained Next header wins over Vite's generic large Impact h1. */
+:global(.gafus-app .shell .gafus-vet-next-page) .sourceHeader h1 {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: clamp(24px, 5vw, 34px);
+  line-height: 1.2;
+  font-weight: 700;
+  text-align: left;
+  margin: 0 0 8px;
+}
+.sourceHeader { margin-bottom: 28px; }
+.sourceHeader button { background: #636128; color: #fffdf8; min-height: 44px; }
+.section { max-width: 100%; }
+.section form { width: 100%; max-width: none; }
+
+/* Vet history: focused heading, pet context and a single empty-state action. */
+.sourceHeader {
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 26px;
+}
+.headerContent {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+:global(.gafus-app .shell .gafus-vet-next-page) .sourceHeader h1 {
+  margin: 0;
+  font-size: clamp(26px, 3vw, 36px);
+  line-height: 1.22;
+}
+.petContext {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 11px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px 16px 10px 10px;
+  background: rgba(255, 253, 248, .88);
+  border: 1px solid rgba(104, 121, 70, .19);
+  border-radius: 14px;
+}
+.petContextIcon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  background: #ecf1e2;
+  border-radius: 12px;
+  font-size: 21px;
+}
+.petContextText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.petContextText > span {
+  color: #667257;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.petContextText strong {
+  overflow-wrap: break-word;
+  color: #35402e;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.sourceHeader > button {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.section .emptyState {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
+  min-width: 0;
+  padding: clamp(24px, 3.5vw, 36px);
+  border: 1px solid #e7e9de;
+  border-radius: 20px;
+  background: #fffdf8;
+  box-shadow: 0 12px 32px rgba(65, 73, 47, .055);
+}
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 68px;
+  width: 68px;
+  height: 68px;
+  border: 1px solid #dfe8d4;
+  border-radius: 19px;
+  background: #eff4e9;
+  color: #5b7048;
+}
+.emptyContent {
+  min-width: 0;
+  max-width: 660px;
+}
+.emptyEyebrow {
+  display: block;
+  margin: 2px 0 10px;
+  color: #62784f;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.section .emptyState h2 {
+  margin: 0 0 10px;
+  color: #353932;
+  font-size: clamp(19px, 2.2vw, 25px);
+  font-weight: 700;
+  line-height: 1.35;
+}
+.section .emptyState p {
+  max-width: 55ch;
+  margin: 0 0 22px;
+  color: #697065;
+  font-size: 15px;
+  line-height: 1.65;
+}
+.emptyContent > button {
+  max-width: 100%;
+}
+@media (max-width: 640px) {
+  .sourceHeader { align-items: stretch; margin-bottom: 19px; }
+  .headerContent { gap: 13px; }
+  .petContext { padding: 8px 12px 8px 8px; }
+  .petContextIcon { flex-basis: 36px; width: 36px; height: 36px; }
+  .sourceHeader > button { align-self: flex-start; margin-top: 0; }
+  .section .emptyState { gap: 14px; padding: 20px 16px; border-radius: 17px; }
+  .emptyIcon { flex-basis: 46px; width: 46px; height: 46px; border-radius: 14px; }
+  .emptyIcon svg { width: 24px; height: 24px; }
+  .emptyEyebrow { margin-top: 0; }
+  .section .emptyState p { font-size: 14px; }
+}
+@media (max-width: 390px) {
+  .section .emptyState { display: block; }
+  .emptyIcon { margin-bottom: 16px; }
+  .emptyContent > button { width: 100%; }
+}
+
+
+/* Subtle, consistent return affordance instead of loose breadcrumb text. */
+:global(.gafus-vet-next-page) .backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  margin-bottom: 24px;
+  padding: 8px 14px;
+  box-sizing: border-box;
+  border: 1px solid rgba(87, 106, 62, .22);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, .86);
+  color: #465c37;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color .16s ease, border-color .16s ease;
+}
+.backLink::before {
+  content: "←";
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1;
+}
+:global(.gafus-vet-next-page) .backLink:hover {
+  background: #eff3e8;
+  border-color: #b9c9aa;
+}
+:global(.gafus-vet-next-page) .backLink:focus-visible {
+  outline: 2px solid #5b7048;
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .backLink { transition: none; }
+}
+
+/* Vet attachment picker: same immediate tile preview pattern as Questions.
+ * Pending blob URLs are local-only and never go into the HTTP payload. */
+.attachmentPicker {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 4px 0 8px;
+  padding: 17px;
+  border: 1px solid #e4e9dc;
+  border-radius: 15px;
+  background: #fafbf7;
+}
+.attachmentPicker h4 {
+  margin: 0;
+  color: #36432f;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.attachmentHelp,
+.attachmentSaved,
+.attachmentCounter,
+.attachmentPending {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.attachmentHelp { color: #6c7367; }
+.attachmentSaved { color: #526746; font-weight: 600; }
+.attachmentCounter { color: #686e60; }
+.attachmentPending { color: #697851; }
+.attachmentTiles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  margin: 5px 0 0;
+}
+.attachmentTile {
+  position: relative;
+  display: block;
+  flex: 0 0 112px;
+  width: 112px;
+  height: 112px;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid #dfe5d8;
+  border-radius: 13px;
+  background: #ebeee7;
+}
+.attachmentTile > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.attachmentPdf {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: #f0f2ea;
+  color: #617650;
+}
+.attachmentPdf span {
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: .06em;
+}
+.attachmentName {
+  position: absolute;
+  inset: auto 0 0;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  padding: 21px 7px 7px;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(30, 35, 29, .80));
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+:global(.gafus-app .shell .gafus-vet-next-page) .attachmentTile .attachmentRemove:global([data-gafus-shared-button="secondary"]) {
+  position: absolute;
+  z-index: 1;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  box-sizing: border-box;
+  padding: 0;
+  border: 0;
+  border-radius: 50% !important;
+  background: rgba(255,253,249,.96);
+  color: #463c34;
+  box-shadow: 0 1px 5px rgba(0,0,0,.18);
+  transform: none;
+}
+.attachmentRemove svg {
+  width: 17px;
+  height: 17px;
+  pointer-events: none;
+}
+:global(.gafus-app .shell .gafus-vet-next-page) .attachmentAdd:global([data-gafus-shared-button="secondary"]) {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 112px;
+  width: 112px;
+  height: 112px;
+  min-width: 0;
+  min-height: 112px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px;
+  border: 1px dashed #9cae88;
+  border-radius: 13px !important;
+  background: #eef2e7;
+  color: #415839;
+  font: 700 11px/1.4 var(--font-montserrat),system-ui,sans-serif;
+  text-align: center;
+  box-shadow: none;
+  transform: none;
+}
+:global(.gafus-app .shell .gafus-vet-next-page) .attachmentAdd:global([data-gafus-shared-button="secondary"]):hover:not(:disabled) {
+  background: #e5eddb;
+  box-shadow: none;
+  transform: none;
+}
+.attachmentAdd svg {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.attachmentPicker .attachmentInput {
+  display: none !important;
+}
+.attachmentPicker :is(button,input):focus-visible {
+  outline: 3px solid #6e8156;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .attachmentPicker { padding: 14px 12px; }
+  .attachmentTile {
+    flex-basis: 96px;
+    width: 96px;
+    height: 96px;
+  }
+  :global(.gafus-app .shell .gafus-vet-next-page) .attachmentAdd:global([data-gafus-shared-button="secondary"]) {
+    flex-basis: 96px;
+    width: 96px;
+    height: 96px;
+    min-height: 96px;
+  }
+}
+
+
+/* The required markers match the actual shared Core/Zod vet-visit schema. */
+.requiredMark {
+  color: #a84c42;
+  font-weight: 750;
+}
+.requiredNote {
+  margin: 2px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f4f5ed;
+  color: #5b6357;
+  font-size: 13px;
+  line-height: 1.5;
+}

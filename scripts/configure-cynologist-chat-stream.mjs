@@ -58,8 +58,10 @@ if (!process.argv.includes("--apply")) {
     uploads: true,
     url_enrichment: false,
     grants: {
-      [role]: community ? ["read-channel", "read-channel-members", "send-event"] : [],
-      channel_member: ["read-channel", "read-channel-members", "send-event"],
+      // Provider 2026 schema no longer accepts send-event at channel level.
+      // schedule-message must never be granted: that would bypass Hono send ACLs.
+      [role]: community ? ["read-channel", "read-channel-members"] : [],
+      channel_member: ["read-channel", "read-channel-members"],
       user: [],
       guest: [],
       anonymous: [],

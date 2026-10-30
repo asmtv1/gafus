@@ -8,6 +8,7 @@ import {
   HeadObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { isolatedNonprodS3Config } from "./isolatedNonprodS3";
 
 export type PrivateMediaKind = "questions" | "documents";
 const bucketPattern = /^[a-z0-9][a-z0-9.-]{2,62}$/;
@@ -18,6 +19,7 @@ const storePrefix = "cloudru:";
 export function privateMediaEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   if (env.CLOUDRU_USER_MEDIA_ENABLED && !["true", "false"].includes(env.CLOUDRU_USER_MEDIA_ENABLED))
     throw new Error("PRIVATE_MEDIA_INVALID_FLAG");
+  if (env.GAFUS_ISOLATED_NONPROD_S3 !== undefined) return Boolean(isolatedNonprodS3Config("documents", env));
   return env.CLOUDRU_USER_MEDIA_ENABLED === "true";
 }
 export function privateMediaKindForUpload(path: string): PrivateMediaKind | null {
@@ -31,34 +33,51 @@ export function privateMediaKindForUpload(path: string): PrivateMediaKind | null
     return "documents";
   return null;
 }
-export function privateMediaLocation(kind: PrivateMediaKind, relativePath: string): string {
+/** DB locators carry immutable provider identity, including in isolated dev. */
+export function privateMediaLocation(
+  kind: PrivateMediaKind, relativePath: string, env: NodeJS.ProcessEnv = process.env,
+): string {
   if (privateMediaKindForUpload(relativePath) !== kind)
     throw new Error("PRIVATE_MEDIA_INVALID_KEY");
-  return `${storePrefix}${kind}:${kind}/uploads/${relativePath}`;
+  const isolated = env.GAFUS_ISOLATED_NONPROD_S3 !== undefined;
+  if (isolated && !isolatedNonprodS3Config(kind, env))
+    throw new Error("PRIVATE_MEDIA_ISOLATED_KIND_DENIED");
+  return `${isolated ? "isodev-private:" : storePrefix}${kind}:${kind}/uploads/${relativePath}`;
 }
 export function parsePrivateMediaLocation(
   value: string,
 ): { kind: PrivateMediaKind; key: string } | null {
-  if (!value.startsWith(storePrefix)) return null;
-  const match = /^cloudru:(questions|documents):(.+)$/.exec(value);
+  if (!value.startsWith(storePrefix) && !value.startsWith("isodev-private:")) return null;
+  const match = /^(?:cloudru|isodev-private):(questions|documents):(.+)$/.exec(value);
   if (!match || !keyPattern.test(match[2]!) || !match[2]!.startsWith(`${match[1]}/`))
     throw new Error("PRIVATE_MEDIA_INVALID_LOCATION");
   return { kind: match[1] as PrivateMediaKind, key: match[2]! };
 }
+function assertPrivateMediaProvider(location: string, env: NodeJS.ProcessEnv = process.env) {
+  const isDevLocation = location.startsWith("isodev-private:");
+  const isDevRuntime = env.GAFUS_ISOLATED_NONPROD_S3 !== undefined;
+  if (isDevLocation !== isDevRuntime)
+    throw new Error("PRIVATE_MEDIA_PROVIDER_MISMATCH");
+}
 function privateMediaStorage(kind: PrivateMediaKind, env: NodeJS.ProcessEnv = process.env) {
-  const bucket = env[`CLOUDRU_${kind.toUpperCase()}_BUCKET`] ?? "";
-  const accessKeyId = env.CLOUDRU_S3_ACCESS_KEY_ID ?? "";
-  const secretAccessKey = env.CLOUDRU_S3_SECRET_ACCESS_KEY ?? "";
-  const endpoint = env.CLOUDRU_S3_ENDPOINT ?? "https://s3.cloud.ru";
+  const isolated = env.GAFUS_ISOLATED_NONPROD_S3 !== undefined
+    ? isolatedNonprodS3Config(kind, env)
+    : null;
+  if (env.GAFUS_ISOLATED_NONPROD_S3 !== undefined && !isolated)
+    throw new Error("PRIVATE_MEDIA_ISOLATED_KIND_DENIED");
+  const bucket = isolated?.bucket ?? env[`CLOUDRU_${kind.toUpperCase()}_BUCKET`] ?? "";
+  const accessKeyId = isolated?.accessKeyId ?? env.CLOUDRU_S3_ACCESS_KEY_ID ?? "";
+  const secretAccessKey = isolated?.secretAccessKey ?? env.CLOUDRU_S3_SECRET_ACCESS_KEY ?? "";
+  const endpoint = isolated?.endpoint ?? env.CLOUDRU_S3_ENDPOINT ?? "https://s3.cloud.ru";
   if (
     !bucketPattern.test(bucket) ||
     // Only the personally verified, private Cloud.ru bucket is accepted. New
     // buckets must be independently audited for anonymous access and versioning
     // before they are added to this allowlist.
-    bucket !== "gafus-documents-private" ||
+    (!isolated && bucket !== "gafus-documents-private") ||
     !accessKeyId ||
     !secretAccessKey ||
-    endpoint !== "https://s3.cloud.ru" ||
+    (!isolated && endpoint !== "https://s3.cloud.ru") ||
     env[`CLOUDRU_${kind.toUpperCase()}_BUCKET_PUBLIC`] === "true"
   )
     throw new Error("PRIVATE_MEDIA_STORAGE_UNCONFIGURED");
@@ -66,7 +85,7 @@ function privateMediaStorage(kind: PrivateMediaKind, env: NodeJS.ProcessEnv = pr
     bucket,
     client: new S3Client({
       endpoint,
-      region: "ru-central-1",
+      region: isolated ? "us-east-1" : "ru-central-1",
       forcePathStyle: true,
       credentials: { accessKeyId, secretAccessKey },
       maxAttempts: 2,
@@ -82,7 +101,7 @@ export async function uploadPrivateUserMedia(
   contentType: string,
   env: NodeJS.ProcessEnv = process.env,
 ) {
-  const location = privateMediaLocation(kind, relativePath);
+  const location = privateMediaLocation(kind, relativePath, env);
   if (!body.byteLength || body.byteLength > 10 * 1024 * 1024)
     throw new Error("PRIVATE_MEDIA_INVALID_SIZE");
   const type =
@@ -91,7 +110,9 @@ export async function uploadPrivateUserMedia(
       : /^(application\/pdf|image\/jpeg|image\/png)$/;
   if (!type.test(contentType)) throw new Error("PRIVATE_MEDIA_INVALID_MIME");
   // A missing versioning policy would make compensating deletion unverifiable.
-  const versioning = env[`CLOUDRU_${kind.toUpperCase()}_BUCKET_VERSIONING`];
+  const versioning = env.GAFUS_ISOLATED_NONPROD_S3 !== undefined
+    ? (isolatedNonprodS3Config(kind, env) ? "disabled" : "invalid")
+    : env[`CLOUDRU_${kind.toUpperCase()}_BUCKET_VERSIONING`];
   if (versioning !== "enabled" && versioning !== "disabled")
     throw new Error("PRIVATE_MEDIA_VERSIONING_UNVERIFIED");
   const { bucket, client } = privateMediaStorage(kind, env);
@@ -121,6 +142,7 @@ export async function signPrivateUserMedia(
   const parsed = parsePrivateMediaLocation(location);
   if (!parsed || !Number.isSafeInteger(ttlSeconds) || ttlSeconds < 60 || ttlSeconds > 3600)
     throw new Error("PRIVATE_MEDIA_INVALID_SIGNATURE_REQUEST");
+  assertPrivateMediaProvider(location);
   const { bucket, client } = privateMediaStorage(parsed.kind);
   try {
     const extension = parsed.key.split(".").at(-1) ?? "bin";
@@ -144,7 +166,10 @@ export async function signPrivateUserMedia(
 export async function deletePrivateUserMedia(location: string) {
   const parsed = parsePrivateMediaLocation(location);
   if (!parsed) throw new Error("PRIVATE_MEDIA_INVALID_LOCATION");
-  const versioning = process.env[`CLOUDRU_${parsed.kind.toUpperCase()}_BUCKET_VERSIONING`];
+  assertPrivateMediaProvider(location);
+  const versioning = process.env.GAFUS_ISOLATED_NONPROD_S3 !== undefined
+    ? (isolatedNonprodS3Config(parsed.kind) ? "disabled" : "invalid")
+    : process.env[`CLOUDRU_${parsed.kind.toUpperCase()}_BUCKET_VERSIONING`];
   if (versioning !== "enabled" && versioning !== "disabled")
     throw new Error("PRIVATE_MEDIA_VERSIONING_UNVERIFIED");
   const { bucket, client } = privateMediaStorage(parsed.kind);

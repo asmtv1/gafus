@@ -3,10 +3,9 @@
  * Импортировать только из authStore — не создаёт циклических зависимостей.
  */
 import { queryClient } from "@/shared/providers/QueryProvider";
-import { clearLocalVideoProgress } from "@/shared/lib/videoProgressStorage";
 
 import { useCourseStore } from "./courseStore";
-import { useProgressSyncStore } from "./progressSyncStore";
+
 import { useStepStore } from "./stepStore";
 import { useTimerStore } from "./timerStore";
 import { useTrainingStore } from "./trainingStore";
@@ -22,8 +21,10 @@ export function resetUserStores(): void {
 
   useTrainingStore.getState().reset();
 
-  useProgressSyncStore.setState({ queue: [], consecutive401: 0 });
-  void clearLocalVideoProgress();
+  // Pre-v2 progress-sync-storage is legacy owner-unknown data. Zustand persist
+  // setState(queue:[]) rewrites its original bytes; do NOT mutate it on logout.
+  // Legacy dispatch/visibility require a separate explicit quarantine gate.
+  // Preserve unknown-owner video-progress-storage bytes; playback isolation is separate.
 
   useTimerStore.setState({ activeTimer: null });
 

@@ -91,11 +91,37 @@ const availabilityRuleRowSchema = z
   );
 
 export const trainerAvailabilityInputSchema = z.object({
-  rules: z.array(availabilityRuleRowSchema).min(1),
+  // Prisma enforces @@unique([cynologistId, weekday]): never accept multiple
+  // rows for the same day and return a deterministic 400 before touching SQL.
+  rules: z
+    .array(availabilityRuleRowSchema)
+    .min(1)
+    .max(7)
+    .superRefine((rules, ctx) => {
+      const seen = new Set<number>();
+      rules.forEach((rule, index) => {
+        if (seen.has(rule.weekday)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [index, "weekday"],
+            message: "Для каждого дня недели допускается только один интервал",
+          });
+        }
+        seen.add(rule.weekday);
+      });
+    }),
 });
 
 export const dayOffInputSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Дата YYYY-MM-DD"),
+  // A regex alone accepts 2026-02-31, which JS Date silently normalizes to
+  // March. The date must round-trip in UTC before staff changes the calendar.
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Дата YYYY-MM-DD")
+    .refine((iso) => {
+      const value = new Date(`${iso}T12:00:00.000Z`);
+      return Number.isFinite(value.getTime()) && value.toISOString().slice(0, 10) === iso;
+    }, "Несуществующая календарная дата"),
   reason: z.string().max(500).optional(),
 });
 

@@ -20,26 +20,39 @@ export async function hasGafusUnlockForUserStep(input: AccessRequest & { userSte
   });
 }
 
-export async function hasGafusUnlockForVideoUrl(input: AccessRequest & { videoUrl: string }) {
-  // The same source video can be reused across courses; any active authorized
-  // occurrence permits playback, but another user's unlock never does.
-  const steps = await prisma.userStep.findMany({
-    where: {
-      userTraining: { userId: input.userId },
-      stepOnDay: { step: { videoUrl: input.videoUrl } },
-    },
+/** Media rights are derived from the course occurrence, not an already
+ * created UserTraining/UserStep row. Reading video must work immediately after
+ * Gafus purchase, before the user starts the exercise. */
+export async function findGafusUnlockedStepForVideoUrl(
+  input: AccessRequest & { videoUrl: string },
+): Promise<string | null> {
+  const occurrences = await prisma.dayOnCourse.findMany({
+    where: { day: { stepLinks: { some: { step: { videoUrl: input.videoUrl } } } } },
     select: {
-      stepOnDayId: true,
-      userTraining: { select: { dayOnCourseId: true } },
+      id: true,
+      day: {
+        select: {
+          stepLinks: {
+            where: { step: { videoUrl: input.videoUrl } },
+            select: { id: true },
+          },
+        },
+      },
     },
   });
-  for (const step of steps) {
-    if (await hasActiveGafusCourseStepAccess({
-      userId: input.userId,
-      dayOnCourseId: step.userTraining.dayOnCourseId,
-      stepOnDayId: step.stepOnDayId,
-      now: input.now,
-    })) return true;
+  for (const occurrence of occurrences) {
+    for (const step of occurrence.day.stepLinks) {
+      if (await hasActiveGafusCourseStepAccess({
+        userId: input.userId,
+        dayOnCourseId: occurrence.id,
+        stepOnDayId: step.id,
+        now: input.now,
+      })) return step.id;
+    }
   }
-  return false;
+  return null;
+}
+
+export async function hasGafusUnlockForVideoUrl(input: AccessRequest & { videoUrl: string }) {
+  return (await findGafusUnlockedStepForVideoUrl(input)) !== null;
 }

@@ -275,6 +275,24 @@ describe("account storage cleanup adapter", () => {
       }),
     );
   });
+  it("isolated private media markers cannot be routed into Cloud.ru cleanup (and vice versa)", () => {
+    const own="isodev-private:documents:documents/uploads/users/u/pets/p/documents/id.pdf";
+    const questions="isodev-private:questions:questions/uploads/questions/u/id.jpg";
+    expect(accountStorageTargets("documents","u",[own],[],{GAFUS_ISOLATED_NONPROD_S3:"enabled"})).toEqual({
+      prefixes:["documents/uploads/users/u/pets/"],keys:["documents/uploads/users/u/pets/p/documents/id.pdf"],
+    });
+    expect(accountStorageTargets("questions","u",[questions],[],{GAFUS_ISOLATED_NONPROD_S3:"enabled"})).toEqual({
+      prefixes:["questions/uploads/questions/u/"],keys:["questions/uploads/questions/u/id.jpg"],
+    });
+    expect(()=>accountStorageTargets("documents","u",[own],[],{}))
+      .toThrow("CLEANUP_PROVIDER_MISMATCH");
+    expect(()=>accountStorageTargets("documents","u",[
+      "cloudru:documents:documents/uploads/users/u/pets/p/documents/id.pdf",
+    ],[],{GAFUS_ISOLATED_NONPROD_S3:"enabled"})).toThrow("CLEANUP_PROVIDER_MISMATCH");
+    expect(()=>accountStorageTargets("questions","u",[
+      "cloudru:questions:questions/uploads/questions/u/id.jpg",
+    ],[],{GAFUS_ISOLATED_NONPROD_S3:"enabled"})).toThrow("CLEANUP_PROVIDER_MISMATCH");
+  });
   it("never accepts an alternative CDN provider for Gallery/Feed cleanup", async () => {
     vi.stubEnv("FEED_S3_ENDPOINT", "https://s3.cloud.ru");
     vi.stubEnv("FEED_CDN_PROVIDER", "cloudru");
@@ -365,6 +383,20 @@ describe("account storage cleanup adapter", () => {
     await expect(startAccountCdnPurge("feed", { prefixes: ["posts/u/"], keys: [] }))
       .rejects.toThrow("CLEANUP_CDN_PROVIDER_MISMATCH");
   });
+  it("refuses false Beget success if only uncached staging objects are listed", async () => {
+    // An owner's prefix may contain already-retired cached media that no
+    // longer has a DB row. Staging keys are not proof that the edge is empty.
+    vi.stubEnv("FEED_S3_ENDPOINT", "https://s3.cloud.ru");
+    vi.stubEnv("FEED_CDN_PROVIDER", "beget");
+    vi.stubEnv("FEED_CDN_BASE_URL", "https://garaquachegasourn.begetcdn.cloud");
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    await expect(startAccountCdnPurge("feed", {
+      prefixes: ["posts/owner/"],
+      keys: ["posts/owner/post/attachments/media/hls/master.m3u8"],
+    })).rejects.toThrow("BEGET_CDN_EXACT_KEYS_REQUIRED");
+    expect(request).not.toHaveBeenCalled();
+  });
   it("does not request CDN purge for direct private S3 download scopes", async () => {
     expect(
       await startAccountCdnPurge("questions", {
@@ -426,7 +458,8 @@ describe("account storage cleanup adapter", () => {
         ],
       })
       .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({ Versions: [{ Key: "uploads/questions/other/a.jpg-other" }] });
+      .mockResolvedValueOnce({ Versions: [{ Key: "uploads/questions/other/a.jpg-other" }] })
+      .mockResolvedValueOnce({ Contents: [{ Key: "uploads/questions/other/a.jpg-other" }] });
     await cleaner.sweep(
       { prefixes: [], keys: ["uploads/questions/other/a.jpg"] },
       AbortSignal.timeout(1000),
@@ -434,6 +467,22 @@ describe("account storage cleanup adapter", () => {
     expect(mock.send.mock.calls[1][0].input.Delete.Objects).toEqual([
       { Key: "uploads/questions/other/a.jpg", VersionId: "v1" },
     ]);
+  });
+  it("never acknowledges an exact-key versioned purge while the current S3 object survives", async () => {
+    const cleaner = createAccountStorageCleaner("public", {
+      YC_ACCESS_KEY_ID: "test",
+      YC_SECRET_ACCESS_KEY: "test",
+    });
+    const key = "uploads/questions/other/borrowed.jpg";
+    mock.send
+      .mockResolvedValueOnce({ Versions: [], DeleteMarkers: [] })
+      .mockResolvedValueOnce({ Contents: [{ Key: key }] });
+    await expect(cleaner.sweep(
+      { prefixes: [], keys: [key] }, AbortSignal.timeout(1000),
+    )).rejects.toThrow("CLEANUP_OBJECTS_REMAIN");
+    expect(mock.send.mock.calls[1][0].input).toEqual({
+      Bucket: "gafus-media", Prefix: key, MaxKeys: 1,
+    });
   });
   it("never falls back to Yandex purge for active Beget CDN URLs", async () => {
     vi.stubEnv("GALLERY_S3_ENDPOINT", "https://s3.cloud.ru");

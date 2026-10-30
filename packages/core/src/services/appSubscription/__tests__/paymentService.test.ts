@@ -273,6 +273,7 @@ describe("app subscription payment service", () => {
       shopId: "shop-id",
       secretKey: "secret-key",
       planCode: "MONTHLY",
+      returnPath: "/consultations/trainer1",
       promoCode: { code: " kisa ", revision: 3 },
     });
 
@@ -290,6 +291,8 @@ describe("app subscription payment service", () => {
     );
     const body = JSON.parse((fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
     expect(body.amount).toEqual({ value: "990.00", currency: "RUB" });
+    expect(body.confirmation.return_url)
+      .toBe("https://gafus.ru/consultations/trainer1?paid=1");
   });
 
   it("completes previewed promo checkout through a verified YooKassa webhook without recalculation", async () => {

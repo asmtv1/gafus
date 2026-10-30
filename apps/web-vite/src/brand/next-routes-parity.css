@@ -1,0 +1,528 @@
+/* Source-guided Next page parity. The imported Legacy*.module.css files are
+ * unmodified copies from retained apps/web; only Vite's different shell and
+ * adapter DOM need these scoped corrections. */
+.gafus-app .shell .next-questions-page {
+  max-width: 1040px; width: 100%; margin: 0 auto 64px;
+  padding: 30px clamp(16px, 3vw, 32px) 64px;
+  background: transparent; border: 0; box-shadow: none;
+}
+.gafus-app .shell .next-questions-page h1 {
+  margin: 0 0 6px; text-align: left; font: 750 clamp(27px,3vw,32px)/1.2 var(--font-montserrat);
+}
+.gafus-app .shell .next-questions-page .question-controls {
+  display: grid; grid-template-columns: minmax(0,1fr) 168px 160px;
+  gap: 10px; padding: 0; border: 0; background: transparent;
+}
+.gafus-app .shell .next-questions-page .question-control {
+  display: grid; min-width: 0; gap: 5px;
+}
+.gafus-app .shell .next-questions-page .question-control label {
+  font-size: 11px; color: #777367; font-weight: 700;
+}
+.gafus-app .shell .next-questions-page .question-control :is(input,select) {
+  display: block; width: 100%; min-width: 0; height: 44px;
+  padding: 0 12px; border: 1px solid #c9c5b6; border-radius: 10px;
+  background: #fffdf8; color: #352e2e; font-size: 13px;
+}
+.gafus-app .shell .next-questions-page .next-questions-options {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border-top: 1px solid #dddacc;
+  padding-top: 12px; margin-top: 13px;
+}
+.gafus-app .shell .next-questions-page .next-questions-options select {
+  min-height: 38px; padding: 7px 12px; border-radius: 9px;
+  border: 1px solid #d4d5c6; background: #fffdf7;
+}
+.gafus-app .shell .next-questions-page .next-questions-options button {
+  min-height: 38px; padding: 8px 13px; border: 1px solid rgba(77,92,45,.24);
+  border-radius: 9px; background: #e5ead7; color: #3b4822; font-size: 13px;
+}
+.gafus-app .shell .next-questions-page .question-catalog-grid { margin-top: 18px; }
+.gafus-app .shell .next-questions-page .question-catalog-card {
+  border: 1px solid rgba(var(--accent-primary-rgb),.17); background: #fffdf8;
+  border-radius: 16px; box-shadow: 0 6px 17px rgba(59,72,34,.075);
+}
+.gafus-app .shell .next-articles-index {
+  background: transparent; width: 100%; max-width: 1200px; padding: 0 20px 45px;
+  margin: 0 auto; border: 0; box-shadow: none;
+}
+.gafus-app .shell .next-articles-index > h1 {
+  margin: 58px 0 34px; font: 400 80px/1 var(--font-impact),var(--font-montserrat);
+  color: #352e2e; text-align: center;
+}
+.gafus-app .shell .next-articles-index .article-catalog-grid {
+  display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,340px),1fr));
+  gap: 24px; margin: 0; padding: 0; list-style: none;
+}
+.gafus-app .shell .next-feed-page {
+  box-sizing: border-box; width: min(100%,920px); max-width: 920px;
+  margin: 22px auto 70px; padding: clamp(22px,3.5vw,38px);
+  padding-bottom: 70px; border: 1px solid rgba(91,100,59,.12);
+  border-radius: 26px; background: rgba(250,249,246,.97);
+  box-shadow: 0 14px 55px rgba(46,45,32,.055);
+}
+.gafus-app .shell .next-feed-page h1 {
+  margin: 0 0 7px; text-align: left; color: #302f2a;
+  font: 780 clamp(30px,4vw,42px)/1.12 var(--font-montserrat);
+  letter-spacing: -.055em;
+}
+.gafus-app .shell .next-feed-page .next-feed-sort {
+  margin: 16px 0; padding-bottom: 10px;
+}
+.gafus-app .shell .next-feed-page .next-feed-sort-select {
+  display: block; width: min(100%,240px); min-height: 42px; padding: 9px 14px;
+  border-radius: 999px; border: 1px solid rgba(var(--accent-primary-rgb),.2);
+  background: var(--surface-muted); color: var(--accent-secondary); font-weight: 700;
+}
+.gafus-app .shell .next-feed-page .moments-catalog-grid {
+  margin: 20px auto; padding: 0; max-width: 720px; width: 100%;
+}
+.gafus-app .shell .next-gallery-albums {
+  box-sizing: border-box; width: min(900px,100%); max-width: 900px;
+  margin: 24px auto; padding: clamp(20px,2.5vw,30px);
+  border: 1px solid rgba(var(--accent-primary-rgb),.13);
+  border-radius: 24px; background: var(--surface);
+  box-shadow: var(--shadow-card); color: var(--text-primary);
+}
+.gafus-app .shell .next-gallery-albums .gallery-header { display: flex; justify-content: space-between; }
+.gafus-app .shell .next-gallery-albums h1 {
+  text-align: left; font-size: clamp(24px,2.3vw,30px);
+  margin: 0; color: var(--accent-secondary);
+}
+.gafus-app .shell .next-gallery-albums .gallery-album-grid {
+  display: grid; grid-template-columns: repeat(auto-fill,minmax(185px,220px));
+  justify-content: start; gap: 18px; margin: 0; padding: 0; list-style: none;
+}
+.gafus-app .shell .next-gallery-albums .gallery-album-card {
+  display: block; width: 100%; min-width: 0; height: 100%;
+  border: 1px solid rgba(var(--accent-primary-rgb),.13);
+  border-radius: 17px; padding: 10px; background: var(--surface-muted);
+  box-shadow: 0 5px 13px rgba(59,72,34,.06); color: var(--text-primary);
+  text-align: left; text-decoration: none;
+}
+.gafus-app .shell .next-gallery-albums .gallery-album-card img,
+.gafus-app .shell .next-gallery-albums .gallery-image-placeholder {
+  display: block; width: 100%; aspect-ratio: 4/3; height: auto;
+  object-fit: cover; border-radius: 11px;
+}
+.gafus-app .shell .next-gallery-albums .gallery-album-card strong {
+  display: block; margin: 10px 2px 2px; font-size: 15px;
+}
+.gafus-app .shell .next-reminders-page {
+  box-sizing: border-box; width: 100%; max-width: 1440px;
+  margin: 24px auto; padding: 0 clamp(16px,3vw,56px);
+  background: transparent; border: 0; box-shadow: none;
+}
+.gafus-app .shell .next-reminders-page > div { max-width: 920px; margin: 0 auto; }
+.gafus-app .shell .next-reminders-page h1 {
+  text-align: left; font-size: clamp(28px,3vw,36px); margin: 0 0 16px;
+}
+.gafus-app .shell .next-reminders-page .reminder-list {
+  display: flex; flex-direction: column; list-style: none;
+  gap: 12px; padding: 0; margin: 18px 0;
+}
+.gafus-app .shell .next-reminders-page .reminder-list li {
+  padding: 16px 20px; border: 1px solid #dfdfd1; border-radius: 16px;
+  background: var(--surface); box-shadow: var(--shadow-card);
+}
+.gafus-app .shell .next-consultations-page { width: 100%; max-width: 1120px; margin: 0 auto 64px; }
+.gafus-app .shell .next-consultations-page > h1 {
+  text-align: center; font: 800 clamp(30px,3.2vw,44px)/1.2 var(--font-montserrat);
+  letter-spacing: -.035em; margin: 0 auto;
+}
+.gafus-app .shell .next-consultations-page .consult-live-nav {
+  display: grid; grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 4px; width: min(100%,510px); margin: 0 auto 22px;
+  padding: 5px; border: 1px solid rgba(96,100,63,.13);
+  border-radius: 15px; background: rgba(255,252,244,.87);
+}
+.gafus-app .shell .next-consultations-page .consult-live-nav a {
+  display: flex; justify-content: center; align-items: center;
+  min-height: 42px; border-radius: 11px;
+}
+.gafus-app .shell .next-cynologist-chat .next-chat-empty {
+  padding: 24px; border-radius: 22px; background: var(--surface); box-shadow: var(--shadow-card);
+}
+.gafus-app .shell .next-cynologist-chat .next-chat-empty h1 {
+  text-align: left; font: 700 25px/1.25 var(--font-montserrat);
+  margin: 0 0 16px;
+}
+.gafus-app .shell .next-cynologist-chat .next-chat-dialog {
+  padding: 18px; display: flex; flex-direction: column;
+  gap: 6px; background: #fffdf7; border-radius: 16px;
+}
+.gafus-app .shell .next-cynologist-chat .next-chat-active {
+  background: #4d5c2d; color: white; border: 0;
+}
+.gafus-app .shell .next-cynologist-chat [role="tab"]:not(.next-chat-active) {
+  background: var(--surface-muted); border: 1px solid rgba(var(--accent-primary-rgb),.25);
+  color: var(--accent-secondary);
+}
+.gafus-app .shell .next-gafus-wallet h2 { text-align: left; }
+@media(max-width:768px){
+ .gafus-app .shell .next-questions-page .question-controls { grid-template-columns: minmax(0,1fr); }
+ .gafus-app .shell .next-questions-page { padding: 18px 10px 42px; }
+ .gafus-app .shell .next-articles-index > h1 { font-size: 64px; margin: 38px 0 26px; }
+ .gafus-app .shell .next-gallery-albums .gallery-album-grid { grid-template-columns: repeat(auto-fill,minmax(min(100%,170px),1fr)); }
+ .gafus-app .shell .next-feed-page { padding: 20px 16px 52px; margin: 18px auto 50px; }
+ .gafus-app .shell .next-consultations-page > h1 { font-size: clamp(27px,7.5vw,34px); }
+}
+@media(max-width:480px){
+ .gafus-app .shell .next-articles-index > h1 { font-size: 52px; margin: 30px 0 22px; }
+ .gafus-app .shell .next-gallery-albums { padding: 16px; }
+ .gafus-app .shell .next-questions-page .next-questions-options { flex-wrap: wrap; }
+ .gafus-app .shell .next-feed-page .next-feed-sort-select { width: 100%; }
+}
+
+/* Original FeedTopBar has an icon-only mobile creation action. */
+.gafus-app .shell .next-feed-page .next-feed-create-link {
+ display:inline-flex; gap:7px; align-items:center; justify-content:center;
+ min-width:0; flex:0 0 auto; padding:10px 14px; white-space:nowrap;
+ border-radius:14px; background:#4d5c2d; color:white; text-decoration:none;
+ font:700 12px/1.3 var(--font-montserrat);
+}
+.gafus-app .shell .next-feed-page .next-feed-create-plus {font-size:20px;line-height:1}
+@media(max-width:720px){
+ .gafus-app .shell .next-feed-page .next-feed-create-link {
+  box-sizing:border-box; width:48px; min-width:48px; height:48px; padding:0;
+ }
+ .gafus-app .shell .next-feed-page .next-feed-create-text {display:none}
+ .gafus-app .shell .next-feed-page .next-feed-create-plus {display:block}
+}
+
+/* Next MyQuestionsList (profile tab): compact independent cards, no public filters. */
+.gafus-app .shell .next-my-questions .next-profile-question-card {
+ display:flex;flex-direction:column;gap:7px;min-width:0;padding:18px 20px;
+ border:1px solid rgba(var(--accent-primary-rgb),.14);border-radius:18px;
+ background:var(--surface);box-shadow:0 6px 18px rgba(59,72,34,.07);
+ color:var(--text-primary);text-decoration:none;
+}
+.gafus-app .shell .next-my-questions .next-profile-question-card strong {
+ color:var(--accent-secondary);font:750 17px/1.4 var(--font-montserrat);
+}
+.gafus-app .shell .next-my-questions .next-profile-question-card span {
+ font-size:13px;line-height:1.5;color:var(--text-secondary);
+}
+.gafus-app .shell .next-my-questions .next-profile-question-card small {
+ color:var(--text-secondary);font-size:12px;
+}
+.gafus-app .shell .next-my-questions .next-profile-question-card:hover {
+ border-color:rgba(var(--accent-primary-rgb),.36);
+}
+
+/* Source SettingsActions grouped rows and PrivateProfileSection mascot/sidebar. */
+.gafus-app .shell .next-profile-settings-groups .next-profile-settings-row {
+ display:flex;align-items:center;gap:13px;width:100%;min-width:0;box-sizing:border-box;
+ text-decoration:none;color:var(--accent-secondary);font-weight:650;
+ border-bottom:1px solid #e7e2d6;
+}
+.gafus-app .shell .next-profile-settings-groups .next-profile-settings-row span:nth-child(2) {
+ flex:1;min-width:0;overflow-wrap:anywhere;
+}
+.gafus-app .shell .next-profile-settings-groups .next-profile-settings-icon {
+ display:inline-flex;align-items:center;justify-content:center;min-width:28px;
+ color:#606c44;font-size:20px;
+}
+.gafus-app .shell .next-profile-settings-groups .next-profile-security-note {
+ color:var(--text-secondary);font-size:13px;
+}
+.gafus-app .shell .next-premium-card .next-premium-status-note {
+ font-size:11px;line-height:1.5;color:var(--text-secondary);
+}
+.gafus-app .shell .next-premium-card img {max-width:100%;object-fit:contain;height:auto}
+
+/* Verified against authenticated gafus.ru Next Bio on 2026-10-25:
+ * 30px/750 Montserrat profile title. The generic Vite h1 Impact rule had
+ * wrongly overridden the source Bio module and stretched the identity card. */
+.gafus-app .shell .next-profile-shell [data-next-profile-identity] h1 {
+  margin: 0;
+  color: var(--accent-secondary, #3b4822);
+  font: 750 clamp(21px, 2.4vw, 30px)/1.2 var(--font-montserrat),system-ui,sans-serif;
+  letter-spacing: -.025em;
+  text-align: left;
+  overflow-wrap: break-word;
+}
+.gafus-app .shell .next-profile-shell [data-next-profile-identity] .gafus-profile-avatar-image,
+.gafus-app .shell .next-profile-shell [data-next-profile-identity] .gafus-profile-avatar-fallback {
+  display: block; width: 100%; height: 100%; border-radius: 50%;
+}
+.gafus-app .shell .next-profile-shell [data-next-profile-identity] .gafus-profile-avatar-fallback {
+  display: grid; place-items: center;
+}
+/* The inherited Impact h2 is NOT used inside the source Next Bio.
+ * Legacy Bio.module.css defines Montserrat 18px/750 for "О себе". */
+.gafus-app .shell .next-profile-shell [data-next-profile-identity] h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  color: var(--accent-secondary, #3b4822);
+  font: 750 18px/1.4 var(--font-montserrat),system-ui,sans-serif;
+  text-align: left;
+}
+
+/* Original Next QuestionListCard in the profile-owned questions tab. The
+ * source Questions.module.css uses `.questionsPage .questionCard`, whereas
+ * the profile retains its independent MyQuestionsList section shell. */
+.gafus-app .shell .next-my-questions .next-question-preview {
+  display:block; min-width:0; margin:0; padding:19px 21px;
+  background:rgba(251,249,244,.96);border:1px solid rgba(77,92,45,.13);
+  border-radius:16px;box-shadow:0 3px 14px rgba(53,46,46,.045);
+  color:var(--text-primary);text-decoration:none;
+}
+.gafus-app .shell .next-my-questions .next-question-preview h2 {
+  max-width:62ch;margin:10px 0 0;
+  font:700 19px/1.4 var(--font-montserrat),system-ui,sans-serif;
+  text-align:left;
+}
+/* The same Next question-card typography must win over Vite's global
+ * `.profile-overview h2` Impact display style (including on mobile). */
+.gafus-app .shell .next-my-questions .next-question-preview [class*="tabs"] { gap:6px; }
+.gafus-app .shell .next-my-questions .next-question-preview :is([class*="badge"],[class*="tag"]) {
+  font-size:11px;padding:4px 9px;
+}
+.gafus-app .shell .next-my-questions .next-question-preview [class*="author"] {
+  gap:9px;font-size:12px;
+}
+.gafus-app .shell .next-my-questions .next-question-preview [class*="avatar"] {
+  width:32px;height:32px;
+}
+.gafus-app .shell .next-my-questions .next-question-preview [class*="meta"] {
+  font-size:12px;line-height:1.5;
+}
+.gafus-app .shell .next-my-questions .next-question-preview [class*="bestPreview"] {
+  padding:10px 12px;margin-top:12px;
+}
+.gafus-app .shell .next-my-questions .next-question-preview:hover {
+  background:#faf8f1;border-color:rgba(77,92,45,.32);
+  box-shadow:0 5px 20px rgba(53,46,46,.07);
+}
+.gafus-app .shell .next-my-questions .next-question-preview [class*="cardFooter"] {
+  justify-content:flex-start;margin-top:15px;padding-top:13px;
+  border-top:1px solid rgba(77,92,45,.12);gap:12px 28px;
+}
+
+/* Retained Next QuestionsList renders ONE full-width QuestionListCard per row,
+ * never the old Vite compact 2-column cards and nested padded containers. */
+.gafus-app .shell .next-questions-page .question-catalog-grid {
+  display:flex;flex-direction:column;gap:0;max-width:none;
+  margin:0;padding:0;list-style:none;
+}
+.gafus-app .shell .next-questions-page li.question-catalog-card {
+  border:0;padding:0;margin:0;background:transparent;box-shadow:none;
+  border-radius:0;min-width:0;
+}
+.gafus-app .shell .next-questions-page a.next-question-preview {
+  display:block;padding:19px 21px;margin:0 0 12px;
+  background:rgba(251,249,244,.96);
+  border:1px solid rgba(77,92,45,.13);
+  border-radius:16px;box-shadow:0 3px 14px rgba(53,46,46,.045);
+  text-decoration:none;color:var(--text-primary);
+}
+.gafus-app .shell .next-questions-page a.next-question-preview:hover {
+  background:#faf8f1;border-color:rgba(77,92,45,.32);
+  box-shadow:0 5px 20px rgba(53,46,46,.07);
+}
+
+/* Exact Next Questions.module.css compact QuestionListCard headline. The
+ * outer Vite shell can otherwise inherit the condensed Impact heading from
+ * global page themes; this card must retain the original readable Montserrat. */
+.gafus-app .shell .next-questions-page a.next-question-preview h2 {
+  max-width: 62ch;
+  margin: 10px 0 0;
+  font: 700 19px/1.4 var(--font-montserrat), system-ui, sans-serif;
+  letter-spacing: normal;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .gafus-app .shell .next-questions-page a.next-question-preview h2 {
+    font-size: 17px;
+  }
+}
+
+/* Next QuestionsList source filter/search/tab controls on the catalog route. */
+.gafus-app .shell .next-questions-page .question-controls.questionFilters,
+.gafus-app .shell .next-questions-page .question-controls {
+  display:grid;grid-template-columns:minmax(0,1fr) 168px 160px;gap:10px;
+}
+.gafus-app .shell .next-questions-page .question-control {
+  display:flex;align-items:center;min-width:0;position:relative;
+}
+.gafus-app .shell .next-questions-page .question-control .gafus-visually-hidden {
+  position:absolute !important;width:1px;height:1px;padding:0;
+  overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+.gafus-app .shell .next-questions-page .question-search-control > svg {
+  position:absolute;left:13px;z-index:1;pointer-events:none;color:#656a53;
+}
+.gafus-app .shell .next-questions-page .question-search-control input {
+  padding-left:40px;
+}
+.gafus-app .shell .next-questions-page .question-control > select {
+  appearance:none;-webkit-appearance:none;padding:0 40px 0 13px;
+  text-overflow:ellipsis;
+}
+.gafus-app .shell .next-questions-page .next-questions-options .gafus-visually-hidden {
+  position:absolute !important;width:1px;height:1px;padding:0;
+  margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+.gafus-app .shell .next-questions-page .next-questions-options :is([class*="questionScope"],[class*="questionSort"]) {
+  display:flex;gap:4px;flex-wrap:wrap;min-width:0;
+}
+.gafus-app .shell .next-questions-page .next-questions-options button[class*="questionTab"] {
+  background:transparent;border:1px solid transparent;color:#555446;
+  min-height:36px;padding:7px 13px;border-radius:9px;font-size:13px;
+}
+.gafus-app .shell .next-questions-page .next-questions-options button[class*="questionTabActive"] {
+  background:#e5ead7;border-color:rgba(77,92,45,.24);color:#3b4822;font-weight:700;
+}
+@media(max-width:760px){
+ .gafus-app .shell .next-questions-page .question-controls {
+  grid-template-columns:minmax(0,1fr);gap:10px;
+ }
+}
+
+/* Next TrainingReminders source cards; the canonical Refactor route is
+ * read-only, so the switch/name look original but cannot perform writes. */
+.gafus-app .shell .next-reminders-page [data-next-reminders-source-layout] {
+  width:100%;max-width:920px;margin:0 auto;box-sizing:border-box;
+}
+.gafus-app .shell .next-reminders-page .reminder-list li.next-reminder-readonly {
+  border:2px solid #e5dcc8;background:white;border-radius:8px;
+  padding:16px;box-shadow:none;
+}
+.gafus-app .shell .next-reminders-page .reminder-list li.next-reminder-readonly[class*="expanded"] {
+  border-color:#636128;box-shadow:0 4px 12px rgba(99,97,40,.1);
+}
+.gafus-app .shell .next-reminder-readonly .next-reminder-readonly-status {
+  margin:7px 0 0;font:500 11px/1.4 var(--font-montserrat),sans-serif;
+  color:#636128;
+}
+.gafus-app .shell .next-reminder-readonly input[readonly] {
+  cursor:default;
+}
+@media(max-width:450px){
+ .gafus-app .shell .next-reminders-page .next-reminder-readonly [class*="reminderHeader"] {
+  gap:6px;flex-wrap:wrap;
+ }
+ .gafus-app .shell .next-reminders-page .next-reminder-readonly [class*="nameInput"] {
+  flex:1 1 90px;max-width:calc(100% - 110px);
+ }
+}
+
+/* Original Next FeedTopBar navigation and notification action are mounted
+ * on the canonical /feed alias rather than unrelated generic question links. */
+.gafus-app .shell .next-feed-page .next-feed-drafts-link {
+ display:flex;justify-content:flex-end;margin:0 0 12px;
+ font:650 12px/1.4 var(--font-montserrat),sans-serif;
+}
+.gafus-app .shell .next-feed-page .next-feed-drafts-link a {
+ color:var(--accent-secondary);text-underline-offset:3px;
+}
+.gafus-app .shell .next-feed-page a[class*="feedNotifications"] {
+ display:inline-flex;align-items:center;justify-content:center;
+ width:48px;height:48px;min-width:48px;border-radius:14px;
+ color:var(--accent-secondary);background:var(--surface-muted);
+ text-decoration:none;
+}
+.gafus-app .shell .next-feed-page nav[aria-label="Разделы «Моментов»"] {
+ display:flex;gap:25px;overflow-x:auto;align-items:center;scrollbar-width:none;
+}
+.gafus-app .shell .next-feed-page nav[aria-label="Разделы «Моментов»"] a {
+ display:inline-flex;align-items:center;gap:8px;min-height:46px;
+ flex:0 0 auto;text-decoration:none;white-space:nowrap;
+}
+
+/* /reminders is now mounted through the *connected* server-reconciled CRUD
+ * screen, not the retired read-only adapter. Keep writes/guards untouched and
+ * apply the retained Next TrainingReminders visual language to its list. */
+.gafus-app .shell .next-reminders-page .reminder-list li {
+  border:2px solid #e5dcc8; background:#fff;border-radius:8px;
+  padding:16px;box-shadow:none;min-width:0;
+}
+.gafus-app .shell .next-reminders-page .reminder-list li > h3 {
+  margin:0 0 8px;color:#352e2e;
+  font:700 16px/1.3 var(--font-montserrat),sans-serif;
+}
+.gafus-app .shell .next-reminders-page .reminder-list li > p {
+  margin:4px 0;color:#636128;font:500 13px/1.4 var(--font-montserrat),sans-serif;
+}
+.gafus-app .shell .next-reminders-page .reminder-list li > button {
+  margin:10px 8px 0 0;min-height:38px;padding:8px 12px;
+  border:1px solid #c9c5b6;border-radius:9px;background:#f5f0e8;
+  color:#3b4822;font:700 12px/1.3 var(--font-montserrat),sans-serif;
+}
+.gafus-app .shell .next-reminders-page .reminder-list li > button:hover:not(:disabled) {
+  background:#e5ead7;border-color:#636128;
+}
+.gafus-app .shell .next-reminders-page .reminder-list li > button:disabled {
+  opacity:.6;cursor:wait;
+}
+
+/* Profile 25 Oct: the global Vite `.profile-overview h2` Impact/48px rule
+ * was overriding ORIGINAL Next SettingsActions (16px Montserrat) and
+ * PrivateProfileSection (18px Montserrat) and blowing up columns. Restore
+ * exact source component typography; no changes to shared/global headings. */
+.gafus-app .shell .next-profile-shell .next-profile-settings-groups h2[class*="groupTitle"] {
+  display:block;
+  margin:0 0 13px;
+  color:var(--accent-secondary,#3b4822);
+  font:750 16px/1.35 var(--font-montserrat),system-ui,sans-serif;
+  text-align:left;
+}
+.gafus-app .shell .next-profile-shell .next-premium-card h2[class*="subscriptionTitle"] {
+  display:block;
+  margin:0;
+  color:#352e2e;
+  font:700 18px/1.2 var(--font-montserrat),system-ui,sans-serif;
+  text-align:left;
+}
+.gafus-app .shell .next-profile-shell .next-profile-settings-groups .next-profile-settings-row > img {
+  display:block;
+  width:40px;
+  height:40px;
+  flex:0 0 40px;
+  object-fit:contain;
+}
+.gafus-app .shell .next-profile-shell .next-profile-settings-groups .next-profile-settings-row > span:first-of-type {
+  flex:1;min-width:0;overflow-wrap:anywhere;
+}
+.gafus-app .shell .next-profile-shell .next-profile-settings-groups .next-profile-settings-row:disabled {
+  opacity:.58;cursor:not-allowed;
+}
+.gafus-app .shell .next-profile-shell .next-profile-settings-groups .next-profile-settings-row:disabled:hover {
+  background:transparent;
+}
+
+/* Confirmed against retained Next MyQuestionsList.module.css: the generic
+ * .profile-overview h2 (Impact 48px) must not inflate this 20px heading. */
+.gafus-app .profile-overview .next-my-questions div[class*="heading"] > h2 {
+  margin:0;color:var(--accent-secondary);
+  font:750 20px/1.35 var(--font-montserrat),system-ui,sans-serif;
+  text-align:left;
+}
+/* StudentNotes.module.css finishes with 19px/750 Montserrat and a 40px
+ * illustrated trainer-notes image. Keep this more specific than global h2. */
+.gafus-app .profile-overview .next-student-notes > h2[class*="title"] {
+  display:flex;align-items:center;justify-content:flex-start;gap:12px;
+  margin:0;color:#352e2e;
+  font:750 19px/1.35 var(--font-montserrat),system-ui,sans-serif;
+  text-align:left;
+}
+/* Original GafusWalletPage.module.css specifies 24–32/750 header and
+ * 18px/720 summary/history headings, not page-level 48px Impact. */
+.gafus-app .profile-overview .next-gafus-wallet header[class*="header"] h2 {
+  margin:3px 0 0;color:#3e4738;
+  font:750 clamp(24px,3vw,32px)/1.2 var(--font-montserrat),system-ui,sans-serif;
+  text-align:left;
+}
+.gafus-app .profile-overview .next-gafus-wallet :is([class*="summary"],[class*="history"]) h2 {
+  margin:0 0 10px;color:#3e4738;
+  font:720 18px/1.35 var(--font-montserrat),system-ui,sans-serif;
+  text-align:left;
+}
+@media(max-width:520px){
+  .gafus-app .profile-overview .next-my-questions div[class*="heading"] > h2 {
+    font-size:18px;
+  }
+}

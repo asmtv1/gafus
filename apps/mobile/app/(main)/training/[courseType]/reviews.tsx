@@ -2,14 +2,16 @@ import { View, StyleSheet, ScrollView, Pressable, Alert, TextInput } from "react
 import { Text } from "react-native-paper";
 import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { Button, Loading } from "@/shared/components/ui";
 import { coursesApi, type CourseReview } from "@/shared/lib/api/courses";
 import { useAuthStore } from "@/shared/stores";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 
 // Форматирование даты
@@ -35,27 +37,44 @@ function RatingStars({
 }) {
   const selected = Math.max(0, Math.min(5, Math.round(rating)));
   return (
-    <View style={styles.starsContainer}>
+    <View
+      style={styles.starsContainer}
+      accessible={!interactive}
+      accessibilityRole={interactive ? undefined : "text"}
+      accessibilityLabel={interactive ? undefined : `Оценка ${selected} из 5`}
+    >
       {[1, 2, 3, 4, 5].map((value) => {
         const filled = value <= selected;
-        return (
+        const heart = (
+          <Text
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[
+              styles.star,
+              filled ? styles.starFilled : styles.starEmpty,
+              interactive && styles.starInteractive,
+            ]}
+          >
+            {filled ? "♥" : "♡"}
+          </Text>
+        );
+        return interactive ? (
           <Pressable
             key={value}
             style={styles.starPressable}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            onPress={() => interactive && onRatingChange?.(value)}
-            disabled={!interactive}
+            accessibilityRole="radio"
+            accessibilityLabel={`Оценка ${value} из 5`}
+            accessibilityState={{ selected: value === selected }}
+            onPress={() => onRatingChange?.(value)}
           >
-            <Text
-              style={[
-                styles.star,
-                filled ? styles.starFilled : styles.starEmpty,
-                interactive && styles.starInteractive,
-              ]}
-            >
-              {filled ? "♥" : "♡"}
-            </Text>
+            {heart}
           </Pressable>
+        ) : (
+          <View key={value} style={styles.starPressable}>
+            {heart}
+          </View>
         );
       })}
     </View>
@@ -67,9 +86,70 @@ function RatingStars({
  */
 export default function ReviewsScreen() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { courseType } = useLocalSearchParams<{ courseType: string }>();
+  const owner = useAuthStore((s) =>
+    s.isAuthenticated && !s.isLoading ? (s.user?.id ?? null) : null,
+  );
+  const authed = useAuthStore((s) => s.isAuthenticated);
+  const authLoading = useAuthStore((s) => s.isLoading);
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const epoch = owner && binding?.principalId === owner ? binding.authEpoch : null;
+  if (authLoading || (authed && (!owner || !epoch)))
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <Loading fullScreen embedded message="Загрузка отзывов..." />
+      </SafeAreaView>
+    );
+  if (typeof courseType !== "string" || !courseType.trim())
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <AppBackButton style={styles.backRow} onPress={() => router.back()} />
+        <Text style={styles.emptyText}>Курс не найден.</Text>
+      </SafeAreaView>
+    );
+  return (
+    <ReviewsActor
+      key={`${owner ?? "guest"}:${epoch ?? "public"}:${courseType}`}
+      owner={owner}
+      epoch={epoch}
+      courseType={courseType}
+    />
+  );
+}
+function ReviewsActor({
+  owner,
+  epoch,
+  courseType,
+}: {
+  owner: string | null;
+  epoch: string | null;
+  courseType: string;
+}) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const mounted = useRef(true);
+  const retryInFlight = useRef(false);
+  const [retryFailed, setRetryFailed] = useState(false);
+  const current = useCallback(() => {
+    const auth = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    if (!mounted.current || auth.isLoading) return false;
+    if (owner && epoch)
+      return (
+        auth.isAuthenticated &&
+        auth.user?.id === owner &&
+        binding?.principalId === owner &&
+        binding.authEpoch === epoch
+      );
+    return !auth.isAuthenticated;
+  }, [owner, epoch]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
@@ -77,84 +157,157 @@ export default function ReviewsScreen() {
   const [comment, setComment] = useState<string>("");
 
   // Загрузка отзывов
-  const { data: reviewsResponse, isLoading } = useQuery({
-    queryKey: ["course-reviews", courseType],
+  const {
+    data: reviewsResponse,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ["course-reviews", courseType, owner ?? "guest", epoch ?? "public"],
     queryFn: async () => {
-      const res = await coursesApi.getReviews(courseType as string);
+      if (!current()) throw new Error("COURSE_REVIEWS_READ_STALE");
+      const res = await coursesApi.getReviews(courseType, current);
+      if (!current()) throw new Error("COURSE_REVIEWS_READ_STALE");
       if (!res.success) throw new Error(res.error ?? "Ошибка загрузки отзывов");
       return res;
     },
-    enabled: !!courseType,
+    enabled: true,
   });
+  const retry = async () => {
+    if (!current() || retryInFlight.current) return;
+    retryInFlight.current = true;
+    setRetryFailed(false);
+    const failed = () => {
+      if (!current()) return;
+      setRetryFailed(true);
+      reportClientError(new Error("COURSE_REVIEWS_REFETCH_FAILED"), {
+        issueKey: "CourseReviews",
+        keys: { operation: "retry" },
+      });
+    };
+    try {
+      const result = await refetch();
+      if (current() && result?.isError) failed();
+    } catch {
+      if (current()) {
+        setRetryFailed(true);
+        reportClientError(new Error("COURSE_REVIEWS_REFETCH_FAILED"), {
+          issueKey: "CourseReviews",
+          keys: { operation: "retry" },
+        });
+      }
+    } finally {
+      retryInFlight.current = false;
+    }
+  };
 
-  // Создание отзыва
-  const createMutation = useMutation({
-    mutationFn: ({ rating, comment }: { rating: number; comment: string }) =>
-      coursesApi.createReview(courseType as string, rating, comment),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["course-reviews", courseType] });
-      queryClient.invalidateQueries({ queryKey: ["courses"] });
-      hapticFeedback.success();
-      setIsEditing(false);
-      setRating(0);
-      setComment("");
-      Alert.alert("Успех", "Отзыв добавлен");
-    },
-    onError: (error) => {
-      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось добавить отзыв");
-    },
-  });
+  const writeInFlight = useRef(false);
+  const unknownRef = useRef(false);
+  const acknowledgedWrites = useRef(new Set<string>());
+  const [writeBusy, setWriteBusy] = useState(false);
+  const [writeUnknown, setWriteUnknown] = useState(false);
+  const [writeNotice, setWriteNotice] = useState("");
+  const runWrite = async (
+    key: string,
+    action: () => Promise<{ success: boolean }>,
+    confirmed: () => void,
+  ) => {
+    if (
+      acknowledgedWrites.current.has(key) ||
+      writeInFlight.current ||
+      unknownRef.current ||
+      !current() ||
+      !owner ||
+      !epoch
+    )
+      return;
+    writeInFlight.current = true;
+    setWriteBusy(true);
+    setWriteNotice("");
+    let acknowledged = false;
+    try {
+      const result = await action();
+      if (!current()) return;
+      if (!result.success) {
+        unknownRef.current = true;
+        setWriteUnknown(true);
+        setWriteNotice(
+          "Результат изменения неизвестен. Обновите страницу перед повторным действием.",
+        );
+        return;
+      }
+      acknowledged = true;
+      acknowledgedWrites.current.add(key);
+      try {
+        confirmed();
+      } catch {
+        if (current())
+          reportClientError(new Error("COURSE_REVIEW_POST_ACK_UI_FAILED"), {
+            issueKey: "CourseReviews",
+            keys: { operation: "post_ack_ui" },
+          });
+      }
+      try {
+        hapticFeedback.success();
+      } catch {
+        if (current())
+          reportClientError(new Error("COURSE_REVIEW_HAPTIC_FAILED"), {
+            issueKey: "CourseReviews",
+            keys: { operation: "haptic" },
+          });
+      }
+      const outcome = await Promise.allSettled([
+        queryClient.invalidateQueries({ queryKey: ["course-reviews", courseType, owner, epoch] }),
+        queryClient.invalidateQueries({ queryKey: ["courses"] }),
+      ]);
+      if (current() && outcome.some((value) => value.status === "rejected")) {
+        reportClientError(new Error("COURSE_REVIEW_CACHE_REFRESH_FAILED"), {
+          issueKey: "CourseReviews",
+          keys: { operation: "invalidate" },
+        });
+        setWriteNotice("Изменение сохранено. Список обновится при следующем открытии.");
+      }
+    } catch {
+      if (!current()) return;
+      if (!acknowledged) {
+        unknownRef.current = true;
+        setWriteUnknown(true);
+        reportClientError(new Error("COURSE_REVIEW_WRITE_OUTCOME_UNKNOWN"), {
+          issueKey: "CourseReviews",
+          keys: { operation: "write" },
+        });
+        setWriteNotice(
+          "Результат изменения неизвестен. Обновите страницу перед повторным действием.",
+        );
+      } else {
+        reportClientError(new Error("COURSE_REVIEW_POST_ACK_LOCAL_FAILED"), {
+          issueKey: "CourseReviews",
+          keys: { operation: "post_ack" },
+        });
+        setWriteNotice("Изменение сохранено. Список обновится при следующем открытии.");
+      }
+    } finally {
+      writeInFlight.current = false;
+      if (current()) setWriteBusy(false);
+    }
+  };
 
-  // Обновление отзыва
-  const updateMutation = useMutation({
-    mutationFn: ({
-      reviewId,
-      rating,
-      comment,
-    }: {
-      reviewId: string;
-      rating: number;
-      comment: string;
-    }) => coursesApi.updateReview(reviewId, rating, comment),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["course-reviews", courseType] });
-      queryClient.invalidateQueries({ queryKey: ["courses"] });
-      hapticFeedback.success();
-      setIsEditing(false);
-      setEditingReviewId(null);
-      setRating(0);
-      setComment("");
-      Alert.alert("Успех", "Отзыв обновлен");
-    },
-    onError: (error) => {
-      Alert.alert(
-        "Ошибка",
-        error instanceof Error ? error.message : "Не удалось обновить отзыв",
-      );
-    },
-  });
-
-  // Удаление отзыва
-  const deleteMutation = useMutation({
-    mutationFn: (reviewId: string) => coursesApi.deleteReview(reviewId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["course-reviews", courseType] });
-      queryClient.invalidateQueries({ queryKey: ["courses"] });
-      hapticFeedback.success();
-      Alert.alert("Успех", "Отзыв удален");
-    },
-    onError: (error) => {
-      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось удалить отзыв");
-    },
-  });
-
-  const reviewsData = reviewsResponse?.data;
+  const reviewsData = isError ? undefined : reviewsResponse?.data;
   const reviews = reviewsData?.reviews || [];
   const userStatus = reviewsData?.userStatus;
-  const canLeaveReview =
-    userStatus?.hasCompleted && !userStatus?.userReview && !isEditing;
+  const canLeaveReview = Boolean(
+    !acknowledgedWrites.current.has("create") &&
+      owner &&
+      epoch &&
+      userStatus?.hasCompleted &&
+      !userStatus.userReview &&
+      !isEditing &&
+      !writeUnknown,
+  );
 
   const handleStartEdit = (review: CourseReview) => {
+    if (!current() || writeInFlight.current || unknownRef.current || review.user.id !== owner)
+      return;
     setIsEditing(true);
     setEditingReviewId(review.id);
     setRating(review.rating || 0);
@@ -162,6 +315,7 @@ export default function ReviewsScreen() {
   };
 
   const handleCancelEdit = () => {
+    if (!current() || writeInFlight.current || unknownRef.current) return;
     setIsEditing(false);
     setEditingReviewId(null);
     setRating(0);
@@ -169,25 +323,70 @@ export default function ReviewsScreen() {
   };
 
   const handleSubmit = () => {
-    if (rating === 0) {
-      Alert.alert("Ошибка", "Пожалуйста, выберите рейтинг");
+    if (!current() || writeInFlight.current || unknownRef.current || !owner || !epoch) return;
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      Alert.alert("Ошибка", "Выберите рейтинг от 1 до 5.");
       return;
     }
-
+    if (comment.length > 1000) {
+      Alert.alert("Ошибка", "Комментарий не должен превышать 1000 символов.");
+      return;
+    }
+    const trimmed = comment.trim();
     if (editingReviewId) {
-      updateMutation.mutate({ reviewId: editingReviewId, rating, comment });
+      const id = editingReviewId;
+      void runWrite(
+        `update:${id}`,
+        () => coursesApi.updateReview(id, rating, trimmed),
+        () => {
+          setIsEditing(false);
+          setEditingReviewId(null);
+          setRating(0);
+          setComment("");
+          Alert.alert("Успех", "Отзыв обновлён");
+        },
+      );
     } else {
-      createMutation.mutate({ rating, comment });
+      if (!userStatus?.hasCompleted || userStatus.userReview) return;
+      void runWrite(
+        "create",
+        () => coursesApi.createReview(courseType, rating, trimmed),
+        () => {
+          setIsEditing(false);
+          setRating(0);
+          setComment("");
+          Alert.alert("Успех", "Отзыв добавлен");
+        },
+      );
     }
   };
-
   const handleDelete = (reviewId: string) => {
+    if (
+      !current() ||
+      writeInFlight.current ||
+      unknownRef.current ||
+      !owner ||
+      !epoch ||
+      !reviews.some((review) => review.id === reviewId && review.user.id === owner)
+    )
+      return;
     Alert.alert("Удалить отзыв?", "Вы уверены что хотите удалить свой отзыв?", [
       { text: "Отмена", style: "cancel" },
       {
         text: "Удалить",
         style: "destructive",
-        onPress: () => deleteMutation.mutate(reviewId),
+        onPress: () => {
+          if (!current() || unknownRef.current || writeInFlight.current) return;
+          void runWrite(
+            `delete:${reviewId}`,
+            () => coursesApi.deleteReview(reviewId),
+            () => {
+              setIsEditing(false);
+              setEditingReviewId(null);
+              Alert.alert("Успех", "Отзыв удалён");
+            },
+          );
+        },
       },
     ]);
   };
@@ -197,15 +396,34 @@ export default function ReviewsScreen() {
       <SafeAreaView style={styles.container} edges={["top"]}>
         <Stack.Screen options={{ title: "Загрузка..." }} />
         <AppBackButton style={styles.backRow} onPress={() => router.back()} />
-        <Loading
-          fullScreen
-          embedded
-          message="Загрузка отзывов..."
-        />
+        <Loading fullScreen embedded message="Загрузка отзывов..." />
       </SafeAreaView>
     );
   }
 
+  if (isError)
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <Stack.Screen options={{ title: "Ошибка загрузки" }} />
+        <AppBackButton
+          style={styles.backRow}
+          onPress={() => {
+            if (current()) router.back();
+          }}
+        />
+        <View style={styles.emptyState}>
+          <Text accessibilityRole="alert" style={styles.emptyText}>
+            Не удалось загрузить отзывы.
+          </Text>
+          {retryFailed && (
+            <Text accessibilityRole="alert" style={styles.emptyText}>
+              Не удалось повторно загрузить отзывы. Попробуйте ещё раз.
+            </Text>
+          )}
+          <Button label="Повторить загрузку отзывов" onPress={() => void retry()} />
+        </View>
+      </SafeAreaView>
+    );
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Stack.Screen
@@ -216,6 +434,11 @@ export default function ReviewsScreen() {
       <AppBackButton style={styles.backRow} onPress={() => router.back()} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Отзывы к курсу &quot;{reviewsData?.courseName}&quot;</Text>
+        {!!writeNotice && (
+          <Text accessibilityRole="alert" style={styles.emptyText}>
+            {writeNotice}
+          </Text>
+        )}
 
         {/* Форма для создания/редактирования отзыва */}
         {(canLeaveReview || isEditing) && (
@@ -236,23 +459,19 @@ export default function ReviewsScreen() {
                 value={comment}
                 onChangeText={setComment}
                 placeholder="Поделитесь своими впечатлениями о курсе..."
+                accessibilityLabel="Комментарий"
+                accessibilityHint="Поделитесь впечатлениями о курсе"
                 maxLength={1000}
                 multiline
                 numberOfLines={4}
-                editable={!createMutation.isPending && !updateMutation.isPending}
+                editable={!writeBusy && !writeUnknown}
               />
               <Text style={styles.charCount}>{comment.length}/1000</Text>
             </View>
 
             <View style={styles.formActions}>
               <Button
-                label={
-                  createMutation.isPending || updateMutation.isPending
-                    ? "Сохранение..."
-                    : isEditing
-                      ? "Сохранить"
-                      : "Отправить"
-                }
+                label={writeBusy ? "Сохранение..." : isEditing ? "Сохранить" : "Отправить"}
                 flex={1}
                 height={42}
                 fontFamily={FONTS.impact}
@@ -263,13 +482,20 @@ export default function ReviewsScreen() {
                 verticalPadding={12}
                 borderRadius={12}
                 onPress={handleSubmit}
-                disabled={createMutation.isPending || updateMutation.isPending || rating === 0}
+                disabled={
+                  writeBusy ||
+                  writeUnknown ||
+                  acknowledgedWrites.current.has(
+                    editingReviewId ? `update:${editingReviewId}` : "create",
+                  ) ||
+                  rating === 0
+                }
               />
               {isEditing && (
                 <Pressable
                   style={styles.cancelButton}
                   onPress={handleCancelEdit}
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  disabled={writeBusy || writeUnknown}
                 >
                   <Text style={styles.cancelButtonText}>Отмена</Text>
                 </Pressable>
@@ -319,11 +545,7 @@ export default function ReviewsScreen() {
                         <Pressable
                           style={styles.actionButton}
                           onPress={() => handleStartEdit(review)}
-                          disabled={
-                            createMutation.isPending ||
-                            updateMutation.isPending ||
-                            deleteMutation.isPending
-                          }
+                          disabled={writeBusy || writeUnknown}
                           hitSlop={8}
                         >
                           <Text style={styles.actionIcon}>✏️</Text>
@@ -331,11 +553,7 @@ export default function ReviewsScreen() {
                         <Pressable
                           style={styles.actionButton}
                           onPress={() => handleDelete(review.id)}
-                          disabled={
-                            createMutation.isPending ||
-                            updateMutation.isPending ||
-                            deleteMutation.isPending
-                          }
+                          disabled={writeBusy || writeUnknown}
                           hitSlop={8}
                         >
                           <Text style={styles.actionIcon}>🗑️</Text>

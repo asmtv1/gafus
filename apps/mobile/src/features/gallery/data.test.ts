@@ -2,7 +2,8 @@ import { expect, it, vi } from "vitest";
 import { z } from "zod";
 
 const randomUUID = vi.hoisted(() =>
-  vi.fn()
+  vi
+    .fn()
     .mockReturnValueOnce("550e8400-e29b-41d4-a716-446655440001")
     .mockReturnValueOnce("550e8400-e29b-41d4-a716-446655440002"),
 );
@@ -11,6 +12,15 @@ vi.mock("@react-navigation/native", () => ({ useIsFocused: () => true }));
 vi.mock("@/shared/lib/api/gallery", () => ({ galleryApi: {} }));
 vi.mock("@/shared/stores/authStore", () => ({ useAuthStore: vi.fn() }));
 vi.mock("./session", () => ({ registerGalleryClient: vi.fn() }));
+// This UUID-only test must not evaluate the real native/offline gallery read
+// stack (including expo-secure-store) in a Node Vitest worker.
+vi.mock("./privateRead", () => ({
+  privateGalleryReads: vi.fn(),
+  projectGalleryPage: vi.fn(),
+  galleryExpiryDelay: vi.fn(),
+  verifiedGalleryActor: vi.fn(),
+  sameGalleryActor: vi.fn(),
+}));
 
 import { requestId } from "./data";
 

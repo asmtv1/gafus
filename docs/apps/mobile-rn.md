@@ -2,6 +2,8 @@
 
 `apps/mobile` - текущее мобильное приложение GAFUS для iOS и Android на Expo Router.
 
+Technical docs belong in root `docs/`, not in `apps/mobile/docs`. [Chat 2.0 Mobile message-list UI checkpoint from 2026-10-29](../features/chat2-mobile-messages-ui-2026-10-29.md) is historical, not the current source of truth.
+
 ## Стек
 
 - Expo `54.0.34`

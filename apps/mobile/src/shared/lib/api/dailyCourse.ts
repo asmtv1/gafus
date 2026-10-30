@@ -1,34 +1,27 @@
 import { apiClient, type ApiResponse } from "./client";
 import type { UserStep } from "./training";
+import type {
+  DailyCourseDayWire,
+  DailyCourseDayStepWire,
+  TodayDailyCourseWire,
+} from "../../../../../../packages/types/src/data/training";
 
-export interface TodayDailyCourseResponse {
-  mskDate: string;
-  scheduleId: string | null;
-  userStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "RESET";
-  day: {
-    id: string;
-    title: string;
-    description: string;
-    type: string;
-    estimatedDuration: number;
-    theoryMinutes: number;
-    stepsCount: number;
-  } | null;
-  stepsSummary: {
-    total: number;
-    completed: number;
-  };
-}
+/** Existing Mobile export for the canonical read-only `/today` JSON response. */
+export type TodayDailyCourseResponse = TodayDailyCourseWire;
 
-export interface DailyCourseDayResponse {
-  scheduleId: string;
-  mskDate: string;
-  trainingDayId: string;
-  title: string;
-  description: string;
-  type: string;
-  userStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "RESET";
-  steps: UserStep[];
+/** Mobile retains its existing nested UserStep/offline-compatible shape.
+ * Only matching GET /daily-course/day wire fields become canonical aliases.
+ */
+export interface DailyCourseDayResponse extends Pick<DailyCourseDayWire,
+  "scheduleId" | "mskDate" | "trainingDayId" | "title" | "description" | "type"
+> {
+  // Keep Mobile's narrower legacy status view rather than widening to PAUSED.
+  userStatus: Extract<`${DailyCourseDayWire["userStatus"]}`,
+    "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "RESET"
+  >;
+  steps: (UserStep & Pick<DailyCourseDayStepWire,
+    "id" | "stepId" | "stepIndex" | "remainingSec" | "completedAt"
+  >)[];
 }
 
 export interface DailyCourseStepActionParams {

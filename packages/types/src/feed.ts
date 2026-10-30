@@ -2,9 +2,10 @@
 export const FEED_LIMITS = {
   postCharacters: 5_000,
   commentCharacters: 2_000,
+  maxCommentAttachments: 10,
   maxAttachments: 10,
   maxVideos: 3,
-  videoSeconds: 60,
+  videoSeconds: 120,
   videoBytes: 200 * 1024 * 1024,
   photoBytes: 10 * 1024 * 1024,
   photoPixels: 50_000_000,
@@ -19,7 +20,6 @@ export const FEED_LIMITS = {
   viewVisibleFraction: 0.5,
   viewVisibleMilliseconds: 2_000,
   maxRequestBytes: 64 * 1024,
-  hlsSegmentMaxBytes: 1_750_000,
 } as const;
 
 export const FEED_REACTIONS = ["❤️", "😂", "🐶", "🔥", "👍"] as const;
@@ -30,6 +30,21 @@ export type FeedMediaKind = "photo" | "video";
 export type FeedPostStatus = "draft" | "pending" | "published" | "failed" | "deleted";
 export type FeedRevisionStatus = "draft" | "pending" | "ready" | "failed" | "superseded";
 export type FeedMediaStatus = "reserved" | "uploaded" | "processing" | "ready" | "failed" | "cancelled" | "expired";
+/** Percent of fully uploaded files, NOT bytes or transcoding progress.
+ * A refresh has no live byte counter; never invent server processing percentages. */
+export function getFeedUploadedFilesPercent(media: readonly { status?: unknown }[]): number | null {
+  if (media.length === 0) return null;
+  let uploaded = 0;
+  for (const item of media) {
+    if (item.status === "uploaded" || item.status === "processing" || item.status === "ready") {
+      uploaded += 1;
+    } else if (item.status !== "reserved") {
+      // Failed/expired/unknown statuses are not reliable upload receipts.
+      return null;
+    }
+  }
+  return Math.round(uploaded * 100 / media.length);
+}
 export type FeedNotificationKind = "author_post" | "comment" | "reply" | "post_reaction" | "comment_reaction";
 /** Ordering of the main publication feed; personal lists keep their own chronology. */
 export const FEED_SORT_OPTIONS = ["smart", "new", "popular", "discussed"] as const;
@@ -88,9 +103,15 @@ export interface FeedMediaDto {
   width: number | null;
   height: number | null;
   durationSeconds: number | null;
+  /** 360px metadata-free WebP. */
+  smallUrl?: string | null;
+  /** 720px metadata-free WebP. */
   thumbUrl: string | null;
+  /** 1440px metadata-free WebP. */
   fullUrl: string | null;
   posterUrl: string | null;
+  /** Progressive MP4, signed along with the post instead of a playback ticket. */
+  mp4Urls?: { 360: string; 720?: string; 1080?: string } | null;
   urlsExpireAt: string | null;
   /** Only returned for the owner in editor/pending responses. */
   errorCode?: string | null;
@@ -189,6 +210,12 @@ export interface FeedPollOptionDto {
   votes: number | null;
   isCorrect?: boolean;
 }
+export interface FeedPollParticipantsPageDto {
+  optionId: string;
+  items: { id: string; username: string; name: string; avatarUrl: string | null }[];
+  nextCursor: string | null;
+}
+
 export interface FeedPollDto {
   id: string;
   postId: string;
@@ -201,6 +228,8 @@ export interface FeedPollDto {
   shuffleOptions: boolean;
   endDate: string | null;
   closed: boolean;
+  /** Author-only ability to manually finish a published poll. */
+  canClose?: boolean;
   totalVotes: number | null;
   myOptionIds: string[];
   options: FeedPollOptionDto[];
@@ -220,6 +249,7 @@ export interface FeedPostEditorDto extends FeedPostDto {
 }
 
 export interface FeedCommentDto {
+  media?: FeedMediaDto[];
   moderationState?: string;
   id: string;
   postId: string;
@@ -328,6 +358,7 @@ export interface FeedPublishInput {
 }
 
 export interface FeedReserveUploadInput {
+  purpose?: "comment";
   filename: string;
   kind: FeedMediaKind;
   declaredMime: FeedMimeType;
@@ -346,6 +377,7 @@ export interface FeedUploadRetryInput {
 
 export interface FeedCommentInput {
   text: string;
+  mediaIds?: string[];
   replyToId?: string | null;
   clientRequestId: string;
 }
@@ -425,12 +457,25 @@ export function createFeedClient(transport: FeedTransport) {
         body,
       }),
     getPoll: (postId: string) => transport<FeedPollDto>(`posts/${encodeId(postId)}/poll`),
+    /** Author-only draft read: an absent poll is HTTP 200/null. */
+    getDraftPoll: (postId: string) =>
+      transport<FeedPollDto | null>("posts/" + encodeId(postId) + "/draft-poll"),
+    closePoll: (postId: string) => transport<FeedPollDto>(
+      `posts/${encodeId(postId)}/poll/close`, { method: "POST", body: {} }),
+    listPollVoters: (postId: string, optionId: string, cursor?: string | null) =>
+      transport<FeedPollParticipantsPageDto>(
+        `posts/${encodeId(postId)}/poll/options/${encodeId(optionId)}/voters` +
+        `?pageSize=10${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`),
     savePoll: (postId: string, body: FeedPollSaveInput) =>
       transport<FeedPollDto>(`posts/${encodeId(postId)}/poll`, { method: "PUT", body }),
     removePoll: (postId: string) =>
       transport<{ removed: boolean }>(`posts/${encodeId(postId)}/poll`, { method: "DELETE", body: {} }),
     votePoll: (postId: string, body: FeedPollVoteInput) =>
       transport<FeedPollDto>(`posts/${encodeId(postId)}/poll/vote`, { method: "POST", body }),
+    changePollVote: (postId: string, body: FeedPollVoteInput) =>
+      transport<FeedPollDto>(`posts/${encodeId(postId)}/poll/vote`, { method: "PUT", body }),
+    cancelPollVote: (postId: string) =>
+      transport<FeedPollDto>(`posts/${encodeId(postId)}/poll/vote`, { method: "DELETE", body: {} }),
     publishPost: (postId: string, body: FeedPublishInput) =>
       transport<FeedPostEditorDto>(`posts/${encodeId(postId)}/publish`, {
         method: "POST",
@@ -505,7 +550,7 @@ export function createFeedClient(transport: FeedTransport) {
         method: "POST",
         body: {},
       }),
-    requestMediaFallback: (mediaId: string, variant: "thumb" | "full" | "poster") =>
+    requestMediaFallback: (mediaId: string, variant: "thumb" | "full" | "poster" | "video360" | "video720" | "video1080") =>
       transport<{ url: string; source: "cloudru"; expiresAt: string }>(`media/${encodeId(mediaId)}/fallback`, {
         method: "POST", body: { variant },
       }),
@@ -618,7 +663,7 @@ export const FEED_ERROR_MESSAGES = {
   EMPTY_POST: "Добавьте текст, фото или видео.",
   ATTACHMENT_LIMIT: "К публикации можно добавить не больше 10 вложений.",
   VIDEO_LIMIT: "К публикации можно добавить не больше трёх видео.",
-  VIDEO_TOO_LONG: "Видео должно быть не длиннее 60 секунд.",
+  VIDEO_TOO_LONG: "Видео должно быть не длиннее 120 секунд.",
   UPLOAD_TOO_LARGE: "Файл превышает допустимый размер.",
   EDIT_WINDOW_CLOSED: "Изменить публикацию можно только в течение часа после публикации.",
   VERSION_CONFLICT: "Публикация уже изменилась на другом устройстве. Обновите редактор.",

@@ -3,12 +3,13 @@
  * Endpoints для работы с питомцами: список, создание, обновление, удаление
  */
 import { Hono, type Context } from "hono";
+import type { TypedResponse } from "hono";
+import type { PetListRead, PetDetailRead } from "../../../../../packages/types/src/data/pet";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
+import { petEditValidationError } from "./g1-field-validation";
 
 import {
-  getUserPets,
-  getPetById,
   createPet,
   updatePet,
   deletePet,
@@ -24,6 +25,13 @@ import {
   setPetTargetWeight,
 } from "@gafus/core/services/pets";
 import { createWebLogger } from "@gafus/logger";
+import { presentOwnedPetPhoto } from "./present-pet-photo";
+import { prepareHonoPetPhoto } from "./pet-photo-file";
+import { readPetsApplication } from "../../modules/pets/composition/read-pets.js";
+import { isValidCreatePetBirthDate, isValidBirthDateEditWire } from "./petCreateBirthDate";
+import {
+  isValidOwnedPetWeightId, type OwnedPetWeightHistoryResponse,
+} from "@gafus/types";
 import {
   PET_DOCUMENT_ALLOWED_MIME_TYPES,
   PET_DOCUMENT_MAX_SIZE_BYTES,
@@ -34,6 +42,18 @@ const MAX_PET_PHOTO_SIZE = 2 * 1024 * 1024; // 2MB
 const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 const logger = createWebLogger("api-pets");
+
+// Only a structured Core code is trusted; never interpolate a supplied URL,
+// provider marker, Core message, stack or credentials into a client response.
+const DIRECT_PHOTO_URL_DENIED = {
+  success: false as const,
+  code: "PET_MEDIA_DIRECT_PHOTO_URL_DENIED" as const,
+  error: "Загрузите фото питомца отдельным запросом",
+};
+function isDirectPhotoUrlDenied(error: unknown): boolean {
+  return error instanceof Error &&
+    (error as Error & { code?: unknown }).code === DIRECT_PHOTO_URL_DENIED.code;
+}
 
 function mapPetDocumentError(error: unknown): { status: number; error: string; code: string } {
   const message = error instanceof Error ? error.message : "";
@@ -78,27 +98,50 @@ const createPetSchema = z.object({
   name: z.string().min(1, "Имя питомца обязательно"),
   type: z.string().min(1, "Тип питомца обязателен"),
   breed: z.string().min(1, "Порода обязательна"),
-  birthDate: z.string().min(1, "Дата рождения обязательна"),
-  heightCm: z.number().optional(),
-  weightKg: z.number().optional(),
-  neckGirthCm: z.number().optional(),
-  muzzleGirthCm: z.number().optional(),
-  bellyGirthCm: z.number().optional(),
+  birthDate: z.string().min(1, "Дата рождения обязательна").refine(isValidCreatePetBirthDate, {
+    message: "Дата рождения должна быть существующей датой ГГГГ-ММ-ДД и не позже текущей даты UTC",
+  }),
+  heightCm: z.number().finite().positive().optional(),
+  weightKg: z.number().finite().min(0.1).max(200).optional(),
+  neckGirthCm: z.number().finite().positive().optional(),
+  muzzleGirthCm: z.number().finite().positive().optional(),
+  bellyGirthCm: z.number().finite().positive().optional(),
   photoUrl: z.string().optional(),
   notes: z.string().optional(),
+  // AG4 G05: optional JSON UUID-v4 per logical create intent (not HTTP attempt).
+  clientRequestId: z
+    .string()
+    .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
+    .transform((value) => value.toLowerCase())
+    .optional(),
 });
 
+const nullablePetMeasurement = z.number().finite().positive().nullable().optional();
 const updatePetSchema = z.object({
   showInProfile: z.boolean().optional(),
-  name: z.string().optional(),
-  type: z.string().optional(),
-  breed: z.string().optional(),
-  birthDate: z.string().optional(),
-  heightCm: z.number().optional(),
-  weightKg: z.number().optional(),
-  neckGirthCm: z.number().optional(),
-  muzzleGirthCm: z.number().optional(),
-  bellyGirthCm: z.number().optional(),
+  name: z.string().min(1).optional(),
+  type: z.string().min(1).optional(),
+  breed: z.string().min(1).optional(),
+  // Birth date is required/non-null in Prisma; allow existing ISO clients.
+  birthDate: z
+    .string()
+    .min(1)
+    .refine(isValidBirthDateEditWire, {
+      message: "Некорректная дата рождения",
+    })
+    .optional(),
+  heightCm: nullablePetMeasurement,
+  // Weight is managed separately; explicit 400 is safer than silently ignoring PUT.
+  weightKg: z
+    .any()
+    .transform((value, ctx): undefined => {
+      if (value !== undefined) ctx.addIssue({ code: "custom", message: "UNSUPPORTED_FIELD" });
+      return undefined;
+    })
+    .optional(),
+  neckGirthCm: nullablePetMeasurement,
+  muzzleGirthCm: nullablePetMeasurement,
+  bellyGirthCm: nullablePetMeasurement,
   photoUrl: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -145,7 +188,7 @@ async function handleRenamePetDocument(c: RenamePetDocumentContext) {
   } catch (error) {
     const mappedError = mapPetDocumentError(error);
     if (mappedError.status >= 500) {
-      logger.error("Error renaming pet document", error as Error);
+      logger.error("Error renaming pet document", new Error("PET_DOCUMENT_RENAME_FAILED"));
     }
     return c.json(
       { success: false, error: mappedError.error, code: mappedError.code },
@@ -159,36 +202,127 @@ async function handleRenamePetDocument(c: RenamePetDocumentContext) {
 petsRoutes.get("/", async (c) => {
   try {
     const user = c.get("user");
-    const pets = await getUserPets(user.id);
-    return c.json({ success: true, data: pets });
-  } catch (error) {
-    logger.error("Error fetching pets", error as Error);
+    const pets = await readPetsApplication.list({ actorUserId: user.id });
+    const presented = await Promise.all(pets.map(presentOwnedPetPhoto));
+    return c.json({ success: true, data: presented }, 200, {
+      "Cache-Control": "private, no-store",
+    }) satisfies Response & TypedResponse<PetListRead, 200, "json">;
+  } catch {
+    // The Core already masks the original failure; avoid a synthetic stack.
+    logger.error("PET_LIST_FAILED");
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
 
 // ==================== POST /pets ====================
 // Создать питомца
-petsRoutes.post("/", zValidator("json", createPetSchema), async (c) => {
-  try {
-    const user = c.get("user");
-    const data = c.req.valid("json");
-    const pet = await createPet(user.id, data);
-    return c.json({ success: true, data: pet }, 201);
-  } catch (error) {
-    logger.error("Error creating pet", error as Error);
-    return c.json({ success: false, error: "Не удалось создать питомца" }, 500);
-  }
-});
+petsRoutes.post(
+  "/",
+  async (c, next) => {
+    // Explicitly reject misleading unsupported transport instead of silently
+    // creating an unprotected Pet. AG4 accepts only optional JSON UUIDv4.
+    if (c.req.header("Idempotency-Key") !== undefined) {
+      return c.json(
+        {
+          success: false,
+          code: "UNSUPPORTED_IDEMPOTENCY_TRANSPORT",
+          error: "Используйте clientRequestId в JSON запроса",
+        },
+        400,
+      );
+    }
+    await next();
+  },
+  zValidator("json", createPetSchema, (result, c) => {
+    if (
+      !result.success &&
+      result.error.issues.some((issue) => issue.path[0] === "clientRequestId")
+    ) {
+      return c.json(
+        {
+          success: false,
+          code: "INVALID_CLIENT_REQUEST_ID",
+          error: "clientRequestId должен быть UUID версии 4",
+        },
+        400,
+      );
+    }
+  }),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const data = c.req.valid("json");
+      const pet = await createPet(user.id, data);
+      // Symbol is non-enumerable and never enters JSON, preserving Pet DTO.
+      const replayed =
+        (pet as unknown as Record<symbol, unknown>)[Symbol.for("gafus.pet.create.replayed")] ===
+        true;
+      return c.json(
+        { success: true, data: pet },
+        201,
+        replayed ? { "Idempotent-Replayed": "true" } : undefined,
+      );
+    } catch (error) {
+      if (isDirectPhotoUrlDenied(error))
+        return c.json(DIRECT_PHOTO_URL_DENIED, 400);
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? (error as { code?: unknown }).code
+          : undefined;
+      if (code === "PET_CREATE_REQUEST_CONFLICT") {
+        return c.json({ success: false, code, error: "Повтор запроса с другим содержимым" }, 409);
+      }
+      if (code === "PET_CREATE_RESULT_UNAVAILABLE") {
+        return c.json(
+          { success: false, code, error: "Ранее созданный питомец больше не существует" },
+          409,
+        );
+      }
+      if (code === "PET_CREATE_RESULT_UNCONFIRMED") {
+        return c.json(
+          { success: false, code, error: "Не удалось подтвердить результат создания" },
+          503,
+        );
+      }
+      if (code === "INVALID_CLIENT_REQUEST_ID") {
+        return c.json({ success: false, code, error: "Недопустимый clientRequestId" }, 400);
+      }
+      logger.error("Error creating pet", new Error("PET_CREATE_FAILED"));
+      return c.json({ success: false, error: "Не удалось создать питомца" }, 500);
+    }
+  },
+);
 
 // ==================== GET /pets/:petId ====================
 // История веса и цель доступны только владельцу питомца.
 petsRoutes.get("/:petId/weight", async (c) => {
   const user = c.get("user") as { id: string };
-  const data = await getPetWeightHistory(c.req.param("petId"), user.id);
-  return data
-    ? c.json({ success: true, data })
-    : c.json({ success: false, error: "Питомец не найден" }, 404);
+  const petId = c.req.param("petId");
+  // Preserve the existing owner-obscuring 404 for invalid/missing identifiers.
+  const missing: OwnedPetWeightHistoryResponse = {
+    success: false, error: "Питомец не найден",
+  };
+  if (!isValidOwnedPetWeightId(petId)) return c.json(missing, 404);
+  const data = await getPetWeightHistory(petId, user.id);
+  if (!data) return c.json(missing, 404);
+  // Core keeps Date values; the existing JSON route serializes them as ISO.
+  // Make that wire conversion explicit while retaining the original row fields
+  // and owner-controlled query/order semantics.
+  const found: OwnedPetWeightHistoryResponse = {
+    success: true,
+    data: {
+      currentWeightKg: data.currentWeightKg,
+      targetWeightKg: data.targetWeightKg,
+      entries: data.entries.map(entry => ({
+        ...entry,
+        measuredAt: entry.measuredAt instanceof Date
+          ? entry.measuredAt.toISOString() : entry.measuredAt,
+        createdAt: entry.createdAt instanceof Date
+          ? entry.createdAt.toISOString() : entry.createdAt,
+      })),
+    },
+  };
+  return c.json(found);
 });
 
 petsRoutes.post("/:petId/weight", zValidator("json", weightEntrySchema), async (c) => {
@@ -233,16 +367,22 @@ petsRoutes.get("/:petId", async (c) => {
   try {
     const user = c.get("user");
     const petId = c.req.param("petId");
-    const pet = await getPetById(petId, user.id);
+    const pet = await readPetsApplication.detail({ petId, actorUserId: user.id });
 
     if (!pet) {
-      return c.json({ success: false, error: "Питомец не найден" }, 404);
+      return c.json({ success: false, error: "Питомец не найден" }, 404, {
+        "Cache-Control": "private, no-store",
+      });
     }
 
-    return c.json({ success: true, data: pet });
-  } catch (error) {
-    logger.error("Error fetching pet", error as Error);
-    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    return c.json({ success: true, data: await presentOwnedPetPhoto(pet) }, 200, {
+      "Cache-Control": "private, no-store",
+    }) satisfies Response & TypedResponse<PetDetailRead, 200, "json">;
+  } catch {
+    logger.error("Error fetching pet", new Error("PET_DETAIL_FAILED"));
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500, {
+      "Cache-Control": "private, no-store",
+    });
   }
 });
 
@@ -252,6 +392,12 @@ petsRoutes.post("/:petId/photo", async (c) => {
   try {
     const user = c.get("user");
     const petId = c.req.param("petId");
+    // Deny foreign or deleted pets before multipart parsing and S3 IO.
+    // Core repeats the owner check before its locked SQL mutation.
+    if (!await readPetsApplication.detail({ petId, actorUserId: user.id })) {
+      return c.json({success:false,error:"Питомец не найден",code:"PET_NOT_FOUND"},404,
+        {"Cache-Control":"private, no-store"});
+    }
     const body = await c.req.parseBody();
     const file = body["file"];
 
@@ -274,12 +420,40 @@ petsRoutes.post("/:petId/photo", async (c) => {
       return c.json({ success: false, error: "Файл слишком большой. Максимум 2 МБ" }, 400);
     }
 
-    const photoUrl = await updatePetPhoto(petId, user.id, f);
-    return c.json({ success: true, data: { photoUrl } });
-  } catch (error) {
-    logger.error("Error uploading pet photo", error as Error);
+    let normalized: File;
+    try {
+      normalized = await prepareHonoPetPhoto(f);
+    } catch {
+      return c.json({ success:false, code:"INVALID_PET_IMAGE",
+        error:"Некорректное изображение питомца" },400,
+        {"Cache-Control":"private, no-store"});
+    }
+    const stored = await updatePetPhoto(petId, user.id, normalized);
+    // Core persists a provider marker; only the authenticated HTTP response
+    // may expose the short-lived signed URL, never the storage marker.
+    const { photoUrl } = await presentOwnedPetPhoto({ photoUrl: stored });
+    return c.json({ success: true, data: { photoUrl } }, 200,
+      { "Cache-Control": "private, no-store" });
+  } catch {
+    logger.error("Error uploading pet photo", new Error("PET_PHOTO_UPLOAD_FAILED"));
     return c.json({ success: false, error: "Ошибка загрузки фото питомца" }, 500);
   }
+});
+
+// Pet-document metadata and ephemeral download links must never enter a shared
+// or persistent HTTP cache. This applies to validation and error branches too.
+// Gallery/Moments image caching is a separate contract and remains unchanged.
+petsRoutes.use("/:petId/documents", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  c.header("Pragma", "no-cache");
+  c.header("X-Content-Type-Options", "nosniff");
+  await next();
+});
+petsRoutes.use("/:petId/documents/*", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  c.header("Pragma", "no-cache");
+  c.header("X-Content-Type-Options", "nosniff");
+  await next();
 });
 
 // ==================== GET /pets/:petId/documents ====================
@@ -293,7 +467,7 @@ petsRoutes.get("/:petId/documents", async (c) => {
   } catch (error) {
     const mappedError = mapPetDocumentError(error);
     if (mappedError.status >= 500) {
-      logger.error("Error fetching pet documents", error as Error);
+      logger.error("Error fetching pet documents", new Error("PET_DOCUMENT_LIST_FAILED"));
     }
     return c.json(
       { success: false, error: mappedError.error, code: mappedError.code },
@@ -341,7 +515,7 @@ petsRoutes.post("/:petId/documents", async (c) => {
   } catch (error) {
     const mappedError = mapPetDocumentError(error);
     if (mappedError.status >= 500) {
-      logger.error("Error uploading pet document", error as Error);
+      logger.error("Error uploading pet document", new Error("PET_DOCUMENT_UPLOAD_FAILED"));
     }
     return c.json(
       { success: false, error: mappedError.error, code: mappedError.code },
@@ -365,8 +539,8 @@ petsRoutes.delete("/:petId/documents/:documentId", async (c) => {
       );
     }
     return c.json({ success: true });
-  } catch (error) {
-    logger.error("Error deleting pet document", error as Error);
+  } catch {
+    logger.error("Error deleting pet document", new Error("PET_DOCUMENT_DELETE_FAILED"));
     return c.json(
       { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
       500,
@@ -397,8 +571,11 @@ petsRoutes.get("/:petId/documents/:documentId/download", async (c) => {
       );
     }
     return c.json({ success: true, data: downloadPayload });
-  } catch (error) {
-    logger.error("Error preparing pet document download", error as Error);
+  } catch {
+    logger.error(
+      "Error preparing pet document download",
+      new Error("PET_DOCUMENT_DOWNLOAD_FAILED"),
+    );
     return c.json(
       { success: false, error: "Внутренняя ошибка сервера", code: "INTERNAL_SERVER_ERROR" },
       500,
@@ -408,23 +585,31 @@ petsRoutes.get("/:petId/documents/:documentId/download", async (c) => {
 
 // ==================== PUT /pets/:petId ====================
 // Обновить питомца
-petsRoutes.put("/:petId", zValidator("json", updatePetSchema), async (c) => {
-  try {
-    const user = c.get("user");
-    const petId = c.req.param("petId");
-    const data = c.req.valid("json");
-    const pet = await updatePet(petId, user.id, data);
+petsRoutes.put(
+  "/:petId",
+  zValidator("json", updatePetSchema, petEditValidationError),
+  async (c) => {
+    try {
+      const user = c.get("user");
+      const petId = c.req.param("petId");
+      if (!petId)
+        return c.json({ success: false, code: "PET_NOT_FOUND", error: "Питомец не найден" }, 404);
+      const data = c.req.valid("json");
+      const pet = await updatePet(petId, user.id, data);
 
-    if (!pet) {
-      return c.json({ success: false, error: "Питомец не найден" }, 404);
+      if (!pet) {
+        return c.json({ success: false, code: "PET_NOT_FOUND", error: "Питомец не найден" }, 404);
+      }
+
+      return c.json({ success: true, data: pet });
+    } catch (error) {
+      if (isDirectPhotoUrlDenied(error))
+        return c.json(DIRECT_PHOTO_URL_DENIED, 400);
+      logger.error("Error updating pet", new Error("PET_UPDATE_FAILED"));
+      return c.json({ success: false, error: "Не удалось обновить питомца" }, 500);
     }
-
-    return c.json({ success: true, data: pet });
-  } catch (error) {
-    logger.error("Error updating pet", error as Error);
-    return c.json({ success: false, error: "Не удалось обновить питомца" }, 500);
-  }
-});
+  },
+);
 
 // ==================== DELETE /pets/:petId ====================
 // Удалить питомца
@@ -439,8 +624,8 @@ petsRoutes.delete("/:petId", async (c) => {
     }
 
     return c.json({ success: true });
-  } catch (error) {
-    logger.error("Error deleting pet", error as Error);
+  } catch {
+    logger.error("Error deleting pet", new Error("PET_DELETE_FAILED"));
     return c.json({ success: false, error: "Не удалось удалить питомца" }, 500);
   }
 });

@@ -19,7 +19,7 @@ import {
   afterLease,
   leaseValid,
 } from "./persistence";
-import { galleryAttemptKeys, galleryPhotoKeys } from "./keys";
+import { galleryPhotoKeys, galleryPhotoV2Keys, isGalleryPhotoV2Key } from "./keys";
 import { GalleryError } from "./errors";
 import * as s from "./schemas";
 
@@ -32,6 +32,11 @@ export interface GalleryCompleteUploadInput {
   sourceETag: string;
   width: number;
   height: number;
+  /** V2: authoritative worker metadata, independently checked by Core HEAD. */
+  manifest?: {
+    thumb: { etag: string; bytes: number; width: number; height: number; contentType: "image/webp" };
+    full: { etag: string; bytes: number; width: number; height: number; contentType: "image/webp" };
+  };
 }
 export interface GalleryFailUploadInput {
   uploadId: string;
@@ -43,6 +48,10 @@ export interface GalleryClaimStorageJobsInput {
   limit?: number;
   /** Scope immediate publication to the upload that just completed. */
   uploadId?: string;
+  /** Default-off: exact one owner-bound delete job; never bulk claim foreign jobs. */
+  exactDelete?: { jobId: string; ownerId: string };
+  /** Exact one owner-bound move, never claim unrelated historical WORK jobs. */
+  exactMove?: { jobId: string; ownerId: string };
 }
 export interface GalleryCompleteStorageJobInput {
   jobId: string;
@@ -157,10 +166,14 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
     });
     const uploads = await tx.galleryUpload.count({
       where: {
-        sourceKey: { in: keys },
         status: { in: ["reserved", "uploaded", "processing"] },
         reservationExpiresAt: { gt: now() },
         photo: { ...alive, album: alive },
+        OR: [
+          { sourceKey: { in: keys } },
+          { stagedThumbKey: { in: keys }, status: "processing", leaseUntil: { gt: now() } },
+          { stagedFullKey: { in: keys }, status: "processing", leaseUntil: { gt: now() } },
+        ],
       },
     });
     const vetAttachments = await tx.petVetAttachment.count({
@@ -373,7 +386,7 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
             leaseUntil.getTime() + L.leaseSeconds * 1000,
           ),
         );
-        const keys = galleryAttemptKeys(row.ownerId, row.photo.albumId, row.id, attemptToken);
+        const keys = galleryPhotoV2Keys(row.ownerId, row.photoId);
         await tx.galleryUpload.update({
           where: { id: row.id },
           data: {
@@ -420,6 +433,10 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
         const row = await liveUpload(tx, data.uploadId),
           at = now();
         if (!row) return { accepted: false, status: "unavailable" };
+        if (row.status === "ready" && row.attemptToken === data.attemptToken &&
+            row.sourceETag === data.sourceETag && row.photo.width === data.width &&
+            row.photo.height === data.height)
+          return { accepted: true, status: "ready" };
         const job = await tx.galleryStorageJob.findUnique({
           where: { dedupeKey: `publish:${row.id}:${data.attemptToken}` },
         });
@@ -445,6 +462,45 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
         // HEAD can consume the remaining lease; check again before accepting the result.
         if (!leaseValid(row, data.attemptToken, now()) || row.reservationExpiresAt <= now())
           return { accepted: false, status: row.status };
+        // V2: no publish copy. The owner lock, current lease, and both Core HEADs
+        // precede the atomic READY transition; attempts share immutable photo-ID keys.
+        if (isGalleryPhotoV2Key(keys[0]!, row.ownerId, row.photoId) &&
+            keys[0] === galleryPhotoV2Keys(row.ownerId, row.photoId).thumbKey &&
+            keys[1] === galleryPhotoV2Keys(row.ownerId, row.photoId).fullKey) {
+          const manifest = data.manifest;
+          if (!manifest || manifest.full.width !== data.width ||
+              manifest.full.height !== data.height ||
+              Math.max(manifest.thumb.width, manifest.thumb.height) > 480 ||
+              Math.max(manifest.full.width, manifest.full.height) > 1920 ||
+              heads.some((head, i) => {
+                const variant = i === 0 ? manifest.thumb : manifest.full;
+                return head.etag !== variant.etag || head.bytes !== variant.bytes ||
+                  head.contentType !== variant.contentType;
+              }))
+            throw new GalleryError("INVALID_OUTPUT", "Манифест фотографии не подтверждён", 409);
+          await tx.galleryPhoto.update({
+            where: { id: row.photoId },
+            data: { status: "ready", thumbKey: keys[0], fullKey: keys[1],
+                    width: data.width, height: data.height },
+          });
+          await tx.galleryUpload.update({
+            where: { id: row.id }, data: { status: "ready", leaseUntil: null },
+          });
+          await uploadCleanup(tx, row, now(), keys);
+          // Stable final keys may be referenced by cleanup intents from earlier
+          // failed attempts. Cancel all pending sweeps for THIS photo's final keys,
+          // not just the current token, so READY files do not create endless
+          // protected-delete retries. In-flight deletes still recheck protection.
+          await tx.galleryStorageJob.updateMany({
+            where: {
+              ownerId: row.ownerId, kind: "delete", status: "pending",
+              sourceKeys: { hasSome: keys },
+            },
+            data: { status: "cancelled" },
+          });
+          return { accepted: true, status: "ready" };
+        }
+        // Transition-only support for already-staged legacy uploads.
         const target = galleryPhotoKeys(row.ownerId, row.photo.albumId, row.photoId);
         await tx.galleryStorageJob.create({
           data: {
@@ -506,16 +562,28 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
       input: GalleryClaimStorageJobsInput = {},
     ): Promise<GalleryStorageJobClaim[]> {
       const data = s.galleryParse(
-          s.galleryClaimStorageJobsSchema.extend({ uploadId: s.galleryIdSchema.optional() }),
+          s.galleryClaimStorageJobsSchema.extend({
+            uploadId: s.galleryIdSchema.optional(),
+            exactDelete: s.zodExactDeleteScope.optional(),
+            exactMove: s.zodExactDeleteScope.optional(),
+          }),
           input,
         ),
         at = now();
+      // Never silently broaden one exact deletion to a global scan.
+      if (Number(Boolean(data.uploadId)) + Number(Boolean(data.exactDelete)) +
+        Number(Boolean(data.exactMove)) > 1)
+        throw new GalleryError("VALIDATION", "Нельзя совмещать области заданий", 400);
       // Disabled galleries may only perform cleanup, never targeted publishing.
-      if (data.uploadId && !ctx.storage.enabled) return [];
+      if ((data.uploadId || data.exactMove) && !ctx.storage.enabled) return [];
       const candidates = await ctx.db.galleryStorageJob.findMany({
         where: {
-          ...(data.uploadId
-            ? { kind: "publish" as const, uploadId: data.uploadId }
+          ...(data.exactDelete
+            ? { kind: "delete" as const, id: data.exactDelete.jobId, ownerId: data.exactDelete.ownerId }
+            : data.exactMove
+              ? { kind: "move" as const, id: data.exactMove.jobId, ownerId: data.exactMove.ownerId }
+            : data.uploadId
+              ? { kind: "publish" as const, uploadId: data.uploadId }
             : ctx.storage.enabled
               ? {}
               : { kind: { in: ["delete", "vetPreview"] as ("delete" | "vetPreview")[] } }),
@@ -533,6 +601,10 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
             current = now();
           if (
             !job ||
+            (data.exactDelete && (job.id !== data.exactDelete.jobId ||
+              job.ownerId !== data.exactDelete.ownerId || job.kind !== "delete")) ||
+            (data.exactMove && (job.id !== data.exactMove.jobId ||
+              job.ownerId !== data.exactMove.ownerId || job.kind !== "move")) ||
             (!ctx.storage.enabled && !["delete", "vetPreview"].includes(job.kind)) ||
             (data.uploadId && (job.kind !== "publish" || job.uploadId !== data.uploadId)) ||
             job.availableAt > current ||

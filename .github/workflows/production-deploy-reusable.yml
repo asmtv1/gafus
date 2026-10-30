@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   deploy-production:
+    if: vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 45
@@ -24,6 +25,18 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Verify Chat2 + functional release readiness without touching providers
+        env:
+          CHAT2_LEGACY_RETIRE_ENABLED: ${{ vars.CHAT2_LEGACY_RETIRE_ENABLED }}
+          CHAT2_API_ENABLED: ${{ vars.CHAT2_API_ENABLED }}
+          CHAT2_WORKER_ENABLED: ${{ vars.CHAT2_WORKER_ENABLED }}
+          CHAT2_PRIVATE_MEDIA_ENABLED: ${{ vars.CHAT2_PRIVATE_MEDIA_ENABLED }}
+          CHAT2_PUBLIC_WS_URL: ${{ vars.CHAT2_PUBLIC_WS_URL }}
+          CHAT2_CENTRIFUGO_HTTP_API: http://chat2-centrifugo:8000/api/publish
+          COMPOSE_PROFILES: chat2
+          CHAT2_CENTRIFUGO_TOKEN_SECRET: ${{ secrets.CHAT2_CENTRIFUGO_TOKEN_SECRET }}
+          CHAT2_CENTRIFUGO_API_KEY: ${{ secrets.CHAT2_CENTRIFUGO_API_KEY }}
+        run: node scripts/refactor/check-chat2-prod-boundary.mjs --candidate
       # Also guard manual Deploy Only; do not even open SSH if Beget is not
       # demonstrably ready. No registry, Cloud.ru or CDN writes in this step.
       - name: Validate Beget-only production readiness before SSH
@@ -525,12 +538,25 @@ jobs:
               echo "STREAM_API_SECRET=${{ secrets.STREAM_API_SECRET }}"
               echo "CYNOLOGIST_CHAT_ENABLED=${{ vars.CYNOLOGIST_CHAT_ENABLED || 'false' }}"
               echo "COMMUNITY_CHAT_ENABLED=${{ vars.COMMUNITY_CHAT_ENABLED || 'false' }}"
+              # Intended Chat2 destination values; never inherit a disabled default.
+              echo "COMPOSE_PROFILES=chat2"
+              echo "CHAT2_LEGACY_RETIRE_ENABLED=${{ vars.CHAT2_LEGACY_RETIRE_ENABLED }}"
+              echo "CHAT2_API_ENABLED=${{ vars.CHAT2_API_ENABLED }}"
+              echo "CHAT2_WORKER_ENABLED=${{ vars.CHAT2_WORKER_ENABLED }}"
+              echo "CHAT2_PRIVATE_MEDIA_ENABLED=${{ vars.CHAT2_PRIVATE_MEDIA_ENABLED }}"
+              echo "CHAT2_PUBLIC_WS_URL=${{ vars.CHAT2_PUBLIC_WS_URL }}"
+              echo "CHAT2_CENTRIFUGO_HTTP_API=http://chat2-centrifugo:8000/api/publish"
+              echo "CHAT2_CENTRIFUGO_TOKEN_SECRET=${{ secrets.CHAT2_CENTRIFUGO_TOKEN_SECRET }}"
+              echo "CHAT2_CENTRIFUGO_API_KEY=${{ secrets.CHAT2_CENTRIFUGO_API_KEY }}"
             } > ci-cd/docker/.env
           DEPLOY_SCRIPT_3: |2+
 
             # Set secure permissions for .env file
             chmod 600 ci-cd/docker/.env
             echo "✅ .env file created with secure permissions"
+            # Inspect generated destination Compose env AND running API/worker/broker
+            # before pulling images, changing DB, or allowing legacy-chat 410.
+            node scripts/refactor/check-chat2-prod-boundary.mjs --release --destination-env ci-cd/docker/.env
 
             # Uploads directories are handled by CDN - no local directories needed
 

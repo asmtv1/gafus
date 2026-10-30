@@ -46,8 +46,19 @@ export const galleryProfileAlbumsSchema = galleryListSchema.extend({
 export const galleryAlbumPhotosSchema = galleryListSchema.extend({ albumId: galleryIdSchema });
 export const galleryUploadCompleteSchema = z.object({ uploadId: galleryIdSchema }).strict();
 export const galleryClaimUploadSchema = z.object({ uploadId: galleryIdSchema }).strict();
+const galleryV2VariantManifest = z.object({
+  etag: z.string().regex(/^"[a-f0-9]{32}"$/i),
+  bytes: z.number().int().positive().max(1_750_000),
+  width: z.number().int().positive().max(1920),
+  height: z.number().int().positive().max(1920),
+  contentType: z.literal("image/webp"),
+}).strict();
 export const galleryCompleteUploadSchema = z
   .object({
+    manifest: z.object({
+      thumb: galleryV2VariantManifest,
+      full: galleryV2VariantManifest,
+    }).strict().optional(),
     uploadId: galleryIdSchema,
     attemptToken: z.string().uuid(),
     sourceETag: z.string().min(1).max(256),
@@ -64,6 +75,10 @@ export const galleryFailUploadSchema = z
     retryable: z.boolean(),
   })
   .strict();
+export const zodExactDeleteScope = z.object({
+  jobId: galleryIdSchema,
+  ownerId: galleryIdSchema,
+}).strict();
 export const galleryClaimStorageJobsSchema = z
   .object({ limit: z.number().int().min(1).max(50).default(10) })
   .strict();

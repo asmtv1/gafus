@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { signFeedCloudruFallback } from './fallback.js';
-const key = 'posts/owner/post/attachments/media/hls/segment-000.ts';
+const key = 'media/v2/media123/v1/video/360.mp4';
 const env = {
   FEED_ENABLED: 'true', FEED_PROCESSOR_READY: 'true',
   FEED_MEDIA_FALLBACK_ENABLED: 'true', FEED_CDN_EDGE_TOKEN_VERIFIED: 'true',
@@ -10,7 +10,7 @@ const env = {
   FEED_INTERNAL_HMAC_SECRET: 'h'.repeat(32),
 };
 describe('Cloud.ru feed fallback presigning', () => {
-  it('presigns the exact final HLS segment without a network call', async () => {
+  it('presigns the exact final MP4 representation without a network call', async () => {
     const url = new URL(await signFeedCloudruFallback(key, 90, env));
     expect(url.hostname).toBe('s3.cloud.ru');
     expect(url.pathname).toBe('/gafus-feed-private/' + key);

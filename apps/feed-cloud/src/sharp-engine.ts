@@ -9,7 +9,7 @@ export const sharpFeedEngine: FeedImageEngine = {
   },
   async encode(bytes, options) {
     const result = await sharp(bytes, { limitInputPixels: options.pixelLimit, failOn: "warning", animated: false })
-      .rotate().resize({ width: options.maxEdge, height: options.maxEdge, fit: "inside", withoutEnlargement: true })
+      .rotate().resize({ width: options.maxEdge, height: options.widthOnly ? undefined : options.maxEdge, fit: "inside", withoutEnlargement: true })
       .webp({ quality: options.quality }).toBuffer({ resolveWithObject: true });
     return { bytes: result.data, width: result.info.width, height: result.info.height };
   },

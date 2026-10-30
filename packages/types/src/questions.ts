@@ -31,6 +31,16 @@ export interface QuestionAuthorDto {
 export interface QuestionPhotoDto {
   id: string;
   url: string;
+  /** Image-only V2 renditions; widths are actual encoded pixels. */
+  smallUrl?: string;
+  /** Direct public Cloud.ru S3 endpoints used only after CDN transport failure. */
+  fallbackUrl?: string;
+  fallbackSmallUrl?: string;
+  width?: number;
+  height?: number;
+  smallWidth?: number;
+  smallHeight?: number;
+  status?: "AWAITING_UPLOAD" | "QUEUED" | "PROCESSING" | "READY" | "FAILED" | "EXPIRED" | "UNAVAILABLE";
 }
 export interface QuestionInput {
   title: string;

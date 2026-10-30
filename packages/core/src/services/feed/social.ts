@@ -10,15 +10,18 @@ import { FEED_LIMITS as L } from "../../../../types/src/feed";
 import { FeedError } from "./errors";
 import { feedReactionToKind } from "./service";
 import { lockGafusPostReactionTx, advanceGafusReactionMilestonesTx } from "../gafus/reactionRewardService";
-import type { FeedDb, FeedTx } from "./ports";
+import type { FeedDb, FeedTx, FeedStoragePort } from "./ports";
+import { stableMediaExpiry } from "../mediaDelivery/signedExpiry";
+import { signFeedMediaUrls } from "./media-urls";
 import * as s from "./schemas";
 const kindToReaction = { heart: "❤️", laugh: "😂", dog: "🐶", fire: "🔥", like: "👍" } as const;
 const profile = { id: true, username: true, profile: { select: { fullName: true, avatarUrl: true } } } as const;
 const commentInclude = { author: { select: profile } } as const;
 type CommentRow = Prisma.FeedCommentGetPayload<{ include: typeof commentInclude }>;
 
-export function createFeedSocial({ db, now = () => new Date(), enabled = () => false }: {
+export function createFeedSocial({ db, storage, now = () => new Date(), enabled = () => false }: {
   db: FeedDb;
+  storage?: Pick<FeedStoragePort, "signCdn">;
   now?: () => Date;
   enabled?: () => boolean;
 }) {
@@ -70,8 +73,30 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
     const replyCounts = new Map(replies.map(item => [item.rootId, item._count._all]));
     const recipients = new Map(addressed.map(item => [item.id, item.author.profile?.fullName ?? item.author.username]));
     const at = now();
+    const expires = stableMediaExpiry(at, L.mediaUrlSeconds);
+    const mediaRows = await db.feedCommentMedia.findMany({
+      where: { commentId: { in: ids } },
+      orderBy: { position: "asc" },
+      include: { media: true },
+    });
+    const signedMedia = new Map<string, NonNullable<FeedCommentDto["media"]>>();
+    await Promise.all(mediaRows.map(async item => {
+      const asset = item.media;
+      const signed = storage && asset.status === "ready"
+        ? await signFeedMediaUrls(asset, key => storage.signCdn({ key, expiresAt: expires }))
+        : { smallUrl: null, thumbUrl: null, fullUrl: null, posterUrl: null, mp4Urls: null };
+      const list = signedMedia.get(item.commentId) ?? [];
+      list.push({
+        id: asset.id, kind: asset.kind, position: item.position, status: asset.status,
+        width: asset.width, height: asset.height, durationSeconds: asset.durationSeconds,
+        ...signed, urlsExpireAt: asset.status === "ready" && storage ? expires.toISOString() : null,
+      });
+      signedMedia.set(item.commentId, list);
+    }));
+    for (const list of signedMedia.values()) list.sort((a,b) => a.position - b.position);
     return rows.map(row => ({
       id: row.id, postId: row.postId, author: userDto(row.author),
+      media: row.deletedAt || row.moderationState !== "visible" ? [] : signedMedia.get(row.id) ?? [],
       text: row.deletedAt || row.moderationState !== "visible" ? "" : row.text, createdAt: row.createdAt.toISOString(),
       editedAt: row.editedAt?.toISOString() ?? null,
       editUntil: new Date(row.createdAt.getTime() + L.editSeconds * 1000).toISOString(),
@@ -153,8 +178,33 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
         const post = await readablePost(tx, postId);
         const prior = await tx.feedComment.findUnique({ where: { authorId_clientRequestId: { authorId: actorId, clientRequestId: value.clientRequestId } } });
         if (prior) {
-          if (prior.postId !== postId || prior.text !== value.text || prior.replyToId !== (value.replyToId ?? null)) throw new FeedError("VERSION_CONFLICT", undefined, 409);
+          const saved = await tx.feedCommentMedia.findMany({
+            where: { commentId: prior.id }, orderBy: { position: "asc" },
+            select: { mediaId: true },
+          });
+          if (prior.postId !== postId || prior.text !== value.text ||
+              prior.replyToId !== (value.replyToId ?? null) ||
+              JSON.stringify(saved.map(item => item.mediaId)) !== JSON.stringify(value.mediaIds ?? [])) {
+            throw new FeedError("VERSION_CONFLICT", undefined, 409);
+          }
           return prior.id;
+        }
+        const mediaIds = value.mediaIds ?? [];
+        if (mediaIds.length) {
+          // Serialize with orphan collection before attaching assets.
+          for (const mediaId of [...mediaIds].sort()) {
+            await tx.$queryRaw`SELECT "id" FROM "FeedUpload" WHERE "mediaId" = ${mediaId} FOR UPDATE`;
+          }
+          const valid = await tx.feedMediaAsset.findMany({ where: {
+            id: { in: mediaIds }, postId, ownerId: actorId,
+            status: { in: ["uploaded", "processing", "ready"] },
+            upload: { is: { purpose: "comment", status: { in: ["uploaded", "processing", "ready"] } } },
+            commentAttachments: { none: {} },
+          }, select: { id: true, kind: true } });
+          if (valid.length !== mediaIds.length ||
+              valid.filter(item => item.kind === "video").length > L.maxVideos) {
+            throw new FeedError("VALIDATION_ERROR", "Недоступные вложения комментария", 422);
+          }
         }
         let rootId: string | null = null, replyRecipient: string | null = null;
         if (value.replyToId) {
@@ -168,6 +218,9 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
           id: newId, postId, authorId: actorId, clientRequestId: value.clientRequestId,
           text: value.text, rootId, replyToId: value.replyToId ?? null, createdAt: at,
         } });
+        if (mediaIds.length) await tx.feedCommentMedia.createMany({
+          data: mediaIds.map((mediaId, position) => ({ mediaId, position, commentId: newId })),
+        });
         const targets = new Set([post.authorId, ...(replyRecipient ? [replyRecipient] : [])]);
         for (const recipient of targets) {
           if (recipient === actorId) continue;
@@ -203,8 +256,40 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
         const comment = await readableComment(tx, id);
         const post = await readablePost(tx, comment.postId);
         if (comment.authorId !== actorId && post.authorId !== actorId) throw new FeedError("FORBIDDEN", undefined, 403);
-        await tx.feedComment.updateMany({ where: { id, deletedAt: null }, data: { deletedAt: now(), text: "" } });
+        const at = now();
+        await tx.feedComment.updateMany({ where: { id, deletedAt: null }, data: { deletedAt: at, text: "" } });
         await tx.feedCommentReaction.deleteMany({ where: { commentId: id } });
+        // Delete only the comment's assets, never the parent post.
+        const attachments = await tx.feedCommentMedia.findMany({
+          where: { commentId: id }, include: { media: { include: { upload: true } } },
+        });
+        if (attachments.length) await tx.feedMediaAsset.updateMany({
+          where: { id: { in: attachments.map(item => item.mediaId) } },
+          data: { status: "cancelled" },
+        });
+        for (const item of attachments) {
+          const media = item.media;
+          const prefix = "media/v2/" + media.id + "/v1/";
+          const keys = [
+            media.upload?.sourceKey, media.smallKey, media.thumbKey, media.fullKey,
+            media.posterKey, ...media.mp4Keys,
+            prefix + "image/s.webp", prefix + "image/m.webp", prefix + "image/l.webp",
+            prefix + "poster.webp", prefix + "video/360.mp4",
+            prefix + "video/720.mp4", prefix + "video/1080.mp4",
+          ].filter((key): key is string => !!key);
+          const reservationEnd = media.upload
+            ? Math.max(media.upload.postExpiresAt.getTime(),
+                media.upload.reservationExpiresAt.getTime(), media.upload.leaseUntil?.getTime() ?? 0)
+            : 0;
+          await tx.feedStorageJob.upsert({
+            where: { dedupeKey: "feed-comment-delete:" + id + ":" + media.id },
+            create: { dedupeKey: "feed-comment-delete:" + id + ":" + media.id,
+              ownerId: media.ownerId, postId: media.postId, mediaId: media.id,
+              kind: "delete_keys", sourceKeys: [...new Set(keys)],
+              availableAt: new Date(Math.max(at.getTime(), reservationEnd) + 60_000) },
+            update: {},
+          });
+        }
         return { id };
       });
     },
@@ -331,8 +416,17 @@ export function createFeedSocial({ db, now = () => new Date(), enabled = () => f
     },
     async markNotificationRead(actorId: string, notificationId: string) {
       await auth(actorId);
-      await db.feedNotification.updateMany({ where: { id: notificationId, recipientId: actorId, readAt: null }, data: { readAt: now() } });
-      const row = await db.feedNotification.findFirst({ where: { id: notificationId, recipientId: actorId } });
+      // author_post is push-only: never visible in list/unread or individually read.
+      const visibleNotice = {
+        id: notificationId,
+        recipientId: actorId,
+        kind: { not: "author_post" },
+      } as const;
+      await db.feedNotification.updateMany({
+        where: { ...visibleNotice, readAt: null },
+        data: { readAt: now() },
+      });
+      const row = await db.feedNotification.findFirst({ where: visibleNotice });
       if (!row) throw new FeedError("NOT_FOUND", undefined, 404);
       return { id: row.id, readAt: row.readAt?.toISOString() ?? now().toISOString() };
     },

@@ -1,2 +1,2 @@
-export { getAge } from "./getAge";
-export { getAgeWithMonths } from "./getAgeWithMonths";
+/* Compatibility export: implementation lives in the browser-safe package. */
+export * from "@gafus/core-client/utils/age/index";

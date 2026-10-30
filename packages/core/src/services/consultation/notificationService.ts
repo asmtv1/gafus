@@ -47,6 +47,21 @@ export async function resolveConsultationEmailRecipient(
   return b.client?.email?.trim() || null;
 }
 
+/** Stable identity for initial enqueue and an interrupted producer's replay. */
+function addConsultationMailJob(emailLogId: string): Promise<unknown> {
+  return consultationMailQueue.add(
+    "send",
+    { emailLogId },
+    {
+      jobId: CONSULTATION_MAIL_JOB_ID(emailLogId),
+      attempts: 5,
+      backoff: { type: "exponential", delay: 2000 },
+      removeOnComplete: { count: 1000 },
+      removeOnFail: { count: 500 },
+    },
+  );
+}
+
 /**
  * Запись в журнал и постановка письма в очередь (ретраи в воркере).
  */
@@ -72,23 +87,26 @@ export async function enqueueConsultationEmail(
     });
   } catch (error) {
     if (isUniqueEmailLogViolation(error)) {
-      logger.info("Письмо по консультации уже создано, дубль пропущен", { bookingId, type });
+      // A previous producer may have created the DB log then lost Queue.add.
+      // Recover ONLY never-attempted PENDING records under the same BullMQ
+      // jobId. After the first delivery attempt ACK can be ambiguous; leave
+      // those records to the existing worker/outbox reconciliation path.
+      const existing = await prisma.consultationEmailLog.findUnique({
+        where: { bookingId_type: { bookingId, type } },
+        select: { id: true, status: true, attempts: true },
+      });
+      if (existing?.status === ConsultationEmailStatus.PENDING && existing.attempts === 0) {
+        await addConsultationMailJob(existing.id);
+        logger.info("Восстановлена постановка письма консультации", { bookingId, type });
+      } else {
+        logger.info("Письмо по консультации уже создано, дубль пропущен", { bookingId, type });
+      }
       return "duplicate";
     }
     throw error;
   }
 
-  await consultationMailQueue.add(
-    "send",
-    { emailLogId: log.id },
-    {
-      jobId: CONSULTATION_MAIL_JOB_ID(log.id),
-      attempts: 5,
-      backoff: { type: "exponential", delay: 2000 },
-      removeOnComplete: { count: 1000 },
-      removeOnFail: { count: 500 },
-    },
-  );
+  await addConsultationMailJob(log.id);
 
   logger.info("enqueueConsultationEmail", { bookingId, type, emailLogId: log.id });
   return "created";

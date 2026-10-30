@@ -1,0 +1,92 @@
+/* Local mock preview only. Never imported by production/legacy Next UI. */
+:root {
+  color-scheme: light;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #273529;
+  background: #f6f8f2;
+  font-synthesis: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: #285a3b; }
+a:focus-visible {
+  outline: 3px solid #346943;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.ag4-preview-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.75rem clamp(1rem, 3vw, 2rem);
+  background: #e8ecdd;
+  border-bottom: 1px solid #cad4bd;
+  font-size: 0.875rem;
+}
+.ag4-preview-banner strong { color: #38533b; }
+[data-ag4-preview="mock-only"] {
+  min-height: calc(100vh - 4rem);
+  display: grid;
+  grid-template-columns: minmax(12rem, 15rem) minmax(0, 1fr);
+}
+[data-ag4-preview="mock-only"] > a[href="#ag4-main"] {
+  position: absolute;
+  left: 1rem;
+  top: -5rem;
+  padding: 0.65rem 1rem;
+  z-index: 10;
+  background: #fff;
+  border: 2px solid #346943;
+}
+[data-ag4-preview="mock-only"] > a[href="#ag4-main"]:focus { top: 0.4rem; }
+[data-ag4-preview="mock-only"] nav {
+  border-right: 1px solid #dce3d5;
+  background: #fff;
+  padding: 0.9rem 0.7rem;
+}
+[data-ag4-preview="mock-only"] nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+[data-ag4-preview="mock-only"] nav a {
+  display: block;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.65rem;
+  text-decoration: none;
+  font-size: 0.925rem;
+}
+[data-ag4-preview="mock-only"] nav a:hover {
+  background: #f1f5eb;
+}
+[data-ag4-preview="mock-only"] nav a[aria-current="page"] {
+  color: #234930;
+  background: #e6efdc;
+  font-weight: 700;
+}
+#ag4-main {
+  width: min(100%, 70rem);
+  padding: clamp(1rem, 4vw, 2.5rem);
+  min-width: 0;
+}
+#ag4-main h1 { margin-top: 0; font-size: clamp(1.4rem, 3vw, 2rem); }
+#ag4-main p { line-height: 1.6; }
+@media (max-width: 760px) {
+  [data-ag4-preview="mock-only"] { display: block; }
+  [data-ag4-preview="mock-only"] nav {
+    border-right: 0;
+    border-bottom: 1px solid #dce3d5;
+  }
+  [data-ag4-preview="mock-only"] nav ul {
+    display: flex;
+    overflow-x: auto;
+    gap: 0.4rem;
+    scrollbar-width: thin;
+    padding: 0.2rem 0 0.4rem;
+  }
+  [data-ag4-preview="mock-only"] nav li { flex: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}

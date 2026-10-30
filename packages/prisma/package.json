@@ -24,7 +24,6 @@
   },
   "devDependencies": {
     "@types/node": "20.4.8",
-    "prisma-erd-generator": "^2.1.0",
     "rimraf": "5.0.1",
     "tsx": "4.19.0",
     "typescript": "5.8.3"

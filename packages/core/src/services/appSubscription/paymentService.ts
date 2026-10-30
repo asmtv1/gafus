@@ -775,6 +775,7 @@ async function startInitialYookassaAppSubscriptionPayment(params: {
   currency: string;
   intervalDays: number;
   planCode: AppSubscriptionPlanCode;
+  returnPath?: string;
   now: Date;
   preparedPayment?: {
     id: string;
@@ -823,7 +824,9 @@ async function startInitialYookassaAppSubscriptionPayment(params: {
       : params.amountRub,
   );
 
-  const returnUrl = `${params.origin.replace(/\/$/, "")}/subscription?paid=1`;
+  const returnPath = params.returnPath && /^\/consultations\/[A-Za-z0-9_-]{1,128}$/.test(params.returnPath)
+    ? params.returnPath : "/subscription";
+  const returnUrl = `${params.origin.replace(/\/$/, "")}${returnPath}?paid=1`;
   const body = {
     amount: { value: chargedAmountRub.toFixed(2), currency: params.currency },
     capture: true,
@@ -1367,6 +1370,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
   shopId: string;
   secretKey: string;
   planCode: AppSubscriptionPlanCode;
+  returnPath?: string;
   promoCode?: RequestedAppSubscriptionPromoCode;
   clientContext?: ClientAppContext;
 }): Promise<
@@ -1463,6 +1467,7 @@ export async function startYookassaAppSubscriptionPayment(params: {
     planCode,
     now,
     preparedPayment: prepared.payment ?? undefined,
+    returnPath: params.returnPath,
   });
 }
 

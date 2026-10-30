@@ -54,7 +54,7 @@ describe("Gafus mini-guide catalog does not leak protected content", () => {
     expect(JSON.stringify(result)).not.toContain("<b>");
     expect(JSON.stringify(result)).not.toContain("guideContent");
     expect(state.requestedFilter).toMatchObject({
-      isPaid: false, isPrivate: false, guideContent: { not: null },
+      isPrivate: false, guideContent: { not: null },
     });
   });
 

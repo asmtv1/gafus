@@ -53,12 +53,20 @@ type SurveyResponseRow = {
 };
 
 type TxClient = {
+  $queryRaw: <T = unknown>(strings: TemplateStringsArray, ...values: unknown[]) => Promise<T>;
   surveyResponse: {
+    findUnique: (args: {
+      where: { userId_stepId: { userId: string; stepId: string } };
+    }) => Promise<SurveyResponseRow | null>;
     create: (args: unknown) => Promise<SurveyResponseRow>;
     update: (args: unknown) => Promise<SurveyResponseRow>;
   };
   userStep: {
     update: (args: unknown) => Promise<unknown>;
+    findMany: (args: {
+      where: { userTrainingId: string };
+      select: { status: true };
+    }) => Promise<{ status: TrainingStatus }[]>;
   };
   userTraining: {
     update: (args: unknown) => Promise<unknown>;
@@ -74,10 +82,18 @@ function canEditResponse(submittedAt: Date, now = new Date()): boolean {
 }
 
 function normalizeAnswers(value: unknown): Record<string, SurveyAnswerValue> {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    return value as Record<string, SurveyAnswerValue>;
-  }
-  return {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const prototype: unknown = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return {};
+
+  const valid = Object.values(value).every(
+    (answer) =>
+      answer === null ||
+      typeof answer === "string" ||
+      typeof answer === "boolean" ||
+      (Array.isArray(answer) && answer.every((entry) => typeof entry === "string")),
+  );
+  return valid ? (value as Record<string, SurveyAnswerValue>) : {};
 }
 
 function hasValidRequiredAnswers(
@@ -172,9 +188,19 @@ async function validateSurveyStep(
         dayOnCourse: { courseId: input.courseId },
       },
     },
-    select: { id: true, userTrainingId: true },
-  } as never);
-  if (!userStep) {
+    // A user can have multiple physical steps in a course. Binding only
+    // UserTraining.courseId lets a SURVEY mark another THEORY/EXAM step as
+    // completed. Read the exact physical StepOnDay and its training day.
+    select: {
+      id: true,
+      userTrainingId: true,
+      stepOnDay: { select: { stepId: true, dayId: true } },
+      userTraining: { select: { dayOnCourse: { select: { dayId: true } } } },
+    },
+  });
+  if (!userStep || userStep.stepOnDay.stepId !== input.stepId ||
+      userStep.stepOnDay.dayId !== userStep.userTraining.dayOnCourse.dayId) {
+    // Do not disclose whether an unrelated owned UserStep exists.
     return { ok: false, error: "Шаг пользователя не найден", code: "USER_STEP_NOT_FOUND" };
   }
 
@@ -187,11 +213,12 @@ async function completeSurveyStep(tx: TxClient, userStepId: string, userTraining
     data: { status: TrainingStatus.COMPLETED },
   });
 
-  const userSteps = await prisma.userStep.findMany({
+  // Read our own uncommitted userStep completion on the SAME transaction.
+  const userSteps = await tx.userStep.findMany({
     where: { userTrainingId },
     select: { status: true },
-  } as never);
-  const statuses = userSteps.map((step) => step.status as string);
+  });
+  const statuses = userSteps.map((step) => step.status);
   const nextStatus =
     statuses.length > 0 ? calculateDayStatusFromStatuses(statuses) : TrainingStatus.COMPLETED;
 
@@ -211,22 +238,27 @@ export async function submitSurveyResponse(
       return { success: false, error: validation.error, code: validation.code };
     }
 
-    const existing = await db.surveyResponse.findUnique({
-      where: { userId_stepId: { userId, stepId: input.stepId } },
-    });
+    const outcome = await (
+      prisma.$transaction as unknown as <T>(callback: (tx: TxClient) => Promise<T>) => Promise<T>
+    )(async (tx) => {
+      // Serialize competing Survey submissions for the same user/day BEFORE any
+      // response or step mutation, so each later status read sees committed siblings.
+      // Locking only this parent row lets unrelated days proceed independently.
+      const parent = await tx.$queryRaw<{ id: string }[]>`
+        SELECT "id" FROM public."UserTraining"
+        WHERE "id" = ${validation.userTrainingId} FOR UPDATE
+      `;
+      if (parent.length !== 1) throw new Error("USER_TRAINING_NOT_FOUND");
 
-    if (existing && !canEditResponse(existing.submittedAt)) {
-      return {
-        success: false,
-        error: "Редактирование анкеты доступно только в течение 24 часов после заполнения",
-        code: "SURVEY_EDIT_WINDOW_EXPIRED",
-        response: toDto(existing),
-      };
-    }
+      // Resolve create-vs-edit and the existing 24h rule AFTER acquiring the
+      // parent lock: neither a concurrent create nor lock wait may stale them.
+      const existing = await tx.surveyResponse.findUnique({
+        where: { userId_stepId: { userId, stepId: input.stepId } },
+      });
+      if (existing && !canEditResponse(existing.submittedAt)) {
+        return { kind: "expired" as const, response: existing };
+      }
 
-    const response = (await (prisma.$transaction as unknown as <T>(
-      callback: (tx: TxClient) => Promise<T>,
-    ) => Promise<T>)(async (tx) => {
       const saved = existing
         ? await tx.surveyResponse.update({
             where: { id: existing.id },
@@ -251,10 +283,18 @@ export async function submitSurveyResponse(
           });
 
       await completeSurveyStep(tx, input.userStepId, validation.userTrainingId);
-      return saved;
-    })) as SurveyResponseRow;
+      return { kind: "saved" as const, response: saved };
+    });
 
-    return { success: true, response: toDto(response) };
+    if (outcome.kind === "expired") {
+      return {
+        success: false,
+        error: "Редактирование анкеты доступно только в течение 24 часов после заполнения",
+        code: "SURVEY_EDIT_WINDOW_EXPIRED",
+        response: toDto(outcome.response),
+      };
+    }
+    return { success: true, response: toDto(outcome.response) };
   } catch (error) {
     logger.error("Failed to submit survey response", error as Error, {
       userId,

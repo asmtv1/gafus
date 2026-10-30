@@ -45,9 +45,12 @@ const mockRefreshTokenUpdateMany = vi.fn();
 const mockTxRefreshUpdateMany = vi.fn();
 const mockTxRefreshCreate = vi.fn();
 const mockTxUserFindUnique = vi.fn();
+const mockTxPasswordUserUpdateMany = vi.fn();
 const refreshTxStub = {
   user: {
     findUnique: (...args: unknown[]) => mockTxUserFindUnique(...args),
+    updateMany: (...args: unknown[]) => mockTxPasswordUserUpdateMany(...args),
+    update: (...args: unknown[]) => mockUserUpdate(...args),
   },
   refreshToken: {
     updateMany: (...args: unknown[]) => mockTxRefreshUpdateMany(...args),
@@ -393,7 +396,7 @@ describe("refresh token session", () => {
 
   it("validateRefreshToken: token_reuse", async () => {
     mockRefreshTokenFindUnique.mockResolvedValue({
-      revokedAt: new Date(),
+      revokedAt: new Date(Date.now() - 20_000),
       userId: "u1",
       id: "t",
       expiresAt,
@@ -404,6 +407,16 @@ describe("refresh token session", () => {
       valid: false,
       reason: "token_reuse",
       userId: "u1",
+    });
+  });
+
+  it("validateRefreshToken: simultaneous refresh is not account-wide compromise", async () => {
+    mockRefreshTokenFindUnique.mockResolvedValue({
+      revokedAt: new Date(), userId: "u1", id: "t", expiresAt,
+      user: { id: "u1", username: "n", role: "USER" },
+    });
+    await expect(validateRefreshToken("h")).resolves.toEqual({
+      valid: false, reason: "recently_consumed",
     });
   });
 
@@ -448,6 +461,14 @@ describe("refresh token session", () => {
     expect(mockTxRefreshCreate).toHaveBeenCalled();
   });
 
+  it("a losing concurrent rotation aborts without creating a second session", async () => {
+    mockTxUserFindUnique.mockResolvedValue({ registrationPending: false });
+    mockTxRefreshUpdateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(rotateRefreshToken("old", "u1", "newh", "newid", { expiresAt }))
+      .rejects.toMatchObject({ name: "RefreshRotationConflictError" });
+    expect(mockTxRefreshCreate).not.toHaveBeenCalled();
+  });
+
   it("revokeRefreshToken и revokeAllUserTokens", async () => {
     await revokeRefreshToken("h");
     expect(mockRefreshTokenUpdateMany).toHaveBeenCalledWith(
@@ -455,9 +476,12 @@ describe("refresh token session", () => {
     );
 
     await revokeAllUserTokens("u1");
-    expect(mockRefreshTokenUpdateMany).toHaveBeenCalledWith(
+    expect(mockTxRefreshUpdateMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: "u1", revokedAt: null } }),
     );
+    expect(mockUserUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "u1" }, data: { sessionsRevokedAt: expect.any(Date) },
+    }));
   });
 });
 
@@ -467,6 +491,8 @@ describe("setVkPhone / setPassword / changePassword", () => {
     bcryptMocks.hash.mockResolvedValue("new-hash" as never);
     bcryptMocks.compare.mockResolvedValue(true as unknown as boolean);
     mockUserUpdate.mockResolvedValue({});
+    mockTxPasswordUserUpdateMany.mockResolvedValue({count:1});
+    mockTxRefreshUpdateMany.mockResolvedValue({count:1});
   });
 
   it("setVkPhone: ошибка если не vk_ телефон", async () => {
@@ -511,7 +537,13 @@ describe("setVkPhone / setPassword / changePassword", () => {
     await setPassword("u1", validNewPassword);
 
     expect(bcryptMocks.hash).toHaveBeenCalled();
-    expect(mockUserUpdate).toHaveBeenCalled();
+    expect(mockTxPasswordUserUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: {id:"u1",passwordSetAt:null},
+      data: expect.objectContaining({password:"new-hash",sessionsRevokedAt:expect.any(Date)}),
+    }));
+    expect(mockTxRefreshUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where:{userId:"u1",revokedAt:null},data:{revokedAt:expect.any(Date)},
+    }));
   });
 
   it("changePassword: ошибка если пароль ещё не установлен", async () => {
@@ -546,6 +578,12 @@ describe("setVkPhone / setPassword / changePassword", () => {
 
     await changePassword("u1", "Oldpass1", validNewPassword);
 
-    expect(mockUserUpdate).toHaveBeenCalled();
+    expect(mockTxPasswordUserUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where:{id:"u1",password:"h",passwordSetAt:{not:null}},
+      data:expect.objectContaining({password:"new-hash",sessionsRevokedAt:expect.any(Date)}),
+    }));
+    expect(mockTxRefreshUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where:{userId:"u1",revokedAt:null},data:{revokedAt:expect.any(Date)},
+    }));
   });
 });

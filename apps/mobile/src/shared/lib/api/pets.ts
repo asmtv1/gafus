@@ -1,13 +1,12 @@
 import * as SecureStore from "expo-secure-store";
 import {
-  type PetDocumentDto,
-  PET_DOCUMENT_ALLOWED_MIME_TYPES,
+  type PetDocumentDto, PET_DOCUMENT_ALLOWED_MIME_TYPES,
+  isValidOwnedPetWeightId, parseOwnedPetWeightHistoryData,
 } from "@gafus/types";
 
-import { API_BASE_URL } from "@/shared/config";
 import { reportClientError } from "@/shared/lib/tracer";
 
-import { apiClient, type ApiResponse } from "./client";
+import { apiClient, apiClientMultipart, type ApiResponse } from "./client";
 
 const LOG_PREFIX = "[PetsAPI]";
 
@@ -16,12 +15,16 @@ export type PetKind = "DOG" | "CAT";
 
 /** Приводит значение типа с API к PetKind (регистр и лишние пробелы) */
 export function parsePetKind(value: unknown): PetKind {
-  const normalized = String(value ?? "").trim().toUpperCase();
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase();
   return normalized === "CAT" ? "CAT" : "DOG";
 }
 
 export interface Pet {
   id: string;
+  /** Required in the private list response; optional for existing create/edit DTO callers. */
+  ownerId?: string;
   name: string;
   type: PetKind;
   breed: string | null;
@@ -51,23 +54,65 @@ export interface PetWeightHistory {
   entries: PetWeightEntry[];
 }
 
+/**
+ * The shared wire DTO deliberately strips ownerId before exposing it to UI.
+ * A native owner-bound GET must therefore verify the raw row owner and unique
+ * IDs *before* projection, without leaking those fields in returned data.
+ */
+function weightReadRowsMatchOwnerAndUnique(raw: unknown, expectedOwnerId?: string): boolean {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+  const rows = (raw as { entries?: unknown }).entries;
+  if (!Array.isArray(rows)) return false;
+  const seen = new Set<string>();
+  for (const value of rows) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const row = value as { id?: unknown; ownerId?: unknown };
+    if (typeof row.id !== "string" || seen.has(row.id)) return false;
+    if (expectedOwnerId !== undefined && row.ownerId !== expectedOwnerId) return false;
+    seen.add(row.id);
+  }
+  return true;
+}
+
 export const petWeightApi = {
-  get: (petId: string) => apiClient<PetWeightHistory>(`/api/v1/pets/${petId}/weight`),
-  add: (petId: string, weightKg: number, measuredAt: string) =>
+  get: async (petId: string, requestGuard?: (accessToken?: string | null) => boolean,
+    expectedOwnerId?: string): Promise<ApiResponse<PetWeightHistory>> => {
+    if (!isValidOwnedPetWeightId(petId)) {
+      return { success: false, code: "INVALID_PET_ID", error: "Некорректный идентификатор питомца" };
+    }
+    const response = await apiClient<unknown>(`/api/v1/pets/${petId}/weight`, {
+      ...(requestGuard ? { requestGuard } : {}),
+    });
+    if (!response.success) return response as ApiResponse<PetWeightHistory>;
+    const safeRows = weightReadRowsMatchOwnerAndUnique(response.data, expectedOwnerId);
+    const data = safeRows ? parseOwnedPetWeightHistoryData(response.data, petId) : null;
+    return data ? { success: true, data } : {
+      success: false, code: "INVALID_RESPONSE", error: "Некорректная история веса питомца",
+    };
+  },
+  add: (petId: string, weightKg: number, measuredAt: string,
+    requestGuard?: () => boolean) =>
     apiClient<PetWeightEntry>(`/api/v1/pets/${petId}/weight`, {
-      method: "POST",
-      body: { weightKg, measuredAt },
+      method: "POST", body: { weightKg, measuredAt },
+      skipAuthRefreshReplay: true,
+      ...(requestGuard ? { requestGuard } : {}),
     }),
-  setTarget: (petId: string, targetWeightKg: number | null) =>
+  setTarget: (petId: string, targetWeightKg: number | null,
+    requestGuard?: () => boolean) =>
     apiClient<void>(`/api/v1/pets/${petId}/weight/target`, {
-      method: "PUT",
-      body: { targetWeightKg },
+      method: "PUT", body: { targetWeightKg },
+      skipAuthRefreshReplay: true,
+      ...(requestGuard ? { requestGuard } : {}),
     }),
-  remove: (petId: string, entryId: string) =>
-    apiClient<void>(`/api/v1/pets/${petId}/weight/${entryId}`, { method: "DELETE" }),
+  remove: (petId: string, entryId: string, requestGuard?: () => boolean) =>
+    apiClient<void>(`/api/v1/pets/${petId}/weight/${entryId}`, {
+      method: "DELETE", skipAuthRefreshReplay: true,
+      ...(requestGuard ? { requestGuard } : {}),
+    }),
 };
 
 export interface CreatePetData {
+  clientRequestId?: string; // JSON UUIDv4; Idempotency-Key header unsupported
   name: string;
   type: PetKind;
   breed: string;
@@ -81,7 +126,16 @@ export interface CreatePetData {
   notes?: string;
 }
 
-export type UpdatePetData = Partial<CreatePetData> & { showInProfile?: boolean };
+export type UpdatePetData = Omit<
+  Partial<CreatePetData>,
+  "weightKg" | "heightCm" | "neckGirthCm" | "muzzleGirthCm" | "bellyGirthCm"
+> & {
+  heightCm?: number | null;
+  neckGirthCm?: number | null;
+  muzzleGirthCm?: number | null;
+  bellyGirthCm?: number | null;
+  showInProfile?: boolean;
+};
 export type PetDocument = PetDocumentDto;
 
 export type PetPreventionType = "VACCINATION" | "DEWORMING" | "TICKS_FLEAS";
@@ -130,60 +184,42 @@ export const petsApi = {
   /**
    * Получить список питомцев пользователя
    */
-  getAll: async (): Promise<ApiResponse<Pet[]>> => {
-    if (__DEV__) {
-      console.log(`${LOG_PREFIX} Запрос списка питомцев`);
-    }
+  getAll: async (requestGuard?: () => boolean): Promise<ApiResponse<Pet[]>> => {
     try {
-      const response = await apiClient<Pet[]>("/api/v1/pets");
-      if (__DEV__) {
-        console.log(`${LOG_PREFIX} Получен ответ списка питомцев`, {
-          success: response.success,
-          count: response.data?.length || 0,
-          error: response.error,
-        });
-      }
-      return response;
-    } catch (error) {
-      reportClientError(error instanceof Error ? error : new Error(String(error)), {
-        issueKey: "PetsApi",
-        keys: { operation: "get_all" },
+      return await apiClient<Pet[]>("/api/v1/pets", {
+        ...(requestGuard ? { requestGuard } : {}),
       });
-      if (__DEV__) {
-        console.error(`${LOG_PREFIX} Ошибка при получении списка питомцев`, {
-          error: error instanceof Error ? error.message : String(error),
-          errorStack: error instanceof Error ? error.stack : undefined,
-        });
-      }
-      throw error;
+    } catch {
+      reportClientError(new Error("PETS_LIST_GET_FAILED"), {
+        issueKey: "PetsApi", keys: { operation: "get_all" },
+      });
+      throw new Error("PETS_LIST_GET_FAILED");
     }
   },
 
   /**
    * Получить питомца по id
    */
-  getById: async (petId: string): Promise<ApiResponse<Pet>> => {
+  getById: async (petId: string, requestGuard?: () => boolean): Promise<ApiResponse<Pet>> => {
     try {
-      return await apiClient<Pet>(`/api/v1/pets/${petId}`);
-    } catch (error) {
-      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      return await apiClient<Pet>(`/api/v1/pets/${petId}`, {
+        ...(requestGuard ? { requestGuard } : {}),
+      });
+    } catch {
+      // Native/private GET failures can contain owner notes or signed URLs;
+      // never forward arbitrary transport error data to tracer, console or UI.
+      reportClientError(new Error("PET_DETAIL_GET_FAILED"), {
         issueKey: "PetsApi",
         keys: { operation: "get_by_id" },
       });
-      if (__DEV__) {
-        console.error(`${LOG_PREFIX} Ошибка при получении питомца`, {
-          petId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-      throw error;
+      throw new Error("PET_DETAIL_GET_FAILED");
     }
   },
 
   /**
    * Создать питомца
    */
-  create: async (data: CreatePetData): Promise<ApiResponse<Pet>> => {
+  create: async (data: CreatePetData, requestGuard?: () => boolean): Promise<ApiResponse<Pet>> => {
     if (__DEV__) {
       console.log(`${LOG_PREFIX} Создание питомца`, {
         name: data.name,
@@ -202,6 +238,7 @@ export const petsApi = {
       const response = await apiClient<Pet>("/api/v1/pets", {
         method: "POST",
         body: data,
+        requestGuard,
       });
       if (__DEV__) {
         console.log(`${LOG_PREFIX} Ответ создания питомца`, {
@@ -231,41 +268,32 @@ export const petsApi = {
   /**
    * Обновить питомца
    */
-  update: async (petId: string, data: UpdatePetData): Promise<ApiResponse<Pet>> => {
-    if (__DEV__) {
-      console.log(`${LOG_PREFIX} Обновление питомца`, {
-        petId,
-        updatedFields: Object.keys(data),
-        name: data.name,
-        type: data.type,
-      });
-    }
+  update: async (
+    petId: string,
+    data: UpdatePetData,
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<Pet>> => {
+    // No arbitrary caller may bypass the AG4-approved weight-only endpoint.
+    if (Object.prototype.hasOwnProperty.call(data, "weightKg"))
+      return {
+        success: false,
+        code: "PET_VALIDATION_ERROR",
+        error: "Поле веса недоступно для изменения",
+        details: { fieldErrors: { weightKg: "UNSUPPORTED_FIELD" } },
+      };
     try {
       const response = await apiClient<Pet>(`/api/v1/pets/${petId}`, {
         method: "PUT",
         body: data,
+        ...(requestGuard ? { requestGuard } : {}),
       });
-      if (__DEV__) {
-        console.log(`${LOG_PREFIX} Ответ обновления питомца`, {
-          success: response.success,
-          petId: response.data?.id,
-          petName: response.data?.name,
-          error: response.error,
-        });
-      }
+
       return response;
     } catch (error) {
-      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      reportClientError(new Error("PET_EDIT_NETWORK_UNKNOWN"), {
         issueKey: "PetsApi",
         keys: { operation: "update" },
       });
-      if (__DEV__) {
-        console.error(`${LOG_PREFIX} Ошибка при обновлении питомца`, {
-          petId,
-          error: error instanceof Error ? error.message : String(error),
-          errorStack: error instanceof Error ? error.stack : undefined,
-        });
-      }
       throw error;
     }
   },
@@ -319,33 +347,23 @@ export const petsApi = {
       return { success: false, error: "Не авторизован", code: "UNAUTHORIZED" };
     }
 
-    const formData = new FormData();
-    formData.append("file", {
-      uri,
-      type: mimeType,
-      name: fileName,
-    } as unknown as Blob);
-
-    const response = await fetch(`${API_BASE_URL}/api/v1/pets/${petId}/photo`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.error || "Ошибка загрузки фото",
-        code: data.code,
-      };
-    }
-    return data;
+    return apiClientMultipart<{ photoUrl: string }>(
+      `/api/v1/pets/${encodeURIComponent(petId)}/photo`,
+      () => {
+        const formData = new FormData();
+        formData.append("file", {
+          uri,
+          type: mimeType,
+          name: fileName,
+        } as unknown as Blob);
+        return formData;
+      },
+    );
   },
 
   getDocuments: async (petId: string): Promise<ApiResponse<PetDocument[]>> => {
     try {
-      return await apiClient<PetDocument[]>(`/api/v1/pets/${petId}/documents`);
+      return await apiClient<PetDocument[]>(`/api/v1/pets/${encodeURIComponent(petId)}/documents`);
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "PetsApi",
@@ -377,35 +395,28 @@ export const petsApi = {
       };
     }
 
-    const formData = new FormData();
-    formData.append("file", {
-      uri,
-      type: mimeType,
-      name: fileName,
-    } as unknown as Blob);
-
-    const response = await fetch(`${API_BASE_URL}/api/v1/pets/${petId}/documents`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.error || "Ошибка загрузки документа",
-        code: data.code,
-      };
-    }
-    return data;
+    return apiClientMultipart<PetDocument>(
+      `/api/v1/pets/${encodeURIComponent(petId)}/documents`,
+      () => {
+        const formData = new FormData();
+        formData.append("file", {
+          uri,
+          type: mimeType,
+          name: fileName,
+        } as unknown as Blob);
+        return formData;
+      },
+    );
   },
 
   deleteDocument: async (petId: string, documentId: string): Promise<ApiResponse<void>> => {
     try {
-      return await apiClient<void>(`/api/v1/pets/${petId}/documents/${documentId}`, {
-        method: "DELETE",
-      });
+      return await apiClient<void>(
+        `/api/v1/pets/${encodeURIComponent(petId)}/documents/${encodeURIComponent(documentId)}`,
+        {
+          method: "DELETE",
+        },
+      );
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "PetsApi",
@@ -421,10 +432,13 @@ export const petsApi = {
     name: string,
   ): Promise<ApiResponse<PetDocument>> => {
     try {
-      return await apiClient<PetDocument>(`/api/v1/pets/${petId}/documents/${documentId}`, {
-        method: "PUT",
-        body: { name },
-      });
+      return await apiClient<PetDocument>(
+        `/api/v1/pets/${encodeURIComponent(petId)}/documents/${encodeURIComponent(documentId)}`,
+        {
+          method: "PUT",
+          body: { name },
+        },
+      );
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "PetsApi",
@@ -436,13 +450,9 @@ export const petsApi = {
 
   // ==================== Prevention Journal ====================
 
-  getPreventionEntries: async (
-    petId: string,
-  ): Promise<ApiResponse<PetPreventionEntry[]>> => {
+  getPreventionEntries: async (petId: string): Promise<ApiResponse<PetPreventionEntry[]>> => {
     try {
-      return await apiClient<PetPreventionEntry[]>(
-        `/api/v1/pets/${petId}/prevention`,
-      );
+      return await apiClient<PetPreventionEntry[]>(`/api/v1/pets/${petId}/prevention`);
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "PetsApi",
@@ -463,10 +473,10 @@ export const petsApi = {
     data: CreatePreventionEntryData,
   ): Promise<ApiResponse<PetPreventionEntry>> => {
     try {
-      return await apiClient<PetPreventionEntry>(
-        `/api/v1/pets/${petId}/prevention`,
-        { method: "POST", body: data },
-      );
+      return await apiClient<PetPreventionEntry>(`/api/v1/pets/${petId}/prevention`, {
+        method: "POST",
+        body: data,
+      });
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "PetsApi",
@@ -488,10 +498,10 @@ export const petsApi = {
     data: Partial<CreatePreventionEntryData>,
   ): Promise<ApiResponse<PetPreventionEntry>> => {
     try {
-      return await apiClient<PetPreventionEntry>(
-        `/api/v1/pets/${petId}/prevention/${entryId}`,
-        { method: "PUT", body: data },
-      );
+      return await apiClient<PetPreventionEntry>(`/api/v1/pets/${petId}/prevention/${entryId}`, {
+        method: "PUT",
+        body: data,
+      });
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "PetsApi",
@@ -508,15 +518,11 @@ export const petsApi = {
     }
   },
 
-  deletePreventionEntry: async (
-    petId: string,
-    entryId: string,
-  ): Promise<ApiResponse<void>> => {
+  deletePreventionEntry: async (petId: string, entryId: string): Promise<ApiResponse<void>> => {
     try {
-      return await apiClient<void>(
-        `/api/v1/pets/${petId}/prevention/${entryId}`,
-        { method: "DELETE" },
-      );
+      return await apiClient<void>(`/api/v1/pets/${petId}/prevention/${entryId}`, {
+        method: "DELETE",
+      });
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "PetsApi",
@@ -536,9 +542,7 @@ export const petsApi = {
   batchUpsertPreventionEntries: async (
     petId: string,
     entries: BatchPreventionEntry[],
-  ): Promise<
-    ApiResponse<{ created: number; updated: number; errors: string[] }>
-  > => {
+  ): Promise<ApiResponse<{ created: number; updated: number; errors: string[] }>> => {
     try {
       return await apiClient<{
         created: number;

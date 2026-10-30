@@ -8,7 +8,7 @@ ENV PRISMA_CLI_BINARY_TARGETS=linux-musl-openssl-3.0.x
 ENV PRISMA_QUERY_ENGINE_LIBRARY=/app/node_modules/.prisma/client/libquery_engine-linux-musl-openssl-3.0.x.so.node
 
 # Включаем pnpm
-RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 
 # Копируем файлы конфигурации
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
@@ -21,6 +21,11 @@ COPY apps/bull-board ./apps/bull-board
 # Устанавливаем зависимости
 RUN pnpm install --frozen-lockfile
 
+# The early PRISMA_QUERY_ENGINE_LIBRARY override points at a file not yet
+# generated. Disable it before Prisma generate and workspace build.
+# Keep this after install to preserve the verified dependency cache layer.
+ENV PRISMA_QUERY_ENGINE_LIBRARY=
+
 # Копируем tsconfig файлы
 COPY packages/*/tsconfig.json ./packages/*/
 COPY apps/bull-board/tsconfig.json ./apps/bull-board/
@@ -30,7 +35,7 @@ RUN cd packages/prisma \
   && cp schema.prisma schema.prisma.bak \
   && awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp \
   && mv schema.tmp schema.prisma \
-  && for i in 1 2 3; do pnpm db:generate && break || (echo "Prisma generate attempt $i failed, retrying..." && sleep 5); done \
+  && (pnpm db:generate || (sleep 5 && pnpm db:generate)) \
   && mv schema.prisma.bak schema.prisma
 
 # Создаем папку для Prisma
@@ -45,8 +50,7 @@ RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /
 
 # Собираем приложение
 # Сначала собираем зависимость очередей, затем само приложение bull-board
-RUN pnpm build --filter @gafus/queues
-RUN pnpm build --filter @gafus/bull-board
+RUN pnpm exec turbo run build --filter='@gafus/bull-board...'
 
 # Готовим минимальный продовый пакет для bull-board
 # Server-only deploy subsets do not contain mobile dependencies and their patches.

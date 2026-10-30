@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { ChatOverlayRoot } from "@/features/cynologist-chat/ChatOverlayRoot";
 import { Redirect, Stack, useRouter } from "expo-router";
 
 import { COLORS } from "@/shared/config";
@@ -58,7 +57,6 @@ export default function MainLayout() {
   if (!isAuthenticated) return <Redirect href="/welcome" />;
 
   return (
-    <ChatOverlayRoot>
       <MobileOnboardingTourProvider>
         <AppSubscriptionProvider>
           <AppSubscriptionOnboardingCoordinator />
@@ -79,6 +77,8 @@ export default function MainLayout() {
             }}
           >
             <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="chats/index" options={{ headerShown: false }} />
+            <Stack.Screen name="chats/[id]" options={{ headerShown: false }} />
             <Stack.Screen name="gafus" options={{ headerShown: false }} />
             <Stack.Screen name="gafus-guides" options={{ headerShown: true, title: "Мини-гайды" }} />
             <Stack.Screen
@@ -173,6 +173,12 @@ export default function MainLayout() {
               }}
             />
             <Stack.Screen
+              name="consultations/trainer"
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
               name="consultations/booking-confirm"
               options={{
                 headerShown: false,
@@ -182,6 +188,5 @@ export default function MainLayout() {
           </Stack>
         </AppSubscriptionProvider>
       </MobileOnboardingTourProvider>
-    </ChatOverlayRoot>
   );
 }

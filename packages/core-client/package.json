@@ -1,0 +1,122 @@
+{
+  "name": "@gafus/core-client",
+  "version": "1.7.0",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "default": "./dist/utils/index.js"
+    },
+    "./utils/training": {
+      "types": "./dist/utils/training.d.ts",
+      "default": "./dist/utils/training.js"
+    },
+    "./utils/social": {
+      "types": "./dist/utils/social.d.ts",
+      "default": "./dist/utils/social.js"
+    },
+    "./media-delivery": {
+      "types": "./dist/media-delivery/index.d.ts",
+      "default": "./dist/media-delivery/index.js"
+    },
+    "./feed/publication-client": {
+      "types": "./dist/feed/publication-client.d.ts",
+      "default": "./dist/feed/publication-client.js"
+    },
+    "./auth/vk-auth-constants": {
+      "types": "./dist/auth/vk-auth-constants.d.ts",
+      "default": "./dist/auth/vk-auth-constants.js"
+    },
+    "./validation/pet": {
+      "types": "./dist/validation/pet.d.ts",
+      "default": "./dist/validation/pet.js"
+    },
+    "./validation/auth-register": {
+      "types": "./dist/validation/auth-register.d.ts",
+      "default": "./dist/validation/auth-register.js"
+    },
+    "./validation/email-domain-suggestion": {
+      "types": "./dist/validation/email-domain-suggestion.d.ts",
+      "default": "./dist/validation/email-domain-suggestion.js"
+    },
+    "./index": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./utils/transliterate": {
+      "types": "./dist/utils/transliterate.d.ts",
+      "default": "./dist/utils/transliterate.js"
+    },
+    "./utils/date": {
+      "types": "./dist/utils/date.d.ts",
+      "default": "./dist/utils/date.js"
+    },
+    "./utils/video": {
+      "types": "./dist/utils/video.d.ts",
+      "default": "./dist/utils/video.js"
+    },
+    "./utils/pluralize": {
+      "types": "./dist/utils/pluralize.d.ts",
+      "default": "./dist/utils/pluralize.js"
+    },
+    "./utils/index": {
+      "types": "./dist/utils/index.d.ts",
+      "default": "./dist/utils/index.js"
+    },
+    "./utils/pet": {
+      "types": "./dist/utils/pet.d.ts",
+      "default": "./dist/utils/pet.js"
+    },
+    "./utils/age/getAge": {
+      "types": "./dist/utils/age/getAge.d.ts",
+      "default": "./dist/utils/age/getAge.js"
+    },
+    "./utils/age/getAgeWithMonths": {
+      "types": "./dist/utils/age/getAgeWithMonths.d.ts",
+      "default": "./dist/utils/age/getAgeWithMonths.js"
+    },
+    "./utils/age/index": {
+      "types": "./dist/utils/age/index.d.ts",
+      "default": "./dist/utils/age/index.js"
+    },
+    "./media-delivery/remote-status": {
+      "types": "./dist/media-delivery/remote-status.d.ts",
+      "default": "./dist/media-delivery/remote-status.js"
+    },
+    "./media-delivery/index": {
+      "types": "./dist/media-delivery/index.d.ts",
+      "default": "./dist/media-delivery/index.js"
+    },
+    "./validation/register-email-domain": {
+      "types": "./dist/validation/register-email-domain.d.ts",
+      "default": "./dist/validation/register-email-domain.js"
+    },
+    "./utils/personalization": {
+      "types": "./dist/utils/personalization.d.ts",
+      "default": "./dist/utils/personalization.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/types": "workspace:*",
+    "validator": "^13.15.26",
+    "zod": "^3.24.1",
+    "petrovich": "^0.2.1"
+  },
+  "devDependencies": {
+    "@types/validator": "^13.15.10",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "^4.0.17"
+  }
+}

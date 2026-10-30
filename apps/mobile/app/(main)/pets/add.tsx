@@ -1,4 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePetCreateMockIntent } from "@/features/pets/usePetCreateMockIntent";
+import { usePetCreateOnlineIntent } from "@/features/pets/usePetCreateOnlineIntent";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { Image } from "expo-image";
 import {
   View,
@@ -22,11 +26,28 @@ import { petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
 
+type AddPetCreateVariables =
+  | {
+      kind: "create";
+      data: CreatePetData;
+      fresh: boolean;
+      actor: { ownerId: string; authEpoch: string } | null;
+    }
+  | { kind: "retry"; actor: { ownerId: string; authEpoch: string } | null };
+
 const LOG_PREFIX = "[AddPetScreen]";
 
 const PET_TYPES = [
-  { value: "DOG" as const, label: "Собака", image: require("../../../assets/images/pet-type-dog.webp") },
-  { value: "CAT" as const, label: "Кошка", image: require("../../../assets/images/pet-type-cat.webp") },
+  {
+    value: "DOG" as const,
+    label: "Собака",
+    image: require("../../../assets/images/pet-type-dog.webp"),
+  },
+  {
+    value: "CAT" as const,
+    label: "Кошка",
+    image: require("../../../assets/images/pet-type-cat.webp"),
+  },
 ];
 
 /**
@@ -50,11 +71,35 @@ export default function AddPetScreen() {
   const [breed, setBreed] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [heightCm, setHeightCm] = useState("");
+  const [weightKg, setWeightKg] = useState("");
   const [neckGirthCm, setNeckGirthCm] = useState("");
   const [muzzleGirthCm, setMuzzleGirthCm] = useState("");
   const [bellyGirthCm, setBellyGirthCm] = useState("");
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState<PetFormErrors>({});
+  const mockIntent = usePetCreateMockIntent();
+  const onlineIntent = usePetCreateOnlineIntent();
+  const screenMounted = useRef(true);
+  useEffect(() => {
+    screenMounted.current = true;
+    return () => {
+      screenMounted.current = false;
+      onlineIntent.cancel();
+    };
+    // Only the component lifetime matters: onlineIntent returns a hook facade every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const canApplyMutation = (actor: { ownerId: string; authEpoch: string } | null) => {
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    return Boolean(
+      screenMounted.current &&
+        actor &&
+        binding?.principalId === actor.ownerId &&
+        binding.authEpoch === actor.authEpoch &&
+        useAuthStore.getState().user?.id === actor.ownerId,
+    );
+  };
+  const [mockOptIn, setMockOptIn] = useState(false);
 
   const updateField = (
     field: keyof PetFormErrors,
@@ -68,8 +113,12 @@ export default function AddPetScreen() {
   };
 
   const createMutation = useMutation({
-    mutationFn: petsApi.create,
-    onSuccess: (data) => {
+    mutationFn: (variables: AddPetCreateVariables) =>
+      variables.kind === "retry"
+        ? onlineIntent.retry()
+        : onlineIntent.submit(variables.data, variables.fresh),
+    onSuccess: (data, variables) => {
+      if (!canApplyMutation(variables.actor)) return;
       trackEvent({
         eventName: "button_click",
         platform: "mobile",
@@ -90,7 +139,8 @@ export default function AddPetScreen() {
       }
       router.back();
     },
-    onError: (error) => {
+    onError: (error, variables) => {
+      if (!canApplyMutation(variables.actor)) return;
       if (__DEV__) {
         console.error(`${LOG_PREFIX} Ошибка при создании питомца`, {
           error: error instanceof Error ? error.message : String(error),
@@ -103,11 +153,26 @@ export default function AddPetScreen() {
   });
 
   const handleBack = () => {
+    // Router transitions are asynchronous: fence callbacks at the moment of leaving.
+    screenMounted.current = false;
+    mockIntent.cancel();
+    onlineIntent.cancel();
     void hapticFeedback.light();
     router.back();
   };
 
-  const handleSave = () => {
+  const handleRetry = () => {
+    if (createMutation.isPending) return;
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    const userId = useAuthStore.getState().user?.id;
+    const actor =
+      binding && binding.principalId === userId
+        ? { ownerId: userId, authEpoch: binding.authEpoch }
+        : null;
+    createMutation.mutate({ kind: "retry", actor });
+  };
+
+  const handleSave = (newIntent = false) => {
     if (__DEV__) {
       console.log(`${LOG_PREFIX} Начало сохранения питомца`, {
         name,
@@ -127,6 +192,7 @@ export default function AddPetScreen() {
       breed,
       birthDate,
       heightCm,
+      weightKg,
       neckGirthCm,
       muzzleGirthCm,
       bellyGirthCm,
@@ -146,6 +212,7 @@ export default function AddPetScreen() {
       breed: validation.values.breed,
       birthDate: validation.values.birthDate,
       heightCm: validation.values.heightCm,
+      weightKg: validation.values.weightKg,
       neckGirthCm: validation.values.neckGirthCm,
       muzzleGirthCm: validation.values.muzzleGirthCm,
       bellyGirthCm: validation.values.bellyGirthCm,
@@ -158,7 +225,18 @@ export default function AddPetScreen() {
       });
     }
 
-    createMutation.mutate(petData);
+    if (__DEV__ && mockOptIn) {
+      void mockIntent.submit(petData, newIntent);
+      return;
+    }
+    if (createMutation.isPending) return;
+    const actorBinding = newOnlyV2NativeQueues.getVerifiedBinding();
+    const userId = useAuthStore.getState().user?.id;
+    const actor =
+      actorBinding && actorBinding.principalId === userId
+        ? { ownerId: userId, authEpoch: actorBinding.authEpoch }
+        : null;
+    createMutation.mutate({ kind: "create", data: petData, fresh: newIntent, actor });
     trackEvent({
       eventName: "button_click",
       platform: "mobile",
@@ -211,13 +289,13 @@ export default function AddPetScreen() {
                     key={t.value}
                     label={t.label}
                     icon={() => (
-                        <Image
-                          source={t.image}
-                          style={{ width: 28, height: 28 }}
-                          contentFit="contain"
-                          accessible={false}
-                        />
-                      )}
+                      <Image
+                        source={t.image}
+                        style={{ width: 28, height: 28 }}
+                        contentFit="contain"
+                        accessible={false}
+                      />
+                    )}
                     variant={type === t.value ? "selected" : "primary"}
                     flex={1}
                     fullWidth={false}
@@ -280,6 +358,16 @@ export default function AddPetScreen() {
                   />
                   {errors.heightCm ? <Text style={styles.errorText}>{errors.heightCm}</Text> : null}
 
+                  <Text style={styles.fieldLabel}>Вес (кг)</Text>
+                  <TextInput
+                    value={weightKg}
+                    onChangeText={(value) => updateField("weightKg", value, setWeightKg)}
+                    style={[styles.input, errors.weightKg && styles.inputError]}
+                    placeholder="Необязательно, 0.1–200 кг"
+                    placeholderTextColor={COLORS.disabled}
+                    keyboardType="decimal-pad"
+                  />
+                  {errors.weightKg ? <Text style={styles.errorText}>{errors.weightKg}</Text> : null}
                   <Text style={styles.fieldLabel}>Обхват шеи (см)</Text>
                   <TextInput
                     value={neckGirthCm}
@@ -336,14 +424,64 @@ export default function AddPetScreen() {
                 </>
               ) : null}
 
+              {!mockOptIn && onlineIntent.uncertain ? (
+                <View>
+                  <Text>
+                    Результат создания не подтверждён. Повтор использует прежний ключ операции.
+                  </Text>
+                  <Button label="Повторить создание" onPress={handleRetry} />
+                  <Button label="Начать новое создание" onPress={() => handleSave(true)} />
+                </View>
+              ) : null}
+              {__DEV__ && !mockOptIn ? (
+                <Button
+                  label="Включить тестовый режим (без отправки)"
+                  onPress={() => setMockOptIn(true)}
+                />
+              ) : null}
+              {__DEV__ && mockOptIn ? (
+                <Button
+                  label="Выключить тестовый режим"
+                  onPress={() => {
+                    mockIntent.cancel();
+                    setMockOptIn(false);
+                  }}
+                />
+              ) : null}
+              {__DEV__ && mockOptIn && mockIntent.status !== "IDLE" ? (
+                <View>
+                  <Text>
+                    {mockIntent.status === "UNCERTAIN"
+                      ? "Тест: результат не подтверждён (реальный запрос не выполнялся)"
+                      : "Тест: ошибка подготовки, питомец не отправлен"}
+                  </Text>
+                  <Button label="Повторить тестовую операцию" onPress={() => handleSave(false)} />
+                  <Button
+                    label="Создать новую тестовую операцию"
+                    onPress={() => handleSave(true)}
+                  />
+                  <Button label="Отменить тестовую операцию" onPress={mockIntent.cancel} />
+                </View>
+              ) : null}
               <View style={[styles.actionsRow, isTourRequiredPetCreation && styles.actionsRowTour]}>
                 {isTourRequiredPetCreation ? (
                   <AppBackButton onPress={handleBack} disabled={createMutation.isPending} />
                 ) : (
-                  <Button label="Отмена" variant="secondary" flex={1} height={48}
-                    fontFamily={FONTS.montserrat} fontWeight="600" fontSize={15}
-                    lineHeight={20} horizontalPadding={0} verticalPadding={14}
-                    borderRadius={10} onPress={handleBack} disabled={createMutation.isPending} />
+                  <Button
+                    label="Отмена"
+                    variant="secondary"
+                    flex={1}
+                    height={48}
+                    fontFamily={FONTS.montserrat}
+                    fontWeight="600"
+                    fontSize={15}
+                    lineHeight={20}
+                    horizontalPadding={0}
+                    verticalPadding={14}
+                    borderRadius={10}
+                    onPress={handleBack}
+                    disabled={createMutation.isPending}
+                  />
                 )}
                 <Button
                   label={
@@ -363,7 +501,7 @@ export default function AddPetScreen() {
                   horizontalPadding={0}
                   verticalPadding={14}
                   borderRadius={10}
-                  onPress={handleSave}
+                  onPress={() => handleSave(false)}
                   disabled={createMutation.isPending}
                 />
               </View>

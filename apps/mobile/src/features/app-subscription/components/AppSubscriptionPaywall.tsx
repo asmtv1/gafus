@@ -48,6 +48,9 @@ import {
 import { runAppleAppSubscriptionPurchase } from "../lib/appleAppSubscriptionPurchase";
 import { yookassaAppSubscriptionPurchase } from "../lib/yookassaAppSubscriptionPurchase";
 import { usePaywallStore } from "../store/paywallStore";
+import { getApplePurchaseReadiness } from "../lib/applePurchaseReadiness";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 
 const STATUS_QUERY_KEY = ["app-subscription", "status"] as const;
 const OFFER_QUERY_KEY = ["app-subscription", "offer"] as const;
@@ -59,10 +62,7 @@ const YOOKASSA_PLAN_ORDER: readonly AppSubscriptionPlanCode[] = [
   "THREE_MONTHS",
 ];
 
-const PLAN_BENEFITS = [
-  "Курсы, экзамены и статьи",
-  "Документы и напоминания",
-] as const;
+const PLAN_BENEFITS = ["Курсы, экзамены и статьи", "Документы и напоминания"] as const;
 const OFFLINE_DOWNLOAD_BENEFIT = "Скачивание курсов для офлайн-работы";
 
 function sleep(ms: number) {
@@ -81,11 +81,15 @@ function legacyApplePlan(
   return offer?.applePlan ?? offer?.plans.find((plan) => Boolean(plan.appleProductId)) ?? null;
 }
 
-async function pollActiveSubscription(): Promise<"active" | "pending"> {
+async function pollActiveSubscription(
+  isCurrentAccount: () => boolean,
+): Promise<"active" | "pending" | "owner_changed"> {
   for (let attempt = 0; attempt < STATUS_POLL_ATTEMPTS; attempt += 1) {
+    if (!isCurrentAccount()) return "owner_changed";
     const status = await appSubscriptionApi.getStatus();
+    if (!isCurrentAccount()) return "owner_changed";
     if (status.success && status.data?.hasActiveSubscription) return "active";
-    await sleep(STATUS_POLL_DELAY_MS);
+    if (attempt + 1 < STATUS_POLL_ATTEMPTS) await sleep(STATUS_POLL_DELAY_MS);
   }
   return "pending";
 }
@@ -105,8 +109,7 @@ function badgeLabel(badge: AppSubscriptionPlanOfferDto["badge"]) {
 function includesOfflineCourseDownload(plan: AppSubscriptionPlanOfferDto | null): boolean {
   if (!plan) return false;
   return (
-    plan.offlineCourseDownloadIncluded ??
-    (plan.code === "MONTHLY" || plan.code === "THREE_MONTHS")
+    plan.offlineCourseDownloadIncluded ?? (plan.code === "MONTHLY" || plan.code === "THREE_MONTHS")
   );
 }
 
@@ -117,9 +120,35 @@ export function AppSubscriptionPaywall() {
   const close = usePaywallStore((state) => state.close);
   const [isPaying, setIsPaying] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
-  const [lastSuccessfulOffer, setLastSuccessfulOffer] = useState<AppSubscriptionOfferDto | null>(
-    null,
-  );
+  const [lastSuccessfulOffer, setLastSuccessfulOffer] = useState<{
+    ownerId: string;
+    authEpoch: string;
+    offer: AppSubscriptionOfferDto;
+  } | null>(null);
+  const paymentInFlight = useRef(false);
+  const paymentGeneration = useRef(0);
+  const ownerProfile = useAuthStore((s) => s.user);
+  const ownerId = ownerProfile?.id ?? null;
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const authEpoch = binding?.principalId === ownerId ? binding.authEpoch : null;
+  const isOwnerCurrent = useCallback(() => {
+    const current = newOnlyV2NativeQueues.getVerifiedBinding();
+    return (
+      !!ownerId &&
+      !!authEpoch &&
+      useAuthStore.getState().user?.id === ownerId &&
+      current?.principalId === ownerId &&
+      current.authEpoch === authEpoch
+    );
+  }, [ownerId, authEpoch]);
+  // Never retain a previous principal's pending indicator or in-flight UI lock.
+  useEffect(() => {
+    // A late A callback must not unlock B's newer in-flight payment.
+    paymentGeneration.current += 1;
+    paymentInFlight.current = false;
+    setIsPaying(false);
+    setPendingMessage(null);
+  }, [ownerId, authEpoch]);
   const [selectedYookassaPlanCode, setSelectedYookassaPlanCode] =
     useState<AppSubscriptionPlanCode | null>("MONTHLY");
   const promoInputRef = useRef<ComponentRef<typeof Input>>(null);
@@ -144,21 +173,29 @@ export function AppSubscriptionPaywall() {
   }, [queryClient]);
 
   const statusQuery = useQuery({
-    queryKey: STATUS_QUERY_KEY,
+    queryKey: [...STATUS_QUERY_KEY, ownerId, authEpoch],
+    enabled: !!authEpoch,
     queryFn: () => appSubscriptionApi.getStatus(),
     staleTime: 0,
   });
   const offerQuery = useQuery({
-    queryKey: OFFER_QUERY_KEY,
+    queryKey: [...OFFER_QUERY_KEY, ownerId, authEpoch],
+    enabled: !!authEpoch,
     queryFn: () => appSubscriptionApi.getOffer(),
     staleTime: 5 * 60_000,
   });
   const offer = offerQuery.data?.success ? offerQuery.data.data : null;
   useEffect(() => {
-    if (offer) setLastSuccessfulOffer(offer);
-  }, [offer]);
+    if (offer && ownerId && authEpoch && isOwnerCurrent()) {
+      setLastSuccessfulOffer({ ownerId, authEpoch, offer });
+    }
+  }, [offer, ownerId, authEpoch, isOwnerCurrent]);
 
-  const effectiveOffer = offer ?? lastSuccessfulOffer;
+  const effectiveOffer =
+    offer ??
+    (lastSuccessfulOffer?.ownerId === ownerId && lastSuccessfulOffer.authEpoch === authEpoch
+      ? lastSuccessfulOffer.offer
+      : null);
   const yookassaPlans = useMemo(
     () =>
       (effectiveOffer?.yookassaPlans ?? effectiveOffer?.plans ?? [])
@@ -199,9 +236,14 @@ export function AppSubscriptionPaywall() {
       Boolean(selectedYookassaPlan?.promoCodeEligible),
   });
   const appleProductId = applePlan?.appleProductId ?? null;
+  const appleReadiness = getApplePurchaseReadiness(
+    appleProductId,
+    effectiveOffer?.appleAppAccountToken,
+    isOwnerCurrent(),
+  );
   const applePriceQuery = useQuery({
-    queryKey: ["app-subscription", "apple-price", appleProductId],
-    enabled: isIos && Boolean(appleProductId),
+    queryKey: ["app-subscription", "apple-price", ownerId, authEpoch, appleProductId],
+    enabled: isIos && !!authEpoch && Boolean(appleProductId),
     staleTime: 10 * 60_000,
     queryFn: async () => {
       if (!appleProductId) return null;
@@ -248,29 +290,64 @@ export function AppSubscriptionPaywall() {
   }, [resetPromoQuote, showPromoCode]);
 
   useEffect(() => {
-    if (!statusQuery.data?.success || !statusQuery.data.data?.hasActiveSubscription) return;
+    if (
+      !isOwnerCurrent() ||
+      !statusQuery.data?.success ||
+      !statusQuery.data.data?.hasActiveSubscription
+    )
+      return;
     void (async () => {
       await refreshEntitlementQueries();
-      close();
+      if (isOwnerCurrent()) close();
     })();
-  }, [close, refreshEntitlementQueries, statusQuery.data]);
+  }, [close, refreshEntitlementQueries, statusQuery.data, isOwnerCurrent]);
 
   const finishSuccessfulPayment = async () => {
     await refreshEntitlementQueries();
+    if (!isOwnerCurrent()) return;
     close();
     Alert.alert("Premium подключён", "Premium уже активен на вашем аккаунте.");
   };
 
   const handleApplePay = async () => {
-    if (!appleProductId || isPaymentBlocked) return;
+    if (!appleReadiness.ready || isPaymentBlocked || paymentInFlight.current || !isOwnerCurrent())
+      return;
+    paymentInFlight.current = true;
+    const attemptGeneration = ++paymentGeneration.current;
     setIsPaying(true);
     setPendingMessage(null);
-    const result = await runAppleAppSubscriptionPurchase(appleProductId, {
-      appAccountToken: effectiveOffer?.appleAppAccountToken ?? null,
-    });
-    setIsPaying(false);
-    if (result.ok) return void finishSuccessfulPayment();
-    if (!result.userCancelled) Alert.alert("Оплата не прошла", result.message);
+    try {
+      const result = await runAppleAppSubscriptionPurchase(appleReadiness.productId, {
+        appAccountToken: appleReadiness.stableToken,
+        isCurrentAccount: isOwnerCurrent,
+      });
+      if (!isOwnerCurrent()) return;
+      if (!result.ok) {
+        if (!result.userCancelled) {
+          if (result.uncertain) setPendingMessage(result.message);
+          else Alert.alert("Покупка не началась", result.message);
+        }
+        return;
+      }
+      // StoreKit verified the transaction, but UI must follow the durable server snapshot.
+      const status = await appSubscriptionApi.getStatus();
+      if (!isOwnerCurrent()) return;
+      if (status.success && status.data?.hasActiveSubscription) {
+        await finishSuccessfulPayment();
+      } else {
+        setPendingMessage("Покупка подтверждается на сервере. Проверьте статус подписки позднее.");
+        await refreshEntitlementQueries();
+      }
+    } catch {
+      if (isOwnerCurrent()) {
+        setPendingMessage("Результат покупки неизвестен. Проверьте подписку перед повтором.");
+      }
+    } finally {
+      if (paymentGeneration.current === attemptGeneration) {
+        paymentInFlight.current = false;
+        if (isOwnerCurrent()) setIsPaying(false);
+      }
+    }
   };
 
   const handlePromoChange = (text: string) => {
@@ -304,9 +381,10 @@ export function AppSubscriptionPaywall() {
   }, [isPaymentBlocked, previewPromoCode, resetPromoQuote, selectedYookassaPlan]);
 
   useEffect(() => {
-    const savedCode = effectiveOffer?.savedRegistrationPromoCode?.status === "ACTIVE"
-      ? effectiveOffer.savedRegistrationPromoCode.code.trim()
-      : null;
+    const savedCode =
+      effectiveOffer?.savedRegistrationPromoCode?.status === "ACTIVE"
+        ? effectiveOffer.savedRegistrationPromoCode.code.trim()
+        : null;
     if (
       savedPromoPrefilledRef.current ||
       promoInputEditedRef.current ||
@@ -321,10 +399,16 @@ export function AppSubscriptionPaywall() {
     setPromoInputValue(savedCode);
     setHasPromoText(true);
     void handlePromoApply();
-  }, [effectiveOffer?.savedRegistrationPromoCode, handlePromoApply, selectedYookassaPlan, showPromoCode]);
+  }, [
+    effectiveOffer?.savedRegistrationPromoCode,
+    handlePromoApply,
+    selectedYookassaPlan,
+    showPromoCode,
+  ]);
 
   const handleYookassaPay = async () => {
-    if (isPaymentBlocked || !selectedYookassaPlan) return;
+    if (isPaymentBlocked || !selectedYookassaPlan || paymentInFlight.current || !isOwnerCurrent())
+      return;
     if (
       shouldBlockYookassaStartForPromo({ hasPromoText, hasAppliedPreview: Boolean(promoPreview) })
     ) {
@@ -332,32 +416,50 @@ export function AppSubscriptionPaywall() {
       promoInputRef.current?.focus();
       return;
     }
+    paymentInFlight.current = true;
+    const attemptGeneration = ++paymentGeneration.current;
     setIsPaying(true);
     setPendingMessage(null);
-    const result = await yookassaAppSubscriptionPurchase(
-      selectedYookassaPlan.code,
-      promoPreview ? { code: promoPreview.code, revision: promoPreview.revision } : undefined,
-    );
-    if (!result.ok) {
-      setIsPaying(false);
-      if (result.code?.startsWith("PROMO_")) {
-        setPromoPreview(null);
-        setPromoState(promoCodeStateFromErrorCode(result.code));
-        return;
+    try {
+      const result = await yookassaAppSubscriptionPurchase(
+        selectedYookassaPlan.code,
+        promoPreview ? { code: promoPreview.code, revision: promoPreview.revision } : undefined,
+        isOwnerCurrent,
+      );
+      if (!isOwnerCurrent()) return;
+      if (!result.ok) {
+        if (result.uncertain) {
+          setPendingMessage(result.message);
+          return;
+        }
+        if (result.code?.startsWith("PROMO_")) {
+          setPromoPreview(null);
+          setPromoState(promoCodeStateFromErrorCode(result.code));
+          return;
+        }
+        if (!result.userCancelled) {
+          Alert.alert("Оплата не началась", result.message);
+          return;
+        }
+        setPendingMessage("Проверяем статус оплаты в ЮKassa...");
+      } else {
+        setPendingMessage("Проверяем оплату в ЮKassa...");
       }
-      if (!result.userCancelled) {
-        Alert.alert("Оплата не началась", result.message);
-        return;
+      const subscriptionResult = await pollActiveSubscription(isOwnerCurrent);
+      if (!isOwnerCurrent() || subscriptionResult === "owner_changed") return;
+      await refreshEntitlementQueries();
+      if (!isOwnerCurrent()) return;
+      if (subscriptionResult === "active") return void finishSuccessfulPayment();
+      setPendingMessage("Оплата ещё подтверждается. Проверьте статус позднее.");
+    } catch {
+      if (isOwnerCurrent())
+        setPendingMessage("Результат оплаты неизвестен. Проверьте подписку перед повтором.");
+    } finally {
+      if (paymentGeneration.current === attemptGeneration) {
+        paymentInFlight.current = false;
+        if (isOwnerCurrent()) setIsPaying(false);
       }
-      setPendingMessage("Проверяем статус оплаты в ЮKassa...");
-    } else {
-      setPendingMessage("Проверяем оплату в ЮKassa...");
     }
-    const subscriptionResult = await pollActiveSubscription();
-    setIsPaying(false);
-    await refreshEntitlementQueries();
-    if (subscriptionResult === "active") return void finishSuccessfulPayment();
-    setPendingMessage("Оплата ещё подтверждается. Обычно это занимает несколько секунд.");
   };
 
   const openLegalLink = (url: string) => void Linking.openURL(url);
@@ -454,7 +556,10 @@ export function AppSubscriptionPaywall() {
                               label={OFFLINE_DOWNLOAD_BENEFIT}
                               included={includesOfflineCourseDownload(plan)}
                             />
-                            <BenefitRow label="Чат с кинологом" included={Boolean(plan.cynologistChatIncluded)} />
+                            <BenefitRow
+                              label="Чат с кинологом"
+                              included={Boolean(plan.cynologistChatIncluded)}
+                            />
                             <BenefitRow
                               label="Запись к кинологу"
                               included={plan.consultationBookingIncluded}
@@ -473,9 +578,16 @@ export function AppSubscriptionPaywall() {
                     style={[styles.promoCard, promoState === "applied" && styles.promoCardApplied]}
                     accessibilityLabel="Промокод для первого платежа через ЮKassa"
                   >
-                    {effectiveOffer?.savedRegistrationPromoCode && effectiveOffer.savedRegistrationPromoCode.status !== "ACTIVE" ? (
-                      <Text style={[styles.promoMessage, styles.promoErrorMessage]} accessibilityRole="alert">
-                        Сохранённый при регистрации промокод {effectiveOffer.savedRegistrationPromoCode.code} больше не действует. Оплата по полной цене не начнётся, пока вы не очистите поле или не примените другой промокод.
+                    {effectiveOffer?.savedRegistrationPromoCode &&
+                    effectiveOffer.savedRegistrationPromoCode.status !== "ACTIVE" ? (
+                      <Text
+                        style={[styles.promoMessage, styles.promoErrorMessage]}
+                        accessibilityRole="alert"
+                      >
+                        Сохранённый при регистрации промокод{" "}
+                        {effectiveOffer.savedRegistrationPromoCode.code} больше не действует. Оплата
+                        по полной цене не начнётся, пока вы не очистите поле или не примените другой
+                        промокод.
                       </Text>
                     ) : null}
                     <View style={styles.promoHeadingRow}>
@@ -570,7 +682,7 @@ export function AppSubscriptionPaywall() {
                     animatedPress
                     loading={isPaying}
                     onPress={handleYookassaPay}
-                    disabled={isPaymentBlocked}
+                    disabled={isPaymentBlocked || !isOwnerCurrent()}
                     accessibilityLabel={getYookassaPrimaryCta(firstYookassaPaymentRub)}
                     accessibilityState={{ disabled: isPaymentBlocked, busy: isPaying }}
                   />
@@ -617,7 +729,10 @@ export function AppSubscriptionPaywall() {
                     label={OFFLINE_DOWNLOAD_BENEFIT}
                     included={includesOfflineCourseDownload(applePlan)}
                   />
-                  <BenefitRow label="Чат с кинологом" included={Boolean(applePlan?.cynologistChatIncluded)} />
+                  <BenefitRow
+                    label="Чат с кинологом"
+                    included={Boolean(applePlan?.cynologistChatIncluded)}
+                  />
                   <BenefitRow
                     label="Запись к кинологу"
                     included={Boolean(applePlan?.consultationBookingIncluded)}
@@ -635,10 +750,20 @@ export function AppSubscriptionPaywall() {
                   animatedPress
                   loading={isPaying}
                   onPress={handleApplePay}
-                  disabled={isPaymentBlocked}
+                  disabled={isPaymentBlocked || !appleReadiness.ready}
                   accessibilityLabel="Оформить Premium через App Store"
-                  accessibilityState={{ disabled: isPaymentBlocked, busy: isPaying }}
+                  accessibilityState={{
+                    disabled: isPaymentBlocked || !appleReadiness.ready,
+                    busy: isPaying,
+                  }}
                 />
+                {!appleReadiness.ready &&
+                appleReadiness.reason === "TOKEN_INITIALIZATION_REQUIRED" ? (
+                  <Text style={styles.pendingText} accessibilityRole="alert">
+                    Для Apple-покупки требуется серверная инициализация аккаунта. Она пока
+                    недоступна. Повторная оплата не запускается.
+                  </Text>
+                ) : null}
                 <Text style={styles.providerCaption}>
                   Списание и управление подпиской выполняются через App Store.
                 </Text>

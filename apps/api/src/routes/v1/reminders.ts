@@ -6,7 +6,14 @@ import {
   createReminder,
   updateReminder,
   deleteReminder,
+  createReminderAG4,
+  ReminderConflictError,
+  ReminderUnknownError,
+  ReminderInvalidError,
+  ReminderCapError,
 } from "@gafus/core/services/reminders";
+import { reminderOperationLookupAG4ReviewRoutes } from
+  "./g1-reminder-operation-lookupAG4.review.js";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-reminders");
@@ -60,25 +67,41 @@ remindersRoutes.get("/", async (c) => {
     const user = c.get("user");
     const data = await getReminders(user.id);
     return c.json({ success: true, data });
-  } catch (error) {
-    logger.error("GET reminders error", error as Error);
+  } catch {
+    logger.error("GET reminders error", new Error("REMINDER_READ_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
   }
 });
 
 remindersRoutes.post("/", zValidator("json", createSchema), async (c) => {
+  c.header("Cache-Control", "private, no-store");
+  c.header("Referrer-Policy", "no-referrer");
   try {
     const user = c.get("user");
     const body = c.req.valid("json");
-    const data = await createReminder(
-      user.id,
-      body.name,
-      body.reminderTime,
-      body.reminderDays,
-      body.timezone,
-    );
+    const idempotencyKey = c.req.header("Idempotency-Key");
+    const data = idempotencyKey === undefined
+      ? await createReminder(
+        user.id, body.name, body.reminderTime, body.reminderDays, body.timezone,
+      )
+      : (await createReminderAG4(user.id, {
+        name: body.name, reminderTime: body.reminderTime,
+        reminderDays: body.reminderDays, timezone: body.timezone,
+      }, idempotencyKey)).reminder;
     return c.json({ success: true, data });
   } catch (error) {
+    if (error instanceof ReminderConflictError) {
+      return c.json({ success: false, code: error.code }, 409);
+    }
+    if (error instanceof ReminderUnknownError) {
+      return c.json({ success: false, code: error.code }, 409);
+    }
+    if (error instanceof ReminderInvalidError) {
+      return c.json({ success: false, code: error.code }, 400);
+    }
+    if (error instanceof ReminderCapError) {
+      return c.json({ success: false, code: error.code, error: error.message }, 400);
+    }
     if (error instanceof Error) {
       const clientErrors = [
         "Максимум 5 напоминаний",
@@ -90,7 +113,7 @@ remindersRoutes.post("/", zValidator("json", createSchema), async (c) => {
         return c.json({ success: false, error: error.message }, 400);
       }
     }
-    logger.error("POST reminders error", error as Error);
+    logger.error("POST reminders failed", new Error("REMINDER_CREATE_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
   }
 });
@@ -116,7 +139,7 @@ remindersRoutes.put("/:id", zValidator("json", updateSchema), async (c) => {
         return c.json({ success: false, error: error.message }, 400);
       }
     }
-    logger.error("PUT reminders error", error as Error);
+    logger.error("PUT reminders error", new Error("REMINDER_UPDATE_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
   }
 });
@@ -131,7 +154,10 @@ remindersRoutes.delete("/:id", async (c) => {
     if (error instanceof Error && error.message === "Напоминание не найдено") {
       return c.json({ success: false, error: error.message }, 404);
     }
-    logger.error("DELETE reminders error", error as Error);
+    logger.error("DELETE reminders error", new Error("REMINDER_DELETE_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
   }
 });
+
+// AG4 owner-scoped read-only operation status; GET never attempts a new POST.
+remindersRoutes.route("/", reminderOperationLookupAG4ReviewRoutes);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Alert, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "react-native-paper";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +12,8 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { TourTarget } from "@/shared/lib/tour-targets";
 import { Loading, TexturedSafeAreaView } from "@/shared/components";
+import { useAuthStore } from "@/shared/stores";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { Button } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -25,9 +27,47 @@ const LANA_CYNOLOGIST_USER_ID = "cmhq7qk2s0000nn01jr2ptnil";
  * Каталог кинологов — паритет с web (карточки, поднавигация, тексты).
  */
 export default function ConsultationsCynologistsListScreen() {
+  const owner = useAuthStore((state) =>
+    state.isAuthenticated && !state.isLoading ? (state.user?.id ?? null) : null,
+  );
+  const verified = newOnlyV2NativeQueues.getVerifiedBinding();
+  const epoch = owner && verified?.principalId === owner ? verified.authEpoch : null;
+  if (!owner || !epoch)
+    return (
+      <TexturedSafeAreaView style={styles.root} edges={[]}>
+        <Text accessibilityRole="alert" style={styles.muted}>
+          Для просмотра консультаций войдите в аккаунт.
+        </Text>
+      </TexturedSafeAreaView>
+    );
+  return <CatalogForActor key={`${owner}:${epoch}`} owner={owner} epoch={epoch} />;
+}
+
+function CatalogForActor({ owner, epoch }: { owner: string; epoch: string }) {
   const router = useRouter();
+  const mounted = useRef(true);
+  const focusSeen = useRef(false);
+  const refreshInFlight = useRef(false);
+  const current = useCallback(() => {
+    const auth = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    return (
+      mounted.current &&
+      auth.isAuthenticated &&
+      !auth.isLoading &&
+      auth.user?.id === owner &&
+      binding?.principalId === owner &&
+      binding.authEpoch === epoch
+    );
+  }, [owner, epoch]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const query = useQuery({
-    queryKey: ["consultations", "cynologists"],
+    queryKey: ["consultations", "cynologists", owner, epoch],
     queryFn: async () => {
       const res = await consultationsApi.listCynologists();
       if (!res.success) {
@@ -38,20 +78,53 @@ export default function ConsultationsCynologistsListScreen() {
   });
 
   const { refetch } = query;
-  useFocusEffect(useCallback(() => { void refetch(); }, [refetch]));
-  const items = useMemo(() => query.data?.items ?? [], [query.data]);
+  const refresh = useCallback(async () => {
+    if (refreshInFlight.current || !current()) return;
+    refreshInFlight.current = true;
+    try {
+      await refetch();
+    } catch {
+      if (current())
+        reportClientError(new Error("CONSULTATIONS_CATALOG_REFRESH_FAILED"), {
+          issueKey: "consultation",
+          keys: { screen: "list", operation: "refresh" },
+        });
+    } finally {
+      refreshInFlight.current = false;
+    }
+  }, [current, refetch]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!focusSeen.current) {
+        focusSeen.current = true;
+        return;
+      }
+      void refresh();
+    }, [refresh]),
+  );
+  const items = useMemo(
+    () => (query.isError ? [] : (query.data?.items ?? [])),
+    [query.isError, query.data],
+  );
 
   useEffect(() => {
     if (query.isError && query.error) {
-      reportClientError(
-        query.error instanceof Error ? query.error : new Error(String(query.error)),
-        { issueKey: "consultation", keys: { screen: "list" } },
-      );
+      reportClientError(new Error("CONSULTATIONS_CATALOG_READ_FAILED"), {
+        issueKey: "consultation",
+        keys: { screen: "list" },
+      });
     }
   }, [query.isError, query.error]);
 
   const onOpen = useCallback(
     (c: ListedCynologistCardDto) => {
+      if (
+        !current() ||
+        query.isPending ||
+        query.isError ||
+        query.data?.bookingEligibility?.canBook === false
+      )
+        return;
       hapticFeedback.medium();
       trackEvent({
         eventName: "button_click",
@@ -65,7 +138,7 @@ export default function ConsultationsCynologistsListScreen() {
       });
       router.push(`/consultations/${encodeURIComponent(c.userId)}?${q.toString()}` as Href);
     },
-    [router],
+    [router, current, query.isPending, query.isError, query.data?.bookingEligibility?.canBook],
   );
 
   return (
@@ -82,151 +155,164 @@ export default function ConsultationsCynologistsListScreen() {
           />
         </TourTarget>
         <View style={styles.content}>
-
-        <View style={styles.subNav}>
-          <Button
-            label="Каталог кинологов"
-            variant="selected"
-            flex={1}
-            fullWidth={false}
-            height={52}
-            fontSize={12}
-            lineHeight={18}
-            fontFamily={FONTS.montserratMedium}
-            horizontalPadding={6}
-            verticalPadding={0}
-            borderRadius={12}
-            animatedPress
-            compact
-            haptic={false}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: true }}
-          />
-          <Button
-            label="Мои консультации"
-            variant="primary"
-            flex={1}
-            fullWidth={false}
-            height={52}
-            fontSize={12}
-            lineHeight={18}
-            fontFamily={FONTS.montserratMedium}
-            horizontalPadding={6}
-            verticalPadding={0}
-            borderRadius={12}
-            animatedPress
-            compact
-            haptic={false}
-            onPress={() => {
-              hapticFeedback.light();
-              router.push("/(main)/(tabs)/consultations?view=mine" as Href);
-            }}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: false }}
-          />
-        </View>
-
-        {query.data?.bookingEligibility && !query.data.bookingEligibility.canBook ? (
-          <Text accessibilityRole="alert" style={[styles.muted, { marginBottom: SPACING.md }]}>
-            {query.data.bookingEligibility.message}
-          </Text>
-        ) : null}
-
-        {query.isError ? (
-          <Text style={styles.error}>Не удалось загрузить список. Попробуйте позже.</Text>
-        ) : null}
-        {query.isLoading ? (
-          <Loading variant="inline" message="Загружаем каталог кинологов…" />
-        ) : null}
-        {!query.isLoading && !query.isError && items.length === 0 ? (
-          <Text style={styles.muted}>
-            Пока нет доступных кинологов для записи. Загляните позже.
-          </Text>
-        ) : null}
-
-        {!query.isLoading && items.length > 0 ? (
-          <View style={styles.catalogHeading}>
-            <Text style={styles.sectionTitle}>Доступные специалисты</Text>
-            <Text style={styles.catalogCaption}>Выберите того, с кем хотите обсудить питомца</Text>
+          <View style={styles.subNav}>
+            <Button
+              label="Каталог кинологов"
+              variant="selected"
+              flex={1}
+              fullWidth={false}
+              height={52}
+              fontSize={12}
+              lineHeight={18}
+              fontFamily={FONTS.montserratMedium}
+              horizontalPadding={6}
+              verticalPadding={0}
+              borderRadius={12}
+              animatedPress
+              compact
+              haptic={false}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: true }}
+            />
+            <Button
+              label="Мои консультации"
+              variant="primary"
+              flex={1}
+              fullWidth={false}
+              height={52}
+              fontSize={12}
+              lineHeight={18}
+              fontFamily={FONTS.montserratMedium}
+              horizontalPadding={6}
+              verticalPadding={0}
+              borderRadius={12}
+              animatedPress
+              compact
+              haptic={false}
+              onPress={() => {
+                if (!current()) return;
+                hapticFeedback.light();
+                router.push("/(main)/(tabs)/consultations?view=mine" as Href);
+              }}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: false }}
+            />
           </View>
-        ) : null}
 
-        {items.map((c) => {
-          const src = resolveImageUrl(c.avatarUrl);
-          const title = c.displayName ?? "Кинолог";
-          return (
-            <View key={c.id} style={styles.card}>
-              <View style={styles.cardInner}>
-                <View style={styles.avatarFrame}>
-                  {src ? (
-                    <Image source={{ uri: src }} style={styles.avatar} contentFit="cover" />
-                  ) : (
-                    <Text style={styles.avatarPlaceholder}>
-                      {cynologistDisplayInitials(c.displayName)}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.cardBody}>
-                  <Text style={styles.title}>{title}</Text>
-                  {c.userId === LANA_CYNOLOGIST_USER_ID ? (
-                    <View style={styles.badges}>
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>Составитель курсов</Text>
-                      </View>
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>Главный кинолог проекта</Text>
-                      </View>
-                    </View>
-                  ) : null}
-                </View>
-              </View>
-              <View style={styles.meta}>
-                <Text style={styles.metaLine}>Длительность слота: {c.slotDurationMin} мин.</Text>
-                <Text style={styles.metaLine}>Часовой пояс: МСК (UTC+3)</Text>
-              </View>
-              <View style={styles.actions}>
-                <Button
-                  label="Подробнее о кинологе"
-                  variant="caramel"
-                  height={48}
-                  fontFamily={FONTS.montserratMedium}
-                  fontSize={14}
-                  lineHeight={20}
-                  borderRadius={14}
-                  animatedPress
-                  haptic={false}
-                  onPress={() => {
-                    hapticFeedback.light();
-                    if (!c.username) {
-                      Alert.alert("Профиль кинолога", "Не удалось открыть профиль. Попробуйте позже.");
-                      return;
-                    }
-                    router.push({ pathname: "/profile/[username]", params: { username: c.username } });
-                  }}
-                  accessibilityLabel={`Подробнее о кинологе ${title}`}
-                  accessibilityHint="Открывает профиль кинолога"
-                />
-                <Button
-                  label="Выбрать время"
-                  icon="arrow-right"
-                  iconPosition="right"
-                  height={48}
-                  fontFamily={FONTS.montserratMedium}
-                  fontSize={14}
-                  lineHeight={18}
-                  horizontalPadding={14}
-                  verticalPadding={0}
-                  borderRadius={14}
-                  animatedPress
-                  haptic={false}
-                  onPress={() => onOpen(c)}
-                  accessibilityLabel={`Выбрать время у кинолога ${title}`}
-                  accessibilityHint="Открывает календарь свободных слотов"
-                />
-              </View>
+          {query.data?.bookingEligibility && !query.data.bookingEligibility.canBook ? (
+            <Text accessibilityRole="alert" style={[styles.muted, { marginBottom: SPACING.md }]}>
+              {query.data.bookingEligibility.message}
+            </Text>
+          ) : null}
+
+          {query.isError ? (
+            <View>
+              <Text style={styles.error}>Не удалось загрузить список кинологов.</Text>
+              <Button label="Повторить загрузку" onPress={() => void refresh()} />
             </View>
-          );
-        })}
+          ) : null}
+          {query.isPending ? (
+            <Loading variant="inline" message="Загружаем каталог кинологов…" />
+          ) : null}
+          {!query.isPending && !query.isError && items.length === 0 ? (
+            <Text style={styles.muted}>
+              Пока нет доступных кинологов для записи. Загляните позже.
+            </Text>
+          ) : null}
+
+          {!query.isPending && !query.isError && items.length > 0 ? (
+            <View style={styles.catalogHeading}>
+              <Text style={styles.sectionTitle}>Доступные специалисты</Text>
+              <Text style={styles.catalogCaption}>
+                Выберите того, с кем хотите обсудить питомца
+              </Text>
+            </View>
+          ) : null}
+
+          {items.map((c) => {
+            const src = resolveImageUrl(c.avatarUrl);
+            const title = c.displayName ?? "Кинолог";
+            return (
+              <View key={c.id} style={styles.card}>
+                <View style={styles.cardInner}>
+                  <View style={styles.avatarFrame}>
+                    {src ? (
+                      <Image source={{ uri: src }} style={styles.avatar} contentFit="cover" />
+                    ) : (
+                      <Text style={styles.avatarPlaceholder}>
+                        {cynologistDisplayInitials(c.displayName)}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.cardBody}>
+                    <Text style={styles.title}>{title}</Text>
+                    {c.userId === LANA_CYNOLOGIST_USER_ID ? (
+                      <View style={styles.badges}>
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>Составитель курсов</Text>
+                        </View>
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>Главный кинолог проекта</Text>
+                        </View>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+                <View style={styles.meta}>
+                  <Text style={styles.metaLine}>Длительность слота: {c.slotDurationMin} мин.</Text>
+                  <Text style={styles.metaLine}>Часовой пояс: МСК (UTC+3)</Text>
+                </View>
+                <View style={styles.actions}>
+                  <Button
+                    label="Подробнее о кинологе"
+                    variant="caramel"
+                    height={48}
+                    fontFamily={FONTS.montserratMedium}
+                    fontSize={14}
+                    lineHeight={20}
+                    borderRadius={14}
+                    animatedPress
+                    haptic={false}
+                    onPress={() => {
+                      if (!current() || query.isPending || query.isError) return;
+                      hapticFeedback.light();
+                      if (!c.username) {
+                        Alert.alert(
+                          "Профиль кинолога",
+                          "Не удалось открыть профиль. Попробуйте позже.",
+                        );
+                        return;
+                      }
+                      router.push({
+                        pathname: "/profile/[username]",
+                        params: { username: c.username },
+                      });
+                    }}
+                    accessibilityLabel={`Подробнее о кинологе ${title}`}
+                    accessibilityHint="Открывает профиль кинолога"
+                  />
+                  <Button
+                    label="Выбрать время"
+                    icon="arrow-right"
+                    iconPosition="right"
+                    height={48}
+                    fontFamily={FONTS.montserratMedium}
+                    fontSize={14}
+                    lineHeight={18}
+                    horizontalPadding={14}
+                    verticalPadding={0}
+                    borderRadius={14}
+                    animatedPress
+                    haptic={false}
+                    onPress={() => onOpen(c)}
+                    disabled={query.data?.bookingEligibility?.canBook === false}
+                    accessibilityLabel={`Выбрать время у кинолога ${title}`}
+                    accessibilityHint="Открывает календарь свободных слотов"
+                  />
+                </View>
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
     </TexturedSafeAreaView>

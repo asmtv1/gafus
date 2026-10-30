@@ -1,0 +1,217 @@
+/* Compact visible photo attachments, inspired by VK comment/message previews. */
+.gafus-app .question-photo-preview {
+  min-width: 0;
+  max-width: min(100%, 490px);
+  margin: 10px 0 4px;
+}
+.gafus-app .question-photo-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  max-width: 490px;
+}
+.gafus-app .question-photo-preview-single {
+  grid-template-columns: minmax(0, 260px);
+}
+.gafus-app .question-photo-preview-cell {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+/* Keep the image's own proportions: do not force a square/4:3 crop. */
+.gafus-app .question-photo-preview-tile {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  overflow: hidden;
+  background: transparent;
+  cursor: zoom-in;
+}
+.gafus-app .question-photo-preview-tile img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  border-radius: inherit;
+  transition: opacity 140ms ease;
+}
+.gafus-app .question-photo-preview-single .question-photo-preview-tile img {
+  max-height: 240px;
+}
+/* Placeholder geometry is independent of loaded photo proportions. */
+.gafus-app .question-photo-preview-placeholder {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  overflow: hidden;
+  background: #e9e8e0;
+  color: #7d806f;
+}
+.gafus-app .question-photo-preview-single .question-photo-preview-placeholder {
+  aspect-ratio: 4 / 3;
+}
+.gafus-app .question-photo-preview-tile:hover img { opacity: .92; }
+.gafus-app .question-photo-preview-tile:focus-visible {
+  outline: 3px solid #677c4b;
+  outline-offset: 3px;
+}
+.gafus-app .question-photo-preview-order {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: rgba(30, 32, 26, .68);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.gafus-app .question-photo-preview-placeholder {
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid #dcddd2;
+  font: 500 11px/1.2 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .question-photo-preview-placeholder svg {
+  width: 23px;
+  height: 23px;
+}
+.gafus-app .question-photo-preview-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: #766e63;
+  font-size: 12px;
+}
+.gafus-app .question-photo-preview-error > button {
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid #d9d8c9;
+  border-radius: 8px;
+  background: #f5f2e9;
+  color: #4b6038;
+  font-size: 12px;
+  cursor: pointer;
+}
+.question-photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 20px;
+  background: rgba(20, 22, 18, .93);
+}
+.question-photo-lightbox-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  color: #fff;
+}
+.question-photo-lightbox-image {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100dvh - 132px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+.question-photo-lightbox-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .15);
+  color: #fff;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+.question-photo-lightbox-close:hover {
+  background: rgba(255, 255, 255, .25);
+}
+.question-photo-lightbox-close svg {
+  display: block;
+  flex: none;
+}
+.question-photo-lightbox-bottom {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: auto;
+  font-size: 14px;
+}
+.question-photo-lightbox-bottom button,
+.question-photo-lightbox-error button {
+  min-width: 42px;
+  min-height: 42px;
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 12px;
+  background: rgba(255,255,255,.13);
+  color: #fff;
+  cursor: pointer;
+  font-size: 26px;
+}
+.question-photo-lightbox-error { text-align: center; }
+.question-photo-lightbox button:focus-visible {
+  outline: 3px solid #c0d69d;
+  outline-offset: 3px;
+}
+@media (max-width: 560px) {
+  .gafus-app .question-photo-preview { max-width: min(100%, 340px); }
+  .gafus-app .question-photo-preview-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .gafus-app .question-photo-preview-single { grid-template-columns: minmax(0, 240px); }
+  .question-photo-lightbox { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gafus-app .question-photo-preview-tile img { transition: none; }
+  .gafus-app .question-photo-preview-tile:hover img { opacity: 1; }
+}
+
+/* Editing retains on-demand media without a large green primary CTA. */
+.gafus-app .question-photo-manual-toggle {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #d6dacd;
+  border-radius: 9px;
+  background: #f3f5ef;
+  color: #506b41;
+  font: 650 12px/1.35 var(--font-montserrat), system-ui, sans-serif;
+  cursor: pointer;
+}
+.gafus-app .question-photo-manual-toggle + .question-photo-preview-grid { margin-top: 8px; }

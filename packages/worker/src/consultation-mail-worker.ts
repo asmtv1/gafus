@@ -11,12 +11,24 @@ interface MailJobData {
 }
 
 export function startConsultationMailWorker(): void {
+  // Only coalesce overlapping deliveries in this worker process. This is
+  // not a distributed lock and cannot guarantee provider exactly-once ACK.
+  const inFlight = new Map<string, Promise<"missing" | "sent" | "already-sent" | "queued" | "failed">>();
   const worker = new Worker<MailJobData>(
     "consultation-mail",
     async (job: Job<MailJobData>) => {
       const { emailLogId } = job.data;
-      const outcome = await processConsultationEmailLog(emailLogId);
-      if (outcome === "missing") logger.warn("email log missing", { emailLogId });
+      let delivery = inFlight.get(emailLogId);
+      if (!delivery) {
+        delivery = processConsultationEmailLog(emailLogId);
+        inFlight.set(emailLogId, delivery);
+      }
+      try {
+        const outcome = await delivery;
+        if (outcome === "missing") logger.warn("email log missing", { emailLogId });
+      } finally {
+        if (inFlight.get(emailLogId) === delivery) inFlight.delete(emailLogId);
+      }
     },
     {
       connection,
@@ -25,8 +37,9 @@ export function startConsultationMailWorker(): void {
       removeOnFail: { count: 500 },
     },
   );
-  worker.on("error", (err) => {
-    logger.error("consultation-mail worker error", err);
+  worker.on("error", () => {
+    // Transport/Redis errors may carry credentials in their message or stack.
+    logger.error("consultation-mail worker error", new Error("CONSULTATION_MAIL_WORKER_ERROR"));
   });
   logger.success("consultation-mail worker запущен");
 }

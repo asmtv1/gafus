@@ -116,3 +116,26 @@ function isValidEmail(email: string): boolean {
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailPattern.test(email);
 }
+
+
+/** Single browser-safe username-availability policy, shared by Hono/Zod and Web. */
+export const USERNAME_AVAILABILITY_MIN_LENGTH = 3;
+export const USERNAME_AVAILABILITY_MAX_LENGTH = 50;
+export const USERNAME_AVAILABILITY_ALLOWED_CHARACTERS = /^[A-Za-z0-9_]+$/;
+
+/**
+ * Hono preserves case; Web opts into lowercase for its existing canonical
+ * candidate behavior. Invalid values return null (no implicit coercion).
+ * The username-change mutation is a separate API contract.
+ */
+export function normalizeUsernameAvailabilityInput(
+  value: unknown, lowercase = false,
+): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  const candidate = lowercase ? normalized.toLowerCase() : normalized;
+  return candidate.length >= USERNAME_AVAILABILITY_MIN_LENGTH &&
+    candidate.length <= USERNAME_AVAILABILITY_MAX_LENGTH &&
+    USERNAME_AVAILABILITY_ALLOWED_CHARACTERS.test(candidate)
+    ? candidate : null;
+}

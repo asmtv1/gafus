@@ -199,4 +199,27 @@ describe("getAppSubscriptionAccess", () => {
       yookassaTrialUnavailableReason: null,
     });
   });
+
+  it("G1 snapshot preserves pending payment status without granting entitlement", async () => {
+    mockFindMany.mockResolvedValue([{
+      id: "pending-1", status: "PENDING", provider: "YOOKASSA", planCode: "MONTHLY",
+      isLifetime: false, currentPeriodEnd: null, cancelAtPeriodEnd: false,
+    }]);
+    const result = await getAppSubscriptionAccess("u1", new Date("2026-05-10T10:00:00.000Z"));
+    expect(result).toMatchObject({
+      hasActiveSubscription: false, status: "PENDING", provider: "YOOKASSA",
+      planCode: "MONTHLY", paidAt: null, nextChargeAt: null,
+    });
+  });
+
+  it("G1 snapshot prioritizes valid active entitlement over another pending payment", async () => {
+    mockFindMany.mockResolvedValue([
+      { id: "pending-2", status: "PENDING", provider: "YOOKASSA", planCode: "MONTHLY", isLifetime: false },
+      { id: "active-2", status: "ACTIVE", provider: "APPLE", planCode: "MONTHLY",
+        isLifetime: false, currentPeriodEnd: new Date("2026-06-10T00:00:00Z"),
+        createdAt: new Date("2026-05-01T00:00:00Z"), cancelAtPeriodEnd: false },
+    ]);
+    const result = await getAppSubscriptionAccess("u1", new Date("2026-05-10T10:00:00.000Z"));
+    expect(result).toMatchObject({ hasActiveSubscription: true, status: "ACTIVE", provider: "APPLE" });
+  });
 });

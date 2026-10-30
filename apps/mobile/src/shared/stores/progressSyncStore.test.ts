@@ -6,6 +6,11 @@ const { reportClientErrorMock, saveVideoProgressMock, startStepMock } = vi.hoist
   startStepMock: vi.fn(),
 }));
 
+// Test historical transport behavior only; runtime legacy safety gate is always false.
+vi.mock("./legacyOfflineReplayQuarantine", () => ({
+  canDispatchOwnerlessLegacyOfflineQueue: () => true,
+}));
+
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
     getItem: vi.fn().mockResolvedValue(null),
@@ -81,7 +86,7 @@ describe("mobile progress sync store", () => {
 
     expect(useProgressSyncStore.getState()).toMatchObject({
       consecutive401: 3,
-      queue: [],
+      queue: [action],
     });
   });
 
@@ -139,5 +144,64 @@ describe("mobile progress sync store", () => {
 
     await expect(useProgressSyncStore.getState().processNext()).resolves.toBe("retry");
     expect(useProgressSyncStore.getState().queue).toHaveLength(1);
+  });
+});
+
+describe("AG3 G1 ACK boundary", () => {
+  beforeEach(() => {
+    vi.stubGlobal("__DEV__", false);
+    vi.clearAllMocks();
+    useProgressSyncStore.setState({ queue: [action], consecutive401: 0 });
+  });
+
+  it("a transient 500 does not silently drop unacknowledged progress", async () => {
+    startStepMock.mockResolvedValueOnce({ success: false, code: "INTERNAL_ERROR" });
+    await expect(useProgressSyncStore.getState().processNext()).resolves.toBe("retry");
+    expect(useProgressSyncStore.getState().queue).toEqual([action]);
+  });
+
+  it("a 401 does not ACK or delete an offline event", async () => {
+    startStepMock.mockResolvedValueOnce({ success: false, code: "UNAUTHORIZED" });
+    await expect(useProgressSyncStore.getState().processNext()).resolves.toBe("retry");
+    expect(useProgressSyncStore.getState().queue).toEqual([action]);
+  });
+});
+
+describe("AG3 G1 concurrent replay guard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useProgressSyncStore.setState({ queue: [action], consecutive401: 0 });
+  });
+
+  it("sends one request when sync is invoked twice for the same pending step", async () => {
+    let acknowledge!: (value: { success: boolean }) => void;
+    const pending = new Promise<{ success: boolean }>((resolve) => {
+      acknowledge = resolve;
+    });
+    startStepMock.mockReturnValue(pending);
+
+    const first = useProgressSyncStore.getState().processNext();
+    const second = useProgressSyncStore.getState().processNext();
+    acknowledge({ success: true });
+    expect(await Promise.all([first, second])).toEqual(["ok", "ok"]);
+    expect(startStepMock).toHaveBeenCalledTimes(1);
+    expect(useProgressSyncStore.getState().queue).toEqual([]);
+  });
+
+  it("releases the in-flight guard after a transient error without dropping queued data", async () => {
+    let fail!: (value: { success: boolean; code: string }) => void;
+    const pending = new Promise<{ success: boolean; code: string }>((resolve) => {
+      fail = resolve;
+    });
+    startStepMock.mockReturnValueOnce(pending).mockResolvedValueOnce({ success: true });
+    const first = useProgressSyncStore.getState().processNext();
+    const second = useProgressSyncStore.getState().processNext();
+    fail({ success: false, code: "INTERNAL_ERROR" });
+
+    expect(await Promise.all([first, second])).toEqual(["retry", "retry"]);
+    expect(useProgressSyncStore.getState().queue).toEqual([action]);
+    await expect(useProgressSyncStore.getState().processNext()).resolves.toBe("ok");
+    expect(startStepMock).toHaveBeenCalledTimes(2);
+    expect(useProgressSyncStore.getState().queue).toEqual([]);
   });
 });

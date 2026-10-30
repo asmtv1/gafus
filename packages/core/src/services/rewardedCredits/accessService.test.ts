@@ -5,6 +5,7 @@ import { SubscriptionOrCreditsRequiredError } from "./errors";
 const state = vi.hoisted(() => ({
   hasPremium: false,
   role: "USER",
+  privateAssignments: new Set<string>(),
   gafusUnlocked: false,
   unlocks: new Map<string, Date>(),
   userSteps: new Map<
@@ -15,6 +16,9 @@ const state = vi.hoisted(() => ({
       stepOnDayId: string;
       stepType: string;
       videoUrl?: string | null;
+      isPaid?: boolean;
+      isPrivate?: boolean;
+      courseId?: string;
     }
   >(),
   dailyUserSteps: new Map<
@@ -36,6 +40,10 @@ const state = vi.hoisted(() => ({
       stepTypes: string[];
     }
   >(),
+  unattachedVideoOccurrences: [] as {
+    courseId: string; isPrivate: boolean; isPaid: boolean;
+    stepOnDayId: string; stepType: string; videoUrl: string;
+  }[],
   notifications: [] as {
     userId: string;
     day: number;
@@ -49,6 +57,11 @@ vi.mock("@gafus/prisma", () => ({
   prisma: {
     user: {
       findUnique: vi.fn(() => Promise.resolve({ role: state.role })),
+    },
+    courseAccess: {
+      findFirst: vi.fn(async ({ where }) =>
+        state.privateAssignments.has(`${where.userId}:${where.courseId}`)
+          ? { courseId: where.courseId } : null),
     },
     rewardedTargetAccess: {
       findFirst: vi.fn(({ where }) =>
@@ -81,6 +94,11 @@ vi.mock("@gafus/prisma", () => ({
         return Promise.resolve({
           id: row.id,
           stepOnDay: { id: row.stepOnDayId, step: { type: row.stepType, videoUrl: row.videoUrl } },
+          userTraining: { dayOnCourse: { course: {
+            id: row.courseId ?? "course-fixture",
+            isPaid: row.isPaid ?? true,
+            isPrivate: row.isPrivate ?? false,
+          } } },
         });
       }),
     },
@@ -125,6 +143,12 @@ vi.mock("@gafus/prisma", () => ({
       ),
     },
     dayOnCourse: {
+      findMany: vi.fn(({ where }) => Promise.resolve(state.unattachedVideoOccurrences
+        .filter(row => row.videoUrl === where.day?.stepLinks?.some?.step?.videoUrl)
+        .map(row => ({
+          course: { id: row.courseId, isPrivate: row.isPrivate, isPaid: row.isPaid },
+          day: { stepLinks: [{ id: row.stepOnDayId, step: { type: row.stepType } }] },
+        })))),
       findFirst: vi.fn(({ where }) => {
         const row = state.dayOnCourses.get(where.id);
         if (!row || row.userId !== where.userTrainings?.some?.userId) return Promise.resolve(null);
@@ -171,6 +195,7 @@ vi.mock("../contentAccess", () => ({
 vi.mock("./gafusInterop", () => ({
   hasGafusUnlockForUserStep: vi.fn(async () => state.gafusUnlocked),
   hasGafusUnlockForVideoUrl: vi.fn(async () => state.gafusUnlocked),
+  findGafusUnlockedStepForVideoUrl: vi.fn(async () => state.gafusUnlocked ? "gafus-video-occurrence" : null),
 }));
 
 import {
@@ -185,11 +210,13 @@ describe("premium or rewarded access", () => {
     state.hasPremium = false;
     state.role = "USER";
     state.gafusUnlocked = false;
+    state.privateAssignments.clear();
     state.unlocks.clear();
     state.userSteps.clear();
     state.dailyUserSteps.clear();
     state.dayOnCourses.clear();
     state.notifications.length = 0;
+    state.unattachedVideoOccurrences.length = 0;
     vi.clearAllMocks();
   });
 
@@ -219,6 +246,108 @@ describe("premium or rewarded access", () => {
     }
   });
 
+  it("allows an owned free nonprivate examination without subscription", async () => {
+    state.userSteps.set("free-exam", {
+      id: "free-exam", userId: "learner", stepOnDayId: "free-link",
+      stepType: "EXAMINATION", isPaid: false, isPrivate: false,
+    });
+    await expect(requirePremiumOrRewardedAccessForUserStep({
+      userId: "learner", platform: "WEB_DESKTOP", userStepId: "free-exam",
+    })).resolves.toBeNull();
+    await expect(requirePremiumOrRewardedAccessForUserStep({
+      userId: "stranger", platform: "WEB_DESKTOP", userStepId: "free-exam",
+    })).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
+  });
+
+  it("free/assigned-private video access and revocation match the course gate", async () => {
+    state.userSteps.set("free-media", {
+      id: "free-media", userId: "learner", stepOnDayId: "free-video-link",
+      stepType: "THEORY", isPaid: false, isPrivate: false,
+      videoUrl: "https://media.example.test/web3-free.mp4",
+    });
+    await expect(requirePremiumOrRewardedAccessForVideoUrl({
+      userId: "learner", platform: "WEB_DESKTOP",
+      videoUrl: "https://media.example.test/web3-free.mp4",
+    })).resolves.toBeNull();
+    state.userSteps.set("private-media", {
+      id: "private-media", userId: "learner", stepOnDayId: "private-video-link",
+      stepType: "THEORY", courseId: "private-video-course",
+      isPaid: false, isPrivate: true,
+      videoUrl: "https://media.example.test/web3-private.mp4",
+    });
+    state.privateAssignments.add("learner:private-video-course");
+    await expect(requirePremiumOrRewardedAccessForVideoUrl({
+      userId: "learner", platform: "WEB_DESKTOP",
+      videoUrl: "https://media.example.test/web3-private.mp4",
+    })).resolves.toBeNull();
+    state.privateAssignments.clear();
+    state.hasPremium = true;
+    await expect(requirePremiumOrRewardedAccessForVideoUrl({
+      userId: "learner", platform: "WEB_DESKTOP",
+      videoUrl: "https://media.example.test/web3-private.mp4",
+    })).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
+  });
+
+  it("plays a purchased step/mini-guide video before progress rows exist", async () => {
+    state.gafusUnlocked = true;
+    const result = await requirePremiumOrRewardedAccessForVideoUrl({
+      userId: "learner", platform: "WEB_DESKTOP",
+      videoUrl: "https://media.example.test/new-purchase.mp4",
+    });
+    expect(result).toMatchObject({
+      allowed: true, source: "GAFUS",
+      target: { targetType: "COURSE_STEP", targetId: "gafus-video-occurrence" },
+    });
+    expect(state.userSteps.size).toBe(0);
+  });
+
+  it("rejects private-course video for Premium before creating UserTraining", async () => {
+    state.hasPremium = true;
+    state.unattachedVideoOccurrences.push({
+      videoUrl: "https://media.example.test/private-without-progress.mp4",
+      courseId: "private-course", isPrivate: true, isPaid: true,
+      stepOnDayId: "private-occurrence", stepType: "PRACTICE",
+    });
+    await expect(requirePremiumOrRewardedAccessForVideoUrl({
+      userId: "learner", platform: "WEB_DESKTOP",
+      videoUrl: "https://media.example.test/private-without-progress.mp4",
+    })).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
+    state.privateAssignments.add("learner:private-course");
+    await expect(requirePremiumOrRewardedAccessForVideoUrl({
+      userId: "learner", platform: "WEB_DESKTOP",
+      videoUrl: "https://media.example.test/private-without-progress.mp4",
+    })).resolves.toBeNull();
+  });
+
+  it("private assignment allows owned exam; revoked assignment denies even Premium", async () => {
+    state.userSteps.set("private-exam", {
+      id: "private-exam", userId: "learner", stepOnDayId: "private-step",
+      stepType: "EXAMINATION", courseId: "private-course",
+      isPaid: false, isPrivate: true,
+    });
+    state.privateAssignments.add("learner:private-course");
+    await expect(requirePremiumOrRewardedAccessForUserStep({
+      userId: "learner", platform: "WEB_DESKTOP", userStepId: "private-exam",
+    })).resolves.toBeNull();
+    state.privateAssignments.clear();
+    state.hasPremium = true;
+    await expect(requirePremiumOrRewardedAccessForUserStep({
+      userId: "learner", platform: "WEB_DESKTOP", userStepId: "private-exam",
+    })).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
+  });
+
+  it("retains subscription or reward checks for paid and private examination", async () => {
+    for (const [id, isPaid, isPrivate] of [
+      ["paid-exam", true, false], ["private-exam", false, true],
+    ] as const) {
+      state.userSteps.set(id, { id, userId: "learner", stepOnDayId: id,
+        stepType: "EXAMINATION", isPaid, isPrivate });
+      await expect(requirePremiumOrRewardedAccessForUserStep({
+        userId: "learner", platform: "WEB_DESKTOP", userStepId: id,
+      })).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
+    }
+  });
+
   it("allows a child endpoint for an already unlocked regular user step", async () => {
     state.userSteps.set("user-step-1", {
       id: "user-step-1",
@@ -235,11 +364,7 @@ describe("premium or rewarded access", () => {
         userStepId: "user-step-1",
         now: new Date("2026-08-11T00:00:00Z"),
       }),
-    ).resolves.toMatchObject({
-      allowed: true,
-      source: "REWARDED",
-      target: { targetType: "COURSE_STEP", targetId: "step-on-day-1" },
-    });
+    ).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
   });
 
   it("accepts a Gafus-unlocked exam step without a subscription or ad credits", async () => {
@@ -302,14 +427,10 @@ describe("premium or rewarded access", () => {
         stepIndex: 0,
         now: new Date("2026-08-11T00:00:00Z"),
       }),
-    ).resolves.toMatchObject({
-      allowed: true,
-      source: "REWARDED",
-      target: { targetType: "COURSE_STEP", targetId: "step-on-day-1" },
-    });
+    ).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
   });
 
-  it("allows an already rewarded-unlocked target without spending again", async () => {
+  it("does not accept even a previously rewarded-unlocked article", async () => {
     state.unlocks.set("user-1:ARTICLE:article-1", new Date("2026-08-12T00:00:00Z"));
 
     await expect(
@@ -319,7 +440,7 @@ describe("premium or rewarded access", () => {
         target: { targetType: "ARTICLE", targetId: "article-1" },
         now: new Date("2026-08-11T00:00:00Z"),
       }),
-    ).resolves.toMatchObject({ allowed: true, source: "REWARDED" });
+    ).rejects.toBeInstanceOf(SubscriptionOrCreditsRequiredError);
   });
 
   it("does not accept rewarded access on web", async () => {

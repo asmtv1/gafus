@@ -71,6 +71,56 @@ async function setup() {
   });
   return { bytes, data, claim, core, objects, queue, worker };
 }
+describe("Gallery Media V2 direct-final flow", () => {
+  const prefix = "gallery/o/media/p/v2";
+  it("writes only two immutable final WebPs; no staged copy or publish job", async () => {
+    const x = await setup();
+    x.claim.thumbKey = prefix + "/thumb.webp";
+    x.claim.fullKey = prefix + "/full.webp";
+    vi.mocked(x.core.completeUpload).mockResolvedValue({ accepted: true, status: "ready" });
+    await x.worker.processUpload("u");
+    expect(x.objects.read).toHaveBeenCalledTimes(1);
+    expect(x.objects.create).toHaveBeenCalledTimes(2);
+    expect(x.data.has(prefix + "/thumb.webp")).toBe(true);
+    expect(x.data.has(prefix + "/full.webp")).toBe(true);
+    expect(x.data.has(staging + "/thumb.webp")).toBe(false);
+    expect(x.core.claimJobs).not.toHaveBeenCalled();
+    expect(x.core.completeUpload).toHaveBeenCalledTimes(1);
+    expect(x.core.failUpload).not.toHaveBeenCalled();
+  });
+  it("retries a partial final write safely without invoking legacy publish", async () => {
+    const x = await setup();
+    x.claim.thumbKey = prefix + "/thumb.webp";
+    x.claim.fullKey = prefix + "/full.webp";
+    vi.mocked(x.core.completeUpload).mockResolvedValue({ accepted: true, status: "ready" });
+    const create = vi.mocked(x.objects.create).getMockImplementation()!;
+    let fail = true;
+    vi.spyOn(x.objects,"create").mockImplementation(async (...args) => {
+      if (args[0] === prefix + "/full.webp" && fail) {
+        fail = false;
+        throw new Error("NETWORK");
+      }
+      return create(...args);
+    });
+    await expect(x.worker.processUpload("u")).rejects.toThrow("NETWORK");
+    expect(x.data.has(prefix + "/thumb.webp")).toBe(true);
+    await x.worker.processUpload("u");
+    expect(x.data.has(prefix + "/full.webp")).toBe(true);
+    expect(x.core.claimJobs).not.toHaveBeenCalled();
+    expect(x.objects.delete).not.toHaveBeenCalled();
+  });
+  it("rejects forged final keys before GET or PUT", async () => {
+    const x = await setup();
+    x.claim.thumbKey = "gallery/other/media/p/v2/thumb.webp";
+    x.claim.fullKey = "gallery/other/media/p/v2/full.webp";
+    await x.worker.processUpload("u");
+    expect(x.core.failUpload).toHaveBeenCalledWith(
+      expect.objectContaining({ errorCode: "UNTRUSTED_CLAIM", retryable: false }),
+    );
+    expect(x.objects.read).not.toHaveBeenCalled();
+    expect(x.objects.create).not.toHaveBeenCalled();
+  });
+});
 describe("lease, duplicate and job retries with real processing", () => {
   it("duplicate delivery claims first and performs no unregistered read", async () => {
     const x = await setup();

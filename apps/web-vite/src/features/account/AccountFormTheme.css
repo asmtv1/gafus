@@ -1,0 +1,134 @@
+/* Shared GAFUS account settings forms: scoped to these four destinations.
+   Keep the native primary/secondary button skins; do not duplicate palettes. */
+.gafus-app .shell .account-card.gafus-account-form {
+  box-sizing: border-box;
+  width: min(100%, 580px);
+  max-width: none;
+  min-width: 0;
+  margin: clamp(16px, 4vw, 48px) auto;
+  padding: clamp(22px, 4vw, 36px);
+  border: 1px solid #d7d1b8;
+  border-radius: 24px;
+  background: #f7f2e7;
+  color: #352e2e;
+  box-shadow: 0 12px 32px rgba(64, 69, 38, .12);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .shell .account-card.gafus-account-form h2 {
+  margin: 0 0 12px;
+  color: #352e2e;
+  font: 400 clamp(26px, 3vw, 36px)/1.12 var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  text-align: left;
+}
+.gafus-app .shell .account-card.gafus-account-form > p {
+  margin: 0 0 20px;
+  color: #655f51;
+  font: 400 14px/1.65 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .shell .account-card.gafus-account-form form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+}
+.gafus-app .shell .account-card.gafus-account-form form label {
+  display: block;
+  margin: 10px 0 0;
+  font: 650 14px/1.4 var(--font-montserrat), system-ui, sans-serif;
+  color: #45472d;
+}
+.gafus-app .shell .account-card.gafus-account-form form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 50px;
+  padding: 12px 15px;
+  border: 1px solid #bab9a1;
+  border-radius: 12px;
+  background: #fffdf5;
+  color: #352e2e;
+  box-shadow: 0 2px 6px rgba(60, 67, 36, .06);
+  font: 500 16px/1.4 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .shell .account-card.gafus-account-form form input:focus-visible {
+  outline: 3px solid rgba(113, 128, 75, .3);
+  outline-offset: 2px;
+  border-color: #62743b;
+}
+.gafus-app .shell .account-card.gafus-account-form form input[aria-invalid="true"] {
+  border-color: #b45044;
+}
+.gafus-app .shell .account-card.gafus-account-form form .note,
+.gafus-app .shell .account-card.gafus-account-form form [role="status"] {
+  color: #706e5e;
+  margin: 0;
+  font: 400 13px/1.5 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .shell .account-card.gafus-account-form form [role="alert"] {
+  margin: 4px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff1ed;
+  color: #953c36;
+  font: 500 13px/1.5 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .shell .account-card.gafus-account-form .gafus-account-actions,
+#root .gafus-password-reset .gafus-reset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 18px;
+}
+.gafus-app .shell .account-card.gafus-account-form .gafus-account-actions > *,
+#root .gafus-password-reset .gafus-reset-actions > * {
+  box-sizing: border-box;
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  font: 700 15px/1.35 var(--font-montserrat), system-ui, sans-serif;
+  text-align: center;
+  text-decoration: none;
+}
+.gafus-app .shell .account-card.gafus-account-form .gafus-account-actions [aria-disabled="true"],
+#root .gafus-password-reset .gafus-reset-actions [aria-disabled="true"] {
+  pointer-events: none;
+  opacity: .55;
+}
+/* Standalone reset keeps the existing wizard/paws, but its actions share
+   the same olive/red styles and spacing as account settings. */
+#root .gafus-password-reset .gafus-reset-actions { margin-top: 2px; }
+#root .gafus-password-reset .gafus-reset-actions > * { flex-basis: 100%; }
+#root .gafus-password-reset .gafus-reset-actions button[type="submit"] {
+  width: 100%;
+}
+@media (max-width: 520px) {
+  .gafus-app .shell .account-card.gafus-account-form { margin: 12px auto; padding: 20px 16px; border-radius: 18px; }
+  .gafus-app .shell .account-card.gafus-account-form .gafus-account-actions > * { flex-basis: 100%; }
+  .gafus-app .shell .account-card.gafus-account-form h2 { font-size: 28px; }
+}
+
+/* Success/reauth screens reuse the same card, not the old plain white box. */
+.gafus-app .shell .account-card.gafus-account-form > [role="status"] {
+  display: block;
+  margin: 12px 0 18px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(113, 128, 75, .1);
+  color: #45562d;
+}
+.gafus-app .shell .account-card.gafus-account-form > [role="alert"] {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fff1ed;
+}
+.gafus-app .shell .account-card.gafus-account-form > a {
+  color: #52662f;
+  text-underline-offset: 3px;
+}

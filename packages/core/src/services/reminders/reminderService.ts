@@ -56,21 +56,32 @@ export async function createReminder(
   validateDays(reminderDays);
   validateTimezone(timezone);
 
-  const count = await prisma.reminder.count({ where: { userId, type: REMINDER_TYPE } });
-  if (count >= MAX_REMINDERS) {
-    throw new Error("Максимум 5 напоминаний");
-  }
+  // Both legacy keyless and keyed reminder CREATE must acquire the SAME
+  // PostgreSQL User-row lock. A plain count() followed by create() permits
+  // concurrent sixth reminders even when keyed operations lock User.
+  // Keep the legacy DTO and response exactly the same (no receipt for keyless).
+  return prisma.$transaction(async (tx) => {
+    const actor = await tx.$queryRaw<{ id: string }[]>`
+      SELECT "id" FROM "User" WHERE "id" = ${userId}
+        AND "registrationPending" = false FOR UPDATE
+    `;
+    if (actor.length !== 1) throw new Error("Пользователь не найден");
+    const count = await tx.reminder.count({ where: { userId, type: REMINDER_TYPE } });
+    if (count >= MAX_REMINDERS) {
+      throw new Error("Максимум 5 напоминаний");
+    }
 
-  return prisma.reminder.create({
-    data: {
-      userId,
-      type: REMINDER_TYPE,
-      name,
-      reminderTime,
-      reminderDays: reminderDays ?? null,
-      timezone: timezone ?? "Europe/Moscow",
-      enabled: true,
-    },
+    return tx.reminder.create({
+      data: {
+        userId,
+        type: REMINDER_TYPE,
+        name,
+        reminderTime,
+        reminderDays: reminderDays ?? null,
+        timezone: timezone ?? "Europe/Moscow",
+        enabled: true,
+      },
+    });
   });
 }
 

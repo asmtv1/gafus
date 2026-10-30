@@ -1,0 +1,88 @@
+{
+  "kind": "AG2_G05_WEB_REAL_CONSUMER_DONE_V1",
+  "state": "DONE",
+  "consumer": "AG2_WEB",
+  "owner": "AG2",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "vite",
+  "head": "5fc78081",
+  "environment": "ISOLATED_SYNTHETIC_ONLY",
+  "grantId": "AG4-G05-WEB-FINAL-20261017-02",
+  "leaseId": "AG4-G05-WEB-EXCLUSIVE-20261017-01",
+  "grantPath": "apps/admin-panel/AG4_G05_WEB_FINAL_RUNNER_GRANT_V1_20261017.json",
+  "grantSha256": "29e248ee063150613b700981819f7957034977e45cf0927df9c26ac17c83fcec",
+  "ag1ReadyPath": "apps/api/g1-g05-web-consumer-v1/G05_AG1_AG2_WEB_RUNNER_READY_FINAL.v2.json",
+  "ag1ReadySha256": "b94e1c96ccb77db922eda5bc520bb2411f7fcff2bb8cbcf63b96760d0cc084ba",
+  "sourcePins": {
+    "apps/web-vite/src/features/pets/PetCreateS1Form.tsx": "2e8213c3adb8d9c8cd9d50f17ecc3dd3eb92f8bd3cdef198fc5b9b0cd05ddf2d",
+    "apps/web-vite/src/features/pets/petCreateIntentS1.ts": "e93235465cfb96a988175f19d22cc345aec2d078166f0c0766e2c3dcc4fe662c",
+    "apps/web-vite/src/features/pets/petCreateS1.ts": "feea2bef3349090491cef02f995edc03c2d1ed256e1bf7c80cbe5239d087340b",
+    "apps/web-vite/src/features/pets/petCreateS1HttpSubmit.ts": "615aa11e1828f9803ac8fba479b2ecccd4d2e42c41a8e8bde959ad750f2a250d",
+    "apps/web-vite/src/features/pets/petCreateS1.mountedCookieTransport.test.tsx": "c1c4db10c4ba2a1f63ea4e20ee95b41df48f3a868669b3751c25210686b5c2f1",
+    "apps/web-vite/src/shared/api/client.ts": "745f30cde6913c84368f079c89fbc6ff4f5cbf25b14e0f9923ed10ffde785a0a",
+    "apps/web-vite/src/features/pets/g05WebRealConsumerAdapter.ts": "bf383e616122b955c08671987c6af062fef0aa1c143c015892bd96d50e112867",
+    "apps/web-vite/src/features/pets/g05WebRealConsumerAdapter.integration.test.ts": "7f879f6c344db6c0654a6ca139c7c67c42a782cc976bf763baa7c9d6334f914f",
+    "apps/web-vite/src/features/pets/g05WebRealConsumer.real.test.ts": "fd15f29209420bad57b9feab3fad77613a2f4e3d637a2b6008a474c88084e279",
+    "apps/web-vite/scripts/g05-web-gate.mjs": "6ddb218c5ee810fd9f44807659391063599acf87f479cdcc2bd5faac6d37333d",
+    "apps/web-vite/scripts/g05-web-runner.mjs": "38d77246812ce2544d1dc2a602b1a56c67a9501aaf7671c00cf39e4b725af871",
+    "apps/api/g1-g05-pet-create-source-v1/G05_NORMAL_PACKAGED_CORE_SHARED_PRISMA_REALPG16.contract.v9.json": "96aa4698ce1d1ea13b1066afdce9ebd3691bd4cc03f54294f16cd353b3078ab0"
+  },
+  "readOnlyGateAccepted": true,
+  "liveRunStartedUTC": "2026-10-17T15:10:14Z",
+  "liveRunFinishedUTC": "2026-10-17T15:10:17Z",
+  "grantExpiresUTC": "2026-10-17T15:12:03+00:00",
+  "runnerCommand": "G05_AG2_WEB_REAL_EXPLICIT=YES node apps/web-vite/scripts/g05-web-runner.mjs --real --grant apps/admin-panel/AG4_G05_WEB_FINAL_RUNNER_GRANT_V1_20261017.json --I-ACKNOWLEDGE-WEB-LOCAL-POST",
+  "runnerExitCode": 0,
+  "vitestSummary": {
+    "testFilesPassed": 1,
+    "testFilesFailed": 0,
+    "testsPassed": 6,
+    "testsFailed": 0,
+    "testsSkipped": 0
+  },
+  "caseResults": [
+    {
+      "id": "G05-WEB-R01",
+      "state": "PASS",
+      "scope": "201 first create and identical UUID replay same Pet"
+    },
+    {
+      "id": "G05-WEB-R02",
+      "state": "PASS",
+      "scope": "real 201 intentionally hidden from consumer, explicit same-key replay returns same Pet; not actual wire loss"
+    },
+    {
+      "id": "G05-WEB-R03",
+      "state": "PASS",
+      "scope": "same UUID changed payload 409; original payload replay 201"
+    },
+    {
+      "id": "G05-WEB-R04",
+      "state": "PASS",
+      "scope": "identical UUID independently for synthetic owners A and B"
+    },
+    {
+      "id": "G05-WEB-R05",
+      "state": "PASS",
+      "scope": "malformed UUID and unsupported Idempotency-Key header 400"
+    },
+    {
+      "id": "G05-WEB-R06",
+      "state": "PASS",
+      "scope": "invalid synthetic Bearer 401"
+    }
+  ],
+  "fixtureCleanupOwner": "AG1",
+  "ag1SqlRowReadback": "NOT_PERFORMED_BY_AG2",
+  "cleanup": "PENDING_AG1",
+  "notProven": [
+    "real forced 503 fault",
+    "real forced 403",
+    "actual packet loss",
+    "browser cookie/TLS/Origin end-to-end",
+    "browser route /profile/addPet",
+    "MIGRATED_VERIFIED"
+  ],
+  "productionTouched": false,
+  "commitPushDeploy": false
+}

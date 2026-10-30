@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Alert, Pressable, Linking, Platform } from "react-native";
 import { Text } from "react-native-paper";
 import { FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -24,22 +24,33 @@ import {
 import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { useAuthStore } from "@/shared/stores";
 import { useVkLink } from "@/shared/hooks";
-import { subscriptionsApi } from "@/shared/lib/api";
+
 import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 import {
-  pushSubscriptionDeviceStatusQueryOptions,
+  pushDeviceStatusForActor,
   studentNotesQueryOptions,
   trainerPublicProfileQueryOptions,
-  userProfileQueryOptions,
 } from "@/shared/lib/api/profileTabQueries";
 import { userApi } from "@/shared/lib/api/user";
+import {
+  verifiedOwnProfileActor,
+  isCurrentOwnProfileActor,
+  ownProfileForActor,
+  ownProfileQueryOptions,
+} from "@/features/profile/ownProfileRead";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { reportClientError, reportClientErrorAndWait } from "@/shared/lib/tracer";
 import {
   canSendMobileTracerSelfTest,
   sendMobileTracerSelfTest,
 } from "@/shared/lib/tracer/mobileTracerSelfTest";
-import { getCurrentDeviceTokens, setupPushNotifications } from "@/shared/lib/utils/notifications";
+import {
+  getVerifiedPushActor,
+  isSameVerifiedPushActor,
+  setupPushNotifications,
+  unregisterCurrentDevicePushNotifications,
+} from "@/shared/lib/utils/notifications";
+import { usePushRegistrationLiveness } from "@/shared/lib/utils/usePushRegistrationLiveness";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { USER_EMAIL_MISSING_HINT } from "@gafus/types";
 import { trackEvent } from "@/shared/lib/analytics";
@@ -337,6 +348,7 @@ const getRoleColor = (role?: string) => {
 export default function ProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const isPushScreenLive = usePushRegistrationLiveness();
   const startOnboardingTour = useMobileOnboardingTourStore((s) => s.startTour);
   const { user, logout, setUser } = useAuthStore(
     useShallow((s) => ({
@@ -346,16 +358,39 @@ export default function ProfileScreen() {
     })),
   );
 
-  // Загрузка данных профиля
-  const { data: profileData } = useQuery(userProfileQueryOptions);
+  // This tab displays only a verified owner+native-epoch GET, never global cache.
+  const liveActor = verifiedOwnProfileActor();
+  // Stable object by principal/epoch: avoid repeating setUser after each render.
+  const actorOwnerId = liveActor?.ownerId ?? null;
+  const actorEpoch = liveActor?.authEpoch ?? null;
+  const actor = useMemo(
+    () => actorOwnerId && actorEpoch ? { ownerId: actorOwnerId, authEpoch: actorEpoch } : null,
+    [actorOwnerId, actorEpoch],
+  );
+  const ownProfileOptions = ownProfileQueryOptions(actor);
+  const {
+    data: profileData,
+    isPending: profilePending,
+    isError: profileError,
+    isFetching: profileFetching,
+    refetch: refetchProfile,
+  } = useQuery(ownProfileOptions);
+  const profileUser = useMemo(
+    () => ownProfileForActor(profileData, actor),
+    [profileData, actor],
+  );
   const { data: publicConfigResponse, isFetched: publicConfigFetched } = useMobileAppPublicConfig();
 
   /** После смены email на web стор мог остаться со старым user — подтягиваем GET /profile */
   useFocusEffect(
     useCallback(() => {
-      void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      if (isCurrentOwnProfileActor(actor)) {
+        void queryClient.invalidateQueries({
+          queryKey: ["user-profile", "own-tab", actor?.ownerId, actor?.authEpoch], exact: true,
+        });
+      }
       void queryClient.invalidateQueries({ queryKey: ["app-subscription"] });
-    }, [queryClient]),
+    }, [queryClient, actor]),
   );
 
   const [osPermission, setOsPermission] = useState<"granted" | "denied" | "undetermined">(
@@ -382,22 +417,39 @@ export default function ProfileScreen() {
   );
 
   useEffect(() => {
-    if (!profileData?.success || !profileData.data) return;
-    setUser(profileData.data);
-  }, [profileData, setUser]);
+    if (!profileUser || !isCurrentOwnProfileActor(actor)) return;
+    setUser(profileUser);
+  }, [profileUser, setUser, actor]);
 
+  const verifiedPushActor = getVerifiedPushActor();
+  const pushActor = verifiedPushActor?.ownerId === user?.id ? verifiedPushActor : null;
+  const pushStatusOptions = pushDeviceStatusForActor(pushActor);
   const {
     data: pushDeviceStatus,
     isPending: pushDeviceStatusPending,
     isError: pushDeviceStatusError,
-  } = useQuery(pushSubscriptionDeviceStatusQueryOptions);
+  } = useQuery(pushStatusOptions);
 
-  const { data: studentNotesData } = useQuery({
+  const {
+    data: studentNotesData,
+    isPending: studentNotesPending,
+    isFetching: studentNotesFetching,
+    isError: studentNotesQueryError,
+    error: studentNotesError,
+    refetch: refetchStudentNotes,
+  } = useQuery({
     ...studentNotesQueryOptions,
     enabled: user?.role === "USER",
   });
 
-  const { data: trainerProfileData } = useQuery({
+  const {
+    data: trainerProfileData,
+    isPending: trainerProfilePending,
+    isFetching: trainerProfileFetching,
+    isError: trainerProfileQueryError,
+    error: trainerProfileError,
+    refetch: refetchTrainerProfile,
+  } = useQuery({
     ...trainerPublicProfileQueryOptions(user?.username ?? ""),
     enabled: user?.role === "TRAINER" && !!user?.username,
   });
@@ -448,19 +500,28 @@ export default function ProfileScreen() {
 
   const enablePushMutation = useMutation({
     mutationFn: async () => {
-      const ok = await setupPushNotifications();
-      return ok
-        ? { success: true }
-        : { success: false, error: "Не удалось включить push-уведомления" };
+      const actor = getVerifiedPushActor();
+      const ok = actor && (await setupPushNotifications({ isLive: isPushScreenLive }));
+      return { success: Boolean(ok), actor };
     },
     onSuccess: async (result) => {
+      if (!isPushScreenLive() || !isSameVerifiedPushActor(result.actor)) return;
       void refreshOsPermission();
       if (!result.success) {
-        Alert.alert("Уведомления", result.error ?? "Не удалось включить уведомления");
+        Alert.alert(
+          "Уведомления",
+          "Не удалось подтвердить включение. Проверьте статус устройства.",
+        );
         return;
       }
       try {
-        await queryClient.invalidateQueries({ queryKey: ["push-subscription-device-status"] });
+        // Native POST ACK alone is not proof of active server-side ownership.
+        const status = await queryClient.fetchQuery(pushDeviceStatusForActor(result.actor));
+        if (!isPushScreenLive() || !isSameVerifiedPushActor(result.actor)) return;
+        if (!status.determined || !status.hasThisDeviceSubscription) {
+          Alert.alert("Уведомления", "Регистрация отправлена. Статус устройства не подтверждён.");
+          return;
+        }
         hapticFeedback.success();
       } catch (err) {
         reportClientError(err, {
@@ -474,27 +535,24 @@ export default function ProfileScreen() {
 
   const disablePushMutation = useMutation({
     mutationFn: async () => {
-      const tokens = await getCurrentDeviceTokens();
-      const endpoints = [tokens.expo, tokens.rustore].filter(Boolean) as string[];
-      if (endpoints.length === 0) {
-        return {
-          success: false,
-          error:
-            "Не удалось определить это устройство. Разрешите уведомления в настройках телефона и повторите попытку.",
-        };
-      }
-      const results = await Promise.all(
-        endpoints.map((ep) => subscriptionsApi.deletePushSubscription(ep)),
-      );
-      return results.find((r) => !r.success) ?? { success: true };
+      const actor = getVerifiedPushActor();
+      const success =
+        actor && (await unregisterCurrentDevicePushNotifications({ isLive: isPushScreenLive }));
+      return { success: Boolean(success), actor };
     },
     onSuccess: async (result) => {
+      if (!isPushScreenLive() || !isSameVerifiedPushActor(result.actor)) return;
       if (!result.success) {
-        Alert.alert("Уведомления", result.error ?? "Не удалось отключить уведомления");
+        Alert.alert("Уведомления", "Отключение не подтверждено. Проверьте подписку устройства.");
         return;
       }
       try {
-        await queryClient.invalidateQueries({ queryKey: ["push-subscription-device-status"] });
+        const status = await queryClient.fetchQuery(pushDeviceStatusForActor(result.actor));
+        if (!isPushScreenLive() || !isSameVerifiedPushActor(result.actor)) return;
+        if (!status.determined || status.hasThisDeviceSubscription) {
+          Alert.alert("Уведомления", "Отключение отправлено. Текущий статус неизвестен.");
+          return;
+        }
         hapticFeedback.success();
       } catch (err) {
         reportClientError(err, {
@@ -506,12 +564,11 @@ export default function ProfileScreen() {
     },
   });
 
-  const profileUser = profileData?.data;
   const profile = profileUser?.profile;
-  const cachedAvatarUrl = user?.profile?.avatarUrl?.trim() || null;
-  const displayEmail = profileUser?.email?.trim() || user?.email?.trim() || "";
-  const hasAppPassword = profileData?.data?.hasAppPassword ?? user?.hasAppPassword ?? false;
-  const hasVkLinked = profileData?.data?.hasVkLinked ?? false;
+  // Never fall back to a previous session's profile/URL while scoped GET is pending.
+  const displayEmail = profileUser?.email?.trim() || "";
+  const hasAppPassword = profileUser?.hasAppPassword ?? false;
+  const hasVkLinked = profileUser?.hasVkLinked ?? false;
   const canLinkVk =
     Platform.OS !== "ios"
       ? true
@@ -524,20 +581,58 @@ export default function ProfileScreen() {
     },
     onError: (msg) => Alert.alert("Ошибка", msg),
   });
-  const avatarUrl = profile?.avatarUrl?.trim() || cachedAvatarUrl;
-  const greetingName = user?.username || "пользователь";
+  const avatarUrl = profile?.avatarUrl?.trim() || null;
+  const greetingName = profileUser?.username || "пользователь";
   const avatarCacheKey = avatarUrl
     ? `user-avatar-${profileUser?.id ?? user?.id ?? "me"}-${avatarUrl}`
     : "user-avatar-placeholder";
-  const displayRole = getRoleLabel(user?.role);
+  const displayRole = getRoleLabel(profileUser?.role);
   const pushServerDetermined = pushDeviceStatus?.determined === true;
   const hasThisDevicePushOnServer = pushDeviceStatus?.hasThisDeviceSubscription === true;
-  const studentNotes = studentNotesData?.success ? (studentNotesData.data ?? []) : [];
-  const trainerCourses = trainerProfileData?.data?.courses ?? [];
-  const canShowTracerSelfTest = canSendMobileTracerSelfTest(user);
+  // Only a confirmed successful GET with an array may produce notes or "empty".
+  // Hide cached private content while any fresh read is pending or has failed.
+  const studentNotesLoading = studentNotesPending || studentNotesFetching;
+  const studentNotesFailed = !studentNotesLoading && (
+    studentNotesQueryError || studentNotesData?.success !== true ||
+    !Array.isArray(studentNotesData.data)
+  );
+  const studentNotesTerminal =
+    studentNotesData?.code === "SESSION_EXPIRED" ||
+    studentNotesData?.code === "G05_SESSION_CHANGED" ||
+    (studentNotesError instanceof Error && (
+      studentNotesError.message === "SESSION_EXPIRED" ||
+      studentNotesError.message === "G05_SESSION_CHANGED"
+    ));
+  const studentNotes = !studentNotesLoading && !studentNotesFailed &&
+    Array.isArray(studentNotesData?.data) ? studentNotesData.data : [];
+  // An unconfirmed read must never be presented as a confirmed empty list.
+  // Hide stale cached courses during both initial GET and background revalidation.
+  const trainerCoursesQueryEnabled = !!user?.username;
+  const trainerCoursesLoading = trainerCoursesQueryEnabled &&
+    (trainerProfilePending || trainerProfileFetching);
+  const trainerCoursesFailed = !trainerCoursesLoading && (
+    !trainerCoursesQueryEnabled || trainerProfileQueryError ||
+    trainerProfileData?.success !== true ||
+    !Array.isArray(trainerProfileData?.data?.courses)
+  );
+  const trainerCoursesTerminal = !trainerCoursesQueryEnabled ||
+    trainerProfileData?.code === "SESSION_EXPIRED" ||
+    trainerProfileData?.code === "G05_SESSION_CHANGED" ||
+    (trainerProfileError instanceof Error && (
+      ("code" in trainerProfileError && (
+        trainerProfileError.code === "SESSION_EXPIRED" ||
+        trainerProfileError.code === "G05_SESSION_CHANGED"
+      )) ||
+      trainerProfileError.message === "SESSION_EXPIRED" ||
+      trainerProfileError.message === "G05_SESSION_CHANGED"
+    ));
+  const trainerCourses = !trainerCoursesLoading && !trainerCoursesFailed &&
+    Array.isArray(trainerProfileData?.data?.courses)
+    ? trainerProfileData.data.courses : [];
+  const canShowTracerSelfTest = canSendMobileTracerSelfTest(profileUser);
   const [tracerSelfTestPending, setTracerSelfTestPending] = useState(false);
 
-  const roleColor = getRoleColor(user?.role);
+  const roleColor = getRoleColor(profileUser?.role);
 
   const trackProfileClick = useCallback((elementId: string) => {
     trackEvent({
@@ -630,6 +725,32 @@ export default function ProfileScreen() {
     }
   };
 
+  // No private profile/name/avatar is rendered until an exact owned GET succeeds.
+  if (!isCurrentOwnProfileActor(actor)) {
+    return (
+      <TexturedSafeAreaView style={styles.container} edges={[]}>
+        <Text>Войдите в аккаунт, чтобы открыть профиль.</Text>
+      </TexturedSafeAreaView>
+    );
+  }
+  if (profilePending || profileFetching) {
+    return (
+      <TexturedSafeAreaView style={styles.container} edges={[]}>
+        <Text>Загрузка профиля…</Text>
+      </TexturedSafeAreaView>
+    );
+  }
+  if (profileError || !profileUser) {
+    return (
+      <TexturedSafeAreaView style={styles.container} edges={[]}>
+        <Text>Не удалось загрузить профиль.</Text>
+        <Pressable accessibilityRole="button" onPress={() => void refetchProfile()}>
+          <Text>Повторить загрузку профиля</Text>
+        </Pressable>
+      </TexturedSafeAreaView>
+    );
+  }
+
   return (
     <TexturedSafeAreaView style={styles.container} edges={[]}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
@@ -688,7 +809,9 @@ export default function ProfileScreen() {
             <View style={styles.bioCard}>
               <ProfileMetaRow
                 city={profile?.city}
-                ageLabel={age !== null ? `Возраст: ${age} ${declOfNum(age, ["год", "года", "лет"])}` : null}
+                ageLabel={
+                  age !== null ? `Возраст: ${age} ${declOfNum(age, ["год", "года", "лет"])}` : null
+                }
               />
 
               {/* О себе */}
@@ -786,7 +909,7 @@ export default function ProfileScreen() {
                 }}
               />
             </View>
-            <ProfileFeedPreview username={user?.username ?? ""} />
+            <ProfileFeedPreview username={profileUser.username} />
             <View style={styles.notificationsCard}>
               <View style={styles.sectionHeading}>
                 <ProfileIcon name="notifications" />
@@ -939,7 +1062,29 @@ export default function ProfileScreen() {
                   <ProfileIcon name="trainer-notes" />
                   <Text style={styles.notesTitle}>Заметки тренера</Text>
                 </View>
-                {studentNotes.length === 0 ? (
+                {studentNotesLoading ? (
+                  <Text style={styles.notesEmpty} accessibilityRole="text"
+                    accessibilityLabel="Загружаем заметки тренера">
+                    Загружаем заметки тренера…
+                  </Text>
+                ) : studentNotesFailed ? (
+                  <View style={styles.notesEmptyState}>
+                    <Text style={styles.notesEmpty} accessibilityRole="alert">
+                      {studentNotesTerminal
+                        ? "Заметки недоступны. Войдите в аккаунт снова."
+                        : "Не удалось загрузить заметки тренера."}
+                    </Text>
+                    {!studentNotesTerminal && (
+                      <Pressable accessibilityRole="button"
+                        accessibilityLabel="Повторить загрузку заметок тренера"
+                        disabled={studentNotesFetching}
+                        accessibilityState={{ disabled: studentNotesFetching }}
+                        onPress={() => { void refetchStudentNotes(); }}>
+                        <Text style={styles.notesEmpty}>Повторить загрузку заметок тренера</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ) : studentNotes.length === 0 ? (
                   <View style={styles.notesEmptyState}>
                     <ProfileIcon name="notes-empty" size={50} />
                     <Text style={styles.notesEmpty}>Пока нет заметок от тренера</Text>
@@ -947,7 +1092,12 @@ export default function ProfileScreen() {
                 ) : (
                   studentNotes.map((note) => (
                     <View key={note.id} style={styles.noteItem}>
-                      <Text style={styles.noteTitle}>{note.title}</Text>
+                      <Text
+                        style={styles.noteTitle}
+                        accessibilityLabel={note.title?.trim() ? note.title : "Заметка без названия"}
+                      >
+                        {note.title?.trim() ? note.title : "Заметка без названия"}
+                      </Text>
                       <Text style={styles.noteMeta}>
                         {note.trainer?.profile?.fullName ?? "Тренер"} •{" "}
                         {new Date(note.createdAt).toLocaleDateString("ru-RU")}
@@ -966,7 +1116,29 @@ export default function ProfileScreen() {
             {user?.role === "TRAINER" && (
               <View style={styles.notesCard}>
                 <Text style={styles.notesTitle}>Курсы кинолога</Text>
-                {trainerCourses.length === 0 ? (
+                {trainerCoursesLoading ? (
+                  <Text style={styles.notesEmpty} accessibilityRole="text"
+                    accessibilityLabel="Загружаем курсы кинолога">
+                    Загружаем курсы кинолога…
+                  </Text>
+                ) : trainerCoursesFailed ? (
+                  <View style={styles.notesEmptyState}>
+                    <Text style={styles.notesEmpty} accessibilityRole="alert">
+                      {trainerCoursesTerminal
+                        ? "Курсы недоступны. Войдите в аккаунт снова."
+                        : "Не удалось загрузить курсы кинолога."}
+                    </Text>
+                    {!trainerCoursesTerminal && (
+                      <Pressable accessibilityRole="button"
+                        accessibilityLabel="Повторить загрузку курсов кинолога"
+                        disabled={trainerProfileFetching}
+                        accessibilityState={{ disabled: trainerProfileFetching }}
+                        onPress={() => { void refetchTrainerProfile(); }}>
+                        <Text style={styles.notesEmpty}>Повторить загрузку курсов кинолога</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ) : trainerCourses.length === 0 ? (
                   <Text style={styles.notesEmpty}>Курсы не найдены</Text>
                 ) : (
                   trainerCourses.map((course) => (
@@ -1022,7 +1194,7 @@ export default function ProfileScreen() {
               <ProfileIcon name="login" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoItemTitle}>Логин</Text>
-                <Text style={styles.infoItemDesc}>{user?.username}</Text>
+                <Text style={styles.infoItemDesc}>{profileUser.username}</Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.textSecondary} />
             </Pressable>

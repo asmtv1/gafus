@@ -1,0 +1,54 @@
+{
+  "name": "@gafus/achievements-server",
+  "version": "1.7.0",
+  "private": true,
+  "sideEffects": true,
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "calculateAchievements": ["dist/calculateAchievements.d.ts"],
+      "calculateStreaks": ["dist/calculateStreaks.d.ts"],
+      "datesService": ["dist/datesService.d.ts"],
+      "statsService": ["dist/statsService.d.ts"]
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./calculateAchievements": {
+      "types": "./dist/calculateAchievements.d.ts",
+      "default": "./dist/calculateAchievements.js"
+    },
+    "./calculateStreaks": {
+      "types": "./dist/calculateStreaks.d.ts",
+      "default": "./dist/calculateStreaks.js"
+    },
+    "./datesService": {
+      "types": "./dist/datesService.d.ts",
+      "default": "./dist/datesService.js"
+    },
+    "./statsService": {
+      "types": "./dist/statsService.d.ts",
+      "default": "./dist/statsService.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/logger": "workspace:*",
+    "@gafus/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "^4.0.17"
+  }
+}

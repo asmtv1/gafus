@@ -1,5 +1,15 @@
-import { useEffect, useState } from "react";
-import { Keyboard, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  Keyboard,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter, type Href } from "expo-router";
@@ -11,6 +21,8 @@ import { Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/component
 import { Button } from "@/shared/components/ui/Button";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import { reportClientError } from "@/shared/lib/tracer";
 import { questionsApi } from "@/shared/lib/api/questions";
 import { QAuthor, QButton, QStatus, st } from "./ui";
 function countWord(count: number, forms: [string, string, string]) {
@@ -22,9 +34,45 @@ function countWord(count: number, forms: [string, string, string]) {
   return forms[2];
 }
 export function QuestionsScreen() {
+  const owner = useAuthStore((state) =>
+    state.isAuthenticated && !state.isLoading ? (state.user?.id ?? null) : null,
+  );
+  const verified = newOnlyV2NativeQueues.getVerifiedBinding();
+  const epoch = owner && verified?.principalId === owner ? verified.authEpoch : null;
+  if (!owner || !epoch) {
+    return (
+      <TexturedSafeAreaView style={{ flex: 1 }}>
+        <Text style={st.error}>Для просмотра вопросов войдите в аккаунт</Text>
+      </TexturedSafeAreaView>
+    );
+  }
+  return <QuestionsActorScreen key={`${owner}:${epoch}`} owner={owner} epoch={epoch} />;
+}
+
+function QuestionsActorScreen({ owner, epoch }: { owner: string; epoch: string }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const userId = useAuthStore((s) => s.user?.id);
+  const mounted = useRef(true);
+  const refreshingRef = useRef(false);
+  const paginationRef = useRef(false);
+  const isCurrent = () => {
+    const auth = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    return (
+      mounted.current &&
+      auth.isAuthenticated &&
+      !auth.isLoading &&
+      auth.user?.id === owner &&
+      binding?.principalId === owner &&
+      binding.authEpoch === epoch
+    );
+  };
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [search, setSearch] = useState("");
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("");
@@ -38,7 +86,7 @@ export function QuestionsScreen() {
     return () => clearTimeout(timer);
   }, [search]);
   const query = useInfiniteQuery({
-    queryKey: ["questions", userId, { term, category, status, sort, mine }],
+    queryKey: ["questions", owner, epoch, { term, category, status, sort, mine }],
     queryFn: ({ pageParam }) =>
       questionsApi.list({
         search: term,
@@ -50,15 +98,39 @@ export function QuestionsScreen() {
       }),
     initialPageParam: 1,
     getNextPageParam: (p) => p.nextPage,
-    enabled: !!userId,
+    enabled: true,
   });
   const refresh = async () => {
-    if (refreshing) return;
+    if (refreshingRef.current || !isCurrent()) return;
+    refreshingRef.current = true;
     setRefreshing(true);
     try {
       await query.refetch();
+    } catch {
+      if (isCurrent())
+        reportClientError(new Error("QUESTION_LIST_REFRESH_FAILED"), {
+          issueKey: "QuestionsList",
+          keys: { operation: "refresh" },
+        });
     } finally {
-      setRefreshing(false);
+      refreshingRef.current = false;
+      if (isCurrent()) setRefreshing(false);
+    }
+  };
+  const loadMore = async () => {
+    if (paginationRef.current || query.isFetchingNextPage || !query.hasNextPage || !isCurrent())
+      return;
+    paginationRef.current = true;
+    try {
+      await query.fetchNextPage();
+    } catch {
+      if (isCurrent())
+        reportClientError(new Error("QUESTION_LIST_PAGINATION_FAILED"), {
+          issueKey: "QuestionsList",
+          keys: { operation: "next_page" },
+        });
+    } finally {
+      paginationRef.current = false;
     }
   };
   const access = query.data?.pages[0];
@@ -79,9 +151,7 @@ export function QuestionsScreen() {
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={st.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}
       >
         <Image
           source={require("../../../assets/images/questions-header.webp")}
@@ -96,8 +166,10 @@ export function QuestionsScreen() {
           variant="primary"
           icon="plus"
           animatedPress
-          disabled={access?.canPublish === false}
-          onPress={() => router.push("/questions/new" as Href)}
+          disabled={!access || query.isPending || query.isError || access.canPublish === false}
+          onPress={() => {
+            if (isCurrent() && access?.canPublish) router.push("/questions/new" as Href);
+          }}
         />
         {access?.blockReason && (
           <Text style={st.notice}>
@@ -110,6 +182,7 @@ export function QuestionsScreen() {
               <MaterialCommunityIcons name="magnify" size={20} color={COLORS.textSecondary} />
               <TextInput
                 accessibilityLabel="Поиск вопросов"
+                accessibilityHint="Введите слова для поиска по вопросам"
                 placeholder="Поиск вопросов"
                 placeholderTextColor={COLORS.textSecondary}
                 value={search}
@@ -125,13 +198,18 @@ export function QuestionsScreen() {
                   hitSlop={8}
                   onPress={() => setSearch("")}
                 >
-                  <MaterialCommunityIcons name="close-circle" size={19} color={COLORS.textSecondary} />
+                  <MaterialCommunityIcons
+                    name="close-circle"
+                    size={19}
+                    color={COLORS.textSecondary}
+                  />
                 </Pressable>
               )}
             </View>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Фильтры вопросов"
+              accessibilityState={{ expanded: filters }}
               accessibilityHint={activeFilterCount ? "Есть выбранные фильтры" : "Открыть фильтры"}
               onPress={openFilters}
               style={({ pressed }) => [styles.filterButton, pressed && styles.pressed]}
@@ -166,22 +244,30 @@ export function QuestionsScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Порядок вопросов"
+              accessibilityState={{ expanded: filters }}
               onPress={openFilters}
               style={styles.sortIndicator}
             >
-              <Text numberOfLines={1} style={styles.sortText}>{sortLabel}</Text>
+              <Text numberOfLines={1} style={styles.sortText}>
+                {sortLabel}
+              </Text>
               <MaterialCommunityIcons name="chevron-down" size={17} color={COLORS.textSecondary} />
             </Pressable>
           </View>
         </View>
         {query.isPending && <Loading variant="inline" message="Загрузка вопросов…" />}
-        {query.isError && (
+        {query.isError && !query.isFetchNextPageError && (
           <View style={st.group}>
             <Text accessibilityRole="alert" style={st.error}>
-              {query.error.message}
+              Не удалось загрузить вопросы
             </Text>
-            <QButton label="Повторить" secondary onPress={() => void query.refetch()} />
+            <QButton label="Повторить" secondary onPress={() => void refresh()} />
           </View>
+        )}
+        {query.isFetchNextPageError && (
+          <Text accessibilityRole="alert" style={st.error}>
+            Не удалось загрузить следующую страницу. Уже загруженные вопросы доступны.
+          </Text>
         )}
         {!query.isPending && !query.isError && !items.length && (
           <View style={st.card}>
@@ -196,7 +282,9 @@ export function QuestionsScreen() {
             key={q.id}
             accessibilityRole="button"
             accessibilityLabel={q.title}
-            onPress={() => router.push(`/questions/${q.id}` as Href)}
+            onPress={() => {
+              if (isCurrent()) router.push(`/questions/${q.id}` as Href);
+            }}
             style={({ pressed }) => [st.card, st.listCard, pressed && { opacity: 0.7 }]}
           >
             <QStatus question={q} compact />
@@ -218,10 +306,16 @@ export function QuestionsScreen() {
         ))}
         {query.hasNextPage && (
           <QButton
-            label={query.isFetchingNextPage ? "Загрузка…" : "Ещё вопросы"}
+            label={
+              query.isFetchingNextPage
+                ? "Загрузка…"
+                : query.isFetchNextPageError
+                  ? "Повторить загрузку"
+                  : "Ещё вопросы"
+            }
             secondary
             disabled={query.isFetchingNextPage}
-            onPress={() => void query.fetchNextPage()}
+            onPress={() => void loadMore()}
           />
         )}
         {query.isFetchingNextPage && <MascotSpinner />}
@@ -239,10 +333,15 @@ export function QuestionsScreen() {
             accessibilityLabel="Закрыть фильтры"
             onPress={() => setFilters(false)}
           />
-          <View style={[styles.filterSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <View
+            style={[styles.filterSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}
+            accessibilityViewIsModal
+            importantForAccessibility="yes"
+            accessibilityLabel="Фильтры вопросов"
+          >
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeading}>
-              <Text style={styles.sheetTitle}>Фильтры</Text>
+              <Text accessibilityRole="header" style={styles.sheetTitle}>Фильтры</Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Закрыть фильтры"
@@ -252,28 +351,63 @@ export function QuestionsScreen() {
                 <MaterialCommunityIcons name="close" size={24} color={COLORS.text} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="handled">
-              <View style={styles.filterGroup}>
+            <ScrollView
+              contentContainerStyle={styles.sheetContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.filterGroup} accessibilityRole="radiogroup"
+                accessibilityLabel="Показывать">
                 <Text style={styles.filterGroupLabel}>Показывать</Text>
                 <View style={styles.filtersRow}>
                   {(["new", "active", "unanswered"] as const).map((v) => (
-                    <QButton key={v} label={v === "new" ? "Новые" : v === "active" ? "Активные" : "Без ответа"} secondary compact selected={sort === v} onPress={() => setSort(v)} />
+                    <QButton
+                      key={v}
+                      label={v === "new" ? "Новые" : v === "active" ? "Активные" : "Без ответа"}
+                      secondary
+                      compact
+                      selected={sort === v}
+                      onPress={() => setSort(v)}
+                    />
                   ))}
                 </View>
               </View>
-              <View style={styles.filterGroup}>
+              <View style={styles.filterGroup} accessibilityRole="radiogroup"
+                accessibilityLabel="Категория">
                 <Text style={styles.filterGroupLabel}>Категория</Text>
                 <View style={styles.filtersRow}>
                   {["", ...QUESTION_CATEGORIES].map((c) => (
-                    <QButton key={c} label={c || "Все категории"} secondary compact selected={category === c} onPress={() => setCategory(c)} />
+                    <QButton
+                      key={c}
+                      label={c || "Все категории"}
+                      secondary
+                      compact
+                      selected={category === c}
+                      onPress={() => setCategory(c)}
+                    />
                   ))}
                 </View>
               </View>
-              <View style={styles.filterGroup}>
+              <View style={styles.filterGroup} accessibilityRole="radiogroup"
+                accessibilityLabel="Статус">
                 <Text style={styles.filterGroupLabel}>Статус</Text>
                 <View style={styles.filtersRow}>
                   {(["", "waiting", "answered", "resolved"] as const).map((v) => (
-                    <QButton key={v} label={v === "" ? "Все" : v === "waiting" ? "Ждёт ответа" : v === "answered" ? "Есть ответы" : "Решён"} secondary compact selected={status === v} onPress={() => setStatus(v)} />
+                    <QButton
+                      key={v}
+                      label={
+                        v === ""
+                          ? "Все"
+                          : v === "waiting"
+                            ? "Ждёт ответа"
+                            : v === "answered"
+                              ? "Есть ответы"
+                              : "Решён"
+                      }
+                      secondary
+                      compact
+                      selected={status === v}
+                      onPress={() => setStatus(v)}
+                    />
                   ))}
                 </View>
               </View>
@@ -283,12 +417,20 @@ export function QuestionsScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Сбросить фильтры"
                 style={styles.resetButton}
-                onPress={() => { setSort("new"); setCategory(""); setStatus(""); }}
+                onPress={() => {
+                  setSort("new");
+                  setCategory("");
+                  setStatus("");
+                }}
               >
                 <Text style={styles.resetText}>Сбросить</Text>
               </Pressable>
               <View style={styles.applyButton}>
-                <Button label="Показать вопросы" variant="primary" onPress={() => setFilters(false)} />
+                <Button
+                  label="Показать вопросы"
+                  variant="primary"
+                  onPress={() => setFilters(false)}
+                />
               </View>
             </View>
           </View>
@@ -343,21 +485,67 @@ const styles = StyleSheet.create({
     backgroundColor: "#faf7ef",
   },
   filterButtonText: { fontFamily: FONTS.montserratMedium, fontSize: 12, color: COLORS.primary },
-  filterDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.primary, position: "absolute", right: 5, top: 5 },
+  filterDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.primary,
+    position: "absolute",
+    right: 5,
+    top: 5,
+  },
   pressed: { opacity: 0.65 },
-  scopeRow: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  scopeRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   scopeSwitch: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sortIndicator: { flexDirection: "row", minHeight: 44, alignItems: "center", gap: 2, paddingVertical: 6, paddingHorizontal: 4 },
+  sortIndicator: {
+    flexDirection: "row",
+    minHeight: 44,
+    alignItems: "center",
+    gap: 2,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
   sortText: { fontFamily: FONTS.montserratMedium, fontSize: 12, color: COLORS.textSecondary },
   modalRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.35)" },
-  filterSheet: { backgroundColor: "#faf7ef", borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: "85%", paddingHorizontal: 16 },
-  sheetHandle: { alignSelf: "center", width: 36, height: 4, borderRadius: 2, marginTop: 9, marginBottom: 12, backgroundColor: "#c3c0b4" },
-  sheetHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 14 },
+  filterSheet: {
+    backgroundColor: "#faf7ef",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "85%",
+    paddingHorizontal: 16,
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 9,
+    marginBottom: 12,
+    backgroundColor: "#c3c0b4",
+  },
+  sheetHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 14,
+  },
   sheetTitle: { fontFamily: FONTS.montserratBold, fontSize: 18, color: COLORS.text },
   sheetContent: { gap: 20, paddingBottom: 22 },
   filterGroup: { gap: 9 },
   filterGroupLabel: { fontFamily: FONTS.montserratMedium, fontSize: 13, color: COLORS.text },
-  sheetFooter: { paddingTop: 12, borderTopWidth: 1, borderTopColor: "#e3e0d4", flexDirection: "row", gap: 12, alignItems: "center" },
+  sheetFooter: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#e3e0d4",
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "center",
+  },
   resetButton: { minHeight: 44, paddingHorizontal: 6, justifyContent: "center" },
   resetText: { fontFamily: FONTS.montserratMedium, fontSize: 13, color: COLORS.primary },
   applyButton: { flex: 1 },

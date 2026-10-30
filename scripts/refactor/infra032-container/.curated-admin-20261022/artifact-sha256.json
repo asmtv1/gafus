@@ -1,0 +1,17 @@
+{
+  "schema": "ag4-curated-static-v1",
+  "files": [
+    {
+      "path": "assets/index-C5VI_C_m.js",
+      "sha256": "3406863af3128ef808227a2c4e5cc952367d857ddd5e1dbcdb5b233e24cb9a9a"
+    },
+    {
+      "path": "index.html",
+      "sha256": "090ae921abea15409f97a3b1714cbd8de10a1a2ccec80efb4fe6631a038f8b6c"
+    },
+    {
+      "path": "nginx.conf",
+      "sha256": "d51e7b60c51c8b1d7a9f7da7298cb8fc3f5471b4fd9c2f4034fe0614bd051a30"
+    }
+  ]
+}

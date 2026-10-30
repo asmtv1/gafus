@@ -1,0 +1,10 @@
+{
+  "extends": "../../apps/api/tsconfig.json",
+  "include": [
+    "../../apps/api/src/test/admin4-real-http.ts",
+    "../../apps/api/src/routes/v1/admin-subscriptions.ts",
+    "../../apps/api/src/routes/v1/admin-analytics.ts",
+    "../../apps/api/src/routes/v1/mobile-intro.ts"
+  ],
+  "exclude": ["../../apps/api/node_modules", "../../apps/api/dist"]
+}

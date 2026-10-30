@@ -1,0 +1,126 @@
+/* Vite-only compatibility: the legacy shell forces every button to a 12px
+ * radius at a specificity that exceeds the exact copied Next CSS modules.
+ * Restore ONLY shared original Next controls, without touching other routes,
+ * feature-specific icon/tab controls or the source CSS files. */
+.gafus-app .shell button[data-gafus-shared-button="primary"],
+.gafus-app .shell button[data-gafus-shared-button="secondary"] {
+  border-radius: 18px !important;
+}
+.gafus-app .shell button[data-gafus-shared-button="primary"][data-gafus-size="large"] {
+  border-radius: 22px !important;
+}
+.gafus-app .shell button[data-gafus-shared-button="caramel"] {
+  border-radius: 14px !important;
+}
+
+/* Next globals.css gives .gafus-primary-button a radius with !important.
+ * In catalog cards .actions .action sets 11px, but the Next primary skin
+ * still wins at 18px. The same anchor must win over the copied card module
+ * in Vite. Do not change the caramel link: Next's card override keeps 11px. */
+.gafus-app a[data-gafus-shared-button="primary"] {
+  border-radius: 18px !important;
+}
+.gafus-app a[data-gafus-shared-button="primary"][data-gafus-size="large"] {
+  border-radius: 22px !important;
+}
+
+/* Prevent feature CSS from duplicating and accidentally overriding the
+ * source shared palettes. This applies exclusively to explicitly reused
+ * shared components; icon/calendar/tab/segmented controls remain untouched. */
+.gafus-app button[data-gafus-shared-button="primary"],
+.gafus-app a[data-gafus-shared-button="primary"] {
+  background: linear-gradient(180deg, #71804b 0%, #62743b 18%, #4d5c2d 56%, #465429 84%, #3b4822 100%) !important;
+  color: #f6f0df !important;
+  border: 0 !important;
+  box-shadow: 0 7px 12px rgba(45,56,27,.3);
+}
+.gafus-app button[data-gafus-shared-button="secondary"][data-gafus-variant="red"],
+.gafus-app a[data-gafus-shared-button="secondary"][data-gafus-variant="red"] {
+  background: linear-gradient(180deg, #d0776d 0%, #c9695e 18%, #c56255 56%, #b95145 84%, #b45044 100%) !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 7px 12px rgba(135,51,42,.28);
+}
+.gafus-app :is(button,a)[data-gafus-shared-button="primary"]:hover:not(:disabled) {
+  box-shadow: 0 9px 16px rgba(45,56,27,.34);
+}
+.gafus-app :is(button,a)[data-gafus-shared-button="secondary"][data-gafus-variant="red"]:hover:not(:disabled) {
+  box-shadow: 0 9px 16px rgba(135,51,42,.32);
+}
+
+/* Short red actions in file chips, editor option rows and the upload queue
+   reuse SecondaryButton's red skin but keep the local compact control scale. */
+.gafus-app button[data-gafus-shared-button="secondary"][data-gafus-variant="red"].gafus-inline-red-action {
+  min-height: 36px;
+  padding: 7px 14px;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+/* Small danger-icon affordances still inherit the red shared button, while
+ * retaining icon-only geometry in pet weight/prevention cards. */
+.gafus-app button[data-gafus-shared-button="secondary"][data-gafus-variant="red"].gafus-inline-red-icon {
+  flex: 0 0 38px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 7px;
+  font-size: 15px;
+}
+
+/* Small delete glyphs in reminders and poll options use the same red shared
+ * component without pushing adjacent labels outside their compact rows. */
+.gafus-app button[data-gafus-shared-button="secondary"][data-gafus-variant="red"].gafus-inline-red-icon-sm {
+  flex: 0 0 32px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 4px;
+  font-size: 19px;
+  line-height: 1;
+}
+
+/* Reusable purple action: explicit editing identity, separate from caramel. */
+.gafus-app button[data-gafus-shared-button="purple"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 10px 17px;
+  border: 1px solid #75628d;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(180deg, #9180a9, #75628d 67%, #67517f);
+  box-shadow: 0 6px 12px rgba(77, 53, 105, .2);
+  font: 700 13px/1.35 var(--font-montserrat),system-ui,sans-serif;
+  cursor: pointer;
+  transition: box-shadow .15s ease, transform .15s ease;
+}
+.gafus-app button[data-gafus-shared-button="purple"]:hover:not(:disabled) {
+  box-shadow: 0 8px 16px rgba(77, 53, 105, .25);
+  transform: translateY(-1px);
+}
+.gafus-app button[data-gafus-shared-button="purple"]:focus-visible {
+  outline: 3px solid #bba8d2;
+  outline-offset: 3px;
+}
+.gafus-app button[data-gafus-shared-button="purple"]:disabled {
+  opacity: .56;
+  cursor: default;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gafus-app button[data-gafus-shared-button="purple"] { transition: none; }
+  .gafus-app button[data-gafus-shared-button="purple"]:hover { transform: none; }
+}
+
+.gafus-app button[data-gafus-shared-button="purple"][hidden] {
+  display: none !important;
+}
+
+/* Shared BackButton uses a true pill even inside the Vite shell's blanket
+ * 12px button rule. Keep the design consistent for anchor and button forms. */
+.gafus-app :is(button,a)[data-gafus-shared-button="back"] {
+  border-radius: 999px !important;
+}

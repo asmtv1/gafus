@@ -10,9 +10,23 @@ const migration = read(
 );
 const fresh = read("packages/prisma/scripts/fresh-db-extras.sql");
 const count = (str, text) => str.split(text).length - 1;
-test("Web, Trainer and API have automatic cache on by default", () => {
-  assert.equal(count(compose, "COURSE_CACHE_SYNC_ENABLED=${COURSE_CACHE_SYNC_ENABLED:-true}"), 3);
-  assert.equal(count(compose, "ENABLE_COURSE_CACHE=${ENABLE_COURSE_CACHE:-true}"), 3);
+function composeService(name) {
+  const marker = `\n  ${name}:\n`;
+  const start = compose.indexOf(marker);
+  assert.ok(start >= 0, `Compose service ${name} must exist`);
+  const body = compose.slice(start + marker.length);
+  const end = body.search(/\n  [a-z0-9-]+:/);
+  return end < 0 ? body : body.slice(0, end);
+}
+
+test("Hono API enables course cache; static Vite UIs do not need server cache flags", () => {
+  const api = composeService("api");
+  for (const flag of ["COURSE_CACHE_SYNC_ENABLED", "ENABLE_COURSE_CACHE"]) {
+    assert.equal(count(api, `${flag}=\${${flag}:-true}`), 1);
+    for (const ui of ["web", "trainer-panel", "admin-panel"]) {
+      assert.doesNotMatch(composeService(ui), new RegExp(`${flag}=`));
+    }
+  }
 });
 test("production deployment writes both flags automatically", () => {
   assert.equal(count(deploy, 'echo "COURSE_CACHE_SYNC_ENABLED=true"'), 1);

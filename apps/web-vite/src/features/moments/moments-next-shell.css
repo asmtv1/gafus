@@ -1,0 +1,99 @@
+/* Restore the retained Next /feed shell, without changing feed data or cards. */
+.gafus-app .shell .next-feed-page {
+  box-sizing: border-box;
+  width: min(100%, 860px);
+  max-width: 860px;
+  margin: 0 auto 70px;
+  padding: 38px 38px 70px;
+  border: 1px solid rgba(91, 100, 59, .12);
+  border-radius: 26px;
+  background: rgba(250, 249, 246, .97);
+  box-shadow: 0 14px 55px rgba(46, 45, 32, .055);
+}
+
+/* A broad older rule added margin to every feedTopBar* descendant. */
+.gafus-app .shell .next-feed-page [class*="feedTopBarMain"],
+.gafus-app .shell .next-feed-page [class*="feedTopBarActions"] {
+  margin-bottom: 0;
+}
+.gafus-app .shell .next-feed-page [class*="feedTopBarTitle"] {
+  margin: 0 0 7px;
+}
+.gafus-app .shell .next-feed-page [class*="feedTopBarDescription"] {
+  margin: 0;
+}
+.gafus-app .shell .next-feed-page header[class*="feedTopBar"] {
+  margin-bottom: 22px;
+}
+.gafus-app .shell .next-feed-page [class*="feedHeading"] {
+  padding-bottom: 22px;
+}
+.gafus-app .shell .next-feed-page [class*="feedEyebrow"] {
+  margin-bottom: 10px;
+}
+.gafus-app .shell .next-feed-page [class*="feedNavItem"] > svg {
+  display: block;
+  flex: 0 0 21px;
+  width: 21px;
+  height: 21px;
+}
+.gafus-app .shell .next-feed-page [class*="feedSortHeading"] {
+  font-size: 18px;
+}
+.gafus-app .shell .next-feed-page [class*="feedSortLabel"] {
+  display: inline;
+  font-size: 12px;
+}
+.gafus-app .shell .next-feed-page [class*="feedSortToolbar"] {
+  gap: 12px;
+}
+.gafus-app .shell .next-feed-page .next-feed-create-link {
+  min-height: 52px;
+  padding: 12px 20px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #687b45 0%, #3c4b28 100%);
+  box-shadow: 0 10px 16px rgba(44, 54, 28, .19);
+}
+.gafus-app .shell .next-feed-page a[class*="feedNotifications"] {
+  box-sizing: border-box;
+  height: 48px;
+  min-height: 48px;
+  border: 1px solid #d2ccae;
+  background: #eee7d2;
+  box-shadow: 0 7px 13px rgba(43, 45, 34, .11);
+}
+.gafus-app .shell .next-feed-page .next-feed-sort [data-feed-sort][aria-pressed="true"],
+.gafus-app .shell .next-feed-page .next-feed-sort [data-feed-sort][aria-pressed="true"]:hover:not(:disabled) {
+  border-color: #4d5c2d;
+  background: linear-gradient(180deg, #70814c 0%, #3b4b28 100%);
+  color: #fff8e5;
+  box-shadow: 0 8px 14px rgba(44, 54, 28, .14);
+}
+
+@media (max-width: 720px) {
+  /* Preserve the full-bleed mobile composition instead of a rounded card. */
+  .gafus-app .shell .next-feed-page {
+    position: relative;
+    width: 100vw;
+    max-width: 100vw;
+    margin-top: -96px;
+    margin-left: calc(50% - 50vw);
+    margin-right: 0;
+    padding: 22px 12px 95px;
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .gafus-app .shell .next-feed-page .next-feed-create-link {
+    min-height: 48px;
+    padding: 0;
+    border-radius: 14px;
+  }
+  .gafus-app .shell .next-feed-page [class*="feedNavItem"] > svg {
+    flex-basis: 17px;
+    width: 17px;
+    height: 17px;
+  }
+  .gafus-app .shell .next-feed-page [class*="feedSortLabel"] { display: none; }
+}

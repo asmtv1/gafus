@@ -19,11 +19,11 @@ export interface FeedCloudOutput {
   width: number;
   height: number;
   durationSeconds?: number;
+  smallKey?: string;
   thumbKey?: string;
   fullKey?: string;
   posterKey?: string;
-  playlistKey?: string;
-  videoSegmentKeys?: string[];
+  mp4Keys?: string[];
 }
 export class FeedInternalHttpError extends Error {
   constructor(public readonly status: number) {

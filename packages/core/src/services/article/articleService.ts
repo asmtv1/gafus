@@ -91,13 +91,27 @@ export async function getArticles(
       orderBy: { createdAt: "desc" },
       take, skip,
     });
+    // An individual Gafus grant must also unlock the corresponding catalog
+    // card. Query all relevant keys at once rather than N per-article checks.
     const subscribed = (await resolveArticleEntitlement("", userId)).allowed;
+    const grants = !subscribed && userId && rows.length
+      ? await prisma.gafusTargetAccess.findMany({
+          where: {
+            userId, targetType: "ARTICLE",
+            targetKey: { in: rows.map(row => `article:${row.id}`) },
+            expiresAt: { gt: new Date() },
+          },
+          select: { targetKey: true },
+        })
+      : [];
+    const unlocked = new Set(grants.map(grant => grant.targetKey));
     return {
       success: true,
-      data: rows.map((row) =>
+      data: rows.map(row =>
         mapToListDto({
           ...row,
-          access: subscribed ? [{ userId: userId ?? "" }] : [],
+          access: subscribed || unlocked.has(`article:${row.id}`)
+            ? [{ userId: userId ?? "" }] : [],
         }, userId),
       ),
     };

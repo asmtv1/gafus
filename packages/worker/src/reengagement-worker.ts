@@ -10,7 +10,7 @@ import { createWorkerLogger } from "@gafus/logger";
 import { PushNotificationService } from "@gafus/webpush";
 import {
   getReengagementCampaignState, getReengagementPushSubscriptions,
-  deleteInvalidReengagementPushEndpoints,
+  deleteInvalidReengagementPushEndpoints, isReengagementDispatchAllowed,
 } from "@gafus/core/services/reengagement";
 import {
   partitionPushSubscriptions,
@@ -38,12 +38,11 @@ const logger = createWorkerLogger("reengagement-worker");
  */
 class ReengagementWorker {
   private worker: Worker;
-  private pushService: PushNotificationService;
+  // WebPush credentials are optional for an Expo/RuStore-only installation.
+  // Never load VAPID at import/startup and block the entire cron scheduler.
+  private pushService: PushNotificationService | null = null;
 
   constructor() {
-    // Инициализировать сервис отправки push
-    this.pushService = PushNotificationService.fromEnvironment();
-
     // Создать worker
     this.worker = new Worker("reengagement", this.processJob.bind(this), {
       connection,
@@ -142,6 +141,14 @@ class ReengagementWorker {
         return;
       }
 
+      // A user may have opted out after the scheduler queued this job.
+      if (!(await isReengagementDispatchAllowed(campaignId, userId, level))) {
+        logger.info("Кампания более не подходит для отправки, уведомление пропущено", {
+          campaignId, userId, level,
+        });
+        return;
+      }
+
       // 5. Создать запись уведомления в БД
       const notificationId = await createNotificationRecord(
         campaignId,
@@ -192,15 +199,34 @@ class ReengagementWorker {
         rustoreSubscriptionsCount: partitioned.rustore.length,
       });
 
-      // 9. Отправить уведомления по двум каналам
-      const webResult =
-        partitioned.web.length > 0 ?
-          await this.pushService.sendNotifications(partitioned.web, payload)
-        : {
-            results: [],
-            successCount: 0,
-            failureCount: 0,
-          };
+      // Recheck immediately before external providers. Opt-out / completion may
+      // have happened while composing the payload and fetching subscriptions.
+      if (!(await isReengagementDispatchAllowed(campaignId, userId, level))) {
+        logger.info("Отправка отменена после изменения прав получателя", {
+          campaignId, userId, level,
+        });
+        return;
+      }
+
+      // Web Push is independent of native transports. If VAPID is absent
+      // or the WebPush provider fails, still try every Expo/RuStore recipient.
+      // An ambiguous failure MUST NOT delete endpoints.
+      let webFailure = false;
+      let webResult: {
+        results: { success: boolean; error?: unknown; endpoint: string }[];
+        successCount: number;
+        failureCount: number;
+      } = { results: [], successCount: 0, failureCount: 0 };
+      if (partitioned.web.length > 0) {
+        try {
+          this.pushService ??= PushNotificationService.fromEnvironment();
+          webResult = await this.pushService.sendNotifications(partitioned.web, payload);
+        } catch {
+          webFailure = true;
+          webResult.failureCount = partitioned.web.length;
+          logger.warn("WebPush недоступен; независимые мобильные каналы продолжают отправку");
+        }
+      }
 
       const expoResult =
         partitioned.expo.length > 0 ?
@@ -229,6 +255,12 @@ class ReengagementWorker {
             deletedCount: 0,
             temporaryFailureCount: 0,
           };
+
+      // A WebPush-only job with unavailable credentials cannot be falsely
+      // marked dispatched; let BullMQ retry once a valid VAPID config exists.
+      if (webFailure && expoResult.successCount + rustoreResult.successCount === 0) {
+        throw new Error("REENGAGEMENT_WEBPUSH_UNAVAILABLE");
+      }
 
       logger.success("Push-уведомления отправлены", {
         userId,

@@ -1,0 +1,328 @@
+{
+  "snapshotBefore": "apps/web-vite/dist unchanged; 2026-10-30 01:34 Mac",
+  "snapshotAfter": ".local-pg-scratch/agent3-perf-20261030/web-dist-after",
+  "metric": "actual Chrome CDP gzip response body and raw built file bytes; isolated same synthetic video/no-poll fixture",
+  "results": [
+    {
+      "label": "Guest `/` cold",
+      "before": {
+        "js": {
+          "files": 13,
+          "gzipBytes": 111944,
+          "rawBytes": 354649,
+          "cacheCount": 0,
+          "cdpWireBytes": 116035
+        },
+        "css": {
+          "files": 5,
+          "gzipBytes": 28136,
+          "rawBytes": 147762,
+          "cacheCount": 0,
+          "cdpWireBytes": 29649
+        },
+        "pollChunks": [],
+        "hlsRequests": 0,
+        "syntheticPollGet": 0,
+        "media": [],
+        "sumGzipBytes": 140080,
+        "sumRawBytes": 502411
+      },
+      "after": {
+        "js": {
+          "files": 13,
+          "gzipBytes": 111975,
+          "rawBytes": 354713,
+          "cacheCount": 0,
+          "cdpWireBytes": 116066
+        },
+        "css": {
+          "files": 5,
+          "gzipBytes": 28136,
+          "rawBytes": 147762,
+          "cacheCount": 0,
+          "cdpWireBytes": 29649
+        },
+        "pollChunks": [],
+        "hlsRequests": 0,
+        "syntheticPollGet": 0,
+        "media": [],
+        "sumGzipBytes": 140111,
+        "sumRawBytes": 502475
+      },
+      "gzipDeltaBytes": 31,
+      "rawDeltaBytes": 64
+    },
+    {
+      "label": "Guest `/login` cold",
+      "before": {
+        "js": {
+          "files": 13,
+          "gzipBytes": 111857,
+          "rawBytes": 352342,
+          "cacheCount": 0,
+          "cdpWireBytes": 115949
+        },
+        "css": {
+          "files": 4,
+          "gzipBytes": 21888,
+          "rawBytes": 118811,
+          "cacheCount": 0,
+          "cdpWireBytes": 23095
+        },
+        "pollChunks": [],
+        "hlsRequests": 0,
+        "syntheticPollGet": 0,
+        "media": [],
+        "sumGzipBytes": 133745,
+        "sumRawBytes": 471153
+      },
+      "after": {
+        "js": {
+          "files": 13,
+          "gzipBytes": 111890,
+          "rawBytes": 352406,
+          "cacheCount": 0,
+          "cdpWireBytes": 115982
+        },
+        "css": {
+          "files": 4,
+          "gzipBytes": 21888,
+          "rawBytes": 118811,
+          "cacheCount": 0,
+          "cdpWireBytes": 23095
+        },
+        "pollChunks": [],
+        "hlsRequests": 0,
+        "syntheticPollGet": 0,
+        "media": [],
+        "sumGzipBytes": 133778,
+        "sumRawBytes": 471217
+      },
+      "gzipDeltaBytes": 33,
+      "rawDeltaBytes": 64
+    },
+    {
+      "label": "Auth `/moments` cold (no poll)",
+      "before": {
+        "js": {
+          "files": 28,
+          "gzipBytes": 153743,
+          "rawBytes": 479336,
+          "cacheCount": 0,
+          "cdpWireBytes": 162557
+        },
+        "css": {
+          "files": 9,
+          "gzipBytes": 42878,
+          "rawBytes": 226113,
+          "cacheCount": 0,
+          "cdpWireBytes": 45629
+        },
+        "pollChunks": [
+          "MomentPoll-BNnsVqGH.js"
+        ],
+        "hlsRequests": 0,
+        "syntheticPollGet": 0,
+        "media": [
+          "poster.svg"
+        ],
+        "sumGzipBytes": 196621,
+        "sumRawBytes": 705449
+      },
+      "after": {
+        "js": {
+          "files": 28,
+          "gzipBytes": 151007,
+          "rawBytes": 468446,
+          "cacheCount": 0,
+          "cdpWireBytes": 159820
+        },
+        "css": {
+          "files": 9,
+          "gzipBytes": 42878,
+          "rawBytes": 226113,
+          "cacheCount": 0,
+          "cdpWireBytes": 45629
+        },
+        "pollChunks": [],
+        "hlsRequests": 0,
+        "syntheticPollGet": 0,
+        "media": [
+          "poster.svg"
+        ],
+        "sumGzipBytes": 193885,
+        "sumRawBytes": 694559
+      },
+      "gzipDeltaBytes": -2736,
+      "rawDeltaBytes": -10890
+    },
+    {
+      "label": "Auth `/courses` → `/moments` SPA (no poll)",
+      "before": {
+        "js": {
+          "files": 15,
+          "gzipBytes": 41886,
+          "rawBytes": 126994,
+          "cacheCount": 0,
+          "cdpWireBytes": 46608
+        },
+        "css": {
+          "files": 5,
+          "gzipBytes": 20990,
+          "rawBytes": 107302,
+          "cacheCount": 0,
+          "cdpWireBytes": 22534
+        },
+        "pollChunks": [
+          "MomentPoll-BNnsVqGH.js"
+        ],
+        "hlsRequests": 0,
+        "syntheticPollGet": 0,
+        "media": [
+          "poster.svg"
+        ],
+        "sumGzipBytes": 62876,
+        "sumRawBytes": 234296
+      },
+      "after": {
+        "js": {
+          "files": 15,
+          "gzipBytes": 39117,
+          "rawBytes": 116040,
+          "cacheCount": 0,
+          "cdpWireBytes": 43838
+        },
+        "css": {
+          "files": 5,
+          "gzipBytes": 20990,
+          "rawBytes": 107302,
+          "cacheCount": 0,
+          "cdpWireBytes": 22534
+        },
+        "pollChunks": [],
+        "hlsRequests": 0,
+        "syntheticPollGet": 0,
+        "media": [
+          "poster.svg"
+        ],
+        "sumGzipBytes": 60107,
+        "sumRawBytes": 223342
+      },
+      "gzipDeltaBytes": -2769,
+      "rawDeltaBytes": -10954
+    },
+    {
+      "label": "Play synthetic MP4",
+      "before": {
+        "js": {
+          "files": 0,
+          "gzipBytes": 0,
+          "rawBytes": 0,
+          "cacheCount": 0,
+          "cdpWireBytes": 0
+        },
+        "css": {
+          "files": 0,
+          "gzipBytes": 0,
+          "rawBytes": 0,
+          "cacheCount": 0,
+          "cdpWireBytes": 0
+        },
+        "pollChunks": [],
+        "hlsRequests": 0,
+        "syntheticPollGet": 0,
+        "media": [],
+        "sumGzipBytes": 0,
+        "sumRawBytes": 0
+      },
+      "after": {
+        "js": {
+          "files": 0,
+          "gzipBytes": 0,
+          "rawBytes": 0,
+          "cacheCount": 0,
+          "cdpWireBytes": 0
+        },
+        "css": {
+          "files": 0,
+          "gzipBytes": 0,
+          "rawBytes": 0,
+          "cacheCount": 0,
+          "cdpWireBytes": 0
+        },
+        "pollChunks": [],
+        "hlsRequests": 0,
+        "syntheticPollGet": 0,
+        "media": [],
+        "sumGzipBytes": 0,
+        "sumRawBytes": 0
+      },
+      "gzipDeltaBytes": 0,
+      "rawDeltaBytes": 0
+    }
+  ],
+  "pollPositiveAfter": {
+    "js": {
+      "files": 29,
+      "gzipBytes": 155637,
+      "rawBytes": 481253,
+      "cacheCount": 0,
+      "cdpWireBytes": 164766
+    },
+    "css": {
+      "files": 9,
+      "gzipBytes": 42878,
+      "rawBytes": 226113,
+      "cacheCount": 0,
+      "cdpWireBytes": 45629
+    },
+    "pollChunks": [
+      "MomentPoll-BEsRNBKe.js"
+    ],
+    "hlsRequests": 0,
+    "syntheticPollGet": 1,
+    "media": [
+      "poster.svg"
+    ],
+    "sumGzipBytes": 198515,
+    "sumRawBytes": 707366
+  },
+  "sameFixtureNoPollAfter": {
+    "js": {
+      "files": 28,
+      "gzipBytes": 151007,
+      "rawBytes": 468446,
+      "cacheCount": 0,
+      "cdpWireBytes": 159820
+    },
+    "css": {
+      "files": 9,
+      "gzipBytes": 42878,
+      "rawBytes": 226113,
+      "cacheCount": 0,
+      "cdpWireBytes": 45629
+    },
+    "pollChunks": [],
+    "hlsRequests": 0,
+    "syntheticPollGet": 0,
+    "media": [
+      "poster.svg"
+    ],
+    "sumGzipBytes": 193885,
+    "sumRawBytes": 694559
+  },
+  "clientImageNotChanged": true,
+  "productionWebDistNotChanged": true,
+  "tests": {
+    "files": 11,
+    "passed": 108,
+    "failed": 0,
+    "job": "58e935773f1fdcf6d9b357d34d80e94d595c41eda716c4c8"
+  },
+  "typecheckExit": 0,
+  "eslintExit": 0,
+  "eslintWarnings": 1,
+  "scratchWebBuildExit": 0,
+  "afterCDPExit": 0,
+  "releaseReady": false
+}

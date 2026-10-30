@@ -5,6 +5,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { zustandStorage } from "./storage";
+import { reportClientError } from "@/shared/lib/tracer";
 import { deleteCourseData } from "@/shared/lib/offline/offlineStorage";
 import {
   downloadCourseForOffline,
@@ -60,15 +61,34 @@ async function processQueue(
     },
   }));
 
-  downloadAbortController = new AbortController();
-  const result = await downloadCourseForOffline(
-    next,
-    (progress) => {
-      get().setDownloadProgress(progress);
-    },
-    downloadAbortController.signal,
-  );
-  downloadAbortController = null;
+  const controller = new AbortController();
+  downloadAbortController = controller;
+  let result: Awaited<ReturnType<typeof downloadCourseForOffline>>;
+  try {
+    result = await downloadCourseForOffline(
+      next,
+      (progress) => {
+        get().setDownloadProgress(progress);
+      },
+      controller.signal,
+    );
+  } catch (error) {
+    reportClientError(error instanceof Error ? error : new Error(String(error)), {
+      issueKey: "OfflineDownloadQueue",
+      keys: { courseType: next },
+    });
+    // A native filesystem rejection is NOT an ACK. Keep the queue item and
+    // never delete/reassign unknown-owner legacy files as an error fallback.
+    set((s) => ({
+      downloadQueue: s.downloadQueue.includes(next) ? s.downloadQueue : [next, ...s.downloadQueue],
+      status: { status: "idle" },
+    }));
+    return;
+  } finally {
+    if (downloadAbortController === controller) {
+      downloadAbortController = null;
+    }
+  }
 
   if (result.success) {
     set((s) => ({
@@ -129,6 +149,12 @@ export const useOfflineStore = create<OfflineStore>()(
       },
 
       removeDownload: async (courseType: string) => {
+        const state = get();
+        // A directory without an indexed download may be someone's legacy
+        // data; deleting it without an approved ownership migration is unsafe.
+        if (!state.downloaded[courseType]) return;
+        // Do not race an active native media writer or its cancellation cleanup.
+        if (state.status.status === "downloading" && state.status.courseType === courseType) return;
         await deleteCourseData(courseType);
         set((s) => {
           const next = { ...s.downloaded };

@@ -1,15 +1,22 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from "react-native";
 import { Text, Button } from "react-native-paper";
-import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Loading } from "@/shared/components/ui";
 import { TexturedSafeAreaView } from "@/shared/components";
-import { achievementsQueryOptions } from "@/shared/lib/api/achievementsQuery";
-import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
-import { type Course } from "@/shared/lib/api";
-import type { Achievement } from "@gafus/types";
+import {
+  achievementsForActor,
+  achievementsCoursesForActor,
+  sameAchievementActor,
+  verifiedAchievementActor,
+} from "@/shared/lib/api/achievementsQuery";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { openAppSubscriptionPaywall } from "@/features/app-subscription";
+import { reportClientError } from "@/shared/lib/tracer";
+import { type CourseListItem } from "@/shared/lib/api";
+import type { AchievementWire } from "@gafus/types";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 
 const CARD_BG = COLORS.cardBackground;
@@ -33,29 +40,111 @@ function getCategoryTitle(category: string): string {
  */
 export default function AchievementsScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
+  // A new A→B→A login has a new verified native epoch, even for the same id.
+  // Subscribe to auth changes as well as checking the binding on every render.
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const authLoading = useAuthStore((state) => state.isLoading);
+  const currentUser = useAuthStore((state) => state.user);
+  const userId = currentUser?.id ?? null;
+  const actorSnapshot =
+    isAuthenticated && !authLoading && userId ? verifiedAchievementActor() : null;
+  const actorOwnerId = actorSnapshot?.ownerId ?? null;
+  const actorEpoch = actorSnapshot?.authEpoch ?? null;
+  // Stable reference prevents repeated focus/refetch effects while auth stays unchanged.
+  const actor = useMemo(
+    () => (actorOwnerId && actorEpoch ? { ownerId: actorOwnerId, authEpoch: actorEpoch } : null),
+    [actorOwnerId, actorEpoch],
+  );
+  const actorKey = actor ? `${actor.ownerId}:${actor.authEpoch}` : null;
+  const [focusProof, setFocusProof] = useState<string | null>(null);
+  type FocusScope = { actorKey: string | null; active: boolean };
+  const activeFocus = useRef<FocusScope | null>(null);
+  const activeRead = useRef<{ scope: FocusScope } | null>(null);
+  const [failedFocus, setFailedFocus] = useState<FocusScope | null>(null);
   const {
     data: achievementsRes,
-    isLoading: achievementsLoading,
-    error: achievementsError,
+    isPending: achievementsPending,
+    isFetching: achievementsFetching,
+    isError: achievementsError,
     refetch: refetchAchievements,
-  } = useQuery(achievementsQueryOptions);
+  } = useQuery(achievementsForActor(actor));
 
-  const { data: coursesRes } = useQuery(coursesCatalogQueryOptions);
-
-  const data = achievementsRes?.success ? achievementsRes.data : undefined;
+  const refetchFresh = useCallback(async () => {
+    const scope = activeFocus.current;
+    if (!scope || !scope.active || scope.actorKey !== actorKey ||
+      !actor || !sameAchievementActor(actor) || activeRead.current?.scope === scope) return;
+    const flight = { scope };
+    activeRead.current = flight;
+    setFocusProof(null);
+    setFailedFocus(null);
+    const current = () => scope.active && activeFocus.current === scope &&
+      sameAchievementActor(actor);
+    try {
+      const response = await refetchAchievements();
+      if (!current()) return;
+      if (response.isError || !response.data) {
+        setFailedFocus(scope);
+        reportClientError(new Error("ACHIEVEMENTS_READ_REFRESH_FAILED"), {
+          issueKey: "Achievements",
+          keys: { operation: "read_refresh" },
+        });
+      } else setFocusProof(actorKey);
+    } catch {
+      if (current()) {
+        setFailedFocus(scope);
+        reportClientError(new Error("ACHIEVEMENTS_READ_REFRESH_FAILED"), {
+          issueKey: "Achievements",
+          keys: { operation: "read_refresh" },
+        });
+      }
+    } finally {
+      if (activeRead.current === flight) activeRead.current = null;
+    }
+  }, [actor, actorKey, refetchAchievements]);
+  useFocusEffect(
+    useCallback(() => {
+      const scope: FocusScope = { actorKey, active: true };
+      activeFocus.current = scope;
+      setFocusProof(null);
+      setFailedFocus(null);
+      if (actor && sameAchievementActor(actor)) void refetchFresh();
+      return () => {
+        scope.active = false;
+        if (activeFocus.current === scope) activeFocus.current = null;
+        if (actor) {
+          void queryClient.cancelQueries({
+            queryKey: ["achievements", "owner", actor.ownerId, actor.authEpoch],
+            exact: true,
+          });
+        }
+        setFocusProof(null);
+        setFailedFocus(null);
+      };
+    }, [actor, actorKey, refetchFresh, queryClient]),
+  );
+  const focusReadFailed =
+    !!actor && sameAchievementActor(actor) && failedFocus !== null &&
+    failedFocus === activeFocus.current && failedFocus.actorKey === actorKey;
+  const proven =
+    !!actor &&
+    sameAchievementActor(actor) &&
+    focusProof === actorKey &&
+    !achievementsPending &&
+    !achievementsFetching &&
+    !achievementsError;
+  const status = proven ? achievementsRes?.kind : undefined;
+  const data =
+    status === "granted" && achievementsRes?.kind === "granted" ? achievementsRes.data : undefined;
   const achievements = data?.achievements;
-  const activeCourses = useMemo(
-    () =>
-      coursesRes?.success && Array.isArray(coursesRes.data)
-        ? (coursesRes.data as Course[]).filter((c) => c.userStatus !== "NOT_STARTED")
-        : [],
-    [coursesRes],
+  const { data: activeCourses = [] } = useQuery(
+    achievementsCoursesForActor(actor, proven && status === "granted"),
   );
 
   const byCategory = useMemo(() => {
     if (!achievements) return {};
-    return achievements.reduce<Record<string, Achievement[]>>((acc, a) => {
+    return achievements.reduce<Record<string, AchievementWire[]>>((acc, a) => {
       if (!a?.category) return acc;
       if (!acc[a.category]) acc[a.category] = [];
       acc[a.category].push(a);
@@ -68,29 +157,86 @@ export default function AchievementsScreen() {
   const completionPct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
 
   const onRefresh = () => {
-    refetchAchievements();
+    void refetchFresh();
   };
 
-  if (achievementsLoading) {
+  if (!actor || !sameAchievementActor(actor)) {
     return (
       <TexturedSafeAreaView style={styles.container} edges={["top"]}>
-        <Loading message="Загрузка достижений..." />
+        <View style={styles.centered}>
+          <Text>Войдите в аккаунт, чтобы посмотреть достижения.</Text>
+        </View>
       </TexturedSafeAreaView>
     );
   }
 
-  if (achievementsError || !achievementsRes?.success) {
+  if (!proven) {
+    return (
+      <TexturedSafeAreaView style={styles.container} edges={["top"]}>
+        {focusReadFailed ? (
+          <View style={styles.centered}>
+            <Text variant="titleMedium" style={styles.errorTitle}>
+              Не удалось загрузить достижения
+            </Text>
+            <Text variant="bodyMedium" style={styles.errorText}>
+              Проверьте подключение и попробуйте снова.
+            </Text>
+            <Button mode="contained" onPress={onRefresh}>Повторить загрузку</Button>
+          </View>
+        ) : (
+          <Loading message="Загрузка достижений..." />
+        )}
+      </TexturedSafeAreaView>
+    );
+  }
+
+  if (status === "subscription_required") {
     return (
       <TexturedSafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.centered}>
-          <Text style={styles.errorIcon}>⚠️</Text>
           <Text variant="titleMedium" style={styles.errorTitle}>
-            Ошибка загрузки достижений
+            Достижения доступны по подписке
           </Text>
           <Text variant="bodyMedium" style={styles.errorText}>
-            {achievementsRes?.error ?? "Не удалось загрузить данные."}
+            Подписка неактивна или срок её действия завершился.
           </Text>
-          <Button mode="contained" onPress={onRefresh} style={styles.retryBtn}>
+          <Button
+            mode="contained"
+            onPress={() => {
+              if (sameAchievementActor(actor))
+                openAppSubscriptionPaywall({ reason: "required", contentMode: "subscription" });
+            }}
+          >
+            Посмотреть подписку
+          </Button>
+          <Button onPress={onRefresh}>Проверить доступ снова</Button>
+        </View>
+      </TexturedSafeAreaView>
+    );
+  }
+
+  if (status === "unauthorized" || status === "stale") {
+    return (
+      <TexturedSafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.centered}>
+          <Text variant="titleMedium">Необходимо войти снова</Text>
+          <Text variant="bodyMedium">Доступ к данным текущей сессии не подтверждён.</Text>
+        </View>
+      </TexturedSafeAreaView>
+    );
+  }
+
+  if (status !== "granted") {
+    return (
+      <TexturedSafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.centered}>
+          <Text variant="titleMedium" style={styles.errorTitle}>
+            Не удалось проверить доступ к достижениям
+          </Text>
+          <Text variant="bodyMedium" style={styles.errorText}>
+            Попробуйте повторить проверку подключения.
+          </Text>
+          <Button mode="contained" onPress={onRefresh}>
             Попробовать снова
           </Button>
         </View>
@@ -118,7 +264,7 @@ export default function AchievementsScreen() {
     <TexturedSafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={achievementsLoading} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={achievementsFetching} onRefresh={onRefresh} />}
       >
         <View style={styles.header}>
           <Text variant="headlineSmall" style={styles.title}>
@@ -171,7 +317,9 @@ export default function AchievementsScreen() {
               </Text>
               <Button
                 mode="contained"
-                onPress={() => router.push("/(main)/(tabs)")}
+                onPress={() => {
+                  if (sameAchievementActor(actor)) router.push("/(main)/(tabs)");
+                }}
                 style={styles.coursesLink}
               >
                 Перейти к курсам →
@@ -201,8 +349,13 @@ export default function AchievementsScreen() {
           </Text>
           <CoursesList
             courses={activeCourses}
-            onCoursePress={(type) => router.push(`/(main)/training/${type}`)}
-            onBrowsePress={() => router.push("/(main)/(tabs)")}
+            onCoursePress={(type) => {
+              if (sameAchievementActor(actor))
+                router.push(`/(main)/training/${encodeURIComponent(type)}`);
+            }}
+            onBrowsePress={() => {
+              if (sameAchievementActor(actor)) router.push("/(main)/(tabs)");
+            }}
           />
         </View>
       </ScrollView>
@@ -224,11 +377,7 @@ function StatCard({ value, label, icon }: { value: string; label: string; icon: 
   );
 }
 
-function AchievementCard({
-  achievement,
-}: {
-  achievement: Achievement;
-}) {
+function AchievementCard({ achievement }: { achievement: AchievementWire }) {
   const unlocked = achievement.unlocked;
   return (
     <View style={[styles.achievementCard, !unlocked && styles.achievementLocked]}>
@@ -263,7 +412,7 @@ function CoursesList({
   onCoursePress,
   onBrowsePress,
 }: {
-  courses: Course[];
+  courses: CourseListItem[];
   onCoursePress: (type: string) => void;
   onBrowsePress: () => void;
 }) {

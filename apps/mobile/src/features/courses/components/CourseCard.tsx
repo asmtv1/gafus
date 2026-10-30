@@ -6,7 +6,7 @@ import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useShallow } from "zustand/react/shallow";
 
-import { STEP_STATUS_LABELS } from "@gafus/core/utils/training";
+import { STEP_STATUS_LABELS } from "@gafus/core-client/utils/training";
 import { TrainingStatus } from "@gafus/types";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { SPACING, FONTS, COLORS, API_BASE_URL } from "@/shared/config";
@@ -15,7 +15,7 @@ import { useOfflineStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
 import { offlineApi } from "@/shared/lib/api/offline";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
-import { getCourseStartedUsersCount, type Course } from "@/shared/lib/api";
+import { getCourseStartedUsersCount, type Course, type CourseListItem } from "@/shared/lib/api";
 import type { MobileOnboardingTourTargetId } from "@/features/onboarding-tour";
 import { useAppSubscriptionStatus } from "@/features/app-subscription";
 import { TourTarget } from "@/shared/lib/tour-targets";
@@ -105,7 +105,10 @@ function toTimestamp(value: Date | string | null | undefined): number {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-function areCourseVisualFieldsEqual(prev: Course, next: Course): boolean {
+function areCourseVisualFieldsEqual(
+  prev: Course | CourseListItem,
+  next: Course | CourseListItem,
+): boolean {
   return (
     prev.id === next.id &&
     prev.name === next.name &&
@@ -177,7 +180,7 @@ function SimpleRating({
 }
 
 export interface CourseCardProps {
-  course: Course;
+  course: Course | CourseListItem;
   isFavorite: boolean;
   onToggleFavorite: (courseId: string) => void;
   showIosRuCardPaymentHint?: boolean;

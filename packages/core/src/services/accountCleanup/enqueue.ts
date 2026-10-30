@@ -13,6 +13,8 @@ export async function enqueueAccountStorageCleanup(
   // worker starts with different env flags, it must NOT silently skip Yandex.
   const dualGallery = process.env.GALLERY_DUAL_PROVIDER_CLEANUP === "true";
   const dualFeed = process.env.FEED_DUAL_PROVIDER_CLEANUP === "true";
+  // Capture isolated media intent even if the later worker lacks the local S3
+  // runtime. Provider verification then retries rather than dropping objects.
   await tx.$executeRaw`SELECT "id" FROM "User" WHERE "id" = ${ownerId} FOR UPDATE`;
   // Questions disappear with all answers, including photos uploaded by other authors.
   // Lock them before collecting photos so concurrent answers cannot escape the snapshot.
@@ -39,6 +41,7 @@ export async function enqueueAccountStorageCleanup(
             LEFT JOIN "DailyCourseUserTraining" dt ON dt."id" = ds."dailyCourseUserTrainingId"
             WHERE ut."userId" = ${ownerId} OR dt."userId" = ${ownerId}
         ) assets WHERE url IS NOT NULL AND url <> '' AND url NOT LIKE 'cloudru:%'
+          AND url NOT LIKE 'isodev-avatar:%' AND url NOT LIKE 'isodev-private:%'
       ) WHEN s.scope = 'gallery' THEN ARRAY(
         SELECT DISTINCT k FROM (
           SELECT "thumbKey" AS k FROM "GalleryPhoto" WHERE "ownerId" = ${ownerId}
@@ -50,11 +53,11 @@ export async function enqueueAccountStorageCleanup(
         ) originals WHERE k IS NOT NULL AND k <> ''
       ) WHEN s.scope = 'feed' THEN ARRAY(
         SELECT DISTINCT k FROM (
-          SELECT "thumbKey" AS k FROM "FeedMediaAsset" WHERE "ownerId" = ${ownerId}
+          SELECT "smallKey" AS k FROM "FeedMediaAsset" WHERE "ownerId" = ${ownerId}
+          UNION SELECT "thumbKey" FROM "FeedMediaAsset" WHERE "ownerId" = ${ownerId}
           UNION SELECT "fullKey" FROM "FeedMediaAsset" WHERE "ownerId" = ${ownerId}
           UNION SELECT "posterKey" FROM "FeedMediaAsset" WHERE "ownerId" = ${ownerId}
-          UNION SELECT "playlistKey" FROM "FeedMediaAsset" WHERE "ownerId" = ${ownerId}
-          UNION SELECT unnest("videoSegmentKeys") FROM "FeedMediaAsset" WHERE "ownerId" = ${ownerId}
+          UNION SELECT unnest("mp4Keys") FROM "FeedMediaAsset" WHERE "ownerId" = ${ownerId}
         ) media WHERE k IS NOT NULL AND k <> ''
       ) WHEN s.scope = 'questions' THEN ARRAY(
         SELECT DISTINCT COALESCE(NULLIF(p."url", ''), p."storagePath") FROM "QuestionPhoto" p
@@ -63,10 +66,18 @@ export async function enqueueAccountStorageCleanup(
           LEFT JOIN "Question" aq ON aq."id" = a."questionId"
           WHERE (p."ownerId" = ${ownerId} OR q."authorId" = ${ownerId}
             OR a."authorId" = ${ownerId} OR aq."authorId" = ${ownerId})
-            AND COALESCE(NULLIF(p."url", ''), p."storagePath") LIKE 'cloudru:questions:%'
+            AND (COALESCE(NULLIF(p."url", ''), p."storagePath") LIKE 'cloudru:questions:%'
+              OR COALESCE(NULLIF(p."url", ''), p."storagePath") LIKE 'isodev-private:questions:%')
       ) WHEN s.scope = 'documents' THEN ARRAY(
         SELECT DISTINCT "url" FROM "PetDocument"
-        WHERE "ownerId" = ${ownerId} AND "url" LIKE 'cloudru:documents:%'
+        WHERE "ownerId" = ${ownerId} AND ("url" LIKE 'cloudru:documents:%' OR "url" LIKE 'isodev-private:documents:%')
+        UNION SELECT "avatarUrl" FROM "UserProfile"
+          WHERE "userId" = ${ownerId} AND "avatarUrl" LIKE 'isodev-avatar:%'
+        -- Preserve exact private Pet photo for provenance / provider checks;
+        -- Documents sweeps only the owner's own pets/ prefix.
+        UNION SELECT "photoUrl" FROM "Pet"
+          WHERE "ownerId" = ${ownerId}
+            AND "photoUrl" LIKE 'isodev-avatar:%'
       ) ELSE ARRAY[]::text[] END,
       CASE WHEN s.scope = 'public' THEN ARRAY(
         SELECT 'uploads/exams/' || us."id" || '/' FROM "UserStep" us
@@ -86,7 +97,14 @@ export async function enqueueAccountStorageCleanup(
     FROM (VALUES ('public'), ('gallery'), ('feed'), ('questions'), ('documents')) s(scope)
     WHERE s.scope IN ('public', 'gallery', 'feed')
        OR (s.scope = 'documents' AND EXISTS (
-         SELECT 1 FROM "PetDocument" WHERE "ownerId" = ${ownerId} AND "url" LIKE 'cloudru:documents:%'
+         SELECT 1 FROM "PetDocument" WHERE "ownerId" = ${ownerId} AND ("url" LIKE 'cloudru:documents:%' OR "url" LIKE 'isodev-private:documents:%')
+         UNION SELECT 1 FROM "UserProfile"
+           WHERE "userId" = ${ownerId} AND "avatarUrl" LIKE 'isodev-avatar:%'
+         -- Do not lose this isolated Pet photo if the worker environment
+         -- changes after User deletion; the private parser will refuse
+         -- an unapproved provider instead of marking cleanup DONE.
+         UNION SELECT 1 FROM "Pet" WHERE "ownerId" = ${ownerId}
+           AND "photoUrl" LIKE 'isodev-avatar:%'
        ))
        OR (s.scope = 'questions' AND EXISTS (
          SELECT 1 FROM "QuestionPhoto" p
@@ -95,7 +113,8 @@ export async function enqueueAccountStorageCleanup(
            LEFT JOIN "Question" aq ON aq."id" = a."questionId"
            WHERE (p."ownerId" = ${ownerId} OR q."authorId" = ${ownerId}
              OR a."authorId" = ${ownerId} OR aq."authorId" = ${ownerId})
-             AND COALESCE(NULLIF(p."url", ''), p."storagePath") LIKE 'cloudru:questions:%'
+             AND (COALESCE(NULLIF(p."url", ''), p."storagePath") LIKE 'cloudru:questions:%'
+              OR COALESCE(NULLIF(p."url", ''), p."storagePath") LIKE 'isodev-private:questions:%')
        ))
     ON CONFLICT ("ownerId", "scope") DO NOTHING`;
   await tx.$executeRaw`

@@ -15,8 +15,10 @@ const {
   txSlotFindMany,
   txSlotFindFirst,
   txSlotCreate,
+  txSlotCreateMany,
   txSlotUpdate,
   txSlotDelete,
+  txSlotDeleteMany,
   txSlotUpdateMany,
   txExecuteRaw,
 } = vi.hoisted(() => ({
@@ -29,8 +31,10 @@ const {
   txSlotFindMany: vi.fn(),
   txSlotFindFirst: vi.fn(),
   txSlotCreate: vi.fn(),
+  txSlotCreateMany: vi.fn(),
   txSlotUpdate: vi.fn(),
   txSlotDelete: vi.fn(),
+  txSlotDeleteMany: vi.fn(),
   txSlotUpdateMany: vi.fn(),
   txExecuteRaw: vi.fn(),
 }));
@@ -81,18 +85,23 @@ describe("getAvailableSlots", () => {
     txSlotFindMany.mockResolvedValue([]);
     txSlotFindFirst.mockResolvedValue(null);
     txSlotCreate.mockResolvedValue({});
+    txSlotCreateMany.mockResolvedValue({ count: 0 });
     txSlotUpdate.mockResolvedValue({});
     txSlotDelete.mockResolvedValue({});
+    txSlotDeleteMany.mockResolvedValue({ count: 0 });
     txSlotUpdateMany.mockResolvedValue({ count: 0 });
     prismaTransaction.mockImplementation(async (fn) =>
       fn({
         $executeRaw: txExecuteRaw,
+        consultationCynologist: { findUnique: cynologistFindUnique },
         consultationSlot: {
           findMany: txSlotFindMany,
           findFirst: txSlotFindFirst,
           create: txSlotCreate,
+          createMany: txSlotCreateMany,
           update: txSlotUpdate,
           delete: txSlotDelete,
+          deleteMany: txSlotDeleteMany,
           updateMany: txSlotUpdateMany,
         },
       }),
@@ -102,9 +111,9 @@ describe("getAvailableSlots", () => {
   it("бросает ConsultationNotFoundError, если кинолог не найден", async () => {
     cynologistFindUnique.mockResolvedValue(null);
     const { getAvailableSlots } = await import("./slotService");
-    await expect(
-      getAvailableSlots("user-missing", new Date(), new Date()),
-    ).rejects.toBeInstanceOf(ConsultationNotFoundError);
+    await expect(getAvailableSlots("user-missing", new Date(), new Date())).rejects.toBeInstanceOf(
+      ConsultationNotFoundError,
+    );
     expect(slotFindMany).not.toHaveBeenCalled();
   });
 
@@ -157,6 +166,69 @@ describe("getAvailableSlots", () => {
     expect(out[0]?.status).toBe(ConsultationSlotStatus.FREE);
   });
 
+  it("preserves cancelled-booking history but BLOCKS a slot removed by schedule edit", async () => {
+    cynologistFindUnique.mockResolvedValue({
+      id: "cy1",
+      slotDurationMin: 30,
+      availabilityRules: [],
+      dayOffs: [],
+      slotExceptions: [],
+    });
+    txSlotFindMany.mockResolvedValue([
+      {
+        id: "slot-historical",
+        startAt: new Date("2026-10-26T07:00:00Z"),
+        endAt: new Date("2026-10-26T07:30:00Z"),
+        status: "FREE",
+        bookings: [],
+        _count: { bookings: 1 },
+      },
+    ]);
+    const { rebuildSlotsForCynologist } = await import("./slotService");
+    await rebuildSlotsForCynologist(
+      "cy1",
+      new Date("2026-10-26T00:00:00Z"),
+      new Date("2026-10-27T00:00:00Z"),
+    );
+    expect(txSlotUpdateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["slot-historical"] } },
+      data: { status: "BLOCKED" },
+    });
+    expect(txSlotDeleteMany).not.toHaveBeenCalled();
+  });
+
+  it("restores a historical BLOCKED slot only when new weekly rules permit it", async () => {
+    cynologistFindUnique.mockResolvedValue({
+      id: "cy1",
+      slotDurationMin: 30,
+      availabilityRules: [{ weekday: 1, startTime: "10:00", endTime: "10:30", isWorkingDay: true }],
+      dayOffs: [],
+      slotExceptions: [],
+    });
+    txSlotFindMany.mockResolvedValue([
+      {
+        id: "slot-historical",
+        startAt: new Date("2026-10-26T07:00:00Z"),
+        endAt: new Date("2026-10-26T07:30:00Z"),
+        status: "BLOCKED",
+        bookings: [],
+        _count: { bookings: 1 },
+      },
+    ]);
+    txSlotFindFirst.mockResolvedValue({ id: "slot-historical" });
+    const { rebuildSlotsForCynologist } = await import("./slotService");
+    await rebuildSlotsForCynologist(
+      "cy1",
+      new Date("2026-10-26T00:00:00Z"),
+      new Date("2026-10-27T00:00:00Z"),
+    );
+    expect(txSlotUpdateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["slot-historical"] } },
+      data: { status: "FREE" },
+    });
+    expect(txSlotDeleteMany).not.toHaveBeenCalled();
+  });
+
   it("getCalendarSlots пересобирает протухший горизонт перед чтением", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-21T00:00:00.000Z"));
@@ -203,14 +275,19 @@ describe("getAvailableSlots", () => {
     const out = await getCalendarSlots("user-1", from, to);
 
     expect(prismaTransaction).toHaveBeenCalledTimes(1);
-    expect(txSlotCreate).toHaveBeenCalledWith({
-      data: {
-        cynologistId: "cy1",
-        startAt: rebuiltStart,
-        endAt: rebuiltEnd,
-        status: ConsultationSlotStatus.FREE,
-      },
+    expect(txSlotCreateMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        {
+          cynologistId: "cy1",
+          startAt: rebuiltStart,
+          endAt: rebuiltEnd,
+          status: ConsultationSlotStatus.FREE,
+        },
+      ]),
+      skipDuplicates: true,
     });
+    expect(txSlotCreateMany).toHaveBeenCalledTimes(1);
+    expect(txSlotFindFirst).not.toHaveBeenCalled();
     expect(slotFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ cynologistId: "cy1" }),

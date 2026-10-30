@@ -25,16 +25,21 @@ export function FeedPollComposer({ value, onChange, onPickImage, onRemoveImage, 
   const optionChange = (index: number, patch: Partial<MobileFeedPollDraft["options"][number]>) =>
     update({ options: value.options.map((row, i) => i === index ? { ...row, ...patch } : row) });
   const issue = validateFeedPollDraft(value);
-  const endDays = value.endDate ? Math.max(0, Math.round((new Date(value.endDate).getTime() - Date.now()) / 86400000)) : 0;
+  const endDays = value.endDate
+    ? Math.max(0, Math.round((new Date(value.endDate).getTime() - Date.now()) / 86400000))
+    : 0;
   return <View style={s.card} accessibilityLabel="Редактор опроса">
     <View style={s.header}>
       <Text style={s.heading}>Опрос</Text>
-      <Pressable accessibilityRole="button" disabled={disabled} onPress={() => onChange(null)}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Удалить опрос"
+        accessibilityState={{ disabled: !!disabled }} disabled={disabled}
+        onPress={() => onChange(null)}>
         <Text style={s.remove}>Убрать</Text>
       </Pressable>
     </View>
     <Text style={s.label}>Вопрос</Text>
     <TextInput style={s.input} maxLength={500} placeholder="Что вы думаете?"
+      accessibilityLabel="Вопрос опроса"
       placeholderTextColor={COLORS.textSecondary} editable={!disabled} value={value.question}
       onChangeText={question => update({ question })} />
     {value.options.map((option, index) => <View key={index} style={s.optionGroup}>
@@ -43,11 +48,14 @@ export function FeedPollComposer({ value, onChange, onPickImage, onRemoveImage, 
         accessibilityState={{ checked: !!option.isCorrect }} disabled={disabled}
         accessibilityLabel={`Правильный вариант ${index + 1}`} style={s.correct}
         onPress={() => update({ options: value.options.map((row, i) => ({ ...row,
-          isCorrect: value.allowMultiple ? (i === index ? !row.isCorrect : !!row.isCorrect) : i === index,
+          isCorrect: value.allowMultiple
+            ? (i === index ? !row.isCorrect : !!row.isCorrect)
+            : i === index,
         })) })}>
         <Text style={s.correctText}>{option.isCorrect ? "✓" : "○"}</Text>
       </Pressable>}
       <TextInput style={[s.input, s.optionInput]} value={option.text} maxLength={200}
+        accessibilityLabel={`Вариант ответа ${index + 1}`}
         editable={!disabled} placeholder={`Вариант ${index + 1}`} placeholderTextColor={COLORS.textSecondary}
         onChangeText={text => optionChange(index, { text })} />
       {onPickImage && <Pressable accessibilityRole="button" disabled={disabled}
@@ -57,7 +65,10 @@ export function FeedPollComposer({ value, onChange, onPickImage, onRemoveImage, 
       </Pressable>}
       {value.options.length > 2 && <Pressable accessibilityRole="button" disabled={disabled}
         accessibilityLabel={`Удалить вариант ${index + 1}`}
-        onPress={() => { onRemoveImage?.(index); update({ options: value.options.filter((_, i) => i !== index) }); }}
+        onPress={() => {
+          onRemoveImage?.(index);
+          update({ options: value.options.filter((_, i) => i !== index) });
+        }}
         style={s.correct}><Text style={s.remove}>×</Text></Pressable>}
       </View>
       {option.imageAsset && <View style={s.imageRow}>
@@ -79,7 +90,10 @@ export function FeedPollComposer({ value, onChange, onPickImage, onRemoveImage, 
       ["shuffleOptions", "Перемешивать варианты"],
     ] as const).map(([key, label]) => <View key={key} style={s.setting}>
       <Text style={s.settingLabel}>{label}</Text>
-      <Switch value={!!value[key]} disabled={disabled} trackColor={{ true: "#9AA987", false: "#ddd" }}
+      <Switch value={!!value[key]} disabled={disabled}
+        accessibilityRole="switch" accessibilityLabel={label}
+        accessibilityState={{ checked: !!value[key], disabled: !!disabled }}
+        trackColor={{ true: "#9AA987", false: "#ddd" }}
         thumbColor="#fff" onValueChange={checked => update({ [key]: checked,
           ...(key === "isQuiz" && !checked ? { options: value.options.map(row => ({ ...row, isCorrect: false })) } : {}),
           ...(key === "allowMultiple" && !checked ? { options: value.options.map((row, i) => ({ ...row,
@@ -89,19 +103,24 @@ export function FeedPollComposer({ value, onChange, onPickImage, onRemoveImage, 
     <Text style={s.label}>Окончание опроса</Text>
     <View style={s.days}>
       {([0, 1, 3, 7] as const).map(days => <Pressable key={days} disabled={disabled}
-        accessibilityRole="radio" accessibilityState={{ checked: endDays === days }}
+        accessibilityRole="radio" accessibilityLabel={days === 0 ? "Без срока" :
+          `Через ${days} ${days === 1 ? "день" : days === 3 ? "дня" : "дней"}`}
+        accessibilityState={{ checked: endDays === days, disabled: !!disabled }}
         style={[s.chip, endDays === days && s.chipActive]}
-        onPress={() => update({ endDate: days ? new Date(Date.now() + days * 86400000).toISOString() : null })}>
+        onPress={() => update({ endDate: days
+          ? new Date(Date.now() + days * 86400000).toISOString()
+          : null })}>
         <Text style={s.chipText}>{days === 0 ? "Без срока" : `${days} дн.`}</Text>
       </Pressable>)}
     </View>
     {value.isQuiz && <>
       <Text style={s.label}>Пояснение после голосования</Text>
       <TextInput multiline style={[s.input, s.multiline]} editable={!disabled}
-        maxLength={2000} value={value.explanation ?? ""} onChangeText={explanation => update({ explanation })}
+        accessibilityLabel="Пояснение после голосования" maxLength={2000} value={value.explanation ?? ""} onChangeText={explanation => update({ explanation })}
         placeholder="Почему этот ответ правильный?" placeholderTextColor={COLORS.textSecondary} />
     </>}
-    {issue && <Text style={s.issue}>{issue}</Text>}
+    {issue && <Text style={s.issue} accessibilityRole="alert"
+      accessibilityLiveRegion="polite">{issue}</Text>}
   </View>;
 }
 const s = StyleSheet.create({
@@ -110,7 +129,8 @@ const s = StyleSheet.create({
   heading: { fontFamily: FONTS.montserratBold, fontSize: 15, color: COLORS.text },
   label: { fontFamily: FONTS.montserratMedium, fontSize: 12, color: COLORS.textSecondary },
   input: { backgroundColor: "#FFFEFB", borderWidth: 1, borderColor: COLORS.borderLight, borderRadius: 10,
-    minHeight: 44, paddingHorizontal: 12, paddingVertical: 8, fontFamily: FONTS.montserrat, color: COLORS.text, fontSize: 13 },
+    minHeight: 44, paddingHorizontal: 12, paddingVertical: 8,
+    fontFamily: FONTS.montserrat, color: COLORS.text, fontSize: 13 },
   optionGroup: { gap: 7 },
   option: { flexDirection: "row", alignItems: "center", gap: 8 },
   optionInput: { flex: 1, minWidth: 0 },

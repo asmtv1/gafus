@@ -5,7 +5,6 @@
 import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
-import type { CourseReview } from "@gafus/prisma";
 import type { CourseWithProgressData } from "@gafus/types";
 import { resolveCourseEntitlement } from "../contentAccess/policy";
 
@@ -31,17 +30,40 @@ export async function getFavoritesCourses(
       id: { in: favoriteCourseIds },
       OR: [{ isPrivate: false }, { access: { some: { userId } } }],
     },
-    include: {
+    // Select only the fields actually used by the public favorite projection.
+    // Older isolated course databases intentionally do not have Course.version;
+    // an implicit include fetches every scalar field, causing a 500 on reads.
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      description: true,
+      shortDesc: true,
+      duration: true,
+      logoImg: true,
+      isPrivate: true,
+      isPaid: true,
+      avgRating: true,
+      trainingLevel: true,
+      createdAt: true,
+      updatedAt: true,
       author: {
         select: {
           username: true,
           profile: { select: { avatarUrl: true } },
         },
       },
-      reviews: true,
-      favoritedBy: true,
+      reviews: { select: { rating: true, comment: true, createdAt: true } },
       access: { where: { userId }, select: { userId: true } },
-      userCourses: { select: { status: true } },
+      _count: {
+        select: {
+          userCourses: {
+            where: {
+              status: { in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED] },
+            },
+          },
+        },
+      },
     },
   });
 
@@ -55,11 +77,19 @@ export async function getFavoritesCourses(
     },
   });
 
+  // Index progress once, keeping the first row for each course like Array.find.
+  const userCourseByCourseId = new Map<string, (typeof userCourses)[number]>();
+  for (const userCourse of userCourses) {
+    if (!userCourseByCourseId.has(userCourse.courseId)) {
+      userCourseByCourseId.set(userCourse.courseId, userCourse);
+    }
+  }
+
   const premium = (await resolveCourseEntitlement(
     { id: "", isPrivate: false, isPaid: true }, userId,
   )).allowed;
   const data: CourseWithProgressData[] = allCourses.map((course) => {
-    const userCourse = userCourses.find((uc) => uc.courseId === course.id);
+    const userCourse = userCourseByCourseId.get(course.id);
     const hasAccess = course.isPrivate
       ? course.access.length > 0
       : !course.isPaid || premium;
@@ -84,12 +114,9 @@ export async function getFavoritesCourses(
       userStatus: (userCourse?.status ?? TrainingStatus.NOT_STARTED) as TrainingStatus,
       startedAt: userCourse?.startedAt ? new Date(userCourse.startedAt) : null,
       completedAt: userCourse?.completedAt ? new Date(userCourse.completedAt) : null,
-      startedUsersCount: course.userCourses.filter(
-        (entry) =>
-          entry.status === TrainingStatus.IN_PROGRESS || entry.status === TrainingStatus.COMPLETED,
-      ).length,
+      startedUsersCount: course._count.userCourses,
       isFavorite: true,
-      reviews: course.reviews.map((review: CourseReview) => ({
+      reviews: course.reviews.map((review) => ({
         rating: review.rating ?? 0,
         comment: review.comment ?? "",
         createdAt: review.createdAt ? new Date(review.createdAt) : new Date(),
@@ -150,23 +177,12 @@ export async function toggleFavoriteCourse(userId: string, courseId: string): Pr
  * Добавляет курс в избранное (идемпотентная операция)
  */
 export async function addFavoriteCourse(userId: string, courseId: string): Promise<void> {
-  const existing = await prisma.favoriteCourse.findUnique({
-    where: {
-      userId_courseId: {
-        userId,
-        courseId,
-      },
-    },
+  // The unique userId/courseId key makes concurrent retries idempotent.
+  // findUnique -> create is not atomic: two requests can both see "missing".
+  await prisma.favoriteCourse.createMany({
+    data: [{ userId, courseId }],
+    skipDuplicates: true,
   });
-
-  if (!existing) {
-    await prisma.favoriteCourse.create({
-      data: {
-        userId,
-        courseId,
-      },
-    });
-  }
 }
 
 /**

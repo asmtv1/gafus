@@ -2,172 +2,95 @@
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const { prefers } = vi.hoisted(()=>({prefers:vi.fn()}));
-vi.mock("@/shared/lib/media/serverHealth",()=>({ prefersCloudruMedia: prefers }));
-const { playback, probe, listeners, sources } = vi.hoisted(() => ({
-  playback: vi.fn(),
-  probe: vi.fn(),
-  listeners: new Map<string, (event: { status: string }) => void>(),
-  sources: [] as string[],
-}));
-vi.mock("@/shared/lib/api/feed", () => ({ feedApi: { requestPlayback: playback } }));
-vi.mock("@/shared/config", () => ({
-  API_BASE_URL: "https://api.gafus.test",
-  COLORS: {},
-  FONTS: {},
+
+const { sources, statusListeners } = vi.hoisted(() => ({
+  sources: [] as { uri: string; contentType: string; useCaching: boolean }[],
+  statusListeners: new Map<string, (event: { status: string }) => void>(),
 }));
 vi.mock("@/shared/stores", () => ({
   useAuthStore: (selector: (state: { user: { id: string } }) => string) =>
     selector({ user: { id: "test-user" } }),
 }));
-vi.mock("@/shared/components/media/CdnImage", () => ({ CdnImage: () => null }));
-vi.mock("expo-router", () => ({ useFocusEffect: () => {} }));
-vi.mock("@gafus/core/services/mediaDelivery", async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  probeHlsCdnOutage: probe,
+vi.mock("@/shared/lib/api/feed", () => ({
+  feedApi: { requestMediaFallback: vi.fn() },
 }));
+vi.mock("@/shared/components/media/CdnImage", () => ({ CdnImage: () => null }));
+vi.mock("expo-router", () => ({ useFocusEffect: () => undefined }));
+vi.mock("expo-image", () => ({ Image: () => null }));
 vi.mock("react-native", async () => {
   const R = await import("react");
   return {
     AppState: { addEventListener: () => ({ remove() {} }) },
-    StyleSheet: { create: (x: object) => x },
-    Pressable: ({
-      onPress,
-      children,
-      disabled,
-      ...rest
-    }: {
-      onPress: () => void;
-      children: React.ReactNode;
-      disabled: boolean;
-    }) => R.createElement("button", { onClick: onPress, disabled }, children),
+    PixelRatio: { get: () => 2 },
+    Modal: ({ children }: { children: React.ReactNode }) => R.createElement("div", null, children),
+    useWindowDimensions: () => ({ width: 390 }),
+    StyleSheet: { create: (value: object) => value },
+    Pressable: ({ onPress, children, disabled }: { onPress: () => void; children: React.ReactNode; disabled: boolean }) =>
+      R.createElement("button", { onClick: onPress, disabled }, children),
     View: ({ children }: { children: React.ReactNode }) => R.createElement("div", null, children),
-    Text: ({
-      children,
-      accessibilityRole,
-    }: {
-      children: React.ReactNode;
-      accessibilityRole?: string;
-    }) => R.createElement("span", accessibilityRole ? { role: accessibilityRole } : null, children),
+    Text: ({ children, accessibilityRole }: { children: React.ReactNode; accessibilityRole?: string }) =>
+      R.createElement("span", accessibilityRole ? { role: accessibilityRole } : null, children),
   };
 });
 vi.mock("expo-video", async () => {
   const R = await import("react");
   return {
-    useVideoPlayer: (source: { uri: string }, setup?: (p: object) => void) => {
-      return R.useMemo(() => {
-        const player = {
-          uri: source.uri,
-          play: () => {},
-          staysActiveInBackground: false,
-          showNowPlayingNotification: false,
-          addListener: (_event: string, cb: (event: { status: string }) => void) => {
-            listeners.set(source.uri, cb);
-            return { remove: () => listeners.delete(source.uri) };
-          },
-        };
-        sources.push(source.uri);
+    useVideoPlayer: (source: { uri: string; contentType: string; useCaching: boolean },
+      setup?: (player: object) => void) => R.useMemo(() => {
+        sources.push(source);
+        const player = { uri: source.uri, play: vi.fn(),
+          staysActiveInBackground: false, showNowPlayingNotification: false,
+          addListener: (_kind: string, listener: (event: { status: string }) => void) => {
+            statusListeners.set(source.uri, listener);
+            return { remove: () => statusListeners.delete(source.uri) };
+          } };
         setup?.(player);
         return player;
-      }, [source.uri]);
-    },
-    VideoView: ({ player }: { player: { uri: string } }) =>
-      R.createElement("div", { "data-testid": "native-video", "data-uri": player.uri }),
+      }, [source.uri]),
+    VideoView: ({ player, fullscreenOptions }: {
+      player: { uri: string }; fullscreenOptions?: { enable: boolean };
+    }) => R.createElement("div", {
+      "data-testid": "native-video", "data-uri": player.uri,
+      "data-fullscreen": String(fullscreenOptions?.enable),
+    }),
   };
 });
 import { FeedVideo } from "./FeedVideo";
-import { probeCdnOutage } from '@gafus/core/services/mediaDelivery';
-const base = "https://api.gafus.test";
-const manifest = "/api/v1/feed-playback/video1?ticket=abc.def";
-let root: Root, host: HTMLDivElement;
+const mp4 = "https://media.example.test/media/v2/m/v1/video/360.mp4";
+let root: Root; let host: HTMLDivElement;
 beforeEach(() => {
-  prefers.mockResolvedValue(false);
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-  host = document.createElement("div");
-  document.body.appendChild(host);
+  host = document.createElement("div"); document.body.appendChild(host);
   root = createRoot(host);
-  playback.mockResolvedValue({ manifestUrl: manifest });
-  probe.mockResolvedValue(true);
 });
 afterEach(async () => {
-  prefers.mockReset();
-  await act(async () => root.unmount());
-  host.remove();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-  listeners.clear();
-  sources.length = 0;
-  playback.mockReset();
-  probe.mockReset();
+  await act(async () => root.unmount()); host.remove();
+  sources.length = 0; statusListeners.clear(); vi.restoreAllMocks();
 });
-describe("Mobile FeedVideo native source fallback", () => {
-  it("starts HLS on S3 immediately when server marks Feed down", async () => {
-    prefers.mockResolvedValue(true);
-    await act(async () => root.render(<FeedVideo postId="p1" mediaId="video1" poster={null} visible />));
-    await act(async () => {
-      (host.querySelector("button") as HTMLButtonElement).click();
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-    expect(prefers).toHaveBeenCalledWith("feed");
-    expect(sources).toEqual([base + manifest + "&source=cloudru"]);
-    expect(probe).not.toHaveBeenCalled();
+describe("Mobile Moments native progressive MP4 cutover", () => {
+  it("never requests a ticket, and starts exactly one progressive MP4 on user tap", async () => {
+    const fetcher = vi.fn(); vi.stubGlobal("fetch", fetcher);
+    await act(async () => root.render(<FeedVideo postId="p" mediaId="m" poster={null}
+      visible mp4Urls={{ 360: mp4 }} />));
+    expect(sources).toEqual([]);
+    await act(async () => { host.querySelector("button")?.click(); });
+    expect(sources).toEqual([{ uri: mp4, contentType: "progressive", useCaching: false }]);
+    expect(host.querySelector('[data-testid="native-video"]')?.getAttribute("data-uri")).toBe(mp4);
+    expect(host.querySelector('[data-testid="native-video"]')?.getAttribute("data-fullscreen")).toBe("true");
+    expect(fetcher).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
-
-
-  it("reinitializes expo-video with Cloud.ru fallback manifest after an outage", async () => {
-    await act(async () =>
-      root.render(<FeedVideo postId="p1" mediaId="video1" poster={null} visible />),
-    );
-    await act(async () => {
-      (host.querySelector("button") as HTMLButtonElement).click();
-      await new Promise((r) => setTimeout(r, 0));
-    });
-    const original = base + manifest;
-    expect(host.querySelector('[data-testid="native-video"]')?.getAttribute("data-uri")).toBe(
-      original,
-    );
-    const failure = listeners.get(original);
-    expect(failure).toBeTypeOf("function");
-    await act(async () => {
-      failure?.({ status: "error" });
-      await new Promise((r) => setTimeout(r, 0));
-    });
-    expect(probe).toHaveBeenCalledWith(original, { nativeNetwork: true });
-    expect(host.querySelector('[data-testid="native-video"]')?.getAttribute("data-uri")).toBe(
-      original + "&source=cloudru",
-    );
-    expect(sources).toEqual([original, original + "&source=cloudru"]);
+  it("does not render playable content without a signed MP4", async () => {
+    await act(async () => root.render(<FeedVideo postId="p" mediaId="m" poster={null} visible />));
+    expect(host.querySelector("button")).toBeNull();
+    expect(sources).toHaveLength(0);
   });
-  it("does not request alternate source when outage is unconfirmed (403 or 404)", async () => {
-    probe.mockResolvedValue(false);
-    await act(async () =>
-      root.render(<FeedVideo postId="p1" mediaId="video1" poster={null} visible />),
-    );
-    await act(async () => {
-      (host.querySelector("button") as HTMLButtonElement).click();
-      await new Promise((r) => setTimeout(r, 0));
-    });
-    const original = base + manifest;
-    await act(async () => {
-      listeners.get(original)?.({ status: "error" });
-      await new Promise((r) => setTimeout(r, 0));
-    });
-    expect(sources).toEqual([original]);
+  it("releases native player when its post leaves the visible area", async () => {
+    await act(async () => root.render(<FeedVideo postId="p" mediaId="m" poster={null}
+      visible mp4Urls={{ 360: mp4 }} />));
+    await act(async () => host.querySelector("button")?.click());
+    await act(async () => root.render(<FeedVideo postId="p" mediaId="m" poster={null}
+      visible={false} mp4Urls={{ 360: mp4 }} />));
     expect(host.querySelector('[data-testid="native-video"]')).toBeNull();
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain("Видео не загрузилось");
   });
-  it("starts a new video directly on Cloud.ru HLS during a confirmed Feed outage", async () => {
-    const source = `https://garaquachegasourn.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/posts/owner/post/attachments/media/hls/segment-000.ts`;
-    expect(await probeCdnOutage(source, { fetcher: async () => new Response(null, { status: 504 }) })).toBe(true);
-    await act(async () =>
-      root.render(<FeedVideo postId="p1" mediaId="video1" poster={null} visible />),
-    );
-    await act(async () => {
-      (host.querySelector('button') as HTMLButtonElement).click();
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-    expect(sources).toEqual([base + manifest + '&source=cloudru']);
-    expect(probe).not.toHaveBeenCalled();
-  });
-
 });

@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "src/routes/v1/admin2-real-postgres-http.test.ts",
+    "src/routes/v1/admin-users.ts",
+    "src/routes/v1/admin-partners.ts",
+    "src/routes/v1/admin-profit.ts",
+    "src/routes/v1/gafus-admin.ts",
+    "src/routes/v1/admin-gafus-operations.ts",
+    "../../packages/core/src/services/adminGafus/index.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

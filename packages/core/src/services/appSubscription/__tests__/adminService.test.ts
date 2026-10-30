@@ -9,9 +9,18 @@ const mockSubscriptionFindMany = vi.fn();
 const mockPaymentFindMany = vi.fn();
 const mockEventFindMany = vi.fn();
 const mockSettingsUpsert = vi.fn();
+const mockFindActorRole = vi.fn().mockResolvedValue({ role: "ADMIN" });
+const mockLockActor = vi.fn().mockResolvedValue([{ id: "admin-1" }]);
+const mockTransaction = vi.fn(async (run: (tx: unknown) => Promise<unknown>) =>
+  run({
+    appSubscriptionSettings: { upsert: (...args: unknown[]) => mockSettingsUpsert(...args) },
+    user: { findUnique: (...args: unknown[]) => mockFindActorRole(...args) },
+    $queryRaw: (...args: unknown[]) => mockLockActor(...args),
+  }));
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
+    $transaction: (...args: unknown[]) => mockTransaction(...args),
     appSubscription: {
       findMany: (...args: unknown[]) => mockSubscriptionFindMany(...args),
     },
@@ -382,6 +391,25 @@ describe("getAppSubscriptionAdminDashboard", () => {
 
 describe("updateDefaultAppSubscriptionSettings", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it("denies a demoted price editor inside the transaction row lock", async () => {
+    mockFindActorRole.mockResolvedValueOnce({ role: "USER" });
+    await expect(updateDefaultAppSubscriptionSettings({
+      twoWeeksEnabled: true,
+      yookassaTwoWeeksPriceRub: 1490,
+      twoWeeksIntervalDays: 14,
+      monthlyEnabled: true,
+      yookassaMonthlyPriceRub: 2490,
+      monthlyIntervalDays: 30,
+      threeMonthsEnabled: false,
+      yookassaThreeMonthsPriceRub: 6490,
+      threeMonthsIntervalDays: 90,
+      monthlyAppleProductId: "premium.month",
+      actorId: "admin-1",
+    })).rejects.toThrow("FORBIDDEN");
+    expect(mockLockActor).toHaveBeenCalledOnce();
+    expect(mockSettingsUpsert).not.toHaveBeenCalled();
+  });
 
   it("updates the three public plans without overwriting legacy weekly settings", async () => {
     mockSettingsUpsert.mockResolvedValue({ key: "default" });

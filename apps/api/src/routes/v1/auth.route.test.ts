@@ -42,6 +42,34 @@ describe("auth route contracts", () => {
     expect(registerMock).toHaveBeenCalledWith("new_user", "new@qwe.ru", "Password1x", registrationChannel, undefined, expect.objectContaining({ consentPayload: expect.any(Object) }));
   });
 
+  it("never reflects internal registration errors to unauthenticated clients", async () => {
+    registerMock.mockRejectedValueOnce(new Error("DB_CONNECTION_STRING_AND_INTERNAL_DETAILS"));
+    const response = await createTestApp().request(jsonRequest("/api/v1/auth/register", "POST", {
+      name: "new_user", email: "new@example.test", password: "Password1x",
+      registrationChannel: "WEB",
+      tempSessionId: "9d7ca270-0e15-4e37-a0f9-9c62529c63d2",
+      consentPayload: { acceptPersonalData: true, acceptPrivacyPolicy: true, acceptDataDistribution: true },
+    }));
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body).toEqual({
+      success: false, code: "REGISTRATION_UNAVAILABLE",
+      error: "Не удалось зарегистрироваться. Попробуйте позже.",
+    });
+    expect(JSON.stringify(body)).not.toContain("DB_CONNECTION_STRING");
+  });
+
+  it("fails closed for legacy phone-match; never reports arbitrary ownership", async () => {
+    const response = await createTestApp().request(jsonRequest("/api/v1/auth/check-phone-match", "POST", {
+      username: "target-user", phone: "+79991234567",
+    }));
+    expect(response.status).toBe(410);
+    expect(await response.json()).toEqual({
+      success: false, code: "PHONE_MATCH_UNAVAILABLE",
+      error: "Проверка номера недоступна. Восстановите доступ через email.",
+    });
+  });
+
   it("rejects invalid login payloads before calling auth services", async () => {
     const app = createTestApp();
 

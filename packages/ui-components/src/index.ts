@@ -1,4 +1,3 @@
-export { default as LoginForm } from "./LoginForm";
 export { CookieConsentBanner } from "./CookieConsentBanner";
 export { TracerProvider } from "./TracerProvider";
 export {

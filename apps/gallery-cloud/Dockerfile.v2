@@ -1,0 +1,14 @@
+# Gallery Media V2: build using a verified, locally bundled isolated worker.
+# Preparation: pnpm --filter @gafus/gallery-cloud build && node apps/gallery-cloud/scripts/prepare-v2-image.mjs
+# Local image only: docker build --platform=linux/amd64 -f apps/gallery-cloud/Dockerfile.v2 -t gallery-media-v2:nonprod .
+# No push or change to existing Container Jobs is performed here.
+FROM --platform=$TARGETPLATFORM node:22-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production
+# Explicitly disabled until an operator verifies isolated Refactor Cloud.ru resources.
+ENV GALLERY_ENABLED=false
+RUN npm install --omit=dev --no-audit --no-fund --no-save sharp@0.35.5
+ARG GALLERY_V2_IMAGE_ARTIFACT=gallery-v2-image
+COPY --chown=node:node apps/gallery-cloud/artifacts/${GALLERY_V2_IMAGE_ARTIFACT}/job.cjs ./job.cjs
+USER node
+CMD ["node", "job.cjs"]

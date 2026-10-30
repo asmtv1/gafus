@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import { useEffect, useRef, type ComponentProps } from "react";
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, FONTS } from "@/shared/config";
@@ -19,17 +19,37 @@ export function QuestionPostMenu({
   onClose,
   actions,
   title = "Действия с вопросом",
+  isActorCurrent,
 }: {
   visible: boolean;
   onClose: () => void;
   actions: QuestionPostAction[];
   title?: string;
+  isActorCurrent?: () => boolean;
 }) {
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mounted = useRef(true);
+  const current = () => mounted.current && (!isActorCurrent || isActorCurrent());
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (pending.current !== null) clearTimeout(pending.current);
+      pending.current = null;
+    };
+  }, []);
   const choose = (action: QuestionPostAction) => {
-    if (action.disabled) return;
+    if (action.disabled || pending.current !== null || !current()) return;
     onClose();
     // Close the iOS modal before presenting Share or a native confirmation Alert.
-    setTimeout(action.onPress, Platform.OS === "ios" ? 300 : 0);
+    // A menu close by this action is deliberate: cancel only on unmount or stale actor.
+    pending.current = setTimeout(
+      () => {
+        pending.current = null;
+        if (current()) action.onPress();
+      },
+      Platform.OS === "ios" ? 300 : 0,
+    );
   };
 
   return (
@@ -47,9 +67,11 @@ export function QuestionPostMenu({
           style={StyleSheet.absoluteFill}
           onPress={onClose}
         />
-        <View style={styles.panel}>
-          <View style={styles.handle} />
-          <Text style={styles.heading}>{title}</Text>
+        <View style={styles.panel} accessibilityViewIsModal
+          importantForAccessibility="yes" accessibilityLabel={title}>
+          <View style={styles.handle} accessible={false}
+            importantForAccessibility="no-hide-descendants" />
+          <Text style={styles.heading} accessibilityRole="header">{title}</Text>
           {actions.map((action) => (
             <Pressable
               key={action.key}
@@ -65,6 +87,8 @@ export function QuestionPostMenu({
             >
               <MaterialCommunityIcons
                 name={action.icon}
+                accessible={false}
+                importantForAccessibility="no"
                 size={22}
                 color={action.destructive ? "#aa4242" : COLORS.primary}
               />

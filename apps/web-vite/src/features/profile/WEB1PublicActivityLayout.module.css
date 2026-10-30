@@ -1,0 +1,29 @@
+/* The author result belongs to the centered two-tab public profile selector.
+ * Without its own alignment the title/status inherit the left-aligned profile
+ * shell and visibly jump to its left edge after selecting a tab. */
+.activityResult {
+  box-sizing: border-box;
+  width: min(100%, 900px);
+  min-width: 0;
+  margin: 0 auto 32px;
+  padding-inline: 12px;
+  text-align: center;
+}
+
+.activityResult :global(.public-profile-activity) {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Both empty/loading states and real author-list headings share one axis. */
+.activityResult :global(.public-profile-activity > section) {
+  min-width: 0;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .activityResult {
+    width: 100%;
+    padding-inline: 0;
+  }
+}

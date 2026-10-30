@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 
 import { prisma } from "./src/index";
+import { insertSeedCourseDaysVersioned } from "./scripts/courseChildRevisionMaintenance";
 
 const prismaClient = prisma;
 
@@ -260,14 +261,13 @@ async function main() {
     stepCount: 3,
   });
 
-  for (let i = 1; i <= 14; i++) {
-    await prismaClient.dayOnCourse.createMany({
-      data: [
-        { courseId: homeCourse.id, dayId: baseDay.id, order: i },
-        { courseId: streetCourse.id, dayId: baseDay.id, order: i },
-      ],
-    });
-  }
+  // One maintenance batch + one parent version touch PER course.
+  await insertSeedCourseDaysVersioned(prismaClient,
+    Array.from({length:14},(_,index)=>[
+      {courseId:homeCourse.id,dayId:baseDay.id,order:index+1},
+      {courseId:streetCourse.id,dayId:baseDay.id,order:index+1},
+    ]).flat(),
+  );
   console.log("Базовый день добавлен в курсы на 14 дней", {
     dayId: baseDay.id,
     courseCount: 4,
@@ -381,9 +381,9 @@ async function main() {
       { dayId: puppyDay.id, stepId: stepP2.id, order: 2 },
     ],
   });
-  await prismaClient.dayOnCourse.create({
-    data: { courseId: puppyCourse.id, dayId: puppyDay.id, order: 1 },
-  });
+  await insertSeedCourseDaysVersioned(prismaClient, [
+    { courseId: puppyCourse.id, dayId: puppyDay.id, order: 1 },
+  ]);
   console.log("Щенячий день добавлен в курс", {
     dayId: puppyDay.id,
     courseType: "puppy",
@@ -468,9 +468,9 @@ async function main() {
   await prismaClient.stepOnDay.create({
     data: { dayId: authorDay.id, stepId: authorStep.id, order: 1 },
   });
-  await prismaClient.dayOnCourse.create({
-    data: { courseId: authorCourse.id, dayId: authorDay.id, order: 1 },
-  });
+  await insertSeedCourseDaysVersioned(prismaClient, [
+    { courseId: authorCourse.id, dayId: authorDay.id, order: 1 },
+  ]);
   console.log("Авторский день добавлен в курс", {
     dayId: authorDay.id,
     courseType: "author",
@@ -761,14 +761,12 @@ async function main() {
   );
 
   // Добавляем тренерские дни в оба курса
-  await prismaClient.dayOnCourse.createMany({
-    data: [
-      { courseId: trainerCourse1.id, dayId: trainerDay1.id, order: 1 },
-      { courseId: trainerCourse1.id, dayId: trainerDay2.id, order: 2 },
-      { courseId: trainerCourse2.id, dayId: trainerDay2.id, order: 1 },
-      { courseId: trainerCourse2.id, dayId: trainerDay1.id, order: 2 },
-    ],
-  });
+  await insertSeedCourseDaysVersioned(prismaClient, [
+    { courseId: trainerCourse1.id, dayId: trainerDay1.id, order: 1 },
+    { courseId: trainerCourse1.id, dayId: trainerDay2.id, order: 2 },
+    { courseId: trainerCourse2.id, dayId: trainerDay2.id, order: 1 },
+    { courseId: trainerCourse2.id, dayId: trainerDay1.id, order: 2 },
+  ]);
 
   console.log("Курсы тренера созданы и дни добавлены в них", {
     trainerId: trainer.id,

@@ -19,16 +19,23 @@ import { Image } from "expo-image";
 import { Stack, useNavigation, useRouter } from "expo-router";
 import { usePreventRemove } from "@react-navigation/native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import * as ImagePicker from "expo-image-picker";
-import * as DocumentPicker from "expo-document-picker";
+import { useQuery } from "@tanstack/react-query";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useMemo } from "react";
+import {
+  verifiedVetActor,
+  sameVetActor,
+  vetVisitsForActor,
+  vetHistoryCacheForActor,
+  vetDetailCacheForActor,
+  vetVisitDetailForActor,
+  signedVetMediaUrl,
+  type VetReadActor,
+} from "./vetVisitsRead";
 import * as FileSystem from "expo-file-system/legacy";
 import {
   emptyVetVisit,
   vetVisitDateLabel,
-  VET_VISIT_MAX_ATTACHMENTS,
-  VET_VISIT_MAX_FILE_BYTES,
-  VET_VISIT_MIME_TYPES,
   type PetVetVisit,
   type PetVetVisitInput,
   type PetVetAttachment,
@@ -40,6 +47,10 @@ import { useAuthStore } from "@/shared/stores";
 import { petsApi } from "@/shared/lib/api/pets";
 import { petVetVisitsApi as api, type VetLocalFile } from "@/shared/lib/api/pet-vet-visits";
 import { reportClientError } from "@/shared/lib/tracer";
+import { createVetVisitAndReadback } from "./vetVisitCreate";
+import { editVetVisitAndReadback } from "./vetVisitEdit";
+import { deleteVetVisitAndReadback } from "./vetVisitDelete";
+import { vetFieldErrorMessage, type VetFieldErrors } from "./vetVisitMutationValidation";
 
 const fields = [
   ["specialty", "Специальность врача", 200],
@@ -49,14 +60,6 @@ const fields = [
   ["conclusion", "Какое было заключение", 10_000],
   ["notes", "Ваши заметки", 10_000],
 ] as const;
-const message = (e: unknown) =>
-  e instanceof Error ? e.message : "Не удалось выполнить действие. Повторите попытку";
-function confirm(title: string, text: string, work: () => void) {
-  Alert.alert(title, text, [
-    { text: "Отмена", style: "cancel" },
-    { text: "Удалить", style: "destructive", onPress: work },
-  ]);
-}
 
 export function PetVetVisitShortcut({ petId }: { petId: string }) {
   const router = useRouter();
@@ -81,42 +84,56 @@ function Attachment({
   petId,
   visitId,
   item,
+  actor,
 }: {
   petId: string;
   visitId: string;
   item: PetVetAttachment;
+  actor: VetReadActor;
 }) {
-  const ownerId = useAuthStore((state) => state.user?.id);
   const [full, setFull] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [previewFailed, setPreviewFailed] = useState(false);
   const [fullFailed, setFullFailed] = useState(false);
+  const [previewRequested, setPreviewRequested] = useState(false);
   const [imageAttempt, setImageAttempt] = useState(0);
   const preview = useQuery({
-    queryKey: ["vet-media", ownerId, petId, visitId, item.id],
-    enabled: item.hasPreview,
-    queryFn: () => api.media(petId, visitId, item.id, "preview"),
+    queryKey: ["vet-media", "owner", actor.ownerId, actor.authEpoch, petId, visitId, item.id],
+    enabled: previewRequested && item.hasPreview && sameVetActor(actor),
+    queryFn: async () => {
+      const result = await api.media(petId, visitId, item.id, "preview", () => sameVetActor(actor));
+      if (!sameVetActor(actor)) return null;
+      const url = signedVetMediaUrl(result.url);
+      if (!url) throw new Error("VET_MEDIA_UNSIGNED_OR_EXPIRED");
+      return { url };
+    },
     staleTime: 50_000,
     gcTime: 0,
     retry: false,
   });
   async function perform(work: () => Promise<void>) {
-    if (busy) return;
+    if (busy || !sameVetActor(actor)) return;
     setBusy(true);
     try {
       await work();
-    } catch (e) {
+    } catch {
       reportClientError(new Error("Vet attachment action failed"), {
         issueKey: "PetVetVisits",
         keys: { operation: "attachment" },
       });
-      Alert.alert("Не удалось открыть вложение", message(e));
+      if (sameVetActor(actor))
+        Alert.alert("Не удалось открыть вложение", "Проверьте доступ и повторите позднее.");
     } finally {
-      setBusy(false);
+      if (sameVetActor(actor)) setBusy(false);
     }
   }
   async function download() {
-    const { url } = await api.media(petId, visitId, item.id, "download");
+    const response = await api.media(petId, visitId, item.id, "download", () =>
+      sameVetActor(actor),
+    );
+    if (!sameVetActor(actor)) return;
+    const url = signedVetMediaUrl(response.url);
+    if (!url) throw new Error("VET_MEDIA_UNSIGNED_OR_EXPIRED");
     const ext =
       (
         {
@@ -128,7 +145,9 @@ function Attachment({
       )[item.mimeType] ?? "bin";
     const temp = `${FileSystem.cacheDirectory}vet-${item.id}.${ext}`;
     try {
+      if (!sameVetActor(actor)) return;
       const result = await FileSystem.downloadAsync(url, temp);
+      if (!sameVetActor(actor)) return;
       if (result.status !== 200) throw new Error("Не удалось скачать файл. Повторите попытку");
       if (Platform.OS === "android") {
         const permission =
@@ -159,7 +178,12 @@ function Attachment({
         accessibilityLabel={`Открыть ${item.name}`}
         onPress={() =>
           void perform(async () => {
-            const { url } = await api.media(petId, visitId, item.id, "original");
+            const response = await api.media(petId, visitId, item.id, "original", () =>
+              sameVetActor(actor),
+            );
+            if (!sameVetActor(actor)) return;
+            const url = signedVetMediaUrl(response.url);
+            if (!url) throw new Error("VET_MEDIA_UNSIGNED_OR_EXPIRED");
             if (item.mimeType === "application/pdf") await Linking.openURL(url);
             else {
               setFullFailed(false);
@@ -168,7 +192,11 @@ function Attachment({
           })
         }
       >
-        {item.hasPreview && preview.data && !previewFailed ? (
+        {sameVetActor(actor) &&
+        previewRequested &&
+        item.hasPreview &&
+        preview.data?.url &&
+        !previewFailed ? (
           <Image
             key={imageAttempt}
             source={{ uri: preview.data.url }}
@@ -189,25 +217,35 @@ function Attachment({
         <Text style={s.fileName}>{item.name}</Text>
         {item.previewProcessing && <Text style={s.caption}>Обрабатываем превью…</Text>}
       </Pressable>
-      {(preview.error || previewFailed) && (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            setPreviewFailed(false);
-            setImageAttempt((value) => value + 1);
-            void preview.refetch();
-          }}
-        >
-          <Text style={s.link}>Повторить загрузку превью</Text>
-        </Pressable>
-      )}
+      {item.hasPreview &&
+        sameVetActor(actor) &&
+        (!previewRequested || preview.error || previewFailed) && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              if (!sameVetActor(actor)) return;
+              setPreviewRequested(true);
+              setPreviewFailed(false);
+              setImageAttempt((value) => value + 1);
+              if (previewRequested) void preview.refetch();
+            }}
+          >
+            <Text style={s.link}>
+              {previewRequested ? "Повторить загрузку превью" : "Показать превью"}
+            </Text>
+          </Pressable>
+        )}
       <Button
         label={busy ? "Загрузка…" : "Скачать оригинал"}
         variant="caramel"
         disabled={busy}
         onPress={() => void perform(download)}
       />
-      <Modal visible={!!full} animationType="fade" onRequestClose={() => setFull(null)}>
+      <Modal
+        visible={!!full && sameVetActor(actor)}
+        animationType="fade"
+        onRequestClose={() => setFull(null)}
+      >
         <SafeAreaProvider>
           <TexturedSafeAreaView style={s.viewer}>
             <View style={s.viewerHeader}>
@@ -228,7 +266,13 @@ function Attachment({
                     disabled={busy}
                     onPress={() =>
                       void perform(async () => {
-                        setFull((await api.media(petId, visitId, item.id, "original")).url);
+                        const res = await api.media(petId, visitId, item.id, "original", () =>
+                          sameVetActor(actor),
+                        );
+                        if (!sameVetActor(actor)) return;
+                        const url = signedVetMediaUrl(res.url);
+                        if (!url) throw new Error("VET_MEDIA_UNSIGNED_OR_EXPIRED");
+                        setFull(url);
                         setImageAttempt((value) => value + 1);
                         setFullFailed(false);
                       })
@@ -260,35 +304,137 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
   const navigation = useNavigation();
   const { top: topInset } = useSafeAreaInsets();
   const scroll = useRef<ScrollView>(null);
-  const ownerId = useAuthStore((state) => state.user?.id);
-  const client = useQueryClient();
-  const key = ["pet-vet-visits", ownerId, petId];
+  const authUser = useAuthStore((state) => state.user);
+  const authActive = useAuthStore((state) => state.isAuthenticated);
+  const authLoading = useAuthStore((state) => state.isLoading);
+  const actorSnapshot = authActive && !authLoading && authUser?.id ? verifiedVetActor() : null;
+  const actorOwnerId = actorSnapshot?.ownerId ?? null;
+  const actorEpoch = actorSnapshot?.authEpoch ?? null;
+  const actor = useMemo(
+    () => (actorOwnerId && actorEpoch ? { ownerId: actorOwnerId, authEpoch: actorEpoch } : null),
+    [actorOwnerId, actorEpoch],
+  );
+  const listOptions = vetVisitsForActor(actor, petId);
   const visits = useQuery({
-    queryKey: key,
-    queryFn: () => api.list(petId),
-    gcTime: 0,
-    enabled: !!petId && !!ownerId,
+    ...listOptions,
     refetchInterval: (query) =>
-      query.state.data?.some((visit) => visit.attachments.some((file) => file.previewProcessing))
+      query.state.data?.kind === "ready" &&
+      query.state.data.data.some((visit) =>
+        visit.attachments.some((file) => file.previewProcessing),
+      )
         ? 5_000
         : false,
   });
+  const [focusProof, setFocusProof] = useState<string | null>(null);
+  const refetchVisits = visits.refetch;
+  const proofKey = actor ? `${actor.ownerId}:${actor.authEpoch}:${petId}` : null;
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+      setFocusProof(null);
+      if (actor && sameVetActor(actor) && listOptions.enabled)
+        void refetchVisits().then((result) => {
+          if (mounted && sameVetActor(actor) && result.data)
+            setFocusProof(`${actor.ownerId}:${actor.authEpoch}:${petId}`);
+        });
+      return () => {
+        mounted = false;
+        setFocusProof(null);
+      };
+    }, [actor, petId, refetchVisits, listOptions.enabled]),
+  );
+  const readReady =
+    !!actor &&
+    sameVetActor(actor) &&
+    focusProof === proofKey &&
+    !visits.isPending &&
+    !visits.isFetching;
+  const validatedHistory = readReady ? vetHistoryCacheForActor(visits.data, actor, petId) : null;
+  const readStatus = validatedHistory?.kind ?? null;
+  const listData = validatedHistory?.kind === "ready" ? validatedHistory.data : null;
   const pet = useQuery({
-    queryKey: ["pet", petId],
+    queryKey: ["vet-pet-title", "owner", actor?.ownerId ?? null, actor?.authEpoch ?? null, petId],
+    enabled: !!actor && sameVetActor(actor) && listOptions.enabled,
+    gcTime: 0,
+    retry: false,
     queryFn: async () => {
-      const result = await petsApi.getById(petId);
-      if (!result.success || !result.data) throw new Error(result.error ?? "Питомец не найден");
-      return result.data;
+      if (!actor || !sameVetActor(actor)) return null;
+      const result = await petsApi.getById(petId, () => sameVetActor(actor));
+      if (!sameVetActor(actor) || !result.success || !result.data || result.data.id !== petId)
+        return null;
+      return { name: result.data.name };
     },
-    enabled: !!petId,
   });
   const [editing, setEditing] = useState<PetVetVisit | "new" | null>(null);
   const [draft, setDraft] = useState<PetVetVisitInput>(emptyVetVisit);
   const [files, setFiles] = useState<VetLocalFile[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const detailOptions = vetVisitDetailForActor(
+    actor,
+    petId,
+    listData?.some((item) => item.id === expanded) ? expanded : null,
+  );
+  const detailQuery = useQuery({
+    ...detailOptions,
+    enabled: readReady && readStatus === "ready" && detailOptions.enabled,
+  });
+  const verifiedDetail = readReady
+    ? vetDetailCacheForActor(detailQuery.data, actor, petId, expanded)
+    : null;
+  const detail =
+    readReady &&
+    !detailQuery.isFetching &&
+    !detailQuery.isPending &&
+    verifiedDetail?.kind === "ready"
+      ? verifiedDetail.data
+      : null;
   const [busy, setBusy] = useState(false);
+  const [createUnknown, setCreateUnknown] = useState(false);
+  const [vetErrors, setVetErrors] = useState<VetFieldErrors>({});
+  // Immediate barrier for rapid two taps; no automatic replay after lost ACK.
+  const createFlight = useRef(false);
+  const createUnknownRef = useRef(false);
+  const editFlight = useRef(false);
+  const editUnknownRef = useRef(false);
+  const deleteFlight = useRef(false);
+  const deletePrompt = useRef(false);
+  const deleteUnknownRef = useRef(false);
+  const [deleteUnknown, setDeleteUnknown] = useState(false);
+  const activeDetailRef = useRef<string | null>(null);
+  activeDetailRef.current = detail?.id ?? null;
+  const lifecycle = useRef(0);
+  const mounted = useRef(true);
+  const scope = useRef({ ownerId: actorOwnerId, epoch: actorEpoch, petId });
+  scope.current = { ownerId: actorOwnerId, epoch: actorEpoch, petId };
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      lifecycle.current += 1;
+    };
+  }, []);
   const [error, setError] = useState("");
   const [day, setDay] = useState("");
+  useEffect(() => {
+    lifecycle.current += 1;
+    createFlight.current = false;
+    createUnknownRef.current = false;
+    editFlight.current = false;
+    editUnknownRef.current = false;
+    deleteFlight.current = false;
+    deletePrompt.current = false;
+    deleteUnknownRef.current = false;
+    setDeleteUnknown(false);
+    setCreateUnknown(false);
+    setVetErrors({});
+    setBusy(false);
+    setEditing(null);
+    setDraft(emptyVetVisit());
+    setFiles([]);
+    setExpanded(null);
+    setDay("");
+    setError("");
+  }, [actorOwnerId, actorEpoch, petId]);
   usePreventRemove(!!editing, ({ data }) => {
     if (busy) return;
     Alert.alert("Закрыть форму?", "Несохранённые изменения будут потеряны", [
@@ -302,125 +448,260 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
       scroll.current?.scrollTo({ y: 0, animated: true });
     }
   }, [error]);
-  async function refresh() {
-    const data = await api.list(petId);
-    client.setQueryData(key, data);
-    return data;
-  }
-  async function perform(work: () => Promise<void>) {
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      await work();
-    } catch (e) {
-      reportClientError(new Error("Vet visit action failed"), {
-        issueKey: "PetVetVisits",
-        keys: { operation: "saveOrDelete" },
-      });
-      setError(message(e));
-    } finally {
-      setBusy(false);
+  function confirmDelete(visit: PetVetVisit) {
+    if (
+      !actor ||
+      !sameVetActor(actor) ||
+      !readReady ||
+      readStatus !== "ready" ||
+      busy ||
+      createFlight.current ||
+      editFlight.current ||
+      deleteFlight.current ||
+      deletePrompt.current ||
+      deleteUnknownRef.current ||
+      createUnknownRef.current ||
+      editUnknownRef.current ||
+      activeDetailRef.current !== visit.id
+    )
+      return;
+    if (visit.attachments.length) {
+      setError("Удаление посещений с вложениями требует отдельной проверки.");
+      return;
     }
+    deletePrompt.current = true;
+    const generation = lifecycle.current;
+    const route = { ownerId: actor.ownerId, epoch: actor.authEpoch, petId };
+    const live = () =>
+      mounted.current &&
+      lifecycle.current === generation &&
+      scope.current.ownerId === route.ownerId &&
+      scope.current.epoch === route.epoch &&
+      scope.current.petId === route.petId &&
+      sameVetActor(actor);
+    const cancel = () => {
+      if (live()) deletePrompt.current = false;
+    };
+    Alert.alert(
+      "Удалить посещение?",
+      "Удалить запись без вложений?",
+      [
+        { text: "Отмена", style: "cancel", onPress: cancel },
+        {
+          text: "Удалить",
+          style: "destructive",
+          onPress: () => {
+            if (
+              !live() ||
+              !deletePrompt.current ||
+              deleteFlight.current ||
+              deleteUnknownRef.current ||
+              activeDetailRef.current !== visit.id ||
+              !readReady ||
+              readStatus !== "ready"
+            )
+              return;
+            deletePrompt.current = false;
+            deleteFlight.current = true;
+            setBusy(true);
+            setError("");
+            void (async () => {
+              try {
+                const result = await deleteVetVisitAndReadback({
+                  actor,
+                  petId,
+                  original: visit,
+                  live,
+                });
+                if (!live()) return;
+                if (result.kind === "confirmed") {
+                  setExpanded(null);
+                  setFocusProof(null);
+                  void refetchVisits().then((response) => {
+                    if (live() && response.data)
+                      setFocusProof(`${actor.ownerId}:${actor.authEpoch}:${petId}`);
+                  });
+                } else if (result.kind === "unknown") {
+                  deleteUnknownRef.current = true;
+                  setDeleteUnknown(true);
+                  setError(
+                    "Результат удаления неизвестен. Повторное удаление заблокировано. Проверьте запись вручную.",
+                  );
+                } else if (result.kind === "blocked_attachments") {
+                  setError("У записи появились вложения. Удаление заблокировано.");
+                } else if (result.kind === "missing") {
+                  setError("Запись недоступна. Обновите историю посещений.");
+                }
+              } finally {
+                if (live()) {
+                  deleteFlight.current = false;
+                  setBusy(false);
+                }
+              }
+            })();
+          },
+        },
+      ],
+      { cancelable: true, onDismiss: cancel },
+    );
   }
   function edit(visit: PetVetVisit | "new") {
+    if (
+      !actor ||
+      !sameVetActor(actor) ||
+      createFlight.current ||
+      createUnknownRef.current ||
+      editFlight.current ||
+      editUnknownRef.current ||
+      deleteFlight.current ||
+      deletePrompt.current ||
+      deleteUnknownRef.current
+    )
+      return;
     const next = visit === "new" ? emptyVetVisit() : { ...visit };
     setDraft(next);
     setDay(next.visitedOn.split("-").reverse().join("."));
     setEditing(visit);
     setFiles([]);
     setError("");
+    setVetErrors({});
     requestAnimationFrame(() => scroll.current?.scrollTo({ y: 0, animated: true }));
   }
-  function append(selected: VetLocalFile[]) {
-    const existing = editing && editing !== "new" ? editing.attachments.length : 0;
-    if (existing + files.length + selected.length > VET_VISIT_MAX_ATTACHMENTS)
-      throw new Error("На одно посещение можно добавить до 5 вложений");
-    if (
-      selected.some(
-        (file) =>
-          !file.size ||
-          file.size > VET_VISIT_MAX_FILE_BYTES ||
-          !VET_VISIT_MIME_TYPES.includes(file.type as (typeof VET_VISIT_MIME_TYPES)[number]),
+  async function save() {
+    if (editing === "new") {
+      if (
+        createFlight.current ||
+        createUnknownRef.current ||
+        !actor ||
+        !sameVetActor(actor) ||
+        !readReady ||
+        readStatus !== "ready"
       )
-    )
-      throw new Error("Выберите JPEG, PNG, WebP или PDF размером до 10 МБ каждый");
-    setFiles((current) => [...current, ...selected]);
-  }
-  async function pick(camera: boolean) {
-    if (camera) {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert(
-          "Нужен доступ к камере",
-          "Разрешите доступ в настройках, чтобы сфотографировать медкарту",
-          [
-            { text: "Закрыть", style: "cancel" },
-            { text: "Настройки", onPress: () => void Linking.openSettings() },
-          ],
-        );
+        return;
+      if (files.length) {
+        setError("Сначала уберите вложения: их сохранение требует отдельной проверки.");
         return;
       }
-    }
-    const remaining =
-      5 - files.length - (editing && editing !== "new" ? editing.attachments.length : 0);
-    const result = camera
-      ? await ImagePicker.launchCameraAsync({ quality: 1, allowsEditing: false })
-      : await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ["images"],
-          allowsMultipleSelection: true,
-          selectionLimit: remaining,
-          quality: 1,
-          preferredAssetRepresentationMode:
-            ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-        });
-    if (!result.canceled)
-      append(
-        await Promise.all(
-          result.assets.map(async (asset) => {
-            const info = await FileSystem.getInfoAsync(asset.uri);
-            return {
-              uri: asset.uri,
-              name: asset.fileName ?? "Медкарта.jpg",
-              type: asset.mimeType ?? "image/jpeg",
-              size: asset.fileSize ?? (info.exists ? info.size : 0),
-            };
-          }),
-        ),
-      );
-  }
-  async function save() {
-    const parts = day.split(".");
-    const visitedOn = parts.length === 3 ? parts.reverse().join("-") : "";
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(visitedOn) ||
-      new Date(`${visitedOn}T00:00:00`).getTime() > Date.now()
-    ) {
-      setError("Укажите дату посещения в формате ДД.ММ.ГГГГ, не позднее сегодняшней");
-      return;
-    }
-    if (!draft.specialty.trim()) {
-      setError("Укажите специальность врача");
-      return;
-    }
-    await perform(async () => {
-      const visit = await api.save(
-        petId,
-        { ...draft, visitedOn },
-        editing && editing !== "new" ? editing.id : undefined,
-      );
-      setEditing(visit);
-      for (const file of files) {
-        await api.upload(petId, visit.id, file);
-        setFiles((current) => current.filter((item) => item !== file));
-        const fresh = (await refresh()).find((item) => item.id === visit.id);
-        if (fresh) setEditing(fresh);
+      createFlight.current = true;
+      setBusy(true);
+      setError("");
+      setVetErrors({});
+      const generation = lifecycle.current;
+      const route = { ownerId: actor.ownerId, epoch: actor.authEpoch, petId };
+      const live = () =>
+        mounted.current &&
+        lifecycle.current === generation &&
+        scope.current.ownerId === route.ownerId &&
+        scope.current.epoch === route.epoch &&
+        scope.current.petId === route.petId;
+      try {
+        const result = await createVetVisitAndReadback({ actor, petId, day, draft, live });
+        if (!live() || !sameVetActor(actor)) return;
+        if (result.kind === "rejected") {
+          setVetErrors(result.fieldErrors);
+          setError(vetFieldErrorMessage(result.fieldErrors));
+        } else if (result.kind === "invalid") {
+          setError(
+            result.field === "date"
+              ? "Проверьте дату: формат ДД.ММ.ГГГГ, с 1900 года и не позже сегодня."
+              : result.field === "specialty"
+                ? "Укажите специальность врача (не более 200 символов)."
+                : "Проверьте длину полей записи.",
+          );
+        } else if (result.kind === "confirmed") {
+          setEditing(null);
+          setFiles([]);
+          setExpanded(result.visit.id);
+          // Never put POST ACK into the private read-only query cache.
+          // One fresh list GET updates the owner-scoped active query; do not
+          // trigger a second request with invalidateQueries before refetch.
+          setFocusProof(null);
+          void refetchVisits().then((response) => {
+            if (live() && sameVetActor(actor) && response.data)
+              setFocusProof(`${actor.ownerId}:${actor.authEpoch}:${petId}`);
+          });
+        } else if (result.kind === "unknown") {
+          createUnknownRef.current = true;
+          setCreateUnknown(true);
+          setError(
+            "Результат сохранения неизвестен. Проверьте историю посещений; повторное создание заблокировано, чтобы не создать дубль.",
+          );
+        }
+      } finally {
+        if (live() && sameVetActor(actor)) {
+          createFlight.current = false;
+          setBusy(false);
+        }
       }
-      await refresh();
-      setEditing(null);
-      setFiles([]);
-      setExpanded(visit.id);
-    });
+      return;
+    }
+    if (editing) {
+      if (
+        editFlight.current ||
+        editUnknownRef.current ||
+        !actor ||
+        !sameVetActor(actor) ||
+        !readReady ||
+        readStatus !== "ready"
+      )
+        return;
+      if (files.length) {
+        setError("Сначала уберите новые вложения: их загрузка требует отдельной проверки.");
+        return;
+      }
+      editFlight.current = true;
+      setBusy(true);
+      setError("");
+      setVetErrors({});
+      const generation = lifecycle.current;
+      const route = { ownerId: actor.ownerId, epoch: actor.authEpoch, petId };
+      const original = editing;
+      const live = () =>
+        mounted.current &&
+        lifecycle.current === generation &&
+        scope.current.ownerId === route.ownerId &&
+        scope.current.epoch === route.epoch &&
+        scope.current.petId === route.petId;
+      try {
+        const result = await editVetVisitAndReadback({ actor, petId, original, day, draft, live });
+        if (!live() || !sameVetActor(actor)) return;
+        if (result.kind === "confirmed" || result.kind === "unchanged") {
+          setEditing(null);
+          setFiles([]);
+          setExpanded(original.id);
+          setFocusProof(null);
+          void refetchVisits().then((response) => {
+            if (live() && sameVetActor(actor) && response.data)
+              setFocusProof(`${actor.ownerId}:${actor.authEpoch}:${petId}`);
+          });
+        } else if (result.kind === "rejected") {
+          setVetErrors(result.fieldErrors);
+          setError(vetFieldErrorMessage(result.fieldErrors));
+        } else if (result.kind === "invalid") {
+          setError(
+            result.field === "date"
+              ? "Проверьте дату посещения."
+              : result.field === "specialty"
+                ? "Проверьте специальность врача."
+                : "Проверьте поля записи.",
+          );
+        } else if (result.kind === "missing") {
+          setError("Запись больше недоступна. Обновите историю посещений.");
+        } else if (result.kind === "unknown") {
+          editUnknownRef.current = true;
+          setCreateUnknown(true); // Disable action buttons until manual status verification.
+          setError(
+            "Результат изменения неизвестен. Проверьте запись в истории; повторное сохранение заблокировано.",
+          );
+        }
+      } finally {
+        if (live() && sameVetActor(actor)) {
+          editFlight.current = false;
+          setBusy(false);
+        }
+      }
+      return;
+    }
   }
   const attachments = editing && editing !== "new" ? editing.attachments : [];
   if (!petId)
@@ -456,18 +737,45 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
             { paddingTop: topInset + (Platform.OS === "ios" ? 44 : 56) + 20 },
           ]}
         >
-          <Text style={s.petName}>{pet.data?.name ?? "Посещения врача"}</Text>
-          {(error || visits.error) && (
+          <Text style={s.petName}>
+            {readReady ? (pet.data?.name ?? "Посещения врача") : "Посещения врача"}
+          </Text>
+          {error && readStatus === "ready" && (
             <View accessibilityRole="alert" style={s.error}>
-              <Text style={s.errorText}>{error || message(visits.error)}</Text>
-              {visits.error && (
-                <Button label="Повторить" variant="caramel" onPress={() => void visits.refetch()} />
+              <Text style={s.errorText}>{error}</Text>
+            </View>
+          )}
+          {readReady && readStatus !== "ready" && (
+            <View accessibilityRole="alert" style={s.error}>
+              <Text style={s.errorText}>
+                {readStatus === "missing"
+                  ? "Питомец или посещение не найдено"
+                  : readStatus === "unauthorized" || readStatus === "stale"
+                    ? "Доступ к медкарте не подтверждён. Войдите снова."
+                    : "Не удалось загрузить историю посещений. Попробуйте ещё раз."}
+              </Text>
+              {readStatus === "unknown" && (
+                <Button
+                  label="Повторить"
+                  variant="caramel"
+                  onPress={() => {
+                    setFocusProof(null);
+                    void refetchVisits().then((result) => {
+                      if (actor && sameVetActor(actor) && result.data)
+                        setFocusProof(`${actor.ownerId}:${actor.authEpoch}:${petId}`);
+                    });
+                  }}
+                />
               )}
             </View>
           )}
-          {visits.isLoading ? (
+          {!actor || !sameVetActor(actor) ? (
+            <View accessibilityRole="alert">
+              <Text>Медкарта доступна только владельцу после входа.</Text>
+            </View>
+          ) : !readReady ? (
             <Loading message="Загрузка посещений…" />
-          ) : editing ? (
+          ) : readStatus !== "ready" ? null : editing ? (
             <View style={s.form}>
               <Text style={s.title}>
                 {editing === "new" ? "Новое посещение" : "Редактирование посещения"}
@@ -482,8 +790,13 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
                 placeholderTextColor="#706b60"
                 maxLength={10}
                 accessibilityLabel="Дата посещения, ДД.ММ.ГГГГ"
-                onChangeText={setDay}
+                onChangeText={(value) => {
+                  setDay(value);
+                  setVetErrors({});
+                }}
               />
+              {vetErrors.visitedOn && <Text style={s.errorText}>Проверьте дату посещения.</Text>}
+              {vetErrors.body && <Text style={s.errorText}>Проверьте данные записи.</Text>}
               {fields.map(([field, label, maxLength]) => (
                 <View key={field}>
                   <Text style={s.label}>
@@ -499,8 +812,18 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
                     maxLength={maxLength}
                     multiline={maxLength > 300}
                     textAlignVertical={maxLength > 300 ? "top" : "center"}
-                    onChangeText={(value) => setDraft({ ...draft, [field]: value })}
+                    onChangeText={(value) => {
+                      setDraft({ ...draft, [field]: value });
+                      setVetErrors({});
+                    }}
                   />
+                  {vetErrors[field] && (
+                    <Text style={s.errorText}>
+                      {field === "specialty"
+                        ? "Проверьте специальность врача."
+                        : "Проверьте значение или длину поля."}
+                    </Text>
+                  )}
                 </View>
               ))}
               <Text style={s.title}>Медкарты и фотографии</Text>
@@ -515,19 +838,7 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
                     variant="outline"
                     fullWidth={false}
                     disabled={busy}
-                    onPress={() =>
-                      confirm(
-                        "Удалить вложение?",
-                        a.name,
-                        () =>
-                          void perform(async () => {
-                            if (editing === "new") return;
-                            await api.removeAttachment(petId, editing.id, a.id);
-                            const data = await refresh();
-                            setEditing(data.find((v) => v.id === editing.id) ?? null);
-                          }),
-                      )
-                    }
+                    onPress={() => setError("Удаление вложений требует отдельной проверки.")}
                   />
                 </View>
               ))}
@@ -552,43 +863,26 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
                     label="Выбрать фото"
                     variant="caramel"
                     disabled={busy}
-                    onPress={() => void perform(() => pick(false))}
+                    onPress={() => setError("Загрузка вложений требует отдельной проверки.")}
                   />
                   <Button
                     label="Сфотографировать"
                     variant="caramel"
                     disabled={busy}
-                    onPress={() => void perform(() => pick(true))}
+                    onPress={() => setError("Загрузка вложений требует отдельной проверки.")}
                   />
                   <Button
                     label="Выбрать PDF или файл"
                     variant="caramel"
                     disabled={busy}
-                    onPress={() =>
-                      void perform(async () => {
-                        const result = await DocumentPicker.getDocumentAsync({
-                          type: [...VET_VISIT_MIME_TYPES],
-                          multiple: true,
-                          copyToCacheDirectory: true,
-                        });
-                        if (!result.canceled)
-                          append(
-                            result.assets.map((a) => ({
-                              uri: a.uri,
-                              name: a.name,
-                              type: a.mimeType ?? "application/octet-stream",
-                              size: a.size ?? 0,
-                            })),
-                          );
-                      })
-                    }
+                    onPress={() => setError("Загрузка вложений требует отдельной проверки.")}
                   />
                 </View>
               )}
               <View style={s.buttons}>
                 <Button
                   label={busy ? "Сохранение…" : "Сохранить"}
-                  disabled={busy}
+                  disabled={busy || createUnknown}
                   onPress={() => void save()}
                 />
                 <Button
@@ -604,9 +898,7 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
                           setEditing(null);
                           setFiles([]);
                           setError("");
-                          void perform(async () => {
-                            await refresh();
-                          });
+                          if (actor && sameVetActor(actor)) void refetchVisits();
                         },
                       },
                     ])
@@ -620,9 +912,9 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
                 label="Добавить запись"
                 icon="plus"
                 onPress={() => edit("new")}
-                disabled={busy}
+                disabled={busy || createUnknown}
               />
-              {!visits.data?.length && !visits.error && (
+              {listData?.length === 0 && (
                 <View style={s.empty}>
                   <MaterialCommunityIcons name="stethoscope" size={42} color={COLORS.primary} />
                   <Text style={s.title}>Здесь будет история посещений</Text>
@@ -631,13 +923,16 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
                   </Text>
                 </View>
               )}
-              {visits.data?.map((visit) => (
+              {listData?.map((visit) => (
                 <View key={visit.id} style={s.visit}>
                   <Pressable
                     style={s.visitHeader}
                     accessibilityRole="button"
                     accessibilityState={{ expanded: expanded === visit.id }}
-                    onPress={() => setExpanded(expanded === visit.id ? null : visit.id)}
+                    onPress={() => {
+                      if (actor && sameVetActor(actor))
+                        setExpanded(expanded === visit.id ? null : visit.id);
+                    }}
                   >
                     <View style={s.grow}>
                       <Text style={s.caption}>{vetVisitDateLabel(visit.visitedOn)}</Text>
@@ -655,48 +950,65 @@ export function PetVetVisitsScreen({ petId }: { petId: string }) {
                   </Pressable>
                   {expanded === visit.id && (
                     <View style={s.visitBody}>
-                      {fields
-                        .filter(([field]) => visit[field])
-                        .map(([field, label]) => (
-                          <View key={field} style={s.detail}>
-                            <Text style={s.caption}>{label}</Text>
-                            <Text selectable style={s.body}>
-                              {visit[field]}
-                            </Text>
-                          </View>
-                        ))}
-                      {!!visit.attachments.length && (
-                        <View style={s.buttons}>
-                          <Text style={s.title}>Вложения · {visit.attachments.length}</Text>
-                          {visit.attachments.map((a) => (
-                            <Attachment key={a.id} petId={petId} visitId={visit.id} item={a} />
-                          ))}
+                      {!detail && (detailQuery.isPending || detailQuery.isFetching) && (
+                        <Loading message="Загрузка посещения…" />
+                      )}
+                      {!detail && !detailQuery.isPending && !detailQuery.isFetching && (
+                        <View accessibilityRole="alert">
+                          <Text>
+                            {detailQuery.data?.kind === "missing"
+                              ? "Посещение не найдено"
+                              : "Не удалось подтвердить доступ к записи."}
+                          </Text>
+                          {detailQuery.data?.kind === "unknown" && (
+                            <Button label="Повторить" onPress={() => void detailQuery.refetch()} />
+                          )}
                         </View>
                       )}
-                      <View style={s.buttons}>
-                        <Button
-                          label="Редактировать"
-                          variant="caramel"
-                          disabled={busy}
-                          onPress={() => edit(visit)}
-                        />
-                        <Button
-                          label="Удалить запись"
-                          variant="danger"
-                          disabled={busy}
-                          onPress={() =>
-                            confirm(
-                              "Удалить посещение?",
-                              "Запись и все её вложения будут удалены",
-                              () =>
-                                void perform(async () => {
-                                  await api.remove(petId, visit.id);
-                                  await refresh();
-                                }),
-                            )
-                          }
-                        />
-                      </View>
+                      {detail && (
+                        <>
+                          {fields
+                            .filter(([field]) => detail[field])
+                            .map(([field, label]) => (
+                              <View key={field} style={s.detail}>
+                                <Text style={s.caption}>{label}</Text>
+                                <Text selectable style={s.body}>
+                                  {detail[field]}
+                                </Text>
+                              </View>
+                            ))}
+                          {!!detail.attachments.length && (
+                            <View style={s.buttons}>
+                              <Text style={s.title}>Вложения · {detail.attachments.length}</Text>
+                              {detail.attachments.map((a) => (
+                                <Attachment
+                                  key={a.id}
+                                  petId={petId}
+                                  visitId={detail.id}
+                                  item={a}
+                                  actor={actor}
+                                />
+                              ))}
+                            </View>
+                          )}
+                          <View style={s.buttons}>
+                            <Button
+                              label="Редактировать"
+                              variant="caramel"
+                              disabled={busy}
+                              onPress={() => {
+                                if (actor && sameVetActor(actor)) edit(detail);
+                              }}
+                            />
+                            <Button
+                              label="Удалить запись"
+                              variant="danger"
+                              disabled={busy || deleteUnknown}
+                              onPress={() => confirmDelete(detail)}
+                            />
+                          </View>
+                        </>
+                      )}
                     </View>
                   )}
                 </View>

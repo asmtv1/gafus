@@ -1,0 +1,32 @@
+# Chat 2.0 only. Neither legacy feed processor nor GAFUS Main is modified.
+# Build context: repository root.
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+RUN npm install --ignore-scripts --no-save esbuild@0.27.2 sharp@0.35.5 @aws-sdk/client-s3@3.980.0
+COPY apps/feed-cloud/src apps/feed-cloud/src
+COPY packages/feed-cloud/src packages/feed-cloud/src
+RUN ./node_modules/.bin/esbuild apps/feed-cloud/src/chat2-job-entry.ts \
+  --bundle --platform=node --target=node22 --format=esm --external:sharp \
+  --alias:@gafus/feed-cloud=./packages/feed-cloud/src/index.ts \
+  --outfile=chat2-job.mjs \
+  '--banner:js=import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
+
+# Common runtime for both photo/video jobs; no ffmpeg in photo image.
+FROM node:22-bookworm-slim AS runtime-base
+WORKDIR /app
+RUN npm install --omit=dev --ignore-scripts --no-save sharp@0.35.5 \
+  && mkdir -p /app/work && chown -R node:node /app/work
+COPY --from=build /app/chat2-job.mjs /app/chat2-job.mjs
+USER node
+ENV CHAT2_JOB_WORK_ROOT=/app/work
+CMD ["node", "/app/chat2-job.mjs"]
+
+# --target photo  : 1 vCPU, 2048 MiB. Sharp only, no FFmpeg dependency.
+FROM runtime-base AS photo
+
+# --target video  : 2 vCPU, 8192 MiB. FFmpeg H264/AAC 360p+720p.
+FROM runtime-base AS video
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+USER node

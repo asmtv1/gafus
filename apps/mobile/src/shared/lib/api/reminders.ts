@@ -25,17 +25,39 @@ export interface ReminderUpdatePayload {
 }
 
 export const remindersApi = {
-  getAll: async (): Promise<ApiResponse<Reminder[]>> => {
-    return apiClient<Reminder[]>("/api/v1/reminders");
+  getAll: async (requestGuard?: () => boolean): Promise<ApiResponse<Reminder[]>> => {
+    return apiClient<Reminder[]>("/api/v1/reminders", {
+      ...(requestGuard ? { requestGuard } : {}),
+    });
   },
-  create: async (payload: ReminderPayload): Promise<ApiResponse<Reminder>> => {
-    return apiClient<Reminder>("/api/v1/reminders", { method: "POST", body: payload });
+  create: async (
+    payload: ReminderPayload,
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<Reminder>> => {
+    return apiClient<Reminder>("/api/v1/reminders", {
+      method: "POST",
+      body: payload,
+      skipAuthRefreshReplay: true,
+      ...(requestGuard ? { requestGuard } : {}),
+    });
   },
-  update: async (id: string, payload: ReminderUpdatePayload): Promise<ApiResponse<Reminder>> => {
-    return apiClient<Reminder>(`/api/v1/reminders/${id}`, { method: "PUT", body: payload });
+  update: async (
+    id: string,
+    payload: ReminderUpdatePayload,
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<Reminder>> => {
+    return apiClient<Reminder>(`/api/v1/reminders/${id}`, {
+      method: "PUT",
+      body: payload,
+      skipAuthRefreshReplay: true,
+      ...(requestGuard ? { requestGuard } : {}),
+    });
   },
-  remove: async (id: string): Promise<ApiResponse<void>> => {
-    return apiClient<void>(`/api/v1/reminders/${id}`, { method: "DELETE" });
+  remove: async (id: string, requestGuard?: () => boolean): Promise<ApiResponse<void>> => {
+    return apiClient<void>(`/api/v1/reminders/${id}`, {
+      method: "DELETE",
+      skipAuthRefreshReplay: true,
+      ...(requestGuard ? { requestGuard } : {}),
+    });
   },
 };
-

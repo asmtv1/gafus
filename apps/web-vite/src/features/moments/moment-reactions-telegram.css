@@ -1,0 +1,128 @@
+/* One Telegram-style reaction strip for the Moments feed and post detail.
+   Counts are server-owned; only nonzero reactions become inline chips. */
+.gafus-app .moment-actions .moment-reaction-tray {
+  position: relative;
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+.gafus-app .moment-actions .moment-reaction-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.gafus-app .moment-actions .moment-reaction-tray .moment-reaction-chip,
+.gafus-app .moment-actions .moment-reaction-tray .moment-reaction-add,
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-reaction-tray .moment-reaction-chip,
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-reaction-tray .moment-reaction-add {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: auto;
+  min-width: 34px;
+  min-height: 32px;
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid #e7eae3;
+  border-radius: 12px;
+  background: #f5f6f2;
+  color: #515d4c;
+  box-shadow: none;
+  font: 550 12px/1.35 var(--font-montserrat), system-ui, sans-serif;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.gafus-app .moment-actions .moment-reaction-tray .moment-reaction-emoji {
+  font-family: system-ui, 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif;
+  font-size: 17px;
+  line-height: 1.15;
+}
+.gafus-app .moment-actions .moment-reaction-tray .moment-reaction-count {
+  font-variant-numeric: tabular-nums;
+}
+.gafus-app .moment-actions .moment-reaction-tray .moment-reaction-add,
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-reaction-tray .moment-reaction-add {
+  padding-inline: 0;
+  font-family: system-ui, sans-serif;
+  font-size: 19px;
+  font-weight: 450;
+  line-height: 1;
+  color: #6b7766;
+}
+.gafus-app .moment-actions .moment-reaction-tray .moment-reaction-chip[aria-pressed="true"],
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-reaction-tray .moment-reaction-chip[aria-pressed="true"] {
+  background: #e9f1e3;
+  border-color: #c7d9bc;
+  color: #456138;
+}
+.gafus-app .moment-actions .moment-reaction-tray :is(.moment-reaction-chip,.moment-reaction-add):hover:not(:disabled),
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-reaction-tray :is(.moment-reaction-chip,.moment-reaction-add):hover:not(:disabled) {
+  background: #e9efe3;
+  border-color: #bcccaf;
+  color: #455a39;
+}
+.gafus-app .moment-actions .moment-reaction-tray :is(.moment-reaction-chip,.moment-reaction-add):disabled {
+  opacity: .55;
+  cursor: wait;
+}
+.gafus-app .moment-actions .moment-reaction-tray .moment-reaction-picker,
+.gafus-app .web4-moment-detail .moment-reaction-tray .moment-reaction-picker {
+  position: absolute;
+  z-index: 25;
+  left: 0;
+  bottom: calc(100% + 8px);
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 30px));
+  gap: 3px;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid #e3e7dd;
+  border-radius: 14px;
+  background: #fffefa;
+  box-shadow: 0 8px 22px rgba(42, 53, 36, .13);
+}
+.gafus-app .moment-actions .moment-reaction-tray .moment-reaction-picker button,
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-reaction-tray .moment-reaction-picker button {
+  box-sizing: border-box;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 37px;
+  width: 37px;
+  min-width: 37px;
+  min-height: 37px;
+  padding: 4px;
+  margin: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  font: 20px/1 system-ui, 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif;
+  cursor: pointer;
+}
+.gafus-app .moment-actions .moment-reaction-tray .moment-reaction-picker button:is(:hover,[aria-pressed="true"]),
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-reaction-tray .moment-reaction-picker button:is(:hover,[aria-pressed="true"]) {
+  background: #eef3e9;
+}
+.gafus-app .moment-actions .moment-reaction-tray :is(button):focus-visible {
+  outline: 2px solid #708b5d;
+  outline-offset: 2px;
+}
+@media (max-width: 400px) {
+  .gafus-app .moment-actions .moment-reaction-chips { gap: 4px; }
+  .gafus-app .moment-actions .moment-reaction-tray .moment-reaction-chip { padding-inline: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gafus-app .moment-actions .moment-reaction-tray button { transition: none; }
+}

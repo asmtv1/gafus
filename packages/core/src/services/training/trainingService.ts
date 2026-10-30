@@ -186,13 +186,17 @@ function mapCourseToTrainingDays(
       const sharedUt = sharedTrainingByDayId.get(link.dayId);
       if (sharedUt) statusSource = sharedUt;
     }
-    const allStepStatuses: string[] = [];
-    for (const stepLink of link.day.stepLinks) {
-      const userStep = statusSource?.steps?.find(
-        (s: { stepOnDayId: string }) => s.stepOnDayId === stepLink.id,
-      );
-      allStepStatuses.push(userStep?.status || TrainingStatus.NOT_STARTED);
+
+    // Array.find used the first matching row even for duplicate stepOnDayId.
+    const statusByStepId = new Map<string, string>();
+    for (const step of statusSource?.steps ?? []) {
+      if (!statusByStepId.has(step.stepOnDayId)) {
+        statusByStepId.set(step.stepOnDayId, step.status);
+      }
     }
+    const allStepStatuses = link.day.stepLinks.map(
+      (stepLink) => statusByStepId.get(stepLink.id) || TrainingStatus.NOT_STARTED,
+    );
     return {
       id: link.id,
       type: link.day.type,
@@ -202,32 +206,23 @@ function mapCourseToTrainingDays(
     };
   });
 
+  // Summary excludes EVERY incomplete day with its own link.id, even
+  // anomalous duplicates; aggregate once instead of an every per summary.
+  const incompleteByLinkId = new Map<string, number>();
+  let incompleteTotal = 0;
+  for (const dayStatus of dayStatuses) {
+    if (dayStatus.status !== TrainingStatus.COMPLETED) {
+      incompleteTotal++;
+      incompleteByLinkId.set(dayStatus.id, (incompleteByLinkId.get(dayStatus.id) ?? 0) + 1);
+    }
+  }
+
   return firstCourse.dayLinks.map((link, index) => {
-    const _displayDay = calculateDisplayDayNumber(firstCourse.dayLinks, index);
-    const ut = link.userTrainings[0];
-    let statusSource = ut;
-    if (!ut && link.day.shareProgressAcrossCourses) {
-      const sharedUt = sharedTrainingByDayId.get(link.dayId);
-      if (sharedUt) statusSource = sharedUt;
-    }
-    const allStepStatuses: string[] = [];
-    for (const stepLink of link.day.stepLinks) {
-      const userStep = statusSource?.steps?.find(
-        (s: { stepOnDayId: string }) => s.stepOnDayId === stepLink.id,
-      );
-      allStepStatuses.push(userStep?.status || TrainingStatus.NOT_STARTED);
-    }
-    const userStatus = statusSource
-      ? calculateDayStatusFromStatuses(allStepStatuses)
-      : TrainingStatus.NOT_STARTED;
+    const userStatus = dayStatuses[index].status;
 
     let isLocked = false;
     if (link.day.type === "summary") {
-      const allOtherDaysCompleted = dayStatuses.every((dayStatus) => {
-        if (dayStatus.id === link.id) return true;
-        return dayStatus.status === TrainingStatus.COMPLETED;
-      });
-      isLocked = !allOtherDaysCompleted;
+      isLocked = incompleteTotal > (incompleteByLinkId.get(link.id) ?? 0);
     }
 
     let trainingSeconds = 0;
@@ -680,12 +675,17 @@ export async function getTrainingDayWithUserSteps(
     })) as UserStepWithPause[];
   }
 
-  // Создаем недостающие UserStep записи
+  // Explicit read-only GET must never backfill UserStep rows.
+  // Omitted createIfMissing preserves the legacy existing-training backfill.
   const existingStepOnDayIds = new Set(userSteps.map((us) => us.stepOnDayId));
   const allStepOnDayIds = stepLinks.map((link: { id: string }) => link.id);
   const missingStepOnDayIds = allStepOnDayIds.filter((id: string) => !existingStepOnDayIds.has(id));
 
-  if (missingStepOnDayIds.length > 0 && !options?.allowPaywalledPreview) {
+  if (
+    missingStepOnDayIds.length > 0 &&
+    options?.createIfMissing !== false &&
+    !options?.allowPaywalledPreview
+  ) {
     try {
       const newUserSteps = await prisma.$transaction(
         async (tx) => {
@@ -869,25 +869,40 @@ export async function getTrainingDayWithMonetizedSteps(
     return { ...detail, steps: detail.steps.map((step) => ({ ...step, locked: false })) };
   }
 
-  const steps = await Promise.all(detail.steps.map(async (step, stepIndex) => {
-    const target = isRewardedMonetizedStepType(step.type)
-      ? await resolveCourseStepRewardedTarget({ userId, courseType, dayOnCourseId, stepIndex })
-      : null;
-    // BREAK / DIARY are not monetized steps and remain available.
-    if (!target) return { ...step, locked: false };
-    if (await hasActiveGafusCourseStepAccess({
-      userId, dayOnCourseId, stepOnDayId: target.targetId,
-    })) {
-      return { ...step, locked: false, monetizationTarget: { targetType: "COURSE_STEP" as const, targetId: target.targetId } };
-    }
-    try {
-      await getPremiumOrRewardedAccess({ userId, platform: options.platform, target });
-      return { ...step, locked: false, monetizationTarget: { targetType: "COURSE_STEP" as const, targetId: target.targetId } };
-    } catch (error) {
-      if (isSubscriptionOrCreditsRequiredError(error)) return redactLockedTrainingStep(step, target);
-      throw error;
-    }
-  }));
+  const steps = await Promise.all(
+    detail.steps.map(async (step, stepIndex) => {
+      const target = isRewardedMonetizedStepType(step.type)
+        ? await resolveCourseStepRewardedTarget({ userId, courseType, dayOnCourseId, stepIndex })
+        : null;
+      // BREAK / DIARY are not monetized steps and remain available.
+      if (!target) return { ...step, locked: false };
+      if (
+        await hasActiveGafusCourseStepAccess({
+          userId,
+          dayOnCourseId,
+          stepOnDayId: target.targetId,
+        })
+      ) {
+        return {
+          ...step,
+          locked: false,
+          monetizationTarget: { targetType: "COURSE_STEP" as const, targetId: target.targetId },
+        };
+      }
+      try {
+        await getPremiumOrRewardedAccess({ userId, platform: options.platform, target });
+        return {
+          ...step,
+          locked: false,
+          monetizationTarget: { targetType: "COURSE_STEP" as const, targetId: target.targetId },
+        };
+      } catch (error) {
+        if (isSubscriptionOrCreditsRequiredError(error))
+          return redactLockedTrainingStep(step, target);
+        throw error;
+      }
+    }),
+  );
   return { ...detail, description: "", showCoursePathExport: false, steps };
 }
 
@@ -911,9 +926,14 @@ export async function requireCourseStepPremiumOrRewardedUnlock(input: {
   }
   const target = await resolveCourseStepRewardedTarget(input);
   if (!target) return null;
-  if (await hasActiveGafusCourseStepAccess({
-    userId: input.userId, dayOnCourseId: input.dayOnCourseId, stepOnDayId: target.targetId,
-  })) return null;
+  if (
+    await hasActiveGafusCourseStepAccess({
+      userId: input.userId,
+      dayOnCourseId: input.dayOnCourseId,
+      stepOnDayId: target.targetId,
+    })
+  )
+    return null;
 
   return requirePremiumOrRewardedUnlock({
     userId: input.userId,
@@ -933,6 +953,8 @@ export async function requireCourseStepOperationAccess(input: {
   dayOnCourseId: string;
   stepIndex: number;
   expectedCourseId?: string;
+  expectedStepOnDayId?: string;
+  expectedStepId?: string;
 }): Promise<{ courseId: string; courseType: string }> {
   const dayOnCourse = await prisma.dayOnCourse.findUnique({
     where: { id: input.dayOnCourseId },
@@ -942,7 +964,7 @@ export async function requireCourseStepOperationAccess(input: {
         select: {
           stepLinks: {
             orderBy: { order: "asc" },
-            select: { id: true, step: { select: { type: true } } },
+            select: { id: true, stepId: true, step: { select: { type: true } } },
           },
         },
       },
@@ -954,23 +976,38 @@ export async function requireCourseStepOperationAccess(input: {
     throw new Error("COURSE_DAY_MISMATCH");
   }
 
-  const stepLink = dayOnCourse.day.stepLinks[input.stepIndex];
+  const stepLink = input.expectedStepOnDayId
+    ? dayOnCourse.day.stepLinks.find((link) => link.id === input.expectedStepOnDayId)
+    : dayOnCourse.day.stepLinks[input.stepIndex];
+  if (input.expectedStepOnDayId && (!stepLink || stepLink.stepId !== input.expectedStepId)) {
+    throw new Error("STALE_STEP_BINDING");
+  }
   if (!stepLink) throw new Error("Step not found");
 
   const access = await checkCourseAccessById(dayOnCourse.course.id, input.userId);
   if (dayOnCourse.course.isPrivate) {
     if (!access.hasAccess) throw new Error("COURSE_ACCESS_DENIED");
   } else if (!access.hasAccess) {
-    // Only an individually unlocked step may be mutated without subscription.
-    if (!dayOnCourse.course.isPaid || !isRewardedMonetizedStepType(stepLink.step.type))
+    // BREAK and DIARY are free even inside a paid public course. This
+    // includes mutations that record their completion, not only page reads.
+    if (!dayOnCourse.course.isPaid) throw new Error("COURSE_ACCESS_DENIED");
+    if (stepLink.step.type === "BREAK" || stepLink.step.type === "DIARY") {
+      return { courseId: dayOnCourse.course.id, courseType: dayOnCourse.course.type };
+    }
+    if (!isRewardedMonetizedStepType(stepLink.step.type))
       throw new Error("COURSE_ACCESS_DENIED");
     const target = { targetType: "COURSE_STEP" as const, targetId: stepLink.id };
     const gafus = await hasActiveGafusCourseStepAccess({
-      userId: input.userId, dayOnCourseId: input.dayOnCourseId, stepOnDayId: stepLink.id,
+      userId: input.userId,
+      dayOnCourseId: input.dayOnCourseId,
+      stepOnDayId: stepLink.id,
     });
-    if (!gafus) await requirePremiumOrRewardedUnlock({
-      userId: input.userId, platform: input.platform, target,
-    });
+    if (!gafus)
+      await requirePremiumOrRewardedUnlock({
+        userId: input.userId,
+        platform: input.platform,
+        target,
+      });
   }
   return { courseId: dayOnCourse.course.id, courseType: dayOnCourse.course.type };
 }
@@ -993,6 +1030,7 @@ const THEORY_STEP_TYPES = ["THEORY", "DIARY"] as const;
 export async function validateTheoryStepForCompletion(
   dayOnCourseId: string,
   stepIndex: number,
+  binding?: { expectedStepOnDayId: string; expectedStepId: string },
 ): Promise<{ valid: boolean; error?: string; code?: string }> {
   const dayOnCourse = await prisma.dayOnCourse.findUnique({
     where: { id: dayOnCourseId },
@@ -1012,7 +1050,12 @@ export async function validateTheoryStepForCompletion(
     return { valid: false, error: "День не найден", code: "NOT_FOUND" };
   }
 
-  const stepLink = dayOnCourse.day.stepLinks[stepIndex];
+  const stepLink = binding
+    ? dayOnCourse.day.stepLinks.find((link) => link.id === binding.expectedStepOnDayId)
+    : dayOnCourse.day.stepLinks[stepIndex];
+  if (binding && (!stepLink || stepLink.stepId !== binding.expectedStepId)) {
+    return { valid: false, error: "Состав дня изменился", code: "STALE_STEP_BINDING" };
+  }
   if (!stepLink?.step) {
     return { valid: false, error: "Шаг не найден", code: "NOT_FOUND" };
   }
@@ -1179,238 +1222,376 @@ export async function checkDayAccess(
  * @returns courseId и allCompleted для последующего syncUserCourseStatusFromDays / checkAndCompleteCourse
  * @throws Error "DayOnCourse or day not found" | "Step not found" | "INVALID_STATE: ..."
  */
+export type StepOccurrenceBinding = {
+  expectedStepOnDayId: string;
+  expectedStepId: string;
+  expectedCourseId: string;
+};
+
 export async function updateStepAndDay(
   userId: string,
   dayOnCourseId: string,
   stepIndex: number,
   operation: StepOperation,
-): Promise<{ courseId: string; allCompleted: boolean; stepJustCompleted: boolean }> {
+  binding?: StepOccurrenceBinding,
+): Promise<{
+  courseId: string;
+  allCompleted: boolean;
+  stepJustCompleted: boolean;
+  stepJustStarted: boolean;
+  stepOnDayId: string;
+  stepId: string;
+}> {
   return prisma.$transaction(
-    async (tx: Tx) => {
-      const dayOnCourse = await tx.dayOnCourse.findUnique({
-        where: { id: dayOnCourseId },
+    (tx: Tx) => applyStepAndDayTx(tx, userId, dayOnCourseId, stepIndex, operation, binding),
+    { timeout: 10000 },
+  );
+}
+
+/** Transaction-aware mutation for new-only OFF021; legacy wrapper unchanged. */
+export async function applyStepAndDayTx(
+  tx: Tx,
+  userId: string,
+  dayOnCourseId: string,
+  stepIndex: number,
+  operation: StepOperation,
+  binding?: StepOccurrenceBinding,
+): Promise<{
+  courseId: string;
+  allCompleted: boolean;
+  stepJustCompleted: boolean;
+  stepJustStarted: boolean;
+  stepOnDayId: string;
+  stepId: string;
+}> {
+  // Serialize concurrent opted-in mutations by the SAME authenticated actor
+  // BEFORE reading shared day/occurrence or upserting UserTraining/UserStep.
+  // PostgreSQL's NO KEY UPDATE lock conflicts with another such actor lock,
+  // but remains compatible with child FK KEY SHARE; it does not lock other
+  // learners or course authors. Without it two real HTTP starts can race on
+  // UserTraining(userId,dayOnCourseId) and leak Prisma P2002 as HTTP 500.
+  // Unbound/legacy Native semantics are deliberately unchanged.
+  if (binding) {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR NO KEY UPDATE`;
+  }
+  // Only the opt-in Web protocol locks the actual day and occurrence inside
+  // this transaction. Legacy Native/index callers retain their exact path.
+  // FOR SHARE conflicts with trainer UPDATE/DELETE/MOVE of this occurrence.
+  if (binding) {
+    const dayRows = await tx.$queryRaw<{ dayId: string; courseId: string }[]>`
+      SELECT "dayId", "courseId" FROM "DayOnCourse"
+      WHERE "id" = ${dayOnCourseId} FOR SHARE
+    `;
+    if (dayRows.length !== 1 || dayRows[0].courseId !== binding.expectedCourseId) {
+      throw new Error("STALE_STEP_BINDING");
+    }
+    const occurrenceRows = await tx.$queryRaw<{ dayId: string; stepId: string }[]>`
+      SELECT "dayId", "stepId" FROM "StepOnDay"
+      WHERE "id" = ${binding.expectedStepOnDayId} FOR SHARE
+    `;
+    if (
+      occurrenceRows.length !== 1 ||
+      occurrenceRows[0].dayId !== dayRows[0].dayId ||
+      occurrenceRows[0].stepId !== binding.expectedStepId
+    ) {
+      throw new Error("STALE_STEP_BINDING");
+    }
+  }
+  const dayOnCourse = await tx.dayOnCourse.findUnique({
+    where: { id: dayOnCourseId },
+    include: {
+      day: {
         include: {
-          day: {
-            include: {
-              stepLinks: { orderBy: { order: "asc" as const }, include: { step: true } },
+          stepLinks: { orderBy: { order: "asc" as const }, include: { step: true } },
+        },
+      },
+    },
+  });
+
+  if (!dayOnCourse || !dayOnCourse.day) {
+    throw new Error("DayOnCourse or day not found");
+  }
+
+  const trainingDay = dayOnCourse.day;
+  const stepLinks = trainingDay.stepLinks;
+  const stepLink = binding
+    ? stepLinks.find((link) => link.id === binding.expectedStepOnDayId)
+    : stepLinks[stepIndex];
+
+  if (binding && (!stepLink || stepLink.stepId !== binding.expectedStepId)) {
+    throw new Error("STALE_STEP_BINDING");
+  }
+  if (!stepLink) {
+    throw new Error("Step not found");
+  }
+
+  const stepOnDayId = stepLink.id;
+
+  const userTraining = await tx.userTraining.upsert({
+    where: {
+      userId_dayOnCourseId: { userId, dayOnCourseId },
+    },
+    create: {
+      userId,
+      dayOnCourseId,
+      status: TrainingStatus.NOT_STARTED,
+    },
+    update: {},
+    select: { id: true },
+  });
+
+  const existingStep = await tx.userStep.findFirst({
+    where: { userTrainingId: userTraining.id, stepOnDayId },
+    select: { id: true, status: true, paused: true },
+  });
+
+  if (operation.type === "pause" || operation.type === "resume" || operation.type === "reset") {
+    if (!existingStep) {
+      throw new Error("Step not found");
+    }
+  }
+
+  if (operation.type === "reset") {
+    const currentStatus = existingStep?.status as string;
+    if (currentStatus === TrainingStatus.NOT_STARTED) {
+      throw new Error("INVALID_STATE: cannot reset not started");
+    }
+    // COMPLETED и IN_PROGRESS/PAUSED разрешаем сбрасывать — пользователь может перепройти шаг
+  }
+
+  let stepJustCompleted = false;
+  let stepJustStarted = false;
+
+  switch (operation.type) {
+    case "start": {
+      const remainingSec = operation.remainingSec ?? 0;
+      if (binding && existingStep?.status === TrainingStatus.IN_PROGRESS) {
+        // A retried bound start must not reset the original running countdown.
+        if (existingStep.paused) throw new Error("INVALID_STATE: use resume for paused step");
+      } else if (existingStep) {
+        const result = await tx.userStep.updateMany({
+          where: {
+            id: existingStep.id,
+            status: {
+              in: binding
+                ? [TrainingStatus.NOT_STARTED, TrainingStatus.RESET]
+                : [TrainingStatus.NOT_STARTED, TrainingStatus.RESET, TrainingStatus.IN_PROGRESS],
             },
           },
-        },
-      });
-
-      if (!dayOnCourse || !dayOnCourse.day) {
-        throw new Error("DayOnCourse or day not found");
-      }
-
-      const trainingDay = dayOnCourse.day;
-      const stepLinks = trainingDay.stepLinks;
-      const stepLink = stepLinks[stepIndex];
-
-      if (!stepLink) {
-        throw new Error("Step not found");
-      }
-
-      const stepOnDayId = stepLink.id;
-
-      const userTraining = await tx.userTraining.upsert({
-        where: {
-          userId_dayOnCourseId: { userId, dayOnCourseId },
-        },
-        create: {
-          userId,
-          dayOnCourseId,
-          status: TrainingStatus.NOT_STARTED,
-        },
-        update: {},
-        select: { id: true },
-      });
-
-      const existingStep = await tx.userStep.findFirst({
-        where: { userTrainingId: userTraining.id, stepOnDayId },
-        select: { id: true, status: true },
-      });
-
-      if (operation.type === "pause" || operation.type === "resume" || operation.type === "reset") {
-        if (!existingStep) {
-          throw new Error("Step not found");
+          data: {
+            status: TrainingStatus.IN_PROGRESS,
+            paused: false,
+            remainingSec,
+            updatedAt: new Date(),
+          },
+        });
+        stepJustStarted = result.count > 0;
+        if (result.count === 0) {
+          // A second concurrent start may have just won the transition.
+          const latest = binding
+            ? await tx.userStep.findUnique({
+                where: { id: existingStep.id },
+                select: { status: true, paused: true },
+              })
+            : null;
+          if (latest?.status !== TrainingStatus.IN_PROGRESS || latest.paused)
+            throw new Error("INVALID_STATE: cannot start completed");
         }
-      }
-
-      if (operation.type === "reset") {
-        const currentStatus = existingStep?.status as string;
-        if (currentStatus === TrainingStatus.NOT_STARTED) {
-          throw new Error("INVALID_STATE: cannot reset not started");
-        }
-        // COMPLETED и IN_PROGRESS/PAUSED разрешаем сбрасывать — пользователь может перепройти шаг
-      }
-
-      let stepJustCompleted = false;
-
-      switch (operation.type) {
-        case "start": {
-          const remainingSec = operation.remainingSec ?? 0;
-          if (existingStep) {
-            const result = await tx.userStep.updateMany({
-              where: {
-                id: existingStep.id,
-                status: {
-                  in: [
-                    TrainingStatus.NOT_STARTED,
-                    TrainingStatus.RESET,
-                    TrainingStatus.IN_PROGRESS,
-                  ],
-                },
-              },
-              data: {
-                status: TrainingStatus.IN_PROGRESS,
-                paused: false,
-                remainingSec,
-              },
-            });
-            if (result.count === 0) throw new Error("INVALID_STATE: cannot start completed");
-          } else {
-            try {
-              await tx.userStep.create({
-                data: {
-                  userTrainingId: userTraining.id,
-                  stepOnDayId,
-                  status: TrainingStatus.IN_PROGRESS,
-                  paused: false,
-                  remainingSec,
-                },
-              });
-            } catch (error) {
-              if (!isPrismaUniqueConstraintError(error)) throw error;
-              const result = await tx.userStep.updateMany({
-                where: {
-                  userTrainingId: userTraining.id,
-                  stepOnDayId,
-                  status: {
-                    in: [
-                      TrainingStatus.NOT_STARTED,
-                      TrainingStatus.RESET,
-                      TrainingStatus.IN_PROGRESS,
-                    ],
-                  },
-                },
-                data: { status: TrainingStatus.IN_PROGRESS, paused: false, remainingSec },
-              });
-              if (result.count === 0) throw new Error("INVALID_STATE: cannot start completed");
-            }
-          }
-          break;
-        }
-        case "pause": {
-          const result = await tx.userStep.updateMany({
-            where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: false },
-            data: { paused: true, remainingSec: operation.remainingSec },
+      } else {
+        try {
+          await tx.userStep.create({
+            data: {
+              userTrainingId: userTraining.id,
+              stepOnDayId,
+              status: TrainingStatus.IN_PROGRESS,
+              paused: false,
+              remainingSec,
+            },
           });
-          if (result.count === 0) throw new Error("INVALID_STATE: cannot pause step");
-          break;
-        }
-        case "resume": {
-          const result = await tx.userStep.updateMany({
-            where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: true },
-            data: { paused: false },
-          });
-          if (result.count === 0) throw new Error("INVALID_STATE: cannot resume step");
-          break;
-        }
-        case "reset": {
+          stepJustStarted = true;
+        } catch (error) {
+          if (!isPrismaUniqueConstraintError(error)) throw error;
           const result = await tx.userStep.updateMany({
             where: {
-              id: existingStep!.id,
-              status: { in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED] },
+              userTrainingId: userTraining.id,
+              stepOnDayId,
+              status: {
+                in: [TrainingStatus.NOT_STARTED, TrainingStatus.RESET, TrainingStatus.IN_PROGRESS],
+              },
             },
-            data: { status: TrainingStatus.RESET, paused: false, remainingSec: null },
+            data: { status: TrainingStatus.IN_PROGRESS, paused: false, remainingSec,
+              updatedAt: new Date() },
           });
-          if (result.count === 0) throw new Error("INVALID_STATE: cannot reset step");
-          break;
+          if (result.count === 0) throw new Error("INVALID_STATE: cannot start completed");
+          stepJustStarted = true;
         }
-        case "complete":
-          if (existingStep) {
+      }
+      break;
+    }
+    case "pause": {
+      const result = await tx.userStep.updateMany({
+        where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: false },
+        data: { paused: true, remainingSec: operation.remainingSec,
+          updatedAt: new Date() },
+      });
+      if (result.count === 0) throw new Error("INVALID_STATE: cannot pause step");
+      break;
+    }
+    case "resume": {
+      const result = await tx.userStep.updateMany({
+        where: { id: existingStep!.id, status: TrainingStatus.IN_PROGRESS, paused: true },
+        data: { paused: false, updatedAt: new Date() },
+      });
+      if (result.count === 0) throw new Error("INVALID_STATE: cannot resume step");
+      break;
+    }
+    case "reset": {
+      const result = await tx.userStep.updateMany({
+        where: {
+          id: existingStep!.id,
+          status: { in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED] },
+        },
+        data: { status: TrainingStatus.RESET, paused: false, remainingSec: null,
+          updatedAt: new Date() },
+      });
+      if (result.count === 0) throw new Error("INVALID_STATE: cannot reset step");
+      break;
+    }
+    case "complete":
+      if (existingStep) {
+        const result = await tx.userStep.updateMany({
+          where: {
+            id: existingStep.id,
+            status: { not: TrainingStatus.COMPLETED },
+          },
+          data: { status: TrainingStatus.COMPLETED, paused: false, remainingSec: null,
+            updatedAt: new Date() },
+        });
+        stepJustCompleted = result.count > 0;
+      } else {
+        try {
+          await tx.userStep.create({
+            data: {
+              userTrainingId: userTraining.id,
+              stepOnDayId,
+              status: TrainingStatus.COMPLETED,
+            },
+          });
+          stepJustCompleted = true;
+        } catch (error) {
+          if (isPrismaUniqueConstraintError(error)) {
             const result = await tx.userStep.updateMany({
               where: {
-                id: existingStep.id,
+                userTrainingId: userTraining.id,
+                stepOnDayId,
                 status: { not: TrainingStatus.COMPLETED },
               },
-              data: { status: TrainingStatus.COMPLETED, paused: false, remainingSec: null },
+              data: { status: TrainingStatus.COMPLETED, paused: false, remainingSec: null,
+            updatedAt: new Date() },
             });
             stepJustCompleted = result.count > 0;
           } else {
-            try {
-              await tx.userStep.create({
-                data: {
-                  userTrainingId: userTraining.id,
-                  stepOnDayId,
-                  status: TrainingStatus.COMPLETED,
-                },
-              });
-              stepJustCompleted = true;
-            } catch (error) {
-              if (isPrismaUniqueConstraintError(error)) {
-                const result = await tx.userStep.updateMany({
-                  where: {
-                    userTrainingId: userTraining.id,
-                    stepOnDayId,
-                    status: { not: TrainingStatus.COMPLETED },
-                  },
-                  data: { status: TrainingStatus.COMPLETED, paused: false, remainingSec: null },
-                });
-                stepJustCompleted = result.count > 0;
-              } else {
-                throw error;
-              }
-            }
+            throw error;
           }
-          break;
+        }
       }
+      break;
+  }
 
-      const stepOnDayIds = stepLinks.map((l) => l.id);
-      const userSteps = await tx.userStep.findMany({
-        where: { userTrainingId: userTraining.id },
-        orderBy: { id: "asc" },
-      });
+  const stepOnDayIds = stepLinks.map((l) => l.id);
+  const userSteps = await tx.userStep.findMany({
+    where: { userTrainingId: userTraining.id },
+    orderBy: { id: "asc" },
+  });
 
-      const allStepStatuses: string[] = [];
-      for (const stepOnDayId of stepOnDayIds) {
-        const us = userSteps.find((s) => s.stepOnDayId === stepOnDayId);
-        allStepStatuses.push(us?.status ?? TrainingStatus.NOT_STARTED);
-      }
+  const allStepStatuses: string[] = [];
+  for (const stepOnDayId of stepOnDayIds) {
+    const us = userSteps.find((s) => s.stepOnDayId === stepOnDayId);
+    allStepStatuses.push(us?.status ?? TrainingStatus.NOT_STARTED);
+  }
 
-      const correctedDayStatus = calculateDayStatusFromStatuses(allStepStatuses);
-      const allCompleted = correctedDayStatus === TrainingStatus.COMPLETED;
+  const correctedDayStatus = calculateDayStatusFromStatuses(allStepStatuses);
+  const allCompleted = correctedDayStatus === TrainingStatus.COMPLETED;
 
-      const firstNotCompletedIndex = allStepStatuses.findIndex(
-        (status) => status !== TrainingStatus.COMPLETED,
-      );
-      const nextCurrentStepIndex = allCompleted
-        ? stepOnDayIds.length - 1
-        : firstNotCompletedIndex === -1
-          ? 0
-          : firstNotCompletedIndex;
-
-      const dayStatus =
-        correctedDayStatus === TrainingStatus.COMPLETED
-          ? TrainingStatus.COMPLETED
-          : correctedDayStatus === TrainingStatus.RESET
-            ? TrainingStatus.RESET
-            : correctedDayStatus === TrainingStatus.NOT_STARTED
-              ? TrainingStatus.NOT_STARTED
-              : TrainingStatus.IN_PROGRESS;
-
-      await tx.userTraining.update({
-        where: { id: userTraining.id },
-        data: {
-          status: dayStatus,
-          currentStepIndex: nextCurrentStepIndex,
-        },
-      });
-
-      return { courseId: dayOnCourse.courseId, allCompleted, stepJustCompleted };
-    },
-    { timeout: 10000 },
+  const firstNotCompletedIndex = allStepStatuses.findIndex(
+    (status) => status !== TrainingStatus.COMPLETED,
   );
+  const nextCurrentStepIndex = allCompleted
+    ? stepOnDayIds.length - 1
+    : firstNotCompletedIndex === -1
+      ? 0
+      : firstNotCompletedIndex;
+
+  const dayStatus =
+    correctedDayStatus === TrainingStatus.COMPLETED
+      ? TrainingStatus.COMPLETED
+      : correctedDayStatus === TrainingStatus.RESET
+        ? TrainingStatus.RESET
+        : correctedDayStatus === TrainingStatus.NOT_STARTED
+          ? TrainingStatus.NOT_STARTED
+          : TrainingStatus.IN_PROGRESS;
+
+  await tx.userTraining.update({
+    where: { id: userTraining.id },
+    data: {
+      status: dayStatus,
+      currentStepIndex: nextCurrentStepIndex,
+    },
+  });
+
+  // Bound NORMAL step notification = durable transactional enqueue intent.
+  // The SQL row commits atomically with the first UserStep transition, BEFORE
+  // the Hono handler attempts BullMQ (and survives a process crash there).
+  // Do not create any notification for Daily / legacy Native / duplicate start
+  // / users without an actual persisted push subscription.
+  if (binding && operation.type === "start" && stepJustStarted) {
+    const subscriptions = await tx.pushSubscription.findMany({
+      where: { userId }, select: { endpoint: true, keys: true },
+    });
+    if (subscriptions.length > 0) {
+      const existing = await tx.stepNotification.findFirst({
+        where: { userId, dayOnCourseId, stepOnDayId, type: "step", sent: false },
+        select: { id: true },
+      });
+      if (!existing) {
+        const seconds = Math.max(0, Math.floor(operation.remainingSec ?? 0));
+        const notificationCourse = await tx.course.findUnique({
+          where: { id: dayOnCourse.courseId }, select: { type: true },
+        });
+        if (!notificationCourse) throw new Error("STALE_STEP_BINDING");
+        await tx.stepNotification.create({
+          data: {
+            userId,
+            day: dayOnCourse.order ?? 0,
+            stepIndex: stepLinks.findIndex((link) => link.id === stepOnDayId),
+            dayOnCourseId,
+            stepOnDayId,
+            originalStepId: stepLink.stepId,
+            endTs: Math.floor(Date.now() / 1000) + seconds,
+            stepTitle: stepLink.step.title || null,
+            url: `/trainings/${notificationCourse.type}/${dayOnCourseId}`,
+            type: "step",
+            subscription: {
+              subscriptions: subscriptions.map((sub) => ({
+                endpoint: sub.endpoint, keys: sub.keys ?? {},
+              })),
+              count: subscriptions.length,
+            },
+          },
+          select: { id: true },
+        });
+      }
+    }
+  }
+
+  return {
+    courseId: dayOnCourse.courseId,
+    allCompleted,
+    stepJustCompleted,
+    stepJustStarted,
+    stepOnDayId,
+    stepId: stepLink.stepId,
+  };
 }
 
 /**
@@ -1421,14 +1602,23 @@ export async function syncUserCourseStatusFromDays(
   userId: string,
   courseId: string,
 ): Promise<void> {
-  const days = await prisma.dayOnCourse.findMany({
+  return syncUserCourseStatusFromDaysTx(prisma, userId, courseId);
+}
+
+/** Same SQL transaction course reconciliation for new-only OFF021. */
+export async function syncUserCourseStatusFromDaysTx(
+  tx: Pick<Tx, "dayOnCourse" | "userTraining" | "userCourse">,
+  userId: string,
+  courseId: string,
+): Promise<void> {
+  const days = await tx.dayOnCourse.findMany({
     where: { courseId },
     select: { id: true },
     orderBy: { order: "asc" },
   });
   if (days.length === 0) return;
 
-  const userTrainings = await prisma.userTraining.findMany({
+  const userTrainings = await tx.userTraining.findMany({
     where: {
       userId,
       dayOnCourseId: { in: days.map((d) => d.id) },
@@ -1441,7 +1631,7 @@ export async function syncUserCourseStatusFromDays(
   );
   const newStatus = calculateCourseStatusFromDayStatuses(dayStatuses, days.length);
 
-  const existing = await prisma.userCourse.findUnique({
+  const existing = await tx.userCourse.findUnique({
     where: { userId_courseId: { userId, courseId } },
     select: { status: true, startedAt: true, completedAt: true },
   });
@@ -1461,7 +1651,7 @@ export async function syncUserCourseStatusFromDays(
     updateData.completedAt = new Date();
   }
 
-  await prisma.userCourse.upsert({
+  await tx.userCourse.upsert({
     where: { userId_courseId: { userId, courseId } },
     update: {
       ...updateData,

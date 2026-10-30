@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {"noEmit": true, "jsx": "react-jsx", "module": "ESNext", "moduleResolution": "Bundler", "skipLibCheck": true, "types": ["node"]},
+  "include": ["src/trainer-vite/**/*.ts", "src/trainer-vite/**/*.tsx"],
+  "exclude": ["src/trainer-vite/**/*.test.ts", "src/trainer-vite/**/*.test.tsx", "src/trainer-vite/**/dist", "node_modules"]
+}

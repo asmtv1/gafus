@@ -9,6 +9,11 @@ describe("app subscription rate limit routing", () => {
     expect(shouldRateLimitAppSubscriptionPath("POST", "/api/v1/app-subscription/apple/verify")).toBe(true);
     expect(shouldRateLimitAppSubscriptionPath("POST", "/api/v1/app-subscription/apple/restore")).toBe(true);
 
+    expect(shouldRateLimitAppSubscriptionPath("POST", "/api/v1/app-subscription/apple/token/initialize")).toBe(true);
+    expect(shouldRateLimitAppSubscriptionPath("post", "/api/v1/app-subscription/apple/token/initialize")).toBe(true);
+    expect(shouldRateLimitAppSubscriptionPath("GET", "/api/v1/app-subscription/apple/token/initialize")).toBe(false);
+    expect(shouldRateLimitAppSubscriptionPath("POST", "/api/v1/app-subscription/apple/token/initialize-extra")).toBe(false);
+    expect(shouldRateLimitAppSubscriptionPath("POST", "/api/v1/app-subscription/apple/token/initiate")).toBe(false);
     expect(shouldRateLimitAppSubscriptionPath("GET", "/api/v1/app-subscription/status")).toBe(false);
     expect(shouldRateLimitAppSubscriptionPath("GET", "/api/v1/app-subscription/offer")).toBe(false);
   });

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, TextInput, View } from "react-native";
 import { Image } from "expo-image";
 import { Text } from "react-native-paper";
@@ -9,6 +9,13 @@ import { COLORS, FONTS } from "@/shared/config";
 import { Button } from "@/shared/components/ui/Button";
 import { petWeightApi, type PetWeightEntry } from "@/shared/lib/api/pets";
 import { reportClientError } from "@/shared/lib/tracer";
+import {
+  verifiedWeightActor,
+  currentWeightActor,
+  readWeightHistory,
+  projectedWeightHistory,
+  type WeightReadActor,
+} from "./petWeightRead";
 import petWeightIcon from "../../../assets/images/pet-weight-icon.png";
 
 const fmt = (n: number) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(n);
@@ -27,24 +34,61 @@ const today = () => {
 };
 
 export function PetWeightSection({ petId }: { petId: string }) {
+  const actor = verifiedWeightActor();
+  if (!actor || !petId) return <Text>Войдите в аккаунт для просмотра веса питомца.</Text>;
+  return (
+    <ActorPetWeightSection
+      key={`${petId}:${actor.ownerId}:${actor.authEpoch}`}
+      petId={petId}
+      actor={actor}
+    />
+  );
+}
+function ActorPetWeightSection({ petId, actor }: { petId: string; actor: WeightReadActor }) {
   const queryClient = useQueryClient();
-  const key = ["pet-weight", petId];
-  const { data, isLoading, error, refetch } = useQuery({
+  const key = useMemo(
+    () => ["pet-weight", petId, actor.ownerId, actor.authEpoch] as const,
+    [petId, actor.ownerId, actor.authEpoch],
+  );
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      void queryClient.cancelQueries({ queryKey: key, exact: true });
+    };
+  }, [queryClient, key]);
+  const {
+    data: rawData,
+    isPending,
+    isFetching,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: key,
     queryFn: async () => {
-      const result = await petWeightApi.get(petId);
-      if (!result.success || !result.data)
-        throw new Error(result.error || "Не удалось загрузить вес");
-      return result.data;
+      if (!alive.current || !currentWeightActor(actor))
+        throw new Error("PET_WEIGHT_SESSION_CHANGED");
+      const value = await readWeightHistory(petId, actor);
+      if (!alive.current || !currentWeightActor(actor))
+        throw new Error("PET_WEIGHT_SESSION_CHANGED");
+      return value;
     },
+    enabled: currentWeightActor(actor),
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
   });
+  const data = projectedWeightHistory(rawData, petId, actor);
   const [period, setPeriod] = useState<"3m" | "1y" | "all">("1y");
   const [mode, setMode] = useState<"weight" | "goal" | null>(null);
   const [weight, setWeight] = useState("");
   const [goal, setGoal] = useState("");
   const [day, setDay] = useState(() => today().day);
   const [busy, setBusy] = useState(false);
+  const saveFlight = useRef(false);
   const [message, setMessage] = useState("");
+  const stillCurrent = () => alive.current && currentWeightActor(actor);
   const visible = useMemo(() => {
     if (!data) return [];
     if (period === "all") return data.entries;
@@ -71,23 +115,36 @@ export function PetWeightSection({ petId }: { petId: string }) {
   const points = visible.map((entry) => `${x(entry)},${y(entry.weightKg)}`).join(" ");
 
   async function save(action: () => Promise<{ success: boolean; error?: string }>) {
+    // The native confirm callback can fire after a principal change or twice in
+    // one tick, before React re-renders the disabled buttons.
+    if (!stillCurrent() || saveFlight.current) return;
+    saveFlight.current = true;
     setBusy(true);
     setMessage("");
     try {
       const result = await action();
-      if (!result.success) throw new Error(result.error || "Не удалось сохранить данные");
+      if (!stillCurrent()) return;
+      if (!result.success) {
+        setMessage("Не удалось сохранить данные. Проверьте историю веса перед повтором.");
+        return;
+      }
       await queryClient.invalidateQueries({ queryKey: key });
+      if (!stillCurrent()) return;
       await queryClient.invalidateQueries({ queryKey: ["pets"] });
+      if (!stillCurrent()) return;
       setMode(null);
       setWeight("");
-    } catch (e) {
-      reportClientError(e instanceof Error ? e : new Error(String(e)), {
+    } catch {
+      if (!stillCurrent()) return;
+      // Never forward a raw owner/provider error to UI or telemetry.
+      reportClientError(new Error("PET_WEIGHT_MUTATION_FAILED"), {
         issueKey: "PetWeight",
         keys: { operation: "save", petId },
       });
-      setMessage(e instanceof Error ? e.message : "Ошибка сохранения");
+      setMessage("Не удалось подтвердить сохранение. Проверьте историю веса.");
     } finally {
-      setBusy(false);
+      saveFlight.current = false;
+      if (stillCurrent()) setBusy(false);
     }
   }
   const inputStyle = {
@@ -100,9 +157,40 @@ export function PetWeightSection({ petId }: { petId: string }) {
     color: COLORS.text,
     fontFamily: FONTS.montserrat,
   } as const;
+  if (!data) {
+    if ((isPending || isFetching) && !isError)
+      return (
+        <View>
+          <Text>Загрузка веса…</Text>
+        </View>
+      );
+    return (
+      <View>
+        <Pressable
+          onPress={() => {
+            if (alive.current && currentWeightActor(actor) && !isFetching)
+              void refetch({ cancelRefetch: false });
+          }}
+        >
+          <Text style={{ color: COLORS.error }}>
+            Не удалось загрузить вес. Нажмите, чтобы повторить.
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
   return (
     <View
-      style={{ backgroundColor: "#FFFDF8", borderRadius: 15, padding: 12, gap: 12, shadowColor: "#433317", shadowOpacity: 0.07, shadowRadius: 13, elevation: 2 }}
+      style={{
+        backgroundColor: "#FFFDF8",
+        borderRadius: 15,
+        padding: 12,
+        gap: 12,
+        shadowColor: "#433317",
+        shadowOpacity: 0.07,
+        shadowRadius: 13,
+        elevation: 2,
+      }}
     >
       <View
         style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}
@@ -299,7 +387,14 @@ export function PetWeightSection({ petId }: { petId: string }) {
                 setMessage("Проверьте вес и дату измерения");
                 return;
               }
-              void save(() => petWeightApi.add(petId, value, (day === today().day ? new Date() : date).toISOString()));
+              void save(() =>
+                petWeightApi.add(
+                  petId,
+                  value,
+                  (day === today().day ? new Date() : date).toISOString(),
+                  stillCurrent,
+                ),
+              );
             }}
           />
         </View>
@@ -324,18 +419,10 @@ export function PetWeightSection({ petId }: { petId: string }) {
                 setMessage("Введите целевой вес от 0,1 до 200 кг");
                 return;
               }
-              void save(() => petWeightApi.setTarget(petId, value));
+              void save(() => petWeightApi.setTarget(petId, value, stillCurrent));
             }}
           />
         </View>
-      )}
-      {isLoading && <Text>Загрузка веса…</Text>}
-      {error && (
-        <Pressable onPress={() => void refetch()}>
-          <Text style={{ color: COLORS.error }}>
-            Не удалось загрузить вес. Нажмите, чтобы повторить.
-          </Text>
-        </Pressable>
       )}
       {!!message && <Text style={{ color: COLORS.error }}>{message}</Text>}
       {!!data?.entries.length && (
@@ -362,18 +449,20 @@ export function PetWeightSection({ petId }: { petId: string }) {
               <Pressable
                 accessibilityLabel={`Удалить измерение от ${dateLabel(entry.measuredAt)}`}
                 disabled={busy}
-                onPress={() =>
+                onPress={() => {
+                  if (!stillCurrent() || saveFlight.current) return;
                   Alert.alert("Удалить измерение?", "", [
                     { text: "Отмена", style: "cancel" },
                     {
                       text: "Удалить",
                       style: "destructive",
                       onPress: () => {
-                        void save(() => petWeightApi.remove(petId, entry.id));
+                        if (!stillCurrent() || saveFlight.current) return;
+                        void save(() => petWeightApi.remove(petId, entry.id, stillCurrent));
                       },
                     },
-                  ])
-                }
+                  ]);
+                }}
                 style={{ padding: 4 }}
               >
                 <MaterialCommunityIcons name="trash-can-outline" size={19} color={COLORS.error} />

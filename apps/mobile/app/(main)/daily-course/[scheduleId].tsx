@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View, Pressable } from "react-native";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { Text } from "react-native-paper";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { Text, Snackbar } from "react-native-paper";
+import { useQueryClient } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { Button, Loading } from "@/shared/components/ui";
@@ -18,10 +19,17 @@ import {
 import { getDailyCourseStoreCourseId } from "@/shared/lib/api";
 import { useDayStepStatuses, useStepStore, useTimerStore, useTrainingStore } from "@/shared/stores";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
+import { reportClientError } from "@/shared/lib/tracer";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { useDailyCompletionLifecycle } from "@/features/training/useDailyCompletionLifecycle";
+import { useVerifiedOnlineCompletion } from "@/features/training/useVerifiedOnlineCompletion";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import { PendingDailyNotice } from "@/features/training/PendingDailyNotice";
 
 export default function DailyCourseDayScreen() {
   const { scheduleId } = useLocalSearchParams<{ scheduleId: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const normalizedScheduleId = typeof scheduleId === "string" ? scheduleId : "";
   const courseId = getDailyCourseStoreCourseId(normalizedScheduleId);
 
@@ -45,6 +53,77 @@ export default function DailyCourseDayScreen() {
   const resetMutation = useDailyCourseResetStep();
   const completeMutation = useDailyCourseCompleteStep();
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const verifiedProfile = useAuthStore((state) => state.user);
+  const principalId = verifiedProfile?.id ?? null;
+  const onlineReceipt = useVerifiedOnlineCompletion(
+    verifiedProfile,
+    newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null,
+    normalizedScheduleId,
+  );
+  const latestOccurrenceIds = useRef<string[]>([]);
+  latestOccurrenceIds.current = dayData?.steps.map((step) => step.id) ?? [];
+  const completeForLifecycle = useCallback(
+    (vars: { scheduleId: string; stepIndex: number }) => completeMutation.mutateAsync(vars),
+    [completeMutation],
+  );
+  const completeSideEffect = useCallback(
+    (stepIndex: number, offline: boolean) => {
+      stopTimer(courseId, normalizedScheduleId, stepIndex);
+      completeStepLocal(courseId, normalizedScheduleId, stepIndex);
+      if (!offline) {
+        onlineReceipt.markConfirmed(stepIndex);
+        // Preserve offline local-only state; no refetch can overwrite a pending event.
+        void queryClient.invalidateQueries({
+          queryKey: ["dailyCourse", "day", normalizedScheduleId],
+        });
+        void queryClient.invalidateQueries({ queryKey: ["dailyCourse", "today"] });
+      }
+      if (offline)
+        setSnackbar({ visible: true, message: "Сохранено только на устройстве · не отправлено" });
+    },
+    [
+      courseId,
+      normalizedScheduleId,
+      stopTimer,
+      completeStepLocal,
+      queryClient,
+      onlineReceipt.markConfirmed,
+    ],
+  );
+  const completeFailure = useCallback((err: Error) => {
+    reportClientError(err, { issueKey: "DailyCourse", keys: { operation: "complete" } });
+    setSnackbar({
+      visible: true,
+      message: "Результат локального сохранения не подтверждён · проверьте записи перед повтором",
+    });
+  }, []);
+  const occurrenceAt = useCallback(
+    (index: number) => latestOccurrenceIds.current[index] ?? null,
+    [],
+  );
+  const {
+    pendingDaily,
+    readStatus,
+    refreshPending: refreshPendingDaily,
+    activate: activatePending,
+    deactivate: deactivatePending,
+    complete: completeDaily,
+  } = useDailyCompletionLifecycle(
+    normalizedScheduleId,
+    principalId,
+    completeForLifecycle,
+    completeSideEffect,
+    completeFailure,
+    occurrenceAt,
+  );
+  useFocusEffect(
+    useCallback(() => {
+      activatePending();
+      void refreshPendingDaily();
+      return deactivatePending;
+    }, [activatePending, deactivatePending, refreshPendingDaily, verifiedProfile]),
+  );
   const localStepStatuses = useDayStepStatuses(
     courseId,
     normalizedScheduleId,
@@ -86,54 +165,175 @@ export default function DailyCourseDayScreen() {
   );
 
   const handleStart = useCallback(
-    (stepIndex: number, durationSec: number) => {
-      startStepLocal(courseId, normalizedScheduleId, stepIndex, durationSec);
-      startMutation.mutate({
-        scheduleId: normalizedScheduleId,
-        stepIndex,
-        status: "IN_PROGRESS",
-        durationSec,
-      });
+    async (stepIndex: number, durationSec: number): Promise<boolean> => {
+      const ownerAtStart = useAuthStore.getState().user;
+      const epochAtStart = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
+      try {
+        const response = await startMutation.mutateAsync({
+          scheduleId: normalizedScheduleId,
+          stepIndex,
+          status: "IN_PROGRESS",
+          durationSec,
+        });
+        if (!response.success) throw new Error("Не удалось сохранить действие задания дня");
+        if (
+          useAuthStore.getState().user !== ownerAtStart ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtStart
+        )
+          return false;
+        startStepLocal(courseId, normalizedScheduleId, stepIndex, durationSec);
+        if ("code" in response && response.code === "OFFLINE_QUEUED") {
+          void refreshPendingDaily();
+          setSnackbar({ visible: true, message: "Сохранено только на устройстве · не отправлено" });
+        }
+        return true;
+      } catch (error) {
+        if (
+          useAuthStore.getState().user !== ownerAtStart ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtStart
+        )
+          return false;
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "DailyCourse",
+          keys: { operation: "start" },
+        });
+        setSnackbar({ visible: true, message: "Не удалось сохранить действие" });
+        return false;
+      }
     },
-    [courseId, normalizedScheduleId, startMutation, startStepLocal],
+    [courseId, normalizedScheduleId, startMutation, startStepLocal, refreshPendingDaily],
   );
 
   const handlePause = useCallback(
-    (stepIndex: number, remainingSec: number) => {
-      pauseStepLocal(courseId, normalizedScheduleId, stepIndex, remainingSec);
-      pauseMutation.mutate({
-        scheduleId: normalizedScheduleId,
-        stepIndex,
-        timeLeftSec: remainingSec,
-      });
+    async (stepIndex: number, remainingSec: number): Promise<boolean> => {
+      const ownerAtAction = useAuthStore.getState().user;
+      const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
+      try {
+        const response = await pauseMutation.mutateAsync({
+          scheduleId: normalizedScheduleId,
+          stepIndex,
+          timeLeftSec: remainingSec,
+        });
+        if (!response.success) throw new Error("Не удалось сохранить действие задания дня");
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
+        pauseStepLocal(courseId, normalizedScheduleId, stepIndex, remainingSec);
+        if ("code" in response && response.code === "OFFLINE_QUEUED") {
+          void refreshPendingDaily();
+          setSnackbar({
+            visible: true,
+            message: "Сохранено только на устройстве · не отправлено",
+          });
+        }
+        return true;
+      } catch (error) {
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "DailyCourse",
+          keys: { operation: "pause" },
+        });
+        setSnackbar({ visible: true, message: "Не удалось сохранить действие" });
+        return false;
+      }
     },
-    [courseId, normalizedScheduleId, pauseMutation, pauseStepLocal],
+    [courseId, normalizedScheduleId, pauseMutation, pauseStepLocal, refreshPendingDaily],
   );
 
   const handleResume = useCallback(
-    (stepIndex: number) => {
-      resumeStepLocal(courseId, normalizedScheduleId, stepIndex);
-      resumeMutation.mutate({ scheduleId: normalizedScheduleId, stepIndex });
+    async (stepIndex: number): Promise<boolean> => {
+      const ownerAtAction = useAuthStore.getState().user;
+      const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
+      try {
+        const response = await resumeMutation.mutateAsync({
+          scheduleId: normalizedScheduleId,
+          stepIndex,
+        });
+        if (!response.success) throw new Error("Не удалось сохранить действие задания дня");
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
+        resumeStepLocal(courseId, normalizedScheduleId, stepIndex);
+        if ("code" in response && response.code === "OFFLINE_QUEUED") {
+          void refreshPendingDaily();
+          setSnackbar({
+            visible: true,
+            message: "Сохранено только на устройстве · не отправлено",
+          });
+        }
+        return true;
+      } catch (error) {
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "DailyCourse",
+          keys: { operation: "resume" },
+        });
+        setSnackbar({ visible: true, message: "Не удалось сохранить действие" });
+        return false;
+      }
     },
-    [courseId, normalizedScheduleId, resumeMutation, resumeStepLocal],
+    [courseId, normalizedScheduleId, resumeMutation, resumeStepLocal, refreshPendingDaily],
   );
 
   const handleReset = useCallback(
-    (stepIndex: number, durationSec: number) => {
-      stopTimer(courseId, normalizedScheduleId, stepIndex);
-      resetStepLocal(courseId, normalizedScheduleId, stepIndex, durationSec);
-      resetMutation.mutate({ scheduleId: normalizedScheduleId, stepIndex });
+    async (stepIndex: number, durationSec: number): Promise<boolean> => {
+      const ownerAtAction = useAuthStore.getState().user;
+      const epochAtAction = newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null;
+      try {
+        const response = await resetMutation.mutateAsync({
+          scheduleId: normalizedScheduleId,
+          stepIndex,
+        });
+        if (!response.success) throw new Error("Не удалось сохранить действие задания дня");
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
+        stopTimer(courseId, normalizedScheduleId, stepIndex);
+        resetStepLocal(courseId, normalizedScheduleId, stepIndex, durationSec);
+        if ("code" in response && response.code === "OFFLINE_QUEUED") {
+          void refreshPendingDaily();
+          setSnackbar({
+            visible: true,
+            message: "Сохранено только на устройстве · не отправлено",
+          });
+        }
+        return true;
+      } catch (error) {
+        if (
+          useAuthStore.getState().user !== ownerAtAction ||
+          (newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null) !== epochAtAction
+        )
+          return false;
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "DailyCourse",
+          keys: { operation: "reset" },
+        });
+        setSnackbar({ visible: true, message: "Не удалось сохранить действие" });
+        return false;
+      }
     },
-    [courseId, normalizedScheduleId, resetMutation, resetStepLocal, stopTimer],
+    [courseId, normalizedScheduleId, resetMutation, resetStepLocal, stopTimer, refreshPendingDaily],
   );
 
   const handleComplete = useCallback(
     (stepIndex: number) => {
-      stopTimer(courseId, normalizedScheduleId, stepIndex);
-      completeStepLocal(courseId, normalizedScheduleId, stepIndex);
-      completeMutation.mutate({ scheduleId: normalizedScheduleId, stepIndex });
+      void completeDaily(stepIndex);
     },
-    [completeMutation, completeStepLocal, courseId, normalizedScheduleId, stopTimer],
+    [completeDaily],
   );
 
   if (isLoading) {
@@ -182,6 +382,8 @@ export default function DailyCourseDayScreen() {
           nestedScrollEnabled
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />}
         >
+          <PendingDailyNotice rows={pendingDaily} status={readStatus} />
+
           <View style={styles.dayHeader}>
             <Text style={styles.dayTitle}>Задание дня</Text>
             <View style={styles.dayHeaderDivider} />
@@ -253,6 +455,10 @@ export default function DailyCourseDayScreen() {
                 stepNumber={index + 1}
                 isOpen={openIndex === index}
                 localState={getStepState(courseId, normalizedScheduleId, index)}
+                verifiedLocalCompleted={
+                  onlineReceipt.isConfirmed(index) ||
+                  pendingDaily.some((row) => row.stepIndex === index && row.status === "COMPLETED")
+                }
                 courseId={courseId}
                 dayOnCourseId={normalizedScheduleId}
                 onToggle={() => handleToggle(index)}
@@ -265,6 +471,13 @@ export default function DailyCourseDayScreen() {
             ))}
           </View>
         </ScrollView>
+        <Snackbar
+          visible={snackbar.visible}
+          onDismiss={() => setSnackbar({ visible: false, message: "" })}
+          duration={3500}
+        >
+          {snackbar.message}
+        </Snackbar>
       </TexturedSafeAreaView>
     </>
   );

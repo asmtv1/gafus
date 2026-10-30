@@ -12,9 +12,12 @@ import type { AppSubscriptionOfferDto } from "./types";
 
 const SETTINGS_KEY = "default";
 
-export async function getAppSubscriptionOffer(
+type AppleTokenReader = (userId: string) => Promise<string | null>;
+
+async function buildAppSubscriptionOffer(
   userId: string,
-  clientContext: ClientAppContext = { platform: "unknown", version: null },
+  clientContext: ClientAppContext,
+  readAppleToken: AppleTokenReader,
 ): Promise<AppSubscriptionOfferDto> {
   const settings = await prisma.appSubscriptionSettings.findUnique({
     where: { key: SETTINGS_KEY },
@@ -38,7 +41,7 @@ export async function getAppSubscriptionOffer(
   });
 
   const [appAccountToken, iosRuCardPaymentEnabled, promoCode, user] = await Promise.all([
-    ensureAppleAppAccountToken(userId),
+    readAppleToken(userId),
     getMobileFeatureFlagEnabled(
       APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
       clientContext,
@@ -46,7 +49,12 @@ export async function getAppSubscriptionOffer(
       false,
     ),
     getAppSubscriptionPromoCodeOfferState({ userId, clientContext }),
-    prisma.user.findUnique({ where: { id: userId }, select: { savedRegistrationPromoCode: { select: { code: true, isActive: true, archivedAt: true } } } }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { savedRegistrationPromoCode: { select: {
+        code: true, isActive: true, archivedAt: true,
+      } } },
+    }),
   ]);
 
   const monthlyPlan = getAppSubscriptionPlanConfig(settings, "MONTHLY");
@@ -76,4 +84,27 @@ export async function getAppSubscriptionOffer(
         }
       : null,
   };
+}
+
+/** Legacy offer behavior: keep stable token creation until the native init contract is approved. */
+export function getAppSubscriptionOffer(
+  userId: string,
+  clientContext: ClientAppContext = { platform: "unknown", version: null },
+): Promise<AppSubscriptionOfferDto> {
+  return buildAppSubscriptionOffer(userId, clientContext, ensureAppleAppAccountToken);
+}
+
+/** Read-only proposal for G1: no identity allocation. Not wired to live GET until
+ * an explicit authenticated Apple-token initialization contract is approved. */
+export function getAppSubscriptionOfferSnapshot(
+  userId: string,
+  clientContext: ClientAppContext = { platform: "unknown", version: null },
+): Promise<AppSubscriptionOfferDto> {
+  return buildAppSubscriptionOffer(userId, clientContext, async (ownerId) => {
+    const user = await prisma.user.findUnique({
+      where: { id: ownerId },
+      select: { appleAppAccountToken: true },
+    });
+    return user?.appleAppAccountToken ?? null;
+  });
 }

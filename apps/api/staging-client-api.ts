@@ -2,7 +2,6 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { feedRoutes } from "./src/routes/v1/feed.js";
 import { authMiddleware } from "./src/middleware/auth.js";
-import { feedPlaybackResponse } from "@gafus/feed-server";
 import { prisma } from "@gafus/prisma";
 import { connection as redis } from "@gafus/queues";
 if (
@@ -31,7 +30,6 @@ app.get("/__stage__/health", async (c) => {
 });
 app.use("/api/v1/feed/*", authMiddleware);
 app.route("/api/v1/feed", feedRoutes);
-app.get("/api/v1/feed-playback/:media", async (c) => feedPlaybackResponse(c.req.raw));
 const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 31341 });
 console.log("GAFUS_ISOLATED_CLIENT_STAGE=127.0.0.1:31341");
 process.on("SIGTERM", () => {

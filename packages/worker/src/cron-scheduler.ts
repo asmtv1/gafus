@@ -23,7 +23,7 @@ import {
   reconcileAppleAppSubscriptionsFromServer,
   reconcileStaleYookassaPendingAppSubscriptions,
 } from "@gafus/core/services/appSubscription";
-import { reconcileMissedConsultationReminders } from "@gafus/core/services/consultation";
+import { reconcileMissedConsultationReminders, reconcileConsultationEmailLog } from "@gafus/core/services/consultation";
 import { TRAINING_REMINDER_CRON_EXPRESSION } from "./training-reminder-schedule";
 import { sendTrainingReminders } from "./training-reminders-sender";
 import { processDueYookassaAppSubscriptionRenewals } from "./app-subscription-renewals";
@@ -44,11 +44,31 @@ export function startCronJobs(): void {
   // Durable DB outbox. Atomic leases guard overlapping cron runs and multiple workers.
   // No extra traffic until MAIL_OUTBOX_ENABLED and the encryption key are configured.
   cron.schedule("* * * * *", () => {
-    void processDueTransactionalMailOutbox({ batchSize: 10 })
+    void processDueTransactionalMailOutbox({
+      batchSize: 10,
+      onTerminalCommitted: async (key) => {
+        if (!/^consultation-[A-Za-z0-9_-]{1,128}$/.test(key)) return;
+        const outcome = await reconcileConsultationEmailLog(key.slice("consultation-".length));
+        // A terminal outbox with PENDING consultation requires manual review.
+        // Signal it without exposing delivery keys, recipients or exceptions.
+        if (outcome === "queued") throw new Error("CONSULTATION_MAIL_TERMINAL_REVIEW");
+      },
+    })
       .then((result) => {
-        if (result.processed) logger.info("Mail outbox processed", result);
+        if (result.processed) {
+          logger.info("Mail outbox processed", {
+            processed: result.processed, sent: result.sent,
+            failed: result.failed, expired: result.expired,
+          });
+        }
+        if ("reconciliationFailures" in result &&
+            (result.reconciliationFailures ?? 0) > 0) {
+          logger.error("CONSULTATION_MAIL_RECONCILIATION_MANUAL_REVIEW");
+        }
       })
-      .catch((error) => logger.error("Mail outbox processing failed", error as Error));
+      .catch(() => logger.error(
+        "Mail outbox processing failed", new Error("MAIL_OUTBOX_PROCESS_FAILED"),
+      ));
   }, { timezone: "UTC" });
 
   // Mail failures must be visible even if an external mail provider is unreachable.
@@ -147,29 +167,51 @@ export function startCronJobs(): void {
       { timezone: "UTC" },
     );
   }
-  // Durable Cloud.ru media processing: no job will run until an explicit main release enables it.
-  // Core owns job claims/leases and prevents duplicate publication across retries.
+  // Cloud.ru jobs are opt-in, and Feed is driven by durable due DB jobs,
+  // never by an unconditional launch every minute. Gallery stays independent.
   if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED === "true") {
-    let dispatch:
-      | ReturnType<typeof import("./cloudru-media-dispatcher").createCloudruMediaDispatcher>
-      | undefined;
-    cron.schedule(
-      "* * * * *",
-      () => {
+    if (process.env.GALLERY_PROCESSOR_READY === "true") {
+      let gallery: (() => Promise<{ dispatched: number }>) | undefined;
+      cron.schedule("* * * * *", () => {
         void import("./cloudru-media-dispatcher")
-          .then(async ({ createCloudruMediaDispatcher }) => {
-            dispatch ??= createCloudruMediaDispatcher();
-            await dispatch();
+          .then(async ({ createCloudruGalleryPoolDispatcher }) => {
+            gallery ??= createCloudruGalleryPoolDispatcher();
+            await gallery();
           })
-          .catch(() =>
-            logger.error(
-              "Cloud.ru media processing triggers failed",
-              new Error("CLOUDRU_JOB_DISPATCH_FAILED"),
-            ),
-          );
-      },
-      { timezone: "UTC" },
-    );
+          .catch(() => logger.error("Cloud.ru gallery trigger failed", new Error("GALLERY_CLOUD_DISPATCH_FAILED")));
+      }, { timezone: "UTC" });
+    }
+    if (process.env.FEED_PROCESSOR_READY === "true") {
+      cron.schedule("* * * * *", () => {
+        void import("./feed-media-recovery.js")
+          .then(({ runFeedMediaRecoveryTick }) => runFeedMediaRecoveryTick())
+          .catch(() => logger.error("Feed recovery tick failed", new Error("FEED_CLOUD_RECOVERY_FAILED")));
+      }, { timezone: "UTC" });
+    }
+  }
+  // Chat2 is independent of Feed and entirely disabled until isolated cutover.
+  // Poll due claims every minute; only launch when photo/video work exists.
+  // Each tick may start two photo and two video Cloud Jobs concurrently.
+  if(process.env.CLOUDRU_MEDIA_JOBS_ENABLED==="true" &&
+      process.env.CHAT2_PROCESSOR_READY==="true" &&
+      process.env.CHAT2_V2_CORE_ENABLED==="true" &&
+      process.env.CHAT2_V2_MEDIA_ENABLED==="true"){
+    cron.schedule("* * * * *",()=>{
+      void import("./chat2-media-recovery.js")
+        .then(({runChat2MediaRecoveryTick})=>runChat2MediaRecoveryTick())
+        .catch(error=>logger.error("Chat2 media recovery tick failed",error as Error));
+    },{timezone:"UTC"});
+  }
+  // Questions image-only recovery: no empty Cloud Jobs and no video pool.
+  if (process.env.QUESTIONS_V2_MEDIA_ENABLED==="true" &&
+      process.env.QUESTIONS_V2_PROCESSOR_READY==="true" &&
+      process.env.CLOUDRU_MEDIA_JOBS_ENABLED==="true" &&
+      process.env.QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED==="true") {
+    cron.schedule("* * * * *",()=>{
+      void import("./questions-photo-recovery")
+        .then(({runQuestionsPhotoRecoveryTick})=>runQuestionsPhotoRecoveryTick())
+        .catch(error=>logger.error("Questions Photo V2 recovery failed",error as Error));
+    },{timezone:"UTC"});
   }
   // Independent durable Beget per-object purge outbox. Disabled by default;
   // no CDN actions until a specifically verified production release enables it.
@@ -181,12 +223,28 @@ export function startCronJobs(): void {
     });
   }
   // Account cleanup must continue independently of gallery/feed product flags.
-  if (process.env.ACCOUNT_STORAGE_CLEANUP_ENABLED === "true") {
+  // Account erasure outbox is core functionality, not an optional media feature.
+  // Default ON for Refactor worker deployments; an explicit false is the
+  // emergency opt-out. Provider-specific guards still fail closed and retain
+  // jobs for retry instead of acknowledging an unverified S3/CDN deletion.
+  if (process.env.ACCOUNT_STORAGE_CLEANUP_ENABLED === undefined ||
+      process.env.ACCOUNT_STORAGE_CLEANUP_ENABLED === "true") {
     cron.schedule("* * * * *", () => {
       processAccountStorageCleanup().catch(() =>
         logger.error("Account storage cleanup unavailable", new Error("CLEANUP_SCHEDULER_FAILED")),
       );
     });
+  }
+  // WEB2 provider-qualified pet media intents are independent of Gallery.
+  // Both toggles and Core's isolated-development guard must pass. No provider
+  // deletion is scheduled until migration review and explicit local activation.
+  if (process.env.PET_MEDIA_DELETION_OUTBOX_ENABLED === "true" &&
+      process.env.PET_MEDIA_CLEANUP_WORKER_ENABLED === "true") {
+    cron.schedule("* * * * *", () => {
+      void import("@gafus/core/services/pets")
+        .then(({processDuePetMediaDeletionIntents})=>processDuePetMediaDeletionIntents(3))
+        .catch(() => logger.error("PET_MEDIA_DELETION_SCHEDULER_FAILED"));
+    }, {timezone:"UTC"});
   }
   if (process.env.FEED_MAINTENANCE_ENABLED === "true") {
     cron.schedule("* * * * *", () => {

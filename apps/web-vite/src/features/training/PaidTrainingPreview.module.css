@@ -1,0 +1,68 @@
+/* Original Next TrainingPageClient / CourseDescriptionWithVideo paid branch.
+ * Restrict changes to paid marketing preview, not unlocked learner days. */
+/* Original apps/web Next trainings.module.css container (including 8px top
+ * and 3vw side padding), without changing other Vite training routes. */
+:global(.gafus-app .shell:has(.training-paid-preview)) {
+  padding: 0;
+  max-width: 1280px;
+}
+:global(.gafus-app .shell .training-paid-preview).page {
+  box-sizing: border-box;
+  width: 100%; max-width: 1280px; min-width: 0;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 8px clamp(16px, 3vw, 56px) 10px;
+  display: flex; flex-direction: column; align-items: stretch;
+  justify-content: flex-start; gap: 14px;
+}
+.pageTitle { margin: 15px 0 0; color: #352e2e; text-align: center;
+  font: 400 clamp(36px, 4vw, 60px)/1 var(--font-impact), system-ui, sans-serif; }
+.descriptionContainer { box-sizing: border-box; width: 100%; max-width: 900px;
+  margin: 0 auto 24px; }
+.descriptionHeader { display: flex; width: 100%; justify-content: space-between;
+  align-items: center; padding: 16px 20px; border-radius: 12px;
+  background: var(--surface); border: 1px solid rgba(var(--accent-primary-rgb),.28);
+  color: var(--text-primary); cursor: pointer; }
+.descriptionHeader[aria-expanded="true"] { border-radius: 12px 12px 0 0; }
+.descriptionHeader:focus-visible { outline: 3px solid var(--bg-2); outline-offset: 2px; }
+.descriptionTitle { margin: 0; color: var(--text-primary);
+ font: 600 16px/1.5 var(--font-impact),var(--font-montserrat),system-ui,sans-serif; }
+.expandControl { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.expandText { font: 500 14px/1.4 var(--font-impact),var(--font-montserrat),system-ui,sans-serif;
+ color: var(--accent-primary); white-space: nowrap; }
+.expandIcon { flex-shrink: 0; width: 24px; height: 24px;
+ color: var(--accent-primary); transition: transform .2s ease; }
+.expandIcon.expanded { transform: rotate(180deg); }
+.descriptionContent { background: var(--surface); border: 1px solid rgba(var(--accent-primary-rgb),.28);
+ border-top: 0; border-radius: 0 0 12px 12px; padding: 20px; color: var(--text-primary); }
+.outlineSection { box-sizing: border-box; margin: 0 auto 20px; padding: 20px;
+ background: #ece5d2; border-radius: 16px; border: 1px solid var(--bg-2,#636128);
+ width: 100%; max-width: 1180px; }
+.outlineTitle { margin: 0 0 12px; color: #352e2e;
+ font: 400 1.1rem/1.4 var(--font-impact),var(--font-montserrat),system-ui,sans-serif; }
+.outlineList { margin: 0; padding-left: 24px; color: #352e2e; line-height: 1.6; }
+.outlineList li { margin-bottom: 4px; }
+.accessDeniedBlock { box-sizing: border-box; width: 100%; padding: 24px;
+ text-align: center; background: #ece5d2; border-radius: 16px;
+ border: 1px solid var(--bg-2,#636128); color: #352e2e; }
+.accessTitle { margin: 0 0 8px; color: #352e2e;
+ font-family: var(--font-impact),var(--font-montserrat),system-ui,sans-serif; }
+.accessSubtitle { margin: 0; opacity: .9; color: #352e2e; }
+.backLink { margin: 16px 0 0; }
+.backLink a { display: inline-flex; min-height: 44px; align-items: center;
+ padding: 12px 22px; color: #fff8e5; background: #636128; text-decoration: none;
+ border-radius: 12px; }
+/* Source CourseDescriptionWithVideo.module.css switches only the
+ * disclosure at 768px, not the outer accessDeniedBlock's 24px padding. */
+@media (max-width: 768px) {
+  .descriptionContainer { margin-bottom: 20px; }
+  .descriptionHeader { padding: 12px 16px; }
+  .descriptionTitle { font-size: 14px; }
+  .expandText { font-size: 12px; }
+  .expandIcon { width: 20px; height: 20px; }
+  .descriptionContent { padding: 16px; }
+}
+
+.stepAccessHint { max-width: 880px; margin: 0 auto 18px; text-align: center; color: var(--text-secondary,#514c41); font-size: 14px; line-height: 1.5; }
+
+.courseName { margin: 0; color: var(--text-primary); text-align: center; font-weight: 600; }

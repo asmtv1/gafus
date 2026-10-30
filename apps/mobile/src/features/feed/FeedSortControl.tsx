@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import type { FeedSort } from "@gafus/types";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
@@ -12,61 +12,118 @@ const options = [
   { key: "discussed", label: "Сначала резонансные" },
 ] as const;
 
-export function FeedSortControl({ value, onChange, compact = false, smartEnabled = false, onSettings }: { value: FeedSort; onChange: (sort: FeedSort) => void; compact?: boolean; smartEnabled?: boolean; onSettings?: () => void }) {
+export function FeedSortControl({
+  value,
+  onChange,
+  compact = false,
+  smartEnabled = false,
+  onSettings,
+}: {
+  value: FeedSort;
+  onChange: (sort: FeedSort) => void;
+  compact?: boolean;
+  smartEnabled?: boolean;
+  onSettings?: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  const visibleOptions = options.filter(option => option.key !== "smart" || smartEnabled);
-  const selected = visibleOptions.find(option => option.key === value) ?? visibleOptions[0]!;
+  const didCorrectUnavailableSmart = useRef(false);
+  useEffect(() => {
+    if (value === "smart" && !smartEnabled) {
+      if (!didCorrectUnavailableSmart.current) {
+        didCorrectUnavailableSmart.current = true;
+        onChange("new");
+      }
+    } else {
+      didCorrectUnavailableSmart.current = false;
+    }
+  }, [value, smartEnabled, onChange]);
+  const visibleOptions = options.filter((option) => option.key !== "smart" || smartEnabled);
+  const selected = visibleOptions.find((option) => option.key === value) ?? visibleOptions[0]!;
 
-  return <>
-    <View style={styles.sortButton}>
-      <Button
-        label=" "
-        variant="primary"
-        accessibilityLabel={`Сортировка: ${selected.label}`}
-        accessibilityState={{ expanded: open }}
-        onPress={() => setOpen(true)}
-        fullWidth
-        height={44}
-        horizontalPadding={0}
-        verticalPadding={0}
-        borderRadius={14}
-        style={styles.sortButtonBackground}
-        animatedPress
-      />
-      <View pointerEvents="none" accessible={false} importantForAccessibility="no-hide-descendants"
-        style={[styles.sortButtonContent, compact && styles.sortButtonContentCompact]}>
-        <MaterialCommunityIcons name="swap-vertical" size={compact ? 17 : 20} color="#F6F0DF" />
-        <Text style={[styles.sortButtonText, compact && styles.sortButtonTextCompact]} numberOfLines={1}>
-          Сортировка
-        </Text>
-        <MaterialCommunityIcons name="chevron-down" size={compact ? 14 : 18} color="#F6F0DF" />
-      </View>
-    </View>
-    <Modal visible={open} transparent animationType="fade"
-      onRequestClose={() => setOpen(false)}>
-      <Pressable style={styles.sortOverlay} onPress={() => setOpen(false)}
-        accessibilityLabel="Закрыть сортировку">
-        <View style={styles.sortMenu} accessibilityViewIsModal accessibilityLabel="Порядок публикаций">
-          {visibleOptions.map(option => (
-            <Pressable key={option.key} accessibilityRole="radio"
-              accessibilityState={{ checked: value === option.key }}
-              style={[styles.sortOption, value === option.key && styles.sortOptionActive]}
-              onPress={() => { setOpen(false); onChange(option.key); }}>
-              <Text style={[styles.sortOptionText, value === option.key && styles.sortOptionTextActive]}>
-                {option.label}
-              </Text>
-              {value === option.key && <Text style={styles.sortCheck}>✓</Text>}
-            </Pressable>
-          ))}
-          {smartEnabled && onSettings && <Pressable accessibilityRole="button"
-            onPress={() => { setOpen(false); onSettings(); }} style={styles.sortOption}>
-            <Text style={styles.sortOptionText}>Настроить ленту</Text>
-            <MaterialCommunityIcons name="cog-outline" size={19} color={COLORS.primary} />
-          </Pressable>}
+  return (
+    <>
+      <View style={styles.sortButton}>
+        <Button
+          label=" "
+          variant="primary"
+          accessibilityLabel={`Сортировка: ${selected.label}`}
+          accessibilityState={{ expanded: open }}
+          onPress={() => setOpen(true)}
+          fullWidth
+          height={44}
+          horizontalPadding={0}
+          verticalPadding={0}
+          borderRadius={14}
+          style={styles.sortButtonBackground}
+          animatedPress
+        />
+        <View
+          pointerEvents="none"
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+          style={[styles.sortButtonContent, compact && styles.sortButtonContentCompact]}
+        >
+          <MaterialCommunityIcons name="swap-vertical" size={compact ? 17 : 20} color="#F6F0DF" />
+          <Text
+            style={[styles.sortButtonText, compact && styles.sortButtonTextCompact]}
+            numberOfLines={1}
+          >
+            Сортировка
+          </Text>
+          <MaterialCommunityIcons name="chevron-down" size={compact ? 14 : 18} color="#F6F0DF" />
         </View>
-      </Pressable>
-    </Modal>
-  </>;
+      </View>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable
+          style={styles.sortOverlay}
+          onPress={() => setOpen(false)}
+          accessibilityLabel="Закрыть сортировку"
+        >
+          <View
+            style={styles.sortMenu}
+            accessibilityViewIsModal
+            accessibilityLabel="Порядок публикаций"
+          >
+            {visibleOptions.map((option) => (
+              <Pressable
+                key={option.key}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: value === option.key }}
+                style={[styles.sortOption, value === option.key && styles.sortOptionActive]}
+                onPress={() => {
+                  setOpen(false);
+                  if (option.key !== value) onChange(option.key);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.sortOptionText,
+                    value === option.key && styles.sortOptionTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+                {value === option.key && <Text style={styles.sortCheck}>✓</Text>}
+              </Pressable>
+            ))}
+            {smartEnabled && onSettings && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setOpen(false);
+                  onSettings();
+                }}
+                style={styles.sortOption}
+              >
+                <Text style={styles.sortOptionText}>Настроить ленту</Text>
+                <MaterialCommunityIcons name="cog-outline" size={19} color={COLORS.primary} />
+              </Pressable>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
+    </>
+  );
 }
 
 const styles = StyleSheet.create({

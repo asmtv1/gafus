@@ -170,3 +170,41 @@ ci-cd/nginx/conf.d/.release-maintenance
 # Local Expo / Metro verification artifacts (never publish in release commits)
 /.expo/
 /apps/mobile/.build-validation-*/
+
+# INFRA032 sensitive supplied raw PostgreSQL dump (never commit)
+/gafus dump/
+
+# Generated isolated QA and temporary Vite verification builds
+**/.ag2-tmp/
+**/.design-verify/
+**/.*-build-2026*/
+/apps/web-vite/.ag2-build-*/
+/docs/refactor/agents/
+
+# Pre-merge local-state and generated QA exclusions (2026-10-29)
+/secrets/
+*.p8
+/.env.stream-chat-*
+/.local-*/
+/.ci-report/
+/.ag[0-9]-*/
+**/.ag[0-9]-*/
+**/.g[0-9]-*/
+**/.chat2-verify-*/
+**/.chat2-avatar-verify-*/
+**/.trainer-parity-check-*/
+**/.notes-build-check-*/
+
+# Historical isolated API contract/QA run captures; source remains in apps/api/src
+/apps/api/g[0-9]*/
+/apps/api/w1-*/
+/apps/api/.g[0-9]*/
+/apps/api/.guest-cleanup-private-build-*/
+
+# Ephemeral test runner output, never source or release input.
+**/*.stdout
+**/*.stderr
+**/*.exit
+
+# IDE-generated code counting reports (not project sources)
+/.VSCodeCounter/

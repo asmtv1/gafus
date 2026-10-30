@@ -30,10 +30,9 @@ export function questionHttpError(error: unknown) {
       status: 400,
       body: { success: false, error: "Некорректный запрос", code: "INVALID_REQUEST" },
     };
-  logger.error(
-    "Questions request failed",
-    error instanceof Error ? error : new Error(String(error)),
-  );
+  // Provider errors and arbitrary thrown values can contain presigned URLs,
+  // account identifiers, and request data. Never serialize them into logs.
+  logger.error("Questions request failed", undefined, { category: "unexpected" });
   return {
     status: 500,
     body: {

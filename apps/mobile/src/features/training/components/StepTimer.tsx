@@ -1,4 +1,4 @@
-import { formatTimeLeft } from "@gafus/core/utils/training";
+import { formatTimeLeft } from "@gafus/core-client/utils/training";
 import { useEffect, useRef, useCallback } from "react";
 import { View, StyleSheet } from "react-native";
 import { Text, IconButton, ProgressBar } from "react-native-paper";

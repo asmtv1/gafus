@@ -28,12 +28,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const userId = useAuthStore((state) => state.user?.id);
   const isOffline = useNetworkStatusStore((state) => state.isOffline);
   const isLoading = useAuthStore((state) => state.isLoading);
-  const prevAuthRef = useRef<boolean | null>(null);
-  const favoritesLoadedRef = useRef(false);
+  const prevAuthRef = useRef<{ authenticated: boolean; userId: string | null } | null>(null);
+  const favoritesLoadedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isLoading || isOffline) return;
-    const retry = () => { void flushMobileIntroEvents(isAuthenticated ? userId : undefined).catch(() => undefined); };
+    const retry = () => {
+      void flushMobileIntroEvents(isAuthenticated ? userId : undefined).catch(() => undefined);
+    };
     retry();
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") retry();
@@ -43,12 +45,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     if (isLoading) return;
-    const prev = prevAuthRef.current;
-    prevAuthRef.current = isAuthenticated;
-    if (prev === true && !isAuthenticated) {
+    const previous = prevAuthRef.current;
+    const principalId = isAuthenticated ? (userId ?? null) : null;
+    prevAuthRef.current = { authenticated: isAuthenticated, userId: principalId };
+
+    if (previous?.authenticated && !isAuthenticated) {
       resetUserStores();
+    } else if (previous?.authenticated && isAuthenticated && previous.userId !== principalId) {
+      // A direct authenticated USER-A → USER-B switch must discard private
+      // in-memory queries without deleting native offline files or queues.
+      queryClient.clear();
+      useCourseStore.setState({ favorites: [] });
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, queryClient, userId]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -56,16 +65,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [isAuthenticated, isLoading]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      favoritesLoadedRef.current = false;
+    if (!isAuthenticated || !userId) {
+      favoritesLoadedRef.current = null;
       return;
     }
-    if (favoritesLoadedRef.current) return;
-    favoritesLoadedRef.current = true;
+    if (favoritesLoadedRef.current === userId) return;
+    favoritesLoadedRef.current = userId;
+    let cancelled = false;
 
     (async () => {
       try {
         const res = await queryClient.fetchQuery(favoritesQueryOptions);
+        // An earlier principal's request can resolve after the user switches.
+        // Never copy its private favorites into the next account's store.
+        const current = useAuthStore.getState();
+        if (cancelled || !current.isAuthenticated || current.user?.id !== userId) return;
         const ids = res.data?.favoriteIds;
         if (ids !== undefined) {
           useCourseStore.setState({
@@ -73,15 +87,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
           });
         }
       } catch (err) {
+        const current = useAuthStore.getState();
+        if (cancelled || !current.isAuthenticated || current.user?.id !== userId) return;
         reportClientError(err, {
           issueKey: "AuthProvider",
           severity: "warning",
           keys: { operation: "fetch_favorites" },
         });
-        favoritesLoadedRef.current = false;
+        favoritesLoadedRef.current = null;
       }
     })();
-  }, [isAuthenticated, queryClient]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, queryClient, userId]);
 
   if (isLoading || !navState?.key) {
     return <Loading fullScreen />;

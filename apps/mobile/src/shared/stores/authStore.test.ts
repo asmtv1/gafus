@@ -13,6 +13,8 @@ const {
     getProfile: vi.fn(),
     getVkConsentContext: vi.fn(),
     loginViaVk: vi.fn(),
+    login: vi.fn(),
+    logout: vi.fn(),
     register: vi.fn(),
     submitVkConsent: vi.fn(),
   },
@@ -360,5 +362,52 @@ describe("authStore registration promo code", () => {
       "vk_registration_context",
       expect.stringContaining('"promoCode":"EDITED"'),
     );
+  });
+});
+
+
+describe("offline native logout revocation", () => {
+  beforeEach(() => {
+    vi.stubGlobal("__DEV__", false);
+    vi.clearAllMocks();
+    useAuthStore.setState({ user: persistedUser, isAuthenticated: true, isLoading: false });
+  });
+
+  it("signs out locally but securely keeps a failed server revocation for retry", async () => {
+    getItemAsyncMock.mockImplementation(async (key: string) => key === "refresh_token" ? "refresh-secret" : null);
+    authApiMock.logout.mockResolvedValue({ success: false, error: "offline" });
+    await useAuthStore.getState().logout();
+    expect(authApiMock.logout).toHaveBeenCalledWith("refresh-secret");
+    expect(setItemAsyncMock).toHaveBeenCalledWith("auth_pending_logout_0", "refresh-secret");
+    expect(deleteItemAsyncMock).toHaveBeenCalledWith("auth_token");
+    expect(deleteItemAsyncMock).toHaveBeenCalledWith("refresh_token");
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+
+  it("hides private UI and clears local credentials before a stalled server logout", async () => {
+    getItemAsyncMock.mockImplementation(async (key: string) =>
+      key === "refresh_token" ? "stalled-refresh" : null);
+    let resolveLogout!: (result: { success: boolean }) => void;
+    authApiMock.logout.mockImplementation(() => new Promise((resolve) => { resolveLogout = resolve; }));
+    const running = useAuthStore.getState().logout();
+    // This assertion happens before the queued SecureStore/network operations.
+    expect(useAuthStore.getState()).toMatchObject({ user: null, isAuthenticated: false });
+    await vi.waitFor(() => expect(authApiMock.logout).toHaveBeenCalledWith("stalled-refresh"));
+    expect(deleteItemAsyncMock).toHaveBeenCalledWith("auth_token");
+    expect(deleteItemAsyncMock).toHaveBeenCalledWith("refresh_token");
+    resolveLogout({ success: false });
+    await running;
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(setItemAsyncMock).toHaveBeenCalledWith("auth_pending_logout_0", "stalled-refresh");
+  });
+
+  it("retries only the pending revocation on the next login attempt", async () => {
+    getItemAsyncMock.mockImplementation(async (key: string) => key === "auth_pending_logout_0" ? "old-refresh" : null);
+    authApiMock.logout.mockResolvedValue({ success: true });
+    authApiMock.login.mockResolvedValue({ success: false, error: "No user" });
+    await useAuthStore.getState().login("someone", "password");
+    await vi.waitFor(() => expect(deleteItemAsyncMock).toHaveBeenCalledWith("auth_pending_logout_0"));
+    expect(authApiMock.logout).toHaveBeenCalledWith("old-refresh");
   });
 });

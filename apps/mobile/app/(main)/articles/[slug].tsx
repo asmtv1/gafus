@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { View, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView } from "react-native";
 import { Text } from "react-native-paper";
 import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
+import * as Crypto from "expo-crypto";
+import { gafusApi } from "@/shared/lib/api/gafus";
 import { WebView } from "react-native-webview";
-import Markdown from "react-native-markdown-display";
+import Markdown from "@/features/articles/ArticleMarkdown";
 
 import { articlesApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -17,16 +19,12 @@ import {
   ARTICLE_WEBVIEW_HEIGHT_INJECTED_JS,
 } from "@/shared/lib/articles/wrapArticleHtml";
 import { useAuthStore } from "@/shared/stores";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS, BORDER_RADIUS } from "@/shared/config";
 import { Button, Loading } from "@/shared/components/ui";
 import { trackEvent } from "@/shared/lib/analytics";
-import {
-  getRewardedAccessPrompt,
-  openAppSubscriptionPaywall,
-  RewardedAccessGate,
-} from "@/features/app-subscription";
-import { openTargetWithRewardedAd, rewardedAdsApi } from "@/features/rewarded-ads";
+import { openAppSubscriptionPaywall } from "@/features/app-subscription";
 
 /** Доп. высота под WebView; для HTML-статей без лишнего низа — 0. */
 const ARTICLE_WEBVIEW_HEIGHT_PADDING = 0;
@@ -38,75 +36,179 @@ const ARTICLE_WEBVIEW_FALLBACK_HEIGHT = 800;
 export default function ArticleDetailScreen() {
   const router = useRouter();
   const { slug } = useLocalSearchParams<{ slug: string }>();
+  const owner = useAuthStore((s) =>
+    s.isAuthenticated && !s.isLoading ? (s.user?.id ?? null) : null,
+  );
+  const authenticated = useAuthStore((s) => s.isAuthenticated);
+  const authLoading = useAuthStore((s) => s.isLoading);
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const epoch = owner && binding?.principalId === owner ? binding.authEpoch : null;
+  if (authLoading || (authenticated && (!owner || !epoch))) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <Loading fullScreen message="Загрузка статьи..." />
+      </SafeAreaView>
+    );
+  }
+  if (typeof slug !== "string" || !slug.trim())
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <AppBackButton style={styles.backRow} onPress={() => router.back()} />
+        <Text style={styles.errorText}>Статья не найдена.</Text>
+      </SafeAreaView>
+    );
+  return (
+    <ArticleDetailActor
+      key={`${owner ?? "guest"}:${epoch ?? "public"}:${slug}`}
+      slug={slug}
+      owner={owner}
+      epoch={epoch}
+    />
+  );
+}
+function ArticleDetailActor({
+  slug,
+  owner,
+  epoch,
+}: {
+  slug: string;
+  owner: string | null;
+  epoch: string | null;
+}) {
+  const router = useRouter();
+  const mounted = useRef(true);
+  const current = useCallback(() => {
+    if (!mounted.current) return false;
+    const auth = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    if (auth.isLoading) return false;
+    if (owner && epoch)
+      return (
+        auth.isAuthenticated &&
+        auth.user?.id === owner &&
+        binding?.principalId === owner &&
+        binding.authEpoch === epoch
+      );
+    return !auth.isAuthenticated;
+  }, [owner, epoch]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const {
     data: res,
     isLoading,
+    isFetching,
     error,
     refetch,
   } = useQuery({
-    queryKey: ["article", slug],
+    queryKey: ["article", owner ?? "guest", epoch ?? "public", slug],
     queryFn: async () => {
-      const r = await articlesApi.getBySlug(slug as string);
-      if (!r.success) throw new Error(r.error ?? "Ошибка загрузки статьи");
+      if (!current()) throw new Error("ARTICLE_ACTOR_CHANGED");
+      const r = await articlesApi.getBySlug(slug);
+      // This response might have completed after logout or an A→B switch.
+      // Never place another actor's paid text in this Query cache key.
+      if (!current()) throw new Error("ARTICLE_ACTOR_CHANGED");
+      if (!r.success) throw new Error("ARTICLE_DETAIL_GET_FAILED");
       return r;
     },
-    enabled: !!slug,
+    enabled: current(),
+    // As in the Web view, never retain paid HTML/text in an unmounted query.
+    // No stale entitlement reuse after returning to this screen.
+    staleTime: 0,
+    gcTime: 0,
+    retry: false,
   });
 
-  const article = res?.data;
+  // Paid content is a *current* server entitlement, not a cached possession.
+  // During background revalidation (or an auth epoch change), keep old paid
+  // content and its media outside the native tree and WebView entirely.
+  const article = current() && !isLoading && !isFetching && !error && res?.success
+    ? res.data : null;
+  const canReadArticle = article?.hasAccess === true && article.content !== null;
   const user = useAuthStore((s) => s.user);
-  const [rewardedUnlockLoading, setRewardedUnlockLoading] = useState(false);
-  const rewardedUnlockInFlightRef = useRef(false);
+  const attemptedViews = useRef(new Set<string>());
+  const likeFlight = useRef(false);
+  const unknownLike = useRef(false);
+  const confirmedLike = useRef<boolean | null>(null);
+  const [likePending, setLikePending] = useState(false);
+  const [likeNotice, setLikeNotice] = useState("");
+  const [gafusUnlockBusy, setGafusUnlockBusy] = useState(false);
+  const gafusUnlockInFlightRef = useRef(false);
+  // Preserve this ID on uncertain network ACK; no double spending.
+  const gafusRequestId = useRef<string | null>(null);
   const [htmlHeight, setHtmlHeight] = useState<number | null>(null);
   const [webViewReady, setWebViewReady] = useState(false);
   /** Таймаут 3.5s выставил 800px — без внутреннего скролла контент длинных статей обрежется. */
   const [articleHeightIsTimeoutFallback, setArticleHeightIsTimeoutFallback] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
-  const [rewardedDailyLimitReached, setRewardedDailyLimitReached] = useState(false);
   const [isReadCompleteTracked, setIsReadCompleteTracked] = useState(false);
-  const rewardedArticleTarget =
-    article && user && article.content === null
-      ? { targetType: "ARTICLE" as const, targetId: article.id }
-      : null;
-  const rewardedStatusQuery = useQuery({
-    queryKey: [
-      "rewarded-ads",
-      "status",
-      rewardedArticleTarget?.targetType ?? null,
-      rewardedArticleTarget?.targetId ?? null,
-    ],
-    queryFn: () => rewardedAdsApi.getStatus(rewardedArticleTarget!),
-    enabled: Boolean(rewardedArticleTarget),
-    staleTime: 30_000,
+  const gafusStatusQuery = useQuery({
+    queryKey: ["gafus-article-status", owner ?? "guest", epoch ?? "public", article?.id ?? null],
+    queryFn: () => gafusApi.status(),
+    enabled: Boolean(owner && epoch && article && !canReadArticle),
+    staleTime: 0,
+    retry: false,
   });
-  const rewardedStatus =
-    rewardedStatusQuery.data?.success && rewardedStatusQuery.data.data
-      ? rewardedStatusQuery.data.data
-      : null;
-  const rewardedPrompt = getRewardedAccessPrompt({
-    isLoading: rewardedStatusQuery.isFetching,
-    status: rewardedStatus,
-    dailyLimitReached: rewardedDailyLimitReached,
-  });
+  const gafusStatus = gafusStatusQuery.data;
+
 
   useEffect(() => {
-    if (!rewardedStatusQuery.data?.success || !rewardedStatusQuery.data.data) return;
-    setRewardedDailyLimitReached(
-      rewardedStatusQuery.data.data.canWatchAdReason === "DAILY_LIMIT_REACHED",
-    );
-  }, [rewardedStatusQuery.data]);
-
-  useEffect(() => {
-    if (slug && article) {
-      void articlesApi.incrementView(slug).catch((error) => {
-        reportClientError(error instanceof Error ? error : new Error(String(error)), {
-          issueKey: "ArticleDetailScreen",
-          keys: { operation: "increment_view" },
+    if (!current() || !article || article.slug !== slug) return;
+    const key = `${owner ?? "guest"}:${epoch ?? "public"}:${slug}`;
+    if (attemptedViews.current.has(key)) return;
+    attemptedViews.current.add(key); // Mark BEFORE write; never replay unknown ACK.
+    void articlesApi.incrementView(slug, current).then(result => {
+      if (current() && !result.success)
+        reportClientError(new Error("ARTICLE_VIEW_ACK_UNCONFIRMED"), {
+          issueKey: "ArticleDetailScreen", keys: { operation: "increment_view" },
         });
+    }).catch(() => {
+      if (current()) reportClientError(new Error("ARTICLE_VIEW_RESULT_UNKNOWN"), {
+        issueKey: "ArticleDetailScreen", keys: { operation: "increment_view" },
       });
+    });
+  }, [slug, article, owner, epoch, current]);
+
+  const handleArticleLike = useCallback(async () => {
+    if (!current() || !owner || !epoch || !article || !canReadArticle ||
+        likeFlight.current || unknownLike.current ||
+        (confirmedLike.current !== null && article.isLiked !== confirmedLike.current)) return;
+    likeFlight.current = true;
+    setLikePending(true);
+    setLikeNotice("");
+    try {
+      const result = await articlesApi.toggleLike(article.id, current);
+      if (!current()) return;
+      if (!result.success || typeof result.data?.isLiked !== "boolean") {
+        unknownLike.current = true;
+        setLikeNotice("Результат лайка неизвестен. Повторная отправка заблокирована.");
+        return;
+      }
+      const acknowledged = result.data.isLiked;
+      confirmedLike.current = acknowledged;
+      const readback = await refetch();
+      if (!current()) return;
+      if (readback.isError || !readback.data?.success ||
+          readback.data.data?.isLiked !== acknowledged) {
+        unknownLike.current = true;
+        setLikeNotice("Лайк отправлен, но не подтверждён. Откройте статью заново.");
+      }
+    } catch {
+      if (!current()) return;
+      unknownLike.current = true;
+      reportClientError(new Error("ARTICLE_LIKE_RESULT_UNKNOWN"), {
+        issueKey: "ArticleDetailScreen", keys: { operation: "toggle_like" },
+      });
+      setLikeNotice("Результат лайка неизвестен. Повторная отправка заблокирована.");
+    } finally {
+      likeFlight.current = false;
+      if (current()) setLikePending(false);
     }
-  }, [slug, article]);
+  }, [article, canReadArticle, current, epoch, owner, refetch]);
 
   useEffect(() => {
     setHtmlHeight(null);
@@ -141,54 +243,59 @@ export default function ArticleDetailScreen() {
     return () => clearTimeout(t);
   }, [article]);
 
-  const handleRewardedUnlock = useCallback(async () => {
-    if (!article || rewardedUnlockInFlightRef.current) return;
-    rewardedUnlockInFlightRef.current = true;
-    trackEvent({
-      eventName: "button_click",
-      platform: "mobile",
-      pathOrScreen: `/articles/${article.slug}`,
-      elementId: "article-rewarded-ad-open",
-    });
+  const handleGafusUnlock = useCallback(async () => {
+    if (!current() || !owner || !epoch || !article || canReadArticle ||
+      gafusUnlockInFlightRef.current || !gafusStatus?.enabled.spending ||
+      !gafusStatus.enabled.economy || gafusStatus.wallet.balance < 1) return;
+    gafusUnlockInFlightRef.current = true;
+    setGafusUnlockBusy(true);
     setPayError(null);
-    setRewardedUnlockLoading(true);
     try {
-      const result = await openTargetWithRewardedAd({
-        targetType: "ARTICLE",
-        targetId: article.id,
-      });
-      if (!result.success) {
-        if (result.failure === "DAILY_LIMIT") {
-          setRewardedDailyLimitReached(true);
-          await rewardedStatusQuery.refetch();
-          return;
-        }
-        setPayError(result.message);
-        return;
+      const clientRequestId = gafusRequestId.current ?? Crypto.randomUUID();
+      gafusRequestId.current = clientRequestId;
+      await gafusApi.unlock({ clientRequestId, target: { type: "ARTICLE", articleId: article.id } });
+      const verified = await refetch();
+      if (!current()) return;
+      if (verified.data?.success && verified.data.data?.hasAccess === true) {
+        gafusRequestId.current = null;
+        setPayError(null);
+      } else {
+        setPayError("Доступ пока не подтверждён. Проверьте его перед повтором.");
       }
-      if (result.data) {
-        trackEvent({
-          eventName: "rewarded_access_granted",
-          platform: "mobile",
-          pathOrScreen: `/articles/${article.slug}`,
-          targetType: result.data.targetType,
-          targetId: result.data.targetId,
-          expiresAt: result.data.expiresAt,
-          provider: "YANDEX",
-        });
-      }
-      await Promise.all([refetch(), rewardedStatusQuery.refetch()]);
+      await gafusStatusQuery.refetch();
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "ArticleDetailScreen",
-        keys: { operation: "open_with_rewarded_ad" },
+        keys: { operation: "unlock_article_with_gafus" },
       });
-      setPayError("Ошибка сервиса Гафус. Попробуйте ещё раз или обратитесь к администрации");
+      if (current())
+        setPayError("Не удалось подтвердить покупку. Повтор выполняется только с тем же номером запроса.");
     } finally {
-      rewardedUnlockInFlightRef.current = false;
-      setRewardedUnlockLoading(false);
+      gafusUnlockInFlightRef.current = false;
+      if (current()) setGafusUnlockBusy(false);
     }
-  }, [article, refetch, rewardedStatusQuery]);
+  }, [article, canReadArticle, current, epoch, gafusStatus, gafusStatusQuery, owner, refetch]);
+
+  const verifyGafusAccess = useCallback(async () => {
+    if (gafusUnlockInFlightRef.current || !current()) return;
+    gafusUnlockInFlightRef.current = true;
+    setGafusUnlockBusy(true);
+    try {
+      const verified = await refetch();
+      if (!current()) return;
+      if (verified.data?.success && verified.data.data?.hasAccess) {
+        gafusRequestId.current = null;
+        setPayError(null);
+      } else {
+        setPayError("Доступ пока не подтверждён. Нового списания не было.");
+      }
+    } catch {
+      if (current()) setPayError("Не удалось проверить доступ. Нового списания не было.");
+    } finally {
+      gafusUnlockInFlightRef.current = false;
+      if (current()) setGafusUnlockBusy(false);
+    }
+  }, [current, refetch]);
 
   const handleSubscriptionPaywall = useCallback(() => {
     openAppSubscriptionPaywall({ reason: "required", contentMode: "subscription" });
@@ -224,15 +331,27 @@ export default function ArticleDetailScreen() {
         <Stack.Screen options={{ title: "Ошибка" }} />
         <AppBackButton style={styles.backRow} onPress={() => router.back()} />
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>
-            {error instanceof Error ? error.message : "Ошибка загрузки статьи"}
-          </Text>
+          <Text style={styles.errorText}>Не удалось загрузить статью. Попробуйте ещё раз.</Text>
+          <Button
+            label="Повторить загрузку статьи"
+            variant="primary"
+            onPress={() => {
+              if (!current()) return;
+              void refetch().catch(() => {
+                if (current())
+                  reportClientError(new Error("ARTICLE_DETAIL_REFETCH_FAILED"), {
+                    issueKey: "ArticleDetailScreen",
+                    keys: { operation: "retry" },
+                  });
+              });
+            }}
+          />
         </View>
       </SafeAreaView>
     );
   }
 
-  if (isLoading || !article) {
+  if (isLoading || isFetching) {
     return (
       <SafeAreaView style={styles.container} edges={["top"]}>
         <Stack.Screen options={{ title: "Загрузка..." }} />
@@ -242,7 +361,20 @@ export default function ArticleDetailScreen() {
     );
   }
 
-  const isHtmlArticle = article.content !== null && article.contentType !== "TEXT";
+  if (!article)
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <AppBackButton
+          style={styles.backRow}
+          onPress={() => {
+            if (current()) router.back();
+          }}
+        />
+        <Text style={styles.errorText}>Статья не найдена.</Text>
+      </SafeAreaView>
+    );
+
+  const isHtmlArticle = canReadArticle && article.contentType !== "TEXT";
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -266,8 +398,18 @@ export default function ArticleDetailScreen() {
             {new Date(article.createdAt).toLocaleDateString("ru-RU")}
           </Text>
         </View>
+        {canReadArticle && owner && epoch && (
+          <Button
+            label={article.isLiked ? "Убрать лайк" : "Нравится"}
+            variant="outline" fullWidth={false}
+            disabled={likePending || unknownLike.current ||
+              (confirmedLike.current !== null && article.isLiked !== confirmedLike.current)}
+            onPress={() => void handleArticleLike()}
+          />
+        )}
+        {likeNotice ? <Text accessibilityRole="alert">{likeNotice}</Text> : null}
 
-        {article.videoUrl && (
+        {canReadArticle && article.videoUrl && (
           <View style={styles.videoFrame}>
             <WebView
               source={{ uri: article.videoUrl }}
@@ -278,7 +420,7 @@ export default function ArticleDetailScreen() {
           </View>
         )}
 
-        {(article.imageUrls?.length ?? 0) > 0 && (
+        {canReadArticle && (article.imageUrls?.length ?? 0) > 0 && (
           <View style={styles.gallery}>
             {article.imageUrls?.map((url, i) => {
               const resolved = resolveImageUrl(url);
@@ -296,7 +438,7 @@ export default function ArticleDetailScreen() {
           </View>
         )}
 
-        {article.content === null ? (
+        {!canReadArticle ? (
           <View style={[styles.paidBlock, styles.rewardedPaidBlock]}>
             {article.description ? (
               <View style={styles.paidDescription}>
@@ -305,15 +447,28 @@ export default function ArticleDetailScreen() {
             ) : null}
             {user ? (
               <View style={[styles.paidButtonsRow, styles.rewardedPaidButtonsRow]}>
-                <RewardedAccessGate
-                  title="Открыть статью"
-                  subtitle="Подписка открывает все статьи!"
-                  prompt={rewardedPrompt}
-                  errorText={payError}
-                  isBusy={rewardedUnlockLoading}
-                  onPrimaryPress={() => void handleRewardedUnlock()}
-                  onSubscriptionPress={handleSubscriptionPaywall}
-                />
+                <View style={styles.gafusUnlock}>
+                  <Text style={styles.gafusUnlockTitle}>Открыть статью на 7 дней</Text>
+                  <Text style={styles.gafusUnlockInfo}>
+                    Один гафус — одна статья. Premium открывает все статьи.
+                  </Text>
+                  <Text style={styles.gafusUnlockInfo}>
+                    {gafusStatus
+                      ? `Баланс: ${gafusStatus.wallet.balance} гафусов`
+                      : "Проверяем баланс…"}
+                  </Text>
+                  <Button label={gafusUnlockBusy ? "Открываем…" : "Открыть за 1 гафус"}
+                    variant="primary"
+                    disabled={gafusUnlockBusy || !gafusStatus?.enabled.economy ||
+                      !gafusStatus.enabled.spending || gafusStatus.wallet.balance < 1}
+                    onPress={() => void handleGafusUnlock()} />
+                  {gafusRequestId.current && <Button label="Проверить доступ"
+                    variant="outline" disabled={gafusUnlockBusy}
+                    onPress={() => void verifyGafusAccess()}/>}
+                  {payError && <Text accessibilityRole="alert" style={styles.errorText}>{payError}</Text>}
+                  <Button label="Оформить Premium" variant="outline"
+                    onPress={handleSubscriptionPaywall} />
+                </View>
               </View>
             ) : (
               <Button
@@ -327,9 +482,13 @@ export default function ArticleDetailScreen() {
                 horizontalPadding={20}
                 verticalPadding={12}
                 borderRadius={BORDER_RADIUS.md}
-                onPress={() => router.replace(
-                  `/(auth)/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}` as Parameters<typeof router.replace>[0],
-                )}
+                onPress={() =>
+                  router.replace(
+                    `/(auth)/login?returnUrl=${encodeURIComponent(`/articles/${article.slug}`)}` as Parameters<
+                      typeof router.replace
+                    >[0],
+                  )
+                }
               />
             )}
           </View>
@@ -457,6 +616,16 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.border,
     width: "100%",
+  },
+  gafusUnlock: {
+    width: "100%", gap: 12, borderRadius: 16, padding: 16,
+    backgroundColor: "#F7F8F1", borderWidth: 1, borderColor: "#D9DEC8",
+  },
+  gafusUnlockTitle: {
+    color: "#27301D", fontSize: 17, fontWeight: "700",
+  },
+  gafusUnlockInfo: {
+    color: "#4F583D", fontSize: 14, lineHeight: 20,
   },
   rewardedPaidBlock: {
     padding: 0,

@@ -8,29 +8,32 @@ import { createWebLogger, isZodErrorLike, sanitizeZodErrorForLogMeta } from "@ga
 const logger = createWebLogger("api-error");
 
 export const errorHandler = (err: Error, c: Context) => {
+  // Dynamic URL segments may contain user identifiers, signed tokens or PII.
+  // Log the matched Hono route template instead of the raw request path.
   const base = {
-    path: c.req.path,
+    route: c.req.routePath,
     method: c.req.method,
     requestId: c.get("requestId"),
     hasBody: c.req.method === "POST" || c.req.method === "PUT" || c.req.method === "PATCH",
   };
 
-  if (isZodErrorLike(err)) {
-    logger.error("Unhandled error", undefined, {
+  // Classify validation by its structure, never by an incidental message or name.
+  const validationError = isZodErrorLike(err);
+  if (validationError) {
+    logger.error("Unhandled validation error", undefined, {
       ...base,
       ...sanitizeZodErrorForLogMeta(err),
     });
   } else {
-    logger.error("Unhandled error", err, {
+    // Provider errors can embed user data or credentials in both message and
+    // stack. Retain request correlation, but never forward the raw exception.
+    logger.error("Unhandled internal error", undefined, {
       ...base,
-      errorMessage: err.message,
-      errorStack: err.stack,
-      errorName: err.name,
+      category: "internal",
     });
   }
 
-  // Если это ошибка валидации от zValidator, возвращаем 400
-  if (err.name === "ZodError" || err.message.includes("validation")) {
+  if (validationError) {
     return c.json(
       {
         success: false,

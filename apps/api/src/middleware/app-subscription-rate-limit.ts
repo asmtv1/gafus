@@ -3,6 +3,7 @@ const RATE_LIMITED_APP_SUBSCRIPTION_MUTATIONS = new Set([
   "/api/v1/app-subscription/yookassa/cancel",
   "/api/v1/app-subscription/apple/verify",
   "/api/v1/app-subscription/apple/restore",
+  "/api/v1/app-subscription/apple/token/initialize",
 ]);
 
 export function shouldRateLimitAppSubscriptionPath(method: string, pathname: string): boolean {

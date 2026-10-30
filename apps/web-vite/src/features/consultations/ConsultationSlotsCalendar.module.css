@@ -1,0 +1,386 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.topMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.metaPill {
+  background: rgba(99, 97, 40, 0.12);
+  color: var(--bg-2);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.calendarPanel,
+.slotsPanel {
+  border: 0;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  padding: 14px;
+}
+
+.calendarPanel {
+  height: auto;
+  overflow: hidden;
+}
+
+.calendarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.calendarMonth {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 400;
+  color: var(--bg-2);
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  text-transform: capitalize;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.weekdays span {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(53, 46, 46, 0.75);
+  font-weight: 600;
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.emptyCell {
+  min-height: 54px;
+}
+
+.dayCell {
+  min-height: 54px;
+  border: 0;
+  border-radius: 10px;
+  background: #eee7d2;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.dayCell[data-in-range="false"] {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dayCell[data-weekend="true"] .dayNumber {
+  color: #b63a3a;
+}
+
+.dayCell[data-day-off="true"] {
+  border-color: rgba(182, 58, 58, 0.4);
+  background: rgba(182, 58, 58, 0.12);
+}
+
+.dayCell[data-day-off="true"] .dayNumber,
+.dayCell[data-day-off="true"] .dayCount {
+  color: #a12020;
+}
+
+.dayCell[data-day-off="true"][data-selected="true"] {
+  border-color: rgba(182, 58, 58, 0.4);
+  background: rgba(182, 58, 58, 0.12);
+  box-shadow: none;
+}
+
+.dayCell[data-no-free-slots="true"] {
+  border-color: rgba(182, 58, 58, 0.4);
+  background: rgba(182, 58, 58, 0.12);
+}
+
+.dayCell[data-no-free-slots="true"] .dayNumber,
+.dayCell[data-no-free-slots="true"] .dayCount {
+  color: #a12020;
+}
+
+.dayCell[data-no-free-slots="true"][data-selected="true"] {
+  border-color: rgba(182, 58, 58, 0.4);
+  background: rgba(182, 58, 58, 0.12);
+  box-shadow: none;
+}
+
+.dayCell[data-selected="true"] {
+  box-shadow: inset 0 2px 5px rgba(74, 74, 30, 0.22);
+  background: #e3dcc8;
+}
+
+.dayNumber {
+  font-size: 14px;
+  color: #352e2e;
+  font-weight: 700;
+}
+
+.dayCount {
+  font-size: 10px;
+  color: rgba(53, 46, 46, 0.65);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 26px 0;
+}
+
+.emptyState {
+  border: 1px dashed rgba(99, 97, 40, 0.3);
+  background: rgba(255, 252, 245, 0.8);
+  border-radius: 14px;
+  padding: 22px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slotsTitle {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--bg-2);
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  text-transform: capitalize;
+}
+
+.slotList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slotRow {
+  border: 0;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #eee7d2;
+}
+
+.slotRow[data-status="BOOKED"] {
+  background: rgba(255, 242, 242, 0.9);
+  border-color: rgba(182, 58, 58, 0.28);
+}
+
+.slotRow[data-status="BLOCKED"] {
+  background: rgba(246, 246, 246, 0.9);
+  border-color: rgba(70, 70, 70, 0.18);
+}
+
+.slotTime {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #352e2e;
+  line-height: 1.2;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+.slotStatus {
+  margin-top: 2px;
+  color: rgba(53, 46, 46, 0.7);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.calendarNavButton {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.22);
+  border-radius: 12px;
+  background: var(--surface-muted);
+  color: var(--bg-2);
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: none;
+  font-family: var(--font-montserrat), var(--font-sans-fallback), sans-serif;
+  box-shadow: 0 3px 7px rgba(74, 73, 23, 0.1);
+  transition: transform 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.calendarNavButton:hover:not(:disabled) {
+  background: var(--surface-strong);
+  box-shadow: 0 5px 10px rgba(74, 73, 23, 0.14);
+  transform: translateY(-1px);
+}
+
+.calendarNavButton:active:not(:disabled) {
+  box-shadow: 0 2px 5px rgba(74, 73, 23, 0.1);
+  transform: translateY(1px);
+}
+
+.calendarNavButton:disabled {
+  opacity: 0.42;
+  box-shadow: none;
+}
+
+.slotActionButton {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--bg-2);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
+  color: #fff8e5;
+  font-family: var(--font-montserrat), var(--font-sans-fallback), sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: nowrap;
+  box-shadow: var(--shadow-button);
+  transition: transform 150ms ease, box-shadow 150ms ease, filter 150ms ease;
+}
+
+.slotActionButton:global(.MuiButton-contained) {
+  border-color: var(--bg-2);
+  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
+  color: #fff8e5;
+}
+
+.slotActionButton:hover:not(:disabled) {
+  filter: brightness(0.96);
+  box-shadow: 0 7px 12px rgba(74, 73, 23, 0.2);
+  transform: translateY(-1px);
+}
+
+.slotActionButton:global(.MuiButton-contained):hover:not(:disabled) {
+  background: linear-gradient(180deg, #898544 0%, #51501c 100%);
+}
+
+.slotActionButton:active:not(:disabled) {
+  box-shadow: 0 2px 5px rgba(74, 73, 23, 0.14);
+  transform: translateY(2px);
+}
+
+.slotActionButton:focus-visible,
+.calendarNavButton:focus-visible {
+  outline: 3px solid rgba(var(--accent-primary-rgb), 0.38);
+  outline-offset: 3px;
+}
+
+.slotActionButton:global(.MuiButton-outlined) {
+  border-color: rgba(var(--accent-primary-rgb), 0.25);
+  background: var(--surface-strong);
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+
+.slotActionButton:global(.MuiButton-outlined):hover:not(:disabled) {
+  border-color: rgba(var(--accent-primary-rgb), 0.35);
+  background: var(--surface-muted);
+  box-shadow: 0 4px 9px rgba(74, 73, 23, 0.1);
+}
+
+.slotActionButton:disabled {
+  opacity: 0.65;
+  box-shadow: none;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .slotRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+/* Vite uses its RouteLink in place of Next's MUI Button. */
+.slotActionButton {display:inline-flex;align-items:center;justify-content:center;text-decoration:none;}
+.slotActionButton:not(:disabled) {cursor:pointer;}
+.slotActionButton:global(.consult-live-calendar-book){color:#fff8e5;background:linear-gradient(180deg,#96914d 0%,#59581f 100%);}
+
+/* R10 actual retained Next (MuiButton) renders the booking action visually uppercase
+ * on both loaded desktop and mobile frames. Vite uses native <button>, so
+ * the preserved source module's text-transform:none otherwise wins here.
+ * This is presentation only: accessible text remains "Выбрать слот". */
+.slotActionButton:not(:disabled){text-transform:uppercase}
+
+/* WEB5 R11 real loaded source computed typography on 390x844 and 1280x800:
+ * Original Next MUI month/selected day are Roboto 16px/24px weight400;
+ * copied Vite module instead inherited Impact 18px and 17.6px.
+ * Override locally, not the shared token system or original golden. */
+.container .calendarMonth,
+.container .slotsTitle {
+  font-family: Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+}
+/* Original Next MUI booking button: Roboto 13px/22.75px weight500,
+ * uppercase cream and olive gradient. Vite native button incorrectly
+ * inherited global Montserrat16/24 with flat olive background. */
+:global(.gafus-app) :global(.shell) .container .slotRow button.slotActionButton:not(:disabled) {
+  font-family: Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 22.75px;
+  text-transform: uppercase;
+  min-height: 44px;
+  color: #f6f0df;
+  background: linear-gradient(180deg, #96914d 0%, #59581f 100%);
+  border: 1px solid var(--bg-2);
+  padding: 10px 16px;
+  height: 44px;
+  box-sizing: border-box;
+}
+/* In the original Next R12 desktop, selected-day h3 spans 303px after
+ * 14px+14px padding, while Vite measured 292px: the source's right column
+ * is intrinsically 331px rather than the Vite grid's 320px. Preserve the
+ * equal mobile 330px h3 widths by limiting this rule to desktop. */
+@media (min-width: 901px) {
+  .layout .slotsPanel { min-width: 331px; }
+}
+@media (max-width: 640px) {
+  .container .slotRow button.slotActionButton {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "root": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "vite",
+  "baselineId": "G0-2026-10-16-vite-5fc78081",
+  "gates": {
+    "G0_STATIC": {
+      "status": "PASS",
+      "evidence": [
+        "python3 scripts/refactor/inventory.py --check",
+        "python3 scripts/refactor/parallel_baseline.py --verify",
+        "python3 scripts/refactor/parallel_baseline.py --compare (0/578 drift)",
+        "node scripts/refactor/render_operations.mjs --check",
+        "node scripts/refactor/verify_parallel_freeze.mjs"
+      ]
+    },
+    "P0_PARALLEL_PREPARATION": {
+      "status": "OPEN",
+      "allowedTasks": [
+        "AG1-G1-001",
+        "AG2-G1-001",
+        "AG3-G1-001",
+        "AG4-G1-001"
+      ],
+      "restrictions": "Owned files only; no root pnpm, shared DB, Git writes, production, breaking API"
+    },
+    "G1_DTO_SEMANTIC": {
+      "status": "PENDING",
+      "reason": "Not all 205 Hono declarations, wildcard dispatch, Next actions and Expo JSON fixtures have verified DTO/auth/RBAC tests"
+    },
+    "G2_FEATURE_INTEGRATION": {
+      "status": "BLOCKED",
+      "reason": "Only existing confirmed contracts and mock-only UI work allowed until G1-DTO approvals"
+    },
+    "G3_CROSS_CLIENT_TESTS": {
+      "status": "NOT_STARTED",
+      "reason": "No verified isolated DB/Redis/S3/HTTPS/browser/device/payment sandbox"
+    },
+    "G4_ACCEPTANCE": {
+      "status": "NOT_STARTED",
+      "reason": "Functional parity and release checks not completed; production cutover prohibited"
+    }
+  },
+  "exclusiveLocks": {
+    "ROOT_PNPM_LOCKFILE": {
+      "state": "CLOSED",
+      "owner": "AG4",
+      "reason": "apps/web-vite importer missing; serialized dependency checkpoint required"
+    },
+    "SHARED_DATABASE_REDIS_S3": {
+      "state": "CLOSED",
+      "owner": "AG4",
+      "reason": "Isolation and fixture cleanup must be verified"
+    },
+    "PRISMA_GENERATE_MIGRATE": {
+      "state": "CLOSED",
+      "owner": "AG4",
+      "reason": "No shared generate/migrate during parallel preparation"
+    },
+    "ROOT_TURBO_BUILD": {
+      "state": "CLOSED",
+      "owner": "AG4",
+      "reason": "Unsafe external symlink/dependency and cross-agent contention"
+    },
+    "GIT_WRITES": {
+      "state": "CLOSED",
+      "owner": "AG4",
+      "reason": "No concurrent commit/stash/branch operations in one working tree"
+    },
+    "SHARED_DOCS": {
+      "state": "CLOSED",
+      "owner": "AG4",
+      "reason": "Only AG4 updates docs/refactor/*.md and coordination files in serialized window"
+    },
+    "PRODUCTION": {
+      "state": "PERMANENTLY_CLOSED_WITHOUT_EXPLICIT_USER_AUTHORIZATION",
+      "owner": "none"
+    }
+  },
+  "agentReports": {
+    "AG1": "PENDING",
+    "AG2": "PENDING",
+    "AG3": "PENDING",
+    "AG4": "PENDING"
+  },
+  "note": "AG4 is the only coordinator and may update gate statuses after real tests/approvals; never mark PASS based on old progress logs."
+}

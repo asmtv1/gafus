@@ -3,7 +3,7 @@ import { View, StyleSheet, Pressable, Text, Modal } from "react-native";
 
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { STEP_STATUS_FILTER_LABELS } from "@gafus/core/utils/training";
+import { STEP_STATUS_FILTER_LABELS } from "@gafus/core-client/utils/training";
 import type {
   CourseTabType,
   TrainingLevelType,

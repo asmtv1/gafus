@@ -1,2 +1,1 @@
-import ChatHubScreen from "@/features/cynologist-chat/ChatHubScreen";
-export default function Page() { return <ChatHubScreen trainer />; }
+export { default } from "@/features/chat2/Chat2ListScreen";

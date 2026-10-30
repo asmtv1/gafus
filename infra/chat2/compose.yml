@@ -1,0 +1,27 @@
+# Isolated GAFUS Refactor Chat 2.0 development only. No production ports/services.
+services:
+  chat2-redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks: [chat2]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+  chat2-centrifugo:
+    image: centrifugo/centrifugo:v6.9.7
+    depends_on:
+      chat2-redis:
+        condition: service_healthy
+    command: ["centrifugo", "-c", "/centrifugo/config.json"]
+    volumes:
+      - ./centrifugo.json:/centrifugo/config.json:ro
+    environment:
+      CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY: ${CHAT2_CENTRIFUGO_TOKEN_SECRET:?Set a unique 32+ character dev-only secret}
+      CENTRIFUGO_HTTP_API_KEY: ${CHAT2_CENTRIFUGO_API_KEY:?Set a unique dev-only API key}
+    ports:
+      - "127.0.0.1:8039:8000"
+    networks: [chat2]
+networks:
+  chat2:
+    internal: false

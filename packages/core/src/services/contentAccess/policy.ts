@@ -4,7 +4,7 @@ import { APP_FEATURE_APP_SUBSCRIPTION_GATING, getAppFeatureFlagEnabled } from ".
 export type CoursePolicy = { id: string; isPrivate: boolean; isPaid: boolean };
 export type ContentAccessDecision = {
   allowed: boolean;
-  source: "FREE" | "PRIVATE_ASSIGNMENT" | "SUBSCRIPTION" | "ROLE" | "GATING_DISABLED" | "REWARDED" | "DENIED";
+  source: "FREE" | "PRIVATE_ASSIGNMENT" | "SUBSCRIPTION" | "ROLE" | "GATING_DISABLED" | "GAFUS" | "DENIED";
 };
 const denied: ContentAccessDecision = { allowed: false, source: "DENIED" };
 
@@ -44,7 +44,8 @@ export async function resolveCourseEntitlement(
   return premiumAccess(userId, now);
 }
 
-/** All articles require a subscription; rewarded access is scoped to one article. */
+/** Paid article HTML is unlocked by subscription or one article-specific
+ * seven-day Gafus entitlement on Web, Android and iOS alike. */
 export async function resolveArticleEntitlement(
   articleId: string,
   userId?: string,
@@ -56,12 +57,15 @@ export async function resolveArticleEntitlement(
   if (!userId) return denied;
   const premium = await premiumAccess(userId, now);
   if (premium.allowed) return premium;
-  if (platform === "ANDROID" || platform === "IOS") {
-    const rewarded = await prisma.rewardedTargetAccess.findFirst({
-      where: { userId, targetType: "ARTICLE", targetId: articleId, expiresAt: { gt: now } },
+  if (articleId) {
+    const unlocked = await prisma.gafusTargetAccess.findFirst({
+      where: {
+        userId, targetType: "ARTICLE", targetKey: `article:${articleId}`,
+        expiresAt: { gt: now },
+      },
       select: { id: true },
     });
-    if (rewarded) return { allowed: true, source: "REWARDED" };
+    if (unlocked) return { allowed: true, source: "GAFUS" };
   }
   return denied;
 }

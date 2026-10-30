@@ -18,12 +18,14 @@ const job = {
 };
 const output = {
   width: 1200, height: 700,
-  thumbKey: "posts/alice/post_1/attachments/asset_1/thumb.webp",
-  fullKey: "posts/alice/post_1/attachments/asset_1/full.webp",
+  smallKey: "media/v2/asset_1/v1/image/s.webp",
+  thumbKey: "media/v2/asset_1/v1/image/m.webp",
+  fullKey: "media/v2/asset_1/v1/image/l.webp",
 };
 function mockDb(options: {
   stale?: boolean; deleted?: boolean; mediaStatus?: string; pending?: boolean;
-  attempts?: number; kind?: "publish_photo" | "delete_keys" | "cleanup_source"; sourceKeys?: string[];
+  attempts?: number; kind?: "publish_photo" | "publish_video" | "delete_keys" | "cleanup_source"; sourceKeys?: string[];
+  uploadPurpose?: "post" | "comment";
 } = {}) {
   const j = { ...job, attempts: options.attempts ?? job.attempts,
     kind: options.kind ?? job.kind, sourceKeys: options.sourceKeys ?? job.sourceKeys };
@@ -47,7 +49,8 @@ function mockDb(options: {
     feedPoll: { findUnique: vi.fn(async () => null) },
     feedMediaAsset: { findFirst: vi.fn(async () => media), update: mediaUpdate, updateMany: vi.fn(async () => ({ count: 1 })) },
     feedUpload: { findUnique: vi.fn(async () => ({
-      id: "upload_1", status: "uploaded", mediaId: "asset_1", sourceKey: job.sourceKeys[0],
+      id: "upload_1", status: "uploaded", purpose: options.uploadPurpose ?? "post",
+      mediaId: "asset_1", sourceKey: j.sourceKeys[0],
     })), update: vi.fn(async () => ({ postExpiresAt: now })), updateMany: vi.fn(async () => ({ count: 1 })) },
     feedPostRevision: { findFirst: vi.fn(async () => options.pending
       ? { id: "revision_1", attachments: [{ media }], status: "pending" } : null),
@@ -78,6 +81,56 @@ describe("feed processing job lease and fencing", () => {
     }));
     await expect(worker.claim(21)).rejects.toThrow();
   });
+  it("claims exactly one own retired S3 cleanup job, never another owner or worker kind", async () => {
+    const x = mockDb({ kind: "delete_keys", sourceKeys: ["media/v2/asset_1/v1/image/l.webp"] });
+    const bound = { jobId: job.id, ownerId: "alice", kind: "delete_keys" as const };
+    const rows = await x.worker.claim(1, "photo", bound);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ ownerId: "alice", kind: "delete_keys", id: job.id });
+    expect(x.db.feedStorageJob.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: job.id, ownerId: "alice", kind: "delete_keys" }),
+    }));
+    expect(x.updates).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: job.id, ownerId: "alice", kind: "delete_keys" }),
+    }));
+    const foreign = mockDb({ kind: "delete_keys" });
+    expect(await foreign.worker.claim(1,"photo",{jobId:job.id,ownerId:"stranger",kind:"delete_keys"})).toEqual([]);
+    expect(foreign.updates).not.toHaveBeenCalled();
+  });
+  it("leases exactly the specified local photo or video job without claiming unrelated cleanup", async () => {
+    const photo = mockDb({ kind: "publish_photo" });
+    const scope = { jobId: job.id, ownerId: "alice", kind: "publish_photo" as const };
+    const claimed = await photo.worker.claim(1, "photo", undefined, scope);
+    expect(claimed).toHaveLength(1);
+    expect(photo.db.feedStorageJob.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining(scope && { id: job.id, ownerId: "alice", kind: "publish_photo" }),
+    }));
+    expect(photo.updates).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: job.id, ownerId: "alice", kind: "publish_photo" }),
+    }));
+    const other = mockDb({ kind: "publish_photo" });
+    expect(await other.worker.claim(1, "photo", undefined, {
+      ...scope, ownerId: "another-user",
+    })).toEqual([]);
+    expect(other.updates).not.toHaveBeenCalled();
+    await expect(photo.worker.claim(1, "video", undefined, scope)).rejects.toThrow();
+    await expect(photo.worker.claim(1, "photo", undefined, {
+      ...scope, jobId: "../unsafe",
+    })).rejects.toThrow();
+    await expect(photo.worker.claim(1, "photo", {
+      jobId: job.id, ownerId: "alice", kind: "delete_keys",
+    }, scope)).rejects.toThrow();
+  });
+
+  it("refuses invalid, conflicting and forbidden scoped cleanup before DB access", async () => {
+    const x = mockDb({kind:"delete_keys"});
+    for (const scope of [
+      {jobId:"../foreign", ownerId:"alice",kind:"delete_keys" as const},
+      {jobId:job.id,ownerId:"alice/../foreign",kind:"delete_keys" as const},
+    ]) await expect(x.worker.claim(1,"photo",scope)).rejects.toThrow();
+    await expect(x.worker.claim(1,"video",{jobId:job.id,ownerId:"alice",kind:"delete_keys"})).rejects.toThrow();
+    expect(x.db.feedStorageJob.findMany).not.toHaveBeenCalled();
+  });
   it("rejects outdated attempt without changing a media asset", async () => {
     const { worker, mediaUpdate } = mockDb({ stale: true });
     expect(await worker.complete(job.id, job.attemptToken, output)).toEqual({ accepted: false });
@@ -90,7 +143,7 @@ describe("feed processing job lease and fencing", () => {
     })).rejects.toThrow("Некорректные ключи результата");
     await expect(worker.complete(job.id, job.attemptToken, {
       width: 800, height: 600,
-    })).rejects.toThrow("Неполная обработка фотографии");
+    })).rejects.toThrow("Неполная обработка WebP");
     expect(mediaUpdate).not.toHaveBeenCalled();
   });
   it("does not activate an asset after post deletion", async () => {
@@ -112,10 +165,43 @@ describe("feed processing job lease and fencing", () => {
       data: { status: "completed", attemptToken: null, leaseUntil: null },
     }));
   });
+  it("marks a comment attachment ready without activating the parent post revision", async () => {
+    const { worker, mediaUpdate, published, tx } = mockDb({ pending: true, uploadPurpose: "comment" });
+    expect(await worker.complete(job.id, job.attemptToken, output)).toEqual({ accepted: true });
+    expect(mediaUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: "ready" }),
+    }));
+    expect(tx.feedPostRevision.findFirst).not.toHaveBeenCalled();
+    expect(published).not.toHaveBeenCalled();
+  });
+  it("terminalises a repeatedly failed comment upload without failing its parent post", async () => {
+    const { worker, tx } = mockDb({ attempts: 5, uploadPurpose: "comment" });
+    expect(await worker.claim(1)).toEqual([]);
+    expect(tx.feedMediaAsset.updateMany).toHaveBeenCalled();
+    expect(tx.feedPostRevision.updateMany).not.toHaveBeenCalled();
+    expect(tx.feedPost.updateMany).not.toHaveBeenCalled();
+  });
+  it("accepts one 120-second MP4 rendition and rejects excessive durations or untrusted files", async () => {
+    const mp4Keys = ["media/v2/asset_1/v1/video/360.mp4", "media/v2/asset_1/v1/video/720.mp4"];
+    const valid = { width: 1280, height: 720, durationSeconds: 120,
+      posterKey: "media/v2/asset_1/v1/poster.webp", mp4Keys };
+    const v = mockDb({ kind: "publish_video", sourceKeys: ["posts/alice/post_1/incoming/upload_1/source.mp4"] });
+    expect(await v.worker.complete(job.id, job.attemptToken, valid)).toEqual({ accepted: true });
+    expect(v.mediaUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: "ready", durationSeconds: 120, mp4Keys }),
+    }));
+    for (const invalid of [{ ...valid, durationSeconds: 120.001 },
+      { ...valid, mp4Keys: [] },
+      { ...valid, mp4Keys: [...mp4Keys, "media/v2/asset_1/v1/video/private.mp4"] }]) {
+      const x = mockDb({ kind: "publish_video", sourceKeys: ["posts/alice/post_1/incoming/upload_1/source.mp4"] });
+      await expect(x.worker.complete(job.id, job.attemptToken, invalid)).rejects.toThrow();
+      expect(x.mediaUpdate).not.toHaveBeenCalled();
+    }
+  });
   it("atomically enqueues Beget CDN purge after an authorized individual S3 delete callback", async () => {
     vi.stubEnv("FEED_CDN_PROVIDER", "beget");
     vi.stubEnv("FEED_S3_ENDPOINT", "https://s3.cloud.ru");
-    const key = "posts/alice/post_1/attachments/asset_1/full.webp";
+    const key = "media/v2/asset_1/v1/image/l.webp";
     const { worker, tx, updates } = mockDb({ kind: "delete_keys", sourceKeys: [key] });
     expect(await worker.complete(job.id, job.attemptToken)).toEqual({ accepted: true });
     expect(tx.$executeRaw).toHaveBeenCalledOnce();
@@ -156,5 +242,63 @@ describe("feed processing job lease and fencing", () => {
       data: expect.objectContaining({ status: "failed" }),
     }));
     expect(exhausted.tx.feedMediaAsset.updateMany).toHaveBeenCalled();
+  });
+  it("independently verifies all three WebP objects before READY", async () => {
+    const { db, mediaUpdate } = mockDb();
+    const head = vi.fn(async (key: string) => ({
+      etag: `etag-${key}`, bytes: 512, contentType: "image/webp",
+    }));
+    const worker = createFeedStorageJobs({ db, now: () => now, storage: { head } });
+    expect(await worker.complete(job.id, job.attemptToken, output)).toEqual({ accepted: true });
+    expect(head.mock.calls.map(([key]) => key).sort()).toEqual(
+      [output.smallKey, output.thumbKey, output.fullKey].sort(),
+    );
+    expect(mediaUpdate).toHaveBeenCalledOnce();
+  });
+  it("refuses READY when any uploaded WebP is missing or wrongly labelled", async () => {
+    for (const variant of [null, { etag: "ok", bytes: 1, contentType: "video/mp4" }]) {
+      const { db, mediaUpdate } = mockDb();
+      const head = vi.fn(async (key: string) => key === output.fullKey ? variant :
+        { etag: "ok", bytes: 512, contentType: "image/webp" });
+      const worker = createFeedStorageJobs({ db, now: () => now, storage: { head } });
+      await expect(worker.complete(job.id, job.attemptToken, output))
+        .rejects.toThrow("Вариант медиа не подтверждён в S3");
+      expect(mediaUpdate).not.toHaveBeenCalled();
+    }
+  });
+  it("schedules original deletion immediately after READY rather than upload URL expiry", async () => {
+    const { worker, tx } = mockDb();
+    await worker.complete(job.id, job.attemptToken, output);
+    expect(tx.feedStorageJob.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { dedupeKey: "feed-source-cleanup:upload_1" },
+      create: expect.objectContaining({ kind: "cleanup_source", availableAt: now,
+        sourceKeys: job.sourceKeys }),
+    }));
+  });
+  it("persists idempotent source and partial rendition cleanup after terminal failure", async () => {
+    const { worker, tx } = mockDb({ attempts: 5 });
+    expect(await worker.fail(job.id, job.attemptToken)).toEqual({ accepted: true });
+    expect(tx.feedStorageJob.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { dedupeKey: "feed-terminal-cleanup:job_1" },
+      create: expect.objectContaining({ kind: "delete_keys", sourceKeys: expect.arrayContaining([
+        job.sourceKeys[0],
+        "media/v2/asset_1/v1/image/s.webp",
+        "media/v2/asset_1/v1/image/m.webp",
+        "media/v2/asset_1/v1/image/l.webp",
+      ]), availableAt: new Date(now.getTime() + 11 * 60_000) }),
+      update: {},
+    }));
+  });
+  it("cleans crashed exhausted video jobs without ever deleting source albums", async () => {
+    const { worker, tx } = mockDb({ attempts: 5, kind: "publish_video",
+      sourceKeys: ["posts/alice/post_1/incoming/upload_1/source.mp4"] });
+    expect(await worker.claim(1, "video")).toEqual([]);
+    expect(tx.feedStorageJob.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({ sourceKeys: expect.arrayContaining([
+        "media/v2/asset_1/v1/poster.webp",
+        "media/v2/asset_1/v1/video/360.mp4",
+        "media/v2/asset_1/v1/video/720.mp4",
+      ]) }),
+    }));
   });
 });

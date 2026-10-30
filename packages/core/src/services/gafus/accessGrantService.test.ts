@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   spent: 0,
   allowed: false,
   paidOrPrivate: false,
+  isMiniGuide: false,
   settingsEnabled: true,
   transactions: new Map<string, Record<string, unknown>>(),
   access: new Map<string, { expiresAt: Date }>(),
@@ -42,9 +43,13 @@ vi.mock("../contentAccess", () => ({
     targetKey: `course-step:${dayOnCourseId}:${stepOnDayId}`,
     paidOrPrivate: state.paidOrPrivate, monetized: true, isDailyStep: false,
   })),
-  resolveMiniGuideTargetTx: vi.fn(async (_tx: unknown, courseId: string) => ({
-    type: "MINI_GUIDE", courseId, targetKey: `mini-guide:${courseId}`,
-    paidOrPrivate: state.paidOrPrivate,
+  resolveMiniGuideTargetTx: vi.fn(async (_tx: unknown, courseId: string) =>
+    state.isMiniGuide ? ({
+      type: "MINI_GUIDE", courseId, targetKey: `mini-guide:${courseId}`,
+      paidOrPrivate: state.paidOrPrivate,
+    }) : null),
+  resolveArticleTargetTx: vi.fn(async (_tx: unknown, articleId: string) => ({
+    type: "ARTICLE", articleId, targetKey: `article:${articleId}`,
   })),
   resolveCourseStepAccessTx: vi.fn(async () => ({
     allowed: state.allowed, source: state.allowed ? "PREMIUM" : "DENIED",
@@ -53,6 +58,10 @@ vi.mock("../contentAccess", () => ({
   resolveMiniGuideAccessTx: vi.fn(async () => ({
     allowed: state.allowed, source: state.allowed ? "PREMIUM" : "DENIED",
     expiresAt: null, eligibleForGafus: !state.paidOrPrivate,
+  })),
+  resolveArticleAccessTx: vi.fn(async () => ({
+    allowed: state.allowed, source: state.allowed ? "PREMIUM" : "DENIED",
+    expiresAt: null, eligibleForGafus: true,
   })),
 }));
 vi.mock("./settingsService", () => ({
@@ -97,6 +106,7 @@ describe("Gafus content unlock transaction", () => {
     state.spent = 0;
     state.allowed = false;
     state.paidOrPrivate = false;
+    state.isMiniGuide = false;
     state.settingsEnabled = true;
     state.transactions.clear();
     state.access.clear();
@@ -111,6 +121,47 @@ describe("Gafus content unlock transaction", () => {
     });
     expect(state.spent).toBe(1);
   });
+  it("normalizes an exercise purchase to a single whole-mini-guide grant", async () => {
+    state.isMiniGuide = true;
+    const first = await unlockContentWithGafus(request("guide-from-step-001"));
+    expect(first).toMatchObject({ spent: 1, balance: 2 });
+    expect([...state.transactions.values()][0]).toMatchObject({
+      targetType: "MINI_GUIDE", targetKey: "mini-guide:course-1",
+    });
+    const next = await unlockContentWithGafus(request("guide-from-step-001"));
+    expect(next).toMatchObject({ replay: true, spent: 1, balance: 2 });
+    expect(state.spent).toBe(1);
+  });
+
+  it("unlocks one ARTICLE for exactly 7 days and cannot debit twice on retry", async () => {
+    const input = {
+      userId: "user-1", clientRequestId: "article-operation-0001",
+      target: { type: "ARTICLE" as const, articleId: "article-1" },
+      now: new Date("2026-10-11T00:00:00Z"),
+    };
+    const first = await unlockContentWithGafus(input);
+    expect(first).toMatchObject({
+      spent: 1, balance: 2, expiresAt: "2026-10-18T00:00:00.000Z",
+      replay: false,
+    });
+    const again = await unlockContentWithGafus(input);
+    expect(again).toMatchObject({ spent: 1, balance: 2, replay: true });
+    expect(state.spent).toBe(1);
+    expect([...state.transactions.values()][0]).toMatchObject({
+      targetType: "ARTICLE", targetKey: "article:article-1",
+    });
+  });
+
+  it("Premium articles do not debit Gafus", async () => {
+    state.allowed = true;
+    const result = await unlockContentWithGafus({
+      userId: "user-1", clientRequestId: "premium-article-0001",
+      target: { type: "ARTICLE", articleId: "article-1" },
+    });
+    expect(result).toMatchObject({ spent: 0, balance: 3, accessSource: "PREMIUM" });
+    expect(state.spent).toBe(0);
+  });
+
   it("rejects reuse of the same request for another target", async () => {
     await unlockContentWithGafus(request("request-conflict-01"));
     await expect(unlockContentWithGafus({

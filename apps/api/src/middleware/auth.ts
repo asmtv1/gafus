@@ -5,6 +5,7 @@
 import { createMiddleware } from "hono/factory";
 import { verifyAccessToken, type AuthUser } from "@gafus/auth/jwt";
 import { isRegistrationCompleted } from "@gafus/core/services/auth";
+import { getBrowserAccessToken, isTrustedBrowserOrigin } from "../lib/browser-auth.js";
 
 declare module "hono" {
   interface ContextVariableMap {
@@ -18,21 +19,41 @@ declare module "hono" {
  */
 export const authMiddleware = createMiddleware(async (c, next) => {
   const path = c.req.path;
+  // A private chat may be rejected before its no-store route runs.
+  // Limit this response shape change to the exact private Chat subtree.
+  const privateChatAuth =
+    path === "/api/v1/cynologist-chat" || path.startsWith("/api/v1/cynologist-chat/");
+  const unauthorized = (message: string) => {
+    if (privateChatAuth) {
+      c.header("Cache-Control", "no-store");
+      return c.json({ success: false, code: "UNAUTHORIZED", error: message }, 401);
+    }
+    return c.json({ success: false, error: message }, 401);
+  };
 
-  // Публичные настройки мобильного приложения — без JWT
-  if (path.includes("/public/mobile-app") || path.endsWith("/public/mobile-app")) {
+  // Public access is read-only and limited to exact URLs. Substring matching
+  // would silently skip JWT for private sibling/future descendant routes.
+  const publicRead = c.req.method === "GET" || c.req.method === "HEAD";
+
+  // Legacy public mobile-app settings route (do not match /configure or /v2).
+  if (publicRead && (path === "/api/v1/public/mobile-app" || path === "/public/mobile-app")) {
     await next();
     return;
   }
 
-  // Публичный профиль по username — без авторизации
-  if (path.includes("/user/profile/public") || path.endsWith("/profile/public")) {
+  // Публичный профиль по username — only the exact route is anonymous.
+  if (publicRead && (
+    path === "/api/v1/user/profile/public" ||
+    path === "/user/profile/public" ||
+    path === "/profile/public"
+  )) {
     await next();
     return;
   }
 
-  // Пропускаем только точные HLS-маршруты: соседние video endpoints требуют JWT.
+  // Signed HLS playback: GET/HEAD only; neighboring video endpoints require JWT.
   const isPublicHlsRoute =
+    publicRead &&
     /^\/(?:api\/v1\/)?training\/video\/[^/]+\/(?:manifest(?:\.m3u8)?|segment)$/.test(path);
   if (isPublicHlsRoute) {
     await next();
@@ -40,22 +61,33 @@ export const authMiddleware = createMiddleware(async (c, next) => {
   }
 
   const authHeader = c.req.header("Authorization");
-
-  if (!authHeader?.startsWith("Bearer ")) {
-    return c.json({ success: false, error: "Токен не предоставлен" }, 401);
+  if (authHeader && !authHeader.startsWith("Bearer ")) {
+    return unauthorized("Недействительный формат авторизации");
   }
 
-  const token = authHeader.slice(7);
+  const cookieTransport = !authHeader;
+  const token = authHeader?.slice(7) ?? getBrowserAccessToken(c);
+  if (!token) {
+    return unauthorized("Токен не предоставлен");
+  }
+  // Cookies are ambient credentials: state-changing calls require a trusted Origin.
+  // Bearer tokens from Expo are explicit credentials and remain backward compatible.
+  if (cookieTransport && !["GET", "HEAD", "OPTIONS"].includes(c.req.method) && !isTrustedBrowserOrigin(c)) {
+    return c.json({ success: false, error: "Недоверенный Origin" }, 403);
+  }
+
   const user = await verifyAccessToken(token);
 
   if (!user) {
-    return c.json({ success: false, error: "Недействительный токен" }, 401);
+    return unauthorized("Недействительный токен");
   }
 
   // A JWT predating a failed/incomplete VK registration must not authorize a
   // provisional account. This is deliberately checked on every protected API
   // request, not just at token creation.
   if (!(await isRegistrationCompleted(user.id))) {
+    // This rejection happens before the Chat dispatcher can set its headers.
+    if (privateChatAuth) c.header("Cache-Control", "no-store");
     return c.json({ success: false, code: "REGISTRATION_PENDING", error: "Завершите регистрацию через VK ID" }, 401);
   }
 

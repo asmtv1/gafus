@@ -1,0 +1,300 @@
+{
+  "date": "2026-10-30",
+  "distIndexMTimeUTC": "2026-10-29T21:34:18.236Z",
+  "source": "existing apps/web-vite/dist, unmodified",
+  "browser": "Chrome 156 headless isolated profiles CDP",
+  "data": "SYNTHETIC read-only, same-origin ephemeral preview",
+  "cachePolicy": "synthetic preview gzip; hashed assets max-age 31536000 immutable, HTML no-cache, API no-store",
+  "unit": "KiB (1024 bytes)",
+  "phases": [
+    {
+      "scenario": "guest-entry",
+      "phase": "guest-cold-entry",
+      "js": {
+        "requests": 13,
+        "encodedBodyBytes": 111944,
+        "decodedBytes": 354649,
+        "cdpWireBytesIncludingOverhead": 116035,
+        "cachedResponses": 0
+      },
+      "css": {
+        "requests": 5,
+        "encodedBodyBytes": 28136,
+        "decodedBytes": 147762,
+        "cdpWireBytesIncludingOverhead": 29649,
+        "cachedResponses": 0
+      },
+      "videoNodes": [],
+      "mediaRequests": [],
+      "hlsJsOrMediaRequests": 0,
+      "uiContainsSyntheticPost": false,
+      "apiRequests": 2,
+      "failures": 0
+    },
+    {
+      "scenario": "guest-entry",
+      "phase": "guest-spa-to-login",
+      "js": {
+        "requests": 2,
+        "encodedBodyBytes": 6535,
+        "decodedBytes": 19074,
+        "cdpWireBytesIncludingOverhead": 7164,
+        "cachedResponses": 0
+      },
+      "css": {
+        "requests": 1,
+        "encodedBodyBytes": 2138,
+        "decodedBytes": 10263,
+        "cdpWireBytesIncludingOverhead": 2447,
+        "cachedResponses": 0
+      },
+      "videoNodes": [],
+      "mediaRequests": [],
+      "hlsJsOrMediaRequests": 0,
+      "uiContainsSyntheticPost": false,
+      "apiRequests": 0,
+      "failures": 0
+    },
+    {
+      "scenario": "guest-login",
+      "phase": "guest-cold-login",
+      "js": {
+        "requests": 13,
+        "encodedBodyBytes": 111857,
+        "decodedBytes": 352342,
+        "cdpWireBytesIncludingOverhead": 115949,
+        "cachedResponses": 0
+      },
+      "css": {
+        "requests": 4,
+        "encodedBodyBytes": 21888,
+        "decodedBytes": 118811,
+        "cdpWireBytesIncludingOverhead": 23095,
+        "cachedResponses": 0
+      },
+      "videoNodes": [],
+      "mediaRequests": [],
+      "hlsJsOrMediaRequests": 0,
+      "uiContainsSyntheticPost": false,
+      "apiRequests": 1,
+      "failures": 0
+    },
+    {
+      "scenario": "auth-moments",
+      "phase": "auth-cold-courses",
+      "js": {
+        "requests": 20,
+        "encodedBodyBytes": 199616,
+        "decodedBytes": 648808,
+        "cdpWireBytesIncludingOverhead": 205919,
+        "cachedResponses": 0
+      },
+      "css": {
+        "requests": 8,
+        "encodedBodyBytes": 35596,
+        "decodedBytes": 186806,
+        "cdpWireBytesIncludingOverhead": 38038,
+        "cachedResponses": 0
+      },
+      "videoNodes": [],
+      "mediaRequests": [],
+      "hlsJsOrMediaRequests": 0,
+      "uiContainsSyntheticPost": false,
+      "apiRequests": 4,
+      "failures": 0
+    },
+    {
+      "scenario": "auth-moments",
+      "phase": "auth-spa-to-moments",
+      "js": {
+        "requests": 15,
+        "encodedBodyBytes": 41886,
+        "decodedBytes": 126994,
+        "cdpWireBytesIncludingOverhead": 46608,
+        "cachedResponses": 0
+      },
+      "css": {
+        "requests": 5,
+        "encodedBodyBytes": 20990,
+        "decodedBytes": 107302,
+        "cdpWireBytesIncludingOverhead": 22534,
+        "cachedResponses": 0
+      },
+      "videoNodes": [
+        {
+          "preload": "none",
+          "src": null
+        }
+      ],
+      "mediaRequests": [
+        {
+          "path": "poster.svg",
+          "status": 200,
+          "wireBytes": 382
+        }
+      ],
+      "hlsJsOrMediaRequests": 0,
+      "uiContainsSyntheticPost": true,
+      "apiRequests": 4,
+      "failures": 0
+    },
+    {
+      "scenario": "auth-moments",
+      "phase": "moment-video-after-trusted-mouse-click",
+      "js": {
+        "requests": 0,
+        "encodedBodyBytes": 0,
+        "decodedBytes": 0,
+        "cdpWireBytesIncludingOverhead": 0,
+        "cachedResponses": 0
+      },
+      "css": {
+        "requests": 0,
+        "encodedBodyBytes": 0,
+        "decodedBytes": 0,
+        "cdpWireBytesIncludingOverhead": 0,
+        "cachedResponses": 0
+      },
+      "videoNodes": [
+        {
+          "preload": "none",
+          "src": null
+        }
+      ],
+      "mediaRequests": [
+        {
+          "path": "clip.mp4",
+          "status": 200,
+          "wireBytes": 2138
+        }
+      ],
+      "hlsJsOrMediaRequests": 0,
+      "uiContainsSyntheticPost": true,
+      "apiRequests": 0,
+      "failures": 0
+    },
+    {
+      "scenario": "auth-moments",
+      "phase": "auth-spa-back-courses",
+      "js": {
+        "requests": 0,
+        "encodedBodyBytes": 0,
+        "decodedBytes": 0,
+        "cdpWireBytesIncludingOverhead": 0,
+        "cachedResponses": 0
+      },
+      "css": {
+        "requests": 0,
+        "encodedBodyBytes": 0,
+        "decodedBytes": 0,
+        "cdpWireBytesIncludingOverhead": 0,
+        "cachedResponses": 0
+      },
+      "videoNodes": [],
+      "mediaRequests": [],
+      "hlsJsOrMediaRequests": 0,
+      "uiContainsSyntheticPost": false,
+      "apiRequests": 2,
+      "failures": 0
+    },
+    {
+      "scenario": "auth-moments",
+      "phase": "auth-spa-return-moments",
+      "js": {
+        "requests": 0,
+        "encodedBodyBytes": 0,
+        "decodedBytes": 0,
+        "cdpWireBytesIncludingOverhead": 0,
+        "cachedResponses": 0
+      },
+      "css": {
+        "requests": 0,
+        "encodedBodyBytes": 0,
+        "decodedBytes": 0,
+        "cdpWireBytesIncludingOverhead": 0,
+        "cachedResponses": 0
+      },
+      "videoNodes": [
+        {
+          "preload": "none",
+          "src": null
+        }
+      ],
+      "mediaRequests": [],
+      "hlsJsOrMediaRequests": 0,
+      "uiContainsSyntheticPost": true,
+      "apiRequests": 4,
+      "failures": 0
+    },
+    {
+      "scenario": "auth-moments-cold",
+      "phase": "auth-cold-moments",
+      "js": {
+        "requests": 28,
+        "encodedBodyBytes": 153743,
+        "decodedBytes": 479336,
+        "cdpWireBytesIncludingOverhead": 162557,
+        "cachedResponses": 0
+      },
+      "css": {
+        "requests": 9,
+        "encodedBodyBytes": 42878,
+        "decodedBytes": 226113,
+        "cdpWireBytesIncludingOverhead": 45629,
+        "cachedResponses": 0
+      },
+      "videoNodes": [
+        {
+          "preload": "none",
+          "src": null
+        }
+      ],
+      "mediaRequests": [
+        {
+          "path": "poster.svg",
+          "status": 200,
+          "wireBytes": 382
+        }
+      ],
+      "hlsJsOrMediaRequests": 0,
+      "uiContainsSyntheticPost": true,
+      "apiRequests": 6,
+      "failures": 0
+    },
+    {
+      "scenario": "auth-moments-cold",
+      "phase": "auth-warm-full-reload-moments",
+      "js": {
+        "requests": 28,
+        "encodedBodyBytes": 153743,
+        "decodedBytes": 479336,
+        "cdpWireBytesIncludingOverhead": 0,
+        "cachedResponses": 28
+      },
+      "css": {
+        "requests": 9,
+        "encodedBodyBytes": 42878,
+        "decodedBytes": 226113,
+        "cdpWireBytesIncludingOverhead": 800,
+        "cachedResponses": 8
+      },
+      "videoNodes": [
+        {
+          "preload": "none",
+          "src": null
+        }
+      ],
+      "mediaRequests": [
+        {
+          "path": "poster.svg",
+          "status": 200,
+          "wireBytes": 382
+        }
+      ],
+      "hlsJsOrMediaRequests": 0,
+      "uiContainsSyntheticPost": true,
+      "apiRequests": 6,
+      "failures": 0
+    }
+  ]
+}

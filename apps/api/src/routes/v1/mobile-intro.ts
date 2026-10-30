@@ -2,10 +2,19 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { getMobileIntroReport, recordMobileIntroAuthOutcome, recordMobileIntroEvent } from "@gafus/core/services/mobileIntro";
+import { getMobileIntroReport, recordMobileIntroAuthOutcome, recordMobileIntroEvent } from "@gafus/mobile-intro-server";
 import { requireRole } from "../../middleware/auth.js";
 
 export const mobileIntroRoutes = new Hono();
+
+// Installation telemetry, linked identities and admin reports must not be
+// cached, including body-limit/validation failures and forbidden responses.
+mobileIntroRoutes.use("*", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  c.header("Referrer-Policy", "no-referrer");
+  await next();
+  c.header("Cache-Control", "private, no-store");
+});
 
 const isoDate = z.string().datetime({ offset: true }).transform((value) => new Date(value));
 const eventSchema = z.object({

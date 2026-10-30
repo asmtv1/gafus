@@ -49,6 +49,8 @@ export const createTrainerCourseSchema = z.object({
 
 export const updateTrainerCourseSchema = z.object({
   id: z.string().min(1, "ID курса обязателен"),
+  // Mandatory for EVERY full-form writer; old requests cannot silently overwrite.
+  expectedVersion: z.number().int().min(1).max(2147483647),
   name: z.string().min(1, "Название обязательно").max(500),
   guideContent: z.string().max(200000).optional().nullable(),
   shortDesc: z.string().max(2000).default(""),

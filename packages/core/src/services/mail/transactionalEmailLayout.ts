@@ -5,7 +5,8 @@
 import { readFile } from "node:fs/promises";
 
 import type { Attachment } from "@gafus/mailer";
-import { sendTransactionalMail } from "@gafus/mailer";
+import { sendTransactionalMail, sendTransactionalMailWithDisposition } from "@gafus/mailer";
+import type { TransactionalMailDisposition, SendTransactionalMailInput } from "@gafus/mailer";
 import { createWebLogger } from "@gafus/logger";
 
 import { getPublicWebBaseUrl } from "./publicWebBaseUrl";
@@ -184,6 +185,14 @@ export async function sendTransactionalEmailWithLayout(input: {
   maxQueueAgeMs?: number;
   category?: "auth" | "welcome" | "consultation" | "receipt" | "subscription" | "notice" | "general";
 }): Promise<void> {
+  await sendTransactionalMail(await transactionalLayoutPayload(input));
+}
+
+type LayoutMailInput = Parameters<typeof sendTransactionalEmailWithLayout>[0];
+
+async function transactionalLayoutPayload(
+  input: LayoutMailInput,
+): Promise<SendTransactionalMailInput> {
   const logoAtt = await resolveInlineLogoAttachment();
   const logoMode: WrapTransactionalEmailOptions["logoMode"] = logoAtt ? "cid" : "none";
   const html = wrapTransactionalEmailHtml({
@@ -191,7 +200,7 @@ export async function sendTransactionalEmailWithLayout(input: {
     logoMode,
   });
 
-  await sendTransactionalMail({
+  return {
     deliveryKey: input.deliveryKey,
     deliveryMode: input.deliveryMode,
     maxQueueAgeMs: input.maxQueueAgeMs,
@@ -201,5 +210,12 @@ export async function sendTransactionalEmailWithLayout(input: {
     text: input.text,
     html,
     attachments: logoAtt ? [logoAtt] : undefined,
-  });
+  };
+}
+
+/** Existing HTML/logo + explicit durable ACK bridge for consultation mail only. */
+export async function sendTransactionalEmailWithLayoutDisposition(
+  input: LayoutMailInput,
+): Promise<TransactionalMailDisposition> {
+  return sendTransactionalMailWithDisposition(await transactionalLayoutPayload(input));
 }

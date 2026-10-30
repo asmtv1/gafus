@@ -1,0 +1,123 @@
+/* Structural parity layer. Tokens, header and footer CSS come unmodified from apps/web. */
+@font-face {
+  font-family: "Gafus Montserrat";
+  src: url("/fonts/montserrat/Montserrat-400.ttf") format("truetype");
+  font-style: normal; font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: "Gafus Montserrat";
+  src: url("/fonts/montserrat/Montserrat-500.ttf") format("truetype");
+  font-style: normal; font-weight: 500; font-display: swap;
+}
+@font-face {
+  font-family: "Gafus Montserrat";
+  src: url("/fonts/montserrat/Montserrat-600.ttf") format("truetype");
+  font-style: normal; font-weight: 600; font-display: swap;
+}
+@font-face {
+  font-family: "Gafus Montserrat";
+  src: url("/fonts/montserrat/Montserrat-700.ttf") format("truetype");
+  font-style: normal; font-weight: 700; font-display: swap;
+}
+@font-face {
+  font-family: "Gafus Montserrat";
+  src: url("/fonts/montserrat/Montserrat-800.ttf") format("truetype");
+  font-style: normal; font-weight: 800; font-display: swap;
+}
+:root { --font-montserrat: "Gafus Montserrat", system-ui, sans-serif; }
+html, body { min-height: 100%; }
+html { background-color: var(--app-background-color, #e6e2d8); }
+html body { color: var(--text-primary, #352e2e); font-family: var(--font-montserrat); }
+.gafus-app { background: transparent; min-height: 100dvh; }
+.gafus-app .shell {
+  box-sizing: border-box; flex: 1; width: 100%; max-width: 1200px;
+  margin: 0 auto; padding: 16px 20px 32px; line-height: 1.5;
+}
+/* Preserve the ORIGINAL generic inner-app H1 specificity (0,2,1), but
+ * exclude only the original Next public landing title. :where contributes
+ * zero specificity: unlike `.shell:not(:has(.gafus-public-landing))` this
+ * cannot unexpectedly override the heading CSS in other Vite routes. */
+.gafus-app .shell h1:not(:where(.gafus-public-landing h1)),
+.gafus-app .shell .catalog-header h2 {
+  color: var(--text-primary); font-family: var(--font-impact);
+  font-weight: 400; text-align: center;
+}
+.gafus-app .shell h1:not(:where(.gafus-public-landing h1)) {
+  font-size: clamp(40px, 6vw, 80px); line-height: 1.06;
+}
+.gafus-app .shell .catalog-header h2 { font-size: clamp(34px, 5vw, 64px); }
+.gafus-app button { font-family: var(--font-montserrat); }
+/* Original landing / Next VK-ID button has its own 18px radius. */
+.gafus-app .shell:not(:has(.gafus-public-landing)) button:not([class*="menuButton"]):not([class*="burgerButton"]):not([class*="backButton"]),
+.gafus-app .shell:not(:has(.gafus-public-landing)) .button-secondary { border-radius: 12px; }
+.gafus-app .course-card, .gafus-app .compact-card {
+  background: #fff8e5; color: var(--text-primary); border: 0;
+  border-radius: 18px; box-shadow: var(--shadow-card);
+}
+.gafus-app .course-card { padding: 14px; }
+.gafus-app .course-card h3 { color: var(--text-primary); }
+.gafus-app .access-tag { color: var(--bg-2); }
+.gafus-app .skip-to-content { z-index: 110; }
+.gafus-burger-icon { display: inline-flex; flex-direction: column; gap: 4px; width: 20px; }
+.gafus-burger-icon i { display: block; height: 2px; background: var(--bg-2); border-radius: 2px; }
+/* Existing authenticated status is nonvisual; user operations remain in the menu. */
+.gafus-app .shell > section[aria-label="Авторизация"]:has(> p > strong) { display: none; }
+@media (max-width: 480px) {
+  .gafus-app .shell { padding: 12px 12px 28px; }
+  .gafus-app .course-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Login/register: original wizard and paw-button assets + original dimensions. */
+.gafus-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0;
+  margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.gafus-app .shell.gafus-auth-screen { max-width: none; padding: 24px 32px;
+  min-height: 100dvh; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 10px; color: #636128; }
+.gafus-auth-panel, .gafus-register-panel { display: flex; flex-direction: column;
+  align-items: center; gap: 10px; width: min(100%, 320px); }
+.gafus-login-logo { display: block; width: min(303px, 100%); height: auto; }
+.gafus-register-logo { display: block; width: 80%; max-width: 300px; height: auto; }
+.gafus-login-prompt { width: min(100%,320px); font: 400 12px/1.5 var(--font-montserrat);
+  text-align: left; color: #636128; }
+.gafus-login-prompt a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.gafus-app .gafus-auth-panel form,
+.gafus-app .gafus-register-panel form { display: flex; width: 100%; flex-direction: column;
+  align-items: center; gap: 6px; color: #636128; }
+.gafus-auth-panel form label { width: 100%; font-size: 12px; }
+.gafus-app .gafus-auth-panel form input,
+.gafus-app .gafus-register-panel form input:not([type="checkbox"]) {
+  box-sizing: border-box; width: 100%; min-height: 44px; padding: 8px 10px;
+  border: 2px solid #636128; border-radius: 5px; background: #fff8e5;
+  color: #636128; font: 400 16px/1.4 var(--font-montserrat);
+}
+.gafus-app .gafus-auth-panel form .gafus-login-submit {
+  display: grid; place-items: center; align-self: center; width: 150px;
+  height: 150px; padding: 0; margin-top: 5px; border: 0; background: transparent;
+  color: #636128; box-shadow: none;
+}
+.gafus-login-submit img { width: 120px; height: 125px; object-fit: contain; }
+.gafus-app .gafus-auth-panel form .gafus-login-submit:hover:not(:disabled) {
+  transform: translateY(-2px); background: transparent;
+}
+.gafus-auth-panel > p:not(.gafus-login-prompt) { width: 100%; font-size: 12px; }
+.gafus-auth-panel > p > a { color: #636128; text-decoration: underline; }
+.gafus-auth-screen .gafus-dev-note { display: none; }
+.gafus-app .gafus-register-panel form { gap: 10px; }
+.gafus-register-panel form label { align-self: stretch; font-size: 12px; }
+.gafus-app .gafus-register-panel form button[type="submit"] {
+  width: 100%; min-height: 48px; margin-top: 20px; font: 400 22px/26px var(--font-impact);
+}
+.gafus-register-panel .registration-checkbox { display: flex; align-items: center; gap: 10px; }
+.gafus-register-panel .registration-checkbox input { flex: none; accent-color: #636128; }
+@media (max-width: 480px) {
+  .gafus-app .shell.gafus-auth-screen { padding: 18px 20px; }
+}
+
+.gafus-app nav[hidden] { display: none !important; }
+
+/* Original full-width landing: separate from authenticated course shell. */
+.gafus-app:has(.gafus-public-landing) > header[data-ui-parity="legacy-header"] { display: none; }
+.gafus-app .shell:has(.gafus-public-landing) { max-width: none; width: 100%; padding: 0; }
+.gafus-app .shell:has(.gafus-public-landing) > #main-content { width: 100%; }
+.gafus-app .shell:has(.gafus-public-landing) .catalog { padding: 20px clamp(12px,3vw,42px); }
+.gafus-app .gafus-public-landing .gafus-path-icon { width: 38px; height: 38px; display: grid; place-items: center; font-size: 30px; }

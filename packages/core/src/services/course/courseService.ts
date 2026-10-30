@@ -4,11 +4,14 @@
  * Этот модуль содержит чистую бизнес-логику без Next.js специфики.
  */
 
-import { Prisma, prisma } from "@gafus/prisma";
+import { estimateDayDurations } from "../../utils/training";
+import { prisma } from "@gafus/prisma";
+import type { Prisma } from "@gafus/prisma";
+import { setCourseLogoVersioned } from "../trainerCourse/courseVersionService";
+import type { CourseVersionActor } from "../trainerCourse/courseVersionService";
 import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
-import type { ActionResult, CourseWithExtras, CourseWithProgressData } from "@gafus/types";
-import { handlePrismaError } from "@gafus/core/errors";
+import type { ActionResult, CourseWithProgressData } from "@gafus/types";
 import { resolveCourseEntitlement } from "../contentAccess/policy";
 
 const _logger = createWebLogger("course-service");
@@ -37,13 +40,18 @@ const courseSelect = {
     },
   },
   reviews: {
-    include: {
+    select: {
+      rating: true,
+      comment: true,
+      createdAt: true,
       user: {
-        select: { id: true, username: true, profile: { select: { avatarUrl: true } } },
+        select: {
+          username: true,
+          profile: { select: { avatarUrl: true } },
+        },
       },
     },
   },
-  favoritedBy: true,
   _count: {
     select: {
       userCourses: {
@@ -52,10 +60,20 @@ const courseSelect = {
     },
   },
   dayLinks: {
-    include: {
+    select: {
+      id: true,
+      order: true,
       day: {
-        include: {
-          stepLinks: { include: { step: { select: { title: true } } } },
+        select: {
+          id: true,
+          title: true,
+          stepLinks: {
+            select: {
+              id: true,
+              order: true,
+              step: { select: { title: true } },
+            },
+          },
         },
       },
     },
@@ -73,6 +91,11 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
       ...courseSelect,
       // The catalog only needs the current viewer's entitlement. Selecting all
       // CourseAccess rows leaks member identifiers and scales with every buyer.
+      // Membership is personal. Do not select or serialize other users' favorite rows.
+      favoritedBy: {
+        where: { userId: userId ?? "" },
+        select: { userId: true },
+      },
       access: {
         where: { userId: userId ?? "" },
         select: { userId: true },
@@ -106,6 +129,14 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
       })
     : [];
 
+  // Index progress once; keep the first row for each course as Array.find did.
+  const userCourseByCourseId = new Map<string, (typeof userCourses)[number]>();
+  for (const userCourse of userCourses) {
+    if (!userCourseByCourseId.has(userCourse.courseId)) {
+      userCourseByCourseId.set(userCourse.courseId, userCourse);
+    }
+  }
+
   const userFavorites = userId
     ? await prisma.favoriteCourse.findMany({
         where: { userId },
@@ -115,11 +146,12 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
   const favoriteCourseIds = new Set(userFavorites.map((f: { courseId: string }) => f.courseId));
 
   const paidCourseEntitlement = await resolveCourseEntitlement(
-    { id: "", isPrivate: false, isPaid: true }, userId,
+    { id: "", isPrivate: false, isPaid: true },
+    userId,
   );
 
   return accessibleCourses.map((course) => {
-    const userCourse = userId ? userCourses.find((uc) => uc.courseId === course.id) : null;
+    const userCourse = userId ? (userCourseByCourseId.get(course.id) ?? null) : null;
 
     const userStatus = userCourse?.status
       ? (userCourse.status as TrainingStatus)
@@ -147,8 +179,9 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
       updatedAt: course.updatedAt ? new Date(course.updatedAt) : new Date(),
       authorUsername: course.author.username,
       authorAvatarUrl: course.author.profile?.avatarUrl ?? null,
-      favoritedBy: course.favoritedBy,
-      reviews: course.reviews.map((review: CourseWithExtras["reviews"][0]) => ({
+      // Defend the wire even if a faulty repository adapter overfetches members.
+      favoritedBy: course.favoritedBy.filter((member) => !!userId && member.userId === userId),
+      reviews: course.reviews.map((review) => ({
         rating: review.rating ?? 0,
         comment: review.comment ?? "",
         createdAt: review.createdAt ? new Date(review.createdAt) : new Date(),
@@ -165,21 +198,19 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
       // Kept as an empty legacy field for older clients. Per-user progress is
       // represented by userStatus/startedAt/completedAt above.
       userCourses: [],
-      dayLinks: course.dayLinks.map((dl: CourseWithExtras["dayLinks"][0]) => ({
+      dayLinks: course.dayLinks.map((dl) => ({
         id: dl.id,
         order: dl.order,
         day: {
           id: dl.day.id,
           title: dl.day.title,
-          stepLinks: dl.day.stepLinks.map(
-            (sl: CourseWithExtras["dayLinks"][0]["day"]["stepLinks"][0]) => ({
-              id: sl.id,
-              order: sl.order,
-              step: {
-                title: sl.step.title,
-              },
-            }),
-          ),
+          stepLinks: dl.day.stepLinks.map((sl) => ({
+            id: sl.id,
+            order: sl.order,
+            step: {
+              title: sl.step.title,
+            },
+          })),
         },
       })),
     };
@@ -192,7 +223,8 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
  * Проверяет доступ пользователя к курсу по типу
  */
 export async function checkCourseAccess(
-  courseType: string, userId?: string,
+  courseType: string,
+  userId?: string,
 ): Promise<{ hasAccess: boolean }> {
   const course = await prisma.course.findUnique({
     where: { type: courseType },
@@ -203,7 +235,8 @@ export async function checkCourseAccess(
 
 /** Course-level access always comes from the same policy for Web and Mobile. */
 export async function checkCourseAccessById(
-  courseId: string, userId?: string,
+  courseId: string,
+  userId?: string,
 ): Promise<{ hasAccess: boolean }> {
   const course = await prisma.course.findUnique({
     where: { id: courseId },
@@ -243,7 +276,7 @@ export async function getCourseMetadata(courseType: string) {
  */
 export async function getCourseOutline(
   courseType: string,
-): Promise<{ id: string; title: string; order: number }[]> {
+): Promise<{ id: string; title: string; order: number; type: string; equipment: string; estimatedDuration: number; theoryMinutes: number }[]> {
   const course = await prisma.course.findFirst({
     where: { type: courseType },
     select: {
@@ -252,13 +285,22 @@ export async function getCourseOutline(
         select: {
           id: true,
           order: true,
-          day: { select: { title: true } },
+          day: { select: { title: true, type: true, equipment: true,
+            stepLinks: { select: { step: { select: {
+              type: true, durationSec: true, estimatedDurationSec: true,
+            } } } },
+          } },
         },
       },
     },
   });
   if (!course) return [];
-  return course.dayLinks.map((link) => ({ id: link.id, title: link.day.title, order: link.order }));
+  return course.dayLinks.map((link) => {
+    const duration = estimateDayDurations(link.day.stepLinks.map(item => item.step));
+    return { id: link.id, title: link.day.title, order: link.order,
+      type: link.day.type, equipment: link.day.equipment,
+      estimatedDuration: duration.trainingMinutes, theoryMinutes: duration.theoryMinutes };
+  });
 }
 
 // ========== Логотип курса (DB-only, CDN в app) ==========
@@ -269,79 +311,48 @@ export async function getCourseOutline(
 export async function updateCourseLogoUrl(
   courseId: string,
   logoUrl: string,
-): Promise<ActionResult & { previousLogoUrl?: string | null }> {
-  try {
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-      select: { logoImg: true },
-    });
-    if (!course) {
-      return { success: false, error: "Курс не найден" };
-    }
-    const previousLogoUrl = course.logoImg || null;
-    await prisma.course.update({
-      where: { id: courseId },
-      data: { logoImg: logoUrl },
-    });
-    _logger.info("Логотип курса обновлён", { courseId });
-    return { success: true, previousLogoUrl };
-  } catch (error) {
-    if (error instanceof Error && "code" in error) {
-      try {
-        handlePrismaError(error, "Курс");
-      } catch (serviceError) {
-        const msg =
-          serviceError instanceof Error
-            ? serviceError.message
-            : "Ошибка при обновлении логотипа курса";
-        return { success: false, error: msg };
-      }
-    }
-    _logger.error("Ошибка при обновлении логотипа курса", error as Error, { courseId });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Не удалось обновить логотип курса",
-    };
+  expectedVersion: number,
+  actor: CourseVersionActor,
+): Promise<
+  ActionResult & {
+    previousLogoUrl?: string | null;
+    version?: number;
+    code?: "STALE_VERSION" | "NOT_FOUND" | "BAD_QUERY" | "INTERNAL_SERVER_ERROR";
   }
+> {
+  const result = await setCourseLogoVersioned({ courseId, logoUrl, expectedVersion }, actor);
+  if (result.status === "updated")
+    return {
+      success: true,
+      previousLogoUrl: result.data.previousLogoUrl,
+      version: result.data.version,
+    };
+  return {
+    success: false,
+    code:
+      result.status === "stale"
+        ? "STALE_VERSION"
+        : result.status === "not_found"
+          ? "NOT_FOUND"
+          : result.status === "invalid"
+            ? "BAD_QUERY"
+            : "INTERNAL_SERVER_ERROR",
+    error:
+      result.status === "stale"
+        ? "Версия курса устарела"
+        : result.status === "not_found"
+          ? "Курс не найден"
+          : result.status === "invalid"
+            ? "Требуется актуальная версия курса"
+            : "Результат обновления курса неизвестен",
+  };
 }
 
-/**
- * Очищает URL логотипа в записи курса (DB-only). Возвращает предыдущий URL для удаления из CDN в app.
- */
+/** Clears stored logo URL only; any CDN deletion remains in caller's policy. */
 export async function deleteCourseLogoFromRecord(
   courseId: string,
-): Promise<ActionResult & { previousLogoUrl?: string | null }> {
-  try {
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-      select: { logoImg: true },
-    });
-    if (!course) {
-      return { success: false, error: "Курс не найден" };
-    }
-    const previousLogoUrl = course.logoImg || null;
-    await prisma.course.update({
-      where: { id: courseId },
-      data: { logoImg: "" },
-    });
-    _logger.info("Логотип курса удалён из записи", { courseId });
-    return { success: true, previousLogoUrl };
-  } catch (error) {
-    if (error instanceof Error && "code" in error) {
-      try {
-        handlePrismaError(error, "Курс");
-      } catch (serviceError) {
-        const msg =
-          serviceError instanceof Error
-            ? serviceError.message
-            : "Ошибка при удалении логотипа курса";
-        return { success: false, error: msg };
-      }
-    }
-    _logger.error("Ошибка при удалении логотипа курса", error as Error, { courseId });
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Не удалось удалить логотип курса",
-    };
-  }
+  expectedVersion: number,
+  actor: CourseVersionActor,
+): ReturnType<typeof updateCourseLogoUrl> {
+  return updateCourseLogoUrl(courseId, "", expectedVersion, actor);
 }

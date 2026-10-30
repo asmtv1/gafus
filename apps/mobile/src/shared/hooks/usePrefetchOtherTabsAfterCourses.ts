@@ -1,18 +1,21 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { InteractionManager } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { achievementsQueryOptions } from "@/shared/lib/api/achievementsQuery";
+import { achievementsForActor } from "@/shared/lib/api/achievementsQuery";
 import { articlesQueryOptions } from "@/shared/lib/api/articlesQuery";
 import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
 import {
   petsQueryOptions,
-  pushSubscriptionDeviceStatusQueryOptions,
+  petListForActor,
+  verifiedPetsActor,
+  pushDeviceStatusForActor,
   studentNotesQueryOptions,
   trainerPublicProfileQueryOptions,
   userProfileQueryOptions,
 } from "@/shared/lib/api/profileTabQueries";
 import { useAuthStore } from "@/shared/stores";
+import { getVerifiedPushActor } from "@/shared/lib/utils/notifications";
 
 import { useIsOffline } from "./useNetworkStatus";
 
@@ -49,13 +52,26 @@ export function usePrefetchOtherTabsAfterCourses({
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authLoading = useAuthStore((s) => s.isLoading);
   const user = useAuthStore((s) => s.user);
+  const principalId = isAuthenticated ? (user?.id ?? null) : null;
+  const verifiedPushActor = getVerifiedPushActor();
+  const verifiedOwnerId = verifiedPushActor?.ownerId ?? null;
+  const verifiedEpoch = verifiedPushActor?.authEpoch ?? null;
+  const pushActor = useMemo(
+    () =>
+      verifiedOwnerId && verifiedOwnerId === principalId && verifiedEpoch
+        ? { ownerId: verifiedOwnerId, authEpoch: verifiedEpoch }
+        : null,
+    [verifiedOwnerId, verifiedEpoch, principalId],
+  );
 
   const publicDoneRef = useRef(false);
   const authDoneRef = useRef(false);
 
   useEffect(() => {
-    authDoneRef.current = !isAuthenticated;
-  }, [isAuthenticated]);
+    // Direct USER-A → USER-B keeps isAuthenticated=true, but B has a new
+    // private query cache and must receive its own prefetch.
+    authDoneRef.current = !principalId;
+  }, [principalId, pushActor?.authEpoch]);
 
   useEffect(() => {
     if (!catalogReady || isOffline) return;
@@ -74,7 +90,7 @@ export function usePrefetchOtherTabsAfterCourses({
 
           if (cancelled || authLoading) return;
 
-          if (!isAuthenticated) {
+          if (!principalId) {
             return;
           }
 
@@ -86,8 +102,14 @@ export function usePrefetchOtherTabsAfterCourses({
           await delay(STAGGER_MS);
           if (cancelled) return;
 
-          if (!hasSuccessData(queryClient, achievementsQueryOptions.queryKey)) {
-            await queryClient.prefetchQuery(achievementsQueryOptions);
+          // Never prefetch private entitlement under the legacy shared ["achievements"] key.
+          const scopedAchievements = achievementsForActor(pushActor);
+          if (
+            pushActor &&
+            scopedAchievements.enabled &&
+            !hasSuccessData(queryClient, scopedAchievements.queryKey)
+          ) {
+            await queryClient.prefetchQuery(scopedAchievements);
           }
           await delay(STAGGER_MS);
           if (cancelled) return;
@@ -98,14 +120,35 @@ export function usePrefetchOtherTabsAfterCourses({
           await delay(STAGGER_MS);
           if (cancelled) return;
 
-          if (!hasSuccessData(queryClient, petsQueryOptions.queryKey)) {
-            await queryClient.prefetchQuery(petsQueryOptions);
+          // Global ["pets"] belongs to an exact verified actor/epoch, even for prefetch.
+          if (
+            pushActor &&
+            !petListForActor(
+              queryClient.getQueryData(petsQueryOptions.queryKey),
+              verifiedPetsActor(),
+            )
+          ) {
+            // Old A/E1 in-flight must not absorb the new A/E2 private prefetch.
+            await queryClient.cancelQueries({ queryKey: petsQueryOptions.queryKey, exact: true });
+            if (
+              !cancelled &&
+              verifiedPetsActor()?.ownerId === pushActor.ownerId &&
+              verifiedPetsActor()?.authEpoch === pushActor.authEpoch
+            ) {
+              await queryClient.prefetchQuery(petsQueryOptions);
+            }
           }
           await delay(STAGGER_MS);
           if (cancelled) return;
 
-          if (!hasSuccessData(queryClient, pushSubscriptionDeviceStatusQueryOptions.queryKey)) {
-            await queryClient.prefetchQuery(pushSubscriptionDeviceStatusQueryOptions);
+          // Push status belongs to the verified native owner+epoch, not a shared cache.
+          const pushOptions = pushDeviceStatusForActor(pushActor);
+          if (
+            pushActor &&
+            pushOptions.enabled &&
+            !hasSuccessData(queryClient, pushOptions.queryKey)
+          ) {
+            await queryClient.prefetchQuery(pushOptions);
           }
 
           if (user?.role === "USER") {
@@ -125,7 +168,7 @@ export function usePrefetchOtherTabsAfterCourses({
             }
           }
 
-          authDoneRef.current = true;
+          if (!cancelled) authDoneRef.current = true;
         } catch {
           // Префетч не критичен для UX — не засоряем Tracer
         }
@@ -140,7 +183,8 @@ export function usePrefetchOtherTabsAfterCourses({
     catalogReady,
     isOffline,
     authLoading,
-    isAuthenticated,
+    principalId,
+    pushActor,
     user?.role,
     user?.username,
     queryClient,

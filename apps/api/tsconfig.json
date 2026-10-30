@@ -11,17 +11,36 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "lib": ["ES2023", "DOM"],
-    "types": ["node"],
+    "lib": [
+      "ES2023",
+      "DOM"
+    ],
+    "types": [
+      "node"
+    ],
     "baseUrl": ".",
     "paths": {
-      "@gafus/core/services/course": ["../../packages/core/src/services/course/index.ts"],
-      "@gafus/core/services/article": ["../../packages/core/src/services/article/index.ts"],
-      "@gafus/core/services/pets": ["../../packages/core/src/services/pets/index.ts"],
-      "@gafus/core/services/training": ["../../packages/core/src/services/training/index.ts"],
-      "@gafus/core/services/user": ["../../packages/core/src/services/user/index.ts"],
-      "@gafus/core/services/exam": ["../../packages/core/src/services/exam/index.ts"],
-      "@gafus/core/services/offline": ["../../packages/core/src/services/offline/index.ts"],
+      "@gafus/core/services/course": [
+        "../../packages/core/src/services/course/index.ts"
+      ],
+      "@gafus/core/services/article": [
+        "../../packages/core/src/services/article/index.ts"
+      ],
+      "@gafus/core/services/pets": [
+        "../../packages/core/src/services/pets/index.ts"
+      ],
+      "@gafus/core/services/training": [
+        "../../packages/core/src/services/training/index.ts"
+      ],
+      "@gafus/core/services/user": [
+        "../../packages/core/src/services/user/index.ts"
+      ],
+      "@gafus/core/services/exam": [
+        "../../packages/core/src/services/exam/index.ts"
+      ],
+      "@gafus/core/services/offline": [
+        "../../packages/core/src/services/offline/index.ts"
+      ],
       "@gafus/core/services/achievements": [
         "../../packages/core/src/services/achievements/index.ts"
       ],
@@ -34,12 +53,26 @@
       "@gafus/core/services/appFeatureFlags": [
         "../../packages/core/src/services/appFeatureFlags/index.ts"
       ],
-      "@gafus/core/errors": ["../../packages/core/src/errors/index.ts"],
+      "@gafus/core/errors": [
+        "../../packages/core/src/errors/index.ts"
+      ],
       "@gafus/core/validation/auth-register": [
         "../../packages/core/src/validation/authRegisterSchema.ts"
       ]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/test/ag1-feed-ready-real-worker-work-http.acceptance.ts",
+    "src/test/ag1-feed-video-hls-real-worker-work-http.acceptance.ts",
+    "src/test/ag1-hono-61s-hls-real-worker.acceptance.ts",
+    "src/test/live-cdn-preview-readonly.http.ts",
+    "src/test/web4-mixed-photo-poll-ready-r37.acceptance.ts",
+    "src/test/web4-video120-3501-browser.acceptance.ts",
+    "src/test/web4-video120-real-work-http.acceptance.ts"
+  ]
 }

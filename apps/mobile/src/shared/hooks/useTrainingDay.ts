@@ -2,8 +2,11 @@ import { reportClientError } from "@/shared/lib/tracer";
 import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { trainingApi } from "@/shared/lib/api";
-import { useProgressSyncStore, useStepStore } from "@/shared/stores";
+import { useStepStore } from "@/shared/stores";
 import { getIsOffline } from "@/shared/stores/networkStatusStore";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import { commitVerifiedPractice } from "@/shared/lib/offline/newOnlyV2PracticeCommit";
+import { useAuthStore } from "@/shared/stores/authStore";
 import { getCourseMeta } from "@/shared/lib/offline/offlineStorage";
 import { mapMetaToTrainingDayResponse } from "@/shared/lib/offline/mapOfflineMetaToTraining";
 import type { ApiResponse } from "@/shared/lib/api/client";
@@ -72,19 +75,29 @@ export function useTrainingDay(courseType: string, dayOnCourseId: string) {
  * Хук для старта шага. При офлайне ставит действие в очередь синхронизации.
  */
 export function useStartStep() {
-  const addToQueue = useProgressSyncStore((s) => s.add);
-  const mutationFn = useCallback(
-    async (variables: Parameters<typeof trainingApi.startStep>[0]) => {
-      if (getIsOffline()) {
-        addToQueue({ type: "startStep", params: variables });
-        return { success: true };
-      }
-      return trainingApi.startStep(variables);
-    },
-    [addToQueue],
-  );
-
-  /** Без invalidate trainingDay: refetch пересоздаёт steps → скачок ScrollView; старт уже в stepStore. */
+  const mutationFn = useCallback(async (variables: Parameters<typeof trainingApi.startStep>[0]) => {
+    if (getIsOffline()) {
+      if (
+        !/^c[a-z0-9]{8,}$/.test(variables.courseId) ||
+        !/^c[a-z0-9]{8,}$/.test(variables.dayOnCourseId) ||
+        !Number.isSafeInteger(variables.stepIndex) ||
+        variables.stepIndex < 0 ||
+        !Number.isFinite(variables.durationSec) ||
+        variables.durationSec < 0 ||
+        variables.status !== "IN_PROGRESS"
+      )
+        throw new Error("OFFLINE_START_UNSUPPORTED_PAYLOAD");
+      await newOnlyV2NativeQueues.enqueue("progress", "startStep", {
+        courseId: variables.courseId,
+        dayOnCourseId: variables.dayOnCourseId,
+        stepIndex: variables.stepIndex,
+        status: variables.status,
+        durationSec: variables.durationSec,
+      });
+      return { success: true, code: "OFFLINE_QUEUED" as const };
+    }
+    return trainingApi.startStep(variables);
+  }, []);
   return useMutation({ mutationFn });
 }
 
@@ -93,27 +106,37 @@ export function useStartStep() {
  */
 export function usePauseStep() {
   const pauseStepLocal = useStepStore((s) => s.pauseStep);
-  const addToQueue = useProgressSyncStore((s) => s.add);
-  const mutationFn = useCallback(
-    async (variables: Parameters<typeof trainingApi.pauseStep>[0]) => {
-      if (getIsOffline()) {
-        addToQueue({ type: "pauseStep", params: variables });
-        return { success: true };
-      }
-      return trainingApi.pauseStep(variables);
-    },
-    [addToQueue],
-  );
-
+  const mutationFn = useCallback(async (variables: Parameters<typeof trainingApi.pauseStep>[0]) => {
+    if (getIsOffline()) {
+      if (
+        !/^c[a-z0-9]{8,}$/.test(variables.courseId) ||
+        !/^c[a-z0-9]{8,}$/.test(variables.dayOnCourseId) ||
+        !Number.isSafeInteger(variables.stepIndex) ||
+        variables.stepIndex < 0 ||
+        !Number.isSafeInteger(variables.timeLeftSec) ||
+        variables.timeLeftSec < 0
+      )
+        throw new Error("OFFLINE_PAUSE_UNSUPPORTED_PAYLOAD");
+      await newOnlyV2NativeQueues.enqueue("progress", "pauseStep", {
+        courseId: variables.courseId,
+        dayOnCourseId: variables.dayOnCourseId,
+        stepIndex: variables.stepIndex,
+        timeLeftSec: variables.timeLeftSec,
+      });
+      return { success: true, code: "OFFLINE_QUEUED" as const };
+    }
+    return trainingApi.pauseStep(variables);
+  }, []);
   return useMutation({
     mutationFn,
-    onMutate: async (variables) => {
-      pauseStepLocal(
-        variables.courseId,
-        variables.dayOnCourseId,
-        variables.stepIndex,
-        variables.timeLeftSec,
-      );
+    onSuccess: (result, variables) => {
+      if (result.success)
+        pauseStepLocal(
+          variables.courseId,
+          variables.dayOnCourseId,
+          variables.stepIndex,
+          variables.timeLeftSec,
+        );
     },
   });
 }
@@ -123,22 +146,32 @@ export function usePauseStep() {
  */
 export function useResumeStep() {
   const resumeStepLocal = useStepStore((s) => s.resumeStep);
-  const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof trainingApi.resumeStep>[0]) => {
       if (getIsOffline()) {
-        addToQueue({ type: "resumeStep", params: variables });
-        return { success: true };
+        if (
+          !/^c[a-z0-9]{8,}$/.test(variables.courseId) ||
+          !/^c[a-z0-9]{8,}$/.test(variables.dayOnCourseId) ||
+          !Number.isSafeInteger(variables.stepIndex) ||
+          variables.stepIndex < 0
+        )
+          throw new Error("OFFLINE_RESUME_UNSUPPORTED_PAYLOAD");
+        await newOnlyV2NativeQueues.enqueue("progress", "resumeStep", {
+          courseId: variables.courseId,
+          dayOnCourseId: variables.dayOnCourseId,
+          stepIndex: variables.stepIndex,
+        });
+        return { success: true, code: "OFFLINE_QUEUED" as const };
       }
       return trainingApi.resumeStep(variables);
     },
-    [addToQueue],
+    [],
   );
-
   return useMutation({
     mutationFn,
-    onMutate: async (variables) => {
-      resumeStepLocal(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
+    onSuccess: (response, variables) => {
+      if (response.success)
+        resumeStepLocal(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
     },
   });
 }
@@ -149,27 +182,37 @@ export function useResumeStep() {
  */
 export function useResetStep() {
   const resetStepLocal = useStepStore((s) => s.resetStep);
-  const addToQueue = useProgressSyncStore((s) => s.add);
-  const mutationFn = useCallback(
-    async (variables: Parameters<typeof trainingApi.resetStep>[0]) => {
-      if (getIsOffline()) {
-        addToQueue({ type: "resetStep", params: variables });
-        return { success: true };
-      }
-      return trainingApi.resetStep(variables);
-    },
-    [addToQueue],
-  );
-
+  const mutationFn = useCallback(async (variables: Parameters<typeof trainingApi.resetStep>[0]) => {
+    if (getIsOffline()) {
+      if (
+        !/^c[a-z0-9]{8,}$/.test(variables.courseId) ||
+        !/^c[a-z0-9]{8,}$/.test(variables.dayOnCourseId) ||
+        !Number.isSafeInteger(variables.stepIndex) ||
+        variables.stepIndex < 0 ||
+        (variables.durationSec !== undefined &&
+          (!Number.isSafeInteger(variables.durationSec) || variables.durationSec < 0))
+      )
+        throw new Error("OFFLINE_RESET_UNSUPPORTED_PAYLOAD");
+      await newOnlyV2NativeQueues.enqueue("progress", "resetStep", {
+        courseId: variables.courseId,
+        dayOnCourseId: variables.dayOnCourseId,
+        stepIndex: variables.stepIndex,
+        ...(variables.durationSec === undefined ? {} : { durationSec: variables.durationSec }),
+      });
+      return { success: true, code: "OFFLINE_QUEUED" as const };
+    }
+    return trainingApi.resetStep(variables);
+  }, []);
   return useMutation({
     mutationFn,
-    onMutate: async (variables) => {
-      resetStepLocal(
-        variables.courseId,
-        variables.dayOnCourseId,
-        variables.stepIndex,
-        variables.durationSec ?? 0,
-      );
+    onSuccess: (response, variables) => {
+      if (response.success)
+        resetStepLocal(
+          variables.courseId,
+          variables.dayOnCourseId,
+          variables.stepIndex,
+          variables.durationSec ?? 0,
+        );
     },
   });
 }
@@ -180,24 +223,32 @@ export function useResetStep() {
 export function useCompleteTheoryStep() {
   const queryClient = useQueryClient();
   const completeStep = useStepStore((s) => s.completeStep);
-  const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof trainingApi.completeTheoryStep>[0]) => {
       if (getIsOffline()) {
-        addToQueue({ type: "completeTheoryStep", params: variables });
-        return { success: true };
+        if (
+          !/^c[a-z0-9]{8,}$/.test(variables.courseId) ||
+          !/^c[a-z0-9]{8,}$/.test(variables.dayOnCourseId) ||
+          !Number.isSafeInteger(variables.stepIndex) ||
+          variables.stepIndex < 0
+        )
+          throw new Error("OFFLINE_THEORY_UNSUPPORTED_PAYLOAD");
+        await newOnlyV2NativeQueues.enqueue("progress", "completeTheoryStep", {
+          courseId: variables.courseId,
+          dayOnCourseId: variables.dayOnCourseId,
+          stepIndex: variables.stepIndex,
+        });
+        return { success: true, code: "OFFLINE_QUEUED" as const };
       }
       return trainingApi.completeTheoryStep(variables);
     },
-    [addToQueue],
+    [],
   );
-
   return useMutation({
     mutationFn,
-    onMutate: async (variables) => {
+    onSuccess: (response, variables) => {
+      if (!response.success) return;
       completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
-    },
-    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trainingDays"] });
     },
   });
@@ -209,24 +260,48 @@ export function useCompleteTheoryStep() {
 export function useCompletePracticeStep() {
   const queryClient = useQueryClient();
   const completeStep = useStepStore((s) => s.completeStep);
-  const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof trainingApi.completePracticeStep>[0]) => {
       if (getIsOffline()) {
-        addToQueue({ type: "completePracticeStep", params: variables });
-        return { success: true };
+        // Only the new owner-scoped v2 queue can accept fresh offline writes.
+        // Match the exact practice-only journal DTO; no legacy queueId or UI fields.
+        if (
+          !/^c[a-z0-9]{8,}$/.test(variables.courseId) ||
+          !/^c[a-z0-9]{8,}$/.test(variables.dayOnCourseId) ||
+          !Number.isSafeInteger(variables.stepIndex) ||
+          variables.stepIndex < 0
+        ) {
+          throw new Error("OFFLINE_PRACTICE_UNSUPPORTED_PAYLOAD");
+        }
+        await commitVerifiedPractice(
+          newOnlyV2NativeQueues,
+          useAuthStore.getState().user?.id ?? null,
+          {
+            courseId: variables.courseId,
+            dayOnCourseId: variables.dayOnCourseId,
+            stepIndex: variables.stepIndex,
+          },
+          () => useAuthStore.getState().user?.id ?? null,
+        );
+        return { success: true, code: "OFFLINE_QUEUED" as const };
       }
       return trainingApi.completePracticeStep(variables);
     },
-    [addToQueue],
+    [],
   );
 
   return useMutation({
     mutationFn,
     onMutate: async (variables) => {
-      completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
+      // Offline UI succeeds only after the awaited new-only v2 durable write.
+      if (!getIsOffline()) {
+        completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
+      }
     },
-    onSuccess: () => {
+    onSuccess: (response, variables) => {
+      if (response.success && response.code === "OFFLINE_QUEUED") {
+        completeStep(variables.courseId, variables.dayOnCourseId, variables.stepIndex);
+      }
       queryClient.invalidateQueries({ queryKey: ["trainingDays"] });
     },
   });

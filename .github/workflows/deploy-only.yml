@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   validate-release:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
     runs-on: ubuntu-latest
     outputs:
       release_sha: ${{ steps.release.outputs.sha }}

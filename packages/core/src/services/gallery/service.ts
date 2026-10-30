@@ -17,7 +17,7 @@ import type {
 import type { GalleryDb, GalleryStoragePort, GalleryTx } from "./ports";
 import { GalleryError } from "./errors";
 import * as s from "./schemas";
-import { galleryPhotoKeys, gallerySourceKey } from "./keys";
+import { galleryPhotoKeys, galleryPhotoV2Keys, gallerySourceKey } from "./keys";
 import { albumDto, photoDto, uploadDto } from "./dto";
 import { requireGalleryEnabled, galleryTransaction, outputHeads } from "./context";
 import type { GalleryContext } from "./context";
@@ -481,6 +481,28 @@ export function createGalleryService({
           throw new GalleryError("PHOTO_NOT_READY", "Переносить можно только готовое фото", 409);
         if (photo.albumId === data.albumId)
           return { jobId: null, photo: await photoDto(ctx, tx, photo, actorId) };
+        const v2Keys = galleryPhotoV2Keys(actorId, photoId);
+        if (photo.thumbKey === v2Keys.thumbKey && photo.fullKey === v2Keys.fullKey) {
+          // A durable completed receipt makes retried clientRequestId safe even after
+          // later moves. No cloud dispatch is needed for immutable photo-ID keys.
+          const receipt = await tx.galleryStorageJob.create({
+            data: {
+              id: randomUUID(), dedupeKey, kind: "move", status: "done",
+              ownerId: actorId, photoId, destinationAlbumId: data.albumId,
+              sourceKeys: [v2Keys.thumbKey, v2Keys.fullKey], sourceETags: [],
+              targetKeys: [v2Keys.thumbKey, v2Keys.fullKey], availableAt: now(),
+            },
+          });
+          await tx.galleryAlbum.updateMany({
+            where: { id: photo.albumId, coverPhotoId: photoId },
+            data: { coverPhotoId: null },
+          });
+          const moved = await tx.galleryPhoto.update({
+            where: { id: photoId }, data: { albumId: data.albumId },
+          });
+          return { jobId: receipt.id, photo: await photoDto(ctx, tx, moved, actorId) };
+        }
+        // Existing album-bound V1 objects retain the safe copy/move path until migrated.
         const keys = galleryPhotoKeys(actorId, data.albumId, photoId),
           targetKeys = [keys.thumbKey, keys.fullKey];
         // Never recreate a key while an already-claimed cleanup may still delete it.

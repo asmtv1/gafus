@@ -1,0 +1,264 @@
+.consult-live-page{max-width:1080px;margin:0 auto;padding:8px 0 45px;color:var(--text-primary,#2f362a)}
+.consult-live-page h1{font-size:clamp(1.7rem,3.8vw,2.4rem);margin:0 0 20px}
+.consult-live-page h2{font-size:1.4rem;margin:22px 0 18px}
+.consult-live-page h3{font-size:1.1rem;margin:0 0 6px}
+.consult-live-nav{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:26px;padding-bottom:16px;border-bottom:1px solid #dadcce}
+.consult-live-nav a{padding:9px 15px;border-radius:16px;background:#f4f3ec;color:inherit;text-decoration:none}
+.consult-live-catalog,.consult-live-bookings,.consult-live-slots{list-style:none;padding:0;margin:0;display:grid;gap:16px}
+.consult-live-catalog{grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))}
+.consult-live-catalog li,.consult-live-bookings li,.consult-live-slots li,.consult-live-profile-detail,.consult-live-notice,.consult-live-form{background:var(--surface,#fff);border:1px solid #e0e3d7;border-radius:20px;padding:22px;box-shadow:0 6px 18px #282b1d0d}
+.consult-live-catalog li{display:flex;align-items:flex-start;gap:18px}
+.consult-live-avatar{flex:none;display:grid;place-items:center;width:76px;height:76px;border-radius:50%;background:#dee5d4;font-size:30px;color:#586b3a}
+.consult-live-muted{color:var(--text-secondary,#687069);font-size:.92rem}
+.consult-live-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:20px}
+.consult-live-actions a,.consult-live-slots a,.consult-live-page button:not(.consult-live-danger):not(.consult-live-secondary):not([class*="cancelBtn"]){border:0;background:var(--accent-primary,#657943);color:#fff;padding:11px 16px;border-radius:12px;text-decoration:none;font:inherit;cursor:pointer;display:inline-block}
+.consult-live-actions a:first-child{background:#ebece4;color:#3b4931}
+.consult-live-actions button.consult-live-danger{background:#a93632;color:#fff;padding:11px 16px;border:0;border-radius:12px;cursor:pointer;font:inherit}
+.consult-live-page .consult-live-secondary{background:transparent;border:1px solid #b9c1b2;color:#42533d;padding:10px 15px;border-radius:12px;cursor:pointer;font:inherit}
+.consult-live-page button:disabled{opacity:.55;cursor:not-allowed}
+.consult-live-error{color:#ac3029}
+.consult-live-slots li{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+.consult-live-form{max-width:720px;margin:auto}
+.consult-live-form form{display:grid;gap:16px}
+.consult-live-form label{display:grid;gap:6px;font-weight:600}
+.consult-live-form input,.consult-live-form textarea,.consult-live-form select{width:100%;max-width:100%;box-sizing:border-box;min-height:44px;border-radius:10px;border:1px solid #b8c0b0;background:#fff;color:#263527;padding:10px;font:inherit}
+.consult-live-form textarea{min-height:105px;resize:vertical}
+@media(max-width:560px){.consult-live-catalog li{flex-direction:column}.consult-live-catalog,.consult-live-bookings,.consult-live-slots{grid-template-columns:1fr}.consult-live-page{padding-inline:3px}}
+/* Retained Next Web consultation palette and rounded calendar treatment. */
+.consult-live-page{max-width:1120px;padding:24px clamp(16px,3vw,36px) 64px;box-sizing:border-box;font-family:var(--font-montserrat),system-ui,sans-serif;color:var(--text-primary,#352e2e)}
+.consult-live-page h1{font-size:clamp(30px,3.2vw,44px);font-weight:800;line-height:1.2;letter-spacing:-.035em;text-align:center;max-width:100%;margin:0 auto 22px}
+.consult-live-page h2{color:var(--text-primary,#352e2e);font-size:clamp(20px,2vw,26px);font-weight:750}
+.consult-live-catalog{grid-template-columns:repeat(2,minmax(0,1fr));max-width:1000px;margin:0 auto}
+.consult-live-catalog li,.consult-live-bookings li,.consult-live-slots li,.consult-live-profile-detail,.consult-live-form{background:#fffaf0;border:1px solid rgba(99,97,40,.16);border-radius:18px;box-shadow:0 5px 18px rgba(54,49,26,.07)}
+.consult-live-catalog li:hover{border-color:rgba(99,97,40,.31);box-shadow:0 10px 22px rgba(54,49,26,.1)}
+.consult-live-avatar{width:70px;height:70px;background:#ede8d8;color:#636128}
+.consult-live-nav{justify-content:center}
+.consult-live-page .consult-live-dates{display:flex;gap:9px;flex-wrap:wrap;margin:20px 0 16px}
+.consult-live-page .consult-live-dates button{font:inherit;font-size:14px;padding:10px 13px;border-radius:11px;border:1px solid rgba(99,97,40,.25);background:#eee7d2;color:#403c29;cursor:pointer}
+.consult-live-page .consult-live-dates button[aria-pressed="true"]{background:#636128;color:white;border-color:#636128}
+@media(max-width:620px){.consult-live-catalog{grid-template-columns:1fr}.consult-live-page{padding:20px 14px 80px}.consult-live-page h1{font-size:clamp(27px,7.5vw,34px)}}
+
+/* The retained Next /consultations/:id has no catalog-page heading and a
+ * centered 720px slot/calendar column; the only actions are owner-bound. */
+.consult-live-original-slots{max-width:720px;margin:0 auto;padding:0 0 24px}
+.consult-live-original-slots .consult-live-back{margin:4px 0 16px;font-size:14px}
+.consult-live-original-slots .consult-live-back a{color:var(--bg-2,#636128)}
+.consult-live-page .consult-live-original-slots h1.consult-live-slot-trainer-name{
+ text-align:left;font-size:clamp(22px,3vw,30px);font-weight:700;margin:0 0 20px;
+ letter-spacing:normal;line-height:1.3;
+}
+@media(max-width:620px){.consult-live-original-slots{max-width:100%;}}
+
+/* WEB5 real preserved Next page title + switcher rules. The app-level
+ * generic Impact heading and old live-nav overrides must not replace the
+ * original Montserrat 2-tab consultation layout. */
+.gafus-app .shell .next-consultations-page > h1 {
+  color: var(--text-primary, #352e2e);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: clamp(30px, 3.2vw, 44px);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -.035em;
+  text-align: center;
+  margin: 0 auto;
+  text-wrap: balance;
+}
+.gafus-app .shell .next-consultations-page .consult-live-nav {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 4px;
+  width: min(100%, 510px);
+  margin: 0 auto 22px;
+  padding: 5px;
+  border: 1px solid rgba(96,100,63,.13);
+  border-radius: 15px;
+  background: rgba(255,252,244,.87);
+  box-shadow: 0 3px 14px rgba(44,44,30,.06);
+}
+.gafus-app .shell .next-consultations-page .consult-live-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 13px;
+  border-radius: 11px;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-decoration: none;
+  text-align: center;
+  color: #605e50;
+  background: transparent;
+}
+.gafus-app .shell .next-consultations-page .consult-live-nav a[aria-current="page"] {
+  color: #fffdf5;
+  background: #5b663d;
+  box-shadow: 0 2px 6px rgba(50,61,31,.13);
+}
+@media(max-width:600px) {
+  .gafus-app .shell .next-consultations-page > h1 {
+    font-size: clamp(27px,7.5vw,34px);
+  }
+  .gafus-app .shell .next-consultations-page .consult-live-nav a {
+    font-size: 12px;
+    padding: 9px 8px;
+  }
+}
+
+/* WEB5 actual Next 390x844 screenshot: the generic Vite global
+ * .consult-live-page button rule was turning every original calendar day into
+ * a tall OLIVE CTA, although source Next CSS uses small cream day tiles.
+ * Restore original CSS states with stronger scope, never change the golden. */
+.gafus-app .shell .next-consultations-page .next-consultation-calendar button[data-consultation-day-key] {
+  border: 0;
+  background: #eee7d2;
+  color: #352e2e;
+  padding: 4px;
+  min-height: 54px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.gafus-app .shell .next-consultations-page .next-consultation-calendar button[data-in-range="false"] {
+  opacity: .35;
+  cursor: not-allowed;
+}
+.gafus-app .shell .next-consultations-page .next-consultation-calendar button[data-day-off="true"],
+.gafus-app .shell .next-consultations-page .next-consultation-calendar button[data-no-free-slots="true"] {
+  border: 0;
+  background: rgba(182,58,58,.12);
+  box-shadow: none;
+}
+.gafus-app .shell .next-consultations-page .next-consultation-calendar button[data-selected="true"]:not([data-day-off="true"]):not([data-no-free-slots="true"]) {
+  background: #e3dcc8;
+  box-shadow: inset 0 2px 5px rgba(74,74,30,.22);
+}
+.gafus-app .shell .next-consultations-page .next-consultation-calendar button[aria-label="Предыдущий месяц"],
+.gafus-app .shell .next-consultations-page .next-consultation-calendar button[aria-label="Следующий месяц"] {
+  width:36px;min-width:36px;height:36px;min-height:36px;
+  padding:0;background:var(--surface-muted,#eee7d2);color:var(--bg-2,#636128);
+  border:1px solid rgba(99,97,40,.22);border-radius:12px;
+  font-family:var(--font-montserrat),system-ui,sans-serif;
+  font-size:1.1rem;font-weight:700;line-height:1;box-shadow:0 3px 7px rgba(74,73,23,.1);
+}
+.gafus-app .shell .next-consultations-page .consult-live-original-slots .consult-live-slot-trainer-name {
+  font-family: var(--font-montserrat),system-ui,sans-serif !important;
+  font-size: clamp(20px,2vw,26px) !important;
+  font-weight:750 !important;
+  color: var(--text-primary,#352e2e) !important;
+  text-transform:none !important;
+}
+
+/* WEB5 parity: retained Next slots page has its subnav inside the 720px Box.
+ * In Vite the generic .page.content flex gap added 14px and the host shell
+ * contributed additional top/side padding. Corrections apply ONLY to the
+ * legacy slot picker and preserve other catalog/my/booking routes. The h1 in
+ * original Next is MUI Typography with a 24px measured box, not global Impact. */
+.gafus-app .shell .consult-live-slots-screen .consult-live-original-slots {
+  margin-top:-35px;
+}
+.gafus-app .shell .consult-live-slots-screen .consult-live-original-slots h1.consult-live-slot-trainer-name {
+  font-family:var(--font-montserrat),system-ui,sans-serif !important;
+  font-size:20px !important;
+  line-height:24px !important;
+  margin-bottom:16px !important;
+  letter-spacing:normal !important;
+}
+@media(max-width:600px) {
+  .gafus-app .shell .consult-live-slots-screen {
+    padding-left:2px;
+    padding-right:2px;
+  }
+  .gafus-app .shell .consult-live-slots-screen .consult-live-original-slots {
+    margin-top:-33px;
+  }
+}
+
+/* WEB5 source-column matching for loaded Next: at 1280px the retained
+ * 720px MUI Box has a measured 656px inner content width (two 320px
+ * calendar/slots columns + 16px gap). Vite's flex item instead stretched
+ * to 692px. On mobile the host shell already supplies side spacing. */
+@media(min-width:901px) {
+  .gafus-app .shell .consult-live-slots-screen .consult-live-original-slots {
+    width:min(100%,656px);
+    max-width:656px;
+  }
+}
+@media(max-width:600px) {
+  .gafus-app .shell .consult-live-slots-screen {
+    padding-left:4px;
+    padding-right:4px;
+  }
+}
+.gafus-app .shell .consult-live-slots-screen .next-consultation-calendar button[data-consultation-day-key] {
+  width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+
+
+/* WEB5 original Next R14 loaded catalog: original catalogTitle h2 has
+ * margin:0, whereas the generic Vite .consult-live-page h2 introduced
+ * 22px top + 18px bottom margins. Preserve the Next CSS-module title
+ * geometry without changing any other consultations headings or goldens. */
+.gafus-app .shell .next-consultations-page .next-cynologist-catalog #consultations-catalog-title {
+  margin:0;
+}
+
+/* WEB5 source catalog trainer-card heading: the generic Vite h3 rule
+ * overrode the original Next card .name 19px/17px and margin:0.
+ * Keep this isolated; the separately authored catalog route container
+ * now supplies exact source parent geometry without a redundant :has. */
+.gafus-app .shell .next-cynologist-catalog h3 {
+  margin:0;
+  font-size:19px;
+  line-height:1.32;
+}
+@media(max-width:460px){
+  .gafus-app .shell .next-cynologist-catalog h3 {font-size:17px}
+}
+
+/* WEB5 R15 catalog-only source rect parity (fully loaded original Next/Vite
+ * 1280x800 and 390x844). Both card CSS-module files are byte-identical.
+ * Vite's generic shell added 16px vertical margin, and mobile x+12/w-24;
+ * the broad .consult-live-page h2 rule also overrode source h2 font sizes.
+ * Scope these fixes to catalog only, never booking/my-consultations/screens. */
+.gafus-app .shell .consult-live-catalog-screen {
+  /* Explicitly outrank generic late-loaded .page margin shorthand. */
+  margin-top:-16px!important;
+}
+.gafus-app .shell .consult-live-catalog-screen .next-cynologist-catalog h2 {
+  font-size:clamp(19px,2vw,24px);
+  margin:0;
+  line-height:1.3;
+}
+@media(max-width:600px){
+  .gafus-app .shell .consult-live-catalog-screen {
+    width:calc(100% + 24px)!important;
+    max-width:none!important;
+    margin-left:-12px!important;
+  }
+}
+
+.consult-live-booking-paywall {
+  width: min(100%, 720px);
+  margin: 0 auto 40px;
+}
+.consult-live-booking-paywall .consult-paywall-back {
+  display: inline-flex;
+  align-items: center;
+  margin: 16px 0 0 10px;
+  color: #5a6d4c;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

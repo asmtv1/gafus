@@ -1,8 +1,9 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  processFeedImage, processFeedVideoFile, createFeedCommandRunner,
+  processFeedV2Image, processFeedV2Video, createFeedCommandRunner,
   type FeedCloudInternalClient, type FeedCloudJob, type FeedCloudOutput, type FeedImageEngine,
 } from "@gafus/feed-cloud";
 import { assertFeedObjectKey, feedSourcePattern } from "@gafus/feed-storage";
@@ -21,7 +22,10 @@ function validate(job: FeedCloudJob) {
     const pattern = new RegExp(`^albums/${job.ownerId}/[A-Za-z0-9_-]{1,128}/photos/[A-Za-z0-9_-]{1,128}/(thumb|full)\\.webp$`);
     if (job.sourceKeys.length !== 2 || job.sourceKeys.some(key => !pattern.test(key)) ||
         !job.sourceKeys[0].endsWith("/thumb.webp") || job.sourceKeys[1] !== job.sourceKeys[0].replace(/thumb\.webp$/, "full.webp") ||
-        job.targetKeys[0] !== prefix + "thumb.webp" || job.targetKeys[1] !== prefix + "full.webp") throw new Error("UNTRUSTED_CLAIM");
+        job.targetKeys.length !== 3 ||
+        job.targetKeys[0] !== `media/v2/${job.mediaId}/v1/image/s.webp` ||
+        job.targetKeys[1] !== `media/v2/${job.mediaId}/v1/image/m.webp` ||
+        job.targetKeys[2] !== `media/v2/${job.mediaId}/v1/image/l.webp`) throw new Error("UNTRUSTED_CLAIM");
   } else if (job.kind === "publish_photo" || job.kind === "publish_video") {
     const source = feedSourcePattern.exec(job.sourceKeys[0] ?? "");
     if (job.sourceKeys.length !== 1 || !source || source[1] !== job.ownerId || source[2] !== job.postId || source[3] !== job.uploadId ||
@@ -30,10 +34,27 @@ function validate(job: FeedCloudJob) {
     if (video !== (job.kind === "publish_video")) throw new Error("UNTRUSTED_CLAIM");
   } else throw new Error("UNTRUSTED_CLAIM");
 }
+/** Numeric-only media telemetry: never include source keys, signed URLs or secrets. */
+export interface FeedMediaV2Metrics {
+  kind: "photo" | "video";
+  attempt: number;
+  sourceBytes: number | null;
+  outputBytes: number;
+  variantCount: number;
+  downloadMs: number;
+  processingMs: number;
+  uploadMs: number;
+  coreVerificationMs: number;
+  totalMs: number;
+  cpuUserMs: number;
+  cpuSystemMs: number;
+  rssAtCompletionBytes: number;
+}
 export function createFeedCloudWorker(input: {
   core: FeedCloudInternalClient; objects: FeedCloudObjects; engine: FeedImageEngine;
-  processVideo?: typeof processFeedVideoFile;
+  processVideo?: typeof processFeedV2Video;
   now?: () => number;
+  onMetrics?: (metrics: FeedMediaV2Metrics) => void;
 }) {
   const now = input.now ?? Date.now;
   return {
@@ -41,6 +62,9 @@ export function createFeedCloudWorker(input: {
       validate(job);
       const until = Date.parse(job.leaseUntil ?? "");
       if (!Number.isFinite(until) || until <= now()) throw new Error("LEASE_EXPIRED");
+      const started = performance.now();
+      const cpuStart = process.cpuUsage();
+      let downloadMs = 0, processingMs = 0, uploadMs = 0, outputBytes = 0, variantCount = 0;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 580_000);
       let renewing = false;
@@ -55,50 +79,89 @@ export function createFeedCloudWorker(input: {
       let dir: string | undefined;
       let completing = false;
       try {
-        dir = await mkdtemp(join(tmpdir(), "gafus-feed-"));
+        const local = process.env.VITEST === "true" || process.env.GAFUS_LOCAL_ISOLATED_API === "1";
+        const project = "/Users/asmtv1/Desktop/gafus-refactor";
+        const cwd = realpathSync(process.cwd());
+        if (local && cwd !== project && !cwd.startsWith(project + "/"))
+          throw new Error("FEED_LOCAL_TEMP_OUTSIDE_PROJECT");
+        dir = await mkdtemp(join(local ? cwd : tmpdir(), ".gafus-feed-"));
         let output: FeedCloudOutput | undefined;
         if (job.kind === "delete_keys" || job.kind === "cleanup_source") {
           for (const key of job.sourceKeys) await input.objects.delete(key, signal);
         } else {
-          const prefix = `posts/${job.ownerId}/${job.postId}/attachments/${job.mediaId}/`;
+          const prefix = `media/v2/${job.mediaId}/v1/`;
           if (job.kind === "publish_video") {
             const source = join(dir, "source");
+            const downloadedAt = performance.now();
             await input.objects.download(job.sourceKeys[0], source, 200 * 1024 * 1024, signal, job.sourceETag);
-            const result = await (input.processVideo ?? processFeedVideoFile)(source, dir, createFeedCommandRunner({ timeoutMs: 550_000, signal }));
-            const segments: string[] = [];
-            for (const segment of result.segments) {
-              const key = prefix + "hls/" + segment.name;
-              await input.objects.create(key, await readFile(segment.path), "video/mp2t", signal); segments.push(key);
-            }
-            const posterKey = prefix + "poster.webp", playlistKey = prefix + "hls/playlist.m3u8";
-            await input.objects.create(posterKey, await readFile(result.poster), "image/webp", signal);
-            // The unsigned playlist remains private in S3; playback signs each segment separately.
-            await input.objects.create(playlistKey, await readFile(result.playlist), "application/vnd.apple.mpegurl", signal);
-            output = { width: result.info.width, height: result.info.height, durationSeconds: result.info.durationSeconds,
-              posterKey, playlistKey, videoSegmentKeys: segments };
+            downloadMs = Math.round(performance.now() - downloadedAt);
+            const convertedAt = performance.now();
+            // Two independent video Jobs handle separate files. One Job uses
+            // sequential renditions and the measured 2-vCPU Chat 2.0 codec profile.
+            const result = await (input.processVideo ?? processFeedV2Video)(source, dir,
+              createFeedCommandRunner({ timeoutMs: 550_000, signal }),
+              [360, 720], // two responsive tiers; no speculative 1080p encode.
+              { decoderThreads: 1, encoderThreads: 2, preset: "superfast",
+                parallelRenditions: false, rateControl: "capped-crf" });
+            processingMs = Math.round(performance.now() - convertedAt);
+            const posterKey = prefix + "poster.webp";
+            // MP4 must be streamed from disk, never buffered into RAM as HLS was.
+            const mp4Keys = result.mp4.map(item => prefix + `video/${item.quality}.mp4`);
+            const posterBytes = await readFile(result.poster);
+            outputBytes = posterBytes.byteLength + result.mp4.reduce((total, file) => total + file.bytes, 0);
+            variantCount = 1 + result.mp4.length;
+            const uploadedAt = performance.now();
+            const transfers = await Promise.allSettled([
+              input.objects.create(posterKey, posterBytes, "image/webp", signal),
+              ...result.mp4.map((item, index) => input.objects.createFile(mp4Keys[index]!, item.path, signal)),
+            ]);
+            uploadMs = Math.round(performance.now() - uploadedAt);
+            for (const transfer of transfers) if (transfer.status === "rejected") throw transfer.reason;
+            output = { width: result.info.width, height: result.info.height,
+              durationSeconds: result.info.durationSeconds, posterKey, mp4Keys };
           } else {
             const source = join(dir, "source");
-            // Album copies use the original ready full variant, never expose album URLs/keys to readers.
             const sourceKey = job.kind === "copy_album" ? job.sourceKeys[1] : job.sourceKeys[0];
+            const downloadedAt = performance.now();
             await input.objects.download(sourceKey, source, 10 * 1024 * 1024, signal, job.sourceETag);
-            const result = await processFeedImage(await readFile(source), input.engine);
-            const thumbKey = prefix + "thumb.webp", fullKey = prefix + "full.webp";
-            // The two immutable outputs are independent. Transfer and verify them
-            // concurrently to avoid paying the S3 PUT + HEAD latency twice.
-            // Keep both operations joined even on failure before reporting an
-            // unsuccessful attempt (subsequent claims are idempotent).
-            const outcomes = await Promise.allSettled([
-              input.objects.create(thumbKey, result.thumb.bytes, "image/webp", signal),
-              input.objects.create(fullKey, result.full.bytes, "image/webp", signal),
+            downloadMs = Math.round(performance.now() - downloadedAt);
+            const convertedAt = performance.now();
+            const result = await processFeedV2Image(await readFile(source), input.engine);
+            processingMs = Math.round(performance.now() - convertedAt);
+            outputBytes = result.small.bytes.byteLength + result.medium.bytes.byteLength + result.large.bytes.byteLength;
+            variantCount = 3;
+            const smallKey = prefix + "image/s.webp";
+            const thumbKey = prefix + "image/m.webp";
+            const fullKey = prefix + "image/l.webp";
+            const uploadedAt = performance.now();
+            const transfers = await Promise.allSettled([
+              input.objects.create(smallKey, result.small.bytes, "image/webp", signal),
+              input.objects.create(thumbKey, result.medium.bytes, "image/webp", signal),
+              input.objects.create(fullKey, result.large.bytes, "image/webp", signal),
             ]);
-            for (const outcome of outcomes) {
-              if (outcome.status === "rejected") throw outcome.reason;
-            }
-            output = { width: result.full.width, height: result.full.height, thumbKey, fullKey };
+            uploadMs = Math.round(performance.now() - uploadedAt);
+            for (const transfer of transfers) if (transfer.status === "rejected") throw transfer.reason;
+            output = { width: result.large.width, height: result.large.height,
+              smallKey, thumbKey, fullKey };
           }
         }
         signal.throwIfAborted(); completing = true;
-        return await input.core.completeJob(job.id, job.attemptToken, output);
+        const verifyingAt = performance.now();
+        const completion = await input.core.completeJob(job.id, job.attemptToken, output);
+        if (completion.accepted && output && input.onMetrics) {
+          const cpu = process.cpuUsage(cpuStart);
+          try { input.onMetrics({
+            kind: job.kind === "publish_video" ? "video" : "photo",
+            attempt: job.attempts, sourceBytes: job.sourceBytes ?? null,
+            outputBytes, variantCount, downloadMs, processingMs, uploadMs,
+            coreVerificationMs: Math.round(performance.now() - verifyingAt),
+            totalMs: Math.round(performance.now() - started),
+            cpuUserMs: Math.round(cpu.user / 1000),
+            cpuSystemMs: Math.round(cpu.system / 1000),
+            rssAtCompletionBytes: process.memoryUsage().rss,
+          }); } catch { /* Telemetry must never convert a READY into FAILED. */ }
+        }
+        return completion;
       } catch (error) {
         // A lost callback reply is ambiguous: never erase files that may have been published.
         if (!completing) await input.core.failJob(job.id, job.attemptToken, "MEDIA_PROCESSING_FAILED");

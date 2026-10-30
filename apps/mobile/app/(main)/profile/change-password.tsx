@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { StyleSheet, ScrollView, View } from "react-native";
 import { Text, Snackbar, TextInput as PaperTextInput } from "react-native-paper";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Stack, useRouter } from "expo-router";
 import { ProfileIcon } from "@/features/profile";
-import { useQueryClient } from "@tanstack/react-query";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 
 import { BORDER_RADIUS, COLORS, SPACING } from "@/shared/config";
 import { Button, Card, Input } from "@/shared/components/ui";
@@ -26,7 +27,6 @@ function validateNewPassword(password: string): string | null {
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -34,9 +34,58 @@ export default function ChangePasswordScreen() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [unknown, setUnknown] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
+  const mounted = useRef(true);
+  const sending = useRef(false);
+  const unknownRef = useRef(false);
+  const confirmedRef = useRef(false);
+  const logout = useAuthStore((state) => state.logout);
+  const authUser = useAuthStore((state) => state.user);
+  const authenticated = useAuthStore((state) => state.isAuthenticated);
+  const authLoading = useAuthStore((state) => state.isLoading);
+  const owner = authenticated && !authLoading ? (authUser?.id ?? null) : null;
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const epoch = owner && binding?.principalId === owner ? binding.authEpoch : null;
+  const current = (actor: { ownerId: string; authEpoch: string }) => {
+    const state = useAuthStore.getState();
+    const verified = newOnlyV2NativeQueues.getVerifiedBinding();
+    return (
+      mounted.current &&
+      state.isAuthenticated &&
+      !state.isLoading &&
+      state.user?.id === actor.ownerId &&
+      verified?.principalId === actor.ownerId &&
+      verified.authEpoch === actor.authEpoch
+    );
+  };
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    sending.current = false;
+    unknownRef.current = false;
+    confirmedRef.current = false;
+    setLoading(false);
+    setUnknown(false);
+    setConfirmed(false);
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowCurrent(false);
+    setShowNew(false);
+    setShowConfirm(false);
+    setSnackbar({ visible: false, message: "" });
+  }, [owner, epoch]);
 
   const onSave = async () => {
+    if (sending.current || unknownRef.current || confirmedRef.current || !owner || !epoch) return;
+    const actor = { ownerId: owner, authEpoch: epoch };
+    if (!current(actor)) return;
     if (!currentPassword.trim()) {
       setSnackbar({ visible: true, message: "Введите текущий пароль" });
       return;
@@ -50,26 +99,94 @@ export default function ChangePasswordScreen() {
       setSnackbar({ visible: true, message: "Пароли не совпадают" });
       return;
     }
+    sending.current = true;
     setLoading(true);
     setSnackbar({ visible: false, message: "" });
     try {
-      const result = await authApi.changePassword(currentPassword, newPassword);
+      const result = await authApi.changePassword(currentPassword, newPassword, () =>
+        current(actor),
+      );
+      if (!current(actor)) return;
       if (result.success) {
+        confirmedRef.current = true;
+        setConfirmed(true);
+        // Password credentials are not read back. Server ACK is the only
+        // confirmed write proof; Core revokes prior refresh sessions on commit.
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
         hapticFeedback.success();
-        queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-        setSnackbar({ visible: true, message: "Пароль изменён" });
-        setTimeout(() => router.back(), 1000);
-      } else {
         setSnackbar({
           visible: true,
-          message: result.error || "Не удалось сменить пароль",
+          message: "Пароль изменён. Все сеансы завершены. Войдите заново.",
+        });
+        // AG1 Core atomically advances sessionsRevokedAt and revokes refresh tokens.
+        // Never navigate back into authenticated screens with locally cached tokens.
+        try {
+          await logout();
+          const state = useAuthStore.getState();
+          if (mounted.current && !state.isAuthenticated && !state.user) {
+            router.replace("/(auth)/login");
+          }
+        } catch {
+          reportClientError(new Error("PASSWORD_CHANGE_LOCAL_SIGNOUT_FAILED"), {
+            issueKey: "ChangePassword",
+            keys: { operation: "local_signout" },
+          });
+          if (mounted.current) {
+            setSnackbar({
+              visible: true,
+              message:
+                "Пароль изменён, но выход не завершён. Закройте приложение и войдите заново.",
+            });
+          }
+        }
+      } else if (
+        !result.code &&
+        ["Неверный текущий пароль", "Сначала установите пароль", "Пользователь не найден"].includes(
+          result.error ?? "",
+        )
+      ) {
+        // AG1 returns precisely these precommit business validation 400s.
+        setSnackbar({
+          visible: true,
+          message:
+            result.error === "Неверный текущий пароль"
+              ? "Неверный текущий пароль"
+              : "Проверка пароля не пройдена. Изменений нет.",
+        });
+      } else {
+        unknownRef.current = true;
+        setUnknown(true);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setSnackbar({
+          visible: true,
+          message: "Результат смены пароля неизвестен. Повторная отправка заблокирована.",
         });
       }
-    } catch (err) {
-      reportClientError(err, { issueKey: "ChangePassword", keys: { operation: "save" } });
-      setSnackbar({ visible: true, message: "Ошибка подключения" });
+    } catch {
+      if (current(actor)) {
+        reportClientError(new Error("PASSWORD_CHANGE_RESULT_UNKNOWN"), {
+          issueKey: "ChangePassword",
+          keys: { operation: "save" },
+        });
+        unknownRef.current = true;
+        setUnknown(true);
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setSnackbar({
+          visible: true,
+          message: "Результат смены пароля неизвестен. Повторная отправка заблокирована.",
+        });
+      }
     } finally {
-      setLoading(false);
+      if (current(actor)) {
+        sending.current = false;
+        setLoading(false);
+      }
     }
   };
 
@@ -88,7 +205,7 @@ export default function ChangePasswordScreen() {
               </Text>
               <Text variant="bodyMedium" style={styles.hint}>
                 Укажите текущий пароль и новый дважды. После сохранения старый пароль перестанет
-                действовать.
+                действовать. Все сеансы завершатся, потребуется повторный вход.
               </Text>
               <View style={styles.stepsBox}>
                 <Text variant="bodySmall" style={styles.stepLine}>
@@ -151,7 +268,7 @@ export default function ChangePasswordScreen() {
                   label="Сохранить"
                   onPress={onSave}
                   loading={loading}
-                  disabled={loading}
+                  disabled={loading || unknown || confirmed || !owner || !epoch}
                   animatedPress
                 />
                 <Button

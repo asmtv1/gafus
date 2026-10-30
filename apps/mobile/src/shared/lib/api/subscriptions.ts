@@ -24,33 +24,40 @@ export const subscriptionsApi = {
    */
   postPushDeviceStatus: async (
     endpoints: string[],
+    requestGuard?: () => boolean,
   ): Promise<ApiResponse<PushSubscriptionDeviceStatus>> => {
-    return apiClient<PushSubscriptionDeviceStatus>(
-      "/api/v1/subscriptions/push/device-status",
-      {
-        method: "POST",
-        body: { endpoints },
-      },
-    );
+    return apiClient<PushSubscriptionDeviceStatus>("/api/v1/subscriptions/push/device-status", {
+      method: "POST",
+      body: { endpoints },
+      ...(requestGuard ? { requestGuard } : {}),
+    });
   },
 
   /**
    * Сохранить push подписку (Expo Push Token)
    */
-  savePushSubscription: async (data: PushSubscription): Promise<ApiResponse<void>> => {
+  savePushSubscription: async (
+    data: PushSubscription,
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/subscriptions/push", {
       method: "POST",
       body: data,
+      ...(requestGuard ? { requestGuard } : {}),
     });
   },
 
   /**
    * Удалить push подписку
    */
-  deletePushSubscription: async (endpoint: string): Promise<ApiResponse<void>> => {
+  deletePushSubscription: async (
+    endpoint: string,
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/subscriptions/push", {
       method: "DELETE",
       body: { endpoint },
+      ...(requestGuard ? { requestGuard } : {}),
     });
   },
 

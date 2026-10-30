@@ -1,3 +1,5 @@
+import type { AppSubscriptionPlanCode as CanonicalAppSubscriptionPlanCode } from "@gafus/types";
+
 /** `WEEKLY` is historical. `TWO_WEEKS` and `THREE_MONTHS` are stable billing codes,
  * not durations: current public offers all last 30 days. Keep these codes for
  * payment history, pending checkouts and subscription agreement snapshots. */
@@ -14,7 +16,11 @@ export const PUBLIC_APP_SUBSCRIPTION_PLAN_CODES = [
 ] as const;
 export const PROMO_ELIGIBLE_APP_SUBSCRIPTION_PLAN_CODES = ["MONTHLY", "THREE_MONTHS"] as const;
 
-export type AppSubscriptionPlanCode = (typeof APP_SUBSCRIPTION_PLAN_CODES)[number];
+export type AppSubscriptionPlanCode = CanonicalAppSubscriptionPlanCode;
+// Compile-time, bidirectional: neither the historical WEEKLY nor any billing code can drift.
+type AssertPlanCodes<T extends true> = T;
+type _RuntimeToShared = AssertPlanCodes<(typeof APP_SUBSCRIPTION_PLAN_CODES)[number] extends CanonicalAppSubscriptionPlanCode ? true : false>;
+type _SharedToRuntime = AssertPlanCodes<CanonicalAppSubscriptionPlanCode extends (typeof APP_SUBSCRIPTION_PLAN_CODES)[number] ? true : false>;
 
 export type AppSubscriptionSettingsPlanSource = {
   weeklyEnabled?: boolean | null;

@@ -16,6 +16,17 @@ import { getClientAppContext } from "../../lib/client-app-context.js";
 
 const logger = createWebLogger("api-rewarded-ads");
 export const rewardedAdsRoutes = new Hono();
+// Validation runs before individual route handlers. Keep early 400/415 replies
+// private too, not just the successful or caught service responses.
+rewardedAdsRoutes.use("*", async (c) => {
+  c.header("Cache-Control", "private, no-store");
+  // Legacy ad sessions and grants must not mint alternative paid-content rights.
+  // Keep this route as a deliberate 410 for outdated native clients.
+  return c.json({
+    success: false, error: "Разблокировка за рекламу больше не поддерживается",
+    code: "REWARDED_ACCESS_RETIRED",
+  }, 410);
+});
 const MINIMUM_DIRECT_ACCESS_VERSION = "1.7.0";
 
 const mobilePlatformSchema = z.enum(["ANDROID", "IOS"]);

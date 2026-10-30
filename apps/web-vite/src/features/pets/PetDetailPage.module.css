@@ -1,0 +1,131 @@
+/* Owner pet detail, no changes to compact pet list or private data flow. */
+.page { box-sizing:border-box; width:min(100%,1040px); max-width:1040px; min-width:0;
+  padding:0 clamp(12px,2.4vw,24px) 42px; margin:24px auto 0;
+  color:#352e2e; font-family:var(--font-montserrat),system-ui,sans-serif; }
+.page * {box-sizing:border-box;}
+.breadcrumbs {display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;margin:0 0 16px;}
+.breadcrumbs a {display:inline-flex;align-items:center;min-height:40px;width:fit-content;
+  padding:8px 14px;border:1px solid #d9d6bf;border-radius:999px;
+  background:rgba(255,253,246,.86);text-decoration:none;color:#47542e;
+  font-size:13px;font-weight:650;transition:background .18s ease,border-color .18s ease;}
+.breadcrumbs a:hover {background:#fffdf6;border-color:#919d78;}
+.breadcrumbs a:focus-visible {outline:3px solid #81975c;outline-offset:3px;}
+.hero {padding:clamp(20px,3.3vw,36px)!important;width:100%;border:1px solid #d8d3bc!important;
+  border-radius:24px!important;background:linear-gradient(155deg,#fffdf6 0%,#f8f2e6 100%)!important;
+  box-shadow:0 16px 36px rgba(55,51,32,.1);}
+.heroHead {display:flex;align-items:center;gap:clamp(18px,3vw,32px);
+  min-width:0;padding-bottom:27px;border-bottom:1px solid #dedcca;}
+.photoFrame {flex:0 0 clamp(128px,17vw,174px);min-width:0;}
+.photoFrame > :global(div[aria-label^="Фотография питомца"]) {width:100%;max-width:100%;}
+.photoFrame :global(img.gafus-legacy-pet-photo) {display:block;width:100%;height:auto;aspect-ratio:1;
+  object-fit:cover;border:7px solid #fffdf5;border-radius:50%;
+  box-shadow:0 8px 20px rgba(50,56,33,.15);}
+.photoFrame :global(button[aria-label^="Изменить фотографию"]) {
+  right:5px;bottom:4px;width:43px;height:43px;border-radius:14px;background:#fffdf6;}
+.photoPlaceholder {display:grid;aspect-ratio:1;place-items:center;border:7px solid #fffdf5;
+  border-radius:50%;background:#e4ead4;font-size:50px;}
+.heroIdentity {display:grid;justify-items:start;gap:9px;min-width:0;}
+.eyebrow {color:#7a8b54;font-size:11px;font-weight:750;letter-spacing:.12em;text-transform:uppercase;}
+.heroIdentity h2 {margin:0;color:#342f2b;font:750 clamp(26px,3.5vw,40px)/1.17
+  var(--font-montserrat),system-ui,sans-serif;letter-spacing:-.03em;overflow-wrap:anywhere;}
+.subtitle {margin:0;font-size:clamp(13px,1.7vw,16px);line-height:1.5;color:#6b695c;overflow-wrap:anywhere;}
+.heroIdentity a {text-decoration:none;max-width:100%;}
+.vetLink {display:inline-flex;align-items:center;justify-content:space-between;gap:12px;
+  max-width:100%;min-height:44px;margin-top:7px;padding:10px 16px;
+  border:1px solid #d2dabd;border-radius:12px;background:#edf1df;color:#48582e;
+  font:700 13px/1.4 var(--font-montserrat),system-ui,sans-serif;}
+.heroIdentity a:hover .vetLink {background:#e2ebd4;}
+.heroIdentity a:focus-visible {outline:3px solid #81975c;outline-offset:3px;border-radius:12px;}
+.factsHeader {display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;
+  gap:8px 15px;margin:26px 0 16px;}
+.factsHeader h3 {margin:0;font-size:19px;color:#425334;font-weight:750;}
+.factsHeader span {color:#949182;font-size:12px;}
+.facts:global(.pet-details) {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;padding:0;}
+.facts:global(.pet-details) > div {display:block;min-width:0;min-height:84px;padding:15px 17px;
+  border:1px solid #e2dfc9;border-radius:15px;background:rgba(238,235,213,.56);}
+.facts:global(.pet-details) > div:last-child {grid-column:1/-1;min-height:0;background:rgba(255,253,246,.72);}
+.facts:global(.pet-details) dt {margin:0 0 5px;color:#788369;font-size:12px;font-weight:600;}
+.facts:global(.pet-details) dd {margin:0;color:#35312d;font-size:15px;font-weight:650;line-height:1.5;
+  white-space:pre-wrap;overflow-wrap:anywhere;}
+.panel {width:100%;min-width:0;margin:18px 0 0;padding:clamp(18px,2.5vw,25px);
+  border:1px solid #e0decf;border-radius:21px;background:rgba(255,253,247,.95);
+  box-shadow:0 7px 21px rgba(56,50,34,.065);}
+.panelHeading {display:flex;align-items:center;gap:14px;min-width:0;margin-bottom:19px;
+  padding-bottom:15px;border-bottom:1px solid #e9e7dc;}
+.panelIcon {display:grid;flex:0 0 49px;width:49px;height:49px;place-items:center;
+  border-radius:15px;background:#edf0df;color:#586a38;font:750 24px/1 system-ui,sans-serif;}
+.panelHeading > div:last-child {min-width:0;}
+.panelHeading h3 {margin:0;color:#38372e;font-size:18px;font-weight:750;line-height:1.35;}
+.panelHeading p {margin:4px 0 0;color:#868473;font-size:12px;line-height:1.5;}
+.panel > :global(section) {margin:0;min-width:0;}
+.panel > :global(section > button:first-child) {max-width:100%;}
+.panel :global(button) {max-width:100%;}
+.weightPanel > :global(section > button:first-child),
+.panel > :global(.pet-documents-section > button:first-child),
+.panel > :global(section[aria-label="Записи о процедурах"] > button:first-child) {
+  display:inline-flex;align-items:center;justify-content:center;min-height:45px;margin:0;
+  padding:10px 17px;border:1px solid #d1d8ba;border-radius:12px;background:#edf0e1;
+  color:#455632;font:700 13px/1.4 var(--font-montserrat),system-ui,sans-serif;cursor:pointer;}
+.panel > :global(section > button:first-child:hover) {background:#e6edd8;}
+.panel > :global(section > div:not([role="alert"])) {max-width:100%;}
+.weightPanel :global(form) {min-width:0;}
+.weightPanel :global(form input) {box-sizing:border-box;max-width:100%;border-radius:10px;}
+/* Native file picker has a large intrinsic min-content width on iPhone.
+ * Contain it inside the document card without touching upload handlers. */
+.panel :global(.pet-documents-section),
+.panel :global(.pet-documents-section form),
+.panel :global(.pet-documents-section form label) {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.panel :global(.pet-documents-section input[type="file"]) {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  margin: 9px 0;
+  padding: 10px;
+  border: 1px dashed #ced6b7;
+  border-radius: 12px;
+  background: #f8f9f3;
+  color: #46533b;
+  font-size: 12px;
+}
+.panel :global(.pet-documents-section form p) {overflow-wrap:anywhere;}
+.actionPanel > :global(section) {max-width:100%;}
+.actionRow {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;min-width:0;}
+.actionRow > :global(section) {min-width:0;margin:0;}
+.actionRow > :global(section:has(form)) {grid-column:1/-1;}
+.actionRow > :global(section > button) {width:100%;min-height:46px;padding:11px 18px;border-radius:12px;font-weight:700;}
+.actionRow :global(form) {width:100%;max-width:100%;margin:12px 0;}
+.actionRow :global(form input:not([type="checkbox"])),
+.actionRow :global(form select),.actionRow :global(form textarea) {
+  max-width:100%;min-width:0;width:100%;padding:11px 13px;border:1px solid #cfceb9;
+  border-radius:11px;background:#fffefa;}
+.actionRow :global(form label) {display:grid;gap:7px;margin:8px 0;}
+@media (max-width:670px) {
+  .page {padding:0 11px 28px;margin-top:12px;}
+  .hero {padding:19px 16px!important;border-radius:20px!important;}
+  .heroHead {gap:15px;padding-bottom:19px;}
+  .photoFrame {flex-basis:clamp(100px,29vw,132px);}
+  .photoFrame :global(img.gafus-legacy-pet-photo) {border-width:4px;}
+  .photoFrame :global(button[aria-label^="Изменить фотографию"]) {width:38px;height:38px;right:0;bottom:0;}
+  .facts:global(.pet-details) {grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+  .facts:global(.pet-details) > div {min-height:75px;padding:12px;}
+  .facts:global(.pet-details) dd {font-size:13px;}
+  .panel {padding:17px 14px;margin-top:12px;border-radius:18px;}
+  .panelHeading {gap:11px;margin-bottom:13px;}
+  .panelIcon {flex-basis:43px;width:43px;height:43px;font-size:21px;}
+  .panelHeading h3 {font-size:16px;}
+  .actionRow {grid-template-columns:minmax(0,1fr);}
+}
+@media (max-width:400px) {
+  .heroHead {flex-wrap:wrap;justify-content:center;text-align:center;}
+  .photoFrame {flex:0 0 124px;}
+  .heroIdentity {width:100%;justify-items:center;}
+  .heroIdentity h2 {font-size:27px;}
+  .factsHeader {margin-top:20px;}
+}
+@media (prefers-reduced-motion:reduce) {.breadcrumbs a {transition:none;}}

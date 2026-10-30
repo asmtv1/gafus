@@ -1,0 +1,293 @@
+.container {
+  position: sticky;
+  top: 12px;
+  z-index: 90;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+  margin: 12px 20px 0;
+  padding: 0;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fbf7ef;
+  border: none;
+  color: var(--bg-2);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 100%;
+  letter-spacing: 0px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 101;
+  transition:
+    transform 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.backButton:hover {
+  background: #e9e2cf;
+  box-shadow: 0 4px 8px rgba(74, 74, 30, 0.16);
+  transform: translateY(-1px);
+}
+
+.backButton:active {
+  background: #e3dcc8;
+  box-shadow: inset 0 2px 5px rgba(74, 74, 30, 0.2);
+  transform: translateY(2px) scale(0.98);
+}
+
+.backButton:focus-visible,
+.burgerButton:focus-visible,
+.menuButton:focus-visible,
+.logoutButton:focus-visible {
+  outline: 3px solid rgba(var(--accent-primary-rgb), 0.42);
+  outline-offset: 2px;
+}
+
+.backIcon {
+  width: 19px;
+  height: 19px;
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.avatarPlaceholder {
+  width: 30px;
+  height: 30px;
+  background-color: #cccccce2;
+  border-radius: 50%;
+}
+
+.profil {
+  display: flex;
+  align-items: center;
+}
+.dropdownMenu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(390px, calc(100vw - 24px));
+  background: rgba(255, 248, 229, 0.97);
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  z-index: 101;
+  border: 1px solid rgba(255, 253, 244, 0.94);
+  border-radius: 22px;
+  box-shadow: 0 16px 36px rgba(74, 74, 30, 0.22);
+  backdrop-filter: blur(14px);
+}
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(53, 46, 46, 0.14);
+  backdrop-filter: blur(2px);
+  z-index: 99;
+}
+.menuButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.16);
+  border-radius: 14px;
+  background: rgba(255, 253, 244, 0.74);
+  box-shadow: 0 3px 7px rgba(74, 74, 30, 0.1);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 650;
+  text-align: left;
+  line-height: 1.25;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.menuButton:hover {
+  background: var(--surface, #fff8e5);
+  color: var(--accent-secondary, #4a4917);
+  box-shadow: 0 6px 12px rgba(74, 74, 30, 0.15);
+  transform: translateY(-1px);
+}
+
+.menuButton:active {
+  background: var(--surface-strong, #e8e1cb);
+  box-shadow: inset 0 2px 5px rgba(74, 74, 30, 0.2);
+  transform: translateY(1px) scale(0.99);
+}
+
+.menuButtonActive {
+  background: var(--surface-strong, #e8e1cb);
+  border-color: rgba(var(--accent-primary-rgb), 0.28);
+  box-shadow: inset 0 2px 5px rgba(74, 74, 30, 0.18);
+  color: var(--accent-secondary, #4a4917);
+}
+
+.menuButtonActive:hover {
+  background: var(--surface-strong, #e8e1cb);
+  box-shadow: inset 0 2px 5px rgba(74, 74, 30, 0.18);
+  transform: none;
+}
+
+/* The icons have different transparent insets (for example chat fills
+ * 73% of its source height while profile fills 93%). Normalize the
+ * visible artwork to roughly 28–29px tall, not just the img box. Keep
+ * the original 34px row height so menu-button heights do not change. */
+.menuIconSlot {
+  display: inline-flex;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  --menu-icon-size: 34px;
+}
+
+.menuIconSlot > img,
+.menuIconSlot > svg {
+  display: block;
+  flex: none;
+}
+
+.menuIconSlot > img {
+  width: var(--menu-icon-size);
+  height: var(--menu-icon-size);
+  object-fit: contain;
+  object-position: center;
+}
+
+/* Scale each original asset by its visible pixel bounds, without
+ * stretching or modifying the underlying Next icon files. */
+.menuIconSlot[data-menu-icon="profile"] { --menu-icon-size: 31px; }
+.menuIconSlot[data-menu-icon="pets"] { --menu-icon-size: 39px; }
+.menuIconSlot[data-menu-icon="courses"] { --menu-icon-size: 37px; }
+.menuIconSlot[data-menu-icon="feed"] { --menu-icon-size: 33px; }
+.menuIconSlot[data-menu-icon="questions"] { --menu-icon-size: 40px; }
+.menuIconSlot[data-menu-icon="cynologist"] { --menu-icon-size: 32px; }
+.menuIconSlot[data-menu-icon="chat"] { --menu-icon-size: 39px; }
+.menuIconSlot[data-menu-icon="albums"] { --menu-icon-size: 40px; }
+.menuIconSlot[data-menu-icon="reminders"] { --menu-icon-size: 36px; }
+.menuIconSlot[data-menu-icon="articles"] { --menu-icon-size: 40px; }
+.menuIconSlot[data-menu-icon="logout"] { --menu-icon-size: 34px; }
+.menuIconSlot[data-menu-icon="trainer-panel"] { --menu-icon-size: 35px; }
+
+.menuLabel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.logoutMenuItem {
+  margin-top: 4px;
+  color: var(--accent-secondary, #4a4917);
+}
+
+.logoutMenuItem:hover {
+  color: var(--text-primary);
+}
+
+.burgerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: #fbf7ef;
+  border: none;
+  z-index: 101;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(74, 74, 30, 0.14);
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+}
+
+.burgerLabel {
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--bg-2);
+}
+
+.burgerButton:hover {
+  background: #e9e2cf;
+  transform: translateY(-1px);
+}
+.burgerButton:active {
+  background: #e3dcc8;
+  box-shadow: inset 0 2px 5px rgba(74, 74, 30, 0.2);
+  transform: translateY(2px) scale(0.98);
+}
+@media (max-width: 480px) {
+  .container {
+    top: 8px;
+    min-height: 44px;
+    margin: 8px 12px 0;
+  }
+  .dropdownMenu {
+    top: calc(100% + 8px);
+    width: min(360px, calc(100vw - 16px));
+    padding: 10px;
+    border-radius: 20px;
+  }
+  .menuButton {
+    min-height: 50px;
+    font-size: 0.95rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menuButton,
+  .burgerButton,
+  .backButton {
+    transition: none;
+  }
+}
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdownMenu {
+  max-height: calc(100dvh - 100px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

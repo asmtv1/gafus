@@ -1,0 +1,24 @@
+import {createElement,useEffect,useState} from 'react';
+import {z} from 'zod';
+import type {PanelActor} from './consultationContract';
+const item=z.object({id:z.string().min(1),displayName:z.string().nullable(),transcodingStatus:z.enum(['PENDING','PROCESSING','COMPLETED','FAILED']),durationSec:z.number().nonnegative().nullable(),createdAt:z.string().datetime()}).strict();
+const response=z.object({success:z.literal(true),data:z.object({videos:z.array(item)}).strict()}).strict();
+import type {TrainerVideoMetadataItem} from '@gafus/types';
+type Video=TrainerVideoMetadataItem;
+export type VideoMetadataTransport=(path:string,signal:AbortSignal)=>Promise<{status:number;headers:Record<string,string>;body:unknown}>;
+/** AG1 cont147 registered minimal metadata-only endpoint; no URLs or playback. */
+export const VIDEO_METADATA_PATH='/api/v1/trainer/videos/metadata';
+export function TrainerVideosMetadataRead20261022(p:{pathname:string;actor:PanelActor;token:string|null;authEpoch?:string;enabled?:boolean;transport?:VideoMetadataTransport;getCurrentSession?:()=>{actor:PanelActor;token:string|null;authEpoch?:string}|null}){
+ const [query,setQuery]=useState(''),[sort,setSort]=useState<'newest'|'name'>('newest'),[selected,setSelected]=useState<string|null>(null),[retry,setRetry]=useState(0);
+ const [state,setState]=useState<{key:string;phase:'loading'|'error'|'ready';videos:Video[]}>({key:'',phase:'loading',videos:[]});
+ const key=JSON.stringify([p.actor.id,p.actor.role,p.token,p.authEpoch]);
+ const current=()=>{const s=p.getCurrentSession?p.getCurrentSession():{actor:p.actor,token:p.token,authEpoch:p.authEpoch};return !!s&&s.actor.id===p.actor.id&&s.actor.role===p.actor.role&&s.token===p.token&&s.authEpoch===p.authEpoch;};
+ const permitted=p.pathname==='/main-panel/my-videos'&&p.enabled===true&&!!p.transport&&!!p.token&&!!p.authEpoch&&['TRAINER','ADMIN'].includes(p.actor.role)&&current();
+ useEffect(()=>{let active=true;const ac=new AbortController();setSelected(null);setState({key,phase:'loading',videos:[]});if(permitted)void(async()=>{const r=await p.transport!(VIDEO_METADATA_PATH,ac.signal);if(!active||ac.signal.aborted||!current())return;const cache=(r.headers['cache-control']??'').toLowerCase();if(r.status!==200||!cache.includes('private')||!cache.includes('no-store'))throw Error('READ_DENIED');const videos=response.parse(r.body).data.videos;if(active&&current())setState({key,phase:'ready',videos});})().catch(()=>{if(active&&current())setState({key,phase:'error',videos:[]});});return()=>{active=false;ac.abort();};},[key,permitted,p.transport,retry]);
+ if(!permitted)return createElement('main',null,createElement('p',{role:'alert'},'Метаданные видео недоступны'));
+ const v=state.key===key?state:{phase:'loading' as const,videos:[]};
+ if(v.phase==='loading')return createElement('main',null,createElement('p',{role:'status'},'Загрузка списка видео'));
+ if(v.phase==='error')return createElement('main',null,createElement('p',{role:'alert'},'Не удалось загрузить список видео'),createElement('button',{type:'button',onClick:()=>setRetry(x=>x+1)},'Повторить чтение'));
+ const found=v.videos.filter(x=>(x.displayName??'').toLocaleLowerCase('ru').includes(query.toLocaleLowerCase('ru'))).sort((a,b)=>sort==='newest'?b.createdAt.localeCompare(a.createdAt)||a.id.localeCompare(b.id):(a.displayName??'').localeCompare(b.displayName??'','ru')||b.createdAt.localeCompare(a.createdAt)||a.id.localeCompare(b.id));const detail=found.find(x=>x.id===selected);
+ return createElement('main',{'data-video-metadata-readonly':'true'},createElement('h1',null,'Мои видео — метаданные'),createElement('label',null,'Поиск по названию',createElement('input',{value:query,onChange:e=>setQuery(e.currentTarget.value)})),createElement('label',null,'Сортировка',createElement('select',{value:sort,onChange:e=>setSort((e.currentTarget as HTMLSelectElement).value as typeof sort)},createElement('option',{value:'newest'},'Сначала новые'),createElement('option',{value:'name'},'По названию'))),createElement('p',null,`Всего видео: ${v.videos.length}; показано: ${found.length}`),found.length===0?createElement('p',{role:'status'},'Видео не найдены'):createElement('ul',null,...found.map(x=>createElement('li',{key:x.id},createElement('button',{type:'button',onClick:()=>setSelected(x.id)},x.displayName??'Без названия'),' — ',x.transcodingStatus,' — ',x.durationSec===null?'Длительность неизвестна':`${x.durationSec} с`,' — ',x.createdAt.slice(0,10)))),detail?createElement('section',{'aria-label':'Метаданные выбранного видео'},createElement('h2',null,detail.displayName??'Без названия'),createElement('p',null,'Статус: '+detail.transcodingStatus),createElement('p',null,'Дата: '+detail.createdAt.slice(0,10)),createElement('p',null,'Длительность: '+(detail.durationSec===null?'Не определена':detail.durationSec+' с'))):null);
+}

@@ -5,9 +5,13 @@
 const galleryPath = /^\/albums\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/photos\/[A-Za-z0-9_-]{1,128}\/(?:thumb|full)\.webp$/;
 const galleryVetPath = /^\/users\/[A-Za-z0-9_-]{1,128}\/pets\/[A-Za-z0-9_-]{1,128}\/vet-visits\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/thumb\.webp$/;
 const feedPath = /^\/posts\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/attachments\/[A-Za-z0-9_-]{1,128}\/(?:thumb|full|poster)\.webp$/;
+// Feed Media V2: one immutable media-version key shared by Web and Mobile.
+const feedV2Path = /^\/media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/(?:image\/[sml]\.webp|poster\.webp|video\/(?:360|720|1080)\.mp4)$/;
+const feedV2Signature = /^\?md5=[A-Za-z0-9_-]{22}&expires=\d{10}$/;
 const signature = /^\/md5\([A-Za-z0-9_-]{22},\d{10}\)/;
 function authorizedFinalPath(scope: 'gallery' | 'feed', path: string): boolean {
-  return scope === 'gallery' ? galleryPath.test(path) || galleryVetPath.test(path) : feedPath.test(path);
+  return scope === 'gallery' ? galleryPath.test(path) || galleryVetPath.test(path) :
+    feedPath.test(path) || feedV2Path.test(path);
 }
 export function scopedMediaCacheKey(urlString: string, accountId: string, now = Date.now()): string {
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(accountId) || !Number.isFinite(now) || now < 0)
@@ -32,8 +36,15 @@ export function scopedMediaCacheKey(urlString: string, accountId: string, now = 
     path = match[2]!;
   } else {
     kind = scope!;
-    if (url.search || !signature.test(url.pathname)) throw new Error('MEDIA_CACHE_UNSIGNED');
-    path = url.pathname.replace(signature, '');
+    // V2 Feed URLs use query signatures rather than legacy Gallery's path
+    // tokens. Do not persist signature tokens or accept arbitrary query keys.
+    if (kind === 'feed' && feedV2Path.test(url.pathname)) {
+      if (!feedV2Signature.test(url.search)) throw new Error('MEDIA_CACHE_UNSIGNED');
+      path = url.pathname;
+    } else {
+      if (url.search || !signature.test(url.pathname)) throw new Error('MEDIA_CACHE_UNSIGNED');
+      path = url.pathname.replace(signature, '');
+    }
   }
   if (!authorizedFinalPath(kind, path)) throw new Error('MEDIA_CACHE_UNTRUSTED_PATH');
   const slot = Math.floor(now / 180_000);

@@ -1,0 +1,82 @@
+.section { width:100%;color:#352e2e;font-family:var(--font-montserrat),Montserrat,sans-serif; }
+.periods {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  margin: 14px 0 4px;
+  background: #ece5d2;
+  border-radius: 11px;
+}
+.periods button {
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #352e2e;
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.periods button[aria-pressed="true"] {
+  background: #fff;
+  font-weight: 700;
+}
+.chart {
+  width: 100%;
+  max-width: 700px;
+}
+.chart svg {
+  width: 100%;
+  height: 190px;
+  overflow: visible;
+}
+.goalLine {
+  stroke: #79964a;
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+}
+.goalLabel {
+  fill: #4b672a;
+  font:
+    600 13px Montserrat,
+    sans-serif;
+}
+.axis {
+  stroke: #d5cbb2;
+  stroke-width: 1;
+}
+.line {
+  fill: none;
+  stroke: #636128;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.point {
+  fill: #fff8e5;
+  stroke: #636128;
+  stroke-width: 3;
+}
+.lastPoint {
+  fill: #b98b25;
+  stroke: #fff8e5;
+  stroke-width: 3;
+}
+.axisLabels {
+  display: flex;
+  justify-content: space-between;
+  color: #706b60;
+  font-size: 0.75rem;
+}
+.summary {
+  color: #4b672a;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.hint {
+  color: #706b60;
+  font-size: 0.85rem;
+}
+
+.periods button:focus-visible {outline:2px solid #009dcf;outline-offset:2px;}
+@media (max-width:520px) { .chart svg {height:165px;} }

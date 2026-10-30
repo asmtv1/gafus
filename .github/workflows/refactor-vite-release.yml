@@ -1,0 +1,278 @@
+name: GAFUS Refactor Vite release candidate
+
+# Separate from main/production. No automatic remote deploy or DB migration.
+on:
+  push:
+    branches: [vite]
+  pull_request:
+    branches: [vite]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gafus-refactor-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Vite quality and release contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - name: Fail early if Refactor source is absent from pushed commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Our current local Vite source is untracked. A CI runner cannot
+          # build it until all release files are included in the pushed SHA.
+          git ls-files --error-unmatch -- \
+            apps/web-vite/package.json \
+            apps/web-vite/src/App.tsx \
+            apps/web-vite/src/features/moments/momentMedia.ts \
+            scripts/refactor/check-vite-assets.mjs \
+            ci-cd/docker/Dockerfile-web-vite-refactor >/dev/null
+          test "$(git ls-files apps/web-vite/src | wc -l)" -ge 100
+      - name: Validate full production Compose without real environment
+        run: python3 ci-cd/scripts/refactor-verify-compose.py
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Locked workspace install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Enforce Core package and browser/server boundaries before dependency builds (blocking)
+        run: pnpm check:core-boundaries
+      - name: Generate Prisma client in clean checkout (no database connection)
+        run: pnpm --filter @gafus/prisma db:generate
+      - name: Build all Vite workspace dependencies, not cached Mac dist
+        run: pnpm --filter '@gafus/web-vite^...' --if-present run build
+      - name: Run Types public contract and NodeNext regression tests (blocking)
+        run: pnpm --filter @gafus/types test
+      - name: Verify generated shared-types declarations match runtime exports
+        run: node scripts/qa/check-types-artifact-exports.mjs
+      - name: Guard Web client/server import boundary
+        run: node scripts/check-web-core-boundary.mjs
+      - name: Check Chat2 production configuration boundaries
+        run: node scripts/refactor/check-chat2-prod-boundary.mjs
+      - name: Guard Cloud media Docker Sharp version
+        run: node scripts/qa/check-media-docker-sharp-version.mjs
+      - name: Release inventory and secret index gate
+        run: node scripts/refactor/check-release-index.mjs
+      - name: Typecheck Vite
+        run: pnpm --filter @gafus/web-vite typecheck
+      - name: Lint Vite
+        run: pnpm --filter @gafus/web-vite lint
+      - name: Test Vite
+        run: pnpm --filter @gafus/web-vite test
+      - name: Build production Vite assets
+        run: pnpm --filter @gafus/web-vite build
+      - name: Upload exact Vite build for image packaging
+        uses: actions/upload-artifact@v4
+        with:
+          name: gafus-refactor-vite-dist
+          path: apps/web-vite/dist/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Release workflow safety contracts
+        run: node --test ci-cd/scripts/refactor-vite-release.test.mjs
+
+  docker-smoke:
+    name: Linux AMD64 Vite image and local HTTP smoke
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: gafus-refactor-vite-dist
+          path: apps/web-vite/dist/
+      - name: Assert artifact is a built SPA
+        run: test -s apps/web-vite/dist/index.html
+      - uses: docker/setup-buildx-action@v3
+      - name: Build Linux AMD64 image without publishing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ci-cd/docker/Dockerfile-web-vite-refactor
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: gafus-refactor-web:ci
+      - name: Verify static SPA, API routing and original Host/HTTPS headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker network create gafus-refactor-ci-smoke
+          trap 'docker rm -f gafus-refactor-web-smoke gafus-refactor-ci-api >/dev/null 2>&1 || true; docker network rm gafus-refactor-ci-smoke >/dev/null 2>&1 || true' EXIT
+          # Disposable Hono-shaped HTTP responder in an isolated test network.
+          # No real DB, credentials or live services are reachable from the test.
+          docker run -d --name gafus-refactor-ci-api --network gafus-refactor-ci-smoke --network-alias gafus-api node:24-alpine node -e 'require("http").createServer((req,res)=>{res.setHeader("content-type","application/json");res.end(JSON.stringify({path:req.url,host:req.headers.host,proto:req.headers["x-forwarded-proto"]}));}).listen(3001,"0.0.0.0")'
+          docker run -d --name gafus-refactor-web-smoke --network gafus-refactor-ci-smoke -p 127.0.0.1:18080:3000 gafus-refactor-web:ci
+          for attempt in {1..30}; do
+            if curl --fail --silent --max-time 3 http://127.0.0.1:18080/healthz | grep -qx ok; then break; fi
+            sleep 1
+          done
+          test "$(curl --fail --silent --max-time 5 http://127.0.0.1:18080/healthz)" = ok
+          curl --fail --silent --max-time 5 http://127.0.0.1:18080/courses | grep -qi '<!doctype html>'
+          curl --fail --silent --max-time 5 'http://127.0.0.1:18080/profile?tab=settings' | grep -qi '<!doctype html>'
+          curl --fail --silent --max-time 5 http://127.0.0.1:18080/feed | grep -qi '<!doctype html>'
+          test "$(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18080/api/obsolete)" = 404
+          test "$(curl --silent --max-time 5 --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18080/assets/does-not-exist.js)" = 404
+          echo 'Testing Hono proxy with an explicit production-style Host/HTTPS header'
+          response=$(curl --fail --silent --max-time 8 -H 'Host: gafus.ru' -H 'X-Forwarded-Proto: https' 'http://127.0.0.1:18080/api/v1/ping?test=1')
+          node -e 'const assert=require("node:assert/strict");assert.deepEqual(JSON.parse(process.argv[1]),{path:"/api/v1/ping?test=1",host:"gafus.ru",proto:"https"})' "$response"
+          docker exec gafus-refactor-web-smoke nginx -t
+
+  # Rebuild ALL seven production-owned images exactly as current main CI,
+  # with the refactor checkout and linux/amd64. This is a read-only build:
+  # no registry login, image push, SSH, production DB or secret injection.
+  production-containers-smoke:
+    name: Production-image build / ${{ matrix.image.name }} (AMD64, no push)
+    # Independent from Vite verification: the seven production builds must
+    # still run and report failures when the new app's tests are red.
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - { name: web, file: Dockerfile-web-optimized }
+          - { name: trainer-panel, file: Dockerfile-trainer-panel-optimized }
+          - { name: admin-panel, file: Dockerfile-admin-panel-optimized }
+          - { name: api, file: Dockerfile-api-optimized }
+          - { name: worker, file: Dockerfile-worker-optimized }
+          - { name: bull-board, file: Dockerfile-bull-board-optimized }
+          - { name: prisma, file: Dockerfile-prisma-optimized }
+    steps:
+      - uses: actions/checkout@v5
+      - name: Refuse Docker success from a partial Refactor checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          git ls-files --error-unmatch -- \
+            apps/web-vite/package.json \
+            apps/web-vite/src/App.tsx \
+            ci-cd/docker/Dockerfile-prisma-optimized \
+            ci-cd/scripts/refactor-verify-compose.py >/dev/null
+          test "$(git ls-files apps/web-vite/src | wc -l)" -ge 100
+      - uses: actions/setup-node@v4
+        if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
+        with:
+          node-version: '20'
+      - uses: pnpm/action-setup@v4
+        if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
+        with:
+          version: 10.12.4
+      - name: Build exact Vite frontend before image packaging
+        if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter @gafus/prisma db:generate
+          case '${{ matrix.image.name }}' in
+            web) pnpm --filter '@gafus/web-vite^...' --if-present run build; pnpm --filter @gafus/web-vite build ;;
+            admin-panel) pnpm --filter '@gafus/admin-panel^...' --if-present run build; pnpm --filter @gafus/admin-panel build ;;
+            trainer-panel) pnpm --filter '@gafus/trainer-panel^...' --if-present run build; pnpm --filter @gafus/trainer-panel build ;;
+          esac
+      - uses: docker/setup-buildx-action@v3
+      - name: Build full production image from Refactor, no remote side effects
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ci-cd/docker/${{ matrix.image.file }}
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: gafus-refactor-production-verify:${{ matrix.image.name }}
+          cache-from: type=gha,scope=refactor-${{ matrix.image.name }}
+          cache-to: type=gha,scope=refactor-${{ matrix.image.name }},mode=max
+      - name: Verify final runtime image architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='gafus-refactor-production-verify:${{ matrix.image.name }}'
+          test "$(docker image inspect "$tag" --format '{{.Os}}/{{.Architecture}}')" = linux/amd64
+          docker image inspect "$tag" --format '{{json .Config.Cmd}}' > /dev/null
+          # Exercise final runtime layers. This never starts application code,
+          # connects to an API/database, or exposes any production credentials.
+          if [[ '${{ matrix.image.name }}' == web || '${{ matrix.image.name }}' == admin-panel || '${{ matrix.image.name }}' == trainer-panel ]]; then
+            docker run --rm --platform linux/amd64 --network none --read-only \
+              --cap-drop ALL --security-opt no-new-privileges \
+              --entrypoint nginx "$tag" -t >/dev/null
+          else
+          docker run --rm --platform linux/amd64 --network none --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --entrypoint node "$tag" --version >/dev/null
+          fi
+          if [[ '${{ matrix.image.name }}' == api || '${{ matrix.image.name }}' == worker ]]; then
+            docker run --rm --platform linux/amd64 --network none --read-only \
+              --cap-drop ALL --security-opt no-new-privileges \
+              --entrypoint ffmpeg "$tag" -version >/dev/null
+            # The API/Worker must resolve the real generated client from their
+            # deployed @gafus/prisma dependency without opening a DB socket.
+            docker run --rm --platform linux/amd64 --network none --read-only \
+              --cap-drop ALL --security-opt no-new-privileges \
+              --entrypoint node "$tag" -e \
+              'const r=require("node:module").createRequire(require.resolve("@gafus/prisma/package.json"));const c=r("@prisma/client");if(typeof c.PrismaClient!=="function")process.exit(1)'
+          fi
+          if [[ '${{ matrix.image.name }}' == prisma ]]; then
+            # A successful Docker build alone can hide an absent Prisma Client.
+            docker run --rm --platform linux/amd64 --network none --read-only \
+              --cap-drop ALL --security-opt no-new-privileges \
+              --entrypoint node "$tag" -e \
+              'const c=require("@prisma/client");if(typeof c.PrismaClient!=="function")process.exit(1)'
+          fi
+      - name: Record production image build result
+        run: echo 'AMD64 full image build PASS — ${{ matrix.image.name }} (not published)' >> "$GITHUB_STEP_SUMMARY"
+
+  # Explicit opt-in: repository variable + GitHub environment.
+  # Configure required reviewers on refactor-image-publish in GitHub settings.
+  # This publishes a SHA-tagged refactor image only, not existing main tags.
+  # There is intentionally NO production SSH, Compose, or DB write here.
+  publish-candidate:
+    name: Publish isolated immutable Refactor image
+    needs: [verify, docker-smoke, production-containers-smoke]
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/vite' &&
+      vars.GAFUS_REFACTOR_IMAGE_PUBLISH == 'enabled'
+    runs-on: ubuntu-latest
+    environment: refactor-image-publish
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: gafus-refactor-vite-dist
+          path: apps/web-vite/dist/
+      - name: Assert same verified SPA release artifact
+        run: test -s apps/web-vite/dist/index.html
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish SHA-only refactor web image
+        id: publish
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ci-cd/docker/Dockerfile-web-vite-refactor
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/asmtv1/gafus-refactor-web:sha-${{ github.sha }}
+      - name: Record immutable image digest
+        run: |
+          echo "Release image: ghcr.io/asmtv1/gafus-refactor-web@${{ steps.publish.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"

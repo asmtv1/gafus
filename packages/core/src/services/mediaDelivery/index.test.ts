@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { isCdnOutage, isMediaCdnFailoverActive, isSignedCdnFailoverActive, MEDIA_CDN_OUTAGE_COOLDOWN_MS, probeCdnOutage, probeHlsCdnOutage, cloudruFallbackManifestUrl, isTrustedCdnProbeUrl, mediaCdnKindFromSignedUrl } from './index';
+import { isCdnOutage, isMediaCdnFailoverActive, isSignedCdnFailoverActive, MEDIA_CDN_OUTAGE_COOLDOWN_MS, probeCdnOutage, isTrustedCdnProbeUrl, mediaCdnKindFromSignedUrl } from './index';
 describe('CDN fail-closed transport fallback policy', () => {
-  it('never bypasses 403/404 or any known non-5xx response', () => {
+  it('does not bypass 403/404; recognizes 410 edge retirement and 5xx failures', () => {
     for (const status of [200, 204, 301, 400, 401, 403, 404, 429])
       expect(isCdnOutage({ status, timedOut: true, networkFailed: true })).toBe(false);
-    for (const status of [500, 502, 503, 504, 599]) expect(isCdnOutage({ status })).toBe(true);
+    for (const status of [410, 500, 502, 503, 504, 599]) expect(isCdnOutage({ status })).toBe(true);
   });
   it('does not turn opaque Web CORS failures into storage bypasses', async () => {
     const fetcher = vi.fn(async () => { throw new TypeError('CORS blocked'); }) as unknown as typeof fetch;
@@ -12,64 +12,55 @@ describe('CDN fail-closed transport fallback policy', () => {
     expect(await probeCdnOutage('https://cdn.gafus.test/signed.webp', { fetcher, nativeNetwork: true })).toBe(true);
     expect(await probeCdnOutage('http://127.0.0.1/private', { fetcher, nativeNetwork: true })).toBe(false);
   });
-  it('allows only 5xx HEAD statuses, not 403/404', async () => {
-    for (const [status, expected] of [[403, false], [404, false], [503, true]] as const) {
+  it('allows 410 and 5xx HEAD statuses, not 403/404', async () => {
+    for (const [status, expected] of [[403, false], [404, false], [410, true], [503, true]] as const) {
       const fetcher = vi.fn(async () => new Response(null, { status })) as unknown as typeof fetch;
       expect(await probeCdnOutage('https://cdn.gafus.test/path?md5=one', { fetcher })).toBe(expected);
       expect(fetcher).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ method: 'HEAD' }));
     }
   });
-  it('requires a CDN segment, never treats an API manifest 5xx as CDN outage', async () => {
-    const fetcher = vi.fn(async () => new Response('', { status: 503 })) as unknown as typeof fetch;
-    expect(await probeHlsCdnOutage('https://api.gafus.test/manifest', { fetcher })).toBe(false);
-    const segment = `https://garaquachegasourn.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/posts/a/b/attachments/c/hls/segment-000.ts`;
-    const manifest = `#EXTM3U\n#EXTINF:2,\n${segment}\n#EXT-X-ENDLIST\n`;
-    const good = vi.fn(async (url: string) => url.includes('manifest')
-      ? new Response(manifest) : new Response(null, { status: 503 })) as unknown as typeof fetch;
-    expect(await probeHlsCdnOutage('https://api.gafus.test/manifest', { fetcher: good })).toBe(true);
-  });
-  it('rejects any client-provided arbitrary fallback manifest URL', () => {
-    expect(cloudruFallbackManifestUrl('/api/v1/feed-playback/media?ticket=abc.def'))
-      .toBe('/api/v1/feed-playback/media?ticket=abc.def&source=cloudru');
-    expect(() => cloudruFallbackManifestUrl('https://other.test/m3u8')).toThrow();
+  it('recognizes progressive MP4 CDN paths without using any HLS manifest', () => {
+    const url = `https://garaquachegasourn.begetcdn.cloud/media/v2/media/v1/video/360.mp4?md5=${'A'.repeat(22)}&expires=1999999999`;
+    expect(mediaCdnKindFromSignedUrl(url)).toBe('feed');
+    expect(mediaCdnKindFromSignedUrl(url.replace('360.mp4','360.m3u8'))).toBeNull();
   });
 });
 
 describe('authorized same-origin Web CDN status proxy target', () => {
   const now = 1791820000000;
-  const path = '/posts/owner/post/attachments/media/thumb.webp';
-  const signed = `https://garaquachegasourn.begetcdn.cloud/md5(${'A'.repeat(22)},${Math.floor(now / 1000) + 90})${path}`;
+  const path = '/media/v2/media/v1/image/m.webp';
+  const signed = `https://garaquachegasourn.begetcdn.cloud${path}?md5=${'A'.repeat(22)}&expires=${Math.floor(now / 1000) + 90}`;
   const allowed = ['garaquachegasourn.begetcdn.cloud', 'mepsuduyokabib.begetcdn.cloud'];
   it('accepts only supported signed media path on explicitly approved hosts', () => {
     expect(isTrustedCdnProbeUrl(signed, allowed, now)).toBe(true);
     expect(isTrustedCdnProbeUrl(signed.replace('garaquachegasourn.begetcdn.cloud', 'evil.example'), allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed.replace('https:', 'http:'), allowed, now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(signed.replace('/posts/', '/admin/'), allowed, now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace('/media/', '/admin/'), allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed + '&source=cloudru', allowed, now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(signed.replace('thumb.webp', 'secret.txt'), allowed, now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(signed.replace('md5(', 'bad('), allowed, now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace('m.webp', 'secret.txt'), allowed, now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace('?md5=', '?bad='), allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed.replace('garaquachegasourn.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud:444'), allowed, now)).toBe(false);
   });
   it('accepts only signed Beget URLs on exact approved service hosts', () => {
     const expires = Math.floor(now / 1000) + 300;
-    const beget = `https://garaquachegasourn.begetcdn.cloud/md5(${'A'.repeat(22)},${expires})${path}`;
+    const beget = `https://garaquachegasourn.begetcdn.cloud${path}?md5=${'A'.repeat(22)}&expires=${expires}`;
     expect(isTrustedCdnProbeUrl(beget, [...allowed, 'garaquachegasourn.begetcdn.cloud'], now)).toBe(true);
-    expect(isTrustedCdnProbeUrl(beget + '?x=1', [...allowed, 'garaquachegasourn.begetcdn.cloud'], now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(beget.replace('/posts/','/incoming/'), [...allowed, 'garaquachegasourn.begetcdn.cloud'], now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(beget + '&x=1', [...allowed, 'garaquachegasourn.begetcdn.cloud'], now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(beget.replace('/media/','/incoming/'), [...allowed, 'garaquachegasourn.begetcdn.cloud'], now)).toBe(false);
     expect(isTrustedCdnProbeUrl(beget, allowed.filter(host => host !== 'garaquachegasourn.begetcdn.cloud'), now)).toBe(false);
     expect(mediaCdnKindFromSignedUrl(beget)).toBe('feed');
     expect(mediaCdnKindFromSignedUrl(beget.replace('garaquachegasourn.begetcdn.cloud','evil.begetcdn.cloud'))).toBeNull();
   });
   it('rejects expired or long-lived probe URLs', () => {
-    expect(isTrustedCdnProbeUrl(signed.replace(/,\d{10}\)/, `,${Math.floor(now/1000)-200})`),allowed,now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(signed.replace(/,\d{10}\)/, `,${Math.floor(now/1000)+10000})`),allowed,now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace(/expires=\d{10}/, `expires=${Math.floor(now/1000)-200}`),allowed,now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace(/expires=\d{10}/, `expires=${Math.floor(now/1000)+10000}`),allowed,now)).toBe(false);
   });
 });
 
 
 describe('60-second per-CDN failover circuit breaker', () => {
   const gallery = `https://mepsuduyokabib.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/albums/owner/album/photos/photo/full.webp`;
-  const feed = `https://garaquachegasourn.begetcdn.cloud/md5(${'B'.repeat(22)},1999999999)/posts/owner/post/attachments/item/poster.webp`;
+  const feed = `https://garaquachegasourn.begetcdn.cloud/media/v2/item/v1/poster.webp?md5=${'B'.repeat(22)}&expires=1999999999`;
   it('opens only the failing CDN for 60 seconds, then retries the CDN on demand', async () => {
     const now = Date.now() + 200_000;
     vi.useFakeTimers({ now });
@@ -88,6 +79,15 @@ describe('60-second per-CDN failover circuit breaker', () => {
       expect(isMediaCdnFailoverActive('feed')).toBe(true);
       expect(isMediaCdnFailoverActive('gallery')).toBe(false);
       vi.advanceTimersByTime(MEDIA_CDN_OUTAGE_COOLDOWN_MS);
+      expect(isMediaCdnFailoverActive('feed')).toBe(false);
+    } finally { vi.useRealTimers(); }
+  });
+  it('410 object loss must not poison other media on the CDN', async () => {
+    // Fixed future timestamp isolates this case from earlier circuit tests.
+    const now = 2_000_000_000_000;
+    vi.useFakeTimers({ now });
+    try {
+      expect(await probeCdnOutage(feed, { fetcher: async () => new Response(null, { status: 410 }) })).toBe(true);
       expect(isMediaCdnFailoverActive('feed')).toBe(false);
     } finally { vi.useRealTimers(); }
   });

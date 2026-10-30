@@ -10,10 +10,19 @@ import { authApi, type User } from "@/shared/lib/api";
 import type { UpdatedUserProfile } from "@/shared/lib/api/user";
 import { identifyUser, resetAnalyticsUser } from "@/shared/lib/analytics";
 import { reportClientError } from "@/shared/lib/tracer";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 
 import { setGetUserId } from "./getUserId";
 import { resetUserStores } from "./resetAll";
 import { zustandStorage } from "./storage";
+import { acknowledgePendingLogout, rememberPendingLogout, retryPendingLogouts } from "./pendingLogoutRevocations";
+
+async function retryPendingLogout(): Promise<void> {
+  await retryPendingLogouts(
+    (token) => authApi.logout(token),
+    (error) => reportClientError(error, { issueKey: "PendingLogoutRevocation" }),
+  );
+}
 
 interface AuthState {
   user: User | null;
@@ -46,7 +55,13 @@ interface AuthActions {
     state: string;
     platform?: "ios" | "android";
     promoCode?: string;
-  }) => Promise<{ success: boolean; error?: string; code?: string; needsPhone?: boolean; needsConsent?: boolean }>;
+  }) => Promise<{
+    success: boolean;
+    error?: string;
+    code?: string;
+    needsPhone?: boolean;
+    needsConsent?: boolean;
+  }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   setUser: (user: User) => void;
@@ -71,6 +86,27 @@ function isTransientAuthCheckError(response: { code?: string; error?: string }):
     response.code === "AUTH_REFRESH_UNAVAILABLE" ||
     response.error === "Нет подключения к интернету"
   );
+}
+
+/** V2 Phase1 is local-only. A failed store must never break ordinary login. */
+async function beginV2AfterVerifiedProfile(principalId: string): Promise<void> {
+  try {
+    await newOnlyV2NativeQueues.beginVerifiedLogin(principalId);
+  } catch (error) {
+    reportClientError(error, { issueKey: "V2OfflineAuthBinding" });
+  }
+}
+async function restoreV2AfterVerifiedProfile(principalId: string): Promise<void> {
+  try {
+    await newOnlyV2NativeQueues.restoreVerifiedSession(principalId);
+  } catch (error) {
+    reportClientError(error, { issueKey: "V2OfflineAuthRestore" });
+  }
+}
+function fenceV2OnSignOut(): void {
+  void newOnlyV2NativeQueues.endSession().catch((error: unknown) => {
+    reportClientError(error, { issueKey: "V2OfflineAuthSignOut" });
+  });
 }
 
 let authCheckPromise: Promise<void> | null = null;
@@ -160,6 +196,7 @@ export const useAuthStore = create<AuthStore>()(
        * Авторизация пользователя
        */
       login: async (username, password) => {
+        void retryPendingLogout();
         try {
           if (__DEV__) console.log("[authStore] login start", { username });
           const response = await authApi.login(username, password);
@@ -172,6 +209,8 @@ export const useAuthStore = create<AuthStore>()(
           const { accessToken, refreshToken } = response.data;
           if (__DEV__) console.log("[authStore] tokens received");
 
+          // A verified new login fences a still-pending startup checkAuth.
+          authSessionGeneration += 1;
           resetUserStores();
           await SecureStore.setItemAsync("auth_token", accessToken);
           await SecureStore.setItemAsync("refresh_token", refreshToken);
@@ -183,6 +222,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const user = profileRes.data;
+          await beginV2AfterVerifiedProfile(user.id);
           if (__DEV__) {
             console.log("[authStore] profile", { id: user.id });
           }
@@ -190,6 +230,7 @@ export const useAuthStore = create<AuthStore>()(
           set({
             user,
             isAuthenticated: true,
+            isLoading: false,
             pendingVkPhone: false,
             pendingVkConsent: false,
             vkConsentToken: null,
@@ -200,7 +241,11 @@ export const useAuthStore = create<AuthStore>()(
           });
           await clearVkRegistrationContext();
           identifyUser(user.id);
-          void import("@/shared/lib/api/mobile-intro").then(({ trackMobileIntroAuthOutcome }) => trackMobileIntroAuthOutcome("LOGGED_IN", user.id)).catch(() => undefined);
+          void import("@/shared/lib/api/mobile-intro")
+            .then(({ trackMobileIntroAuthOutcome }) =>
+              trackMobileIntroAuthOutcome("LOGGED_IN", user.id),
+            )
+            .catch(() => undefined);
           if (__DEV__) console.log("[authStore] login → isAuthenticated: true");
           return { success: true };
         } catch (error) {
@@ -221,8 +266,16 @@ export const useAuthStore = create<AuthStore>()(
             return { success: false, error: response.error || "Ошибка авторизации VK" };
           }
 
-          const { accessToken, refreshToken, needsPhone, needsConsent, contextToken, vkConsentToken, savedPromoCode, user } =
-            response.data;
+          const {
+            accessToken,
+            refreshToken,
+            needsPhone,
+            needsConsent,
+            contextToken,
+            vkConsentToken,
+            savedPromoCode,
+            user,
+          } = response.data;
 
           const pendingContextToken = contextToken ?? vkConsentToken;
           if (needsConsent && pendingContextToken) {
@@ -252,7 +305,11 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           if (!accessToken || !refreshToken) {
-            return { success: false, error: "VK ID не завершил вход. Повторите попытку.", code: "VK_TOKENS_MISSING" };
+            return {
+              success: false,
+              error: "VK ID не завершил вход. Повторите попытку.",
+              code: "VK_TOKENS_MISSING",
+            };
           }
 
           resetUserStores();
@@ -274,6 +331,7 @@ export const useAuthStore = create<AuthStore>()(
             return { success: false, error: "Ошибка загрузки профиля" };
           }
 
+          await beginV2AfterVerifiedProfile(profileRes.data.id);
           set({
             user: profileRes.data,
             isAuthenticated: true,
@@ -287,7 +345,11 @@ export const useAuthStore = create<AuthStore>()(
           });
           await clearVkRegistrationContext();
           identifyUser(profileRes.data.id);
-          void import("@/shared/lib/api/mobile-intro").then(({ trackMobileIntroAuthOutcome }) => trackMobileIntroAuthOutcome("LOGGED_IN", profileRes.data!.id)).catch(() => undefined);
+          void import("@/shared/lib/api/mobile-intro")
+            .then(({ trackMobileIntroAuthOutcome }) =>
+              trackMobileIntroAuthOutcome("LOGGED_IN", profileRes.data!.id),
+            )
+            .catch(() => undefined);
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthVkLogin" });
@@ -302,11 +364,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           if (__DEV__) console.log("[authStore] register start", { name, email, tempSessionId });
           const registrationChannel =
-            Platform.OS === "ios"
-              ? "IOS"
-              : Platform.OS === "android"
-                ? "ANDROID"
-                : "WEB";
+            Platform.OS === "ios" ? "IOS" : Platform.OS === "android" ? "ANDROID" : "WEB";
           const response = await authApi.register(
             name,
             email,
@@ -317,10 +375,15 @@ export const useAuthStore = create<AuthStore>()(
             promoCode,
           );
 
-          if (__DEV__) console.log("[authStore] register API response", { success: response.success });
+          if (__DEV__)
+            console.log("[authStore] register API response", { success: response.success });
 
           if (!response.success) {
-            return { success: false, error: response.error || "Ошибка регистрации", code: response.code };
+            return {
+              success: false,
+              error: response.error || "Ошибка регистрации",
+              code: response.code,
+            };
           }
 
           const { accessToken, refreshToken } = response.data;
@@ -329,6 +392,7 @@ export const useAuthStore = create<AuthStore>()(
           await SecureStore.setItemAsync("auth_token", accessToken);
           await SecureStore.setItemAsync("refresh_token", refreshToken);
 
+          await beginV2AfterVerifiedProfile(response.data.user.id);
           set({
             user: response.data.user,
             isAuthenticated: true,
@@ -342,13 +406,21 @@ export const useAuthStore = create<AuthStore>()(
           });
           await clearVkRegistrationContext();
           identifyUser(response.data.user.id);
-          void import("@/shared/lib/api/mobile-intro").then(({ trackMobileIntroAuthOutcome }) => trackMobileIntroAuthOutcome("REGISTERED", response.data.user.id)).catch(() => undefined);
+          void import("@/shared/lib/api/mobile-intro")
+            .then(({ trackMobileIntroAuthOutcome }) =>
+              trackMobileIntroAuthOutcome("REGISTERED", response.data.user.id),
+            )
+            .catch(() => undefined);
           if (__DEV__) console.log("[authStore] register success");
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthRegister" });
           console.error("Register error:", error);
-          if (__DEV__) console.log("[authStore] register catch", { error, message: (error as Error)?.message });
+          if (__DEV__)
+            console.log("[authStore] register catch", {
+              error,
+              message: (error as Error)?.message,
+            });
           return { success: false, error: "Ошибка подключения к серверу" };
         }
       },
@@ -357,22 +429,11 @@ export const useAuthStore = create<AuthStore>()(
        * Выход из системы
        */
       logout: async () => {
-        authSessionGeneration += 1;
+        const generation = ++authSessionGeneration;
+        fenceV2OnSignOut();
         clearRegisteredGallerySession();
-        try {
-          const refreshToken = await SecureStore.getItemAsync("refresh_token");
-          if (refreshToken) {
-            await authApi.logout(refreshToken);
-          }
-        } catch (error) {
-          reportClientError(error, { issueKey: "AuthLogout", userId: useAuthStore.getState().user?.id });
-          console.error("Logout API error:", error);
-        }
-
-        // Удаляем оба токена из SecureStore
-        await SecureStore.deleteItemAsync("auth_token");
-        await SecureStore.deleteItemAsync("refresh_token");
-
+        // Deauthenticate the UI immediately. Waiting for a disconnected API
+        // must never leave protected screens displaying an active session.
         resetUserStores();
         set({
           user: null,
@@ -385,8 +446,47 @@ export const useAuthStore = create<AuthStore>()(
           vkConsentPromoCode: null,
           vkConsentExpiresAt: null,
         });
-        await clearVkRegistrationContext();
         resetAnalyticsUser();
+
+        let oldRefreshToken: string | null = null;
+        try {
+          oldRefreshToken = await SecureStore.getItemAsync("refresh_token");
+          // Another verified login has taken over: never delete or revoke
+          // credentials belonging to that newer auth generation.
+          if (generation !== authSessionGeneration) return;
+          if (oldRefreshToken) {
+            try {
+              await rememberPendingLogout(oldRefreshToken);
+            } catch (storageError) {
+              reportClientError(storageError, { issueKey: "LogoutRevocationQueueUnavailable" });
+            }
+          }
+          // Clear credentials before network I/O, so offline logout does not
+          // permit background API clients to continue authenticating.
+          if (generation !== authSessionGeneration) return;
+          await SecureStore.deleteItemAsync("auth_token");
+          await SecureStore.deleteItemAsync("refresh_token");
+          await clearVkRegistrationContext();
+        } catch (error) {
+          reportClientError(error, { issueKey: "AuthLogoutLocalCleanup" });
+          // Make a best effort to remove both tokens even after storage errors.
+          if (generation === authSessionGeneration) {
+            await Promise.allSettled([
+              SecureStore.deleteItemAsync("auth_token"),
+              SecureStore.deleteItemAsync("refresh_token"),
+              clearVkRegistrationContext(),
+            ]);
+          }
+        }
+
+        if (oldRefreshToken) {
+          try {
+            const result = await authApi.logout(oldRefreshToken);
+            if (result.success) await acknowledgePendingLogout(oldRefreshToken);
+          } catch (error) {
+            reportClientError(error, { issueKey: "AuthLogoutServerRevocation" });
+          }
+        }
       },
 
       /**
@@ -396,6 +496,7 @@ export const useAuthStore = create<AuthStore>()(
         if (authCheckPromise) return authCheckPromise;
 
         const runCheck = async () => {
+          void retryPendingLogout();
           const generation = authSessionGeneration;
           if (__DEV__) console.log("[authStore] checkAuth start");
           set({ isLoading: true });
@@ -413,7 +514,11 @@ export const useAuthStore = create<AuthStore>()(
                   pendingContext.contextToken,
                   pendingContext.state,
                 );
-                if (contextResponse.success && contextResponse.data && !contextResponse.data.completed) {
+                if (
+                  contextResponse.success &&
+                  contextResponse.data &&
+                  !contextResponse.data.completed
+                ) {
                   set({
                     isLoading: false,
                     isAuthenticated: false,
@@ -423,7 +528,8 @@ export const useAuthStore = create<AuthStore>()(
                     vkConsentToken: pendingContext.contextToken,
                     vkConsentState: pendingContext.state,
                     vkConsentTempSessionId: pendingContext.tempSessionId,
-                    vkConsentPromoCode: contextResponse.data.savedPromoCode ?? pendingContext.promoCode,
+                    vkConsentPromoCode:
+                      contextResponse.data.savedPromoCode ?? pendingContext.promoCode,
                     vkConsentExpiresAt: pendingContext.expiresAt,
                   });
                   return;
@@ -482,6 +588,8 @@ export const useAuthStore = create<AuthStore>()(
 
             if (response.success && response.data) {
               const userData = response.data;
+              await restoreV2AfterVerifiedProfile(userData.id);
+              if (generation !== authSessionGeneration) return;
               if (__DEV__) {
                 console.log("[authStore] checkAuth profile", { id: userData.id });
               }
@@ -556,6 +664,7 @@ export const useAuthStore = create<AuthStore>()(
        */
       handleSessionExpired: () => {
         authSessionGeneration += 1;
+        fenceV2OnSignOut();
         clearRegisteredGallerySession();
         resetUserStores();
         set({
@@ -595,8 +704,10 @@ export const useAuthStore = create<AuthStore>()(
         });
       },
       updateVkConsentPromoCode: async (promoCode) => {
-        const { vkConsentToken, vkConsentState, vkConsentTempSessionId, vkConsentExpiresAt } = useAuthStore.getState();
-        if (!vkConsentToken || !vkConsentState || !vkConsentTempSessionId || !vkConsentExpiresAt) return;
+        const { vkConsentToken, vkConsentState, vkConsentTempSessionId, vkConsentExpiresAt } =
+          useAuthStore.getState();
+        if (!vkConsentToken || !vkConsentState || !vkConsentTempSessionId || !vkConsentExpiresAt)
+          return;
         if (vkConsentExpiresAt <= Date.now()) {
           await clearVkRegistrationContext();
           set({
@@ -640,7 +751,11 @@ export const useAuthStore = create<AuthStore>()(
             vkConsentPromoCode: null,
             vkConsentExpiresAt: null,
           });
-          return { success: false, error: "Токен устарел. Повторите вход через VK.", code: "CONTEXT_EXPIRED" };
+          return {
+            success: false,
+            error: "Токен устарел. Повторите вход через VK.",
+            code: "CONTEXT_EXPIRED",
+          };
         }
         try {
           await saveVkRegistrationContext({
@@ -650,9 +765,19 @@ export const useAuthStore = create<AuthStore>()(
             promoCode: promoCode?.trim() || null,
             expiresAt,
           });
-          const response = await authApi.submitVkConsent(token, state, tempSessionId, consentPayload, promoCode);
+          const response = await authApi.submitVkConsent(
+            token,
+            state,
+            tempSessionId,
+            consentPayload,
+            promoCode,
+          );
           if (!response.success || !response.data) {
-            if (["CONTEXT_INVALID", "CONTEXT_EXPIRED", "VK_CONTEXT_PURPOSE_INVALID"].includes(response.code ?? "")) {
+            if (
+              ["CONTEXT_INVALID", "CONTEXT_EXPIRED", "VK_CONTEXT_PURPOSE_INVALID"].includes(
+                response.code ?? "",
+              )
+            ) {
               // The form keeps its locally entered promo code; the opaque context
               // itself is no longer reusable and must never be restored.
               await clearVkRegistrationContext();
@@ -668,7 +793,11 @@ export const useAuthStore = create<AuthStore>()(
                 vkConsentExpiresAt: null,
               });
             }
-            return { success: false, error: response.error || "Ошибка сохранения согласий", code: response.code };
+            return {
+              success: false,
+              error: response.error || "Ошибка сохранения согласий",
+              code: response.code,
+            };
           }
           const { accessToken, refreshToken, needsPhone, user } = response.data;
           resetUserStores();
@@ -687,6 +816,7 @@ export const useAuthStore = create<AuthStore>()(
               vkConsentExpiresAt: null,
             });
           } else {
+            await beginV2AfterVerifiedProfile(user.id);
             set({
               user: user as User,
               isAuthenticated: true,
@@ -701,7 +831,11 @@ export const useAuthStore = create<AuthStore>()(
             identifyUser(user.id);
           }
           await clearVkRegistrationContext();
-          void import("@/shared/lib/api/mobile-intro").then(({ trackMobileIntroAuthOutcome }) => trackMobileIntroAuthOutcome("REGISTERED", user.id)).catch(() => undefined);
+          void import("@/shared/lib/api/mobile-intro")
+            .then(({ trackMobileIntroAuthOutcome }) =>
+              trackMobileIntroAuthOutcome("REGISTERED", user.id),
+            )
+            .catch(() => undefined);
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthVkConsent" });
@@ -725,13 +859,18 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const user = profileRes.data;
+          await beginV2AfterVerifiedProfile(user.id);
           set({
             user,
             isAuthenticated: true,
             pendingVkPhone: false,
           });
           identifyUser(user.id);
-          void import("@/shared/lib/api/mobile-intro").then(({ trackMobileIntroAuthOutcome }) => trackMobileIntroAuthOutcome("LOGGED_IN", user.id)).catch(() => undefined);
+          void import("@/shared/lib/api/mobile-intro")
+            .then(({ trackMobileIntroAuthOutcome }) =>
+              trackMobileIntroAuthOutcome("LOGGED_IN", user.id),
+            )
+            .catch(() => undefined);
           return { success: true };
         } catch (error) {
           reportClientError(error, { issueKey: "AuthVkPhoneSet" });

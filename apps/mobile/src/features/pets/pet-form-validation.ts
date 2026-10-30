@@ -5,7 +5,7 @@ import {
   petNeckGirthSchema,
   petWeightSchema,
   validatePetBirthDateInput,
-} from "@gafus/core/validation/pet";
+} from "@gafus/core-client/validation/pet";
 
 export type PetFormValues = {
   name: string;

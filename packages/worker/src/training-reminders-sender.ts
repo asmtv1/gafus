@@ -29,7 +29,14 @@ interface SendResult {
   errors: number;
 }
 
-const pushService = PushNotificationService.fromEnvironment();
+// Native Expo/RuStore deliveries do not require WebPush VAPID credentials.
+// Do not make the entire worker bootstrap fail just because browser push is
+// unconfigured in an isolated development environment.
+let webPushService: PushNotificationService | null = null;
+function getWebPushService(): PushNotificationService {
+  webPushService ??= PushNotificationService.fromEnvironment();
+  return webPushService;
+}
 
 /**
  * Отправляет напоминание о тренировке пользователю
@@ -59,10 +66,22 @@ async function sendReminderToUser(
 
     const partitioned = partitionPushSubscriptions(subscriptions);
 
-    const webResults =
-      partitioned.web.length > 0 ?
-        await pushService.sendNotifications(partitioned.web, payload)
-      : { results: [], successCount: 0, failureCount: 0 };
+    let webResults: {
+      results: { success: boolean; error?: unknown; endpoint: string }[];
+      successCount: number;
+      failureCount: number;
+    } = { results: [], successCount: 0, failureCount: 0 };
+    if (partitioned.web.length > 0) {
+      try {
+        webResults = await getWebPushService().sendNotifications(partitioned.web, payload);
+      } catch (error) {
+        // Browser-push configuration or transport failures must not suppress
+        // the independent Expo/RuStore transport. No endpoint is removed on
+        // ambiguous failures; only provider-confirmed invalid ones are purged.
+        logger.error("Не удалось отправить WebPush", error as Error);
+        webResults.failureCount = partitioned.web.length;
+      }
+    }
 
     const invalidWebEndpoints = webResults.results
       .filter(
@@ -138,7 +157,8 @@ export async function sendTrainingReminders(): Promise<SendResult> {
       listRetryableTrainingReminderCandidates(new Date()),
     ]);
     const retryableIds = new Set(retryable.map(reminder => reminder.id));
-    const reminders = [...new Map([...active, ...retryable].map(reminder => [reminder.id, reminder])).values()];
+    const unique = new Map([...active, ...retryable].map(reminder => [reminder.id, reminder]));
+    const reminders = [...unique.values()];
 
     logger.info(`Найдено ${reminders.length} активных напоминаний`);
 

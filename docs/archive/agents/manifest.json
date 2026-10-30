@@ -1,0 +1,310 @@
+{
+  "format_version": 1,
+  "date": "2026-10-29",
+  "policy": "Historical source contracts are immutable; their old source paths resolve via moved.original_path to moved.archive_path. SHA-256 is of unchanged file bytes.",
+  "moved": [
+    {
+      "original_path": "apps/admin-panel/AG4_REMINDER_UPGRADE_FAILED_HISTORY_OWNER_CLEANUP_20261018.exit",
+      "archive_path": "docs/archive/agents/apps/admin-panel/AG4_REMINDER_UPGRADE_FAILED_HISTORY_OWNER_CLEANUP_20261018.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "original_path": "apps/api/AG1_G1_VET53_ACH33_FINAL_SHARED_SOURCE_GATE_20261018.v1.json",
+      "archive_path": "docs/archive/agents/apps/api/AG1_G1_VET53_ACH33_FINAL_SHARED_SOURCE_GATE_20261018.v1.json",
+      "sha256": "1acc992885b93a2ec08fb2b591a0e4f2856ad3689f8bd33366bb905bd312c2a6",
+      "bytes": 12121
+    },
+    {
+      "original_path": "apps/api/G1_AG1_AG3_NATIVE_PROGRESS_PREVENTION_SQL_WINDOW_REQUEST_20261017.md",
+      "archive_path": "docs/archive/agents/apps/api/G1_AG1_AG3_NATIVE_PROGRESS_PREVENTION_SQL_WINDOW_REQUEST_20261017.md",
+      "sha256": "6585d30d7256d021559e7d2d80599cc1d3d4a4b2ce36b3228222a538dca10a73",
+      "bytes": 8419
+    },
+    {
+      "original_path": "apps/api/G1_AG1_G05_NORMAL_PACKAGED_CORE_SHARED_PRISMA_PG16_FINAL_AG4_HANDOFF_20261017.md",
+      "archive_path": "docs/archive/agents/apps/api/G1_AG1_G05_NORMAL_PACKAGED_CORE_SHARED_PRISMA_PG16_FINAL_AG4_HANDOFF_20261017.md",
+      "sha256": "72e1962f1768b767aa6cf50818c5f6b1a6471056198ba27be62fbe204af345a1",
+      "bytes": 5581
+    },
+    {
+      "original_path": "apps/api/G1_AG1_NEXT_OFF021_VIDEO_POSITION_SCOPE_REQUEST_20261017.md",
+      "archive_path": "docs/archive/agents/apps/api/G1_AG1_NEXT_OFF021_VIDEO_POSITION_SCOPE_REQUEST_20261017.md",
+      "sha256": "a374dae2c52353037e0cb3a707c15b069228039c576e6c6f6cdaa1a097bc2361",
+      "bytes": 2650
+    },
+    {
+      "original_path": "apps/api/G1_AG1_OFF021_JOURNAL_EXECUTABLE_TRANSACTION_PLAN_AG4_AG3_20261017.md",
+      "archive_path": "docs/archive/agents/apps/api/G1_AG1_OFF021_JOURNAL_EXECUTABLE_TRANSACTION_PLAN_AG4_AG3_20261017.md",
+      "sha256": "91a7ca816896ce1b7655ad7c4682b76562b7d0e88c02b904c173c4ac5c35772e",
+      "bytes": 17407
+    },
+    {
+      "original_path": "apps/api/G1_AG1_OFF021_JTX9_REALPG_SKIP4_INDEPENDENT_AG4_HANDOFF_20261017.md",
+      "archive_path": "docs/archive/agents/apps/api/G1_AG1_OFF021_JTX9_REALPG_SKIP4_INDEPENDENT_AG4_HANDOFF_20261017.md",
+      "sha256": "bc348d3151d890cd6f674e52442cc1e7a1ed34608716c80ec1dfe5e1d1ce257f",
+      "bytes": 7967
+    },
+    {
+      "original_path": "apps/api/G1_AG1_OFF021_PREVENTION_V2_METHODSCOPE_REQUEST_AG4_20261017.md",
+      "archive_path": "docs/archive/agents/apps/api/G1_AG1_OFF021_PREVENTION_V2_METHODSCOPE_REQUEST_AG4_20261017.md",
+      "sha256": "1c8f2fe27cdd63f93ec79a45e7626d768a3d89d52fa60ca70336a49bfc176f2c",
+      "bytes": 5452
+    },
+    {
+      "original_path": "apps/api/G1_AG1_OFF021_REWARD_GAFUS_ACK_IDEMPOTENCY_PROPOSAL_20261017.md",
+      "archive_path": "docs/archive/agents/apps/api/G1_AG1_OFF021_REWARD_GAFUS_ACK_IDEMPOTENCY_PROPOSAL_20261017.md",
+      "sha256": "2b7a8de5716081a602721742276e7901386ea044377577cead6d2b038895d744",
+      "bytes": 23451
+    },
+    {
+      "original_path": "apps/api/G1_AG1_OFF021_V2_JOURNAL_SOURCE_SCOPE_AG4_AG3_HANDOFF_20261017.md",
+      "archive_path": "docs/archive/agents/apps/api/G1_AG1_OFF021_V2_JOURNAL_SOURCE_SCOPE_AG4_AG3_HANDOFF_20261017.md",
+      "sha256": "fa63e44117b0d45a05dc613e24bdf2d7d649afb0a7ecb26f6d009319f5f7cd35",
+      "bytes": 11133
+    },
+    {
+      "original_path": "apps/mobile/docs/refactor/AG3_AUTH011_PROFILE_EDIT_ACTUAL_SCREEN_AG4_V36_20261018.md",
+      "archive_path": "docs/archive/agents/apps/mobile/docs/refactor/AG3_AUTH011_PROFILE_EDIT_ACTUAL_SCREEN_AG4_V36_20261018.md",
+      "sha256": "f9b5ac83e2986c190d8503d60f160378aaf4d8af130f579c55f71e1ccec942fb",
+      "bytes": 8162
+    },
+    {
+      "original_path": "apps/mobile/docs/refactor/AG3_CACHE012_PRIVATE_PREFETCH_20261017.md",
+      "archive_path": "docs/archive/agents/apps/mobile/docs/refactor/AG3_CACHE012_PRIVATE_PREFETCH_20261017.md",
+      "sha256": "3d22d1933b169c3ecdf193f3a952a785b652b6424d88fd5921f3912a63955a3b",
+      "bytes": 7166
+    },
+    {
+      "original_path": "apps/mobile/docs/refactor/AG3_G1_LEGACY_OFFLINE_V1_HANDOFF.md",
+      "archive_path": "docs/archive/agents/apps/mobile/docs/refactor/AG3_G1_LEGACY_OFFLINE_V1_HANDOFF.md",
+      "sha256": "e78636a9fcb606eaf2ee90a7ad1a8cd203a26b8c8c02ba6572d8202535142ab7",
+      "bytes": 29804
+    },
+    {
+      "original_path": "apps/mobile/docs/refactor/AG3_OFF021_AG1_WIRE_V1_INCOMPATIBILITIES_AG4_HANDOFF_20261017.md",
+      "archive_path": "docs/archive/agents/apps/mobile/docs/refactor/AG3_OFF021_AG1_WIRE_V1_INCOMPATIBILITIES_AG4_HANDOFF_20261017.md",
+      "sha256": "8c2fda2376ea36c4d66244523059c39f2078bc4539ab537e902010800d7a3cc6",
+      "bytes": 4365
+    },
+    {
+      "original_path": "apps/mobile/docs/refactor/AG3_OFF021_NEW_ONLY_V2_PHASE1_IMPLEMENTATION_20261017.md",
+      "archive_path": "docs/archive/agents/apps/mobile/docs/refactor/AG3_OFF021_NEW_ONLY_V2_PHASE1_IMPLEMENTATION_20261017.md",
+      "sha256": "73c7568aedef3cad37f6df4332d1e534112bf86150248af62e52c58be634537b",
+      "bytes": 14111
+    },
+    {
+      "original_path": "apps/mobile/docs/refactor/AG3_OFF021_OWNER_AUTH_EPOCH_ACK_DECISION_MATRIX_20261017.md",
+      "archive_path": "docs/archive/agents/apps/mobile/docs/refactor/AG3_OFF021_OWNER_AUTH_EPOCH_ACK_DECISION_MATRIX_20261017.md",
+      "sha256": "169fdc362c5fe26762d52e78b4241b379b6265665124ebc7cb546df30dbf4645",
+      "bytes": 9031
+    },
+    {
+      "original_path": "apps/mobile/docs/refactor/AG3_OFF022_ONLINE_SEEK_RACE_20261017.md",
+      "archive_path": "docs/archive/agents/apps/mobile/docs/refactor/AG3_OFF022_ONLINE_SEEK_RACE_20261017.md",
+      "sha256": "f8cd89bb7d19f058c2d0c9c6c6c77e1915c1a91c59ccae917975ff6f7c667aaf",
+      "bytes": 7503
+    },
+    {
+      "original_path": "apps/trainer-panel/AG4_G1_MATRIX.md",
+      "archive_path": "docs/archive/agents/apps/trainer-panel/AG4_G1_MATRIX.md",
+      "sha256": "23ed5ccb2916cefd77cd14aebdc2761fa067c9e2abc56554f9b14f43c457c538",
+      "bytes": 31126
+    },
+    {
+      "original_path": "apps/web-vite/migration/AG2_AG4_FEED_AUTHOR_READ_ONLY_BATCH_SCOPE_20261018.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/AG2_AG4_FEED_AUTHOR_READ_ONLY_BATCH_SCOPE_20261018.md",
+      "sha256": "dff8c0c4da9f74163b43a041e2c7fb7707ecebb2fcad0efb10d541d37115538f",
+      "bytes": 9205
+    },
+    {
+      "original_path": "apps/web-vite/migration/AG2_AG4_SPECIAL_ROUTES_054_055_AND_WALLET_READ_SCOPE_20261018.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/AG2_AG4_SPECIAL_ROUTES_054_055_AND_WALLET_READ_SCOPE_20261018.md",
+      "sha256": "2bc2e0350ae2c6edb7dd83a704e2ce2ffff410ae6f5977f8bca2497ab6ff5a2d",
+      "bytes": 18269
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_G03_INDEPENDENT_HONO14_PRODUCER_28_CASE_RECEIPT_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_G03_INDEPENDENT_HONO14_PRODUCER_28_CASE_RECEIPT_20261017.md",
+      "sha256": "f5946f292a91f992442d89770d97f4ecd633306fccb0091efbfbc74f922cf5c1",
+      "bytes": 16208
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_G15_CHAT_METHOD_SPECIFIC_AG1_REQUEST_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_G15_CHAT_METHOD_SPECIFIC_AG1_REQUEST_20261017.md",
+      "sha256": "61312a24df9433fdcbcc103a322daa5c9dea48a2c920f8e90599ad466452ec68",
+      "bytes": 8084
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_G20_V11_VK05_28CASE_INDEPENDENT_DELTA_RECEIPT_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_G20_V11_VK05_28CASE_INDEPENDENT_DELTA_RECEIPT_20261017.md",
+      "sha256": "3b8831f2ca4302f45dfd6bf940a5bdaca65041aa405b8e1d60e6523dd66f2a04",
+      "bytes": 5071
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_G20_VK05_VALID_ORIGIN_HOST_SUBSTRING_ACCEPTANCE_PREP_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_G20_VK05_VALID_ORIGIN_HOST_SUBSTRING_ACCEPTANCE_PREP_20261017.md",
+      "sha256": "65c7812e1cf742496dc33d35e50dbdbf1a67fcf93694bf44d1aff929646e62dd",
+      "bytes": 8177
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_G20_VK_BROWSER_CAPTURE_HANDOFF_AG1_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_G20_VK_BROWSER_CAPTURE_HANDOFF_AG1_20261017.md",
+      "sha256": "81fbfb4f35e76cd6c42dff2debbbc96e6e02274a02bc5f84a6321ad1cc17a0fe",
+      "bytes": 3636
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_G20_VK_BROWSER_METHOD_SPECIFIC_AG1_REQUEST_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_G20_VK_BROWSER_METHOD_SPECIFIC_AG1_REQUEST_20261017.md",
+      "sha256": "ab43c0a5ced11c7118239717b10d7aa5b25ef25a15206579774b9a3d7454ba00",
+      "bytes": 5601
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_G21_FIRST_KEEP_READ_ONLY_RECEIPT.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_G21_FIRST_KEEP_READ_ONLY_RECEIPT.md",
+      "sha256": "3830013cce5816e67933cd4bdb4d15ebf236682931fc977f71c90e14e78e50e3",
+      "bytes": 5701
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_POST_GATE_SEQUENCE.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_POST_GATE_SEQUENCE.md",
+      "sha256": "8b0ef3381afb4bd1b4f22a221f17ce0cd0010c72736699f6807b1cd0fb876515",
+      "bytes": 10190
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_REMAINING_BLOCKERS.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_REMAINING_BLOCKERS.md",
+      "sha256": "6fcc9bf328160ca1e82dfc1251eb532fcd8b150f020259372bfebded85a91058",
+      "bytes": 11917
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_SERVER_DTO_GAPS.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_SERVER_DTO_GAPS.md",
+      "sha256": "9f865e04afc0c04981f1c521fe7cf0471127f051f7b46e3c356b818371c9066d",
+      "bytes": 13997
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_W1_CURRENT4_S1_A11Y_NAV_SESSION52_SCOPED_RECEIPT_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_W1_CURRENT4_S1_A11Y_NAV_SESSION52_SCOPED_RECEIPT_20261017.md",
+      "sha256": "f45330f8e7842325796f9a7bda6ea46b150db0d5f174142f79ba093ef61c70fc",
+      "bytes": 8350
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_W1_EMAIL_CHANGE_CONFIRM_AG1_NEXT_BACKEND_HANDOFF_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_W1_EMAIL_CHANGE_CONFIRM_AG1_NEXT_BACKEND_HANDOFF_20261017.md",
+      "sha256": "04259adad4e70ddd993c9f4fde2ce469ddd991bdeff22d4157b1eabbc61df0e4",
+      "bytes": 14303
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_W1_G02_PASSWORD_CLIENT_SCOPED_RECEIPT_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_W1_G02_PASSWORD_CLIENT_SCOPED_RECEIPT_20261017.md",
+      "sha256": "aa2f75b5022253809989ee86b443699b6b01b06d55d01edeaaf2091cf2ab5af6",
+      "bytes": 7727
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_W1_G03_LEGACY_USERNAME_MOUNTED_CLIENT_RECEIPT_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_W1_G03_LEGACY_USERNAME_MOUNTED_CLIENT_RECEIPT_20261017.md",
+      "sha256": "a26a60d641b3584ddc4fbe3f091ffdfa2268665a691f23dd74fb56d20405ecde",
+      "bytes": 9030
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_W1_G03_LOCAL_VITE_ROUTE_SOURCE_MOCK_43_ACCEPTANCE_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_W1_G03_LOCAL_VITE_ROUTE_SOURCE_MOCK_43_ACCEPTANCE_20261017.md",
+      "sha256": "60b270b71f425c53bde62c6702197cc5fe7eaf16d1b84584963dc83fe9aa80bf",
+      "bytes": 9994
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_W1_G03_NEXTSLICE_DTO_SESSION_PRIVACY_ACCEPTANCE_HANDOFF_V2_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_W1_G03_NEXTSLICE_DTO_SESSION_PRIVACY_ACCEPTANCE_HANDOFF_V2_20261017.md",
+      "sha256": "32b8411c7dbcec321f0096e86b5dc45c059777896948da0c174c3c8f557ed634",
+      "bytes": 13140
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_W1_G03_USERNAME_FROZEN_CONTRACT_AG4_GATE_HANDOFF_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_W1_G03_USERNAME_FROZEN_CONTRACT_AG4_GATE_HANDOFF_20261017.md",
+      "sha256": "43809902ecbd089655444a86e8a17ed494b17bf02446a41105d9404a605e9db8",
+      "bytes": 6163
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_W1_MINIMAL_VITE4_S1_LOCAL_IMPLEMENTATION_RECEIPT_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_W1_MINIMAL_VITE4_S1_LOCAL_IMPLEMENTATION_RECEIPT_20261017.md",
+      "sha256": "dc456ff40fe5fafed12c4ba365d0c984f10bec8813544e28cb4825fc84aa0798",
+      "bytes": 14540
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_W1_S2_CONCRETE_HTTPS_AG4_HANDOFF_AND_S1_TOKEN_LIFECYCLE_RECEIPT_20261017.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_W1_S2_CONCRETE_HTTPS_AG4_HANDOFF_AND_S1_TOKEN_LIFECYCLE_RECEIPT_20261017.md",
+      "sha256": "870e60578342a0ada8a007a256c45f203c2b75b5de333a3b8f5e1fb5f45b3c2c",
+      "bytes": 12933
+    },
+    {
+      "original_path": "apps/web-vite/migration/G1_AG2_WEB_KEEP_CONTRACT_TEST_MATRIX.md",
+      "archive_path": "docs/archive/agents/apps/web-vite/migration/G1_AG2_WEB_KEEP_CONTRACT_TEST_MATRIX.md",
+      "sha256": "9f0cefbef349f7396f9d8ab51bc3e615ba30a4a3bcad32865d47c61b15cb19e2",
+      "bytes": 23713
+    }
+  ],
+  "retained_in_workdirs": [
+    {
+      "original_path": "apps/api/G1_PRISMA_SHARED_BASELINE_MANIFEST.json",
+      "sha256": "02eef9f3df718cdbf361fb9ddedc11a0b431d781ac0bcdbcc3c481eef729f5fe",
+      "bytes": 23044,
+      "reason": "Referenced by executable test/audit code: preserve path"
+    },
+    {
+      "original_path": "apps/mobile/docs/refactor/AG3_G05_REAL_MOBILE_HONO_PG_AG3_DONE_V13_20261017.json",
+      "sha256": "104de2e73cf327e544ba8969ce8062daefce1dd42cfd58e9a3794a04862f5f6e",
+      "bytes": 1593,
+      "reason": "Referenced by executable test/audit code: preserve path"
+    },
+    {
+      "original_path": "apps/mobile/docs/refactor/AG3_G05_RESOURCE_DONE_CANONICAL_WEB_V1_20261017.json",
+      "sha256": "d1daabba5d10c6757af4051a8781aac00502734ea14f20c2ce884997510f6581",
+      "bytes": 1076,
+      "reason": "Referenced by executable test/audit code: preserve path"
+    },
+    {
+      "original_path": "apps/web-vite/migration/AG2_PROFILE_HONO_SYNTHETIC_FIXTURES_20261018.json",
+      "sha256": "f1103b342cd494058a6ee2a2d3fdfee532d6e7a27990a358fb3031df7a62e43f",
+      "bytes": 1552,
+      "reason": "Referenced by executable test/audit code: preserve path"
+    },
+    {
+      "original_path": "apps/web-vite/migration/AG2_REMINDER_V2_REAL_CHROME_INDEXEDDB_CAS_WEBLOCKS12_EVIDENCE_20261018.json",
+      "sha256": "0d20188a28cc6df47a4e2d135358ebc0639df6b9fcc14ed265e511f3fcac96f2",
+      "bytes": 7831,
+      "reason": "Referenced by executable test/audit code: preserve path"
+    },
+    {
+      "original_path": "apps/web-vite/migration/AG2_WEB_URL005_ACHIEVEMENTS_SOURCE_EVIDENCE_20261018.json",
+      "sha256": "cfb1273708e98ce6a21500cd700005f565f8161044cb03b7d914f012210ec9f0",
+      "bytes": 9380,
+      "reason": "Referenced by executable test/audit code: preserve path"
+    },
+    {
+      "original_path": "apps/web-vite/migration/AG2_WEB_URL019_POST_DETAIL_SOURCE_EVIDENCE_20261018.json",
+      "sha256": "85e8c7077cdf77d1935643215fa4dfb0976b9793d176d0c1df93b946376c6914",
+      "bytes": 14034,
+      "reason": "Referenced by executable test/audit code: preserve path"
+    },
+    {
+      "original_path": "apps/web-vite/migration/AG2_WEB_URL024_PUBLIC_AUTHOR_PARITY_EVIDENCE_20261018.json",
+      "sha256": "a1cef3d99c86438483af87b7c4ff24d445a8dbbd328832214678d12bfdba1574",
+      "bytes": 11453,
+      "reason": "Referenced by executable test/audit code: preserve path"
+    },
+    {
+      "original_path": "apps/web-vite/migration/AG2_WEB_URL027_WALLET_SOURCE_EVIDENCE_20261018.json",
+      "sha256": "aaa60b11d3557cdc9828d4f50c837400afc2dfb4ff02825d5738997999f9c622",
+      "bytes": 12073,
+      "reason": "Referenced by executable test/audit code: preserve path"
+    },
+    {
+      "original_path": "apps/web-vite/migration/G05_AG2_WEB_REAL_CONSUMER_DONE_R01_R06_20261017.json",
+      "sha256": "57d576296080792afec3c541928f7023c9892b77a1415ad2c2dd91f7511afb92",
+      "bytes": 4119,
+      "reason": "Referenced by executable test/audit code: preserve path"
+    }
+  ],
+  "earlier_archived_reports": ".local-pg-scratch/archives/legacy-agent-reports-20261029.tar.gz"
+}

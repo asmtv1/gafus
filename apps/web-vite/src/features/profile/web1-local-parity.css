@@ -1,0 +1,232 @@
+/* WEB-1 scoped alignment to source Next page geometry.
+ * The shared Vite shell contributes 16px desktop / 12px mobile padding that
+ * Next's profile, Bio and reminders pages do NOT have. Touch no other route;
+ * do not edit the shared page or WEB-5 chat styling. */
+.gafus-app .shell:has(.next-profile-shell),
+.gafus-app .shell:has(.next-reminders-page),
+.gafus-app .shell:has(main[aria-label="Редактирование профиля"]) {
+  padding-top: 0;
+  padding-inline: 0;
+}
+/* Global Vite h1 (Impact/80px) outranks the byte-identical legacy module.
+ * Standalone Next Bio page uses Impact/40px and its source page spacing. */
+.gafus-app .shell main[aria-label="Редактирование профиля"] h1[class*="title"] {
+  color: var(--bg-2);
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 2.5rem;
+  line-height: 1;
+  letter-spacing: 0;
+  margin: 0 0 1rem;
+  text-align: center;
+}
+/* The source EditBioForm.module.css lowers this Impact title at both
+ * breakpoints; Vite's global h1 rule was overriding those media queries. */
+@media (max-width: 768px) {
+  .gafus-app .shell main[aria-label="Редактирование профиля"] h1[class*="title"] {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+  }
+}
+@media (max-width: 480px) {
+  .gafus-app .shell main[aria-label="Редактирование профиля"] h1[class*="title"] {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Next's /reminders/page.tsx renders a browser-default Montserrat h1 (2em,
+ * bold). Unlike Next, Vite applies a global Impact title to all h1s. */
+.gafus-app .shell .next-reminders-page h1[class*="heading"] {
+  font: 700 2rem/normal var(--font-montserrat), system-ui, sans-serif;
+  letter-spacing: normal;
+  margin: 0 0 16px;
+  text-align: start;
+}
+/* On the profile the source Next FeedAuthorPostsList has no second page
+ * heading/back-link. Keep DOM semantics for screen readers while suppressing
+ * this standalone MomentsProfile route heading only in the owner embed. */
+.gafus-app .gafus-profile-activity .collection-section > h2,
+.gafus-app .gafus-profile-activity .collection-section > p:first-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+/* The source uses a 720px centered feed surface and plain state cards. */
+.gafus-app .gafus-profile-activity .collection-section {
+  box-sizing: border-box;
+  width: min(100%, 720px);
+  margin-inline: auto;
+}
+
+/* Next loads /styles/site-background.css against an unpainted html root.
+ * Vite's later `:root {background:#f6f8f5}` shorthand overwrote Next's
+ * --app-background-color #e6e2d8 under the identical 27%-opacity sky asset.
+ * On round7 source/target profile pixels (0,0), the measured delta was
+ * (200,219,226) -> (211,235,247), exactly the 73% contribution from the
+ * wrong root background. Repair this only on WEB1 routes/tour, not the
+ * shared app stylesheet currently owned by parallel WEB2/WEB4/WEB5 agents.
+ * Uses the SAME registered Next background variable and original image.
+ * Extra :root specificity prevents Vite dynamic CSS chunk injection from
+ * re-applying the later :root shorthand after the profile module loads. */
+html:root:has(.next-profile-shell),
+html:root:has(.next-reminders-page),
+html:root:has(main[aria-label="Редактирование профиля"]),
+html:root:has([data-next-onboarding-tour]) {
+  background-color: var(--app-background-color, #e6e2d8);
+}
+
+/* Next's embedded FeedAuthorPostsList disabled state uses ordinary start-
+ * aligned copy. The stand-alone Moments view applies center alignment to its
+ * parent; do not inherit that alignment into this Next profile-specific card. */
+.gafus-app .gafus-profile-activity [data-next-profile-feed-disabled] {
+  text-align: start;
+}
+
+/* The owner profile source wraps FeedAuthorPostsList directly in
+ * profile.module.css .activityColumns. Vite's older temporary mock shell
+ * added an extra 18px pad + border + cream card on top of the genuine Next
+ * feed-state card. This double frame made the mobile disabled state 38px
+ * narrower and changed its wrapping/height. The retained Next card itself
+ * already carries its own padding, surface, border, and rounded corners. */
+.gafus-app .shell .next-profile-shell .gafus-profile-activity {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: start;
+}
+
+/* Exact Next globals.css `.gafus-primary-button` for the retained Bio
+ * `ProfileAnalyticsLink` source. Current Vite uses a button for its already
+ * verified authenticated inline editor, so changing to an anchor here would
+ * silently change the mutation flow; match its visible CTA contract first. */
+.gafus-app .shell .next-profile-shell .gafus-web1-source-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  border: 0;
+  border-radius: 18px;
+  background: linear-gradient(180deg,#71804b 0%,#62743b 18%,#4d5c2d 56%,#465429 84%,#3b4822 100%);
+  color: #f6f0df;
+  box-shadow: 0 7px 12px rgba(45,56,27,.3);
+  cursor: pointer;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+.gafus-app .shell .next-profile-shell .gafus-web1-source-primary:hover:not(:disabled) {
+  box-shadow: 0 9px 16px rgba(45,56,27,.34);
+  transform: translateY(-2px);
+}
+.gafus-app .shell .next-profile-shell .gafus-web1-source-primary:active:not(:disabled) {
+  box-shadow: 0 2px 4px rgba(45,56,27,.2);
+  opacity: .94;
+  transform: translateY(2px);
+}
+.gafus-app .shell .next-profile-shell .gafus-web1-source-primary:focus-visible {
+  outline: 3px solid rgba(215,131,123,.8);
+  outline-offset: 3px;
+}
+
+/* Source Bio.module.css max-width:470px overrides its CTA only to 40px/11px.
+ * Do not let the shared Vite button minimum 44px resize this profile link. */
+@media (max-width: 470px) {
+  .gafus-app .shell .next-profile-shell .gafus-web1-source-primary {
+    min-height: 40px;
+    padding: 9px 12px;
+    font-size: 11px;
+  }
+}
+
+/* Original Next Bio.module.css @max470 specifies a 19px greeting. The
+ * shared Vite next-routes-parity.css has a more specific 21px clamp and
+ * therefore ignored the source media query, expanding the mobile identity
+ * column by 2px and shifting every following card. Keep the exact source
+ * media font value without touching the shared WEB2/WEB4/WEB5 CSS. */
+@media (max-width: 470px) {
+  .gafus-app .shell .next-profile-shell [data-next-profile-identity]
+  h1[class*="greeting"] {
+    font-size: 19px;
+    line-height: 1.2;
+  }
+}
+
+
+/* WEB1 Wallet loaded round4 strict Next/Vite measurement: source summary
+ * headings occupy ~3px more line-height than the older Vite override
+ * `18px/1.35`; the source history heading also retains an 18px lower margin,
+ * whereas the generic Vite rule incorrectly forced 10px for both cards.
+ * Scope to this owner wallet, not the global/profile h2 styles. */
+/* The global next-routes-parity heading rule is a later CSS chunk at
+ * runtime. The prior same-specificity rules silently lost to its 1.35 line
+ * height and 10px history margin. Scoped `.shell` adds one exact ancestor,
+ * not `!important`, guaranteeing retained source 27px/18px geometry. */
+/* The route own DOM marker out-specifics the older generic Vite heading
+ * override, even if a lazy chunk arrives after the static WEB1 stylesheet.
+ * Original Next module uses 18px/720 headings, 27px source text line and
+ * 18px bottom gap on history (vs Vite 24.3px/10px in measured round6).
+ * Never modify cross-feature stylesheet or screenshot comparator. */
+.gafus-app .shell .profile-overview section[data-next-wallet].next-gafus-wallet
+  :is([class*="summary"],[class*="history"]) h2 {
+  font-size: 18px;
+  font-weight: 720;
+  line-height: 1.5;
+}
+.gafus-app .shell .profile-overview section[data-next-wallet].next-gafus-wallet
+  [class*="history"] h2 {
+  margin-bottom: 18px;
+}
+
+/* Retained Next TrainingReminders ReminderItem is a block containing a flex
+ * reminderHeader and vertical flex reminderDetails. The Vite-wide legacy
+ * `.reminder-list li` (flex) and `li > div` (grid) otherwise defeat the
+ * byte-identical original TrainingReminders.module.css and change every
+ * loaded row's width, height, button positioning, and day grid geometry.
+ * Narrow corrections only for actual WEB1 connected reminder rows. */
+.gafus-app .shell .next-reminders-page .reminder-list > li[data-next-reminder-row] {
+  display: block;
+  flex-wrap: initial;
+  justify-content: initial;
+  align-items: initial;
+  gap: normal;
+  /* The retained Next CSS's final `.reminderItem` rule (after its media
+     queries) overrides its earlier 2px/8px variant. Vite's older route
+     adapter was incorrectly forcing that outdated early variant back. */
+  background: var(--surface-muted);
+  border: 1px solid rgba(var(--accent-primary-rgb), .18);
+  border-radius: 14px;
+  padding: 16px;
+}
+@media (max-width: 375px) {
+  .gafus-app .shell .next-reminders-page .reminder-list > li[data-next-reminder-row] {
+    padding: 8px;
+  }
+}
+.gafus-app .shell .next-reminders-page .reminder-list > li[data-next-reminder-row] > div[class*="reminderHeader"] {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: initial;
+  gap: 12px;
+  min-width: 0;
+}
+.gafus-app .shell .next-reminders-page .reminder-list > li[data-next-reminder-row] > div[class*="reminderDetails"] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: initial;
+  gap: 16px;
+}

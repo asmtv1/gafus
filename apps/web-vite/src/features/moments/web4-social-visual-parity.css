@@ -1,0 +1,2132 @@
+/* WEB4: isolated loaded-source Next Forms/Moments layout corrections.
+ * Reference: original apps/web/src/features/feed/Feed.module.css and
+ * apps/web/src/features/questions/Questions.module.css in THIS repo.
+ * Scoped to WEB4 routes; no shared shell, comparator or golden changes.
+ */
+.gafus-app .web4-moment-composer,
+.gafus-app .web4-moment-detail {
+  box-sizing: border-box;
+  width: min(100%, 860px);
+  max-width: 860px;
+  min-width: 0;
+  margin: 22px auto 56px;
+  padding: clamp(18px, 3.5vw, 35px);
+  border: 1px solid rgba(91,100,59,.12);
+  border-radius: 25px;
+  background: rgba(250,249,246,.97);
+  box-shadow: 0 14px 55px rgba(46,45,32,.055);
+  color: #302f2a;
+  overflow-wrap: anywhere;
+}
+.gafus-app .web4-moment-composer > h2,
+.gafus-app .web4-moment-detail > h2 {
+  color: #302f2a;
+  font: 750 clamp(25px,3.2vw,34px)/1.2 var(--font-montserrat);
+  letter-spacing: -.035em;
+  text-align: left;
+  margin: 0 0 24px;
+}
+.gafus-app .web4-moment-composer > p:first-child,
+.gafus-app .web4-moment-detail > p:first-child { margin: 0 0 15px; }
+.gafus-app .web4-moment-composer > p:first-child a,
+.gafus-app .web4-moment-detail > p:first-child a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 35px;
+  color: #4d5c2d;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.gafus-app .web4-moment-composer > form[aria-label="Сохранение текстового черновика"] {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 13px 0;
+  padding: clamp(17px, 3vw, 25px);
+  background: #fff;
+  border: 1px solid #e6e5dc;
+  border-radius: 19px;
+  box-shadow: 0 3px 14px rgba(32,34,24,.035);
+}
+.gafus-app .web4-moment-composer > form[aria-label="Сохранение текстового черновика"] > label {
+  color: #3b4432;
+  font-size: 13px;
+  font-weight: 700;
+}
+.gafus-app .web4-moment-composer > form[aria-label="Сохранение текстового черновика"] > textarea {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 140px;
+  max-width: 100%;
+  padding: 13px 15px;
+  border: 1px solid #d9dbd1;
+  border-radius: 12px;
+  background: #fffefa;
+  color: #302f2a;
+  font: 400 14px/1.6 var(--font-montserrat);
+  resize: vertical;
+}
+/* The shared shell's coral focus outline is not part of the Moments composer.
+ * Keep a visible, quiet olive keyboard/mouse focus without the red ring. */
+.gafus-app .shell .web4-moment-composer > form[aria-label="Сохранение текстового черновика"] > textarea:is(:focus, :focus-visible) {
+  outline: none;
+  border-color: #849b78;
+  box-shadow: 0 0 0 2px rgba(117, 139, 99, .18);
+}
+.gafus-app .web4-moment-composer > form[aria-label="Сохранение текстового черновика"] > p:not([role]) {
+  margin: 0;
+  color: #86897f;
+  font-size: 12px;
+  text-align: right;
+}
+.gafus-app .web4-moment-composer > form[aria-label="Сохранение текстового черновика"] > button {
+  min-height: 45px;
+  width: 100%;
+  border-radius: 12px;
+}
+.gafus-app .web4-moment-composer > button:not([type="submit"]) {
+  width: auto;
+  min-height: 42px;
+  max-width: 100%;
+}
+.gafus-app .web4-moment-composer .note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #77776d;
+}
+.gafus-app .web4-moment-detail { max-width: 860px; }
+.gafus-app .web4-moment-detail-card {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: clamp(15px,3vw,23px);
+  border: 1px solid #e6e5dc;
+  border-radius: 19px;
+  background: #fff;
+  color: #302f2a;
+  box-shadow: 0 3px 14px rgba(32,34,24,.035);
+}
+.gafus-app .web4-moment-detail-card h2 {
+  font: 750 16px/1.4 var(--font-montserrat);
+  letter-spacing: 0;
+  text-align: left;
+  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+}
+.gafus-app .web4-moment-detail-card .article-plain-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 14px 0;
+}
+.gafus-app .web4-moment-detail .moment-poll {
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  gap: 13px;
+  padding: 17px;
+  margin: 14px 0;
+  box-sizing: border-box;
+  border: 1px solid #e1e5d9;
+  border-radius: 16px;
+  background: #f8f9f5;
+  color: #374031;
+}
+.gafus-app .web4-moment-detail .moment-poll form { display: grid; gap: 11px; min-width: 0; }
+.gafus-app .web4-moment-detail .moment-poll h3 {
+  margin: 0;
+  color: #343b2f;
+  font: 750 16px/1.45 var(--font-montserrat);
+}
+.gafus-app .web4-moment-detail .moment-poll-option {
+  min-height: 45px;
+  padding: 10px 12px;
+  border: 1px solid #d6ddce;
+  border-radius: 10px;
+  background: #fff;
+  color: #3d4534;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.gafus-app .web4-moment-detail .moment-poll-option:has(input:checked) {
+  border-color: #71865b;
+  background: #eef3e7;
+}
+.gafus-app .web4-moment-detail .moment-poll-option input { accent-color: #57643b; }
+.gafus-app .collection-section[aria-label="Создать вопрос"] {
+  box-sizing: border-box;
+  width: min(100%, 1080px);
+  margin: 18px auto 48px;
+  padding: clamp(16px,3vw,30px);
+  color: #352e2e;
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] > h2 {
+  margin: 16px 0 7px;
+  color: #352e2e;
+  font: 700 clamp(28px,4vw,40px)/1.2 var(--font-montserrat);
+  text-align: left;
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] > .web4-question-create-subtitle {
+  margin: 0 0 22px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #686540;
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] > form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: clamp(18px,3vw,30px);
+  border: 1px solid rgba(77,92,45,.13);
+  border-radius: 22px;
+  background: #f5f0e5;
+  box-shadow: 0 8px 26px rgba(43,47,27,.07);
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] > form > label {
+  margin: 2px 0 -9px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #352e2e;
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] > form > :is(input,select,textarea) {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 49px;
+  padding: 12px 15px;
+  border: 1px solid #b8b6a3;
+  border-radius: 12px;
+  background: #fcf9f1;
+  color: #352e2e;
+  font: 500 14px/1.5 var(--font-montserrat);
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] > form > textarea {
+  min-height: 138px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.gafus-app .web4-question-create-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 11px;
+  padding-top: 6px;
+}
+.gafus-app .web4-question-create-actions > :is(button,a) {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  text-decoration: none;
+}
+.gafus-app .web4-question-create-actions > a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #b8b6a3;
+  background: transparent;
+  color: #4d5c2d;
+}
+@media (max-width:600px) {
+  .gafus-app .web4-moment-composer,
+  .gafus-app .web4-moment-detail { margin: 12px auto 38px; padding: 15px 12px 27px; border-radius: 19px; }
+  .gafus-app .web4-moment-detail-card { padding: 16px 13px; }
+  .gafus-app .web4-moment-detail .moment-poll { padding: 13px 11px; }
+  .gafus-app .collection-section[aria-label="Создать вопрос"] { padding: 18px 9px 40px; }
+  .gafus-app .collection-section[aria-label="Создать вопрос"] > form { padding: 20px 15px; border-radius: 19px; }
+}
+
+/* Compact author identity follows source Feed.module.css .meta/.avatar/.author. */
+.gafus-app .web4-moment-compact-author {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  min-height: 44px;
+  margin-bottom: 16px;
+}
+.gafus-app .web4-moment-author-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 43px;
+  width: 43px;
+  height: 43px;
+  border-radius: 50%;
+  background: #e8ecdf;
+  color: #53623b;
+  font: 750 18px/1 var(--font-montserrat);
+}
+.gafus-app .web4-moment-author-identity {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  gap: 3px;
+  flex: 1 1 auto;
+}
+.gafus-app .web4-moment-author-identity > :is(h2,h3) {
+  margin: 0;
+  color: #343a2c;
+  font: 780 13px/1.4 var(--font-montserrat);
+  overflow-wrap: anywhere;
+}
+.gafus-app .web4-moment-author-identity > :is(h2,h3) a {
+  color: inherit;
+  text-decoration: none;
+}
+.gafus-app .web4-moment-author-identity > small {
+  margin: 0;
+  color: #888b80;
+  font: 400 11px/1.4 var(--font-montserrat);
+  overflow-wrap: anywhere;
+}
+.gafus-app .web4-moment-author-identity > small a { color: #5c684b; text-decoration: none; }
+.gafus-app .web4-moment-compact-author > :last-child { flex: 0 0 auto; margin-left: auto; }
+
+/* Next FeedViews source: horizontally scrolling olive/chip sort, not select. */
+.gafus-app .next-feed-page .next-feed-sort .feed-sort-options { display: flex; }
+.gafus-app .next-feed-page .next-feed-sort [role="group"][aria-label="Сортировка публикаций"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px;
+}
+.gafus-app .next-feed-page .next-feed-sort [data-feed-sort] {
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 8px 15px;
+  border-radius: 999px;
+  border: 1px solid rgba(77,92,45,.2);
+  background: var(--surface-muted,#eee7d2);
+  color: var(--accent-secondary,#3b4822);
+  box-shadow: none;
+  transform: none;
+  font: 650 12px/1.3 var(--font-montserrat);
+  white-space: nowrap;
+}
+.gafus-app .next-feed-page .next-feed-sort [data-feed-sort][aria-pressed="true"] {
+  background: var(--accent-primary,#4d5c2d);
+  color: #fff8e5;
+  border-color: var(--accent-primary,#4d5c2d);
+}
+.gafus-app .next-feed-page .next-feed-sort [data-feed-sort]:hover:not(:disabled) {
+  border-color: rgba(77,92,45,.38);
+}
+.gafus-app .next-feed-page .next-feed-sort button[aria-controls="web4-feed-personalization"] {
+  min-height: 42px;
+  padding: 8px 15px;
+  border-radius: 999px;
+  border: 1px solid rgba(77,92,45,.2);
+  color: #3b4822;
+  background: #eee7d2;
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: none;
+}
+.gafus-app .next-feed-page .web4-feed-personalization {
+  display: grid;
+  gap: 9px;
+  padding: 20px;
+  border: 1px solid #e6e5dc;
+  border-radius: 19px;
+  background: #fff;
+  color: #302f2a;
+}
+.gafus-app .next-feed-page .web4-feed-personalization h2 {
+  margin: 0 0 5px;
+  text-align: left;
+  font: 750 18px/1.4 var(--font-montserrat);
+}
+.gafus-app .next-feed-page .web4-feed-personalization label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 32px;
+  font-size: 13px;
+}
+.gafus-app .next-feed-page .web4-feed-personalization input { accent-color: #57643b; }
+.gafus-app .next-feed-page .web4-feed-personalization button { min-height: 42px; margin-top: 4px; }
+
+/* Original Feed.module.css .reactions/.reaction: five compact pills, not
+ * inherited Questions toolbar full-width olive buttons. */
+.gafus-app .moment-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  min-width: 0;
+  margin-top: 15px;
+}
+.gafus-app .moment-actions > .question-controls[aria-label="Реакции"] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  flex: 1 1 280px;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  padding: 0;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+}
+.gafus-app .moment-actions > .question-controls[aria-label="Реакции"] > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  min-height: 34px;
+  padding: 5px 11px;
+  gap: 5px;
+  border: 1px solid #e9e9e2;
+  border-radius: 999px;
+  background: #fafaf8;
+  color: #62665d;
+  box-shadow: none;
+  font: 400 12px/1.4 var(--font-montserrat);
+  transform: none;
+}
+.gafus-app .moment-actions > .question-controls[aria-label="Реакции"] > button:is(:hover,[aria-pressed="true"]) {
+  background: #edf2e7;
+  border-color: #b6c6a3;
+}
+.gafus-app .moment-actions > button[aria-pressed] {
+  min-height: 34px;
+  width: auto;
+  padding: 5px 11px;
+  border: 1px solid #e9e9e2;
+  border-radius: 999px;
+  background: #fafaf8;
+  color: #62665d;
+  box-shadow: none;
+  font: 500 12px/1.4 var(--font-montserrat);
+}
+
+/* Next QuestionForm.module layout: title, details, category/tags grid, photo section. */
+.gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 19px;
+  min-width: 0;
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-fields-row {
+  display: grid;
+  grid-template-columns: minmax(0,.85fr) minmax(0,1.15fr);
+  gap: 16px;
+  min-width: 0;
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-field label {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  color: var(--text-primary,#352e2e);
+  font: 700 13px/1.5 var(--font-montserrat);
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-field label > span[aria-hidden="true"] { color: #4d5c2d; }
+.gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-optional {
+  color: #686540;
+  font-size: 11px;
+  font-weight: 500;
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-field :is(input,textarea,select) {
+  box-sizing: border-box;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  padding: 12px 15px;
+  background: #fcf9f1;
+  color: #352e2e;
+  border: 1px solid #b8b6a3;
+  border-radius: 12px;
+  font: 500 14px/1.5 var(--font-montserrat);
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-field :is(input,select) { min-height: 49px; }
+.gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-field textarea {
+  min-height: 138px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-photos-block {
+  min-width: 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(77,92,45,.14);
+}
+.gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-photos-block > h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 12px;
+  font: 700 14px/1.5 var(--font-montserrat);
+}
+@media(max-width:640px) {
+  .gafus-app .collection-section[aria-label="Создать вопрос"] .web4-question-fields-row {
+    grid-template-columns: minmax(0,1fr);
+    gap: 17px;
+  }
+}
+
+/* Original FeedPoll.module.css .poll/.answers/.answer: preserve accessible
+ * native input controls while matching the 48px option/percent bar geometry. */
+.gafus-app .moment-poll {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #e1e5d9;
+  border-radius: 16px;
+  background: #f8f9f5;
+  color: #374031;
+}
+.gafus-app .moment-poll > form { width: 100%; max-width: 100%; }
+.gafus-app .moment-poll fieldset { display: grid; gap: 9px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.gafus-app .moment-poll fieldset legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.gafus-app .moment-poll .moment-poll-option {
+  display: grid;
+  grid-template-columns: 20px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid #d6ddce;
+  border-radius: 12px;
+  background: #fff;
+  color: #3c4537;
+  font: 400 13px/1.5 var(--font-montserrat);
+}
+.gafus-app .moment-poll .moment-poll-option:has(input:checked) {
+  border-color: #71865b;
+  background: #eef3e7;
+}
+.gafus-app .moment-poll .moment-poll-option input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+.gafus-app .moment-poll .moment-poll-option input::before { content: "○"; font-size: 20px; line-height: 1; }
+.gafus-app .moment-poll .moment-poll-option input:checked::before { content: "●"; color: #57643b; }
+.gafus-app .moment-poll .moment-poll-option input:focus-visible { outline: 2px solid #71865b; outline-offset: 2px; }
+.gafus-app .moment-poll .moment-poll-option > small { white-space: nowrap; font-size: 12px; }
+.gafus-app .moment-poll .moment-poll-option .web4-poll-vote-bar {
+  display: block;
+  grid-column: 2 / -1;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #e8eadf;
+}
+.gafus-app .moment-poll .web4-poll-vote-bar-fill {
+  display: block;
+  height: 100%;
+  background: #879b6d;
+  border-radius: inherit;
+}
+
+/* Measured R11 source 1280px: Next QuestionForm box x240,width800;
+ * Vite had x130,width1020. On 390px, source fills width366 at x12. */
+.gafus-app .shell .collection-section[aria-label="Создать вопрос"] {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 800px;
+  margin: 24px auto 64px;
+  padding: 0;
+}
+.gafus-app .shell .collection-section[aria-label="Создать вопрос"] > form {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding: clamp(18px,3vw,30px);
+  gap: 24px;
+}
+@media (max-width: 640px) {
+  .gafus-app .shell .collection-section[aria-label="Создать вопрос"] {
+    margin: 24px auto 64px;
+    padding: 0;
+  }
+  .gafus-app .shell .collection-section[aria-label="Создать вопрос"] > form {
+    padding: 18px;
+    gap: 20px;
+  }
+}
+/* Next Feed.module.css actual 1280px top-level box measured width860,
+ * not the inherited Vite 920px approximation. */
+.gafus-app .shell .next-feed-page {
+  box-sizing: border-box;
+  width: min(100%,860px);
+  max-width: 860px;
+}
+/* Next source compose form measured width740 with centered layout. */
+.gafus-app .shell .web4-moment-composer > form[aria-label="Сохранение текстового черновика"] {
+  box-sizing: border-box;
+  width: min(100%,740px);
+  max-width: 740px;
+  margin-inline: auto;
+}
+
+.gafus-app .web4-moment-author-identity > time.web4-moment-date {
+  display: block;
+  color: #888b80;
+  font: 400 11px/1.4 var(--font-montserrat);
+}
+.gafus-app .moment-summary-card .post-stats a,
+.gafus-app .moment-summary-card [class*="postStats"] a {
+  text-decoration: none;
+  color: #5c684b;
+  font-weight: 600;
+}
+
+/* WEB4 R14 measured desktop/mobile 1280×800/390×844 isolated source corrections. */
+/* Next main surface starts at y80 at 1280x800, whereas a Vite-only page
+ * margin pushes it to y122. Only the Moments route absorbs that extra margin. */
+.gafus-app .shell .next-feed-page {
+  margin-top: -42px;
+  box-sizing: border-box;
+  padding: 38px 38px 70px;
+}
+/* Source FeedPollCard: no implicit paragraph margins or inherited raised
+ * full-width buttons; preserve all actual owner and ordinary vote controls. */
+.gafus-app .moment-poll,
+.gafus-app .web4-moment-detail .moment-poll {
+  gap: 10px;
+  padding: 18px;
+}
+.gafus-app .moment-poll > form,
+.gafus-app .web4-moment-detail .moment-poll > form {
+  width: 100%;
+  max-width: 100%;
+  gap: 8px;
+}
+.gafus-app .moment-poll > form > :is(p,h3),
+.gafus-app .web4-moment-detail .moment-poll > form > :is(p,h3) {
+  margin: 0;
+}
+.gafus-app .moment-poll > form > p:not([role]) { font-size: 12px; line-height: 1.5; color: #6c7463; }
+.gafus-app .moment-poll > form > fieldset { gap: 8px; }
+.gafus-app .moment-poll > form > button:not([disabled]),
+.gafus-app .moment-poll .moment-poll-owner-close button {
+  width: fit-content;
+  min-height: 38px;
+  max-width: 100%;
+  padding: 7px 13px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+/* Desktop original poll card is 8px narrower and inset by 4px vs Vite. */
+@media(min-width:721px) {
+  .gafus-app .web4-moment-detail .moment-poll {
+    width: calc(100% - 8px);
+    margin-left: 4px;
+    margin-right: 4px;
+    box-sizing: border-box;
+  }
+  .gafus-app .shell .web4-moment-detail { margin-top: -45px; }
+}
+/* Next's mobile surface spans 390px and begins at y54, without a Vite-only
+ * 12px side gutter/rounded outer card. Recenter against the containing shell,
+ * do not change .shell or sibling pages. */
+@media(max-width:720px) {
+  .gafus-app .shell .next-feed-page {
+    position: relative;
+    box-sizing: border-box;
+    width: 100vw;
+    max-width: 100vw;
+    margin-top: -96px;
+    margin-left: calc(50% - 50vw);
+    margin-right: 0;
+    padding: 22px 12px 95px;
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .gafus-app .shell .web4-moment-detail { margin-top: -67px; }
+  .gafus-app .web4-moment-detail .moment-poll {
+    width: calc(100% + 24px);
+    max-width: none;
+    box-sizing: border-box;
+    margin-left: -12px;
+    margin-right: -12px;
+    padding: 18px;
+  }
+}
+
+/* R16 source measured: owner close and vote actions share a compact row. */
+/* The source poll footer has a single row. Grouping both real actions via
+ * grid keeps owner close accessible and never weakens canClose or vote ACL. */
+.gafus-app .moment-poll > form {
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+}
+.gafus-app .moment-poll > form > :not(.moment-poll-owner-close):not(button) {
+  grid-column: 1 / -1;
+}
+.gafus-app .moment-poll > form > .moment-poll-owner-close {
+  grid-column: 1;
+  grid-row: auto;
+  justify-self: start;
+}
+.gafus-app .moment-poll > form > button {
+  grid-column: 2;
+  grid-row: auto;
+  justify-self: end;
+  margin: 0;
+}
+.gafus-app .moment-poll .moment-poll-owner-close button {
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 1px solid rgba(77,92,45,.28);
+  color: #4c5d39;
+  background: #f3f6ed;
+}
+.gafus-app .moment-poll > form > button[type="submit"] {
+  min-height: 38px;
+  padding: 7px 13px;
+}
+
+/* WEB4 single visible Next-style publish action, optional explicit draft save. */
+.gafus-app .web4-moment-composer .web4-compose-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+}
+.gafus-app .web4-moment-composer .web4-compose-actions > button {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 44px;
+  padding: 9px 15px;
+  border-radius: 12px;
+  font: 650 13px/1.4 var(--font-montserrat);
+}
+.gafus-app .web4-moment-composer .web4-compose-actions > button[data-gafus-shared-button="primary"] {
+  flex: 1 1 200px;
+  min-height: 52px;
+}
+.gafus-app .web4-moment-composer .web4-compose-actions > button:not([data-gafus-shared-button="primary"]) {
+  background: #f8f5eb;
+  border: 1px solid rgba(77,92,45,.28);
+  color: #4d5c2d;
+}
+@media(max-width:600px) {
+  .gafus-app .web4-moment-composer .web4-compose-actions > button { flex: 1 1 100%; }
+}
+
+/* WEB4 comments: original Next non-owner report form, no unrelated shell styling. */
+.gafus-app .web4-comment-report-form {
+  display: grid; gap: 10px; margin: 12px 0; padding: 14px;
+  border: 1px solid #e1e5d9; border-radius: 12px; background: #f8f9f5;
+}
+.gafus-app .web4-comment-report-form label {display:grid; gap:5px; font-size:12px; font-weight:650;}
+.gafus-app .web4-comment-report-form select,
+.gafus-app .web4-comment-report-form textarea {
+  box-sizing:border-box; width:100%; min-width:0; padding:10px;
+  border:1px solid #d5ddce; border-radius:9px; background:#fff; font:inherit;
+}
+.gafus-app .web4-comment-report-form .web4-comment-report-buttons {display:flex; gap:8px; flex-wrap:wrap;}
+.gafus-app .web4-comment-report-form .web4-comment-report-buttons button {
+  min-height:38px; padding:7px 13px; width:auto; font-size:12px;
+}
+
+/* WEB4 Next source comment structure: author/time before body, flat comment rows. */
+.gafus-app .moment-comments > ul.compact-grid {
+  display:block;
+  box-sizing:border-box;
+  margin:12px 0;
+  padding:0;
+  list-style:none;
+}
+.gafus-app .moment-comments > ul.compact-grid > li.compact-card {
+  box-sizing:border-box;
+  padding:0;
+  margin:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+.gafus-app .moment-comment-card {
+  box-sizing:border-box;
+  padding:15px 0;
+  border-top:1px solid #e6e5dc;
+  color:#374031;
+}
+.gafus-app .moment-comment-card .web4-comment-byline {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:7px;
+}
+.gafus-app .moment-comment-card .web4-comment-byline a {
+  color:#343a2c;
+  font:780 13px/1.4 var(--font-montserrat);
+  text-decoration:none;
+}
+.gafus-app .moment-comment-card .web4-comment-byline a:hover {text-decoration:underline;}
+.gafus-app .moment-comment-card .web4-comment-byline time {
+  color:#888b80;
+  font:400 11px/1.4 var(--font-montserrat);
+}
+.gafus-app .moment-comment-card .web4-comment-body {
+  margin:8px 0 0;
+  font-size:14px;
+  line-height:1.7;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+.gafus-app .moment-comment-card > .question-controls:not([role]) {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
+  border:0;
+  margin-top:9px;
+  padding:0;
+}
+.gafus-app .moment-comment-card > .question-controls:not([role]) > button {
+  min-height:28px;
+  width:auto;
+  padding:3px 5px;
+  border:0;
+  border-radius:5px;
+  background:transparent;
+  box-shadow:none;
+  color:#5d674d;
+  font-size:12px;
+  font-weight:600;
+}
+.gafus-app .moment-comment-card > [role="group"][aria-label="Реакции комментария"] {
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:8px;
+}
+.gafus-app .moment-comment-card > [role="group"][aria-label="Реакции комментария"] > button {
+  min-height:30px;
+  width:auto;
+  padding:5px 9px;
+  border:1px solid #e6e5dc;
+  border-radius:9px;
+  background:#fffefa;
+  font-size:12px;
+}
+
+/* R22 source-loaded comment SECTION measured rectangle, no global shell edits. */
+.gafus-app .web4-moment-detail .moment-comments {
+  box-sizing:border-box;
+  width:calc(100% - 8px);
+  max-width:none;
+  margin:16px 4px;
+  padding:20px;
+  border:1px solid #e6e5dc;
+  border-radius:19px;
+  background:#fff;
+  box-shadow:0 3px 14px rgba(32,34,24,.035);
+}
+@media(max-width:720px) {
+  /* R21 real Next Comments x12,width366 at 390px; Vite was x39,width312.
+     Expand only the comments section outside MomentDetails' card padding. */
+  .gafus-app .web4-moment-detail .moment-comments {
+    width:calc(100% + 54px);
+    margin-left:-27px;
+    margin-right:-27px;
+    padding:15px;
+    border-radius:15px;
+  }
+}
+
+/* WEB4 source FeedPostPage renders separate post and comments cards. */
+.gafus-app .web4-moment-detail .web4-moment-post-and-comments {
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  gap:16px;
+}
+/* The actual semantic section is the card, just as Next <section>. */
+.gafus-app .web4-moment-detail .web4-moment-comments-card {
+  box-sizing:border-box;
+  width:calc(100% + 44px);
+  max-width:none;
+  margin-left:-22px;
+  min-width:0;
+  padding:20px;
+  border:1px solid #e6e5dc;
+  border-radius:19px;
+  background:#fff;
+  box-shadow:0 3px 14px rgba(32,34,24,.035);
+}
+.gafus-app .web4-moment-detail .web4-moment-comments-card.moment-comments > h2 {
+  margin:0 0 16px;
+  font:750 18px/1.4 var(--font-montserrat);
+}
+.gafus-app .web4-moment-detail .web4-moment-comments-card.moment-comments > form {
+  box-sizing:border-box;
+  width:100%;
+  max-width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.gafus-app .web4-moment-detail .web4-moment-comments-card.moment-comments > form textarea {
+  box-sizing:border-box;
+  width:100%;
+  max-width:100%;
+  min-height:150px;
+  padding:13px 15px;
+  border:1px solid #d9dbd1;
+  border-radius:12px;
+  background:#fffefa;
+}
+@media(max-width:720px) {
+  .gafus-app .web4-moment-detail .web4-moment-comments-card {
+    box-sizing:border-box;
+    width:calc(100% + 26px);
+    max-width:none;
+    margin-left:-13px;
+    padding:15px;
+  }
+}
+
+/* WEB4 source-composed media attached before Core draft creation. */
+.gafus-app .web4-moment-composer .web4-compose-file-selection {
+  display:flex;
+  flex-direction:column;
+  box-sizing:border-box;
+  width:100%;
+  gap:12px;
+  padding:16px;
+  border:1px solid #e1e5d9;
+  border-radius:14px;
+  background:#f8f9f5;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection > label {
+  color:#343b2f;
+  font:700 13px/1.5 var(--font-montserrat);
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection input[type="file"] {
+  box-sizing:border-box;
+  min-height:42px;
+  width:100%;
+  max-width:100%;
+  font-size:12px;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection > div {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  min-width:0;
+  gap:12px;
+  color:#555b48;
+  font-size:12px;
+  overflow-wrap:anywhere;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection > div > button {
+  flex:0 0 auto;
+  width:auto;
+  min-height:34px;
+  padding:5px 10px;
+  border:1px solid #d7dcca;
+  border-radius:9px;
+  background:#fffefa;
+  color:#525e3b;
+}
+
+
+/* WEB4 R26: Source Next loaded R25 comment child geometry. The original
+ * FeedCommentRow puts actions and emoji controls inside ONE flex-wrap row.
+ * Retain Vite's separate semantic groups (a11y, event handlers, ACL), but
+ * compose both groups on the same flex line when horizontal space permits. */
+.gafus-app .moment-comments > ul.compact-grid {
+  margin:0;
+}
+.gafus-app .moment-comment-card {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  column-gap:10px;
+  row-gap:8px;
+}
+.gafus-app .moment-comment-card > .web4-comment-byline,
+.gafus-app .moment-comment-card > .web4-comment-body,
+.gafus-app .moment-comment-card > form,
+.gafus-app .moment-comment-card > .web4-comment-report-form {
+  flex:0 0 100%;
+}
+.gafus-app .moment-comment-card > .question-controls:not([role]) {
+  flex:0 1 auto;
+  margin:0;
+  gap:10px;
+}
+.gafus-app .moment-comment-card > [role="group"][aria-label="Реакции комментария"] {
+  flex:0 1 auto;
+  margin:0;
+  gap:7px;
+}
+/* Desktop source comments section x249,w782 vs old Vite x224,w832.
+ * Its containing publication x246,w788; inset the sibling section by 3px. */
+@media(min-width:721px) {
+  .gafus-app .web4-moment-detail .web4-moment-comments-card {
+    width:calc(100% - 6px);
+    max-width:none;
+    margin-left:3px;
+    margin-right:3px;
+  }
+}
+/* Next original Feed.module.css uses 14px/1.6 in .input, 42px submit.
+ * Vite inherited the generic 16px/24px input and 46px raised button. */
+.gafus-app .web4-moment-detail .web4-moment-comments-card.moment-comments > form textarea {
+  font:400 14px/1.6 var(--font-montserrat);
+}
+.gafus-app .web4-moment-detail .web4-moment-comments-card.moment-comments > form button[type="submit"] {
+  min-height:42px;
+  width:100%;
+  align-self:stretch;
+  padding:10px 17px;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.45;
+  border-radius:11px;
+}
+.gafus-app .web4-moment-detail .web4-moment-comments-card.moment-comments > form button[type="submit"]:disabled {
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+/* WEB4 R26: genuine R25 loaded Next comments rect correction. */
+/* Both source screenshots: Next comments y is ~23px below Vite. No
+ * fixed card height: the child layout must be checked independently. */
+.gafus-app .web4-moment-detail .web4-moment-comments-card.moment-comments {
+  margin-top: 39px;
+}
+@media (min-width: 721px) {
+  /* R25 at 1280: Next x249/w782; Vite x224/w832, both centered. */
+  .gafus-app .web4-moment-detail .web4-moment-comments-card.moment-comments {
+    width: calc(100% - 6px);
+    margin-left: 3px;
+    margin-right: 3px;
+  }
+}
+
+/* WEB4 controlled source-style in-place poll choices before Core publish. */
+.gafus-app .web4-moment-composer .web4-inline-poll {
+  box-sizing:border-box;
+  display:grid;
+  width:100%;
+  min-width:0;
+  gap:14px;
+  padding:18px;
+  border:1px solid #e1e5d9;
+  border-radius:16px;
+  background:#f8f9f5;
+  color:#374031;
+  font-size:13px;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll header strong {font-size:15px;}
+.gafus-app .web4-moment-composer .web4-inline-poll :is(label,.web4-inline-poll-options) {
+  display:grid;
+  gap:7px;
+  min-width:0;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll-options > div {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll-options > div > input:not([type=checkbox]):not([type=radio]) {
+  flex:1 1 180px;
+  width:auto;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll :is(input:not([type=checkbox]):not([type=radio]),textarea) {
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  padding:11px 12px;
+  border:1px solid #d5ddce;
+  border-radius:10px;
+  background:#fff;
+  font:inherit;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll-settings {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(205px,1fr));
+  gap:9px;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll-settings label {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll :is(input[type=checkbox],input[type=radio]) {
+  accent-color:#57643b;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll button {
+  width:fit-content;
+  min-height:38px;
+  max-width:100%;
+  padding:6px 12px;
+  border:1px solid #cbd6c1;
+  border-radius:10px;
+  background:#fff;
+  color:#50623f;
+  font-size:12px;
+}
+
+/* R27: mobile-only source R25 body spacing; desktop R26 height already matched. */
+@media(max-width:720px) {
+  .gafus-app .moment-comment-card {row-gap:3px;}
+  .gafus-app .web4-moment-detail .web4-moment-comments-card.moment-comments > form > label {
+    font:650 13px/1.5 var(--font-montserrat);
+  }
+}
+
+/* WEB4 R30: restore original Next reply/edited meta and mobile form geometry. */
+.gafus-app .moment-comment-card > .web4-comment-reply-target {
+  flex: 0 0 100%;
+  margin: 2px 0 0;
+  color: #7c8176;
+  font: 400 12px/1.55 var(--font-montserrat);
+}
+@media (max-width:720px) {
+  /* R28 owner action text occupied an extra 38px line in Vite, absent in
+   * actual Next. Source short action buttons reduce their own row; retain the
+   * loaded source 521px comments card by placing the real form lower. */
+  .gafus-app .web4-moment-detail .web4-moment-comments-card.moment-comments > form {
+    margin-top: 33px;
+  }
+}
+
+/* WEB4 R32 source Next Feed.module.css .reaction on actual comment pills. */
+/* Real retained Next source: height34, 999px capsules, muted paper and olive
+ * selected states. Only presentation of existing ACL-gated reaction controls. */
+.gafus-app .moment-comment-card > [role="group"][aria-label="Реакции комментария"] {
+  gap:6px;
+}
+.gafus-app .moment-comment-card > [role="group"][aria-label="Реакции комментария"] > button {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  min-height:34px;
+  width:auto;
+  padding:5px 11px;
+  border:1px solid #e9e9e2;
+  border-radius:999px;
+  background:#fafaf8;
+  color:#62665d;
+  font:400 12px/1.4 var(--font-montserrat);
+  box-shadow:none;
+  transform:none;
+}
+.gafus-app .moment-comment-card > [role="group"][aria-label="Реакции комментария"] > button:is(:hover,[aria-pressed="true"]) {
+  background:#edf2e7;
+  border-color:#b6c6a3;
+}
+
+/* WEB4 R38: original Feed.module.css .header source row, not stacked title/back. */
+.gafus-app .web4-moment-composer > .web4-compose-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-width: 0;
+  margin: 0 0 24px;
+}
+.gafus-app .web4-moment-composer > .web4-compose-header > h2 {
+  margin: 0;
+  color: #302f2a;
+  text-align: left;
+  font: 750 clamp(25px,3.2vw,34px)/1.2 var(--font-montserrat);
+  letter-spacing: -.035em;
+}
+.gafus-app .web4-moment-composer > .web4-compose-header > p { margin: 0; }
+
+/* WEB4 R38 original loaded Next vs Vite create-form rects, 2026-10-26. */
+/* R39 correction after actual loaded R38 desktop: the first margin change
+ * overshot to y158.172 versus original Next y208 (exact x270/w740 already
+ * match). Restore 50px, avoiding synthetic filler or shell changes. */
+@media (min-width: 721px) {
+  .gafus-app .shell .web4-moment-composer {
+    margin-top: -26px;
+  }
+}
+/* Same source mobile390: Next form x28/y206/w334, Vite x25/y257.375/w340.
+ * Keep real input/media/poll controls and publish flow; correct only geometry. */
+@media (max-width: 720px) {
+  .gafus-app .shell .web4-moment-composer {
+    margin-top: -39px;
+  }
+  .gafus-app .shell .web4-moment-composer > form[aria-label="Сохранение текстового черновика"] {
+    width: calc(100% - 6px);
+    max-width: 334px;
+    margin-inline: auto;
+  }
+}
+
+
+/* WEB4 poll options: original Next local image choice and revocable preview. */
+.gafus-app .web4-moment-composer .web4-inline-poll-photo-picker {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid #d5ddc7;
+  border-radius: 9px;
+  background: #fff;
+  color: #4d5c2d;
+  cursor: pointer;
+  font: 650 12px/1.4 var(--font-montserrat);
+}
+.gafus-app .web4-moment-composer .web4-inline-poll-photo-picker > input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll-photo-preview {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 110px;
+  height: 90px;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll-photo-preview img {
+  width: 100%; height: 100%; object-fit: contain; border-radius: 9px;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll-photo-preview button {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+}
+
+
+/* WEB4 R45: real Next+Vite expanded poll measured at 1280 and 390. */
+/* Original Next poll spans its 740px form content; Vite's outer card has
+ * 25px/17px internal padding plus 1px border. Correct only the poll editor. */
+.gafus-app .web4-moment-composer > form[aria-label="Сохранение текстового черновика"] > .web4-inline-poll {
+  --web4-poll-inset: clamp(17px, 3vw, 25px);
+  width: calc(100% + var(--web4-poll-inset) + var(--web4-poll-inset) + 2px);
+  max-width: none;
+  margin-left: calc(0px - var(--web4-poll-inset) - 1px);
+  margin-right: calc(0px - var(--web4-poll-inset) - 1px);
+  font-size: 16px;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll header {
+  align-items: flex-start;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll header p {
+  margin: 4px 0 0;
+  font: 400 12px/1.5 var(--font-montserrat);
+  color: #6c7463;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll > label {
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll :is(input:not([type=checkbox]):not([type=radio]),textarea) {
+  font-size: 13px;
+  color: #30372c;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll .web4-inline-poll-photo-picker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 6px 11px;
+  font-size: 12px;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll-options > div {
+  gap: 9px;
+}
+
+
+/* WEB4 R48 original Next option rows and checkbox intrinsic height.
+ * R47 real DOM showed 90.5px original choice rows vs 43.5px in Vite:
+ * source makes each full-width input wrap before its separate photo button. */
+.gafus-app .web4-moment-composer .web4-inline-poll-options > div > input:not([type=checkbox]):not([type=radio]) {
+  flex: 1 1 100%;
+  width: 100%;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll-options > button {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll header > button {
+  min-height: 52px;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll > p[role=status] {
+  margin: 0;
+  font: 400 12px/1.5 var(--font-montserrat);
+  color: #97643c;
+}
+@media (min-width:721px) {
+  .gafus-app .web4-moment-composer .web4-inline-poll-settings input[type=checkbox] {
+    height: 36px;
+    min-height: 36px;
+    width: 16px;
+    min-width: 16px;
+    flex: 0 0 16px;
+    padding: 0;
+  }
+}
+@media (max-width:720px) {
+  .gafus-app .web4-moment-composer .web4-inline-poll-settings input[type=checkbox] {
+    height: 13px;
+    min-height: 13px;
+    width: 13px;
+    min-width: 13px;
+    flex: 0 0 13px;
+    padding: 0;
+  }
+}
+
+/* WEB4 R49: checkbox native box sizing after real R48 row-height diagnostics.
+ * Vite's inherited text-input box adds padding to checkbox dimensions,
+ * yielding 38px mobile / 61px desktop where source checkbox labels are 18/36. */
+.gafus-app .web4-moment-composer .web4-inline-poll .web4-inline-poll-settings label > input[type="checkbox"] {
+  appearance: auto;
+  box-sizing: border-box;
+  padding: 0 !important;
+  margin: 0;
+  border: 0;
+}
+
+/* WEB4 R51 computed original Next checkbox row specificity from R50.
+ * Prior less-specific Vite label selector was overridden by the generic grid
+ * selector, rendering label 38px/61px instead of original 18px/36px flex. */
+.gafus-app .web4-moment-composer .web4-inline-poll .web4-inline-poll-settings > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 13px/1.4 var(--font-montserrat);
+}
+.gafus-app .web4-moment-composer .web4-inline-poll .web4-inline-poll-settings > label > input[type="checkbox"] {
+  display: block;
+  flex: 0 0 13px;
+  width: 13px;
+  min-width: 13px;
+  height: 13px;
+  min-height: 13px;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+/* WEB4 R52 source label text spacing: measured original Next choice gaps. */
+.gafus-app .web4-moment-composer .web4-inline-poll .web4-inline-poll-options {
+  gap: 8px;
+}
+.gafus-app .web4-moment-composer .web4-inline-poll > label {
+  font-size: 13px;
+}
+
+/* Author avatar is a real visible image with letter fallback, including detail view. */
+.gafus-app .web4-moment-author-avatar {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.gafus-app .web4-moment-author-avatar .moment-avatar-initial {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.gafus-app .web4-moment-author-avatar > img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+/* WEB4 R52: compose header, draft action and form share one 740px column.
+ * Only layout is local; header Back and poll Caramel skins are shared GAFUS. */
+.gafus-app .shell .web4-moment-composer > .web4-compose-header,
+.gafus-app .shell .web4-moment-composer > .web4-compose-draft-row {
+  box-sizing: border-box;
+  width: min(100%, 740px);
+  max-width: 740px;
+  margin-inline: auto;
+}
+.gafus-app .shell .web4-moment-composer > .web4-compose-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.gafus-app .shell .web4-moment-composer > .web4-compose-header > h2 {
+  margin: 0;
+  text-align: left;
+}
+.gafus-app .shell .web4-moment-composer > .web4-compose-header > p {
+  display: contents;
+}
+/* Back appearance now comes solely from the shared AppBackButton class. */
+.gafus-app .shell .web4-moment-composer > .web4-compose-draft-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-block: 0 12px;
+}
+.gafus-app .web4-moment-composer .web4-compose-draft-row > button {
+  max-width: 100%;
+  width: auto;
+  min-height: 44px;
+  margin: 0;
+}
+.gafus-app .shell .web4-moment-composer > form[aria-label="Сохранение текстового черновика"] {
+  margin-top: 0;
+}
+/* An untouched shared CaramelButton, full form width like the former CTA. */
+.gafus-app .web4-moment-composer > form[aria-label="Сохранение текстового черновика"] > button[data-gafus-shared-button="caramel"] {
+  width: 100%;
+  min-height: 50px;
+}
+/* Local-media picker and immediately revocable previews, as in poll options. */
+.gafus-app .web4-moment-composer .web4-compose-file-selection {
+  min-width: 0;
+  padding: 16px;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection input[type="file"] {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  border: 1px dashed #b8c7a5;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fffefa;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection > .web4-compose-media-selected {
+  display: grid;
+  gap: 12px;
+  align-items: stretch;
+  justify-content: stretch;
+  width: 100%;
+  min-width: 0;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5px 10px;
+  font-size: 12px;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-heading strong { color: #3f5138; }
+.gafus-app .web4-moment-composer .web4-compose-media-heading span { color: #777e6c; }
+.gafus-app .web4-moment-composer .web4-compose-media-preview {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 172px), 1fr));
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-preview > li {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 9px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #dce2d2;
+  border-radius: 13px;
+  background: #fffdf8;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #e9eae3;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-frame :is(img, video) {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  background: #242724;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-frame > span[role="status"] {
+  padding: 8px;
+  text-align: center;
+  font-size: 11px;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-kind {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  border-radius: 6px;
+  padding: 3px 7px;
+  background: rgba(32, 39, 30, .78);
+  color: #fff;
+  font: 700 10px/1.3 var(--font-montserrat), sans-serif;
+  pointer-events: none;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  min-width: 0;
+  color: #505646;
+  font-size: 11px;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-caption > span {
+  flex: 1 1 90px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-caption > button {
+  width: auto;
+  min-height: 35px;
+  flex: 0 0 auto;
+  padding: 6px 10px;
+}
+@media (max-width: 720px) {
+  /* Same inner width as the existing source-parity compose form. */
+  .gafus-app .shell .web4-moment-composer > .web4-compose-header,
+  .gafus-app .shell .web4-moment-composer > .web4-compose-draft-row {
+    width: calc(100% - 6px);
+    max-width: 334px;
+  }
+}
+@media (max-width: 600px) {
+  .gafus-app .shell .web4-moment-composer > .web4-compose-header { gap: 10px; }
+  .gafus-app .shell .web4-moment-composer > .web4-compose-header > h2 { font-size: 24px; }
+  .gafus-app .web4-moment-composer .web4-compose-media-preview {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 125px), 1fr));
+  }
+}
+
+/* WEB4 M33: Match the Next question photo tile while preserving videos.
+ * Reuse the same question-photo-add and photo-picker-grid styling; these
+ * overrides only neutralize the old native file input/oversized preview. */
+.gafus-app .web4-moment-composer .web4-compose-file-selection.question-photo-picker-next {
+  gap:14px;
+  padding:clamp(16px,2.4vw,22px);
+  border:1px solid #e0dfcf;
+  border-radius:18px;
+  background:#f5f0e5;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection .web4-compose-file-label {
+  margin:0;
+  color:#363d2f;
+  font:750 20px/1.3 var(--font-montserrat),system-ui,sans-serif;
+  text-align:left;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection > input[type="file"][hidden] {
+  display:none !important;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection > .web4-compose-media-grid {
+  display:flex;
+  justify-content:flex-start;
+  align-items:flex-start;
+  flex-wrap:wrap;
+  gap:10px;
+  min-width:0;
+  width:100%;
+  overflow:visible;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection .web4-compose-media-grid > .web4-compose-media-add {
+  box-sizing:border-box;
+  flex:0 0 104px;
+  display:inline-flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  width:104px;
+  min-height:104px;
+  padding:8px;
+  gap:6px;
+  background:#eee7d2;
+  border:1px dashed rgba(77,92,45,.48);
+  border-radius:13px;
+  color:#3b4822;
+  font:700 11px/1.3 var(--font-montserrat),system-ui,sans-serif;
+  text-align:center;
+  white-space:normal;
+  box-shadow:none;
+  transform:none;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection .web4-compose-media-grid > .web4-compose-media-add:hover:not(:disabled) {
+  background:#e8e1cb;
+  box-shadow:none;
+  transform:none;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection .web4-compose-media-add svg {
+  width:24px;
+  height:24px;
+  flex-shrink:0;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-grid > .web4-compose-media-selected {
+  display:flex;
+  flex:0 1 auto;
+  align-items:flex-start;
+  min-width:0;
+  width:auto;
+  max-width:100%;
+  gap:0;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-grid .web4-compose-media-preview {
+  display:flex;
+  flex-wrap:wrap;
+  width:auto;
+  max-width:100%;
+  gap:10px;
+  margin:0;
+  padding:0;
+  list-style:none;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-grid .web4-compose-media-preview > li {
+  box-sizing:border-box;
+  position:relative;
+  flex:0 0 104px;
+  display:block;
+  width:104px;
+  height:104px;
+  min-width:0;
+  padding:0;
+  overflow:hidden;
+  border:1px solid rgba(77,92,45,.2);
+  border-radius:13px;
+  background:#e9eadf;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-grid .web4-compose-media-frame {
+  position:relative;
+  box-sizing:border-box;
+  width:100%;
+  height:100%;
+  border-radius:0;
+  aspect-ratio:auto;
+  overflow:hidden;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-grid .web4-compose-media-frame :is(img,video) {
+  width:100%;
+  height:100%;
+  max-height:none;
+  object-fit:contain;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-grid .web4-compose-media-kind {
+  top:5px;
+  left:5px;
+  padding:2px 5px;
+  font-size:9px;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-grid .web4-compose-media-caption {
+  position:absolute;
+  inset:0;
+  display:block;
+  padding:0;
+  pointer-events:none;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-grid .web4-compose-media-caption > span {
+  position:absolute;
+  right:0;
+  bottom:0;
+  left:0;
+  display:block;
+  box-sizing:border-box;
+  padding:4px 6px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  background:rgba(30,35,27,.78);
+  color:#fff;
+  font-size:10px;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-grid .web4-compose-media-caption > .web4-compose-media-remove {
+  position:absolute;
+  z-index:3;
+  top:4px;
+  right:4px;
+  box-sizing:border-box;
+  display:grid;
+  place-items:center;
+  width:26px;
+  min-width:26px;
+  height:26px;
+  min-height:26px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  background:rgba(252,249,241,.96);
+  color:#aa342c;
+  box-shadow:0 1px 5px rgba(0,0,0,.14);
+  pointer-events:auto;
+}
+.gafus-app .web4-moment-composer .web4-compose-media-remove svg {
+  width:15px;
+  height:15px;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection > .web4-compose-media-hint {
+  margin:0;
+  color:#686540;
+  font:400 12px/1.5 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .web4-moment-composer .web4-compose-file-selection :is(button,input):focus-visible {
+  outline:2px solid #617748;
+  outline-offset:3px;
+}
+@media (max-width:600px) {
+  .gafus-app .web4-moment-composer .web4-compose-file-selection .web4-compose-file-label {
+    font-size:18px;
+  }
+  .gafus-app .web4-moment-composer .web4-compose-file-selection .web4-compose-media-grid > .web4-compose-media-add,
+  .gafus-app .web4-moment-composer .web4-compose-media-grid .web4-compose-media-preview > li {
+    flex-basis:90px;
+    width:90px;
+    min-height:90px;
+  }
+  .gafus-app .web4-moment-composer .web4-compose-media-grid .web4-compose-media-preview > li {
+    height:90px;
+  }
+}
+
+/* Moments poll: the poll is post content, not a nested card. Keep options
+ * compact, show result as a quiet in-row fill, and leave real inputs accessible. */
+.gafus-app .moment-poll,
+.gafus-app .web4-moment-detail .moment-poll {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 13px 0 7px;
+  border: 0;
+  border-top: 1px solid #ecefe8;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #303a30;
+}
+.gafus-app .moment-poll > form,
+.gafus-app .web4-moment-detail .moment-poll > form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 12px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+.gafus-app .moment-poll .moment-poll-heading {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.gafus-app .moment-poll .moment-poll-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+  margin: 0;
+  color: #80887d;
+  font: 500 11px/1.5 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .moment-poll .moment-poll-meta .moment-poll-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: #edf3e8;
+  color: #587449;
+  font-size: 10px;
+  font-weight: 720;
+}
+.gafus-app .moment-poll h3.moment-poll-question,
+.gafus-app .web4-moment-detail .moment-poll h3.moment-poll-question {
+  margin: 0;
+  color: #30392f;
+  text-align: left;
+  font: 720 clamp(15px, 1.7vw, 16px)/1.45 var(--font-montserrat), system-ui, sans-serif;
+  letter-spacing: -.01em;
+  overflow-wrap: anywhere;
+}
+.gafus-app .moment-poll > form > fieldset {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.gafus-app .moment-poll .moment-poll-option,
+.gafus-app .web4-moment-detail .moment-poll .moment-poll-option {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+  min-width: 0;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  overflow: hidden;
+  border: 1px solid #e5e9e0;
+  border-radius: 10px;
+  background: #f9faf7;
+  color: #414a3e;
+  font: 500 12px/1.5 var(--font-montserrat), system-ui, sans-serif;
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.gafus-app .moment-poll .moment-poll-option:hover:has(input:not(:disabled)) {
+  border-color: #aebfa0;
+  background: #f4f7ef;
+}
+.gafus-app .moment-poll .moment-poll-option:has(input:checked),
+.gafus-app .web4-moment-detail .moment-poll .moment-poll-option:has(input:checked) {
+  border-color: #9cad8b;
+  background: #f2f6ed;
+}
+.gafus-app .moment-poll .moment-poll-option:has(input:disabled) { cursor: default; }
+/* The old rule used a text bullet on top of a new radio outline. Explicitly
+ * reset it, otherwise selected answers show two overlapping circular marks. */
+.gafus-app .moment-poll .moment-poll-option input {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid #a3ada0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: none;
+  cursor: pointer;
+}
+.gafus-app .moment-poll .moment-poll-option input:disabled { cursor: default; opacity: 1; }
+.gafus-app .moment-poll .moment-poll-option input[type="checkbox"] { border-radius: 5px; }
+.gafus-app .moment-poll .moment-poll-option input::before,
+.gafus-app .moment-poll .moment-poll-option input:checked::before {
+  content: "";
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #617b4e;
+  transform: scale(0);
+}
+.gafus-app .moment-poll .moment-poll-option input:checked {
+  border-color: #617b4e;
+}
+.gafus-app .moment-poll .moment-poll-option input:checked::before { transform: scale(1); }
+.gafus-app .moment-poll .moment-poll-option input[type="checkbox"]:checked {
+  background: #617b4e;
+}
+.gafus-app .moment-poll .moment-poll-option input[type="checkbox"]:checked::before {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border: 0;
+  border-bottom: 2px solid #fff;
+  border-left: 2px solid #fff;
+  border-radius: 0;
+  background: transparent;
+  transform: translateY(-1px) rotate(-45deg);
+}
+.gafus-app .moment-poll .moment-poll-option-label,
+.gafus-app .moment-poll .moment-poll-option > small,
+.gafus-app .moment-poll .moment-poll-option-image {
+  position: relative;
+  z-index: 1;
+}
+.gafus-app .moment-poll .moment-poll-option-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.gafus-app .moment-poll .moment-poll-correct {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #dbead3;
+  color: #4d703c;
+  font: 800 11px/1 var(--font-montserrat), system-ui, sans-serif;
+  vertical-align: middle;
+}
+.gafus-app .moment-poll .moment-poll-option > small {
+  justify-self: end;
+  color: #788472;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.gafus-app .moment-poll .moment-poll-option:has(input:checked) > small {
+  color: #4c6c3d;
+  font-weight: 740;
+}
+/* Results fill each row, rather than adding a second bar/row under the text.
+ * Width still comes exclusively from server-provided vote percentages. */
+.gafus-app .moment-poll .moment-poll-option .web4-poll-vote-bar {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background: transparent;
+  pointer-events: none;
+}
+.gafus-app .moment-poll .web4-poll-vote-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 0;
+  background: #ecf1e7;
+  transition: width .2s ease;
+}
+.gafus-app .moment-poll .moment-poll-option:has(input:checked) .web4-poll-vote-bar-fill {
+  background: #e1ebd8;
+}
+.gafus-app .moment-poll .moment-poll-option-image {
+  grid-column: 2 / -1;
+  display: block;
+  width: min(100%, 260px);
+  max-height: 150px;
+  object-fit: contain;
+  object-position: left center;
+  border-radius: 8px;
+}
+.gafus-app .moment-poll .moment-poll-footnote {
+  margin: 0;
+  color: #7f8b7b;
+  font: 500 11px/1.5 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .moment-poll .moment-poll-participants {
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.gafus-app .moment-poll .moment-poll-participants button.moment-poll-participants-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 26px;
+  margin: 0;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #647d57;
+  box-shadow: none;
+  text-align: left;
+  font: 550 11px/1.45 var(--font-montserrat), system-ui, sans-serif;
+  cursor: pointer;
+}
+.gafus-app .moment-poll .moment-poll-participants-trigger > svg { flex: none; }
+.gafus-app .moment-poll .moment-poll-participants-trigger > span:not(.moment-poll-participants-chevron) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gafus-app .moment-poll .moment-poll-participants-trigger:hover {
+  background: transparent;
+  color: #435f35;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.gafus-app .moment-poll .moment-poll-participants-chevron { flex: none; font-size: 16px; }
+/* This grid item must be border-box sized: the previous list border + padding
+ * could extend beyond the poll, especially in narrow feed/profile cards. */
+.gafus-app .moment-poll .moment-poll-participants-list {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 6px 0 0;
+  padding: 8px;
+  border: 1px solid #e6eae1;
+  border-radius: 12px;
+  background: #fbfcf9;
+  overflow: hidden;
+}
+.gafus-app .moment-poll .moment-poll-participants-list ul {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gafus-app .moment-poll .moment-poll-participants-list li {
+  min-width: 0;
+}
+.gafus-app .moment-poll .moment-poll-participants-list a.moment-poll-voter-link {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #fff;
+  color: #364433;
+  text-decoration: none;
+  box-shadow: none;
+}
+.gafus-app .moment-poll .moment-poll-participants-list a.moment-poll-voter-link:is(:hover,:focus-visible) {
+  border-color: #d7e2cc;
+  background: #f0f5ea;
+}
+.gafus-app .moment-poll .moment-poll-voter-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #e4ecd9;
+  color: #4f6840;
+  font: 750 16px/1 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .moment-poll .moment-poll-voter-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.gafus-app .moment-poll .moment-poll-voter-identity {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.gafus-app .moment-poll .moment-poll-voter-identity strong,
+.gafus-app .moment-poll .moment-poll-voter-identity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gafus-app .moment-poll .moment-poll-voter-identity strong {
+  color: #344330;
+  font: 700 12px/1.4 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .moment-poll .moment-poll-voter-identity small {
+  color: #818e7b;
+  font: 500 11px/1.4 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .moment-poll .moment-poll-voter-arrow {
+  justify-self: end;
+  color: #8c9c81;
+  font-size: 20px;
+  line-height: 1;
+}
+.gafus-app .moment-poll :is(button,input):focus-visible {
+  outline: 2px solid #728b60;
+  outline-offset: 3px;
+}
+@media (max-width: 720px) {
+  .gafus-app .web4-moment-detail .moment-poll {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding: 12px 0 7px;
+  }
+  .gafus-app .moment-poll .moment-poll-option { padding: 9px 10px; }
+  .gafus-app .moment-poll > form,
+  .gafus-app .web4-moment-detail .moment-poll > form { gap: 9px 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gafus-app .moment-poll .moment-poll-option,
+  .gafus-app .moment-poll .web4-poll-vote-bar-fill { transition: none; }
+}

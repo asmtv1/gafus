@@ -1,10 +1,12 @@
 import type { FeedTx } from "./ports";
 /** Include deterministic outputs even when a crashed attempt never stored its result in the DB. */
-export function feedPossibleOutputKeys(ownerId: string, postId: string, mediaId: string) {
-  const base = `posts/${ownerId}/${postId}/attachments/${mediaId}/`;
-  return ["thumb.webp", "full.webp", "poster.webp", "hls/playlist.m3u8",
-    ...Array.from({ length: 60 }, (_, index) => `hls/segment-${String(index).padStart(3, "0")}.ts`),
-  ].map(name => base + name);
+export function feedPossibleOutputKeys(ownerId: string, postId: string, mediaId: string,
+  kind: "photo" | "video" = "video") {
+  const base = `media/v2/${mediaId}/v1/`;
+  const outputs = kind === "photo"
+    ? ["image/s.webp", "image/m.webp", "image/l.webp"]
+    : ["poster.webp", "video/360.mp4", "video/720.mp4", "video/1080.mp4"];
+  return outputs.map(name => base + name);
 }
 export async function enqueueFeedPostCleanup(tx: FeedTx, postId: string, ownerId: string, at: Date, reason: string) {
   const [media, uploads, jobs] = await Promise.all([
@@ -14,11 +16,17 @@ export async function enqueueFeedPostCleanup(tx: FeedTx, postId: string, ownerId
   const prefix = `posts/${ownerId}/${postId}/`;
   const keys = [...new Set([
     ...uploads.map(item => item.sourceKey),
-    ...media.flatMap(item => [item.thumbKey, item.fullKey, item.posterKey, item.playlistKey, ...item.videoSegmentKeys,
-      ...feedPossibleOutputKeys(ownerId, postId, item.id)]),
+    ...media.flatMap(item => [item.smallKey, item.thumbKey, item.fullKey, item.posterKey, ...(item.mp4Keys ?? []),
+      ...feedPossibleOutputKeys(ownerId, postId, item.id, item.kind)]),
     ...jobs.flatMap(item => [...item.sourceKeys, ...item.targetKeys]),
-  ].filter((key): key is string => !!key && key.startsWith(prefix)))];
-  const deadline = Math.max(at.getTime(), ...uploads.map(item => item.postExpiresAt.getTime()), ...jobs.map(item => item.leaseUntil?.getTime() ?? 0));
+  ].filter((key): key is string => !!key && (key.startsWith(prefix) ||
+    // The post may have received media from commenters with their own source keys.
+    uploads.some(upload => upload.sourceKey === key &&
+      key.startsWith("posts/" + upload.ownerId + "/" + postId + "/")) ||
+    media.some(item => key.startsWith(`media/v2/${item.id}/v1/`)))))];
+  const deadline = Math.max(at.getTime(),
+    ...uploads.flatMap(item => [item.postExpiresAt.getTime(), item.reservationExpiresAt.getTime()]),
+    ...jobs.map(item => item.leaseUntil?.getTime() ?? 0));
   await tx.feedStorageJob.updateMany({
     where: { postId, kind: { notIn: ["delete_keys", "cleanup_source"] }, status: { in: ["pending", "processing"] } },
     data: { status: "failed", attemptToken: null, leaseUntil: null, errorCode: "POST_DELETED" },
@@ -40,20 +48,24 @@ export async function enqueueFeedAccountCleanup(tx: Pick<FeedTx, "$executeRaw">,
     SELECT 'feed-delete-' || md5(${ownerId} || ':' || k.key), 'account:' || ${ownerId} || ':' || k.key,
       ${ownerId}, 'delete_keys'::"FeedJobKind", 'pending'::"FeedJobStatus", ARRAY[k.key], ARRAY[]::text[],
       GREATEST(${at}::timestamp,
-        COALESCE((SELECT max(u."postExpiresAt") FROM "FeedUpload" u WHERE u."ownerId" = ${ownerId}), ${at}::timestamp),
+        COALESCE((SELECT max(GREATEST(u."postExpiresAt", u."reservationExpiresAt"))
+          FROM "FeedUpload" u WHERE u."ownerId" = ${ownerId}), ${at}::timestamp),
         COALESCE((SELECT max(j."leaseUntil") FROM "FeedStorageJob" j WHERE j."ownerId" = ${ownerId}), ${at}::timestamp)) + interval '60 seconds',
       0, ${at}, ${at}
     FROM (
-      SELECT unnest(ARRAY[m."thumbKey", m."fullKey", m."posterKey", m."playlistKey"] || m."videoSegmentKeys") AS key
+      SELECT unnest(ARRAY[m."smallKey", m."thumbKey", m."fullKey", m."posterKey"] || m."mp4Keys") AS key
         FROM "FeedMediaAsset" m WHERE m."ownerId" = ${ownerId}
       UNION SELECT u."sourceKey" FROM "FeedUpload" u WHERE u."ownerId" = ${ownerId}
       UNION SELECT unnest(j."sourceKeys" || j."targetKeys") FROM "FeedStorageJob" j WHERE j."ownerId" = ${ownerId}
-      UNION SELECT 'posts/' || m."ownerId" || '/' || m."postId" || '/attachments/' || m."id" || '/' || v.name
-        FROM "FeedMediaAsset" m CROSS JOIN (VALUES ('thumb.webp'), ('full.webp'), ('poster.webp'), ('hls/playlist.m3u8')) v(name)
+      UNION SELECT 'media/v2/' || m."id" || '/v1/' || v.name
+        FROM "FeedMediaAsset" m CROSS JOIN (VALUES
+          ('image/s.webp'), ('image/m.webp'), ('image/l.webp'),
+          ('poster.webp'), ('video/360.mp4'), ('video/720.mp4'), ('video/1080.mp4')) v(name)
         WHERE m."ownerId" = ${ownerId}
-      UNION SELECT 'posts/' || m."ownerId" || '/' || m."postId" || '/attachments/' || m."id" || '/hls/segment-' || lpad(n::text, 3, '0') || '.ts'
-        FROM "FeedMediaAsset" m CROSS JOIN generate_series(0, 59) n WHERE m."ownerId" = ${ownerId}
-    ) k WHERE k.key LIKE 'posts/' || ${ownerId} || '/%'
+    ) k WHERE k.key IS NOT NULL AND (
+      left(k.key, length('posts/' || ${ownerId} || '/')) = 'posts/' || ${ownerId} || '/'
+      OR EXISTS (SELECT 1 FROM "FeedMediaAsset" m
+        WHERE m."ownerId" = ${ownerId} AND k.key LIKE 'media/v2/' || m."id" || '/v1/%'))
     ON CONFLICT ("dedupeKey") DO NOTHING`;
   await tx.$executeRaw`UPDATE "FeedStorageJob" SET "status" = 'failed', "attemptToken" = NULL, "leaseUntil" = NULL,
     "errorCode" = 'ACCOUNT_DELETED', "updatedAt" = ${at}

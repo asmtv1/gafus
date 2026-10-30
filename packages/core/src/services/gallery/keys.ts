@@ -29,3 +29,13 @@ export function galleryAttemptKeys(
   const prefix = `albums/${component(ownerId)}/${component(albumId)}/incoming/${component(uploadId)}/attempts/${component(token)}`;
   return { thumbKey: `${prefix}/thumb.webp`, fullKey: `${prefix}/full.webp` };
 }
+
+/** Gallery Media V2: immutable photo identity, independent of album membership. */
+export function galleryPhotoV2Keys(ownerId: string, photoId: string) {
+  const prefix = `gallery/${component(ownerId)}/media/${component(photoId)}/v2`;
+  return { thumbKey: `${prefix}/thumb.webp`, fullKey: `${prefix}/full.webp` };
+}
+export function isGalleryPhotoV2Key(key: string, ownerId: string, photoId: string) {
+  const keys = galleryPhotoV2Keys(ownerId, photoId);
+  return key === keys.thumbKey || key === keys.fullKey;
+}

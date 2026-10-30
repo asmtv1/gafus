@@ -1,5 +1,5 @@
 import { prefersServerMediaFallback, type MediaCdnKind } from
-  "@gafus/core/services/mediaDelivery";
+  "@gafus/core-client/media-delivery";
 import { API_BASE_URL } from "@/shared/config";
 
 async function fetchStatus(): Promise<unknown> {

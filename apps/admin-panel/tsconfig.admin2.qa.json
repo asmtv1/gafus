@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "plugins": []
+  },
+  "include": [
+    "src/admin-live/PartnersPanel.tsx",
+    "src/admin-live/ProfitReport.tsx",
+    "src/admin-live/ProfitExpenses.tsx",
+    "src/admin-live/ProfitVideoEditor.tsx",
+    "src/admin-live/profitPartners.ts",
+    "src/admin-live/GafusPanel.tsx",
+    "src/admin-live/UserManagement.tsx",
+    "src/admin-live/UsersParity.test.tsx",
+    "src/admin-live/PartnersParity.test.tsx",
+    "src/admin-live/profitPartners.test.tsx",
+    "src/admin-live/GafusFraudParity.test.tsx",
+    "src/admin-live/GafusFraudInteractions.test.tsx"
+  ],
+  "exclude": ["node_modules"]
+}

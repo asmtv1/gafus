@@ -6,11 +6,13 @@ import { changeGafusBalanceTx, ensureGafusWalletTx } from "./walletService";
 import {
   resolveCourseStepTargetTx, resolveCourseStepAccessTx,
   resolveMiniGuideTargetTx, resolveMiniGuideAccessTx,
+  resolveArticleTargetTx, resolveArticleAccessTx,
 } from "../contentAccess";
 
 export type GafusUnlockTarget =
   | { type: "COURSE_STEP"; dayOnCourseId: string; stepOnDayId: string }
-  | { type: "MINI_GUIDE"; courseId: string };
+  | { type: "MINI_GUIDE"; courseId: string }
+  | { type: "ARTICLE"; articleId: string };
 
 export type GafusUnlockResult = {
   spent: number;
@@ -39,9 +41,15 @@ export async function unlockContentWithGafus(input: {
   return prisma.$transaction(async tx => {
     // Serialize every wallet mutation for one user, regardless of source/platform.
     await lockGafusUser(tx, input.userId);
-    const target = input.target.type === "COURSE_STEP"
+    const requestedTarget = input.target.type === "COURSE_STEP"
       ? await resolveCourseStepTargetTx(tx, input.target.dayOnCourseId, input.target.stepOnDayId)
-      : await resolveMiniGuideTargetTx(tx, input.target.courseId);
+      : input.target.type === "MINI_GUIDE"
+        ? await resolveMiniGuideTargetTx(tx, input.target.courseId)
+        : await resolveArticleTargetTx(tx, input.target.articleId);
+    // One purchase covers an entire mini-guide even when triggered from a step.
+    const target = requestedTarget?.type === "COURSE_STEP"
+      ? (await resolveMiniGuideTargetTx(tx, requestedTarget.courseId)) ?? requestedTarget
+      : requestedTarget;
     if (!target) {
       throw new GafusError("GAFUS_TARGET_NOT_ELIGIBLE", "Content not found");
     }
@@ -66,7 +74,9 @@ export async function unlockContentWithGafus(input: {
 
     const entitlement = target.type === "COURSE_STEP"
       ? await resolveCourseStepAccessTx(tx, input.userId, target, now)
-      : await resolveMiniGuideAccessTx(tx, input.userId, target, now);
+      : target.type === "MINI_GUIDE"
+        ? await resolveMiniGuideAccessTx(tx, input.userId, target, now)
+        : await resolveArticleAccessTx(tx, input.userId, target, now);
     const wallet = await ensureGafusWalletTx(tx, input.userId);
     if (entitlement.allowed) return {
       spent: 0, balance: wallet.balance, accessSource: entitlement.source,
@@ -79,7 +89,8 @@ export async function unlockContentWithGafus(input: {
     if (!settings.economyEnabled || !settings.spendingEnabled) {
       throw new GafusError("GAFUS_DISABLED", "Gafus unlocks are currently disabled");
     }
-    const cost = target.type === "COURSE_STEP" ? settings.courseStepCost : settings.miniGuideCost;
+    const cost = target.type === "COURSE_STEP" ? settings.courseStepCost
+      : target.type === "MINI_GUIDE" ? settings.miniGuideCost : 1;
     if (wallet.balance < cost) {
       throw new GafusError("GAFUS_INSUFFICIENT_BALANCE", "Not enough Gafus");
     }
@@ -94,7 +105,7 @@ export async function unlockContentWithGafus(input: {
         userId: input.userId,
         targetType: target.type,
         targetKey: target.targetKey,
-        courseId: target.courseId,
+        courseId: target.type === "ARTICLE" ? null : target.courseId,
         dayOnCourseId: target.type === "COURSE_STEP" ? target.dayOnCourseId : null,
         stepOnDayId: target.type === "COURSE_STEP" ? target.stepOnDayId : null,
         transactionId: debit.transactionId,
@@ -117,6 +128,16 @@ export async function unlockCourseStepWithGafus(input: {
   return unlockContentWithGafus({
     userId: input.userId, clientRequestId: input.clientRequestId,
     target: { type: "COURSE_STEP", dayOnCourseId: input.dayOnCourseId, stepOnDayId: input.stepOnDayId },
+    now: input.now,
+  });
+}
+
+export async function unlockArticleWithGafus(input: {
+  userId: string; articleId: string; clientRequestId: string; now?: Date;
+}) {
+  return unlockContentWithGafus({
+    userId: input.userId, clientRequestId: input.clientRequestId,
+    target: { type: "ARTICLE", articleId: input.articleId },
     now: input.now,
   });
 }

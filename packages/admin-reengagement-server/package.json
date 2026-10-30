@@ -1,0 +1,35 @@
+{
+  "name": "@gafus/admin-reengagement-server",
+  "version": "1.7.0",
+  "private": true,
+  "sideEffects": true,
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "typesVersions": { "*": {
+    "adminReengagementService": ["dist/adminReengagementService.d.ts"],
+    "types": ["dist/types.d.ts"]
+  } },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./adminReengagementService": {
+      "types": "./dist/adminReengagementService.d.ts",
+      "default": "./dist/adminReengagementService.js"
+    },
+    "./types": { "types": "./dist/types.d.ts", "default": "./dist/types.js" }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/logger": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "^4.0.17"
+  }
+}

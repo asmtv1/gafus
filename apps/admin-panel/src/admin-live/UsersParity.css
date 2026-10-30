@@ -1,0 +1,20 @@
+/* Scope parity styles to the admin user list; other agents own shared style.css. */
+.admin-user-identity { display: flex; align-items: center; gap: 10px; min-width: 170px; }
+.admin-user-avatar { display: inline-flex; flex-shrink: 0; justify-content: center;
+  align-items: center; width: 34px; height: 34px; border-radius: 50%;
+  background: #e8eedc; color: #607035; font-weight: 700; overflow: hidden; }
+.admin-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.admin-user-role { display: inline-flex; font-size: 12px; padding: 4px 9px;
+  border-radius: 999px; background: #edf0e8; color: #4e5b43; white-space: nowrap; }
+.admin-user-role-admin { background: #f9e3e1; color: #9c3830; }
+.admin-user-role-moderator { background: #fff0ce; color: #885f18; }
+.admin-user-role-trainer { background: #e5effc; color: #40628c; }
+.admin-user-role-partner { background: #f0e5fa; color: #714e90; }
+.admin-user-pagination-size { display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; min-width: 0 !important; }
+.admin-user-pagination-size select { min-width: 64px; }
+@media (max-width: 680px) {
+  .admin-user-identity { min-width: 136px; }
+  .admin-user-avatar { width: 32px; height: 32px; }
+  .admin-user-pagination-size { margin-right: auto; }
+}

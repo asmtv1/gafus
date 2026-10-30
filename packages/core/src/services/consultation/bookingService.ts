@@ -1,4 +1,8 @@
-import { lockConsultationClient, requireConsultationBookingEligibility } from "./bookingEligibility";
+import { createHash } from "node:crypto";
+import {
+  lockConsultationClient,
+  requireConsultationBookingEligibility,
+} from "./bookingEligibility";
 import type { UserRole as AuthRole } from "@gafus/prisma";
 import {
   ConsultationBookingStatus,
@@ -24,11 +28,16 @@ import {
   ConsultationForbiddenError,
   ConsultationNotFoundError,
   ConsultationSlotTakenError,
+  ConsultationIdempotencyKeyConflictError,
 } from "./errors";
 import { enqueueConsultationEmail } from "./notificationService";
 import type { BookSlotResult, ConsultationBookingDto } from "./types";
 import { bookSlotResultSchema, type BookSlotInput } from "./validation";
-import { getAppSubscriptionAccess, getCynologistEntitlements, SubscriptionRequiredError } from "../appSubscription";
+import {
+  getAppSubscriptionAccess,
+  getCynologistEntitlements,
+  SubscriptionRequiredError,
+} from "../appSubscription";
 
 const logger = createWebLogger("core-consultation-booking");
 const CONSULTATION_TIMEZONE = "Europe/Moscow";
@@ -215,40 +224,95 @@ function trainerMayActOnBooking(
   actorUserId: string,
   cynologistTrainerUserId: string,
 ): boolean {
-  if (actorRole === "ADMIN" || actorRole === "MODERATOR") {
+  if (actorRole === "ADMIN") {
     return true;
   }
   return actorRole === "TRAINER" && actorUserId === cynologistTrainerUserId;
 }
 
+/** Canonical owner-bound fingerprint for the ENTIRE booking intent.
+ * Existing legacy receipts have no fingerprint; they are replay-only and never upgraded
+ * to a new booking by this method. No raw intake, phone or key enters log output.
+ */
+export function consultationBookingIntentFingerprint(
+  clientId: string,
+  input: BookSlotInput,
+): string {
+  const payload = {
+    clientId,
+    idempotencyKey: input.idempotencyKey,
+    slotId: input.slotId,
+    clientOwnerName: input.clientOwnerName,
+    clientPhone: input.clientPhone,
+    petName: input.petName,
+    petGender: input.petGender,
+    petAge: input.petAge,
+    petBreed: input.petBreed,
+    clientProblem: input.clientProblem,
+    clientSelfHelpAttempt: input.clientSelfHelpAttempt,
+  };
+  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+
+function assertBookingReceiptFingerprint(
+  receipt: { responseJson: unknown; expiresAt: Date },
+  fingerprint: string,
+) {
+  // A retained but expired key must not create another booking under the SAME key.
+  if (receipt.expiresAt <= new Date()) throw new ConsultationIdempotencyKeyConflictError();
+  const json = receipt.responseJson;
+  const saved =
+    json && typeof json === "object" && !Array.isArray(json)
+      ? (json as { requestFingerprint?: unknown }).requestFingerprint
+      : undefined;
+  if (saved !== undefined && saved !== fingerprint)
+    throw new ConsultationIdempotencyKeyConflictError();
+}
+
+/** Verify the committed booking still belongs to the original authenticated client.
+ * A legacy receipt's archived JSON or bookingId alone is never an authorization.
+ */
+async function requireOwnedBookingReplay(clientId: string, bookingId: string) {
+  const owned = await prisma.consultationBooking.findFirst({
+    where: { id: bookingId, clientId },
+    select: { id: true, status: true },
+  });
+  if (!owned) throw new ConsultationIdempotencyKeyConflictError();
+  return owned;
+}
+
 export async function bookSlot(
   clientId: string,
   input: BookSlotInput,
-  requestId?: string,
+  _requestId?: string,
 ): Promise<BookSlotResult> {
   const idem = await prisma.consultationBookingIdempotency.findUnique({
     where: {
       clientId_key: { clientId, key: input.idempotencyKey },
     },
   });
-  if (idem?.responseJson && idem.expiresAt > new Date()) {
-    const replay = bookSlotResultSchema.safeParse(idem.responseJson);
-    if (replay.success) {
-      const d = replay.data;
+  const requestFingerprint = consultationBookingIntentFingerprint(clientId, input);
+  if (idem) assertBookingReceiptFingerprint(idem, requestFingerprint);
+  if (idem && idem.expiresAt > new Date()) {
+    const cached = bookSlotResultSchema.safeParse(idem.responseJson);
+    const id = idem.bookingId ?? (cached.success ? cached.data.booking.id : null);
+    if (!id) throw new ConsultationIdempotencyKeyConflictError();
+    const owned = await requireOwnedBookingReplay(clientId, id);
+    if (cached.success) {
+      // Preserve the legacy cached response envelope but NEVER a stale status or
+      // a foreign booking. Existing UUID API/DTO compatibility stays intact.
       return {
-        ...d,
+        kind: "idempotent_replay" as const,
         booking: {
-          ...d.booking,
-          clientUsername: d.booking.clientUsername ?? null,
+          ...cached.data.booking,
+          status: owned.status,
+          clientUsername: cached.data.booking.clientUsername ?? null,
         },
       };
     }
-  }
-  if (idem?.bookingId && idem.expiresAt > new Date()) {
-    const replayDto = await toBookingDto(idem.bookingId);
-    if (replayDto && replayDto.status !== ConsultationBookingStatus.CANCELLED_BY_SYSTEM) {
-      return { kind: "idempotent_replay", booking: replayDto };
-    }
+    const current = await toBookingDto(id);
+    if (!current) throw new ConsultationIdempotencyKeyConflictError();
+    return { kind: "idempotent_replay", booking: current };
   }
 
   let bookingId: string | null = null;
@@ -256,6 +320,18 @@ export async function bookSlot(
   try {
     const result = await prisma.$transaction(async (tx) => {
       await lockConsultationClient(tx, clientId);
+      // Owner row is SELECT FOR UPDATE; competitors with same owner/key serialize
+      // before checking the ledger. A committed receipt is seen on the new READ COMMITTED
+      // statement, and NO slot lock, booking or notification is repeated.
+      const persistedReceipt = await tx.consultationBookingIdempotency.findUnique({
+        where: { clientId_key: { clientId, key: input.idempotencyKey } },
+        select: { bookingId: true, responseJson: true, expiresAt: true },
+      });
+      if (persistedReceipt) {
+        assertBookingReceiptFingerprint(persistedReceipt, requestFingerprint);
+        if (!persistedReceipt.bookingId) throw new ConsultationIdempotencyKeyConflictError();
+        return { kind: "replayed" as const, bookingId: persistedReceipt.bookingId };
+      }
       await requireConsultationBookingEligibility(clientId, tx);
       const locked = await tx.consultationSlot.updateMany({
         where: { id: input.slotId, status: ConsultationSlotStatus.FREE },
@@ -318,25 +394,34 @@ export async function bookSlot(
         throw e;
       }
 
+      // Atomic receipt: the booking/slot update and idempotency row now COMMIT
+      // together. A receipt INSERT fault rolls the complete Prisma transaction back.
+      // The minimal marker is enough to recover after a lost HTTP ACK.
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await tx.consultationBookingIdempotency.create({
+        data: {
+          clientId,
+          key: input.idempotencyKey,
+          bookingId: booking.id,
+          responseJson: { state: "BOOKING_CREATED", requestFingerprint },
+          expiresAt,
+        },
+      });
       bookingId = booking.id;
-      return { bookingId: booking.id, cynologistId: slot.cynologistId, deadline };
+      return {
+        kind: "created" as const,
+        bookingId: booking.id,
+        cynologistId: slot.cynologistId,
+        deadline,
+      };
     });
 
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    await prisma.consultationBookingIdempotency.upsert({
-      where: { clientId_key: { clientId, key: input.idempotencyKey } },
-      create: {
-        clientId,
-        key: input.idempotencyKey,
-        bookingId: result.bookingId,
-        responseJson: { state: "BOOKING_CREATED" },
-        expiresAt,
-      },
-      update: {
-        bookingId: result.bookingId,
-        expiresAt,
-      },
-    });
+    if (result.kind === "replayed") {
+      await requireOwnedBookingReplay(clientId, result.bookingId);
+      const prior = await toBookingDto(result.bookingId);
+      if (!prior) throw new ConsultationIdempotencyKeyConflictError();
+      return { kind: "idempotent_replay", booking: prior };
+    }
 
     // A Voximplant room is deterministic for the booking. Credentials and
     // participant provisioning happen only after confirmed authorization at join.
@@ -366,21 +451,19 @@ export async function bookSlot(
     }
 
     const payload: BookSlotResult = { kind: "created", booking: dto };
-    await prisma.consultationBookingIdempotency.upsert({
-      where: { clientId_key: { clientId, key: input.idempotencyKey } },
-      create: {
-        clientId,
-        key: input.idempotencyKey,
-        bookingId: result.bookingId,
-        responseJson: payload as object,
-        expiresAt,
-      },
-      update: {
-        bookingId: result.bookingId,
-        responseJson: payload as object,
-        expiresAt,
-      },
-    });
+    // Best-effort DTO refresh; the authoritative marker already committed in the
+    // booking transaction. Failure here never means "no booking" and cannot trigger
+    // another slot/booking creation under the same key.
+    try {
+      await prisma.consultationBookingIdempotency.updateMany({
+        where: { clientId, key: input.idempotencyKey, bookingId: result.bookingId },
+        data: {
+          responseJson: { ...payload, requestFingerprint } as unknown as Prisma.InputJsonValue,
+        },
+      });
+    } catch {
+      logger.warn("bookSlot receipt DTO refresh deferred", { bookingId: result.bookingId });
+    }
 
     return payload;
   } catch (e) {
@@ -419,12 +502,25 @@ export async function requireConsultationSlotsSubscriptionAccess(input: {
 
 /** New bookings require an active, non-trial three-month paid period. */
 export function canBookConsultations(subscription: {
-  hasActiveSubscription: boolean; provider: string | null; planCode: string | null;
-  isTrial?: boolean; isLifetime?: boolean; canBookConsultations?: boolean;
+  hasActiveSubscription: boolean;
+  provider: string | null;
+  planCode: string | null;
+  isTrial?: boolean;
+  isLifetime?: boolean;
+  canBookConsultations?: boolean;
 }): boolean {
-  return subscription.canBookConsultations ?? (subscription.hasActiveSubscription && !subscription.isTrial && !subscription.isLifetime && subscription.planCode === "THREE_MONTHS");
+  return (
+    subscription.canBookConsultations ??
+    (subscription.hasActiveSubscription &&
+      !subscription.isTrial &&
+      !subscription.isLifetime &&
+      subscription.planCode === "THREE_MONTHS")
+  );
 }
-export async function requireConsultationBookingSubscriptionAccess(input: { userId: string; now?: Date }): Promise<void> {
+export async function requireConsultationBookingSubscriptionAccess(input: {
+  userId: string;
+  now?: Date;
+}): Promise<void> {
   const rights = await getCynologistEntitlements(input.userId, input.now);
   if (rights.canBookConsultations) return;
   const subscription = await getAppSubscriptionAccess(input.userId, input.now);
@@ -437,6 +533,8 @@ export async function confirmBookingByTrainer(
   actorRole: AuthRole,
   bookingId: string,
 ): Promise<void> {
+  // Enforce staff RBAC before any booking lookup or side effect.
+  if (actorRole !== "TRAINER" && actorRole !== "ADMIN") throw new ConsultationForbiddenError();
   const b = await prisma.consultationBooking.findUnique({
     where: { id: bookingId },
     include: { cynologist: true, slot: true },
@@ -483,6 +581,8 @@ export async function rejectBookingByTrainer(
   bookingId: string,
   reason?: string,
 ): Promise<void> {
+  // Enforce staff RBAC before any booking lookup or side effect.
+  if (actorRole !== "TRAINER" && actorRole !== "ADMIN") throw new ConsultationForbiddenError();
   const b = await prisma.consultationBooking.findUnique({
     where: { id: bookingId },
     include: { cynologist: true, slot: true },
@@ -548,6 +648,8 @@ export async function completeBookingByTrainer(
   actorRole: AuthRole,
   bookingId: string,
 ): Promise<void> {
+  // Enforce staff RBAC before any booking lookup or side effect.
+  if (actorRole !== "TRAINER" && actorRole !== "ADMIN") throw new ConsultationForbiddenError();
   const b = await prisma.consultationBooking.findUnique({
     where: { id: bookingId },
     include: { cynologist: true },
@@ -582,6 +684,8 @@ export async function markBookingNoShowByTrainer(
   actorRole: AuthRole,
   bookingId: string,
 ): Promise<void> {
+  // Enforce staff RBAC before any booking lookup or side effect.
+  if (actorRole !== "TRAINER" && actorRole !== "ADMIN") throw new ConsultationForbiddenError();
   const b = await prisma.consultationBooking.findUnique({
     where: { id: bookingId },
     include: { cynologist: true },
@@ -610,6 +714,13 @@ export async function markBookingNoShowByTrainer(
   await removeConsultationRemindJobSafe(bookingId);
 
   await enqueueConsultationEmail(bookingId, ConsultationEmailType.CLIENT_CONSULTATION_NO_SHOW);
+  await tryConsultationPush(
+    b.clientId,
+    "Кинолог отметил неявку",
+    "Консультация отмечена как несостоявшаяся из-за неявки. Подробности в «Мои консультации».",
+    "/consultations/my",
+    { bookingId, kind: "client-no-show" },
+  );
 }
 
 export async function cancelBookingByUser(clientId: string, bookingId: string): Promise<void> {
@@ -764,6 +875,13 @@ export async function processConsultationReminder(
       "/consultations/my",
       { bookingId, kind: "start-client" },
     );
+    await tryConsultationPush(
+      b.cynologist.user.id,
+      "Консультация начинается",
+      "Запланированная видеоконсультация начинается. Откройте встречу из панели кинолога.",
+      "/main-panel/consultations",
+      { bookingId, kind: "start-trainer" },
+    );
     return;
   }
 
@@ -789,7 +907,7 @@ export async function processConsultationReminder(
   await tryConsultationPush(
     b.cynologist.userId,
     "Скоро консультация",
-    `Напоминание: встреча с клиентом примерно в ${slotMsk} (МСК). Ссылка на Телемост в панели кинолога.`,
+    `Напоминание: встреча с клиентом примерно в ${slotMsk} (МСК). Видеовстреча доступна в панели кинолога.`,
     "/main-panel/consultations",
     { bookingId, kind: "remind-trainer" },
   );
@@ -935,6 +1053,8 @@ export async function listTrainerBookings(
   trainerUserId: string,
   actorRole: AuthRole,
 ): Promise<ConsultationBookingDto[]> {
+  // Enforce staff RBAC before any booking lookup or side effect.
+  if (actorRole !== "TRAINER" && actorRole !== "ADMIN") throw new ConsultationForbiddenError();
   const cyn = await prisma.consultationCynologist.findUnique({
     where: { userId: trainerUserId },
     select: { id: true },
@@ -946,7 +1066,7 @@ export async function listTrainerBookings(
     }
   }
 
-  const where = actorRole === "ADMIN" || actorRole === "MODERATOR" ? {} : { cynologistId: cyn!.id };
+  const where = actorRole === "ADMIN" ? {} : { cynologistId: cyn!.id };
 
   const rows = await prisma.consultationBooking.findMany({
     where,

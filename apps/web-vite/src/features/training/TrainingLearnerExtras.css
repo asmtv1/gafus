@@ -1,0 +1,103 @@
+/* WEB-3 Next Day accordion additions. Scoped to learner-only screens;
+ * shares the existing olive palette without changing global buttons. */
+.training-exam,
+.training-step-unlock {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  border: 1px solid #dce5dc;
+  border-radius: 16px;
+  padding: clamp(12px, 3vw, 18px);
+  background: #fff;
+  color: #352e2e;
+}
+.training-exam { display: grid; gap: 12px; margin: 16px 0; }
+.training-exam h5,
+.training-exam h6 { margin: 0; font-size: 1rem; line-height: 1.4; }
+.training-exam h5 { font-size: 1.15rem; }
+.training-exam form {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border-top: 1px solid #dce5dc;
+  padding-top: 14px;
+}
+.training-exam fieldset {
+  min-width: 0;
+  border: 1px solid #e5e9df;
+  border-radius: 12px;
+  padding: 12px;
+  margin: 0;
+}
+.training-exam legend { font-weight: 600; line-height: 1.4; padding: 0 4px; }
+.training-exam-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 0;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.training-exam-option input { margin-top: 5px; accent-color: #788b4d; }
+.training-exam textarea,
+.training-exam input[type="file"] {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border-radius: 10px;
+  border: 1px solid #b7c6ad;
+  padding: 10px;
+  font: inherit;
+  color: inherit;
+  background: #fff;
+}
+/* Legacy controls keep the old feature skin. Shared PrimaryButton,
+ * SecondaryButton and CaramelButton must inherit their global GAFUS skin. */
+.training-exam button:not(.button-secondary):not([data-gafus-shared-button]),
+.training-step-unlock button:not(.button-secondary):not([data-gafus-shared-button]) {
+  justify-self: start;
+  border: 0;
+  border-radius: 12px;
+  padding: 11px 17px;
+  background: #788b4d;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+/* Form layout only — no duplicated palette, font, radius or border. */
+.training-exam button[data-gafus-shared-button="primary"] {
+  justify-self: start;
+}
+.training-exam button:disabled,
+.training-step-unlock button:disabled { opacity: .5; cursor: not-allowed; }
+.training-exam [role="alert"],
+.training-step-unlock [role="alert"] { color: #a44235; }
+.training-step-unlock {
+  display: grid;
+  gap: 9px;
+  margin: 14px 0;
+  border-color: #e6d8ad;
+  background: #fffaeb;
+  color: #424c33;
+}
+.training-step-unlock p { margin: 0; }
+.training-step-unlock .note { font-size: .875rem; }
+.training-step-media iframe {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 12px;
+  background: #191919;
+}
+@media (max-width: 440px) {
+  .training-exam fieldset { padding: 10px; }
+  .training-exam button,
+  .training-step-unlock button { max-width: 100%; white-space: normal; }
+}

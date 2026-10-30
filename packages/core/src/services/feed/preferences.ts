@@ -116,6 +116,15 @@ export function createFeedPreferences({ db, enabled = () => false, now = () => n
       await auth(actorId, true); feedParse(feedIdSchema, reportId);
       const value = feedParse(feedModerationSchema, input);
       return db.$transaction(async tx => {
+        // The initial role check is not sufficient if staff access was revoked
+        // while the request waited. Hold the actor row and re-check the DB role
+        // in the same transaction as the moderation write.
+        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${actorId} FOR NO KEY UPDATE`;
+        const actor = await tx.user.findUnique({
+          where: { id: actorId }, select: { role: true },
+        });
+        if (!actor || !["ADMIN", "MODERATOR"].includes(actor.role))
+          throw new FeedError("FORBIDDEN", undefined, 403);
         const target = await tx.feedReport.findUnique({ where: { id: reportId } });
         if (!target) throw new FeedError("NOT_FOUND", undefined, 404);
         // Reports and moderation always lock the post before the report.
@@ -123,6 +132,12 @@ export function createFeedPreferences({ db, enabled = () => false, now = () => n
         await tx.$queryRaw`SELECT "id" FROM "FeedReport" WHERE "id" = ${reportId} FOR UPDATE`;
         const report = await tx.feedReport.findUnique({ where: { id: reportId } });
         if (!report) throw new FeedError("NOT_FOUND", undefined, 404);
+        // Duplicate transport retries must not create duplicate audit actions
+        // or repeat content/author mutations. Restores and explicit changes
+        // remain possible even when a report was already resolved.
+        if (report.status === "resolved" && report.resolution === value.action &&
+            report.resolutionReason === value.reason)
+          return { id: reportId };
         if (["hide", "delete", "restore"].includes(value.action)) {
           const data = { moderationState: value.action === "restore" ? "visible" : value.action === "hide" ? "hidden" : "removed", moderationReason: value.action === "restore" ? null : value.reason, moderatedAt: now() };
           const result = report.targetType === "post"

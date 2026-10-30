@@ -51,14 +51,20 @@ import { TourTarget, useTourTargets } from "@/shared/lib/tour-targets";
 import { Button, Input } from "@/shared/components/ui";
 import { TexturedSafeAreaView } from "@/shared/components";
 import { trackEvent } from "@/shared/lib/analytics";
-import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
+import {
+  petsQueryOptions, petListForActor, verifiedPetsActor, isCurrentPetsActor,
+  type PetsReadActor,
+} from "@/shared/lib/api/profileTabQueries";
 import { petsApi, type Pet, type PetDocument } from "@/shared/lib/api/pets";
 import { PetProfileVisibility } from "@/features/pets/PetProfileVisibility";
 import { PetWeightSection } from "@/features/pets/PetWeightSection";
 import { PetDocumentsList } from "@/features/pets/PetDocumentsList";
 import { PetVetVisitShortcut } from "@/features/pets/PetVetVisits";
+import { PendingPreventionNotice } from "@/features/pets/PendingPreventionNotice";
+import { PendingPreventionReadStatus } from "@/features/pets/PendingPreventionReadStatus";
+import { usePreventionOfflineSave } from "@/features/pets/usePreventionOfflineSave";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
-import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
+import { useAuthStore } from "@/shared/stores/authStore";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import type {
@@ -601,12 +607,17 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
       <View style={styles.documentsSection}>
         <View style={styles.documentsHeader}>
           <View style={styles.documentHeading}>
-            <Image source={petDocumentsIcon} style={styles.documentSectionIcon} contentFit="contain" />
+            <Image
+              source={petDocumentsIcon}
+              style={styles.documentSectionIcon}
+              contentFit="contain"
+            />
             <View style={styles.documentsTitleWrap}>
               <Text style={styles.documentsTitle}>Документы</Text>
               {!isLoading && !isError && documents.length > 0 && (
                 <Text style={styles.documentHint}>
-                  {documents.length} {declOfNum(documents.length, ["документ", "документа", "документов"])}
+                  {documents.length}{" "}
+                  {declOfNum(documents.length, ["документ", "документа", "документов"])}
                 </Text>
               )}
             </View>
@@ -635,9 +646,7 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
             <MaterialCommunityIcons name="file-document-outline" size={24} color="#8A957A" />
             <View style={styles.documentEmptyContent}>
               <Text style={styles.documentEmptyTitle}>Документов пока нет</Text>
-              <Text style={styles.documentHint}>
-                Добавьте фото ветпаспорта или справку.
-              </Text>
+              <Text style={styles.documentHint}>Добавьте фото ветпаспорта или справку.</Text>
             </View>
           </View>
         )}
@@ -887,8 +896,28 @@ interface PetPreventionSectionProps {
 function PetPreventionSection({ pet }: PetPreventionSectionProps) {
   const queryClient = useQueryClient();
   const isOffline = useIsOffline();
-  const addToQueue = usePreventionSyncStore((state) => state.addToQueue);
   const [showModal, setShowModal] = useState(false);
+  // A verified full login can rotate authEpoch without changing user.id.
+  // Subscribing to the fresh profile revision re-runs the focus read in that case.
+  const verifiedProfile = useAuthStore((state) => state.user);
+  const principalId = verifiedProfile?.id ?? null;
+  const {
+    localPending,
+    pendingReadStatus,
+    isSaving: isOfflineSaving,
+    refreshPending,
+    save: saveOffline,
+    activate,
+    deactivate,
+  } = usePreventionOfflineSave(pet.id, principalId);
+  useFocusEffect(
+    useCallback(() => {
+      activate();
+      void refreshPending();
+      return deactivate;
+    }, [activate, deactivate, refreshPending, verifiedProfile]),
+  );
+
   const [editingEntry, setEditingEntry] = useState<PetPreventionEntry | null>(null);
   const [type, setType] = useState<PetPreventionType>("VACCINATION");
   const [performedAt, setPerformedAt] = useState(new Date().toISOString().split("T")[0]);
@@ -1019,18 +1048,34 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
       return;
     }
     if (isOffline) {
-      addToQueue(pet.id, payload);
-      queryClient.invalidateQueries({ queryKey: ["petPrevention", pet.id] });
-      hapticFeedback.success();
-      setShowModal(false);
-      resetForm();
+      void saveOffline(payload, {
+        onSaved: () => {
+          hapticFeedback.success();
+          setShowModal(false);
+          resetForm();
+          Alert.alert(
+            "Сохранено на устройстве",
+            "Запись пока не отправлена на сервер: безопасная синхронизация ещё не включена.",
+          );
+        },
+        onFailed: (error) => {
+          reportClientError(error, {
+            issueKey: "PreventionFreshV2",
+            keys: { operation: "durable_offline_enqueue" },
+          });
+          Alert.alert(
+            "Результат сохранения не подтверждён",
+            "Не удалось подтвердить запись на устройстве. Не создавайте дубликат, проверьте сохранённые записи перед повтором.",
+          );
+        },
+      });
       return;
     }
     addMutation.mutate(payload);
   };
 
   const entries = data?.data ?? [];
-  const saving = addMutation.isPending || updateMutation.isPending;
+  const saving = isOfflineSaving || addMutation.isPending || updateMutation.isPending;
 
   return (
     <TourTarget id="pet-prevention-section">
@@ -1057,13 +1102,22 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
           />
         </View>
 
+        <PendingPreventionNotice entries={localPending} />
+        <PendingPreventionReadStatus status={pendingReadStatus} />
         {isLoading ? <Text style={styles.documentHint}>Загрузка записей...</Text> : null}
         {isError ? (
           <Text style={styles.documentError}>Не удалось загрузить записи о процедурах</Text>
         ) : null}
-        {!isLoading && !isError && entries.length === 0 ? (
+        {!isLoading &&
+        !isError &&
+        pendingReadStatus === "READY" &&
+        entries.length === 0 &&
+        localPending.length === 0 ? (
           <View style={styles.sectionEmptyState}>
-            <Text style={styles.sectionEmptyText}>Записей пока нет</Text>
+            <Text style={styles.sectionEmptyText}>В текущей сессии записей пока нет</Text>
+            <Text style={styles.documentHint}>
+              Непереданные записи прошлых входов хранятся отдельно и не переносятся автоматически.
+            </Text>
           </View>
         ) : null}
 
@@ -1076,7 +1130,8 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
               >
                 <View style={styles.preventionItemDetails}>
                   <Text style={styles.preventionItemTitle}>
-                    {PREVENTION_TYPES.find((item) => item.value === entry.type)?.label ?? entry.type}
+                    {PREVENTION_TYPES.find((item) => item.value === entry.type)?.label ??
+                      entry.type}
                   </Text>
                   <Text style={styles.preventionItemMeta}>
                     Дата: {new Date(entry.performedAt).toLocaleDateString("ru-RU")}
@@ -1126,6 +1181,7 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
           animationType="slide"
           transparent
           onRequestClose={() => {
+            if (saving) return;
             setShowModal(false);
             resetForm();
           }}
@@ -1137,6 +1193,7 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
             <Pressable
               style={styles.preventionModalDismiss}
               onPress={() => {
+                if (saving) return;
                 setShowModal(false);
                 resetForm();
               }}
@@ -1283,9 +1340,11 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
                     verticalPadding={14}
                     borderRadius={10}
                     onPress={() => {
+                      if (saving) return;
                       setShowModal(false);
                       resetForm();
                     }}
+                    disabled={saving}
                   />
                   <Button
                     label={saving ? "Сохранение..." : "Сохранить"}
@@ -1313,6 +1372,32 @@ function PetPreventionSection({ pet }: PetPreventionSectionProps) {
 }
 
 export default function PetsTabScreen() {
+  const ownerId = useAuthStore((s) =>
+    s.isAuthenticated && !s.isLoading ? (s.user?.id ?? null) : null,
+  );
+  const verified = verifiedPetsActor();
+  const actor = ownerId && verified?.ownerId === ownerId ? verified : null;
+  const queryClient = useQueryClient();
+  const actorKey = actor ? `${actor.ownerId}:${actor.authEpoch}` : "guest";
+  const previousActor = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = previousActor.current;
+    previousActor.current = actorKey;
+    if (previous !== null && previous !== actorKey) {
+      // One shared ["pets"] query is consumed by Tour, prefetch and optimistic writers.
+      // Drop any old in-flight/cache snapshot before the next actor read.
+      void queryClient.resetQueries({ queryKey: petsQueryOptions.queryKey, exact: true });
+    }
+  }, [actorKey, queryClient]);
+  if (!actor) return (
+    <TexturedSafeAreaView style={styles.safeArea} edges={[]}>
+      <Text accessibilityRole="alert">Для просмотра питомцев войдите в аккаунт.</Text>
+    </TexturedSafeAreaView>
+  );
+  return <ActorPetsTabScreen key={`${actor.ownerId}:${actor.authEpoch}`} actor={actor} />;
+}
+
+function ActorPetsTabScreen({actor}: {actor: PetsReadActor}) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { measureTarget } = useTourTargets();
@@ -1321,9 +1406,32 @@ export default function PetsTabScreen() {
   const scrollLayoutHeightRef = useRef(0);
   const tourIsActive = useMobileOnboardingTourStore((s) => s.isActive);
   const tourStepId = useMobileOnboardingTourStore((s) => s.currentStepId);
-  const { data: petsData, refetch: refetchPets } = useQuery(petsQueryOptions);
-  useFocusEffect(useCallback(() => { void refetchPets(); }, [refetchPets]));
-  const pets = petsData?.data || [];
+  const { data: petsData, refetch: refetchPets, isPending: isPetsPending,
+    isError: isPetsError } = useQuery({ ...petsQueryOptions, enabled: isCurrentPetsActor(actor),
+  });
+  const petsRefetchFlight = useRef(false);
+  // An old confirmation or a delayed DELETE ACK must not mutate another session.
+  const deleteScreenLive = useRef(true);
+  const deleteInFlight = useRef(false);
+  useEffect(() => {
+    deleteScreenLive.current = true;
+    return () => { deleteScreenLive.current = false; };
+  }, []);
+  const currentDeleteActor = (captured: PetsReadActor) =>
+    deleteScreenLive.current && isCurrentPetsActor(captured);
+  const refetchCurrentPets = useCallback(() => {
+    if (petsRefetchFlight.current || !isCurrentPetsActor(actor)) return;
+    if (queryClient.getQueryState(petsQueryOptions.queryKey)?.fetchStatus === "fetching") return;
+    petsRefetchFlight.current = true;
+    void refetchPets({ cancelRefetch: false }).finally(() => {
+      petsRefetchFlight.current = false;
+    });
+  }, [actor, queryClient, refetchPets]);
+  useFocusEffect(useCallback(() => { refetchCurrentPets(); }, [refetchCurrentPets]));
+  const verifiedPets = petListForActor(petsData, isCurrentPetsActor(actor) ? actor : null);
+  const pets = verifiedPets ?? [];
+  const showPetsError = isPetsError && isCurrentPetsActor(actor);
+  const showPetsLoading = !showPetsError && (isPetsPending || verifiedPets === null);
   const [expandedPetIds, setExpandedPetIds] = useState<string[]>([]);
   const preventionSummaries = useQueries({
     queries: pets.map((pet) => ({
@@ -1348,16 +1456,30 @@ export default function PetsTabScreen() {
   }, []);
 
   const deleteMutation = useMutation({
-    mutationFn: petsApi.delete,
-    onSuccess: () => {
+    mutationFn: ({ id, captured }: { id: string; captured: PetsReadActor }) => {
+      if (!currentDeleteActor(captured))
+        return Promise.resolve({ success: false, code: "SESSION_CHANGED" });
+      return petsApi.delete(id);
+    },
+    onSuccess: (result, variables) => {
+      if (!currentDeleteActor(variables.captured)) return;
+      if (!result.success) {
+        trackPetsClick("pet-delete-fail");
+        // Server error text may contain another owner's private details.
+        Alert.alert("Ошибка", "Не удалось удалить питомца. Проверьте список перед повтором.");
+        return;
+      }
       trackPetsClick("pet-delete-success");
-      queryClient.invalidateQueries({ queryKey: ["pets"] });
-      hapticFeedback.success();
+      void queryClient.invalidateQueries({ queryKey: ["pets"] });
+      void hapticFeedback.success();
     },
-    onError: (error) => {
+    onError: (_error, variables) => {
+      if (!currentDeleteActor(variables.captured)) return;
       trackPetsClick("pet-delete-fail");
-      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось удалить питомца");
+      // Lost DELETE ACK is uncertain: do not encourage an immediate duplicate.
+      Alert.alert("Ошибка", "Не удалось подтвердить удаление. Проверьте список питомцев.");
     },
+    onSettled: () => { deleteInFlight.current = false; },
   });
 
   const petPhotoUploadMutation = useMutation({
@@ -1396,13 +1518,18 @@ export default function PetsTabScreen() {
   };
 
   const handleDeletePet = (pet: Pet) => {
+    if (!currentDeleteActor(actor) || deleteInFlight.current) return;
     trackPetsClick("pet-delete-click");
     Alert.alert("Удалить питомца", `Вы уверены, что хотите удалить ${pet.name}?`, [
       { text: "Отмена", style: "cancel" },
       {
         text: "Удалить",
         style: "destructive",
-        onPress: () => deleteMutation.mutate(pet.id),
+        onPress: () => {
+          if (!currentDeleteActor(actor) || deleteInFlight.current) return;
+          deleteInFlight.current = true;
+          deleteMutation.mutate({ id: pet.id, captured: actor });
+        },
       },
     ]);
   };
@@ -1534,21 +1661,247 @@ export default function PetsTabScreen() {
           accessibilityLabel="Питомцы. Здоровье, документы и важные записи питомцев"
         />
         <View style={styles.petsContent}>
-        {pets.length === 0 ? (
-          <View style={styles.emptyStateWrap}>
-            <View style={styles.emptyCard}>
-              <Image
-                source={require("../../../assets/images/pets-empty.webp")}
-                style={styles.emptyIcon}
-                contentFit="contain"
-                accessible={false}
-              />
-              <Text style={styles.noPets}>Питомцы пока не добавлены</Text>
-              <Text style={styles.emptyStateHint}>
-                Добавьте питомца, чтобы записывать прививки, ставить напоминания и хранить документы
-                по вашему питомцу.
-              </Text>
+          {showPetsLoading ? (
+            <View style={styles.emptyStateWrap}>
+              <Text accessibilityRole="alert">Загружаем питомцев…</Text>
             </View>
+          ) : showPetsError ? (
+            <View style={styles.emptyStateWrap}>
+              <Text accessibilityRole="alert">Не удалось загрузить список питомцев.</Text>
+              <Button label="Повторить загрузку питомцев" onPress={refetchCurrentPets} />
+            </View>
+          ) : pets.length === 0 ? (
+            <View style={styles.emptyStateWrap}>
+              <View style={styles.emptyCard}>
+                <Image
+                  source={require("../../../assets/images/pets-empty.webp")}
+                  style={styles.emptyIcon}
+                  contentFit="contain"
+                  accessible={false}
+                />
+                <Text style={styles.noPets}>Питомцы пока не добавлены</Text>
+                <Text style={styles.emptyStateHint}>
+                  Добавьте питомца, чтобы записывать прививки, ставить напоминания и хранить
+                  документы по вашему питомцу.
+                </Text>
+              </View>
+              <TourTarget id="pets-add-button">
+                <Button
+                  label="Добавить питомца"
+                  style={styles.addPetButton}
+                  onPress={() => {
+                    trackPetsClick("pet-add-open");
+                    router.push({ pathname: "/pets/add" });
+                  }}
+                />
+              </TourTarget>
+            </View>
+          ) : (
+            <View style={styles.petsList}>
+              {pets.map((pet, index) => {
+                const isExpanded =
+                  expandedPetIds.includes(pet.id) ||
+                  (index === 0 &&
+                    tourIsActive &&
+                    (tourStepId === "prevention" || tourStepId === "documents"));
+                const age = getAgeWithMonths(pet.birthDate);
+                const ageLabel = age
+                  ? `${age.years ? `${age.years} ${declOfNum(age.years, ["год", "года", "лет"])} ` : ""}${age.months ? `${age.months} ${declOfNum(age.months, ["месяц", "месяца", "месяцев"])}` : ""}`.trim()
+                  : null;
+                return (
+                  <View key={pet.id} style={styles.petItem}>
+                    <LinearGradient
+                      colors={pet.type === "CAT" ? ["#F4D6C9", "#FFFAF0"] : ["#E1EACB", "#FFFAF0"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0.55 }}
+                      style={styles.petMainInfo}
+                    >
+                      <Pressable
+                        onPress={() => pickImageAndUploadPetPhoto(pet.id)}
+                        disabled={petPhotoUploadMutation.isPending}
+                        style={styles.petAvatarPressable}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Изменить фотографию питомца ${pet.name}`}
+                      >
+                        {pet.photoUrl ? (
+                          <Image
+                            source={{ uri: pet.photoUrl }}
+                            style={styles.petAvatar}
+                            contentFit="cover"
+                          />
+                        ) : (
+                          <Image
+                            source={pet.type === "CAT" ? petCatAvatarImage : petDogAvatarImage}
+                            style={styles.petAvatar}
+                            contentFit="cover"
+                            contentPosition="center"
+                          />
+                        )}
+                        <View style={styles.petAvatarEditBadge}>
+                          <MaterialCommunityIcons name="pencil-outline" size={14} color="#F6F0DF" />
+                        </View>
+                      </Pressable>
+                      <View style={styles.petInfo}>
+                        <View style={styles.petHeroTop}>
+                          <Text
+                            style={[styles.petSpecies, pet.type === "CAT" && styles.petSpeciesCat]}
+                          >
+                            {getPetTypeLabel(pet.type)}
+                          </Text>
+                          <Pressable
+                            onPress={() =>
+                              setExpandedPetIds((ids) =>
+                                ids.includes(pet.id)
+                                  ? ids.filter((id) => id !== pet.id)
+                                  : [...ids, pet.id],
+                              )
+                            }
+                            accessibilityRole="button"
+                            accessibilityLabel={`${isExpanded ? "Свернуть" : "Развернуть"} карточку питомца ${pet.name}`}
+                            accessibilityState={{ expanded: isExpanded }}
+                            style={styles.petToggle}
+                          >
+                            <MaterialCommunityIcons
+                              name={isExpanded ? "chevron-up" : "chevron-down"}
+                              size={25}
+                              color="#40532E"
+                            />
+                          </Pressable>
+                        </View>
+                        <Text style={styles.petName} numberOfLines={1}>
+                          {pet.name}
+                        </Text>
+                        <Text style={styles.petBreed} numberOfLines={1}>
+                          {pet.breed || "Порода не указана"}
+                        </Text>
+                        <View style={styles.petFacts}>
+                          {ageLabel ? (
+                            <View style={styles.petFact}>
+                              <MaterialCommunityIcons
+                                name="calendar-month-outline"
+                                size={14}
+                                color="#53653A"
+                              />
+                              <Text style={styles.petFactText}>{ageLabel}</Text>
+                            </View>
+                          ) : null}
+                          {pet.weightKg != null ? (
+                            <View style={styles.petFact}>
+                              <Image
+                                source={petWeightIcon}
+                                style={styles.factIcon}
+                                contentFit="contain"
+                              />
+                              <Text style={styles.petFactText}>{pet.weightKg} кг</Text>
+                            </View>
+                          ) : null}
+                          {pet.heightCm != null ? (
+                            <View style={styles.petFact}>
+                              <MaterialCommunityIcons
+                                name="arrow-top-right"
+                                size={14}
+                                color="#53653A"
+                              />
+                              <Text style={styles.petFactText}>{pet.heightCm} см</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </View>
+                    </LinearGradient>
+                    <PetProfileVisibility pet={pet} />
+                    {!isExpanded ? (
+                      <Pressable
+                        style={styles.petCompactFoot}
+                        onPress={() => setExpandedPetIds((ids) => [...ids, pet.id])}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Подробнее о питомце ${pet.name}`}
+                      >
+                        <Text style={styles.petCompactMeta}>
+                          Процедуры · {preventionSummaries[index]?.data?.data?.length ?? "…"}
+                          {"   "}
+                          Документы · {documentSummaries[index]?.data?.data?.length ?? "…"}
+                        </Text>
+                        <Text style={styles.petCompactMore}>Подробнее</Text>
+                      </Pressable>
+                    ) : (
+                      <View style={styles.petExpandedContent}>
+                        {pet.neckGirthCm || pet.muzzleGirthCm || pet.bellyGirthCm || pet.notes ? (
+                          <View style={styles.petExtra}>
+                            <Text style={styles.petExtraTitle}>Параметры и заметки</Text>
+                            {pet.neckGirthCm ? (
+                              <Text style={styles.petDetail}>Обхват шеи: {pet.neckGirthCm} см</Text>
+                            ) : null}
+                            {pet.muzzleGirthCm ? (
+                              <Text style={styles.petDetail}>
+                                Обхват морды: {pet.muzzleGirthCm} см
+                              </Text>
+                            ) : null}
+                            {pet.bellyGirthCm ? (
+                              <Text style={styles.petDetail}>
+                                Обхват живота: {pet.bellyGirthCm} см
+                              </Text>
+                            ) : null}
+                            {pet.notes ? (
+                              <Text style={styles.petNotes}>
+                                Заметки: {pet.notes}
+                              </Text>
+                            ) : null}
+                          </View>
+                        ) : null}
+                        <View style={styles.petCardActions}>
+                          <View style={styles.petManageActions}>
+                            <Button
+                              label="Изменить данные"
+                              variant="primary"
+                              flex={1}
+                              fullWidth={false}
+                              height={44}
+                              fontSize={11}
+                              lineHeight={15}
+                              fontFamily={FONTS.montserrat}
+                              fontWeight="600"
+                              horizontalPadding={2}
+                              verticalPadding={0}
+                              borderRadius={14}
+                              icon="pencil-outline"
+                              animatedPress
+                              onPress={() => {
+                                trackPetsClick("pet-edit-open");
+                                handleEditPet(pet);
+                              }}
+                            />
+                            <Button
+                              label="Удалить питомца"
+                              variant="secondary"
+                              flex={1}
+                              fullWidth={false}
+                              height={44}
+                              fontSize={11}
+                              lineHeight={15}
+                              fontFamily={FONTS.montserrat}
+                              fontWeight="600"
+                              horizontalPadding={2}
+                              verticalPadding={0}
+                              borderRadius={14}
+                              icon="trash-can-outline"
+                              animatedPress
+                              onPress={() => handleDeletePet(pet)}
+                              accessibilityHint="Открывает подтверждение удаления питомца"
+                            />
+                          </View>
+                          <PetPreventionSection pet={pet} />
+                          <PetVetVisitShortcut petId={pet.id} />
+                          <PetWeightSection petId={pet.id} />
+                          <PetDocumentsSection pet={pet} />
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          )}
+          {pets.length > 0 ? (
             <TourTarget id="pets-add-button">
               <Button
                 label="Добавить питомца"
@@ -1559,174 +1912,7 @@ export default function PetsTabScreen() {
                 }}
               />
             </TourTarget>
-          </View>
-        ) : (
-          <View style={styles.petsList}>
-            {pets.map((pet, index) => {
-              const isExpanded = expandedPetIds.includes(pet.id) ||
-                (index === 0 && tourIsActive && (tourStepId === "prevention" || tourStepId === "documents"));
-              const age = getAgeWithMonths(pet.birthDate);
-              const ageLabel = age
-                ? `${age.years ? `${age.years} ${declOfNum(age.years, ["год", "года", "лет"])} ` : ""}${age.months ? `${age.months} ${declOfNum(age.months, ["месяц", "месяца", "месяцев"])}` : ""}`.trim()
-                : null;
-              return (<View key={pet.id} style={styles.petItem}>
-                <LinearGradient
-                  colors={pet.type === "CAT" ? ["#F4D6C9", "#FFFAF0"] : ["#E1EACB", "#FFFAF0"]}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.55 }}
-                  style={styles.petMainInfo}
-                >
-                  <Pressable
-                    onPress={() => pickImageAndUploadPetPhoto(pet.id)}
-                    disabled={petPhotoUploadMutation.isPending}
-                    style={styles.petAvatarPressable}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Изменить фотографию питомца ${pet.name}`}
-                  >
-                    {pet.photoUrl ? (
-                      <Image
-                        source={{ uri: pet.photoUrl }}
-                        style={styles.petAvatar}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <Image
-                        source={pet.type === "CAT" ? petCatAvatarImage : petDogAvatarImage}
-                        style={styles.petAvatar}
-                        contentFit="cover"
-                        contentPosition="center"
-                      />
-                    )}
-                    <View style={styles.petAvatarEditBadge}>
-                      <MaterialCommunityIcons name="pencil-outline" size={14} color="#F6F0DF" />
-                    </View>
-                  </Pressable>
-                  <View style={styles.petInfo}>
-                    <View style={styles.petHeroTop}>
-                      <Text style={[styles.petSpecies, pet.type === "CAT" && styles.petSpeciesCat]}>
-                        {getPetTypeLabel(pet.type)}
-                      </Text>
-                      <Pressable
-                        onPress={() => setExpandedPetIds((ids) =>
-                          ids.includes(pet.id)
-                            ? ids.filter((id) => id !== pet.id)
-                            : [...ids, pet.id],
-                        )}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${isExpanded ? "Свернуть" : "Развернуть"} карточку питомца ${pet.name}`}
-                        accessibilityState={{ expanded: isExpanded }}
-                        style={styles.petToggle}
-                      >
-                        <MaterialCommunityIcons name={isExpanded ? "chevron-up" : "chevron-down"} size={25} color="#40532E" />
-                      </Pressable>
-                    </View>
-                    <Text style={styles.petName} numberOfLines={1}>{pet.name}</Text>
-                    <Text style={styles.petBreed} numberOfLines={1}>{pet.breed || "Порода не указана"}</Text>
-                    <View style={styles.petFacts}>
-                      {ageLabel ? <View style={styles.petFact}><MaterialCommunityIcons name="calendar-month-outline" size={14} color="#53653A" /><Text style={styles.petFactText}>{ageLabel}</Text></View> : null}
-                      {pet.weightKg != null ? <View style={styles.petFact}><Image source={petWeightIcon} style={styles.factIcon} contentFit="contain" /><Text style={styles.petFactText}>{pet.weightKg} кг</Text></View> : null}
-                      {pet.heightCm != null ? <View style={styles.petFact}><MaterialCommunityIcons name="arrow-top-right" size={14} color="#53653A" /><Text style={styles.petFactText}>{pet.heightCm} см</Text></View> : null}
-                    </View>
-                  </View>
-                </LinearGradient>
-                <PetProfileVisibility pet={pet} />
-                {!isExpanded ? (
-                  <Pressable
-                    style={styles.petCompactFoot}
-                    onPress={() => setExpandedPetIds((ids) => [...ids, pet.id])}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Подробнее о питомце ${pet.name}`}
-                  >
-                    <Text style={styles.petCompactMeta}>
-                      Процедуры · {preventionSummaries[index]?.data?.data?.length ?? "…"}{"   "}
-                      Документы · {documentSummaries[index]?.data?.data?.length ?? "…"}
-                    </Text>
-                    <Text style={styles.petCompactMore}>Подробнее</Text>
-                  </Pressable>
-                ) : (
-                <View style={styles.petExpandedContent}>
-                  {(pet.neckGirthCm || pet.muzzleGirthCm || pet.bellyGirthCm || pet.notes) ? (
-                  <View style={styles.petExtra}>
-                    <Text style={styles.petExtraTitle}>Параметры и заметки</Text>
-                    {pet.neckGirthCm ? (
-                      <Text style={styles.petDetail}>Обхват шеи: {pet.neckGirthCm} см</Text>
-                    ) : null}
-                    {pet.muzzleGirthCm ? (
-                      <Text style={styles.petDetail}>Обхват морды: {pet.muzzleGirthCm} см</Text>
-                    ) : null}
-                    {pet.bellyGirthCm ? (
-                      <Text style={styles.petDetail}>Обхват живота: {pet.bellyGirthCm} см</Text>
-                    ) : null}
-                    {pet.notes ? (
-                      <Text style={styles.petNotes} numberOfLines={2}>
-                        Заметки: {pet.notes}
-                      </Text>
-                    ) : null}
-                  </View>
-                  ) : null}
-                <View style={styles.petCardActions}>
-                  <View style={styles.petManageActions}>
-                    <Button
-                      label="Изменить данные"
-                      variant="primary"
-                      flex={1}
-                      fullWidth={false}
-                      height={44}
-                      fontSize={11}
-                      lineHeight={15}
-                      fontFamily={FONTS.montserrat}
-                      fontWeight="600"
-                      horizontalPadding={2}
-                      verticalPadding={0}
-                      borderRadius={14}
-                      icon="pencil-outline"
-                      animatedPress
-                      onPress={() => {
-                        trackPetsClick("pet-edit-open");
-                        handleEditPet(pet);
-                      }}
-                    />
-                    <Button
-                      label="Удалить питомца"
-                      variant="secondary"
-                      flex={1}
-                      fullWidth={false}
-                      height={44}
-                      fontSize={11}
-                      lineHeight={15}
-                      fontFamily={FONTS.montserrat}
-                      fontWeight="600"
-                      horizontalPadding={2}
-                      verticalPadding={0}
-                      borderRadius={14}
-                      icon="trash-can-outline"
-                      animatedPress
-                      onPress={() => handleDeletePet(pet)}
-                      accessibilityHint="Открывает подтверждение удаления питомца"
-                    />
-                  </View>
-                  <PetPreventionSection pet={pet} />
-                  <PetVetVisitShortcut petId={pet.id} />
-                  <PetWeightSection petId={pet.id} />
-                  <PetDocumentsSection pet={pet} />
-                </View>
-                </View>
-                )}
-              </View>);
-            })}
-          </View>
-        )}
-        {pets.length > 0 ? (
-          <TourTarget id="pets-add-button">
-            <Button
-              label="Добавить питомца"
-              style={styles.addPetButton}
-              onPress={() => {
-                trackPetsClick("pet-add-open");
-                router.push({ pathname: "/pets/add" });
-              }}
-            />
-          </TourTarget>
-        ) : null}
+          ) : null}
         </View>
       </ScrollView>
     </TexturedSafeAreaView>
@@ -1858,16 +2044,62 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 1,
   },
-  petHeroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 5 },
-  petSpecies: { overflow: "hidden", paddingHorizontal: 8, paddingVertical: 5, borderRadius: 20, backgroundColor: "#ECF0DA", color: "#466035", fontFamily: FONTS.montserratBold, fontSize: 10, textTransform: "uppercase" },
+  petHeroTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 5,
+  },
+  petSpecies: {
+    overflow: "hidden",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: "#ECF0DA",
+    color: "#466035",
+    fontFamily: FONTS.montserratBold,
+    fontSize: 10,
+    textTransform: "uppercase",
+  },
   petSpeciesCat: { backgroundColor: "#FAE6DD", color: "#8E533D" },
-  petToggle: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: "#D8DCC8", backgroundColor: "#FFFDF5", alignItems: "center", justifyContent: "center", shadowColor: "#3D3621", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.13, shadowRadius: 9, elevation: 2 },
+  petToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#D8DCC8",
+    backgroundColor: "#FFFDF5",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#3D3621",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.13,
+    shadowRadius: 9,
+    elevation: 2,
+  },
   petBreed: { fontSize: 11, lineHeight: 16, color: "#696354", fontFamily: FONTS.montserrat },
   petFacts: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 9 },
-  petFact: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 5, paddingVertical: 5, borderRadius: 8, backgroundColor: "#F0ECDC" },
+  petFact: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: "#F0ECDC",
+  },
   factIcon: { width: 14, height: 14 },
   petFactText: { fontSize: 10, color: "#3F4B31", fontFamily: FONTS.montserratBold },
-  petCompactFoot: { minHeight: 36, paddingHorizontal: 10, borderTopWidth: 1, borderTopColor: "#E8E2D2", flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#FFFDF7" },
+  petCompactFoot: {
+    minHeight: 36,
+    paddingHorizontal: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#E8E2D2",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFDF7",
+  },
   petCompactMeta: { fontSize: 10, color: "#5F6551", fontFamily: FONTS.montserrat },
   petCompactMore: { fontSize: 10, color: "#40592E", fontFamily: FONTS.montserratBold },
   petExpandedContent: { paddingHorizontal: 9, paddingTop: 11, paddingBottom: 12 },

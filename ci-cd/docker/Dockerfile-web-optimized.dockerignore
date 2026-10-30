@@ -1,0 +1,9 @@
+# Default deny. Runtime image contains only the compiled Vite app and Nginx configuration.
+**
+!apps
+!apps/web-vite
+!apps/web-vite/dist
+!apps/web-vite/dist/**
+!ci-cd
+!ci-cd/docker
+!ci-cd/docker/nginx-vite-refactor.conf

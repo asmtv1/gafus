@@ -4,10 +4,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useIsOffline } from "./useNetworkStatus";
 import { reportClientError } from "@/shared/lib/tracer";
 import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
+import { canDispatchOwnerlessLegacyOfflineQueue } from "@/shared/stores/legacyOfflineReplayQuarantine";
 
 /**
  * При появлении сети обрабатывает очередь записей профилактики (batch upsert по petId).
- * При 401 показывает «Проверьте авторизацию» и очищает очередь.
+ * При 401 показывает «Проверьте авторизацию», сохраняя неотправленные записи.
+ * При временной ошибке останавливает попытки до следующего reconnect.
  */
 export function usePreventionSyncOnReconnect(): void {
   const isOffline = useIsOffline();
@@ -16,6 +18,10 @@ export function usePreventionSyncOnReconnect(): void {
   const prevOffline = useRef(isOffline);
 
   useEffect(() => {
+    if (!canDispatchOwnerlessLegacyOfflineQueue()) {
+      prevOffline.current = isOffline;
+      return;
+    }
     if (prevOffline.current && !isOffline) {
       prevOffline.current = false;
       const run = async () => {
@@ -24,7 +30,7 @@ export function usePreventionSyncOnReconnect(): void {
           if (result === "ok") {
             queryClient.invalidateQueries({ queryKey: ["petPrevention"] });
           }
-          if (result === "done" || result === "unauthorized") {
+          if (result === "done" || result === "retry" || result === "unauthorized") {
             if (result === "unauthorized") {
               Alert.alert(
                 "Синхронизация",

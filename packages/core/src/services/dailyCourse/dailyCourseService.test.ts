@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   dailyCourseUserStepFindFirst: vi.fn(),
   dailyCourseUserStepUpdate: vi.fn(),
   dailyCourseUserStepFindMany: vi.fn(),
+  dailyCourseUserStepCreate: vi.fn(),
   dailyCourseUserTrainingUpdate: vi.fn(),
   stepFindMany: vi.fn(),
   transaction: vi.fn(),
@@ -103,6 +104,7 @@ describe("dailyCourseService", () => {
         dailyCourseUserStep: {
           findFirst: (...args: unknown[]) => mocks.dailyCourseUserStepFindFirst(...args),
           update: (...args: unknown[]) => mocks.dailyCourseUserStepUpdate(...args),
+          create: (...args: unknown[]) => mocks.dailyCourseUserStepCreate(...args),
           findMany: (...args: unknown[]) => mocks.dailyCourseUserStepFindMany(...args),
         },
       }),
@@ -515,6 +517,217 @@ describe("dailyCourseService", () => {
         },
       }),
     );
+  });
+
+  describe("GET day read-only contract: createIfMissing=false", () => {
+    beforeEach(() => {
+      // Simulate actual Prisma INSERT results, not undefined on the buggy path.
+      mocks.dailyCourseUserStepCreate.mockImplementation(
+        async ({ data }: { data: { bundleStepId: string } }) => ({
+          id: `synthetic-insert-${data.bundleStepId}`,
+          bundleStepId: data.bundleStepId,
+          status: "NOT_STARTED",
+          paused: false,
+          remainingSec: null,
+          updatedAt: new Date("2026-05-04T09:30:00.000Z"),
+        }),
+      );
+    });
+    const schedule = (userTrainings: { id: string }[]) => ({
+      id: "schedule-ro",
+      date: new Date("2026-05-04T00:00:00.000Z"),
+      bundle: {
+        id: "bundle-ro",
+        title: "No-write course",
+        description: "Content stays visible",
+        type: "daily_course",
+        stepLinks: [stepLink("TRAINING"), stepLink("PRACTICE")],
+      },
+      userTrainings,
+    });
+    const persisted = (bundleStepId: string, status = "COMPLETED") => ({
+      id: "persisted-user-step",
+      bundleStepId,
+      status,
+      paused: false,
+      remainingSec: null,
+      updatedAt: new Date("2026-05-04T09:00:00.000Z"),
+    });
+
+    it("RO01 existing training with one persisted step: missing step is virtual NOT_STARTED; zero writes", async () => {
+      mocks.dailyCourseScheduleFindFirst.mockResolvedValue(schedule([{ id: "training-existing" }]));
+      mocks.dailyCourseUserStepFindMany.mockResolvedValue([persisted("step-on-day-TRAINING")]);
+      const day = await getDailyCourseDayWithUserSteps("owner-A", "schedule-ro", {
+        createIfMissing: false,
+      });
+      expect(day).toMatchObject({
+        scheduleId: "schedule-ro",
+        trainingDayId: "bundle-ro",
+        steps: [
+          { id: "persisted-user-step", status: "COMPLETED", stepId: "step-TRAINING" },
+          {
+            id: "step-PRACTICE",
+            status: "NOT_STARTED",
+            stepId: "step-PRACTICE",
+            completedAt: null,
+            isPausedOnServer: false,
+          },
+        ],
+      });
+      expect(day?.steps[1]?.remainingSec).toBeNull();
+      expect(mocks.dailyCourseUserStepFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { dailyCourseUserTrainingId: "training-existing" },
+        }),
+      );
+      expect(mocks.transaction).not.toHaveBeenCalled();
+      expect(mocks.dailyCourseUserTrainingUpsert).not.toHaveBeenCalled();
+      expect(mocks.dailyCourseUserStepCreate).not.toHaveBeenCalled();
+    });
+    it("RO02 existing but empty training: all virtual NOT_STARTED; no transaction/step creation", async () => {
+      mocks.dailyCourseScheduleFindFirst.mockResolvedValue(schedule([{ id: "training-empty" }]));
+      mocks.dailyCourseUserStepFindMany.mockResolvedValue([]);
+      const day = await getDailyCourseDayWithUserSteps("owner-A", "schedule-ro", {
+        createIfMissing: false,
+      });
+      expect(day?.userStatus).toBe("NOT_STARTED");
+      expect(day?.steps).toHaveLength(2);
+      expect(day?.steps.map((x) => x.status)).toEqual(["NOT_STARTED", "NOT_STARTED"]);
+      expect(mocks.transaction).not.toHaveBeenCalled();
+      expect(mocks.dailyCourseUserStepCreate).not.toHaveBeenCalled();
+    });
+    it("RO03 no training: returns content with NOT_STARTED but never makes parent or progress", async () => {
+      mocks.dailyCourseScheduleFindFirst.mockResolvedValue(schedule([]));
+      const day = await getDailyCourseDayWithUserSteps("owner-A", "schedule-ro", {
+        createIfMissing: false,
+      });
+      expect(day?.steps).toHaveLength(2);
+      expect(day?.userStatus).toBe("NOT_STARTED");
+      expect(mocks.dailyCourseUserStepFindMany).not.toHaveBeenCalled();
+      expect(mocks.transaction).not.toHaveBeenCalled();
+      expect(mocks.dailyCourseUserTrainingUpsert).not.toHaveBeenCalled();
+      expect(mocks.dailyCourseUserStepCreate).not.toHaveBeenCalled();
+    });
+    it("RO04 unpublished/future/denied schedule: returns null, no reads of userSteps or writes", async () => {
+      mocks.dailyCourseScheduleFindFirst.mockResolvedValue(null);
+      await expect(
+        getDailyCourseDayWithUserSteps("owner-B", "forbidden", { createIfMissing: false }),
+      ).resolves.toBeNull();
+      expect(mocks.dailyCourseScheduleFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: "forbidden",
+            isPublished: true,
+            date: { lte: expect.any(Date) },
+          }),
+          select: expect.objectContaining({
+            userTrainings: { where: { userId: "owner-B" }, select: { id: true }, take: 1 },
+          }),
+        }),
+      );
+      expect(mocks.dailyCourseUserStepFindMany).not.toHaveBeenCalled();
+      expect(mocks.dailyCourseUserTrainingUpsert).not.toHaveBeenCalled();
+      expect(mocks.transaction).not.toHaveBeenCalled();
+    });
+    it("RO05 explicit init true, existing training: missing step still created for compatibility", async () => {
+      mocks.dailyCourseScheduleFindFirst.mockResolvedValue(schedule([{ id: "training-existing" }]));
+      mocks.dailyCourseUserStepFindMany.mockResolvedValue([persisted("step-on-day-TRAINING")]);
+      mocks.dailyCourseUserStepCreate.mockResolvedValue({
+        id: "created-user-step",
+        bundleStepId: "step-on-day-PRACTICE",
+        status: "NOT_STARTED",
+        paused: false,
+        remainingSec: null,
+        updatedAt: new Date("2026-05-04T09:30:00.000Z"),
+      });
+      const day = await getDailyCourseDayWithUserSteps("owner-A", "schedule-ro", {
+        createIfMissing: true,
+      });
+      expect(mocks.transaction).toHaveBeenCalledOnce();
+      expect(mocks.dailyCourseUserStepCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            dailyCourseUserTrainingId: "training-existing",
+            bundleStepId: "step-on-day-PRACTICE",
+            status: "NOT_STARTED",
+          },
+        }),
+      );
+      expect(day?.steps[1]).toMatchObject({ id: "created-user-step", status: "NOT_STARTED" });
+    });
+    it("RO06 explicit init true, absent training: creates training and missing steps", async () => {
+      mocks.dailyCourseScheduleFindFirst.mockResolvedValue(schedule([]));
+      mocks.dailyCourseUserStepFindMany.mockResolvedValue([]);
+      mocks.dailyCourseUserTrainingUpsert.mockResolvedValue({ id: "created-training" });
+      mocks.dailyCourseUserStepCreate.mockImplementation(
+        async ({ data }: { data: { bundleStepId: string } }) => ({
+          id: `created-${data.bundleStepId}`,
+          bundleStepId: data.bundleStepId,
+          status: "NOT_STARTED",
+          paused: false,
+          remainingSec: null,
+          updatedAt: new Date("2026-05-04T09:30:00.000Z"),
+        }),
+      );
+      const day = await getDailyCourseDayWithUserSteps("owner-A", "schedule-ro", {
+        createIfMissing: true,
+      });
+      expect(mocks.dailyCourseUserTrainingUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId_scheduleId: { userId: "owner-A", scheduleId: "schedule-ro" } },
+        }),
+      );
+      expect(mocks.dailyCourseUserStepCreate).toHaveBeenCalledTimes(2);
+      expect(day?.steps).toHaveLength(2);
+      expect(day?.steps.every((x) => x.id.startsWith("created-"))).toBe(true);
+    });
+    it("RO07 omitted Core init options also remains read-only", async () => {
+      mocks.dailyCourseScheduleFindFirst.mockResolvedValue(schedule([{ id: "training-existing" }]));
+      mocks.dailyCourseUserStepFindMany.mockResolvedValue([]);
+      const day = await getDailyCourseDayWithUserSteps("owner-A", "schedule-ro");
+      expect(day?.steps.map((step) => step.status)).toEqual(["NOT_STARTED", "NOT_STARTED"]);
+      expect(mocks.dailyCourseUserStepCreate).not.toHaveBeenCalled();
+      expect(mocks.transaction).not.toHaveBeenCalled();
+    });
+    it("RO11 real Core start operation still initializes missing training and step explicitly", async () => {
+      mocks.dailyCourseScheduleFindFirst.mockResolvedValue({
+        id: "schedule-ro",
+        bundle: {
+          stepLinks: [{ id: "step-on-day-TRAINING", step: { durationSec: 60 } }],
+        },
+      });
+      mocks.dailyCourseUserTrainingUpsert.mockResolvedValue({ id: "created-by-write" });
+      mocks.dailyCourseUserStepFindFirst.mockResolvedValue(null);
+      mocks.dailyCourseUserStepFindMany.mockResolvedValue([
+        {
+          bundleStepId: "step-on-day-TRAINING",
+          status: "IN_PROGRESS",
+        },
+      ]);
+      mocks.dailyCourseUserTrainingUpdate.mockResolvedValue({ id: "created-by-write" });
+      const result = await updateDailyCourseStepAndDay("owner-A", "schedule-ro", 0, {
+        type: "start",
+        remainingSec: 30,
+      });
+      expect(result).toEqual({ allCompleted: false, stepJustCompleted: false });
+      expect(mocks.transaction).toHaveBeenCalledOnce();
+      expect(mocks.dailyCourseUserTrainingUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: { userId: "owner-A", scheduleId: "schedule-ro", status: "NOT_STARTED" },
+        }),
+      );
+      expect(mocks.dailyCourseUserStepCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            dailyCourseUserTrainingId: "created-by-write",
+            bundleStepId: "step-on-day-TRAINING",
+            status: "IN_PROGRESS",
+            remainingSec: 30,
+          }),
+        }),
+      );
+      expect(mocks.dailyCourseUserTrainingUpdate).toHaveBeenCalledOnce();
+    });
   });
 });
 

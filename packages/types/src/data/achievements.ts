@@ -38,6 +38,23 @@ export interface AchievementData {
   version: string;
 }
 
+/**
+ * JSON representation returned by GET /api/v1/achievements.
+ *
+ * Core keeps Date values in the domain. Hono c.json serializes dates
+ * to ISO 8601 strings. For locked achievements the Core calculator
+ * supplies unlockedAt: undefined, so JSON omits that optional key;
+ * no null value is produced by the current calculator.
+ */
+export type AchievementWire = Omit<Achievement, "unlockedAt"> & {
+  unlockedAt?: string;
+};
+
+export type AchievementDataWire = Omit<AchievementData, "achievements" | "lastUpdated"> & {
+  achievements: AchievementWire[];
+  lastUpdated: string;
+};
+
 // Конфигурация для SWR
 export interface AchievementConfig {
   revalidateOnFocus: boolean;

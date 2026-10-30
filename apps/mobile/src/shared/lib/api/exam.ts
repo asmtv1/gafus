@@ -1,21 +1,8 @@
+import type { ExamResultWire } from "../../../../../../packages/types/src/data/exam";
 import { apiClient, apiClientMultipart, type ApiResponse } from "./client";
 
-export interface ExamResultData {
-  id: string;
-  testAnswers: Record<string, number> | null;
-  testScore: number | null;
-  testMaxScore: number | null;
-  videoReportUrl: string | null;
-  writtenFeedback: string | null;
-  overallScore: number | null;
-  isPassed: boolean | null;
-  trainerComment: string | null;
-  reviewedAt: string | null;
-  reviewedById: string | null;
-  reviewedBy: { username: string; profile: { fullName: string | null } | null } | null;
-  createdAt: string;
-  updatedAt: string;
-}
+// Preserve the existing Mobile export; the producer owns the JSON wire shape.
+export type ExamResultData = ExamResultWire;
 
 export interface SubmitExamParams {
   userStepId: string;

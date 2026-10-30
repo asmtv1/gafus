@@ -1,0 +1,40 @@
+/* Original Next Questions.module.css responsive catalog layout. Vite's older
+ * global 760px rule stacked each select in its own row; Next keeps the search
+ * full-width above two equal select fields until 360px. Scoped to /questions. */
+@media (max-width: 760px) and (min-width: 361px) {
+  .gafus-app .shell .next-questions-page .question-controls:has(.question-search-control) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .gafus-app .shell .next-questions-page .question-controls .question-search-control {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 360px) {
+  .gafus-app .shell .next-questions-page .question-controls:has(.question-search-control) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .gafus-app .shell .next-questions-page .question-controls .question-search-control {
+    grid-column: auto;
+  }
+}
+
+/* At <=600px the older generic `.heading` sets flex-direction:column while
+ * `.questionsHeading > div {flex:1 1 200px}` then makes the *height* 200px.
+ * Preserve Next's two-column wrapping intent without its 130px empty hole. */
+@media (max-width: 600px) {
+  .gafus-app .shell .next-questions-page .next-questions-heading {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .gafus-app .shell .next-questions-page .next-questions-heading > div {
+    flex: 1 1 200px;
+    min-width: 0;
+  }
+}

@@ -1,12 +1,11 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 import type { FeedCloudJob, FeedCloudInternalClient } from "@gafus/feed-cloud";
-import { createFeedCloudWorker } from "./worker.js";
+import { createFeedCloudWorker, type FeedMediaV2Metrics } from "./worker.js";
 import { sharpFeedEngine } from "./sharp-engine.js";
 import type { FeedCloudObjects } from "./objects.js";
 const execute = promisify(execFile);
@@ -16,7 +15,7 @@ function job(kind: FeedCloudJob["kind"] = "publish_photo"): FeedCloudJob {
     sourceKeys: ["posts/owner/post/incoming/upload/source.jpg"], targetKeys: [],
     leaseUntil: new Date(Date.now() + 120_000).toISOString(), sourceETag: '"source-etag"', sourceBytes: 1000 };
 }
-function setup(source: Uint8Array) {
+function setup(source: Uint8Array, onMetrics?: (metrics: FeedMediaV2Metrics) => void) {
   const written = new Map<string, { bytes: Uint8Array; type: string }>();
   const core: FeedCloudInternalClient = { claimJobs: vi.fn(async () => []),
     completeJob: vi.fn(async () => ({ accepted: true })), failJob: vi.fn(async () => ({ accepted: true })),
@@ -24,22 +23,43 @@ function setup(source: Uint8Array) {
   const objects: FeedCloudObjects = {
     download: vi.fn(async (_key, path, max, signal) => { signal.throwIfAborted(); if (source.byteLength > max) throw new Error("SOURCE_SIZE"); await writeFile(path, source); }),
     create: vi.fn(async (key, bytes, type, signal) => { signal.throwIfAborted(); written.set(key, { bytes, type }); }),
+    createFile: vi.fn(async (key, path, signal) => {
+      signal.throwIfAborted(); written.set(key, { bytes: await readFile(path), type: "video/mp4" });
+    }),
     delete: vi.fn(async () => undefined),
   };
-  return { core, objects, written, worker: createFeedCloudWorker({ core, objects, engine: sharpFeedEngine }) };
+  return { core, objects, written, worker: createFeedCloudWorker({ core, objects, engine: sharpFeedEngine, onMetrics }) };
 }
 describe("feed cloud processing / actual Sharp and FFmpeg", () => {
+  it("reports sanitized numeric time/byte/CPU metrics only after successful READY", async () => {
+    const source = await sharp({ create: { width: 360, height: 540,
+      channels: 3, background: "#112233" } }).jpeg().toBuffer();
+    const onMetrics = vi.fn();
+    const { worker, core } = setup(source, onMetrics);
+    expect(onMetrics).not.toHaveBeenCalled();
+    expect(await worker.process(job())).toEqual({ accepted: true });
+    expect(core.completeJob).toHaveBeenCalledOnce();
+    expect(onMetrics).toHaveBeenCalledWith(expect.objectContaining({
+      kind: "photo", attempt: 1, variantCount: 3,
+      outputBytes: expect.any(Number), sourceBytes: 1000,
+      processingMs: expect.any(Number), downloadMs: expect.any(Number),
+      uploadMs: expect.any(Number), coreVerificationMs: expect.any(Number),
+      totalMs: expect.any(Number), rssAtCompletionBytes: expect.any(Number),
+    }));
+    expect(JSON.stringify(onMetrics.mock.calls)).not.toContain("posts/");
+    expect(JSON.stringify(onMetrics.mock.calls)).not.toContain("source-etag");
+  });
   it("decodes, orients and strips photo metadata before publication", async () => {
     const source = await sharp({ create: { width: 800, height: 600, channels: 3, background: "#335533" } }).jpeg().withMetadata({ orientation: 6 }).toBuffer();
     const { core, written, worker } = setup(source);
     expect(await worker.process(job())).toEqual({ accepted: true });
-    expect(written.size).toBe(2);
-    const full = await sharp(written.get("posts/owner/post/attachments/media/full.webp")!.bytes).metadata();
+    expect(written.size).toBe(3);
+    const full = await sharp(written.get("media/v2/media/v1/image/l.webp")!.bytes).metadata();
     expect(full).toMatchObject({ width: 600, height: 800, format: "webp" });
     expect(full.exif).toBeUndefined(); expect(full.icc).toBeUndefined();
     expect(core.completeJob).toHaveBeenCalledWith("job", expect.any(String), expect.objectContaining({ width: 600, height: 800 }));
   });
-  it("starts both S3 variant writes together and waits for both before completing", async () => {
+  it("starts all three WebP uploads and waits for all before completing", async () => {
     const source = await sharp({ create: { width: 600, height: 480, channels: 3,
       background: "#445533" } }).png().toBuffer();
     const { worker, objects, core } = setup(source);
@@ -48,12 +68,15 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
       resolveWrites.push(resolve);
     }));
     const processing = worker.process(job());
-    await vi.waitFor(() => expect(objects.create).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(objects.create).toHaveBeenCalledTimes(3));
     expect(core.completeJob).not.toHaveBeenCalled();
     resolveWrites[0]!();
     await Promise.resolve();
     expect(core.completeJob).not.toHaveBeenCalled();
     resolveWrites[1]!();
+    await Promise.resolve();
+    expect(core.completeJob).not.toHaveBeenCalled();
+    resolveWrites[2]!();
     await expect(processing).resolves.toEqual({ accepted: true });
     expect(core.completeJob).toHaveBeenCalledOnce();
   });
@@ -63,17 +86,18 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
       background: "#445533" } }).png().toBuffer();
     const { worker, objects, core } = setup(source);
     let rejectFirst!: (error: Error) => void;
-    let resolveSecond!: () => void;
+    const pending: (() => void)[] = [];
     vi.mocked(objects.create)
       .mockImplementationOnce(() => new Promise<void>((_, reject) => { rejectFirst = reject; }))
-      .mockImplementationOnce(() => new Promise<void>(resolve => { resolveSecond = resolve; }));
+      .mockImplementationOnce(() => new Promise<void>(resolve => { pending.push(resolve); }))
+      .mockImplementationOnce(() => new Promise<void>(resolve => { pending.push(resolve); }));
     const processing = worker.process(job());
     const completion = expect(processing).rejects.toThrow("S3 rejected one variant");
-    await vi.waitFor(() => expect(objects.create).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(objects.create).toHaveBeenCalledTimes(3));
     rejectFirst(new Error("S3 rejected one variant"));
     await Promise.resolve();
     expect(core.failJob).not.toHaveBeenCalled();
-    resolveSecond();
+    pending.forEach(resolve => resolve());
     await completion;
     expect(core.failJob).toHaveBeenCalledOnce();
     expect(core.completeJob).not.toHaveBeenCalled();
@@ -84,25 +108,28 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
     const { objects, written, worker } = setup(source);
     const claim = { ...job("copy_album"), uploadId: null, sourceETag: undefined,
       sourceKeys: ["albums/owner/album/photos/photo/thumb.webp", "albums/owner/album/photos/photo/full.webp"],
-      targetKeys: ["posts/owner/post/attachments/media/thumb.webp", "posts/owner/post/attachments/media/full.webp"] };
+      targetKeys: ["media/v2/media/v1/image/s.webp", "media/v2/media/v1/image/m.webp",
+        "media/v2/media/v1/image/l.webp"] };
     await worker.process(claim);
-    expect(written.size).toBe(2); expect(objects.delete).not.toHaveBeenCalled();
+    expect(written.size).toBe(3); expect(objects.delete).not.toHaveBeenCalled();
     expect(objects.download).toHaveBeenCalledWith(claim.sourceKeys[1], expect.any(String), 10 * 1024 * 1024, expect.any(AbortSignal), undefined);
   });
-  it("transcodes an actual small video to HLS without upscaling", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "feed-video-fixture-"));
+  it("transcodes a small video into progressive MP4 and a WebP poster", async () => {
+    const dir = await mkdtemp(join(process.cwd(), ".feed-video-fixture-"));
     try {
       const file = join(dir, "source.mp4");
-      await execute("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=green:s=320x240:r=15:d=3", "-c:v", "libx264", "-pix_fmt", "yuv420p", file]);
+      await execute("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+        "color=c=green:s=320x240:r=15:d=3", "-c:v", "libx264", "-pix_fmt", "yuv420p", file]);
       const { worker, written, core } = setup(await readFile(file));
       const claim = { ...job("publish_video"), sourceKeys: ["posts/owner/post/incoming/upload/source.mp4"] };
       await worker.process(claim);
       const output = vi.mocked(core.completeJob).mock.calls[0][2]!;
       expect(output).toMatchObject({ width: 320, height: 240, durationSeconds: 3 });
-      expect(output.videoSegmentKeys!.length).toBeGreaterThan(0);
-      for (const key of output.videoSegmentKeys!) expect(written.get(key)!.bytes.byteLength).toBeLessThanOrEqual(1_750_000);
-      expect(Buffer.from(written.get(output.playlistKey!)!.bytes).toString()).toContain("#EXT-X-ENDLIST");
+      expect(output.mp4Keys).toEqual(["media/v2/media/v1/video/360.mp4"]);
+      expect(written.get(output.mp4Keys![0]!)?.type).toBe("video/mp4");
+      expect(written.get(output.mp4Keys![0]!)!.bytes.byteLength).toBeGreaterThan(1000);
       expect(written.get(output.posterKey!)!.type).toBe("image/webp");
+      expect([...written.keys()].some(key => key.endsWith(".m3u8"))).toBe(false);
     } finally { await rm(dir, { recursive: true, force: true }); }
   });
   it("rejects another owner's source before touching storage", async () => {
@@ -120,20 +147,14 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
     const { worker, core, objects, written } = setup(source);
     vi.mocked(core.completeJob).mockRejectedValue(new Error("lost response"));
     await expect(worker.process(job())).rejects.toThrow("lost response");
-    expect(core.failJob).not.toHaveBeenCalled(); expect(objects.delete).not.toHaveBeenCalled(); expect(written.size).toBe(2);
+    expect(core.failJob).not.toHaveBeenCalled(); expect(objects.delete).not.toHaveBeenCalled(); expect(written.size).toBe(3);
   });
-  it("deletes original upload, photo variants and every video/HLS object in a cleanup claim", async () => {
+  it("deletes original upload and all WebP/MP4 variants", async () => {
     const { worker, objects, core } = setup(new Uint8Array());
-    const prefix = "posts/owner/post/";
-    const keys = [
-      prefix + "incoming/upload/source.mp4",
-      prefix + "attachments/photo/thumb.webp",
-      prefix + "attachments/photo/full.webp",
-      prefix + "attachments/video/poster.webp",
-      prefix + "attachments/video/hls/playlist.m3u8",
-      prefix + "attachments/video/hls/segment-000.ts",
-      prefix + "attachments/video/hls/segment-059.ts",
-    ];
+    const keys = ["posts/owner/post/incoming/upload/source.mp4",
+      "media/v2/photo/v1/image/s.webp", "media/v2/photo/v1/image/m.webp",
+      "media/v2/photo/v1/image/l.webp", "media/v2/video/v1/poster.webp",
+      "media/v2/video/v1/video/360.mp4", "media/v2/video/v1/video/720.mp4"];
     await expect(worker.process({ ...job("delete_keys"), sourceKeys: keys })).resolves.toEqual({ accepted: true });
     expect(vi.mocked(objects.delete).mock.calls.map(([key]) => key)).toEqual(keys);
     expect(core.completeJob).toHaveBeenCalledTimes(1);
@@ -142,14 +163,14 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
     const { worker, objects, core } = setup(new Uint8Array());
     vi.mocked(objects.delete).mockRejectedValueOnce(new Error("S3 temporarily unavailable"));
     await expect(worker.process({
-      ...job("delete_keys"), sourceKeys: ["posts/owner/post/attachments/media/full.webp"],
+      ...job("delete_keys"), sourceKeys: ["media/v2/media/v1/image/l.webp"],
     })).rejects.toThrow("S3 temporarily unavailable");
     expect(core.completeJob).not.toHaveBeenCalled();
     expect(core.failJob).toHaveBeenCalledWith("job", expect.any(String), "MEDIA_PROCESSING_FAILED");
   });
   it("cleanup can delete only feed keys and requires a live lease", async () => {
     const { worker, objects } = setup(new Uint8Array());
-    await worker.process({ ...job("delete_keys"), sourceKeys: ["posts/owner/post/attachments/media/full.webp"] });
+    await worker.process({ ...job("delete_keys"), sourceKeys: ["media/v2/media/v1/image/l.webp"] });
     expect(objects.delete).toHaveBeenCalledTimes(1);
     await expect(worker.process({ ...job("delete_keys"), sourceKeys: ["albums/owner/album/photos/photo/full.webp"] })).rejects.toThrow();
     await expect(worker.process({ ...job(), leaseUntil: new Date(Date.now() - 1).toISOString() })).rejects.toThrow("LEASE_EXPIRED");

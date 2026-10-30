@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Text } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -44,6 +44,20 @@ function formatDateTime(value: string): string {
   return date.toLocaleString("ru-RU");
 }
 
+/** Display only known template titles/option labels; never surface opaque old IDs. */
+function formatComparisonAnswer(value: SurveyAnswerValue, question?: SurveyQuestion): string {
+  if (value === null || (Array.isArray(value) && value.length === 0)) return "Нет ответа";
+  if (!question) return "Ответ из предыдущей анкеты";
+  if (typeof value === "boolean") return value ? "Да" : "Нет";
+  const formatOption = (optionValue: string) =>
+    question.options?.find((option) => option.value === optionValue)?.label ?? "Неизвестный вариант";
+  if (Array.isArray(value)) return value.map(formatOption).join(", ");
+  if (question.type === "singleChoice" || question.type === "multiChoice") {
+    return formatOption(value);
+  }
+  return value.trim() || "Нет ответа";
+}
+
 function QuestionControl({
   question,
   value,
@@ -57,6 +71,7 @@ function QuestionControl({
   setAnswer: (questionId: string, value: SurveyAnswerValue) => void;
   toggleMulti: (questionId: string, value: string) => void;
 }) {
+  const questionName = question.title + (question.required ? ", обязательный вопрос" : "");
   if (question.type === "text" || question.type === "petSelect") {
     return (
       <TextInput
@@ -66,6 +81,9 @@ function QuestionControl({
         placeholder={question.placeholder}
         placeholderTextColor={COLORS.placeholder}
         editable={editable}
+        accessibilityLabel={questionName}
+        accessibilityHint={question.description}
+        accessibilityState={{ disabled: !editable }}
       />
     );
   }
@@ -81,6 +99,9 @@ function QuestionControl({
         editable={editable}
         multiline
         textAlignVertical="top"
+        accessibilityLabel={questionName}
+        accessibilityHint={question.description}
+        accessibilityState={{ disabled: !editable }}
       />
     );
   }
@@ -99,6 +120,10 @@ function QuestionControl({
                 setAnswer(question.id, option.value);
               }}
               disabled={!editable}
+              accessibilityRole="radio"
+              accessibilityLabel={`${questionName}, ${option.label}`}
+              accessibilityHint={question.description}
+              accessibilityState={{ checked: selected, disabled: !editable }}
             >
               <MaterialCommunityIcons
                 name={selected ? "radiobox-marked" : "radiobox-blank"}
@@ -128,6 +153,10 @@ function QuestionControl({
                 toggleMulti(question.id, option.value);
               }}
               disabled={!editable}
+              accessibilityRole="checkbox"
+              accessibilityLabel={`${questionName}, ${option.label}`}
+              accessibilityHint={question.description}
+              accessibilityState={{ checked: selected, disabled: !editable }}
             >
               <MaterialCommunityIcons
                 name={selected ? "checkbox-marked" : "checkbox-blank-outline"}
@@ -147,6 +176,10 @@ function QuestionControl({
       style={styles.optionRow}
       onPress={() => setAnswer(question.id, value !== true)}
       disabled={!editable}
+      accessibilityRole="checkbox"
+      accessibilityLabel={`${questionName}, Да`}
+      accessibilityHint={question.description}
+      accessibilityState={{ checked: value === true, disabled: !editable }}
     >
       <MaterialCommunityIcons
         name={value === true ? "checkbox-marked" : "checkbox-blank-outline"}
@@ -169,6 +202,9 @@ export function SurveyBlock({
   const isOffline = useIsOffline();
   const [answers, setAnswers] = useState<Answers>({});
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const retryReadFlight = useRef(false);
+  // Separate submit flight: two native press events can precede isPending.
+  const submitFlight = useRef(false);
 
   const surveyQuery = useQuery({
     queryKey: ["survey", surveySlug, stepId],
@@ -181,15 +217,56 @@ export function SurveyBlock({
     ? (surveyQuery.data.data?.response ?? null)
     : null;
   const editable = !response || response.canEdit;
+  // The mobile API returns SESSION_EXPIRED or G05_SESSION_CHANGED for a
+  // retired session. A manual GET must not silently bypass either fence.
+  const readTerminal = surveyQuery.data?.code === "SESSION_EXPIRED" ||
+    surveyQuery.data?.code === "G05_SESSION_CHANGED";
+  const readFailed = surveyQuery.isError || (surveyQuery.isSuccess &&
+    (surveyQuery.data?.success !== true || !template));
+  const readReady = surveyQuery.isSuccess && !surveyQuery.isFetching &&
+    surveyQuery.data?.success === true && !!template;
+  const readErrorMessage = surveyQuery.data?.error?.trim() || "Не удалось загрузить анкету";
+  const retryRead = () => {
+    if (!surveySlug || !stepId || readTerminal || retryReadFlight.current ||
+      surveyQuery.isFetching) return;
+    retryReadFlight.current = true;
+    void surveyQuery.refetch().catch(() => undefined).finally(() => {
+      retryReadFlight.current = false;
+    });
+  };
 
   const comparisonQuery = useQuery({
     queryKey: ["surveyComparison", courseId, template?.familySlug],
     queryFn: () => surveyApi.getComparison(courseId, template!.familySlug),
     enabled: template?.phase === "FINAL",
+    // A terminal code in a thrown error must never trigger another GET.
+    // Other failures are retried only by the existing visible manual control.
+    retry: false,
   });
-  const comparison: SurveyComparisonDto | null = comparisonQuery.data?.success
-    ? (comparisonQuery.data.data ?? null)
-    : null;
+  const comparisonResponse = comparisonQuery.data;
+  const comparison: SurveyComparisonDto | null | undefined = comparisonResponse?.success
+    ? comparisonResponse.data
+    : undefined;
+  const comparisonValid = comparison === null ||
+    (comparison !== undefined && Array.isArray(comparison.items));
+  const changedItems = comparison && comparisonValid
+    ? comparison.items.filter((item) => item.changed).slice(0, 8)
+    : [];
+  const comparisonError = comparisonQuery.isError ||
+    (comparisonQuery.isSuccess &&
+      (comparisonResponse?.success !== true || !comparisonValid));
+  // Both typed thrown failures and ApiResponse failures carry existing codes.
+  // Never render the remote error string, including in accessibility labels.
+  const thrownComparisonCode = comparisonQuery.error &&
+    typeof comparisonQuery.error === "object" && "code" in comparisonQuery.error
+    ? comparisonQuery.error.code : null;
+  const comparisonTerminal = comparisonResponse?.code === "SESSION_EXPIRED" ||
+    comparisonResponse?.code === "G05_SESSION_CHANGED" ||
+    thrownComparisonCode === "SESSION_EXPIRED" ||
+    thrownComparisonCode === "G05_SESSION_CHANGED";
+  const comparisonErrorMessage = comparisonTerminal
+    ? "Сессия изменилась или истекла. Войдите снова, чтобы увидеть сравнение."
+    : "Не удалось загрузить сравнение анкет. Попробуйте повторить загрузку.";
   const screeningResult = response ? getSurveyScreeningResult(surveySlug, response.answers) : null;
 
   useEffect(() => {
@@ -249,7 +326,7 @@ export function SurveyBlock({
     });
   };
 
-  if (surveyQuery.isLoading || !draftLoaded) {
+  if (surveyQuery.isLoading || !draftLoaded || (surveyQuery.isFetching && !!template)) {
     return (
       <Loading
         variant="inline"
@@ -259,22 +336,56 @@ export function SurveyBlock({
     );
   }
 
-  if (!template) {
+  if (readFailed || !template) {
     return (
       <View style={styles.alert}>
-        <Text style={styles.alertText}>
-          {surveyQuery.data?.error ?? "Не удалось загрузить анкету"}
-        </Text>
+        <View accessible accessibilityRole="alert"
+          accessibilityLiveRegion="assertive" accessibilityLabel={readErrorMessage}>
+          <Text style={styles.alertText}>{readErrorMessage}</Text>
+        </View>
+        {!readTerminal && surveySlug && stepId ? (
+          <Pressable accessibilityRole="button"
+            accessibilityLabel="Повторить загрузку анкеты"
+            accessibilityState={{
+              disabled: surveyQuery.isFetching, busy: surveyQuery.isFetching,
+            }}
+            disabled={surveyQuery.isFetching}
+            onPress={retryRead}>
+            <Text style={styles.alertText}>
+              {surveyQuery.isFetching ? "Загружаем анкету…" : "Повторить загрузку анкеты"}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     );
   }
 
   const canSubmit =
+    readReady &&
     editable &&
     !isOffline &&
     Boolean(userStepId) &&
     missingRequired.length === 0 &&
     !submitMutation.isPending;
+
+  const submitFailureMessage = submitMutation.data?.success === false
+    ? submitMutation.data.code === "SURVEY_EDIT_WINDOW_EXPIRED"
+      ? "Срок редактирования анкеты истёк. Изменения больше нельзя отправить."
+      : submitMutation.data.code === "SESSION_EXPIRED" ||
+          submitMutation.data.code === "G05_SESSION_CHANGED"
+        ? "Сессия истекла или изменилась. Войдите снова, чтобы отправить анкету."
+        : "Не удалось отправить анкету. Попробуйте ещё раз."
+    : null;
+
+  const submit = () => {
+    // Recheck all original permissions/readiness even if the native disabled
+    // prop has not painted yet or its handler is invoked directly.
+    if (submitFlight.current || !canSubmit) return;
+    submitFlight.current = true;
+    void submitMutation.mutateAsync().catch(() => undefined).finally(() => {
+      submitFlight.current = false;
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -282,7 +393,13 @@ export function SurveyBlock({
       <Text style={styles.hint}>{template.description}</Text>
 
       {response && (
-        <View style={styles.alert}>
+        <View style={styles.alert} accessible accessibilityRole="text"
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={`Ответ отправлен: ${formatDateTime(response.submittedAt)}. ${
+            response.canEdit
+              ? `Можно редактировать до ${formatDateTime(response.editableUntil)}.`
+              : "Редактирование закрыто."
+          }`}>
           <Text style={styles.alertText}>
             Ответ отправлен: {formatDateTime(response.submittedAt)}.{" "}
             {response.canEdit
@@ -293,7 +410,9 @@ export function SurveyBlock({
       )}
 
       {screeningResult ? (
-        <View style={styles.resultCard}>
+        <View style={styles.resultCard} accessible accessibilityRole="text"
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={`Результат анкеты. ${screeningResult}`}>
           <Text style={styles.sectionTitle}>Результат анкеты</Text>
           <Text style={styles.alertText}>{screeningResult}</Text>
         </View>
@@ -329,37 +448,88 @@ export function SurveyBlock({
         );
       })}
 
-      {comparison ? (
-        <View style={styles.section}>
+      {template.phase === "FINAL" ? (
+        <View style={styles.section} accessible accessibilityLabel="Динамика до и после">
           <Text style={styles.sectionTitle}>Динамика до и после</Text>
-          {comparison.items
-            .filter((item) => item.changed)
-            .slice(0, 8)
-            .map((item) => (
-              <Text key={item.questionId} style={styles.comparisonText}>
-                {item.questionId}: {JSON.stringify(item.before)} {"->"} {JSON.stringify(item.after)}
-              </Text>
-            ))}
+          {comparisonQuery.isPending || comparisonQuery.isFetching ? (
+            <View accessible accessibilityRole="text" accessibilityLiveRegion="polite"
+              accessibilityLabel="Загружаем сравнение анкет">
+              <Text style={styles.comparisonText}>Загружаем сравнение анкет…</Text>
+            </View>
+          ) : comparisonError ? (
+            <View style={[styles.alert, styles.alertError]} accessible
+              accessibilityRole="alert" accessibilityLiveRegion="assertive"
+              accessibilityLabel={comparisonErrorMessage}>
+              <Text style={styles.alertText}>{comparisonErrorMessage}</Text>
+              {!comparisonTerminal ? (
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel="Повторить загрузку сравнения"
+                  onPress={() => {
+                    if (comparisonQuery.isFetching) return;
+                    void comparisonQuery.refetch();
+                  }}>
+                  <Text style={styles.comparisonText}>Повторить загрузку сравнения</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : comparison === null ? (
+            <Text style={styles.comparisonText} accessibilityLiveRegion="polite">
+              Недостаточно двух анкет для сравнения: нужны ответы до и после.
+            </Text>
+          ) : changedItems.length === 0 ? (
+            <Text style={styles.comparisonText} accessibilityLiveRegion="polite">
+              Изменений в ответах нет.
+            </Text>
+          ) : changedItems.map((item, index) => {
+            const question = template.questions.find((entry) => entry.id === item.questionId);
+            const label = question?.title || "Вопрос из предыдущей анкеты";
+            const before = formatComparisonAnswer(item.before, question);
+            const after = formatComparisonAnswer(item.after, question);
+            return (
+              <View key={`${item.questionId}-${index}`} style={styles.questionCard} accessible
+                accessibilityRole="text"
+                accessibilityLabel={`${label}. До: ${before}. После: ${after}.`}>
+                <Text style={styles.questionTitle}>{label}</Text>
+                <Text style={styles.comparisonText}>До: {before}</Text>
+                <Text style={styles.comparisonText}>После: {after}</Text>
+              </View>
+            );
+          })}
         </View>
       ) : null}
 
       {isOffline && editable ? (
-        <View style={styles.alert}>
+        <View style={styles.alert} accessible accessibilityLiveRegion="polite"
+          accessibilityLabel="Черновик сохранится на устройстве. Для отправки анкеты нужно подключение к интернету.">
           <Text style={styles.alertText}>
             Черновик сохранится на устройстве. Для отправки анкеты нужно подключение к интернету.
           </Text>
         </View>
       ) : null}
 
-      {!submitMutation.data?.success && submitMutation.data?.error ? (
-        <View style={[styles.alert, styles.alertError]}>
-          <Text style={styles.alertText}>{submitMutation.data.error}</Text>
+      {submitFailureMessage ? (
+        <View style={[styles.alert, styles.alertError]} accessible
+          accessibilityRole="alert" accessibilityLiveRegion="assertive"
+          accessibilityLabel={submitFailureMessage}>
+          <Text style={styles.alertText}>{submitFailureMessage}</Text>
+        </View>
+      ) : null}
+      {submitMutation.isError ? (
+        <View style={[styles.alert, styles.alertError]} accessible
+          accessibilityRole="alert" accessibilityLiveRegion="assertive"
+          accessibilityLabel="Не удалось отправить анкету.">
+          <Text style={styles.alertText}>Не удалось отправить анкету.</Text>
         </View>
       ) : null}
 
       {editable ? (
         <Button
           label="ОТПРАВИТЬ АНКЕТУ"
+          accessibilityLabel={submitMutation.isPending ? "Отправка анкеты" : "Отправить анкету"}
+          accessibilityHint={missingRequired.length > 0
+            ? `Заполните обязательные поля: ${missingRequired.length}`
+            : isOffline ? "Для отправки нужно подключение к интернету" : undefined}
+          accessibilityState={{ disabled: !canSubmit, busy: submitMutation.isPending }}
           height={46}
           fontFamily={null}
           fontWeight="700"
@@ -369,12 +539,15 @@ export function SurveyBlock({
           verticalPadding={14}
           borderRadius={12}
           loading={submitMutation.isPending}
-          onPress={() => submitMutation.mutate()}
+          onPress={submit}
           disabled={!canSubmit}
         />
       ) : null}
       {missingRequired.length > 0 ? (
-        <Text style={styles.caption}>Заполните обязательные поля: {missingRequired.length}</Text>
+        <Text style={styles.caption} accessibilityRole="alert"
+          accessibilityLiveRegion="polite">
+          Заполните обязательные поля: {missingRequired.length}
+        </Text>
       ) : null}
     </View>
   );

@@ -1,0 +1,222 @@
+/** Durable, Questions-only image queue. Redis events are never authoritative. */
+import { randomUUID } from "node:crypto";
+import { prisma, Prisma } from "@gafus/prisma";
+import { questionsV2Head, questionsV2Delete, questionsV2Marker } from "@gafus/cdn-upload";
+import {questionsV2FinalKeys,questionsV2ValidateJob,questionsV2ValidateManifest,
+  type QuestionsV2Job,type QuestionsV2Manifest} from "@gafus/feed-cloud";
+const limit=4, leaseMs=180000;
+export interface QuestionsV2Claim extends QuestionsV2Job{
+  photoId:string;attemptToken:string;leaseUntil:string;
+}
+export interface QuestionsV2Queue{
+  claimOne():Promise<{jobs:QuestionsV2Claim[]}>;
+  renew(id:string,token:string):Promise<{accepted:boolean}>;
+  complete(id:string,token:string,manifest:QuestionsV2Manifest):Promise<{accepted:boolean}>;
+  fail(id:string,token:string,code:string):Promise<{accepted:boolean}>;
+  cleanupPending():Promise<{cleaned:boolean}>;
+}
+export function createQuestionsV2Queue(input:{
+  database:typeof prisma;now?:()=>Date;
+  head?:typeof questionsV2Head;
+  deleteObjects?:(keys:readonly string[])=>Promise<void>;
+}):QuestionsV2Queue{
+  const db=input.database,now=input.now??(()=>new Date());
+  const head=input.head??questionsV2Head,remove=input.deleteObjects??questionsV2Delete;
+  function validated(task:{mediaId:string;ownerId:string;sourceKey:string;sourceMime:string;sourceBytes:number}){
+    const job:QuestionsV2Job={mediaId:task.mediaId,ownerId:task.ownerId,
+      sourceKey:task.sourceKey,sourceMime:task.sourceMime as QuestionsV2Job["sourceMime"],
+      sourceBytes:task.sourceBytes};
+    questionsV2ValidateJob(job);return job;
+  }
+  async function expire(){
+    const t=now();
+    await db.questionV2MediaTask.updateMany({
+      where:{status:"AWAITING_UPLOAD",createdAt:{lt:new Date(t.getTime()-3600000)}},
+      data:{status:"EXPIRED",errorCode:"UPLOAD_EXPIRED",cleanupKind:"ALL",cleanupNextAt:t},
+    });
+    // Handle a crashed final attempt without prematurely sweeping a
+    // still-valid signed original. Schedule the cleanup per media task.
+    const exhausted=await db.questionV2MediaTask.findMany({
+      where:{status:"PROCESSING",attempts:{gte:limit},leaseUntil:{lt:t}},
+      select:{mediaId:true,createdAt:true},
+      take:100,
+    });
+    for(const task of exhausted){
+      await db.questionV2MediaTask.updateMany({
+        where:{mediaId:task.mediaId,status:"PROCESSING",attempts:{gte:limit},
+          leaseUntil:{lt:t}},
+        data:{status:"FAILED",attemptToken:null,leaseUntil:null,
+          cleanupKind:"ALL",cleanupCompletedAt:null,
+          cleanupNextAt:new Date(Math.max(t.getTime(),task.createdAt.getTime()+11*60_000))},
+      });
+    }
+    const deleted=await db.questionPhoto.findMany({
+      where:{OR:[{question:{deletedAt:{not:null}}},{answer:{deletedAt:{not:null}}}]},
+      select:{id:true},take:100,
+    });
+    if(deleted.length){
+      // Moderation/soft-delete may not run the usual editor transaction.
+      // Never delete before an in-flight signed POST or a leased Job expires.
+      const tasks=await db.questionV2MediaTask.findMany({
+        where:{photoId:{in:deleted.map(p=>p.id)},status:{notIn:["FAILED","EXPIRED"]}},
+        select:{mediaId:true,createdAt:true,leaseUntil:true},
+      });
+      for(const task of tasks){
+        await db.questionV2MediaTask.updateMany({
+          where:{mediaId:task.mediaId,status:{notIn:["FAILED","EXPIRED"]}},
+          data:{status:"EXPIRED",attemptToken:null,leaseUntil:null,
+            cleanupKind:"ALL",cleanupCompletedAt:null,
+            cleanupNextAt:new Date(Math.max(t.getTime(),
+              task.createdAt.getTime()+11*60_000,
+              (task.leaseUntil?.getTime()??0)+60_000))},
+        });
+      }
+    }
+  }
+  async function recoverMissingPhotoRows(){
+    const orphans=await db.$queryRaw<{mediaId:string}[]>
+      `SELECT t."mediaId" FROM "QuestionV2MediaTask" t
+        LEFT JOIN "QuestionPhoto" p ON p."id" = t."photoId"
+        WHERE p."id" IS NULL AND t."status" IN
+          ('AWAITING_UPLOAD','QUEUED','PROCESSING','READY')
+        ORDER BY t."createdAt" ASC LIMIT 100`;
+    if(!orphans.length)return;
+    const tasks=await db.questionV2MediaTask.findMany({
+      where:{mediaId:{in:orphans.map(o=>o.mediaId)}},
+      select:{mediaId:true,createdAt:true,leaseUntil:true},
+    });
+    for(const task of tasks){
+      await db.questionV2MediaTask.updateMany({
+        where:{mediaId:task.mediaId,status:{in:["AWAITING_UPLOAD","QUEUED","PROCESSING","READY"]}},
+        data:{status:"EXPIRED",attemptToken:null,leaseUntil:null,
+          cleanupKind:"ALL",cleanupCompletedAt:null,
+          cleanupNextAt:new Date(Math.max(now().getTime(),
+            task.createdAt.getTime()+11*60_000,
+            (task.leaseUntil?.getTime()??0)+60_000))},
+      });
+    }
+  }
+  async function cleanupOne(mediaId?:string):Promise<{cleaned:boolean}>{
+    const t=now();
+    const where={...(mediaId?{mediaId}:{}),
+      status:{in:["READY","FAILED","EXPIRED"]},
+      cleanupKind:{in:["SOURCE","ALL"]},cleanupCompletedAt:null,
+      cleanupNextAt:{lte:t},OR:[{cleanupLeaseUntil:null},{cleanupLeaseUntil:{lt:t}}]};
+    const task=await db.questionV2MediaTask.findFirst({where,orderBy:{cleanupNextAt:"asc"}});
+    if(!task || (task.status==="READY"&&task.cleanupKind!=="SOURCE") ||
+        (task.status!=="READY"&&task.cleanupKind!=="ALL"))return {cleaned:false};
+    const token=randomUUID();
+    const locked=await db.questionV2MediaTask.updateMany({
+      where:{...where,mediaId:task.mediaId},
+      data:{cleanupToken:token,cleanupLeaseUntil:new Date(t.getTime()+leaseMs),
+        cleanupAttempts:{increment:1}},
+    });
+    if(locked.count!==1)return {cleaned:false};
+    const keys=questionsV2FinalKeys(task.ownerId,task.mediaId);
+    try{
+      await remove(task.cleanupKind==="SOURCE"?[task.sourceKey]:
+        [task.sourceKey,keys.small,keys.medium]);
+      // A successfully deleted READY source can still be recreated by
+      // replaying the 10-minute signed POST. One final idempotent DELETE after
+      // expiry closes the replay window without blocking READY publication.
+      const replayDeadline=task.createdAt.getTime()+11*60_000;
+      const mustSweep=task.cleanupKind==="SOURCE" && now().getTime()<replayDeadline;
+      await db.questionV2MediaTask.updateMany({where:{mediaId:task.mediaId,cleanupToken:token},
+        data:mustSweep
+          ?{cleanupNextAt:new Date(replayDeadline),cleanupToken:null,cleanupLeaseUntil:null}
+          :{cleanupCompletedAt:now(),cleanupKind:null,cleanupToken:null,cleanupLeaseUntil:null}});
+      return {cleaned:true};
+    }catch{
+      await db.questionV2MediaTask.updateMany({where:{mediaId:task.mediaId,cleanupToken:token},
+        data:{cleanupToken:null,cleanupLeaseUntil:null,
+          cleanupNextAt:new Date(now().getTime()+
+            Math.min(3600000,15000*2**Math.min(task.cleanupAttempts,8)))}});
+      return {cleaned:false};
+    }
+  }
+  return {
+    async cleanupPending(){await expire();await recoverMissingPhotoRows();return cleanupOne();},
+    async claimOne(){
+      await expire();
+      return db.$transaction(async tx=>{
+        // Only two active photo leases across all API instances and both Cloud Jobs.
+        // Transaction-scoped PG advisory lock serializes the count+claim decision:
+        // SKIP LOCKED alone prevents duplicates, NOT more than two active images.
+        // Fixed Questions-only lock key, never acquired by Feed/Chat/production.
+        await tx.$queryRawUnsafe('SELECT pg_advisory_xact_lock(7287446517851686::bigint) IS NULL AS "locked"');
+        const occupied=await tx.$queryRawUnsafe<{active:number}[]>(
+          'SELECT COUNT(*)::int AS "active" FROM "QuestionV2MediaTask" '+
+          `WHERE "status" = 'PROCESSING' AND "leaseUntil" > (NOW() AT TIME ZONE 'UTC')`);
+        if((occupied[0]?.active??2)>=2)return {jobs:[]};
+        // PostgreSQL Timestamp(3) without timezone, compared to UTC.
+        const sql='SELECT "mediaId" FROM "QuestionV2MediaTask" WHERE "attempts" < $1 '+
+          'AND (("status" = \'QUEUED\' AND "nextAttemptAt" <= (NOW() AT TIME ZONE \'UTC\')) '+
+          'OR ("status" = \'PROCESSING\' AND "leaseUntil" < (NOW() AT TIME ZONE \'UTC\'))) '+
+          'ORDER BY "nextAttemptAt","createdAt" LIMIT 1 FOR UPDATE SKIP LOCKED';
+        const candidates=await tx.$queryRawUnsafe<{mediaId:string}[]>(sql,limit);
+        if(!candidates.length)return {jobs:[]};
+        const token=randomUUID(),lease=new Date(now().getTime()+leaseMs);
+        const task=await tx.questionV2MediaTask.update({
+          where:{mediaId:candidates[0]!.mediaId},
+          data:{status:"PROCESSING",attemptToken:token,leaseUntil:lease,
+            attempts:{increment:1}},
+        });
+        return {jobs:[{...validated(task),photoId:task.photoId,attemptToken:token,
+          leaseUntil:lease.toISOString()}]};
+      });
+    },
+    async renew(id,token){
+      const result=await db.questionV2MediaTask.updateMany({
+        where:{mediaId:id,attemptToken:token,status:"PROCESSING",leaseUntil:{gt:now()}},
+        data:{leaseUntil:new Date(now().getTime()+leaseMs)}});
+      return {accepted:result.count===1};
+    },
+    async complete(id,token,manifest){
+      const task=await db.questionV2MediaTask.findFirst({
+        where:{mediaId:id,attemptToken:token,status:"PROCESSING",leaseUntil:{gt:now()}}});
+      if(!task)return {accepted:false};
+      questionsV2ValidateManifest(validated(task),manifest);
+      const unique=[...new Map(Object.values(manifest.variants).map(v=>[v.key,v])).values()];
+      const checks=await Promise.allSettled(unique.map(async item=>{
+        const result=await head(item.key);
+        if(result.bytes!==item.bytes||result.mime!=="image/webp")
+          throw Error("QUESTIONS_V2_OUTPUT_UNVERIFIED");
+      }));
+      for(const check of checks)if(check.status==="rejected")throw check.reason;
+      const committed=await db.$transaction(async tx=>{
+        const photo=await tx.questionPhoto.findFirst({where:{id:task.photoId,ownerId:task.ownerId}});
+        if(!photo)return false;
+        const updated=await tx.questionV2MediaTask.updateMany({
+          where:{mediaId:id,attemptToken:token,status:"PROCESSING",leaseUntil:{gt:now()}},
+          data:{status:"READY",attemptToken:null,leaseUntil:null,
+            manifest:manifest as unknown as Prisma.InputJsonValue,errorCode:null,
+            cleanupKind:"SOURCE",cleanupNextAt:now(),cleanupCompletedAt:null}});
+        if(updated.count!==1)return false;
+        await tx.questionPhoto.update({where:{id:task.photoId},
+          data:{url:questionsV2Marker(manifest.variants.medium.key)}});
+        return true;
+      });
+      if(committed)await cleanupOne(id);
+      return {accepted:committed};
+    },
+    async fail(id,token,code){
+      const task=await db.questionV2MediaTask.findFirst({
+        where:{mediaId:id,attemptToken:token,status:"PROCESSING",leaseUntil:{gt:now()}}});
+      if(!task)return {accepted:false};
+      const terminal=task.attempts>=limit;
+      const updated=await db.questionV2MediaTask.updateMany({
+        where:{mediaId:id,attemptToken:token,status:"PROCESSING",leaseUntil:{gt:now()}},
+        data:{status:terminal?"FAILED":"QUEUED",attemptToken:null,leaseUntil:null,
+          nextAttemptAt:new Date(now().getTime()+Math.min(600000,15000*2**Math.max(0,task.attempts-1))),
+          errorCode:code.slice(0,64),
+          ...(terminal?{cleanupKind:"ALL",
+            cleanupNextAt:new Date(Math.max(now().getTime(),
+              task.createdAt.getTime()+11*60_000)),cleanupCompletedAt:null}:{})}});
+      if(terminal&&updated.count===1)await cleanupOne(id);
+      return {accepted:updated.count===1};
+    },
+  };
+}
+export function createLiveQuestionsV2Queue(){
+  return createQuestionsV2Queue({database:prisma});
+}

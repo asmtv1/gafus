@@ -29,6 +29,18 @@ describe("separately leased Beget purge worker", () => {
     expect(x.complete).toHaveBeenCalledOnce();
     expect(x.retry).not.toHaveBeenCalled();
   });
+  it("gallery final thumb and full require checkpoint and confirmed Beget revocation",async()=>{
+    const job:EdgePurgeJob={...makeJob(),id:"gallery:photo-delete-1",scope:"gallery",
+      paths:["/albums/owner/album/photos/photo/thumb.webp",
+        "/albums/owner/album/photos/photo/full.webp"]};
+    const x=fixture(job);
+    expect(await processOneMediaCdnPurge(x.deps)).toBe("done");
+    expect(x.begin).toHaveBeenCalledWith("gallery",job.paths,[],expect.any(Function));
+    expect(x.checkpoint).toHaveBeenCalledOnce();
+    expect(x.done).toHaveBeenCalledWith("beget:accepted-batch");
+    expect(x.complete).toHaveBeenCalledOnce();
+    expect(x.retry).not.toHaveBeenCalled();
+  });
   it("never confirms revocation before a real edge proof", async () => {
     const x = fixture();
     x.done.mockResolvedValue(false);

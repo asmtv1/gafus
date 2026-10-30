@@ -1,7 +1,2 @@
-/**
- * Константы VK ID для клиента (Expo) и сервера.
- * Отдельный файл без Node/prisma — не тянуть crypto в React Native.
- */
-
-/** Права VK ID для authorize: почта в ответе user_info (как в кабинете приложения VK). */
-export const VK_ID_OAUTH_SCOPE = "email";
+/* Compatibility export: implementation lives in the browser-safe package. */
+export * from "@gafus/core-client/auth/vk-auth-constants";

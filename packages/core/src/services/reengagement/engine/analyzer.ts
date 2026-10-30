@@ -32,6 +32,12 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
     // 1. Получить пользователей с активностью в последние 60 дней
     const usersWithActivity = await prisma.user.findMany({
       where: {
+        // An opted-out user must not be put back into a campaign by cron/manual runs.
+        // Missing settings preserve the historical default opt-in.
+        OR: [
+          { reengagementSettings: { is: null } },
+          { reengagementSettings: { is: { enabled: true } } },
+        ],
         // Есть хотя бы одна завершенная тренировка
         userTrainings: {
           some: {
@@ -48,6 +54,7 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
       },
       select: {
         id: true,
+        reengagementSettings: { select: { enabled: true } },
         // Последний завершенный шаг
         userTrainings: {
           select: {
@@ -78,6 +85,8 @@ export async function findInactiveUsers(): Promise<InactiveUser[]> {
     const inactiveUsers: InactiveUser[] = [];
 
     for (const user of usersWithActivity) {
+      // Defensive check for stale/inconsistent query adapters.
+      if (user.reengagementSettings?.enabled === false) continue;
       // Найти последнюю активность
       const lastActivity = findLastActivity(user.userTrainings);
 

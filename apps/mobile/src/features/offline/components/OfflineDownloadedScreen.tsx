@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { Text } from "react-native-paper";
 import { useRouter } from "expo-router";
@@ -7,11 +7,24 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { Loading } from "@/shared/components/ui";
 import { getOfflineCourseTypes, getCourseMeta } from "@/shared/lib/offline";
+import { assertSafeOfflineSegment } from "@/shared/lib/offline/offlineStorage";
 import { reportClientError } from "@/shared/lib/tracer";
 
 interface OfflineCourseItem {
   courseType: string;
   name: string;
+}
+function validCourseType(value: string): boolean {
+  try {
+    assertSafeOfflineSegment(value);
+    return true;
+  } catch {
+    reportClientError(new Error("OFFLINE_COURSE_SEGMENT_REJECTED"), {
+      issueKey: "OfflineDownloadedScreen",
+      keys: { operation: "validate_navigation" },
+    });
+    return false;
+  }
 }
 
 /**
@@ -22,45 +35,64 @@ export function OfflineDownloadedScreen() {
   const router = useRouter();
   const [items, setItems] = useState<OfflineCourseItem[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const types = await getOfflineCourseTypes();
-        if (cancelled) return;
-        const list: OfflineCourseItem[] = [];
-        for (const courseType of types) {
+  const [error, setError] = useState("");
+  const mounted = useRef(true);
+  const inFlight = useRef(false);
+  const load = useCallback(async () => {
+    if (!mounted.current || inFlight.current) return;
+    inFlight.current = true;
+    setLoading(true);
+    setError("");
+    try {
+      const types = await getOfflineCourseTypes();
+      if (!mounted.current) return;
+      // The storage provider already sanitizes path segments; revalidate a
+      // navigation parameter defensively without rewriting any stored data.
+      const uniqueTypes = [...new Set(types.filter(validCourseType))];
+      const list: OfflineCourseItem[] = [];
+      for (const courseType of uniqueTypes) {
+        if (!mounted.current) return;
+        let name = courseType;
+        try {
           const meta = await getCourseMeta(courseType);
-          if (cancelled) return;
-          list.push({
-            courseType,
-            name: meta?.course?.name ?? courseType,
+          if (!mounted.current) return;
+          name = meta?.course?.name?.trim() || courseType;
+        } catch {
+          // One damaged course metadata file must not blank the entire list.
+          if (!mounted.current) return;
+          reportClientError(new Error("OFFLINE_COURSE_META_READ_FAILED"), {
+            issueKey: "OfflineDownloadedScreen",
+            keys: { operation: "read_meta" },
           });
         }
-        setItems(list);
-      } catch (error) {
-        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        list.push({ courseType, name });
+      }
+      if (mounted.current) setItems(list);
+    } catch {
+      if (mounted.current) {
+        reportClientError(new Error("OFFLINE_COURSES_LIST_READ_FAILED"), {
           issueKey: "OfflineDownloadedScreen",
-          keys: { operation: "load_offline_courses" },
+          keys: { operation: "read_list" },
         });
         setItems([]);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        setError("Не удалось прочитать список скачанных курсов. Попробуйте ещё раз.");
       }
+    } finally {
+      inFlight.current = false;
+      if (mounted.current) setLoading(false);
     }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
   }, []);
+  useEffect(() => {
+    mounted.current = true;
+    void load();
+    return () => {
+      mounted.current = false;
+    };
+  }, [load]);
 
   const handleOpenCourse = (courseType: string) => {
-    router.push(`/training/${courseType}`);
+    if (loading || error || !validCourseType(courseType)) return;
+    router.push(`/training/${encodeURIComponent(courseType)}`);
   };
 
   if (loading) {
@@ -70,21 +102,29 @@ export function OfflineDownloadedScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Скачанные курсы</Text>
-      <Text style={styles.subtitle}>
-        Доступны без интернета. Выберите курс для тренировки.
-      </Text>
+      <Text style={styles.subtitle}>Доступны без интернета. Выберите курс для тренировки.</Text>
 
-      {items.length === 0 ? (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Обновить скачанные курсы"
+        onPress={() => void load()}
+        style={styles.refresh}
+      >
+        <Text style={styles.refreshText}>Обновить список</Text>
+      </Pressable>
+      {error ? (
         <View style={styles.empty}>
-          <MaterialCommunityIcons
-            name="download-off-outline"
-            size={48}
-            color={COLORS.disabled}
-          />
+          <Text accessibilityRole="alert" style={styles.emptyText}>
+            {error}
+          </Text>
+        </View>
+      ) : items.length === 0 ? (
+        <View style={styles.empty}>
+          <MaterialCommunityIcons name="download-off-outline" size={48} color={COLORS.disabled} />
           <Text style={styles.emptyTitle}>Нет скачанных курсов</Text>
           <Text style={styles.emptyText}>
-            Скачайте курсы при подключении к интернету — на вкладке «Курсы» или
-            «Избранное» нажмите «Скачать для работы в офлайн» на карточке курса.
+            Скачайте курсы при подключении к интернету — на вкладке «Курсы» или «Избранное» нажмите
+            «Скачать для работы в офлайн» на карточке курса.
           </Text>
         </View>
       ) : (
@@ -92,25 +132,16 @@ export function OfflineDownloadedScreen() {
           {items.map((item) => (
             <Pressable
               key={item.courseType}
-              style={({ pressed }) => [
-                styles.item,
-                pressed && styles.itemPressed,
-              ]}
+              accessibilityRole="button"
+              accessibilityLabel={`Открыть скачанный курс ${item.name}`}
+              style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
               onPress={() => handleOpenCourse(item.courseType)}
             >
-              <MaterialCommunityIcons
-                name="book-open-variant"
-                size={24}
-                color={COLORS.primary}
-              />
+              <MaterialCommunityIcons name="book-open-variant" size={24} color={COLORS.primary} />
               <Text style={styles.itemName} numberOfLines={2}>
                 {item.name}
               </Text>
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={24}
-                color={COLORS.textSecondary}
-              />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
             </Pressable>
           ))}
         </View>
@@ -120,6 +151,13 @@ export function OfflineDownloadedScreen() {
 }
 
 const styles = StyleSheet.create({
+  refresh: {
+    alignSelf: "center",
+    minHeight: 44,
+    justifyContent: "center",
+    paddingHorizontal: SPACING.md,
+  },
+  refreshText: { color: COLORS.primary, fontFamily: FONTS.montserratMedium, fontSize: 14 },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

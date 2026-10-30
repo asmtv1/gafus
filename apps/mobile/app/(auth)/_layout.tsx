@@ -22,7 +22,10 @@ export default function AuthLayout() {
   // Полностью авторизован → переходим в main; (auth) layout размонтируется, циклов нет
   // Презентацию можно открыть вручную из профиля уже авторизованному пользователю.
   // Для остальных auth-маршрутов сохраняем обычный редирект в приложение.
-  if (isAuthenticated && !pendingVkPhone && !pendingVkConsent && pathname !== "/intro") {
+  // Password-reset links must remain reachable even if a device currently
+  // holds another authenticated session. The one-time email token is the proof.
+  if (isAuthenticated && !pendingVkPhone && !pendingVkConsent &&
+      pathname !== "/intro" && pathname !== "/reset-password") {
     return <Redirect href="/(main)/(tabs)" />;
   }
 

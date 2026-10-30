@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -15,14 +15,15 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { useShallow } from "zustand/react/shallow";
-import { declineRussianName } from "@gafus/core/utils";
-import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core/utils/training";
+import { declineRussianName } from "@gafus/core-client/utils/personalization";
+import { calculateDayStatus, getDayDisplayStatus } from "@gafus/core-client/utils/training";
 
 import { Button, Input, Loading } from "@/shared/components/ui";
 import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { useTrainingDays } from "@/shared/hooks";
-import { useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
-import { coursesApi, type Course, type TrainingDay } from "@/shared/lib/api";
+import { useAuthStore, useOfflineStore, useStepStatesForCourse } from "@/shared/stores";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import { coursesApi, trainingApi, type PublicPaidCourseOutline, type TrainingDay } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
@@ -30,7 +31,7 @@ import { showLockedDayAlert } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training";
 import { reportClientError } from "@/shared/lib/tracer";
 import { trackEvent } from "@/shared/lib/analytics";
-import { openAppSubscriptionPaywall } from "@/features/app-subscription";
+import { useAppSubscriptionStatus } from "@/features/app-subscription";
 
 /**
  * Экран списка дней тренировок курса
@@ -67,11 +68,47 @@ export default function TrainingDaysScreen() {
     })),
   );
   const isDownloaded = !!downloaded[courseType];
+  // Match the existing GET /offline/course/download subscription gate.
+  // Read-only UI eligibility, not an offline entitlement/expiry grant.
+  const offlineSubscription = useAppSubscriptionStatus();
+  const subscription = offlineSubscription.data?.success
+    ? offlineSubscription.data.data
+    : null;
+  const mayRequestOfflineDownload =
+    subscription?.hasActiveSubscription === true &&
+    (subscription.planCode === "MONTHLY" || subscription.planCode === "THREE_MONTHS");
+  const isCheckingOfflinePlan = offlineSubscription.isLoading || offlineSubscription.isFetching;
   const isDownloadingThis = downloadStatus.status === "downloading" && downloadStatus.courseType === courseType;
   const isInQueue = downloadQueue.includes(courseType);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
-  const [coursePreview, setCoursePreview] = useState<Course | null>(null);
-  const [isLoadingCoursePreview, setIsLoadingCoursePreview] = useState(false);
+  // Locked-course catalog metadata is public, but a pending read still belongs to
+  // the current course/principal epoch and must not survive its old screen.
+  type PreviewRead = {
+    scope: string;
+    state: "loading" | "ready" | "error" | "notfound";
+    course: PublicPaidCourseOutline | null;
+  };
+  const [previewRead, setPreviewRead] = useState<PreviewRead | null>(null);
+  const [previewRetry, setPreviewRetry] = useState(0);
+  const previewFlight = useRef<{ scope: string; cancelled: boolean } | null>(null);
+  const previewRetryQueued = useRef(false);
+  const previewMounted = useRef(true);
+  const previewOwner = useAuthStore((state) =>
+    state.isAuthenticated && !state.isLoading ? (state.user?.id ?? null) : null,
+  );
+  const previewAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const previewAuthLoading = useAuthStore((state) => state.isLoading);
+  const previewBinding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const previewEpoch =
+    previewOwner && previewBinding?.principalId === previewOwner ? previewBinding.authEpoch : null;
+  const previewScope = JSON.stringify([
+    courseType,
+    previewAuthenticated ? previewOwner : "guest",
+    previewEpoch,
+  ]);
+  const activePreviewScope = useRef(previewScope);
+  activePreviewScope.current = previewScope;
+  const previewDenied = useRef(false);
   const [userDisplayName, setUserDisplayName] = useState("");
   const [userGender, setUserGender] = useState<"male" | "female">("male");
   const [petName, setPetName] = useState("");
@@ -86,8 +123,33 @@ export default function TrainingDaysScreen() {
   const isAccessDenied =
     (data && "code" in data && data.code === "FORBIDDEN") ||
     error?.message?.includes("COURSE_ACCESS_DENIED") ||
+    (data && "code" in data && (data.code === "SUBSCRIPTION_REQUIRED" ||
+      data.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED")) ||
     (data && "error" in data && typeof data.error === "string" && data.error.includes("доступа")) ||
     (!data?.success && data && "code" in data && data.code === "FORBIDDEN");
+  previewDenied.current = Boolean(isAccessDenied);
+  const visiblePreviewRead = previewRead?.scope === previewScope ? previewRead : null;
+  const coursePreview = visiblePreviewRead?.state === "ready" ? visiblePreviewRead.course : null;
+  // The public marketing endpoint itself rejects private/non-paid courses.
+  // Actual day/step access still comes from protected GET /training/day.
+  const canBrowsePreviewDays = Boolean(
+    previewAuthenticated && previewOwner && previewEpoch && coursePreview,
+  );
+  const previewIsReady = visiblePreviewRead?.state === "ready";
+  const previewIsLoading = visiblePreviewRead?.state === "loading";
+  const previewIsError = visiblePreviewRead?.state === "error";
+  const previewNotFound = visiblePreviewRead?.state === "notfound";
+  const retryCoursePreview = () => {
+    if (
+      !isAccessDenied ||
+      !previewIsError ||
+      previewRetryQueued.current ||
+      (previewFlight.current?.scope === previewScope && !previewFlight.current.cancelled)
+    )
+      return;
+    previewRetryQueued.current = true;
+    setPreviewRetry((value) => value + 1);
+  };
   const userCoursePersonalization = courseData?.userCoursePersonalization;
   const needPersonalization = Boolean(
     (courseData?.courseIsPersonalized && !userCoursePersonalization) || personalize === "1",
@@ -125,19 +187,6 @@ export default function TrainingDaysScreen() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- намеренно только courseType (F12)
   }, [courseType]);
-
-  const handleSubscribe = useCallback(() => {
-    void hapticFeedback.light();
-    trackEvent({
-      eventName: "button_click",
-      platform: "mobile",
-      pathOrScreen: trainingScreenPath,
-      elementId: "cta-subscription-start",
-      courseId: courseData?.courseId,
-      courseType,
-    });
-    openAppSubscriptionPaywall({ reason: "required", contentMode: "subscription" });
-  }, [courseData?.courseId, courseType, trainingScreenPath]);
 
   const handleFillDeclensions = useCallback(() => {
     void hapticFeedback.light();
@@ -214,36 +263,90 @@ export default function TrainingDaysScreen() {
   ]);
 
   useEffect(() => {
-    if (!isAccessDenied || coursePreview) return;
+    previewMounted.current = true;
+    return () => {
+      previewMounted.current = false;
+    };
+  }, []);
 
-    let cancelled = false;
-    setIsLoadingCoursePreview(true);
+  useEffect(() => {
+    if (
+      !isAccessDenied ||
+      previewIsReady ||
+      previewAuthLoading ||
+      (previewAuthenticated && !previewOwner)
+    )
+      return;
 
-    (async () => {
+    const priorFlight = previewFlight.current;
+    if (priorFlight?.scope === previewScope && !priorFlight.cancelled) return;
+    const flight = { scope: previewScope, cancelled: false };
+    previewFlight.current = flight;
+    previewRetryQueued.current = false;
+    setPreviewRead({ scope: previewScope, state: "loading", course: null });
+    const currentPreview = () => {
+      const auth = useAuthStore.getState();
+      if (
+        flight.cancelled ||
+        !previewMounted.current ||
+        auth.isLoading ||
+        activePreviewScope.current !== previewScope ||
+        !previewDenied.current ||
+        previewFlight.current !== flight
+      )
+        return false;
+      if (!previewAuthenticated) return !auth.isAuthenticated;
+      const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+      // A public marketing GET can load before the verified queue binding
+      // becomes available; opening a protected day still requires that binding.
+      return auth.isAuthenticated && auth.user?.id === previewOwner &&
+        (previewEpoch
+          ? binding?.principalId === previewOwner && binding.authEpoch === previewEpoch
+          : !binding);
+
+    };
+
+    void (async () => {
       try {
-        const coursesResponse = await coursesApi.getAll();
-        if (cancelled) return;
-
-        if (coursesResponse.success && coursesResponse.data) {
-          const course =
-            coursesResponse.data.find((item) => item.type === courseType) ??
-            coursesResponse.data.find((item) => item.id === courseType) ??
-            null;
-          setCoursePreview(course);
+        if (!currentPreview()) return;
+        const response = await trainingApi.getPublicPaidCourseOutline(courseType, currentPreview);
+        if (!currentPreview()) return;
+        if (!response.success || !response.data) {
+          setPreviewRead({
+            scope: previewScope,
+            state: response.code === "NOT_FOUND" ||
+              response.error === "Курс не найден" ? "notfound" : "error",
+            course: null,
+          });
+          return;
+        }
+        setPreviewRead({ scope: previewScope, state: "ready", course: response.data });
+      } catch {
+        if (currentPreview()) {
+          setPreviewRead({ scope: previewScope, state: "error", course: null });
+          reportClientError(new Error("COURSE_LOCKED_PREVIEW_READ_FAILED"), {
+            issueKey: "TrainingDays",
+            keys: { operation: "locked_preview_read" },
+          });
         }
       } finally {
-        if (!cancelled) {
-          setIsLoadingCoursePreview(false);
-        }
+        if (previewFlight.current === flight) previewFlight.current = null;
       }
     })();
-
     return () => {
-      cancelled = true;
+      flight.cancelled = true;
     };
-    // isLoadingCoursePreview намеренно не в deps: иначе при setState(true) эффект перезапускается,
-    // cleanup выставляет cancelled, и запрос завершается без setCoursePreview
-  }, [coursePreview, courseType, isAccessDenied]);
+  }, [
+    courseType,
+    previewScope,
+    previewRetry,
+    previewIsReady,
+    isAccessDenied,
+    previewOwner,
+    previewEpoch,
+    previewAuthenticated,
+    previewAuthLoading,
+  ]);
 
   const handleDayPress = useCallback(
     (day: TrainingDay) => {
@@ -255,6 +358,26 @@ export default function TrainingDaysScreen() {
       router.push(`/training/${courseType}/${day.dayOnCourseId}`);
     },
     [router, courseType],
+  );
+
+  const handleReviewsPress = useCallback(() => {
+    void hapticFeedback.selection();
+    router.push({
+      pathname: "/training/[courseType]/reviews",
+      params: { courseType },
+    });
+  }, [courseType, router]);
+
+  const courseReviewsLink = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Отзывы о курсе"
+      onPress={handleReviewsPress}
+      style={styles.reviewsLink}
+    >
+      <MaterialCommunityIcons name="comment-text-outline" size={18} color={COLORS.primary} />
+      <Text style={styles.reviewsLinkText}>Отзывы о курсе</Text>
+    </Pressable>
   );
 
   const handleShareCourse = useCallback(async () => {
@@ -365,9 +488,18 @@ export default function TrainingDaysScreen() {
         <AppBackButton style={styles.backRow} onPress={() => { void hapticFeedback.light(); router.back(); }} />
 
         <ScrollView contentContainerStyle={styles.paywallScrollContent}>
-          {/* Заголовок «Содержание» как на web */}
+          {/* As on Web: the course outline stays open; payments are step-scoped. */}
           <Text style={styles.paywallContentTitle}>Содержание</Text>
+          {courseReviewsLink}
 
+          {previewIsLoading && <Loading message="Загрузка описания курса…" />}
+          {previewIsError && (
+            <View>
+              <Text accessibilityRole="alert">Не удалось загрузить описание курса.</Text>
+              <Button label="Повторить загрузку описания курса" onPress={retryCoursePreview} />
+            </View>
+          )}
+          {previewNotFound && <Text>Курс не найден в каталоге.</Text>}
           {coursePreview?.description ? (
             <CourseDescription
               description={coursePreview.description}
@@ -378,46 +510,103 @@ export default function TrainingDaysScreen() {
             />
           ) : null}
 
-          {coursePreview?.dayLinks?.length ? (
+          {coursePreview?.outline?.length ? (
             <View style={styles.outlineSection}>
-              <Text style={styles.outlineTitle}>В курс входит</Text>
-              {coursePreview.dayLinks
-                .slice()
-                .sort((a, b) => a.order - b.order)
-                .map((item, index) => (
-                  <Pressable key={`${item.order}-${item.day.id}`} style={styles.outlineItemRow} onPress={() => { if (item.id) router.push(`/training/${courseType}/${item.id}`); }}>
-                    <Text style={styles.outlineItemNumber}>{index + 1}.</Text>
-                    <Text style={styles.outlineItem}>{item.day.title}</Text>
-                  </Pressable>
-                ))}
+              <Text style={styles.outlineTitle}>План занятий</Text>
+              <Text style={styles.outlineAccessHint}>
+                {canBrowsePreviewDays
+                  ? "Выберите день, чтобы посмотреть шаги."
+                  : "Войдите в аккаунт, чтобы просмотреть шаги."}
+              </Text>
+              <View style={styles.outlineCards}>
+                {coursePreview.outline
+                  .slice()
+                  .sort((a, b) => a.order - b.order)
+                  .map((item, index) => {
+                    const dayLink = typeof item.id === "string" &&
+                      /^[A-Za-z0-9_-]{1,128}$/.test(item.id) ? item.id : null;
+                    const canOpen = canBrowsePreviewDays && dayLink !== null;
+                    const hasPracticeTime = (item.estimatedDuration ?? 0) > 0;
+                    const hasTheoryTime = (item.theoryMinutes ?? 0) > 0;
+                    return (
+                      <Pressable
+                        key={`${item.order}-${item.id}`}
+                        disabled={!canOpen}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${item.title}. ${canOpen ? "Открыть шаги" : "Недоступно"}`}
+                        onPress={() => {
+                          if (!canOpen || !dayLink) return;
+                          void hapticFeedback.selection();
+                          router.push(`/training/${courseType}/${dayLink}`);
+                        }}
+                        style={({ pressed }) => [
+                          styles.outlineDayCard,
+                          pressed && canOpen && styles.outlineDayCardPressed,
+                          !canOpen && styles.outlineDayCardDisabled,
+                        ]}
+                      >
+                        <View style={styles.outlineDayMeta}>
+                          <Text style={styles.outlineDayNumber}>
+                            {`Блок ${String(index + 1).padStart(2, "0")}`}
+                          </Text>
+                          <Text style={styles.outlineDayState}>
+                            {canOpen ? "Шаги внутри" : "Просмотр недоступен"}
+                          </Text>
+                        </View>
+                        <Text style={styles.outlineDayTitle}>{item.title}</Text>
+                        {item.type ? (
+                          <Text style={styles.outlineDayType}>
+                            {DAY_TYPE_LABELS[item.type] ?? item.type}
+                          </Text>
+                        ) : null}
+                        {item.equipment?.trim() && item.equipment.trim() !== "-" ? (
+                          <Text style={styles.outlineDayEquipment}>
+                            {`Понадобится: ${item.equipment.trim()}`}
+                          </Text>
+                        ) : null}
+                        <View style={styles.outlineDayFooter}>
+                          <View style={styles.outlineDayDurations}>
+                            {hasPracticeTime && (
+                              <View style={styles.outlineDayDuration}>
+                                <MaterialCommunityIcons
+                                  name="clock-outline" size={15} color="#555e3c"
+                                />
+                                <Text style={styles.outlineDayDurationText}>
+                                  {`Практика · ${item.estimatedDuration} мин`}
+                                </Text>
+                              </View>
+                            )}
+                            {hasTheoryTime && (
+                              <View style={styles.outlineDayDuration}>
+                                <MaterialCommunityIcons
+                                  name="book-open-outline" size={15} color="#555e3c"
+                                />
+                                <Text style={styles.outlineDayDurationText}>
+                                  {`Теория · ${item.theoryMinutes} мин`}
+                                </Text>
+                              </View>
+                            )}
+                            {!hasPracticeTime && !hasTheoryTime && (
+                              <Text style={styles.outlineDayDurationUnknown}>
+                                Длительность не указана
+                              </Text>
+                            )}
+                          </View>
+                          <View style={styles.outlineDayArrow}>
+                            <MaterialCommunityIcons
+                              name={canOpen ? "arrow-right" : "lock-outline"}
+                              size={20} color={canOpen ? "#4e5e33" : "#8c897e"}
+                            />
+                          </View>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+              </View>
             </View>
           ) : null}
 
-          <View style={styles.paywallCard}>
-            <Text style={styles.paywallTitle}>Доступно по подписке</Text>
-            <Text style={styles.paywallSubtitle}>
-              Подписка открывает все курсы и статьи. Отдельные шаги можно открыть
-              за Гафусы или за просмотр рекламы.
-            </Text>
-            <View style={styles.paywallButtons}>
-              <Button
-                label="Оформить подписку"
-                height={42}
-                fontFamily={FONTS.montserratBold}
-                fontWeight="700"
-                fontSize={15}
-                lineHeight={18}
-                horizontalPadding={SPACING.md}
-                verticalPadding={12}
-                borderRadius={10}
-                onPress={handleSubscribe}
-              />
-              <AppBackButton label="Назад к курсам" onPress={() => {
-                void hapticFeedback.light();
-                router.replace("/(main)/(tabs)/courses" as const);
-              }} />
-            </View>
-          </View>
+
         </ScrollView>
 
         <Snackbar
@@ -726,13 +915,27 @@ export default function TrainingDaysScreen() {
                   <Text style={styles.offlineLabel}>Скачать для офлайна</Text>
                   {!isDownloadingThis && !isInQueue && (
                     <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Скачать курс для офлайна"
+                      accessibilityState={{
+                        disabled: !mayRequestOfflineDownload || isCheckingOfflinePlan,
+                      }}
+                      disabled={!mayRequestOfflineDownload || isCheckingOfflinePlan}
                       onPress={() => {
+                        if (!mayRequestOfflineDownload || isCheckingOfflinePlan) return;
                         void hapticFeedback.light();
                         startDownload(courseType);
                       }}
                       style={styles.offlineButton}
                     >
-                      <Text style={styles.offlineButtonText}>Скачать</Text>
+                      <Text style={[
+                        styles.offlineButtonText,
+                        (!mayRequestOfflineDownload || isCheckingOfflinePlan) &&
+                          styles.offlineButtonDisabledText,
+                      ]}>
+                        {isCheckingOfflinePlan ? "Проверяем тариф…" :
+                          mayRequestOfflineDownload ? "Скачать" : "Скачивание — от 1 месяца"}
+                      </Text>
                     </Pressable>
                   )}
                   {isDownloadingThis && (
@@ -774,11 +977,13 @@ export default function TrainingDaysScreen() {
 
           {/* Заголовок "Содержание" (как на web) */}
           <Text style={styles.contentTitle}>Содержание</Text>
+          {courseReviewsLink}
 
           {/* Описание курса (сворачиваемое, как на web) */}
-          {courseData?.courseDescription && (
+          {(courseData?.courseDescription || courseData?.courseVideoUrl) && (
             <CourseDescription
               description={courseData.courseDescription}
+              videoUrl={courseData.courseVideoUrl}
               equipment={courseData.courseEquipment}
               trainingLevel={courseData.courseTrainingLevel}
               onShare={handleShareCourse}
@@ -828,6 +1033,20 @@ export default function TrainingDaysScreen() {
 }
 
 const styles = StyleSheet.create({
+  reviewsLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  reviewsLinkText: {
+    color: COLORS.primary,
+    fontFamily: FONTS.montserratBold,
+    fontSize: 15,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -950,35 +1169,130 @@ const styles = StyleSheet.create({
   },
   outlineSection: {
     marginHorizontal: SPACING.md,
-    marginTop: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: 12,
-    backgroundColor: COLORS.cardBackground,
+    marginTop: SPACING.lg,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
+  outlineAccessHint: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 13,
+    lineHeight: 19,
+    color: "#696656",
+    marginBottom: SPACING.md,
   },
   outlineTitle: {
-    fontSize: 20,
-    color: "#352E2E",
+    fontSize: 24,
+    lineHeight: 30,
+    color: "#374429",
     fontFamily: FONTS.impact,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
-  outlineItemRow: {
+  outlineCards: {
+    gap: 12,
+  },
+  outlineDayCard: {
+    borderWidth: 1,
+    borderColor: "#ded5bb",
+    borderRadius: 18,
+    backgroundColor: "#fff9eb",
+    paddingHorizontal: 16,
+    paddingTop: 15,
+    paddingBottom: 14,
+    minHeight: 146,
+    shadowColor: "#3b4822",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 7,
+    elevation: 1,
+  },
+  outlineDayCardPressed: {
+    backgroundColor: "#f1ead6",
+    borderColor: "#92986f",
+  },
+  outlineDayCardDisabled: {
+    opacity: 0.65,
+  },
+  outlineDayMeta: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 8,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  outlineDayNumber: {
+    fontSize: 11,
+    letterSpacing: 1,
+    fontFamily: FONTS.montserratBold,
+    color: "#636128",
+  },
+  outlineDayState: {
+    fontSize: 11,
+    fontFamily: FONTS.montserrat,
+    color: "#777357",
+  },
+  outlineDayTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    color: "#352e2e",
+    fontFamily: FONTS.montserratBold,
+    marginBottom: 7,
+  },
+  outlineDayType: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily: FONTS.montserrat,
+    color: "#686a54",
     marginBottom: 6,
-    paddingLeft: 4,
   },
-  outlineItemNumber: {
-    fontSize: 14,
-    color: COLORS.text,
+  outlineDayEquipment: {
+    fontSize: 12,
+    lineHeight: 18,
     fontFamily: FONTS.montserrat,
-    marginRight: 6,
-    minWidth: 20,
+    color: "#696656",
+    marginBottom: 8,
   },
-  outlineItem: {
+  outlineDayFooter: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: "auto",
+    paddingTop: 8,
+  },
+  outlineDayDurations: {
     flex: 1,
-    fontSize: 14,
-    color: COLORS.text,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    alignItems: "center",
+  },
+  outlineDayDuration: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: 9,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    backgroundColor: "#ece8d6",
+  },
+  outlineDayDurationText: {
+    fontSize: 12,
+    color: "#4d543d",
     fontFamily: FONTS.montserrat,
+  },
+  outlineDayDurationUnknown: {
+    fontSize: 12,
+    color: "#787464",
+    fontFamily: FONTS.montserrat,
+  },
+  outlineDayArrow: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: "#ece8d6",
+    alignItems: "center",
+    justifyContent: "center",
   },
   paywallCard: {
     marginTop: SPACING.md,
@@ -1063,6 +1377,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.primary,
     fontWeight: "600",
+  },
+  offlineButtonDisabledText: {
+    color: COLORS.textSecondary,
   },
   progressRow: {
     marginTop: 6,

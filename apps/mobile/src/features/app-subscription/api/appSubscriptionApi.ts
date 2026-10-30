@@ -85,7 +85,7 @@ export const appSubscriptionApi = {
   getStatus(): Promise<ApiResponse<AppSubscriptionStatusDto>> {
     return apiClient<AppSubscriptionStatusDto>("/api/v1/app-subscription/status");
   },
-  async getOffer(): Promise<ApiResponse<AppSubscriptionOfferDto>> {
+  async getOffer(requestGuard?: () => boolean): Promise<ApiResponse<AppSubscriptionOfferDto>> {
     if (isDev) {
       const headers = getMobileClientHeaders();
       console.log("[appSubscriptionApi] offer request context", {
@@ -93,7 +93,9 @@ export const appSubscriptionApi = {
         clientVersion: headers["X-Client-Version"] ?? null,
       });
     }
-    const result = await apiClient<AppSubscriptionOfferDto>("/api/v1/app-subscription/offer");
+    const result = await apiClient<AppSubscriptionOfferDto>("/api/v1/app-subscription/offer", {
+      ...(requestGuard ? { requestGuard } : {}),
+    });
     if (isDev) {
       console.log("[appSubscriptionApi] offer response", {
         success: result.success,
@@ -104,22 +106,39 @@ export const appSubscriptionApi = {
     }
     return result;
   },
+  /**
+   * AG4 Phase-A SOURCE/MOCK-only grant (not mounted in the live paywall).
+   * Exactly one authenticated POST; the server mints and persists the token.
+   * Never send a caller ownerId, token, or payment details in this body.
+   */
+  initializeAppleAppAccountToken(
+    requestGuard: () => boolean,
+  ): Promise<ApiResponse<{ appleAppAccountToken: string }>> {
+    return apiClient<{ appleAppAccountToken: string }>(
+      "/api/v1/app-subscription/apple/token/initialize",
+      { method: "POST", body: {}, requestGuard },
+    );
+  },
   async startYookassa(
     planCode: AppSubscriptionPlanCode,
     promoCode?: { code: string; revision: number },
+    requestGuard?: () => boolean,
   ): Promise<ApiResponse<{ confirmationUrl: string; localSubscriptionId: string }>> {
     if (isDev) console.log("[appSubscriptionApi] startYookassa request", { planCode });
     const result = await apiClient<{ confirmationUrl: string; localSubscriptionId: string }>(
       "/api/v1/app-subscription/yookassa/start",
-      { method: "POST", body: { planCode, ...(promoCode ? { promoCode } : {}) } },
+      {
+        method: "POST",
+        body: { planCode, ...(promoCode ? { promoCode } : {}) },
+        ...(requestGuard ? { requestGuard } : {}),
+      },
     );
     if (isDev) {
       console.log("[appSubscriptionApi] startYookassa response", {
         success: result.success,
-        error: result.error,
         code: result.code,
         hasConfirmationUrl: Boolean(result.data?.confirmationUrl),
-        localSubscriptionId: result.data?.localSubscriptionId ?? null,
+        hasLocalSubscriptionId: Boolean(result.data?.localSubscriptionId),
       });
     }
     return result;

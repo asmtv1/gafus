@@ -131,6 +131,7 @@ describe("updateUserAdmin", () => {
       callback({
         $queryRaw: vi.fn().mockResolvedValue([{ id: "actor-1" }]),
         user: { update: mockUserUpdate, findUnique: mockUserFindUnique },
+        refreshToken: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
       }),
     );
     mockBindPartnerPromoCodeInTransaction.mockReset();
@@ -167,6 +168,24 @@ describe("updateUserAdmin", () => {
       Promise.resolve({ role: where.id === "moderator" ? "MODERATOR" : "PARTNER" }));
     const result = await updateUserAdmin("user-1", { role: "USER" }, "moderator");
     expect(result.success).toBe(false);
+    expect(mockUserUpdate).not.toHaveBeenCalled();
+  });
+
+  it("refuses a password edit by a demoted actor under transaction locks", async () => {
+    mockUserFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve({ role: where.id === "actor-demoted" ? "USER" : "USER" }));
+    const result = await updateUserAdmin(
+      "user-1", { newPassword: "secret123" }, "actor-demoted",
+    );
+    expect(result).toEqual({ success: false, error: "Недостаточно прав" });
+    expect(mockUserUpdate).not.toHaveBeenCalled();
+  });
+
+  it("moderator cannot reset a trainer password", async () => {
+    mockUserFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve({ role: where.id === "moderator" ? "MODERATOR" : "TRAINER" }));
+    const result = await updateUserAdmin("trainer-1", { newPassword: "secret123" }, "moderator");
+    expect(result).toEqual({ success: false, error: "Недостаточно прав" });
     expect(mockUserUpdate).not.toHaveBeenCalled();
   });
 
@@ -253,7 +272,13 @@ describe("updateUserAdmin", () => {
 describe("deleteUserAdmin", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockTransaction.mockImplementation(async (fn) => fn({ user: { delete: mockUserDelete }, $executeRaw: vi.fn().mockResolvedValue(1) }));
+    mockUserFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve({ role: where.id === "admin-1" ? "ADMIN" : "USER" }));
+    mockTransaction.mockImplementation(async (fn) => fn({
+      user: { delete: mockUserDelete, findUnique: mockUserFindUnique },
+      $queryRaw: vi.fn().mockResolvedValue([{ id: "admin-1" }, { id: "user-1" }]),
+      $executeRaw: vi.fn().mockResolvedValue(1),
+    }));
   });
 
   it("returns error when deleting self", async () => {
@@ -271,6 +296,21 @@ describe("deleteUserAdmin", () => {
 
     expect(result.success).toBe(true);
     expect(mockUserDelete).toHaveBeenCalledWith({ where: { id: "user-1" } });
+  });
+
+  it("refuses deletion after the actor is demoted in the DB", async () => {
+    mockUserFindUnique.mockResolvedValue({ role: "USER" });
+    const result = await deleteUserAdmin("user-1", "admin-1");
+    expect(result).toEqual({ success: false, error: "Недостаточно прав" });
+    expect(mockUserDelete).not.toHaveBeenCalled();
+  });
+
+  it("moderator cannot delete TRAINER even with valid actor", async () => {
+    mockUserFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve({ role: where.id === "moderator" ? "MODERATOR" : "TRAINER" }));
+    const result = await deleteUserAdmin("user-1", "moderator");
+    expect(result).toEqual({ success: false, error: "Недостаточно прав" });
+    expect(mockUserDelete).not.toHaveBeenCalled();
   });
 
   it("returns error.message when delete throws ServiceError", async () => {

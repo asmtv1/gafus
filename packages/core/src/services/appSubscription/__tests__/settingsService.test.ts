@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getAppSubscriptionOffer } from "../settingsService";
+import { getAppSubscriptionOffer, getAppSubscriptionOfferSnapshot } from "../settingsService";
+import { ensureAppleAppAccountToken } from "../appleAccountTokenService";
 
 const mockSettingsFindUnique = vi.fn();
 const mockPaymentFindFirst = vi.fn();
@@ -85,5 +86,25 @@ describe("getAppSubscriptionOffer", () => {
         yookassaPriceRub: 2500,
       }),
     ]);
+  });
+
+  it("G1 snapshot token returns existing persisted identity without allocation", async () => {
+    mockUserFindUnique.mockImplementation(
+      async ({ select }: { select: { appleAppAccountToken?: boolean } }) =>
+        select.appleAppAccountToken ? { appleAppAccountToken: "persisted-apple-id" } : null,
+    );
+    const result = await getAppSubscriptionOfferSnapshot("user-1", { platform: "ios", version: "1.7.0" });
+    expect(result.appleAppAccountToken).toBe("persisted-apple-id");
+    expect(ensureAppleAppAccountToken).not.toHaveBeenCalled();
+    expect(mockUserFindUnique).toHaveBeenCalledWith({
+      where: { id: "user-1" }, select: { appleAppAccountToken: true },
+    });
+  });
+
+  it("G1 snapshot token returns null for uninitialized account rather than random UUID", async () => {
+    mockUserFindUnique.mockResolvedValue(null);
+    const result = await getAppSubscriptionOfferSnapshot("user-missing");
+    expect(result.appleAppAccountToken).toBeNull();
+    expect(ensureAppleAppAccountToken).not.toHaveBeenCalled();
   });
 });

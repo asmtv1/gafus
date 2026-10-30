@@ -64,6 +64,17 @@ export const authRateLimiter = rateLimiter({
   store,
 });
 
+/** Session maintenance is NOT a password guess. Distinct Redis keys ensure
+ * a busy shared IP cannot spend the credential-attempt budget by refreshing
+ * a valid session or logging out. A separate ceiling still bounds abuse. */
+export const authSessionRateLimiter = rateLimiter({
+  windowMs: 15 * 60 * 1000,
+  limit: 120,
+  standardHeaders: "draft-6",
+  keyGenerator: (c) => `auth-session:${getClientIp(c)}`,
+  store,
+});
+
 /**
  * Стандартный лимит для остальных endpoints
  * 100 запросов в минуту

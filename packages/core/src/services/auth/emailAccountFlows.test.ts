@@ -15,7 +15,7 @@ vi.mock("@gafus/prisma", () => ({
     $transaction: async (callback: (tx: unknown) => Promise<void>) =>
       callback({
         passwordResetToken: { deleteMany: mocks.deleteTokens, create: mocks.createToken },
-        user: { update: mocks.updateUser },
+        user: { updateMany: mocks.updateUser },
       }),
   },
 }));
@@ -34,6 +34,7 @@ import { sendPasswordResetRequestByEmail } from "./emailAccountFlows";
 describe("sendPasswordResetRequestByEmail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.updateUser.mockResolvedValue({ count: 1 });
     mocks.findUser.mockResolvedValue({
       id: "user-1",
       email: "test@example.com",
@@ -55,6 +56,23 @@ describe("sendPasswordResetRequestByEmail", () => {
       },
     });
     expect(mocks.createToken.mock.calls[0][0].data.token).not.toBe(rawToken);
+  });
+
+  it("failed email leaves old token valid and reopens the throttle for retry", async () => {
+    mocks.sendEmail.mockRejectedValueOnce(new Error("SYNTHETIC_PROVIDER_OUTAGE"));
+    await expect(sendPasswordResetRequestByEmail("test@example.com"))
+      .rejects.toThrow("SYNTHETIC_PROVIDER_OUTAGE");
+    // Cleanup can delete ONLY the new token, never a previously delivered link.
+    const staged = mocks.createToken.mock.calls[0][0].data.token as string;
+    expect(mocks.deleteTokens).toHaveBeenCalledWith({
+      where: { userId: "user-1", token: staged },
+    });
+    expect(mocks.deleteTokens).not.toHaveBeenCalledWith({ where: { userId: "user-1" } });
+    expect(mocks.updateUser).toHaveBeenCalledTimes(2);
+    expect(mocks.updateUser.mock.calls[1][0]).toMatchObject({
+      where: { id: "user-1", passwordResetRequestedAt: expect.any(Date) },
+      data: { passwordResetRequestedAt: null },
+    });
   });
 
   it("в течение двух минут не создаёт новое письмо или токен", async () => {

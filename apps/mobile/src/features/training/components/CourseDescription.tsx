@@ -1,11 +1,15 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { View, StyleSheet, Pressable, Linking } from "react-native";
 import { Text, Surface } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { MarkdownText, VideoPlayer } from "@/shared/components";
 import { Button } from "@/shared/components/ui";
 import { useVideoProgress, useVideoUrl } from "@/shared/hooks";
-import { getEmbeddedVideoInfo } from "@gafus/core/utils";
+import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
+import { getOfflineVideoPosterUri, getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
+import { getVideoIdFromUrl } from "@/shared/lib/utils/videoUrl";
+import { reportClientError } from "@/shared/lib/tracer";
+import { getEmbeddedVideoInfo } from "@gafus/core-client/utils/video";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 
 interface CourseDescriptionProps {
@@ -38,6 +42,10 @@ export function CourseDescription({
   courseType,
 }: CourseDescriptionProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const isOffline = useIsOffline();
+  const [offlineVideoUri, setOfflineVideoUri] = useState<string | null>(null);
+  const [offlinePosterUri, setOfflinePosterUri] = useState<string | null>(null);
+  const [checkingOfflineVideo, setCheckingOfflineVideo] = useState(false);
   const videoInfo = useMemo(() => (videoUrl ? getEmbeddedVideoInfo(videoUrl) : null), [videoUrl]);
   const {
     url: playbackUrl,
@@ -46,13 +54,50 @@ export function CourseDescription({
     videoId,
     posterUrl,
     retry: retryVideo,
-  } = useVideoUrl(isExpanded && (videoInfo?.isCDN || videoInfo?.isHLS) ? (videoUrl ?? null) : null);
+  } = useVideoUrl(
+    isExpanded && !isOffline && (videoInfo?.isCDN || videoInfo?.isHLS)
+      ? (videoUrl ?? null)
+      : null,
+  );
   const {
     initialTimeSec,
     isLoading: isLoadingVideoProgress,
     saveProgress,
-  } = useVideoProgress(videoId, isExpanded);
+    saveError: videoSaveError,
+  } = useVideoProgress(videoId ?? getVideoIdFromUrl(videoUrl), isExpanded);
 
+  useEffect(() => {
+    if (!isExpanded || !isOffline || !courseType || !videoUrl) {
+      setOfflineVideoUri(null);
+      setOfflinePosterUri(null);
+      setCheckingOfflineVideo(false);
+      return;
+    }
+    let cancelled = false;
+    setCheckingOfflineVideo(true);
+    void Promise.all([
+      getOfflineVideoUri(courseType, videoUrl),
+      getOfflineVideoPosterUri(courseType, videoUrl),
+    ]).then(([uri, poster]) => {
+      if (cancelled) return;
+      setOfflineVideoUri(uri);
+      setOfflinePosterUri(poster);
+    }).catch((error) => {
+      if (cancelled) return;
+      reportClientError(error instanceof Error ? error : new Error(String(error)), {
+        issueKey: "CourseDescription",
+        keys: { operation: "offline_video_lookup" },
+      });
+      setOfflineVideoUri(null);
+      setOfflinePosterUri(null);
+    }).finally(() => {
+      if (!cancelled) setCheckingOfflineVideo(false);
+    });
+    return () => { cancelled = true; };
+  }, [isExpanded, isOffline, courseType, videoUrl]);
+
+  const effectivePlaybackUrl = isOffline ? offlineVideoUri : playbackUrl;
+  const effectivePosterUrl = isOffline ? offlinePosterUri : posterUrl;
   const handleToggle = useCallback(() => {
     setIsExpanded((prev) => !prev);
   }, []);
@@ -107,16 +152,18 @@ export function CourseDescription({
                     Видео презентация курса:
                   </Text>
                   {videoInfo.isCDN || videoInfo.isHLS ? (
-                    isLoadingVideo || isLoadingVideoProgress ? (
+                    (isOffline ? checkingOfflineVideo : isLoadingVideo) || isLoadingVideoProgress ? (
                       <View style={styles.videoLoading}>
                         <Text style={styles.videoLoadingText}>Загрузка видео...</Text>
                       </View>
-                    ) : videoError ? (
+                    ) : (isOffline ? !effectivePlaybackUrl : !!videoError) ? (
                       <View style={styles.videoError}>
                         <Text style={styles.videoErrorText} selectable>
-                          Не удалось загрузить видео. Проверьте соединение и попробуйте ещё раз.
+                          {isOffline
+                            ? "Это видео не скачано для просмотра без интернета."
+                            : "Не удалось загрузить видео. Проверьте соединение и попробуйте ещё раз."}
                         </Text>
-                        <Button
+                        {!isOffline && <Button
                           label="Повторить"
                           fullWidth={false}
                           height={44}
@@ -131,16 +178,21 @@ export function CourseDescription({
                           onPress={retryVideo}
                           accessibilityRole="button"
                           accessibilityLabel="Повторить загрузку видео"
-                        />
+                        />}
                       </View>
-                    ) : playbackUrl ? (
-                      <VideoPlayer
-                        uri={playbackUrl}
-                        poster={posterUrl ?? undefined}
-                        initialTimeSec={initialTimeSec}
-                        onSaveProgress={saveProgress}
-                        onRetry={retryVideo}
-                      />
+                    ) : effectivePlaybackUrl ? (
+                      <View>
+                        <VideoPlayer
+                          uri={effectivePlaybackUrl}
+                          poster={effectivePosterUrl ?? undefined}
+                          initialTimeSec={initialTimeSec}
+                          onSaveProgress={saveProgress}
+                          onRetry={retryVideo}
+                        />
+                        {videoSaveError ? (
+                          <Text accessibilityRole="alert">{videoSaveError}</Text>
+                        ) : null}
+                      </View>
                     ) : null
                   ) : videoInfo.embedUrl ? (
                     <Pressable

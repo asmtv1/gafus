@@ -1,0 +1,33 @@
+{
+  "state": "AG3_G05_REAL_MOBILE_CONSUMER_DONE_AG1_CLEANUP_NEXT",
+  "root": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "vite",
+  "completedUTC": "2026-10-17T13:55:48.339913+00:00",
+  "leaseExpiresUTC": "2026-10-17T15:43:47.666933+00:00",
+  "leaseCurrentAtCompletion": true,
+  "ag1ReadySha256": "f5fd2756fc46deed59d0347683415fba184af006d37d765640ac623e7a528356",
+  "ag4LeaseSha256": "9952c8ed259ba876e9444715bd905d8a8d1cbe5e46521be8712796a9200bbf3c",
+  "ag1ReadyStatus": "AG1_G05_AG3_LOCAL_TEST_ENDPOINT_READY",
+  "endpoint": "http://127.0.0.1:4128/api/v1/pets",
+  "realIntegrationJob": "673b438e220518ee",
+  "realIntegrationResult": "1/1 PASS exit 0 with actual JWT/Hono/normal packaged Core/PG; synthetic only",
+  "verified": [
+    "create 201 original owner",
+    "same-key same PetId replay 201",
+    "actual server 201 then simulated lost client ACK then same-key replay 201",
+    "409 changed payload with same key",
+    "owner A and B isolation",
+    "new authEpoch fresh UUID without automatic old intent replay"
+  ],
+  "typecheck": "PASS",
+  "scopedLint": "PASS",
+  "diffCheck": "PASS",
+  "sourceSha256": "a371c6a1e291d839e85ff73a3ca14f3ddb7ebf269a6f400fe103a03fefe5a8a1",
+  "adapterSha256": "3b25d69f9241a85c41e02ac6b261707a4f8b589df55f1b9a6bc9cdd2930067a9",
+  "syntheticSecretsLogged": false,
+  "sqlOrFixtureCleanupPerformedByAG3": false,
+  "handoff": "AG1 owns listener stop, SQL fixture cleanup and ZERO counts; AG2 only after AG1 cleanup and separate lease",
+  "physicalDevices": "NOT RUN",
+  "offlinePhase2": "CLOSED",
+  "productionCommitPushDeploy": "NOT PERFORMED"
+}

@@ -38,24 +38,23 @@ const USER_MSG_BATCH_FAILED = "Не удалось синхронизирова�
 /** Нейтральный текст вместо сообщения NotFoundError с контекстом БД */
 const USER_MSG_RECORD_NOT_FOUND = "Запись не найдена";
 
+/**
+ * Privacy boundary for medical/prevention logs. Even Zod issue text,
+ * Prisma/ServiceError messages, causes and actor/pet identifiers can
+ * contain private content. Keep only a fixed operation label and fixed
+ * failure class; the public result/status mapping stays unchanged.
+ */
 function logPetPreventionFailure(
   label: string,
   error: unknown,
-  context: Record<string, unknown>,
+  _context: Record<string, unknown>,
 ): void {
-  if (error instanceof ZodError) {
-    logger.error(label, error, { ...context, zodFlatten: error.flatten() });
-    return;
-  }
-  if (error instanceof ServiceError) {
-    logger.error(label, error, {
-      ...context,
-      serviceCode: error.code,
-      serviceMessage: error.message,
-    });
-    return;
-  }
-  logger.error(label, error as Error, context);
+  const safeCode = error instanceof ZodError
+    ? "PET_PREVENTION_VALIDATION_FAILED"
+    : error instanceof ServiceError
+      ? "PET_PREVENTION_SERVICE_FAILED"
+      : "PET_PREVENTION_OPERATION_FAILED";
+  logger.error(label, new Error(safeCode));
 }
 
 /** Клиенту не отдаём message из Prisma/ServiceError (поля, коды P*) */
@@ -487,6 +486,42 @@ function batchEntryToComputed(entry: BatchEntryInput) {
     reminderDaysAfter,
     reminderOnDate,
     reminderTimes: entry.reminderTimes,
+  });
+}
+
+/**
+ * AG4 OFF021 NEW-only v2 method: create ONE fresh entry within an existing
+ * journal SQL transaction. This reuses the ORIGINAL reminder computation
+ * without invoking the legacy batch upsert's nested Prisma transaction.
+ * The caller MUST establish owner/pet and immutable clientId binding itself.
+ * This does not change any legacy upsert behavior.
+ */
+export async function createNewPreventionEntryTx(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  petId: string,
+  entry: BatchEntryInput,
+): Promise<{ id: string }> {
+  const computed = batchEntryToComputed(entry);
+  return tx.petPreventionEntry.create({
+    data: {
+      petId,
+      ownerId: userId,
+      type: entry.type,
+      performedAt: entry.performedAt,
+      productName: entry.productName ?? null,
+      notes: entry.notes ?? null,
+      clientId: entry.clientId,
+      reminderEnabled: computed.reminderEnabled,
+      reminderKind: computed.reminderKind,
+      reminderDaysAfter: computed.reminderDaysAfter,
+      reminderOnDate: computed.reminderOnDate,
+      remindAt: computed.remindAt,
+      reminderTimes: computed.reminderTimes,
+      lastNotifiedForRemindAt: null,
+      sentTimesForRemindAt: Prisma.DbNull,
+    },
+    select: { id: true },
   });
 }
 

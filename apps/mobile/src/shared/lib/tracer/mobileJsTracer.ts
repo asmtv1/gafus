@@ -5,6 +5,12 @@ import { Platform } from "react-native";
 import { getTracerJsConfig } from "./tracerConfig";
 
 const SENSITIVE_KEY = /authorization|cookie|password|passwd|secret|token|email|phone/i;
+const SIGNED_KEY = /signed.?url|signature|credential|policy|key.?pair.?id|access.?key/i;
+// Signed media URLs often embed both a private object path and a temporary credential.
+// Do not emit the URL itself to telemetry, even with the signature parameter masked.
+const SIGNED_PROVIDER_QUERY = /[?&]x-(?:amz|goog|oss)-(?:signature|credential|security-token)=/i;
+const SIGNED_CDN_QUERY = /[?&](?:signature|policy|key-pair-id|awsaccesskeyid|googleaccessid|sig)=/i;
+const URL_IN_TEXT = /https?:\/\/[^\s"'<>]+/gi;
 const MAX_STRING_LENGTH = 500;
 const MAX_BREADCRUMBS = 75;
 
@@ -24,6 +30,9 @@ const breadcrumbs: Breadcrumb[] = [];
 
 export function redactTracerText(value: string, maxLength = MAX_STRING_LENGTH): string {
   return value
+    .replace(URL_IN_TEXT, (url) =>
+      SIGNED_PROVIDER_QUERY.test(url) || SIGNED_CDN_QUERY.test(url) ? "[REDACTED_SIGNED_URL]" : url,
+    )
     .replace(/Bearer\s+[^\s,;"']+/gi, "Bearer [REDACTED]")
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]")
     .replace(/([?&](?:token|code|password|secret|email|phone)=)[^&#\s]+/gi, "$1[REDACTED]")
@@ -43,7 +52,9 @@ export function sanitizeTracerValue(value: unknown, depth = 0): unknown {
         .slice(0, 50)
         .map(([key, item]) => [
           key,
-          SENSITIVE_KEY.test(key) ? "[REDACTED]" : sanitizeTracerValue(item, depth + 1),
+          SENSITIVE_KEY.test(key) || SIGNED_KEY.test(key)
+            ? "[REDACTED]"
+            : sanitizeTracerValue(item, depth + 1),
         ]),
     );
   }
@@ -80,8 +91,13 @@ export function setTracerUser(userId: string | null | undefined): void {
 }
 
 export function setTracerScreen(pathname: string): void {
-  currentScreen = pathname;
-  addTracerBreadcrumb("navigation", `screen ${pathname}`, { pathname });
+  // currentScreen is copied directly into the uploaded payload: redact it
+  // before storing it, not only when producing the navigation breadcrumb.
+  const safePathname = redactTracerText(pathname);
+  currentScreen = safePathname;
+  addTracerBreadcrumb("navigation", `screen ${safePathname}`, {
+    pathname: safePathname,
+  });
 }
 
 export function setTracerNetworkContext(context: {

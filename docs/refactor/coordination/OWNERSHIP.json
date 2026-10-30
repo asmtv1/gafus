@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "checkpoint": "G0-2026-10-16-vite-5fc78081",
+  "root": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "vite",
+  "policy": "deny-by-default; exact prefix or exact file; one owner; shared writes serialized by AG4",
+  "owners": {
+    "AG1": {
+      "prefixes": [
+        "apps/api/",
+        "apps/feed-cloud/",
+        "apps/gallery-cloud/",
+        "packages/analytics/",
+        "packages/auth/",
+        "packages/cdn-upload/",
+        "packages/chat-server/",
+        "packages/consultation-shared/",
+        "packages/core/",
+        "packages/csrf/",
+        "packages/error-handling/",
+        "packages/feed-cloud/",
+        "packages/feed-server/",
+        "packages/feed-storage/",
+        "packages/gallery-server/",
+        "packages/gallery-storage/",
+        "packages/logger/",
+        "packages/mailer/",
+        "packages/npd/",
+        "packages/prisma/",
+        "packages/questions-server/",
+        "packages/queues/",
+        "packages/reengagement/",
+        "packages/statistics/",
+        "packages/types/",
+        "packages/video-access/",
+        "packages/webpush/",
+        "packages/worker/"
+      ],
+      "files": [
+        "docs/refactor/agents/AGENT_1_PLAN.md"
+      ]
+    },
+    "AG2": {
+      "prefixes": [
+        "apps/web/",
+        "apps/web-vite/",
+        "packages/react-query/",
+        "packages/ui-components/",
+        "packages/metadata/"
+      ],
+      "files": [
+        "docs/refactor/agents/AGENT_2_PLAN.md"
+      ]
+    },
+    "AG3": {
+      "prefixes": [
+        "apps/mobile/"
+      ],
+      "files": [
+        "docs/refactor/agents/AGENT_3_PLAN.md"
+      ]
+    },
+    "AG4": {
+      "prefixes": [
+        "apps/trainer-panel/",
+        "apps/admin-panel/",
+        "apps/bull-board/",
+        "ci-cd/",
+        "infra/",
+        "docker/",
+        "tests/",
+        "scripts/refactor/",
+        ".github/workflows/",
+        "docs/refactor/coordination/"
+      ],
+      "files": [
+        "docs/refactor/agents/AGENT_4_PLAN.md",
+        "docs/refactor/ARCHITECTURE.md",
+        "docs/refactor/ROADMAP.md",
+        "docs/refactor/PROGRESS.md",
+        "docs/refactor/DECISIONS.md",
+        "docs/refactor/MIGRATION.md",
+        "docs/refactor/INVENTORY.md",
+        "docs/refactor/PWA_AUDIT.md",
+        "docs/refactor/WEB_API_CUTOVER.md",
+        "docs/refactor/WORKSPACE_AUDIT.md",
+        "package.json",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml",
+        "turbo.json",
+        "tsconfig.json",
+        "tsconfig.base.json",
+        "eslint.config.mjs",
+        "vitest.config.ts",
+        ".npmrc"
+      ]
+    }
+  },
+  "serializedPaths": [
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "turbo.json",
+    "tsconfig.json",
+    "tsconfig.base.json",
+    "eslint.config.mjs",
+    "vitest.config.ts",
+    ".npmrc",
+    "docs/refactor/ARCHITECTURE.md",
+    "docs/refactor/ROADMAP.md",
+    "docs/refactor/PROGRESS.md",
+    "docs/refactor/DECISIONS.md",
+    "docs/refactor/MIGRATION.md",
+    "docs/refactor/INVENTORY.md",
+    "docs/refactor/PWA_AUDIT.md",
+    "docs/refactor/WEB_API_CUTOVER.md",
+    "docs/refactor/WORKSPACE_AUDIT.md"
+  ],
+  "sharedResourceLocks": [
+    "pnpm install / lockfile / postinstall",
+    "prisma generate / schema migration",
+    "shared PostgreSQL / Redis / S3 tests",
+    "root Turbo build",
+    "Git commit / branch / stash operations",
+    "CI / Docker / deployment"
+  ],
+  "unassigned": "HOLD: any path not matched is read-only until AG4 records an explicit checkpoint; no implicit ownership",
+  "criticalRules": [
+    "No access outside root",
+    "No production/Main access",
+    "No following symlinks",
+    "Do not overwrite pre-existing dirty files",
+    "No prod env or deployment",
+    "AG4 changes root config only in serialized checkpoint"
+  ]
+}

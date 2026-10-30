@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { beginBegetCdnPurge, begetCdnPurgeDone, isBegetCacheableObjectKey } from "./begetCdnPurge";
 const baseline = { ...process.env };
@@ -49,11 +50,38 @@ describe("Beget exact-path purge", () => {
   });
   it("cannot purge source uploads, missing extensions, medical originals or playlists", () => {
     expect(isBegetCacheableObjectKey("gallery", "albums/a/b/photos/c/full.webp")).toBe(true);
+    expect(isBegetCacheableObjectKey("gallery", "gallery/a/media/p/v2/thumb.webp")).toBe(true);
+    expect(isBegetCacheableObjectKey("gallery", "gallery/a/media/p/v2/full.webp")).toBe(true);
+    expect(isBegetCacheableObjectKey("gallery", "gallery/a/media/p/v2/source.jpg")).toBe(false);
+    expect(isBegetCacheableObjectKey("gallery", "gallery/a/media/p/v2/full.webp/more")).toBe(false);
     expect(isBegetCacheableObjectKey("gallery", "users/a/pets/b/vet-visits/c/d/thumb.webp")).toBe(true);
     for (const key of ["albums/a/b", "albums/a/b/incoming/c/source.jpg", "users/a/pets/b/vet-visits/c/d/original.pdf"])
       expect(isBegetCacheableObjectKey("gallery", key)).toBe(false);
     expect(isBegetCacheableObjectKey("feed", "posts/a/b/attachments/c/hls/playlist.m3u8")).toBe(false);
-    expect(isBegetCacheableObjectKey("feed", "posts/a/b/attachments/c/hls/segment-001.ts")).toBe(true);
+    expect(isBegetCacheableObjectKey("feed", "posts/a/b/attachments/c/hls/segment-001.ts")).toBe(false);
+    for (const key of ["media/v2/c/v1/image/s.webp", "media/v2/c/v1/image/m.webp",
+      "media/v2/c/v1/image/l.webp", "media/v2/c/v1/poster.webp", "media/v2/c/v1/video/360.mp4",
+      "media/v2/c/v1/video/720.mp4", "media/v2/c/v1/video/1080.mp4"])
+      expect(isBegetCacheableObjectKey("feed", key)).toBe(true);
+    expect(isBegetCacheableObjectKey("feed", "media/v2/c/v1/video/360.m3u8")).toBe(false);
+  });
+  it("accepts exact Gallery V2 WebP paths for guarded Beget purge submissions", async () => {
+    enabled();
+    const network = vi.fn().mockResolvedValue(Response.json({ cdn: {
+      id: "0a8e97d5-3a65-4e90-99a6-c7f61131a461",
+    } }));
+    vi.stubGlobal("fetch", network);
+    const keys = ["/gallery/owner/media/photo/v2/thumb.webp",
+      "/gallery/owner/media/photo/v2/full.webp"];
+    const operations = await beginBegetCdnPurge("gallery", keys, []);
+    expect(operations).toHaveLength(1);
+    expect(network).toHaveBeenCalledWith(expect.stringContaining("api.beget.com"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          service_id: "0a8e97d5-3a65-4e90-99a6-c7f61131a461", path: keys,
+        }),
+      }));
   });
   it("does not confuse API acknowledgment with confirmed deletion at CDN edge", async () => {
     enabled();
@@ -87,6 +115,28 @@ describe("Beget exact-path purge", () => {
       .rejects.toThrow('BEGET_CDN_UNSAFE_OPERATION');
     await expect(begetCdnPurgeDone(op!.replace('gallery:', 'feed:'), now + 400_000, verified, edge))
       .rejects.toThrow('BEGET_CDN_UNSAFE_OPERATION');
+  });
+  it("verifies only exact new Feed WebP/MP4 paths using Beget query Secure Token", async () => {
+    enabled();
+    process.env.FEED_BEGET_CDN_SERVICE_ID = "becd9e5d-4fa8-47da-878c-9b80ded74e71";
+    const api = vi.fn().mockResolvedValue(Response.json({ cdn: { id: process.env.FEED_BEGET_CDN_SERVICE_ID } }));
+    vi.stubGlobal("fetch", api);
+    const path = "/media/v2/sample/v1/video/360.mp4";
+    const [op] = await beginBegetCdnPurge("feed", [path], []);
+    expect(op).toMatch(/^beget:[a-f0-9]{64}:\d{13}:feed:/);
+    const edge = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
+    const now = Date.now() + 400_000;
+    const secret = "M".repeat(28);
+    const verified = { ...process.env, BEGET_CDN_PURGE_PROPAGATION_VERIFIED: "true",
+      FEED_CDN_SECRET: secret, FEED_CDN_BASE_URL: "https://garaquachegasourn.begetcdn.cloud" };
+    expect(await begetCdnPurgeDone(op!, now, verified, edge)).toBe(true);
+    const url = new URL(edge.mock.calls[0]![0]);
+    const expires = Number(url.searchParams.get("expires"));
+    const md5 = createHash("md5").update(`${expires}${path} ${secret}`).digest("base64url");
+    expect(url.pathname).toBe(path);
+    expect(url.search).toBe(`?md5=${md5}&expires=${expires}`);
+    expect(edge.mock.calls.map((call: unknown[]) => (call[1] as { method: string }).method)).toEqual(["HEAD", "GET"]);
+    expect(url.href).not.toContain(secret);
   });
   it("fails closed on an unrecognized success response", async () => {
     enabled();

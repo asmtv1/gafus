@@ -1,9 +1,9 @@
+import { parseUsernameAvailabilityData } from "@gafus/types";
 import * as SecureStore from "expo-secure-store";
 import type { PublicPet } from "@gafus/types";
 
-import { apiClient, type ApiResponse } from "./client";
+import { apiClient, apiClientMultipart, type ApiResponse } from "./client";
 import type { User } from "./auth";
-import { API_BASE_URL } from "@/shared/config";
 
 export interface UpdateProfileData {
   fullName?: string;
@@ -61,36 +61,69 @@ export const userApi = {
   /**
    * Получить профиль текущего пользователя
    */
-  getProfile: async (): Promise<ApiResponse<User>> => {
-    return apiClient<User>("/api/v1/user/profile");
+  getProfile: async (requestGuard?: () => boolean): Promise<ApiResponse<User>> => {
+    return apiClient<User>("/api/v1/user/profile", {
+      ...(requestGuard ? { requestGuard } : {}),
+    });
   },
 
   /**
    * Получить публичный профиль по username
    */
-  getPublicProfile: async (username: string): Promise<ApiResponse<PublicProfile>> => {
+  getPublicProfile: async (
+    username: string,
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<PublicProfile>> => {
     return apiClient<PublicProfile>(
       `/api/v1/user/profile/public?username=${encodeURIComponent(username)}`,
+      { ...(requestGuard ? { requestGuard } : {}) },
     );
   },
 
   /**
    * Обновить профиль
    */
-  updateProfile: async (data: UpdateProfileData): Promise<ApiResponse<UpdatedUserProfile>> => {
+  updateProfile: async (
+    data: UpdateProfileData,
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<UpdatedUserProfile>> => {
+    // Only send editable profile fields. TypeScript alone cannot remove
+    // extra runtime properties such as account roles or subscription state.
+    const editableFields = [
+      "fullName",
+      "city",
+      "about",
+      "telegram",
+      "instagram",
+      "website",
+      "birthDate",
+    ] as const;
+    const body: UpdateProfileData = {};
+    for (const field of editableFields) {
+      if (Object.prototype.hasOwnProperty.call(data, field)) {
+        body[field] = data[field];
+      }
+    }
+
     return apiClient<UpdatedUserProfile>("/api/v1/user/profile", {
       method: "PUT",
-      body: data,
+      body,
+      ...(requestGuard ? { requestGuard } : {}),
     });
   },
 
   /**
    * Запрос смены email: письмо со ссылкой на новый адрес.
    */
-  requestEmailChange: async (newEmail: string): Promise<ApiResponse<void>> => {
+  requestEmailChange: async (
+    newEmail: string,
+    requestGuard?: () => boolean,
+    currentPassword?: string,
+  ): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/auth/email-change-request", {
       method: "POST",
-      body: { newEmail },
+      body: { newEmail, ...(currentPassword ? { currentPassword } : {}) },
+      ...(requestGuard ? { requestGuard } : {}),
     });
   },
 
@@ -99,10 +132,15 @@ export const userApi = {
    */
   changeUsername: async (
     newUsername: string,
+    requestGuard?: () => boolean,
   ): Promise<ApiResponse<{ user: { id: string; username: string; role: string } }>> => {
     const res = await apiClient<{ user: { id: string; username: string; role: string } }>(
       "/api/v1/auth/username-change",
-      { method: "POST", body: { newUsername } },
+      {
+        method: "POST",
+        body: { newUsername },
+        ...(requestGuard ? { requestGuard } : {}),
+      },
     );
     return res;
   },
@@ -113,28 +151,47 @@ export const userApi = {
   checkUsernameAvailable: async (
     username: string,
   ): Promise<ApiResponse<{ available: boolean }>> => {
-    return apiClient<{ available: boolean }>(
+    const response = await apiClient<unknown>(
       `/api/v1/auth/username-available?username=${encodeURIComponent(username)}`,
     );
+    if (!response.success) {
+      return { success: false, error: response.error, code: response.code, details: response.details };
+    }
+    const data = parseUsernameAvailabilityData(response.data);
+    return data
+      ? { success: true, data }
+      : { success: false, code: "INVALID_RESPONSE", error: "Некорректный ответ API" };
   },
 
   /**
    * Письмо с 6-значным кодом на email профиля (перед удалением).
    */
-  requestAccountDeletionCode: async (): Promise<ApiResponse<{ success: boolean }>> => {
+  requestAccountDeletionCode: async (
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<{ success: boolean }>> => {
     return apiClient<{ success: boolean }>("/api/v1/user/account/deletion-code", {
       method: "POST",
       body: {},
+      skipAuthRefreshReplay: true,
+      ...(requestGuard ? { requestGuard } : {}),
     });
   },
 
   /**
    * Необратимое удаление аккаунта (код из письма + Bearer).
    */
-  deleteAccount: async (code: string): Promise<ApiResponse<{ success: boolean }>> => {
+  deleteAccount: async (
+    code: string,
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<{ success: boolean }>> => {
+    if (!/^[0-9]{6}$/.test(code))
+      return { success: false, code: "INVALID_CODE", error: "Введите шесть цифр" };
     return apiClient<{ success: boolean }>("/api/v1/user/account/delete", {
       method: "POST",
       body: { code },
+      // Destructive operation: 401 refresh replay could delete after unknown ACK.
+      skipAuthRefreshReplay: true,
+      ...(requestGuard ? { requestGuard } : {}),
     });
   },
 
@@ -152,27 +209,15 @@ export const userApi = {
       return { success: false, error: "Не авторизован", code: "UNAUTHORIZED" };
     }
 
-    const formData = new FormData();
-    formData.append("file", {
-      uri,
-      type: mimeType,
-      name: fileName,
-    } as unknown as Blob);
-
-    const response = await fetch(`${API_BASE_URL}/api/v1/user/avatar`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
+    // Recreate the native upload form on a bounded 401 refresh retry.
+    return apiClientMultipart<{ avatarUrl: string }>("/api/v1/user/avatar", () => {
+      const formData = new FormData();
+      formData.append("file", {
+        uri,
+        type: mimeType,
+        name: fileName,
+      } as unknown as Blob);
+      return formData;
     });
-
-    const data = await response.json();
-    if (!response.ok) {
-      return {
-        success: false,
-        error: data.error || "Ошибка загрузки аватара",
-        code: data.code,
-      };
-    }
-    return data;
   },
 };

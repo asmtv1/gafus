@@ -1,0 +1,97 @@
+name: Refactor browser architecture (manual, source-only)
+
+# Not connected to push, PR, deployment, providers or production.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-static-boundary:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/vite'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Read this branch without persisting a token
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up repository-pinned pnpm (do not auto-install)
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+          run_install: false
+
+      - name: Use existing CI Node runtime
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Verify dispatch, pinned manager and root parser manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/vite
+          test "$(pnpm --version)" = 10.12.4
+          node --input-type=commonjs -e "const p=require('./package.json'); if(p.packageManager!=='pnpm@10.12.4'||p.devDependencies?.typescript!=='5.8.3')process.exit(1)"
+
+      - name: Provision only locked root importer dependencies (no scripts)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Root importer has 42 direct deps; this is NOT TypeScript-only.
+          # Do not recursively install other workspace importers.
+          pnpm --filter gafus.ru install --frozen-lockfile --ignore-scripts --prod=false
+
+      - name: Verify exact root TypeScript AST parser version
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module -e "const ts=await import('typescript'); if(ts.default?.version!=='5.8.3')process.exit(1)"
+
+      - name: Typecheck canonical shared wire contracts (source-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec tsc --project scripts/refactor/ci033-wire-contracts.tsconfig.json --noEmit
+
+      - name: Validate checker and test syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/refactor/verify_vite_browser_boundary.mjs
+          node --check scripts/refactor/verify_vite_browser_boundary.test.mjs
+          node --check scripts/refactor/ci033-architecture-report.mjs
+
+      - name: Test valid/forbidden fixture boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/refactor/ci033-architecture-report.mjs fixtures
+
+      - name: Enforce actual Vite browser-import/PWA boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/refactor/ci033-architecture-report.mjs boundary
+
+      - name: Validate bounded API architecture and pure lifecycle regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec vitest run --config scripts/refactor/ci033-api-architecture.vitest.config.ts apps/api/src/modules/architecture/dependency-architecture.test.ts apps/api/src/lib/graceful-shutdown.test.ts apps/api/src/lib/readiness-deadline.test.ts --reporter=default
+
+      - name: Upload bounded architecture result (if executed)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: refactor-browser-architecture-summary
+          path: .ci033-report/*.json
+          if-no-files-found: warn
+          retention-days: 3
+          include-hidden-files: true

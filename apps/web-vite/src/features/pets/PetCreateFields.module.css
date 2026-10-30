@@ -1,0 +1,25 @@
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; font: 500 14px/1.35 var(--font-montserrat),system-ui,sans-serif; color: #5a5744; }
+.field input,.field textarea { box-sizing: border-box; display: block; width: 100%; min-width: 0; min-height: 52px; padding: 13px 14px; border: 1px solid #636128; border-radius: 12px; background: #fff; color: #352e2e; font: inherit; font-size: 16px; }
+.field textarea { resize: vertical; min-height: 108px; }
+.field input:hover,.field textarea:hover { border-color: #4a4a1a; }
+.field input:focus-visible,.field textarea:focus-visible { outline: 2px solid #636128; outline-offset: 1px; }
+.field input[aria-invalid=true],.field textarea[aria-invalid=true] { border-color: #c62828; }
+.help { font: 400 12px var(--font-montserrat),system-ui,sans-serif; color: #5a5744; }
+.fieldset { min-width: 0; }
+.submit { width: 100%; min-height: 48px; border: 1px solid #636128; border-radius: 12px; color: #ece5d2; background: linear-gradient(135deg,#636128,#4a4a1a); cursor: pointer; font: 700 16px var(--font-montserrat),system-ui,sans-serif; }
+.submit:disabled { opacity: .65; cursor: wait; }
+.resultCard { margin-top: 1.5rem; }
+
+/* Vite shell's generic Impact h1 uses a more specific selector than the
+ * original Next AddPetForm.module.css. Restore exact 24px source heading. */
+:global(.gafus-app .shell) h1.sourceTitle {
+  font-family: var(--font-impact),var(--font-montserrat),system-ui,sans-serif;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: left;
+  margin: 0 0 0.65rem;
+}
+/* Source Next form spans the original inner card content width. */
+.originalForm { display: block; width: 100%; max-width: none; }

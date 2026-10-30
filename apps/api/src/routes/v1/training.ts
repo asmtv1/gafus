@@ -2,20 +2,21 @@
  * Training Routes
  * Endpoints для работы с тренировками
  */
-import { type Context, Hono } from "hono";
+import { type Context, Hono, type TypedResponse } from "hono";
+import type {
+  DiaryRead,
+  TrainingDayRead,
+  TrainingDaysRead,
+} from "../../../../../packages/types/src/data/training";
 import { z } from "zod";
+import { prisma } from "@gafus/prisma";
 import { zValidator } from "@hono/zod-validator";
 
 import {
-  getTrainingDays,
-  getTrainingDayWithMonetizedSteps,
   requireCourseStepOperationAccess,
   syncUserCourseStatusFromDays,
-  updateStepAndDay,
   validateTheoryStepForCompletion,
 } from "@gafus/core/services/training";
-import { saveDiaryEntry, getDiaryEntries } from "@gafus/core/services/diary";
-import { checkCourseAccess } from "@gafus/core/services/course";
 import {
   requirePremiumOrRewardedAccessForVideoUrl,
   SubscriptionOrCreditsRequiredError,
@@ -32,6 +33,11 @@ import {
   pauseStepNotification,
   resetStepNotification,
   resumeStepNotification,
+  createBoundStepNotificationForStart,
+  pauseBoundStepNotification,
+  resumeBoundStepNotification,
+  resetBoundStepNotification,
+  type BoundStepNotification,
 } from "@gafus/core/services/notifications";
 import { createWebLogger } from "@gafus/logger";
 import {
@@ -42,6 +48,15 @@ import {
 } from "@gafus/cdn-upload";
 import { getVideoAccessService, VIDEO_PLAYBACK_TOKEN_TTL_MINUTES } from "@gafus/video-access";
 import { rewriteHlsManifest } from "../../lib/hlsManifest";
+import {
+  localLegacyTrainingVideoEnabled, localLegacyTrainerVideoUrl,
+  readLocalLegacyTrainerPlaylist, readLocalLegacyTrainerVideo,
+} from "../../lib/localLegacyTrainingVideo";
+import { readTrainingDayApplication } from "../../modules/training/composition/read-training-day.js";
+import { readTrainingDaysApplication } from "../../modules/training/composition/read-training-days.js";
+import { readDiaryApplication } from "../../modules/training/composition/read-diary.js";
+import { writeDiaryApplication } from "../../modules/training/composition/write-diary.js";
+import { writeStepProgressApplication } from "../../modules/training/composition/write-step-progress.js";
 
 const logger = createWebLogger("api-training");
 
@@ -49,6 +64,27 @@ const HLS_SEGMENT_FILE_PATTERN = /^[a-zA-Z0-9._-]+\.(ts|m4s|mp4|m3u8|vtt|aac)$/;
 const PLAYBACK_ACCESS_CACHE_TTL_MS = 60_000;
 const PLAYBACK_ACCESS_DENIED_CACHE_TTL_MS = 10_000;
 const HLS_DIRECT_RESOURCE_TTL_SECONDS = VIDEO_PLAYBACK_TOKEN_TTL_MINUTES * 60;
+
+/** Local browser uses same-origin Vite proxy; native localhost calls use API port. */
+function trainingVideoApiUrl(c: Context): string {
+  if (localLegacyTrainingVideoEnabled()) {
+    const host = c.req.header("host")?.toLowerCase();
+    return host === "127.0.0.1:5173" || host === "localhost:5173"
+      ? "" : "http://127.0.0.1:3001";
+  }
+  return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
+}
+
+async function trainingVideoPlaylist(path: string): Promise<Buffer> {
+  return localLegacyTrainingVideoEnabled()
+    ? readLocalLegacyTrainerPlaylist(path) : downloadFileFromCDN(path);
+}
+
+async function trainingVideoPoster(path: string, ttl: number): Promise<string> {
+  return localLegacyTrainingVideoEnabled()
+    ? localLegacyTrainerVideoUrl(path) : getSignedDownloadUrl(path, ttl);
+}
+
 
 type VideoPlaybackAccess = {
   video: Awaited<ReturnType<typeof getVideoManifestInfo>>;
@@ -153,6 +189,9 @@ async function createProtectedHlsManifest(params: {
     if (safePath.endsWith(".m3u8")) {
       return `${apiUrl}/api/v1/training/video/${videoId}/segment?path=${encodeURIComponent(safePath)}&token=${encodeURIComponent(token)}`;
     }
+    if (localLegacyTrainingVideoEnabled()) {
+      return `${apiUrl}/api/v1/training/video/${videoId}/segment?path=${encodeURIComponent(safePath)}&token=${encodeURIComponent(token)}`;
+    }
     return getSignedDownloadUrl(`${baseDir}/${safePath}`, HLS_DIRECT_RESOURCE_TTL_SECONDS);
   });
 }
@@ -187,6 +226,16 @@ function subscriptionOrCreditsResponse(c: Context): Response {
 }
 
 function invalidStepStateResponse(c: Context, error: unknown): Response | null {
+  if (error instanceof Error && error.message === "STALE_STEP_BINDING") {
+    return c.json(
+      {
+        success: false,
+        error: "Состав дня изменился. Обновите страницу.",
+        code: "STALE_STEP_BINDING",
+      },
+      409,
+    );
+  }
   if (!(error instanceof Error) || !error.message.startsWith("INVALID_STATE")) return null;
   return c.json(
     {
@@ -210,7 +259,13 @@ function getRewardedPlatform(c: Context, platform?: string): "ANDROID" | "IOS" {
 
 async function requireStepMutationAccess(
   c: Context,
-  input: { courseId: string; dayOnCourseId: string; stepIndex: number },
+  input: {
+    courseId: string;
+    dayOnCourseId: string;
+    stepIndex: number;
+    expectedStepOnDayId?: string;
+    expectedStepId?: string;
+  },
 ): Promise<Response | null> {
   const user = c.get("user");
   try {
@@ -220,9 +275,13 @@ async function requireStepMutationAccess(
       expectedCourseId: input.courseId,
       dayOnCourseId: input.dayOnCourseId,
       stepIndex: input.stepIndex,
+      expectedStepOnDayId: input.expectedStepOnDayId,
+      expectedStepId: input.expectedStepId,
     });
     return null;
   } catch (error) {
+    const stale = invalidStepStateResponse(c, error);
+    if (stale) return stale;
     if (
       error instanceof Error &&
       (error.message === "COURSE_ACCESS_DENIED" || error.message === "COURSE_DAY_MISMATCH")
@@ -258,13 +317,17 @@ trainingRoutes.get("/days", zValidator("query", daysQuerySchema), async (c) => {
     const user = c.get("user");
     const { type } = c.req.valid("query");
 
-    const result = await getTrainingDays(user.id, type);
-    return c.json({ success: true, data: result });
+    const result = await readTrainingDaysApplication.execute({
+      actorUserId: user.id,
+      courseType: type,
+    });
+    return c.json({ success: true, data: result }) satisfies Response &
+      TypedResponse<TrainingDaysRead>;
   } catch (error) {
     if (error instanceof Error && error.message === "COURSE_ACCESS_DENIED") {
       return c.json({ success: false, error: "Нет доступа к курсу", code: "FORBIDDEN" }, 403);
     }
-    logger.error("Error fetching training days", error as Error);
+    logger.error("Error fetching training days", new Error("TRAINING_DAYS_READ_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
@@ -286,20 +349,108 @@ trainingRoutes.get("/day", zValidator("query", dayQuerySchema), async (c) => {
     const user = c.get("user");
     const { courseType, dayOnCourseId, createIfMissing, platform } = c.req.valid("query");
 
-    const result = await getTrainingDayWithMonetizedSteps(user.id, courseType, dayOnCourseId, {
-      createIfMissing,
-      platform: getRewardedPlatform(c, platform),
+    const result = await readTrainingDayApplication.execute({
+      actorUserId: user.id,
+      courseType,
+      dayOnCourseId,
+      options: {
+        createIfMissing,
+        platform: getRewardedPlatform(c, platform),
+      },
     });
 
-    if (!result) {
-      const access = await checkCourseAccess(courseType, user.id);
-      if (!access.hasAccess) {
-        return c.json({ success: false, error: "Нет доступа к курсу", code: "FORBIDDEN" }, 403);
-      }
+    if (result.kind === "forbidden") {
+      return c.json({ success: false, error: "Нет доступа к курсу", code: "FORBIDDEN" }, 403);
+    }
+    if (result.kind === "not_found") {
       return c.json({ success: false, error: "День тренировки не найден", code: "NOT_FOUND" }, 404);
     }
 
-    return c.json({ success: true, data: result });
+    // Opt-in only: never alter the released Native /day response. Cross-check
+    // physical occurrence IDs against the very DTO about to be rendered; a
+    // stale/monetized-redacted snapshot receives no active binding protocol.
+    if (c.req.header("X-Gafus-Web-Step-Binding") === "1") {
+      const links = await prisma.stepOnDay.findMany({
+        where: { dayId: result.detail.trainingDayId },
+        select: { id: true, stepId: true, order: true },
+        orderBy: { order: "asc" },
+      });
+      const matches =
+        links.length === result.detail.steps.length &&
+        links.every(
+          (link, i) =>
+            link.stepId === result.detail.steps[i]?.id &&
+            link.order === result.detail.steps[i]?.order,
+        );
+      if (matches) {
+        // Web-only bounded timer snapshot. UserStep.updatedAt is explicitly
+        // refreshed by the bound Core mutation path for start/pause/resume.
+        // This is a read-only projection: no upsert/backfill, no userStep IDs
+        // or exam/private data in the client clock contract.
+        const existingTraining = await prisma.userTraining.findUnique({
+          where: { userId_dayOnCourseId: { userId: user.id, dayOnCourseId } },
+          select: { id: true },
+        });
+        const progress = existingTraining
+          ? await prisma.userStep.findMany({
+              where: { userTrainingId: existingTraining.id,
+                stepOnDayId: { in: links.map(link => link.id) } },
+              select: { stepOnDayId: true, status: true, paused: true,
+                remainingSec: true, updatedAt: true },
+            })
+          : [];
+        const byOccurrence = new Map(progress.map(row => [row.stepOnDayId, row]));
+        const serverNow = new Date();
+        const coherent = links.every((link, i) => {
+          const step = result.detail.steps[i];
+          const state = byOccurrence.get(link.id);
+          return !step || step.locked || !state ||
+            (state.status === step.status &&
+              state.paused === Boolean(step.isPausedOnServer) &&
+              (state.remainingSec ?? null) === (step.remainingSecOnServer ?? null));
+        });
+        if (!coherent) {
+          // A concurrent write may have changed the record between the
+          // source read and snapshot read. No bound write authorized.
+          return c.json({ success: true, data: result.detail });
+        }
+        return c.json({
+          success: true,
+          data: {
+            ...result.detail,
+            serverNow: serverNow.toISOString(),
+            onlineStepBinding: "STEP_ON_DAY_ID_V1" as const,
+            steps: result.detail.steps.map((step, i) => {
+              if (step.locked) return step;
+              const occurrenceId = links[i].id;
+              const state = byOccurrence.get(occurrenceId);
+              const running = step.status === "IN_PROGRESS" &&
+                !state?.paused && typeof state?.remainingSec === "number";
+              const expiresAt = running
+                ? new Date(state.updatedAt.getTime() +
+                    Math.max(0, state.remainingSec ?? 0) * 1000)
+                : null;
+              const remaining = step.status === "IN_PROGRESS" &&
+                typeof state?.remainingSec === "number"
+                ? expiresAt
+                  ? Math.max(0, Math.ceil((expiresAt.getTime() -
+                      serverNow.getTime()) / 1000))
+                  : Math.max(0, state.remainingSec)
+                : null;
+              return {
+                ...step, stepOnDayId: occurrenceId,
+                timerSnapshot: {
+                  remainingSecAtServerNow: remaining,
+                  expiresAt: expiresAt?.toISOString() ?? null,
+                },
+              };
+            }),
+          },
+        });
+      }
+    }
+    return c.json({ success: true, data: result.detail }) satisfies Response &
+      TypedResponse<TrainingDayRead>;
   } catch (error) {
     if (error instanceof Error && error.message === "PERSONALIZATION_REQUIRED") {
       return c.json(
@@ -311,16 +462,52 @@ trainingRoutes.get("/day", zValidator("query", dayQuerySchema), async (c) => {
         428,
       );
     }
-    logger.error("Error fetching training day", error as Error);
+    logger.error("Error fetching training day", new Error("TRAINING_DAY_READ_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
+
+// Only opted-in Web sends both original Step.id and stable StepOnDay.id.
+// Existing Native packets omit both optional fields and stay unchanged.
+const stepBindingBodyFields = {
+  expectedStepOnDayId: z.string().min(1).max(128).optional(),
+  expectedStepId: z.string().min(1).max(128).optional(),
+};
+type StepBindingFields = { expectedStepOnDayId?: string; expectedStepId?: string };
+function parseStepBinding(
+  c: Context,
+  body: StepBindingFields,
+): { expectedStepOnDayId: string; expectedStepId: string } | Response | undefined {
+  if (body.expectedStepOnDayId === undefined && body.expectedStepId === undefined) return undefined;
+  if (!body.expectedStepOnDayId || !body.expectedStepId) {
+    return c.json(
+      { success: false, code: "INVALID_STEP_BINDING", error: "Неполная привязка шага" },
+      400,
+    );
+  }
+  return { expectedStepOnDayId: body.expectedStepOnDayId, expectedStepId: body.expectedStepId };
+}
+
+/** Stable notification target from the actual acknowledged mutation, never
+ * the mutable day stepIndex. Original old-client notification path is untouched. */
+function boundNotificationTarget(
+  dayOnCourseId: string,
+  result: { stepOnDayId?: string; stepId?: string },
+  binding: { expectedStepOnDayId: string; expectedStepId: string },
+): BoundStepNotification {
+  return {
+    dayOnCourseId,
+    stepOnDayId: result.stepOnDayId ?? binding.expectedStepOnDayId,
+    stepId: result.stepId ?? binding.expectedStepId,
+  };
+}
 
 // ==================== POST /training/step/start ====================
 const startStepBodySchema = z.object({
   courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  ...stepBindingBodyFields,
   status: z.literal("IN_PROGRESS").optional(),
   durationSec: z.number().int().min(0, "durationSec >= 0"),
 });
@@ -329,33 +516,64 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex, durationSec } = c.req.valid("json");
+    const binding = parseStepBinding(c, c.req.valid("json"));
+    if (binding instanceof Response) return binding;
     const accessResponse = await requireStepMutationAccess(c, {
       courseId,
       dayOnCourseId,
       stepIndex,
+      ...(binding ? binding : {}),
     });
     if (accessResponse) return accessResponse;
 
-    const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
-      type: "start",
-      remainingSec: durationSec,
-    });
+    const result = await writeStepProgressApplication.execute(
+      user.id,
+      dayOnCourseId,
+      stepIndex,
+      {
+        type: "start",
+        remainingSec: durationSec,
+      },
+      binding ? { ...binding, expectedCourseId: courseId } : undefined,
+    );
     try {
       await syncUserCourseStatusFromDays(user.id, result.courseId);
-    } catch (syncErr) {
-      logger.error("Error syncing course status after step/start", syncErr as Error);
+    } catch {
+      logger.error(
+        "Error syncing course status after step/start",
+        new Error("TRAINING_STEP_START_SYNC_FAILED"),
+      );
+    }
+
+    // Strict isolated WORK fault injection: the REAL Core progress and durable
+    // StepNotification SQL intent have committed, but no Redis add was made.
+    // Only the specifically leased synthetic actor and explicit local-mode
+    // runner can exercise this. Never available on normal/prod Hono startup.
+    if (binding && result.stepJustStarted &&
+        process.env.NODE_ENV === "development" &&
+        process.env.GAFUS_LOCAL_ISOLATED_API === "1" &&
+        process.env.AG1_OUTBOX_FAULT_USER_ID === user.id &&
+        process.env.AG1_OUTBOX_FAULT_AFTER_SQL_COMMIT === "1") {
+      return c.json({ success: false, code: "LOCAL_OUTBOX_FAULT_AFTER_SQL_COMMIT" }, 503);
     }
 
     // Ставим отложенный пуш «Время вышло» в очередь (fire-and-forget)
-    void createStepNotificationForStepStart(user.id, dayOnCourseId, stepIndex, durationSec).catch(
-      (notifErr) => {
-        logger.error("Error creating step notification (step/start)", notifErr as Error, {
-          userId: user.id,
-          dayOnCourseId,
-          stepIndex,
-        });
-      },
-    );
+    // Bound duplicate start is a no-op in Core: do not schedule another event.
+    if (!binding || result.stepJustStarted !== false) {
+      const notificationStart = binding
+        ? createBoundStepNotificationForStart(
+            user.id,
+            boundNotificationTarget(dayOnCourseId, result, binding),
+            durationSec,
+          )
+        : createStepNotificationForStepStart(user.id, dayOnCourseId, stepIndex, durationSec);
+      void notificationStart.catch(() => {
+        logger.error(
+          "Error creating step notification (step/start)",
+          new Error("TRAINING_STEP_START_NOTIFICATION_FAILED"),
+        );
+      });
+    }
 
     return c.json({ success: true });
   } catch (error) {
@@ -370,7 +588,7 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
     if (isSubscriptionOrCreditsRequiredError(error)) {
       return subscriptionOrCreditsResponse(c);
     }
-    logger.error("Error starting step", error as Error);
+    logger.error("Error starting step", new Error("TRAINING_STEP_START_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
@@ -380,6 +598,7 @@ const pauseStepBodySchema = z.object({
   courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  ...stepBindingBodyFields,
   timeLeftSec: z.number().int().min(0, "timeLeftSec >= 0"),
 });
 
@@ -387,33 +606,52 @@ trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), asyn
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex, timeLeftSec } = c.req.valid("json");
+    const binding = parseStepBinding(c, c.req.valid("json"));
+    if (binding instanceof Response) return binding;
     const accessResponse = await requireStepMutationAccess(c, {
       courseId,
       dayOnCourseId,
       stepIndex,
+      ...(binding ? binding : {}),
     });
     if (accessResponse) return accessResponse;
 
-    const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
-      type: "pause",
-      remainingSec: timeLeftSec,
-    });
+    const result = await writeStepProgressApplication.execute(
+      user.id,
+      dayOnCourseId,
+      stepIndex,
+      {
+        type: "pause",
+        remainingSec: timeLeftSec,
+      },
+      binding ? { ...binding, expectedCourseId: courseId } : undefined,
+    );
     try {
       await syncUserCourseStatusFromDays(user.id, result.courseId);
-    } catch (syncErr) {
-      logger.error("Error syncing course status after step/pause", syncErr as Error);
+    } catch {
+      logger.error(
+        "Error syncing course status after step/pause",
+        new Error("TRAINING_STEP_PAUSE_SYNC_FAILED"),
+      );
     }
 
     // Очищаем job из push-очереди при постановке таймера на паузу
     try {
-      const day = await getDayFromDayOnCourseId(dayOnCourseId);
-      await pauseStepNotification(user.id, day, stepIndex, timeLeftSec);
-    } catch (notifErr) {
-      logger.error("Error pausing step notification (step/pause)", notifErr as Error, {
-        userId: user.id,
-        dayOnCourseId,
-        stepIndex,
-      });
+      if (binding)
+        await pauseBoundStepNotification(
+          user.id,
+          boundNotificationTarget(dayOnCourseId, result, binding),
+          timeLeftSec,
+        );
+      else {
+        const day = await getDayFromDayOnCourseId(dayOnCourseId);
+        await pauseStepNotification(user.id, day, stepIndex, timeLeftSec);
+      }
+    } catch {
+      logger.error(
+        "Error pausing step notification (step/pause)",
+        new Error("TRAINING_STEP_PAUSE_NOTIFICATION_FAILED"),
+      );
     }
 
     return c.json({ success: true });
@@ -429,7 +667,7 @@ trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), asyn
     if (isSubscriptionOrCreditsRequiredError(error)) {
       return subscriptionOrCreditsResponse(c);
     }
-    logger.error("Error pausing step", error as Error);
+    logger.error("Error pausing step", new Error("TRAINING_STEP_PAUSE_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
@@ -439,36 +677,57 @@ const resumeStepBodySchema = z.object({
   courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  ...stepBindingBodyFields,
 });
 
 trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), async (c) => {
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
+    const binding = parseStepBinding(c, c.req.valid("json"));
+    if (binding instanceof Response) return binding;
     const accessResponse = await requireStepMutationAccess(c, {
       courseId,
       dayOnCourseId,
       stepIndex,
+      ...(binding ? binding : {}),
     });
     if (accessResponse) return accessResponse;
 
-    const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, { type: "resume" });
+    const result = await writeStepProgressApplication.execute(
+      user.id,
+      dayOnCourseId,
+      stepIndex,
+      {
+        type: "resume",
+      },
+      binding ? { ...binding, expectedCourseId: courseId } : undefined,
+    );
     try {
       await syncUserCourseStatusFromDays(user.id, result.courseId);
-    } catch (syncErr) {
-      logger.error("Error syncing course status after step/resume", syncErr as Error);
+    } catch {
+      logger.error(
+        "Error syncing course status after step/resume",
+        new Error("TRAINING_STEP_RESUME_SYNC_FAILED"),
+      );
     }
 
     // Возвращаем отложенный push-job в очередь при возобновлении
     try {
-      const day = await getDayFromDayOnCourseId(dayOnCourseId);
-      await resumeStepNotification(user.id, day, stepIndex, 0, dayOnCourseId);
-    } catch (notifErr) {
-      logger.error("Error resuming step notification (step/resume)", notifErr as Error, {
-        userId: user.id,
-        dayOnCourseId,
-        stepIndex,
-      });
+      if (binding)
+        await resumeBoundStepNotification(
+          user.id,
+          boundNotificationTarget(dayOnCourseId, result, binding),
+        );
+      else {
+        const day = await getDayFromDayOnCourseId(dayOnCourseId);
+        await resumeStepNotification(user.id, day, stepIndex, 0, dayOnCourseId);
+      }
+    } catch {
+      logger.error(
+        "Error resuming step notification (step/resume)",
+        new Error("TRAINING_STEP_RESUME_NOTIFICATION_FAILED"),
+      );
     }
 
     return c.json({ success: true });
@@ -484,7 +743,7 @@ trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), as
     if (isSubscriptionOrCreditsRequiredError(error)) {
       return subscriptionOrCreditsResponse(c);
     }
-    logger.error("Error resuming step", error as Error);
+    logger.error("Error resuming step", new Error("TRAINING_STEP_RESUME_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
@@ -494,6 +753,7 @@ const resetStepBodySchema = z.object({
   courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  ...stepBindingBodyFields,
   durationSec: z.number().int().min(0, "durationSec >= 0").optional(),
 });
 
@@ -501,30 +761,50 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
   try {
     const user = c.get("user");
     const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
+    const binding = parseStepBinding(c, c.req.valid("json"));
+    if (binding instanceof Response) return binding;
     const accessResponse = await requireStepMutationAccess(c, {
       courseId,
       dayOnCourseId,
       stepIndex,
+      ...(binding ? binding : {}),
     });
     if (accessResponse) return accessResponse;
 
-    const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, { type: "reset" });
+    const result = await writeStepProgressApplication.execute(
+      user.id,
+      dayOnCourseId,
+      stepIndex,
+      {
+        type: "reset",
+      },
+      binding ? { ...binding, expectedCourseId: courseId } : undefined,
+    );
     try {
       await syncUserCourseStatusFromDays(user.id, result.courseId);
-    } catch (syncErr) {
-      logger.error("Error syncing course status after step/reset", syncErr as Error);
+    } catch {
+      logger.error(
+        "Error syncing course status after step/reset",
+        new Error("TRAINING_STEP_RESET_SYNC_FAILED"),
+      );
     }
 
     // Полностью удаляем уведомление и job при рестарте шага
     try {
-      const day = await getDayFromDayOnCourseId(dayOnCourseId);
-      await resetStepNotification(user.id, day, stepIndex);
-    } catch (notifErr) {
-      logger.error("Error resetting step notification (step/reset)", notifErr as Error, {
-        userId: user.id,
-        dayOnCourseId,
-        stepIndex,
-      });
+      if (binding)
+        await resetBoundStepNotification(
+          user.id,
+          boundNotificationTarget(dayOnCourseId, result, binding),
+        );
+      else {
+        const day = await getDayFromDayOnCourseId(dayOnCourseId);
+        await resetStepNotification(user.id, day, stepIndex);
+      }
+    } catch {
+      logger.error(
+        "Error resetting step notification (step/reset)",
+        new Error("TRAINING_STEP_RESET_NOTIFICATION_FAILED"),
+      );
     }
 
     return c.json({ success: true });
@@ -552,7 +832,7 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
         400,
       );
     }
-    logger.error("Error resetting step", error as Error);
+    logger.error("Error resetting step", new Error("TRAINING_STEP_RESET_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
@@ -562,6 +842,7 @@ const completePracticeBodySchema = z.object({
   courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  ...stepBindingBodyFields,
   stepTitle: z.string().optional(),
   stepOrder: z.number().int().min(0).optional(),
 });
@@ -573,20 +854,43 @@ trainingRoutes.post(
     try {
       const user = c.get("user");
       const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
+      const binding = parseStepBinding(c, c.req.valid("json"));
+      if (binding instanceof Response) return binding;
       const accessResponse = await requireStepMutationAccess(c, {
         courseId,
         dayOnCourseId,
         stepIndex,
+        ...(binding ? binding : {}),
       });
       if (accessResponse) return accessResponse;
 
-      const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
-        type: "complete",
-      });
+      const result = await writeStepProgressApplication.execute(
+        user.id,
+        dayOnCourseId,
+        stepIndex,
+        {
+          type: "complete",
+        },
+        binding ? { ...binding, expectedCourseId: courseId } : undefined,
+      );
       try {
         await syncUserCourseStatusFromDays(user.id, result.courseId);
-      } catch (syncErr) {
-        logger.error("Error syncing course status after step/complete/practice", syncErr as Error);
+      } catch {
+        logger.error(
+          "Error syncing course status after step/complete/practice",
+          new Error("TRAINING_STEP_PRACTICE_SYNC_FAILED"),
+        );
+      }
+      if (binding) {
+        await resetBoundStepNotification(
+          user.id,
+          boundNotificationTarget(dayOnCourseId, result, binding),
+        ).catch(() =>
+          logger.error(
+            "Error clearing completed step notification",
+            new Error("TRAINING_STEP_COMPLETION_NOTIFICATION_FAILED"),
+          ),
+        );
       }
 
       return c.json({ success: true });
@@ -602,7 +906,7 @@ trainingRoutes.post(
       if (isSubscriptionOrCreditsRequiredError(error)) {
         return subscriptionOrCreditsResponse(c);
       }
-      logger.error("Error completing practice step", error as Error);
+      logger.error("Error completing practice step", new Error("TRAINING_STEP_PRACTICE_FAILED"));
       return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
     }
   },
@@ -612,6 +916,7 @@ const completeTheoryBodySchema = z.object({
   courseId: courseIdSchema,
   dayOnCourseId: z.string().cuid("dayOnCourseId должен быть CUID"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  ...stepBindingBodyFields,
   stepTitle: z.string().optional(),
   stepOrder: z.number().int().min(0).optional(),
 });
@@ -623,23 +928,50 @@ trainingRoutes.post(
     try {
       const user = c.get("user");
       const { courseId, dayOnCourseId, stepIndex } = c.req.valid("json");
+      const binding = parseStepBinding(c, c.req.valid("json"));
+      if (binding instanceof Response) return binding;
       const accessResponse = await requireStepMutationAccess(c, {
         courseId,
         dayOnCourseId,
         stepIndex,
+        ...(binding ? binding : {}),
       });
       if (accessResponse) return accessResponse;
 
-      const validation = await validateTheoryStepForCompletion(dayOnCourseId, stepIndex);
+      const validation = binding
+        ? await validateTheoryStepForCompletion(dayOnCourseId, stepIndex, binding)
+        : await validateTheoryStepForCompletion(dayOnCourseId, stepIndex);
       if (!validation.valid) {
-        const status = validation.code === "NOT_FOUND" ? 404 : 400;
+        const status =
+          validation.code === "NOT_FOUND"
+            ? 404
+            : validation.code === "STALE_STEP_BINDING"
+              ? 409
+              : 400;
         return c.json({ success: false, error: validation.error, code: validation.code }, status);
       }
 
-      const result = await updateStepAndDay(user.id, dayOnCourseId, stepIndex, {
-        type: "complete",
-      });
+      const result = await writeStepProgressApplication.execute(
+        user.id,
+        dayOnCourseId,
+        stepIndex,
+        {
+          type: "complete",
+        },
+        binding ? { ...binding, expectedCourseId: courseId } : undefined,
+      );
       await syncUserCourseStatusFromDays(user.id, result.courseId);
+      if (binding) {
+        await resetBoundStepNotification(
+          user.id,
+          boundNotificationTarget(dayOnCourseId, result, binding),
+        ).catch(() =>
+          logger.error(
+            "Error clearing completed theory notification",
+            new Error("TRAINING_STEP_THEORY_NOTIFICATION_FAILED"),
+          ),
+        );
+      }
 
       return c.json({ success: true });
     } catch (error) {
@@ -654,7 +986,7 @@ trainingRoutes.post(
       if (isSubscriptionOrCreditsRequiredError(error)) {
         return subscriptionOrCreditsResponse(c);
       }
-      logger.error("Error completing theory step", error as Error);
+      logger.error("Error completing theory step", new Error("TRAINING_STEP_THEORY_FAILED"));
       return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
     }
   },
@@ -669,7 +1001,7 @@ trainingRoutes.post("/diary", zValidator("json", postDiaryBodySchema), async (c)
   try {
     const user = c.get("user");
     const { dayOnCourseId, content } = c.req.valid("json");
-    const result = await saveDiaryEntry(user.id, dayOnCourseId, content);
+    const result = await writeDiaryApplication.execute(user.id, dayOnCourseId, content);
 
     if (!result.success) {
       const isForbidden = result.error === "Нет доступа к курсу";
@@ -677,8 +1009,8 @@ trainingRoutes.post("/diary", zValidator("json", postDiaryBodySchema), async (c)
     }
 
     return c.json({ success: true });
-  } catch (error) {
-    logger.error("Error saving diary entry", error as Error);
+  } catch {
+    logger.error("Error saving diary entry", new Error("TRAINING_DIARY_SAVE_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
@@ -692,15 +1024,20 @@ trainingRoutes.get("/diary", zValidator("query", getDiaryQuerySchema), async (c)
   try {
     const user = c.get("user");
     const { courseId, upToDayOnCourseId } = c.req.valid("query");
-    const result = await getDiaryEntries(user.id, courseId, upToDayOnCourseId);
+    const result = await readDiaryApplication.execute({
+      actorUserId: user.id,
+      courseId,
+      upToDayOnCourseId,
+    });
 
     if (result.error) {
       return c.json({ success: false, error: result.error }, 403);
     }
 
-    return c.json({ success: true, data: { entries: result.entries } });
-  } catch (error) {
-    logger.error("Error getting diary entries", error as Error);
+    return c.json({ success: true, data: { entries: result.entries } }) satisfies Response &
+      TypedResponse<DiaryRead>;
+  } catch {
+    logger.error("Error getting diary entries", new Error("TRAINING_DIARY_READ_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }
 });
@@ -711,19 +1048,67 @@ const videoUrlSchema = z.object({
   videoUrl: z.string().min(1, "videoUrl обязателен"),
 });
 
+/**
+ * Read-only preview of an already permitted private trainer video. Never
+ * return a raw thumbnailPath, storage key, videoId or a playback ticket.
+ * This uses exactly the existing premium/rewarded and video ownership checks.
+ */
+const videoPreviewQuerySchema = z.object({
+  videoUrl: z.string().min(1).max(4096),
+});
+
+trainingRoutes.get("/video/preview", zValidator("query", videoPreviewQuerySchema), async (c) => {
+  c.header("Cache-Control", "private, no-store, max-age=0");
+  c.header("Vary", "Cookie");
+  try {
+    const user = c.get("user");
+    if (!user?.id) return c.json({ success: false, code: "UNAUTHORIZED" }, 401);
+    const { videoUrl } = c.req.valid("query");
+    let storageUrl: URL;
+    try { storageUrl = new URL(videoUrl); }
+    catch { return c.json({ success: false, code: "INVALID_VIDEO" }, 400); }
+    const host = storageUrl.hostname.toLowerCase();
+    const storagePath = storageUrl.pathname;
+    const knownStorage = storageUrl.protocol === "https:" && !storageUrl.username &&
+      !storageUrl.password && !storageUrl.hash &&
+      ((host === "storage.yandexcloud.net" &&
+        storagePath.startsWith("/gafus-media/uploads/trainers/")) ||
+       (host === "gafus-media.storage.yandexcloud.net" &&
+        storagePath.startsWith("/uploads/trainers/")));
+    if (!knownStorage) return c.json({ success: false, code: "INVALID_VIDEO" }, 400);
+    const videoId = extractVideoIdFromCdnUrl(videoUrl);
+    if (!videoId || !/^[A-Za-z0-9_-]{1,128}$/.test(videoId) ||
+        !storagePath.includes(`/videocourses/${videoId}/`)) {
+      return c.json({ success: false, code: "INVALID_VIDEO" }, 400);
+    }
+    // Subscription, Gafus-step unlock and rewarded access are reads here;
+    // do not create rewarded grants, consume credits or mutate progress.
+    await requirePremiumOrRewardedAccessForVideoUrl({
+      userId: user.id, platform: getRewardedPlatform(c), videoUrl,
+    });
+    const { video, hasAccess } = await getCachedVideoPlaybackAccess(user.id, videoId);
+    if (!hasAccess) return c.json({ success: false, code: "FORBIDDEN" }, 403);
+    if (!video || video.transcodingStatus !== "COMPLETED" ||
+        !video.thumbnailPath || !video.hlsManifestPath) {
+      return c.json({ success: false, code: "NOT_FOUND" }, 404);
+    }
+    const posterUrl = await trainingVideoPoster(
+      video.thumbnailPath, Math.min(HLS_DIRECT_RESOURCE_TTL_SECONDS, 300),
+    );
+    return c.json({ success: true, data: { posterUrl } });
+  } catch (error) {
+    if (isSubscriptionOrCreditsRequiredError(error)) return subscriptionOrCreditsResponse(c);
+    // Sensitive provider storage keys, URL signatures and internal paths must
+    // not appear in error bodies or logs. Frontend leaves a dark placeholder.
+    logger.error("[training/video/preview] failure", new Error("VIDEO_PREVIEW_FAILED"));
+    return c.json({ success: false, code: "PREVIEW_UNAVAILABLE" }, 503);
+  }
+});
+
 trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) => {
   // Логируем сразу при входе в обработчик
   try {
-    logger.info("[training/video/url] === ЗАПРОС ПОЛУЧЕН ===", {
-      method: c.req.method,
-      path: c.req.path,
-      url: c.req.url,
-      hasUser: !!c.get("user"),
-      headers: {
-        contentType: c.req.header("Content-Type"),
-        hasAuth: !!c.req.header("Authorization"),
-      },
-    });
+    logger.info("[training/video/url] === ЗАПРОС ПОЛУЧЕН ===");
 
     // Получаем пользователя
     let user;
@@ -736,9 +1121,12 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
         );
         return c.json({ success: false, error: "Не авторизован", code: "UNAUTHORIZED" }, 401);
       }
-      logger.info("[training/video/url] Пользователь получен", { userId: user.id });
-    } catch (error) {
-      logger.error("[training/video/url] Ошибка получения пользователя", error as Error);
+      logger.info("[training/video/url] Пользователь получен");
+    } catch {
+      logger.error(
+        "[training/video/url] Ошибка получения пользователя",
+        new Error("VIDEO_URL_AUTH_FAILED"),
+      );
       return c.json({ success: false, error: "Ошибка авторизации", code: "AUTH_ERROR" }, 401);
     }
 
@@ -747,14 +1135,12 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
     try {
       const body = c.req.valid("json");
       videoUrl = body.videoUrl;
-      logger.info("[training/video/url] VideoUrl получен из body", {
-        videoUrl: videoUrl?.substring(0, 100),
-        videoUrlLength: videoUrl?.length,
-      });
-    } catch (error) {
-      logger.error("[training/video/url] Ошибка получения videoUrl из body", error as Error, {
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
+      logger.info("[training/video/url] VideoUrl получен из body");
+    } catch {
+      logger.error(
+        "[training/video/url] Ошибка получения videoUrl из body",
+        new Error("VIDEO_URL_BODY_INVALID"),
+      );
       return c.json(
         {
           success: false,
@@ -766,7 +1152,7 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
     }
 
     if (!videoUrl || typeof videoUrl !== "string" || videoUrl.length === 0) {
-      logger.warn("[training/video/url] videoUrl пустой или невалидный", { videoUrl });
+      logger.warn("[training/video/url] videoUrl пустой или невалидный");
       return c.json(
         {
           success: false,
@@ -777,10 +1163,7 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
       );
     }
 
-    logger.info("[training/video/url] Запрос video URL", {
-      userId: user.id,
-      videoUrl: videoUrl.substring(0, 100),
-    });
+    logger.info("[training/video/url] Запрос video URL");
 
     await requirePremiumOrRewardedAccessForVideoUrl({
       userId: user.id,
@@ -799,7 +1182,7 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
     ];
 
     if (externalPatterns.some((pattern) => pattern.test(videoUrl))) {
-      logger.info("[training/video/url] Внешнее видео, возвращаем как есть", { videoUrl });
+      logger.info("[training/video/url] Внешнее видео, возвращаем как есть");
       return c.json({ success: true, data: { url: videoUrl } });
     }
 
@@ -811,9 +1194,7 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
     if (isCDNVideo) {
       const videoId = extractVideoIdFromCdnUrl(videoUrl);
       if (!videoId) {
-        logger.warn("[training/video/url] Не удалось извлечь videoId из CDN URL", {
-          videoUrl: videoUrl.substring(0, 100),
-        });
+        logger.warn("[training/video/url] Не удалось извлечь videoId из CDN URL");
         return c.json(
           { success: false, error: "Некорректный URL видео", code: "INVALID_URL" },
           400,
@@ -823,8 +1204,11 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
       let playbackAccess: VideoPlaybackAccess;
       try {
         playbackAccess = await getCachedVideoPlaybackAccess(user.id, videoId);
-      } catch (error) {
-        logger.error("[training/video/url] Ошибка поиска видео в БД", error as Error, { videoId });
+      } catch {
+        logger.error(
+          "[training/video/url] Ошибка поиска видео в БД",
+          new Error("VIDEO_URL_METADATA_FAILED"),
+        );
         return c.json(
           { success: false, error: "Ошибка поиска видео в базе данных", code: "DATABASE_ERROR" },
           500,
@@ -834,10 +1218,7 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
       const { video, hasAccess } = playbackAccess;
 
       if (!video || video.transcodingStatus !== "COMPLETED" || !video.hlsManifestPath) {
-        logger.warn("[training/video/url] Видео не найдено или ещё обрабатывается", {
-          videoId,
-          transcodingStatus: video?.transcodingStatus ?? "unknown",
-        });
+        logger.warn("[training/video/url] Видео не найдено или ещё обрабатывается");
         return c.json(
           { success: false, error: "Видео не найдено или ещё обрабатывается", code: "NOT_FOUND" },
           404,
@@ -845,10 +1226,7 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
       }
 
       if (!hasAccess) {
-        logger.warn("[training/video/url] Нет доступа к видео", {
-          userId: user.id,
-          videoId,
-        });
+        logger.warn("[training/video/url] Нет доступа к видео");
         return c.json(
           { success: false, error: "Недостаточно прав для просмотра видео", code: "FORBIDDEN" },
           403,
@@ -881,27 +1259,23 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
           ttlMinutes: VIDEO_PLAYBACK_TOKEN_TTL_MINUTES,
         });
 
-        const apiUrl =
-          process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
+        const apiUrl = trainingVideoApiUrl(c);
         // .m3u8 в пути нужен для нативных плееров (iOS/Android), иначе возможна ошибка "Operation Stopped"
         const signedUrl = `${apiUrl}/api/v1/training/video/${videoId}/manifest.m3u8?token=${token}`;
         const posterUrl = video.thumbnailPath
-          ? await getSignedDownloadUrl(video.thumbnailPath, HLS_DIRECT_RESOURCE_TTL_SECONDS)
+          ? await trainingVideoPoster(video.thumbnailPath, HLS_DIRECT_RESOURCE_TTL_SECONDS)
           : undefined;
-        logger.info("[training/video/url] Сгенерирован signed URL", {
-          videoId,
-          apiUrl,
-        });
+        logger.info("[training/video/url] Сгенерирован signed URL");
         return c.json({ success: true, data: { url: signedUrl, videoId, posterUrl } });
-      } catch (error) {
-        logger.error("[training/video/url] Ошибка генерации signed URL", error as Error, {
-          videoId,
-          userId: user.id,
-        });
+      } catch {
+        logger.error(
+          "[training/video/url] Ошибка генерации signed URL",
+          new Error("VIDEO_URL_TOKEN_GENERATION_FAILED"),
+        );
         return c.json(
           {
             success: false,
-            error: error instanceof Error ? error.message : "Ошибка генерации signed URL",
+            error: "Ошибка генерации signed URL",
             code: "TOKEN_GENERATION_ERROR",
           },
           500,
@@ -910,35 +1284,23 @@ trainingRoutes.post("/video/url", zValidator("json", videoUrlSchema), async (c) 
     }
 
     // Для других URL возвращаем как есть
-    logger.info("[training/video/url] Неизвестный тип видео, возвращаем как есть", { videoUrl });
+    logger.info("[training/video/url] Неизвестный тип видео, возвращаем как есть");
     return c.json({ success: true, data: { url: videoUrl } });
   } catch (error) {
     if (isSubscriptionOrCreditsRequiredError(error)) {
       return subscriptionOrCreditsResponse(c);
     }
 
-    // Безопасное получение videoUrl для логирования
-    let videoUrlForLog = "unknown";
-    try {
-      const body = c.req.valid("json");
-      videoUrlForLog = body?.videoUrl?.substring(0, 100) || "unknown";
-    } catch {
-      // Игнорируем ошибку валидации при логировании
-    }
-
-    logger.error("[training/video/url] КРИТИЧЕСКАЯ ОШИБКА в обработчике", error as Error, {
-      videoUrl: videoUrlForLog,
-      errorMessage: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : undefined,
-      errorName: error instanceof Error ? error.name : undefined,
-      path: c.req.path,
-      method: c.req.method,
-    });
+    // Never forward provider errors, signed query strings or user identifiers.
+    logger.error(
+      "[training/video/url] КРИТИЧЕСКАЯ ОШИБКА в обработчике",
+      new Error("VIDEO_URL_REQUEST_FAILED"),
+    );
 
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Внутренняя ошибка сервера",
+        error: "Внутренняя ошибка сервера",
         code: "INTERNAL_SERVER_ERROR",
       },
       500,
@@ -975,8 +1337,11 @@ trainingRoutes.get(
 
       const progress = await getProgress(user.id, videoId);
       return c.json({ success: true, data: progress });
-    } catch (error) {
-      logger.error("[training/video/progress] Ошибка получения прогресса", error as Error);
+    } catch {
+      logger.error(
+        "[training/video/progress] Ошибка получения прогресса",
+        new Error("VIDEO_PROGRESS_READ_FAILED"),
+      );
       return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
     }
   },
@@ -1008,8 +1373,11 @@ trainingRoutes.post(
         );
       }
       return c.json({ success: true });
-    } catch (error) {
-      logger.error("[training/video/progress] Ошибка сохранения прогресса", error as Error);
+    } catch {
+      logger.error(
+        "[training/video/progress] Ошибка сохранения прогресса",
+        new Error("VIDEO_PROGRESS_WRITE_FAILED"),
+      );
       return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
     }
   },
@@ -1072,20 +1440,19 @@ async function handleVideoManifest(c: Context) {
     // Скачиваем манифест из Object Storage
     logger.info("[training/video/:videoId/manifest] Загрузка манифеста", {
       videoId,
-      hlsManifestPath: video.hlsManifestPath,
     });
 
-    const manifestBuffer = await downloadFileFromCDN(video.hlsManifestPath);
+    const manifestBuffer = await trainingVideoPlaylist(video.hlsManifestPath);
     const manifestContent = manifestBuffer.toString("utf-8");
 
+    // Do not log raw playlist lines: they may contain signed URLs or metadata.
     logger.info("[training/video/:videoId/manifest] Манифест загружен", {
       videoId,
       manifestLength: manifestContent.length,
-      firstLines: manifestContent.split("\n").slice(0, 5),
     });
 
     // Получаем base URL для формирования абсолютных URL
-    const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
+    const apiUrl = trainingVideoApiUrl(c);
 
     const baseDir = video.hlsManifestPath.split("/").slice(0, -1).join("/");
     const modifiedManifest = await createProtectedHlsManifest({
@@ -1103,20 +1470,27 @@ async function handleVideoManifest(c: Context) {
       apiUrl,
     });
 
-    // Возвращаем модифицированный манифест
-    c.header("Content-Type", "application/vnd.apple.mpegurl");
-    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
-    c.header("Pragma", "no-cache");
-    c.header("Expires", "0");
-    return c.text(modifiedManifest, 200);
-  } catch (error) {
-    logger.error("[training/video/:videoId/manifest] Ошибка получения манифеста", error as Error, {
+    // Hono c.text() overrides Content-Type to text/plain. Safari/native HLS
+    // needs the actual playlist MIME type; use a typed Response instead.
+    return new Response(modifiedManifest, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/vnd.apple.mpegurl",
+        "Cache-Control": "private, no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    });
+  } catch {
+    // Do not expose storage/provider exception messages or stack traces in logs.
+    logger.error("[training/video/:videoId/manifest] Ошибка получения манифеста", undefined, {
       videoId: c.req.param("videoId"),
+      code: "HLS_MANIFEST_FETCH_FAILED",
     });
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Ошибка получения манифеста",
+        error: "Ошибка получения манифеста",
         code: "INTERNAL_SERVER_ERROR",
       },
       500,
@@ -1193,9 +1567,8 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
     // В ABR master playlist ссылается на media playlist. Его также авторизуем через API,
     // а тяжёлые сегменты внутри уже выдаём прямыми подписанными URL Object Storage.
     if (safeSegmentPath.endsWith(".m3u8")) {
-      const playlistBuffer = await downloadFileFromCDN(fullSegmentPath);
-      const apiUrl =
-        process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
+      const playlistBuffer = await trainingVideoPlaylist(fullSegmentPath);
+      const apiUrl = trainingVideoApiUrl(c);
       const playlist = await createProtectedHlsManifest({
         content: playlistBuffer.toString("utf-8"),
         baseDir,
@@ -1217,6 +1590,22 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
     const rangeHeader = c.req.header("range");
     const validRange =
       rangeHeader?.startsWith("bytes=") && !rangeHeader.includes(",") ? rangeHeader : undefined;
+    if (localLegacyTrainingVideoEnabled()) {
+      // Browser HLS fetches same-origin API URLs: public legacy storage has no
+      // CORS header. This GET-only proxy never grants access without the
+      // existing playback token plus the current course/video ACL checks.
+      const remote = await readLocalLegacyTrainerVideo(fullSegmentPath, validRange);
+      const headers: Record<string, string> = {
+        "Content-Type": remote.headers.get("content-type") ?? "application/octet-stream",
+        "Cache-Control": "private, no-store",
+        "Accept-Ranges": "bytes",
+      };
+      for (const name of ["content-length", "content-range"] as const) {
+        const value = remote.headers.get(name);
+        if (value) headers[name] = value;
+      }
+      return new Response(remote.body, { status: remote.status, headers });
+    }
     const { stream, contentLength, contentType, contentRange, isPartialContent } =
       await streamFileFromCDN(fullSegmentPath, validRange);
 
@@ -1234,16 +1623,16 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
       status: isPartialContent ? 206 : 200,
       headers: responseHeaders,
     });
-  } catch (error) {
-    logger.error("[training/video/:videoId/segment] Ошибка получения сегмента", error as Error, {
+  } catch {
+    // Segment paths and provider errors may include private object/storage details.
+    logger.error("[training/video/:videoId/segment] Ошибка получения сегмента", undefined, {
       videoId: c.req.param("videoId"),
-      segmentPath: c.req.query("path"),
-      errorMessage: error instanceof Error ? error.message : String(error),
+      code: "HLS_SEGMENT_FETCH_FAILED",
     });
     return c.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Ошибка получения сегмента",
+        error: "Ошибка получения сегмента",
         code: "INTERNAL_SERVER_ERROR",
       },
       500,

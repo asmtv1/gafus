@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, StyleSheet, Text } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, FONTS } from "@/shared/config";
+import { reportClientError } from "@/shared/lib/tracer";
 
 type HeartState = { liked: boolean; hearts: number };
 
@@ -17,6 +18,7 @@ export function QuestionAnswerHeart({
   onToggle,
   onSuccess,
   onError,
+  isActorCurrent,
 }: {
   liked: boolean;
   hearts: number;
@@ -24,11 +26,23 @@ export function QuestionAnswerHeart({
   onToggle: (nextLiked: boolean) => Promise<unknown>;
   onSuccess: () => Promise<unknown>;
   onError: (error: unknown) => void;
+  isActorCurrent?: () => boolean;
 }) {
   const [value, setValue] = useState<HeartState>({ liked, hearts });
   const [pending, setPending] = useState(false);
+  const [unknown, setUnknown] = useState(false);
+  const unknownRef = useRef(false);
+  const mounted = useRef(true);
   const scale = useRef(new Animated.Value(1)).current;
   const inFlight = useRef(false);
+  const current = () => mounted.current && (!isActorCurrent || isActorCurrent());
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      scale.stopAnimation();
+    };
+  }, [scale]);
 
   useEffect(() => {
     if (!inFlight.current) setValue({ liked, hearts });
@@ -54,7 +68,7 @@ export function QuestionAnswerHeart({
   };
 
   const toggle = async () => {
-    if (disabled || inFlight.current) return;
+    if (disabled || inFlight.current || unknownRef.current || !current()) return;
     const previous = value;
     const nextLiked = !previous.liked;
     inFlight.current = true;
@@ -65,15 +79,36 @@ export function QuestionAnswerHeart({
     });
     animate(nextLiked);
     try {
+      // A fulfilled mutation is a positive ACK; a cache refresh failure is not.
       await onToggle(nextLiked);
-      await onSuccess();
-    } catch (error) {
-      setValue(previous);
-      animate(previous.liked);
-      onError(error);
+      if (!current()) return;
+      try {
+        await onSuccess();
+      } catch {
+        if (current()) {
+          reportClientError(new Error("QUESTION_HEART_CACHE_REFRESH_FAILED"), {
+            issueKey: "QuestionAnswerHeart",
+            keys: { operation: "refresh" },
+          });
+        }
+      }
+    } catch {
+      if (current()) {
+        // Unknown network outcome: show the previous local count, but do not
+        // infer that the server rejected the write or replay it automatically.
+        unknownRef.current = true;
+        setUnknown(true);
+        setValue(previous);
+        animate(previous.liked);
+        reportClientError(new Error("QUESTION_HEART_OUTCOME_UNKNOWN"), {
+          issueKey: "QuestionAnswerHeart",
+          keys: { operation: "toggle" },
+        });
+        onError(new Error("Результат реакции неизвестен. Обновите обсуждение."));
+      }
     } finally {
       inFlight.current = false;
-      setPending(false);
+      if (current()) setPending(false);
     }
   };
 
@@ -82,8 +117,8 @@ export function QuestionAnswerHeart({
       accessibilityRole="button"
       accessibilityLabel={value.liked ? "Убрать сердечко" : "Поставить сердечко"}
       accessibilityHint={`Отметок нравится: ${value.hearts}`}
-      accessibilityState={{ disabled: disabled || pending, selected: value.liked }}
-      disabled={disabled || pending}
+      accessibilityState={{ disabled: disabled || pending || unknown, selected: value.liked }}
+      disabled={disabled || pending || unknown}
       hitSlop={4}
       onPress={() => void toggle()}
       style={styles.button}

@@ -1,0 +1,318 @@
+/* WEB4: Scoped visual parity for the retained Next Questions.detail reading
+ * layout. Only /questions/:id uses these rules; no shared/global CSS reset.
+ * Reference: apps/web/src/features/questions/Questions.module.css detailPage.
+ */
+.gafus-app .web4-question-detail {
+  box-sizing: border-box;
+  width: min(100%, 980px);
+  max-width: 980px;
+  margin: 16px auto 48px;
+  padding: 12px clamp(12px, 3vw, 32px) 46px;
+  min-width: 0;
+  color: #352e2e;
+  overflow-wrap: anywhere;
+}
+.gafus-app .web4-question-detail > p:first-child { margin: 0 0 18px; }
+.gafus-app .web4-question-detail > p:first-child a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  color: #4d5c2d;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+.gafus-app .web4-question-primary-card,
+.gafus-app .web4-question-answers {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(77, 92, 45, .14);
+  border-radius: 16px;
+  background: rgba(250, 247, 239, .97);
+  padding: clamp(18px, 3vw, 30px);
+  box-shadow: 0 7px 28px rgba(53,46,46,.06);
+}
+.gafus-app .web4-question-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: #352e2e;
+}
+.gafus-app .web4-question-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e1e6d0;
+  color: #4d5c2d;
+  font-size: 15px;
+  font-weight: 750;
+}
+.gafus-app .web4-question-author > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.gafus-app .web4-question-author strong { font-size: 12px; font-weight: 750; }
+.gafus-app .web4-question-author time { color: #736e60; font-size: 11px; }
+.gafus-app .web4-question-metadata {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0 0 12px;
+}
+.gafus-app .web4-question-metadata > span {
+  border: 1px solid rgba(77,92,45,.13);
+  border-radius: 9px;
+  background: #e7e9d9;
+  padding: 5px 9px;
+  color: #4d5c2d;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+.gafus-app .web4-question-metadata > span:first-child {
+  background: #dce8d0;
+  color: #3b4822;
+}
+.gafus-app .web4-question-byline {
+  margin: 0;
+  color: #686540;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+.gafus-app .web4-question-primary-card h2 {
+  margin: 12px 0 14px;
+  max-width: 44ch;
+  color: #352e2e;
+  font-size: clamp(25px, 3vw, 34px);
+  font-weight: 750;
+  line-height: 1.24;
+  letter-spacing: -.025em;
+}
+.gafus-app .web4-question-primary-card .web4-question-body {
+  margin: 20px 0 0;
+  max-width: 78ch;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+.gafus-app .web4-question-detail .question-owner-controls {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  vertical-align: middle;
+  gap: 8px;
+  max-width: 100%;
+  margin: 4px 0;
+}
+.gafus-app .web4-question-detail .question-owner-controls > button:not([data-gafus-shared-button="caramel"]),
+.gafus-app .web4-question-primary-card > div:has(>button) > button {
+  box-sizing: border-box;
+  min-height: 42px;
+  max-width: 100%;
+  padding: 9px 13px;
+  border: 1px solid #b0ad9c;
+  border-radius: 12px;
+  background: transparent;
+  color: #352e2e;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.gafus-app .web4-question-primary-card > .question-owner-controls + div { display: inline-flex; }
+.gafus-app .web4-question-primary-card > .question-owner-controls + div > button {
+  min-height: 42px;
+  padding: 9px 13px;
+  background: transparent;
+  color: #352e2e;
+  border: 1px solid #b0ad9c;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.gafus-app .web4-question-detail .question-owner-controls form {
+  width: min(100%, 740px);
+  flex-basis: 100%;
+}
+.gafus-app .web4-question-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(77,92,45,.15);
+}
+.gafus-app .web4-question-footer > div {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.gafus-app .web4-question-footer .web4-question-reply-trigger {
+  min-height: 44px;
+  background: #4d5c2d;
+  color: #fff;
+  border: 1px solid #4d5c2d;
+  border-radius: 12px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.gafus-app .web4-question-footer button {
+  min-height: 40px;
+  font-size: 12px;
+}
+.gafus-app .web4-question-answers {
+  margin-top: 20px;
+  padding: clamp(18px, 2.4vw, 24px);
+  background: #f7f3ea;
+}
+.gafus-app .web4-question-answers > h3 {
+  margin: 0 0 16px;
+  padding-bottom: 16px;
+  font-size: clamp(19px, 2vw, 23px);
+  line-height: 1.3;
+  border-bottom: 1px solid rgba(77,92,45,.13);
+}
+.gafus-app .web4-question-answers > .compact-grid {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 0;
+}
+.gafus-app .web4-question-answers > .compact-grid > .compact-card {
+  margin: 0;
+  padding: 19px 20px;
+  border: 1px solid rgba(77,92,45,.12);
+  border-radius: 16px;
+  background: #fffdf8;
+}
+.gafus-app .web4-question-answers > .compact-grid > .compact-card > p {
+  font-size: 14px;
+  line-height: 1.7;
+}
+.gafus-app .web4-question-answers > form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 18px 0 0;
+  border-top: 1px solid rgba(77,92,45,.14);
+}
+.gafus-app .web4-question-answers > form label { font-size: 13px; font-weight: 650; }
+.gafus-app .web4-question-answers > form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 110px;
+  padding: 13px 15px;
+  border: 1px solid #bcb9a6;
+  border-radius: 12px;
+  background: #fffdf8;
+  color: #352e2e;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+}
+@media (max-width: 600px) {
+  .gafus-app .web4-question-detail { margin: 10px auto 36px; padding: 10px 10px 40px; }
+  .gafus-app .web4-question-primary-card { padding: 20px 16px; }
+  .gafus-app .web4-question-primary-card h2 { font-size: 25px; line-height: 1.26; }
+  .gafus-app .web4-question-answers { padding: 18px 15px; }
+  .gafus-app .web4-question-answers > .compact-grid > .compact-card { padding: 16px 14px; }
+}
+
+/* WEB4 matched-loaded 390×844/1280×800 follow-up: original Next keeps
+ * management, close and report actions compact within one horizontal footer.
+ * Preserve controls/forms; alter presentation only within detail card. */
+.gafus-app .web4-question-detail .web4-question-footer {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 16px;
+}
+.gafus-app .web4-question-detail .web4-question-footer > .question-owner-controls,
+.gafus-app .web4-question-detail .web4-question-footer > .question-report,
+.gafus-app .web4-question-detail .web4-question-footer > div {
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+  margin: 0;
+}
+.gafus-app .web4-question-detail .web4-question-footer > .question-owner-controls > button,
+.gafus-app .web4-question-detail .web4-question-footer > div > button,
+.gafus-app .web4-question-detail .web4-question-footer > .question-report > button {
+  width: auto;
+  min-width: 0;
+  min-height: 38px;
+  max-width: 100%;
+  padding: 7px 12px;
+  border: 1px solid rgba(77,92,45,.22);
+  border-radius: 11px;
+  background: #f8f5eb;
+  color: #4d5c2d;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: normal;
+}
+.gafus-app .web4-question-detail .web4-question-footer > .web4-question-reply-trigger {
+  flex: 0 0 auto;
+  width: auto;
+  min-height: 38px;
+  padding: 7px 15px;
+  color: #fff;
+  background: #4d5c2d;
+  border-color: #4d5c2d;
+}
+.gafus-app .web4-question-detail .web4-question-footer > .question-owner-controls > form,
+.gafus-app .web4-question-detail .web4-question-footer > .question-report > form {
+  flex-basis: 100%;
+  width: min(100%,740px);
+}
+@media (max-width:600px) {
+  .gafus-app .web4-question-detail .web4-question-footer { gap: 7px; }
+  .gafus-app .web4-question-detail .web4-question-footer > .question-owner-controls > button,
+  .gafus-app .web4-question-detail .web4-question-footer > div > button,
+  .gafus-app .web4-question-detail .web4-question-footer > .question-report > button {
+    min-height: 36px;
+    padding: 7px 10px;
+    font-size: 11px;
+  }
+}
+
+/* Actual Next share control is an accessible compact secondary icon. */
+.gafus-app .web4-question-detail .web4-question-footer > .web4-question-share-trigger {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border: 1px solid rgba(77,92,45,.22);
+  border-radius: 11px;
+  background: #f8f5eb;
+  color: #4d5c2d;
+  box-shadow: none;
+  font-size: 21px;
+  font-weight: 700;
+}
+.gafus-app .web4-question-detail .web4-question-share-notice {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #4d5c2d;
+}

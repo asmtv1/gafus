@@ -1,0 +1,44 @@
+/* WEB4-only additions: the source LegacyFeedCard.module.css stays byte-identical
+   to the saved Next.js version. */
+/* WEB4: Next's original compact report form anchored to the post menu. */
+.reportForm {
+  display: grid;
+  gap: 12px;
+  padding: 14px 10px 8px;
+  border-top: 1px solid var(--feed-border);
+  background: #fffdf8;
+}
+.reportForm label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: #3c4435;
+}
+.reportForm select,
+.reportForm textarea {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid var(--feed-border);
+  border-radius: 9px;
+  background: #fff;
+  color: #363b31;
+  font: inherit;
+}
+.reportForm select { min-height: 42px; }
+.reportForm textarea { min-height: 90px; resize: vertical; }
+.reportForm button:focus-visible {
+  outline: 2px solid #53623b;
+  outline-offset: 2px;
+}
+
+
+/* Same top-right overflow placement as retained Next FeedCard. */
+.postMetaWithActions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.postMetaWithActions > :first-child { min-width: 0; }

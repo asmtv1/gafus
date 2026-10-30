@@ -2,7 +2,7 @@ import {
   getDayStepKeyPrefix,
   getStepKey as getStepKeyFromCore,
   statusRank,
-} from "@gafus/core/utils/training";
+} from "@gafus/core-client/utils/training";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";

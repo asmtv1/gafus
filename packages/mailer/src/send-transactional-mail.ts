@@ -1,6 +1,7 @@
 import { sendResendMail } from "./resend.js";
 import { enqueueTransactionalMail, mailOutboxEnabled } from "./outbox.js";
 import nodemailer from "nodemailer";
+import { prisma } from "@gafus/prisma";
 import type { Attachment } from "nodemailer/lib/mailer/index.js";
 import type { Transporter } from "nodemailer";
 
@@ -82,6 +83,35 @@ export async function sendTransactionalMail(
     text: input.text,
     html: input.html,
     replyTo: input.replyTo,
-    attachments: input.attachments,
+    // The public Mailer.Attachment type accepts URL paths and nested AttachmentLike raw;
+    // sendMail's internal composer declaration is narrower. Nodemailer supports both at runtime.
+    attachments: input.attachments as unknown as Parameters<typeof transporter.sendMail>[0]["attachments"],
   });
+}
+
+/** Additive trusted delivery outcome: enqueue is NOT a provider acceptance. */
+export type TransactionalMailDisposition =
+  | { kind: "QUEUED" }
+  | { kind: "PROVIDER_ACCEPTED"; acceptedAt: Date };
+
+/** Unchanged delivery transport; only report ACCEPTED if persisted evidence exists. */
+export async function sendTransactionalMailWithDisposition(
+  input: SendTransactionalMailInput,
+  env: MailerEnv = mailerEnvFromProcess(),
+): Promise<TransactionalMailDisposition> {
+  await sendTransactionalMail(input, env);
+  if (env.provider !== "resend" ||
+      mailOutboxEnabled() && input.deliveryMode !== "immediate" ||
+      !input.deliveryKey) {
+    return { kind: "QUEUED" };
+  }
+  const attempt = await prisma.transactionalMailAttempt.findUnique({
+    where: { id: input.deliveryKey },
+    select: { status: true, acceptedAt: true, providerMessageId: true },
+  });
+  if (attempt?.status === "ACCEPTED" && attempt.providerMessageId &&
+      attempt.acceptedAt instanceof Date && Number.isFinite(attempt.acceptedAt.getTime())) {
+    return { kind: "PROVIDER_ACCEPTED", acceptedAt: attempt.acceptedAt };
+  }
+  return { kind: "QUEUED" };
 }

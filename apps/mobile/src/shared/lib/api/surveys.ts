@@ -1,16 +1,13 @@
 import type {
   SurveyAnswerValue,
-  SurveyComparisonDto,
+  SurveyBySlugRead,
+  SurveyComparisonRead,
   SurveyResponseDto,
-  SurveyTemplate,
 } from "@gafus/types";
 
 import { apiClient, type ApiResponse } from "./client";
 
-export interface SurveyLoadResponse {
-  template: SurveyTemplate;
-  response: SurveyResponseDto | null;
-}
+export type SurveyLoadResponse = SurveyBySlugRead["data"];
 
 export interface SubmitSurveyPayload {
   courseId: string;
@@ -48,8 +45,8 @@ export const surveyApi = {
   getComparison: (
     courseId: string,
     familySlug: string,
-  ): Promise<ApiResponse<SurveyComparisonDto | null>> => {
+  ): Promise<ApiResponse<SurveyComparisonRead["data"]>> => {
     const params = new URLSearchParams({ courseId, familySlug });
-    return apiClient<SurveyComparisonDto | null>(`/api/v1/surveys/comparison?${params}`);
+    return apiClient<SurveyComparisonRead["data"]>(`/api/v1/surveys/comparison?${params}`);
   },
 };

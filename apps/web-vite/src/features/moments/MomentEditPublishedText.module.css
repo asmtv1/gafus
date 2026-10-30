@@ -1,0 +1,316 @@
+/* Published Moments editor: one bounded, responsive card; no global form changes. */
+:global(.gafus-app) .trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 39px;
+  max-width: 100%;
+  padding: 8px 13px;
+  border: 1px solid #dce5d4;
+  border-radius: 11px;
+  background: #f6f8f2;
+  color: #536a43;
+  box-shadow: none;
+  font: 700 12px/1.4 var(--font-montserrat), system-ui, sans-serif;
+  cursor: pointer;
+}
+:global(.gafus-app) .trigger:hover { background: #edf3e7; }
+:global(.gafus-app) .trigger[hidden] { display: none; }
+:global(.gafus-app) .editor {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 10px;
+  width: 100%;
+  min-width: 0;
+  margin: 3px 0 8px;
+  padding: clamp(15px, 2.4vw, 22px);
+  border: 1px solid #e1e8d9;
+  border-radius: 17px;
+  background: #f8faf6;
+  color: #333d30;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.95);
+}
+.editor > :not(.header):not(.close) { grid-column: 1 / -1; min-width: 0; }
+.header { grid-column: 1; grid-row: 1; align-self: center; min-width: 0; }
+:global(.gafus-app) .editor .header h3 {
+  margin: 0;
+  font: 750 clamp(16px,2vw,19px)/1.4 var(--font-montserrat), system-ui, sans-serif;
+  color: #303b2e;
+  letter-spacing: -.025em;
+}
+:global(.gafus-app) .editor .header p {
+  margin: 3px 0 0;
+  color: #7a8475;
+  font: 400 11px/1.6 var(--font-montserrat), system-ui, sans-serif;
+}
+/* The close button remains the section's last direct child for existing
+ * keyboard-focus return semantics, but visually belongs to the header. */
+:global(.gafus-app) .editor > .close[data-gafus-variant="red"] {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid #efdad5 !important;
+  border-radius: 10px !important;
+  background: #fbf1ef !important;
+  box-shadow: none !important;
+  color: #ad6156 !important;
+  white-space: nowrap;
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+:global(.gafus-app) .editor > .close[data-gafus-variant="red"]:hover:not(:disabled) {
+  background: #f8e8e3 !important;
+}
+:global(.gafus-app) .editor .form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  margin: 2px 0 0;
+}
+:global(.gafus-app) .editor .label {
+  margin: 0;
+  color: #46523e;
+  font: 700 12px/1.5 var(--font-montserrat), system-ui, sans-serif;
+}
+:global(.gafus-app) .editor .textarea {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 136px;
+  padding: 13px 14px;
+  border: 1px solid #d7dfcf;
+  border-radius: 12px;
+  background: #fff;
+  color: #323c30;
+  font: 400 14px/1.65 var(--font-montserrat), system-ui, sans-serif;
+  resize: vertical;
+  box-shadow: none;
+}
+:global(.gafus-app) .shell .editor .textarea:is(:focus, :focus-visible) {
+  outline: none;
+  border-color: #8ba67d;
+  box-shadow: 0 0 0 2px rgba(111,139,92,.16);
+}
+:global(.gafus-app) .editor .counter {
+  margin: -4px 0 4px;
+  align-self: flex-end;
+  color: #899187;
+  font: 400 11px/1.5 var(--font-montserrat), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+:global(.gafus-app) .editor .existingMedia,
+:global(.gafus-app) .editor .newMedia {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  margin: 2px 0 0;
+  padding: 12px 13px;
+  border: 1px solid #e0e8d8;
+  border-radius: 12px;
+  background: #fff;
+}
+:global(.gafus-app) .editor :is(.existingMedia, .newMedia) legend {
+  padding: 0 5px;
+  font: 700 12px/1.5 var(--font-montserrat), system-ui, sans-serif;
+  color: #4b5b41;
+}
+:global(.gafus-app) .editor .existingMedia > p,
+:global(.gafus-app) .editor .mediaHint {
+  margin: 4px 0 9px;
+  color: #838d7b;
+  font-size: 11px;
+  line-height: 1.55;
+}
+:global(.gafus-app) .editor .existingMedia ol {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+:global(.gafus-app) .editor .existingMedia li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-width: 0;
+  gap: 5px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #f6f8f3;
+}
+:global(.gafus-app) .editor .existingMedia li > span {
+  flex: 1 1 105px;
+  font-size: 12px;
+  font-weight: 650;
+}
+:global(.gafus-app) .editor .existingMedia li > button:not([data-gafus-shared-button]),
+:global(.gafus-app) .editor .existingMedia > button {
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 1px solid #dce5d4;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: none;
+  color: #627454;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+:global(.gafus-app) .editor .existingMedia li button[data-gafus-variant="red"],
+:global(.gafus-app) .editor .newMediaItem button[data-gafus-variant="red"] {
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 9px !important;
+  font-size: 11px;
+  box-shadow: none;
+}
+:global(.gafus-app) .editor button:disabled { cursor: not-allowed; }
+:global(.gafus-app) .editor .filePicker {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 41px;
+  padding: 10px 13px;
+  border: 1px dashed #aebe9f;
+  border-radius: 10px;
+  background: #f5f8f2;
+  color: #506644;
+  font: 700 12px/1.4 var(--font-montserrat), system-ui, sans-serif;
+  cursor: pointer;
+  overflow: hidden;
+}
+:global(.gafus-app) .editor .filePicker:has(input:focus-visible) {
+  outline: 2px solid #87a276;
+  outline-offset: 2px;
+}
+:global(.gafus-app) .editor .filePicker input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 0;
+}
+:global(.gafus-app) .editor .newMedia:disabled .filePicker { opacity: .6; cursor: not-allowed; }
+:global(.gafus-app) .editor .mediaHint { margin: 9px 0 0; }
+:global(.gafus-app) .editor .newMediaItem {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eef0e9;
+}
+:global(.gafus-app) .editor .newMediaItem > span {
+  flex: 1 1 110px;
+  min-width: 0;
+  font-size: 12px;
+  color: #44513a;
+  overflow-wrap: anywhere;
+}
+:global(.gafus-app) .editor .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding-top: 5px;
+}
+:global(.gafus-app) .editor .actions > button {
+  box-sizing: border-box;
+  width: auto;
+  min-height: 43px;
+  padding: 10px 15px;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: none;
+}
+:global(.gafus-app) .editor .actions .publish { flex: 1 1 220px; }
+:global(.gafus-app) .editor .actions .save {
+  flex: 0 1 auto;
+  border: 1px solid #c9d6bf;
+  background: #fff;
+  color: #536948;
+}
+:global(.gafus-app) .editor .actions .save:hover:not(:disabled) {
+  background: #eef3e9;
+}
+:global(.gafus-app) .editor .review {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #dce6d4;
+  border-radius: 12px;
+  background: #fff;
+}
+:global(.gafus-app) .editor .review > p { margin: 0; font-size: 12px; line-height: 1.6; }
+:global(.gafus-app) .editor > p[role="status"],
+:global(.gafus-app) .editor > p[role="alert"] {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #edf2e7;
+  color: #566b48;
+  font-size: 12px;
+  line-height: 1.6;
+}
+:global(.gafus-app) .editor > p[role="alert"] {
+  background: #fbefec;
+  color: #a05044;
+}
+:global(.gafus-app) .editor .refresh {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  justify-self: start;
+  gap: 7px;
+  width: auto;
+  min-height: 36px;
+  margin: 0;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #6a7a61;
+  box-shadow: none;
+  font: 650 11px/1.4 var(--font-montserrat), system-ui, sans-serif;
+  cursor: pointer;
+}
+:global(.gafus-app) .editor .refresh:hover:not(:disabled) { color: #425d34; }
+:global(.gafus-app) .shell .editor :is(button,textarea,input):focus-visible,
+:global(.gafus-app) .shell .trigger:focus-visible {
+  outline: 2px solid #8aa576;
+  outline-offset: 2px;
+}
+@media (max-width: 560px) {
+  :global(.gafus-app) .editor { padding: 13px; gap: 10px; border-radius: 14px; }
+  :global(.gafus-app) .editor > .close[data-gafus-variant="red"] {
+    padding-inline: 8px;
+    font-size: 10px;
+  }
+  :global(.gafus-app) .editor .header h3 { font-size: 15px; }
+  :global(.gafus-app) .editor .header p { font-size: 10px; }
+  :global(.gafus-app) .editor .textarea { min-height: 120px; }
+  :global(.gafus-app) .editor .actions { display: grid; grid-template-columns: 1fr; }
+  :global(.gafus-app) .editor .actions > button { width: 100%; }
+  :global(.gafus-app) .editor .filePicker { width: 100%; }
+}

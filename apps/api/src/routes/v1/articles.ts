@@ -1,7 +1,7 @@
 /**
  * Articles Routes — endpoints для mobile.
  */
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
@@ -13,15 +13,26 @@ import {
 } from "@gafus/core/services/article";
 import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
+import { getBrowserAccessToken } from "../../lib/browser-auth.js";
 
 const logger = createWebLogger("api-articles");
 
 export const articlesRoutes = new Hono();
+// Authenticated articles and their mutations must not enter shared browser caches,
+// including validation failures and Core error responses.
+articlesRoutes.use("*", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  await next();
+});
 const platformQuerySchema = z.object({ platform: z.enum(["ANDROID", "IOS"]).optional() });
 
-function getArticlePlatform(c: {
-  req: { query(name: string): string | undefined; header(name: string): string | undefined };
-}): "ANDROID" | "IOS" {
+function getArticlePlatform(c: Context): "ANDROID" | "IOS" | "WEB_DESKTOP" {
+  // AuthMiddleware accepts a browser's HttpOnly access cookie only if no
+  // Bearer header was sent. Such requests must NEVER be classified as Android
+  // merely because the caller omits the platform parameter (or spoofs one).
+  if (!c.req.header("Authorization") && getBrowserAccessToken(c)) {
+    return "WEB_DESKTOP";
+  }
   const parsed = platformQuerySchema.safeParse({
     platform: c.req.query("platform") ?? c.req.header("x-client-platform"),
   });
@@ -32,12 +43,19 @@ articlesRoutes.get("/", async (c) => {
   try {
     const user = c.get("user");
     const result = await getArticles(user.id);
+    if (!result.success) {
+      return c.json(result, 500, {
+        "Cache-Control": "no-store",
+      });
+    }
     return c.json(result, {
-      headers: { "Cache-Control": "private, max-age=0, must-revalidate" },
+      headers: { "Cache-Control": "private, no-store" },
     });
   } catch (error) {
     logger.error("Error in articles GET", error as Error);
-    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500, {
+      "Cache-Control": "private, no-store",
+    });
   }
 });
 
@@ -54,7 +72,14 @@ articlesRoutes.post("/:id/like", zValidator("param", likeParamSchema), async (c)
     });
     return c.json({ success: true, data: { isLiked } });
   } catch (error) {
-    if (error instanceof SubscriptionOrCreditsRequiredError) {
+    // Built Core and API source may load different class constructors.
+    // Match the explicit stable denied-access code; never map unknown failures to 402.
+    if (
+      error instanceof SubscriptionOrCreditsRequiredError ||
+      (error instanceof Error &&
+        "code" in error &&
+        error.code === "SUBSCRIPTION_OR_CREDITS_REQUIRED")
+    ) {
       return c.json(
         {
           success: false,
@@ -113,11 +138,20 @@ articlesRoutes.get("/:slug", zValidator("param", slugParamSchema), async (c) => 
       platform: getArticlePlatform(c),
     });
     if (!result.success) {
-      return c.json(result, 404);
+      // Core distinguishes a genuinely absent slug from a storage/entitlement
+      // failure. Never present an upstream error as a successful empty record
+      // or a permanent 404, which could be negatively cached by clients.
+      return c.json(result, result.error === "Статья не найдена" ? 404 : 500, {
+        "Cache-Control": "private, no-store",
+      });
     }
-    return c.json(result);
+    return c.json(result, 200, {
+      "Cache-Control": "private, no-store",
+    });
   } catch (error) {
     logger.error("Error in article detail GET", error as Error);
-    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
+    return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500, {
+      "Cache-Control": "private, no-store",
+    });
   }
 });

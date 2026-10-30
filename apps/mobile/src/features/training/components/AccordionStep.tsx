@@ -14,7 +14,7 @@ import { Text, Divider, IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { useCallback, useEffect, useMemo, useState, memo, useRef } from "react";
-import type { ComponentProps, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/shared/components/ui";
 
@@ -25,8 +25,8 @@ import {
   shouldShowEstimatedDuration,
   STEP_STATUS_LABELS,
   STEP_TYPE_LABELS,
-} from "@gafus/core/utils/training";
-import { getEmbeddedVideoInfo } from "@gafus/core/utils";
+} from "@gafus/core-client/utils/training";
+import { getEmbeddedVideoInfo } from "@gafus/core-client/utils/video";
 import type { StepType, TrainingStatus } from "@gafus/types";
 import { MarkdownText, VideoPlayer } from "@/shared/components";
 import type { UserStep, StepContent } from "@/shared/lib/api";
@@ -38,6 +38,10 @@ import { SurveyBlock } from "./SurveyBlock";
 import type { LocalStepState } from "@/shared/stores";
 import { useTimerStore } from "@/shared/stores";
 import { useTimerStore as useTimerStoreDirect } from "@/shared/stores/timerStore";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import { useVerifiedV2StepTimerRestore } from "../useVerifiedV2StepTimerRestore";
+import { maskUnattestedCompletedStep } from "../attestedStepStatus";
 import { useVideoProgress, useVideoUrl } from "@/shared/hooks";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { WebView } from "react-native-webview";
@@ -46,57 +50,14 @@ import { getVideoIdFromUrl } from "@/shared/lib/utils/videoUrl";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { COLORS, FONTS, SPACING } from "@/shared/config";
+import { COLORS, SPACING } from "@/shared/config";
+import { WEB, styles, STEP_STATUS_CONFIG } from "./AccordionStep.presentation";
 
 /** Как web StepDiaryBlock: toLocaleDateString("ru-RU"). */
 function formatDiaryEntryDate(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("ru-RU");
 }
-
-type StepStatusIcon = ComponentProps<typeof MaterialCommunityIcons>["name"];
-
-/** Спокойные оттенки поверхности и системные иконки для состояний шага. */
-const STEP_STATUS_CONFIG: Record<
-  string,
-  {
-    icon: StepStatusIcon;
-    backgroundColor: string;
-    statusBackgroundColor: string;
-    foregroundColor: string;
-  }
-> = {
-  NOT_STARTED: {
-    icon: "clock-outline",
-    backgroundColor: "#FFFDF5",
-    statusBackgroundColor: "rgba(99, 97, 40, 0.08)",
-    foregroundColor: "#636128",
-  },
-  IN_PROGRESS: {
-    icon: "progress-clock",
-    backgroundColor: "#F3F5E8",
-    statusBackgroundColor: "rgba(99, 97, 40, 0.12)",
-    foregroundColor: "#636128",
-  },
-  COMPLETED: {
-    icon: "check-circle-outline",
-    backgroundColor: "#EFF3DF",
-    statusBackgroundColor: "rgba(78, 97, 31, 0.13)",
-    foregroundColor: "#4E611F",
-  },
-  PAUSED: {
-    icon: "pause-circle-outline",
-    backgroundColor: COLORS.cardBackground,
-    statusBackgroundColor: "rgba(143, 102, 38, 0.11)",
-    foregroundColor: "#795A28",
-  },
-  RESET: {
-    icon: "restart",
-    backgroundColor: "#F5F2EC",
-    statusBackgroundColor: "rgba(83, 76, 68, 0.09)",
-    foregroundColor: "#5F5750",
-  },
-};
 
 interface AccordionStepProps {
   /** Шаг с вложенным step (API) или плоский контент шага (офлайн). */
@@ -108,17 +69,21 @@ interface AccordionStepProps {
   isOpen: boolean;
   localState: LocalStepState | null;
   courseId: string;
+  /** Folder key for downloaded courses (course.type, not database course.id). */
+  offlineCourseType?: string;
   dayOnCourseId: string;
   onToggle: () => void;
-  onStart: () => void;
-  onPause: (remainingSec: number) => void;
-  onResume: () => void;
+  onStart: () => Promise<boolean>;
+  onPause: (remainingSec: number) => Promise<boolean>;
+  onResume: () => Promise<boolean>;
   onComplete: () => void;
-  onReset?: (durationSec: number) => void;
+  onReset?: (durationSec: number) => Promise<boolean>;
   diaryEntries?: DiaryEntry[];
   /** Стабильная ссылка из экрана дня: (stepIndex, content, stepTitle?) — без замыкания на каждый map. */
   onSaveDiary?: (stepIndex: number, content: string, stepTitle?: string) => Promise<void>;
   accessGate?: ReactNode;
+  /** Verified owner/epoch-scoped durable pending completion for this exact occurrence. */
+  verifiedLocalCompleted?: boolean;
 }
 
 /**
@@ -131,6 +96,7 @@ function AccordionStepComponent({
   isOpen,
   localState,
   courseId,
+  offlineCourseType,
   dayOnCourseId,
   onToggle,
   onStart,
@@ -141,6 +107,7 @@ function AccordionStepComponent({
   diaryEntries = [],
   onSaveDiary,
   accessGate,
+  verifiedLocalCompleted = false,
 }: AccordionStepProps) {
   // Поддержка обеих структур: с вложенным step.step (UserStep) и плоского шага (офлайн)
   let stepData: StepContent;
@@ -158,17 +125,25 @@ function AccordionStepComponent({
    * Только стабильные методы — без activeTimer: иначе при каждом tick() меняется весь объект
    * activeTimer и перерисовываются ВСЕ шаги на экране → ScrollView сдвигает offset (~60px).
    */
-  const { startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor, restoreTimerFromStorage } =
-    useTimerStore(
-      useShallow((s) => ({
-        startTimer: s.startTimer,
-        pauseTimer: s.pauseTimer,
-        tick: s.tick,
-        stopTimer: s.stopTimer,
-        isTimerActiveFor: s.isTimerActiveFor,
-        restoreTimerFromStorage: s.restoreTimerFromStorage,
-      })),
-    );
+  const { startTimer, pauseTimer, tick, stopTimer, isTimerActiveFor } = useTimerStore(
+    useShallow((s) => ({
+      startTimer: s.startTimer,
+      pauseTimer: s.pauseTimer,
+      tick: s.tick,
+      stopTimer: s.stopTimer,
+      isTimerActiveFor: s.isTimerActiveFor,
+    })),
+  );
+
+  const timerProfile = useAuthStore((state) => state.user);
+  const timerOwnerId = timerProfile?.id ?? null;
+  const verifiedBinding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const timerSession =
+    timerOwnerId &&
+    verifiedBinding?.principalId === timerOwnerId &&
+    useAuthStore.getState().user?.id === timerOwnerId
+      ? { ownerId: timerOwnerId, authEpoch: verifiedBinding.authEpoch }
+      : null;
 
   /** Остаток/флаг run только для ЭТОГО шага — сравнение по значениям, без лишних ререндеров соседей */
   const stepTimerTuple = useTimerStore(
@@ -178,7 +153,10 @@ function AccordionStepComponent({
         at &&
         at.courseId === courseId &&
         at.dayOnCourseId === dayOnCourseId &&
-        at.stepIndex === index
+        at.stepIndex === index &&
+        timerSession &&
+        at.ownerId === timerSession.ownerId &&
+        at.authEpoch === timerSession.authEpoch
       ) {
         return [at.remainingSec, at.isRunning] as const;
       }
@@ -188,10 +166,19 @@ function AccordionStepComponent({
 
   // После инициализации шага localState должен быть источником истины.
   // Иначе серверный RESET может перетирать локальный IN_PROGRESS после нажатия "Старт".
-  const status = getStepDisplayStatus(
+  // Ownerless persisted COMPLETED is not an attested local receipt.
+  const serverCompleted = "status" in step && step.status === "COMPLETED";
+  const safeLocalState = maskUnattestedCompletedStep(
     localState,
-    localState ? undefined : "status" in step ? step : undefined,
+    verifiedLocalCompleted,
+    serverCompleted,
   );
+  const status = verifiedLocalCompleted
+    ? "COMPLETED"
+    : getStepDisplayStatus(
+        safeLocalState,
+        safeLocalState ? undefined : "status" in step ? step : undefined,
+      );
   const statusConfig = STEP_STATUS_CONFIG[status] ?? STEP_STATUS_CONFIG.NOT_STARTED;
   const statusText = STEP_STATUS_LABELS[status as TrainingStatus] ?? STEP_STATUS_LABELS.NOT_STARTED;
   const isCompleted = status === "COMPLETED";
@@ -283,6 +270,14 @@ function AccordionStepComponent({
   const [isCheckingOfflineVideo, setIsCheckingOfflineVideo] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onCompleteRef = useRef(onComplete);
+  const asyncActionEpoch = useRef(0);
+  const actionPending = useRef(false);
+  useEffect(
+    () => () => {
+      asyncActionEpoch.current++;
+    },
+    [courseId, dayOnCourseId, index],
+  );
   const requestOnlineUrl =
     isOpen &&
     userRequestedPlay &&
@@ -303,6 +298,7 @@ function AccordionStepComponent({
     initialTimeSec,
     isLoading: isLoadingVideoProgress,
     saveProgress,
+    saveError: videoSaveError,
   } = useVideoProgress(videoId ?? sourceVideoId, Boolean(requestOnlineUrl));
 
   useEffect(() => {
@@ -315,8 +311,8 @@ function AccordionStepComponent({
     let cancelled = false;
     setIsCheckingOfflineVideo(true);
     void Promise.all([
-      getOfflineVideoUri(courseId, videoUrl),
-      getOfflineVideoPosterUri(courseId, videoUrl),
+      getOfflineVideoUri(offlineCourseType ?? courseId, videoUrl),
+      getOfflineVideoPosterUri(offlineCourseType ?? courseId, videoUrl),
     ])
       .then(([uri, posterUri]) => {
         if (!cancelled) {
@@ -339,7 +335,7 @@ function AccordionStepComponent({
     return () => {
       cancelled = true;
     };
-  }, [requestOnlineUrl, videoUrl, courseId]);
+  }, [requestOnlineUrl, videoUrl, courseId, offlineCourseType]);
 
   const effectivePlaybackUrl = offlineVideoUri ?? playbackUrl;
   const showOfflineStub =
@@ -356,41 +352,54 @@ function AccordionStepComponent({
     if (!isOpen) setUserRequestedPlay(false);
   }, [isOpen]);
 
+  /** UI timer state may mutate only after a verified writer result, never optimistically. */
+  const runCommittedAction = (save: () => Promise<boolean>, apply: () => void) => {
+    if (!timerSession || actionPending.current) return;
+    actionPending.current = true;
+    const generation = asyncActionEpoch.current;
+    const session = timerSession;
+    void save()
+      .then((saved) => {
+        if (!saved || generation !== asyncActionEpoch.current) return;
+        const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+        if (
+          binding?.principalId !== session.ownerId ||
+          binding.authEpoch !== session.authEpoch ||
+          useAuthStore.getState().user?.id !== session.ownerId
+        )
+          return;
+        apply();
+      })
+      .catch((error) =>
+        reportClientError(error instanceof Error ? error : new Error(String(error)), {
+          issueKey: "AccordionStep",
+          keys: { operation: "actionAfterCommit" },
+        }),
+      )
+      .finally(() => {
+        actionPending.current = false;
+      });
+  };
+
+  // AccordionStep is the real owner of timer restoration for both course variants.
+  useVerifiedV2StepTimerRestore(
+    courseId,
+    dayOnCourseId,
+    index,
+    status,
+    showTimer,
+    timerOwnerId,
+    timerSession?.authEpoch ?? null,
+  );
+
   // Проверяем, активен ли таймер для этого шага
-  const hasActiveTimer = isTimerActiveFor(courseId, dayOnCourseId, index);
+  const hasActiveTimer =
+    !!timerSession && isTimerActiveFor(courseId, dayOnCourseId, index, timerSession);
   const isActuallyRunning = isInProgress && hasActiveTimer && Boolean(stepTimerTuple?.[1]);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
-
-  // Восстановление таймера после возврата на экран/в приложение.
-  useEffect(() => {
-    if (!showTimer || status !== "IN_PROGRESS") return;
-    if (isTimerActiveFor(courseId, dayOnCourseId, index)) return;
-
-    let cancelled = false;
-    void restoreTimerFromStorage(courseId, dayOnCourseId, index).then((remainingSec) => {
-      if (cancelled) return;
-      if (remainingSec === 0) {
-        stopTimer(courseId, dayOnCourseId, index);
-        onCompleteRef.current();
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    showTimer,
-    status,
-    courseId,
-    dayOnCourseId,
-    index,
-    isTimerActiveFor,
-    restoreTimerFromStorage,
-    stopTimer,
-  ]);
 
   // Обновление таймера каждую секунду (как в web)
   useEffect(() => {
@@ -402,7 +411,10 @@ function AccordionStepComponent({
         currentTimer.courseId === courseId &&
         currentTimer.dayOnCourseId === dayOnCourseId &&
         currentTimer.stepIndex === index &&
-        currentTimer.isRunning;
+        currentTimer.isRunning &&
+        timerSession &&
+        currentTimer.ownerId === timerSession.ownerId &&
+        currentTimer.authEpoch === timerSession.authEpoch;
 
       if (!isTimerActive) {
         if (intervalRef.current) {
@@ -421,6 +433,26 @@ function AccordionStepComponent({
 
       intervalRef.current = setInterval(() => {
         try {
+          // Auth binding may rotate before React commits a new render. The callback
+          // must never complete a former session's step, even in that gap.
+          const liveBinding = newOnlyV2NativeQueues.getVerifiedBinding();
+          if (
+            !timerSession ||
+            liveBinding?.principalId !== timerSession.ownerId ||
+            liveBinding.authEpoch !== timerSession.authEpoch ||
+            useAuthStore.getState().user?.id !== timerSession.ownerId
+          ) {
+            const stale = useTimerStoreDirect.getState().activeTimer;
+            if (
+              stale?.courseId === courseId &&
+              stale.dayOnCourseId === dayOnCourseId &&
+              stale.stepIndex === index &&
+              stale.ownerId === timerSession?.ownerId &&
+              stale.authEpoch === timerSession?.authEpoch
+            )
+              stopTimer(courseId, dayOnCourseId, index);
+            return;
+          }
           // Проверяем, что таймер все еще активен и работает
           const timerState = useTimerStoreDirect.getState().activeTimer;
           if (!timerState || !timerState.isRunning) {
@@ -431,7 +463,10 @@ function AccordionStepComponent({
           if (
             timerState.courseId !== courseId ||
             timerState.dayOnCourseId !== dayOnCourseId ||
-            timerState.stepIndex !== index
+            timerState.stepIndex !== index ||
+            !timerSession ||
+            timerState.ownerId !== timerSession.ownerId ||
+            timerState.authEpoch !== timerSession.authEpoch
           ) {
             return;
           }
@@ -444,7 +479,11 @@ function AccordionStepComponent({
             updatedTimer.courseId === courseId &&
             updatedTimer.dayOnCourseId === dayOnCourseId &&
             updatedTimer.stepIndex === index &&
-            updatedTimer.remainingSec <= 0
+            timerSession &&
+            updatedTimer.ownerId === timerSession.ownerId &&
+            updatedTimer.authEpoch === timerSession.authEpoch &&
+            updatedTimer.remainingSec <= 0 &&
+            !actionPending.current
           ) {
             stopTimer(courseId, dayOnCourseId, index);
             onCompleteRef.current();
@@ -480,7 +519,8 @@ function AccordionStepComponent({
     dayOnCourseId,
     index,
     stopTimer,
-    restoreTimerFromStorage,
+    timerSession?.ownerId,
+    timerSession?.authEpoch,
   ]);
 
   const stepTypeLabel = isBreak
@@ -911,15 +951,20 @@ function AccordionStepComponent({
                             />
                           </View>
                         ) : effectivePlaybackUrl ? (
-                          <VideoPlayer
-                            key={videoPlayerRetryKey}
-                            uri={effectivePlaybackUrl}
-                            poster={offlinePosterUri ?? posterUrl ?? undefined}
-                            autoPlay
-                            initialTimeSec={initialTimeSec}
-                            onSaveProgress={saveProgress}
-                            onRetry={handleVideoPlayerRetry}
-                          />
+                          <View>
+                            <VideoPlayer
+                              key={videoPlayerRetryKey}
+                              uri={effectivePlaybackUrl}
+                              poster={offlinePosterUri ?? posterUrl ?? undefined}
+                              autoPlay
+                              initialTimeSec={initialTimeSec}
+                              onSaveProgress={saveProgress}
+                              onRetry={handleVideoPlayerRetry}
+                            />
+                            {videoSaveError ? (
+                              <Text accessibilityRole="alert">{videoSaveError}</Text>
+                            ) : null}
+                          </View>
                         ) : userRequestedPlay ? (
                           <View style={styles.videoLoadingContainer}>
                             <Text style={styles.videoLoadingText}>
@@ -974,14 +1019,17 @@ function AccordionStepComponent({
                                     style={styles.circleBtn}
                                     onPress={() => {
                                       void hapticFeedback.medium();
-                                      const started = startTimer(
-                                        courseId,
-                                        dayOnCourseId,
-                                        index,
-                                        duration,
-                                      );
-                                      if (!started) return;
-                                      onStart();
+                                      if (!timerSession) return;
+                                      const session = timerSession;
+                                      runCommittedAction(onStart, () => {
+                                        startTimer(
+                                          courseId,
+                                          dayOnCourseId,
+                                          index,
+                                          duration,
+                                          session,
+                                        );
+                                      });
                                     }}
                                   />
                                 )}
@@ -993,10 +1041,30 @@ function AccordionStepComponent({
                                     style={styles.circleBtn}
                                     onPress={() => {
                                       void hapticFeedback.light();
-                                      const remaining = pauseTimer();
-                                      if (remaining !== null) {
-                                        onPause(remaining);
-                                      }
+                                      if (!timerSession) return;
+                                      const active = useTimerStoreDirect.getState().activeTimer;
+                                      if (
+                                        !active ||
+                                        active.ownerId !== timerSession.ownerId ||
+                                        active.authEpoch !== timerSession.authEpoch ||
+                                        active.courseId !== courseId ||
+                                        active.dayOnCourseId !== dayOnCourseId ||
+                                        active.stepIndex !== index ||
+                                        !active.isRunning
+                                      )
+                                        return;
+                                      const remaining = Math.max(
+                                        0,
+                                        (active.endTsSec ??
+                                          Math.floor(Date.now() / 1000) + active.remainingSec) -
+                                          Math.floor(Date.now() / 1000),
+                                      );
+                                      runCommittedAction(
+                                        () => onPause(remaining),
+                                        () => {
+                                          pauseTimer();
+                                        },
+                                      );
                                     }}
                                   />
                                 )}
@@ -1009,18 +1077,30 @@ function AccordionStepComponent({
                                     style={styles.circleBtn}
                                     onPress={() => {
                                       void hapticFeedback.medium();
+                                      if (!timerSession) return;
+                                      const active = useTimerStoreDirect.getState().activeTimer;
                                       const remaining =
-                                        localState?.timeLeft ??
-                                        localState?.remainingSec ??
-                                        duration;
-                                      const resumed = startTimer(
-                                        courseId,
-                                        dayOnCourseId,
-                                        index,
-                                        remaining,
-                                      );
-                                      if (!resumed) return;
-                                      onResume();
+                                        active &&
+                                        !active.isRunning &&
+                                        active.ownerId === timerSession.ownerId &&
+                                        active.authEpoch === timerSession.authEpoch &&
+                                        active.courseId === courseId &&
+                                        active.dayOnCourseId === dayOnCourseId &&
+                                        active.stepIndex === index
+                                          ? active.remainingSec
+                                          : (localState?.timeLeft ??
+                                            localState?.remainingSec ??
+                                            duration);
+                                      const session = timerSession;
+                                      runCommittedAction(onResume, () => {
+                                        startTimer(
+                                          courseId,
+                                          dayOnCourseId,
+                                          index,
+                                          remaining,
+                                          session,
+                                        );
+                                      });
                                     }}
                                   />
                                 )}
@@ -1031,10 +1111,13 @@ function AccordionStepComponent({
                                   style={styles.circleBtnReset}
                                   onPress={() => {
                                     void hapticFeedback.selection();
-                                    stopTimer(courseId, dayOnCourseId, index);
-                                    if (onReset) {
-                                      onReset(duration);
-                                    }
+                                    if (!onReset) return;
+                                    runCommittedAction(
+                                      () => onReset(duration),
+                                      () => {
+                                        stopTimer(courseId, dayOnCourseId, index);
+                                      },
+                                    );
                                   }}
                                 />
                               </View>
@@ -1174,401 +1257,5 @@ function AccordionStepComponent({
     </View>
   );
 }
-
-// Цвета как в web Day.module.css
-const WEB = {
-  stepBorder: "#636128",
-  stepTitleText: "#352e2e",
-  stepBg: "#fff8e5",
-  timerCardBg: "#fffdf3",
-  timerCardBorder: "#d5d0bb",
-  completedBadgeBg: "#b6c582",
-  completedBadgeText: "#155724",
-  circleBtnBorder: "#b6c582",
-  estimatedBadgeBg: "#e0e7ff",
-  estimatedBadgeText: "#1e3a8a",
-};
-
-const styles = StyleSheet.create({
-  container: {
-    borderWidth: 1,
-    borderColor: "rgba(99, 97, 40, 0.12)",
-    borderTopColor: "rgba(255, 255, 255, 0.96)",
-    borderRadius: 20,
-    borderCurve: "continuous",
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    marginBottom: SPACING.md,
-    boxShadow: "0 7px 14px rgba(53, 52, 16, 0.20)",
-    elevation: 7,
-  },
-  containerOpen: {
-    boxShadow: "0 9px 18px rgba(53, 52, 16, 0.24)",
-    elevation: 9,
-  },
-  surfaceContent: {
-    overflow: "hidden",
-    width: "100%",
-    borderRadius: 15,
-    borderCurve: "continuous",
-  },
-  header: {
-    flexDirection: "column",
-    gap: 7,
-    width: "100%",
-    paddingVertical: 3,
-    paddingHorizontal: 2,
-    borderRadius: 14,
-  },
-  headerPressed: {
-    backgroundColor: "rgba(99, 97, 40, 0.07)",
-  },
-  stepTitleLine: {
-    fontSize: 15,
-    color: WEB.stepTitleText,
-    fontFamily: FONTS.montserratMedium,
-    lineHeight: 21,
-    width: "100%",
-    textAlign: "center",
-  },
-  headerRowExpand: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    marginTop: 3,
-  },
-  expandControl: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexShrink: 0,
-    minHeight: 34,
-    paddingLeft: 8,
-    paddingRight: 11,
-    borderRadius: 17,
-    backgroundColor: "rgba(99, 97, 40, 0.08)",
-  },
-  expandText: {
-    fontSize: 13,
-    color: WEB.stepBorder,
-    fontFamily: FONTS.montserratMedium,
-    marginLeft: 2,
-  },
-  stepStatusConfig: {
-    flexShrink: 0,
-    minHeight: 34,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 11,
-    borderRadius: 17,
-  },
-  stepStatusText: {
-    fontSize: 13,
-    fontFamily: FONTS.montserratMedium,
-    lineHeight: 18,
-  },
-  content: {
-    overflow: "hidden",
-  },
-  /** Без вложенного ScrollView — иначе при тапах по кнопкам шага родительский ScrollView экрана дёргается на несколько px */
-  stepContentInner: {
-    paddingBottom: 0,
-    alignSelf: "stretch",
-    width: "100%",
-    maxWidth: "100%",
-  },
-  divider: {
-    marginHorizontal: SPACING.md,
-  },
-  accessGateWrap: {
-    marginTop: SPACING.md,
-    alignSelf: "stretch",
-    width: "100%",
-  },
-  descriptionSection: {
-    marginTop: SPACING.md,
-    paddingHorizontal: 0,
-    alignSelf: "stretch",
-    width: "100%",
-    maxWidth: "100%",
-  },
-  descriptionSectionTitle: {
-    fontWeight: "700",
-    color: COLORS.text,
-    marginBottom: 6,
-    fontSize: 14,
-  },
-  descriptionSectionContent: {
-    backgroundColor: WEB.timerCardBg,
-    borderWidth: 2,
-    borderColor: WEB.timerCardBorder,
-    borderRadius: 12,
-    padding: 12,
-    paddingHorizontal: 14,
-    alignSelf: "stretch",
-    width: "100%",
-    maxWidth: "100%",
-  },
-  imagesSection: {
-    marginTop: SPACING.md,
-    alignSelf: "stretch",
-  },
-  stepTrainerImage: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-    marginBottom: SPACING.sm,
-    borderRadius: 12,
-    backgroundColor: "#f0f0f0",
-    alignSelf: "center",
-  },
-  imageViewerRoot: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-  imageViewerHeader: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    left: 0,
-    zIndex: 10,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "flex-start",
-  },
-  imageViewerPage: {
-    backgroundColor: "#000",
-    justifyContent: "center",
-  },
-  /** Паритет с web .stepInfo + StepDiaryBlock */
-  diaryStepInfo: {
-    marginTop: SPACING.md,
-    gap: 12,
-    marginBottom: 16,
-  },
-  diarySectionTitle: {
-    fontWeight: "700",
-    color: WEB.stepTitleText,
-    marginBottom: 6,
-    fontSize: 15,
-  },
-  diaryTextarea: {
-    width: "100%",
-    minHeight: 120,
-    padding: 12,
-    borderWidth: 2,
-    borderColor: WEB.timerCardBorder,
-    borderRadius: 8,
-    fontSize: 16,
-    textAlignVertical: "top",
-    color: COLORS.text,
-    backgroundColor: "#fff",
-  },
-  diaryError: {
-    color: "#b71c1c",
-    fontSize: 14,
-  },
-  diarySaveAction: {
-    marginTop: 4,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  diaryEntriesList: {
-    gap: 12,
-  },
-  diaryEntryItem: {
-    padding: 12,
-    backgroundColor: WEB.timerCardBg,
-    borderWidth: 1,
-    borderColor: WEB.timerCardBorder,
-    borderRadius: 8,
-  },
-  diaryEntryTitle: {
-    fontWeight: "700",
-    color: WEB.stepTitleText,
-    fontSize: 15,
-  },
-  diaryEntryDate: {
-    fontSize: 13,
-    color: "#666",
-    marginTop: 4,
-  },
-  diaryEntryContent: {
-    marginTop: 8,
-    fontSize: 15,
-    color: WEB.stepTitleText,
-  },
-  actions: {
-    padding: SPACING.md,
-    paddingTop: 0,
-  },
-  completeAction: {
-    marginTop: SPACING.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  completeButtonLayout: {
-    alignSelf: "center",
-  },
-  completedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 12,
-    backgroundColor: WEB.completedBadgeBg,
-    marginTop: SPACING.sm,
-    alignSelf: "center",
-  },
-  completedBadgeCheck: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: WEB.completedBadgeText,
-    width: 24,
-    textAlign: "center",
-  },
-  completedBadgeText: {
-    color: WEB.completedBadgeText,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  completedText: {
-    color: COLORS.success,
-    fontWeight: "600",
-  },
-  videoContainer: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: 0,
-  },
-  videoCover: {
-    aspectRatio: 16 / 9,
-    backgroundColor: "#1a1a1a",
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  videoCoverText: {
-    marginTop: SPACING.sm,
-    fontSize: 16,
-    color: "#fff",
-  },
-  embedWebViewWrap: {
-    width: "100%",
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "#000",
-  },
-  embedWebView: {
-    width: "100%",
-    backgroundColor: "#000",
-  },
-  infoCard: {
-    padding: 14,
-    paddingHorizontal: 0,
-    backgroundColor: WEB.timerCardBg,
-    borderWidth: 2,
-    borderColor: WEB.timerCardBorder,
-    borderRadius: 12,
-    marginTop: 10,
-    alignItems: "center",
-  },
-  infoCardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: COLORS.text,
-    marginBottom: SPACING.xs,
-  },
-  infoCardText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: "center",
-  },
-  estimatedTimeBadge: {
-    marginTop: 8,
-    alignSelf: "center",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: WEB.estimatedBadgeBg,
-  },
-  estimatedTimeBadgeText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: WEB.estimatedBadgeText,
-  },
-  timerCard: {
-    padding: 14,
-    paddingHorizontal: 16,
-    marginTop: 10,
-    backgroundColor: WEB.timerCardBg,
-    borderWidth: 2,
-    borderColor: WEB.timerCardBorder,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  timerHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.sm,
-    marginBottom: SPACING.sm,
-  },
-  timerHeaderText: {
-    fontSize: 14,
-    color: COLORS.text,
-    fontWeight: "600",
-  },
-  timerControls: {
-    alignItems: "center",
-  },
-  timerDisplay: {
-    fontSize: 48,
-    fontWeight: "600",
-    color: COLORS.text,
-    fontVariant: ["tabular-nums"],
-    marginVertical: 8,
-    fontFamily: "monospace",
-  },
-  timerButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING.sm,
-    paddingVertical: 8,
-  },
-  circleBtn: {
-    width: 55,
-    height: 55,
-    borderRadius: 28,
-    borderWidth: 4,
-    borderColor: WEB.circleBtnBorder,
-    backgroundColor: "transparent",
-  },
-  circleBtnReset: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 4,
-    borderColor: WEB.circleBtnBorder,
-    backgroundColor: "transparent",
-  },
-  videoLoadingContainer: {
-    aspectRatio: 16 / 9,
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: SPACING.lg,
-  },
-  videoLoadingText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: "center",
-  },
-  videoRetryButtonLayout: {
-    marginTop: SPACING.sm,
-  },
-});
 
 export const AccordionStep = memo(AccordionStepComponent);

@@ -4,7 +4,7 @@ import { resolveArticleEntitlement, resolveCourseEntitlement } from "./policy";
 const role = vi.fn();
 const subscription = vi.fn();
 const assignment = vi.fn();
-const rewarded = vi.fn();
+const gafus = vi.fn();
 const flag = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
@@ -12,7 +12,7 @@ vi.mock("@gafus/prisma", () => ({
     user: { findUnique: (...args: unknown[]) => role(...args) },
     appSubscription: { findFirst: (...args: unknown[]) => subscription(...args) },
     courseAccess: { findFirst: (...args: unknown[]) => assignment(...args) },
-    rewardedTargetAccess: { findFirst: (...args: unknown[]) => rewarded(...args) },
+    gafusTargetAccess: { findFirst: (...args: unknown[]) => gafus(...args) },
   },
 }));
 vi.mock("../appFeatureFlags", () => ({
@@ -32,7 +32,7 @@ describe("shared Web/Mobile subscription access policy", () => {
     role.mockResolvedValue({ role: "USER" });
     subscription.mockResolvedValue(null);
     assignment.mockResolvedValue(null);
-    rewarded.mockResolvedValue(null);
+    gafus.mockResolvedValue(null);
   });
 
   it("guests can access a free course, but no paid/private material", async () => {
@@ -86,12 +86,21 @@ describe("shared Web/Mobile subscription access policy", () => {
     expect((await resolveCourseEntitlement(privateCourse, "user", now)).allowed).toBe(false);
   });
 
-  it("ad unlock is per article and only on rewarded-supported platforms", async () => {
-    rewarded.mockResolvedValue({ id: "ad" });
-    expect((await resolveArticleEntitlement("article", "user", "IOS", now)).source).toBe("REWARDED");
-    expect((await resolveArticleEntitlement("article", "user", "WEB_DESKTOP", now)).allowed).toBe(false);
-    expect(rewarded).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ targetType: "ARTICLE", targetId: "article", expiresAt: { gt: now } }),
+  it("one active Gafus article unlock works on iOS, Android and Web", async () => {
+    gafus.mockResolvedValue({ id: "gafus-grant" });
+    for (const platform of ["IOS", "ANDROID", "WEB_DESKTOP", "WEB_TOUCH"] as const) {
+      expect((await resolveArticleEntitlement("article", "user", platform, now)).source).toBe("GAFUS");
+    }
+    expect(gafus).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        targetType: "ARTICLE", targetKey: "article:article", expiresAt: { gt: now },
+      }),
     }));
+  });
+
+  it("expired/missing article unlock remains closed on all platforms", async () => {
+    gafus.mockResolvedValue(null);
+    expect((await resolveArticleEntitlement("article", "user", "IOS", now)).allowed).toBe(false);
+    expect((await resolveArticleEntitlement("article", "user", "WEB_DESKTOP", now)).allowed).toBe(false);
   });
 });

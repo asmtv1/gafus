@@ -9,15 +9,22 @@
     "start": "node dist/index.js",
     "test": "vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:realpg:isolated": "vitest run --config vitest.realpg.config.ts"
   },
   "dependencies": {
     "@gafus/auth": "workspace:*",
     "@gafus/cdn-upload": "workspace:*",
+    "@gafus/chat-server": "workspace:*",
     "@gafus/core": "workspace:*",
+    "@gafus/feed-cloud": "workspace:*",
+    "@gafus/feed-server": "workspace:*",
+    "@gafus/gallery-server": "workspace:*",
     "@gafus/logger": "workspace:*",
     "@gafus/prisma": "workspace:*",
+    "@gafus/questions-server": "workspace:*",
     "@gafus/queues": "workspace:*",
+    "@gafus/reengagement": "workspace:*",
     "@gafus/types": "workspace:*",
     "@gafus/video-access": "workspace:*",
     "@hono-rate-limiter/redis": "^0.1.4",
@@ -28,10 +35,8 @@
     "hono-rate-limiter": "^0.4.2",
     "jose": "^5.10.0",
     "zod": "^3.25.56",
-    "@gafus/chat-server": "workspace:*",
-    "@gafus/questions-server": "workspace:*",
-    "@gafus/gallery-server": "workspace:*",
-    "@gafus/feed-server": "workspace:*"
+    "@gafus/achievements-server": "workspace:*",
+    "@gafus/mobile-intro-server": "workspace:*"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

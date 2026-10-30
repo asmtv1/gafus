@@ -20,7 +20,8 @@
     "@gafus/core": "workspace:*",
     "@aws-sdk/client-s3": "^3.899.0",
     "@aws-sdk/s3-presigned-post": "^3.899.0",
-    "@aws-sdk/s3-request-presigner": "3.980.0"
+    "@aws-sdk/s3-request-presigner": "3.980.0",
+    "@gafus/cdn-upload": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

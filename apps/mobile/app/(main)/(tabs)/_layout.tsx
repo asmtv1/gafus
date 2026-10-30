@@ -15,6 +15,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="consultations" options={{ title: "Консультации", href: null }} />
       <Tabs.Screen name="cynologist-chat" options={{ title: "Чат с кинологом", href: null }} />
       <Tabs.Screen name="cynologist-chats" options={{ title: "Чат", href: null }} />
+      <Tabs.Screen name="messages" options={{ title: "Сообщения", href: null }} />
       <Tabs.Screen name="profile" options={{ title: "Профиль", href: null }} />
       <Tabs.Screen name="courses" options={{ title: "Избранное", href: null }} />
       <Tabs.Screen name="achievements" options={{ title: "Достижения", href: null }} />

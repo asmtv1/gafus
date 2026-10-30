@@ -1,0 +1,85 @@
+.training-step-image-thumb {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 100px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f5f5f5;
+  cursor: zoom-in;
+}
+.training-step-image-thumb > img {
+  width: 100%;
+  max-height: 340px;
+  object-fit: contain;
+}
+.training-step-image-zoom {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  color: #fff;
+  background: #0009;
+  border-radius: 50%;
+  padding: 4px 9px;
+  font-size: 20px;
+  pointer-events: none;
+}
+.training-step-image-thumb:focus-visible,
+.training-step-image-close:focus-visible {
+  outline: 3px solid #636128;
+  outline-offset: 2px;
+}
+.training-step-image-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgb(0 0 0 / 90%);
+  backdrop-filter: blur(4px);
+}
+.training-step-image-dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(90vw, 1200px);
+  max-height: 90vh;
+  align-items: center;
+}
+.training-step-image-close {
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  color: #333;
+  background: #fffe;
+  font-size: 30px;
+  cursor: pointer;
+}
+.training-step-image-full {
+  width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+}
+.training-step-image-caption {
+  margin: 0;
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+}
+@media (max-width: 768px) {
+  .training-step-image-backdrop {padding: 10px;}
+  .training-step-image-dialog {width: 95vw;}
+  .training-step-image-full {max-height: 74vh;}
+}

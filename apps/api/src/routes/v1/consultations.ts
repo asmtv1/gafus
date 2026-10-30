@@ -41,7 +41,6 @@ import {
   listAdminBookings,
   listAllTrainersForAdmin,
   listClientBookings,
-  listListedCynologists,
   listTrainerBookings,
   markBookingNoShowByTrainer,
   rejectBookingByTrainer,
@@ -58,10 +57,34 @@ import { createWebLogger, isZodErrorLike, sanitizeZodErrorForLogMeta } from "@ga
 
 import { requireRole } from "../../middleware/auth.js";
 import { consultationBookRateLimiter } from "../../middleware/rate-limit.js";
+import { lookupOwnConsultationBookingByKey } from "../../lib/consultation-booking-lookup.js";
+import { listCynologistsApplication } from "../../modules/consultations/composition/list-cynologists.js";
 
 const logger = createWebLogger("api-consultations");
 
 export const consultationsRoutes = new Hono();
+
+// G1-PANEL-CONS-001: these staff responses carry private booking,
+// calendar and trainer identity data. Never cache success or error results.
+// No effect on public/listed calendar or ordinary client booking contracts.
+consultationsRoutes.use("/trainer/*", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  await next();
+});
+consultationsRoutes.use("/admin/*", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  await next();
+});
+
+// G1-AG2-P0 G11–G14: client-specific appointments, slot eligibility and
+// ephemeral call credentials are private even on error/validation responses.
+// Do not cache these as public course/gallery thumbnails.
+for (const path of ["/my", "/book", "/book/lookup", "/bookings/*", "/cynologists/*"]) {
+  consultationsRoutes.use(path, async (c, next) => {
+    c.header("Cache-Control", "private, no-store");
+    await next();
+  });
+}
 
 async function targetTrainerIdFromRequest(c: Context): Promise<string> {
   const user = c.get("user");
@@ -72,7 +95,38 @@ async function targetTrainerIdFromRequest(c: Context): Promise<string> {
   );
 }
 
-function handleConsultationError(c: import("hono").Context, error: unknown) {
+function handleConsultationError(c: Context, error: unknown) {
+  // Core source and built dist can load separate constructor identities.
+  // Map explicitly allowlisted stable error codes to their wire statuses.
+  if (error instanceof Error && "code" in error && typeof error.code === "string") {
+    switch (error.code) {
+      case "SUBSCRIPTION_REQUIRED":
+        return c.json(
+          { success: false, error: "Для действия нужна подписка", code: error.code },
+          402,
+        );
+      case "CONSULTATION_SLOT_TAKEN":
+        return c.json({ success: false, error: error.message, code: error.code }, 409);
+      case "CONSULTATION_IDEMPOTENCY_CONFLICT":
+        return c.json(
+          { success: false, error: "Ключ запроса уже использован", code: error.code },
+          409,
+        );
+      case "CONSULTATION_BOOKING_NOT_INCLUDED":
+        return c.json({ success: false, error: error.message, code: error.code }, 403);
+      case "CONSULTATION_FORBIDDEN":
+        return c.json({ success: false, error: error.message, code: error.code }, 403);
+      case "CONSULTATION_NOT_FOUND":
+        return c.json({ success: false, error: error.message, code: error.code }, 404);
+      case "CONSULTATION_VIDEO_UNAVAILABLE":
+        return c.json({ success: false, error: error.message, code: error.code }, 503);
+      case "CONSULTATION_ACTIVE_BOOKING":
+      case "CONSULTATION_WEEKLY_COOLDOWN": {
+        const eligibility = "eligibility" in error ? error.eligibility : null;
+        return c.json({ success: false, error: error.message, code: error.code, eligibility }, 403);
+      }
+    }
+  }
   if (error instanceof SubscriptionRequiredError) {
     return c.json(
       {
@@ -84,10 +138,29 @@ function handleConsultationError(c: import("hono").Context, error: unknown) {
     );
   }
   if (error instanceof ConsultationBookingRestrictedError) {
-    return c.json({ success: false, error: error.message, code: error.code, eligibility: error.eligibility }, 403);
+    return c.json(
+      { success: false, error: error.message, code: error.code, eligibility: error.eligibility },
+      403,
+    );
   }
   if (error instanceof ConsultationSlotTakenError) {
     return c.json({ success: false, error: error.message, code: error.code }, 409);
+  }
+  // Existing shared Core dist can lag behind new source declarations until AG4
+  // serialized packaging. Match only the stable ServiceError code, no build side-effect.
+  if (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "CONSULTATION_IDEMPOTENCY_CONFLICT"
+  ) {
+    return c.json(
+      {
+        success: false,
+        error: "Ключ запроса уже использован",
+        code: "CONSULTATION_IDEMPOTENCY_CONFLICT",
+      },
+      409,
+    );
   }
   if (error instanceof ConsultationBookingNotIncludedError) {
     return c.json({ success: false, error: error.message, code: error.code }, 403);
@@ -116,7 +189,9 @@ consultationsRoutes.post("/bookings/:bookingId/voximplant/prepare", async (c) =>
     const data = await prepareConsultationCall(bookingId, c.get("user").id);
     c.header("Cache-Control", "no-store");
     return c.json({ success: true, data });
-  } catch (error) { return handleConsultationError(c, error); }
+  } catch (error) {
+    return handleConsultationError(c, error);
+  }
 });
 
 consultationsRoutes.post("/bookings/:bookingId/voximplant/admission", async (c) => {
@@ -124,25 +199,41 @@ consultationsRoutes.post("/bookings/:bookingId/voximplant/admission", async (c) 
     const data = await createConsultationCallAdmission(c.req.param("bookingId"), c.get("user").id);
     c.header("Cache-Control", "no-store");
     return c.json({ success: true, data });
-  } catch (error) { return handleConsultationError(c, error); }
+  } catch (error) {
+    return handleConsultationError(c, error);
+  }
 });
 
-consultationsRoutes.post("/bookings/:bookingId/voximplant/sign", zValidator("json", z.object({
-  key: z.string().min(8).max(512),
-})), async (c) => {
-  try {
-    const { key } = c.req.valid("json");
-    const token = await signConsultationOneTimeKey(c.req.param("bookingId"), c.get("user").id, key);
-    c.header("Cache-Control", "no-store");
-    return c.json({ success: true, token });
-  } catch (error) { return handleConsultationError(c, error); }
-});
+consultationsRoutes.post(
+  "/bookings/:bookingId/voximplant/sign",
+  zValidator(
+    "json",
+    z.object({
+      key: z.string().min(8).max(512),
+    }),
+  ),
+  async (c) => {
+    try {
+      const { key } = c.req.valid("json");
+      const token = await signConsultationOneTimeKey(
+        c.req.param("bookingId"),
+        c.get("user").id,
+        key,
+      );
+      c.header("Cache-Control", "no-store");
+      return c.json({ success: true, token });
+    } catch (error) {
+      return handleConsultationError(c, error);
+    }
+  },
+);
 
 consultationsRoutes.get("/cynologists", async (c) => {
   try {
-    const data = await listListedCynologists();
-    c.header("Cache-Control", "no-store");
-    const bookingEligibility = await getConsultationBookingEligibility(c.get("user").id);
+    const { data, bookingEligibility } = await listCynologistsApplication.execute({
+      actorUserId: c.get("user").id,
+      onCatalogLoaded: () => c.header("Cache-Control", "no-store"),
+    });
     return c.json({ success: true, data, bookingEligibility });
   } catch (error) {
     return handleConsultationError(c, error);
@@ -195,6 +286,33 @@ consultationsRoutes.get(
   },
 );
 
+// AG4-approved lost-ACK readback: POST transport for a read-only operation,
+// strict UUID-only body, verified current principal, and no booking side effects.
+// Parent authMiddleware enforces cookie Origin/CSRF before this route.
+const bookingLookupBodySchema = z.object({ idempotencyKey: z.string().uuid() }).strict();
+consultationsRoutes.use("/book/lookup", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  c.header("Referrer-Policy", "no-referrer");
+  await next();
+});
+consultationsRoutes.post(
+  "/book/lookup",
+  consultationBookRateLimiter,
+  zValidator("json", bookingLookupBodySchema),
+  async (c) => {
+    try {
+      const ownerId = c.get("user").id;
+      const { idempotencyKey } = c.req.valid("json");
+      const data = await lookupOwnConsultationBookingByKey(ownerId, idempotencyKey);
+      return c.json({ success: true, data });
+    } catch {
+      // Not FOUND or missing ledger is an ordinary 200 UNKNOWN. A real lookup
+      // outage is a generic 503 without phone, key, SQL or ORM diagnostics.
+      return c.json({ success: false, code: "BOOKING_LOOKUP_UNAVAILABLE" }, 503);
+    }
+  },
+);
+
 consultationsRoutes.post(
   "/book",
   consultationBookRateLimiter,
@@ -243,23 +361,19 @@ consultationsRoutes.post(
   },
 );
 
-consultationsRoutes.get(
-  "/trainer/bookings",
-  requireRole("TRAINER", "ADMIN", "MODERATOR"),
-  async (c) => {
-    try {
-      const user = c.get("user");
-      const data = await listTrainerBookings(user.id, user.role);
-      return c.json({ success: true, data });
-    } catch (error) {
-      return handleConsultationError(c, error);
-    }
-  },
-);
+consultationsRoutes.get("/trainer/bookings", requireRole("TRAINER", "ADMIN"), async (c) => {
+  try {
+    const user = c.get("user");
+    const data = await listTrainerBookings(user.id, user.role);
+    return c.json({ success: true, data });
+  } catch (error) {
+    return handleConsultationError(c, error);
+  }
+});
 
 consultationsRoutes.post(
   "/trainer/bookings/:bookingId/confirm",
-  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  requireRole("TRAINER", "ADMIN"),
   async (c) => {
     try {
       const user = c.get("user");
@@ -274,7 +388,7 @@ consultationsRoutes.post(
 
 consultationsRoutes.post(
   "/trainer/bookings/:bookingId/complete",
-  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  requireRole("TRAINER", "ADMIN"),
   async (c) => {
     try {
       const user = c.get("user");
@@ -289,7 +403,7 @@ consultationsRoutes.post(
 
 consultationsRoutes.post(
   "/trainer/bookings/:bookingId/no-show",
-  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  requireRole("TRAINER", "ADMIN"),
   async (c) => {
     try {
       const user = c.get("user");
@@ -304,7 +418,7 @@ consultationsRoutes.post(
 
 consultationsRoutes.post(
   "/trainer/bookings/:bookingId/reject",
-  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  requireRole("TRAINER", "ADMIN"),
   zValidator("json", z.object({ reason: z.string().max(500).optional() })),
   async (c) => {
     try {
@@ -319,23 +433,19 @@ consultationsRoutes.post(
   },
 );
 
-consultationsRoutes.get(
-  "/trainer/availability",
-  requireRole("TRAINER", "ADMIN", "MODERATOR"),
-  async (c) => {
-    try {
-      const targetId = await targetTrainerIdFromRequest(c);
-      const data = await getTrainerAvailability(targetId);
-      return c.json({ success: true, data });
-    } catch (error) {
-      return handleConsultationError(c, error);
-    }
-  },
-);
+consultationsRoutes.get("/trainer/availability", requireRole("TRAINER", "ADMIN"), async (c) => {
+  try {
+    const targetId = await targetTrainerIdFromRequest(c);
+    const data = await getTrainerAvailability(targetId);
+    return c.json({ success: true, data });
+  } catch (error) {
+    return handleConsultationError(c, error);
+  }
+});
 
 consultationsRoutes.put(
   "/trainer/availability",
-  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  requireRole("TRAINER", "ADMIN"),
   zValidator("json", trainerAvailabilityInputSchema),
   async (c) => {
     try {
@@ -351,7 +461,7 @@ consultationsRoutes.put(
 
 consultationsRoutes.post(
   "/trainer/day-offs",
-  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  requireRole("TRAINER", "ADMIN"),
   zValidator("json", dayOffInputSchema),
   async (c) => {
     try {
@@ -367,7 +477,7 @@ consultationsRoutes.post(
 
 consultationsRoutes.delete(
   "/trainer/day-offs/:dayOffId",
-  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  requireRole("TRAINER", "ADMIN"),
   async (c) => {
     try {
       const targetId = await targetTrainerIdFromRequest(c);
@@ -382,7 +492,7 @@ consultationsRoutes.delete(
 
 consultationsRoutes.post(
   "/trainer/exceptions",
-  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  requireRole("TRAINER", "ADMIN"),
   zValidator("json", slotExceptionInputSchema),
   async (c) => {
     try {
@@ -398,7 +508,7 @@ consultationsRoutes.post(
 
 consultationsRoutes.delete(
   "/trainer/exceptions/:exceptionId",
-  requireRole("TRAINER", "ADMIN", "MODERATOR"),
+  requireRole("TRAINER", "ADMIN"),
   async (c) => {
     try {
       const targetId = await targetTrainerIdFromRequest(c);
@@ -411,7 +521,7 @@ consultationsRoutes.delete(
   },
 );
 
-consultationsRoutes.get("/admin/cynologists", requireRole("ADMIN", "MODERATOR"), async (c) => {
+consultationsRoutes.get("/admin/cynologists", requireRole("ADMIN"), async (c) => {
   try {
     const data = await listAllTrainersForAdmin();
     return c.json({ success: true, data });
@@ -422,7 +532,7 @@ consultationsRoutes.get("/admin/cynologists", requireRole("ADMIN", "MODERATOR"),
 
 consultationsRoutes.put(
   "/admin/cynologists/listed",
-  requireRole("ADMIN", "MODERATOR"),
+  requireRole("ADMIN"),
   zValidator("json", adminListedCynologistsInputSchema),
   async (c) => {
     try {
@@ -436,7 +546,7 @@ consultationsRoutes.put(
   },
 );
 
-consultationsRoutes.get("/admin/bookings", requireRole("ADMIN", "MODERATOR"), async (c) => {
+consultationsRoutes.get("/admin/bookings", requireRole("ADMIN"), async (c) => {
   try {
     const data = await listAdminBookings();
     return c.json({ success: true, data });

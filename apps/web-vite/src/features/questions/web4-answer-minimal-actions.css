@@ -1,0 +1,227 @@
+/* The Instagram-like answer action bar. Scope to question discussion only. */
+.gafus-app .shell .web4-question-detail .web4-answer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 17px;
+  row-gap: 4px;
+  margin: 12px 0 2px;
+  min-width: 0;
+  color: #5e6250;
+  font: 600 12px/1.35 var(--font-montserrat), system-ui, sans-serif;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-actions :is(.answer-heart,.web4-answer-reply,.web4-answer-more) {
+  flex: 0 0 auto;
+  margin: 0;
+  min-width: 0;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-actions .answer-heart > button,
+.gafus-app .shell .web4-question-detail .web4-answer-actions .web4-answer-reply,
+.gafus-app .shell .web4-question-detail .web4-answer-actions .web4-answer-more > summary {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: auto;
+  min-height: 40px;
+  padding: 5px 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #656958;
+  font: 600 12px/1.35 var(--font-montserrat), system-ui, sans-serif;
+  box-shadow: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .15s ease;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-actions :is(button,summary):hover { color: #3d4b2f; }
+.gafus-app .shell .web4-question-detail .web4-answer-actions .answer-heart > button[aria-pressed="true"] {
+  color: #bb665b;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-actions .answer-heart > button:disabled {
+  cursor: default;
+  opacity: .62;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-actions :is(.answer-heart svg,.web4-answer-reply svg) {
+  display: block;
+  width: 19px;
+  height: 19px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  flex: 0 0 19px;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-actions .answer-heart button[aria-pressed="true"] svg { fill: currentColor; }
+.gafus-app .shell .web4-question-detail .web4-answer-more {
+  position: relative;
+  z-index: 3;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more[open] { z-index: 50; }
+.gafus-app .shell .web4-question-detail .web4-answer-more > summary {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 4px;
+  list-style: none;
+  cursor: pointer;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more > summary::-webkit-details-marker { display: none; }
+.gafus-app .shell .web4-question-detail .web4-answer-more > summary svg {
+  display: block;
+  width: 21px;
+  height: 21px;
+  fill: currentColor;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content {
+  box-sizing: border-box;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: min(290px, calc(100vw - 64px));
+  padding: 7px;
+  border: 1px solid rgba(77,92,45,.13);
+  border-radius: 15px;
+  background: #fffdfa;
+  box-shadow: 0 12px 36px rgba(37,39,25,.17);
+  color: #352e2e;
+  font-size: 13px;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content > :is(div,.question-report) {
+  width: 100%;
+  margin: 0;
+  min-width: 0;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content .answer-owner-controls { display: grid; gap: 0; }
+.gafus-app .shell .web4-question-detail .web4-answer-more-content > :is(div,.question-report) > button,
+.gafus-app .shell .web4-question-detail .web4-answer-more-content .answer-owner-controls > button {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-height: 42px;
+  justify-content: flex-start;
+  align-items: center;
+  margin: 0;
+  padding: 10px 13px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #3d4136;
+  box-shadow: none;
+  text-align: left;
+  font: 550 13px/1.4 var(--font-montserrat), system-ui, sans-serif;
+  cursor: pointer;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content > :is(div,.question-report) > button:hover,
+.gafus-app .shell .web4-question-detail .web4-answer-more-content .answer-owner-controls > button:hover {
+  background: #f1f0e8;
+  color: #374b2a;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content .answer-owner-controls > .web4-answer-destructive-trigger {
+  color: #b4564d;
+}
+/* Editing and report forms expand below the toolbar, not in a tiny floating menu.
+ * Keep forms/confirmations mounted and accessible until ACK or Cancel. */
+.gafus-app .shell .web4-question-detail .web4-answer-more:has(:is(form,[aria-label="Подтверждение удаления ответа"])) {
+  flex: 1 0 100%;
+  position: relative;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more:has(:is(form,[aria-label="Подтверждение удаления ответа"])) > summary {
+  margin-left: auto;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more:has(:is(form,[aria-label="Подтверждение удаления ответа"])) .web4-answer-more-content {
+  position: static;
+  width: 100%;
+  max-width: none;
+  margin-top: 8px;
+  padding: 16px;
+  box-shadow: none;
+  background: #fbfaf5;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content :is(form,[aria-label="Подтверждение удаления ответа"]) {
+  box-sizing: border-box;
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  gap: 10px;
+  padding: 12px 8px 4px;
+  color: #352e2e;
+  font-size: 13px;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content :is(textarea,input,select) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  background: #fffdf8;
+  border: 1px solid #bcb9a6;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content form > button[type="submit"] {
+  color: #fff;
+  background: #4d5c2d;
+  border-radius: 10px;
+  min-height: 42px;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content form > button[type="button"] {
+  color: #b4564d;
+  background: transparent;
+  border: 1px solid rgba(180,86,77,.2);
+  border-radius: 10px;
+  min-height: 42px;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content :is(.answer-owner-controls,[aria-label="Подтверждение удаления ответа"]) p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-actions :is(button,summary):focus-visible {
+  outline: 2px solid #5e7850;
+  outline-offset: 3px;
+}
+@media (max-width:600px) {
+  .gafus-app .shell .web4-question-detail .web4-answer-actions { gap: 8px 14px; }
+  .gafus-app .shell .web4-question-detail .web4-answer-more-content {
+    width: min(274px, calc(100vw - 58px));
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  .gafus-app .shell .web4-question-detail .web4-answer-actions :is(button,summary) { transition: none; }
+}
+/* Shared CTA skins intentionally use !important in ButtonsViteParity.css.
+ * Inside the neutral overflow menu only, override those global colors and
+ * gradients. Keep original shared skins on submit/confirm buttons inside forms. */
+.gafus-app .shell .web4-question-detail .web4-answer-more-content > div > button[data-gafus-shared-button="primary"] {
+  color: #3d4136 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content > .answer-owner-controls > button[data-gafus-shared-button="secondary"][data-gafus-variant="red"] {
+  color: #b4564d !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  box-shadow: none !important;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-more-content > div > button[data-gafus-shared-button="primary"]:hover,
+.gafus-app .shell .web4-question-detail .web4-answer-more-content > .answer-owner-controls > button[data-gafus-shared-button="secondary"][data-gafus-variant="red"]:hover {
+  background: #f1f0e8 !important;
+  box-shadow: none !important;
+  transform: none;
+}
+
+/* Disabled self-hearts expose their reason from the wrapper on hover. */
+.gafus-app .shell .web4-question-detail .web4-answer-actions .answer-heart[title] {
+  cursor: help;
+}
+.gafus-app .shell .web4-question-detail .web4-answer-actions .answer-heart[title] > button:disabled {
+  pointer-events: none;
+}

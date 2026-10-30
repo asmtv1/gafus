@@ -72,6 +72,10 @@ jobs:
           pnpm config set dedupe-peer-dependents false
           pnpm install --frozen-lockfile --prefer-offline
 
+      # Source-only, cache-independent fail-closed contract before ANY workspace builds.
+      - name: Enforce Core package and browser/server boundaries before dependency builds (blocking)
+        run: pnpm check:core-boundaries
+
       - name: Generate Prisma Client
         run: |
           cd packages/prisma
@@ -88,6 +92,8 @@ jobs:
           cd packages/logger && pnpm build && cd ../..
           # После сборки logger, собираем пакеты, зависящие только от logger
           cd packages/types && pnpm build && cd ../..
+          # Mandatory after the compiled public type declarations exist.
+          pnpm --filter @gafus/types test
           cd packages/queues && pnpm build && cd ../..
           cd packages/cdn-upload && pnpm build && cd ../..
           # Собираем prisma (зависит от logger)
@@ -101,7 +107,7 @@ jobs:
           # Собираем core после всех зависимостей (в т.ч. mailer, video-access, auth)
           cd packages/core && pnpm build && cd ../..
           # Затем собираем остальные пакеты через turbo (мы уже в корневой директории)
-          pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access --filter=!@gafus/mailer
+          pnpm exec turbo run build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access --filter=!@gafus/mailer
 
       - name: Cache build artifacts
         uses: actions/cache@v5
@@ -220,7 +226,7 @@ jobs:
         run: |
           if [ "${{ needs.set-container-config.outputs.app-name }}" = "api" ]; then
             # API собирается через turbo с фильтрами
-            pnpm build --filter @gafus/api
+            pnpm exec turbo run build --filter='@gafus/api...'
           else
             # Next.js приложения собираются напрямую
             cd apps/${{ needs.set-container-config.outputs.app-name }}

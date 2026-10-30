@@ -35,13 +35,23 @@ export async function assertCompletedUser(userId: string): Promise<void> {
   if (!user || user.registrationPending) throw new Error("Registration is not completed");
 }
 
-export async function sessionIsCurrent(payload: { sub?: string; iat?: number; authenticatedAt?: unknown }) {
+export async function sessionIsCurrent(payload: { sub?: string; iat?: number; authenticatedAt?: unknown; role?: unknown; sid?: unknown }) {
   if (!payload.sub) return false;
   const user = await prisma.user.findUnique({
     where: { id: payload.sub },
-    select: { sessionsRevokedAt: true, registrationPending: true },
+    select: { sessionsRevokedAt: true, registrationPending: true, role: true },
   });
   if (!user || user.registrationPending) return false;
+  // A demoted administrator must lose access on the very next request.
+  if (typeof payload.role === "string" && payload.role !== user.role) return false;
+  if (payload.sid !== undefined) {
+    if (typeof payload.sid !== "string" || !payload.sid) return false;
+    const session = await prisma.refreshToken.findUnique({
+      where: { id: payload.sid },
+      select: { userId: true, revokedAt: true, expiresAt: true },
+    });
+    if (!session || session.userId !== payload.sub || session.revokedAt || session.expiresAt <= new Date()) return false;
+  }
   const issuedAt = typeof payload.authenticatedAt === "number"
     ? payload.authenticatedAt : (payload.iat ?? 0) * 1000;
   return !user.sessionsRevokedAt || issuedAt > user.sessionsRevokedAt.getTime();

@@ -6,7 +6,7 @@ import {
   signFeedCdnUrl,
   type FeedStorageConfig,
 } from "./storage.js";
-const key = "posts/user/post/attachments/media/full.webp";
+const key = "media/v2/media/v1/image/l.webp";
 const config: FeedStorageConfig = {
   enabled: true,
   bucket: "gafus-private-test",
@@ -77,8 +77,8 @@ describe("feed storage", () => {
     const url = new URL(
       signFeedCdnUrl(config.cdnBaseUrl, key, new Date(now + 300_000), config.cdnSecret, now),
     );
-    expect(url.pathname).toMatch(/^\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/posts\//);
-    expect(url.search).toBe("");
+    expect(url.pathname).toMatch(/^\/media\/v2\//);
+    expect(url.search).toMatch(/^\?md5=[A-Za-z0-9_-]{22}&expires=\d{10}$/);
     for (const delta of [0, -1000, 361_000])
       expect(() =>
         signFeedCdnUrl(config.cdnBaseUrl, key, new Date(now + delta), config.cdnSecret, now),
@@ -93,14 +93,14 @@ describe("feed storage", () => {
       ),
     ).toThrow();
   });
-  it("generates independently verifiable Beget/CDNvideo segment and photo signatures", () => {
+  it("generates independently verifiable Beget WebP and MP4 signatures", () => {
     const now = 1_800_000_000_000;
     const expires = Math.floor(now / 1000) + 300;
     const url = new URL(signFeedCdnUrl("https://garaquachegasourn.begetcdn.cloud", key,
       new Date(expires * 1000), config.cdnSecret, now));
-    const expected = createHash("md5").update(`${config.cdnSecret}/${key}${expires}`).digest("base64url");
-    expect(url.pathname).toBe(`/md5(${expected},${expires})/${key}`);
-    expect(url.search).toBe("");
+    const expected = createHash("md5").update(`${expires}/${key} ${config.cdnSecret}`).digest("base64url");
+    expect(url.pathname).toBe(`/${key}`);
+    expect(url.search).toBe(`?md5=${expected}&expires=${expires}`);
     expect(() => signFeedCdnUrl("https://other.begetcdn.cloud", key,
       new Date(expires * 1000), config.cdnSecret, now)).toThrow("UNSAFE_FEED_CDN");
     expect(() => signFeedCdnUrl("https://cdn.example.com", key,
@@ -194,5 +194,45 @@ describe("feed storage", () => {
       ]),
     );
     expect(signed.fields["Content-Type"]).toBe(contentType);
+  });
+});
+
+describe("explicit isolated nonproduction S3", () => {
+  const env = {
+    NODE_ENV: "development", GAFUS_LOCAL_ISOLATED_API: "1",
+    GAFUS_ISOLATED_NONPROD_S3: "enabled",
+    GAFUS_ISOLATED_S3_ENDPOINT: "http://127.0.0.1:9000",
+    GAFUS_ISOLATED_S3_FEED_BUCKET: "gafus-refactor-feed-test",
+    FEED_ENABLED: "true",
+  };
+  it("presigns uploads only against the project-local test bucket, without the production CDN", async () => {
+    const config = feedStorageConfigFromEnv(env);
+    expect(config).toMatchObject({ isolatedNonprod: true, enabled: true,
+      endpoint: "http://127.0.0.1:9000", bucket: "gafus-refactor-feed-test", cdnBaseUrl: "" });
+    const post = await createFeedStorage(config).presignPost({
+      key: "posts/user/post/incoming/upload/source.jpg", contentType: "image/jpeg",
+      maxBytes: 10 * 1024 * 1024, expiresAt: new Date(Date.now() + 60_000),
+    });
+    expect(post.url).toBe("http://127.0.0.1:9000/gafus-refactor-feed-test");
+    expect(post.fields["X-Amz-Credential"]).toContain("/us-east-1/s3/aws4_request");
+    const signed = new URL(await createFeedStorage(config).signCdn({
+      key, expiresAt: new Date(Date.now() + 120_000),
+    }));
+    expect(signed.origin).toBe("http://127.0.0.1:9000");
+    expect(signed.searchParams.get("X-Amz-Algorithm")).toBe("AWS4-HMAC-SHA256");
+    await expect(createFeedStorage(config).signCdn({
+      key: "posts/user/post/incoming/upload/source.jpg",
+      expiresAt: new Date(Date.now() + 120_000),
+    })).rejects.toThrow();
+  });
+  it.each([
+    { NODE_ENV: "production" },
+    { GAFUS_LOCAL_ISOLATED_API: "false" },
+    { GAFUS_ISOLATED_S3_ENDPOINT: "http://127.0.0.2:9000" },
+    { GAFUS_ISOLATED_S3_ENDPOINT: "http://127.0.0.1:9000?x=y" },
+    { GAFUS_ISOLATED_S3_FEED_BUCKET: "gafus-private-test" },
+    { FEED_S3_ACCESS_KEY_ID: "production" },
+  ])("fails closed on unsafe local flags %o", (bad) => {
+    expect(() => feedStorageConfigFromEnv({ ...env, ...bad })).toThrow();
   });
 });

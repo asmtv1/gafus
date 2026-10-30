@@ -97,7 +97,7 @@ export async function enqueueDelete(
 export function afterLease(at: Date, lease: Date | null) {
   return new Date(Math.max(at.getTime(), lease?.getTime() ?? 0) + 60_000);
 }
-export async function uploadCleanup(tx: GalleryTx, upload: UploadRow, at: Date) {
+export async function uploadCleanup(tx: GalleryTx, upload: UploadRow, at: Date, publishedKeys: string[] = []) {
   await enqueueDelete(tx, upload.ownerId, [upload.sourceKey], at, `source-now:${upload.id}`);
   // Keep a second durable task until POST expiry: a client can rewrite the source after READY.
   await enqueueDelete(
@@ -110,7 +110,9 @@ export async function uploadCleanup(tx: GalleryTx, upload: UploadRow, at: Date) 
   await enqueueDelete(
     tx,
     upload.ownerId,
-    [upload.stagedThumbKey, upload.stagedFullKey],
+    [upload.stagedThumbKey, upload.stagedFullKey].filter(
+      (key) => key && !publishedKeys.includes(key),
+    ),
     afterLease(at, upload.leaseUntil),
     `staged:${upload.id}:${upload.attemptToken ?? "none"}`,
   );

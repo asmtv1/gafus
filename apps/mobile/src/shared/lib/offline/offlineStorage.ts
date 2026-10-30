@@ -11,6 +11,17 @@ const OFFLINE_DIR = "offline";
 const META_FILENAME = "meta.json";
 const CURRENT_SCHEMA_VERSION = 1;
 
+/** Validate dynamic native filesystem path components before any IO. */
+export function assertSafeOfflineSegment(value: string): void {
+  const badChar = Array.from(value).some((char) => {
+    const code = char.charCodeAt(0);
+    return code < 32 || code === 127 || [47, 92, 37, 63, 35].includes(code);
+  });
+  if (!value || value === "." || value === ".." || badChar) {
+    throw new Error("Недопустимое имя локального офлайн-файла");
+  }
+}
+
 export interface OfflineCourseMeta {
   schemaVersion: number;
   course: FullCourseData["course"];
@@ -26,6 +37,7 @@ function getOfflineBaseUri(): string {
 }
 
 function getCourseDirUri(courseType: string): string {
+  assertSafeOfflineSegment(courseType);
   return `${getOfflineBaseUri()}${courseType}/`;
 }
 
@@ -87,6 +99,11 @@ export async function getOfflineCourseTypes(): Promise<string[]> {
     const names = await FileSystem.readDirectoryAsync(baseUri);
     const courseTypes: string[] = [];
     for (const name of names) {
+      try {
+        assertSafeOfflineSegment(name);
+      } catch {
+        continue;
+      }
       const itemInfo = await FileSystem.getInfoAsync(`${baseUri}${name}`);
       if (itemInfo.exists && itemInfo.isDirectory) {
         courseTypes.push(name);
@@ -119,6 +136,12 @@ export async function getLocalVideoManifestPath(
   courseType: string,
   videoId: string,
 ): Promise<string | null> {
+  try {
+    assertSafeOfflineSegment(courseType);
+    assertSafeOfflineSegment(videoId);
+  } catch {
+    return null;
+  }
   const manifestPath = `${OFFLINE_DIR}/${courseType}/videos/${videoId}/manifest.m3u8`;
   const fullUri = `${FileSystem.documentDirectory}${manifestPath}`;
   try {
@@ -140,6 +163,15 @@ export async function getLocalVideoManifestPath(
  * documentDirectory уже в формате file:// и с завершающим /.
  */
 export function buildFileUri(relativePath: string): string {
+  // This helper is used to play native offline media. Never let an untrusted
+  // relative reference escape the sandbox or point at a different data tree.
+  const segments = relativePath.split("/");
+  if (segments[0] !== OFFLINE_DIR || segments.length < 3) {
+    throw new Error("Недопустимый относительный путь офлайн-файла");
+  }
+  for (const segment of segments) {
+    assertSafeOfflineSegment(segment);
+  }
   const doc = FileSystem.documentDirectory;
   if (!doc) return relativePath;
   return `${doc}${relativePath}`;
@@ -168,6 +200,12 @@ export async function getOfflineVideoPosterUri(
   if (!videoUrl) return null;
   const videoId = getVideoIdFromUrl(videoUrl);
   if (!videoId) return null;
+  try {
+    assertSafeOfflineSegment(courseType);
+    assertSafeOfflineSegment(videoId);
+  } catch {
+    return null;
+  }
   const posterUri = `${getCourseDirUri(courseType)}videos/${videoId}/poster.jpg`;
   try {
     const info = await FileSystem.getInfoAsync(posterUri);

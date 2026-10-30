@@ -24,7 +24,7 @@ vi.mock("@gafus/cdn-upload", () => ({
   startAccountCdnPurge: mock.purge,
   accountCdnPurgeDone: mock.done,
 }));
-import { processAccountStorageCleanup } from "./worker";
+import { processAccountStorageCleanup, processPrivateAccountStorageCleanupForOwner } from "./worker";
 const job = {
   id: "job",
   ownerId: "owner",
@@ -112,6 +112,28 @@ describe("durable account cleanup", () => {
     await processAccountStorageCleanup(1);
     expect(mock.sweep).not.toHaveBeenCalled();
     expect(mock.execute.mock.calls[0]).toContain("CLEANUP_OWNER_EXISTS");
+  });
+  it("denies an owner-scoped private worker without the exact local isolated gate", async () => {
+    await expect(processPrivateAccountStorageCleanupForOwner("synthetic_owner", 1))
+      .rejects.toThrow("CLEANUP_OWNER_SCOPED_LOCAL_ONLY_DENIED");
+    expect(mock.query).not.toHaveBeenCalled();
+  });
+  it("binds the exact local owner and restricts SELECT to private scopes", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("GAFUS_LOCAL_ISOLATED_API", "1");
+    vi.stubEnv("GAFUS_ISOLATED_NONPROD_S3", "enabled");
+    mock.query.mockResolvedValue([{...job, ownerId:"synthetic_owner", scope:"documents"}]);
+    try {
+      await processPrivateAccountStorageCleanupForOwner("synthetic_owner", 1);
+      expect(mock.query).toHaveBeenCalledOnce();
+      const [sql, ...bindings] = mock.query.mock.calls[0] as [string[], ...unknown[]];
+      expect(sql.join("")).toContain('"ownerId" = ');
+      expect(sql.join("")).toContain(`"scope" IN ('questions', 'documents')`);
+      expect(bindings).toContain("synthetic_owner");
+      expect(mock.purge).not.toHaveBeenCalled();
+      expect(mock.stream).not.toHaveBeenCalled();
+      expect(statements()[0]).toContain("'done'");
+    } finally { vi.unstubAllEnvs(); }
   });
   it("checkpoints bounded Stream file pages", async () => {
     mock.query.mockResolvedValue([

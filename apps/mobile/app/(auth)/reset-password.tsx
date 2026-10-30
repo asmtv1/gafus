@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -9,7 +9,7 @@ import {
   Platform,
 } from "react-native";
 import { Text, Snackbar } from "react-native-paper";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -17,6 +17,7 @@ import { z } from "zod";
 
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { authApi } from "@/shared/lib/api/auth";
+import { useAuthStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { Button } from "@/shared/components/ui";
@@ -42,10 +43,20 @@ const passwordSchema = z
  */
 export default function ResetPasswordScreen() {
   const router = useRouter();
+  // Universal/App Link: the password reset email already points to this URL.
+  // If the OS opens it in the native app, never require copying a token by hand.
+  const params = useLocalSearchParams<{ token?: string | string[] }>();
+  const linkedToken = typeof params.token === "string" &&
+    /^[A-Za-z0-9_-]{32,128}$/.test(params.token) ? params.token : "";
 
-  const [phase, setPhase] = useState<"request" | "token">("request");
+  const [phase, setPhase] = useState<"request" | "token">(linkedToken ? "token" : "request");
   const [email, setEmail] = useState("");
-  const [token, setToken] = useState("");
+  const [token, setToken] = useState(linkedToken);
+  useEffect(() => {
+    if (!linkedToken) return;
+    setToken(linkedToken);
+    setPhase("token");
+  }, [linkedToken]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{
     email?: string;
@@ -162,7 +173,17 @@ export default function ResetPasswordScreen() {
         visible: true,
         message: "Пароль изменён. Войдите с новым паролем.",
       });
-      router.replace("/login");
+      // The reset atomically revokes old server credentials. A logged-in app
+      // must also clear its own SecureStore and private caches immediately,
+      // otherwise the auth layout would bounce the user back to protected UI.
+      if (useAuthStore.getState().isAuthenticated) {
+        void useAuthStore.getState().logout().catch(() => {
+          reportClientError(new Error("PASSWORD_RESET_LOCAL_SIGNOUT_FAILED"), {
+            issueKey: "ResetPassword", keys: { operation: "local_signout" },
+          });
+        });
+      }
+      router.replace("/(auth)/login");
     } catch (err) {
       reportClientError(err, { issueKey: "ResetPassword", keys: { operation: "reset_by_token" } });
       setSnackbar({

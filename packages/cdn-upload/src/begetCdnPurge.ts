@@ -12,10 +12,13 @@ const hosts = {
 type Scope = keyof typeof scopeIds;
 const id = "[A-Za-z0-9_-]{1,128}";
 const galleryPhoto = new RegExp(`^albums/${id}/${id}/photos/${id}/(?:thumb|full)\\.webp$`);
+const galleryV2Photo = new RegExp("^gallery/" + id + "/media/" + id + "/v2/(?:thumb|full)\\.webp$");
 const galleryVetThumb = new RegExp(`^users/${id}/pets/${id}/vet-visits/${id}/${id}/thumb\\.webp$`);
-const feedMedia = new RegExp(`^posts/${id}/${id}/attachments/${id}/(?:thumb\\.webp|full\\.webp|poster\\.webp|hls/segment-[0-9]{3,5}\\.ts)$`);
+const feedMedia = /^media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/(?:image\/[sml]\.webp|poster\.webp|video\/(?:360|720|1080)\.mp4)$/;
 export function isBegetCacheableObjectKey(scope: Scope, key: string): boolean {
-  return scope === "gallery" ? galleryPhoto.test(key) || galleryVetThumb.test(key) : feedMedia.test(key);
+  return scope === "gallery"
+    ? galleryPhoto.test(key) || galleryV2Photo.test(key) || galleryVetThumb.test(key)
+    : feedMedia.test(key);
 }
 // The durable operation includes exact keys, so a background retry can verify
 // that a freshly authorized CDN request no longer serves cached deleted bytes.
@@ -112,8 +115,12 @@ export async function begetCdnPurgeDone(
     throw new Error("BEGET_CDN_EDGE_PROOF_UNAVAILABLE");
   const expires = Math.floor(now / 1000) + 90;
   for (const path of paths) {
-    const signature = createHash("md5").update(`${secret}${path}${expires}`).digest("base64url");
-    const url = `https://${hosts[scope]}/md5(${signature},${expires})${path}`;
+    const signature = createHash("md5")
+      .update(scope === "feed" ? `${expires}${path} ${secret}` : `${secret}${path}${expires}`)
+      .digest("base64url");
+    const url = scope === "feed"
+      ? `https://${hosts[scope]}${path}?md5=${signature}&expires=${expires}`
+      : `https://${hosts[scope]}/md5(${signature},${expires})${path}`;
     for (const method of ["HEAD", "GET"] as const) {
       const response = await fetcher(url, {
         method, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(7000),

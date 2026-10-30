@@ -17,13 +17,15 @@ import { useShallow } from "zustand/react/shallow";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 
-import { Loading } from "@/shared/components/ui";
+import { StartupLoader } from "@/shared/components/StartupLoader";
 import { TexturedSafeAreaView } from "@/shared/components";
 import { useAuthStore, useCourseStore } from "@/shared/stores";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { getMobileMoscowDateKey, useTodayDailyCourse } from "@/shared/hooks/useDailyCourse";
 import { usePrefetchOtherTabsAfterCourses } from "@/shared/hooks/usePrefetchOtherTabsAfterCourses";
-import { coursesApi, type Course } from "@/shared/lib/api";
+import type { Course, CourseListItem } from "@/shared/lib/api";
+import { apiClient } from "@/shared/lib/api/client";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import type { TodayDailyCourseResponse } from "@/shared/lib/api";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -65,7 +67,7 @@ function getCourseLogoUri(
   return `${baseLogoUri}${baseLogoUri.includes("?") ? "&" : "?"}v=${logoVersion}`;
 }
 
-function getCourseLogoPrefetchUri(course: Course): string | null {
+function getCourseLogoPrefetchUri(course: CourseListItem): string | null {
   const base = getCourseLogoUri(course.logoImg, course.updatedAt);
   if (!base) return null;
   const candidates = getCourseLogoVariantCandidates(base);
@@ -149,30 +151,66 @@ function DailyCourseCard({
  * Страница со всеми курсами: поиск и фильтры как в web.
  * При офлайне показывается экран «Скачанные курсы».
  */
+// The favorites implementation remains available for explicit contract tests;
+// The actual mobile tab never exposes it until the feature is released.
 export default function CoursesScreen() {
+  return <CoursesScreenContent />;
+}
+export function CoursesScreenContent({ showFavoritesUI = false }:
+  { showFavoritesUI?: boolean } = {}) {
   const isOffline = useIsOffline();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const courseListRef = useRef<FlashListRef<Course> | null>(null);
+  const courseListRef = useRef<FlashListRef<CourseListItem> | null>(null);
   const tourIsActive = useMobileOnboardingTourStore((s) => s.isActive);
   const tourStepId = useMobileOnboardingTourStore((s) => s.currentStepId);
-  const { filters, setFilter, addToFavorites, removeFromFavorites, isFavorite, favorites } =
-    useCourseStore(
-      useShallow((s) => ({
-        filters: s.filters,
-        setFilter: s.setFilter,
-        addToFavorites: s.addToFavorites,
-        removeFromFavorites: s.removeFromFavorites,
-        isFavorite: s.isFavorite,
-        favorites: s.favorites,
-      })),
-    );
+  const { filters, setFilter, addToFavorites, removeFromFavorites, favorites } = useCourseStore(
+    useShallow((s) => ({
+      filters: s.filters,
+      setFilter: s.setFilter,
+      addToFavorites: s.addToFavorites,
+      removeFromFavorites: s.removeFromFavorites,
+      favorites: s.favorites,
+    })),
+  );
 
   const [refreshing, setRefreshing] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const [unknownIds, setUnknownIds] = useState<string[]>([]);
+  const [confirmed, setConfirmed] = useState<Record<string, Record<string, boolean>>>({});
+  const pendingRef = useRef(new Set<string>());
+  const unknownRef = useRef(new Set<string>());
+  const refreshingRef = useRef(false);
+  const mounted = useRef(true);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const { data: publicConfigResponse, isFetched: publicConfigFetched } = useMobileAppPublicConfig();
   const username = useAuthStore((s) => s.user?.username ?? null);
+  const principalId = useAuthStore((s) =>
+    s.isAuthenticated && !s.isLoading ? (s.user?.id ?? null) : null,
+  );
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const authEpoch = principalId && binding?.principalId === principalId ? binding.authEpoch : null;
+  const actorKey = `${principalId ?? "guest"}:${authEpoch ?? "unverified"}`;
+  const isCurrent = useCallback(() => {
+    const auth = useAuthStore.getState();
+    const native = newOnlyV2NativeQueues.getVerifiedBinding();
+    return Boolean(
+      mounted.current &&
+        principalId &&
+        authEpoch &&
+        auth.isAuthenticated &&
+        !auth.isLoading &&
+        auth.user?.id === principalId &&
+        native?.principalId === principalId &&
+        native.authEpoch === authEpoch,
+    );
+  }, [principalId, authEpoch]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const isTestUser = username?.toLowerCase() === "testuser";
 
   const { data, isLoading, error, refetch } = useQuery(coursesCatalogQueryOptions);
@@ -187,10 +225,52 @@ export default function CoursesScreen() {
   usePrefetchOtherTabsAfterCourses({ catalogReady });
 
   const onRefresh = useCallback(async () => {
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
     setRefreshing(true);
-    await Promise.all([refetch(), refetchDailyCourse()]);
-    setRefreshing(false);
-  }, [refetch, refetchDailyCourse]);
+    try {
+      await Promise.all([refetch(), refetchDailyCourse()]);
+      if (!isCurrent()) return;
+      // The favorites UI is hidden, so refresh must not query a dormant feature.
+      if (!showFavoritesUI) {
+        setSnackbar({ visible: false, message: "" });
+        return;
+      }
+      // A successful authoritative GET is required before retrying an unknown POST.
+      const favorites = await apiClient<{ favoriteIds: string[]; data: Course[] }>(
+        "/api/v1/courses/favorites",
+        { requestGuard: isCurrent },
+      );
+      if (!isCurrent()) return;
+      if (
+        !favorites.success ||
+        !Array.isArray(favorites.data?.favoriteIds) ||
+        !favorites.data.favoriteIds.every((id) => typeof id === "string")
+      )
+        throw new Error("FAVORITES_READBACK_UNCONFIRMED");
+      useCourseStore.setState({ favorites: [...new Set(favorites.data.favoriteIds)] });
+      setConfirmed((previous) => ({ ...previous, [actorKey]: {} }));
+      unknownRef.current = new Set(
+        [...unknownRef.current].filter((id) => !id.startsWith(`${actorKey}:`)),
+      );
+      setUnknownIds((previous) => previous.filter((id) => !id.startsWith(`${actorKey}:`)));
+      setSnackbar({ visible: false, message: "" });
+    } catch {
+      if (isCurrent()) {
+        reportClientError(new Error("COURSE_CATALOG_REFRESH_FAILED"), {
+          issueKey: "CoursesScreen",
+          keys: { operation: "refresh" },
+        });
+        setSnackbar({
+          visible: true,
+          message: "Не удалось обновить избранное. Попробуйте ещё раз.",
+        });
+      }
+    } finally {
+      refreshingRef.current = false;
+      if (mounted.current) setRefreshing(false);
+    }
+  }, [refetch, refetchDailyCourse, isCurrent, actorKey, showFavoritesUI]);
 
   const allCourses = useMemo(() => data?.data ?? [], [data?.data]);
   const filteredCourses = useMemo(
@@ -269,58 +349,101 @@ export default function CoursesScreen() {
   );
 
   const handleToggleFavorite = useCallback(
-    async (courseId: string) => {
-      const wasFavorite = isFavorite(courseId);
-      if (wasFavorite) {
-        removeFromFavorites(courseId);
-      } else {
-        addToFavorites(courseId);
+    async (courseId: string, wasFavorite: boolean) => {
+      // Even a stale or accidentally mounted callback must remain inert.
+      if (!showFavoritesUI) return;
+      if (!isCurrent()) {
+        setSnackbar({ visible: true, message: "Для избранного войдите в аккаунт." });
+        return;
       }
-      setPendingIds((prev) => [...prev, courseId]);
+      const actionKey = `${actorKey}:${courseId}`;
+      if (pendingRef.current.has(actionKey) || unknownRef.current.has(actionKey)) return;
+      pendingRef.current.add(actionKey);
+      setPendingIds((prev) => [...prev, actionKey]);
       try {
-        const res = await coursesApi.toggleFavorite(courseId, wasFavorite ? "remove" : "add");
-        if (res.success) {
-          queryClient.invalidateQueries({ queryKey: ["favorites"] });
-        } else {
-          throw new Error(res.error ?? "Ошибка избранного");
-        }
-      } catch (err) {
-        reportClientError(err instanceof Error ? err : new Error(String(err)), {
-          issueKey: "CoursesScreen",
-          keys: { operation: "toggle_favorite" },
+        const response = await apiClient<{ isFavorite: boolean }>("/api/v1/courses/favorites", {
+          method: "POST",
+          body: { courseId, action: wasFavorite ? "remove" : "add" },
+          requestGuard: isCurrent,
+          skipAuthRefreshReplay: true,
         });
-        if (wasFavorite) {
-          addToFavorites(courseId);
-        } else {
-          removeFromFavorites(courseId);
+        if (!isCurrent()) return;
+        if (!response.success || response.data?.isFavorite !== !wasFavorite)
+          throw new Error("FAVORITE_WRITE_UNCONFIRMED");
+        // No optimistic cross-user store update: apply only exact current server ACK.
+        if (wasFavorite) removeFromFavorites(courseId);
+        else addToFavorites(courseId);
+        setConfirmed((previous) => ({
+          ...previous,
+          [actorKey]: { ...previous[actorKey], [courseId]: !wasFavorite },
+        }));
+        try {
+          await queryClient.invalidateQueries({ queryKey: ["favorites"] });
+        } catch {
+          if (isCurrent())
+            reportClientError(new Error("FAVORITE_POST_ACK_REFRESH_FAILED"), {
+              issueKey: "CoursesScreen",
+              keys: { operation: "post_ack_refresh" },
+            });
         }
+      } catch {
+        if (!isCurrent()) return;
+        unknownRef.current.add(actionKey);
+        setUnknownIds((prev) => [...prev, actionKey]);
+        reportClientError(new Error("FAVORITE_WRITE_OUTCOME_UNKNOWN"), {
+          issueKey: "CoursesScreen",
+          keys: { operation: "favorite_write" },
+        });
         setSnackbar({
           visible: true,
-          message: err instanceof Error ? err.message : "Ошибка избранного",
+          message: "Не удалось подтвердить избранное. Обновите список для повторной попытки.",
         });
       } finally {
-        setPendingIds((prev) => prev.filter((id) => id !== courseId));
+        pendingRef.current.delete(actionKey);
+        if (isCurrent()) setPendingIds((prev) => prev.filter((id) => id !== actionKey));
       }
     },
-    [isFavorite, addToFavorites, removeFromFavorites, queryClient],
+    [isCurrent, actorKey, addToFavorites, removeFromFavorites, queryClient, showFavoritesUI],
   );
 
   const renderCourseItem = useCallback(
-    ({ item, index }: { item: Course; index: number }) => {
-      const courseIsFavorite = favoritesSet.has(item.id) || item.isFavorite;
-      const card = (
-        <CourseCard
-          course={item}
-          isFavorite={courseIsFavorite}
-          onToggleFavorite={handleToggleFavorite}
-          disabled={pendingIdsSet.has(item.id)}
-          showIosRuCardPaymentHint={
-            Platform.OS === "ios" && iosConfigLoaded && iosRuCardPaymentHintEnabled && !isTestUser
-          }
-          tourTargetId={index === 0 ? "courses-list" : undefined}
-        />
+    ({ item, index }: { item: CourseListItem; index: number }) => {
+      const courseIsFavorite =
+        confirmed[actorKey]?.[item.id] ?? (favoritesSet.has(item.id) || item.isFavorite);
+      const actionKey = `${actorKey}:${item.id}`;
+      const pending = pendingIdsSet.has(actionKey);
+      const unknown = unknownIds.includes(actionKey);
+      return (
+        <View>
+          <CourseCard
+            course={item}
+            isFavorite={courseIsFavorite}
+            onToggleFavorite={() => void handleToggleFavorite(item.id, courseIsFavorite)}
+            disabled={pending || unknown}
+            showIosRuCardPaymentHint={
+              Platform.OS === "ios" && iosConfigLoaded && iosRuCardPaymentHintEnabled && !isTestUser
+            }
+            tourTargetId={index === 0 ? "courses-list" : undefined}
+          />
+          {showFavoritesUI && <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${courseIsFavorite ? "Убрать из избранного" : "Добавить в избранное"}: ${item.name}`}
+            disabled={pending || unknown || !isCurrent()}
+            onPress={() => void handleToggleFavorite(item.id, courseIsFavorite)}
+            style={styles.favoriteAction}
+          >
+            <Text style={styles.favoriteActionText}>
+              {pending
+                ? "Сохраняем…"
+                : unknown
+                  ? "Обновите список для повтора"
+                  : courseIsFavorite
+                    ? "В избранном · Убрать"
+                    : "☆ В избранное"}
+            </Text>
+          </Pressable>}
+        </View>
       );
-      return card;
     },
     [
       favoritesSet,
@@ -329,16 +452,25 @@ export default function CoursesScreen() {
       iosConfigLoaded,
       iosRuCardPaymentHintEnabled,
       pendingIdsSet,
+      unknownIds,
+      confirmed,
+      actorKey,
+      isCurrent,
+      showFavoritesUI,
     ],
   );
 
-  const keyExtractor = useCallback((item: Course) => item.id, []);
+  const keyExtractor = useCallback((item: CourseListItem) => item.id, []);
   const listExtraData = useMemo(
     () => ({
       favoritesKey: favorites.join("|"),
       pendingKey: pendingIds.join("|"),
+      unknownKey: unknownIds.join("|"),
+      confirmedKey: Object.entries(confirmed[actorKey] ?? {})
+        .map(([id, value]) => `${id}:${value}`)
+        .join("|"),
     }),
-    [favorites, pendingIds],
+    [favorites, pendingIds, unknownIds, confirmed, actorKey],
   );
 
   const listHeader = (
@@ -395,7 +527,7 @@ export default function CoursesScreen() {
   }
 
   if (isLoading) {
-    return <Loading fullScreen message="Загрузка курсов..." />;
+    return <StartupLoader />;
   }
 
   return (
@@ -449,6 +581,8 @@ export default function CoursesScreen() {
 }
 
 const styles = StyleSheet.create({
+  favoriteAction: { paddingVertical: 12, paddingHorizontal: SPACING.md, alignSelf: "flex-start" },
+  favoriteActionText: { color: COLORS.primary, fontSize: 14, fontWeight: "600" },
   container: {
     flex: 1,
   },

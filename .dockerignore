@@ -14,7 +14,6 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Build outputs
-apps/**/.next
 apps/**/out
 apps/**/dist
 packages/**/dist
@@ -39,7 +38,6 @@ pnpm-debug.log*
 # Build outputs
 dist
 build
-.next
 out
 *.tsbuildinfo
 
@@ -133,8 +131,6 @@ pids
 .cache
 .parcel-cache
 
-# Next.js build output
-.next/
 
 # Nuxt.js build / generate output
 .nuxt
@@ -251,7 +247,6 @@ jspm_packages/
 .parcel-cache
 
 # next.js build output
-.next
 
 # nuxt.js build output
 .nuxt
@@ -291,3 +286,32 @@ jspm_packages/
 **/*.tfvars
 **/*.tfplan
 output/playwright
+
+# Local test artefacts / sensitive isolated datasets are never sent to Docker
+**/.ag*-tmp/
+**/.ag*-*
+**/.design-verify/
+.local-pg-scratch/
+.local-browser-mcp/
+gafus dump/
+docs/refactor/agents/
+
+# Release hardening: never transmit signing keys or private credentials as build context.
+# .gitignore does not protect Docker contexts and tracked files are not exempt.
+secrets/
+**/secrets/
+**/*.p8
+**/*.p12
+**/*.pfx
+**/*.jks
+**/*.keystore
+**/credentials/
+**/rustore-signing/
+**/*.sqlite
+**/*.dump
+**/*.backup
+
+# Ephemeral test runner output, never source or release input.
+**/*.stdout
+**/*.stderr
+**/*.exit

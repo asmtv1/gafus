@@ -12,13 +12,25 @@ import {
 
 const mockFindFirst = vi.fn();
 const mockUpdate = vi.fn();
+const mockUpdateMany = vi.fn();
 const mockCreate = vi.fn();
 const mockDeleteMany = vi.fn();
 const mockCount = vi.fn();
 const mockFindMany = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
+  isPrismaUniqueConstraintError: () => false,
   prisma: {
+    $transaction: (callback: (tx: unknown) => Promise<unknown>) => callback({
+      $queryRaw: async (parts: TemplateStringsArray) =>
+        String(parts[0]).includes("pg_advisory_xact_lock") ? [] :
+          [{ id: "user-1", sessionsRevokedAt: null, registrationPending: false }],
+      pushSubscription: {
+        findUnique: (...args: unknown[]) => mockFindFirst(...args),
+        updateMany: (...args: unknown[]) => mockUpdateMany(...args),
+        create: (...args: unknown[]) => mockCreate(...args),
+      },
+    }),
     pushSubscription: {
       findFirst: (...args: unknown[]) => mockFindFirst(...args),
       findMany: (...args: unknown[]) => mockFindMany(...args),
@@ -48,8 +60,9 @@ describe("savePushSubscription", () => {
     mockFindFirst.mockResolvedValue({
       id: "sub-1",
       endpoint: "https://push.example.com/1",
+      userId: "user-1",
     });
-    mockUpdate.mockResolvedValue({ id: "sub-1" });
+    mockUpdateMany.mockResolvedValue({ count: 1 });
 
     const result = await savePushSubscription({
       userId: "user-1",
@@ -57,8 +70,10 @@ describe("savePushSubscription", () => {
       keys: { p256dh: "key1", auth: "auth1" },
     });
 
-    expect(mockUpdate).toHaveBeenCalled();
-    expect(result).toEqual({ id: "sub-1" });
+    expect(mockUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "sub-1", endpoint: "https://push.example.com/1", userId: "user-1" },
+    }));
+    expect(result).toMatchObject({ id: "sub-1", userId: "user-1" });
   });
 
   it("creates new subscription when not found", async () => {

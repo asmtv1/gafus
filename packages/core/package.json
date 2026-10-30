@@ -65,6 +65,10 @@
       "types": "./dist/core/src/services/pets/index.d.ts",
       "default": "./dist/core/src/services/pets/index.js"
     },
+    "./services/petRead": {
+      "types": "./dist/core/src/services/pets/petsReadService.d.ts",
+      "default": "./dist/core/src/services/pets/petsReadService.js"
+    },
     "./services/petPrevention": {
       "types": "./dist/core/src/services/petPrevention/index.d.ts",
       "default": "./dist/core/src/services/petPrevention/index.js"
@@ -360,7 +364,17 @@
     "sanitize-html": "^2.17.7",
     "stream-chat": "9.53.0",
     "validator": "^13.15.26",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "@gafus/core-client": "workspace:*",
+    "@gafus/achievements-server": "workspace:*",
+    "@gafus/consent-server": "workspace:*",
+    "@gafus/mobile-intro-server": "workspace:*",
+    "@gafus/notifications-server": "workspace:*",
+    "@gafus/feature-flags-server": "workspace:*",
+    "@gafus/admin-rewarded-ads-server": "workspace:*",
+    "@gafus/tracking-server": "workspace:*",
+    "@gafus/admin-reengagement-server": "workspace:*",
+    "@gafus/subscription-read-server": "workspace:*"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

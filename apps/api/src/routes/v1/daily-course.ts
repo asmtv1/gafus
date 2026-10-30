@@ -2,16 +2,19 @@
  * Daily Course Routes
  * Endpoints для курса дня.
  */
-import { Hono } from "hono";
+import { Hono, type TypedResponse } from "hono";
+import type {
+  TodayDailyCourseRead,
+  DailyCourseDayRead,
+  DailyCourseBoundDayRead,
+} from "../../../../../packages/types/src/data/training";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
-import {
-  getDailyCourseDayWithUserSteps,
-  getTodayDailyCourse,
-  updateDailyCourseStepAndDay,
-} from "@gafus/core/services/dailyCourse";
 import { createWebLogger } from "@gafus/logger";
+import { isTrustedBrowserOrigin } from "../../lib/browser-auth.js";
+import { readTodayDailyCourseApplication } from "../../modules/learner-daily/composition/read-today-daily-course.js";
+import { dayAndStepCommandsApplication } from "../../modules/learner-daily/composition/day-and-step-commands.js";
 
 const logger = createWebLogger("api-daily-course");
 
@@ -26,13 +29,29 @@ const scheduleQuerySchema = z.object({
   createIfMissing: z
     .enum(["true", "false"])
     .optional()
-    .transform((v) => v !== "false"),
+    .transform((v) => v === "true"),
 });
 
 const stepActionSchema = z.object({
   scheduleId: z.string().min(1, "scheduleId обязателен"),
   stepIndex: z.number().int().min(0, "stepIndex >= 0"),
+  expectedBundleStepId: z.string().min(1).max(128).optional(),
+  expectedStepId: z.string().min(1).max(128).optional(),
 });
+
+type DailyStepBindingFields = { expectedBundleStepId?: string; expectedStepId?: string };
+function parseDailyStepBinding(
+  fields: DailyStepBindingFields,
+  requiredForWeb: boolean,
+): { expectedBundleStepId: string; expectedStepId: string } | "INVALID" | undefined {
+  if (fields.expectedBundleStepId === undefined && fields.expectedStepId === undefined)
+    return requiredForWeb ? "INVALID" : undefined;
+  if (!fields.expectedBundleStepId || !fields.expectedStepId) return "INVALID";
+  return {
+    expectedBundleStepId: fields.expectedBundleStepId,
+    expectedStepId: fields.expectedStepId,
+  };
+}
 
 const startStepSchema = stepActionSchema.extend({
   status: z.literal("IN_PROGRESS").optional(),
@@ -52,6 +71,12 @@ function mapDailyCourseError(error: unknown): {
     return {
       status: 404,
       body: { success: false, error: "Курс дня не найден", code: "NOT_FOUND" },
+    };
+  }
+  if (message === "STALE_DAILY_STEP_BINDING") {
+    return {
+      status: 409,
+      body: { success: false, error: "Состав курса дня изменился", code: "STALE_STEP_BINDING" },
     };
   }
   if (message === "STEP_NOT_FOUND") {
@@ -78,8 +103,9 @@ function mapDailyCourseError(error: unknown): {
 dailyCourseRoutes.get("/today", async (c) => {
   try {
     const user = c.get("user");
-    const result = await getTodayDailyCourse(user.id);
-    return c.json({ success: true, data: result }, 200, noStoreHeaders);
+    const result = await readTodayDailyCourseApplication.execute(user.id);
+    return c.json({ success: true, data: result }, 200, noStoreHeaders) satisfies Response &
+      TypedResponse<TodayDailyCourseRead>;
   } catch (error) {
     logger.error("Error fetching today daily course", error as Error);
     const mapped = mapDailyCourseError(error);
@@ -91,7 +117,12 @@ dailyCourseRoutes.get("/day", zValidator("query", scheduleQuerySchema), async (c
   try {
     const user = c.get("user");
     const { scheduleId, createIfMissing } = c.req.valid("query");
-    const result = await getDailyCourseDayWithUserSteps(user.id, scheduleId, {
+    // This legacy opt-in GET is a WRITE. Cookie transport must pass the same
+    // trusted-Origin gate as POST mutations, while explicit Bearer stays compatible.
+    if (createIfMissing && !c.req.header("Authorization") && !isTrustedBrowserOrigin(c)) {
+      return c.json({ success: false, error: "Недоверенный Origin" }, 403, noStoreHeaders);
+    }
+    const result = await dayAndStepCommandsApplication.getDay(user.id, scheduleId, {
       createIfMissing,
     });
     if (!result) {
@@ -101,7 +132,19 @@ dailyCourseRoutes.get("/day", zValidator("query", scheduleQuerySchema), async (c
         noStoreHeaders,
       );
     }
-    return c.json({ success: true, data: result }, 200, noStoreHeaders);
+    const optedIn = c.req.header("X-Gafus-Web-Daily-Binding") === "1";
+    // Legacy/native wire is unchanged, including its positional stepIndex.
+    const { serverNow: _serverNow, ...legacyResult } = result;
+    const data = optedIn
+      ? { ...result, onlineStepBinding: "BUNDLE_STEP_ID_V1" as const }
+      : {
+          ...legacyResult,
+          steps: result.steps.map(
+            ({ bundleStepId: _bindingId, timerSnapshot: _timer, ...step }) => step,
+          ),
+        };
+    return c.json({ success: true, data }, 200, noStoreHeaders) satisfies Response &
+      TypedResponse<DailyCourseDayRead | DailyCourseBoundDayRead>;
   } catch (error) {
     logger.error("Error fetching daily course day", error as Error);
     const mapped = mapDailyCourseError(error);
@@ -113,10 +156,21 @@ dailyCourseRoutes.post("/step/start", zValidator("json", startStepSchema), async
   try {
     const user = c.get("user");
     const { scheduleId, stepIndex, durationSec } = c.req.valid("json");
-    await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, {
-      type: "start",
-      remainingSec: durationSec,
-    });
+    const binding = parseDailyStepBinding(
+      c.req.valid("json"),
+      c.req.header("X-Gafus-Web-Daily-Binding") === "1",
+    );
+    if (binding === "INVALID") return c.json({ success: false, code: "INVALID_STEP_BINDING" }, 400);
+    await dayAndStepCommandsApplication.updateStep(
+      user.id,
+      scheduleId,
+      stepIndex,
+      {
+        type: "start",
+        remainingSec: durationSec,
+      },
+      binding,
+    );
     return c.json({ success: true });
   } catch (error) {
     logger.error("Error starting daily course step", error as Error);
@@ -129,10 +183,21 @@ dailyCourseRoutes.post("/step/pause", zValidator("json", pauseStepSchema), async
   try {
     const user = c.get("user");
     const { scheduleId, stepIndex, timeLeftSec } = c.req.valid("json");
-    await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, {
-      type: "pause",
-      remainingSec: timeLeftSec,
-    });
+    const binding = parseDailyStepBinding(
+      c.req.valid("json"),
+      c.req.header("X-Gafus-Web-Daily-Binding") === "1",
+    );
+    if (binding === "INVALID") return c.json({ success: false, code: "INVALID_STEP_BINDING" }, 400);
+    await dayAndStepCommandsApplication.updateStep(
+      user.id,
+      scheduleId,
+      stepIndex,
+      {
+        type: "pause",
+        remainingSec: timeLeftSec,
+      },
+      binding,
+    );
     return c.json({ success: true });
   } catch (error) {
     logger.error("Error pausing daily course step", error as Error);
@@ -145,7 +210,18 @@ dailyCourseRoutes.post("/step/resume", zValidator("json", stepActionSchema), asy
   try {
     const user = c.get("user");
     const { scheduleId, stepIndex } = c.req.valid("json");
-    await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, { type: "resume" });
+    const binding = parseDailyStepBinding(
+      c.req.valid("json"),
+      c.req.header("X-Gafus-Web-Daily-Binding") === "1",
+    );
+    if (binding === "INVALID") return c.json({ success: false, code: "INVALID_STEP_BINDING" }, 400);
+    await dayAndStepCommandsApplication.updateStep(
+      user.id,
+      scheduleId,
+      stepIndex,
+      { type: "resume" },
+      binding,
+    );
     return c.json({ success: true });
   } catch (error) {
     logger.error("Error resuming daily course step", error as Error);
@@ -158,7 +234,18 @@ dailyCourseRoutes.post("/step/reset", zValidator("json", stepActionSchema), asyn
   try {
     const user = c.get("user");
     const { scheduleId, stepIndex } = c.req.valid("json");
-    await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, { type: "reset" });
+    const binding = parseDailyStepBinding(
+      c.req.valid("json"),
+      c.req.header("X-Gafus-Web-Daily-Binding") === "1",
+    );
+    if (binding === "INVALID") return c.json({ success: false, code: "INVALID_STEP_BINDING" }, 400);
+    await dayAndStepCommandsApplication.updateStep(
+      user.id,
+      scheduleId,
+      stepIndex,
+      { type: "reset" },
+      binding,
+    );
     return c.json({ success: true });
   } catch (error) {
     logger.error("Error resetting daily course step", error as Error);
@@ -171,7 +258,18 @@ dailyCourseRoutes.post("/step/complete", zValidator("json", stepActionSchema), a
   try {
     const user = c.get("user");
     const { scheduleId, stepIndex } = c.req.valid("json");
-    await updateDailyCourseStepAndDay(user.id, scheduleId, stepIndex, { type: "complete" });
+    const binding = parseDailyStepBinding(
+      c.req.valid("json"),
+      c.req.header("X-Gafus-Web-Daily-Binding") === "1",
+    );
+    if (binding === "INVALID") return c.json({ success: false, code: "INVALID_STEP_BINDING" }, 400);
+    await dayAndStepCommandsApplication.updateStep(
+      user.id,
+      scheduleId,
+      stepIndex,
+      { type: "complete" },
+      binding,
+    );
     return c.json({ success: true });
   } catch (error) {
     logger.error("Error completing daily course step", error as Error);

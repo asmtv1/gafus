@@ -67,6 +67,8 @@ model Course {
   videoUrl          String?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+  // Global integer revision is incremented ONLY by the Course BEFORE UPDATE trigger.
+  version           Int                @default(1)
   showInProfile     Boolean            @default(true)
   isPersonalized    Boolean            @default(false)
   guideContent      String?            @db.Text
@@ -323,6 +325,18 @@ model DailyCourseUserStep {
 }
 
 model User {
+  chat2CreatedConversations Chat2Conversation[] @relation("Chat2Creator")
+  chat2Memberships Chat2Member[] @relation("Chat2Membership")
+  chat2AuthoredMessages Chat2Message[] @relation("Chat2Author")
+  chat2MessageReactions Chat2MessageReaction[] @relation("Chat2ReactionUser")
+  chat2BlocksSent Chat2Block[] @relation("Chat2Blocker")
+  chat2BlocksReceived Chat2Block[] @relation("Chat2Blocked")
+  chat2PushReceipts Chat2PushReceipt[] @relation("Chat2PushRecipient")
+  chat2OwnedMedia Chat2Media[] @relation("Chat2MediaOwner")
+  chat2SubmittedReports Chat2Report[] @relation("Chat2ReportAuthor")
+  petCreateReceipts PetCreateReceipt[] @relation("PetCreateOwner")
+  offlineMutationReceipts OfflineMutationReceipt[] @relation("OfflineMutationOwner")
+  offlineResourceRevisions OfflineResourceRevision[] @relation("OfflineRevisionOwner")
   feedBookmarks FeedBookmark[]
   feedPostFeedback FeedUserPostFeedback[]
   feedPersonalization FeedPersonalizationPreference?
@@ -394,6 +408,7 @@ model User {
   reengagementSettings             ReengagementSettings?
   refreshTokens                    RefreshToken[]
   reminders                        Reminder[]
+  reminderMutationReceipts         ReminderMutationReceipt[]
   createdSteps                     Step[]
   stepNotifications                StepNotification[]
   createdStepTemplates             StepTemplate[]
@@ -642,6 +657,7 @@ model UserCourse {
 }
 
 model Pet {
+  offlinePreventionClientBindings OfflinePreventionClientBinding[] @relation("OfflineClientBindingPet")
   id                String               @id @default(cuid())
   ownerId           String
   name              String
@@ -871,6 +887,7 @@ enum GafusRewardDecision {
 enum GafusAccessTargetType {
   COURSE_STEP
   MINI_GUIDE
+  ARTICLE
 }
 enum GafusNotificationKind {
   REACTION_MILESTONE
@@ -1848,6 +1865,10 @@ model StepNotification {
   userId       String
   day          Int
   stepIndex    Int
+  // Stable ids for new bound training notifications; legacy history stays nullable.
+  dayOnCourseId String?
+  stepOnDayId   String?
+  originalStepId String?
   endTs        Int
   sent         Boolean  @default(false)
   subscription Json
@@ -1863,6 +1884,7 @@ model StepNotification {
 
   @@index([userId])
   @@index([day, stepIndex])
+  @@index([userId, dayOnCourseId, stepOnDayId], map: "StepNotification_bound_occurrence_idx")
   @@index([type])
 }
 
@@ -1986,6 +2008,22 @@ model ReengagementSettings {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
   user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ReminderMutationReceipt {
+  ownerUserId   String
+  operationKey  String   @db.VarChar(36)
+  operationKind String   @default("CREATE") @db.VarChar(16)
+  fingerprint   String   @db.VarChar(64)
+  state         String   @default("PENDING") @db.VarChar(16)
+  reminderId    String?
+  responseJson  Json?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  owner         User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@id([ownerUserId, operationKey])
+  @@index([ownerUserId, expiresAt])
 }
 
 model Reminder {
@@ -3270,11 +3308,12 @@ model FeedMediaAsset {
   width Int?
   height Int?
   durationSeconds Float?
+  // One canonical media pipeline: WebP 360/720/1440 and MP4 360/720/1080.
+  smallKey String?
   thumbKey String?
   fullKey String?
   posterKey String?
-  playlistKey String?
-  videoSegmentKeys String[] @default([])
+  mp4Keys String[] @default([])
   errorCode String? @db.VarChar(64)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3282,6 +3321,7 @@ model FeedMediaAsset {
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   upload FeedUpload?
   attachments FeedRevisionAttachment[]
+  commentAttachments FeedCommentMedia[]
   pollOptions FeedPollOption[]
   @@index([postId, status])
   @@index([ownerId, status])
@@ -3366,6 +3406,7 @@ model FeedUpload {
   filename String @db.VarChar(255)
   declaredMime String @db.VarChar(64)
   declaredBytes Int
+  purpose String @default("post") @db.VarChar(16)
   sourceKey String @unique
   sourceETag String?
   status FeedMediaStatus @default(reserved)
@@ -3384,6 +3425,7 @@ model FeedUpload {
   @@unique([ownerId, clientRequestId])
   @@index([status, reservationExpiresAt, leaseUntil])
   @@index([postId, status])
+  @@index([purpose, createdAt])
 }
 
 // No FK: immutable storage keys survive account/post cascades until cleanup succeeds.
@@ -3432,9 +3474,20 @@ model FeedComment {
   addressedReplies FeedComment[] @relation("FeedCommentReplyTo")
   reactions FeedCommentReaction[]
   notifications FeedNotification[]
+  media FeedCommentMedia[]
   @@unique([authorId, clientRequestId])
   @@index([postId, rootId, createdAt, id])
   @@index([replyToId])
+}
+
+model FeedCommentMedia {
+  commentId String
+  mediaId String @unique
+  position Int
+  comment FeedComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  media FeedMediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  @@id([commentId, mediaId])
+  @@unique([commentId, position])
 }
 
 model FeedPostReaction {
@@ -3721,4 +3774,368 @@ model TransactionalMailEvent {
 model CourseContentRevision {
   id       Int    @id
   revision BigInt @default(0)
+}
+
+
+// AG4 APPROVED OFF021 SCHEMA DRAFT — NEW MODELS ONLY, NOT A MIGRATION.
+// Source of truth for AG1 Prisma additive draft. These four models are
+// accompanied by three inverse relation lines for User/Pet (see acceptance).
+// NO existing tables/columns/indexes/data/history may be modified or dropped.
+
+model OfflineMutationReceipt {
+  id             String   @id @default(uuid()) @db.Uuid
+  ownerId        String
+  eventId        String   @db.Uuid
+  method         String   @db.VarChar(8)
+  operation      String   @db.VarChar(64)
+  resourceKey    String   @db.VarChar(256)
+  payloadHash    String   @db.VarChar(64)
+  state          String   @default("RESERVED") @db.VarChar(16)
+  revision       BigInt?
+  responseStatus Int?
+  responseBody   Json?
+  createdAt      DateTime @default(now())
+  committedAt    DateTime?
+  expiresAt      DateTime?
+
+  owner              User                            @relation("OfflineMutationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  preventionBindings OfflinePreventionClientBinding[] @relation("OfflineMutationBinding")
+  effects            OfflineMutationEffect[]         @relation("OfflineMutationEffectReceipt")
+
+  @@unique([ownerId, eventId])
+  @@unique([id, ownerId])
+  @@index([ownerId, resourceKey, revision])
+  @@index([expiresAt])
+}
+
+model OfflineResourceRevision {
+  ownerId     String
+  resourceKey String @db.VarChar(256)
+  revision    BigInt @default(0)
+  videoLastPositionSec Int?
+  videoRecordedAt      DateTime? @db.Timestamptz(3)
+  owner       User   @relation("OfflineRevisionOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@id([ownerId, resourceKey])
+}
+
+model OfflinePreventionClientBinding {
+  id          String   @id @default(uuid()) @db.Uuid
+  ownerId     String
+  petId       String
+  clientId    String   @db.Uuid
+  payloadHash String   @db.VarChar(64)
+  receiptId   String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  pet     Pet                    @relation("OfflineClientBindingPet", fields: [petId, ownerId], references: [id, ownerId], onDelete: Cascade)
+  receipt OfflineMutationReceipt @relation("OfflineMutationBinding", fields: [receiptId, ownerId], references: [id, ownerId], onDelete: Cascade)
+
+  @@unique([petId, clientId])
+  @@index([ownerId, petId])
+}
+
+model OfflineMutationEffect {
+  id          String   @id @default(uuid()) @db.Uuid
+  ownerId     String
+  eventId     String   @db.Uuid
+  kind        String   @db.VarChar(64)
+  status      String   @default("PENDING") @db.VarChar(16)
+  payload     Json
+  attempts    Int      @default(0)
+  availableAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  receipt OfflineMutationReceipt @relation("OfflineMutationEffectReceipt", fields: [ownerId, eventId], references: [ownerId, eventId], onDelete: Cascade)
+
+  @@unique([ownerId, eventId, kind])
+  @@index([status, availableAt])
+}
+
+// G05 additive idempotency: immutable receipt survives pet deletion; belongs to owner.
+model PetCreateReceipt {
+  ownerId         String
+  clientRequestId String   @db.Uuid
+  payloadHash     String   @db.Char(64)
+  petId           String
+  responseStatus  Int      @default(201) @db.SmallInt
+  responseJson    Json
+  createdAt       DateTime @default(now()) @db.Timestamp(3)
+  owner           User     @relation("PetCreateOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@id([ownerId, clientRequestId], map: "PetCreateReceipt_ownerId_clientRequestId_key")
+}
+
+
+// WEB2: immutable per-object deletion intent outlives Pet/PetDocument cascade.
+// No FK to User/Pet: cleanup cannot disappear with the deleted record.
+// Provider is derived from the stored location, never from a runtime upload flag.
+model PetMediaDeletionIntent {
+  id           String   @id @db.Uuid
+  ownerId      String
+  petId        String
+  dedupeKey    String   @db.Char(64)
+  provider     String   @db.VarChar(24)
+  locator      String   @db.Text
+  reason       String   @db.VarChar(24)
+  status       String   @default("pending") @db.VarChar(16)
+  attempts     Int      @default(0)
+  availableAt  DateTime @default(now()) @db.Timestamp(3)
+  attemptToken String?  @db.Uuid
+  leaseUntil   DateTime? @db.Timestamp(3)
+  errorCode    String?  @db.VarChar(64)
+  createdAt    DateTime @default(now()) @db.Timestamp(3)
+  updatedAt    DateTime @default(now()) @db.Timestamp(3)
+
+  @@unique([ownerId, dedupeKey])
+  @@index([status, availableAt])
+  @@index([ownerId, petId])
+}
+
+// Chat 2.0 is deliberately additive. Legacy Stream-backed models remain intact
+// until archival, push cutover, and three-platform acceptance are verified.
+enum Chat2Kind {
+  DIRECT
+  CYNOLOGIST
+  COMMUNITY
+  COURSE
+  COURSE_TOPIC // User-owned groups about courses; never a system-scoped COURSE room
+  CITY
+  BREED
+  GROUP
+}
+
+enum Chat2Visibility {
+  PUBLIC
+  PRIVATE
+  UNLISTED
+}
+
+model Chat2Conversation {
+  id String @id @default(cuid())
+  kind Chat2Kind
+  visibility Chat2Visibility @default(PRIVATE)
+  name String? @db.VarChar(120)
+  description String? @db.VarChar(2000)
+  avatarMediaId String? // References Chat2Media in this room; lifecycle managed transactionally
+  // Canonical sorted user pair for DIRECT; cyno:<clientId> for CYNOLOGIST.
+  directKey String? @unique
+  // Singleton scope for system-managed CITY/BREED/COURSE chats.
+  scopeKey String?
+  createdById String?
+  createdBy User? @relation("Chat2Creator", fields: [createdById], references: [id], onDelete: SetNull)
+  nextSequence BigInt @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  members Chat2Member[]
+  messages Chat2Message[]
+  topics Chat2Topic[]
+  media Chat2Media[]
+  outbox Chat2OutboxEvent[]
+  reports Chat2Report[]
+  @@unique([kind, scopeKey])
+  @@index([kind, visibility, createdAt])
+}
+
+model Chat2Member {
+  id String @id @default(cuid())
+  conversationId String
+  userId String
+  role String @default("MEMBER") @db.VarChar(16)
+  joinedAt DateTime @default(now())
+  lastReadSequence BigInt @default(0)
+  mutedUntil DateTime?
+  hiddenAt DateTime?
+  conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user User @relation("Chat2Membership", fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([conversationId, userId])
+  @@index([userId, hiddenAt])
+}
+
+model Chat2Message {
+  id String @id @default(cuid())
+  conversationId String
+  sequence BigInt
+  authorId String
+  clientMessageId String @db.VarChar(64)
+  text String @db.VarChar(8000)
+  replyToId String?
+  createdAt DateTime @default(now())
+  editedAt DateTime?
+  deletedAt DateTime?
+  conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author User @relation("Chat2Author", fields: [authorId], references: [id], onDelete: Cascade)
+  attachments Chat2Media[]
+  pushReceipts Chat2PushReceipt[]
+  reports Chat2Report[]
+  reactions Chat2MessageReaction[]
+  @@unique([conversationId, sequence])
+  @@unique([conversationId, authorId, clientMessageId])
+  @@index([conversationId, createdAt])
+}
+
+/** One reaction per person per message; changing emoji replaces the previous one. */
+model Chat2MessageReaction {
+  messageId String
+  userId String
+  emoji String @db.VarChar(12)
+  createdAt DateTime @default(now())
+  message Chat2Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user User @relation("Chat2ReactionUser", fields: [userId], references: [id], onDelete: Cascade)
+  @@id([messageId, userId])
+  @@index([userId])
+}
+
+model Chat2Media {
+  id String @id @default(cuid())
+  messageId String?
+  conversationId String
+  ownerId String
+  objectKey String @unique
+  name String @db.VarChar(180)
+  kind String @db.VarChar(20)
+  mime String @db.VarChar(128)
+  bytes Int
+  status String @default("PENDING") @db.VarChar(20)
+  createdAt DateTime @default(now())
+  message Chat2Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  owner User @relation("Chat2MediaOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@index([ownerId, status, createdAt])
+  @@index([conversationId, messageId])
+}
+
+/// Independent deletion ledger: no User/Chat FK, so account- or room-level
+/// cascades cannot erase cleanup tasks before the worker deletes private S3 data.
+model Chat2MediaDeletionIntent {
+  objectKey String @id
+  status String @default("PENDING") @db.VarChar(16)
+  attempts Int @default(0)
+  availableAt DateTime @default(now()) @db.Timestamp(3)
+  claimedUntil DateTime? @db.Timestamp(3)
+  completedAt DateTime? @db.Timestamp(3)
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+  @@index([status,availableAt])
+}
+
+/// One private abuse report per reporter and message; no public reporter identity.
+model Chat2Report {
+  id String @id @default(cuid())
+  reporterId String
+  conversationId String
+  messageId String
+  reason String @db.VarChar(24)
+  comment String @default("") @db.VarChar(500)
+  status String @default("OPEN") @db.VarChar(16)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  reporter User @relation("Chat2ReportAuthor", fields:[reporterId], references:[id], onDelete:Cascade)
+  conversation Chat2Conversation @relation(fields:[conversationId],references:[id],onDelete:Cascade)
+  message Chat2Message @relation(fields:[messageId],references:[id],onDelete:Cascade)
+  @@unique([reporterId,messageId])
+  @@index([conversationId,status,createdAt])
+}
+
+model Chat2Topic {
+  id String @id @default(cuid())
+  conversationId String
+  title String @db.VarChar(120)
+  createdAt DateTime @default(now())
+  conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Chat2Block {
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker User @relation("Chat2Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Chat2Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  @@id([blockerId, blockedId])
+}
+
+model Chat2OutboxEvent {
+  id String @id @default(cuid())
+  conversationId String
+  messageId String?
+  eventType String @db.VarChar(40)
+  createdAt DateTime @default(now())
+  deliveredAt DateTime?
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  claimedUntil DateTime?
+  conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@index([deliveredAt, nextAttemptAt])
+}
+
+model Chat2PushReceipt {
+  messageId String
+  recipientId String
+  notificationId String? @unique
+  createdAt DateTime @default(now())
+  message Chat2Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  recipient User @relation("Chat2PushRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  @@id([messageId, recipientId])
+}
+
+
+/// Chat 2.0 V2 only. Upload/Job processing is disabled until a separate
+/// isolated Refactor API cutover. Legacy Chat2Media remains untouched.
+model Chat2V2MediaTask {
+  mediaId String @id @db.Uuid
+  conversationId String
+  ownerId String
+  name String @db.VarChar(180)
+  sourceKey String @unique
+  sourceMime String @db.VarChar(100)
+  sourceBytes Int
+  status String @default("AWAITING_UPLOAD") @db.VarChar(24)
+  attemptToken String? @db.Uuid
+  leaseUntil DateTime? @db.Timestamp(3)
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now()) @db.Timestamp(3)
+  manifest Json?
+  errorCode String? @db.VarChar(64)
+  // Source-only after READY; all original+variants after terminal FAILED/EXPIRED.
+  cleanupKind String? @db.VarChar(10)
+  cleanupToken String? @db.Uuid
+  cleanupLeaseUntil DateTime? @db.Timestamp(3)
+  cleanupNextAt DateTime @default(now()) @db.Timestamp(3)
+  cleanupAttempts Int @default(0)
+  cleanupCompletedAt DateTime? @db.Timestamp(3)
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+  @@index([status,nextAttemptAt,createdAt])
+  @@index([conversationId,ownerId,status])
+}
+
+// Questions Photo V2. Durable image-only queue, intentionally not cascaded from
+// QuestionPhoto: deletion/outbox cleanup must survive soft/hard parent removal.
+model QuestionV2MediaTask {
+  mediaId           String    @id @db.Uuid
+  photoId           String    @unique
+  ownerId           String
+  sourceKey         String    @unique
+  sourceMime        String    @db.VarChar(64)
+  sourceBytes       Int
+  status            String    @default("AWAITING_UPLOAD") @db.VarChar(24)
+  attemptToken      String?   @db.Uuid
+  leaseUntil        DateTime? @db.Timestamp(3)
+  attempts          Int       @default(0)
+  nextAttemptAt     DateTime  @default(now()) @db.Timestamp(3)
+  manifest          Json?
+  errorCode         String?   @db.VarChar(64)
+  cleanupKind       String?   @db.VarChar(10)
+  cleanupToken      String?   @db.Uuid
+  cleanupLeaseUntil DateTime? @db.Timestamp(3)
+  cleanupNextAt     DateTime  @default(now()) @db.Timestamp(3)
+  cleanupAttempts   Int       @default(0)
+  cleanupCompletedAt DateTime? @db.Timestamp(3)
+  createdAt         DateTime  @default(now()) @db.Timestamp(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamp(3)
+
+  @@index([status, nextAttemptAt, createdAt])
+  @@index([ownerId, status])
+  @@index([cleanupKind, cleanupNextAt])
 }

@@ -121,6 +121,29 @@ describe("app subscription route contracts", () => {
     expect(startYookassaAppSubscriptionPaymentMock).not.toHaveBeenCalled();
   });
 
+  it("accepts only an internal consultation return route for checkout",async()=>{
+    const app=createAuthenticatedTestApp();
+    process.env.WEB_APP_URL="https://gafus.ru";
+    process.env.YOOKASSA_SHOP_ID="shop";
+    process.env.YOOKASSA_SECRET_KEY="secret";
+    startYookassaAppSubscriptionPaymentMock.mockResolvedValue({
+      success:true,confirmationUrl:"https://yookassa.ru/pay/test",localSubscriptionId:"sub",
+    });
+    const okay=await app.request(jsonRequest("/api/v1/app-subscription/yookassa/start",
+      "POST",{planCode:"THREE_MONTHS",returnPath:"/consultations/trainer1"}));
+    expect(okay.status).toBe(200);
+    expect(startYookassaAppSubscriptionPaymentMock).toHaveBeenCalledWith(
+      expect.objectContaining({planCode:"THREE_MONTHS",returnPath:"/consultations/trainer1"}),
+    );
+    startYookassaAppSubscriptionPaymentMock.mockClear();
+    for(const bad of ["/consultations/../admin","//evil","https://evil.com",
+      "/consultations/trainer1?redirect=evil"]) {
+      const response=await app.request(jsonRequest("/api/v1/app-subscription/yookassa/start",
+        "POST",{planCode:"THREE_MONTHS",returnPath:bad}));
+      expect(response.status).toBe(400);
+    }
+    expect(startYookassaAppSubscriptionPaymentMock).not.toHaveBeenCalled();
+  });
   it("returns the stable email-required code from YooKassa checkout", async () => {
     const app = createAuthenticatedTestApp();
     process.env.WEB_APP_URL = "https://gafus.ru";

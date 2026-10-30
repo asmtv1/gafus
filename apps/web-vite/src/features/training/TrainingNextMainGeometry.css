@@ -1,0 +1,1146 @@
+/* WEB3 original Next/WORK 1280×800 and 390×844: course page <main>
+   fills viewport; neighboring site routes preserve their own shell geometry. */
+/* Direct day bookmark uses the same full-width Next page container. */
+.gafus-app .shell:has(.training-index),
+.gafus-app .shell:has(.training-day-viewer) {
+  max-width: 1280px;
+  width: 100%;
+}
+.training-index .training-course-plan {
+  max-width: 1180px;
+  margin: 0 auto 36px;
+}
+.training-index .training-course-plan-title {
+  margin: 0 0 20px;
+  color: #352e2e;
+  font-size: clamp(20px, 2vw, 25px);
+  line-height: 1.3;
+  font-weight: 700;
+}
+@media (max-width: 700px) {
+  .training-index .training-course-plan-title { margin-bottom: 16px; }
+}
+
+/* Only original Next full day route; Daily/user opt-in cards unaffected. */
+.gafus-app .shell:has(.training-day-viewer--next) {
+  width: 100%;
+  max-width: 1280px;
+}
+.training-day-viewer--next {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 32px;
+  min-width: 0;
+}
+.training-day-viewer--next > .button-secondary { align-self: flex-start; }
+.training-day-viewer--next > .training-next-day-title {
+  color: #636128;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(42px, 6.25vw, 80px);
+  line-height: 1;
+  text-align: center;
+  margin: 0 0 16px;
+}
+.training-day-viewer--next .training-next-day-description {
+  width: min(100%, 920px);
+  margin-bottom: 24px;
+}
+.training-day-viewer--next .training-next-day-description-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  width: 100%;
+  border: 1px solid #636128;
+  border-radius: 12px;
+  background: #ece5d2;
+  color: #352e2e;
+  padding: 16px 20px;
+  cursor: pointer;
+  font: inherit;
+}
+.training-day-viewer--next .training-next-day-description-toggle strong {
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+}
+/* Source Day.module.css expandControl uses a distinct olive label and
+ * ExpandMoreIcon (24px desktop / 20px on mobile), not plain grey text. */
+.training-day-viewer--next .training-next-day-description-control {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0;
+  color: #636128;
+  font: 500 14px/1.4 var(--font-impact),var(--font-montserrat),system-ui,sans-serif;
+  white-space: nowrap;
+}
+.training-day-viewer--next .training-next-day-description-control span {
+  font-size: inherit;
+}
+.training-day-viewer--next .training-next-day-description-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  transition: transform .2s ease;
+}
+.training-day-viewer--next .training-next-day-description-icon.expanded {
+  transform: rotate(180deg);
+}
+@media (max-width: 768px) {
+  .training-day-viewer--next .training-next-day-description-control { font-size: 12px; }
+  .training-day-viewer--next .training-next-day-description-icon { width: 20px; height: 20px; }
+}
+.training-day-viewer--next .training-next-day-description-body {
+  background: #ece5d2;
+  color: #352e2e;
+  border: 1px solid #636128;
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  padding: 20px;
+}
+.training-day-viewer--next .training-steps-list {
+  width: 100%;
+  min-width: 0;
+  max-width: 1180px;
+  margin: 0 auto 24px;
+}
+@media (max-width: 700px) {
+  .training-day-viewer--next { padding-top: 32px; }
+  .training-day-viewer--next > .training-next-day-title { font-size: clamp(36px, 11vw, 54px); }
+}
+
+/* Source-driven root sky composite. Next /styles/site-background.css
+ * composites its 27%-opacity sky over --app-background-color (#e6e2d8),
+ * while Vite's later :root background shorthand used #f6f8f5. On actual
+ * original/Vite WEB3 R5 reviews background pixels 203/221/226 vs
+ * 214/237/247; this same source-derived rule is accepted on WEB1 profile.
+ * Keep the correction route-scoped; do not modify parallel global HTML. */
+html:root:has(.course-reviews-panel),
+html:root:has(.training-index-route),
+html:root:has(.training-day-viewer--next),
+html:root:has(.training-paid-preview) {
+  background-color: var(--app-background-color, #e6e2d8);
+}
+
+/* Matched original /trainings/:courseType/reviews on desktop+mobile. */
+.gafus-app .shell:has(.course-reviews-panel) {
+  max-width: 1280px;
+  width: 100%;
+  /* Original Next /trainings/:type/reviews main owns its own padding.
+   * Nested Vite shell padding created 17px additional inset on 390px. */
+  padding: 0;
+}
+.gafus-app .course-reviews-panel {
+  box-sizing: border-box;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+/* Higher specificity than global .gafus-app .shell h1:not(...)
+ * (Impact/40px): source ReviewsList.module.css is Montserrat/1.8rem. */
+.gafus-app .shell .course-reviews-panel .training-next-reviews-title {
+  color: #352e2e;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  /* R3 original Next: 28.8px × 1.5 = 43.2px, two lines 86.4px.
+   * The previous later 1.5 override had *lower* specificity and lost. */
+  line-height: 1.5;
+  margin: 0 0 30px;
+  text-align: left;
+}
+.gafus-app .course-reviews-panel .training-next-reviews-course-name {
+  margin: 0 0 12px;
+  color: #352e2e;
+  font-size: 1rem;
+}
+@media (max-width: 700px) {
+  /* Original source captured at 390px: empty list x15 / w360; the
+   * 900px wrapper is full-width, with 15px horizontal padding on mobile. */
+  .gafus-app .shell .course-reviews-panel { padding: 20px 15px; }
+  .gafus-app .shell .course-reviews-panel .training-next-reviews-title {
+    font-size: 1.8rem;
+    text-align: left;
+  }
+}
+/* Retained ReviewsList.module.css empty state and list, not the W2 generic
+ * zero-state text at the top of the page. */
+.gafus-app .course-reviews-panel .training-next-reviews-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+  font-size: 1.1rem;
+}
+.gafus-app .course-reviews-panel .training-next-reviews-empty p { margin: 0; }
+.gafus-app .course-reviews-panel .course-reviews-list {
+  display: flex; flex-direction: column; gap: 20px; margin: 0; padding: 0;
+}
+.gafus-app .course-reviews-panel .course-review-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 20px;
+}
+.gafus-app .course-reviews-panel .course-review-rating {
+  color: #d32f2f;
+  letter-spacing: 4px;
+}
+.gafus-app .course-reviews-panel .course-review-create-form,
+.gafus-app .course-reviews-panel .course-review-edit-form {
+  background: #fff;
+  border: 2px solid #636128;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 30px;
+}
+.gafus-app .course-reviews-panel .course-review-create-form textarea,
+.gafus-app .course-reviews-panel .course-review-edit-form textarea {
+  width: 100%; max-width: 100%; min-height: 100px;
+  padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px;
+  box-sizing: border-box; font: 400 1rem/1.5 var(--font-montserrat),system-ui,sans-serif;
+  resize: vertical;
+}
+
+/* Exact direct training route Next <main> geometry. Do not affect embedded
+ * trainer/day/opt-in flows, which retain their existing layouts. */
+.gafus-app .shell:has(.training-index-route) {
+  max-width: 1280px;
+  width: 100%;
+  padding: 0;
+}
+.gafus-app .shell .training-index-route {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 8px clamp(16px, 3vw, 56px) 10px;
+}
+.gafus-app .shell .training-index-route-title {
+  margin: 15px 0 0;
+  color: #352e2e;
+  text-align: center;
+  font: 400 clamp(36px,4vw,60px)/1 var(--font-impact),system-ui,sans-serif;
+}
+.gafus-app .shell .training-index-route .training-course-overview-next {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto 24px;
+  overflow: visible;
+}
+.training-next-course-description-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 20px;
+  border: 1px solid rgba(var(--accent-primary-rgb),.28);
+  border-radius: 12px;
+  color: var(--text-primary);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+.training-next-course-description-toggle[aria-expanded=true] {
+  border-radius: 12px 12px 0 0;
+}
+.training-next-course-description-toggle .training-next-course-description-title {
+  margin: 0;
+  color: var(--text-primary);
+  font: 600 16px/1.5 var(--font-impact),var(--font-montserrat),system-ui,sans-serif;
+}
+.training-next-course-description-more {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+  color: var(--accent-primary);
+  font: 500 14px/1.4 var(--font-impact),var(--font-montserrat),system-ui,sans-serif;
+}
+.training-next-course-description-icon { width: 24px; height: 24px; flex-shrink: 0; }
+.training-next-course-description-icon.expanded { transform: rotate(180deg); }
+.training-next-course-description-content {
+  box-sizing: border-box;
+  padding: 20px;
+  overflow-wrap: anywhere;
+  border: 1px solid rgba(var(--accent-primary-rgb),.28);
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  background: var(--surface);
+}
+/* CourseDescriptionWithVideo.module.css from the Next source defines the
+ * typography of *rendered* Markdown, not only the dropdown frame. The Web
+ * ReactMarkdown/GFM AST was already correct, but Vite's global Impact H1
+ * rule and narrow 65ch default made headings and rich text look like plain
+ * paragraphs. Scope this to course description, NOT day-step Markdown. */
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown :is(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  color: var(--text-primary);
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: left;
+  margin: 1.2em 0 .6em;
+}
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown h1 { font-size: 1.5em; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown h2 { font-size: 1.3em; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown h3 { font-size: 1.1em; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown :is(h4, h5, h6) { font-size: 1em; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown p { margin: 0 0 1em; line-height: 1.6; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown :is(ul, ol) {
+  margin: 0 0 1em;
+  padding-inline-start: 1.5em;
+  list-style-position: outside;
+}
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown ul { list-style-type: disc; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown ol { list-style-type: decimal; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown li {
+  margin-bottom: .5em;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown strong { font-weight: 600; color: #352e2e; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown em { font-style: italic; color: #5a5249; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown :not(pre) > code {
+  background: #d4c4a8;
+  color: #8b4513;
+  font: .9em/1.5 ui-monospace, SFMono-Regular, monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown pre {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: #eee6d4;
+  white-space: pre;
+}
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown pre code { white-space: pre; overflow-wrap: normal; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown blockquote {
+  border: 1px solid rgba(99, 97, 40, .2);
+  border-inline-start: 3px solid #636128;
+  margin: 1em 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #d4c4a8;
+  color: #5a5249;
+  font-style: italic;
+}
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown a { color: #636128; text-decoration: underline; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-description-markdown a:hover { color: #4a4a1a; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-markdown-table-scroll { margin: 1em 0; overflow-x: auto; max-width: 100%; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-markdown-table-scroll table { width: 100%; border-collapse: collapse; }
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-markdown-table-scroll :is(th, td) {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+.gafus-app .shell :is(.training-course-overview, .training-paid-preview)
+  .training-markdown-table-scroll th {
+  background: rgba(99, 97, 40, .12);
+  font-weight: 600;
+}
+
+/* Next reviews link is not an extra line above the original course plan. */
+.gafus-app .shell .training-index-route .training-reviews-navigation { order: 9; }
+@media (max-width: 768px) {
+  .gafus-app .shell .training-index-route .training-course-overview-next { margin-bottom: 20px; }
+  .training-next-course-description-toggle { padding: 12px 16px; }
+  .training-next-course-description-toggle .training-next-course-description-title {
+    font-size: 14px;
+  }
+  .training-next-course-description-more { font-size: 12px; }
+  .training-next-course-description-icon { width: 20px; height: 20px; }
+  .training-next-course-description-content { padding: 16px; }
+}
+
+/* Original Next DayAccordionItem headers. The modern Hono Core step content,
+ * auth, unlock gate and resume logic remain mounted only after verified clicks.
+ * Do NOT apply to Daily, opt-in, or generic training indexes. */
+.gafus-app .training-day-viewer--next .training-next-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  max-width: 920px;
+  padding: 0;
+  margin: 0 auto 24px;
+}
+.gafus-app .training-day-viewer--next .training-next-step-card {
+  width: 100%;
+  max-width: 920px;
+  min-width: 0;
+  padding: 0;
+  margin: 0 0 20px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.gafus-app .training-day-viewer--next .training-next-step-header {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 16px 20px;
+  border: 2px solid #636128;
+  border-radius: 12px;
+  background: #fff8e5;
+  color: #352e2e;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .2s ease;
+  font-family: var(--font-impact),var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .training-day-viewer--next .training-next-step-header:hover { background: #fffdf3; }
+.gafus-app .training-day-viewer--next .training-next-step-header:focus-visible {
+  outline: 3px solid #636128;
+  outline-offset: 2px;
+}
+.gafus-app .training-day-viewer--next .training-next-step-header strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #352e2e;
+  text-align: center;
+  font: 400 16px/1.2 var(--font-impact),var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .training-day-viewer--next .training-next-step-status {
+  white-space: nowrap;
+  color: #352e2e;
+  font: 400 14px/1.2 var(--font-impact),var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .training-day-viewer--next .training-next-step-more {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  color: #636128;
+  font: 500 14px/1.2 var(--font-impact),var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .training-day-viewer--next .training-next-step-chevron {
+  width: 24px;
+  height: 24px;
+  color: #636128;
+}
+.gafus-app .training-day-viewer--next .training-next-step-chevron.expanded {
+  transform: rotate(180deg);
+}
+.gafus-app .training-day-viewer--next .training-next-step-card[data-status="IN_PROGRESS"]
+ .training-next-step-header { background: #e6f3ff; }
+.gafus-app .training-day-viewer--next .training-next-step-card[data-status="COMPLETED"]
+ .training-next-step-header { background: #b6c582; }
+.gafus-app .training-day-viewer--next .training-next-step-card[data-status="PAUSED"]
+ .training-next-step-header { background: #fff4e6; }
+.gafus-app .training-day-viewer--next .training-next-step-card[data-status="RESET"]
+ .training-next-step-header { background: #e8e6e6; }
+.gafus-app .training-day-viewer--next .training-next-step-card .training-day-detail {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 8px 0 0;
+}
+.gafus-app .training-day-viewer--next .training-next-back {
+  align-self: center;
+  margin: 0 0 20px;
+}
+.gafus-app .training-day-viewer--next .training-next-locked-note {
+  margin: 8px 0 12px;
+  text-align: center;
+}
+@media (max-width: 600px) {
+ .gafus-app .training-day-viewer--next .training-next-step-header {
+   gap: 6px;
+   padding: 12px 8px;
+ }
+ .gafus-app .training-day-viewer--next .training-next-step-header strong { font-size: 14px; }
+ .gafus-app .training-day-viewer--next .training-next-step-status { font-size: 12px; }
+ .gafus-app .training-day-viewer--next .training-next-step-more { font-size: 12px; }
+ .gafus-app .training-day-viewer--next .training-next-step-chevron { width: 20px; height: 20px; }
+}
+
+/* Original Next presents controls in an expanded DayAccordionItem, not an
+ * always-visible second progress list beneath the two collapsed headers. */
+.gafus-app .training-day-viewer--next .training-next-step-progress {
+  padding: 10px 0 0;
+  max-width: 100%;
+}
+.gafus-app .training-day-viewer--next .training-next-back {
+  margin-top: auto;
+}
+/* Original Next Day.module.css sizes .main to day content, not viewport.
+ * Keep the footer in normal document flow on the direct day route only. */
+
+/* From actually loaded original Next Day R3, not a Vite-only baseline:
+ * desktop title y106 / description x180,w920,y202 / header 920×58;
+ * mobile title x8,y90,54.6h / description x8,w374,y160.6.
+ * The original renders a collapsed description header even when the safer
+ * Hono read has no projected description text; never infer private content. */
+.gafus-app .shell:has(.training-day-viewer--next) { padding-inline: 8px; }
+@media (max-width: 700px) {
+  .gafus-app .training-day-viewer--next { padding-top: 24px; }
+  .gafus-app .training-day-viewer--next > .training-next-day-title {
+    align-self: flex-start;
+    text-align: left;
+    font-size: 54px;
+  }
+  .gafus-app .training-day-viewer--next .training-next-step-header {
+    min-height: 52px;
+    padding-block: 10px;
+  }
+  .gafus-app .training-day-viewer--next .training-next-day-description-toggle {
+    padding: 12px 16px;
+  }
+}
+
+/* WEB3 real loaded reviews R2 source rect correction.
+ * ORIGINAL desktop: panel x190 y58 w900, title h86.4 at 28.8px/1.5;
+ * ORIGINAL mobile: panel x0 y54 w390 padding15, title x15 y69
+ * 19.2px/1.5 (two lines, h57.6). Vite was x12 y66, mobile title h149.7.
+ * Keep scoped to /trainings/:courseType/reviews; no global shell change. */
+.gafus-app .shell:has(.course-reviews-panel) {
+  padding: 0;
+}
+@media (max-width: 768px) {
+  /* Real R5 source box: Next 15px ALL sides; Vite had 20px 15px because
+   * the narrower selector lost to .gafus-app .shell .course-reviews-panel.
+   * Keep matching specificity; review title/empty state then shift -5px. */
+  .gafus-app .shell .course-reviews-panel { padding: 15px; }
+  .gafus-app .shell .course-reviews-panel .training-next-reviews-title {
+    font-size: 1.4rem;
+  }
+}
+@media (max-width: 480px) {
+  .gafus-app .shell .course-reviews-panel .training-next-reviews-title {
+    /* R2 original Next mobile: exactly 19.2px × 1.5; old selector lost
+     * against desktop .gafus-app .shell .course-reviews-panel specificity. */
+    font-size: 1.2rem;
+  }
+}
+
+/* WEB3 R7 original loaded Next↔Vite reviews 390×844: the two original
+ * footer flex rows occupy 44px + 92px (Next), not 21px + 69px (Vite).
+ * Both desktop footers already match exactly. Preserve the extra blank flex
+ * line in source layout WITHOUT inserting fake visible content or changing
+ * shared footer on other routes. This footer is an app-layout sibling of main. */
+@media (max-width: 480px) {
+  .gafus-app:has(.course-reviews-panel)
+    footer[data-ui-parity="legacy-footer"] > div > div:first-child {
+    min-height: 44px;
+    align-content: flex-start;
+  }
+  .gafus-app:has(.course-reviews-panel)
+    footer[data-ui-parity="legacy-footer"] > div > div:nth-child(2) {
+    min-height: 92px;
+    align-content: flex-start;
+  }
+}
+
+/* WEB3 R32 genuine Next/Vite day pair at 390×844: Next source/footer
+ * flex rows are 44px and 92px while Vite's shared fallback is 21px and
+ * 69px, shifting the footer down by 46px. The old global footer is WEB1's
+ * responsibility, so limit this source-matched correction ONLY to the
+ * direct Next-style day route. The reviews correction remains untouched. */
+@media (max-width: 480px) {
+  .gafus-app:has(.training-day-viewer--next)
+    footer[data-ui-parity="legacy-footer"] > div > div:first-child {
+    min-height: 44px;
+    align-content: flex-start;
+  }
+  .gafus-app:has(.training-day-viewer--next)
+    footer[data-ui-parity="legacy-footer"] > div > div:nth-child(2) {
+    min-height: 92px;
+    align-content: flex-start;
+  }
+}
+
+/* Next TrainingPageClient.module.css .planSection is always width:100%.
+ * On direct Vite route, this element is a flex child and the previous
+ * auto width shrank to fit its nested cards, producing the source-proven
+ * left inset and narrow 390px card in genuine R25 screenshot pairs.
+ * Scope the fix to the direct course page, not opt-in or daily routes. */
+.gafus-app .training-index-route .training-course-plan {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* WEB3 original loaded Next TrainingDayList: single full-card link + 3-col
+ * grid on desktop, 1 column mobile. Scoped to direct route; generic opt-in
+ * and Daily course cards retain their existing interaction/appearance. */
+.gafus-app .training-index-route .training-next-days-list {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  align-items: stretch;
+  gap: 18px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gafus-app .training-index-route .training-next-day-list-item { min-width: 0; }
+.gafus-app .training-index-route .training-next-day-card-link {
+  display: block;
+  height: 100%;
+  color: #352e2e;
+  text-decoration: none;
+  border-radius: 18px;
+  -webkit-tap-highlight-color: transparent;
+}
+.gafus-app .training-index-route button.training-next-day-card-link {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+}
+.gafus-app .training-index-route .training-next-day-card-link:focus-visible {
+  outline: 3px solid #636128;
+  outline-offset: 4px;
+}
+.gafus-app .training-index-route .training-next-day-card-surface {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  padding: 20px 21px 18px;
+  background: var(--surface,#fff8e5);
+  border: 1px solid rgba(99,97,40,.18);
+  border-left: 4px solid #d6cd9d;
+  border-radius: 18px;
+  box-shadow: 0 5px 20px rgba(59,50,26,.08);
+  transition: border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+.gafus-app .training-index-route .training-next-day-card-link:hover .training-next-day-card-surface {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(59,50,26,.14);
+  border-color: rgba(99,97,40,.38);
+}
+.gafus-app .training-index-route .training-next-day-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.gafus-app .training-index-route .training-next-day-card-number {
+  color: #68623f;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.gafus-app .training-index-route .training-next-day-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 25px;
+  max-width: 100%;
+  padding: 4px 9px;
+  background: #ece8d9;
+  border-radius: 100px;
+  color: #5b584b;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.gafus-app .training-index-route .training-next-day-card-lock-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.gafus-app .training-index-route .training-next-day-list-item--inprogress .training-next-day-card-surface {
+  border-left-color: #e2c455;
+}
+.gafus-app .training-index-route .training-next-day-list-item--inprogress .training-next-day-card-status {
+  background: #fff0bb;
+  color: #79601d;
+}
+.gafus-app .training-index-route .training-next-day-list-item--completed .training-next-day-card-surface {
+  border-left-color: #9eaf6d;
+}
+.gafus-app .training-index-route .training-next-day-list-item--completed .training-next-day-card-status {
+  background: #e2ebd4;
+  color: #455c2d;
+}
+.gafus-app .training-index-route .training-next-day-list-item--reset .training-next-day-card-surface {
+  border-left-color: #aaa7a0;
+}
+.gafus-app .training-index-route .training-next-day-list-item .training-next-day-card-status-locked {
+  background: #dedbd2;
+  color: #58554e;
+}
+.gafus-app .training-index-route .training-next-day-card-title {
+  margin: 0;
+  color: #352e2e;
+  font: 750 clamp(17px,1.45vw,20px)/1.35 var(--font-montserrat),system-ui,sans-serif;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.gafus-app .training-index-route .training-next-day-card-type {
+  margin: 0;
+  color: #716c5b;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.gafus-app .training-index-route .training-next-day-card-equipment {
+  margin: 3px 0 0;
+  color: #66604e;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.gafus-app .training-index-route .training-next-day-card-equipment strong {
+  font-weight: 650;
+  color: #514b3c;
+}
+.gafus-app .training-index-route .training-next-day-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  margin-top: auto;
+  padding-top: 15px;
+  border-top: 1px solid rgba(99,97,40,.14);
+}
+.gafus-app .training-index-route .training-next-day-card-durations {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.gafus-app .training-index-route .training-next-day-card-practice,
+.gafus-app .training-index-route .training-next-day-card-theory {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  max-width: 100%;
+  padding: 5px 9px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.gafus-app .training-index-route .training-next-day-card-practice {
+  background: #e6e8ce;
+  color: #4c5426;
+}
+.gafus-app .training-index-route .training-next-day-card-theory {
+  background: #f4e2cc;
+  color: #8b532b;
+}
+.gafus-app .training-index-route .training-next-day-card-arrow {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #e9e4cd;
+  color: #4c5127;
+  font-size: 20px;
+  line-height: 1;
+}
+.gafus-app .training-index-route .training-next-day-card-locked {
+  cursor: not-allowed;
+}
+.gafus-app .training-index-route .training-next-day-card-locked .training-next-day-card-surface {
+  background: #eeebdf;
+  border-left-color: #b4b0a4;
+}
+/* Original TrainingDayList allows a click on a locked day only to show why
+ * it is unavailable. The Hono/Core gate remains authoritative. */
+.gafus-app .training-next-locked-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0,0,0,.42);
+}
+.gafus-app .training-next-locked-dialog {
+  box-sizing: border-box;
+  width: min(100%, 32rem);
+  padding: 28px 24px;
+  border-radius: 16px;
+  background: #fff8e5;
+  color: #352e2e;
+  text-align: center;
+  box-shadow: 0 15px 40px rgba(0,0,0,.22);
+}
+.gafus-app .training-next-locked-dialog h3 {
+  margin: 0 0 16px;
+  font-size: 24px;
+  line-height: 1.3;
+}
+.gafus-app .training-next-locked-dialog p {
+  margin: 0 0 20px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.gafus-app .training-next-locked-dialog button {
+  padding: 10px 28px;
+  border: 0;
+  border-radius: 8px;
+  background: #636128;
+  color: #fff;
+  cursor: pointer;
+}
+.gafus-app .training-next-locked-dialog button:focus-visible {
+  outline: 3px solid #352e2e;
+  outline-offset: 3px;
+}
+@media (max-width:1100px) {
+  .gafus-app .training-index-route .training-next-days-list {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+}
+@media (max-width:700px) {
+  .gafus-app .training-index-route .training-next-days-list {
+    grid-template-columns: minmax(0,1fr);
+    gap: 12px;
+  }
+  .gafus-app .training-index-route .training-next-day-card-surface {
+    min-height: 0;
+    padding: 17px 18px;
+  }
+  .gafus-app .training-index-route .training-next-day-card-title { font-size: 18px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .gafus-app .training-index-route .training-next-day-card-surface {
+    transition: none;
+  }
+}
+
+/* WEB3 R27: restored original Next Day.module.css shared-surface accordion
+ * border colors are translucent and corners/shadows use 16px tokens. */
+/* Source Day.module.css final shared-surface rule supersedes base 2px olive
+ * border. Never override each individual step's status background (Next uses
+ * inline state styling), nor the Hono/Core access guard. */
+.gafus-app .training-day-viewer--next .training-next-step-header {
+  border-color: rgba(var(--accent-primary-rgb), .28);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+.gafus-app .training-day-viewer--next .training-next-step-header:hover {
+  box-shadow: 0 12px 24px rgba(var(--accent-primary-rgb), .2);
+}
+
+/* WEB3 R28 original Next Day.module.css final shared description surface */
+/* Original Next final `.descriptionHeader` shared CSS overrides the older
+ * opaque peach surface, solid olive border, and 12px radius. Actual R27
+ * mobile Next/Vite shows the difference without opening private content. */
+.gafus-app .training-day-viewer--next .training-next-day-description-toggle {
+  background: var(--surface);
+  border-color: rgba(var(--accent-primary-rgb), .28);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+.gafus-app .training-day-viewer--next .training-next-day-description-toggle:hover {
+  background: var(--surface-strong);
+  box-shadow: 0 12px 24px rgba(var(--accent-primary-rgb), .2);
+}
+
+/* Next's expanded step contains its own progress controls. The ordinary
+ * Vite route no longer repeats the whole day inside the first accordion. */
+.gafus-app .training-day-viewer--next .training-progress-inline {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.gafus-app .training-day-viewer--next .training-progress-inline-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.gafus-app .training-day-viewer--next .training-progress-inline-step {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.gafus-app .training-day-viewer--next .training-progress-inline-step > strong {
+  display: none;
+}
+
+/* Opened day step: direct copy of original AccordionStep.module.css's final
+ * surface override and StepContent hierarchy, scoped to authenticated Next
+ * route only. Embedded /daily-course and opt-in cards are untouched. */
+.gafus-app .training-day-viewer--next .training-next-step-card
+ .training-day-detail.training-next-step-content {
+  border: 1px solid rgba(var(--accent-primary-rgb), .2);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  padding: 20px;
+  margin: 8px 0 16px;
+}
+.gafus-app .training-day-viewer--next .training-next-step-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.gafus-app .training-day-viewer--next .training-next-step-section-title {
+  color: #352e2e;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.gafus-app .training-day-viewer--next .training-next-step-section {
+  padding: 12px 14px;
+  border: 2px solid #d5d0bb;
+  border-radius: 12px;
+  background: #fffdf3;
+}
+.gafus-app .training-day-viewer--next .training-next-step-type-card {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 14px 16px;
+  margin: 10px 0 16px;
+  border: 1px solid rgba(var(--accent-primary-rgb), .2);
+  border-radius: 16px;
+  background: var(--surface);
+  color: #352e2e;
+  font-weight: 600;
+}
+.gafus-app .training-day-viewer--next .training-next-step-images {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
+}
+.gafus-app .training-day-viewer--next .training-next-step-images img {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  max-height: 200px;
+  object-fit: contain;
+}
+@media (max-width: 600px) {
+  .gafus-app .training-day-viewer--next .training-next-step-card
+   .training-day-detail.training-next-step-content { padding: 12px; }
+}
+
+/* PRACTICE completion reuses the shared GAFUS PrimaryButton skin. Only
+ * geometry belongs here: no independent olive gradient, border, or hover. */
+.gafus-app .training-day-viewer--next
+ button.training-next-practice-complete[data-gafus-shared-button="primary"] {
+  display: flex;
+  margin: 12px auto 0;
+  width: min(100%, 220px);
+  min-height: 52px;
+}
+/* Source Next completion badge is a non-interactive status. A block wrapper
+ * centers the inline-flex badge even in wide accordion panels. */
+.gafus-app .training-day-viewer--next .training-next-practice-completed-wrap {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+.gafus-app .training-day-viewer--next .training-next-practice-completed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 12px auto 0;
+  width: fit-content;
+  padding: 14px 28px;
+  border: 2px solid #b6c582;
+  border-radius: 12px;
+  color: #155724;
+  background: linear-gradient(135deg,#b6c582 0%,#9ba86f 100%);
+  box-shadow: 0 4px 12px rgba(182,197,130,.3);
+  text-align: center;
+  font: 600 .95rem var(--font-impact),var(--font-montserrat),system-ui,sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+.gafus-app .training-day-viewer--next .training-next-practice-completed::before {
+  content: "✓";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  background: rgba(255,255,255,.3);
+  border-radius: 50%;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+@media (max-width: 768px) {
+  .gafus-app .training-day-viewer--next .training-next-practice-completed {
+    padding: 12px 20px;
+    font-size: .9rem;
+  }
+  .gafus-app .training-day-viewer--next .training-next-practice-completed::before {
+    width: 20px;
+    height: 20px;
+    font-size: 1rem;
+  }
+}
+.gafus-app .training-day-viewer--next .training-next-step-title-lines {
+  display: flex;
+  flex-direction: column;
+}
+.gafus-app .training-day-viewer--next .training-next-step-type-card {
+  flex-direction: column;
+  gap: 8px;
+}
+.gafus-app .training-day-viewer--next .training-next-step-estimated {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #1e3a8a;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* R40 genuine loaded original Next /trainings/:courseType 390x844:
+ * footer y918 height184 (two rows 44px + 92px); Vite had height138,
+ * rows 21px + 69px. Match this course/day-index route only, leaving
+ * WEB1's shared footer and other routes untouched. */
+@media (max-width: 480px) {
+  .gafus-app:has(.training-index-route)
+    footer[data-ui-parity="legacy-footer"] > div > div:first-child {
+    min-height: 44px;
+    align-content: flex-start;
+  }
+  .gafus-app:has(.training-index-route)
+    footer[data-ui-parity="legacy-footer"] > div > div:nth-child(2) {
+    min-height: 92px;
+    align-content: flex-start;
+  }
+}
+
+
+/* Course CTA parity: both buttons belong to the same centered 900px course
+ * column; never leave personalization floating at the shell's left edge. */
+.gafus-app .shell .training-index-route .training-course-personalization-actions--route {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.gafus-app .shell .training-index-route .training-course-personalization-button {
+  min-height: 48px;
+  max-width: 100%;
+  padding: 10px 22px;
+  font-size: 15px;
+}
+.gafus-app .shell .training-course-share-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 100%;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(var(--accent-primary-rgb), .19);
+}
+.gafus-app .shell .training-course-share-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  max-width: 100%;
+  min-height: 46px;
+  padding: 12px 20px;
+  text-align: center;
+  white-space: normal;
+}
+.gafus-app .shell .training-course-share-button svg {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+}
+.gafus-app .shell .training-course-share-manual {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 520px);
+}
+.gafus-app .shell .training-course-share-manual input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--accent-primary);
+  color: var(--text-primary);
+  background: var(--surface);
+}
+@media (max-width: 700px) {
+  .gafus-app .shell .training-index-route .training-course-personalization-button,
+  .gafus-app .shell .training-index-route .training-course-share-button {
+    width: 100%;
+  }
+}

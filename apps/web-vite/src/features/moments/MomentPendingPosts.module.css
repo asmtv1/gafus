@@ -1,0 +1,78 @@
+/* Self-contained feed pending queue. No changes to global headers/buttons. */
+:global(.gafus-app) .panel {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 22px 0 26px;
+  padding: 18px;
+  border: 1px solid #e5e8df;
+  border-radius: 19px;
+  background: #f9faf7;
+  color: #30382e;
+}
+.heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
+:global(.gafus-app) .panel .heading h2 {
+  margin: 0;
+  color: #2f382b;
+  font-size: clamp(17px, 2.5vw, 21px);
+  line-height: 1.28;
+  font-weight: 750;
+  letter-spacing: -.03em;
+}
+.panel .heading p { margin: 5px 0 0; color: #798275; font-size: 12px; line-height: 1.5; }
+.count { display: grid; place-items: center; flex: 0 0 auto; min-width: 28px; height: 28px;
+  border-radius: 9px; padding: 0 7px; background: #e8eee2; color: #50633e; font-size: 13px; font-weight: 750; }
+:global(.gafus-app) .panel .list { display: grid; gap: 10px; padding: 0; margin: 0; list-style: none; }
+:global(.gafus-app) .panel .card { box-sizing: border-box; min-width: 0; padding: 15px;
+  border: 1px solid #e5e9df; border-radius: 15px; background: #fff;
+  box-shadow: 0 3px 12px rgba(36,50,27,.035); list-style: none; }
+.cardHead { display: flex; align-items: flex-start; gap: 11px; min-width: 0; }
+.icon { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border-radius: 11px;
+  color: #61754b; background: #edf2e7; }
+.cardInfo { min-width: 0; flex: 1; }
+.titleRow { display: flex; justify-content: space-between; align-items: flex-start; gap: 9px; min-width: 0; }
+:global(.gafus-app) .panel .titleRow h3 { min-width: 0; margin: 2px 0 0; font-size: 14px;
+  font-weight: 720; line-height: 1.45; color: #353e31; overflow-wrap: anywhere; }
+.status { flex: 0 0 auto; max-width: 100%; padding: 5px 9px; border-radius: 99px;
+  background: #eef2e7; color: #5c7047; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.status[data-state='failed'] { background: #fff0ed; color: #a4453a; }
+.status[data-state='draft'] { background: #f1f1ee; color: #6b7169; }
+:global(.gafus-app) .panel .caption { margin: 5px 0 0; color: #7b8477; font-size: 12px; line-height: 1.5; }
+.progress { margin: 14px 0 0; padding: 10px 12px; border-radius: 10px; background: #f5f8f1; }
+.progressText { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px;
+  color: #65735b; font-size: 12px; line-height: 1.35; }
+.progressText strong { color: #4c6039; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.track { height: 7px; border-radius: 100px; background: #dce4d4; overflow: hidden; }
+.fill { height: 100%; border-radius: inherit; background: #718950; transition: width .3s ease; }
+.indeterminate { width: 36%; height: 100%; border-radius: inherit; background: #718950;
+  animation: pending-move 1.8s ease-in-out infinite alternate; }
+@keyframes pending-move { from { transform: translateX(-105%); } to { transform: translateX(285%); } }
+:global(.gafus-app) .panel .processing { display: flex; align-items: center; gap: 7px;
+  margin: 9px 0 0; color: #78846d; font-size: 11px; line-height: 1.45; }
+.dot { width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: #739051; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-top: 13px; }
+:global(.gafus-app) .panel .continue { box-sizing: border-box; display: inline-flex; align-items: center;
+  justify-content: center; gap: 8px; min-height: 40px; padding: 9px 14px; border: 1px solid #566a40;
+  border-radius: 11px; background: #61794b; color: #fff; font-weight: 700; font-size: 12px;
+  text-decoration: none; box-shadow: none; transition: background .15s ease; }
+:global(.gafus-app) .panel .continue:hover { background: #4d6439; color: #fff; }
+:global(.gafus-app) .panel .delete { min-height: 40px; padding: 8px 14px; border-radius: 11px;
+  font-size: 12px; box-shadow: none; }
+:global(.gafus-app) .panel .continue:focus-visible,
+:global(.gafus-app) .panel .delete:focus-visible { outline: 2px solid #647c4e; outline-offset: 3px; }
+:global(.gafus-app) .panel .notice { margin: 8px 0 0; padding: 12px; border: 1px solid #eccac4;
+  border-radius: 12px; background: #fff6f3; color: #8b4135; font-size: 12px; }
+:global(.gafus-app) .panel .more { display: inline-flex; margin: 14px 0 0; font-size: 12px;
+  font-weight: 700; color: #50683b; text-underline-offset: 3px; }
+@media (max-width: 560px) {
+  :global(.gafus-app) .panel { margin: 15px 0 20px; padding: 12px; border-radius: 15px; }
+  :global(.gafus-app) .panel .card { padding: 12px; }
+  .icon { flex-basis: 34px; height: 34px; }
+  .titleRow { flex-wrap: wrap; gap: 6px; }
+  .status { order: -1; }
+  .actions { display: grid; grid-template-columns: 1fr auto; }
+  :global(.gafus-app) .panel .continue { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .indeterminate { animation: none; transform: translateX(80%); }
+  .fill { transition: none; }
+}

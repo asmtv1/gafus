@@ -1,0 +1,30 @@
+{
+  "client": {
+    "allowed_origins": [
+      "https://gafus.ru",
+      "https://www.gafus.ru"
+    ],
+    "token": {
+      "issuer": "gafus-chat2"
+    }
+  },
+  "channel": {
+    "namespaces": [
+      {
+        "name": "chat2",
+        "history_size": 100,
+        "history_ttl": "120s",
+        "force_recovery": true
+      }
+    ]
+  },
+  "engine": {
+    "type": "redis",
+    "redis": {
+      "address": "redis://redis:6379"
+    }
+  },
+  "health": {
+    "enabled": true
+  }
+}

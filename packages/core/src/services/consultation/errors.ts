@@ -9,6 +9,14 @@ export class ConsultationSlotTakenError extends ServiceError {
   }
 }
 
+/** Existing owner+key has another canonical intent, expired retention or unreadable receipt. */
+export class ConsultationIdempotencyKeyConflictError extends ServiceError {
+  constructor() {
+    super("Ключ запроса уже использован", "CONSULTATION_IDEMPOTENCY_CONFLICT", 409);
+    this.name = "ConsultationIdempotencyKeyConflictError";
+  }
+}
+
 /** Нет прав на операцию с консультацией. */
 export class ConsultationForbiddenError extends ServiceError {
   constructor(message = "Недостаточно прав") {
@@ -47,8 +55,13 @@ export class ConsultationNotFoundError extends ServiceError {
 
 export class ConsultationBookingRestrictedError extends ServiceError {
   constructor(public readonly eligibility: ConsultationBookingEligibility) {
-    super(eligibility.message ?? "Запись временно недоступна",
-      eligibility.reason === "ACTIVE_BOOKING" ? "CONSULTATION_ACTIVE_BOOKING" : "CONSULTATION_WEEKLY_COOLDOWN", 403);
+    super(
+      eligibility.message ?? "Запись временно недоступна",
+      eligibility.reason === "ACTIVE_BOOKING"
+        ? "CONSULTATION_ACTIVE_BOOKING"
+        : "CONSULTATION_WEEKLY_COOLDOWN",
+      403,
+    );
     this.name = "ConsultationBookingRestrictedError";
   }
 }

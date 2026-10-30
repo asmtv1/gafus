@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   TextInput,
@@ -17,25 +16,91 @@ import { Image } from "expo-image";
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
 import { validatePetForm, type PetFormErrors } from "@/features/pets";
 import { Button, Loading } from "@/shared/components/ui";
-import { parsePetKind, petsApi, type CreatePetData, type PetKind } from "@/shared/lib/api";
+import {
+  parsePetKind,
+  petsApi,
+  type UpdatePetData,
+  type PetKind,
+  type Pet,
+} from "@/shared/lib/api";
 import { formatIsoBirthDateToDdMmYyyy } from "@/shared/lib/utils/birthDateInput";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
+import { reportClientError } from "@/shared/lib/tracer";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import { getPetEditChanges, matchesPetEditReadback } from "@/features/pets/pet-edit-changed-fields";
+import { petEditServerErrors } from "@/features/pets/pet-edit-field-errors";
+import { validatedPetDetailForActor } from "@/shared/lib/api/petsReadValidation";
 
-const LOG_PREFIX = "[EditPetScreen]";
+type EditActor = { ownerId: string; authEpoch: string };
+const UNKNOWN_MESSAGE =
+  "Результат сохранения неизвестен. Не повторяйте запрос без проверки данных.";
+const REJECTED_MESSAGE = "Не удалось сохранить. Проверьте введённые данные.";
 
 const PET_TYPES = [
-  { value: "DOG" as const, label: "Собака", image: require("../../../../assets/images/pet-type-dog.webp") },
-  { value: "CAT" as const, label: "Кошка", image: require("../../../../assets/images/pet-type-cat.webp") },
+  {
+    value: "DOG" as const,
+    label: "Собака",
+    image: require("../../../../assets/images/pet-type-dog.webp"),
+  },
+  {
+    value: "CAT" as const,
+    label: "Кошка",
+    image: require("../../../../assets/images/pet-type-cat.webp"),
+  },
 ];
 
 /**
  * Редактировать питомца — тот же визуальный паттерн, что «Напоминания» / «О себе»
  */
 export default function EditPetScreen() {
-  const router = useRouter();
-  const queryClient = useQueryClient();
   const rawId = useLocalSearchParams<{ id: string | string[] }>().id;
   const petId = typeof rawId === "string" ? rawId : (rawId?.[0] ?? "");
+  const authenticatedOwner = useAuthStore((state) =>
+    state.isAuthenticated && !state.isLoading ? (state.user?.id ?? null) : null,
+  );
+  const verifiedBinding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const authEpoch =
+    verifiedBinding?.principalId === authenticatedOwner ? verifiedBinding.authEpoch : null;
+  const actor: EditActor | null =
+    authenticatedOwner && authEpoch ? { ownerId: authenticatedOwner, authEpoch } : null;
+  return (
+    <ScopedPetEditScreen
+      key={`${actor?.ownerId ?? "guest"}:${actor?.authEpoch ?? "none"}:${petId}`}
+      actor={actor}
+      petId={petId}
+    />
+  );
+}
+function ScopedPetEditScreen({ petId, actor }: { petId: string; actor: EditActor | null }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const isMounted = useRef(true); // Initial query starts before the effect; cleanup fences unmount.
+  const writeInFlight = useRef(false);
+  const [saveState, setSaveState] = useState<"idle" | "unknown" | "rejected">("idle");
+  const [saveMessage, setSaveMessage] = useState("");
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      void queryClient.cancelQueries({
+        queryKey: ["pet", petId, actor?.ownerId ?? null, actor?.authEpoch ?? null],
+        exact: true,
+      });
+    };
+  }, [queryClient, petId, actor?.ownerId, actor?.authEpoch]);
+  const currentActor = (captured: EditActor | null) => {
+    const current = newOnlyV2NativeQueues.getVerifiedBinding();
+    const auth = useAuthStore.getState();
+    const owner = auth.isAuthenticated && !auth.isLoading ? auth.user?.id : null;
+    return (
+      !!captured &&
+      isMounted.current &&
+      owner === captured.ownerId &&
+      current?.principalId === captured.ownerId &&
+      current.authEpoch === captured.authEpoch
+    );
+  };
   const [name, setName] = useState("");
   const [type, setType] = useState<PetKind>("DOG");
   const [breed, setBreed] = useState("");
@@ -58,17 +123,50 @@ export default function EditPetScreen() {
     }
   };
 
-  const { data: petData, isLoading: isLoadingPet } = useQuery({
-    queryKey: ["pet", petId],
+  const {
+    data: unverifiedPetData,
+    isLoading: isLoadingPet,
+    isFetching: isPetFetching,
+    isError: isPetReadError,
+    error: petReadError,
+    refetch: refetchPet,
+  } = useQuery({
+    queryKey: ["pet", petId, actor?.ownerId ?? null, actor?.authEpoch ?? null],
     queryFn: async () => {
-      const response = await petsApi.getById(petId);
-      if (!response.success || !response.data) {
-        throw new Error(response.error ?? "Питомец не найден");
+      const captured = actor;
+      if (!currentActor(captured)) throw new Error("PET_SESSION_CHANGED");
+      const response = await petsApi.getById(petId, () => currentActor(captured));
+      if (!currentActor(captured)) throw new Error("PET_SESSION_CHANGED");
+      if (!response.success) {
+        if (
+          response.code === "NOT_FOUND" ||
+          response.code === "PET_NOT_FOUND" ||
+          response.error === "Питомец не найден"
+        )
+          throw new Error("PET_DETAIL_NOT_FOUND");
+        throw new Error("PET_DETAIL_UNAVAILABLE");
       }
-      return response.data;
+      return validatedPetDetailForActor(response.data, captured!, petId);
     },
-    enabled: !!petId,
+    enabled: !!petId && !!actor,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
   });
+  // QueryClient can contain an optimistic/old payload before the next guarded GET.
+  // No raw cache row may populate the form without a fresh owner/DTO check.
+  let petData: Pet | undefined;
+  if (unverifiedPetData && actor && currentActor(actor)) {
+    try {
+      petData = validatedPetDetailForActor(unverifiedPetData, actor, petId);
+    } catch {
+      reportClientError(new Error("PET_DETAIL_CACHE_INVALID"), {
+        issueKey: "PetEditScreen",
+        keys: { operation: "read_cache_validation" },
+      });
+    }
+  }
+  const isPetReadPending = isLoadingPet || (!!unverifiedPetData && !petData && isPetFetching);
 
   useEffect(() => {
     if (!petData || petData.id !== petId) return;
@@ -82,35 +180,82 @@ export default function EditPetScreen() {
     setBellyGirthCm(petData.bellyGirthCm != null ? String(petData.bellyGirthCm) : "");
     setNotes(petData.notes || "");
     setErrors({});
-  }, [petData, petId]);
+    setSaveState("idle");
+    setSaveMessage("");
+  }, [petData, petId, actor?.ownerId, actor?.authEpoch]);
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<CreatePetData> }) => {
-      const res = await petsApi.update(id, data);
-      if (!res.success) throw new Error(res.error ?? "Не удалось обновить питомца");
-      return res;
-    },
-    onSuccess: (data) => {
-      if (__DEV__) {
-        console.log(`${LOG_PREFIX} Питомец успешно обновлен`, {
-          petId,
-          petName: data.data?.name,
-          petType: data.data?.type,
+    mutationFn: async ({
+      id,
+      changes,
+      captured,
+    }: {
+      id: string;
+      changes: UpdatePetData;
+      captured: EditActor;
+    }): Promise<{
+      kind: "confirmed" | "unknown" | "rejected" | "stale";
+      message?: string;
+      fieldErrors?: PetFormErrors;
+    }> => {
+      try {
+        if (!currentActor(captured)) return { kind: "stale" };
+        const response = await petsApi.update(id, changes, () => currentActor(captured));
+        if (!currentActor(captured)) return { kind: "stale" };
+        if (!response.success) {
+          // Explicit server validation (400) and 403/404 are rejections,
+          // whereas transport/timeouts or 5xx are uncertain side effects.
+          const rejectionCodes = [
+            "BAD_REQUEST",
+            "VALIDATION_ERROR",
+            "PET_VALIDATION_ERROR",
+            "FORBIDDEN",
+            "NOT_FOUND",
+            "PET_NOT_FOUND",
+          ];
+          if (response.code && rejectionCodes.includes(response.code))
+            return {
+              kind: "rejected",
+              message: REJECTED_MESSAGE,
+              fieldErrors: petEditServerErrors(response),
+            };
+          return { kind: "unknown" };
+        }
+        if (!response.data || response.data.id !== id) return { kind: "unknown" };
+        const readback = await petsApi.getById(id, () => currentActor(captured));
+        if (!currentActor(captured)) return { kind: "stale" };
+        if (!readback.success || !matchesPetEditReadback(id, changes, readback.data))
+          return { kind: "unknown" };
+        queryClient.setQueryData(["pet", id, captured.ownerId, captured.authEpoch], readback.data);
+        return { kind: "confirmed" };
+      } catch {
+        // A thrown transport error can contain private pet/owner data.
+        // Report a fixed code, never raw error text or request payload.
+        reportClientError(new Error("PET_EDIT_ACK_OR_READBACK_UNKNOWN"), {
+          issueKey: "PetEditScreen",
+          keys: { operation: "update_and_readback" },
         });
+        return { kind: currentActor(captured) ? "unknown" : "stale" };
       }
-      queryClient.invalidateQueries({ queryKey: ["pets"] });
-      queryClient.invalidateQueries({ queryKey: ["pet"] });
-      void hapticFeedback.success();
-      router.back();
     },
-    onError: (error) => {
-      if (__DEV__) {
-        console.error(`${LOG_PREFIX} Ошибка при обновлении питомца`, {
-          error: error instanceof Error ? error.message : String(error),
-          errorStack: error instanceof Error ? error.stack : undefined,
-        });
+    onSuccess: async (result, variables) => {
+      if (!currentActor(variables.captured)) return;
+      if (result.kind === "confirmed") {
+        await queryClient.invalidateQueries({ queryKey: ["pets"] });
+        if (!currentActor(variables.captured)) return;
+        void hapticFeedback.success();
+        router.back();
+      } else if (result.kind === "rejected") {
+        if (result.fieldErrors) setErrors(result.fieldErrors);
+        setSaveState("rejected");
+        setSaveMessage(result.message ?? REJECTED_MESSAGE);
+      } else if (result.kind === "unknown") {
+        setSaveState("unknown");
+        setSaveMessage(UNKNOWN_MESSAGE);
       }
-      Alert.alert("Ошибка", error instanceof Error ? error.message : "Не удалось обновить питомца");
+    },
+    onSettled: () => {
+      writeInFlight.current = false;
     },
   });
 
@@ -120,10 +265,14 @@ export default function EditPetScreen() {
   };
 
   const handleSave = () => {
-    if (!petId) {
-      Alert.alert("Ошибка", "ID питомца не указан");
+    if (
+      writeInFlight.current ||
+      saveState === "unknown" ||
+      !petData ||
+      !currentActor(actor) ||
+      petData.id !== petId
+    )
       return;
-    }
 
     const validation = validatePetForm({
       name,
@@ -140,7 +289,7 @@ export default function EditPetScreen() {
     }
 
     setErrors({});
-    const petPayload: Partial<CreatePetData> = {
+    const draft: UpdatePetData = {
       name: validation.values.name,
       type,
       breed: validation.values.breed,
@@ -149,13 +298,24 @@ export default function EditPetScreen() {
       neckGirthCm: validation.values.neckGirthCm,
       muzzleGirthCm: validation.values.muzzleGirthCm,
       bellyGirthCm: validation.values.bellyGirthCm,
-      notes: notes.trim() || undefined,
+      notes: notes.trim(),
     };
-
-    updateMutation.mutate({ id: petId, data: petPayload });
+    const diff = getPetEditChanges(petData, draft);
+    if (!diff.ok) {
+      setErrors({ [diff.field]: "Изменение веса доступно только в истории измерений" });
+      return;
+    }
+    if (!Object.keys(diff.changes).length) {
+      router.back(); // No changes, no PUT.
+      return;
+    }
+    writeInFlight.current = true;
+    setSaveState("idle");
+    setSaveMessage("");
+    updateMutation.mutate({ id: petId, captured: actor!, changes: diff.changes });
   };
 
-  if (isLoadingPet) {
+  if (isPetReadPending) {
     return (
       <>
         <Stack.Screen options={{ headerShown: false }} />
@@ -178,7 +338,29 @@ export default function EditPetScreen() {
             <ScrollView contentContainerStyle={styles.scrollContent}>
               <View style={styles.formCard}>
                 <Text style={styles.screenTitle}>Редактировать питомца</Text>
-                <Text style={styles.errorInline}>Питомец не найден</Text>
+                <Text style={styles.errorInline} accessibilityRole="alert">
+                  {!actor
+                    ? "Войдите в аккаунт для просмотра питомца."
+                    : !petId ||
+                        (isPetReadError &&
+                          petReadError instanceof Error &&
+                          petReadError.message === "PET_DETAIL_NOT_FOUND")
+                      ? "Питомец не найден"
+                      : "Не удалось загрузить питомца."}
+                </Text>
+                {isPetReadError &&
+                actor &&
+                petId &&
+                !(
+                  petReadError instanceof Error && petReadError.message === "PET_DETAIL_NOT_FOUND"
+                ) ? (
+                  <Button
+                    label="Повторить загрузку питомца"
+                    onPress={() => {
+                      if (currentActor(actor)) void refetchPet({ cancelRefetch: false });
+                    }}
+                  />
+                ) : null}
                 <AppBackButton onPress={handleBack} />
               </View>
             </ScrollView>
@@ -267,6 +449,7 @@ export default function EditPetScreen() {
 
                 <Text style={styles.fieldLabel}>Рост (см)</Text>
                 <TextInput
+                  testID="pet-edit-heightCm"
                   value={heightCm}
                   onChangeText={(value) => updateField("heightCm", value, setHeightCm)}
                   style={[styles.input, errors.heightCm && styles.inputError]}
@@ -278,6 +461,7 @@ export default function EditPetScreen() {
 
                 <Text style={styles.fieldLabel}>Обхват шеи (см)</Text>
                 <TextInput
+                  testID="pet-edit-neckGirthCm"
                   value={neckGirthCm}
                   onChangeText={(value) => updateField("neckGirthCm", value, setNeckGirthCm)}
                   style={[styles.input, errors.neckGirthCm && styles.inputError]}
@@ -291,6 +475,7 @@ export default function EditPetScreen() {
 
                 <Text style={styles.fieldLabel}>Обхват морды (см)</Text>
                 <TextInput
+                  testID="pet-edit-muzzleGirthCm"
                   value={muzzleGirthCm}
                   onChangeText={(value) => updateField("muzzleGirthCm", value, setMuzzleGirthCm)}
                   style={[styles.input, errors.muzzleGirthCm && styles.inputError]}
@@ -304,6 +489,7 @@ export default function EditPetScreen() {
 
                 <Text style={styles.fieldLabel}>Обхват живота (см)</Text>
                 <TextInput
+                  testID="pet-edit-bellyGirthCm"
                   value={bellyGirthCm}
                   onChangeText={(value) => updateField("bellyGirthCm", value, setBellyGirthCm)}
                   style={[styles.input, errors.bellyGirthCm && styles.inputError]}
@@ -330,6 +516,13 @@ export default function EditPetScreen() {
                   textAlignVertical="top"
                 />
 
+                {saveMessage ? <Text style={styles.errorInline}>{saveMessage}</Text> : null}
+                {saveState === "unknown" ? (
+                  <Text style={styles.hintText}>
+                    Откройте питомца заново, чтобы проверить результат. Автоматического повторного
+                    PUT нет.
+                  </Text>
+                ) : null}
                 <View style={styles.actionsRow}>
                   <Button
                     label="Отмена"
@@ -360,7 +553,7 @@ export default function EditPetScreen() {
                     verticalPadding={14}
                     borderRadius={10}
                     onPress={handleSave}
-                    disabled={updateMutation.isPending}
+                    disabled={updateMutation.isPending || saveState === "unknown" || !actor}
                   />
                 </View>
               </View>

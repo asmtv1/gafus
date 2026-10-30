@@ -6,6 +6,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { constants, createHash, sign } from "node:crypto";
 import { parsePrivateMediaLocation } from "./privateUserMedia";
+import { isolatedNonprodS3Config } from "./isolatedNonprodS3";
 import { cloudruCdnPurgeDone } from "./cloudruCdnPurge";
 import { beginBegetCdnPurge, begetCdnPurgeDone, isBegetCacheableObjectKey } from "./begetCdnPurge";
 
@@ -44,6 +45,7 @@ export function accountStorageTargets(
   ownerId: string,
   values: string[],
   extraPrefixes: string[] = [],
+  env: NodeJS.ProcessEnv = process.env,
 ) {
   if (!safeId.test(ownerId)) throw new Error("CLEANUP_UNSAFE_OWNER");
   if (
@@ -82,12 +84,37 @@ export function accountStorageTargets(
       scope === "questions"
         ? `questions/uploads/questions/${ownerId}/`
         : `documents/uploads/users/${ownerId}/pets/`;
+    let hasIsolatedAvatar = false;
     const keys = values.map((value) => {
+      // This location type exists ONLY on the project-owned loopback MinIO.
+      // It must not be interpreted as a Yandex public key or remote Cloud.ru.
+      if (value.startsWith("isodev-avatar:")) {
+        const ownAvatar = new RegExp(`^isodev-avatar:documents/uploads/users/${ownerId}/avatar/[a-f0-9-]{36}\\.(?:jpg|jpeg|png|webp|gif)$`);
+        const ownPet = new RegExp(`^isodev-avatar:documents/uploads/users/${ownerId}/pets/[A-Za-z0-9_-]{1,128}/[a-f0-9-]{36}\\.(?:jpg|jpeg|png|webp|gif)$`);
+        if (scope !== "documents" || env.GAFUS_ISOLATED_NONPROD_S3 !== "enabled" ||
+            (!ownAvatar.test(value) && !ownPet.test(value)))
+          throw new Error("CLEANUP_INVALID_PRIVATE_LOCATION");
+        hasIsolatedAvatar ||= ownAvatar.test(value);
+        return value.slice("isodev-avatar:".length);
+      }
+      // Local isolated MinIO must never stand in for a remote Cloud.ru
+      // Documents deletion: a no-op against the local bucket would otherwise
+      // be acknowledged as DONE while the actual remote object survives.
+      if (env.GAFUS_ISOLATED_NONPROD_S3 !== undefined &&
+          value.startsWith("cloudru:"))
+        throw new Error("CLEANUP_PROVIDER_MISMATCH");
       const parsed = parsePrivateMediaLocation(value);
-      if (!parsed || parsed.kind !== scope) throw new Error("CLEANUP_INVALID_PRIVATE_LOCATION");
+      if (value.startsWith("isodev-private:") && env.GAFUS_ISOLATED_NONPROD_S3 !== "enabled")
+        throw new Error("CLEANUP_PROVIDER_MISMATCH");
+      if (!parsed || parsed.kind !== scope ||
+          (scope === "documents" && !parsed.key.startsWith(prefix)))
+        throw new Error("CLEANUP_INVALID_PRIVATE_LOCATION");
       return parsed.key;
     });
-    return { prefixes: [prefix], keys: [...new Set(keys)] };
+    return {
+      prefixes: hasIsolatedAvatar ? [prefix, `documents/uploads/users/${ownerId}/avatar/`] : [prefix],
+      keys: [...new Set(keys)],
+    };
   }
   throw new Error("CLEANUP_INVALID_SCOPE");
 }
@@ -100,21 +127,26 @@ export function createAccountStorageCleaner(
   env: NodeJS.ProcessEnv = process.env,
 ): AccountBucketCleaner {
   const privateCloud = scope === "questions" || scope === "documents";
+  const isolated = privateCloud && env.GAFUS_ISOLATED_NONPROD_S3 !== undefined
+    ? isolatedNonprodS3Config(scope as "questions" | "documents", env)
+    : null;
+  if (privateCloud && env.GAFUS_ISOLATED_NONPROD_S3 !== undefined && !isolated)
+    throw new Error("CLEANUP_ISOLATED_STORAGE_DENIED");
   const prefix =
     scope === "gallery" ? "GALLERY" : scope === "feed" ? "FEED" : `CLOUDRU_${scope.toUpperCase()}`;
-  const bucket = scope === "public" ? "gafus-media" : env[`${prefix}_BUCKET`];
-  const accessKeyId =
+  const bucket = isolated?.bucket ?? (scope === "public" ? "gafus-media" : env[`${prefix}_BUCKET`]);
+  const accessKeyId = isolated?.accessKeyId ?? (
     scope === "public"
       ? env.YC_ACCESS_KEY_ID
       : privateCloud
         ? env.CLOUDRU_S3_ACCESS_KEY_ID
-        : env[`${prefix}_S3_ACCESS_KEY_ID`];
-  const secretAccessKey =
+        : env[`${prefix}_S3_ACCESS_KEY_ID`]);
+  const secretAccessKey = isolated?.secretAccessKey ?? (
     scope === "public"
       ? env.YC_SECRET_ACCESS_KEY
       : privateCloud
         ? env.CLOUDRU_S3_SECRET_ACCESS_KEY
-        : env[`${prefix}_S3_SECRET_ACCESS_KEY`];
+        : env[`${prefix}_S3_SECRET_ACCESS_KEY`]);
   if (
     !bucket ||
     !accessKeyId ||
@@ -124,13 +156,13 @@ export function createAccountStorageCleaner(
     throw new Error("CLEANUP_STORAGE_UNCONFIGURED");
   // The public store also contains courses and avatars: never move it implicitly.
   // Gallery/feed are dedicated private stores with an explicit, approved endpoint.
-  const endpoint =
+  const endpoint = isolated?.endpoint ?? (
     scope === "public"
       ? "https://storage.yandexcloud.net"
       : privateCloud
         ? (env.CLOUDRU_S3_ENDPOINT ?? "https://s3.cloud.ru")
-        : (env[`${prefix}_S3_ENDPOINT`] ?? "https://storage.yandexcloud.net");
-  if (!["https://storage.yandexcloud.net", "https://s3.cloud.ru"].includes(endpoint))
+        : (env[`${prefix}_S3_ENDPOINT`] ?? "https://storage.yandexcloud.net"));
+  if (!isolated && !["https://storage.yandexcloud.net", "https://s3.cloud.ru"].includes(endpoint))
     throw new Error("CLEANUP_UNSAFE_ENDPOINT");
   // Account erasure can destroy other tenants' data if a bucket is mispointed.
   // Bind Cloud.ru cleanup scopes to the three private buckets verified live.
@@ -144,12 +176,12 @@ export function createAccountStorageCleaner(
     if (bucket !== expected) throw new Error("CLEANUP_STORAGE_UNCONFIGURED");
   }
   const versioning =
-    scope === "public" ? "enabled" : (env[`${prefix}_BUCKET_VERSIONING`] ?? "enabled");
+    isolated ? "disabled" : scope === "public" ? "enabled" : (env[`${prefix}_BUCKET_VERSIONING`] ?? "enabled");
   if (versioning !== "enabled" && versioning !== "disabled")
     throw new Error("CLEANUP_INVALID_VERSIONING");
   const client = new S3Client({
     endpoint,
-    region: endpoint === "https://s3.cloud.ru" ? "ru-central-1" : "ru-central1",
+    region: isolated ? "us-east-1" : endpoint === "https://s3.cloud.ru" ? "ru-central-1" : "ru-central1",
     credentials: { accessKeyId, secretAccessKey },
     forcePathStyle: true,
     maxAttempts: 2,
@@ -224,6 +256,15 @@ export function createAccountStorageCleaner(
           if (!exact.length) break;
           await erase(exact);
         }
+        // Listing historical versions alone is insufficient: a provider can
+        // expose a current object without returning any versions. Do not mark
+        // borrowed/exact-key media erased while the exact object is still live.
+        const remaining = await client.send(
+          new ListObjectsV2Command({ Bucket: bucket, Prefix: key, MaxKeys: 1 }),
+          { abortSignal: signal },
+        );
+        if (remaining.Contents?.some((row) => row.Key === key))
+          throw new Error("CLEANUP_OBJECTS_REMAIN");
       }
       return removed;
     },
@@ -375,7 +416,7 @@ export async function startAccountCdnPurge(
       isBegetCacheableObjectKey(scope as "gallery" | "feed", key));
     // Incoming sources, attempts, and HLS playlists are explicitly denied by
     // both CDN Origins. Purge only keys which a CDN can have cached.
-    if (targets.prefixes.length && !cacheable.length && !targets.keys.length)
+    if (targets.prefixes.length && !cacheable.length)
       throw new Error("BEGET_CDN_EXACT_KEYS_REQUIRED");
     const submitted = cacheable.length
       ? await beginBegetCdnPurge(scope as "gallery" | "feed",

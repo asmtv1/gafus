@@ -7,6 +7,8 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { reportClientError } from "@/shared/lib/tracer";
 import { dailyCourseApi, trainingApi } from "@/shared/lib/api";
 import { zustandStorage } from "./storage";
+import { singleFlight } from "./singleFlight";
+import { canDispatchOwnerlessLegacyOfflineQueue } from "./legacyOfflineReplayQuarantine";
 
 const MAX_401_BEFORE_STOP = 3;
 
@@ -68,7 +70,9 @@ export const useProgressSyncStore = create<ProgressSyncStore>()(
 
       reset401: () => set({ consecutive401: 0 }),
 
-      processNext: async () => {
+      processNext: singleFlight(async () => {
+        // Historical v1 has no verifiable owner; never dispatch or ACK on this path.
+        if (!canDispatchOwnerlessLegacyOfflineQueue()) return "retry";
         const { queue } = get();
         if (queue.length === 0) return "done";
         const [head] = queue;
@@ -129,36 +133,20 @@ export const useProgressSyncStore = create<ProgressSyncStore>()(
         const code = (result as { code?: string }).code;
         if (code === "SESSION_EXPIRED" || code === "UNAUTHORIZED") {
           const next401 = get().consecutive401 + 1;
-          set((state) => ({
-            queue: removeHead(state.queue),
-            consecutive401: next401,
-          }));
+          // Keep the durable mutation until the server explicitly ACKs it.
+          set({ consecutive401: next401 });
           if (next401 >= MAX_401_BEFORE_STOP) return "unauthorized";
-          return "ok";
+          return "retry";
         }
         if (result.success) {
           set((state) => ({ queue: removeHead(state.queue), consecutive401: 0 }));
         } else {
-          // Серверная/временная ошибка сохранения видео не должна терять офлайн-прогресс.
-          // Терминальные access/validation ошибки удаляем, остальные ждут следующего reconnect.
-          if (
-            head.type === "saveVideoProgress" &&
-            !["FORBIDDEN", "NOT_FOUND", "VALIDATION_ERROR", "BAD_REQUEST"].includes(code ?? "")
-          ) {
-            return "retry";
-          }
-          // 400, 404 и др. — retry бесполезен, удаляем чтобы не зациклиться
-          set((state) => ({ queue: removeHead(state.queue) }));
-          if (__DEV__) {
-            console.warn(
-              "[progressSyncStore] Action failed, removed from queue:",
-              head.type,
-              result,
-            );
-          }
+          // Errors (including 409/429/500) are not a server ACK.
+          // Keep the mutation for a later retry or explicit conflict handling.
+          return "retry";
         }
         return "ok";
-      },
+      }),
     }),
     {
       name: "progress-sync-storage",

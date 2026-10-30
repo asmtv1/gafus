@@ -1,10 +1,4 @@
 import { prisma } from "@gafus/prisma";
-import {
-  PushNotificationService,
-  partitionPushSubscriptions,
-  sendExpoPushNotifications,
-  sendRustorePushNotifications,
-} from "@gafus/webpush";
 import { createWebLogger } from "@gafus/logger";
 
 import type { BroadcastResult } from "./types";
@@ -37,6 +31,11 @@ export async function sendBroadcastPush(
   }
 
   try {
+    // Lazy provider import keeps the normal Chat2/health API startup
+    // independent of the CJS webpush package's static ESM re-exports.
+    const { PushNotificationService, partitionPushSubscriptions,
+      sendExpoPushNotifications, sendRustorePushNotifications } =
+        await import("@gafus/webpush");
     const rows = await prisma.pushSubscription.findMany({
       select: {
         endpoint: true,

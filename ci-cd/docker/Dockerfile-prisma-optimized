@@ -1,10 +1,12 @@
 # Base stage - для сборки
 FROM mirror.gcr.io/library/node:20-alpine AS base
 
+# Pin Corepack's cache path so the runtime can reuse the downloaded pnpm.
+ENV COREPACK_HOME=/opt/gafus-corepack
 WORKDIR /app
 
 # Включаем pnpm
-RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 
 # Копируем файлы конфигурации
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
@@ -38,29 +40,40 @@ RUN find /app/node_modules/.pnpm -name ".prisma" -type d -exec cp -r {}/schema.p
 RUN find /app/node_modules/.pnpm -name "libquery_engine-*" -type f -exec cp {} /app/node_modules/.prisma/ \;
 
 # Собираем приложение
-RUN pnpm build --filter @gafus/prisma
+RUN pnpm exec turbo run build --filter='@gafus/prisma'
 
 # Готовим минимальный продовый пакет для prisma (включая prisma CLI)
 # Server-only deploy subsets do not contain mobile dependencies and their patches.
 RUN printf '\nallowUnusedPatches: true\n' >> pnpm-workspace.yaml && \
     pnpm deploy --legacy --filter @gafus/prisma --prod --no-optional /app/deploy
 
+# Ensure generated Linux-musl Client exists, without invalidating cached build/deploy.
+RUN test -s /app/node_modules/.prisma/client/default.js
+
 # Production stage - только runtime
 FROM mirror.gcr.io/library/node:20-alpine AS runner
 
+ENV COREPACK_HOME=/opt/gafus-corepack
 WORKDIR /app
 
 # Создаем пользователя
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 prisma
 
-# Устанавливаем только необходимые пакеты и pnpm через corepack
+# Reuse exact pnpm installed in the base stage. Runtime must never need
+# npm Registry access just to prepare the package manager.
+COPY --from=base /opt/gafus-corepack /opt/gafus-corepack
 RUN apk add --no-cache curl postgresql-client \
   && corepack enable \
-  && corepack prepare pnpm@9.1.0 --activate
+  && COREPACK_ENABLE_NETWORK=0 corepack prepare pnpm@10.12.4 --activate \
+  && chmod -R a+rX /opt/gafus-corepack
 
 # Копируем минимальный деплой-пакет (с node_modules)
 COPY --from=base /app/deploy/ ./
+# pnpm deploy --legacy does NOT preserve .prisma/client. Keep the generated
+# Linux-musl Client/Query Engine next to the production pnpm modules.
+COPY --from=base /app/node_modules/.prisma ./node_modules/.prisma
+RUN node -e "const c = require('@prisma/client'); if (typeof c.PrismaClient !== 'function') process.exit(1)"
 
 # Устанавливаем права доступа
 RUN chown -R prisma:nodejs /app

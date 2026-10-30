@@ -19,4 +19,8 @@ export { sendConsultationEmailFromLog } from "./consultationTransactionalMail";
 
 export * from "./bookingEligibility";
 
-export { processConsultationEmailLog } from "./consultationEmailDelivery";
+export {
+  processConsultationEmailLog,
+  reconcileConsultationEmailLog,
+} from "./consultationEmailDelivery";
+export type { ConsultationMailOutcome } from "./consultationEmailDelivery";

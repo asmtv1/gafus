@@ -54,6 +54,53 @@ describe("feed preferences and moderation", () => {
     await service.moderate("reader", "report", { action: "restore", reason: "Проверено" });
     expect(tx.feedPost.updateMany).toHaveBeenLastCalledWith(expect.objectContaining({ data: { moderationState: "visible", moderationReason: null, moderatedAt: expect.any(Date) } }));
   });
+  it("revokes moderation if the stored actor role changed after the initial check", async () => {
+    const { service, tx } = setup("ADMIN");
+    tx.user.findUnique
+      .mockResolvedValueOnce({ id: "reader", role: "ADMIN", feedPublishingBlocked: false })
+      .mockResolvedValueOnce({ id: "reader", role: "USER", feedPublishingBlocked: false });
+    await expect(service.moderate("reader", "report", {
+      action: "hide", reason: "Спам",
+    })).rejects.toMatchObject({ status: 403, code: "FORBIDDEN" });
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1); // actor DB lock, no post/report lock
+    expect(tx.feedReport.findUnique).not.toHaveBeenCalled();
+    expect(tx.feedPost.updateMany).not.toHaveBeenCalled();
+    expect(tx.feedModerationAction.create).not.toHaveBeenCalled();
+  });
+
+  it("does not repeat the same resolved moderation action or its audit record", async () => {
+    const { service, tx } = setup("ADMIN");
+    tx.feedReport.findUnique
+      .mockResolvedValueOnce({ id: "report", postId: "post" })
+      .mockResolvedValueOnce({
+        id: "report", postId: "post", targetId: "post", targetType: "post",
+        authorId: "author", status: "resolved", resolution: "hide", resolutionReason: "Спам",
+      });
+    await expect(service.moderate("reader", "report", {
+      action: "hide", reason: "Спам",
+    })).resolves.toEqual({ id: "report" });
+    expect(tx.feedPost.updateMany).not.toHaveBeenCalled();
+    expect(tx.feedReport.update).not.toHaveBeenCalled();
+    expect(tx.feedReport.updateMany).not.toHaveBeenCalled();
+    expect(tx.feedModerationAction.create).not.toHaveBeenCalled();
+  });
+
+  it("still permits restoring a resolved hidden publication with a different action", async () => {
+    const { service, tx } = setup("MODERATOR");
+    tx.feedReport.findUnique
+      .mockResolvedValueOnce({ id: "report", postId: "post" })
+      .mockResolvedValueOnce({
+        id: "report", postId: "post", targetId: "post", targetType: "post",
+        authorId: "author", status: "resolved", resolution: "hide", resolutionReason: "Спам",
+      });
+    await service.moderate("reader", "report", {
+      action: "restore", reason: "Проверено",
+    });
+    expect(tx.feedPost.updateMany).toHaveBeenCalledOnce();
+    expect(tx.feedModerationAction.create).toHaveBeenCalledOnce();
+    expect(tx.feedReport.update).toHaveBeenCalledOnce();
+  });
+
   it("enqueues push only for the first publication and persists it atomically", async () => {
     const { tx } = setup(); const at = new Date();
     await enqueueFeedAuthorPush(tx as unknown as FeedTx, { id: "post", authorId: "author", publishedAt: null }, at);

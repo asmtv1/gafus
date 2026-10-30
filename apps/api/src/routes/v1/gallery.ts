@@ -1,16 +1,14 @@
 import { Hono } from "hono";
-import { bodyLimit } from "hono/body-limit";
-import { dispatchGalleryRequest, galleryHttpError, GALLERY_MAX_BODY_BYTES } from "@gafus/gallery-server";
+import { dispatchGalleryRequest, galleryHttpError } from "@gafus/gallery-server";
 
 export const galleryRoutes = new Hono();
 galleryRoutes.use("*", async (c, next) => {
   c.header("Cache-Control", "no-store");
   await next();
 });
-galleryRoutes.use("*", bodyLimit({
-  maxSize: GALLERY_MAX_BODY_BYTES,
-  onError: (c) => c.json({ success: false, error: "Запрос слишком большой", code: "BODY_TOO_LARGE" }, 413, { "Cache-Control": "no-store" }),
-}));
+// The bounded dispatcher reads and rejects >16KiB itself with GalleryError(413).
+// Hono bodyLimit wraps the stream, emitting an unrelated BodyLimitError that
+// the Gallery error mapper otherwise turns into a misleading HTTP 500.
 galleryRoutes.all("*", async (c) => {
   const user = c.get("user");
   if (!user?.id) return c.json({ success: false, error: "Не авторизован", code: "UNAUTHORIZED" }, 401, { "Cache-Control": "no-store" });

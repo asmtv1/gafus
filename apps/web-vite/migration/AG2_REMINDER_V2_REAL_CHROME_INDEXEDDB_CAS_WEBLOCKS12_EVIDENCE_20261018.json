@@ -1,0 +1,156 @@
+{
+  "kind": "AG2_REAL_CHROME_LOOPBACK_INDEXEDDB_WEBLOCKS_ATOMIC_CAS12_V1",
+  "utc": "2026-10-18T13:24:45.567945+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "gitRoot": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "vite",
+  "head": "5fc78081",
+  "state": "REAL_LOCAL_CHROME_STORAGE_PROOF_12_PASS_NO_LIVE_USER_OR_REMINDER_API",
+  "AG4Grant": "apps/admin-panel/AG4_AG2_REMINDER_IDB_REAL_LOOPBACK_CHROME_LOCAL_STORAGE_ATOMIC_CAS_REVIEW_GO_20261018.v1.json",
+  "AG4GrantSHA256": "47b057145f7ba5c119e0234f8a4780cae57ee4faf6b74747b14e3bb6dcff53b8",
+  "AG4GrantExpiryUTC": "2026-10-18T13:24:21.568302+00:00",
+  "AG4TwoOriginalSourcePinsMatchedBeforeAndAfter": true,
+  "scope": "only http://127.0.0.1:4227, separate isolated disposable test Chrome profile, synthetic ownerScope/epoch/UUID",
+  "execution": {
+    "realIndexedDB": true,
+    "realWebLocks": true,
+    "twoDistinctBrowserTabs": true,
+    "chromeProcessFullyRestartedWithSameScratchProfile": true,
+    "strictIDBReadwriteDurabilityRequestedAndReported": true,
+    "IDBTransactionOnCompleteWaited": true,
+    "actualAbortRollbackWithoutPersistedMarker": true,
+    "corruptMarkerInRealChromeIdbBlocked": true,
+    "quotaFaultInjectedNotPhysicalDiskPressure": true,
+    "strictUnsupportedFaultInjectedNotActualBrowserUnsupported": true,
+    "realOSFsyncPowerLossGuarantee": "NOT_PROVEN",
+    "realTrustedHMACOwnerAndEpoch": "NOT_PROVEN_SYNTHETIC_ONLY",
+    "realBrowserChromeShots": 3,
+    "isolatedChromeProfileUnderProject": "apps/web-vite/.ag2-tmp/ag2-reminder-idb-loopback-20261018/chrome-profile",
+    "realLeveldbFilesPresent": 6,
+    "HTTPNetwork": {
+      "staticGET": 54,
+      "api": 0,
+      "external": 0,
+      "mutations": 0
+    },
+    "HonoGET": 0,
+    "HonoPOST": 0,
+    "external": 0,
+    "localStaticOnly": true
+  },
+  "cases": [
+    {
+      "case": "IDB-01-real-store-created",
+      "status": "PASS",
+      "evidence": "Real Chrome IndexedDB storage initialized only on loopback; empty"
+    },
+    {
+      "case": "IDB-02-two-tabs-real-CAS-WebLocks",
+      "status": "PASS",
+      "evidence": {
+        "attempts": [
+          "WIN",
+          "LOST"
+        ],
+        "sharedPhase": "PREPARED",
+        "winnerCount": 1,
+        "source": "Chromium IDB and navigator.locks"
+      }
+    },
+    {
+      "case": "IDB-03-pre-post-strict-CAS",
+      "status": "PASS",
+      "evidence": "MAY_HAVE_SENT read through second tab BEFORE sole in-memory synthetic POST; no HTTP"
+    },
+    {
+      "case": "IDB-04-real-browser-process-restart",
+      "status": "PASS",
+      "evidence": "New Chrome process retained MAY_HAVE_SENT; zero automatic synthetic POST/GET"
+    },
+    {
+      "case": "IDB-05-owner-receipt-policy",
+      "status": "PASS",
+      "evidence": "Manual synthetic GET200 -> SERVER_COMMITTED_UNVERIFIED_DRAFT; terminal survives reload without new GET/POST"
+    },
+    {
+      "case": "IDB-06-exclusive-WebLocks-contention",
+      "status": "PASS",
+      "evidence": "When lock held by independent tab, second adapter read denied (no fallback)"
+    },
+    {
+      "case": "IDB-07-real-interrupted-transaction",
+      "status": "PASS",
+      "evidence": "Real IDB strict write transaction abort rolled back, no optimistic CAS success"
+    },
+    {
+      "case": "IDB-08-404-is-UNKNOWN",
+      "status": "PASS",
+      "evidence": "Synthetic manual GET404 keeps UNKNOWN and blocks new key; no HTTP"
+    },
+    {
+      "case": "IDB-09-injected-quota-failclosed",
+      "status": "PASS",
+      "evidence": "Injected QuotaExceededError during real Chromium IDB transaction; no persisted marker (not physical quota exhaustion)"
+    },
+    {
+      "case": "IDB-10-injected-unsupported-strict",
+      "status": "PASS",
+      "evidence": "Injected NotSupportedError for durability=strict; fails closed (not fsync guarantee)"
+    },
+    {
+      "case": "IDB-11-injected-IDB-denied",
+      "status": "PASS",
+      "evidence": "Injected disabled IDBFactory.open rejected; no browser/storage fallback"
+    },
+    {
+      "case": "IDB-12-real-corrupt-schema-denied",
+      "status": "PASS",
+      "evidence": "Corrupt marker injected in real IDB: read and reserve refuse, no overwrite"
+    }
+  ],
+  "limitations": [
+    "strict durability hint+IDBTransaction.oncomplete observed; not proof of OS-level fsync or power-loss durability",
+    "quota fault and unsupported strict tested with injected browser errors, not actual physical disk pressure",
+    "owner/epoch synthetic pseudonyms NOT verified real server auth; consumer API stays gated",
+    "actual IndexedDB transaction/CAS/WebLocks Chrome proof applies only disposable localhost review DB"
+  ],
+  "noEvents": {
+    "realUserProfile": false,
+    "liveIDBActivatedInApp": false,
+    "ordinaryRemindersTransportModified": false,
+    "actualReminderGET": false,
+    "actualReminderPOST": false,
+    "production": false,
+    "Main": false,
+    "PGRedisWrite": false,
+    "commit": false,
+    "push": false,
+    "deploy": false
+  },
+  "nextAG4Decision": "Review real browser atomicity only, separate verified HMAC/epoch and security plus migrations and real consumer lease required before live integration",
+  "gates": {
+    "G0": "PASS",
+    "G1": "PENDING",
+    "G2": "BLOCKED",
+    "G3": "NOT_STARTED",
+    "G4": "NOT_STARTED"
+  },
+  "sha256Files": {
+    "apps/admin-panel/AG4_AG2_REMINDER_IDB_REAL_LOOPBACK_CHROME_LOCAL_STORAGE_ATOMIC_CAS_REVIEW_GO_20261018.v1.json": "47b057145f7ba5c119e0234f8a4780cae57ee4faf6b74747b14e3bb6dcff53b8",
+    "apps/admin-panel/AG4_REMINDER_POST_RESTART_200_COMMITTED_NO_PAYLOAD_404_UNKNOWN_PRIVACY_TOMBSTONE_POLICY_20261018.v1.json": "19636ea992d13856e2b0326d2be30038a192732feec048c380ebcc5f383e8e97",
+    "apps/web-vite/.ag2-tmp/ag2-reminder-idb-loopback-20261018/browser-result.json": "e13ee0eb9af60caf38e9d11e7edb138f59d5b5d0afdac6e106e52692ab7dd24c",
+    "apps/web-vite/.ag2-tmp/ag2-reminder-idb-loopback-20261018/chromeIdbProof.mjs": "777d50e1b12259d08a16547b30bf0caabeae698f37ab6aef1a7f4c5065aef7ad",
+    "apps/web-vite/.ag2-tmp/ag2-reminder-idb-loopback-20261018/logs/browser-first.log": "537876989858343b17982fb2dd0f7765011a8f7368a5a61422cf1cc35b941fc1",
+    "apps/web-vite/.ag2-tmp/ag2-reminder-idb-loopback-20261018/review.html": "0ee69c354e0d3cd5c339db6fb4bf2d5882c3abdfbe05918da06b7a94fb86d7be",
+    "apps/web-vite/.ag2-tmp/ag2-reminder-idb-loopback-20261018/review.ts": "156e07e389ccb2b09a3afe90a12439e3b63ad735ecdd46f74b3e125f0dd01887",
+    "apps/web-vite/.ag2-tmp/ag2-reminder-idb-loopback-20261018/source-review-before-restart-360.png": "a1167f8770fb5a4e2e094f09f8f1c105d2836ce0fabd63a13201119228b25528",
+    "apps/web-vite/.ag2-tmp/ag2-reminder-idb-loopback-20261018/source-review-confirmed-360.png": "7ba52c9c8ffb54c99d2841a7c53ce6474d5dcd5abb0c1bb8ff7ef14fabdd3571",
+    "apps/web-vite/.ag2-tmp/ag2-reminder-idb-loopback-20261018/source-review-failclosed-desktop.png": "f6634b097e94c84d1b06c817d57b31e4efede01958fe5f227699e65d6ba09bf8",
+    "apps/web-vite/migration/AG2_AG4_REMINDER_POSTRESTART_200_POLICY_INDEXEDDB_SOURCE_REVIEW_20261018.md": "cabe17353c80aa7d9ef165a670586990d702dbca500e1cb94c94883bc0f4e934",
+    "apps/web-vite/migration/AG2_WEB_ROUTE_SOURCE_VS_INTEGRATION_REMAINING_20261018.json": "237e81c4b1454772dea8438bc2d6d9218c81205573be00d3330b1acd243f499e",
+    "apps/web-vite/src/features/profile/reminderV2DurableSourceMock.ts": "73a5d5ec1a626c486b0f5d2a2d28691693c90839bbcd8c7d05f98d91236213c7",
+    "apps/web-vite/src/features/profile/reminderV2IndexedDbReview.test.ts": "9971f3906031d9dd11e023eda616508dd05e44eea58190d7689afe74e4dc98f2",
+    "apps/web-vite/src/features/profile/reminderV2IndexedDbReview.ts": "0c50617dc49d8a727c23059f6395d3b81885f85e87782a2a548888acfc1871e9",
+    "apps/web-vite/src/features/profile/reminderV2SourceCandidate.ts": "1771795ac8b33870e0e35cde9f1857a320d445a00aaf962c3afec4597ffab7b5"
+  }
+}

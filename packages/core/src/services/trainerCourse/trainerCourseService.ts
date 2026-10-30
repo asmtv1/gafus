@@ -13,6 +13,7 @@ import type {
   CreateTrainerCourseInput,
   UpdateTrainerCourseInput,
 } from "./schemas";
+import type { CourseVersionActor } from "./courseVersionService";
 
 const logger = createWebLogger("trainer-course");
 
@@ -134,33 +135,84 @@ export async function createCourse(
  * Обновление курса. Сохраняет существующие DayOnCourse (не сбрасывает прогресс).
  * Назначения разрешены только для приватных курсов.
  */
+class CourseVersionNoMatch extends Error {}
+
+export type CourseFullFormResult = ActionResult & {
+  status?: "stale" | "not_found" | "invalid" | "unknown";
+  version?: number;
+};
+
 export async function updateCourse(
   input: UpdateTrainerCourseInput,
-): Promise<ActionResult> {
+  actor: CourseVersionActor,
+): Promise<CourseFullFormResult> {
+  if (!actor || !/^[A-Za-z0-9_-]{1,128}$/.test(actor.id) ||
+      !["TRAINER", "ADMIN"].includes(actor.role) ||
+      !Number.isInteger(input?.expectedVersion) ||
+      input.expectedVersion < 1 || input.expectedVersion > 2147483647) {
+    return { success: false, status: "invalid",
+      error: "Требуется актуальная версия курса" };
+  }
+  let nextVersion: number | undefined;
   try {
     const isPrivate = !input.isPublic;
 
     await prisma.$transaction(
       async (tx) => {
         const desiredDayIds = (input.trainingDays ?? []).map((d) => String(d));
-          await tx.course.update({
-            where: { id: input.id },
-            data: {
-              name: input.name,
-              description: input.description ?? "",
-              shortDesc: input.shortDesc ?? "",
-              duration: input.duration,
-              logoImg: input.logoImg,
-              videoUrl: input.videoUrl || null,
-              isPrivate,
-              isPaid: input.isPaid,
-              showInProfile: input.showInProfile ?? true,
-              isPersonalized: input.isPersonalized ?? false,
-              guideContent: input.guideContent === undefined ? undefined : input.guideContent?.trim() || null,
-              equipment: input.equipment ?? "",
-              trainingLevel: input.trainingLevel,
-            },
-          });
+          // The ONLY Course row update in this transaction. Actor ownership,
+          // expectedVersion and full-form metadata are applied atomically.
+          // The database BEFORE UPDATE trigger alone advances Course.version.
+          const newRows = actor.role === "ADMIN"
+            ? await tx.$queryRaw<{ id: string; version: number }[]>`
+                UPDATE "Course" SET
+                  "name" = ${input.name},
+                  "description" = ${input.description ?? ""},
+                  "shortDesc" = ${input.shortDesc ?? ""},
+                  "duration" = ${input.duration},
+                  "logoImg" = ${input.logoImg},
+                  "videoUrl" = ${input.videoUrl || null},
+                  "isPrivate" = ${isPrivate},
+                  "isPaid" = ${input.isPaid},
+                  "showInProfile" = ${input.showInProfile ?? true},
+                  "isPersonalized" = ${input.isPersonalized ?? false},
+                  "guideContent" = CASE WHEN ${input.guideContent === undefined}
+                    THEN "guideContent"
+                    ELSE ${input.guideContent?.trim() || null} END,
+                  "equipment" = ${input.equipment ?? ""},
+                  "trainingLevel" = ${input.trainingLevel}::"TrainingLevel",
+                  "updatedAt" = CURRENT_TIMESTAMP
+                WHERE "id" = ${input.id} AND "version" = ${input.expectedVersion}
+                RETURNING "id","version"
+              `
+            : await tx.$queryRaw<{ id: string; version: number }[]>`
+                UPDATE "Course" SET
+                  "name" = ${input.name},
+                  "description" = ${input.description ?? ""},
+                  "shortDesc" = ${input.shortDesc ?? ""},
+                  "duration" = ${input.duration},
+                  "logoImg" = ${input.logoImg},
+                  "videoUrl" = ${input.videoUrl || null},
+                  "isPrivate" = ${isPrivate},
+                  "isPaid" = ${input.isPaid},
+                  "showInProfile" = ${input.showInProfile ?? true},
+                  "isPersonalized" = ${input.isPersonalized ?? false},
+                  "guideContent" = CASE WHEN ${input.guideContent === undefined}
+                    THEN "guideContent"
+                    ELSE ${input.guideContent?.trim() || null} END,
+                  "equipment" = ${input.equipment ?? ""},
+                  "trainingLevel" = ${input.trainingLevel}::"TrainingLevel",
+                  "updatedAt" = CURRENT_TIMESTAMP
+                WHERE "id" = ${input.id} AND "authorId" = ${actor.id}
+                  AND "version" = ${input.expectedVersion}
+                RETURNING "id","version"
+              `;
+          if (newRows.length === 0) throw new CourseVersionNoMatch();
+          if (newRows.length !== 1 ||
+              newRows[0]?.id !== input.id ||
+              newRows[0]?.version !== input.expectedVersion + 1)
+            throw new Error("COURSE_VERSION_UNEXPECTED_UPDATE");
+          nextVersion = newRows[0].version;
 
           const existingDayLinks = await tx.dayOnCourse.findMany({
           where: { courseId: input.id },
@@ -225,7 +277,9 @@ export async function updateCourse(
         await tx.courseAccess.deleteMany({ where: { courseId: input.id } });
         if (isPrivate && input.allowedUsers?.length) {
           await tx.courseAccess.createMany({
-            data: input.allowedUsers.map(userId => ({ courseId: input.id, userId: String(userId) })),
+            data: input.allowedUsers.map(userId => ({
+              courseId: input.id, userId: String(userId),
+            })),
           });
         }
       },
@@ -235,8 +289,28 @@ export async function updateCourse(
     invalidateCourseContentCache(input.id);
     await publishCourseContentChange();
     logger.info("Курс обновлён", { courseId: input.id });
-    return { success: true };
+    return { success: true, version: nextVersion };
   } catch (error) {
+    if (error instanceof CourseVersionNoMatch) {
+      // No child writes were performed because the conditional UPDATE
+      // is the FIRST statement in the transactional mutation.
+      try {
+        const existing = actor.role === "ADMIN"
+          ? await prisma.$queryRaw<{ id: string }[]>`
+              SELECT "id" FROM "Course" WHERE "id" = ${input.id}
+            `
+          : await prisma.$queryRaw<{ id: string }[]>`
+              SELECT "id" FROM "Course"
+              WHERE "id" = ${input.id} AND "authorId" = ${actor.id}
+            `;
+        return existing.length === 1
+          ? { success: false, status: "stale", error: "Версия курса устарела" }
+          : { success: false, status: "not_found", error: "Курс не найден" };
+      } catch {
+        return { success: false, status: "unknown",
+          error: "Результат обновления курса неизвестен" };
+      }
+    }
     if (error instanceof Error && "code" in error) {
       try {
         handlePrismaError(error, "Курс");
@@ -245,7 +319,7 @@ export async function updateCourse(
           serviceError instanceof Error
             ? serviceError.message
             : "Ошибка при обновлении курса";
-        return { success: false, error: msg };
+        return { success: false, status: "unknown", error: msg };
       }
     }
     logger.error("Ошибка при обновлении курса", error as Error, {
@@ -412,11 +486,11 @@ export async function getCourseDraftWithRelations(
         user: a.user,
       })),
     };
-  } catch (error) {
-    logger.error("Ошибка при получении черновика курса", error as Error, {
-      courseId,
-      trainerId,
-    });
+  } catch {
+    // The caller intentionally treats source failures as masked NOT_FOUND.
+    // Never forward Prisma/driver error messages, stack, or actor/course IDs.
+    // Logger.error accepts message-only; no new Error means no captured stack.
+    logger.error("TRAINER_COURSE_DRAFT_READ_FAILED");
     return null;
   }
 }

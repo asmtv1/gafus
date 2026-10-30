@@ -21,11 +21,11 @@ function metadata(x: { ETag?: string; ContentLength?: number; ContentType?: stri
   if (!x.ETag || !Number.isSafeInteger(x.ContentLength) || x.ContentLength! <= 0 || x.ContentLength! > MAX_OBJECT_BYTES || !x.ContentType) throw new Error('INVALID_OBJECT_METADATA');
   return { etag: normalizeETag(x.ETag), bytes: x.ContentLength!, contentType: x.ContentType };
 }
-export function createGalleryS3Client(config: Pick<GalleryStorageConfig, 'bucket' | 'endpoint' | 'accessKeyId' | 'secretAccessKey'>): S3Client {
+export function createGalleryS3Client(config: Pick<GalleryStorageConfig, 'bucket' | 'endpoint' | 'accessKeyId' | 'secretAccessKey' | 'isolatedNonprod'>): S3Client {
   validateGalleryObjectConfig(config);
-  return new S3Client({ endpoint: config.endpoint, region: config.endpoint === 'https://s3.cloud.ru' ? 'ru-central-1' : 'ru-central1', forcePathStyle: true, credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey }, maxAttempts: 2, requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED' });
+  return new S3Client({ endpoint: config.endpoint, region: config.isolatedNonprod ? 'us-east-1' : 'ru-central-1', forcePathStyle: true, credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey }, maxAttempts: 2, requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED' });
 }
-export function createGalleryObjectStore(config: Pick<GalleryStorageConfig, 'bucket' | 'endpoint' | 'accessKeyId' | 'secretAccessKey'>, client = createGalleryS3Client(config)): GalleryObjectStore {
+export function createGalleryObjectStore(config: Pick<GalleryStorageConfig, 'bucket' | 'endpoint' | 'accessKeyId' | 'secretAccessKey' | 'isolatedNonprod'>, client = createGalleryS3Client(config)): GalleryObjectStore {
   const bucket = config.bucket;
   const head: GalleryObjectStore['head'] = async (key, signal) => {
     assertGalleryKey(key);
@@ -59,13 +59,26 @@ export function createGalleryObjectStore(config: Pick<GalleryStorageConfig, 'buc
       if (!bytes.byteLength || bytes.byteLength > MAX_OBJECT_BYTES || type !== 'image/webp') throw new Error('IMAGE_SIZE');
       const expected = { etag: objectMd5(bytes), bytes: bytes.byteLength, contentType: type };
       const matches = (actual: GalleryObjectMetadata | null) => actual && actual.etag === expected.etag && actual.bytes === expected.bytes && actual.contentType === type;
-      const existing = await head(key, signal);
-      if (existing) { if (!matches(existing)) throw new Error('IMMUTABLE_CONFLICT'); return existing; }
       if (signal?.aborted) throw new Error('LEASE_EXPIRED');
       try {
-        const result = await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes, ContentType: type, CacheControl: 'no-store', ContentMD5: createHash('md5').update(bytes).digest('base64'), IfNoneMatch: '*' }), { abortSignal: signal });
-        if (!result.ETag || normalizeETag(result.ETag) !== expected.etag) throw new Error('WRITE_ETAG_MISMATCH');
-      } catch (e) { if (status(e) !== 412 && status(e) !== 409) throw e; }
+        const result = await client.send(new PutObjectCommand({
+          Bucket: bucket, Key: key, Body: bytes, ContentType: type,
+          CacheControl: 'no-store',
+          ContentMD5: createHash('md5').update(bytes).digest('base64'),
+          IfNoneMatch: '*',
+        }), { abortSignal: signal });
+        if (result.ETag) {
+          if (normalizeETag(result.ETag) !== expected.etag)
+            throw new Error('WRITE_ETAG_MISMATCH');
+          // S3 accepted the conditional PUT with an integrity checksum.
+          // A redundant HEAD is unnecessary for a definitive success.
+          return expected;
+        }
+      } catch (e) {
+        if (status(e) !== 412 && status(e) !== 409) throw e;
+      }
+      // An absent ETag, 409, or 412 is ambiguous: independently verify the
+      // existing object, and fail closed on foreign data or unexpected ETags.
       const verified = await head(key, signal);
       if (!matches(verified)) throw new Error('IMMUTABLE_CONFLICT');
       return verified!;

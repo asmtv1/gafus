@@ -16,7 +16,7 @@ vi.mock("@gafus/logger", () => ({
   createWorkerLogger: () => ({ success: vi.fn(), error: vi.fn() }),
 }));
 vi.mock("./cloudru-media-dispatcher", () => ({
-  createCloudruMediaDispatcher: (...args: unknown[]) => {
+  createCloudruGalleryPoolDispatcher: (...args: unknown[]) => {
     mocks.createDispatcher(...args);
     return mocks.execute;
   },
@@ -62,7 +62,9 @@ describe("gallery immediate trigger worker", () => {
     vi.stubEnv("GALLERY_PROCESSOR_READY", "true");
     const { startGalleryProcessingTriggerWorker } = await import("./gallery-processing-trigger-worker");
     startGalleryProcessingTriggerWorker();
-    expect(mocks.createDispatcher.mock.calls[0]?.[2]).toEqual(["gafus-gallery-process"]);
+    expect(mocks.createDispatcher.mock.calls[0]?.[0]).toMatchObject({
+      GALLERY_PROCESSOR_READY: "true", CLOUDRU_MEDIA_JOBS_ENABLED: "true",
+    });
     expect(mocks.worker).toHaveBeenCalledWith("gallery-processing-trigger", expect.objectContaining({
       concurrency: 1, limiter: { max: 1, duration: 1500 },
     }));

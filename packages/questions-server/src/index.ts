@@ -1,13 +1,12 @@
 import { z } from "zod";
 import * as service from "@gafus/core/services/questions";
-import { uploadQuestionPhoto, deleteUnusedQuestionPhoto } from "@gafus/core/services/questions";
+import { deleteUnusedQuestionPhoto } from "@gafus/core/services/questions";
 import {
   getQuestionModeration,
   moderateQuestionReport,
   unblockQuestionsUser,
 } from "@gafus/core/services/questions";
 import { QuestionError } from "@gafus/core/services/questions";
-import { QUESTION_LIMITS } from "@gafus/types";
 const pageSchema = z.coerce.number().int().min(1).max(10000).default(1);
 /** Shared request decoding. No authorization, quotas, or state rules in adapters. */
 export async function dispatchQuestionsRequest(userId: string, request: Request, path: string) {
@@ -21,21 +20,9 @@ export async function dispatchQuestionsRequest(userId: string, request: Request,
     if (method === "POST") return service.createQuestion(userId, await body());
   }
   if (parts[0] === "photos" && parts.length <= 2) {
-    if (method === "POST" && parts.length === 1) {
-      const length = Number(request.headers.get("content-length"));
-      if (length > QUESTION_LIMITS.photoBytes + 65536)
-        throw new QuestionError("PHOTO_SIZE", "Фото должно быть не больше 10 МБ", 413);
-      const bytes = await readLimitedBody(request, QUESTION_LIMITS.photoBytes + 65536);
-      const form = await new Response(bytes, {
-        headers: { "Content-Type": request.headers.get("content-type") ?? "" },
-      }).formData();
-      const file = form.get("file");
-      if (!file || typeof file === "string")
-        throw new QuestionError("PHOTO_REQUIRED", "Выберите фото");
-      if (file.size > QUESTION_LIMITS.photoBytes)
-        throw new QuestionError("PHOTO_SIZE", "Фото должно быть не больше 10 МБ", 413);
-      return uploadQuestionPhoto(userId, new Uint8Array(await file.arrayBuffer()));
-    }
+    if (method === "POST" && parts.length === 1)
+      throw new QuestionError("PHOTO_UPLOAD_V2_REQUIRED",
+        "Используйте прямую загрузку фото",410);
     if (method === "DELETE" && parts[1]) return deleteUnusedQuestionPhoto(userId, parts[1]);
   }
   if (parts[0] === "moderation") {

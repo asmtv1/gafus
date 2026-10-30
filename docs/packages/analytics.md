@@ -14,6 +14,8 @@
 
 Вендорские SDK подключаются опционально в приложениях, не в корне пакета.
 
+> The Next.js/NextAuth-specific layout references below are historic and must not be treated as current Vite integration. Current sources: apps/web-vite/src and docs/current/ARCHITECTURE.md.
+
 ## Web: согласие, очередь, порядок провайдеров (F2–F4, F3)
 
 - **События согласия:** `CookieConsentBanner` / `resetCookieConsent` диспатчат `gafus:cookieConsentChange` (см. [cookie consent](../features/cookie-consent.md)). `AnalyticsProvider` подписывается и вызывает `syncWebAnalyticsWithConsent` с `NEXT_PUBLIC_YM_COUNTER_ID` (пустой ID — тихий no-op).
@@ -32,4 +34,4 @@
 ## Связанные документы
 
 - [Cookie consent и события согласия](../features/cookie-consent.md) — web: захват после `accepted`
-- [apps/web](../apps/web.md), [apps/mobile](../apps/mobile-rn.md) — env и встраивание
+- [apps/web](../current/ARCHITECTURE.md), [apps/mobile](../apps/mobile-rn.md) — env и встраивание

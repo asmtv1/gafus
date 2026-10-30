@@ -1,97 +1,80 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocked = vi.hoisted(() => ({
-  upload: vi.fn(),
-  remove: vi.fn(),
-  sign: vi.fn(),
-  reserve: vi.fn(),
-  commit: vi.fn(),
-  findUnbound: vi.fn(),
-  deleteRow: vi.fn(),
-  lock: vi.fn(),
-  cleanup: vi.fn(),
+import { beforeEach,describe,expect,it,vi } from "vitest";
+
+const mocks=vi.hoisted(()=>({
+  find:vi.fn(),remove:vi.fn(),deleteRow:vi.fn(),
+  lock:vi.fn(),schedule:vi.fn(),janitorFind:vi.fn(),
 }));
-vi.mock("file-type", () => ({
-  fileTypeFromBuffer: vi.fn().mockResolvedValue({ ext: "jpg", mime: "image/jpeg" }),
+vi.mock("@gafus/cdn-upload",()=>({
+  deleteFileFromCDN:mocks.remove,
+  parsePrivateMediaLocation:(location:string)=>location.startsWith("cloudru:")
+    ?{key:location}:null,
 }));
-vi.mock("@gafus/cdn-upload", () => ({
-  uploadBufferToCDN: mocked.upload,
-  deleteFileFromCDN: mocked.remove,
-  privateMediaEnabled: () => true,
-  privateMediaLocation: () => "cloudru:questions:questions/uploads/questions/u/photo.jpg",
-  parsePrivateMediaLocation: (v: string) =>
-    v.startsWith("cloudru:")
-      ? { kind: "questions", key: "questions/uploads/questions/u/photo.jpg" }
-      : null,
-  signPrivateUserMedia: mocked.sign,
+vi.mock("./service",()=>({
+  questionActor:vi.fn().mockResolvedValue({id:"owner-1"}),
 }));
-vi.mock("./service", () => ({ questionActor: vi.fn().mockResolvedValue({ id: "u" }) }));
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    $transaction: vi.fn(async (cb) => {
-      const n = ++sequence;
-      if (n === 1) return mocked.reserve();
-      if (n === 2) return mocked.commit();
-      if (n === 3) return mocked.cleanup(cb);
-      throw new Error("UNEXPECTED_TX");
+vi.mock("./mediaV2Cleanup",()=>({
+  scheduleQuestionsV2Cleanup:mocks.schedule,
+}));
+vi.mock("@gafus/prisma",()=>({
+  prisma:{
+    $transaction:async (callback:(tx:unknown)=>Promise<unknown>)=>callback({
+      $queryRaw:mocks.lock,
+      questionPhoto:{findFirst:mocks.find,delete:mocks.deleteRow},
     }),
+    questionPhoto:{findMany:mocks.janitorFind},
   },
 }));
-import { uploadQuestionPhoto } from "./photos";
-let sequence = 0;
-const source = new Uint8Array([255, 216, 255, 217]);
-const dbRow = {
-  id: "photo-id",
-  url: "cloudru:questions:questions/uploads/questions/u/photo.jpg",
-  storagePath: "cloudru:questions:questions/uploads/questions/u/photo.jpg",
-};
-beforeEach(() => {
-  vi.clearAllMocks();
-  sequence = 0;
-  mocked.reserve.mockResolvedValue({ id: "photo-id", url: "" });
-  mocked.commit.mockResolvedValue({ id: "photo-id", url: dbRow.url });
-  mocked.upload.mockResolvedValue(dbRow.url);
-  mocked.sign.mockRejectedValue(new Error("SIGNING_FAILED"));
-  mocked.remove.mockResolvedValue(undefined);
-  mocked.cleanup.mockImplementation(async (cb) =>
-    cb({
-      $queryRaw: mocked.lock.mockResolvedValue([{ id: "u" }]),
-      questionPhoto: { findFirst: mocked.findUnbound, delete: mocked.deleteRow },
-    }),
-  );
-  mocked.findUnbound.mockResolvedValue(null);
+import { deleteUnusedQuestionPhoto,cleanupUnusedQuestionPhotos } from "./photos";
+beforeEach(()=>{
+  vi.resetAllMocks();
+  mocks.lock.mockResolvedValue([{id:"owner-1"}]);
+  mocks.schedule.mockResolvedValue(undefined);
+  mocks.remove.mockResolvedValue(undefined);
+  mocks.deleteRow.mockResolvedValue({id:"photo-1"});
+  mocks.janitorFind.mockResolvedValue([]);
 });
-describe("question Cloud.ru upload compensation", () => {
-  it("never deletes a photo attached while the private URL was being signed", async () => {
-    await expect(uploadQuestionPhoto("u", source)).rejects.toThrow("SIGNING_FAILED");
-    expect(mocked.findUnbound).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          id: "photo-id",
-          ownerId: "u",
-          questionId: null,
-          answerId: null,
-        }),
-      }),
-    );
-    expect(mocked.remove).not.toHaveBeenCalled();
-    expect(mocked.deleteRow).not.toHaveBeenCalled();
+describe("Questions Photo V2 cancellation compensation",()=>{
+  it("persists cleanup before deleting V2 photo row; never deletes S3 inside transaction",async()=>{
+    mocks.find.mockResolvedValue({id:"photo-1",ownerId:"owner-1",
+      storagePath:"questions-v2:questions/v2/owner-1/media/incoming/source.jpg",url:""});
+    await expect(deleteUnusedQuestionPhoto("owner-1","photo-1"))
+      .resolves.toEqual({id:"photo-1"});
+    expect(mocks.schedule).toHaveBeenCalledOnce();
+    expect(mocks.schedule).toHaveBeenCalledWith(expect.anything(),["photo-1"]);
+    expect(mocks.deleteRow).toHaveBeenCalledWith({where:{id:"photo-1"}});
+    expect(mocks.remove).not.toHaveBeenCalled();
   });
-  it("deletes only a still-unbound photo after acquiring the owner lock", async () => {
-    mocked.findUnbound.mockResolvedValue(dbRow);
-    await expect(uploadQuestionPhoto("u", source)).rejects.toThrow("SIGNING_FAILED");
-    expect(mocked.lock).toHaveBeenCalledOnce();
-    expect(mocked.remove).toHaveBeenCalledWith(dbRow.url);
-    expect(mocked.deleteRow).toHaveBeenCalledWith({ where: { id: "photo-id" } });
+  it("allows safe removal of existing legacy objects without reopening old upload",async()=>{
+    mocks.find.mockResolvedValue({id:"old-photo",ownerId:"owner-1",
+      storagePath:"questions/owner-1/old.jpg",url:"https://legacy.invalid/old.jpg"});
+    await deleteUnusedQuestionPhoto("owner-1","old-photo");
+    expect(mocks.schedule).not.toHaveBeenCalled();
+    expect(mocks.remove).toHaveBeenCalledWith("questions/owner-1/old.jpg");
+    expect(mocks.deleteRow).toHaveBeenCalledOnce();
   });
-  it("retains the durable reservation if provider cleanup fails", async () => {
-    mocked.findUnbound.mockResolvedValue(dbRow);
-    mocked.remove.mockRejectedValue(new Error("S3_TIMEOUT"));
-    await expect(uploadQuestionPhoto("u", source)).rejects.toThrow("SIGNING_FAILED");
-    expect(mocked.deleteRow).not.toHaveBeenCalled();
+  it("refuses attached/foreign photos without S3 or DB deletion",async()=>{
+    mocks.find.mockResolvedValue(null);
+    await expect(deleteUnusedQuestionPhoto("owner-1","attached"))
+      .rejects.toMatchObject({code:"PHOTO_FORBIDDEN",status:403});
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.schedule).not.toHaveBeenCalled();
+    expect(mocks.deleteRow).not.toHaveBeenCalled();
   });
-  it("does not delete data if another transaction removed the reservation", async () => {
-    mocked.findUnbound.mockResolvedValue(null);
-    await expect(uploadQuestionPhoto("u", source)).rejects.toThrow("SIGNING_FAILED");
-    expect(mocked.remove).not.toHaveBeenCalled();
+  it("retains legacy row when S3 deletion failed",async()=>{
+    mocks.find.mockResolvedValue({id:"old-photo",ownerId:"owner-1",
+      storagePath:"questions/owner-1/old.jpg",url:""});
+    mocks.remove.mockRejectedValue(new Error("S3_OFFLINE"));
+    await expect(deleteUnusedQuestionPhoto("owner-1","old-photo"))
+      .rejects.toThrow("S3_OFFLINE");
+    expect(mocks.deleteRow).not.toHaveBeenCalled();
+  });
+  it("janitor retries only old unbound rows and delegates V2 to durable cleanup",async()=>{
+    mocks.janitorFind.mockResolvedValueOnce([{id:"photo-1",ownerId:"owner-1",
+      createdAt:new Date("2026-01-01")}]);
+    mocks.find.mockResolvedValue({id:"photo-1",ownerId:"owner-1",
+      storagePath:"questions-v2:key",url:""});
+    await cleanupUnusedQuestionPhotos();
+    expect(mocks.schedule).toHaveBeenCalledOnce();
+    expect(mocks.remove).not.toHaveBeenCalled();
   });
 });

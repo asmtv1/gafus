@@ -132,6 +132,8 @@ export async function dispatchGalleryRequest(
   enqueue: (id: string) => Promise<void> = enqueueGalleryProcessing,
 ): Promise<unknown> {
   const method = request.method.toUpperCase();
+  if (process.env.GAFUS_LOCAL_READONLY_CDN === "enabled" && method !== "GET")
+    throw new GalleryError("METHOD_NOT_ALLOWED", "Просмотр реальных медиа: изменения отключены", 405);
   if (!allowedMethods.has(method)) throw new GalleryError("METHOD_NOT_ALLOWED", "Метод не поддерживается", 405);
   const parts = decodeParts(path);
   const url = new URL(request.url);

@@ -58,6 +58,11 @@
               "scheme": "https",
               "host": "gafus.ru",
               "pathPrefix": "/training"
+            },
+            {
+              "scheme": "https",
+              "host": "gafus.ru",
+              "pathPrefix": "/reset-password"
             }
           ],
           "category": [

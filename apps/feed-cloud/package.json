@@ -5,15 +5,18 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:chat2-job": "node scripts/build-chat2-job.mjs",
+    "build:questions-photo-job": "node scripts/build-questions-photo-job.mjs",
     "typecheck": "tsc --noEmit",
     "start": "node dist/server.js",
     "package:origin": "node scripts/package-origin.mjs"
   },
   "dependencies": {
+    "@gafus/cdn-upload": "workspace:*",
     "@gafus/feed-cloud": "workspace:*",
     "@gafus/feed-storage": "workspace:*",
     "@aws-sdk/client-s3": "3.980.0",
-    "sharp": "0.34.3",
+    "sharp": "0.35.5",
     "@aws-sdk/client-sqs": "3.980.0"
   },
   "devDependencies": {

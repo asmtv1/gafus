@@ -16,6 +16,7 @@ export async function processFeedJobs(): Promise<number> {
     core,
     objects: createFeedCloudObjects(),
     engine: sharpFeedEngine,
+    onMetrics: metrics => process.stdout.write(`FEED_MEDIA_V2_METRIC ${JSON.stringify(metrics)}\n`),
   });
   const workerType = process.env.FEED_WORKER_TYPE;
   if (workerType !== "photo" && workerType !== "video") throw new Error("INVALID_FEED_WORKER_TYPE");

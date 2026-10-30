@@ -4,6 +4,11 @@
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./cookie-consent": { "types": "./dist/cookieConsentUtils.d.ts", "default": "./dist/cookieConsentUtils.js" },
+    "./voximplant-room": { "types": "./dist/VoxConsultationRoom.d.ts", "default": "./dist/VoxConsultationRoom.js" }
+  },
   "scripts": {
     "prebuild": "pnpm clean",
     "build": "tsc -p tsconfig.json",
@@ -18,8 +23,6 @@
     "@gafus/error-handling": "workspace:*",
     "@mui/icons-material": "7.1.0",
     "@mui/material": "7.1.0",
-    "next": "15.5.7",
-    "next-auth": "4.24.11",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "voximplant-websdk": "4.14.0-3018"
@@ -32,7 +35,6 @@
     "typescript": "^5.8.3"
   },
   "peerDependencies": {
-    "next": "15.5.7",
     "react": "19.2.1",
     "react-dom": "19.2.1"
   }

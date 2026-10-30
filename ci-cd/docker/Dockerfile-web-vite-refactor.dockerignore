@@ -1,0 +1,10 @@
+# The release container needs ONLY built static assets + Nginx config.
+# Default-deny keeps secrets, project snapshots, source and dependencies out.
+**
+!apps
+!apps/web-vite
+!apps/web-vite/dist
+!apps/web-vite/dist/**
+!ci-cd
+!ci-cd/docker
+!ci-cd/docker/nginx-vite-refactor.conf

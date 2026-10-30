@@ -1,5 +1,5 @@
 import { prisma } from "@gafus/prisma";
-import { hasGafusUnlockForUserStep, hasGafusUnlockForVideoUrl } from "./gafusInterop";
+import { hasGafusUnlockForUserStep, findGafusUnlockedStepForVideoUrl } from "./gafusInterop";
 import { hasActiveGafusCourseStepAccess } from "../contentAccess";
 
 import { SubscriptionOrCreditsRequiredError } from "./errors";
@@ -104,9 +104,31 @@ async function resolveTargetForUserStep(input: {
           step: { select: { type: true } },
         },
       },
+      userTraining: {
+        select: {
+          dayOnCourse: {
+            select: { course: { select: { id: true, isPaid: true, isPrivate: true } } },
+          },
+        },
+      },
     },
   });
   if (userStep) {
+    // Free public course children share /training/day's entitlement, including
+    // exam results/submission. A paid step still requires subscription/Gafus;
+    // private assignment is not turned into public access.
+    const policy = userStep.userTraining.dayOnCourse.course;
+    if (policy.isPrivate) {
+      // Private course assignment is required even for paid subscribers.
+      // Revocation must fence all existing userStep IDs, not only the page GET.
+      const assigned = await prisma.courseAccess.findFirst({
+        where: { userId: input.userId, courseId: policy.id },
+        select: { courseId: true },
+      });
+      if (!assigned) throw new SubscriptionOrCreditsRequiredError();
+      return null;
+    }
+    if (!policy.isPaid) return null;
     return courseStepTarget(userStep.stepOnDay.id, userStep.stepOnDay.step.type);
   }
 
@@ -160,9 +182,26 @@ async function resolveTargetForVideoUrl(input: {
           step: { select: { type: true } },
         },
       },
+      userTraining: {
+        select: {
+          dayOnCourse: {
+            select: { course: { select: { id: true, isPaid: true, isPrivate: true } } },
+          },
+        },
+      },
     },
   });
   if (userStep) {
+    const policy = userStep.userTraining.dayOnCourse.course;
+    if (policy.isPrivate) {
+      const assignment = await prisma.courseAccess.findFirst({
+        where: { userId: input.userId, courseId: policy.id },
+        select: { courseId: true },
+      });
+      if (!assignment) throw new SubscriptionOrCreditsRequiredError();
+      return null;
+    }
+    if (!policy.isPaid) return null;
     return courseStepTarget(userStep.stepOnDay.id, userStep.stepOnDay.step.type);
   }
 
@@ -230,22 +269,9 @@ export async function getPremiumOrRewardedAccess(input: {
     };
   }
 
-  if (
-    await hasRewardedTargetUnlock({
-      userId: input.userId,
-      platform: input.platform,
-      target: input.target,
-      now: input.now,
-    })
-  ) {
-    return {
-      allowed: true,
-      source: "REWARDED",
-      skippedDueToPremium: false,
-      target: input.target,
-    };
-  }
-
+  // Retired: rewarded ads are NOT an entitlement for educational content.
+  // Only the occurrence-specific Gafus grant checked by the caller, or
+  // an active Premium entitlement, may unlock this target.
   throw new SubscriptionOrCreditsRequiredError();
 }
 
@@ -286,13 +312,64 @@ export async function requirePremiumOrRewardedAccessForVideoUrl(input: {
   videoUrl: string;
   now?: Date;
 }): Promise<PremiumOrRewardedAccessDto | null> {
+  // Check actual occurrence grants before the legacy UserStep-based target
+  // lookup: a newly purchased step/guide may have no progress row yet.
+  const unlockedStepId = await findGafusUnlockedStepForVideoUrl(input);
+  if (unlockedStepId) {
+    return {
+      allowed: true, source: "GAFUS", skippedDueToPremium: false,
+      target: { targetType: "COURSE_STEP", targetId: unlockedStepId },
+    };
+  }
   const target = await resolveTargetForVideoUrl(input);
   if (target === null) return null;
   if (target === undefined) {
+    // No UserStep exists yet. A known private video must not become public to
+    // any Premium user through the legacy "unknown video -> Premium" fallback.
+    // The video may belong to more than one course; accept an independently
+    // authorized occurrence and reject otherwise.
+    const occurrences = await prisma.dayOnCourse.findMany({
+      where: { day: { stepLinks: { some: { step: { videoUrl: input.videoUrl } } } } },
+      select: {
+        course: { select: { id: true, isPrivate: true, isPaid: true } },
+        day: { select: { stepLinks: {
+          where: { step: { videoUrl: input.videoUrl } },
+          select: { id: true, step: { select: { type: true } } },
+        } } },
+      },
+    });
+    if (occurrences.length > 0) {
+      for (const occurrence of occurrences) {
+        if (occurrence.course.isPrivate) {
+          const assignment = await prisma.courseAccess.findFirst({
+            where: { userId: input.userId, courseId: occurrence.course.id },
+            select: { courseId: true },
+          });
+          if (assignment) return null;
+          continue;
+        }
+        if (!occurrence.course.isPaid) return null;
+        const allowed = occurrence.day.stepLinks.some(
+          link => !isRewardedMonetizedStepType(link.step.type),
+        );
+        if (allowed) return null;
+        const paidStep = occurrence.day.stepLinks.find(
+          link => isRewardedMonetizedStepType(link.step.type),
+        );
+        if (paidStep) {
+          try {
+            return await getPremiumOrRewardedAccess({
+              userId: input.userId, platform: input.platform,
+              target: { targetType: "COURSE_STEP", targetId: paidStep.id }, now: input.now,
+            });
+          } catch (error) {
+            if (!(error instanceof SubscriptionOrCreditsRequiredError)) throw error;
+          }
+        }
+      }
+      throw new SubscriptionOrCreditsRequiredError();
+    }
     return requirePremiumFallback(input);
-  }
-  if (target.targetType === "COURSE_STEP" && await hasGafusUnlockForVideoUrl(input)) {
-    return { allowed: true, source: "GAFUS", skippedDueToPremium: false, target };
   }
   return requirePremiumOrRewardedUnlock({
     userId: input.userId,

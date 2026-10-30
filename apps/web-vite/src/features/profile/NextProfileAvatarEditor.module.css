@@ -1,0 +1,53 @@
+/* Refactor-only avatar picker; original Next Bio CSS stays byte-identical.
+ * Relocates prior avatar visual changes without losing any functionality. */
+.editorRoot {position:relative;}
+.avatarEditButton {
+  position: absolute;
+  /* Verified source Chromium: Next edit control sits 4px above this
+   * adapter's former desktop location (185 vs 189 at 1280×800). */
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: rgba(0,0,0,.54);
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  box-shadow: 0 2px 1px -1px rgba(0,0,0,.2),
+    0 1px 1px 0 rgba(0,0,0,.14), 0 1px 3px 0 rgba(0,0,0,.12);
+}
+.avatarEditButton:focus-visible { outline: 3px solid #61733a; outline-offset: 3px; }
+.avatarEditor {
+  position: absolute;
+  z-index: 4;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(270px, calc(100vw - 56px));
+  padding: 12px;
+  border: 1px solid #d7dacb;
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  box-shadow: 0 5px 24px rgba(0,0,0,.12);
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  font-size: 13px;
+}
+.avatarEditor input { max-width: 100%; }
+.avatarEditor p { overflow-wrap: anywhere; margin: 0; }
+.avatarActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.avatarActions button { cursor: pointer; }
+
+/* The original MUI IconButton is 44×44 on the mobile screenshot; its
+ * positioned edit glyph is not the typographic ✎ character. */
+@media (max-width: 470px) {
+  /* Source (390×844): x45,y145,w44,h44; Vite was x45,y150. */
+  .avatarEditButton { width: 44px; height: 44px; bottom: 5px; }
+}

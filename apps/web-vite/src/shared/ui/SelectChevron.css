@@ -1,0 +1,33 @@
+/* Unified dropdown/disclosure chevron. Same shared SVG file for both native
+ * selects and React <SelectChevron />; do not copy unicode arrows into pages.
+ * Include owner-action dialogs portaled to document.body: those are outside
+ * .gafus-app, so Web-scoped styling alone leaves native arrows visible.
+ * Native keyboard, focus and accessibility semantics are untouched. */
+:is(.gafus-app, .admin-layout, [data-pet-action-dialog="true"]) select:not([multiple]):not([size]):not([hidden]):not(.gafus-visually-hidden) {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background-image: url("./SelectChevron.svg") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 18px 18px !important;
+  padding-right: 39px !important;
+  cursor: pointer;
+}
+:is(.gafus-app, .admin-layout, [data-pet-action-dialog="true"]) select:not([multiple]):not([size]):disabled {
+  cursor: not-allowed;
+}
+.gafus-select-chevron {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  vertical-align: middle;
+  flex-shrink: 0;
+  object-fit: contain;
+  transition: transform 150ms ease;
+  pointer-events: none;
+}
+.gafus-select-chevron-expanded { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .gafus-select-chevron { transition: none; }
+}

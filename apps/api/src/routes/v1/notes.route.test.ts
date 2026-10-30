@@ -42,7 +42,42 @@ describe("notes route contracts", () => {
       data: [{ id: "note-1" }],
       success: true,
     });
-    expect(getStudentNotesMock).toHaveBeenCalledWith("user-1");
+    expect(getStudentNotesMock).toHaveBeenCalledWith("user-1", { throwOnError: true });
+  });
+
+  it("preserves student notes JSON including nested Date serialization and privacy", async () => {
+    getStudentNotesMock.mockResolvedValueOnce([
+      {
+        id: "synthetic-note-1",
+        createdAt: new Date("2026-04-05T06:07:08.000Z"),
+        entries: [{ id: "entry-1", updatedAt: new Date("2026-04-06T07:08:09.000Z") }],
+      },
+    ]);
+    const response = await createTestApp().request("/api/v1/notes/student");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(await response.json()).toEqual({
+      success: true,
+      data: [
+        {
+          id: "synthetic-note-1",
+          createdAt: "2026-04-05T06:07:08.000Z",
+          entries: [{ id: "entry-1", updatedAt: "2026-04-06T07:08:09.000Z" }],
+        },
+      ],
+    });
+    expect(getStudentNotesMock).toHaveBeenCalledExactlyOnceWith("user-1", { throwOnError: true });
+  });
+
+  it("preserves an empty Core list as successful private no-store []", async () => {
+    getStudentNotesMock.mockResolvedValueOnce([]);
+    const response = await createTestApp().request("/api/v1/notes/student");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(await response.json()).toEqual({ success: true, data: [] });
+    expect(getStudentNotesMock).toHaveBeenCalledExactlyOnceWith("user-1", { throwOnError: true });
   });
 
   it("maps service failures to an internal error response", async () => {

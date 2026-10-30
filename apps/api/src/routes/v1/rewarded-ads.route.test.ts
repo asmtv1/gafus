@@ -59,7 +59,7 @@ function createAuthenticatedTestApp() {
   return app;
 }
 
-describe("rewarded ads routes", () => {
+describe.skip("legacy rewarded ads routes (retired)", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns direct-access status for a supported mobile client", async () => {
@@ -195,5 +195,30 @@ describe("rewarded ads routes", () => {
       success: false,
       code: "REWARDED_DAILY_LIMIT_REACHED",
     });
+  });
+});
+
+
+describe("retired rewarded-ad API cannot mint competing rights", () => {
+  it("blocks reads, session creation, grants and ad events before Core handlers", async () => {
+    const app = createAuthenticatedTestApp();
+    for (const [method, path] of [
+      ["GET", "/api/v1/rewarded-ads/status?platform=ANDROID&targetType=ARTICLE&targetId=article-1"],
+      ["POST", "/api/v1/rewarded-ads/session"],
+      ["POST", "/api/v1/rewarded-ads/grant"],
+      ["POST", "/api/v1/rewarded-ads/events"],
+    ] as const) {
+      const result = await app.request(path, {
+        method, headers: { ...MOBILE_HEADERS, "content-type": "application/json" },
+        ...(method === "POST" ? { body: "{}" } : {}),
+      });
+      expect(result.status).toBe(410);
+      expect(await result.json()).toMatchObject({
+        success: false, code: "REWARDED_ACCESS_RETIRED",
+      });
+    }
+    expect(createRewardedAdSessionMock).not.toHaveBeenCalled();
+    expect(grantRewardedTargetAccessMock).not.toHaveBeenCalled();
+    expect(recordRewardedAdEventMock).not.toHaveBeenCalled();
   });
 });

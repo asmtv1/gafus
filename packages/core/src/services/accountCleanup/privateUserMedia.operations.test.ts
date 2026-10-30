@@ -115,6 +115,16 @@ describe("private Cloud.ru S3 operations", () => {
     expect(input.ResponseContentDisposition).toContain("filename*=UTF-8''");
     expect(s3.signed.mock.calls[0]![2]).toEqual({ expiresIn: 120 });
   });
+  it("never deletes Cloud.ru media using an isolated dev runtime or vice versa", async () => {
+    const cloud="cloudru:documents:documents/uploads/users/u/pets/p/documents/id.pdf";
+    const local="isodev-private:documents:documents/uploads/users/u/pets/p/documents/id.pdf";
+    process.env.GAFUS_ISOLATED_NONPROD_S3="enabled";
+    await expect(deletePrivateUserMedia(cloud)).rejects.toThrow("PRIVATE_MEDIA_PROVIDER_MISMATCH");
+    delete process.env.GAFUS_ISOLATED_NONPROD_S3;
+    await expect(deletePrivateUserMedia(local)).rejects.toThrow("PRIVATE_MEDIA_PROVIDER_MISMATCH");
+    await expect(signPrivateUserMedia(local)).rejects.toThrow("PRIVATE_MEDIA_PROVIDER_MISMATCH");
+    expect(s3.send).not.toHaveBeenCalled();
+  });
   it("does not delete anything while Cloud.ru bucket versioning is unverified", async () => {
     delete process.env.CLOUDRU_DOCUMENTS_BUCKET_VERSIONING;
     await expect(

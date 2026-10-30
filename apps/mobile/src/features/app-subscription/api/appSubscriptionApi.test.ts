@@ -42,6 +42,16 @@ describe("appSubscriptionApi promo contracts", () => {
     });
   });
 
+  it("adds requestGuard only for an explicit owner-bound payment", async () => {
+    const bound = () => true;
+    await appSubscriptionApi.startYookassa("MONTHLY", undefined, bound);
+    expect(apiClientMock).toHaveBeenCalledWith("/api/v1/app-subscription/yookassa/start", {
+      method: "POST",
+      body: { planCode: "MONTHLY" },
+      requestGuard: bound,
+    });
+  });
+
   it("keeps ordinary YooKassa checkout backward compatible", async () => {
     await appSubscriptionApi.startYookassa("MONTHLY");
 

@@ -25,8 +25,27 @@ type Job = {
 };
 let running = false;
 
-/** Retry indefinitely, with expiring claims and token-fenced updates across worker replicas. */
+/** Existing unrestricted scheduled-worker entry: unchanged behavior. */
 export async function processAccountStorageCleanup(limit = 3) {
+  return processAccountStorageCleanupInternal(limit, null);
+}
+
+/** Restricted original worker path for a single synthetic account's PRIVATE scopes.
+ * Never drains the shared WORK queue or calls external CDN/Stream providers.
+ * Kept off by default; caller must prove project-local isolated dev runtime.
+ */
+export async function processPrivateAccountStorageCleanupForOwner(ownerId: string, limit = 3) {
+  if (!/^[A-Za-z0-9_-]{1,128}$/.test(ownerId) ||
+      !Number.isSafeInteger(limit) || limit < 1 || limit > 10 ||
+      process.env.NODE_ENV !== "development" ||
+      process.env.GAFUS_LOCAL_ISOLATED_API !== "1" ||
+      process.env.GAFUS_ISOLATED_NONPROD_S3 !== "enabled")
+    throw new Error("CLEANUP_OWNER_SCOPED_LOCAL_ONLY_DENIED");
+  return processAccountStorageCleanupInternal(limit, ownerId);
+}
+
+/** Token-fenced original worker algorithm, with optional exact-owner scope guard. */
+async function processAccountStorageCleanupInternal(limit: number, selectedOwner: string | null) {
   if (running) return;
   running = true;
   try {
@@ -37,8 +56,10 @@ export async function processAccountStorageCleanup(limit = 3) {
           "leaseUntil" = timezone('UTC', now()) + interval '5 minutes', "attempts" = "attempts" + 1, "updatedAt" = timezone('UTC', now())
         WHERE "id" = (
           SELECT "id" FROM "AccountStorageCleanup"
-          WHERE ("status" = 'pending' AND "availableAt" <= timezone('UTC', now()))
-             OR ("status" = 'processing' AND "leaseUntil" < timezone('UTC', now()))
+          WHERE (("status" = 'pending' AND "availableAt" <= timezone('UTC', now()))
+              OR ("status" = 'processing' AND "leaseUntil" < timezone('UTC', now())))
+            AND (${selectedOwner}::text IS NULL OR "ownerId" = ${selectedOwner})
+            AND (${selectedOwner}::text IS NULL OR "scope" IN ('questions', 'documents'))
           ORDER BY "availableAt" FOR UPDATE SKIP LOCKED LIMIT 1
         ) RETURNING *`;
       const job = jobs[0];

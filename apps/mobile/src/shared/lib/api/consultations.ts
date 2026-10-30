@@ -65,18 +65,21 @@ export const consultationsApi = {
       { suppressSubscriptionPaywall: true },
     ),
 
-  book: (body: {
-    slotId: string;
-    idempotencyKey: string;
-    clientOwnerName: string;
-    clientPhone: string;
-    petName: string;
-    petGender: "MALE" | "FEMALE";
-    petAge: string;
-    petBreed: string;
-    clientProblem: string;
-    clientSelfHelpAttempt: string;
-  }): Promise<ApiResponse<BookSlotApiResult>> =>
+  book: (
+    body: {
+      slotId: string;
+      idempotencyKey: string;
+      clientOwnerName: string;
+      clientPhone: string;
+      petName: string;
+      petGender: "MALE" | "FEMALE";
+      petAge: string;
+      petBreed: string;
+      clientProblem: string;
+      clientSelfHelpAttempt: string;
+    },
+    requestGuard?: () => boolean,
+  ): Promise<ApiResponse<BookSlotApiResult>> =>
     apiClient<BookSlotApiResult>("/api/v1/consultations/book", {
       method: "POST",
       body: {
@@ -92,11 +95,30 @@ export const consultationsApi = {
         clientSelfHelpAttempt: body.clientSelfHelpAttempt,
       },
       suppressSubscriptionPaywall: true,
+      ...(requestGuard ? { requestGuard } : {}),
     }),
 
   myBookings: (cursor?: string): Promise<ApiResponse<ConsultationsMyResponse>> => {
     const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
     return apiClient<ConsultationsMyResponse>(`/api/v1/consultations/my${q}`);
+  },
+
+  /** Trainer-only endpoints; Hono independently enforces role and booking owner. */
+  trainerBookings: (): Promise<ApiResponse<ConsultationBookingDto[]>> =>
+    apiClient<ConsultationBookingDto[]>("/api/v1/consultations/trainer/bookings"),
+
+  trainerTransition: (
+    bookingId: string,
+    mode: "confirm" | "reject" | "complete" | "no-show",
+    requestGuard: () => boolean,
+  ): Promise<ApiResponse<{ bookingId: string }>> => {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(bookingId) || !requestGuard())
+      return Promise.resolve({ success: false, error: "Сессия изменилась" });
+    return apiClient<{ bookingId: string }>(
+      "/api/v1/consultations/trainer/bookings/" + encodeURIComponent(bookingId) + "/" + mode,
+      { method: "POST", body: mode === "reject" ? { reason: "" } : {},
+        requestGuard, skipAuthRefreshReplay: true },
+    );
   },
 
   cancelBooking: (bookingId: string): Promise<ApiResponse<{ bookingId: string }>> =>

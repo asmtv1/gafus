@@ -1,0 +1,17 @@
+/* Restore the retained Next ProfileSections visitor radio geometry without
+ * changing global PrimaryButton styling or shared legacy source assets.
+ * PrimaryButton .root is sometimes injected after .visitorToggle, making
+ * equal-specificity font/height/radius declarations order-dependent. */
+.radio.radio {
+  box-sizing: border-box;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 10px 20px;
+  border-radius: 13px;
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 470px) {
+  .radio.radio { padding-inline: 10px; font-size: 12px; }
+}

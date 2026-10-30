@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, it, expect, vi } from "vitest";
 import {
   nextMediaCdnHealth, parseMonitorState, probeMediaCdn, sampleMediaCdnHealth,
@@ -18,10 +19,16 @@ describe("server-side CDN health monitor", () => {
     expect(url).toMatch(/^https:\/\/mepsuduyokabib\.begetcdn\.cloud\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\/__cdn_monitor__\/__cdn_monitor__\/photos\//);
     expect(url).toContain("/md5(");
     expect(url).not.toContain("A".repeat(24));
-    expect(createSignedMonitorUrl("feed", config, now, "b".repeat(32))).toContain("/thumb.webp");
+    const feedUrl = new URL(createSignedMonitorUrl("feed", config, now, "b".repeat(32))!);
+    expect(feedUrl.pathname).toBe(`/media/v2/${"b".repeat(32)}/v1/image/s.webp`);
+    const expires = Math.floor(now/1000)+90;
+    const expected = createHash("md5")
+      .update(`${expires}${feedUrl.pathname} ${config.feed.secret}`)
+      .digest("base64url");
+    expect(feedUrl.search).toBe(`?md5=${expected}&expires=${expires}`);
     expect(createSignedMonitorUrl("feed", { ...config, feed: { ...config.feed, enabled: false } }, now)).toBeNull();
   });
-  it("signs Beget monitoring paths without query tokens", () => {
+  it("matches Gallery path-token and Feed Media V2 query-token signing formats", () => {
     const beget = monitorConfigFromEnv({
       GALLERY_CDN_BASE_URL: "https://mepsuduyokabib.begetcdn.cloud",
       GALLERY_CDN_SECRET: "A".repeat(24), GALLERY_ENABLED: "true",
@@ -32,11 +39,14 @@ describe("server-side CDN health monitor", () => {
     });
     expect(createSignedMonitorUrl("gallery", beget, now, "a".repeat(32))).toMatch(
       /^https:\/\/mepsuduyokabib\.begetcdn\.cloud\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\//);
-    expect(createSignedMonitorUrl("feed", beget, now, "b".repeat(32))).not.toContain("?md5=");
+    const actual = createSignedMonitorUrl("feed", beget, now, "b".repeat(32));
+    expect(actual).toContain("/media/v2/");
+    expect(actual).toContain("/v1/image/s.webp?md5=");
+    expect(actual).toMatch(/&expires=\d{10}$/);
   });
-  it("treats 404 for a freshly signed nonexistent object as healthy, 504/5xx as failed", async () => {
-    for (const [status, result] of [[404, "healthy"], [504, "failed"], [503, "failed"],
-      [403, "unknown"], [302, "unknown"], [200, "unknown"]] as const) {
+  it("classifies unique probe 410 as retired edge, 404 as healthy, 403/401 as unknown", async () => {
+    for (const [status, result] of [[404, "healthy"], [410, "failed"], [504, "failed"], [503, "failed"],
+      [403, "unknown"], [401, "unknown"], [302, "unknown"], [200, "unknown"]] as const) {
       const fetcher = vi.fn(async () => new Response(null, { status }));
       expect(await probeMediaCdn("gallery", config, fetcher, now)).toBe(result);
       expect(fetcher).toHaveBeenCalledWith(expect.stringContaining("mepsuduyokabib.begetcdn.cloud"),
@@ -57,6 +67,32 @@ describe("server-side CDN health monitor", () => {
     const recoveredTwo = nextMediaCdnHealth(recoveredOne, { gallery: "healthy", feed: "failed" }, now + 45_000);
     expect(recoveredTwo.gallery).toBe("cdn");
     expect(recoveredTwo.feed).toBe("cloudru");
+  });
+  it("requires two independent 410 probe rounds before routing around the retired CDN", async () => {
+    const calls: string[] = [];
+    const fetcher = vi.fn(async (url: string | URL | Request) => {
+      calls.push(String(url));
+      return new Response(null, { status: 410 });
+    }) as typeof fetch;
+    const firstGallery = await probeMediaCdn("gallery", config, fetcher, now);
+    const firstFeed = await probeMediaCdn("feed", config, fetcher, now);
+    const first = nextMediaCdnHealth(blank(), { gallery: firstGallery, feed: firstFeed }, now);
+    expect(first.gallery).toBe("cdn");
+    expect(first.feed).toBe("cdn");
+    const secondGallery = await probeMediaCdn("gallery", config, fetcher, now + 15_000);
+    const secondFeed = await probeMediaCdn("feed", config, fetcher, now + 15_000);
+    const second = nextMediaCdnHealth(first, { gallery: secondGallery, feed: secondFeed }, now + 15_000);
+    expect(second.gallery).toBe("cloudru");
+    expect(second.feed).toBe("cloudru");
+    expect(new Set(calls).size).toBe(4); // fresh signed missing object on every round
+    const denied = nextMediaCdnHealth(first, { gallery: "unknown", feed: "unknown" }, now + 15_000);
+    expect(denied.gallery).toBe("cdn");
+    expect(denied.feed).toBe("cdn");
+    const healthy = nextMediaCdnHealth(second, { gallery: "healthy", feed: "healthy" }, now + 30_000);
+    expect(healthy.gallery).toBe("cloudru"); // one 404 isn't enough to recover
+    const recovered = nextMediaCdnHealth(healthy, { gallery: "healthy", feed: "healthy" }, now + 45_000);
+    expect(recovered.gallery).toBe("cdn");
+    expect(recovered.feed).toBe("cdn");
   });
   it("does not switch on 403 or stale Redis records", () => {
     const broken = nextMediaCdnHealth(blank(), { gallery: "failed", feed: "failed" }, now);

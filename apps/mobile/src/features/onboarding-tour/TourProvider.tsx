@@ -4,9 +4,17 @@ import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "expo-router";
 
 import { onboardingTourApi } from "@/shared/lib/api/onboarding-tour";
-import { petsQueryOptions } from "@/shared/lib/api/profileTabQueries";
+import {
+  petsQueryOptions,
+  petListForActor,
+  verifiedPetsActor,
+} from "@/shared/lib/api/profileTabQueries";
 import { trackEvent } from "@/shared/lib/analytics";
-import { TourTargetsProvider, useTourTargets, type TourTargetRect } from "@/shared/lib/tour-targets";
+import {
+  TourTargetsProvider,
+  useTourTargets,
+  type TourTargetRect,
+} from "@/shared/lib/tour-targets";
 import { reportClientError } from "@/shared/lib/tracer";
 import { useAuthStore } from "@/shared/stores";
 import {
@@ -82,7 +90,7 @@ function MobileOnboardingTourController() {
     ...petsQueryOptions,
     enabled: isAuthenticated && isActive,
   });
-  const hasPets = (petsData?.data?.length ?? 0) > 0;
+  const hasPets = (petListForActor(petsData, verifiedPetsActor())?.length ?? 0) > 0;
   const steps = useMemo(() => getMobileOnboardingTourSteps({ hasPets }), [hasPets]);
   const stepIndex = Math.max(
     0,

@@ -1,0 +1,92 @@
+{
+  "kind": "AG1_REMINDER_EXPIRY_PII_REDACTION_SOURCE_MOCK_ACCEPTANCE_FOR_AG4_V1",
+  "state": "AG1_SOURCE_ONLY_COMPLETE_FOCUSED_20_PASS_TSC_ESLINT_ZERO_WARNS_NO_SQL",
+  "timestampUTC": "2026-10-18T21:02:30.909187+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "vite",
+  "owner": "AG1",
+  "AG4Grant": "apps/admin-panel/AG4_AG1_PII_EXPIRY_SOURCE_ONLY_CURRENT_PINS_GRANT_20261018T204348Z.v1.json",
+  "AG4GrantSHA256": "540d7a9ee8f66cc38283c91f18a2c5fc909d5b24275cb9b8687d81f2ea3c9090",
+  "AG4GrantExpiryUTC": "2026-10-18T21:08:48Z",
+  "originalPinnedSourcesVerified4of4": true,
+  "originalPinnedSourceSHA256": {
+    "packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts": "c159ec5c5c0a41f1d77956fded59a969ed4b91ef0bb6b447ec912d8e8c8358a3",
+    "apps/api/src/routes/v1/reminders.ts": "2cdb81fd51c426da2938db95ad2f7d9763d25368aad43993d3ab0a36b6571179",
+    "apps/api/src/routes/v1/g1-reminder-operation-lookupAG4.review.ts": "ba49b36c1a03d7165cb070c0e7bb243e98e25a071abe57df90b13e095f11cd31",
+    "packages/prisma/migrations/20261018110000_reminder_mutation_receipt/migration.sql": "d9cc5e2e1778b7c2d3a229ff416f7f12230667f034e985598385b2eed241c9a8"
+  },
+  "AG4SQLReferenceReviewOnly": "apps/admin-panel/AG4_REMINDER_EXPIRED_RECEIPT_REDACT_PII_KEEP_COMPOSITE_TOMBSTONE_REVIEW_ONLY_20261018.sql",
+  "AG4ReferenceSHA256": "313bacc7742b32fc27cf23ceb7cb0e2f0f12388ae2069db0f8ce86d140d9739e",
+  "newSource": "packages/core/src/services/reminders/g1ReminderExpiryPIIRedaction.review.ts",
+  "newFocusedTests": "packages/core/src/services/reminders/g1ReminderExpiryPIIRedaction.review.test.ts",
+  "allAG1OriginalFilesSHA256": {
+    "packages/core/src/services/reminders/g1ReminderExpiryPIIRedaction.review.ts": "2ab0764fe5c1b92c856335c724e8e7fb0a4db658e6d26d8d77f99e515a505401",
+    "packages/core/src/services/reminders/g1ReminderExpiryPIIRedaction.review.test.ts": "f583a513b14874b784323a3a979627267357aba95a022545c2f35ab65822d297",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_TEST_RUN1.stdout": "36e41c8d5fd139c6c5411443d626d073c555610776b91c72fedcfc6f0055237a",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_TEST_RUN1.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_TEST_RUN1.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_TYPECHECK.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_TYPECHECK.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_TYPECHECK.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_ESLINT.stdout": "baac32c9749a4be48551bb4ac30cae05457b02afae1c636b8f6727e9c742361b",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_ESLINT.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_ESLINT.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_FINAL_VITEST.stdout": "16ffc20f1835956996615ed5423315d7f5af9261666c8f6d5116d7ffab8284a7",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_FINAL_VITEST.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_FINAL_VITEST.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_FINAL_ESLINT.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_FINAL_ESLINT.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_FINAL_ESLINT.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_FINAL_TYPECHECK.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_FINAL_TYPECHECK.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packages/core/src/services/reminders/g1ReminderExpiryPII_FINAL_TYPECHECK.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  "contract": {
+    "boundPerTransactionMax": 200,
+    "expiredAtDBTimeLessOrEqual": true,
+    "atomic": "one Prisma $transaction containing one SQL CTE SELECT .. FOR UPDATE SKIP LOCKED -> UPDATE .. RETURNING 1 -> COUNT only",
+    "redactedColumns": {
+      "responseJson": null,
+      "reminderId": null,
+      "fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+      "state": "EXPIRED"
+    },
+    "immutableColumns": [
+      "ownerUserId",
+      "operationKey",
+      "operationKind",
+      "expiresAt",
+      "createdAt"
+    ],
+    "rowDeletion": false,
+    "activeNoop": true,
+    "expiredPendingAndCommitted": true,
+    "repeatIdempotentZero": true,
+    "sqlReturnsOnlyAffectedCount": true,
+    "logsPII": false,
+    "replay": "existing AG4 create/lookup mocks return ReminderUnknownError for expired/tombstone/foreign/absent; original CREATE not invoked again"
+  },
+  "focusedResults": {
+    "VitestTestCount": 20,
+    "VitestExit": 0,
+    "TypeScriptNoEmitExit": 0,
+    "EslintZeroWarningsExit": 0,
+    "realPostgresExecuted": false,
+    "realRedisExecuted": false,
+    "schedulerOrWorkerActivated": false,
+    "providerCalled": false,
+    "realSQLProof": false
+  },
+  "AG4Next": [
+    "Independently inspect source/SQL + bounded CTE locks and changes with pinned SHA.",
+    "Only under separately approved active isolated PG scope and permitted tool path: verify actual SQL expiry/active/replay concurrency with before+after owner/data hashes and cleanup; prior security-refused physical PG operation MUST NOT be retried via workaround.",
+    "Separate explicit activation for retention scheduler/API after DB acceptance; until then old PII can remain after expiration."
+  ],
+  "externalGates": {
+    "G1": "PENDING",
+    "G2": "BLOCKED",
+    "PrismaGenerateMigrate": "CLOSED",
+    "production": "DENIED"
+  },
+  "forbiddenOperationsPerformed": []
+}

@@ -1,0 +1,46 @@
+--- a/apps/api/src/routes/v1/reminders.ts
++++ b/apps/api/src/routes/v1/reminders.ts
+@@ -3,18 +3,15 @@
+ import { zValidator } from "@hono/zod-validator";
+ import {
+   getReminders,
++  createReminder,
+   updateReminder,
+   deleteReminder,
++  createReminderAG4,
++  ReminderConflictError,
++  ReminderUnknownError,
++  ReminderInvalidError,
++  ReminderCapError,
+ } from "@gafus/core/services/reminders";
+-// Packaged Core dist still contains the pre-lock legacy count()+create() path.
+-// Until AG4's serialized Core build, bind legacy CREATE to the same current
+-// owner-locked Core source that keyed receipt creation uses.
+-import { createReminder } from
+-  "../../../../../packages/core/src/services/reminders/reminderService.js";
+-import {
+-  createReminderAG4, ReminderConflictError, ReminderUnknownError,
+-  ReminderInvalidError, ReminderCapError,
+-} from "../../../../../packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.js";
+ import { reminderOperationLookupAG4ReviewRoutes } from
+   "./g1-reminder-operation-lookupAG4.review.js";
+ import { createWebLogger } from "@gafus/logger";
+--- a/packages/core/src/services/reminders/index.ts
++++ b/packages/core/src/services/reminders/index.ts
+@@ -1,4 +1,5 @@
+ export * from "./reminderService";
++export * from "./g1ReminderMutationReceiptAG4.review";
+ export * from "./trainingReminderPolicy";
+ export * from "./trainingReminderClaims";
+
+--- a/apps/api/src/routes/v1/g1-reminder-operation-lookupAG4.review.ts
++++ b/apps/api/src/routes/v1/g1-reminder-operation-lookupAG4.review.ts
+@@ -2,7 +2,7 @@
+ import { Hono } from "hono";
+ import {
+   lookupReminderAG4, ReminderInvalidError, ReminderUnknownError,
+-} from "../../../../../packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.js";
++} from "@gafus/core/services/reminders";
+
+ export const reminderOperationLookupAG4ReviewRoutes = new Hono();
+ reminderOperationLookupAG4ReviewRoutes.get("/operations/:idempotencyKey", async (c) => {

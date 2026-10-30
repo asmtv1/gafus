@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   examResultUpsert: vi.fn(),
   examResultUpdate: vi.fn(),
   transaction: vi.fn(),
+  loggerError: vi.fn(),
 }));
 
 vi.mock("@gafus/prisma", () => ({
@@ -48,7 +49,7 @@ vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({
     info: vi.fn(),
     warn: vi.fn(),
-    error: vi.fn(),
+    error: mocks.loggerError,
     success: vi.fn(),
   }),
 }));
@@ -297,5 +298,118 @@ describe("examService daily course support", () => {
         data: expect.objectContaining({ status: "COMPLETED" }),
       }),
     );
+  });
+});
+
+describe("getExamResult numeric exam answers READ contract", () => {
+  const createdAt = new Date("2026-10-21T10:00:00.000Z");
+  const updatedAt = new Date("2026-10-22T12:30:00.000Z");
+  const reviewedAt = new Date("2026-10-23T16:00:00.000Z");
+  const persisted = {
+    id: "fictional-result-read",
+    testScore: 2,
+    testMaxScore: 3,
+    videoReportUrl: "opaque://unchanged-video-report",
+    writtenFeedback: "Fictional note",
+    overallScore: 67,
+    isPassed: true,
+    trainerComment: "Fictional trainer comment",
+    reviewedAt,
+    reviewedById: "fictional-trainer",
+    reviewedBy: { username: "trainer", profile: { fullName: null } },
+    createdAt,
+    updatedAt,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.userStepFindFirst.mockResolvedValue({ id: "fictional-owned-step" });
+    mocks.examResultFindFirst.mockImplementation(async () => ({ ...persisted, testAnswers: null }));
+  });
+
+  async function readWithStoredAnswers(value: unknown) {
+    mocks.examResultFindFirst.mockResolvedValueOnce({ ...persisted, testAnswers: value });
+    const data = await getExamResult("fictional-actor", "fictional-owned-step");
+    expect(mocks.userStepFindFirst).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        where: { id: "fictional-owned-step", userTraining: { userId: "fictional-actor" } },
+      }),
+    );
+    expect(mocks.examResultFindFirst).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ where: { userStepId: "fictional-owned-step" } }),
+    );
+    expect(mocks.dailyCourseUserStepFindFirst).not.toHaveBeenCalled();
+    expect(data).toMatchObject({
+      id: persisted.id,
+      testScore: persisted.testScore,
+      testMaxScore: persisted.testMaxScore,
+      videoReportUrl: persisted.videoReportUrl,
+      writtenFeedback: persisted.writtenFeedback,
+      overallScore: persisted.overallScore,
+      isPassed: persisted.isPassed,
+      trainerComment: persisted.trainerComment,
+      reviewedAt,
+      reviewedById: persisted.reviewedById,
+      reviewedBy: persisted.reviewedBy,
+      createdAt,
+      updatedAt,
+    });
+    expect(mocks.examResultUpsert).not.toHaveBeenCalled();
+    expect(mocks.examResultUpdate).not.toHaveBeenCalled();
+    expect(mocks.userStepUpdate).not.toHaveBeenCalled();
+    return data?.testAnswers;
+  }
+
+  it.each([
+    {
+      label: "direct numeric object with zero and negative",
+      raw: { q1: 0, q2: -1, q3: 1.5 },
+      expected: { q1: 0, q2: -1, q3: 1.5 },
+    },
+    {
+      label: "JSON string encoded numeric object",
+      raw: '{"q1":0,"q2":1e3}',
+      expected: { q1: 0, q2: 1000 },
+    },
+    { label: "direct empty record", raw: {}, expected: {} },
+    { label: "encoded empty record", raw: "{}", expected: {} },
+    { label: "null stored JSON", raw: null, expected: null },
+    { label: "JSON null literal", raw: "null", expected: null },
+  ])("preserves $label", async ({ raw, expected }) => {
+    expect(await readWithStoredAnswers(raw)).toEqual(expected);
+    expect(mocks.loggerError).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { label: "encoded array", raw: "[]" },
+    { label: "direct array", raw: [0, 1] },
+    { label: "encoded boolean", raw: "true" },
+    { label: "direct boolean", raw: true },
+    { label: "encoded number", raw: "42" },
+    { label: "direct number", raw: 42 },
+    { label: "encoded non-object string", raw: '"hello"' },
+    { label: "direct non-JSON string", raw: "hello" },
+    { label: "encoded text-valued answer", raw: '{"q":"text"}' },
+    { label: "direct text-valued answer", raw: { q: "text" } },
+    { label: "encoded null-valued answer", raw: '{"q":null}' },
+    { label: "direct null-valued answer", raw: { q: null } },
+    { label: "encoded nested answer", raw: '{"q":{"answer":2}}' },
+    { label: "direct nested answer", raw: { q: { answer: 2 } } },
+    { label: "direct NaN", raw: { q: NaN } },
+    { label: "direct Infinity", raw: { q: Infinity } },
+    { label: "direct negative Infinity", raw: { q: -Infinity } },
+    { label: "Date instance", raw: new Date("2026-10-24T00:00:00.000Z") },
+    { label: "encoded mixed numeric and text", raw: '{"q1":2,"q2":"3"}' },
+  ])("rejects $label rather than returning false numeric wire", async ({ raw }) => {
+    expect(await readWithStoredAnswers(raw)).toBeNull();
+    // Well-formed JSON with invalid shape is not a parse exception.
+    if (typeof raw !== "string" || raw === "hello") return;
+    expect(mocks.loggerError).not.toHaveBeenCalled();
+  });
+
+  it("returns null for malformed JSON without leaking the stored contents or SyntaxError", async () => {
+    const stored = '{"secret-token-from-stored-answers":';
+    expect(await readWithStoredAnswers(stored)).toBeNull();
+    expect(mocks.loggerError).toHaveBeenCalledExactlyOnceWith("Ошибка парсинга testAnswers");
   });
 });

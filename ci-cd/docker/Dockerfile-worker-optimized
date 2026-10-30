@@ -4,7 +4,7 @@ FROM mirror.gcr.io/library/node:20-alpine AS base
 WORKDIR /app
 
 # Включаем pnpm
-RUN corepack enable && corepack prepare pnpm@9.1.0 --activate
+RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 
 # Копируем файлы конфигурации
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
@@ -28,8 +28,7 @@ RUN cd packages/prisma \
   && mv schema.prisma.bak schema.prisma
 
 # Собираем worker вместе со всем графом workspace-зависимостей.
-RUN pnpm build --filter '@gafus/mailer...' && \
-    pnpm build --filter '@gafus/worker...'
+RUN pnpm exec turbo run build --filter='@gafus/worker...' --concurrency=1
 
 # Берём production зависимости из манифестов и lockfile, включая зависимости core.
 # Server-only deploy subsets do not contain mobile dependencies and their patches.
@@ -54,6 +53,10 @@ COPY --from=base --chown=worker:nodejs /app/deploy/ ./
 
 # Проверяем импорты, которые сломали запуск production worker.
 RUN node -e "Promise.all([import(require('node:path').join(require('node:path').dirname(require.resolve('@gafus/core')), 'services/cynologistChat/stream.js')), import('@gafus/core/services/questions')]).then(() => process.exit(0)).catch(error => { console.error(error); process.exit(1); })"
+
+# Fail image creation if any extracted server/client package is missing its compiled exports.
+COPY ci-cd/docker/check-runtime-package-exports.mjs /app/check-runtime-package-exports.mjs
+RUN node /app/check-runtime-package-exports.mjs worker
 
 # Устанавливаем права доступа
 RUN chown -R worker:nodejs /app

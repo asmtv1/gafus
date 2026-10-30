@@ -12,7 +12,9 @@ export * from "./state";
 
 // Utils
 export * from "./utils";
-export * from "./utils/logger";
+// Runtime createLogger/silentLogger/shouldLog moved to @gafus/types/logger.
+// Do not reexport their server logger implementation from this browser-safe root.
+export type { Logger, LogMeta } from "./utils/logger";
 export * from "./utils/validation";
 
 // Training calculations
@@ -47,3 +49,19 @@ export * from "./feed";
 export * from "./feed-telemetry-queue";
 export * from "./gafus";
 export * from "./data/pet-vet-visit";
+export * from "./feed-v2";
+export { publicCourseCoverUrl } from "./data/publicCourseCover";
+
+export {
+  parseUsernameAvailabilityData,
+  parseUsernameAvailabilitySuccess,
+  isValidUsernameAvailabilityQuery,
+  type UsernameAvailabilityData,
+  type UsernameAvailabilityQuery,
+  type UsernameAvailabilitySuccess,
+  type UsernameAvailabilityServiceError,
+  type UsernameAvailabilityServiceResponse,
+} from "./contracts/usernameAvailability";
+
+// Subscription status is a browser-safe type contract; no server-side runtime export.
+export type { AppSubscriptionPlanCode, AppSubscriptionProvider, AppSubscriptionStatusCode, YookassaTrialUnavailableReason, AppSubscriptionStatusDto } from "./contracts/appSubscriptionRead";

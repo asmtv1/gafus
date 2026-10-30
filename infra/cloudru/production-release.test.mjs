@@ -63,8 +63,10 @@ assert(
   ci.indexOf("  deploy-production:") < ci.indexOf("  beget-verify-after-deploy:"),
   "BEGET_MUST_VERIFY_BEFORE_ANY_MEDIA_PRODUCTION_PREPARATION_AND_AFTER_DEPLOY",
 );
-assert(/cloudru-build-media-images:\s+needs: \[security, build-apps, cloudru-media-contracts, beget-readonly-preflight\]/.test(ci),
-  "NO_PRODUCTION_IMAGE_PUBLICATION_BEFORE_BEGET_APPROVAL");
+// Cutover QA approval is an additional mandatory dependency, NOT a relaxation
+// of the established Beget/read-only gate. Assert both before image publication.
+assert(/cloudru-build-media-images:\s+needs: \[security, build-apps, cloudru-media-contracts, beget-readonly-preflight, cutover-preflight\]/.test(ci),
+  "NO_PRODUCTION_IMAGE_PUBLICATION_BEFORE_BEGET_AND_CUTOVER_APPROVAL");
 assert(/beget-verify-after-deploy:\s+needs: \[beget-readonly-preflight, cloudru-prepare-media, deploy-production\]/.test(ci),
   "NO_POSTDEPLOY_BEGET_VERIFY_BEFORE_HEALTHY_APP");
 for (const unsafe of [
@@ -112,20 +114,32 @@ for (const flag of [
   "GALLERY_PROCESSOR_READY",
 ])
   assert(prod.includes(flag + "="), "MISSING_PRODUCTION_COMPOSE_ENV_" + flag);
-// A missing flag on Web/API silently turns off the fast Feed wake-up path.
+// Static Vite Web has no server credentials; only Hono API enqueues Jobs.
 for (const section of ["web", "api"]) {
   const start = prod.indexOf("  " + section + ":\n");
   assert(start >= 0, "MISSING_PRODUCTION_COMPOSE_SERVICE_" + section);
   const next = prod.indexOf("\n  #", start + 2);
   const service = prod.slice(start, next < 0 ? undefined : next);
-  assert(service.includes("- CLOUDRU_MEDIA_JOBS_ENABLED=${CLOUDRU_MEDIA_JOBS_ENABLED:-false}"),
-    "FEED_FAST_TRIGGER_DISABLED_ON_" + section);
+  if (section === "api") {
+    assert(service.includes("- CLOUDRU_MEDIA_JOBS_ENABLED=\u0024{CLOUDRU_MEDIA_JOBS_ENABLED:-false}"),
+      "FEED_FAST_TRIGGER_DISABLED_ON_API");
+  } else {
+    assert(!service.includes("CLOUDRU_KEY_ID=") && !service.includes("CLOUDRU_KEY_SECRET="),
+      "CLOUDRU_CONTROL_PLANE_KEYS_LEAKED_TO_STATIC_WEB");
+  }
 }
-// Public ECR's Node.js mirror returned HTTP 429 for parallel builds.
+// Static Vite frontends legitimately use nginx rather than Node build layers.
 for (const file of [
   "Dockerfile-web-optimized",
   "Dockerfile-trainer-panel-optimized",
   "Dockerfile-admin-panel-optimized",
+]) {
+  const dockerfile = readFileSync("ci-cd/docker/" + file, "utf8");
+  assert(dockerfile.includes("FROM nginx:1.27-alpine"), "VITE_STATIC_NGINX_IMAGE_" + file);
+  assert(!dockerfile.includes("public.ecr.aws"), "NO_ECR_RATE_LIMIT_" + file);
+}
+// Backend images still use the reachable Node mirror to avoid ECR 429.
+for (const file of [
   "Dockerfile-api-optimized",
   "Dockerfile-api",
   "Dockerfile-worker-optimized",
@@ -138,10 +152,8 @@ for (const file of [
     2,
     "NODE_BASE_MUST_USE_AVAILABLE_MIRROR_" + file,
   );
-  assert(
-    !dockerfile.includes("public.ecr.aws/docker/library/node"),
-    "ECR_NODE_RATE_LIMIT_" + file,
-  );
+  assert(!dockerfile.includes("public.ecr.aws/docker/library/node"),
+    "ECR_NODE_RATE_LIMIT_" + file);
 }
 console.log(
   "Cloud.ru main-only release guards, compose flags, CI ordering and safe failure handling PASS",

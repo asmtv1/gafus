@@ -1,102 +1,264 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "expo-router";
 import { View, StyleSheet, RefreshControl, Pressable } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { Text, Snackbar } from "react-native-paper";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 
 import { Loading } from "@/shared/components/ui";
 import { TexturedSafeAreaView } from "@/shared/components";
-import { useCourseStore } from "@/shared/stores";
+import { useAuthStore, useCourseStore } from "@/shared/stores";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
-import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
-import { coursesApi, type Course } from "@/shared/lib/api";
+import { apiClient } from "@/shared/lib/api/client";
+import type { Course } from "@/shared/lib/api/courses";
 import { reportClientError } from "@/shared/lib/tracer";
 import { CourseCard } from "@/features/courses";
 import { OfflineDownloadedScreen } from "@/features/offline";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 
-/**
- * Страница избранных курсов (логика как в web: список по store).
- * При офлайне показывается экран «Скачанные курсы».
- */
+type FavoriteActor = { ownerId: string; authEpoch: string };
+type FavoriteRows = { favoriteIds: string[]; data: Course[] };
+const route = "/api/v1/courses/favorites";
+const checkedActor = (): FavoriteActor | null => {
+  const state = useAuthStore.getState();
+  if (!state.isAuthenticated || state.isLoading || !state.user?.id) return null;
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  if (!binding || binding.principalId !== state.user.id || !binding.authEpoch) return null;
+  return { ownerId: state.user.id, authEpoch: binding.authEpoch };
+};
+const sameActor = (actor: FavoriteActor) => {
+  const now = checkedActor();
+  return now?.ownerId === actor.ownerId && now.authEpoch === actor.authEpoch;
+};
+const parseFavorites = (value: unknown): FavoriteRows => {
+  if (!value || typeof value !== "object") throw new Error("FAVORITES_INVALID");
+  const data = value as Partial<FavoriteRows>;
+  if (
+    !Array.isArray(data.favoriteIds) ||
+    !data.favoriteIds.every((id) => typeof id === "string") ||
+    !Array.isArray(data.data) ||
+    !data.data.every(
+      (course) =>
+        course &&
+        typeof course === "object" &&
+        typeof course.id === "string" &&
+        typeof course.name === "string" &&
+        typeof course.type === "string" &&
+        typeof course.isPaid === "boolean" &&
+        typeof course.isPrivate === "boolean",
+    )
+  )
+    throw new Error("FAVORITES_INVALID");
+  const favorites = new Set(data.favoriteIds);
+  return {
+    favoriteIds: [...favorites],
+    data: data.data.filter((course) => favorites.has(course.id)),
+  };
+};
+/** Online personal favorites userflow. Offline downloads keep their existing screen. */
+// The hidden tab must never mount the favorites data loader or mutation UI.
 export default function FavoritesScreen() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/");
+  }, [router]);
+  return null;
+}
+export function FavoritesScreenContent() {
   const isOffline = useIsOffline();
-  const { favorites, removeFromFavorites, addToFavorites } = useCourseStore(
+  const auth = useAuthStore(
     useShallow((s) => ({
-      favorites: s.favorites,
-      removeFromFavorites: s.removeFromFavorites,
-      addToFavorites: s.addToFavorites,
+      id: s.user?.id ?? null,
+      authed: s.isAuthenticated,
+      loading: s.isLoading,
     })),
+  );
+  const live = checkedActor();
+  if (isOffline)
+    return (
+      <TexturedSafeAreaView style={styles.container} edges={["top"]}>
+        <OfflineDownloadedScreen />
+      </TexturedSafeAreaView>
+    );
+  if (auth.loading || (auth.authed && !live))
+    return <Loading fullScreen message="Загрузка избранных курсов..." />;
+  if (!auth.authed || !live)
+    return (
+      <TexturedSafeAreaView style={styles.container} edges={["top"]}>
+        <Text style={styles.emptyText}>Для просмотра избранных курсов войдите в аккаунт.</Text>
+      </TexturedSafeAreaView>
+    );
+  return (
+    <OwnerFavorites
+      key={`${live.ownerId}:${live.authEpoch}`}
+      ownerId={live.ownerId}
+      authEpoch={live.authEpoch}
+    />
+  );
+}
+function OwnerFavorites({ ownerId, authEpoch }: FavoriteActor) {
+  const actor = useMemo(() => ({ ownerId, authEpoch }), [ownerId, authEpoch]);
+  const client = useQueryClient();
+  const mounted = useRef(true);
+  const refreshingRef = useRef(false);
+  const removingRef = useRef(new Set<string>());
+  const unknownRef = useRef(new Set<string>());
+  const { removeFromFavorites } = useCourseStore(
+    useShallow((s) => ({ removeFromFavorites: s.removeFromFavorites })),
   );
   const [refreshing, setRefreshing] = useState(false);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const [unknownIds, setUnknownIds] = useState<string[]>([]);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
-
-  const { data, isLoading, error, refetch } = useQuery(favoritesQueryOptions);
-
-  const payload = data?.data;
-  const favoriteIds = useMemo(() => payload?.favoriteIds, [payload]);
-  const favoriteCourses = useMemo(() => payload?.data ?? [], [payload]);
-
+  const current = useCallback(() => mounted.current && sameActor(actor), [actor]);
   useEffect(() => {
-    if (favoriteIds === undefined) return;
-    useCourseStore.setState({
-      favorites: Array.isArray(favoriteIds) ? favoriteIds : [],
-    });
-  }, [favoriteIds]);
-
-  const favoritesSet = useMemo(() => new Set(favorites), [favorites]);
-  const displayedCourses = useMemo(() => {
-    return favoriteCourses
-      .filter((c) => favoritesSet.has(c.id))
-      .sort((a, b) => Number(a.isPaid) - Number(b.isPaid));
-  }, [favoriteCourses, favoritesSet]);
-
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const queryKey = useMemo(
+    () => ["favorites", "screen", ownerId, authEpoch] as const,
+    [ownerId, authEpoch],
+  );
+  const { data, isPending, isError, refetch } = useQuery({
+    queryKey,
+    enabled: true,
+    retry: false,
+    staleTime: 0,
+    queryFn: async (): Promise<FavoriteRows> => {
+      if (!current()) throw new Error("FAVORITES_SESSION_CHANGED");
+      const res = await apiClient<FavoriteRows>(route, { requestGuard: current });
+      if (!current()) throw new Error("FAVORITES_SESSION_CHANGED");
+      if (!res.success) throw new Error("FAVORITES_READ_UNAVAILABLE");
+      return parseFavorites(res.data);
+    },
+  });
+  useEffect(() => {
+    if (!data || !current()) return;
+    // Existing global store is only synchronized from a verified server-owned GET.
+    useCourseStore.setState({ favorites: data.favoriteIds });
+  }, [data, current]);
+  const displayedCourses = useMemo(
+    () => [...(data?.data ?? [])].sort((a, b) => Number(a.isPaid) - Number(b.isPaid)),
+    [data],
+  );
   const onRefresh = useCallback(async () => {
+    if (!current() || refreshingRef.current) return;
+    refreshingRef.current = true;
     setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
-  }, [refetch]);
-
+    try {
+      const result = await refetch();
+      if (current() && !result.isError) {
+        unknownRef.current.clear();
+        setUnknownIds([]);
+        setSnackbar({ visible: false, message: "" });
+      }
+    } catch {
+      if (current())
+        reportClientError(new Error("FAVORITES_REFRESH_UNKNOWN"), {
+          issueKey: "FavoritesScreen",
+          keys: { operation: "refresh" },
+        });
+    } finally {
+      refreshingRef.current = false;
+      if (current()) setRefreshing(false);
+    }
+  }, [current, refetch]);
   const handleUnfavorite = useCallback(
     async (courseId: string) => {
-      removeFromFavorites(courseId);
-      setPendingIds((prev) => [...prev, courseId]);
+      if (
+        !current() ||
+        removingRef.current.has(courseId) ||
+        unknownRef.current.has(courseId) ||
+        !data?.favoriteIds.includes(courseId)
+      )
+        return;
+      removingRef.current.add(courseId);
+      setPendingIds((previous) => [...previous, courseId]);
       try {
-        const res = await coursesApi.toggleFavorite(courseId, "remove");
-        if (res.success) await refetch();
-        else throw new Error(res.error);
-      } catch (err) {
-        reportClientError(err instanceof Error ? err : new Error(String(err)), {
-          issueKey: "FavoritesScreen",
-          keys: { operation: "toggle_favorite" },
+        // Existing POST action=remove stays idempotent. No refresh/replay on 401 writes.
+        const response = await apiClient<{ isFavorite: boolean }>(route, {
+          method: "POST",
+          body: { courseId, action: "remove" },
+          requestGuard: current,
+          skipAuthRefreshReplay: true,
         });
-        addToFavorites(courseId);
-        setSnackbar({
-          visible: true,
-          message: err instanceof Error ? err.message : "Ошибка удаления из избранного",
-        });
+        if (!current()) return;
+        if (!response.success || response.data?.isFavorite !== false)
+          throw new Error("FAVORITES_REMOVE_UNCONFIRMED");
+        client.setQueryData<FavoriteRows>(queryKey, (old) =>
+          old
+            ? {
+                favoriteIds: old.favoriteIds.filter((id) => id !== courseId),
+                data: old.data.filter((course) => course.id !== courseId),
+              }
+            : old,
+        );
+        removeFromFavorites(courseId);
+        try {
+          await client.invalidateQueries({ queryKey: ["favorites"], exact: false });
+        } catch {
+          if (current())
+            reportClientError(new Error("FAVORITES_POST_ACK_REFRESH_FAILED"), {
+              issueKey: "FavoritesScreen",
+              keys: { operation: "post_ack_refresh" },
+            });
+        }
+      } catch {
+        if (current()) {
+          unknownRef.current.add(courseId);
+          setUnknownIds((previous) => [...new Set([...previous, courseId])]);
+          reportClientError(new Error("FAVORITES_REMOVE_UNKNOWN"), {
+            issueKey: "FavoritesScreen",
+            keys: { operation: "remove" },
+          });
+          setSnackbar({
+            visible: true,
+            message: "Не удалось подтвердить удаление из избранного. Обновите список.",
+          });
+        }
       } finally {
-        setPendingIds((prev) => prev.filter((id) => id !== courseId));
+        removingRef.current.delete(courseId);
+        if (current()) setPendingIds((previous) => previous.filter((id) => id !== courseId));
       }
     },
-    [addToFavorites, refetch, removeFromFavorites],
+    [client, current, data, queryKey, removeFromFavorites],
   );
-
-  const pendingIdsSet = useMemo(() => new Set(pendingIds), [pendingIds]);
+  const blockedIdsSet = useMemo(
+    () => new Set([...pendingIds, ...unknownIds]),
+    [pendingIds, unknownIds],
+  );
   const renderCourseItem = useCallback(
     ({ item }: { item: Course }) => (
-      <CourseCard
-        course={item}
-        isFavorite
-        onToggleFavorite={handleUnfavorite}
-        disabled={pendingIdsSet.has(item.id)}
-      />
+      <View>
+        <CourseCard
+          course={item}
+          isFavorite
+          onToggleFavorite={handleUnfavorite}
+          disabled={blockedIdsSet.has(item.id)}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Убрать из избранного: ${item.name}`}
+          disabled={blockedIdsSet.has(item.id)}
+          onPress={() => void handleUnfavorite(item.id)}
+          style={styles.favoriteRemoveButton}
+        >
+          <Text style={styles.favoriteRemoveText}>
+            {pendingIds.includes(item.id)
+              ? "Убираем…"
+              : unknownIds.includes(item.id)
+                ? "Обновите список для повтора"
+                : "Убрать из избранного"}
+          </Text>
+        </Pressable>
+      </View>
     ),
-    [handleUnfavorite, pendingIdsSet],
+    [handleUnfavorite, blockedIdsSet, pendingIds, unknownIds],
   );
-
   const renderHeader = useCallback(
     () => (
       <View style={styles.headerFilters}>
@@ -105,29 +267,14 @@ export default function FavoritesScreen() {
     ),
     [],
   );
-
-  if (isOffline) {
-    return (
-      <TexturedSafeAreaView style={styles.container} edges={["top"]}>
-        <OfflineDownloadedScreen />
-      </TexturedSafeAreaView>
-    );
-  }
-
-  if (isLoading) {
-    return <Loading fullScreen message="Загрузка избранных курсов..." />;
-  }
-
+  if (isPending) return <Loading fullScreen message="Загрузка избранных курсов..." />;
   return (
     <TexturedSafeAreaView style={styles.container} edges={["top"]}>
-      {error ? (
+      {isError || !data ? (
         <View style={styles.errorContainer}>
           {renderHeader()}
-          <Text style={styles.errorText}>
-            Ошибка загрузки избранных курсов:{" "}
-            {error instanceof Error ? error.message : "Неизвестная ошибка"}
-          </Text>
-          <Pressable onPress={() => refetch()}>
+          <Text style={styles.errorText}>Не удалось загрузить избранные курсы.</Text>
+          <Pressable accessibilityRole="button" onPress={() => void onRefresh()}>
             <Text style={styles.retryText}>Попробовать снова</Text>
           </Pressable>
         </View>
@@ -139,15 +286,17 @@ export default function FavoritesScreen() {
       ) : (
         <FlashList
           data={displayedCourses}
+          extraData={blockedIdsSet}
           renderItem={renderCourseItem}
           keyExtractor={(item) => item.id}
           overrideProps={{ estimatedItemSize: 380 }}
           ListHeaderComponent={renderHeader}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} />
+          }
         />
       )}
-
       <Snackbar
         visible={snackbar.visible}
         onDismiss={() => setSnackbar({ visible: false, message: "" })}
@@ -160,6 +309,12 @@ export default function FavoritesScreen() {
 }
 
 const styles = StyleSheet.create({
+  favoriteRemoveButton: {
+    paddingVertical: 12,
+    paddingHorizontal: SPACING.md,
+    alignSelf: "flex-start",
+  },
+  favoriteRemoveText: { fontWeight: "600", color: COLORS.secondary },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

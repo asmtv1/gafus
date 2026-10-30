@@ -34,6 +34,14 @@ describe("provider-qualified private user media", () => {
       ),
     ).toBeNull();
   });
+  it("recognizes a distinct isolated-dev provider without interpreting it as a public URL", () => {
+    const isolated="isodev-private:documents:documents/uploads/users/u/pets/p/documents/id.pdf";
+    expect(parsePrivateMediaLocation(isolated)).toEqual({
+      kind:"documents", key:"documents/uploads/users/u/pets/p/documents/id.pdf",
+    });
+    expect(()=>parsePrivateMediaLocation("isodev-private:documents:questions/uploads/questions/u/id.jpg"))
+      .toThrow("PRIVATE_MEDIA_INVALID_LOCATION");
+  });
   it.each([
     "cloudru:questions:questions/uploads/questions/u/../a.jpg",
     "cloudru:questions:documents/uploads/users/u/pets/p/documents/a.pdf",

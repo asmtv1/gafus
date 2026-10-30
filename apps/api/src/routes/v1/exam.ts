@@ -2,11 +2,14 @@
  * Exam Routes
  * Endpoints для работы с экзаменами
  */
-import { Hono } from "hono";
+import { Hono, type TypedResponse } from "hono";
+import type { ExamResultRead } from "../../../../../packages/types/src/data/exam";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
-import { getExamResult, submitExamResult, uploadExamVideoFile } from "@gafus/core/services/exam";
+import { uploadExamVideoFile } from "@gafus/core/services/exam";
+import { writeExamSubmitApplication } from "../../modules/exam/composition/write-submit.js";
+import { readExamResultApplication } from "../../modules/exam/composition/read-result.js";
 import {
   requirePremiumOrRewardedAccessForUserStep,
   SubscriptionOrCreditsRequiredError,
@@ -16,6 +19,14 @@ import { createWebLogger } from "@gafus/logger";
 const logger = createWebLogger("api-exam");
 
 export const examRoutes = new Hono();
+
+// Exam answers and video links are scoped to a principal. Set privacy headers
+// before validation so 400/402/404/500 responses cannot become cacheable.
+examRoutes.use("*", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  await next();
+  c.header("Cache-Control", "private, no-store");
+});
 
 const rewardedPlatformSchema = z.enum(["ANDROID", "IOS"]);
 const stepIdSchema = z
@@ -75,7 +86,7 @@ examRoutes.get("/result", zValidator("query", resultQuerySchema), async (c) => {
       userStepId,
     });
 
-    const result = await getExamResult(user.id, userStepId);
+    const result = await readExamResultApplication.execute({ actorUserId: user.id, userStepId });
 
     if (!result) {
       return c.json(
@@ -84,7 +95,8 @@ examRoutes.get("/result", zValidator("query", resultQuerySchema), async (c) => {
       );
     }
 
-    return c.json({ success: true, data: result });
+    return c.json({ success: true, data: result }) satisfies Response &
+      TypedResponse<ExamResultRead>;
   } catch (error) {
     if (isSubscriptionOrCreditsRequiredError(error)) {
       return subscriptionOrCreditsResponse(c);
@@ -119,18 +131,32 @@ examRoutes.post("/submit", zValidator("json", submitExamSchema), async (c) => {
       userStepId: data.userStepId,
     });
 
-    const result = await submitExamResult(user.id, data);
+    const result = await writeExamSubmitApplication.execute({ actorUserId: user.id, data });
 
     return c.json({ success: true, data: result });
   } catch (error) {
     if (isSubscriptionOrCreditsRequiredError(error)) {
       return subscriptionOrCreditsResponse(c);
     }
-    if (error instanceof Error && error.message.includes("не найден")) {
-      return c.json({ success: false, error: error.message, code: "NOT_FOUND" }, 404);
+    // Do not classify arbitrary provider/DB failures by substring; their
+    // messages may contain credentials or personal data. Match only known
+    // Core user-facing failures, then return a fixed safe message.
+    const reason = error instanceof Error ? error.message : "";
+    if (reason === "Шаг не найден или нет доступа" || reason === "Пользователь не найден") {
+      return c.json({ success: false, error: reason, code: "NOT_FOUND" }, 404);
     }
-    if (error instanceof Error && error.message.includes("не является экзаменационным")) {
-      return c.json({ success: false, error: error.message, code: "VALIDATION_ERROR" }, 400);
+    if (
+      reason === "Этот шаг не является экзаменационным" ||
+      /^Этот шаг не является экзаменационным\. Тип шага: (?:[A-Z_]+|не определен)$/.test(reason)
+    ) {
+      return c.json(
+        {
+          success: false,
+          error: "Этот шаг не является экзаменационным",
+          code: "VALIDATION_ERROR",
+        },
+        400,
+      );
     }
     logger.error("Error submitting exam result", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);

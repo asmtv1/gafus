@@ -1,6 +1,6 @@
 import { replaceEqualDeep } from "@tanstack/react-query";
 
-import { type Course, coursesApi } from "./courses";
+import { type CourseListItem, coursesApi } from "./courses";
 import { getCourseStartedUsersCount } from "./courseParticipation";
 
 type CoursesCatalogResponse = Awaited<ReturnType<typeof coursesApi.getAll>>;
@@ -17,12 +17,14 @@ function toTimestamp(value: Date | string | null | undefined): number {
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-function areCourseCardFieldsEqual(prev: Course, next: Course): boolean {
+function areCourseCardFieldsEqual(prev: CourseListItem, next: CourseListItem): boolean {
   return (
     prev.id === next.id &&
     prev.name === next.name &&
     prev.type === next.type &&
     prev.shortDesc === next.shortDesc &&
+    prev.description === next.description &&
+    prev.equipment === next.equipment &&
     prev.duration === next.duration &&
     prev.trainingLevel === next.trainingLevel &&
     prev.userStatus === next.userStatus &&
@@ -30,19 +32,27 @@ function areCourseCardFieldsEqual(prev: Course, next: Course): boolean {
     prev.isPaid === next.isPaid &&
     prev.isPrivate === next.isPrivate &&
     prev.hasAccess === next.hasAccess &&
+    prev.isFavorite === next.isFavorite &&
     prev.logoImg === next.logoImg &&
     prev.authorUsername === next.authorUsername &&
     prev.authorAvatarUrl === next.authorAvatarUrl &&
     prev.avgRating === next.avgRating &&
-    (prev.reviews?.length ?? 0) === (next.reviews?.length ?? 0) &&
+    prev.startedUsersCount === next.startedUsersCount &&
+    replaceEqualDeep(prev.userCourses, next.userCourses) === prev.userCourses &&
+    replaceEqualDeep(prev.reviews, next.reviews) === prev.reviews &&
+    replaceEqualDeep(prev.dayLinks, next.dayLinks) === prev.dayLinks &&
+    toTimestamp(prev.createdAt) === toTimestamp(next.createdAt) &&
     toTimestamp(prev.startedAt) === toTimestamp(next.startedAt) &&
     toTimestamp(prev.completedAt) === toTimestamp(next.completedAt) &&
     toTimestamp(prev.updatedAt) === toTimestamp(next.updatedAt)
   );
 }
 
-function reuseCourseReferences(oldCourses: Course[], newCourses: Course[]): Course[] {
-  const oldById = new Map<string, Course>(oldCourses.map((course) => [course.id, course]));
+function reuseCourseReferences(
+  oldCourses: CourseListItem[],
+  newCourses: CourseListItem[],
+): CourseListItem[] {
+  const oldById = new Map<string, CourseListItem>(oldCourses.map((course) => [course.id, course]));
   let hasChanges = oldCourses.length !== newCourses.length;
 
   const merged = newCourses.map((course, index) => {

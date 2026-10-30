@@ -6,17 +6,13 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./server": {
-      "types": "./dist/server.d.ts",
-      "default": "./dist/server.js"
     }
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "clean": "rimraf dist",
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
     "test": "vitest run --config vitest.config.ts",
     "test:coverage": "vitest run --coverage --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
@@ -25,7 +21,6 @@
   "dependencies": {
     "@gafus/error-handling": "workspace:*",
     "@gafus/logger": "workspace:*",
-    "next": "15.5.7",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "zustand": "4.5.0"
@@ -40,7 +35,6 @@
     "vitest": "^4.0.17"
   },
   "peerDependencies": {
-    "next": "15.5.7",
     "react": "19.2.1",
     "react-dom": "19.2.1"
   }

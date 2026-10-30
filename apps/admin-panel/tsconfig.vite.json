@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src/admin-live/**/*.ts",
+    "src/admin-live/**/*.tsx"
+  ],
+  "exclude": [
+    "src/admin-live/**/*.test.ts",
+    "src/admin-live/**/*.test.tsx",
+    "src/admin-live/dist",
+    "node_modules"
+  ]
+}

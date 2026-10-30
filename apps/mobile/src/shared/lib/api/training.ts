@@ -1,12 +1,20 @@
 import { apiClient, type ApiResponse } from "./client";
-import type { UserCoursePersonalization } from "@gafus/types";
+import { reportClientError } from "@/shared/lib/tracer";
+import type {
+  DiaryEntryWire,
+  DiaryRead,
+  TrainingDayWire,
+  TrainingDayStepWire,
+  TrainingDaysWireItem,
+  TrainingDaysRead,
+} from "../../../../../../packages/types/src/data/training";
 
 // Типы для тренировок
 export interface TrainingDay {
   id: string;
-  dayOnCourseId: string;
-  title: string;
-  type: string;
+  dayOnCourseId: TrainingDaysWireItem["dayOnCourseId"];
+  title: TrainingDaysWireItem["title"];
+  type: TrainingDaysWireItem["type"];
   estimatedDuration: number | null;
   theoryMinutes?: number | null;
   equipment?: string | null;
@@ -16,9 +24,10 @@ export interface TrainingDay {
   /** Для summary: true, если не все остальные дни завершены (как на web) */
   isLocked?: boolean;
   /** Показывать кнопку экспорта «Ваш путь» (только для типа summary) */
-  showCoursePathExport?: boolean;
+  showCoursePathExport?: TrainingDaysWireItem["showCoursePathExport"];
 }
 
+/** Legacy Mobile offline/cache response: not the canonical Hono /days wire. */
 export interface TrainingDaysResponse {
   trainingDays: TrainingDay[];
   courseDescription: string;
@@ -26,47 +35,44 @@ export interface TrainingDaysResponse {
   courseVideoUrl: string;
   courseEquipment: string;
   courseTrainingLevel: string;
-  courseIsPersonalized?: boolean;
-  userCoursePersonalization?: UserCoursePersonalization | null;
+  courseIsPersonalized?: TrainingDaysRead["data"]["courseIsPersonalized"];
+  userCoursePersonalization?: TrainingDaysRead["data"]["userCoursePersonalization"];
 }
 
 /** Данные шага из курса (вложенный объект в UserStep или плоский шаг из офлайна). */
 export type StepContent = {
-  id: string;
-  title: string;
-  description: string;
+  id: TrainingDayStepWire["id"];
+  title: TrainingDayStepWire["title"];
+  description: TrainingDayStepWire["description"];
   /** THEORY | PRACTICE | EXAM из API; на офлайне также TRAINING, BREAK, EXAMINATION. */
   type: string;
-  durationSec: number | null;
-  videoUrl: string | null;
+  durationSec: TrainingDayStepWire["durationSec"] | null;
+  videoUrl: TrainingDayStepWire["videoUrl"];
   /** Загруженные тренером изображения (как на web StepContent / OfflineImageViewer). */
-  imageUrls?: string[];
+  imageUrls?: TrainingDayStepWire["imageUrls"];
   pdfUrl: string | null;
-  order: number;
-  estimatedDurationSec?: number | null;
+  order: TrainingDayStepWire["order"];
+  estimatedDurationSec?: TrainingDayStepWire["estimatedDurationSec"];
   checklist?: unknown;
-  requiresVideoReport?: boolean;
-  requiresWrittenFeedback?: boolean;
-  hasTestQuestions?: boolean;
-  surveySlug?: string | null;
+  requiresVideoReport?: TrainingDayStepWire["requiresVideoReport"];
+  requiresWrittenFeedback?: TrainingDayStepWire["requiresWrittenFeedback"];
+  hasTestQuestions?: TrainingDayStepWire["hasTestQuestions"];
+  surveySlug?: TrainingDayStepWire["surveySlug"];
 };
 
 export interface UserStep {
   id: string;
   stepId: string;
   stepIndex: number;
-  status: "NOT_STARTED" | "IN_PROGRESS" | "PAUSED" | "COMPLETED" | "RESET";
+  status: `${TrainingDayStepWire["status"]}`;
   remainingSec: number | null;
   isPausedOnServer?: boolean;
   remainingSecOnServer?: number | null;
   completedAt: string | null;
   step: StepContent;
-  userStepId?: string;
-  locked?: boolean;
-  monetizationTarget?: {
-    targetType: "COURSE_STEP";
-    targetId: string;
-  };
+  userStepId?: TrainingDayStepWire["userStepId"];
+  locked?: TrainingDayStepWire["locked"];
+  monetizationTarget?: TrainingDayStepWire["monetizationTarget"];
 }
 
 /** Возвращает контент шага (вложенный step или сам шаг, если он плоский). */
@@ -75,16 +81,16 @@ export function getStepContent(step: UserStep | StepContent): StepContent {
   return step as StepContent;
 }
 
-export interface TrainingDayResponse {
-  courseId: string;
-  trainingDayId: string;
-  dayOnCourseId: string;
-  displayDayNumber?: number;
-  title: string;
-  type: string;
-  description?: string;
+/** Existing Native GET-day/offline shape remains narrower than the full
+ * canonical Hono wire: keep nested UserStep and offline-optional description.
+ */
+export interface TrainingDayResponse extends Pick<TrainingDayWire,
+  "courseId" | "trainingDayId" | "dayOnCourseId" | "title" | "type" |
+  "showCoursePathExport"
+> {
+  displayDayNumber?: NonNullable<TrainingDayWire["displayDayNumber"]>;
+  description?: TrainingDayWire["description"];
   steps: UserStep[];
-  showCoursePathExport?: boolean;
 }
 
 export interface StepActionParams {
@@ -111,26 +117,117 @@ export interface CompleteStepParams extends StepActionParams {
   stepOrder?: number;
 }
 
-export interface DiaryEntry {
-  id: string;
-  content: string;
-  dayOnCourseId: string;
-  createdAt: string;
-  /** Порядок дня на курсе — как на web (StepDiaryBlock). */
-  dayOrder: number;
-  /** Название дня — как на web. */
-  dayTitle: string;
+/** Mobile UI uses only this established six-field view of the eight-field GET wire. */
+export type DiaryEntry = Pick<
+  DiaryEntryWire,
+  "id" | "content" | "dayOnCourseId" | "createdAt" | "dayOrder" | "dayTitle"
+>;
+
+/** Public, read-only marketing outline shared with Web's paid course overview.
+ * The endpoint rejects private/non-paid courses and never returns step bodies. */
+export type PublicPaidCourseOutline = {
+  courseId: string;
+  courseType: string;
+  name: string;
+  description: string | null;
+  equipment: string | null;
+  trainingLevel: string | null;
+  outline: {
+    id: string;
+    title: string;
+    order: number;
+    type?: string;
+    equipment?: string;
+    estimatedDuration?: number;
+    theoryMinutes?: number;
+  }[];
+};
+
+const validOutlineId = (value: unknown): value is string =>
+  typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+
+/** Refuse malformed/publicity-expanded transport; never infer private steps. */
+export function projectPublicPaidCourseOutline(
+  input: unknown, courseType: string,
+): PublicPaidCourseOutline {
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    throw Error("INVALID_PUBLIC_PAID_OUTLINE");
+  const row = input as Record<string, unknown>;
+  if (!validOutlineId(row.courseId) || row.courseType !== courseType ||
+      typeof row.name !== "string" || !row.name.trim() ||
+      ![row.description, row.equipment, row.trainingLevel].every(value =>
+        value === null || typeof value === "string") ||
+      !Array.isArray(row.outline) || row.outline.length > 500)
+    throw Error("INVALID_PUBLIC_PAID_OUTLINE");
+  const ids = new Set<string>();
+  const outline = row.outline.map((value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      throw Error("INVALID_PUBLIC_PAID_OUTLINE_DAY");
+    const day = value as Record<string, unknown>;
+    if (!validOutlineId(day.id) || ids.has(day.id) ||
+        typeof day.title !== "string" || !day.title.trim() ||
+        !Number.isSafeInteger(day.order) || Number(day.order) < 0)
+      throw Error("INVALID_PUBLIC_PAID_OUTLINE_DAY");
+    if ((day.type !== undefined && typeof day.type !== "string") ||
+        (day.equipment !== undefined && typeof day.equipment !== "string") ||
+        [day.estimatedDuration, day.theoryMinutes].some(value => value !== undefined &&
+          (!Number.isSafeInteger(value) || Number(value) < 0)))
+      throw Error("INVALID_PUBLIC_PAID_OUTLINE_DAY");
+    ids.add(day.id);
+    return {
+      id: day.id, title: day.title, order: day.order as number,
+      ...(day.type === undefined ? {} : { type: day.type as string }),
+      ...(day.equipment === undefined ? {} : { equipment: day.equipment as string }),
+      ...(day.estimatedDuration === undefined ? {} : {
+        estimatedDuration: day.estimatedDuration as number,
+      }),
+      ...(day.theoryMinutes === undefined ? {} : { theoryMinutes: day.theoryMinutes as number }),
+    };
+  });
+  return {
+    courseId: row.courseId as string, courseType,
+    name: row.name as string, description: row.description as string | null,
+    equipment: row.equipment as string | null,
+    trainingLevel: row.trainingLevel as string | null,
+    outline,
+  };
 }
 
 /**
  * API модуль для работы с тренировками
  */
 export const trainingApi = {
+  getPublicPaidCourseOutline: async (
+    courseType: string, requestGuard?: () => boolean,
+  ): Promise<ApiResponse<PublicPaidCourseOutline>> => {
+    if (!validOutlineId(courseType))
+      return { success: false, code: "INVALID_COURSE_TYPE", error: "Недопустимый курс" };
+    const response = await apiClient<unknown>(
+      `/api/v1/public/paid-course-outline/${courseType}`,
+      { skipAuth: true, suppressSubscriptionPaywall: true,
+        ...(requestGuard ? { requestGuard } : {}) },
+    );
+    if (!response.success) return { success: false, error: response.error, code: response.code };
+    try {
+      return { success: true, data: projectPublicPaidCourseOutline(response.data, courseType) };
+    } catch {
+      // Keep the raw provider payload out of logs, errors and telemetry.
+      reportClientError(new Error("INVALID_PUBLIC_PAID_OUTLINE"), {
+        issueKey: "TrainingDays", keys: { operation: "project_public_paid_outline" },
+      });
+      return { success: false, code: "INVALID_PUBLIC_PAID_OUTLINE",
+        error: "Некорректная программа курса" };
+    }
+  },
   /**
    * Получить список дней тренировок курса
    */
   getDays: async (courseType: string): Promise<ApiResponse<TrainingDaysResponse>> => {
-    return apiClient<TrainingDaysResponse>(`/api/v1/training/days?type=${courseType}`);
+    // Viewing the day list must never launch the global subscription modal.
+    // A 402/403 is handled by the screen's public paid-course outline instead.
+    return apiClient<TrainingDaysResponse>(`/api/v1/training/days?type=${courseType}`, {
+      suppressSubscriptionPaywall: true,
+    });
   },
 
   /**
@@ -241,10 +338,10 @@ export const trainingApi = {
   getDiaryEntries: async (
     courseId: string,
     upToDayOnCourseId?: string,
-  ): Promise<ApiResponse<{ entries: DiaryEntry[] }>> => {
+  ): Promise<ApiResponse<DiaryRead["data"]>> => {
     const params = new URLSearchParams({ courseId });
     if (upToDayOnCourseId) params.set("upToDayOnCourseId", upToDayOnCourseId);
-    return apiClient<{ entries: DiaryEntry[] }>(`/api/v1/training/diary?${params.toString()}`, {
+    return apiClient<DiaryRead["data"]>(`/api/v1/training/diary?${params.toString()}`, {
       suppressSubscriptionPaywall: true,
     });
   },

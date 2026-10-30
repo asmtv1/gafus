@@ -19,15 +19,23 @@ import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
-import { remindersApi, type Reminder } from "@/shared/lib/api";
+import { remindersApi, type Reminder, type ReminderPayload, type ReminderUpdatePayload } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
+import { reportClientError } from "@/shared/lib/tracer";
 import {
   getPushPermissionStatus,
+  getVerifiedPushActor,
+  isSameVerifiedPushActor,
   markPushPermissionEducationSeen,
   setupPushNotifications,
   shouldShowPushPermissionEducation,
 } from "@/shared/lib/utils/notifications";
+import type { PushActor } from "@/shared/lib/utils/pushRegistrationOwner";
+import type { ReminderV2ReviewCandidate } from "@/features/reminders/reminderV2Candidate";
+import type { ReminderV49AG4Review } from "@/features/reminders/reminderV49AG4Compat.review";
+import { pushDeviceStatusForActor } from "@/shared/lib/api/profileTabQueries";
+import { usePushRegistrationLiveness } from "@/shared/lib/utils/usePushRegistrationLiveness";
 
 const DAYS_OF_WEEK = [
   { id: "1", label: "Пн" },
@@ -133,13 +141,79 @@ function ScrollColumn({ items, selectedIndex, onSelect }: ScrollColumnProps) {
 export default function RemindersScreen() {
   const segments = useSegments();
   // Old /reminders links should also open inside the shared tab navigator.
-  return segments.some(segment => segment === "(tabs)")
-    ? <RemindersContent />
-    : <Redirect href="/(main)/(tabs)/reminders" />;
+  return segments.some((segment) => segment === "(tabs)") ? (
+    <RemindersContent />
+  ) : (
+    <Redirect href="/(main)/(tabs)/reminders" />
+  );
 }
 
-function RemindersContent() {
+/** AG4 source/mock consumer admission only: injected review candidate uses no real wire. */
+export function RemindersV2ReviewScreen({ candidate }: { candidate: ReminderV2ReviewCandidate }) {
+  return <RemindersContent reviewCandidate={candidate} />;
+}
+/** Review-only injection. NEVER used by default RemindersScreen. */
+export function RemindersV49AG4ReviewScreen({ candidate }: { candidate: ReminderV49AG4Review }) {
+  return <RemindersContent durableReviewCandidate={candidate} />;
+}
+function RemindersContent({
+  reviewCandidate,
+  durableReviewCandidate,
+}: {
+  reviewCandidate?: ReminderV2ReviewCandidate;
+  durableReviewCandidate?: ReminderV49AG4Review;
+} = {}) {
+  const injectedCandidate = durableReviewCandidate ?? reviewCandidate;
   const queryClient = useQueryClient();
+  const isPushScreenLive = usePushRegistrationLiveness();
+  const reminderCreateActor = useRef<PushActor | null>(null);
+  const writeInFlight = useRef(false);
+  const [needsManualReview, setNeedsManualReview] = useState(
+    () => injectedCandidate?.state() === "unknown" || injectedCandidate?.state() === "terminal",
+  );
+  const actor = getVerifiedPushActor();
+  const current = (captured: PushActor | null) =>
+    isPushScreenLive() && isSameVerifiedPushActor(captured);
+  const [durableHydrated, setDurableHydrated] = useState(!durableReviewCandidate);
+  const liveRef = useRef(isPushScreenLive);
+  liveRef.current = isPushScreenLive;
+  useEffect(() => {
+    if (!durableReviewCandidate) return;
+    let active = true;
+    const captured = getVerifiedPushActor();
+    setDurableHydrated(false);
+    if (!captured)
+      return () => {
+        active = false;
+      };
+    void durableReviewCandidate
+      .restore(captured, () => liveRef.current() && isSameVerifiedPushActor(captured))
+      .then((state) => {
+        if (!active || !liveRef.current() || !isSameVerifiedPushActor(captured)) return;
+        setDurableHydrated(true);
+        if (state !== "idle") setNeedsManualReview(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [durableReviewCandidate, actor?.ownerId, actor?.authEpoch]);
+  const queryKey = ["reminders", actor?.ownerId ?? null, actor?.authEpoch ?? null] as const;
+  const readOwnList = async (captured: PushActor | null): Promise<Reminder[]> => {
+    if (!current(captured)) throw new Error("REMINDER_SESSION_CHANGED");
+    const result = await remindersApi.getAll(() => current(captured));
+    if (!current(captured)) throw new Error("REMINDER_SESSION_CHANGED");
+    if (!result.success || !Array.isArray(result.data))
+      throw new Error("REMINDER_READBACK_UNKNOWN");
+    return result.data;
+  };
+  const verifyOwnWrite = async (captured: PushActor | null) => {
+    const rows = await readOwnList(captured);
+    if (!current(captured)) throw new Error("REMINDER_SESSION_CHANGED");
+    queryClient.setQueryData(["reminders", captured?.ownerId, captured?.authEpoch], rows);
+    return rows;
+  };
+  const unknownMessage =
+    "Статус изменения неизвестен. Проверьте список; повторная отправка отключена.";
 
   const [name, setName] = useState("");
   const [selectedHour, setSelectedHour] = useState(9);
@@ -147,6 +221,8 @@ function RemindersContent() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [allDays, setAllDays] = useState(false);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  // Existing Hono PUT supports full edits; do not create a second reminder.
+  const [editing, setEditing] = useState<{ row: Reminder; actor: PushActor } | null>(null);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
   const [deviceTimeZone, setDeviceTimeZone] = useState(() => getDeviceTimeZone());
   const [showPushEducation, setShowPushEducation] = useState(false);
@@ -161,69 +237,210 @@ function RemindersContent() {
   const timeString = `${HOURS[selectedHour]}:${MINUTES[selectedMinute]}`;
 
   const remindersQuery = useQuery({
-    queryKey: ["reminders"],
-    queryFn: remindersApi.getAll,
+    queryKey,
+    enabled: Boolean(actor),
+    queryFn: () => readOwnList(actor),
+    retry: false,
   });
 
-  const reminders = useMemo(
-    () => (remindersQuery.data?.success ? (remindersQuery.data.data ?? []) : []),
-    [remindersQuery.data],
-  );
+  const reminders = useMemo(() => remindersQuery.data ?? [], [remindersQuery.data]);
+  const activeEdit = editing && current(editing.actor) &&
+    reminders.some((row) => row.id === editing.row.id) ? editing : null;
+  const formTimezone = activeEdit?.row.timezone ?? deviceTimeZone;
+  useEffect(() => {
+    // Auth epoch and mounted account changed; old draft must never mutate B.
+    setEditing(null);
+    setName("");
+    setSelectedDays([]);
+    setAllDays(false);
+  }, [actor?.ownerId, actor?.authEpoch]);
+  const readyToWrite =
+    Boolean(actor) &&
+    remindersQuery.isSuccess &&
+    !writeInFlight.current &&
+    !needsManualReview &&
+    durableHydrated &&
+    (!injectedCandidate || injectedCandidate.state() === "idle");
+
+  type CreateAction = { actor: PushActor; payload: ReminderPayload };
+  type UpdateAction = {
+    actor: PushActor; id: string; changes: ReminderUpdatePayload;
+    editing: boolean;
+  };
+  type DeleteAction = { actor: PushActor; id: string };
+
+  const markUnknown = (captured: PushActor) => {
+    if (!current(captured)) return;
+    setNeedsManualReview(true);
+    setSnackbar({ visible: true, message: unknownMessage });
+  };
 
   const createMutation = useMutation({
-    mutationFn: remindersApi.create,
-    onSuccess: async (res) => {
-      if (!res.success) {
-        setSnackbar({ visible: true, message: res.error ?? "Ошибка создания напоминания" });
+    mutationFn: ({ actor: captured, payload }: CreateAction) =>
+      remindersApi.create(payload, () => current(captured)),
+    onSuccess: async (res, action) => {
+      const captured = action.actor;
+      if (!current(captured)) return;
+      if (!res.success || !res.data?.id) {
+        markUnknown(captured);
         return;
       }
-      setName("");
-      setSelectedHour(9);
-      setSelectedMinute(0);
-      setAllDays(false);
-      setSelectedDays([]);
-      await queryClient.invalidateQueries({ queryKey: ["reminders"] });
-      trackEvent({
-        eventName: "button_click",
-        platform: "mobile",
-        pathOrScreen: "/reminders",
-        elementId: "training-reminder-create-success",
-      });
-      void hapticFeedback.success();
-      setSnackbar({ visible: true, message: "Напоминание добавлено" });
+      try {
+        const rows = await verifyOwnWrite(captured);
+        if (!current(captured)) return;
+        const same = rows.find((row) => row.id === res.data?.id);
+        if (
+          !same ||
+          same.name !== action.payload.name ||
+          same.reminderTime !== action.payload.reminderTime ||
+          same.reminderDays !== (action.payload.reminderDays ?? null) ||
+          same.timezone !== action.payload.timezone
+        ) {
+          markUnknown(captured);
+          return;
+        }
+        setName("");
+        setSelectedHour(9);
+        setSelectedMinute(0);
+        setAllDays(false);
+        setSelectedDays([]);
+        trackEvent({
+          eventName: "button_click",
+          platform: "mobile",
+          pathOrScreen: "/reminders",
+          elementId: "training-reminder-create-success",
+        });
+        void hapticFeedback.success();
+        setSnackbar({ visible: true, message: "Напоминание добавлено" });
 
-      const permissionStatus = await getPushPermissionStatus();
-      if (permissionStatus === "granted") {
-        void setupPushNotifications();
-      } else if (await shouldShowPushPermissionEducation()) {
-        setShowPushEducation(true);
+        const permissionStatus = await getPushPermissionStatus();
+        if (!current(captured)) return;
+        if (permissionStatus === "granted") {
+          void setupPushNotifications({ isLive: isPushScreenLive });
+        } else if (await shouldShowPushPermissionEducation()) {
+          if (current(captured)) setShowPushEducation(true);
+        }
+      } catch {
+        reportClientError(new Error("REMINDER_CREATE_READBACK_UNKNOWN"), {
+          issueKey: "RemindersScreen",
+          keys: { operation: "create_readback" },
+        });
+        markUnknown(captured);
       }
+    },
+    onError: (_error, action) => markUnknown(action.actor),
+    onSettled: () => {
+      writeInFlight.current = false;
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
-      remindersApi.update(id, { enabled }),
-    onSuccess: async (res) => {
-      if (!res.success) {
-        setSnackbar({ visible: true, message: res.error ?? "Ошибка обновления напоминания" });
-        return;
+    mutationFn: ({ actor: captured, id, changes }: UpdateAction) =>
+      remindersApi.update(id, changes, () => current(captured)),
+    onSuccess: async (res, action) => {
+      if (!current(action.actor)) return;
+      if (!res.success) return markUnknown(action.actor);
+      try {
+        const rows = await verifyOwnWrite(action.actor);
+        if (!current(action.actor)) return;
+        const item = rows.find((row) => row.id === action.id);
+        if (!item || Object.entries(action.changes).some(([key, value]) =>
+          item[key as keyof Reminder] !== value)) return markUnknown(action.actor);
+        if (action.editing) {
+          setEditing(null);
+          setName("");
+          setSelectedHour(9);
+          setSelectedMinute(0);
+          setAllDays(false);
+          setSelectedDays([]);
+          setSnackbar({ visible: true, message: "Напоминание обновлено" });
+        }
+      } catch {
+        reportClientError(new Error("REMINDER_UPDATE_READBACK_UNKNOWN"), {
+          issueKey: "RemindersScreen",
+          keys: { operation: "update_readback" },
+        });
+        markUnknown(action.actor);
       }
-      await queryClient.invalidateQueries({ queryKey: ["reminders"] });
+    },
+    onError: (_error, action) => markUnknown(action.actor),
+    onSettled: () => {
+      writeInFlight.current = false;
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: remindersApi.remove,
-    onSuccess: async (res) => {
-      if (!res.success) {
-        setSnackbar({ visible: true, message: res.error ?? "Ошибка удаления напоминания" });
-        return;
+    mutationFn: ({ actor: captured, id }: DeleteAction) =>
+      remindersApi.remove(id, () => current(captured)),
+    onSuccess: async (res, action) => {
+      if (!current(action.actor)) return;
+      if (!res.success) return markUnknown(action.actor);
+      try {
+        const rows = await verifyOwnWrite(action.actor);
+        if (!current(action.actor)) return;
+        if (rows.some((row) => row.id === action.id)) return markUnknown(action.actor);
+        setSnackbar({ visible: true, message: "Напоминание удалено" });
+      } catch {
+        reportClientError(new Error("REMINDER_DELETE_READBACK_UNKNOWN"), {
+          issueKey: "RemindersScreen",
+          keys: { operation: "delete_readback" },
+        });
+        markUnknown(action.actor);
       }
-      await queryClient.invalidateQueries({ queryKey: ["reminders"] });
-      setSnackbar({ visible: true, message: "Напоминание удалено" });
+    },
+    onError: (_error, action) => markUnknown(action.actor),
+    onSettled: () => {
+      writeInFlight.current = false;
     },
   });
+
+  const handleStartEdit = (row: Reminder) => {
+    if (!actor || !current(actor) || !readyToWrite || remindersQuery.isFetching ||
+      injectedCandidate || !/^[0-9]{2}:[0-9]{2}$/.test(row.reminderTime)) return;
+    const [hh, mm] = row.reminderTime.split(":").map(Number);
+    if (hh === undefined || mm === undefined || hh < 0 || hh > 23 ||
+      mm < 0 || mm > 59 || !row.timezone.trim()) return;
+    setEditing({ row, actor });
+    setName(row.name);
+    setSelectedHour(hh);
+    setSelectedMinute(mm);
+    setAllDays(row.reminderDays == null);
+    setSelectedDays(row.reminderDays?.split(",") ?? []);
+    setShowTimePicker(false);
+  };
+  const handleCancelEdit = () => {
+    if (writeInFlight.current) return;
+    setEditing(null);
+    setName("");
+    setSelectedHour(9);
+    setSelectedMinute(0);
+    setAllDays(false);
+    setSelectedDays([]);
+  };
+  const handleSaveEdit = () => {
+    if (!activeEdit || !actor || !current(activeEdit.actor) ||
+      !readyToWrite || writeInFlight.current || remindersQuery.isFetching) return;
+    const trimmed = name.trim();
+    if (!trimmed || trimmed.length > 100 ||
+      (!allDays && selectedDays.length === 0)) {
+      setSnackbar({visible: true, message: "Проверьте название и дни недели"});
+      return;
+    }
+    const changes: ReminderUpdatePayload = {
+      name: trimmed, reminderTime: timeString,
+      reminderDays: reminderDaysForCreate(allDays, selectedDays),
+      timezone: formTimezone,
+    };
+    if (trimmed === activeEdit.row.name && timeString === activeEdit.row.reminderTime &&
+      changes.reminderDays === activeEdit.row.reminderDays &&
+      formTimezone === activeEdit.row.timezone) {
+      handleCancelEdit();
+      return;
+    }
+    writeInFlight.current = true;
+    updateMutation.mutate({ actor: activeEdit.actor, id: activeEdit.row.id,
+      changes, editing: true });
+  };
 
   const handleToggleAllDays = () => {
     void hapticFeedback.selection();
@@ -248,6 +465,15 @@ function RemindersContent() {
   };
 
   const handleCreate = () => {
+    // Ref is checked at event time: a second synchronous tap sees it before React rerenders.
+    if (
+      !actor ||
+      !current(actor) ||
+      writeInFlight.current ||
+      needsManualReview ||
+      !remindersQuery.isSuccess || !!activeEdit
+    )
+      return;
     if (!name.trim()) {
       setSnackbar({ visible: true, message: "Введите название напоминания" });
       return;
@@ -264,11 +490,78 @@ function RemindersContent() {
       return;
     }
 
+    if (injectedCandidate) {
+      // REVIEW_ONLY: same existing mounted form, injected synthetic V2/V49 transport.
+      // Never call legacy remindersApi.create as fallback from this branch.
+      const captured = actor;
+      const guard = () => current(captured);
+      const payload: ReminderPayload = {
+        name: name.trim(),
+        reminderTime: timeString,
+        reminderDays: reminderDaysForCreate(allDays, selectedDays),
+        timezone: deviceTimeZone,
+      };
+      writeInFlight.current = true;
+      void (async () => {
+        try {
+          const outcome = await injectedCandidate.create(captured, payload, guard);
+          if (!guard()) return;
+          if (outcome.kind === "acknowledged") {
+            try {
+              const rows = await verifyOwnWrite(captured);
+              if (!guard()) return;
+              const verified = await injectedCandidate.confirmList(captured, rows, guard);
+              if (verified.kind === "confirmed") {
+                setName("");
+                setSelectedHour(9);
+                setSelectedMinute(0);
+                setAllDays(false);
+                setSelectedDays([]);
+                setSnackbar({ visible: true, message: "Напоминание добавлено" });
+              } else {
+                markUnknown(captured);
+              }
+            } catch {
+              reportClientError(new Error("REMINDER_V2_ACK_READBACK_UNKNOWN"), {
+                issueKey: "RemindersScreen",
+                keys: { operation: "v2_ack_readback" },
+              });
+              injectedCandidate.markReadbackUnknown(captured, guard);
+              markUnknown(captured);
+            }
+          } else if (outcome.kind === "rejected") {
+            setSnackbar({ visible: true, message: "Максимум 5 напоминаний" });
+          } else if (outcome.kind === "terminal") {
+            setNeedsManualReview(true);
+            setSnackbar({
+              visible: true,
+              message: "Конфликт операции. Повторная отправка заблокирована.",
+            });
+          } else if (outcome.kind === "unknown") {
+            markUnknown(captured);
+          } else if (durableReviewCandidate && outcome.kind === "blocked") {
+            setNeedsManualReview(true);
+            setSnackbar({
+              visible: true,
+              message: "Невозможно безопасно сохранить операцию. Отправка заблокирована.",
+            });
+          }
+        } finally {
+          if (guard()) writeInFlight.current = false;
+        }
+      })();
+      return;
+    }
+    reminderCreateActor.current = actor;
+    writeInFlight.current = true;
     createMutation.mutate({
-      name: name.trim(),
-      reminderTime: timeString,
-      reminderDays: reminderDaysForCreate(allDays, selectedDays),
-      timezone: deviceTimeZone,
+      actor,
+      payload: {
+        name: name.trim(),
+        reminderTime: timeString,
+        reminderDays: reminderDaysForCreate(allDays, selectedDays),
+        timezone: deviceTimeZone,
+      },
     });
     trackEvent({
       eventName: "button_click",
@@ -279,7 +572,10 @@ function RemindersContent() {
   };
 
   const handleSkipPushEducation = async () => {
+    // Education belongs to the author of the confirmed reminder, not the next login.
+    const actor = reminderCreateActor.current;
     await markPushPermissionEducationSeen();
+    if (!isPushScreenLive() || !isSameVerifiedPushActor(actor)) return;
     setShowPushEducation(false);
     setSnackbar({
       visible: true,
@@ -289,22 +585,34 @@ function RemindersContent() {
 
   const handleEnablePush = async () => {
     if (isEnablingPush) return;
+    const actor = reminderCreateActor.current;
     setIsEnablingPush(true);
-    await markPushPermissionEducationSeen();
     try {
-      const ok = await setupPushNotifications();
+      await markPushPermissionEducationSeen();
+      if (!isPushScreenLive() || !isSameVerifiedPushActor(actor)) return;
+      const ok = await setupPushNotifications({ isLive: isPushScreenLive });
+      if (!isPushScreenLive() || !isSameVerifiedPushActor(actor)) return;
+      let confirmed = false;
       if (ok) {
-        await queryClient.invalidateQueries({ queryKey: ["push-subscription-device-status"] });
+        try {
+          const status = await queryClient.fetchQuery(pushDeviceStatusForActor(actor));
+          confirmed = status.determined && status.hasThisDeviceSubscription;
+        } catch {
+          // A lost status ACK is not evidence that delivery has been enabled.
+        }
       }
+      if (!isPushScreenLive() || !isSameVerifiedPushActor(actor)) return;
       setShowPushEducation(false);
       setSnackbar({
         visible: true,
-        message: ok
+        message: confirmed
           ? "Уведомления включены — напомним о тренировке вовремя"
-          : "Не удалось включить уведомления. Это можно сделать позже в профиле",
+          : ok
+            ? "Регистрация отправлена. Проверьте статус уведомлений в профиле"
+            : "Не удалось подтвердить включение. Это можно сделать позже в профиле",
       });
     } finally {
-      setIsEnablingPush(false);
+      if (isPushScreenLive()) setIsEnablingPush(false);
     }
   };
 
@@ -324,6 +632,8 @@ function RemindersContent() {
             <TextInput
               value={name}
               onChangeText={setName}
+              editable={!createMutation.isPending && !updateMutation.isPending &&
+                !deleteMutation.isPending && !needsManualReview}
               style={styles.input}
               placeholder="Название напоминания"
               placeholderTextColor={COLORS.disabled}
@@ -333,6 +643,8 @@ function RemindersContent() {
             <Text style={styles.fieldLabel}>Время</Text>
             <Pressable
               style={styles.timeField}
+              disabled={createMutation.isPending || updateMutation.isPending ||
+                deleteMutation.isPending || needsManualReview}
               onPress={() => setShowTimePicker(true)}
               accessibilityRole="button"
               accessibilityLabel={`Выбрать время: ${timeString}`}
@@ -342,13 +654,16 @@ function RemindersContent() {
               <MaterialCommunityIcons name="chevron-down" size={18} color={COLORS.disabled} />
             </Pressable>
             <Text style={styles.timezoneHint}>
-              По времени телефона ({deviceTimeZone.replace(/_/g, " ")})
+              {activeEdit ? "Часовой пояс напоминания" : "По времени телефона"}
+              {" "}({formTimezone.replace(/_/g, " ")})
             </Text>
 
             <Text style={styles.fieldLabel}>Дни недели</Text>
 
             <Pressable
               style={[styles.allDaysToggle, allDays && styles.allDaysToggleActive]}
+              disabled={createMutation.isPending || updateMutation.isPending ||
+                deleteMutation.isPending || needsManualReview}
               onPress={handleToggleAllDays}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: allDays }}
@@ -367,6 +682,8 @@ function RemindersContent() {
                 return (
                   <Pressable
                     key={day.id}
+                    disabled={createMutation.isPending || updateMutation.isPending ||
+                deleteMutation.isPending || needsManualReview}
                     onPress={() => handleDayChipPress(day.id)}
                     style={[
                       styles.dayChip,
@@ -386,10 +703,98 @@ function RemindersContent() {
             </View>
 
             <Button
-              label={createMutation.isPending ? "Добавление..." : "Добавить"}
-              onPress={handleCreate}
-              disabled={createMutation.isPending}
+              label={activeEdit
+                ? (updateMutation.isPending ? "Сохранение..." : "Сохранить изменения")
+                : (createMutation.isPending ? "Добавление..." : "Добавить")}
+              onPress={activeEdit ? handleSaveEdit : handleCreate}
+              disabled={!readyToWrite || createMutation.isPending ||
+                updateMutation.isPending || deleteMutation.isPending}
             />
+            {activeEdit && <Button
+              label="Отменить редактирование"
+              onPress={handleCancelEdit}
+              disabled={updateMutation.isPending || needsManualReview}
+            />}
+            {needsManualReview && (
+              <Text style={styles.timezoneHint}>
+                {durableReviewCandidate &&
+                ["blocked", "quarantined", "unchecked"].includes(durableReviewCandidate.state())
+                  ? "Безопасное создание недоступно: проверьте хранилище или текущую сессию. Повторная отправка запрещена."
+                  : durableReviewCandidate?.state() === "server_committed_unverified_draft"
+                    ? "Сервер подтвердил создание напоминания. Исходные поля после перезапуска не проверены."
+                    : unknownMessage}
+              </Text>
+            )}
+            {injectedCandidate && needsManualReview && injectedCandidate.state() === "unknown" && (
+              <Button
+                label="Проверить операцию"
+                onPress={() => {
+                  if (!actor || !current(actor) || writeInFlight.current) return;
+                  const captured = actor;
+                  writeInFlight.current = true;
+                  void (async () => {
+                    try {
+                      const looked = await injectedCandidate.manualLookup(captured, () =>
+                        current(captured),
+                      );
+                      if (!current(captured)) return;
+                      if (looked.kind === "confirmed") {
+                        // Lookup alone is not proof our current owner list already
+                        // reflects the receipt; preserve exact ordinary readback.
+                        try {
+                          const rows = await verifyOwnWrite(captured);
+                          if (!current(captured)) return;
+                          if (rows.some((row) => row.id === looked.reminder.id)) {
+                            setNeedsManualReview(false);
+                            setSnackbar({ visible: true, message: "Напоминание подтверждено" });
+                          } else {
+                            injectedCandidate.markReadbackUnknown(captured, () =>
+                              current(captured),
+                            );
+                            markUnknown(captured);
+                          }
+                        } catch {
+                          reportClientError(new Error("REMINDER_V2_LOOKUP_READBACK_UNKNOWN"), {
+                            issueKey: "RemindersScreen",
+                            keys: { operation: "v2_lookup_readback" },
+                          });
+                          injectedCandidate.markReadbackUnknown(captured, () => current(captured));
+                          markUnknown(captured);
+                        }
+                      } else if (looked.kind === "server_committed_unverified_draft") {
+                        // Owner+key proof only: NEVER label exact user-entered
+                        // fields or clear the terminal journal based on this DTO.
+                        setNeedsManualReview(true);
+                        setSnackbar({
+                          visible: true,
+                          message: "Сервер подтвердил создание. Исходные поля не проверены.",
+                        });
+                      } else if (looked.kind === "blocked" && durableReviewCandidate) {
+                        setNeedsManualReview(true);
+                        setSnackbar({
+                          visible: true,
+                          message:
+                            "Не удалось надёжно сохранить результат. Статус операции неизвестен.",
+                        });
+                      } else if (looked.kind === "gated") {
+                        setSnackbar({
+                          visible: true,
+                          message: "Проверка недоступна до разрешения AG4.",
+                        });
+                      } else if (looked.kind === "unknown") markUnknown(captured);
+                    } finally {
+                      if (current(captured)) writeInFlight.current = false;
+                    }
+                  })();
+                }}
+                disabled={!actor || !current(actor)}
+              />
+            )}
+            {remindersQuery.isError && (
+              <Text style={styles.timezoneHint}>
+                Не удалось проверить список напоминаний. Повторная отправка не выполнена.
+              </Text>
+            )}
           </View>
 
           {reminders.length > 0 && (
@@ -406,7 +811,18 @@ function RemindersContent() {
                   <Switch
                     value={r.enabled}
                     color={COLORS.primary}
+                    disabled={!readyToWrite || !!activeEdit ||
+                      updateMutation.isPending || deleteMutation.isPending}
                     onValueChange={(enabled) => {
+                      if (
+                        !actor ||
+                        !current(actor) ||
+                        writeInFlight.current ||
+                        needsManualReview ||
+                        !remindersQuery.isSuccess
+                      )
+                        return;
+                      writeInFlight.current = true;
                       void hapticFeedback.selection();
                       trackEvent({
                         eventName: "button_click",
@@ -416,19 +832,47 @@ function RemindersContent() {
                           ? "training-reminder-enabled"
                           : "training-reminder-disabled",
                       });
-                      updateMutation.mutate({ id: r.id, enabled });
+                      updateMutation.mutate({ actor, id: r.id,
+                        changes: { enabled }, editing: false });
                     }}
                   />
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Изменить напоминание: ${r.name}`}
+                    disabled={!readyToWrite || !!activeEdit ||
+                      updateMutation.isPending || deleteMutation.isPending}
+                    onPress={() => handleStartEdit(r)}
+                  >
+                    <MaterialCommunityIcons name="pencil-outline" size={18}
+                      color={COLORS.primary} />
+                  </Pressable>
+                  <Pressable
                     style={styles.deleteBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Удалить напоминание: ${r.name}`}
+                    disabled={!readyToWrite || !!activeEdit ||
+                      updateMutation.isPending || deleteMutation.isPending}
                     onPress={() => {
+                      if (
+                        !actor ||
+                        !current(actor) ||
+                        writeInFlight.current ||
+                        needsManualReview ||
+                        !remindersQuery.isSuccess
+                      )
+                        return;
                       void hapticFeedback.light();
                       Alert.alert("Удалить напоминание", "Вы уверены?", [
                         { text: "Отмена", style: "cancel" },
                         {
                           text: "Удалить",
                           style: "destructive",
-                          onPress: () => deleteMutation.mutate(r.id),
+                          onPress: () => {
+                            if (!current(actor) || writeInFlight.current || needsManualReview)
+                              return;
+                            writeInFlight.current = true;
+                            deleteMutation.mutate({ actor, id: r.id });
+                          },
                         },
                       ]);
                     }}

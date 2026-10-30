@@ -1,0 +1,369 @@
+/* Owner-profile Moments cards: recreate the retained Next FeedCard.module.css
+   hierarchy (author bar > media > copy > actions > stats) without changing
+   shared catalog, independent /feed author pages or mutation logic. */
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moments-catalog-grid {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  width: min(100%,720px);
+  max-width: 720px;
+  min-width: 0;
+  gap: 18px;
+  margin: 16px auto 25px;
+  padding: 0;
+  list-style: none;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  gap: 0;
+  padding: clamp(16px,2.8vw,24px);
+  border: 1px solid rgba(82,96,57,.16);
+  border-radius: 21px;
+  background: #fffdf7;
+  color: #363b31;
+  box-shadow: 0 6px 21px rgba(49,57,36,.065);
+  overflow: visible;
+  text-align: left;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card > * {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card .web4-moment-compact-author {
+  order: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-height: 43px;
+  margin: 0 0 16px;
+  padding: 0;
+  gap: 11px;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .web4-moment-compact-author .web4-moment-author-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 43px;
+  width: 43px;
+  height: 43px;
+  border-radius: 50%;
+  background: #e8ecdf;
+  color: #53623b;
+  font-size: 18px;
+  overflow: hidden;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .web4-moment-author-avatar .moment-avatar-initial {
+  display: grid;
+  place-items: center;
+  position: absolute;
+  inset: 0;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .web4-moment-author-avatar img {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .web4-moment-compact-author .web4-moment-author-identity {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  gap: 3px;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .web4-moment-author-identity h3 {
+  margin: 0;
+  color: #343a2c;
+  font: 780 13px/1.4 var(--font-montserrat),system-ui,sans-serif;
+  overflow-wrap: break-word;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-author-subline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 7px;
+  color: #777d73;
+  font: 400 11px/1.45 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-author-subline :is(time,small) {
+  color: inherit;
+  font: inherit;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-role-badge {
+  padding: 2px 7px;
+  background: #e9ede0;
+  border-radius: 7px;
+  color: #51663f;
+  font-size: 10px;
+  font-weight: 700;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .web4-moment-compact-author [class*="postActionControls"] {
+  position: relative;
+  align-self: flex-start;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .web4-moment-compact-author [class*="menuTrigger"] {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border: 1px solid rgba(82,96,57,.16);
+  border-radius: 11px;
+  background: #f0efe6;
+  color: #55634a;
+  box-shadow: none;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card .moment-media-gallery {
+  order: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+  margin: 0 0 12px;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-media-grid {
+  order: -1;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 3px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #e9e6df;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-media-grid > figure {
+  box-sizing: border-box;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: #e9e6df;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-media-grid > figure:only-child {
+  grid-column: 1 / -1;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-media-grid figure > img,
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-media-grid figure > video {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(70vh,560px);
+  min-width: 0;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  border-radius: 0;
+  background: #eeece5;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-media-grid > figure:not(:only-child) img {
+  object-fit: cover;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-media-gallery:has(.moment-media-grid) .moment-media-toggle {
+  display: none;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-media-gallery .moment-media-toggle {
+  align-self: flex-start;
+  width: auto;
+  max-width: 100%;
+  min-height: 34px;
+  margin: 0 0 7px;
+  padding: 7px 12px;
+  border: 1px solid rgba(82,96,57,.22);
+  border-radius: 10px;
+  background: #f1f0e6;
+  color: #53623b;
+  box-shadow: none;
+  font: 650 12px/1.4 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-media-missing {
+  display: grid;
+  place-items: center;
+  min-height: 110px;
+  padding: 12px;
+  color: #777b70;
+  background: #f2f1eb;
+  font-size: 13px;
+  text-align: center;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card .moment-post-copy {
+  order: 2;
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-post-copy p.article-plain-text {
+  margin: 3px 0 13px;
+  color: #41453d;
+  font: 400 14px/1.7 var(--font-montserrat),system-ui,sans-serif;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-post-copy p[data-collapsed="true"] {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-read-more {
+  width: auto;
+  min-height: 28px;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #52633d;
+  font: 700 12px/1.5 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card .moment-poll {
+  order: 3;
+  max-width: 100%;
+  margin: 6px 0 15px;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card .moment-engagement-actions {
+  order: 4;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px 15px;
+  width: 100%;
+  margin: 6px 0 0;
+  padding: 12px 0 4px;
+  border-top: 1px solid rgba(82,96,57,.12);
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-engagement-actions .moment-actions {
+  display: flex;
+  align-items: center;
+  flex: 1 1 285px;
+  flex-wrap: wrap;
+  width: auto;
+  min-width: 0;
+  gap: 7px;
+  margin: 0;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-engagement-actions .question-controls[aria-label="Реакции"] {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-engagement-actions .question-controls[aria-label="Реакции"] button {
+  box-sizing: border-box;
+  width: auto;
+  min-width: 36px;
+  max-width: none;
+  min-height: 38px;
+  padding: 6px 7px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  box-shadow: none;
+  color: #646e59;
+  font: 650 12px/1.4 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-engagement-actions .question-controls button:is(:hover,[aria-pressed="true"]) {
+  background: #eef1e5;
+  color: #465d32;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-engagement-actions .moment-actions > button,
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-comment-action {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #59684f;
+  box-shadow: none;
+  font: 650 12px/1.45 var(--font-montserrat),system-ui,sans-serif;
+  text-decoration: none;
+  white-space: normal;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-engagement-actions .moment-actions > button[aria-pressed="true"],
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-comment-action:hover {
+  background: #eef1e5;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card [class*="postStats"] {
+  order: 5;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 17px;
+  width: 100%;
+  min-width: 0;
+  margin: 5px 0 0;
+  padding: 10px 0 0;
+  border-top: 0;
+  color: #757c70;
+  font: 500 12px/1.4 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card [class*="statItem"] {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 0;
+  color: #627052;
+  font-weight: 600;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card [class*="postStats"] a {
+  text-decoration: none;
+  color: inherit;
+}
+.gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card [class*="postStats"] a:hover {
+  color: #465a39;
+  text-decoration: underline;
+}
+@media (max-width: 600px) {
+  .gafus-app .shell .next-profile-shell .gafus-profile-activity .moments-catalog-grid {
+    width: 100%;
+    gap: 12px;
+  }
+  .gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-summary-card {
+    padding: 14px;
+    border-radius: 15px;
+  }
+  .gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-engagement-actions .moment-actions {
+    flex-basis: 100%;
+  }
+  .gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-engagement-actions .question-controls[aria-label="Реакции"] {
+    gap: 2px;
+  }
+  .gafus-app .shell .next-profile-shell .gafus-profile-activity .moment-media-grid figure > img {
+    max-height: 55vh;
+  }
+}

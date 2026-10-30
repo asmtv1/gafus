@@ -1,0 +1,371 @@
+/* Moment detail: content-first presentation inspired by VK/Facebook feed patterns.
+ * Scoped to this route. Functional contracts, media permissions and comments stay intact. */
+.gafus-app .shell .web4-moment-detail {
+  box-sizing: border-box;
+  width: min(100%, 810px);
+  max-width: 810px;
+  margin: 12px auto 52px;
+  padding: 10px 12px 40px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #31382f;
+}
+.gafus-app .web4-moment-detail .moment-detail-back {
+  margin: 0 0 13px;
+}
+.gafus-app .web4-moment-detail .moment-detail-back a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 7px 13px;
+  border: 1px solid #dce3d5;
+  border-radius: 11px;
+  background: #f5f7f1;
+  color: #4e633b;
+  font: 700 13px/1.4 var(--font-montserrat), sans-serif;
+  text-decoration: none;
+}
+.gafus-app .web4-moment-detail .moment-detail-back a:hover { background: #eaf0e2; }
+.gafus-app .web4-moment-detail .web4-moment-post-and-comments {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  gap: 14px;
+}
+.gafus-app .web4-moment-detail .web4-moment-detail-card.moment-detail-post {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid rgba(77,91,62,.13);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 5px 22px rgba(40,49,36,.06);
+  overflow: visible;
+}
+.gafus-app .web4-moment-detail .moment-detail-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 17px 20px 12px;
+  min-height: 65px;
+}
+.gafus-app .web4-moment-detail .moment-detail-author .web4-moment-author-avatar {
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+}
+.gafus-app .web4-moment-detail .moment-detail-author .web4-moment-author-identity {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 3px;
+}
+.gafus-app .web4-moment-detail .moment-detail-author .web4-moment-author-identity h2 {
+  margin: 0;
+  font: 750 15px/1.35 var(--font-montserrat),sans-serif;
+  letter-spacing: -.01em;
+  color: #303a2b;
+}
+.gafus-app .web4-moment-detail .moment-detail-author .web4-moment-author-identity h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+.gafus-app .web4-moment-detail .moment-detail-author-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 7px;
+  min-width: 0;
+  color: #8a9085;
+  font: 500 11px/1.4 var(--font-montserrat),sans-serif;
+}
+.gafus-app .web4-moment-detail .moment-detail-author-meta a {
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.gafus-app .web4-moment-detail .moment-detail-author-meta a:hover { color: #52683b; }
+.gafus-app .web4-moment-detail .moment-detail-author-role {
+  display: inline-flex;
+  margin-top: 3px;
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: #edf2e6;
+  color: #536a3f;
+  font: 700 10px/1.35 var(--font-montserrat),sans-serif;
+}
+.gafus-app .web4-moment-detail .moment-detail-author > :last-child { margin-left: auto; }
+.gafus-app .web4-moment-detail .moment-detail-text {
+  padding: 0 20px 15px;
+}
+.gafus-app .web4-moment-detail .web4-moment-detail-card .moment-detail-text .article-plain-text {
+  margin: 0;
+  color: #333a33;
+  font: 400 15px/1.7 var(--font-montserrat),sans-serif;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.gafus-app .web4-moment-detail .moment-detail-edit { padding: 0 20px 14px; }
+.gafus-app .web4-moment-detail .moment-media-inline {
+  display: flex;
+  flex-direction: column;
+  width: calc(100% - 40px);
+  margin: 0 20px 15px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #f0f2ed;
+}
+.gafus-app .web4-moment-detail .moment-media-inline .moment-media-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  background: #e9eee6;
+}
+.gafus-app .web4-moment-detail .moment-media-inline figure {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  background: #edf0eb;
+  overflow: hidden;
+}
+.gafus-app .web4-moment-detail .moment-media-inline figure:only-child { grid-column: 1 / -1; }
+.gafus-app .web4-moment-detail .moment-media-inline figure > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 440px;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.gafus-app .web4-moment-detail .moment-media-inline figure:only-child > img {
+  max-height: min(68vh,560px);
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+}
+.gafus-app .web4-moment-detail .moment-media-inline .moment-video {
+  width: 100%;
+  max-height: 570px;
+}
+.gafus-app .web4-moment-detail .moment-media-inline .moment-media-status {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 90px;
+  margin: 0;
+  padding: 15px;
+  color: #66715e;
+  font: 500 13px/1.5 var(--font-montserrat),sans-serif;
+}
+.gafus-app .web4-moment-detail .moment-media-inline .moment-media-status p { margin: 0; }
+.gafus-app .web4-moment-detail .moment-media-inline .moment-media-status button {
+  min-height: 36px;
+  border: 1px solid #cad9c0;
+  border-radius: 9px;
+  background: #fff;
+  padding: 7px 12px;
+  color: #4c633c;
+  font-size: 12px;
+}
+.gafus-app .web4-moment-detail .moment-media-inline .moment-media-missing {
+  display: grid;
+  place-items: center;
+  min-height: 170px;
+  color: #657360;
+  font: 500 13px/1.5 var(--font-montserrat),sans-serif;
+}
+.gafus-app .web4-moment-detail .moment-detail-poll { margin: 0 20px 15px; }
+.gafus-app .web4-moment-detail .moment-detail-poll .moment-poll { margin: 0; }
+.gafus-app .web4-moment-detail .moment-detail-engagement { padding: 0 16px 13px; }
+.gafus-app .web4-moment-detail .moment-detail-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 11px 4px;
+  border-bottom: 1px solid #edf0e9;
+  color: #838b7f;
+  font: 500 11px/1.5 var(--font-montserrat),sans-serif;
+}
+.gafus-app .web4-moment-detail .moment-actions-compact {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  min-width: 0;
+  padding-top: 9px;
+}
+.gafus-app .web4-moment-detail .moment-actions-compact button,
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-action-comment {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 39px;
+  margin: 0;
+  padding: 8px 11px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  color: #63705f;
+  font: 650 12px/1.4 var(--font-montserrat),sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+}
+.gafus-app .web4-moment-detail .moment-actions-compact button:hover:not(:disabled),
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-action-comment:hover {
+  background: #f0f4ea;
+  color: #4c623d;
+}
+.gafus-app .web4-moment-detail .moment-actions-compact button[aria-pressed="true"] {
+  color: #4b663c;
+  background: #eaf1e4;
+}
+.gafus-app .web4-moment-detail .moment-actions-compact button:disabled { opacity: .5; cursor: wait; }
+.gafus-app .web4-moment-detail .moment-quick-reaction {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  border-radius: 10px;
+}
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-quick-like {
+  padding-right: 5px;
+}
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-reaction-toggle {
+  min-width: 30px;
+  padding: 8px 5px;
+}
+.gafus-app .web4-moment-detail .moment-reaction-picker {
+  position: absolute;
+  z-index: 15;
+  bottom: calc(100% + 7px);
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid #e1e8d9;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 7px 24px rgba(30,45,24,.14);
+}
+.gafus-app .web4-moment-detail .moment-actions-compact .moment-reaction-picker button {
+  min-width: 43px;
+  padding: 7px 6px;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 11px;
+}
+.gafus-app .web4-moment-detail .moment-action-save { margin-left: auto !important; }
+.gafus-app .web4-moment-detail .moment-actions-compact [role="alert"] {
+  flex: 0 0 100%;
+  font-size: 12px;
+  color: #9d4b3e;
+  margin: 0;
+}
+/* Replace historically measured Next-only negative margins with clean composition. */
+.gafus-app .shell .web4-moment-detail .web4-moment-comments-card.moment-comments {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 20px;
+  border: 1px solid rgba(77,91,62,.12);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 5px 22px rgba(40,49,36,.045);
+  scroll-margin-top: 18px;
+}
+.gafus-app .web4-moment-detail .web4-moment-comments-card.moment-comments > h2 {
+  color: #333b30;
+  margin: 0 0 15px;
+  font: 750 17px/1.4 var(--font-montserrat),sans-serif;
+}
+.gafus-app .web4-moment-detail :is(a,button,textarea):focus-visible {
+  outline: 2px solid #657d50;
+  outline-offset: 2px;
+}
+@media (max-width: 620px) {
+  .gafus-app .shell .web4-moment-detail {
+    width: 100%;
+    max-width: 100%;
+    margin: 6px auto 36px;
+    padding: 9px 0 30px;
+  }
+  .gafus-app .web4-moment-detail .moment-detail-back { padding: 0 12px; }
+  .gafus-app .web4-moment-detail .web4-moment-post-and-comments { gap: 10px; }
+  .gafus-app .web4-moment-detail .web4-moment-detail-card.moment-detail-post,
+  .gafus-app .shell .web4-moment-detail .web4-moment-comments-card.moment-comments {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
+  .gafus-app .web4-moment-detail .moment-detail-author { padding: 13px 13px 10px; gap: 10px; }
+  .gafus-app .web4-moment-detail .moment-detail-author .web4-moment-author-avatar {
+    width: 43px; height: 43px; flex-basis: 43px;
+  }
+  .gafus-app .web4-moment-detail .moment-detail-text { padding: 0 13px 12px; }
+  .gafus-app .web4-moment-detail .web4-moment-detail-card .moment-detail-text .article-plain-text {
+    font-size: 14px;
+  }
+  .gafus-app .web4-moment-detail .moment-detail-edit { padding-inline: 13px; }
+  .gafus-app .web4-moment-detail .moment-media-inline {
+    width: 100%;
+    margin: 0 0 12px;
+    border-radius: 0;
+  }
+  .gafus-app .web4-moment-detail .moment-media-inline figure > img { max-height: 360px; }
+  .gafus-app .web4-moment-detail .moment-detail-poll { margin: 0 12px 12px; }
+  .gafus-app .web4-moment-detail .moment-detail-engagement { padding: 0 8px 10px; }
+  .gafus-app .web4-moment-detail .moment-detail-stats { padding-inline: 6px; gap: 5px 9px; }
+  .gafus-app .web4-moment-detail .moment-actions-compact { gap: 0 3px; }
+  .gafus-app .web4-moment-detail .moment-actions-compact button,
+  .gafus-app .web4-moment-detail .moment-actions-compact .moment-action-comment { padding: 7px; font-size: 11px; }
+  .gafus-app .web4-moment-detail .moment-reaction-picker { max-width: min(90vw,315px); }
+  .gafus-app .shell .web4-moment-detail .web4-moment-comments-card.moment-comments { padding: 15px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gafus-app .web4-moment-detail * { scroll-behavior: auto; }
+}
+
+/* The detail page reuses the same bookmark icon, aligned to the far right. */
+.gafus-app .web4-moment-detail .moment-actions-compact > .moment-action-save {
+  box-sizing: border-box;
+  width: 43px;
+  min-width: 43px;
+  height: 43px;
+  min-height: 43px;
+  padding: 0;
+  margin-left: auto !important;
+  border: 1px solid #c9d2ba;
+  border-radius: 13px;
+  background: #f3f6ed;
+  color: #4b6338;
+}
+.gafus-app .web4-moment-detail .moment-actions-compact > .moment-action-save:hover:not(:disabled) {
+  background: #e6ecdb;
+  border-color: #a6b794;
+}
+.gafus-app .web4-moment-detail .moment-actions-compact > .moment-action-save[aria-pressed="true"] {
+  background: #4b6138;
+  border-color: #4b6138;
+  color: #fff;
+}

@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { S3Client, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { feedOriginKey } from "@gafus/feed-storage";
+import { feedV2Range } from "@gafus/feed-cloud";
 interface OriginEvent {
   httpMethod?: string; requestContext?: { http?: { method?: string } };
   path?: string; rawPath?: string; headers?: Record<string, string | undefined>;
@@ -17,8 +18,9 @@ export async function handler(event: OriginEvent) {
     const method = event.httpMethod ?? event.requestContext?.http?.method;
     if (method !== "GET" && method !== "HEAD") return failure(405);
     const key = feedOriginKey(event.rawPath ?? event.path ?? "");
-    // Unsigned playlists and incoming sources can never be served by the origin.
-    if (!key.endsWith(".ts") && !key.endsWith(".webp")) return failure(404);
+    // Only final WebP and progressive MP4, never originals, HLS or attempts.
+    const isMp4 = key.endsWith(".mp4");
+    if (!isMp4 && !key.endsWith(".webp")) return failure(404);
     const bucket = process.env.FEED_BUCKET ?? "";
     if (!/^[a-z0-9][a-z0-9.-]{2,62}$/.test(bucket) || /^(gafus-media|gafus-public)$/.test(bucket)) return failure(503);
     const endpoint = process.env.FEED_S3_ENDPOINT ?? "https://s3.cloud.ru";
@@ -27,10 +29,46 @@ export async function handler(event: OriginEvent) {
       credentials: { accessKeyId: process.env.FEED_S3_ACCESS_KEY_ID ?? "", secretAccessKey: process.env.FEED_S3_SECRET_ACCESS_KEY ?? "" },
       maxAttempts: 1, requestChecksumCalculation: "WHEN_REQUIRED", responseChecksumValidation: "WHEN_REQUIRED" });
     const signal = AbortSignal.timeout(3500);
+    if (isMp4) {
+      const metadata = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }), { abortSignal: signal });
+      const total = metadata.ContentLength ?? 0;
+      if (!Number.isSafeInteger(total) || total < 24 || total > 200 * 1024 * 1024 ||
+          metadata.ContentType !== "video/mp4") return failure(404);
+      const baseHeaders = { ...headers, "Content-Type": "video/mp4", "Accept-Ranges": "bytes" };
+      if (method === "HEAD") return { statusCode: 200,
+        headers: { ...baseHeaders, "Content-Length": String(total) }, body: "" };
+      const incomingRange = Object.entries(event.headers ?? {}).find(([name]) => name.toLowerCase() === "range")?.[1];
+      // The origin function never materializes a full 200MB movie in memory.
+      // Browsers request Range: bytes=0- and continue from Content-Range.
+      const plan = feedV2Range(total, incomingRange ?? "bytes=0-", "video/mp4");
+      if (plan.status === 416) return { statusCode: 416,
+        headers: { ...baseHeaders, ...plan.headers }, body: "" };
+      const end = Math.min(plan.end, plan.start + 1_750_000 - 1);
+      const chunk = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key,
+        Range: `bytes=${plan.start}-${end}` }), { abortSignal: signal });
+      const body = chunk.Body as (AsyncIterable<Uint8Array> & { destroy?: () => void }) | undefined;
+      if (!body || chunk.ContentLength !== end - plan.start + 1 ||
+          chunk.ContentType !== "video/mp4") { body?.destroy?.(); return failure(503); }
+      const buffers: Buffer[] = []; let count = 0;
+      try {
+        for await (const packet of body) {
+          signal.throwIfAborted(); count += packet.byteLength;
+          if (count > 1_750_000) return failure(503);
+          buffers.push(Buffer.from(packet));
+        }
+      } finally { body.destroy?.(); }
+      if (count !== end - plan.start + 1) return failure(503);
+      const complete = !incomingRange && end === total - 1;
+      return { statusCode: complete ? 200 : 206,
+        headers: { ...baseHeaders, "Content-Length": String(count),
+          ...(!complete ? { "Content-Range": `bytes ${plan.start}-${end}/${total}` } : {}) },
+        body: Buffer.concat(buffers).toString("base64"), isBase64Encoded: true };
+    }
     const result = await client.send(method === "HEAD" ? new HeadObjectCommand({ Bucket: bucket, Key: key }) : new GetObjectCommand({ Bucket: bucket, Key: key }), { abortSignal: signal });
-    const expectedType = key.endsWith(".ts") ? "video/mp2t" : "image/webp";
+    const expectedType = "image/webp";
+    const maxBytes = 1_750_000;
     const stream = "Body" in result ? result.Body as AsyncIterable<Uint8Array> & { destroy?: () => void } : undefined;
-    if (!result.ContentLength || result.ContentLength > 1_750_000 || result.ContentType !== expectedType) {
+    if (!result.ContentLength || result.ContentLength > maxBytes || result.ContentType !== expectedType) {
       stream?.destroy?.(); return failure(404);
     }
     // No shared-cache response until a real hot-cache signature/expiry test
@@ -46,7 +84,7 @@ export async function handler(event: OriginEvent) {
     try {
       for await (const packet of stream) {
         signal.throwIfAborted(); size += packet.byteLength;
-        if (size > 1_750_000) return failure(404);
+        if (size > maxBytes) return failure(404);
         chunks.push(Buffer.from(packet));
       }
       if (size !== result.ContentLength) return failure(404);

@@ -32,6 +32,14 @@ export interface LoginResponse {
   refreshToken: string;
 }
 
+/** Native Hono login/register may return only id, username and role. */
+function normalizeNativeSessionUser(data: LoginResponse): LoginResponse {
+  return {
+    ...data,
+    user: { ...data.user, phone: data.user.phone ?? null, email: data.user.email ?? null },
+  };
+}
+
 export interface VkLoginResponse {
   user: Pick<User, "id" | "username" | "role">;
   accessToken?: string;
@@ -111,7 +119,7 @@ export const authApi = {
 
       return {
         success: true,
-        data: data.data,
+        data: normalizeNativeSessionUser(data.data),
       };
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
@@ -184,7 +192,7 @@ export const authApi = {
       }
 
       const result = await response.json();
-      return { success: true, data: result.data };
+      return { success: true, data: normalizeNativeSessionUser(result.data) };
     } catch (error) {
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "AuthApi",
@@ -208,7 +216,9 @@ export const authApi = {
         body: JSON.stringify({ promoCode }),
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({} as { error?: string; code?: string }));
+        const errorData = await response
+          .json()
+          .catch(() => ({}) as { error?: string; code?: string });
         return {
           success: false,
           error: errorData.error || "Промокод не удалось проверить",
@@ -233,11 +243,15 @@ export const authApi = {
    * Выход из системы (инвалидация токена на сервере)
    */
   logout: async (refreshToken: string): Promise<ApiResponse<void>> => {
+    const controller = new AbortController();
+    // A disconnected device must not indefinitely block navigation/logout.
+    const deadline = setTimeout(() => controller.abort(), 8000);
     try {
       const response = await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getMobileClientHeaders() },
         body: JSON.stringify({ refreshToken }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -250,8 +264,10 @@ export const authApi = {
         issueKey: "AuthApi",
         keys: { operation: "logout" },
       });
-      // Не раскрываем ошибки logout
-      return { success: true };
+      // Network/timeout errors are not proof of server-side revocation.
+      return { success: false, error: "Не удалось подтвердить выход на сервере" };
+    } finally {
+      clearTimeout(deadline);
     }
   },
 
@@ -409,7 +425,9 @@ export const authApi = {
         { headers: getMobileClientHeaders() },
       );
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({} as { error?: string; code?: string }));
+        const errorData = await response
+          .json()
+          .catch(() => ({}) as { error?: string; code?: string });
         return {
           success: false,
           error: errorData.error || "Не удалось проверить сессию VK.",
@@ -504,10 +522,13 @@ export const authApi = {
   changePassword: async (
     currentPassword: string,
     newPassword: string,
+    requestGuard?: () => boolean,
   ): Promise<ApiResponse<void>> => {
     return apiClient<void>("/api/v1/auth/change-password", {
       method: "POST",
       body: { currentPassword, newPassword },
+      ...(requestGuard ? { requestGuard } : {}),
+      skipAuthRefreshReplay: true,
     });
   },
 

@@ -12,6 +12,11 @@ import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/co
 import { Stack, useRouter } from "expo-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
+import {
+  normalizeTelegramInput,
+  normalizeInstagramInput,
+  normalizeWebsiteUrl,
+} from "@gafus/core-client/utils/social";
 
 import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
 import { Button, Loading } from "@/shared/components/ui";
@@ -22,6 +27,12 @@ import {
 } from "@/shared/lib/utils/birthDateInput";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { useAuthStore } from "@/shared/stores";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import {
+  changedProfileFields,
+  exactProfileReadbackMatches,
+} from "@/features/profile/profile-edit-changed-fields";
+import { reportClientError } from "@/shared/lib/tracer";
 
 const editProfileSchema = z.object({
   fullName: z.string().trim().max(120),
@@ -53,6 +64,11 @@ function mapProfileToForm(profile: {
   };
 }
 
+type ProfileActor = { ownerId: string; authEpoch: string };
+const PROFILE_UNKNOWN =
+  "Результат сохранения неизвестен. Проверьте профиль перед повторной попыткой.";
+const PROFILE_REJECTED = "Не удалось сохранить профиль. Проверьте заполненные поля.";
+
 /**
  * Редактирование «О себе» — тот же визуальный паттерн, что экран «Напоминания»
  */
@@ -60,6 +76,29 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const setUserProfile = useAuthStore((s) => s.setUserProfile);
+  const loggedOwner = useAuthStore((s) =>
+    s.isAuthenticated && !s.isLoading ? (s.user?.id ?? null) : null,
+  );
+  const verifiedBinding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const epoch = verifiedBinding?.principalId === loggedOwner ? verifiedBinding.authEpoch : null;
+  const actor: ProfileActor | null =
+    loggedOwner && epoch ? { ownerId: loggedOwner, authEpoch: epoch } : null;
+  const isMounted = useRef(true);
+  const inFlight = useRef(false);
+  const [resultUnknown, setResultUnknown] = useState(false);
+  const currentActor = (captured: ProfileActor | null) => {
+    const state = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    return (
+      !!captured &&
+      isMounted.current &&
+      state.isAuthenticated &&
+      !state.isLoading &&
+      state.user?.id === captured.ownerId &&
+      binding?.principalId === captured.ownerId &&
+      binding.authEpoch === captured.authEpoch
+    );
+  };
   const backTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const returnToProfile = useCallback(() => {
@@ -71,12 +110,13 @@ export default function EditProfileScreen() {
     else router.replace("/(main)/(tabs)/profile");
   }, [router]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
       if (backTimer.current !== null) clearTimeout(backTimer.current);
-    },
-    [],
-  );
+    };
+  }, []);
 
   const [form, setForm] = useState<UpdateProfileData>({
     fullName: "",
@@ -94,39 +134,107 @@ export default function EditProfileScreen() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["user-profile"],
+    queryKey: ["user-profile", actor?.ownerId ?? null, actor?.authEpoch ?? null],
+    enabled: !!actor,
+    retry: false,
     queryFn: async () => {
-      const res = await userApi.getProfile();
-      if (!res.success) throw new Error(res.error ?? "Ошибка загрузки профиля");
-      return res;
+      const captured = actor;
+      if (!currentActor(captured)) throw new Error("PROFILE_SESSION_CHANGED");
+      const res = await userApi.getProfile(() => currentActor(captured));
+      if (!currentActor(captured)) throw new Error("PROFILE_SESSION_CHANGED");
+      if (!res.success || !res.data || res.data.id !== captured?.ownerId)
+        throw new Error("PROFILE_READ_UNKNOWN");
+      return res.data;
     },
   });
 
   useEffect(() => {
-    if (profileData?.success && profileData.data?.profile) {
-      const profile = profileData.data.profile;
-      setForm(mapProfileToForm(profile));
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    if (
+      profileData &&
+      loggedOwner &&
+      epoch &&
+      profileData.id === loggedOwner &&
+      binding?.principalId === loggedOwner &&
+      binding.authEpoch === epoch &&
+      isMounted.current
+    ) {
+      setForm(mapProfileToForm(profileData.profile ?? {}));
     }
-  }, [profileData]);
+  }, [profileData, loggedOwner, epoch]);
 
   const updateMutation = useMutation({
-    mutationFn: userApi.updateProfile,
-    onSuccess: (result) => {
-      if (result.success && result.data) {
-        setUserProfile(result.data);
-        void queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+    mutationFn: async ({
+      captured,
+      changes,
+    }: {
+      captured: ProfileActor;
+      changes: UpdateProfileData;
+    }): Promise<{
+      status: "confirmed" | "rejected" | "unknown" | "stale";
+      profile?: NonNullable<typeof profileData>["profile"];
+    }> => {
+      try {
+        if (!currentActor(captured)) return { status: "stale" };
+        const ack = await userApi.updateProfile(changes, () => currentActor(captured));
+        if (!currentActor(captured)) return { status: "stale" };
+        if (!ack.success) {
+          const rejected = [
+            "VALIDATION_ERROR",
+            // Original registered user/profile Hono reports structured 400 under this code.
+            "PROFILE_VALIDATION_ERROR",
+            "BAD_REQUEST",
+            "FORBIDDEN",
+            "SESSION_EXPIRED",
+            "UNAUTHORIZED",
+          ];
+          return { status: ack.code && rejected.includes(ack.code) ? "rejected" : "unknown" };
+        }
+        if (!ack.data || ack.data.userId !== captured.ownerId) return { status: "unknown" };
+        const readback = await userApi.getProfile(() => currentActor(captured));
+        if (!currentActor(captured)) return { status: "stale" };
+        if (
+          !readback.success ||
+          !readback.data ||
+          readback.data.id !== captured.ownerId ||
+          !exactProfileReadbackMatches(changes, readback.data.profile)
+        )
+          return { status: "unknown" };
+        queryClient.setQueryData(
+          ["user-profile", captured.ownerId, captured.authEpoch],
+          readback.data,
+        );
+        return { status: "confirmed", profile: readback.data.profile };
+      } catch {
+        // Never send raw profile payload / contact info / HTTP error body to tracer.
+        reportClientError(new Error("PROFILE_EDIT_ACK_OR_READBACK_UNKNOWN"), {
+          issueKey: "ProfileEditScreen",
+          keys: { operation: "update_and_readback" },
+        });
+        return { status: currentActor(captured) ? "unknown" : "stale" };
+      }
+    },
+    onSuccess: (result, variables) => {
+      if (!currentActor(variables.captured)) return;
+      if (result.status === "confirmed" && result.profile) {
+        setUserProfile({ ...result.profile, userId: variables.captured.ownerId });
         void queryClient.invalidateQueries({ queryKey: ["public-profile"] });
         void queryClient.invalidateQueries({ queryKey: ["trainer-public-profile"] });
         void hapticFeedback.success();
         setSnackbar({ visible: true, message: "Профиль обновлён" });
         if (backTimer.current !== null) clearTimeout(backTimer.current);
-        backTimer.current = setTimeout(returnToProfile, 1000);
-      } else {
-        setSnackbar({ visible: true, message: result.error || "Ошибка сохранения" });
+        backTimer.current = setTimeout(() => {
+          if (currentActor(variables.captured)) returnToProfile();
+        }, 1000);
+      } else if (result.status === "rejected") {
+        setSnackbar({ visible: true, message: PROFILE_REJECTED });
+      } else if (result.status === "unknown") {
+        setResultUnknown(true);
+        setSnackbar({ visible: true, message: PROFILE_UNKNOWN });
       }
     },
-    onError: () => {
-      setSnackbar({ visible: true, message: "Ошибка подключения" });
+    onSettled: () => {
+      inFlight.current = false;
     },
   });
 
@@ -135,6 +243,15 @@ export default function EditProfileScreen() {
   };
 
   const handleSave = () => {
+    if (
+      inFlight.current ||
+      resultUnknown ||
+      !actor ||
+      !currentActor(actor) ||
+      !profileData ||
+      profileData.id !== actor.ownerId
+    )
+      return;
     const birthRaw = (form.birthDate ?? "").trim();
     const birthCheck = validateOptionalProfileBirthDateInput(birthRaw);
     if (!birthCheck.ok) {
@@ -162,7 +279,33 @@ export default function EditProfileScreen() {
       return;
     }
 
-    updateMutation.mutate(parsed.data);
+    let canonical = parsed.data;
+    try {
+      canonical = {
+        ...parsed.data,
+        telegram: normalizeTelegramInput(parsed.data.telegram),
+        instagram: normalizeInstagramInput(parsed.data.instagram),
+        website: normalizeWebsiteUrl(parsed.data.website),
+      };
+    } catch {
+      reportClientError(new Error("PROFILE_CONTACT_FIELD_INVALID"), {
+        issueKey: "ProfileEditScreen",
+        severity: "notice",
+        keys: { operation: "validate_social_input" },
+      });
+      setSnackbar({
+        visible: true,
+        message: "Проверьте адрес сайта или имя пользователя в контактах",
+      });
+      return;
+    }
+    const changes = changedProfileFields(profileData.profile ?? {}, canonical);
+    if (Object.keys(changes).length === 0) {
+      returnToProfile();
+      return;
+    }
+    inFlight.current = true;
+    updateMutation.mutate({ captured: actor, changes });
   };
 
   const handleBack = () => {
@@ -180,7 +323,13 @@ export default function EditProfileScreen() {
           style={styles.keyboardView}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {isLoading ? (
+          {!actor ? (
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+              <Text style={styles.errorInline}>
+                Для редактирования нужна подтверждённая сессия.
+              </Text>
+            </ScrollView>
+          ) : isLoading ? (
             <Loading fullScreen embedded message="Загрузка профиля…" />
           ) : error ? (
             <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -222,7 +371,9 @@ export default function EditProfileScreen() {
                   autoCapitalize="words"
                   maxLength={100}
                 />
-                <Text style={styles.hintText}>Необязательно. Город будет виден в публичном профиле.</Text>
+                <Text style={styles.hintText}>
+                  Необязательно. Город будет виден в публичном профиле.
+                </Text>
 
                 <Text style={styles.fieldLabel}>Дата рождения</Text>
                 <TextInput
@@ -248,7 +399,7 @@ export default function EditProfileScreen() {
 
                 <Text style={[styles.sectionHeading, styles.sectionHeadingSpaced]}>Контакты</Text>
 
-                <Text style={styles.fieldLabel}>Telegram</Text>
+                <Text style={styles.fieldLabel}>Телеграм</Text>
                 <TextInput
                   value={form.telegram || ""}
                   onChangeText={(v) => updateField("telegram", v)}
@@ -291,6 +442,7 @@ export default function EditProfileScreen() {
                   YouTube или сайт. Можно без https:// и www — добавятся автоматически.
                 </Text>
 
+                {resultUnknown ? <Text style={styles.errorInline}>{PROFILE_UNKNOWN}</Text> : null}
                 <View style={styles.actionsRow}>
                   <Button
                     label="Отмена"
@@ -312,7 +464,7 @@ export default function EditProfileScreen() {
                     animatedPress
                     onPress={handleSave}
                     loading={updateMutation.isPending}
-                    disabled={updateMutation.isPending}
+                    disabled={updateMutation.isPending || resultUnknown || !actor}
                   />
                 </View>
               </View>

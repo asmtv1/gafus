@@ -1,23 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  getSurveyComparison,
-  getSurveyResponse,
-  submitSurveyResponse,
-} from "./surveyService";
+import { getSurveyComparison, getSurveyResponse, submitSurveyResponse } from "./surveyService";
 
 const mocks = vi.hoisted(() => ({
   stepFindFirst: vi.fn(),
   surveyResponseFindUnique: vi.fn(),
+  txSurveyResponseFindUnique: vi.fn(),
   surveyResponseFindMany: vi.fn(),
   surveyResponseCreate: vi.fn(),
   surveyResponseUpdate: vi.fn(),
   userStepFindFirst: vi.fn(),
   userStepFindMany: vi.fn(),
+  outsideTxUserStepFindMany: vi.fn(),
   userStepUpdate: vi.fn(),
   userTrainingUpdate: vi.fn(),
   stepOnDayFindMany: vi.fn(),
   transaction: vi.fn(),
+  parentRowLock: vi.fn(),
 }));
 
 vi.mock("@gafus/prisma", () => ({
@@ -34,7 +33,7 @@ vi.mock("@gafus/prisma", () => ({
     },
     userStep: {
       findFirst: (...args: unknown[]) => mocks.userStepFindFirst(...args),
-      findMany: (...args: unknown[]) => mocks.userStepFindMany(...args),
+      findMany: (...args: unknown[]) => mocks.outsideTxUserStepFindMany(...args),
       update: (...args: unknown[]) => mocks.userStepUpdate(...args),
     },
     userTraining: {
@@ -66,14 +65,19 @@ describe("surveyService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.setSystemTime(new Date("2026-05-28T10:00:00.000Z"));
+    mocks.parentRowLock.mockResolvedValue([{ id: "training-1" }]);
+    mocks.txSurveyResponseFindUnique.mockResolvedValue(null);
     mocks.transaction.mockImplementation((callback: (tx: unknown) => unknown) =>
       callback({
+        $queryRaw: (...args: unknown[]) => mocks.parentRowLock(...args),
         surveyResponse: {
+          findUnique: (...args: unknown[]) => mocks.txSurveyResponseFindUnique(...args),
           create: (...args: unknown[]) => mocks.surveyResponseCreate(...args),
           update: (...args: unknown[]) => mocks.surveyResponseUpdate(...args),
         },
         userStep: {
           update: (...args: unknown[]) => mocks.userStepUpdate(...args),
+          findMany: (...args: unknown[]) => mocks.userStepFindMany(...args),
         },
         userTraining: {
           update: (...args: unknown[]) => mocks.userTrainingUpdate(...args),
@@ -89,11 +93,9 @@ describe("surveyService", () => {
       id: "user-step-1",
       userTrainingId: "training-1",
       stepOnDay: {
-        id: "step-on-day-1",
-        day: {
-          dayLinks: [{ id: "day-on-course-1", courseId: "course-1" }],
-        },
+        id: "step-on-day-1", stepId: "step-1", dayId: "day-1",
       },
+      userTraining: { dayOnCourse: { dayId: "day-1" } },
     });
     mocks.userStepFindMany.mockResolvedValue([{ status: "COMPLETED" }]);
     mocks.stepOnDayFindMany.mockResolvedValue([{ id: "step-on-day-1" }]);
@@ -134,6 +136,48 @@ describe("surveyService", () => {
         data: { status: "COMPLETED" },
       }),
     );
+    expect(mocks.userStepFindMany).toHaveBeenCalledWith({
+      where: { userTrainingId: "training-1" },
+      select: { status: true },
+    });
+    expect(mocks.outsideTxUserStepFindMany).not.toHaveBeenCalled();
+    expect(mocks.parentRowLock).toHaveBeenCalledOnce();
+    expect(mocks.txSurveyResponseFindUnique).toHaveBeenCalledWith({
+      where: { userId_stepId: { userId: "user-1", stepId: "step-1" } },
+    });
+    expect(mocks.surveyResponseFindUnique).not.toHaveBeenCalled();
+    expect(mocks.parentRowLock.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.txSurveyResponseFindUnique.mock.invocationCallOrder[0]!,
+    );
+    expect(mocks.parentRowLock.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.userStepUpdate.mock.invocationCallOrder[0]!,
+    );
+    expect(mocks.parentRowLock.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.surveyResponseCreate.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it.each([
+    ["another step in same owned course", {
+      stepOnDay: { stepId: "exam-step", dayId: "day-1" },
+      userTraining: { dayOnCourse: { dayId: "day-1" } },
+    }],
+    ["same survey template in another day", {
+      stepOnDay: { stepId: "step-1", dayId: "day-2" },
+      userTraining: { dayOnCourse: { dayId: "day-1" } },
+    }],
+  ])("refuses %s UserStep without saving or completing wrong progress", async (_case, binding) => {
+    mocks.userStepFindFirst.mockResolvedValue({
+      id: "user-step-1", userTrainingId: "training-1", ...binding,
+    });
+    const result = await submitSurveyResponse("user-1", {
+      courseId: "course-1", stepId: "step-1", userStepId: "user-step-1",
+      surveySlug: "dog-home-alone-initial", answers: { concern: "Волнуется" },
+    });
+    expect(result).toMatchObject({success:false,code:"USER_STEP_NOT_FOUND"});
+    expect(mocks.transaction).not.toHaveBeenCalled();
+    expect(mocks.surveyResponseCreate).not.toHaveBeenCalled();
+    expect(mocks.userStepUpdate).not.toHaveBeenCalled();
   });
 
   it("returns an existing response with editability until 24 hours after submission", async () => {
@@ -161,7 +205,7 @@ describe("surveyService", () => {
   });
 
   it("rejects edits after the 24 hour editing window", async () => {
-    mocks.surveyResponseFindUnique.mockResolvedValue({
+    mocks.txSurveyResponseFindUnique.mockResolvedValue({
       id: "response-1",
       submittedAt: new Date("2026-05-27T09:00:00.000Z"),
       answers: { concern: "Воет" },
@@ -272,4 +316,95 @@ describe("surveyService", () => {
       ],
     });
   });
+});
+
+// Original READ must not reinterpret malformed stored JSON as SurveyAnswerValue.
+// Exercise actual getSurveyResponse/getSurveyComparison; only Prisma repository
+// boundaries are synthetic. No submit, permissions or SQL write is involved.
+describe("READ_NORMALIZE_SURVEY_ANSWERS", () => {
+  const row = (answers: unknown, phase: "INITIAL" | "FINAL" = "INITIAL") => ({
+    id: `fictional-${phase}`,
+    userId: "user-1",
+    courseId: "course-1",
+    stepId: "step-1",
+    petId: null,
+    surveySlug: "dog-home-alone-initial",
+    surveyFamilySlug: "dog-home-alone",
+    phase,
+    surveyVersion: 1,
+    answers,
+    submittedAt: new Date("2026-05-28T09:00:00.000Z"),
+  });
+
+  it.each([
+    ["numeric", { q: 123 }],
+    ["nested", { q: { nested: "value" } }],
+    ["boolean array", { q: [false] }],
+    ["mixed array", { q: ["valid", 42] }],
+    ["partially valid", { good: "visible", bad: 123 }],
+  ])("READ_NORMALIZE_response rejects entire invalid stored record: %s", async (_name, answers) => {
+    mocks.surveyResponseFindUnique.mockResolvedValue(row(answers));
+    const result = await getSurveyResponse("user-1", "step-1");
+    expect(result?.answers).toEqual({});
+    expect(mocks.surveyResponseFindUnique).toHaveBeenCalledWith({
+      where: { userId_stepId: { userId: "user-1", stepId: "step-1" } },
+    });
+    expect(mocks.surveyResponseCreate).not.toHaveBeenCalled();
+    expect(mocks.surveyResponseUpdate).not.toHaveBeenCalled();
+  });
+
+  it("READ_NORMALIZE_comparison removes malformed entire INITIAL answers, not just bad field", async () => {
+    mocks.surveyResponseFindMany.mockResolvedValue([
+      row({ valid: "should not leak", bad: { nested: true } }, "INITIAL"),
+      row({ message: "After", flags: ["quiet"] }, "FINAL"),
+    ]);
+    const result = await getSurveyComparison("user-1", "course-1", "dog-home-alone");
+    expect(result).toEqual({
+      familySlug: "dog-home-alone",
+      initialSubmittedAt: "2026-05-28T09:00:00.000Z",
+      finalSubmittedAt: "2026-05-28T09:00:00.000Z",
+      items: [
+        { questionId: "message", before: null, after: "After", changed: true },
+        { questionId: "flags", before: null, after: ["quiet"], changed: true },
+      ],
+    });
+    expect(mocks.surveyResponseFindMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", courseId: "course-1", surveyFamilySlug: "dog-home-alone" },
+      orderBy: { submittedAt: "asc" },
+    });
+  });
+
+  it("READ_NORMALIZE_all existing valid values, empty object and empty string arrays pass unchanged", async () => {
+    const answers = {
+      text: "plain",
+      blank: "",
+      list: ["a", "b"],
+      emptyList: [],
+      selected: false,
+      enabled: true,
+      skipped: null,
+    };
+    mocks.surveyResponseFindUnique.mockResolvedValue(row(answers));
+    expect((await getSurveyResponse("user-1", "step-1"))?.answers).toEqual(answers);
+    mocks.surveyResponseFindUnique.mockResolvedValue(row({}));
+    expect((await getSurveyResponse("user-1", "step-1"))?.answers).toEqual({});
+    mocks.surveyResponseFindMany.mockResolvedValue([row(answers, "INITIAL"), row({}, "FINAL")]);
+    const result = await getSurveyComparison("user-1", "course-1", "dog-home-alone");
+    expect(result?.items).toEqual(
+      Object.entries(answers).map(([questionId, before]) => ({
+        questionId,
+        before,
+        after: null,
+        changed: before !== null,
+      })),
+    );
+  });
+
+  it.each([null, [], ["a"], '{"q":"not-a-parsed-record"}', 42, true])(
+    "READ_NORMALIZE_malformed top-level JSON returns the existing empty fallback: %s",
+    async (invalid) => {
+      mocks.surveyResponseFindUnique.mockResolvedValue(row(invalid));
+      expect((await getSurveyResponse("user-1", "step-1"))?.answers).toEqual({});
+    },
+  );
 });

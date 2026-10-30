@@ -63,7 +63,10 @@ export async function updateGafusSettingsAdmin(input: {
       update: { ...next, updatedById: input.actorId },
     });
     await tx.gafusSettingsRevision.create({
-      data: { revision: next.revision, actorId: input.actorId, snapshot: next as Prisma.InputJsonValue },
+      data: {
+        revision: next.revision, actorId: input.actorId,
+        snapshot: next as Prisma.InputJsonValue,
+      },
     });
     await tx.gafusAdminAudit.create({
       data: {
@@ -92,8 +95,11 @@ export async function adjustGafusBalanceAdmin(input: {
     const key = `gafus:admin:${input.actorId}:${input.requestId}`;
     const existing = await tx.gafusTransaction.findUnique({ where: { idempotencyKey: key } });
     if (existing) {
+      // A retry is the same business operation only when its audit reason matches.
+      // Never silently accept a reused requestId with different audit evidence.
       if (existing.userId !== input.userId || existing.delta !== input.delta
-        || existing.adminActorId !== input.actorId) throw new Error("REQUEST_CONFLICT");
+        || existing.adminActorId !== input.actorId
+        || existing.reason !== input.reason.trim()) throw new Error("REQUEST_CONFLICT");
       return { transactionId: existing.id, balance: existing.balanceAfter, replay: true };
     }
     const wallet = await tx.gafusWallet.findUnique({ where: { userId: input.userId } });
@@ -224,6 +230,9 @@ export async function reviewGafusFraudSignalAdmin(input: {
         },
       },
     });
-    return { signalId: signal.id, status: nextStatus, requested, recovered, unrecovered: requested - recovered };
+    return {
+      signalId: signal.id, status: nextStatus,
+      requested, recovered, unrecovered: requested - recovered,
+    };
   }, { maxWait: 10_000, timeout: 30_000 });
 }

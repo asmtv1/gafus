@@ -149,14 +149,21 @@ function buildDesiredSlotIntervals(params: {
 }
 
 /**
- * Пересобрать материализованные FREE-слоты в диапазоне. BOOKED не трогаем.
+ * Rebuild both persisted rule changes and materialized slots in the SAME
+ * transaction. The caller must acquire the per-cynologist advisory lock before
+ * making any configuration changes; re-acquiring an xact lock is harmless.
+ * This also serializes the normal lazy reader-triggered horizon rebuild.
  */
-export async function rebuildSlotsForCynologist(
+export async function rebuildSlotsForCynologistInTransaction(
+  tx: Prisma.TransactionClient,
   cynologistId: string,
   fromUtc: Date,
   toUtc: Date,
 ): Promise<void> {
-  const cyn = await prisma.consultationCynologist.findUnique({
+  await tx.$executeRaw(
+    Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`consultation-slots:${cynologistId}`}, 0))`,
+  );
+  const cyn = await tx.consultationCynologist.findUnique({
     where: { id: cynologistId },
     include: {
       availabilityRules: true,
@@ -170,9 +177,7 @@ export async function rebuildSlotsForCynologist(
   }
 
   /** Ключи YYYY-MM-DD в МСК — как в buildDesiredSlotIntervals; иначе при TZ сервера ≠ Europe/Moscow выходной не совпадал с днём и FREE-слоты оставались. */
-  const dayOffDates = new Set(
-    cyn.dayOffs.map((d) => consultationMskDayKey(d.date)),
-  );
+  const dayOffDates = new Set(cyn.dayOffs.map((d) => consultationMskDayKey(d.date)));
 
   const desired = buildDesiredSlotIntervals({
     slotDurationMin: cyn.slotDurationMin,
@@ -188,102 +193,129 @@ export async function rebuildSlotsForCynologist(
     exceptions: cyn.slotExceptions.map((e) => ({ startAt: e.startAt, endAt: e.endAt })),
   });
 
-  const desiredKeys = new Set(desired.map((d) => `${d.startAt.toISOString()}|${d.endAt.toISOString()}`));
+  const desiredKeys = new Set(
+    desired.map((d) => `${d.startAt.toISOString()}|${d.endAt.toISOString()}`),
+  );
 
-  await prisma.$transaction(async (tx) => {
-    // Calendar reads, the worker horizon and trainer edits can all request a
-    // rebuild.  Serialize a whole rebuild per cynologist: the read-then-create
-    // below would otherwise let concurrent requests collide on the unique
-    // (cynologistId, startAt) constraint and return a 500 to one visitor.
-    await tx.$executeRaw(
-      Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${`consultation-slots:${cynologistId}`}, 0))`,
-    );
-    const existing = await tx.consultationSlot.findMany({
-      where: {
-        cynologistId,
-        startAt: { lt: toUtc },
-        endAt: { gt: fromUtc },
+  const existing = await tx.consultationSlot.findMany({
+    where: {
+      cynologistId,
+      startAt: { lt: toUtc },
+      endAt: { gt: fromUtc },
+    },
+    select: {
+      id: true,
+      startAt: true,
+      endAt: true,
+      status: true,
+      bookings: {
+        where: { status: { in: [...ACTIVE_BOOKING_FOR_SLOT] } },
+        select: { id: true },
+        take: 1,
       },
-      select: {
-        id: true,
-        startAt: true,
-        endAt: true,
-        status: true,
-        bookings: {
-          where: { status: { in: [...ACTIVE_BOOKING_FOR_SLOT] } },
-          select: { id: true },
-          take: 1,
-        },
-        _count: { select: { bookings: true } },
-      },
-    });
-
-    for (const s of existing) {
-      if (s.bookings.length > 0) {
-        if (s.status !== SLOT.BOOKED) {
-          await tx.consultationSlot.update({
-            where: { id: s.id },
-            data: { status: SLOT.BOOKED },
-          });
-        }
-        continue;
-      }
-      if (s._count.bookings > 0) {
-        if (s.status === SLOT.BOOKED) {
-          await tx.consultationSlot.update({
-            where: { id: s.id },
-            data: { status: SLOT.FREE },
-          });
-        }
-        continue;
-      }
-      const key = `${s.startAt.toISOString()}|${s.endAt.toISOString()}`;
-      if (!desiredKeys.has(key)) {
-        await tx.consultationSlot.delete({ where: { id: s.id } });
-        continue;
-      }
-      if (s.status === SLOT.BLOCKED) {
-        await tx.consultationSlot.update({
-          where: { id: s.id },
-          data: { status: SLOT.FREE },
-        });
-      }
-    }
-
-    for (const d of desired) {
-      const exists = await tx.consultationSlot.findFirst({
-        where: {
-          cynologistId,
-          startAt: d.startAt,
-          endAt: d.endAt,
-        },
-      });
-      if (!exists) {
-        await tx.consultationSlot.create({
-          data: {
-            cynologistId,
-            startAt: d.startAt,
-            endAt: d.endAt,
-            status: SLOT.FREE,
-          },
-        });
-      }
-    }
-
-    for (const ex of cyn.slotExceptions) {
-      await tx.consultationSlot.updateMany({
-        where: {
-          cynologistId,
-          status: SLOT.FREE,
-          startAt: { lt: ex.endAt },
-          endAt: { gt: ex.startAt },
-        },
-        data: { status: SLOT.BLOCKED },
-      });
-    }
+      _count: { select: { bookings: true } },
+    },
   });
 
+  const toBooked: string[] = [];
+  const toBlocked: string[] = [];
+  const toFree: string[] = [];
+  const toDelete: string[] = [];
+  for (const s of existing) {
+    if (s.bookings.length > 0) {
+      // Active confirmation/booking has priority over any calendar edit.
+      if (s.status !== SLOT.BOOKED) toBooked.push(s.id);
+      continue;
+    }
+    const key = `${s.startAt.toISOString()}|${s.endAt.toISOString()}`;
+    if (s._count.bookings > 0) {
+      // Historical FK references must be retained, but never reopened if
+      // the new schedule would exclude that slot.
+      if (desiredKeys.has(key)) {
+        if (s.status !== SLOT.FREE) toFree.push(s.id);
+      } else if (s.status !== SLOT.BLOCKED) {
+        toBlocked.push(s.id);
+      }
+      continue;
+    }
+    if (!desiredKeys.has(key)) toDelete.push(s.id);
+    else if (s.status === SLOT.BLOCKED) toFree.push(s.id);
+  }
+
+  // Keep bounded SQL round trips even when editing thousands of slots.
+  // All decisions were made from one locked snapshot in this transaction.
+  if (toBooked.length) {
+    await tx.consultationSlot.updateMany({
+      where: { id: { in: toBooked } },
+      data: { status: SLOT.BOOKED },
+    });
+  }
+  if (toBlocked.length) {
+    await tx.consultationSlot.updateMany({
+      where: { id: { in: toBlocked } },
+      data: { status: SLOT.BLOCKED },
+    });
+  }
+  if (toFree.length) {
+    await tx.consultationSlot.updateMany({
+      where: { id: { in: toFree } },
+      data: { status: SLOT.FREE },
+    });
+  }
+  if (toDelete.length) {
+    await tx.consultationSlot.deleteMany({ where: { id: { in: toDelete } } });
+  }
+
+  // A full 60-day horizon may contain thousands of slots. A per-slot
+  // findFirst/create round trip was causing minutes of latency during actual
+  // legacy Next calendar rendering. Existing slot rows were already read
+  // above under the cynologist advisory lock; batch only missing intervals.
+  const existingKeys = new Set(
+    existing.map((s) => `${s.startAt.toISOString()}|${s.endAt.toISOString()}`),
+  );
+  const missing = desired.filter(
+    (d) => !existingKeys.has(`${d.startAt.toISOString()}|${d.endAt.toISOString()}`),
+  );
+  if (missing.length > 0) {
+    await tx.consultationSlot.createMany({
+      data: missing.map((d) => ({
+        cynologistId,
+        startAt: d.startAt,
+        endAt: d.endAt,
+        status: SLOT.FREE,
+      })),
+      // Historical FK-referenced slots may occupy the same startAt with a
+      // different endAt. Do not overwrite that history or reopen its slot.
+      skipDuplicates: true,
+    });
+  }
+
+  for (const ex of cyn.slotExceptions) {
+    await tx.consultationSlot.updateMany({
+      where: {
+        cynologistId,
+        status: SLOT.FREE,
+        startAt: { lt: ex.endAt },
+        endAt: { gt: ex.startAt },
+      },
+      data: { status: SLOT.BLOCKED },
+    });
+  }
   logger.info("rebuildSlotsForCynologist done", { cynologistId, desired: desired.length });
+}
+
+/** Public rebuild for lazy horizon refreshes and existing trainer/core callers. */
+export async function rebuildSlotsForCynologist(
+  cynologistId: string,
+  fromUtc: Date,
+  toUtc: Date,
+): Promise<void> {
+  await prisma.$transaction(
+    async (tx) => {
+      await rebuildSlotsForCynologistInTransaction(tx, cynologistId, fromUtc, toUtc);
+    },
+    { maxWait: 10_000, timeout: 120_000 },
+  );
 }
 
 /**
@@ -461,8 +493,8 @@ export async function getCalendarSlots(
       s.status === SLOT.FREE && bookingKeepsSlotBusy
         ? SLOT.BOOKED
         : s.status === SLOT.FREE && s.startAt < minStart
-        ? SLOT.BLOCKED
-        : s.status;
+          ? SLOT.BLOCKED
+          : s.status;
     return {
       id: s.id,
       startAtUtc: s.startAt.toISOString(),

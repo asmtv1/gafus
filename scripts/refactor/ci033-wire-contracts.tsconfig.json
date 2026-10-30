@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "lib": ["ES2020"],
+    "types": [],
+    "skipLibCheck": false,
+    "forceConsistentCasingInFileNames": true
+  },
+  "files": [
+    "../../packages/types/src/data/trainer-read-contracts.ts",
+    "../../packages/types/src/data/training.ts",
+    "../../packages/types/src/data/pet.ts",
+    "../../packages/types/src/data/notes.ts"
+  ]
+}

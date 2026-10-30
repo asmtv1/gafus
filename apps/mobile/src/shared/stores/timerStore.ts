@@ -1,6 +1,4 @@
 import { create } from "zustand";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getStepTimerEndStorageKey } from "@gafus/core/utils/training";
 
 interface TimerState {
   // Текущий активный таймер
@@ -12,6 +10,9 @@ interface TimerState {
     isRunning: boolean;
     startedAt: number;
     endTsSec?: number;
+    /** Phase1: optional attested owner/epoch of the in-memory timer (never persisted). */
+    ownerId?: string;
+    authEpoch?: string;
   } | null;
 }
 
@@ -22,6 +23,7 @@ interface TimerActions {
     dayOnCourseId: string,
     stepIndex: number,
     durationSec: number,
+    session?: { ownerId: string; authEpoch: string },
   ) => boolean;
 
   // Возобновление таймера с оставшимся временем
@@ -49,7 +51,12 @@ interface TimerActions {
   ) => Promise<number | null>;
 
   // Проверка, активен ли таймер для шага
-  isTimerActiveFor: (courseId: string, dayOnCourseId: string, stepIndex: number) => boolean;
+  isTimerActiveFor: (
+    courseId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+    session?: { ownerId: string; authEpoch: string },
+  ) => boolean;
 
   // Получение оставшегося времени
   getRemainingTime: () => number | null;
@@ -66,7 +73,7 @@ const nowSec = () => Math.floor(Date.now() / 1000);
 export const useTimerStore = create<TimerStore>((set, get) => ({
   activeTimer: null,
 
-  startTimer: (courseId, dayOnCourseId, stepIndex, durationSec) => {
+  startTimer: (courseId, dayOnCourseId, stepIndex, durationSec, session) => {
     const currentTimer = get().activeTimer;
     if (currentTimer?.isRunning) {
       const isSameStep =
@@ -91,10 +98,10 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
         isRunning: true,
         startedAt: Date.now(),
         endTsSec,
+        ...(session ? { ownerId: session.ownerId, authEpoch: session.authEpoch } : {}),
       },
     });
-    const endKey = getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex);
-    void AsyncStorage.setItem(endKey, String(endTsSec));
+    // Ownerless historical timer keys must never be written by new sessions.
     return true;
   },
 
@@ -106,10 +113,8 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     const timer = get().activeTimer;
     if (!timer) return null;
 
-    const effectiveEndTs = timer.endTsSec ?? (nowSec() + timer.remainingSec);
+    const effectiveEndTs = timer.endTsSec ?? nowSec() + timer.remainingSec;
     const remaining = Math.max(effectiveEndTs - nowSec(), 0);
-    const endKey = getStepTimerEndStorageKey(timer.courseId, timer.dayOnCourseId, timer.stepIndex);
-    void AsyncStorage.removeItem(endKey);
 
     set({
       activeTimer: {
@@ -126,7 +131,7 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
     const timer = get().activeTimer;
     if (!timer || !timer.isRunning) return;
 
-    const effectiveEndTs = timer.endTsSec ?? (nowSec() + timer.remainingSec);
+    const effectiveEndTs = timer.endTsSec ?? nowSec() + timer.remainingSec;
     const newRemaining = Math.max(effectiveEndTs - nowSec(), 0);
 
     set({
@@ -141,63 +146,28 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
 
   stopTimer: (courseId, dayOnCourseId, stepIndex) => {
     const timer = get().activeTimer;
-    const keyCourseId = courseId ?? timer?.courseId;
-    const keyDayId = dayOnCourseId ?? timer?.dayOnCourseId;
-    const keyStepIndex = stepIndex ?? timer?.stepIndex;
-
-    if (keyCourseId && keyDayId && typeof keyStepIndex === "number") {
-      const endKey = getStepTimerEndStorageKey(keyCourseId, keyDayId, keyStepIndex);
-      void AsyncStorage.removeItem(endKey);
-    }
+    // Do not remove unknown-owner historical timer bytes on reset/complete.
+    void courseId;
+    void dayOnCourseId;
+    void stepIndex;
+    void timer;
     set({ activeTimer: null });
   },
 
-  restoreTimerFromStorage: async (courseId, dayOnCourseId, stepIndex) => {
-    const activeTimer = get().activeTimer;
-    if (activeTimer?.isRunning) {
-      const isSameStep =
-        activeTimer.courseId === courseId &&
-        activeTimer.dayOnCourseId === dayOnCourseId &&
-        activeTimer.stepIndex === stepIndex;
-      if (!isSameStep) return null;
-      get().tick();
-      return get().activeTimer?.remainingSec ?? null;
-    }
-
-    const endKey = getStepTimerEndStorageKey(courseId, dayOnCourseId, stepIndex);
-    const endTsRaw = await AsyncStorage.getItem(endKey);
-    if (endTsRaw) {
-      const endTsSec = Number(endTsRaw);
-      if (Number.isFinite(endTsSec)) {
-        const remainingSec = Math.max(endTsSec - nowSec(), 0);
-        set({
-          activeTimer: {
-            courseId,
-            dayOnCourseId,
-            stepIndex,
-            remainingSec,
-            isRunning: remainingSec > 0,
-            startedAt: Date.now(),
-            endTsSec,
-          },
-        });
-        if (remainingSec <= 0) {
-          await AsyncStorage.removeItem(endKey);
-        }
-        return remainingSec;
-      }
-    }
-
+  restoreTimerFromStorage: async () => {
+    // Legacy key carries no principal/authEpoch. Never hydrate from it.
+    // Owner-attested v2 timer hydration requires separate approved time semantics.
     return null;
   },
 
-  isTimerActiveFor: (courseId, dayOnCourseId, stepIndex) => {
+  isTimerActiveFor: (courseId, dayOnCourseId, stepIndex, session) => {
     const timer = get().activeTimer;
     if (!timer) return false;
     return (
       timer.courseId === courseId &&
       timer.dayOnCourseId === dayOnCourseId &&
-      timer.stepIndex === stepIndex
+      timer.stepIndex === stepIndex &&
+      (!session || (timer.ownerId === session.ownerId && timer.authEpoch === session.authEpoch))
     );
   },
 

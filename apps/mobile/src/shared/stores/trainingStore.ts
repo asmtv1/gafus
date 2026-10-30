@@ -1,4 +1,4 @@
-import { getDayKey as getDayKeyFromCore } from "@gafus/core/utils/training";
+import { getDayKey as getDayKeyFromCore } from "@gafus/core-client/utils/training";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { zustandStorage } from "./storage";

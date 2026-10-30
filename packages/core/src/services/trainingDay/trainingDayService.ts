@@ -17,9 +17,11 @@ import type {
 
 const logger = createWebLogger("training-day");
 
-export async function getTrainingDayForEdit(id: string) {
+export type TrainingDayMutationActor = { id: string; role: "TRAINER" | "ADMIN" };
+
+export async function getTrainingDayForEdit(id: string, actor?: TrainingDayMutationActor) {
   return prisma.trainingDay.findUnique({
-    where: { id },
+    where: { id, ...(actor?.role === "TRAINER" ? { authorId: actor.id } : {}) },
     include: { stepLinks: { orderBy: { order: "asc" } } },
   });
 }
@@ -101,26 +103,39 @@ export async function createTrainingDay(
  */
 export async function updateTrainingDay(
   input: UpdateTrainingDayInput,
+  actor?: TrainingDayMutationActor,
 ): Promise<ActionResult> {
   try {
-    await prisma.trainingDay.update({
-      where: { id: input.id },
-      data: {
-        title: input.title,
-        description: input.description ?? "",
-        type: input.type ?? "regular",
-        equipment: input.equipment ?? "",
-        showCoursePathExport: input.showCoursePathExport ?? false,
-        shareProgressAcrossCourses: input.shareProgressAcrossCourses ?? false,
-        stepLinks: {
-          deleteMany: {},
-          create: input.stepIds.map((stepId, index) => ({
-            stepId,
-            order: index,
-          })),
-        },
+    const where = { id: input.id,
+      ...(actor?.role === "TRAINER" ? { authorId: actor.id } : {}) };
+    // Share identical payload for legacy Next and actor-scoped Hono writes.
+    const data = {
+      title: input.title,
+      description: input.description ?? "",
+      type: input.type ?? "regular",
+      equipment: input.equipment ?? "",
+      showCoursePathExport: input.showCoursePathExport ?? false,
+      shareProgressAcrossCourses: input.shareProgressAcrossCourses ?? false,
+      stepLinks: {
+        deleteMany: {},
+        create: input.stepIds.map((stepId, index) => ({ stepId, order: index })),
       },
-    });
+    };
+    if (actor) {
+      // The owner check and replacement execute in the same DB transaction.
+      await prisma.$transaction(async tx => {
+        const uniqueIds = [...new Set(input.stepIds)];
+        if (uniqueIds.length !== input.stepIds.length) throw Error("DUPLICATE_STEPS");
+        const count = await tx.step.count({
+          where: { id: { in: uniqueIds },
+            ...(actor.role === "TRAINER" ? { authorId: actor.id } : {}) },
+        });
+        if (count !== uniqueIds.length) throw Error("STEP_OWNER_MISMATCH");
+        await tx.trainingDay.update({ where, data });
+      });
+    } else {
+      await prisma.trainingDay.update({ where, data });
+    }
     invalidateTrainingDaysContentCache([input.id]);
     await publishCourseContentChange();
     logger.info("Тренировочный день обновлён", { dayId: input.id });
@@ -152,8 +167,35 @@ export async function updateTrainingDay(
  * Удаление дней. Возвращает courseIds и deletedDayIds для инвалидации кэша в app.
  * Сначала получаем courseIds по DayOnCourse, затем в транзакции удаляем DayOnCourse и TrainingDay.
  */
-export async function deleteDays(input: DeleteDaysInput): Promise<DeleteDaysResult> {
+export async function deleteDays(
+  input: DeleteDaysInput,
+  actor?: TrainingDayMutationActor,
+): Promise<DeleteDaysResult> {
   try {
+    if (actor) {
+      // Read related course ids and assert all ownership under one transaction.
+      // Throwing on count/race rolls back all deletes.
+      const ids = [...new Set(input.dayIds)];
+      if (ids.length !== input.dayIds.length) return { success: false };
+      const where = { id: { in: ids },
+        ...(actor.role === "TRAINER" ? { authorId: actor.id } : {}) };
+      const courseIds = await prisma.$transaction(async tx => {
+        const authorized = await tx.trainingDay.findMany({
+          where, select: { id: true },
+        });
+        if (authorized.length !== ids.length) throw Error("DAY_NOT_FOUND");
+        const attached = await tx.dayOnCourse.findMany({
+          where: { dayId: { in: ids } }, select: { courseId: true },
+        });
+        await tx.dayOnCourse.deleteMany({ where: { dayId: { in: ids } } });
+        const result = await tx.trainingDay.deleteMany({ where });
+        if (result.count !== ids.length) throw Error("DAY_DELETE_RACE");
+        return [...new Set(attached.map(link => link.courseId))];
+      });
+      invalidateTrainingDaysContentCache(ids);
+      await publishCourseContentChange();
+      return { success: true, courseIds, deletedDayIds: ids };
+    }
     const dayOnCourses = await prisma.dayOnCourse.findMany({
       where: { dayId: { in: input.dayIds } },
       select: { courseId: true },

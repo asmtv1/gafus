@@ -1,7 +1,7 @@
 import { connection, GALLERY_PROCESSING_QUEUE_NAME } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { Worker, type Job } from "bullmq";
-import { createCloudruMediaDispatcher } from "./cloudru-media-dispatcher";
+import { createCloudruGalleryPoolDispatcher } from "./cloudru-media-dispatcher";
 
 const logger = createWorkerLogger("gallery-processing-trigger");
 
@@ -13,9 +13,9 @@ export function startGalleryProcessingTriggerWorker(): void {
   if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED !== "true" ||
       process.env.GALLERY_PROCESSOR_READY !== "true") return;
 
-  let dispatch: ReturnType<typeof createCloudruMediaDispatcher>;
+  let dispatch: ReturnType<typeof createCloudruGalleryPoolDispatcher>;
   try {
-    dispatch = createCloudruMediaDispatcher(process.env, fetch, ["gafus-gallery-process"]);
+    dispatch = createCloudruGalleryPoolDispatcher(process.env, fetch);
   } catch {
     logger.error("Gallery trigger configuration unavailable", new Error("GALLERY_TRIGGER_CONFIG_UNSAFE"));
     return;

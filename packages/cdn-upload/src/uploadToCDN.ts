@@ -15,6 +15,11 @@ import {
   parsePrivateMediaLocation,
   deletePrivateUserMedia,
 } from "./privateUserMedia";
+import {
+  isIsolatedAvatarPath, isIsolatedAvatarLocation, uploadIsolatedAvatar,
+  deleteIsolatedAvatarLocation, isolatedAvatarLocationFromOwnPath,
+  presentIsolatedAvatarUrl,
+} from "./isolatedAvatarMedia";
 import { createTrainerPanelLogger } from "@gafus/logger";
 import { Readable } from "stream";
 import type { ReadableStream } from "stream/web";
@@ -23,6 +28,12 @@ const logger = createTrainerPanelLogger("cdn-upload");
 
 function toLogError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
+}
+
+/** The isolated localhost S3 profile must never fall through to legacy Yandex. */
+function rejectLegacyYandexInIsolatedS3(): void {
+  if (process.env.GAFUS_ISOLATED_NONPROD_S3 !== undefined)
+    throw new Error("ISOLATED_S3_LEGACY_PROVIDER_DENIED");
 }
 
 // Функция для очистки имени файла от недопустимых символов
@@ -71,6 +82,12 @@ export async function getSignedDownloadUrl(
   relativePath: string,
   expiresInSeconds: number,
 ): Promise<string> {
+  if (isIsolatedAvatarLocation(relativePath)) {
+    if (!Number.isSafeInteger(expiresInSeconds) || expiresInSeconds < 60 || expiresInSeconds > 3600)
+      throw new Error("ISOLATED_AVATAR_INVALID_SIGN_TTL");
+    return (await presentIsolatedAvatarUrl(relativePath, expiresInSeconds))!;
+  }
+  rejectLegacyYandexInIsolatedS3();
   checkCredentials();
   const safeTtl = Math.min(MAX_SIGNED_URL_TTL_SECONDS, Math.max(60, expiresInSeconds));
   return getSignedUrl(
@@ -84,6 +101,10 @@ export async function getSignedDownloadUrl(
 }
 
 export async function uploadFileToCDN(file: File, relativePath: string): Promise<string> {
+  if (process.env.GAFUS_ISOLATED_NONPROD_S3 !== undefined &&
+      isIsolatedAvatarPath(relativePath)) {
+    return uploadIsolatedAvatar(file, relativePath);
+  }
   if (privateMediaEnabled() && privateMediaKindForUpload(relativePath) === "documents") {
     return uploadPrivateUserMedia(
       "documents",
@@ -92,6 +113,7 @@ export async function uploadFileToCDN(file: File, relativePath: string): Promise
       file.type,
     );
   }
+  rejectLegacyYandexInIsolatedS3();
   checkCredentials(); // P2 Security: Runtime check
 
   try {
@@ -142,6 +164,7 @@ export async function uploadReadableStreamToCDN(
   contentLength: number,
   originalName: string,
 ): Promise<string> {
+  rejectLegacyYandexInIsolatedS3();
   checkCredentials();
 
   const bucketName = "gafus-media";
@@ -206,6 +229,7 @@ async function uploadWithRetry(
  * @returns Buffer с содержимым файла
  */
 export async function downloadFileFromCDN(relativePath: string): Promise<Buffer> {
+  rejectLegacyYandexInIsolatedS3();
   checkCredentials(); // P2 Security: Runtime check
 
   try {
@@ -269,6 +293,7 @@ export async function streamFileFromCDN(
   relativePath: string,
   range?: string,
 ): Promise<StreamFileFromCDNResult> {
+  rejectLegacyYandexInIsolatedS3();
   checkCredentials(); // P2 Security: Runtime check
 
   try {
@@ -341,6 +366,7 @@ export async function copyObjectInCDN(
   sourceRelativePath: string,
   destRelativePath: string,
 ): Promise<void> {
+  rejectLegacyYandexInIsolatedS3();
   checkCredentials();
 
   const bucketName = "gafus-media";
@@ -367,11 +393,20 @@ export async function copyObjectInCDN(
  * @param relativePath - Относительный путь к файлу (без uploads/)
  */
 export async function deleteFileFromCDN(relativePath: string): Promise<void> {
+  if (isIsolatedAvatarLocation(relativePath)) {
+    await deleteIsolatedAvatarLocation(relativePath);
+    return;
+  }
+  if (process.env.GAFUS_ISOLATED_NONPROD_S3 !== undefined && isIsolatedAvatarPath(relativePath)) {
+    await deleteIsolatedAvatarLocation(isolatedAvatarLocationFromOwnPath(relativePath));
+    return;
+  }
   // Provider must come from the stored location, never from the current upload flag.
   if (parsePrivateMediaLocation(relativePath)) {
     await deletePrivateUserMedia(relativePath);
     return;
   }
+  rejectLegacyYandexInIsolatedS3();
   checkCredentials(); // P2 Security: Runtime check
 
   try {
@@ -407,6 +442,7 @@ export async function deleteFileFromCDN(relativePath: string): Promise<void> {
  * @returns Количество удалённых файлов
  */
 export async function deleteFolderFromCDN(folderPath: string): Promise<number> {
+  rejectLegacyYandexInIsolatedS3();
   checkCredentials(); // P2 Security: Runtime check
 
   try {
@@ -491,6 +527,7 @@ export async function uploadBufferToCDN(
   if (privateMediaEnabled() && privateMediaKindForUpload(relativePath) === "questions") {
     return uploadPrivateUserMedia("questions", relativePath, buffer, contentType);
   }
+  rejectLegacyYandexInIsolatedS3();
   checkCredentials(); // P2 Security: Runtime check
 
   try {

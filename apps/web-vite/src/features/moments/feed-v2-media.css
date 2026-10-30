@@ -1,0 +1,37 @@
+.feed-v2-image-open { width:100%; padding:0; border:0; background:transparent; cursor:zoom-in; display:block; }
+.feed-v2-image { width:100%; max-width:100%; height:auto; display:block; object-fit:contain; }
+.feed-v2-lightbox { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; background:rgba(0,0,0,.9); }
+.feed-v2-lightbox-inner { position:relative; max-width:98vw; max-height:98vh; }
+.feed-v2-lightbox-inner img { max-width:98vw; max-height:95vh; width:auto; height:auto; object-fit:contain; }
+.feed-v2-lightbox-close { position:absolute; top:0; right:0; z-index:1; color:white; background:rgba(0,0,0,.5); border:0; border-radius:50%; width:44px; height:44px; font-size:28px; cursor:pointer; }
+/* A social-feed preview, not a fullscreen-sized post. Portrait clips are
+   contained (never cropped) in a 4:5 stage, similar to compact social feeds.
+   Native video controls still offer fullscreen once playback starts. */
+.feed-v2-video-shell {
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:100%;
+  min-width:0;
+  aspect-ratio:16/9;
+  max-height:min(440px, 52svh);
+  overflow:hidden;
+  background:#141414;
+}
+.feed-v2-video-shell[data-orientation="portrait"] { aspect-ratio:4/5; }
+.feed-v2-video-shell[data-orientation="square"] { aspect-ratio:1/1; }
+.feed-v2-video-shell video {
+  display:block;
+  width:100%;
+  height:100%;
+  min-height:0;
+  max-height:100%;
+  object-fit:contain;
+}
+/* A narrow-screen feed still shows the caption and next post without scrolling
+   through an entire portrait video. The fullscreen control is unaffected. */
+@media (max-width:600px) {
+  .feed-v2-video-shell { max-height:min(440px, 54svh); }
+}
+.feed-v2-video-play { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:54px; height:54px; background:rgba(30,30,30,.75); color:white; border:1px solid rgba(255,255,255,.5); border-radius:50%; cursor:pointer; }
+.feed-v2-video-shell [role=alert] { color:white; padding:12px; }

@@ -1,0 +1,611 @@
+/* WEB3 source-proven sky composite: original Next and Vite serve the
+ * identical site-background.css and image SHA256. The Vite :root background
+ * shorthand overwrote --app-background-color (#e6e2d8), causing uniform
+ * +11/+16/+21 RGB error in the 16 actual original Next/Vite route pairs.
+ * Fix only the matching WEB3 page, never other agents' global background. */
+html:root:has(.gafus-next-courses) {
+  background-color: var(--app-background-color, #e6e2d8);
+}
+
+/* WEB-3 isolated original-Next /courses geometry check, 1280×800 WORK.
+ * Independent Next main is full 1280px wide, Vite main used 1200px/x=40.
+ * Scope the width correction to the original course catalog only; keep
+ * profiles, chats, pets, and other agent routes untouched. */
+@media (min-width: 1024px) {
+  .gafus-app .shell:has(.gafus-next-courses) {
+    width: 100%;
+    max-width: 1280px;
+  }
+}
+
+/* The original Next /courses renders one independent h1 above the Daily card.
+ * Favorites navigation is intentionally not released in the Refactor UI. */
+.gafus-app .gafus-next-courses .catalog-header h1 {
+  margin: 58px 0 34px;
+  color: #352e2e;
+  text-align: center;
+  font: 400 80px/1 var(--font-impact),var(--font-montserrat),system-ui,sans-serif;
+}
+@media (max-width:768px) {
+ .gafus-app .gafus-next-courses .catalog-header h1 { font-size:64px; margin:38px 0 26px; }
+}
+@media (max-width:480px) {
+ .gafus-app .gafus-next-courses .catalog-header h1 { font-size:52px; margin:30px 0 22px; }
+}
+
+/* Source Next FiltersDrawer: fixed right-hand modal rather than an inline
+ * fieldset. Preserve existing authenticated browser-only filters and the
+ * native selects required by keyboard and assistive technology. */
+.gafus-app .gafus-next-courses .gafus-course-next-filters { position: relative; }
+.gafus-app .gafus-next-courses .course-next-filters-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  border: 0;
+  padding: 0;
+  background: rgba(0,0,0,.5);
+  cursor: default;
+}
+.gafus-app .gafus-next-courses .course-catalog-filters.course-next-filters-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 420px;
+  max-width: 100%;
+  max-height: 100dvh;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  background: var(--bg-1);
+  box-shadow: -4px 0 24px rgba(0,0,0,.2);
+}
+.gafus-app .gafus-next-courses .course-next-filters-drawer > legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+}
+.gafus-app .gafus-next-courses .course-next-filters-header,
+.gafus-app .gafus-next-courses .course-next-filters-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--bg-3);
+}
+.gafus-app .gafus-next-courses .course-next-filters-header h3 {
+  margin: 0;
+  font: 700 20px/1.3 var(--font-montserrat),system-ui,sans-serif;
+  color: var(--text-primary);
+}
+.gafus-app .gafus-next-courses .course-next-filters-header button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.gafus-app .gafus-next-courses .course-next-filters-drawer > div:not(.course-next-filters-header):not(.course-next-filters-footer) {
+  padding: 24px;
+}
+.gafus-app .gafus-next-courses .course-next-filters-footer {
+  margin-top: auto;
+  border-top: 2px solid var(--bg-3);
+  border-bottom: 0;
+}
+.gafus-app .gafus-next-courses .course-next-filters-footer button {
+  flex: 1;
+  min-height: 44px;
+  padding: 12px 20px;
+  border: 3px solid #636128;
+  border-radius: 10px;
+  background: #fff8e5;
+  color: var(--text-primary);
+  font: 700 15px/1.2 var(--font-montserrat),system-ui,sans-serif;
+  cursor: pointer;
+}
+.gafus-app .gafus-next-courses .course-catalog-filters.course-next-sort-popover {
+  position: absolute;
+  top: 52px;
+  left: 0;
+  z-index: 20;
+  min-width: 210px;
+  max-width: min(100%,320px);
+  margin: 0;
+  background: #fff8e5;
+  border-radius: 14px;
+  box-shadow: 0 7px 20px rgba(0,0,0,.18);
+}
+@media (max-width:480px) {
+  .gafus-app .gafus-next-courses .course-next-filters-header,
+  .gafus-app .gafus-next-courses .course-next-filters-footer { padding: 14px 16px; }
+  .gafus-app .gafus-next-courses .course-next-filters-drawer > div:not(.course-next-filters-header):not(.course-next-filters-footer) {
+    padding: 16px;
+  }
+}
+
+/* The application shell is animated/transformed, making CSS fixed panels
+ * relative to that element rather than viewport (Next source is viewport).
+ * Portal controls to the GAFUS app root, outside the transformed shell. */
+.gafus-app .course-next-filters-portal {
+  position: fixed;
+  inset: 0;
+  z-index: 998;
+  margin: 0;
+  padding: 0;
+  width: auto;
+  height: auto;
+  max-width: none;
+  pointer-events: none;
+  background: transparent;
+}
+.gafus-app .course-next-filters-portal .course-next-filters-backdrop,
+.gafus-app .course-next-filters-portal .course-next-filters-drawer {
+  pointer-events: auto;
+}
+
+/* Next FiltersDrawer paints over the viewport, outside animated app shells.
+ * Global button width:fit-content otherwise collapses an empty backdrop to
+ * zero width even when inset:0, which leaves the entire original page bright.
+ * The body-level root fixes a measured 12px top offset of Vite R5 as well. */
+.gafus-app.course-next-filters-viewport-layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  z-index: 9999;
+  pointer-events: none;
+}
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-portal {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.gafus-app .gafus-next-courses .course-next-filters-backdrop {
+  display: block;
+  width: 100vw;
+  height: 100dvh;
+  min-width: 100vw;
+  min-height: 100dvh;
+  border-radius: 0;
+}
+
+/* Next source FiltersDrawer sections and button grid, rather than an inline
+ * select stack. Keep native selects mounted (visually hidden) for keyboard and
+ * existing programmatic access; the visual controls operate on the exact
+ * same validated, owner-scoped filter state with no Hono request. */
+.gafus-app.course-next-filters-viewport-layer .course-next-drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 24px;
+}
+.gafus-app .course-next-drawer-section { margin: 0 0 32px; }
+.gafus-app .course-next-drawer-section h4 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font: 600 15px/1.35 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app .course-next-drawer-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(140px,1fr));
+  gap: 10px;
+}
+.gafus-app .course-next-drawer-options button {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 16px;
+  border: 2px solid var(--bg-3);
+  border-radius: 10px;
+  background: var(--bg-2);
+  color: var(--text-primary);
+  font: 500 14px/1.2 var(--font-montserrat),system-ui,sans-serif;
+  white-space: normal;
+  text-align: center;
+  cursor: pointer;
+}
+.gafus-app .course-next-drawer-options button:hover {
+  background: #c7a95e;
+  border-color: var(--accent-primary);
+}
+.gafus-app .course-next-drawer-options button.course-next-drawer-active {
+  background: #fff8e5;
+  border: 3px solid var(--accent-primary);
+  font-weight: 600;
+}
+.gafus-app .course-next-drawer-native-selects {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.gafus-app .course-next-drawer-options button span { flex-shrink: 0; }
+@media (max-width: 768px) {
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-header { padding: 16px 20px; }
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-header h3 { font-size: 18px; }
+  .gafus-app.course-next-filters-viewport-layer .course-next-drawer-content { padding: 20px; }
+  .gafus-app .course-next-drawer-section { margin-bottom: 28px; }
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-footer { padding: 16px 20px; }
+}
+
+/* R7 authenticated Next/mobile dialog: the original FiltersDrawer collapses
+ * its option grid into ONE full-width button per row <=480px. Vite had two
+ * narrow columns because global button width:fit-content was still active.
+ * Keep the exact source HTML buttons, do not alter backend filter semantics. */
+.gafus-app .course-next-drawer-options button {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+}
+@media (max-width: 480px) {
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-header {
+    padding: 14px 16px;
+  }
+  .gafus-app.course-next-filters-viewport-layer .course-next-drawer-content {
+    padding: 16px;
+  }
+  .gafus-app .course-next-drawer-options {
+    grid-template-columns: minmax(0,1fr);
+    gap: 8px;
+  }
+  .gafus-app .course-next-drawer-options button {
+    justify-content: flex-start;
+    padding: 14px 16px;
+    /* Real loaded Next mobile R9: selected option 49px, Vite 45px.
+     * Nine stacked options produced a 4px-per-row cumulative y drift. */
+    min-height: 49px;
+  }
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-footer {
+    padding: 14px 16px;
+    flex-direction: column;
+  }
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-footer button {
+    width: 100%;
+  }
+}
+
+/* WEB3 R17 *computed* Next vs Vite options: original Next h4 line-height
+ * 22.5px desktop / 21px mobile, options line-height 21px, regardless of
+ * weight. Vite "normal" gave h4 20.3/18px and selected buttons −3px.
+ * Match original 1.5 without touching shared typography or filter state. */
+.gafus-app .course-next-drawer-options button {
+  line-height: 1.5;
+}
+.gafus-app.course-next-filters-viewport-layer .course-next-drawer-section h4 {
+  line-height: 1.5;
+}
+@media (max-width: 768px) {
+  .gafus-app.course-next-filters-viewport-layer .course-next-drawer-section h4 {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+}
+
+/* WEB3 R10 original loaded Next vs Vite mobile filter drawer: source
+ * FiltersDrawer renders a separate emoji span and a numeric results badge.
+ * The Vite portal lives outside .gafus-next-courses, so the previous footer
+ * button rule did not apply; scope it to the dedicated viewport layer. */
+.gafus-app .course-next-progress-emoji {
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1;
+}
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-footer button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1;
+  min-height: 44px;
+  padding: 12px 24px;
+  border: 3px solid var(--accent-primary);
+  border-radius: 10px;
+  background: #fff8e5;
+  color: var(--text-primary);
+  font: 600 15px/normal var(--font-montserrat),system-ui,sans-serif;
+  cursor: pointer;
+}
+.gafus-app.course-next-filters-viewport-layer .course-next-results-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  box-sizing: content-box;
+  border-radius: 12px;
+  background: var(--accent-primary);
+  color: var(--text-primary);
+  font: 700 13px/1 var(--font-montserrat),system-ui,sans-serif;
+}
+@media (max-width: 768px) {
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-footer button {
+    font-size: 14px;
+  }
+}
+@media (max-width: 480px) {
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-footer button {
+    width: 100%;
+  }
+}
+
+/* WEB3 original loaded Next R13: FiltersDrawer footer shows separate Reset
+ * when localTab!==free even if the outer catalogue is initially all. Restore
+ * actual source button geometry; the target selector is viewport portal, not
+ * .gafus-next-courses. No provider access and no comparator changes. */
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-footer .course-next-filters-reset {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px 20px;
+  background: var(--bg-2);
+  border: 2px solid var(--bg-3);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font: 500 14px/normal var(--font-montserrat),system-ui,sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-footer .course-next-filters-reset:hover {
+  background: var(--bg-3);
+  border-color: var(--accent-primary);
+}
+@media (max-width:480px) {
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-footer .course-next-filters-reset {
+    width: 100%;
+    font-size: 14px;
+  }
+}
+
+/* WEB3 R14: source Next FiltersDrawer renders its Apply as shared
+ * PrimaryButton (globals.css .gafus-primary-button), which supersedes the
+ * beige local FiltersDrawer .applyButton! This gradient was measured on the
+ * *loaded* original Next in both viewports: mobile center y799 source olive,
+ * Vite old beige. Scope only Apply in the WEB3 drawer portal. */
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-footer .course-next-filters-apply {
+  min-height: 52px;
+  border: 0;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #71804b 0%, #62743b 18%, #4d5c2d 56%, #465429 84%, #3b4822 100%);
+  color: #f6f0df;
+  box-shadow: 0 7px 12px rgba(45,56,27,.3);
+  font: 700 16px/1.3 var(--font-montserrat),system-ui,sans-serif;
+  text-align: center;
+}
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-footer .course-next-filters-apply:hover:not(:disabled) {
+  box-shadow: 0 9px 16px rgba(45,56,27,.34);
+  transform: translateY(-2px);
+}
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-footer .course-next-filters-apply:focus-visible {
+  outline: 3px solid rgba(215,131,123,.8);
+  outline-offset: 3px;
+}
+@media (max-width:768px) {
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-footer .course-next-filters-apply {
+    font-size: 14px;
+  }
+}
+
+/* WEB3 R18 exact header correction from real source/Vite DOM rectangles.
+ * Restored button & section line-height matched source heights exactly,
+ * yet ALL Vite sections remained +12px desktop / +8px mobile lower.
+ * The old header selector lived below .gafus-next-courses; this drawer
+ * is a body-level portal and therefore never received the 40px close
+ * button reset. Apply the original Next FiltersDrawer header to this portal
+ * ONLY. No global UI, backend or golden/comparator changes. */
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--bg-3);
+}
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font: 700 20px/1.5 var(--font-montserrat),system-ui,sans-serif;
+}
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-header button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 40px;
+  height: 40px;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+@media (max-width: 768px) {
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-header {
+    padding: 16px 20px;
+  }
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-header h3 {
+    font-size: 18px;
+  }
+}
+@media (max-width: 480px) {
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-header {
+    padding: 14px 16px;
+  }
+}
+
+/* WEB3 R18 *loaded* Next/Vite source rects: once 1.5 line-height made
+ * all option/group heights identical, every Vite group was +12px desktop
+ * and +8px mobile lower than Next. Original FiltersDrawer.module.css close
+ * is EXACTLY 40x40px, padding0. Former selector inside .gafus-next-courses
+ * did not hit the body-level portal; generic Vite button min-height made its
+ * header taller by 12/8. Restore only the portal close, not shared buttons. */
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-header button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 40px;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-header button:hover {
+  background: var(--bg-3);
+  color: var(--text-primary);
+}
+
+
+/* WEB3 R20 source fieldset/legend 12px gap removed. Original Next renders
+ * FiltersDrawer as <div> with heading, scroll content and footer. Vite's
+ * <fieldset><legend> created a 12px anonymous layout gap after its header
+ * despite a visually clipped 1px legend. Actual loaded R20 DOM evidence:
+ * desktop Next header h80/content y80, Vite header h80/content y92;
+ * mobile Next header h72/content y72, Vite header h68/content y80.
+ * Replace fieldset with semantic role=dialog div (same aria-label) and keep
+ * an offscreen span for compatibility, never hidden content or fabricated UI. */
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 480px) {
+  /* Computed original Next close is 44x44 even though base CSS says 40;
+   * the source/mobile button minimum wins. Keep header h72/source y72. */
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-header button {
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+}
+
+/* WEB3 R21 inherited 0.7rem flex gap from legacy global catalog fieldset.
+ * Actual Next/Vite loaded browser DOM confirms Next panel header and scroll
+ * content are contiguous (desktop y80/80, mobile y72/72), while Vite keeps
+ * a 12px gap (desktop y80/92, mobile y72/84). Legacy `.course-catalog-filters`
+ * has `gap:.7rem` and Vite's portal is flex, so the grid gap survives even
+ * after replacing the extraneous fieldset with a source-matching div.
+ * Only this portal drawer must have no flex gap, as original FiltersDrawer. */
+.gafus-app.course-next-filters-viewport-layer .course-catalog-filters.course-next-filters-drawer {
+  gap: 0;
+}
+
+/* WEB3 R22 actual footer button rects after true source + Vite loaded pair.
+ * Both footer outer rectangles match, but global catalog button
+ * `align-self:end` leaves Vite desktop Reset at y736/h44 vs original Next
+ * y731.5/h45. On mobile source footer y707/h137 vs Vite y708/h136.
+ * A centered, 45px reset restores both layouts without touching filters. */
+.gafus-app.course-next-filters-viewport-layer .course-next-filters-footer .course-next-filters-reset {
+  box-sizing: border-box;
+  align-self: center;
+  height: 45px;
+  min-height: 45px;
+}
+/* Source mobile PrimaryButton still computes 16px/20.8px via global shared
+ * component; earlier Vite local @media 768 forced 14px/18.2px. Match the
+ * original loaded source text, not a fabricated price/checkout. */
+@media (max-width: 768px) {
+  .gafus-app.course-next-filters-viewport-layer .course-next-filters-footer .course-next-filters-apply {
+    font-size: 16px;
+    line-height: 1.3;
+  }
+}
+
+/* WEB3 /courses: use the available viewport width instead of a second
+ * 1200px catalog clamp inside the already bounded app shell. At 1280px the
+ * previous shell/catalog/grid insets left enough width for only 3 cards.
+ * Keep all changes within the catalog; no effects on trainings or profile. */
+.gafus-app .gafus-next-courses.catalog {
+  max-width: none;
+  min-width: 0;
+}
+@media (min-width: 1024px) {
+  .gafus-app .shell:has(.gafus-next-courses) {
+    /* At 1440px keep just 20px outside each side of the course grid. */
+    max-width: 1440px;
+    padding-inline: 12px;
+  }
+}
+/* 4 desktop courses; gap and inset are reduced from 24/20px to 16/8px.
+ * minmax(0,1fr) prevents long titles from widening a column. */
+.gafus-app .shell .gafus-next-courses .course-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-inline: 8px;
+  min-width: 0;
+}
+.gafus-app .shell .gafus-next-courses .course-grid > li.course-card {
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .gafus-app .shell .gafus-next-courses .course-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 560px) and (max-width: 767px) {
+  .gafus-app .shell .gafus-next-courses .course-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 559px) {
+  .gafus-app .shell .gafus-next-courses .course-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

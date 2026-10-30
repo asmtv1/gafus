@@ -1,3 +1,4 @@
+import { parseBirthDateEditWire } from "../common/birthDateValidation";
 import { getChatDisplayRole } from "../cynologistChat/authorRole";
 /**
  * Profile Service - бизнес-логика работы с профилем пользователя
@@ -13,10 +14,17 @@ import {
   deleteFileFromCDN,
   getRelativePathFromCDNUrl,
   getUserAvatarPath,
+  getSignedDownloadUrl,
 } from "@gafus/cdn-upload";
 import { randomUUID } from "crypto";
 
 const logger = createWebLogger("profile-service");
+
+/** Existing avatarUrl wire stays a URL, but only local private test avatars are signed on read. */
+async function avatarUrlForProfile(value: string | null): Promise<string | null> {
+  if (!value || !value.startsWith("isodev-avatar:")) return value;
+  return getSignedDownloadUrl(value, 600);
+}
 
 // ========== Get User Profile ==========
 
@@ -46,43 +54,29 @@ interface NormalizedProfileData {
  * Обновляет или создаёт профиль пользователя
  */
 export async function updateUserProfile(userId: string, data: NormalizedProfileData) {
-  const normalizedFullName = data.fullName ?? "";
-  const normalizedAbout = data.about ?? "";
-  const normalizedTelegram = data.telegram ?? "";
-  const normalizedInstagram = data.instagram ?? "";
-  const normalizedWebsite = data.website ?? "";
-  const normalizedBirthDate = data.birthDate ?? "";
-
-  const updateData: Prisma.UserProfileUpdateInput = {
-    fullName: normalizedFullName || null,
-    about: normalizedAbout || null,
-    telegram: normalizedTelegram || null,
-    instagram: normalizedInstagram || null,
-    website: normalizedWebsite || null,
-  };
-
+  // An omitted field means "leave it untouched", not "clear it". This is
+  // critical for Mobile and the new Vite editor, which send PATCH-like updates
+  // via this long-standing PUT API. Explicit empty strings still clear fields.
+  const updateData: Prisma.UserProfileUpdateInput = {};
   const createData: Prisma.UserProfileCreateInput = {
     user: { connect: { id: userId } },
-    fullName: normalizedFullName || null,
-    about: normalizedAbout || null,
-    telegram: normalizedTelegram || null,
-    instagram: normalizedInstagram || null,
-    website: normalizedWebsite || null,
   };
 
-  if (data.city !== undefined) {
-    const city = data.city.trim() || null;
-    updateData.city = city;
-    createData.city = city;
+  for (const field of ["fullName", "city", "about", "telegram", "instagram", "website"] as const) {
+    const submitted = data[field];
+    if (submitted === undefined) continue;
+    const value = submitted.trim() || null;
+    updateData[field] = value;
+    createData[field] = value;
   }
 
-  if (normalizedBirthDate !== undefined) {
-    if (normalizedBirthDate === "") {
+  if (data.birthDate !== undefined) {
+    const normalizedBirthDate = data.birthDate.trim();
+    if (!normalizedBirthDate) {
       updateData.birthDate = null;
       createData.birthDate = null;
     } else {
-      const parsed = new Date(normalizedBirthDate);
-      if (isNaN(parsed.getTime())) throw new Error("Неверная дата");
+      const parsed = parseBirthDateEditWire(normalizedBirthDate);
       updateData.birthDate = parsed;
       createData.birthDate = parsed;
     }
@@ -209,9 +203,23 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
         }))
       : undefined;
 
-  const { id: _id, ...publicUser } = user;
+  // PublicProfile is an explicit projection: never spread Prisma user/profile
+  // relations into a guest-visible DTO, even when their select changes.
   const publicProfile: PublicProfile = {
-    ...publicUser,
+    username: user.username,
+    role: user.role,
+    profile: user.profile
+      ? {
+          fullName: user.profile.fullName,
+          city: user.profile.city,
+          birthDate: user.profile.birthDate,
+          about: user.profile.about,
+          telegram: user.profile.telegram,
+          instagram: user.profile.instagram,
+          website: user.profile.website,
+          avatarUrl: await avatarUrlForProfile(user.profile.avatarUrl),
+        }
+      : null,
     chatRole: await getChatDisplayRole(user),
     courses,
     diplomas: user.diplomas
@@ -242,7 +250,8 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
  * Обновляет аватар пользователя
  */
 export async function updateAvatar(userId: string, file: File): Promise<string> {
-  const ext = file.name.split(".").pop();
+  const originalExt = file.name.split(".").pop();
+  const ext = process.env.GAFUS_ISOLATED_NONPROD_S3 !== undefined ? originalExt?.toLowerCase() : originalExt;
   if (!ext) throw new Error("Не удалось определить расширение файла");
 
   const relativePath = getUserAvatarPath(userId, randomUUID(), ext);
@@ -251,11 +260,14 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
   let oldAvatarUrl: string | null = null;
 
   try {
-    oldAvatarUrl = await prisma.$transaction(async tx => {
-      const owners = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+    oldAvatarUrl = await prisma.$transaction(async (tx) => {
+      const owners = await tx.$queryRaw<
+        { id: string }[]
+      >`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
       if (!owners.length) throw new Error("Пользователь не найден");
       const previous = await tx.userProfile.findUnique({
-        where: { userId }, select: { avatarUrl: true },
+        where: { userId },
+        select: { avatarUrl: true },
       });
       await tx.userProfile.upsert({
         where: { userId },
@@ -268,8 +280,11 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
     // Failed database commit: avoid leaking the newly uploaded object.
     try {
       await deleteFileFromCDN(relativePath);
-    } catch (cleanupError) {
-      logger.error("Не удалось удалить новый аватар после ошибки БД", cleanupError as Error);
+    } catch {
+      logger.error(
+        "Не удалось удалить новый аватар после ошибки БД",
+        new Error("USER_AVATAR_COMPENSATION_DELETE_FAILED"),
+      );
     }
     throw error;
   }
@@ -278,13 +293,13 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
   if (oldAvatarUrl && oldAvatarUrl !== avatarUrl) {
     try {
       await deleteFileFromCDN(getRelativePathFromCDNUrl(oldAvatarUrl));
-    } catch (error) {
-      logger.error("Не удалось удалить старый аватар", error as Error);
+    } catch {
+      logger.error("Не удалось удалить старый аватар", new Error("USER_AVATAR_OLD_DELETE_FAILED"));
     }
   }
 
-  logger.info("Avatar URL saved to database", { avatarUrl });
-  return avatarUrl;
+  logger.info("Avatar URL saved to database");
+  return (await avatarUrlForProfile(avatarUrl)) ?? avatarUrl;
 }
 
 // ========== Get User With Trainings ==========
@@ -443,7 +458,7 @@ export async function getUserProfileForApi(userId: string): Promise<UserProfileF
       instagram: p?.instagram ?? null,
       website: p?.website ?? null,
       birthDate: p?.birthDate ? p.birthDate.toISOString().split("T")[0] : null,
-      avatarUrl: p?.avatarUrl ?? null,
+      avatarUrl: await avatarUrlForProfile(p?.avatarUrl ?? null),
     },
   };
 }

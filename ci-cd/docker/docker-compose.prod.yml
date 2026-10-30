@@ -41,246 +41,39 @@ services:
       - 8.8.8.8
     dns_opt:
       - use-vc
-    environment:
-      # Voximplant server-only video consultation credentials (GitHub Actions Secrets).
-      - VOXIMPLANT_ACCOUNT_ID=${VOXIMPLANT_ACCOUNT_ID:?VOXIMPLANT_ACCOUNT_ID is required}
-      - VOXIMPLANT_APPLICATION_ID=${VOXIMPLANT_APPLICATION_ID:?VOXIMPLANT_APPLICATION_ID is required}
-      - VOXIMPLANT_ACCOUNT_NAME=${VOXIMPLANT_ACCOUNT_NAME:?VOXIMPLANT_ACCOUNT_NAME is required}
-      - VOXIMPLANT_APPLICATION_NAME=${VOXIMPLANT_APPLICATION_NAME:?VOXIMPLANT_APPLICATION_NAME is required}
-      - VOXIMPLANT_KEY_ID=${VOXIMPLANT_KEY_ID:?VOXIMPLANT_KEY_ID is required}
-      - VOXIMPLANT_PRIVATE_KEY_BASE64=${VOXIMPLANT_PRIVATE_KEY_BASE64:?VOXIMPLANT_PRIVATE_KEY_BASE64 is required}
-      - VOXIMPLANT_CREDENTIAL_SECRET=${VOXIMPLANT_CREDENTIAL_SECRET:?VOXIMPLANT_CREDENTIAL_SECRET is required}
-      - VOXIMPLANT_ADMISSION_SECRET=${VOXIMPLANT_ADMISSION_SECRET:?VOXIMPLANT_ADMISSION_SECRET is required}
-      - CLOUDRU_USER_MEDIA_ENABLED=${CLOUDRU_USER_MEDIA_ENABLED:-false}
-      - CLOUDRU_S3_ENDPOINT=${CLOUDRU_S3_ENDPOINT:-https://s3.cloud.ru}
-      - CLOUDRU_S3_ACCESS_KEY_ID=${CLOUDRU_S3_ACCESS_KEY_ID:-}
-      - CLOUDRU_S3_SECRET_ACCESS_KEY=${CLOUDRU_S3_SECRET_ACCESS_KEY:-}
-      - CLOUDRU_DOCUMENTS_BUCKET=${CLOUDRU_DOCUMENTS_BUCKET:-}
-      - CLOUDRU_QUESTIONS_BUCKET=${CLOUDRU_QUESTIONS_BUCKET:-}
-      - CLOUDRU_DOCUMENTS_BUCKET_VERSIONING=${CLOUDRU_DOCUMENTS_BUCKET_VERSIONING:-}
-      - CLOUDRU_QUESTIONS_BUCKET_VERSIONING=${CLOUDRU_QUESTIONS_BUCKET_VERSIONING:-}
-      - CYNOLOGIST_CHAT_ENABLED=${CYNOLOGIST_CHAT_ENABLED:-false}
-      - COMMUNITY_CHAT_ENABLED=${COMMUNITY_CHAT_ENABLED:-false}
-      - CYNOLOGIST_CHAT_TRAINER_USER_ID=${CYNOLOGIST_CHAT_TRAINER_USER_ID:-cmhq7qk2s0000nn01jr2ptnil}
-      - STREAM_API_KEY=${STREAM_API_KEY:-}
-      - STREAM_API_SECRET=${STREAM_API_SECRET:-}
-      - NODE_ENV=production
-      - PORT=3000
-      - DISABLE_CONSOLE_LOGGING=${DISABLE_CONSOLE_LOGGING:-false}
-      - ANALYZE=${ANALYZE:-false}
-      - CSRF_STRICT=${CSRF_STRICT:-false}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - COURSE_CACHE_SYNC_ENABLED=${COURSE_CACHE_SYNC_ENABLED:-true}
-      - COURSE_CACHE_METRICS_TOKEN=${COURSE_CACHE_METRICS_TOKEN:-}
-      - ENABLE_COURSE_CACHE=${ENABLE_COURSE_CACHE:-true}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXTAUTH_URL=${NEXTAUTH_URL}
-      - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN}
-      - AUTH_TRUST_HOST=true
-      - APPLE_TEAM_ID=${APPLE_TEAM_ID}
-      - APPLE_BUNDLE_ID=${APPLE_BUNDLE_ID:-}
-      - APPLE_APP_ID=${APPLE_APP_ID:-}
-      - APPLE_USE_SANDBOX=${APPLE_USE_SANDBOX:-false}
-      - APPLE_ISSUER_ID=${APPLE_ISSUER_ID:-}
-      - APPLE_KEY_ID=${APPLE_KEY_ID:-}
-      - APPLE_PRIVATE_KEY_PATH=${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}
-      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
-      - NEXT_PUBLIC_TRAINER_PANEL_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL}
-      - NEXT_PUBLIC_TRACER_APP_TOKEN=${NEXT_PUBLIC_TRACER_APP_TOKEN}
-      - NEXT_PUBLIC_YM_COUNTER_ID=${NEXT_PUBLIC_YM_COUNTER_ID:-}
-      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
-      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
-      - NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION:-1.7.0}
-      - NEXT_PUBLIC_ENABLE_TRACER=${NEXT_PUBLIC_ENABLE_TRACER:-true}
-      - REVALIDATE_SECRET_TOKEN=${REVALIDATE_SECRET_TOKEN}
-      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
-      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@gafus.ru}
-      # Yandex Cloud CDN credentials
-      - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
-      - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
-      # Gallery DEV enabled by user request; deploy only after DB migration/cloud readiness.
-      - GALLERY_ENABLED=true
-      - GALLERY_BUCKET_PUBLIC=false
-      - GALLERY_BUCKET=${GALLERY_BUCKET:-gafus-gallery-private}
-      - GALLERY_S3_ENDPOINT=${GALLERY_S3_ENDPOINT:-https://s3.cloud.ru}
-      - GALLERY_S3_ACCESS_KEY_ID=${GALLERY_DEV_WEB_S3_ACCESS_KEY_ID:-}
-      - GALLERY_S3_SECRET_ACCESS_KEY=${GALLERY_DEV_WEB_S3_SECRET_ACCESS_KEY:-}
-      - GALLERY_CDN_BASE_URL=${GALLERY_CDN_BASE_URL:-https://mepsuduyokabib.begetcdn.cloud}
-      - GALLERY_CDN_PROVIDER=${GALLERY_CDN_PROVIDER:-beget}
-      - GALLERY_CDN_EDGE_TOKEN_VERIFIED=${GALLERY_CDN_EDGE_TOKEN_VERIFIED:-false}
-      - GALLERY_MEDIA_FALLBACK_ENABLED=${GALLERY_MEDIA_FALLBACK_ENABLED:-false}
-      - GALLERY_CDN_SECRET=${GALLERY_CDN_SECRET:-}
-      - GALLERY_INTERNAL_BASE_URL=https://api.gafus.ru
-      - GALLERY_INTERNAL_HMAC_SECRET=${GALLERY_DEV_INTERNAL_HMAC_SECRET:-}
-      - GALLERY_PROCESSOR_READY=true
-      - FEED_ENABLED=${FEED_ENABLED:-false}
-      - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
-      # Upload confirmations must enqueue immediate Cloud.ru processing.
-      - CLOUDRU_MEDIA_JOBS_ENABLED=${CLOUDRU_MEDIA_JOBS_ENABLED:-false}
-      # Smart feed is enabled for production by default after migration deploy.
-      # Existing FEED_ENABLED / FEED_PROCESSOR_READY remain independent safeguards.
-      - FEED_SMART_ENABLED=${FEED_SMART_ENABLED:-true}
-      - FEED_SMART_STATS_ENABLED=${FEED_SMART_STATS_ENABLED:-true}
-      - FEED_SMART_DIAGNOSTICS=${FEED_SMART_DIAGNOSTICS:-true}
-      - FEED_SMART_MULTI_SOURCE_ENABLED=${FEED_SMART_MULTI_SOURCE_ENABLED:-true}
-      - FEED_SMART_AFFINITY_ENABLED=${FEED_SMART_AFFINITY_ENABLED:-true}
-      - FEED_SMART_EVENTS_ENABLED=${FEED_SMART_EVENTS_ENABLED:-true}
-      - FEED_SMART_EXPOSURE_TOKENS_REQUIRED=${FEED_SMART_EXPOSURE_TOKENS_REQUIRED:-true}
-      - FEED_SMART_MONITOR_ENABLED=${FEED_SMART_MONITOR_ENABLED:-true}
-      - FEED_SMART_ML_TRAIN_ENABLED=${FEED_SMART_ML_TRAIN_ENABLED:-true}
-      - FEED_SMART_ML_ENABLED=${FEED_SMART_ML_ENABLED:-true}
-      # 100% treatment so everyone receives the new feed; not a valid A/B comparison.
-      - FEED_SMART_AB_ENABLED=${FEED_SMART_AB_ENABLED:-true}
-      - FEED_SMART_AB_PERCENT=${FEED_SMART_AB_PERCENT:-100}
-      - FEED_SMART_AB_TREATMENT_PERCENT=${FEED_SMART_AB_TREATMENT_PERCENT:-100}
-      - FEED_SMART_SHADOW_ENABLED=${FEED_SMART_SHADOW_ENABLED:-true}
-      - FEED_SMART_SHADOW_PERCENT=${FEED_SMART_SHADOW_PERCENT:-1}
-      - FEED_BUCKET_PUBLIC=false
-      - FEED_BUCKET=${FEED_BUCKET:-gafus-feed-private}
-      - FEED_S3_ENDPOINT=${FEED_S3_ENDPOINT:-https://s3.cloud.ru}
-      - FEED_S3_ACCESS_KEY_ID=${FEED_S3_ACCESS_KEY_ID:-}
-      - FEED_S3_SECRET_ACCESS_KEY=${FEED_S3_SECRET_ACCESS_KEY:-}
-      - FEED_CDN_BASE_URL=${FEED_CDN_BASE_URL:-https://garaquachegasourn.begetcdn.cloud}
-      - FEED_CDN_PROVIDER=${FEED_CDN_PROVIDER:-beget}
-      - FEED_CDN_EDGE_TOKEN_VERIFIED=${FEED_CDN_EDGE_TOKEN_VERIFIED:-false}
-      - FEED_MEDIA_FALLBACK_ENABLED=${FEED_MEDIA_FALLBACK_ENABLED:-false}
-      - FEED_CDN_SECRET=${FEED_CDN_SECRET:-}
-      - FEED_INTERNAL_HMAC_SECRET=${FEED_INTERNAL_HMAC_SECRET:-}
-      # HLS Video Protection
-      - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
-      - NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${NEXT_PUBLIC_ENABLE_HLS_PROTECTION:-true}
-      # ЮKassa (платные курсы, API route в web)
-      - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
-      - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
-      # OpenRouter AI API (публичный генератор отмазок)
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      # Реквизиты для страницы контактов
-      - NEXT_PUBLIC_CONTACT_EMAIL=${NEXT_PUBLIC_CONTACT_EMAIL}
-      - NEXT_PUBLIC_CONTACT_PHONE=${NEXT_PUBLIC_CONTACT_PHONE}
-      - NEXT_PUBLIC_CONTACT_FIO=${NEXT_PUBLIC_CONTACT_FIO}
-      - NEXT_PUBLIC_CONTACT_INN=${NEXT_PUBLIC_CONTACT_INN}
-      # VK ID
-      - VK_CLIENT_ID=${VK_CLIENT_ID}
-      - VK_WEB_REDIRECT_URI=${VK_WEB_REDIRECT_URI}
-      - WEB_APP_URL=${WEB_APP_URL:-https://gafus.ru}
-      # SMTP / Yandex 360 (транзакционная почта)
-      - MAIL_PROVIDER=${MAIL_PROVIDER:-resend}
-      - RESEND_API_KEY=${RESEND_API_KEY:-}
-      - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}
-      - MAIL_OUTBOX_ENABLED=${MAIL_OUTBOX_ENABLED:-false}
-      - MAIL_OUTBOX_ENCRYPTION_KEY=${MAIL_OUTBOX_ENCRYPTION_KEY:-}
-      - MAIL_REPLY_TO=${MAIL_REPLY_TO:-api@gafus.ru}
-      - RESEND_FROM=${RESEND_FROM:-notifications@notify.gafus.ru}
-      - SMTP_HOST=${SMTP_HOST:-smtp.yandex.ru}
-      - SMTP_PORT=${SMTP_PORT:-465}
-      - SMTP_SECURE=${SMTP_SECURE:-true}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASS=${SMTP_PASS}
-      - MAIL_FROM=${MAIL_FROM:-api@gafus.ru}
-      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Гафус}
-    volumes:
-      - ${APPLE_PRIVATE_KEY_HOST_PATH:-/opt/gafus/secrets/AuthKey_FZ3FFU78RN.p8}:${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}:ro
-    # Uploads handled by CDN - no local volume needed
-    # Убрали открытые порты - доступ только через Nginx
+    # Static Vite/Nginx image: no server credentials or runtime database access.
+    # Static Web does not mount Apple signing keys or other secrets.
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://web:3000/api/ping"]
+      test: ["CMD", "wget", "-qO-", "http://web:3000/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
     depends_on:
-      - postgres
-      - redis
-
-  # Trainer Panel
+      - api
   trainer-panel:
     image: ghcr.io/asmtv1/gafus-trainer-panel:latest
     container_name: gafus-trainer-panel
-    environment:
-      # Voximplant server-only video consultation credentials (GitHub Actions Secrets).
-      - VOXIMPLANT_ACCOUNT_ID=${VOXIMPLANT_ACCOUNT_ID:?VOXIMPLANT_ACCOUNT_ID is required}
-      - VOXIMPLANT_APPLICATION_ID=${VOXIMPLANT_APPLICATION_ID:?VOXIMPLANT_APPLICATION_ID is required}
-      - VOXIMPLANT_ACCOUNT_NAME=${VOXIMPLANT_ACCOUNT_NAME:?VOXIMPLANT_ACCOUNT_NAME is required}
-      - VOXIMPLANT_APPLICATION_NAME=${VOXIMPLANT_APPLICATION_NAME:?VOXIMPLANT_APPLICATION_NAME is required}
-      - VOXIMPLANT_KEY_ID=${VOXIMPLANT_KEY_ID:?VOXIMPLANT_KEY_ID is required}
-      - VOXIMPLANT_PRIVATE_KEY_BASE64=${VOXIMPLANT_PRIVATE_KEY_BASE64:?VOXIMPLANT_PRIVATE_KEY_BASE64 is required}
-      - VOXIMPLANT_CREDENTIAL_SECRET=${VOXIMPLANT_CREDENTIAL_SECRET:?VOXIMPLANT_CREDENTIAL_SECRET is required}
-      - VOXIMPLANT_ADMISSION_SECRET=${VOXIMPLANT_ADMISSION_SECRET:?VOXIMPLANT_ADMISSION_SECRET is required}
-      - NODE_ENV=production
-      - PORT=3001
-      - DISABLE_CONSOLE_LOGGING=${DISABLE_CONSOLE_LOGGING:-false}
-      - CSRF_STRICT=${CSRF_STRICT:-false}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - COURSE_CACHE_SYNC_ENABLED=${COURSE_CACHE_SYNC_ENABLED:-true}
-      - ENABLE_COURSE_CACHE=${ENABLE_COURSE_CACHE:-true}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXTAUTH_URL=${TRAINER_PANEL_URL:-https://trainer-panel.gafus.ru}
-      - ADMIN_PANEL_URL=${ADMIN_PANEL_URL:-https://adminka.gafus.ru}
-      - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-.gafus.ru}
-      # Yandex Cloud CDN credentials
-      - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
-      - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
-      # HLS Video Protection
-      - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
-      - NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${NEXT_PUBLIC_ENABLE_HLS_PROTECTION:-true}
-      # OpenRouter AI API
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      # Next.js публичные переменные и инвалидация кэша web
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_TRAINER_PANEL_URL:-https://trainer.gafus.ru}
-      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
-      - WEB_APP_URL=${WEB_APP_URL:-https://gafus.ru}
-      - REVALIDATE_SECRET_TOKEN=${REVALIDATE_SECRET_TOKEN}
-      - NEXT_PUBLIC_TRACER_APP_TOKEN=${NEXT_PUBLIC_TRACER_APP_TOKEN}
-      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
-      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
-      - NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION:-1.7.0}
-      - NEXT_PUBLIC_ENABLE_TRACER=${NEXT_PUBLIC_ENABLE_TRACER:-true}
+    # Static Vite/Nginx image: no server credentials or runtime database access.
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://trainer-panel:3001/api/health"]
+      test: ["CMD", "wget", "-qO-", "http://trainer-panel:3001/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
     depends_on:
-      - postgres
-      - redis
-
-  # Admin Panel
+      - api
   admin-panel:
     image: ghcr.io/asmtv1/gafus-admin-panel:latest
     container_name: gafus-admin-panel
-    environment:
-      - NODE_ENV=production
-      - PORT=3006
-      - DISABLE_CONSOLE_LOGGING=${DISABLE_CONSOLE_LOGGING:-false}
-      - CSRF_STRICT=${CSRF_STRICT:-false}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - NEXTAUTH_URL=${ADMIN_PANEL_URL:-https://adminka.gafus.ru}
-      - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-.gafus.ru}
-      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
-      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
-      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@gafus.ru}
-      - EXPO_ACCESS_TOKEN=${EXPO_ACCESS_TOKEN}
-      - RUSTORE_PUSH_SERVICE_TOKEN=${RUSTORE_PUSH_SERVICE_TOKEN}
-      - RUSTORE_PROJECT_ID=${RUSTORE_PROJECT_ID}
-      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
-      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
-      - NEXT_PUBLIC_TRACER_APP_TOKEN=${NEXT_PUBLIC_TRACER_APP_TOKEN}
-    # Убрали открытые порты - доступ только через Nginx
+    # Static Vite/Nginx image: no server credentials or runtime database access.
     restart: unless-stopped
     depends_on:
-      - postgres
-      - redis
-
-  # Prisma Database Management
+      - api
   prisma:
     image: ghcr.io/asmtv1/gafus-prisma:latest
     container_name: gafus-prisma
@@ -290,6 +83,23 @@ services:
     restart: unless-stopped
     depends_on:
       - postgres
+
+  # Optional Chat 2.0 websocket broker. Runs ONLY when COMPOSE_PROFILES=chat2.
+  # Its HTTP API stays on the private Docker network; public websocket passes
+  # through the Web Nginx proxy with Centrifugo's origin validation.
+  chat2-centrifugo:
+    profiles: [chat2]
+    image: centrifugo/centrifugo:v6.9.7
+    restart: unless-stopped
+    command: ["centrifugo", "-c", "/centrifugo/config.json"]
+    volumes:
+      - ../../infra/chat2/centrifugo.prod.json:/centrifugo/config.json:ro
+    environment:
+      - CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY=${CHAT2_CENTRIFUGO_TOKEN_SECRET:-}
+      - CENTRIFUGO_HTTP_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
 
   # Worker
   worker:
@@ -302,6 +112,9 @@ services:
     dns_opt:
       - use-vc
     environment:
+      - CHAT2_WORKER_ENABLED=${CHAT2_WORKER_ENABLED:-disabled}
+      - CHAT2_CENTRIFUGO_HTTP_API=${CHAT2_CENTRIFUGO_HTTP_API:-http://chat2-centrifugo:8000/api/publish}
+      - CHAT2_CENTRIFUGO_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}
       - CLOUDRU_MEDIA_JOBS_ENABLED=${CLOUDRU_MEDIA_JOBS_ENABLED:-false}
       - CLOUDRU_PROJECT_ID=${CLOUDRU_PROJECT_ID:-}
       - CLOUDRU_KEY_ID=${CLOUDRU_KEY_ID:-}
@@ -314,7 +127,7 @@ services:
       - CLOUDRU_QUESTIONS_BUCKET=${CLOUDRU_QUESTIONS_BUCKET:-}
       - CLOUDRU_DOCUMENTS_BUCKET_VERSIONING=${CLOUDRU_DOCUMENTS_BUCKET_VERSIONING:-}
       - CLOUDRU_QUESTIONS_BUCKET_VERSIONING=${CLOUDRU_QUESTIONS_BUCKET_VERSIONING:-}
-      - ACCOUNT_STORAGE_CLEANUP_ENABLED=${ACCOUNT_STORAGE_CLEANUP_ENABLED:-false}
+      - ACCOUNT_STORAGE_CLEANUP_ENABLED=${ACCOUNT_STORAGE_CLEANUP_ENABLED:-true}
       # Beget API is for verified exact-path erasure, never a public client secret.
       - BEGET_CDN_API_TOKEN=${BEGET_CDN_API_TOKEN:-}
       - GALLERY_BEGET_CDN_SERVICE_ID=${GALLERY_BEGET_CDN_SERVICE_ID:-}
@@ -478,6 +291,17 @@ services:
     dns_opt:
       - use-vc
     environment:
+      # Chat 2.0 is disabled until its websocket broker, worker, and scoped media
+      # have passed independent release gates. Never silently fall back to Stream.
+      - CHAT2_LEGACY_RETIRE_ENABLED=${CHAT2_LEGACY_RETIRE_ENABLED:-disabled}
+      - CHAT2_API_ENABLED=${CHAT2_API_ENABLED:-disabled}
+      # The API must know the worker is enabled before retiring the legacy chat.
+      - CHAT2_WORKER_ENABLED=${CHAT2_WORKER_ENABLED:-disabled}
+      - CHAT2_PUBLIC_WS_URL=${CHAT2_PUBLIC_WS_URL:-}
+      - CHAT2_CENTRIFUGO_TOKEN_SECRET=${CHAT2_CENTRIFUGO_TOKEN_SECRET:-}
+      - CHAT2_CENTRIFUGO_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}
+      - CHAT2_CENTRIFUGO_HTTP_API=${CHAT2_CENTRIFUGO_HTTP_API:-http://chat2-centrifugo:8000/api/publish}
+      - CHAT2_PRIVATE_MEDIA_ENABLED=${CHAT2_PRIVATE_MEDIA_ENABLED:-disabled}
       # Voximplant server-only video consultation credentials (GitHub Actions Secrets).
       - VOXIMPLANT_ACCOUNT_ID=${VOXIMPLANT_ACCOUNT_ID:?VOXIMPLANT_ACCOUNT_ID is required}
       - VOXIMPLANT_APPLICATION_ID=${VOXIMPLANT_APPLICATION_ID:?VOXIMPLANT_APPLICATION_ID is required}

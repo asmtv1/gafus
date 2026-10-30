@@ -3,10 +3,42 @@ import path from "path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // The adjacent stale trainingService.js must not shadow the current TS source
+  // when the training barrel is imported in API Vitest. Scope this redirect
+  // strictly to that one module, not other application/test imports.
+  plugins: [
+    {
+      name: "gafus-core-training-ts-test-resolution",
+      enforce: "pre",
+      resolveId(source, importer) {
+        if (
+          source === "./trainingService" &&
+          importer?.split("?")[0] ===
+            path.resolve(__dirname, "../../packages/core/src/services/training/index.ts")
+        ) {
+          return path.resolve(
+            __dirname,
+            "../../packages/core/src/services/training/trainingService.ts",
+          );
+        }
+        return null;
+      },
+    },
+  ],
   test: {
     environment: "node",
     globals: true,
     include: ["src/**/*.test.ts", "src/**/*.route.test.ts", "__tests__/**/*.test.ts"],
+    // Tests requiring a specifically guarded, isolated PostgreSQL instance
+    // are opt-in and MUST NOT run from the default unit/contract suite.
+    // They enforce local DB name/role/port themselves; no DB URL is read here.
+    // Run explicit isolated integration tests with a separate approved config.
+    exclude: [
+      "src/**/*real-pg*.test.ts",
+      "src/**/*realpg*.test.ts",
+      "src/**/*real-prisma-pg*.test.ts",
+      "src/**/*real-work*.test.ts",
+    ],
     setupFiles: ["./vitest.setup.ts"],
     // Полный импорт app + первый запрос на медленных CI runner'ах иногда > 5s
     testTimeout: 30_000,

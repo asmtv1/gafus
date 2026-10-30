@@ -3,7 +3,7 @@
  * Mirrors the provider's v2 payload schema; only placeholders are emitted.
  * Operator supplies account-specific secrets OUTSIDE the repository.
  */
-const cpuMemory = { 0.2: "512Mi", 0.5: "1024Mi", 1: "4096Mi" };
+const cpuMemory = { 0.2: "512Mi", 0.5: "1024Mi", 1: "4096Mi", 2: "8192Mi" };
 const image = (role, revision) => `gafus.cr.cloud.ru/gafus-${role}:${revision}`;
 const env = (names) => names.map((name) => ({ name, value: `<secret:${name}>` }));
 const galleryCommon = [
@@ -18,12 +18,12 @@ const feedCommon = [
   "FEED_S3_ACCESS_KEY_ID",
   "FEED_S3_SECRET_ACCESS_KEY",
 ];
-function container(name, img, cpu, names, port) {
+function container(name, img, cpu, names, port, memory = cpuMemory[cpu]) {
   return {
     name,
     image: img,
     ...(port ? { containerPort: port } : {}),
-    resources: { cpu, memory: cpuMemory[cpu] },
+    resources: { cpu, memory },
     env: env(names),
   };
 }
@@ -104,7 +104,9 @@ export function cloudruMediaManifests(projectId, revision) {
     {
       name: "gafus-feed-photo",
       imageRole: "feed-worker",
-      cpu: "0.5",
+      // Owner-approved four-job Feed Media V2 pool: photo 1 vCPU / 2 GiB.
+      cpu: "1",
+      memory: "2048Mi",
       timeout: 240,
       envNames: [
         ...feedCommon,
@@ -119,7 +121,9 @@ export function cloudruMediaManifests(projectId, revision) {
     {
       name: "gafus-feed-video",
       imageRole: "feed-worker",
-      cpu: "1",
+      // Owner-approved four-job Feed Media V2 pool: video 2 vCPU / 8 GiB.
+      cpu: "2",
+      memory: "8192Mi",
       timeout: 650,
       envNames: [
         ...feedCommon,
@@ -144,7 +148,7 @@ export function cloudruMediaManifests(projectId, revision) {
       maxRetries: 3,
       containers: [
         {
-          ...container(spec.name, image(spec.imageRole, revision), spec.cpu, spec.envNames),
+          ...container(spec.name, image(spec.imageRole, revision), spec.cpu, spec.envNames, undefined, spec.memory),
           ...(spec.imageRole === "feed-worker"
             ? {
                 env: [

@@ -7,6 +7,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import { trainingApi } from "@/shared/lib/api";
 import { reportClientError } from "@/shared/lib/tracer";
 import { selectHighestBandwidthVariant } from "./hlsOfflineManifest";
+import { assertSafeOfflineSegment } from "./offlineStorage";
+import { throwIfOfflineDownloadAborted } from "./downloadAbort";
 
 const CONCURRENCY = 3;
 const SEGMENT_RETRIES = 2;
@@ -34,6 +36,10 @@ function getSegmentFileName(line: string): string {
     const last = pathname.split("/").pop();
     return last || trimmed;
   } catch (error) {
+    // Native segment names must not contain a signed URL query or fragment.
+    // Keep the full original line for fetching the remote segment.
+    const fileName = trimmed.split(/[?#]/)[0] ?? "";
+    if (fileName !== trimmed) return fileName;
     reportClientError(error instanceof Error ? error : new Error(String(error)), {
       issueKey: "DownloadHLSForOffline",
       keys: { operation: "resolve_segment_url" },
@@ -53,6 +59,9 @@ export async function downloadHLSForOffline(
   onProgress?: (p: DownloadHLSProgress) => void,
   signal?: AbortSignal,
 ): Promise<void> {
+  assertSafeOfflineSegment(courseType);
+  assertSafeOfflineSegment(videoId);
+  throwIfOfflineDownloadAborted(signal);
   const res = await trainingApi.getVideoUrl(videoUrl);
   if (!res.success || !res.data?.url) {
     throw new Error(res.error || "Не удалось получить URL видео");
@@ -70,6 +79,7 @@ export async function downloadHLSForOffline(
   }
   let manifestUrl = rootManifestUrl;
   let manifestText = await manifestResponse.text();
+  throwIfOfflineDownloadAborted(signal);
   const selectedVariant = selectHighestBandwidthVariant(manifestText);
   if (selectedVariant) {
     manifestUrl = new URL(selectedVariant, rootManifestUrl).toString();
@@ -78,13 +88,37 @@ export async function downloadHLSForOffline(
       throw new Error(`Вариант HLS: HTTP ${variantResponse.status}`);
     }
     manifestText = await variantResponse.text();
+    throwIfOfflineDownloadAborted(signal);
   }
   const lines = manifestText.split("\n");
 
-  const segmentLines: { line: string; fileName: string }[] = [];
-  for (const line of lines) {
+  const segmentLines: { line: string; fileName: string; lineIndex: number }[] = [];
+  for (const [lineIndex, line] of lines.entries()) {
     const fileName = getSegmentFileName(line);
-    if (fileName) segmentLines.push({ line, fileName });
+    if (fileName) {
+      assertSafeOfflineSegment(fileName);
+      segmentLines.push({ line, fileName, lineIndex });
+    }
+  }
+
+  // Multiple source directories can contain e.g. "0001.ts". Never let
+  // concurrent downloads overwrite one another, or replace our local
+  // manifest / poster. Keep legacy non-colliding filenames unchanged.
+  const sourceNames = new Set(segmentLines.map(({ fileName }) => fileName));
+  const assignedNames = new Set(["manifest.m3u8", "poster.jpg"]);
+  for (const segment of segmentLines) {
+    if (assignedNames.has(segment.fileName)) {
+      const originalName = segment.fileName;
+      let candidate = `segment-${segment.lineIndex}-${originalName}`;
+      let disambiguator = 0;
+      while (sourceNames.has(candidate) || assignedNames.has(candidate)) {
+        disambiguator++;
+        candidate = `segment-${segment.lineIndex}-${disambiguator}-${originalName}`;
+      }
+      assertSafeOfflineSegment(candidate);
+      segment.fileName = candidate;
+    }
+    assignedNames.add(segment.fileName);
   }
 
   const total = segmentLines.length;
@@ -93,10 +127,11 @@ export async function downloadHLSForOffline(
   const downloadOne = async (segmentUrl: string, filePath: string): Promise<void> => {
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= SEGMENT_RETRIES; attempt++) {
-      if (signal?.aborted) throw new Error("aborted");
+      throwIfOfflineDownloadAborted(signal);
       try {
         // Нативная загрузка пишет сегмент сразу на диск и не держит его в JS heap.
         const result = await FileSystem.downloadAsync(segmentUrl, filePath);
+        throwIfOfflineDownloadAborted(signal);
         if (result.status < 200 || result.status >= 300) {
           await FileSystem.deleteAsync(filePath, { idempotent: true });
           throw new Error(`HTTP ${result.status}`);
@@ -133,19 +168,29 @@ export async function downloadHLSForOffline(
       }
     }
   });
-  await Promise.all(workers);
+  // Wait for every in-flight native write before a caller can delete the
+  // incomplete course directory. Promise.all() rejects too early here.
+  const workerResults = await Promise.allSettled(workers);
+  const failedWorker = workerResults.find((result) => result.status === "rejected");
+  if (failedWorker?.status === "rejected") throw failedWorker.reason;
+  throwIfOfflineDownloadAborted(signal);
 
-  const modifiedLines = lines.map((line) => {
-    const fileName = getSegmentFileName(line);
-    if (fileName) return fileName;
-    return line;
-  });
+  const localNameByLine = new Map(
+    segmentLines.map(({ lineIndex, fileName }) => [lineIndex, fileName]),
+  );
+  const modifiedLines = lines.map((line, lineIndex) =>
+    localNameByLine.get(lineIndex) ?? line,
+  );
+  throwIfOfflineDownloadAborted(signal);
   await FileSystem.writeAsStringAsync(`${videoDirUri}manifest.m3u8`, modifiedLines.join("\n"));
 
+  throwIfOfflineDownloadAborted(signal);
   if (res.data.posterUrl) {
     try {
       await downloadOne(res.data.posterUrl, `${videoDirUri}poster.jpg`);
+      throwIfOfflineDownloadAborted(signal);
     } catch (error) {
+      throwIfOfflineDownloadAborted(signal);
       reportClientError(error instanceof Error ? error : new Error(String(error)), {
         issueKey: "DownloadHLSForOffline",
         severity: "warning",

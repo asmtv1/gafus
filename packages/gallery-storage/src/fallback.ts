@@ -1,3 +1,4 @@
+import { cdnIsolatedAcceptance } from "./cdn-isolated-acceptance.js";
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { assertFinalKey } from './keys.js';
@@ -10,8 +11,10 @@ export async function signGalleryCloudruFallback(key: string, ttlSeconds = 120,
   if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds < 30 || ttlSeconds > 120)
     throw new Error('INVALID_FALLBACK_TTL');
   const config = galleryStorageConfigFromEnv(env);
-  if (env.GALLERY_MEDIA_FALLBACK_ENABLED !== 'true' || config.endpoint !== 'https://s3.cloud.ru' ||
-      config.bucket !== 'gafus-gallery-private' || !config.enabled)
+  const qa = cdnIsolatedAcceptance(env) && config.isolatedNonprod === true &&
+    config.endpoint === 'http://127.0.0.1:58390' && config.bucket === 'gafus-refactor-agent2-gallery-test';
+  if (env.GALLERY_MEDIA_FALLBACK_ENABLED !== 'true' ||
+      (!qa && (config.endpoint !== 'https://s3.cloud.ru' || config.bucket !== 'gafus-gallery-private')) || !config.enabled)
     throw new Error('GALLERY_FALLBACK_DISABLED');
   const client = createGalleryS3Client(config);
   try {

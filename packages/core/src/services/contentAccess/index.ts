@@ -2,7 +2,8 @@ import { prisma } from "@gafus/prisma";
 import type { GafusTx } from "../gafus/types";
 import { getAppFeatureFlagEnabled, APP_FEATURE_APP_SUBSCRIPTION_GATING } from "../appFeatureFlags";
 
-const MONETIZED_STEP_TYPES = new Set(["TRAINING", "PRACTICE", "THEORY", "EXAMINATION", "SURVEY"]);
+// Explicit exceptions only: unknown/new paid step types must fail closed.
+const FREE_STEP_TYPES = new Set(["BREAK", "DIARY"]);
 
 export type CourseStepTarget = {
   type: "COURSE_STEP";
@@ -21,6 +22,12 @@ export type MiniGuideTarget = {
   targetKey: string;
   courseId: string;
   paidOrPrivate: boolean;
+  isPrivate?: boolean;
+};
+export type ArticleTarget = {
+  type: "ARTICLE";
+  targetKey: string;
+  articleId: string;
 };
 export type ContentEntitlementSource =
   | "GATING_DISABLED" | "DAILY_FREE" | "COURSE_ACCESS" | "PREMIUM"
@@ -56,7 +63,7 @@ export async function resolveCourseStepTargetTx(
     paidOrPrivate: day.course.isPaid || day.course.isPrivate,
     isPrivate: day.course.isPrivate,
     isPaid: day.course.isPaid,
-    monetized: MONETIZED_STEP_TYPES.has(step.step.type),
+    monetized: !FREE_STEP_TYPES.has(step.step.type),
     isDailyStep: step.step.isDailyCourse,
   };
 }
@@ -72,7 +79,21 @@ export async function resolveMiniGuideTargetTx(
   return {
     type: "MINI_GUIDE", targetKey: `mini-guide:${courseId}`, courseId,
     paidOrPrivate: course.isPaid || course.isPrivate,
+    isPrivate: course.isPrivate,
   };
+}
+
+/** Articles use the existing Premium paywall, regardless of PUBLIC/PAID
+ * catalog visibility. A separate verified free-article flag is not modeled. */
+export async function resolveArticleTargetTx(
+  tx: GafusTx, articleId: string,
+): Promise<ArticleTarget | null> {
+  const article = await tx.article.findUnique({
+    where: { id: articleId },
+    select: { id: true },
+  });
+  if (!article) return null;
+  return { type: "ARTICLE", targetKey: `article:${articleId}`, articleId };
 }
 
 async function hasPremiumTx(
@@ -96,20 +117,21 @@ async function hasPremiumTx(
 async function resolveEntitlementTx(
   tx: GafusTx,
   userId: string,
-  target: CourseStepTarget | MiniGuideTarget,
+  target: CourseStepTarget | MiniGuideTarget | ArticleTarget,
   now: Date,
 ): Promise<ContentEntitlement> {
   if (target.type === "MINI_GUIDE") {
-    // Preserve the pre-refactor mini-guide algorithm verbatim.
+    // Assignment is mandatory for a private guide; public paid guides
+    // may instead use Premium or one shared seven-day Gafus grant.
     const explicit = await tx.courseAccess.findFirst({
       where: { courseId: target.courseId, userId }, select: { courseId: true },
     });
     if (explicit) return { allowed: true, source: "COURSE_ACCESS", expiresAt: null, eligibleForGafus: false };
-    if (target.paidOrPrivate) {
+    if (target.isPrivate) {
       return { allowed: false, source: "DENIED", expiresAt: null, eligibleForGafus: false };
     }
-  } else {
-    // A private course requires assignment regardless of subscription or ads.
+  } else if (target.type === "COURSE_STEP") {
+    // A private course requires assignment regardless of subscription or Gafus.
     if (target.isPrivate) {
       const assigned = await tx.courseAccess.findFirst({
         where: { courseId: target.courseId, userId }, select: { courseId: true },
@@ -118,16 +140,37 @@ async function resolveEntitlementTx(
         ? { allowed: true, source: "COURSE_ACCESS", expiresAt: null, eligibleForGafus: false }
         : { allowed: false, source: "DENIED", expiresAt: null, eligibleForGafus: false };
     }
-    // Future public free courses, including their lesson steps, stay free.
-    if (!target.isPaid) {
+    // BREAK/DIARY and daily steps remain free inside public paid courses.
+    if (!target.isPaid || !target.monetized || target.isDailyStep) {
       return { allowed: true, source: "DAILY_FREE", expiresAt: null, eligibleForGafus: false };
     }
   }
   if (!await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true)) {
     return { allowed: true, source: "GATING_DISABLED", expiresAt: null, eligibleForGafus: false };
   }
-  if (await hasPremiumTx(tx, userId, now, target.type === "COURSE_STEP")) {
+  if (await hasPremiumTx(tx, userId, now, target.type !== "MINI_GUIDE")) {
     return { allowed: true, source: "PREMIUM", expiresAt: null, eligibleForGafus: false };
+  }
+  // An active mini-guide grant unlocks *all* its course's steps. This does
+  // not bypass private assignment (checked above).
+  if (target.type === "COURSE_STEP") {
+    const guide = await tx.course.findFirst({
+      where: { id: target.courseId, guideContent: { not: "" } },
+      select: { id: true },
+    });
+    if (guide) {
+      const sharedGrant = await tx.gafusTargetAccess.findFirst({
+        where: {
+          userId, targetType: "MINI_GUIDE",
+          targetKey: `mini-guide:${target.courseId}`, expiresAt: { gt: now },
+        },
+        select: { expiresAt: true }, orderBy: { expiresAt: "desc" },
+      });
+      if (sharedGrant) return {
+        allowed: true, source: "GAFUS", expiresAt: sharedGrant.expiresAt,
+        eligibleForGafus: false,
+      };
+    }
   }
   const access = await tx.gafusTargetAccess.findFirst({
     where: { userId, targetType: target.type, targetKey: target.targetKey, expiresAt: { gt: now } },
@@ -153,6 +196,12 @@ export async function resolveMiniGuideAccessTx(
   return resolveEntitlementTx(tx, userId, target, now);
 }
 
+export async function resolveArticleAccessTx(
+  tx: GafusTx, userId: string, target: ArticleTarget, now = new Date(),
+) {
+  return resolveEntitlementTx(tx, userId, target, now);
+}
+
 /** Course-occurrence-specific access. Never grant based on stepOnDayId alone. */
 export async function hasActiveGafusCourseStepAccess(input: {
   userId: string;
@@ -162,14 +211,33 @@ export async function hasActiveGafusCourseStepAccess(input: {
 }): Promise<boolean> {
   const target = await resolveCourseStepTargetTx(prisma, input.dayOnCourseId, input.stepOnDayId);
   if (!target || target.isPrivate || !target.monetized) return false;
+  const now = input.now ?? new Date();
   const access = await prisma.gafusTargetAccess.findFirst({
     where: {
       userId: input.userId,
       targetType: "COURSE_STEP",
       targetKey: target.targetKey,
-      expiresAt: { gt: input.now ?? new Date() },
+      expiresAt: { gt: now },
     },
     select: { id: true },
   });
-  return Boolean(access);
+  if (access) return true;
+
+  // An entire guide is purchased with one Gafus. Training detail, progress
+  // writes, exams, and video access must recognize that same shared grant.
+  const guide = await prisma.course.findFirst({
+    where: { id: target.courseId, guideContent: { not: "" } },
+    select: { id: true },
+  });
+  if (!guide) return false;
+  const guideAccess = await prisma.gafusTargetAccess.findFirst({
+    where: {
+      userId: input.userId,
+      targetType: "MINI_GUIDE",
+      targetKey: `mini-guide:${target.courseId}`,
+      expiresAt: { gt: now },
+    },
+    select: { id: true },
+  });
+  return Boolean(guideAccess);
 }

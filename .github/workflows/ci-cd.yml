@@ -71,6 +71,10 @@ jobs:
           pnpm list --depth=0 --json > /dev/null || echo "⚠️ Dependency validation failed, but continuing"
           echo "✅ Dependencies validated"
 
+      # Source-only, cache-independent fail-closed contract before ANY workspace builds.
+      - name: Enforce Core package and browser/server boundaries before dependency builds (blocking)
+        run: pnpm check:core-boundaries
+
       - name: Generate Prisma Client
         run: |
           cd packages/prisma
@@ -84,8 +88,11 @@ jobs:
         run: |
           # logger первым (зависимости: types, queues, cdn-upload, prisma)
           cd packages/logger && pnpm build && cd ../..
-          # types, queues, cdn-upload, video-access параллельно (зависят только от logger / без workspace deps)
-          (cd packages/types && pnpm build) &
+          # Types: build before the required real NodeNext/declaration and contract tests.
+          # Fail-closed: Types test is synchronous, not a backgrounded subshell.
+          cd packages/types && pnpm build && cd ../..
+          pnpm --filter @gafus/types test
+          # Remaining independent packages may still run in parallel.
           (cd packages/queues && pnpm build) &
           (cd packages/cdn-upload && pnpm build) &
           (cd packages/video-access && pnpm build) &
@@ -97,7 +104,7 @@ jobs:
           cd packages/mailer && pnpm build && cd ../..
           cd packages/core && pnpm build && cd ../..
           # остальные пакеты через turbo
-          pnpm build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access --filter=!@gafus/mailer
+          pnpm exec turbo run build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access --filter=!@gafus/mailer
 
       - name: Cache build artifacts
         uses: actions/cache@v5
@@ -173,10 +180,10 @@ jobs:
           pnpm install --frozen-lockfile --prefer-offline
 
       - name: Run security audit
-        run: pnpm audit --audit-level high || echo "Security audit found issues, but continuing build"
+        run: pnpm audit --audit-level high
 
       - name: Run Web ESLint (blocking)
-        run: pnpm --filter @gafus/web lint
+        run: pnpm --filter @gafus/web-vite lint
 
       - name: Enforce core ownership of Prisma access
         run: node scripts/check-app-prisma-boundary.mjs
@@ -215,7 +222,7 @@ jobs:
 
       - name: Verify Web and Mobile poll composer and voting UX
         run: |
-          pnpm --filter @gafus/web exec vitest run --config vitest.config.ts src/features/feed/FeedPollComposer.test.tsx src/features/feed/FeedPollCard.test.tsx
+          pnpm --filter @gafus/web-vite exec vitest run src/features/moments/MomentPoll.test.tsx src/features/moments/MomentComposer.unifiedPoll.test.tsx
           pnpm --filter @gafus/mobile exec vitest run --config vitest.config.ts src/features/feed/FeedPollComposer.test.tsx src/features/feed/FeedPollCard.test.tsx
           pnpm --filter @gafus/core exec vitest run --config vitest.config.ts src/services/feed/publication-client.test.ts
           pnpm exec vitest run packages/feed-server/src/index.test.ts
@@ -228,6 +235,29 @@ jobs:
 
       - name: Guard Mobile against core server imports
         run: node scripts/check-mobile-core-boundary.mjs
+      - name: Guard Web against core server imports
+        run: node scripts/check-web-core-boundary.mjs
+      - name: Check Chat2 broker and websocket release wiring
+        run: node scripts/refactor/check-chat2-prod-boundary.mjs
+      # Source-only first-install lane: synthetic values, NO SSH, DB, providers,
+      # image pulls, or production cutover. Does not require QA READY=YES.
+      - name: Check Chat2 first-install staged source without deploy (blocking)
+        env:
+          COMPOSE_PROFILES: chat2
+          CHAT2_LEGACY_RETIRE_ENABLED: disabled
+          CHAT2_API_ENABLED: enabled
+          CHAT2_WORKER_ENABLED: enabled
+          CHAT2_PRIVATE_MEDIA_ENABLED: enabled
+          CHAT2_PUBLIC_WS_URL: wss://gafus.ru/connection/websocket
+          CHAT2_CENTRIFUGO_HTTP_API: http://chat2-centrifugo:8000/api/publish
+        run: |
+          export CHAT2_CENTRIFUGO_TOKEN_SECRET="$(openssl rand -hex 32)"
+          export CHAT2_CENTRIFUGO_API_KEY="$(openssl rand -hex 24)"
+          node scripts/refactor/check-chat2-prod-boundary.mjs --staged
+      - name: Guard Cloud media Docker Sharp version
+        run: node scripts/qa/check-media-docker-sharp-version.mjs
+      - name: Release inventory and secret index gate
+        run: node scripts/refactor/check-release-index.mjs
 
       - name: Check for secrets
         uses: trufflesecurity/trufflehog@main
@@ -246,7 +276,6 @@ jobs:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
       # Совпадает с образом web: счётчик Метрики в клиентской сборке
-      NEXT_PUBLIC_YM_COUNTER_ID: ${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -292,14 +321,24 @@ jobs:
           # Установка с предпочтением кэша, но с возможностью загрузки из сети
           pnpm install --frozen-lockfile --prefer-offline
 
+      # Direct pnpm turbo commands below bypass root build/test/typecheck aliases.
+      # Source-only boundary validation must run in every build-apps job,
+      # regardless of restored caches or Git branch / changed-app filters.
+      - name: Enforce Core package and browser/server boundaries (blocking)
+        run: pnpm check:core-boundaries
+
       - name: Build, test, typecheck apps
         run: |
           # main+push: полная сборка (для деплоя). PR/develop: только изменённые приложения.
           if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; then
-            pnpm turbo run build test typecheck --filter='./apps/web' --filter='./apps/trainer-panel'  --filter='./apps/admin-panel' --filter='./apps/api'
+            pnpm turbo run build test typecheck --filter='./apps/web-vite' --filter='./apps/trainer-panel'  --filter='./apps/admin-panel' --filter='./apps/api'
           else
             pnpm turbo run build test typecheck --filter='./apps/*...[origin/main]'
           fi
+
+      - name: Verify generated shared-types declarations match runtime exports
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: node scripts/qa/check-types-artifact-exports.mjs
 
       - name: Mobile typecheck and unit tests (blocking)
         run: |
@@ -318,9 +357,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: |
-            apps/web/.next
-            apps/trainer-panel/.next
-            apps/admin-panel/.next
+            apps/web-vite/dist
+            apps/trainer-panel/src/trainer-vite/live/dist
+            apps/admin-panel/dist
             apps/api/dist
           key: ${{ needs.prepare-deps.outputs.cache-key }}-all-apps-build
           restore-keys: |
@@ -329,10 +368,34 @@ jobs:
   # Build worker packages for Docker - REMOVED (using multi-stage build)
   # Mobile: typecheck и unit-тесты проходят в build-apps; native Expo-сборки выполняются отдельно.
 
+  # No Cloud.ru/Registry/SSH mutations may begin before QA and Chat2 sign-off.
+  cutover-preflight:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
+    needs: [security, build-apps]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Fail closed unless Chat2 and functional QA are release-ready
+        env:
+          CHAT2_LEGACY_RETIRE_ENABLED: ${{ vars.CHAT2_LEGACY_RETIRE_ENABLED }}
+          CHAT2_API_ENABLED: ${{ vars.CHAT2_API_ENABLED }}
+          CHAT2_WORKER_ENABLED: ${{ vars.CHAT2_WORKER_ENABLED }}
+          CHAT2_PRIVATE_MEDIA_ENABLED: ${{ vars.CHAT2_PRIVATE_MEDIA_ENABLED }}
+          CHAT2_PUBLIC_WS_URL: ${{ vars.CHAT2_PUBLIC_WS_URL }}
+          CHAT2_CENTRIFUGO_HTTP_API: http://chat2-centrifugo:8000/api/publish
+          COMPOSE_PROFILES: chat2
+          CHAT2_CENTRIFUGO_TOKEN_SECRET: ${{ secrets.CHAT2_CENTRIFUGO_TOKEN_SECRET }}
+          CHAT2_CENTRIFUGO_API_KEY: ${{ secrets.CHAT2_CENTRIFUGO_API_KEY }}
+        run: node scripts/refactor/check-chat2-prod-boundary.mjs --candidate
+
   # Prepare Docker build context
   prepare-docker:
     needs: [security, build-apps]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
     runs-on: ubuntu-latest
     outputs:
       docker-cache-key: ${{ steps.docker-cache-key.outputs.key }}
@@ -344,34 +407,13 @@ jobs:
         id: docker-cache-key
         run: echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('**/Dockerfile*') }}-docker" >> $GITHUB_OUTPUT
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: Create Docker build cache
-        run: |
-          # Создаем базовый образ с зависимостями для кэширования
-          docker buildx build \
-            --platform linux/amd64 \
-            --target base \
-            --build-arg "NEXT_PUBLIC_YM_COUNTER_ID=${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}" \
-            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-base:latest \
-            --cache-from type=gha \
-            --cache-to type=gha,mode=max \
-            --push \
-            -f ci-cd/docker/Dockerfile-web-optimized \
-            . || echo "Base image creation failed, continuing with build"
+      # The previous Next.js base cache stage no longer exists.
+      # Static Vite images are compiled independently in build-images.
 
   # Build all Docker images in parallel
   build-images:
-    needs: [prepare-docker]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [prepare-docker, cutover-preflight]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -395,6 +437,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Setup Node for Vite release assets
+        if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Setup pnpm for Vite release assets
+        if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - name: Compile Vite SPA before packaging into Nginx image
+        if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter @gafus/prisma db:generate
+          case '${{ matrix.image.name }}' in
+            web) pnpm --filter '@gafus/web-vite^...' --if-present run build; pnpm --filter @gafus/web-vite build ;;
+            admin-panel) pnpm --filter '@gafus/admin-panel^...' --if-present run build; pnpm --filter @gafus/admin-panel build ;;
+            trainer-panel) pnpm --filter '@gafus/trainer-panel^...' --if-present run build; pnpm --filter @gafus/trainer-panel build ;;
+          esac
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -415,17 +480,14 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}:sha-${{ github.sha }}
           # web: только GHA cache (без registry) — актуальный код, локальный кэш слоёв
-          cache-from: |
-            type=gha
-            ${{ matrix.image.name != 'web' && format('type=registry,ref={0}/{1}/gafus-base:latest', env.REGISTRY, env.IMAGE_NAME) || '' }}
+          cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-            NEXT_PUBLIC_YM_COUNTER_ID=${{ matrix.image.name == 'web' && secrets.NEXT_PUBLIC_YM_COUNTER_ID || '' }}
 
   cloudru-media-contracts:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -453,7 +515,7 @@ jobs:
   # this step only reads signed URLs. Never substitute a Yandex CDN preflight.
   beget-readonly-preflight:
     needs: [security, build-apps, cloudru-media-contracts]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12
@@ -488,8 +550,8 @@ jobs:
 
   # Four immutable, revision-tagged images are required before any production changes.
   cloudru-build-media-images:
-    needs: [security, build-apps, cloudru-media-contracts, beget-readonly-preflight]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [security, build-apps, cloudru-media-contracts, beget-readonly-preflight, cutover-preflight]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
     runs-on: ubuntu-latest
     environment: production
     strategy:
@@ -516,7 +578,7 @@ jobs:
   # Beget live signing/edge readiness was verified BEFORE image publication.
   cloudru-prepare-media:
     needs: [cloudru-build-media-images]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 22
@@ -572,7 +634,7 @@ jobs:
   # Production deploy is shared with manual Deploy Only. No second script.
   deploy-production:
     needs: [security, build-apps, build-images, cloudru-prepare-media]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
     uses: ./.github/workflows/production-deploy-reusable.yml
     with:
       release_sha: ${{ github.sha }}
@@ -582,7 +644,7 @@ jobs:
   # or roll back Gallery/Feed to Yandex CDN (including on Beget 5xx).
   beget-verify-after-deploy:
     needs: [beget-readonly-preflight, cloudru-prepare-media, deploy-production]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_REFACTOR_PRODUCTION_CUTOVER == 'approved'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12

@@ -1,0 +1,21 @@
+/* Retained Next wallet has no overlay "?" icon. The extra approved bonus
+ * rules remain keyboard-accessible *below* the source wallet card, so its
+ * measured original header/summary/history bounds stay unchanged. */
+.web1-wallet-reward-rules {
+  box-sizing: border-box;
+  margin: 16px auto 0;
+  padding: 12px 16px;
+  max-width: 920px;
+  border: 1px solid #e8e5d8;
+  border-radius: 16px;
+  background: #fffdf7;
+  color: #465429;
+  font: 500 13px/1.5 var(--font-montserrat), system-ui, sans-serif;
+}
+.web1-wallet-reward-rules > summary { cursor: pointer; font-weight: 700; }
+.web1-wallet-reward-rules summary:focus-visible {
+  outline: 2px solid #62743b;
+  outline-offset: 3px;
+}
+.web1-wallet-reward-rules p { margin: 12px 0; }
+.web1-wallet-reward-rules a { color: #4d5c2d; }

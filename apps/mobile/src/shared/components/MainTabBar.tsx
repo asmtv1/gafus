@@ -8,7 +8,6 @@ import { COLORS, FONTS } from "@/shared/config";
 import { trackEvent } from "@/shared/lib/analytics";
 import { getMainTabBarSafeAreaStyle } from "@/shared/lib/tabBarSafeArea";
 import { TourTarget } from "@/shared/lib/tour-targets";
-import { MENU_TAB_ICON_SOURCE } from "./menuTabIconSource";
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0];
 const TAB_LABEL_FONT_SIZE = 11;
@@ -25,7 +24,12 @@ const ITEMS = [
     targetId: "tab-courses",
     image: require("../../../assets/images/tab-icons/courses.webp"),
   },
-  { name: "more", label: "Меню", targetId: "tab-more", image: MENU_TAB_ICON_SOURCE },
+  {
+    name: "more",
+    label: "Меню",
+    targetId: "tab-more",
+    image: require("../../../assets/images/tab-icons/menu.webp"),
+  },
 ] as const;
 
 /** Второстепенные маршруты остаются вкладками, но выделяют общий вход «Меню». */

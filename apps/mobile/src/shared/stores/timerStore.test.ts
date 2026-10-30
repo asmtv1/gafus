@@ -24,7 +24,7 @@ describe("mobile timer store", () => {
     useTimerStore.setState({ activeTimer: null });
   });
 
-  it("starts a timer and persists its end timestamp", () => {
+  it("starts a memory-only timer without writing ownerless storage", () => {
     const started = useTimerStore.getState().startTimer("course-1", "day-1", 0, 90);
 
     expect(started).toBe(true);
@@ -36,7 +36,7 @@ describe("mobile timer store", () => {
       isRunning: true,
       endTsSec: 1779616890,
     });
-    expect(setItemMock).toHaveBeenCalledWith(expect.stringContaining("course-1"), "1779616890");
+    expect(setItemMock).not.toHaveBeenCalled();
   });
 
   it("does not start a second timer while one is running", () => {
@@ -64,17 +64,26 @@ describe("mobile timer store", () => {
     });
   });
 
-  it("restores a persisted active timer", async () => {
+  it("does not restore ownerless historical persisted timer", async () => {
     getItemMock.mockResolvedValueOnce("1779616860");
 
     const remaining = await useTimerStore
       .getState()
       .restoreTimerFromStorage("course-1", "day-1", 0);
 
-    expect(remaining).toBe(60);
-    expect(useTimerStore.getState().activeTimer).toMatchObject({
-      remainingSec: 60,
-      isRunning: true,
-    });
+    expect(remaining).toBeNull();
+    expect(useTimerStore.getState().activeTimer).toBeNull();
+    expect(getItemMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("Phase1 ownerless timer restore quarantine", () => {
+  it("never restores an unauthenticated historical timer nor reads its ownerless key", async () => {
+    getItemMock.mockResolvedValueOnce("1779616860");
+    useTimerStore.setState({ activeTimer: null });
+    const result = await useTimerStore.getState().restoreTimerFromStorage("course-1", "day-1", 0);
+    expect(result).toBeNull();
+    expect(useTimerStore.getState().activeTimer).toBeNull();
+    expect(getItemMock).not.toHaveBeenCalled();
   });
 });

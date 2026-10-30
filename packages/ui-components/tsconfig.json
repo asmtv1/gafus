@@ -12,11 +12,12 @@
     "noEmit": false,
     "declaration": true,
     "outDir": "./dist",
+    "rootDir": "./src",
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@gafus/types": ["../types/src/index.ts"],
-      "@gafus/types/*": ["../types/src/*"]
+      "@gafus/types": ["../types/dist/index.d.ts"],
+      "@gafus/types/*": ["../types/dist/*"]
     }
   },
   "include": ["src/**/*"],

@@ -25,7 +25,9 @@ function encryptionKey(): Buffer {
   return Buffer.from(raw, "hex");
 }
 
-export function encryptMailPayload(payload: MailPayload, id: string): { ciphertext: string; nonce: string; authTag: string } {
+export function encryptMailPayload(
+  payload: MailPayload, id: string,
+): { ciphertext: string; nonce: string; authTag: string } {
   const encoded = Buffer.from(JSON.stringify(payload), "utf8");
   if (encoded.length > MAX_BODY_BYTES) throw new Error("Mail payload exceeds safe encrypted queue limit");
   const nonce = randomBytes(12);
@@ -35,7 +37,9 @@ export function encryptMailPayload(payload: MailPayload, id: string): { cipherte
   return { ciphertext: ciphertext.toString("base64"), nonce: nonce.toString("base64"), authTag: cipher.getAuthTag().toString("base64") };
 }
 
-export function decryptMailPayload(data: { ciphertext: string; nonce: string; authTag: string }, id: string): MailPayload {
+export function decryptMailPayload(
+  data: { ciphertext: string; nonce: string; authTag: string }, id: string,
+): MailPayload {
   const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(data.nonce, "base64"));
   decipher.setAAD(Buffer.from(id));
   decipher.setAuthTag(Buffer.from(data.authTag, "base64"));
@@ -52,9 +56,16 @@ async function serialize(input: SendTransactionalMailInput): Promise<MailPayload
         else if (typeof file.content === "string") bytes = Buffer.from(file.content, (file.encoding || "utf8") as BufferEncoding);
         else if (typeof file.path === "string" && !/^[a-z]+:/i.test(file.path)) bytes = await readFile(file.path);
         else throw new Error("Unsupported deferred email attachment");
+        // Nodemailer 10 types allow arbitrary MIME disposition strings, but
+        // persisted outbox payloads intentionally accept only the two stable
+        // RFC dispositions. Reject unknown values rather than storing them.
+        const disposition = file.contentDisposition;
+        if (disposition !== undefined && disposition !== "attachment" && disposition !== "inline") {
+          throw new Error("Unsupported deferred email content disposition");
+        }
         return {
           filename: typeof file.filename === "string" ? file.filename : undefined, content: bytes.toString("base64"),
-          contentType: file.contentType, cid: file.cid, contentDisposition: file.contentDisposition,
+          contentType: file.contentType, cid: file.cid, contentDisposition: disposition,
         };
       }))
     : undefined;
@@ -96,7 +107,10 @@ export async function enqueueTransactionalMail(input: SendTransactionalMailInput
 }
 
 function isPermanentFailure(code: string): boolean {
-  if (/^(?:Resend )?(?:invalid_|missing_|validation_|not_found|forbidden|unauthorized|restricted_|HTTP_40[01345]|HTTP_422)/i.test(code)) return true;
+  const validationCode =
+    /^(?:Resend )?(?:invalid_|missing_|validation_|not_found|forbidden|unauthorized)/i;
+  const terminalCode = /^(?:Resend )?(?:restricted_|HTTP_40[01345]|HTTP_422)/i;
+  if (validationCode.test(code) || terminalCode.test(code)) return true;
   return /reconciliation/.test(code);
 }
 
@@ -111,15 +125,24 @@ function errorCodeFromException(error: unknown): string {
   return network?.[0] || "MAIL_TRANSPORT_FAILED";
 }
 
-export async function processDueTransactionalMailOutbox(params: { batchSize?: number; now?: Date } = {}) {
+export interface MailOutboxRunOptions {
+  batchSize?: number;
+  now?: Date;
+  onTerminalCommitted?: (key: string) => Promise<void>;
+}
+export async function processDueTransactionalMailOutbox(params: MailOutboxRunOptions = {}) {
   if (!mailOutboxEnabled()) return { processed: 0, sent: 0, failed: 0, expired: 0, enabled: false };
   encryptionKey();
-  const now = params.now ?? new Date();
-  let processed = 0, sent = 0, failed = 0, expired = 0;
+  let processed = 0, sent = 0, failed = 0, expired = 0, reconciliationFailures = 0;
+  const terminal = async (key: string): Promise<void> => {
+    if (!key.startsWith("consultation-") || !params.onTerminalCommitted) return;
+    try { await params.onTerminalCommitted(key); }
+    catch { reconciliationFailures++; } // provider ACK already persisted: no resend.
+  };
   const owner = randomUUID();
   const batchSize = Math.min(Math.max(params.batchSize ?? 10, 1), 30);
   for (let i = 0; i < batchSize; i++) {
-    const checkAt = new Date();
+    const checkAt = params.now ?? new Date();
     const candidate = await prisma.transactionalMailOutbox.findFirst({
       where: {
         OR: [
@@ -148,41 +171,89 @@ export async function processDueTransactionalMailOutbox(params: { batchSize?: nu
     const row = await prisma.transactionalMailOutbox.findUnique({ where: { id: candidate.id } });
     if (!row) continue;
     processed++;
-    const finish = async (data: Record<string, unknown>) => prisma.transactionalMailOutbox.updateMany({
+    const finish = async (data: Record<string, unknown>): Promise<boolean> => {
+      const result = await prisma.transactionalMailOutbox.updateMany({
       where: { id: row.id, status: "PROCESSING", leaseOwner: owner },
       data: { ...data, leaseOwner: null, leaseExpiresAt: null },
-    });
+      });
+      return result.count === 1;
+    };
     // "expiresAt" always precedes Resend's 23h safe idempotency window.
     if (row.expiresAt.getTime() <= checkAt.getTime() ||
         checkAt.getTime() - row.createdAt.getTime() >= MAX_QUEUE_AGE_MS) {
-      await finish({ status: "EXPIRED", ciphertext: null, nonce: null, authTag: null, lastErrorCode: "QUEUE_TTL_EXPIRED" });
-      expired++;
+      if (await finish({ status: "EXPIRED", ciphertext: null, nonce: null, authTag: null, lastErrorCode: "QUEUE_TTL_EXPIRED" })) {
+        expired++;
+        await terminal(row.id);
+      }
       continue;
     }
-    try {
-      if (!row.ciphertext || !row.nonce || !row.authTag) throw new Error("Mail payload missing");
-      const payload = decryptMailPayload({ ciphertext: row.ciphertext, nonce: row.nonce, authTag: row.authTag }, row.id);
-      await sendResendMail(deserialize(payload), mailerEnvFromProcess());
-      await finish({
-        status: "SENT", ciphertext: null, nonce: null, authTag: null,
-        acceptedAt: new Date(), lastErrorCode: null,
+    // A persisted UNKNOWN attempt is not safe to resend, even inside Resend's window.
+    if (row.id.startsWith("consultation-")) {
+      const earlier = await prisma.transactionalMailAttempt.findUnique({
+        where: { id: row.id }, select: { status: true },
       });
-      sent++;
+      if (earlier?.status === "UNKNOWN") {
+        if (await finish({ status: "PENDING", nextAttemptAt: row.expiresAt,
+          lastErrorCode: "PROVIDER_ACCEPTANCE_UNKNOWN" })) failed++;
+        continue;
+      }
+    }
+    try {
+      if (!row.ciphertext || !row.nonce || !row.authTag) {
+        throw new Error("Mail payload missing");
+      }
+      const payload = decryptMailPayload({
+        ciphertext: row.ciphertext, nonce: row.nonce, authTag: row.authTag,
+      }, row.id);
+      await sendResendMail(deserialize(payload), mailerEnvFromProcess());
     } catch (error) {
+      const attempt = row.id.startsWith("consultation-")
+        ? await prisma.transactionalMailAttempt.findUnique({
+          where: { id: row.id }, select: { status: true },
+        }) : null;
+      if (attempt?.status === "UNKNOWN" || attempt?.status === "ACCEPTED") {
+        if (await finish({ status: "PENDING", nextAttemptAt: row.expiresAt,
+          lastErrorCode: "PROVIDER_ACCEPTANCE_UNKNOWN" })) failed++;
+        continue;
+      }
       const code = errorCodeFromException(error);
       const permanent = isPermanentFailure(error instanceof Error ? error.message : "") ||
         code === "IDEMPOTENCY_EXPIRED" || code === "KEY_CONFIGURATION" || code === "MAIL_TRANSPORT_FAILED" && !row.ciphertext;
       const delayMs = RETRY_MS[Math.min(row.attempts, RETRY_MS.length - 1)]!;
       const next = new Date(Date.now() + delayMs);
       const shouldStop = permanent || next >= row.expiresAt;
-      await finish({
+      if (await finish({
         status: shouldStop ? "FAILED" : "PENDING",
         lastErrorCode: code,
         nextAttemptAt: next,
         ...(shouldStop ? { ciphertext: null, nonce: null, authTag: null } : {}),
+      })) {
+        failed++;
+        if (shouldStop) await terminal(row.id);
+      }
+      continue;
+    }
+    let acceptedAt = new Date();
+    if (row.id.startsWith("consultation-")) {
+      const ack = await prisma.transactionalMailAttempt.findUnique({
+        where: { id: row.id },
+        select: { status: true, providerMessageId: true, acceptedAt: true },
       });
-      failed++;
+      if (ack?.status !== "ACCEPTED" || !ack.providerMessageId ||
+          !(ack.acceptedAt instanceof Date) || !Number.isFinite(ack.acceptedAt.getTime())) {
+        if (await finish({ status: "PENDING", nextAttemptAt: row.expiresAt,
+          lastErrorCode: "PROVIDER_ACK_NOT_DURABLE" })) failed++;
+        continue;
+      }
+      acceptedAt = ack.acceptedAt;
+    }
+    // Committing SENT is deliberately OUTSIDE transport catch: failed/0-count
+    // persistence cannot trigger another provider send.
+    if (await finish({ status: "SENT", ciphertext: null, nonce: null, authTag: null,
+      acceptedAt, lastErrorCode: null })) {
+      sent++;
+      await terminal(row.id);
     }
   }
-  return { processed, sent, failed, expired, enabled: true };
+  return { processed, sent, failed, expired, reconciliationFailures, enabled: true };
 }

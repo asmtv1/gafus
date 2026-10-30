@@ -1,0 +1,218 @@
+/* Survey-specific visual layout. The ExamStep component retains its own skin. */
+.gafus-app .training-exam.training-survey {
+  display: grid;
+  gap: 22px;
+  width: 100%;
+  min-width: 0;
+  padding: clamp(16px, 2.7vw, 28px);
+  background: #fffefa;
+  border: 1px solid #e5e8db;
+  border-radius: 20px;
+  overflow-wrap: normal;
+}
+
+.gafus-app .training-survey-header {
+  display: grid;
+  gap: 7px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid #e9ecdf;
+}
+
+.gafus-app .training-survey-eyebrow {
+  color: #6b784e;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.gafus-app .training-exam.training-survey .training-survey-header h5 {
+  margin: 0;
+  color: #343c2f;
+  font-size: clamp(19px, 2vw, 24px);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.gafus-app .training-survey-header p {
+  margin: 0;
+  color: #6b7167;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.gafus-app .training-survey-status,
+.gafus-app .training-survey-result {
+  margin: 0;
+  padding: 13px 16px;
+  border-radius: 12px;
+  background: #f1f5ea;
+  color: #465638;
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+.gafus-app .training-survey-result p {
+  margin: 8px 0 0;
+}
+
+.gafus-app .training-survey-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 15px;
+  border-top: 1px solid #e9ecdf;
+}
+
+.gafus-app .training-survey-refresh {
+  max-width: 100%;
+}
+
+.gafus-app .training-exam.training-survey > .training-survey-section {
+  min-width: 0;
+  margin: 0;
+  padding: 19px;
+  border: 1px solid #e4e8db;
+  border-radius: 16px;
+  background: #f9faf6;
+}
+
+.gafus-app .training-exam.training-survey > .training-survey-section > legend {
+  max-width: 100%;
+  padding: 0 9px;
+  color: #42543a;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.gafus-app .training-survey-question-list {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.gafus-app .training-exam.training-survey .training-survey-question {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #e8ebdf;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.gafus-app .training-survey-question > .training-survey-question-title {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+  color: #343b33;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+.gafus-app .training-survey-required { color: #a34a37; }
+
+.gafus-app .training-survey-question-description {
+  margin: 0;
+  color: #72796e;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.gafus-app .training-survey-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  min-width: 0;
+}
+
+.gafus-app .training-survey-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 12px 13px;
+  border: 1px solid #e6e9df;
+  border-radius: 11px;
+  background: #fbfcf9;
+  color: #41443d;
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.gafus-app .training-survey-choice input {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #647a48;
+  cursor: inherit;
+}
+
+.gafus-app .training-survey-choice span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: auto;
+}
+
+.gafus-app .training-survey-choice:has(input:checked) {
+  background: #eef4e7;
+  border-color: #a4b98a;
+  color: #354a2b;
+}
+
+.gafus-app .training-survey-choice:focus-within {
+  outline: 2px solid #788b4d;
+  outline-offset: 2px;
+}
+
+.gafus-app .training-survey-choice:has(input:disabled) {
+  cursor: default;
+  opacity: .7;
+}
+
+.gafus-app .training-exam.training-survey .training-survey-text-field {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #c8d1bf;
+  border-radius: 11px;
+  background: #fff;
+  color: #343b33;
+  font: inherit;
+  font-size: 14px;
+}
+
+.gafus-app .training-exam.training-survey .training-survey-text-field:focus-visible {
+  outline: 2px solid #788b4d;
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .gafus-app .training-exam.training-survey { padding: 16px 12px; gap: 18px; }
+  .gafus-app .training-exam.training-survey > .training-survey-section { padding: 14px 11px; }
+  .gafus-app .training-exam.training-survey .training-survey-question { padding: 13px 11px; }
+  .gafus-app .training-survey-choices { grid-template-columns: minmax(0, 1fr); }
+  .gafus-app .training-survey-choice { min-height: 46px; padding: 12px; }
+  .gafus-app .training-survey-actions { flex-direction: column; align-items: stretch; }
+  .gafus-app .training-survey-actions button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gafus-app .training-survey-choice { transition: none; }
+}

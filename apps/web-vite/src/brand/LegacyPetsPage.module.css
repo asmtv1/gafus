@@ -1,0 +1,82 @@
+.page {
+  width: 100%;
+  padding: 12px;
+}
+
+.wrapper {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 16px;
+  background: rgba(255, 248, 229, 0.72);
+  border: 1px solid rgba(255, 253, 244, 0.94);
+  border-radius: 22px;
+  box-shadow: var(--shadow-card);
+}
+
+.title {
+  margin: 0 0 12px;
+  color: #352e2e;
+  font-size: 42px;
+  line-height: 1.2;
+  text-align: center;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+}
+
+.petList {
+  margin-bottom: 16px;
+}
+
+.petList :global(h2) {
+  display: none;
+}
+
+/* Native <ul> default indentation shifts all pet cards 40px to the right.
+   The original Next PetList removes it; keep collapsed and expanded in sync. */
+.page :global(.pet-collection-grid) {
+  padding: 0;
+  list-style: none;
+}
+
+.addPetButton {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #636128 0%, #4a4a1a 100%);
+  border: 1px solid #636128;
+  box-shadow: 0 4px 12px rgba(99, 97, 40, 0.3);
+  color: #ece5d2;
+  font-family: var(--font-impact), var(--font-montserrat), system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 12px 20px;
+  min-height: 48px;
+}
+
+.emptyText {
+  margin: 0;
+  color: #636128;
+  font-size: 16px;
+  text-align: center;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+}
+
+/* Keep the add action readable rather than stretching it across the desktop canvas. */
+.addPetButton {
+  width: min(100%, 340px);
+  min-height: 46px;
+  margin-inline: auto;
+}
+
+@media (max-width: 600px) {
+  /* Main shell already provides the outer 12px inset. Next /pets adds 11px,
+     not an additional nested 10px inset. Card width becomes 344px at 390px. */
+  :global(.gafus-app) .page:global(.gafus-legacy-pets-page) { padding: 0; }
+  .wrapper { padding: 10px; border-radius: 18px; }
+  .title { margin-bottom: 8px; }
+  .title { font-size: 32px; }
+  .addPetButton { width: 100%; }
+}

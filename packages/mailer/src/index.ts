@@ -9,6 +9,8 @@ export {
   type SendTransactionalMailInput,
   createMailerTransporter,
   sendTransactionalMail,
+  sendTransactionalMailWithDisposition,
+  type TransactionalMailDisposition,
 } from "./send-transactional-mail.js";
 export {
   type NpdReceiptEmailData,

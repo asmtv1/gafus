@@ -1,0 +1,45 @@
+"use strict";
+const fs=require("node:fs");
+const {chromium}=require("../../.local-pg-scratch/qa-playwright/node_modules/playwright-core");
+const user=JSON.parse(fs.readFileSync(".local-pg-scratch/qa-browser-accounts-20261029.json","utf8")).find(x=>x.role==="USER");
+(async()=>{
+const browser=await chromium.launch({headless:true,executablePath:"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"});
+const record={scenario:"real Chrome local-only question text CRUD"};
+try{
+ const ctx=await browser.newContext({viewport:{width:1280,height:800}});
+ await ctx.route("**/*",r=>{const u=new URL(r.request().url());return ["127.0.0.1","localhost"].includes(u.hostname)||["data:","blob:"].includes(u.protocol)?r.continue():r.abort("blockedbyclient")});
+ const page=await ctx.newPage(),responses=[];
+ page.on("response",r=>{const u=new URL(r.url());if(u.pathname.startsWith("/api/v1/questions"))responses.push({method:r.request().method(),status:r.status(),scope:u.pathname==="/api/v1/questions"?"COLLECTION":"DETAIL"})});
+ await page.goto("http://127.0.0.1:5173/login");
+ await page.locator("#login-name").fill(user.username);
+ await page.locator("#login-password").fill(user.password);
+ await page.getByRole("button",{name:"Войти",exact:true}).click();await page.waitForTimeout(320);
+ await page.goto("http://127.0.0.1:5173/questions/new");
+ await page.getByRole("heading",{name:"Задать вопрос"}).waitFor({timeout:10000});
+ await page.locator("#question-title").fill("QA: проверка создания вопроса");
+ await page.locator("#question-body").fill("Это полностью синтетический вопрос для локальной проверки GAFUS. Медиа и реальные пользователи не участвуют.");
+ await page.locator("#question-tags").fill("qa, тест");
+ await page.getByRole("button",{name:"Опубликовать вопрос"}).click();
+ await page.waitForTimeout(1000);
+ record.createdPath=new URL(page.url()).pathname;
+ record.created=/^\/questions\/[a-zA-Z0-9_-]+$/.test(record.createdPath);
+ if(!record.created)throw Error("CREATE_DID_NOT_NAVIGATE");
+ await page.getByRole("button",{name:"Редактировать вопрос"}).waitFor({timeout:9000});
+ await page.getByRole("button",{name:"Редактировать вопрос"}).click();
+ const form=page.getByRole("form",{name:"Редактирование вопроса"});
+ await form.locator("input").first().fill("QA: отредактированный вопрос");
+ await form.getByRole("button",{name:"Сохранить",exact:true}).click();
+ await page.waitForTimeout(550);
+ record.edited=(await page.locator("body").innerText()).includes("QA: отредактированный вопрос");
+ await page.getByRole("button",{name:"Удалить вопрос"}).click();
+ await page.getByRole("button",{name:"Да, удалить вопрос"}).click();
+ await page.waitForTimeout(650);
+ record.deleteRedirect=new URL(page.url()).pathname;
+ record.apiEvents=responses;
+ record.pass=record.created&&record.edited&&record.deleteRedirect==="/questions"&&responses.some(x=>x.method==="POST"&&x.status===200)&&responses.some(x=>x.method==="PATCH"&&x.status===200)&&responses.some(x=>x.method==="DELETE"&&x.status===200);
+ console.log("REAL_QUESTION_CRUD",JSON.stringify(record));
+ fs.writeFileSync(".local-pg-scratch/qa-logs/browser-20261029/real-question-crud.json",JSON.stringify(record,null,2));
+ await ctx.close();
+ if(!record.pass)process.exitCode=1;
+}finally{await browser.close()}
+})().catch(e=>{console.log("REAL_QUESTION_CRUD_ERROR",String(e.message).slice(0,180),JSON.stringify({createdPath:record.createdPath||null,edited:record.edited||false}));process.exitCode=1});

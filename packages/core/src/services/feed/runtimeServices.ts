@@ -19,7 +19,7 @@ export function createCurrentFeedRuntime(
 ) {
   return {
     service: createFeedService({ db: prisma, storage, enabled }),
-    social: createFeedSocial({ db: prisma, enabled }),
+    social: createFeedSocial({ db: prisma, storage, enabled }),
     polls: createFeedPolls({ db: prisma, storage, enabled }),
     preferences: createFeedPreferences({ db: prisma, enabled }),
     smartPreferences: createSmartFeedPreferences(prisma),
@@ -28,7 +28,7 @@ export function createCurrentFeedRuntime(
 
 export function createCurrentFeedInternalRuntime(storage: Pick<FeedStoragePort, "head">) {
   return {
-    jobs: createFeedStorageJobs({ db: prisma }),
+    jobs: createFeedStorageJobs({ db: prisma, storage }),
     maintenance: createFeedMaintenance({ db: prisma }),
     recovery: createFeedUploadRecovery({ db: prisma, storage }),
   };

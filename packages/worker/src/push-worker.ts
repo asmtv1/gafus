@@ -31,9 +31,6 @@ const config = {
   },
 } as const;
 
-// Типы уведомлений (Discriminated Union)
-type NotificationType = "step" | "immediate";
-
 // Интерфейсы для типобезопасности
 interface StepNotificationData {
   type: "step";
@@ -69,8 +66,13 @@ const NOTIFICATION_FORMAT = {
   DEFAULT_URL: "/" as const,
 } as const;
 
-// Инициализация PushNotificationService
-const pushService = PushNotificationService.fromEnvironment();
+// WebPush keys are required for browser delivery, not for importing the
+// generic worker or delivering native Expo/RuStore jobs.
+let pushService: PushNotificationService | null = null;
+function getWebPushService(): PushNotificationService {
+  pushService ??= PushNotificationService.fromEnvironment();
+  return pushService;
+}
 
 // Сервис для обработки уведомлений (экспортируется для тестов)
 export class NotificationProcessor {
@@ -230,7 +232,9 @@ export class NotificationProcessor {
   /**
    * Создаёт payload для немедленных уведомлений (например, зачёт экзамена)
    */
-  private createImmediateNotificationPayload(notification: ImmediateNotificationData): NotificationPayload {
+  private createImmediateNotificationPayload(
+    notification: ImmediateNotificationData,
+  ): NotificationPayload {
     return {
       title: notification.title.trim(),
       body: notification.body.trim(),
@@ -265,14 +269,23 @@ export class NotificationProcessor {
   ): Promise<{ successCount: number; failedCount: number }> {
     const partitioned = partitionPushSubscriptions(subscriptions);
 
-    const webResults =
-      partitioned.web.length > 0 ?
-        await pushService.sendNotifications(partitioned.web, JSON.stringify(payload))
-      : {
-          results: [],
-          successCount: 0,
-          failureCount: 0,
-        };
+    let webResults: {
+      results: { success: boolean; error?: unknown; endpoint: string }[];
+      successCount: number;
+      failureCount: number;
+    } = { results: [], successCount: 0, failureCount: 0 };
+    if (partitioned.web.length > 0) {
+      try {
+        webResults = await getWebPushService().sendNotifications(
+          partitioned.web, JSON.stringify(payload),
+        );
+      } catch (error) {
+        // A WebPush misconfiguration may not suppress unrelated mobile
+        // notifications. Do not delete ambiguous browser subscriptions.
+        this.logger.error("WebPush dispatch unavailable", error as Error);
+        webResults.failureCount = partitioned.web.length;
+      }
+    }
 
     const expoResults =
       partitioned.expo.length > 0 ?
@@ -322,7 +335,8 @@ export class NotificationProcessor {
     });
 
     return {
-      successCount: webResults.successCount + expoResults.successCount + rustoreResults.successCount,
+      successCount:
+        webResults.successCount + expoResults.successCount + rustoreResults.successCount,
       failedCount: webResults.failureCount + expoResults.failureCount + rustoreResults.failureCount,
     };
   }

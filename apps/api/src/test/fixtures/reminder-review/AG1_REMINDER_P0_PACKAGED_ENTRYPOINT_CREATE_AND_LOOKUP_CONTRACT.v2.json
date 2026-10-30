@@ -1,0 +1,37 @@
+{
+  "kind": "AG1_REMINDER_P0_SINGLE_PUBLISHED_CORE_MODULE_CREATE_KEYED_KEYLESS_LOOKUP",
+  "state": "REVIEW_UNAPPLIED_AG4_EXCLUSIVE_CORE_AND_API_DIST_BUILD_GATE",
+  "utc": "2026-10-18T09:53:30.676723+00:00",
+  "root": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "vite",
+  "AG4RealPostgresSourceDirectAccepted": "apps/admin-panel/AG4_REMINDER_V2_AG1_SOURCE_DIRECT_REALPG_HONO7_CAP5_COMMIT_ZERO140_GENERATEDCLIENT_FINAL_20261018.v1.json",
+  "patch": "apps/api/g1-reminder-idempotency-review-v1/AG1_REMINDER_P0_PACKAGED_ENTRYPOINT_CREATE_AND_LOOKUP_UNIFIED_AG4_EXCLUSIVE_BUILD.REVIEW.v2.patch",
+  "patchSHA256": "bed8d4a0b53aa96089adda6cb0a5c210b86f7bd9bf54f7b6c8ff25c662de58ec",
+  "files": [
+    "apps/api/src/routes/v1/reminders.ts",
+    "packages/core/src/services/reminders/index.ts",
+    "apps/api/src/routes/v1/g1-reminder-operation-lookupAG4.review.ts"
+  ],
+  "preSourceSHA256": {
+    "apps/api/src/routes/v1/reminders.ts": "7ca0443f0e54a7242a72f73d577daedb671e11a66047f2f932d275040fe13d8c",
+    "packages/core/src/services/reminders/index.ts": "309dca8bcec4425d47eda221df7833ebb135ff495aad60b8e80de2e0cfca2147",
+    "apps/api/src/routes/v1/g1-reminder-operation-lookupAG4.review.ts": "9800cb034c2d414bbfc9af575440fbfd370fbd7fcee0903d6315f42fb8a0ac16"
+  },
+  "afterReviewSHA256": {
+    "apps/api/src/routes/v1/reminders.ts": "2cdb81fd51c426da2938db95ad2f7d9763d25368aad43993d3ab0a36b6571179",
+    "packages/core/src/services/reminders/index.ts": "b278c60c971ce7a1cedd2e392280899ca5474cd7b5e91c9a062423db9aaf7f01",
+    "apps/api/src/routes/v1/g1-reminder-operation-lookupAG4.review.ts": "ba49b36c1a03d7165cb070c0e7bb243e98e25a071abe57df90b13e095f11cd31"
+  },
+  "reason": "Core package index currently only exports legacy create; legacy dist stale; keyed POST and owner lookup source imports violate externalized tsup package boundary. After exclusively owned Core build all three share one @gafus/core/services/reminders published ESM entrypoint.",
+  "packageExports": "packages/core/package.json already maps ./services/reminders to ./dist/core/src/services/reminders/index.js; no package.json change necessary",
+  "AG4BuildPlan": [
+    "Preserve successful AG4 source-direct real SQL green and independent ZERO140; no re-run until package build approved.",
+    "AG4 exclusive Core dist owner: apply this patch after exact SHA gate; adapt focused mock tests with companion patch.",
+    "AG4 exclusive build: pnpm --filter @gafus/core build (tsc then ts-add-js-extension), NO Prisma generate/migrate.",
+    "Verify compiled Core dist reminderService.js+g1ReminderMutationReceiptAG4.review.js both use User FOR UPDATE; index.js exports both.",
+    "AG4 exclusive API dist owner: pnpm --filter @gafus/api build (tsup external @gafus/core).",
+    "Run AG1 read-only packaged runtime gate exit0 and focused source/JWT tests, then AG4 fresh synthetic real SQL/Hono R1-R7 and independent cleanup/zero140 under new fixture lease."
+  ],
+  "noSharedWritesAG1": true,
+  "noLivePatchApplied": true
+}

@@ -1,5 +1,16 @@
-import { useState } from "react";
-import { Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter, type Href } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,8 +27,11 @@ import { AppBackButton, Loading, TexturedSafeAreaView } from "@/shared/component
 import { Button } from "@/shared/components/ui/Button";
 import { COLORS, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { questionsApi } from "@/shared/lib/api/questions";
+import { reportClientError } from "@/shared/lib/tracer";
 import { QPhotoPicker, st } from "./ui";
+import { validateQuestionDraft } from "./questionFormValidation";
 function Form({ initial }: { initial?: QuestionDetailDto }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -33,30 +47,104 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [unknown, setUnknown] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const mounted = useRef(true);
+  const submitting = useRef(false);
+  const unknownRef = useRef(false);
+  const confirmedRef = useRef(false);
+  const owner = useAuthStore((s) => (s.isAuthenticated && !s.isLoading ? s.user?.id : null));
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const epoch = owner && binding?.principalId === owner ? binding.authEpoch : null;
+  const current = (actor: { ownerId: string; authEpoch: string }) => {
+    const state = useAuthStore.getState();
+    const verified = newOnlyV2NativeQueues.getVerifiedBinding();
+    return (
+      mounted.current &&
+      state.isAuthenticated &&
+      !state.isLoading &&
+      state.user?.id === actor.ownerId &&
+      verified?.principalId === actor.ownerId &&
+      verified.authEpoch === actor.authEpoch
+    );
+  };
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const submit = async () => {
-    if (busy || uploading) return;
-    setBusy(true);
-    setError("");
-    const input = {
+    if (
+      submitting.current ||
+      unknownRef.current ||
+      confirmedRef.current ||
+      uploading ||
+      !owner ||
+      !epoch
+    )
+      return;
+    const actor = { ownerId: owner, authEpoch: epoch };
+    if (!current(actor)) return;
+    const checked = validateQuestionDraft({
       title,
       body,
       category,
-      tags: tags
-        .split(",")
-        .map((t) => t.trim().replace(/^#/, ""))
-        .filter(Boolean),
+      tags,
       photoIds: photos.map((p) => p.id),
-    };
+    });
+    if (!checked.ok) {
+      setError(checked.message);
+      return;
+    }
+    submitting.current = true;
+    setBusy(true);
+    setError("");
     try {
       const id = initial
-        ? (await questionsApi.edit(initial.id, input), initial.id)
-        : (await questionsApi.create({ ...input, clientRequestId: requestId })).id;
-      await cache.invalidateQueries({ queryKey: ["questions"] });
-      router.replace(`/questions/${id}` as Href);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось сохранить вопрос");
+        ? (await questionsApi.edit(initial.id, checked.input), initial.id)
+        : (await questionsApi.create({ ...checked.input, clientRequestId: requestId })).id;
+      if (!current(actor)) return;
+      // Successful server ACK is the only positive proof; a cache error must not
+      // reclassify that ACK as an unknown write or trigger another POST.
+      confirmedRef.current = true;
+      setConfirmed(true);
+      try {
+        await cache.invalidateQueries({ queryKey: ["questions"] });
+      } catch {
+        // The server accepted the mutation; stale list cache is recoverable.
+        reportClientError(new Error("QUESTION_FORM_CACHE_INVALIDATION_FAILED"), {
+          issueKey: "QuestionForm",
+          keys: { operation: "invalidate" },
+        });
+      }
+      if (current(actor)) router.replace(`/questions/${id}` as Href);
+    } catch {
+      if (current(actor)) {
+        reportClientError(
+          new Error(
+            confirmedRef.current
+              ? "QUESTION_FORM_POST_ACK_UI_FAILED"
+              : "QUESTION_FORM_WRITE_OUTCOME_UNKNOWN",
+          ),
+          {
+            issueKey: "QuestionForm",
+            keys: { operation: confirmedRef.current ? "post_ack" : "submit" },
+          },
+        );
+        if (!confirmedRef.current) {
+          unknownRef.current = true;
+          setUnknown(true);
+          setError(
+            "Результат сохранения неизвестен. Проверьте список вопросов; повторная отправка заблокирована.",
+          );
+        }
+      }
     } finally {
-      setBusy(false);
+      if (current(actor)) {
+        submitting.current = false;
+        setBusy(false);
+      }
     }
   };
   return (
@@ -65,7 +153,11 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={styles.content}
+        >
           <View style={styles.header}>
             <AppBackButton onPress={() => router.back()} />
             <Text accessibilityRole="header" style={styles.heading}>
@@ -106,32 +198,47 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Категория: ${category}. Изменить`}
-                  onPress={() => { Keyboard.dismiss(); setCategoryOpen(true); }}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setCategoryOpen(true);
+                  }}
                   style={styles.categoryButton}
                 >
-                  <Text numberOfLines={1} style={styles.categoryText}>{category}</Text>
+                  <Text numberOfLines={1} style={styles.categoryText}>
+                    {category}
+                  </Text>
                   <MaterialCommunityIcons name="chevron-down" size={20} color={COLORS.primary} />
                 </Pressable>
               </View>
-              <Pressable accessibilityRole="button" accessibilityLabel={tagsOpen ? "Скрыть поле тегов" : "Добавить теги"}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={tagsOpen ? "Скрыть поле тегов" : "Добавить теги"}
                 accessibilityState={{ expanded: tagsOpen }}
-                onPress={() => setTagsOpen(value => !value)} style={styles.tagsButton}>
-                <MaterialCommunityIcons name={tagsOpen ? "tag" : "tag-plus-outline"} size={18} color={COLORS.primary} />
+                onPress={() => setTagsOpen((value) => !value)}
+                style={styles.tagsButton}
+              >
+                <MaterialCommunityIcons
+                  name={tagsOpen ? "tag" : "tag-plus-outline"}
+                  size={18}
+                  color={COLORS.primary}
+                />
                 <Text style={styles.tagsButtonText}>Теги{tags.trim() ? " ✓" : ""}</Text>
               </Pressable>
             </View>
-            {tagsOpen && <View style={styles.field}>
-              <Text style={styles.label}>Теги · до 5 через запятую</Text>
-              <TextInput
-                accessibilityLabel="Теги через запятую, до пяти"
-                value={tags}
-                onChangeText={setTags}
-                maxLength={180}
-                placeholder="щенок, прогулка, поводок"
-                placeholderTextColor={COLORS.textSecondary}
-                style={[styles.input, styles.titleInput]}
-              />
-            </View>}
+            {tagsOpen && (
+              <View style={styles.field}>
+                <Text style={styles.label}>Теги · до 5 через запятую</Text>
+                <TextInput
+                  accessibilityLabel="Теги через запятую, до пяти"
+                  value={tags}
+                  onChangeText={setTags}
+                  maxLength={180}
+                  placeholder="щенок, прогулка, поводок"
+                  placeholderTextColor={COLORS.textSecondary}
+                  style={[styles.input, styles.titleInput]}
+                />
+              </View>
+            )}
             <QPhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading} compact />
             {error && (
               <Text accessibilityRole="alert" style={st.error}>
@@ -146,7 +253,16 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
               lineHeight={20}
               borderRadius={14}
               animatedPress
-              disabled={busy || uploading || !title.trim() || !body.trim()}
+              disabled={
+                busy ||
+                uploading ||
+                unknown ||
+                confirmed ||
+                !owner ||
+                !epoch ||
+                !title.trim() ||
+                !body.trim()
+              }
               onPress={() => void submit()}
             />
           </View>
@@ -159,14 +275,22 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
         onRequestClose={() => setCategoryOpen(false)}
       >
         <View style={styles.modalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button"
-            accessibilityLabel="Закрыть выбор категории" onPress={() => setCategoryOpen(false)} />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            accessibilityRole="button"
+            accessibilityLabel="Закрыть выбор категории"
+            onPress={() => setCategoryOpen(false)}
+          />
           <View style={[styles.categorySheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetHeading}>Категория вопроса</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Закрыть"
-                hitSlop={8} onPress={() => setCategoryOpen(false)}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Закрыть"
+                hitSlop={8}
+                onPress={() => setCategoryOpen(false)}
+              >
                 <MaterialCommunityIcons name="close" size={23} color={COLORS.text} />
               </Pressable>
             </View>
@@ -176,11 +300,16 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
                 accessibilityRole="button"
                 accessibilityState={{ selected: category === value }}
                 accessibilityLabel={value}
-                onPress={() => { setCategory(value); setCategoryOpen(false); }}
+                onPress={() => {
+                  setCategory(value);
+                  setCategoryOpen(false);
+                }}
                 style={[styles.categoryChoice, category === value && styles.categoryChoiceSelected]}
               >
                 <Text style={styles.choiceText}>{value}</Text>
-                {category === value && <MaterialCommunityIcons name="check" size={20} color={COLORS.primary} />}
+                {category === value && (
+                  <MaterialCommunityIcons name="check" size={20} color={COLORS.primary} />
+                )}
               </Pressable>
             ))}
           </View>
@@ -190,13 +319,21 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
   );
 }
 export function QuestionFormScreen({ id }: { id?: string }) {
-  const userId = useAuthStore((s) => s.user?.id);
+  const userId = useAuthStore((s) => (s.isAuthenticated && !s.isLoading ? s.user?.id : null));
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const epoch = userId && binding?.principalId === userId ? binding.authEpoch : null;
   const query = useQuery({
-    queryKey: ["questions", userId, "edit", id],
+    queryKey: ["questions", userId, epoch, "edit", id],
     queryFn: () => questionsApi.detail(id!),
-    enabled: !!id && !!userId,
+    enabled: !!id && !!userId && !!epoch,
   });
-  if (!id) return <Form />;
+  if (!userId || !epoch)
+    return (
+      <TexturedSafeAreaView style={{ flex: 1 }}>
+        <Text style={st.error}>Для сохранения вопроса войдите в аккаунт</Text>
+      </TexturedSafeAreaView>
+    );
+  if (!id) return <Form key={`${userId}:${epoch}:create`} />;
   if (query.isPending)
     return (
       <TexturedSafeAreaView style={{ flex: 1 }}>
@@ -206,42 +343,98 @@ export function QuestionFormScreen({ id }: { id?: string }) {
   if (query.isError || !query.data?.canEdit || query.data.blockReason)
     return (
       <TexturedSafeAreaView style={{ flex: 1 }}>
-        <Text style={st.error}>{query.error?.message ?? "Редактирование недоступно"}</Text>
+        <Text style={st.error}>Редактирование недоступно</Text>
       </TexturedSafeAreaView>
     );
-  return <Form initial={query.data} />;
+  return <Form key={`${userId}:${epoch}:${id}`} initial={query.data} />;
 }
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 40, gap: 10 },
   header: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 6 },
   backButton: { width: 40, height: 44, alignItems: "center", justifyContent: "center" },
-  heading: { flex: 1, fontFamily: FONTS.montserratMedium, fontSize: 20, lineHeight: 28, color: COLORS.text },
+  heading: {
+    flex: 1,
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 20,
+    lineHeight: 28,
+    color: COLORS.text,
+  },
   form: { padding: 14, borderRadius: 16, backgroundColor: COLORS.cardBackground, gap: 14 },
   field: { gap: 6 },
   label: { fontFamily: FONTS.montserratMedium, fontSize: 13, lineHeight: 19, color: COLORS.text },
   input: {
-    borderWidth: 1, borderColor: "#aaa791", borderRadius: 11, paddingHorizontal: 12,
-    backgroundColor: "#faf7ef", color: COLORS.text, fontFamily: FONTS.montserrat, fontSize: 14,
+    borderWidth: 1,
+    borderColor: "#aaa791",
+    borderRadius: 11,
+    paddingHorizontal: 12,
+    backgroundColor: "#faf7ef",
+    color: COLORS.text,
+    fontFamily: FONTS.montserrat,
+    fontSize: 14,
   },
-  titleInput: { height: 46, paddingVertical: 0, textAlignVertical: "center", includeFontPadding: false },
+  titleInput: {
+    height: 46,
+    paddingVertical: 0,
+    textAlignVertical: "center",
+    includeFontPadding: false,
+  },
   detailsInput: { minHeight: 124, paddingVertical: 11, lineHeight: 21, textAlignVertical: "top" },
   optionsRow: { flexDirection: "row", alignItems: "flex-end", gap: 10 },
   categoryField: { flex: 1, minWidth: 0, gap: 6 },
   categoryButton: {
-    height: 44, paddingHorizontal: 12, flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between", gap: 6, borderWidth: 1, borderColor: "#aaa791",
-    borderRadius: 11, backgroundColor: "#faf7ef",
+    height: 44,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#aaa791",
+    borderRadius: 11,
+    backgroundColor: "#faf7ef",
   },
   categoryText: { flex: 1, fontFamily: FONTS.montserratMedium, fontSize: 13, color: COLORS.text },
-  tagsButton: { height: 44, flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, borderRadius: 10 },
+  tagsButton: {
+    height: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
   tagsButtonText: { fontFamily: FONTS.montserratMedium, fontSize: 13, color: COLORS.primary },
   modalRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.32)" },
-  categorySheet: { paddingHorizontal: 16, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: "#faf7ef" },
-  sheetHandle: { alignSelf: "center", width: 36, height: 4, backgroundColor: "#c3c0b4", borderRadius: 2, marginTop: 9, marginBottom: 10 },
-  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 12 },
+  categorySheet: {
+    paddingHorizontal: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: "#faf7ef",
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    width: 36,
+    height: 4,
+    backgroundColor: "#c3c0b4",
+    borderRadius: 2,
+    marginTop: 9,
+    marginBottom: 10,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 12,
+  },
   sheetHeading: { fontFamily: FONTS.montserratBold, fontSize: 17, color: COLORS.text },
-  categoryChoice: { minHeight: 48, flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 12, borderRadius: 11 },
+  categoryChoice: {
+    minHeight: 48,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    borderRadius: 11,
+  },
   categoryChoiceSelected: { backgroundColor: "#dfe6ce" },
   choiceText: { fontFamily: FONTS.montserratMedium, fontSize: 14, color: COLORS.text },
 });

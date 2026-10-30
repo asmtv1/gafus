@@ -40,7 +40,21 @@
       "@gafus/statistics": ["packages/statistics/src/index.ts"],
       "@gafus/statistics/*": ["packages/statistics/src/*"],
       "@gafus/consultation-shared": ["packages/consultation-shared/src/index.ts"],
-      "@gafus/consultation-shared/*": ["packages/consultation-shared/src/*"]
+      "@gafus/consultation-shared/*": ["packages/consultation-shared/src/*"],
+      "@gafus/core-client": ["packages/core-client/src/index.ts"],
+      "@gafus/core-client/*": ["packages/core-client/src/*"],
+      "@gafus/achievements-server": ["packages/achievements-server/dist/index.d.ts"],
+      "@gafus/achievements-server/*": ["packages/achievements-server/dist/*"],
+      "@gafus/consent-server": ["packages/consent-server/dist/index.d.ts"],
+      "@gafus/consent-server/*": ["packages/consent-server/dist/*"],
+      "@gafus/mobile-intro-server": ["packages/mobile-intro-server/dist/index.d.ts"],
+      "@gafus/mobile-intro-server/*": ["packages/mobile-intro-server/dist/*"],
+      "@gafus/notifications-server": ["packages/notifications-server/dist/index.d.ts"],
+      "@gafus/notifications-server/*": ["packages/notifications-server/dist/*"],
+      "@gafus/feature-flags-server": ["packages/feature-flags-server/dist/index.d.ts"],
+      "@gafus/feature-flags-server/*": ["packages/feature-flags-server/dist/*"],
+      "@gafus/admin-rewarded-ads-server": ["packages/admin-rewarded-ads-server/dist/index.d.ts"],
+      "@gafus/admin-rewarded-ads-server/*": ["packages/admin-rewarded-ads-server/dist/*"]
     },
 
     "typeRoots": ["./node_modules/@types", "packages/types/src"]

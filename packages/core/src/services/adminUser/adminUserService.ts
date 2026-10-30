@@ -90,21 +90,44 @@ export async function updateUserAdmin(
     await prisma.$transaction(async (tx) => {
       // Authorization must be checked while the actor and target roles are
       // protected by database row locks, not only in the HTTP adapter.
-      if (input.role !== undefined || input.partnerPromoCodeId !== undefined) {
-        if (!actorId) throw new ServiceError("Необходима повторная авторизация", "FORBIDDEN");
+      if (actorId) {
+        // Lock actor and target for ALL actor-backed edits, not only role edits.
+        // A revoked moderator must not use a still-valid JWT to change passwords.
         await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" IN (${actorId}, ${userId}) ORDER BY "id" FOR UPDATE`;
         const [actor, target] = await Promise.all([
           tx.user.findUnique({ where: { id: actorId }, select: { role: true } }),
           tx.user.findUnique({ where: { id: userId }, select: { role: true } }),
         ]);
+        if (!actor || (actor.role !== "ADMIN" && actor.role !== "MODERATOR")) {
+          throw new ServiceError("Недостаточно прав", "FORBIDDEN");
+        }
         const partnerChange = input.partnerPromoCodeId !== undefined ||
           (input.role !== target?.role &&
             (input.role === "PARTNER" || target?.role === "PARTNER"));
-        if (partnerChange && actor?.role !== "ADMIN") {
+        if (partnerChange && actor.role !== "ADMIN") {
           throw new ServiceError("Только администратор может управлять ролью и промокодом партнёра", "FORBIDDEN");
         }
+        if (actor.role === "MODERATOR" && (
+          input.role !== undefined || input.partnerPromoCodeId !== undefined ||
+          (target !== null && ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(target.role))
+        )) throw new ServiceError("Недостаточно прав", "FORBIDDEN");
+      } else if (input.role !== undefined || input.partnerPromoCodeId !== undefined) {
+        throw new ServiceError("Необходима повторная авторизация", "FORBIDDEN");
       }
-      await tx.user.update({ where: { id: userId }, data: updateData });
+      // Role/password changes must invalidate access AND refresh credentials
+      // atomically with the account edit, including on other devices.
+      const securityChange = input.role !== undefined || updateData.password !== undefined;
+      const revokedAt = securityChange ? new Date() : null;
+      await tx.user.update({
+        where: { id: userId },
+        data: revokedAt ? { ...updateData, sessionsRevokedAt: revokedAt } : updateData,
+      });
+      if (revokedAt) {
+        await tx.refreshToken.updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt },
+        });
+      }
       if (input.partnerPromoCodeId !== undefined) {
         await bindPartnerPromoCodeInTransaction(tx, { userId, promoCodeId: input.partnerPromoCodeId });
       }
@@ -134,6 +157,17 @@ export async function deleteUserAdmin(
   }
   try {
     await prisma.$transaction(async (tx) => {
+      // Must check real DB roles under locks before the cascade and cleanup outbox.
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" IN (${actorId}, ${userId}) ORDER BY "id" FOR UPDATE`;
+      const [actor, target] = await Promise.all([
+        tx.user.findUnique({ where: { id: actorId }, select: { role: true } }),
+        tx.user.findUnique({ where: { id: userId }, select: { role: true } }),
+      ]);
+      if (!actor || (actor.role !== "ADMIN" && actor.role !== "MODERATOR") ||
+          (actor.role === "MODERATOR" &&
+           (target === null || ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(target.role)))) {
+        throw new ServiceError("Недостаточно прав", "FORBIDDEN");
+      }
       await enqueueAccountStorageCleanup(tx, userId, new Date());
       await tx.user.delete({ where: { id: userId } });
     });

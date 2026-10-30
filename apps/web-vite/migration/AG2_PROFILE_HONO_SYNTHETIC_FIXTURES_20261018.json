@@ -1,0 +1,30 @@
+{
+  "kind": "AG2_PROFILE_HONO_SYNTHETIC_CONTRACT_V1",
+  "state": "SYNTHETIC_ONLY_NOT_AN_AG4_GRANT",
+  "method": "PUT",
+  "path": "/api/v1/user/profile",
+  "readback": "GET /api/v1/user/profile",
+  "actorA": {"id":"synthetic-user-a","username":"synthetic_a","profile":{"fullName":"Владелец","city":"Самара","about":"Собака"}},
+  "actorB": {"id":"synthetic-user-b","username":"synthetic_b","profile":{"fullName":"Другая","city":"Уфа","about":"Кошка"}},
+  "changedFieldsOnly": {"city":"Казань"},
+  "expectedStatus": 200,
+  "deniedOwnerWrite": {"syntheticStatus":403,"meaning":"Negative port fixture only. Hono self-profile GET/PUT does not currently expose arbitrary target owner ID or guaranteed 403; AG1 must separately approve an owner-denial producer test."},
+  "cases": [
+    "P01_ONLY_CHANGED_FIELDS",
+    "P02_ACK_EXACT_OWNER_READBACK",
+    "P03_SYNTHETIC_INJECTED_403_NO_RETRY",
+    "P04_LATE_ACK_A_B_A_FENCED",
+    "P05_LOST_ACK_UNKNOWN_NO_AUTORETRY",
+    "P06_HTTP_503_UNKNOWN",
+    "P07_SERVER_SUCCESS_BUT_STALE_GET_UNKNOWN",
+    "P08_FOREIGN_READBACK_REJECTED",
+    "P09_NO_CHANGES_ZERO_PUT"
+  ],
+  "realRunner": {
+    "ready": "EXECUTABLE_FAIL_CLOSED_UNTIL_AG4_SCOPE",
+    "resource": "localhost isolated Hono + AG4 exclusive synthetic PostgreSQL + test cookies A/B",
+    "required": ["AG4_GRANT","ISOLATED_DATABASE_LEASE","CURRENT_SHA_PINS","EXPLICIT_OPERATOR_ARM"],
+    "httpsBrowser": "SEPARATE_GATE_NOT_A_PREREQUISITE_TO_THIS_RUNNER",
+    "real403": "NOT_CLAIMED_UNTIL_AG1_PRODUCER_CONTRACT"
+  }
+}

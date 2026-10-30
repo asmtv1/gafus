@@ -1,0 +1,9 @@
+# Default deny. Runtime image contains only the compiled Vite app and Nginx configuration.
+**
+!apps
+!apps/trainer-panel
+!apps/trainer-panel/src/trainer-vite/live/dist
+!apps/trainer-panel/src/trainer-vite/live/dist/**
+!ci-cd
+!ci-cd/docker
+!ci-cd/docker/nginx-trainer-panel-vite.conf

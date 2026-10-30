@@ -70,19 +70,44 @@ export async function requireCanSend(userId: string, chatId?: string) {
   }
   return chat;
 }
+/**
+ * Stream user upserts are idempotent but a transient 429/5xx/network error
+ * should not permanently break a legitimate signed chat session. Only
+ * explicitly transient transport failures get a single bounded retry.
+ * 401/403, policy denials and unknown errors MUST fail closed unchanged.
+ */
+function retryableStreamUpsert(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: unknown; status?: unknown; response?: { status?: unknown } };
+  const status = typeof e.response?.status === "number" ? e.response.status : e.status;
+  // An HTTP denial wins over an accompanying generic transport error code.
+  // Never retry 401/403 or unknown HTTP responses, even if Axios also says ECONNRESET.
+  if (typeof status === "number")
+    return [408, 429, 502, 503, 504].includes(status);
+  return typeof e.code === "string" &&
+    ["ETIMEDOUT", "ECONNABORTED", "ECONNRESET", "EAI_AGAIN", "ENETUNREACH"].includes(e.code);
+}
+
 async function syncChatParticipants(clientUserId: string, trainerUserId: string) {
   const users = await prisma.user.findMany({
     where: { id: { in: [clientUserId, trainerUserId] } },
     select: { id: true, username: true, profile: { select: { avatarUrl: true } } },
   });
-  await streamServer().upsertUsers(
-    users.map((user) => ({
-      id: uid(user.id),
-      role: CHAT_STREAM_ROLE,
-      name: user.username,
-      image: user.profile?.avatarUrl ?? "",
-    })),
-  );
+  const payload = users.map((user) => ({
+    id: uid(user.id),
+    role: CHAT_STREAM_ROLE,
+    name: user.username,
+    image: user.profile?.avatarUrl ?? "",
+  }));
+  const server = streamServer();
+  try {
+    await server.upsertUsers(payload);
+  } catch (error) {
+    if (!retryableStreamUpsert(error)) throw error;
+    // A second attempt uses exactly the same identities/roles; it does NOT
+    // relax the verified provider channel policy or grant extra permissions.
+    await server.upsertUsers(payload);
+  }
 }
 
 function dto(chat: Awaited<ReturnType<typeof chatForActor>>, unreadCount = 0): CynologistChatDto {

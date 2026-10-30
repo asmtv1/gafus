@@ -8,6 +8,8 @@ export * from "./trialService";
 export * from "./adminService";
 export * from "./adminHistoryService";
 export * from "./appleAccountTokenService";
+// Review-only additive contract: no Hono route or checkout is changed.
+export * from "./appleTokenInitializationReview";
 export * from "./paymentService";
 export * from "./npdReceiptService";
 export * from "./promoCode";

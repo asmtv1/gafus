@@ -56,6 +56,29 @@ describe("analyzer", () => {
       }
     });
 
+    it("excludes users who opted out and preserves users without settings", async () => {
+      const { findInactiveUsers } = await import("./analyzer");
+      const pastDate = new Date();
+      pastDate.setDate(pastDate.getDate() - 10);
+      const training = { userTrainings: [{ steps: [{ updatedAt: pastDate }] }], reengagementCampaigns: [] };
+      mockPrisma.user.findMany.mockResolvedValue([
+        { id: "opted-out", ...training, reengagementSettings: { enabled: false } },
+        { id: "legacy-default", ...training, reengagementSettings: null },
+      ]);
+      mockPrisma.userStep.count.mockResolvedValue(5);
+      const result = await findInactiveUsers();
+      expect(result.map(user => user.userId)).toEqual(["legacy-default"]);
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              { reengagementSettings: { is: null } },
+              { reengagementSettings: { is: { enabled: true } } },
+            ],
+          }),
+        }),
+      );
+    });
     it("пробрасывает ошибку при сбое prisma", async () => {
       const { findInactiveUsers } = await import("./analyzer");
       mockPrisma.user.findMany.mockRejectedValue(new Error("DB error"));

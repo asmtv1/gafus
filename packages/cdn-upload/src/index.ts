@@ -42,3 +42,29 @@ export {
 } from "./privateUserMedia";
 
 export { beginBegetCdnPurge, begetCdnPurgeDone, isBegetCacheableObjectKey } from "./begetCdnPurge";
+
+export {
+  isIsolatedAvatarPath,
+  isIsolatedAvatarLocation,
+  uploadIsolatedAvatar,
+  presentIsolatedAvatarUrl,
+  deleteIsolatedAvatarLocation,
+  isolatedAvatarLocationFromOwnPath,
+} from "./isolatedAvatarMedia";
+
+// GAFUS Refactor-only private attachment storage (no production path).
+export {
+  chat2SniffMime,
+  chat2ReservePrivateObjectKey,
+  chat2UploadPrivateImageOrPdf,
+  chat2SignedPrivateMedia,
+  chat2DeletePrivateMedia,
+} from "./chat2Media";
+
+// Cloud.ru Chat2 V2, disabled until isolated Refactor API cutover.
+export { chat2V2DirectUploadForm, chat2V2CheckOriginal, chat2V2DeleteObjects } from "./chat2V2PublicMedia";
+
+// Questions-only V2 image storage (private incoming and renditions).
+export { questionsV2Storage, questionsV2PresignedPost, questionsV2Head,
+  questionsV2Marker, questionsV2IsMarker, questionsV2SignedRead, questionsV2PublicDelivery, questionsV2Delivery,
+  questionsV2Delete } from "./questionsV2Media";

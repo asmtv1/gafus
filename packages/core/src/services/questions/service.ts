@@ -10,7 +10,9 @@ import {
   type QuestionListDto,
 } from "@gafus/types";
 import { QuestionError } from "./errors";
-import { presentQuestionPhotoUrl } from "./presentPhoto";
+import { presentQuestionPhoto } from "./presentPhoto";
+import { scheduleQuestionsV2Cleanup } from "./mediaV2Cleanup";
+import { canBindQuestionPhoto } from "./photoBindEligibility";
 import { awardActivityTx, awardBonusTx } from "../gafus/rewardService";
 import {
   answerCreateSchema,
@@ -81,23 +83,35 @@ async function bindPhotos(
   edit = false,
 ) {
   const rows = await tx.questionPhoto.findMany({ where: { id: { in: ids }, ownerId: userId } });
+  // Direct uploads may be QUEUED/PROCESSING while a draft is published.
+  // Only a confirmed, recoverable V2 task may be attached without READY URL.
+  const tasks = ids.length ? await tx.questionV2MediaTask.findMany({
+    where: {photoId:{in:ids},ownerId:userId,status:{in:["QUEUED","PROCESSING","READY"]}},
+    select:{photoId:true},
+  }) : [];
+  const accepted=new Set(tasks.map(t=>t.photoId));
   const questionId = "questionId" in target ? target.questionId : null;
   const answerId = "answerId" in target ? target.answerId : null;
   if (
     rows.length !== ids.length ||
     rows.some(
       (r) =>
-        !r.url ||
+        !canBindQuestionPhoto(r,accepted) ||
         ((r.questionId !== null || r.answerId !== null) &&
           !(edit && r.questionId === questionId && r.answerId === answerId)),
     )
   )
     throw new QuestionError("PHOTO_FORBIDDEN", "Фото недоступно. Прикрепите его заново", 403);
-  if (edit)
+  if (edit) {
+    const removed=await tx.questionPhoto.findMany({
+      where:{...target,id:{notIn:ids}},select:{id:true},
+    });
+    await scheduleQuestionsV2Cleanup(tx,removed.map(p=>p.id));
     await tx.questionPhoto.updateMany({
       where: { ...target, id: { notIn: ids } },
       data: { questionId: null, answerId: null },
     });
+  }
   if (ids.length) await tx.questionPhoto.updateMany({ where: { id: { in: ids } }, data: target });
 }
 /** Notification and publication commit together. Worker reconciles unsent question jobs. */
@@ -281,20 +295,13 @@ export async function getQuestion(
     );
   }
   answers.sort((a, b) => Number(b.best) - Number(a.best));
-  // Resolve private Cloud.ru links at read time; never persist expiring presigns.
-  await Promise.all(
-    answers.flatMap((answer) =>
-      answer.photos.map(async (photo) => {
-        photo.url = await presentQuestionPhotoUrl(photo.url);
-      }),
-    ),
-  );
-  const photos = await Promise.all(
-    row.photos.map(async (photo) => ({
-      ...photo,
-      url: await presentQuestionPhotoUrl(photo.url),
-    })),
-  );
+  // Image is visible only after backend's verified READY commit.
+  await Promise.all(answers.map(async answer=>{
+    const checked=await Promise.all(answer.photos.map(p=>presentQuestionPhoto(p)));
+    answer.photos=checked.filter((p):p is NonNullable<typeof p>=>Boolean(p));
+  }));
+  const presented=await Promise.all(row.photos.map(p=>presentQuestionPhoto(p)));
+  const photos=presented.filter((p):p is NonNullable<typeof p>=>Boolean(p));
   return {
     ...listDto(row),
     photos,
@@ -325,12 +332,9 @@ export async function getQuestionReplies(userId: string, answerId: string, page:
         const answer = answerDto(r, actor, question.bestAnswerId);
         return {
           ...answer,
-          photos: await Promise.all(
-            answer.photos.map(async (photo) => ({
-              ...photo,
-              url: await presentQuestionPhotoUrl(photo.url),
-            })),
-          ),
+          photos: (await Promise.all(
+            answer.photos.map(photo=>presentQuestionPhoto(photo))
+          )).filter((p):p is NonNullable<typeof p>=>Boolean(p)),
         };
       }),
     ),
@@ -386,6 +390,10 @@ export async function deleteQuestion(userId: string, id: string) {
     const actor = await questionActor(userId, tx);
     const row = await questionForActor(id, tx, true);
     requireOwner(actor, row.authorId);
+    const associated=await tx.questionPhoto.findMany({
+      where:{OR:[{questionId:id},{answer:{questionId:id}}]},select:{id:true},
+    });
+    await scheduleQuestionsV2Cleanup(tx,associated.map(p=>p.id));
     await tx.question.update({
       where: { id },
       data: { deletedAt: new Date(), bestAnswerId: null },
@@ -496,6 +504,10 @@ export async function deleteQuestionAnswer(userId: string, id: string) {
     const actor = await questionActor(userId, tx);
     const row = await answerForMutation(tx, id);
     requireOwner(actor, row.authorId);
+    const belonging=await tx.questionPhoto.findMany({
+      where:{answerId:id},select:{id:true},
+    });
+    await scheduleQuestionsV2Cleanup(tx,belonging.map(photo=>photo.id));
     await tx.questionAnswer.update({ where: { id }, data: { deletedAt: new Date() } });
     await tx.question.updateMany({
       where: { id: row.questionId, bestAnswerId: id },

@@ -1,6 +1,8 @@
-import { FeedPostActions, FeedReportButton } from "./FeedPostActions";
-import { publicationPhaseLabel, type PublicationItem } from "@gafus/core/services/feed/publication-client";
+import { FeedReportButton } from "./FeedPostActions";
+import { FeedPostOwnerActions } from "./FeedPostOwnerActions";
+import { publicationPhaseLabel, type PublicationItem } from "@gafus/core-client/feed/publication-client";
 import { mobileFeedPublications } from "./publication";
+import { mobilePendingRefreshInterval } from "./pendingRefresh";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ActivityIndicator, Alert, AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
@@ -15,23 +17,28 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   FEED_REACTIONS, FEED_LIMITS, countFeedCharacters, formatFeedTime, validateFeedPollDraft,
-  getFeedAuthorRoleBadge,
+  getFeedAuthorRoleBadge, getFeedUploadedFilesPercent,
   type FeedPostDto, type FeedCommentDto, type FeedReaction, type FeedReactionCountDto, type FeedMediaDto, type FeedSort, type FeedImpressionInput,
 } from "@gafus/types";
 import { AppBackButton, Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { Button } from "@/shared/components";
-import { feedApi } from "@/shared/lib/api/feed";
+import { feedApi, feedEditCommentGuarded, feedDeleteCommentGuarded, feedCommentReactionGuarded, feedPostReactionGuarded, feedCreateCommentGuarded, feedSaveRevisionGuarded, feedPublishPostGuarded } from "@/shared/lib/api/feed";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import { reportClientError } from "@/shared/lib/tracer";
 import { pickFeedMedia, pickFeedPollOptionPhoto, uploadPickedFeedMedia, checkFeedPickedMedia, type FeedPickedMedia } from "./uploads";
-import { stopFeedVideoOutsidePosts } from "./FeedVideo";
+import { FeedVideo, stopFeedVideoOutsidePosts } from "./FeedVideo";
 import { mobileFeedTelemetry } from "./telemetry";
-import { FeedMediaViewer } from "./FeedMediaViewer";
+import { FeedMediaViewer, FeedCommentAttachments } from "./FeedMediaViewer";
 import { getFeedPreviewHeight } from "./feedMediaLayout";
+import { feedV2PreviewHeight } from "./feedV2PreviewHeight";
+
 import { GafusReactionProgress } from "./GafusReactionProgress";
 import { FeedAlbumPicker } from "./FeedAlbumPicker";
 import { FeedCarouselDots } from "./FeedCarouselDots";
 import { FeedPublicationProgress } from "./FeedPublicationProgress";
+import { getFeedPublicationPercent } from "./publicationProgressState";
 import { FeedPollCard } from "./FeedPollCard";
 import { FeedPollComposer, type MobileFeedPollDraft } from "./FeedPollComposer";
 import { FeedSortControl } from "./FeedSortControl";
@@ -137,17 +144,90 @@ function FeedReactionStrip({ reactions, myReaction, busy, onSelect }: {
     </Modal>}
   </>;
 }
+
+type PostReactionActor = { ownerId: string; epoch: string };
+
+/** Post ID and verified native principal key the mutation lifetime, not the visible card. */
+function FeedPostReactionActions({ post }: { post: FeedPostDto }) {
+  const userId = useAuthStore(state =>
+    state.isAuthenticated && !state.isLoading ? state.user?.id : null,
+  );
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const actor: PostReactionActor | null =
+    userId && binding?.principalId === userId && binding.authEpoch
+      ? { ownerId: userId, epoch: binding.authEpoch }
+      : null;
+  return <ActorPostReactionActions
+    key={`${actor?.ownerId ?? "guest"}:${actor?.epoch ?? "unverified"}:${post.id}`}
+    actor={actor} post={post} />;
+}
+
+function ActorPostReactionActions({
+  post, actor,
+}: { post: FeedPostDto; actor: PostReactionActor | null }) {
+  const cache = useQueryClient();
+  const mounted = useRef(true);
+  const flight = useRef(false);
+  const unknown = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [confirmedReaction, setConfirmedReaction] =
+    useState<FeedReaction | null | undefined>(undefined);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  const currentActor = () => {
+    const state = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    return mounted.current && actor !== null && state.isAuthenticated &&
+      !state.isLoading && state.user?.id === actor.ownerId &&
+      binding?.principalId === actor.ownerId && binding.authEpoch === actor.epoch;
+  };
+  const react = async (reaction: FeedReaction) => {
+    if (flight.current || unknown.current || !currentActor()) return;
+    const previous = confirmedReaction !== undefined ? confirmedReaction : post.myReaction;
+    const next = previous === reaction ? null : reaction;
+    flight.current = true;
+    setBusy(true);
+    try {
+      const ack = await feedPostReactionGuarded(post.id, next, currentActor);
+      if (!currentActor()) return;
+      if (!ack || ack.id !== post.id || ack.status === "deleted" ||
+          ack.myReaction !== next)
+        throw new Error("FEED_POST_REACTION_ACK_MISMATCH");
+      setConfirmedReaction(next);
+      try { await cache.invalidateQueries({ queryKey: ["feed"] }); }
+      catch {
+        reportClientError(new Error("FEED_POST_REACTION_CACHE_FAILURE"), {
+          issueKey: "FeedPostReaction", keys: { operation: "reaction_cache" },
+        });
+      }
+    } catch {
+      if (!currentActor()) return;
+      unknown.current = true;
+      reportClientError(new Error("FEED_POST_REACTION_RESULT_UNCONFIRMED"), {
+        issueKey: "FeedPostReaction", keys: { operation: "post_reaction" },
+      });
+      Alert.alert("Моменты", "Результат реакции неизвестен. Проверьте результат перед повторной попыткой.");
+    } finally {
+      flight.current = false;
+      if (currentActor()) setBusy(false);
+    }
+  };
+  return <FeedReactionStrip
+    reactions={post.reactions}
+    myReaction={confirmedReaction !== undefined ? confirmedReaction : post.myReaction}
+    busy={busy || unknown.current || !currentActor()}
+    onSelect={react} />;
+}
 export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; detailed?: boolean }) {
   const router = useRouter();
-  const cache = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [mediaPosition, setMediaPosition] = useState(0);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [mediaWidth, setMediaWidth] = useState(320);
   const { height: viewportHeight } = useWindowDimensions();
   useEffect(() => { setMediaPosition(0); setViewerIndex(null); }, [post.id]);
-  const [busy, setBusy] = useState(false);
-  const [actionBusy, setActionBusy] = useState(false);
   const recordOpen = (kind: "post_open" | "profile_open") => {
     if (post.recommendationExposureToken && post.recommendationSessionId &&
         post.recommendationRank !== undefined) {
@@ -168,28 +248,6 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
     recordOpen("post_open");
     router.push({ pathname: "/(main)/feed/[postId]", params: { postId: post.id } } as Href);
   };
-  const deletePost = async () => {
-    if (actionBusy) return;
-    setActionBusy(true);
-    try {
-      await feedApi.deletePost(post.id);
-      await cache.invalidateQueries({ queryKey: ["feed"] });
-      if (detailed) router.replace("/(main)/(tabs)/feed" as Href);
-    } catch (error) {
-      Alert.alert("Не удалось удалить публикацию", errorMessage(error));
-    } finally {
-      setActionBusy(false);
-    }
-  };
-  const react = async (reaction: FeedReaction) => {
-    setBusy(true);
-    try {
-      if (post.myReaction === reaction) await feedApi.removePostReaction(post.id);
-      else await feedApi.setPostReaction(post.id, reaction);
-      await cache.invalidateQueries({ queryKey: ["feed"] });
-    } catch (error) { Alert.alert("Моменты", errorMessage(error)); }
-    finally { setBusy(false); }
-  };
   const media = post.attachments.filter(asset => asset.status === "ready");
   const currentMediaPosition = Math.min(mediaPosition, Math.max(0, media.length - 1));
   const updateMediaPosition = (offset: number) => {
@@ -201,9 +259,13 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
   // One stable frame per carousel (based on the first attachment); all images
   // fit inside it without cropping, including portrait and panoramic photos.
   const firstMedia = media[0];
-  const mediaHeight = getFeedPreviewHeight(
-    mediaWidth, firstMedia?.width, firstMedia?.height, viewportHeight,
-  );
+  const mediaHeight = firstMedia?.kind === "video"
+    ? feedV2PreviewHeight({
+        width: firstMedia.width ?? 1280, height: firstMedia.height ?? 720,
+      }, mediaWidth, viewportHeight)
+    : getFeedPreviewHeight(
+        mediaWidth, firstMedia?.width, firstMedia?.height, viewportHeight,
+      );
   return <Pressable
     style={[s.postCard, detailed && s.postCardDetailed]}
     accessible={false}
@@ -237,7 +299,7 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
         <Muted>{formatFeedTime(post.publishedAt ?? post.createdAt)}{post.editedAt ? " · Изменён" : ""}</Muted>
       </View>
     </Pressable>
-    <FeedPostActions post={post} onEdit={() => router.push({ pathname: "/(main)/feed/create", params: { edit: post.id } } as Href)} onDelete={() => Alert.alert("Удалить публикацию?", "Публикация исчезнет из раздела «Моменты».", [{ text: "Отмена", style: "cancel" }, { text: "Удалить", style: "destructive", onPress: () => void deletePost() }])} />
+    <FeedPostOwnerActions post={post} detailed={detailed} />
     </View>
     {post.moderationState && post.moderationState !== "visible" && <Text style={s.error}>
       {post.moderationState === "removed" ? "Публикация удалена" : "Публикация скрыта"} из-за жалобы. {post.moderationReason}
@@ -249,28 +311,37 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
       onScroll={event => updateMediaPosition(event.nativeEvent.contentOffset.x)}
       onMomentumScrollEnd={event => updateMediaPosition(event.nativeEvent.contentOffset.x)}>
       {media.map((asset, index) => <View style={[s.media, { width: mediaWidth, height: mediaHeight }]} key={asset.id}>
-        <Pressable style={s.image} onPress={event => {
-          event.stopPropagation();
-          setViewerIndex(index);
-        }}
-          accessibilityRole="button"
-          accessibilityLabel={asset.kind === "photo" ? `Открыть фото ${index + 1} на весь экран` : `Открыть видео ${index + 1} на весь экран`}>
-          {asset.kind === "photo" && (asset.fullUrl || asset.thumbUrl) ? (
-            <CdnImage cdnUrl={asset.fullUrl ?? asset.thumbUrl ?? ""}
-              requestFallback={() => feedApi.requestMediaFallback(asset.id, asset.fullUrl ? "full" : "thumb")}
-              contentFit="contain" style={s.image} />
-          ) : (
-            <>
-              {!!asset.posterUrl && <CdnImage cdnUrl={asset.posterUrl} requestFallback={() => feedApi.requestMediaFallback(asset.id, "poster")}
-                contentFit="contain" style={s.image} />}
-              <View style={s.videoPlayOverlay} pointerEvents="none">
-                <View style={s.videoPlayCircle}>
-                  <MaterialCommunityIcons name="play" size={32} color="#FFF8EB" />
+        {asset.kind === "video" && asset.mp4Urls?.[360] ? (
+          <FeedVideo postId={post.id} mediaId={asset.id} poster={asset.posterUrl ?? null}
+            mp4Urls={asset.mp4Urls} width={asset.width ?? undefined}
+            height={asset.height ?? undefined} visible />
+        ) : (
+          <Pressable style={s.image} onPress={event => {
+            event.stopPropagation();
+            setViewerIndex(index);
+          }}
+            accessibilityRole="button"
+            accessibilityLabel={asset.kind === "photo"
+              ? "Открыть фото " + (index + 1) + " на весь экран"
+              : "Открыть видео " + (index + 1) + " на весь экран"}>
+            {asset.kind === "photo" && (asset.fullUrl || asset.thumbUrl) ? (
+              <CdnImage cdnUrl={asset.fullUrl ?? asset.thumbUrl ?? ""}
+                requestFallback={() => feedApi.requestMediaFallback(asset.id, asset.fullUrl ? "full" : "thumb")}
+                contentFit="contain" style={s.image} />
+            ) : (
+              <>
+                {!!asset.posterUrl && <CdnImage cdnUrl={asset.posterUrl}
+                  requestFallback={() => feedApi.requestMediaFallback(asset.id, "poster")}
+                  contentFit="contain" style={s.image} />}
+                <View style={s.videoPlayOverlay} pointerEvents="none">
+                  <View style={s.videoPlayCircle}>
+                    <MaterialCommunityIcons name="play" size={32} color="#FFF8EB" />
+                  </View>
                 </View>
-              </View>
-            </>
-          )}
-        </Pressable>
+              </>
+            )}
+          </Pressable>
+        )}
       </View>)}
     </ScrollView>}
     {viewerIndex !== null && media.length > 0 && (
@@ -307,8 +378,7 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
       </Pressable>
     )}
     <View style={s.postFooter}>
-      <FeedReactionStrip reactions={post.reactions} myReaction={post.myReaction}
-        busy={busy} onSelect={react} />
+      <FeedPostReactionActions post={post} />
       <View style={s.postStats}>
         <Pressable accessibilityRole="button" accessibilityLabel={`Комментарии: ${post.commentCount}`}
           onPress={event => {
@@ -326,8 +396,10 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
     </View>
   </Pressable>;
 }
-function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
+export function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
   const router = useRouter();
+  const cache = useQueryClient();
+  const previousPending = useRef<{ ownerId: string; ids: Set<string> } | null>(null);
   const local = useSyncExternalStore(mobileFeedPublications.subscribe,
     mobileFeedPublications.getSnapshot, () => EMPTY_PUBLICATIONS)
     .filter(item => item.ownerId === ownerId);
@@ -335,8 +407,21 @@ function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
     queryKey: ["feed", "pending", ownerId],
     queryFn: () => feedApi.listPendingPosts(),
     enabled: !!ownerId,
-    refetchInterval: 20_000,
+    refetchInterval: query => mobilePendingRefreshInterval(query.state.data?.items),
   });
+  useEffect(() => {
+    // Only a fresh, successful owner-scoped server snapshot can tell us that
+    // an accepted post has left the processing queue. The feed GET itself
+    // remains authoritative for publication/visibility.
+    if (!ownerId || !pending.isSuccess || pending.isFetching || !pending.data) return;
+    const ids = new Set(pending.data.items
+      .filter(post => post.status === "pending").map(post => post.id));
+    const previous = previousPending.current;
+    previousPending.current = { ownerId, ids };
+    if (!previous || previous.ownerId !== ownerId ||
+      ![...previous.ids].some(id => !ids.has(id))) return;
+    void cache.invalidateQueries({ queryKey: ["feed", "posts", ownerId] });
+  }, [cache, ownerId, pending.isSuccess, pending.isFetching, pending.dataUpdatedAt]);
   const recovered = (pending.data?.items ?? [])
     .filter(post => !local.some(item => item.postId === post.id));
   if (!local.length && !recovered.length) return null;
@@ -352,6 +437,11 @@ function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
       <View style={s.publicationBody} accessibilityLiveRegion="polite">
         <Text style={s.publicationTitle}>{publicationPhaseLabel(item)}</Text>
         {!!item.text && <Text numberOfLines={2} style={s.publicationExcerpt}>{item.text}</Text>}
+        {item.phase === "uploading" &&
+          getFeedPublicationPercent("uploading", item.progress) !== null &&
+          <Text style={s.publicationProgressLabel}>
+            Загрузка: {Math.round(getFeedPublicationPercent("uploading", item.progress) ?? 0)}%
+          </Text>}
         {(item.phase === "uploading" || item.phase === "processing") && (
           <FeedPublicationProgress phase={item.phase} progress={item.progress} />
         )}
@@ -364,18 +454,33 @@ function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
         </View>}
       </View>
     </View>)}
-    {recovered.map(post => <Pressable key={post.id} style={s.publicationCard}
-      accessibilityRole="button" accessibilityLabel="Продолжить незавершённую публикацию"
-      onPress={() => router.push({ pathname: "/(main)/feed/create", params: { edit: post.id } } as Href)}>
-      <MaterialCommunityIcons name="file-document-edit-outline" size={26} color={COLORS.primary} />
+    {recovered.map(post => {
+      const uploadedPercent = getFeedUploadedFilesPercent(post.attachments);
+      return <View key={post.id} style={s.publicationCard}>
+      <MaterialCommunityIcons name={post.status === "pending" ? "clock-outline" : "file-document-edit-outline"}
+        size={26} color={COLORS.primary} />
       <View style={s.publicationBody}>
         <Text style={s.publicationTitle}>{post.status === "pending"
           ? "Обрабатываем публикацию…" : post.status === "failed"
             ? "Ошибка обработки" : "Черновик публикации"}</Text>
         {!!post.text && <Text style={s.publicationExcerpt} numberOfLines={2}>{post.text}</Text>}
-        {post.status === "pending" && <FeedPublicationProgress phase="processing" />}
+        {uploadedPercent !== null && post.status !== "failed" && <>
+          <Text style={s.publicationProgressLabel}>Файлы загружены: {uploadedPercent}%</Text>
+          <FeedPublicationProgress phase="uploading" progress={uploadedPercent} />
+          {post.status === "pending" && <Text style={s.publicationExcerpt}>
+            Обработка на сервере продолжается
+          </Text>}
+        </>}
+        {post.status === "pending" && uploadedPercent === null &&
+          <FeedPublicationProgress phase="processing" />}
+        {post.status !== "pending" && <Pressable accessibilityRole="button"
+          accessibilityLabel="Продолжить незавершённую публикацию"
+          onPress={() => router.push({ pathname: "/(main)/feed/create", params: { edit: post.id } } as Href)}>
+          <Text style={s.publicationLink}>Продолжить редактирование</Text>
+        </Pressable>}
       </View>
-    </Pressable>)}
+    </View>;
+    })}
   </View>;
 }
 
@@ -431,6 +536,18 @@ export function FeedScreen() {
     enabled: !!userId && status.data?.enabled === true,
   });
   const posts = pages.data?.pages.flatMap(page => page.items) ?? [];
+  const pageFlight = useRef<{ ownerId: string | undefined; sort: FeedSort } | null>(null);
+  const nextFeedPage = (explicitRetry = false) => {
+    if (!pages.hasNextPage || pages.isFetchingNextPage ||
+      (pages.isError && !pages.isFetchNextPageError) ||
+      (pages.isFetchNextPageError && !explicitRetry) ||
+      (pageFlight.current !== null && pageFlight.current.ownerId === userId &&
+        pageFlight.current.sort === sort)) return;
+    const flight = { ownerId: userId, sort };
+    pageFlight.current = flight;
+    const release = () => { if (pageFlight.current === flight) pageFlight.current = null; };
+    void pages.fetchNextPage().then(release, release);
+  };
   const smartSession = useRef<{ id: string; algorithmVersion: string } | null>(null);
   useEffect(() => {
     const meta = pages.data?.pages[0]?.feedMeta;
@@ -613,18 +730,51 @@ export function FeedScreen() {
         contentContainerStyle={s.list}
         onRefresh={() => { seen.current.clear(); void pages.refetch(); }}
         refreshing={pages.isRefetching}
-        onEndReached={() => { if (pages.hasNextPage && !pages.isFetchingNextPage) void pages.fetchNextPage(); }}
+        onEndReached={() => nextFeedPage()}
         onEndReachedThreshold={0.4}
-        ListFooterComponent={pages.isFetchingNextPage ? <MascotSpinner /> : null}
+        ListFooterComponent={pages.isFetchingNextPage
+          ? <MascotSpinner />
+          : pages.isFetchNextPageError
+            ? <View style={s.card}>
+                <Text accessibilityRole="alert" style={s.error}>
+                  Не удалось загрузить следующую страницу. Уже загруженные публикации доступны.
+                </Text>
+                <Button label="Повторить страницу Моментов"
+                  accessibilityLabel="Повторить страницу Моментов"
+                  onPress={() => nextFeedPage(true)} />
+              </View>
+            : null}
         ListEmptyComponent={pages.isPending
           ? <Loading variant="inline" message="Загрузка публикаций…" />
-          : publishing ? null
-          : <View style={s.card}><Muted>{pages.isError ? errorMessage(pages.error) : "Здесь пока нет публикаций."}</Muted></View>}
+          : pages.isError && !pages.isFetchNextPageError
+            ? <View style={s.card}>
+                <Muted>{errorMessage(pages.error)}</Muted>
+                <Button label="Повторить загрузку Моментов"
+                  onPress={() => void pages.refetch()} />
+              </View>
+            : publishing ? null
+            : <View style={s.card}><Muted>Здесь пока нет публикаций.</Muted></View>}
       />}
     <FeedSmartPreferences visible={smartSettingsOpen} onClose={() => setSmartSettingsOpen(false)} />
   </TexturedSafeAreaView>;
 }
+type FeedEditorActor = { ownerId:string; epoch:string; editId:string };
+
+/** Key edit-only composer lifetime to verified native actor+epoch; new-post queue unchanged. */
 export function FeedComposeScreen() {
+  const {edit}=useLocalSearchParams<{edit?:string|string[]}>();
+  const editId=typeof edit==="string" && /^[A-Za-z0-9_-]{1,128}$/.test(edit)?edit:undefined;
+  const ownerId=useAuthStore(state=>state.isAuthenticated && !state.isLoading?state.user?.id:null);
+  const binding=newOnlyV2NativeQueues.getVerifiedBinding();
+  const actor:FeedEditorActor|null=editId && ownerId &&
+    binding?.principalId===ownerId && binding.authEpoch
+    ? {ownerId,epoch:binding.authEpoch,editId}:null;
+  return <ActorFeedComposeScreen
+    key={editId ? `${editId}:${actor?.ownerId??"guest"}:${actor?.epoch??"unverified"}` : "new-post"}
+    editActor={actor} />;
+}
+
+function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { edit } = useLocalSearchParams<{ edit?: string | string[] }>();
@@ -639,9 +789,37 @@ export function FeedComposeScreen() {
     enabled: !!editId && status.data?.enabled === true,
     retry: 1,
   });
+  // Historical links into an already accepted, processing publication should
+  // return to the feed's existing progress widget, not reopen a dead editor.
+  // Published posts stay editable through their explicit edit action.
+  useEffect(() => {
+    if (!editId || !editActor || !original.data ||
+        original.data.id !== editId || original.data.author.id !== editActor.ownerId ||
+        original.data.status !== "pending") return;
+    router.replace("/(main)/(tabs)/feed" as Href);
+  }, [editId, editActor?.ownerId, original.data?.id, original.data?.author.id,
+    original.data?.status, router.replace]);
   const [text, setText] = useState("");
   const [poll, setPoll] = useState<MobileFeedPollDraft | null>(null);
   const [busy, setBusy] = useState(false);
+  const editMounted=useRef(true);
+  const editFlight=useRef(false);
+  const editUnknown=useRef(false);
+  const editAcknowledged=useRef(false);
+  useEffect(()=>{
+    editMounted.current=true;
+    return ()=>{editMounted.current=false;};
+  },[]);
+  const currentEditActor=()=>{
+    const state=useAuthStore.getState();
+    const binding=newOnlyV2NativeQueues.getVerifiedBinding();
+    return editMounted.current && isEditing && editId !== undefined && editActor !== null &&
+      editActor.editId===editId && state.isAuthenticated && !state.isLoading &&
+      state.user?.id===editActor.ownerId &&
+      binding?.principalId===editActor.ownerId && binding.authEpoch===editActor.epoch &&
+      original.data?.id===editId && original.data?.author.id===editActor.ownerId &&
+      original.data?.canEdit===true;
+  };
   const [progress, setProgress] = useState("");
   const [picked, setPicked] = useState<FeedPickedMedia[]>([]);
   const [albumPhotoIds, setAlbumPhotoIds] = useState<string[]>([]);
@@ -650,7 +828,6 @@ export function FeedComposeScreen() {
   const hydratedEditor = useRef<string | null>(null);
   const copied = useRef(new Map<string, { requestId: string; mediaId?: string }>());
   const draft = useRef<string | null>(null);
-  const requestId = useRef(Crypto.randomUUID());
   const completed = useRef(new Map<string, string>());
   useEffect(() => {
     if (!editId || !original.data || hydratedEditor.current === editId) return;
@@ -721,7 +898,9 @@ export function FeedComposeScreen() {
     } : current);
   };
   const submit = async () => {
-    if (!canSubmit || busy || (isEditing && original.isPending)) return;
+    if (!canSubmit || busy || (isEditing && original.isPending) ||
+        (isEditing && (!currentEditActor() || editFlight.current ||
+          editUnknown.current || editAcknowledged.current))) return;
     if (poll) {
       const issue = validateFeedPollDraft(poll);
       if (issue) { Alert.alert("Проверьте опрос", issue); return; }
@@ -731,6 +910,7 @@ export function FeedComposeScreen() {
         return;
       }
     }
+    if (isEditing) editFlight.current=true;
     setBusy(true);
     if (!isEditing) {
       try {
@@ -756,42 +936,86 @@ export function FeedComposeScreen() {
       return;
     }
     try {
-      const created = draft.current ? await feedApi.getEditor(draft.current)
-        : await feedApi.createPost({ clientRequestId: requestId.current });
-      if (isEditing && !created.canEdit) throw new Error("Время редактирования публикации истекло.");
-      draft.current = created.id;
-      const attachmentIds: string[] = isEditing ? [...existingMediaIds] : [];
+      // New posts already return through the existing offline enqueue branch above.
+      // Never create another post when editing an existing post.
+      if (!currentEditActor() || !editId || draft.current !== editId) return;
+      const created = await feedApi.getEditor(editId);
+      if (!currentEditActor()) return;
+      if (created.id !== editId || created.author.id !== editActor?.ownerId ||
+          !created.canEdit || !Number.isSafeInteger(created.version) || created.version < 1)
+        throw new Error("FEED_EDIT_EDITOR_IDENTITY_UNCONFIRMED");
+      const attachmentIds: string[] = [...existingMediaIds];
       for (const [index, asset] of picked.entries()) {
+        if (!currentEditActor()) return;
         setProgress(`Загружаем ${index + 1} из ${picked.length}…`);
         let id = completed.current.get(asset.requestId);
         if (!id) {
           id = await uploadPickedFeedMedia(created.id, asset);
+          if (!currentEditActor()) return;
           completed.current.set(asset.requestId, id);
         }
         attachmentIds.push(id);
       }
       for (const photoId of albumPhotoIds) {
+        if (!currentEditActor()) return;
         setProgress("Копируем фотографию из альбома…");
         const previous = copied.current.get(photoId) ?? { requestId: Crypto.randomUUID() };
         copied.current.set(photoId, previous);
         if (!previous.mediaId) {
-          const result = await feedApi.copyAlbumPhoto(created.id, { photoId, clientRequestId: previous.requestId });
+          const result = await feedApi.copyAlbumPhoto(created.id, {
+            photoId, clientRequestId: previous.requestId,
+          });
+          if (!currentEditActor()) return;
           previous.mediaId = result.id;
         }
         attachmentIds.push(previous.mediaId);
       }
+      if (!currentEditActor()) return;
       setProgress("Сохраняем публикацию…");
-      await feedApi.saveRevision(created.id, {
+      const saved = await feedSaveRevisionGuarded(editId, {
         clientRequestId: Crypto.randomUUID(), expectedVersion: created.version,
         text, attachmentIds,
+      }, currentEditActor);
+      if (!currentEditActor()) return;
+      const revision = saved?.pendingRevision;
+      if (!saved || saved.id !== editId || saved.author.id !== editActor?.ownerId ||
+          saved.version !== created.version + 1 || !revision ||
+          revision.status !== "draft" || revision.text !== text.trim() ||
+          revision.attachmentIds.length !== attachmentIds.length ||
+          revision.attachmentIds.some((id, index) => id !== attachmentIds[index]))
+        throw new Error("FEED_EDIT_REVISION_ACK_MISMATCH");
+      const published = await feedPublishPostGuarded(editId, {
+        clientRequestId: Crypto.randomUUID(),
+      }, currentEditActor);
+      if (!currentEditActor()) return;
+      if (!published || published.id !== editId || published.author.id !== editActor?.ownerId ||
+          published.version !== saved.version ||
+          (published.status !== "pending" && published.status !== "published") ||
+          (published.pendingRevision !== null &&
+            published.pendingRevision?.status !== "pending"))
+        throw new Error("FEED_EDIT_PUBLISH_ACK_MISMATCH");
+      // Same as Web: an accepted revision returns straight to Moments.
+      // The feed shows server-owned progress; the post is NOT declared ready.
+      editAcknowledged.current = true;
+      if (currentEditActor()) {
+        router.replace("/(main)/(tabs)/feed" as Href);
+        void cache.invalidateQueries({ queryKey: ["feed"] }).catch(() => {
+          reportClientError(new Error("FEED_EDIT_CACHE_REFRESH_FAILED"), {
+            issueKey: "FeedComposeEdit", keys: { operation: "edit_cache" },
+          });
+        });
+      }
+    } catch {
+      if (!currentEditActor()) return;
+      editUnknown.current = true;
+      reportClientError(new Error("FEED_EDIT_RESULT_UNCONFIRMED"), {
+        issueKey: "FeedComposeEdit", keys: { operation: "edit_revision_publish" },
       });
-      await feedApi.publishPost(created.id, { clientRequestId: Crypto.randomUUID() });
-      await cache.invalidateQueries({ queryKey: ["feed"] });
-      router.replace(isEditing || (!picked.length && !albumPhotoIds.length)
-        ? { pathname: "/(main)/feed/[postId]", params: { postId: created.id } } as Href
-        : "/(main)/(tabs)/feed" as Href);
-    } catch (error) { Alert.alert(isEditing ? "Не удалось сохранить изменения" : "Не удалось опубликовать", errorMessage(error)); }
-    finally { setBusy(false); setProgress(""); }
+      Alert.alert("Моменты", "Результат редактирования публикации неизвестен. Проверьте публикацию перед повторной попыткой.");
+    } finally {
+      editFlight.current = false;
+      if (currentEditActor()) { setBusy(false); setProgress(""); }
+    }
   };
   return <TexturedSafeAreaView style={s.screen} edges={["left","right"]}>
     <StatusBar style="dark" translucent backgroundColor="transparent" />
@@ -885,28 +1109,99 @@ export function FeedComposeScreen() {
         {progress ? <Text accessibilityRole="alert" style={s.composeAlbumCount}>{progress}</Text> : null}
         <Button label={busy ? (isEditing ? "Сохраняем…" : "Публикуем…") : isEditing ? "Сохранить изменения" : "Опубликовать"} variant="primary"
           height={46} fontSize={15} lineHeight={20} borderRadius={14} animatedPress
-          disabled={busy || !canSubmit}
+          disabled={busy || !canSubmit ||
+            (isEditing && (!currentEditActor() || editFlight.current ||
+              editUnknown.current || editAcknowledged.current))}
           onPress={() => void submit()} />
       </> : <Status status={status} />}
     </ScrollView>
   </TexturedSafeAreaView>;
 }
-export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: string }) {
+type FeedDetailActor = { ownerId: string; epoch: string };
+type FeedDetailProps = { id: string; commentId?: string };
+
+/** Each composer is scoped to a verified native principal, auth epoch and post. */
+export function FeedDetailScreen(props: FeedDetailProps) {
+  const ownerId = useAuthStore(state =>
+    state.isAuthenticated && !state.isLoading ? state.user?.id : null,
+  );
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const actor: FeedDetailActor | null =
+    ownerId && binding?.principalId === ownerId && binding.authEpoch
+      ? { ownerId, epoch: binding.authEpoch }
+      : null;
+  return <ActorFeedDetailScreen
+    key={`${actor?.ownerId ?? "guest"}:${actor?.epoch ?? "unverified"}:${props.id}`}
+    {...props} actor={actor} />;
+}
+
+function ActorFeedDetailScreen({
+  id, commentId, actor,
+}: FeedDetailProps & {actor: FeedDetailActor|null}) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const status = useFeedStatus();
   const userId = useAuthStore(state => state.user?.id);
   const [body, setBody] = useState("");
+  const [commentFiles, setCommentFiles] = useState<FeedPickedMedia[]>([]);
+  const [uploadCount, setUploadCount] = useState(0);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyToName, setReplyToName] = useState("");
   const [busy, setBusy] = useState(false);
+  const mounted = useRef(true);
+  const commentsPageFlight = useRef<{
+    postId: string;
+    ownerId: string | null;
+    epoch: string | null;
+  } | null>(null);
+  const flight = useRef(false);
+  const unknown = useRef(false);
+  const composerRevision = useRef(0);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  const currentActor = () => {
+    const state = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    return mounted.current && actor !== null && state.isAuthenticated &&
+      !state.isLoading && state.user?.id === actor.ownerId &&
+      binding?.principalId === actor.ownerId && binding.authEpoch === actor.epoch;
+  };
+  const changeBody = (value: string) => {
+    composerRevision.current += 1;
+    setBody(value);
+  };
   const composerRef = useRef<TextInput>(null);
   const client = useQueryClient();
   const post = useQuery({ queryKey: ["feed","post",id,userId], queryFn: () => feedApi.getPost(id), refetchInterval: 90_000, enabled: status.data?.enabled === true });
   const comments = useInfiniteQuery({ queryKey: ["feed","comments",id,userId],
     queryFn: ({ pageParam }) => feedApi.listComments(id, { cursor: pageParam }),
+    refetchInterval: query => query.state.data?.pages.some(page =>
+      page.items.some(item => item.media?.some(media =>
+        ["reserved", "uploaded", "processing"].includes(media.status)))) ? 5000 : false,
     initialPageParam: null as string | null, getNextPageParam: page => page.nextCursor,
     enabled: status.data?.enabled === true });
+  const currentCommentsReader = () => {
+    const state = useAuthStore.getState();
+    const verified = newOnlyV2NativeQueues.getVerifiedBinding();
+    const activeOwner = state.isAuthenticated && !state.isLoading ? state.user?.id : null;
+    const activeEpoch = activeOwner && verified?.principalId === activeOwner
+      ? verified.authEpoch : null;
+    return mounted.current && (actor?.ownerId ?? null) ===
+      (activeEpoch ? activeOwner : null) && (actor?.epoch ?? null) === activeEpoch;
+  };
+  const nextCommentsPage = () => {
+    if (!currentCommentsReader() || !comments.hasNextPage || comments.isFetchingNextPage ||
+      commentsPageFlight.current ||
+      (comments.isError && !comments.isFetchNextPageError)) return;
+    const pending = { postId: id, ownerId: actor?.ownerId ?? null, epoch: actor?.epoch ?? null };
+    commentsPageFlight.current = pending;
+    void comments.fetchNextPage().then(
+      () => { if (commentsPageFlight.current === pending) commentsPageFlight.current = null; },
+      () => { if (commentsPageFlight.current === pending) commentsPageFlight.current = null; },
+    );
+  };
   const focused = useQuery({ queryKey: ["feed", "comment", commentId, userId], queryFn: () => feedApi.getComment(commentId!), enabled: !!commentId && status.data?.enabled === true, retry: false });
   const scroll = useRef<ScrollView>(null);
   const focusedY = useRef(0);
@@ -914,21 +1209,88 @@ export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: st
     if (focused.data?.postId === id) scroll.current?.scrollTo({ y: focusedY.current, animated: true });
   }, [focused.data, id]);
   const startReply = (item: FeedCommentDto) => {
+    if (!currentActor() || item.postId !== id || item.deleted) return;
+    composerRevision.current += 1;
     setReplyTo(item.id);
     setReplyToName(item.author.name);
     composerRef.current?.focus();
   };
-  const cancelReply = () => { setReplyTo(null); setReplyToName(""); };
+  const cancelReply = () => {
+    composerRevision.current += 1;
+    setReplyTo(null);
+    setReplyToName("");
+  };
+  const attachMedia = async (source: "camera-photo" | "camera-video" | "library") => {
+    if (!currentActor() || busy || flight.current) return;
+    try {
+      const picked = await pickFeedMedia(source);
+      if (!currentActor() || !picked.length) return;
+      const next = [...commentFiles, ...picked];
+      checkFeedPickedMedia(next);
+      composerRevision.current += 1;
+      setCommentFiles(next);
+    } catch (error) {
+      if (currentActor()) Alert.alert("Вложения", errorMessage(error));
+    }
+  };
   const send = async () => {
-    if (!body.trim() || busy) return;
+    const text = body.trim();
+    if (!currentActor() || status.data?.enabled !== true || flight.current || unknown.current ||
+        (!text && !commentFiles.length) ||
+        countFeedCharacters(text) > FEED_LIMITS.commentCharacters) return;
+    const submissionRevision = composerRevision.current;
+    const selectedFiles = [...commentFiles];
+    const replyToId = replyTo;
+    const clientRequestId = Crypto.randomUUID();
+    flight.current = true;
     setBusy(true);
     try {
-      await feedApi.createComment(id, { text: body, replyToId: replyTo, clientRequestId: Crypto.randomUUID() });
-      setBody(""); cancelReply();
-      await client.invalidateQueries({ queryKey: ["feed"] });
-    } catch (error) { Alert.alert("Не удалось отправить", errorMessage(error)); }
-    finally { setBusy(false); }
+      const mediaIds: string[] = [];
+      for (let index = 0; index < selectedFiles.length; index++) {
+        if (!currentActor()) return;
+        setUploadCount(index);
+        mediaIds.push(await uploadPickedFeedMedia(id, selectedFiles[index]!, undefined, "comment"));
+      }
+      if (!currentActor()) return;
+      const ack = await feedCreateCommentGuarded(id,
+        { text: body, replyToId, clientRequestId, ...(mediaIds.length ? { mediaIds } : {}) },
+        currentActor);
+      if (!currentActor()) return;
+      if (!ack || typeof ack.id !== "string" || !ack.id.trim() ||
+          ack.postId !== id || ack.author?.id !== actor?.ownerId ||
+          ack.deleted || ack.replyToId !== replyToId || ack.text !== text) {
+        throw new Error("FEED_CREATE_COMMENT_ACK_MISMATCH");
+      }
+      if (composerRevision.current === submissionRevision) {
+        composerRevision.current += 1;
+        setBody("");
+        setCommentFiles([]);
+        setUploadCount(0);
+        setReplyTo(null);
+        setReplyToName("");
+      }
+      try {
+        await client.invalidateQueries({ queryKey: ["feed"] });
+      } catch {
+        if (currentActor()) reportClientError(new Error("FEED_CREATE_COMMENT_CACHE_FAILURE"), {
+          issueKey: "FeedDetailComment", keys: { operation: "create_comment_cache" },
+        });
+      }
+    } catch {
+      if (!currentActor()) return;
+      unknown.current = true;
+      reportClientError(new Error("FEED_CREATE_COMMENT_RESULT_UNCONFIRMED"), {
+        issueKey: "FeedDetailComment", keys: { operation: "create_comment" },
+      });
+      Alert.alert("Комментарий", "Результат отправки комментария неизвестен. Проверьте публикацию перед повторной попыткой.");
+    } finally {
+      flight.current = false;
+      if (currentActor()) setBusy(false);
+    }
   };
+  const sendDisabled = busy || flight.current || unknown.current || !currentActor() ||
+    (!body.trim() && !commentFiles.length) ||
+    countFeedCharacters(body) > FEED_LIMITS.commentCharacters;
   return <TexturedSafeAreaView style={s.screen} edges={["top","left","right"]}>
     <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={s.detailHeader}>
@@ -950,16 +1312,30 @@ export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: st
             {commentId && <View accessibilityLabel="Комментарий из уведомления" style={s.focusedComment}>
               {focused.isPending && <Loading variant="inline" message="Загрузка комментария…" />}
               {(focused.isError || (focused.data && focused.data.postId !== id)) && <Muted>Комментарий недоступен.</Muted>}
-              {focused.data?.postId === id && <CommentRow item={focused.data} onReply={startReply} />}
+              {focused.data?.postId === id && <CommentRow item={focused.data} postId={id} onReply={startReply} />}
             </View>}
             {comments.isPending && <Loading variant="inline" message="Загрузка комментариев…" />}
-            {comments.isError && <Text style={s.error}>{errorMessage(comments.error)}</Text>}
+            {comments.isError && !comments.isFetchNextPageError && <>
+              <Text style={s.error}>{errorMessage(comments.error)}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Повторить загрузку комментариев"
+                style={s.moreComments} onPress={() => void comments.refetch()}>
+                <Text style={s.more}>Повторить загрузку комментариев</Text>
+              </Pressable>
+            </>}
             {comments.data?.pages.flatMap(page => page.items)
               .filter(item => item.id !== (focused.data?.postId === id ? commentId : null))
-              .map(item => <CommentRow key={item.id} item={item} onReply={startReply} />)}
+              .map(item => <CommentRow key={item.id} item={item} postId={id} onReply={startReply} />)}
+            {comments.isFetchNextPageError && <Text accessibilityRole="alert" style={s.error}>
+              Не удалось загрузить следующую страницу комментариев.{" "}
+              Уже показанные комментарии доступны.
+            </Text>}
             {comments.hasNextPage && <Pressable accessibilityRole="button" style={s.moreComments}
-              disabled={comments.isFetchingNextPage} onPress={() => void comments.fetchNextPage()}>
-              <Text style={s.more}>{comments.isFetchingNextPage ? "Загрузка…" : "Показать ещё комментарии"}</Text>
+              accessibilityLabel={comments.isFetchNextPageError
+                ? "Повторить страницу комментариев" : "Показать ещё комментарии"}
+              disabled={comments.isFetchingNextPage} onPress={nextCommentsPage}>
+              <Text style={s.more}>{comments.isFetchingNextPage ? "Загрузка…"
+                : comments.isFetchNextPageError ? "Повторить страницу комментариев"
+                  : "Показать ещё комментарии"}</Text>
             </Pressable>}
             {comments.isFetchingNextPage && <MascotSpinner />}
             {!comments.isPending && !comments.isError && !comments.data?.pages.flatMap(page => page.items).length && !focused.data &&
@@ -968,6 +1344,27 @@ export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: st
         </>}
       </ScrollView>
       {status.data?.enabled === true && <View style={[s.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        {commentFiles.length > 0 && <ScrollView horizontal keyboardShouldPersistTaps="handled"
+          style={{ maxHeight: 90 }} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
+          {commentFiles.map((file, index) => <View key={file.requestId}
+            style={{ width: 80, height: 80, borderRadius: 10, overflow: "hidden",
+              backgroundColor: COLORS.background, justifyContent: "center" }}>
+            {file.kind === "photo"
+              ? <Image source={{ uri: file.uri }} style={{ width: 80, height: 80 }} />
+              : <MaterialCommunityIcons name="video" size={32} color={COLORS.primary}
+                  style={{ alignSelf: "center" }} />}
+            <Pressable accessibilityRole="button" accessibilityLabel={"Убрать вложение " + (index + 1)}
+              disabled={busy} onPress={() => {
+                composerRevision.current += 1;
+                setCommentFiles(list => list.filter(item => item.requestId !== file.requestId));
+              }} style={{ position: "absolute", right: 0, top: 0, backgroundColor: "#242424AA",
+                borderRadius: 12, padding: 2 }}>
+              <MaterialCommunityIcons name="close" size={15} color="#fff" />
+            </Pressable>
+          </View>)}
+        </ScrollView>}
+        {busy && commentFiles.length > 0 && <Text accessibilityRole="text"
+          style={s.composerLimit}>Загружаем вложения: {Math.min(uploadCount + 1, commentFiles.length)}/{commentFiles.length}</Text>}
         {replyTo && <View style={s.replyBanner}>
           <MaterialCommunityIcons name="reply" size={16} color={COLORS.primary} />
           <Text numberOfLines={1} style={s.replyBannerText}>Ответ для {replyToName}</Text>
@@ -977,15 +1374,27 @@ export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: st
           </Pressable>
         </View>}
         <View style={s.composerRow}>
-          <TextInput ref={composerRef} value={body} onChangeText={setBody}
+          <Pressable accessibilityRole="button" accessibilityLabel="Прикрепить фото или видео"
+            disabled={busy} onPress={() => Alert.alert("Прикрепить медиа",
+              "Выберите источник фото или видео", [
+                { text: "Галерея", onPress: () => void attachMedia("library") },
+                { text: "Сделать фото", onPress: () => void attachMedia("camera-photo") },
+                { text: "Снять видео", onPress: () => void attachMedia("camera-video") },
+                { text: "Отмена", style: "cancel" },
+              ])}
+            style={{ padding: 8 }}>
+            <MaterialCommunityIcons name="paperclip" size={24} color={COLORS.primary} />
+          </Pressable>
+          <TextInput ref={composerRef} value={body} onChangeText={changeBody}
             multiline textAlignVertical="center" style={s.composerInput}
             accessibilityLabel="Написать комментарий"
             placeholder={replyTo ? "Написать ответ…" : "Комментарий…"}
             placeholderTextColor={COLORS.textSecondary} />
-          <Pressable accessibilityRole="button" accessibilityLabel={busy ? "Отправка…" : "Отправить комментарий"}
-            accessibilityState={{ disabled: busy || !body.trim() || countFeedCharacters(body) > FEED_LIMITS.commentCharacters }}
-            style={[s.composerSend, (busy || !body.trim() || countFeedCharacters(body) > FEED_LIMITS.commentCharacters) && s.composerSendDisabled]}
-            disabled={busy || !body.trim() || countFeedCharacters(body) > FEED_LIMITS.commentCharacters}
+          <Pressable accessibilityRole="button"
+            accessibilityLabel={busy ? "Отправка…" : "Отправить комментарий"}
+            accessibilityState={{ disabled: sendDisabled }}
+            style={[s.composerSend, sendDisabled && s.composerSendDisabled]}
+            disabled={sendDisabled}
             onPress={() => void send()}>
             <MaterialCommunityIcons name="arrow-up" size={22} color="#fff" />
           </Pressable>
@@ -996,46 +1405,240 @@ export function FeedDetailScreen({ id, commentId }: { id: string; commentId?: st
     </KeyboardAvoidingView>
   </TexturedSafeAreaView>;
 }
-function CommentRow({ item, onReply }: { item: FeedCommentDto; onReply: (item: FeedCommentDto) => void }) {
+type CommentRowProps = {
+  item: FeedCommentDto;
+  postId: string;
+  onReply: (item: FeedCommentDto) => void;
+};
+type CommentActor = { ownerId: string; epoch: string };
+
+/** Card identity resets owner mutation locks whenever the principal/epoch changes. */
+export function CommentRow(props: CommentRowProps) {
+  const ownerId = useAuthStore(state =>
+    state.isAuthenticated && !state.isLoading ? state.user?.id : null,
+  );
+  const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+  const actor: CommentActor | null =
+    ownerId && binding?.principalId === ownerId && binding.authEpoch
+      ? { ownerId, epoch: binding.authEpoch }
+      : null;
+  return <ActorCommentRow
+    key={`${actor?.ownerId ?? "guest"}:${actor?.epoch ?? "none"}:${props.postId}:${props.item.id}`}
+    {...props} actor={actor} />;
+}
+
+function ActorCommentRow({
+  item, postId, onReply, actor,
+}: CommentRowProps & { actor: CommentActor | null }) {
   const router = useRouter();
   const cache = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.text);
   const [busy, setBusy] = useState(false);
+  const [confirmedReaction, setConfirmedReaction] =
+    useState<FeedReaction | null | undefined>(undefined);
+  const reactionFlight = useRef(false);
+  const reactionUnknown = useRef(false);
+  const [ownerBusy, setOwnerBusy] = useState(false);
+  const [deletedLocal, setDeletedLocal] = useState(false);
+  const [confirmedText, setConfirmedText] = useState<string | null>(null);
   const [showReplies, setShowReplies] = useState(false);
+  const repliesPageFlight = useRef<{
+    commentId: string;
+    postId: string;
+    ownerId: string | null;
+    epoch: string | null;
+  } | null>(null);
+  const mounted = useRef(true);
+  const ownerFlight = useRef(false);
+  const ownerUnknown = useRef(false);
+  const deletedAcknowledged = useRef(false);
+  const editAcknowledged = useRef<string | null>(null);
+  const menuIssued = useRef(false);
+  const confirmationId = useRef<number | null>(null);
+  const nextConfirmationId = useRef(0);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; confirmationId.current = null; };
+  }, []);
+  const currentOwner = () => {
+    const state = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    return mounted.current && actor !== null && state.isAuthenticated &&
+      !state.isLoading && state.user?.id === actor.ownerId &&
+      item.author.id === actor.ownerId && item.postId === postId &&
+      binding?.principalId === actor.ownerId && binding.authEpoch === actor.epoch;
+  };
+  const canManage = currentOwner() && !item.deleted && !deletedAcknowledged.current;
+  const currentReactionActor = () => {
+    const state = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    return mounted.current && actor !== null && state.isAuthenticated &&
+      !state.isLoading && state.user?.id === actor.ownerId &&
+      item.postId === postId && !item.deleted && !deletedAcknowledged.current &&
+      binding?.principalId === actor.ownerId && binding.authEpoch === actor.epoch;
+  };
   const replies = useInfiniteQuery({
     queryKey: ["feed", "replies", item.id],
     queryFn: ({ pageParam }) => feedApi.listReplies(item.id, { cursor: pageParam }),
+    refetchInterval: query => showReplies && query.state.data?.pages.some(page =>
+      page.items.some(reply => reply.media?.some(media =>
+        ["reserved", "uploaded", "processing"].includes(media.status)))) ? 5000 : false,
     initialPageParam: null as string | null,
     getNextPageParam: page => page.nextCursor,
     enabled: showReplies && !item.rootId,
   });
-  const run = async (action: "edit" | "delete" | "reaction", reaction?: FeedReaction) => {
+  const currentRepliesReader = () => {
+    const state = useAuthStore.getState();
+    const verified = newOnlyV2NativeQueues.getVerifiedBinding();
+    const activeOwner = state.isAuthenticated && !state.isLoading ? state.user?.id : null;
+    const activeEpoch = activeOwner && verified?.principalId === activeOwner
+      ? verified.authEpoch : null;
+    return mounted.current && item.postId === postId &&
+      (actor?.ownerId ?? null) === (activeEpoch ? activeOwner : null) &&
+      (actor?.epoch ?? null) === activeEpoch;
+  };
+  const nextRepliesPage = () => {
+    if (!currentRepliesReader() || !replies.hasNextPage || replies.isFetchingNextPage ||
+      repliesPageFlight.current ||
+      (replies.isError && !replies.isFetchNextPageError)) return;
+    const flight = {
+      commentId: item.id,
+      postId,
+      ownerId: actor?.ownerId ?? null,
+      epoch: actor?.epoch ?? null,
+    };
+    repliesPageFlight.current = flight;
+    void replies.fetchNextPage().then(
+      () => { if (repliesPageFlight.current === flight) repliesPageFlight.current = null; },
+      () => { if (repliesPageFlight.current === flight) repliesPageFlight.current = null; },
+    );
+  };
+  const runReaction = async (reaction: FeedReaction) => {
+    if (reactionFlight.current || reactionUnknown.current || ownerFlight.current ||
+        !currentReactionActor()) return;
+    const previous = confirmedReaction !== undefined ? confirmedReaction : item.myReaction;
+    const next = previous === reaction ? null : reaction;
+    reactionFlight.current = true;
     setBusy(true);
     try {
-      if (action === "edit") {
-        await feedApi.editComment(item.id, { text: draft });
-        setEditing(false);
-      } else if (action === "delete") {
-        await feedApi.deleteComment(item.id);
-      } else if (reaction) {
-        if (item.myReaction === reaction) await feedApi.removeCommentReaction(item.id);
-        else await feedApi.setCommentReaction(item.id, reaction);
-      }
-      await cache.invalidateQueries({ queryKey: ["feed"] });
-    } catch (error) { Alert.alert("Комментарий", errorMessage(error)); }
-    finally { setBusy(false); }
+      const ack = await feedCommentReactionGuarded(item.id, next, currentReactionActor);
+      if (!currentReactionActor()) return;
+      if (!ack || ack.id !== item.id || ack.postId !== postId ||
+          ack.deleted || ack.myReaction !== next) throw new Error("FEED_COMMENT_REACTION_ACK_MISMATCH");
+      setConfirmedReaction(next);
+      try { await cache.invalidateQueries({ queryKey: ["feed"] }); }
+      catch { reportClientError(new Error("FEED_COMMENT_REACTION_CACHE_FAILURE"), {
+        issueKey: "FeedCommentReaction", keys: { operation: "reaction_cache" },
+      }); }
+    } catch {
+      if (!currentReactionActor()) return;
+      reactionUnknown.current = true;
+      reportClientError(new Error("FEED_COMMENT_REACTION_UNCONFIRMED"), {
+        issueKey: "FeedCommentReaction", keys: { operation: "comment_reaction" },
+      });
+      Alert.alert("Комментарий", "Результат реакции неизвестен. Проверьте результат перед повторной попыткой.");
+    } finally {
+      reactionFlight.current = false;
+      if (currentReactionActor()) setBusy(false);
+    }
+  };
+  const saveEdit = async () => {
+    if (reactionFlight.current) return;
+    const text = draft;
+    if (!item.canEdit || !canManage || !currentOwner() ||
+        ownerFlight.current || ownerUnknown.current || deletedAcknowledged.current ||
+        !text.trim() || countFeedCharacters(text) > FEED_LIMITS.commentCharacters ||
+        editAcknowledged.current === text) return;
+    ownerFlight.current = true;
+    setOwnerBusy(true);
+    try {
+      const ack = await feedEditCommentGuarded(item.id, { text }, currentOwner);
+      if (!currentOwner()) return;
+      if (!ack || ack.id !== item.id || ack.postId !== postId ||
+          ack.author?.id !== actor?.ownerId || ack.deleted || typeof ack.text !== "string")
+        throw new Error("FEED_COMMENT_EDIT_ACK_MISMATCH");
+      editAcknowledged.current = text;
+      setConfirmedText(ack.text);
+      setEditing(false);
+      try { await cache.invalidateQueries({ queryKey: ["feed"] }); }
+      catch { reportClientError(new Error("FEED_COMMENT_EDIT_CACHE_FAILURE"), {
+        issueKey: "FeedCommentOwner", keys: { operation: "edit_cache" },
+      }); }
+    } catch {
+      if (!currentOwner()) return;
+      ownerUnknown.current = true;
+      reportClientError(new Error("FEED_COMMENT_EDIT_RESULT_UNCONFIRMED"), {
+        issueKey: "FeedCommentOwner", keys: { operation: "edit_comment" },
+      });
+      Alert.alert("Комментарий", "Результат изменения комментария неизвестен. Проверьте результат перед повторной попыткой.");
+    } finally {
+      ownerFlight.current = false;
+      if (currentOwner()) setOwnerBusy(false);
+    }
+  };
+  const deleteConfirmed = async () => {
+    if (reactionFlight.current || !item.canDelete || !currentOwner() || ownerFlight.current ||
+        ownerUnknown.current || deletedAcknowledged.current) return;
+    ownerFlight.current = true;
+    setOwnerBusy(true);
+    try {
+      const ack = await feedDeleteCommentGuarded(item.id, currentOwner);
+      if (!currentOwner()) return;
+      if (!ack || ack.id !== item.id) throw new Error("FEED_COMMENT_DELETE_ACK_MISMATCH");
+      deletedAcknowledged.current = true;
+      setDeletedLocal(true);
+      setEditing(false);
+      try { await cache.invalidateQueries({ queryKey: ["feed"] }); }
+      catch { reportClientError(new Error("FEED_COMMENT_DELETE_CACHE_FAILURE"), {
+        issueKey: "FeedCommentOwner", keys: { operation: "delete_cache" },
+      }); }
+    } catch {
+      if (!currentOwner()) return;
+      ownerUnknown.current = true;
+      reportClientError(new Error("FEED_COMMENT_DELETE_RESULT_UNCONFIRMED"), {
+        issueKey: "FeedCommentOwner", keys: { operation: "delete_comment" },
+      });
+      Alert.alert("Комментарий", "Результат удаления комментария неизвестен. Проверьте результат перед повторной попыткой.");
+    } finally {
+      ownerFlight.current = false;
+      if (currentOwner()) setOwnerBusy(false);
+    }
+  };
+  const requestDelete = () => {
+    if (reactionFlight.current || !item.canDelete || !currentOwner() || ownerFlight.current ||
+        ownerUnknown.current || deletedAcknowledged.current ||
+        confirmationId.current !== null) return;
+    const token = ++nextConfirmationId.current;
+    confirmationId.current = token;
+    Alert.alert("Удалить комментарий?", "Отменить удаление будет нельзя.", [
+      { text: "Отмена", style: "cancel", onPress: () => {
+        if (confirmationId.current === token) confirmationId.current = null;
+      } },
+      { text: "Удалить", style: "destructive", onPress: () => {
+        if (confirmationId.current !== token) return;
+        confirmationId.current = null;
+        if (currentOwner()) void deleteConfirmed();
+      } },
+    ]);
   };
   const openActions = () => {
-    if (busy || (!item.canEdit && !item.canDelete)) return;
+    if (busy || ownerBusy || ownerFlight.current || ownerUnknown.current || reactionFlight.current ||
+        menuIssued.current || confirmationId.current !== null || !canManage ||
+        (!item.canEdit && !item.canDelete)) return;
+    menuIssued.current = true;
     const options: { text: string; style?: "cancel" | "destructive"; onPress?: () => void }[] = [];
-    if (item.canEdit) options.push({ text: "Изменить", onPress: () => { setDraft(item.text); setEditing(true); } });
-    if (item.canDelete) options.push({ text: "Удалить", style: "destructive", onPress: () =>
-      Alert.alert("Удалить комментарий?", "Отменить удаление будет нельзя.", [
-        { text: "Отмена", style: "cancel" },
-        { text: "Удалить", style: "destructive", onPress: () => void run("delete") },
-      ]) });
-    options.push({ text: "Отмена", style: "cancel" });
+    if (item.canEdit) options.push({ text: "Изменить", onPress: () => {
+      menuIssued.current = false;
+      if (!currentOwner() || ownerUnknown.current) return;
+      setDraft(editAcknowledged.current ?? confirmedText ?? item.text);
+      setEditing(true);
+    } });
+    if (item.canDelete) options.push({ text: "Удалить", style: "destructive", onPress: () => {
+      menuIssued.current = false;
+      requestDelete();
+    } });
+    options.push({ text: "Отмена", style: "cancel", onPress: () => { menuIssued.current = false; } });
     Alert.alert("Комментарий", undefined, options);
   };
   const goProfile = () => router.push({
@@ -1060,14 +1663,14 @@ function CommentRow({ item, onReply }: { item: FeedCommentDto; onReply: (item: F
           <Text numberOfLines={1} style={s.commentTime}>
             {formatFeedTime(item.createdAt)}{item.editedAt ? " · изм." : ""}
           </Text>
-          {(item.canEdit || item.canDelete) && !item.deleted &&
+          {canManage && !ownerUnknown.current && (item.canEdit || item.canDelete) &&
             <Pressable accessibilityRole="button" accessibilityLabel="Действия с комментарием"
-              style={s.commentMenuButton} disabled={busy} onPress={openActions}>
+              style={s.commentMenuButton} disabled={busy || ownerBusy} onPress={openActions}>
               <MaterialCommunityIcons name="dots-horizontal" size={20} color={COLORS.textSecondary} />
             </Pressable>}
         </View>
         {item.replyToName && <Text numberOfLines={1} style={s.commentReplyLabel}>↪ {item.replyToName}</Text>}
-        {editing
+        {editing && canManage && !ownerUnknown.current
           ? <View style={s.inlineEditor}>
               <TextInput style={s.inlineEditInput} multiline value={draft} onChangeText={setDraft}
                 placeholder="Изменить комментарий" placeholderTextColor={COLORS.textSecondary} />
@@ -1076,21 +1679,26 @@ function CommentRow({ item, onReply }: { item: FeedCommentDto; onReply: (item: F
                   <Text style={s.commentActionText}>Отмена</Text>
                 </Pressable>
                 <Pressable accessibilityRole="button"
-                  disabled={busy || !draft.trim() || countFeedCharacters(draft) > FEED_LIMITS.commentCharacters}
-                  onPress={() => void run("edit")} style={s.commentAction}>
+                  disabled={busy || ownerBusy || !draft.trim() ||
+                    countFeedCharacters(draft) > FEED_LIMITS.commentCharacters}
+                  onPress={() => void saveEdit()} style={s.commentAction}>
                   <Text style={s.commentActionText}>Сохранить</Text>
                 </Pressable>
               </View>
             </View>
-          : <Pressable onLongPress={openActions} disabled={!item.canEdit && !item.canDelete}>
-              <Text style={[s.commentBody, item.deleted && s.deletedComment]}>
-                {item.deleted ? "Комментарий удалён" : item.text}
+          : <Pressable onLongPress={openActions} disabled={!canManage || (!item.canEdit && !item.canDelete)}>
+              <Text style={[s.commentBody, (item.deleted || deletedLocal) && s.deletedComment]}>
+                {(item.deleted || deletedLocal) ? "Комментарий удалён" : (confirmedText ?? item.text)}
               </Text>
             </Pressable>}
-        {!item.deleted && !item.canEdit && <FeedReportButton type="comment" id={item.id} authorId={item.author.id} />}
-        {!item.deleted && !editing && <View style={s.commentActions}>
-          <FeedReactionStrip reactions={item.reactions} myReaction={item.myReaction}
-            busy={busy} onSelect={async emoji => { await run("reaction", emoji); }} />
+        {!item.deleted && !deletedLocal && !!item.media?.length &&
+          <FeedCommentAttachments postId={item.postId} media={item.media} />}
+        {!item.deleted && !deletedLocal && !item.canEdit && <FeedReportButton type="comment" id={item.id} authorId={item.author.id} />}
+        {!item.deleted && !deletedLocal && !editing && <View style={s.commentActions}>
+          <FeedReactionStrip reactions={item.reactions}
+            myReaction={confirmedReaction !== undefined ? confirmedReaction : item.myReaction}
+            busy={busy || reactionUnknown.current || ownerBusy || !currentReactionActor()}
+            onSelect={async emoji => { await runReaction(emoji); }} />
           <Pressable accessibilityRole="button" style={s.commentReplyButton}
             onPress={() => onReply(item)}>
             <Text style={s.commentActionText}>Ответить</Text>
@@ -1106,16 +1714,23 @@ function CommentRow({ item, onReply }: { item: FeedCommentDto; onReply: (item: F
     </View>
     {showReplies && <View style={s.threadReplies}>
       {replies.isPending && <Loading variant="inline" message="Загружаем ответы…" />}
-      {replies.isError && <Pressable accessibilityRole="button"
+      {replies.isError && !replies.isFetchNextPageError && <Pressable accessibilityRole="button"
+        accessibilityLabel="Повторить загрузку ответов"
         onPress={() => void replies.refetch()} style={s.moreComments}>
         <Text style={s.more}>Повторить загрузку ответов</Text>
       </Pressable>}
       {replies.data?.pages.flatMap(page => page.items).map(reply =>
-        <CommentRow key={reply.id} item={reply} onReply={onReply} />)}
+        <CommentRow key={reply.id} item={reply} postId={postId} onReply={onReply} />)}
+      {replies.isFetchNextPageError && <Text accessibilityRole="alert" style={s.error}>
+        Не удалось загрузить следующую страницу ответов. Уже загруженные ответы доступны.
+      </Text>}
       {replies.hasNextPage && <Pressable accessibilityRole="button"
+        accessibilityLabel={replies.isFetchNextPageError
+          ? "Повторить страницу ответов ветки" : "Ещё ответы ветки"}
         style={s.moreComments} disabled={replies.isFetchingNextPage}
-        onPress={() => void replies.fetchNextPage()}>
-        <Text style={s.more}>{replies.isFetchingNextPage ? "Загрузка…" : "Ещё ответы"}</Text>
+        onPress={nextRepliesPage}>
+        <Text style={s.more}>{replies.isFetchingNextPage ? "Загрузка…"
+          : replies.isFetchNextPageError ? "Повторить страницу ответов" : "Ещё ответы"}</Text>
       </Pressable>}
       {replies.isFetchingNextPage && <MascotSpinner />}
     </View>}
@@ -1162,6 +1777,9 @@ const s = StyleSheet.create({
   publicationBody: { flex: 1, minWidth: 0, gap: 7 },
   publicationTitle: { fontFamily: FONTS.montserratMedium, fontSize: 14, color: COLORS.primary },
   publicationExcerpt: { fontFamily: FONTS.montserrat, fontSize: 12, color: COLORS.textSecondary },
+  publicationProgressLabel: { fontFamily: FONTS.montserratMedium, fontSize: 12, color: COLORS.primary },
+  publicationLink: { fontFamily: FONTS.montserratMedium, fontSize: 12, color: COLORS.primary,
+    paddingVertical: 5, textDecorationLine: "underline" },
   publicationActions: { flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" },
   publicationDismiss: { minHeight: 40, justifyContent: "center", paddingHorizontal: 8 },
   postCard: { backgroundColor: COLORS.cardBackground, borderRadius: 14, padding: 10, gap: 7 },
@@ -1235,15 +1853,15 @@ const s = StyleSheet.create({
   detailBack: { width: 38, height: 44, alignItems: "center", justifyContent: "center" },
   detailHeading: { fontFamily: FONTS.montserratMedium, color: COLORS.text, fontSize: 17 },
   detailContent: { paddingHorizontal: 10, paddingTop: 4, paddingBottom: 18, gap: 10 },
-  commentsBlock: { backgroundColor: COLORS.cardBackground, borderRadius: 16, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8 },
+  commentsBlock: { backgroundColor: COLORS.cardBackground, borderRadius: 18, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 },
   commentsHeading: { fontFamily: FONTS.montserratMedium, fontSize: 17, lineHeight: 23, color: COLORS.text, paddingBottom: 7 },
   focusedComment: { backgroundColor: "#e7eadb", borderRadius: 12, paddingHorizontal: 8 },
-  comment: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: COLORS.borderLight, paddingVertical: 9, gap: 5 },
+  comment: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#e9ebdf", paddingVertical: 12, gap: 4 },
   commentLine: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
   commentAvatarTap: { width: 32, height: 32 },
   commentAvatar: { width: 32, height: 32, borderRadius: 16 },
   commentAvatarInitial: { fontFamily: FONTS.montserratMedium, color: COLORS.primary, fontSize: 13 },
-  commentContent: { flex: 1, minWidth: 0, gap: 4 },
+  commentContent: { flex: 1, minWidth: 0, gap: 3 },
   commentMetaRow: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 23 },
   commentAuthorTap: { flexShrink: 1, minWidth: 0 },
   commentAuthorName: { fontFamily: FONTS.montserratMedium, fontSize: 13, lineHeight: 18, color: COLORS.text },
@@ -1252,12 +1870,12 @@ const s = StyleSheet.create({
   commentReplyLabel: { fontFamily: FONTS.montserrat, fontSize: 11, color: COLORS.textSecondary },
   commentBody: { fontFamily: FONTS.montserrat, fontSize: 14, lineHeight: 20, color: COLORS.text },
   deletedComment: { color: COLORS.textSecondary, fontStyle: "italic" },
-  commentActions: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", justifyContent: "space-between", gap: 4 },
-  commentReplyButton: { minHeight: 32, paddingHorizontal: 6, justifyContent: "center" },
+  commentActions: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-start", gap: 10 },
+  commentReplyButton: { minHeight: 30, paddingHorizontal: 4, justifyContent: "center" },
   commentAction: { minHeight: 36, paddingHorizontal: 6, justifyContent: "center" },
   commentActionText: { fontFamily: FONTS.montserratMedium, fontSize: 12, color: COLORS.primary },
-  showRepliesButton: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: 32 },
-  threadReplies: { marginLeft: 40, borderLeftWidth: 1, borderLeftColor: "#ccd5b8", paddingLeft: 10 },
+  showRepliesButton: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 30, marginTop: 3 },
+  threadReplies: { marginLeft: 38, borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: "#dde4d3", paddingLeft: 10 },
   inlineEditor: { gap: 5 },
   inlineEditInput: { minHeight: 56, maxHeight: 110, borderRadius: 10, borderWidth: 1, borderColor: COLORS.borderLight, backgroundColor: "#fffef9", padding: 8, fontFamily: FONTS.montserrat, fontSize: 13, color: COLORS.text },
   inlineEditActions: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 12 },

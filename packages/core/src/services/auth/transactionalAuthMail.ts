@@ -288,6 +288,28 @@ export async function sendWelcomeEmailAfterRegistration(to: string): Promise<voi
   }
 }
 
+/** Best-effort security notification to the OLD confirmed address after commit. */
+export async function sendEmailChangedNoticeEmail(previousEmail: string): Promise<void> {
+  if (!isMailerConfigured()) return;
+  await sendTransactionalLayout({
+    to: previousEmail,
+    category: "notice",
+    maxQueueAgeMs: 3600000,
+    subject: "Email аккаунта изменён — Гафус",
+    text: [
+      "Здравствуйте!",
+      "Адрес электронной почты вашего аккаунта Гафус изменён.",
+      "Если это были не вы, немедленно свяжитесь с поддержкой.",
+      "— Команда Гафус",
+    ].join("\n"),
+    blocksHtml: [
+      paragraphHtml("Здравствуйте!"),
+      paragraphHtml("Адрес электронной почты вашего аккаунта Гафус изменён."),
+      paragraphHtml("Если это были не вы, немедленно свяжитесь с поддержкой."),
+    ],
+  });
+}
+
 export async function sendEmailChangeConfirmEmail(to: string, confirmUrl: string): Promise<void> {
   assertMailerReady();
   const subject = "Подтвердите новый email — Гафус";

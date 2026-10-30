@@ -1,0 +1,3362 @@
+{
+  "id": "AG2-G1-001",
+  "baselineId": "G0-2026-10-16-vite-5fc78081",
+  "state": "STATIC_INVENTORY_ONLY__NOT_RUNTIME_PARITY",
+  "pages": [
+    {
+      "id": "WEB-URL-001",
+      "legacyUrl": "/login",
+      "legacySource": "apps/web/src/app/(auth)/login/page.tsx",
+      "targetUrl": "/login",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/AuthPanel.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "GUEST_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "POST /api/v1/auth/login; POST /api/v1/auth/register [confirmed slices]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-001",
+      "playwright": "PROPOSED:WEB-010-001",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-002",
+      "legacyUrl": "/passwordReset",
+      "legacySource": "apps/web/src/app/(auth)/passwordReset/page.tsx",
+      "targetUrl": "/passwordReset",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/PasswordRecovery.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "GUEST_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "POST /api/v1/auth/password-reset-request [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-002",
+      "playwright": "PROPOSED:WEB-010-002",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-003",
+      "legacyUrl": "/register",
+      "legacySource": "apps/web/src/app/(auth)/register/page.tsx",
+      "targetUrl": "/register",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/AuthPanel.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "GUEST_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "POST /api/v1/auth/login; POST /api/v1/auth/register [confirmed slices]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-003",
+      "playwright": "PROPOSED:WEB-010-003",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-004",
+      "legacyUrl": "/vk-consent",
+      "legacySource": "apps/web/src/app/(auth)/vk-consent/page.tsx",
+      "targetUrl": "/vk-consent",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/AuthPanel.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "GUEST_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-004",
+      "playwright": "PROPOSED:WEB-010-004",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-005",
+      "legacyUrl": "/achievements",
+      "legacySource": "apps/web/src/app/(main)/achievements/page.tsx",
+      "targetUrl": "/achievements",
+      "targetWebConsumer": "apps/web-vite/src/features/achievements/AchievementsOptIn.tsx",
+      "status": "OPT_IN_ROUTE_ONLY_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-005",
+      "playwright": "PROPOSED:WEB-010-005",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-006",
+      "legacyUrl": "/articles/[slug]",
+      "legacySource": "apps/web/src/app/(main)/articles/[slug]/page.tsx",
+      "targetUrl": "/articles/[slug]",
+      "targetWebConsumer": "apps/web-vite/src/features/articles/ArticleDetails.tsx",
+      "status": "DYNAMIC_ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "GET /api/v1/articles; GET /api/v1/articles/:slug [G1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-006",
+      "playwright": "PROPOSED:WEB-010-006",
+      "legacySourceFlags": [
+        "notFound() present",
+        "generateMetadata present"
+      ]
+    },
+    {
+      "id": "WEB-URL-007",
+      "legacyUrl": "/articles",
+      "legacySource": "apps/web/src/app/(main)/articles/page.tsx",
+      "targetUrl": "/articles",
+      "targetWebConsumer": "apps/web-vite/src/features/articles/ArticleCatalog.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "GET /api/v1/articles; GET /api/v1/articles/:slug [G1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-007",
+      "playwright": "PROPOSED:WEB-010-007",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-008",
+      "legacyUrl": "/consultations/[cynologistUserId]/confirm",
+      "legacySource": "apps/web/src/app/(main)/consultations/[cynologistUserId]/confirm/page.tsx",
+      "targetUrl": "/consultations/[cynologistUserId]/confirm",
+      "targetWebConsumer": "apps/web-vite/src/features/consultations/ConsultationOptInHarness.tsx",
+      "status": "OPT_IN_ROUTE_ONLY_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page searchParams seen",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "GET /api/v1/consultations/*; POST /api/v1/consultations/book [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-008",
+      "playwright": "PROPOSED:WEB-010-008",
+      "legacySourceFlags": [
+        "searchParams present; query keys UNVERIFIED",
+        "redirect() present; target UNVERIFIED",
+        "notFound() present"
+      ]
+    },
+    {
+      "id": "WEB-URL-009",
+      "legacyUrl": "/consultations/[cynologistUserId]",
+      "legacySource": "apps/web/src/app/(main)/consultations/[cynologistUserId]/page.tsx",
+      "targetUrl": "/consultations/[cynologistUserId]",
+      "targetWebConsumer": "apps/web-vite/src/features/consultations/ConsultationOptInHarness.tsx",
+      "status": "OPT_IN_ROUTE_ONLY_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "GET /api/v1/consultations/*; POST /api/v1/consultations/book [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-009",
+      "playwright": "PROPOSED:WEB-010-009",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED",
+        "notFound() present"
+      ]
+    },
+    {
+      "id": "WEB-URL-010",
+      "legacyUrl": "/consultations/call/[bookingId]",
+      "legacySource": "apps/web/src/app/(main)/consultations/call/[bookingId]/page.tsx",
+      "targetUrl": "/consultations/call/[bookingId]",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/consultations/Consultations.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "GET /api/v1/consultations/*; POST /api/v1/consultations/book [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-010",
+      "playwright": "PROPOSED:WEB-010-010",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-011",
+      "legacyUrl": "/consultations/my",
+      "legacySource": "apps/web/src/app/(main)/consultations/my/page.tsx",
+      "targetUrl": "/consultations/my",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/consultations/Consultations.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "GET /api/v1/consultations/*; POST /api/v1/consultations/book [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-011",
+      "playwright": "PROPOSED:WEB-010-011",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-012",
+      "legacyUrl": "/consultations",
+      "legacySource": "apps/web/src/app/(main)/consultations/page.tsx",
+      "targetUrl": "/consultations",
+      "targetWebConsumer": "apps/web-vite/src/features/consultations/ConsultationOptInHarness.tsx",
+      "status": "OPT_IN_ROUTE_ONLY_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "GET /api/v1/consultations/*; POST /api/v1/consultations/book [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-012",
+      "playwright": "PROPOSED:WEB-010-012",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-013",
+      "legacyUrl": "/courses",
+      "legacySource": "apps/web/src/app/(main)/courses/page.tsx",
+      "targetUrl": "/courses",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "GET /api/v1/public/courses; GET /api/v1/courses [auth]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-013",
+      "playwright": "PROPOSED:WEB-010-013",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-014",
+      "legacyUrl": "/cynologist-chat",
+      "legacySource": "apps/web/src/app/(main)/cynologist-chat/page.tsx",
+      "targetUrl": "/cynologist-chat",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/chats/ChatList.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page searchParams seen",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-014",
+      "playwright": "PROPOSED:WEB-010-014",
+      "legacySourceFlags": [
+        "searchParams present; query keys UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-015",
+      "legacyUrl": "/cynologist-chats/[chatId]",
+      "legacySource": "apps/web/src/app/(main)/cynologist-chats/[chatId]/page.tsx",
+      "targetUrl": "/cynologist-chats/[chatId]",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/chats/ChatList.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-015",
+      "playwright": "PROPOSED:WEB-010-015",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-016",
+      "legacyUrl": "/cynologist-chats",
+      "legacySource": "apps/web/src/app/(main)/cynologist-chats/page.tsx",
+      "targetUrl": "/cynologist-chats",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/chats/ChatList.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-016",
+      "playwright": "PROPOSED:WEB-010-016",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-017",
+      "legacyUrl": "/daily-course/[scheduleId]",
+      "legacySource": "apps/web/src/app/(main)/daily-course/[scheduleId]/page.tsx",
+      "targetUrl": "/daily-course/[scheduleId]",
+      "targetWebConsumer": "apps/web-vite/src/features/daily-course/DailyCourseOptInHarness.tsx",
+      "status": "OPT_IN_ROUTE_ONLY_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-017",
+      "playwright": "PROPOSED:WEB-010-017",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED",
+        "notFound() present",
+        "generateMetadata present"
+      ]
+    },
+    {
+      "id": "WEB-URL-018",
+      "legacyUrl": "/favorites",
+      "legacySource": "apps/web/src/app/(main)/favorites/page.tsx",
+      "targetUrl": "/favorites",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "GET /api/v1/courses/favorites; POST /api/v1/courses/favorites [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-018",
+      "playwright": "PROPOSED:WEB-010-018",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-019",
+      "legacyUrl": "/feed/[postId]",
+      "legacySource": "apps/web/src/app/(main)/feed/[postId]/page.tsx",
+      "targetUrl": "/moments/[postId]",
+      "targetWebConsumer": "apps/web-vite/src/features/moments/MomentDetails.tsx",
+      "status": "LEGACY_ALIAS_SUPPORTED_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page searchParams seen",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "ALL /api/v1/feed/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-019",
+      "playwright": "PROPOSED:WEB-010-019",
+      "legacySourceFlags": [
+        "searchParams present; query keys UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-020",
+      "legacyUrl": "/feed/create",
+      "legacySource": "apps/web/src/app/(main)/feed/create/page.tsx",
+      "targetUrl": "/moments/new",
+      "targetWebConsumer": "apps/web-vite/src/features/moments/MomentComposer.tsx",
+      "status": "LEGACY_ALIAS_SUPPORTED_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page searchParams seen",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "ALL /api/v1/feed/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-020",
+      "playwright": "PROPOSED:WEB-010-020",
+      "legacySourceFlags": [
+        "searchParams present; query keys UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-021",
+      "legacyUrl": "/feed/hidden-authors",
+      "legacySource": "apps/web/src/app/(main)/feed/hidden-authors/page.tsx",
+      "targetUrl": "/feed/hidden-authors",
+      "targetWebConsumer": "apps/web-vite/src/features/moments/MomentsCatalog.tsx",
+      "status": "PLACEHOLDER_NO_API",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "ALL /api/v1/feed/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-021",
+      "playwright": "PROPOSED:WEB-010-021",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-022",
+      "legacyUrl": "/feed/notifications",
+      "legacySource": "apps/web/src/app/(main)/feed/notifications/page.tsx",
+      "targetUrl": "/feed/notifications",
+      "targetWebConsumer": "apps/web-vite/src/features/moments/MomentsNotificationsOptIn.tsx",
+      "status": "OPT_IN_ROUTE_ONLY_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "GET /api/v1/feed/status; GET /api/v1/feed/notifications?pageSize=20&cursor=... [Core/Hono confirmed; read-only synthetic route; no mark-read POST/PATCH]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-022",
+      "playwright": "PROPOSED:WEB-010-022",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-023",
+      "legacyUrl": "/feed",
+      "legacySource": "apps/web/src/app/(main)/feed/page.tsx",
+      "targetUrl": "/moments",
+      "targetWebConsumer": "apps/web-vite/src/features/moments/MomentsCatalog.tsx",
+      "status": "LEGACY_ALIAS_SUPPORTED_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "ALL /api/v1/feed/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-023",
+      "playwright": "PROPOSED:WEB-010-023",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-024",
+      "legacyUrl": "/feed/profile/[username]",
+      "legacySource": "apps/web/src/app/(main)/feed/profile/[username]/page.tsx",
+      "targetUrl": "/moments/profile/[username]",
+      "targetWebConsumer": "apps/web-vite/src/features/moments/MomentsProfile.tsx",
+      "status": "LEGACY_ALIAS_SUPPORTED_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "ALL /api/v1/feed/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-024",
+      "playwright": "PROPOSED:WEB-010-024",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-025",
+      "legacyUrl": "/feed/saved",
+      "legacySource": "apps/web/src/app/(main)/feed/saved/page.tsx",
+      "targetUrl": "/moments/saved",
+      "targetWebConsumer": "apps/web-vite/src/features/moments/MomentsSaved.tsx",
+      "status": "LEGACY_ALIAS_SUPPORTED_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "ALL /api/v1/feed/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-025",
+      "playwright": "PROPOSED:WEB-010-025",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-026",
+      "legacyUrl": "/gafus/guides",
+      "legacySource": "apps/web/src/app/(main)/gafus/guides/page.tsx",
+      "targetUrl": "/gafus/guides",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/gafus/Gafus.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-026",
+      "playwright": "PROPOSED:WEB-010-026",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-027",
+      "legacyUrl": "/gafus",
+      "legacySource": "apps/web/src/app/(main)/gafus/page.tsx",
+      "targetUrl": "/gafus",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/gafus/Gafus.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-027",
+      "playwright": "PROPOSED:WEB-010-027",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-028",
+      "legacyUrl": "/partner",
+      "legacySource": "apps/web/src/app/(main)/partner/page.tsx",
+      "targetUrl": "/partner",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/partners/Partner.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-028",
+      "playwright": "PROPOSED:WEB-010-028",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-029",
+      "legacyUrl": "/pets/[petId]/vet-visits",
+      "legacySource": "apps/web/src/app/(main)/pets/[petId]/vet-visits/page.tsx",
+      "targetUrl": "/pets/[petId]/vet-visits",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetVetVisits.tsx",
+      "status": "PLACEHOLDER_NO_API",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "GET /api/v1/pets; GET /api/v1/pets/:petId [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-029",
+      "playwright": "PROPOSED:WEB-010-029",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED",
+        "notFound() present"
+      ]
+    },
+    {
+      "id": "WEB-URL-030",
+      "legacyUrl": "/pets",
+      "legacySource": "apps/web/src/app/(main)/pets/page.tsx",
+      "targetUrl": "/pets",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "GET /api/v1/pets; GET /api/v1/pets/:petId [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-030",
+      "playwright": "PROPOSED:WEB-010-030",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-031",
+      "legacyUrl": "/profile/addPet",
+      "legacySource": "apps/web/src/app/(main)/profile/addPet/page.tsx",
+      "targetUrl": "/profile/addPet",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-031",
+      "playwright": "PROPOSED:WEB-010-031",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-032",
+      "legacyUrl": "/profile/albums/[albumId]",
+      "legacySource": "apps/web/src/app/(main)/profile/albums/[albumId]/page.tsx",
+      "targetUrl": "/profile/albums/[albumId]",
+      "targetWebConsumer": "apps/web-vite/src/features/gallery/GalleryOptInHarness.tsx",
+      "status": "OPT_IN_ROUTE_ONLY_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "ALL /api/v1/gallery/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-032",
+      "playwright": "PROPOSED:WEB-010-032",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-033",
+      "legacyUrl": "/profile/albums",
+      "legacySource": "apps/web/src/app/(main)/profile/albums/page.tsx",
+      "targetUrl": "/profile/albums",
+      "targetWebConsumer": "apps/web-vite/src/features/gallery/GalleryOptInHarness.tsx",
+      "status": "OPT_IN_ROUTE_ONLY_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page searchParams seen",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "ALL /api/v1/gallery/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-033",
+      "playwright": "PROPOSED:WEB-010-033",
+      "legacySourceFlags": [
+        "searchParams present; query keys UNVERIFIED",
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-034",
+      "legacyUrl": "/profile/change-email",
+      "legacySource": "apps/web/src/app/(main)/profile/change-email/page.tsx",
+      "targetUrl": "/profile/change-email",
+      "targetWebConsumer": "apps/web-vite/src/features/account/AccountMutationPage.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "POST /api/v1/auth/email-change-request [scoped S1 mock, HTTPS G3 pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-034",
+      "playwright": "PROPOSED:WEB-010-034",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-035",
+      "legacyUrl": "/profile/change-password",
+      "legacySource": "apps/web/src/app/(main)/profile/change-password/page.tsx",
+      "targetUrl": "/profile/change-password",
+      "targetWebConsumer": "apps/web-vite/src/features/account/AccountMutationPage.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "POST /api/v1/auth/change-password [scoped S1 mock, HTTPS G3 pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-035",
+      "playwright": "PROPOSED:WEB-010-035",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-036",
+      "legacyUrl": "/profile/change-username",
+      "legacySource": "apps/web/src/app/(main)/profile/change-username/page.tsx",
+      "targetUrl": "/profile/change-username",
+      "targetWebConsumer": "apps/web-vite/src/features/account/UsernameChangePage.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "GET /api/v1/auth/username-available; POST /api/v1/auth/username-change [scoped S1 mock, G3 pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-036",
+      "playwright": "PROPOSED:WEB-010-036",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-037",
+      "legacyUrl": "/profile/confirm-email",
+      "legacySource": "apps/web/src/app/(main)/profile/confirm-email/page.tsx",
+      "targetUrl": "/profile/confirm-email",
+      "targetWebConsumer": "apps/web-vite/src/features/account/EmailConfirmPage.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page searchParams seen",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "POST /api/v1/auth/email-change-confirm [explicit action only, scoped S1 mock, HTTPS G3 pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-037",
+      "playwright": "PROPOSED:WEB-010-037",
+      "legacySourceFlags": [
+        "searchParams present; query keys UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-038",
+      "legacyUrl": "/profile/delete-account",
+      "legacySource": "apps/web/src/app/(main)/profile/delete-account/page.tsx",
+      "targetUrl": "/profile/delete-account",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-038",
+      "playwright": "PROPOSED:WEB-010-038",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-039",
+      "legacyUrl": "/profile/editBio",
+      "legacySource": "apps/web/src/app/(main)/profile/editBio/page.tsx",
+      "targetUrl": "/profile/editBio",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-039",
+      "playwright": "PROPOSED:WEB-010-039",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-040",
+      "legacyUrl": "/profile",
+      "legacySource": "apps/web/src/app/(main)/profile/page.tsx",
+      "targetUrl": "/profile",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page searchParams seen",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "GET /api/v1/user/profile; PUT /api/v1/user/profile [G1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-040",
+      "playwright": "PROPOSED:WEB-010-040",
+      "legacySourceFlags": [
+        "searchParams present; query keys UNVERIFIED",
+        "notFound() present"
+      ]
+    },
+    {
+      "id": "WEB-URL-041",
+      "legacyUrl": "/profile/set-password",
+      "legacySource": "apps/web/src/app/(main)/profile/set-password/page.tsx",
+      "targetUrl": "/profile/set-password",
+      "targetWebConsumer": "apps/web-vite/src/features/account/AccountMutationPage.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "POST /api/v1/auth/set-password [scoped S1 mock, HTTPS G3 pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-041",
+      "playwright": "PROPOSED:WEB-010-041",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-042",
+      "legacyUrl": "/questions/[id]/edit",
+      "legacySource": "apps/web/src/app/(main)/questions/[id]/edit/page.tsx",
+      "targetUrl": "/questions/[id]/edit",
+      "targetWebConsumer": "apps/web-vite/src/features/questions/QuestionDetails.tsx",
+      "status": "DYNAMIC_ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "ALL /api/v1/questions/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-042",
+      "playwright": "PROPOSED:WEB-010-042",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-043",
+      "legacyUrl": "/questions/[id]",
+      "legacySource": "apps/web/src/app/(main)/questions/[id]/page.tsx",
+      "targetUrl": "/questions/[id]",
+      "targetWebConsumer": "apps/web-vite/src/features/questions/QuestionDetails.tsx",
+      "status": "DYNAMIC_ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "ALL /api/v1/questions/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-043",
+      "playwright": "PROPOSED:WEB-010-043",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-044",
+      "legacyUrl": "/questions/new",
+      "legacySource": "apps/web/src/app/(main)/questions/new/page.tsx",
+      "targetUrl": "/questions/new",
+      "targetWebConsumer": "apps/web-vite/src/features/questions/QuestionCreate.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "ALL /api/v1/questions/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-044",
+      "playwright": "PROPOSED:WEB-010-044",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-045",
+      "legacyUrl": "/questions",
+      "legacySource": "apps/web/src/app/(main)/questions/page.tsx",
+      "targetUrl": "/questions",
+      "targetWebConsumer": "apps/web-vite/src/features/questions/QuestionCatalog.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "ALL /api/v1/questions/* [dispatcher: AG1 DTO pending]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-045",
+      "playwright": "PROPOSED:WEB-010-045",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-046",
+      "legacyUrl": "/reminders",
+      "legacySource": "apps/web/src/app/(main)/reminders/page.tsx",
+      "targetUrl": "/reminders",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/reminders/Reminders.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-046",
+      "playwright": "PROPOSED:WEB-010-046",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-047",
+      "legacyUrl": "/subscription",
+      "legacySource": "apps/web/src/app/(main)/subscription/page.tsx",
+      "targetUrl": "/subscription",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/commerce/Subscription.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-047",
+      "playwright": "PROPOSED:WEB-010-047",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-048",
+      "legacyUrl": "/trainings/[courseType]/[day]",
+      "legacySource": "apps/web/src/app/(main)/trainings/[courseType]/[day]/page.tsx",
+      "targetUrl": "/trainings/[courseType]/[day]",
+      "targetWebConsumer": "apps/web-vite/src/features/training/TrainingIndexOptInHarness.tsx",
+      "status": "OPT_IN_ROUTE_ONLY_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "GET /api/v1/training/{days,day}; POST /api/v1/training/step/* [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-048",
+      "playwright": "PROPOSED:WEB-010-048",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED",
+        "generateMetadata present"
+      ]
+    },
+    {
+      "id": "WEB-URL-049",
+      "legacyUrl": "/trainings/[courseType]",
+      "legacySource": "apps/web/src/app/(main)/trainings/[courseType]/page.tsx",
+      "targetUrl": "/trainings/[courseType]",
+      "targetWebConsumer": "apps/web-vite/src/features/training/TrainingIndexOptInHarness.tsx",
+      "status": "OPT_IN_ROUTE_ONLY_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "NEXT_REDIRECT_IN_SOURCE__TARGET_UNKNOWN",
+      "api": "GET /api/v1/training/{days,day}; POST /api/v1/training/step/* [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-049",
+      "playwright": "PROPOSED:WEB-010-049",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED",
+        "generateMetadata present"
+      ]
+    },
+    {
+      "id": "WEB-URL-050",
+      "legacyUrl": "/trainings/[courseType]/reviews",
+      "legacySource": "apps/web/src/app/(main)/trainings/[courseType]/reviews/page.tsx",
+      "targetUrl": "/trainings/[courseType]/reviews",
+      "targetWebConsumer": "apps/web-vite/src/features/training/CourseReviewsOptIn.tsx",
+      "status": "OPT_IN_ROUTE_ONLY_NOT_PARITY",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "LEGACY_DENIED_TO_COURSES__ERROR_TO_TRAINING; VITE_OPT_IN_NO_REDIRECT",
+      "api": "GET /api/v1/courses/reviews?courseType=... [Core/Hono confirmed; opt-in mock only, G1/G2 pending]; client-side display pagination (GET has no page/cursor)",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-050",
+      "playwright": "PROPOSED:WEB-010-050",
+      "legacySourceFlags": [
+        "redirect() present; target UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-051",
+      "legacyUrl": "/otmazki",
+      "legacySource": "apps/web/src/app/otmazki/page.tsx",
+      "targetUrl": "/otmazki",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/misc/Misc.tsx",
+      "status": "DIRECT_ROUTE_MISSING",
+      "auth": "GUEST_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-051",
+      "playwright": "PROPOSED:WEB-010-051",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-052",
+      "legacyUrl": "/",
+      "legacySource": "apps/web/src/app/page.tsx",
+      "targetUrl": "/",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "GUEST_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "GET /api/v1/public/courses; GET /api/v1/courses [auth]",
+      "seo": "CRAWLER_METADATA_ADR_PENDING",
+      "screenshot": "PROPOSED:WEB-011-052",
+      "playwright": "PROPOSED:WEB-010-052",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-053",
+      "legacyUrl": "/reset-password",
+      "legacySource": "apps/web/src/app/reset-password/page.tsx",
+      "targetUrl": "/reset-password",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/PasswordRecovery.tsx",
+      "status": "ROUTE_EXISTS_NOT_PARITY",
+      "auth": "GUEST_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page searchParams seen",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "POST /api/v1/auth/reset-password [G1 DTO pending]",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-053",
+      "playwright": "PROPOSED:WEB-010-053",
+      "legacySourceFlags": [
+        "searchParams present; query keys UNVERIFIED"
+      ]
+    },
+    {
+      "id": "WEB-URL-054",
+      "legacyUrl": "/tracer-test",
+      "legacySource": "apps/web/src/app/tracer-test/page.tsx",
+      "targetUrl": "/tracer-test",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/misc/Misc.tsx",
+      "status": "DIAGNOSTIC_REVIEW",
+      "auth": "AUTH_EXPECTED_UNVERIFIED",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-054",
+      "playwright": "PROPOSED:WEB-010-054",
+      "legacySourceFlags": []
+    },
+    {
+      "id": "WEB-URL-055",
+      "legacyUrl": "/~offline",
+      "legacySource": "apps/web/src/app/~offline/page.tsx",
+      "targetUrl": "/~offline",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/misc/Misc.tsx",
+      "status": "OBSOLETE_PENDING_PWA_ACK",
+      "auth": "LEGACY_OFFLINE__RETIRE_ONLY_AFTER_ACK",
+      "query": "REVIEW_NESTED_QUERY; page no direct searchParams",
+      "redirect": "REDIRECT_NOT_FOUND_IN_PAGE__LAYOUT_REVIEW",
+      "api": "UNKNOWN: AG1 exact method/path required",
+      "seo": "NOINDEX_OR_META_REVIEW",
+      "screenshot": "PROPOSED:WEB-011-055",
+      "playwright": "PROPOSED:WEB-010-055",
+      "legacySourceFlags": []
+    }
+  ],
+  "apiRoutes": [
+    {
+      "id": "WEB-API-001",
+      "legacyPath": "/api/auth/[...nextauth]",
+      "source": "apps/web/src/app/api/auth/[...nextauth]/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "staticMatches": [
+        "GET:LEGACY_NON_V1",
+        "POST:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/AuthPanel.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-002",
+      "legacyPath": "/api/auth/callback/vk-id",
+      "source": "apps/web/src/app/api/auth/callback/vk-id/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/AuthPanel.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-003",
+      "legacyPath": "/api/course-path-export",
+      "source": "apps/web/src/app/api/course-path-export/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-004",
+      "legacyPath": "/api/csrf-token",
+      "source": "apps/web/src/app/api/csrf-token/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/AuthPanel.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-005",
+      "legacyPath": "/api/excuses",
+      "source": "apps/web/src/app/api/excuses/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/misc/Misc.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-006",
+      "legacyPath": "/api/health",
+      "source": "apps/web/src/app/api/health/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG1_INFRA__NO_BROWSER_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-007",
+      "legacyPath": "/api/internal/course-cache-metrics",
+      "source": "apps/web/src/app/api/internal/course-cache-metrics/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG1_INFRA__NO_BROWSER_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-008",
+      "legacyPath": "/api/ping",
+      "source": "apps/web/src/app/api/ping/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG1_INFRA__NO_BROWSER_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-009",
+      "legacyPath": "/api/public-key",
+      "source": "apps/web/src/app/api/public-key/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PWA_OR_NATIVE__NO_NEW_WEB_CONSUMER_PENDING_REVIEW",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-010",
+      "legacyPath": "/api/revalidate/articles",
+      "source": "apps/web/src/app/api/revalidate/articles/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG1_INFRA__NO_BROWSER_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-011",
+      "legacyPath": "/api/revalidate/courses",
+      "source": "apps/web/src/app/api/revalidate/courses/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG1_INFRA__NO_BROWSER_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-012",
+      "legacyPath": "/api/revalidate/training-days",
+      "source": "apps/web/src/app/api/revalidate/training-days/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG1_INFRA__NO_BROWSER_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-013",
+      "legacyPath": "/api/track-reengagement-click",
+      "source": "apps/web/src/app/api/track-reengagement-click/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG2_REVIEW_REQUIRED__NO_VERIFIED_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-014",
+      "legacyPath": "/api/v1/achievements/training-dates",
+      "source": "apps/web/src/app/api/v1/achievements/training-dates/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/achievements/Achievements.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-015",
+      "legacyPath": "/api/v1/app-subscription/apple/notifications",
+      "source": "apps/web/src/app/api/v1/app-subscription/apple/notifications/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG1_WEBHOOK__NO_BROWSER_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-016",
+      "legacyPath": "/api/v1/app-subscription/offer",
+      "source": "apps/web/src/app/api/v1/app-subscription/offer/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/commerce/Subscription.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-017",
+      "legacyPath": "/api/v1/app-subscription/promo-code/preview",
+      "source": "apps/web/src/app/api/v1/app-subscription/promo-code/preview/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/commerce/Subscription.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-018",
+      "legacyPath": "/api/v1/app-subscription/status",
+      "source": "apps/web/src/app/api/v1/app-subscription/status/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/commerce/Subscription.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-019",
+      "legacyPath": "/api/v1/app-subscription/yookassa/cancel",
+      "source": "apps/web/src/app/api/v1/app-subscription/yookassa/cancel/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/commerce/Subscription.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-020",
+      "legacyPath": "/api/v1/app-subscription/yookassa/start",
+      "source": "apps/web/src/app/api/v1/app-subscription/yookassa/start/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/commerce/Subscription.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-021",
+      "legacyPath": "/api/v1/articles/[slug]/like",
+      "source": "apps/web/src/app/api/v1/articles/[slug]/like/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/articles/ArticleCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-022",
+      "legacyPath": "/api/v1/articles/[slug]",
+      "source": "apps/web/src/app/api/v1/articles/[slug]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/articles/ArticleCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-023",
+      "legacyPath": "/api/v1/articles/[slug]/view",
+      "source": "apps/web/src/app/api/v1/articles/[slug]/view/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/articles/ArticleCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-024",
+      "legacyPath": "/api/v1/articles",
+      "source": "apps/web/src/app/api/v1/articles/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/articles/ArticleCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-025",
+      "legacyPath": "/api/v1/auth/check-phone-match",
+      "source": "apps/web/src/app/api/v1/auth/check-phone-match/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/AuthPanel.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-026",
+      "legacyPath": "/api/v1/auth/password-reset-request",
+      "source": "apps/web/src/app/api/v1/auth/password-reset-request/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/AuthPanel.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-027",
+      "legacyPath": "/api/v1/auth/register",
+      "source": "apps/web/src/app/api/v1/auth/register/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/AuthPanel.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-028",
+      "legacyPath": "/api/v1/auth/reset-password",
+      "source": "apps/web/src/app/api/v1/auth/reset-password/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/AuthPanel.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-029",
+      "legacyPath": "/api/v1/community-chat/[[...action]]",
+      "source": "apps/web/src/app/api/v1/community-chat/[[...action]]/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST"
+      ],
+      "staticMatches": [
+        "DELETE:DISPATCH_REVIEW",
+        "GET:DISPATCH_REVIEW",
+        "POST:DISPATCH_REVIEW"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/chats/ChatList.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-030",
+      "legacyPath": "/api/v1/consultations/admin/bookings",
+      "source": "apps/web/src/app/api/v1/consultations/admin/bookings/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-031",
+      "legacyPath": "/api/v1/consultations/admin/cynologists/listed",
+      "source": "apps/web/src/app/api/v1/consultations/admin/cynologists/listed/route.ts",
+      "methods": [
+        "PUT"
+      ],
+      "staticMatches": [
+        "PUT:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-032",
+      "legacyPath": "/api/v1/consultations/admin/cynologists",
+      "source": "apps/web/src/app/api/v1/consultations/admin/cynologists/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-033",
+      "legacyPath": "/api/v1/consultations/book",
+      "source": "apps/web/src/app/api/v1/consultations/book/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/consultations/Consultations.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-034",
+      "legacyPath": "/api/v1/consultations/bookings/[bookingId]/cancel",
+      "source": "apps/web/src/app/api/v1/consultations/bookings/[bookingId]/cancel/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/consultations/Consultations.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-035",
+      "legacyPath": "/api/v1/consultations/cynologists/[cynologistUserId]/slots/[slotId]/verify",
+      "source": "apps/web/src/app/api/v1/consultations/cynologists/[cynologistUserId]/slots/[slotId]/verify/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/consultations/Consultations.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-036",
+      "legacyPath": "/api/v1/consultations/cynologists/[cynologistUserId]/slots",
+      "source": "apps/web/src/app/api/v1/consultations/cynologists/[cynologistUserId]/slots/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/consultations/Consultations.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-037",
+      "legacyPath": "/api/v1/consultations/cynologists",
+      "source": "apps/web/src/app/api/v1/consultations/cynologists/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/consultations/Consultations.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-038",
+      "legacyPath": "/api/v1/consultations/my",
+      "source": "apps/web/src/app/api/v1/consultations/my/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/consultations/Consultations.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-039",
+      "legacyPath": "/api/v1/consultations/trainer/availability",
+      "source": "apps/web/src/app/api/v1/consultations/trainer/availability/route.ts",
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY",
+        "PUT:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-040",
+      "legacyPath": "/api/v1/consultations/trainer/bookings/[bookingId]/complete",
+      "source": "apps/web/src/app/api/v1/consultations/trainer/bookings/[bookingId]/complete/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-041",
+      "legacyPath": "/api/v1/consultations/trainer/bookings/[bookingId]/confirm",
+      "source": "apps/web/src/app/api/v1/consultations/trainer/bookings/[bookingId]/confirm/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-042",
+      "legacyPath": "/api/v1/consultations/trainer/bookings/[bookingId]/no-show",
+      "source": "apps/web/src/app/api/v1/consultations/trainer/bookings/[bookingId]/no-show/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-043",
+      "legacyPath": "/api/v1/consultations/trainer/bookings/[bookingId]/reject",
+      "source": "apps/web/src/app/api/v1/consultations/trainer/bookings/[bookingId]/reject/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-044",
+      "legacyPath": "/api/v1/consultations/trainer/bookings",
+      "source": "apps/web/src/app/api/v1/consultations/trainer/bookings/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-045",
+      "legacyPath": "/api/v1/consultations/trainer/day-offs/[dayOffId]",
+      "source": "apps/web/src/app/api/v1/consultations/trainer/day-offs/[dayOffId]/route.ts",
+      "methods": [
+        "DELETE"
+      ],
+      "staticMatches": [
+        "DELETE:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-046",
+      "legacyPath": "/api/v1/consultations/trainer/day-offs",
+      "source": "apps/web/src/app/api/v1/consultations/trainer/day-offs/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-047",
+      "legacyPath": "/api/v1/consultations/trainer/exceptions/[exceptionId]",
+      "source": "apps/web/src/app/api/v1/consultations/trainer/exceptions/[exceptionId]/route.ts",
+      "methods": [
+        "DELETE"
+      ],
+      "staticMatches": [
+        "DELETE:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-048",
+      "legacyPath": "/api/v1/consultations/trainer/exceptions",
+      "source": "apps/web/src/app/api/v1/consultations/trainer/exceptions/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG4_PANEL_OR_AG1_SERVICE__NO_AG2_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-049",
+      "legacyPath": "/api/v1/courses/access",
+      "source": "apps/web/src/app/api/v1/courses/access/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-050",
+      "legacyPath": "/api/v1/courses/favorites",
+      "source": "apps/web/src/app/api/v1/courses/favorites/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY",
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-051",
+      "legacyPath": "/api/v1/courses/metadata",
+      "source": "apps/web/src/app/api/v1/courses/metadata/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-052",
+      "legacyPath": "/api/v1/courses/reviews",
+      "source": "apps/web/src/app/api/v1/courses/reviews/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "PATCH",
+        "POST"
+      ],
+      "staticMatches": [
+        "DELETE:STATIC_PATH_ONLY",
+        "GET:STATIC_PATH_ONLY",
+        "PATCH:STATIC_PATH_ONLY",
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-053",
+      "legacyPath": "/api/v1/courses",
+      "source": "apps/web/src/app/api/v1/courses/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-054",
+      "legacyPath": "/api/v1/cynologist-chat/[[...action]]",
+      "source": "apps/web/src/app/api/v1/cynologist-chat/[[...action]]/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST"
+      ],
+      "staticMatches": [
+        "DELETE:DISPATCH_REVIEW",
+        "GET:DISPATCH_REVIEW",
+        "POST:DISPATCH_REVIEW"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/chats/ChatList.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-055",
+      "legacyPath": "/api/v1/exam/result",
+      "source": "apps/web/src/app/api/v1/exam/result/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-056",
+      "legacyPath": "/api/v1/exam/submit",
+      "source": "apps/web/src/app/api/v1/exam/submit/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-057",
+      "legacyPath": "/api/v1/feed-playback/[mediaId]",
+      "source": "apps/web/src/app/api/v1/feed-playback/[mediaId]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/moments/MomentsCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-058",
+      "legacyPath": "/api/v1/feed/[[...action]]",
+      "source": "apps/web/src/app/api/v1/feed/[[...action]]/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "PATCH",
+        "POST",
+        "PUT"
+      ],
+      "staticMatches": [
+        "DELETE:DISPATCH_REVIEW",
+        "GET:DISPATCH_REVIEW",
+        "PATCH:DISPATCH_REVIEW",
+        "POST:DISPATCH_REVIEW",
+        "PUT:DISPATCH_REVIEW"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/moments/MomentsCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-059",
+      "legacyPath": "/api/v1/gafus/[[...action]]",
+      "source": "apps/web/src/app/api/v1/gafus/[[...action]]/route.ts",
+      "methods": [
+        "GET",
+        "PATCH",
+        "POST"
+      ],
+      "staticMatches": [
+        "GET:NOT_MATCHED",
+        "PATCH:NOT_MATCHED",
+        "POST:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/gafus/Gafus.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-060",
+      "legacyPath": "/api/v1/gallery/[[...action]]",
+      "source": "apps/web/src/app/api/v1/gallery/[[...action]]/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "PATCH",
+        "POST",
+        "PUT"
+      ],
+      "staticMatches": [
+        "DELETE:DISPATCH_REVIEW",
+        "GET:DISPATCH_REVIEW",
+        "PATCH:DISPATCH_REVIEW",
+        "POST:DISPATCH_REVIEW",
+        "PUT:DISPATCH_REVIEW"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/gallery/AlbumList.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-061",
+      "legacyPath": "/api/v1/media-cdn-probe",
+      "source": "apps/web/src/app/api/v1/media-cdn-probe/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/moments/MomentsCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-062",
+      "legacyPath": "/api/v1/media-delivery/status",
+      "source": "apps/web/src/app/api/v1/media-delivery/status/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/moments/MomentsCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-063",
+      "legacyPath": "/api/v1/notifications/step/pause",
+      "source": "apps/web/src/app/api/v1/notifications/step/pause/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PWA_OR_NATIVE__NO_NEW_WEB_CONSUMER_PENDING_REVIEW",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-064",
+      "legacyPath": "/api/v1/notifications/step/reset",
+      "source": "apps/web/src/app/api/v1/notifications/step/reset/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PWA_OR_NATIVE__NO_NEW_WEB_CONSUMER_PENDING_REVIEW",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-065",
+      "legacyPath": "/api/v1/notifications/step/resume",
+      "source": "apps/web/src/app/api/v1/notifications/step/resume/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PWA_OR_NATIVE__NO_NEW_WEB_CONSUMER_PENDING_REVIEW",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-066",
+      "legacyPath": "/api/v1/notifications/step",
+      "source": "apps/web/src/app/api/v1/notifications/step/route.ts",
+      "methods": [
+        "DELETE",
+        "POST"
+      ],
+      "staticMatches": [
+        "DELETE:NOT_MATCHED",
+        "POST:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PWA_OR_NATIVE__NO_NEW_WEB_CONSUMER_PENDING_REVIEW",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-067",
+      "legacyPath": "/api/v1/notifications/step/toggle",
+      "source": "apps/web/src/app/api/v1/notifications/step/toggle/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PWA_OR_NATIVE__NO_NEW_WEB_CONSUMER_PENDING_REVIEW",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-068",
+      "legacyPath": "/api/v1/offline/course/download",
+      "source": "apps/web/src/app/api/v1/offline/course/download/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PWA_OR_NATIVE__NO_NEW_WEB_CONSUMER_PENDING_REVIEW",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-069",
+      "legacyPath": "/api/v1/offline/course/updates",
+      "source": "apps/web/src/app/api/v1/offline/course/updates/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PWA_OR_NATIVE__NO_NEW_WEB_CONSUMER_PENDING_REVIEW",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-070",
+      "legacyPath": "/api/v1/offline/course/version",
+      "source": "apps/web/src/app/api/v1/offline/course/version/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PWA_OR_NATIVE__NO_NEW_WEB_CONSUMER_PENDING_REVIEW",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-071",
+      "legacyPath": "/api/v1/partners/attribution",
+      "source": "apps/web/src/app/api/v1/partners/attribution/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/partners/Partner.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-072",
+      "legacyPath": "/api/v1/partners/me",
+      "source": "apps/web/src/app/api/v1/partners/me/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/partners/Partner.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-073",
+      "legacyPath": "/api/v1/partners/payouts",
+      "source": "apps/web/src/app/api/v1/partners/payouts/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/partners/Partner.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-074",
+      "legacyPath": "/api/v1/payments/create",
+      "source": "apps/web/src/app/api/v1/payments/create/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/commerce/Subscription.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-075",
+      "legacyPath": "/api/v1/payments/webhook",
+      "source": "apps/web/src/app/api/v1/payments/webhook/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG1_WEBHOOK__NO_BROWSER_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-076",
+      "legacyPath": "/api/v1/pets/[petId]/documents/[documentId]/download",
+      "source": "apps/web/src/app/api/v1/pets/[petId]/documents/[documentId]/download/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-077",
+      "legacyPath": "/api/v1/pets/[petId]/documents/[documentId]",
+      "source": "apps/web/src/app/api/v1/pets/[petId]/documents/[documentId]/route.ts",
+      "methods": [
+        "DELETE",
+        "PUT"
+      ],
+      "staticMatches": [
+        "DELETE:STATIC_PATH_ONLY",
+        "PUT:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-078",
+      "legacyPath": "/api/v1/pets/[petId]/documents",
+      "source": "apps/web/src/app/api/v1/pets/[petId]/documents/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY",
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-079",
+      "legacyPath": "/api/v1/pets/[petId]/prevention",
+      "source": "apps/web/src/app/api/v1/pets/[petId]/prevention/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-080",
+      "legacyPath": "/api/v1/pets/[petId]",
+      "source": "apps/web/src/app/api/v1/pets/[petId]/route.ts",
+      "methods": [
+        "DELETE",
+        "PUT"
+      ],
+      "staticMatches": [
+        "DELETE:STATIC_PATH_ONLY",
+        "PUT:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-081",
+      "legacyPath": "/api/v1/pets/[petId]/vet-visits/[[...parts]]",
+      "source": "apps/web/src/app/api/v1/pets/[petId]/vet-visits/[[...parts]]/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "staticMatches": [
+        "DELETE:DISPATCH_REVIEW",
+        "GET:DISPATCH_REVIEW",
+        "POST:DISPATCH_REVIEW",
+        "PUT:DISPATCH_REVIEW"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-082",
+      "legacyPath": "/api/v1/pets/[petId]/weight/[entryId]",
+      "source": "apps/web/src/app/api/v1/pets/[petId]/weight/[entryId]/route.ts",
+      "methods": [
+        "DELETE"
+      ],
+      "staticMatches": [
+        "DELETE:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-083",
+      "legacyPath": "/api/v1/pets/[petId]/weight",
+      "source": "apps/web/src/app/api/v1/pets/[petId]/weight/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY",
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-084",
+      "legacyPath": "/api/v1/pets/[petId]/weight/target",
+      "source": "apps/web/src/app/api/v1/pets/[petId]/weight/target/route.ts",
+      "methods": [
+        "PUT"
+      ],
+      "staticMatches": [
+        "PUT:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-085",
+      "legacyPath": "/api/v1/pets/documents",
+      "source": "apps/web/src/app/api/v1/pets/documents/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-086",
+      "legacyPath": "/api/v1/pets/prevention",
+      "source": "apps/web/src/app/api/v1/pets/prevention/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-087",
+      "legacyPath": "/api/v1/pets",
+      "source": "apps/web/src/app/api/v1/pets/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY",
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-088",
+      "legacyPath": "/api/v1/questions/[[...action]]",
+      "source": "apps/web/src/app/api/v1/questions/[[...action]]/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "PATCH",
+        "POST"
+      ],
+      "staticMatches": [
+        "DELETE:DISPATCH_REVIEW",
+        "GET:DISPATCH_REVIEW",
+        "PATCH:DISPATCH_REVIEW",
+        "POST:DISPATCH_REVIEW"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/questions/QuestionCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-089",
+      "legacyPath": "/api/v1/subscriptions/push",
+      "source": "apps/web/src/app/api/v1/subscriptions/push/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST"
+      ],
+      "staticMatches": [
+        "DELETE:STATIC_PATH_ONLY",
+        "GET:STATIC_PATH_ONLY",
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PWA_OR_NATIVE__NO_NEW_WEB_CONSUMER_PENDING_REVIEW",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-090",
+      "legacyPath": "/api/v1/surveys/[slug]/response",
+      "source": "apps/web/src/app/api/v1/surveys/[slug]/response/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/surveys/Surveys.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-091",
+      "legacyPath": "/api/v1/surveys/[slug]",
+      "source": "apps/web/src/app/api/v1/surveys/[slug]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/surveys/Surveys.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-092",
+      "legacyPath": "/api/v1/surveys/comparison",
+      "source": "apps/web/src/app/api/v1/surveys/comparison/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/surveys/Surveys.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-093",
+      "legacyPath": "/api/v1/training/day",
+      "source": "apps/web/src/app/api/v1/training/day/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-094",
+      "legacyPath": "/api/v1/training/days",
+      "source": "apps/web/src/app/api/v1/training/days/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-095",
+      "legacyPath": "/api/v1/training/step/complete/practice",
+      "source": "apps/web/src/app/api/v1/training/step/complete/practice/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-096",
+      "legacyPath": "/api/v1/training/step/complete/theory",
+      "source": "apps/web/src/app/api/v1/training/step/complete/theory/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-097",
+      "legacyPath": "/api/v1/training/step/pause",
+      "source": "apps/web/src/app/api/v1/training/step/pause/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-098",
+      "legacyPath": "/api/v1/training/step/resume",
+      "source": "apps/web/src/app/api/v1/training/step/resume/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-099",
+      "legacyPath": "/api/v1/training/step/start",
+      "source": "apps/web/src/app/api/v1/training/step/start/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-100",
+      "legacyPath": "/api/v1/training/step/status",
+      "source": "apps/web/src/app/api/v1/training/step/status/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-101",
+      "legacyPath": "/api/v1/user/avatar",
+      "source": "apps/web/src/app/api/v1/user/avatar/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-102",
+      "legacyPath": "/api/v1/user/onboarding-tour/complete",
+      "source": "apps/web/src/app/api/v1/user/onboarding-tour/complete/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-103",
+      "legacyPath": "/api/v1/user/onboarding-tour",
+      "source": "apps/web/src/app/api/v1/user/onboarding-tour/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-104",
+      "legacyPath": "/api/v1/user/profile/public",
+      "source": "apps/web/src/app/api/v1/user/profile/public/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-105",
+      "legacyPath": "/api/v1/user/profile",
+      "source": "apps/web/src/app/api/v1/user/profile/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "staticMatches": [
+        "GET:STATIC_PATH_ONLY",
+        "PATCH:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-106",
+      "legacyPath": "/api/v1/video/playback-url",
+      "source": "apps/web/src/app/api/v1/video/playback-url/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:NOT_MATCHED"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG2_REVIEW_REQUIRED__NO_VERIFIED_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-107",
+      "legacyPath": "/api/video/[videoId]/manifest",
+      "source": "apps/web/src/app/api/video/[videoId]/manifest/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-108",
+      "legacyPath": "/api/video/[videoId]/segment",
+      "source": "apps/web/src/app/api/video/[videoId]/segment/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "staticMatches": [
+        "GET:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-API-109",
+      "legacyPath": "/api/webhooks/resend",
+      "source": "apps/web/src/app/api/webhooks/resend/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "staticMatches": [
+        "POST:LEGACY_NON_V1"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG1_WEBHOOK__NO_BROWSER_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    }
+  ],
+  "actions": [
+    {
+      "id": "WEB-ACTION-001",
+      "source": "apps/web/src/app/(main)/trainings/[courseType]/[day]/actions.ts",
+      "exports": [
+        "pauseNotificationAction",
+        "resetNotificationAction",
+        "resumeNotificationAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-002",
+      "source": "apps/web/src/features/consultations/lib/voximplant-call-actions.ts",
+      "exports": [
+        "createConsultationCallAdmissionAction",
+        "prepareConsultationCallAction",
+        "signConsultationKeyAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/consultations/Consultations.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-003",
+      "source": "apps/web/src/shared/lib/StepNotification/notificationActions.ts",
+      "exports": [
+        "pauseNotificationAction",
+        "resetNotificationAction",
+        "resumeNotificationAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/reminders/Reminders.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-004",
+      "source": "apps/web/src/shared/lib/achievements/getUserTrainingDates.ts",
+      "exports": [
+        "getUserTrainingDates"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/achievements/Achievements.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-005",
+      "source": "apps/web/src/shared/lib/actions/cachedArticles.ts",
+      "exports": [
+        "getArticlesCached"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/articles/ArticleCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-006",
+      "source": "apps/web/src/shared/lib/actions/cachedCourses.ts",
+      "exports": [
+        "getCoursesWithProgressCached",
+        "getFavoritesCoursesCached"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-007",
+      "source": "apps/web/src/shared/lib/actions/generateCoursePathPdf.ts",
+      "exports": [
+        "generateCoursePathPdf"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-008",
+      "source": "apps/web/src/shared/lib/actions/getDiaryEntries.ts",
+      "exports": [
+        "getDiaryEntries"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-009",
+      "source": "apps/web/src/shared/lib/actions/getExamResult.ts",
+      "exports": [
+        "getExamResult"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-010",
+      "source": "apps/web/src/shared/lib/actions/getVideoIdFromUrlAction.ts",
+      "exports": [
+        "getVideoIdFromUrlAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG2_REVIEW_REQUIRED__PROPOSED_UI",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-011",
+      "source": "apps/web/src/shared/lib/actions/invalidateAllCache.ts",
+      "exports": [
+        "invalidateAllCache"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG2_REVIEW_REQUIRED__PROPOSED_UI",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-012",
+      "source": "apps/web/src/shared/lib/actions/invalidateCoursesCache.ts",
+      "exports": [
+        "invalidateUserProgressCache"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-013",
+      "source": "apps/web/src/shared/lib/actions/offlineCourseActions.ts",
+      "exports": [
+        "checkCourseUpdates",
+        "downloadFullCourse",
+        "getCourseVersion"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-014",
+      "source": "apps/web/src/shared/lib/actions/publicKey.ts",
+      "exports": [
+        "getPublicKeyAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG2_REVIEW_REQUIRED__PROPOSED_UI",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-015",
+      "source": "apps/web/src/shared/lib/actions/saveDiaryEntry.ts",
+      "exports": [
+        "saveDiaryEntry"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-016",
+      "source": "apps/web/src/shared/lib/actions/submitExamResult.ts",
+      "exports": [
+        "submitExamResult"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-017",
+      "source": "apps/web/src/shared/lib/actions/subscription.ts",
+      "exports": [
+        "deleteSubscriptionAction",
+        "updateSubscriptionAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/commerce/Subscription.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-018",
+      "source": "apps/web/src/shared/lib/actions/trackReengagementClick.ts",
+      "exports": [
+        "trackReengagementClick"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-019",
+      "source": "apps/web/src/shared/lib/actions/trainingReminders.ts",
+      "exports": [
+        "createTrainingReminder",
+        "deleteTrainingReminder",
+        "getTrainingReminders",
+        "updateTrainingReminder"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/reminders/Reminders.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-020",
+      "source": "apps/web/src/shared/lib/actions/updateReengagementSettings.ts",
+      "exports": [
+        "getReengagementSettings",
+        "updateReengagementSettings"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-021",
+      "source": "apps/web/src/shared/lib/actions/uploadExamVideo.ts",
+      "exports": [
+        "uploadExamVideo"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-022",
+      "source": "apps/web/src/shared/lib/actions/userProgress.ts",
+      "exports": [
+        "getUserProgressForCurrentUser",
+        "getUserProgressForMultipleCourses"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-023",
+      "source": "apps/web/src/shared/lib/daily-course/actions.ts",
+      "exports": [
+        "completeDailyCourseStepServerAction",
+        "getDailyCourseTrainingForWeb",
+        "getTodayDailyCourseForWeb",
+        "pauseDailyCourseStepServerAction",
+        "resetDailyCourseStepServerAction",
+        "resumeDailyCourseStepServerAction",
+        "startDailyCourseStepServerAction",
+        "unlockDailyCourseStepServerAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/daily-course/DailyCourse.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-024",
+      "source": "apps/web/src/shared/lib/notes/getStudentNotes.ts",
+      "exports": [
+        "getStudentNotes"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-025",
+      "source": "apps/web/src/shared/lib/pet-prevention/createPreventionEntry.ts",
+      "exports": [
+        "createPreventionEntry"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-026",
+      "source": "apps/web/src/shared/lib/pet-prevention/deletePreventionEntry.ts",
+      "exports": [
+        "deletePreventionEntry"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-027",
+      "source": "apps/web/src/shared/lib/pet-prevention/getPreventionEntriesByUser.ts",
+      "exports": [
+        "getPreventionEntriesByPetForUser",
+        "getPreventionEntriesByPetsForUser"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-028",
+      "source": "apps/web/src/shared/lib/pet-prevention/updatePreventionEntry.ts",
+      "exports": [
+        "updatePreventionEntry"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-029",
+      "source": "apps/web/src/shared/lib/pets/createPet.ts",
+      "exports": [
+        "createPet"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-030",
+      "source": "apps/web/src/shared/lib/pets/deletePet.ts",
+      "exports": [
+        "deletePet"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-031",
+      "source": "apps/web/src/shared/lib/pets/getCurrentUserPetsPageData.ts",
+      "exports": [
+        "getCurrentUserPetsPageData"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-032",
+      "source": "apps/web/src/shared/lib/pets/getUserPets.ts",
+      "exports": [
+        "getUserPets"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-033",
+      "source": "apps/web/src/shared/lib/pets/listUserPetDocuments.ts",
+      "exports": [
+        "listUserPetDocuments"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-034",
+      "source": "apps/web/src/shared/lib/pets/pet-documents-server.ts",
+      "exports": [
+        "deletePetDocumentForUser",
+        "getPetDocumentByIdForUser",
+        "listPetDocumentsForUser",
+        "preparePetDocumentDownloadForUser",
+        "renamePetDocumentForUser",
+        "uploadPetDocumentForUser"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-035",
+      "source": "apps/web/src/shared/lib/pets/savePet.ts",
+      "exports": [
+        "savePet"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-036",
+      "source": "apps/web/src/shared/lib/pets/updatePet.ts",
+      "exports": [
+        "updatePet"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-037",
+      "source": "apps/web/src/shared/lib/pets/updatePetAvatar.ts",
+      "exports": [
+        "updatePetAvatar"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/pets/PetCollection.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-038",
+      "source": "apps/web/src/shared/lib/profile/updateAvatar.ts",
+      "exports": [
+        "updateAvatar"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-039",
+      "source": "apps/web/src/shared/lib/savePushSubscription/deletePushSubscription.ts",
+      "exports": [
+        "deleteAllPushSubscriptions",
+        "deletePushSubscriptionByEndpoint"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PUSH__NO_NEW_WEB_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-040",
+      "source": "apps/web/src/shared/lib/savePushSubscription/getUserSubscriptionStatus.ts",
+      "exports": [
+        "getUserSubscriptionCount",
+        "getUserSubscriptionStatus",
+        "getUserSubscriptions"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PUSH__NO_NEW_WEB_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-041",
+      "source": "apps/web/src/shared/lib/savePushSubscription/savePushSubscription.ts",
+      "exports": [
+        "savePushSubscription"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PUSH__NO_NEW_WEB_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-042",
+      "source": "apps/web/src/shared/lib/training/checkDayAccess.ts",
+      "exports": [
+        "checkDayAccess"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-043",
+      "source": "apps/web/src/shared/lib/training/getDeclinedName.ts",
+      "exports": [
+        "getDeclinedName"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-044",
+      "source": "apps/web/src/shared/lib/training/getTrainingDayWithUserSteps.ts",
+      "exports": [
+        "getTrainingDayWithUserSteps"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-045",
+      "source": "apps/web/src/shared/lib/training/getTrainingDays.ts",
+      "exports": [
+        "getTrainingDays"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-046",
+      "source": "apps/web/src/shared/lib/training/markDiaryStepAsCompleted.ts",
+      "exports": [
+        "markDiaryStepAsCompleted"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-047",
+      "source": "apps/web/src/shared/lib/training/markPracticeStepAsCompleted.ts",
+      "exports": [
+        "markPracticeStepAsCompleted"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-048",
+      "source": "apps/web/src/shared/lib/training/markTheoryStepAsCompleted.ts",
+      "exports": [
+        "markTheoryStepAsCompleted"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-049",
+      "source": "apps/web/src/shared/lib/training/pauseResumeUserStep.ts",
+      "exports": [
+        "pauseUserStepServerAction",
+        "resumeUserStepServerAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-050",
+      "source": "apps/web/src/shared/lib/training/saveCoursePersonalization.ts",
+      "exports": [
+        "saveCoursePersonalization"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-051",
+      "source": "apps/web/src/shared/lib/training/startUserStepServerAction.ts",
+      "exports": [
+        "startUserStepServerAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-052",
+      "source": "apps/web/src/shared/lib/training/updateUserStepStatus.ts",
+      "exports": [
+        "updateStepStatusServerAction",
+        "updateUserStepStatus"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-053",
+      "source": "apps/web/src/shared/lib/user/deleteUserAccount.ts",
+      "exports": [
+        "requestAccountDeletionCodeAction",
+        "submitDeleteUserAccount"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-054",
+      "source": "apps/web/src/shared/lib/user/getUserProfile.ts",
+      "exports": [
+        "getUserProfile"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-055",
+      "source": "apps/web/src/shared/lib/user/getUserProgress.ts",
+      "exports": [
+        "getUserProgress"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-056",
+      "source": "apps/web/src/shared/lib/user/getUserWithTrainings.ts",
+      "exports": [
+        "getUserWithTrainings"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-057",
+      "source": "apps/web/src/shared/lib/user/updateUserProfile.ts",
+      "exports": [
+        "updateUserProfile"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-058",
+      "source": "apps/web/src/shared/lib/user/userCourses.ts",
+      "exports": [
+        "assignCoursesToUser",
+        "checkAndCompleteCourse",
+        "completeUserCourse",
+        "syncUserCourseStatusFromDays"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-059",
+      "source": "apps/web/src/shared/lib/video/getSignedVideoUrl.ts",
+      "exports": [
+        "getSignedVideoUrl"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-060",
+      "source": "apps/web/src/shared/lib/video/getVideoMetadata.ts",
+      "exports": [
+        "getVideoMetadata"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-061",
+      "source": "apps/web/src/shared/lib/video/getVideoUrlForPlayback.ts",
+      "exports": [
+        "getVideoUrlForPlayback"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-062",
+      "source": "apps/web/src/shared/lib/video/videoProgressActions.ts",
+      "exports": [
+        "getVideoProgress",
+        "saveVideoProgress",
+        "syncVideoProgressFromLocal"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-063",
+      "source": "apps/web/src/shared/server-actions/achievements.ts",
+      "exports": [
+        "getUserTrainingDatesAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/achievements/Achievements.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-064",
+      "source": "apps/web/src/shared/server-actions/auth.ts",
+      "exports": [
+        "changePasswordAction",
+        "changeUsernameAction",
+        "checkLoginRateLimit",
+        "checkUsernameAvailableAction",
+        "confirmEmailChangeByTokenAction",
+        "getVkConsentPromoAction",
+        "initiateVkIdAuth",
+        "initiateVkIdLink",
+        "prepareVkIdOneTap",
+        "previewRegistrationPromoAction",
+        "registerUserAction",
+        "requestEmailChangeAction",
+        "resetPasswordAction",
+        "sendPasswordResetRequestAction",
+        "setPasswordAction",
+        "submitVkConsentAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/shared/auth/AuthPanel.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-065",
+      "source": "apps/web/src/shared/server-actions/cache.ts",
+      "exports": [
+        "invalidateCoursesCache",
+        "invalidateTrainingCache",
+        "invalidateUserProgressCache"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG2_REVIEW_REQUIRED__PROPOSED_UI",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-066",
+      "source": "apps/web/src/shared/server-actions/course.ts",
+      "exports": [
+        "addFavoriteCourseAction",
+        "checkCourseAccessAction",
+        "checkCourseAccessByIdAction",
+        "createCourseReviewAction",
+        "deleteCourseReviewAction",
+        "getAuthoredCoursesAction",
+        "getCourseMetadataAction",
+        "getCourseReviewsAction",
+        "getCoursesWithProgressAction",
+        "getFavoritesCoursesAction",
+        "rateCourseAction",
+        "removeFavoriteCourseAction",
+        "toggleFavoriteCourseAction",
+        "updateCourseRatingAction",
+        "updateCourseReviewAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/courses/CourseCatalog.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-067",
+      "source": "apps/web/src/shared/server-actions/notes.ts",
+      "exports": [
+        "getStudentNotes"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/training/TrainingDay.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-068",
+      "source": "apps/web/src/shared/server-actions/notifications.ts",
+      "exports": [
+        "createStepNotificationAction",
+        "deleteStepNotificationAction",
+        "pauseNotificationAction",
+        "resetNotificationAction",
+        "resumeNotificationAction",
+        "toggleStepNotificationPauseAction",
+        "toggleStepNotificationPauseByDayOnCourseAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "PROPOSED:apps/web-vite/src/features/reminders/Reminders.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-069",
+      "source": "apps/web/src/shared/server-actions/push.ts",
+      "exports": [
+        "getPublicKeyAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PUSH__NO_NEW_WEB_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-070",
+      "source": "apps/web/src/shared/server-actions/subscriptions.ts",
+      "exports": [
+        "deleteSubscriptionAction",
+        "getSubscriptionCountAction",
+        "getSubscriptionStatusAction",
+        "getUserSubscriptionsAction",
+        "savePushSubscriptionAction",
+        "updateSubscriptionAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "LEGACY_BROWSER_PUSH__NO_NEW_WEB_CONSUMER",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-071",
+      "source": "apps/web/src/shared/server-actions/tracking.ts",
+      "exports": [
+        "trackReengagementClickAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-072",
+      "source": "apps/web/src/shared/server-actions/user.ts",
+      "exports": [
+        "getPublicProfileAction",
+        "getUserProfileAction",
+        "updateAvatarAction",
+        "updateUserProfileAction"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "apps/web-vite/src/features/profile/ProfileOverview.tsx",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    },
+    {
+      "id": "WEB-ACTION-073",
+      "source": "apps/web/src/shared/utils/getCurrentUserId.ts",
+      "exports": [
+        "getCurrentUserId"
+      ],
+      "backendOwner": "AG1",
+      "targetWebConsumer": "AG2_REVIEW_REQUIRED__PROPOSED_UI",
+      "dtoGate": "BLOCKED_BY_AG1__G1_DTO_NOT_FROZEN"
+    }
+  ]
+}

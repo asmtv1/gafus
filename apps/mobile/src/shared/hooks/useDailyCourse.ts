@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import {
   dailyCourseApi,
@@ -8,7 +8,10 @@ import {
   type TodayDailyCourseResponse,
 } from "@/shared/lib/api";
 import type { ApiResponse } from "@/shared/lib/api/client";
-import { useProgressSyncStore, useStepStore } from "@/shared/stores";
+import { useStepStore } from "@/shared/stores";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+import { commitVerifiedDailyCompletion } from "@/shared/lib/offline/newOnlyV2DailyCompleteReceipt";
+import { useAuthStore } from "@/shared/stores/authStore";
 import { getIsOffline } from "@/shared/stores/networkStatusStore";
 
 export function getMobileMoscowDateKey(now = new Date()): string {
@@ -59,83 +62,132 @@ export function useDailyCourseDay(scheduleId: string) {
 }
 
 export function useDailyCourseStartStep() {
-  const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.startStep>[0]) => {
       if (getIsOffline()) {
-        addToQueue({ type: "dailyCourseStartStep", params: variables });
-        return { success: true };
+        if (
+          typeof variables.scheduleId !== "string" ||
+          !/^c[a-z0-9]{8,}$/.test(variables.scheduleId) ||
+          !Number.isSafeInteger(variables.stepIndex) ||
+          variables.stepIndex < 0
+        )
+          throw new Error("OFFLINE_DAILY_INVALID_PAYLOAD");
+        const payload = Object.fromEntries(
+          Object.entries(variables).filter(([, v]) => v !== undefined),
+        );
+        if (
+          variables.status !== "IN_PROGRESS" ||
+          !Number.isSafeInteger(variables.durationSec) ||
+          variables.durationSec < 0
+        )
+          throw new Error("OFFLINE_DAILY_INVALID_TIME");
+        await newOnlyV2NativeQueues.enqueue("progress", "dailyCourseStartStep", payload);
+        return { success: true, code: "OFFLINE_QUEUED" as const };
       }
       return dailyCourseApi.startStep(variables);
     },
-    [addToQueue],
+    [],
   );
   return useMutation({ mutationFn });
 }
 
 export function useDailyCoursePauseStep() {
-  const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.pauseStep>[0]) => {
       if (getIsOffline()) {
-        addToQueue({ type: "dailyCoursePauseStep", params: variables });
-        return { success: true };
+        if (
+          typeof variables.scheduleId !== "string" ||
+          !/^c[a-z0-9]{8,}$/.test(variables.scheduleId) ||
+          !Number.isSafeInteger(variables.stepIndex) ||
+          variables.stepIndex < 0
+        )
+          throw new Error("OFFLINE_DAILY_INVALID_PAYLOAD");
+        const payload = Object.fromEntries(
+          Object.entries(variables).filter(([, v]) => v !== undefined),
+        );
+        if (!Number.isSafeInteger(variables.timeLeftSec) || variables.timeLeftSec < 0)
+          throw new Error("OFFLINE_DAILY_INVALID_TIME");
+        await newOnlyV2NativeQueues.enqueue("progress", "dailyCoursePauseStep", payload);
+        return { success: true, code: "OFFLINE_QUEUED" as const };
       }
       return dailyCourseApi.pauseStep(variables);
     },
-    [addToQueue],
+    [],
   );
   return useMutation({ mutationFn });
 }
 
 export function useDailyCourseResumeStep() {
-  const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.resumeStep>[0]) => {
       if (getIsOffline()) {
-        addToQueue({ type: "dailyCourseResumeStep", params: variables });
-        return { success: true };
+        if (
+          typeof variables.scheduleId !== "string" ||
+          !/^c[a-z0-9]{8,}$/.test(variables.scheduleId) ||
+          !Number.isSafeInteger(variables.stepIndex) ||
+          variables.stepIndex < 0
+        )
+          throw new Error("OFFLINE_DAILY_INVALID_PAYLOAD");
+        const payload = Object.fromEntries(
+          Object.entries(variables).filter(([, v]) => v !== undefined),
+        );
+        await newOnlyV2NativeQueues.enqueue("progress", "dailyCourseResumeStep", payload);
+        return { success: true, code: "OFFLINE_QUEUED" as const };
       }
       return dailyCourseApi.resumeStep(variables);
     },
-    [addToQueue],
+    [],
   );
   return useMutation({ mutationFn });
 }
 
 export function useDailyCourseResetStep() {
-  const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.resetStep>[0]) => {
       if (getIsOffline()) {
-        addToQueue({ type: "dailyCourseResetStep", params: variables });
-        return { success: true };
+        if (
+          typeof variables.scheduleId !== "string" ||
+          !/^c[a-z0-9]{8,}$/.test(variables.scheduleId) ||
+          !Number.isSafeInteger(variables.stepIndex) ||
+          variables.stepIndex < 0
+        )
+          throw new Error("OFFLINE_DAILY_INVALID_PAYLOAD");
+        const payload = Object.fromEntries(
+          Object.entries(variables).filter(([, v]) => v !== undefined),
+        );
+        await newOnlyV2NativeQueues.enqueue("progress", "dailyCourseResetStep", payload);
+        return { success: true, code: "OFFLINE_QUEUED" as const };
       }
       return dailyCourseApi.resetStep(variables);
     },
-    [addToQueue],
+    [],
   );
   return useMutation({ mutationFn });
 }
 
 export function useDailyCourseCompleteStep() {
-  const queryClient = useQueryClient();
-  const addToQueue = useProgressSyncStore((s) => s.add);
   const mutationFn = useCallback(
     async (variables: Parameters<typeof dailyCourseApi.completeStep>[0]) => {
       if (getIsOffline()) {
-        addToQueue({ type: "dailyCourseCompleteStep", params: variables });
-        return { success: true };
+        if (
+          typeof variables.scheduleId !== "string" ||
+          !/^c[a-z0-9]{8,}$/.test(variables.scheduleId) ||
+          !Number.isSafeInteger(variables.stepIndex) ||
+          variables.stepIndex < 0
+        )
+          throw new Error("OFFLINE_DAILY_INVALID_PAYLOAD");
+        await commitVerifiedDailyCompletion(
+          newOnlyV2NativeQueues,
+          useAuthStore.getState().user?.id ?? null,
+          { scheduleId: variables.scheduleId, stepIndex: variables.stepIndex },
+          () => useAuthStore.getState().user?.id ?? null,
+        );
+        return { success: true, code: "OFFLINE_QUEUED" as const };
       }
       return dailyCourseApi.completeStep(variables);
     },
-    [addToQueue],
+    [],
   );
-  return useMutation({
-    mutationFn,
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["dailyCourse", "day", variables.scheduleId] });
-      queryClient.invalidateQueries({ queryKey: ["dailyCourse", "today"] });
-    },
-  });
+  // The mounted consumer invalidates only after owner/epoch/occurrence-attested result.
+  return useMutation({ mutationFn });
 }

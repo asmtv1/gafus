@@ -5,7 +5,7 @@ const recordEvent = vi.hoisted(() => vi.fn());
 const recordOutcome = vi.hoisted(() => vi.fn());
 const getReport = vi.hoisted(() => vi.fn());
 
-vi.mock("@gafus/core/services/mobileIntro", () => ({
+vi.mock("@gafus/mobile-intro-server", () => ({
   recordMobileIntroEvent: recordEvent,
   recordMobileIntroAuthOutcome: recordOutcome,
   getMobileIntroReport: getReport,

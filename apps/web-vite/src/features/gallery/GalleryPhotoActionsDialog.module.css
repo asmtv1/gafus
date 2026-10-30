@@ -1,0 +1,22 @@
+.trigger { width: 37px !important; min-height: 37px; padding: 0 !important; }
+.backdrop { position: fixed; inset: 0; z-index: 220; display: grid;
+  place-items: center; padding: 20px; background: rgba(16, 18, 15, .67); }
+.dialog { width: min(100%, 560px); max-height: 90vh; overflow-y: auto;
+  padding: clamp(20px, 3vw, 30px); border-radius: 20px;
+  background: #faf7ef; color: var(--text-primary, #352e2e);
+  box-shadow: 0 24px 76px rgba(0, 0, 0, .3); }
+.dialog h2 { margin: 0 0 22px; font-size: 23px; }
+.dialog :global(.gallery-photo-actions) { display: grid; gap: 18px; }
+.dialog :global(.gallery-photo-actions label) { display: grid; gap: 8px; }
+.dialog :global(.gallery-photo-actions textarea),
+.dialog :global(.gallery-photo-actions select) { box-sizing: border-box; width: 100%;
+  min-height: 46px; padding: 12px; border: 1px solid #aaa187; border-radius: 10px;
+  font: inherit; background: white; }
+.dialog :global(.gallery-photo-actions form) { display: grid; gap: 12px; }
+.dialog :global(.gallery-photo-actions button),.actions button {
+  display: inline-flex; width: auto !important; padding: 10px 16px !important;
+  align-items: center; justify-content: center; min-height: 43px; border-radius: 13px; }
+.actions { display: flex; justify-content: flex-end; padding-top: 22px; }
+@media (max-width: 600px) { .backdrop { padding: 10px; }
+  .dialog { width: 100%; max-height: 94vh; padding: 18px; }
+}

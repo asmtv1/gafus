@@ -1,0 +1,23 @@
+{
+  "kind": "AG3_G05_RESOURCE_DONE_V1",
+  "state": "DONE",
+  "resourceReleased": true,
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "vite",
+  "doneUTC": "2026-10-17T14:19:13.566792+00:00",
+  "sourceDonePath": "apps/mobile/docs/refactor/AG3_G05_REAL_MOBILE_HONO_PG_AG3_DONE_V13_20261017.json",
+  "sourceDoneSha256": "104de2e73cf327e544ba8969ce8062daefce1dd42cfd58e9a3794a04862f5f6e",
+  "AG1CleanupPath": "apps/api/g1-g05-mobile-consumer-v1/G05_AG3_V13_AG1_SQL_CLEANUP_RESULT.v1.json",
+  "AG1CleanupSha256": "e0bfb7cc434e3b3193493d7743dea387a6069aeddfb17a101cb2a9cc0a638ed2",
+  "AG1FinalPath": "apps/api/g1-g05-mobile-consumer-v1/G05_AG3_DONE_AG1_PHASE3_ZERO_CLEANUP.contract.v14.json",
+  "AG1FinalSha256": "9a248da2d670e8009a683d26a26fd9a6c13159803bd247d0631635cf28bc4808",
+  "zeroCounts": {
+    "User": 0,
+    "Pet": 0,
+    "Award": 0,
+    "PetCreateReceipt": 0
+  },
+  "listener4128": "STOPPED",
+  "syntheticOnly": true,
+  "note": "Canonical compatibility receipt from existing V13 DONE and independent AG1 cleanup; no rerun of AG3 or test fixture writes."
+}

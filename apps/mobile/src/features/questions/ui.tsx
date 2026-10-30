@@ -10,6 +10,10 @@ import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { COLORS, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { uploadQuestionPhoto, discardQuestionPhoto } from "@/shared/lib/api/questions";
+import { classifyQuestionNativePhoto } from "./photoSource";
+import { questionPhotoReadIdentity } from "./photoReadIdentity";
+import { questionPhotoTerminalNotice } from "./photoDisplay";
+import { reportClientError } from "@/shared/lib/tracer";
 import { questionAuthorProfileIdentifier } from "./profileLink";
 import {
   QUESTION_LIMITS,
@@ -197,7 +201,9 @@ export function QAuthor({
     </Pressable>
   );
 }
-export function QStatus({ question, compact = false }: { question: QuestionListItemDto; compact?: boolean }) {
+export function QStatus({
+  question, compact = false,
+}: {question:QuestionListItemDto;compact?:boolean}) {
   return (
     <View style={[st.row, compact && st.listTags]}>
       <Text
@@ -227,10 +233,24 @@ export function QStatus({ question, compact = false }: { question: QuestionListI
     </View>
   );
 }
-export function QPhotos({ photos }: { photos: QuestionPhotoDto[] }) {
+export function QPhotos({
+  photos,onRetry,
+}: { photos: QuestionPhotoDto[]; onRetry?:()=>void }) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [failed,setFailed] = useState<string[]>([]);
+  const [viewerFailed,setViewerFailed] = useState(false);
+  const [s3Images,setS3Images] = useState<string[]>([]);
   const { width } = useWindowDimensions();
-  const closeViewer = () => setViewerIndex(null);
+  const terminalNotice=questionPhotoTerminalNotice(photos);
+  const transientFailure=photos.some(p=>failed.includes(questionPhotoReadIdentity(p)));
+  const closeViewer = () => {setViewerIndex(null);setViewerFailed(false);};
+  const retryPhoto=()=>{
+    setFailed([]);
+    setS3Images([]);
+    setViewerFailed(false);
+    closeViewer();
+    onRetry?.(); // Fetch a fresh authorized GET, not the expired signed URL.
+  };
 
   return (
     <>
@@ -238,14 +258,47 @@ export function QPhotos({ photos }: { photos: QuestionPhotoDto[] }) {
         {photos.map((p, index) => (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Открыть фото ${index + 1} из ${photos.length}`}
+            accessibilityLabel={failed.includes(questionPhotoReadIdentity(p))
+              ? "Повторить загрузку фото" : `Открыть фото ${index + 1} из ${photos.length}`}
             key={p.id}
-            onPress={() => setViewerIndex(index)}
+            disabled={!p.url || (failed.includes(questionPhotoReadIdentity(p)) && !onRetry)}
+            onPress={() => {
+              if(failed.includes(questionPhotoReadIdentity(p)))retryPhoto();
+              else if(p.url){setViewerFailed(false);setViewerIndex(index);}
+            }}
           >
-            <Image source={{ uri: p.url }} contentFit="cover" style={st.photo} />
+            {p.url && !failed.includes(questionPhotoReadIdentity(p)) ? (
+              <Image source={{ uri: s3Images.includes(questionPhotoReadIdentity(p)) ? (p.fallbackSmallUrl ?? p.fallbackUrl ?? p.smallUrl ?? p.url) : (p.smallUrl ?? p.url) }}
+                contentFit="cover" style={st.photo} cachePolicy="disk"
+                recyclingKey={questionPhotoReadIdentity(p)}
+                onError={()=>{
+                  const key=questionPhotoReadIdentity(p);
+                  if(!s3Images.includes(key) && (p.fallbackSmallUrl || p.fallbackUrl)) {
+                    setS3Images(items=>items.includes(key)?items:[...items,key]);
+                    return;
+                  }
+                  setFailed(items=>items.includes(key)?items:[...items,key]);
+                }}
+              />
+            ) : (
+              <View style={[st.photo,{alignItems:"center",justifyContent:"center"}]}>
+                <Text style={st.meta}>
+                  {failed.includes(questionPhotoReadIdentity(p))?"Фото недоступно · Повторить":
+                    p.status==="UNAVAILABLE"?"Фото недоступно":
+                    p.status==="FAILED"?"Ошибка обработки фото":"Обрабатываем фото…"}
+                </Text>
+              </View>
+            )}
           </Pressable>
         ))}
       </View>
+      {terminalNotice && <Text accessibilityRole="alert" style={st.error}>{terminalNotice}</Text>}
+      {transientFailure && onRetry && (
+        <Pressable accessibilityRole="button" accessibilityLabel="Повторить загрузку фотографий"
+          onPress={retryPhoto} style={{alignSelf:"flex-start",paddingVertical:10,paddingHorizontal:6}}>
+          <Text style={{color:COLORS.primary}}>Некоторые фотографии не загрузились · Повторить загрузку</Text>
+        </Pressable>
+      )}
       {viewerIndex !== null && (
         <Modal
           visible
@@ -280,14 +333,28 @@ export function QPhotos({ photos }: { photos: QuestionPhotoDto[] }) {
               keyExtractor={(photo) => photo.id}
               getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
               onMomentumScrollEnd={(event) => {
+                setViewerFailed(false);
                 setViewerIndex(
-                  Math.max(0, Math.min(photos.length - 1, Math.round(event.nativeEvent.contentOffset.x / width))),
+                  Math.max(0, Math.min(
+                    photos.length - 1,
+                    Math.round(event.nativeEvent.contentOffset.x / width),
+                  )),
                 );
               }}
               renderItem={({ item, index }) => (
                 <View style={[st.questionPhotoViewerPage, { width }]}>
                   <Image
-                    source={{ uri: item.url }}
+                    source={{ uri: s3Images.includes(questionPhotoReadIdentity(item)) ? (item.fallbackUrl ?? item.url) : item.url }}
+                    cachePolicy="disk"
+                    recyclingKey={questionPhotoReadIdentity(item)+":"+item.url}
+                    onError={()=>{
+                      const key=questionPhotoReadIdentity(item);
+                      if (!s3Images.includes(key) && item.fallbackUrl) {
+                        setS3Images(items=>items.includes(key)?items:[...items,key]);
+                        return;
+                      }
+                      setViewerFailed(true);
+                    }}
                     contentFit="contain"
                     style={st.questionPhotoViewerImage}
                     accessibilityLabel={`Фото ${index + 1} из ${photos.length}`}
@@ -295,6 +362,14 @@ export function QPhotos({ photos }: { photos: QuestionPhotoDto[] }) {
                 </View>
               )}
             />
+              {viewerFailed && (
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel="Повторить загрузку фотографии"
+                  onPress={retryPhoto}
+                  style={{alignSelf:"center",padding:12,marginBottom:12}}>
+                  <Text style={{color:COLORS.primary}}>Фото недоступно · Повторить</Text>
+                </Pressable>
+              )}
             </SafeAreaView>
           </SafeAreaProvider>
         </Modal>
@@ -346,6 +421,7 @@ export function QPhotoPicker({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [progress, setProgress] = useState<number | null>(null);
   const pick = async () => {
     setError("");
     setBusy(true);
@@ -369,18 +445,30 @@ export function QPhotoPicker({
       }
       const next = [...photos];
       for (const asset of result.assets) {
-        const image = await manipulateAsync(
-          asset.uri,
-          asset.width > 1600 ? [{ resize: { width: 1600 } }] : [],
-          { compress: 0.85, format: SaveFormat.JPEG },
-        );
-        next.push(await uploadQuestionPhoto(image.uri));
+        const classification=classifyQuestionNativePhoto(asset);
+        let uri=asset.uri;
+        let mime:"image/jpeg"|"image/png"|"image/webp";
+        if(classification==="convert-heic"){
+          // iOS-only HEIC import. The worker never accepts HEIC and the
+          // regular JPEG/PNG/WebP originals are not re-encoded or resized.
+          const converted=await manipulateAsync(asset.uri,[],
+            {compress:1,format:SaveFormat.JPEG});
+          uri=converted.uri;
+          mime="image/jpeg";
+        }else{
+          mime=classification;
+        }
+        setProgress(0);
+        next.push(await uploadQuestionPhoto(uri,mime,p=>setProgress(p)));
         onChange([...next]);
+        setProgress(null);
       }
     } catch (e) {
+      reportClientError(e,{issueKey:"Questions",keys:{operation:"photo_upload"}});
       setError(e instanceof Error ? e.message : "Не удалось загрузить фото");
     } finally {
       setBusy(false);
+      setProgress(null);
       onBusy(false);
     }
   };
@@ -397,8 +485,25 @@ export function QPhotoPicker({
               hitSlop={compact ? 8 : undefined}
               style={[st.removePhoto, compact && st.compactRemovePhoto]}
               onPress={() => {
-                onChange(photos.filter((x) => x.id !== p.id));
-                void discardQuestionPhoto(p.id).catch(() => undefined);
+                const remove=async()=>{
+                  const remote=p.url.startsWith("https://") || p.url.startsWith("http://");
+                  setBusy(true);
+                  onBusy(true);
+                  setError("");
+                  try{
+                    // Existing attached photos are unbound atomically when
+                    // the editor saves; a draft upload needs explicit DELETE.
+                    if(!remote)await discardQuestionPhoto(p.id);
+                    onChange(photos.filter(x=>x.id!==p.id));
+                  }catch(e){
+                    reportClientError(e,{issueKey:"Questions",keys:{operation:"photo_remove"}});
+                    setError(e instanceof Error?e.message:"Не удалось удалить фото");
+                  }finally{
+                    setBusy(false);
+                    onBusy(false);
+                  }
+                };
+                void remove();
               }}
             >
               <MaterialCommunityIcons name="close" size={compact ? 16 : 22} color={COLORS.text} />
@@ -421,15 +526,19 @@ export function QPhotoPicker({
             ]}
           >
             <MaterialCommunityIcons name="image-plus-outline" size={19} color={COLORS.primary} />
-            <Text style={st.compactPhotoText}>{busy ? "Загрузка…" : "Фото"}</Text>
-            <Text style={st.compactPhotoHint}>{photos.length}/{QUESTION_LIMITS.photos} · 10 МБ</Text>
+            <Text style={st.compactPhotoText}>{busy ? (progress===null ? "Подготовка фото…" :
+              progress>=100 ? "Обработка фото…" : "Загрузка "+progress+"%") : "Фото"}</Text>
+            <Text style={st.compactPhotoHint}>
+              {photos.length}/{QUESTION_LIMITS.photos} · 10 МБ
+            </Text>
           </Pressable>
           {trailingAction}
         </View>
       ) : (
         <>
           <QButton
-            label={busy ? "Загрузка фото…" : "Прикрепить фото"}
+            label={busy ? (progress===null?"Подготовка фото…" :
+              progress>=100?"Обработка фото…":"Загрузка "+progress+"%") : "Прикрепить фото"}
             secondary
             icon="image-plus"
             disabled={busy || photos.length >= QUESTION_LIMITS.photos}
@@ -540,7 +649,10 @@ export const st = StyleSheet.create({
   listTag: { paddingHorizontal: 0, paddingVertical: 2, fontSize: 11, lineHeight: 17 },
   listAuthor: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 32 },
   listAuthorInfo: { flex: 1, minWidth: 0, gap: 1 },
-  listName: { fontFamily: FONTS.montserratMedium, fontSize: 12, lineHeight: 17, color: COLORS.text },
+  listName: {
+    fontFamily: FONTS.montserratMedium, fontSize: 12,
+    lineHeight: 17, color: COLORS.text,
+  },
   listMeta: { fontFamily: FONTS.montserrat, fontSize: 11, lineHeight: 16, color: "#5b564b" },
   title: { fontFamily: FONTS.montserratBold, fontSize: 22, lineHeight: 31, color: COLORS.text },
   body: { fontFamily: FONTS.montserrat, fontSize: 15, lineHeight: 25, color: COLORS.text },

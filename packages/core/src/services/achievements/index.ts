@@ -1,4 +1,2 @@
-export * from "./datesService";
-export * from "./calculateStreaks";
-export * from "./calculateAchievements";
-export * from "./statsService";
+/** Legacy Core public entry point; domain implementation: @gafus/achievements-server. */
+export * from "@gafus/achievements-server";

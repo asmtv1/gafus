@@ -125,7 +125,7 @@ export async function listAllTrainersForAdmin(): Promise<
 }
 
 /**
- * Кто может править расписание: тренер — только себя; ADMIN/MODERATOR — любого тренера (нужен `requestedTrainerUserId`).
+ * Кто может править расписание: тренер — только себя; ADMIN — любого тренера (нужен `requestedTrainerUserId`).
  */
 export async function resolveTargetTrainerUserIdForStaff(
   actor: { id: string; role: AuthRole },
@@ -137,7 +137,7 @@ export async function resolveTargetTrainerUserIdForStaff(
     }
     return actor.id;
   }
-  if (actor.role === "ADMIN" || actor.role === "MODERATOR") {
+  if (actor.role === "ADMIN") {
     if (!requestedTrainerUserId?.trim()) {
       throw new ConsultationForbiddenError("Укажите тренера (параметр trainerUserId)");
     }
