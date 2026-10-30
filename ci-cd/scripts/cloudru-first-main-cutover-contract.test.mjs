@@ -31,6 +31,22 @@ test('first main push always stages new API, switches existing Cloud Jobs, then 
   assert(!flow.includes('GAFUS_REFACTOR_PRODUCTION_CUTOVER'),'LEGACY_MAIN_GATE_MUST_NOT_SKIP_V2');
 });
 
+test('cutover preflight can run Node 24 without installing pnpm; release gates remain blocking',()=>{
+ const graph=byJobs(ci);
+ const steps=graph['cutover-preflight'].steps;
+ const setup=steps.find(x=>x.uses==='actions/setup-node@v5');
+ assert(setup,'CUTOVER_MISSING_NODE_SETUP');
+ assert.equal(setup.with['node-version'],'24');
+ assert.equal(setup.with['package-manager-cache'],false,
+  'CUTOVER_SETUP_NODE_MUST_NOT_AUTO_CACHE_UNINSTALLED_PNPM');
+ const readiness=steps.find(x=>x.name==='Fail closed unless Chat2 and functional QA are release-ready');
+ assert.match(readiness?.run ?? '',/check-chat2-prod-boundary\.mjs --candidate/);
+ assert.match(readiness?.env?.CHAT2_API_ENABLED ?? '',/vars\.CHAT2_API_ENABLED/);
+ const beget=graph['beget-readonly-preflight'].steps;
+ assert(beget.some(x=>x.run?.includes('beget-release-readiness.mjs --check')),
+  'BEGET_PRODUCTION_APPROVAL_GATE_MUST_NOT_BE_SKIPPED');
+});
+
 test('no Cloud.ru Docker build, push, phantom Job, old Gallery image or CDN/S3 mutation in release workflows',()=>{
  for(const flow of [ci,manual,jobs,activation]){
   assert.doesNotMatch(flow,/cloudru-build-media-images:|publish-cloudru-image\.sh|docker\/build-push-action@v6.*gafus\.cr\.cloud\.ru/);

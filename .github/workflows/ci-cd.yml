@@ -384,6 +384,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+          # Preflight runs only Node scripts; pnpm is not installed in this job.
+          # setup-node v5 otherwise attempts automatic pnpm caching and fails.
+          package-manager-cache: false
       - name: Fail closed unless Chat2 and functional QA are release-ready
         env:
           CHAT2_LEGACY_RETIRE_ENABLED: ${{ vars.CHAT2_LEGACY_RETIRE_ENABLED }}
