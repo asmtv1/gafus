@@ -88,10 +88,15 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
       status: "processing", attempts: 1, attemptToken: token,
       leaseUntil: new Date(at.getTime() + 60_000),
     } });
-    const base = `posts/${owner}/${postId}/attachments/${reserved.mediaId}`;
+    // Feed Media V2 writes three immutable renditions under the media ID.
+    // Never weaken the worker's strict key validation to accept legacy posts/*.
+    const base = `media/v2/${reserved.mediaId}/v1`;
     const worker = createFeedStorageJobs({ db: db!, now: clock });
     expect(await worker.complete(job.id, token, {
-      width: 300, height: 200, thumbKey: `${base}/thumb.webp`, fullKey: `${base}/full.webp`,
+      width: 300, height: 200,
+      smallKey: `${base}/image/s.webp`,
+      thumbKey: `${base}/image/m.webp`,
+      fullKey: `${base}/image/l.webp`,
     })).toEqual({ accepted: true });
     expect((await feed.getUpload(owner, reserved.uploadId)).status).toBe("ready");
     expect((await feed.reserveUpload(owner, postId, uploadInput)).mediaId).toBe(reserved.mediaId);
@@ -100,7 +105,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
         { text: "Собака", imageMediaId: reserved.mediaId }, { text: "Кошка" },
       ],
     });
-    expect(poll.options[0]?.imageUrl).toContain(`${base}/thumb.webp`);
+    expect(poll.options[0]?.imageUrl).toContain(`${base}/image/m.webp`);
     await feed.saveRevision(owner, postId, {
       clientRequestId: randomUUID(), expectedVersion: 0, text: "", attachmentIds: [], pollOnly: true,
     });
@@ -110,13 +115,13 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
       status: "published", hasPoll: true, text: "Опрос", attachments: [],
     });
     const remotePoll = await polls().get(reader, postId);
-    expect(remotePoll.options[0]?.imageUrl).toContain(`${base}/thumb.webp`);
+    expect(remotePoll.options[0]?.imageUrl).toContain(`${base}/image/m.webp`);
     expect((await polls().vote(reader, postId, { optionIds: [remotePoll.options[0]!.id] })).myOptionIds)
       .toEqual([remotePoll.options[0]!.id]);
     await feed.remove(owner, postId);
     expect((await db!.feedStorageJob.findMany({
       where: { postId, kind: "delete_keys" }, select: { sourceKeys: true },
-    })).some(item => item.sourceKeys.includes(`${base}/thumb.webp`))).toBe(true);
+    })).some(item => item.sourceKeys.includes(`${base}/image/m.webp`))).toBe(true);
     await expect(polls().get(reader, postId)).rejects.toMatchObject({ status: 404 });
     await expect(feed.fallbackSource(reader, reserved.mediaId, "thumb"))
       .rejects.toMatchObject({ status: 404 });

@@ -13,7 +13,7 @@ const legacyAdapters = [
 // direct persistence until their transport contracts are redesigned; no additional
 // module can start importing the database without failing CI.
 const permittedInfrastructure = new Set([
-  "packages/auth/src/auth.ts",           // NextAuth PrismaAdapter
+  "packages/mailer/src/send-transactional-mail.ts", // persisted provider acceptance readback
   "packages/mailer/src/outbox.ts",       // encrypted provider retry queue and lease journal
   "packages/mailer/src/resend.ts",       // provider send-attempt journal
   "packages/mailer/src/webhook.ts",      // verified provider event journal
