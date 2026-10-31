@@ -14,7 +14,7 @@ if (!['--plan', '--run'].includes(mode) || process.argv.length > 3)
   throw Error('UNSUPPORTED_ACCEPTANCE_ACTION');
 const scopes = [
   { name: 'gallery', bucket: 'gafus-gallery-private',
-    host: 'mepsuduyokabib.begetcdn.cloud', serviceId: '0a8e97d5-3a65-4e90-99a6-c7f61131a461',
+    host: 'mepsuduyokabib.begetcdn.cloud', serviceId: '10530e64-21b7-4352-8366-806c79c2f1b7',
     key: id => `albums/beget-probe-${id}/beget-probe-${id}/photos/${id}/full.webp` },
   { name: 'feed', bucket: 'gafus-feed-private',
     host: 'garaquachegasourn.begetcdn.cloud', serviceId: 'becd9e5d-4fa8-47da-878c-9b80ded74e71',
