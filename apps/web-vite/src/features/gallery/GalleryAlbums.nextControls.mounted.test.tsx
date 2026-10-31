@@ -16,6 +16,8 @@ const page=<T,>(items:T[]):GalleryPage<T>=>({items,enabled:true,nextCursor:null,
 let host:HTMLDivElement,root:Root,client:QueryClient;
 let commands:GalleryAlbumCommands;
 let checkCover:ReturnType<typeof vi.fn<(id:string,ownerId:string,user:string,photoId:string|null)=>Promise<boolean>>>;
+let photoRead:(id:string,cursor:string|null)=>Promise<GalleryPage<AlbumPhoto>>;
+let albumRead:(id:string,viewerId:string,ownerUsername:string)=>Promise<AlbumSummary>;
 const flush=async()=>{await act(async()=>{await new Promise(resolve=>setTimeout(resolve,25));});};
 const button=(label:string)=>[...host.querySelectorAll<HTMLButtonElement>("button")].find(
   item=>item.textContent?.trim()===label);
@@ -26,8 +28,8 @@ const click=async(label:string)=>{
 async function mount(){
   await act(async()=>root.render(<QueryClientProvider client={client}>
     <GalleryAlbums userId={me} username={username} manage
-      listAlbums={async()=>page([album])} getAlbum={async()=>({...album})}
-      getPhotos={async()=>page([photo])} commands={commands} checkCover={checkCover}/>
+      listAlbums={async()=>page([album])} getAlbum={(id,viewerId,name)=>albumRead(id,viewerId,name)}
+      getPhotos={(id,cursor)=>photoRead(id,cursor)} commands={commands} checkCover={checkCover}/>
   </QueryClientProvider>));
   await flush();
   await act(async()=>host.querySelector<HTMLButtonElement>(
@@ -41,6 +43,8 @@ beforeEach(()=>{
     description:null,isVisible:true,canEdit:true,photoCount:1,coverPhotoId:null,
     coverThumbUrl:null,urlsExpireAt:future};
   checkCover=vi.fn(async(_id,_owner,_user,id)=>album.coverPhotoId===id);
+  photoRead=async()=>page([photo]);
+  albumRead=async()=>({...album});
   commands={create:vi.fn(),update:vi.fn(),remove:vi.fn(),
     updateCaption:vi.fn(),removePhoto:vi.fn(),movePhoto:vi.fn(),
     setCover:vi.fn(async(_id,id)=>{album={...album,coverPhotoId:id};return {...album};})};
@@ -66,6 +70,61 @@ describe("Next owner gallery status polling",()=>{
       urlsExpireAt:null,status:"moving" as const}])])).toBe(3000);
     expect(nextMediaRefresh([page([{...photo,thumbUrl:null,fullUrl:null,
       urlsExpireAt:null,status:"ready" as const}])])).toBe(false);
+  });
+});
+describe("Owner gallery background refresh behavior",()=>{
+  it("keeps an open photo actions dialog mounted while a background GET is in flight",async()=>{
+    await mount();
+    const trigger=host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Управление фотографией: Мой пёс"]');
+    expect(trigger).not.toBeNull();
+    await act(async()=>trigger?.click());
+    const dialog=host.querySelector('[role="dialog"][aria-label="Фотография"]');
+    expect(dialog).not.toBeNull();
+    let resolveRead:(value:GalleryPage<AlbumPhoto>)=>void=vi.fn();
+    photoRead=()=>new Promise(resolve=>{resolveRead=resolve;});
+    await act(async()=>{
+      void client.refetchQueries({queryKey:["gallery","photos",me,username,"album_01"]});
+    });
+    expect(host.querySelector('[role="dialog"][aria-label="Фотография"]')).toBe(dialog);
+    expect(trigger?.isConnected).toBe(true);
+    await act(async()=>resolveRead(page([photo])));
+    await flush();
+    expect(host.querySelector('[role="dialog"][aria-label="Фотография"]')).toBe(dialog);
+  });
+  it("preserves an open photo dialog during a background album metadata GET",async()=>{
+    await mount();
+    const trigger=host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Управление фотографией: Мой пёс"]');
+    await act(async()=>trigger?.click());
+    const dialog=host.querySelector('[role="dialog"][aria-label="Фотография"]');
+    expect(dialog).not.toBeNull();
+    let resolveAlbum:(value:AlbumSummary)=>void=vi.fn();
+    albumRead=()=>new Promise(resolve=>{resolveAlbum=resolve;});
+    await act(async()=>{
+      void client.refetchQueries({queryKey:["gallery","album",me,username,"album_01"]});
+    });
+    expect(host.querySelector('[role="dialog"][aria-label="Фотография"]')).toBe(dialog);
+    await act(async()=>resolveAlbum({...album}));
+    await flush();
+    expect(host.querySelector('[role="dialog"][aria-label="Фотография"]')).toBe(dialog);
+  });
+  it("revokes the photo dialog when a fresh album GET denies owner access",async()=>{
+    await mount();
+    const trigger=host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Управление фотографией: Мой пёс"]');
+    await act(async()=>trigger?.click());
+    albumRead=async()=>{throw new Error("REVOKED");};
+    await act(async()=>{
+      await client.refetchQueries({queryKey:["gallery","album",me,username,"album_01"]});
+    });
+    await flush();
+    expect(host.querySelector('[role="dialog"][aria-label="Фотография"]')).toBeNull();
+    expect(host.textContent).toContain("Альбом недоступен");
+  });
+  it("backs off expired signed links instead of polling an unchanged API result every second",()=>{
+    expect(nextMediaRefresh([page([{...photo,
+      urlsExpireAt:new Date(Date.now()-60_000).toISOString()}])])).toBeGreaterThanOrEqual(30_000);
   });
 });
 describe("Next owner album controls",()=>{

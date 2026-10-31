@@ -5,7 +5,7 @@ import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
 import {beforeEach,afterEach,describe,it,expect,vi} from "vitest";
 import {ApiError} from "../../shared/api/client";
 import {GalleryAlbums} from "./GalleryAlbums";
-import {AlbumDelete,AlbumEditor} from "./GalleryManage";
+import {AlbumDelete,AlbumEditor,PhotoManagement} from "./GalleryManage";
 import type {AlbumSummary,AlbumPhoto,GalleryAlbumCommands,GalleryPage} from "./galleryApi";
 
 const owner="owner_A",username="ownerA";
@@ -49,6 +49,40 @@ async function mount(node:React.ReactNode){
  await act(async()=>root.render(<QueryClientProvider client={cache}>{node}</QueryClientProvider>));
  await flush();
 }
+describe("GALLERY owner photo deletion confirmation",()=>{
+ it("deletes a preexisting ready photo exactly once and requires a scoped 404 readback",async()=>{
+  const commands=writes(), changed=vi.fn();
+  const prior:AlbumPhoto={id:"photo_existing",albumId:album.id,caption:"Ранее загружено",
+    status:"ready",thumbUrl:null,fullUrl:null,urlsExpireAt:null,width:900,height:600};
+  vi.mocked(commands.removePhoto).mockResolvedValue({id:prior.id});
+  const ownerRead=vi.fn().mockRejectedValue(new ApiError(404,"deleted","NOT_FOUND"));
+  await mount(<PhotoManagement album={{...album,photoCount:1}} photo={prior}
+    commands={commands} getPhoto={ownerRead} onChanged={changed}/>);
+  await click("Удалить фото");
+  expect(commands.removePhoto).not.toHaveBeenCalled();
+  await click("Да, удалить фото");
+  await flush();
+  expect(commands.removePhoto).toHaveBeenCalledExactlyOnceWith(prior.id);
+  expect(ownerRead).toHaveBeenCalledExactlyOnceWith(prior.id,album.id);
+  expect(changed).toHaveBeenCalledTimes(1);
+  expect(host.textContent).toContain("Фото удалено");
+ });
+ it("does not claim deletion if the owner readback still resolves",async()=>{
+  const commands=writes(), changed=vi.fn();
+  const prior:AlbumPhoto={id:"photo_existing",albumId:album.id,caption:null,
+    status:"ready",thumbUrl:null,fullUrl:null,urlsExpireAt:null,width:null,height:null};
+  vi.mocked(commands.removePhoto).mockResolvedValue({id:prior.id});
+  const ownerRead=vi.fn().mockResolvedValue(prior);
+  await mount(<PhotoManagement album={{...album,photoCount:1}} photo={prior}
+    commands={commands} getPhoto={ownerRead} onChanged={changed}/>);
+  await click("Удалить фото");
+  await click("Да, удалить фото");
+  await flush();
+  expect(commands.removePhoto).toHaveBeenCalledTimes(1);
+  expect(changed).not.toHaveBeenCalled();
+  expect(host.textContent).toContain("Результат неизвестен");
+ });
+});
 describe("GALLERY owner real list→create/update→server readback",()=>{
  it("disabled real owner gallery denies create UI and never sends write",async()=>{
   const commands=writes();
