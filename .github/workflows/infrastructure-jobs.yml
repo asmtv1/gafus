@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ inputs.operation == 'beget-readonly-diagnostic' && 'gafus-beget-readonly-diagnostic' || 'gafus-production-deploy' }}
+  group: ${{ inputs.operation == 'beget-readonly-diagnostic' && 'gafus-beget-readonly-diagnostic' || inputs.operation == 'cloudru-origin-diagnostic' && 'gafus-cloudru-readonly-origin' || 'gafus-production-deploy' }}
   cancel-in-progress: false
 
 jobs:
