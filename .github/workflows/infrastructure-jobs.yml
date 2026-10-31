@@ -10,7 +10,7 @@ on:
         type: choice
         required: true
         default: plan
-        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic]
+        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, beget-gallery-inspect]
       confirmation:
         description: 'For apply: UPDATE_11_EXISTING_JOBS; for image publish: PUBLISH_MEDIA_IMAGES'
         type: string
@@ -24,6 +24,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  beget-gallery-inspect:
+    if: github.ref == 'refs/heads/chore/gallery-cdn-307-migration' && inputs.operation == 'beget-gallery-inspect'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    env:
+      BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Inspect Beget CDN config choices without mutations
+        run: node infra/cloudru/beget-gallery-resource-inspect.mjs
+
   beget-readonly-diagnostic:
     if: github.ref == 'refs/heads/main' && inputs.operation == 'beget-readonly-diagnostic'
     runs-on: ubuntu-latest

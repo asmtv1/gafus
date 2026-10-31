@@ -1,4 +1,4 @@
-export { signGalleryCloudruFallback } from './fallback.js';
+export { signGalleryCloudruFallback, signGalleryCloudruCdnOrigin } from './fallback.js';
 import type { GalleryStoragePort } from '@gafus/core/services/gallery';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { GetObjectCommand } from '@aws-sdk/client-s3';

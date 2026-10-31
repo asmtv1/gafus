@@ -44,21 +44,9 @@ export function cloudruMediaManifests(projectId, revision) {
         "GALLERY_CDN_EDGE_CACHE_HIT_VERIFIED",
       ],
     },
-    {
-      name: "gafus-feed-origin",
-      kind: "origin",
-      imageRole: "feed-origin",
-      // Keep the HTTPS origin responsive within the CDN's ~5s first-byte limit.
-      // Feed performs bounded S3 reads and MPEG-TS delivery; 0.2 vCPU is fragile.
-      cpu: "0.5",
-      envNames: [
-        ...feedCommon,
-        "FEED_ORIGIN_SECRET",
-        "FEED_CDN_SECRET",
-        "FEED_CDN_EDGE_TOKEN_VERIFIED",
-        "FEED_CDN_EDGE_CACHE_HIT_VERIFIED",
-      ],
-    },
+    // Feed Media V2 uses public immutable Cloud.ru S3 finals via Beget CDN.
+    // No long-running feed origin belongs in the desired Container Apps state.
+    // Preserve the gallery origin until a PRIVATE S3 CDN auth replacement is proven.
   ].map((spec) => ({
     name: spec.name,
     projectId,
@@ -99,6 +87,7 @@ export function cloudruMediaManifests(projectId, revision) {
         "GALLERY_ENABLED",
         "GALLERY_INTERNAL_BASE_URL",
         "GALLERY_INTERNAL_HMAC_SECRET",
+        "GALLERY_CDN_CACHEABLE_FINAL_ENABLED",
       ],
     },
     {

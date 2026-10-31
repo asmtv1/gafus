@@ -385,7 +385,8 @@ export async function startAccountCdnPurge(
   // Legacy edge purge, if separately verified, is a historical erasure
   // obligation, never a fallback route for user media delivery.
   const cdnHost = process.env[`${name}_CDN_BASE_URL`] ?? "";
-  const knownBeget = scope === "gallery" ? "https://mepsuduyokabib.begetcdn.cloud" :
+  const knownBeget = scope === "gallery" ? (process.env.GALLERY_CDN_REDIRECT_ENABLED === "true"
+      ? "https://dikinuneceswe.begetcdn.cloud" : "https://mepsuduyokabib.begetcdn.cloud") :
     scope === "feed" ? "https://garaquachegasourn.begetcdn.cloud" : "";
   const provider = process.env[`${name}_CDN_PROVIDER`] ?? "beget";
   if (cloudru && knownBeget && (provider !== "beget" || cdnHost !== knownBeget))

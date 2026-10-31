@@ -27,3 +27,32 @@ describe('Cloud.ru gallery fallback presigning', () => {
       .rejects.toThrow('GALLERY_FALLBACK_DISABLED');
   });
 });
+
+describe('private CDN origin presigning', () => {
+  const active = { ...env, GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'true',
+    GALLERY_CDN_REDIRECT_ORIGIN_SECRET: 'V'.repeat(48),
+    GALLERY_CDN_REDIRECT_SIGNING_SECRET: 'R'.repeat(32) };
+  it('signs GET/HEAD for only private finalized images, 60s TTL', async () => {
+    const { signGalleryCloudruCdnOrigin } = await import('./fallback.js');
+    for (const path of [key, 'gallery/owner/media/p/v2/thumb.webp',
+      'users/u/pets/p/vet-visits/v/a/thumb.webp']) {
+      for (const method of ['GET','HEAD'] as const) {
+        const url = new URL(await signGalleryCloudruCdnOrigin(path,method,active));
+        expect(url.hostname).toBe('s3.cloud.ru');
+        expect(url.pathname).toBe(`/gafus-gallery-private/${path}`);
+        expect(url.searchParams.get('X-Amz-Expires')).toBe('60');
+        expect(url.searchParams.get('X-Amz-Signature')).toMatch(/^[a-f0-9]{64}$/);
+      }
+    }
+  });
+  it('refuses disabled feature, public bucket, originals and arbitrary source',async()=>{
+    const { signGalleryCloudruCdnOrigin } = await import('./fallback.js');
+    for (const path of ['albums/o/a/incoming/id/source.jpg',
+      'users/u/pets/p/vet-visits/v/a/original.pdf'])
+      await expect(signGalleryCloudruCdnOrigin(path,'GET',active)).rejects.toThrow();
+    for (const overrides of [
+      {GALLERY_CDN_ORIGIN_ROUTE_ENABLED:'false'}, {GALLERY_BUCKET:'other-bucket'},
+      {GALLERY_CDN_EDGE_TOKEN_VERIFIED:'false'}, {GALLERY_CDN_REDIRECT_ORIGIN_SECRET:'weak'},
+    ]) await expect(signGalleryCloudruCdnOrigin(key,'GET',{...active,...overrides})).rejects.toThrow();
+  });
+});

@@ -147,3 +147,44 @@ describe("Beget exact-path purge", () => {
     }
   });
 });
+
+describe("Gallery old/new CDN dual purge during secure redirect migration", () => {
+  it("purges both services independently, checks both edge hosts and remains rollback-safe", async () => {
+    enabled();
+    Object.assign(process.env, {
+      GALLERY_CDN_PURGE_DUAL_ENABLED: "true",
+      GALLERY_BEGET_CDN_SERVICE_ID: "10530e64-21b7-4352-8366-806c79c2f1b7",
+      GALLERY_CDN_BASE_URL: "https://dikinuneceswe.begetcdn.cloud",
+      GALLERY_CDN_SECRET: "O".repeat(32),
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: "N".repeat(32),
+      BEGET_CDN_PURGE_PROPAGATION_VERIFIED: "true",
+    });
+    const api = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({cdn:{id:"accepted"}}));
+    vi.stubGlobal("fetch", api);
+    const checkpoint = vi.fn();
+    const paths = ["/albums/a/b/photos/p/thumb.webp"];
+    const ops = await beginBegetCdnPurge("gallery", paths, [], checkpoint);
+    expect(ops).toHaveLength(2);
+    expect(api).toHaveBeenCalledTimes(2);
+    expect(checkpoint).toHaveBeenCalledTimes(2);
+    expect(api.mock.calls.map(c=>String(c[0]))).toEqual(expect.arrayContaining([
+      expect.stringContaining("/0a8e97d5-3a65-4e90-99a6-c7f61131a461/"),
+      expect.stringContaining("/10530e64-21b7-4352-8366-806c79c2f1b7/"),
+    ]));
+    expect(await beginBegetCdnPurge("gallery", paths, ops)).toEqual(ops);
+    expect(api).toHaveBeenCalledTimes(2);
+    const edge = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => new Response(null,{status:404}));
+    for (const receipt of ops)
+      expect(await begetCdnPurgeDone(receipt,Date.now()+400000,{...process.env},edge)).toBe(true);
+    const urls = edge.mock.calls.map(c=>String(c[0]));
+    expect(urls.some(url=>url.includes("mepsuduyokabib.begetcdn.cloud"))).toBe(true);
+    expect(urls.some(url=>url.includes("dikinuneceswe.begetcdn.cloud"))).toBe(true);
+    const old = { ...process.env, GALLERY_BEGET_CDN_SERVICE_ID:"0a8e97d5-3a65-4e90-99a6-c7f61131a461",
+      GALLERY_CDN_BASE_URL:"https://mepsuduyokabib.begetcdn.cloud" };
+    expect(await begetCdnPurgeDone(ops[1]!,Date.now()+400000,old,edge)).toBe(true);
+    await expect(begetCdnPurgeDone(ops[1]!,Date.now()+400000,
+      {...old,GALLERY_CDN_PURGE_DUAL_ENABLED:"false"},edge)).rejects.toThrow("BEGET_CDN_UNSAFE_OPERATION");
+    edge.mockReset().mockResolvedValue(new Response(null,{status:410}));
+    expect(await begetCdnPurgeDone(ops[0]!,Date.now()+400000,old,edge)).toBe(false);
+  });
+});

@@ -110,6 +110,8 @@ test("Only reviewed Cloud.ru images and immutable SHA tags are allowed", () => {
     ["feed", "worker", "../Dockerfile", revision],
     ["feed", "worker", "Dockerfile", "latest"],
     ["api", "worker", "Dockerfile", revision],
+    // A retired, unnecessary always-on origin must not be republished.
+    ["feed", "origin", "Dockerfile.origin", revision],
   ];
   for (const args of invalid) {
     const dir = mkdtempSync(join(scriptsDir, ".cloudru-publish-test-"));

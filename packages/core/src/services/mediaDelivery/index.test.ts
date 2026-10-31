@@ -19,6 +19,16 @@ describe('CDN fail-closed transport fallback policy', () => {
       expect(fetcher).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ method: 'HEAD' }));
     }
   });
+  it('recognizes only signed Gallery V2 media on the migrated Beget CDN', () => {
+    const path = '/gallery/owner/media/image/v2/thumb.webp';
+    const token = `md5(${'A'.repeat(22)},1999999999)`;
+    const url = `https://dikinuneceswe.begetcdn.cloud/${token}${path}`;
+    expect(mediaCdnKindFromSignedUrl(url)).toBe('gallery');
+    expect(mediaCdnKindFromSignedUrl(url.replace('thumb.webp','original.pdf'))).toBeNull();
+    expect(mediaCdnKindFromSignedUrl(url.replace('dikinuneceswe.begetcdn.cloud','untrusted.test'))).toBeNull();
+    expect(isTrustedCdnProbeUrl(url,['dikinuneceswe.begetcdn.cloud'],1999990000000)).toBe(false);
+    expect(isTrustedCdnProbeUrl(url,['dikinuneceswe.begetcdn.cloud'],1999999800000)).toBe(true);
+  });
   it('recognizes progressive MP4 CDN paths without using any HLS manifest', () => {
     const url = `https://garaquachegasourn.begetcdn.cloud/media/v2/media/v1/video/360.mp4?md5=${'A'.repeat(22)}&expires=1999999999`;
     expect(mediaCdnKindFromSignedUrl(url)).toBe('feed');

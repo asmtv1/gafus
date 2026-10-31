@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { S3Client, HeadObjectCommand, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import type { GalleryObjectMetadata } from '@gafus/core/services/gallery';
-import { assertGalleryKey } from './keys.js';
+import { assertGalleryKey, finalPattern, v2FinalPattern, vetPreviewPattern } from './keys.js';
 import { validateGalleryObjectConfig, type GalleryStorageConfig } from './config.js';
 export const MAX_OBJECT_BYTES = 10 * 1024 * 1024;
 export interface GalleryObjectStore {
@@ -25,7 +25,7 @@ export function createGalleryS3Client(config: Pick<GalleryStorageConfig, 'bucket
   validateGalleryObjectConfig(config);
   return new S3Client({ endpoint: config.endpoint, region: config.isolatedNonprod ? 'us-east-1' : 'ru-central-1', forcePathStyle: true, credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey }, maxAttempts: 2, requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED' });
 }
-export function createGalleryObjectStore(config: Pick<GalleryStorageConfig, 'bucket' | 'endpoint' | 'accessKeyId' | 'secretAccessKey' | 'isolatedNonprod'>, client = createGalleryS3Client(config)): GalleryObjectStore {
+export function createGalleryObjectStore(config: Pick<GalleryStorageConfig, 'bucket' | 'endpoint' | 'accessKeyId' | 'secretAccessKey' | 'isolatedNonprod' | 'cacheableFinalEnabled'>, client = createGalleryS3Client(config)): GalleryObjectStore {
   const bucket = config.bucket;
   const head: GalleryObjectStore['head'] = async (key, signal) => {
     assertGalleryKey(key);
@@ -63,7 +63,9 @@ export function createGalleryObjectStore(config: Pick<GalleryStorageConfig, 'buc
       try {
         const result = await client.send(new PutObjectCommand({
           Bucket: bucket, Key: key, Body: bytes, ContentType: type,
-          CacheControl: 'no-store',
+          CacheControl: config.cacheableFinalEnabled &&
+            (finalPattern.test(key) || v2FinalPattern.test(key) || vetPreviewPattern.test(key))
+            ? 'public, max-age=180, s-maxage=600, must-revalidate' : 'no-store',
           ContentMD5: createHash('md5').update(bytes).digest('base64'),
           IfNoneMatch: '*',
         }), { abortSignal: signal });

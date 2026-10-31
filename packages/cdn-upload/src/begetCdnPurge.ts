@@ -5,6 +5,8 @@ const scopeIds = {
   gallery: "0a8e97d5-3a65-4e90-99a6-c7f61131a461",
   feed: "becd9e5d-4fa8-47da-878c-9b80ded74e71",
 } as const;
+const redirectGalleryService = "10530e64-21b7-4352-8366-806c79c2f1b7";
+const redirectGalleryHost = "dikinuneceswe.begetcdn.cloud";
 const hosts = {
   gallery: "mepsuduyokabib.begetcdn.cloud",
   feed: "garaquachegasourn.begetcdn.cloud",
@@ -28,11 +30,14 @@ const hashBatch = (service: string, paths: string[]) =>
 function settings(scope: Scope, env: Record<string, string | undefined> = process.env) {
   const service = env[`${scope.toUpperCase()}_BEGET_CDN_SERVICE_ID`] ?? "";
   const token = env.BEGET_CDN_API_TOKEN ?? "";
+  const dual = scope === "gallery" && env.GALLERY_CDN_PURGE_DUAL_ENABLED === "true";
+  const services = dual ? [scopeIds.gallery, redirectGalleryService] : [scopeIds[scope]];
   if (env.BEGET_CDN_PURGE_API_VERIFIED !== "true" ||
       env.BEGET_CDN_CACHE_KEY_VERIFIED !== "true" ||
-      service !== scopeIds[scope] || token.length < 24)
+      !services.includes(service) || token.length < 24 ||
+      (dual && !/^[A-Za-z0-9_-]{24,128}$/.test(env.GALLERY_CDN_REDIRECT_SIGNING_SECRET ?? "")))
     throw new Error("BEGET_CDN_PURGE_NOT_VERIFIED");
-  return { service, token };
+  return { services, token };
 }
 
 export async function beginBegetCdnPurge(
@@ -41,34 +46,34 @@ export async function beginBegetCdnPurge(
   existing: string[],
   checkpoint?: (operations: string[]) => Promise<void>,
 ): Promise<string[]> {
-  const { service, token } = settings(scope);
+  const { services, token } = settings(scope);
   if (!paths.length || paths.some(path => !path.startsWith("/") || !isBegetCacheableObjectKey(scope, path.slice(1))))
     throw new Error("BEGET_CDN_UNSAFE_PATH");
   const operations = [...existing];
   for (let i = 0; i < paths.length; i += 10) {
     const batch = paths.slice(i, i + 10);
-    const hash = hashBatch(service, batch);
-    if (operations.some(op => op.replace(/^done:/, "").startsWith(`beget:${hash}:`))) continue;
-    // The published Beget OpenAPI uses Bearer auth and {service_id, path[]}.
-    const response = await fetch(`https://api.beget.com/v1/cloud/cdn/${service}/purge-cache-by-paths`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ service_id: service, path: batch }), signal: AbortSignal.timeout(10_000),
-    });
-    if (!response.ok) throw new Error(`BEGET_CDN_PURGE_HTTP_${response.status}`);
-    const result: unknown = await response.json();
-    if (!result || typeof result !== "object" || !("cdn" in result) ||
-        !result.cdn || ("error" in result && result.error))
-      throw new Error("BEGET_CDN_PURGE_RESPONSE_UNVERIFIED");
-    // API acceptance is NOT a proof of edge propagation. Save the exact keys
-    // for read-only post-delete verification on every subsequent worker run.
-    const pathsEncoded = Buffer.from(JSON.stringify(batch)).toString("base64url");
-    operations.push(`beget:${hash}:${Date.now()}:${scope}:${pathsEncoded}`);
-    await checkpoint?.(operations);
+    for (const service of services) {
+      const hash = hashBatch(service, batch);
+      if (operations.some(op => op.replace(/^done:/, "").startsWith(`beget:${hash}:`))) continue;
+      const response = await fetch(`https://api.beget.com/v1/cloud/cdn/${service}/purge-cache-by-paths`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ service_id: service, path: batch }), signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) throw new Error(`BEGET_CDN_PURGE_HTTP_${response.status}`);
+      const result: unknown = await response.json();
+      if (!result || typeof result !== "object" || !("cdn" in result) ||
+          !result.cdn || ("error" in result && result.error))
+        throw new Error("BEGET_CDN_PURGE_RESPONSE_UNVERIFIED");
+      // Separate durable receipts for each CDN: a successful old purge never proves the new one.
+      const pathsEncoded = Buffer.from(JSON.stringify(batch)).toString("base64url");
+      operations.push(`beget:${hash}:${Date.now()}:${scope}:${pathsEncoded}`);
+      await checkpoint?.(operations);
+    }
   }
   return operations;
 }
 
-function readOperation(operation: string) {
+function readOperation(operation: string, env: Record<string, string | undefined>) {
   const match = stamp.exec(operation);
   if (!match) throw new Error("BEGET_CDN_UNSAFE_OPERATION");
   const scope = match[3] as Scope;
@@ -77,12 +82,14 @@ function readOperation(operation: string) {
   catch { throw new Error("BEGET_CDN_UNSAFE_OPERATION"); }
   if (!Array.isArray(paths) || !paths.length || paths.length > 10 ||
       paths.some(p => typeof p !== "string" || !p.startsWith("/") ||
-        !isBegetCacheableObjectKey(scope, p.slice(1))) ||
-      hashBatch(scopeIds[scope], paths) !== match[1])
+        !isBegetCacheableObjectKey(scope, p.slice(1))))
     throw new Error("BEGET_CDN_UNSAFE_OPERATION");
+  const { services } = settings(scope, env);
+  const service = services.find(id => hashBatch(id, paths as string[]) === match[1]);
+  if (!service) throw new Error("BEGET_CDN_UNSAFE_OPERATION");
   const created = Number(match[2]);
   if (!Number.isSafeInteger(created)) throw new Error("BEGET_CDN_UNSAFE_OPERATION");
-  return { scope, created, paths: paths as string[] };
+  return { scope, created, paths: paths as string[], service };
 }
 
 /** Read-only edge validation after Beget purge; never accepts signature 403/410
@@ -95,8 +102,7 @@ export async function begetCdnPurgeDone(
   env: Record<string, string | undefined> = process.env,
   fetcher: typeof fetch = fetch,
 ): Promise<boolean> {
-  const { scope, created, paths } = readOperation(operation);
-  settings(scope, env);
+  const { scope, created, paths, service } = readOperation(operation, env);
   if (env.BEGET_CDN_PURGE_PROPAGATION_VERIFIED !== "true")
     throw new Error("BEGET_CDN_PURGE_NOT_VERIFIED");
   // Cleanup may be delayed longer than a year by an external outage. Never
@@ -104,14 +110,21 @@ export async function begetCdnPurgeDone(
   if (created > now || created < 1_600_000_000_000)
     throw new Error("BEGET_CDN_UNSAFE_OPERATION");
   if (now - created < 300_000) return false;
-  const secret = env[`${scope.toUpperCase()}_CDN_SECRET`] ?? "";
+  const redirectGallery = scope === "gallery" && service === redirectGalleryService;
+  const secret = redirectGallery
+    ? env.GALLERY_CDN_REDIRECT_SIGNING_SECRET ?? ""
+    : env[`${scope.toUpperCase()}_CDN_SECRET`] ?? "";
   const base = env[`${scope.toUpperCase()}_CDN_BASE_URL`];
   // Preserve validated legacy signing values. Gallery's CDNvideo signer
   // permits longer keys than the Feed signer; do not silently require rotation.
   const allowedSecret = scope === "gallery"
     ? /^[A-Za-z0-9_-]{24,128}$/
     : /^[A-Za-z0-9_-]{24,32}$/;
-  if (base !== `https://${hosts[scope]}` || !allowedSecret.test(secret))
+  const dual = scope === "gallery" && env.GALLERY_CDN_PURGE_DUAL_ENABLED === "true";
+  const allowedBase = dual
+    ? [`https://${hosts.gallery}`, `https://${redirectGalleryHost}`].includes(base ?? "")
+    : base === `https://${hosts[scope]}`;
+  if (!allowedBase || !allowedSecret.test(secret))
     throw new Error("BEGET_CDN_EDGE_PROOF_UNAVAILABLE");
   const expires = Math.floor(now / 1000) + 90;
   for (const path of paths) {
@@ -120,7 +133,7 @@ export async function begetCdnPurgeDone(
       .digest("base64url");
     const url = scope === "feed"
       ? `https://${hosts[scope]}${path}?md5=${signature}&expires=${expires}`
-      : `https://${hosts[scope]}/md5(${signature},${expires})${path}`;
+      : `https://${redirectGallery ? redirectGalleryHost : hosts[scope]}/md5(${signature},${expires})${path}`;
     for (const method of ["HEAD", "GET"] as const) {
       const response = await fetcher(url, {
         method, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(7000),

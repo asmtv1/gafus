@@ -3,6 +3,7 @@
  * The native SDK may retain orphaned physical bytes; logout clears its disk.
  */
 const galleryPath = /^\/albums\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/photos\/[A-Za-z0-9_-]{1,128}\/(?:thumb|full)\.webp$/;
+const galleryV2Path = /^\/gallery\/[A-Za-z0-9_-]{1,128}\/media\/[A-Za-z0-9_-]{1,128}\/v2\/(?:thumb|full)\.webp$/;
 const galleryVetPath = /^\/users\/[A-Za-z0-9_-]{1,128}\/pets\/[A-Za-z0-9_-]{1,128}\/vet-visits\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/thumb\.webp$/;
 const feedPath = /^\/posts\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/attachments\/[A-Za-z0-9_-]{1,128}\/(?:thumb|full|poster)\.webp$/;
 // Feed Media V2: one immutable media-version key shared by Web and Mobile.
@@ -10,7 +11,7 @@ const feedV2Path = /^\/media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/(?:image\/
 const feedV2Signature = /^\?md5=[A-Za-z0-9_-]{22}&expires=\d{10}$/;
 const signature = /^\/md5\([A-Za-z0-9_-]{22},\d{10}\)/;
 function authorizedFinalPath(scope: 'gallery' | 'feed', path: string): boolean {
-  return scope === 'gallery' ? galleryPath.test(path) || galleryVetPath.test(path) :
+  return scope === 'gallery' ? galleryPath.test(path) || galleryV2Path.test(path) || galleryVetPath.test(path) :
     feedPath.test(path) || feedV2Path.test(path);
 }
 export function scopedMediaCacheKey(urlString: string, accountId: string, now = Date.now()): string {
@@ -21,6 +22,7 @@ export function scopedMediaCacheKey(urlString: string, accountId: string, now = 
     throw new Error('MEDIA_CACHE_UNTRUSTED_HOST');
   const hosts = {
     'mepsuduyokabib.begetcdn.cloud': 'gallery',
+    'dikinuneceswe.begetcdn.cloud': 'gallery',
     'garaquachegasourn.begetcdn.cloud': 'feed',
   } as const;
   const isCloudru = url.hostname === 's3.cloud.ru';

@@ -34,6 +34,7 @@ const worker = createGalleryCloudWorker({
     endpoint: process.env.GALLERY_S3_ENDPOINT ?? "https://s3.cloud.ru",
     accessKeyId: process.env.GALLERY_S3_ACCESS_KEY_ID ?? "",
     secretAccessKey: process.env.GALLERY_S3_SECRET_ACCESS_KEY ?? "",
+    cacheableFinalEnabled: process.env.GALLERY_CDN_CACHEABLE_FINAL_ENABLED === "true",
   }),
   engine: sharpGalleryEngine,
   enabled: process.env.GALLERY_ENABLED === "true",

@@ -5,6 +5,7 @@ import { questionsRoutes } from "./routes/v1/questions.js";
 import { gafusRoutes } from "./routes/v1/gafus.js";
 import { gafusAdminRoutes } from "./routes/v1/gafus-admin.js";
 import { galleryRoutes } from "./routes/v1/gallery.js";
+import { galleryCdnRedirectResponse } from "@gafus/gallery-server";
 import { feedRoutes } from "./routes/v1/feed.js";
 import { internalGalleryRoutes } from "./routes/internal/gallery.js";
 import { chatsRoutes } from "./routes/v1/chats.js";
@@ -104,6 +105,12 @@ app.use("*", requestId());
 app.use("*", logger());
 app.use("*", secureHeaders());
 app.use("*", corsMiddleware);
+
+// Beget CDN private Gallery origin: guarded, off by default, zero photo-byte proxying.
+// CDN strips its own /md5(...) viewer token before requesting these exact S3 keys.
+for (const path of ["/albums/*", "/users/*", "/gallery/*"]) {
+  app.on(["GET", "HEAD"], path, c => galleryCdnRedirectResponse(c.req.raw));
+}
 
 // Health routes (no auth)
 app.route("/", healthRoutes);

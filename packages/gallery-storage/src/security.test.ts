@@ -65,6 +65,25 @@ describe('private CDN and configuration',()=>{
     expect(() => signGalleryCdnUrl('https://mepsuduyokabib.begetcdn.cloud',
       'albums/o/a/incoming/x/source.jpg',new Date(expires*1000),secret,timestamp*1000)).toThrow();
   });
+  it('uses separate Beget signing keys only for explicitly selected new redirect CDN', () => {
+    const next = { GALLERY_ENABLED: 'true', GALLERY_PROCESSOR_READY: 'true',
+      GALLERY_BUCKET: 'gafus-gallery-private', GALLERY_S3_ENDPOINT: 'https://s3.cloud.ru',
+      GALLERY_S3_ACCESS_KEY_ID: 'tenant:cloudru', GALLERY_S3_SECRET_ACCESS_KEY: 'fake-test-secret',
+      GALLERY_CDN_SECRET: 'A'.repeat(32), GALLERY_INTERNAL_BASE_URL: 'https://api.example.test',
+      GALLERY_INTERNAL_HMAC_SECRET: 'K'.repeat(32), GALLERY_CDN_PROVIDER: 'beget', GALLERY_CDN_REDIRECT_ENABLED: 'true',
+      GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'true', GALLERY_CDN_EDGE_TOKEN_VERIFIED: 'true',
+      GALLERY_CDN_REDIRECT_ORIGIN_SECRET: 'V'.repeat(48),
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: 'R'.repeat(32),
+      GALLERY_CDN_BASE_URL: 'https://dikinuneceswe.begetcdn.cloud' };
+    const c = galleryStorageConfigFromEnv(next);
+    expect(c.cdnBaseUrl).toBe(next.GALLERY_CDN_BASE_URL);
+    expect(c.cdnSecret).toBe(next.GALLERY_CDN_REDIRECT_SIGNING_SECRET);
+    const url = signGalleryCdnUrl(c.cdnBaseUrl, key, new Date((timestamp+240)*1000), c.cdnSecret, timestamp*1000);
+    expect(new URL(url).hostname).toBe('dikinuneceswe.begetcdn.cloud');
+    expect(() => galleryStorageConfigFromEnv({ ...next, GALLERY_CDN_BASE_URL: 'https://mepsuduyokabib.begetcdn.cloud' })).toThrow('UNSAFE_CDN_URL');
+    expect(() => galleryStorageConfigFromEnv({ ...next, GALLERY_CDN_REDIRECT_ENABLED: 'false' })).toThrow('UNSAFE_CDN_URL');
+    expect(() => galleryStorageConfigFromEnv({ ...next, GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'false' })).toThrow('GALLERY_CDN_REDIRECT_REQUIRES_ORIGIN');
+  });
   it('disabled HEAD without credentials cannot prove deletion',async()=>{
     const storage=createGalleryStorageFromEnv({GALLERY_ENABLED:'false'});
     expect(storage.enabled).toBe(false); await expect(storage.head(key)).rejects.toThrow('MISSING_GALLERY_STORAGE');

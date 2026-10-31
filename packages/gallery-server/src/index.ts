@@ -272,3 +272,5 @@ export async function dispatchGalleryInternalRequest(request: Request, path: str
 }
 
 export { MAX_BODY_BYTES as GALLERY_MAX_BODY_BYTES };
+
+export { galleryCdnRedirectResponse } from "./cdnRedirect.js";

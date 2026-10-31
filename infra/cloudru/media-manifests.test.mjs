@@ -1,9 +1,20 @@
 import assert from "node:assert/strict";
 import { cloudruMediaManifests } from "./media-manifests.mjs";
+import { readFileSync } from "node:fs";
 const projectId = "12345678-1234-1234-1234-123456789012";
 const revision = "abcdef0123456789abcdef0123456789abcdef01";
 const { services, jobs } = cloudruMediaManifests(projectId, revision);
-assert.equal(services.length, 2);
+assert.equal(services.length, 1);
+assert.equal(services[0].name, "gafus-gallery-origin");
+assert(!services.some(service => service.name === "gafus-feed-origin"));
+// Publication and manual release must also refuse to recreate the retired origin.
+const workflow = readFileSync(".github/workflows/cloudru-media-images.yml", "utf8");
+const publisher = readFileSync("ci-cd/scripts/publish-cloudru-image.sh", "utf8");
+const release = readFileSync("infra/cloudru/production-media-release.mjs", "utf8");
+assert(!workflow.includes("media: feed, role: origin"));
+assert(!publisher.includes("feed:origin:Dockerfile.origin"));
+assert(!release.includes('"feed-origin"'));
+
 assert.equal(jobs.length, 5);
 assert.equal(new Set(jobs.map(job => job.name)).size, 5);
 for (const kind of ["photo", "video"]) {
@@ -35,10 +46,7 @@ for (const service of services) {
   assert.equal(service.template.scaling.minInstanceCount, 1);
   assert.equal(service.template.scaling.maxInstanceCount, 1);
 }
-// Feed needs CPU headroom for signed CDN image and MPEG-TS reads.
-const feedOrigin = services.find((service) => service.name === 'gafus-feed-origin');
-assert.equal(feedOrigin.template.containers[0].resources.cpu, '0.5');
-assert.equal(feedOrigin.template.containers[0].resources.memory, '1024Mi');
+// No permanent Feed Container App: media processors remain as on-demand Jobs.
 for (const job of jobs) {
   assert.equal(job.runImmediately, false);
   assert.equal(job.template.maxRetries, 3);
@@ -50,4 +58,4 @@ assert(
   ),
 );
 assert.throws(() => cloudruMediaManifests("bad", revision), /INVALID_CLOUDRU_RELEASE_ID/);
-console.log("Cloud.ru manifest layout 2 services + 5 bounded durable jobs PASS");
+console.log("Cloud.ru manifest layout 1 private gallery origin + 5 bounded durable jobs PASS");

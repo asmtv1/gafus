@@ -52,6 +52,16 @@ describe("private mobile media cache isolation", () => {
       `https://feed.gafus.ru/${key}?md5=${token}&expires=1800000000`,
     ]) expect(() => scopedMediaCacheKey(invalid, 'viewer')).toThrow();
   });
+  it('supports the new Gallery CDN and versioned keys without persisting signed tokens', () => {
+    const path='/gallery/u/media/m/v2/full.webp';
+    const token='A'.repeat(22);
+    const url=`https://dikinuneceswe.begetcdn.cloud/md5(${token},1999999999)${path}`;
+    const cache=scopedMediaCacheKey(url,'viewer',1_800_000_000);
+    expect(cache).toContain(path);
+    expect(cache).not.toContain(token);
+    expect(scopedMediaCacheKey(url.replace(token,'B'.repeat(22)),'viewer',1_800_000_000)).toBe(cache);
+    expect(() => scopedMediaCacheKey(url.replace('full.webp','source.jpg'),'viewer')).toThrow();
+  });
   it("includes immutable object version in key and rejects nonapproved endpoints", () => {
     const url = `https://mepsuduyokabib.begetcdn.cloud/md5(${'A'.repeat(22)},1800000000)/albums/a/b/photos/photo1/full.webp`;
     expect(scopedMediaCacheKey(url, "actor")).not.toBe(scopedMediaCacheKey(url.replace('photo1', 'photo2'), 'actor'));

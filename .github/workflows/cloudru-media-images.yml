@@ -39,7 +39,6 @@ jobs:
       matrix:
         include:
           - { media: feed, role: worker, dockerfile: Dockerfile }
-          - { media: feed, role: origin, dockerfile: Dockerfile.origin }
           - { media: gallery, role: worker, dockerfile: Dockerfile }
           - { media: gallery, role: origin, dockerfile: Dockerfile.origin }
           - { media: questions, role: photo, dockerfile: Dockerfile.questions-photo }

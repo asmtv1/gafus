@@ -1,6 +1,7 @@
 /**
  * Main-only Cloud.ru media: --plan is pure, --prepare provisions guarded
- * immutable-image Origins and bounded jobs, --verify audits API state.
+ * the still-private Gallery Origin, --verify audits API state.
+ * Feed CDN uses public S3 finals; NEVER reprovision the obsolete Feed Origin.
  * No CDN changes, no database writes, no user-media operations.
  */
 import { spawnSync } from "node:child_process";
@@ -37,9 +38,7 @@ for (const name of [
   "CLOUDRU_S3_ACCESS_KEY_ID",
   "CLOUDRU_S3_SECRET_ACCESS_KEY",
   "GALLERY_CDN_SECRET",
-  "FEED_CDN_SECRET",
   "GALLERY_ORIGIN_SECRET",
-  "FEED_ORIGIN_SECRET",
   "GALLERY_INTERNAL_HMAC_SECRET",
   "FEED_INTERNAL_HMAC_SECRET",
 ])
@@ -47,20 +46,19 @@ for (const name of [
 if (e.CLOUDRU_S3_ENDPOINT !== "https://s3.cloud.ru" || !/^[a-f0-9]{40}$/.test(e.GITHUB_SHA))
   throw Error("UNEXPECTED_RELEASE_ENDPOINT_OR_SHA");
 // Preserve existing production CDNvideo signing values; Gallery may be longer.
-for (const name of ["GALLERY_CDN_SECRET", "FEED_CDN_SECRET"]) {
+for (const name of ["GALLERY_CDN_SECRET"]) {
   const format = name === "GALLERY_CDN_SECRET"
     ? /^[A-Za-z0-9_-]{24,128}$/ : /^[A-Za-z0-9_-]{24,32}$/;
   if (!format.test(e[name])) throw Error("INVALID_SIGNER_" + name);
 }
 for (const name of [
   "GALLERY_ORIGIN_SECRET",
-  "FEED_ORIGIN_SECRET",
   "GALLERY_INTERNAL_HMAC_SECRET",
   "FEED_INTERNAL_HMAC_SECRET",
 ])
   if (Buffer.byteLength(e[name]) < 32) throw Error("INVALID_PROTECTION_" + name);
 const image = {};
-for (const role of ["gallery-origin", "feed-origin", "gallery-worker", "feed-worker"]) {
+for (const role of ["gallery-origin"]) {
   const label = "gafus.cr.cloud.ru/gafus-" + role;
   const r = spawnSync("docker", ["manifest", "inspect", "--verbose", label + ":" + sha], {
     encoding: "utf8",
@@ -87,9 +85,7 @@ const values = {
   GALLERY_S3_SECRET_ACCESS_KEY: e.CLOUDRU_S3_SECRET_ACCESS_KEY,
   FEED_S3_SECRET_ACCESS_KEY: e.CLOUDRU_S3_SECRET_ACCESS_KEY,
   GALLERY_ORIGIN_SECRET: e.GALLERY_ORIGIN_SECRET,
-  FEED_ORIGIN_SECRET: e.FEED_ORIGIN_SECRET,
   GALLERY_CDN_SECRET: e.GALLERY_CDN_SECRET,
-  FEED_CDN_SECRET: e.FEED_CDN_SECRET,
   GALLERY_CDN_EDGE_TOKEN_VERIFIED: "true",
   FEED_CDN_EDGE_TOKEN_VERIFIED: "true",
   GALLERY_CDN_EDGE_CACHE_HIT_VERIFIED: "true",
@@ -204,7 +200,6 @@ if (mode === "--prepare") {
       host: "gafus-gallery-origin.containerapps.ru",
       secret: e.GALLERY_ORIGIN_SECRET,
     },
-    { name: "feed", host: "gafus-feed-origin.containerapps.ru", secret: e.FEED_ORIGIN_SECRET },
   ]) {
     let ready = false;
     for (let n = 0; n < 45; n++) {

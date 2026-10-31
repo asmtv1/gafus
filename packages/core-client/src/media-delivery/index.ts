@@ -17,7 +17,7 @@ export function mediaCdnKindFromSignedUrl(raw: string): MediaCdnKind | null {
     const url = new URL(raw);
     if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
         url.pathname.includes('%') || url.pathname.includes('..') || url.pathname.includes('//')) return null;
-    const gallery = url.hostname === 'mepsuduyokabib.begetcdn.cloud';
+    const gallery = ['mepsuduyokabib.begetcdn.cloud', 'dikinuneceswe.begetcdn.cloud'].includes(url.hostname);
     const feed = url.hostname === 'garaquachegasourn.begetcdn.cloud';
     if (!gallery && !feed) return null;
     if (feed) {
@@ -31,6 +31,7 @@ export function mediaCdnKindFromSignedUrl(raw: string): MediaCdnKind | null {
     const path = url.pathname.replace(/^\/md5\([A-Za-z0-9_-]{22},\d{10}\)/, '');
     if (path === url.pathname) return null;
     if (gallery && /^\/albums\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+\/(?:thumb|full)\.webp$/.test(path)) return 'gallery';
+    if (gallery && /^\/gallery\/[A-Za-z0-9_-]+\/media\/[A-Za-z0-9_-]+\/v2\/(?:thumb|full)\.webp$/.test(path)) return 'gallery';
     if (gallery && /^\/users\/[A-Za-z0-9_-]+\/pets\/[A-Za-z0-9_-]+\/vet-visits\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/thumb\.webp$/.test(path)) return 'gallery';
     if (feed && /^\/media\/v2\/[A-Za-z0-9_-]+\/v[1-9][0-9]*\/(?:image\/[sml]\.webp|poster\.webp|video\/(360|720|1080)\.mp4)$/.test(path)) return 'feed';
   } catch { /* Unknown URLs must not affect circuit state. */ }
@@ -92,12 +93,12 @@ export function isTrustedCdnProbeUrl(
   if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
       !allowedHosts.includes(url.hostname) || url.pathname.includes('%') ||
       url.pathname.includes('//') || url.pathname.includes('/../') || url.pathname.includes('/./')) return false;
-  if (!['mepsuduyokabib.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud'].includes(url.hostname))
+  if (!['mepsuduyokabib.begetcdn.cloud', 'dikinuneceswe.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud'].includes(url.hostname))
     return false;
   const feed = url.hostname === 'garaquachegasourn.begetcdn.cloud';
   const match = feed
     ? /^\?md5=([A-Za-z0-9_-]{22})&expires=(\d{10})$/.exec(url.search)
-    : /^\/md5\(([A-Za-z0-9_-]{22}),(\d{10})\)(\/(?:albums|users)\/[A-Za-z0-9_/-]+\.webp)$/.exec(url.pathname);
+    : /^\/md5\(([A-Za-z0-9_-]{22}),(\d{10})\)(\/(?:albums|users|gallery)\/[A-Za-z0-9_/-]+\.webp)$/.exec(url.pathname);
   if (!match || (!feed && url.search) || mediaCdnKindFromSignedUrl(raw) === null) return false;
   const expiresRaw = match[2]!;
   const expires = Number(expiresRaw);

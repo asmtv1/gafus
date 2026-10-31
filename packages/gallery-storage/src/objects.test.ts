@@ -43,6 +43,14 @@ describe('fail-closed object snapshots and immutable writes',()=>{
      CacheControl:'no-store',
    });
  });
+ it('cacheable-final opt-in only affects WebP renditions, never incoming attempt variants',async()=>{
+   const send=vi.fn().mockResolvedValue({ETag:meta.ETag});
+   const s=createGalleryObjectStore({...config,cacheableFinalEnabled:true},{send} as unknown as S3Client);
+   await s.create('gallery/o/media/m/v2/thumb.webp',bytes,'image/webp');
+   expect(send.mock.calls[0][0].input.CacheControl).toBe('public, max-age=180, s-maxage=600, must-revalidate');
+   await s.create('albums/o/a/incoming/m/attempts/att/thumb.webp',bytes,'image/webp');
+   expect(send.mock.calls[1][0].input.CacheControl).toBe('no-store');
+ });
  it('identical retry uses conditional PUT and one HEAD on 412',async()=>{
    const send=vi.fn().mockRejectedValueOnce({$metadata:{httpStatusCode:412}}).mockResolvedValueOnce(meta);
    await expect(store(send).create(key,bytes,'image/webp')).resolves.toMatchObject({etag:meta.ETag});

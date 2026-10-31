@@ -1,5 +1,5 @@
 import { cdnIsolatedAcceptance } from "./cdn-isolated-acceptance.js";
-import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { assertFinalKey } from './keys.js';
 import { createGalleryS3Client } from './objects.js';
@@ -21,5 +21,26 @@ export async function signGalleryCloudruFallback(key: string, ttlSeconds = 120,
     return await getSignedUrl(client, new GetObjectCommand({
       Bucket: config.bucket, Key: key, ResponseCacheControl: 'private, no-store',
     }), { expiresIn: ttlSeconds });
+  } finally { client.destroy(); }
+}
+
+/** CDN-origin signer, not a viewer endpoint. Only the protected API route calls it. */
+export async function signGalleryCloudruCdnOrigin(
+  key: string, method: 'GET' | 'HEAD',
+  env: Record<string, string | undefined> = process.env,
+): Promise<string> {
+  assertFinalKey(key);
+  if (method !== 'GET' && method !== 'HEAD') throw new Error('INVALID_CDN_ORIGIN_METHOD');
+  const config = galleryStorageConfigFromEnv(env);
+  if (!config.enabled || !config.cdnOriginRouteEnabled ||
+      config.endpoint !== 'https://s3.cloud.ru' || config.bucket !== 'gafus-gallery-private' ||
+      !['https://dikinuneceswe.begetcdn.cloud', 'https://mepsuduyokabib.begetcdn.cloud']
+        .includes(config.cdnBaseUrl))
+    throw new Error('GALLERY_CDN_ORIGIN_DISABLED');
+  const client = createGalleryS3Client(config);
+  try {
+    return await getSignedUrl(client, method === 'HEAD'
+      ? new HeadObjectCommand({ Bucket: config.bucket, Key: key })
+      : new GetObjectCommand({ Bucket: config.bucket, Key: key }), { expiresIn: 60 });
   } finally { client.destroy(); }
 }
