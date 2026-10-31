@@ -1,8 +1,8 @@
 /** Fail-closed, read-only Beget Gallery -> Hono 307 -> private S3 release preflight.
  * Does not change Beget, Cloud.ru, GitHub secrets or any user objects.
  */
-const newService = '10530e64-21b7-4352-8366-806c79c2f1b7';
-const newHost = 'dikinuneceswe.begetcdn.cloud';
+const newService = '96cd124e-767e-4af1-a568-c4d1f9b4e73f';
+const newHost = 'fupiquafifeswu.begetcdn.cloud';
 const requireTrue = (env, name) => {
   if (env[name] !== 'true') throw Error('GALLERY_REDIRECT_GATE_' + name);
 };

@@ -153,8 +153,8 @@ describe("Gallery old/new CDN dual purge during secure redirect migration", () =
     enabled();
     Object.assign(process.env, {
       GALLERY_CDN_PURGE_DUAL_ENABLED: "true",
-      GALLERY_BEGET_CDN_SERVICE_ID: "10530e64-21b7-4352-8366-806c79c2f1b7",
-      GALLERY_CDN_BASE_URL: "https://dikinuneceswe.begetcdn.cloud",
+      GALLERY_BEGET_CDN_SERVICE_ID: "96cd124e-767e-4af1-a568-c4d1f9b4e73f",
+      GALLERY_CDN_BASE_URL: "https://fupiquafifeswu.begetcdn.cloud",
       GALLERY_CDN_SECRET: "O".repeat(32),
       GALLERY_CDN_REDIRECT_SIGNING_SECRET: "N".repeat(32),
       BEGET_CDN_PURGE_PROPAGATION_VERIFIED: "true",
@@ -169,7 +169,7 @@ describe("Gallery old/new CDN dual purge during secure redirect migration", () =
     expect(checkpoint).toHaveBeenCalledTimes(2);
     expect(api.mock.calls.map(c=>String(c[0]))).toEqual(expect.arrayContaining([
       expect.stringContaining("/0a8e97d5-3a65-4e90-99a6-c7f61131a461/"),
-      expect.stringContaining("/10530e64-21b7-4352-8366-806c79c2f1b7/"),
+      expect.stringContaining("/96cd124e-767e-4af1-a568-c4d1f9b4e73f/"),
     ]));
     expect(await beginBegetCdnPurge("gallery", paths, ops)).toEqual(ops);
     expect(api).toHaveBeenCalledTimes(2);
@@ -178,7 +178,7 @@ describe("Gallery old/new CDN dual purge during secure redirect migration", () =
       expect(await begetCdnPurgeDone(receipt,Date.now()+400000,{...process.env},edge)).toBe(true);
     const urls = edge.mock.calls.map(c=>String(c[0]));
     expect(urls.some(url=>url.includes("mepsuduyokabib.begetcdn.cloud"))).toBe(true);
-    expect(urls.some(url=>url.includes("dikinuneceswe.begetcdn.cloud"))).toBe(true);
+    expect(urls.some(url=>url.includes("fupiquafifeswu.begetcdn.cloud"))).toBe(true);
     const old = { ...process.env, GALLERY_BEGET_CDN_SERVICE_ID:"0a8e97d5-3a65-4e90-99a6-c7f61131a461",
       GALLERY_CDN_BASE_URL:"https://mepsuduyokabib.begetcdn.cloud" };
     expect(await begetCdnPurgeDone(ops[1]!,Date.now()+400000,old,edge)).toBe(true);

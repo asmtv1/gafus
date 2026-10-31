@@ -5,8 +5,8 @@ const scopeIds = {
   gallery: "0a8e97d5-3a65-4e90-99a6-c7f61131a461",
   feed: "becd9e5d-4fa8-47da-878c-9b80ded74e71",
 } as const;
-const redirectGalleryService = "10530e64-21b7-4352-8366-806c79c2f1b7";
-const redirectGalleryHost = "dikinuneceswe.begetcdn.cloud";
+const redirectGalleryService = "96cd124e-767e-4af1-a568-c4d1f9b4e73f";
+const redirectGalleryHost = "fupiquafifeswu.begetcdn.cloud";
 const hosts = {
   gallery: "mepsuduyokabib.begetcdn.cloud",
   feed: "garaquachegasourn.begetcdn.cloud",

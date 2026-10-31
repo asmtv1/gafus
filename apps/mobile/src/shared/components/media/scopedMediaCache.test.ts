@@ -55,7 +55,7 @@ describe("private mobile media cache isolation", () => {
   it('supports the new Gallery CDN and versioned keys without persisting signed tokens', () => {
     const path='/gallery/u/media/m/v2/full.webp';
     const token='A'.repeat(22);
-    const url=`https://dikinuneceswe.begetcdn.cloud/md5(${token},1999999999)${path}`;
+    const url=`https://fupiquafifeswu.begetcdn.cloud/md5(${token},1999999999)${path}`;
     const cache=scopedMediaCacheKey(url,'viewer',1_800_000_000);
     expect(cache).toContain(path);
     expect(cache).not.toContain(token);

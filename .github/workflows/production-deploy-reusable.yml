@@ -57,7 +57,7 @@ jobs:
           BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED || 'false' }}
           GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID }}
           GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
-          GALLERY_CDN_BASE_URL: ${{ vars.GALLERY_CDN_REDIRECT_ENABLED == 'true' && 'https://dikinuneceswe.begetcdn.cloud' || 'https://mepsuduyokabib.begetcdn.cloud' }}
+          GALLERY_CDN_BASE_URL: ${{ vars.GALLERY_CDN_REDIRECT_ENABLED == 'true' && 'https://fupiquafifeswu.begetcdn.cloud' || 'https://mepsuduyokabib.begetcdn.cloud' }}
           GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
           GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
           GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
@@ -435,7 +435,7 @@ jobs:
               echo "GALLERY_CDN_PROVIDER=beget"
               if [ "${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED }}" = "true" ] &&
                  [ "${{ vars.GALLERY_CDN_REDIRECT_ENABLED }}" = "true" ]; then
-                echo "GALLERY_CDN_BASE_URL=https://dikinuneceswe.begetcdn.cloud"
+                echo "GALLERY_CDN_BASE_URL=https://fupiquafifeswu.begetcdn.cloud"
               else
                 echo "GALLERY_CDN_BASE_URL=https://mepsuduyokabib.begetcdn.cloud"
               fi

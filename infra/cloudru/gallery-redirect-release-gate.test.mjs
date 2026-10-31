@@ -11,8 +11,8 @@ const env = {
   GALLERY_CDN_METADATA_MIGRATED: 'true',
   GALLERY_CDN_REDIRECT_ORIGIN_SECRET: 'V'.repeat(48),
   GALLERY_CDN_REDIRECT_SIGNING_SECRET: 'N'.repeat(32), GALLERY_CDN_SECRET: 'O'.repeat(32),
-  GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: '10530e64-21b7-4352-8366-806c79c2f1b7',
-  GALLERY_CDN_BASE_URL: 'https://dikinuneceswe.begetcdn.cloud',
+  GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: '96cd124e-767e-4af1-a568-c4d1f9b4e73f',
+  GALLERY_CDN_BASE_URL: 'https://fupiquafifeswu.begetcdn.cloud',
   BEGET_CDN_API_TOKEN: 'test-api-token-12345678901234567',
 };
 test('remains off without any release flags and never calls provider',async()=>{
@@ -29,7 +29,7 @@ test('rejects missing secrets, absent purge, metadata, and unverified smoke',()=
 });
 test('only approves verified new Beget origin, token, header, redirects, cache',async()=>{
   const fixture={service:{status:'RUNNING',cdn:{source_domain:{domain:'api.gafus.ru',source_protocol:'HTTPS'},
-    resource_domain:[{domain:'dikinuneceswe.begetcdn.cloud',status:'WORKING'}],
+    resource_domain:[{domain:'fupiquafifeswu.begetcdn.cloud',status:'WORKING'}],
     settings:{follow_origin_redirect:{enable:true},tokenized_url_secure_key:{enable:true},
       static_request_headers:{enabled:true},caching_time:600}}}};
   const ok = async()=>({ok:true,json:async()=>fixture});

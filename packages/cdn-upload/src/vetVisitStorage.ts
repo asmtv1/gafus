@@ -36,7 +36,7 @@ function storage() {
     url.hash ||
     url.username ||
     url.password ||
-    url.hostname !== (redirect ? "dikinuneceswe.begetcdn.cloud" : "mepsuduyokabib.begetcdn.cloud")
+    url.hostname !== (redirect ? "fupiquafifeswu.begetcdn.cloud" : "mepsuduyokabib.begetcdn.cloud")
   )
     throw new Error("PRIVATE_VET_STORAGE_UNAVAILABLE");
   return {

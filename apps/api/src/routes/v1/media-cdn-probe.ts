@@ -6,7 +6,7 @@ import { isTrustedCdnProbeUrl } from "@gafus/core/services/mediaDelivery";
  * Only validated short-lived CDN URLs are HEADed; never proxy bodies or S3 keys.
  */
 export const mediaCdnProbeRoutes = new Hono();
-const hosts = ["mepsuduyokabib.begetcdn.cloud", "dikinuneceswe.begetcdn.cloud", "garaquachegasourn.begetcdn.cloud"] as const;
+const hosts = ["mepsuduyokabib.begetcdn.cloud", "fupiquafifeswu.begetcdn.cloud", "garaquachegasourn.begetcdn.cloud"] as const;
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 /** Synthetic loopback CDN status socket, available ONLY during Agent2 disposable QA.
  * It cannot be used with a shared/work DB, a production runtime or any other host.

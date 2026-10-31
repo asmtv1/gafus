@@ -78,7 +78,7 @@ export function galleryStorageConfigFromEnv(
       url.username ||
       url.password ||
       url.hostname !== (config.cdnRedirectEnabled
-        ? "dikinuneceswe.begetcdn.cloud" : "mepsuduyokabib.begetcdn.cloud")
+        ? "fupiquafifeswu.begetcdn.cloud" : "mepsuduyokabib.begetcdn.cloud")
     )
       throw new Error("UNSAFE_CDN_URL");
     config.cdnBaseUrl = url.origin;

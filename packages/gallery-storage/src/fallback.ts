@@ -34,7 +34,7 @@ export async function signGalleryCloudruCdnOrigin(
   const config = galleryStorageConfigFromEnv(env);
   if (!config.enabled || !config.cdnOriginRouteEnabled ||
       config.endpoint !== 'https://s3.cloud.ru' || config.bucket !== 'gafus-gallery-private' ||
-      !['https://dikinuneceswe.begetcdn.cloud', 'https://mepsuduyokabib.begetcdn.cloud']
+      !['https://fupiquafifeswu.begetcdn.cloud', 'https://mepsuduyokabib.begetcdn.cloud']
         .includes(config.cdnBaseUrl))
     throw new Error('GALLERY_CDN_ORIGIN_DISABLED');
   const client = createGalleryS3Client(config);

@@ -106,8 +106,8 @@ The app was not started, changed, or deleted during this audit.
 `docs/migrations/2026-10-18-gallery-cdn-s3-redirect.md` (prior real
 synthetic 307→S3/WebP 200/HIT/HEAD/Range, but no permanent Hono production
 cutover). The isolated Beget CDN used previously was
-`dikinuneceswe.begetcdn.cloud`, service ID
-`10530e64-21b7-4352-8366-806c79c2f1b7`. **Its present live status has not
+`fupiquafifeswu.begetcdn.cloud`, service ID
+`96cd124e-767e-4af1-a568-c4d1f9b4e73f`. **Its present live status has not
 been reconfirmed.**
 
 - `packages/gallery-server/src/cdnRedirect.ts`: Hono-friendly API CDN origin
@@ -168,7 +168,7 @@ are proven or modified by local unit tests.
 ### 2026-11-01 external DNS verification (new blocking finding)
 
 Read-only DNS A lookup via both system resolver and Cloudflare `1.1.1.1`:
-`dikinuneceswe.begetcdn.cloud` returned **NXDOMAIN**. An independent HTTPS
+`fupiquafifeswu.begetcdn.cloud` returned **NXDOMAIN**. An independent HTTPS
 HEAD could not resolve it. The old `mepsuduyokabib.begetcdn.cloud` resolved
 normally and returned the expected unsigned 410 edge denial. Therefore the
 historic new CDN hostname is **retired/unusable as of this check**. The

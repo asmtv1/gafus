@@ -22,7 +22,7 @@ export function scopedMediaCacheKey(urlString: string, accountId: string, now = 
     throw new Error('MEDIA_CACHE_UNTRUSTED_HOST');
   const hosts = {
     'mepsuduyokabib.begetcdn.cloud': 'gallery',
-    'dikinuneceswe.begetcdn.cloud': 'gallery',
+    'fupiquafifeswu.begetcdn.cloud': 'gallery',
     'garaquachegasourn.begetcdn.cloud': 'feed',
   } as const;
   const isCloudru = url.hostname === 's3.cloud.ru';

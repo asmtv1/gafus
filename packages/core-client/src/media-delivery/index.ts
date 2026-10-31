@@ -17,7 +17,7 @@ export function mediaCdnKindFromSignedUrl(raw: string): MediaCdnKind | null {
     const url = new URL(raw);
     if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
         url.pathname.includes('%') || url.pathname.includes('..') || url.pathname.includes('//')) return null;
-    const gallery = ['mepsuduyokabib.begetcdn.cloud', 'dikinuneceswe.begetcdn.cloud'].includes(url.hostname);
+    const gallery = ['mepsuduyokabib.begetcdn.cloud', 'fupiquafifeswu.begetcdn.cloud'].includes(url.hostname);
     const feed = url.hostname === 'garaquachegasourn.begetcdn.cloud';
     if (!gallery && !feed) return null;
     if (feed) {
@@ -93,7 +93,7 @@ export function isTrustedCdnProbeUrl(
   if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
       !allowedHosts.includes(url.hostname) || url.pathname.includes('%') ||
       url.pathname.includes('//') || url.pathname.includes('/../') || url.pathname.includes('/./')) return false;
-  if (!['mepsuduyokabib.begetcdn.cloud', 'dikinuneceswe.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud'].includes(url.hostname))
+  if (!['mepsuduyokabib.begetcdn.cloud', 'fupiquafifeswu.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud'].includes(url.hostname))
     return false;
   const feed = url.hostname === 'garaquachegasourn.begetcdn.cloud';
   const match = feed
