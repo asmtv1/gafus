@@ -54,6 +54,23 @@ type ApiEnvelope<T> = {
 
 type ApiMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
+// A short-lived access cookie can expire while a tab stays open. The refresh
+// cookie normally survives it. Coalesce refresh across all Web read requests;
+// never expose refresh tokens or replay writes.
+let refreshEpoch = 0;
+let refreshInFlight: Promise<void> | null = null;
+
+export function refreshSessionCookie(): Promise<void> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = apiRequest<void>("/api/v1/auth/refresh", {
+    method: "POST", json: {}, browserAuth: true,
+  }).then(
+    () => { refreshEpoch += 1; refreshInFlight = null; },
+    error => { refreshInFlight = null; throw error; },
+  );
+  return refreshInFlight;
+}
+
 export async function apiRequest<T>(
   path: string,
   options: { method?: ApiMethod; json?: unknown; browserAuth?: boolean;
@@ -88,14 +105,38 @@ export async function apiRequest<T>(
   const headers: Record<string, string> = { Accept: "application/json" };
   if (options.json !== undefined) headers["Content-Type"] = "application/json";
   if (options.browserAuth) headers["X-Gafus-Auth-Transport"] = "cookie";
-  const response = await fetch(path, {
-    method: options.method ?? "GET",
+  const method = options.method ?? "GET";
+  const requestInit: RequestInit = {
+    method,
     headers,
     credentials: options.credentials ?? "include",
     cache: "no-store",
     ...(options.signal ? { signal: options.signal } : {}),
     ...(options.json === undefined ? {} : { body: JSON.stringify(options.json) }),
-  });
+  };
+  const observedRefreshEpoch = refreshEpoch;
+  let response = await fetch(path, requestInit);
+  // Refresh and retry only a cookie-backed GET, at most once. Never retry
+  // POST/PATCH/PUT/DELETE (a failed response may follow a committed write),
+  // auth routes, or explicitly unauthenticated calls.
+  if (response.status === 401 && method === "GET" &&
+    options.credentials !== "omit" && !path.startsWith("/api/v1/auth/") &&
+    !options.signal?.aborted) {
+    let renewed = refreshEpoch !== observedRefreshEpoch;
+    if (!renewed) {
+      try {
+        await refreshSessionCookie();
+        renewed = true;
+      } catch (error) {
+        // An invalid refresh cookie really is signed out. Preserve the
+        // original 401. A conflict, network failure or 5xx is *not* logout.
+        if (!(error instanceof ApiError && [400, 401, 403].includes(error.status))) {
+          throw error;
+        }
+      }
+    }
+    if (renewed && !options.signal?.aborted) response = await fetch(path, requestInit);
+  }
   // Stock Hono authRateLimiter can return an HTML/text 429. Do not parse it
   // as JSON, claim a logout succeeded, leak backend text or retry a POST.
   if (response.status === 429) {
