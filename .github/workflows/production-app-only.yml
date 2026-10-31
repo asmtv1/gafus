@@ -6,7 +6,7 @@ on:
       mode:
         description: 'Read-only server preflight; no application deployment'
         type: choice
-        options: [preflight, diagnose, deploy, recover]
+        options: [preflight, diagnose, deploy, recover, verify]
         required: true
       release_sha:
         description: 'Exact previously verified main commit SHA; required for deploy'
@@ -214,7 +214,7 @@ jobs:
             bash "$root/ci-cd/scripts/production-schema-cutover.sh" verify
             bash "$root/ci-cd/scripts/production-schema-cutover.sh" open
             echo 'MAINTENANCE_GATE_OPENED'
-            for endpoint in https://gafus.ru/ https://gafus.ru/api/ping https://api.gafus.ru/ready; do
+            for endpoint in https://gafus.ru/ https://api.gafus.ru/ready https://trainer-panel.gafus.ru/ https://adminka.gafus.ru/; do
               curl -fsS --max-time 15 -o /dev/null "$endpoint" || { echo "PROD_HTTP_NOT_READY=$endpoint"; exit 1; }
               echo "PROD_ENDPOINT_OK=$endpoint"
             done
@@ -233,6 +233,79 @@ jobs:
               [ "$restarts" = 0 ] && [ "$oom" = false ] || { echo "RESTART_OR_OOM=$service"; exit 1; }
             done
             echo 'APPLICATION_RECOVERY_VERIFIED_NO_CLOUDRU_JOB_CHANGES'
+
+  verify-live-production:
+    # Separate immutable, read-only verification. No Docker restart/recreate,
+    # no DB writes/migrate, no Git reset and no Beget or Cloud.ru Job calls.
+    if: github.ref == 'refs/heads/main' && inputs.mode == 'verify'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 12
+    steps:
+      - name: Verify exact live images, health, restarts, OOM and safe log counts twice
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 185.239.51.125
+          username: root
+          key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
+          port: 22
+          script_stop: false
+          command_timeout: 9m
+          script: |
+            set -euo pipefail
+            root=/root/gafus
+            sha='${{ inputs.release_sha }}'
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'INVALID_VERIFY_RELEASE_SHA'; exit 1; }
+            [ "$(git -C "$root" rev-parse HEAD)" = "$sha" ] || { echo 'PRODUCTION_GIT_SHA_MISMATCH'; exit 1; }
+            backup=/root/gafus-release-backups/41150071782-1/production-pre-migrate.dump
+            [ -s "$backup" ] && [ -f /root/gafus-release-backups/41150071782-1/migration-complete ] || { echo 'NO_VERIFIED_MIGRATION_BACKUP'; exit 1; }
+            docker exec -i gafus-postgres pg_restore --list < "$backup" > /dev/null || { echo 'UNREADABLE_MIGRATION_BACKUP'; exit 1; }
+            count=$(docker exec gafus-postgres psql -X -U gafus -d gafus -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null')
+            failed=$(docker exec gafus-postgres psql -X -U gafus -d gafus -Atc 'select count(*) from "_prisma_migrations" where finished_at is null and rolled_back_at is null')
+            [ "$count" = 162 ] && [ "$failed" = 0 ] || { echo 'INVALID_PRODUCTION_MIGRATION_LEDGER'; exit 1; }
+            [ ! -e "$root/ci-cd/nginx/conf.d/.release-maintenance" ] || { echo 'MAINTENANCE_STILL_ACTIVE'; exit 1; }
+            docker exec gafus-nginx nginx -t > /dev/null 2>&1 || { echo 'NGINX_CONFIGURATION_UNHEALTHY'; exit 1; }
+            docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' gafus-api | grep -Eq '^GALLERY_CDN_BASE_URL=https://mepsuduyokabib.begetcdn.cloud$' || { echo 'GALLERY_APP_ORIGIN_MISMATCH'; exit 1; }
+            docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' gafus-api | grep -Eq '^FEED_CDN_BASE_URL=https://quepraquiecebquomiel.begetcdn.cloud$' || { echo 'FEED_APP_ORIGIN_MISMATCH'; exit 1; }
+            for image in gafus-web gafus-trainer-panel gafus-admin-panel gafus-api gafus-worker gafus-bull-board; do
+              expected=$(docker image inspect "ghcr.io/asmtv1/$image:sha-$sha" --format '{{.Id}}')
+              actual=$(docker inspect "$image" --format '{{.Image}}')
+              [ "$expected" = "$actual" ] || { echo "WRONG_LIVE_IMAGE=$image"; exit 1; }
+              echo "IMMUTABLE_IMAGE_VERIFIED=$image"
+            done
+            docker image inspect "ghcr.io/asmtv1/gafus-prisma:sha-$sha" > /dev/null
+            echo 'PRISMA_MIGRATION_IMAGE_PRESENT'
+            broker=$(docker ps --format '{{.Names}}' --filter name=chat2-centrifugo | head -n 1)
+            [ -n "$broker" ] || { echo 'CHAT2_BROKER_NOT_RUNNING'; exit 1; }
+            containers=(gafus-postgres gafus-redis gafus-nginx gafus-web gafus-api gafus-worker gafus-trainer-panel gafus-admin-panel gafus-bull-board "$broker")
+            check_containers() {
+              local round="$1"
+              for name in "${containers[@]}"; do
+                status=$(docker inspect --format '{{.State.Status}}' "$name")
+                health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-health{{end}}' "$name")
+                restarts=$(docker inspect --format '{{.RestartCount}}' "$name")
+                oom=$(docker inspect --format '{{.State.OOMKilled}}' "$name")
+                exit_code=$(docker inspect --format '{{.State.ExitCode}}' "$name")
+                echo "CONTAINER round=$round name=$name status=$status health=$health restarts=$restarts oom=$oom exit=$exit_code"
+                [ "$status" = running ] && [ "$restarts" = 0 ] && [ "$oom" = false ] && [ "$exit_code" = 0 ] || { echo "LIVE_CONTAINER_CRASH=$name"; exit 1; }
+                [ "$health" = healthy ] || [ "$health" = no-health ] || { echo "LIVE_CONTAINER_UNHEALTHY=$name"; exit 1; }
+              done
+            }
+            check_containers first
+            sleep 35
+            check_containers second
+            for name in "${containers[@]}"; do
+              # Do not expose raw log text or secrets; report only severe error
+              # *counts* in the current running containers' recent log history.
+              severe=$(docker logs --since 5m --tail 160 "$name" 2>&1 | grep -Eic '(^|[^a-z])(fatal|panic|uncaught|out of memory|oom killed)([^a-z]|$)' || true)
+              echo "RECENT_SEVERE_LOG_LINES name=$name count=$severe"
+              [ "$severe" = 0 ] || { echo "RECENT_FATAL_LOGS=$name"; exit 1; }
+            done
+            for endpoint in https://gafus.ru/ https://api.gafus.ru/ready https://trainer-panel.gafus.ru/ https://adminka.gafus.ru/; do
+              curl -fLsS --max-time 15 -o /dev/null "$endpoint" || { echo "PRODUCTION_ENDPOINT_FAILED=$endpoint"; exit 1; }
+              echo "PRODUCTION_HTTPS_OK=$endpoint"
+            done
+            echo 'PRODUCTION_LIVE_RELEASE_VERIFIED_NO_CLOUDRU_JOB_CHANGES'
 
   deploy-app-only:
     needs: [validate-app-release]

@@ -8,7 +8,7 @@ const app=load('.github/workflows/production-app-only.yml');
 const reusable=load('.github/workflows/production-deploy-reusable.yml');
 test('app-only manual deploy verifies exact successful main release and never patches Cloud.ru Jobs',()=>{
  const jobs=app.jobs;
- assert.deepEqual(Object.keys(jobs).sort(),['deploy-app-only','recover-api-after-migration','server-preflight','validate-app-release']);
+ assert.deepEqual(Object.keys(jobs).sort(),['deploy-app-only','recover-api-after-migration','server-preflight','validate-app-release','verify-live-production']);
  const v=jobs['validate-app-release'];
  assert.match(v.steps[1].run,/RELEASE_IMAGES_OR_SECURITY_NOT_VERIFIED/);
  assert.match(v.steps[1].run,/RELEASE_NOT_ON_MAIN/);
@@ -65,4 +65,21 @@ test('migration recovery only runs after verified snapshot + 162 completed migra
  assert.doesNotMatch(script,/migrate deploy|\.sh" migrate|production-job-release|containers\.api\.cloud\.ru|pg_restore --clean|pg_restore --create/);
  const a=spawnSync('bash',['-n'],{input:script,encoding:'utf8'});
  assert.equal(a.status,0,a.stderr);
+});
+
+test('read-only live production verification ties all running containers to verified SHA and checks restarts, OOM, critical logs, backup, schema and HTTPS',()=>{
+ const j=app.jobs['verify-live-production'];
+ assert(j,'MISSING_POST_DEPLOY_VERIFICATION');
+ assert.match(j.if,/inputs\.mode == 'verify'/);
+ const cmd=j.steps[0].with.script;
+ for(const flag of ['WRONG_LIVE_IMAGE','LIVE_CONTAINER_CRASH','LIVE_CONTAINER_UNHEALTHY',
+   'RECENT_FATAL_LOGS','PRODUCTION_LIVE_RELEASE_VERIFIED_NO_CLOUDRU_JOB_CHANGES',
+   'INVALID_PRODUCTION_MIGRATION_LEDGER','MAINTENANCE_STILL_ACTIVE','PRISMA_MIGRATION_IMAGE_PRESENT',
+   'CHAT2_BROKER_NOT_RUNNING','GALLERY_APP_ORIGIN_MISMATCH','FEED_APP_ORIGIN_MISMATCH'])
+   assert(cmd.includes(flag),'MISSING_PROD_VERIFY_'+flag);
+ assert.match(cmd,/check_containers first/);
+ assert.match(cmd,/check_containers second/);
+ assert.doesNotMatch(cmd,/docker\s+(?:run|stop|restart|rm|pull|tag)|docker-compose.*\s+(?:up|stop|down)|prisma migrate|git reset|kubectl|production-job-release/);
+ const check=spawnSync('bash',['-n'],{input:cmd,encoding:'utf8'});
+ assert.equal(check.status,0,check.stderr);
 });
