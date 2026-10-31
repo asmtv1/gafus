@@ -56,3 +56,20 @@ for(const route of candidateRoutes){
     await response.body?.cancel();
   }catch(ex){console.log(JSON.stringify({method:'OPTIONS',route,errorType:ex?.name??'unknown'}));}
 }
+
+// GET discovery only. No POST/PATCH until a documented exact action is confirmed.
+for(const route of [
+ '/v1/containers/gafus-gallery-origin',
+ '/v2/containers/gafus-gallery-origin',
+ '/v1/containers/gafus-gallery-origin/resume',
+ '/v2/containers/gafus-gallery-origin/resume',
+ '/v1/containers/gafus-gallery-origin:resume',
+ '/v2/containers/gafus-gallery-origin:resume'
+]){
+  const url='https://containers.api.cloud.ru'+route+'?projectId='+encodeURIComponent(e.CLOUDRU_PROJECT_ID);
+  try{
+    const r=await fetch(url,{method:'GET',headers:{authorization:'Bearer '+bearer},redirect:'error',signal:AbortSignal.timeout(9000)});
+    console.log(JSON.stringify({method:'GET',route,http:r.status,allow:r.headers.get('allow')}));
+    await r.body?.cancel();
+  }catch(x){console.log(JSON.stringify({method:'GET',route,error:x?.name??'unknown'}));}
+}
