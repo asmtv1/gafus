@@ -25,15 +25,15 @@ test('four primary workflows, independent backup and three internal call-only wo
  assert(Object.hasOwn(parse('daily-backup').on,'workflow_dispatch'));
 });
 
-test('regular main deploy and retry cannot patch Cloud.ru infrastructure',()=>{
- const ci=parse('ci-cd'), retry=parse('deploy-only');
- assert(ci.jobs['deploy-production']);
+test('main CI reconciles Cloud.ru image links while Deploy Only remains app-only',()=>{
+ const ci=parse('ci-cd'),retry=parse('deploy-only');
  assert.equal(ci.jobs['deploy-production'].with.app_only,true);
  assert.equal(retry.jobs.deploy.with.app_only,true);
- assert(!Object.keys(ci.jobs).some(x=>x.includes('cloudru-jobs')));
- assert(!Object.keys(retry.jobs).some(x=>x.includes('cloudru-jobs')));
+ assert.deepEqual(ci.jobs['cloudru-jobs-sync'].needs,['deploy-production']);
+ assert.deepEqual(ci.jobs['cloudru-jobs-verify'].needs,['cloudru-jobs-sync']);
+ assert(ci.jobs['deploy-production'].needs.includes('cloudru-jobs-preflight'));
  assert(ci.jobs['deploy-production'].needs.includes('build-images'));
- assert(ci.jobs['deploy-production'].needs.includes('cloudru-media-contracts'));
+ assert(!Object.keys(retry.jobs).some(x=>x.includes('cloudru-jobs')));
  assert(retry.jobs.deploy.needs.includes('preflight-cdn'));
  assert(retry.jobs['validate-release'].steps.some(x=>x.run?.includes('RELEASE_IMAGES_OR_QA_NOT_VERIFIED')));
  assert(retry.jobs['validate-release'].steps.some(x=>x.run?.includes('SCHEMA_COMPATIBLE')));

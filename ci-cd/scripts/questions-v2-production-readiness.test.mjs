@@ -38,10 +38,11 @@ test('Questions V2 production S3/HMAC remain secret inputs; no temporary tunnel 
 
 test('regular app deploy cannot mutate Cloud.ru Job image or bypass incompatible Gallery V2', () => {
   assert(reusable.includes('production-job-release.mjs \"--$PHASE\"'));
-  assert(reusable.includes('preflight|cutover|verify'));
+  assert(reusable.includes('preflight|sync|cutover|verify'));
   assert(reusable.includes('docker buildx imagetools inspect'));
   assert(!/docker buildx build|docker\/build-push-action|publish-cloudru-image/.test(reusable));
-  assert(job.includes('UNRECOGNIZED_GALLERY_IMAGE'));
+  assert(job.includes('desiredImageChanges'));
+ assert(job.includes('configuredImage'));
   assert(job.includes('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS'));
   assert(job.includes('QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED'));
   assert(job.includes('INVALID_EXISTING_JOB_RELEASE_MODE'));

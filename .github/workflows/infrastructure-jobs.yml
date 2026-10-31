@@ -27,6 +27,14 @@ jobs:
   plan:
     if: github.ref == 'refs/heads/main' && inputs.operation == 'plan'
     runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDRU_WORKER_PINS_REQUIRED: ${{ vars.CLOUDRU_WORKER_PINS_REQUIRED || 'false' }}
+      CLOUDRU_GALLERY_WORKER_IMAGE: ${{ secrets.CLOUDRU_GALLERY_WORKER_IMAGE || vars.CLOUDRU_GALLERY_WORKER_IMAGE || '' }}
+      CLOUDRU_FEED_WORKER_IMAGE: ${{ secrets.CLOUDRU_FEED_WORKER_IMAGE || vars.CLOUDRU_FEED_WORKER_IMAGE || '' }}
+      CLOUDRU_QUESTIONS_WORKER_IMAGE: ${{ secrets.CLOUDRU_QUESTIONS_WORKER_IMAGE || vars.CLOUDRU_QUESTIONS_WORKER_IMAGE || '' }}
+      CLOUDRU_CHAT_PHOTO_IMAGE: ${{ secrets.CLOUDRU_CHAT_PHOTO_IMAGE || vars.CLOUDRU_CHAT_PHOTO_IMAGE || '' }}
+      CLOUDRU_CHAT_VIDEO_IMAGE: ${{ secrets.CLOUDRU_CHAT_VIDEO_IMAGE || vars.CLOUDRU_CHAT_VIDEO_IMAGE || '' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -71,7 +79,7 @@ jobs:
     uses: ./.github/workflows/production-job-release-reusable.yml
     with:
       release_sha: ${{ github.sha }}
-      mode: cutover
+      mode: sync
     secrets: inherit
 
   verify-after-apply:

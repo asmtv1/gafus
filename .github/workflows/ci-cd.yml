@@ -511,7 +511,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Production deploy workflow contract
-        run: node --test ci-cd/scripts/deploy-only-contract.test.mjs ci-cd/scripts/workflow-consolidation-contract.test.mjs ci-cd/scripts/backup-to-yandex.test.mjs
+        run: node --test ci-cd/scripts/deploy-only-contract.test.mjs ci-cd/scripts/workflow-consolidation-contract.test.mjs ci-cd/scripts/backup-to-yandex.test.mjs infra/cloudru/production-job-image-config.test.mjs
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media
       - name: Reject Yandex CDN release routes and verify fail-closed Beget gating
@@ -560,9 +560,19 @@ jobs:
       - name: Verify both protected Beget edges with real signed final objects (read-only)
         run: node infra/cloudru/beget-production-smoke.mjs
 
+  # Read-only inventory and image reference check, before VPS deployment.
+  cloudru-jobs-preflight:
+    needs: [security, build-apps, cloudru-media-contracts, beget-readonly-preflight, cutover-preflight]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: preflight
+    secrets: inherit
+
   # Production deploy is shared with manual Deploy Only. No second script.
   deploy-production:
-    needs: [security, build-apps, build-images, beget-readonly-preflight, cutover-preflight, cloudru-media-contracts]
+    needs: [security, build-apps, build-images, cloudru-jobs-preflight]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     uses: ./.github/workflows/production-deploy-reusable.yml
     with:
@@ -570,13 +580,30 @@ jobs:
       app_only: true
     secrets: inherit
 
-  # Cloud.ru Jobs, S3 and CDN changes are deliberately NOT part of a normal app release.
-  # See the separate manual Infrastructure & Jobs workflow.
+  # Reconcile immutable image links and Job secrets after a healthy app release.
+  # The job adapter does not build images, provision Jobs or touch S3.
+  cloudru-jobs-sync:
+    needs: [deploy-production]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: sync
+    secrets: inherit
+
+  cloudru-jobs-verify:
+    needs: [cloudru-jobs-sync]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: verify
+    secrets: inherit
 
   # Post-deploy read-only verification. Never switch, mutate, prepare,
   # or roll back Gallery/Feed to Yandex CDN (including on Beget 5xx).
   beget-verify-after-deploy:
-    needs: [beget-readonly-preflight, deploy-production]
+    needs: [beget-readonly-preflight, cloudru-jobs-verify]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production

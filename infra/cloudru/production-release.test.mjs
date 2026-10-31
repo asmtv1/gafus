@@ -46,13 +46,13 @@ const deployment = readFileSync(".github/workflows/production-deploy-reusable.ym
 const prod = readFileSync("ci-cd/docker/docker-compose.prod.yml", "utf8");
 for (const gate of [
   "cloudru-media-contracts:", "beget-readonly-preflight:",
-  "cutover-preflight:", "beget-verify-after-deploy:",
+  "cutover-preflight:", "cloudru-jobs-preflight:", "cloudru-jobs-sync:", "cloudru-jobs-verify:", "beget-verify-after-deploy:",
   "beget-release-readiness.mjs --check", "beget-production-smoke.mjs",
 ]) assert(ci.includes(gate), "MISSING_CI_GATE_" + gate);
 assert(ci.indexOf("  beget-readonly-preflight:") < ci.indexOf("  deploy-production:") &&
   ci.indexOf("  deploy-production:") < ci.indexOf("  beget-verify-after-deploy:"),
   "CDN_READONLY_BEFORE_AND_AFTER_APP_DEPLOY");
-assert(ci.includes("needs: [beget-readonly-preflight, deploy-production]"),
+assert(ci.includes("needs: [beget-readonly-preflight, cloudru-jobs-verify]"),
   "POSTDEPLOY_BEGET_VERIFY_AFTER_HEALTHY_APP");
 assert(!/cloudru-jobs-cutover:|cloudru-media-activate:/.test(ci),
   "APP_RELEASE_MUST_NOT_MODIFY_CLOUDRU_JOBS");

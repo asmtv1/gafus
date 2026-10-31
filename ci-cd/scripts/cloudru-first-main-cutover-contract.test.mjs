@@ -15,20 +15,21 @@ const release=read('infra/cloudru/production-job-release.mjs');
 const parse=(s)=>{const d=YAML.parseDocument(s);assert.equal(d.errors.length,0,d.errors.map(x=>x.message).join('\n'));return d.toJS();};
 const byJobs=(s)=>parse(s).jobs;
 
-test('normal main and manual deploy never repeat first-time Cloud.ru cutover',()=>{
+test('automatic main release syncs Cloud.ru Jobs after app; manual redeploy stays app-only',()=>{
  const ciJobs=byJobs(ci), manualJobs=byJobs(manual);
  const infra=byJobs(read('.github/workflows/infrastructure-jobs.yml'));
- for(const name of ['cloudru-jobs-cutover','cloudru-media-activate','cloudru-jobs-verify','cloudru-jobs-preflight']){
-   assert(!ciJobs[name],'CLOUDRU_MUTATION_IN_MAIN_'+name);
-   assert(!manualJobs[name],'CLOUDRU_MUTATION_IN_REDEPLOY_'+name);
- }
+ assert(ciJobs['cloudru-jobs-preflight']);
+ assert.deepEqual(ciJobs['cloudru-jobs-sync'].needs,['deploy-production']);
+ assert.deepEqual(ciJobs['cloudru-jobs-verify'].needs,['cloudru-jobs-sync']);
+ assert.deepEqual(ciJobs['beget-verify-after-deploy'].needs,['beget-readonly-preflight','cloudru-jobs-verify']);
  assert.equal(ciJobs['deploy-production'].with.app_only,true);
  assert.equal(manualJobs.deploy.with.app_only,true);
- assert.deepEqual(ciJobs['beget-verify-after-deploy'].needs,['beget-readonly-preflight','deploy-production']);
- assert(infra['apply-existing-jobs'],'MISSING_EXPLICIT_INFRA_JOB_UPDATE');
- assert(infra['verify-after-apply'],'MISSING_INFRA_JOB_VERIFY');
+ assert(!manualJobs['cloudru-jobs-sync']);
+ assert(infra['apply-existing-jobs']);
+ assert(infra['verify-after-apply']);
+ assert(!ciJobs['cloudru-media-activate']);
  for(const flow of [ci,manual,jobs,app,activation])
-  assert(!flow.includes('GAFUS_REFACTOR_PRODUCTION_CUTOVER'),'LEGACY_MAIN_GATE_MUST_NOT_SKIP_V2');
+  assert(!flow.includes('GAFUS_REFACTOR_PRODUCTION_CUTOVER'));
 });
 
 test('cutover preflight can run Node 24 without installing pnpm; release gates remain blocking',()=>{
@@ -47,17 +48,20 @@ test('cutover preflight can run Node 24 without installing pnpm; release gates r
   'BEGET_PRODUCTION_APPROVAL_GATE_MUST_NOT_BE_SKIPPED');
 });
 
-test('main app deployment needs QA, preflight and CDN health; Cloud.ru changes remain separate',()=>{
+test('main release preflights existing Cloud.ru Jobs before app and syncs after API health',()=>{
  const graph=byJobs(ci);
  const gate=graph['beget-readonly-preflight'];
  assert(gate.if.includes("github.ref == 'refs/heads/main'"));
  assert(gate.if.includes("github.event_name == 'push'"));
  assert(gate.steps.some(x=>x.run?.includes('beget-release-readiness.mjs --check')));
  assert(gate.steps.some(x=>x.run?.includes('beget-production-smoke.mjs')));
- for(const dep of ['security','build-apps','build-images','beget-readonly-preflight','cutover-preflight','cloudru-media-contracts'])
-  assert(graph['deploy-production'].needs.includes(dep),'MISSING_BLOCKING_GATE_'+dep);
- assert(graph['beget-verify-after-deploy'].needs.includes('deploy-production'));
- assert(!ci.includes('mode: cutover'),'CLOUDRU_CUTOVER_MUST_BE_MANUAL');
+ for(const dep of ['security','build-apps','build-images','cloudru-jobs-preflight'])
+  assert(graph['deploy-production'].needs.includes(dep),'MISSING_GATE_'+dep);
+ for(const dep of ['security','build-apps','cloudru-media-contracts','beget-readonly-preflight','cutover-preflight'])
+  assert(graph['cloudru-jobs-preflight'].needs.includes(dep),'MISSING_PREFLIGHT_'+dep);
+ assert(graph['cloudru-jobs-sync'].with.mode==='sync');
+ assert(graph['cloudru-jobs-verify'].with.mode==='verify');
+ assert(!ci.includes('mode: cutover'),'ONE_TIME_CUTOVER_NOT_IN_AUTOMATIC_CI');
 });
 
 test('Vite image matrix sets up Node without requiring pnpm before pnpm install',()=>{
@@ -120,7 +124,7 @@ test('Cloud.ru release is hard-gated to main, exact SHA and deployed API, verifi
  assert(release.includes('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS'));
  assert(release.includes("e.GITHUB_REF!=='refs/heads/main'"));
  assert(release.includes('e.RELEASE_SHA!==e.GITHUB_SHA'));
- assert(release.includes("mode==='--cutover'"));
+ assert(release.includes("['--cutover','--sync'].includes(mode)"));
  assert(release.includes('CLOUDRU_NEW_JOB_NOT_ACTIVATED'));
  assert(release.includes('V2_BACKEND_NOT_ACTIVATED'));
  assert(jobs.includes('docker buildx imagetools inspect'));

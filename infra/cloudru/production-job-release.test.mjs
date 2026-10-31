@@ -123,31 +123,29 @@ test('dry-run is offline and unauthorized apply cannot access Cloud.ru',()=>{
 
  const blocked=run('--apply');assert.notEqual(blocked.status,0);assert.match(blocked.stderr,/INVALID_EXISTING_JOB_RELEASE_MODE/);
 });
-test('Cloud.ru updates run only through explicit Infrastructure & Jobs; app and redeploy stay separate',()=>{
+test('automatic main CI reconciles 11 existing Jobs; manual control also available',()=>{
  const ci=readFileSync('.github/workflows/ci-cd.yml','utf8');
  const manual=readFileSync('.github/workflows/deploy-only.yml','utf8');
  const infra=readFileSync('.github/workflows/infrastructure-jobs.yml','utf8');
  const shared=readFileSync('.github/workflows/production-job-release-reusable.yml','utf8');
- for(const f of [ci,manual]){
-  assert(!f.includes('production-job-release-reusable.yml'));
-  assert(!f.includes('cloudru-jobs-cutover:'));
-  assert(!f.includes('cloudru-media-activate:'));
-  assert(f.includes('app_only: true'));
- }
+ assert(ci.includes('production-job-release-reusable.yml'));
+ assert(ci.includes('cloudru-jobs-preflight:'));
+ assert(ci.includes('cloudru-jobs-sync:'));
+ assert(ci.includes('cloudru-jobs-verify:'));
+ assert(ci.includes('mode: sync'));
+ assert(!manual.includes('production-job-release-reusable.yml'));
  assert(infra.includes('UPDATE_11_EXISTING_JOBS'));
  assert(infra.includes('production-job-release-reusable.yml'));
- assert(infra.includes('mode: cutover'));
+ assert(infra.includes('mode: sync'));
  assert(infra.includes('mode: verify'));
  assert(shared.includes('production-job-release.mjs "--$PHASE"'));
- assert(shared.includes('preflight|cutover|verify'));
+ assert(shared.includes('preflight|sync|cutover|verify'));
  const script=readFileSync('infra/cloudru/production-job-release.mjs','utf8');
  assert(script.includes('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS'));
  assert(script.includes('CLOUDRU_ROLLBACK_SNAPSHOT_SAVED_RUNNER_ONLY'));
  assert(!script.includes('docker build'));
- const originRelease=readFileSync('infra/cloudru/production-media-release.mjs','utf8');
- assert(originRelease.includes('const resources = [...base.services];'));
- assert(!originRelease.includes('items: base.jobs'));
 });
+
 test('read-only verification rejects temporary backends and non-ready Jobs',async()=>{
  const m=mock();
  const target='gafus-questions-photo';

@@ -1,32 +1,31 @@
 #!/usr/bin/env node
-/** Existing Cloud.ru Container Jobs, first Refactor production cutover.
+/** Idempotent reconciliation of the 11 existing production Cloud.ru Container Jobs.
  * No Docker builds, no Job creation, no task execution, no S3/CDN mutation.
- * Preflight is read-only; cutover is main-only AFTER the new API is healthy.
+ * Preflight/verify are read-only; sync is main-only AFTER the API is healthy.
  */
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import { CLOUDRU_PRODUCTION_JOBS, CLOUDRU_PROJECTS, imageRepository, resolveProjectBindings } from './production-job-inventory.mjs';
 import { preflightJobs } from './production-job-release-core.mjs';
+import { configuredImage, imagePlan } from './production-job-image-config.mjs';
 
 const mode=process.argv[2]??'--plan';
-if(!['--plan','--preflight','--cutover','--verify'].includes(mode))throw Error('INVALID_EXISTING_JOB_RELEASE_MODE');
-export const RELEASE_DIGESTS=Object.freeze({
-  'gallery-worker':'7f8d4325a712b3ba0a78b1d6750e4325cd66b07f5157a0d6e0bcb751b4f6693c',
-  'feed-worker':'cbf25f7f60e8f33ff261c6eeeab39f3f89412fc561340cc7f10ad903b5e16a02',
-  'questions-photo':'96f76942f9f12099353b131c61332502175f18a1ec94919bfcfd1f4cc04ab321',
-});
-const target=(j)=>RELEASE_DIGESTS[j.imageRole]?`${imageRepository(j)}@sha256:${RELEASE_DIGESTS[j.imageRole]}`:null;
+if(!['--plan','--preflight','--sync','--cutover','--verify'].includes(mode))
+  throw Error('INVALID_EXISTING_JOB_RELEASE_MODE');
+const e=process.env;
+const target=j=>configuredImage(j,e);
+const requested=imagePlan(e);
 if(mode==='--plan'){
   console.log(JSON.stringify({mode,mutates:false,buildsImages:false,provisionsJobs:false,
-    targets:CLOUDRU_PRODUCTION_JOBS.map(j=>({name:j.name,projectId:CLOUDRU_PROJECTS[j.project].projectId,
-      targetImage:target(j)??'KEEP_EXISTING_PINNED_CHAT2_IMAGE'}))},null,2));
+    targets:requested.map(({job:j,targetImage})=>({name:j.name,projectId:CLOUDRU_PROJECTS[j.project].projectId,
+      targetImage:targetImage??'KEEP_EXISTING_PINNED_CHAT2_IMAGE'}))},null,2));
   process.exit(0);
 }
-const e=process.env;
 if(e.GITHUB_REF!=='refs/heads/main'||!['push','workflow_dispatch'].includes(e.GITHUB_EVENT_NAME??'')||
    !/^[a-f0-9]{40}$/.test(e.RELEASE_SHA??'')||e.RELEASE_SHA!==e.GITHUB_SHA||
-   e.CLOUDRU_PROD_DEPLOY_CONFIRM!=='preapproved-main-only-media-release')throw Error('PROD_CLOUDRU_JOB_RELEASE_GUARD');
+   e.CLOUDRU_PROD_DEPLOY_CONFIRM!=='preapproved-main-only-media-release')
+   throw Error('PROD_CLOUDRU_JOB_RELEASE_GUARD');
 const bindings=resolveProjectBindings(e);
-if(mode==='--cutover' && e.CLOUDRU_NEW_BACKEND_DEPLOYED!=='true')throw Error('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS');
+if(['--cutover','--sync'].includes(mode) && e.CLOUDRU_NEW_BACKEND_DEPLOYED!=='true')throw Error('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS');
 // Fail before deploying the new Backend if the first-release Cloud.ru
 // activation cannot authenticate or initialize its protected media routes.
 for(const key of ['GALLERY_INTERNAL_HMAC_SECRET','FEED_INTERNAL_HMAC_SECRET',
@@ -45,7 +44,7 @@ async function req(url,method='GET',body,token){
   const u=new URL(url);
   if(!['iam.api.cloud.ru','containers.api.cloud.ru'].includes(u.hostname)||u.protocol!=='https:')throw Error('CLOUDRU_UNEXPECTED_ENDPOINT');
   if((method==='POST'&&u.hostname!=='iam.api.cloud.ru')||!['GET','POST','PATCH'].includes(method)||
-     (method==='PATCH'&&(mode!=='--cutover'||u.hostname!=='containers.api.cloud.ru')))
+     (method==='PATCH'&&(!['--cutover','--sync'].includes(mode)||u.hostname!=='containers.api.cloud.ru')))
     throw Error('CLOUDRU_OPERATION_FORBIDDEN');
   const response=await fetch(url,{method,headers:{...(token?{authorization:`Bearer ${token}`}:{ }),
    ...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,
@@ -68,21 +67,10 @@ const client={
   patch:async(scope,id,name,v,payload)=>req(`${api}/${encodeURIComponent(name)}?projectId=${id}`,'PATCH',payload,tokens.get(scope+':'+v)),
 };
 const snapshots=await preflightJobs({...client,readOnly:true,allowChat2MissingRuntime:mode!=='--verify'});
-const galleryPresent=new Set();
-for(const s of snapshots){
- const img=s.before.template.containers[0].image;
- if(s.imageRole==='gallery-worker'){
-   const known=[target(s),`${imageRepository(s)}@sha256:652b3ce4e489dd0a66fc9d88358dddd70fd1cbcf94e36301e976bf198b059083`];
-   if(!known.includes(img))throw Error('UNRECOGNIZED_GALLERY_IMAGE_'+s.name);
-   galleryPresent.add(img);
- }else if(target(s) && img!==target(s))throw Error('NEW_MEDIA_IMAGE_MISSING_'+s.name);
- if(!target(s)&&!img.startsWith(imageRepository(s)+'@sha256:'))throw Error('CHAT2_IMAGE_NOT_PINNED_'+s.name);
-}
-if(galleryPresent.size!==1)throw Error('GALLERY_JOB_POOL_IMAGE_SPLIT');
-if(mode==='--preflight'){
- console.log(JSON.stringify({stage:'preflight',checked:snapshots.length,mutates:false,existingGalleryImage:[...galleryPresent][0]}));
- process.exit(0);
-}
+// Current digest may differ from desired image: this is the drift to sync.
+ // preflightJobs ensures pinned, correctly scoped images and exact Job identities.
+const imageChanges=snapshots.filter(s=>target(s)!==null &&
+  s.before.template.containers[0].image!==target(s)).map(s=>s.name);
 const readEnv=(j,key)=>j.template.containers[0].env?.find(x=>x.name===key)?.value;
 function changeEnv(job,key,value){
   const env=job.template.containers[0].env;
@@ -99,8 +87,8 @@ function changeEnv(job,key,value){
   item.value=value;
 }
 export function desiredConfig(snapshot,vars){
-  const j=structuredClone(snapshot.before),t=RELEASE_DIGESTS[snapshot.imageRole];
-  if(t)j.template.containers[0].image=`${imageRepository(snapshot)}@sha256:${t}`;
+  const j=structuredClone(snapshot.before),requestedImage=target(snapshot);
+  if(requestedImage)j.template.containers[0].image=requestedImage;
   const hkey=hmacRoles[snapshot.imageRole], secret=vars[hkey];
   if(typeof secret!=='string'||Buffer.byteLength(secret,'utf8')<32)throw Error('CLOUDRU_HMAC_MISSING_'+hkey);
   changeEnv(j,hkey,secret);
@@ -121,6 +109,13 @@ function jobMatches(a,b){return JSON.stringify(a.configuration)===JSON.stringify
 function patchBody(j){return {name:j.name,projectId:j.projectId,description:j.description,runImmediately:false,
  configuration:j.configuration,template:j.template};}
 const desired=snapshots.map(s=>({snapshot:s,job:desiredConfig(s,e)}));
+if(mode==='--preflight'){
+ console.log(JSON.stringify({stage:'preflight',checked:snapshots.length,
+   mutates:false,desiredImageChanges:imageChanges,
+   jobsRequiringConfigurationUpdate:desired.filter(({snapshot,job})=>
+     !jobMatches(snapshot.before,job)).map(({snapshot})=>snapshot.name)}));
+ process.exit(0);
+}
 if(mode==='--verify'){
  for(const {snapshot:s,job} of desired)
    if(!jobMatches(s.before,job))throw Error('CLOUDRU_NEW_JOB_NOT_ACTIVATED_'+s.name);
@@ -139,8 +134,14 @@ for(const path of ['/internal/gallery/jobs/claim','/internal/questions/media/job
  // GET must be rejected by mounted Hono route, not 404 (old Backend).
  if(![405,503].includes(status))throw Error('NEW_PRODUCTION_BACKEND_ROUTE_MISSING_'+path+'_'+status);
 }
+const pending=desired.filter(({snapshot:s,job})=>!jobMatches(s.before,job));
+if(pending.length===0){
+  console.log(JSON.stringify({stage:'sync',updated:[],verified:desired.length,
+    imagesRebuilt:false,changed:false}));
+  process.exit(0);
+}
 const file=process.env.RUNNER_TEMP??'/tmp';
-const stamp=`${file}/gafus-cloudru-first-cutover-${e.RELEASE_SHA}.json`;
+const stamp=`${file}/gafus-cloudru-job-sync-${e.RELEASE_SHA}.json`;
 mkdirSync(file,{recursive:true});
 writeFileSync(stamp,JSON.stringify({projectIds:Object.values(CLOUDRU_PROJECTS).map(x=>x.projectId),
   snapshots:snapshots.map(s=>s.before),releaseSha:e.RELEASE_SHA}),{mode:0o600,flag:'wx'});
@@ -165,9 +166,9 @@ try{
   }
   if(!applied)throw Error('CLOUDRU_POSTPATCH_VERIFICATION_'+s.name);
  }
- console.log(JSON.stringify({stage:'cutover',updated:changed.map(x=>x.snapshot.name),verified:desired.length,imagesRebuilt:false}));
+ console.log(JSON.stringify({stage:'sync',updated:changed.map(x=>x.snapshot.name),verified:desired.length,imagesRebuilt:false}));
 }catch(err){
- console.error('CLOUDRU_CUTOVER_FAILED_SAFE_ROLLBACK_ATTEMPT');
+ console.error('CLOUDRU_SYNC_FAILED_SAFE_ROLLBACK_ATTEMPT');
  for(const {snapshot:s,job} of changed.reverse()){
   try{const now=await client.get(s.project,s.projectId,s.name,s.iamVersion);
    if(jobMatches(now,job))await client.patch(s.project,s.projectId,s.name,s.iamVersion,patchBody(s.before));

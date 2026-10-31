@@ -9,10 +9,10 @@ Actions to have loaded the new YAML from `main`.
 
 | Workflow | When to use | What it changes |
 | --- | --- | --- |
-| **CI/CD Pipeline** (`ci-cd.yml`) | Automatic after every push to `main` | Lint/tests/boundary checks, seven app images in GHCR tagged `sha-<commit>`, app-only coordinated deploy + read-only Beget CDN verification |
+| **CI/CD Pipeline** (`ci-cd.yml`) | Automatic after every push to `main` | Lint/tests/boundary checks, seven app images in GHCR tagged `sha-<commit>`, coordinated app deploy + existing Cloud.ru Job image sync + postdeploy verification |
 | **Deploy Only** (`deploy-only.yml`) | Main deployment failed, images already built; or explicitly approved rollback | Redeploys seven previously verified images, no image build, no Cloud.ru Job changes, no S3 writes |
 | **Build Single Container** (`build-single-container.yml`) | Rebuild only web, trainer-panel, admin-panel, api, worker, bull-board or prisma | Builds and publishes **one** image under a unique `manual-<run>-<attempt>` tag and records its digest. Optional production deploy updates **only** the selected service |
-| **Infrastructure & Jobs** (`infrastructure-jobs.yml`) | Cloud.ru media image / existing Job configuration maintenance | Read-only plan/preflight/verify, optional deliberate image publish or change to *exactly the existing 11 Jobs* |
+| **Infrastructure & Jobs** (`infrastructure-jobs.yml`) | Cloud.ru media image / existing Job configuration maintenance | Read-only plan/preflight/verify, optional media image publish or reconcile *exactly the existing 11 Jobs* without rebuilding |
 
 One separate **Daily Database Backup to Yandex Disk** (`daily-backup.yml`)
 runs on its existing schedule and can be triggered manually. Backups are
@@ -31,13 +31,16 @@ Historic one-time/refactor/incident workflows live in
 
 1. Push to `main` triggers CI. The frontend Vite builds and all seven
    containers are built/published **only after** required checks.
-2. A source/production preflight and live Beget CDN check must succeed.
-3. Shared app-only deployment downloads all seven `sha-<commit>` images,
-   preserves existing S3/CDN/Cloud.ru media configuration, performs the existing
-   coordinated schema cutover with safety checks, and verifies health.
-4. The post-deploy CDN smoke is read-only.
-5. **No 11-Job cutover/Cloud.ru image publishing/S3 bucket creation is part
-   of ordinary CI/CD.** Do not disable failing readiness checks to force release.
+2. Source/production readiness, all 11 existing Cloud.ru Job identities,
+   current immutable image pins, target digests and real Beget CDN delivery
+   must pass a read-only preflight **before** application deployment.
+3. Shared app-only deployment pulls the seven GHCR application images,
+   performs the existing coordinated migration and verifies application health.
+4. CI synchronizes image references and essential Job secrets on the **11
+   existing Cloud.ru Jobs only**. Unchanged Jobs are not patched; no media
+   images are built or published and no S3/CDN resources are modified.
+5. Read-only Cloud.ru verification confirms actual state before the final
+   read-only Beget CDN smoke reports a successful release.
 
 ### Manual redeployment and rollback
 
@@ -80,6 +83,34 @@ Historic one-time/refactor/incident workflows live in
   requires separately reviewed infrastructure-as-code and credentials. Those
   operations are deliberately unsupported by this workflow to protect media
   and user objects.
+
+## Updating Cloud.ru Job container references from GitHub
+
+Existing GitHub **production Environment Variables** (already configured):
+- `CLOUDRU_GALLERY_WORKER_IMAGE` → 2 Gallery Jobs
+- `CLOUDRU_FEED_WORKER_IMAGE` → 4 Feed Jobs
+- `CLOUDRU_QUESTIONS_WORKER_IMAGE` → 1 Questions Job
+- `CLOUDRU_WORKER_PINS_REQUIRED=true` → fail closed if any of these three are missing
+
+Optional `CLOUDRU_CHAT_PHOTO_IMAGE` (2 photo Jobs) and
+`CLOUDRU_CHAT_VIDEO_IMAGE` (2 video Jobs) can be added later; without these
+the existing Chat2 image digest is preserved.
+
+Each image is `gafus.cr.cloud.ru/<repository>@sha256:<64 hex>` or a bare
+`sha256:<64 hex>`. The repository must match the exact Job role; tags
+such as `:latest` and arbitrary registries are rejected. A GitHub
+Secret of the **same name takes precedence** over the Environment Variable.
+This supports the historic Secrets delivery path without changing names.
+
+**Change only the image URL in production Environment Variables or Secrets.**
+An edit to GitHub Secrets/Variables **does not itself trigger a workflow**.
+To apply immediately without rebuilding, run **Infrastructure & Jobs**
+→ `apply-existing-jobs` with confirmation `UPDATE_11_EXISTING_JOBS`.
+Alternatively, the next successful push to `main` automatically includes
+the read-only preflight → app release → Job sync → read-only verify.
+The separate `publish-media-images` action merely builds/publishes
+new OCI images: you must then update the reference to the verified
+digest to activate that image.
 
 ## Production protection / unresolved issues
 

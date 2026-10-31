@@ -31,8 +31,8 @@ test('CI exercises migrations and real PostgreSQL poll end-to-end before deployi
   assert.match(ci, /MomentComposer\.unifiedPoll\.test\.tsx/);
   assert.match(ci, /publication-client\.test\.ts/);
   assert.match(ci, /feed-poll-release-contract\.test\.mjs/);
-  assert(ci.includes('needs: [security, build-apps, build-images, beget-readonly-preflight, cutover-preflight, cloudru-media-contracts]'));
-  assert(!ci.includes('cloudru-jobs-preflight:'), 'normal CI must not couple media Job cutover to app release');
+  assert(ci.includes('needs: [security, build-apps, build-images, cloudru-jobs-preflight]'));
+  assert(ci.includes('mode: preflight'), 'CI validates 11 existing Jobs before app release');
   assert.match(ci, /github\.ref == 'refs\/heads\/main' && github\.event_name == 'push'/);
   assert.match(sharedDeploy, /production-schema-cutover\.sh/);
 });
