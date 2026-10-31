@@ -10,7 +10,7 @@ on:
         type: choice
         required: true
         default: plan
-        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, cloudru-origin-diagnostic]
+        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, cloudru-origin-diagnostic, create-feed-v2-smoke]
       confirmation:
         description: 'For apply: UPDATE_11_EXISTING_JOBS; for image publish: PUBLISH_MEDIA_IMAGES'
         type: string
@@ -20,10 +20,41 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ inputs.operation == 'beget-readonly-diagnostic' && 'gafus-beget-readonly-diagnostic' || inputs.operation == 'cloudru-origin-diagnostic' && 'gafus-cloudru-readonly-origin' || 'gafus-production-deploy' }}
+  group: ${{ inputs.operation == 'beget-readonly-diagnostic' && 'gafus-beget-readonly-diagnostic' || inputs.operation == 'cloudru-origin-diagnostic' && 'gafus-cloudru-readonly-origin' || inputs.operation == 'create-feed-v2-smoke' && 'gafus-feed-v2-synthetic-provision' || 'gafus-production-deploy' }}
   cancel-in-progress: false
 
 jobs:
+  create-feed-v2-smoke:
+    if: github.ref == 'refs/heads/diagnostic/beget-cdn-readonly-20261101' && inputs.operation == 'create-feed-v2-smoke'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 12
+    env:
+      CLOUDRU_S3_ENDPOINT: https://s3.cloud.ru
+      CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
+      CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
+      BEGET_PERMANENT_SMOKE_CONFIRM: approved-feed-v2-permanent-production-webp
+      APPROVAL: ${{ inputs.confirmation }}
+    steps:
+      - name: Require exact synthetic-only approval
+        run: |
+          test "$APPROVAL" = 'CREATE_FEED_V2_SYNTHETIC_ONLY' || {
+            echo 'NO_SYNTHETIC_SEED_APPROVAL'
+            exit 1
+          }
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install checked-in lockfile dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Create single immutable synthetic V2 WebP and print its expected digest
+        run: node infra/cloudru/beget-provision-readonly-smoke.mjs --feed-v2
+
   beget-readonly-diagnostic:
     if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/diagnostic/beget-cdn-readonly-20261101') && inputs.operation == 'beget-readonly-diagnostic'
     runs-on: ubuntu-latest

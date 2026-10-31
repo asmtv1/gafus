@@ -11,7 +11,7 @@ import { appendFile } from 'node:fs/promises';
 import { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 const mode=process.argv[2]??'--plan';
-if(!['--plan','--run'].includes(mode)||process.argv.length>3)throw Error('UNSUPPORTED_SMOKE_PROVISION_MODE');
+if(!['--plan','--run','--feed-v2'].includes(mode)||process.argv.length>3)throw Error('UNSUPPORTED_SMOKE_PROVISION_MODE');
 const definitions=[
  {scope:'gallery',bucket:'gafus-gallery-private',key:id=>`albums/beget-smoke-${id}/beget-smoke-${id}/photos/${id}/full.webp`,keyVar:'BEGET_GALLERY_SMOKE_FINAL_KEY',hashVar:'BEGET_GALLERY_SMOKE_SHA256',rgb:{r:72,g:142,b:102}},
  {scope:'feed',bucket:'gafus-feed-private',key:id=>`posts/beget-smoke-${id}/beget-smoke-${id}/attachments/${id}/poster.webp`,keyVar:'BEGET_FEED_SMOKE_FINAL_KEY',hashVar:'BEGET_FEED_SMOKE_SHA256',rgb:{r:92,g:96,b:153}},
@@ -21,6 +21,53 @@ if(mode==='--plan'){
  process.exit(0);
 }
 const e=process.env;
+if(mode==='--feed-v2'){
+ if(e.BEGET_PERMANENT_SMOKE_CONFIRM!=='approved-feed-v2-permanent-production-webp' ||
+    e.CLOUDRU_S3_ENDPOINT!=='https://s3.cloud.ru' || !e.GITHUB_ENV)
+   throw Error('FEED_V2_FIXTURE_NOT_APPROVED');
+ for(const k of ['CLOUDRU_S3_ACCESS_KEY_ID','CLOUDRU_S3_SECRET_ACCESS_KEY'])
+   if(!e[k] || e[k].length<16)throw Error('FEED_V2_FIXTURE_CREDENTIAL_MISSING_'+k);
+ const require=createRequire(new URL('../../apps/gallery-cloud/package.json',import.meta.url));
+ const sharp=require('sharp');
+ const s3=new S3Client({endpoint:'https://s3.cloud.ru',region:'ru-central-1',
+   forcePathStyle:true,maxAttempts:1,
+   credentials:{accessKeyId:e.CLOUDRU_S3_ACCESS_KEY_ID,secretAccessKey:e.CLOUDRU_S3_SECRET_ACCESS_KEY}});
+ const id=randomUUID().replaceAll('-','');
+ const key=`media/v2/beget-smoke-${id}/v1/image/s.webp`;
+ const bucket='gafus-feed-private';
+ let attempted=false;
+ try {
+   const bytes=await sharp({create:{width:16,height:16,channels:3,
+     background:{r:96,g:146,b:190}}}).webp().toBuffer();
+   if(bytes.length<20||bytes.length>5000)throw Error('FEED_V2_INVALID_BYTES');
+   const hash=createHash('sha256').update(bytes).digest('hex');
+   const pre=await s3.send(new HeadObjectCommand({Bucket:bucket,Key:key}),
+     {abortSignal:AbortSignal.timeout(14000)}).catch(error=>error);
+   if(pre?.$metadata?.httpStatusCode!==404)throw Error('FEED_V2_FIXTURE_ALREADY_EXISTS');
+   attempted=true;
+   const put=await s3.send(new PutObjectCommand({Bucket:bucket,Key:key,Body:bytes,
+     IfNoneMatch:'*',ContentType:'image/webp',
+     CacheControl:'private, max-age=180, must-revalidate'}),
+     {abortSignal:AbortSignal.timeout(18000)});
+   if(put.$metadata.httpStatusCode!==200)throw Error('FEED_V2_FIXTURE_PUT_FAILED');
+   const head=await s3.send(new HeadObjectCommand({Bucket:bucket,Key:key}),
+     {abortSignal:AbortSignal.timeout(14000)});
+   if(head.ContentLength!==bytes.length || head.ContentType!=='image/webp')
+     throw Error('FEED_V2_FIXTURE_VERIFY_FAILED');
+   await appendFile(e.GITHUB_ENV,`BEGET_FEED_SMOKE_FINAL_KEY=${key}\nBEGET_FEED_SMOKE_SHA256=${hash}\n`);
+   console.log(`FEED_V2_SMOKE_CREATED key=${key} sha256=${hash} bytes=${bytes.length}`);
+ }catch(error){
+   if(attempted){
+     try{
+       await s3.send(new DeleteObjectCommand({Bucket:bucket,Key:key}),
+         {abortSignal:AbortSignal.timeout(14000)});
+       console.error('FEED_V2_SYNTHETIC_ONLY_ROLLBACK=PASS');
+     }catch(ex){console.error('FEED_V2_SYNTHETIC_ONLY_ROLLBACK_FAILED',ex?.name);}
+   }
+   throw error;
+ }finally{s3.destroy();}
+ process.exit(0);
+}
 if(e.BEGET_PERMANENT_SMOKE_CONFIRM!=='approved-two-permanent-production-webps'||e.CLOUDRU_S3_ENDPOINT!=='https://s3.cloud.ru'||!e.GITHUB_ENV)
  throw Error('SMOKE_FIXTURE_PROVISION_NOT_AUTHORIZED');
 for(const name of ['CLOUDRU_S3_ACCESS_KEY_ID','CLOUDRU_S3_SECRET_ACCESS_KEY'])
