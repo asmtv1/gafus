@@ -14,7 +14,10 @@ const albumFinal = /^albums\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/photos\
 export function createFeedCloudObjects(env: NodeJS.ProcessEnv = process.env): FeedCloudObjects {
   const local = isolatedNonprodS3Config("feed", env);
   const localGallery = local ? isolatedNonprodS3Config("gallery", env) : null;
-  if (env.FEED_BUCKET_PUBLIC === "true" || env.GALLERY_BUCKET_PUBLIC === "true")
+  // Feed is an intentionally public media bucket: visibility is defined by the
+  // deployed S3 policy, not this advisory flag. Never disable processing because
+  // FEED_BUCKET_PUBLIC=true. The album-copy source retains its own restriction.
+  if (env.GALLERY_BUCKET_PUBLIC === "true")
     throw new Error("PUBLIC_MEDIA_BUCKET_REFUSED");
   if (local && (env.FEED_S3_ENDPOINT || env.GALLERY_S3_ENDPOINT || env.FEED_BUCKET || env.FEED_ALBUM_BUCKET))
     throw new Error("ISOLATED_MEDIA_MIXED_PROVIDER_REFUSED");

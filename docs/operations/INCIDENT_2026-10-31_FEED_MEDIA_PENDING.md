@@ -45,3 +45,21 @@
 ## Дополнительная проверка конкретного сбоя
 
 Read-only JOIN в production PostgreSQL подтвердил для неудачного `publish_photo`: `FeedPost.status=failed`, `FeedPostRevision.status=failed`, `FeedMediaAsset.status=failed`, `FeedStorageJob.status=failed`, `attempts=5`, `errorCode=MEDIA_PROCESSING_FAILED`. По полученному из SQL `mediaId` выполнен только read-only S3 `ListObjectsV2` для соответствующего конечного префикса; на момент проверки итоговых вариантов `image/*.webp` там **0**. Это совместимо с ошибкой на этапах скачивания/трансформации/записи, но также может объясняться уже выполненной очисткой после окончательного отказа — **этап ошибки пока достоверно не установлен**. Никакие персональные ключи S3 или пользовательский медиаконтент не скачивались и не выводились.
+
+## Исправление 2026-10-31 — согласованный публичный Feed S3
+
+**Подтверждённая первопричина, обнаруженная после предыдущей диагностической поставки:** на всех четырёх существующих Jobs `FEED_BUCKET_PUBLIC=true` (это корректный, явно одобренный владельцем режим публичного Feed S3). Однако `apps/feed-cloud/src/objects.ts` ошибочно выбрасывал `PUBLIC_MEDIA_BUCKET_REFUSED` до обращения к S3, как только видел `FEED_BUCKET_PUBLIC=true`. В Cloud.ru при этом фиксировались многочисленные `FEED_CLOUD_INVOCATION_FAILED`, API успешно обрабатывал claim/fail, а пользовательские фото-задания достигали 5 неудачных попыток. Отдельные случайные `phase:maintenance` ошибки в логах были, но не являются причиной отказа при корректном публичном Feed S3.
+
+**Исправление:** в `createFeedCloudObjects` разрешён `FEED_BUCKET_PUBLIC=true` без смены bucket policy, не удалены обязательные S3 credentials, не ослаблены проверки Endpoint/ключей и `IfNoneMatch` для защиты immutable публикаций. `GALLERY_BUCKET_PUBLIC=true` по-прежнему вызывает отказ, чтобы не ослаблять правила отдельного Gallery V2. Добавлены `objects.public-bucket.test.ts` (3 случая).
+
+**Подтверждённые проверки:** `@gafus/feed-cloud-runtime typecheck` PASS; `src/objects.public-bucket.test.ts` + `src/worker.test.ts` **16/16 PASS**; сборка `linux/amd64` PASS; внутри Docker образа FFmpeg 5.1.9, Sharp WebP и server bundle PASS. Контракты Cloud.ru release **21/21 PASS**.
+
+**Registry:** `gafus.cr.cloud.ru/gafus-feed-worker:feed-v2-public-bucket-20261031-r1`, `sha256:cbf25f7f60e8f33ff261c6eeeab39f3f89412fc561340cc7f10ad903b5e16a02`; Registry manifest подтверждает `linux/amd64`.
+
+**Реальный Cloud.ru update:** четыре ранее разрешённых Jobs (`gafus-feed-photo`, `gafus-feed-photo-2`, `gafus-feed-video`, `gafus-feed-video-2`) теперь используют ровно новый digest, повторный read-only GET вернул `ready` для всех четырёх. Image-only PATCH, `runImmediately=false`; не создано новых Jobs, env и resources сохранены. Photo 1 vCPU/2048Mi, timeout 240; Video 2 vCPU/8192Mi, timeout 650. Изменений S3 policy, production PostgreSQL, CDN, Backend или приложения нет.
+
+**Откат:** полные конфигурации перед обновлением в `.local-pg-scratch/cloudru/feed-public-rollback-20261031/*.json` (0600, НЕ В GIT); предыдущий image digest `sha256:0fdca7bea758c2469d639f3f9b3e3a78dfa71bcb787ab4218426e407027f9176` сохранён в Registry. Script `.local-pg-scratch/cloudru/feed-public-image-rollout-20261031.mjs` проверил все четыре Jobs и rollback path; безопасный image-only возврат из snapshot возможен. Подробности PATCH в `.local-pg-scratch/cloudru/feed-publicfix-rollout-20261031.log`.
+
+**Синхронизация будущих релизов:** `infra/cloudru/production-job-release.mjs` и контракт закрепления image обновлены на `cbf25f7f…`; GitHub Environment `production` variable `CLOUDRU_FEED_WORKER_IMAGE` изменена на тот же immutable digest и read-back подтверждён. Запускать production app deploy ради замены Jobs не требуется.
+
+**Граница фактической проверки:** новое пользовательское `published` после обновления не подтверждено; старые `failed` публикации из production не переоткрывались, не сбрасывались и автоматически не восстановятся только от замены Docker. Это исправление блокирующей проверки конфигурации, а не подтверждение полного пользовательского E2E.

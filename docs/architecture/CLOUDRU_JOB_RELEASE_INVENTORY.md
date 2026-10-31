@@ -34,7 +34,7 @@ Cloud.ru primary project `4c590727-4133-475b-a4bc-564c90a9e686`, registry `gafus
 | --- | --- | --- |
 | `gafus-gallery-process` | `gafus-gallery-worker@sha256:7f8d4325a712b3ba0a78b1d6750e4325cd66b07f5157a0d6e0bcb751b4f6693c` | 1 vCPU, 2 ГБ |
 | `gafus-gallery-process-2` | тот же Gallery V2 digest | 1 vCPU, 2 ГБ |
-| `gafus-feed-photo`, `gafus-feed-photo-2` | `gafus-feed-worker@sha256:0fdca7bea758c2469d639f3f9b3e3a78dfa71bcb787ab4218426e407027f9176` | 1 vCPU, 2 ГБ каждый |
+| `gafus-feed-photo`, `gafus-feed-photo-2` | `gafus-feed-worker@sha256:cbf25f7f60e8f33ff261c6eeeab39f3f89412fc561340cc7f10ad903b5e16a02` | 1 vCPU, 2 ГБ каждый |
 | `gafus-feed-video`, `gafus-feed-video-2` | тот же Feed V2 digest | 2 vCPU, 8 ГБ каждый |
 | `gafus-questions-photo` | `gafus-questions-worker@sha256:96f76942f9f12099353b131c61332502175f18a1ec94919bfcfd1f4cc04ab321` | 1 vCPU, 2 ГБ |
 
@@ -81,3 +81,5 @@ node --test ci-cd/scripts/deploy-only-contract.test.mjs ci-cd/scripts/feed-poll-
 **Chat2 Job bootstrap:** Safari `gafus-chat-photo` edit screen lacks the initial `CHAT2_S3_ACCESS_KEY_ID`, `CHAT2_S3_SECRET_ACCESS_KEY`, `CHAT2_INTERNAL_BASE_URL` and `CHAT2_INTERNAL_HMAC_SECRET` fields. Preflight now permits ONLY these four missing fields during the controlled first-release bootstrap; exact role, project, image, kind, S3 bucket/endpoint and workroot remain strict. Cutover adds the four fields from protected GitHub secrets; final `--verify` requires all fields and values. No existing Chat2 Job was modified during this access-setup task.
 
 **Independent release QA remains a blocker:** `docs/qa/CURRENT_RELEASE_STATUS.md` still contains `READY=NO` for Chat2 and other providers. No attempt was made to forge QA success or bypass this independent veto; first production push must remain blocked until acceptance requirements are actually satisfied.
+
+**Дополнение 2026-10-31:** Feed S3 является намеренно публичным, поэтому `FEED_BUCKET_PUBLIC=true` разрешён для Feed Media V2. Прежний диагностический образ блокировал все четыре Jobs на `PUBLIC_MEDIA_BUCKET_REFUSED`; исправлено в `apps/feed-cloud/src/objects.ts`, но запрет `GALLERY_BUCKET_PUBLIC=true` сохранён. Четыре существующих Feed Jobs переведены на `gafus-feed-worker@sha256:cbf25f7f60e8f33ff261c6eeeab39f3f89412fc561340cc7f10ad903b5e16a02`, полные параметры для отката сохранены отдельно от Git. Подробности: `docs/operations/INCIDENT_2026-10-31_FEED_MEDIA_PENDING.md`.
