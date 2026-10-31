@@ -10,7 +10,7 @@ on:
         type: choice
         required: true
         default: plan
-        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic]
+        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, start-existing-gallery-origin]
       confirmation:
         description: 'For apply: UPDATE_11_EXISTING_JOBS; for image publish: PUBLISH_MEDIA_IMAGES'
         type: string
@@ -20,10 +20,33 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ inputs.operation == 'beget-readonly-diagnostic' && 'gafus-beget-readonly-diagnostic' || 'gafus-production-deploy' }}
+  group: ${{ inputs.operation == 'beget-readonly-diagnostic' && 'gafus-beget-readonly-diagnostic' || inputs.operation == 'start-existing-gallery-origin' && 'gafus-gallery-origin-recovery' || 'gafus-production-deploy' }}
   cancel-in-progress: false
 
 jobs:
+  start-existing-gallery-origin:
+    if: github.ref == 'refs/heads/ops/resume-gallery-origin-20261101' && inputs.operation == 'start-existing-gallery-origin'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 6
+    env:
+      CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
+      CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
+      CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
+      GALLERY_RECOVERY_CONFIRM: ${{ inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Verify existing Gallery Origin and immutable image (GET-only)
+        run: node infra/cloudru/start-existing-gallery-origin.mjs --plan
+      - name: Start only suspended Gallery Origin and verify status
+        run: node infra/cloudru/start-existing-gallery-origin.mjs --start
+
   beget-readonly-diagnostic:
     if: github.ref == 'refs/heads/main' && inputs.operation == 'beget-readonly-diagnostic'
     runs-on: ubuntu-latest
