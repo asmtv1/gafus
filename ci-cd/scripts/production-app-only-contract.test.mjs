@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {test} from 'node:test';
+import {spawnSync} from 'node:child_process';
+import YAML from 'yaml';
+const load=(p)=>YAML.parse(readFileSync(p,'utf8'));
+const app=load('.github/workflows/production-app-only.yml');
+const reusable=load('.github/workflows/production-deploy-reusable.yml');
+test('app-only manual deploy verifies exact successful main release and never patches Cloud.ru Jobs',()=>{
+ const jobs=app.jobs;
+ assert.deepEqual(Object.keys(jobs).sort(),['deploy-app-only','server-preflight','validate-app-release']);
+ const v=jobs['validate-app-release'];
+ assert.match(v.steps[1].run,/RELEASE_IMAGES_OR_SECURITY_NOT_VERIFIED/);
+ assert.match(v.steps[1].run,/RELEASE_NOT_ON_MAIN/);
+ assert.match(v.steps[1].run,/cloudru-media-contracts/);
+ const d=jobs['deploy-app-only'];
+ assert.equal(d.with.app_only,true);
+ assert.equal(d.uses,'./.github/workflows/production-deploy-reusable.yml');
+ for(const text of [readFileSync('.github/workflows/production-app-only.yml','utf8'), v.steps[1].run])
+  assert.doesNotMatch(text,/production-job-release-reusable|production-job-release\.mjs|CLOUDRU_NEW_BACKEND_DEPLOYED|cloudru-jobs-cutover/);
+});
+test('reusable app-only release preserves provider configuration and activates V2 without changing jobs',()=>{
+ const j=reusable.jobs['deploy-production'];
+ assert.equal(reusable.on.workflow_call.inputs.app_only.default,false);
+ const gate=j.steps.find(x=>x.name==='Validate Beget-only production readiness before SSH');
+ assert.equal(gate.if,'${{ !inputs.app_only }}');
+ const ssh=j.steps.find(x=>x.uses==='appleboy/ssh-action@v1.0.3');
+ const script=['DEPLOY_SCRIPT_1','DEPLOY_SCRIPT_2','DEPLOY_SCRIPT_3'].map(x=>ssh.env[x]).join('\n');
+ assert.match(script,/APP_ONLY_EXISTING_BEGET_PRESERVED_V2_FLAGS_READY/);
+ assert.match(script,/APP_ONLY_PREVIOUS_ENV/);
+ assert.match(script,/'POSTGRES_PASSWORD', 'DATABASE_URL', 'REDIS_URL'/);
+ assert.match(script,/'JWT_SECRET', 'JWT_REFRESH_SECRET', 'NEXTAUTH_SECRET'/);
+ assert.match(script,/CLOUDRU_MEDIA_JOBS_ENABLED':'true'/);
+ assert.match(script,/bash "\$CUTOVER_SCRIPT" prepare/);
+ assert.match(script,/bash "\$CUTOVER_SCRIPT" migrate/);
+ assert.match(script,/bash "\$CUTOVER_SCRIPT" open/);
+ assert.doesNotMatch(script,/production-job-release\.mjs|containers\.api\.cloud\.ru\/v2\/jobs/);
+ const p=spawnSync('bash',['-n'],{input:script,encoding:'utf8'});
+ assert.equal(p.status,0,p.stderr);
+});

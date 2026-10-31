@@ -7,6 +7,11 @@ on:
         description: Exact commit SHA of a fully built release
         required: true
         type: string
+      app_only:
+        description: Deploy application and migrations only; leave existing Cloud.ru Jobs and CDN settings untouched
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -40,6 +45,9 @@ jobs:
       # Also guard manual Deploy Only; do not even open SSH if Beget is not
       # demonstrably ready. No registry, Cloud.ru or CDN writes in this step.
       - name: Validate Beget-only production readiness before SSH
+        # This gate is for changing provider delivery. An application-only
+        # release preserves the exact active CDN values from the server.
+        if: ${{ !inputs.app_only }}
         env:
           GAFUS_MEDIA_CDN_TARGET: ${{ vars.GAFUS_MEDIA_CDN_TARGET }}
           BEGET_CDN_RELEASE_CONFIRM: ${{ vars.BEGET_CDN_RELEASE_CONFIRM }}
@@ -245,7 +253,13 @@ jobs:
               exit 1
             fi
 
-            if [ "$(git rev-parse origin/main)" != "${{ inputs.release_sha }}" ]; then
+            if [ "${{ inputs.app_only }}" = "true" ]; then
+              # The approved image SHA may be an ancestor of the control-only
+              # workflow commit, but must never be an unrelated/stale branch.
+              if ! git merge-base --is-ancestor "${{ inputs.release_sha }}" origin/main; then
+                echo 'APP_ONLY_SHA_NOT_ON_MAIN'; exit 1
+              fi
+            elif [ "$(git rev-parse origin/main)" != "${{ inputs.release_sha }}" ]; then
               echo "RELEASE_SUPERSEDED: main moved to a newer commit."
               exit 1
             fi
@@ -300,6 +314,7 @@ jobs:
             # Beget/CDNvideo is the ONLY supported Gallery/Feed delivery CDN.
             # Fail closed until explicit release approval and live purge/smoke gates.
             # Never deploy a Yandex CDN fallback or rollback configuration.
+            if [ "${{ inputs.app_only }}" != "true" ]; then
             if [ "${{ vars.GAFUS_MEDIA_CDN_TARGET }}" != "beget" ]; then
               echo "Beget-only release not authorized: GAFUS_MEDIA_CDN_TARGET must be beget"
               exit 1
@@ -329,6 +344,7 @@ jobs:
                   echo "Beget CDN live delivery or purge validation is still pending"
                   exit 1
                 fi
+            fi
 
             # Create .env file from GitHub Secrets
             echo "🔐 Creating .env file from GitHub Secrets..."
@@ -583,6 +599,77 @@ jobs:
             } > ci-cd/docker/.env
           DEPLOY_SCRIPT_3: |2+
 
+            # An app-only release must not rewrite a working production CDN
+            # or leave media dispatch disabled while all existing Cloud Jobs
+            # are already deployed. Preserve CDN credentials/host IDs exactly,
+            # and enable V2 with the new API + worker in the SAME cutover.
+            if [ "${{ inputs.app_only }}" = "true" ]; then
+              export APP_ONLY_PREVIOUS_ENV="$RELEASE_BACKUP_DIR/previous.env"
+              python3 - <<'PY_APP_ONLY_ENV'
+            import os
+            from pathlib import Path
+            old_path = Path(os.environ['APP_ONLY_PREVIOUS_ENV'])
+            if not old_path.is_file(): raise SystemExit('APP_ONLY_NO_PREVIOUS_ENV')
+            new_path = Path('ci-cd/docker/.env')
+            def load(p):
+                data = {}
+                for line in p.read_text().splitlines():
+                    if '=' in line and not line.lstrip().startswith('#'):
+                        k, v = line.split('=',1)
+                        data[k] = v
+                return data
+            old, new = load(old_path), load(new_path)
+            preserve = (
+                'GALLERY_CDN_BASE_URL', 'FEED_CDN_BASE_URL',
+                'GALLERY_BEGET_CDN_SERVICE_ID', 'FEED_BEGET_CDN_SERVICE_ID',
+                'GALLERY_CDN_SECRET', 'FEED_CDN_SECRET',
+                'GALLERY_ORIGIN_SECRET', 'FEED_ORIGIN_SECRET',
+                'BEGET_CDN_API_TOKEN', 'GALLERY_CDN_PROVIDER', 'FEED_CDN_PROVIDER',
+                'BEGET_CDN_PURGE_API_VERIFIED','BEGET_CDN_CACHE_KEY_VERIFIED',
+                'BEGET_CDN_PURGE_PROPAGATION_VERIFIED',
+                # Existing DB credentials and session-signing keys must match
+                # the running database and cookies; never rotate on cutover.
+                'POSTGRES_PASSWORD', 'DATABASE_URL', 'REDIS_URL',
+                'JWT_SECRET', 'JWT_REFRESH_SECRET', 'NEXTAUTH_SECRET',
+            )
+            for key in preserve:
+                if key in old and old[key]: new[key] = old[key]
+            for scope in ('GALLERY','FEED'):
+                if new.get(scope+'_CDN_PROVIDER') != 'beget' or not new.get(scope+'_CDN_BASE_URL','').startswith('https://'):
+                    raise SystemExit('APP_ONLY_CDN_CONFIGURATION_NOT_PRESERVED_'+scope)
+            activated = {
+                'CLOUDRU_MEDIA_JOBS_ENABLED':'true',
+                'GALLERY_PROCESSOR_SECOND_READY':'true',
+                'FEED_CLOUDRU_REFRACTOR_VERIFIED':'true',
+                'QUESTIONS_V2_MEDIA_ENABLED':'true',
+                'QUESTIONS_V2_PROCESSOR_READY':'true',
+                'QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED':'true',
+                'QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED':'true',
+                'QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED':'true',
+                'CHAT2_V2_CORE_ENABLED':'true',
+                'CHAT2_V2_MEDIA_ENABLED':'true',
+                'CHAT2_PROCESSOR_READY':'true',
+                'CHAT2_CLOUDRU_PROJECT_VERIFIED':'true',
+                'CHAT2_PRIVATE_MEDIA_ENABLED':'enabled',
+                'CHAT2_API_ENABLED':'enabled',
+                'CHAT2_WORKER_ENABLED':'enabled',
+                'CHAT2_LEGACY_RETIRE_ENABLED':'enabled',
+            }
+            new.update(activated)
+            # Do not remove non-secret config present only on the existing
+            # server (but never inherit secrets beyond the protected CDN set).
+            for key in activated:
+                if key not in new: raise SystemExit('APP_ONLY_MISSING_MEDIA_FLAG_'+key)
+            for key in ('CHAT2_INTERNAL_HMAC_SECRET','CHAT2_S3_ACCESS_KEY_ID',
+                        'CHAT2_S3_SECRET_ACCESS_KEY','QUESTIONS_V2_INTERNAL_HMAC_SECRET',
+                        'QUESTIONS_V2_S3_ACCESS_KEY_ID','QUESTIONS_V2_S3_SECRET_ACCESS_KEY'):
+                if not new.get(key): raise SystemExit('APP_ONLY_MISSING_REQUIRED_MEDIA_CREDENTIAL_'+key)
+            new_path.write_text('\n'.join(k+'='+v for k,v in new.items())+'\n')
+            new_path.chmod(0o600)
+            print('APP_ONLY_EXISTING_BEGET_PRESERVED_V2_FLAGS_READY')
+            PY_APP_ONLY_ENV
+            fi
+
             # Set secure permissions for .env file
             chmod 600 ci-cd/docker/.env
             echo "✅ .env file created with secure permissions"
@@ -764,10 +851,11 @@ jobs:
             cleanup_obsolete_gafus_images
             echo "Obsolete release images removed; schema-aware rollback guard active."
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
+          # Existing app-only VPS was verified read-only at 185.239.51.125.
+          host: ${{ inputs.app_only && '185.239.51.125' || secrets.SERVER_HOST }}
+          username: ${{ inputs.app_only && 'root' || secrets.SERVER_USERNAME }}
           key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
+          port: ${{ inputs.app_only && '22' || secrets.SERVER_PORT }}
           command_timeout: 60m
           # Keep each interpolated scalar below GitHub's 21,000-character expression limit.
           script: ${{ format('{0}{1}{2}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}

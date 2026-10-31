@@ -6,8 +6,12 @@ on:
       mode:
         description: 'Read-only server preflight; no application deployment'
         type: choice
-        options: [preflight]
+        options: [preflight, deploy]
         required: true
+      release_sha:
+        description: 'Exact previously verified main commit SHA; required for deploy'
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -70,3 +74,49 @@ jobs:
             echo 'SERVER_DISK_FREE:'
             df -h / | tail -1 | awk '{print $4 " free of " $2}'
             echo 'READ_ONLY_PREFLIGHT_COMPLETE'
+
+  validate-app-release:
+    if: github.ref == 'refs/heads/main' && inputs.mode == 'deploy'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      release_sha: ${{ steps.verify.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Require a fully successful verified main CI with all seven images
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo 'BAD_RELEASE_SHA'; exit 1; }
+          git merge-base --is-ancestor "$RELEASE_SHA" HEAD || { echo 'RELEASE_NOT_ON_MAIN'; exit 1; }
+          gh api "repos/$GH_REPO/actions/runs?head_sha=$RELEASE_SHA&event=push&per_page=30" --jq '.workflow_runs[] | select(.name == "CI/CD Pipeline" and .conclusion == "success") | .id' > "$RUNNER_TEMP/app-release-runs"
+          test -s "$RUNNER_TEMP/app-release-runs" || { echo 'NO_SUCCESSFUL_RELEASE_CI'; exit 1; }
+          verified=false
+          while read -r run; do
+            gh api --paginate "repos/$GH_REPO/actions/runs/$run/jobs?per_page=100" --jq '.jobs[] | [.name,.conclusion] | @tsv' > "$RUNNER_TEMP/app-release-jobs"
+            count=$(awk -F '\t' '$1 ~ /^build-images \(/ && $2 == "success" {n++} END {print n+0}' "$RUNNER_TEMP/app-release-jobs")
+            if [ "$count" = 7 ] && grep -q $'build-apps\tsuccess' "$RUNNER_TEMP/app-release-jobs" && grep -q $'security\tsuccess' "$RUNNER_TEMP/app-release-jobs" && grep -q $'cloudru-media-contracts\tsuccess' "$RUNNER_TEMP/app-release-jobs"; then
+              verified=true; break
+            fi
+          done < "$RUNNER_TEMP/app-release-runs"
+          [ "$verified" = true ] || { echo 'RELEASE_IMAGES_OR_SECURITY_NOT_VERIFIED'; exit 1; }
+          echo "sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+          echo 'APP_ONLY_RELEASE_PROVENANCE_VERIFIED=7_IMAGES_AND_TESTS'
+
+  deploy-app-only:
+    needs: [validate-app-release]
+    if: github.ref == 'refs/heads/main' && inputs.mode == 'deploy'
+    uses: ./.github/workflows/production-deploy-reusable.yml
+    with:
+      release_sha: ${{ needs.validate-app-release.outputs.release_sha }}
+      app_only: true
+    secrets: inherit
