@@ -47,7 +47,12 @@ if (process.argv.includes('--list')) {
             cdnKeys:Object.keys(root.cdn??{}).slice(0,30),
             cdnSettingsKeys:Object.keys(root.cdn?.settings??{}).slice(0,30),
             settings:{
-              secureTokenEnabled:root.cdn?.settings?.tokenized_url_secure_key?.enabled ?? null,
+              secureTokenEnabled:root.cdn?.settings?.tokenized_url_secure_key?.enable ??
+                root.cdn?.settings?.tokenized_url_secure_key?.enabled ?? null,
+              secureTokenFieldNames:Object.keys(root.cdn?.settings?.tokenized_url_secure_key??{}).slice(0,12),
+              sourceServiceType:root.cdn?.source_domain?.source_service_type??null,
+              sourceProtocol:root.cdn?.source_domain?.source_protocol??null,
+              staticHeaderNames:Object.keys(root.cdn?.settings?.static_request_headers?.value??{}).slice(0,12),
               staticRequestHeadersEnabled:root.cdn?.settings?.static_request_headers?.enabled ?? null,
               sourceDomainKeys:Object.keys(root.cdn?.source_domain??{}).slice(0,12),
               headerFields:Object.keys(root.cdn?.settings?.static_request_headers??{}).slice(0,10),
