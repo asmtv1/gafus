@@ -35,3 +35,24 @@ for(const name of ['gafus-gallery-origin','gafus-feed-origin']){
     replicaMax:json.template?.scaling?.maxInstanceCount??null
   }));
 }
+
+// Route discovery with OPTIONS only: NEVER invoke a mutating endpoint.
+const candidateRoutes=[
+ '/v1/containers/gafus-gallery-origin/resume',
+ '/v2/containers/gafus-gallery-origin/resume',
+ '/v1/containers/gafus-gallery-origin:start',
+ '/v2/containers/gafus-gallery-origin:start',
+ '/v1/containers/gafus-gallery-origin:resume',
+ '/v2/containers/gafus-gallery-origin:resume',
+ '/v1/containers/gafus-gallery-origin/start',
+ '/v2/containers/gafus-gallery-origin/start',
+];
+for(const route of candidateRoutes){
+  try{
+    const url='https://containers.api.cloud.ru'+route+'?projectId='+encodeURIComponent(e.CLOUDRU_PROJECT_ID);
+    const response=await fetch(url,{method:'OPTIONS',headers:{authorization:'Bearer '+bearer},signal:AbortSignal.timeout(8000)});
+    console.log(JSON.stringify({method:'OPTIONS',route,status:response.status,
+      allow:response.headers.get('allow')}));
+    await response.body?.cancel();
+  }catch(ex){console.log(JSON.stringify({method:'OPTIONS',route,errorType:ex?.name??'unknown'}));}
+}
