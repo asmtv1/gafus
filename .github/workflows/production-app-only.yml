@@ -163,7 +163,10 @@ jobs:
             n=$(docker exec gafus-postgres psql -X -U gafus -d gafus -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null')
             pending=$(docker exec gafus-postgres psql -X -U gafus -d gafus -Atc 'select count(*) from "_prisma_migrations" where finished_at is null and rolled_back_at is null')
             [ "$n" = 162 ] && [ "$pending" = 0 ] || { echo "MIGRATIONS_NOT_COMPLETE_${n}_${pending}"; exit 1; }
-            docker exec gafus-nginx nginx -t >/dev/null
+            # nginx -t resolves upstream hostnames. The broken API is currently
+            # crash-looping, so early nginx -t cannot resolve gafus-api.
+            # Keep HTTPS maintenance in place and validate nginx only AFTER
+            # replacement API is healthy (below, and in verify/open).
             echo 'MIGRATIONS_AND_SNAPSHOT_VERIFIED=162_OF_162'
             mkdir -p /root/gafus-release-backups/recovery-${{ github.run_id }}
             cp -p "$envfile" /root/gafus-release-backups/recovery-${{ github.run_id }}/previous.env

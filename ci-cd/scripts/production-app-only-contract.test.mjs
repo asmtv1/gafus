@@ -54,6 +54,10 @@ test('migration recovery only runs after verified snapshot + 162 completed migra
  assert.match(script,/quepraquiecebquomiel\.begetcdn\.cloud/);
  assert.match(script,/RELEASE_IMAGE_MISMATCH/);
  assert.match(script,/RESTART_OR_OOM/);
+ const apiReady = script.indexOf('CONTAINER_HEALTHY=$service');
+ const nginxCheck = script.indexOf('docker exec gafus-nginx nginx -t');
+ assert(apiReady > 0 && nginxCheck > apiReady,
+  'NGINX_UPSTREAM_DNS_CANNOT_BE_CHECKED_BEFORE_API_RECREATION');
  assert.match(script,/production-schema-cutover\.sh" verify/);
  assert.match(script,/production-schema-cutover\.sh" open/);
  assert.doesNotMatch(script,/migrate deploy|\.sh" migrate|production-job-release|containers\.api\.cloud\.ru|pg_restore --clean|pg_restore --create/);
