@@ -31,6 +31,29 @@ if (process.argv.includes('--list')) {
         for (const item of Object.values(value)) walk(item,depth+1);
       }
       walk(data);
+      const candidates=found.slice(0,20);
+      const details=[];
+      for(const candidate of candidates){
+        try{
+          const reply=await fetch('https://api.beget.com/v1/cloud/'+candidate.id,{
+            headers:{Authorization:'Bearer '+token},
+            redirect:'error',signal:AbortSignal.timeout(10000)});
+          const text=reply.ok?await reply.text():'';
+          const parsed=reply.ok?JSON.parse(text):null;
+          const root=parsed?.service??parsed??{};
+          details.push({
+            id:candidate.id,status:reply.status,
+            keys:Object.keys(root).slice(0,14),
+            hasGalleryHost:text.includes('mepsuduyokabib.begetcdn.cloud'),
+            hasFeedHost:text.includes('quepraquiecebquomiel.begetcdn.cloud'),
+            hasRemovedFeedHost:text.includes('garaquachegasourn.begetcdn.cloud'),
+            hasGalleryOrigin:text.includes('gafus-gallery-origin.containerapps.ru'),
+            hasFeedOrigin:text.includes('gafus-feed-origin.containerapps.ru'),
+            hasSecureKeyConfig:text.includes('secure_key'),
+          });
+        }catch(error){details.push({id:candidate.id,errorType:error?.name??'unknown'});}
+      }
+      console.log(JSON.stringify({cdnServiceDetails:details}));
       const raw=JSON.stringify(data);
       console.log(JSON.stringify({cloudServiceListHttp:response.status,
         topLevelKeys:Object.keys(data ?? {}).slice(0,12),
