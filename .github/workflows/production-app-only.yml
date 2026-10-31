@@ -171,10 +171,14 @@ jobs:
             mkdir -p /root/gafus-release-backups/recovery-${{ github.run_id }}
             cp -p "$envfile" /root/gafus-release-backups/recovery-${{ github.run_id }}/previous.env
             chmod 600 /root/gafus-release-backups/recovery-${{ github.run_id }}/previous.env
-            # Preserve all live secrets and existing Gallery/Questions/Chat CDN;
-            # switch only the incorrectly pinned retired Feed host to the known
-            # current Feed Media V2 Beget HTTPS origin (no provider writes).
+            # Preserve every signing secret and CDN provider resource. Only
+            # align these two application routing hosts to the independently
+            # documented active Beget Gallery V2 and Feed Media V2 endpoints.
+            # Existing noncanonical values are legacy app config, NOT a reason
+            # to create/change any remote Beget CDN service or Cloud.ru Job.
+            grep -q '^GALLERY_CDN_BASE_URL=' "$envfile" || { echo 'GALLERY_CDN_ENV_MISSING'; exit 1; }
             grep -q '^FEED_CDN_BASE_URL=' "$envfile" || { echo 'FEED_CDN_ENV_MISSING'; exit 1; }
+            sed -i 's#^GALLERY_CDN_BASE_URL=.*#GALLERY_CDN_BASE_URL=https://mepsuduyokabib.begetcdn.cloud#' "$envfile"
             sed -i 's#^FEED_CDN_BASE_URL=.*#FEED_CDN_BASE_URL=https://quepraquiecebquomiel.begetcdn.cloud#' "$envfile"
             chmod 600 "$envfile"
             git -C "$root" fetch origin >/dev/null

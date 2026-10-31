@@ -52,6 +52,8 @@ test('migration recovery only runs after verified snapshot + 162 completed migra
  assert.match(script,/pg_restore --list/);
  assert.match(script,/MIGRATIONS_NOT_COMPLETE/);
  assert.match(script,/quepraquiecebquomiel\.begetcdn\.cloud/);
+ assert.match(script,/mepsuduyokabib\.begetcdn\.cloud/);
+ assert.match(script,/GALLERY_CDN_ENV_MISSING/);
  assert.match(script,/RELEASE_IMAGE_MISMATCH/);
  assert.match(script,/RESTART_OR_OOM/);
  const apiReady = script.indexOf('CONTAINER_HEALTHY=$service');
