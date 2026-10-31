@@ -30,7 +30,9 @@ jobs:
           username: root
           key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
           port: 22
-          script_stop: true
+          # The script itself uses set -euo pipefail. ssh-action script_stop
+          # injects shell fragments between lines, corrupting loops/heredocs.
+          script_stop: false
           command_timeout: 8m
           script: |
             set -euo pipefail
