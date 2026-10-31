@@ -41,7 +41,6 @@ if(current.length===1){
 }
 const data=await api('/v1/cloud','POST',{
   configuration_id:'cdn_v1',display_name:NAME,
-  description:'Isolated protected origin experiment; never serve user media until security gates pass',
   cdn_params:{source_params:SOURCE},
 });
 if(data?.cdn_error || !data?.service?.id) {
