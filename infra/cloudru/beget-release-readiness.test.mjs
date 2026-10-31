@@ -20,7 +20,7 @@ const valid = Object.freeze({
   BEGET_CDN_API_TOKEN: 'not-a-real-purge-token'.padEnd(36,'X'),
   BEGET_GALLERY_SMOKE_FINAL_KEY: 'albums/owner/album/photos/image/full.webp',
   BEGET_GALLERY_SMOKE_SHA256: 'a'.repeat(64),
-  BEGET_FEED_SMOKE_FINAL_KEY: 'posts/owner/post/attachments/image/poster.webp',
+  BEGET_FEED_SMOKE_FINAL_KEY: 'media/v2/beget-smoke-test/v1/image/s.webp',
   BEGET_FEED_SMOKE_SHA256: 'b'.repeat(64),
 });
 const check = (overrides = {}, mode = '--check') =>

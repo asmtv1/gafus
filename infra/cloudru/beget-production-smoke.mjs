@@ -23,6 +23,48 @@ const token = (secret, path, expiry) => createHash('md5')
 export function smokeSignedUrl(host, path, secret, expiry) {
   return `https://${host}/md5(${token(secret, path, expiry)},${expiry})${path}`;
 }
+// Explicit product decision: Feed V2 published variants are public.
+// Gallery remains private with its separate /md5(...) path signature.
+// Feed app uses ?md5=...&expires=... query URLs for compatibility.
+async function checkPublicFeedV2(scope,key,digest,secret) {
+  if(process.env.FEED_CDN_PUBLIC_READ_APPROVED!=='true')
+    throw Error('FEED_PUBLIC_MEDIA_MODE_UNAPPROVED');
+  if(!/^media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/image\/(?:s|m|l)\.webp$/.test(key))
+    throw Error('FEED_V2_SMOKE_KEY_INVALID');
+  const path='/'+key;
+  const expiry=Math.floor(Date.now()/1000)+180;
+  const md5=createHash('md5').update(expiry+path+' '+secret).digest('base64url');
+  const publicUrl='https://'+scope.host+path;
+  const applicationUrl=publicUrl+'?md5='+md5+'&expires='+expiry;
+  const publicGet=await fetchSafe(publicUrl);
+  status(publicGet,200,'FEED_PUBLIC_GET');
+  const bytes=Buffer.from(await publicGet.arrayBuffer());
+  if(!bytes.length || bytes.length>1_750_000 ||
+     !publicGet.headers.get('content-type')?.includes('image/webp') ||
+     createHash('sha256').update(bytes).digest('hex')!==digest)
+    throw Error('FEED_PUBLIC_BYTES_OR_DIGEST_MISMATCH');
+  const appGet=await fetchSafe(applicationUrl);
+  status(appGet,200,'FEED_QUERY_TOKEN_GET');
+  if(!Buffer.from(await appGet.arrayBuffer()).equals(bytes))
+    throw Error('FEED_APPLICATION_URL_BYTES_DIFFER');
+  const cacheControl=appGet.headers.get('cache-control')??'';
+  if(cacheControl!=='public, max-age=180, must-revalidate')
+    throw Error('FEED_PUBLIC_BROWSER_CACHE_MISMATCH');
+  const head=await fetchSafe(applicationUrl,{method:'HEAD'});
+  status(head,200,'FEED_QUERY_TOKEN_HEAD');
+  if(head.headers.get('content-type')!=='image/webp')
+    throw Error('FEED_QUERY_TOKEN_HEAD_MIME');
+  const range=await fetchSafe(applicationUrl,{headers:{Range:'bytes=0-4'}});
+  status(range,206,'FEED_QUERY_TOKEN_RANGE');
+  if(range.headers.get('content-range')!=='bytes 0-4/'+bytes.length ||
+     !Buffer.from(await range.arrayBuffer()).equals(bytes.subarray(0,5)))
+    throw Error('FEED_QUERY_TOKEN_RANGE_MISMATCH');
+  const cacheState=appGet.headers.get('x-cdn-edge-cache')?.toUpperCase()??'ABSENT';
+  if(cacheState!=='HIT') console.warn('FEED_V2_EDGE_CACHE_WARNING_'+cacheState);
+  return {scope:scope.name,publicMode:true,get:200,queryTokenGet:200,
+    head:200,range:206,sha256Verified:true,cacheState};
+}
+
 async function check(scope) {
   const secret = process.env[scope.secret] ?? '';
   const allowedSecret = scope.name === 'gallery'
@@ -35,11 +77,12 @@ async function check(scope) {
   const expectedDigest = process.env[scope.shaVar] ?? '';
   const id = '[A-Za-z0-9_-]{1,128}';
   const gallery = new RegExp(`^albums/${id}/${id}/photos/${id}/(?:thumb|full)\\.webp$`);
-  const feed = new RegExp(`^posts/${id}/${id}/attachments/${id}/(?:thumb|full|poster)\\.webp$`);
+  const feed = /^media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/image\/(?:s|m|l)\.webp$/;
   if (!(scope.name === 'gallery' ? gallery : feed).test(key) ||
       key.includes('/staging/') || key.includes('__gafus_cloudru_validation__') ||
       !/^[0-9a-f]{64}$/.test(expectedDigest))
     throw new Error(`${scope.name.toUpperCase()}_SMOKE_FINAL_OBJECT_MISSING`);
+  if(scope.name==='feed')return checkPublicFeedV2(scope,key,expectedDigest,secret);
   const path = `/${key}`;
   const expiry = Math.floor(Date.now() / 1000) + 300;
   const url = smokeSignedUrl(scope.host, path, secret, expiry);

@@ -24,7 +24,7 @@ const fixtures = [
   ['BEGET_GALLERY_SMOKE_FINAL_KEY', 'BEGET_GALLERY_SMOKE_SHA256',
     /^albums\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/photos\/[A-Za-z0-9_-]{1,128}\/(?:thumb|full)\.webp$/],
   ['BEGET_FEED_SMOKE_FINAL_KEY', 'BEGET_FEED_SMOKE_SHA256',
-    /^posts\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/attachments\/[A-Za-z0-9_-]{1,128}\/(?:thumb|full|poster)\.webp$/],
+    /^media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/image\/(?:s|m|l)\.webp$/],
 ];
 if (mode === '--plan') {
   console.log(JSON.stringify({mode, mutates: false, provider: 'beget-only',
