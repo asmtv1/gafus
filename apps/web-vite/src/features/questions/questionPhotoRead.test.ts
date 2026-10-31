@@ -88,6 +88,31 @@ describe("authorized on-demand question media", () => {
     expect(allowed("http://attacker.example/" + signed.slice(7))).toBe(false);
   });
 
+  it.each(["fetch", "json"])(
+    "stops an unanswered %s photo detail read after 12 seconds and aborts the request",
+    async (phase) => {
+      vi.useFakeTimers();
+      try {
+        const never = () => new Promise<never>(() => undefined);
+        const fake = vi.fn().mockImplementation(() => phase === "fetch"
+          ? never()
+          : Promise.resolve({ json: never }));
+        vi.stubGlobal("fetch", fake);
+        const request = fetchQuestionPhotoUrls({
+          questionId: "question-1", photoIds: ["p1"],
+        });
+        // Attach the rejection assertion before advancing virtual time.
+        const assertion = expect(request).rejects.toThrow("Превышено время ожидания фотографий");
+        await vi.advanceTimersByTimeAsync(12_000);
+        await assertion;
+        expect(fake).toHaveBeenCalledTimes(1);
+        expect(fake.mock.calls[0][1].signal.aborted).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
   it("rejects unsafe paths and cross-origin plaintext HTTP before fetch", async () => {
     const fake = vi.fn().mockResolvedValue(envelope({
       photos: [{ id: "p1", url: "http://attacker.example/private" }],

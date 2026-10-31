@@ -74,6 +74,23 @@ describe("cookie-only admin API boundary", () => {
     });
   });
 
+  it("distinguishes forbidden Origin from an actual permissions error", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({ success: false, error: "Недоверенный Origin" }),
+    });
+    await expect(loginAdmin("admin", "masked")).rejects.toMatchObject({
+      status: 403,
+      message: expect.stringContaining("Origin"),
+    });
+    fetchMock.mockResolvedValueOnce(fail(403, "FORBIDDEN"));
+    await expect(requestAdmin("/api/v1/admin/users")).rejects.toMatchObject({
+      status: 403,
+      message: "Недостаточно прав",
+    });
+  });
+
   it("maps stale config error into a readable 409", async () => {
     fetchMock.mockResolvedValueOnce(fail(409, "STALE_CONFIG"));
     await expect(requestAdmin("/api/v1/admin/feature-flags")).rejects.toMatchObject({

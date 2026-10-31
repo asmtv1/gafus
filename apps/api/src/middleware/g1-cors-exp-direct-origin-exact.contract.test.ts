@@ -13,7 +13,8 @@ function testApp() {
 describe("AG1-003 credentialed Expo CORS exact hostname boundary", () => {
   it.each([
     "https://gafus.ru",
-    "https://admin.gafus.ru",
+    "https://adminka.gafus.ru",
+    "https://trainer-panel.gafus.ru",
     "http://localhost:3000",
     "https://dev.exp.direct",
     "https://nested.dev.exp.direct",
@@ -35,6 +36,10 @@ describe("AG1-003 credentialed Expo CORS exact hostname boundary", () => {
     "https://dev.exp.direct?redirect=attacker.example",
     "https://exp.direct.evil.example",
     "https://evil-gafus.ru",
+    "https://adminka.gafus.ru.attacker.example",
+    "https://trainer-panel.gafus.ru.attacker.example",
+    "https://admin.gafus.ru",
+    "https://trainer.gafus.ru",
     "http://gafus.ru",
     "https://localhost:3000",
   ])("never grants credentialed CORS to spoofed origin %s", async (origin) => {
@@ -50,6 +55,10 @@ describe("AG1-003 credentialed Expo CORS exact hostname boundary", () => {
   it("does not trust an Expo origin for sensitive browser-cookie mutations", () => {
     expect(ALLOWED_BROWSER_ORIGINS.has("https://dev.exp.direct")).toBe(false);
     expect(ALLOWED_BROWSER_ORIGINS.has("https://gafus.ru")).toBe(true);
+    expect(ALLOWED_BROWSER_ORIGINS.has("https://adminka.gafus.ru")).toBe(true);
+    expect(ALLOWED_BROWSER_ORIGINS.has("https://trainer-panel.gafus.ru")).toBe(true);
+    expect(ALLOWED_BROWSER_ORIGINS.has("https://admin.gafus.ru")).toBe(false);
+    expect(ALLOWED_BROWSER_ORIGINS.has("https://trainer.gafus.ru")).toBe(false);
     expect(ALLOWED_BROWSER_ORIGINS.has("http://localhost:3000")).toBe(false);
   });
 

@@ -345,7 +345,14 @@ export const chat2 = {
     const limit = asset.mime === "video/mp4" ? 100 : 10;
     if (!allowed.includes(asset.mime) || asset.size < 10 || asset.size > limit * 1024 * 1024)
       throw new Error("Разрешены JPG, PNG, WebP, PDF до 10 МБ и видео MP4 до 100 МБ");
-    if(process.env.EXPO_PUBLIC_CHAT2_MEDIA_V2==="true" && asset.mime!=="application/pdf")
+    // Release builds must not upload through the legacy S3 adapter, which
+    // deliberately accepts only isolated local development credentials.
+    // The V2 server gate stays authoritative; do not downgrade on failure.
+    const releaseBuild = typeof __DEV__ !== "undefined" && !__DEV__;
+    if(releaseBuild && asset.mime==="application/pdf")
+      throw new Error("PDF в чате пока недоступен. Отправьте фото или видео.");
+    if((releaseBuild || process.env.EXPO_PUBLIC_CHAT2_MEDIA_V2==="true") &&
+       asset.mime!=="application/pdf")
       return uploadChat2V2(id,asset);
     const guard = guardActor();
     const token = await SecureStore.getItemAsync("auth_token");

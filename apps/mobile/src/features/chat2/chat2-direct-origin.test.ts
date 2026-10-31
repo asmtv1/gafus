@@ -73,6 +73,36 @@ describe("Native Chat2 isolated API and direct-profile messaging", () => {
     expect(mock.apiClient).not.toHaveBeenCalled();
   });
 
+  it("uses V2 reserve rather than the legacy multipart endpoint in release builds", async () => {
+    vi.stubGlobal("__DEV__", false);
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://chat2-refactor.example");
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_MEDIA_V2", "false");
+    mock.apiClient.mockResolvedValueOnce({
+      success: false,
+      error: "V2 is not available",
+    });
+    await expect(chat2.upload("room_1", {
+      uri: "file:///image.png", name: "image.png", mime: "image/png", size: 128,
+    })).rejects.toThrow("V2 is not available");
+    expect(mock.apiClient).toHaveBeenCalledExactlyOnceWith(
+      "/api/v1/chats/room_1/media/v2/reserve",
+      expect.objectContaining({
+        method: "POST",
+        body: { name: "image.png", mime: "image/png", bytes: 128 },
+        chat2Origin: "https://chat2-refactor.example",
+      }),
+    );
+  });
+
+  it("does not expose PDF to a public release-bucket or legacy upload", async () => {
+    vi.stubGlobal("__DEV__", false);
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_MEDIA_V2", "true");
+    await expect(chat2.upload("room_1", {
+      uri: "file:///document.pdf", name: "document.pdf", mime: "application/pdf", size: 128,
+    })).rejects.toThrow("PDF в чате пока недоступен");
+    expect(mock.apiClient).not.toHaveBeenCalled();
+  });
+
   it("routes room token refresh to the same isolated chat origin", async () => {
     mock.apiClient.mockResolvedValueOnce({
       success: true, data: { token: "isolated-token", channel: "isolated-room" },

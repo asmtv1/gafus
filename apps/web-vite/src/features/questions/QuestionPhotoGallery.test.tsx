@@ -251,6 +251,29 @@ describe("VK-inspired inline question photo previews", () => {
     } finally { await ui.cleanup(); }
   });
 
+  it("replaces an endless loading tile with a retryable error after the read deadline", async () => {
+    vi.useFakeTimers();
+    const fake = vi.fn()
+      .mockImplementationOnce(() => new Promise<never>(() => undefined))
+      .mockResolvedValueOnce(envelope({ photos: [photo("photo-1")] }));
+    let ui: Awaited<ReturnType<typeof render>> | undefined;
+    try {
+      ui = await render(fake);
+      expect(ui.host.textContent).toContain("Загрузка…");
+      await act(async () => { await vi.advanceTimersByTimeAsync(12_000); });
+      expect(ui.host.textContent).not.toContain("Загрузка…");
+      expect(ui.host.textContent).toContain("Ошибка загрузки");
+      expect(ui.host.textContent).toContain("Не удалось загрузить фотографии");
+      const retry = ui.host.querySelector<HTMLButtonElement>(".question-photo-preview-error button");
+      await act(async () => retry?.click());
+      expect(fake).toHaveBeenCalledTimes(2);
+      expect(ui.host.querySelector(".question-photo-preview-tile img")).not.toBeNull();
+    } finally {
+      if (ui) await ui.cleanup();
+      vi.useRealTimers();
+    }
+  });
+
   it("a denied read does not reveal an image; retry performs only a fresh GET", async () => {
     const fake = vi.fn()
       .mockResolvedValueOnce(envelope(null, 403))
@@ -261,6 +284,8 @@ describe("VK-inspired inline question photo previews", () => {
       expect(ui.host.querySelector("img")).toBeNull();
       expect(ui.host.querySelector('[role="alert"]')?.textContent)
         .toContain("Не удалось загрузить фотографии");
+      expect(ui.host.querySelector(".question-photo-preview-placeholder")?.textContent)
+        .toContain("Ошибка загрузки");
       await ui.click(".question-photo-preview-error button");
       expect(fake).toHaveBeenCalledTimes(2);
       expect(fake.mock.calls.every(call => call[1]?.method === "GET")).toBe(true);

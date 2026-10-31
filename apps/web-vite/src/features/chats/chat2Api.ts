@@ -282,7 +282,14 @@ export const chat2Api = {
       throw new Error("Видео — до 100 МБ, фото и PDF — до 10 МБ");
     const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf", "video/mp4"];
     if (!allowed.includes(file.type)) throw new Error("Разрешены JPG, PNG, WebP, PDF и видео MP4");
-    if (import.meta.env.VITE_CHAT2_MEDIA_V2 === "true" && file.type !== "application/pdf")
+    // Production must never fall back to the legacy S3 handler: it is
+    // intentionally restricted to local isolated storage. A build without
+    // VITE_CHAT2_MEDIA_V2 still uses the activated V2 API for photos/videos.
+    // The API remains the source of truth and fails closed if V2 is off.
+    if (import.meta.env.PROD && file.type === "application/pdf")
+      throw new Error("PDF в чате пока недоступен. Отправьте фото или видео.");
+    if ((import.meta.env.PROD || import.meta.env.VITE_CHAT2_MEDIA_V2 === "true") &&
+        file.type !== "application/pdf")
       return uploadChat2V2(id, file);
     const data = new FormData();
     data.append("file", file, file.name);

@@ -380,6 +380,41 @@ describe("AG2 cross-flow auth boundary actual App",()=>{
   expect(logout).toHaveBeenCalledTimes(1);
   expect(login).toHaveBeenCalledTimes(1);
  });
+ it("X14 production questions must not inherit gallery-only irreversible session fence",async()=>{
+  // main.tsx mounts <App showGalleryOptIn /> in production. A harmless
+  // /auth/me cache retirement must not strand unrelated question routes on
+  // the owner-gallery-specific 'reopen application' screen.
+  const questionPath="/questions/cmw4rnj7000dme01jtt1refb";
+  window.history.replaceState(null,"",questionPath);
+  cache.setQueryData(CURRENT_USER_QUERY_KEY,user());
+  await act(async()=>root.render(<QueryClientProvider client={cache}>
+    <App showGalleryOptIn />
+  </QueryClientProvider>));
+  await tick();
+  await act(async()=>cache.removeQueries({queryKey:CURRENT_USER_QUERY_KEY,exact:true}));
+  await tick();
+  expect(window.location.pathname).toBe(questionPath);
+  expect(node.textContent).not.toContain("Сессия изменилась");
+  expect(node.textContent).not.toContain("Для нового просмотра личных разделов");
+  expect(node.querySelector('[aria-label="Защита сессии связанных разделов"]')).toBeNull();
+ });
+ it("X15 production gallery owner routes keep A->B->A fencing",async()=>{
+  window.history.replaceState(null,"","/profile/albums/album_01");
+  cache.setQueryData(CURRENT_USER_QUERY_KEY,user());
+  await act(async()=>root.render(<QueryClientProvider client={cache}>
+    <App showGalleryOptIn galleryAlbumLoader={listAlbums}
+      galleryDetailLoader={getAlbum} galleryPhotoLoader={getPhotos}/>
+  </QueryClientProvider>));
+  await tick();
+  expect(node.textContent).toContain("PRIVATE_ALBUM_DESC");
+  await act(async()=>{
+    cache.setQueryData(CURRENT_USER_QUERY_KEY,user("B","ownerB"));
+    cache.setQueryData(CURRENT_USER_QUERY_KEY,user());
+  });
+  await tick();
+  expect(node.textContent).toContain("Сессия изменилась");
+  expect(node.textContent).not.toContain("PRIVATE_ALBUM_DESC");
+ });
  it("X10 late album payload after logout cannot render on training URL",async()=>{
   const d=hold<AlbumSummary>();getAlbum.mockReturnValueOnce(d.promise);
   await mount("/profile/albums/album_01");

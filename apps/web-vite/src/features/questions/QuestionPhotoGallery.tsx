@@ -221,6 +221,7 @@ function PhotoGallery({ location, manual }: { location: PhotoLocation; manual: b
               strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/>
               <path d="m5 17 5-5 4 4 3-3 4 4M8 8h.01"/></svg>
             <span>{isBroken ? "Не загрузилось" : loading ? "Загрузка…" :
+              error ? "Ошибка загрузки" :
               details[index]?.status==="FAILED" ? "Ошибка обработки" :
               details[index]?.status==="UNAVAILABLE" ? "Фото недоступно" :
               waiting && !src ? "Обрабатываем фото…" : "Фото"}</span>

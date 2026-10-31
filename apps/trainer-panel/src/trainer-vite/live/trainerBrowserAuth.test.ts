@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildSession, createTrainerCookieFetch, mutateTrainerApiEnvelope,
   readTrainerApiEnvelope, trainerLogin, trainerLogout, trainerMe,
-  validatedTrainerApiPath,
+  TrainerLoginError, validatedTrainerApiPath,
 } from "./trainerBrowserAuth";
 
 const user = { id: "trainer-A", username: "trainer", role: "TRAINER" };
@@ -86,6 +86,31 @@ describe("live Trainer browser cookie transport, local URL & identity fences", (
       response(401, { success: false }) : response(401, { success: false }));
     expect(await trainerMe(fetchImpl as typeof fetch)).toBeNull();
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+  it("distinguishes bad credentials, true permission denial and an untrusted Origin", async () => {
+    const cases: Array<[number, string, string]> = [
+      [401, "Неверные учётные данные", "Неверный логин или пароль"],
+      [403, "Недоверенный Origin", "Origin"],
+      [403, "Доступ запрещён", "Недостаточно прав"],
+      [503, "Database offline", "повторите попытку позже"],
+    ];
+    for (const [status, serverMessage, expectedMessage] of cases) {
+      const fetchImpl = vi.fn(async () => response(status, { success: false, error: serverMessage }));
+      await expect(trainerLogin(fetchImpl as typeof fetch, "trainer", "secret-password"))
+        .rejects.toMatchObject({ status, message: expect.stringContaining(expectedMessage) });
+      expect(fetchImpl).toHaveBeenCalledOnce();
+      const [path, options] = fetchImpl.mock.calls[0]!;
+      expect(path).toBe("/api/v1/auth/login");
+      expect(options?.credentials).toBe("include");
+      expect(new Headers(options?.headers).get("X-Gafus-Auth-Transport")).toBe("cookie");
+    }
+  });
+  it("does not leak arbitrary server errors on failed trainer login", async () => {
+    const fetchImpl = vi.fn(async () => response(403, { success: false, error: "sensitive-server-internal" }));
+    await expect(trainerLogin(fetchImpl as typeof fetch, "trainer", "secret-password"))
+      .rejects.toBeInstanceOf(TrainerLoginError);
+    await expect(trainerLogin(fetchImpl as typeof fetch, "trainer", "secret-password"))
+      .rejects.toThrow("Недостаточно прав для входа");
   });
   it("login/logout have only cookie header and do not persist browser tokens", async () => {
     const calls: { path: string; options: RequestInit | undefined }[] = [];

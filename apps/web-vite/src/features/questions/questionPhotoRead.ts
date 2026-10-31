@@ -38,11 +38,36 @@ export async function fetchQuestionPhotoRenditions(
   const path = rootId
     ? `/api/v1/questions/answers/${rootId}/replies?page=${page}`
     : `/api/v1/questions/${questionId}?page=${page}`;
-  const response = await fetch(path, {
-    method: "GET", credentials: "include", cache: "no-store",
-    headers: { Accept: "application/json" }, signal,
-  });
-  const envelope = object(await response.json());
+  // The image read is a second, on-demand question detail GET. If its network
+  // request or JSON body stalls, never leave the gallery at "Загрузка…" forever.
+  // Bound the entire read, not just fetch(): body parsing can also hang.
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) abort();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let response: Response;
+  let envelope: Record<string, unknown> | null;
+  try {
+    ({ response, envelope } = await Promise.race([
+      (async () => {
+        const response = await fetch(path, {
+          method: "GET", credentials: "include", cache: "no-store",
+          headers: { Accept: "application/json" }, signal: controller.signal,
+        });
+        return { response, envelope: object(await response.json()) };
+      })(),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new Error("Превышено время ожидания фотографий"));
+        }, 12_000);
+      }),
+    ]));
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    signal?.removeEventListener("abort", abort);
+  }
   if (!response.ok || !envelope || envelope.success !== true) {
     throw new ApiError(response.status, "Не удалось получить фотографии");
   }

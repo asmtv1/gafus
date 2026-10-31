@@ -9,8 +9,8 @@ const ALLOWED_ORIGINS = [
   // Production
   "https://gafus.ru",
   "https://www.gafus.ru",
-  "https://trainer.gafus.ru",
-  "https://admin.gafus.ru",
+  "https://trainer-panel.gafus.ru",
+  "https://adminka.gafus.ru",
   // Development
   "http://localhost:3000",
   "http://localhost:3002",

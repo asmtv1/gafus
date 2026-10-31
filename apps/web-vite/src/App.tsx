@@ -1142,11 +1142,15 @@ export function App(props:Parameters<typeof AppRouter>[0]={}){
       trainingReviewsTypeFromPath(currentPath)!==null);
   const consultationOwnerRoute=currentPath!==null&&
     (consultationRouteFromPath(currentPath)!==null||consultationCallIdFromPath(currentPath)!==null);
-  const galleryConnectedPrivate=props.showGalleryOptIn===true&&currentPath!==null&&
-    !NEXT_PUBLIC_WEB_ROUTES.has(currentPath);
+  // Gallery opt-in is enabled for the whole production Web entrypoint, but
+  // only album routes own the extra gallery session fence. Treating the flag
+  // as a global private-route switch caused unrelated /questions, /articles,
+  // and /courses pages to inherit the irreversible gallery recovery screen.
+  // NextProtectedRouteBoundary still validates /auth/me for every private URL;
+  // connected owner flows retain their stricter A→B→A protection below.
   const connected=reminderOwnerRoute||chatOwnerRoute||trainingOwnerRoute||consultationOwnerRoute||
     hiddenAuthorsOwnerRoute||notificationOwnerRoute||
-    galleryOwnerRoute||galleryConnectedPrivate||
+    galleryOwnerRoute||
     props.showTrainingFlowOptIn===true||
     props.showConsultationsFlowOptIn===true||
     props.showVetHonoOptIn===true||

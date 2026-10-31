@@ -73,6 +73,32 @@ describe("Chat2 private attachment upload response contract", () => {
     expect(seen).not.toContain("/api/v1/chats/room_01/attachments");
   });
 
+  it("never sends production photos through the disabled legacy S3 endpoint", async () => {
+    vi.stubEnv("PROD", true);
+    vi.stubEnv("VITE_CHAT2_MEDIA_V2", "false");
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ success: false, error: "Обработка медиа временно недоступна" }),
+      { status: 503, headers: { "Content-Type": "application/json" } },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(chat2Api.upload("room_01", file())).rejects.toThrow();
+    // The V2 reserve API request must occur before the browser ever sends any
+    // bytes; the old /attachments endpoint must not receive production files.
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "/api/v1/chats/room_01/media/v2/reserve",
+    );
+  });
+
+  it("does not put private PDF attachments into the public V2 bucket", async () => {
+    vi.stubEnv("PROD", true);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const pdf = new File([new Uint8Array(128)], "details.pdf", { type: "application/pdf" });
+    await expect(chat2Api.upload("room_01", pdf)).rejects.toThrow("PDF в чате пока недоступен");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("allows MP4 and sends it as a standard Chat 2.0 attachment", async () => {
     const video = new File([new Uint8Array(128)], "walk.mp4", { type: "video/mp4" });
     const expected = { id: "video_1", kind: "video", mime: "video/mp4", name: "walk.mp4", bytes: 128 };

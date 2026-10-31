@@ -7,7 +7,7 @@ import { matchLegacyPath } from "../routes";
 import {
   buildSession, createTrainerCookieFetch, mutateTrainerApiEnvelope,
   readTrainerApiEnvelope, trainerLogin, trainerLogout, trainerMe,
-  type BrowserSession,
+  TrainerLoginError, type BrowserSession,
 } from "./trainerBrowserAuth";
 
 type SessionState =
@@ -113,7 +113,10 @@ export function LiveTrainerApp({ fetchImpl = fetch }: { fetchImpl?: typeof fetch
       checkRef.current++;
       stateRef.current = ready; setState(ready);
       setLoginName("");
-    } catch { setAuthError("Вход не выполнен. Проверьте данные и соединение."); }
+    } catch (cause) {
+      setAuthError(cause instanceof TrainerLoginError ? cause.message :
+        "Вход не выполнен. Проверьте соединение и повторите попытку.");
+    }
     finally { setLoginBusy(false); }
   };
   const onLogout = async () => {

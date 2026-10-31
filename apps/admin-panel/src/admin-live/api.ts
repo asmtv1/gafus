@@ -54,6 +54,8 @@ export async function requestAdmin<T>(
       value.code ?? "REQUEST_FAILED",
       response.status === 401
         ? "Необходима авторизация"
+        : response.status === 403 && value.error === "Недоверенный Origin"
+          ? "Адрес админ-панели не разрешён сервером (Origin). Сообщите администратору."
         : response.status === 403
           ? "Недостаточно прав"
           : value.code === "STALE_CONFIG"

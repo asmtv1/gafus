@@ -104,6 +104,32 @@ describe("MIG-AUTH-010 cookie + bearer interoperability", () => {
     expect(response.headers.getSetCookie().every(c => c.includes("HttpOnly") && c.includes("Secure"))).toBe(true);
   });
 
+  it.each(["https://adminka.gafus.ru", "https://trainer-panel.gafus.ru"])(
+    "permits actual production panel Origin %s for browser cookie login",
+    async (origin) => {
+      vi.stubEnv("NODE_ENV", "production");
+      const response = await post("login", { ...BROWSER, origin }, {
+        username: "test_user", password: "valid-pw",
+      });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ success: true, data: { user: person } });
+      expect(response.headers.getSetCookie()).toHaveLength(2);
+      expect(response.headers.getSetCookie().every(cookie => cookie.includes("Secure") && cookie.includes("HttpOnly"))).toBe(true);
+      expect(mocks.validateCredentials).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each(["https://admin.gafus.ru", "https://trainer.gafus.ru", "https://adminka.gafus.ru.evil.example"])(
+    "rejects obsolete or lookalike browser Origin %s before credential validation",
+    async (origin) => {
+      const response = await post("login", { ...BROWSER, origin }, {
+        username: "test_user", password: "valid-pw",
+      });
+      expect(response.status).toBe(403);
+      expect(mocks.validateCredentials).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects browser cookie login from untrusted origin", async () => {
     const response = await post("login", { ...BROWSER, origin: "https://evil.example" }, {
       username: "test_user", password: "valid-pw",

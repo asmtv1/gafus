@@ -105,13 +105,37 @@ export async function trainerMe(request: typeof fetch): Promise<BrowserActor | n
   return meSchema.parse(await response.json()).data;
 }
 
+/** User-facing login failures, with no server stack, token, or credentials exposed. */
+export class TrainerLoginError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = "TrainerLoginError";
+  }
+}
+
 export async function trainerLogin(request: typeof fetch, username: string, password: string) {
   const response = await request("/api/v1/auth/login", {
     method: "POST", credentials: "include", cache: "no-store",
     headers: { "Content-Type": "application/json", "X-Gafus-Auth-Transport": "cookie" },
     body: JSON.stringify({ username, password }),
   });
-  if (!response.ok) throw Error("LOGIN_FAILED");
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new TrainerLoginError(401, "Неверный логин или пароль");
+    }
+    if (response.status === 403) {
+      let isUntrustedOrigin = false;
+      try {
+        const body: unknown = await response.json();
+        isUntrustedOrigin = typeof body === "object" && body !== null &&
+          "error" in body && body.error === "Недоверенный Origin";
+      } catch { /* Non-JSON 403 still stays forbidden, never trusted. */ }
+      throw new TrainerLoginError(403, isUntrustedOrigin
+        ? "Адрес панели тренера не разрешён сервером (Origin). Сообщите администратору."
+        : "Недостаточно прав для входа");
+    }
+    throw new TrainerLoginError(response.status, "Не удалось войти. Проверьте соединение или повторите попытку позже.");
+  }
   return loginSchema.parse(await response.json()).data.user;
 }
 
