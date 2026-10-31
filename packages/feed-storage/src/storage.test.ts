@@ -13,7 +13,7 @@ const config: FeedStorageConfig = {
   endpoint: "https://s3.cloud.ru",
   accessKeyId: "test-access",
   secretAccessKey: "test-secret",
-  cdnBaseUrl: "https://garaquachegasourn.begetcdn.cloud",
+  cdnBaseUrl: "https://quepraquiecebquomiel.begetcdn.cloud",
   cdnSecret: "a".repeat(24),
 };
 describe("feed storage", () => {
@@ -96,16 +96,20 @@ describe("feed storage", () => {
   it("generates independently verifiable Beget WebP and MP4 signatures", () => {
     const now = 1_800_000_000_000;
     const expires = Math.floor(now / 1000) + 300;
-    const url = new URL(signFeedCdnUrl("https://garaquachegasourn.begetcdn.cloud", key,
+    const url = new URL(signFeedCdnUrl("https://quepraquiecebquomiel.begetcdn.cloud", key,
       new Date(expires * 1000), config.cdnSecret, now));
     const expected = createHash("md5").update(`${expires}/${key} ${config.cdnSecret}`).digest("base64url");
     expect(url.pathname).toBe(`/${key}`);
     expect(url.search).toBe(`?md5=${expected}&expires=${expires}`);
+    // The retired Feed CDN host is not an acceptable fallback: it no longer
+    // carries the current Media V2 Cloud.ru delivery contract.
+    expect(() => signFeedCdnUrl("https://garaquachegasourn.begetcdn.cloud", key,
+      new Date(expires * 1000), config.cdnSecret, now)).toThrow("UNSAFE_FEED_CDN");
     expect(() => signFeedCdnUrl("https://other.begetcdn.cloud", key,
       new Date(expires * 1000), config.cdnSecret, now)).toThrow("UNSAFE_FEED_CDN");
     expect(() => signFeedCdnUrl("https://cdn.example.com", key,
       new Date(expires * 1000), config.cdnSecret, now, "beget")).toThrow("UNSAFE_FEED_CDN");
-    expect(() => signFeedCdnUrl("https://garaquachegasourn.begetcdn.cloud",
+    expect(() => signFeedCdnUrl("https://quepraquiecebquomiel.begetcdn.cloud",
       "posts/user/post/incoming/upload/source.mp4", new Date(expires * 1000), config.cdnSecret, now)).toThrow();
   });
   it.each([

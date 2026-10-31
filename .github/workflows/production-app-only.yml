@@ -6,7 +6,7 @@ on:
       mode:
         description: 'Read-only server preflight; no application deployment'
         type: choice
-        options: [preflight, diagnose, deploy]
+        options: [preflight, diagnose, deploy, recover]
         required: true
       release_sha:
         description: 'Exact previously verified main commit SHA; required for deploy'
@@ -90,7 +90,7 @@ jobs:
             fi
 
   validate-app-release:
-    if: github.ref == 'refs/heads/main' && inputs.mode == 'deploy'
+    if: github.ref == 'refs/heads/main' && (inputs.mode == 'deploy' || inputs.mode == 'recover')
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -125,6 +125,107 @@ jobs:
           [ "$verified" = true ] || { echo 'RELEASE_IMAGES_OR_SECURITY_NOT_VERIFIED'; exit 1; }
           echo "sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
           echo 'APP_ONLY_RELEASE_PROVENANCE_VERIFIED=7_IMAGES_AND_TESTS'
+
+  recover-api-after-migration:
+    # This mode resumes ONLY the already-migrated 41150071782 app-only rollout.
+    # No DB migrations or schema rollback, no Cloud.ru Job mutations.
+    needs: [validate-app-release]
+    if: github.ref == 'refs/heads/main' && inputs.mode == 'recover'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 45
+    steps:
+      - name: Resume migrated production with seven verified images, no Cloud Jobs
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        with:
+          host: 185.239.51.125
+          username: root
+          key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
+          port: 22
+          envs: GHCR_TOKEN
+          script_stop: false
+          command_timeout: 40m
+          script: |
+            set -euo pipefail
+            root=/root/gafus
+            sha='${{ needs.validate-app-release.outputs.release_sha }}'
+            [[ "$sha" =~ ^[a-f0-9]{40}$ ]] || { echo 'INVALID_RECOVERY_SHA'; exit 1; }
+            release=/root/gafus-release-backups/41150071782-1
+            compose="$root/ci-cd/docker/docker-compose.prod.yml"
+            gate="$root/ci-cd/nginx/conf.d/.release-maintenance"
+            envfile="$root/ci-cd/docker/.env"
+            test -f "$release/migration-started" && test -f "$release/migration-complete" || { echo 'NOT_FULLY_MIGRATED_ABORT'; exit 1; }
+            test -f "$gate" && test -s "$release/production-pre-migrate.dump" && test -f "$envfile" || { echo 'MISSING_MAINTENANCE_OR_BACKUP_ABORT'; exit 1; }
+            docker exec -i gafus-postgres pg_restore --list < "$release/production-pre-migrate.dump" >/dev/null || { echo 'INVALID_MIGRATION_BACKUP'; exit 1; }
+            # Prisma ledger must be completely settled, including no failed migration.
+            n=$(docker exec gafus-postgres psql -X -U gafus -d gafus -Atc 'select count(*) from "_prisma_migrations" where finished_at is not null and rolled_back_at is null')
+            pending=$(docker exec gafus-postgres psql -X -U gafus -d gafus -Atc 'select count(*) from "_prisma_migrations" where finished_at is null and rolled_back_at is null')
+            [ "$n" = 162 ] && [ "$pending" = 0 ] || { echo "MIGRATIONS_NOT_COMPLETE_${n}_${pending}"; exit 1; }
+            docker exec gafus-nginx nginx -t >/dev/null
+            echo 'MIGRATIONS_AND_SNAPSHOT_VERIFIED=162_OF_162'
+            mkdir -p /root/gafus-release-backups/recovery-${{ github.run_id }}
+            cp -p "$envfile" /root/gafus-release-backups/recovery-${{ github.run_id }}/previous.env
+            chmod 600 /root/gafus-release-backups/recovery-${{ github.run_id }}/previous.env
+            # Preserve all live secrets and existing Gallery/Questions/Chat CDN;
+            # switch only the incorrectly pinned retired Feed host to the known
+            # current Feed Media V2 Beget HTTPS origin (no provider writes).
+            grep -q '^FEED_CDN_BASE_URL=' "$envfile" || { echo 'FEED_CDN_ENV_MISSING'; exit 1; }
+            sed -i 's#^FEED_CDN_BASE_URL=.*#FEED_CDN_BASE_URL=https://quepraquiecebquomiel.begetcdn.cloud#' "$envfile"
+            chmod 600 "$envfile"
+            git -C "$root" fetch origin >/dev/null
+            git -C "$root" merge-base --is-ancestor "$sha" origin/main || { echo 'RECOVERY_SHA_NOT_MAIN'; exit 1; }
+            git -C "$root" reset --hard "$sha" >/dev/null
+            echo "RELEASE_SOURCE_SHA=$sha"
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u asmtv1 --password-stdin >/dev/null
+            unset GHCR_TOKEN
+            images=(gafus-web gafus-trainer-panel gafus-admin-panel gafus-api gafus-worker gafus-bull-board gafus-prisma)
+            for image in "${images[@]}"; do
+              docker pull "ghcr.io/asmtv1/$image:sha-$sha" >/dev/null
+              docker tag "ghcr.io/asmtv1/$image:sha-$sha" "ghcr.io/asmtv1/$image:latest"
+              echo "VERIFIED_IMAGE=$image:sha-$sha"
+            done
+            docker-compose -f "$compose" config --quiet
+            docker-compose -f "$compose" --profile chat2 up -d --no-deps chat2-centrifugo
+            docker-compose -f "$compose" up -d --no-deps --force-recreate worker api
+            docker-compose -f "$compose" up -d --no-deps --force-recreate web trainer-panel admin-panel bull-board
+            for service in web trainer-panel admin-panel api worker bull-board; do
+              ready=false
+              for i in $(seq 1 45); do
+                state=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "gafus-$service" 2>/dev/null || true)
+                if [ "$state" = healthy ] || [ "$state" = running ]; then ready=true; break; fi
+                [ "$state" = unhealthy ] || [ "$state" = exited ] && break
+                sleep 3
+              done
+              if [ "$ready" != true ]; then echo "RECOVERY_CONTAINER_UNHEALTHY=$service"; exit 1; fi
+              echo "CONTAINER_HEALTHY=$service"
+            done
+            docker-compose -f "$compose" up -d --no-deps --force-recreate nginx
+            docker exec gafus-nginx nginx -t >/dev/null
+            export DEPLOY_ROOT="$root" COMPOSE_PROD="$compose" RELEASE_BACKUP_DIR="$release"
+            bash "$root/ci-cd/scripts/production-schema-cutover.sh" verify
+            bash "$root/ci-cd/scripts/production-schema-cutover.sh" open
+            echo 'MAINTENANCE_GATE_OPENED'
+            for endpoint in https://gafus.ru/ https://gafus.ru/api/ping https://api.gafus.ru/ready; do
+              curl -fsS --max-time 15 -o /dev/null "$endpoint" || { echo "PROD_HTTP_NOT_READY=$endpoint"; exit 1; }
+              echo "PROD_ENDPOINT_OK=$endpoint"
+            done
+            # Prisma is a one-shot migration image, not a running service.
+            # Verify the six long-lived app containers against exact immutable
+            # SHA images; the seventh Prisma image was checked at pull time.
+            for image in gafus-web gafus-trainer-panel gafus-admin-panel gafus-api gafus-worker gafus-bull-board; do
+              actual=$(docker image inspect "ghcr.io/asmtv1/$image:sha-$sha" --format '{{.Id}}')
+              running=$(docker inspect "gafus-${image#gafus-}" --format '{{.Image}}')
+              [ "$actual" = "$running" ] || { echo "RELEASE_IMAGE_MISMATCH=$image"; exit 1; }
+            done
+            for service in web api worker trainer-panel admin-panel bull-board; do
+              docker inspect --format "gafus-${service} status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}no-health{{end}} restarts={{.RestartCount}} oom={{.State.OOMKilled}} exit={{.State.ExitCode}}" "gafus-$service"
+              restarts=$(docker inspect --format '{{.RestartCount}}' "gafus-$service")
+              oom=$(docker inspect --format '{{.State.OOMKilled}}' "gafus-$service")
+              [ "$restarts" = 0 ] && [ "$oom" = false ] || { echo "RESTART_OR_OOM=$service"; exit 1; }
+            done
+            echo 'APPLICATION_RECOVERY_VERIFIED_NO_CLOUDRU_JOB_CHANGES'
 
   deploy-app-only:
     needs: [validate-app-release]

@@ -9,7 +9,7 @@ import { MEDIA_DELIVERY_HEALTH_KEY } from "@gafus/core/services/mediaDelivery";
 const now = 1791920000000;
 const config: MonitorConfig = {
   gallery: { host: "mepsuduyokabib.begetcdn.cloud", secret: "A".repeat(24), enabled: true, provider: "beget" },
-  feed: { host: "garaquachegasourn.begetcdn.cloud", secret: "B".repeat(24), enabled: true, provider: "beget" },
+  feed: { host: "quepraquiecebquomiel.begetcdn.cloud", secret: "B".repeat(24), enabled: true, provider: "beget" },
 };
 const blank = () => parseMonitorState(null, now);
 
@@ -27,13 +27,14 @@ describe("server-side CDN health monitor", () => {
       .digest("base64url");
     expect(feedUrl.search).toBe(`?md5=${expected}&expires=${expires}`);
     expect(createSignedMonitorUrl("feed", { ...config, feed: { ...config.feed, enabled: false } }, now)).toBeNull();
+    expect(createSignedMonitorUrl("feed", { ...config, feed: { ...config.feed, host: "garaquachegasourn.begetcdn.cloud" } }, now)).toBeNull();
   });
   it("matches Gallery path-token and Feed Media V2 query-token signing formats", () => {
     const beget = monitorConfigFromEnv({
       GALLERY_CDN_BASE_URL: "https://mepsuduyokabib.begetcdn.cloud",
       GALLERY_CDN_SECRET: "A".repeat(24), GALLERY_ENABLED: "true",
       GALLERY_S3_ENDPOINT: "https://s3.cloud.ru", GALLERY_MEDIA_FALLBACK_ENABLED: "true",
-      FEED_CDN_BASE_URL: "https://garaquachegasourn.begetcdn.cloud",
+      FEED_CDN_BASE_URL: "https://quepraquiecebquomiel.begetcdn.cloud",
       FEED_CDN_SECRET: "B".repeat(24), FEED_ENABLED: "true",
       FEED_S3_ENDPOINT: "https://s3.cloud.ru", FEED_MEDIA_FALLBACK_ENABLED: "true",
     });

@@ -23,7 +23,7 @@ function safeOrigin(value: string): string {
   const url = new URL(value);
   if (url.protocol !== "https:" || url.pathname !== "/" || url.search || url.hash ||
       url.username || url.password || url.port ||
-      url.hostname !== "garaquachegasourn.begetcdn.cloud")
+      url.hostname !== "quepraquiecebquomiel.begetcdn.cloud")
     throw new Error("UNSAFE_FEED_CDN");
   return url.origin;
 }
@@ -218,7 +218,7 @@ export function createFeedStorage(
       requireClient();
       if (liveCdnSecret) {
         assertFeedFinalKey(input.key);
-        return signFeedCdnUrl("https://garaquachegasourn.begetcdn.cloud", input.key,
+        return signFeedCdnUrl("https://quepraquiecebquomiel.begetcdn.cloud", input.key,
           input.expiresAt, liveCdnSecret, Date.now(), "beget");
       }
       if (config.isolatedNonprod) {

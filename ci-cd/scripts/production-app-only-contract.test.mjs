@@ -8,7 +8,7 @@ const app=load('.github/workflows/production-app-only.yml');
 const reusable=load('.github/workflows/production-deploy-reusable.yml');
 test('app-only manual deploy verifies exact successful main release and never patches Cloud.ru Jobs',()=>{
  const jobs=app.jobs;
- assert.deepEqual(Object.keys(jobs).sort(),['deploy-app-only','server-preflight','validate-app-release']);
+ assert.deepEqual(Object.keys(jobs).sort(),['deploy-app-only','recover-api-after-migration','server-preflight','validate-app-release']);
  const v=jobs['validate-app-release'];
  assert.match(v.steps[1].run,/RELEASE_IMAGES_OR_SECURITY_NOT_VERIFIED/);
  assert.match(v.steps[1].run,/RELEASE_NOT_ON_MAIN/);
@@ -37,4 +37,26 @@ test('reusable app-only release preserves provider configuration and activates V
  assert.doesNotMatch(script,/production-job-release\.mjs|containers\.api\.cloud\.ru\/v2\/jobs/);
  const p=spawnSync('bash',['-n'],{input:script,encoding:'utf8'});
  assert.equal(p.status,0,p.stderr);
+});
+
+test('migration recovery only runs after verified snapshot + 162 completed migrations, never rolls schema back or edits Cloud Jobs',()=>{
+ const j=app.jobs['recover-api-after-migration'];
+ assert(j,'MISSING_INCIDENT_RECOVERY');
+ assert.match(j.if,/inputs\.mode == 'recover'/);
+ assert(j.needs.includes('validate-app-release'));
+ const ssh=j.steps[0];
+ assert.equal(ssh.uses,'appleboy/ssh-action@v1.0.3');
+ const script=ssh.with.script;
+ assert.match(script,/migration-complete/);
+ assert.match(script,/41150071782-1/);
+ assert.match(script,/pg_restore --list/);
+ assert.match(script,/MIGRATIONS_NOT_COMPLETE/);
+ assert.match(script,/quepraquiecebquomiel\.begetcdn\.cloud/);
+ assert.match(script,/RELEASE_IMAGE_MISMATCH/);
+ assert.match(script,/RESTART_OR_OOM/);
+ assert.match(script,/production-schema-cutover\.sh" verify/);
+ assert.match(script,/production-schema-cutover\.sh" open/);
+ assert.doesNotMatch(script,/migrate deploy|\.sh" migrate|production-job-release|containers\.api\.cloud\.ru|pg_restore --clean|pg_restore --create/);
+ const a=spawnSync('bash',['-n'],{input:script,encoding:'utf8'});
+ assert.equal(a.status,0,a.stderr);
 });

@@ -80,9 +80,9 @@ export function monitorConfigFromEnv(
         env.GALLERY_S3_ENDPOINT === "https://s3.cloud.ru",
     },
     feed: {
-      host: env.FEED_CDN_BASE_URL === "https://garaquachegasourn.begetcdn.cloud" &&
+      host: env.FEED_CDN_BASE_URL === "https://quepraquiecebquomiel.begetcdn.cloud" &&
         (!env.FEED_CDN_PROVIDER || env.FEED_CDN_PROVIDER === "beget")
-        ? "garaquachegasourn.begetcdn.cloud" : "",
+        ? "quepraquiecebquomiel.begetcdn.cloud" : "",
       provider: "beget",
       secret: env.FEED_CDN_SECRET ?? "",
       enabled: env.FEED_ENABLED === "true" &&
@@ -113,7 +113,7 @@ export function createSignedMonitorUrl(kind: Kind, config: MonitorConfig,
     : `media/v2/${id}/v1/image/s.webp`;
   const path = `/${key}`;
   const expires = Math.floor(now / 1000) + 90;
-  if (provider !== "beget" || host !== (kind === "gallery" ? "mepsuduyokabib.begetcdn.cloud" : "garaquachegasourn.begetcdn.cloud"))
+  if (provider !== "beget" || host !== (kind === "gallery" ? "mepsuduyokabib.begetcdn.cloud" : "quepraquiecebquomiel.begetcdn.cloud"))
     return null;
   if (kind === "feed") {
     // Feed Media V2 uses Beget Cloud CDN query-token signing, unlike Gallery.
