@@ -41,6 +41,29 @@ if (process.argv.includes('--list')) {
           const text=reply.ok?await reply.text():'';
           const parsed=reply.ok?JSON.parse(text):null;
           const root=parsed?.service??parsed??{};
+          if (candidate.id === '0a8e97d5-3a65-4e90-99a6-c7f61131a461') {
+            const path=process.env.BEGET_GALLERY_SMOKE_FINAL_KEY??'';
+            const header=root.cdn?.settings?.static_request_headers?.value?.['x-gallery-origin-secret'];
+            if (/^albums\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+\/full\.webp$/.test(path) &&
+                typeof header==='string' && header.length>=32) {
+              try {
+                const probe=await fetch('https://gafus-gallery-origin.containerapps.ru/'+path,{
+                  headers:{'x-gallery-origin-secret':header},
+                  redirect:'manual',signal:AbortSignal.timeout(11000)});
+                const mime=probe.headers.get('content-type');
+                const bytes=probe.status===200?new Uint8Array(await probe.arrayBuffer()):null;
+                const expected=process.env.BEGET_GALLERY_SMOKE_SHA256??'';
+                const {createHash}=await import('node:crypto');
+                console.log(JSON.stringify({galleryDirectOriginWithBegetHeader:{
+                  http:probe.status,mimeIsWebp:mime?.includes('image/webp')??false,
+                  bytes:bytes?.length??0,
+                  sha256Matches:bytes!==null && /^[a-f0-9]{64}$/.test(expected) &&
+                    createHash('sha256').update(bytes).digest('hex')===expected
+                }}));
+              }catch(error){console.log(JSON.stringify({galleryDirectOriginWithBegetHeader:{
+                errorType:error?.name??'unknown'}}));}
+            }else console.log(JSON.stringify({galleryDirectOriginWithBegetHeader:{skipped:true}}));
+          }
           details.push({
             id:candidate.id,status:reply.status,
             keys:Object.keys(root).slice(0,14),
