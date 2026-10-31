@@ -44,7 +44,12 @@ async function check(scope) {
   const expiry = Math.floor(Date.now() / 1000) + 300;
   const url = smokeSignedUrl(scope.host, path, secret, expiry);
   const header = 'x-cdn-edge-cache';
-  status(await fetchSafe(`https://${scope.origin}${path}`, { method: 'HEAD' }), 403, 'DIRECT_ORIGIN_UNAUTHORIZED');
+  // Private Cloud.ru Origin may hide object existence with 404 instead of 403.
+  // Both deny unsigned direct access. The signed CDN GET + exact fixture digest
+  // below remains mandatory: a missing object cannot produce a smoke PASS.
+  const directOrigin = await fetchSafe(`https://${scope.origin}${path}`, { method: 'HEAD' });
+  if (![403, 404].includes(directOrigin.status))
+    throw new Error(`DIRECT_ORIGIN_UNAUTHORIZED_${directOrigin.status}`);
   const unsigned = await fetchSafe(`https://${scope.host}${path}`, { method: 'HEAD' });
   if (![403, 410].includes(unsigned.status)) throw new Error(`UNSIGNED_CDN_${unsigned.status}`);
   status(await fetchSafe(smokeSignedUrl(scope.host, path, secret, expiry - 700), { method: 'HEAD' }), 410, 'EXPIRED_SIGNATURE');
@@ -75,7 +80,7 @@ async function check(scope) {
   if (Buffer.compare(Buffer.from(await range.arrayBuffer()), bytes.subarray(0, 5)) !== 0)
     throw new Error('RANGE_BYTES');
   return { scope: scope.name, signedGet: 200, hotCache: cacheState,
-    cacheControl, signedHead: 200, range: 206, originUnauthorized: 403, unsignedDenied: unsigned.status };
+    cacheControl, signedHead: 200, range: 206, originUnauthorized: directOrigin.status, unsignedDenied: unsigned.status };
 }
 if (process.argv[1] && process.argv[1].endsWith('/beget-production-smoke.mjs')) {
   let failed = false;
