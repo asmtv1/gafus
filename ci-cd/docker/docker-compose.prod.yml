@@ -209,7 +209,7 @@ services:
       - FEED_S3_ENDPOINT=${FEED_S3_ENDPOINT:-https://s3.cloud.ru}
       - FEED_S3_ACCESS_KEY_ID=${FEED_S3_ACCESS_KEY_ID:-}
       - FEED_S3_SECRET_ACCESS_KEY=${FEED_S3_SECRET_ACCESS_KEY:-}
-      - FEED_CDN_BASE_URL=${FEED_CDN_BASE_URL:-https://garaquachegasourn.begetcdn.cloud}
+      - FEED_CDN_BASE_URL=${FEED_CDN_BASE_URL:-https://quepraquiecebquomiel.begetcdn.cloud}
       - FEED_CDN_PROVIDER=${FEED_CDN_PROVIDER:-beget}
       - FEED_CDN_EDGE_TOKEN_VERIFIED=${FEED_CDN_EDGE_TOKEN_VERIFIED:-false}
       - FEED_MEDIA_FALLBACK_ENABLED=${FEED_MEDIA_FALLBACK_ENABLED:-false}
@@ -458,7 +458,7 @@ services:
       - FEED_S3_ENDPOINT=${FEED_S3_ENDPOINT:-https://s3.cloud.ru}
       - FEED_S3_ACCESS_KEY_ID=${FEED_S3_ACCESS_KEY_ID:-}
       - FEED_S3_SECRET_ACCESS_KEY=${FEED_S3_SECRET_ACCESS_KEY:-}
-      - FEED_CDN_BASE_URL=${FEED_CDN_BASE_URL:-https://garaquachegasourn.begetcdn.cloud}
+      - FEED_CDN_BASE_URL=${FEED_CDN_BASE_URL:-https://quepraquiecebquomiel.begetcdn.cloud}
       - FEED_CDN_PROVIDER=${FEED_CDN_PROVIDER:-beget}
       - FEED_CDN_EDGE_TOKEN_VERIFIED=${FEED_CDN_EDGE_TOKEN_VERIFIED:-false}
       - FEED_MEDIA_FALLBACK_ENABLED=${FEED_MEDIA_FALLBACK_ENABLED:-false}

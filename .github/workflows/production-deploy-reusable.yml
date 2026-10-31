@@ -404,7 +404,7 @@ jobs:
               echo "FEED_BUCKET=gafus-feed-private"
               echo "FEED_S3_ENDPOINT=https://s3.cloud.ru"
               echo "FEED_CDN_PROVIDER=beget"
-              echo "FEED_CDN_BASE_URL=https://garaquachegasourn.begetcdn.cloud"
+              echo "FEED_CDN_BASE_URL=https://quepraquiecebquomiel.begetcdn.cloud"
               echo "FEED_CDN_EDGE_TOKEN_VERIFIED=true"
               echo "FEED_MEDIA_FALLBACK_ENABLED=true"
               echo "CDN_HEALTH_MONITOR_ENABLED=true"

@@ -14,3 +14,18 @@ test('signed CDN is still required to return exact image bytes, cache and range'
     "status(range, 206, 'RANGE')", "WRONG_FIXTURE_OR_MIME",
   ]) assert(source.includes(condition), 'MISSING_REQUIRED_SIGNED_CDN_PROOF: '+condition);
 });
+
+test('production Feed CDN host is the live service, not the removed DNS entry', () => {
+  const expected = 'quepraquiecebquomiel.begetcdn.cloud';
+  assert(source.includes(expected));
+  assert(!source.includes('garaquachegasourn.begetcdn.cloud'));
+  for (const path of [
+    '.github/workflows/production-deploy-reusable.yml',
+    'ci-cd/docker/docker-compose.prod.yml',
+    'infra/cloudru/beget-synthetic-purge-acceptance.mjs',
+  ]) {
+    const content = readFileSync(path, 'utf8');
+    assert(content.includes(expected), path);
+    assert(!content.includes('garaquachegasourn.begetcdn.cloud'), path);
+  }
+});

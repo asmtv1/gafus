@@ -7,7 +7,7 @@ const scopes = [
   { name: 'gallery', host: 'mepsuduyokabib.begetcdn.cloud',
     origin: 'gafus-gallery-origin.containerapps.ru', secret: 'GALLERY_CDN_SECRET',
     keyVar: 'BEGET_GALLERY_SMOKE_FINAL_KEY', shaVar: 'BEGET_GALLERY_SMOKE_SHA256' },
-  { name: 'feed', host: 'garaquachegasourn.begetcdn.cloud',
+  { name: 'feed', host: 'quepraquiecebquomiel.begetcdn.cloud',
     origin: 'gafus-feed-origin.containerapps.ru', secret: 'FEED_CDN_SECRET',
     keyVar: 'BEGET_FEED_SMOKE_FINAL_KEY', shaVar: 'BEGET_FEED_SMOKE_SHA256' },
 ];

@@ -52,7 +52,7 @@ describe('existing production CDN secret reuse', () => {
     assert.match(script, /GALLERY_CDN_PROVIDER=beget/);
     assert.match(script, /FEED_CDN_PROVIDER=beget/);
     assert.match(script, /https:\/\/mepsuduyokabib.begetcdn.cloud/);
-    assert.match(script, /https:\/\/garaquachegasourn.begetcdn.cloud/);
+    assert.match(script, /https:\/\/quepraquiecebquomiel.begetcdn.cloud/);
   });
   it('does not allow Yandex CDN defaults in Gallery/Feed runtime Compose', () => {
     for (const [serviceName, svc] of Object.entries(compose.services)) {
@@ -72,9 +72,9 @@ describe('existing production CDN secret reuse', () => {
     const secret = 'A'.repeat(32);
     const path = '/posts/user/post/attachments/media/poster.webp';
     const expires = 1800000000;
-    const url = smokeSignedUrl('garaquachegasourn.begetcdn.cloud', path, secret, expires);
+    const url = smokeSignedUrl('quepraquiecebquomiel.begetcdn.cloud', path, secret, expires);
     const md5 = createHash('md5').update(`${secret}${path}${expires}`).digest('base64url');
-    assert.equal(url, `https://garaquachegasourn.begetcdn.cloud/md5(${md5},${expires})${path}`);
+    assert.equal(url, `https://quepraquiecebquomiel.begetcdn.cloud/md5(${md5},${expires})${path}`);
     assert.ok(!url.includes(secret));
   });
 });

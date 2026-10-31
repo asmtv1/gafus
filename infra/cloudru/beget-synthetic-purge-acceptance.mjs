@@ -17,7 +17,7 @@ const scopes = [
     host: 'mepsuduyokabib.begetcdn.cloud', serviceId: '10530e64-21b7-4352-8366-806c79c2f1b7',
     key: id => `albums/beget-probe-${id}/beget-probe-${id}/photos/${id}/full.webp` },
   { name: 'feed', bucket: 'gafus-feed-private',
-    host: 'garaquachegasourn.begetcdn.cloud', serviceId: 'becd9e5d-4fa8-47da-878c-9b80ded74e71',
+    host: 'quepraquiecebquomiel.begetcdn.cloud', serviceId: 'becd9e5d-4fa8-47da-878c-9b80ded74e71',
     key: id => `posts/beget-probe-${id}/beget-probe-${id}/attachments/${id}/poster.webp` },
 ];
 if (mode === '--plan') {

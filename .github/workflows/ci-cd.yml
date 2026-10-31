@@ -559,6 +559,10 @@ jobs:
         run: node infra/cloudru/beget-release-readiness.mjs --check
       - name: Verify both protected Beget edges with real signed final objects (read-only)
         run: node infra/cloudru/beget-production-smoke.mjs
+      - name: Inspect Beget origin bindings after smoke failure (read-only, no secrets logged)
+        if: failure()
+        continue-on-error: true
+        run: node infra/cloudru/beget-cdn-readonly-diagnostic.mjs
 
   # Read-only inventory and image reference check, before VPS deployment.
   cloudru-jobs-preflight:
