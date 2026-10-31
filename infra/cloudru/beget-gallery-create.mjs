@@ -44,7 +44,16 @@ const data=await api('/v1/cloud','POST',{
   description:'Isolated protected origin experiment; never serve user media until security gates pass',
   cdn_params:{source_params:SOURCE},
 });
-if(data?.cdn_error || !data?.service?.id) throw Error('GALLERY_CDN_CREATE_UNVERIFIED');
+if(data?.cdn_error || !data?.service?.id) {
+  // Beget may respond 200 with a structured validation error. Never expose
+  // user-entered strings, credentials, full payloads, or arbitrary server text.
+  console.log('CREATE_RESPONSE_SHAPE',Object.keys(data??{}));
+  const err=data?.cdn_error;
+  if(err) console.log('CREATE_ERROR_SHAPE',Object.keys(err),
+    'ERROR_TYPE',typeof err.error,'ERROR_CODE',String(err.error?.code??'none').slice(0,50),
+    'DOMAIN_ERROR_COUNT',Array.isArray(err.domain_error)?err.domain_error.length:0);
+  throw Error('GALLERY_CDN_CREATE_UNVERIFIED');
+}
 const id=data.service.id;
 if(!/^[a-f0-9-]{36}$/.test(id)) throw Error('GALLERY_CDN_CREATE_INVALID_ID');
 const detail=(await api('/v1/cloud/'+id)).service;
