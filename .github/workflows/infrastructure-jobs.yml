@@ -10,7 +10,7 @@ on:
         type: choice
         required: true
         default: plan
-        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic]
+        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, cloudru-origin-diagnostic]
       confirmation:
         description: 'For apply: UPDATE_11_EXISTING_JOBS; for image publish: PUBLISH_MEDIA_IMAGES'
         type: string
@@ -43,6 +43,14 @@ jobs:
           package-manager-cache: false
       - name: Read service details without changes or credential disclosure
         run: node infra/cloudru/beget-cdn-readonly-diagnostic.mjs --list
+
+  cloudru-origin-diagnostic:
+    if: github.ref == 'refs/heads/diagnostic/beget-cdn-readonly-20261101' && inputs.operation == 'cloudru-origin-diagnostic'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: origin-check
+    secrets: inherit
 
   plan:
     if: github.ref == 'refs/heads/main' && inputs.operation == 'plan'
