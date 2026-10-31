@@ -78,7 +78,7 @@ describe("Web access-cookie recovery", () => {
   });
 
   it("never replays writes, auth endpoints, credential-free requests, or forbidden reads", async () => {
-    const cases: [string, object, number][] = [
+    const cases: [string, Parameters<typeof apiRequest>[1], number][] = [
       ["/api/v1/feed/posts", { method: "POST", json: {} }, 401],
       ["/api/v1/feed/posts", { method: "PATCH", json: {} }, 401],
       ["/api/v1/feed/posts", { method: "DELETE" }, 401],
