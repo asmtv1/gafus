@@ -9,24 +9,24 @@ const ci=read('.github/workflows/ci-cd.yml');
 const manual=read('.github/workflows/deploy-only.yml');
 const jobs=read('.github/workflows/production-job-release-reusable.yml');
 const app=read('.github/workflows/production-deploy-reusable.yml');
-const activation=read('.github/workflows/production-media-activate-reusable.yml');
+const activation=read('docs/operations/workflow-archive/production-media-activate-reusable.yml');
 const release=read('infra/cloudru/production-job-release.mjs');
 
 const parse=(s)=>{const d=YAML.parseDocument(s);assert.equal(d.errors.length,0,d.errors.map(x=>x.message).join('\n'));return d.toJS();};
 const byJobs=(s)=>parse(s).jobs;
 
-test('first main push always stages new API, switches existing Cloud Jobs, then activates and verifies V2',()=>{
- const graph=byJobs(ci);
- const required=['cloudru-jobs-preflight','deploy-production','cloudru-jobs-cutover','cloudru-media-activate','cloudru-jobs-verify'];
- for(const name of required)assert(graph[name],'MISSING_'+name);
- assert.deepEqual(graph['cloudru-jobs-cutover'].needs,['deploy-production']);
- assert.deepEqual(graph['cloudru-media-activate'].needs,['cloudru-jobs-cutover']);
- assert.deepEqual(graph['cloudru-jobs-verify'].needs,['cloudru-media-activate']);
- assert.deepEqual(graph['beget-verify-after-deploy'].needs,['beget-readonly-preflight','cloudru-jobs-verify']);
- const m=byJobs(manual);
- assert.deepEqual(m['cloudru-jobs-cutover'].needs,['validate-release','deploy']);
- assert.deepEqual(m['cloudru-media-activate'].needs,['validate-release','cloudru-jobs-cutover']);
- assert.deepEqual(m['cloudru-jobs-verify'].needs,['validate-release','cloudru-media-activate']);
+test('normal main and manual deploy never repeat first-time Cloud.ru cutover',()=>{
+ const ciJobs=byJobs(ci), manualJobs=byJobs(manual);
+ const infra=byJobs(read('.github/workflows/infrastructure-jobs.yml'));
+ for(const name of ['cloudru-jobs-cutover','cloudru-media-activate','cloudru-jobs-verify','cloudru-jobs-preflight']){
+   assert(!ciJobs[name],'CLOUDRU_MUTATION_IN_MAIN_'+name);
+   assert(!manualJobs[name],'CLOUDRU_MUTATION_IN_REDEPLOY_'+name);
+ }
+ assert.equal(ciJobs['deploy-production'].with.app_only,true);
+ assert.equal(manualJobs.deploy.with.app_only,true);
+ assert.deepEqual(ciJobs['beget-verify-after-deploy'].needs,['beget-readonly-preflight','deploy-production']);
+ assert(infra['apply-existing-jobs'],'MISSING_EXPLICIT_INFRA_JOB_UPDATE');
+ assert(infra['verify-after-apply'],'MISSING_INFRA_JOB_VERIFY');
  for(const flow of [ci,manual,jobs,app,activation])
   assert(!flow.includes('GAFUS_REFACTOR_PRODUCTION_CUTOVER'),'LEGACY_MAIN_GATE_MUST_NOT_SKIP_V2');
 });
@@ -47,27 +47,17 @@ test('cutover preflight can run Node 24 without installing pnpm; release gates r
   'BEGET_PRODUCTION_APPROVAL_GATE_MUST_NOT_BE_SKIPPED');
 });
 
-test('main push does not start Beget/Cloud.ru/production deploy without explicit release approval',()=>{
+test('main app deployment needs QA, preflight and CDN health; Cloud.ru changes remain separate',()=>{
  const graph=byJobs(ci);
  const gate=graph['beget-readonly-preflight'];
- assert.match(gate.if,/vars\.GAFUS_PRODUCTION_RELEASE_APPROVED == 'true'/);
- assert.match(gate.if,/github\.ref == 'refs\/heads\/main'/);
- assert.match(gate.if,/github\.event_name == 'push'/);
- assert(gate.steps.some(x=>x.run?.includes('beget-release-readiness.mjs --check')),
-  'NO_RELEASE_WITHOUT_BEGET_READINESS');
- assert(gate.steps.some(x=>x.run?.includes('beget-production-smoke.mjs')),
-  'NO_RELEASE_WITHOUT_LIVE_SIGNED_DELIVERY');
- const jobs=graph['cloudru-jobs-preflight'];
- assert(jobs.needs.includes('beget-readonly-preflight'),
-  'NO_CLOUDRU_RELEASE_WHEN_BEGET_PREFLIGHT_IS_SKIPPED');
- assert(graph['deploy-production'].needs.includes('cloudru-jobs-preflight'),
-  'NO_VPS_RELEASE_WITHOUT_CLOUDRU_PREFLIGHT');
- for(const [job,prior] of [
-  ['cloudru-jobs-cutover','deploy-production'],
-  ['cloudru-media-activate','cloudru-jobs-cutover'],
-  ['cloudru-jobs-verify','cloudru-media-activate'],
-  ['beget-verify-after-deploy','cloudru-jobs-verify'],
- ]) assert(graph[job].needs.includes(prior),'BROKEN_PRODUCTION_DEPENDENCY_'+job);
+ assert(gate.if.includes("github.ref == 'refs/heads/main'"));
+ assert(gate.if.includes("github.event_name == 'push'"));
+ assert(gate.steps.some(x=>x.run?.includes('beget-release-readiness.mjs --check')));
+ assert(gate.steps.some(x=>x.run?.includes('beget-production-smoke.mjs')));
+ for(const dep of ['security','build-apps','build-images','beget-readonly-preflight','cutover-preflight','cloudru-media-contracts'])
+  assert(graph['deploy-production'].needs.includes(dep),'MISSING_BLOCKING_GATE_'+dep);
+ assert(graph['beget-verify-after-deploy'].needs.includes('deploy-production'));
+ assert(!ci.includes('mode: cutover'),'CLOUDRU_CUTOVER_MUST_BE_MANUAL');
 });
 
 test('Vite image matrix sets up Node without requiring pnpm before pnpm install',()=>{
@@ -81,6 +71,16 @@ test('Vite image matrix sets up Node without requiring pnpm before pnpm install'
   'SETUP_NODE_AUTO_CACHE_UNINSTALLED_PNPM');
  const images=graph['build-images'].strategy.matrix.image.map(x=>x.name);
  assert.deepEqual(images.sort(),['admin-panel','api','bull-board','prisma','trainer-panel','web','worker'].sort());
+});
+
+test('one coordinated release enables verified Chat2 CDN-first delivery with S3 fallback',()=>{
+ const compose=read('ci-cd/docker/docker-compose.prod.yml');
+ // Production Hono API must receive the verified public final-media origin.
+ // A mere GitHub Environment variable would otherwise be lost by Compose.
+ assert(app.includes('echo "CHAT2_V2_CDN_BASE_URL=https://gonomudedoje.begetcdn.cloud"'));
+ assert(compose.includes('- CHAT2_V2_CDN_BASE_URL=${CHAT2_V2_CDN_BASE_URL:-}'));
+ assert.equal((compose.match(/- CHAT2_V2_CDN_BASE_URL=/g)??[]).length,1);
+ assert(app.includes('echo "CHAT2_S3_BUCKET=gafus-chat2-media-2026"'));
 });
 
 test('no Cloud.ru Docker build, push, phantom Job, old Gallery image or CDN/S3 mutation in release workflows',()=>{

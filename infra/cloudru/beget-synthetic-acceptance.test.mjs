@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const yaml = require('yaml');
 const filename = 'infra/cloudru/beget-synthetic-purge-acceptance.mjs';
-const workflow = yaml.parse(readFileSync('.github/workflows/beget-synthetic-acceptance.yml','utf8'));
+const workflow = yaml.parse(readFileSync('docs/operations/workflow-archive/beget-synthetic-acceptance.yml','utf8'));
 const source = readFileSync(filename,'utf8');
 
 const launch = (mode, env = {}) => spawnSync(process.execPath, [filename,mode], {
@@ -18,7 +18,7 @@ const launch = (mode, env = {}) => spawnSync(process.execPath, [filename,mode], 
 test('manual workflow cannot run on push and never deploys', () => {
   assert.deepEqual(Object.keys(workflow.on),['workflow_dispatch']);
   assert.match(workflow.jobs.acceptance.if, /github\.ref == 'refs\/heads\/main'/);
-  const contents=readFileSync('.github/workflows/beget-synthetic-acceptance.yml','utf8');
+  const contents=readFileSync('docs/operations/workflow-archive/beget-synthetic-acceptance.yml','utf8');
   assert.doesNotMatch(contents,/appleboy\/ssh-action|docker\/build-push-action|production-deploy-reusable|deploy-only\.yml|gh workflow run/);
   assert.equal(workflow.permissions.contents,'read');
   assert.equal(workflow.jobs.acceptance.environment,'production');

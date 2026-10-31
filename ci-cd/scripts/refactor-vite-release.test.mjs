@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 const root = new URL("../../", import.meta.url);
 const read = file => readFileSync(new URL(file, root), "utf8");
-const workflow = read(".github/workflows/refactor-vite-release.yml");
+const workflow = read("docs/operations/workflow-archive/refactor-vite-release.yml");
 const dockerfile = read("ci-cd/docker/Dockerfile-web-vite-refactor");
 const nginx = read("ci-cd/docker/nginx-vite-refactor.conf");
 const dockerignore = read("ci-cd/docker/Dockerfile-web-vite-refactor.dockerignore");

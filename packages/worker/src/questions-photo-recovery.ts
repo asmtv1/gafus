@@ -62,12 +62,20 @@ export async function questionsPhotoCleanupInternal(){
     address.protocol==="http:" && address.port==="3001";
   const forbidden=new Set(["gafus.ru","api.gafus.ru","www.gafus.ru",
     "gafus.app","api.gafus.app","www.gafus.app"]);
-  const verifiedCloud=address.protocol==="https:" &&
+  // Production release activation explicitly pins the Questions V2 HMAC API
+  // to api.gafus.ru. The old blanket ban on *.gafus.ru made cron cleanup
+  // throw *before* attempting queued-job recovery, leaving jobs at 0 attempts.
+  // Accept only this exact production host in the production Worker. All
+  // other gafus.ru/gafus.app hosts remain forbidden, as does any HTTP origin.
+  const productionApi=process.env.NODE_ENV==="production" &&
+    process.env.GAFUS_LOCAL_ISOLATED_API!=="1" &&
+    address.hostname==="api.gafus.ru";
+  const verifiedCloud=address.protocol==="https:" && !address.port &&
     process.env.QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED==="true" &&
     process.env.QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME===address.hostname &&
-    !forbidden.has(address.hostname) &&
-    !address.hostname.endsWith(".gafus.ru") &&
-    !address.hostname.endsWith(".gafus.app");
+    (productionApi || (!forbidden.has(address.hostname) &&
+      !address.hostname.endsWith(".gafus.ru") &&
+      !address.hostname.endsWith(".gafus.app")));
   if(!(local || verifiedCloud) ||
       address.pathname!=="/" || address.search || address.hash ||
       address.username || address.password)

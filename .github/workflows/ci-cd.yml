@@ -373,7 +373,7 @@ jobs:
   # Build worker packages for Docker - REMOVED (using multi-stage build)
   # Mobile: typecheck и unit-тесты проходят в build-apps; native Expo-сборки выполняются отдельно.
 
-  # No Cloud.ru/Registry/SSH mutations may begin before QA and Chat2 sign-off.
+  # QA gate: application deploy never modifies Cloud.ru Jobs or S3.
   cutover-preflight:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [security, build-apps]
@@ -511,7 +511,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Production deploy workflow contract
-        run: node --test ci-cd/scripts/deploy-only-contract.test.mjs
+        run: node --test ci-cd/scripts/deploy-only-contract.test.mjs ci-cd/scripts/workflow-consolidation-contract.test.mjs ci-cd/scripts/backup-to-yandex.test.mjs
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media
       - name: Reject Yandex CDN release routes and verify fail-closed Beget gating
@@ -526,10 +526,8 @@ jobs:
   # this step only reads signed URLs. Never substitute a Yandex CDN preflight.
   beget-readonly-preflight:
     needs: [security, build-apps, cloudru-media-contracts]
-    # CI builds on main are not permission to deploy production. Only an
-    # explicitly approved release enters provider preflight and its dependent
-    # Cloud.ru / VPS deployment chain. Missing or false flag fails closed.
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.GAFUS_PRODUCTION_RELEASE_APPROVED == 'true'
+    # Automatic main releases remain gated by the production environment and read-only CDN readiness.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12
@@ -562,69 +560,23 @@ jobs:
       - name: Verify both protected Beget edges with real signed final objects (read-only)
         run: node infra/cloudru/beget-production-smoke.mjs
 
-  # Validate existing jobs before Backend deploy. Images come from Cloud.ru Registry, not CI Docker builds.
-  cloudru-jobs-preflight:
-    needs: [security, build-apps, cloudru-media-contracts, beget-readonly-preflight, cutover-preflight]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    uses: ./.github/workflows/production-job-release-reusable.yml
-    with:
-      release_sha: ${{ github.sha }}
-      mode: preflight
-    secrets: inherit
-
-  # Deploy to staging (develop branch)
-  # Заглушка: staging не реализован — один prod-сервер. Реальный деплой добавить при появлении staging-инфраструктуры.
-  deploy-staging:
-    needs: [security, build-apps]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to staging
-        run: echo "Deploy to staging environment"
-
   # Production deploy is shared with manual Deploy Only. No second script.
   deploy-production:
-    needs: [security, build-apps, build-images, cloudru-jobs-preflight]
+    needs: [security, build-apps, build-images, beget-readonly-preflight, cutover-preflight, cloudru-media-contracts]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     uses: ./.github/workflows/production-deploy-reusable.yml
     with:
       release_sha: ${{ github.sha }}
+      app_only: true
     secrets: inherit
 
-  # First release: now that Hono/API is on the target SHA, switch the 11
-  # existing Cloud.ru Jobs to V2 images/HMAC; no image rebuild, no new Jobs.
-  cloudru-jobs-cutover:
-    needs: [deploy-production]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    uses: ./.github/workflows/production-job-release-reusable.yml
-    with:
-      release_sha: ${{ github.sha }}
-      mode: cutover
-    secrets: inherit
-
-  # Keep the initial Backend deployment's media dispatch disabled until all
-  # Cloud.ru images and HMAC fields are updated and verified.
-  cloudru-media-activate:
-    needs: [cloudru-jobs-cutover]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    uses: ./.github/workflows/production-media-activate-reusable.yml
-    with:
-      release_sha: ${{ github.sha }}
-    secrets: inherit
-
-  cloudru-jobs-verify:
-    needs: [cloudru-media-activate]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    uses: ./.github/workflows/production-job-release-reusable.yml
-    with:
-      release_sha: ${{ github.sha }}
-      mode: verify
-    secrets: inherit
+  # Cloud.ru Jobs, S3 and CDN changes are deliberately NOT part of a normal app release.
+  # See the separate manual Infrastructure & Jobs workflow.
 
   # Post-deploy read-only verification. Never switch, mutate, prepare,
   # or roll back Gallery/Feed to Yandex CDN (including on Beget 5xx).
   beget-verify-after-deploy:
-    needs: [beget-readonly-preflight, cloudru-jobs-verify]
+    needs: [beget-readonly-preflight, deploy-production]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production

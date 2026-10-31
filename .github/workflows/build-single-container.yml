@@ -4,639 +4,190 @@ on:
   workflow_dispatch:
     inputs:
       container:
-        description: "Container to build and deploy"
+        description: 'Choose one of the seven independent production app images'
         required: true
         type: choice
-        options:
-          - web
-          - trainer-panel
-          - admin-panel
-          - api
-          - worker
-          - bull-board
-          - prisma
+        options: [web, trainer-panel, admin-panel, api, worker, bull-board, prisma]
       deploy:
-        description: "Deploy to server after build"
-        required: false
+        description: 'Also update ONLY this service on the current production release (prisma: build only)'
+        required: true
         default: false
         type: boolean
+
+permissions:
+  contents: read
+  packages: write
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: asmtv1
 
 jobs:
-  # Подготовка зависимостей
-  prepare-deps:
+  build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     outputs:
-      cache-key: ${{ steps.cache-key.outputs.key }}
-      pnpm-cache-key: ${{ steps.pnpm-cache-key.outputs.key }}
+      image: ${{ steps.config.outputs.image }}
+      digest: ${{ steps.package.outputs.digest }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Generate cache keys
-        id: cache-key
-        run: |
-          echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('packages/**/src/**', 'apps/**/src/**') }}" >> $GITHUB_OUTPUT
-
-      - name: Generate pnpm cache key
-        id: pnpm-cache-key
-        run: echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store" >> $GITHUB_OUTPUT
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - uses: actions/checkout@v5
         with:
-          node-version: "24"
-          package-manager-cache: false
-
-      - name: Install pnpm
-        run: |
-          npm install --global pnpm@10.12.4
-          test "$(pnpm --version)" = "10.12.4"
-
-      - name: Cache pnpm store
-        uses: actions/cache@v5
-        with:
-          path: ~/.pnpm-store
-          key: ${{ steps.pnpm-cache-key.outputs.key }}
-          restore-keys: |
-            ${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store
-
-      - name: Install dependencies
-        run: |
-          pnpm config set store-dir ~/.pnpm-store
-          pnpm config set verify-store-integrity false
-          pnpm config set auto-install-peers true
-          pnpm config set dedupe-peer-dependents false
-          pnpm install --frozen-lockfile --prefer-offline
-
-      # Source-only, cache-independent fail-closed contract before ANY workspace builds.
-      - name: Enforce Core package and browser/server boundaries before dependency builds (blocking)
-        run: pnpm check:core-boundaries
-
-      - name: Generate Prisma Client
-        run: |
-          cd packages/prisma
-          cp schema.prisma schema.prisma.bak
-          awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp && mv schema.tmp schema.prisma
-          pnpm db:generate
-          mv schema.prisma.bak schema.prisma
-
-      - name: Build packages
-        run: |
-          # Сначала собираем logger и prisma напрямую (без turbo) из-за циклической зависимости
-          # logger использует prisma динамически, но TypeScript проверяет типы при компиляции
-          # Собираем logger первым, так как prisma зависит от него статически
-          cd packages/logger && pnpm build && cd ../..
-          # После сборки logger, собираем пакеты, зависящие только от logger
-          cd packages/types && pnpm build && cd ../..
-          # Mandatory after the compiled public type declarations exist.
-          pnpm --filter @gafus/types test
-          cd packages/queues && pnpm build && cd ../..
-          cd packages/cdn-upload && pnpm build && cd ../..
-          # Собираем prisma (зависит от logger)
-          cd packages/prisma && pnpm build && cd ../..
-          # Собираем auth (зависит от logger и prisma)
-          cd packages/auth && pnpm build && cd ../..
-          # Собираем video-access (core зависит от него)
-          cd packages/video-access && pnpm build && cd ../..
-          # mailer до core (TypeScript резолвит dist у @gafus/mailer)
-          cd packages/mailer && pnpm build && cd ../..
-          # Собираем core после всех зависимостей (в т.ч. mailer, video-access, auth)
-          cd packages/core && pnpm build && cd ../..
-          # Затем собираем остальные пакеты через turbo (мы уже в корневой директории)
-          pnpm exec turbo run build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access --filter=!@gafus/mailer
-
-      - name: Cache build artifacts
-        uses: actions/cache@v5
-        with:
-          path: |
-            node_modules
-            packages/*/dist
-            packages/*/.prisma
-            ~/.pnpm-store
-          key: ${{ steps.cache-key.outputs.key }}-deps
-          restore-keys: |
-            ${{ hashFiles('**/pnpm-lock.yaml') }}-deps
-
-  # Определение конфигурации контейнера
-  set-container-config:
-    runs-on: ubuntu-latest
-    outputs:
-      dockerfile: ${{ steps.config.outputs.dockerfile }}
-      tag: ${{ steps.config.outputs.tag }}
-      app-name: ${{ steps.config.outputs.app-name }}
-    steps:
-      - name: Set container configuration
+          persist-credentials: false
+      - name: Validate target and deploy safety
         id: config
+        env:
+          TARGET: ${{ inputs.container }}
+          DEPLOY: ${{ inputs.deploy }}
+        shell: bash
         run: |
-          case "${{ github.event.inputs.container }}" in
+          set -euo pipefail
+          case "$TARGET" in
+            web|trainer-panel|admin-panel|api|worker|bull-board|prisma) ;;
+            *) echo 'Unknown service'; exit 1 ;;
+          esac
+          if [[ "$TARGET" == prisma && "$DEPLOY" == true ]]; then
+            echo 'Prisma is a migration container; use the coordinated CI/CD release for schema changes'
+            exit 1
+          fi
+          echo "dockerfile=ci-cd/docker/Dockerfile-$TARGET-optimized" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/asmtv1/gafus-$TARGET" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Enforce Core and browser/server boundaries (blocking)
+        run: pnpm check:core-boundaries
+      - name: Build Types and execute public API regression tests (blocking)
+        run: |
+          set -euo pipefail
+          pnpm --filter @gafus/logger build
+          pnpm --filter @gafus/types build
+          pnpm --filter @gafus/types test
+      - name: Compile selected static Vite app before Docker packaging
+        if: contains(fromJSON('["web","admin-panel","trainer-panel"]'), inputs.container)
+        env:
+          TARGET: ${{ inputs.container }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @gafus/prisma db:generate
+          case "$TARGET" in
             web)
-              echo "dockerfile=Dockerfile-web-optimized" >> $GITHUB_OUTPUT
-              echo "tag=gafus-web" >> $GITHUB_OUTPUT
-              echo "app-name=web" >> $GITHUB_OUTPUT
-              ;;
-            trainer-panel)
-              echo "dockerfile=Dockerfile-trainer-panel-optimized" >> $GITHUB_OUTPUT
-              echo "tag=gafus-trainer-panel" >> $GITHUB_OUTPUT
-              echo "app-name=trainer-panel" >> $GITHUB_OUTPUT
+              pnpm --filter '@gafus/web-vite^...' --if-present run build
+              pnpm --filter @gafus/web-vite build
               ;;
             admin-panel)
-              echo "dockerfile=Dockerfile-admin-panel-optimized" >> $GITHUB_OUTPUT
-              echo "tag=gafus-admin-panel" >> $GITHUB_OUTPUT
-              echo "app-name=admin-panel" >> $GITHUB_OUTPUT
+              pnpm --filter '@gafus/admin-panel^...' --if-present run build
+              pnpm --filter @gafus/admin-panel build
               ;;
-            api)
-              echo "dockerfile=Dockerfile-api-optimized" >> $GITHUB_OUTPUT
-              echo "tag=gafus-api" >> $GITHUB_OUTPUT
-              echo "app-name=api" >> $GITHUB_OUTPUT
-              ;;
-            worker)
-              echo "dockerfile=Dockerfile-worker-optimized" >> $GITHUB_OUTPUT
-              echo "tag=gafus-worker" >> $GITHUB_OUTPUT
-              echo "app-name=worker" >> $GITHUB_OUTPUT
-              ;;
-            bull-board)
-              echo "dockerfile=Dockerfile-bull-board-optimized" >> $GITHUB_OUTPUT
-              echo "tag=gafus-bull-board" >> $GITHUB_OUTPUT
-              echo "app-name=bull-board" >> $GITHUB_OUTPUT
-              ;;
-            prisma)
-              echo "dockerfile=Dockerfile-prisma-optimized" >> $GITHUB_OUTPUT
-              echo "tag=gafus-prisma" >> $GITHUB_OUTPUT
-              echo "app-name=prisma" >> $GITHUB_OUTPUT
+            trainer-panel)
+              pnpm --filter '@gafus/trainer-panel^...' --if-present run build
+              pnpm --filter @gafus/trainer-panel build
               ;;
           esac
-
-  # Сборка приложения (если это Next.js приложение или API)
-  build-app:
-    needs: [prepare-deps, set-container-config]
-    if: |
-      github.event.inputs.container == 'web' ||
-      github.event.inputs.container == 'trainer-panel' ||
-      github.event.inputs.container == 'admin-panel' ||
-      github.event.inputs.container == 'api'
-    runs-on: ubuntu-latest
-    env:
-      NEXT_PUBLIC_YM_COUNTER_ID: ${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Restore dependencies cache
-        uses: actions/cache@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
-          path: |
-            node_modules
-            packages/*/dist
-            packages/*/.prisma
-            ~/.pnpm-store
-          key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "24"
-          package-manager-cache: false
-
-      - name: Install pnpm
-        run: |
-          npm install --global pnpm@10.12.4
-          test "$(pnpm --version)" = "10.12.4"
-
-      - name: Restore pnpm store cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.pnpm-store
-          key: ${{ needs.prepare-deps.outputs.pnpm-cache-key }}
-          restore-keys: |
-            ${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store
-
-      - name: Install dependencies
-        run: |
-          pnpm config set store-dir ~/.pnpm-store
-          pnpm config set verify-store-integrity false
-          pnpm config set auto-install-peers true
-          pnpm config set dedupe-peer-dependents false
-          pnpm install --frozen-lockfile --prefer-offline --offline
-
-      - name: Build ${{ needs.set-container-config.outputs.app-name }}
-        run: |
-          if [ "${{ needs.set-container-config.outputs.app-name }}" = "api" ]; then
-            # API собирается через turbo с фильтрами
-            pnpm exec turbo run build --filter='@gafus/api...'
-          else
-            # Next.js приложения собираются напрямую
-            cd apps/${{ needs.set-container-config.outputs.app-name }}
-            pnpm build
-          fi
-
-      - name: Cache app build
-        uses: actions/cache@v5
-        with:
-          path: |
-            apps/${{ needs.set-container-config.outputs.app-name }}/.next
-            apps/${{ needs.set-container-config.outputs.app-name }}/dist
-          key: ${{ needs.prepare-deps.outputs.cache-key }}-${{ needs.set-container-config.outputs.app-name }}-build
-
-  # Подготовка Docker окружения
-  prepare-docker:
-    needs: [prepare-deps, set-container-config]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
-
-  # Сборка и пуш Docker образа
-  build-and-push:
-    needs: [prepare-docker, set-container-config]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: Build and push ${{ needs.set-container-config.outputs.tag }} image
+      - name: Build and publish only selected image with unique run tag
+        id: package
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ci-cd/docker/${{ needs.set-container-config.outputs.dockerfile }}
+          file: ${{ steps.config.outputs.dockerfile }}
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ needs.set-container-config.outputs.tag }}:latest
-          # web — без кэша, чтобы pnpm build брал актуальный код (фикс updateStepAndDay на проде)
-          no-cache: ${{ github.event.inputs.container == 'web' }}
-          cache-from: |
-            type=gha
-            type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/gafus-base:latest
-          cache-to: |
-            type=gha,mode=max
           platforms: linux/amd64
+          tags: ${{ steps.config.outputs.image }}:manual-${{ github.run_id }}-${{ github.run_attempt }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-            NEXT_PUBLIC_YM_COUNTER_ID=${{ github.event.inputs.container == 'web' && secrets.NEXT_PUBLIC_YM_COUNTER_ID || '' }}
+      - name: Publish digest as build summary
+        env:
+          IMAGE: ${{ steps.config.outputs.image }}
+          DIGEST: ${{ steps.package.outputs.digest }}
+        run: |
+          test -n "$DIGEST"
+          echo "Published $IMAGE@$DIGEST (only one image, no production deploy yet)" >> "$GITHUB_STEP_SUMMARY"
 
-  # Деплой на сервер (опционально)
   deploy:
-    needs: [build-and-push, set-container-config]
-    if: github.event.inputs.deploy == 'true'
+    needs: build
+    if: github.ref == 'refs/heads/main' && inputs.deploy
+    runs-on: ubuntu-latest
+    environment: production
     concurrency:
       group: gafus-production-deploy
       cancel-in-progress: false
-    runs-on: ubuntu-latest
-    environment: production
-    timeout-minutes: 30
+    timeout-minutes: 25
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Deploy ${{ needs.set-container-config.outputs.tag }} to server
+      - name: Deploy selected digest ONLY if server is already at this commit
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          command_timeout: 30m
+          command_timeout: 20m
+          script_stop: true
           script: |
-            set -e
-            echo "🚀 Deploying ${{ needs.set-container-config.outputs.tag }} to production..."
-
-            # Install Docker if not present
-            if ! command -v docker &> /dev/null; then
-              echo "🐳 Installing Docker..."
-              apt-get update
-              apt-get install -y apt-transport-https ca-certificates gnupg lsb-release curl
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-              echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu focal stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-              apt-get update
-              apt-get install -y docker-ce docker-ce-cli containerd.io
-              systemctl start docker
-              systemctl enable docker
-            fi
-
-            # Install Docker Compose if not present
-            if ! command -v docker-compose &> /dev/null; then
-              echo "🐳 Installing Docker Compose..."
-              curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-              chmod +x /usr/local/bin/docker-compose
-            fi
-
-            # Login to GitHub Container Registry
-            echo "🔐 Logging in to GitHub Container Registry..."
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u asmtv1 --password-stdin
-
-            # Navigate to project directory
-            cd /root/gafus || {
-              echo "Directory /root/gafus not found, creating it..."
-              mkdir -p /root/gafus
-              cd /root/gafus
+            set -euo pipefail
+            service='${{ inputs.container }}'
+            image='${{ needs.build.outputs.image }}'
+            digest='${{ needs.build.outputs.digest }}'
+            sha='${{ github.sha }}'
+            case "$service" in web|trainer-panel|admin-panel|api|worker|bull-board) ;; *) exit 1;; esac
+            [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo 'BAD_IMAGE_DIGEST'; exit 1; }
+            [[ "$sha" =~ ^[a-f0-9]{40}$ ]] || { echo 'BAD_SOURCE_SHA'; exit 1; }
+            root=/root/gafus
+            compose="$root/ci-cd/docker/docker-compose.prod.yml"
+            test -f "$compose" || { echo 'MISSING_COMPOSE'; exit 1; }
+            test "$(git -C "$root" rev-parse HEAD)" = "$sha" || {
+              echo 'PRODUCTION_SHA_DIFFERS: full coordinated release required'; exit 1;
             }
-
-            # All 8 Vox values must exist before changing the running deployment.
-            if [ -z "${{ secrets.VOXIMPLANT_ACCOUNT_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ACCOUNT_ID"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_APPLICATION_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_APPLICATION_ID"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ACCOUNT_NAME"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_APPLICATION_NAME }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_APPLICATION_NAME"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_KEY_ID }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_KEY_ID"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_PRIVATE_KEY_BASE64"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_CREDENTIAL_SECRET"; exit 1; fi
-            if [ -z "${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}" ]; then echo "Missing GitHub Actions Secret: VOXIMPLANT_ADMISSION_SECRET"; exit 1; fi
-
-            # Check if .env file exists, create if not
-            if [ ! -f ci-cd/docker/.env ]; then
-              echo "⚠️ .env file not found, creating from GitHub Secrets..."
-              {
-                echo "# Database"
-                echo "POSTGRES_DB=gafus"
-                echo "POSTGRES_USER=gafus"
-                echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}"
-                echo "DATABASE_URL=postgresql://gafus:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/gafus"
-                echo ""
-                echo "# Redis"
-                echo "REDIS_URL=redis://redis:6379"
-                echo ""
-                echo "# NextAuth секреты"
-                echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}"
-                echo ""
-                echo "# JWT секреты для API"
-                echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
-                echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}"
-                echo ""
-                echo "# URLs приложений"
-                echo "NEXTAUTH_URL=https://gafus.ru"
-                echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
-                echo "NEXT_PUBLIC_TRACER_APP_TOKEN=${{ secrets.NEXT_PUBLIC_TRACER_APP_TOKEN }}"
-                echo "NEXT_PUBLIC_APP_VERSION=1.7.0"
-                echo "NEXT_PUBLIC_ENABLE_TRACER=true"
-                echo "WEB_APP_URL=${{ vars.WEB_APP_URL || 'https://gafus.ru' }}"
-                echo ""
-                echo "# Cookie домен"
-                echo "AUTH_COOKIE_DOMAIN=.gafus.ru"
-                echo ""
-                echo "# VAPID ключи для Push уведомлений"
-                echo "VAPID_PUBLIC_KEY=${{ secrets.VAPID_PUBLIC_KEY }}"
-                echo "VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}"
-                echo "VAPID_SUBJECT=mailto:admin@gafus.ru"
-                echo ""
-                echo "# Yandex Cloud CDN"
-                echo "YC_ACCESS_KEY_ID=${{ secrets.YC_ACCESS_KEY_ID }}"
-                echo "YC_SECRET_ACCESS_KEY=${{ secrets.YC_SECRET_ACCESS_KEY }}"
-                echo ""
-                echo "# Voximplant (server-only consultation credentials)"
-                echo "VOXIMPLANT_ACCOUNT_ID=${{ secrets.VOXIMPLANT_ACCOUNT_ID }}"
-                echo "VOXIMPLANT_APPLICATION_ID=${{ secrets.VOXIMPLANT_APPLICATION_ID }}"
-                echo "VOXIMPLANT_ACCOUNT_NAME=${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}"
-                echo "VOXIMPLANT_APPLICATION_NAME=${{ secrets.VOXIMPLANT_APPLICATION_NAME }}"
-                echo "VOXIMPLANT_KEY_ID=${{ secrets.VOXIMPLANT_KEY_ID }}"
-                echo "VOXIMPLANT_PRIVATE_KEY_BASE64=${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}"
-                echo "VOXIMPLANT_CREDENTIAL_SECRET=${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}"
-                echo "VOXIMPLANT_ADMISSION_SECRET=${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}"
-                echo ""
-                echo "# Защита видео (HLS) - обязательно для API"
-                echo "VIDEO_ACCESS_SECRET=${{ secrets.VIDEO_ACCESS_SECRET }}"
-                echo "NEXT_PUBLIC_ENABLE_HLS_PROTECTION=${{ secrets.NEXT_PUBLIC_ENABLE_HLS_PROTECTION || 'true' }}"
-                echo ""
-                echo "# Логирование"
-                echo "DISABLE_CONSOLE_LOGGING=true"
-                echo ""
-                echo "# Next.js публичные переменные"
-                echo "NEXT_PUBLIC_SITE_URL=https://gafus.ru"
-                echo "NEXT_PUBLIC_TRAINER_PANEL_URL=https://trainer.gafus.ru"
-                echo "NEXT_PUBLIC_APP_URL=https://trainer.gafus.ru"
-                echo "NEXT_PUBLIC_YM_COUNTER_ID=${{ secrets.NEXT_PUBLIC_YM_COUNTER_ID }}"
-                echo ""
-                echo "# Анализ бандла (только для разработки)"
-                echo "ANALYZE=false"
-                echo ""
-                echo "# CSRF защита"
-                echo "CSRF_STRICT=false"
-                echo ""
-                echo "# Grafana"
-                echo "GRAFANA_ADMIN_USER=${{ secrets.GRAFANA_ADMIN_USER }}"
-                echo "GRAFANA_ADMIN_PASSWORD=${{ secrets.GRAFANA_ADMIN_PASSWORD }}"
-                echo "GRAFANA_SECRET_KEY=${{ secrets.GRAFANA_SECRET_KEY }}"
-                echo ""
-                echo "# OpenRouter AI API"
-                echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}"
-                echo ""
-                echo "# ЮKassa (платные курсы)"
-                echo "YOOKASSA_SHOP_ID=${{ secrets.YOOKASSA_SHOP_ID }}"
-                echo "YOOKASSA_SECRET_KEY=${{ secrets.YOOKASSA_SECRET_KEY }}"
-                echo ""
-                echo "# Apple IAP (верификация покупки курса на iOS; vars → Repository / Environment)"
-                echo "APPLE_BUNDLE_ID=${{ vars.APPLE_BUNDLE_ID }}"
-                echo "APPLE_APP_ID=${{ vars.APPLE_APP_ID }}"
-                echo "APPLE_USE_SANDBOX=${{ vars.APPLE_USE_SANDBOX || 'false' }}"
-                echo "APPLE_ISSUER_ID=${{ secrets.APPLE_ISSUER_ID }}"
-                echo "APPLE_KEY_ID=${{ secrets.APPLE_KEY_ID }}"
-                echo "APPLE_PRIVATE_KEY_HOST_PATH=${{ secrets.APPLE_PRIVATE_KEY_HOST_PATH }}"
-                echo "APPLE_PRIVATE_KEY_PATH=${{ secrets.APPLE_PRIVATE_KEY_PATH }}"
-                echo ""
-                echo "# Реквизиты для ЮKassa (контакты на сайте)"
-                echo "NEXT_PUBLIC_CONTACT_EMAIL=${{ secrets.NEXT_PUBLIC_CONTACT_EMAIL }}"
-                echo "NEXT_PUBLIC_CONTACT_PHONE=${{ secrets.NEXT_PUBLIC_CONTACT_PHONE }}"
-                echo "NEXT_PUBLIC_CONTACT_FIO=${{ secrets.NEXT_PUBLIC_CONTACT_FIO }}"
-                echo "NEXT_PUBLIC_CONTACT_INN=${{ secrets.NEXT_PUBLIC_CONTACT_INN }}"
-                echo ""
-                echo "# VK ID авторизация"
-                echo "VK_CLIENT_ID=${{ secrets.VK_CLIENT_ID }}"
-                echo "VK_CLIENT_ID_IOS=${{ secrets.VK_CLIENT_ID_IOS }}"
-                echo "VK_CLIENT_ID_ANDROID=${{ secrets.VK_CLIENT_ID_ANDROID }}"
-                echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI || 'https://gafus.ru/api/auth/callback/vk-id' }}"
-                echo "VK_MOBILE_REDIRECT_URI=${{ vars.VK_MOBILE_REDIRECT_URI || 'gafus://auth/vk' }}"
-                echo ""
-                echo "# SMTP / Yandex 360"
-                echo "SMTP_HOST=${{ vars.SMTP_HOST || 'smtp.yandex.ru' }}"
-                echo "SMTP_PORT=${{ vars.SMTP_PORT || '465' }}"
-                echo "SMTP_SECURE=${{ vars.SMTP_SECURE || 'true' }}"
-                echo "SMTP_USER=${{ secrets.SMTP_USER }}"
-                echo "SMTP_PASS=${{ secrets.SMTP_PASS }}"
-                echo "MAIL_FROM=${{ vars.MAIL_FROM || 'api@gafus.ru' }}"
-                echo "MAIL_FROM_NAME=${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
-                echo "STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}"
-                echo "STREAM_API_SECRET=${{ secrets.STREAM_API_SECRET }}"
-                echo "CYNOLOGIST_CHAT_ENABLED=${{ vars.CYNOLOGIST_CHAT_ENABLED || 'false' }}"
-                echo "COMMUNITY_CHAT_ENABLED=${{ vars.COMMUNITY_CHAT_ENABLED || 'false' }}"
-              } > ci-cd/docker/.env
-              chmod 600 ci-cd/docker/.env
-              echo "✅ .env file created"
-            else
-              echo "✅ .env file exists"
-
-              ensure_env_var() {
-                key="$1"
-                value="$2"
-                tmp_file="$(mktemp)"
-                awk -v key="$key" -v value="$value" '
-                  BEGIN { replaced = 0 }
-                  $0 ~ "^" key "=" {
-                    print key "=" value
-                    replaced = 1
-                    next
-                  }
-                  { print }
-                  END {
-                    if (replaced == 0) {
-                      print key "=" value
-                    }
-                  }
-                ' ci-cd/docker/.env > "$tmp_file"
-                mv "$tmp_file" ci-cd/docker/.env
-              }
-
-              echo "🔄 Updating SMTP / Yandex 360 env in existing .env file..."
-              ensure_env_var "SMTP_HOST" "${{ vars.SMTP_HOST || 'smtp.yandex.ru' }}"
-              ensure_env_var "SMTP_PORT" "${{ vars.SMTP_PORT || '465' }}"
-              ensure_env_var "SMTP_SECURE" "${{ vars.SMTP_SECURE || 'true' }}"
-              ensure_env_var "SMTP_USER" "${{ secrets.SMTP_USER }}"
-              ensure_env_var "SMTP_PASS" "${{ secrets.SMTP_PASS }}"
-              ensure_env_var "MAIL_FROM" "${{ vars.MAIL_FROM || 'api@gafus.ru' }}"
-              ensure_env_var "MAIL_FROM_NAME" "${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
-              ensure_env_var "STREAM_API_KEY" "${{ secrets.STREAM_API_KEY }}"
-              ensure_env_var "STREAM_API_SECRET" "${{ secrets.STREAM_API_SECRET }}"
-              ensure_env_var "CYNOLOGIST_CHAT_ENABLED" "${{ vars.CYNOLOGIST_CHAT_ENABLED || 'false' }}"
-              ensure_env_var "COMMUNITY_CHAT_ENABLED" "${{ vars.COMMUNITY_CHAT_ENABLED || 'false' }}"
-              chmod 600 ci-cd/docker/.env
-
-              # Обновляем VIDEO_ACCESS_SECRET, если его нет или он пустой
-              VIDEO_SECRET="${{ secrets.VIDEO_ACCESS_SECRET }}"
-              if ! grep -q "^VIDEO_ACCESS_SECRET=" ci-cd/docker/.env || grep -q "^VIDEO_ACCESS_SECRET=$" ci-cd/docker/.env; then
-                echo "🔄 Updating VIDEO_ACCESS_SECRET in existing .env file..."
-                if grep -q "^# Защита видео" ci-cd/docker/.env; then
-                  # Заменяем существующую строку VIDEO_ACCESS_SECRET
-                  sed -i "s|^VIDEO_ACCESS_SECRET=.*|VIDEO_ACCESS_SECRET=${VIDEO_SECRET}|" ci-cd/docker/.env
-                else
-                  # Добавляем секцию, если её нет
-                  echo "" >> ci-cd/docker/.env
-                  echo "# Защита видео (HLS) - обязательно для API" >> ci-cd/docker/.env
-                  echo "VIDEO_ACCESS_SECRET=${VIDEO_SECRET}" >> ci-cd/docker/.env
-                fi
-                echo "✅ VIDEO_ACCESS_SECRET updated"
-              fi
-
-              # Обновляем/добавляем env для платежей API
-              if ! grep -q "^YOOKASSA_SHOP_ID=" ci-cd/docker/.env; then
-                echo "YOOKASSA_SHOP_ID=${{ secrets.YOOKASSA_SHOP_ID }}" >> ci-cd/docker/.env
-              fi
-              if ! grep -q "^YOOKASSA_SECRET_KEY=" ci-cd/docker/.env; then
-                echo "YOOKASSA_SECRET_KEY=${{ secrets.YOOKASSA_SECRET_KEY }}" >> ci-cd/docker/.env
-              fi
-              if ! grep -q "^WEB_APP_URL=" ci-cd/docker/.env; then
-                echo "WEB_APP_URL=${{ vars.WEB_APP_URL || 'https://gafus.ru' }}" >> ci-cd/docker/.env
-              fi
-              if ! grep -q "^APPLE_BUNDLE_ID=" ci-cd/docker/.env; then
-                echo "" >> ci-cd/docker/.env
-                echo "# Apple IAP" >> ci-cd/docker/.env
-                echo "APPLE_BUNDLE_ID=${{ vars.APPLE_BUNDLE_ID }}" >> ci-cd/docker/.env
-                echo "APPLE_APP_ID=${{ vars.APPLE_APP_ID }}" >> ci-cd/docker/.env
-                echo "APPLE_USE_SANDBOX=${{ vars.APPLE_USE_SANDBOX || 'false' }}" >> ci-cd/docker/.env
-                echo "APPLE_ISSUER_ID=${{ secrets.APPLE_ISSUER_ID }}" >> ci-cd/docker/.env
-                echo "APPLE_KEY_ID=${{ secrets.APPLE_KEY_ID }}" >> ci-cd/docker/.env
-                echo "APPLE_PRIVATE_KEY_HOST_PATH=${{ secrets.APPLE_PRIVATE_KEY_HOST_PATH }}" >> ci-cd/docker/.env
-                echo "APPLE_PRIVATE_KEY_PATH=${{ secrets.APPLE_PRIVATE_KEY_PATH }}" >> ci-cd/docker/.env
-              fi
-              if ! grep -q "^APPLE_ISSUER_ID=" ci-cd/docker/.env; then
-                echo "APPLE_ISSUER_ID=${{ secrets.APPLE_ISSUER_ID }}" >> ci-cd/docker/.env
-              fi
-              if ! grep -q "^APPLE_KEY_ID=" ci-cd/docker/.env; then
-                echo "APPLE_KEY_ID=${{ secrets.APPLE_KEY_ID }}" >> ci-cd/docker/.env
-              fi
-              if ! grep -q "^APPLE_PRIVATE_KEY_HOST_PATH=" ci-cd/docker/.env; then
-                echo "APPLE_PRIVATE_KEY_HOST_PATH=${{ secrets.APPLE_PRIVATE_KEY_HOST_PATH }}" >> ci-cd/docker/.env
-              fi
-              if ! grep -q "^APPLE_PRIVATE_KEY_PATH=" ci-cd/docker/.env; then
-                echo "APPLE_PRIVATE_KEY_PATH=${{ secrets.APPLE_PRIVATE_KEY_PATH }}" >> ci-cd/docker/.env
-              fi
-            fi
-
-            # Keep Vox credentials consistent with GitHub Environment Secrets
-            # on both fresh installations and existing deployments.
-            set_vox_secret() {
-              name="$1"
-              value="$2"
-              tempfile="$(mktemp)"
-              awk -v key="$name" -v val="$value" '
-                $0 ~ "^"key"=" { if (!seen++) print key"="val; next }
-                { print }
-                END { if (!seen) print key"="val }
-              ' ci-cd/docker/.env > "$tempfile"
-              chmod 600 "$tempfile"
-              mv "$tempfile" ci-cd/docker/.env
+            current="$image:latest"
+            previous="$(docker image inspect "$current" --format '{{.Id}}' 2>/dev/null)" || {
+              echo 'MISSING_PREVIOUS_IMAGE: refusing unsafe standalone deploy'; exit 1;
             }
-            set_vox_secret "VOXIMPLANT_ACCOUNT_ID" "${{ secrets.VOXIMPLANT_ACCOUNT_ID }}"
-            set_vox_secret "VOXIMPLANT_APPLICATION_ID" "${{ secrets.VOXIMPLANT_APPLICATION_ID }}"
-            set_vox_secret "VOXIMPLANT_ACCOUNT_NAME" "${{ secrets.VOXIMPLANT_ACCOUNT_NAME }}"
-            set_vox_secret "VOXIMPLANT_APPLICATION_NAME" "${{ secrets.VOXIMPLANT_APPLICATION_NAME }}"
-            set_vox_secret "VOXIMPLANT_KEY_ID" "${{ secrets.VOXIMPLANT_KEY_ID }}"
-            set_vox_secret "VOXIMPLANT_PRIVATE_KEY_BASE64" "${{ secrets.VOXIMPLANT_PRIVATE_KEY_BASE64 }}"
-            set_vox_secret "VOXIMPLANT_CREDENTIAL_SECRET" "${{ secrets.VOXIMPLANT_CREDENTIAL_SECRET }}"
-            set_vox_secret "VOXIMPLANT_ADMISSION_SECRET" "${{ secrets.VOXIMPLANT_ADMISSION_SECRET }}"
-            chmod 600 ci-cd/docker/.env
-
-            # Manual one-container deployments must not release schema changes.
-            # The main CI stops every old writer before applying Prisma.
-            bash ci-cd/scripts/assert-no-pending-schema-migrations.sh
-            # Do not deploy an image built from newer code into a server running
-            # a different main commit, even when migration listing is stale.
-            if [ "$(git rev-parse HEAD)" != "${{ github.sha }}" ]; then
-              echo "BLOCKED: deployed server commit differs from the image's source commit."
-              echo "Use coordinated main CI/CD first."
-              exit 1
-            fi
-
-            # Pull latest image
-            echo "📥 Pulling latest ${{ needs.set-container-config.outputs.tag }} image..."
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ needs.set-container-config.outputs.tag }}:latest
-
-            if [ "${{ github.event.inputs.container }}" = "prisma" ]; then
-              echo "Prisma standalone image refresh is not a schema rollout."
-              echo "Pending Prisma migrations must run only via the main coordinated deployment."
-              exit 0
-            fi
-
-            # Restart specific container
-            echo "🔄 Restarting ${{ needs.set-container-config.outputs.tag }} container..."
-            docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d --force-recreate --no-deps ${{ github.event.inputs.container }} || {
-              echo "⚠️ Container restart failed, trying to start it..."
-              docker-compose -f ci-cd/docker/docker-compose.prod.yml up -d ${{ github.event.inputs.container }}
+            echo '${{ secrets.GHCR_TOKEN }}' | docker login ghcr.io -u asmtv1 --password-stdin >/dev/null
+            docker pull "$image@$digest"
+            backup="$image:manual-rollback-${{ github.run_id }}-${{ github.run_attempt }}"
+            docker tag "$previous" "$backup"
+            restore() {
+              echo 'SERVICE_DEPLOY_FAILED: restoring previous image'
+              docker tag "$backup" "$current" || true
+              docker-compose -f "$compose" up -d --no-deps --force-recreate "$service" || true
             }
-
-            # Wait for container to be ready
-            echo "⏳ Waiting for container to be ready..."
-            sleep 10
-
-            # Check container status
-            if docker ps | grep -q "gafus-${{ github.event.inputs.container }}"; then
-              echo "✅ Container ${{ needs.set-container-config.outputs.tag }} deployed successfully!"
-              docker ps | grep "gafus-${{ github.event.inputs.container }}"
-            else
-              echo "❌ Container ${{ needs.set-container-config.outputs.tag }} failed to start"
-              docker logs gafus-${{ github.event.inputs.container }} || echo "Could not fetch logs"
-              exit 1
+            trap restore ERR
+            docker tag "$image@$digest" "$current"
+            docker-compose -f "$compose" up -d --no-deps --force-recreate "$service"
+            container="gafus-$service"
+            healthy=false
+            for i in $(seq 1 24); do
+              state="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container" 2>/dev/null || true)"
+              if [ "$state" = healthy ] || [ "$state" = running -a "$service" = admin-panel ]; then
+                healthy=true
+                break
+              fi
+              sleep 5
+            done
+            if [ "$healthy" != true ]; then
+              echo "SERVICE_NOT_HEALTHY=$service"; false
             fi
-
-            # Cleanup old images
-            docker image prune -f || true
+            case "$service" in
+              web) endpoint=https://gafus.ru/;;
+              api) endpoint=https://api.gafus.ru/ready;;
+              admin-panel) endpoint=https://adminka.gafus.ru/;;
+              trainer-panel) endpoint=https://trainer-panel.gafus.ru/;;
+              *) endpoint='';;
+            esac
+            if [ -n "$endpoint" ]; then curl -fsSL --retry 3 --max-time 15 -o /dev/null "$endpoint"; fi
+            trap - ERR
+            echo "DEPLOY_SINGLE_IMAGE_OK=$service@$digest"

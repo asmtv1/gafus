@@ -396,6 +396,93 @@ describe("Chat2 GAFUS header and quick actions", () => {
     expect(scenario.mediaUrl).toHaveBeenCalledTimes(1);
   });
 
+  it.each([503, 404])("gates rendered video CDN → exact quality S3 on HTTP %i", async status => {
+    const base = "chat2/room/user/00000000-0000-4000-8000-000000000000/v1/";
+    const cdn = "https://gonomudedoje.begetcdn.cloud/" + base;
+    const s3 = "https://gafus-chat2-media-2026.s3.cloud.ru/" + base;
+    scenario.timeline = [{
+      id: "cdn-video-message", conversationId: "direct-room", sequence: "1",
+      authorId: "local-test-owner", clientMessageId: "cdn-video", text: "",
+      replyToId: null, createdAt: "2026-10-30T12:00:00Z",
+      editedAt: null, deletedAt: null,
+      attachments: [{ id: "cdn-video", name: "cdn.mp4", kind: "video", mime: "video/mp4", bytes: 900 }],
+    }];
+    scenario.mediaUrl.mockResolvedValue({
+      url: cdn + "video/360.mp4", mime: "video/mp4", name: "cdn.mp4", expiresIn: 300,
+      fallbackUrl: s3 + "video/360.mp4",
+      renditions: {poster: cdn + "poster.webp", video: {
+        360: cdn + "video/360.mp4", 720: cdn + "video/720.mp4",
+      }},
+      fallbackRenditions: {poster: s3 + "poster.webp", video: {
+        360: s3 + "video/360.mp4", 720: s3 + "video/720.mp4",
+      }},
+    });
+    const probe = vi.fn(async () => new Response(null, {status}));
+    vi.stubGlobal("fetch", probe);
+    await render();
+    const { navigate } = await import("../../shared/router/location");
+    await act(async () => navigate("/chats/direct-room"));
+    await vi.waitFor(() => expect(host.querySelector('video[aria-label="cdn.mp4"]')).not.toBeNull());
+    // Explicit 720p user selection must not be downgraded to 360p on S3 fallback.
+    const choices = [...host.querySelectorAll<HTMLButtonElement>('div[aria-label="Качество видео"] button')];
+    await act(async () => choices.find(x => x.textContent === "720p")?.click());
+    const player = host.querySelector<HTMLVideoElement>('video[aria-label="cdn.mp4"]')!;
+    expect(player.getAttribute("src")).toBe(cdn + "video/720.mp4");
+    await act(async () => player.dispatchEvent(new Event("error")));
+    if (status === 503) {
+      await vi.waitFor(() => expect(host.querySelector('video[aria-label="cdn.mp4"]')?.getAttribute("src"))
+        .toBe(s3 + "video/720.mp4"));
+      expect(host.querySelector('video[aria-label="cdn.mp4"]')?.getAttribute("poster")).toBe(s3 + "poster.webp");
+    } else {
+      await vi.waitFor(() => expect(host.textContent).toContain("Не удалось загрузить видео"));
+      expect(host.querySelector('video[aria-label="cdn.mp4"]')).toBeNull();
+    }
+    expect(probe).toHaveBeenCalledWith(cdn + "video/720.mp4", expect.objectContaining({
+      method: "HEAD", credentials: "omit", redirect: "error",
+    }));
+  });
+
+  it.each([503, 404])("gates image CDN → S3 without leaking 403/404 on HTTP %i", async status => {
+    const base = "chat2/room/user/00000000-0000-4000-8000-000000000000/v1/";
+    const cdn = "https://gonomudedoje.begetcdn.cloud/" + base;
+    const s3 = "https://gafus-chat2-media-2026.s3.cloud.ru/" + base;
+    scenario.timeline = [{
+      id: "cdn-image-message", conversationId: "direct-room", sequence: "1",
+      authorId: "local-test-owner", clientMessageId: "cdn-image", text: "",
+      replyToId: null, createdAt: "2026-10-30T12:00:00Z",
+      editedAt: null, deletedAt: null,
+      attachments: [{ id: "cdn-image", name: "cdn.webp", kind: "image", mime: "image/webp", bytes: 900 }],
+    }];
+    scenario.mediaUrl.mockResolvedValue({
+      url: cdn + "image/m.webp", mime: "image/webp", name: "cdn.webp", expiresIn: 300,
+      fallbackUrl: s3 + "image/m.webp",
+      renditions: {image: {360: cdn + "image/s.webp", 720: cdn + "image/m.webp"},
+        imageWidths: {360: 360, 720: 720}},
+      fallbackRenditions: {image: {360: s3 + "image/s.webp", 720: s3 + "image/m.webp"},
+        imageWidths: {360: 360, 720: 720}},
+    });
+    const probe = vi.fn(async () => new Response(null, {status}));
+    vi.stubGlobal("fetch", probe);
+    await render();
+    const { navigate } = await import("../../shared/router/location");
+    await act(async () => navigate("/chats/direct-room"));
+    await vi.waitFor(() => expect(host.querySelector('img[alt="cdn.webp"]')).not.toBeNull());
+    const img = host.querySelector<HTMLImageElement>('img[alt="cdn.webp"]')!;
+    expect(img.getAttribute("src")).toBe(cdn + "image/s.webp");
+    await act(async () => img.dispatchEvent(new Event("error")));
+    if (status === 503) {
+      await vi.waitFor(() => expect(host.querySelector('img[alt="cdn.webp"]')?.getAttribute("src"))
+        .toBe(s3 + "image/s.webp"));
+      expect(host.querySelector('img[alt="cdn.webp"]')?.getAttribute("srcset")).toContain(s3 + "image/s.webp");
+    } else {
+      await vi.waitFor(() => expect(host.querySelector('img[alt="cdn.webp"]')).toBeNull());
+      expect(host.querySelector('img[alt="cdn.webp"]')).toBeNull();
+    }
+    expect(probe).toHaveBeenCalledWith(cdn + "image/s.webp", expect.objectContaining({
+      method: "HEAD", credentials: "omit", redirect: "error",
+    }));
+  });
+
   it("keeps a recoverable video preview when the first signed URL request fails", async () => {
     scenario.timeline = [{
       id: "video-message", conversationId: "direct-room", sequence: "1",

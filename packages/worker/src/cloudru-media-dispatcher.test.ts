@@ -43,6 +43,7 @@ describe("Cloud.ru durable media job trigger", () => {
     expect(await dispatch()).toEqual({ dispatched: 3 });
     expect(await dispatch()).toEqual({ dispatched: 3 });
     expect(req).toHaveBeenCalledTimes(7);
+    expect(req.mock.calls[0]?.[0]).toBe("https://iam.api.cloud.ru/api/v1/auth/token");
     for (const name of ["gafus-gallery-process", "gafus-feed-photo", "gafus-feed-video"])
       expect(req.mock.calls.some((call) => String(call[0]).endsWith("/" + name + ":execute"))).toBe(
         true,
@@ -61,6 +62,7 @@ describe("Cloud.ru durable media job trigger", () => {
     );
     expect(await dispatch()).toEqual({ dispatched: 1 });
     expect(req).toHaveBeenCalledTimes(2);
+    expect(req.mock.calls[0]?.[0]).toBe("https://iam.api.cloud.ru/api/v1/auth/token");
     expect(req.mock.calls[1]?.[0]).toContain("/gafus-gallery-process:execute");
     expect(req.mock.calls.some(([url]) => String(url).includes("gafus-feed"))).toBe(false);
   });
@@ -194,6 +196,7 @@ describe("Chat2 four Cloud Job pools: two identical resources per kind",()=>{
   expect(await launch()).toEqual({dispatched:1});
   expect(requests).toHaveLength(2);
   const login=JSON.parse(String(requests[0]!.init?.body)) as Record<string,string>;
+  expect(requests[0]!.url).toBe("https://iam.api.cloud.ru/api/v2/auth/token");
   expect(login.keyId).toBe(chatEnv.CHAT2_CLOUDRU_KEY_ID);
   expect(login.keyId).not.toBe(env.CLOUDRU_KEY_ID);
   const action=JSON.parse(String(requests[1]!.init?.body)) as Record<string,string>;

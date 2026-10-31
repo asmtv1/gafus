@@ -1,0 +1,121 @@
+name: Infrastructure & Jobs
+
+# Separate production changes from ordinary app deployment. Nothing here creates
+# or deletes buckets/Jobs; new S3/CDN resources require reviewed IaC and credentials.
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Plan, check, explicitly update existing Cloud.ru Jobs, or publish media images'
+        type: choice
+        required: true
+        default: plan
+        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images]
+      confirmation:
+        description: 'For apply: UPDATE_11_EXISTING_JOBS; for image publish: PUBLISH_MEDIA_IMAGES'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gafus-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'plan'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Print pinned image plan for existing 11 Jobs (no API writes)
+        run: node infra/cloudru/production-job-release.mjs --plan
+      - name: Show current declared S3/CDN configuration without changing resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'S3/CDN changes are NOT automatic. Review the application manifests and IaC separately.'
+          grep -nE 'S3_BUCKET|CDN_BASE_URL' ci-cd/docker/docker-compose.prod.yml | sed -E 's/$[{][{].*[}][}]/[expression]/g' || true
+          echo 'No production resources or user objects have been modified.'
+
+  guard:
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'apply-existing-jobs'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require explicit confirmation of the exact existing-job operation
+        env:
+          APPROVAL: ${{ inputs.confirmation }}
+        run: |
+          test "$APPROVAL" = 'UPDATE_11_EXISTING_JOBS' || {
+            echo 'Blocked: type UPDATE_11_EXISTING_JOBS, then review production environment approval'
+            exit 1
+          }
+
+  preflight:
+    needs: guard
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'apply-existing-jobs'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: preflight
+    secrets: inherit
+
+  apply-existing-jobs:
+    needs: preflight
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'apply-existing-jobs'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: cutover
+    secrets: inherit
+
+  verify-after-apply:
+    needs: apply-existing-jobs
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'apply-existing-jobs'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: verify
+    secrets: inherit
+
+  read-only-preflight:
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'preflight'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: preflight
+    secrets: inherit
+
+  read-only-verify:
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'verify'
+    uses: ./.github/workflows/production-job-release-reusable.yml
+    with:
+      release_sha: ${{ github.sha }}
+      mode: verify
+    secrets: inherit
+
+  publish-guard:
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'publish-media-images'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require deliberate image publication confirmation
+        env:
+          APPROVAL: ${{ inputs.confirmation }}
+        run: |
+          test "$APPROVAL" = 'PUBLISH_MEDIA_IMAGES' || {
+            echo 'Blocked: type PUBLISH_MEDIA_IMAGES to publish media images without updating Jobs'
+            exit 1
+          }
+
+  publish-media-images:
+    needs: publish-guard
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'publish-media-images'
+    uses: ./.github/workflows/cloudru-media-images.yml
+    with:
+      publish: true
+    secrets: inherit

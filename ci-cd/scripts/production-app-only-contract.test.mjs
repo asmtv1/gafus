@@ -4,7 +4,7 @@ import {test} from 'node:test';
 import {spawnSync} from 'node:child_process';
 import YAML from 'yaml';
 const load=(p)=>YAML.parse(readFileSync(p,'utf8'));
-const app=load('.github/workflows/production-app-only.yml');
+const app=load('docs/operations/workflow-archive/production-app-only.yml');
 const reusable=load('.github/workflows/production-deploy-reusable.yml');
 test('app-only manual deploy verifies exact successful main release and never patches Cloud.ru Jobs',()=>{
  const jobs=app.jobs;
@@ -16,7 +16,7 @@ test('app-only manual deploy verifies exact successful main release and never pa
  const d=jobs['deploy-app-only'];
  assert.equal(d.with.app_only,true);
  assert.equal(d.uses,'./.github/workflows/production-deploy-reusable.yml');
- for(const text of [readFileSync('.github/workflows/production-app-only.yml','utf8'), v.steps[1].run])
+ for(const text of [readFileSync('docs/operations/workflow-archive/production-app-only.yml','utf8'), v.steps[1].run])
   assert.doesNotMatch(text,/production-job-release-reusable|production-job-release\.mjs|CLOUDRU_NEW_BACKEND_DEPLOYED|cloudru-jobs-cutover/);
 });
 test('reusable app-only release preserves provider configuration and activates V2 without changing jobs',()=>{

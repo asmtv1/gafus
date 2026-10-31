@@ -24,6 +24,7 @@ import { VideoView, useVideoPlayer, type VideoPlayer, type VideoThumbnail } from
 import { Image as ExpoImage } from "expo-image";
 import {
   chat2ImageSource, chat2VideoSource, chat2HasVideoQuality,
+  chat2MatchedS3Variant, chat2CdnS3FailoverAllowed,
   type Chat2QualityMode,
 } from "@gafus/chat-media-quality";
 import { Centrifuge } from "centrifuge";
@@ -938,6 +939,7 @@ const styles = StyleSheet.create({
 function NativeChat2Media({ conversationId, file }: { conversationId: string; file: Attachment }) {
   const [url, setUrl] = useState<string | null>(null);
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
   const triedFallback=useRef(false);
   useEffect(() => {
     if (file.kind === "video") return;
@@ -947,11 +949,12 @@ function NativeChat2Media({ conversationId, file }: { conversationId: string; fi
       .then((r) => {
         if (live) {
           triedFallback.current=false;
-          setFallbackUrl(r.fallbackUrl?.startsWith("https://gafus-chat2-media-2026.s3.cloud.ru/")
-            ? r.fallbackUrl : null);
-          setUrl(file.kind === "image"
+          setUsingFallback(false);
+          const primary = file.kind === "image"
             ? chat2ImageSource(r.renditions?.image, 220, PixelRatio.get(), r.renditions?.imageWidths) ?? r.url
-            : r.url);
+            : r.url;
+          setFallbackUrl(chat2MatchedS3Variant(primary, r));
+          setUrl(primary);
         }
       })
       .catch(() => {
@@ -968,7 +971,9 @@ function NativeChat2Media({ conversationId, file }: { conversationId: string; fi
   }, [conversationId, file.id, file.kind]);
   async function open() {
     try {
-      const { url: link } = await chat2.media(conversationId, file.id);
+      const refreshed = await chat2.media(conversationId, file.id);
+      const link = usingFallback && refreshed.fallbackUrl?.startsWith("https://gafus-chat2-media-2026.s3.cloud.ru/")
+        ? refreshed.fallbackUrl : refreshed.url;
       await Linking.openURL(link);
     } catch {
       reportClientError(new Error("CHAT2_MEDIA_OPEN_FAILED"), {
@@ -989,9 +994,14 @@ function NativeChat2Media({ conversationId, file }: { conversationId: string; fi
         <Image
           source={{ uri: url }}
           onError={() => {
-            if (!triedFallback.current && fallbackUrl) {
-              triedFallback.current=true;setUrl(fallbackUrl);
-            } else setUrl(null);
+            if (triedFallback.current || !fallbackUrl) {setUrl(null);return;}
+            triedFallback.current=true;
+            const primary=url;
+            void chat2CdnS3FailoverAllowed(primary, fallbackUrl, fetch)
+              .then(allowed => {
+                if (allowed) {setUsingFallback(true);setUrl(fallbackUrl);}
+                else setUrl(null);
+              }).catch(() => setUrl(null));
           }}
           resizeMode="contain"
           style={{ width: 220, height: 180, borderRadius: 12, backgroundColor: "#fff" }}
@@ -1076,6 +1086,7 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
   const [everPlayed, setEverPlayed] = useState(false);
   const [thumbnail, setThumbnail] = useState<{ url: string; frame: VideoThumbnail } | null>(null);
   const [posterFailed, setPosterFailed] = useState(false);
+  const [posterViaS3, setPosterViaS3] = useState(false);
   const playerRef = useRef<VideoPlayer | null>(null);
   const signedAt = useRef(0);
   const [pending, setPending] = useState(true);
@@ -1096,6 +1107,7 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
         signedAt.current = Date.now();
         setMedia(result);
         setPosterFailed(false);
+        setPosterViaS3(false);
         setQuality("auto");
         setUsingFallback(false);
         setSeekTo(0);
@@ -1124,17 +1136,20 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
     setThumbnail({ url, frame });
   }, []);
   const onError = useCallback(() => {
-    if (!usingFallback && media?.fallbackUrl?.startsWith("https://gafus-chat2-media-2026.s3.cloud.ru/")) {
-      setSeekTo(playerRef.current?.currentTime ?? 0);
-      setResumeOnReady(playerRef.current?.playing ?? false);
-      setUsingFallback(true);
-      setPlaying(false);
-      return;
-    }
-    setPlaying(false);
-    setError(true);
-    setMedia(null);
-  }, [usingFallback, media]);
+    const fail = () => {setPlaying(false);setError(true);setMedia(null);};
+    if (usingFallback || !media) {fail();return;}
+    const primary = chat2VideoSource(media.renditions?.video, quality, {width:220}) ?? media.url;
+    const fallback = chat2MatchedS3Variant(primary, media);
+    void chat2CdnS3FailoverAllowed(primary, fallback, fetch)
+      .then(allowed => {
+        if (!allowed) {fail();return;}
+        setSeekTo(playerRef.current?.currentTime ?? 0);
+        setResumeOnReady(playerRef.current?.playing ?? false);
+        setUsingFallback(true);
+        setPosterViaS3(true);
+        setPlaying(false);
+      }).catch(fail);
+  }, [usingFallback, media, quality]);
   async function play() {
     if (!media || pending) return;
     // The inline signed URL can expire while a user reads an older chat history.
@@ -1148,6 +1163,7 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
         setSeekTo(0);
         setQuality("auto");
         setUsingFallback(false);
+        setPosterViaS3(false);
         setResumeOnReady(true);
         setMedia(refreshed);
         setError(false);
@@ -1177,7 +1193,8 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
   const variants = usingFallback ? media?.fallbackRenditions?.video : media?.renditions?.video;
   const url = media ? chat2VideoSource(variants, quality, { width: 220 }) ??
     (usingFallback ? media.fallbackUrl ?? null : media.url) : null;
-  const posterUrl = usingFallback ? media?.fallbackRenditions?.poster ?? media?.renditions?.poster
+  const posterUrl = usingFallback || posterViaS3
+    ? media?.fallbackRenditions?.poster ?? media?.renditions?.poster
     : media?.renditions?.poster;
   const poster = posterFailed ? null : posterUrl;
   const multiple = chat2HasVideoQuality(variants, 360) && chat2HasVideoQuality(variants, 720);
@@ -1190,7 +1207,15 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
       {!everPlayed && !playing && (poster || thumbnail?.url === url) && <View pointerEvents="none"
         style={{ position: "absolute", width: 220, height: 220 }}>
         {poster ? <Image source={{ uri: poster }} resizeMode="contain"
-          onError={() => setPosterFailed(true)}
+          onError={() => {
+            if (usingFallback || posterViaS3 || !media) {setPosterFailed(true);return;}
+            const fallback = chat2MatchedS3Variant(poster, media);
+            void chat2CdnS3FailoverAllowed(poster, fallback, fetch)
+              .then(allowed => {
+                if (allowed && fallback) setPosterViaS3(true);
+                else setPosterFailed(true);
+              }).catch(() => setPosterFailed(true));
+          }}
           style={{ width: 220, height: 220 }} /> :
           thumbnail?.url === url && <ExpoImage source={thumbnail.frame}
             contentFit="contain" style={{ width: 220, height: 220 }} />}

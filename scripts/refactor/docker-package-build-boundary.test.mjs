@@ -6,7 +6,7 @@ const require=createRequire(import.meta.url);
 const {parse}=require('yaml');
 const root=new URL('../../',import.meta.url);
 const read=(file)=>readFileSync(new URL(file,root),'utf8');
-const workflows=['.github/workflows/ci-cd.yml','.github/workflows/build-single-container.yml','.github/workflows/refactor-vite-release.yml'];
+const workflows=['.github/workflows/ci-cd.yml','.github/workflows/build-single-container.yml','docs/operations/workflow-archive/refactor-vite-release.yml'];
 const recipes={
   'ci-cd/docker/Dockerfile-api-optimized':'@gafus/api...',
   'ci-cd/docker/Dockerfile-worker-optimized':'@gafus/worker...',
@@ -36,13 +36,13 @@ test('every production and QA Dockerfile avoids unsafe root pnpm build --filter,
 test('independent CI entrypoints enforce boundary before first workspace build, without skipping/errors',()=>{
   for(const file of workflows){
     const yaml=parse(read(file));
-    const job=file.endsWith('refactor-vite-release.yml')?'verify':'prepare-deps';
+    const job=file.endsWith('refactor-vite-release.yml')?'verify':file.endsWith('build-single-container.yml')?'build':'prepare-deps';
     const steps=yaml.jobs[job].steps;
     const installs=steps.map((step,i)=>/pnpm install --frozen-lockfile/.test(step.run||'')?i:-1).filter(i=>i>=0);
     assert.ok(installs.length,'locked install required before gate');
     const gate=steps.findIndex(step=>step.run==='pnpm check:core-boundaries');
     assert.ok(gate>Math.max(...installs),`${file}: gate after install`);
-    const firstBuild=steps.findIndex(step=>/Build packages|Build all Vite workspace dependencies/.test(step.name||''));
+    const firstBuild=steps.findIndex(step=>/Build packages|Build all Vite workspace dependencies|Build Types and execute public API regression tests/.test(step.name||''));
     assert.ok(firstBuild>gate,`${file}: gate before first build`);
     assert.equal(steps[gate].if,undefined);
     assert.equal(steps[gate]['continue-on-error'],undefined);

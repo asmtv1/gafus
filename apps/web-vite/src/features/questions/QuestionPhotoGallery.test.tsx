@@ -207,9 +207,12 @@ describe("VK-inspired inline question photo previews", () => {
   });
 
   it("falls back from CDN to public Questions S3 for both thumbnail and viewer", async () => {
-    const cdn="https://ebiteskukingusk.begetcdn.cloud/questions/uploads/questions/v2/owner-1/id/v1/image";
-    const s3="https://gafus-questions-public.s3.cloud.ru/questions/uploads/questions/v2/owner-1/id/v1/image";
-    const fake=vi.fn(()=>Promise.resolve(envelope({ photos: [{
+    const prefix="questions/uploads/questions/v2/owner-1/01234567-89ab-4def-8123-456789abcdef/v1/image";
+    const cdn="https://ebiteskukingusk.begetcdn.cloud/"+prefix;
+    const s3="https://gafus-questions-public.s3.cloud.ru/"+prefix;
+    const fake=vi.fn((_url:string,options?:RequestInit)=>options?.method==="HEAD"
+      ? Promise.resolve(new Response(null,{status:503}))
+      : Promise.resolve(envelope({ photos: [{
       id:"photo-1",url:cdn+"/m.webp",smallUrl:cdn+"/s.webp",
       fallbackUrl:s3+"/m.webp",fallbackSmallUrl:s3+"/s.webp",
       smallWidth:360,width:720,
@@ -220,6 +223,7 @@ describe("VK-inspired inline question photo previews", () => {
       let thumbnail=ui.host.querySelector<HTMLImageElement>(".question-photo-preview-tile img");
       expect(thumbnail?.src).toBe(cdn+"/s.webp");
       await act(async()=>thumbnail?.dispatchEvent(new Event("error")));
+      await flush();
       thumbnail=ui.host.querySelector(".question-photo-preview-tile img");
       expect(thumbnail?.src).toBe(s3+"/s.webp");
       expect(thumbnail?.getAttribute("srcset")).toBeNull();
@@ -227,6 +231,7 @@ describe("VK-inspired inline question photo previews", () => {
       let full=document.querySelector<HTMLImageElement>(".question-photo-lightbox-image");
       expect(full?.src).toBe(cdn+"/m.webp");
       await act(async()=>full?.dispatchEvent(new Event("error")));
+      await flush();
       full=document.querySelector(".question-photo-lightbox-image");
       expect(full?.src).toBe(s3+"/m.webp");
       expect(full?.getAttribute("srcset")).toBeNull();

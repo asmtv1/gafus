@@ -27,11 +27,20 @@ test('root main CI Types 87-test suite is blocking after its own build, before C
   const lines=verify('.github/workflows/ci-cd.yml','prepare-deps');
   assert.equal(lines.some(s=>/^\(cd packages\/types && pnpm build\) &/.test(s)),false,'do not lose failure in background');
 });
-test('single-container workflow Types acceptance is mandatory before Core/any image',()=>{
-  verify('.github/workflows/build-single-container.yml','prepare-deps');
+test('single-container workflow Types acceptance is mandatory before any image',()=>{
+  const steps=read('.github/workflows/build-single-container.yml').jobs.build.steps;
+  const boundary=steps.findIndex(x=>x.run==='pnpm check:core-boundaries');
+  const acceptance=steps.findIndex(x=>x.name==='Build Types and execute public API regression tests (blocking)');
+  const docker=steps.findIndex(x=>x.name==='Build and publish only selected image with unique run tag');
+  assert.ok(boundary>=0 && acceptance>boundary && docker>acceptance);
+  const code=steps[acceptance].run;
+  assert(code.includes('pnpm --filter @gafus/types build'));
+  assert(code.includes('pnpm --filter @gafus/types test'));
+  assert.equal(steps[acceptance]['continue-on-error'],undefined);
+  assert.equal(steps[acceptance].if,undefined);
 });
 test('independent Vite candidate executes mandatory Types test after workspace dependencies',()=>{
-  const steps=read('.github/workflows/refactor-vite-release.yml').jobs.verify.steps;
+  const steps=read('docs/operations/workflow-archive/refactor-vite-release.yml').jobs.verify.steps;
   const dep=steps.findIndex(s=>s.name==='Build all Vite workspace dependencies, not cached Mac dist');
   const tests=steps.findIndex(s=>s.name==='Run Types public contract and NodeNext regression tests (blocking)');
   const firstApp=steps.findIndex(s=>s.name==='Build production Vite assets');

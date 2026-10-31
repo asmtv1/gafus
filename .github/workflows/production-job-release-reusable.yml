@@ -1,4 +1,4 @@
-name: Cloud.ru existing production Jobs (first release V2 cutover)
+name: "Internal / Cloud.ru existing Jobs (reusable)"
 on:
   workflow_call:
     inputs:

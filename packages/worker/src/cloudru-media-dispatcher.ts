@@ -77,9 +77,13 @@ export function createCloudruMediaDispatcher(
     let dispatched = 0;
     try {
       if (!cachedToken || Date.now() > tokenExpires) {
-        const questionsOnly=names.every(name=>name.startsWith("gafus-questions-photo"));
+        // Cloud.ru requires IAM v2 for both Questions and the separately
+        // scoped Chat2 organization. Feed/Gallery still use IAM v1.
+        // Keep this per-allowlisted-name: mixing IAM scopes is forbidden.
+        const iamV2=names.every(name=>
+          name.startsWith("gafus-questions-photo") || name.startsWith("gafus-chat-"));
         const login = await http("https://iam.api.cloud.ru/api/"+
-          (questionsOnly?"v2":"v1")+"/auth/token", {
+          (iamV2?"v2":"v1")+"/auth/token", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ keyId: env.CLOUDRU_KEY_ID, secret: env.CLOUDRU_KEY_SECRET }),

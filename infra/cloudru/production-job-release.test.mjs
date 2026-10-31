@@ -123,24 +123,23 @@ test('dry-run is offline and unauthorized apply cannot access Cloud.ru',()=>{
 
  const blocked=run('--apply');assert.notEqual(blocked.status,0);assert.match(blocked.stderr,/INVALID_EXISTING_JOB_RELEASE_MODE/);
 });
-test('CI and Deploy Only switch all new media Jobs after first Backend deploy',()=>{
+test('Cloud.ru updates run only through explicit Infrastructure & Jobs; app and redeploy stay separate',()=>{
  const ci=readFileSync('.github/workflows/ci-cd.yml','utf8');
  const manual=readFileSync('.github/workflows/deploy-only.yml','utf8');
+ const infra=readFileSync('.github/workflows/infrastructure-jobs.yml','utf8');
  const shared=readFileSync('.github/workflows/production-job-release-reusable.yml','utf8');
- for(const f of [ci,manual])assert(f.includes('production-job-release-reusable.yml'));
- assert(ci.includes('needs: [security, build-apps, build-images, cloudru-jobs-preflight]'));
- assert(manual.includes('needs: [validate-release, cloudru-jobs-preflight]'));
+ for(const f of [ci,manual]){
+  assert(!f.includes('production-job-release-reusable.yml'));
+  assert(!f.includes('cloudru-jobs-cutover:'));
+  assert(!f.includes('cloudru-media-activate:'));
+  assert(f.includes('app_only: true'));
+ }
+ assert(infra.includes('UPDATE_11_EXISTING_JOBS'));
+ assert(infra.includes('production-job-release-reusable.yml'));
+ assert(infra.includes('mode: cutover'));
+ assert(infra.includes('mode: verify'));
  assert(shared.includes('production-job-release.mjs "--$PHASE"'));
  assert(shared.includes('preflight|cutover|verify'));
- assert(ci.indexOf('  deploy-production:')<ci.indexOf('  cloudru-jobs-cutover:'));
- assert(ci.indexOf('  cloudru-jobs-cutover:')<ci.indexOf('  cloudru-media-activate:'));
- assert(ci.indexOf('  cloudru-media-activate:')<ci.indexOf('  cloudru-jobs-verify:'));
- assert(manual.indexOf('  deploy:')<manual.indexOf('  cloudru-jobs-cutover:'));
- assert(manual.indexOf('  cloudru-jobs-cutover:')<manual.indexOf('  cloudru-media-activate:'));
- for(const f of [ci,manual,shared]) {
-  assert(!/cloudru-build-media-images:|cloudru-jobs-update:|cloudru-prepare-media:/.test(f));
-  assert(!/publish-cloudru-image\.sh|gafus\.cr\.cloud\.ru\/gafus-/.test(f));
- }
  const script=readFileSync('infra/cloudru/production-job-release.mjs','utf8');
  assert(script.includes('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS'));
  assert(script.includes('CLOUDRU_ROLLBACK_SNAPSHOT_SAVED_RUNNER_ONLY'));

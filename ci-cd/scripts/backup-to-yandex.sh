@@ -1,99 +1,62 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Production PostgreSQL backup -> Yandex.Disk. Append-only; never deletes or overwrites remote files.
+set -euo pipefail
+umask 077
 
-# Скрипт для загрузки бэкапа БД на Яндекс.Диск
-# Требует: YANDEX_DISK_TOKEN в переменных окружения
-# Бэкапы сохраняются в папку: https://disk.yandex.ru/d/5jUK_9xNULmPLg
+: "${YANDEX_DISK_TOKEN:?YANDEX_DISK_TOKEN is required}"
+command -v docker >/dev/null
+command -v python3 >/dev/null
+command -v curl >/dev/null
+command -v gzip >/dev/null
 
-echo "🗄️ Создание и загрузка бэкапа БД на Яндекс.Диск..."
+tmpdir="$(mktemp -d /tmp/gafus-yandex-backup.XXXXXXXX)"
+trap 'rm -rf -- "$tmpdir"' EXIT
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+name="gafus_backup_${stamp}_${RANDOM}.sql.gz"
+file="$tmpdir/$name"
+remote="app:/$name"
 
-# Проверяем наличие токена
-if [ -z "$YANDEX_DISK_TOKEN" ]; then
-    echo "❌ YANDEX_DISK_TOKEN не установлен!"
-    exit 1
-fi
+echo "Creating streaming PostgreSQL backup: $name"
+# pipefail makes failures in pg_dump fatal even if gzip exits successfully.
+docker exec gafus-postgres pg_dump -U gafus -d gafus | gzip -c > "$file"
+local_size="$(wc -c < "$file" | tr -d ' ')"
+test "$local_size" -gt 1024 || { echo 'BACKUP_UNEXPECTEDLY_SMALL'; exit 1; }
+gzip -t "$file"
 
-# Создаем временную папку для бэкапа
-TEMP_DIR="/tmp/gafus_backup_$(date +%Y%m%d_%H%M%S)"
-mkdir -p "$TEMP_DIR"
-
-# Создаем бэкап PostgreSQL
-BACKUP_FILE="$TEMP_DIR/gafus_backup_$(date +%Y%m%d_%H%M%S).sql"
-echo "📦 Создание бэкапа: $BACKUP_FILE"
-
-docker exec gafus-postgres pg_dump -U gafus -d gafus > "$BACKUP_FILE"
-
-if [ $? -ne 0 ]; then
-    echo "❌ Ошибка создания бэкапа!"
-    rm -rf "$TEMP_DIR"
-    exit 1
-fi
-
-# Сжимаем бэкап
-COMPRESSED_FILE="$BACKUP_FILE.gz"
-gzip "$BACKUP_FILE"
-
-if [ $? -ne 0 ]; then
-    echo "❌ Ошибка сжатия бэкапа!"
-    rm -rf "$TEMP_DIR"
-    exit 1
-fi
-
-# Загружаем на Яндекс.Диск в корень папки приложения (только для этого токена)
-APP_BACKUP_DIR="app:/"
-REMOTE_PATH="$APP_BACKUP_DIR$(basename "$COMPRESSED_FILE")"
-echo "☁️ Загрузка на Яндекс.Диск (app folder root): $REMOTE_PATH"
-
-# Загружаем файл
-UPLOAD_RESPONSE=$(curl -s -X GET \
+# Never use overwrite=true; a second attempt must not replace a previous backup.
+response="$(curl --fail-with-body -sS --retry 2 --get \
   -H "Authorization: OAuth $YANDEX_DISK_TOKEN" \
-  "https://cloud-api.yandex.net/v1/disk/resources/upload?path=$REMOTE_PATH&overwrite=true")
-UPLOAD_URL=$(echo "$UPLOAD_RESPONSE" | grep -o '"href":"[^"]*"' | cut -d'"' -f4)
+  --data-urlencode "path=$remote" --data-urlencode "overwrite=false" \
+  'https://cloud-api.yandex.net/v1/disk/resources/upload')" || {
+  echo 'YANDEX_UPLOAD_URL_REJECTED: check storage quota and API permissions, no deletion attempted'
+  exit 1
+}
+upload_url="$(printf '%s' "$response" | python3 -c '
+import json,sys
+from urllib.parse import urlparse
+u=json.load(sys.stdin).get("href","")
+p=urlparse(u)
+if p.scheme != "https" or not p.hostname or p.username or p.password:
+    raise SystemExit("YANDEX_UPLOAD_URL_INVALID")
+host=p.hostname.lower()
+if not (host.endswith(".yandex.net") or host.endswith(".yandex.ru")
+        or host in ("yandex.net","yandex.ru")):
+    raise SystemExit("YANDEX_UPLOAD_HOST_NOT_ALLOWED")
+print(u)
+')"
+curl --fail-with-body -sS --retry 2 -X PUT --upload-file "$file" "$upload_url" -o /dev/null
 
-if [ -z "$UPLOAD_URL" ]; then
-    echo "   → upload response: $UPLOAD_RESPONSE"
-    echo "❌ Не удалось получить URL для загрузки!"
-    rm -rf "$TEMP_DIR"
-    exit 1
-fi
-
-# Загружаем файл
-curl -X PUT \
+# Validate that the cloud actually reports the uploaded object with matching size.
+metadata="$(curl --fail-with-body -sS --retry 2 --get \
   -H "Authorization: OAuth $YANDEX_DISK_TOKEN" \
-  --upload-file "$COMPRESSED_FILE" \
-  "$UPLOAD_URL" > /dev/null 2>&1
-
-if [ $? -eq 0 ]; then
-    echo "✅ Бэкап успешно загружен на Яндекс.Диск: $REMOTE_PATH"
-    
-    # Удаляем временные файлы
-    rm -rf "$TEMP_DIR"
-    
-    # Удаляем старые бэкапы на диске (оставляем только последние 100)
-    echo "🧹 Очистка старых бэкапов на диске..."
-    
-    # Получаем список файлов в папке приложения
-    FILES=$(curl -s -X GET \
-      -H "Authorization: OAuth $YANDEX_DISK_TOKEN" \
-      "https://cloud-api.yandex.net/v1/disk/resources?path=$APP_BACKUP_DIR&limit=100" | \
-      grep -o '"[^"]*\.sql\.gz"' | cut -d'"' -f2 | sort -r)
-    
-    # Удаляем старые (оставляем 10)
-    COUNT=0
-    for FILE in $FILES; do
-        COUNT=$((COUNT + 1))
-        if [ $COUNT -gt 100 ]; then
-            echo "🗑️ Удаление старого бэкапа: $FILE"
-            curl -X DELETE \
-              -H "Authorization: OAuth $YANDEX_DISK_TOKEN" \
-              "https://cloud-api.yandex.net/v1/disk/resources?path=$APP_BACKUP_DIR$FILE" > /dev/null 2>&1
-        fi
-    done
-    
-    echo "🧹 Очистка завершена (оставлено 10 последних бэкапов)"
-else
-    echo "❌ Ошибка загрузки на Яндекс.Диск!"
-    rm -rf "$TEMP_DIR"
-    exit 1
-fi
-
-echo "🔒 Бэкап БД успешно сохранен в облаке"
+  --data-urlencode "path=$remote" \
+  'https://cloud-api.yandex.net/v1/disk/resources')"
+printf '%s' "$metadata" | BACKUP_BYTES="$local_size" python3 -c '
+import json,sys,os
+obj=json.load(sys.stdin)
+expected=int(os.environ["BACKUP_BYTES"])
+if obj.get("size") != expected or obj.get("type") != "file":
+    raise SystemExit("YANDEX_BACKUP_SIZE_MISMATCH")
+'
+echo "BACKUP_VERIFIED_REMOTE: $name ($local_size bytes)"
+echo 'No existing Yandex.Disk backups were deleted or overwritten.'

@@ -1,7 +1,7 @@
-name: Build Cloud.ru media images
+name: "Internal / Media image publication (reusable)"
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       publish:
         description: "Publish reviewed images to Cloud.ru Registry (never deploy automatically)"

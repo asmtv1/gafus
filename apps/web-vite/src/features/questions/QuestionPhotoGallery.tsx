@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { fetchQuestionPhotoRenditions,
   type PhotoLocation, type QuestionPhotoRendition } from "./questionPhotoRead";
 import "./QuestionPhotoGallery.css";
+import { allowQuestionsS3Fallback } from "./questionPhotoCdnFallback";
 
 /** A changed discussion/photo owner retires old signed URLs and viewer state. */
 export function QuestionPhotoGallery({
@@ -208,10 +209,17 @@ function PhotoGallery({ location, manual }: { location: PhotoLocation; manual: b
                 sizes="(max-width: 600px) 45vw, 180px"
                 width={details[index]?.smallWidth} height={details[index]?.smallHeight}
                 loading="lazy" decoding="async" referrerPolicy="no-referrer"
-                onError={() => {
-                  if(!s3Fallback.includes(id) && details[index]?.fallbackSmall) {
-                    setS3Fallback(current=>[...current,id]);
-                  } else setBroken(current=>[...current,src]);
+                onError={event => {
+                  if(s3Fallback.includes(id)) {setBroken(current=>[...current,src]);return;}
+                  // srcSet can select medium even when src is the small variant.
+                  // Probe the URL which actually failed, with its matching S3 key.
+                  const failedSrc=event.currentTarget.currentSrc || src;
+                  const backup=failedSrc===details[index]?.medium
+                    ? details[index]?.fallbackMedium : details[index]?.fallbackSmall;
+                  void allowQuestionsS3Fallback(failedSrc,backup).then(allowed => {
+                    if(allowed)setS3Fallback(current=>current.includes(id)?current:[...current,id]);
+                    else setBroken(current=>current.includes(src)?current:[...current,src]);
+                  });
                 }} />
               {photoIds.length > 1 && <span className="question-photo-preview-order"
                 aria-hidden="true">{index + 1}/{photoIds.length}</span>}
@@ -281,11 +289,17 @@ function PhotoGallery({ location, manual }: { location: PhotoLocation; manual: b
                 viewerDetails[viewerIndex]?.fallbackMedium
                 ? viewerDetails[viewerIndex]!.fallbackMedium
                 : viewerSources[viewerIndex]} alt={`Фотография ${viewerIndex + 1}`}
-              referrerPolicy="no-referrer" onError={() => {
+              referrerPolicy="no-referrer" onError={event => {
                 const id=photoIds[viewerIndex];
-                if(!viewerFallback.includes(id) && viewerDetails[viewerIndex]?.fallbackMedium)
-                  setViewerFallback(current=>[...current,id]);
-                else setViewerError(true);
+                if(viewerFallback.includes(id)) {setViewerError(true);return;}
+                const failedSrc=event.currentTarget.currentSrc || event.currentTarget.src;
+                const backup=failedSrc===viewerDetails[viewerIndex]?.small
+                  ? viewerDetails[viewerIndex]?.fallbackSmall
+                  : viewerDetails[viewerIndex]?.fallbackMedium;
+                void allowQuestionsS3Fallback(failedSrc,backup).then(allowed => {
+                    if(allowed)setViewerFallback(current=>current.includes(id)?current:[...current,id]);
+                    else setViewerError(true);
+                  });
               }} />
           )}
           <div className="question-photo-lightbox-bottom">

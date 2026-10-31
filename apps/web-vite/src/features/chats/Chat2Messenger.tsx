@@ -21,6 +21,7 @@ import { Chat2StaffQueue } from "./Chat2StaffQueue";
 import css from "./Chat2Messenger.module.css";
 import {
   chat2ImageSource, chat2VideoSource, chat2HasVideoQuality,
+  chat2MatchedS3Variant, chat2CdnS3FailoverAllowed,
   type Chat2QualityMode, type Chat2MediaRenditions, type Chat2VideoHints,
 } from "@gafus/chat-media-quality";
 import { publicImageUrl } from "../profile/publicProfileApi";
@@ -1559,6 +1560,7 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
   const [src, setSrc] = useState<string | null>(null);
   const [quality, setQuality] = useState<Chat2QualityMode>("auto");
   const [usingFallback, setUsingFallback] = useState(false);
+  const [posterSource, setPosterSource] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const resumeAt = useRef(0);
   const [playing, setPlaying] = useState(false);
@@ -1570,6 +1572,8 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
       .then((result) => {
         if (!live) return;
         setMedia(result);
+        setUsingFallback(false);
+        setPosterSource(result.renditions?.poster ?? null);
         setSrc(file.kind === "image"
           ? chat2ImageSource(result.renditions?.image, 320, window.devicePixelRatio, result.renditions?.imageWidths) ?? result.url
           : file.kind === "video"
@@ -1580,6 +1584,40 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
       .catch(() => { if (live) { setSrc(null); setLoadError(true); } });
     return () => { live = false; };
   }, [chatId, file.id, file.kind, reload]);
+  // Browser media onError does not expose HTTP status. Only a verified
+  // CDN 410/5xx (or timed-out HEAD) can switch to the matching public S3 key.
+  function handleMediaFailure(primary: string, kind: "image" | "video") {
+    const fail = () => {
+      if (kind === "video") { setPlaying(false); setLoadError(true); }
+      setSrc(null);
+    };
+    if (!media || usingFallback) { fail(); return; }
+    const fallback = chat2MatchedS3Variant(primary, media);
+    void chat2CdnS3FailoverAllowed(primary, fallback, fetch)
+      .then(allowed => {
+        if (!allowed || !fallback) { fail(); return; }
+        if (kind === "video") resumeAt.current = videoRef.current?.currentTime ?? 0;
+        setUsingFallback(true);
+        setSrc(fallback);
+        if (kind === "video") setPosterSource(media.fallbackRenditions?.poster ?? null);
+      })
+      .catch(fail);
+  }
+  // A broken CDN poster need not break a playable MP4; preflight its actual
+  // rendering once and replace only this poster with its exact S3 counterpart.
+  useEffect(() => {
+    if (file.kind !== "video" || !media?.renditions?.poster || usingFallback) return;
+    let active = true;
+    const primary = media.renditions.poster;
+    const cover = new Image();
+    cover.onerror = () => {
+      const fallback = chat2MatchedS3Variant(primary, media);
+      void chat2CdnS3FailoverAllowed(primary, fallback, fetch)
+        .then(allowed => { if (active && allowed && fallback) setPosterSource(fallback); });
+    };
+    cover.src = primary;
+    return () => { active = false; cover.onerror = null; };
+  }, [file.kind, media, usingFallback]);
   function videoHints(): Chat2VideoHints {
     const network = (navigator as Navigator & {
       connection?: { saveData?: boolean; downlink?: number; effectiveType?: Chat2VideoHints["effectiveType"] };
@@ -1621,7 +1659,7 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
           <video key={src} ref={videoRef} src={src} controls playsInline preload="metadata"
             onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
             onEnded={() => setPlaying(false)}
-            poster={media?.renditions?.poster} aria-label={file.name}
+            poster={posterSource ?? undefined} aria-label={file.name}
             onLoadedMetadata={(event) => {
               if (resumeAt.current > 0) {
                 event.currentTarget.currentTime = Math.min(resumeAt.current, Math.max(0, event.currentTarget.duration - 0.1));
@@ -1629,12 +1667,7 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
                 void event.currentTarget.play().catch(() => undefined);
               }
             }}
-            onError={() => {
-              if (!usingFallback && media?.fallbackUrl?.startsWith("https://gafus-chat2-media-2026.s3.cloud.ru/")) {
-                resumeAt.current = videoRef.current?.currentTime ?? 0;
-                setUsingFallback(true); setSrc(media.fallbackUrl);
-              } else { setPlaying(false); setLoadError(true); setSrc(null); }
-            }} />
+            onError={(event) => handleMediaFailure(event.currentTarget.currentSrc || src, "video")} />
           {!playing && (
             <button type="button" className={css.videoPlayOverlay}
               aria-label={`Воспроизвести ${file.name}`}
@@ -1681,11 +1714,7 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
         <img src={src} srcSet={srcset || undefined}
           sizes={srcset ? "(max-width: 600px) 90vw, 320px" : undefined}
           alt={file.name} loading="lazy" referrerPolicy="no-referrer"
-          onError={() => {
-            if (!usingFallback && media?.fallbackUrl?.startsWith("https://gafus-chat2-media-2026.s3.cloud.ru/")) {
-              setUsingFallback(true); setSrc(media.fallbackUrl);
-            } else setSrc(null);
-          }} />
+          onError={(event) => handleMediaFailure(event.currentTarget.currentSrc || src, "image")} />
       ) : <span>📎 {file.name}</span>}
     </button>
   );

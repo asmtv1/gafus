@@ -21,8 +21,10 @@ test("both workflows invoke one production cutover and serialize releases", () =
 test("manual deploy never builds, stops the database or uses the legacy env builder", () => {
   assert.match(manual, /workflow_dispatch/);
   assert.match(manual, /github\.ref == 'refs\/heads\/main'/);
-  assert.match(manual, /sha="\$GITHUB_SHA"/);
-  assert.match(manual, /cloudru-jobs-preflight/);
+  assert(manual.includes('REQUESTED_SHA:-$GITHUB_SHA'));
+  assert.doesNotMatch(manual, /cloudru-jobs-preflight|cloudru-jobs-cutover|cloudru-media-activate/);
+  assert.match(manual, /SCHEMA_COMPATIBLE/);
+  assert.match(manual, /app_only: true/);
   assert.doesNotMatch(manual, /cloudru-build-media-images|cloudru-jobs-update|cloudru-prepare-media/);
   assert.match(manual, /build-images/);
   assert.doesNotMatch(manual, /docker (pull|build|compose)|docker-compose|migrate deploy|\.env\s*$/m);

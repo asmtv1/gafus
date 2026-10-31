@@ -12,6 +12,7 @@ import { useAuthStore } from "@/shared/stores";
 import { uploadQuestionPhoto, discardQuestionPhoto } from "@/shared/lib/api/questions";
 import { classifyQuestionNativePhoto } from "./photoSource";
 import { questionPhotoReadIdentity } from "./photoReadIdentity";
+import { allowQuestionsS3Fallback } from "./questionPhotoCdnFallback";
 import { questionPhotoTerminalNotice } from "./photoDisplay";
 import { reportClientError } from "@/shared/lib/tracer";
 import { questionAuthorProfileIdentifier } from "./profileLink";
@@ -273,11 +274,15 @@ export function QPhotos({
                 recyclingKey={questionPhotoReadIdentity(p)}
                 onError={()=>{
                   const key=questionPhotoReadIdentity(p);
-                  if(!s3Images.includes(key) && (p.fallbackSmallUrl || p.fallbackUrl)) {
-                    setS3Images(items=>items.includes(key)?items:[...items,key]);
+                  if(s3Images.includes(key)) {
+                    setFailed(items=>items.includes(key)?items:[...items,key]);
                     return;
                   }
-                  setFailed(items=>items.includes(key)?items:[...items,key]);
+                  void allowQuestionsS3Fallback(p.smallUrl ?? p.url,
+                    p.fallbackSmallUrl ?? p.fallbackUrl).then(allowed => {
+                      if(allowed)setS3Images(items=>items.includes(key)?items:[...items,key]);
+                      else setFailed(items=>items.includes(key)?items:[...items,key]);
+                    });
                 }}
               />
             ) : (
@@ -349,11 +354,11 @@ export function QPhotos({
                     recyclingKey={questionPhotoReadIdentity(item)+":"+item.url}
                     onError={()=>{
                       const key=questionPhotoReadIdentity(item);
-                      if (!s3Images.includes(key) && item.fallbackUrl) {
-                        setS3Images(items=>items.includes(key)?items:[...items,key]);
-                        return;
-                      }
-                      setViewerFailed(true);
+                      if(s3Images.includes(key)) {setViewerFailed(true);return;}
+                      void allowQuestionsS3Fallback(item.url,item.fallbackUrl).then(allowed => {
+                        if(allowed)setS3Images(items=>items.includes(key)?items:[...items,key]);
+                        else setViewerFailed(true);
+                      });
                     }}
                     contentFit="contain"
                     style={st.questionPhotoViewerImage}

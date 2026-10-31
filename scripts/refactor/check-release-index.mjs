@@ -28,7 +28,7 @@ const required = [
   'docs/current/MEDIA.md',
   'docs/qa/CURRENT_RELEASE_STATUS.md',
   'scripts/check-web-core-boundary.mjs',
-  '.github/workflows/refactor-vite-release.yml',
+  '.github/workflows/ci-cd.yml',
 ];
 for (const item of required) if (!files.has(item)) problems.push('Required release source missing from Git: ' + item);
 

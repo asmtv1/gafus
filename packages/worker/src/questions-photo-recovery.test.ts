@@ -75,6 +75,45 @@ describe("Questions-only recovery cleanup signature",()=>{
       }
     }
   });
+  it("allows only exact production HMAC API when production flags and host match",async()=>{
+    const keys=["NODE_ENV","GAFUS_LOCAL_ISOLATED_API","QUESTIONS_V2_INTERNAL_BASE_URL",
+      "QUESTIONS_V2_INTERNAL_HMAC_SECRET","QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED",
+      "QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME"] as const;
+    const original=Object.fromEntries(keys.map(key=>[key,process.env[key]]));
+    const request=vi.fn(async(_url:string,_init:RequestInit)=>
+      new Response(JSON.stringify({cleaned:false}),{status:200}));
+    vi.stubGlobal("fetch",request);
+    try{
+      process.env.NODE_ENV="production";
+      delete process.env.GAFUS_LOCAL_ISOLATED_API;
+      process.env.QUESTIONS_V2_INTERNAL_BASE_URL="https://api.gafus.ru/";
+      process.env.QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME="api.gafus.ru";
+      process.env.QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED="true";
+      process.env.QUESTIONS_V2_INTERNAL_HMAC_SECRET="production-only-synthetic-hmac-with-32-plus-bytes";
+      await expect(questionsPhotoCleanupInternal()).resolves.toBeUndefined();
+      expect(request).toHaveBeenCalledOnce();
+      expect(request.mock.calls[0]?.[0]).toBe("https://api.gafus.ru/internal/questions/media/jobs/cleanup");
+      request.mockClear();
+      for(const invalid of ["https://admin.gafus.ru/","https://api.gafus.app/",
+        "http://api.gafus.ru/","https://api.gafus.ru:444/",
+        "https://api.gafus.ru/other/","https://api.gafus.ru/?debug=1"]){
+        process.env.QUESTIONS_V2_INTERNAL_BASE_URL=invalid;
+        await expect(questionsPhotoCleanupInternal()).rejects.toThrow("UNSAFE_ORIGIN");
+      }
+      expect(request).not.toHaveBeenCalled();
+      process.env.QUESTIONS_V2_INTERNAL_BASE_URL="https://api.gafus.ru/";
+      process.env.GAFUS_LOCAL_ISOLATED_API="1";
+      await expect(questionsPhotoCleanupInternal()).rejects.toThrow("UNSAFE_ORIGIN");
+      delete process.env.GAFUS_LOCAL_ISOLATED_API;
+      process.env.QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED="false";
+      await expect(questionsPhotoCleanupInternal()).rejects.toThrow("UNSAFE_ORIGIN");
+    }finally{
+      for(const key of keys){
+        if(original[key]===undefined)delete process.env[key];
+        else process.env[key]=original[key];
+      }
+    }
+  });
   it("uses the exact HMAC verifier contract without sending S3 keys",async()=>{
     const initial={...process.env};
     const secret="local-only-test-secret-length-over-32";

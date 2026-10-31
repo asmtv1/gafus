@@ -56,7 +56,7 @@ test('real release workflows check candidate and actual generated destination, b
   const ci = readFileSync(new URL('.github/workflows/ci-cd.yml', root), 'utf8');
   assert.match(prod, /check-chat2-prod-boundary\.mjs --candidate/);
   assert.match(ci, /check-chat2-prod-boundary\.mjs --candidate/);
-  const activation = readFileSync(new URL('.github/workflows/production-media-activate-reusable.yml', root), 'utf8');
+  const activation = readFileSync(new URL('docs/operations/workflow-archive/production-media-activate-reusable.yml', root), 'utf8');
   assert(!prod.includes('check-chat2-prod-boundary.mjs --release --destination-env ci-cd/docker/.env'), 'first deploy may not inspect the old Chat2 runtime');
   const destination = activation.indexOf('check-chat2-prod-boundary.mjs --release --destination-env ci-cd/docker/.env');
   assert.ok(destination > activation.indexOf('docker-compose -f "$compose" up -d --no-deps --force-recreate api worker'));

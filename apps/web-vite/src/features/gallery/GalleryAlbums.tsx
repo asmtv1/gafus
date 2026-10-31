@@ -57,7 +57,12 @@ export function nextMediaRefresh<T extends { urlsExpireAt: string | null; status
   if (!future?.length) return false;
   // setTimeout accepts only signed 32-bit delay. Without clamping, a
   // far-future expiry wraps to 1ms and floods private Gallery GET requests.
-  const untilRefresh = Math.min(...future) - Date.now() - 15_000;
+  const earliestExpiry = Math.min(...future);
+  // If the API keeps returning an already expired signature, an immediate
+  // refetch cannot fix it. Back off rather than flooding GETs every second.
+  // Pending/processing rows above still retain their three-second cadence.
+  if (earliestExpiry <= Date.now()) return 30_000;
+  const untilRefresh = earliestExpiry - Date.now() - 15_000;
   return Math.max(1000, Math.min(300_000, untilRefresh));
 }
 /** Verify a CDN 410/5xx for this exact signed media object before requesting
@@ -348,6 +353,10 @@ function AlbumDetail({
       setCoverBusy(false);
     }
   }
+  // A cached Query result is not permission for this *mount*. Require a
+  // successful owner-scoped GET first, then allow background revalidations to
+  // keep the management dialog mounted. Auth-epoch changes invalidate scope.
+  const approvedOwnerRead = useRef<{ownerId:string;username:string;albumId:string}|null>(null);
   const album = useQuery({
     queryKey: ["gallery", "album", viewerId, ownerUsername, albumId],
     queryFn: async () => {
@@ -361,14 +370,20 @@ function AlbumDetail({
         data.canEdit !== true
       )
         throw Error("GALLERY_OWNER_OR_SHAPE_MISMATCH");
+      approvedOwnerRead.current={ownerId:viewerId,username:ownerUsername,albumId};
       return data;
     },
     staleTime: 0,
     retry: false,
     gcTime: 0,
   });
-  // Cached owner approval is not current permission for signed photo GETs.
-  const albumReady = album.isSuccess && !album.isFetching;
+  // Keep verified controls during background GETs, but never expose an
+  // initial cached result. On a rejected GET isSuccess becomes false, hiding
+  // stale data; a changed owner/album key cannot reuse another scope's proof.
+  const albumReady = album.isSuccess &&
+    approvedOwnerRead.current?.ownerId===viewerId &&
+    approvedOwnerRead.current?.username===ownerUsername &&
+    approvedOwnerRead.current?.albumId===albumId;
   const photos = useInfiniteQuery({
     queryKey: ["gallery", "photos", viewerId, ownerUsername, albumId],
     initialPageParam: null as string | null,
@@ -393,10 +408,13 @@ function AlbumDetail({
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const previousButton = useRef<HTMLButtonElement | null>(null);
   const nextButton = useRef<HTMLButtonElement | null>(null);
-  // Even a valid cached signed URL stays out of the DOM during revalidation.
+  // Keep previously owner-verified photo rows mounted during a background
+  // photo GET: dropping the grid also drops an in-progress delete/rename dialog.
+  // Parent albumReady still gates permission and signedGalleryImage rejects
+  // expired media; the first successful owner-scoped page remains mandatory.
   // A failed NEXT page may keep already confirmed earlier pages visible.
   const photoReady =
-    albumReady && !photos.isFetching && (photos.isSuccess || photos.isFetchNextPageError);
+    albumReady && (photos.isSuccess || photos.isFetchNextPageError);
   const displayed = photoReady ? photos.data!.pages.flatMap((p) => p.items) : [];
   // Skip pending/failed photos and already expired signed links rather than
   // navigating the fullscreen viewer to an image that cannot be displayed.

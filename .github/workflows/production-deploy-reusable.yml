@@ -1,4 +1,4 @@
-name: GAFUS production deploy (reusable)
+name: "Internal / Application deploy (reusable)"
 
 on:
   workflow_call:
@@ -433,6 +433,9 @@ jobs:
               echo "CHAT2_INTERNAL_HMAC_SECRET=${{ secrets.CHAT2_INTERNAL_HMAC_SECRET }}"
               echo "CHAT2_S3_ENDPOINT=https://s3.cloud.ru"
               echo "CHAT2_S3_BUCKET=gafus-chat2-media-2026"
+              # Independently checked real final media: S3/CDN HTTP 200, 206, matching bytes.
+              # This is public final delivery only, never original incoming/ or chat text.
+              echo "CHAT2_V2_CDN_BASE_URL=https://gonomudedoje.begetcdn.cloud"
               echo "CHAT2_S3_ACCESS_KEY_ID=${{ secrets.CHAT2_S3_ACCESS_KEY_ID }}"
               echo "CHAT2_S3_SECRET_ACCESS_KEY=${{ secrets.CHAT2_S3_SECRET_ACCESS_KEY }}"
               # Prepare ONLY; independent release gates must explicitly flip all

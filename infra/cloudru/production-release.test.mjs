@@ -46,17 +46,16 @@ const deployment = readFileSync(".github/workflows/production-deploy-reusable.ym
 const prod = readFileSync("ci-cd/docker/docker-compose.prod.yml", "utf8");
 for (const gate of [
   "cloudru-media-contracts:", "beget-readonly-preflight:",
-  "cloudru-jobs-preflight:", "beget-verify-after-deploy:",
+  "cutover-preflight:", "beget-verify-after-deploy:",
   "beget-release-readiness.mjs --check", "beget-production-smoke.mjs",
 ]) assert(ci.includes(gate), "MISSING_CI_GATE_" + gate);
-assert(ci.indexOf("  beget-readonly-preflight:") < ci.indexOf("  cloudru-jobs-preflight:") &&
-  ci.indexOf("  cloudru-jobs-preflight:") < ci.indexOf("  deploy-production:") &&
+assert(ci.indexOf("  beget-readonly-preflight:") < ci.indexOf("  deploy-production:") &&
   ci.indexOf("  deploy-production:") < ci.indexOf("  beget-verify-after-deploy:"),
-  "BEGET_AND_EXISTING_JOBS_BEFORE_APP_DEPLOY_READONLY");
-assert(/cloudru-jobs-preflight:\s+needs: \[security, build-apps, cloudru-media-contracts, beget-readonly-preflight, cutover-preflight\]/.test(ci),
-  "PREEXISTING_JOBS_MUST_PASS_GATE_BEFORE_DEPLOY");
-assert(/beget-verify-after-deploy:\s+needs: \[beget-readonly-preflight, cloudru-jobs-verify\]/.test(ci),
+  "CDN_READONLY_BEFORE_AND_AFTER_APP_DEPLOY");
+assert(ci.includes("needs: [beget-readonly-preflight, deploy-production]"),
   "POSTDEPLOY_BEGET_VERIFY_AFTER_HEALTHY_APP");
+assert(!/cloudru-jobs-cutover:|cloudru-media-activate:/.test(ci),
+  "APP_RELEASE_MUST_NOT_MODIFY_CLOUDRU_JOBS");
 for (const forbidden of ["cloudru-build-media-images:", "cloudru-jobs-update:", "cloudru-prepare-media:",
   "production-media-release.mjs --prepare", "publish-cloudru-image.sh", "production-s3-preflight.mjs --verify"]) {
   assert(!ci.includes(forbidden), "NO_CLOUDRU_MUTATION_IN_PRODUCTION_CI_" + forbidden);
@@ -84,7 +83,7 @@ assert(
   "PRODUCTION_MUST_USE_SHARED_RELEASE",
 );
 assert(
-  readFileSync(".github/workflows/production-media-activate-reusable.yml", "utf8").includes("CLOUDRU_MEDIA_JOBS_ENABLED':'true'"),
+  readFileSync("docs/operations/workflow-archive/production-media-activate-reusable.yml", "utf8").includes("CLOUDRU_MEDIA_JOBS_ENABLED':'true'"),
   "PRODUCTION_PROCESSORS_MUST_ACTIVATE",
 );
 assert(ci.includes("cloudru-media-contracts:"), "BUILD_MUST_VALIDATE_MEDIA_CONTRACTS");

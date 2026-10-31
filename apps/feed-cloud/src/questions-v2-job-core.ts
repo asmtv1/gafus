@@ -20,12 +20,19 @@ export function createQuestionsV2JobCore(input:{
     origin.protocol==="http:" && origin.port==="3001";
   const forbidden=new Set(["gafus.ru","api.gafus.ru","www.gafus.ru",
     "gafus.app","api.gafus.app","www.gafus.app"]);
-  const verifiedCloud=origin.protocol==="https:" &&
+  // Match the production Questions-only Job activation contract: the job
+  // runs in a minimal Node image without NODE_ENV, so require the explicit
+  // verified Job gate rather than relying on NODE_ENV=production.
+  // Keep this exact-host exception aligned with Worker recovery cleanup.
+  const productionApi=process.env.QUESTIONS_V2_JOB_ENABLED==="true" &&
+    process.env.GAFUS_LOCAL_ISOLATED_API!=="1" &&
+    origin.hostname==="api.gafus.ru";
+  const verifiedCloud=origin.protocol==="https:" && !origin.port &&
     process.env.QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED==="true" &&
     process.env.QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME===origin.hostname &&
-    !forbidden.has(origin.hostname) &&
-    !origin.hostname.endsWith(".gafus.ru") &&
-    !origin.hostname.endsWith(".gafus.app");
+    (productionApi || (!forbidden.has(origin.hostname) &&
+      !origin.hostname.endsWith(".gafus.ru") &&
+      !origin.hostname.endsWith(".gafus.app")));
   if(!(isolated || verifiedCloud)||
       origin.pathname!=="/"||origin.search||origin.hash||origin.username||
       origin.password||input.secret.length<32)

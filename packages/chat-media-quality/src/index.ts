@@ -61,3 +61,61 @@ export function chat2VideoSource(variants: Chat2QualityVariants | undefined, mod
 export function chat2HasVideoQuality(variants: Chat2QualityVariants | undefined, quality: Chat2VideoQuality): boolean {
   return Boolean(available(variants)[quality]);
 }
+
+/** Chat2 finals are public, but only the authorized API may hand out their
+ * exact CDN/S3 URL pairs. Never synthesize keys from arbitrary client URLs.
+ */
+export interface Chat2MediaDeliveryUrls {
+  url: string;
+  fallbackUrl?: string;
+  renditions?: Chat2MediaRenditions;
+  fallbackRenditions?: Chat2MediaRenditions;
+}
+export function chat2MatchedS3Variant(source: string, media: Chat2MediaDeliveryUrls): string | null {
+  const pairs: [string | undefined, string | undefined][] = [
+    [media.url, media.fallbackUrl],
+    [media.renditions?.poster, media.fallbackRenditions?.poster],
+    ...([360, 720] as const).flatMap(q => [
+      [media.renditions?.image?.[q], media.fallbackRenditions?.image?.[q]] as [string | undefined, string | undefined],
+      [media.renditions?.video?.[q], media.fallbackRenditions?.video?.[q]] as [string | undefined, string | undefined],
+    ]),
+  ];
+  return pairs.find(([primary]) => primary === source)?.[1] ?? null;
+}
+
+/** Image/video element onError hides HTTP status. Probe CDN with HEAD before
+ * trying S3, so 403/404 (including permission/revocation errors) never fall
+ * back to origin. Timeout and 410/5xx are recoverable; malformed/non-CORS
+ * errors fail closed. This requires the CDN's CORS-enabled HEAD endpoint.
+ */
+export async function chat2CdnS3FailoverAllowed(
+  primaryUrl: string,
+  fallbackUrl: string | null | undefined,
+  fetchHead: (url: string, init: {method: 'HEAD'; credentials: 'omit'; redirect: 'error'; cache: 'no-store'; signal: AbortSignal}) => Promise<{status: number}>,
+): Promise<boolean> {
+  if (!fallbackUrl) return false;
+  let primary: URL, fallback: URL;
+  try { primary = new URL(primaryUrl); fallback = new URL(fallbackUrl); }
+  catch { return false; }
+  if (primary.protocol !== 'https:' ||
+      !/^[a-z0-9-]+\.begetcdn\.cloud$/i.test(primary.hostname) ||
+      fallback.origin !== 'https://gafus-chat2-media-2026.s3.cloud.ru' ||
+      !primary.pathname.startsWith('/chat2/') ||
+      primary.pathname !== fallback.pathname ||
+      primary.search || fallback.search || primary.hash || fallback.hash ||
+      primary.username || fallback.username || primary.password || fallback.password)
+    return false;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4_000);
+  try {
+    const result = await fetchHead(primary.href, {
+      method: 'HEAD', credentials: 'omit', redirect: 'error', cache: 'no-store',
+      signal: controller.signal,
+    });
+    return result.status === 410 || result.status >= 500 && result.status <= 599;
+  } catch {
+    return controller.signal.aborted; // network/CORS rejection must not bypass 403/404
+  } finally {
+    clearTimeout(timeout);
+  }
+}

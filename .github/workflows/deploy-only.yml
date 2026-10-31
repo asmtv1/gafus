@@ -1,18 +1,32 @@
 name: Deploy Only
 
-# Reuses the SAME coordinated production cutover as the main CI/CD pipeline.
-# Never rebuilds an image, never writes a reduced .env, never stops Postgres.
+# Redeploy a verified seven-image main release without building or touching Cloud.ru Jobs.
+# A rollback never rolls back PostgreSQL: operator must first assess schema compatibility.
 on:
   workflow_dispatch:
-
-
-concurrency:
-  group: gafus-production-deploy
-  cancel-in-progress: false
+    inputs:
+      release_sha:
+        description: '40-character commit SHA from a verified main CI run; blank = current main HEAD'
+        required: false
+        type: string
+      mode:
+        description: 'Repeat deployment, or intentionally roll back to an older compatible release'
+        required: true
+        type: choice
+        default: redeploy
+        options: [redeploy, rollback]
+      rollback_confirmation:
+        description: 'Rollback only: type SCHEMA_COMPATIBLE after independently checking database compatibility'
+        required: false
+        type: string
 
 permissions:
   contents: read
   actions: read
+
+concurrency:
+  group: gafus-production-deploy
+  cancel-in-progress: false
 
 jobs:
   validate-release:
@@ -22,68 +36,99 @@ jobs:
       release_sha: ${{ steps.release.outputs.sha }}
     steps:
       - uses: actions/checkout@v5
-      - name: Validate release provenance
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify existing images and release QA without rebuilding
         id: release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
+          GH_REPO: ${{ github.repository }}
+          REQUESTED_SHA: ${{ inputs.release_sha }}
+          MODE: ${{ inputs.mode }}
+          ROLLBACK_CONFIRMATION: ${{ inputs.rollback_confirmation }}
         run: |
           set -euo pipefail
-          sha="$GITHUB_SHA"
-          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid main release SHA'; exit 1; }
-
-          # All application images must originate from one verified main CI run.
-          # Cloud.ru media images are existing infrastructure, never rebuilt here.
-          GH_REPO="${GITHUB_REPOSITORY}"
-          gh api --paginate "repos/$GH_REPO/actions/workflows/ci-cd.yml/runs?head_sha=$sha&event=push&per_page=50"             --jq '.workflow_runs[].id' > "$RUNNER_TEMP/release-runs"
-          test -s "$RUNNER_TEMP/release-runs" || { echo 'No main CI run for this commit'; exit 1; }
-          approved=false
+          sha="${REQUESTED_SHA:-$GITHUB_SHA}"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'BAD_RELEASE_SHA'; exit 1; }
+          git merge-base --is-ancestor "$sha" HEAD || { echo 'RELEASE_NOT_ON_MAIN'; exit 1; }
+          if [[ "$MODE" == rollback ]]; then
+            [[ "$sha" != "$GITHUB_SHA" ]] || { echo 'ROLLBACK_REQUIRES_OLDER_SHA'; exit 1; }
+            [[ "$ROLLBACK_CONFIRMATION" == SCHEMA_COMPATIBLE ]] || {
+              echo 'Rollback blocked: database schema compatibility not confirmed'; exit 1;
+            }
+          else
+            [[ "$sha" == "$GITHUB_SHA" ]] || {
+              echo 'Deploying an older SHA requires explicit rollback mode'; exit 1;
+            }
+          fi
+          gh api --paginate "repos/$GH_REPO/actions/workflows/ci-cd.yml/runs?head_sha=$sha&event=push&per_page=100" \
+            --jq '.workflow_runs[] | select(.head_sha == "'"$sha"'") | .id' > "$RUNNER_TEMP/release-runs"
+          test -s "$RUNNER_TEMP/release-runs" || { echo 'NO_MAIN_CI_RUN'; exit 1; }
+          verified=false
           while IFS= read -r run; do
-            gh api --paginate "repos/$GH_REPO/actions/runs/$run/jobs?per_page=100"               --jq '.jobs[] | [.name,.conclusion] | @tsv' > "$RUNNER_TEMP/release-jobs"
-            if [ "$(awk -F '	' '$1 ~ /^build-images \(/ && $2 == "success" {n++} END {print n+0}' "$RUNNER_TEMP/release-jobs")" -eq 7 ] &&
-               awk -F '\t' '$1 ~ /^cloudru-jobs-preflight( \/ jobs)?$/ && $2 == "success" {ok=1} END {exit !ok}' "$RUNNER_TEMP/release-jobs" &&
-               grep -q $'build-apps	success' "$RUNNER_TEMP/release-jobs" &&
-               grep -q $'security	success' "$RUNNER_TEMP/release-jobs"; then
-              approved=true
+            gh api --paginate "repos/$GH_REPO/actions/runs/$run/jobs?per_page=100" \
+              --jq '.jobs[] | [.name,.conclusion] | @tsv' > "$RUNNER_TEMP/release-jobs"
+            count="$(awk -F '\t' '$1 ~ /^build-images \(/ && $2 == "success" {n++} END {print n+0}' "$RUNNER_TEMP/release-jobs")"
+            if [[ "$count" -eq 7 ]] &&
+              grep -q $'security\tsuccess' "$RUNNER_TEMP/release-jobs" &&
+              grep -q $'build-apps\tsuccess' "$RUNNER_TEMP/release-jobs" &&
+              grep -q $'cloudru-media-contracts\tsuccess' "$RUNNER_TEMP/release-jobs"; then
+              verified=true
               break
             fi
           done < "$RUNNER_TEMP/release-runs"
-          test "$approved" = true || { echo 'No fully built and verified release for SHA'; exit 1; }
+          [[ "$verified" == true ]] || { echo 'RELEASE_IMAGES_OR_QA_NOT_VERIFIED'; exit 1; }
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-  cloudru-jobs-preflight:
+          echo "Verified seven previously built images for $sha; no builds or Cloud.ru mutations"
+
+  preflight-cdn:
     needs: validate-release
-    uses: ./.github/workflows/production-job-release-reusable.yml
-    with:
-      release_sha: ${{ needs.validate-release.outputs.release_sha }}
-      mode: preflight
-    secrets: inherit
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+      BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
+      BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
+      BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
+      BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Verify existing CDN delivery before changing production (read-only)
+        run: node infra/cloudru/beget-production-smoke.mjs
 
   deploy:
-    needs: [validate-release, cloudru-jobs-preflight]
+    needs: [validate-release, preflight-cdn]
     uses: ./.github/workflows/production-deploy-reusable.yml
     with:
       release_sha: ${{ needs.validate-release.outputs.release_sha }}
+      app_only: true
     secrets: inherit
 
-  cloudru-jobs-cutover:
-    needs: [validate-release, deploy]
-    uses: ./.github/workflows/production-job-release-reusable.yml
-    with:
-      release_sha: ${{ needs.validate-release.outputs.release_sha }}
-      mode: cutover
-    secrets: inherit
-
-  cloudru-media-activate:
-    needs: [validate-release, cloudru-jobs-cutover]
-    uses: ./.github/workflows/production-media-activate-reusable.yml
-    with:
-      release_sha: ${{ needs.validate-release.outputs.release_sha }}
-    secrets: inherit
-
-  cloudru-jobs-verify:
-    needs: [validate-release, cloudru-media-activate]
-    uses: ./.github/workflows/production-job-release-reusable.yml
-    with:
-      release_sha: ${{ needs.validate-release.outputs.release_sha }}
-      mode: verify
-    secrets: inherit
+  verify-cdn:
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    env:
+      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+      BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
+      BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
+      BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
+      BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Verify existing CDN delivery (read-only)
+        run: node infra/cloudru/beget-production-smoke.mjs
