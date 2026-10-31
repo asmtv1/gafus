@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from "../api/client";
+import { ApiError, apiRequest, refreshSessionCookie } from "../api/client";
 
 export type AuthUser = {
   id: string;
@@ -54,7 +54,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 }
 
 export async function refreshSession(): Promise<void> {
-  await apiRequest("/api/v1/auth/refresh", { method: "POST", json: {}, browserAuth: true });
+  await refreshSessionCookie();
 }
 
 export async function logout(): Promise<void> {
