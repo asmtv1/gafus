@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   beget-readonly-diagnostic:
-    if: github.ref == 'refs/heads/main' && inputs.operation == 'beget-readonly-diagnostic'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/diagnostic/beget-cdn-readonly-20261101') && inputs.operation == 'beget-readonly-diagnostic'
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 5
@@ -40,7 +40,7 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Read service details without changes or credential disclosure
-        run: node infra/cloudru/beget-cdn-readonly-diagnostic.mjs
+        run: node infra/cloudru/beget-cdn-readonly-diagnostic.mjs --list
 
   plan:
     if: github.ref == 'refs/heads/main' && inputs.operation == 'plan'
