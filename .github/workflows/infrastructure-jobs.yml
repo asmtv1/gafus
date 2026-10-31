@@ -10,7 +10,7 @@ on:
         type: choice
         required: true
         default: plan
-        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, beget-gallery-inspect]
+        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, beget-gallery-inspect, beget-gallery-create]
       confirmation:
         description: 'For apply: UPDATE_11_EXISTING_JOBS; for image publish: PUBLISH_MEDIA_IMAGES'
         type: string
@@ -24,6 +24,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  beget-gallery-create:
+    if: github.ref == 'refs/heads/chore/gallery-cdn-307-migration' && inputs.operation == 'beget-gallery-create'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    env:
+      BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
+      GALLERY_CDN_CREATE_CONFIRM: ${{ inputs.confirmation }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Create exactly one isolated gallery CDN only with exact approval
+        run: node infra/cloudru/beget-gallery-create.mjs --apply
+
   beget-gallery-inspect:
     if: github.ref == 'refs/heads/chore/gallery-cdn-307-migration' && inputs.operation == 'beget-gallery-inspect'
     runs-on: ubuntu-latest
