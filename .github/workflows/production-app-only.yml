@@ -6,7 +6,7 @@ on:
       mode:
         description: 'Read-only server preflight; no application deployment'
         type: choice
-        options: [preflight, deploy]
+        options: [preflight, diagnose, deploy]
         required: true
       release_sha:
         description: 'Exact previously verified main commit SHA; required for deploy'
@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   server-preflight:
-    if: github.ref == 'refs/heads/main' && inputs.mode == 'preflight'
+    if: github.ref == 'refs/heads/main' && (inputs.mode == 'preflight' || inputs.mode == 'diagnose')
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12
@@ -74,6 +74,20 @@ jobs:
             echo 'SERVER_DISK_FREE:'
             df -h / | tail -1 | awk '{print $4 " free of " $2}'
             echo 'READ_ONLY_PREFLIGHT_COMPLETE'
+            if [ '${{ inputs.mode }}' = diagnose ]; then
+              echo 'SAFE_API_DIAGNOSTIC_BEGIN'
+              for name in gafus-postgres gafus-redis gafus-nginx gafus-web gafus-api gafus-worker gafus-trainer-panel gafus-admin-panel gafus-bull-board gafus-chat2-centrifugo; do
+                docker inspect --format "${name} status={{.State.Status}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}} restarts={{.RestartCount}} oom={{.State.OOMKilled}} exit={{.State.ExitCode}}" "$name" 2>/dev/null || echo "$name ABSENT"
+              done
+              echo 'API_HEALTHCHECK_OUTPUT:'
+              docker inspect --format '{{range .State.Health.Log}}{{.ExitCode}} {{.Output}}{{end}}' gafus-api 2>/dev/null | cut -c1-300 || true
+              echo 'API_RECENT_ERROR_CATEGORIES:'
+              docker logs --tail 180 gafus-api 2>&1 | python3 -c 'import sys,re; words=("error","fatal","missing","invalid","uncaught","fail","exception","prisma","chat2","required"); lines=[x.rstrip() for x in sys.stdin if any(w in x.lower() for w in words)]; redact=lambda x:re.sub(r"(?i)([a-z_]*(?:secret|token|password|api_key|access_key|private_key|jwt|database_url|redis_url)[a-z_]*[=:]\s*)[^\s,;]+",r"\1[REDACTED]",x); print("\n".join(redact(x)[:270] for x in lines[-45:]))'
+              echo 'PROD_RELEASE_MARKERS:'
+              ls -ld /root/gafus-release-backups/41150071782-1/production-pre-migrate.dump 2>/dev/null | awk '{print $5 " bytes, backup present"}' || true
+              for marker in migration-started migration-complete; do test -f "/root/gafus-release-backups/41150071782-1/$marker" && echo "$marker=YES" || echo "$marker=NO"; done
+              echo 'SAFE_API_DIAGNOSTIC_COMPLETE'
+            fi
 
   validate-app-release:
     if: github.ref == 'refs/heads/main' && inputs.mode == 'deploy'
