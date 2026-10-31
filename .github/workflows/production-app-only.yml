@@ -49,31 +49,22 @@ jobs:
             docker exec gafus-postgres psql -U gafus -d gafus -Atc "select migration_name from "_prisma_migrations" where finished_at is not null and rolled_back_at is null order by migration_name;"
             echo 'POSTGRES_MIGRATIONS_END'
             echo 'PRODUCTION_ENV_FLAGS:'
-            export GAFUS_PROD_ENV_PATH="$root/ci-cd/docker/.env"
-            python3 - <<'PY_ENV'
-            from pathlib import Path
-            import os
-            p=Path(os.environ['GAFUS_PROD_ENV_PATH'])
-            if not p.is_file(): raise SystemExit('PRODUCTION_ENV_MISSING')
-            lines={}
-            for raw in p.read_text().splitlines():
-                if '=' in raw and not raw.lstrip().startswith('#'):
-                    key,val=raw.split('=',1)
-                    lines[key]=val
-            allowed={
-              'CLOUDRU_MEDIA_JOBS_ENABLED', 'GALLERY_PROCESSOR_SECOND_READY',
-              'FEED_CLOUDRU_REFRACTOR_VERIFIED', 'QUESTIONS_V2_MEDIA_ENABLED',
-              'CHAT2_V2_MEDIA_ENABLED', 'CHAT2_API_ENABLED', 'CHAT2_WORKER_ENABLED',
-              'CHAT2_LEGACY_RETIRE_ENABLED', 'FEED_ENABLED',
-            }
-            for key in sorted(allowed):
-                value=lines.get(key,'')
-                print(f'{key}={value if value in ("true","false","enabled","disabled") else "UNSET_OR_NONBOOLEAN"}')
-            for key in ('GALLERY_CDN_BASE_URL', 'FEED_CDN_BASE_URL', 'QUESTIONS_V2_CDN_BASE_URL', 'CHAT2_V2_CDN_BASE_URL', 'GALLERY_BEGET_CDN_SERVICE_ID', 'FEED_BEGET_CDN_SERVICE_ID'):
-                print(f'{key}_PRESENT={"YES" if lines.get(key) else "NO"}')
-            for key in ('CHAT2_S3_ACCESS_KEY_ID','CHAT2_S3_SECRET_ACCESS_KEY','FEED_INTERNAL_HMAC_SECRET','GALLERY_DEV_INTERNAL_HMAC_SECRET','QUESTIONS_V2_INTERNAL_HMAC_SECRET'):
-                print(f'{key}_PRESENT={"YES" if lines.get(key) else "NO"}')
-            PY_ENV
+            envfile="$root/ci-cd/docker/.env"
+            test -f "$envfile" || { echo 'PRODUCTION_ENV_MISSING'; exit 1; }
+            for name in CLOUDRU_MEDIA_JOBS_ENABLED GALLERY_PROCESSOR_SECOND_READY FEED_CLOUDRU_REFRACTOR_VERIFIED QUESTIONS_V2_MEDIA_ENABLED CHAT2_V2_MEDIA_ENABLED CHAT2_API_ENABLED CHAT2_WORKER_ENABLED CHAT2_LEGACY_RETIRE_ENABLED FEED_ENABLED; do
+              value="$(sed -n "s/^${name}=//p" "$envfile" | tail -1)"
+              case "$value" in
+                true|false|enabled|disabled) echo "$name=$value" ;;
+                *) echo "$name=UNSET_OR_NONBOOLEAN" ;;
+              esac
+            done
+            for name in GALLERY_CDN_BASE_URL FEED_CDN_BASE_URL QUESTIONS_V2_CDN_BASE_URL CHAT2_V2_CDN_BASE_URL GALLERY_BEGET_CDN_SERVICE_ID FEED_BEGET_CDN_SERVICE_ID CHAT2_S3_ACCESS_KEY_ID CHAT2_S3_SECRET_ACCESS_KEY FEED_INTERNAL_HMAC_SECRET GALLERY_DEV_INTERNAL_HMAC_SECRET QUESTIONS_V2_INTERNAL_HMAC_SECRET; do
+              if grep -q "^${name}=.." "$envfile"; then
+                echo "${name}_PRESENT=YES"
+              else
+                echo "${name}_PRESENT=NO"
+              fi
+            done
             echo 'SERVER_DISK_FREE:'
             df -h / | tail -1 | awk '{print $4 " free of " $2}'
             echo 'READ_ONLY_PREFLIGHT_COMPLETE'
