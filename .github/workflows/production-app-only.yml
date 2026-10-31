@@ -1,0 +1,79 @@
+name: GAFUS production app-only (Cloud.ru Jobs unchanged)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Read-only server preflight; no application deployment'
+        type: choice
+        options: [preflight]
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gafus-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  server-preflight:
+    if: github.ref == 'refs/heads/main' && inputs.mode == 'preflight'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 12
+    steps:
+      - name: Read-only VPS and migration inventory (no secrets, no mutations)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 185.239.51.125
+          username: root
+          key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
+          port: 22
+          script_stop: true
+          command_timeout: 8m
+          script: |
+            set -euo pipefail
+            root=/root/gafus
+            test -d "$root/.git" || { echo 'MISSING_EXISTING_PRODUCTION_REPO'; exit 1; }
+            echo "CURRENT_SHA=$(git -C "$root" rev-parse HEAD)"
+            echo "PRODUCTION_REPOSITORY_PRESENT=YES"
+            echo "DOCKER_COMPOSE_INSTALLED=$(command -v docker-compose >/dev/null && echo YES || echo NO)"
+            echo 'PRODUCTION_CONTAINERS:'
+            for name in gafus-postgres gafus-redis gafus-nginx gafus-web gafus-api gafus-worker gafus-trainer-panel gafus-admin-panel gafus-bull-board gafus-chat2-centrifugo; do
+              echo "$name:$(docker inspect --format '{{.State.Status}}/{{if .State.Health}}{{.State.Health.Status}}{{else}}no-health{{end}}' "$name" 2>/dev/null || echo absent)"
+            done
+            echo "NGINX_CONFIG_VALID=$(docker exec gafus-nginx nginx -t >/dev/null 2>&1 && echo YES || echo NO)"
+            echo "MAINTENANCE_GATE=$(test -f "$root/ci-cd/nginx/conf.d/.release-maintenance" && echo ON || echo OFF)"
+            echo 'POSTGRES_MIGRATIONS_BEGIN'
+            docker exec gafus-postgres psql -U gafus -d gafus -Atc "select migration_name from "_prisma_migrations" where finished_at is not null and rolled_back_at is null order by migration_name;"
+            echo 'POSTGRES_MIGRATIONS_END'
+            echo 'PRODUCTION_ENV_FLAGS:'
+            export GAFUS_PROD_ENV_PATH="$root/ci-cd/docker/.env"
+            python3 - <<'PY_ENV'
+            from pathlib import Path
+            import os
+            p=Path(os.environ['GAFUS_PROD_ENV_PATH'])
+            if not p.is_file(): raise SystemExit('PRODUCTION_ENV_MISSING')
+            lines={}
+            for raw in p.read_text().splitlines():
+                if '=' in raw and not raw.lstrip().startswith('#'):
+                    key,val=raw.split('=',1)
+                    lines[key]=val
+            allowed={
+              'CLOUDRU_MEDIA_JOBS_ENABLED', 'GALLERY_PROCESSOR_SECOND_READY',
+              'FEED_CLOUDRU_REFRACTOR_VERIFIED', 'QUESTIONS_V2_MEDIA_ENABLED',
+              'CHAT2_V2_MEDIA_ENABLED', 'CHAT2_API_ENABLED', 'CHAT2_WORKER_ENABLED',
+              'CHAT2_LEGACY_RETIRE_ENABLED', 'FEED_ENABLED',
+            }
+            for key in sorted(allowed):
+                value=lines.get(key,'')
+                print(f'{key}={value if value in ("true","false","enabled","disabled") else "UNSET_OR_NONBOOLEAN"}')
+            for key in ('GALLERY_CDN_BASE_URL', 'FEED_CDN_BASE_URL', 'QUESTIONS_V2_CDN_BASE_URL', 'CHAT2_V2_CDN_BASE_URL', 'GALLERY_BEGET_CDN_SERVICE_ID', 'FEED_BEGET_CDN_SERVICE_ID'):
+                print(f'{key}_PRESENT={"YES" if lines.get(key) else "NO"}')
+            for key in ('CHAT2_S3_ACCESS_KEY_ID','CHAT2_S3_SECRET_ACCESS_KEY','FEED_INTERNAL_HMAC_SECRET','GALLERY_DEV_INTERNAL_HMAC_SECRET','QUESTIONS_V2_INTERNAL_HMAC_SECRET'):
+                print(f'{key}_PRESENT={"YES" if lines.get(key) else "NO"}')
+            PY_ENV
+            echo 'SERVER_DISK_FREE:'
+            df -h / | tail -1 | awk '{print $4 " free of " $2}'
+            echo 'READ_ONLY_PREFLIGHT_COMPLETE'
