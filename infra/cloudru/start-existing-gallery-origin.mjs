@@ -47,8 +47,18 @@ const url='https://containers.api.cloud.ru/v2/containers/'+name+':start?projectI
 const start=await fetch(url,{method:'POST',headers:{authorization:'Bearer '+bearer},
  signal:AbortSignal.timeout(20000)});
 if(![200,201,202].includes(start.status)){
- await start.body?.cancel();
- throw Error('GALLERY_START_HTTP_'+start.status);
+  let info;
+  try {
+    const provider=await start.json();
+    const clean=v=>typeof v==='string'
+      ? v.slice(0,160).replace(/[A-Za-z0-9_:-]{24,}/g,'[redacted]')
+      : null;
+    info={status:start.status,
+      code:clean(provider.code??provider.error?.code??provider.errorCode),
+      message:clean(provider.message??provider.error?.message??provider.error)};
+  }catch{info={status:start.status,unparseableBody:true};}
+  console.error('GALLERY_START_PROVIDER_ERROR',JSON.stringify(info));
+  throw Error('GALLERY_START_HTTP_'+start.status);
 }
 await start.body?.cancel();
 console.log('GALLERY_START_ACCEPTED');
