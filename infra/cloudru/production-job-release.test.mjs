@@ -116,6 +116,11 @@ test('dry-run is offline and unauthorized apply cannot access Cloud.ru',()=>{
  const parsed=JSON.parse(plan.stdout);assert.equal(parsed.targets.length,11);assert.equal(parsed.mutates,false);
  assert.equal(parsed.targets.filter(x=>x.targetImage.includes('7f8d4325')).length,2);
  assert.equal(parsed.targets.filter(x=>x.targetImage.includes('652b3ce4')).length,0);
+ const feed=parsed.targets.filter(x=>/^gafus-feed-(photo|video)(-2)?$/.test(x.name));
+ assert.equal(feed.length,4,'one shared Feed image must cover the four existing Jobs');
+ const pinned='gafus.cr.cloud.ru/gafus-feed-worker@sha256:0fdca7bea758c2469d639f3f9b3e3a78dfa71bcb787ab4218426e407027f9176';
+ assert(feed.every(x=>x.targetImage===pinned),'CI must use exactly the deployed, immutable Feed digest');
+
  const blocked=run('--apply');assert.notEqual(blocked.status,0);assert.match(blocked.stderr,/INVALID_EXISTING_JOB_RELEASE_MODE/);
 });
 test('CI and Deploy Only switch all new media Jobs after first Backend deploy',()=>{

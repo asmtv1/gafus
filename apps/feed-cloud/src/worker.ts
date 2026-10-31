@@ -8,6 +8,31 @@ import {
 } from "@gafus/feed-cloud";
 import { assertFeedObjectKey, feedSourcePattern } from "@gafus/feed-storage";
 import type { FeedCloudObjects } from "./objects.js";
+/** Log only bounded, allowlisted diagnostics; never log SDK error objects or paths. */
+function safeMediaError(error: unknown): { category: string; httpStatus: number | null } {
+  const obj = error !== null && typeof error === "object" ? error as {
+    name?: unknown; message?: unknown; $metadata?: { httpStatusCode?: unknown };
+  } : null;
+  const http = obj?.$metadata?.httpStatusCode;
+  const httpStatus = typeof http === "number" && Number.isInteger(http) && http >= 100 && http <= 599 ? http : null;
+  const names: Record<string, string> = {
+    AccessDenied: "S3_ACCESS_DENIED", NoSuchKey: "S3_OBJECT_MISSING",
+    NoSuchBucket: "S3_BUCKET_MISSING", PreconditionFailed: "S3_PRECONDITION_FAILED",
+    TimeoutError: "NETWORK_TIMEOUT", AbortError: "OPERATION_ABORTED",
+  };
+  const messages = new Set([
+    "UNTRUSTED_CLAIM", "LEASE_EXPIRED", "SOURCE_CHANGED", "SOURCE_SIZE",
+    "SOURCE_WRITE_FAILED", "IMMUTABLE_CONFLICT", "OUTPUT_SIZE",
+    "FEED_V2_MP4_SIZE", "FEED_V2_MP4_ONLY", "INVALID_SOURCE_LIMIT",
+    "ALBUM_STORAGE_UNAVAILABLE", "FEED_INTERNAL_RESPONSE_INVALID",
+  ]);
+  const category = (typeof obj?.name === "string" && names[obj.name]) ||
+    (typeof obj?.message === "string" && messages.has(obj.message) ? obj.message : null) ||
+    (httpStatus === 403 ? "STORAGE_FORBIDDEN" : httpStatus === 404 ? "STORAGE_NOT_FOUND" :
+      httpStatus === 412 ? "STORAGE_PRECONDITION" : httpStatus !== null && httpStatus >= 500 ? "STORAGE_SERVER_ERROR" :
+        "MEDIA_FAILURE_UNCLASSIFIED");
+  return { category, httpStatus };
+}
 const id = /^[A-Za-z0-9_-]{1,128}$/;
 function validate(job: FeedCloudJob) {
   if (!id.test(job.id) || !id.test(job.attemptToken) || !id.test(job.ownerId) ||
@@ -78,6 +103,7 @@ export function createFeedCloudWorker(input: {
       const signal = controller.signal;
       let dir: string | undefined;
       let completing = false;
+      let phase = "initialize";
       try {
         const local = process.env.VITEST === "true" || process.env.GAFUS_LOCAL_ISOLATED_API === "1";
         const project = "/Users/asmtv1/Desktop/gafus-refactor";
@@ -87,14 +113,17 @@ export function createFeedCloudWorker(input: {
         dir = await mkdtemp(join(local ? cwd : tmpdir(), ".gafus-feed-"));
         let output: FeedCloudOutput | undefined;
         if (job.kind === "delete_keys" || job.kind === "cleanup_source") {
+          phase = "cleanup";
           for (const key of job.sourceKeys) await input.objects.delete(key, signal);
         } else {
           const prefix = `media/v2/${job.mediaId}/v1/`;
           if (job.kind === "publish_video") {
             const source = join(dir, "source");
+            phase = "download";
             const downloadedAt = performance.now();
             await input.objects.download(job.sourceKeys[0], source, 200 * 1024 * 1024, signal, job.sourceETag);
             downloadMs = Math.round(performance.now() - downloadedAt);
+            phase = "transform";
             const convertedAt = performance.now();
             // Two independent video Jobs handle separate files. One Job uses
             // sequential renditions and the measured 2-vCPU Chat 2.0 codec profile.
@@ -110,6 +139,7 @@ export function createFeedCloudWorker(input: {
             const posterBytes = await readFile(result.poster);
             outputBytes = posterBytes.byteLength + result.mp4.reduce((total, file) => total + file.bytes, 0);
             variantCount = 1 + result.mp4.length;
+            phase = "upload";
             const uploadedAt = performance.now();
             const transfers = await Promise.allSettled([
               input.objects.create(posterKey, posterBytes, "image/webp", signal),
@@ -122,9 +152,11 @@ export function createFeedCloudWorker(input: {
           } else {
             const source = join(dir, "source");
             const sourceKey = job.kind === "copy_album" ? job.sourceKeys[1] : job.sourceKeys[0];
+            phase = "download";
             const downloadedAt = performance.now();
             await input.objects.download(sourceKey, source, 10 * 1024 * 1024, signal, job.sourceETag);
             downloadMs = Math.round(performance.now() - downloadedAt);
+            phase = "transform";
             const convertedAt = performance.now();
             const result = await processFeedV2Image(await readFile(source), input.engine);
             processingMs = Math.round(performance.now() - convertedAt);
@@ -133,6 +165,7 @@ export function createFeedCloudWorker(input: {
             const smallKey = prefix + "image/s.webp";
             const thumbKey = prefix + "image/m.webp";
             const fullKey = prefix + "image/l.webp";
+            phase = "upload";
             const uploadedAt = performance.now();
             const transfers = await Promise.allSettled([
               input.objects.create(smallKey, result.small.bytes, "image/webp", signal),
@@ -145,7 +178,7 @@ export function createFeedCloudWorker(input: {
               smallKey, thumbKey, fullKey };
           }
         }
-        signal.throwIfAborted(); completing = true;
+        signal.throwIfAborted(); phase = "complete"; completing = true;
         const verifyingAt = performance.now();
         const completion = await input.core.completeJob(job.id, job.attemptToken, output);
         if (completion.accepted && output && input.onMetrics) {
@@ -163,6 +196,13 @@ export function createFeedCloudWorker(input: {
         }
         return completion;
       } catch (error) {
+        // Never stringify arbitrary error objects: SDK errors may contain object keys,
+        // endpoint details or signed URLs. Only enum-like metadata is permitted.
+        console.error("FEED_MEDIA_V2_PROCESS_FAILURE", JSON.stringify({
+          phase, kind: job.kind === "publish_video" ? "video" : "photo",
+          attempt: Number.isSafeInteger(job.attempts) ? job.attempts : null,
+          ...safeMediaError(error),
+        }));
         // A lost callback reply is ambiguous: never erase files that may have been published.
         if (!completing) await input.core.failJob(job.id, job.attemptToken, "MEDIA_PROCESSING_FAILED");
         throw error;

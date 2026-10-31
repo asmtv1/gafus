@@ -11,7 +11,7 @@ const mode=process.argv[2]??'--plan';
 if(!['--plan','--preflight','--cutover','--verify'].includes(mode))throw Error('INVALID_EXISTING_JOB_RELEASE_MODE');
 export const RELEASE_DIGESTS=Object.freeze({
   'gallery-worker':'7f8d4325a712b3ba0a78b1d6750e4325cd66b07f5157a0d6e0bcb751b4f6693c',
-  'feed-worker':'26fe7a6011930877eb76459e7c6d5a68895387ec027988b7fc40fab4b8da0de0',
+  'feed-worker':'0fdca7bea758c2469d639f3f9b3e3a78dfa71bcb787ab4218426e407027f9176',
   'questions-photo':'96f76942f9f12099353b131c61332502175f18a1ec94919bfcfd1f4cc04ab321',
 });
 const target=(j)=>RELEASE_DIGESTS[j.imageRole]?`${imageRepository(j)}@sha256:${RELEASE_DIGESTS[j.imageRole]}`:null;

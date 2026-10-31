@@ -49,6 +49,26 @@ describe("feed cloud processing / actual Sharp and FFmpeg", () => {
     expect(JSON.stringify(onMetrics.mock.calls)).not.toContain("posts/");
     expect(JSON.stringify(onMetrics.mock.calls)).not.toContain("source-etag");
   });
+  it("classifies storage denial without exposing SDK messages or secret URLs in logs", async () => {
+    const source = await sharp({ create: { width: 16, height: 16,
+      channels: 3, background: "#334455" } }).png().toBuffer();
+    const { worker, objects, core } = setup(source);
+    const secret = "https://private.example/object?X-Amz-Signature=private-token";
+    vi.mocked(objects.download).mockRejectedValueOnce(Object.assign(new Error(secret), {
+      name: "AccessDenied", $metadata: { httpStatusCode: 403 },
+    }));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await expect(worker.process(job())).rejects.toThrow();
+      expect(core.failJob).toHaveBeenCalledOnce();
+      expect(log).toHaveBeenCalledWith("FEED_MEDIA_V2_PROCESS_FAILURE", JSON.stringify({
+        phase: "download", kind: "photo", attempt: 1,
+        category: "S3_ACCESS_DENIED", httpStatus: 403,
+      }));
+      expect(JSON.stringify(log.mock.calls)).not.toContain(secret);
+      expect(JSON.stringify(log.mock.calls)).not.toContain("X-Amz-Signature");
+    } finally { log.mockRestore(); }
+  });
   it("decodes, orients and strips photo metadata before publication", async () => {
     const source = await sharp({ create: { width: 800, height: 600, channels: 3, background: "#335533" } }).jpeg().withMetadata({ orientation: 6 }).toBuffer();
     const { core, written, worker } = setup(source);

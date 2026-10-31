@@ -34,9 +34,11 @@ Cloud.ru primary project `4c590727-4133-475b-a4bc-564c90a9e686`, registry `gafus
 | --- | --- | --- |
 | `gafus-gallery-process` | `gafus-gallery-worker@sha256:7f8d4325a712b3ba0a78b1d6750e4325cd66b07f5157a0d6e0bcb751b4f6693c` | 1 vCPU, 2 ГБ |
 | `gafus-gallery-process-2` | тот же Gallery V2 digest | 1 vCPU, 2 ГБ |
-| `gafus-feed-photo`, `gafus-feed-photo-2` | `gafus-feed-worker@sha256:26fe7a6011930877eb76459e7c6d5a68895387ec027988b7fc40fab4b8da0de0` | 1 vCPU, 2 ГБ каждый |
+| `gafus-feed-photo`, `gafus-feed-photo-2` | `gafus-feed-worker@sha256:0fdca7bea758c2469d639f3f9b3e3a78dfa71bcb787ab4218426e407027f9176` | 1 vCPU, 2 ГБ каждый |
 | `gafus-feed-video`, `gafus-feed-video-2` | тот же Feed V2 digest | 2 vCPU, 8 ГБ каждый |
 | `gafus-questions-photo` | `gafus-questions-worker@sha256:96f76942f9f12099353b131c61332502175f18a1ec94919bfcfd1f4cc04ab321` | 1 vCPU, 2 ГБ |
+
+**Актуализация 2026-10-31:** четыре существующих Feed Jobs уже вручную переведены на указанный выше новый диагностический digest (один общий образ для 2 фото + 2 видео). Ссылка в `production-job-release.mjs` синхронизирована с фактическим Cloud.ru, чтобы CI не ожидал старый образ. Это обновление **не подтверждает исправление первопричины** зависшей публикации: сначала необходимы новые производственные логи и успешная проверка состояния `published`. Полный инцидент: `docs/operations/INCIDENT_2026-10-31_FEED_MEDIA_PENDING.md`.
 
 Chat2 отдельный project `6777bd18-4ee9-4d15-bb1b-134f7a18ed3a`, registry `gafus-chat2-20261028.cr.cloud.ru`: четыре Jobs `gafus-chat-photo`, `gafus-chat-photo-2` (фото), `gafus-chat-video`, `gafus-chat-video-2` (видео). Используются уже опубликованные digest refs соответствующего registry (НЕ подставлять primary image/credentials). `CHAT2_CLOUDRU_PROJECT_VERIFIED=true` выставляется в app только после полного доступа и проверки этих четырёх Jobs.
 

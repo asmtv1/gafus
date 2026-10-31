@@ -11,7 +11,13 @@ export async function processFeedJobs(): Promise<number> {
     key,
   });
   // Cleanup and recovery remain active when new publications are disabled.
-  await core.maintenance(20);
+  // Never log the caught object: network SDK errors can include signed URLs.
+  try {
+    await core.maintenance(20);
+  } catch {
+    console.error("FEED_MEDIA_V2_RUNTIME_FAILURE", JSON.stringify({ phase: "maintenance" }));
+    throw new Error("FEED_MAINTENANCE_FAILED");
+  }
   const worker = createFeedCloudWorker({
     core,
     objects: createFeedCloudObjects(),
@@ -20,7 +26,13 @@ export async function processFeedJobs(): Promise<number> {
   });
   const workerType = process.env.FEED_WORKER_TYPE;
   if (workerType !== "photo" && workerType !== "video") throw new Error("INVALID_FEED_WORKER_TYPE");
-  const jobs = await core.claimJobs(1, workerType);
+  let jobs: Awaited<ReturnType<typeof core.claimJobs>>;
+  try {
+    jobs = await core.claimJobs(1, workerType);
+  } catch {
+    console.error("FEED_MEDIA_V2_RUNTIME_FAILURE", JSON.stringify({ phase: "claim", kind: workerType }));
+    throw new Error("FEED_CLAIM_FAILED");
+  }
   for (const job of jobs) await worker.process(job);
   return jobs.length;
 }
