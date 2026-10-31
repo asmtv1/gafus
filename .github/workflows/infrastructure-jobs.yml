@@ -10,7 +10,7 @@ on:
         type: choice
         required: true
         default: plan
-        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images]
+        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic]
       confirmation:
         description: 'For apply: UPDATE_11_EXISTING_JOBS; for image publish: PUBLISH_MEDIA_IMAGES'
         type: string
@@ -20,10 +20,28 @@ permissions:
   contents: read
 
 concurrency:
-  group: gafus-production-deploy
+  group: ${{ inputs.operation == 'beget-readonly-diagnostic' && 'gafus-beget-readonly-diagnostic' || 'gafus-production-deploy' }}
   cancel-in-progress: false
 
 jobs:
+  beget-readonly-diagnostic:
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'beget-readonly-diagnostic'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    env:
+      BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
+      GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
+      FEED_BEGET_CDN_SERVICE_ID: ${{ vars.FEED_BEGET_CDN_SERVICE_ID }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Read service details without changes or credential disclosure
+        run: node infra/cloudru/beget-cdn-readonly-diagnostic.mjs
+
   plan:
     if: github.ref == 'refs/heads/main' && inputs.operation == 'plan'
     runs-on: ubuntu-latest

@@ -62,7 +62,7 @@ test('single build has immutable digest and only touches the selected service',(
 test('Cloud.ru updates require explicit confirmation and cannot delete S3/Jobs',()=>{
  const infra=parse('infrastructure-jobs');
  assert.deepEqual(infra.on.workflow_dispatch.inputs.operation.options,
-  ['plan','preflight','apply-existing-jobs','verify','publish-media-images']);
+  ['plan','preflight','apply-existing-jobs','verify','publish-media-images','beget-readonly-diagnostic']);
  assert(infra.jobs.guard.steps[0].run.includes('UPDATE_11_EXISTING_JOBS'));
  assert(infra.jobs['publish-guard'].steps[0].run.includes('PUBLISH_MEDIA_IMAGES'));
  assert.equal(infra.jobs['apply-existing-jobs'].needs,'preflight');

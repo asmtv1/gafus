@@ -29,7 +29,7 @@ for (const [scope, id, origin, cdnHost] of [
     console.log(JSON.stringify({
       scope,
       serviceGetHttp: response.status,
-      responseKeys: Object.keys(data ?? {}).slice(0, 12),
+      responseKeys: Object.keys(data ?? {}).filter(key => /^[a-zA-Z_]{1,40}$/.test(key)).slice(0, 12),
       containsExpectedOrigin: payload.includes(origin),
       containsExpectedCdnHost: payload.includes(cdnHost),
       containsExpectedServiceId: payload.includes(id),
