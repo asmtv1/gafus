@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -88,7 +89,7 @@ afterEach(async () => {
 describe("nested reply privacy and failed pagination", () => {
   it("Q-T01 cached child remains hidden during fresh expanded GET", async () => {
     const pending = deferred<Response>();
-    vi.stubGlobal("fetch", vi.fn().mockReturnValue(pending.promise));
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockReturnValue(pending.promise)));
     cache.setQueryData(["questions", "replies", "owner_A", "question-1", "root-1"], {
       pages: [
         {
@@ -136,7 +137,7 @@ describe("nested reply privacy and failed pagination", () => {
       if (mode === "retry" && attempts === 1) return Promise.resolve(ok(null, 503));
       return pending.promise;
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     await press("Показать ответы на комментарий");
     if (mode === "retry") await press("Ещё вложенные ответы");
@@ -164,7 +165,7 @@ describe("nested reply privacy and failed pagination", () => {
       return Promise.resolve(ok(page([child(second ? "new-1" : "old-1",
         second ? "НОВАЯ ВЕТКА" : "СТАРАЯ ВЕТКА")], 2)));
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount(); await press("Показать ответы на комментарий");
     await press("Ещё вложенные ответы");
     await mount("owner_B", "question-2", "root-2");
@@ -194,7 +195,7 @@ describe("nested reply privacy and failed pagination", () => {
       return Promise.resolve(ok(page([child(root2 ? "new-1" : "old-1",
         root2 ? "ВЕТКА ДВА" : "ВЕТКА ОДИН")], 2)));
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await act(async () => root.render(
       <QueryClientProvider client={cache}>
         <section data-thread="one"><QuestionThreadReplies userId="A" questionId="question-1"
@@ -240,7 +241,7 @@ describe("nested reply privacy and failed pagination", () => {
           : ok(page([child("nested-1", "ПЕРВЫЙ ВЛОЖЕННЫЙ")], 2)),
       ),
     );
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     await press("Показать ответы на комментарий");
     await press("Ещё вложенные ответы");
@@ -264,7 +265,7 @@ describe("nested reply privacy and failed pagination", () => {
         ? ok(null, status)
         : ok(page([child("nested-1", "PRIVATE_FIRST_REPLY")], 2)));
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     expect(fetcher).not.toHaveBeenCalled();
     await press("Показать ответы на комментарий");
@@ -299,7 +300,7 @@ describe("nested reply privacy and failed pagination", () => {
             ? ok(page([child("nested-b", "VERIFIED_BRANCH_B")], 2))
             : ok(null, 503),
     ));
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await act(async () => root.render(
       <QueryClientProvider client={cache}>
         <section data-thread="one">
@@ -351,7 +352,7 @@ describe("nested reply privacy and failed pagination", () => {
     const fetcher = vi
       .fn()
       .mockImplementation(() => Promise.resolve(ok(page([child("nested-1", "Ответ A")]))));
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount("A");
     await press("Показать ответы на комментарий");
     expect(host.textContent).toContain("Ответ A");

@@ -84,6 +84,7 @@ describe("Web access-cookie recovery", () => {
       ["/api/v1/feed/posts", { method: "DELETE" }, 401],
       ["/api/v1/auth/me", {}, 401],
       ["/api/v1/feed/status", { credentials: "omit" }, 401],
+      ["/api/v1/public/platform-stats", {}, 401],
       ["/api/v1/feed/status", {}, 403],
       ["/api/v1/feed/status", {}, 404],
       ["/api/v1/feed/status", {}, 429],

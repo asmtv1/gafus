@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -61,10 +62,10 @@ async function mount() {
   // test's deferred transport. Return its real empty response schema without
   // consuming an unrelated feed promise or altering asserted feed request count.
   const scopedFetch = globalThis.fetch.bind(globalThis);
-  vi.stubGlobal("fetch", (path: string, options?: RequestInit) =>
+  vi.stubGlobal("fetch", withRejectedRefreshCookie((path: string, options?: RequestInit) =>
     path.startsWith("/api/v1/feed/me/pending-posts")
       ? Promise.resolve(res({ items: [], nextCursor: null }))
-      : scopedFetch(path, options));
+      : scopedFetch(path, options)));
   await act(async () =>
     root.render(
       <QueryClientProvider client={cache}>
@@ -110,7 +111,7 @@ describe("Moments current availability and pagination", () => {
   it("MO-R01 stale enabled and posts never authorize feed GET before status refresh", async () => {
     const p = later<Response>();
     const fetcher = vi.fn().mockReturnValue(p.promise);
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     cache.setQueryData(["moments", "status", "A"], { enabled: true, smartEnabled: true });
     cache.setQueryData(["moments", "list", "A", "new"], {
       pages: [{ items: [cached], nextCursor: null }],
@@ -128,7 +129,7 @@ describe("Moments current availability and pagination", () => {
   });
   it("MO-R02 HTTP401 status offers login and never queries feed", async () => {
     const fetcher = vi.fn().mockResolvedValue(res(null, 401));
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     cache.setQueryData(["moments", "status", "A"], { enabled: true, smartEnabled: false });
     await mount();
     expect(host.textContent).toContain("Сессия завершена");
@@ -139,11 +140,11 @@ describe("Moments current availability and pagination", () => {
     const p = later<Response>();
     vi.stubGlobal(
       "fetch",
-      vi.fn((url: string) =>
+      withRejectedRefreshCookie(vi.fn((url: string) =>
         url.endsWith("/status")
           ? Promise.resolve(res({ enabled: true, smartEnabled: false }))
           : p.promise,
-      ),
+      )),
     );
     cache.setQueryData(["moments", "list", "A", "new"], {
       pages: [{ items: [cached], nextCursor: null }],
@@ -170,7 +171,7 @@ describe("Moments current availability and pagination", () => {
       }
       return Promise.resolve(res({ items: [post("p1", "Первый")], nextCursor: "next123" }));
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     const more = [...host.querySelectorAll<HTMLButtonElement>("button")]
       .find((button) => button.textContent?.trim() === "Ещё публикации");
@@ -192,7 +193,7 @@ describe("Moments current availability and pagination", () => {
     const sorted = later<Response>();
     let oldCalls = 0;
     let sortedCalls = 0;
-    vi.stubGlobal("fetch", vi.fn((url: string) => {
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn((url: string) => {
       if (url.endsWith("/status"))
         return Promise.resolve(res({ enabled: true, smartEnabled: false }));
       if (url.includes("cursor=next123") && url.includes("sort=discussed")) {
@@ -206,7 +207,7 @@ describe("Moments current availability and pagination", () => {
       return Promise.resolve(res(url.includes("sort=discussed")
         ? { items: [post("s1", "Сортированные первые")], nextCursor: "next123" }
         : { items: [post("p1", "Новые первые")], nextCursor: "next123" }));
-    }));
+    })));
     await mount();
     const oldMore = [...host.querySelectorAll<HTMLButtonElement>("button")]
       .find((button) => button.textContent === "Ещё публикации");
@@ -244,7 +245,7 @@ describe("Moments current availability and pagination", () => {
         items: [post("post_A", "PRIVATE_FIRST_POST")], nextCursor: "next123",
       }));
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     expect(host.textContent).toContain("PRIVATE_FIRST_POST");
     expect(host.querySelector('a[href="/moments/new"]')).not.toBeNull();
@@ -270,7 +271,7 @@ describe("Moments current availability and pagination", () => {
     let attempt = 0;
     vi.stubGlobal(
       "fetch",
-      vi.fn((url: string) =>
+      withRejectedRefreshCookie(vi.fn((url: string) =>
         Promise.resolve(
           url.endsWith("/status")
             ? res({ enabled: true, smartEnabled: false })
@@ -280,7 +281,7 @@ describe("Moments current availability and pagination", () => {
                 : pendingRetry.promise
               : res({ items: [post("post_A", "ПЕРВЫЙ_ПОСТ")], nextCursor: "next123" }),
         ),
-      ),
+      )),
     );
     await mount();
     await press("Ещё публикации");
@@ -305,12 +306,12 @@ describe("Moments current availability and pagination", () => {
     window.history.replaceState(null, "", "/moments?ref=1#keep");
     cache.setQueryData(CURRENT_USER_QUERY_KEY,
       { id: "A", username: "owner", role: "USER" });
-    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn(async (url: string) => {
       if (url === "/api/v1/feed/status")
         return res({ enabled: true, smartEnabled: false });
       if (url.startsWith("/api/v1/feed/posts/")) return res(post("p1", "Пост"));
       return res({ items: [post("p1", "Пост")], nextCursor: null });
-    }));
+    })));
     await act(async () => root.render(
       <QueryClientProvider client={cache}><App /></QueryClientProvider>));
     await tick();await tick();
@@ -364,7 +365,7 @@ describe("Moments current availability and pagination", () => {
     const oldCursor = later<Response>();
     let sortedFirst = 0;
     let differentSortFirst = 0;
-    vi.stubGlobal("fetch", vi.fn((url: string) => {
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn((url: string) => {
       if (url === "/api/v1/feed/status")
         return Promise.resolve(res({ enabled: true, smartEnabled: false }));
       if (url.startsWith("/api/v1/feed/posts/"))
@@ -374,7 +375,7 @@ describe("Moments current availability and pagination", () => {
       if (url.includes("sort=popular"))differentSortFirst++;
       return Promise.resolve(res({ items: [post("p1", "Момент первый")],
         nextCursor: "next123" }));
-    }));
+    })));
     await act(async () => root.render(
       <QueryClientProvider client={cache}><App /></QueryClientProvider>));
     await tick();await tick();
@@ -409,13 +410,13 @@ describe("Moments current availability and pagination", () => {
     window.history.replaceState(null, "", "/moments?ref=KEEP#bookmark");
     cache.setQueryData(CURRENT_USER_QUERY_KEY,
       { id: "A", username: "person", role: "USER" });
-    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn(async (url: string) => {
       if (url === "/api/v1/feed/status")
         return res({ enabled: true, smartEnabled: false });
       if (url.startsWith("/api/v1/feed/posts/"))
         return res(post("p1", "Момент первый"));
       return res({ items: [post("p1", "Момент первый")], nextCursor: null });
-    }));
+    })));
     await act(async () => root.render(
       <QueryClientProvider client={cache}><App /></QueryClientProvider>));
     await tick();

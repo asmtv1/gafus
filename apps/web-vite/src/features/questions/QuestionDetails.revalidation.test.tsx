@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -92,7 +93,7 @@ describe("question detail fresh authorization and cursor safety", () => {
     "Q-D01 cached private detail never renders pending GET (edit=%s)",
     async (editMode) => {
       const pending = deferred<Response>();
-      vi.stubGlobal("fetch", vi.fn().mockReturnValue(pending.promise));
+      vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockReturnValue(pending.promise)));
       cache.setQueryData(["questions", "detail", "A", "question-1", "useful"], {
         pages: [{ ...base("STALE_PRIVATE_QUESTION"), canEdit: true, canManage: true }],
         pageParams: [1],
@@ -109,7 +110,7 @@ describe("question detail fresh authorization and cursor safety", () => {
     },
   );
   it("Q-D02 HTTP401 does not display stale draft and routes login", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(ok(null, 401)));
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockResolvedValue(ok(null, 401))));
     await mount();
     expect(host.textContent).toContain("Сессия завершена");
     expect(host.querySelector('a[href="/login"]')).not.toBeNull();
@@ -128,7 +129,7 @@ describe("question detail fresh authorization and cursor safety", () => {
       if (mode === "retry" && nextCalls === 1) return Promise.resolve(ok(null, 503));
       return deferredPage2.promise;
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     const find = (label: string) => [...host.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === label);
@@ -165,7 +166,7 @@ describe("question detail fresh authorization and cursor safety", () => {
         nextAnswerPage: 2,
       }));
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     const more = () => [...host.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Ещё ответы");
@@ -210,7 +211,7 @@ describe("question detail fresh authorization and cursor safety", () => {
       }
       return Promise.resolve(ok({ ...base(), answers: [firstAnswer], nextAnswerPage: 2 }));
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     const more = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === "Ещё ответы",
@@ -249,7 +250,7 @@ describe("question detail fresh authorization and cursor safety", () => {
         nextAnswerPage: 2,
       }));
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     expect(host.textContent).toContain("PRIVATE_PAGE_ONE_TITLE");
     expect(host.textContent).toContain("ПЕРВЫЙ ПОЛЕЗНЫЙ ОТВЕТ");
@@ -275,7 +276,7 @@ describe("question detail fresh authorization and cursor safety", () => {
   it("Q-D04 switching principal clears previous draft and permissions", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation(() => Promise.resolve(ok(base()))),
+      withRejectedRefreshCookie(vi.fn().mockImplementation(() => Promise.resolve(ok(base())))),
     );
     await mount("A");
     const input = host.querySelector<HTMLTextAreaElement>("#question-reply");
@@ -295,7 +296,7 @@ describe("question detail fresh authorization and cursor safety", () => {
     const fetcher = vi.fn((_url: string, options?: RequestInit) =>
       options?.method === "POST" ? oldPost.promise : Promise.resolve(ok(base())),
     );
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount("A");
     const input = host.querySelector<HTMLTextAreaElement>("#question-reply");
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;

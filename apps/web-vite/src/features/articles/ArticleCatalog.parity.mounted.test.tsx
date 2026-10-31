@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -73,7 +74,7 @@ describe("article catalog access, retry and narrow screen", () => {
   it("AC-M01 hides cached entitlement while server revalidates", async () => {
     const outstanding = deferred<Response>();
     const fetcher = vi.fn().mockReturnValue(outstanding.promise);
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     client.setQueryData(
       ["articles", "catalog", "owner_A"],
       [
@@ -98,7 +99,7 @@ describe("article catalog access, retry and narrow screen", () => {
   });
 
   it("keeps the page heading outside the article grid section, as in Next", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(envelope([article()])));
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockResolvedValue(envelope([article()]))));
     await mount();
     const heading = container.querySelector("h1.next-articles-heading");
     const catalog = container.querySelector("section.next-articles-index");
@@ -113,7 +114,7 @@ describe("article catalog access, retry and narrow screen", () => {
       ...article(), logoImg: "", imageUrls: [first,
         "uploads/trainers/trainer1/articles/article1/paid-gallery.webp"],
     }]));
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     const cover = container.querySelector<HTMLImageElement>(".article-catalog-card img");
     expect(cover?.getAttribute("src")).toBe(
@@ -132,7 +133,7 @@ describe("article catalog access, retry and narrow screen", () => {
   });
   it("AC-M02 HTTP401 offers login, not a futile retry or server payload", async () => {
     const fetcher = vi.fn().mockResolvedValue(envelope(null, 401));
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     expect(container.textContent).toContain("Сессия завершена");
     expect(container.querySelector('a[href="/login"]')).not.toBeNull();
@@ -146,7 +147,7 @@ describe("article catalog access, retry and narrow screen", () => {
       .fn()
       .mockResolvedValueOnce(envelope(null, 503))
       .mockResolvedValueOnce(envelope([article("Восстановлено", false)]));
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     expect(container.textContent).toContain("Не удалось загрузить статьи");
     expect(container.textContent).not.toContain("Статей пока нет");
@@ -168,7 +169,7 @@ describe("article catalog access, retry and narrow screen", () => {
       .fn()
       .mockResolvedValueOnce(envelope([article("Для пользователя A")]))
       .mockReturnValueOnce(next.promise);
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount("owner_A");
     expect(container.textContent).toContain("Для пользователя A");
     await mount("owner_B");
@@ -182,7 +183,7 @@ describe("article catalog access, retry and narrow screen", () => {
 
   it("AC-M05 an erroneous revalidation cannot republish stale entitlement", async () => {
     const pending = deferred<Response>();
-    vi.stubGlobal("fetch", vi.fn().mockReturnValue(pending.promise));
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockReturnValue(pending.promise)));
     const cached = article("Старая платная статья", true);
     client.setQueryData(
       ["articles", "catalog", "owner_A"],
@@ -209,7 +210,7 @@ describe("article catalog access, retry and narrow screen", () => {
   });
 
   it("AC-M06 HTTP403 denies the catalog without retry or private error body", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(envelope(null, 403)));
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockResolvedValue(envelope(null, 403))));
     await mount();
     expect(container.textContent).toContain("Нет доступа к разделу статей");
     expect(container.querySelector(".article-catalog-card")).toBeNull();
@@ -218,7 +219,7 @@ describe("article catalog access, retry and narrow screen", () => {
   });
 
   it("AC-M07 releases the per-user catalog cache on screen unmount", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(envelope([article()])));
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockResolvedValue(envelope([article()]))));
     await mount();
     const key = ["articles", "catalog", "owner_A"];
     expect(client.getQueryData(key)).toBeDefined();

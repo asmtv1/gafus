@@ -121,6 +121,7 @@ export async function apiRequest<T>(
   // auth routes, or explicitly unauthenticated calls.
   if (response.status === 401 && method === "GET" &&
     options.credentials !== "omit" && !path.startsWith("/api/v1/auth/") &&
+    !path.startsWith("/api/v1/public/") &&
     !options.signal?.aborted) {
     let renewed = refreshEpoch !== observedRefreshEpoch;
     if (!renewed) {

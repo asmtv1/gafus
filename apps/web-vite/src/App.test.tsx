@@ -86,7 +86,11 @@ describe("Vite SPA guest flow", () => {
       await act(async () => root.render(createElement(
         QueryClientProvider, { client: cache }, createElement(App),
       )));
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
+      await waitForLazyRoute(
+        () => window.location.pathname === "/" &&
+          container.querySelector('[data-ui-parity="legacy-landing"]') !== null,
+        "guest /pets deep link must redirect to the fully loaded public landing",
+      );
       expect(window.location.pathname).toBe("/");
       expect(container.querySelector('[data-ui-parity="legacy-landing"]')).not.toBeNull();
       expect(paths.slice(0,2)).toEqual(["/api/v1/auth/me", "/api/v1/auth/refresh"]);
@@ -116,7 +120,11 @@ describe("Vite SPA guest flow", () => {
       await act(async () => root.render(createElement(
         QueryClientProvider, { client: cache }, createElement(App),
       )));
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
+      await waitForLazyRoute(
+        () => window.location.pathname === "/" &&
+          host.querySelector('[data-ui-parity="legacy-landing"]') !== null,
+        "guest question deep link must redirect to the public landing",
+      );
       expect(window.location.pathname).toBe("/");
       expect(host.querySelector('[data-ui-parity="legacy-landing"]')).not.toBeNull();
       expect(paths.slice(0,2)).toEqual(["/api/v1/auth/me", "/api/v1/auth/refresh"]);

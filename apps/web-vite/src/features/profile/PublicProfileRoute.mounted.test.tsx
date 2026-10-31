@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 /** WEB040 existing profile + AG1 public GET exact App-route acceptance. */
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -77,7 +78,7 @@ beforeEach(()=>{
   url.startsWith("/api/v1/user/profile/public?username=")?
    response(publicUser(decodeURIComponent(url.split("=")[1]))):
   url==="/api/v1/user/onboarding-tour"?response({hasSeenV1:true}):response(null));
- vi.stubGlobal("fetch",network);
+ vi.stubGlobal("fetch",withRejectedRefreshCookie(network));
  host=document.createElement("div");document.body.append(host);root=createRoot(host);
  window.history.replaceState(null,"","/");
 });

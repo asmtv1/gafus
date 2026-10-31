@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -92,7 +93,7 @@ describe("FEED-031 author and post fresh-read publication boundary", () => {
   it("F-R01 cached enabled status cannot initiate profile posts GET", async () => {
     const pending = deferred<Response>();
     const fetcher = vi.fn().mockReturnValue(pending.promise);
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     cache.setQueryData(["moments", "status", "viewer"], { enabled: true, smartEnabled: false });
     cache.setQueryData(["moments", "profile", "viewer", "trainer"], {
       pages: [{ items: [projected], nextCursor: null }],
@@ -112,7 +113,7 @@ describe("FEED-031 author and post fresh-read publication boundary", () => {
     const fetcher = vi.fn((url: string) =>
       url.endsWith("/status") ? Promise.resolve(response({ enabled: true })) : pending.promise,
     );
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     cache.setQueryData(["moments", "profile", "viewer", "trainer"], {
       pages: [{ items: [projected], nextCursor: null }],
       pageParams: [null],
@@ -142,7 +143,7 @@ describe("FEED-031 author and post fresh-read publication boundary", () => {
               nextCursor: "next1" }),
       );
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount("profile");
     expect(host.textContent).toContain("PRIVATE_VERIFIED_AUTHOR_POST");
     expect(host.querySelector('a[href="/moments/post-1"]')).not.toBeNull();
@@ -166,7 +167,7 @@ describe("FEED-031 author and post fresh-read publication boundary", () => {
     let second = 0;
     vi.stubGlobal(
       "fetch",
-      vi.fn((url: string) =>
+      withRejectedRefreshCookie(vi.fn((url: string) =>
         Promise.resolve(
           url.endsWith("/status")
             ? response({ enabled: true })
@@ -176,7 +177,7 @@ describe("FEED-031 author and post fresh-read publication boundary", () => {
                 : response({ items: [raw("post-2", "Второй пост автора")], nextCursor: null })
               : response({ items: [raw("post-1", "Первый пост автора")], nextCursor: "next1" }),
         ),
-      ),
+      )),
     );
     await mount("profile");
     await click("Ещё публикации");
@@ -200,7 +201,7 @@ describe("FEED-031 author and post fresh-read publication boundary", () => {
       if (mode === "retry" && second === 1) return Promise.resolve(response(null, 503));
       return waiting.promise;
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount("profile");
     if (mode === "retry") await click("Ещё публикации");
     const button = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
@@ -237,7 +238,7 @@ describe("FEED-031 author and post fresh-read publication boundary", () => {
       flight++;
       return flight === 1 ? old.promise : fresh.promise;
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount("profile");
     await click("Ещё публикации");
     expect(flight).toBe(1);
@@ -275,7 +276,7 @@ describe("FEED-031 author and post fresh-read publication boundary", () => {
   it("F-R04 cached status cannot authorize standalone post GET or old detail", async () => {
     const pending = deferred<Response>();
     const fetcher = vi.fn().mockReturnValue(pending.promise);
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     cache.setQueryData(["moments", "status", "viewer"], { enabled: true, smartEnabled: false });
     cache.setQueryData(["moments", "post", "viewer", "post-1"], projected);
     await mount("detail");
@@ -292,7 +293,7 @@ describe("FEED-031 author and post fresh-read publication boundary", () => {
     const fetcher = vi.fn((url: string) =>
       url.endsWith("/status") ? Promise.resolve(response({ enabled: true })) : pending.promise,
     );
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     cache.setQueryData(["moments", "post", "viewer", "post-1"], projected);
     await mount("detail");
     expect(host.textContent).toContain("Перепроверяем публикацию");
@@ -305,7 +306,7 @@ describe("FEED-031 author and post fresh-read publication boundary", () => {
   });
   it("F-R06 status 401 offers login and does not load post", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(null, 401));
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     cache.setQueryData(["moments", "status", "viewer"], { enabled: true, smartEnabled: false });
     await mount("detail");
     expect(host.textContent).toContain("Сессия завершена");

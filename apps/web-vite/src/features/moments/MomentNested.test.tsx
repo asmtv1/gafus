@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -31,7 +32,7 @@ async function mount(
   element: React.ReactElement, fetcher: ReturnType<typeof vi.fn>,
 ) {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  vi.stubGlobal("fetch", fetcher);
+  vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
   const host = document.createElement("div"); document.body.append(host);
   const root = createRoot(host);
   const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });

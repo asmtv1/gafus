@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -10,9 +11,9 @@ afterEach(() => vi.unstubAllGlobals());
 
 async function display(userId: string, responseData: unknown, galleryNavOnly = false) {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+  vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockResolvedValue(
     new Response(JSON.stringify({ success: true, data: responseData }), { status: 200 }),
-  ));
+  )));
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -117,13 +118,13 @@ describe("isolated profile overview", () => {
     try {
       const updated = { ...original, profile: { ...original.profile, city: "Казань" } };
       const requests: { path: string; options: RequestInit }[] = [];
-      vi.stubGlobal("fetch", vi.fn((path: string, options: RequestInit) => {
+      vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn((path: string, options: RequestInit) => {
         requests.push({ path, options });
         const isUpdate = options?.method === "PUT";
         return Promise.resolve(new Response(JSON.stringify({
           success: true, data: isUpdate ? { userId: "A" } : updated,
         }), { status: 200 }));
-      }));
+      })));
       // Next retained this action as a navigable link (native Ctrl/Meta-click).
       // A plain click invokes the SPA editor without a full document reload.
       const edit = result.container.querySelector<HTMLAnchorElement>(
@@ -163,9 +164,9 @@ describe("isolated profile overview", () => {
     };
     const result = await display("A", original);
     try {
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockResolvedValue(new Response(JSON.stringify({
         success: false, error: "Не доступно",
-      }), { status: 503 })));
+      }), { status: 503 }))));
       // Next retained this action as a navigable link (native Ctrl/Meta-click).
       // A plain click invokes the SPA editor without a full document reload.
       const edit = result.container.querySelector<HTMLAnchorElement>(
@@ -234,7 +235,7 @@ async function studentNotesProfile(fetcher: ReturnType<typeof vi.fn>, userId = "
   // activity/settings; open the real existing /profile?tab=notes route.
   window.history.replaceState(null, "", "/profile?tab=notes");
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  vi.stubGlobal("fetch", fetcher);
+  vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
   const container = document.createElement("div"); document.body.appendChild(container);
   const root = createRoot(container);
   const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });

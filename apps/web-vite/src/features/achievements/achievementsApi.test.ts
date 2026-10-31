@@ -1,3 +1,4 @@
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import {afterEach,describe,expect,it,vi} from "vitest";
 import {
   getOwnerAchievementStats,getOwnerTrainingDates,projectAchievementStats,
@@ -63,7 +64,7 @@ describe("AG2 WEB-URL-005 existing Hono DTO projections",()=>{
   it("A14 GET stats uses exact Hono path, cookie auth, no POST",async()=>{
     const fetcher=vi.fn(async()=>new Response(JSON.stringify({success:true,data:stats}),
       {status:200}));
-    vi.stubGlobal("fetch",fetcher);
+    vi.stubGlobal("fetch",withRejectedRefreshCookie(fetcher));
     const result=await getOwnerAchievementStats();
     expect(result.totalCourses).toBe(3);
     expect(fetcher).toHaveBeenCalledExactlyOnceWith("/api/v1/achievements",
@@ -73,7 +74,7 @@ describe("AG2 WEB-URL-005 existing Hono DTO projections",()=>{
   it("A15 GET training dates uses exact route, nothing persisted",async()=>{
     const fetcher=vi.fn(async()=>new Response(JSON.stringify({success:true,data:dates}),
       {status:200}));
-    vi.stubGlobal("fetch",fetcher);
+    vi.stubGlobal("fetch",withRejectedRefreshCookie(fetcher));
     const result=await getOwnerTrainingDates();
     expect(result.dates).toHaveLength(2);
     expect(fetcher).toHaveBeenCalledExactlyOnceWith(
@@ -84,7 +85,7 @@ describe("AG2 WEB-URL-005 existing Hono DTO projections",()=>{
     const fetcher=vi.fn(async()=>new Response(JSON.stringify({
       success:false,error:"PRIVATE_BACKEND_MESSAGE",
     }),{status}));
-    vi.stubGlobal("fetch",fetcher);
+    vi.stubGlobal("fetch",withRejectedRefreshCookie(fetcher));
     await expect(getOwnerAchievementStats()).rejects.toMatchObject({status});
     expect(fetcher).toHaveBeenCalledTimes(1);
   });

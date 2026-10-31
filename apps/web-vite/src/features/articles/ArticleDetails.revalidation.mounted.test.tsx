@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -73,7 +74,7 @@ afterEach(async () => {
 describe("article detail fresh access before private content publication", () => {
   it("AD-R01 hides previously entitled HTML while rechecking access", async () => {
     const pending = deferred<Response>();
-    vi.stubGlobal("fetch", vi.fn().mockReturnValue(pending.promise));
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockReturnValue(pending.promise)));
     client.setQueryData(cacheKey("owner_A"), makeArticle(true, "<p>STALE_PRIVATE_ARTICLE</p>"));
     await mount();
     expect(container.textContent).toContain("Проверяем доступ к статье");
@@ -86,7 +87,7 @@ describe("article detail fresh access before private content publication", () =>
 
   it("AD-R02 cached private HTML never survives server 404", async () => {
     const pending = deferred<Response>();
-    vi.stubGlobal("fetch", vi.fn().mockReturnValue(pending.promise));
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockReturnValue(pending.promise)));
     client.setQueryData(cacheKey("owner_A"), makeArticle(true, "<p>SECRET_OLD_ACCESS</p>"));
     await mount();
     expect(container.innerHTML).not.toContain("SECRET_OLD_ACCESS");
@@ -111,7 +112,7 @@ describe("article detail fresh access before private content publication", () =>
       }
       throw Error("UNAPPROVED_ARTICLE_REQUEST");
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount("owner_A");
     expect(container.textContent).toContain("PRIVATE_A");
     await mount("owner_B");
@@ -125,7 +126,7 @@ describe("article detail fresh access before private content publication", () =>
 
   it("AD-R04 HTTP401 provides login and no automatic retry", async () => {
     const fetcher = vi.fn().mockResolvedValue(response(null, 401));
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     expect(container.textContent).toContain("Сессия завершена");
     expect(container.querySelector('a[href="/login"]')).not.toBeNull();
@@ -139,7 +140,7 @@ describe("article detail fresh access before private content publication", () =>
       .fn()
       .mockResolvedValueOnce(response(null, 503))
       .mockResolvedValueOnce(response(makeArticle(true, "<p>Новое содержимое</p>")));
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     const retry = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === "Повторить",

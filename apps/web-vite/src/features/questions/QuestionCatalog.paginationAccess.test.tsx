@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -80,7 +81,7 @@ afterEach(async () => {
 describe("questions catalog owner/pagination source parity", () => {
   it("Q-C01 stale cached canPublish and card hidden while fresh GET pending", async () => {
     const pending = deferred<Response>();
-    vi.stubGlobal("fetch", vi.fn().mockReturnValue(pending.promise));
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockReturnValue(pending.promise)));
     cache.setQueryData(["questions", "catalog", "owner_A", "new", false], {
       pages: [page([q("old-1", "ПРЕЖНИЙ ПРИВАТНЫЙ ВОПРОС")])],
       pageParams: [1],
@@ -98,7 +99,7 @@ describe("questions catalog owner/pagination source parity", () => {
   });
   it("Q-C02 401 closes cached catalog and offers login, without retry", async () => {
     const pending = deferred<Response>();
-    vi.stubGlobal("fetch", vi.fn().mockReturnValue(pending.promise));
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn().mockReturnValue(pending.promise)));
     cache.setQueryData(["questions", "catalog", "owner_A", "new", false], {
       pages: [page([q("old-1", "Закрытый вопрос")])],
       pageParams: [1],
@@ -122,7 +123,7 @@ describe("questions catalog owner/pagination source parity", () => {
       if (url.includes("page=2")) return Promise.resolve(response(null, status));
       return Promise.resolve(response(page([q("q-1", "PRIVATE_QUESTION_TITLE")], 2)));
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     expect(host.textContent).toContain("PRIVATE_QUESTION_TITLE");
     expect(host.querySelector('a[href="/questions/new"]')).not.toBeNull();
@@ -151,7 +152,7 @@ describe("questions catalog owner/pagination source parity", () => {
       }
       return Promise.resolve(response(page([q("q-1", "Первый вопрос")], 2)));
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     await press("Ещё вопросы");
     expect(host.textContent).toContain("Первый вопрос");
@@ -182,7 +183,7 @@ describe("questions catalog owner/pagination source parity", () => {
       }
       return Promise.resolve(response(page([q("q1", "Первый")], 2)));
     });
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount();
     const more = [...host.querySelectorAll<HTMLButtonElement>("button")]
       .find((button) => button.textContent?.trim() === "Ещё вопросы");
@@ -204,7 +205,7 @@ describe("questions catalog owner/pagination source parity", () => {
     const active = deferred<Response>();
     let oldCalls = 0;
     let activeCalls = 0;
-    vi.stubGlobal("fetch", vi.fn((url: string) => {
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn((url: string) => {
       if (url.includes("page=2") && url.includes("category=")) {
         activeCalls++;
         return active.promise;
@@ -216,7 +217,7 @@ describe("questions catalog owner/pagination source parity", () => {
       return Promise.resolve(response(url.includes("category=")
         ? page([q("cat1", "Категория: первая")], 2)
         : page([q("old1", "Все: первая")], 2)));
-    }));
+    })));
     await mount();
     const first = [...host.querySelectorAll<HTMLButtonElement>("button")]
       .find((button) => button.textContent === "Ещё вопросы");
@@ -248,7 +249,7 @@ describe("questions catalog owner/pagination source parity", () => {
     const ownerB = deferred<Response>();
     let firstPages = 0;
     let pageTwo = 0;
-    vi.stubGlobal("fetch", vi.fn((url: string) => {
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn((url: string) => {
       if (url.includes("page=2")) {
         pageTwo++;
         return pageTwo === 1 ? old.promise : ownerB.promise;
@@ -257,7 +258,7 @@ describe("questions catalog owner/pagination source parity", () => {
       return Promise.resolve(response(firstPages === 1
         ? page([q("a1", "Вопрос A")], 2)
         : page([q("b1", "Вопрос B")], 2)));
-    }));
+    })));
     await mount("owner_A");
     const moreA = [...host.querySelectorAll<HTMLButtonElement>("button")]
       .find((button) => button.textContent === "Ещё вопросы");
@@ -285,7 +286,7 @@ describe("questions catalog owner/pagination source parity", () => {
       .mockImplementationOnce(() =>
         Promise.resolve(response(page([q("b-1", "Вопрос B")], null, false))),
       );
-    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(fetcher));
     await mount("owner_A");
     await mount("owner_B");
     expect(host.textContent).toContain("Вопрос B");
@@ -299,11 +300,11 @@ describe("questions catalog owner/pagination source parity", () => {
     window.history.replaceState(null, "", "/questions?keep=1#bookmark");
     cache.setQueryData(CURRENT_USER_QUERY_KEY,
       { id: "owner_A", username: "user", role: "USER" });
-    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn(async (url: string) =>
       url.startsWith("/api/v1/questions/") ? response({ ...q("q1", "Вопрос"),
         closed: false, canReply: false, canManage: false, canEdit: false,
         blockReason: null, photos: [], tags: [], answers: [], nextAnswerPage: null })
-        : response(page([q("q1", "Вопрос")]))));
+        : response(page([q("q1", "Вопрос")])))));
     await act(async () => root.render(
       <QueryClientProvider client={cache}><App /></QueryClientProvider>));
     await settle();
@@ -373,7 +374,7 @@ describe("questions catalog owner/pagination source parity", () => {
     const oldPage = deferred<Response>();
     let filteredFirstPages = 0;
     let freshDifferentSort = 0;
-    vi.stubGlobal("fetch", vi.fn((url: string) => {
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn((url: string) => {
       if (url.startsWith("/api/v1/questions/"))
         return Promise.resolve(response({ ...q("q1", "Вопрос"),
           closed: false, canReply: false, canManage: false, canEdit: false,
@@ -382,7 +383,7 @@ describe("questions catalog owner/pagination source parity", () => {
       if (url.includes("sort=active"))filteredFirstPages++;
       if (url.includes("sort=unanswered"))freshDifferentSort++;
       return Promise.resolve(response(page([q("q1", "Вопрос")], 2)));
-    }));
+    })));
     await act(async () => root.render(
       <QueryClientProvider client={cache}><App /></QueryClientProvider>));
     await settle();
@@ -434,13 +435,13 @@ describe("questions catalog owner/pagination source parity", () => {
       hasPoll: false, canEdit: false, reactions: [], attachments: [],
       author: { id: "writer", username: "writer", name: "Автор", role: "USER" },
     };
-    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn(async (url: string) => {
       if (url === "/api/v1/feed/status")
         return response({ enabled: true, smartEnabled: false });
       if (url.startsWith("/api/v1/feed/posts"))
         return response({ items: [post], nextCursor: null });
       return response(page([q("q1", "Вопрос")]));
-    }));
+    })));
     await act(async () => root.render(
       <QueryClientProvider client={cache}><App /></QueryClientProvider>));
     // The App lazy-imported Questions route is not guaranteed to transform in
@@ -498,12 +499,12 @@ describe("questions catalog owner/pagination source parity", () => {
     window.history.replaceState(null, "", "/questions?ref=KEEP#anchor");
     cache.setQueryData(CURRENT_USER_QUERY_KEY,
       { id: "owner_A", username: "owner", role: "USER" });
-    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(vi.fn(async (url: string) =>
       url.startsWith("/api/v1/questions/")
         ? response({ ...q("q1", "Поводок и занятия"),
             closed: false, canReply: false, canManage: false, canEdit: false,
             blockReason: null, photos: [], tags: [], answers: [], nextAnswerPage: null })
-        : response(page([q("q1", "Поводок и занятия")]))));
+        : response(page([q("q1", "Поводок и занятия")])))));
     await act(async () => root.render(
       <QueryClientProvider client={cache}><App /></QueryClientProvider>));
     await settle();

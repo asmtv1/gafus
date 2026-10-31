@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -57,7 +58,7 @@ describe("WEB4 owner drafts cursor recovery", () => {
       }
       throw Error("UNEXPECTED_PATH");
     });
-    vi.stubGlobal("fetch", network);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(network));
     await act(async () => root.render(<QueryClientProvider client={cache}>
       <MomentDrafts userId="owner" />
     </QueryClientProvider>));
@@ -82,7 +83,7 @@ describe("WEB4 owner drafts cursor recovery", () => {
         return response(null, 401);
       throw Error("UNEXPECTED_PATH");
     });
-    vi.stubGlobal("fetch", network);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(network));
     await act(async () => root.render(<QueryClientProvider client={cache}>
       <MomentDrafts userId="owner" />
     </QueryClientProvider>));
@@ -109,7 +110,7 @@ describe("WEB4 owner drafts cursor recovery", () => {
       }
       throw Error("UNEXPECTED_PATH");
     });
-    vi.stubGlobal("fetch", network);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(network));
     await act(async () => root.render(<QueryClientProvider client={cache}>
       <MomentDrafts userId="owner" />
     </QueryClientProvider>));
@@ -145,7 +146,7 @@ describe("WEB4 owner drafts cursor recovery", () => {
         return response(null, 503);
       throw Error("UNEXPECTED_PATH");
     });
-    vi.stubGlobal("fetch", network);
+    vi.stubGlobal("fetch", withRejectedRefreshCookie(network));
     await act(async () => root.render(<QueryClientProvider client={cache}>
       <MomentDrafts userId="owner" />
     </QueryClientProvider>));
