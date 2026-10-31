@@ -46,6 +46,13 @@ if (process.argv.includes('--list')) {
             keys:Object.keys(root).slice(0,14),
             cdnKeys:Object.keys(root.cdn??{}).slice(0,30),
             cdnSettingsKeys:Object.keys(root.cdn?.settings??{}).slice(0,30),
+            settings:{
+              secureTokenEnabled:root.cdn?.settings?.tokenized_url_secure_key?.enabled ?? null,
+              staticRequestHeadersEnabled:root.cdn?.settings?.static_request_headers?.enabled ?? null,
+              sourceDomainKeys:Object.keys(root.cdn?.source_domain??{}).slice(0,12),
+              headerFields:Object.keys(root.cdn?.settings?.static_request_headers??{}).slice(0,10),
+              enabledProtocols:Object.keys(root.cdn?.settings?.allowed_http_methods??{}).slice(0,10),
+            },
             hasGalleryHost:text.includes('mepsuduyokabib.begetcdn.cloud'),
             hasFeedHost:text.includes('quepraquiecebquomiel.begetcdn.cloud'),
             hasRemovedFeedHost:text.includes('garaquachegasourn.begetcdn.cloud'),
