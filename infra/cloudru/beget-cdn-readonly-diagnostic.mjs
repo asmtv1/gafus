@@ -44,6 +44,8 @@ if (process.argv.includes('--list')) {
           details.push({
             id:candidate.id,status:reply.status,
             keys:Object.keys(root).slice(0,14),
+            cdnKeys:Object.keys(root.cdn??{}).slice(0,30),
+            cdnSettingsKeys:Object.keys(root.cdn?.settings??{}).slice(0,30),
             hasGalleryHost:text.includes('mepsuduyokabib.begetcdn.cloud'),
             hasFeedHost:text.includes('quepraquiecebquomiel.begetcdn.cloud'),
             hasRemovedFeedHost:text.includes('garaquachegasourn.begetcdn.cloud'),
