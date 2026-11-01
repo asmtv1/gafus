@@ -11,7 +11,8 @@ function enabled() {
   process.env.BEGET_CDN_PURGE_API_VERIFIED = "true";
   process.env.BEGET_CDN_CACHE_KEY_VERIFIED = "true";
   process.env.BEGET_CDN_API_TOKEN = "mock-token-test-only-000000000000000";
-  process.env.GALLERY_BEGET_CDN_SERVICE_ID = "0a8e97d5-3a65-4e90-99a6-c7f61131a461";
+  process.env.GALLERY_BEGET_CDN_SERVICE_ID = "96cd124e-767e-4af1-a568-c4d1f9b4e73f";
+  process.env.GALLERY_CDN_REDIRECT_SIGNING_SECRET = "N".repeat(32);
 }
 describe("Beget exact-path purge", () => {
   it("fails closed without verified Beget API credentials and expected service ID", async () => {
@@ -34,14 +35,14 @@ describe("Beget exact-path purge", () => {
   });
   it("posts scoped exact paths to Beget API, checkpoints and never repeats a known submission", async () => {
     enabled();
-    const network = vi.fn().mockResolvedValue(Response.json({ cdn: { id: "0a8e97d5-3a65-4e90-99a6-c7f61131a461" } }));
+    const network = vi.fn().mockResolvedValue(Response.json({ cdn: { id: "96cd124e-767e-4af1-a568-c4d1f9b4e73f" } }));
     vi.stubGlobal("fetch", network);
     const checkpoint = vi.fn();
     const path = "/albums/a/b/photos/c/thumb.webp";
     const ops = await beginBegetCdnPurge("gallery", [path], [], checkpoint);
     expect(network).toHaveBeenCalledWith(
-      "https://api.beget.com/v1/cloud/cdn/0a8e97d5-3a65-4e90-99a6-c7f61131a461/purge-cache-by-paths",
-      expect.objectContaining({ method: "POST", body: JSON.stringify({ service_id: "0a8e97d5-3a65-4e90-99a6-c7f61131a461", path: [path] }) }),
+      "https://api.beget.com/v1/cloud/cdn/96cd124e-767e-4af1-a568-c4d1f9b4e73f/purge-cache-by-paths",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ service_id: "96cd124e-767e-4af1-a568-c4d1f9b4e73f", path: [path] }) }),
     );
     expect(ops[0]).toMatch(/^beget:[a-f0-9]{64}:\d{13}:gallery:[A-Za-z0-9_-]+$/);
     expect(checkpoint).toHaveBeenCalledTimes(1);
@@ -68,7 +69,7 @@ describe("Beget exact-path purge", () => {
   it("accepts exact Gallery V2 WebP paths for guarded Beget purge submissions", async () => {
     enabled();
     const network = vi.fn().mockResolvedValue(Response.json({ cdn: {
-      id: "0a8e97d5-3a65-4e90-99a6-c7f61131a461",
+      id: "96cd124e-767e-4af1-a568-c4d1f9b4e73f",
     } }));
     vi.stubGlobal("fetch", network);
     const keys = ["/gallery/owner/media/photo/v2/thumb.webp",
@@ -79,19 +80,19 @@ describe("Beget exact-path purge", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          service_id: "0a8e97d5-3a65-4e90-99a6-c7f61131a461", path: keys,
+          service_id: "96cd124e-767e-4af1-a568-c4d1f9b4e73f", path: keys,
         }),
       }));
   });
   it("does not confuse API acknowledgment with confirmed deletion at CDN edge", async () => {
     enabled();
     const now = Date.now();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ cdn: { id: '0a8e97d5-3a65-4e90-99a6-c7f61131a461' } })));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ cdn: { id: '96cd124e-767e-4af1-a568-c4d1f9b4e73f' } })));
     const [op] = await beginBegetCdnPurge('gallery', ['/albums/a/b/photos/c/full.webp'], []);
     expect(op).toBeTruthy();
     const verified = { ...process.env, BEGET_CDN_PURGE_PROPAGATION_VERIFIED: 'true',
-      GALLERY_CDN_SECRET: 'A'.repeat(32),
-      GALLERY_CDN_BASE_URL: 'https://mepsuduyokabib.begetcdn.cloud' };
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: 'A'.repeat(32),
+      GALLERY_CDN_BASE_URL: 'https://fupiquafifeswu.begetcdn.cloud' };
     await expect(begetCdnPurgeDone(op!, now + 301_000)).rejects.toThrow('BEGET_CDN_PURGE_NOT_VERIFIED');
     const edge = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
     expect(await begetCdnPurgeDone(op!, now + 100_000, verified, edge)).toBe(false);
@@ -100,12 +101,12 @@ describe("Beget exact-path purge", () => {
     expect(edge).toHaveBeenCalledTimes(2);
     expect(edge.mock.calls.map(call => call[1].method)).toEqual(['HEAD', 'GET']);
     const signedUrl: string = edge.mock.calls[0]![0];
-    expect(signedUrl).toMatch(/^https:\/\/mepsuduyokabib\.begetcdn\.cloud\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\/a\/b\/photos\/c\/full\.webp$/);
-    expect(signedUrl).not.toContain(verified.GALLERY_CDN_SECRET);
+    expect(signedUrl).toMatch(/^https:\/\/fupiquafifeswu\.begetcdn\.cloud\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\/a\/b\/photos\/c\/full\.webp$/);
+    expect(signedUrl).not.toContain(verified.GALLERY_CDN_REDIRECT_SIGNING_SECRET);
     // Gallery's already-provisioned production key may be longer than 32
     // characters. Purge verification must not force key rotation.
     expect(await begetCdnPurgeDone(op!, now + 400_000, {
-      ...verified, GALLERY_CDN_SECRET: 'B'.repeat(64),
+      ...verified, GALLERY_CDN_REDIRECT_SIGNING_SECRET: 'B'.repeat(64),
     }, edge)).toBe(true);
     edge.mockReset().mockResolvedValue(new Response(null, { status: 200 }));
     expect(await begetCdnPurgeDone(op!, now + 400_000, verified, edge)).toBe(false);
@@ -118,7 +119,7 @@ describe("Beget exact-path purge", () => {
   });
   it("verifies only exact new Feed WebP/MP4 paths using Beget query Secure Token", async () => {
     enabled();
-    process.env.FEED_BEGET_CDN_SERVICE_ID = "becd9e5d-4fa8-47da-878c-9b80ded74e71";
+    process.env.FEED_BEGET_CDN_SERVICE_ID = "cbb7fe86-a193-457e-a756-9cf3aa2aef1b";
     const api = vi.fn().mockResolvedValue(Response.json({ cdn: { id: process.env.FEED_BEGET_CDN_SERVICE_ID } }));
     vi.stubGlobal("fetch", api);
     const path = "/media/v2/sample/v1/video/360.mp4";
@@ -128,7 +129,7 @@ describe("Beget exact-path purge", () => {
     const now = Date.now() + 400_000;
     const secret = "M".repeat(28);
     const verified = { ...process.env, BEGET_CDN_PURGE_PROPAGATION_VERIFIED: "true",
-      FEED_CDN_SECRET: secret, FEED_CDN_BASE_URL: "https://garaquachegasourn.begetcdn.cloud" };
+      FEED_CDN_SECRET: secret, FEED_CDN_BASE_URL: "https://quepraquiecebquomiel.begetcdn.cloud" };
     expect(await begetCdnPurgeDone(op!, now, verified, edge)).toBe(true);
     const url = new URL(edge.mock.calls[0]![0]);
     const expires = Number(url.searchParams.get("expires"));
@@ -148,43 +149,29 @@ describe("Beget exact-path purge", () => {
   });
 });
 
-describe("Gallery old/new CDN dual purge during secure redirect migration", () => {
-  it("purges both services independently, checks both edge hosts and remains rollback-safe", async () => {
+describe("Gallery SigV4 Hono redirect CDN purge", () => {
+  it("only purges the new service, deduplicates receipts and verifies its signed edge", async () => {
     enabled();
     Object.assign(process.env, {
-      GALLERY_CDN_PURGE_DUAL_ENABLED: "true",
-      GALLERY_BEGET_CDN_SERVICE_ID: "96cd124e-767e-4af1-a568-c4d1f9b4e73f",
       GALLERY_CDN_BASE_URL: "https://fupiquafifeswu.begetcdn.cloud",
-      GALLERY_CDN_SECRET: "O".repeat(32),
-      GALLERY_CDN_REDIRECT_SIGNING_SECRET: "N".repeat(32),
       BEGET_CDN_PURGE_PROPAGATION_VERIFIED: "true",
     });
-    const api = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({cdn:{id:"accepted"}}));
+    const api = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => Response.json({ cdn: { id: "accepted" } }));
     vi.stubGlobal("fetch", api);
     const checkpoint = vi.fn();
     const paths = ["/albums/a/b/photos/p/thumb.webp"];
     const ops = await beginBegetCdnPurge("gallery", paths, [], checkpoint);
-    expect(ops).toHaveLength(2);
-    expect(api).toHaveBeenCalledTimes(2);
-    expect(checkpoint).toHaveBeenCalledTimes(2);
-    expect(api.mock.calls.map(c=>String(c[0]))).toEqual(expect.arrayContaining([
-      expect.stringContaining("/0a8e97d5-3a65-4e90-99a6-c7f61131a461/"),
-      expect.stringContaining("/96cd124e-767e-4af1-a568-c4d1f9b4e73f/"),
-    ]));
+    expect(ops).toHaveLength(1);
+    expect(api).toHaveBeenCalledTimes(1);
+    expect(checkpoint).toHaveBeenCalledTimes(1);
+    expect(String(api.mock.calls[0]![0])).toContain("/96cd124e-767e-4af1-a568-c4d1f9b4e73f/");
     expect(await beginBegetCdnPurge("gallery", paths, ops)).toEqual(ops);
-    expect(api).toHaveBeenCalledTimes(2);
-    const edge = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => new Response(null,{status:404}));
-    for (const receipt of ops)
-      expect(await begetCdnPurgeDone(receipt,Date.now()+400000,{...process.env},edge)).toBe(true);
-    const urls = edge.mock.calls.map(c=>String(c[0]));
-    expect(urls.some(url=>url.includes("mepsuduyokabib.begetcdn.cloud"))).toBe(true);
-    expect(urls.some(url=>url.includes("fupiquafifeswu.begetcdn.cloud"))).toBe(true);
-    const old = { ...process.env, GALLERY_BEGET_CDN_SERVICE_ID:"0a8e97d5-3a65-4e90-99a6-c7f61131a461",
-      GALLERY_CDN_BASE_URL:"https://mepsuduyokabib.begetcdn.cloud" };
-    expect(await begetCdnPurgeDone(ops[1]!,Date.now()+400000,old,edge)).toBe(true);
-    await expect(begetCdnPurgeDone(ops[1]!,Date.now()+400000,
-      {...old,GALLERY_CDN_PURGE_DUAL_ENABLED:"false"},edge)).rejects.toThrow("BEGET_CDN_UNSAFE_OPERATION");
-    edge.mockReset().mockResolvedValue(new Response(null,{status:410}));
-    expect(await begetCdnPurgeDone(ops[0]!,Date.now()+400000,old,edge)).toBe(false);
+    expect(api).toHaveBeenCalledTimes(1);
+    const edge = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => new Response(null, { status: 404 }));
+    expect(await begetCdnPurgeDone(ops[0]!, Date.now() + 400000, { ...process.env }, edge)).toBe(true);
+    expect(edge).toHaveBeenCalledTimes(2);
+    expect(String(edge.mock.calls[0]![0])).toContain("fupiquafifeswu.begetcdn.cloud");
+    edge.mockReset().mockResolvedValue(new Response(null, { status: 410 }));
+    expect(await begetCdnPurgeDone(ops[0]!, Date.now() + 400000, { ...process.env }, edge)).toBe(false);
   });
 });

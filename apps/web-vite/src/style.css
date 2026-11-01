@@ -889,3 +889,56 @@ button:disabled { opacity: 0.65; cursor: default; }
 .gallery-cover-tag { display: inline-block; margin: .3rem .45rem .4rem 0;
   padding: .15rem .55rem; border-radius: 999px; font-size: .75rem;
   background: var(--color-olive-light, #ebefd7); color: #43502b; }
+
+/* Full-screen gallery viewer: neutral dark backdrop and high-contrast controls. */
+.gafus-app .gallery-image-viewer,
+.gallery-image-viewer {
+  background: rgba(13, 16, 23, .96);
+  box-sizing: border-box;
+  padding: clamp(14px, 3vw, 32px);
+}
+.gallery-image-viewer-inner {
+  position: relative; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  max-height: calc(100dvh - 28px); overflow: visible;
+  padding-top: 48px;
+}
+.gallery-image-viewer-inner > img,
+.gallery-image-viewer-inner > .gallery-viewer-photo,
+.gallery-image-viewer-inner img {
+  display: block; margin: 0 auto; max-width: 100%;
+  max-height: min(72dvh, 900px); object-fit: contain;
+}
+.gallery-image-viewer-close {
+  position: absolute; top: 0; right: 0; z-index: 2;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0;
+  border: 1px solid rgba(255,255,255,.36); border-radius: 50%;
+  background: rgba(255,255,255,.15); color: #fff;
+  cursor: pointer;
+}
+.gallery-image-viewer-close:hover,
+.gallery-image-viewer-nav:hover:not(:disabled) { background: rgba(255,255,255,.28); }
+.gallery-image-viewer-close:focus-visible,
+.gallery-image-viewer-nav:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.gallery-image-viewer-actions {
+  display: grid; grid-template-columns: 52px minmax(56px,1fr) 52px;
+  align-items: center; gap: clamp(12px,3vw,24px);
+  width: min(100%, 550px); margin: 16px auto 0;
+}
+.gallery-image-viewer-actions span { color: #fff; text-align: center; }
+.gallery-image-viewer-actions button.gallery-image-viewer-nav {
+  display: inline-grid; place-items: center;
+  min-width: 52px; width: 52px; height: 48px; padding: 0;
+  border: 1px solid rgba(255,255,255,.5); border-radius: 13px;
+  background: rgba(255,255,255,.16); color: #fff;
+  font-size: 28px; line-height: 1; cursor: pointer;
+}
+.gallery-image-viewer-actions button.gallery-image-viewer-nav:disabled {
+  opacity: .35; cursor: not-allowed;
+}
+.gallery-image-viewer-inner > p { margin: 14px 0 0; color: #fff; text-align: center; }
+@media(max-width: 600px) {
+  .gallery-image-viewer-inner { width: 100%; padding-top: 52px; }
+  .gallery-image-viewer-inner img { max-height: 65dvh; }
+}

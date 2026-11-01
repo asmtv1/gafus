@@ -12,7 +12,7 @@ const files=readdirSync(dir).filter(x=>x.endsWith('.yml')).sort();
 test('four primary workflows, independent backup and three internal call-only workflows',()=>{
  assert.deepEqual(files,[
   'build-single-container.yml','ci-cd.yml','cloudru-media-images.yml',
-  'daily-backup.yml','deploy-only.yml','infrastructure-jobs.yml',
+  'daily-backup.yml','deploy-only.yml','gallery-worker-publish.yml','infrastructure-jobs.yml',
   'production-deploy-reusable.yml','production-job-release-reusable.yml'
  ]);
  const primary=['build-single-container','ci-cd','deploy-only','infrastructure-jobs'];
@@ -21,6 +21,8 @@ test('four primary workflows, independent backup and three internal call-only wo
   assert(parse(name).on.workflow_call,name);
   assert.equal(parse(name).on.workflow_dispatch,undefined,name+' must not expose direct manual launch');
  }
+ assert(parse('gallery-worker-publish').on.workflow_dispatch);
+ assert.equal(parse('gallery-worker-publish').on.push,undefined);
  assert(parse('daily-backup').on.schedule?.length);
  assert(Object.hasOwn(parse('daily-backup').on,'workflow_dispatch'));
 });
@@ -33,6 +35,16 @@ test('main CI reconciles Cloud.ru image links while Deploy Only remains app-only
  assert.deepEqual(ci.jobs['cloudru-jobs-verify'].needs,['cloudru-jobs-sync']);
  assert(ci.jobs['deploy-production'].needs.includes('cloudru-jobs-preflight'));
  assert(ci.jobs['deploy-production'].needs.includes('build-images'));
+ const bootstrap = "vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true'";
+ for (const name of ['cloudru-jobs-preflight','cloudru-jobs-sync','cloudru-jobs-verify'])
+   assert(ci.jobs[name].if.includes(bootstrap), 'MISSING_GALLERY_JOBS_ISOLATION_'+name);
+ assert(ci.jobs['deploy-production'].if.includes('always()'));
+ assert(ci.jobs['deploy-production'].if.includes("needs.build-images.result == 'success'"));
+ assert(ci.jobs['deploy-production'].if.includes(bootstrap));
+ assert(ci.jobs['beget-verify-after-deploy'].if.includes("needs.deploy-production.result == 'success'"));
+ assert(ci.jobs['beget-verify-after-deploy'].if.includes(bootstrap));
+ assert(ci.jobs['beget-verify-after-deploy'].needs.includes('deploy-production'));
+
  assert(!Object.keys(retry.jobs).some(x=>x.includes('cloudru-jobs')));
  assert(retry.jobs.deploy.needs.includes('preflight-cdn'));
  assert(retry.jobs['validate-release'].steps.some(x=>x.run?.includes('RELEASE_IMAGES_OR_QA_NOT_VERIFIED')));

@@ -1,17 +1,10 @@
-/** Read-only Beget/CDNvideo and Cloud.ru Origin proof; never prints signed URLs.
- * Use existing production Gallery/Feed CDN signing secrets through a protected environment.
- * Does not modify production buckets, Beget resources, DNS or flags.
+/** Read-only Feed V2 Beget smoke. Gallery is tested separately by the
+ * private S3 SigV4 Hono redirect canary, never by the retired origin.
  */
 import { createHash } from 'node:crypto';
-const scopes = [
-  { name: 'gallery', host: 'mepsuduyokabib.begetcdn.cloud',
-    origin: 'gafus-gallery-origin.containerapps.ru', secret: 'GALLERY_CDN_SECRET',
-    keyVar: 'BEGET_GALLERY_SMOKE_FINAL_KEY', shaVar: 'BEGET_GALLERY_SMOKE_SHA256' },
-  { name: 'feed', host: 'quepraquiecebquomiel.begetcdn.cloud',
-    origin: 'gafus-feed-origin.containerapps.ru', secret: 'FEED_CDN_SECRET',
-    keyVar: 'BEGET_FEED_SMOKE_FINAL_KEY', shaVar: 'BEGET_FEED_SMOKE_SHA256' },
-];
-const expectedCacheControl = 'private, max-age=180, must-revalidate';
+const feed = { name: 'feed', host: 'quepraquiecebquomiel.begetcdn.cloud',
+  secret: 'FEED_CDN_SECRET', keyVar: 'BEGET_FEED_SMOKE_FINAL_KEY',
+  shaVar: 'BEGET_FEED_SMOKE_SHA256' };
 const status = (response, expected, code) => {
   if (response.status !== expected) throw new Error(`${code}_${response.status}`);
 };
@@ -24,7 +17,6 @@ export function smokeSignedUrl(host, path, secret, expiry) {
   return `https://${host}/md5(${token(secret, path, expiry)},${expiry})${path}`;
 }
 // Explicit product decision: Feed V2 published variants are public.
-// Gallery remains private with its separate /md5(...) path signature.
 // Feed app uses ?md5=...&expires=... query URLs for compatibility.
 async function checkPublicFeedV2(scope,key,digest,secret) {
   if(process.env.FEED_CDN_PUBLIC_READ_APPROVED!=='true')
@@ -65,92 +57,24 @@ async function checkPublicFeedV2(scope,key,digest,secret) {
     head:200,range:206,sha256Verified:true,cacheState};
 }
 
-async function check(scope) {
-  const secret = process.env[scope.secret] ?? '';
-  const allowedSecret = scope.name === 'gallery'
-    ? /^[A-Za-z0-9_-]{24,128}$/ : /^[A-Za-z0-9_-]{24,32}$/;
-  if (!allowedSecret.test(secret)) throw new Error(`${scope.name.toUpperCase()}_CDN_SECRET_MISSING`);
-  // Previously retained diagnostics are under /staging/, which both private
-  // Origins rightly reject. A real smoke MUST use separately approved, immutable
-  // synthetic WebP stored under the normal final-key namespace.
-  const key = process.env[scope.keyVar] ?? '';
-  const expectedDigest = process.env[scope.shaVar] ?? '';
-  const id = '[A-Za-z0-9_-]{1,128}';
-  const gallery = new RegExp(`^albums/${id}/${id}/photos/${id}/(?:thumb|full)\\.webp$`);
-  const feed = /^media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/image\/(?:s|m|l)\.webp$/;
-  if (!(scope.name === 'gallery' ? gallery : feed).test(key) ||
+async function checkFeed() {
+  const secret = process.env[feed.secret] ?? '';
+  if (!/^[A-Za-z0-9_-]{24,32}$/.test(secret)) throw Error('FEED_CDN_SECRET_MISSING');
+  const key = process.env[feed.keyVar] ?? '';
+  const digest = process.env[feed.shaVar] ?? '';
+  if (!/^media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/image\/(?:s|m|l)\.webp$/.test(key) ||
       key.includes('/staging/') || key.includes('__gafus_cloudru_validation__') ||
-      !/^[0-9a-f]{64}$/.test(expectedDigest))
-    throw new Error(`${scope.name.toUpperCase()}_SMOKE_FINAL_OBJECT_MISSING`);
-  if(scope.name==='feed')return checkPublicFeedV2(scope,key,expectedDigest,secret);
-  const path = `/${key}`;
-  const expiry = Math.floor(Date.now() / 1000) + 300;
-  const url = smokeSignedUrl(scope.host, path, secret, expiry);
-  const header = 'x-cdn-edge-cache';
-  // Private Cloud.ru Origin may hide object existence with 404 instead of 403.
-  // Both deny unsigned direct access. The signed CDN GET + exact fixture digest
-  // below remains mandatory: a missing object cannot produce a smoke PASS.
-  const directOrigin = await fetchSafe(`https://${scope.origin}${path}`, { method: 'HEAD' });
-  if (![403, 404].includes(directOrigin.status))
-    throw new Error(`DIRECT_ORIGIN_UNAUTHORIZED_${directOrigin.status}`);
-  const unsigned = await fetchSafe(`https://${scope.host}${path}`, { method: 'HEAD' });
-  if (![403, 410].includes(unsigned.status)) throw new Error(`UNSIGNED_CDN_${unsigned.status}`);
-  status(await fetchSafe(smokeSignedUrl(scope.host, path, secret, expiry - 700), { method: 'HEAD' }), 410, 'EXPIRED_SIGNATURE');
-  const forged = url.replace(/md5\([A-Za-z0-9_-]{22}/, `md5(${'A'.repeat(22)}`);
-  // Rare case the forged token equals the correct token: always mutate it.
-  const forgedUrl = forged === url ? url.replace(/md5\(([A-Za-z0-9_-])/, (_, char) => `md5(${char === 'A' ? 'B' : 'A'}`) : forged;
-  const invalid = await fetchSafe(forgedUrl, { method: 'HEAD' });
-  if (invalid.status !== 403 && invalid.status !== 410) throw new Error(`FORGED_SIGNATURE_${invalid.status}`);
-  const cold = await fetchSafe(url);
-  status(cold, 200, 'VALID_GET');
-  const bytes = new Uint8Array(await cold.arrayBuffer());
-  if (!bytes.length || bytes.length > 1_750_000 ||
-      !cold.headers.get('content-type')?.includes('image/webp') ||
-      createHash('sha256').update(bytes).digest('hex') !== expectedDigest)
-    throw new Error('WRONG_FIXTURE_OR_MIME');
-  const warm = await fetchSafe(url);
-  status(warm, 200, 'WARM_GET');
-  const warmBytes = new Uint8Array(await warm.arrayBuffer());
-  if (Buffer.compare(bytes, warmBytes) !== 0) throw new Error('CACHE_BYTES_CHANGED');
-  const cacheState = warm.headers.get(header)?.toUpperCase() ?? '';
-  if (cacheState !== 'HIT') throw new Error(`CACHE_NOT_HIT_${cacheState || 'ABSENT'}`);
-  const cacheControl = warm.headers.get('cache-control') ?? '';
-  if (cacheControl !== expectedCacheControl) throw new Error(`CLIENT_CACHE_POLICY_MISMATCH_${cacheControl || 'ABSENT'}`);
-  status(await fetchSafe(url, { method: 'HEAD' }), 200, 'VALID_HEAD');
-  const range = await fetchSafe(url, { headers: { Range: 'bytes=0-4' } });
-  status(range, 206, 'RANGE');
-  if (range.headers.get('content-range') !== `bytes 0-4/${bytes.length}`) throw new Error('RANGE_HEADER');
-  if (Buffer.compare(Buffer.from(await range.arrayBuffer()), bytes.subarray(0, 5)) !== 0)
-    throw new Error('RANGE_BYTES');
-  return { scope: scope.name, signedGet: 200, hotCache: cacheState,
-    cacheControl, signedHead: 200, range: 206, originUnauthorized: directOrigin.status, unsignedDenied: unsigned.status };
+      !/^[a-f0-9]{64}$/.test(digest)) throw Error('FEED_SMOKE_FINAL_OBJECT_MISSING');
+  return checkPublicFeedV2(feed, key, digest, secret);
 }
-// During a tightly scoped origin-only migration, the old Gallery container is
-// known suspended. Its synthetic smoke is replaced by a *protected readback*
-// of the NEW Beget CDN before deploy and a NEW Gallery E2E canary after deploy.
-// Feed synthetic checks remain identical; no security checks are skipped on Feed.
+
 const smokeMode = process.argv[2] ?? '--both';
-if (!['--both','--feed-only'].includes(smokeMode) || process.argv.length > 3)
+if (!['--both', '--feed-only'].includes(smokeMode) || process.argv.length > 3)
   throw Error('BEGET_SMOKE_INVALID_MODE');
-if (smokeMode === '--feed-only' && (
-  process.env.GALLERY_CDN_REDIRECT_RELEASE_APPROVED !== 'true' ||
-  process.env.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID !== '96cd124e-767e-4af1-a568-c4d1f9b4e73f' ||
-  process.env.GITHUB_REF !== 'refs/heads/main' ||
-  process.env.GITHUB_ACTIONS !== 'true'))
-  throw Error('BEGET_GALLERY_STAGING_UNAUTHORIZED');
-if (process.argv[1] && process.argv[1].endsWith('/beget-production-smoke.mjs')) {
-  let failed = false;
-  for (const scope of scopes) {
-    if (smokeMode === '--feed-only' && scope.name === 'gallery') {
-      console.log('GALLERY_LEGACY_SMOKE_REPLACED_BY_PROTECTED_NEW_CDN_GATE_AND_POST_DEPLOY_CANARY');
-      continue;
-    }
-    try { console.log(JSON.stringify(await check(scope))); }
-    catch (error) {
-      failed = true;
-      // Do not print remote response bodies, secret headers, URLs or tokens.
-      console.error(`${scope.name.toUpperCase()}_SMOKE_FAIL:`, error instanceof Error ? error.message : 'UNKNOWN');
-    }
-  }
-  if (failed) process.exitCode = 1;
+if (process.argv[1]?.endsWith('/beget-production-smoke.mjs')) {
+  checkFeed().then(result => console.log(JSON.stringify(result)))
+    .catch(error => {
+      console.error('FEED_SMOKE_FAIL:', error instanceof Error ? error.message : 'UNKNOWN');
+      process.exitCode = 1;
+    });
 }

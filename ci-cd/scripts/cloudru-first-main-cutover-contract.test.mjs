@@ -41,9 +41,10 @@ test('manual app-only release refuses retired Gallery CDN and verifies protected
   const job=jobs[name];
   assert.match(job.env.GALLERY_CDN_REDIRECT_SIGNING_SECRET,/GALLERY_CDN_REDIRECT_SIGNING_SECRET/);
   assert.match(job.env.GALLERY_CDN_REDIRECT_ORIGIN_SECRET,/GALLERY_CDN_REDIRECT_ORIGIN_SECRET/);
-  const probe=job.steps.find(step=>step.name?.includes('CDN delivery'));
-  assert(probe?.run?.includes('beget-production-smoke.mjs --feed-only'));
-  assert(probe.run.includes('beget-gallery-redirect-canary.mjs'));
+  const feed=job.steps.find(step=>step.run?.includes('beget-production-smoke.mjs --feed-only'));
+  const gallery=job.steps.find(step=>step.run?.includes('beget-gallery-redirect-canary.mjs'));
+  assert(feed, name+' must check Feed CDN bytes');
+  assert(gallery, name+' must independently check private Gallery');
  }
  assert(jobs['preflight-cdn'].steps.some(step=>step.run?.includes('gallery-redirect-release-gate.mjs')));
 });
@@ -64,7 +65,7 @@ test('Gallery redirect preflight receives all fail-closed viewer release binding
    'GALLERY_CDN_CACHEABLE_FINAL_ENABLED','GALLERY_CDN_BASE_URL',
    'GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED','GALLERY_CDN_BROWSER_CACHE_VERIFIED',
    'GALLERY_CDN_METADATA_MIGRATED','GALLERY_CDN_REDIRECT_SIGNING_SECRET',
-   'GALLERY_CDN_REDIRECT_ORIGIN_SECRET','GALLERY_CDN_PURGE_DUAL_ENABLED',
+   'GALLERY_CDN_REDIRECT_ORIGIN_SECRET',
  ]) assert(env[name],`GALLERY_CDN_PREFLIGHT_MISSING_${name}`);
  assert.match(env.GALLERY_CDN_BASE_URL,/fupiquafifeswu\.begetcdn\.cloud/);
  assert.match(env.GALLERY_CDN_REDIRECT_ENABLED,/GALLERY_CDN_VIEWER_CUTOVER_APPROVED/);

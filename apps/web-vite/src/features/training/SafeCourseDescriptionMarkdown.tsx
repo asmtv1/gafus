@@ -38,8 +38,8 @@ function safeStepImage(href: string): string | null {
     const hostname = new URL(url).hostname.toLowerCase();
     if ([
       "gafus.ru", "www.gafus.ru", "cdn.gafus.ru", "s3.cloud.ru",
-      "storage.yandexcloud.net", "mepsuduyokabib.begetcdn.cloud",
-      "garaquachegasourn.begetcdn.cloud",
+      "storage.yandexcloud.net", "fupiquafifeswu.begetcdn.cloud",
+      "quepraquiecebquomiel.begetcdn.cloud",
     ].includes(hostname)) return url;
   } catch {/* invalid image URL */}
   return null;

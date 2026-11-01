@@ -14,14 +14,15 @@ function storage() {
   if (endpoint === "https://s3.cloud.ru" && process.env.GALLERY_CDN_EDGE_TOKEN_VERIFIED !== "true")
     throw new Error("PRIVATE_VET_CDN_EDGE_UNVERIFIED");
   const base = process.env.GALLERY_CDN_BASE_URL ?? "";
-  const redirect = process.env.GALLERY_CDN_REDIRECT_ENABLED === "true";
-  const secret = (redirect ? process.env.GALLERY_CDN_REDIRECT_SIGNING_SECRET : process.env.GALLERY_CDN_SECRET) ?? "";
+  const secret = process.env.GALLERY_CDN_REDIRECT_SIGNING_SECRET ?? "";
   // Never fall back to the public uploads bucket, including when the gallery product is disabled.
   if (
     !/^[a-z0-9][a-z0-9.-]{2,62}$/.test(bucket) ||
     /^(gafus-media|gafus-public)$/.test(bucket) ||
     !accessKeyId ||
     !secretAccessKey ||
+    process.env.GALLERY_CDN_REDIRECT_ENABLED !== "true" ||
+    process.env.GALLERY_CDN_ORIGIN_ROUTE_ENABLED !== "true" ||
     process.env.GALLERY_BUCKET_PUBLIC === "true" ||
     endpoint !== "https://s3.cloud.ru" ||
     bucket !== "gafus-gallery-private" ||
@@ -36,7 +37,7 @@ function storage() {
     url.hash ||
     url.username ||
     url.password ||
-    url.hostname !== (redirect ? "fupiquafifeswu.begetcdn.cloud" : "mepsuduyokabib.begetcdn.cloud")
+    url.hostname !== "fupiquafifeswu.begetcdn.cloud"
   )
     throw new Error("PRIVATE_VET_STORAGE_UNAVAILABLE");
   return {

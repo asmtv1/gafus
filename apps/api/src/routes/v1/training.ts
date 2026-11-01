@@ -182,17 +182,15 @@ async function createProtectedHlsManifest(params: {
   videoId: string;
   token: string;
 }): Promise<string> {
-  const { content, baseDir, apiUrl, videoId, token } = params;
+  const { content, apiUrl, videoId, token } = params;
   return rewriteHlsManifest(content, async (rawPath) => {
     const safePath = validateHlsSegmentPath(rawPath);
     if (!safePath) throw new Error(`Недопустимый HLS resource path: ${rawPath}`);
-    if (safePath.endsWith(".m3u8")) {
-      return `${apiUrl}/api/v1/training/video/${videoId}/segment?path=${encodeURIComponent(safePath)}&token=${encodeURIComponent(token)}`;
-    }
-    if (localLegacyTrainingVideoEnabled()) {
-      return `${apiUrl}/api/v1/training/video/${videoId}/segment?path=${encodeURIComponent(safePath)}&token=${encodeURIComponent(token)}`;
-    }
-    return getSignedDownloadUrl(`${baseDir}/${safePath}`, HLS_DIRECT_RESOURCE_TTL_SECONDS);
+    // All playlist resources use the authenticated Hono stream. Direct signed
+    // storage URLs may return 200 but are unreadable by hls.js when the bucket
+    // has no Origin CORS allowance (the player stalls at 0:00). The stream
+    // endpoint already validates the token, entitlement, filename and Range.
+    return `${apiUrl}/api/v1/training/video/${videoId}/segment?path=${encodeURIComponent(safePath)}&token=${encodeURIComponent(token)}`;
   });
 }
 
@@ -1585,8 +1583,8 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
       });
     }
 
-    // Fallback для старых уже выданных манифестов. Новые клиенты получают прямые
-    // presigned Object Storage URLs и не гоняют медиатрафик через API.
+    // Same-origin authenticated HLS streaming supports browsers where Object
+    // Storage does not provide CORS, plus mobile Range seek/resume requests.
     const rangeHeader = c.req.header("range");
     const validRange =
       rangeHeader?.startsWith("bytes=") && !rangeHeader.includes(",") ? rangeHeader : undefined;

@@ -22,8 +22,10 @@ beforeEach(() => {
   vi.stubEnv("GALLERY_S3_ENDPOINT", "https://s3.cloud.ru");
   vi.stubEnv("GALLERY_S3_ACCESS_KEY_ID", "test:secret");
   vi.stubEnv("GALLERY_S3_SECRET_ACCESS_KEY", "test-storage-secret");
-  vi.stubEnv("GALLERY_CDN_BASE_URL", "https://mepsuduyokabib.begetcdn.cloud");
-  vi.stubEnv("GALLERY_CDN_SECRET", "a".repeat(32));
+  vi.stubEnv("GALLERY_CDN_BASE_URL", "https://fupiquafifeswu.begetcdn.cloud");
+  vi.stubEnv("GALLERY_CDN_REDIRECT_SIGNING_SECRET", "a".repeat(32));
+  vi.stubEnv("GALLERY_CDN_REDIRECT_ENABLED", "true");
+  vi.stubEnv("GALLERY_CDN_ORIGIN_ROUTE_ENABLED", "true");
   vi.stubEnv("GALLERY_CDN_EDGE_TOKEN_VERIFIED", "true");
   s3.send.mockResolvedValue({});
 });
@@ -41,10 +43,10 @@ describe("private S3 veterinary original upload", () => {
     });
   });
   it("signs shared Gallery Beget veterinary thumbs and never exposes originals", async () => {
-    vi.stubEnv("GALLERY_CDN_BASE_URL", "https://mepsuduyokabib.begetcdn.cloud");
+    vi.stubEnv("GALLERY_CDN_BASE_URL", "https://fupiquafifeswu.begetcdn.cloud");
     vi.stubEnv("GALLERY_CDN_PROVIDER", "beget");
     const url = new URL(await vetVisitMediaUrl(keys.previewKey!));
-    expect(url.hostname).toBe("mepsuduyokabib.begetcdn.cloud");
+    expect(url.hostname).toBe("fupiquafifeswu.begetcdn.cloud");
     expect(url.pathname).toMatch(/^\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/users\/u\/pets\/p\/vet-visits\/v\/a\/thumb\.webp$/);
     expect(url.search).toBe("");
     expect(s3.send).not.toHaveBeenCalled();

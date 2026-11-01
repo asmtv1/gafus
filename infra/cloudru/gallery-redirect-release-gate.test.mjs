@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import { checkGalleryRedirectConfig, checkGalleryRedirectProvider } from './gallery-redirect-release-gate.mjs';
 const env = {
   GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'true', GALLERY_CDN_REDIRECT_ENABLED: 'true',
-  GALLERY_CDN_PURGE_DUAL_ENABLED: 'true', GALLERY_CDN_CACHEABLE_FINAL_ENABLED: 'true',
+  GALLERY_CDN_CACHEABLE_FINAL_ENABLED: 'true',
   GALLERY_CDN_EDGE_TOKEN_VERIFIED: 'true',
   BEGET_CDN_PURGE_API_VERIFIED: 'true', BEGET_CDN_CACHE_KEY_VERIFIED: 'true',
   BEGET_CDN_PURGE_PROPAGATION_VERIFIED: 'true',
   GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED: 'true', GALLERY_CDN_BROWSER_CACHE_VERIFIED: 'true',
   GALLERY_CDN_METADATA_MIGRATED: 'true',
   GALLERY_CDN_REDIRECT_ORIGIN_SECRET: 'V'.repeat(48),
-  GALLERY_CDN_REDIRECT_SIGNING_SECRET: 'N'.repeat(32), GALLERY_CDN_SECRET: 'O'.repeat(32),
-  GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: '96cd124e-767e-4af1-a568-c4d1f9b4e73f',
+  GALLERY_CDN_REDIRECT_SIGNING_SECRET: 'N'.repeat(32),
+  GALLERY_BEGET_CDN_SERVICE_ID: '96cd124e-767e-4af1-a568-c4d1f9b4e73f',
   GALLERY_CDN_BASE_URL: 'https://fupiquafifeswu.begetcdn.cloud',
   BEGET_CDN_API_TOKEN: 'test-api-token-12345678901234567',
 };
@@ -21,7 +21,7 @@ test('remains off without any release flags and never calls provider',async()=>{
 });
 test('rejects missing secrets, absent purge, metadata, and unverified smoke',()=>{
   for (const [key,val] of Object.entries({
-    GALLERY_CDN_PURGE_DUAL_ENABLED:'false', GALLERY_CDN_REDIRECT_SIGNING_SECRET:'',
+    GALLERY_CDN_REDIRECT_SIGNING_SECRET:'',
     GALLERY_CDN_REDIRECT_ORIGIN_SECRET:'weak', GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED:'false',
     GALLERY_CDN_METADATA_MIGRATED:'false', GALLERY_CDN_BASE_URL:'https://evil.invalid',
     GALLERY_CDN_ORIGIN_ROUTE_ENABLED:'false',
@@ -42,4 +42,11 @@ test('only approves verified new Beget origin, token, header, redirects, cache',
   await assert.rejects(checkGalleryRedirectProvider(env,async()=>({ok:true,json:async()=>noPrivate})),/BEGET_SETTINGS/);
   const bad=structuredClone(fixture);bad.service.cdn.settings.follow_origin_redirect.enable=false;
   await assert.rejects(checkGalleryRedirectProvider(env,async()=>({ok:true,json:async()=>bad})),/BEGET_SETTINGS/);
+});
+
+test('production release fails closed without full Gallery redirect cutover', () => {
+  assert.throws(() => checkGalleryRedirectConfig({ GALLERY_CDN_REDIRECT_REQUIRED: 'true' }), /GALLERY_REDIRECT_GATE_REQUIRED/);
+  for (const overrides of [{ GALLERY_CDN_REDIRECT_ENABLED: 'false' }, { GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'false' }]) {
+    assert.throws(() => checkGalleryRedirectConfig({ ...env, ...overrides, GALLERY_CDN_REDIRECT_REQUIRED: 'true' }), /GALLERY_REDIRECT_GATE_REQUIRED/);
+  }
 });

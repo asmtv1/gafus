@@ -4,7 +4,7 @@ import {createRoot,type Root} from "react-dom/client";
 import {beforeEach,afterEach,describe,it,expect,vi} from "vitest";
 import {GalleryImage} from "./GalleryAlbums";
 
-const signed="https://mepsuduyokabib.begetcdn.cloud/"+
+const signed="https://fupiquafifeswu.begetcdn.cloud/"+
   "md5(ABCDEFGHIJKLMNOPQRSTUV,2000000000)/albums/owner/album/photos/p/thumb.webp";
 const expiry="2099-12-31T12:00:00.000Z";
 let host:HTMLDivElement,root:Root;

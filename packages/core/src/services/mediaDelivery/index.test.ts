@@ -30,8 +30,10 @@ describe('CDN fail-closed transport fallback policy', () => {
     expect(isTrustedCdnProbeUrl(url,['fupiquafifeswu.begetcdn.cloud'],1999999800000)).toBe(true);
   });
   it('recognizes progressive MP4 CDN paths without using any HLS manifest', () => {
-    const url = `https://garaquachegasourn.begetcdn.cloud/media/v2/media/v1/video/360.mp4?md5=${'A'.repeat(22)}&expires=1999999999`;
+    const url = `https://quepraquiecebquomiel.begetcdn.cloud/media/v2/media/v1/video/360.mp4?md5=${'A'.repeat(22)}&expires=1999999999`;
     expect(mediaCdnKindFromSignedUrl(url)).toBe('feed');
+    expect(mediaCdnKindFromSignedUrl(url.replace('quepraquiecebquomiel.begetcdn.cloud',
+      'garaquachegasourn.begetcdn.cloud'))).toBeNull();
     expect(mediaCdnKindFromSignedUrl(url.replace('360.mp4','360.m3u8'))).toBeNull();
   });
 });
@@ -39,27 +41,27 @@ describe('CDN fail-closed transport fallback policy', () => {
 describe('authorized same-origin Web CDN status proxy target', () => {
   const now = 1791820000000;
   const path = '/media/v2/media/v1/image/m.webp';
-  const signed = `https://garaquachegasourn.begetcdn.cloud${path}?md5=${'A'.repeat(22)}&expires=${Math.floor(now / 1000) + 90}`;
-  const allowed = ['garaquachegasourn.begetcdn.cloud', 'mepsuduyokabib.begetcdn.cloud'];
+  const signed = `https://quepraquiecebquomiel.begetcdn.cloud${path}?md5=${'A'.repeat(22)}&expires=${Math.floor(now / 1000) + 90}`;
+  const allowed = ['quepraquiecebquomiel.begetcdn.cloud', 'fupiquafifeswu.begetcdn.cloud'];
   it('accepts only supported signed media path on explicitly approved hosts', () => {
     expect(isTrustedCdnProbeUrl(signed, allowed, now)).toBe(true);
-    expect(isTrustedCdnProbeUrl(signed.replace('garaquachegasourn.begetcdn.cloud', 'evil.example'), allowed, now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace('quepraquiecebquomiel.begetcdn.cloud', 'evil.example'), allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed.replace('https:', 'http:'), allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed.replace('/media/', '/admin/'), allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed + '&source=cloudru', allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed.replace('m.webp', 'secret.txt'), allowed, now)).toBe(false);
     expect(isTrustedCdnProbeUrl(signed.replace('?md5=', '?bad='), allowed, now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(signed.replace('garaquachegasourn.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud:444'), allowed, now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace('quepraquiecebquomiel.begetcdn.cloud', 'quepraquiecebquomiel.begetcdn.cloud:444'), allowed, now)).toBe(false);
   });
   it('accepts only signed Beget URLs on exact approved service hosts', () => {
     const expires = Math.floor(now / 1000) + 300;
-    const beget = `https://garaquachegasourn.begetcdn.cloud${path}?md5=${'A'.repeat(22)}&expires=${expires}`;
-    expect(isTrustedCdnProbeUrl(beget, [...allowed, 'garaquachegasourn.begetcdn.cloud'], now)).toBe(true);
-    expect(isTrustedCdnProbeUrl(beget + '&x=1', [...allowed, 'garaquachegasourn.begetcdn.cloud'], now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(beget.replace('/media/','/incoming/'), [...allowed, 'garaquachegasourn.begetcdn.cloud'], now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(beget, allowed.filter(host => host !== 'garaquachegasourn.begetcdn.cloud'), now)).toBe(false);
+    const beget = `https://quepraquiecebquomiel.begetcdn.cloud${path}?md5=${'A'.repeat(22)}&expires=${expires}`;
+    expect(isTrustedCdnProbeUrl(beget, [...allowed, 'quepraquiecebquomiel.begetcdn.cloud'], now)).toBe(true);
+    expect(isTrustedCdnProbeUrl(beget + '&x=1', [...allowed, 'quepraquiecebquomiel.begetcdn.cloud'], now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(beget.replace('/media/','/incoming/'), [...allowed, 'quepraquiecebquomiel.begetcdn.cloud'], now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(beget, allowed.filter(host => host !== 'quepraquiecebquomiel.begetcdn.cloud'), now)).toBe(false);
     expect(mediaCdnKindFromSignedUrl(beget)).toBe('feed');
-    expect(mediaCdnKindFromSignedUrl(beget.replace('garaquachegasourn.begetcdn.cloud','evil.begetcdn.cloud'))).toBeNull();
+    expect(mediaCdnKindFromSignedUrl(beget.replace('quepraquiecebquomiel.begetcdn.cloud','evil.begetcdn.cloud'))).toBeNull();
   });
   it('rejects expired or long-lived probe URLs', () => {
     expect(isTrustedCdnProbeUrl(signed.replace(/expires=\d{10}/, `expires=${Math.floor(now/1000)-200}`),allowed,now)).toBe(false);
@@ -69,8 +71,8 @@ describe('authorized same-origin Web CDN status proxy target', () => {
 
 
 describe('60-second per-CDN failover circuit breaker', () => {
-  const gallery = `https://mepsuduyokabib.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/albums/owner/album/photos/photo/full.webp`;
-  const feed = `https://garaquachegasourn.begetcdn.cloud/media/v2/item/v1/poster.webp?md5=${'B'.repeat(22)}&expires=1999999999`;
+  const gallery = `https://fupiquafifeswu.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/albums/owner/album/photos/photo/full.webp`;
+  const feed = `https://quepraquiecebquomiel.begetcdn.cloud/media/v2/item/v1/poster.webp?md5=${'B'.repeat(22)}&expires=1999999999`;
   it('opens only the failing CDN for 60 seconds, then retries the CDN on demand', async () => {
     const now = Date.now() + 200_000;
     vi.useFakeTimers({ now });
@@ -112,7 +114,7 @@ describe('60-second per-CDN failover circuit breaker', () => {
       const networkError = async () => { throw new Error('offline'); };
       expect(await probeCdnOutage(feed, { fetcher: networkError, nativeNetwork: true })).toBe(true);
       expect(isMediaCdnFailoverActive('feed')).toBe(false);
-      expect(await probeCdnOutage(feed.replace('garaquachegasourn.begetcdn.cloud', 'evil.example'), {
+      expect(await probeCdnOutage(feed.replace('quepraquiecebquomiel.begetcdn.cloud', 'evil.example'), {
         fetcher: async () => new Response(null, { status: 504 }),
       })).toBe(true);
       expect(isMediaCdnFailoverActive('feed')).toBe(false);

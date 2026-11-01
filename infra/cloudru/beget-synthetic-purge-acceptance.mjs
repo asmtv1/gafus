@@ -14,7 +14,7 @@ if (!['--plan', '--run'].includes(mode) || process.argv.length > 3)
   throw Error('UNSUPPORTED_ACCEPTANCE_ACTION');
 const scopes = [
   { name: 'gallery', bucket: 'gafus-gallery-private',
-    host: 'mepsuduyokabib.begetcdn.cloud', serviceId: '0a8e97d5-3a65-4e90-99a6-c7f61131a461',
+    host: 'fupiquafifeswu.begetcdn.cloud', serviceId: '96cd124e-767e-4af1-a568-c4d1f9b4e73f',
     key: id => `albums/beget-probe-${id}/beget-probe-${id}/photos/${id}/full.webp` },
   { name: 'feed', bucket: 'gafus-feed-private',
     host: 'quepraquiecebquomiel.begetcdn.cloud', serviceId: 'cbb7fe86-a193-457e-a756-9cf3aa2aef1b',
@@ -36,12 +36,12 @@ if (env.BEGET_SYNTHETIC_PURGE_CONFIRM !== 'approved-two-disposable-production-we
   throw Error('SYNTHETIC_ACCEPTANCE_NOT_AUTHORIZED');
 for (const name of [
   'CLOUDRU_S3_ACCESS_KEY_ID','CLOUDRU_S3_SECRET_ACCESS_KEY','BEGET_CDN_API_TOKEN',
-  'GALLERY_CDN_SECRET','FEED_CDN_SECRET',
+  'GALLERY_CDN_REDIRECT_SIGNING_SECRET','FEED_CDN_SECRET',
 ]) if (!env[name] || env[name].length < 16) throw Error('SYNTHETIC_ACCEPTANCE_MISSING_' + name);
 for (const scope of scopes) {
   if (env[`${scope.name.toUpperCase()}_BEGET_CDN_SERVICE_ID`] !== scope.serviceId)
     throw Error('SYNTHETIC_ACCEPTANCE_BAD_SERVICE_ID_' + scope.name);
-  const secret = env[`${scope.name.toUpperCase()}_CDN_SECRET`];
+  const secret = scope.name === 'gallery' ? env.GALLERY_CDN_REDIRECT_SIGNING_SECRET : env.FEED_CDN_SECRET;
   if (!(scope.name === 'gallery' ? /^[A-Za-z0-9_-]{24,128}$/ : /^[A-Za-z0-9_-]{24,32}$/).test(secret))
     throw Error('SYNTHETIC_ACCEPTANCE_BAD_SIGNER_' + scope.name);
 }
@@ -59,7 +59,7 @@ const request = async (url, method='GET', extra={}) => fetch(url, {
 });
 const signed = (scope, key, expires) => {
   const path = '/' + key;
-  const secret = env[`${scope.name.toUpperCase()}_CDN_SECRET`];
+  const secret = scope.name === 'gallery' ? env.GALLERY_CDN_REDIRECT_SIGNING_SECRET : env.FEED_CDN_SECRET;
   const signature = createHash('md5').update(`${secret}${path}${expires}`).digest('base64url');
   return `https://${scope.host}/md5(${signature},${expires})${path}`;
 };

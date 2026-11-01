@@ -53,8 +53,8 @@ try {
   const photoJWT = await access(photo.owner);
   const g = await req(`/api/v1/gallery/photos/${photo.id}`, photoJWT);
   assert.equal(g.response.status, 200, "gallery GET");
-  urlChecks(g.data?.thumbUrl, "mepsuduyokabib.begetcdn.cloud");
-  urlChecks(g.data?.fullUrl, "mepsuduyokabib.begetcdn.cloud");
+  urlChecks(g.data?.thumbUrl, "fupiquafifeswu.begetcdn.cloud");
+  urlChecks(g.data?.fullUrl, "fupiquafifeswu.begetcdn.cloud");
   checks++; print("GALLERY_FINAL_SIGNED_LINKS", "PASS");
   const cover = await req(`/api/v1/gallery/albums/${photo.albumId}`, photoJWT);
   assert.equal(cover.response.status, 200, "gallery album GET");
@@ -79,8 +79,8 @@ try {
   assert.ok(Array.isArray(attachments), "Feed attachments missing");
   const signed = attachments.find(x => x.id === feedPhoto.id);
   assert.ok(signed, "Active revision does not include sampled photo");
-  urlChecks(signed.thumbUrl, "garaquachegasourn.begetcdn.cloud");
-  urlChecks(signed.fullUrl, "garaquachegasourn.begetcdn.cloud");
+  urlChecks(signed.thumbUrl, "quepraquiecebquomiel.begetcdn.cloud");
+  urlChecks(signed.fullUrl, "quepraquiecebquomiel.begetcdn.cloud");
   checks++; print("FEED_PHOTO_FINAL_SIGNED_LINKS", "PASS");
   const feedList = await req("/api/v1/feed/posts?pageSize=5", feedJWT);
   assert.equal(feedList.response.status, 200, "Feed list GET");
@@ -103,7 +103,7 @@ try {
   assert.ok(Array.isArray(videoAttachments));
   const playable = videoAttachments.find(x => x.id === video.id);
   assert.ok(playable, "Active revision does not include sampled video");
-  urlChecks(playable.posterUrl, "garaquachegasourn.begetcdn.cloud");
+  urlChecks(playable.posterUrl, "quepraquiecebquomiel.begetcdn.cloud");
   checks++; print("HLS_POSTER_SIGNED_LINK", "PASS");
   const ticket = await req(`/api/v1/feed/media/${video.id}/playback`, vJWT, "POST");
   assert.equal(ticket.response.status, 200, "read-only playback ticket POST");

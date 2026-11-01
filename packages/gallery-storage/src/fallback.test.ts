@@ -6,7 +6,9 @@ const env = {
   GALLERY_MEDIA_FALLBACK_ENABLED: 'true', GALLERY_CDN_EDGE_TOKEN_VERIFIED: 'true',
   GALLERY_BUCKET: 'gafus-gallery-private', GALLERY_S3_ENDPOINT: 'https://s3.cloud.ru',
   GALLERY_S3_ACCESS_KEY_ID: 'tenant:cloudru', GALLERY_S3_SECRET_ACCESS_KEY: 'fake-test-secret',
-  GALLERY_CDN_BASE_URL: 'https://mepsuduyokabib.begetcdn.cloud', GALLERY_CDN_SECRET: 's'.repeat(24),
+  GALLERY_CDN_BASE_URL: 'https://fupiquafifeswu.begetcdn.cloud', GALLERY_CDN_REDIRECT_SIGNING_SECRET: 's'.repeat(24),
+  GALLERY_CDN_REDIRECT_ENABLED: 'true', GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'true',
+  GALLERY_CDN_REDIRECT_ORIGIN_SECRET: 'V'.repeat(48),
   GALLERY_INTERNAL_BASE_URL: 'https://api.example.test', GALLERY_INTERNAL_HMAC_SECRET: 'h'.repeat(32),
 };
 describe('Cloud.ru gallery fallback presigning', () => {

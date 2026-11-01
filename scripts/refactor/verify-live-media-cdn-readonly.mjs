@@ -44,7 +44,7 @@ if (![galleryKey, photoKey, playlistKey, segmentKey].every(Boolean)) throw Error
 const ttl = new Date(Date.now() + 110_000);
 const now = Date.now();
 const samples = [
-  { name: 'gallery-webp', url: signGalleryCdnUrl('https://mepsuduyokabib.begetcdn.cloud', galleryKey, ttl, gallerySecret, now, 'beget'), type: 'image' },
+  { name: 'gallery-webp', url: signGalleryCdnUrl('https://fupiquafifeswu.begetcdn.cloud', galleryKey, ttl, gallerySecret, now, 'beget'), type: 'image' },
   { name: 'feed-webp', url: signFeedCdnUrl('https://garaquachegasourn.begetcdn.cloud', photoKey, ttl, feedSecret, now, 'beget'), type: 'image' },
   { name: 'hls-playlist', url: signFeedCdnUrl('https://garaquachegasourn.begetcdn.cloud', playlistKey, ttl, feedSecret, now, 'beget'), type: 'hls' },
   { name: 'hls-segment', url: signFeedCdnUrl('https://garaquachegasourn.begetcdn.cloud', segmentKey, ttl, feedSecret, now, 'beget'), type: 'segment' },

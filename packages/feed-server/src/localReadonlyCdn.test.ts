@@ -24,13 +24,13 @@ describe("readonly live feed CDN", () => {
     const base = `media/v2/${"c".repeat(26)}/v1`;
     const media = createFeedStorageFromEnv(env);
     const signed = await media.signCdn({ key: `${base}/poster.webp`, expiresAt: new Date(Date.now() + 100_000) });
-    expect(new URL(signed).origin).toBe("https://garaquachegasourn.begetcdn.cloud");
+    expect(new URL(signed).origin).toBe("https://quepraquiecebquomiel.begetcdn.cloud");
     expect(new URL(signed).pathname).toMatch(/^\/md5\([A-Za-z0-9_-]+,\d+\)\/media\//);
     const mp4 = await media.signCdn({
       key: `media/v2/${"m".repeat(26)}/v1/video/360.mp4`,
       expiresAt: new Date(Date.now() + 100_000),
     });
-    expect(new URL(mp4).hostname).toBe("garaquachegasourn.begetcdn.cloud");
+    expect(new URL(mp4).hostname).toBe("quepraquiecebquomiel.begetcdn.cloud");
     expect(new URL(mp4).pathname).toContain("video/360.mp4");
     await expect(media.signCdn({ key: `${base}/incoming/source.mp4`, expiresAt: new Date(Date.now() + 100_000) })).rejects.toThrow();
   });

@@ -50,6 +50,25 @@ async function mount(node:React.ReactNode){
  await flush();
 }
 describe("GALLERY owner photo deletion confirmation",()=>{
+ it("shows only one destructive decision when delete confirmation is open",async()=>{
+  const commands=writes();
+  const prior:AlbumPhoto={id:"photo_existing",albumId:album.id,caption:"С собакой",
+    status:"ready",thumbUrl:null,fullUrl:null,urlsExpireAt:null,width:900,height:600};
+  await mount(<PhotoManagement album={album} photo={prior} commands={commands}
+    sourceDialog onChanged={()=>undefined}/>);
+  expect(host.textContent).toContain("Сохранить подпись");
+  expect(host.textContent).toContain("Переместить фото");
+  await click("Удалить фото");
+  expect(host.textContent).toContain("Да, удалить фото");
+  expect(host.textContent).toContain("Не удалять");
+  expect(host.textContent).not.toContain("Сохранить подпись");
+  expect(host.textContent).not.toContain("Сделать обложкой");
+  expect(host.textContent).not.toContain("Переместить фото");
+  expect(commands.removePhoto).not.toHaveBeenCalled();
+  await click("Не удалять");
+  expect(host.textContent).toContain("Сохранить подпись");
+  expect(commands.removePhoto).not.toHaveBeenCalled();
+ });
  it("deletes a preexisting ready photo exactly once and requires a scoped 404 readback",async()=>{
   const commands=writes(), changed=vi.fn();
   const prior:AlbumPhoto={id:"photo_existing",albumId:album.id,caption:"Ранее загружено",

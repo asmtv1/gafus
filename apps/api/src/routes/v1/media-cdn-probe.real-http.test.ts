@@ -7,7 +7,7 @@ import { mediaCdnProbeRoutes } from './media-cdn-probe.js';
 // Exercise an actual loopback TCP HTTP request through the real Hono route.
 // Only the upstream HEAD is simulated. This is NOT live CDN / S3 acceptance.
 const nativeFetch = globalThis.fetch;
-const signed = () => `https://garaquachegasourn.begetcdn.cloud/media/v2/object/v1/image/s.webp?md5=ABCDEFGHIJKLMNOPQRSTUV&expires=${Math.floor(Date.now()/1000)+100}`;
+const signed = () => `https://quepraquiecebquomiel.begetcdn.cloud/media/v2/object/v1/image/s.webp?md5=ABCDEFGHIJKLMNOPQRSTUV&expires=${Math.floor(Date.now()/1000)+100}`;
 const app = new Hono();
 app.use('*', async (c,next) => {
   if (c.req.header('x-local-actor') === 'allowed')

@@ -17,8 +17,8 @@ export function mediaCdnKindFromSignedUrl(raw: string): MediaCdnKind | null {
     const url = new URL(raw);
     if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
         url.pathname.includes('%') || url.pathname.includes('..') || url.pathname.includes('//')) return null;
-    const gallery = ['mepsuduyokabib.begetcdn.cloud', 'fupiquafifeswu.begetcdn.cloud'].includes(url.hostname);
-    const feed = url.hostname === 'garaquachegasourn.begetcdn.cloud';
+    const gallery = ['fupiquafifeswu.begetcdn.cloud'].includes(url.hostname);
+    const feed = url.hostname === 'quepraquiecebquomiel.begetcdn.cloud';
     if (!gallery && !feed) return null;
     if (feed) {
       // Signed Cloud CDN URLs use exact query-based Beget Secure Token,
@@ -93,9 +93,9 @@ export function isTrustedCdnProbeUrl(
   if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
       !allowedHosts.includes(url.hostname) || url.pathname.includes('%') ||
       url.pathname.includes('//') || url.pathname.includes('/../') || url.pathname.includes('/./')) return false;
-  if (!['mepsuduyokabib.begetcdn.cloud', 'fupiquafifeswu.begetcdn.cloud', 'garaquachegasourn.begetcdn.cloud'].includes(url.hostname))
+  if (!['fupiquafifeswu.begetcdn.cloud', 'quepraquiecebquomiel.begetcdn.cloud'].includes(url.hostname))
     return false;
-  const feed = url.hostname === 'garaquachegasourn.begetcdn.cloud';
+  const feed = url.hostname === 'quepraquiecebquomiel.begetcdn.cloud';
   const match = feed
     ? /^\?md5=([A-Za-z0-9_-]{22})&expires=(\d{10})$/.exec(url.search)
     : /^\/md5\(([A-Za-z0-9_-]{22}),(\d{10})\)(\/(?:albums|users|gallery)\/[A-Za-z0-9_/-]+\.webp)$/.exec(url.pathname);

@@ -999,3 +999,24 @@
     width: 100%;
   }
 }
+
+/* Queue status and progress are separate readable rows on all viewport sizes. */
+.albumUpload .queue li {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: 10px 16px;
+  padding: 18px 0;
+}
+.albumUpload .queue li > span:first-child {
+  grid-column: 1 / -1; min-width: 0; overflow-wrap: anywhere;
+  font-size: 13px; line-height: 1.5;
+}
+.albumUpload .queue li > progress {
+  grid-column: 1 / -1; width: 100%; max-width: 100%;
+  min-height: 8px; margin: 0; accent-color: #55653c;
+}
+.albumUpload .queue li > p { grid-column: 1 / -1; margin: 0; }
+.albumUpload .queue li > button { grid-column: 2; justify-self: end; }
+@media(max-width: 480px) {
+  .albumUpload .queue li { grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .albumUpload .queue li > button { grid-column: 1; justify-self: start; }
+}

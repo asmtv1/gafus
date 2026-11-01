@@ -17,7 +17,7 @@ const description=[
   "| Команда | Минуты |\n| --- | --- |\n| Место | 5 |",
   "[Полезный материал](https://example.org/article)",
   "![Разрешённая схема](/images/training/diagram.png)",
-  "![Обложка CDN](https://mepsuduyokabib.begetcdn.cloud/images/step.png)",
+  "![Обложка CDN](https://fupiquafifeswu.begetcdn.cloud/images/step.png)",
   "![Слежение](https://evil.invalid/collect.png)",
   "[Опасная ссылка](javascript:alert(1))",
   "<iframe src=\"https://evil.invalid/embed\"></iframe>",
@@ -56,7 +56,7 @@ describe("Next StepContent Markdown/GFM parity with safe origin rules",()=>{
     expect(area?.querySelector('input[type="checkbox"]')?.hasAttribute("disabled")).toBe(true);
     expect(area?.querySelectorAll("img")).toHaveLength(2);
     expect(area?.querySelector('img[src="/images/training/diagram.png"]')).not.toBeNull();
-    expect(area?.querySelector('img[src^="https://mepsuduyokabib.begetcdn.cloud/"]')).not.toBeNull();
+    expect(area?.querySelector('img[src^="https://fupiquafifeswu.begetcdn.cloud/"]')).not.toBeNull();
     expect(area?.querySelector('img[src*="evil.invalid"]')).toBeNull();
     expect(area?.querySelector("blockquote")?.textContent).toContain("без стресса");
     expect(area?.querySelector("pre code")?.textContent).toContain("КОМАНДА ШАГА");

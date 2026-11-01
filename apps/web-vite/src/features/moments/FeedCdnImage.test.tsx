@@ -6,7 +6,7 @@ import { FeedCdnImage } from "./FeedCdnImage";
 
 // Feed V2 uses query-based signatures and versioned image/s.webp paths.
 // Older md5(...)/posts/... paths are untrusted and must fail closed.
-const signed = () => "https://garaquachegasourn.begetcdn.cloud/" +
+const signed = () => "https://quepraquiecebquomiel.begetcdn.cloud/" +
   "media/v2/asset/v1/image/s.webp?md5=ABCDEFGHIJKLMNOPQRSTUV" +
   `&expires=${Math.floor(Date.now()/1000)+120}`;
 const cloudru = "https://s3.cloud.ru/private-feed/posts/owner/" +

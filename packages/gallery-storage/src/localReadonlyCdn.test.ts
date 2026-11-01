@@ -42,7 +42,7 @@ describe("opt-in real CDN media URLs (local DB and writes isolated)", () => {
     const storage = createGalleryStorageFromEnv(env);
     const key = `albums/${"a".repeat(26)}/${"b".repeat(26)}/photos/${"c".repeat(36)}/thumb.webp`;
     const url = await storage.signCdn({ key, expiresAt: new Date(Date.now() + 120_000) });
-    expect(new URL(url).origin).toBe("https://mepsuduyokabib.begetcdn.cloud");
+    expect(new URL(url).origin).toBe("https://fupiquafifeswu.begetcdn.cloud");
     expect(new URL(url).pathname).toMatch(/^\/md5\([A-Za-z0-9_-]+,\d+\)\/albums\//);
     expect(url).not.toContain("X-Amz");
     await expect(storage.signCdn({

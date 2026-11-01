@@ -682,14 +682,12 @@ function AlbumDetail({
                 }}
               >
                 <div className="gallery-image-viewer-inner" {...swipe}>
-                  <SecondaryButton variant="red"
-                    ref={closeButton}
-                    type="button"
-
-                    onClick={closeViewer}
-                  >
-                    Закрыть фотографию
-                  </SecondaryButton>
+                  <button className="gallery-image-viewer-close" ref={closeButton}
+                    type="button" aria-label="Закрыть фотографию" title="Закрыть"
+                    onClick={closeViewer}>
+                    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+                    <span className="gafus-visually-hidden">Закрыть фотографию</span>
+                  </button>
                   <GalleryViewerPhoto key={chosen.id} photo={chosen} albumId={albumId}
                     verifyOnOpen={verifyPhotoOnOpen}/>
                   {chosen.caption && <p>{chosen.caption}</p>}
@@ -697,23 +695,23 @@ function AlbumDetail({
                     <button
                       ref={previousButton}
                       type="button"
-                      className="button-secondary"
+                      className="gallery-image-viewer-nav"
                       aria-label="Предыдущая фотография"
                       disabled={viewIndex === 0}
                       onClick={() => setSelected(viewable[viewIndex - 1].id)}
                     >
-                      Назад
+                      <span aria-hidden="true">←</span>
                     </button>
                     <span aria-live="polite">{viewIndex + 1} / {viewable.length}</span>
                     <button
                       ref={nextButton}
                       type="button"
-                      className="button-secondary"
+                      className="gallery-image-viewer-nav"
                       aria-label="Следующая фотография"
                       disabled={viewIndex === viewable.length - 1}
                       onClick={() => setSelected(viewable[viewIndex + 1].id)}
                     >
-                      Далее
+                      <span aria-hidden="true">→</span>
                     </button>
                   </div>
                 </div>

@@ -468,6 +468,19 @@ describe("ordinary Web /trainings day bound progress UI", () => {
     await act(async () => start?.click());
     expect(fetcher.mock.calls.filter(([_, init]) => init.method === "POST")).toHaveLength(1);
   });
+  it("same-principal auth cache refresh keeps the step controls available", async () => {
+    await mount();
+    await act(async () => cache.setQueryData(CURRENT_USER_QUERY_KEY, {
+      id: "owner_A", username: "ownerA", role: "USER",
+    }));
+    await tick();
+    expect(node.textContent).not.toContain("Сессия изменилась");
+    expect(node.querySelector('button[aria-label="Начать: Команда рядом"]')).not.toBeNull();
+    await act(async () => cache.invalidateQueries({ queryKey: CURRENT_USER_QUERY_KEY }));
+    await tick();
+    expect(node.textContent).not.toContain("Сессия изменилась");
+  });
+
   it("principal change retires mutation access and private cached data", async () => {
     await mount();
     await act(async () => cache.setQueryData(CURRENT_USER_QUERY_KEY, {

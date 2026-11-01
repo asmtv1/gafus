@@ -1001,13 +1001,19 @@ function ConnectedFlowSessionBoundary({children,enabled}:{children:ReactNode;ena
       cache.removeQueries({predicate:privateQuery}));
   },[cache,version]);
   if(!enabled||!blocked)return <>{children}</>;
+  // AuthPanel is a lazy chunk. Without an immediate Suspense boundary, a
+  // revoked A→B→A session can suspend this whole replacement render and React
+  // keeps the old private gallery UI visible until the login chunk resolves.
+  // The protection message must commit synchronously even during that import.
   return <main className="shell" aria-label="Защита сессии связанных разделов">
-    <AuthPanel/>
     <section role="alert">
       <p>{current.isFetching?"Проверяем сессию. Личные данные временно скрыты.":
         "Сессия изменилась или её состояние неизвестно. Личные данные скрыты."}</p>
       <p>Для нового просмотра личных разделов откройте приложение заново.</p>
     </section>
+    <Suspense fallback={<Loading message="Загружаем форму входа…" />}>
+      <AuthPanel/>
+    </Suspense>
     <RouteLink to="/login">Войти</RouteLink>
   </main>;
 }

@@ -20,3 +20,15 @@
 @media (max-width: 600px) { .backdrop { padding: 10px; }
   .dialog { width: 100%; max-height: 94vh; padding: 18px; }
 }
+
+/* Keep a single destructive action visible at once, with calm navigation. */
+.dialog :global(.gallery-delete-confirmation) {
+  display: grid; gap: 14px; padding: 18px; border-radius: 14px;
+  background: #f5e9e5; border: 1px solid #dbb7b0;
+}
+.dialog :global(.gallery-delete-confirmation p) { margin: 0; line-height: 1.5; }
+.dialog :global(.gallery-photo-actions > .button-secondary),
+.dialog :global(.gallery-photo-actions > button) { justify-self: start; }
+.dialog :global(.gallery-photo-actions [role="group"]) { display: grid; gap: 12px; }
+.dialog :global(.gallery-photo-actions textarea) { resize: vertical; }
+.actions { border-top: 1px solid #e2dccf; margin-top: 22px; }

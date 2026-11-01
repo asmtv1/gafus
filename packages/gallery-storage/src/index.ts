@@ -33,7 +33,7 @@ export function createGalleryStorageFromEnv(env: Record<string, string | undefin
       if (!config.enabled || !client) throw new Error('GALLERY_DISABLED');
       if (liveCdnSecret) {
         assertFinalKey(input.key);
-        return signGalleryCdnUrl("https://mepsuduyokabib.begetcdn.cloud", input.key, input.expiresAt, liveCdnSecret, Date.now(), "beget");
+        return signGalleryCdnUrl("https://fupiquafifeswu.begetcdn.cloud", input.key, input.expiresAt, liveCdnSecret, Date.now(), "beget");
       }
       if (config.isolatedNonprod) {
         assertFinalKey(input.key); // Never expose source uploads or veterinary originals.

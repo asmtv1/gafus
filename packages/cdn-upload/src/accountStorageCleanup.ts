@@ -386,8 +386,8 @@ export async function startAccountCdnPurge(
   // obligation, never a fallback route for user media delivery.
   const cdnHost = process.env[`${name}_CDN_BASE_URL`] ?? "";
   const knownBeget = scope === "gallery" ? (process.env.GALLERY_CDN_REDIRECT_ENABLED === "true"
-      ? "https://fupiquafifeswu.begetcdn.cloud" : "https://mepsuduyokabib.begetcdn.cloud") :
-    scope === "feed" ? "https://garaquachegasourn.begetcdn.cloud" : "";
+      ? "https://fupiquafifeswu.begetcdn.cloud" : "https://fupiquafifeswu.begetcdn.cloud") :
+    scope === "feed" ? "https://quepraquiecebquomiel.begetcdn.cloud" : "";
   const provider = process.env[`${name}_CDN_PROVIDER`] ?? "beget";
   if (cloudru && knownBeget && (provider !== "beget" || cdnHost !== knownBeget))
     throw new Error("CLEANUP_CDN_PROVIDER_MISMATCH");

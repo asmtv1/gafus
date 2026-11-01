@@ -42,8 +42,7 @@ export function galleryStorageConfigFromEnv(
     accessKeyId: env.GALLERY_S3_ACCESS_KEY_ID ?? "",
     secretAccessKey: env.GALLERY_S3_SECRET_ACCESS_KEY ?? "",
     cdnBaseUrl: env.GALLERY_CDN_BASE_URL ?? "",
-    cdnSecret: (env.GALLERY_CDN_REDIRECT_ENABLED === "true"
-      ? env.GALLERY_CDN_REDIRECT_SIGNING_SECRET : env.GALLERY_CDN_SECRET) ?? "",
+    cdnSecret: env.GALLERY_CDN_REDIRECT_SIGNING_SECRET ?? "",
     cdnRedirectEnabled: env.GALLERY_CDN_REDIRECT_ENABLED === "true",
     cdnOriginRouteEnabled: env.GALLERY_CDN_ORIGIN_ROUTE_ENABLED === "true",
     cacheableFinalEnabled: env.GALLERY_CDN_CACHEABLE_FINAL_ENABLED === "true",
@@ -66,6 +65,8 @@ export function galleryStorageConfigFromEnv(
     throw new Error("INVALID_GALLERY_CDN_PROVIDER");
   // Cleanup still needs standalone storage credentials even with the product flag off.
   if (enabled) {
+    if (!config.cdnRedirectEnabled || !config.cdnOriginRouteEnabled)
+      throw new Error("GALLERY_REDIRECT_REQUIRED");
     validateGalleryObjectConfig(config);
     if (config.endpoint === "https://s3.cloud.ru" && env.GALLERY_CDN_EDGE_TOKEN_VERIFIED !== "true")
       throw new Error("GALLERY_CDN_EDGE_UNVERIFIED");
@@ -77,8 +78,7 @@ export function galleryStorageConfigFromEnv(
       url.hash ||
       url.username ||
       url.password ||
-      url.hostname !== (config.cdnRedirectEnabled
-        ? "fupiquafifeswu.begetcdn.cloud" : "mepsuduyokabib.begetcdn.cloud")
+      url.hostname !== "fupiquafifeswu.begetcdn.cloud"
     )
       throw new Error("UNSAFE_CDN_URL");
     config.cdnBaseUrl = url.origin;

@@ -8,7 +8,7 @@ import parity from "./GalleryAlbumSourceParity.module.css";
 import {GalleryImage,GalleryViewerPhoto,nextMediaRefresh,useGallerySwipe} from "./GalleryAlbums";
 import {getPublicAlbum,listPublicAlbums,listPublicPhotos,signedGalleryImage,
   type AlbumPhoto} from "./galleryApi";
-import {PrimaryButton, SecondaryButton} from "../../shared/ui";
+import {PrimaryButton} from "../../shared/ui";
 
 const safeId=(v:string)=>/^[A-Za-z0-9_-]{1,128}$/.test(v);
 const errorText=(error:unknown)=>error instanceof ApiError&&error.status===401?
@@ -203,15 +203,18 @@ export function PublicGalleryView({viewerId,ownerUsername,routeAlbumId,isCurrent
           if(event.target===event.currentTarget)closeViewer();
         }}>
         <div className="gallery-image-viewer-inner" {...swipe}>
-          <SecondaryButton variant="red" ref={closeRef} type="button"
-            onClick={closeViewer}>Закрыть фотографию</SecondaryButton>
+          <button className="gallery-image-viewer-close" ref={closeRef} type="button"
+            aria-label="Закрыть фотографию" title="Закрыть" onClick={closeViewer}>
+            <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+            <span className="gafus-visually-hidden">Закрыть фотографию</span>
+          </button>
           <GalleryViewerPhoto key={chosen.id} photo={chosen} albumId={routeAlbumId!}/>
           {chosen.caption&&<p>{chosen.caption}</p>}
           <div className="gallery-image-viewer-actions">
-            <button ref={prevRef} type="button" disabled={chosenIndex<=0}
-              onClick={()=>setSelected(visible[chosenIndex-1]?.id??null)}>← Назад</button>
-            <button ref={nextRef} type="button" disabled={chosenIndex>=visible.length-1}
-              onClick={()=>setSelected(visible[chosenIndex+1]?.id??null)}>Вперёд →</button>
+            <button className="gallery-image-viewer-nav" aria-label="Предыдущая фотография" ref={prevRef} type="button" disabled={chosenIndex<=0}
+              onClick={()=>setSelected(visible[chosenIndex-1]?.id??null)}><span aria-hidden="true">←</span></button>
+            <button className="gallery-image-viewer-nav" aria-label="Следующая фотография" ref={nextRef} type="button" disabled={chosenIndex>=visible.length-1}
+              onClick={()=>setSelected(visible[chosenIndex+1]?.id??null)}><span aria-hidden="true">→</span></button>
           </div>
         </div>
       </div>}

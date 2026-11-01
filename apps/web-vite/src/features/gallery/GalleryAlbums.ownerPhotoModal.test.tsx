@@ -276,7 +276,7 @@ describe("owner-scoped gallery photos and responsive viewer", () => {
       'button[aria-label="Следующая фотография"]',
     );
     const close = viewer()?.querySelector<HTMLButtonElement>(
-      "button:not([aria-label])",
+      'button[aria-label="Закрыть фотографию"]',
     );
     expect(viewer()?.textContent).toContain("1 / 2");
     expect(viewedSrc()).toContain("photo_01/full.jpg");

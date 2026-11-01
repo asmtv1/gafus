@@ -13,9 +13,9 @@ const valid = Object.freeze({
   BEGET_CDN_LIVE_SMOKE_VERIFIED: 'true',
   GALLERY_BEGET_CDN_SERVICE_ID: '96cd124e-767e-4af1-a568-c4d1f9b4e73f',
   FEED_BEGET_CDN_SERVICE_ID: 'cbb7fe86-a193-457e-a756-9cf3aa2aef1b',
-  GALLERY_CDN_SECRET: 'gallery-test-placeholder'.padEnd(48,'G'),
+  GALLERY_CDN_REDIRECT_SIGNING_SECRET: 'gallery-test-placeholder'.padEnd(48,'G'),
   FEED_CDN_SECRET: 'feed-test-placeholder'.padEnd(32,'F'),
-  GALLERY_ORIGIN_SECRET: 'G'.repeat(32),
+  GALLERY_CDN_REDIRECT_ORIGIN_SECRET: 'G'.repeat(32),
   FEED_ORIGIN_SECRET: 'F'.repeat(32),
   BEGET_CDN_API_TOKEN: 'not-a-real-purge-token'.padEnd(36,'X'),
   BEGET_GALLERY_SMOKE_FINAL_KEY: 'albums/owner/album/photos/image/full.webp',
@@ -29,7 +29,7 @@ const check = (overrides = {}, mode = '--check') =>
     env: {...valid, ...overrides},
   });
 test('offline plan is non-mutating and does not need credentials', () => {
-  const result = check({GALLERY_CDN_SECRET:'',BEGET_CDN_API_TOKEN:''},'--plan');
+  const result = check({GALLERY_CDN_REDIRECT_SIGNING_SECRET:'',BEGET_CDN_API_TOKEN:''},'--plan');
   assert.equal(result.status,0);
   const plan = JSON.parse(result.stdout);
   assert.equal(plan.mutates,false);
@@ -39,7 +39,7 @@ test('valid placeholder environment passes config ONLY; never accesses network',
   const result=check();
   assert.equal(result.status,0,result.stderr);
   assert.match(result.stdout,/BEGET_ONLY_READINESS=PASS/);
-  for (const secret of [valid.GALLERY_CDN_SECRET,valid.FEED_CDN_SECRET,valid.BEGET_CDN_API_TOKEN])
+  for (const secret of [valid.GALLERY_CDN_REDIRECT_SIGNING_SECRET,valid.FEED_CDN_SECRET,valid.BEGET_CDN_API_TOKEN])
     assert.doesNotMatch(result.stdout, new RegExp(secret));
 });
 test('manual release uses same guard, never falls back to Yandex', () => {
@@ -69,6 +69,6 @@ test('does not treat generic staging assets or fake service ids as valid live sm
     {BEGET_GALLERY_SMOKE_FINAL_KEY:'albums/owner/staging/photos/fixture/full.webp'},
     {BEGET_FEED_SMOKE_SHA256:''},
     {FEED_CDN_SECRET:'invalid'},
-    {GALLERY_CDN_SECRET:'invalid'},
+    {GALLERY_CDN_REDIRECT_SIGNING_SECRET:'invalid'},
   ]) assert.notEqual(check(overrides).status,0,JSON.stringify(Object.keys(overrides)));
 });

@@ -235,6 +235,7 @@ export function PhotoManagement({album,photo,commands=galleryAlbumCommands,
     }))setEditing(false);
   }
   return <div className="gallery-photo-actions">
+    {!confirmDelete && <>
     {!editing?<button type="button" className="button-secondary"
       disabled={action.busy} onClick={()=>setEditing(true)}>Изменить подпись</button>:
       <form onSubmit={e=>void edit(e)}>
@@ -315,12 +316,13 @@ export function PhotoManagement({album,photo,commands=galleryAlbumCommands,
             return confirmed==="ready"?"Фото перенесено.":
               "Перемещение запущено. Проверьте альбом позже.";
           })}>Переместить фото</button>
-        <SecondaryButton variant="red" type="button"  disabled={action.busy}
-          onClick={()=>setMoving(false)}>Отмена</SecondaryButton>
+        <SecondaryButton type="button" disabled={action.busy}
+          onClick={()=>setMoving(false)}>Отменить перемещение</SecondaryButton>
       </div>)}
-    {!confirmDelete?<SecondaryButton variant="red" type="button"
-      disabled={action.busy} onClick={()=>setConfirmDelete(true)}>Удалить фото</SecondaryButton>:
-      <div role="group" aria-label="Удаление фотографии">
+    <SecondaryButton variant="red" type="button"
+      disabled={action.busy} onClick={()=>setConfirmDelete(true)}>Удалить фото</SecondaryButton>
+    </>}
+    {confirmDelete && <div role="group" aria-label="Удаление фотографии" className="gallery-delete-confirmation">
         <p>Удалить эту фотографию без возможности восстановления?</p>
         <SecondaryButton variant="red" type="button" disabled={action.busy}
           onClick={()=>void action.run(async()=>{
@@ -336,8 +338,8 @@ export function PhotoManagement({album,photo,commands=galleryAlbumCommands,
             }
             throw Error("GALLERY_DELETE_NOT_CONFIRMED");
           })}>Да, удалить фото</SecondaryButton>
-        <SecondaryButton variant="red" type="button"  disabled={action.busy}
-          onClick={()=>setConfirmDelete(false)}>Отмена</SecondaryButton>
+        <SecondaryButton type="button" disabled={action.busy}
+          onClick={()=>setConfirmDelete(false)}>Не удалять</SecondaryButton>
       </div>}
     {action.notice&&<p role="status">{action.notice}</p>}
   </div>;

@@ -40,18 +40,18 @@ describe('private CDN and configuration',()=>{
   it('signs vet previews only through Beget, never signs medical originals',()=>{
     const preview='users/owner/pets/pet/vet-visits/visit/photo/thumb.webp';
     const expires=timestamp+120;
-    const url=new URL(signGalleryCdnUrl('https://mepsuduyokabib.begetcdn.cloud',preview,new Date(expires*1000),secret,timestamp*1000));
+    const url=new URL(signGalleryCdnUrl('https://fupiquafifeswu.begetcdn.cloud',preview,new Date(expires*1000),secret,timestamp*1000));
     const signature=createHash('md5').update(`${secret}/${preview}${expires}`).digest('base64url');
     expect(url.pathname).toBe(`/md5(${signature},${expires})/${preview}`);
     expect(url.search).toBe('');
     expect(originKey('/'+preview)).toBe(preview);
     expect(()=>originKey('/users/owner/pets/pet/vet-visits/visit/photo/original.pdf')).toThrow();
     expect(()=>signGalleryCdnUrl('https://gallery-dev.gafus.ru',preview,new Date(expires*1000),secret,timestamp*1000)).toThrow('CDN_PROVIDER_MISMATCH');
-    expect(()=>signGalleryCdnUrl('https://mepsuduyokabib.begetcdn.cloud','users/owner/pets/pet/vet-visits/visit/photo/original.jpg',new Date(expires*1000),secret,timestamp*1000)).toThrow();
+    expect(()=>signGalleryCdnUrl('https://fupiquafifeswu.begetcdn.cloud','users/owner/pets/pet/vet-visits/visit/photo/original.jpg',new Date(expires*1000),secret,timestamp*1000)).toThrow();
   });
   it('uses CDNvideo/Beget path-token syntax without exposing signing secret', () => {
     const expires = timestamp + 300;
-    const url = new URL(signGalleryCdnUrl('https://mepsuduyokabib.begetcdn.cloud',key,new Date(expires*1000),secret,timestamp*1000));
+    const url = new URL(signGalleryCdnUrl('https://fupiquafifeswu.begetcdn.cloud',key,new Date(expires*1000),secret,timestamp*1000));
     const md5 = createHash('md5').update(`${secret}/${key}${expires}`).digest('base64url');
     expect(url.pathname).toBe(`/md5(${md5},${expires})/${key}`);
     expect(url.search).toBe('');
@@ -62,7 +62,7 @@ describe('private CDN and configuration',()=>{
       new Date(expires * 1000), secret, timestamp * 1000)).toThrow('CDN_PROVIDER_MISMATCH');
     expect(() => signGalleryCdnUrl('https://images.example.org', key,
       new Date(expires * 1000), secret, timestamp * 1000, 'beget')).toThrow('CDN_PROVIDER_MISMATCH');
-    expect(() => signGalleryCdnUrl('https://mepsuduyokabib.begetcdn.cloud',
+    expect(() => signGalleryCdnUrl('https://fupiquafifeswu.begetcdn.cloud',
       'albums/o/a/incoming/x/source.jpg',new Date(expires*1000),secret,timestamp*1000)).toThrow();
   });
   it('uses separate Beget signing keys only for explicitly selected new redirect CDN', () => {
@@ -81,7 +81,7 @@ describe('private CDN and configuration',()=>{
     const url = signGalleryCdnUrl(c.cdnBaseUrl, key, new Date((timestamp+240)*1000), c.cdnSecret, timestamp*1000);
     expect(new URL(url).hostname).toBe('fupiquafifeswu.begetcdn.cloud');
     expect(() => galleryStorageConfigFromEnv({ ...next, GALLERY_CDN_BASE_URL: 'https://mepsuduyokabib.begetcdn.cloud' })).toThrow('UNSAFE_CDN_URL');
-    expect(() => galleryStorageConfigFromEnv({ ...next, GALLERY_CDN_REDIRECT_ENABLED: 'false' })).toThrow('UNSAFE_CDN_URL');
+    expect(() => galleryStorageConfigFromEnv({ ...next, GALLERY_CDN_REDIRECT_ENABLED: 'false' })).toThrow('GALLERY_REDIRECT_REQUIRED');
     expect(() => galleryStorageConfigFromEnv({ ...next, GALLERY_CDN_ORIGIN_ROUTE_ENABLED: 'false' })).toThrow('GALLERY_CDN_REDIRECT_REQUIRES_ORIGIN');
   });
   it('disabled HEAD without credentials cannot prove deletion',async()=>{

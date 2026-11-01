@@ -17,7 +17,7 @@ export function signGalleryCdnUrl(baseUrl: string, key: string, expiresAt: Date,
   const origin = new URL(baseUrl);
   if (origin.protocol !== 'https:' || origin.pathname !== '/' || origin.search || origin.hash ||
       origin.username || origin.password || origin.port ||
-      !['mepsuduyokabib.begetcdn.cloud', 'fupiquafifeswu.begetcdn.cloud'].includes(origin.hostname) || (provider !== undefined && provider !== 'beget'))
+      origin.hostname !== 'fupiquafifeswu.begetcdn.cloud' || (provider !== undefined && provider !== 'beget'))
     throw new Error('CDN_PROVIDER_MISMATCH');
   const expires = Math.floor(expiresAt.getTime() / 1000);
   if (!Number.isSafeInteger(expires) || expires <= Math.floor(now / 1000) || expires > Math.floor(now / 1000) + 360)

@@ -539,24 +539,21 @@ jobs:
       BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED }}
       BEGET_CDN_LIVE_SMOKE_VERIFIED: ${{ vars.BEGET_CDN_LIVE_SMOKE_VERIFIED }}
       GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
-      GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID }}
       GALLERY_CDN_REDIRECT_RELEASE_APPROVED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED || 'false' }}
       GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
       GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
-      GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
-      GALLERY_CDN_BASE_URL: ${{ vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && 'https://fupiquafifeswu.begetcdn.cloud' || 'https://mepsuduyokabib.begetcdn.cloud' }}
+      GALLERY_CDN_EDGE_TOKEN_VERIFIED: ${{ vars.GALLERY_CDN_EDGE_TOKEN_VERIFIED || 'false' }}
+      GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
       GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED: ${{ vars.GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED || 'false' }}
       GALLERY_CDN_BROWSER_CACHE_VERIFIED: ${{ vars.GALLERY_CDN_BROWSER_CACHE_VERIFIED || 'false' }}
       GALLERY_CDN_METADATA_MIGRATED: ${{ vars.GALLERY_CDN_METADATA_MIGRATED || 'false' }}
-      GALLERY_CDN_PURGE_DUAL_ENABLED: ${{ vars.GALLERY_CDN_PURGE_DUAL_ENABLED || 'false' }}
-      GALLERY_CDN_EDGE_TOKEN_VERIFIED: ${{ vars.GALLERY_CDN_EDGE_TOKEN_VERIFIED || 'false' }}
+      GALLERY_CDN_BASE_URL: https://fupiquafifeswu.begetcdn.cloud
+      GALLERY_CDN_REDIRECT_REQUIRED: "true"
       GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
       GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
       FEED_BEGET_CDN_SERVICE_ID: ${{ vars.FEED_BEGET_CDN_SERVICE_ID }}
-      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
       FEED_CDN_PUBLIC_READ_APPROVED: ${{ vars.FEED_CDN_PUBLIC_READ_APPROVED || 'false' }}
-      GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
       FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
       BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
       BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
@@ -571,16 +568,12 @@ jobs:
           package-manager-cache: false
       - name: Validate Beget-only production approvals and existing secret bindings
         run: node infra/cloudru/beget-release-readiness.mjs --check
-      - name: Read back protected Beget Gallery redirect settings before staging release
-        if: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' }}
-        run: node infra/cloudru/gallery-redirect-release-gate.mjs
-      - name: Verify Feed CDN bytes plus legacy Gallery (or staged protected CDN) read-only
+      - name: Require full Gallery SigV4 redirect cutover and verify provider read-only
         run: |
-          if [ "$GALLERY_CDN_REDIRECT_RELEASE_APPROVED" = 'true' ]; then
-            node infra/cloudru/beget-production-smoke.mjs --feed-only
-          else
-            node infra/cloudru/beget-production-smoke.mjs
-          fi
+          test "$GALLERY_CDN_REDIRECT_RELEASE_APPROVED" = "true"
+          node infra/cloudru/gallery-redirect-release-gate.mjs
+      - name: Verify Feed CDN bytes (Gallery Hono provider checked separately)
+        run: node infra/cloudru/beget-production-smoke.mjs --feed-only
       - name: Inspect Beget origin bindings after smoke failure (read-only, no secrets logged)
         if: failure()
         continue-on-error: true
@@ -589,7 +582,9 @@ jobs:
   # Read-only inventory and image reference check, before VPS deployment.
   cloudru-jobs-preflight:
     needs: [security, build-apps, cloudru-media-contracts, beget-readonly-preflight, cutover-preflight]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Exact, temporary Gallery-only app release: no Cloud.ru Job writes or
+    # immutable image changes. Provider and app QA gates remain mandatory.
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && !(vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') }}
     uses: ./.github/workflows/production-job-release-reusable.yml
     with:
       release_sha: ${{ github.sha }}
@@ -599,7 +594,10 @@ jobs:
   # Production deploy is shared with manual Deploy Only. No second script.
   deploy-production:
     needs: [security, build-apps, build-images, cloudru-jobs-preflight]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # `always()` is required solely because the temporary Gallery-only lane
+    # deliberately skips the unrelated Cloud.ru 11-Jobs preflight. Never
+    # bypass app tests, images, or successful Beget read-only verification.
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.security.result == 'success' && needs.build-apps.result == 'success' && needs.build-images.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-preflight.result == 'success') }}
     uses: ./.github/workflows/production-deploy-reusable.yml
     with:
       release_sha: ${{ github.sha }}
@@ -610,7 +608,8 @@ jobs:
   # The job adapter does not build images, provision Jobs or touch S3.
   cloudru-jobs-sync:
     needs: [deploy-production]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # An app-only Gallery bootstrap may NOT touch any of the 11 Jobs.
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && !(vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') }}
     uses: ./.github/workflows/production-job-release-reusable.yml
     with:
       release_sha: ${{ github.sha }}
@@ -619,7 +618,7 @@ jobs:
 
   cloudru-jobs-verify:
     needs: [cloudru-jobs-sync]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && !(vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') }}
     uses: ./.github/workflows/production-job-release-reusable.yml
     with:
       release_sha: ${{ github.sha }}
@@ -630,17 +629,14 @@ jobs:
   # or roll back Gallery/Feed to Yandex CDN (including on Beget 5xx).
   beget-verify-after-deploy:
     needs: [beget-readonly-preflight, cloudru-jobs-verify, deploy-production]
-    # A successful app deploy must get an independent live Gallery/Feed canary,
-    # even if a subsequent Cloud.ru Jobs reconciliation fails. Keep CI red in
-    # that case, but never mistake a skipped CDN probe for a passing release.
-    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.deploy-production.result == 'success' && needs.beget-readonly-preflight.result == 'success' }}
+    # Probe the deployed app even if the independent Jobs reconciliation fails;
+    # its failure still leaves CI red. App-only bootstrap skips all 11 Jobs.
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.deploy-production.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-verify.result == 'success' || needs.cloudru-jobs-verify.result == 'failure') }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12
     env:
-      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
       GALLERY_CDN_REDIRECT_RELEASE_APPROVED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED || 'false' }}
-      GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID }}
       GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
       GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
@@ -655,11 +651,7 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Verify signed Feed bytes and live private Gallery Hono redirect after deployment
+      - name: Verify signed Feed bytes and private Gallery SigV4 Hono redirect after deployment
         run: |
-          if [ "$GALLERY_CDN_REDIRECT_RELEASE_APPROVED" = 'true' ]; then
-            node infra/cloudru/beget-production-smoke.mjs --feed-only
-            node infra/cloudru/beget-gallery-redirect-canary.mjs
-          else
-            node infra/cloudru/beget-production-smoke.mjs
-          fi
+          node infra/cloudru/beget-production-smoke.mjs --feed-only
+          node infra/cloudru/beget-gallery-redirect-canary.mjs

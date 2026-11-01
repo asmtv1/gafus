@@ -44,9 +44,9 @@ jobs:
         run: node scripts/refactor/check-chat2-prod-boundary.mjs --candidate
       - name: Gallery protected S3 redirect gate (read-only, no provider writes)
         env:
+          GALLERY_CDN_REDIRECT_REQUIRED: "true"
           GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
           GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
-          GALLERY_CDN_PURGE_DUAL_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_PURGE_DUAL_ENABLED || 'false' }}
           GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
           GALLERY_CDN_EDGE_TOKEN_VERIFIED: ${{ vars.GALLERY_CDN_EDGE_TOKEN_VERIFIED || 'false' }}
           GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED: ${{ vars.GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED || 'false' }}
@@ -55,10 +55,8 @@ jobs:
           BEGET_CDN_PURGE_API_VERIFIED: ${{ vars.BEGET_CDN_PURGE_API_VERIFIED || 'false' }}
           BEGET_CDN_CACHE_KEY_VERIFIED: ${{ vars.BEGET_CDN_CACHE_KEY_VERIFIED || 'false' }}
           BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED || 'false' }}
-          GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID }}
           GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
-          GALLERY_CDN_BASE_URL: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_ENABLED == 'true' && 'https://fupiquafifeswu.begetcdn.cloud' || 'https://mepsuduyokabib.begetcdn.cloud' }}
-          GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+          GALLERY_CDN_BASE_URL: https://fupiquafifeswu.begetcdn.cloud
           GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
           GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
           BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
@@ -78,9 +76,9 @@ jobs:
           BEGET_CDN_LIVE_SMOKE_VERIFIED: ${{ vars.BEGET_CDN_LIVE_SMOKE_VERIFIED }}
           GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
           FEED_BEGET_CDN_SERVICE_ID: ${{ vars.FEED_BEGET_CDN_SERVICE_ID }}
-          GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+          GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
           FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
-          GALLERY_ORIGIN_SECRET: ${{ secrets.GALLERY_ORIGIN_SECRET }}
+          GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
           FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
           BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
           BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
@@ -89,7 +87,7 @@ jobs:
           BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
         run: |
           node infra/cloudru/beget-release-readiness.mjs --check
-          node infra/cloudru/beget-production-smoke.mjs
+          node infra/cloudru/beget-production-smoke.mjs --feed-only
 
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1.0.3
@@ -346,8 +344,8 @@ jobs:
                 fi
                 # Beget CDNvideo uses the EXISTING per-scope secret values.
                 # Only the signing algorithm and host change; do not rotate keys.
-                if [ -z "${{ secrets.GALLERY_CDN_SECRET }}" ] || [ -z "${{ secrets.FEED_CDN_SECRET }}" ]; then
-                  echo "Missing Gallery or Feed production CDN signing secret"
+                if [ -z "${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}" ] || [ -z "${{ secrets.FEED_CDN_SECRET }}" ]; then
+                  echo "Missing Gallery redirect or Feed CDN signing secret"
                   exit 1
                 fi
                 # Account deletion must not be silently broken by switching
@@ -409,7 +407,6 @@ jobs:
               echo "GALLERY_DEV_WEB_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
               echo "GALLERY_DEV_WEB_S3_SECRET_ACCESS_KEY=${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}"
               # Beget uses the existing production signing secret value.
-              echo "GALLERY_CDN_SECRET=${{ secrets.GALLERY_CDN_SECRET }}"
               # Legacy October flags still exist in GitHub! Never honor them without
               # separate Nov-2026 release approval and the read-only preflight.
               if [ "${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED }}" = "true" ]; then
@@ -423,13 +420,11 @@ jobs:
                   echo "GALLERY_CDN_REDIRECT_ENABLED=false"
                   echo "GALLERY_CDN_CACHEABLE_FINAL_ENABLED=false"
                 fi
-                echo "GALLERY_CDN_PURGE_DUAL_ENABLED=${{ vars.GALLERY_CDN_PURGE_DUAL_ENABLED || 'false' }}"
               else
                 echo "GALLERY_CDN_REDIRECT_SIGNING_SECRET="
                 echo "GALLERY_CDN_REDIRECT_ORIGIN_SECRET="
                 echo "GALLERY_CDN_ORIGIN_ROUTE_ENABLED=false"
                 echo "GALLERY_CDN_REDIRECT_ENABLED=false"
-                echo "GALLERY_CDN_PURGE_DUAL_ENABLED=false"
                 echo "GALLERY_CDN_CACHEABLE_FINAL_ENABLED=false"
               fi
               echo "GALLERY_DEV_INTERNAL_HMAC_SECRET=${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}"
@@ -438,13 +433,7 @@ jobs:
               echo "GALLERY_BUCKET=gafus-gallery-private"
               echo "GALLERY_S3_ENDPOINT=https://s3.cloud.ru"
               echo "GALLERY_CDN_PROVIDER=beget"
-              if [ "${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED }}" = "true" ] &&
-                 [ "${{ vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED }}" = "true" ] &&
-                 [ "${{ vars.GALLERY_CDN_REDIRECT_ENABLED }}" = "true" ]; then
-                echo "GALLERY_CDN_BASE_URL=https://fupiquafifeswu.begetcdn.cloud"
-              else
-                echo "GALLERY_CDN_BASE_URL=https://mepsuduyokabib.begetcdn.cloud"
-              fi
+              echo "GALLERY_CDN_BASE_URL=https://fupiquafifeswu.begetcdn.cloud"
               echo "GALLERY_CDN_EDGE_TOKEN_VERIFIED=true"
               echo "GALLERY_PROCESSOR_READY=true"
               echo "GALLERY_MEDIA_FALLBACK_ENABLED=true"
@@ -674,11 +663,10 @@ jobs:
             preserve = (
                 'GALLERY_CDN_BASE_URL', 'FEED_CDN_BASE_URL',
                 'GALLERY_BEGET_CDN_SERVICE_ID', 'FEED_BEGET_CDN_SERVICE_ID',
-                'GALLERY_CDN_SECRET', 'FEED_CDN_SECRET',
+                'FEED_CDN_SECRET',
                 'GALLERY_CDN_ORIGIN_ROUTE_ENABLED', 'GALLERY_CDN_REDIRECT_ENABLED',
-                'GALLERY_CDN_PURGE_DUAL_ENABLED', 'GALLERY_CDN_CACHEABLE_FINAL_ENABLED',
                 'GALLERY_CDN_REDIRECT_SIGNING_SECRET', 'GALLERY_CDN_REDIRECT_ORIGIN_SECRET',
-                'GALLERY_ORIGIN_SECRET', 'FEED_ORIGIN_SECRET',
+                'FEED_ORIGIN_SECRET',
                 'BEGET_CDN_API_TOKEN', 'GALLERY_CDN_PROVIDER', 'FEED_CDN_PROVIDER',
                 'BEGET_CDN_PURGE_API_VERIFIED','BEGET_CDN_CACHE_KEY_VERIFIED',
                 'BEGET_CDN_PURGE_PROPAGATION_VERIFIED',
@@ -689,14 +677,15 @@ jobs:
             )
             gallery_release_approved = '${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED }}' == 'true'
             gallery_migration_keys = {
-                'GALLERY_CDN_BASE_URL','GALLERY_CDN_ORIGIN_ROUTE_ENABLED',
-                'GALLERY_CDN_REDIRECT_ENABLED','GALLERY_CDN_PURGE_DUAL_ENABLED',
+                'GALLERY_CDN_BASE_URL','GALLERY_BEGET_CDN_SERVICE_ID','GALLERY_CDN_ORIGIN_ROUTE_ENABLED',
                 'GALLERY_CDN_CACHEABLE_FINAL_ENABLED',
                 'GALLERY_CDN_REDIRECT_SIGNING_SECRET','GALLERY_CDN_REDIRECT_ORIGIN_SECRET',
             }
             for key in preserve:
                 if gallery_release_approved and key in gallery_migration_keys: continue
                 if key in old and old[key]: new[key] = old[key]
+            if new.get('GALLERY_CDN_BASE_URL') != 'https://fupiquafifeswu.begetcdn.cloud' or new.get('GALLERY_BEGET_CDN_SERVICE_ID') != '96cd124e-767e-4af1-a568-c4d1f9b4e73f':
+                raise SystemExit('APP_ONLY_RETIRED_GALLERY_CDN_FORBIDDEN')
             for scope in ('GALLERY','FEED'):
                 if new.get(scope+'_CDN_PROVIDER') != 'beget' or not new.get(scope+'_CDN_BASE_URL','').startswith('https://'):
                     raise SystemExit('APP_ONLY_CDN_CONFIGURATION_NOT_PRESERVED_'+scope)

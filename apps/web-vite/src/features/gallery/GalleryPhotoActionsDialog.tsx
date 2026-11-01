@@ -47,7 +47,7 @@ export function GalleryPhotoActionsDialog({album,photo,commands,onChanged}:{
         <PhotoManagement album={album} photo={photo} commands={commands} sourceDialog
           onChanged={()=>{onChanged();close();}}/>
         <div className={styles.actions}>
-          <SecondaryButton variant="red" data-gallery-close type="button"
+          <SecondaryButton data-gallery-close type="button"
             onClick={close}>Закрыть</SecondaryButton>
         </div>
       </div>

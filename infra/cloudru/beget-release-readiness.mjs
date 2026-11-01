@@ -18,8 +18,8 @@ const requiredVars = {
   GALLERY_BEGET_CDN_SERVICE_ID: '96cd124e-767e-4af1-a568-c4d1f9b4e73f',
   FEED_BEGET_CDN_SERVICE_ID: 'cbb7fe86-a193-457e-a756-9cf3aa2aef1b',
 };
-const requiredKeys = ['GALLERY_CDN_SECRET', 'FEED_CDN_SECRET',
-  'GALLERY_ORIGIN_SECRET', 'FEED_ORIGIN_SECRET', 'BEGET_CDN_API_TOKEN'];
+const requiredKeys = ['GALLERY_CDN_REDIRECT_SIGNING_SECRET', 'GALLERY_CDN_REDIRECT_ORIGIN_SECRET',
+  'FEED_CDN_SECRET', 'FEED_ORIGIN_SECRET', 'BEGET_CDN_API_TOKEN'];
 const fixtures = [
   ['BEGET_GALLERY_SMOKE_FINAL_KEY', 'BEGET_GALLERY_SMOKE_SHA256',
     /^albums\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/photos\/[A-Za-z0-9_-]{1,128}\/(?:thumb|full)\.webp$/],
@@ -43,11 +43,11 @@ for (const [name, expected] of Object.entries(requiredVars))
   if (process.env[name] !== expected) throw Error(`BEGET_RELEASE_GATE_MISSING_${name}`);
 for (const name of requiredKeys)
   if (!process.env[name]) throw Error(`BEGET_RELEASE_SECRET_MISSING_${name}`);
-if (!/^[A-Za-z0-9_-]{24,128}$/.test(process.env.GALLERY_CDN_SECRET))
+if (!/^[A-Za-z0-9_-]{24,128}$/.test(process.env.GALLERY_CDN_REDIRECT_SIGNING_SECRET))
   throw Error('BEGET_GALLERY_SIGNING_FORMAT_INVALID');
 if (!/^[A-Za-z0-9_-]{24,32}$/.test(process.env.FEED_CDN_SECRET))
   throw Error('BEGET_FEED_SIGNING_FORMAT_INVALID');
-for (const name of ['GALLERY_ORIGIN_SECRET', 'FEED_ORIGIN_SECRET'])
+for (const name of ['GALLERY_CDN_REDIRECT_ORIGIN_SECRET', 'FEED_ORIGIN_SECRET'])
   if (Buffer.byteLength(process.env[name], 'utf8') < 32)
     throw Error('BEGET_ORIGIN_SECRET_FORMAT_INVALID_' + name);
 if (process.env.BEGET_CDN_API_TOKEN.length < 24)

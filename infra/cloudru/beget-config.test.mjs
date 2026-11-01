@@ -17,8 +17,8 @@ const script = scripts.join('\n');
 describe('existing production CDN secret reuse', () => {
   it('never demands newly rotated Beget signing secrets', () => {
     assert.doesNotMatch(script, /secrets\.(?:BEGET_GALLERY_CDN_SECRET|BEGET_FEED_CDN_SECRET)/);
-    assert.match(script, /Missing Gallery or Feed production CDN signing secret/);
-    for (const name of ['GALLERY_CDN_SECRET', 'FEED_CDN_SECRET']) {
+    assert.match(script, /Missing Gallery redirect or Feed CDN signing secret/);
+    for (const name of ['GALLERY_CDN_REDIRECT_SIGNING_SECRET', 'FEED_CDN_SECRET']) {
       assert.match(script, new RegExp(`secrets\\.${name}`));
       assert.match(script, new RegExp(`echo "${name}=\\$\\{\\{ secrets\\.${name} \\}\\}"`));
     }
@@ -36,12 +36,12 @@ describe('existing production CDN secret reuse', () => {
     for (const [name, service] of Object.entries(compose.services)) {
       const env = service.environment ?? [];
       const list = Array.isArray(env) ? env : Object.entries(env).map(([key, value]) => `${key}=${value}`);
-      const gallery = list.find(row => row.startsWith('GALLERY_CDN_SECRET='));
+      const gallery = list.find(row => row.startsWith('GALLERY_CDN_REDIRECT_SIGNING_SECRET='));
       if (!gallery) continue;
-      assert.equal(gallery, 'GALLERY_CDN_SECRET=${GALLERY_CDN_SECRET:-}', name);
+      assert.equal(gallery, 'GALLERY_CDN_REDIRECT_SIGNING_SECRET=${GALLERY_CDN_REDIRECT_SIGNING_SECRET:-}', name);
       matches.push(name);
     }
-    // Gallery HMAC signing is used by the API and worker; the prior third
+    // Gallery redirect signing is used by the API and worker; the prior third
     // Compose service was retired when media processing moved to Cloud.ru.
     assert.deepEqual(matches.sort(), ['api', 'worker']);
   });
@@ -51,7 +51,7 @@ describe('existing production CDN secret reuse', () => {
     assert.doesNotMatch(script, /GALLERY_CDN_PROVIDER=yandex|FEED_CDN_PROVIDER=yandex|gallery-dev\.gafus\.ru|feed\.gafus\.ru/);
     assert.match(script, /GALLERY_CDN_PROVIDER=beget/);
     assert.match(script, /FEED_CDN_PROVIDER=beget/);
-    assert.match(script, /https:\/\/mepsuduyokabib.begetcdn.cloud/);
+    assert.match(script, /https:\/\/fupiquafifeswu.begetcdn.cloud/);
     assert.match(script, /https:\/\/quepraquiecebquomiel.begetcdn.cloud/);
   });
   it('does not allow Yandex CDN defaults in Gallery/Feed runtime Compose', () => {

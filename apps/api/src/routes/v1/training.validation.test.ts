@@ -438,7 +438,7 @@ describe("training route validation", () => {
     vi.unstubAllEnvs();
   });
 
-  it("выдаёт сегменты media playlist прямыми signed URL", async () => {
+  it("выдаёт сегменты media playlist через защищённый API без зависимости от S3 CORS", async () => {
     downloadFileFromCDNMock.mockResolvedValueOnce(
       Buffer.from("#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXTINF:4,\n720p-segment-001.ts\n"),
     );
@@ -450,12 +450,9 @@ describe("training route validation", () => {
 
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toContain(
-      "https://storage.example/trainers/trainer-1/videocourses/video-1/hls/720p-segment-001.ts",
+      "/api/v1/training/video/video-1/segment?path=720p-segment-001.ts&token=signed-token",
     );
-    expect(getSignedDownloadUrlMock).toHaveBeenCalledWith(
-      "trainers/trainer-1/videocourses/video-1/hls/720p-segment-001.ts",
-      43_200,
-    );
+    expect(getSignedDownloadUrlMock).not.toHaveBeenCalled();
     expect(streamFileFromCDNMock).not.toHaveBeenCalled();
   });
 

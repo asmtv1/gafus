@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 import { mediaCdnProbeRoutes } from "./media-cdn-probe.js";
 
-const signed = () => `https://mepsuduyokabib.begetcdn.cloud/md5(ABCDEFGHIJKLMNOPQRSTUV,${Math.floor(Date.now()/1000)+120})/albums/owner/album/photos/photo/thumb.webp`;
+const signed = () => `https://fupiquafifeswu.begetcdn.cloud/md5(ABCDEFGHIJKLMNOPQRSTUV,${Math.floor(Date.now()/1000)+120})/albums/owner/album/photos/photo/thumb.webp`;
 function testApp(actor = true) {
   const app = new Hono();
   if (actor) app.use("*", async (c, next) => {
@@ -23,7 +23,7 @@ describe("Hono CDN status probe", () => {
   it("rejects external hosts, extra parameters and unsigned URLs", async () => {
     const fetcher = vi.fn(); vi.stubGlobal("fetch", fetcher);
     const app = testApp();
-    for (const suffix of ["?url=https%3A%2F%2Fevil.example%2Fimg", "?url=x&url=y", "?url=https%3A%2F%2Fmepsuduyokabib.begetcdn.cloud%2Fprivate"]) {
+    for (const suffix of ["?url=https%3A%2F%2Fevil.example%2Fimg", "?url=x&url=y", "?url=https%3A%2F%2Ffupiquafifeswu.begetcdn.cloud%2Fprivate"]) {
       const res = await app.request(`http://localhost/api/v1/media-cdn-probe${suffix}`);
       expect(res.status).toBe(400);
     }
@@ -32,9 +32,12 @@ describe("Hono CDN status probe", () => {
   it.each([200, 401, 403, 404, 410, 504])("preserves CDN HEAD status %i without a body", async status => {
     const fetcher = vi.fn(async () => new Response(null, { status }));
     vi.stubGlobal("fetch", fetcher);
-    const res = await testApp().request(`http://localhost/api/v1/media-cdn-probe?url=${encodeURIComponent(signed())}`);
+    // Clock can cross a one-second boundary during await. Compare the exact
+    // URL sent, not a freshly issued token with a different expiry second.
+    const url = signed();
+    const res = await testApp().request(`http://localhost/api/v1/media-cdn-probe?url=${encodeURIComponent(url)}`);
     expect(res.status).toBe(status); expect(await res.text()).toBe("");
-    expect(fetcher).toHaveBeenCalledWith(signed().replace(/,\d{10}\)/, `,${Math.floor(Date.now()/1000)+120})`), expect.objectContaining({ method: "HEAD", credentials: "omit", redirect: "manual" }));
+    expect(fetcher).toHaveBeenCalledWith(url, expect.objectContaining({ method: "HEAD", credentials: "omit", redirect: "manual" }));
   });
   it("reports upstream network failure as outage without leaking details", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw Error("PRIVATE UPSTREAM DETAIL"); }));

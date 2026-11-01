@@ -21,15 +21,15 @@ export function scopedMediaCacheKey(urlString: string, accountId: string, now = 
   if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hash)
     throw new Error('MEDIA_CACHE_UNTRUSTED_HOST');
   const hosts = {
-    'mepsuduyokabib.begetcdn.cloud': 'gallery',
     'fupiquafifeswu.begetcdn.cloud': 'gallery',
-    'garaquachegasourn.begetcdn.cloud': 'feed',
+    'quepraquiecebquomiel.begetcdn.cloud': 'feed',
   } as const;
   const isCloudru = url.hostname === 's3.cloud.ru';
   const scope = isCloudru ? null : hosts[url.hostname as keyof typeof hosts];
   if (!isCloudru && !scope) throw new Error('MEDIA_CACHE_UNTRUSTED_HOST');
   let path: string;
   let kind: 'gallery' | 'feed';
+  let signedExpirySec: number | undefined;
   if (isCloudru) {
     if (!url.searchParams.has('X-Amz-Signature')) throw new Error('MEDIA_CACHE_UNSIGNED');
     const match = /^\/(gafus-gallery-private|gafus-feed-private)(\/.*)$/.exec(url.pathname);
@@ -42,13 +42,21 @@ export function scopedMediaCacheKey(urlString: string, accountId: string, now = 
     // tokens. Do not persist signature tokens or accept arbitrary query keys.
     if (kind === 'feed' && feedV2Path.test(url.pathname)) {
       if (!feedV2Signature.test(url.search)) throw new Error('MEDIA_CACHE_UNSIGNED');
+      signedExpirySec = Number(url.searchParams.get('expires'));
       path = url.pathname;
     } else {
       if (url.search || !signature.test(url.pathname)) throw new Error('MEDIA_CACHE_UNSIGNED');
+      signedExpirySec = Number(url.pathname.match(/^\/md5\([A-Za-z0-9_-]{22},(\d{10})\)/)?.[1]);
       path = url.pathname.replace(signature, '');
     }
   }
   if (!authorizedFinalPath(kind, path)) throw new Error('MEDIA_CACHE_UNTRUSTED_PATH');
+  // A stable disk key is safe only while the server-issued CDN token is valid.
+  // Never let the 180-second cache slot outlive an expired (or nearly expired)
+  // token; keep it memory-only until a fresh authenticated media read arrives.
+  if (signedExpirySec !== undefined &&
+      (!Number.isSafeInteger(signedExpirySec) || signedExpirySec * 1000 <= now + 15_000))
+    throw new Error('MEDIA_CACHE_EXPIRED');
   const slot = Math.floor(now / 180_000);
   return `gafus-media-v2:${accountId}:${kind}:${url.hostname}:${path}:${slot}`;
 }

@@ -15,12 +15,16 @@ describe("Cloud.ru storage configuration", () => {
       galleryStorageConfigFromEnv({
         GALLERY_ENABLED: "true",
         GALLERY_PROCESSOR_READY: "true",
+        GALLERY_CDN_REDIRECT_ENABLED: "true",
+        GALLERY_CDN_ORIGIN_ROUTE_ENABLED: "true",
+        GALLERY_CDN_REDIRECT_ORIGIN_SECRET: "V".repeat(48),
+        GALLERY_CDN_REDIRECT_SIGNING_SECRET: "R".repeat(32),
         GALLERY_BUCKET: config.bucket,
         GALLERY_S3_ENDPOINT: config.endpoint,
         GALLERY_S3_ACCESS_KEY_ID: config.accessKeyId,
         GALLERY_S3_SECRET_ACCESS_KEY: config.secretAccessKey,
       }),
-    ).toThrow("GALLERY_CDN_EDGE_UNVERIFIED");
+    ).toThrow("GALLERY_CDN_ORIGIN_NOT_VERIFIED");
   });
   it("uses the Cloud.ru signing region and private path-style endpoint", async () => {
     const client = createGalleryS3Client(config);

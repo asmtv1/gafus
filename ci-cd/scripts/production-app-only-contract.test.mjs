@@ -52,6 +52,7 @@ test('migration recovery only runs after verified snapshot + 162 completed migra
  assert.match(script,/pg_restore --list/);
  assert.match(script,/MIGRATIONS_NOT_COMPLETE/);
  assert.match(script,/quepraquiecebquomiel\.begetcdn\.cloud/);
+ // Archived 2026-10-31 recovery snapshot is immutable history, not a live deploy workflow.
  assert.match(script,/mepsuduyokabib\.begetcdn\.cloud/);
  assert.match(script,/GALLERY_CDN_ENV_MISSING/);
  assert.match(script,/RELEASE_IMAGE_MISMATCH/);

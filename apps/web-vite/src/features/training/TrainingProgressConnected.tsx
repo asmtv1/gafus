@@ -54,7 +54,11 @@ export function TrainingProgressConnected({
 }) {
   const theoryReadEnd = useContext(TheoryReadingContext);
   const cache = useQueryClient();
-  const initialActor = useRef(cache.getQueryData<AuthUser | null>(CURRENT_USER_QUERY_KEY)?.id);
+  // A cache miss during /me loading is not a different principal. Preserve
+  // the requested actor until /me explicitly proves otherwise.
+  const initialActor = useRef(
+    cache.getQueryData<AuthUser | null>(CURRENT_USER_QUERY_KEY)?.id ?? userId,
+  );
   const epoch = useRef(0);
   const [retired, setRetired] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -81,15 +85,21 @@ export function TrainingProgressConnected({
       if (event.query.queryKey.length !== CURRENT_USER_QUERY_KEY.length ||
         !event.query.queryKey.every((v: unknown, i: number) =>
           v === CURRENT_USER_QUERY_KEY[i])) return;
-      // Mark the epoch synchronously; the in-flight writer must never pass
-      // the actor fence, even before React commits the retirement message.
+      // QueryCache also emits observerAdded, fetch, invalidated and error
+      // notifications. A transient /me error or an initial pending /me isn't
+      // proof of logout. Only a successful authoritative owner mismatch (or
+      // cache removal on explicit logout/login) may retire the active scope.
+      const authoritative = event.type === "removed" ||
+        (event.type === "updated" && event.action.type === "success");
+      if (!authoritative || epoch.current !== 0) return;
+      const activeUser = cache.getQueryData<AuthUser | null>(CURRENT_USER_QUERY_KEY);
+      if (activeUser?.id === userId) return;
+      // Mark synchronously before any in-flight write can pass its actor fence.
       epoch.current++;
-      // Query cache notifications may fire during MainView render. React state
-      // updates must run after that render, not inside the cache callback.
       queueMicrotask(() => { if (subscribed) setRetired(true); });
     });
     return () => { subscribed = false; unsubscribe(); };
-  }, [cache]);
+  }, [cache, userId]);
   const current = useCallback(() => epoch.current === 0 && !retired &&
     initialActor.current === userId &&
     cache.getQueryData<AuthUser | null>(CURRENT_USER_QUERY_KEY)?.id === userId,

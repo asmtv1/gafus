@@ -70,12 +70,14 @@ export function monitorConfigFromEnv(
 ): MonitorConfig {
   return {
     gallery: {
-      host: env.GALLERY_CDN_BASE_URL === "https://mepsuduyokabib.begetcdn.cloud" &&
+      host: env.GALLERY_CDN_BASE_URL === "https://fupiquafifeswu.begetcdn.cloud" &&
         (!env.GALLERY_CDN_PROVIDER || env.GALLERY_CDN_PROVIDER === "beget")
-        ? "mepsuduyokabib.begetcdn.cloud" : "",
+        ? "fupiquafifeswu.begetcdn.cloud" : "",
       provider: "beget",
-      secret: env.GALLERY_CDN_SECRET ?? "",
+      secret: env.GALLERY_CDN_REDIRECT_SIGNING_SECRET ?? "",
       enabled: env.GALLERY_ENABLED === "true" &&
+        env.GALLERY_CDN_REDIRECT_ENABLED === "true" &&
+        env.GALLERY_CDN_ORIGIN_ROUTE_ENABLED === "true" &&
         env.GALLERY_MEDIA_FALLBACK_ENABLED === "true" &&
         env.GALLERY_S3_ENDPOINT === "https://s3.cloud.ru",
     },
@@ -113,7 +115,7 @@ export function createSignedMonitorUrl(kind: Kind, config: MonitorConfig,
     : `media/v2/${id}/v1/image/s.webp`;
   const path = `/${key}`;
   const expires = Math.floor(now / 1000) + 90;
-  if (provider !== "beget" || host !== (kind === "gallery" ? "mepsuduyokabib.begetcdn.cloud" : "quepraquiecebquomiel.begetcdn.cloud"))
+  if (provider !== "beget" || host !== (kind === "gallery" ? "fupiquafifeswu.begetcdn.cloud" : "quepraquiecebquomiel.begetcdn.cloud"))
     return null;
   if (kind === "feed") {
     // Feed Media V2 uses Beget Cloud CDN query-token signing, unlike Gallery.

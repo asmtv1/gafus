@@ -18,7 +18,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 ROOT = Path('/Users/asmtv1/Desktop/gafus-refactor')
-BEGET_SERVICE = '0a8e97d5-3a65-4e90-99a6-c7f61131a461'
+BEGET_SERVICE = '96cd124e-767e-4af1-a568-c4d1f9b4e73f'
 CLOUD_SANDBOX = ROOT / '.local-pg-scratch' / 'gallery-cloudru-sandbox.private.env'
 
 

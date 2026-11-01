@@ -8,7 +8,7 @@ import { MEDIA_DELIVERY_HEALTH_KEY } from "@gafus/core/services/mediaDelivery";
 
 const now = 1791920000000;
 const config: MonitorConfig = {
-  gallery: { host: "mepsuduyokabib.begetcdn.cloud", secret: "A".repeat(24), enabled: true, provider: "beget" },
+  gallery: { host: "fupiquafifeswu.begetcdn.cloud", secret: "A".repeat(24), enabled: true, provider: "beget" },
   feed: { host: "quepraquiecebquomiel.begetcdn.cloud", secret: "B".repeat(24), enabled: true, provider: "beget" },
 };
 const blank = () => parseMonitorState(null, now);
@@ -16,7 +16,7 @@ const blank = () => parseMonitorState(null, now);
 describe("server-side CDN health monitor", () => {
   it("makes unique valid signed final-media probes without exposing an origin secret", () => {
     const url = createSignedMonitorUrl("gallery", config, now, "a".repeat(32));
-    expect(url).toMatch(/^https:\/\/mepsuduyokabib\.begetcdn\.cloud\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\/__cdn_monitor__\/__cdn_monitor__\/photos\//);
+    expect(url).toMatch(/^https:\/\/fupiquafifeswu\.begetcdn\.cloud\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\/__cdn_monitor__\/__cdn_monitor__\/photos\//);
     expect(url).toContain("/md5(");
     expect(url).not.toContain("A".repeat(24));
     const feedUrl = new URL(createSignedMonitorUrl("feed", config, now, "b".repeat(32))!);
@@ -31,15 +31,16 @@ describe("server-side CDN health monitor", () => {
   });
   it("matches Gallery path-token and Feed Media V2 query-token signing formats", () => {
     const beget = monitorConfigFromEnv({
-      GALLERY_CDN_BASE_URL: "https://mepsuduyokabib.begetcdn.cloud",
-      GALLERY_CDN_SECRET: "A".repeat(24), GALLERY_ENABLED: "true",
+      GALLERY_CDN_BASE_URL: "https://fupiquafifeswu.begetcdn.cloud",
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: "A".repeat(24), GALLERY_CDN_REDIRECT_ENABLED: "true",
+      GALLERY_CDN_ORIGIN_ROUTE_ENABLED: "true", GALLERY_ENABLED: "true",
       GALLERY_S3_ENDPOINT: "https://s3.cloud.ru", GALLERY_MEDIA_FALLBACK_ENABLED: "true",
       FEED_CDN_BASE_URL: "https://quepraquiecebquomiel.begetcdn.cloud",
       FEED_CDN_SECRET: "B".repeat(24), FEED_ENABLED: "true",
       FEED_S3_ENDPOINT: "https://s3.cloud.ru", FEED_MEDIA_FALLBACK_ENABLED: "true",
     });
     expect(createSignedMonitorUrl("gallery", beget, now, "a".repeat(32))).toMatch(
-      /^https:\/\/mepsuduyokabib\.begetcdn\.cloud\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\//);
+      /^https:\/\/fupiquafifeswu\.begetcdn\.cloud\/md5\([A-Za-z0-9_-]{22},\d{10}\)\/albums\//);
     const actual = createSignedMonitorUrl("feed", beget, now, "b".repeat(32));
     expect(actual).toContain("/media/v2/");
     expect(actual).toContain("/v1/image/s.webp?md5=");
@@ -50,7 +51,7 @@ describe("server-side CDN health monitor", () => {
       [403, "unknown"], [401, "unknown"], [302, "unknown"], [200, "unknown"]] as const) {
       const fetcher = vi.fn(async () => new Response(null, { status }));
       expect(await probeMediaCdn("gallery", config, fetcher, now)).toBe(result);
-      expect(fetcher).toHaveBeenCalledWith(expect.stringContaining("mepsuduyokabib.begetcdn.cloud"),
+      expect(fetcher).toHaveBeenCalledWith(expect.stringContaining("fupiquafifeswu.begetcdn.cloud"),
         expect.objectContaining({ method: "GET", redirect: "manual" }));
     }
     expect(await probeMediaCdn("feed", config,

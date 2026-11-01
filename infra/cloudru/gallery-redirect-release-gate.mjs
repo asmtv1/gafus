@@ -8,26 +8,25 @@ const requireTrue = (env, name) => {
 };
 export function checkGalleryRedirectConfig(env) {
   for (const name of ['GALLERY_CDN_ORIGIN_ROUTE_ENABLED', 'GALLERY_CDN_REDIRECT_ENABLED',
-    'GALLERY_CDN_PURGE_DUAL_ENABLED', 'GALLERY_CDN_CACHEABLE_FINAL_ENABLED']) {
+    'GALLERY_CDN_CACHEABLE_FINAL_ENABLED']) {
     if (env[name] && !['true','false'].includes(env[name])) throw Error('GALLERY_REDIRECT_GATE_INVALID_' + name);
   }
   const origin = env.GALLERY_CDN_ORIGIN_ROUTE_ENABLED === 'true';
   const redirect = env.GALLERY_CDN_REDIRECT_ENABLED === 'true';
+  if (env.GALLERY_CDN_REDIRECT_REQUIRED === 'true' && (!origin || !redirect))
+    throw Error('GALLERY_REDIRECT_GATE_REQUIRED');
   if (!origin && !redirect) return { enabled: false };
   requireTrue(env,'GALLERY_CDN_ORIGIN_ROUTE_ENABLED');
-  requireTrue(env,'GALLERY_CDN_PURGE_DUAL_ENABLED');
   requireTrue(env,'GALLERY_CDN_EDGE_TOKEN_VERIFIED');
   requireTrue(env,'BEGET_CDN_PURGE_API_VERIFIED');
   requireTrue(env,'BEGET_CDN_CACHE_KEY_VERIFIED');
   requireTrue(env,'BEGET_CDN_PURGE_PROPAGATION_VERIFIED');
-  for (const name of ['GALLERY_CDN_REDIRECT_ORIGIN_SECRET', 'GALLERY_CDN_REDIRECT_SIGNING_SECRET',
-    'GALLERY_CDN_SECRET']) {
+  for (const name of ['GALLERY_CDN_REDIRECT_ORIGIN_SECRET', 'GALLERY_CDN_REDIRECT_SIGNING_SECRET']) {
     const regex = name.endsWith('ORIGIN_SECRET') ? /^[A-Za-z0-9]{32,128}$/ : /^[A-Za-z0-9_-]{24,128}$/;
     if (!regex.test(env[name] ?? '')) throw Error('GALLERY_REDIRECT_GATE_MISSING_' + name);
   }
-  // The redirect resource has its OWN ID. The currently live old CDN ID stays
-  // untouched during an isolated Hono canary, preserving old release smoke.
-  if (env.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID !== newService ||
+  // The retired Gallery CDN is never an approved release target.
+  if (env.GALLERY_BEGET_CDN_SERVICE_ID !== newService ||
       (env.BEGET_CDN_API_TOKEN ?? '').length < 24)
     throw Error('GALLERY_REDIRECT_GATE_SERVICE');
   if (redirect) {

@@ -2,14 +2,12 @@ import { createHash } from "node:crypto";
 
 /** Beget Cloud API, not a CDNvideo account. Requires a tested Beget service ID. */
 const scopeIds = {
-  gallery: "0a8e97d5-3a65-4e90-99a6-c7f61131a461",
-  feed: "becd9e5d-4fa8-47da-878c-9b80ded74e71",
+  gallery: "96cd124e-767e-4af1-a568-c4d1f9b4e73f",
+  feed: "cbb7fe86-a193-457e-a756-9cf3aa2aef1b",
 } as const;
-const redirectGalleryService = "96cd124e-767e-4af1-a568-c4d1f9b4e73f";
-const redirectGalleryHost = "fupiquafifeswu.begetcdn.cloud";
 const hosts = {
-  gallery: "mepsuduyokabib.begetcdn.cloud",
-  feed: "garaquachegasourn.begetcdn.cloud",
+  gallery: "fupiquafifeswu.begetcdn.cloud",
+  feed: "quepraquiecebquomiel.begetcdn.cloud",
 } as const;
 type Scope = keyof typeof scopeIds;
 const id = "[A-Za-z0-9_-]{1,128}";
@@ -30,12 +28,12 @@ const hashBatch = (service: string, paths: string[]) =>
 function settings(scope: Scope, env: Record<string, string | undefined> = process.env) {
   const service = env[`${scope.toUpperCase()}_BEGET_CDN_SERVICE_ID`] ?? "";
   const token = env.BEGET_CDN_API_TOKEN ?? "";
-  const dual = scope === "gallery" && env.GALLERY_CDN_PURGE_DUAL_ENABLED === "true";
-  const services = dual ? [scopeIds.gallery, redirectGalleryService] : [scopeIds[scope]];
+  const services = [scopeIds[scope]];
   if (env.BEGET_CDN_PURGE_API_VERIFIED !== "true" ||
       env.BEGET_CDN_CACHE_KEY_VERIFIED !== "true" ||
-      !services.includes(service) || token.length < 24 ||
-      (dual && !/^[A-Za-z0-9_-]{24,128}$/.test(env.GALLERY_CDN_REDIRECT_SIGNING_SECRET ?? "")))
+      service !== scopeIds[scope] || token.length < 24 ||
+      (scope === "gallery" &&
+       !/^[A-Za-z0-9_-]{24,128}$/.test(env.GALLERY_CDN_REDIRECT_SIGNING_SECRET ?? "")))
     throw new Error("BEGET_CDN_PURGE_NOT_VERIFIED");
   return { services, token };
 }
@@ -64,7 +62,7 @@ export async function beginBegetCdnPurge(
       if (!result || typeof result !== "object" || !("cdn" in result) ||
           !result.cdn || ("error" in result && result.error))
         throw new Error("BEGET_CDN_PURGE_RESPONSE_UNVERIFIED");
-      // Separate durable receipts for each CDN: a successful old purge never proves the new one.
+      // Persist a receipt for the active CDN; never mistake another service for a successful purge.
       const pathsEncoded = Buffer.from(JSON.stringify(batch)).toString("base64url");
       operations.push(`beget:${hash}:${Date.now()}:${scope}:${pathsEncoded}`);
       await checkpoint?.(operations);
@@ -102,7 +100,7 @@ export async function begetCdnPurgeDone(
   env: Record<string, string | undefined> = process.env,
   fetcher: typeof fetch = fetch,
 ): Promise<boolean> {
-  const { scope, created, paths, service } = readOperation(operation, env);
+  const { scope, created, paths } = readOperation(operation, env);
   if (env.BEGET_CDN_PURGE_PROPAGATION_VERIFIED !== "true")
     throw new Error("BEGET_CDN_PURGE_NOT_VERIFIED");
   // Cleanup may be delayed longer than a year by an external outage. Never
@@ -110,20 +108,14 @@ export async function begetCdnPurgeDone(
   if (created > now || created < 1_600_000_000_000)
     throw new Error("BEGET_CDN_UNSAFE_OPERATION");
   if (now - created < 300_000) return false;
-  const redirectGallery = scope === "gallery" && service === redirectGalleryService;
-  const secret = redirectGallery
+  const secret = scope === "gallery"
     ? env.GALLERY_CDN_REDIRECT_SIGNING_SECRET ?? ""
-    : env[`${scope.toUpperCase()}_CDN_SECRET`] ?? "";
+    : env.FEED_CDN_SECRET ?? "";
   const base = env[`${scope.toUpperCase()}_CDN_BASE_URL`];
-  // Preserve validated legacy signing values. Gallery's CDNvideo signer
-  // permits longer keys than the Feed signer; do not silently require rotation.
   const allowedSecret = scope === "gallery"
     ? /^[A-Za-z0-9_-]{24,128}$/
     : /^[A-Za-z0-9_-]{24,32}$/;
-  const dual = scope === "gallery" && env.GALLERY_CDN_PURGE_DUAL_ENABLED === "true";
-  const allowedBase = dual
-    ? [`https://${hosts.gallery}`, `https://${redirectGalleryHost}`].includes(base ?? "")
-    : base === `https://${hosts[scope]}`;
+  const allowedBase = base === `https://${hosts[scope]}`;
   if (!allowedBase || !allowedSecret.test(secret))
     throw new Error("BEGET_CDN_EDGE_PROOF_UNAVAILABLE");
   const expires = Math.floor(now / 1000) + 90;
@@ -133,7 +125,7 @@ export async function begetCdnPurgeDone(
       .digest("base64url");
     const url = scope === "feed"
       ? `https://${hosts[scope]}${path}?md5=${signature}&expires=${expires}`
-      : `https://${redirectGallery ? redirectGalleryHost : hosts[scope]}/md5(${signature},${expires})${path}`;
+      : `https://${hosts[scope]}/md5(${signature},${expires})${path}`;
     for (const method of ["HEAD", "GET"] as const) {
       const response = await fetcher(url, {
         method, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(7000),

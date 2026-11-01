@@ -16,7 +16,7 @@ vi.mock("expo-image", () => ({
 }));
 import { CdnImage, isSignedCloudruFallback } from "./CdnImage";
 const cdnUrl =
-  `https://garaquachegasourn.begetcdn.cloud/media/v2/asset/v1/image/m.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
+  `https://quepraquiecebquomiel.begetcdn.cloud/media/v2/asset/v1/image/m.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
 const signed =
   "https://s3.cloud.ru/gafus-feed-private/posts/owner/post/full.webp?X-Amz-Signature=valid";
 let host: HTMLDivElement, root: Root;
@@ -50,7 +50,7 @@ describe("Mobile authorized Cloud.ru URL shape", () => {
 describe("Mobile CdnImage automatic S3 recovery", () => {
   it("does not render previous account's private image on an account switch", async () => {
     const fallback = vi.fn(async () => ({ url: signed }));
-    const valid = `https://garaquachegasourn.begetcdn.cloud/media/v2/asset/v1/image/m.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
+    const valid = `https://quepraquiecebquomiel.begetcdn.cloud/media/v2/asset/v1/image/m.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
     await act(async () => {
       root.render(<CdnImage cdnUrl={valid} requestFallback={fallback} />);
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -63,7 +63,7 @@ describe("Mobile CdnImage automatic S3 recovery", () => {
     expect(host.querySelector('img')?.getAttribute('src')).toBeNull();
   });
   it("uses authorized S3 immediately when server marks Feed down", async () => {
-    const serverSigned = `https://garaquachegasourn.begetcdn.cloud/media/v2/asset2/v1/image/s.webp?md5=${'B'.repeat(22)}&expires=1999999999`;
+    const serverSigned = `https://quepraquiecebquomiel.begetcdn.cloud/media/v2/asset2/v1/image/s.webp?md5=${'B'.repeat(22)}&expires=1999999999`;
     prefers.mockResolvedValue(true);
     const fallback = vi.fn(async () => ({ url: signed }));
     const network = vi.fn();
@@ -145,7 +145,7 @@ describe("Mobile CdnImage automatic S3 recovery", () => {
     expect(fallback).toHaveBeenCalledOnce();
   });
   it("does not skip per-image 403 after an unrelated CDN 504 cooldown", async () => {
-    const realSigned = `https://garaquachegasourn.begetcdn.cloud/media/v2/asset3/v1/poster.webp?md5=${'B'.repeat(22)}&expires=1999999999`;
+    const realSigned = `https://quepraquiecebquomiel.begetcdn.cloud/media/v2/asset3/v1/poster.webp?md5=${'B'.repeat(22)}&expires=1999999999`;
     const network = vi.fn(async () => new Response(null, { status: 504 }));
     vi.stubGlobal('fetch', network);
     expect(await probeCdnOutage(realSigned, { fetcher: network })).toBe(true);

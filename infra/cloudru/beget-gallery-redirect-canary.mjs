@@ -8,7 +8,7 @@ const secret=process.env.GALLERY_CDN_REDIRECT_SIGNING_SECRET??'';
 const headerSecret=process.env.GALLERY_CDN_REDIRECT_ORIGIN_SECRET??'';
 const path='/'+pathKey;
 if(!/^albums\/beget-smoke-[a-f0-9]{16,64}\/beget-smoke-[a-f0-9]{16,64}\/photos\/[a-f0-9]{16,64}\/full\.webp$/.test(pathKey) ||
- !/^[a-f0-9]{64}$/.test(digest) || !/^[A-Za-z0-9_-]{24,32}$/.test(secret) ||
+ !/^[a-f0-9]{64}$/.test(digest) || !/^[A-Za-z0-9_-]{24,128}$/.test(secret) ||
  !/^[A-Za-z0-9]{32,128}$/.test(headerSecret)) throw Error('GALLERY_CANARY_UNSAFE_INPUT');
 const request=async(url,opts={})=>fetch(url,{redirect:'manual',cache:'no-store',signal:AbortSignal.timeout(10000),...opts});
 const sign=expires=>{

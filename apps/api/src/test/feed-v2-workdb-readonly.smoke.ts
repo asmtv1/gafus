@@ -46,7 +46,7 @@ try {
     storage: { enabled: true, signCdn: async ({ key }: { key: string; expiresAt: Date }) => {
       check(/^media\/v2\/[A-Za-z0-9_-]+\/v1\/(?:image\/[sml]\.webp|poster\.webp|video\/(?:360|720|1080)\.mp4)$/.test(key), "SIGNED_KEY");
       signatures.push(key);
-      return "https://garaquachegasourn.begetcdn.cloud/" + key;
+      return "https://quepraquiecebquomiel.begetcdn.cloud/" + key;
     } } as never, enabled: () => true });
   const data = await service.list(actor.id, { sort: "new", pageSize: 10 });
   check(Array.isArray(data.items) && data.items.length <= 10, "POST_PAGE");

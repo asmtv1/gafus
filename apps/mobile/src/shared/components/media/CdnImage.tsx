@@ -98,7 +98,10 @@ export function CdnImage({
   let cacheKey: string | undefined;
   if (url && viewer) {
     try {
-      cacheKey = scopedMediaCacheKey(url, viewer, cacheSlot * 180_000);
+      // cacheSlot triggers the next disk-window render; use the actual time
+      // for signed-token expiry checks rather than the beginning of the slot.
+      void cacheSlot;
+      cacheKey = scopedMediaCacheKey(url, viewer, Date.now());
     } catch {
       /* Unrecognized URL is never written to the persistent private cache. */
     }

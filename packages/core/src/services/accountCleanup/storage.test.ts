@@ -296,7 +296,7 @@ describe("account storage cleanup adapter", () => {
   it("never accepts an alternative CDN provider for Gallery/Feed cleanup", async () => {
     vi.stubEnv("FEED_S3_ENDPOINT", "https://s3.cloud.ru");
     vi.stubEnv("FEED_CDN_PROVIDER", "cloudru");
-    vi.stubEnv("FEED_CDN_BASE_URL", "https://garaquachegasourn.begetcdn.cloud");
+    vi.stubEnv("FEED_CDN_BASE_URL", "https://quepraquiecebquomiel.begetcdn.cloud");
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
     await expect(startAccountCdnPurge("feed", {
@@ -307,7 +307,7 @@ describe("account storage cleanup adapter", () => {
   it("fails closed BEFORE Cloud.ru CDN purge if legacy cache verification is missing", async () => {
     vi.stubEnv("GALLERY_S3_ENDPOINT", "https://s3.cloud.ru");
     vi.stubEnv("GALLERY_CDN_PROVIDER", "beget");
-    vi.stubEnv("GALLERY_CDN_BASE_URL", "https://mepsuduyokabib.begetcdn.cloud");
+    vi.stubEnv("GALLERY_CDN_BASE_URL", "https://fupiquafifeswu.begetcdn.cloud");
     vi.stubEnv("GALLERY_DUAL_PROVIDER_CLEANUP", "true");
     vi.stubEnv("GALLERY_LEGACY_BUCKET_VERIFIED", "true");
     vi.stubEnv("GALLERY_LEGACY_CDN_RESOURCE_IDS", "");
@@ -330,7 +330,7 @@ describe("account storage cleanup adapter", () => {
     for (const [key, value] of Object.entries({
       FEED_S3_ENDPOINT: "https://s3.cloud.ru",
       FEED_CDN_PROVIDER: "beget",
-      FEED_CDN_BASE_URL: "https://garaquachegasourn.begetcdn.cloud",
+      FEED_CDN_BASE_URL: "https://quepraquiecebquomiel.begetcdn.cloud",
       FEED_DUAL_PROVIDER_CLEANUP: "true",
       FEED_LEGACY_BUCKET_VERIFIED: "true",
       FEED_LEGACY_CDN_RESOURCE_IDS: "historical-feed-only",
@@ -338,11 +338,11 @@ describe("account storage cleanup adapter", () => {
       BEGET_CDN_CACHE_KEY_VERIFIED: "true",
       BEGET_CDN_PURGE_PROPAGATION_VERIFIED: "true",
       BEGET_CDN_API_TOKEN: "fake-api-token-at-least-24-characters",
-      FEED_BEGET_CDN_SERVICE_ID: "becd9e5d-4fa8-47da-878c-9b80ded74e71",
+      FEED_BEGET_CDN_SERVICE_ID: "cbb7fe86-a193-457e-a756-9cf3aa2aef1b",
     })) vi.stubEnv(key, value);
     const request = vi.fn(async (url: string, options: { method?: string } = {}) => {
       if (url.includes("api.beget.com") && options.method === "POST")
-        return Response.json({ cdn: { id: "becd9e5d-4fa8-47da-878c-9b80ded74e71" } });
+        return Response.json({ cdn: { id: "cbb7fe86-a193-457e-a756-9cf3aa2aef1b" } });
       if (url.includes("iam.api.cloud.yandex.net"))
         return Response.json({ iamToken: "verified-test-token" });
       if (url.includes("cdn.api.cloud.yandex.net"))
@@ -389,7 +389,7 @@ describe("account storage cleanup adapter", () => {
     // longer has a DB row. Staging keys are not proof that the edge is empty.
     vi.stubEnv("FEED_S3_ENDPOINT", "https://s3.cloud.ru");
     vi.stubEnv("FEED_CDN_PROVIDER", "beget");
-    vi.stubEnv("FEED_CDN_BASE_URL", "https://garaquachegasourn.begetcdn.cloud");
+    vi.stubEnv("FEED_CDN_BASE_URL", "https://quepraquiecebquomiel.begetcdn.cloud");
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
     await expect(startAccountCdnPurge("feed", {
@@ -487,7 +487,7 @@ describe("account storage cleanup adapter", () => {
   });
   it("never falls back to Yandex purge for active Beget CDN URLs", async () => {
     vi.stubEnv("GALLERY_S3_ENDPOINT", "https://s3.cloud.ru");
-    vi.stubEnv("GALLERY_CDN_BASE_URL", "https://mepsuduyokabib.begetcdn.cloud");
+    vi.stubEnv("GALLERY_CDN_BASE_URL", "https://fupiquafifeswu.begetcdn.cloud");
     vi.stubEnv("GALLERY_CDN_PROVIDER", "yandex");
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
@@ -498,7 +498,7 @@ describe("account storage cleanup adapter", () => {
   it("fails closed on private Beget cleanup when exact signing purge is not validated", async () => {
     vi.stubEnv("GALLERY_S3_ENDPOINT", "https://s3.cloud.ru");
     vi.stubEnv("GALLERY_CDN_PROVIDER", "beget");
-    vi.stubEnv("GALLERY_CDN_BASE_URL", "https://mepsuduyokabib.begetcdn.cloud");
+    vi.stubEnv("GALLERY_CDN_BASE_URL", "https://fupiquafifeswu.begetcdn.cloud");
     await expect(startAccountCdnPurge("gallery", {
       prefixes: ["albums/u/"], keys: ["albums/u/a/photos/b/thumb.webp"],
     })).rejects.toThrow("BEGET_CDN_PURGE_NOT_VERIFIED");

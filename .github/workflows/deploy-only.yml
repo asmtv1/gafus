@@ -89,7 +89,6 @@ jobs:
     environment: production
     timeout-minutes: 10
     env:
-      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
       GALLERY_CDN_REDIRECT_RELEASE_APPROVED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED || 'false' }}
       GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID }}
@@ -118,15 +117,13 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Verify existing CDN delivery before changing production (read-only)
+      - name: Verify Feed CDN delivery before changing production (read-only)
+        run: node infra/cloudru/beget-production-smoke.mjs --feed-only
+      - name: Require protected Gallery cutover before changing production
         run: |
-          if [ "$GALLERY_CDN_REDIRECT_RELEASE_APPROVED" = 'true' ]; then
-            node infra/cloudru/beget-production-smoke.mjs --feed-only
-            node infra/cloudru/gallery-redirect-release-gate.mjs
-            node infra/cloudru/beget-gallery-redirect-canary.mjs
-          else
-            node infra/cloudru/beget-production-smoke.mjs
-          fi
+          test "$GALLERY_CDN_REDIRECT_RELEASE_APPROVED" = "true"
+          node infra/cloudru/gallery-redirect-release-gate.mjs
+          node infra/cloudru/beget-gallery-redirect-canary.mjs
 
   deploy:
     needs: [validate-release, preflight-cdn]
@@ -142,7 +139,6 @@ jobs:
     environment: production
     timeout-minutes: 10
     env:
-      GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
       GALLERY_CDN_REDIRECT_RELEASE_APPROVED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED || 'false' }}
       GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID }}
@@ -158,11 +154,10 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Verify existing CDN delivery (read-only)
-        run: |
-          if [ "$GALLERY_CDN_REDIRECT_RELEASE_APPROVED" = 'true' ]; then
-            node infra/cloudru/beget-production-smoke.mjs --feed-only
-            node infra/cloudru/beget-gallery-redirect-canary.mjs
-          else
-            node infra/cloudru/beget-production-smoke.mjs
-          fi
+      - name: Verify Feed CDN delivery (read-only)
+        run: node infra/cloudru/beget-production-smoke.mjs --feed-only
+      - name: Verify private Gallery SigV4 Hono redirect (read-only)
+        env:
+          GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
+          GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
+        run: node infra/cloudru/beget-gallery-redirect-canary.mjs
