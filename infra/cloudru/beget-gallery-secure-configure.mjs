@@ -46,31 +46,17 @@ const expected=previous.tokenized_url_secure_key?.enable===true &&
   previous.caching_time_browser?.enable===true && previous.caching_time_browser?.time===180 &&
   previous.stale?.enable===false;
 if(!expected){
-  // Beget settings API may only accept one option per call. Validate each
-  // updated option before proceeding; never assume 200 means applied.
-  for (const [option,value] of Object.entries(settings)) {
-    const before=(await call('/v1/cloud/'+id)).service;
-    verifyIdentity(before);
-    const current=before.cdn.settings?.[option];
-    const satisfied=option==='tokenized_url_secure_key' ?
-      current?.enable===true && current?.key===edge && current?.include_ip===false :
-      option==='static_request_headers' ?
-      current?.enabled===true && current?.value?.['x-gafus-gallery-origin-secret']===origin :
-      option==='follow_origin_redirect' ? current?.enable===true :
-      option==='caching_time_browser' ? current?.enable===true && current?.time===180 :
-      option==='stale' ? current?.enable===false :
-      current===value;
-    if(satisfied){console.log('OPTION_ALREADY_MATCHED',option);continue;}
-    const result=await call('/v1/cloud/cdn/'+id+'/setting','POST',{
-      service_id:id,settings:{[option]:value},
-    });
-    if(result?.error || !result?.cdn){
-      console.log('GALLERY_CDN_OPTION_REJECTED',option,'ERROR_CODE',String(result?.error?.code??'NONE').slice(0,50),
-        'ERROR_MSG_CLASS',String(result?.error?.message??'NONE').replaceAll(edge,'[REDACTED]').replaceAll(origin,'[REDACTED]').replace(/[^A-Za-z0-9 _-]/g,'').slice(0,100));
-      throw Error('GALLERY_CDN_SETTINGS_CHANGE_UNVERIFIED');
-    }
-    console.log('GALLERY_CDN_OPTION_ACCEPTED',option);
+  // Beget requires a complete settings payload, not a single-setting patch.
+  const result=await call('/v1/cloud/cdn/'+id+'/setting','POST',{service_id:id,settings});
+  if(result?.error || !result?.cdn){
+    console.log('GALLERY_CDN_SETTINGS_REJECTED',
+      'ERROR_CODE',String(result?.error?.code??'NONE').slice(0,50),
+      'ERROR_MSG_CLASS',String(result?.error?.message??'NONE')
+        .replaceAll(edge,'[REDACTED]').replaceAll(origin,'[REDACTED]')
+        .replace(/[^A-Za-z0-9 _-]/g,'').slice(0,120));
+    throw Error('GALLERY_CDN_SETTINGS_CHANGE_UNVERIFIED');
   }
+  console.log('GALLERY_CDN_FULL_SETTINGS_ACCEPTED');
 }
 s=(await call('/v1/cloud/'+id)).service;
 verifyIdentity(s);
