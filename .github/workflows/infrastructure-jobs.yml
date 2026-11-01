@@ -10,7 +10,7 @@ on:
         type: choice
         required: true
         default: plan
-        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, beget-gallery-inspect, beget-gallery-create, beget-gallery-configure, beget-gallery-canary]
+        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, beget-gallery-inspect, beget-gallery-create, beget-gallery-configure, beget-gallery-canary, beget-gallery-purge-canary]
       confirmation:
         description: 'For apply: UPDATE_11_EXISTING_JOBS; for image publish: PUBLISH_MEDIA_IMAGES'
         type: string
@@ -24,6 +24,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  beget-gallery-purge-canary:
+    if: github.ref == 'refs/heads/chore/gallery-cdn-purge-canary' && inputs.operation == 'beget-gallery-purge-canary'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 8
+    env:
+      GALLERY_DISPOSABLE_PURGE_CONFIRM: ${{ inputs.confirmation }}
+      CLOUDRU_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}
+      CLOUDRU_S3_SECRET_ACCESS_KEY: ${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}
+      GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
+      GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID }}
+      BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
+      BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
+      BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
+      - name: Test only random disposable Gallery S3 object and exact dual-CDN invalidation
+        run: node infra/cloudru/beget-gallery-purge-canary.mjs
+
   beget-gallery-canary:
     if: github.ref == 'refs/heads/chore/gallery-cdn-307-migration' && inputs.operation == 'beget-gallery-canary'
     runs-on: ubuntu-latest
