@@ -29,10 +29,10 @@ function verifyIdentity(s){
 let s=(await call('/v1/cloud/'+id)).service;
 verifyIdentity(s);
 const settings={
+  caching_time:600,
   follow_origin_redirect:{enable:true},
   tokenized_url_secure_key:{enable:true,key:edge,include_ip:false},
   static_request_headers:{enabled:true,value:{'x-gafus-gallery-origin-secret':origin}},
-  caching_time:600,
   caching_time_browser:{enable:true,time:180},
   stale:{enable:false,type:[]},
   redirect_http_to_https:true,
@@ -65,7 +65,8 @@ if(!expected){
       service_id:id,settings:{[option]:value},
     });
     if(result?.error || !result?.cdn){
-      console.log('GALLERY_CDN_OPTION_REJECTED',option,'ERROR_CODE',String(result?.error?.code??'NONE').slice(0,50));
+      console.log('GALLERY_CDN_OPTION_REJECTED',option,'ERROR_CODE',String(result?.error?.code??'NONE').slice(0,50),
+        'ERROR_MSG_CLASS',String(result?.error?.message??'NONE').replaceAll(edge,'[REDACTED]').replaceAll(origin,'[REDACTED]').replace(/[^A-Za-z0-9 _-]/g,'').slice(0,100));
       throw Error('GALLERY_CDN_SETTINGS_CHANGE_UNVERIFIED');
     }
     console.log('GALLERY_CDN_OPTION_ACCEPTED',option);
