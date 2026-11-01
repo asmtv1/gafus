@@ -30,10 +30,10 @@ for (const manifest of [
   const pkg = JSON.parse(fs.readFileSync(path.join(root, manifest), "utf8"));
   if (pkg.dependencies.sharp !== target) throw new Error("SHARP_MANIFEST_MISMATCH: " + manifest);
 }
+// The legacy Gallery CDN origin images were retired; check only the
+// current Gallery job Dockerfile instead of reading deleted build targets.
 for (const dockerfile of [
   "apps/gallery-cloud/Dockerfile",
-  "apps/gallery-cloud/Dockerfile.origin",
-  "apps/gallery-cloud/Dockerfile.origin-staging",
 ]) {
   const content = fs.readFileSync(path.join(root, dockerfile), "utf8");
   for (const item of [
