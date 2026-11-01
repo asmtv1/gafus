@@ -35,6 +35,19 @@ test('automatic main release syncs Cloud.ru Jobs after app; manual redeploy stay
   assert(!flow.includes('GAFUS_REFACTOR_PRODUCTION_CUTOVER'));
 });
 
+test('manual app-only release refuses retired Gallery CDN and verifies protected CDN end to end',()=>{
+ const jobs=byJobs(manual);
+ for(const name of ['preflight-cdn','verify-cdn']){
+  const job=jobs[name];
+  assert.match(job.env.GALLERY_CDN_REDIRECT_SIGNING_SECRET,/GALLERY_CDN_REDIRECT_SIGNING_SECRET/);
+  assert.match(job.env.GALLERY_CDN_REDIRECT_ORIGIN_SECRET,/GALLERY_CDN_REDIRECT_ORIGIN_SECRET/);
+  const probe=job.steps.find(step=>step.name?.includes('CDN delivery'));
+  assert(probe?.run?.includes('beget-production-smoke.mjs --feed-only'));
+  assert(probe.run.includes('beget-gallery-redirect-canary.mjs'));
+ }
+ assert(jobs['preflight-cdn'].steps.some(step=>step.run?.includes('gallery-redirect-release-gate.mjs')));
+});
+
 test('production readiness probes real Vite and Hono endpoints, never removed Next routes',()=>{
  const routes=['https://gafus.ru/','https://api.gafus.ru/health',
    'https://api.gafus.ru/ready','https://api.gafus.ru/api/v1/public/mobile-app'];
@@ -42,6 +55,19 @@ test('production readiness probes real Vite and Hono endpoints, never removed Ne
  assert(routes.every(url=>source.includes(url)),'MISSING_REAL_PRODUCTION_READINESS_ROUTE');
  assert.doesNotMatch(app,/https:\/\/gafus\.ru\/api\/(?:ping|csrf-token|auth\/session)/,
    'REMOVED_NEXT_API_ROUTE_MUST_NOT_GATE_PRODUCTION_DEPLOY');
+});
+
+test('Gallery redirect preflight receives all fail-closed viewer release bindings',()=>{
+ const env=byJobs(ci)['beget-readonly-preflight'].env;
+ for(const name of [
+   'GALLERY_CDN_REDIRECT_ENABLED','GALLERY_CDN_ORIGIN_ROUTE_ENABLED',
+   'GALLERY_CDN_CACHEABLE_FINAL_ENABLED','GALLERY_CDN_BASE_URL',
+   'GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED','GALLERY_CDN_BROWSER_CACHE_VERIFIED',
+   'GALLERY_CDN_METADATA_MIGRATED','GALLERY_CDN_REDIRECT_SIGNING_SECRET',
+   'GALLERY_CDN_REDIRECT_ORIGIN_SECRET','GALLERY_CDN_PURGE_DUAL_ENABLED',
+ ]) assert(env[name],`GALLERY_CDN_PREFLIGHT_MISSING_${name}`);
+ assert.match(env.GALLERY_CDN_BASE_URL,/fupiquafifeswu\.begetcdn\.cloud/);
+ assert.match(env.GALLERY_CDN_REDIRECT_ENABLED,/GALLERY_CDN_VIEWER_CUTOVER_APPROVED/);
 });
 
 test('cutover preflight can run Node 24 without installing pnpm; release gates remain blocking',()=>{
