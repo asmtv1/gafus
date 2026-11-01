@@ -341,8 +341,25 @@ export async function uploadGalleryForm(reservation:GalleryUploadDto,file:File,
     credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer"});
   if(!response.ok)throw Error("GALLERY_STORAGE_WRITE_UNCONFIRMED");
 }
-/** Browser upload transport with genuine byte progress, matching the Next
- * gallery queue. It never retries external multipart POST after uncertain ACK. */
+/** Cloud.ru's private Gallery bucket denies anonymous CORS OPTIONS (403), even
+ * though its stored CORS rule lists gafus.ru. XHR.upload progress listeners
+ * force a preflight and prevent the signed POST from reaching Object Storage.
+ * An opaque no-cors POST is allowed to SEND the narrowly signed FormData, but
+ * it MUST NEVER count as a successful upload: the caller performs the
+ * authenticated /complete → S3 HEAD (ETag/type/size) and owner GET readback.
+ * This never retries an uncertain POST and does not expose the private bucket.
+ */
+export function galleryRequiresOpaquePost(postUrl:string):boolean{
+  try{
+    const url=new URL(postUrl);
+    return url.protocol==="https:"&&url.hostname==="s3.cloud.ru"&&
+      /^\/gafus-gallery-private\/?$/.test(url.pathname)&&
+      !url.username&&!url.password&&!url.search&&!url.hash;
+  }catch{return false;}
+}
+/** Browser upload transport with byte progress where CORS permits it.
+ * Private Cloud.ru Gallery uses a single opaque signed POST plus server HEAD.
+ * No cross-origin result is treated as a durable ACK. */
 export function uploadGalleryFormWithProgress(
   reservation:GalleryUploadDto,file:File,signal:AbortSignal,
   onProgress:(percentage:number)=>void,
@@ -351,6 +368,17 @@ export function uploadGalleryFormWithProgress(
     !uploadReservationValid(reservation,reservation.albumId))
     return Promise.reject(Error("GALLERY_UPLOAD_RESERVATION_EXPIRED"));
   if(signal.aborted)return Promise.reject(Error("GALLERY_UPLOAD_ABORTED"));
+  if(galleryRequiresOpaquePost(reservation.postUrl)){
+    const form=new FormData();
+    for(const [key,value] of Object.entries(reservation.postFields))form.append(key,value);
+    form.append("file",file,file.name);
+    // No upload progress listeners, non-safelisted headers or credentials:
+    // the browser sends a simple POST without a CORS preflight. Its opaque
+    // response is NOT confirmation; /complete performs the authorized HEAD.
+    return fetch(reservation.postUrl,{method:"POST",body:form,mode:"no-cors",
+      credentials:"omit",cache:"no-store",redirect:"error",
+      referrerPolicy:"no-referrer",signal}).then(()=>{onProgress(99);});
+  }
   return new Promise<void>((resolve,reject)=>{
     const request=new XMLHttpRequest();
     let settled=false;
