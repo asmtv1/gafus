@@ -125,9 +125,26 @@ async function check(scope) {
   return { scope: scope.name, signedGet: 200, hotCache: cacheState,
     cacheControl, signedHead: 200, range: 206, originUnauthorized: directOrigin.status, unsignedDenied: unsigned.status };
 }
+// During a tightly scoped origin-only migration, the old Gallery container is
+// known suspended. Its synthetic smoke is replaced by a *protected readback*
+// of the NEW Beget CDN before deploy and a NEW Gallery E2E canary after deploy.
+// Feed synthetic checks remain identical; no security checks are skipped on Feed.
+const smokeMode = process.argv[2] ?? '--both';
+if (!['--both','--feed-only'].includes(smokeMode) || process.argv.length > 3)
+  throw Error('BEGET_SMOKE_INVALID_MODE');
+if (smokeMode === '--feed-only' && (
+  process.env.GALLERY_CDN_REDIRECT_RELEASE_APPROVED !== 'true' ||
+  process.env.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID !== '96cd124e-767e-4af1-a568-c4d1f9b4e73f' ||
+  process.env.GITHUB_REF !== 'refs/heads/main' ||
+  process.env.GITHUB_ACTIONS !== 'true'))
+  throw Error('BEGET_GALLERY_STAGING_UNAUTHORIZED');
 if (process.argv[1] && process.argv[1].endsWith('/beget-production-smoke.mjs')) {
   let failed = false;
   for (const scope of scopes) {
+    if (smokeMode === '--feed-only' && scope.name === 'gallery') {
+      console.log('GALLERY_LEGACY_SMOKE_REPLACED_BY_PROTECTED_NEW_CDN_GATE_AND_POST_DEPLOY_CANARY');
+      continue;
+    }
     try { console.log(JSON.stringify(await check(scope))); }
     catch (error) {
       failed = true;

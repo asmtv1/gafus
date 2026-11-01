@@ -539,6 +539,14 @@ jobs:
       BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED }}
       BEGET_CDN_LIVE_SMOKE_VERIFIED: ${{ vars.BEGET_CDN_LIVE_SMOKE_VERIFIED }}
       GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
+      GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID }}
+      GALLERY_CDN_REDIRECT_RELEASE_APPROVED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED || 'false' }}
+      GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
+      GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
+      GALLERY_CDN_PURGE_DUAL_ENABLED: ${{ vars.GALLERY_CDN_PURGE_DUAL_ENABLED || 'false' }}
+      GALLERY_CDN_EDGE_TOKEN_VERIFIED: ${{ vars.GALLERY_CDN_EDGE_TOKEN_VERIFIED || 'false' }}
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
+      GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
       FEED_BEGET_CDN_SERVICE_ID: ${{ vars.FEED_BEGET_CDN_SERVICE_ID }}
       GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
@@ -558,8 +566,16 @@ jobs:
           package-manager-cache: false
       - name: Validate Beget-only production approvals and existing secret bindings
         run: node infra/cloudru/beget-release-readiness.mjs --check
-      - name: Verify both protected Beget edges with real signed final objects (read-only)
-        run: node infra/cloudru/beget-production-smoke.mjs
+      - name: Read back protected Beget Gallery redirect settings before staging release
+        if: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' }}
+        run: node infra/cloudru/gallery-redirect-release-gate.mjs
+      - name: Verify Feed CDN bytes plus legacy Gallery (or staged protected CDN) read-only
+        run: |
+          if [ "$GALLERY_CDN_REDIRECT_RELEASE_APPROVED" = 'true' ]; then
+            node infra/cloudru/beget-production-smoke.mjs --feed-only
+          else
+            node infra/cloudru/beget-production-smoke.mjs
+          fi
       - name: Inspect Beget origin bindings after smoke failure (read-only, no secrets logged)
         if: failure()
         continue-on-error: true
@@ -615,6 +631,10 @@ jobs:
     timeout-minutes: 12
     env:
       GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
+      GALLERY_CDN_REDIRECT_RELEASE_APPROVED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED || 'false' }}
+      GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID }}
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
+      GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
       FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
       FEED_CDN_PUBLIC_READ_APPROVED: ${{ vars.FEED_CDN_PUBLIC_READ_APPROVED || 'false' }}
       BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
@@ -627,5 +647,11 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Verify Beget Gallery and Feed signed delivery after application health
-        run: node infra/cloudru/beget-production-smoke.mjs
+      - name: Verify signed Feed bytes and live private Gallery Hono redirect after deployment
+        run: |
+          if [ "$GALLERY_CDN_REDIRECT_RELEASE_APPROVED" = 'true' ]; then
+            node infra/cloudru/beget-production-smoke.mjs --feed-only
+            node infra/cloudru/beget-gallery-redirect-canary.mjs
+          else
+            node infra/cloudru/beget-production-smoke.mjs
+          fi
