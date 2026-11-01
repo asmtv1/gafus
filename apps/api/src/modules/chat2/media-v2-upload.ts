@@ -1,7 +1,6 @@
 /** Chat2 V2 direct Cloud.ru POST lifecycle, intentionally disabled until cutover. */
 import {randomUUID} from "node:crypto";
 import {prisma} from "@gafus/prisma";
-import {enqueueChat2MediaProcessing} from "@gafus/queues";
 import {chat2V2SourceKey,chat2V2ClassifySource,validateChat2V2Manifest,
   type Chat2V2Mime,type Chat2V2Job,type Chat2V2Manifest} from "@gafus/feed-cloud";
 import {chat2V2DirectUploadForm,chat2V2CheckOriginal} from "@gafus/cdn-upload";
@@ -38,31 +37,25 @@ export async function reserveChat2V2Upload(userId:string,conversationId:string,i
   return {mediaId,status:"AWAITING_UPLOAD" as const,name,kind:kind.kind,
     upload:{url:form.url,fields:form.fields,method:"POST" as const,expiresIn:600}};
 }
-/** Only the original owner, still authorized for the room, can enqueue. */
+/** Original is uploaded and verified, but processing begins only after a message is committed. */
 export async function confirmChat2V2Upload(userId:string,conversationId:string,mediaId:string){
   enabled();await writeGate(userId,conversationId);
   const task=await prisma.chat2V2MediaTask.findFirst({where:{mediaId,conversationId,ownerId:userId}});
   if(!task)throw new Chat2Error("MEDIA_V2_NOT_FOUND",404,"Загрузка не найдена");
   if(task.status!=="AWAITING_UPLOAD"){
-    if(["QUEUED","PROCESSING","READY"].includes(task.status)){
-      if(task.status==="QUEUED" && process.env.CHAT2_PROCESSOR_READY==="true")
-        await enqueueChat2MediaProcessing(mediaId,task.sourceMime.startsWith("image/")?"photo":"video");
+    if(["UPLOADED","QUEUED","PROCESSING","READY"].includes(task.status))
       return {mediaId,status:task.status};
-    }
     fail("MEDIA_V2_INVALID_STATUS",409,"Эту загрузку нельзя подтвердить");
   }
   try{await chat2V2CheckOriginal(task.sourceKey,task.sourceMime,task.sourceBytes);}
   catch{fail("MEDIA_V2_SOURCE_NOT_READY",409,"Файл не загружен или не прошёл проверку");}
   const committed=await prisma.chat2V2MediaTask.updateMany({
     where:{mediaId,conversationId,ownerId:userId,status:"AWAITING_UPLOAD"},
-    data:{status:"QUEUED",nextAttemptAt:new Date(),errorCode:null}
+    data:{status:"UPLOADED",errorCode:null}
   });
   if(!committed.count)fail("MEDIA_V2_RACE",409,"Состояние загрузки изменилось");
-  // Queue stores UUID+type only. If Redis is unavailable the durable QUEUED
-  // record survives; client retry of /confirm can wake it, and cron recovers.
-  if(process.env.CHAT2_PROCESSOR_READY==="true")
-    await enqueueChat2MediaProcessing(mediaId,task.sourceMime.startsWith("image/")?"photo":"video");
-  return {mediaId,status:"QUEUED" as const};
+  // Not QUEUED until sendMessage binds the attachment in the same transaction.
+  return {mediaId,status:"UPLOADED" as const};
 }
 /** Temporary owner-only polling. Attachment registration is a distinct atomic step. */
 export async function getChat2V2UploadStatus(userId:string,conversationId:string,mediaId:string){
@@ -79,28 +72,31 @@ export async function getChat2V2UploadStatus(userId:string,conversationId:string
     ...chat2V2Delivery(manifest),sourceBytes:task.sourceBytes};
 }
 
-/** Only after verified READY may a V2 task become an attachment of a message.
- * Chat2Media stays the single authoritative attachment ownership/binding table.
- * A marker cannot be mistaken for an actual S3 key by the legacy storage client.
+/** A verified uploaded original may be attached before processing completes.
+ * Chat2Media controls message ownership; no rendition URL is disclosed until
+ * READY. The marker can never be mistaken for an S3 object key.
  */
 export const chat2V2Marker = (mediaId: string) => `chat2-v2:${mediaId}`;
 export async function attachChat2V2Media(userId: string, conversationId: string, mediaId: string) {
   enabled();
   await writeGate(userId,conversationId);
   const task=await prisma.chat2V2MediaTask.findFirst({
-    where:{mediaId,conversationId,ownerId:userId,status:"READY"},
+    where:{mediaId,conversationId,ownerId:userId,status:{in:["UPLOADED","QUEUED","PROCESSING","READY"]}},
   });
-  if(!task || !task.manifest)return fail("MEDIA_V2_NOT_READY",409,"Обработка вложения ещё не завершена");
-  const job:Chat2V2Job={conversationId,ownerId:userId,mediaId,
-    sourceMime:task.sourceMime as Chat2V2Mime,sourceBytes:task.sourceBytes,sourceKey:task.sourceKey};
-  const manifest=task.manifest as unknown as Chat2V2Manifest;
-  validateChat2V2Manifest(job,manifest);
+  if(!task)return fail("MEDIA_V2_NOT_READY",409,"Файл ещё не загружен");
+  const kind=chat2V2ClassifySource(task.sourceMime,task.sourceBytes).kind;
+  if(task.status==="READY"){
+    if(!task.manifest)fail("MEDIA_V2_NOT_READY",409,"Не найден результат обработки");
+    const job:Chat2V2Job={conversationId,ownerId:userId,mediaId,
+      sourceMime:task.sourceMime as Chat2V2Mime,sourceBytes:task.sourceBytes,sourceKey:task.sourceKey};
+    validateChat2V2Manifest(job,task.manifest as unknown as Chat2V2Manifest);
+  }
   const marker=chat2V2Marker(mediaId);
   const row=await prisma.chat2Media.upsert({
     where:{objectKey:marker},
     update:{},
     create:{conversationId,ownerId:userId,objectKey:marker,name:task.name,
-      kind:manifest.kind,mime:manifest.kind==="image"?"image/webp":"video/mp4",
+      kind,mime:kind==="image"?"image/webp":"video/mp4",
       bytes:task.sourceBytes,status:"READY"},
   });
   if(row.ownerId!==userId||row.conversationId!==conversationId||row.status!=="READY")
@@ -112,9 +108,15 @@ export async function attachChat2V2Media(userId: string, conversationId: string,
 export async function readChat2V2Media(userId:string,conversationId:string,mediaId:string){
   await readGate(userId,conversationId);
   const task=await prisma.chat2V2MediaTask.findFirst({
-    where:{mediaId,conversationId,status:"READY"},
+    where:{mediaId,conversationId},
   });
-  if(!task || !task.manifest)return fail("MEDIA_V2_NOT_FOUND",404,"Вложение недоступно");
+  if(!task)return fail("MEDIA_V2_NOT_FOUND",404,"Вложение недоступно");
+  // No object URL for unprocessed media, even for authorized room members.
+  // This state is returned only for a Chat2Media row bound to a real message.
+  if(["UPLOADED","QUEUED","PROCESSING","FAILED","EXPIRED"].includes(task.status))
+    return {url:"",status:task.status,name:task.name,mime:task.sourceMime,expiresIn:0};
+  if(task.status!=="READY" || !task.manifest)
+    return fail("MEDIA_V2_NOT_FOUND",404,"Вложение недоступно");
   const job:Chat2V2Job={conversationId,ownerId:task.ownerId,mediaId,
     sourceMime:task.sourceMime as Chat2V2Mime,sourceBytes:task.sourceBytes,sourceKey:task.sourceKey};
   const manifest=task.manifest as unknown as Chat2V2Manifest;
@@ -135,7 +137,7 @@ export async function discardChat2V2Media(userId:string,conversationId:string,at
     });
     if(removed.count!==1)fail("MEDIA_V2_ALREADY_USED",409,"Вложение уже используется");
     const task=await tx.chat2V2MediaTask.updateMany({
-      where:{mediaId,conversationId,ownerId:userId,status:"READY"},
+      where:{mediaId,conversationId,ownerId:userId,status:{in:["UPLOADED","QUEUED","READY"]}},
       data:{status:"EXPIRED",cleanupKind:"ALL",cleanupNextAt:now,cleanupCompletedAt:null},
     });
     if(task.count!==1)fail("MEDIA_V2_NOT_READY",409,"Вложение недоступно");

@@ -120,18 +120,11 @@ async function uploadChat2V2(id: string, file: File): Promise<Chat2Attachment> {
     redirect: "error", signal: AbortSignal.timeout(180_000),
   });
   if (!sent.ok) throw Error("Не удалось отправить файл в хранилище");
+  // Original is already in S3 and the durable task is QUEUED. Bind it to the
+  // message immediately; Web/Mobile render processing state until READY.
+  // The server still verifies membership, ownership and confirmed source.
   await request(`${base}/${reservation.mediaId}/confirm`, "POST", {});
-  for (let attempt = 0; attempt < 240; attempt++) {
-    const state = await request<{status: string}>(`${base}/${reservation.mediaId}`);
-    if (state.status === "READY")
-      return request<Chat2Attachment>(`${base}/${reservation.mediaId}/attach`, "POST", {});
-    if (["FAILED", "EXPIRED"].includes(state.status))
-      throw Error("Не удалось обработать вложение");
-    if (!["AWAITING_UPLOAD", "QUEUED", "PROCESSING"].includes(state.status))
-      throw Error("Некорректное состояние обработки вложения");
-    await new Promise<void>(resolve => setTimeout(resolve, 1500));
-  }
-  throw Error("Время обработки вложения истекло");
+  return request<Chat2Attachment>(`${base}/${reservation.mediaId}/attach`, "POST", {});
 }
 
 export const chat2Api = {
@@ -251,6 +244,7 @@ export const chat2Api = {
     request<{ done: boolean }>(`/moderation/reports/${chatId(id)}/resolve`, "POST", { status }),
   mediaUrl: (id: string, attachmentId: string) =>
     request<{ url: string; mime: string; name: string; expiresIn: number;
+      status?: "READY" | "QUEUED" | "PROCESSING" | "FAILED" | "EXPIRED";
       renditions?: import("@gafus/chat-media-quality").Chat2MediaRenditions;
       fallbackUrl?: string;
       fallbackRenditions?: import("@gafus/chat-media-quality").Chat2MediaRenditions }>(

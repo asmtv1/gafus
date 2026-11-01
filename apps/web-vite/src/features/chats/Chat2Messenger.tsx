@@ -1,6 +1,7 @@
 import { Loading } from "../../shared/ui";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createPortal } from "react-dom";
 import { CHAT2_EMOJIS, updateChat2ReactionSummary } from "./messageReactions";
 import { Centrifuge } from "centrifuge";
 import { useCurrentUser } from "../../shared/auth/useAuth";
@@ -1566,13 +1567,52 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
   const [playing, setPlaying] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [reload, setReload] = useState(0);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState<{
+    url: string; media: MediaResponse; fallback: boolean; error: boolean;
+  } | null>(null);
+  const openButton = useRef<HTMLButtonElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const viewerOpen = Boolean(fullscreen);
+  useEffect(() => {
+    if (!viewerOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeButton.current?.focus();
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFullscreen(null);
+    };
+    document.addEventListener("keydown", onEscape);
+    return () => {
+      document.removeEventListener("keydown", onEscape);
+      document.body.style.overflow = previousOverflow;
+      openButton.current?.focus();
+    };
+  }, [viewerOpen]);
+  // Uploaded files appear in the message immediately; poll only pending jobs.
+  useEffect(() => {
+    if (!pendingStatus || !["QUEUED", "PROCESSING"].includes(pendingStatus)) return;
+    const timer = window.setTimeout(() => setReload(value => value + 1), 4000);
+    return () => window.clearTimeout(timer);
+  }, [pendingStatus, reload]);
   useEffect(() => {
     let live = true;
     void chat2Api.mediaUrl(chatId, file.id)
       .then((result) => {
         if (!live) return;
         setMedia(result);
+        setPendingStatus(result.status && result.status !== "READY" ? result.status : null);
         setUsingFallback(false);
+        if (result.status === "FAILED" || result.status === "EXPIRED") {
+          setSrc(null);
+          setLoadError(true);
+          return;
+        }
+        if (result.status && result.status !== "READY") {
+          setSrc(null);
+          setLoadError(false);
+          return;
+        }
         setPosterSource(result.renditions?.poster ?? null);
         setSrc(file.kind === "image"
           ? chat2ImageSource(result.renditions?.image, 320, window.devicePixelRatio, result.renditions?.imageWidths) ?? result.url
@@ -1643,11 +1683,32 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
   }
   async function open() {
     try {
-      const { url } = await chat2Api.mediaUrl(chatId, file.id);
-      const link = usingFallback && media?.fallbackUrl?.startsWith("https://gafus-chat2-media-2026.s3.cloud.ru/")
-        ? media.fallbackUrl : url;
-      window.open(link, "_blank", "noopener,noreferrer");
-    } catch { /* membership revoked, URL expired or object removed */ }
+      // Re-authorize on each opening; never reuse an expired signed URL.
+      const fresh = await chat2Api.mediaUrl(chatId, file.id);
+      if (fresh.status && fresh.status !== "READY") return;
+      if (file.kind === "image") {
+        const url = chat2ImageSource(fresh.renditions?.image, 1200,
+          window.devicePixelRatio, fresh.renditions?.imageWidths) ?? fresh.url;
+        if (!url) return;
+        setFullscreen({ url, media: fresh, fallback: false, error: false });
+        return;
+      }
+      // PDF documents retain their normal external-document behavior.
+      if (fresh.url) window.open(fresh.url, "_blank", "noopener,noreferrer");
+    } catch { setLoadError(true); }
+  }
+  function handleFullscreenFailure() {
+    if (!fullscreen) return;
+    const original = fullscreen.url;
+    if (fullscreen.fallback) {
+      setFullscreen(current => current?.url === original ? {...current,error:true} : current);
+      return;
+    }
+    const backup = chat2MatchedS3Variant(original, fullscreen.media);
+    void chat2CdnS3FailoverAllowed(original, backup, fetch).then(allowed => {
+      setFullscreen(current => current?.url !== original ? current :
+        allowed && backup ? {...current,url:backup,fallback:true} : {...current,error:true});
+    }).catch(() => setFullscreen(current => current?.url === original ? {...current,error:true} : current));
   }
   if (file.kind === "video") {
     const variants = media?.renditions?.video;
@@ -1707,17 +1768,32 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
         .map((size) => [media?.renditions?.imageWidths?.[size] ?? size, imageVariants[size]!] as const))
         .entries()).map(([width, url]) => `${url} ${width}w`).join(", ")
     : undefined;
-  return (
-    <button type="button" className={css.storedMedia} onClick={() => void open()}
-      aria-label={`Открыть ${file.name}`}>
+  return <>
+    <button ref={openButton} type="button" className={css.storedMedia}
+      onClick={() => loadError ? setReload(value => value + 1) : void open()}
+      disabled={!src && !loadError}
+      aria-label={loadError ? `Повторить загрузку ${file.name}` : `Открыть ${file.name}`}>
       {file.kind === "image" && src ? (
         <img src={src} srcSet={srcset || undefined}
           sizes={srcset ? "(max-width: 600px) 90vw, 320px" : undefined}
           alt={file.name} loading="lazy" referrerPolicy="no-referrer"
           onError={(event) => handleMediaFailure(event.currentTarget.currentSrc || src, "image")} />
-      ) : <span>📎 {file.name}</span>}
+      ) : <span role="status">{loadError ? "Не удалось обработать фото · Повторить" :
+          pendingStatus ? "Обрабатываем фото…" : "Загружаем фото…"}</span>}
     </button>
-  );
+    {fullscreen && createPortal(
+      <div className={css.mediaLightbox} role="presentation" onClick={() => setFullscreen(null)}>
+        <div className={css.mediaLightboxInner} role="dialog" aria-modal="true"
+          aria-label="Просмотр фотографии" onClick={event => event.stopPropagation()}>
+          <button ref={closeButton} type="button" className={css.mediaLightboxClose}
+            aria-label="Закрыть просмотр" onClick={() => setFullscreen(null)}>×</button>
+          {fullscreen.error ? <p role="alert">Не удалось открыть фотографию</p> :
+            <img src={fullscreen.url} alt={file.name} referrerPolicy="no-referrer"
+              onError={handleFullscreenFailure} />}
+        </div>
+      </div>, document.body,
+    )}
+  </>;
 }
 
 function Chat2RoomSettings({

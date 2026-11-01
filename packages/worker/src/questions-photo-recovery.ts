@@ -1,11 +1,13 @@
 /** Durable PG wake-up recovery when Redis or an earlier launch was lost. */
 import { prisma } from "@gafus/prisma";
+import { createWorkerLogger } from "@gafus/logger";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { createCloudruQuestionsPhotoPoolDispatcher } from "./cloudru-media-dispatcher.js";
 export function createQuestionsPhotoRecoveryTick(input:{
   database:Pick<typeof prisma,"questionV2MediaTask">;
   dispatch:ReturnType<typeof createCloudruQuestionsPhotoPoolDispatcher>;
   cleanup:()=>Promise<unknown>;
+  onCleanupError?:(error:unknown)=>void;
   now?:()=>Date;
 }){
   let running=false;
@@ -13,7 +15,10 @@ export function createQuestionsPhotoRecoveryTick(input:{
     if(running)return {skipped:true,dispatched:0};
     running=true;
     try{
-      await input.cleanup(); // expired uploads and retryable S3 deletes
+      // Cleanup and processing are independent recovery paths. An unavailable
+      // HMAC cleanup endpoint must not strand already-uploaded photos forever.
+      try { await input.cleanup(); }
+      catch(error){ input.onCleanupError?.(error); }
       const date=input.now?.()??new Date();
       const count=await input.database.questionV2MediaTask.count({
         where:{attempts:{lt:4},OR:[
@@ -36,6 +41,7 @@ export function createQuestionsPhotoRecoveryTick(input:{
     }finally{running=false;}
   };
 }
+const recoveryLogger=createWorkerLogger("questions-photo-recovery");
 let tick:ReturnType<typeof createQuestionsPhotoRecoveryTick>|undefined;
 export async function runQuestionsPhotoRecoveryTick(){
   if(process.env.QUESTIONS_V2_MEDIA_ENABLED!=="true" ||
@@ -45,6 +51,8 @@ export async function runQuestionsPhotoRecoveryTick(){
   tick??=createQuestionsPhotoRecoveryTick({
     database:prisma,dispatch:createCloudruQuestionsPhotoPoolDispatcher(),
     cleanup:questionsPhotoCleanupInternal,
+    onCleanupError:error=>recoveryLogger.error("Questions V2 cleanup failed; processing recovery continues",
+      error instanceof Error?error:new Error(String(error))),
   });
   await tick();
 }

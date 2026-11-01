@@ -37,7 +37,7 @@ describe("Chat2 private attachment upload response contract", () => {
     await expect(chat2Api.upload("room_01", file())).rejects.toThrow("Не удалось загрузить вложение");
   });
 
-  it("uploads V2 originals directly to Cloud.ru, polls READY and registers a message attachment", async () => {
+  it("uploads V2 originals to Cloud.ru, attaches before processing and allows immediate send", async () => {
     vi.stubEnv("VITE_CHAT2_MEDIA_V2", "true");
     const mediaId = "00000000-0000-4000-8000-000000000006";
     const attached = { id: "attached_6", name: "puppy.png", kind: "image", mime: "image/webp", bytes: 128 };
@@ -57,7 +57,7 @@ describe("Chat2 private attachment upload response contract", () => {
         return Promise.resolve(new Response(null, { status: 204 }));
       }
       if (uri.endsWith("/confirm")) return Promise.resolve(new Response(JSON.stringify({
-        success: true, data: { mediaId, status: "QUEUED" },
+        success: true, data: { mediaId, status: "UPLOADED" },
       }), { status: 200 }));
       if (uri.endsWith("/attach")) return Promise.resolve(new Response(JSON.stringify({
         success: true, data: attached,
@@ -69,7 +69,9 @@ describe("Chat2 private attachment upload response contract", () => {
     });
     vi.stubGlobal("fetch", mocked);
     await expect(chat2Api.upload("room_01", file())).resolves.toEqual(attached);
-    expect(seen).toHaveLength(5);
+    expect(seen).toHaveLength(4);
+    expect(seen.at(-1)).toContain("/attach");
+    expect(seen.some(uri => uri.endsWith(mediaId))).toBe(false);
     expect(seen).not.toContain("/api/v1/chats/room_01/attachments");
   });
 

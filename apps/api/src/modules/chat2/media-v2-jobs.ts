@@ -69,6 +69,11 @@ export function createChat2V2Queue(input:{
       where:{status:"AWAITING_UPLOAD",createdAt:{lt:new Date(now().getTime()-3_600_000)}},
       data:{status:"EXPIRED",cleanupKind:"ALL",cleanupNextAt:now()}
     });
+    // A verified upload that was never sent must not live forever in S3.
+    await input.database.chat2V2MediaTask.updateMany({
+      where:{status:"UPLOADED",createdAt:{lt:new Date(now().getTime()-3_600_000)}},
+      data:{status:"EXPIRED",cleanupKind:"ALL",cleanupNextAt:now()}
+    });
     // A crashed fourth attempt cannot be claimed again; schedule its cleanup.
     await input.database.chat2V2MediaTask.updateMany({
       where:{status:"PROCESSING",attempts:{gte:maxAttempts},leaseUntil:{lt:now()}},

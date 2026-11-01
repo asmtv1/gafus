@@ -38,6 +38,12 @@ describe("Questions-only durable PostgreSQL recovery",()=>{
     await expect(t.tick()).resolves.toEqual({dispatched:0});
     expect(t.dispatch).not.toHaveBeenCalled();
   });
+  it("does not strand queued uploads when independent cleanup is unavailable",async()=>{
+    const t=recovery(1);
+    t.cleanup.mockRejectedValueOnce(new Error("QUESTIONS_V2_RECOVERY_HTTP_503"));
+    await expect(t.tick()).resolves.toEqual({dispatched:1});
+    expect(t.dispatch).toHaveBeenCalledOnce();
+  });
   it("launches only one when one of two leases is occupied",async()=>{
     const t=recovery(5,1);
     await expect(t.tick()).resolves.toEqual({dispatched:1});

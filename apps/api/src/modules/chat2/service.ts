@@ -740,6 +740,26 @@ export async function messages(userId: string, id: string, before?: bigint, afte
     }),
   }));
 }
+/** Redis is only a wake-up signal. PostgreSQL QUEUED is authoritative if
+ * the API crashes or the signal fails after message commit. */
+async function wakeCommittedChat2Media(userId:string,conversationId:string,messageId:string,ids:string[]){
+  const rows=await prisma.chat2Media.findMany({
+    where:{id:{in:ids},ownerId:userId,conversationId,messageId,status:"READY"},
+    select:{objectKey:true},
+  });
+  const mediaIds=rows.filter(row=>row.objectKey.startsWith("chat2-v2:"))
+    .map(row=>row.objectKey.slice("chat2-v2:".length));
+  if(!mediaIds.length)return;
+  const tasks=await prisma.chat2V2MediaTask.findMany({
+    where:{mediaId:{in:mediaIds},status:"QUEUED"},
+    select:{mediaId:true,sourceMime:true},
+  });
+  if(!tasks.length)return;
+  const {enqueueChat2MediaProcessing}=await import("@gafus/queues");
+  await Promise.allSettled(tasks.map(task=>enqueueChat2MediaProcessing(
+    task.mediaId,task.sourceMime.startsWith("image/")?"photo":"video")));
+}
+
 export async function sendMessage(
   userId: string,
   id: string,
@@ -748,7 +768,7 @@ export async function sendMessage(
   await writeGate(userId, id);
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      return await prisma.$transaction(
+      const sent = await prisma.$transaction(
         async (tx) => {
           const member = await tx.chat2Member.findUnique({
             where: { conversationId_userId: { conversationId: id, userId } },
@@ -854,6 +874,23 @@ export async function sendMessage(
             });
             if (bound.count !== attachmentIds.length)
               return fail("INVALID_ATTACHMENTS", 409, "Вложение уже используется");
+            // Publish first, enqueue second. This happens inside the SAME DB
+            // transaction as message creation, so workers never see unsent uploads.
+            const v2Ids=files.filter(file=>file.objectKey.startsWith("chat2-v2:"))
+              .map(file=>file.objectKey.slice("chat2-v2:".length));
+            if(v2Ids.length){
+              const tasks=await tx.chat2V2MediaTask.findMany({
+                where:{mediaId:{in:v2Ids},conversationId:id,ownerId:userId},
+                select:{mediaId:true,status:true},
+              });
+              if(tasks.length!==v2Ids.length || tasks.some(task=>
+                !["UPLOADED","QUEUED","PROCESSING","READY"].includes(task.status)))
+                return fail("INVALID_ATTACHMENTS",409,"Вложение недоступно");
+              await tx.chat2V2MediaTask.updateMany({
+                where:{mediaId:{in:v2Ids},conversationId:id,ownerId:userId,status:"UPLOADED"},
+                data:{status:"QUEUED",nextAttemptAt:new Date(),errorCode:null},
+              });
+            }
           }
           await tx.chat2OutboxEvent.create({
             data: { conversationId: id, messageId: m.id, eventType: "message.created" },
@@ -866,6 +903,11 @@ export async function sendMessage(
         },
         { isolationLevel: "Serializable" },
       );
+      // The SQL commit is complete. Never delay the message response for a
+      // queue outage: recovery will independently discover durable QUEUED rows.
+      if(data.attachmentIds?.length)
+        void wakeCommittedChat2Media(userId,id,sent.id,data.attachmentIds).catch(()=>undefined);
+      return sent;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
