@@ -94,8 +94,12 @@ test('main release preflights existing Cloud.ru Jobs before app and syncs after 
  assert(gate.if.includes("github.event_name == 'push'"));
  assert(gate.steps.some(x=>x.run?.includes('beget-release-readiness.mjs --check')));
  assert(gate.steps.some(x=>x.run?.includes('beget-production-smoke.mjs')));
- for(const dep of ['security','build-apps','build-images','cloudru-jobs-preflight'])
+ for(const dep of ['security','build-apps','build-images','cloudru-jobs-preflight',
+  'cloudru-media-contracts','cutover-preflight','beget-readonly-preflight'])
   assert(graph['deploy-production'].needs.includes(dep),'MISSING_GATE_'+dep);
+for(const dep of ['cloudru-media-contracts','cutover-preflight','beget-readonly-preflight'])
+  assert(graph['deploy-production'].if.includes(`needs.${dep}.result == 'success'`),
+    'APP_ONLY_MUST_NOT_BYPASS_'+dep);
  for(const dep of ['security','build-apps','cloudru-media-contracts','beget-readonly-preflight','cutover-preflight'])
   assert(graph['cloudru-jobs-preflight'].needs.includes(dep),'MISSING_PREFLIGHT_'+dep);
  assert(graph['cloudru-jobs-sync'].with.mode==='sync');

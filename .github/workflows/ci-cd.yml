@@ -593,11 +593,13 @@ jobs:
 
   # Production deploy is shared with manual Deploy Only. No second script.
   deploy-production:
-    needs: [security, build-apps, build-images, cloudru-jobs-preflight]
+    # An app-only release skips the 11-Jobs preflight, never the independent
+    # Beget/Cloud.ru read-only CDN and cutover gates.
+    needs: [security, build-apps, build-images, cloudru-jobs-preflight, cloudru-media-contracts, cutover-preflight, beget-readonly-preflight]
     # `always()` is required solely because the temporary Gallery-only lane
     # deliberately skips the unrelated Cloud.ru 11-Jobs preflight. Never
     # bypass app tests, images, or successful Beget read-only verification.
-    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.security.result == 'success' && needs.build-apps.result == 'success' && needs.build-images.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-preflight.result == 'success') }}
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.security.result == 'success' && needs.build-apps.result == 'success' && needs.build-images.result == 'success' && needs.cloudru-media-contracts.result == 'success' && needs.cutover-preflight.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-preflight.result == 'success') }}
     uses: ./.github/workflows/production-deploy-reusable.yml
     with:
       release_sha: ${{ github.sha }}
