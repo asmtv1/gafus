@@ -21,7 +21,10 @@ test('automatic main release syncs Cloud.ru Jobs after app; manual redeploy stay
  assert(ciJobs['cloudru-jobs-preflight']);
  assert.deepEqual(ciJobs['cloudru-jobs-sync'].needs,['deploy-production']);
  assert.deepEqual(ciJobs['cloudru-jobs-verify'].needs,['cloudru-jobs-sync']);
- assert.deepEqual(ciJobs['beget-verify-after-deploy'].needs,['beget-readonly-preflight','cloudru-jobs-verify']);
+ assert.deepEqual(ciJobs['beget-verify-after-deploy'].needs,
+  ['beget-readonly-preflight','cloudru-jobs-verify','deploy-production']);
+ assert.match(ciJobs['beget-verify-after-deploy'].if,/always\(\)/);
+ assert.match(ciJobs['beget-verify-after-deploy'].if,/needs\.deploy-production\.result == 'success'/);
  assert.equal(ciJobs['deploy-production'].with.app_only,true);
  assert.equal(manualJobs.deploy.with.app_only,true);
  assert(!manualJobs['cloudru-jobs-sync']);
