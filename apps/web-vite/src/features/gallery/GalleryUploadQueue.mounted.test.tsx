@@ -185,6 +185,28 @@ describe("owner gallery multiple-photo queue",()=>{
     expect(refreshed).toHaveBeenCalledTimes(1);
     expect(storageUrls).toHaveLength(2);
   });
+  it("expires uncertain reservations via owner GET without repeating storage POST",async()=>{
+    let tick:(()=>void)|undefined;
+    const originalInterval=window.setInterval.bind(window);
+    const interval=vi.spyOn(window,"setInterval").mockImplementation((handler,delay)=>{
+      if(delay===5000){tick=handler as ()=>void;return 9999 as never;}
+      return originalInterval(handler,delay) as never;
+    });
+    try{
+      firstUploadLost=true;
+      await choose(photo("first.jpg"));
+      await click("Загрузить фотографии");
+      expect(host.textContent).toContain("Статус неизвестен");
+      expect(tick).toBeTypeOf("function");
+      firstStatus="expired";
+      await act(async()=>tick?.());
+      expect(host.textContent).toContain("Не отправлено");
+      expect(host.textContent).not.toContain("Остальная очередь заблокирована");
+      expect(storageUrls).toHaveLength(1);
+      expect(fetcher.mock.calls.filter(([url])=>url===`/api/v1/gallery/uploads/${ids[0]}`))
+        .toHaveLength(1);
+    }finally{interval.mockRestore();}
+  });
   it("lost initial reservation ACK recovers exact idempotent request without S3 replay",async()=>{
     reserveAckLost=true;
     await choose(photo("first.jpg"));

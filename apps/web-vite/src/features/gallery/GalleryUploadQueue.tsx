@@ -71,6 +71,8 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
   const locked=entries.some(e=>e.state==="unknown");
   const pendingIds=entries.filter(e=>e.state==="processing"&&e.uploadId)
     .map(e=>e.id).join(":");
+  const uncertainIds=entries.filter(e=>e.state==="unknown"&&e.uploadId&&!e.pendingRetry)
+    .map(e=>e.id).join(":");
   useEffect(()=>{
     if(!pendingIds)return;
     setClock(Date.now());
@@ -102,6 +104,37 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
     },3000);
     return ()=>window.clearInterval(timer);
   },[albumId,pendingIds]);
+  useEffect(()=>{
+    if(!uncertainIds)return;
+    // An expired reservation is terminal, but the previous Web queue kept it
+    // "unknown" forever until the user pressed a manual button. GET is
+    // idempotent, verifies the owner's upload and expires stale reservations
+    // on the server; NEVER replay an uncertain S3 POST or /complete here.
+    let checking=false;
+    const timer=window.setInterval(()=>{
+      if(checking||!live.current||busyRef.current||active.current.size>0||
+        document.visibilityState!=="visible")return;
+      checking=true;
+      void Promise.all(entriesRef.current.filter(e=>e.state==="unknown"&&
+        e.uploadId&&!e.pendingRetry).map(async entry=>{
+        try{
+          const fresh=await galleryUploadStatus(entry.uploadId!);
+          if(!live.current||fresh.uploadId!==entry.uploadId||fresh.albumId!==albumId)return;
+          if(fresh.status==="reserved")return; // Must await expiration/owner action.
+          if(fresh.status==="cancelled")update(entry.id,{state:"cancelled",message:undefined});
+          else if(fresh.status==="expired"||fresh.status==="failed")
+            update(entry.id,{state:"failed",message:
+              "Срок загрузки истёк или файл не принят. Можно выбрать файл и повторить."});
+          else if(["uploaded","processing","ready"].includes(fresh.status))
+            update(entry.id,{state:fresh.status==="ready"?"ready":"processing",
+              processingStartedAt:Date.now(),message:undefined});
+          else return;
+          refreshRef.current();
+        }catch{/* An unavailable owner GET must preserve the uncertain state. */}
+      })).finally(()=>{checking=false;});
+    },5000);
+    return ()=>window.clearInterval(timer);
+  },[albumId,uncertainIds]);
   const pick=(files:FileList|null)=>{
     if(!files||busyRef.current||entriesRef.current.some(e=>e.state==="unknown"))return;
     const available=Math.max(0,200-usedSlots-entriesRef.current.filter(e=>

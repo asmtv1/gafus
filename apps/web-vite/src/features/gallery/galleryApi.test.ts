@@ -1,6 +1,8 @@
 import {afterEach,describe,expect,it,vi} from "vitest";
 import {getMyAlbum,listMyAlbums,listMyPhotos,projectOwnerAlbums,
-  projectOwnerPhotos,projectPublicPhotos,signedGalleryImage,galleryRequiresOpaquePost,uploadGalleryFormWithProgress} from "./galleryApi";
+  projectOwnerPhotos,projectPublicPhotos,signedGalleryImage,
+  galleryUsesSameOriginProxy,GALLERY_SAME_ORIGIN_UPLOAD_PROXY,
+  uploadGalleryFormWithProgress} from "./galleryApi";
 const future="2099-10-17T18:00:00.000Z";
 const album=(overrides:Record<string,unknown>={})=>({
   id:"album_01",ownerId:"A",ownerUsername:"ownerA",name:"Прогулки",
@@ -147,45 +149,60 @@ describe("G16 gallery Hono GET-only owner projection",()=>{
   });
 });
 
-describe("Cloud.ru private Gallery CORS-denied POST transport",()=>{
+describe("Cloud.ru private Gallery same-origin signed POST proxy",()=>{
   const postUrl="https://s3.cloud.ru/gafus-gallery-private/";
-  it("selects only the exact private bucket without allowing redirects or other hosts",()=>{
-    expect(galleryRequiresOpaquePost(postUrl)).toBe(true);
-    expect(galleryRequiresOpaquePost(postUrl.slice(0,-1))).toBe(true);
+  const photoFile=()=>new File([new Uint8Array([255,216,255,0])],"photo.jpg",{type:"image/jpeg"});
+  const reservation=()=>({postUrl,postFields:{key:"test/key","Content-Type":"image/jpeg",policy:"signed"},
+    uploadId:"upload-a",albumId:"album-a",status:"reserved",
+    reservationExpiresAt:"2099-10-17T18:00:00Z"});
+  it("limits proxying to the exact signed private Gallery bucket",()=>{
+    expect(galleryUsesSameOriginProxy(postUrl)).toBe(true);
+    expect(galleryUsesSameOriginProxy(postUrl.slice(0,-1))).toBe(true);
     for(const url of ["https://s3.cloud.ru/gafus-feed-private/",
-      "https://s3.cloud.ru/gafus-gallery-private/other", "http://s3.cloud.ru/gafus-gallery-private/",
-      "https://evil.example/gafus-gallery-private/", "https://s3.cloud.ru/gafus-gallery-private/?x=y",
+      "https://s3.cloud.ru/gafus-gallery-private/other",
+      "http://s3.cloud.ru/gafus-gallery-private/",
+      "https://evil.example/gafus-gallery-private/",
+      "https://s3.cloud.ru/gafus-gallery-private/?x=y",
       "https://user@s3.cloud.ru/gafus-gallery-private/"])
-      expect(galleryRequiresOpaquePost(url)).toBe(false);
+      expect(galleryUsesSameOriginProxy(url)).toBe(false);
   });
-  it("sends one opaque signed multipart POST without XHR preflight and never claims 100%",async()=>{
-    const file=new File([new Uint8Array([255,216,255,0])],"photo.jpg",{type:"image/jpeg"});
-    const reservation={postUrl,postFields:{key:"test/key","Content-Type":"image/jpeg",policy:"signed"},
-      uploadId:"upload-a",albumId:"album-a",status:"reserved",
-      reservationExpiresAt:"2099-10-17T18:00:00Z"};
-    const sending=vi.fn().mockResolvedValue({type:"opaque",status:0});
-    vi.stubGlobal("fetch",sending);
-    const progress=vi.fn();
-    await uploadGalleryFormWithProgress(reservation as never,file,new AbortController().signal,progress);
-    expect(sending).toHaveBeenCalledTimes(1);
-    const [url,options]=sending.mock.calls[0];
-    expect(url).toBe(postUrl);
-    expect(options).toMatchObject({method:"POST",mode:"no-cors",credentials:"omit",
-      redirect:"error",cache:"no-store"});
-    expect(options.headers).toBeUndefined();
-    expect(options.body.get("file")).toMatchObject({
-      name:file.name,size:file.size,type:file.type,
-    });
-    expect(progress).not.toHaveBeenCalledWith(100);
+  it("sends one signed multipart POST to same-origin and restores XHR progress",async()=>{
+    const file=photoFile(),progress=vi.fn();
+    const calls:{method:string;url:string;body:FormData|null}[]=[];
+    class FakeXHR{
+      status=204;timeout=0;withCredentials=false;
+      upload={onprogress:null as ((event:{lengthComputable:boolean;
+        total:number;loaded:number})=>void)|null};
+      onload:(()=>void)|null=null;onerror:(()=>void)|null=null;
+      ontimeout:(()=>void)|null=null;onabort:(()=>void)|null=null;
+      open(method:string,url:string){calls.push({method,url,body:null});}
+      send(body:FormData){calls[0]!.body=body;
+        this.upload.onprogress?.({lengthComputable:true,total:100,loaded:60});this.onload?.();}
+      abort(){this.onabort?.();}
+    }
+    vi.stubGlobal("XMLHttpRequest",FakeXHR);
+    await uploadGalleryFormWithProgress(reservation() as never,file,
+      new AbortController().signal,progress);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe(GALLERY_SAME_ORIGIN_UPLOAD_PROXY);
+    expect(calls[0]?.method).toBe("POST");
+    expect(calls[0]?.body?.get("policy")).toBe("signed");
+    expect((calls[0]?.body?.get("file") as File).size).toBe(file.size);
+    expect(progress).toHaveBeenCalledWith(60);
+    expect(progress).toHaveBeenCalledWith(100);
   });
-  it("never retries when storage acknowledgement is uncertain",async()=>{
-    const file=new File([new Uint8Array([255,216,255,0])],"photo.jpg",{type:"image/jpeg"});
-    const reservation={postUrl,postFields:{key:"test/key"},uploadId:"upload-a",albumId:"album-a",
-      status:"reserved",reservationExpiresAt:"2099-10-17T18:00:00Z"};
-    const send=vi.fn().mockRejectedValue(new TypeError("NetworkError"));
-    vi.stubGlobal("fetch",send);
-    await expect(uploadGalleryFormWithProgress(reservation as never,file,
-      new AbortController().signal,vi.fn())).rejects.toThrow("NetworkError");
-    expect(send).toHaveBeenCalledTimes(1);
+  it("never retries a failed or uncertain same-origin POST",async()=>{
+    const file=photoFile(),urls:string[]=[];
+    class FailedXHR{
+      status=0;timeout=0;withCredentials=false;upload={onprogress:null};
+      onerror:(()=>void)|null=null;onabort:(()=>void)|null=null;
+      open(_method:string,url:string){urls.push(url);}
+      send(){this.onerror?.();}
+      abort(){this.onabort?.();}
+    }
+    vi.stubGlobal("XMLHttpRequest",FailedXHR);
+    await expect(uploadGalleryFormWithProgress(reservation() as never,file,
+      new AbortController().signal,vi.fn())).rejects.toThrow("GALLERY_STORAGE_NETWORK_UNCONFIRMED");
+    expect(urls).toEqual([GALLERY_SAME_ORIGIN_UPLOAD_PROXY]);
   });
 });

@@ -337,19 +337,20 @@ export async function uploadGalleryForm(reservation:GalleryUploadDto,file:File,
   body.append("file",file,file.name);
   // Signed external POST is the ONLY non-relative request; destination comes
   // from the validated reservation, never from untrusted form input.
-  const response=await fetch(reservation.postUrl,{method:"POST",body,signal,
-    credentials:"omit",cache:"no-store",referrerPolicy:"no-referrer"});
+  const target=galleryUsesSameOriginProxy(reservation.postUrl)
+    ? GALLERY_SAME_ORIGIN_UPLOAD_PROXY : reservation.postUrl;
+  const response=await fetch(target,{method:"POST",body,signal,
+    credentials:"omit",cache:"no-store",redirect:"error",referrerPolicy:"no-referrer"});
   if(!response.ok)throw Error("GALLERY_STORAGE_WRITE_UNCONFIRMED");
 }
-/** Cloud.ru's private Gallery bucket denies anonymous CORS OPTIONS (403), even
- * though its stored CORS rule lists gafus.ru. XHR.upload progress listeners
- * force a preflight and prevent the signed POST from reaching Object Storage.
- * An opaque no-cors POST is allowed to SEND the narrowly signed FormData, but
- * it MUST NEVER count as a successful upload: the caller performs the
- * authenticated /complete → S3 HEAD (ETag/type/size) and owner GET readback.
- * This never retries an uncertain POST and does not expose the private bucket.
+/** Signed POST fields remain unchanged. Only the exact private Cloud.ru
+ * bucket may use the fixed same-origin Nginx endpoint, which forwards to that
+ * same bucket and strips site cookies/Authorization/Origin. No generic proxy or
+ * user-provided URL is ever accepted. This restores real XHR progress without
+ * relying on Cloud.ru's broken browser CORS OPTIONS (403).
  */
-export function galleryRequiresOpaquePost(postUrl:string):boolean{
+export const GALLERY_SAME_ORIGIN_UPLOAD_PROXY="/__cloudru-upload/gallery";
+export function galleryUsesSameOriginProxy(postUrl:string):boolean{
   try{
     const url=new URL(postUrl);
     return url.protocol==="https:"&&url.hostname==="s3.cloud.ru"&&
@@ -357,9 +358,8 @@ export function galleryRequiresOpaquePost(postUrl:string):boolean{
       !url.username&&!url.password&&!url.search&&!url.hash;
   }catch{return false;}
 }
-/** Browser upload transport with byte progress where CORS permits it.
- * Private Cloud.ru Gallery uses a single opaque signed POST plus server HEAD.
- * No cross-origin result is treated as a durable ACK. */
+/** A single POST attempt, never replayed when an ACK is uncertain. Even a 2xx
+ * response is followed by authenticated /complete + S3 HEAD + GET readback. */
 export function uploadGalleryFormWithProgress(
   reservation:GalleryUploadDto,file:File,signal:AbortSignal,
   onProgress:(percentage:number)=>void,
@@ -368,17 +368,6 @@ export function uploadGalleryFormWithProgress(
     !uploadReservationValid(reservation,reservation.albumId))
     return Promise.reject(Error("GALLERY_UPLOAD_RESERVATION_EXPIRED"));
   if(signal.aborted)return Promise.reject(Error("GALLERY_UPLOAD_ABORTED"));
-  if(galleryRequiresOpaquePost(reservation.postUrl)){
-    const form=new FormData();
-    for(const [key,value] of Object.entries(reservation.postFields))form.append(key,value);
-    form.append("file",file,file.name);
-    // No upload progress listeners, non-safelisted headers or credentials:
-    // the browser sends a simple POST without a CORS preflight. Its opaque
-    // response is NOT confirmation; /complete performs the authorized HEAD.
-    return fetch(reservation.postUrl,{method:"POST",body:form,mode:"no-cors",
-      credentials:"omit",cache:"no-store",redirect:"error",
-      referrerPolicy:"no-referrer",signal}).then(()=>{onProgress(99);});
-  }
   return new Promise<void>((resolve,reject)=>{
     const request=new XMLHttpRequest();
     let settled=false;
@@ -390,7 +379,8 @@ export function uploadGalleryFormWithProgress(
       if(error)reject(error);else resolve();
     };
     signal.addEventListener("abort",abort,{once:true});
-    request.open("POST",reservation.postUrl!);
+    request.open("POST",galleryUsesSameOriginProxy(reservation.postUrl!)
+      ? GALLERY_SAME_ORIGIN_UPLOAD_PROXY : reservation.postUrl!);
     request.timeout=120_000;
     request.withCredentials=false;
     request.upload.onprogress=(event)=>{
