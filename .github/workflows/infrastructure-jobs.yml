@@ -10,7 +10,7 @@ on:
         type: choice
         required: true
         default: plan
-        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, beget-gallery-inspect, beget-gallery-create, beget-gallery-configure]
+        options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, beget-gallery-inspect, beget-gallery-create, beget-gallery-configure, beget-gallery-canary]
       confirmation:
         description: 'For apply: UPDATE_11_EXISTING_JOBS; for image publish: PUBLISH_MEDIA_IMAGES'
         type: string
@@ -24,6 +24,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  beget-gallery-canary:
+    if: github.ref == 'refs/heads/chore/gallery-cdn-307-migration' && inputs.operation == 'beget-gallery-canary'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 5
+    env:
+      BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
+      BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
+      GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Verify gallery signed delivery end to end on synthetic immutable WebP
+        run: node infra/cloudru/beget-gallery-redirect-canary.mjs
+
   beget-gallery-configure:
     if: github.ref == 'refs/heads/chore/gallery-cdn-307-migration' && inputs.operation == 'beget-gallery-configure'
     runs-on: ubuntu-latest

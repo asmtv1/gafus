@@ -45,9 +45,9 @@ jobs:
       - name: Gallery protected S3 redirect gate (read-only, no provider writes)
         env:
           GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
-          GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
+          GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
           GALLERY_CDN_PURGE_DUAL_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_PURGE_DUAL_ENABLED || 'false' }}
-          GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
+          GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
           GALLERY_CDN_EDGE_TOKEN_VERIFIED: ${{ vars.GALLERY_CDN_EDGE_TOKEN_VERIFIED || 'false' }}
           GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED: ${{ vars.GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED || 'false' }}
           GALLERY_CDN_BROWSER_CACHE_VERIFIED: ${{ vars.GALLERY_CDN_BROWSER_CACHE_VERIFIED || 'false' }}
@@ -57,7 +57,7 @@ jobs:
           BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED || 'false' }}
           GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID }}
           GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
-          GALLERY_CDN_BASE_URL: ${{ vars.GALLERY_CDN_REDIRECT_ENABLED == 'true' && 'https://fupiquafifeswu.begetcdn.cloud' || 'https://mepsuduyokabib.begetcdn.cloud' }}
+          GALLERY_CDN_BASE_URL: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_ENABLED == 'true' && 'https://fupiquafifeswu.begetcdn.cloud' || 'https://mepsuduyokabib.begetcdn.cloud' }}
           GALLERY_CDN_SECRET: ${{ secrets.GALLERY_CDN_SECRET }}
           GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
           GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
@@ -416,9 +416,14 @@ jobs:
                 echo "GALLERY_CDN_REDIRECT_SIGNING_SECRET=${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}"
                 echo "GALLERY_CDN_REDIRECT_ORIGIN_SECRET=${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}"
                 echo "GALLERY_CDN_ORIGIN_ROUTE_ENABLED=${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}"
-                echo "GALLERY_CDN_REDIRECT_ENABLED=${{ vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}"
+                if [ "${{ vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED }}" = "true" ]; then
+                  echo "GALLERY_CDN_REDIRECT_ENABLED=${{ vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}"
+                  echo "GALLERY_CDN_CACHEABLE_FINAL_ENABLED=${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}"
+                else
+                  echo "GALLERY_CDN_REDIRECT_ENABLED=false"
+                  echo "GALLERY_CDN_CACHEABLE_FINAL_ENABLED=false"
+                fi
                 echo "GALLERY_CDN_PURGE_DUAL_ENABLED=${{ vars.GALLERY_CDN_PURGE_DUAL_ENABLED || 'false' }}"
-                echo "GALLERY_CDN_CACHEABLE_FINAL_ENABLED=${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}"
               else
                 echo "GALLERY_CDN_REDIRECT_SIGNING_SECRET="
                 echo "GALLERY_CDN_REDIRECT_ORIGIN_SECRET="
@@ -434,6 +439,7 @@ jobs:
               echo "GALLERY_S3_ENDPOINT=https://s3.cloud.ru"
               echo "GALLERY_CDN_PROVIDER=beget"
               if [ "${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED }}" = "true" ] &&
+                 [ "${{ vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED }}" = "true" ] &&
                  [ "${{ vars.GALLERY_CDN_REDIRECT_ENABLED }}" = "true" ]; then
                 echo "GALLERY_CDN_BASE_URL=https://fupiquafifeswu.begetcdn.cloud"
               else
@@ -681,7 +687,15 @@ jobs:
                 'POSTGRES_PASSWORD', 'DATABASE_URL', 'REDIS_URL',
                 'JWT_SECRET', 'JWT_REFRESH_SECRET', 'NEXTAUTH_SECRET',
             )
+            gallery_release_approved = '${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED }}' == 'true'
+            gallery_migration_keys = {
+                'GALLERY_CDN_BASE_URL','GALLERY_CDN_ORIGIN_ROUTE_ENABLED',
+                'GALLERY_CDN_REDIRECT_ENABLED','GALLERY_CDN_PURGE_DUAL_ENABLED',
+                'GALLERY_CDN_CACHEABLE_FINAL_ENABLED',
+                'GALLERY_CDN_REDIRECT_SIGNING_SECRET','GALLERY_CDN_REDIRECT_ORIGIN_SECRET',
+            }
             for key in preserve:
+                if gallery_release_approved and key in gallery_migration_keys: continue
                 if key in old and old[key]: new[key] = old[key]
             for scope in ('GALLERY','FEED'):
                 if new.get(scope+'_CDN_PROVIDER') != 'beget' or not new.get(scope+'_CDN_BASE_URL','').startswith('https://'):
