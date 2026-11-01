@@ -31,9 +31,15 @@ test('only approves verified new Beget origin, token, header, redirects, cache',
   const fixture={service:{status:'RUNNING',cdn:{source_domain:{domain:'api.gafus.ru',source_protocol:'HTTPS'},
     resource_domain:[{domain:'fupiquafifeswu.begetcdn.cloud',status:'WORKING'}],
     settings:{follow_origin_redirect:{enable:true},tokenized_url_secure_key:{enable:true},
-      static_request_headers:{enabled:true},caching_time:600}}}};
+      static_request_headers:{enabled:true},caching_time:600,
+      caching_time_browser:{enable:false,time:180},
+      static_response_headers:{enable:true,header:[
+        {name:'Cache-Control',value:['private, max-age=180, must-revalidate']}]}}}}};
   const ok = async()=>({ok:true,json:async()=>fixture});
   assert.deepEqual(await checkGalleryRedirectProvider(env,ok),{enabled:true,redirect:true,providerVerified:true});
+  const noPrivate=structuredClone(fixture);
+  noPrivate.service.cdn.settings.static_response_headers.header[0].value=['public, max-age=180'];
+  await assert.rejects(checkGalleryRedirectProvider(env,async()=>({ok:true,json:async()=>noPrivate})),/BEGET_SETTINGS/);
   const bad=structuredClone(fixture);bad.service.cdn.settings.follow_origin_redirect.enable=false;
   await assert.rejects(checkGalleryRedirectProvider(env,async()=>({ok:true,json:async()=>bad})),/BEGET_SETTINGS/);
 });

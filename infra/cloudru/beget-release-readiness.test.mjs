@@ -11,7 +11,7 @@ const valid = Object.freeze({
   BEGET_CDN_CACHE_KEY_VERIFIED: 'true',
   BEGET_CDN_PURGE_PROPAGATION_VERIFIED: 'true',
   BEGET_CDN_LIVE_SMOKE_VERIFIED: 'true',
-  GALLERY_BEGET_CDN_SERVICE_ID: '0a8e97d5-3a65-4e90-99a6-c7f61131a461',
+  GALLERY_BEGET_CDN_SERVICE_ID: '96cd124e-767e-4af1-a568-c4d1f9b4e73f',
   FEED_BEGET_CDN_SERVICE_ID: 'cbb7fe86-a193-457e-a756-9cf3aa2aef1b',
   GALLERY_CDN_SECRET: 'gallery-test-placeholder'.padEnd(48,'G'),
   FEED_CDN_SECRET: 'feed-test-placeholder'.padEnd(32,'F'),

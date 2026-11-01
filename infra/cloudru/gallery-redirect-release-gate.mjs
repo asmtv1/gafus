@@ -58,7 +58,12 @@ export async function checkGalleryRedirectProvider(env, fetcher = fetch) {
         settings?.follow_origin_redirect?.enable !== true ||
         settings?.tokenized_url_secure_key?.enable !== true ||
         settings?.static_request_headers?.enabled !== true ||
-        !Number.isSafeInteger(settings?.caching_time) || settings.caching_time < 180)
+        !Number.isSafeInteger(settings?.caching_time) || settings.caching_time < 180 ||
+        settings?.caching_time_browser?.enable !== false ||
+        settings?.static_response_headers?.enable !== true ||
+        !settings?.static_response_headers?.header?.some(header =>
+          header.name?.toLowerCase() === 'cache-control' &&
+          header.value?.includes('private, max-age=180, must-revalidate')))
       throw Error('GALLERY_REDIRECT_GATE_BEGET_SETTINGS');
     return { ...config, providerVerified: true };
   } finally { await response?.body?.cancel?.().catch(()=>{}); }

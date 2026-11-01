@@ -35,7 +35,11 @@ const settings={...s.cdn.settings,
   follow_origin_redirect:{enable:true},
   tokenized_url_secure_key:{enable:true,key:edge,include_ip:false},
   static_request_headers:{enabled:true,value:{'x-gafus-gallery-origin-secret':origin}},
-  caching_time_browser:{enable:true,time:180},
+  caching_time_browser:{enable:false,time:180},
+  static_response_headers:{enable:true,header:[
+    {name:'Cache-Control',value:['private, max-age=180, must-revalidate']},
+    {name:'X-Content-Type-Options',value:['nosniff']},
+  ]},
   stale:{enable:false,type:[]},
   redirect_http_to_https:true,
 };
@@ -47,7 +51,9 @@ const expected=previous.tokenized_url_secure_key?.enable===true &&
   previous.static_request_headers?.enabled===true &&
   previous.static_request_headers?.value?.['x-gafus-gallery-origin-secret']===origin &&
   previous.follow_origin_redirect?.enable===true && previous.caching_time===600 &&
-  previous.caching_time_browser?.enable===true && previous.caching_time_browser?.time===180 &&
+  previous.caching_time_browser?.enable===false && previous.caching_time_browser?.time===180 &&
+  previous.static_response_headers?.header?.some(h=>h.name==='Cache-Control' &&
+    h.value?.includes('private, max-age=180, must-revalidate')) &&
   previous.stale?.enable===false;
 if(!expected){
   // Beget requires a complete settings payload, not a single-setting patch.
@@ -69,7 +75,9 @@ if(x.follow_origin_redirect?.enable!==true ||
    x.tokenized_url_secure_key?.enable!==true || x.tokenized_url_secure_key?.key!==edge ||
    x.static_request_headers?.enabled!==true ||
    x.static_request_headers?.value?.['x-gafus-gallery-origin-secret']!==origin ||
-   x.caching_time!==600 || x.caching_time_browser?.enable!==true || x.caching_time_browser?.time!==180 ||
+   x.caching_time!==600 || x.caching_time_browser?.enable!==false || x.caching_time_browser?.time!==180 ||
+   !x.static_response_headers?.header?.some(h=>h.name==='Cache-Control' &&
+    h.value?.includes('private, max-age=180, must-revalidate')) ||
    x.stale?.enable!==false || x.redirect_http_to_https!==true)
   throw Error('GALLERY_CDN_SETTINGS_READBACK_FAILED');
 console.log('GALLERY_CDN_SECURITY_CONFIGURED_AND_VERIFIED',JSON.stringify({

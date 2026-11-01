@@ -879,7 +879,7 @@ jobs:
 
             # A responding homepage/ping alone does not prove auth or worker readiness.
             echo "🏥 Checking production readiness..."
-            for endpoint in https://gafus.ru/api/ping https://gafus.ru/api/csrf-token https://gafus.ru/api/auth/session https://api.gafus.ru/ready; do
+            for endpoint in https://gafus.ru/ https://api.gafus.ru/health https://api.gafus.ru/ready https://api.gafus.ru/api/v1/public/mobile-app; do
               ready=false
               for attempt in $(seq 1 20); do
                 if curl --fail --silent --show-error --max-time 10 "$endpoint" > /dev/null; then

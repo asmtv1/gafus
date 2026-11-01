@@ -35,6 +35,15 @@ test('automatic main release syncs Cloud.ru Jobs after app; manual redeploy stay
   assert(!flow.includes('GAFUS_REFACTOR_PRODUCTION_CUTOVER'));
 });
 
+test('production readiness probes real Vite and Hono endpoints, never removed Next routes',()=>{
+ const routes=['https://gafus.ru/','https://api.gafus.ru/health',
+   'https://api.gafus.ru/ready','https://api.gafus.ru/api/v1/public/mobile-app'];
+ const source=[app,ci].join('\n');
+ assert(routes.every(url=>source.includes(url)),'MISSING_REAL_PRODUCTION_READINESS_ROUTE');
+ assert.doesNotMatch(app,/https:\/\/gafus\.ru\/api\/(?:ping|csrf-token|auth\/session)/,
+   'REMOVED_NEXT_API_ROUTE_MUST_NOT_GATE_PRODUCTION_DEPLOY');
+});
+
 test('cutover preflight can run Node 24 without installing pnpm; release gates remain blocking',()=>{
  const graph=byJobs(ci);
  const steps=graph['cutover-preflight'].steps;

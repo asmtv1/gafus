@@ -46,6 +46,9 @@ const warm=await request(good);
 requireStatus(warm.status,200,'GALLERY_WARM_GET');
 if(warm.headers.has('location')||!Buffer.from(await warm.arrayBuffer()).equals(bytes))
  throw Error('GALLERY_WARM_CONTENT_CHANGED');
+const browserCache=warm.headers.get('cache-control')??'';
+if(browserCache!=='private, max-age=180, must-revalidate')
+ throw Error('GALLERY_BROWSER_CACHE_POLICY_MISMATCH');
 const state=warm.headers.get('x-cdn-edge-cache')?.toUpperCase()??'UNKNOWN';
 if(state!=='HIT')throw Error('GALLERY_CACHE_NOT_HIT_'+state);
 const head=await request(good,{method:'HEAD'});
