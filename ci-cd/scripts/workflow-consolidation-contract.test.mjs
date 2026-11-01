@@ -12,7 +12,7 @@ const files=readdirSync(dir).filter(x=>x.endsWith('.yml')).sort();
 test('four primary workflows, independent backup and three internal call-only workflows',()=>{
  assert.deepEqual(files,[
   'build-single-container.yml','ci-cd.yml','cloudru-media-images.yml',
-  'daily-backup.yml','deploy-only.yml','infrastructure-jobs.yml',
+  'daily-backup.yml','deploy-only.yml','gallery-origin-recovery.yml','infrastructure-jobs.yml',
   'production-deploy-reusable.yml','production-job-release-reusable.yml'
  ]);
  const primary=['build-single-container','ci-cd','deploy-only','infrastructure-jobs'];
@@ -62,11 +62,27 @@ test('single build has immutable digest and only touches the selected service',(
 test('Cloud.ru updates require explicit confirmation and cannot delete S3/Jobs',()=>{
  const infra=parse('infrastructure-jobs');
  assert.deepEqual(infra.on.workflow_dispatch.inputs.operation.options,
-  ['plan','preflight','apply-existing-jobs','verify','publish-media-images','beget-readonly-diagnostic']);
+  ['plan','preflight','apply-existing-jobs','verify','publish-media-images','beget-readonly-diagnostic',
+   'beget-gallery-inspect','beget-gallery-create','beget-gallery-configure','beget-gallery-canary']);
  assert(infra.jobs.guard.steps[0].run.includes('UPDATE_11_EXISTING_JOBS'));
  assert(infra.jobs['publish-guard'].steps[0].run.includes('PUBLISH_MEDIA_IMAGES'));
  assert.equal(infra.jobs['apply-existing-jobs'].needs,'preflight');
  assert.equal(infra.jobs['publish-media-images'].needs,'publish-guard');
+ // The temporary Beget CDN setup operations are production-secret scoped but
+ // cannot be run from main or any arbitrary branch. Mutating operations also
+ // require an exact confirmation inside their own scripts.
+ for(const action of ['beget-gallery-inspect','beget-gallery-create',
+   'beget-gallery-configure','beget-gallery-canary']) {
+  assert(infra.jobs[action].if.includes("refs/heads/chore/gallery-cdn-307-migration"),action);
+  assert.equal(infra.jobs[action].environment,'production',action);
+ }
+ assert(infra.jobs['beget-gallery-create'].env.GALLERY_CDN_CREATE_CONFIRM.includes('inputs.confirmation'));
+ assert(infra.jobs['beget-gallery-configure'].env.GALLERY_CDN_CONFIGURE_CONFIRM.includes('inputs.confirmation'));
+ const create=readFileSync('infra/cloudru/beget-gallery-create.mjs','utf8');
+ const configure=readFileSync('infra/cloudru/beget-gallery-secure-configure.mjs','utf8');
+ assert(create.includes('CREATE_ISOLATED_GALLERY_CDN_2026_11_01'));
+ assert(configure.includes('SECURE_NEW_GALLERY_CDN_2026_11_01'));
+ assert(!/method:\s*['"]DELETE['"]/.test(create+configure));
  const source=read('infrastructure-jobs');
  assert(!/aws s3 rm|mc rm|rclone delete|s3.deleteObject/i.test(source));
 });

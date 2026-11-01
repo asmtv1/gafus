@@ -105,10 +105,9 @@ The app was not started, changed, or deleted during this audit.
 `0fe276914` and `dbbcee643`, especially
 `docs/migrations/2026-10-18-gallery-cdn-s3-redirect.md` (prior real
 synthetic 307→S3/WebP 200/HIT/HEAD/Range, but no permanent Hono production
-cutover). The isolated Beget CDN used previously was
-`fupiquafifeswu.begetcdn.cloud`, service ID
-`96cd124e-767e-4af1-a568-c4d1f9b4e73f`. **Its present live status has not
-been reconfirmed.**
+cutover). The isolated Beget CDN used in October was
+`dikinuneceswe.begetcdn.cloud`, service ID
+`10530e64-21b7-4352-8366-806c79c2f1b7`; it has since been deleted (404).
 
 - `packages/gallery-server/src/cdnRedirect.ts`: Hono-friendly API CDN origin
   handler for `/albums/*`, `/gallery/*` (V2), `/users/*` vet thumbnails.
@@ -168,7 +167,7 @@ are proven or modified by local unit tests.
 ### 2026-11-01 external DNS verification (new blocking finding)
 
 Read-only DNS A lookup via both system resolver and Cloudflare `1.1.1.1`:
-`fupiquafifeswu.begetcdn.cloud` returned **NXDOMAIN**. An independent HTTPS
+`dikinuneceswe.begetcdn.cloud` returned **NXDOMAIN**. An independent HTTPS
 HEAD could not resolve it. The old `mepsuduyokabib.begetcdn.cloud` resolved
 normally and returned the expected unsigned 410 edge denial. Therefore the
 historic new CDN hostname is **retired/unusable as of this check**. The
@@ -182,3 +181,21 @@ confirm authoritative and public DNS and API readback, then update the
 separate reviewed code change. Preserving the current old CDN delivery and
 its rollback path takes precedence over removing a Container App. This task
 has intentionally not performed any provider mutations or production deploy.
+
+### Actual new Beget CDN created 2026-11-01
+
+New isolated resource created through production-secret GitHub Actions, **not**
+the 2026-10 historical service:
+- ID `96cd124e-767e-4af1-a568-c4d1f9b4e73f`
+- Host `fupiquafifeswu.begetcdn.cloud`
+- Source `api.gafus.ru` (HTTPS), status `RUNNING`
+- Secure Token, origin-only secret header, 307 following, 600s edge cache,
+  180s browser cache, HTTPS redirect and disabled stale were configured and
+  confirmed by authenticated Beget readback (Actions run 41254964489)
+- DNS (1.1.1.1) and TLS certificate verified, unsigned root `404`; not a
+  signed-gallery acceptance proof. Current old production CDN unchanged.
+- Source and CI updated on `main` commit `2fdc2b112`; test-only origin route
+  requires `GALLERY_CDN_REDIRECT_RELEASE_APPROVED=true`, whereas viewer
+  cutover additionally requires `GALLERY_CDN_VIEWER_CUTOVER_APPROVED=true`.
+  As of this check viewer approval is **false** and end-to-end canary remains
+  outstanding; do not report production migration complete.
