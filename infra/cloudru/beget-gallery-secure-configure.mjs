@@ -28,7 +28,9 @@ function verifyIdentity(s){
 }
 let s=(await call('/v1/cloud/'+id)).service;
 verifyIdentity(s);
-const settings={
+// API requires a complete CDN settings snapshot (including allowed_http_methods).
+// Start from this exact new resource's own settings; never copy settings from old CDN.
+const settings={...s.cdn.settings,
   caching_time:600,
   follow_origin_redirect:{enable:true},
   tokenized_url_secure_key:{enable:true,key:edge,include_ip:false},
@@ -37,6 +39,8 @@ const settings={
   stale:{enable:false,type:[]},
   redirect_http_to_https:true,
 };
+// `is_allowed_http_methods_locked` describes provider-side capability, not a setter.
+delete settings.is_allowed_http_methods_locked;
 const previous=s.cdn.settings??{};
 const expected=previous.tokenized_url_secure_key?.enable===true &&
   previous.tokenized_url_secure_key?.key===edge &&
