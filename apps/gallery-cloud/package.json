@@ -9,8 +9,7 @@
     "package:linux": "node scripts/package-linux.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
-    "benchmark": "node scripts/benchmark.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "benchmark": "node scripts/benchmark.mjs"
   },
   "dependencies": {
     "@gafus/core": "workspace:*",

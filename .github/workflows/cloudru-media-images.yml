@@ -40,7 +40,6 @@ jobs:
         include:
           - { media: feed, role: worker, dockerfile: Dockerfile }
           - { media: gallery, role: worker, dockerfile: Dockerfile }
-          - { media: gallery, role: origin, dockerfile: Dockerfile.origin }
           - { media: questions, role: photo, dockerfile: Dockerfile.questions-photo }
           - { media: chat, role: photo, dockerfile: Dockerfile.chat2-job }
           - { media: chat, role: video, dockerfile: Dockerfile.chat2-job }

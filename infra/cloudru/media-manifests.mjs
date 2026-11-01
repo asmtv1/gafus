@@ -30,52 +30,10 @@ function container(name, img, cpu, names, port, memory = cpuMemory[cpu]) {
 export function cloudruMediaManifests(projectId, revision) {
   if (!/^[a-f0-9-]{32,40}$/.test(projectId) || !/^[a-f0-9]{40}$/.test(revision))
     throw new Error("INVALID_CLOUDRU_RELEASE_ID");
-  const services = [
-    {
-      name: "gafus-gallery-origin",
-      kind: "origin",
-      imageRole: "gallery-origin",
-      cpu: "0.2",
-      envNames: [
-        ...galleryCommon,
-        "GALLERY_ORIGIN_SECRET",
-        "GALLERY_CDN_SECRET",
-        "GALLERY_CDN_EDGE_TOKEN_VERIFIED",
-        "GALLERY_CDN_EDGE_CACHE_HIT_VERIFIED",
-      ],
-    },
-    // Feed Media V2 uses public immutable Cloud.ru S3 finals via Beget CDN.
-    // No long-running feed origin belongs in the desired Container Apps state.
-    // Preserve the gallery origin until a PRIVATE S3 CDN auth replacement is proven.
-  ].map((spec) => ({
-    name: spec.name,
-    projectId,
-    description: "GAFUS protected CDN origin, reviewed image",
-    configuration: {
-      // Yandex CDN is an external HTTPS client, not inside Cloud.ru VPC.
-      // The origin is internet-reachable but MUST reject every request without
-      // its independently managed CDN-only secret header, including HEAD.
-      ingress: { publiclyAccessible: true },
-      privileged: false,
-      autoDeployments: { enabled: false, pattern: "" },
-    },
-    template: {
-      timeout: "30s",
-      idleTimeout: "60s",
-      protocol: "http_1",
-      // The Yandex edge has a hard ~5-second origin first-byte deadline.
-      // Cloud.ru scale-to-zero startup took 11.68s in measured staging.
-      // Always keep one *ready* origin replica and verify it before CDN cutover.
-      // This consumes baseline Container Apps resources, including when idle.
-      // Keep a single provisioned instance during signed-edge validation:
-      // scale-out could send traffic to a cold replica and exceed 5 seconds.
-      // Increase both min/max together only after multi-instance load testing.
-      scaling: { minInstanceCount: 1, maxInstanceCount: 1 },
-      containers: [
-        container(spec.name, image(spec.imageRole, revision), spec.cpu, spec.envNames, 8080),
-      ],
-    },
-  }));
+  // Gallery final media is served via a protected Hono 307 -> private S3
+  // redirect and Beget CDN. No long-lived Container Apps origin is desired.
+  // Media processing remains in the independently managed Container Jobs.
+  const services = [];
   const jobs = [
     {
       name: "gafus-gallery-process",

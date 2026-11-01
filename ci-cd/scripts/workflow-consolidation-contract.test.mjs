@@ -12,7 +12,7 @@ const files=readdirSync(dir).filter(x=>x.endsWith('.yml')).sort();
 test('four primary workflows, independent backup and three internal call-only workflows',()=>{
  assert.deepEqual(files,[
   'build-single-container.yml','ci-cd.yml','cloudru-media-images.yml',
-  'daily-backup.yml','deploy-only.yml','gallery-origin-recovery.yml','infrastructure-jobs.yml',
+  'daily-backup.yml','deploy-only.yml','infrastructure-jobs.yml',
   'production-deploy-reusable.yml','production-job-release-reusable.yml'
  ]);
  const primary=['build-single-container','ci-cd','deploy-only','infrastructure-jobs'];

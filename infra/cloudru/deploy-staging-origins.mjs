@@ -7,11 +7,9 @@ import { randomBytes } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { parse } from 'dotenv';
 const env = process.env;
 const revision = 'stg-20261012-05c5b67f';
 const targets = [
-  ['gallery', 'gafus-gallery-origin-staging', 'gafus-gallery-private'],
   ['feed', 'gafus-feed-origin-staging', 'gafus-feed-private'],
 ];
 if (env.GAFUS_STAGE_DEPLOY_CONFIRM !== 'synthetic-only-no-production' ||
@@ -39,7 +37,7 @@ const api=async(method,url,payload)=>{
   if(!r.ok){
     let fault = {}; try { fault=await r.json(); } catch {}
     let detail=JSON.stringify({code:fault.code??null,message:fault.message??null,details:fault.details??null});
-    for(const value of [env.CLOUDRU_KEY_SECRET,env.CLOUDRU_S3_SECRET_ACCESS_KEY,env.CLOUDRU_S3_ACCESS_KEY_ID,gitSecret,feedSecret].filter(Boolean))
+    for(const value of [env.CLOUDRU_KEY_SECRET,env.CLOUDRU_S3_SECRET_ACCESS_KEY,env.CLOUDRU_S3_ACCESS_KEY_ID,feedSecret].filter(Boolean))
       detail=detail.replaceAll(value,'[REDACTED]');
     console.log('API_FAIL',method,r.status,new URL(url).pathname,detail.slice(0,1100));
     throw Error('CLOUDRU_DEPLOY_RESPONSE_DENIED');
@@ -49,7 +47,7 @@ const api=async(method,url,payload)=>{
 const list=await api('GET',`https://containers.api.cloud.ru/v1/containers?projectId=${env.CLOUDRU_PROJECT_ID}&pageSize=100`);
 for(const [scope,name,bucket] of targets){
   if((list.data??[]).some(x=>x.name===name)){console.log('STAGING_ALREADY_EXISTS',name);continue;}
-  const secrets=scope==='gallery'?{GALLERY_ORIGIN_SECRET:gitSecret}:{FEED_ORIGIN_SECRET:feedSecret};
+  const secrets={FEED_ORIGIN_SECRET:feedSecret};
   const pairs={
     GAFUS_STAGING_ORIGIN_MODE:'validation-only',
     [`${scope.toUpperCase()}_BUCKET`]:bucket,

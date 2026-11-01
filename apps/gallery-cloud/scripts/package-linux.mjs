@@ -11,7 +11,7 @@ const addon = `${native}/node_modules/@img/sharp-linux-x64/lib/sharp-linux-x64.n
 const magic = await readFile(addon);
 if (magic.subarray(0,4).toString('hex') !== '7f454c46' || magic.readUInt16LE(18) !== 62) throw Error('NOT_LINUX_X64_ELF');
 await mkdir('artifacts', { recursive: true });
-for (const entry of ['origin','process','maintenance','dispatch']) {
+for (const entry of ['process','maintenance','dispatch']) {
   const folder = `artifacts/${entry}`;
   await rm(folder, { recursive: true, force: true }); await mkdir(folder);
   await cp(`dist/${entry}/index.js`, `${folder}/index.js`);
