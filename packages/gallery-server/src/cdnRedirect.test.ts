@@ -22,6 +22,18 @@ describe("Beget private Gallery CDN -> API 307 -> S3", () => {
     ] as const) expect((await galleryCdnRedirectResponse(req,targetEnv,signer)).status).toBe(404);
     expect(signer).not.toHaveBeenCalled();
   });
+  it("bootstraps the protected origin without enabling viewer cutover", async () => {
+    const bootstrapEnv = {
+      ...env,
+      GALLERY_CDN_REDIRECT_ENABLED: "false",
+      GALLERY_CDN_CACHEABLE_FINAL_ENABLED: "false",
+    };
+    const sign = vi.fn(async () => signed(key));
+    const result = await galleryCdnRedirectResponse(request(), bootstrapEnv, sign);
+    expect(result.status).toBe(307);
+    expect(result.headers.get("Location")).toBe(signed(key));
+    expect(sign).toHaveBeenCalledWith(key, "GET");
+  });
   it("presigns GET/HEAD for legacy, V2 and vet thumbs without streaming bytes", async () => {
     for (const path of [key, v2Key, vetKey]) {
       for (const method of ["GET", "HEAD"] as const) {

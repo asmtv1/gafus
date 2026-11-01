@@ -624,8 +624,11 @@ jobs:
   # Post-deploy read-only verification. Never switch, mutate, prepare,
   # or roll back Gallery/Feed to Yandex CDN (including on Beget 5xx).
   beget-verify-after-deploy:
-    needs: [beget-readonly-preflight, cloudru-jobs-verify]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [beget-readonly-preflight, cloudru-jobs-verify, deploy-production]
+    # A successful app deploy must get an independent live Gallery/Feed canary,
+    # even if a subsequent Cloud.ru Jobs reconciliation fails. Keep CI red in
+    # that case, but never mistake a skipped CDN probe for a passing release.
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.deploy-production.result == 'success' && needs.beget-readonly-preflight.result == 'success' }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12
