@@ -7,6 +7,7 @@ import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import { CLOUDRU_PRODUCTION_JOBS, CLOUDRU_PROJECTS, imageRepository, resolveProjectBindings } from './production-job-inventory.mjs';
 import { preflightJobs } from './production-job-release-core.mjs';
 import { configuredImage, imagePlan } from './production-job-image-config.mjs';
+import { waitForGalleryJobRollout } from './gallery-rollout-poll.mjs';
 
 const mode=process.argv[2]??'--plan';
 if(!['--plan','--preflight','--sync','--cutover','--verify'].includes(mode))
@@ -160,14 +161,16 @@ try{
   // timeouts, concurrency, volumes, unrelated env and secret references.
   await client.patch(s.project,s.projectId,s.name,s.iamVersion,patchBody(job));
   changed.push({snapshot:s,job});
-  let applied=false;
-  for(let attempt=0;attempt<12;attempt++){
-    const after=await client.get(s.project,s.projectId,s.name,s.iamVersion);
-    if(after?.name!==s.name||after?.projectId!==s.projectId)throw Error('CLOUDRU_POSTPATCH_IDENTITY_'+s.name);
-    if(jobMatches(after,job)&&after.status==='ready'){applied=true;break;}
-    await new Promise(resolve=>setTimeout(resolve,1500));
-  }
-  if(!applied)throw Error('CLOUDRU_POSTPATCH_VERIFICATION_'+s.name);
+  // Cloud.ru PATCH is asynchronous. A new immutable image can take minutes to
+  // become ready; the previous 12x1.5s poll falsely declared failure and
+  // attempted rollback even when Cloud.ru later applied the new image.
+  await waitForGalleryJobRollout({
+    get:()=>client.get(s.project,s.projectId,s.name,s.iamVersion),
+    jobName:s.name,projectId:s.projectId,
+    previousImage:s.before.template.containers[0].image,
+    desiredImage:job.template.containers[0].image,
+    isDesired:state=>jobMatches(state,job),
+  });
  }
  console.log(JSON.stringify({stage:'sync',updated:changed.map(x=>x.snapshot.name),verified:desired.length,imagesRebuilt:false}));
 }catch(err){
