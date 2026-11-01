@@ -7,7 +7,7 @@ const token = process.env.BEGET_CDN_API_TOKEN;
 if (!token || token.length < 24) throw Error('BEGET_DIAGNOSTIC_TOKEN_MISSING');
 
 for (const [scope, id, origin, cdnHost] of [
-  ['gallery', process.env.GALLERY_BEGET_CDN_SERVICE_ID, 'gafus-gallery-origin.containerapps.ru', 'mepsuduyokabib.begetcdn.cloud'],
+  ['gallery', process.env.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID || '96cd124e-767e-4af1-a568-c4d1f9b4e73f', 'api.gafus.ru', 'fupiquafifeswu.begetcdn.cloud'],
   ['feed', process.env.FEED_BEGET_CDN_SERVICE_ID, 'gafus-feed-origin.containerapps.ru', 'quepraquiecebquomiel.begetcdn.cloud'],
 ]) {
   if (!/^[0-9a-f-]{36}$/.test(id ?? '')) throw Error('BEGET_DIAGNOSTIC_ID_INVALID_' + scope);

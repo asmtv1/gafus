@@ -118,7 +118,7 @@ TLS до HTTP. Проверить поведение из другой разр�
   `?md5=...&expires=...` в этих тестах дал 410 и для текущих CDN-ресурсов
   НЕ является заменой действующему формату. Signing code не переписывали.
 - Управляющий Beget API (200) подтвердил действующие source bindings:
-  `mepsuduyokabib.begetcdn.cloud` → `gafus-gallery-origin.containerapps.ru`,
+  `mepsuduyokabib.begetcdn.cloud` → retired Gallery Container App upstream,
   `garaquachegasourn.begetcdn.cloud` → `gafus-feed-origin.containerapps.ru`,
   обе по протоколу **HTTPS**.
 - Обе точки источника доступны через `en0` по TLS (IP **37.44.197.215**),

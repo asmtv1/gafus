@@ -12,7 +12,7 @@ publishable images/video and are not origin proxy services.
 
 | Media | S3 final delivery | Beget CDN | Origin Container App required? |
 | --- | --- | --- | --- |
-| Gallery albums | `gafus-gallery-private`, **private** | `mepsuduyokabib.begetcdn.cloud` (edge signed) | **Yes in current deployed configuration**: `gafus-gallery-origin`; suspended |
+| Gallery albums | `gafus-gallery-private`, **private** | `mepsuduyokabib.begetcdn.cloud` (edge signed) | **Yes in current deployed configuration**: retired Gallery Container App; suspended |
 | Questions V2 | `gafus-questions-public`, public processed prefix only; incoming private | `ebiteskukingusk.begetcdn.cloud`, S3 fallback | **No**. Public finals directly in S3 |
 | Moments Feed Media V2 | `gafus-feed-private`, published `media/v2/...` variants publicly readable; incoming must remain restricted | `quepraquiecebquomiel.begetcdn.cloud` | **Not needed for verified V2 public image delivery**. Current Beget diagnostic did not find old origin hostname |
 | Chat 2.0 | `gafus-chat2-media-2026`, public finished variants only | `gonomudedoje.begetcdn.cloud`, S3 fallback | **No**. Ingestion and jobs are separate from delivery |
@@ -95,9 +95,9 @@ authorized by this file.
    Delete them separately after a retention window. **Never** delete Jobs,
    buckets, or customer media during this operation.
 
-`gafus-gallery-origin` was observed `suspended` by a GitHub read-only Cloud.ru
+retired Gallery Container App was observed `suspended` by a GitHub read-only Cloud.ru
 API check (`41249662933`). A start request returned HTTP 403 (`41249704435`).
-The app was not started, changed, or deleted during this audit.
+The old app was not started or deleted: independent GitHub Actions and the local Cloud.ru key both returned HTTP 403 on the DELETE operation. Repository code now intentionally has **no provisioning or image build** for the retired Gallery Container App; Cloud.ru removal remains blocked on owner-side write permissions.
 
 ## Restored Gallery API redirect (local source changes, 2026-11-01)
 

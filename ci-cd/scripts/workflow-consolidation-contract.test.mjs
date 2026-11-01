@@ -63,7 +63,7 @@ test('Cloud.ru updates require explicit confirmation and cannot delete S3/Jobs',
  const infra=parse('infrastructure-jobs');
  assert.deepEqual(infra.on.workflow_dispatch.inputs.operation.options,
   ['plan','preflight','apply-existing-jobs','verify','publish-media-images','beget-readonly-diagnostic',
-   'beget-gallery-inspect','beget-gallery-create','beget-gallery-configure','beget-gallery-canary']);
+   'beget-gallery-create','beget-gallery-configure','beget-gallery-canary']);
  assert(infra.jobs.guard.steps[0].run.includes('UPDATE_11_EXISTING_JOBS'));
  assert(infra.jobs['publish-guard'].steps[0].run.includes('PUBLISH_MEDIA_IMAGES'));
  assert.equal(infra.jobs['apply-existing-jobs'].needs,'preflight');
@@ -71,7 +71,7 @@ test('Cloud.ru updates require explicit confirmation and cannot delete S3/Jobs',
  // The temporary Beget CDN setup operations are production-secret scoped but
  // cannot be run from main or any arbitrary branch. Mutating operations also
  // require an exact confirmation inside their own scripts.
- for(const action of ['beget-gallery-inspect','beget-gallery-create',
+ for(const action of ['beget-gallery-create',
    'beget-gallery-configure','beget-gallery-canary']) {
   assert(infra.jobs[action].if.includes("refs/heads/chore/gallery-cdn-307-migration"),action);
   assert.equal(infra.jobs[action].environment,'production',action);
