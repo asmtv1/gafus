@@ -93,6 +93,9 @@ export function desiredConfig(snapshot,vars){
   if(typeof secret!=='string'||Buffer.byteLength(secret,'utf8')<32)throw Error('CLOUDRU_HMAC_MISSING_'+hkey);
   changeEnv(j,hkey,secret);
   if(snapshot.imageRole==='chat-photo'||snapshot.imageRole==='chat-video'){
+    // The bootstrap preflight permits dormant Jobs, but post-Backend cutover
+    // must explicitly activate them before strict verification can pass.
+    changeEnv(j,'CHAT2_JOB_ENABLED','true');
     changeEnv(j,'CHAT2_INTERNAL_BASE_URL','https://api.gafus.ru/');
     changeEnv(j,'CHAT2_S3_ACCESS_KEY_ID',vars.CHAT2_S3_ACCESS_KEY_ID);
     changeEnv(j,'CHAT2_S3_SECRET_ACCESS_KEY',vars.CHAT2_S3_SECRET_ACCESS_KEY);

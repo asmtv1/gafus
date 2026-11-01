@@ -93,6 +93,11 @@ export async function preflightJobs({ jobs = CLOUDRU_PRODUCTION_JOBS, images, li
       }
     }
     const exact = { ...runContract.exact };
+    // Existing Chat2 Jobs start dormant while the first compatible Backend is
+    // being deployed. Only the explicitly authorized read-only bootstrap may
+    // accept this state; verification and mutation contracts remain strict.
+    if (chat2Bootstrap && runtimeEnv.get("CHAT2_JOB_ENABLED")?.value === "false")
+      exact.CHAT2_JOB_ENABLED = "false";
     // An application release must be able to deploy a compatible Backend first.
     // Questions may be present but deliberately dormant until signed Hono V2
     // routes and the SAME HMAC are independently verified. Mutation preflights

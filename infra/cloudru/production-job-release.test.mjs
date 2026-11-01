@@ -204,6 +204,22 @@ test('first main accepts only the four missing Chat2 bootstrap fields before cut
  await assert.rejects(preflightJobs({...tampered,readOnly:true,allowChat2MissingRuntime:true}),/CLOUDRU_JOB_RUNTIME_ENV_MISSING/);
 });
 
+test('dormant Chat2 Jobs are accepted only by bootstrap, then explicitly activated',async()=>{
+ const m=mock();
+ const names=['gafus-chat-photo','gafus-chat-photo-2','gafus-chat-video','gafus-chat-video-2'];
+ for(const name of names){
+  const env=m.states.get(name).template.containers[0].env;
+  env.find(e=>e.name==='CHAT2_JOB_ENABLED').value='false';
+ }
+ await assert.rejects(preflightJobs({...m,readOnly:true}),/CLOUDRU_JOB_RUNTIME_ENV_MISMATCH_gafus-chat-photo_CHAT2_JOB_ENABLED/);
+ assert.equal((await preflightJobs({...m,readOnly:true,allowChat2MissingRuntime:true})).length,11);
+ await assert.rejects(preflightJobs({...m,images}),/CLOUDRU_JOB_RUNTIME_ENV_MISMATCH_gafus-chat-photo_CHAT2_JOB_ENABLED/);
+ assert.equal(m.calls.length,0,'bootstrap must never PATCH production Jobs');
+ const source=readFileSync('infra/cloudru/production-job-release.mjs','utf8');
+ assert(source.includes("changeEnv(j,'CHAT2_JOB_ENABLED','true')"),
+   'sync must activate dormant Chat2 Jobs after Backend deployment');
+});
+
 test('partial publish error restores previous immutable digest without touching settings',async()=>{
  const m=mock();
  const snapshots=await preflightJobs({...m,images});
