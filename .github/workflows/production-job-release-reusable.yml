@@ -82,7 +82,28 @@ jobs:
           node infra/cloudru/production-job-release.mjs --plan |
             jq -r '.targets[].targetImage | select(contains("@sha256:"))' | sort -u |
             while IFS= read -r image; do
-              docker buildx imagetools inspect "$image" >/dev/null
+              # Cloud.ru registry OAuth can temporarily return 502 before an
+              # OCI manifest is even requested. Retry only transport/5xx/429;
+              # a missing digest, invalid auth or malformed manifest fails shut.
+              verified=false
+              for attempt in 1 2 3 4 5 6 7 8; do
+                if output="$(docker buildx imagetools inspect "$image" 2>&1)"; then
+                  verified=true
+                  break
+                fi
+                if ! grep -Eqi '502 Bad Gateway|503 Service Unavailable|504 Gateway Timeout|429 Too Many Requests|TLS handshake timeout|connection reset by peer|unexpected EOF|i/o timeout' <<< "$output"; then
+                  printf '%s\n' "$output" >&2
+                  echo 'CLOUDRU_IMMUTABLE_MANIFEST_INVALID' >&2
+                  exit 1
+                fi
+                if [ "$attempt" -eq 8 ]; then
+                  echo 'CLOUDRU_REGISTRY_TRANSIENT_RETRIES_EXHAUSTED' >&2
+                  exit 1
+                fi
+                echo "Cloud.ru transient registry OAuth error, retry $attempt/8" >&2
+                sleep "$((attempt * 5))"
+              done
+              [ "$verified" = true ] || exit 1
             done
       - name: Reconcile existing 11 Jobs to declared images and secrets; verify after rollout
         env:
