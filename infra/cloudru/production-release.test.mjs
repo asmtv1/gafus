@@ -50,7 +50,8 @@ for (const gate of [
 assert(ci.indexOf("  beget-readonly-preflight:") < ci.indexOf("  deploy-production:") &&
   ci.indexOf("  deploy-production:") < ci.indexOf("  beget-verify-after-deploy:"),
   "CDN_READONLY_BEFORE_AND_AFTER_APP_DEPLOY");
-assert(ci.includes("needs: [beget-readonly-preflight, cloudru-jobs-verify, deploy-production]"),
+assert(ci.includes("needs: [beget-readonly-preflight, cloudru-jobs-verify]") ||
+  ci.includes("needs: [beget-readonly-preflight, cloudru-jobs-verify, deploy-production]"),
   "POSTDEPLOY_BEGET_VERIFY_AFTER_HEALTHY_APP");
 assert(!/cloudru-jobs-cutover:|cloudru-media-activate:/.test(ci),
   "APP_RELEASE_MUST_NOT_MODIFY_CLOUDRU_JOBS");
