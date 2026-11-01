@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import YAML from 'yaml';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const compose = read('../docker/docker-compose.prod.yml');
@@ -31,7 +32,18 @@ test('CI exercises migrations and real PostgreSQL poll end-to-end before deployi
   assert.match(ci, /MomentComposer\.unifiedPoll\.test\.tsx/);
   assert.match(ci, /publication-client\.test\.ts/);
   assert.match(ci, /feed-poll-release-contract\.test\.mjs/);
-  assert(ci.includes('needs: [security, build-apps, build-images, cloudru-jobs-preflight]'));
+  const deploy = YAML.parse(ci).jobs['deploy-production'];
+  for (const prerequisite of [
+    'security', 'build-apps', 'build-images', 'cloudru-jobs-preflight',
+    'cloudru-media-contracts', 'cutover-preflight', 'beget-readonly-preflight',
+  ]) assert(deploy.needs.includes(prerequisite), `Deployment must depend on ${prerequisite}`);
+  for (const mandatory of [
+    'security', 'build-apps', 'build-images', 'cloudru-media-contracts',
+    'cutover-preflight', 'beget-readonly-preflight',
+  ]) assert(deploy.if.includes(`needs.${mandatory}.result == 'success'`),
+    `App-only release must not bypass ${mandatory}`);
+  assert(deploy.if.includes("needs.cloudru-jobs-preflight.result == 'success'"),
+    'Normal release must still gate on Cloud.ru Jobs preflight');
   assert(ci.includes('mode: preflight'), 'CI validates 11 existing Jobs before app release');
   assert.match(ci, /github\.ref == 'refs\/heads\/main' && github\.event_name == 'push'/);
   assert.match(sharedDeploy, /production-schema-cutover\.sh/);
