@@ -5,10 +5,12 @@
  * Never logs tokens, provider payloads or secrets.
  */
 const mode = process.argv[2];
-if (!['--inspect', '--start'].includes(mode) || process.argv.length !== 3)
+if (!['--inspect', '--start', '--delete'].includes(mode) || process.argv.length !== 3)
   throw Error('GALLERY_ORIGIN_MODE_INVALID');
 if (mode === '--start' && process.env.GAFUS_GALLERY_ORIGIN_START_CONFIRM !== 'START_SUSPENDED_GALLERY_ORIGIN_ONLY')
   throw Error('GALLERY_ORIGIN_MANUAL_CONFIRM_REQUIRED');
+if (mode === '--delete' && process.env.GAFUS_GALLERY_ORIGIN_START_CONFIRM !== 'DELETE_SUSPENDED_GAFUS_GALLERY_ORIGIN')
+  throw Error('GALLERY_ORIGIN_DELETE_CONFIRM_REQUIRED');
 const project = process.env.CLOUDRU_PROJECT_ID;
 if (project !== '4c590727-4133-475b-a4bc-564c90a9e686')
   throw Error('GALLERY_ORIGIN_PROJECT_MISMATCH');
@@ -39,6 +41,23 @@ const status = async () => {
 const initial = await status();
 console.log(`GALLERY_ORIGIN_INITIAL_STATUS=${initial}`);
 if (mode === '--inspect') process.exit(0);
+if (mode === '--delete') {
+  if (initial !== 'suspended') throw Error('GALLERY_ORIGIN_DELETE_REQUIRES_SUSPENDED_STATUS_' + initial);
+  const deletion = await request('DELETE', `https://containers.api.cloud.ru/v2/containers/${name}?projectId=${project}`);
+  if (!deletion.ok) throw Error('GALLERY_ORIGIN_DELETE_HTTP_' + deletion.status);
+  await deletion.body?.cancel();
+  console.log('GALLERY_ORIGIN_DELETE_REQUEST_ACCEPTED=PASS');
+  for (let attempt=0;attempt<12;attempt++){
+    await new Promise(resolve=>setTimeout(resolve,5000));
+    const response=await request('GET',url);
+    if (response.status===404){console.log('GALLERY_ORIGIN_DELETION_VERIFIED_404=PASS');process.exit(0)}
+    if(!response.ok)throw Error('GALLERY_ORIGIN_DELETE_VERIFY_HTTP_'+response.status);
+    const data=await response.json();
+    if(data.name!==name||data.projectId!==project)throw Error('GALLERY_ORIGIN_DELETE_WRONG_RESOURCE');
+    console.log('GALLERY_ORIGIN_DELETE_PENDING_STATUS='+String(data.status).slice(0,40));
+  }
+  throw Error('GALLERY_ORIGIN_DELETION_NOT_VERIFIED');
+}
 if (initial === 'running') {
   console.log('GALLERY_ORIGIN_ALREADY_RUNNING_NO_MUTATION=PASS');
   process.exit(0);

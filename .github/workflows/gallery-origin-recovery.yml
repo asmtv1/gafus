@@ -1,16 +1,16 @@
-name: Gallery Origin — inspect or start suspended Container App
+name: Gallery Origin — inspect, start or delete suspended Container App
 
 on:
   workflow_dispatch:
     inputs:
       operation:
-        description: 'Inspect read-only or start the single suspended Gallery Origin'
+        description: 'Inspect, start or delete the single suspended Gallery Origin'
         type: choice
         required: true
         default: inspect
-        options: [inspect, start]
+        options: [inspect, start, delete]
       confirmation:
-        description: 'For start, type START_SUSPENDED_GALLERY_ORIGIN_ONLY'
+        description: 'For delete, type DELETE_SUSPENDED_GAFUS_GALLERY_ORIGIN'
         type: string
         required: false
 
@@ -56,6 +56,7 @@ jobs:
           case "$OPERATION" in
             inspect) test -z "$GAFUS_GALLERY_ORIGIN_START_CONFIRM" ;;
             start) test "$GAFUS_GALLERY_ORIGIN_START_CONFIRM" = 'START_SUSPENDED_GALLERY_ORIGIN_ONLY' ;;
+            delete) test "$GAFUS_GALLERY_ORIGIN_START_CONFIRM" = 'DELETE_SUSPENDED_GAFUS_GALLERY_ORIGIN' ;;
             *) echo 'INVALID_GALLERY_ORIGIN_OPERATION'; exit 1 ;;
           esac
       - name: Read status or start ONLY an operator-suspended Gallery Origin
