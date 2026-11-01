@@ -71,6 +71,14 @@ try {
     throw Error('GALLERY_DISPOSABLE_CACHE_NOT_HIT');
   await client.send(new DeleteObjectCommand({Bucket:bucket,Key:key}),{abortSignal:AbortSignal.timeout(12000)});
   deleted = true;
+  // A successful DeleteObject response alone does not prove object absence.
+  try {
+    await client.send(new HeadObjectCommand({Bucket:bucket,Key:key}),
+      {abortSignal:AbortSignal.timeout(12000)});
+    throw Error('GALLERY_DISPOSABLE_S3_NOT_DELETED');
+  } catch (err) {
+    if (err?.$metadata?.httpStatusCode !== 404) throw err;
+  }
   await purge(legacyService); purgeOld = true;
   await purge(newService); purgeNew = true;
   let removed = false;
