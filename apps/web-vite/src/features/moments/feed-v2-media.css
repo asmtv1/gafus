@@ -1,9 +1,45 @@
 .feed-v2-image-open { width:100%; padding:0; border:0; background:transparent; cursor:zoom-in; display:block; }
 .feed-v2-image { width:100%; max-width:100%; height:auto; display:block; object-fit:contain; }
-.feed-v2-lightbox { position:fixed; inset:0; z-index:1000; display:grid; place-items:center; background:rgba(0,0,0,.9); }
-.feed-v2-lightbox-inner { position:relative; max-width:98vw; max-height:98vh; }
-.feed-v2-lightbox-inner img { max-width:98vw; max-height:95vh; width:auto; height:auto; object-fit:contain; }
-.feed-v2-lightbox-close { position:absolute; top:0; right:0; z-index:1; color:white; background:rgba(0,0,0,.5); border:0; border-radius:50%; width:44px; height:44px; font-size:28px; cursor:pointer; }
+/* Portal outside the feed avoids stacking/overflow and inherited button layout. */
+.feed-v2-lightbox {
+  position:fixed; inset:0; z-index:2000; display:grid; place-items:center;
+  padding:16px; box-sizing:border-box; background:rgba(10,12,10,.94);
+}
+.feed-v2-lightbox-inner {
+  position:relative; display:grid; place-items:center;
+  width:min(100%,1280px); height:calc(100dvh - 32px);
+  min-width:0; min-height:0;
+}
+.feed-v2-lightbox-image {
+  grid-area:1/1; display:block; width:auto; height:auto;
+  max-width:100%; max-height:calc(100dvh - 32px); object-fit:contain;
+  visibility:hidden;
+}
+.feed-v2-lightbox-image.is-loaded { visibility:visible; }
+button.feed-v2-lightbox-close {
+  position:fixed; z-index:2;
+  top:max(16px,env(safe-area-inset-top));
+  right:max(16px,env(safe-area-inset-right));
+  display:grid; place-items:center; flex:none;
+  box-sizing:border-box; width:44px; min-width:44px; max-width:44px;
+  height:44px; min-height:44px; max-height:44px; padding:0;
+  border:1px solid rgba(255,255,255,.24); border-radius:50%;
+  background:rgba(28,32,28,.8); color:#fff;
+  line-height:1; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,.2);
+}
+button.feed-v2-lightbox-close:hover { background:rgba(62,68,61,.96); }
+button.feed-v2-lightbox-close:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+.feed-v2-lightbox-close svg { display:block; width:20px; height:20px; flex:none; }
+.feed-v2-lightbox-loading {
+  grid-area:1/1; display:grid; place-items:center; pointer-events:none;
+}
+.feed-v2-lightbox-spinner {
+  display:block; width:36px; height:36px; border:3px solid rgba(255,255,255,.23);
+  border-top-color:#fff; border-radius:50%; animation:feed-v2-spin .8s linear infinite;
+}
+.feed-v2-lightbox-error { grid-area:1/1; margin:0; padding:16px; color:#fff; text-align:center; }
+@keyframes feed-v2-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { .feed-v2-lightbox-spinner { animation:none; } }
 /* A social-feed preview, not a fullscreen-sized post. Portrait clips are
    contained (never cropped) in a 4:5 stage, similar to compact social feeds.
    Native video controls still offer fullscreen once playback starts. */
