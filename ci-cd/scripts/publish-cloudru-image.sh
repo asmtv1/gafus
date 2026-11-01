@@ -52,7 +52,7 @@ for attempt in 1 2 3 4; do
   # Never retry an ordinary failed build, invalid image, or bad credentials.
   # Match transient HTTP responses only when linked to the Cloud.ru registry
   # or its OAuth token endpoint; no raw secrets are read or printed.
-  if ! grep -Eq '(id\.cloud\.ru/auth/system/docker/token|gafus\.cr\.cloud\.ru|gafus-chat2-20261028\.cr\.cloud\.ru).*(429|502|503|504)([^0-9]|$)' "$log_file"; then
+  if ! grep -Eq '(id\.cloud\.ru/auth/system/docker/token|gafus\.cr\.cloud\.ru|gafus-chat2-20261028\.cr\.cloud\.ru).*((429|502|503|504)([^0-9]|$)|TLS handshake timeout|connection reset by peer|unexpected EOF)' "$log_file"; then
     echo "Cloud.ru image publish failed (not a transient Cloud.ru registry response)" >&2
     exit "$status"
   fi
