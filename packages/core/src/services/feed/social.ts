@@ -11,7 +11,7 @@ import { FeedError } from "./errors";
 import { feedReactionToKind } from "./service";
 import { lockGafusPostReactionTx, advanceGafusReactionMilestonesTx } from "../gafus/reactionRewardService";
 import type { FeedDb, FeedTx, FeedStoragePort } from "./ports";
-import { stableMediaExpiry } from "../mediaDelivery/signedExpiry";
+import { stableMediaExpiry, stablePublicFeedExpiry } from "../mediaDelivery/signedExpiry";
 import { signFeedMediaUrls } from "./media-urls";
 import * as s from "./schemas";
 const kindToReaction = { heart: "❤️", laugh: "😂", dog: "🐶", fire: "🔥", like: "👍" } as const;
@@ -21,7 +21,7 @@ type CommentRow = Prisma.FeedCommentGetPayload<{ include: typeof commentInclude 
 
 export function createFeedSocial({ db, storage, now = () => new Date(), enabled = () => false }: {
   db: FeedDb;
-  storage?: Pick<FeedStoragePort, "signCdn">;
+  storage?: Pick<FeedStoragePort, "signCdn" | "longLivedUrls">;
   now?: () => Date;
   enabled?: () => boolean;
 }) {
@@ -73,7 +73,8 @@ export function createFeedSocial({ db, storage, now = () => new Date(), enabled 
     const replyCounts = new Map(replies.map(item => [item.rootId, item._count._all]));
     const recipients = new Map(addressed.map(item => [item.id, item.author.profile?.fullName ?? item.author.username]));
     const at = now();
-    const expires = stableMediaExpiry(at, L.mediaUrlSeconds);
+    const expires = storage?.longLivedUrls === true
+      ? stablePublicFeedExpiry(at) : stableMediaExpiry(at, L.mediaUrlSeconds);
     const mediaRows = await db.feedCommentMedia.findMany({
       where: { commentId: { in: ids } },
       orderBy: { position: "asc" },
