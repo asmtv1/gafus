@@ -7,7 +7,7 @@ import {
 } from "@gafus/core-client/media-delivery";
 import { prefersCloudruMedia } from "@/shared/lib/media/serverHealth";
 import { useAuthStore } from "@/shared/stores/authStore";
-import { scopedMediaCacheKey } from "./scopedMediaCache";
+import { scopedMediaCacheKey, isLongLivedPublicFeedCdnUrl } from "./scopedMediaCache";
 /** Check server-authorized fallback shape before passing it to the native
  * image loader. The Hono fallback route owns the actual actor/object ACL. */
 export function isSignedCloudruFallback(raw: string): boolean {
@@ -49,12 +49,15 @@ export function CdnImage({
     let timer: ReturnType<typeof setTimeout>;
     const update = () => {
       const current = Date.now();
-      setCacheSlot(Math.floor(current / 180_000));
-      timer = setTimeout(update, 180_000 - (current % 180_000) + 10);
+      // Only server-issued 24–48h public Feed CDN tokens get a 24h disk key.
+      // Gallery and signed S3 fallback continue the short account-scoped slot.
+      const interval = isLongLivedPublicFeedCdnUrl(cdnUrl, current) ? 86_400_000 : 180_000;
+      setCacheSlot(Math.floor(current / interval));
+      timer = setTimeout(update, interval - (current % interval) + 10);
     };
     update();
     return () => clearTimeout(timer);
-  }, []);
+  }, [cdnUrl]);
   const tried = useRef(false);
   const generation = useRef(0);
   const fallbackRef = useRef(requestFallback);
