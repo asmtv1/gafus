@@ -9,9 +9,9 @@ const read=name=>readFileSync(dir+'/'+name+'.yml','utf8');
 const parse=name=>YAML.parse(read(name));
 const files=readdirSync(dir).filter(x=>x.endsWith('.yml')).sort();
 
-test('four primary workflows, independent backup and three internal call-only workflows',()=>{
+test('primary workflows, independent Beget audit/backup and internal workflows',()=>{
  assert.deepEqual(files,[
-  'build-single-container.yml','ci-cd.yml','cloudru-media-images.yml',
+  'beget-provider-audit.yml','build-single-container.yml','ci-cd.yml','cloudru-media-images.yml',
   'daily-backup.yml','deploy-only.yml','gallery-worker-publish.yml','infrastructure-jobs.yml',
   'production-deploy-reusable.yml','production-job-release-reusable.yml'
  ]);
@@ -23,6 +23,8 @@ test('four primary workflows, independent backup and three internal call-only wo
  }
  assert(parse('gallery-worker-publish').on.workflow_dispatch);
  assert.equal(parse('gallery-worker-publish').on.push,undefined);
+ assert(parse('beget-provider-audit').on.schedule?.length);
+ assert(Object.hasOwn(parse('beget-provider-audit').on,'workflow_dispatch'));
  assert(parse('daily-backup').on.schedule?.length);
  assert(Object.hasOwn(parse('daily-backup').on,'workflow_dispatch'));
 });
@@ -50,6 +52,31 @@ test('main CI reconciles Cloud.ru image links while Deploy Only remains app-only
  assert(retry.jobs['validate-release'].steps.some(x=>x.run?.includes('RELEASE_IMAGES_OR_QA_NOT_VERIFIED')));
  assert(retry.jobs['validate-release'].steps.some(x=>x.run?.includes('SCHEMA_COMPATIBLE')));
  assert.equal(retry.concurrency['cancel-in-progress'],false);
+});
+
+test('Beget control-plane outage cannot block an ordinary source release',()=>{
+ const ci=parse('ci-cd'), manual=parse('deploy-only'), audit=parse('beget-provider-audit');
+ const detector=ci.jobs['beget-provider-change-detect'];
+ assert.equal(detector.steps[0].with['fetch-depth'],0);
+ assert(detector.steps.some(s=>s.run?.includes('beget-provider-change-detect.mjs')));
+ const preflight=ci.jobs['beget-readonly-preflight'];
+ assert(preflight.needs.includes('beget-provider-change-detect'));
+ const providerStep=preflight.steps.find(s=>s.run?.includes('node infra/cloudru/gallery-redirect-release-gate.mjs'));
+ assert(providerStep);
+ assert.equal(providerStep.if,"needs.beget-provider-change-detect.outputs.provider_required == 'true'");
+ assert(preflight.steps.some(s=>s.run?.includes('checkGalleryRedirectConfig(process.env)')));
+ assert(preflight.steps.some(s=>s.run?.includes('beget-production-smoke.mjs')));
+ assert(ci.jobs['deploy-production'].if.includes("needs.beget-readonly-preflight.result == 'success'"));
+ assert(manual.jobs['preflight-cdn'].steps.some(s=>s.run?.includes('checkGalleryRedirectConfig(process.env)')));
+ assert(!manual.jobs['preflight-cdn'].steps.some(s=>s.run?.includes('node infra/cloudru/gallery-redirect-release-gate.mjs')));
+ assert(manual.jobs['preflight-cdn'].steps.some(s=>s.run?.includes('beget-gallery-redirect-canary.mjs')));
+ const auditSteps=audit.jobs['provider-audit'].steps;
+ assert(auditSteps.some(s=>s.run?.includes('node infra/cloudru/gallery-redirect-release-gate.mjs')));
+ assert(auditSteps.some(s=>s.run?.includes('beget-production-smoke.mjs') && s.if==='always()'));
+ assert(auditSteps.some(s=>s.run?.includes('beget-gallery-redirect-canary.mjs') && s.if==='always()'));
+ assert.equal(audit.jobs['provider-audit'].environment,'production');
+ assert.notEqual(audit.concurrency.group,'gafus-production-deploy');
+ assert(!('push' in audit.on));
 });
 
 test('single build has immutable digest and only touches the selected service',()=>{

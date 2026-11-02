@@ -1,0 +1,72 @@
+name: Beget Provider Audit
+
+# CDN control-plane validation is intentionally independent of app deployment.
+# After any out-of-band Beget / GitHub production CDN variable change, run
+# this workflow manually before considering the new configuration approved.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gafus-beget-provider-audit
+  cancel-in-progress: false
+
+jobs:
+  provider-audit:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 12
+    env:
+      GAFUS_MEDIA_CDN_TARGET: ${{ vars.GAFUS_MEDIA_CDN_TARGET }}
+      BEGET_CDN_RELEASE_CONFIRM: ${{ vars.BEGET_CDN_RELEASE_CONFIRM }}
+      BEGET_CDN_PURGE_API_VERIFIED: ${{ vars.BEGET_CDN_PURGE_API_VERIFIED }}
+      BEGET_CDN_CACHE_KEY_VERIFIED: ${{ vars.BEGET_CDN_CACHE_KEY_VERIFIED }}
+      BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED }}
+      BEGET_CDN_LIVE_SMOKE_VERIFIED: ${{ vars.BEGET_CDN_LIVE_SMOKE_VERIFIED }}
+      GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
+      GALLERY_CDN_REDIRECT_RELEASE_APPROVED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED || 'false' }}
+      GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
+      GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
+      GALLERY_CDN_EDGE_TOKEN_VERIFIED: ${{ vars.GALLERY_CDN_EDGE_TOKEN_VERIFIED || 'false' }}
+      GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
+      GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED: ${{ vars.GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED || 'false' }}
+      GALLERY_CDN_BROWSER_CACHE_VERIFIED: ${{ vars.GALLERY_CDN_BROWSER_CACHE_VERIFIED || 'false' }}
+      GALLERY_CDN_METADATA_MIGRATED: ${{ vars.GALLERY_CDN_METADATA_MIGRATED || 'false' }}
+      GALLERY_CDN_BASE_URL: https://fupiquafifeswu.begetcdn.cloud
+      GALLERY_CDN_REDIRECT_REQUIRED: "true"
+      GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
+      GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
+      FEED_BEGET_CDN_SERVICE_ID: ${{ vars.FEED_BEGET_CDN_SERVICE_ID }}
+      FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+      FEED_CDN_PUBLIC_READ_APPROVED: ${{ vars.FEED_CDN_PUBLIC_READ_APPROVED || 'false' }}
+      FEED_ORIGIN_SECRET: ${{ secrets.FEED_ORIGIN_SECRET }}
+      BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
+      BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
+      BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
+      BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
+      BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Read actual Beget Gallery CDN settings (fail closed, no mutations)
+        run: |
+          test "$GALLERY_CDN_REDIRECT_RELEASE_APPROVED" = "true"
+          node infra/cloudru/gallery-redirect-release-gate.mjs
+      - name: Inspect Beget settings on provider failure (read-only, sanitized)
+        if: failure()
+        continue-on-error: true
+        run: node infra/cloudru/beget-cdn-readonly-diagnostic.mjs
+      - name: Audit real Feed CDN delivery, regardless of provider API availability
+        if: always()
+        run: node infra/cloudru/beget-production-smoke.mjs --feed-only
+      - name: Audit private Gallery GET/HEAD/Range and deny cases
+        if: always()
+        run: node infra/cloudru/beget-gallery-redirect-canary.mjs

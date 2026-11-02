@@ -521,12 +521,35 @@ jobs:
       - name: Cloud.ru scheduled processing contract
         run: pnpm --filter @gafus/worker exec vitest run src/cloudru-media-dispatcher.test.ts
 
-  # Fail closed BEFORE publishing production images or changing Cloud.ru/VPS.
+  # Detect a *real source change* to Beget provider configuration. Ordinary
+  # UI/API releases do not depend on the Beget management API being online.
+  beget-provider-change-detect:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      provider_required: ${{ steps.detect.outputs.provider_required }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Detect CDN provider configuration changes (fail closed)
+        id: detect
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: node ci-cd/scripts/beget-provider-change-detect.mjs "$BEFORE_SHA" "$GITHUB_SHA"
+
+  # Offline release approval checks and real CDN data-plane smoke always run.
+  # Only provider CONFIG changes additionally require the Beget management API.
   # The synthetic final objects must be provisioned separately with approval;
   # this step only reads signed URLs. Never substitute a Yandex CDN preflight.
   beget-readonly-preflight:
-    needs: [security, build-apps, cloudru-media-contracts]
-    # Automatic main releases remain gated by the production environment and read-only CDN readiness.
+    needs: [security, build-apps, cloudru-media-contracts, beget-provider-change-detect]
+    # Release safety does NOT depend on Beget's control-plane for ordinary code changes.
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: production
@@ -568,11 +591,14 @@ jobs:
           package-manager-cache: false
       - name: Validate Beget-only production approvals and existing secret bindings
         run: node infra/cloudru/beget-release-readiness.mjs --check
-      - name: Require full Gallery SigV4 redirect cutover and verify provider read-only
+      - name: Validate Gallery SigV4 redirect configuration locally (no Beget API)
         run: |
           test "$GALLERY_CDN_REDIRECT_RELEASE_APPROVED" = "true"
-          node infra/cloudru/gallery-redirect-release-gate.mjs
-      - name: Verify Feed CDN bytes (Gallery Hono provider checked separately)
+          node --input-type=module -e "import {checkGalleryRedirectConfig} from './infra/cloudru/gallery-redirect-release-gate.mjs'; if (!checkGalleryRedirectConfig(process.env).redirect) process.exit(1); console.log('GALLERY_REDIRECT_CONFIG_LOCAL_PASS');"
+      - name: Verify Beget provider settings only when CDN configuration changed
+        if: needs.beget-provider-change-detect.outputs.provider_required == 'true'
+        run: node infra/cloudru/gallery-redirect-release-gate.mjs
+      - name: Verify Feed CDN bytes (Gallery checked via post-deploy canary)
         run: node infra/cloudru/beget-production-smoke.mjs --feed-only
       - name: Inspect Beget origin bindings after smoke failure (read-only, no secrets logged)
         if: failure()
@@ -582,8 +608,8 @@ jobs:
   # Read-only inventory and image reference check, before VPS deployment.
   cloudru-jobs-preflight:
     needs: [security, build-apps, cloudru-media-contracts, beget-readonly-preflight, cutover-preflight]
-    # Exact, temporary Gallery-only app release: no Cloud.ru Job writes or
-    # immutable image changes. Provider and app QA gates remain mandatory.
+    # Gallery-only app release: no Cloud.ru Job writes or immutable image changes.
+    # CDN data-plane checks always run; provider checks only for config changes.
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && !(vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') }}
     uses: ./.github/workflows/production-job-release-reusable.yml
     with:
@@ -593,12 +619,12 @@ jobs:
 
   # Production deploy is shared with manual Deploy Only. No second script.
   deploy-production:
-    # An app-only release skips the 11-Jobs preflight, never the independent
-    # Beget/Cloud.ru read-only CDN and cutover gates.
+    # An app-only release skips the 11-Jobs preflight, never local CDN config,
+    # CDN data-plane smoke or protected production QA.
     needs: [security, build-apps, build-images, cloudru-jobs-preflight, cloudru-media-contracts, cutover-preflight, beget-readonly-preflight]
     # `always()` is required solely because the temporary Gallery-only lane
     # deliberately skips the unrelated Cloud.ru 11-Jobs preflight. Never
-    # bypass app tests, images, or successful Beget read-only verification.
+    # bypass app tests, images, or successful offline/CDN data-plane checks.
     if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.security.result == 'success' && needs.build-apps.result == 'success' && needs.build-images.result == 'success' && needs.cloudru-media-contracts.result == 'success' && needs.cutover-preflight.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-preflight.result == 'success') }}
     uses: ./.github/workflows/production-deploy-reusable.yml
     with:

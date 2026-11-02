@@ -25,6 +25,9 @@ test("manual deploy never builds, stops the database or uses the legacy env buil
   assert.doesNotMatch(manual, /cloudru-jobs-preflight|cloudru-jobs-cutover|cloudru-media-activate/);
   assert.match(manual, /SCHEMA_COMPATIBLE/);
   assert.match(manual, /app_only: true/);
+  assert.match(manual, /checkGalleryRedirectConfig\(process\.env\)/);
+  assert.doesNotMatch(manual, /node infra\/cloudru\/gallery-redirect-release-gate\.mjs/);
+  assert.match(manual, /beget-gallery-redirect-canary\.mjs/);
   assert.doesNotMatch(manual, /cloudru-build-media-images|cloudru-jobs-update|cloudru-prepare-media/);
   assert.match(manual, /build-images/);
   assert.doesNotMatch(manual, /docker (pull|build|compose)|docker-compose|migrate deploy|\.env\s*$/m);
