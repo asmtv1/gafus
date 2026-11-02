@@ -5,6 +5,7 @@ import { useFocusEffect } from "expo-router";
 import { useAuthStore } from "@/shared/stores";
 import { feedApi } from "@/shared/lib/api/feed";
 import { CdnImage } from "@/shared/components/media/CdnImage";
+import { isLongLivedPublicFeedCdnUrl } from "@/shared/components/media/scopedMediaCache";
 import { mediaCdnKindFromSignedUrl, probeCdnOutage } from "@gafus/core-client/media-delivery";
 import { selectFeedV2VideoUrl, type FeedV2ImageMedia, type FeedV2VideoMedia } from "@gafus/types";
 import { feedV2PreviewHeight } from "./feedV2PreviewHeight";
@@ -123,7 +124,7 @@ export function FeedV2Video({ postId, media, visible, fullscreen = false }: {
       const next = Math.max(1, Math.round(event.nativeEvent.layout.width));
       setMeasuredWidth(previous => Math.abs(previous - next) > 1 ? next : previous);
     }}>
-    {url ? <ActiveFeedV2Player url={url} publicMedia={media.access === "public"}
+    {url ? <ActiveFeedV2Player url={url} publicMedia={isLongLivedPublicFeedCdnUrl(url)}
       onError={onPlaybackError} /> :
       <Pressable style={s.videoFrame} accessibilityRole="button"
         accessibilityLabel="Воспроизвести видео"
