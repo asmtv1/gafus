@@ -88,7 +88,7 @@ export function createFeedCloudObjects(env: NodeJS.ProcessEnv = process.env): Fe
       try {
         const result = await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: bytes,
           ContentType: contentType, ContentMD5: digest.toString("base64"), IfNoneMatch: "*",
-          CacheControl: "public, max-age=180, must-revalidate" }), { abortSignal: signal });
+          CacheControl: "public, max-age=86400, immutable" }), { abortSignal: signal });
         // Content-MD5 is checked by S3; an exact single-part ETag avoids a redundant HEAD.
         confirmedByPut = result.ETag === expectedEtag;
       } catch (error) {
@@ -117,7 +117,7 @@ export function createFeedCloudObjects(env: NodeJS.ProcessEnv = process.env): Fe
         const result = await client.send(new PutObjectCommand({ Bucket: bucket, Key: key,
           Body: createReadStream(file), ContentLength: metadata.size,
           ContentType: "video/mp4", ContentMD5: digest.toString("base64"),
-          IfNoneMatch: "*", CacheControl: "public, max-age=180, must-revalidate" }), { abortSignal: signal });
+          IfNoneMatch: "*", CacheControl: "public, max-age=86400, immutable" }), { abortSignal: signal });
         confirmedByPut = result.ETag === etag;
       } catch (error) {
         if (![409, 412].includes((error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode ?? 0)) throw error;
