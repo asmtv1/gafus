@@ -31,6 +31,7 @@ function PhotoGallery({ location, manual }: { location: PhotoLocation; manual: b
   const [waiting, setWaiting] = useState(false);
   const [broken, setBroken] = useState<string[]>([]);
   const [s3Fallback,setS3Fallback]=useState<string[]>([]);
+  const [previewFallbackUrls,setPreviewFallbackUrls]=useState<Record<string,string>>({});
   const [viewerFallback,setViewerFallback]=useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -70,6 +71,7 @@ function PhotoGallery({ location, manual }: { location: PhotoLocation; manual: b
       setWaiting(false);
       setBroken([]);
       setS3Fallback([]);
+      setPreviewFallbackUrls({});
       setError(false);
       setLoading(false);
       return;
@@ -80,6 +82,7 @@ function PhotoGallery({ location, manual }: { location: PhotoLocation; manual: b
     setWaiting(false);
     setBroken([]);
     setS3Fallback([]);
+    setPreviewFallbackUrls({});
     setError(false);
     setLoading(true);
     void fetchQuestionPhotoRenditions({
@@ -194,8 +197,9 @@ function PhotoGallery({ location, manual }: { location: PhotoLocation; manual: b
     </button>}
     {(!manual || visible) && <div className={`question-photo-preview-grid${single ? " question-photo-preview-single" : ""}`}>
       {photoIds.map((id, index) => {
-        const src = s3Fallback.includes(id) && details[index]?.fallbackSmall
-          ? details[index]!.fallbackSmall! : sources[index];
+        const src = s3Fallback.includes(id)
+          ? (previewFallbackUrls[id] ?? details[index]?.fallbackSmall ?? sources[index])
+          : sources[index];
         const isBroken = !!src && broken.includes(src);
         return <div className="question-photo-preview-cell" key={id}>
           {src && !isBroken ? (
@@ -218,7 +222,12 @@ function PhotoGallery({ location, manual }: { location: PhotoLocation; manual: b
                   const backup=failedSrc===details[index]?.medium
                     ? details[index]?.fallbackMedium : details[index]?.fallbackSmall;
                   void allowQuestionsS3Fallback(failedSrc,backup,sameOriginCdnProbeFetch).then(allowed => {
-                    if(allowed)setS3Fallback(current=>current.includes(id)?current:[...current,id]);
+                    if(allowed && backup){
+                      // Retain the exact failed srcSet variant: a retina browser
+                      // may have loaded medium, not the small src attribute.
+                      setPreviewFallbackUrls(current=>({...current,[id]:backup}));
+                      setS3Fallback(current=>current.includes(id)?current:[...current,id]);
+                    }
                     else setBroken(current=>current.includes(src)?current:[...current,src]);
                   });
                 }} />
