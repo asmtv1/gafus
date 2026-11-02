@@ -63,9 +63,9 @@ describe('authorized same-origin Web CDN status proxy target', () => {
     expect(mediaCdnKindFromSignedUrl(beget)).toBe('feed');
     expect(mediaCdnKindFromSignedUrl(beget.replace('quepraquiecebquomiel.begetcdn.cloud','evil.begetcdn.cloud'))).toBeNull();
   });
-  it('rejects expired or long-lived probe URLs', () => {
+  it('rejects expired URLs and Feed links beyond the approved 48h bound', () => {
     expect(isTrustedCdnProbeUrl(signed.replace(/expires=\d{10}/, `expires=${Math.floor(now/1000)-200}`),allowed,now)).toBe(false);
-    expect(isTrustedCdnProbeUrl(signed.replace(/expires=\d{10}/, `expires=${Math.floor(now/1000)+10000}`),allowed,now)).toBe(false);
+    expect(isTrustedCdnProbeUrl(signed.replace(/expires=\d{10}/, `expires=${Math.floor(now/1000)+172801}`),allowed,now)).toBe(false);
   });
 });
 
