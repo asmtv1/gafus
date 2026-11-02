@@ -89,7 +89,11 @@ describe("AG2: legacy Web bookmarks", () => {
         // An unknown guest session is now fenced BEFORE either private route.
         // Authorization may settle to an explicit error before this assertion.
         // Both pending and error renderings must deny access to private data.
-        expect(["Проверяем сессию", "Не удалось получить статус авторизации"].some(
+        // ConnectedFlowSessionBoundary and NextProtectedRouteBoundary may
+        // finish independently. Both fail closed, but render different safe
+        // auth-error copy; do not assert a single network timing outcome.
+        expect(["Проверяем сессию", "Не удалось получить статус авторизации",
+          "Не удалось проверить авторизацию"].some(
           message => host.textContent?.includes(message))).toBe(true);
         expect(["Личные данные временно скрыты", "Личные данные скрыты"].some(
           message => host.textContent?.includes(message))).toBe(true);
@@ -122,7 +126,11 @@ describe("AG2: legacy Web bookmarks", () => {
       await act(async () => root.render(createElement(QueryClientProvider, {
         client: cache,
       }, createElement(App))));
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 15)); });
+      // AuthPanel is code-split. Rendering the correct registered route can
+      // legitimately show a Suspense placeholder briefly on slower runners.
+      for (let i = 0; i < 40 && !host.textContent?.includes("Регистрация"); i++) {
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)); });
+      }
       expect(host.textContent).toContain("Регистрация");
       expect(fake.mock.calls.every(([url]) =>
         url === "/api/v1/auth/me" || url === "/api/v1/auth/refresh")).toBe(true);
