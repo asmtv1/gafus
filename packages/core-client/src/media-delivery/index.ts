@@ -114,7 +114,7 @@ export function isTrustedCdnProbeUrl(
   const expiresRaw = match[2]!;
   const expires = Number(expiresRaw);
   return Number.isSafeInteger(expires) && expires > Math.floor(nowMs / 1000) - 120 &&
-    expires <= Math.floor(nowMs / 1000) + 600;
+    expires <= Math.floor(nowMs / 1000) + (feed ? 172800 : 600);
 }
 
 export * from "./remote-status";
