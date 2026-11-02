@@ -39,33 +39,58 @@ export function checkGalleryRedirectConfig(env) {
   }
   return { enabled: true, redirect };
 }
-export async function checkGalleryRedirectProvider(env, fetcher = fetch) {
+/** Network-only retries preserve the fail-closed CDN release gate. A provider
+ * settings mismatch, 401/403 or invalid JSON must never be treated as success. */
+export async function checkGalleryRedirectProvider(
+  env, fetcher = fetch, { attempts = 3, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {},
+) {
   const config = checkGalleryRedirectConfig(env);
   if (!config.enabled) return config;
-  let response;
-  try {
-    response = await fetcher(`https://api.beget.com/v1/cloud/${newService}`, {
-      method: 'GET', headers: { Authorization: `Bearer ${env.BEGET_CDN_API_TOKEN}`, Accept: 'application/json' },
-      redirect: 'error', signal: AbortSignal.timeout(10000),
-    });
-    if (!response.ok) throw Error('GALLERY_REDIRECT_GATE_BEGET_HTTP_' + response.status);
-    const data = await response.json();
-    const svc = data?.service; const cdn = svc?.cdn; const settings = cdn?.settings;
-    if (svc?.status !== 'RUNNING' || cdn?.source_domain?.domain !== 'api.gafus.ru' ||
-        cdn?.source_domain?.source_protocol !== 'HTTPS' ||
-        !cdn?.resource_domain?.some(entry => entry.domain === newHost && entry.status === 'WORKING') ||
-        settings?.follow_origin_redirect?.enable !== true ||
-        settings?.tokenized_url_secure_key?.enable !== true ||
-        settings?.static_request_headers?.enabled !== true ||
-        !Number.isSafeInteger(settings?.caching_time) || settings.caching_time < 180 ||
-        settings?.caching_time_browser?.enable !== false ||
-        settings?.static_response_headers?.enable !== true ||
-        !settings?.static_response_headers?.header?.some(header =>
-          header.name?.toLowerCase() === 'cache-control' &&
-          header.value?.includes('private, max-age=180, must-revalidate')))
-      throw Error('GALLERY_REDIRECT_GATE_BEGET_SETTINGS');
-    return { ...config, providerVerified: true };
-  } finally { await response?.body?.cancel?.().catch(()=>{}); }
+  if (!Number.isSafeInteger(attempts) || attempts < 1 || attempts > 4)
+    throw Error('GALLERY_REDIRECT_GATE_INVALID_RETRY_COUNT');
+  const url = `https://api.beget.com/v1/cloud/${newService}`;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    let response;
+    try {
+      response = await fetcher(url, {
+        method: 'GET', headers: { Authorization: `Bearer ${env.BEGET_CDN_API_TOKEN}`, Accept: 'application/json' },
+        redirect: 'error', signal: AbortSignal.timeout(10000),
+      });
+    } catch {
+      // Never print raw provider exceptions (their messages can contain URLs
+      // and auth headers). A network failure cannot authorize deployment.
+      if (attempt === attempts) throw Error('GALLERY_REDIRECT_GATE_PROVIDER_UNAVAILABLE');
+      await sleep(attempt * 1000);
+      continue;
+    }
+    try {
+      if (!response.ok) {
+        if ((response.status === 429 || response.status >= 500 && response.status < 600) &&
+            attempt < attempts) {
+          await sleep(attempt * 1000);
+          continue;
+        }
+        throw Error('GALLERY_REDIRECT_GATE_BEGET_HTTP_' + response.status);
+      }
+      const data = await response.json();
+      const svc = data?.service; const cdn = svc?.cdn; const settings = cdn?.settings;
+      if (svc?.status !== 'RUNNING' || cdn?.source_domain?.domain !== 'api.gafus.ru' ||
+          cdn?.source_domain?.source_protocol !== 'HTTPS' ||
+          !cdn?.resource_domain?.some(entry => entry.domain === newHost && entry.status === 'WORKING') ||
+          settings?.follow_origin_redirect?.enable !== true ||
+          settings?.tokenized_url_secure_key?.enable !== true ||
+          settings?.static_request_headers?.enabled !== true ||
+          !Number.isSafeInteger(settings?.caching_time) || settings.caching_time < 180 ||
+          settings?.caching_time_browser?.enable !== false ||
+          settings?.static_response_headers?.enable !== true ||
+          !settings?.static_response_headers?.header?.some(header =>
+            header.name?.toLowerCase() === 'cache-control' &&
+            header.value?.includes('private, max-age=180, must-revalidate')))
+        throw Error('GALLERY_REDIRECT_GATE_BEGET_SETTINGS');
+      return { ...config, providerVerified: true };
+    } finally { await response.body?.cancel?.().catch(()=>{}); }
+  }
+  throw Error('GALLERY_REDIRECT_GATE_PROVIDER_UNAVAILABLE');
 }
 if (process.argv[1]?.endsWith('/gallery-redirect-release-gate.mjs')) {
   checkGalleryRedirectProvider(process.env)

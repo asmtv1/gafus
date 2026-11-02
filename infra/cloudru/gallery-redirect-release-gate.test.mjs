@@ -50,3 +50,51 @@ test('production release fails closed without full Gallery redirect cutover', ()
     assert.throws(() => checkGalleryRedirectConfig({ ...env, ...overrides, GALLERY_CDN_REDIRECT_REQUIRED: 'true' }), /GALLERY_REDIRECT_GATE_REQUIRED/);
   }
 });
+
+
+test('bounded retry permits a temporary DNS failure but never approves a missing provider',async()=>{
+  let calls=0;
+  const sleeps=[];
+  const failed=new TypeError('fetch failed');
+  const wait=async(ms)=>{sleeps.push(ms);};
+  const fixture={service:{status:'RUNNING',cdn:{source_domain:{domain:'api.gafus.ru',source_protocol:'HTTPS'},
+    resource_domain:[{domain:'fupiquafifeswu.begetcdn.cloud',status:'WORKING'}],
+    settings:{follow_origin_redirect:{enable:true},tokenized_url_secure_key:{enable:true},
+      static_request_headers:{enabled:true},caching_time:600,
+      caching_time_browser:{enable:false},
+      static_response_headers:{enable:true,header:[
+        {name:'Cache-Control',value:['private, max-age=180, must-revalidate']}]}}}}};
+  const fetcher=async()=>{if(++calls<3)throw failed;return {ok:true,json:async()=>fixture};};
+  assert.equal((await checkGalleryRedirectProvider(env,fetcher,{sleep:wait})).providerVerified,true);
+  assert.equal(calls,3);
+  assert.deepEqual(sleeps,[1000,2000]);
+  calls=0;
+  await assert.rejects(checkGalleryRedirectProvider(env,async()=>{calls++;throw failed;},{sleep:wait}),
+    /GALLERY_REDIRECT_GATE_PROVIDER_UNAVAILABLE/);
+  assert.equal(calls,3);
+});
+
+test('retries transient HTTP 503 or 429 but never auth 401 or unsafe origin settings',async()=>{
+  const calls=[];
+  const pause=[];
+  const result=async n=>({ok:false,status:n,body:{cancel:async()=>{}}});
+  await assert.rejects(checkGalleryRedirectProvider(env,async()=>{
+    calls.push(401);return result(401);
+  },{sleep:ms=>pause.push(ms)}),/GALLERY_REDIRECT_GATE_BEGET_HTTP_401/);
+  assert.equal(calls.length,1);
+  const retry=async()=>{
+    calls.push(503);
+    return result(503);
+  };
+  await assert.rejects(checkGalleryRedirectProvider(env,retry,{sleep:async(ms)=>pause.push(ms)}),
+    /GALLERY_REDIRECT_GATE_BEGET_HTTP_503/);
+  assert.equal(calls.length,4);
+  assert.deepEqual(pause,[1000,2000]);
+  await assert.rejects(checkGalleryRedirectProvider(env,async()=>({ok:true,json:async()=>({service:{status:'RUNNING'}})}),
+    {sleep:async()=>{throw Error('should not retry');}}), /GALLERY_REDIRECT_GATE_BEGET_SETTINGS/);
+});
+
+test('rejects zero retry count without requesting provider',async()=>{
+  await assert.rejects(checkGalleryRedirectProvider(env,async()=>{throw Error('network touched');},{attempts:0}),
+    /GALLERY_REDIRECT_GATE_INVALID_RETRY_COUNT/);
+});

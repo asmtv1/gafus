@@ -515,7 +515,7 @@ jobs:
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media
       - name: Reject Yandex CDN release routes and verify fail-closed Beget gating
-        run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs
+        run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs infra/cloudru/gallery-redirect-release-gate.test.mjs
       - name: Cloud.ru registry publication retry acceptance tests
         run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
       - name: Cloud.ru scheduled processing contract
