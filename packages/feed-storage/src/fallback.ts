@@ -22,7 +22,7 @@ export async function signFeedCloudruFallback(key: string, ttlSeconds = 120,
   });
   try {
     return await getSignedUrl(client, new GetObjectCommand({
-      Bucket: config.bucket, Key: key, ResponseCacheControl: 'private, max-age=90, must-revalidate',
+      Bucket: config.bucket, Key: key, ResponseCacheControl: `private, max-age=${Math.min(60, ttlSeconds - 20)}, must-revalidate`,
     }), { expiresIn: ttlSeconds });
   } finally { client.destroy(); }
 }
