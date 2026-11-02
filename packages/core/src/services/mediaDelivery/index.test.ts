@@ -128,6 +128,17 @@ describe('60-second per-CDN failover circuit breaker', () => {
   });
 });
 
+describe('long public Feed CDN status URL', () => {
+  it('checks authenticated proxy status for exact final feed media without S3 grants', () => {
+    const future=Math.floor(Date.now()/1000)+30*3600;
+    const url='https://quepraquiecebquomiel.begetcdn.cloud/media/v2/media123/v1/video/360.mp4?md5=ABCDEFGHIJKLMNOPQRSTUV&expires='+future;
+    expect(isTrustedCdnProbeUrl(url,['quepraquiecebquomiel.begetcdn.cloud'])).toBe(true);
+    expect(isTrustedCdnProbeUrl(url.replace('/video/360.mp4','/incoming/source.mp4'),['quepraquiecebquomiel.begetcdn.cloud'])).toBe(false);
+    const beyond=Math.floor(Date.now()/1000)+172801;
+    expect(isTrustedCdnProbeUrl(url.replace(String(future),String(beyond)),['quepraquiecebquomiel.begetcdn.cloud'])).toBe(false);
+  });
+});
+
 
 describe('strict public finals status probe', () => {
   const chat='https://gonomudedoje.begetcdn.cloud/chat2/room/user/00000000-0000-4000-8000-000000000000/v1/video/360.mp4';
