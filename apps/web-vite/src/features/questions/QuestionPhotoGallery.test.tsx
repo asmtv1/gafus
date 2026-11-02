@@ -241,6 +241,31 @@ describe("VK-inspired inline question photo previews", () => {
     } finally { await ui.cleanup(); }
   });
 
+  it("recovers the exact medium srcSet S3 variant rather than requesting small", async () => {
+    const prefix="questions/uploads/questions/v2/owner-1/01234567-89ab-4def-8123-456789abcdef/v1/image";
+    const cdn="https://ebiteskukingusk.begetcdn.cloud/"+prefix;
+    const s3="https://gafus-questions-public.s3.cloud.ru/"+prefix;
+    const fake=vi.fn((_url:string)=>_url.startsWith("/api/v1/media-cdn-probe")
+      ? Promise.resolve(new Response(null,{status:503}))
+      : Promise.resolve(envelope({photos:[{
+          id:"photo-1",url:cdn+"/m.webp",smallUrl:cdn+"/s.webp",
+          fallbackUrl:s3+"/m.webp",fallbackSmallUrl:s3+"/s.webp",
+          smallWidth:360,width:720,
+        }]})));
+    const ui=await render(fake);
+    try {
+      await flush();
+      const thumbnail=ui.host.querySelector<HTMLImageElement>(".question-photo-preview-tile img");
+      expect(thumbnail).not.toBeNull();
+      Object.defineProperty(thumbnail,"currentSrc",{configurable:true,value:cdn+"/m.webp"});
+      await act(async()=>thumbnail?.dispatchEvent(new Event("error")));
+      await flush();
+      const resolved=ui.host.querySelector<HTMLImageElement>(".question-photo-preview-tile img");
+      expect(resolved?.src).toBe(s3+"/m.webp");
+      expect(resolved?.getAttribute("srcset")).toBeNull();
+    } finally { await ui.cleanup(); }
+  });
+
   it("an expired or broken thumbnail offers an explicit safe re-read", async () => {
     const fake = vi.fn(() => Promise.resolve(envelope({ photos: [photo("photo-1")] })));
     const ui = await render(fake);
