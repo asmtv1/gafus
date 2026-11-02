@@ -60,6 +60,27 @@ jobs:
           GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
           GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
           BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
+        run: |
+          node --input-type=module -e "import {checkGalleryRedirectConfig} from './infra/cloudru/gallery-redirect-release-gate.mjs'; if (!checkGalleryRedirectConfig(process.env).redirect) process.exit(1); console.log('GALLERY_REDIRECT_CONFIG_LOCAL_PASS');"
+      - name: Require live Beget provider settings only when changing delivery configuration
+        if: ${{ !inputs.app_only }}
+        env:
+          GALLERY_CDN_REDIRECT_REQUIRED: "true"
+          GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
+          GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
+          GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
+          GALLERY_CDN_EDGE_TOKEN_VERIFIED: ${{ vars.GALLERY_CDN_EDGE_TOKEN_VERIFIED || 'false' }}
+          GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED: ${{ vars.GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED || 'false' }}
+          GALLERY_CDN_BROWSER_CACHE_VERIFIED: ${{ vars.GALLERY_CDN_BROWSER_CACHE_VERIFIED || 'false' }}
+          GALLERY_CDN_METADATA_MIGRATED: ${{ vars.GALLERY_CDN_METADATA_MIGRATED || 'false' }}
+          BEGET_CDN_PURGE_API_VERIFIED: ${{ vars.BEGET_CDN_PURGE_API_VERIFIED || 'false' }}
+          BEGET_CDN_CACHE_KEY_VERIFIED: ${{ vars.BEGET_CDN_CACHE_KEY_VERIFIED || 'false' }}
+          BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED || 'false' }}
+          GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
+          GALLERY_CDN_BASE_URL: https://fupiquafifeswu.begetcdn.cloud
+          GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
+          GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
+          BEGET_CDN_API_TOKEN: ${{ secrets.BEGET_CDN_API_TOKEN }}
         run: node infra/cloudru/gallery-redirect-release-gate.mjs
       # Also guard manual Deploy Only; do not even open SSH if Beget is not
       # demonstrably ready. No registry, Cloud.ru or CDN writes in this step.

@@ -117,13 +117,10 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Verify Feed CDN delivery before changing production (read-only)
-        run: node infra/cloudru/beget-production-smoke.mjs --feed-only
       - name: Require protected Gallery cutover before changing production
         run: |
           test "$GALLERY_CDN_REDIRECT_RELEASE_APPROVED" = "true"
           node --input-type=module -e "import {checkGalleryRedirectConfig} from './infra/cloudru/gallery-redirect-release-gate.mjs'; if (!checkGalleryRedirectConfig(process.env).redirect) process.exit(1); console.log('GALLERY_REDIRECT_CONFIG_LOCAL_PASS');"
-          node infra/cloudru/beget-gallery-redirect-canary.mjs
 
   deploy:
     needs: [validate-release, preflight-cdn]
@@ -132,32 +129,3 @@ jobs:
       release_sha: ${{ needs.validate-release.outputs.release_sha }}
       app_only: true
     secrets: inherit
-
-  verify-cdn:
-    needs: deploy
-    runs-on: ubuntu-latest
-    environment: production
-    timeout-minutes: 10
-    env:
-      FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
-      GALLERY_CDN_REDIRECT_RELEASE_APPROVED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED || 'false' }}
-      GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_REDIRECT_SERVICE_ID }}
-      GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
-      GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
-      BEGET_GALLERY_SMOKE_FINAL_KEY: ${{ vars.BEGET_GALLERY_SMOKE_FINAL_KEY }}
-      BEGET_GALLERY_SMOKE_SHA256: ${{ vars.BEGET_GALLERY_SMOKE_SHA256 }}
-      BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
-      BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - name: Verify Feed CDN delivery (read-only)
-        run: node infra/cloudru/beget-production-smoke.mjs --feed-only
-      - name: Verify private Gallery SigV4 Hono redirect (read-only)
-        env:
-          GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
-          GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
-        run: node infra/cloudru/beget-gallery-redirect-canary.mjs

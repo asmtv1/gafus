@@ -50,9 +50,8 @@ for (const gate of [
 assert(ci.indexOf("  beget-readonly-preflight:") < ci.indexOf("  deploy-production:") &&
   ci.indexOf("  deploy-production:") < ci.indexOf("  beget-verify-after-deploy:"),
   "CDN_READONLY_BEFORE_AND_AFTER_APP_DEPLOY");
-assert(ci.includes("needs: [beget-readonly-preflight, cloudru-jobs-verify]") ||
-  ci.includes("needs: [beget-readonly-preflight, cloudru-jobs-verify, deploy-production]"),
-  "POSTDEPLOY_BEGET_VERIFY_AFTER_HEALTHY_APP");
+assert(ci.includes("needs: [beget-provider-change-detect, beget-readonly-preflight, cloudru-jobs-verify, deploy-production]"),
+  "POSTDEPLOY_BEGET_VERIFY_AFTER_HEALTHY_APP_AND_PROVIDER_CHANGE");
 assert(!/cloudru-jobs-cutover:|cloudru-media-activate:/.test(ci),
   "APP_RELEASE_MUST_NOT_MODIFY_CLOUDRU_JOBS");
 for (const forbidden of ["cloudru-build-media-images:", "cloudru-jobs-update:", "cloudru-prepare-media:",
@@ -72,8 +71,11 @@ const sharedReadiness = deployment.indexOf('Validate Beget-only production readi
 const sshAction = deployment.indexOf('uses: appleboy/ssh-action@v1.0.3');
 assert(sharedReadiness >= 0 && sharedReadiness < sshAction,
   'MANUAL_AND_AUTOMATED_DEPLOY_MUST_CHECK_BEGET_BEFORE_SSH');
-assert(deployment.includes('node infra/cloudru/beget-production-smoke.mjs'),
-  'SHARED_DEPLOY_MUST_PROVE_LIVE_BEGET_SIGNING_BEFORE_SSH');
+assert(deployment.includes('node infra/cloudru/beget-production-smoke.mjs') &&
+  deployment.includes('if: ${{ !inputs.app_only }}'),
+  'SHARED_PROVIDER_DEPLOY_MUST_PROVE_BEGET_SIGNING_BUT_APP_ONLY_MUST_NOT_TOUCH_PROVIDER');
+assert(deployment.includes('checkGalleryRedirectConfig(process.env)'),
+  'SHARED_DEPLOY_MUST_VERIFY_PRIVATE_GALLERY_CONFIG_LOCALLY');
 assert(!ci.includes("compose_down; exit 1"), "DEPLOY_FAILURE_MUST_NOT_BRING_PRODUCTION_DOWN");
 assert(!ci.includes("CLOUDRU_S3_PROBE_CONFIRM"), "NO_PRODUCTION_STORAGE_MUTATION");
 // CI/CD and Deploy Only now call the same reusable production script.

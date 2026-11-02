@@ -1,6 +1,6 @@
 /** Decide whether this source release changes Beget CDN provider configuration.
- * Deploy smoke checks still run on every release. This detector only determines
- * if an additional provider CONTROL-PLANE read must block this particular push.
+ * Provider control-plane and CDN delivery smoke checks block only releases
+ * changing provider configuration; other releases are offline-gated only.
  * Changes to GitHub environment variables / Beget console require the separate
  * manual Beget Provider Audit workflow before applying the change.
  */

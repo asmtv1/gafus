@@ -543,10 +543,10 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
         run: node ci-cd/scripts/beget-provider-change-detect.mjs "$BEFORE_SHA" "$GITHUB_SHA"
 
-  # Offline release approval checks and real CDN data-plane smoke always run.
-  # Only provider CONFIG changes additionally require the Beget management API.
-  # The synthetic final objects must be provisioned separately with approval;
-  # this step only reads signed URLs. Never substitute a Yandex CDN preflight.
+  # Ordinary app releases require only local release approvals and signature
+  # configuration; live Beget provider AND CDN checks are conditional on an
+  # actual provider configuration change. Independent daily/manual audit probes
+  # both APIs and delivery without blocking unrelated application changes.
   beget-readonly-preflight:
     needs: [security, build-apps, cloudru-media-contracts, beget-provider-change-detect]
     # Release safety does NOT depend on Beget's control-plane for ordinary code changes.
@@ -598,10 +598,13 @@ jobs:
       - name: Verify Beget provider settings only when CDN configuration changed
         if: needs.beget-provider-change-detect.outputs.provider_required == 'true'
         run: node infra/cloudru/gallery-redirect-release-gate.mjs
-      - name: Verify Feed CDN bytes (Gallery checked via post-deploy canary)
-        run: node infra/cloudru/beget-production-smoke.mjs --feed-only
-      - name: Inspect Beget origin bindings after smoke failure (read-only, no secrets logged)
-        if: failure()
+      - name: Verify Feed and private Gallery CDN when provider configuration changed
+        if: needs.beget-provider-change-detect.outputs.provider_required == 'true'
+        run: |
+          node infra/cloudru/beget-production-smoke.mjs --feed-only
+          node infra/cloudru/beget-gallery-redirect-canary.mjs
+      - name: Inspect Beget origin bindings after provider-change failure (read-only)
+        if: failure() && needs.beget-provider-change-detect.outputs.provider_required == 'true'
         continue-on-error: true
         run: node infra/cloudru/beget-cdn-readonly-diagnostic.mjs
 
@@ -609,7 +612,7 @@ jobs:
   cloudru-jobs-preflight:
     needs: [security, build-apps, cloudru-media-contracts, beget-readonly-preflight, cutover-preflight]
     # Gallery-only app release: no Cloud.ru Job writes or immutable image changes.
-    # CDN data-plane checks always run; provider checks only for config changes.
+    # Beget provider and delivery checks run only when CDN configuration changes.
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && !(vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') }}
     uses: ./.github/workflows/production-job-release-reusable.yml
     with:
@@ -619,12 +622,12 @@ jobs:
 
   # Production deploy is shared with manual Deploy Only. No second script.
   deploy-production:
-    # An app-only release skips the 11-Jobs preflight, never local CDN config,
-    # CDN data-plane smoke or protected production QA.
+    # App-only releases skip the 11-Jobs preflight, not local CDN config checks,
+    # source contracts or protected production QA.
     needs: [security, build-apps, build-images, cloudru-jobs-preflight, cloudru-media-contracts, cutover-preflight, beget-readonly-preflight]
     # `always()` is required solely because the temporary Gallery-only lane
     # deliberately skips the unrelated Cloud.ru 11-Jobs preflight. Never
-    # bypass app tests, images, or successful offline/CDN data-plane checks.
+    # bypass app tests, images, or successful conditional Beget checks.
     if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.security.result == 'success' && needs.build-apps.result == 'success' && needs.build-images.result == 'success' && needs.cloudru-media-contracts.result == 'success' && needs.cutover-preflight.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-preflight.result == 'success') }}
     uses: ./.github/workflows/production-deploy-reusable.yml
     with:
@@ -653,13 +656,14 @@ jobs:
       mode: verify
     secrets: inherit
 
-  # Post-deploy read-only verification. Never switch, mutate, prepare,
-  # or roll back Gallery/Feed to Yandex CDN (including on Beget 5xx).
+  # Post-deploy CDN verification only for actual provider-config changes.
+  # Independent daily/manual audit checks delivery during ordinary app releases.
+  # Never modify or fall back to Yandex on a provider outage.
   beget-verify-after-deploy:
-    needs: [beget-readonly-preflight, cloudru-jobs-verify, deploy-production]
-    # Probe the deployed app even if the independent Jobs reconciliation fails;
-    # its failure still leaves CI red. App-only bootstrap skips all 11 Jobs.
-    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.deploy-production.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-verify.result == 'success' || needs.cloudru-jobs-verify.result == 'failure') }}
+    needs: [beget-provider-change-detect, beget-readonly-preflight, cloudru-jobs-verify, deploy-production]
+    # App-only bootstrap skips all 11 Cloud.ru Jobs. A provider change must
+    # still pass signed GET/HEAD/Range/deny verification after deployment.
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.beget-provider-change-detect.outputs.provider_required == 'true' && needs.deploy-production.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-verify.result == 'success' || needs.cloudru-jobs-verify.result == 'failure') }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12

@@ -22,7 +22,7 @@ test('automatic main release syncs Cloud.ru Jobs after app; manual redeploy stay
  assert.deepEqual(ciJobs['cloudru-jobs-sync'].needs,['deploy-production']);
  assert.deepEqual(ciJobs['cloudru-jobs-verify'].needs,['cloudru-jobs-sync']);
  assert.deepEqual(ciJobs['beget-verify-after-deploy'].needs,
-  ['beget-readonly-preflight','cloudru-jobs-verify','deploy-production']);
+  ['beget-provider-change-detect','beget-readonly-preflight','cloudru-jobs-verify','deploy-production']);
  assert.match(ciJobs['beget-verify-after-deploy'].if,/always\(\)/);
  assert.match(ciJobs['beget-verify-after-deploy'].if,/needs\.deploy-production\.result == 'success'/);
  assert.equal(ciJobs['deploy-production'].with.app_only,true);
@@ -35,18 +35,15 @@ test('automatic main release syncs Cloud.ru Jobs after app; manual redeploy stay
   assert(!flow.includes('GAFUS_REFACTOR_PRODUCTION_CUTOVER'));
 });
 
-test('manual app-only release refuses retired Gallery CDN and verifies protected CDN end to end',()=>{
+test('manual app-only release refuses retired Gallery CDN without relying on Beget network',()=>{
  const jobs=byJobs(manual);
- for(const name of ['preflight-cdn','verify-cdn']){
-  const job=jobs[name];
-  assert.match(job.env.GALLERY_CDN_REDIRECT_SIGNING_SECRET,/GALLERY_CDN_REDIRECT_SIGNING_SECRET/);
-  assert.match(job.env.GALLERY_CDN_REDIRECT_ORIGIN_SECRET,/GALLERY_CDN_REDIRECT_ORIGIN_SECRET/);
-  const feed=job.steps.find(step=>step.run?.includes('beget-production-smoke.mjs --feed-only'));
-  const gallery=job.steps.find(step=>step.run?.includes('beget-gallery-redirect-canary.mjs'));
-  assert(feed, name+' must check Feed CDN bytes');
-  assert(gallery, name+' must independently check private Gallery');
- }
- assert(jobs['preflight-cdn'].steps.some(step=>step.run?.includes('gallery-redirect-release-gate.mjs')));
+ assert(!jobs['verify-cdn']);
+ const preflight=jobs['preflight-cdn'];
+ assert.match(preflight.env.GALLERY_CDN_REDIRECT_SIGNING_SECRET,/GALLERY_CDN_REDIRECT_SIGNING_SECRET/);
+ assert.match(preflight.env.GALLERY_CDN_REDIRECT_ORIGIN_SECRET,/GALLERY_CDN_REDIRECT_ORIGIN_SECRET/);
+ assert(preflight.steps.some(step=>step.run?.includes('checkGalleryRedirectConfig(process.env)')));
+ assert(!preflight.steps.some(step=>step.run?.includes('beget-production-smoke.mjs --feed-only')));
+ assert(!preflight.steps.some(step=>step.run?.includes('beget-gallery-redirect-canary.mjs')));
 });
 
 test('production readiness probes real Vite and Hono endpoints, never removed Next routes',()=>{
@@ -93,7 +90,7 @@ test('main release preflights existing Cloud.ru Jobs before app and syncs after 
  assert(gate.if.includes("github.ref == 'refs/heads/main'"));
  assert(gate.if.includes("github.event_name == 'push'"));
  assert(gate.steps.some(x=>x.run?.includes('beget-release-readiness.mjs --check')));
- assert(gate.steps.some(x=>x.run?.includes('beget-production-smoke.mjs')));
+ assert(gate.steps.some(x=>x.run?.includes('beget-production-smoke.mjs') && x.if?.includes("provider_required == 'true'")));
  for(const dep of ['security','build-apps','build-images','cloudru-jobs-preflight',
   'cloudru-media-contracts','cutover-preflight','beget-readonly-preflight'])
   assert(graph['deploy-production'].needs.includes(dep),'MISSING_GATE_'+dep);
