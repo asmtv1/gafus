@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { prisma } from "@gafus/prisma";
+import { readAdminActorRole } from "@gafus/core/services/adminUser";
 import { getReengagementMetrics } from "@gafus/core/services/adminReengagement";
 import { getRewardedAdsAdminDashboard } from "@gafus/core/services/adminRewardedAds";
 import { requireRole } from "../../middleware/auth.js";
@@ -13,8 +13,7 @@ adminAnalyticsRoutes.use("*", async (c, next) => {
 });
 
 async function adminCurrent(userId: string) {
-  const actor = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-  return actor?.role === "ADMIN";
+  return (await readAdminActorRole(userId)) === "ADMIN";
 }
 
 adminAnalyticsRoutes.get("/reengagement", requireRole("ADMIN"), async c => {

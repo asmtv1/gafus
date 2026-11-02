@@ -5,11 +5,11 @@
 import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { prisma } from "@gafus/prisma";
 import { createArticle as createArticleCore, createArticleSchema } from
   "@gafus/core/services/article";
 import {
   createCourse as createCourseCore, createTrainerCourseSchema,
+  countOwnedTrainingDays, countOwnedTrainingSteps,
   type CreateTrainerCourseInput,
 } from "@gafus/core/services/trainerCourse";
 import {
@@ -70,15 +70,11 @@ export type TrainerAuthoringPorts = {
 
 export const productionAuthoringPorts: TrainerAuthoringPorts = {
   createCourse: (input, actorId) => createCourseCore(input, actorId),
-  countOwnedDays: (ids, ownerId, elevated) => prisma.trainingDay.count({
-    where: { id: { in: ids }, ...(elevated ? {} : { authorId: ownerId }) },
-  }),
+  countOwnedDays: countOwnedTrainingDays,
   createArticle: (body, userId) => createArticleCore(body, userId),
   createStep: (input, ownerId) => createStepCore(input, ownerId),
   createDay: input => createTrainingDayCore(input),
-  countOwnedSteps: (ids, ownerId, elevated) => prisma.step.count({
-    where: { id: { in: ids }, ...(elevated ? {} : { authorId: ownerId }) },
-  }),
+  countOwnedSteps: countOwnedTrainingSteps,
 };
 
 const bad = { success: false, code: "BAD_INPUT", error: "Некорректные данные" } as const;

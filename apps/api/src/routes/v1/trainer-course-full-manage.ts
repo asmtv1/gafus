@@ -5,11 +5,10 @@
  */
 import { Hono } from "hono";
 import { randomUUID } from "node:crypto";
-import { prisma } from "@gafus/prisma";
 import {
   getCourseEditorSnapshot, updateCourse, updateTrainerCourseSchema,
   createCourse, createTrainerCourseSchema, canCreatePaidCourse,
-  deleteCourseVersioned,
+  deleteCourseVersioned, countExistingCourseUsers, countEditableCourseDays,
   type UpdateTrainerCourseInput, type CreateTrainerCourseInput,
 } from "@gafus/core/services/trainerCourse";
 
@@ -30,12 +29,8 @@ const production: TrainerFullCoursePorts = {
   update: updateCourse,
   create: createCourse,
   remove: deleteCourseVersioned,
-  countUsers: async ids => prisma.user.count({
-    where: { id: { in: ids }, role: "USER" },
-  }),
-  countDays: async (ids, actor) => prisma.trainingDay.count({
-    where: { id: { in: ids }, ...(actor.role === "TRAINER" ? { authorId: actor.id } : {}) },
-  }),
+  countUsers: countExistingCourseUsers,
+  countDays: countEditableCourseDays,
 };
 const BAD = { success: false, code: "BAD_INPUT", error: "Некорректные данные курса" } as const;
 const DENIED = { success: false, code: "FORBIDDEN", error: "Недостаточно прав" } as const;

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { selectFeedV2VideoUrl, type FeedV2VideoMedia } from "@gafus/types";
 import {mediaCdnKindFromSignedUrl,probeCdnOutage} from "@gafus/core-client/media-delivery";
 import {sameOriginCdnProbeFetch} from "../../shared/api/cdnProbe";
-import {requestFeedImageFallback} from "./FeedCdnImage";
+import {FeedCdnImage,requestFeedImageFallback} from "./FeedCdnImage";
 import "./feed-v2-media.css";
 
 // One active native MP4 player globally; never preload other videos in the feed.
@@ -106,9 +106,12 @@ export function FeedV2Video({ media, visible = true, saveData = false }: {
   const orientation = media.height > media.width ? "portrait" :
     media.height === media.width ? "square" : "landscape";
   return <div className="feed-v2-video-shell" data-orientation={orientation}>
-    <video ref={ref} preload="none" playsInline poster={media.posterUrl || undefined} controls={playing}
+    <video ref={ref} preload="none" playsInline controls={playing}
       onEnded={stop} onError={onPlaybackError}
       aria-label="Видео публикации" />
+    {!playing && media.posterUrl && <div className="feed-v2-video-poster">
+      <FeedCdnImage url={media.posterUrl} mediaId={media.id} variant="poster" alt="Обложка видео" />
+    </div>}
     {!playing && <button type="button" onClick={() => void start()} disabled={!visible}
       className="feed-v2-video-play" aria-label="Воспроизвести видео">▶</button>}
     {error && <p role="alert">{error}</p>}

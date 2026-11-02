@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Fail closed on ANY new runtime @gafus/prisma import in apps/src.
- * 146 pre-existing imports are frozen in a reviewable baseline pending Core migration.
+ * The remaining pre-existing imports are frozen pending safe Core/infra migration.
  * Type-only imports do not introduce a runtime dependency and are ignored.
  */
 import fs from "node:fs";
@@ -32,24 +32,49 @@ function scanFile(file) {
   const kind = file.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, kind);
   const matches = [];
-  const isPrismaSpecifier = (value) => value === "@gafus/prisma" || value.startsWith("@gafus/prisma/");
+  const isPrismaSpecifier = (value) =>
+    value === "@gafus/prisma" || value.startsWith("@gafus/prisma/");
   function visit(node) {
-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)
-      && isPrismaSpecifier(node.moduleSpecifier.text)) {
+    if (
+      ts.isImportDeclaration(node) &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      isPrismaSpecifier(node.moduleSpecifier.text)
+    ) {
       const clause = node.importClause;
-      const typeOnly = !!clause?.isTypeOnly || !!(clause?.namedBindings
-        && ts.isNamedImports(clause.namedBindings)
-        && !clause.name && clause.namedBindings.elements.every((item) => item.isTypeOnly));
+      const typeOnly =
+        !!clause?.isTypeOnly ||
+        !!(
+          clause?.namedBindings &&
+          ts.isNamedImports(clause.namedBindings) &&
+          !clause.name &&
+          clause.namedBindings.elements.every((item) => item.isTypeOnly)
+        );
       if (!typeOnly) matches.push(node.getText(ast).replace(/\s+/g, " ").trim());
-    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier
-      && ts.isStringLiteral(node.moduleSpecifier)
-      && isPrismaSpecifier(node.moduleSpecifier.text) && !node.isTypeOnly) {
+    } else if (
+      ts.isExportDeclaration(node) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      isPrismaSpecifier(node.moduleSpecifier.text) &&
+      !node.isTypeOnly
+    ) {
       matches.push(node.getText(ast).replace(/\s+/g, " ").trim());
-    } else if (ts.isCallExpression(node) && node.arguments.length === 1
-      && ts.isStringLiteral(node.arguments[0])
-      && isPrismaSpecifier(node.arguments[0].text)
-      && ((ts.isIdentifier(node.expression) && node.expression.text === "require")
-        || node.expression.kind === ts.SyntaxKind.ImportKeyword)) {
+    } else if (
+      ts.isImportEqualsDeclaration(node) &&
+      !node.isTypeOnly &&
+      ts.isExternalModuleReference(node.moduleReference) &&
+      node.moduleReference.expression &&
+      ts.isStringLiteral(node.moduleReference.expression) &&
+      isPrismaSpecifier(node.moduleReference.expression.text)
+    ) {
+      matches.push(node.getText(ast).replace(/\s+/g, " ").trim());
+    } else if (
+      ts.isCallExpression(node) &&
+      node.arguments.length === 1 &&
+      ts.isStringLiteral(node.arguments[0]) &&
+      isPrismaSpecifier(node.arguments[0].text) &&
+      ((ts.isIdentifier(node.expression) && node.expression.text === "require") ||
+        node.expression.kind === ts.SyntaxKind.ImportKeyword)
+    ) {
       matches.push(node.getText(ast).replace(/\s+/g, " ").trim());
     }
     ts.forEachChild(node, visit);
@@ -65,7 +90,7 @@ function collect() {
     const found = scanFile(file);
     if (found.length) current[relative] = found;
   }
-  return Object.fromEntries(Object.entries(current).sort(([a],[b]) => a.localeCompare(b)));
+  return Object.fromEntries(Object.entries(current).sort(([a], [b]) => a.localeCompare(b)));
 }
 
 const current = collect();
@@ -74,27 +99,59 @@ const baseline = JSON.parse(fs.readFileSync(baselinePath, "utf8")).imports;
 if (!baseline || typeof baseline !== "object" || Array.isArray(baseline))
   throw Error("PRISMA_BASELINE_INVALID");
 function unexpectedImports(source, frozen) {
-const violations = [];
-for (const [file, imports] of Object.entries(source)) {
-  const approved = frozen[file];
-  if (approved === undefined) {
-    violations.push(...imports.map(item => `${file}: new forbidden runtime Prisma import: ${item}`));
-    continue;
+  const violations = [];
+  for (const [file, imports] of Object.entries(source)) {
+    const approved = frozen[file];
+    if (approved === undefined) {
+      violations.push(
+        ...imports.map((item) => `${file}: new forbidden runtime Prisma import: ${item}`),
+      );
+      continue;
+    }
+    if (
+      !Array.isArray(approved) ||
+      approved.some((item) => typeof item !== "string") ||
+      new Set(approved).size !== approved.length
+    )
+      throw Error("PRISMA_BASELINE_MALFORMED_" + file);
+    const allowance = new Map();
+    for (const item of approved) allowance.set(item, (allowance.get(item) ?? 0) + 1);
+    for (const item of imports) {
+      const remaining = allowance.get(item) ?? 0;
+      if (remaining > 0) allowance.set(item, remaining - 1);
+      else violations.push(`${file}: new forbidden runtime Prisma import: ${item}`);
+    }
   }
-  if (!Array.isArray(approved) || approved.some(item => typeof item !== "string") ||
-      new Set(approved).size !== approved.length)
-    throw Error("PRISMA_BASELINE_MALFORMED_" + file);
-  const allowance = new Map();
-  for (const item of approved) allowance.set(item, (allowance.get(item) ?? 0) + 1);
-  for (const item of imports) {
-    const remaining = allowance.get(item) ?? 0;
-    if (remaining > 0) allowance.set(item, remaining - 1);
-    else violations.push(`${file}: new forbidden runtime Prisma import: ${item}`);
+  return violations;
+}
+// The historical allowlist is a shrinking ledger: every removed import must
+// also be removed from the baseline, preventing accidental re-introduction.
+function staleImports(source, frozen) {
+  const stale = [];
+  for (const [file, approved] of Object.entries(frozen)) {
+    if (
+      !Array.isArray(approved) ||
+      approved.some((item) => typeof item !== "string") ||
+      new Set(approved).size !== approved.length
+    )
+      throw Error("PRISMA_BASELINE_MALFORMED_" + file);
+    const live = source[file] ?? [];
+    for (const item of approved) {
+      if (!live.includes(item)) stale.push(`${file}: stale Prisma exception: ${item}`);
+    }
   }
+  return stale;
 }
-return violations;
-}
-const violations = unexpectedImports(current, baseline);
+// No HTTP route may regain a raw DB dependency, even if someone tries to
+// extend the frozen exceptions. Infrastructure/CLI exceptions remain separate.
+const isHttpRoute = (name) => /^apps\/api\/src\/routes\//.test(name) &&
+  !/(?:\.test\.|\.spec\.|\/test\/|\/__tests__\/)/.test(name);
+const routeExceptions = [...Object.keys(current), ...Object.keys(baseline)]
+  .filter(isHttpRoute);
+if (routeExceptions.length) throw Error(
+  "PRISMA_HTTP_ROUTE_DIRECT_DB_FORBIDDEN:" + [...new Set(routeExceptions)].join(","),
+);
+const violations = [...unexpectedImports(current, baseline), ...staleImports(current, baseline)];
 if (process.argv.includes("--self-test")) {
   const file = "apps/api/src/__runtime_prisma_test_canary__.ts";
   const code = "import { prisma } from '@gafus/prisma';";
@@ -104,16 +161,30 @@ if (process.argv.includes("--self-test")) {
   const existing = Object.entries(baseline)[0];
   if (!existing || unexpectedImports({ [existing[0]]: existing[1] }, baseline).length)
     throw Error("PRISMA_BOUNDARY_BASELINE_FALSE_POSITIVE");
+  if (
+    staleImports({ [existing[0]]: [] }, { [existing[0]]: existing[1] }).length !==
+    existing[1].length
+  )
+    throw Error("PRISMA_BOUNDARY_FAIL_OPEN_STALE_BASELINE");
   const extra = unexpectedImports({ [existing[0]]: [...existing[1], code] }, baseline);
   if (extra.length !== 1) throw Error("PRISMA_BOUNDARY_FAIL_OPEN_EXTRA_IMPORT");
-  console.log("Prisma boundary regression: new files and added runtime imports BLOCKED");
+  console.log("Prisma boundary regression: new imports and stale baseline entries BLOCKED");
   process.exit(0);
 }
 const frozenTotal = Object.values(baseline).reduce((n, values) => n + values.length, 0);
-if (frozenTotal !== 146) throw Error("PRISMA_BASELINE_TOTAL_UNEXPECTED");
+if (frozenTotal !== 127) throw Error("PRISMA_BASELINE_TOTAL_UNEXPECTED");
 if (violations.length) {
   console.error(violations.join("\n"));
-  console.error("New app Prisma access forbidden; migrate to Core instead. Existing imports are frozen and cannot grow.");
+  console.error(
+    "New app Prisma access forbidden; migrate to Core instead. Existing imports are frozen and cannot grow.",
+  );
   process.exit(1);
 }
-console.log(`Prisma boundary: PASS (no NEW runtime imports, existing baseline ${frozenTotal}; migrate legacy imports to Core)`);
+const productionTotal = Object.entries(current).reduce(
+  (sum, [file, imports]) =>
+    sum + (/(?:\.test\.|\.spec\.|\/test\/|\/__tests__\/)/.test(file) ? 0 : imports.length),
+  0,
+);
+console.log(
+  `Prisma boundary: PASS (${frozenTotal} existing runtime imports; ${productionTotal} non-test, ${frozenTotal - productionTotal} test; no new/stale exceptions)`,
+);

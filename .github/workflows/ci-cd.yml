@@ -58,7 +58,7 @@ jobs:
         run: |
           # Устанавливаем зависимости с оптимизациями
           pnpm config set store-dir ~/.pnpm-store
-          pnpm config set verify-store-integrity false
+          pnpm config set verify-store-integrity true
           pnpm config set auto-install-peers true
           pnpm config set dedupe-peer-dependents false
 
@@ -68,7 +68,7 @@ jobs:
       - name: Validate dependencies
         run: |
           echo "🔍 Validating dependencies..."
-          pnpm list --depth=0 --json > /dev/null || echo "⚠️ Dependency validation failed, but continuing"
+          pnpm list --depth=0 --json > /dev/null
           echo "✅ Dependencies validated"
 
       # Source-only, cache-independent fail-closed contract before ANY workspace builds.
@@ -92,11 +92,23 @@ jobs:
           # Fail-closed: Types test is synchronous, not a backgrounded subshell.
           cd packages/types && pnpm build && cd ../..
           pnpm --filter @gafus/types test
-          # Remaining independent packages may still run in parallel.
-          (cd packages/queues && pnpm build) &
-          (cd packages/cdn-upload && pnpm build) &
-          (cd packages/video-access && pnpm build) &
-          wait
+          # Core media-delivery reexports resolve core-client/dist at runtime.
+          # Build that dependency first; otherwise cache restores can run old
+          # CDN failover code in otherwise green Core tests and builds.
+          cd packages/core-client && pnpm build && cd ../..
+          # Keep parallelism without Bash's fail-open bare `wait` (which can
+          # return success even when one of the children failed).
+          (cd packages/queues && pnpm build) & queues_pid=$!
+          (cd packages/cdn-upload && pnpm build) & cdn_pid=$!
+          (cd packages/video-access && pnpm build) & video_pid=$!
+          parallel_failed=0
+          wait "$queues_pid" || parallel_failed=1
+          wait "$cdn_pid" || parallel_failed=1
+          wait "$video_pid" || parallel_failed=1
+          if [ "$parallel_failed" -ne 0 ]; then
+            echo 'REQUIRED_PARALLEL_PACKAGE_BUILD_FAILED' >&2
+            exit 1
+          fi
           # prisma (зависит от logger), затем auth, core
           cd packages/prisma && pnpm build && cd ../..
           cd packages/auth && pnpm build && cd ../..
@@ -104,7 +116,7 @@ jobs:
           cd packages/mailer && pnpm build && cd ../..
           cd packages/core && pnpm build && cd ../..
           # остальные пакеты через turbo
-          pnpm exec turbo run build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access --filter=!@gafus/mailer
+          pnpm exec turbo run build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access --filter=!@gafus/mailer --filter=!@gafus/core-client
 
       - name: Cache build artifacts
         uses: actions/cache@v5
@@ -172,7 +184,7 @@ jobs:
       - name: Install dependencies (optimized)
         run: |
           pnpm config set store-dir ~/.pnpm-store
-          pnpm config set verify-store-integrity false
+          pnpm config set verify-store-integrity true
           pnpm config set auto-install-peers true
           pnpm config set dedupe-peer-dependents false
 
@@ -316,7 +328,7 @@ jobs:
       - name: Install dependencies (optimized)
         run: |
           pnpm config set store-dir ~/.pnpm-store
-          pnpm config set verify-store-integrity false
+          pnpm config set verify-store-integrity true
           pnpm config set auto-install-peers true
           pnpm config set dedupe-peer-dependents false
 
@@ -511,7 +523,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Production deploy workflow contract
-        run: node --test ci-cd/scripts/deploy-only-contract.test.mjs ci-cd/scripts/workflow-consolidation-contract.test.mjs ci-cd/scripts/backup-to-yandex.test.mjs infra/cloudru/production-job-image-config.test.mjs
+        run: node --test ci-cd/scripts/deploy-only-contract.test.mjs ci-cd/scripts/workflow-consolidation-contract.test.mjs ci-cd/scripts/release-graph.contract.test.mjs ci-cd/scripts/workspace-dependency-graph.contract.test.mjs ci-cd/docker/prometheus/health-monitoring.contract.test.mjs ci-cd/scripts/backup-to-yandex.test.mjs ci-cd/scripts/emit-verified-backup-metric.test.mjs infra/cloudru/production-job-image-config.test.mjs
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media
       - name: Reject Yandex CDN release routes and verify fail-closed Beget gating

@@ -5,6 +5,11 @@ global:
     cluster: "gafus"
     environment: "local"
 
+# Compose.local binds the whole ./prometheus directory under /etc/prometheus,
+# so the rules can be validated locally without a production change.
+rule_files:
+  - /etc/prometheus/gafus-alerts.yml
+
 scrape_configs:
   - job_name: "node-exporter"
     static_configs:
@@ -34,9 +39,9 @@ scrape_configs:
       module: [http_2xx]
     static_configs:
       - targets:
-          - http://host.docker.internal:3002/api/health # Web App (порт 3002!)
-          - http://host.docker.internal:3001/api/health # Trainer Panel
-          - http://host.docker.internal:3006/api/health # Admin Panel
+          - http://host.docker.internal:3002/healthz # Web App (порт 3002!)
+          - http://host.docker.internal:3001/healthz # Trainer Panel
+          - http://host.docker.internal:3006/healthz # Admin Panel
           - http://host.docker.internal:3004/health # Bull Board (порт 3004!)
     relabel_configs:
       - source_labels: [__address__]

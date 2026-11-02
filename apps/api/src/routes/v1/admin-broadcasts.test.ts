@@ -7,10 +7,8 @@ const f = vi.hoisted(() => ({
 vi.mock("@gafus/queues", () => ({ connection: { set: f.redisSet, get: f.redisGet } }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.reg }));
-vi.mock("@gafus/prisma", () => ({ prisma: {
-  user: { findUnique: f.role }, pushSubscription: { count: f.count },
-} }));
-vi.mock("@gafus/core/services/adminBroadcast", () => ({ sendBroadcastPush: f.broadcast }));
+vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: f.role }));
+vi.mock("@gafus/core/services/adminBroadcast", () => ({ sendBroadcastPush: f.broadcast, countBroadcastSubscriptionRows: f.count }));
 import { authMiddleware } from "../../middleware/auth";
 import { adminBroadcastRoutes } from "./admin-broadcasts";
 const base = "/api/v1/admin/broadcasts";
@@ -38,7 +36,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   f.verify.mockResolvedValue({ id: "admin1", role: "ADMIN", username: "admin" });
   f.reg.mockResolvedValue(true);
-  f.role.mockResolvedValue({ role: "ADMIN" });
+  f.role.mockResolvedValue("ADMIN");
   f.count.mockResolvedValue(42);
   f.redisSet.mockResolvedValue("OK");
   f.redisGet.mockResolvedValue(null);
@@ -58,7 +56,7 @@ describe("broadcast workflow", () => {
     expect(f.broadcast).not.toHaveBeenCalled();
   });
   it("rejects revoked admin with old JWT", async () => {
-    f.role.mockResolvedValue({ role: "USER" });
+    f.role.mockResolvedValue("USER");
     expect((await request("/preview")).status).toBe(403);
     expect((await request("", "POST", valid)).status).toBe(403);
     expect(f.broadcast).not.toHaveBeenCalled();

@@ -35,6 +35,7 @@ import { TexturedSafeAreaView } from "@/shared/components/TexturedSafeAreaView";
 import { chat2, nameFor, type Conversation, type Message, type Attachment } from "./api";
 import { Chat2SettingsSheet } from "./Chat2SettingsSheet";
 import { isCacheableChat2FinalUrl } from "./publicFinalCache";
+import { readProcessedChat2Media } from "./mediaProcessing";
 import { Chat2Avatar, Chat2MessageAuthorAvatar } from "./Chat2Avatar";
 import { Chat2ReportSheet } from "./Chat2ReportSheet";
 import { mergeHistory, shouldFetchOlderAtTop } from "./historyPagination";
@@ -936,83 +937,209 @@ const styles = StyleSheet.create({
   mediaClose: { fontSize: 22, color: "#ab4736", paddingHorizontal: 8 },
 });
 
-/** Signed direct S3 link is short-lived, granted per message via private Hono API. */
+/** Images use API-authorized CDN/S3 pairs. Fullscreen stays inside the app. */
 function NativeChat2Media({ conversationId, file }: { conversationId: string; file: Attachment }) {
+  if (file.kind === "video") return <NativeChat2Video conversationId={conversationId} file={file} />;
+  if (file.kind === "file") return <NativeChat2Document conversationId={conversationId} file={file} />;
+  return <NativeChat2Image conversationId={conversationId} file={file} />;
+}
+
+/** Existing PDF attachments retain the authenticated external document viewer. */
+function NativeChat2Document({ conversationId, file }: {
+  conversationId: string; file: Attachment;
+}) {
+  const [busy, setBusy] = useState(false);
+  const open = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const media = await chat2.media(conversationId, file.id);
+      if (!media.url) throw new Error("CHAT2_DOCUMENT_UNAVAILABLE");
+      await Linking.openURL(media.url);
+    } catch {
+      reportClientError(new Error("CHAT2_DOCUMENT_OPEN_FAILED"), {
+        issueKey: "Chat2Room", keys: { operation: "document_open" },
+      });
+      Alert.alert("Вложение недоступно", "Попробуйте обновить чат");
+    } finally { setBusy(false); }
+  };
+  return <Pressable accessibilityRole="button" onPress={() => void open()}
+    accessibilityLabel={`Открыть документ ${file.name}`}
+    disabled={busy} style={{ paddingVertical: 12 }}>
+    <Text style={{ color: olive, fontSize: 12 }}>
+      {busy ? "Открываем документ…" : `📎 ${file.name}`}
+    </Text>
+  </Pressable>;
+}
+
+type Chat2ImageViewer = {
+  url: string;
+  fallbackUrl: string | null;
+  triedFallback: boolean;
+  failed: boolean;
+};
+function NativeChat2Image({ conversationId, file }: { conversationId: string; file: Attachment }) {
   const [url, setUrl] = useState<string | null>(null);
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
   const [usingFallback, setUsingFallback] = useState(false);
-  const triedFallback=useRef(false);
+  const [pending, setPending] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [reload, setReload] = useState(0);
+  const [viewer, setViewer] = useState<Chat2ImageViewer | null>(null);
+  const triedFallback = useRef(false);
+  const requestGeneration = useRef(0);
   useEffect(() => {
-    if (file.kind === "video") return;
+    const generation = ++requestGeneration.current;
     let live = true;
-    void chat2
-      .media(conversationId, file.id)
-      .then((r) => {
-        if (live) {
-          triedFallback.current=false;
-          setUsingFallback(false);
-          const primary = file.kind === "image"
-            ? chat2ImageSource(r.renditions?.image, 220, PixelRatio.get(), r.renditions?.imageWidths) ?? r.url
-            : r.url;
-          setFallbackUrl(chat2MatchedS3Variant(primary, r));
-          setUrl(primary);
-        }
+    const controller = new AbortController();
+    setPending(true);
+    setProcessing(false);
+    setFailed(false);
+    setUrl(null);
+    setFallbackUrl(null);
+    setUsingFallback(false);
+    triedFallback.current = false;
+    void readProcessedChat2Media(
+      () => chat2.media(conversationId, file.id), controller.signal,
+      () => { if (live) setProcessing(true); },
+    ).then(result => {
+        if (!live || requestGeneration.current !== generation) return;
+        const primary = file.kind === "image"
+          ? chat2ImageSource(result.renditions?.image, 220, PixelRatio.get(),
+              result.renditions?.imageWidths) ?? result.url
+          : result.url;
+        setFallbackUrl(chat2MatchedS3Variant(primary, result));
+        setUrl(primary);
       })
       .catch(() => {
+        if (!live || requestGeneration.current !== generation) return;
         reportClientError(new Error("CHAT2_MEDIA_FETCH_FAILED"), {
-          issueKey: "Chat2Room",
-          keys: { operation: "media_fetch" },
+          issueKey: "Chat2Room", keys: { operation: "media_fetch" },
         });
-        if (live) setUrl(null);
+        setFailed(true);
+      })
+      .finally(() => {
+        if (live && requestGeneration.current === generation) setPending(false);
       });
+    const currentGeneration = requestGeneration;
     return () => {
       live = false;
-      setUrl(null);
+      controller.abort();
+      currentGeneration.current++;
     };
-  }, [conversationId, file.id, file.kind]);
-  async function open() {
-    try {
-      const refreshed = await chat2.media(conversationId, file.id);
-      const link = usingFallback && refreshed.fallbackUrl?.startsWith("https://gafus-chat2-media-2026.s3.cloud.ru/")
-        ? refreshed.fallbackUrl : refreshed.url;
-      await Linking.openURL(link);
-    } catch {
-      reportClientError(new Error("CHAT2_MEDIA_OPEN_FAILED"), {
-        issueKey: "Chat2Room",
-        keys: { operation: "media_open" },
+  }, [conversationId, file.id, file.kind, reload]);
+  const retry = () => {
+    setViewer(null);
+    setReload(previous => previous + 1);
+  };
+  const thumbnailFailure = () => {
+    if (triedFallback.current || !url || !fallbackUrl || usingFallback) {
+      setFailed(true);
+      return;
+    }
+    triedFallback.current = true;
+    const generation = requestGeneration.current;
+    const original = url;
+    void chat2CdnS3FailoverAllowed(original, fallbackUrl, fetch, true)
+      .then(allowed => {
+        if (requestGeneration.current !== generation) return;
+        if (allowed) { setUsingFallback(true); setUrl(fallbackUrl); }
+        else setFailed(true);
+      })
+      .catch(() => {
+        if (requestGeneration.current === generation) setFailed(true);
       });
-      Alert.alert("Вложение недоступно", "Попробуйте обновить чат");
+  };
+  async function open() {
+    if (pending || failed) return;
+    const generation = requestGeneration.current;
+    try {
+      // Obtain fresh URLs: a message may have been visible longer than its signed TTL.
+      const refreshed = await chat2.media(conversationId, file.id);
+      if (requestGeneration.current !== generation) return;
+      const primary = refreshed.renditions?.image?.[720] ?? refreshed.url;
+      const fallback = chat2MatchedS3Variant(primary, refreshed);
+      setViewer({ url: primary, fallbackUrl: fallback, triedFallback: false, failed: false });
+    } catch {
+      if (requestGeneration.current !== generation) return;
+      reportClientError(new Error("CHAT2_MEDIA_OPEN_FAILED"), {
+        issueKey: "Chat2Room", keys: { operation: "media_open" },
+      });
+      Alert.alert("Вложение недоступно", "Попробуйте обновить фотографию");
     }
   }
-  if (file.kind === "video") return <NativeChat2Video conversationId={conversationId} file={file} />;
-  return (
-    <Pressable
-      accessibilityLabel={`Открыть ${file.name}`}
-      onPress={() => void open()}
-      style={{ marginTop: 8 }}
-    >
-      {file.kind === "image" && url ? (
-        <ExpoImage
-          source={{ uri: url }}
-          cachePolicy={isCacheableChat2FinalUrl(url) ? "memory-disk" : "memory"}
-          onError={() => {
-            if (triedFallback.current || !fallbackUrl) {setUrl(null);return;}
-            triedFallback.current=true;
-            const primary=url;
-            void chat2CdnS3FailoverAllowed(primary, fallbackUrl, fetch, true)
-              .then(allowed => {
-                if (allowed) {setUsingFallback(true);setUrl(fallbackUrl);}
-                else setUrl(null);
-              }).catch(() => setUrl(null));
-          }}
-          contentFit="contain"
-          style={{ width: 220, height: 180, borderRadius: 12, backgroundColor: "#fff" }}
-        />
-      ) : (
-        <Text style={{ color: olive, fontSize: 12 }}>📎 {file.name}</Text>
-      )}
+  const fullscreenFailure = () => {
+    if (!viewer || viewer.triedFallback || !viewer.fallbackUrl) {
+      setViewer(previous => previous ? { ...previous, failed: true } : previous);
+      return;
+    }
+    const { url: original, fallbackUrl: backup } = viewer;
+    const generation = requestGeneration.current;
+    setViewer(previous => previous?.url === original
+      ? { ...previous, triedFallback: true } : previous);
+    void chat2CdnS3FailoverAllowed(original, backup, fetch, true)
+      .then(allowed => {
+        if (requestGeneration.current !== generation) return;
+        setViewer(previous => previous?.url !== original ? previous :
+          allowed ? { ...previous, url: backup, triedFallback: true } :
+            { ...previous, failed: true });
+      })
+      .catch(() => {
+        if (requestGeneration.current !== generation) return;
+        setViewer(previous => previous?.url === original
+          ? { ...previous, failed: true } : previous);
+      });
+  };
+  return <>
+    <Pressable accessibilityRole="button"
+      accessibilityLabel={failed ? `Повторить загрузку ${file.name}` : `Открыть ${file.name}`}
+      onPress={failed ? retry : () => void open()}
+      disabled={pending}
+      style={{ marginTop: 8 }}>
+      {file.kind === "image" && url && !failed ? <ExpoImage
+        source={{ uri: url }}
+        cachePolicy={isCacheableChat2FinalUrl(url) ? "memory-disk" : "memory"}
+        onError={thumbnailFailure}
+        contentFit="contain"
+        style={{ width: 220, height: 180, borderRadius: 12, backgroundColor: "#fff" }}
+      /> : <View style={{ width: 220, minHeight: 96, alignItems: "center",
+        justifyContent: "center", backgroundColor: "#edf1e4", borderRadius: 12, padding: 10 }}>
+        {pending ? <View style={{ alignItems: "center", gap: 6 }}>
+          <ActivityIndicator color={olive} />
+          <Text style={{ color: olive, fontSize: 12 }}>
+            {processing ? "Обрабатываем фото…" : "Загружаем фото…"}
+          </Text>
+        </View> :
+          <Text style={{ color: olive, fontSize: 12 }}>
+            {failed ? "Не удалось загрузить фото · Повторить" : `📎 ${file.name}`}
+          </Text>}
+      </View>}
     </Pressable>
-  );
+    <Modal visible={Boolean(viewer)} transparent animationType="fade"
+      statusBarTranslucent onRequestClose={() => setViewer(null)}>
+      <View style={{ flex: 1, backgroundColor: "#000e", justifyContent: "center" }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Закрыть фотографию"
+          onPress={() => setViewer(null)}
+          style={{ position: "absolute", top: 55, right: 20, zIndex: 2,
+            backgroundColor: "#243127", width: 44, height: 44, borderRadius: 22,
+            alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ color: "#fff", fontSize: 28, lineHeight: 34 }}>×</Text>
+        </Pressable>
+        {viewer?.failed ? <Pressable accessibilityRole="button"
+          accessibilityLabel="Повторить открытие фотографии"
+          onPress={() => { setViewer(null); void open(); }}
+          style={{ padding: 20, alignItems: "center" }}>
+          <Text accessibilityRole="alert" style={{ color: "#fff", textAlign: "center" }}>
+            Не удалось открыть фотографию · Повторить
+          </Text>
+        </Pressable> : viewer && <ExpoImage source={{ uri: viewer.url }}
+          cachePolicy={isCacheableChat2FinalUrl(viewer.url) ? "memory-disk" : "memory"}
+          contentFit="contain" onError={fullscreenFailure}
+          style={{ width: "100%", height: "82%" }} />}
+      </View>
+    </Modal>
+  </>;
 }
 
 /** Mount the paused native player with the message: it can render the first frame
@@ -1093,19 +1220,30 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
   const playerRef = useRef<VideoPlayer | null>(null);
   const signedAt = useRef(0);
   const [pending, setPending] = useState(true);
+  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(false);
   const [reload, setReload] = useState(0);
   const [usingFallback, setUsingFallback] = useState(false);
+  const recoveryInProgress = useRef(false);
+  const playIntent = useRef(false);
+  const recoveryGeneration = useRef(0);
 
   // Same lifecycle as Web: fetch the authorized media/cover immediately on mount.
   // Keep the player paused until a user explicitly taps Play.
   useEffect(() => {
     let live = true;
+    const controller = new AbortController();
+    const generation = ++recoveryGeneration.current;
+    recoveryInProgress.current = false;
+    playIntent.current = false;
     setPending(true);
+    setProcessing(false);
     setError(false);
     setMedia(null);
-    void chat2.media(conversationId, file.id)
-      .then(result => {
+    void readProcessedChat2Media(
+      () => chat2.media(conversationId, file.id), controller.signal,
+      () => { if (live) setProcessing(true); },
+    ).then(result => {
         if (!live) return;
         signedAt.current = Date.now();
         setMedia(result);
@@ -1127,7 +1265,12 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
         setError(true);
       })
       .finally(() => { if (live) setPending(false); });
-    return () => { live = false; };
+    const recoveryRef = recoveryGeneration;
+    return () => {
+      live = false;
+      controller.abort();
+      recoveryRef.current = generation + 1;
+    };
   }, [conversationId, file.id, reload]);
 
   const onPlayingChange = useCallback((isPlaying: boolean) => {
@@ -1139,22 +1282,34 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
     setThumbnail({ url, frame });
   }, []);
   const onError = useCallback(() => {
-    const fail = () => {setPlaying(false);setError(true);setMedia(null);};
-    if (usingFallback || !media) {fail();return;}
-    const primary = chat2VideoSource(media.renditions?.video, quality, {width:220}) ?? media.url;
-    const fallback = chat2MatchedS3Variant(primary, media);
-    void chat2CdnS3FailoverAllowed(primary, fallback, fetch, true)
+    // Native players can emit multiple status errors during a single failed load.
+    if (recoveryInProgress.current) return;
+    const fail = () => { setPlaying(false); setError(true); setMedia(null); };
+    if (usingFallback || !media) { fail(); return; }
+    const primary = chat2VideoSource(media.renditions?.video, quality, { width: 220 }) ?? media.url;
+    const backup = chat2MatchedS3Variant(primary, media);
+    recoveryInProgress.current = true;
+    const generation = recoveryGeneration.current;
+    void chat2CdnS3FailoverAllowed(primary, backup, fetch, true)
       .then(allowed => {
-        if (!allowed) {fail();return;}
+        if (recoveryGeneration.current !== generation) return;
+        if (!allowed) { fail(); return; }
         setSeekTo(playerRef.current?.currentTime ?? 0);
-        setResumeOnReady(playerRef.current?.playing ?? false);
+        setResumeOnReady(playIntent.current || Boolean(playerRef.current?.playing));
         setUsingFallback(true);
         setPosterViaS3(true);
         setPlaying(false);
-      }).catch(fail);
+      })
+      .catch(() => {
+        if (recoveryGeneration.current === generation) fail();
+      })
+      .finally(() => {
+        if (recoveryGeneration.current === generation) recoveryInProgress.current = false;
+      });
   }, [usingFallback, media, quality]);
   async function play() {
     if (!media || pending) return;
+    playIntent.current = true;
     // The inline signed URL can expire while a user reads an older chat history.
     // Refresh only if it is stale, rather than fetching again on every tap.
     if (signedAt.current && Date.now() - signedAt.current >=
@@ -1188,6 +1343,8 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
     setQuality(mode);
   }
   function retry() {
+    playIntent.current = false;
+    recoveryInProgress.current = false;
     setMedia(null);
     setPlaying(false);
     setError(false);
@@ -1237,7 +1394,9 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
     </View> : <View style={{ width: 220, minHeight: 180, borderRadius: 12,
       backgroundColor: "#17211d", alignItems: "center", justifyContent: "center", padding: 16, gap: 12 }}>
       {pending ? <><ActivityIndicator color="#fff" />
-        <Text style={{ color: "#fff", fontSize: 12 }}>Загружаем видео…</Text></> :
+        <Text style={{ color: "#fff", fontSize: 12 }}>
+          {processing ? "Обрабатываем видео…" : "Загружаем видео…"}
+        </Text></> :
         <><Text style={{ color: "#fff", fontSize: 12, textAlign: "center" }}>
           {error ? "Не удалось загрузить видео" : "Видео недоступно"}</Text>
           <Pressable accessibilityRole="button" accessibilityLabel="Повторить загрузку видео"

@@ -1,0 +1,78 @@
+# Evaluated only by a Prometheus server that loads rule_files; Grafana Alloy
+# remote_write does not evaluate these rules. Install matching alerts at the
+# remote monitoring provider before treating them as production protection.
+groups:
+  - name: gafus-availability
+    rules:
+      - alert: GafusHttpServiceDown
+        expr: probe_success{job="services-health"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GAFUS health probe failed for {{ $labels.service }}"
+      - alert: GafusPostgresUnavailable
+        expr: pg_up{job="postgres-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GAFUS PostgreSQL exporter reports unavailable database"
+      - alert: GafusRedisUnavailable
+        expr: redis_up{job="redis-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GAFUS Redis exporter reports unavailable Redis"
+      - alert: GafusQueueScrapeUnavailable
+        expr: up{job="bullmq-queues"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GAFUS BullMQ metrics cannot be scraped"
+      - alert: GafusMailDeliveryFailures
+        expr: gafus_mail_queue_failed > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Failed durable mail deliveries require inspection"
+      - alert: GafusMailQueueStalled
+        expr: gafus_mail_queue_stalled > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Durable mail delivery queue has stalled items"
+
+      - alert: GafusMediaLeaseStalled
+        expr: gafus_media_stalled_processing > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GAFUS {{ $labels.pipeline }} media processing has expired leases"
+      - alert: GafusMediaMetricsUnavailable
+        expr: up{job="worker-media"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GAFUS worker media metrics scrape unavailable"
+
+      - alert: GafusBackupMissing
+        expr: absent(gafus_database_backup_last_success_timestamp_seconds)
+        for: 2h
+        labels:
+          severity: critical
+        annotations:
+          summary: "No successfully verified backup timestamp has been exported"
+      - alert: GafusBackupStale
+        expr: time() - gafus_database_backup_last_success_timestamp_seconds > 129600
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Last remotely verified PostgreSQL backup is older than 36 hours"

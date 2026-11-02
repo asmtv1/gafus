@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { prisma } from "@gafus/prisma";
+import { readAdminActorRole } from "@gafus/core/services/adminUser";
 import {
   getProfitDashboard, saveProfitVideoExpense, cancelProfitVideoExpense,
 } from "@gafus/core/services/appSubscription";
@@ -38,10 +38,7 @@ const cancelInput = z.object({
 }).strict();
 
 async function currentAdmin(actorId: string): Promise<boolean> {
-  const actor = await prisma.user.findUnique({
-    where: { id: actorId }, select: { role: true },
-  });
-  return actor?.role === "ADMIN";
+  return (await readAdminActorRole(actorId)) === "ADMIN";
 }
 
 function resultError(error: unknown): "STALE_RECORD" | "INVALID_EXPENSE" | "INTERNAL_ERROR" {

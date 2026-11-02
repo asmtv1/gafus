@@ -247,7 +247,7 @@ function Chat2GroupAvatarEditor({
 export function Chat2Messenger() {
   const identity = useCurrentUser();
   return (
-    <div className="gafus-app">
+    <div className={`gafus-app ${css.appViewport}`}>
       <GafusHeader authenticated={Boolean(identity.data?.id)} role={identity.data?.role} />
       {!identity.data?.id ? (
         <main className="shell">
@@ -1787,7 +1787,13 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
         <div className={css.mediaLightboxInner} role="dialog" aria-modal="true"
           aria-label="Просмотр фотографии" onClick={event => event.stopPropagation()}>
           <button ref={closeButton} type="button" className={css.mediaLightboxClose}
-            aria-label="Закрыть просмотр" onClick={() => setFullscreen(null)}>×</button>
+            aria-label="Закрыть просмотр" onClick={() => setFullscreen(null)}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+              stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"
+              aria-hidden="true" focusable="false">
+              <path d="M5 5l14 14M19 5 5 19" />
+            </svg>
+          </button>
           {fullscreen.error ? <p role="alert">Не удалось открыть фотографию</p> :
             <img src={fullscreen.url} alt={file.name} referrerPolicy="no-referrer"
               onError={handleFullscreenFailure} />}

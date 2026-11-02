@@ -8,26 +8,18 @@
 import { Hono } from "hono";
 import type {TrainerCourseStatisticsRead,TrainerStepStatisticsRead} from
   "../../../../../packages/types/src/data/trainer-read-contracts";
-import { prisma } from "@gafus/prisma";
+import { isCurrentTrainerUser } from "@gafus/core/services/statistics";
 import { readTrainerStatisticsApplication } from "../../modules/trainer-statistics/composition/read-trainer-statistics.js";
 import { resolveTrainerStatisticsScope } from "../../lib/trainer-statistics-g1-proposal.js";
 
 export const trainerStatisticsRoutes = new Hono();
-
-const isExistingTrainer = async (userId: string): Promise<boolean> => {
-  const target = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
-  return target?.role === "TRAINER";
-};
 
 trainerStatisticsRoutes.get("/courses", async (c) => {
   try {
     const access = await resolveTrainerStatisticsScope(
       c.get("user"),
       c.req.queries(),
-      isExistingTrainer,
+      isCurrentTrainerUser,
     );
     if (!access.ok) {
       return c.json(
@@ -52,7 +44,7 @@ trainerStatisticsRoutes.get("/steps", async (c) => {
     const access = await resolveTrainerStatisticsScope(
       c.get("user"),
       c.req.queries(),
-      isExistingTrainer,
+      isCurrentTrainerUser,
     );
     if (!access.ok) {
       return c.json(

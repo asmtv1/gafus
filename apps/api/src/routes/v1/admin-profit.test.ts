@@ -5,7 +5,7 @@ const f = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.reg }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: f.role } } }));
+vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: f.role }));
 vi.mock("@gafus/core/services/appSubscription", () => ({
   getProfitDashboard: f.read, saveProfitVideoExpense: f.save, cancelProfitVideoExpense: f.cancel,
 }));
@@ -37,7 +37,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   f.verify.mockResolvedValue({ id: "admin", role: "ADMIN", username: "admin" });
   f.reg.mockResolvedValue(true);
-  f.role.mockResolvedValue({ role: "ADMIN" });
+  f.role.mockResolvedValue("ADMIN");
   f.read.mockResolvedValue({ total: 10000 });
   f.save.mockResolvedValue({});
   f.cancel.mockResolvedValue(undefined);
@@ -54,7 +54,7 @@ describe("admin profit report and accountable writes", () => {
     expect(f.read).not.toHaveBeenCalled();
   });
   it("403 demoted DB admin", async () => {
-    f.role.mockResolvedValue({ role: "USER" });
+    f.role.mockResolvedValue("USER");
     expect((await request()).status).toBe(403);
     expect(f.read).not.toHaveBeenCalled();
   });

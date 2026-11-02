@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { processOneMediaCdnPurge, type EdgePurgeDeps, type EdgePurgeJob } from "./media-cdn-purge-worker";
-const path = "/posts/owner/post/attachments/m/full.webp";
+// Feed V2 purges only immutable final objects. Legacy /posts/... paths must
+// stay rejected by the production safety validator.
+const path = "/media/v2/media123/v1/image/l.webp";
 const makeJob = (): EdgePurgeJob => ({
   id: "feed:job123", scope: "feed", paths: [path], purgeOperations: [],
   attemptToken: "01234567-0123-4123-8123-0123456789ab", attempts: 1,
@@ -50,6 +52,13 @@ describe("separately leased Beget purge worker", () => {
     // Exactly-once batch checkpoint prevents API replay on the next attempt.
     expect(await processOneMediaCdnPurge(x.deps)).toBe("pending");
     expect(x.begin).toHaveBeenLastCalledWith("feed", [path], ["beget:accepted-batch"], expect.any(Function));
+  });
+  it("rejects legacy Feed paths without contacting the CDN", async () => {
+    const x = fixture({ ...makeJob(), paths: ["/posts/owner/post/attachments/m/full.webp"] });
+    expect(await processOneMediaCdnPurge(x.deps)).toBe("pending");
+    expect(x.begin).not.toHaveBeenCalled();
+    expect(x.complete).not.toHaveBeenCalled();
+    expect(x.retry).toHaveBeenCalledOnce();
   });
   it("rejects malformed/foreign keys without contacting Beget and retries", async () => {
     const x = fixture({ ...makeJob(), paths: ["/albums/foreign/album/photos/p/full.webp"] });

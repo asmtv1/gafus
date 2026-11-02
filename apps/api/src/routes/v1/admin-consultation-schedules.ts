@@ -1,7 +1,7 @@
 import type { AuthRole } from "@gafus/auth";
 import { Hono, type Context } from "hono";
 import { z } from "zod/v3";
-import { prisma } from "@gafus/prisma";
+import { readAdminActorRole } from "@gafus/core/services/adminUser";
 import {
   addDayOff,
   addSlotException,
@@ -35,13 +35,11 @@ const range = z.object({
 });
 
 async function authorizeTarget(actorId: string, trainerId: string) {
-  const current = await prisma.user.findUnique({
-    where: { id: actorId }, select: { role: true },
-  });
-  if (current?.role !== "ADMIN") return "FORBIDDEN" as const;
+  const role = await readAdminActorRole(actorId);
+  if (role !== "ADMIN") return "FORBIDDEN" as const;
   try {
     await resolveTargetTrainerUserIdForStaff(
-      { id: actorId, role: current.role as AuthRole }, trainerId,
+      { id: actorId, role: role as AuthRole }, trainerId,
     );
     return null;
   } catch {

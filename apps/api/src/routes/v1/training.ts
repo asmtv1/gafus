@@ -9,13 +9,13 @@ import type {
   TrainingDaysRead,
 } from "../../../../../packages/types/src/data/training";
 import { z } from "zod/v3";
-import { prisma } from "@gafus/prisma";
 import { zValidator } from "@hono/zod-validator";
 
 import {
   requireCourseStepOperationAccess,
   syncUserCourseStatusFromDays,
   validateTheoryStepForCompletion,
+  withOnlineStepBinding,
 } from "@gafus/core/services/training";
 import {
   requirePremiumOrRewardedAccessForVideoUrl,
@@ -49,8 +49,10 @@ import {
 import { getVideoAccessService, VIDEO_PLAYBACK_TOKEN_TTL_MINUTES } from "@gafus/video-access";
 import { rewriteHlsManifest } from "../../lib/hlsManifest";
 import {
-  localLegacyTrainingVideoEnabled, localLegacyTrainerVideoUrl,
-  readLocalLegacyTrainerPlaylist, readLocalLegacyTrainerVideo,
+  localLegacyTrainingVideoEnabled,
+  localLegacyTrainerVideoUrl,
+  readLocalLegacyTrainerPlaylist,
+  readLocalLegacyTrainerVideo,
 } from "../../lib/localLegacyTrainingVideo";
 import { readTrainingDayApplication } from "../../modules/training/composition/read-training-day.js";
 import { readTrainingDaysApplication } from "../../modules/training/composition/read-training-days.js";
@@ -69,22 +71,22 @@ const HLS_DIRECT_RESOURCE_TTL_SECONDS = VIDEO_PLAYBACK_TOKEN_TTL_MINUTES * 60;
 function trainingVideoApiUrl(c: Context): string {
   if (localLegacyTrainingVideoEnabled()) {
     const host = c.req.header("host")?.toLowerCase();
-    return host === "127.0.0.1:5173" || host === "localhost:5173"
-      ? "" : "http://127.0.0.1:3001";
+    return host === "127.0.0.1:5173" || host === "localhost:5173" ? "" : "http://127.0.0.1:3001";
   }
   return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
 }
 
 async function trainingVideoPlaylist(path: string): Promise<Buffer> {
   return localLegacyTrainingVideoEnabled()
-    ? readLocalLegacyTrainerPlaylist(path) : downloadFileFromCDN(path);
+    ? readLocalLegacyTrainerPlaylist(path)
+    : downloadFileFromCDN(path);
 }
 
 async function trainingVideoPoster(path: string, ttl: number): Promise<string> {
   return localLegacyTrainingVideoEnabled()
-    ? localLegacyTrainerVideoUrl(path) : getSignedDownloadUrl(path, ttl);
+    ? localLegacyTrainerVideoUrl(path)
+    : getSignedDownloadUrl(path, ttl);
 }
-
 
 type VideoPlaybackAccess = {
   video: Awaited<ReturnType<typeof getVideoManifestInfo>>;
@@ -364,88 +366,11 @@ trainingRoutes.get("/day", zValidator("query", dayQuerySchema), async (c) => {
       return c.json({ success: false, error: "День тренировки не найден", code: "NOT_FOUND" }, 404);
     }
 
-    // Opt-in only: never alter the released Native /day response. Cross-check
-    // physical occurrence IDs against the very DTO about to be rendered; a
-    // stale/monetized-redacted snapshot receives no active binding protocol.
+    // Web-only opt-in; the application/Core projection is read-only and fails
+    // closed to the unchanged Native DTO on stale state or concurrent writes.
     if (c.req.header("X-Gafus-Web-Step-Binding") === "1") {
-      const links = await prisma.stepOnDay.findMany({
-        where: { dayId: result.detail.trainingDayId },
-        select: { id: true, stepId: true, order: true },
-        orderBy: { order: "asc" },
-      });
-      const matches =
-        links.length === result.detail.steps.length &&
-        links.every(
-          (link, i) =>
-            link.stepId === result.detail.steps[i]?.id &&
-            link.order === result.detail.steps[i]?.order,
-        );
-      if (matches) {
-        // Web-only bounded timer snapshot. UserStep.updatedAt is explicitly
-        // refreshed by the bound Core mutation path for start/pause/resume.
-        // This is a read-only projection: no upsert/backfill, no userStep IDs
-        // or exam/private data in the client clock contract.
-        const existingTraining = await prisma.userTraining.findUnique({
-          where: { userId_dayOnCourseId: { userId: user.id, dayOnCourseId } },
-          select: { id: true },
-        });
-        const progress = existingTraining
-          ? await prisma.userStep.findMany({
-              where: { userTrainingId: existingTraining.id,
-                stepOnDayId: { in: links.map(link => link.id) } },
-              select: { stepOnDayId: true, status: true, paused: true,
-                remainingSec: true, updatedAt: true },
-            })
-          : [];
-        const byOccurrence = new Map(progress.map(row => [row.stepOnDayId, row]));
-        const serverNow = new Date();
-        const coherent = links.every((link, i) => {
-          const step = result.detail.steps[i];
-          const state = byOccurrence.get(link.id);
-          return !step || step.locked || !state ||
-            (state.status === step.status &&
-              state.paused === Boolean(step.isPausedOnServer) &&
-              (state.remainingSec ?? null) === (step.remainingSecOnServer ?? null));
-        });
-        if (!coherent) {
-          // A concurrent write may have changed the record between the
-          // source read and snapshot read. No bound write authorized.
-          return c.json({ success: true, data: result.detail });
-        }
-        return c.json({
-          success: true,
-          data: {
-            ...result.detail,
-            serverNow: serverNow.toISOString(),
-            onlineStepBinding: "STEP_ON_DAY_ID_V1" as const,
-            steps: result.detail.steps.map((step, i) => {
-              if (step.locked) return step;
-              const occurrenceId = links[i].id;
-              const state = byOccurrence.get(occurrenceId);
-              const running = step.status === "IN_PROGRESS" &&
-                !state?.paused && typeof state?.remainingSec === "number";
-              const expiresAt = running
-                ? new Date(state.updatedAt.getTime() +
-                    Math.max(0, state.remainingSec ?? 0) * 1000)
-                : null;
-              const remaining = step.status === "IN_PROGRESS" &&
-                typeof state?.remainingSec === "number"
-                ? expiresAt
-                  ? Math.max(0, Math.ceil((expiresAt.getTime() -
-                      serverNow.getTime()) / 1000))
-                  : Math.max(0, state.remainingSec)
-                : null;
-              return {
-                ...step, stepOnDayId: occurrenceId,
-                timerSnapshot: {
-                  remainingSecAtServerNow: remaining,
-                  expiresAt: expiresAt?.toISOString() ?? null,
-                },
-              };
-            }),
-          },
-        });
-      }
+      const bound = await withOnlineStepBinding(user.id, dayOnCourseId, result.detail);
+      return c.json({ success: true, data: bound });
     }
     return c.json({ success: true, data: result.detail }) satisfies Response &
       TypedResponse<TrainingDayRead>;
@@ -547,11 +472,14 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
     // StepNotification SQL intent have committed, but no Redis add was made.
     // Only the specifically leased synthetic actor and explicit local-mode
     // runner can exercise this. Never available on normal/prod Hono startup.
-    if (binding && result.stepJustStarted &&
-        process.env.NODE_ENV === "development" &&
-        process.env.GAFUS_LOCAL_ISOLATED_API === "1" &&
-        process.env.AG1_OUTBOX_FAULT_USER_ID === user.id &&
-        process.env.AG1_OUTBOX_FAULT_AFTER_SQL_COMMIT === "1") {
+    if (
+      binding &&
+      result.stepJustStarted &&
+      process.env.NODE_ENV === "development" &&
+      process.env.GAFUS_LOCAL_ISOLATED_API === "1" &&
+      process.env.AG1_OUTBOX_FAULT_USER_ID === user.id &&
+      process.env.AG1_OUTBOX_FAULT_AFTER_SQL_COMMIT === "1"
+    ) {
       return c.json({ success: false, code: "LOCAL_OUTBOX_FAULT_AFTER_SQL_COMMIT" }, 503);
     }
 
@@ -1063,35 +991,51 @@ trainingRoutes.get("/video/preview", zValidator("query", videoPreviewQuerySchema
     if (!user?.id) return c.json({ success: false, code: "UNAUTHORIZED" }, 401);
     const { videoUrl } = c.req.valid("query");
     let storageUrl: URL;
-    try { storageUrl = new URL(videoUrl); }
-    catch { return c.json({ success: false, code: "INVALID_VIDEO" }, 400); }
+    try {
+      storageUrl = new URL(videoUrl);
+    } catch {
+      return c.json({ success: false, code: "INVALID_VIDEO" }, 400);
+    }
     const host = storageUrl.hostname.toLowerCase();
     const storagePath = storageUrl.pathname;
-    const knownStorage = storageUrl.protocol === "https:" && !storageUrl.username &&
-      !storageUrl.password && !storageUrl.hash &&
+    const knownStorage =
+      storageUrl.protocol === "https:" &&
+      !storageUrl.username &&
+      !storageUrl.password &&
+      !storageUrl.hash &&
       ((host === "storage.yandexcloud.net" &&
         storagePath.startsWith("/gafus-media/uploads/trainers/")) ||
-       (host === "gafus-media.storage.yandexcloud.net" &&
-        storagePath.startsWith("/uploads/trainers/")));
+        (host === "gafus-media.storage.yandexcloud.net" &&
+          storagePath.startsWith("/uploads/trainers/")));
     if (!knownStorage) return c.json({ success: false, code: "INVALID_VIDEO" }, 400);
     const videoId = extractVideoIdFromCdnUrl(videoUrl);
-    if (!videoId || !/^[A-Za-z0-9_-]{1,128}$/.test(videoId) ||
-        !storagePath.includes(`/videocourses/${videoId}/`)) {
+    if (
+      !videoId ||
+      !/^[A-Za-z0-9_-]{1,128}$/.test(videoId) ||
+      !storagePath.includes(`/videocourses/${videoId}/`)
+    ) {
       return c.json({ success: false, code: "INVALID_VIDEO" }, 400);
     }
     // Subscription, Gafus-step unlock and rewarded access are reads here;
     // do not create rewarded grants, consume credits or mutate progress.
     await requirePremiumOrRewardedAccessForVideoUrl({
-      userId: user.id, platform: getRewardedPlatform(c), videoUrl,
+      userId: user.id,
+      platform: getRewardedPlatform(c),
+      videoUrl,
     });
     const { video, hasAccess } = await getCachedVideoPlaybackAccess(user.id, videoId);
     if (!hasAccess) return c.json({ success: false, code: "FORBIDDEN" }, 403);
-    if (!video || video.transcodingStatus !== "COMPLETED" ||
-        !video.thumbnailPath || !video.hlsManifestPath) {
+    if (
+      !video ||
+      video.transcodingStatus !== "COMPLETED" ||
+      !video.thumbnailPath ||
+      !video.hlsManifestPath
+    ) {
       return c.json({ success: false, code: "NOT_FOUND" }, 404);
     }
     const posterUrl = await trainingVideoPoster(
-      video.thumbnailPath, Math.min(HLS_DIRECT_RESOURCE_TTL_SECONDS, 300),
+      video.thumbnailPath,
+      Math.min(HLS_DIRECT_RESOURCE_TTL_SECONDS, 300),
     );
     return c.json({ success: true, data: { posterUrl } });
   } catch (error) {

@@ -517,25 +517,46 @@ export function QPhotoPicker({
         ))}
       </View>}
       {compact ? (
-        <View style={st.compactPhotoToolbar}>
+        <View style={[st.compactPhotoToolbar, !trailingAction && st.compactPhotoToolbarStandalone]}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Прикрепить фото"
-            accessibilityHint="До 5 фото, до 10 МБ каждое"
+            accessibilityLabel={photos.length >= QUESTION_LIMITS.photos ? "Лимит фото достигнут" : "Добавить фото"}
+            accessibilityHint={`${photos.length} из ${QUESTION_LIMITS.photos} фото. До 10 МБ каждое`}
             accessibilityState={{ disabled: busy || photos.length >= QUESTION_LIMITS.photos }}
             disabled={busy || photos.length >= QUESTION_LIMITS.photos}
             onPress={() => void pick()}
             style={({ pressed }) => [
               st.compactPhotoAction,
+              !trailingAction && st.compactPhotoActionStandalone,
               (pressed || busy || photos.length >= QUESTION_LIMITS.photos) && { opacity: 0.6 },
             ]}
           >
-            <MaterialCommunityIcons name="image-plus-outline" size={19} color={COLORS.primary} />
-            <Text style={st.compactPhotoText}>{busy ? (progress===null ? "Подготовка фото…" :
-              progress>=100 ? "Обработка фото…" : "Загрузка "+progress+"%") : "Фото"}</Text>
-            <Text style={st.compactPhotoHint}>
-              {photos.length}/{QUESTION_LIMITS.photos} · 10 МБ
-            </Text>
+            <View style={[st.compactPhotoIcon, !trailingAction && st.compactPhotoIconLarge]}>
+              <MaterialCommunityIcons
+                name="image-plus-outline"
+                size={trailingAction ? 19 : 24}
+                color={COLORS.primary}
+              />
+            </View>
+            <View style={st.compactPhotoCopy}>
+              <Text numberOfLines={trailingAction ? 1 : 2} style={st.compactPhotoText}>
+                {busy
+                  ? progress === null ? "Подготовка фото…" : progress >= 100 ? "Обработка фото…" : `Загрузка ${progress}%`
+                  : photos.length >= QUESTION_LIMITS.photos
+                    ? "Добавлено максимум фото"
+                    : photos.length > 0 ? "Добавить ещё фото" : "Добавить фото"}
+              </Text>
+              {!trailingAction && (
+                <Text style={st.compactPhotoHint}>
+                  {photos.length} из {QUESTION_LIMITS.photos} фото · до 10 МБ каждое
+                </Text>
+              )}
+            </View>
+            {trailingAction ? (
+              <Text style={st.compactPhotoHint}>{photos.length}/{QUESTION_LIMITS.photos}</Text>
+            ) : (
+              <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.primary} />
+            )}
           </Pressable>
           {trailingAction}
         </View>
@@ -627,16 +648,47 @@ export const st = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  compactPhotoToolbarStandalone: { minHeight: 72, alignItems: "stretch" },
   compactPhotoAction: {
     minHeight: 44,
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 8,
-    borderRadius: 10,
+    gap: 7,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#b8bea7",
+    backgroundColor: "#f4f6ea",
   },
-  compactPhotoText: { fontFamily: FONTS.montserratMedium, fontSize: 13, color: COLORS.primary },
-  compactPhotoHint: { fontFamily: FONTS.montserrat, fontSize: 11, color: COLORS.textSecondary },
+  compactPhotoActionStandalone: {
+    flex: 1,
+    minHeight: 72,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderColor: "#a3af87",
+    borderStyle: "dashed",
+  },
+  compactPhotoIcon: { width: 26, height: 26, alignItems: "center", justifyContent: "center" },
+  compactPhotoIconLarge: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#e3ead7",
+  },
+  compactPhotoCopy: { flexShrink: 1, flexGrow: 1, minWidth: 0, gap: 2 },
+  compactPhotoText: {
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.primary,
+  },
+  compactPhotoHint: {
+    fontFamily: FONTS.montserrat,
+    fontSize: 11,
+    lineHeight: 17,
+    color: COLORS.textSecondary,
+  },
   compactPhoto: { width: 64, height: 64, borderRadius: 8 },
   compactRemovePhoto: { width: 26, height: 26, borderRadius: 13 },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },

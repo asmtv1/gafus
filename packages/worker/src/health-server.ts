@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { createWorkerLogger } from "@gafus/logger";
 import { renderAppSubscriptionMetricsPrometheus } from "./app-subscription-metrics";
 import { renderMailDeliveryMetricsPrometheus } from "./mail-delivery-monitor";
+import { renderMediaProcessingMetricsPrometheus } from "./media-processing-metrics";
 import { chat2PollIsFresh, hasChat2ReadinessKey } from "./chat2-readiness";
 
 const HEALTH_BODY = '{"ok":true}';
@@ -40,6 +41,25 @@ export function startHealthServer(): Server {
       } else {
         res.end();
       }
+      return;
+    }
+
+    // Independent media metrics, so slow subscription reporting cannot mask
+    // orphaned processing leases. Results never include account/media keys.
+    if ((method === "GET" || method === "HEAD") && path === "/metrics/media") {
+      renderMediaProcessingMetricsPrometheus()
+        .then((metrics) => {
+          res.writeHead(200, {
+            "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
+            "Cache-Control": "no-store",
+          });
+          res.end(method === "GET" ? metrics : undefined);
+        })
+        .catch(() => {
+          log.error("Media metrics render failed", Error("MEDIA_METRICS_UNAVAILABLE"));
+          res.writeHead(503, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+          res.end("# media_metrics_error 1\n");
+        });
       return;
     }
 

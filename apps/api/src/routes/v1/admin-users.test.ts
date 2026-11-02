@@ -2,10 +2,20 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mock = vi.hoisted(() => ({
-  verify: vi.fn(), reg: vi.fn(), users: vi.fn(), promos: vi.fn(),
-  dbRole: vi.fn(), update: vi.fn(), remove: vi.fn(), partnerPolicy: vi.fn(),
-  grantSummary: vi.fn(), paidUntil: vi.fn(), lifetime: vi.fn(),
-  clear: vi.fn(), cancelRenewal: vi.fn(),
+  verify: vi.fn(),
+  reg: vi.fn(),
+  users: vi.fn(),
+  promos: vi.fn(),
+  access: vi.fn(),
+  dbRole: vi.fn(),
+  update: vi.fn(),
+  remove: vi.fn(),
+  partnerPolicy: vi.fn(),
+  grantSummary: vi.fn(),
+  paidUntil: vi.fn(),
+  lifetime: vi.fn(),
+  clear: vi.fn(),
+  cancelRenewal: vi.fn(),
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: mock.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: mock.reg }));
@@ -14,10 +24,9 @@ vi.mock("@gafus/core/services/adminUser", () => ({
   updateUserAdmin: mock.update,
   deleteUserAdmin: mock.remove,
   partnerChangeRequiresAdmin: mock.partnerPolicy,
+  checkAdminUserMutationAccess: mock.access,
+  readAdminActorRole: mock.dbRole,
 }));
-vi.mock("@gafus/prisma", () => ({ prisma: {
-  user: { findUnique: mock.dbRole },
-} }));
 vi.mock("@gafus/core/services/appSubscription", () => ({
   getFreePartnerPromoCodesForAdminPanel: mock.promos,
   getUserAppSubscriptionAdminSummary: mock.grantSummary,
@@ -33,7 +42,8 @@ import { adminUsersRoutes } from "./admin-users";
 function app() {
   const h = new Hono();
   h.use("/api/v1/admin/users", async (c, next) => {
-    c.header("Cache-Control", "private, no-store"); await next();
+    c.header("Cache-Control", "private, no-store");
+    await next();
   });
   h.use("/api/v1/admin/users", authMiddleware);
   h.use("/api/v1/admin/users/*", authMiddleware);
@@ -41,9 +51,10 @@ function app() {
   return h;
 }
 const url = "http://local.test/api/v1/admin/users";
-const req = (authenticated = true) => app().request(url, {
-  headers: authenticated ? { authorization: "Bearer token" } : {},
-});
+const req = (authenticated = true) =>
+  app().request(url, {
+    headers: authenticated ? { authorization: "Bearer token" } : {},
+  });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -51,8 +62,8 @@ beforeEach(() => {
   mock.reg.mockResolvedValue(true);
   mock.promos.mockResolvedValue([{ id: "p1", code: "PROMO" }]);
   mock.users.mockResolvedValue({ success: true, data: [{ id: "u1", username: "dog" }] });
-  mock.dbRole.mockImplementation(({ where }: { where: { id: string } }) =>
-    Promise.resolve({ role: where.id === "staff-1" ? "ADMIN" : "USER" }));
+  mock.dbRole.mockResolvedValue("ADMIN");
+  mock.access.mockResolvedValue(null);
   mock.update.mockResolvedValue({ success: true });
   mock.remove.mockResolvedValue({ success: true });
   mock.partnerPolicy.mockResolvedValue(false);
@@ -72,14 +83,14 @@ describe("admin users read parity", () => {
     expect(mock.promos).not.toHaveBeenCalled();
   });
 
-  it.each(["USER", "TRAINER", "PARTNER"])("403 %s never accesses user data", async role => {
+  it.each(["USER", "TRAINER", "PARTNER"])("403 %s never accesses user data", async (role) => {
     mock.verify.mockResolvedValue({ id: "other", role, username: "other" });
     const result = await req();
     expect(result.status).toBe(403);
     expect(mock.users).not.toHaveBeenCalled();
   });
 
-  it.each(["ADMIN", "MODERATOR"])("serves %s with Core-backed data", async role => {
+  it.each(["ADMIN", "MODERATOR"])("serves %s with Core-backed data", async (role) => {
     mock.verify.mockResolvedValue({ id: "staff-1", role, username: "staff" });
     const result = await req();
     expect(result.status).toBe(200);
@@ -87,8 +98,10 @@ describe("admin users read parity", () => {
     expect(mock.users).toHaveBeenCalledOnce();
     expect(await result.json()).toEqual({
       success: true,
-      data: { users: [{ id: "u1", username: "dog" }],
-        freePartnerPromoCodes: [{ id: "p1", code: "PROMO" }] },
+      data: {
+        users: [{ id: "u1", username: "dog" }],
+        freePartnerPromoCodes: [{ id: "p1", code: "PROMO" }],
+      },
     });
   });
 
@@ -108,25 +121,31 @@ describe("admin users read parity", () => {
   });
 });
 
-
 describe("admin users write contracts", () => {
-  const api = (path: string, method: string, body?: object) => app().request(url + path, {
-    method,
-    headers: { authorization: "Bearer token", ...(body ? { "content-type": "application/json" } : {}) },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+  const api = (path: string, method: string, body?: object) =>
+    app().request(url + path, {
+      method,
+      headers: {
+        authorization: "Bearer token",
+        ...(body ? { "content-type": "application/json" } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
 
   it("PATCH validates payload before any database access", async () => {
     const result = await api("/u1", "PATCH", { role: "ROOT", actorId: "forged" });
     expect(result.status).toBe(400);
-    expect(mock.dbRole).not.toHaveBeenCalled();
+    expect(mock.access).not.toHaveBeenCalled();
   });
 
   it("PATCH admin passes actor from JWT to Core", async () => {
     const result = await api("/u1", "PATCH", { username: "new-name" });
     expect(result.status).toBe(200);
     expect(mock.update).toHaveBeenCalledWith("u1", { username: "new-name" }, "staff-1");
-    expect(mock.partnerPolicy).toHaveBeenCalledWith("staff-1", "u1", { username: "new-name" });
+    // Preflight already covers partner/role changes, and writes recheck inside
+    // Core's row-locked transaction. Do not perform a duplicate DB lookup.
+    expect(mock.access).toHaveBeenCalledWith("staff-1", "u1", false);
+    expect(mock.partnerPolicy).not.toHaveBeenCalled();
   });
 
   it("PATCH supports legacy email update through the same Core operation", async () => {
@@ -142,7 +161,7 @@ describe("admin users write contracts", () => {
   });
 
   it("403 when the current DB role no longer authorizes a mutation", async () => {
-    mock.dbRole.mockResolvedValue({ role: "USER" });
+    mock.access.mockResolvedValue("FORBIDDEN");
     const result = await api("/u1", "PATCH", { username: "new-name" });
     expect(result.status).toBe(403);
     expect(mock.update).not.toHaveBeenCalled();
@@ -150,8 +169,7 @@ describe("admin users write contracts", () => {
 
   it("403 when moderator tries to change a role", async () => {
     mock.verify.mockResolvedValue({ id: "staff-1", role: "MODERATOR", username: "mod" });
-    mock.dbRole.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "staff-1" ? "MODERATOR" : "USER" }));
+    mock.access.mockResolvedValue("FORBIDDEN");
     const result = await api("/u1", "PATCH", { role: "ADMIN" });
     expect(result.status).toBe(403);
     expect(mock.update).not.toHaveBeenCalled();
@@ -159,8 +177,7 @@ describe("admin users write contracts", () => {
 
   it("403 when moderator tries to delete an admin or trainer", async () => {
     mock.verify.mockResolvedValue({ id: "staff-1", role: "MODERATOR", username: "mod" });
-    mock.dbRole.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "staff-1" ? "MODERATOR" : "TRAINER" }));
+    mock.access.mockResolvedValue("FORBIDDEN");
     const result = await api("/u1", "DELETE");
     expect(result.status).toBe(403);
     expect(mock.remove).not.toHaveBeenCalled();
@@ -187,16 +204,16 @@ describe("admin users write contracts", () => {
   });
 });
 
-
 describe("admin user subscription parity", () => {
-  const req = (method: string, body?: object, auth = true) => app().request(
-    `${url}/u1/app-subscription`, {
-      method, headers: {
+  const req = (method: string, body?: object, auth = true) =>
+    app().request(`${url}/u1/app-subscription`, {
+      method,
+      headers: {
         ...(auth ? { authorization: "Bearer token" } : {}),
         ...(body ? { "content-type": "application/json" } : {}),
-      }, ...(body ? { body: JSON.stringify(body) } : {}),
-    },
-  );
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
 
   it("requires auth for read and all grant operations", async () => {
     expect((await req("GET", undefined, false)).status).toBe(401);
@@ -207,7 +224,7 @@ describe("admin user subscription parity", () => {
 
   it("MODERATOR can read only, never grant", async () => {
     mock.verify.mockResolvedValue({ id: "staff-1", role: "MODERATOR", username: "mod" });
-    mock.dbRole.mockResolvedValue({ role: "MODERATOR" });
+    mock.dbRole.mockResolvedValue("MODERATOR");
     expect((await req("GET")).status).toBe(200);
     expect(mock.grantSummary).toHaveBeenCalledWith("u1");
     expect((await req("POST", { action: "lifetime" })).status).toBe(403);
@@ -215,7 +232,7 @@ describe("admin user subscription parity", () => {
   });
 
   it("demoted JWT ADMIN cannot read or grant", async () => {
-    mock.dbRole.mockResolvedValue({ role: "USER" });
+    mock.dbRole.mockResolvedValue("USER");
     expect((await req("GET")).status).toBe(403);
     expect((await req("POST", { action: "lifetime" })).status).toBe(403);
     expect(mock.grantSummary).not.toHaveBeenCalled();
@@ -223,10 +240,17 @@ describe("admin user subscription parity", () => {
   });
 
   it("paid_until validates timestamp and JWT actor", async () => {
-    const res = await req("POST", { action: "paid_until", paidUntil: "2032-01-01T00:00:00.000Z", reason: "gift" });
+    const res = await req("POST", {
+      action: "paid_until",
+      paidUntil: "2032-01-01T00:00:00.000Z",
+      reason: "gift",
+    });
     expect(res.status).toBe(200);
     expect(mock.paidUntil).toHaveBeenCalledWith({
-      userId: "u1", adminUserId: "staff-1", paidUntil: new Date("2032-01-01T00:00:00.000Z"), reason: "gift",
+      userId: "u1",
+      adminUserId: "staff-1",
+      paidUntil: new Date("2032-01-01T00:00:00.000Z"),
+      reason: "gift",
     });
   });
 
@@ -238,7 +262,11 @@ describe("admin user subscription parity", () => {
 
   it("lifetime and clear action use Core with JWT actor", async () => {
     expect((await req("POST", { action: "lifetime", reason: "partner" })).status).toBe(200);
-    expect(mock.lifetime).toHaveBeenCalledWith({ userId: "u1", adminUserId: "staff-1", reason: "partner" });
+    expect(mock.lifetime).toHaveBeenCalledWith({
+      userId: "u1",
+      adminUserId: "staff-1",
+      reason: "partner",
+    });
     expect((await req("POST", { action: "clear" })).status).toBe(200);
     expect(mock.clear).toHaveBeenCalledWith({ userId: "u1", adminUserId: "staff-1" });
   });

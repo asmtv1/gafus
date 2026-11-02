@@ -1,6 +1,6 @@
 /** AG1 v5: server-owned trainer videos safe metadata only. */
 import {Hono} from "hono";
-import {prisma} from "@gafus/prisma";
+import { readTrainerVideoMetadataRows } from "@gafus/core/services/trainerVideo";
 import type {TrainerVideoMetadataItem,TrainerVideoMetadataRead} from
   "../../../../../packages/types/src/data/trainer-read-contracts";
 export const trainerVideosMetadataRoutes=new Hono();
@@ -11,12 +11,7 @@ trainerVideosMetadataRoutes.get("/metadata",async c=>{
  if(new URL(c.req.url).search!==""||c.req.raw.body!==null)
   return c.json({success:false,code:"BAD_QUERY",error:"Некорректный запрос"},400);
  try{
-  const rows=await prisma.trainerVideo.findMany({
-   where:actor.role==="ADMIN"?undefined:{trainerId:actor.id},
-   orderBy:{createdAt:"desc"},
-   select:{id:true,displayName:true,transcodingStatus:true,
-    durationSec:true,createdAt:true},
-  });
+  const rows=await readTrainerVideoMetadataRows({ id: actor.id, role: actor.role as "TRAINER" | "ADMIN" });
   const videos:TrainerVideoMetadataItem[]=rows.map(row=>{
    if(!row.id||
     (row.displayName!==null&&typeof row.displayName!=="string")||

@@ -5,7 +5,7 @@ const fake = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: fake.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: fake.reg }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: fake.role } } }));
+vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: fake.role }));
 vi.mock("@gafus/core/services/systemHealth", () => ({
   getAdminMailDashboard: fake.dashboard,
   getAdminMailAlertCount: fake.alerts,
@@ -30,7 +30,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   fake.verify.mockResolvedValue({ id: "staff", role: "ADMIN", username: "admin" });
   fake.reg.mockResolvedValue(true);
-  fake.role.mockResolvedValue({ role: "ADMIN" });
+  fake.role.mockResolvedValue("ADMIN");
   fake.dashboard.mockResolvedValue({
     summary: { pending: 2, failed: 1 }, outbox: [{ id: "masked123" }],
     attempts: [], events: [],
@@ -51,7 +51,7 @@ describe("admin mail monitoring", () => {
     expect(fake.dashboard).not.toHaveBeenCalled();
   });
   it("rejects revoked actor despite ADMIN JWT", async () => {
-    fake.role.mockResolvedValue({ role: "USER" });
+    fake.role.mockResolvedValue("USER");
     const result = await req();
     expect(result.status).toBe(403);
     expect(fake.dashboard).not.toHaveBeenCalled();

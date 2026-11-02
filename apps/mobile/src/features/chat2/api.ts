@@ -1,3 +1,6 @@
+import type { Chat2MediaRenditions } from "@gafus/chat-media-quality";
+import { API_BASE_URL } from "@/shared/config";
+import { isPairedProductionChat2Origin } from "@/shared/lib/api/chat2ProductionOrigin";
 import { apiClient } from "@/shared/lib/api/client";
 import * as SecureStore from "expo-secure-store";
 import { getMobileClientHeaders } from "@/shared/lib/api/client-context";
@@ -81,9 +84,9 @@ export function nameFor(c: Pick<Conversation, "kind" | "name" | "members">, user
   );
 }
 function guardChat2Destination(): string {
-  // Never inherit ordinary mobile API. Chat2 has its own explicit Refactor endpoint.
+  // Chat2 needs an explicit endpoint; production is allowed only alongside the production mobile API.
   const origin = process.env.EXPO_PUBLIC_CHAT2_API_ORIGIN;
-  if (!origin) throw new Error("Chat 2.0: настройте отдельный API Refactor");
+  if (!origin) throw new Error("Chat 2.0: настройте адрес API чата");
   let url: URL;
   try {
     url = new URL(origin);
@@ -96,9 +99,10 @@ function guardChat2Destination(): string {
     url.search ||
     url.hash ||
     url.pathname !== "/" ||
-    ["api.gafus.ru", "gafus.ru"].includes(url.hostname)
+    (["api.gafus.ru", "gafus.ru"].includes(url.hostname) &&
+      !isPairedProductionChat2Origin(url.origin, API_BASE_URL))
   )
-    throw new Error("Production API запрещён для Chat 2.0");
+    throw new Error("Chat 2.0: production разрешён только вместе с production API");
   if (
     url.protocol !== "https:" &&
     !(
@@ -181,21 +185,13 @@ async function uploadChat2V2(
     if(!uploaded.ok)throw Error("Не удалось отправить файл в Cloud.ru S3");
   }finally{clearTimeout(timer);}
   if(!guard())throw Error("Сессия изменилась");
-  await request(`${base}/${reservation.mediaId}/confirm`,"POST",{});
-  for(let attempt=0;attempt<240;attempt++){
-    if(!guard())throw Error("Сессия изменилась");
-    const state=await request<{status:string}>(`${base}/${reservation.mediaId}`);
-    if(state.status==="READY"){
-      const attached=await request<Attachment>(`${base}/${reservation.mediaId}/attach`,"POST",{});
-      if(!guard())throw Error("Сессия изменилась");
-      return attached;
-    }
-    if(["FAILED","EXPIRED"].includes(state.status))throw Error("Не удалось обработать вложение");
-    if(!["QUEUED","PROCESSING","AWAITING_UPLOAD"].includes(state.status))
-      throw Error("Некорректное состояние загрузки");
-    await new Promise<void>(resolve=>setTimeout(resolve,1500));
-  }
-  throw Error("Время обработки вложения истекло");
+  await request(`${base}/${reservation.mediaId}/confirm`, "POST", {});
+  // The server moves UPLOADED -> QUEUED only after the message is sent.
+  // Attaching must happen immediately after confirmation: waiting for READY
+  // here deadlocks the entire photo/video pipeline.
+  const attached = await request<Attachment>(`${base}/${reservation.mediaId}/attach`, "POST", {});
+  if (!guard()) throw Error("Сессия изменилась");
+  return attached;
 }
 
 export const chat2 = {
@@ -301,9 +297,11 @@ export const chat2 = {
   },
   media: (id: string, fileId: string) =>
     request<{ url: string; mime: string; name: string; expiresIn: number;
-      renditions?: import("@gafus/chat-media-quality").Chat2MediaRenditions;
+      renditions?: Chat2MediaRenditions;
       fallbackUrl?: string;
-      fallbackRenditions?: import("@gafus/chat-media-quality").Chat2MediaRenditions }>(
+      fallbackRenditions?: Chat2MediaRenditions;
+      status?: "UPLOADED" | "QUEUED" | "PROCESSING" | "FAILED" | "EXPIRED" | "READY";
+    }>(
       `/${safe(id)}/attachments/${safe(fileId)}`,
     ),
   discard: (id: string, fileId: string) =>
@@ -349,11 +347,15 @@ export const chat2 = {
     // deliberately accepts only isolated local development credentials.
     // The V2 server gate stays authoritative; do not downgrade on failure.
     const releaseBuild = typeof __DEV__ !== "undefined" && !__DEV__;
-    if(releaseBuild && asset.mime==="application/pdf")
+    const productionChat2 = isPairedProductionChat2Origin(
+      process.env.EXPO_PUBLIC_CHAT2_API_ORIGIN ?? "", API_BASE_URL,
+    );
+    // Never send production attachments through the legacy local-only adapter.
+    if ((releaseBuild || productionChat2) && asset.mime === "application/pdf")
       throw new Error("PDF в чате пока недоступен. Отправьте фото или видео.");
-    if((releaseBuild || process.env.EXPO_PUBLIC_CHAT2_MEDIA_V2==="true") &&
-       asset.mime!=="application/pdf")
-      return uploadChat2V2(id,asset);
+    if ((releaseBuild || productionChat2 || process.env.EXPO_PUBLIC_CHAT2_MEDIA_V2 === "true") &&
+        asset.mime !== "application/pdf")
+      return uploadChat2V2(id, asset);
     const guard = guardActor();
     const token = await SecureStore.getItemAsync("auth_token");
     if (!token || !guard()) throw new Error("Сессия изменилась");

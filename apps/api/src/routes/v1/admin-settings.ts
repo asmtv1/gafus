@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { prisma } from "@gafus/prisma";
+import { readAdminActorRole } from "@gafus/core/services/adminUser";
 import {
   getDefaultAppSubscriptionSettings,
   updateDefaultAppSubscriptionSettings,
@@ -28,8 +28,7 @@ const pricingSchema = z.object({
 }).strict();
 
 async function dbRole(actorId: string) {
-  const user = await prisma.user.findUnique({ where: { id: actorId }, select: { role: true } });
-  return user?.role;
+  return readAdminActorRole(actorId);
 }
 
 adminSettingsRoutes.get("/subscriptions", requireRole("ADMIN", "MODERATOR"), async c => {

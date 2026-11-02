@@ -1,3 +1,4 @@
+import { isPairedProductionChat2Origin } from "./chat2ProductionOrigin";
 import * as SecureStore from "expo-secure-store";
 
 import { API_BASE_URL, NETWORK_TIMEOUTS } from "@/shared/config";
@@ -379,10 +380,11 @@ function chat2OnlyBaseUrl(endpoint: string, origin?: string): string {
     url.origin !== origin ||
     url.username || url.password || url.search || url.hash ||
     url.pathname !== "/" ||
-    ["api.gafus.ru", "gafus.ru"].includes(url.hostname) ||
+    (["api.gafus.ru", "gafus.ru"].includes(url.hostname) &&
+      !isPairedProductionChat2Origin(url.origin, API_BASE_URL)) ||
     (url.protocol !== "https:" && !localDev)
   )
-    throw new Error("Адрес Chat 2.0 должен принадлежать изолированному Refactor");
+    throw new Error("Chat 2.0: изолированный адрес или согласованный production API обязателен");
   return url.origin;
 }
 

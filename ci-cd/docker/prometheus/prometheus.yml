@@ -5,6 +5,10 @@ global:
     cluster: "gafus"
     environment: "production"
 
+# Prometheus-compatible alert definitions (not evaluated by Alloy alone).
+rule_files:
+  - /etc/prometheus/gafus-alerts.yml
+
 scrape_configs:
   - job_name: "node-exporter"
     static_configs:
@@ -34,9 +38,11 @@ scrape_configs:
       module: [http_2xx]
     static_configs:
       - targets:
-          - http://web:3000/api/health # Web App
-          - http://trainer-panel:3001/api/health # Trainer Panel
-          - http://admin-panel:3006/api/health # Admin Panel
+          - http://web:3000/healthz # Web App
+          - http://trainer-panel:3001/healthz # Trainer Panel
+          - http://admin-panel:3006/healthz # Admin Panel
+          - http://api:3001/health # Hono liveness (readiness is /ready)
+          - http://worker:3003/health # Worker liveness
           - http://bull-board:3002/health # Bull Board
     relabel_configs:
       - source_labels: [__address__]
@@ -59,6 +65,14 @@ scrape_configs:
         target_label: service
         replacement: "admin-panel"
       - source_labels: [instance]
+        regex: "http://api:3001.*"
+        target_label: service
+        replacement: "api"
+      - source_labels: [instance]
+        regex: "http://worker:3003.*"
+        target_label: service
+        replacement: "worker"
+      - source_labels: [instance]
         regex: "http://bull-board:3002.*"
         target_label: service
         replacement: "bull-board"
@@ -71,3 +85,17 @@ scrape_configs:
         labels:
           instance: "production-bull-board"
           job: "bullmq-queues"
+
+  - job_name: "worker-media"
+    metrics_path: /metrics/media
+    static_configs:
+      - targets: ["worker:3003"]
+        labels:
+          instance: "gafus-worker-media"
+
+  - job_name: "worker-mail"
+    metrics_path: /metrics/mail
+    static_configs:
+      - targets: ["worker:3003"]
+        labels:
+          instance: "gafus-worker-mail"

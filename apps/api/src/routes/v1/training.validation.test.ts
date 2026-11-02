@@ -613,6 +613,40 @@ describe("training route validation", () => {
   });
 
 
+  it("preserves a single HTTP byte Range and Content-Range on an authorized 206", async () => {
+    streamFileFromCDNMock.mockResolvedValueOnce({
+      stream: new ReadableStream({
+        start(controller) { controller.enqueue(new TextEncoder().encode("ment")); controller.close(); },
+      }),
+      contentLength: 4, contentType: "video/mp2t",
+      contentRange: "bytes 3-6/7", isPartialContent: true,
+    });
+    const response = await createTestApp().request(
+      "/api/v1/training/video/video-1/segment?path=segment-001.ts&token=signed-token",
+      { headers: { Range: "bytes=3-6" } },
+    );
+    expect(response.status).toBe(206);
+    expect(response.headers.get("accept-ranges")).toBe("bytes");
+    expect(response.headers.get("content-range")).toBe("bytes 3-6/7");
+    expect(response.headers.get("content-length")).toBe("4");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    await expect(response.text()).resolves.toBe("ment");
+    expect(streamFileFromCDNMock).toHaveBeenCalledWith(
+      "trainers/trainer-1/videocourses/video-1/hls/segment-001.ts", "bytes=3-6",
+    );
+  });
+
+  it("does not forward multi-range headers to Object Storage", async () => {
+    const response = await createTestApp().request(
+      "/api/v1/training/video/video-1/segment?path=segment-001.ts&token=signed-token",
+      { headers: { Range: "bytes=0-2,5-6" } },
+    );
+    expect(response.status).toBe(200);
+    expect(streamFileFromCDNMock).toHaveBeenCalledWith(
+      "trainers/trainer-1/videocourses/video-1/hls/segment-001.ts", undefined,
+    );
+  });
+
   it("does not leak provider exception details in HLS manifest 500 JSON", async () => {
     const secret = "PRIVATE_ORIGIN_PATH_AND_SIGNED_CREDENTIAL_123";
     downloadFileFromCDNMock.mockRejectedValueOnce(new Error(secret));

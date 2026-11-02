@@ -21,7 +21,10 @@ describe("Moments direct WebP/MP4 cutover", () => {
     const root = createRoot(host);
     await act(async () => root.render(html));
     try {
-      expect(host.querySelector("video")?.getAttribute("poster")).toBe(poster);
+      // The new shared Feed CDN image component owns the poster; native video
+      // `poster=` cannot recover on CDN failure. Do not mutate the in-flight UI.
+      expect(host.querySelector("video")?.hasAttribute("poster")).toBe(false);
+      expect(host.querySelector(".feed-v2-video-poster img")?.getAttribute("src")).toBe(poster);
       expect(host.querySelector("video")?.hasAttribute("src")).toBe(false);
       expect(fetcher).not.toHaveBeenCalled();
       await act(async () => { host.querySelector('button[aria-label="Воспроизвести видео"]')?.dispatchEvent(

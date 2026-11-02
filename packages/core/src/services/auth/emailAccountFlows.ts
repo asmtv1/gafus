@@ -163,8 +163,21 @@ export async function requestEmailChange(
     }
     const conflict = await tx.user.findUnique({ where: { email: newEmail }, select: { id: true } });
     if (conflict && conflict.id !== userId) throw new Error("Этот email уже занят");
+    // A rapid sequential request can have the same millisecond timestamp as
+    // the prior row. Random-token lexical ordering cannot define issuance
+    // order: it can leave a previously delivered link active. The owner row
+    // lock serializes this read and makes each staged timestamp monotonic.
+    const latest = await tx.emailChangeToken.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    });
+    const createdAt = new Date(Math.max(
+      Date.now(),
+      (latest?.createdAt.getTime() ?? 0) + 1,
+    ));
     const staged = await tx.emailChangeToken.create({
-      data: { userId, newEmail, token, expiresAt },
+      data: { userId, newEmail, token, expiresAt, createdAt },
     });
     return staged.createdAt;
   });

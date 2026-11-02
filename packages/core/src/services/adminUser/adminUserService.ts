@@ -20,6 +20,35 @@ const logger = createWebLogger("admin-user-service");
 
 const BCRYPT_SALT_ROUNDS = 10;
 
+/** Read-time ACL projection for admin HTTP handlers; writes are rechecked under row locks. */
+export async function checkAdminUserMutationAccess(
+  actorId: string,
+  targetId: string,
+  changesRole: boolean,
+): Promise<"FORBIDDEN" | "USER_NOT_FOUND" | null> {
+  const [actor, target] = await Promise.all([
+    prisma.user.findUnique({ where: { id: actorId }, select: { role: true } }),
+    prisma.user.findUnique({ where: { id: targetId }, select: { role: true } }),
+  ]);
+  if (!actor || (actor.role !== "ADMIN" && actor.role !== "MODERATOR")) return "FORBIDDEN";
+  if (!target) return "USER_NOT_FOUND";
+  if (
+    actor.role === "MODERATOR" &&
+    (changesRole || ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(target.role))
+  )
+    return "FORBIDDEN";
+  return null;
+}
+
+/** Always read the current DB role, never trust the role embedded in an old JWT. */
+export async function readAdminActorRole(actorId: string): Promise<UserRole | null> {
+  const actor = await prisma.user.findUnique({
+    where: { id: actorId },
+    select: { role: true },
+  });
+  return actor?.role ?? null;
+}
+
 /** Central partner-permission policy; apps supply identity, core reads DB roles. */
 export async function partnerChangeRequiresAdmin(
   actorId: string,
@@ -32,10 +61,10 @@ export async function partnerChangeRequiresAdmin(
     prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
   ]);
   const changesPartnerRole =
-    input.role !== undefined && input.role !== target?.role &&
+    input.role !== undefined &&
+    input.role !== target?.role &&
     (input.role === "PARTNER" || target?.role === "PARTNER");
-  return (input.partnerPromoCodeId !== undefined || changesPartnerRole) &&
-    actor?.role !== "ADMIN";
+  return (input.partnerPromoCodeId !== undefined || changesPartnerRole) && actor?.role !== "ADMIN";
 }
 
 export async function getAllUsers(): Promise<AdminUserActionResult> {
@@ -52,7 +81,12 @@ export async function getAllUsers(): Promise<AdminUserActionResult> {
         profile: { select: { fullName: true, avatarUrl: true } },
         _count: { select: { pushSubscriptions: true } },
         savedRegistrationPromoCode: { select: { code: true } },
-        partnerProfile: { select: { promoCodeId: true, promoCode: { select: { id: true, code: true, discountPercent: true } } } },
+        partnerProfile: {
+          select: {
+            promoCodeId: true,
+            promoCode: { select: { id: true, code: true, discountPercent: true } },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -70,7 +104,10 @@ export async function updateUserAdmin(
 ): Promise<AdminUserUpdateResult> {
   try {
     if (input.role === "PARTNER" && !input.partnerPromoCodeId) {
-      return { success: false, error: "Для назначения партнёра выберите свободный активный промокод" };
+      return {
+        success: false,
+        error: "Для назначения партнёра выберите свободный активный промокод",
+      };
     }
     const updateData: {
       username?: string;
@@ -101,16 +138,22 @@ export async function updateUserAdmin(
         if (!actor || (actor.role !== "ADMIN" && actor.role !== "MODERATOR")) {
           throw new ServiceError("Недостаточно прав", "FORBIDDEN");
         }
-        const partnerChange = input.partnerPromoCodeId !== undefined ||
-          (input.role !== target?.role &&
-            (input.role === "PARTNER" || target?.role === "PARTNER"));
+        const partnerChange =
+          input.partnerPromoCodeId !== undefined ||
+          (input.role !== target?.role && (input.role === "PARTNER" || target?.role === "PARTNER"));
         if (partnerChange && actor.role !== "ADMIN") {
-          throw new ServiceError("Только администратор может управлять ролью и промокодом партнёра", "FORBIDDEN");
+          throw new ServiceError(
+            "Только администратор может управлять ролью и промокодом партнёра",
+            "FORBIDDEN",
+          );
         }
-        if (actor.role === "MODERATOR" && (
-          input.role !== undefined || input.partnerPromoCodeId !== undefined ||
-          (target !== null && ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(target.role))
-        )) throw new ServiceError("Недостаточно прав", "FORBIDDEN");
+        if (
+          actor.role === "MODERATOR" &&
+          (input.role !== undefined ||
+            input.partnerPromoCodeId !== undefined ||
+            (target !== null && ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(target.role)))
+        )
+          throw new ServiceError("Недостаточно прав", "FORBIDDEN");
       } else if (input.role !== undefined || input.partnerPromoCodeId !== undefined) {
         throw new ServiceError("Необходима повторная авторизация", "FORBIDDEN");
       }
@@ -129,7 +172,10 @@ export async function updateUserAdmin(
         });
       }
       if (input.partnerPromoCodeId !== undefined) {
-        await bindPartnerPromoCodeInTransaction(tx, { userId, promoCodeId: input.partnerPromoCodeId });
+        await bindPartnerPromoCodeInTransaction(tx, {
+          userId,
+          promoCodeId: input.partnerPromoCodeId,
+        });
       }
     });
     logger.info("Пользователь обновлён", { userId });
@@ -163,9 +209,12 @@ export async function deleteUserAdmin(
         tx.user.findUnique({ where: { id: actorId }, select: { role: true } }),
         tx.user.findUnique({ where: { id: userId }, select: { role: true } }),
       ]);
-      if (!actor || (actor.role !== "ADMIN" && actor.role !== "MODERATOR") ||
-          (actor.role === "MODERATOR" &&
-           (target === null || ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(target.role)))) {
+      if (
+        !actor ||
+        (actor.role !== "ADMIN" && actor.role !== "MODERATOR") ||
+        (actor.role === "MODERATOR" &&
+          (target === null || ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(target.role)))
+      ) {
         throw new ServiceError("Недостаточно прав", "FORBIDDEN");
       }
       await enqueueAccountStorageCleanup(tx, userId, new Date());

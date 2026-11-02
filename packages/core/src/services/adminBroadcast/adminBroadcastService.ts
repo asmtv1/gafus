@@ -5,6 +5,12 @@ import type { BroadcastResult } from "./types";
 
 const logger = createWebLogger("admin-broadcast-service");
 
+/** The preview shows raw persisted subscriptions, not confirmed deliverable targets. */
+export async function countBroadcastSubscriptionRows(): Promise<number> {
+  return prisma.pushSubscription.count();
+}
+
+
 export async function sendBroadcastPush(
   title: string,
   body: string,

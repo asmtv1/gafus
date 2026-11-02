@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { createHash } from "node:crypto";
 import { connection } from "@gafus/queues";
 import { z } from "zod/v3";
-import { prisma } from "@gafus/prisma";
-import { sendBroadcastPush } from "@gafus/core/services/adminBroadcast";
+import { readAdminActorRole } from "@gafus/core/services/adminUser";
+import { sendBroadcastPush, countBroadcastSubscriptionRows } from "@gafus/core/services/adminBroadcast";
 import { requireRole } from "../../middleware/auth.js";
 
 /** Admin-only deliberate push broadcasts; never fire on route read or preview. */
@@ -24,10 +24,7 @@ const messageSchema = z.object({
 }).strict();
 
 async function adminInDatabase(actorId: string) {
-  const actor = await prisma.user.findUnique({
-    where: { id: actorId }, select: { role: true },
-  });
-  return actor?.role === "ADMIN";
+  return (await readAdminActorRole(actorId)) === "ADMIN";
 }
 
 adminBroadcastRoutes.get("/preview", requireRole("ADMIN"), async c => {
@@ -36,7 +33,7 @@ adminBroadcastRoutes.get("/preview", requireRole("ADMIN"), async c => {
       return c.json({ success: false, code: "FORBIDDEN" }, 403);
     }
     // Database subscription count is not the same as deliverable push endpoints.
-    const subscriptions = await prisma.pushSubscription.count();
+    const subscriptions = await countBroadcastSubscriptionRows();
     return c.json({ success: true, data: { subscriptions, kind: "raw_subscription_rows" } });
   } catch {
     return c.json({ success: false, code: "BROADCAST_PREVIEW_UNAVAILABLE" }, 503);

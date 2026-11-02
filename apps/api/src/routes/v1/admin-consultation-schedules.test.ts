@@ -7,7 +7,7 @@ const f = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.reg }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: f.dbRole } } }));
+vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: f.dbRole }));
 vi.mock("@gafus/core/services/consultation", async () => {
   const { z } = await import("zod/v3");
   return {
@@ -49,7 +49,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   f.verify.mockResolvedValue({ id: "admin1", role: "ADMIN", username: "admin" });
   f.reg.mockResolvedValue(true);
-  f.dbRole.mockResolvedValue({ role: "ADMIN" });
+  f.dbRole.mockResolvedValue("ADMIN");
   f.target.mockResolvedValue("trainer1");
   f.availability.mockResolvedValue({ rules: [{ weekday: 1 }] });
   f.editable.mockResolvedValue([{ id: "slot1" }]);
@@ -67,7 +67,7 @@ describe("admin consultations schedules vertical", () => {
     expect(f.target).not.toHaveBeenCalled();
   });
   it("403 old ADMIN token denied after DB demotion", async () => {
-    f.dbRole.mockResolvedValue({ role: "TRAINER" });
+    f.dbRole.mockResolvedValue("TRAINER");
     expect((await req("/trainer1" + range)).status).toBe(403);
     expect(f.availability).not.toHaveBeenCalled();
   });

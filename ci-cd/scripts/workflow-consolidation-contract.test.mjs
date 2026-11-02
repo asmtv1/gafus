@@ -79,7 +79,16 @@ test('Beget control-plane outage cannot block an ordinary source release',()=>{
  assert(shared.steps.some(s=>s.run?.includes('checkGalleryRedirectConfig(process.env)')));
  const providerAccess=shared.steps.filter(s=>s.run?.includes('node infra/cloudru/gallery-redirect-release-gate.mjs')||s.run?.includes('node infra/cloudru/beget-production-smoke.mjs'));
  assert(providerAccess.length>=2);
- for(const step of providerAccess) assert(step.if?.includes('!inputs.app_only'), 'APP_ONLY_SHARED_PROVIDER_API_BLOCKER_'+step.name);
+ for(const step of providerAccess) {
+  // Feed cache must also be verified for app-only releases after the public
+  // 24h-cache flag is enabled; this one read-only canary is intentional.
+  if (step.name === 'Verify actual Feed 24h CDN browser response before SSH') {
+    assert(step.run.includes('--feed-only'));
+    assert(step.if.includes("vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED == 'true'"));
+  } else {
+    assert(step.if?.includes('!inputs.app_only'), 'APP_ONLY_SHARED_PROVIDER_API_BLOCKER_'+step.name);
+  }
+ }
  const after=ci.jobs['beget-verify-after-deploy'];
  assert(after.if.includes("needs.beget-provider-change-detect.outputs.provider_required == 'true'"));
  assert(after.needs.includes('beget-provider-change-detect'));
@@ -152,4 +161,41 @@ test('backup is append-only, verifies uploaded file and never deletes old backup
  assert(!/docker\s+(stop|rm)|docker-compose.*down/.test(source));
  const bash=spawnSync('bash',['-n','ci-cd/scripts/backup-to-yandex.sh'],{encoding:'utf8'});
  assert.equal(bash.status,0,bash.stderr);
+});
+
+
+test('pnpm store cache integrity is never disabled in any CI job', () => {
+ const ci=read('ci-cd');
+ assert(!ci.includes('verify-store-integrity false'), 'A corrupted dependency cache must not bypass pnpm verification');
+ const count = (ci.match(/pnpm config set verify-store-integrity true/g) ?? []).length;
+ assert.equal(count, 3, 'Every restored pnpm store in the 3 build stages requires integrity checking');
+ for (const workflow of files) {
+  assert(!read(workflow.replace(/\.yml$/, '')).includes('verify-store-integrity false'), workflow);
+ }
+});
+
+
+test('parallel package builds wait on each child PID and fail the release on any error', () => {
+ const ci=read('ci-cd');
+ assert(!/^\s+wait\s*$/m.test(ci), 'A bare wait loses individual child exit codes');
+ for (const name of ['queues_pid', 'cdn_pid', 'video_pid']) {
+  assert(ci.includes(`wait "$${name}" || parallel_failed=1`), `Unobserved ${name} failure`);
+ }
+ assert(ci.includes("REQUIRED_PARALLEL_PACKAGE_BUILD_FAILED"));
+});
+
+
+test('dependency validation is blocking (cannot echo and continue)', () => {
+ const ci=read('ci-cd');
+ assert(ci.includes('pnpm list --depth=0 --json > /dev/null'));
+ assert(!ci.includes('Dependency validation failed, but continuing'));
+});
+
+
+test('core-client is built before Core to prevent cached CDN transport drift', () => {
+ const ci=read('ci-cd');
+ const dependency=ci.indexOf('cd packages/core-client && pnpm build');
+ const dependent=ci.indexOf('cd packages/core && pnpm build');
+ assert(dependency > 0 && dependent > dependency, 'Core cannot load a stale core-client/dist');
+ assert(ci.includes('--filter=!@gafus/core-client'), 'Do not rebuild Core dependency out of order');
 });

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { prisma } from "@gafus/prisma";
-import { getCourseCacheMetricsSnapshot } from "@gafus/core/services/training";
+import { readAdminActorRole } from "@gafus/core/services/adminUser";
+import { getCourseCacheMetricsSnapshot, refreshCourseContentRevision } from "@gafus/core/services/training";
 import { requireRole } from "../../middleware/auth.js";
 
 /** Hono/Vite cache boundary: Next revalidateTag only works inside Next. */
@@ -12,10 +12,7 @@ adminCacheRoutes.use("*", async (c, next) => {
 });
 
 async function staffRole(actorId: string) {
-  const actor = await prisma.user.findUnique({
-    where: { id: actorId }, select: { role: true },
-  });
-  return actor?.role;
+  return readAdminActorRole(actorId);
 }
 adminCacheRoutes.get("/", requireRole("ADMIN", "MODERATOR"), async c => {
   try {
@@ -41,26 +38,12 @@ adminCacheRoutes.post("/courses/refresh", requireRole("ADMIN", "MODERATOR"), asy
     return c.json({ success: false, code: "CONFIRMATION_REQUIRED" }, 400);
   }
   try {
-    // The postgres revision is authoritative for every course-day process cache.
-    // Lock actor before mutation: a demoted MODERATOR must not retain rights.
-    const rows = await prisma.$transaction(async tx => {
-      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${c.get("user").id} FOR UPDATE`;
-      const actor = await tx.user.findUnique({
-        where: { id: c.get("user").id }, select: { role: true },
-      });
-      if (actor?.role !== "ADMIN" && actor?.role !== "MODERATOR") {
-        throw new Error("FORBIDDEN");
-      }
-      return tx.$queryRaw<{ revision: bigint }[]>`
-        UPDATE "CourseContentRevision" SET "revision" = "revision" + 1
-        WHERE "id" = 1 RETURNING "revision"
-      `;
-    });
-    if (rows.length !== 1 || typeof rows[0]?.revision !== "bigint") {
+    const revision = await refreshCourseContentRevision(c.get("user").id);
+    if (revision === null) {
       return c.json({ success: false, code: "CACHE_REVISION_MISSING" }, 503);
     }
     return c.json({ success: true, data: {
-      refreshed: true, revision: rows[0].revision.toString(),
+      refreshed: true, revision,
       scope: "HONO_COURSE_CONTENT",
     } });
   } catch (error) {

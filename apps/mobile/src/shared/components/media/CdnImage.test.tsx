@@ -10,8 +10,9 @@ vi.mock("@/shared/stores/authStore", () => ({
 }));
 import { probeCdnOutage } from '@gafus/core-client/media-delivery';
 vi.mock("expo-image", () => ({
-  Image: ({ source, onError }: { source?: { uri: string }; onError: () => void }) => (
-    <img data-testid="native-image-adapter" src={source?.uri} onError={onError} alt="test" />
+  Image: ({ source, onError, cachePolicy }: { source?: { uri: string }; onError: () => void; cachePolicy?: string }) => (
+    <img data-testid="native-image-adapter" data-cache-policy={cachePolicy}
+      src={source?.uri} onError={onError} alt="test" />
   ),
 }));
 import { CdnImage, isSignedCloudruFallback } from "./CdnImage";
@@ -76,6 +77,7 @@ describe("Mobile CdnImage automatic S3 recovery", () => {
     expect(fallback).toHaveBeenCalledOnce();
     expect(network).not.toHaveBeenCalled();
     expect(host.querySelector("img")?.getAttribute("src")).toBe(signed);
+    expect(host.querySelector("img")?.getAttribute("data-cache-policy")).toBe("memory");
   });
   // Verify authorization failures on a fresh circuit, before the tests
   // which intentionally activate 504 failover for the same Feed service.

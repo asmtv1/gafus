@@ -24,3 +24,6 @@ export {
   reconcileConsultationEmailLog,
 } from "./consultationEmailDelivery";
 export type { ConsultationMailOutcome } from "./consultationEmailDelivery";
+
+export { lookupOwnConsultationBookingByKey } from "./bookingIdempotencyReadback";
+export type { BookingIdempotencyReadback } from "./bookingIdempotencyReadback";

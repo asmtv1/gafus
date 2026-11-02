@@ -87,6 +87,18 @@ describe("apiClient auth refresh", () => {
   });
 });
 
+describe("Chat2 production routing isolation", () => {
+  it("never sends Chat2 to production when the main API is non-production", async () => {
+    vi.clearAllMocks();
+    getItemAsyncMock.mockResolvedValue(null);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await apiClient("/api/v1/chats", { chat2Origin: "https://api.gafus.ru" });
+    expect(response.success).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("apiClient rate limits", () => {
   it("recognizes a plain-text 429 without treating it as invalid JSON or expiring auth", async () => {
     vi.clearAllMocks();

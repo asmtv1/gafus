@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,chmodSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,chmodSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -30,7 +30,9 @@ function mockRun(mode){
   '    done',
   '    ;;',
   '  *resources*)',
-  '    printf \x27{"type":"file","size":%s}\x27 "$(cat "$GAFUS_MOCK_DIR/size")"',
+  '    size=$(cat "$GAFUS_MOCK_DIR/size")',
+  '    if [ "$GAFUS_MOCK_MODE" = mismatch ]; then size=$((size + 1)); fi',
+  '    printf \x27{"type":"file","size":%s}\x27 "$size"',
   '    ;;',
   '  *) exit 90;;',
   'esac'
@@ -42,9 +44,11 @@ function mockRun(mode){
   const result=spawnSync('bash',[script],{
    cwd:root,encoding:'utf8',timeout:12000,
    env:{...process.env,PATH:bin+':'+process.env.PATH,YANDEX_DISK_TOKEN:'offline-test',
-    GAFUS_MOCK_MODE:mode,GAFUS_MOCK_DIR:dir}
+    GAFUS_MOCK_MODE:mode,GAFUS_MOCK_DIR:dir,GAFUS_BACKUP_METRICS_DIR:dir}
   });
-  return {...result,requests:readFileSync(join(dir,'requests.log'),'utf8')};
+  const metricFile=join(dir,'gafus_backup_verified.prom');
+  return {...result,requests:readFileSync(join(dir,'requests.log'),'utf8'),
+    metric:existsSync(metricFile)?readFileSync(metricFile,'utf8'):null};
  }finally{rmSync(dir,{recursive:true,force:true});}
 }
 
@@ -61,4 +65,21 @@ test('overdraft blocks backup and does not delete remote files',()=>{
  assert.notEqual(r.status,0,r.stderr+'\n'+r.stdout);
  assert.match(r.stdout,/YANDEX_UPLOAD_URL_REJECTED/);
  assert.doesNotMatch(r.requests,/-X DELETE|--request DELETE|--upload-file/);
+});
+
+test('successful verified remote upload is the only producer of the last-success metric',()=>{
+ const ok=mockRun('ok');
+ assert.equal(ok.status,0,ok.stderr);
+ assert.match(ok.metric??'',/gafus_database_backup_last_success_timestamp_seconds \d+/);
+ const rejected=mockRun('quota');
+ assert.notEqual(rejected.status,0);
+ assert.equal(rejected.metric,null,'No successful backup can be inferred from a quota failure');
+});
+
+test('remote metadata size mismatch must never publish last-success metric',()=>{
+ const failed=mockRun('mismatch');
+ assert.notEqual(failed.status,0);
+ assert.match(failed.stderr+failed.stdout,/YANDEX_BACKUP_SIZE_MISMATCH/);
+ assert.equal(failed.metric,null);
+ assert.match(failed.requests,/--upload-file/);
 });

@@ -3,7 +3,8 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { sources, statusListeners } = vi.hoisted(() => ({
+const { sources, statusListeners, prefers, fallbackRequest } = vi.hoisted(() => ({
+  prefers: vi.fn(), fallbackRequest: vi.fn(),
   sources: [] as { uri: string; contentType: string; useCaching: boolean }[],
   statusListeners: new Map<string, (event: { status: string }) => void>(),
 }));
@@ -12,9 +13,13 @@ vi.mock("@/shared/stores", () => ({
     selector({ user: { id: "test-user" } }),
 }));
 vi.mock("@/shared/lib/api/feed", () => ({
-  feedApi: { requestMediaFallback: vi.fn() },
+  feedApi: { requestMediaFallback: fallbackRequest },
 }));
-vi.mock("@/shared/components/media/CdnImage", () => ({ CdnImage: () => null }));
+vi.mock("@/shared/components/media/CdnImage", () => ({
+  CdnImage: () => null,
+  isSignedCloudruFallback: (raw: string) => raw.startsWith("https://s3.cloud.ru/gafus-feed-private/") && raw.includes("X-Amz-Signature="),
+}));
+vi.mock("@/shared/lib/media/serverHealth", () => ({ prefersCloudruMedia: prefers }));
 vi.mock("expo-router", () => ({ useFocusEffect: () => undefined }));
 vi.mock("expo-image", () => ({ Image: () => null }));
 vi.mock("react-native", async () => {
@@ -59,6 +64,7 @@ import { FeedVideo } from "./FeedVideo";
 const mp4 = "https://media.example.test/media/v2/m/v1/video/360.mp4";
 let root: Root; let host: HTMLDivElement;
 beforeEach(() => {
+  prefers.mockResolvedValue(false);
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   host = document.createElement("div"); document.body.appendChild(host);
   root = createRoot(host);
@@ -66,6 +72,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount()); host.remove();
   sources.length = 0; statusListeners.clear(); vi.restoreAllMocks();
+  prefers.mockReset(); fallbackRequest.mockReset();
 });
 describe("Mobile Moments native progressive MP4 cutover", () => {
   it("never requests a ticket, and starts exactly one progressive MP4 on user tap", async () => {
@@ -78,6 +85,37 @@ describe("Mobile Moments native progressive MP4 cutover", () => {
     expect(host.querySelector('[data-testid="native-video"]')?.getAttribute("data-uri")).toBe(mp4);
     expect(host.querySelector('[data-testid="native-video"]')?.getAttribute("data-fullscreen")).toBe("true");
     expect(fetcher).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+  it("preselects a per-object authorized S3 video during a confirmed server CDN outage", async () => {
+    const cdn = `https://quepraquiecebquomiel.begetcdn.cloud/media/v2/m/v1/video/360.mp4?md5=${'A'.repeat(22)}&expires=1999999999`;
+    const s3 = 'https://s3.cloud.ru/gafus-feed-private/media/v2/m/v1/video/360.mp4?X-Amz-Signature=valid';
+    prefers.mockResolvedValue(true);
+    fallbackRequest.mockResolvedValue({ url: s3 });
+    await act(async () => root.render(<FeedVideo postId="p" mediaId="m" poster={null}
+      visible mp4Urls={{ 360: cdn }} />));
+    await act(async () => { host.querySelector("button")?.click(); await Promise.resolve(); });
+    expect(prefers).toHaveBeenCalledWith("feed");
+    expect(fallbackRequest).toHaveBeenCalledWith("m", "video360");
+    expect(host.querySelector('[data-testid="native-video"]')?.getAttribute('data-uri')).toBe(s3);
+  });
+  it("does not turn individual 403 into an S3 bypass, but recovers a 503 without double fallback", async () => {
+    const cdn = `https://quepraquiecebquomiel.begetcdn.cloud/media/v2/m/v1/video/360.mp4?md5=${'A'.repeat(22)}&expires=1999999999`;
+    const s3 = 'https://s3.cloud.ru/gafus-feed-private/media/v2/m/v1/video/360.mp4?X-Amz-Signature=valid';
+    const fetcher = vi.fn(async () => new Response(null, { status: 503 }));
+    vi.stubGlobal('fetch', fetcher);
+    fallbackRequest.mockResolvedValue({url:s3});
+    await act(async () => root.render(<FeedVideo postId="p" mediaId="m" poster={null}
+      visible mp4Urls={{ 360: cdn }} />));
+    await act(async () => { host.querySelector('button')?.click(); await Promise.resolve(); });
+    await act(async () => {
+      statusListeners.get(cdn)?.({status:'error'});
+      statusListeners.get(cdn)?.({status:'error'});
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fallbackRequest).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('[data-testid="native-video"]')?.getAttribute('data-uri')).toBe(s3);
     vi.unstubAllGlobals();
   });
   it("does not render playable content without a signed MP4", async () => {

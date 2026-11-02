@@ -7,7 +7,7 @@ const f = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.reg }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: f.role } } }));
+vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: f.role }));
 vi.mock("@gafus/core/services/appSubscription", () => ({
   getAppSubscriptionAdminDashboard: f.dashboard,
   getAppSubscriptionPaymentHistory: f.payments,
@@ -39,7 +39,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   f.verify.mockResolvedValue({ id: "actor-1", role: "ADMIN", username: "admin" });
   f.reg.mockResolvedValue(true);
-  f.role.mockResolvedValue({ role: "ADMIN" });
+  f.role.mockResolvedValue("ADMIN");
   f.dashboard.mockResolvedValue({ totals: { subscriptions: 3 } });
   f.payments.mockResolvedValue({ rows: [], total: 10 });
   f.promos.mockResolvedValue([{ id: "promo1" }]);
@@ -62,7 +62,7 @@ describe("admin premium subscriptions Next parity", () => {
     expect(f.dashboard).not.toHaveBeenCalled();
   });
   it("denies role revoked after JWT creation", async () => {
-    f.role.mockResolvedValue({ role: "USER" });
+    f.role.mockResolvedValue("USER");
     expect((await request()).status).toBe(403);
     expect(f.dashboard).not.toHaveBeenCalled();
   });
@@ -80,7 +80,7 @@ describe("admin premium subscriptions Next parity", () => {
   });
   it("allows current moderator to read filtered payments", async () => {
     f.verify.mockResolvedValue({ id: "mod", role: "MODERATOR", username: "mod" });
-    f.role.mockResolvedValue({ role: "MODERATOR" });
+    f.role.mockResolvedValue("MODERATOR");
     const res = await request("?paymentPage=2&paymentPageSize=50&paymentStatus=FAILED&paymentSearch=user");
     expect(res.status).toBe(200);
     expect(f.payments).toHaveBeenCalledWith({
@@ -139,7 +139,7 @@ describe("admin premium subscription mutations", () => {
   });
 
   it("rejects stale admin on promo create", async () => {
-    f.role.mockResolvedValue({ role: "USER" });
+    f.role.mockResolvedValue("USER");
     const response = await post("/promo-codes", { code: "DOG-25", discountPercent: 20, isActive: true });
     expect(response.status).toBe(403);
     expect(f.promoCreate).not.toHaveBeenCalled();

@@ -18,3 +18,6 @@ export const {
 export type { StepOperation } from "./trainingService";
 
 export { getCourseCacheMetricsSnapshot, canReadCourseCacheMetrics } from "./trainingContentMetrics";
+
+export { withOnlineStepBinding } from "./onlineStepBinding";
+export { refreshCourseContentRevision } from "./cacheRevisionService";

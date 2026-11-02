@@ -5,6 +5,8 @@ import {
   updateUserAdmin,
   deleteUserAdmin,
   partnerChangeRequiresAdmin,
+  checkAdminUserMutationAccess,
+  readAdminActorRole,
 } from "./adminUserService";
 import { ServiceError, NotFoundError } from "../../errors/ServiceError";
 
@@ -36,7 +38,8 @@ vi.mock("@gafus/prisma", () => ({
 }));
 
 vi.mock("../appSubscription/partnerService", () => ({
-  bindPartnerPromoCodeInTransaction: (...args: unknown[]) => mockBindPartnerPromoCodeInTransaction(...args),
+  bindPartnerPromoCodeInTransaction: (...args: unknown[]) =>
+    mockBindPartnerPromoCodeInTransaction(...args),
 }));
 
 vi.mock("bcryptjs", () => ({
@@ -64,7 +67,8 @@ describe("partnerChangeRequiresAdmin", () => {
     actorRole = "MODERATOR";
     targetRole = "USER";
     mockUserFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "actor" ? actorRole : targetRole }));
+      Promise.resolve({ role: where.id === "actor" ? actorRole : targetRole }),
+    );
   });
 
   it("does not query the database for a non-role update", async () => {
@@ -84,7 +88,9 @@ describe("partnerChangeRequiresAdmin", () => {
   });
 
   it("requires an admin to set a partner promo, but not a nonpartner role", async () => {
-    expect(await partnerChangeRequiresAdmin("actor", "target", { partnerPromoCodeId: "promo-1" })).toBe(true);
+    expect(
+      await partnerChangeRequiresAdmin("actor", "target", { partnerPromoCodeId: "promo-1" }),
+    ).toBe(true);
     expect(await partnerChangeRequiresAdmin("actor", "target", { role: "TRAINER" })).toBe(false);
   });
 });
@@ -95,9 +101,7 @@ describe("getAllUsers", () => {
   });
 
   it("returns users on success", async () => {
-    mockUserFindMany.mockResolvedValue([
-      { id: "u1", username: "user1", role: "USER" },
-    ]);
+    mockUserFindMany.mockResolvedValue([{ id: "u1", username: "user1", role: "USER" }]);
 
     const result = await getAllUsers();
 
@@ -143,9 +147,12 @@ describe("updateUserAdmin", () => {
 
   it("rechecks partner permissions under transaction locks", async () => {
     mockUserFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "moderator" ? "MODERATOR" : "USER" }));
+      Promise.resolve({ role: where.id === "moderator" ? "MODERATOR" : "USER" }),
+    );
     const result = await updateUserAdmin(
-      "user-1", { role: "PARTNER", partnerPromoCodeId: "promo-1" }, "moderator",
+      "user-1",
+      { role: "PARTNER", partnerPromoCodeId: "promo-1" },
+      "moderator",
     );
     expect(result).toEqual({
       success: false,
@@ -157,7 +164,8 @@ describe("updateUserAdmin", () => {
 
   it("rejects partner role writes without a trusted actor ID", async () => {
     const result = await updateUserAdmin("user-1", {
-      role: "PARTNER", partnerPromoCodeId: "promo-1",
+      role: "PARTNER",
+      partnerPromoCodeId: "promo-1",
     });
     expect(result.success).toBe(false);
     expect(mockUserUpdate).not.toHaveBeenCalled();
@@ -165,7 +173,8 @@ describe("updateUserAdmin", () => {
 
   it("rechecks partner demotion against current role inside the transaction", async () => {
     mockUserFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "moderator" ? "MODERATOR" : "PARTNER" }));
+      Promise.resolve({ role: where.id === "moderator" ? "MODERATOR" : "PARTNER" }),
+    );
     const result = await updateUserAdmin("user-1", { role: "USER" }, "moderator");
     expect(result.success).toBe(false);
     expect(mockUserUpdate).not.toHaveBeenCalled();
@@ -173,17 +182,17 @@ describe("updateUserAdmin", () => {
 
   it("refuses a password edit by a demoted actor under transaction locks", async () => {
     mockUserFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "actor-demoted" ? "USER" : "USER" }));
-    const result = await updateUserAdmin(
-      "user-1", { newPassword: "secret123" }, "actor-demoted",
+      Promise.resolve({ role: where.id === "actor-demoted" ? "USER" : "USER" }),
     );
+    const result = await updateUserAdmin("user-1", { newPassword: "secret123" }, "actor-demoted");
     expect(result).toEqual({ success: false, error: "Недостаточно прав" });
     expect(mockUserUpdate).not.toHaveBeenCalled();
   });
 
   it("moderator cannot reset a trainer password", async () => {
     mockUserFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "moderator" ? "MODERATOR" : "TRAINER" }));
+      Promise.resolve({ role: where.id === "moderator" ? "MODERATOR" : "TRAINER" }),
+    );
     const result = await updateUserAdmin("trainer-1", { newPassword: "secret123" }, "moderator");
     expect(result).toEqual({ success: false, error: "Недостаточно прав" });
     expect(mockUserUpdate).not.toHaveBeenCalled();
@@ -220,7 +229,11 @@ describe("updateUserAdmin", () => {
   it("runs partner binding inside the same update transaction", async () => {
     mockBindPartnerPromoCodeInTransaction.mockResolvedValue({});
 
-    const result = await updateUserAdmin("partner-1", { role: "PARTNER", partnerPromoCodeId: "promo-1" }, "actor-1");
+    const result = await updateUserAdmin(
+      "partner-1",
+      { role: "PARTNER", partnerPromoCodeId: "promo-1" },
+      "actor-1",
+    );
 
     expect(result).toEqual({ success: true });
     expect(mockBindPartnerPromoCodeInTransaction).toHaveBeenCalledWith(
@@ -238,9 +251,7 @@ describe("updateUserAdmin", () => {
   });
 
   it("returns ServiceError message from handlePrismaError catch", async () => {
-    mockUserUpdate.mockRejectedValue(
-      Object.assign(new Error("P2002"), { code: "P2002" }),
-    );
+    mockUserUpdate.mockRejectedValue(Object.assign(new Error("P2002"), { code: "P2002" }));
     mockHandlePrismaError.mockImplementationOnce(() => {
       throw new NotFoundError("Пользователь");
     });
@@ -252,9 +263,7 @@ describe("updateUserAdmin", () => {
   });
 
   it("returns fallback error when handlePrismaError returns without throwing", async () => {
-    mockUserUpdate.mockRejectedValue(
-      Object.assign(new Error("unknown"), { code: "P9999" }),
-    );
+    mockUserUpdate.mockRejectedValue(Object.assign(new Error("unknown"), { code: "P9999" }));
     mockHandlePrismaError.mockImplementationOnce(() => {
       /* returns without throwing - falls through to fallback */
     });
@@ -268,17 +277,19 @@ describe("updateUserAdmin", () => {
   });
 });
 
-
 describe("deleteUserAdmin", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "admin-1" ? "ADMIN" : "USER" }));
-    mockTransaction.mockImplementation(async (fn) => fn({
-      user: { delete: mockUserDelete, findUnique: mockUserFindUnique },
-      $queryRaw: vi.fn().mockResolvedValue([{ id: "admin-1" }, { id: "user-1" }]),
-      $executeRaw: vi.fn().mockResolvedValue(1),
-    }));
+      Promise.resolve({ role: where.id === "admin-1" ? "ADMIN" : "USER" }),
+    );
+    mockTransaction.mockImplementation(async (fn) =>
+      fn({
+        user: { delete: mockUserDelete, findUnique: mockUserFindUnique },
+        $queryRaw: vi.fn().mockResolvedValue([{ id: "admin-1" }, { id: "user-1" }]),
+        $executeRaw: vi.fn().mockResolvedValue(1),
+      }),
+    );
   });
 
   it("returns error when deleting self", async () => {
@@ -307,7 +318,8 @@ describe("deleteUserAdmin", () => {
 
   it("moderator cannot delete TRAINER even with valid actor", async () => {
     mockUserFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
-      Promise.resolve({ role: where.id === "moderator" ? "MODERATOR" : "TRAINER" }));
+      Promise.resolve({ role: where.id === "moderator" ? "MODERATOR" : "TRAINER" }),
+    );
     const result = await deleteUserAdmin("user-1", "moderator");
     expect(result).toEqual({ success: false, error: "Недостаточно прав" });
     expect(mockUserDelete).not.toHaveBeenCalled();
@@ -322,9 +334,7 @@ describe("deleteUserAdmin", () => {
   });
 
   it("returns ServiceError message from handlePrismaError catch during delete", async () => {
-    mockUserDelete.mockRejectedValue(
-      Object.assign(new Error("P2025"), { code: "P2025" }),
-    );
+    mockUserDelete.mockRejectedValue(Object.assign(new Error("P2025"), { code: "P2025" }));
     mockHandlePrismaError.mockImplementationOnce(() => {
       throw new NotFoundError("Пользователь");
     });
@@ -336,9 +346,7 @@ describe("deleteUserAdmin", () => {
   });
 
   it("returns fallback error when handlePrismaError returns without throwing during delete", async () => {
-    mockUserDelete.mockRejectedValue(
-      Object.assign(new Error("unknown"), { code: "P9999" }),
-    );
+    mockUserDelete.mockRejectedValue(Object.assign(new Error("unknown"), { code: "P9999" }));
     mockHandlePrismaError.mockImplementationOnce(() => {
       /* returns without throwing - falls through to fallback */
     });
@@ -349,5 +357,37 @@ describe("deleteUserAdmin", () => {
       success: false,
       error: "Не удалось удалить пользователя",
     });
+  });
+});
+
+describe("admin actor and target ACL projections", () => {
+  beforeEach(() => mockUserFindUnique.mockReset());
+
+  it("denies revoked staff role before accessing target data", async () => {
+    mockUserFindUnique.mockImplementation((args?: { where: { id: string } }) =>
+      Promise.resolve({ role: args?.where.id === "actor" ? "USER" : "USER" }),
+    );
+    expect(await checkAdminUserMutationAccess("actor", "target", false)).toBe("FORBIDDEN");
+    expect(await readAdminActorRole("actor")).toBe("USER");
+  });
+
+  it("prevents moderators from modifying staff, partners and roles", async () => {
+    let targetRole = "TRAINER";
+    mockUserFindUnique.mockImplementation((args?: { where: { id: string } }) =>
+      Promise.resolve({ role: args?.where.id === "actor" ? "MODERATOR" : targetRole }),
+    );
+    expect(await checkAdminUserMutationAccess("actor", "target", false)).toBe("FORBIDDEN");
+    targetRole = "USER";
+    expect(await checkAdminUserMutationAccess("actor", "target", true)).toBe("FORBIDDEN");
+    expect(await checkAdminUserMutationAccess("actor", "target", false)).toBeNull();
+  });
+
+  it("distinguishes missing target from authorization failure", async () => {
+    mockUserFindUnique.mockImplementation((args?: { where: { id: string } }) =>
+      Promise.resolve(args?.where.id === "actor" ? { role: "ADMIN" } : null),
+    );
+    expect(await checkAdminUserMutationAccess("actor", "missing", false)).toBe("USER_NOT_FOUND");
+    mockUserFindUnique.mockResolvedValue({ role: "ADMIN" });
+    expect(await checkAdminUserMutationAccess("actor", "target", true)).toBeNull();
   });
 });

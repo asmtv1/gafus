@@ -32,3 +32,4 @@ export type {
 } from "./schemas";
 
 export * from "./transcodingLifecycle";
+export { readTrainerVideoMetadataRows } from "./readTrainerVideoMetadataRows";

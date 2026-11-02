@@ -4,9 +4,6 @@
     "apps/api/src/chat2-v2-cloud-core.ts": [
       "import('@gafus/prisma')"
     ],
-    "apps/api/src/lib/consultation-booking-lookup.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
     "apps/api/src/modules/chat2/archive.real-pg.test.ts": [
       "import { prisma } from \"@gafus/prisma\";"
     ],
@@ -70,40 +67,7 @@
     "apps/api/src/modules/trainer-notes/infrastructure/read-notes-summary-snapshot.ts": [
       "import { prisma } from \"@gafus/prisma\";"
     ],
-    "apps/api/src/routes/v1/admin-analytics.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/admin-broadcasts.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/admin-cache.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
     "apps/api/src/routes/v1/admin-consultation-schedules.realpg.test.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/admin-consultation-schedules.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/admin-feature-flags.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/admin-mail.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/admin-profit.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/admin-reengagement-trigger.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/admin-settings.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/admin-subscriptions.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/admin-users.ts": [
       "import { prisma } from \"@gafus/prisma\";"
     ],
     "apps/api/src/routes/v1/admin2-real-postgres-http.test.ts": [
@@ -113,9 +77,6 @@
       "import { prisma } from \"@gafus/prisma\";"
     ],
     "apps/api/src/routes/v1/auth-session-isolated-work.integration.test.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/chats.ts": [
       "import { prisma } from \"@gafus/prisma\";"
     ],
     "apps/api/src/routes/v1/g1-booking-realpg-http.integration.test.ts": [
@@ -214,25 +175,7 @@
     "apps/api/src/routes/v1/reminders-web1-isolated-work.integration.test.ts": [
       "import { prisma } from \"@gafus/prisma\";"
     ],
-    "apps/api/src/routes/v1/trainer-authoring.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/trainer-content-manage.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/trainer-course-full-manage.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/trainer-statistics.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/trainer-videos-metadata.ts": [
-      "import {prisma} from \"@gafus/prisma\";"
-    ],
     "apps/api/src/routes/v1/training.preview.real-pg-s3.test.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/routes/v1/training.ts": [
       "import { prisma } from \"@gafus/prisma\";"
     ],
     "apps/api/src/routes/v1/web5-chat-isolated-work-stream.integration.test.ts": [

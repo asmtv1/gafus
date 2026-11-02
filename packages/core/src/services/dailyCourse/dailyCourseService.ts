@@ -1,4 +1,9 @@
 import { isPrismaUniqueConstraintError, prisma } from "@gafus/prisma";
+import {
+  cleanupScheduleWhere, cleanupBundleWhere, cleanupAllDailyCourseStepWhere,
+  cleanupLinkedDailyCourseStepWhere, scopedScheduleIdWhere, scopedBundleIdWhere,
+  scopedSafeDailyCourseStepIdWhere,
+} from "./dailyCourseCleanupScope";
 import type {
   Prisma,
   StepType as PrismaStepType,
@@ -8,6 +13,8 @@ import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
 import type { ChecklistQuestion } from "@gafus/types";
 import { randomUUID } from "crypto";
+import { getMoscowDateKey, dateKeyToDate, toDateKey, getTodayDate, cleanDailyCourseMarkdownDescription } from "./dailyCoursePure";
+export { getMoscowDateKey } from "./dailyCoursePure";
 import { estimateDayDurations } from "../../utils/training";
 import { invalidateStepsContentCache } from "../training/trainingDayContent";
 import { publishCourseContentChange } from "../training/trainingContentRevision";
@@ -305,38 +312,11 @@ function isElevated(actor: DailyCourseActor): boolean {
   return ADMIN_ROLES.has(actor.role);
 }
 
-export function getMoscowDateKey(now = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Moscow",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-  if (!year || !month || !day) {
-    throw new Error("Не удалось определить московскую дату");
-  }
-  return `${year}-${month}-${day}`;
-}
 
 export { parseDailyCourseImportFile };
 
-function dateKeyToDate(dateKey: string): Date {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
-    throw new Error("INVALID_DATE");
-  }
-  return new Date(`${dateKey}T00:00:00.000Z`);
-}
 
-function toDateKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
 
-function getTodayDate(): Date {
-  return dateKeyToDate(getMoscowDateKey());
-}
 
 function mapStepStatus(status: string | null | undefined): TrainingStatus {
   return (status as TrainingStatus | undefined) ?? TrainingStatus.NOT_STARTED;
@@ -520,17 +500,6 @@ function mapDailyCourseSteps(
   });
 }
 
-function cleanDailyCourseMarkdownDescription(description: string): string {
-  const trimmed = description.trim();
-  const unquoted =
-    trimmed.length >= 2 &&
-    ((trimmed.startsWith("'") && trimmed.endsWith("'")) ||
-      (trimmed.startsWith('"') && trimmed.endsWith('"')))
-      ? trimmed.slice(1, -1).trim()
-      : trimmed;
-  const fenced = unquoted.match(/^`{2,3}[a-z0-9_-]*\s*\n([\s\S]*?)\n`{2,3}$/i);
-  return fenced ? fenced[1].trim() : description;
-}
 
 function calculateDailyCourseUserStatus(
   stepLinks: { id: string }[],
@@ -1606,78 +1575,6 @@ async function buildDailyCourseCleanupPlan(
     scheduleIds,
     bundleIds,
     stepIds,
-  };
-}
-
-function cleanupScheduleWhere(
-  actor: DailyCourseActor,
-  mode: DailyCourseCleanupMode,
-  today: string,
-): Prisma.DailyCourseScheduleWhereInput {
-  return {
-    ...(mode === "future" ? { date: { gt: dateKeyToDate(today) } } : {}),
-    ...(isElevated(actor) ? {} : { bundle: { authorId: actor.id } }),
-  };
-}
-
-function cleanupBundleWhere(
-  actor: DailyCourseActor,
-  mode: DailyCourseCleanupMode,
-  scheduleIds: string[],
-): Prisma.DailyCourseBundleWhereInput {
-  return {
-    ...(isElevated(actor) ? {} : { authorId: actor.id }),
-    ...(mode === "future" ? { schedules: { some: { id: { in: scheduleIds } } } } : {}),
-  };
-}
-
-function cleanupAllDailyCourseStepWhere(actor: DailyCourseActor): Prisma.StepWhereInput {
-  return {
-    isDailyCourse: true,
-    ...(isElevated(actor) ? {} : { authorId: actor.id }),
-  };
-}
-
-function cleanupLinkedDailyCourseStepWhere(
-  actor: DailyCourseActor,
-  linkedStepIds: string[],
-): Prisma.StepWhereInput {
-  return {
-    id: { in: linkedStepIds },
-    isDailyCourse: true,
-    ...(isElevated(actor) ? {} : { authorId: actor.id }),
-  };
-}
-
-function scopedScheduleIdWhere(
-  actor: DailyCourseActor,
-  scheduleIds: string[],
-): Prisma.DailyCourseScheduleWhereInput {
-  return {
-    id: { in: scheduleIds },
-    ...(isElevated(actor) ? {} : { bundle: { authorId: actor.id } }),
-  };
-}
-
-function scopedBundleIdWhere(
-  actor: DailyCourseActor,
-  bundleIds: string[],
-): Prisma.DailyCourseBundleWhereInput {
-  return {
-    id: { in: bundleIds },
-    ...(isElevated(actor) ? {} : { authorId: actor.id }),
-  };
-}
-
-function scopedSafeDailyCourseStepIdWhere(
-  actor: DailyCourseActor,
-  stepIds: string[],
-): Prisma.StepWhereInput {
-  return {
-    id: { in: stepIds },
-    isDailyCourse: true,
-    ...(isElevated(actor) ? {} : { authorId: actor.id }),
-    stepLinks: { none: {} },
   };
 }
 

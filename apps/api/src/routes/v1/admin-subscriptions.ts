@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { prisma } from "@gafus/prisma";
+import { readAdminActorRole } from "@gafus/core/services/adminUser";
 import {
   getAppSubscriptionAdminDashboard,
   getAppSubscriptionPaymentHistory,
@@ -48,10 +48,7 @@ adminSubscriptionRoutes.get("/", requireRole("ADMIN", "MODERATOR"), async c => {
   const params = querySchema.safeParse(raw);
   if (!params.success) return c.json({ success: false, code: "INVALID_FILTERS" }, 400);
   try {
-    const actor = await prisma.user.findUnique({
-      where: { id: c.get("user").id }, select: { role: true },
-    });
-    const role = actor?.role;
+    const role = await readAdminActorRole(c.get("user").id);
     if (role !== "ADMIN" && role !== "MODERATOR") {
       return c.json({ success: false, code: "FORBIDDEN" }, 403);
     }
@@ -103,8 +100,7 @@ const promoUpdate = z.object({
   isActive: z.boolean(),
 }).strict();
 async function currentAdmin(actorId: string): Promise<boolean> {
-  const actor = await prisma.user.findUnique({ where: { id: actorId }, select: { role: true } });
-  return actor?.role === "ADMIN";
+  return (await readAdminActorRole(actorId)) === "ADMIN";
 }
 function promoError(error: unknown) {
   if (error instanceof AppSubscriptionPromoCodeDomainError) {

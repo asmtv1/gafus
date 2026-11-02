@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { prisma } from "@gafus/prisma";
+import { readAdminActorRole } from "@gafus/core/services/adminUser";
 import { connection } from "@gafus/queues";
 import { manualTriggerScheduler } from "@gafus/reengagement";
 import { requireRole } from "../../middleware/auth.js";
@@ -21,10 +21,7 @@ adminReengagementTriggerRoutes.post("/run", requireRole("ADMIN"), async c => {
   const actorId = c.get("user").id;
   let token: string | null = null;
   try {
-    const actor = await prisma.user.findUnique({
-      where: { id: actorId }, select: { role: true },
-    });
-    if (actor?.role !== "ADMIN") return c.json({ success: false, code: "FORBIDDEN" }, 403);
+    if (await readAdminActorRole(actorId) !== "ADMIN") return c.json({ success: false, code: "FORBIDDEN" }, 403);
     // Single operator invocation across API processes; Redis outage MUST fail closed.
     token = crypto.randomUUID();
     const acquired = await connection.set(lockKey, token, "PX", 15 * 60_000, "NX");

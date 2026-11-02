@@ -27,3 +27,7 @@ export type { VersionedName, CourseVersionActor, CourseVersionResult } from "./c
 export { getCourseEditorSnapshot } from "./courseEditorSnapshotService";
 export { deleteCourseVersioned } from "./courseDeleteVersionedService";
 export type { CourseEditorSnapshot, EditorSnapshotResult } from "./courseEditorSnapshotService";
+export {
+  countOwnedTrainingDays, countOwnedTrainingSteps, countExistingCourseUsers,
+  countEditableCourseDays, countEditableDaySteps,
+} from "./editorCountQueries";

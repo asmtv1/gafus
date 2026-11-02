@@ -3,7 +3,7 @@
  * mutations/cache revisions; Hono supplies authenticated actor and strict DTOs.
  */
 import { Hono } from "hono";
-import { prisma } from "@gafus/prisma";
+import { countEditableDaySteps } from "@gafus/core/services/trainerCourse";
 import {
   getStepForEdit, updateStep, deleteSteps, updateStepSchema,
   type UpdateStepInput,
@@ -109,9 +109,7 @@ const production: TrainerContentPorts = {
   step: { read: getStepForEdit, update: updateStep, remove: deleteSteps },
   day: {
     read: getTrainingDayForEdit, update: updateTrainingDay, remove: deleteDays,
-    countSteps: async (ids, who) => prisma.step.count({
-      where: { id: { in: ids }, ...(who.role === "TRAINER" ? { authorId: who.id } : {}) },
-    }),
+    countSteps: countEditableDaySteps,
   },
 };
 

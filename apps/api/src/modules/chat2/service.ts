@@ -1456,3 +1456,30 @@ export async function resolveStaffChatReport(
   if (!changed.count) return fail("NOT_FOUND", 404, "Жалоба отсутствует или уже обработана");
   return { done: true };
 }
+
+/** Scoped chat discovery read. The HTTP layer owns validation and status;
+ * application storage owns sensitive user selection and deletion filters.
+ * The reserved cynologist is intentionally hidden from user discovery.
+ */
+export async function listCandidateChatUsers(actorId: string, query: string) {
+  return prisma.user.findMany({
+    where: {
+      username: { contains: query, mode: "insensitive", not: "lana" },
+      id: { not: actorId },
+      accountDeletionRequestedAt: null,
+    },
+    select: { id: true, username: true },
+    take: 15,
+  });
+}
+
+export async function findChatUserIdByUsername(username: string): Promise<string | null> {
+  const target = await prisma.user.findFirst({
+    where: {
+      username: { equals: username, mode: "insensitive" },
+      accountDeletionRequestedAt: null,
+    },
+    select: { id: true },
+  });
+  return target?.id ?? null;
+}

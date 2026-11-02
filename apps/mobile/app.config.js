@@ -22,6 +22,12 @@ function assertProductionApiBaseUrl() {
   if (apiBaseUrl !== productionApiBaseUrl) {
     throw new Error(`Production mobile builds must use ${productionApiBaseUrl}; got ${apiBaseUrl}`);
   }
+  const chat2ApiOrigin = process.env.EXPO_PUBLIC_CHAT2_API_ORIGIN;
+  if (chat2ApiOrigin !== productionApiBaseUrl) {
+    throw new Error(
+      `Production mobile Chat2 builds must use ${productionApiBaseUrl}; got ${chat2ApiOrigin ?? "unset"}`,
+    );
+  }
 }
 
 assertProductionApiBaseUrl();

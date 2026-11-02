@@ -4,7 +4,8 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import { useFocusEffect } from "expo-router";
 import { useAuthStore } from "@/shared/stores";
 import { feedApi } from "@/shared/lib/api/feed";
-import { CdnImage } from "@/shared/components/media/CdnImage";
+import { CdnImage, isSignedCloudruFallback } from "@/shared/components/media/CdnImage";
+import { prefersCloudruMedia } from "@/shared/lib/media/serverHealth";
 import { isLongLivedPublicFeedCdnUrl } from "@/shared/components/media/scopedMediaCache";
 import { mediaCdnKindFromSignedUrl, probeCdnOutage } from "@gafus/core-client/media-delivery";
 import { selectFeedV2VideoUrl, type FeedV2ImageMedia, type FeedV2VideoMedia } from "@gafus/types";
@@ -45,7 +46,7 @@ export function FeedV2Image({ media, width }: { media: FeedV2ImageMedia; width: 
 function ActiveFeedV2Player({ url, publicMedia, onError }: {
   url: string; publicMedia: boolean; onError: () => void;
 }) {
-  const player = useVideoPlayer({ uri: url, contentType: "progressive", useCaching: publicMedia }, instance => {
+  const player = useVideoPlayer({ uri: url, contentType: "progressive", useCaching: publicMedia && isLongLivedPublicFeedCdnUrl(url) }, instance => {
     instance.staysActiveInBackground = false;
     instance.showNowPlayingNotification = false;
     instance.play();
@@ -72,8 +73,10 @@ export function FeedV2Video({ postId, media, visible, fullscreen = false }: {
   const [error, setError] = useState("");
   const generation = useRef(0);
   const fallbackAttempted = useRef(false);
+  const recoveryInProgress = useRef(false);
   const stop = useCallback(() => {
     generation.current++;
+    recoveryInProgress.current = false;
     setUrl(null);
     if (active?.stop === stop) active = undefined;
   }, []);
@@ -85,36 +88,63 @@ export function FeedV2Video({ postId, media, visible, fullscreen = false }: {
   useEffect(() => { if (!visible) stop(); }, [visible, stop]);
   const play = () => {
     active?.stop(); active = { stop, postId };
+    const current = ++generation.current;
     fallbackAttempted.current = false;
+    recoveryInProgress.current = false;
     setError("");
-    setUrl(selectFeedV2VideoUrl(media, { viewportWidth: previewWidth,
-      preference: "auto", devicePixelRatio: 1 }));
+    const primary = selectFeedV2VideoUrl(media, { viewportWidth: previewWidth,
+      preference: "auto", devicePixelRatio: 1 });
+    const quality = (Object.entries(media.mp4) as [string, string][])
+      .find(([, value]) => value === primary)?.[0];
+    // When the server already knows the CDN is down, don't make the native
+    // player fail first. Resolve an ACL-checked per-object S3 URL directly.
+    void (async () => {
+      if (mediaCdnKindFromSignedUrl(primary) === "feed" &&
+          quality && ["360", "720", "1080"].includes(quality) &&
+          await prefersCloudruMedia("feed")) {
+        try {
+          const fallback = await feedApi.requestMediaFallback(media.id,
+            `video${quality}` as "video360" | "video720" | "video1080");
+          if (current !== generation.current) return;
+          if (isSignedCloudruFallback(fallback.url)) {
+            fallbackAttempted.current = true;
+            setUrl(fallback.url);
+            return;
+          }
+        } catch { /* No bypass without an authorized signed link. */ }
+      }
+      if (current === generation.current) setUrl(primary);
+    })().catch(() => { if (current === generation.current) setUrl(primary); });
   };
   // A native player hides the HTTP status: probe the signed CDN URL
   // before issuing an authorized, short-lived S3 fallback. Never retry twice.
   const onPlaybackError = useCallback(() => {
     const failedUrl = url;
+    if (recoveryInProgress.current) return;
     if (!failedUrl || fallbackAttempted.current) {
       stop(); setError("Видео недоступно."); return;
     }
     fallbackAttempted.current = true;
+    recoveryInProgress.current = true;
     const current = generation.current;
     void (async () => {
       if (mediaCdnKindFromSignedUrl(failedUrl) !== "feed") return false;
       const outage = await probeCdnOutage(failedUrl, { nativeNetwork: true, timeoutMs: 8500 });
       if (!outage) return false;
       const quality = (Object.entries(media.mp4) as [string, string][])
-        .find(([, value]) => value === failedUrl)?.[0] ?? "360";
-      if (!["360", "720", "1080"].includes(quality)) return false;
+        .find(([, value]) => value === failedUrl)?.[0];
+      if (!quality || !["360", "720", "1080"].includes(quality)) return false;
       const fallback = await feedApi.requestMediaFallback(
         media.id, `video${quality}` as "video360" | "video720" | "video1080");
-      if (!fallback.url.startsWith("https://s3.cloud.ru/") || current !== generation.current) return false;
+      if (!isSignedCloudruFallback(fallback.url) || current !== generation.current) return false;
       setUrl(fallback.url);
       return true;
     })().then(recovered => {
       if (!recovered && current === generation.current) { stop(); setError("Видео недоступно."); }
     }).catch(() => {
       if (current === generation.current) { stop(); setError("Видео недоступно."); }
+    }).finally(() => {
+      if (current === generation.current) recoveryInProgress.current = false;
     });
   }, [url, media.id, media.mp4, stop]);
   const frameHeight = fullscreen ? Math.max(1, Math.round(height * 0.78))

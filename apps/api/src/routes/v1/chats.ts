@@ -2,7 +2,6 @@ import { Hono, type Context } from "hono";
 import {reserveChat2V2Upload,confirmChat2V2Upload,getChat2V2UploadStatus,attachChat2V2Media} from "../../modules/chat2/media-v2-upload.js";
 import { bodyLimit } from "hono/body-limit";
 import { z, ZodError } from "zod/v3";
-import { prisma } from "@gafus/prisma";
 import { connectToken, subscriptionToken } from "../../modules/chat2/realtime.js";
 import {
   Chat2Error,
@@ -39,6 +38,8 @@ import {
   resolveChatReport,
   listStaffChatReports,
   resolveStaffChatReport,
+  listCandidateChatUsers,
+  findChatUserIdByUsername,
 } from "../../modules/chat2/service.js";
 
 /** Every handler is reached only via authenticated, no-store /api/v1/chats routes. */
@@ -91,15 +92,7 @@ chatsRoutes.get("/users", async (c) => {
     .min(2)
     .max(50)
     .parse(c.req.query("q") ?? "");
-  const users = await prisma.user.findMany({
-    where: {
-      username: { contains: q, mode: "insensitive", not: "lana" },
-      id: { not: actor(c) },
-      accountDeletionRequestedAt: null,
-    },
-    select: { id: true, username: true },
-    take: 15,
-  });
+  const users = await listCandidateChatUsers(actor(c), q);
   return c.json(ok(users));
 });
 chatsRoutes.get("/discover", async (c) => {
@@ -119,15 +112,9 @@ chatsRoutes.post("/direct", async (c) => {
   if ("userId" in target) {
     userId = target.userId;
   } else {
-    const other = await prisma.user.findFirst({
-      where: {
-        username: { equals: target.username, mode: "insensitive" },
-        accountDeletionRequestedAt: null,
-      },
-      select: { id: true },
-    });
-    if (!other) throw new Chat2Error("USER_NOT_FOUND", 404, "Пользователь не найден");
-    userId = other.id;
+    const resolvedId = await findChatUserIdByUsername(target.username);
+    if (!resolvedId) throw new Chat2Error("USER_NOT_FOUND", 404, "Пользователь не найден");
+    userId = resolvedId;
   }
   return c.json(ok(await openDirect(actor(c), userId)), 201);
 });

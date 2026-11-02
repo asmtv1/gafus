@@ -56,6 +56,11 @@ const protectedPaths = [
 describe("WEB-URL-013 original Next private route redirects", () => {
   it.each(protectedPaths)("known guest %s -> / landing without private GET", async path => {
     await mount(path);
+    // Auth redirect and lazy landing chunk are distinct commits. The private
+    // route must redirect immediately, but its public landing can take longer
+    // than the single 24 ms tick on a busy monorepo build runner.
+    for (let i = 0; i < 180 &&
+      !host.querySelector('[data-ui-parity="legacy-landing"]'); i++) await tick();
     expect(window.location.pathname).toBe("/");
     expect(host.querySelector('[data-ui-parity="legacy-landing"]')).not.toBeNull();
     expect(host.querySelector(".course-card")).toBeNull();
@@ -75,7 +80,9 @@ describe("WEB-URL-013 original Next private route redirects", () => {
       error: "NOT_FOUND",
     }), { status: url === "/api/v1/courses" ? 200 : 404 }));
     await mount("/courses");
-    for (let i = 0; i < 10 && !host.querySelector(".course-card"); i++) await tick();
+    // Authenticated catalog is lazy-loaded; preserve the exact card/ACL
+    // assertions below while allowing the module to resolve under CI load.
+    for (let i = 0; i < 150 && !host.querySelector(".course-card"); i++) await tick();
     const card = host.querySelector<HTMLAnchorElement>('li.course-card a[href="/trainings/separation_anxiety"]');
     expect(card).not.toBeNull();
     expect(host.querySelector('li.course-card a[href="/courses/course-1"]')).toBeNull();

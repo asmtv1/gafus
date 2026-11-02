@@ -51,10 +51,16 @@ const fakeToken={
    }
    return {count};
  },
- create: async ({data}:{data:{userId:string;newEmail:string;token:string;expiresAt:Date}}) => {
+ findFirst: async ({where}:{where:{userId:string}}) => {
+   const matching=[...m.tokens.values()].filter(row=>row.userId===where.userId);
+   return matching.sort((a,b)=>b.createdAt.getTime()-a.createdAt.getTime())[0]??null;
+ },
+ create: async ({data}:{data:{
+  userId:string;newEmail:string;token:string;expiresAt:Date;createdAt:Date;
+ }}) => {
    m.createCalls(data.userId,data.newEmail);
    if(m.failCreate)throw new Error("SYNTH_PRISMA_CREATE_ERROR");
-   const row={...data,createdAt:new Date()};m.tokens.set(data.token,row);return row;
+   const row={...data};m.tokens.set(data.token,row);return row;
  },
  findUnique: async ({where}:{where:{token:string}}) => m.tokens.get(where.token)??null,
 };
@@ -122,6 +128,18 @@ describe("W1 real email Core orchestration under fake Prisma/mail",()=>{
   await confirmEmailChangeByToken(next);
   expect(m.users.get("A")).toBe("second@sample.test");expect(m.tokens.size).toBe(0);
   await expect(confirmEmailChangeByToken(next)).rejects.toThrow("недействительна");
+ });
+ it("monotonic issuance disambiguates two links staged in the same millisecond",async()=>{
+  const now=Date.now();const clock=vi.spyOn(Date,"now").mockReturnValue(now);
+  try{
+   await requestEmailChange("A","first@sample.test");
+   const first=lastToken();const firstAt=m.tokens.get(first)!.createdAt.getTime();
+   await requestEmailChange("A","second@sample.test");
+   const second=lastToken();
+   expect(m.tokens.has(first)).toBe(false);
+   expect(m.tokens.size).toBe(1);
+   expect(m.tokens.get(second)?.createdAt.getTime()).toBeGreaterThan(firstAt);
+  }finally{clock.mockRestore();}
  });
  it("mail failure retains previously issued and persisted token",async()=>{
   await requestEmailChange("A","first@sample.test");const old=lastToken();

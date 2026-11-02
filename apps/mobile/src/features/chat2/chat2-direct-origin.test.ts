@@ -9,6 +9,7 @@ const mock = vi.hoisted(() => ({
   },
 }));
 vi.mock("@/shared/lib/api/client", () => ({ apiClient: mock.apiClient }));
+vi.mock("@/shared/config", () => ({ API_BASE_URL: "https://api.gafus.ru" }));
 vi.mock("expo-secure-store", () => ({ getItemAsync: vi.fn() }));
 vi.mock("@/shared/lib/api/client-context", () => ({ getMobileClientHeaders: () => ({}) }));
 vi.mock("@/shared/stores", () => ({
@@ -65,11 +66,66 @@ describe("Native Chat2 isolated API and direct-profile messaging", () => {
     expect(mock.apiClient).not.toHaveBeenCalled();
   });
 
-  it("fails closed when the explicit Chat2 origin is missing or production", async () => {
-    for (const origin of ["", "https://api.gafus.ru", "http://somewhere.example"]) {
+  it("fails closed for an absent, unsafe or unpaired Chat2 origin", async () => {
+    for (const origin of ["", "https://gafus.ru", "http://somewhere.example"]) {
       vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", origin);
       await expect(chat2.directByUsername("teamb")).rejects.toThrow();
     }
+    expect(mock.apiClient).not.toHaveBeenCalled();
+  });
+
+  it("allows production Chat2 on the explicitly production-bound mobile client", async () => {
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://api.gafus.ru");
+    await expect(chat2.directByUsername("teamb")).resolves.toEqual({ conversationId: "direct-room" });
+    expect(mock.apiClient).toHaveBeenCalledWith(
+      "/api/v1/chats/direct",
+      expect.objectContaining({ chat2Origin: "https://api.gafus.ru" }),
+    );
+  });
+
+  it("uses V2 for production media even in a development build", async () => {
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://api.gafus.ru");
+    mock.apiClient.mockResolvedValueOnce({ success: false, error: "V2 unavailable" });
+    await expect(chat2.upload("room_1", {
+      uri: "file:///image.png", name: "image.png", mime: "image/png", size: 128,
+    })).rejects.toThrow("V2 unavailable");
+    expect(mock.apiClient).toHaveBeenCalledExactlyOnceWith(
+      "/api/v1/chats/room_1/media/v2/reserve",
+      expect.objectContaining({ chat2Origin: "https://api.gafus.ru" }),
+    );
+  });
+
+  it("attaches a confirmed V2 photo immediately and does not wait for READY before send", async () => {
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://api.gafus.ru");
+    const mediaId = "00000000-0000-4000-8000-000000000000";
+    const media = { id: "attachment-one", name: "photo.png", mime: "image/webp",
+      kind: "image", bytes: 128 };
+    mock.apiClient
+      .mockResolvedValueOnce({ success: true, data: {
+        mediaId, upload: { method: "POST", url: "https://s3.cloud.ru/incoming",
+          fields: { key: "chat2/test" } },
+      } })
+      .mockResolvedValueOnce({ success: true, data: { status: "UPLOADED" } })
+      .mockResolvedValueOnce({ success: true, data: media });
+    const upload = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", upload);
+    await expect(chat2.upload("room_1", {
+      uri: "file:///photo.png", name: "photo.png", mime: "image/png", size: 128,
+    })).resolves.toEqual(media);
+    expect(upload).toHaveBeenCalledExactlyOnceWith("https://s3.cloud.ru/incoming",
+      expect.objectContaining({ method: "POST", body: expect.any(FormData) }));
+    expect(mock.apiClient.mock.calls.map(([path]) => path)).toEqual([
+      "/api/v1/chats/room_1/media/v2/reserve",
+      `/api/v1/chats/room_1/media/v2/${mediaId}/confirm`,
+      `/api/v1/chats/room_1/media/v2/${mediaId}/attach`,
+    ]);
+  });
+
+  it("blocks PDF uploads to production even in a development build", async () => {
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://api.gafus.ru");
+    await expect(chat2.upload("room_1", {
+      uri: "file:///document.pdf", name: "document.pdf", mime: "application/pdf", size: 128,
+    })).rejects.toThrow("PDF в чате пока недоступен");
     expect(mock.apiClient).not.toHaveBeenCalled();
   });
 

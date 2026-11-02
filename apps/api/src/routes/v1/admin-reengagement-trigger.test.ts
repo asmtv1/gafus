@@ -5,7 +5,7 @@ const fake = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: fake.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: fake.registration }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: fake.role } } }));
+vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: fake.role }));
 vi.mock("@gafus/queues", () => ({ connection: { set: fake.set, eval: fake.eval } }));
 vi.mock("@gafus/reengagement", () => ({ manualTriggerScheduler: fake.run }));
 import { authMiddleware } from "../../middleware/auth";
@@ -29,7 +29,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   fake.verify.mockResolvedValue({ id: "staff-1", username: "admin", role: "ADMIN" });
   fake.registration.mockResolvedValue(true);
-  fake.role.mockResolvedValue({ role: "ADMIN" });
+  fake.role.mockResolvedValue("ADMIN");
   fake.set.mockResolvedValue("OK");
   fake.eval.mockResolvedValue(1);
   fake.run.mockResolvedValue({ success: true, result: {
@@ -51,7 +51,7 @@ describe("admin manual reengagement Next action parity", () => {
   });
 
   it("checks current database role, not stale ADMIN JWT", async () => {
-    fake.role.mockResolvedValue({ role: "USER" });
+    fake.role.mockResolvedValue("USER");
     expect((await req()).status).toBe(403);
     expect(fake.set).not.toHaveBeenCalled();
     expect(fake.run).not.toHaveBeenCalled();

@@ -81,10 +81,16 @@ describe("AG2: legacy Web bookmarks", () => {
         await act(async () => root.render(createElement(QueryClientProvider, {
           client: cache,
         }, createElement(App))));
-        for(let i=0;i<12;i++) {
-          if(host.textContent?.includes("Личные данные скрыты") ||
-             host.textContent?.includes("Личные данные временно скрыты"))break;
-          await act(async()=>{await new Promise(done=>setTimeout(done,25));});
+        // Two independent lazy auth boundaries render asynchronously. Do not
+        // stop as soon as the first one settles: the second still needs a turn.
+        const authMessages = ["Проверяем сессию", "Не удалось получить статус авторизации",
+          "Не удалось проверить авторизацию"];
+        const privacyMessages = ["Личные данные временно скрыты", "Личные данные скрыты"];
+        const includesAny = (variants: string[]) =>
+          variants.some(message => host.textContent?.includes(message));
+        for (let i = 0; i < 60; i++) {
+          if (includesAny(authMessages) && includesAny(privacyMessages)) break;
+          await act(async () => { await new Promise(done => setTimeout(done, 25)); });
         }
         // An unknown guest session is now fenced BEFORE either private route.
         // Authorization may settle to an explicit error before this assertion.
@@ -92,11 +98,8 @@ describe("AG2: legacy Web bookmarks", () => {
         // ConnectedFlowSessionBoundary and NextProtectedRouteBoundary may
         // finish independently. Both fail closed, but render different safe
         // auth-error copy; do not assert a single network timing outcome.
-        expect(["Проверяем сессию", "Не удалось получить статус авторизации",
-          "Не удалось проверить авторизацию"].some(
-          message => host.textContent?.includes(message))).toBe(true);
-        expect(["Личные данные временно скрыты", "Личные данные скрыты"].some(
-          message => host.textContent?.includes(message))).toBe(true);
+        expect(includesAny(authMessages)).toBe(true);
+        expect(includesAny(privacyMessages)).toBe(true);
         expect(host.querySelector('a[href="/login"]')).not.toBeNull();
         expect(host.textContent).not.toContain("Страница не найдена");
         // The connected session boundary may verify /me, never private route data.

@@ -26,7 +26,7 @@ prometheus.remote_write "yc" {
 prometheus.relabel "yc_allowlist" {
   rule {
     source_labels = ["__name__"]
-    regex         = "probe_success|pg_up|node_cpu_seconds_total|node_memory_MemTotal_bytes|node_memory_MemAvailable_bytes|node_memory_MemFree_bytes|node_memory_Buffers_bytes|node_memory_Cached_bytes|node_memory_SReclaimable_bytes|node_filesystem_avail_bytes|node_filesystem_size_bytes|gafus_mail_(stalled_pending|unresolved_unknown|expired_unknown|recent_failed|delivery_failures_24h|queue_failed|queue_expired|queue_stalled)"
+    regex         = "probe_success|pg_up|redis_up|gafus_database_backup_last_success_timestamp_seconds|up|gafus_media_(stalled_processing|failed_tasks)|node_cpu_seconds_total|node_memory_MemTotal_bytes|node_memory_MemAvailable_bytes|node_memory_MemFree_bytes|node_memory_Buffers_bytes|node_memory_Cached_bytes|node_memory_SReclaimable_bytes|node_filesystem_avail_bytes|node_filesystem_size_bytes|gafus_mail_(stalled_pending|unresolved_unknown|expired_unknown|recent_failed|delivery_failures_24h|queue_failed|queue_expired|queue_stalled)"
     action        = "keep"
   }
   forward_to = [prometheus.remote_write.yc.receiver]
@@ -55,10 +55,10 @@ prometheus.scrape "postgres_exporter" {
 // Health checks для сервисов через blackbox-exporter
 prometheus.scrape "services_health" {
   targets = [
-    { __address__ = "blackbox-exporter:9115", __param_target = "http://web:3000/api/health", instance = "http://web:3000/api/health", service = "web-app", job = "services-health" },
+    { __address__ = "blackbox-exporter:9115", __param_target = "http://web:3000/healthz", instance = "http://web:3000/healthz", service = "web-app", job = "services-health" },
     { __address__ = "blackbox-exporter:9115", __param_target = "http://api:3001/health", instance = "http://api:3001/health", service = "api", job = "services-health" },
-    { __address__ = "blackbox-exporter:9115", __param_target = "http://trainer-panel:3001/api/health", instance = "http://trainer-panel:3001/api/health", service = "trainer-panel", job = "services-health" },
-    { __address__ = "blackbox-exporter:9115", __param_target = "http://admin-panel:3006/api/health", instance = "http://admin-panel:3006/api/health", service = "admin-panel", job = "services-health" },
+    { __address__ = "blackbox-exporter:9115", __param_target = "http://trainer-panel:3001/healthz", instance = "http://trainer-panel:3001/healthz", service = "trainer-panel", job = "services-health" },
+    { __address__ = "blackbox-exporter:9115", __param_target = "http://admin-panel:3006/healthz", instance = "http://admin-panel:3006/healthz", service = "admin-panel", job = "services-health" },
     { __address__ = "blackbox-exporter:9115", __param_target = "http://worker:3003/health", instance = "http://worker:3003/health", service = "worker", job = "services-health" },
     { __address__ = "blackbox-exporter:9115", __param_target = "http://bull-board:3002/health", instance = "http://bull-board:3002/health", service = "bull-board", job = "services-health" },
   ]
@@ -82,6 +82,19 @@ prometheus.scrape "worker_mail" {
     job         = "worker-mail",
   }]
   metrics_path    = "/metrics/mail"
+  scrape_interval = "60s"
+  forward_to      = [prometheus.relabel.yc_allowlist.receiver]
+}
+
+// Durable media status gauges, scraped separately from mail and subscriptions.
+// Low-cardinality pipeline labels only: chat2, questions, feed, gallery.
+prometheus.scrape "worker_media" {
+  targets = [{
+    __address__ = "worker:3003",
+    instance    = "gafus-worker-media",
+    job         = "worker-media",
+  }]
+  metrics_path    = "/metrics/media"
   scrape_interval = "60s"
   forward_to      = [prometheus.relabel.yc_allowlist.receiver]
 }

@@ -58,5 +58,14 @@ expected=int(os.environ["BACKUP_BYTES"])
 if obj.get("size") != expected or obj.get("type") != "file":
     raise SystemExit("YANDEX_BACKUP_SIZE_MISMATCH")
 '
+# Optional, fail-closed metrics export. The marker is written only AFTER the
+# cloud resource reports the expected file size and type. If unconfigured,
+# leave existing production cron behaviour exactly unchanged.
+if [[ -n "${GAFUS_BACKUP_METRICS_DIR:-}" ]]; then
+  python3 "$(dirname "$0")/emit-verified-backup-metric.py" || {
+    echo 'BACKUP_METRICS_WRITE_FAILED_REMOTE_BACKUP_VALID' >&2
+    exit 1
+  }
+fi
 echo "BACKUP_VERIFIED_REMOTE: $name ($local_size bytes)"
 echo 'No existing Yandex.Disk backups were deleted or overwritten.'

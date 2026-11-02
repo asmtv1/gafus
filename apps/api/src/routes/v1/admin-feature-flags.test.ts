@@ -6,7 +6,7 @@ const fake = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: fake.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: fake.reg }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: fake.role } } }));
+vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: fake.role }));
 vi.mock("@gafus/core/services/appFeatureFlags", () => ({
   getMobileReleaseControl: fake.read,
   updateMobileReleaseControl: fake.write,
@@ -53,7 +53,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   fake.verify.mockResolvedValue({ id: "admin", role: "ADMIN", username: "admin" });
   fake.reg.mockResolvedValue(true);
-  fake.role.mockResolvedValue({ role: "ADMIN" });
+  fake.role.mockResolvedValue("ADMIN");
   fake.read.mockResolvedValue({ ...body });
   fake.write.mockResolvedValue({ revision: 4 });
 });
@@ -75,14 +75,14 @@ describe("admin mobile release flags", () => {
 
   it("allows MODERATOR read with current DB role", async () => {
     fake.verify.mockResolvedValue({ id: "mod", role: "MODERATOR", username: "mod" });
-    fake.role.mockResolvedValue({ role: "MODERATOR" });
+    fake.role.mockResolvedValue("MODERATOR");
     const response = await req("GET");
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ success: true, data: body });
   });
 
   it("denies revoked JWT role before reading flags", async () => {
-    fake.role.mockResolvedValue({ role: "USER" });
+    fake.role.mockResolvedValue("USER");
     const response = await req("GET");
     expect(response.status).toBe(403);
     expect(fake.read).not.toHaveBeenCalled();
@@ -102,7 +102,7 @@ describe("admin mobile release flags", () => {
   });
 
   it("rejects a revoked ADMIN before config mutation", async () => {
-    fake.role.mockResolvedValue({ role: "USER" });
+    fake.role.mockResolvedValue("USER");
     const response = await req("PUT", body);
     expect(response.status).toBe(403);
     expect(fake.write).not.toHaveBeenCalled();

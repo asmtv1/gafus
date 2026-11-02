@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { prisma } from "@gafus/prisma";
+import { readAdminActorRole } from "@gafus/core/services/adminUser";
 import {
   getMobileReleaseControl,
   updateMobileReleaseControl,
@@ -35,8 +35,7 @@ const payload = z.object({
 }).strict();
 
 async function currentRole(userId: string) {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-  return user?.role;
+  return readAdminActorRole(userId);
 }
 
 adminFeatureFlagsRoutes.get("/", requireRole("ADMIN", "MODERATOR"), async c => {

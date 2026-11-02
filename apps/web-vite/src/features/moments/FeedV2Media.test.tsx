@@ -78,6 +78,13 @@ describe("Web Feed V2 native rendering", () => {
       expect(document.querySelector(".feed-v2-lightbox")).toBeNull();
     } finally { await act(async () => root.unmount()); }
   });
+  it("renders poster through verified CDN/S3 image recovery rather than an unobserved video poster", () => {
+    const html = renderToStaticMarkup(createElement(FeedV2Video, { media: movie }));
+    expect(html).toContain('feed-v2-video-poster');
+    expect(html).toContain('poster.webp');
+    expect(html).not.toMatch(/<video[^>]+poster=/);
+    expect(html).not.toMatch(/<video[^>]+src=/);
+  });
   it("does not request playback ticket and leaves MP4 unloaded until click", async () => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();

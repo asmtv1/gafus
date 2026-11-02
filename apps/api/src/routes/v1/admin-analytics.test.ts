@@ -5,7 +5,7 @@ const fake = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: fake.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: fake.reg }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: fake.role } } }));
+vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: fake.role }));
 vi.mock("@gafus/core/services/adminReengagement", () => ({
   getReengagementMetrics: fake.reengagement,
 }));
@@ -28,7 +28,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   fake.verify.mockResolvedValue({ id: "admin1", role: "ADMIN", username: "admin" });
   fake.reg.mockResolvedValue(true);
-  fake.role.mockResolvedValue({ role: "ADMIN" });
+  fake.role.mockResolvedValue("ADMIN");
   fake.reengagement.mockResolvedValue({ success: true, data: { overview: { totalCampaigns: 2 } } });
   fake.rewarded.mockResolvedValue({ totals: { completed: 3 } });
 });
@@ -47,7 +47,7 @@ describe("admin analytics read endpoints", () => {
     expect(fake.rewarded).not.toHaveBeenCalled();
   });
   it("blocks a revoked admin role even if token still says ADMIN", async () => {
-    fake.role.mockResolvedValue({ role: "USER" });
+    fake.role.mockResolvedValue("USER");
     expect((await req("/reengagement")).status).toBe(403);
     expect((await req("/rewarded-ads")).status).toBe(403);
     expect(fake.reengagement).not.toHaveBeenCalled();

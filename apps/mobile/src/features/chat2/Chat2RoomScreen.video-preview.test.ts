@@ -8,7 +8,9 @@ const preview = source.slice(source.indexOf("function NativeChat2Video("));
 describe("Chat2 Mobile video preview parity with Web", () => {
   it("loads the authorized signed URL and poster when a message mounts", () => {
     expect(preview).toContain("useEffect(() => {");
-    expect(preview).toContain("void chat2.media(conversationId, file.id)");
+    expect(preview).toContain("() => chat2.media(conversationId, file.id), controller.signal");
+    expect(preview).toContain("readProcessedChat2Media(");
+    expect(preview).toContain("Обрабатываем видео…");
     expect(preview).toContain("media?.renditions?.poster");
     expect(preview).toContain("source={{ uri: poster }}");
     expect(preview).toContain("!everPlayed && !playing && (poster || thumbnail?.url === url)");
@@ -33,11 +35,13 @@ describe("Chat2 Mobile video preview parity with Web", () => {
   it("supports quality selection, S3 fallback, expired URLs and a visible retry", () => {
     expect(preview).toContain("chat2VideoSource(variants, quality, { width: 220 })");
     expect(preview).toContain("chat2MatchedS3Variant(primary, media)");
-    expect(preview).toContain("chat2CdnS3FailoverAllowed(primary, fallback, fetch, true)");
+    expect(preview).toContain("chat2CdnS3FailoverAllowed(primary, backup, fetch, true)");
     expect(preview).toContain("setPosterViaS3(true)");
     expect(preview).toContain("Math.max(0, media.expiresIn - 30) * 1000");
-    expect(preview).toContain("setResumeOnReady(playerRef.current?.playing ?? false)");
+    expect(preview).toContain("setResumeOnReady(playIntent.current || Boolean(playerRef.current?.playing))");
     expect(preview).toContain('accessibilityLabel="Повторить загрузку видео"');
     expect(preview).toContain("setReload(value => value + 1)");
+    expect(preview).toContain("if (recoveryInProgress.current) return;");
+    expect(preview).toContain("playIntent.current = true;");
   });
 });

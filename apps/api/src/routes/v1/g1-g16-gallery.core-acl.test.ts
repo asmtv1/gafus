@@ -50,15 +50,20 @@ describe("G16 Core ownership/privacy proofs with genuine persistence guards",()=
   const tx={galleryUpload:{findUnique:vi.fn()},galleryPhoto:{findMany:vi.fn().mockResolvedValue([ready])}} as never;
   const dto=await photoDto(ctx,tx,ready as never,B);
   expect(dto.canEdit).toBe(false);
-  expect(dto.urlsExpireAt).toBe("2026-10-16T00:05:00.000Z");
+  // Stable expiry floors to a 90-second slot: the 300-second signing
+  // budget is intentionally NOT a fixed 300-second wire expiry.
+  expect(dto.urlsExpireAt).toBe("2026-10-16T00:04:30.000Z");
+  expect(new Date(dto.urlsExpireAt!).getTime() - at.getTime()).toBeGreaterThan(180_000);
   expect(dto.thumbUrl).toContain("A-thumb");
   expect(dto.fullUrl).toContain("A-full");
   const older={...album(true),createdAt:at,updatedAt:at,name:"album",description:null,coverPhotoId:ready.id};
   const coverA=await albumDto(ctx,tx,older as never,A);
   expect(coverA.coverThumbUrl).toContain("A-thumb");
+  expect(coverA.urlsExpireAt).toBe(dto.urlsExpireAt);
   (tx as {galleryPhoto:{findMany:ReturnType<typeof vi.fn>}}).galleryPhoto.findMany.mockResolvedValue([{...ready,id:"photo-new",thumbKey:"B-thumb",fullKey:"B-full"}]);
   const coverB=await albumDto(ctx,tx,{...older,coverPhotoId:"photo-new"} as never,A);
   expect(coverB.coverThumbUrl).toContain("B-thumb");
+  expect(coverB.urlsExpireAt).toBe(dto.urlsExpireAt);
   expect(coverB.coverThumbUrl).not.toBe(coverA.coverThumbUrl);
   expect(signCdn).toHaveBeenCalled();
  });

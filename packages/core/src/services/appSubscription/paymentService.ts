@@ -1,5 +1,6 @@
 import { enrichPaymentFinance, recordFinanceRefund } from "./paymentFinanceService";
-import { createHash, createHmac, randomUUID } from "node:crypto";
+import { hashAdvisoryLockKey, getYookassaPaymentMethodDisplayTitle, normalizeFingerprintPart, amountsEqual } from "./paymentPure";
+import { createHmac, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 import { Prisma, prisma } from "@gafus/prisma";
@@ -234,9 +235,6 @@ function isPrismaUniqueViolation(error: unknown): boolean {
   );
 }
 
-function hashAdvisoryLockKey(value: string): number {
-  return createHash("sha256").update(value).digest().readInt32BE(0);
-}
 
 type YooKassaPaymentObject = {
   id?: string;
@@ -283,29 +281,7 @@ type YooKassaPaymentMethodObject = {
   confirmation?: { confirmation_url?: string };
 };
 
-function getYookassaPaymentMethodDisplayTitle(params: {
-  type?: string | null;
-  title?: string | null;
-  last4?: string | null;
-}): string | null {
-  if (params.type?.trim().toLowerCase() === "sbp") {
-    return "СБП";
-  }
-  const title = params.title?.trim();
-  if (title) return title;
-  const last4 = params.last4?.trim();
-  return last4 ? `Карта *${last4}` : null;
-}
 
-function normalizeFingerprintPart(
-  value: string | undefined,
-  casing: "lower" | "upper" | "keep" = "keep",
-): string {
-  const normalized = (value ?? "").trim();
-  if (casing === "lower") return normalized.toLowerCase();
-  if (casing === "upper") return normalized.toUpperCase();
-  return normalized;
-}
 
 function getYookassaPaymentMethodFingerprintSecret(fallbackSecret?: string): string | null {
   const explicit = process.env.APP_SUBSCRIPTION_CARD_FINGERPRINT_SECRET?.trim();
@@ -351,11 +327,6 @@ function getYookassaCredentials(params?: { shopId?: string; secretKey?: string }
   return { shopId, secretKey };
 }
 
-function amountsEqual(a: unknown, b: unknown): boolean {
-  const left = Number(a);
-  const right = Number(b);
-  return Number.isFinite(left) && Number.isFinite(right) && Math.abs(left - right) < 0.001;
-}
 
 async function fetchYookassaPaymentObject(params: {
   yookassaPaymentId: string;

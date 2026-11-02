@@ -5,7 +5,7 @@ const f = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.reg }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: f.role } } }));
+vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: f.role }));
 vi.mock("@gafus/core/services/appSubscription", () => ({
   getDefaultAppSubscriptionSettings: f.read,
   updateDefaultAppSubscriptionSettings: f.save,
@@ -35,7 +35,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   f.verify.mockResolvedValue({ id: "admin", role: "ADMIN", username: "admin" });
   f.reg.mockResolvedValue(true);
-  f.role.mockResolvedValue({ role: "ADMIN" });
+  f.role.mockResolvedValue("ADMIN");
   f.read.mockResolvedValue(null);
   f.save.mockResolvedValue({});
 });
@@ -47,13 +47,13 @@ describe("admin pricing controls", () => {
   });
   it("MODERATOR reads but cannot change prices", async () => {
     f.verify.mockResolvedValue({ id: "mod", role: "MODERATOR", username: "mod" });
-    f.role.mockResolvedValue({ role: "MODERATOR" });
+    f.role.mockResolvedValue("MODERATOR");
     expect((await req()).status).toBe(200);
     expect((await req("PUT", input)).status).toBe(403);
     expect(f.save).not.toHaveBeenCalled();
   });
   it("rejects JWT ADMIN who lost DB privileges", async () => {
-    f.role.mockResolvedValue({ role: "USER" });
+    f.role.mockResolvedValue("USER");
     expect((await req()).status).toBe(403);
     expect((await req("PUT", input)).status).toBe(403);
     expect(f.save).not.toHaveBeenCalled();

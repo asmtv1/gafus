@@ -42,9 +42,14 @@ async function render(path: string, account: string | null,
   // handful of transforms; all functional/ACL assertions remain unchanged.
   for (let attempt = 0; attempt < 60; attempt++) {
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 45)); });
+    // Guest redirection and landing chunk commit are separate async steps.
+    // A successful replaceState("/") alone may still show Suspense's spinner:
+    // this test must wait for the real public login link before asserting it.
+    const guestLandingReady = account === null && window.location.pathname === "/" &&
+      host.textContent?.includes("Войти");
     if (host.querySelector('[id^="question-edit-title-"]') ||
       host.textContent?.includes("Редактирование недоступно") ||
-      window.location.pathname === "/") break;
+      guestLandingReady) break;
   }
   return {
     host, cache,
@@ -104,8 +109,12 @@ describe("AG2 legacy question edit deep link", () => {
       // permitted anonymous surface is the marketing presentation at `/`.
       expect(window.location.pathname).toBe("/");
       expect(ui.host.textContent).toContain("Войти");
-      expect(fetcher.mock.calls.some(([url]) => String(url).startsWith(
-        "/api/v1/questions/"))).toBe(false);
+      // Compare request paths directly: on failure we need to distinguish an
+      // actual private API call from delayed auth UI. Never relax this guard.
+      const leakedQuestionRequests = fetcher.mock.calls
+        .map(([url]) => String(url))
+        .filter(url => url.startsWith("/api/v1/questions/"));
+      expect(leakedQuestionRequests).toEqual([]);
     } finally { await ui.cleanup(); }
   });
 
