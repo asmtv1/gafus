@@ -93,6 +93,39 @@ describe("feed storage", () => {
       ),
     ).toThrow();
   });
+  it("keeps 24h signatures off by default and requires independently verified purge/cache gates", async () => {
+    const now = 1_800_000_000_000;
+    const expiry = new Date(now + 30 * 3_600_000);
+    expect(() => signFeedCdnUrl(config.cdnBaseUrl, key, expiry,
+      config.cdnSecret, now)).toThrow("INVALID_FEED_CDN_SIGNING_INPUT");
+    const signed = signFeedCdnUrl(config.cdnBaseUrl, key, expiry,
+      config.cdnSecret, now, "beget", 172800);
+    expect(new URL(signed).searchParams.get("expires")).toBe(String(Math.floor(expiry.getTime()/1000)));
+    expect(() => signFeedCdnUrl(config.cdnBaseUrl, key,
+      new Date(now + 172_801_000), config.cdnSecret, now, "beget", 172800)).toThrow();
+
+    const prod = {...config, bucket:"gafus-feed-private", cdnProvider:"beget" as const};
+    const ready = {
+      FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED:"true",
+      FEED_CDN_EDGE_TOKEN_VERIFIED:"true",
+      FEED_CDN_BROWSER_CACHE_24H_VERIFIED:"true",
+      MEDIA_CDN_PURGE_WORKER_ENABLED:"true",
+      BEGET_CDN_PURGE_API_VERIFIED:"true",
+      BEGET_CDN_CACHE_KEY_VERIFIED:"true",
+      BEGET_CDN_PURGE_PROPAGATION_VERIFIED:"true",
+    };
+    expect(createFeedStorage(prod, undefined, {}).longLivedUrls).toBe(false);
+    for(const flag of Object.keys(ready)) {
+      expect(() => createFeedStorage(prod,undefined,{...ready,[flag]:"false"}))
+        .toThrow("FEED_PUBLIC_BROWSER_CACHE_24H_UNVERIFIED");
+    }
+    expect(createFeedStorage(prod,undefined,ready).longLivedUrls).toBe(true);
+    const url = new URL(await createFeedStorage(prod,undefined,ready)
+      .signCdn({key,expiresAt:new Date(Date.now()+30*3_600_000)}));
+    expect(url.hostname).toBe("quepraquiecebquomiel.begetcdn.cloud");
+    expect(() => createFeedStorage({...prod,bucket:"unapproved-private"},undefined,ready))
+      .toThrow("FEED_PUBLIC_BROWSER_CACHE_24H_UNVERIFIED");
+  });
   it("generates independently verifiable Beget WebP and MP4 signatures", () => {
     const now = 1_800_000_000_000;
     const expires = Math.floor(now / 1000) + 300;
