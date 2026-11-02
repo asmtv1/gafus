@@ -670,7 +670,7 @@ jobs:
     needs: [beget-provider-change-detect, beget-readonly-preflight, cloudru-jobs-verify, deploy-production]
     # App-only bootstrap skips all 11 Cloud.ru Jobs. A provider change must
     # still pass signed GET/HEAD/Range/deny verification after deployment.
-    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.beget-provider-change-detect.outputs.provider_required == 'true' && needs.deploy-production.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-verify.result == 'success' || needs.cloudru-jobs-verify.result == 'failure') }}
+    if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && (needs.beget-provider-change-detect.outputs.provider_required == 'true' || vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED == 'true') && needs.deploy-production.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-verify.result == 'success' || needs.cloudru-jobs-verify.result == 'failure') }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 12
