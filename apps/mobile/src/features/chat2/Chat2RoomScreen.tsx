@@ -34,6 +34,7 @@ import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { TexturedSafeAreaView } from "@/shared/components/TexturedSafeAreaView";
 import { chat2, nameFor, type Conversation, type Message, type Attachment } from "./api";
 import { Chat2SettingsSheet } from "./Chat2SettingsSheet";
+import { isCacheableChat2FinalUrl } from "./publicFinalCache";
 import { Chat2Avatar, Chat2MessageAuthorAvatar } from "./Chat2Avatar";
 import { Chat2ReportSheet } from "./Chat2ReportSheet";
 import { mergeHistory, shouldFetchOlderAtTop } from "./historyPagination";
@@ -991,8 +992,9 @@ function NativeChat2Media({ conversationId, file }: { conversationId: string; fi
       style={{ marginTop: 8 }}
     >
       {file.kind === "image" && url ? (
-        <Image
+        <ExpoImage
           source={{ uri: url }}
+          cachePolicy={isCacheableChat2FinalUrl(url) ? "memory-disk" : "memory"}
           onError={() => {
             if (triedFallback.current || !fallbackUrl) {setUrl(null);return;}
             triedFallback.current=true;
@@ -1003,7 +1005,7 @@ function NativeChat2Media({ conversationId, file }: { conversationId: string; fi
                 else setUrl(null);
               }).catch(() => setUrl(null));
           }}
-          resizeMode="contain"
+          contentFit="contain"
           style={{ width: 220, height: 180, borderRadius: 12, backgroundColor: "#fff" }}
         />
       ) : (
@@ -1029,7 +1031,8 @@ function NativeChat2VideoPlayer({
   requestThumbnail: boolean;
   onThumbnail: (url: string, frame: VideoThumbnail) => void;
 }) {
-  const player = useVideoPlayer({ uri: url, contentType: "progressive", useCaching: false }, instance => {
+  const player = useVideoPlayer({ uri: url, contentType: "progressive",
+    useCaching: isCacheableChat2FinalUrl(url) }, instance => {
     instance.staysActiveInBackground = false;
     instance.showNowPlayingNotification = false;
     instance.pause(); // Never autoplay when entering the chat.
@@ -1206,7 +1209,8 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
         controlsVisible={everPlayed} requestThumbnail={!poster} onThumbnail={onThumbnail} />
       {!everPlayed && !playing && (poster || thumbnail?.url === url) && <View pointerEvents="none"
         style={{ position: "absolute", width: 220, height: 220 }}>
-        {poster ? <Image source={{ uri: poster }} resizeMode="contain"
+        {poster ? <ExpoImage source={{ uri: poster }} contentFit="contain"
+          cachePolicy={isCacheableChat2FinalUrl(poster) ? "memory-disk" : "memory"}
           onError={() => {
             if (usingFallback || posterViaS3 || !media) {setPosterFailed(true);return;}
             const fallback = chat2MatchedS3Variant(poster, media);
