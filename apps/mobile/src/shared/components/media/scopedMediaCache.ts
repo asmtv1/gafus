@@ -9,6 +9,24 @@ const feedPath = /^\/posts\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/attachme
 // Feed Media V2: one immutable media-version key shared by Web and Mobile.
 const feedV2Path = /^\/media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/(?:image\/[sml]\.webp|poster\.webp|video\/(?:360|720|1080)\.mp4)$/;
 const feedV2Signature = /^\?md5=[A-Za-z0-9_-]{22}&expires=\d{10}$/;
+const dayMs = 86_400_000;
+/** Opt-in public Feed V2 CDN token: exact immutable final key, with 24–48h
+ * remaining. Reject private Gallery, short-lived and S3 fallback signatures.
+ * A longer token is only emitted after the server's live Beget cache gates.
+ */
+export function isLongLivedPublicFeedCdnUrl(raw: string, now = Date.now()): boolean {
+  if (!Number.isFinite(now) || now < 0) return false;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || url.port || url.username || url.password ||
+        url.hash || url.hostname !== "quepraquiecebquomiel.begetcdn.cloud" ||
+        !feedV2Path.test(url.pathname) || !feedV2Signature.test(url.search)) return false;
+    const expiresMs = Number(url.searchParams.get("expires")) * 1000;
+    return Number.isSafeInteger(expiresMs) &&
+      expiresMs - now >= dayMs &&
+      expiresMs - now <= 2 * dayMs;
+  } catch { return false; }
+}
 const signature = /^\/md5\([A-Za-z0-9_-]{22},\d{10}\)/;
 function authorizedFinalPath(scope: 'gallery' | 'feed', path: string): boolean {
   return scope === 'gallery' ? galleryPath.test(path) || galleryV2Path.test(path) || galleryVetPath.test(path) :
@@ -57,6 +75,7 @@ export function scopedMediaCacheKey(urlString: string, accountId: string, now = 
   if (signedExpirySec !== undefined &&
       (!Number.isSafeInteger(signedExpirySec) || signedExpirySec * 1000 <= now + 15_000))
     throw new Error('MEDIA_CACHE_EXPIRED');
-  const slot = Math.floor(now / 180_000);
+  const slot = Math.floor(now / (kind === 'feed' && isLongLivedPublicFeedCdnUrl(urlString, now)
+    ? dayMs : 180_000));
   return `gafus-media-v2:${accountId}:${kind}:${url.hostname}:${path}:${slot}`;
 }
