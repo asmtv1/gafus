@@ -29,6 +29,7 @@ vi.mock("@/shared/lib/media/serverHealth", () => ({
 }));
 vi.mock("@/shared/components/media/scopedMediaCache", () => ({
   scopedMediaCacheKey: (url: string, viewer: string) => viewer + url,
+  isLongLivedPublicFeedCdnUrl: () => false,
 }));
 vi.mock("@/shared/lib/api/gallery", () => ({ galleryApi: { requestMediaFallback: m.fallback } }));
 import { GalleryImage } from "./image";
