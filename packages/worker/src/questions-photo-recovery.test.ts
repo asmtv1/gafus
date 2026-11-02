@@ -98,7 +98,8 @@ describe("Questions-only recovery cleanup signature",()=>{
       process.env.QUESTIONS_V2_INTERNAL_HMAC_SECRET="production-only-synthetic-hmac-with-32-plus-bytes";
       await expect(questionsPhotoCleanupInternal()).resolves.toBeUndefined();
       expect(request).toHaveBeenCalledOnce();
-      expect(request.mock.calls[0]?.[0]).toBe("https://api.gafus.ru/internal/questions/media/jobs/cleanup");
+      expect(request.mock.calls[0]?.[0]).toBe("http://api:3001/internal/questions/media/jobs/cleanup");
+      expect(request.mock.calls[0]?.[1]).toMatchObject({method:"POST",redirect:"error"});
       request.mockClear();
       for(const invalid of ["https://admin.gafus.ru/","https://api.gafus.app/",
         "http://api.gafus.ru/","https://api.gafus.ru:444/",

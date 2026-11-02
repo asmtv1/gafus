@@ -95,7 +95,11 @@ export async function questionsPhotoCleanupInternal(){
   const digest=createHash("sha256").update(payload).digest("hex");
   const sig=createHmac("sha256",secret)
     .update(["POST",path,stamp,nonce,digest].join("\n")).digest("hex");
-  const res=await fetch(address.origin+path,{
+  // Worker and Hono API share a private Docker network in production. The
+  // verified public origin identifies the trusted HMAC audience, but the
+  // transport must not depend on external DNS/TLS hairpin connectivity.
+  const target=productionApi ? "http://api:3001" : address.origin;
+  const res=await fetch(target+path,{
     method:"POST",redirect:"error",body:payload,signal:AbortSignal.timeout(15_000),
     headers:{"content-type":"application/json","x-questions-timestamp":stamp,
       "x-questions-nonce":nonce,"x-questions-signature":sig},

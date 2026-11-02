@@ -34,6 +34,29 @@ export const CLOUDRU_MEDIA_JOB_NAMES = [
 
 export type CloudruMediaJobName = (typeof CLOUDRU_MEDIA_JOB_NAMES)[number];
 type HttpFetch = typeof fetch;
+/** Only safe diagnostic identifiers are logged: no URLs, IAM keys or payloads. */
+export function safeCloudruDispatchError(error: unknown): Error {
+  if (error instanceof Error) {
+    if (/^CLOUDRU_(?:MEDIA_DISPATCHER_UNSAFE_CONFIGURATION|JOB_IAM_(?:UNAVAILABLE(?:_[1-5][0-9]{2})?|NO_TOKEN)|JOB_EXECUTION_FAILED_gafus-[a-z0-9-]+_[1-5][0-9]{2}|JOB_(?:IAM|EXECUTION)_NETWORK_(?:EAI_AGAIN|ENOTFOUND|ETIMEDOUT|ECONNRESET|ECONNREFUSED|TIMEOUT|UNAVAILABLE))$/.test(error.message)) {
+      return new Error(error.message);
+    }
+  }
+  return new Error("CLOUDRU_JOB_UNKNOWN_FAILURE");
+}
+/** Bound transient transport errors without including request credentials in logs. */
+async function requestCloudru(
+  http: HttpFetch, url: string, init: RequestInit, phase: "IAM" | "EXECUTION",
+): Promise<Response> {
+  try {
+    return await http(url, init);
+  } catch (error) {
+    const e = error as { name?: string; cause?: { code?: string } } | null;
+    const code = e?.name === "TimeoutError" || e?.name === "AbortError"
+      ? "TIMEOUT" : e?.cause?.code;
+    const known = ["EAI_AGAIN", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "ECONNREFUSED"];
+    throw new Error(`CLOUDRU_JOB_${phase}_NETWORK_${code && known.includes(code) ? code : code === "TIMEOUT" ? code : "UNAVAILABLE"}`);
+  }
+}
 export function createCloudruMediaDispatcher(
   env: Record<string, string | undefined> = process.env,
   http: HttpFetch = fetch,
@@ -82,26 +105,42 @@ export function createCloudruMediaDispatcher(
         // Keep this per-allowlisted-name: mixing IAM scopes is forbidden.
         const iamV2=names.every(name=>
           name.startsWith("gafus-questions-photo") || name.startsWith("gafus-chat-"));
-        const login = await http("https://iam.api.cloud.ru/api/"+
-          (iamV2?"v2":"v1")+"/auth/token", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ keyId: env.CLOUDRU_KEY_ID, secret: env.CLOUDRU_KEY_SECRET }),
-          signal: AbortSignal.timeout(12000),
-        });
-        if (!login.ok) throw Error("CLOUDRU_JOB_IAM_UNAVAILABLE");
+        // IAM token exchange is safe to retry after a transient DNS timeout or
+        // provider 429/5xx. NEVER retry :execute on an unknown ACK: duplicate
+        // Cloud executions are billable and can race the durable lease gate.
+        let login: Response | undefined;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            login = await requestCloudru(http, "https://iam.api.cloud.ru/api/"+
+              (iamV2?"v2":"v1")+"/auth/token", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ keyId: env.CLOUDRU_KEY_ID, secret: env.CLOUDRU_KEY_SECRET }),
+              signal: AbortSignal.timeout(12000),
+            }, "IAM");
+          } catch (error) {
+            if (attempt === 1) throw error;
+            await new Promise(resolve => setTimeout(resolve, 250));
+            continue;
+          }
+          if (login.ok || attempt === 1 ||
+              (login.status !== 429 && login.status < 500)) break;
+          await login.body?.cancel();
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        if (!login?.ok) throw Error("CLOUDRU_JOB_IAM_UNAVAILABLE_" + login?.status);
         const json = (await login.json()) as { access_token?: string };
         if (!json.access_token) throw Error("CLOUDRU_JOB_IAM_NO_TOKEN");
         cachedToken = json.access_token;
         tokenExpires = Date.now() + 4 * 60_000;
       }
       for (const name of names) {
-        const result = await http("https://containers.api.cloud.ru/v2/jobs/" + name + ":execute", {
+        const result = await requestCloudru(http, "https://containers.api.cloud.ru/v2/jobs/" + name + ":execute", {
           method: "POST",
           headers: { authorization: "Bearer " + cachedToken, "content-type": "application/json" },
           body: JSON.stringify({ projectId: env.CLOUDRU_PROJECT_ID, jobName: name, params: {} }),
           signal: AbortSignal.timeout(18000),
-        });
+        }, "EXECUTION");
         if (!result.ok) {
           if ([401, 403].includes(result.status)) {
             cachedToken = undefined;

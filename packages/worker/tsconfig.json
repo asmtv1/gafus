@@ -28,6 +28,9 @@
       "@gafus/core/services/questions": [
         "../../packages/core/src/services/questions/index.ts"
       ],
+      "@gafus/core/services/gallery": [
+        "../../packages/core/src/services/gallery/index.ts"
+      ],
       "@gafus/core/services/cynologistChat": [
         "../../packages/core/src/services/cynologistChat/index.ts"
       ],

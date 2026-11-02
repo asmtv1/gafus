@@ -17,3 +17,5 @@ export type {
 export { enqueueGalleryAccountCleanup } from "./accountCleanup";
 
 export * from "./runtimeService";
+
+export { hasDueGalleryCloudWork } from "./recovery";

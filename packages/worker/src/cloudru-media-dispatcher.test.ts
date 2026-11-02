@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { createCloudruFeedPoolDispatcher, createCloudruMediaDispatcher,
-  createCloudruGalleryPoolDispatcher, createCloudruChatPoolDispatcher,
+  createCloudruGalleryPoolDispatcher, createCloudruChatPoolDispatcher, safeCloudruDispatchError,
   createCloudruQuestionsPhotoPoolDispatcher, CLOUDRU_QUESTIONS_PHOTO_POOL,
   CLOUDRU_CHAT_JOB_POOLS } from "./cloudru-media-dispatcher";
 const env = {
@@ -251,5 +251,64 @@ describe("Questions V2: replace existing single Job within ten-Job quota",()=>{
     expect(()=>createCloudruQuestionsPhotoPoolDispatcher({
       ...live,QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED:"false",
     })).toThrow("CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION");
+  });
+});
+
+
+describe("Cloud dispatch diagnostics without leaking provider credentials", () => {
+  it("surfaces HTTP IAM status and redacts raw response", async () => {
+    const req = vi.fn(async () => new Response("private provider response", { status: 403 }));
+    const dispatch = createCloudruGalleryPoolDispatcher(env, req as never);
+    await expect(dispatch()).rejects.toThrow("CLOUDRU_JOB_IAM_UNAVAILABLE_403");
+    expect(safeCloudruDispatchError(new Error("CLOUDRU_JOB_IAM_UNAVAILABLE_403")).message)
+      .toBe("CLOUDRU_JOB_IAM_UNAVAILABLE_403");
+  });
+  it("keeps DNS and timeout reasons while never logging untrusted errors", async () => {
+    const err = new TypeError("fetch failed", { cause: Object.assign(new Error("dns"), { code: "EAI_AGAIN" }) });
+    const req = vi.fn(async () => { throw err; });
+    await expect(createCloudruGalleryPoolDispatcher(env, req as never)())
+      .rejects.toThrow("CLOUDRU_JOB_IAM_NETWORK_EAI_AGAIN");
+    expect(safeCloudruDispatchError(new Error("CLOUDRU_JOB_IAM_NETWORK_EAI_AGAIN")).message)
+      .toBe("CLOUDRU_JOB_IAM_NETWORK_EAI_AGAIN");
+    expect(safeCloudruDispatchError(new Error("CLOUDRU_KEY_SECRET=unsafe-secret")).message)
+      .toBe("CLOUDRU_JOB_UNKNOWN_FAILURE");
+  });
+  it("does not replay a Cloud POST after an unknown acknowledgement", async () => {
+    const req = vi.fn(async (url: string) => {
+      if (url.includes("auth/token")) return new Response(JSON.stringify({ access_token: "synthetic" }), { status: 200 });
+      throw new DOMException("Timed out", "TimeoutError");
+    });
+    await expect(createCloudruGalleryPoolDispatcher(env, req as never)())
+      .rejects.toThrow("CLOUDRU_JOB_EXECUTION_NETWORK_TIMEOUT");
+    expect(req).toHaveBeenCalledTimes(2);
+  });
+});
+
+
+describe("bounded IAM recovery", () => {
+  it("recovers one temporary DNS failure before launching Gallery", async () => {
+    let attempts = 0;
+    const req = vi.fn(async (url: string) => {
+      if (url.includes("auth/token")) {
+        if (++attempts === 1) throw Object.assign(new Error("temporary DNS"), {
+          cause: { code: "EAI_AGAIN" },
+        });
+        return new Response(JSON.stringify({ access_token: "synthetic" }), { status: 200 });
+      }
+      return new Response(null, { status: 202 });
+    });
+    await expect(createCloudruGalleryPoolDispatcher(env, req as never)())
+      .resolves.toEqual({ dispatched: 1 });
+    expect(attempts).toBe(2);
+    expect(req).toHaveBeenCalledTimes(3);
+  });
+  it("retries IAM HTTP 503 once, never retries execution POST", async () => {
+    const req = vi.fn(async (url: string) => {
+      if (url.includes("auth/token")) return new Response("unavailable", { status: 503 });
+      throw new Error("should not execute without credentials");
+    });
+    await expect(createCloudruGalleryPoolDispatcher(env, req as never)())
+      .rejects.toThrow("CLOUDRU_JOB_IAM_UNAVAILABLE_503");
+    expect(req).toHaveBeenCalledTimes(2);
   });
 });

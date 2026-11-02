@@ -171,14 +171,19 @@ export function startCronJobs(): void {
   // never by an unconditional launch every minute. Gallery stays independent.
   if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED === "true") {
     if (process.env.GALLERY_PROCESSOR_READY === "true") {
-      let gallery: (() => Promise<{ dispatched: number }>) | undefined;
+      let recovery: (() => Promise<{ dispatched: number }>) | undefined;
       cron.schedule("* * * * *", () => {
-        void import("./cloudru-media-dispatcher")
-          .then(async ({ createCloudruGalleryPoolDispatcher }) => {
-            gallery ??= createCloudruGalleryPoolDispatcher();
-            await gallery();
-          })
-          .catch(() => logger.error("Cloud.ru gallery trigger failed", new Error("GALLERY_CLOUD_DISPATCH_FAILED")));
+        void Promise.all([
+          import("./gallery-cloud-recovery.js"),
+          import("./cloudru-media-dispatcher.js"),
+        ]).then(async ([{ createProductionGalleryCloudRecoveryTick }, { safeCloudruDispatchError }]) => {
+          try {
+            recovery ??= createProductionGalleryCloudRecoveryTick();
+            await recovery();
+          } catch (error) {
+            logger.error("Cloud.ru gallery trigger failed", safeCloudruDispatchError(error));
+          }
+        }).catch(() => logger.error("Cloud.ru gallery trigger failed", new Error("GALLERY_CLOUD_RECOVERY_INIT_FAILED")));
       }, { timezone: "UTC" });
     }
     if (process.env.FEED_PROCESSOR_READY === "true") {
