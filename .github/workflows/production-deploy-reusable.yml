@@ -466,6 +466,8 @@ jobs:
               echo "FEED_CDN_BASE_URL=https://quepraquiecebquomiel.begetcdn.cloud"
               echo "FEED_CDN_EDGE_TOKEN_VERIFIED=true"
               echo "FEED_MEDIA_FALLBACK_ENABLED=true"
+              echo "FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED=${{ vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED || 'false' }}"
+              echo "FEED_CDN_BROWSER_CACHE_24H_VERIFIED=${{ vars.FEED_CDN_BROWSER_CACHE_24H_VERIFIED || 'false' }}"
               echo "CDN_HEALTH_MONITOR_ENABLED=true"
 
               echo "CLOUDRU_S3_ENDPOINT=https://s3.cloud.ru"
