@@ -90,6 +90,7 @@ export function signFeedCdnUrl(
   secret: string,
   now = Date.now(),
   provider?: "beget",
+  maxTtlSeconds = 360,
 ) {
   assertFeedFinalKey(key);
   const origin = safeOrigin(baseUrl);
@@ -98,7 +99,8 @@ export function signFeedCdnUrl(
     !/^[A-Za-z0-9_-]{24,32}$/.test(secret) ||
     !Number.isSafeInteger(expires) ||
     expires <= Math.floor(now / 1000) ||
-    expires > Math.floor(now / 1000) + 360
+    (maxTtlSeconds !== 360 && maxTtlSeconds !== 172800) ||
+    expires > Math.floor(now / 1000) + maxTtlSeconds
   )
     throw new Error("INVALID_FEED_CDN_SIGNING_INPUT");
   if (provider !== undefined && provider !== "beget")
@@ -116,6 +118,23 @@ export function createFeedStorage(
   runtimeEnv: Record<string, string | undefined> = process.env,
 ): FeedStoragePort {
   if (config.enabled) validateFeedStorageConfig(config);
+  const longLivedUrls = runtimeEnv.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED === "true";
+  // A 24h browser cache cannot be remotely revoked. Enable only when the
+  // public-media deletion-purge pipeline and actual Beget browser header have
+  // independently passed release acceptance. Private Gallery never uses it.
+  if (longLivedUrls && (
+    !config.enabled || config.isolatedNonprod === true ||
+    config.endpoint !== "https://s3.cloud.ru" ||
+    config.bucket !== "gafus-feed-private" ||
+    config.cdnBaseUrl !== "https://quepraquiecebquomiel.begetcdn.cloud" ||
+    config.cdnProvider !== "beget" ||
+    runtimeEnv.FEED_CDN_EDGE_TOKEN_VERIFIED !== "true" ||
+    runtimeEnv.FEED_CDN_BROWSER_CACHE_24H_VERIFIED !== "true" ||
+    runtimeEnv.MEDIA_CDN_PURGE_WORKER_ENABLED !== "true" ||
+    runtimeEnv.BEGET_CDN_PURGE_API_VERIFIED !== "true" ||
+    runtimeEnv.BEGET_CDN_CACHE_KEY_VERIFIED !== "true" ||
+    runtimeEnv.BEGET_CDN_PURGE_PROPAGATION_VERIFIED !== "true"
+  )) throw new Error("FEED_PUBLIC_BROWSER_CACHE_24H_UNVERIFIED");
   const hasCredentials = Boolean(config.bucket && config.accessKeyId && config.secretAccessKey);
   const liveCdnSecret = localReadonlyCdnSecret("feed", runtimeEnv);
   if (
@@ -148,6 +167,7 @@ export function createFeedStorage(
   };
   return {
     enabled: config.enabled,
+    longLivedUrls,
     async presignPost(input) {
       const s3 = requireClient();
       const match = feedSourcePattern.exec(input.key);
@@ -219,7 +239,7 @@ export function createFeedStorage(
       if (liveCdnSecret) {
         assertFeedFinalKey(input.key);
         return signFeedCdnUrl("https://quepraquiecebquomiel.begetcdn.cloud", input.key,
-          input.expiresAt, liveCdnSecret, Date.now(), "beget");
+          input.expiresAt, liveCdnSecret, Date.now(), "beget", longLivedUrls ? 172800 : 360);
       }
       if (config.isolatedNonprod) {
         assertFeedFinalKey(input.key); // Never sign incoming/unprocessed uploads.
@@ -231,7 +251,8 @@ export function createFeedStorage(
           Bucket: config.bucket, Key: input.key, ResponseCacheControl: "private, no-store",
         }), { expiresIn: expires - now });
       }
-      return signFeedCdnUrl(config.cdnBaseUrl, input.key, input.expiresAt, config.cdnSecret, Date.now(), config.cdnProvider);
+      return signFeedCdnUrl(config.cdnBaseUrl, input.key, input.expiresAt,
+        config.cdnSecret, Date.now(), config.cdnProvider, longLivedUrls ? 172800 : 360);
     },
   };
 }
