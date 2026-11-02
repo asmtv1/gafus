@@ -24,7 +24,11 @@ async function checkPublicFeedV2(scope,key,digest,secret) {
   if(!/^media\/v2\/[A-Za-z0-9_-]{1,128}\/v[1-9][0-9]*\/image\/(?:s|m|l)\.webp$/.test(key))
     throw Error('FEED_V2_SMOKE_KEY_INVALID');
   const path='/'+key;
-  const expiry=Math.floor(Date.now()/1000)+180;
+  const daily=process.env.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED==='true';
+  if(daily && process.env.FEED_CDN_BROWSER_CACHE_24H_VERIFIED!=='true')
+    throw Error('FEED_24H_CACHE_PROVIDER_GATE_MISSING');
+  // A live long-signature request is mandatory before enabling 24h mode.
+  const expiry=Math.floor(Date.now()/1000)+(daily ? 30*3600 : 180);
   const md5=createHash('md5').update(expiry+path+' '+secret).digest('base64url');
   const publicUrl='https://'+scope.host+path;
   const applicationUrl=publicUrl+'?md5='+md5+'&expires='+expiry;
@@ -40,7 +44,7 @@ async function checkPublicFeedV2(scope,key,digest,secret) {
   if(!Buffer.from(await appGet.arrayBuffer()).equals(bytes))
     throw Error('FEED_APPLICATION_URL_BYTES_DIFFER');
   const cacheControl=appGet.headers.get('cache-control')??'';
-  if(cacheControl!=='public, max-age=180, must-revalidate')
+  if(cacheControl!==(daily ? 'public, max-age=86400, immutable' : 'public, max-age=180, must-revalidate'))
     throw Error('FEED_PUBLIC_BROWSER_CACHE_MISMATCH');
   const head=await fetchSafe(applicationUrl,{method:'HEAD'});
   status(head,200,'FEED_QUERY_TOKEN_HEAD');
