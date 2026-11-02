@@ -112,6 +112,19 @@ jobs:
           node infra/cloudru/beget-release-readiness.mjs --check
           node infra/cloudru/beget-production-smoke.mjs --feed-only
 
+      # An app-only release may not skip this gate after the 24h cache flag
+      # is enabled in production variables. A stale approval is not sufficient.
+      - name: Verify actual Feed 24h CDN browser response before SSH
+        if: ${{ vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED == 'true' }}
+        env:
+          FEED_CDN_SECRET: ${{ secrets.FEED_CDN_SECRET }}
+          FEED_CDN_PUBLIC_READ_APPROVED: ${{ vars.FEED_CDN_PUBLIC_READ_APPROVED || 'false' }}
+          BEGET_FEED_SMOKE_FINAL_KEY: ${{ vars.BEGET_FEED_SMOKE_FINAL_KEY }}
+          BEGET_FEED_SMOKE_SHA256: ${{ vars.BEGET_FEED_SMOKE_SHA256 }}
+          FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED: ${{ vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED || 'false' }}
+          FEED_CDN_BROWSER_CACHE_24H_VERIFIED: ${{ vars.FEED_CDN_BROWSER_CACHE_24H_VERIFIED || 'false' }}
+        run: node infra/cloudru/beget-production-smoke.mjs --feed-only
+
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1.0.3
         env:
