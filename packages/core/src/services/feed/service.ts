@@ -1,4 +1,4 @@
-import { stableMediaExpiry } from "../mediaDelivery/signedExpiry";
+import { stableMediaExpiry, stablePublicFeedExpiry } from "../mediaDelivery/signedExpiry";
 import { signFeedMediaUrls } from "./media-urls";
 import { assertFeedPublishingAllowed } from "./preferences";
 import { activateFeedPostRevisionTx } from "./publish";
@@ -113,7 +113,8 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       reactionMap.set(row.postId, list);
     }
     const myMap = new Map(mine.map(row => [row.postId, reactions[row.kind]]));
-    const expire = stableMediaExpiry(at, L.mediaUrlSeconds);
+    const expire = storage.longLivedUrls === true
+      ? stablePublicFeedExpiry(at) : stableMediaExpiry(at, L.mediaUrlSeconds);
     return Promise.all(posts.map(async post => {
       const revision = post.activeRevisionId ? versionById.get(post.activeRevisionId) : undefined;
       const attachments: FeedMediaDto[] = await Promise.all((revision?.attachments ?? []).map(async ({ media, position }) => {
