@@ -16,7 +16,7 @@ describe('Cloud.ru feed fallback presigning', () => {
     expect(url.pathname).toBe('/gafus-feed-private/' + key);
     expect(url.searchParams.get('X-Amz-Expires')).toBe('90');
     expect(url.searchParams.get('X-Amz-Signature')).toMatch(/^[0-9a-f]{64}$/);
-    expect(url.searchParams.get('response-cache-control')).toBe('private, no-store');
+    expect(url.searchParams.get('response-cache-control')).toBe('private, max-age=60, must-revalidate');
   });
   it('rejects unapproved keys, disabled fallback, wrong destination and long TTL', async () => {
     await expect(signFeedCloudruFallback('posts/owner/post/incoming/id/source.mp4', 90, env))
