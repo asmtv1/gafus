@@ -605,6 +605,11 @@ jobs:
         run: |
           node infra/cloudru/beget-production-smoke.mjs --feed-only
           node infra/cloudru/beget-gallery-redirect-canary.mjs
+      # GitHub variables can change without a source diff. Never skip the
+      # actual 24h response-header and long-token acceptance on such deploys.
+      - name: Verify Feed 24h browser delivery when opt-in is already enabled
+        if: ${{ vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED == 'true' && needs.beget-provider-change-detect.outputs.provider_required != 'true' }}
+        run: node infra/cloudru/beget-production-smoke.mjs --feed-only
       - name: Inspect Beget origin bindings after provider-change failure (read-only)
         if: failure() && needs.beget-provider-change-detect.outputs.provider_required == 'true'
         continue-on-error: true
