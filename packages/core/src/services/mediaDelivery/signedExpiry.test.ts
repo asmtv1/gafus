@@ -7,7 +7,8 @@ describe("stable signed-image expiry", () => {
     expect(stableMediaExpiry(new Date(start.getTime() + 10_000), 300)).toEqual(expiry);
     expect(expiry.getTime() - start.getTime()).toBeGreaterThan(180_000);
     expect(expiry.getTime() - start.getTime()).toBeLessThanOrEqual(300_000);
-    expect(stableMediaExpiry(new Date(start.getTime() + 30_000), 300)).toEqual(expiry);
+    expect(stableMediaExpiry(new Date(start.getTime() + 20_000), 300)).toEqual(expiry);
+    expect(stableMediaExpiry(new Date(start.getTime() + 30_000), 300)).not.toEqual(expiry);
   });
   it("does not allow a 120s legacy TTL or unbounded tokens", () => {
     expect(() => stableMediaExpiry(new Date(), 120)).toThrow();
