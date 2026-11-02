@@ -19,7 +19,7 @@ export async function signGalleryCloudruFallback(key: string, ttlSeconds = 120,
   const client = createGalleryS3Client(config);
   try {
     return await getSignedUrl(client, new GetObjectCommand({
-      Bucket: config.bucket, Key: key, ResponseCacheControl: 'private, no-store',
+      Bucket: config.bucket, Key: key, ResponseCacheControl: 'private, max-age=60, must-revalidate',
     }), { expiresIn: ttlSeconds });
   } finally { client.destroy(); }
 }
