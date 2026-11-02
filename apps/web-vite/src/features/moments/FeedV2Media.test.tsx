@@ -39,7 +39,7 @@ describe("Web Feed V2 native rendering", () => {
     try {
       await act(async () => host.querySelector<HTMLButtonElement>(".feed-v2-image-open")?.click());
       const css=readFileSync("src/features/moments/feed-v2-media.css","utf8");
-      const closeStyle=css.match(/button\\.feed-v2-lightbox-close \\{([^}]*)\\}/)?.[1];
+      const closeStyle=css.match(/button\.feed-v2-lightbox-close \{([^}]*)\}/)?.[1];
       expect(closeStyle).toContain("position:absolute");
       expect(closeStyle).toContain("border-radius:12px");
       expect(closeStyle).not.toContain("position:fixed");
