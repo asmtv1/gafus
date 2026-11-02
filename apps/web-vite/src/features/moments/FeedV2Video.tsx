@@ -14,9 +14,11 @@ export function FeedV2Video({ media, visible = true, saveData = false }: {
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState("");
   const fallbackAttempted=useRef(false);
+  const playIntent=useRef(false);
   const generation=useRef(0);
   const stop = () => {
     generation.current++;
+    playIntent.current=false;
     const element = ref.current;
     if (element) {
       element.pause(); element.removeAttribute("src"); element.load();
@@ -26,13 +28,14 @@ export function FeedV2Video({ media, visible = true, saveData = false }: {
   };
   useEffect(() => {
     const element = ref.current;
-    return () => { if (element) { element.pause(); element.removeAttribute("src");
+    return () => { playIntent.current=false; if (element) { element.pause(); element.removeAttribute("src");
       if (activeVideo?.element === element) activeVideo = null; } };
   }, []);
   // A virtualized feed can reuse the same video component for another post.
   // Invalidate old HEAD/fallback promises before loading the replacement video.
   useEffect(() => {
     generation.current++;
+    playIntent.current=false;
     fallbackAttempted.current=false;
     const element=ref.current;
     if(element){element.pause();element.removeAttribute("src");element.load();
@@ -51,18 +54,23 @@ export function FeedV2Video({ media, visible = true, saveData = false }: {
     if (activeVideo && activeVideo.element !== element) activeVideo.stop();
     activeVideo = { element, stop };
     fallbackAttempted.current=false;
+    playIntent.current=true;
     const preference = saveData || (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData ? "save-data" : "auto";
     element.src = selectFeedV2VideoUrl(media, { viewportWidth: element.clientWidth || 720,
       devicePixelRatio: window.devicePixelRatio, preference });
     element.load();
     setError(""); setPlaying(true);
-    try { await element.play(); } catch { stop(); setError("Не удалось воспроизвести видео."); }
+    try { await element.play(); } catch {
+      // Some browsers reject play() before dispatching the media error event.
+      // Keep the failing CDN source intact so its exact variant can recover.
+      if(playIntent.current && !fallbackAttempted.current)onPlaybackError();
+    }
   };
   const onPlaybackError=()=>{
     const element=ref.current;
-    if(!playing||!element)return;
+    if(!playIntent.current||!element||fallbackAttempted.current)return;
     const failedUrl=element.src;
-    if(fallbackAttempted.current||mediaCdnKindFromSignedUrl(failedUrl)!=="feed"){
+    if(mediaCdnKindFromSignedUrl(failedUrl)!=="feed"){
       stop();setError("Видео недоступно.");return;
     }
     fallbackAttempted.current=true;
@@ -79,7 +87,15 @@ export function FeedV2Video({ media, visible = true, saveData = false }: {
       if(current!==generation.current||ref.current!==element)return;
       element.src=fallback;
       element.load();
-      if(Number.isFinite(time)&&time>0)element.currentTime=time;
+      if(Number.isFinite(time)&&time>0){
+        element.addEventListener("loadedmetadata",()=>{
+          if(current===generation.current&&ref.current===element){
+            const duration=element.duration;
+            element.currentTime=Number.isFinite(duration)
+              ? Math.min(time,Math.max(0,duration-0.1)) : time;
+          }
+        },{once:true});
+      }
       await element.play();
     })().catch(()=>{
       if(current===generation.current){stop();setError("Видео недоступно.");}
