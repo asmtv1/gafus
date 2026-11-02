@@ -72,7 +72,9 @@ async function recoverGalleryImage(source:string,photoId:string,variant:"thumb"|
 Promise<string|null>{
   if(mediaCdnKindFromSignedUrl(source)!=="gallery")return null;
   const outage=await probeCdnOutage(source,{
-      timeoutMs:3500,
+      // Hono's upstream HEAD may take 6.5 seconds to prove a DNS outage.
+      // Never treat a shorter browser-side proxy timeout as CDN authorization.
+      timeoutMs:8500,
       fetcher:async(input,init)=>{
         const url=typeof input==="string"?input:input instanceof URL?input.href:input.url;
         return fetch(`/api/v1/media-cdn-probe?url=${encodeURIComponent(url)}`,{

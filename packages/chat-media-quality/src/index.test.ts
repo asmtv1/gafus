@@ -56,6 +56,14 @@ describe('Chat2 exact-key CDN → S3 delivery', () => {
     expect(await chat2CdnS3FailoverAllowed(cdn + 'video/360.mp4', s3 + 'video/360.mp4',
       (async () => ({ status }) as Response) as never)).toBe(false);
   });
+  it('recovers native DNS failures but denies 403/404 even on mobile', async () => {
+    const dns = vi.fn(async () => {throw new TypeError('ENOTFOUND');});
+    expect(await chat2CdnS3FailoverAllowed(cdn + 'video/360.mp4',s3 + 'video/360.mp4',dns as never,true)).toBe(true);
+    expect(await chat2CdnS3FailoverAllowed(cdn + 'video/360.mp4',s3 + 'video/360.mp4',dns as never)).toBe(false);
+    for (const status of [403,404])
+      expect(await chat2CdnS3FailoverAllowed(cdn + 'video/360.mp4',s3 + 'video/360.mp4',
+        (async()=>({status})) as never,true)).toBe(false);
+  });
   it('refuses different keys, public hosts, malformed URLs, and network/CORS failures', async () => {
     const http = vi.fn(async () => {throw new TypeError('Network failed');});
     for (const [from,to] of [

@@ -85,22 +85,23 @@ export function chat2MatchedS3Variant(source: string, media: Chat2MediaDeliveryU
 
 /** Image/video element onError hides HTTP status. Probe CDN with HEAD before
  * trying S3, so 403/404 (including permission/revocation errors) never fall
- * back to origin. Timeout and 410/5xx are recoverable; malformed/non-CORS
- * errors fail closed. This requires the CDN's CORS-enabled HEAD endpoint.
+ * back to origin. Web uses an authenticated same-origin Hono HEAD probe,
+ * native may recover from transport errors (no browser CORS ambiguity).
  */
 export async function chat2CdnS3FailoverAllowed(
   primaryUrl: string,
   fallbackUrl: string | null | undefined,
   fetchHead: (url: string, init: {method: 'HEAD'; credentials: 'omit'; redirect: 'error'; cache: 'no-store'; signal: AbortSignal}) => Promise<{status: number}>,
+  nativeNetwork = false,
 ): Promise<boolean> {
   if (!fallbackUrl) return false;
   let primary: URL, fallback: URL;
   try { primary = new URL(primaryUrl); fallback = new URL(fallbackUrl); }
   catch { return false; }
-  if (primary.protocol !== 'https:' ||
-      !/^[a-z0-9-]+\.begetcdn\.cloud$/i.test(primary.hostname) ||
+  if (primary.protocol !== 'https:' || primary.port || fallback.port ||
+      primary.hostname !== 'gonomudedoje.begetcdn.cloud' ||
       fallback.origin !== 'https://gafus-chat2-media-2026.s3.cloud.ru' ||
-      !primary.pathname.startsWith('/chat2/') ||
+      !/^\/chat2\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/[0-9a-f-]{36}\/v1\/(?:image\/[sm]\.webp|poster\.webp|video\/(?:360|720|1080)\.mp4)$/i.test(primary.pathname) ||
       primary.pathname !== fallback.pathname ||
       primary.search || fallback.search || primary.hash || fallback.hash ||
       primary.username || fallback.username || primary.password || fallback.password)
@@ -114,7 +115,9 @@ export async function chat2CdnS3FailoverAllowed(
     });
     return result.status === 410 || result.status >= 500 && result.status <= 599;
   } catch {
-    return controller.signal.aborted; // network/CORS rejection must not bypass 403/404
+    // Native fetch has no browser CORS ambiguity. Web must use the
+    // authenticated same-origin Hono HEAD proxy, not a direct CDN fetch.
+    return nativeNetwork;
   } finally {
     clearTimeout(timeout);
   }

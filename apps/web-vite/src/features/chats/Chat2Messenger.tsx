@@ -1,3 +1,4 @@
+import { sameOriginCdnProbeFetch } from "../../shared/api/cdnProbe";
 import { Loading } from "../../shared/ui";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1633,7 +1634,7 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
     };
     if (!media || usingFallback) { fail(); return; }
     const fallback = chat2MatchedS3Variant(primary, media);
-    void chat2CdnS3FailoverAllowed(primary, fallback, fetch)
+    void chat2CdnS3FailoverAllowed(primary, fallback, sameOriginCdnProbeFetch)
       .then(allowed => {
         if (!allowed || !fallback) { fail(); return; }
         if (kind === "video") resumeAt.current = videoRef.current?.currentTime ?? 0;
@@ -1652,7 +1653,7 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
     const cover = new Image();
     cover.onerror = () => {
       const fallback = chat2MatchedS3Variant(primary, media);
-      void chat2CdnS3FailoverAllowed(primary, fallback, fetch)
+      void chat2CdnS3FailoverAllowed(primary, fallback, sameOriginCdnProbeFetch)
         .then(allowed => { if (active && allowed && fallback) setPosterSource(fallback); });
     };
     cover.src = primary;
@@ -1705,7 +1706,7 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
       return;
     }
     const backup = chat2MatchedS3Variant(original, fullscreen.media);
-    void chat2CdnS3FailoverAllowed(original, backup, fetch).then(allowed => {
+    void chat2CdnS3FailoverAllowed(original, backup, sameOriginCdnProbeFetch).then(allowed => {
       setFullscreen(current => current?.url !== original ? current :
         allowed && backup ? {...current,url:backup,fallback:true} : {...current,error:true});
     }).catch(() => setFullscreen(current => current?.url === original ? {...current,error:true} : current));

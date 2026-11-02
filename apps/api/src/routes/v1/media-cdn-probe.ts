@@ -3,10 +3,12 @@ import { isTrustedCdnProbeUrl } from "@gafus/core/services/mediaDelivery";
 
 /** Hono counterpart of the previous authenticated Next CDN status proxy.
  * Browsers cannot distinguish cross-origin CDN 504 from CORS failures.
- * Only validated short-lived CDN URLs are HEADed; never proxy bodies or S3 keys.
+ * Only validated signed Gallery/Feed and immutable public Chat2/Questions
+ * final URLs are HEADed; never proxy bodies or issue S3 storage grants.
  */
 export const mediaCdnProbeRoutes = new Hono();
-const hosts = ["fupiquafifeswu.begetcdn.cloud", "quepraquiecebquomiel.begetcdn.cloud"] as const;
+const hosts = ["fupiquafifeswu.begetcdn.cloud", "quepraquiecebquomiel.begetcdn.cloud",
+  "ebiteskukingusk.begetcdn.cloud", "gonomudedoje.begetcdn.cloud"] as const;
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 /** Synthetic loopback CDN status socket, available ONLY during Agent2 disposable QA.
  * It cannot be used with a shared/work DB, a production runtime or any other host.

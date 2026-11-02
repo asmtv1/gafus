@@ -210,7 +210,7 @@ describe("VK-inspired inline question photo previews", () => {
     const prefix="questions/uploads/questions/v2/owner-1/01234567-89ab-4def-8123-456789abcdef/v1/image";
     const cdn="https://ebiteskukingusk.begetcdn.cloud/"+prefix;
     const s3="https://gafus-questions-public.s3.cloud.ru/"+prefix;
-    const fake=vi.fn((_url:string,options?:RequestInit)=>options?.method==="HEAD"
+    const fake=vi.fn((_url:string,options?:RequestInit)=>_url.startsWith("/api/v1/media-cdn-probe") || options?.method==="HEAD"
       ? Promise.resolve(new Response(null,{status:503}))
       : Promise.resolve(envelope({ photos: [{
       id:"photo-1",url:cdn+"/m.webp",smallUrl:cdn+"/s.webp",

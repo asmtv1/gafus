@@ -74,13 +74,15 @@ export async function probeCdnOutage(
     if (outage && response.status >= 500) recordSignedCdnOutage(url);
     return outage;
   } catch {
-    // On Web, a CORS failure is indistinguishable from HTTP 403/404: fail closed.
-    return isCdnOutage({ timedOut, networkFailed: !timedOut && options.nativeNetwork === true });
+    // Web uses an authenticated Hono status proxy. If *that* fetch fails or
+    // times out, we cannot establish the CDN's real HTTP status: fail closed.
+    // Native requests have no browser CORS ambiguity and can recover per item.
+    return options.nativeNetwork === true && isCdnOutage({ timedOut, networkFailed: !timedOut });
   } finally { clearTimeout(timer); }
 }
-/** Validate a signed media HEAD target before our Web server contacts an origin.
- * An authenticated user cannot turn the probe into an arbitrary URL fetch or
- * bypass a 403/404: the caller still needs its normal media fallback grant.
+/** Validate known signed Gallery/Feed URLs or exact public Chat2/Questions
+ * final-object paths before the authenticated Hono server probes a CDN HEAD.
+ * This status-only route grants no S3 access and never fetches arbitrary URLs.
  */
 export function isTrustedCdnProbeUrl(
   raw: string,
@@ -93,6 +95,15 @@ export function isTrustedCdnProbeUrl(
   if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash ||
       !allowedHosts.includes(url.hostname) || url.pathname.includes('%') ||
       url.pathname.includes('//') || url.pathname.includes('/../') || url.pathname.includes('/./')) return false;
+  // Questions/Chat2 publish only immutable public renditions. Their CDN URLs
+  // are not signed; allow only these exact, known host+final-object shapes,
+  // never arbitrary paths, incoming uploads or third-party domains.
+  if (url.hostname === 'ebiteskukingusk.begetcdn.cloud')
+    return url.search === '' &&
+      /^\/questions\/uploads\/questions\/v2\/[A-Za-z0-9_-]{1,128}\/[0-9a-f-]{36}\/v1\/image\/[sm]\.webp$/i.test(url.pathname);
+  if (url.hostname === 'gonomudedoje.begetcdn.cloud')
+    return url.search === '' &&
+      /^\/chat2\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/[0-9a-f-]{36}\/v1\/(?:image\/[sm]\.webp|poster\.webp|video\/(?:360|720|1080)\.mp4)$/i.test(url.pathname);
   if (!['fupiquafifeswu.begetcdn.cloud', 'quepraquiecebquomiel.begetcdn.cloud'].includes(url.hostname))
     return false;
   const feed = url.hostname === 'quepraquiecebquomiel.begetcdn.cloud';

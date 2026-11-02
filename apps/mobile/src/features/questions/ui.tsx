@@ -279,7 +279,7 @@ export function QPhotos({
                     return;
                   }
                   void allowQuestionsS3Fallback(p.smallUrl ?? p.url,
-                    p.fallbackSmallUrl ?? p.fallbackUrl).then(allowed => {
+                    p.fallbackSmallUrl ?? p.fallbackUrl, fetch, true).then(allowed => {
                       if(allowed)setS3Images(items=>items.includes(key)?items:[...items,key]);
                       else setFailed(items=>items.includes(key)?items:[...items,key]);
                     });
@@ -355,7 +355,7 @@ export function QPhotos({
                     onError={()=>{
                       const key=questionPhotoReadIdentity(item);
                       if(s3Images.includes(key)) {setViewerFailed(true);return;}
-                      void allowQuestionsS3Fallback(item.url,item.fallbackUrl).then(allowed => {
+                      void allowQuestionsS3Fallback(item.url,item.fallbackUrl,fetch,true).then(allowed => {
                         if(allowed)setS3Images(items=>items.includes(key)?items:[...items,key]);
                         else setViewerFailed(true);
                       });

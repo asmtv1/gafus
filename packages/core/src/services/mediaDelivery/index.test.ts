@@ -103,6 +103,12 @@ describe('60-second per-CDN failover circuit breaker', () => {
       expect(isMediaCdnFailoverActive('feed')).toBe(false);
     } finally { vi.useRealTimers(); }
   });
+  it('fails closed when the authenticated Web status proxy itself fails, but native can recover', async () => {
+    const url=`https://fupiquafifeswu.begetcdn.cloud/md5(${'A'.repeat(22)},1999999999)/albums/owner/album/photos/photo/thumb.webp`;
+    const failed=async()=>{throw new Error('proxy network failed');};
+    expect(await probeCdnOutage(url,{fetcher:failed})).toBe(false);
+    expect(await probeCdnOutage(url,{fetcher:failed,nativeNetwork:true})).toBe(true);
+  });
   it('does not open a CDN circuit on 403/404, native network failures or unsigned URLs', async () => {
     const now = Date.now() + 400_000;
     vi.useFakeTimers({ now });
@@ -119,5 +125,24 @@ describe('60-second per-CDN failover circuit breaker', () => {
       })).toBe(true);
       expect(isMediaCdnFailoverActive('feed')).toBe(false);
     } finally { vi.useRealTimers(); }
+  });
+});
+
+
+describe('strict public finals status probe', () => {
+  const chat='https://gonomudedoje.begetcdn.cloud/chat2/room/user/00000000-0000-4000-8000-000000000000/v1/video/360.mp4';
+  const questions='https://ebiteskukingusk.begetcdn.cloud/questions/uploads/questions/v2/owner-1/01234567-89ab-4def-8123-456789abcdef/v1/image/s.webp';
+  const hosts=['gonomudedoje.begetcdn.cloud','ebiteskukingusk.begetcdn.cloud'];
+  it('permits exact immutable Chat2 and Questions CDN variants', () => {
+    expect(isTrustedCdnProbeUrl(chat,hosts)).toBe(true);
+    expect(isTrustedCdnProbeUrl(questions,hosts)).toBe(true);
+  });
+  it('rejects unknown hosts, query params, non-final keys, origin and escape', () => {
+    for(const raw of [chat+'?token=x',chat.replace('gonomudedoje','unknown'),
+      chat.replace('/video/360.mp4','/incoming/video.mp4'),
+      questions.replace('/image/s.webp','/image/original.jpg'),
+      questions.replace('ebiteskukingusk','unknown'),questions.replace('https:','http:'),
+      questions.replace('/questions/','/questions/../')])
+      expect(isTrustedCdnProbeUrl(raw,hosts)).toBe(false);
   });
 });

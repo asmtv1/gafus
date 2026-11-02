@@ -16,6 +16,15 @@ describe("Questions Photo V2 CDN -> S3 fallback gate",()=>{
     await expect(allowQuestionsS3Fallback(cdn,s3,head as typeof fetch)).resolves.toBe(false);
     expect(head).toHaveBeenCalledOnce();
   });
+  it("allows native-only DNS/network failures but never a CDN 403/404",async()=>{
+    const refused=vi.fn(async()=>{throw new TypeError("getaddrinfo ENOTFOUND");});
+    await expect(allowQuestionsS3Fallback(cdn,s3,refused as typeof fetch,true)).resolves.toBe(true);
+    await expect(allowQuestionsS3Fallback(cdn,s3,refused as typeof fetch)).resolves.toBe(false);
+    for(const status of [403,404]) {
+      const denied=vi.fn(async()=>new Response(null,{status}));
+      await expect(allowQuestionsS3Fallback(cdn,s3,denied as typeof fetch,true)).resolves.toBe(false);
+    }
+  });
   it("denies network failures and mismatched/malicious S3 fallback URLs",async()=>{
     const failed=vi.fn(async()=>{throw Error("CORS_DENIED");});
     await expect(allowQuestionsS3Fallback(cdn,s3,failed as typeof fetch)).resolves.toBe(false);

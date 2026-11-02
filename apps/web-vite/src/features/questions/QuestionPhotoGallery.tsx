@@ -5,6 +5,7 @@ import { fetchQuestionPhotoRenditions,
   type PhotoLocation, type QuestionPhotoRendition } from "./questionPhotoRead";
 import "./QuestionPhotoGallery.css";
 import { allowQuestionsS3Fallback } from "./questionPhotoCdnFallback";
+import { sameOriginCdnProbeFetch } from "../../shared/api/cdnProbe";
 
 /** A changed discussion/photo owner retires old signed URLs and viewer state. */
 export function QuestionPhotoGallery({
@@ -216,7 +217,7 @@ function PhotoGallery({ location, manual }: { location: PhotoLocation; manual: b
                   const failedSrc=event.currentTarget.currentSrc || src;
                   const backup=failedSrc===details[index]?.medium
                     ? details[index]?.fallbackMedium : details[index]?.fallbackSmall;
-                  void allowQuestionsS3Fallback(failedSrc,backup).then(allowed => {
+                  void allowQuestionsS3Fallback(failedSrc,backup,sameOriginCdnProbeFetch).then(allowed => {
                     if(allowed)setS3Fallback(current=>current.includes(id)?current:[...current,id]);
                     else setBroken(current=>current.includes(src)?current:[...current,src]);
                   });
@@ -296,7 +297,7 @@ function PhotoGallery({ location, manual }: { location: PhotoLocation; manual: b
                 const backup=failedSrc===viewerDetails[viewerIndex]?.small
                   ? viewerDetails[viewerIndex]?.fallbackSmall
                   : viewerDetails[viewerIndex]?.fallbackMedium;
-                void allowQuestionsS3Fallback(failedSrc,backup).then(allowed => {
+                void allowQuestionsS3Fallback(failedSrc,backup,sameOriginCdnProbeFetch).then(allowed => {
                     if(allowed)setViewerFallback(current=>current.includes(id)?current:[...current,id]);
                     else setViewerError(true);
                   });

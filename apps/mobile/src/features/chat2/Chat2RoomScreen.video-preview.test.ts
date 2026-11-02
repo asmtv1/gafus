@@ -33,7 +33,7 @@ describe("Chat2 Mobile video preview parity with Web", () => {
   it("supports quality selection, S3 fallback, expired URLs and a visible retry", () => {
     expect(preview).toContain("chat2VideoSource(variants, quality, { width: 220 })");
     expect(preview).toContain("chat2MatchedS3Variant(primary, media)");
-    expect(preview).toContain("chat2CdnS3FailoverAllowed(primary, fallback, fetch)");
+    expect(preview).toContain("chat2CdnS3FailoverAllowed(primary, fallback, fetch, true)");
     expect(preview).toContain("setPosterViaS3(true)");
     expect(preview).toContain("Math.max(0, media.expiresIn - 30) * 1000");
     expect(preview).toContain("setResumeOnReady(playerRef.current?.playing ?? false)");

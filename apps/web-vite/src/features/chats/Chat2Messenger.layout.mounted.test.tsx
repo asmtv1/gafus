@@ -437,9 +437,10 @@ describe("Chat2 GAFUS header and quick actions", () => {
       await vi.waitFor(() => expect(host.textContent).toContain("Не удалось загрузить видео"));
       expect(host.querySelector('video[aria-label="cdn.mp4"]')).toBeNull();
     }
-    expect(probe).toHaveBeenCalledWith(cdn + "video/720.mp4", expect.objectContaining({
-      method: "HEAD", credentials: "omit", redirect: "error",
-    }));
+    expect(probe).toHaveBeenCalledWith(
+      `/api/v1/media-cdn-probe?url=${encodeURIComponent(cdn + "video/720.mp4")}`,
+      expect.objectContaining({ method: "GET", credentials: "same-origin", redirect: "error" }),
+    );
   });
 
   it.each([503, 404])("gates image CDN → S3 without leaking 403/404 on HTTP %i", async status => {
@@ -478,9 +479,10 @@ describe("Chat2 GAFUS header and quick actions", () => {
       await vi.waitFor(() => expect(host.querySelector('img[alt="cdn.webp"]')).toBeNull());
       expect(host.querySelector('img[alt="cdn.webp"]')).toBeNull();
     }
-    expect(probe).toHaveBeenCalledWith(cdn + "image/s.webp", expect.objectContaining({
-      method: "HEAD", credentials: "omit", redirect: "error",
-    }));
+    expect(probe).toHaveBeenCalledWith(
+      `/api/v1/media-cdn-probe?url=${encodeURIComponent(cdn + "image/s.webp")}`,
+      expect.objectContaining({ method: "GET", credentials: "same-origin", redirect: "error" }),
+    );
   });
 
   it("keeps a recoverable video preview when the first signed URL request fails", async () => {

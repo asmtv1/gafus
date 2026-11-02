@@ -39,6 +39,35 @@ describe("Hono CDN status probe", () => {
     expect(res.status).toBe(status); expect(await res.text()).toBe("");
     expect(fetcher).toHaveBeenCalledWith(url, expect.objectContaining({ method: "HEAD", credentials: "omit", redirect: "manual" }));
   });
+  it.each([
+    ['questions', 'https://ebiteskukingusk.begetcdn.cloud/questions/uploads/questions/v2/owner-1/01234567-89ab-4def-8123-456789abcdef/v1/image/s.webp'],
+    ['chat2', 'https://gonomudedoje.begetcdn.cloud/chat2/room/user/00000000-0000-4000-8000-000000000000/v1/video/360.mp4'],
+  ])("confirms %s CDN DNS failures server-side and preserves 403/404", async (_kind,url) => {
+    const upstream = vi.fn(async (_url: string, _init?: RequestInit): Promise<Response> => {throw new TypeError('getaddrinfo ENOTFOUND');});
+    vi.stubGlobal('fetch', upstream);
+    const app = testApp();
+    const target = `/api/v1/media-cdn-probe?url=${encodeURIComponent(url)}`;
+    expect((await app.request('http://localhost'+target)).status).toBe(503);
+    expect(upstream).toHaveBeenCalledWith(url,expect.objectContaining({method:'HEAD'}));
+    for(const status of [403,404]) {
+      upstream.mockImplementationOnce(async()=>new Response(null,{status}));
+      const result=await app.request('http://localhost'+target);
+      expect(result.status).toBe(status);
+      expect(result.headers.get('cache-control')).toBe('private, no-store');
+    }
+  });
+  it("rejects malicious, unexpected, non-final chat/questions URLs before network", async () => {
+    const upstream=vi.fn(); vi.stubGlobal('fetch',upstream);
+    const root='https://gonomudedoje.begetcdn.cloud/chat2/room/user/00000000-0000-4000-8000-000000000000/v1/image/s.webp';
+    const q='https://ebiteskukingusk.begetcdn.cloud/questions/uploads/questions/v2/owner-1/01234567-89ab-4def-8123-456789abcdef/v1/image/s.webp';
+    for(const invalid of [root.replace('/image/s.webp','/incoming/original.jpg'),
+      root.replace('/image/s.webp','/image/original.webp'),root+'?token=secret',
+      root.replace('gonomudedoje','attacker'),
+      q.replace('/image/s.webp','/image/original.webp'),q+'?x=1',
+      q.replace('ebiteskukingusk','unknown'),
+    ]) expect((await testApp().request('http://localhost/api/v1/media-cdn-probe?url='+encodeURIComponent(invalid))).status).toBe(400);
+    expect(upstream).not.toHaveBeenCalled();
+  });
   it("reports upstream network failure as outage without leaking details", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw Error("PRIVATE UPSTREAM DETAIL"); }));
     const res = await testApp().request(`http://localhost/api/v1/media-cdn-probe?url=${encodeURIComponent(signed())}`);

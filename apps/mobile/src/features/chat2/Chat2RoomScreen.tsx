@@ -997,7 +997,7 @@ function NativeChat2Media({ conversationId, file }: { conversationId: string; fi
             if (triedFallback.current || !fallbackUrl) {setUrl(null);return;}
             triedFallback.current=true;
             const primary=url;
-            void chat2CdnS3FailoverAllowed(primary, fallbackUrl, fetch)
+            void chat2CdnS3FailoverAllowed(primary, fallbackUrl, fetch, true)
               .then(allowed => {
                 if (allowed) {setUsingFallback(true);setUrl(fallbackUrl);}
                 else setUrl(null);
@@ -1140,7 +1140,7 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
     if (usingFallback || !media) {fail();return;}
     const primary = chat2VideoSource(media.renditions?.video, quality, {width:220}) ?? media.url;
     const fallback = chat2MatchedS3Variant(primary, media);
-    void chat2CdnS3FailoverAllowed(primary, fallback, fetch)
+    void chat2CdnS3FailoverAllowed(primary, fallback, fetch, true)
       .then(allowed => {
         if (!allowed) {fail();return;}
         setSeekTo(playerRef.current?.currentTime ?? 0);
@@ -1210,7 +1210,7 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
           onError={() => {
             if (usingFallback || posterViaS3 || !media) {setPosterFailed(true);return;}
             const fallback = chat2MatchedS3Variant(poster, media);
-            void chat2CdnS3FailoverAllowed(poster, fallback, fetch)
+            void chat2CdnS3FailoverAllowed(poster, fallback, fetch, true)
               .then(allowed => {
                 if (allowed && fallback) setPosterViaS3(true);
                 else setPosterFailed(true);
