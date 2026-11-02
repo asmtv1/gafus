@@ -18,6 +18,7 @@ describe('Cloud.ru gallery fallback presigning', () => {
     expect(url.pathname).toBe('/gafus-gallery-private/' + key);
     expect(url.searchParams.get('X-Amz-Expires')).toBe('60');
     expect(url.searchParams.get('X-Amz-Signature')).toMatch(/^[0-9a-f]{64}$/);
+    expect(url.searchParams.get('response-cache-control')).toBe('private, max-age=40, must-revalidate');
   });
   it('fails closed on disabled mode and wrong keys/buckets', async () => {
     await expect(signGalleryCloudruFallback('albums/owner/album/incoming/u/source.jpg', 90, env))
