@@ -1,7 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { scopedMediaCacheKey } from "./scopedMediaCache";
+import { scopedMediaCacheKey, isLongLivedPublicFeedCdnUrl } from "./scopedMediaCache";
 const key = "posts/owner/post/attachments/id/full.webp";
 describe("private mobile media cache isolation", () => {
+  it("keeps a single 24h disk key only for validated public long-lived Feed variants", () => {
+    const now = Date.parse("2026-11-02T10:00:00.000Z");
+    const cdn = "https://quepraquiecebquomiel.begetcdn.cloud/media/v2/media123/v1/image/m.webp";
+    const url = cdn + "?md5=" + "A".repeat(22) + "&expires=" + Math.floor((now + 30*3_600_000)/1000);
+    const rotated = url.replace("A".repeat(22), "B".repeat(22));
+    expect(isLongLivedPublicFeedCdnUrl(url,now)).toBe(true);
+    expect(scopedMediaCacheKey(url,"actor",now)).toBe(scopedMediaCacheKey(rotated,"actor",now+180_001));
+    expect(scopedMediaCacheKey(url,"actor",now)).not.toBe(scopedMediaCacheKey(url,"actor",now+86_400_001));
+    expect(scopedMediaCacheKey(url,"actor",now)).not.toBe(scopedMediaCacheKey(url,"another",now));
+    const short = cdn+"?md5="+"A".repeat(22)+"&expires="+Math.floor((now+300_000)/1000);
+    expect(isLongLivedPublicFeedCdnUrl(short,now)).toBe(false);
+    expect(scopedMediaCacheKey(short,"actor",now)).not.toBe(scopedMediaCacheKey(short,"actor",now+180_000));
+    for(const candidate of [
+      url.replace("quepraquiecebquomiel","fupiquafifeswu"),
+      url.replace("/image/m.webp","/incoming/source.jpg"),
+      url+"&extra=1",
+      url.replace("https:","http:"),
+      "https://s3.cloud.ru/gafus-feed-private/media/v2/media123/v1/image/m.webp?X-Amz-Signature=test",
+    ]) expect(isLongLivedPublicFeedCdnUrl(candidate,now)).toBe(false);
+  });
   it("caches modern immutable Feed Media V2 per object/version/viewer, not CDN token", () => {
     const now = 180_000_001;
     const first = `https://quepraquiecebquomiel.begetcdn.cloud/media/v2/media1/v2/image/m.webp?md5=${'A'.repeat(22)}&expires=1999999999`;
