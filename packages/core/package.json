@@ -321,6 +321,10 @@
       "types": "./dist/core/src/services/mediaDelivery/index.d.ts",
       "default": "./dist/core/src/services/mediaDelivery/index.js"
     },
+    "./services/systemHealth/mediaProcessingMetrics": {
+      "types": "./dist/core/src/services/systemHealth/mediaProcessingMetrics.d.ts",
+      "default": "./dist/core/src/services/systemHealth/mediaProcessingMetrics.js"
+    },
     "./services/systemHealth/mailDeliveryMonitor": {
       "types": "./dist/core/src/services/systemHealth/mailDeliveryMonitor.d.ts",
       "default": "./dist/core/src/services/systemHealth/mailDeliveryMonitor.js"

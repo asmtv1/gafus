@@ -13,6 +13,9 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
+      "@gafus/core/services/systemHealth/mediaProcessingMetrics": [
+        "../core/src/services/systemHealth/mediaProcessingMetrics.ts"
+      ],
       "@gafus/core/services/systemHealth/mailDeliveryMonitor": [
         "../core/src/services/systemHealth/mailDeliveryMonitor.ts"
       ],
