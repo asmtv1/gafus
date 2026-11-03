@@ -3,6 +3,10 @@ import { z } from "zod/v3";
 import type { PanelActor } from "./consultationContract";
 import type { NotesReadTransport } from "./TrainerNotesRead20261022";
 import { readVisibleDays, type VisibleDay } from "./trainerVisibleDaysRead20261022";
+import { TrainerCourseDayPicker } from "./live/TrainerCourseDayPicker";
+import {
+  TrainerFormPage, TrainerFormSection, TrainerFormActions, TrainerMarkdownEditor,
+} from "./live/TrainerFormUI";
 import {
   parseVersionedCourseEditorSnapshot, type VersionedCourseEditorSnapshot,
 } from "./trainerCourseDraftReadContract";
@@ -164,6 +168,23 @@ export function TrainerFullCourseEditorRoute(p: {
       if (dayRef.current === ctl) dayRef.current = null;
     }
   }
+  useEffect(() => {
+    if (!enabled || !reader) return;
+    const controller = new AbortController();
+    setAvailableDays({ phase: "loading", data: [] });
+    void readVisibleDays({
+      actorId, role: role as "TRAINER" | "ADMIN",
+      transport: reader, signal: controller.signal,
+      isCurrent: current,
+    }).then(data => {
+      if (!controller.signal.aborted && mountedRef.current && current())
+        setAvailableDays({ phase: "ready", data });
+    }).catch(() => {
+      if (!controller.signal.aborted && mountedRef.current && current())
+        setAvailableDays({ phase: "error", data: [] });
+    });
+    return () => controller.abort();
+  }, [enabled, reader, actorId, role, epoch, current]);
   async function lookupStudents() {
     const query = studentQuery.trim();
     if (!enabled || !current() || !p.courseReadTransport || query.length < 2 ||
@@ -191,21 +212,6 @@ export function TrainerFullCourseEditorRoute(p: {
       if (studentRef.current === ctl) studentRef.current = null;
     }
   }
-  function chooseDay(id: string, checked: boolean) {
-    if (!view.draft) return;
-    change("trainingDays", checked ?
-      [...new Set([...view.draft.trainingDays, id])] :
-      view.draft.trainingDays.filter(day => day !== id));
-  }
-  function moveDay(id: string, direction: number) {
-    if (!view.draft) return;
-    const next = [...view.draft.trainingDays];
-    const index = next.indexOf(id);
-    if (index < 0 || index + direction < 0 || index + direction >= next.length)
-      return;
-    [next[index], next[index + direction]] = [next[index + direction]!, next[index]!];
-    change("trainingDays", next);
-  }
   function chooseStudent(row: { id: string; username: string }) {
     if (!view.draft || !enabled || !current()) return;
     change("allowedUsers", [...new Set([...view.draft.allowedUsers, row.id])]);
@@ -221,7 +227,6 @@ export function TrainerFullCourseEditorRoute(p: {
     const draft = view.draft;
     if (!draft.name.trim() || !draft.duration.trim() ||
       !/^$|^https:\/\//i.test(draft.logoImg) ||
-      new Set(draft.trainingDays).size !== draft.trainingDays.length ||
       new Set(draft.allowedUsers).size !== draft.allowedUsers.length ||
       (draft.isPublic && draft.allowedUsers.length > 0)) {
       setMessage("Проверьте название, длительность, URL обложки и списки ID."); return;
@@ -364,7 +369,7 @@ export function TrainerFullCourseEditorRoute(p: {
           onChange={e => change(key, e.target.value as never)} />}
     </label>;
   const checkbox = (key: "isPublic" | "isPaid" | "showInProfile" | "isPersonalized",
-    label: string) => <label key={key}>
+    label: string) => <label className="trainer-option" key={key}>
     <input type="checkbox" checked={draft[key]} disabled={busy || view.phase === "conflict"}
       onChange={e => change(key, e.target.checked)} />{label}
   </label>;
@@ -374,85 +379,153 @@ export function TrainerFullCourseEditorRoute(p: {
         onChange={e => change(key, e.target.value.split("\n")
           .map(s => s.trim()).filter(Boolean))} />
     </label>;
-  return <main><h1>{isCreate ? "Создание курса" : "Редактирование курса"}</h1>
-    {!isCreate && <p>Версия: {view.snapshot?.version ?? "неизвестна"}</p>}
-    <p><a href="/main-panel">Назад к курсам</a></p>
+  const accessMode = draft.isPaid ? "paid" : draft.isPublic ? "public" : "private";
+  const setAccessMode = (mode: "public" | "private" | "paid") => {
+    change("isPublic", mode !== "private");
+    change("isPaid", mode === "paid");
+    if (mode !== "private") change("allowedUsers", []);
+  };
+  return <TrainerFormPage title={isCreate ? "Создание нового курса" : "Редактирование курса"}
+    subtitle="Заполните информацию о курсе, настройте доступ и состав тренировочных дней"
+    backHref="/" backLabel="Назад к курсам">
+    {!isCreate && <p className="trainer-form-hint">Версия: {view.snapshot?.version ?? "неизвестна"}</p>}
     {view.phase === "conflict" && <section role="alert">
-      <p>Данные курса изменились на сервере. Скопируйте свои изменения.
-        Затем загрузите свежий снимок.</p>
+      <p>Данные курса изменились на сервере. Скопируйте свои изменения, затем обновите снимок.</p>
       <button type="button" disabled={busy}
         onClick={() => setRetry(x => x + 1)}>Загрузить актуальную версию</button>
     </section>}
     <form onSubmit={event => void save(event)}>
-      {field("name", "Название *")}
-      {field("shortDesc", "Краткое описание", true)}
-      {field("description", "Описание", true)}
-      {field("guideContent", "Содержание мини-гайда", true)}
-      {field("duration", "Длительность *")}
-      {field("equipment", "Оборудование")}
-      {field("videoUrl", "URL видео")}
-      {field("logoImg", "URL обложки (https)")}
-      <label>Сложность
-        <select value={draft.trainingLevel} disabled={busy || view.phase === "conflict"}
-          onChange={e => change("trainingLevel", e.target.value as Draft["trainingLevel"])}>
-          {["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"].map(level =>
-            <option key={level} value={level}>{level}</option>)}
-        </select>
-      </label>
-      {checkbox("isPublic", "Публичный курс")}
-      {checkbox("isPaid", "Платный курс")}
-      {checkbox("showInProfile", "Показывать в профиле")}
-      {checkbox("isPersonalized", "Персонализированный курс")}
-      <fieldset><legend>Дни курса</legend>
-        <button type="button" disabled={busy || availableDays.phase === "loading"}
-          onClick={() => void loadDays()}>Показать доступные дни</button>
-        {availableDays.phase === "loading" && <p role="status">Загрузка дней…</p>}
-        {availableDays.phase === "error" && <p role="alert">Список дней недоступен</p>}
-        {availableDays.phase === "ready" && <ul>{availableDays.data.map(row => <li key={row.id}>
-          <label><input type="checkbox" disabled={busy || view.phase === "conflict"}
-            checked={draft.trainingDays.includes(row.id)}
-            onChange={e => chooseDay(row.id, e.target.checked)} />{row.title}</label>
-        </li>)}</ul>}
-        <ol>{draft.trainingDays.map((dayId, index) => <li key={dayId}>
-          {availableDays.data.find(item => item.id === dayId)?.title ?? dayId}
-          <button type="button" disabled={busy || index === 0 || view.phase === "conflict"}
-            onClick={() => moveDay(dayId, -1)}>Вверх</button>
-          <button type="button" disabled={busy ||
-            index === draft.trainingDays.length - 1 || view.phase === "conflict"}
-            onClick={() => moveDay(dayId, 1)}>Вниз</button>
-          <button type="button" disabled={busy || view.phase === "conflict"}
-            onClick={() => chooseDay(dayId, false)}>Убрать</button>
-        </li>)}</ol>
-        {list("trainingDays", "ID дней в порядке прохождения (по одному на строку)")}
-      </fieldset>
-      {!draft.isPublic && <fieldset><legend>Доступ пользователей</legend>
+      <TrainerFormSection title="Основная информация">
+        {field("name", "Название *")}
+        {field("shortDesc", "Краткое описание", true)}
+        <TrainerMarkdownEditor label="Полное описание" value={draft.description}
+          onChange={value => change("description", value)}
+          disabled={busy || view.phase === "conflict"} />
+        {field("guideContent", "HTML мини-гайда (необязательно)", true)}
+        {field("duration", "Длительность *")}
+        {field("equipment", "Необходимое оборудование")}
+        <fieldset><legend>Уровень сложности</legend>
+          <div className="trainer-option-grid trainer-course-level-grid">
+            {([
+              ["BEGINNER", "Начальный"], ["INTERMEDIATE", "Средний"],
+              ["ADVANCED", "Продвинутый"], ["EXPERT", "Экспертный"],
+            ] as const).map(([level, label]) =>
+              <label className="trainer-option-card" key={level}>
+                <input type="radio" name="course-training-level" value={level}
+                  checked={draft.trainingLevel === level}
+                  disabled={busy || view.phase === "conflict"}
+                  onChange={() => change("trainingLevel", level)} />
+                <span>{label}</span>
+              </label>)}
+          </div>
+        </fieldset>
+      </TrainerFormSection>
+
+      <TrainerFormSection title="Медиа" hint="Добавьте ссылку на видео и обложку курса.">
+        {field("videoUrl", "URL видео")}
+        <p className="trainer-form-hint">Видеотеку можно просмотреть в разделе <a href="/my-videos">«Мои видео»</a>.
+          В новом API сейчас нет маршрута выбора URL по ID видео.</p>
+        {field("logoImg", "URL обложки (https)")}
+        {draft.logoImg.startsWith("https://") && <img
+          className="trainer-course-cover-preview" src={draft.logoImg}
+          alt="Предпросмотр обложки курса" referrerPolicy="no-referrer" />}
+      </TrainerFormSection>
+
+      <TrainerFormSection title="Доступ">
+        <fieldset><legend>Тип курса</legend>
+          <div className="trainer-option-grid">
+            <label className="trainer-option-card">
+              <input type="radio" name="course-access" value="public"
+                checked={accessMode === "public"}
+                disabled={busy || view.phase === "conflict"}
+                onChange={() => setAccessMode("public")} />
+              <span><strong>Публичный</strong><br />
+                <span className="trainer-form-hint">Доступен всем бесплатно</span></span>
+            </label>
+            <label className="trainer-option-card">
+              <input type="radio" name="course-access" value="private"
+                checked={accessMode === "private"}
+                disabled={busy || view.phase === "conflict"}
+                onChange={() => setAccessMode("private")} />
+              <span><strong>Приватный</strong><br />
+                <span className="trainer-form-hint">Только выбранным пользователям</span></span>
+            </label>
+            <label className="trainer-option-card">
+              <input type="radio" name="course-access" value="paid"
+                checked={accessMode === "paid"}
+                disabled={busy || view.phase === "conflict"}
+                onChange={() => setAccessMode("paid")} />
+              <span><strong>По подписке</strong><br />
+                <span className="trainer-form-hint">Доступ зависит от разрешений автора</span></span>
+            </label>
+          </div>
+        </fieldset>
+        {checkbox("showInProfile", "Показывать курс в моём профиле")}
+        {checkbox("isPersonalized", "Персонализированный курс")}
+        <p className="trainer-form-hint">
+          Для персонализированного курса в текстах шагов доступны {"{{userName}}"} и {"{{petName}}"}.
+        </p>
+      </TrainerFormSection>
+
+      {!draft.isPublic && <TrainerFormSection title="Доступ к курсу"
+        hint="Выберите учеников, которым будет доступен приватный курс.">
         <label>Поиск ученика по username
           <input value={studentQuery} disabled={busy || studentSearch.phase === "loading"}
-            onChange={e => setStudentQuery(e.target.value)} />
+            onChange={event => setStudentQuery(event.target.value)} />
         </label>
-        <button type="button" disabled={busy || studentSearch.phase === "loading" ||
-          studentQuery.trim().length < 2} onClick={() => void lookupStudents()}>
-          Найти учеников</button>
+        <button className="trainer-button-secondary" type="button"
+          disabled={busy || studentSearch.phase === "loading" || studentQuery.trim().length < 2}
+          onClick={() => void lookupStudents()}>Найти учеников</button>
+        {studentSearch.phase === "loading" && <p role="status">Поиск учеников…</p>}
         {studentSearch.phase === "error" && <p role="alert">Поиск недоступен</p>}
-        {studentSearch.phase === "ready" && <ul>{studentSearch.data.map(row => <li key={row.id}>
-          {row.username}
-          <button type="button" disabled={busy} onClick={() => chooseStudent(row)}>
-            Добавить</button>
-        </li>)}</ul>}
-        <ul>{draft.allowedUsers.map(userId => <li key={userId}>
-          {studentLabels[userId] ?? userId}
-          <button type="button" disabled={busy || view.phase === "conflict"}
-            onClick={() => change("allowedUsers", draft.allowedUsers.filter(id => id !== userId))}>
-            Исключить</button>
-        </li>)}</ul>
-        {list("allowedUsers", "ID пользователей (по одному на строку)")}
-      </fieldset>}
-      <button type="submit" disabled={busy || view.phase !== "ready"}>
-        {busy ? "Сохранение…" : isCreate ? "Создать курс" : "Сохранить курс"}
-      </button>
+        {studentSearch.phase === "ready" && <ul className="trainer-selection-list">
+          {studentSearch.data.map(row => <li key={row.id}>
+            <span>{row.username}</span>
+            <button type="button" className="trainer-button-secondary"
+              disabled={busy} onClick={() => chooseStudent(row)}>Добавить</button>
+          </li>)}
+        </ul>}
+        <ul className="trainer-selection-list">
+          {draft.allowedUsers.map(userId => <li key={userId}>
+            {studentLabels[userId] ?? userId}
+            <button type="button" className="trainer-button-subtle" disabled={busy || view.phase === "conflict"}
+              onClick={() => change("allowedUsers", draft.allowedUsers.filter(id => id !== userId))}>
+              Исключить
+            </button>
+          </li>)}
+        </ul>
+        <details><summary>Редактирование списка ID вручную</summary>
+          {list("allowedUsers", "ID пользователей (по одному на строку)")}
+        </details>
+      </TrainerFormSection>}
+
+      <TrainerFormSection title="Тренировочные дни"
+        hint="Выберите и расположите дни в нужном порядке прохождения. День можно добавить несколько раз.">
+        {availableDays.phase === "loading" && <p role="status">Загружаем доступные дни…</p>}
+        {availableDays.phase === "error" && <p role="alert">Не удалось загрузить список дней.
+          <button type="button" className="trainer-button-secondary" disabled={busy}
+            onClick={() => void loadDays()}>Повторить загрузку</button>
+        </p>}
+        <TrainerCourseDayPicker available={availableDays.data}
+          selectedIds={draft.trainingDays}
+          labels={Object.fromEntries(view.snapshot?.dayLinks.map(link =>
+            [link.dayId, link.day.title]) ?? [])}
+          disabled={busy || view.phase === "conflict"}
+          onChange={ids => change("trainingDays", ids)} />
+        <details className="trainer-course-manual-ids">
+          <summary>Редактировать ID дней вручную (необязательно)</summary>
+          {list("trainingDays", "ID дней в порядке прохождения (по одному на строку)")}
+        </details>
+      </TrainerFormSection>
+      <TrainerFormActions>
+        <a className="trainer-form-back" href="/">Отмена</a>
+        <button type="submit" disabled={busy || view.phase !== "ready"}>
+          {busy ? "Сохранение…" : isCreate ? "Создать курс" : "Сохранить курс"}
+        </button>
+      </TrainerFormActions>
     </form>
-    {!isCreate && <button type="button" disabled={busy || view.phase !== "ready"}
-      onClick={() => void remove()}>Удалить курс</button>}
+    {!isCreate && <button className="trainer-button-danger" type="button"
+      disabled={busy || view.phase !== "ready"} onClick={() => void remove()}>Удалить курс</button>}
     {message && <p role="status">{message}</p>}
-  </main>;
+  </TrainerFormPage>;
 }

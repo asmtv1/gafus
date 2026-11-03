@@ -179,7 +179,7 @@ a:hover {
 .sidebar nav a:hover {
   transform: translateX(4px);
 }
-.sidebar nav a[href="/main-panel/mail"] .mail-alert-count {
+.sidebar nav a[href="/mail"] .mail-alert-count {
   margin-left: auto;
 }
 .mail-alert-count {

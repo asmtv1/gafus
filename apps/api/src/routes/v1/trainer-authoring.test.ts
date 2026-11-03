@@ -78,17 +78,26 @@ describe("trainer authoring API source parity, no production DB / no real writes
     expect(ports.createDay).toHaveBeenCalledWith({ ...day, authorId: "trainer-A" });
     expect((await post("days", { ...day, authorId: "someone-else" })).status).toBe(400);
   });
-  it("rejects foreign/missing IDs, duplicates and mixed-owner joins with no writes", async () => {
+  it("rejects foreign/missing IDs and mixed-owner joins with no writes", async () => {
     const { post, ports } = make();
     vi.mocked(ports.countOwnedSteps).mockResolvedValue(1);
     expect((await post("days", day)).status).toBe(404);
     for (const invalid of [
-      { ...day, stepIds: ["step-A", "step-A"] },
       { ...day, stepIds: "step-A" },
       { ...day, title: "" },
       { ...day, stepIds: [], extraPermission: true },
     ]) expect((await post("days", invalid)).status).toBe(400);
     expect(ports.createDay).not.toHaveBeenCalled();
+  });
+  it("creates a day with repeated step occurrences and checks distinct owned IDs only", async () => {
+    const { post, ports } = make();
+    const selected = ["step-A", "step-B", "step-A", "step-B"];
+    expect((await post("days", { ...day, stepIds: selected })).status).toBe(201);
+    expect(ports.countOwnedSteps).toHaveBeenCalledWith(["step-A", "step-B"], "trainer-A", false);
+    expect(ports.createDay).toHaveBeenCalledWith({ ...day, stepIds: selected, authorId: "trainer-A" });
+    vi.mocked(ports.countOwnedSteps).mockResolvedValueOnce(1);
+    expect((await post("days", { ...day, stepIds: selected })).status).toBe(404);
+    expect(ports.createDay).toHaveBeenCalledTimes(1);
   });
   it("admin may attach visible staff steps; Core failure yields 500 without false success", async () => {
     const { post, ports } = make("ADMIN");

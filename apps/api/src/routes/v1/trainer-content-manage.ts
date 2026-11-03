@@ -84,7 +84,7 @@ function privateRoutes() {
 }
 const stepFields = [
   "title", "description", "durationSec", "estimatedDurationSec", "type",
-  "videoUrl", "imageUrls", "pdfUrls", "checklist", "requiresVideoReport",
+  "videoUrl", "videoUrls", "imageUrls", "pdfUrls", "checklist", "requiresVideoReport",
   "requiresWrittenFeedback", "hasTestQuestions", "isDailyCourse", "surveySlug",
 ];
 const dayFields = [
@@ -113,8 +113,30 @@ const production: TrainerContentPorts = {
   },
 };
 
+// Batch routes have the same all-or-nothing owner fencing as single deletion.
+// All ID authorization and the actual deletion are atomic in Core.
+const batchIds = (body: Record<string, unknown> | null, key: "stepIds" | "dayIds") => {
+  if (!body || Object.keys(body).length !== 1 || !Array.isArray(body[key])) return null;
+  const ids: unknown[] = body[key];
+  if (ids.length < 1 || ids.length > 100 ||
+      ids.some(id => typeof id !== "string" || !idOK.test(id)) ||
+      new Set(ids).size !== ids.length) return null;
+  return ids as string[];
+};
+
 export function createTrainerStepManageRoutes(ports: TrainerContentPorts = production) {
   const app = privateRoutes();
+  app.delete("/batch", async c => {
+    const who = actor(c);
+    if (!who) return c.json(DENIED, 403);
+    if (Object.keys(c.req.queries()).length) return c.json(BAD, 400);
+    const ids = batchIds(await safeBody(c), "stepIds");
+    if (!ids) return c.json(BAD, 400);
+    try {
+      const result = await ports.step.remove({ stepIds: ids }, who);
+      return result.success ? c.json({ success: true, count: ids.length }, 200) : c.json(FAILURE, 409);
+    } catch { return c.json(FAILURE, 500); }
+  });
   app.get("/:id", async c => {
     const who = actor(c);
     if (!who) return c.json(DENIED, 403);
@@ -158,6 +180,17 @@ export function createTrainerStepManageRoutes(ports: TrainerContentPorts = produ
 
 export function createTrainerDayManageRoutes(ports: TrainerContentPorts = production) {
   const app = privateRoutes();
+  app.delete("/batch", async c => {
+    const who = actor(c);
+    if (!who) return c.json(DENIED, 403);
+    if (Object.keys(c.req.queries()).length) return c.json(BAD, 400);
+    const ids = batchIds(await safeBody(c), "dayIds");
+    if (!ids) return c.json(BAD, 400);
+    try {
+      const result = await ports.day.remove({ dayIds: ids }, who);
+      return result.success ? c.json({ success: true, count: ids.length }, 200) : c.json(FAILURE, 409);
+    } catch { return c.json(FAILURE, 500); }
+  });
   app.get("/:id", async c => {
     const who = actor(c);
     if (!who) return c.json(DENIED, 403);
@@ -186,10 +219,10 @@ export function createTrainerDayManageRoutes(ports: TrainerContentPorts = produc
     if (!body || !limitedKeys(body, dayFields)) return c.json(BAD, 400);
     const parsed = updateTrainingDaySchema.safeParse({ ...body, id });
     if (!parsed.success || parsed.data.stepIds.length > 250 ||
-        new Set(parsed.data.stepIds).size !== parsed.data.stepIds.length ||
         parsed.data.stepIds.some(stepId => !idOK.test(stepId))) return c.json(BAD, 400);
+    const uniqueIds = [...new Set(parsed.data.stepIds)];
     try {
-      if ((await ports.day.countSteps(parsed.data.stepIds, who)) !== parsed.data.stepIds.length)
+      if ((await ports.day.countSteps(uniqueIds, who)) !== uniqueIds.length)
         return c.json(MISSING, 404);
       const result = await ports.day.update(parsed.data, who);
       return result.success ? c.json({ success: true }, 200) : c.json(FAILURE, 409);

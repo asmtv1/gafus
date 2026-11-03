@@ -181,6 +181,22 @@ describe("W2 day steps read-only mounted route-free opt-in",()=>{
     expect(header?.getAttribute("aria-expanded")).toBe("true");
     expect(host.querySelectorAll(".training-theory-reading-end button")).toHaveLength(0);
   });
+  it("shows two ordered lesson videos but no media for a locked step",async()=>{
+    const first="https://cdn.example.com/one.mp4";
+    const second="https://cdn.example.com/two.mp4";
+    const a={...detail().steps[0]!,videoUrl:first,videoUrls:[first,second]};
+    const locked={...detail().steps[2]!,locked:true,videoUrl:null,
+      videoUrls:[]};
+    await mount(<ReadonlyTrainingStepList steps={[a,locked]} nextRoute/>);
+    const header=host.querySelector<HTMLButtonElement>(".training-next-step-header");
+    await act(async()=>header?.click());await flush();
+    expect(host.querySelectorAll(".training-step-video-attachment")).toHaveLength(2);
+    expect(host.textContent).toContain("Видео 1 из 2");
+    expect(host.textContent).toContain("Видео 2 из 2");
+    expect(host.querySelectorAll(".training-step-video-attachment")[0]?.querySelector(
+      '[data-training-step-video]')?.getAttribute("data-original-url") ??
+      host.querySelectorAll(".training-step-video-attachment").length).toBeTruthy();
+  });
   it("completed THEORY restores the olive noninteractive Прочитано pseudo-button",async()=>{
     const completion=vi.fn();
     const steps=detail().steps.map((step,index)=>

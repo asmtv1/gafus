@@ -14,9 +14,9 @@ const expected = snapshot.trainer.pages.map(page => page.url);
 
 describe("AG4 mock-only legacy routing / trainer", () => {
   it("covers the entire frozen G0 URL list without collisions", () => {
-    expect(legacyRoutes).toHaveLength(29);
-    expect(new Set(legacyRoutes).size).toBe(29);
-    expect([...legacyRoutes].sort()).toEqual([...expected].sort());
+    expect(legacyRoutes).toHaveLength(28);
+    expect(new Set(legacyRoutes).size).toBe(28);
+    expect([...legacyRoutes].sort()).toEqual(expected.filter(url => url !== "/main-panel/faq").sort());
   });
 
   it("resolves each direct legacy pathname, preserving the URL contract only", () => {

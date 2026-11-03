@@ -324,7 +324,7 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
           <label>
             Версия ревью iOS
             <input
-              placeholder="1.7.0"
+              placeholder="1.7.2"
               value={String(draft.iosReviewVersion ?? "")}
               onChange={(e) =>
                 setDraft((old) => ({

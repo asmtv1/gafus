@@ -73,6 +73,40 @@ describe("isolated Refactor-only browser origin", () => {
     vi.stubEnv("API_PORT", "3001");
   }
 
+  it.each(["http://127.0.0.1:5174", "http://127.0.0.1:5175"])(
+    "allows isolated staff-panel Origin %s with local HttpOnly cookies only",
+    async (origin) => {
+      const headers = { ...local, origin };
+      expect((await route.request("/session", { method: "POST", headers })).status).toBe(403);
+      enable();
+      const response = await route.request("/session", { method: "POST", headers });
+      expect(response.status).toBe(200);
+      expect(response.headers.getSetCookie()).toHaveLength(2);
+      for (const cookie of response.headers.getSetCookie()) {
+        expect(cookie).toContain("HttpOnly");
+        expect(cookie).toContain("SameSite=Lax");
+        expect(cookie).not.toContain("Secure");
+      }
+      vi.stubEnv("NODE_ENV", "production");
+      expect((await route.request("/session", { method: "POST", headers })).status).toBe(403);
+    },
+  );
+
+  it.each([
+    ["GAFUS_LOCAL_ISOLATED_API", "0"],
+    ["GAFUS_LOCAL_BROWSER_AUTH", "0"],
+    ["API_HOST", "0.0.0.0"],
+    ["API_PORT", "3003"],
+  ])("rejects staff Origin when %s=%s", async (name, value) => {
+    enable();
+    vi.stubEnv(name, value);
+    for (const origin of ["http://127.0.0.1:5174", "http://127.0.0.1:5175"]) {
+      expect((await route.request("/session", {
+        method: "POST", headers: { ...local, origin },
+      })).status).toBe(403);
+    }
+  });
+
   it("denies local cookies by default, explicitly permits only attested local origin", async () => {
     expect((await route.request("/session", { method: "POST", headers: local })).status).toBe(403);
     enable();
@@ -91,7 +125,7 @@ describe("isolated Refactor-only browser origin", () => {
       expect(cookie).toContain("Max-Age=0");
     }
     for (const origin of [
-      "http://localhost:5173", "http://127.0.0.1:5174",
+      "http://localhost:5173", "http://127.0.0.1:5176",
       "http://127.0.0.1:5173.evil.example", "null", "https://evil.example",
     ]) {
       expect((await route.request("/session", {

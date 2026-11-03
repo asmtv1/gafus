@@ -233,9 +233,14 @@ function StepCard({ step, index, examContext, onUnlockVerify,
                   </div>
                 </div>
               )}
-              {step.videoUrl && (
-                <TrainingStepVideo originalUrl={step.videoUrl} title={step.title} />
-              )}
+              {(step.videoUrls?.length ? step.videoUrls : step.videoUrl ? [step.videoUrl] : [])
+                .map((url, videoIndex) => (
+                  <div key={url + videoIndex} className="training-step-video-attachment">
+                    {step.videoUrls && step.videoUrls.length > 1 &&
+                      <h5>Видео {videoIndex + 1} из {step.videoUrls.length}</h5>}
+                    <TrainingStepVideo originalUrl={url} title={step.title} />
+                  </div>
+                ))}
               {step.pdfUrls && step.pdfUrls.length > 0 && <div
                 className="training-step-attachments" aria-label="Материалы занятия">
                 <h5>Материалы для занятия</h5>
@@ -272,7 +277,7 @@ function StepCard({ step, index, examContext, onUnlockVerify,
                   {progressSlot}
                 </TheoryReadingContext.Provider>
               </div>}
-              {!step.description && !step.videoUrl && !step.imageUrls.length &&
+              {!step.description && !step.videoUrl && !step.videoUrls?.length && !step.imageUrls.length &&
                 !step.pdfUrls?.length &&
                 !["EXAMINATION", "DIARY", "SURVEY"].includes(step.type) && (
                 <p className="note">Дополнительных материалов нет.</p>

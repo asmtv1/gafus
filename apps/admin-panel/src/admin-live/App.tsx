@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type MouseEvent } from "react";
 import {
   AdminHttpError,
   getAdminActor,
@@ -34,6 +34,9 @@ import { ProfitReport } from "./ProfitReport";
 import { GafusPanel } from "./GafusPanel";
 import { RewardedAdsPanel, ReengagementPanel, BroadcastPanel } from "./AnalyticsPanels";
 import { adminSections, matchAdminRoute, maySeeRoute } from "./routes";
+import {
+  toAdminBrowserHref, toAdminBrowserPath, toAdminInternalPath,
+} from "./adminBrowserRoutes";
 import { MailAlertBadge } from "./MailAlertBadge";
 import { AdminNavIcon } from "./AdminNavIcon";
 import { rewardedPeriodFromSearch, rewardedPeriodUrl, type RewardedPeriod } from "./rewardedPeriod";
@@ -128,7 +131,7 @@ function Section({
   const [loading, setLoading] = useState(false);
   const [epoch, setEpoch] = useState(0);
   const [scheduleTrainerId, setScheduleTrainerId] = useState(() =>
-    trainerIdFromScheduleSearch(window.location.pathname, window.location.search),
+    trainerIdFromScheduleSearch(toAdminInternalPath(window.location.pathname), window.location.search),
   );
   const [choosingTrainer, setChoosingTrainer] = useState(false);
   const [subscriptionSearch, setSubscriptionSearch] = useState(() =>
@@ -137,7 +140,7 @@ function Section({
   const subscriptionTab = subscriptionTabFromSearch(`?${subscriptionSearch}`);
   const selectSubscriptionTab = (tab: SubscriptionTab) => {
     if (section?.key !== "app-subscriptions" || tab === subscriptionTab) return;
-    window.history.pushState(null, "", subscriptionTabUrl(tab));
+    window.history.pushState(null, "", toAdminBrowserHref(subscriptionTabUrl(tab)));
     setSubscriptionSearch(normalizedSubscriptionsSearch(`?tab=${tab}`));
   };
   const [rewardedDays, setRewardedDays] = useState<RewardedPeriod>(() =>
@@ -145,7 +148,7 @@ function Section({
   );
   const chooseRewardedPeriod = (days: RewardedPeriod) => {
     if (section?.key !== "rewarded-ads" || days === rewardedDays) return;
-    window.history.pushState(null, "", rewardedPeriodUrl(days));
+    window.history.pushState(null, "", toAdminBrowserHref(rewardedPeriodUrl(days)));
     setRewardedDays(days);
   };
   const [gafusPage, setGafusPage] = useState<"dashboard" | "fraud" | "preflight">("dashboard");
@@ -158,8 +161,8 @@ function Section({
   const reload = useCallback(() => setEpoch((x) => x + 1), []);
   const selectScheduleTrainer = useCallback((id: string) => {
     if (id && !validScheduleTrainerId(id)) return;
-    if (window.location.pathname === "/main-panel/consultations/trainers-schedules") {
-      window.history.replaceState(null, "", scheduleTrainerUrl(id));
+    if (toAdminInternalPath(window.location.pathname) === "/main-panel/consultations/trainers-schedules") {
+      window.history.replaceState(null, "", toAdminBrowserHref(scheduleTrainerUrl(id)));
     }
     setChoosingTrainer(!id);
     setScheduleTrainerId(id);
@@ -168,7 +171,7 @@ function Section({
   useEffect(() => {
     setChoosingTrainer(false);
     setScheduleTrainerId(
-      trainerIdFromScheduleSearch(window.location.pathname, window.location.search),
+      trainerIdFromScheduleSearch(toAdminInternalPath(window.location.pathname), window.location.search),
     );
     setSubscriptionSearch(normalizedSubscriptionsSearch(window.location.search));
     setRewardedDays(rewardedPeriodFromSearch(window.location.search));
@@ -183,7 +186,7 @@ function Section({
     const restoreQuery = () => {
       setChoosingTrainer(false);
       setScheduleTrainerId(
-        trainerIdFromScheduleSearch(window.location.pathname, window.location.search),
+        trainerIdFromScheduleSearch(toAdminInternalPath(window.location.pathname), window.location.search),
       );
       setSubscriptionSearch(normalizedSubscriptionsSearch(window.location.search));
       setRewardedDays(rewardedPeriodFromSearch(window.location.search));
@@ -288,7 +291,7 @@ function Section({
     return (
       <div className="content-card">
         <h2>Страница не найдена</h2>
-        <a href="/main-panel">Вернуться в админ-панель</a>
+        <a href="/">Вернуться в админ-панель</a>
       </div>
     );
   if (!allowed)
@@ -311,7 +314,7 @@ function Section({
       </div>
       {section.key === "admin" && actor.role === "ADMIN" && (
         <p className="note">
-          <a href="/main-panel/media" onClick={(event) => {
+          <a href="/media" onClick={(event) => {
             event.preventDefault();
             onNavigate("/main-panel/media");
           }}>
@@ -321,7 +324,7 @@ function Section({
       )}
       {section.key === "media" && (
         <p className="note">
-          <a href="/main-panel/admin" onClick={(event) => {
+          <a href="/admin" onClick={(event) => {
             event.preventDefault();
             onNavigate("/main-panel/admin");
           }}>
@@ -584,19 +587,23 @@ export function App() {
   const [actor, setActor] = useState<AuthActor | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [path, setPath] = useState(() =>
-    ["/", "/login"].includes(window.location.pathname) ? "/main-panel" : window.location.pathname,
-  );
+  const [path, setPath] = useState(() => toAdminInternalPath(window.location.pathname));
   const [menuOpen, setMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const sessionRequest = useRef<ReturnType<typeof getAdminActor> | null>(null);
   useEffect(() => {
-    if (["/", "/login"].includes(window.location.pathname)) {
-      window.history.replaceState(null, "", "/main-panel");
-    }
-    const listener = () => setPath(window.location.pathname);
-    window.addEventListener("popstate", listener);
-    return () => window.removeEventListener("popstate", listener);
+    const syncLocation = () => {
+      const current = window.location.pathname;
+      const canonical = current === "/login" ? "/" : toAdminBrowserPath(current);
+      if (current !== canonical) {
+        window.history.replaceState(window.history.state, "",
+          canonical + window.location.search + window.location.hash);
+      }
+      setPath(toAdminInternalPath(window.location.pathname));
+    };
+    syncLocation();
+    window.addEventListener("popstate", syncLocation);
+    return () => window.removeEventListener("popstate", syncLocation);
   }, []);
   useEffect(() => {
     let mounted = true;
@@ -620,12 +627,32 @@ export function App() {
   }, []);
   const onExpired = useCallback(() => setActor(null), []);
   const changePath = useCallback((next: string) => {
-    if (!(next === "/main-panel" || next.startsWith("/main-panel/")) || next.startsWith("//"))
-      return;
-    if (window.location.pathname !== next) window.history.pushState(null, "", next);
-    setPath(next);
+    const internal = toAdminInternalPath(next);
+    if (!matchAdminRoute(internal)) return;
+    const canonical = toAdminBrowserPath(internal);
+    if (window.location.pathname !== canonical || window.location.search)
+      window.history.pushState(null, "", canonical);
+    setPath(internal);
     setMenuOpen(false);
   }, []);
+  const followInternalLink = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || event.button !== 0 ||
+        event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
+        !(event.target instanceof Element)) return;
+    const anchor = event.target.closest("a[href]");
+    if (!(anchor instanceof HTMLAnchorElement) || anchor.target ||
+        anchor.hasAttribute("download") || anchor.getAttribute("href")?.startsWith("#")) return;
+    const url = new URL(anchor.href);
+    if (url.origin !== window.location.origin) return;
+    const internal = toAdminInternalPath(url.pathname);
+    if (!matchAdminRoute(internal)) return;
+    event.preventDefault();
+    const canonical = toAdminBrowserPath(internal) + url.search + url.hash;
+    if (window.location.pathname + window.location.search + window.location.hash !== canonical)
+      window.history.pushState(null, "", canonical);
+    setPath(internal);
+    setMenuOpen(false);
+  };
   async function signOut() {
     if (signingOut) return;
     setSigningOut(true);
@@ -676,7 +703,7 @@ export function App() {
       </main>
     );
   return (
-    <div className="admin-layout">
+    <div className="admin-layout" onClick={followInternalLink}>
       <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
         <div className="sidebar-profile">
           <strong>{actor.username}</strong>
@@ -690,7 +717,7 @@ export function App() {
             .map((section) => (
               <a
                 key={section.key}
-                href={section.path}
+                href={toAdminBrowserHref(section.path)}
                 aria-current={matchAdminRoute(path)?.key === section.key ? "page" : undefined}
                 onClick={(event) => {
                   event.preventDefault();

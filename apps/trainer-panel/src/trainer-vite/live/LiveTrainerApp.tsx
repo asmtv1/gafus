@@ -4,6 +4,7 @@ import { TrainerOptInRoute } from "../optInRoute";
 import { createVersionedCourseOperations } from "../TR012VersionHttpAdapter20261022";
 import { TrainerDashboardRoute } from "../TrainerDashboardRoute";
 import { matchLegacyPath } from "../routes";
+import { toTrainerBrowserHref, toTrainerBrowserPath, toTrainerLegacyPath } from "./trainerBrowserRoutes";
 import {
   buildSession, createTrainerCookieFetch, mutateTrainerApiEnvelope,
   readTrainerApiEnvelope, trainerLogin, trainerLogout, trainerMe,
@@ -16,10 +17,12 @@ type SessionState =
   | { kind: "unknown" }
   | { kind: "ready"; session: BrowserSession };
 const nav = [
+  ["Обзор", "/main-panel"],
   ["Статистика", "/main-panel/statistics"],
   ["Шаги", "/main-panel/steps"],
   ["Дни", "/main-panel/days"],
   ["Курс дня", "/main-panel/daily-course"],
+  ["Импорт курса дня", "/main-panel/daily-course/import"],
   ["Шаги курса дня", "/main-panel/daily-course/steps?orderBy=createdAt&order=desc&rowsPerPage=25"],
   ["Статистика курса дня", "/main-panel/daily-course/statistics"],
   ["Связки курса дня", "/main-panel/daily-course/bundles"],
@@ -28,14 +31,24 @@ const nav = [
   ["Все экзамены", "/main-panel/exam-results?hideCompleted=false"],
   ["Статьи", "/main-panel/articles"],
   ["Заметки", "/main-panel/notes"],
-  ["Частые вопросы", "/main-panel/faq"],
   ["Консультации", "/main-panel/consultations"],
   ["Создать шаг", "/main-panel/steps/new"],
   ["Создать день", "/main-panel/days/new"],
   ["Создать курс", "/main-panel/courses/new"],
   ["Создать статью", "/main-panel/articles/new"],
 ] as const;
-const path = () => ({ pathname: window.location.pathname, search: window.location.search });
+const path = () => ({
+  pathname: toTrainerLegacyPath(window.location.pathname),
+  search: window.location.search,
+});
+function canonicalizeBrowserPath() {
+  const canonicalPath = toTrainerBrowserPath(window.location.pathname);
+  if (canonicalPath !== window.location.pathname) {
+    window.history.replaceState(
+      window.history.state, "", canonicalPath + window.location.search + window.location.hash,
+    );
+  }
+}
 
 export function LiveTrainerApp({ fetchImpl = fetch }: { fetchImpl?: typeof fetch }) {
   const [route, setRoute] = useState(path);
@@ -83,8 +96,10 @@ export function LiveTrainerApp({ fetchImpl = fetch }: { fetchImpl?: typeof fetch
     }
   }, [fetchImpl, retire]);
   useEffect(() => {
+    canonicalizeBrowserPath();
+    setRoute(path());
     void recheck();
-    const onPop = () => setRoute(path());
+    const onPop = () => { canonicalizeBrowserPath(); setRoute(path()); };
     const onFocus = () => { if (stateRef.current.kind === "ready") void recheck(); };
     window.addEventListener("popstate", onPop);
     window.addEventListener("focus", onFocus);
@@ -132,11 +147,13 @@ export function LiveTrainerApp({ fetchImpl = fetch }: { fetchImpl?: typeof fetch
     const link = event.target.closest("a[href]");
     if (!(link instanceof HTMLAnchorElement) || link.target || link.hasAttribute("download"))
       return;
+    if (link.getAttribute("href")?.startsWith("#")) return;
     const url = new URL(link.href);
-    if (url.origin !== window.location.origin || !url.pathname.startsWith("/main-panel")) return;
-    if (!matchLegacyPath(url.pathname) && url.pathname !== "/main-panel") return;
+    if (url.origin !== window.location.origin) return;
+    const legacyPath = toTrainerLegacyPath(url.pathname);
+    if (legacyPath !== "/main-panel" && !matchLegacyPath(legacyPath)) return;
     event.preventDefault();
-    window.history.pushState(null, "", url.pathname + url.search);
+    window.history.pushState(null, "", toTrainerBrowserPath(legacyPath) + url.search + url.hash);
     setRoute(path());
   };
   const current = () => stateRef.current.kind === "ready" ? {
@@ -180,10 +197,16 @@ export function LiveTrainerApp({ fetchImpl = fetch }: { fetchImpl?: typeof fetch
   </main>;
   const actor = state.session.actor;
   const staff = ["TRAINER", "ADMIN", "MODERATOR"].includes(actor.role);
+  if (!staff) return <main className="trainer-auth">
+    <h1>Нет доступа к панели тренера</h1>
+    <p>Учётная запись {state.session.username} не имеет роли тренера или администратора.
+      Для работы с формами войдите под учётной записью сотрудника.</p>
+    <button type="button" onClick={() => void onLogout()} disabled={logoutBusy}>Выйти</button>
+  </main>;
   return <div className="trainer-shell" onClick={onClick}>
     <aside><h2>ГАФУС · Тренер</h2><p>{state.session.username}</p>
       <nav aria-label="Разделы панели тренера">
-        {nav.map(([label, href]) => <a href={href} key={href}
+        {nav.map(([label, href]) => <a href={toTrainerBrowserHref(href)} key={href}
           aria-current={href.split("?")[0] === route.pathname ? "page" : undefined}>
           {label}</a>)}
       </nav>
@@ -197,7 +220,8 @@ export function LiveTrainerApp({ fetchImpl = fetch }: { fetchImpl?: typeof fetch
         route.pathname === "/main-panel" ?
           <TrainerDashboardRoute key={state.session.epoch}
             actor={actor} token={state.session.witness} authEpoch={state.session.epoch}
-            fetchRead={jsonRead} getCurrentSession={current} /> :
+            fetchRead={jsonRead} courseWriteTransport={jsonWrite}
+            getCurrentSession={current} /> :
         !matchLegacyPath(route.pathname) ?
           <main><p role="alert">Маршрут не найден</p></main> :
           <TrainerOptInRoute key={`${state.session.epoch}:${route.pathname}:${route.search}`}
@@ -222,7 +246,8 @@ export function LiveTrainerApp({ fetchImpl = fetch }: { fetchImpl?: typeof fetch
             examSummaryTransport={jsonRead} examManageTransport={jsonWrite}
             courseVersionOperations={courseVersionOperations}
             authoringTransport={jsonWrite}
-            dailyManageTransport={jsonWrite} publicTemplateTransport={jsonRead} />}
+            dailyManageTransport={jsonWrite} publicTemplateTransport={jsonRead}
+            dailyImportTransport={jsonWrite} />}
     </div>
   </div>;
 }

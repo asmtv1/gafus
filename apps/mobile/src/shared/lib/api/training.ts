@@ -48,6 +48,7 @@ export type StepContent = {
   type: string;
   durationSec: TrainingDayStepWire["durationSec"] | null;
   videoUrl: TrainingDayStepWire["videoUrl"];
+  videoUrls?: TrainingDayStepWire["videoUrls"];
   /** Загруженные тренером изображения (как на web StepContent / OfflineImageViewer). */
   imageUrls?: TrainingDayStepWire["imageUrls"];
   pdfUrl: string | null;

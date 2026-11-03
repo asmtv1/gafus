@@ -95,6 +95,55 @@ describe("Trainer Vite opt-in step/day POST forms", () => {
     await submit();
     expect(post).toHaveBeenCalledTimes(1);
   });
+  it("steps/new saves the selected My Videos link through the existing authoring API", async () => {
+    const url = "https://gafus-media.storage.yandexcloud.net/uploads/trainers/trainer-a/videocourses/own-video/source.mp4";
+    const videos = vi.fn(async () => ({ status: 200, headers: cc, body: { success: true,
+      data: { videos: [{ id: "own-video", title: "Готовое видео", videoUrl: url,
+        durationSec: 63, createdAt: "2026-11-03T10:00:00.000Z" }] } },
+    }));
+    await mount({ pathname: "/main-panel/steps/new", videoMetadataTransport: videos });
+    const mode = [...host.querySelectorAll("button")]
+      .find(button => button.textContent === "Мои видео")!;
+    await act(async () => mode.click());
+    expect(videos).toHaveBeenCalledTimes(1);
+    await act(async () => host.querySelector<HTMLButtonElement>(
+      ".trainer-video-selector-grid button")!.click());
+    await change(host.querySelector("input[required]")!, "Первый урок с видео");
+    await change(host.querySelector("textarea[required]")!, "Описание упражнения с видео");
+    await submit();
+    expect(post).toHaveBeenCalledWith(expect.objectContaining({
+      method: "POST", path: "/api/v1/trainer/authoring/steps",
+      body: expect.objectContaining({ videoUrl: url }),
+    }));
+    expect(host.textContent).toContain("Шаг создан");
+  });
+  it("steps/new attaches two My Videos clips in the chosen order without losing the first-video alias", async () => {
+    const urls = ["video-a", "video-b"].map(id =>
+      `https://gafus-media.storage.yandexcloud.net/uploads/trainers/trainer-a/videocourses/${id}/original.mp4`);
+    const videos = vi.fn(async () => ({ status: 200, headers: cc, body: { success: true,
+      data: { videos: urls.map((videoUrl, index) => ({
+        id: `video-${index === 0 ? "a" : "b"}`, title: `Видео ${index + 1}`,
+        videoUrl, durationSec: 63, createdAt: "2026-11-03T10:00:00.000Z",
+      })) } },
+    }));
+    await mount({ pathname: "/main-panel/steps/new", videoMetadataTransport: videos });
+    await act(async () => [...host.querySelectorAll("button")]
+      .find(button => button.textContent === "Мои видео")!.click());
+    const tiles = [...host.querySelectorAll<HTMLButtonElement>(
+      ".trainer-video-selector-grid button")];
+    await act(async () => tiles[0]!.click());
+    await act(async () => tiles[1]!.click());
+    await act(async () => host.querySelector<HTMLButtonElement>(
+      '[aria-label="Переместить видео 2 вверх"]')!.click());
+    await change(host.querySelector("input[required]")!, "Курс с двумя видео");
+    await change(host.querySelector("textarea[required]")!, "Описание курса с двумя полезными видео");
+    await submit();
+    expect(post).toHaveBeenCalledWith(expect.objectContaining({
+      method: "POST", path: "/api/v1/trainer/authoring/steps",
+      body: expect.objectContaining({ videoUrl: urls[1], videoUrls: [urls[1], urls[0]] }),
+    }));
+    expect(host.textContent).toContain("Шаг создан");
+  });
   it("days/new loads own steps from real read adapter; submits only selected step IDs", async () => {
     await mount({ pathname: "/main-panel/days/new", search: "?stepIds=step-1" });
     expect(get).toHaveBeenCalledTimes(1);
@@ -110,6 +159,32 @@ describe("Trainer Vite opt-in step/day POST forms", () => {
       method: "POST", path: "/api/v1/trainer/authoring/days",
       body: { title: "Первый тренировочный день", stepIds: ["step-1"] },
     });
+    expect(host.textContent).toContain("День создан");
+  });
+  it("days/new adds repeated steps, reorders the occurrences and posts the exact sequence", async () => {
+    const second = { ...step, id: "step-2", title: "Закрепляем команду",
+      createdAt: "2026-10-25T10:00:00.000Z", updatedAt: "2026-10-25T10:00:00.000Z" };
+    get.mockResolvedValueOnce({ status: 200, headers: cc,
+      body: { success: true, data: [step, second] } });
+    await mount({ pathname: "/main-panel/days/new" });
+    const click = async (label: string) => {
+      const target = [...host.querySelectorAll("button")]
+        .find(element => element.getAttribute("aria-label") === label);
+      expect(target).toBeTruthy();
+      await act(async () => target!.click());
+    };
+    await click("Добавить шаг: Держать внимание");
+    await click("Добавить шаг: Держать внимание");
+    await click("Добавить шаг: Закрепляем команду");
+    await click("Переместить выше: Закрепляем команду, позиция 3");
+    expect([...host.querySelectorAll<HTMLElement>(".trainer-day-selected-row")]
+      .map(row => row.dataset.stepId)).toEqual(["step-1", "step-2", "step-1"]);
+    await change(host.querySelector("input[required]")!, "День с повторами");
+    await submit();
+    expect(post).toHaveBeenCalledWith(expect.objectContaining({
+      method: "POST", path: "/api/v1/trainer/authoring/days",
+      body: expect.objectContaining({ stepIds: ["step-1", "step-2", "step-1"] }),
+    }));
     expect(host.textContent).toContain("День создан");
   });
   it("creates free public course with selected owned days through registered authoring path", async () => {

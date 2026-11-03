@@ -31,6 +31,15 @@ export function verifiedBookings(data: unknown, actor: PanelActor): data is Trai
         !row.slot || typeof row.slot.id !== "string" || !row.slot.id.trim() ||
         typeof row.slot.startAtUtc !== "string" ||
         typeof row.slot.endAtUtc !== "string") return false;
+    const optionalFields=["cancelReason", "clientUsername", "clientOwnerName", "clientPhone",
+      "petName", "petGender", "petAge", "petBreed", "clientProblem",
+      "clientSelfHelpAttempt", "confirmationDeadlineAt"] as const;
+    if(optionalFields.some(key=>{
+      const value=row[key];
+      return value!==undefined && value!==null &&
+        (typeof value!=="string" || value.length>10000);
+    })) return false;
+    if(row.confirmationDeadlineAt && bookingInstant(row.confirmationDeadlineAt)===null) return false;
     const start=bookingInstant(row.slot.startAtUtc);
     const end=bookingInstant(row.slot.endAtUtc);
     if(start===null||end===null||end<=start)return false;

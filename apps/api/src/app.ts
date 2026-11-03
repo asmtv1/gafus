@@ -45,6 +45,7 @@ import { trainerTemplatesRoutes } from "./routes/v1/trainer-templates.js";
 import { trainerDailyBundlesRoutes } from "./routes/v1/trainer-daily-bundles.js";
 import { trainerDailyStatisticsRoutes } from "./routes/v1/trainer-daily-statistics.js";
 import { trainerDailyManageRoutes } from "./routes/v1/trainer-daily-manage.js";
+import { trainerDailyImportRoutes } from "./routes/v1/trainer-daily-import.js";
 import { trainerDaysRoutes } from "./routes/v1/trainer-days.js";
 import { trainerExamSummaryRoutes } from "./routes/v1/trainer-exam-summary.js";
 import { trainerExamManageRoutes } from "./routes/v1/trainer-exam-manage.js";
@@ -56,6 +57,7 @@ import { trainerVideosManageRoutes } from "./routes/v1/trainer-videos-manage.js"
 import { trainerArticlesOwnSummaryRoutes } from "./routes/v1/trainer-articles-own-summary.js";
 import { trainerArticlesManageRoutes } from "./routes/v1/trainer-articles-manage.js";
 import { trainerVideosMetadataRoutes } from "./routes/v1/trainer-videos-metadata.js";
+import { trainerVideosCatalogRoutes } from "./routes/v1/trainer-videos-catalog.js";
 import { petsRoutes } from "./routes/v1/pets.js";
 import { petPreventionRoutes } from "./routes/v1/pet-prevention.js";
 import { petVetVisitRoutes } from "./routes/v1/pet-vet-visits.js";
@@ -504,6 +506,10 @@ app.route("/api/v1/trainer/daily-course/statistics", trainerDailyStatisticsRoute
 app.use("/api/v1/trainer/daily-course/manage/*", trainerStepsPrivateRead);
 app.use("/api/v1/trainer/daily-course/manage/*", authMiddleware, apiRateLimiter);
 app.route("/api/v1/trainer/daily-course/manage", trainerDailyManageRoutes);
+// One-megabyte markdown import, readback preview and explicit add-only confirm.
+app.use("/api/v1/trainer/daily-course/import/*", trainerStepsPrivateRead);
+app.use("/api/v1/trainer/daily-course/import/*", authMiddleware, apiRateLimiter);
+app.route("/api/v1/trainer/daily-course/import", trainerDailyImportRoutes);
 
 // AG4 frozen visible-days GET: private headers also on pre-auth and early 429.
 // No client owner override, day mutation or legacy Next route changes.
@@ -544,6 +550,8 @@ app.route("/api/v1/trainer/notes/manage", trainerNotesManageRoutes);
 // AG1 cont144: metadata-only own articles, private headers before auth/rate limit.
 app.use("/api/v1/trainer/articles/own-summary", trainerStepsPrivateRead);
 app.use("/api/v1/trainer/articles/own-summary", authMiddleware, apiRateLimiter);
+app.use("/api/v1/trainer/articles/own-summary/*", trainerStepsPrivateRead);
+app.use("/api/v1/trainer/articles/own-summary/*", authMiddleware, apiRateLimiter);
 app.route("/api/v1/trainer/articles", trainerArticlesOwnSummaryRoutes);
 
 // Article body/owner CRUD. Keep authorization at both boundary and Core level.
@@ -555,6 +563,12 @@ app.route("/api/v1/trainer/articles/manage", trainerArticlesManageRoutes);
 app.use("/api/v1/trainer/videos/metadata", trainerStepsPrivateRead);
 app.use("/api/v1/trainer/videos/metadata", authMiddleware, apiRateLimiter);
 app.route("/api/v1/trainer/videos", trainerVideosMetadataRoutes);
+app.use("/api/v1/trainer/videos/catalog", trainerStepsPrivateRead, authMiddleware, apiRateLimiter);
+// Owner-scoped persistent video selection shares the catalog's full auth boundary.
+app.use("/api/v1/trainer/videos/selectable", trainerStepsPrivateRead, authMiddleware, apiRateLimiter);
+app.use("/api/v1/trainer/videos/poster/*", trainerStepsPrivateRead, authMiddleware, apiRateLimiter);
+app.use("/api/v1/trainer/videos/playback/*", trainerStepsPrivateRead, authMiddleware, apiRateLimiter);
+app.route("/api/v1/trainer/videos", trainerVideosCatalogRoutes);
 app.use("/api/v1/trainer/videos/manage/*", trainerStepsPrivateRead);
 app.use("/api/v1/trainer/videos/manage/*", authMiddleware, apiRateLimiter);
 app.route("/api/v1/trainer/videos/manage", trainerVideosManageRoutes);

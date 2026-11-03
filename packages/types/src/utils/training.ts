@@ -13,6 +13,7 @@ export interface TrainingDayUtil {
 export interface TrainingStep {
   id: string;
   videoUrl: string | null;
+  videoUrls?: string[];
   pdfUrls?: string[];
   imageUrls?: string[];
   title: string;

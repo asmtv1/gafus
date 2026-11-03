@@ -108,6 +108,8 @@ model Step {
   imageUrls               String[]                @default([])
   pdfUrls                 String[]                @default([])
   videoUrl                String?
+  // Ordered attachments. videoUrl is the first-video compatibility alias.
+  videoUrls               String[]                @default([])
   checklist               Json?
   requiresVideoReport     Boolean                 @default(false)
   requiresWrittenFeedback Boolean                 @default(false)

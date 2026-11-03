@@ -10,7 +10,9 @@ const course = z
   .object({ id: nonempty, name: z.string(), shortDesc: z.string(), logoImg: z.string() })
   .strict();
 const dayLink = z.object({ course }).strict();
-const day = z.object({ dayLinks: z.array(dayLink) }).strict();
+const day = z.object({
+  id: nonempty.optional(), title: z.string().optional(), dayLinks: z.array(dayLink),
+}).strict();
 const stepLink = z.object({ day }).strict();
 export const visibleStepSchema = z
   .object({

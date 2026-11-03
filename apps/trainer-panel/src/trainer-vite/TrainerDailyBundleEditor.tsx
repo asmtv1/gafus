@@ -3,6 +3,7 @@ import type { PanelActor } from "./consultationContract";
 import { readDailyBundles, type DailyBundle } from "./tr014DailyBundlesRead20261022";
 import { readBundleCandidates, type Candidate } from "./tr014BundleCandidatesRead20261022";
 import type { DailyBundleTransport } from "./TrainerDailyBundlesOptInRoute";
+import { matchesCatalogSearch } from "./live/trainerCatalogSearch";
 
 export type TrainerDailyManageTransport = (input: {
   method: "PUT" | "DELETE";
@@ -21,6 +22,8 @@ export type TrainerDailyManageProps = {
   getCurrentSession?: () => {
     actor: PanelActor; token: string | null; authEpoch?: string;
   } | null;
+  selectedBundleId?: string | null;
+  onVerifiedChange?: () => void;
 };
 export function TrainerDailyBundleEditor(p: TrainerDailyManageProps) {
   const [rows, setRows] = useState<DailyBundle[]>([]);
@@ -32,10 +35,13 @@ export function TrainerDailyBundleEditor(p: TrainerDailyManageProps) {
   const [type, setType] = useState("daily_course");
   const [bundleId, setBundleId] = useState("");
   const [chosen, setChosen] = useState<string[]>([]);
+  const [stepQuery, setStepQuery] = useState("");
+  const [dragging, setDragging] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [outcome, setOutcome] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [retry, setRetry] = useState(0);
+  const lastEditId = useRef<string | null>(null);
   const pending = useRef<AbortController | null>(null);
   const writing = useRef(false);
   const sessionRef = useRef(p.getCurrentSession);
@@ -84,6 +90,15 @@ export function TrainerDailyBundleEditor(p: TrainerDailyManageProps) {
     setChosen(row?.steps.map(step => step.id) ?? []);
     setOutcome(""); setDeleteConfirm("");
   }
+  useEffect(() => {
+    const target = p.selectedBundleId;
+    if (!target || lastEditId.current === target || load !== "ready") return;
+    if (!rows.some(row => row.id === target)) return;
+    lastEditId.current = target;
+    selectBundle(target);
+    // Only respond to an explicit selection on the library, not edits to local rows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.selectedBundleId, load, rows]);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!enabled || saving || writing.current || chosen.length < 2 || chosen.length > 5) return;
@@ -125,6 +140,7 @@ export function TrainerDailyBundleEditor(p: TrainerDailyManageProps) {
         } else {
           setRows(refreshed);
           setOutcome("Связка сохранена и проверена");
+          p.onVerifiedChange?.();
         }
       } else setOutcome("Не удалось сохранить связку — проверьте права и данные");
     } catch {
@@ -168,6 +184,7 @@ export function TrainerDailyBundleEditor(p: TrainerDailyManageProps) {
       setBundleId(""); setTitle(""); setDescription(""); setEquipment("");
       setType("daily_course"); setChosen([]); setDeleteConfirm("");
       setOutcome("Удаление связки подтверждено");
+      p.onVerifiedChange?.();
     } catch {
       if (!controller.signal.aborted && check())
         setOutcome("Удаление не подтверждено. Связка может использоваться в расписании.");
@@ -186,8 +203,25 @@ export function TrainerDailyBundleEditor(p: TrainerDailyManageProps) {
     [next[index], next[index + offset]] = [next[index + offset]!, next[index]!];
     return next;
   });
+  const filteredSteps = candidates.filter(step => matchesCatalogSearch(stepQuery, [
+    step.title, step.id, step.type,
+  ]));
+  function drop(target: string) {
+    if (!dragging || dragging === target || saving) return;
+    setChosen(previous => {
+      const source = previous.indexOf(dragging);
+      const destination = previous.indexOf(target);
+      if (source < 0 || destination < 0) return previous;
+      const result = previous.filter(id => id !== dragging);
+      result.splice(destination, 0, dragging);
+      return result;
+    });
+    setDragging(null);
+  }
   if (!enabled) return null;
-  return <section aria-label="Управление связками курса дня" data-daily-bundle-editor="hono">
+  return <section className="trainer-workspace-editor trainer-workspace-panel"
+    id="daily-bundle-editor" aria-label="Управление связками курса дня"
+    data-daily-bundle-editor="hono">
     <h2>Создать или изменить связку</h2>
     {load === "loading" && <p role="status">Загрузка редактора связок</p>}
     {load === "error" && <p role="alert">Не удалось загрузить связки и шаги
@@ -210,11 +244,29 @@ export function TrainerDailyBundleEditor(p: TrainerDailyManageProps) {
       <label>Описание<textarea value={description}
         onChange={e => setDescription(e.target.value)} /></label>
       <fieldset><legend>Выберите 2–5 шагов в нужном порядке</legend>
-        {candidates.map(step => <label key={step.id}>
+        <p className="trainer-workspace-hint">Добавьте шаги, затем перетаскивайте выбранные
+          строки или используйте кнопки «Вверх» / «Вниз» для изменения порядка.</p>
+        <label className="trainer-workspace-search">Поиск шагов
+          <input type="search" value={stepQuery} placeholder="Название, тип или ID…"
+            onChange={event => setStepQuery(event.target.value)} />
+        </label>
+        <p className="trainer-workspace-count">Найдено: {filteredSteps.length} из {candidates.length} ·
+          Выбрано: {chosen.length} из 5</p>
+        <div className="trainer-workspace-step-options">
+        {filteredSteps.map(step => <label key={step.id}>
           <input type="checkbox" checked={chosen.includes(step.id)}
             onChange={e => choose(step.id, e.target.checked)} /> {step.title}
         </label>)}
-        <ol aria-label="Порядок связки">{chosen.map((id, index) => <li key={id}>
+        </div>
+        <ol className="trainer-workspace-draggable-steps" aria-label="Порядок связки">
+          {chosen.map((id, index) => <li key={id} draggable={!saving}
+            onDragStart={event => {
+              event.dataTransfer.effectAllowed = "move"; setDragging(id);
+            }}
+            onDragOver={event => event.preventDefault()}
+            onDragEnd={() => setDragging(null)}
+            onDrop={event => { event.preventDefault(); drop(id); }}>
+          <span className="trainer-workspace-drag-handle" aria-hidden="true">⠿</span>
           {candidates.find(step => step.id === id)?.title ?? "Шаг"}
           <button type="button" disabled={index === 0}
             onClick={() => move(id, -1)}>Вверх</button>

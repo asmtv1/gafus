@@ -204,7 +204,14 @@ function AccordionStepComponent({
   const showTimer = isStepWithTimer(stepType as StepType);
   const stepTypeForUi = (stepType || undefined) as StepType | undefined;
 
-  const videoUrl = stepData?.videoUrl ?? null;
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
+  const stepVideoUrls = useMemo(() => {
+    const values = stepData?.videoUrls;
+    return Array.isArray(values) && values.length ? values.slice(0, 8).filter(
+      (url): url is string => typeof url === "string" && url.trim().length > 0,
+    ) : stepData?.videoUrl ? [stepData.videoUrl] : [];
+  }, [stepData?.videoUrls, stepData?.videoUrl]);
+  const videoUrl = stepVideoUrls[activeVideoIndex] ?? stepVideoUrls[0] ?? null;
 
   const videoInfo = useMemo(
     () => (videoUrl && typeof videoUrl === "string" ? getEmbeddedVideoInfo(videoUrl) : null),
@@ -874,6 +881,31 @@ function AccordionStepComponent({
                     typeof videoUrl === "string" &&
                     videoUrl.trim() !== "" && (
                       <View style={styles.videoContainer}>
+                        {stepVideoUrls.length > 1 && (
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8,
+                            marginBottom: 14 }} accessibilityLabel="Видео к шагу">
+                            {stepVideoUrls.map((url, videoIndex) => (
+                              <Pressable key={`${videoIndex}-${url}`}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: activeVideoIndex === videoIndex }}
+                                accessibilityLabel={`Видео ${videoIndex + 1} из ${stepVideoUrls.length}`}
+                                onPress={() => {
+                                  if (activeVideoIndex === videoIndex) return;
+                                  setActiveVideoIndex(videoIndex);
+                                  setUserRequestedPlay(false);
+                                  setVideoPlayerRetryKey(0);
+                                }}
+                                style={{ borderRadius: 9, paddingVertical: 9, paddingHorizontal: 13,
+                                  backgroundColor: activeVideoIndex === videoIndex ?
+                                    COLORS.primary : "#edf1e8" }}>
+                                <Text style={{ color: activeVideoIndex === videoIndex ?
+                                  "#fff" : "#384a32", fontWeight: "600" }}>
+                                  Видео {videoIndex + 1}
+                                </Text>
+                              </Pressable>
+                            ))}
+                          </View>
+                        )}
                         {!userRequestedPlay ? (
                           <Pressable
                             style={styles.videoCover}

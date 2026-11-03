@@ -23,6 +23,32 @@ describe("Trainer opt-in entry → Hono booking consumer → user-visible list",
   expect(mount.textContent).toContain("PENDING_TRAINER_CONFIRMATION");
   expect(mount.textContent).toContain("Данные получены: 1");
  });
+ it("restores Next-style client and pet intake behind a collapsible detail panel",async()=>{
+  const f=vi.fn(async()=>accepted([{
+    ...booking(), clientUsername:"sobakovod",clientOwnerName:"Клиент Иван",
+    clientPhone:"+79990000000",petName:"Рекс",petBreed:"Терьер",
+    petAge:"2 года",petGender:"MALE",clientProblem:"Боится поводка",
+    clientSelfHelpAttempt:"Использовал лакомства",
+  }]));
+  await act(async()=>{root=mountTrainerEntry(mount,{pathname:"/main-panel/consultations",
+    actor:{role:"TRAINER",id:"trainer-A"},token:"signed-synthetic",fetchImpl:f});});
+  expect(mount.textContent).toContain("@sobakovod");
+  expect(mount.textContent).toContain("Питомец: Рекс · Терьер");
+  const intake=mount.querySelector<HTMLDetailsElement>(".trainer-workspace-intake");
+  expect(intake).not.toBeNull();
+  expect(intake?.open).toBe(false);
+  expect(intake?.textContent).toContain("Клиент Иван");
+  expect(intake?.textContent).toContain("Боится поводка");
+  expect(intake?.textContent).toContain("+79990000000");
+  await act(async()=>{
+    const el=mount.querySelector<HTMLInputElement>('input[type="search"]')!;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(
+      el,"терьер поводка");
+    el.dispatchEvent(new Event("input",{bubbles:true}));
+  });
+  expect(mount.querySelectorAll(".trainer-workspace-booking")).toHaveLength(1);
+  expect(f).toHaveBeenCalledTimes(1);
+ });
  it("an empty owner list is an actionable, non-misleading empty UI",async()=>{
   const f=vi.fn(async()=>accepted([]));
   await act(async()=>{root=mountTrainerEntry(mount,{pathname:"/main-panel/consultations",actor:{role:"TRAINER",id:"trainer-A"},token:"signed-synthetic",fetchImpl:f});});

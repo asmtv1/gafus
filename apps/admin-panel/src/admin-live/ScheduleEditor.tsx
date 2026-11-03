@@ -193,7 +193,7 @@ export function ScheduleEditor({
   return (
     <div className="schedule-editor">
       <p className="note">
-        <a href="/main-panel/consultations">← Консультации (каталог)</a>
+        <a href="/consultations">← Консультации (каталог)</a>
       </p>
       <section className="content-card">
         <h2>Недельное расписание кинолога</h2>

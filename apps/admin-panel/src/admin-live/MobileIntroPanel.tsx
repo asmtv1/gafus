@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { toAdminBrowserHref } from "./adminBrowserRoutes";
 import {
   getDefaultMobileIntroDateRange,
   parseMobileIntroDateRange,
@@ -106,7 +107,7 @@ export function MobileIntroPanel({
     const filter = { startDate, endDate };
     try {
       const route = mobileIntroRouteUrl(filter);
-      window.history.replaceState(null, "", route);
+      window.history.replaceState(null, "", toAdminBrowserHref(route));
       onApply(filter);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Некорректные даты");

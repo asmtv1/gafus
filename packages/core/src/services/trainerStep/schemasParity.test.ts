@@ -16,6 +16,27 @@ const base = {
   surveySlug: null,
 };
 
+describe("ordered video attachments", () => {
+  const videos = ["a", "b"].map(item => `https://cdn.example.test/${item}.mp4`);
+  for (const [name, schema] of [["create", createStepSchema],
+    ["edit", updateStepSchema]] as const) {
+    it(`${name} supports ordered unique HTTPS videos and legacy compatibility`, () => {
+      expect(schema.safeParse({ ...base, videoUrl: videos[0], videoUrls: videos }).success)
+        .toBe(true);
+      expect(schema.safeParse({ ...base, videoUrl: videos[0] }).success)
+        .toBe(true);
+      for (const bad of [
+        { videoUrl: videos[1], videoUrls: videos },
+        { videoUrl: videos[0], videoUrls: [videos[0], videos[0]] },
+        { videoUrl: videos[0], videoUrls: Array(9).fill(videos[0]) },
+        { videoUrl: "http://cdn.example.test/a.mp4",
+          videoUrls: ["http://cdn.example.test/a.mp4"] },
+        { videoUrl: "javascript:alert(1)", videoUrls: ["javascript:alert(1)"] },
+      ]) expect(schema.safeParse({ ...base, ...bad }).success).toBe(false);
+    });
+  }
+});
+
 describe("create/update step domain parity", () => {
   for (const [operation, schema] of [
     ["create", createStepSchema],

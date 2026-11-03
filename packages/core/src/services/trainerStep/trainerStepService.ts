@@ -20,6 +20,36 @@ import { checklistSchema } from "./schemas";
 
 const logger = createWebLogger("trainer-step");
 
+/** A selected own-library URL is a durable pointer, not a playback ticket.
+ * Authenticate the owner AND the exact storage object before attachment.
+ * External https links continue to work as before (the learner player handles them).
+ */
+async function ownsSelectedLibraryVideos(urls: string[] | undefined, actorId: string) {
+  if (!urls?.length) return true;
+  const selected = new Map<string, string>();
+  for (const raw of urls) {
+    let url: URL;
+    try { url = new URL(raw); } catch { return false; }
+    if (url.protocol !== "https:" || url.username || url.password) return false;
+    if (url.hostname !== "gafus-media.storage.yandexcloud.net") continue;
+    if (url.search || url.hash || url.port) return false;
+    const match = /^\/uploads\/trainers\/([A-Za-z0-9_-]{1,128})\/videocourses\/([A-Za-z0-9_-]{1,128})\/(?:original\.[a-zA-Z0-9]{2,8}|hls\/[A-Za-z0-9._-]{1,128}\.m3u8)$/.exec(url.pathname);
+    if (!match || match[1] !== actorId || selected.has(match[2]!)) return false;
+    selected.set(match[2]!, raw);
+  }
+  if (!selected.size) return true;
+  const owned = await prisma.trainerVideo.findMany({
+    where: { id: { in: [...selected.keys()] }, trainerId: actorId,
+      transcodingStatus: "COMPLETED" },
+    select: { id: true, relativePath: true, hlsManifestPath: true },
+  });
+  return owned.length === selected.size && owned.every(video =>
+    video.hlsManifestPath &&
+    selected.get(video.id) ===
+      `https://gafus-media.storage.yandexcloud.net/${video.relativePath}`);
+}
+
+
 /** Return only the validated data needed by the trainer edit form. */
 export type TrainerStepMutationActor = { id: string; role: "TRAINER" | "ADMIN" };
 
@@ -33,6 +63,7 @@ export async function getStepForEdit(id: string, actor?: TrainerStepMutationActo
       durationSec: true,
       estimatedDurationSec: true,
       videoUrl: true,
+      videoUrls: true,
       type: true,
       imageUrls: true,
       pdfUrls: true,
@@ -53,6 +84,7 @@ export async function getStepForEdit(id: string, actor?: TrainerStepMutationActo
     durationSec: step.durationSec ?? undefined,
     estimatedDurationSec: step.estimatedDurationSec ?? null,
     videoUrl: step.videoUrl,
+    videoUrls: step.videoUrls?.length ? step.videoUrls : step.videoUrl ? [step.videoUrl] : [],
     type: step.type,
     imageUrls: step.imageUrls,
     pdfUrls: step.pdfUrls,
@@ -88,6 +120,7 @@ const visibleStepsSelect = {
   estimatedDurationSec: true,
   type: true,
   videoUrl: true,
+  videoUrls: true,
   imageUrls: true,
   pdfUrls: true,
   checklist: true,
@@ -127,6 +160,8 @@ export async function createStep(
   authorId: string,
 ): Promise<ActionResult> {
   try {
+    if (!(await ownsSelectedLibraryVideos(input.videoUrls, authorId)))
+      return { success: false, error: "FORBIDDEN_VIDEO" };
     const checklistValue =
       input.hasTestQuestions && input.checklist && input.checklist.length > 0
         ? input.checklist
@@ -141,9 +176,11 @@ export async function createStep(
         estimatedDurationSec: input.estimatedDurationSec ?? null,
         type: input.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | "SURVEY",
         videoUrl:
-          input.type === "TRAINING" || input.type === "THEORY" || input.type === "PRACTICE"
+          ["TRAINING", "THEORY", "PRACTICE", "EXAMINATION"].includes(input.type)
             ? input.videoUrl || null
             : null,
+        videoUrls: ["TRAINING", "THEORY", "PRACTICE", "EXAMINATION"].includes(input.type)
+          ? (input.videoUrls ?? (input.videoUrl ? [input.videoUrl] : [])) : [],
         imageUrls: input.imageUrls ?? [],
         pdfUrls:
           input.type === "TRAINING" || input.type === "THEORY" || input.type === "PRACTICE"
@@ -193,6 +230,9 @@ export async function updateStep(
   actor?: TrainerStepMutationActor,
 ): Promise<ActionResult> {
   try {
+    if (input.videoUrls && (!actor ||
+        !(await ownsSelectedLibraryVideos(input.videoUrls, actor.id))))
+      return { success: false, error: "FORBIDDEN_VIDEO" };
     const checklistValue =
       input.hasTestQuestions && input.checklist && input.checklist.length > 0
         ? input.checklist
@@ -207,9 +247,11 @@ export async function updateStep(
         estimatedDurationSec: input.estimatedDurationSec ?? null,
         type: input.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | "SURVEY",
         videoUrl:
-          input.type === "TRAINING" || input.type === "THEORY" || input.type === "PRACTICE"
+          ["TRAINING", "THEORY", "PRACTICE", "EXAMINATION"].includes(input.type)
             ? input.videoUrl || null
             : null,
+        videoUrls: ["TRAINING", "THEORY", "PRACTICE", "EXAMINATION"].includes(input.type)
+          ? (input.videoUrls ?? (input.videoUrl ? [input.videoUrl] : [])) : [],
         imageUrls: input.imageUrls ?? [],
         pdfUrls:
           input.type === "TRAINING" || input.type === "THEORY" || input.type === "PRACTICE"

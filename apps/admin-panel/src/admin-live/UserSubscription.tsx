@@ -90,7 +90,7 @@ export function UserSubscription({
       <h2>Подписка отдельного пользователя</h2>
       {initialUserId && (
         <a
-          href="/main-panel/users"
+          href="/users"
           className="button-link"
           onClick={(event) => {
             if (onNavigate) {

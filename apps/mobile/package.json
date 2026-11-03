@@ -1,12 +1,12 @@
 {
   "name": "@gafus/mobile",
-  "version": "1.7.0",
+  "version": "1.7.2",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
     "android": "expo run:android",
     "android:release": "expo run:android --device --variant release",
-    "postinstall": "cd ../.. && pnpm exec turbo run build --filter=@gafus/logger --filter=@gafus/core",
+    "postinstall": "cd ../.. && pnpm exec turbo run build --filter=@gafus/logger --filter=@gafus/core --filter=@gafus/chat-media-quality",
     "ios": "expo run:ios",
     "ios:release": "expo run:ios --device --configuration Release",
     "lint": "eslint src app",

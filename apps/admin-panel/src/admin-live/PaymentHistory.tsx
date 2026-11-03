@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { toAdminBrowserHref, toAdminInternalPath } from "./adminBrowserRoutes";
 import { requestAdmin } from "./api";
 import { SubscriptionOverview } from "./SubscriptionOverview";
 
@@ -70,9 +71,9 @@ export function PaymentHistory({ dashboard, source, initialSearch = "" }: {
       setPayments(result.paymentHistory);
       // Next keeps payment filters and the actual loaded page in the URL.
       // Only change the address after the server confirmed this GET.
-      if (window.location.pathname === "/main-panel/app-subscriptions" &&
+      if (toAdminInternalPath(window.location.pathname) === "/main-panel/app-subscriptions" &&
           new URLSearchParams(window.location.search).get("tab") === "payments") {
-        window.history.replaceState(null, "", `/main-panel/app-subscriptions?${params}`);
+        window.history.replaceState(null, "", toAdminBrowserHref(`/main-panel/app-subscriptions?${params}`));
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "История оплат недоступна");

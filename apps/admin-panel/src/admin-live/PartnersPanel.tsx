@@ -267,7 +267,7 @@ export function PartnersPanel({
                     </td>
                     <td>
                       <a
-                        href={`/main-panel/partners/${item.id}`}
+                        href={`/partners/${item.id}`}
                         className="button-link"
                         onClick={(e) => {
                           e.preventDefault();

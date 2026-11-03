@@ -340,7 +340,7 @@ export function TrainerNotesManageRoute(p: {
   }
   if (!allowed) return <main role="alert">Заметки недоступны для текущей сессии</main>;
   return (
-    <main>
+    <main className="trainer-notes-page">
       <h1>Заметки тренера</h1>
       <p>Содержимое заметок доступно только сотрудникам с соответствующими правами.</p>
       <label>
@@ -366,7 +366,7 @@ export function TrainerNotesManageRoute(p: {
       )}
       {state.kind === "denied" && <p role="alert">Доступ к заметкам запрещён</p>}
       {state.kind === "ready" && (
-        <section aria-label="Список заметок">
+        <section className="trainer-notes-list" aria-label="Список заметок">
           <p>Всего заметок: {state.data?.total ?? 0}</p>
           <ul>
             {state.data?.notes.map((note) => (
@@ -418,7 +418,7 @@ export function TrainerNotesManageRoute(p: {
         </section>
       )}
       {state.kind === "ready" && (
-        <section>
+        <section className="trainer-notes-editor">
           <h2>{editId ? "Редактировать заметку" : "Новая заметка"}</h2>
           <form onSubmit={submit}>
             <label>

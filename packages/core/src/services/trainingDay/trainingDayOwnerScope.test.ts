@@ -50,6 +50,23 @@ describe("Core training-day mutation owner scope", () => {
     }));
     expect(m.invalidate).toHaveBeenCalledWith([input.id]);
   });
+  it("allows repeated occurrences while checking ownership once per unique step", async () => {
+    const ids = ["step-1", "step-2", "step-1"];
+    m.stepCount.mockResolvedValueOnce(2);
+    expect((await updateTrainingDay({ ...input, stepIds: ids }, actor)).success).toBe(true);
+    expect(m.stepCount).toHaveBeenCalledWith({
+      where: { id: { in: ["step-1", "step-2"] }, authorId: actor.id },
+    });
+    expect(m.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ stepLinks: {
+        deleteMany: {}, create: [
+          { stepId: "step-1", order: 0 },
+          { stepId: "step-2", order: 1 },
+          { stepId: "step-1", order: 2 },
+        ],
+      } }),
+    }));
+  });
   it("blocks attaching foreign steps in the same transaction as the update", async () => {
     m.stepCount.mockResolvedValueOnce(0);
     const result = await updateTrainingDay(input, actor);

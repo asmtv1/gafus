@@ -54,6 +54,19 @@ describe("createTrainingDay", () => {
     mockTrainingDayCreate.mockResolvedValue({ id: "day-1" });
   });
 
+  it("creates one link for each occurrence, including repeated step IDs", async () => {
+    await createTrainingDay({ title: "День с повторами", description: "Описание",
+      type: "regular", authorId: "author-1", stepIds: ["step-a", "step-b", "step-a"] });
+    expect(mockTrainingDayCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ stepLinks: {
+        create: [
+          { stepId: "step-a", order: 1 },
+          { stepId: "step-b", order: 2 },
+          { stepId: "step-a", order: 3 },
+        ],
+      } }),
+    }));
+  });
   it("returns success with dayId", async () => {
     const result = await createTrainingDay({
       title: "День 1",

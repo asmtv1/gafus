@@ -2,6 +2,7 @@ import { createElement, useEffect, useRef, useState, type ReactElement } from "r
 import { readBundleCandidates, type Candidate } from "./tr014BundleCandidatesRead20261022";
 import { readDailyBundles, type DailyBundle } from "./tr014DailyBundlesRead20261022";
 import type { PanelActor } from "./consultationContract";
+import { matchesCatalogSearch } from "./live/trainerCatalogSearch";
 
 export type DailyBundleTransport = (path: string, signal: AbortSignal) => Promise<{
   status: number;
@@ -21,8 +22,12 @@ export function TrainerDailyBundlesOptInRoute(p: {
   getCurrentSession?: () => {
     actor: PanelActor; token: string | null; authEpoch?: string;
   } | null;
+  onEditBundle?: (id: string) => void;
 }): ReactElement {
   const [bundleRetry, setBundleRetry] = useState(0);
+  const [bundleSort, setBundleSort] = useState<"recent" | "title" | "steps">("recent");
+  const [bundlePage, setBundlePage] = useState(0);
+  const [candidatePage, setCandidatePage] = useState(0);
   const [candidateRetry, setCandidateRetry] = useState(0);
   const [bundleSearch, setBundleSearch] = useState({ scope: "", value: "" });
   const [candidateSearch, setCandidateSearch] = useState({ scope: "", value: "" });
@@ -110,26 +115,56 @@ export function TrainerDailyBundlesOptInRoute(p: {
   };
   const bundleQuery = allowed && bundleSearch.scope === scope ? bundleSearch.value : "";
   const candidateQuery = allowed && candidateSearch.scope === scope ? candidateSearch.value : "";
-  const bundleNeedle = bundleQuery.trim().toLocaleLowerCase("ru");
-  const candidateNeedle = candidateQuery.trim().toLocaleLowerCase("ru");
   const shownBundles = view.kind === "ready"
-    ? view.rows.filter(x => x.title.toLocaleLowerCase("ru").includes(bundleNeedle)) : [];
+    ? view.rows.filter(x => matchesCatalogSearch(bundleQuery, [x.title, x.id,
+      x.authorUsername, x.description, ...x.steps.map(step => step.title)]))
+      .sort((a, b) => bundleSort === "recent" ? 0 :
+        bundleSort === "steps" ? b.stepsCount - a.stepsCount :
+          a.title.localeCompare(b.title, "ru")) : [];
   const shownCandidates = candidates.kind === "ready"
-    ? candidates.rows.filter(x => x.title.toLocaleLowerCase("ru").includes(candidateNeedle)) : [];
+    ? candidates.rows.filter(x => matchesCatalogSearch(candidateQuery, [x.title, x.id,
+      x.authorUsername, x.type])) : [];
+  const bundlePages = Math.max(1, Math.ceil(shownBundles.length / 12));
+  const activeBundlePage = Math.min(bundlePage, bundlePages - 1);
+  const pagedBundles = shownBundles.slice(activeBundlePage * 12, (activeBundlePage + 1) * 12);
+  const candidatePages = Math.max(1, Math.ceil(shownCandidates.length / 15));
+  const activeCandidatePage = Math.min(candidatePage, candidatePages - 1);
+  const pagedCandidates = shownCandidates.slice(activeCandidatePage * 15, (activeCandidatePage + 1) * 15);
   const bundle = shownBundles.find(x => x.id === selectedBundle);
   const candidate = shownCandidates.find(x => x.id === selectedCandidate);
 
-  return createElement("main", { "data-tr014": "read-only" },
+  return createElement("main", { "data-tr014": "read-only", className:"trainer-workspace trainer-workspace-bundles" },
     createElement("h1", null, "Связки курса дня"),
+    createElement("p", { className:"trainer-workspace-subtitle" },
+      "Управление наборами шагов для ежедневных тренировок"),
+    createElement("nav", { className:"trainer-workspace-tabs", "aria-label":"Курс дня" },
+      createElement("a", { href:"/daily-course" }, "Календарь"),
+      createElement("a", { href:"/daily-course/bundles", "aria-current":"page" }, "Связки"),
+      createElement("a", { href:"/daily-course/statistics" }, "Статистика"),
+      createElement("a", { href:"/daily-course/import" }, "Импорт из файла")),
+    createElement("div", { className:"trainer-workspace-kpis trainer-workspace-kpis-small" },
+      createElement("div", null, createElement("span", null, "Связок"),
+        createElement("strong", null, view.kind === "ready" ? view.rows.length : "—")),
+      createElement("div", null, createElement("span", null, "Доступных шагов"),
+        createElement("strong", null, candidates.kind === "ready" ? candidates.rows.length : "—"))),
+    createElement("section", { className:"trainer-workspace-panel" },
+      createElement("h2", null, "Библиотека связок"),
     view.kind === "ready" ? createElement("label", null, "Поиск связки по названию",
       createElement("input", {
         type: "search", "aria-label": "Поиск связки по названию", value: bundleQuery,
-        onInput: e => setBundleSearch({ scope, value: e.currentTarget.value }),
+        onInput: e => { setBundleSearch({ scope, value: e.currentTarget.value }); setBundlePage(0); },
       })) : null,
-    view.kind === "ready" ? createElement("p", null,
-      `Загружено связок: ${view.rows.length}; показано: ${shownBundles.length}`) : null,
+    view.kind === "ready" ? createElement("div", { className:"trainer-workspace-filters" },
+      createElement("label", null, "Сортировка",
+        createElement("select", { value:bundleSort, onChange:e => {
+          setBundleSort((e.currentTarget as HTMLSelectElement).value as "recent" | "title" | "steps"); setBundlePage(0);
+        } }, createElement("option", { value:"recent" }, "Сначала новые"),
+        createElement("option", { value:"title" }, "По названию"),
+        createElement("option", { value:"steps" }, "По количеству шагов")))) : null,
+    view.kind === "ready" ? createElement("p", { className:"trainer-workspace-count" },
+      `Загружено связок: ${view.rows.length}; показано: ${pagedBundles.length}; найдено: ${shownBundles.length}`) : null,
     view.kind === "ready" && bundleQuery.length > 0 ? createElement("button", {
-      type: "button", onClick: () => setBundleSearch({ scope, value: "" }),
+      type: "button", onClick: () => { setBundleSearch({ scope, value: "" }); setBundlePage(0); },
     }, "Очистить поиск связок") : null,
     view.kind === "loading"
       ? createElement("p", { role: "status" }, "Загрузка связок")
@@ -143,30 +178,45 @@ export function TrainerDailyBundlesOptInRoute(p: {
           ? createElement("p", { role: "status" }, "Связок нет")
           : shownBundles.length === 0
             ? createElement("p", { role: "status" }, "По запросу ничего не найдено среди связок")
-            : createElement("ul", { "aria-label": "Связки курса дня" },
-            ...shownBundles.map(x => createElement("li", { key: x.id },
+            : createElement("ul", { "aria-label": "Связки курса дня", className:"trainer-workspace-record-list" },
+            ...pagedBundles.map(x => createElement("li", { key: x.id, className:"trainer-workspace-record" },
               createElement("button", {
                 type: "button", onClick: () => setSelectedBundle(x.id),
               }, x.title),
-              createElement("span", null, " — ", x.authorUsername, " — ", x.stepsCount, " шагов")))),
-    bundle ? createElement("section", { "aria-label": "Подробности связки" },
+              createElement("span", { className:"trainer-workspace-record-meta" },
+                "Автор: ", x.authorUsername, " · ", x.stepsCount, " шагов")))),
+    shownBundles.length > 12 ? createElement("footer", { className:"trainer-workspace-pages" },
+      createElement("span", null, `Страница ${activeBundlePage + 1} из ${bundlePages}`),
+      createElement("button", { type:"button", disabled:activeBundlePage===0,
+        onClick:()=>setBundlePage(activeBundlePage-1) }, "Назад"),
+      createElement("button", { type:"button", disabled:activeBundlePage+1>=bundlePages,
+        onClick:()=>setBundlePage(activeBundlePage+1) }, "Далее")) : null,
+    ),
+    bundle ? createElement("section", { "aria-label": "Подробности связки",
+      className:"trainer-workspace-panel trainer-workspace-selection" },
       createElement("h2", null, bundle.title),
       createElement("p", null, bundle.description),
       createElement("ol", null, ...bundle.steps.map(x =>
-        createElement("li", { key: x.id }, x.title)))) : null,
+        createElement("li", { key: x.id }, x.title))),
+      p.onEditBundle && (p.actor.role === "TRAINER" || p.actor.role === "ADMIN") ?
+        createElement("a", { href: "#daily-bundle-editor", className: "trainer-workspace-edit-link",
+          onClick: () => p.onEditBundle!(bundle.id),
+        }, "Редактировать связку") : null) : null,
     createElement("section", {
-      "aria-label": "Доступные шаги курса дня", "aria-busy": candidates.kind === "loading",
+      className:"trainer-workspace-panel", "aria-label": "Доступные шаги курса дня",
+      "aria-busy": candidates.kind === "loading",
     },
     createElement("h2", null, "Доступные шаги"),
     candidates.kind === "ready" ? createElement("label", null, "Поиск шага по названию",
       createElement("input", {
         type: "search", "aria-label": "Поиск шага по названию", value: candidateQuery,
-        onInput: e => setCandidateSearch({ scope, value: e.currentTarget.value }),
+        onInput: e => { setCandidateSearch({ scope, value: e.currentTarget.value });
+          setCandidatePage(0); },
       })) : null,
     candidates.kind === "ready" ? createElement("p", null,
-      `Загружено шагов: ${candidates.rows.length}; показано: ${shownCandidates.length}`) : null,
+      `Загружено шагов: ${candidates.rows.length}; показано: ${pagedCandidates.length}; найдено: ${shownCandidates.length}`) : null,
     candidates.kind === "ready" && candidateQuery.length > 0 ? createElement("button", {
-      type: "button", onClick: () => setCandidateSearch({ scope, value: "" }),
+      type: "button", onClick: () => { setCandidateSearch({ scope, value: "" }); setCandidatePage(0); },
     }, "Очистить поиск шагов") : null,
     candidates.kind === "loading"
       ? createElement("p", { role: "status" }, "Загрузка шагов")
@@ -180,10 +230,18 @@ export function TrainerDailyBundlesOptInRoute(p: {
           ? createElement("p", { role: "status" }, "Шагов нет")
           : shownCandidates.length === 0
             ? createElement("p", { role: "status" }, "По запросу ничего не найдено среди шагов")
-            : createElement("ul", null, ...shownCandidates.map(x =>
-            createElement("li", { key: x.id }, createElement("button", {
+            : createElement("ul", { className:"trainer-workspace-record-list" },
+              ...pagedCandidates.map(x =>
+            createElement("li", { key: x.id, className:"trainer-workspace-record" },
+              createElement("button", {
               type: "button", onClick: () => setSelectedCandidate(x.id),
             }, x.title)))),
+    shownCandidates.length > 15 ? createElement("footer", { className:"trainer-workspace-pages" },
+      createElement("span", null, `Страница ${activeCandidatePage + 1} из ${candidatePages}`),
+      createElement("button", { type:"button", disabled:activeCandidatePage===0,
+        onClick:()=>setCandidatePage(activeCandidatePage-1) }, "Назад"),
+      createElement("button", { type:"button", disabled:activeCandidatePage+1>=candidatePages,
+        onClick:()=>setCandidatePage(activeCandidatePage+1) }, "Далее")) : null,
     candidate ? createElement("article", { "aria-label": "Подробности шага" },
       createElement("h3", null, candidate.title),
       createElement("p", null, candidate.type, " — ",

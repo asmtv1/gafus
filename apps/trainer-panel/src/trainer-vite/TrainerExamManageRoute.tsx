@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod/v3";
+import { matchesCatalogSearch } from "./live/trainerCatalogSearch";
 import type { PanelActor } from "./consultationContract";
 import type { ExamSummaryTransport } from "./TrainerExamSummaryRead20261022";
 
@@ -69,7 +70,9 @@ export function TrainerExamManageRoute(p: {
     () => new URLSearchParams(p.search ?? "").get("hideCompleted") !== "false",
   );
   const [type, setType] = useState<"all" | "test" | "written" | "video">("all");
-  const [sort, setSort] = useState<"date" | "course">("date");
+  const [sort, setSort] = useState<"date" | "course" | "user">("date");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
   const [message, setMessage] = useState("");
   const [refresh, setRefresh] = useState(0);
   const [saving, setSaving] = useState<string | null>(null);
@@ -233,16 +236,40 @@ export function TrainerExamManageRoute(p: {
         (type === "all" ||
           (type === "test" && row.hasTestQuestions) ||
           (type === "written" && row.requiresWrittenFeedback) ||
-          (type === "video" && row.requiresVideoReport)),
+          (type === "video" && row.requiresVideoReport)) &&
+        matchesCatalogSearch(query, [row.userName, row.courseName, row.stepTitle, row.id]),
     )
     .sort((a, b) =>
-      sort === "course"
-        ? a.courseName.localeCompare(b.courseName, "ru")
-        : b.createdAt.localeCompare(a.createdAt),
+      sort === "course" ? a.courseName.localeCompare(b.courseName, "ru") :
+        sort === "user" ? a.userName.localeCompare(b.userName, "ru") :
+          b.createdAt.localeCompare(a.createdAt),
     );
+  const pages = Math.max(1, Math.ceil(filtered.length / 15));
+  const activePage = Math.min(page, pages - 1);
+  const shown = filtered.slice(activePage * 15, (activePage + 1) * 15);
   return (
-    <main>
+    <main className="trainer-workspace trainer-workspace-exams">
       <h1>Результаты экзаменов</h1>
+      <p className="trainer-workspace-subtitle">Проверка отчётов, обратная связь и история решений</p>
+      <nav className="trainer-workspace-tabs" aria-label="Разделы результатов экзаменов">
+        <a aria-current={hideCompleted ? "page" : undefined}
+          href="/exam-results?hideCompleted=true">На проверке</a>
+        <a aria-current={!hideCompleted ? "page" : undefined}
+          href="/exam-results?hideCompleted=false">Все экзамены</a>
+      </nav>
+      <div className="trainer-workspace-kpis trainer-workspace-kpis-small">
+        <div><span>Всего результатов</span><strong>{view.rows.length}</strong></div>
+        <div><span>На проверке</span><strong>{view.rows.filter(row =>
+          row.status === "IN_PROGRESS").length}</strong></div>
+        <div><span>Завершено</span><strong>{view.rows.filter(row =>
+          row.status === "COMPLETED").length}</strong></div>
+      </div>
+      <section className="trainer-workspace-panel">
+      <div className="trainer-workspace-filters">
+        <label className="trainer-workspace-search">Поиск экзамена
+          <input type="search" value={query} placeholder="Ученик, курс, шаг или ID…"
+            onChange={e => { setQuery(e.target.value); setPage(0); }} />
+        </label>
       <p>
         Всего результатов: {view.rows.length}. Показано: {filtered.length}.
       </p>
@@ -250,13 +277,15 @@ export function TrainerExamManageRoute(p: {
         <input
           type="checkbox"
           checked={hideCompleted}
-          onChange={(e) => setHideCompleted(e.target.checked)}
+          onChange={(e) => { setHideCompleted(e.target.checked); setPage(0); }}
         />
         Скрывать завершённые
       </label>
       <label>
         Тип
-        <select value={type} onChange={(e) => setType(e.target.value as typeof type)}>
+        <select value={type} onChange={(e) => {
+          setType(e.target.value as typeof type); setPage(0);
+        }}>
           <option value="all">Все</option>
           <option value="test">Тесты</option>
           <option value="written">Письменные</option>
@@ -265,26 +294,37 @@ export function TrainerExamManageRoute(p: {
       </label>
       <label>
         Сортировка
-        <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+        <select value={sort} onChange={(e) => {
+          setSort(e.target.value as typeof sort); setPage(0);
+        }}>
           <option value="date">По дате</option>
           <option value="course">По курсу</option>
+          <option value="user">По ученику</option>
         </select>
       </label>
-      <button type="button" disabled={!!saving} onClick={() => setRefresh((x) => x + 1)}>
+      </div>
+      <button type="button" className="trainer-workspace-secondary"
+        disabled={!!saving} onClick={() => setRefresh((x) => x + 1)}>
         Обновить результаты
       </button>
-      {!filtered.length && <p>Экзаменов по выбранным фильтрам нет</p>}
-      <ul>
-        {filtered.map((row) => {
+      {query && <button type="button" className="trainer-workspace-clear"
+        onClick={() => { setQuery(""); setPage(0); }}>Очистить поиск</button>}
+      {!filtered.length && <p role="status" className="trainer-workspace-empty">
+        Экзаменов по выбранным фильтрам нет</p>}
+      <ul className="trainer-workspace-record-list" aria-label="Результаты экзаменов">
+        {shown.map((row) => {
           const autoTest =
             row.hasTestQuestions && !row.requiresWrittenFeedback && !row.requiresVideoReport;
           const video = safeVideoUrl(row.videoReportUrl);
           return (
-            <li key={row.id}>
+            <li key={row.id} className="trainer-workspace-record">
               <details>
                 <summary>
                   <strong>{row.stepTitle}</strong> — {row.userName}({row.courseName}) —{" "}
-                  {row.status === "COMPLETED" ? "Завершён" : "На проверке"}
+                  <span className={"trainer-workspace-status " +
+                    (row.status === "COMPLETED" ? "is-done" : "is-pending")}>
+                    {row.status === "COMPLETED" ? "Завершён" : "На проверке"}
+                  </span>
                 </summary>
                 <p>Отправлено: {new Date(row.createdAt).toLocaleString("ru-RU")}</p>
                 {row.testScore !== null && (
@@ -351,7 +391,15 @@ export function TrainerExamManageRoute(p: {
           );
         })}
       </ul>
+      {filtered.length > 15 && <footer className="trainer-workspace-pages">
+        <span>Страница {activePage + 1} из {pages}</span>
+        <button type="button" disabled={activePage === 0}
+          onClick={() => setPage(activePage - 1)}>Назад</button>
+        <button type="button" disabled={activePage + 1 >= pages}
+          onClick={() => setPage(activePage + 1)}>Далее</button>
+      </footer>}
       {message && <p role="status">{message}</p>}
+      </section>
     </main>
   );
 }

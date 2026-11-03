@@ -13,7 +13,7 @@ function html(pathname: string, role: PanelRole) {
 
 describe("AG4 accessible mock-only navigation", () => {
   it("uses unique real legacy paths without introducing a backend endpoint", () => {
-    expect(mockNavigation).toHaveLength(16);
+    expect(mockNavigation).toHaveLength(15);
     expect(new Set(mockNavigation.map(({ href }) => href)).size).toBe(mockNavigation.length);
     expect(new Set(mockNavigation.map(({ label }) => label)).size).toBe(mockNavigation.length);
     for (const entry of mockNavigation) {

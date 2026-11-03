@@ -3,7 +3,8 @@ import { deleteSteps, getStepForEdit, updateStep } from "./trainerStepService";
 
 const m = vi.hoisted(() => ({
   findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(),
-  deleteMany: vi.fn(), invalidate: vi.fn(), publish: vi.fn(async () => undefined),
+  deleteMany: vi.fn(), libraryFindMany: vi.fn(),
+  invalidate: vi.fn(), publish: vi.fn(async () => undefined),
 }));
 vi.mock("@gafus/prisma", () => ({
   Prisma: { JsonNull: null },
@@ -12,6 +13,7 @@ vi.mock("@gafus/prisma", () => ({
       findUnique: m.findUnique, findMany: m.findMany,
       update: m.update, deleteMany: m.deleteMany,
     },
+    trainerVideo: { findMany: m.libraryFindMany },
     $transaction: async (run: (tx: unknown) => Promise<unknown>) => run({
       step: { findMany: m.findMany, deleteMany: m.deleteMany },
     }),
@@ -45,6 +47,26 @@ describe("Core trainer-step ownership at the mutation boundary", () => {
       where: { id: step.id, authorId: actor.id },
     }));
     expect(m.invalidate).toHaveBeenCalledWith([step.id]);
+  });
+  it("allows own complete videos and rejects another owner's library reference before mutation", async () => {
+    const url = "https://gafus-media.storage.yandexcloud.net/" +
+      "uploads/trainers/trainer-1/videocourses/clip-1/original.mp4";
+    m.libraryFindMany.mockResolvedValueOnce([{
+      id: "clip-1", relativePath:
+        "uploads/trainers/trainer-1/videocourses/clip-1/original.mp4",
+      hlsManifestPath: "hls/master.m3u8",
+    }]);
+    const input = { ...step, videoUrl: url, videoUrls: [url] };
+    expect((await updateStep(input, actor)).success).toBe(true);
+    expect(m.libraryFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: { in: ["clip-1"] }, trainerId: actor.id,
+        transcodingStatus: "COMPLETED" },
+    }));
+    m.update.mockClear();
+    const foreignUrl = url.replaceAll("trainer-1", "someone-else");
+    expect((await updateStep({ ...input, videoUrl: foreignUrl,
+      videoUrls: [foreignUrl] }, actor)).success).toBe(false);
+    expect(m.update).not.toHaveBeenCalled();
   });
   it("admin may update any step only with explicit ADMIN actor", async () => {
     await updateStep(step, { id: "admin", role: "ADMIN" });

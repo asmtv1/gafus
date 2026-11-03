@@ -95,17 +95,34 @@ describe("trainer full course Hono -> Core CAS boundary", () => {
       id: "trainer_A", role: "TRAINER", username: "trainer",
     });
   });
-  it("rejects forged owner, dup days, invalid URLs and public access list", async () => {
+  it("rejects forged owner, invalid URLs and public access list", async () => {
     const { put, ports } = make();
     const invalid = [
       { ...input, authorId: "foreign" },
-      { ...input, trainingDays: ["day-1", "day-1"] },
       { ...input, logoImg: "javascript:alert(1)" },
       { ...input, allowedUsers: ["user-1"] },
       { ...input, expectedVersion: 0 },
     ];
     for (const body of invalid) expect((await put(body)).status).toBe(400);
     expect(ports.update).not.toHaveBeenCalled();
+  });
+  it("preserves duplicate occurrences in new and edited courses without weakening day ACL", async () => {
+    const { post, put, ports } = make();
+    const days = ["day-1", "day-1", "day-1"];
+    const createBody: Record<string, unknown> = { ...input, trainingDays: days };
+    delete createBody.expectedVersion;
+    expect((await post(createBody)).status).toBe(201);
+    expect(ports.create).toHaveBeenCalledWith(
+      expect.objectContaining({ trainingDays: days }), "trainer_A");
+    expect(ports.countDays).toHaveBeenLastCalledWith(["day-1"], expect.any(Object));
+    expect((await put({ ...input, trainingDays: days })).status).toBe(200);
+    expect(ports.update).toHaveBeenCalledWith(
+      expect.objectContaining({ trainingDays: days }), expect.any(Object));
+    expect(ports.countDays).toHaveBeenLastCalledWith(["day-1"], expect.any(Object));
+    vi.mocked(ports.countDays).mockResolvedValueOnce(0);
+    expect((await put({ ...input, trainingDays: ["foreign", "foreign"] })).status).toBe(404);
+    expect(ports.countDays).toHaveBeenLastCalledWith(["foreign"], expect.any(Object));
+    expect(ports.update).toHaveBeenCalledTimes(1);
   });
   it("rejects adding foreign day, stale version and hides missing courses", async () => {
     const { put, ports } = make();

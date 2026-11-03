@@ -136,7 +136,7 @@ export interface TrainerVisibleStepItem {
   isDailyCourse: boolean; authorId: string;
   createdAt: string; updatedAt: string;
   author: { username: string; profile: { fullName: string | null } | null };
-  stepLinks: { day: { dayLinks: {
+  stepLinks: { day: { id?: string; title?: string; dayLinks: {
     course: { id: string; name: string; shortDesc: string; logoImg: string };
   }[] } }[];
 }

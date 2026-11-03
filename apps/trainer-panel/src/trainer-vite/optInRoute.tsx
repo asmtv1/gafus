@@ -1,3 +1,4 @@
+import { TrainerDailyImportRoute, type DailyImportTransport } from "./TrainerDailyImportRoute";
 import {
   TrainerVideosMetadataRead20261022,
   type VideoMetadataTransport,
@@ -17,24 +18,22 @@ import {
   TrainerExamSummaryRead20261022,
   type ExamSummaryTransport,
 } from "./TrainerExamSummaryRead20261022";
-import { TrainerDailyCalendarRead20261022 } from "./TrainerDailyCalendarRead20261022";
+import { TrainerDailyCalendarWorkspace } from "./TrainerDailyCalendarWorkspace";
 import type { ScheduleTransport } from "./tr014ScheduleRangeRead20261022";
 import type { VisibleDaysTransport } from "./trainerVisibleDaysRead20261022";
 import { TrainerCourseVersionEditor20261022 } from "./TrainerCourseVersionEditor20261022";
 import type { VersionedCourseOperations } from "./TrainerCourseVersionEditor20261022";
-import { TrainerDailyBundlesOptInRoute } from "./TrainerDailyBundlesOptInRoute";
+import { TrainerDailyBundlesWorkspace } from "./TrainerDailyBundlesWorkspace";
 import type { DailyBundleTransport } from "./TrainerDailyBundlesOptInRoute";
 import { createElement, type ReactElement } from "react";
 import { ConsultationConsumerPreview } from "./ConsultationConsumerPreview";
 import { TrainerConsultationCallRoute, trainerCallBookingId } from "./TrainerConsultationCallRoute";
-import { TrainerFaqPage } from "./TrainerFaqPage";
 import { TrainerVisibleDaysRoute } from "./TrainerVisibleDaysRoute";
 import { TrainerCreateStepRoute } from "./TrainerCreateStepRoute";
 import { TrainerCreateDayRoute } from "./TrainerCreateDayRoute";
 import { TrainerCreateArticleRoute } from "./TrainerCreateArticleRoute";
 import { TrainerCreateCourseRoute } from "./TrainerCreateCourseRoute";
-import { TrainerDailyBundleEditor, type TrainerDailyManageTransport } from "./TrainerDailyBundleEditor";
-import { TrainerDailyScheduleEditor } from "./TrainerDailyScheduleEditor";
+import type { TrainerDailyManageTransport } from "./TrainerDailyBundleEditor";
 import { TrainerDailyStatisticsRoute,
   type TrainerDailyStatisticsTransport } from "./TrainerDailyStatisticsRoute";
 import type { TrainerAuthoringTransport } from "./trainerAuthoringClient";
@@ -104,6 +103,7 @@ type TrainerOptInProps = {
   authoringTransport?: TrainerAuthoringTransport;
   enableDailyManage?: boolean;
   dailyManageTransport?: TrainerDailyManageTransport;
+  dailyImportTransport?: DailyImportTransport;
   enableDailyBundles?: boolean;
   dailyBundleTransport?: DailyBundleTransport;
 };
@@ -117,6 +117,11 @@ export function TrainerOptInRoute(p: TrainerOptInProps): ReactElement {
   if (p.pathname === "/main-panel/courses/new" && p.enableAuthoring === true)
     return createElement(TrainerCreateCourseRoute, {
       ...p, key: JSON.stringify([p.actor.id, p.actor.role, p.token, p.authEpoch]),
+    });
+  if (p.pathname === "/main-panel/daily-course/import")
+    return createElement(TrainerDailyImportRoute, {
+      ...p, enabled: p.enableDailyManage === true,
+      key: JSON.stringify([p.actor.id, p.actor.role, p.token, p.authEpoch]),
     });
   if (p.pathname === "/main-panel/daily-course/statistics")
     return createElement(TrainerDailyStatisticsRoute, {
@@ -134,7 +139,6 @@ export function TrainerOptInRoute(p: TrainerOptInProps): ReactElement {
     return createElement(TrainerCreateArticleRoute, {
       ...p, key: JSON.stringify([p.actor.id, p.actor.role, p.token, p.authEpoch]),
     });
-  if (p.pathname === "/main-panel/faq") return createElement(TrainerFaqPage, p);
   if (p.pathname === "/main-panel/days")
     return createElement(TrainerVisibleDaysRoute, {
       ...p, key: JSON.stringify([p.actor.id, p.actor.role, p.token, p.authEpoch]),
@@ -162,6 +166,7 @@ export function TrainerOptInRoute(p: TrainerOptInProps): ReactElement {
       ...p,
       enabled: p.enableOwnArticlesRead === true,
       transport: p.ownArticlesTransport,
+      writeTransport: p.articleWriteTransport,
       showEditorLinks: p.enableArticleManage === true,
     });
   if (/^\/main-panel\/(steps|days)\/[a-zA-Z0-9_-]{1,128}\/edit\/?$/.test(p.pathname) &&
@@ -193,31 +198,14 @@ export function TrainerOptInRoute(p: TrainerOptInProps): ReactElement {
       transport: p.examSummaryTransport,
     });
   if (p.pathname === "/main-panel/daily-course")
-    return createElement("div", null,
-      createElement(TrainerDailyCalendarRead20261022, {
-        ...p,
-        enabled: p.enableDailyCalendar === true,
-        transport: p.dailyCalendarTransport,
-        initialFrom: initialDailyCalendarFrom(p.search, p.dailyCalendarInitialFrom),
-        key: JSON.stringify(["read", p.actor.id, p.actor.role, p.token, p.authEpoch, p.search]),
-      }),
-      p.enableDailyManage === true ? createElement(TrainerDailyScheduleEditor, {
-        ...p,
-        initialFrom: initialDailyCalendarFrom(p.search, p.dailyCalendarInitialFrom),
-        key: JSON.stringify(["editor", p.actor.id, p.actor.role, p.token, p.authEpoch, p.search]),
-      }) : null,
-    );
+    return createElement(TrainerDailyCalendarWorkspace, {
+      ...p, initialFrom: initialDailyCalendarFrom(p.search, p.dailyCalendarInitialFrom),
+      key: JSON.stringify([p.actor.id, p.actor.role, p.token, p.authEpoch, p.search]),
+    });
   if (p.pathname === "/main-panel/daily-course/bundles")
-    return createElement("div", null,
-      createElement(TrainerDailyBundlesOptInRoute, {
-        ...p,
-        key: JSON.stringify(["reader", p.actor.id, p.actor.role, p.token, p.authEpoch]),
-      }),
-      p.enableDailyManage === true ? createElement(TrainerDailyBundleEditor, {
-        ...p,
-        key: JSON.stringify(["editor", p.actor.id, p.actor.role, p.token, p.authEpoch]),
-      }) : null,
-    );
+    return createElement(TrainerDailyBundlesWorkspace, {
+      ...p, key: JSON.stringify([p.actor.id, p.actor.role, p.token, p.authEpoch]),
+    });
   if (p.pathname === "/main-panel/templates")
     return createElement(TrainerPublicTemplatesOptInRoute, {
       ...p,
@@ -225,7 +213,7 @@ export function TrainerOptInRoute(p: TrainerOptInProps): ReactElement {
     });
   if (p.pathname === "/main-panel/steps" || p.pathname === "/main-panel/daily-course/steps")
     return createElement(TrainerVisibleStepsOptInRoute, {
-      ...p,
+      ...p, contentWriteTransport: p.contentWriteTransport,
       key: JSON.stringify([p.actor.id, p.actor.role, p.token, p.authEpoch, p.pathname, p.search]),
     });
   const fullFormPath =
@@ -298,14 +286,14 @@ export function TrainerOptInRoute(p: TrainerOptInProps): ReactElement {
     current.token === p.token;
   return createElement(
     "main",
-    null,
+    { className:"trainer-workspace trainer-workspace-consultations-page" },
     createElement("h1", null,
       p.pathname === "/main-panel/consultations"
         ? "Консультации" : "Расписание консультаций"),
     navAllowed
       ? createElement(
           "nav",
-          { "aria-label": "Консультации кинолога" },
+          { "aria-label": "Консультации кинолога", className:"trainer-workspace-tabs" },
           createElement(
             "a",
             {

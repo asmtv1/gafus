@@ -17,6 +17,8 @@ export type TrainerDailyScheduleEditorProps = {
   dailyCalendarTransport?: ScheduleTransport;
   dailyManageTransport?: TrainerDailyManageTransport;
   getCurrentSession?: () => LiveSession;
+  selectedDate?: string | null;
+  onVerifiedChange?: () => void;
 };
 
 type LoadResult = {
@@ -77,6 +79,16 @@ export function TrainerDailyScheduleEditor(p: TrainerDailyScheduleEditorProps) {
   const validDate = isoDate(date) && date >= from && date <= rangeEnd;
   const candidateAvailable = visible && data.candidates.some(item => item.id === bundleId);
 
+  useEffect(() => {
+    if (!p.selectedDate || !enabled || data.scope !== scope || data.state !== "ready") return;
+    const existing = data.rows.find(item => item.date === p.selectedDate);
+    if (existing) {
+      setBundleId(existing.bundle.id);
+      setPublished(existing.isPublished);
+    }
+    // This editor instance is keyed by the requested date in its parent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.selectedDate, data.scope, data.state]);
   // Revalidate both bound, private reads after mutations; no optimistic data painting.
   useEffect(() => {
     let alive = true;
@@ -140,6 +152,7 @@ export function TrainerDailyScheduleEditor(p: TrainerDailyScheduleEditorProps) {
       setReplaceConfirmed(false);
       setDeleteConfirmation("");
       setReload(n => n + 1);
+      p.onVerifiedChange?.();
     } catch {
       if (!controller.signal.aborted && current()) {
         setWriteState("error");
@@ -157,7 +170,9 @@ export function TrainerDailyScheduleEditor(p: TrainerDailyScheduleEditorProps) {
     void mutate("PUT");
   };
   if (!enabled) return null;
-  return <section data-trainer-daily-schedule-editor="hono" aria-label="Управление расписанием курса дня">
+  return <section className="trainer-workspace-editor trainer-workspace-panel"
+    id="daily-schedule-editor" data-trainer-daily-schedule-editor="hono"
+    aria-label="Управление расписанием курса дня">
     <h2>Назначить день курса</h2>
     <p>Изменение опубликованных дат может повлиять на занятия пользователей.
       Проверяйте выбранную связку перед сохранением.</p>

@@ -397,7 +397,7 @@ describe("TR014_BUNDLE_INDEPENDENT_READ_RECOVERY mounted-local", () => {
       expect(paths).toEqual([bundlePath, candidatePath]);
       expect(m.write).not.toHaveBeenCalled();
     });
-    it("two independent title-only trimmed casefold filters and clears keep both original lists without extra GET", async () => {
+    it("independent multi-field casefold searches and clears preserve full lists without extra GET", async () => {
       const listA = [ownBundle("b1", "СОБАКА В ПАРКЕ"), ownBundle("b2", "Кошка")];
       const listB = [ownStep("s1", "Шаг РЯДОМ"), ownStep("s2", "Сидеть")];
       const original = JSON.stringify([listA, listB]);
@@ -416,8 +416,8 @@ describe("TR014_BUNDLE_INDEPENDENT_READ_RECOVERY mounted-local", () => {
       expect(host.textContent).toContain("Загружено связок: 2; показано: 1");
       expect(host.textContent).toContain("Загружено шагов: 2; показано: 1");
       await search("bundle", "Описание СОБАКА В ПАРКЕ");
-      expect(titles("bundle")).toHaveLength(0);
-      expect(host.textContent).toContain("По запросу ничего не найдено среди связок");
+      // Improved search matches words across title and description, not just title.
+      expect(titles("bundle")).toEqual(["СОБАКА В ПАРКЕ"]);
       expect(titles("step")).toEqual(["Шаг РЯДОМ"]);
       await act(async () => clear("bundle")?.click());
       expect(input("bundle")?.value).toBe("");

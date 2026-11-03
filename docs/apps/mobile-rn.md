@@ -197,3 +197,21 @@ pnpm --filter @gafus/mobile update:ota:production
 - Для network/data fetching сверяйтесь с `src/shared` и существующими feature hooks.
 - Для новых экранов используйте Expo Router conventions в `app/`.
 - Для native permissions обновляйте `app.json`/config plugins и проверяйте iOS/Android тексты разрешений.
+
+
+## Исправление EAS iOS bundling — 2026-11-03
+
+После успешной установки всех 180 pods EAS останавливался на `EAGER_BUNDLE`:
+Metro находил пакет `@gafus/chat-media-quality`, но не его `dist/index.js`.
+Пакет экспортирует собранный JavaScript, а `dist` не переносится как исходник
+в новую сборочную папку. В `apps/mobile/package.json` к `postinstall` добавлен
+`--filter=@gafus/chat-media-quality`, чтобы Turbo собирал этот пакет до Metro
+вместе с существующими logger/core. Изменение применяется к iOS и Android.
+
+Проверено: TypeScript-сборка пакета прошла; обновлённый `pnpm run postinstall`
+завершился с кодом 0 (22 задачи Turbo, все выполнены без кеша); команда
+`pnpm expo export:embed --eager --platform ios --dev false` с локальными путями
+для bundle/assets завершилась с кодом 0 (3027 модулей, 113 assets).
+Проверка выполнялась без загрузки dotenv, с `APP_ENV=development` и
+`--dev false`; production-секреты и подпись не использовались.
+Полная store-сборка Xcode этим результатом не подтверждается.

@@ -7,7 +7,7 @@ import type {TrainingDayWire,TrainingDayStepWire} from "@gafus/types";
  * Never cache Core userStepId, monetization targets or raw signed URLs.
  */
 export type TrainingStepPreview=Pick<TrainingDayStepWire,
-  "id"|"title"|"description"|"order"|"durationSec"|"estimatedDurationSec"|"videoUrl"
+  "id"|"title"|"description"|"order"|"durationSec"|"estimatedDurationSec"|"videoUrl"|"videoUrls"
 > & {
   // The producer marks these optional; this verified Web projection requires
   // them and never exposes the original optional/locked raw payload.
@@ -84,7 +84,7 @@ export function projectTrainingDay(raw:unknown,expected:Pick<
       type:s.type as TrainingStepPreview["type"],
       status:s.status as TrainingStepPreview["status"],
       order:s.order as number,durationSec:s.durationSec as number,
-      locked:true,videoUrl:null,imageUrls:[],
+      locked:true,videoUrl:null,videoUrls:[],imageUrls:[],
       ...(physicalTarget?{unlockTargetId:physicalTarget}:{}),
     };
     }
@@ -114,6 +114,9 @@ export function projectTrainingDay(raw:unknown,expected:Pick<
       estimatedDurationSec:s.estimatedDurationSec == null
         ? null : s.estimatedDurationSec as number,
       videoUrl:safeStepMediaUrl(s.videoUrl),
+      videoUrls:(Array.isArray(s.videoUrls) ? s.videoUrls :
+        s.videoUrl ? [s.videoUrl] : []).slice(0,8)
+        .map(safeStepMediaUrl).filter((value):value is string=>value!==null),
       imageUrls:images.map(safeStepMediaUrl).filter((x):x is string=>!!x),
       pdfUrls:pdfUrls.map(safeStepMediaUrl).filter((x):x is string=>!!x),
     };

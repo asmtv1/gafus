@@ -71,6 +71,27 @@ describe("INFRA032: anonymous Vite guest catalog CORS is retired", () => {
 describe("isolated Refactor opt-in credentialed CORS", () => {
   afterEach(() => vi.unstubAllEnvs());
 
+  it.each(["http://127.0.0.1:5174", "http://127.0.0.1:5175"])(
+    "reflects staff-panel Origin %s only under local isolation",
+    async (origin) => {
+      const request = () => app().request("/api/v1/private", {
+        method: "OPTIONS",
+        headers: { Origin: origin, "Access-Control-Request-Method": "POST" },
+      });
+      expect((await request()).headers.get("access-control-allow-origin")).not.toBe(origin);
+      vi.stubEnv("NODE_ENV", "development");
+      vi.stubEnv("GAFUS_LOCAL_ISOLATED_API", "1");
+      vi.stubEnv("GAFUS_LOCAL_BROWSER_AUTH", "1");
+      vi.stubEnv("API_HOST", "127.0.0.1");
+      vi.stubEnv("API_PORT", "3001");
+      const allowed = await request();
+      expect(allowed.headers.get("access-control-allow-origin")).toBe(origin);
+      expect(allowed.headers.get("access-control-allow-credentials")).toBe("true");
+      vi.stubEnv("NODE_ENV", "production");
+      expect((await request()).headers.get("access-control-allow-origin")).not.toBe(origin);
+    },
+  );
+
   it("accepts only exact loopback dev origin with all isolation settings", async () => {
     const origin = "http://127.0.0.1:5173";
     const denied = await app().request("/api/v1/private", { headers: { Origin: origin } });
@@ -91,7 +112,7 @@ describe("isolated Refactor opt-in credentialed CORS", () => {
     });
     expect(request.headers.get("access-control-allow-origin")).toBe(origin);
     expect(request.headers.get("access-control-allow-credentials")).toBe("true");
-    for (const other of ["http://localhost:5173", "http://127.0.0.1:5174", "null"]) {
+    for (const other of ["http://localhost:5173", "http://127.0.0.1:5176", "null"]) {
       const untrusted = await app().request("/api/v1/private", { headers: { Origin: other } });
       expect(untrusted.headers.get("access-control-allow-origin")).not.toBe(other);
     }

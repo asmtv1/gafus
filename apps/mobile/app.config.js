@@ -88,7 +88,7 @@ module.exports = ({ config }) => ({
   },
   extra: {
     ...config.extra,
-    appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? config.version ?? "1.7.0",
+    appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? config.version ?? "1.7.2",
     enableTracer: process.env.EXPO_PUBLIC_ENABLE_TRACER === "true",
     tracerAppToken: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN,
     tracerAppTokenJs: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN_JS,

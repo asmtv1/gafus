@@ -43,6 +43,7 @@ export interface FullCourseData {
       durationSec: number | null;
       estimatedDurationSec: number | null;
       videoUrl: string | null;
+      videoUrls?: string[];
       imageUrls: string[];
       pdfUrls: string[];
       checklist: unknown;
@@ -194,6 +195,7 @@ export async function downloadFullCourse(
                         durationSec: true,
                         estimatedDurationSec: true,
                         videoUrl: true,
+                        videoUrls: true,
                         imageUrls: true,
                         pdfUrls: true,
                         type: true,
@@ -237,6 +239,8 @@ export async function downloadFullCourse(
         durationSec: stepLink.step.durationSec,
         estimatedDurationSec: stepLink.step.estimatedDurationSec,
         videoUrl: stepLink.step.videoUrl,
+        videoUrls: stepLink.step.videoUrls?.length ? stepLink.step.videoUrls :
+          stepLink.step.videoUrl ? [stepLink.step.videoUrl] : [],
         imageUrls: stepLink.step.imageUrls,
         pdfUrls: stepLink.step.pdfUrls,
         checklist: stepLink.step.checklist,
@@ -265,9 +269,8 @@ export async function downloadFullCourse(
     // Медиафайлы из шагов
     for (const day of trainingDays) {
       for (const step of day.steps) {
-        if (step.videoUrl) {
-          videoUrls.push(step.videoUrl);
-        }
+        videoUrls.push(...(step.videoUrls?.length ? step.videoUrls :
+          step.videoUrl ? [step.videoUrl] : []));
         imageUrls.push(...step.imageUrls);
         pdfUrls.push(...step.pdfUrls);
       }

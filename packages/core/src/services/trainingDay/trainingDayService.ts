@@ -124,8 +124,9 @@ export async function updateTrainingDay(
     if (actor) {
       // The owner check and replacement execute in the same DB transaction.
       await prisma.$transaction(async tx => {
+        // Multiple occurrences are separate StepOnDay rows with different order.
+        // Authorization still verifies each DISTINCT step in this transaction.
         const uniqueIds = [...new Set(input.stepIds)];
-        if (uniqueIds.length !== input.stepIds.length) throw Error("DUPLICATE_STEPS");
         const count = await tx.step.count({
           where: { id: { in: uniqueIds },
             ...(actor.role === "TRAINER" ? { authorId: actor.id } : {}) },

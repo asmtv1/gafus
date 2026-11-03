@@ -64,6 +64,36 @@ beforeEach(() => {
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
 describe("trainer bundle editor Hono PUT opt-in", () => {
+  it("opens the selected library bundle directly in the editor without writing", async () => {
+    const row = {
+      id: "bundle-for-edit", title: "Связка из библиотеки", type: "daily_course",
+      stepsCount: 2, authorId: actor.id, authorUsername: "trainer", equipment: "Поводок",
+      description: "Для спокойной прогулки",
+      steps: [
+        { id: "step-1", title: "Первый", type: "TRAINING", order: 1 },
+        { id: "step-2", title: "Второй", type: "TRAINING", order: 2 },
+      ],
+    };
+    const fetchLibrary = vi.fn(async (path: string) => ({ status: 200, headers: cc,
+      body: { success: true, data: path.includes("bundle-step-candidates") ? candidates : [row] },
+    }));
+    await mount({ enableDailyBundles: true, dailyBundleTransport: fetchLibrary });
+    const reader = host.querySelector<HTMLElement>('main[data-tr014="read-only"]');
+    expect(reader?.textContent).toContain(row.title);
+    const selectInLibrary = [...reader!.querySelectorAll("button")]
+      .find(button => button.textContent === row.title);
+    expect(selectInLibrary).toBeTruthy();
+    await act(async () => selectInLibrary!.click());
+    const editLink = reader!.querySelector<HTMLAnchorElement>(
+      'a[href="#daily-bundle-editor"]');
+    expect(editLink?.textContent).toContain("Редактировать связку");
+    await act(async () => editLink!.click());
+    const editor = host.querySelector<HTMLElement>("[data-daily-bundle-editor]");
+    expect(editor?.querySelector<HTMLSelectElement>(
+      'select[aria-label="Редактируемая связка"]')?.value).toBe(row.id);
+    expect(editor?.querySelector<HTMLInputElement>('input[required]')?.value).toBe(row.title);
+    expect(save).not.toHaveBeenCalled();
+  });
   it("reads bounded same-owner candidates; saves ordered step IDs once", async () => {
     await mount();
     expect(fetchRead).toHaveBeenCalledTimes(2);

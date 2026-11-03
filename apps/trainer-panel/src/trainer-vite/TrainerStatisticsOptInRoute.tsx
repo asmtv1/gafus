@@ -1,3 +1,4 @@
+import { TrainerStatisticsContent } from "./TrainerStatisticsContent";
 import {
   createElement, useCallback, useEffect, useMemo, useRef, useState,
   type ChangeEvent, type ReactElement,
@@ -5,8 +6,7 @@ import {
 import type { PanelActor } from "./consultationContract";
 import {
   fetchProposedTrainerStatistics,
-  type CourseStatistics, type StatisticsKind, type StatisticsScope,
-  type StepStatistics, type TrainerStatisticsDto,
+  type StatisticsKind, type StatisticsScope, type TrainerStatisticsDto,
 } from "./trainerStatisticsProposedConsumer";
 
 /** AG1 GETs are mounted in source; browser enablement still requires separate consent. */
@@ -93,8 +93,10 @@ export function TrainerStatisticsOptInRoute(props:TrainerStatisticsProps):ReactE
   if(!allowed)return createElement("main",null,
     createElement("h1",null,"Статистика"),
     createElement("p",{role:"alert"},"Доступ к статистике не подтверждён"));
-  return createElement("main",{"data-ag4-trainer-statistics":"opt-in",style:{maxWidth:960,margin:"0 auto",padding:12}},
+  return createElement("main",{"data-ag4-trainer-statistics":"opt-in",className:"trainer-workspace"},
     createElement("h1",null,"Статистика"),
+    createElement("p",{className:"trainer-workspace-subtitle"},
+      "Аналитика курсов и шагов с фильтрами и динамикой прохождения"),
     createElement("nav",{"aria-label":"Разделы статистики"},
       createElement("a",{href:"/main-panel"},"Назад в панель тренера"),
       createElement("a",{href:"/main-panel/statistics","aria-current":"page"},"Обновить страницу")),
@@ -131,30 +133,5 @@ export function TrainerStatisticsOptInRoute(props:TrainerStatisticsProps):ReactE
   );
 }
 function renderStatistics(kind:StatisticsKind,data:TrainerStatisticsDto):ReactElement {
-  if(kind==="courses"){
-    const stats=data as CourseStatistics;
-    return createElement("section",{"aria-label":"Статистика курсов"},
-      createElement("p",null,"Курсов: "+stats.totalCourses),
-      createElement("p",null,"Дней тренировок: "+stats.totalDays),
-      createElement("p",null,"Активность: "+(stats.totalCourses>0?Math.round(stats.totalDays/stats.totalCourses*10)/10:0)+" дней/курс"),
-      stats.courses.length===0?createElement("p",{role:"status"},"Курсы не найдены"):
-        createElement("ul",null,...stats.courses.map(c=>createElement("li",{key:c.id},
-          createElement("strong",null,c.name),
-          createElement("span",null,
-            ` — участников: ${c.totalUsers}, завершили: ${c.completedUsers}, `+
-            `в процессе: ${c.inProgressUsers}, не начали: ${c.notStartedUsers}`),
-          createElement("p",null,`Завершение: ${c.totalUsers>0?Math.round(c.completedUsers/c.totalUsers*100):0}%`),
-          createElement("p",null,`Уровень: ${c.trainingLevel}; ${c.isPaid?"платный":c.isPrivate?"приватный":"публичный"}; ${c.isPersonalized?"персонализированный":"обычный"}; рейтинг: ${c.avgRating===null?"нет оценок":c.avgRating.toFixed(1)}`)))),
-    );
-  }
-  const stats=data as StepStatistics;
-  return createElement("section",{"aria-label":"Статистика шагов"},
-    createElement("p",null,"Шагов: "+stats.totalSteps),
-    createElement("p",null,"Прогресс пользователей для шагов не рассчитывается"),
-    stats.steps.length===0?createElement("p",{role:"status"},"Шагов пока нет"):
-      createElement("ul",null,...stats.steps.map(s=>createElement("li",{key:s.id},
-        createElement("strong",null,s.title),
-        createElement("span",null,
-          ` — используется в днях: ${s.usedInDaysCount}, в курсах: ${s.usedInCoursesCount}`)))),
-  );
+  return createElement(TrainerStatisticsContent, { key: kind, kind, data });
 }

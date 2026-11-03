@@ -79,6 +79,27 @@ reportClientError(error, { issueKey: "MyFeature", keys: { step: "fetch" }, userI
 
 ## Mobile (React Native / Expo)
 
+### Версии native SDK и iOS-сборка (2026-11-03)
+
+`apps/mobile/plugins/withAppTracerNative.js` закрепляет OKTracer **1.5.2 для iOS**;
+Android Gradle plugin и runtime platform остаются на **1.4.0**.
+Плагин обновляет уже существующую строку OKTracer в Podfile и не добавляет
+повторные объявления при повторном prebuild. Редактирования только
+`apps/mobile/ios/Podfile` недостаточно: каталог iOS исключён из Git, и EAS
+managed build генерирует его заново из Expo-плагинов.
+
+Причина сбоя: архив iOS 1.4.0 на `artifactory-external.vkpartner.ru` возвращал
+HTTP 404. Официальный podspec 1.5.2 использует
+`https://nexus-external.vkteam.ru/repository/okdl-ios-tracer/OKTracer/1.5.2/OKTracer.xcframework.zip`;
+проверка этого адреса вернула HTTP 200.
+
+Проверки: 21 тест нативных config plugins прошёл (включая 12 тестов Tracer).
+Изолированный Expo SDK 55 prebuild для iOS завершился успешно и создал
+`pod 'OKTracer', '1.5.2'`. Отдельный изолированный `pod install` с официальным
+podspec 1.5.2 успешно скачал SDK и завершился с кодом 0 (один pod, без интеграции
+в приложение). Полная установка всех pods приложения и store-сборка не запускались.
+
+
 Реализация: `apps/mobile/src/shared/lib/tracer/`.
 
 - **Включение**: production (`!__DEV__`) или `EXPO_PUBLIC_ENABLE_TRACER=true`
@@ -109,12 +130,12 @@ AppTracer сопоставляет source maps по `versionName` и пути ф
 pnpm --filter @gafus/mobile update:ota:production -- --message "описание"
 ```
 
-Команда сначала получает маскируемый `TRACER_SOURCEMAP_TOKEN_MOBILE` через `eas env:exec`, затем вызывает `eas update --emit-metadata --json`, извлекает отдельные iOS/Android update ID и загружает `dist/**/*.map` для каждой версии вида `1.7.0-ota.<12 символов updateId>`. Runtime отправляет в AppTracer ровно такой же `versionName`.
+Команда сначала получает маскируемый `TRACER_SOURCEMAP_TOKEN_MOBILE` через `eas env:exec`, затем вызывает `eas update --emit-metadata --json`, извлекает отдельные iOS/Android update ID и загружает `dist/**/*.map` для каждой версии вида `1.7.2-ota.<12 символов updateId>`. Runtime отправляет в AppTracer ровно такой же `versionName`.
 
 Для ручной загрузки карты embedded build:
 
 ```bash
-TRACER_SOURCEMAP_VERSION_NAME=1.7.0-build.15 \
+TRACER_SOURCEMAP_VERSION_NAME=1.7.2-build.15 \
 TRACER_SOURCEMAP_VERSION_CODE=14 \
 pnpm --filter @gafus/mobile tracer:sourcemaps
 ```

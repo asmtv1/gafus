@@ -3,6 +3,7 @@ import { z } from "zod/v3";
 import type { PanelActor } from "./consultationContract";
 import { initialDailyCalendarFrom } from "./trainerDailyDefaultRange";
 import { shift } from "./tr014ScheduleRangeRead20261022";
+import { TrainerDailyStatisticsContent } from "./TrainerDailyStatisticsContent";
 
 const scheduleSchema = z.object({
   id: z.string(), date: z.string(), isPublished: z.boolean(),
@@ -112,10 +113,10 @@ export function TrainerDailyStatisticsRoute(p: TrainerDailyStatisticsProps) {
       setFrom(formFrom); setTo(formTo);
     }
   };
-  return <main data-trainer-daily-statistics="hono-read">
+  return <main className="trainer-workspace" data-trainer-daily-statistics="hono-read">
     <h1>Статистика курса дня</h1>
-    <p>Детальная статистика по пользователям, которые открывали выбранный день</p>
-    <form onSubmit={onSubmit}>
+    <p className="trainer-workspace-subtitle">Детальная статистика по пользователям, которые открывали выбранный день</p>
+    <form className="trainer-workspace-range" onSubmit={onSubmit}>
       <label>С<input type="date" value={formFrom} onChange={e => setFormFrom(e.target.value)} /></label>
       <label>По<input type="date" value={formTo} onChange={e => setFormTo(e.target.value)} /></label>
       <button type="submit">Показать</button>
@@ -124,37 +125,18 @@ export function TrainerDailyStatisticsRoute(p: TrainerDailyStatisticsProps) {
     {shown.phase === "error" && <p role="alert">Не удалось получить статистику
       <button type="button" onClick={() => setRetry(value => value + 1)}>Повторить</button>
     </p>}
-    {shown.phase === "ready" && shown.data && <section>
+    {shown.phase === "ready" && shown.data && <section className="trainer-workspace-read">
       {shown.data.schedule.length === 0 &&
         <p role="status">В выбранном диапазоне нет запланированных дней курса дня.</p>}
-      {shown.data.schedule.length > 0 && <label>День курса дня
+      {shown.data.schedule.length > 0 && <label className="trainer-workspace-schedule-label">День курса дня
         <select value={shown.data.selectedScheduleId ?? ""} onChange={e => setSelected(e.target.value)}>
           {shown.data.schedule.map(item => <option key={item.id} value={item.id}>
             {item.date} · {item.bundle.title}
           </option>)}
         </select>
       </label>}
-      {shown.data.statistics && <>
-        <dl>
-          <dt>Открыли день</dt><dd>{shown.data.statistics.summary.openedUsers}</dd>
-          <dt>Начали шаги</dt><dd>{shown.data.statistics.summary.startedUsers}</dd>
-          <dt>Завершили день</dt><dd>{shown.data.statistics.summary.completedUsers}</dd>
-          <dt>Открыли без старта</dt>
-          <dd>{shown.data.statistics.summary.openedWithoutStartUsers}</dd>
-        </dl>
-        {shown.data.statistics.users.length === 0 ?
-          <p role="status">Этот день курса дня ещё никто не открывал.</p> :
-          <table><thead><tr><th>Пользователь</th><th>Статус</th><th>Прогресс</th>
-            <th>Текущий шаг</th><th>Последняя активность</th></tr></thead>
-            <tbody>{shown.data.statistics.users.map(user => <tr key={user.userId}>
-              <td><details><summary>{user.username}</summary><ol>
-                {user.steps.map(step => <li key={step.bundleStepId}>
-                  {step.title} — {step.status}</li>)}
-              </ol></details></td>
-              <td>{user.status}</td><td>{user.completedSteps}/{user.totalSteps}</td>
-              <td>{user.currentStepTitle ?? "Нет"}</td><td>{user.lastActivityAt}</td>
-            </tr>)}</tbody></table>}
-      </>}
+      {shown.data.statistics && <TrainerDailyStatisticsContent
+        key={shown.data.statistics.scheduleId} data={shown.data.statistics} />}
     </section>}
   </main>;
 }

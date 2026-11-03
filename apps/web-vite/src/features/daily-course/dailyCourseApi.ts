@@ -97,6 +97,9 @@ export function projectDailyDay(raw:unknown,expected:DailyToday):DailyDay{
       type:inner.type,status:outer.status,order:inner.order,
       durationSec:inner.durationSec??0,locked:false,
       videoUrl:safeStepMediaUrl(inner.videoUrl),
+      videoUrls:(Array.isArray(inner.videoUrls) ? inner.videoUrls :
+        inner.videoUrl ? [inner.videoUrl] : []).slice(0,8)
+        .map(safeStepMediaUrl).filter((value):value is string=>value!==null),
       imageUrls:(inner.imageUrls as string[]).map(safeStepMediaUrl)
         .filter((url):url is string=>url!==null),
     };

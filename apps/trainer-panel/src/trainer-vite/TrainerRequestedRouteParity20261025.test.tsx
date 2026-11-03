@@ -99,19 +99,10 @@ describe("25 Oct legacy trainer route URL parity in isolated Vite opt-in consume
     expect(transport).toHaveBeenCalledTimes(1);
   });
 
-  it("FAQ replicates Next content, active staff guard, and video disclosure without any API request", async () => {
+  it("trainer FAQ route has been removed from the Vite app", async () => {
     await render({ pathname: "/main-panel/faq" });
-    expect(host.textContent).toContain("Как создать курс на платформе");
+    expect(host.textContent).not.toContain("Частые вопросы");
     expect(host.querySelector("video")).toBeNull();
-    const button = host.querySelector("button")!;
-    await act(async () => button.dispatchEvent(new MouseEvent("click", { bubbles: true })));
-    expect(host.querySelector("video")?.getAttribute("src")).toContain("how_to_create_a_course.mp4");
-    await render({ pathname: "/main-panel/faq", token: null });
-    expect(host.querySelector("video")).toBeNull();
-    expect(host.textContent).toContain("Частые вопросы недоступны");
-    await render({ pathname: "/main-panel/faq", getCurrentSession: () => null });
-    expect(host.querySelector("video")).toBeNull();
-    expect(host.textContent).toContain("Частые вопросы недоступны");
     expect(base.fetchImpl).not.toHaveBeenCalled();
   });
 });

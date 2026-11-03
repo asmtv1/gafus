@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { toAdminBrowserHref, toAdminInternalPath } from "./adminBrowserRoutes";
 import { requestAdmin } from "./api";
 import { ProfitVideoEditor, type VideoEdit } from "./ProfitVideoEditor";
 import { profitPartnersFromReport } from "./profitPartners";
@@ -100,8 +101,8 @@ export function ProfitReport({ source }: { source: unknown }) {
       const next = await requestAdmin<Profit>(`/api/v1/admin/profit?${params}`);
       if (!isProfit(next)) throw Error("Некорректный финансовый отчёт");
       setData(next);
-      if (window.location.pathname === "/main-panel/profit") {
-        window.history.replaceState(null, "", `/main-panel/profit?${params}`);
+      if (toAdminInternalPath(window.location.pathname) === "/main-panel/profit") {
+        window.history.replaceState(null, "", toAdminBrowserHref(`/main-panel/profit?${params}`));
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Не удалось загрузить отчёт");

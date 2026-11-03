@@ -7,6 +7,16 @@ export type TrainerBookingRecord = {
   id:string; status:string; cynologistUserId:string;
   slot:{id:string;startAtUtc:string;endAtUtc:string;status?:string};
   cancelReason?:string|null;
+  clientUsername?:string|null;
+  clientOwnerName?:string|null;
+  clientPhone?:string|null;
+  petName?:string|null;
+  petGender?:string|null;
+  petAge?:string|null;
+  petBreed?:string|null;
+  clientProblem?:string|null;
+  clientSelfHelpAttempt?:string|null;
+  confirmationDeadlineAt?:string|null;
 };
 type Session = {actor:PanelActor;token:string|null;authEpoch?:string};
 type Phase = "idle"|"question"|"saving"|"refreshing"|"confirmed"|"uncertain"|"blocked";

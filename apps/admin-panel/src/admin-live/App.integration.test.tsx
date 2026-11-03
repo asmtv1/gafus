@@ -301,6 +301,27 @@ async function clickButton(label: string) {
 }
 
 describe("admin live application SPA flows with isolated API fixtures", () => {
+  it("canonicalizes old deep links on mount and browser Back while preserving filters", async () => {
+    await mount("/main-panel/app-subscriptions?tab=npd&npdPage=2");
+    expect(window.location.pathname + window.location.search)
+      .toBe("/app-subscriptions?tab=npd&npdPage=2");
+    expect(calls).toContain("/api/v1/admin/app-subscriptions?tab=npd&npdPage=2");
+    await act(async () => {
+      window.history.replaceState(null, "", "/main-panel/profit?from=2026-10-01&to=2026-10-15");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    expect(window.location.pathname + window.location.search)
+      .toBe("/profit?from=2026-10-01&to=2026-10-15");
+    expect(calls).toContain("/api/v1/admin/profit?from=2026-10-01&to=2026-10-15");
+  });
+
+  it("opens direct short dashboard and nested URLs without additional auth checks", async () => {
+    await mount("/users/user1/app-subscription");
+    expect(window.location.pathname).toBe("/users/user1/app-subscription");
+    expect(calls).toContain("/api/v1/admin/users/user1/app-subscription");
+    expect(calls).not.toContain("/api/v1/admin/users");
+  });
+
   it("shares a single auth check across StrictMode effect replay", async () => {
     window.history.replaceState(null, "", "/main-panel/users");
     await act(async () => {
@@ -341,7 +362,9 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
   it("opens every one of the 18 menu routes and sends the matching authorized GET", async () => {
     await mount("/main-panel/users");
     for (const section of adminSections) {
-      const target = host.querySelector<HTMLAnchorElement>(`nav a[href="${section.path}"]`);
+      const target = host.querySelector<HTMLAnchorElement>(
+        `nav a[href="${section.path.slice("/main-panel".length)}"]`,
+      );
       expect(target, `navigation for ${section.key}`).toBeTruthy();
       const before = calls.length;
       await act(async () => {
@@ -350,7 +373,9 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
       await act(async () => {
         await Promise.resolve();
       });
-      expect(window.location.pathname, `pathname ${section.key}`).toBe(section.path);
+      expect(window.location.pathname, `pathname ${section.key}`).toBe(
+        section.path.slice("/main-panel".length),
+      );
       expect(host.querySelector(".page-heading h1")?.textContent, `heading ${section.key}`).toBe(
         section.title,
       );
@@ -388,7 +413,7 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
     const npdButton = [...host.querySelectorAll("button")].find((item) => item.textContent?.trim() === "Чеки НПД");
     expect(npdButton?.getAttribute("aria-pressed")).toBe("true");
     await clickButton("Промокоды");
-    expect(window.location.pathname + window.location.search).toBe("/main-panel/app-subscriptions?tab=promo-codes");
+    expect(window.location.pathname + window.location.search).toBe("/app-subscriptions?tab=promo-codes");
     expect(calls).toContain("/api/v1/admin/app-subscriptions?tab=promo-codes");
     const promoButton = [...host.querySelectorAll("button")].find((item) => item.textContent?.trim() === "Промокоды");
     expect(promoButton?.getAttribute("aria-pressed")).toBe("true");
@@ -411,7 +436,7 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
       "/api/v1/admin/profit?from=2026-09-01&to=2026-10-25&paymentPage=1&videoPage=1",
     );
     expect(window.location.pathname + window.location.search)
-      .toBe("/main-panel/profit?from=2026-09-01&to=2026-10-25&paymentPage=1&videoPage=1");
+      .toBe("/profit?from=2026-09-01&to=2026-10-25&paymentPage=1&videoPage=1");
     await act(async () => {
       window.history.replaceState(null, "", "/main-panel/profit?from=2026-10-01&to=2026-10-15&videoPage=4");
       window.dispatchEvent(new PopStateEvent("popstate"));
@@ -427,7 +452,7 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
       .toBe("true");
     await clickButton("90 дней");
     expect(window.location.pathname + window.location.search).toBe(
-      "/main-panel/rewarded-ads?period=90",
+      "/rewarded-ads?period=90",
     );
     expect(calls).toContain("/api/v1/admin/analytics/rewarded-ads?days=90");
     await act(async () => {
@@ -457,13 +482,13 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
       .find((node) => node.textContent?.includes("Медиа и хранение — отдельный раздел"));
     expect(mediaLink).toBeDefined();
     await act(async () => mediaLink?.click());
-    expect(window.location.pathname).toBe("/main-panel/media");
+    expect(window.location.pathname).toBe("/media");
     expect(calls).toContain("/api/v1/admin/media/stats");
     const adminLink = [...host.querySelectorAll<HTMLAnchorElement>("main a")]
       .find((node) => node.textContent?.includes("Управление системой и кэшем"));
     expect(adminLink).toBeDefined();
     await act(async () => adminLink?.click());
-    expect(window.location.pathname).toBe("/main-panel/admin");
+    expect(window.location.pathname).toBe("/admin");
   });
 
   it("shows Next premium pricing read-only to MODERATOR without a privileged mail request", async () => {

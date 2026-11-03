@@ -25,20 +25,35 @@ let stored: Snapshot;
 let stale: boolean;
 let denied: boolean;
 let deleted: boolean;
-const read = vi.fn(async () => ({
+const availableDay = (dayId: string, title: string) => ({
+  id: dayId, title, equipment: "", description: "", type: "regular",
+  authorId: actor.id, showCoursePathExport: false, shareProgressAcrossCourses: false,
+  createdAt: "2026-10-25T09:00:00.000Z", updatedAt: "2026-10-25T09:00:00.000Z",
+  author: { username: "trainer_A", profile: null }, stepLinks: [], dayLinks: [],
+});
+const read = vi.fn(async (path: string) => ({
   status: denied ? 403 : deleted ? 404 : 200,
-  headers, body: deleted ? { success: false } : { success: true, data: stored },
+  headers, body: deleted ? { success: false } : path === "/api/v1/trainer/days"
+    ? { success: true, data: [availableDay("day-1", "День первый"),
+      availableDay("day-2", "День второй")] }
+    : { success: true, data: stored },
 }));
 const write = vi.fn(async (req: Parameters<TrainerFullCourseWriteTransport>[0]) => {
-  const body = req.body as { expectedVersion: number; name: string; duration: string };
-  if (!stale) stored = {
-    ...stored, name: body.name, duration: body.duration, version: body.expectedVersion + 1,
+  const body = req.body as {
+    expectedVersion: number; name: string; duration: string; trainingDays: string[];
   };
   if (req.method === "DELETE") {
     if (!stale) deleted = true;
     return { status: stale ? 409 : 200, headers,
       body: { success: !stale, data: { id } } };
   }
+  if (!stale) stored = {
+    ...stored, name: body.name, duration: body.duration, version: body.expectedVersion + 1,
+    dayLinks: body.trainingDays.map((dayId, index) => ({
+      id: "link-" + index, dayId, order: index + 1,
+      day: { id: dayId, title: dayId === "day-1" ? "День первый" : "День второй" },
+    })),
+  };
   if (req.method === "POST") return {
     status: 201, headers, body: { success: true,
       data: { id: "123e4567-e89b-42d3-a456-426614174000" } },
@@ -84,8 +99,8 @@ afterEach(async () => {
 describe("full trainer course CAS editor", () => {
   it("creates a course in live Vite with full form and links to editor", async () => {
     await mount({ pathname: "/main-panel/courses/new" });
-    expect(host.textContent).toContain("Создание курса");
-    expect(read).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("Создание нового курса");
+    expect(read).toHaveBeenCalledWith("/api/v1/trainer/days", expect.any(AbortSignal));
     await updateFirstInput("Новая программа");
     const duration = [...host.querySelectorAll("label")]
       .find(label => label.textContent?.includes("Длительность"))
@@ -124,6 +139,33 @@ describe("full trainer course CAS editor", () => {
     expect(read.mock.calls.length).toBeGreaterThan(1);
     expect(host.textContent).toContain("Версия: 5");
     expect(host.textContent).toContain("Курс сохранён");
+  });
+  it("repeats days, reorders them and persists exact sequence through server readback", async () => {
+    await mount();
+    const click = async (label: string) => {
+      const button = Array.from(host.querySelectorAll("button"))
+        .find(element => element.getAttribute("aria-label") === label);
+      expect(button).toBeTruthy();
+      await act(async () => button!.click());
+    };
+    await click("Добавить день: День первый");
+    await click("Добавить день: День второй");
+    let selected = host.querySelectorAll<HTMLElement>(".trainer-day-selected-row");
+    expect([...selected].map(row => row.dataset.dayId))
+      .toEqual(["day-1", "day-1", "day-2"]);
+    await click("Переместить выше: День второй, позиция 3");
+    selected = host.querySelectorAll(".trainer-day-selected-row");
+    expect([...selected].map(row => row.dataset.dayId))
+      .toEqual(["day-1", "day-2", "day-1"]);
+    await save();
+    expect(write).toHaveBeenCalledWith(expect.objectContaining({
+      method: "PUT", body: expect.objectContaining({
+        trainingDays: ["day-1", "day-2", "day-1"],
+      }),
+    }));
+    expect(host.textContent).toContain("Курс сохранён");
+    expect([...host.querySelectorAll<HTMLElement>(".trainer-day-selected-row")]
+      .map(row => row.dataset.dayId)).toEqual(["day-1", "day-2", "day-1"]);
   });
   it("409 does not auto-resend or destroy unsaved edits", async () => {
     stale = true;

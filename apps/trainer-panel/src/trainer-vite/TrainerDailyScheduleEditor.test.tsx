@@ -97,6 +97,20 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
 
 describe("trainer daily-course scheduler: Core-backed safe Hono mutations", () => {
+  it("opens selected calendar date in the authorized editor without writing", async () => {
+    await mount({ enableDailyCalendar: true });
+    expect(host.querySelectorAll(".trainer-workspace-calendar-day")).toHaveLength(30);
+    await click(host.querySelector<HTMLButtonElement>(
+      '.trainer-workspace-calendar-day.is-published')!);
+    const link = host.querySelector<HTMLAnchorElement>('a[href="#daily-schedule-editor"]');
+    expect(link?.textContent).toContain("Изменить назначение");
+    await act(async () => link!.click());
+    expect(editor()?.querySelector<HTMLInputElement>('input[type="date"]')?.value)
+      .toBe("2026-11-05");
+    expect(editor()?.querySelector<HTMLSelectElement>('select[required]')?.value)
+      .toBe("BUNDLE-A");
+    expect(write).not.toHaveBeenCalled();
+  });
   it("only ADMIN can render editor; trainer/moderator cannot mutate", async () => {
     await mount({ actor: { id: "trainer", role: "TRAINER" } });
     expect(editor()).toBeNull();

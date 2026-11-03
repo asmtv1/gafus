@@ -71,7 +71,10 @@ const HLS_DIRECT_RESOURCE_TTL_SECONDS = VIDEO_PLAYBACK_TOKEN_TTL_MINUTES * 60;
 function trainingVideoApiUrl(c: Context): string {
   if (localLegacyTrainingVideoEnabled()) {
     const host = c.req.header("host")?.toLowerCase();
-    return host === "127.0.0.1:5173" || host === "localhost:5173" ? "" : "http://127.0.0.1:3001";
+    // The isolated trainer Vite shell also reverse-proxies /api/v1 on 5175.
+    // Keep HLS segments same-origin so browsers do not require cross-origin credentials.
+    return ["127.0.0.1:5173", "localhost:5173", "127.0.0.1:5175", "localhost:5175"]
+      .includes(host ?? "") ? "" : "http://127.0.0.1:3001";
   }
   return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
 }

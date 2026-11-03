@@ -5,12 +5,15 @@ import {
   type VisibleDaysTransport,
 } from "./trainerVisibleDaysRead20261022";
 import type { PanelActor } from "./consultationContract";
+import type { TrainerContentWriteTransport } from "./TrainerContentEditorRoute";
+import { TrainerDaysLibraryView } from "./live/TrainerDaysLibraryView";
 export function TrainerVisibleDaysChooser20261022(p: {
   actor: PanelActor;
   enabled?: boolean;
   transport?: VisibleDaysTransport;
   isCurrent: () => boolean;
   showEditorLinks?: boolean;
+  writeTransport?: TrainerContentWriteTransport;
 }): ReactElement {
   const [attempt, retry] = useState(0);
   const [state, setState] = useState<{ phase: "loading" | "ready" | "error"; rows: VisibleDay[] }>({
@@ -82,76 +85,13 @@ export function TrainerVisibleDaysChooser20261022(p: {
         "Повторить чтение дней",
       ),
     );
-  const titleQuery = query.trim().toLocaleLowerCase("ru");
-  const shown = state.rows.filter((x) => x.title.toLocaleLowerCase("ru").includes(titleQuery));
-  const day = shown.find((x) => x.id === selected);
-  return createElement(
-    "section",
-    { "aria-label": "Выбор тренировочного дня", "data-readonly": "true" },
-    createElement("h2", null, "Тренировочные дни"),
-    createElement(
-      "label", null, "Поиск дня по названию",
-      createElement("input", {
-        type: "search", "aria-label": "Поиск дня по названию", value: query,
-        onInput: (event) => setSearch({ principal, value: event.currentTarget.value }),
-      }),
-    ),
-    createElement("p", null, `Загружено дней: ${state.rows.length}; показано: ${shown.length}`),
-    query.length > 0
-      ? createElement("button", { type: "button", onClick: () => setSearch({ principal, value: "" }) },
-          "Очистить поиск")
-      : null,
-    !state.rows.length
-      ? createElement("p", { role: "status" }, "Дней нет")
-      : shown.length === 0
-        ? createElement("p", { role: "status" }, "По запросу ничего не найдено")
-        : createElement(
-          "ul",
-          null,
-          ...shown.map((x) =>
-            createElement(
-              "li",
-              { key: x.id },
-              createElement(
-                "button",
-                {
-                  type: "button",
-                  onClick: () => setSelected(x.id),
-                  "aria-pressed": x.id === selected,
-                },
-                x.title,
-              ),
-              createElement("span", null, " — ", x.stepLinks.length, " шагов"),
-              p.showEditorLinks && (p.actor.role === "ADMIN" ||
-                (p.actor.role === "TRAINER" && x.authorId === p.actor.id))
-                ? createElement("a", {
-                  href: "/main-panel/days/" + encodeURIComponent(x.id) + "/edit",
-                }, " Редактировать")
-                : null,
-            ),
-          ),
-        ),
-    day
-      ? createElement(
-          "article",
-          { "aria-label": "Подробности выбранного дня" },
-          createElement("h3", null, day.title),
-          createElement("p", null, day.description),
-          createElement("p", null, "Тип: ", day.type.trim() || "Не указано"),
-          createElement("p", null, "Оборудование: ", day.equipment.trim() || "Не указано"),
-          createElement("h4", null, "Шаги"),
-          createElement(
-            "ol",
-            null,
-            ...day.stepLinks.map((l) => createElement("li", { key: l.id }, l.step.title)),
-          ),
-          createElement("h4", null, "Курсы"),
-          createElement(
-            "ol",
-            null,
-            ...day.dayLinks.map((l) => createElement("li", { key: l.id }, l.course.name)),
-          ),
-        )
-      : null,
-  );
+  return createElement(TrainerDaysLibraryView, {
+    key: principal, actor: p.actor, rows: state.rows,
+    search: query, onSearch: (value: string) => setSearch({ principal, value }),
+    selected, onSelect: setSelected,
+    showEditorLinks: p.showEditorLinks,
+    write: p.writeTransport,
+    transport: p.transport!, isCurrent: p.isCurrent,
+    onRefresh: () => retry(x => x + 1),
+  });
 }

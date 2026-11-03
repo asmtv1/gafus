@@ -82,7 +82,6 @@ export function createTrainerFullCourseRoutes(ports: TrainerFullCoursePorts = pr
     if (!checked.success) return c.json(BAD, 400);
     const input = checked.data;
     if (input.trainingDays.length > 250 || input.allowedUsers.length > 500 ||
-      new Set(input.trainingDays).size !== input.trainingDays.length ||
       new Set(input.allowedUsers).size !== input.allowedUsers.length ||
       input.trainingDays.some(dayId => !idOK.test(dayId)) ||
       input.allowedUsers.some(userId => !idOK.test(userId)) ||
@@ -92,7 +91,8 @@ export function createTrainerFullCourseRoutes(ports: TrainerFullCoursePorts = pr
       return c.json(DENIED, 403);
     try {
       if (input.trainingDays.length &&
-        await ports.countDays(input.trainingDays, staff) !== input.trainingDays.length)
+        await ports.countDays([...new Set(input.trainingDays)], staff) !==
+        new Set(input.trainingDays).size)
         return c.json(MISSING, 404);
       if (input.allowedUsers.length &&
         await ports.countUsers(input.allowedUsers) !== input.allowedUsers.length)
@@ -144,7 +144,6 @@ export function createTrainerFullCourseRoutes(ports: TrainerFullCoursePorts = pr
     if (!checked.success) return c.json(BAD, 400);
     const input = checked.data;
     if (input.trainingDays.length > 250 || input.allowedUsers.length > 500 ||
-      new Set(input.trainingDays).size !== input.trainingDays.length ||
       new Set(input.allowedUsers).size !== input.allowedUsers.length ||
       input.trainingDays.some(dayId => !idOK.test(dayId)) ||
       input.allowedUsers.some(userId => !idOK.test(userId)) ||
@@ -158,7 +157,8 @@ export function createTrainerFullCourseRoutes(ports: TrainerFullCoursePorts = pr
       if (original.status !== "found") return c.json(FAILED, 500);
       if (original.data.version !== input.expectedVersion) return c.json(STALE, 409);
       if (input.trainingDays.length &&
-        await ports.countDays(input.trainingDays, staff) !== input.trainingDays.length)
+        await ports.countDays([...new Set(input.trainingDays)], staff) !==
+        new Set(input.trainingDays).size)
         return c.json(MISSING, 404);
       const result = await ports.update(input, staff);
       if (result.success) {

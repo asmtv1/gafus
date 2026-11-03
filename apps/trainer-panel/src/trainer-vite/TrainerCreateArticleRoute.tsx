@@ -2,6 +2,10 @@ import { useState, type FormEvent } from "react";
 // Import the pure helper, not the Core utils barrel (server logger uses Node process).
 import { transliterate } from "../../../../packages/core/src/utils/transliterate";
 import { useTrainerAuthoring, type TrainerAuthoringProps } from "./trainerAuthoringClient";
+import {
+  TrainerFormPage, TrainerFormSection, TrainerFormActions,
+  TrainerMarkdownEditor, TrainerMediaUrls,
+} from "./live/TrainerFormUI";
 
 /** Next ArticleForm create semantics with Core-side HTML sanitization. */
 function slugify(value: string) {
@@ -18,7 +22,7 @@ export function TrainerCreateArticleRoute(p: TrainerAuthoringProps) {
   const [description, setDescription] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [logoImg, setLogoImg] = useState("");
-  const [imageUrlText, setImageUrlText] = useState("");
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [localError, setLocalError] = useState("");
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -29,7 +33,6 @@ export function TrainerCreateArticleRoute(p: TrainerAuthoringProps) {
       setLocalError("Slug может содержать только латинские буквы, цифры и дефисы");
       return;
     }
-    const imageUrls = imageUrlText.split(/\s*[,\n]\s*/).map(item => item.trim()).filter(Boolean);
     if (imageUrls.length > 20 || imageUrls.some(value => {
       try { return !/^https?:$/.test(new URL(value).protocol); }
       catch { return true; }
@@ -45,55 +48,76 @@ export function TrainerCreateArticleRoute(p: TrainerAuthoringProps) {
   };
   if (!authoring.allowed)
     return <main><p role="alert">Создание статьи недоступно</p></main>;
-  return <main data-trainer-create-article="hono">
-    <h1>Создать статью</h1>
-    <p>Заполните поля для новой статьи</p>
-    <form onSubmit={onSubmit}>
-      <label>Заголовок *
-        <input value={title} required maxLength={500}
-          onChange={e => setTitle(e.target.value)} />
-      </label>
-      <label>Slug *
-        <input value={slug} maxLength={100} onChange={e => setSlug(e.target.value)} />
-      </label>
-      <button type="button" onClick={() => setSlug(slugify(title))}>Из заголовка</button>
-      <label>Тип контента
-        <select value={contentType}
-          onChange={e => setContentType(e.target.value as typeof contentType)}>
-          <option value="TEXT">Текст (Markdown)</option>
-          <option value="HTML">HTML</option>
-        </select>
-      </label>
-      <label>{contentType === "TEXT" ? "Контент (Markdown) *" : "Контент (HTML) *"}
-        <textarea required value={content} maxLength={2_000_000}
-          onChange={e => setContent(e.target.value)} />
-      </label>
-      <fieldset><legend>Доступ по подписке</legend>
-        <p>Все статьи доступны подписчикам. Отдельная стоимость не задаётся.</p>
-        <label>Описание *
-          <textarea required value={description} maxLength={5000}
-            onChange={e => setDescription(e.target.value)} />
+  return <TrainerFormPage title="Создать статью"
+    subtitle="Заполните информацию и подготовьте контент публикации"
+    backHref="/articles" backLabel="К списку статей">
+    <form onSubmit={onSubmit} data-trainer-create-article="hono">
+      <TrainerFormSection title="Основная информация">
+        <label>Заголовок статьи *
+          <input value={title} required maxLength={500}
+            placeholder="Название публикации"
+            onChange={event => setTitle(event.target.value)} />
         </label>
-      </fieldset>
-      <fieldset><legend>Медиа</legend>
-        <label>Адрес логотипа
-          <input value={logoImg} onChange={e => setLogoImg(e.target.value)} maxLength={2000} />
+        <div className="trainer-form-column">
+          <label>Адрес статьи (slug)
+            <input value={slug} maxLength={100}
+              placeholder="article-slug"
+              onChange={event => setSlug(event.target.value)} />
+          </label>
+          <button className="trainer-button-secondary" type="button"
+            onClick={() => setSlug(slugify(title))}>Сгенерировать из заголовка</button>
+        </div>
+        <label>Тип контента
+          <select value={contentType}
+            onChange={event => setContentType(event.target.value as typeof contentType)}>
+            <option value="HTML">HTML</option>
+            <option value="TEXT">Текст (Markdown)</option>
+          </select>
         </label>
-        <label>Адрес видео
-          <input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} maxLength={2000} />
+        {contentType === "TEXT"
+          ? <TrainerMarkdownEditor label="Контент статьи" required
+              value={content} onChange={setContent} rows={15} />
+          : <label>Контент (HTML) *
+              <textarea required rows={15} value={content} maxLength={2_000_000}
+                onChange={event => setContent(event.target.value)} />
+            </label>}
+      </TrainerFormSection>
+
+      <TrainerFormSection title="Доступ по подписке"
+        hint="В текущем API статьи доступны подписчикам. Настройка публичности не поддерживается.">
+        <label>Краткое описание статьи *
+          <textarea required rows={4} value={description} maxLength={5000}
+            onChange={event => setDescription(event.target.value)} />
         </label>
-        <label>Адреса изображений (через запятую или строку)
-          <textarea value={imageUrlText} onChange={e => setImageUrlText(e.target.value)} />
+      </TrainerFormSection>
+
+      <TrainerFormSection title="Медиа">
+        <label>URL обложки
+          <input type="url" value={logoImg} onChange={event => setLogoImg(event.target.value)}
+            maxLength={2000} placeholder="https://…" />
         </label>
-      </fieldset>
+        {logoImg.startsWith("https://") && <img
+          className="trainer-course-cover-preview" src={logoImg}
+          alt="Предпросмотр обложки статьи" referrerPolicy="no-referrer" />}
+        <label>URL видео
+          <input type="url" value={videoUrl} onChange={event => setVideoUrl(event.target.value)}
+            maxLength={2000} placeholder="https://…" />
+        </label>
+        <TrainerMediaUrls label="Дополнительные изображения"
+          value={imageUrls} max={20} onChange={setImageUrls} />
+      </TrainerFormSection>
+
       {localError && <p role="alert">{localError}</p>}
       {(authoring.phase === "error" || authoring.phase === "denied") &&
         <p role="alert">{authoring.message}</p>}
       {authoring.phase === "success" &&
-        <p role="status">Статья создана. <a href="/main-panel/articles">К статьям</a></p>}
-      <button type="submit" disabled={authoring.phase === "pending" || authoring.phase === "success"}>
-        {authoring.phase === "pending" ? "Сохраняем…" : "Создать статью"}
-      </button>
+        <p role="status">Статья создана. <a href="/articles">К статьям</a></p>}
+      <TrainerFormActions>
+        <a className="trainer-form-back" href="/articles">Отмена</a>
+        <button type="submit" disabled={authoring.phase === "pending" || authoring.phase === "success"}>
+          {authoring.phase === "pending" ? "Сохраняем…" : "Создать статью"}
+        </button>
+      </TrainerFormActions>
     </form>
-  </main>;
+  </TrainerFormPage>;
 }

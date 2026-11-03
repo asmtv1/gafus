@@ -42,6 +42,12 @@ const createStepBaseSchema = z.object({
   durationSec: z.number().int().min(1).max(6000).nullable(),
   estimatedDurationSec: z.number().int().min(1).nullable(),
   videoUrl: z.string().max(2000).optional().nullable(),
+  videoUrls: z.array(z.string().url().max(2000).refine(raw => {
+    try { const url = new URL(raw); return url.protocol === "https:" &&
+      !url.username && !url.password; } catch { return false; }
+  }, "Допустимы только HTTPS-ссылки без учётных данных")).max(8)
+    .refine(urls => new Set(urls).size === urls.length,
+      "Не прикрепляйте одно видео дважды").optional(),
   imageUrls: z.array(z.string()),
   pdfUrls: z.array(z.string()),
   checklist: checklistSchema.optional().nullable(),
@@ -67,7 +73,14 @@ export function getExaminationMechanismError(data: Pick<StepRuleFields,
 }
 
 /** Одинаковые обязательные бизнес-правила при создании и редактировании шага. */
-function checkStepBusinessRules(data: StepRuleFields, ctx: z.RefinementCtx) {
+function checkStepBusinessRules(data: StepRuleFields & {
+  videoUrl?: string | null; videoUrls?: string[];
+}, ctx: z.RefinementCtx) {
+  if (data.videoUrls && (data.videoUrl || null) !== (data.videoUrls[0] ?? null)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["videoUrl"],
+      message: "Первое видео не совпадает со ссылкой совместимости" });
+  }
+
   if (data.type === "EXAMINATION") {
     const error = getExaminationMechanismError(data);
     if (error) ctx.addIssue({ code: z.ZodIssueCode.custom, message: error });

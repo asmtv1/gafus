@@ -41,6 +41,7 @@ const trainingDayContentSelect = {
               durationSec: true,
               estimatedDurationSec: true,
               videoUrl: true,
+              videoUrls: true,
               imageUrls: true,
               pdfUrls: true,
               type: true,

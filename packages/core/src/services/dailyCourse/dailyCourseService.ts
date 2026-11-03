@@ -289,6 +289,7 @@ type StepLinkForDailyCourse = {
     durationSec: number | null;
     estimatedDurationSec: number | null;
     videoUrl: string | null;
+    videoUrls?: string[];
     imageUrls: string[];
     pdfUrls: string[];
     checklist: unknown;
@@ -393,6 +394,7 @@ const dailyCourseBundleStepSelect = {
       durationSec: true,
       estimatedDurationSec: true,
       videoUrl: true,
+      videoUrls: true,
       imageUrls: true,
       pdfUrls: true,
       checklist: true,
@@ -485,6 +487,8 @@ function mapDailyCourseSteps(
         durationSec: link.step.durationSec,
         estimatedDurationSec: link.step.estimatedDurationSec,
         videoUrl: link.step.videoUrl,
+        videoUrls: link.step.videoUrls?.length ? link.step.videoUrls :
+          link.step.videoUrl ? [link.step.videoUrl] : [],
         imageUrls: link.step.imageUrls,
         pdfUrls: link.step.pdfUrls,
         checklist: Array.isArray(link.step.checklist)
@@ -1245,6 +1249,7 @@ export async function upsertDailyCourseBundle(
       durationSec: true,
       estimatedDurationSec: true,
       videoUrl: true,
+      videoUrls: true,
       imageUrls: true,
       pdfUrls: true,
       checklist: true,
@@ -1733,19 +1738,30 @@ async function createDailyCourseImportDay(
       })),
     });
 
-    await tx.dailyCourseSchedule.upsert({
-      where: { date: dateKeyToDate(day.date) },
-      create: {
-        date: dateKeyToDate(day.date),
-        bundleId: bundle.id,
-        createdById: actor.id,
-        isPublished: true,
-      },
-      update: {
-        bundleId: bundle.id,
-        isPublished: true,
-      },
-      select: { id: true },
-    });
+    if (!day.conflict) {
+      // Safe new-date import: a concurrent schedule must cause a unique-date
+      // failure and rollback this day's freshly created steps and bundle.
+      // Never upsert a previously empty date — that could overwrite another
+      // trainer's assignment inserted after the preview was generated.
+      await tx.dailyCourseSchedule.create({
+        data: {
+          date: dateKeyToDate(day.date), bundleId: bundle.id,
+          createdById: actor.id, isPublished: true,
+        },
+        select: { id: true },
+      });
+    } else {
+      // Explicit legacy replace mode. The new Vite API intentionally does
+      // not enable this mode until an owner-bound atomic CAS is available.
+      await tx.dailyCourseSchedule.upsert({
+        where: { date: dateKeyToDate(day.date) },
+        create: {
+          date: dateKeyToDate(day.date), bundleId: bundle.id,
+          createdById: actor.id, isPublished: true,
+        },
+        update: { bundleId: bundle.id, isPublished: true },
+        select: { id: true },
+      });
+    }
   });
 }

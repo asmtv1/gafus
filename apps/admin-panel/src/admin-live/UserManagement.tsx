@@ -418,7 +418,7 @@ export function UsersPanel({
                     )}
                     <a
                       className="button-link"
-                      href={`/main-panel/users/${user.id}/app-subscription`}
+                      href={`/users/${user.id}/app-subscription`}
                       onClick={(event) => {
                         if (!onNavigate) return;
                         event.preventDefault();

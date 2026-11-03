@@ -20,7 +20,6 @@ export const legacyRoutes = [
   "/main-panel/days/new",
   "/main-panel/days",
   "/main-panel/exam-results",
-  "/main-panel/faq",
   "/main-panel/my-videos",
   "/main-panel/notes",
   "/main-panel",

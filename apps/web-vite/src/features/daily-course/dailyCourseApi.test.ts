@@ -73,6 +73,17 @@ describe("W2 daily-course literal Hono read-only client and data projection",()=
     expect(data.steps[1].videoUrl).toBe("https://cdn.example.com/video.mp4");
     expect(JSON.stringify(data)).not.toMatch(/PRIVATE_SESSION|SECRET_B|userstep_/);
   });
+  it("daily course projects an ordered multi-video list with invalid links stripped",()=>{
+    const first="https://cdn.example.com/first.mp4";
+    const second="https://cdn.example.com/second.mp4";
+    const enhanced=step(0,"THEORY",{step:{...step(0,"THEORY").step,
+      videoUrl:first, videoUrls:[first,"javascript:alert(1)",second],
+    }});
+    const result=projectDailyDay(day([enhanced,step(1,"PRACTICE")]),today);
+    expect(result.steps[0]?.videoUrls).toEqual([first,second]);
+    expect(result.steps[0]?.videoUrl).toBe(first);
+    expect(result.steps[1]?.videoUrls).toEqual(["https://cdn.example.com/video.mp4"]);
+  });
   it("DC-A06 day must match active server-issued schedule/date/bundle",()=>{
     for(const changed of [
       {scheduleId:"another"},{mskDate:"2026-10-16"},

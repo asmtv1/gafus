@@ -1,4 +1,5 @@
 import { useRef, useState, type FormEvent } from "react";
+import { toAdminBrowserHref, toAdminInternalPath } from "./adminBrowserRoutes";
 import { AdminHttpError, requestAdmin } from "./api";
 import { PaymentHistory } from "./PaymentHistory";
 
@@ -155,9 +156,9 @@ function PromoPanel({
       if (!Array.isArray(response.promoCodes)) throw Error("Некорректный ответ промокодов");
       setPromos(response.promoCodes);
       setIncludeArchived(!includeArchived);
-      if (window.location.pathname === "/main-panel/app-subscriptions") {
+      if (toAdminInternalPath(window.location.pathname) === "/main-panel/app-subscriptions") {
         const query = !includeArchived ? "?tab=promo-codes&includeArchived=1" : "?tab=promo-codes";
-        window.history.replaceState(null, "", `/main-panel/app-subscriptions${query}`);
+        window.history.replaceState(null, "", toAdminBrowserHref(`/main-panel/app-subscriptions${query}`));
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Не удалось загрузить архив");
@@ -344,9 +345,9 @@ function NpdPanel({ initial, canManage, initialSearch = "" }: {
       if (!result.npd) throw Error("Нет данных о чеках");
       setData(result.npd);
       setActionUnknown(false);
-      if (window.location.pathname === "/main-panel/app-subscriptions" &&
+      if (toAdminInternalPath(window.location.pathname) === "/main-panel/app-subscriptions" &&
           new URLSearchParams(window.location.search).get("tab") === "npd") {
-        window.history.replaceState(null, "", `/main-panel/app-subscriptions?${buildUrl(page).split("?")[1]}`);
+        window.history.replaceState(null, "", toAdminBrowserHref(`/main-panel/app-subscriptions?${buildUrl(page).split("?")[1]}`));
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Ошибка загрузки НПД");

@@ -24,10 +24,19 @@ export const ALLOWED_BROWSER_ORIGINS = new Set(
 );
 
 const LOCAL_REFACTOR_BROWSER_ORIGIN = "http://127.0.0.1:5173";
+// The admin and trainer Vite panels share this local-only, loopback-bound
+// Hono instance. Keep these exact origins separate from production and from
+// special-purpose QA servers which use only the original 5173 origin.
+const LOCAL_REFACTOR_STAFF_BROWSER_ORIGINS = new Set([
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:5175",
+]);
 
 export function isIsolatedRefactorBrowserOrigin(origin: string): boolean {
-  const normalLocal = origin === LOCAL_REFACTOR_BROWSER_ORIGIN &&
-    process.env.API_PORT === "3001";
+  const normalLocal = (
+    origin === LOCAL_REFACTOR_BROWSER_ORIGIN ||
+    LOCAL_REFACTOR_STAFF_BROWSER_ORIGINS.has(origin)
+  ) && process.env.API_PORT === "3001";
   // Chat 2.0 manual QA runs behind the SAME loopback Vite origin, but on
   // its own Hono port. Require the exact additional dev-only cutover gate.
   const chat2Manual = origin === LOCAL_REFACTOR_BROWSER_ORIGIN &&

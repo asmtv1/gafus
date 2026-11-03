@@ -70,7 +70,11 @@ function coreDto(input: unknown): TrainerVisibleStepItem {
     },
     stepLinks:array(step.stepLinks).map(linkInput=>{
       const day=record(record(linkInput).day);
-      return {day:{dayLinks:array(day.dayLinks).map(dayLinkInput=>{
+      return {day:{
+        ...(day.title === undefined ? {} : {
+          id: text(day.id, true), title: text(day.title),
+        }),
+        dayLinks:array(day.dayLinks).map(dayLinkInput=>{
         const course=record(record(dayLinkInput).course);
         return {course:{
           id:text(course.id,true),

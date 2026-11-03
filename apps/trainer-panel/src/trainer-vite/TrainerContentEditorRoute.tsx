@@ -1,15 +1,23 @@
+import { TrainerVideoSelector } from "./TrainerVideoSelector";
+import type { VideoMetadataTransport } from "./TrainerVideosMetadataRead20261022";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  TrainerFormPage, TrainerFormSection, TrainerFormActions, TrainerMarkdownEditor,
+  TrainerMediaUrls, TrainerExamQuestions, type TrainerQuestion, trainerSurveyChoices,
+} from "./live/TrainerFormUI";
 import { z } from "zod/v3";
 import type { PanelActor } from "./consultationContract";
 import type { NotesReadTransport } from "./TrainerNotesRead20261022";
 import { readVisibleSteps, type VisibleStepDto } from "./tr013VisibleStepsRead20261022";
+import { TrainerCourseDayPicker } from "./live/TrainerCourseDayPicker";
 
 const stepSchema = z.object({
   id: z.string(), title: z.string(), description: z.string(),
   type: z.enum(["TRAINING", "EXAMINATION", "THEORY", "BREAK", "PRACTICE", "DIARY", "SURVEY"]),
   durationSec: z.number().nullable().optional(),
   estimatedDurationSec: z.number().nullable(),
-  videoUrl: z.string().nullable(), imageUrls: z.array(z.string()),
+  videoUrl: z.string().nullable(), videoUrls: z.array(z.string()).optional(),
+  imageUrls: z.array(z.string()),
   pdfUrls: z.array(z.string()), checklist: z.array(z.unknown()),
   requiresVideoReport: z.boolean(), requiresWrittenFeedback: z.boolean(),
   hasTestQuestions: z.boolean(), isDailyCourse: z.boolean(), surveySlug: z.string().nullable(),
@@ -33,6 +41,7 @@ export type TrainerContentWriteTransport = (req: {
 export function TrainerContentEditorRoute(p: {
   pathname: string; actor: PanelActor; token: string | null; authEpoch?: string;
   enabled?: boolean; contentReadTransport?: NotesReadTransport;
+  videoMetadataTransport?: VideoMetadataTransport;
   contentWriteTransport?: TrainerContentWriteTransport;
   getCurrentSession?: () => {
     actor: PanelActor; token: string | null; authEpoch?: string;
@@ -49,6 +58,7 @@ export function TrainerContentEditorRoute(p: {
   const [refresh, setRefresh] = useState(0);
   const [message, setMessage] = useState("");
   const [checklistText, setChecklistText] = useState("[]");
+  const [availableRetry, setAvailableRetry] = useState(0);
   const [available, setAvailable] = useState<{
     phase: "idle" | "loading" | "ready" | "error"; steps: VisibleStepDto[];
   }>({ phase: "idle", steps: [] });
@@ -106,6 +116,31 @@ export function TrainerContentEditorRoute(p: {
     });
     return () => { live = false; ac.abort(); };
   }, [api, allowed, reader, current, kind, id, refresh]);
+  // Same auto-loading behaviour as the course editor; requests retain the
+  // actor/session scope, and every retry cancels the previous response.
+  useEffect(() => {
+    if (!allowed || kind !== "day" || !reader ||
+        (role !== "TRAINER" && role !== "ADMIN")) return;
+    const ctl = new AbortController();
+    availabilityRef.current?.abort();
+    availabilityRef.current = ctl;
+    setAvailable({ phase: "loading", steps: [] });
+    void readVisibleSteps({
+      enabled: true, actor: { id: actorId, role }, isDailyCourse: false,
+      signal: ctl.signal, isCurrent: current,
+      transport: req => reader(req.path, req.signal),
+    }).then(rows => {
+      if (!ctl.signal.aborted && mountedRef.current && current())
+        setAvailable({ phase: "ready", steps: rows });
+    }).catch(() => {
+      if (!ctl.signal.aborted && mountedRef.current && current())
+        setAvailable({ phase: "error", steps: [] });
+    });
+    return () => {
+      ctl.abort();
+      if (availabilityRef.current === ctl) availabilityRef.current = null;
+    };
+  }, [allowed, kind, reader, role, actorId, current, availableRetry]);
   const setField = (name: string, value: unknown) => setState(old =>
     old.phase === "ready" && old.draft
       ? { ...old, draft: { ...old.draft, [name]: value } as Draft } : old);
@@ -140,10 +175,21 @@ export function TrainerContentEditorRoute(p: {
         const data = z.object({ success: z.literal(true), data:
           kind === "step" ? stepSchema : daySchema }).parse(again.body).data;
         if (data.id !== id || data.title !== before?.title ||
-          data.description !== before.description)
+          data.description !== before.description ||
+          (kind === "step" && before && "videoUrl" in before &&
+            "videoUrl" in data && (
+              data.videoUrl !== before.videoUrl ||
+              JSON.stringify(data.videoUrls ?? (data.videoUrl ? [data.videoUrl] : [])) !==
+              JSON.stringify(before.videoUrls ?? (before.videoUrl ? [before.videoUrl] : []))
+            )) ||
+          (kind === "day" && "stepIds" in data && before &&
+            "stepIds" in before && (data.stepIds.length !== before.stepIds.length ||
+              data.stepIds.some((stepId, index) => stepId !== before.stepIds[index]))))
           throw Error("CONTENT_MISMATCH");
         setState({ phase: "ready", draft: data });
-        setMessage("Основные поля подтверждены повторным чтением сервера.");
+        setMessage(kind === "day"
+          ? "Основные поля и порядок шагов подтверждены повторным чтением сервера."
+          : "Основные поля подтверждены повторным чтением сервера.");
       }
     } catch {
       if (!controller.signal.aborted && mountedRef.current && current())
@@ -183,43 +229,8 @@ export function TrainerContentEditorRoute(p: {
       return;
     void mutate("DELETE");
   };
-  async function loadAvailableSteps() {
-    if (!allowed || !current() || kind !== "day" || available.phase === "loading" ||
-      !p.contentReadTransport) return;
-    availabilityRef.current?.abort();
-    const ctl = new AbortController();
-    availabilityRef.current = ctl;
-    setAvailable({ phase: "loading", steps: [] });
-    try {
-      const rows = await readVisibleSteps({
-        actor: p.actor, enabled: true, isDailyCourse: false,
-        signal: ctl.signal, isCurrent: current,
-        transport: req => p.contentReadTransport!(req.path, req.signal),
-      });
-      if (!ctl.signal.aborted && mountedRef.current && current())
-        setAvailable({ phase: "ready", steps: rows });
-    } catch {
-      if (!ctl.signal.aborted && mountedRef.current && current())
-        setAvailable({ phase: "error", steps: [] });
-    } finally {
-      if (availabilityRef.current === ctl) availabilityRef.current = null;
-    }
-  }
   const daySelected = state.draft && "stepIds" in state.draft
     ? state.draft.stepIds : [];
-  function selectDayStep(id: string, yes: boolean) {
-    if (!allowed || !current()) return;
-    setField("stepIds", yes ? [...new Set([...daySelected, id])] :
-      daySelected.filter(item => item !== id));
-  }
-  function moveDayStep(id: string, delta: number) {
-    if (!allowed || !current()) return;
-    const next = [...daySelected];
-    const pos = next.indexOf(id);
-    if (pos < 0 || pos + delta < 0 || pos + delta >= next.length) return;
-    [next[pos], next[pos + delta]] = [next[pos + delta]!, next[pos]!];
-    setField("stepIds", next);
-  }
   const str = (name: string) => String(
     state.draft ? (state.draft as unknown as Record<string, unknown>)[name] ?? "" : "",
   );
@@ -259,66 +270,129 @@ export function TrainerContentEditorRoute(p: {
   const listPath = kind === "step" ? "/main-panel/steps" : "/main-panel/days";
   if (state.phase === "deleted") return <main><p role="status">{message}</p>
     <a href={listPath}>К списку</a></main>;
-  return <main><h1>Редактирование {kind === "step" ? "шага" : "дня"}</h1>
-    <p><a href={listPath}>Назад к списку</a></p>
+  const originalQuestions = (() => {
+    try {
+      const parsed: unknown = JSON.parse(checklistText);
+      if (Array.isArray(parsed) && parsed.every(row => row && typeof row === "object" &&
+        typeof row.id === "string" && typeof row.question === "string" &&
+        Array.isArray(row.options) && row.options.every((option: unknown) => typeof option === "string") &&
+        typeof row.correctAnswer === "number")) return parsed as TrainerQuestion[];
+    } catch { /* malformed historic JSON is retained in the fallback editor */ }
+    return null;
+  })();
+  const stepMedia = (name: "imageUrls" | "pdfUrls"): string[] => {
+    if (!state.draft || !("imageUrls" in state.draft)) return [];
+    const row = state.draft[name];
+    return Array.isArray(row) ? row : [];
+  };
+  return <TrainerFormPage
+    title={kind === "step" ? "Редактирование шага" : "Редактирование дня"}
+    subtitle="Обновите содержимое и сохраните изменения"
+    backHref={kind === "step" ? "/steps" : "/days"}>
     <form onSubmit={save}>
-      {text("title", "Название *")}
-      {text("description", "Описание", true)}
-      {kind === "day" ? <>
-        {text("type", "Тип дня")}
-        {text("equipment", "Оборудование")}
-        {checkbox("showCoursePathExport", "Показывать путь курса")}
-        {checkbox("shareProgressAcrossCourses", "Общий прогресс между курсами")}
-        <fieldset><legend>Состав дня</legend>
-          <button type="button" disabled={available.phase === "loading" || saving}
-            onClick={() => void loadAvailableSteps()}>Показать доступные шаги</button>
-          {available.phase === "loading" && <p role="status">Загрузка шагов…</p>}
-          {available.phase === "error" && <p role="alert">Не удалось загрузить список шагов</p>}
-          {available.phase === "ready" && <>
-            <ul>{available.steps.map(row => <li key={row.id}>
-              <label><input type="checkbox" disabled={saving}
-                checked={daySelected.includes(row.id)}
-                onChange={e => selectDayStep(row.id, e.target.checked)} />
-                {row.title}</label>
-            </li>)}</ul>
-          </>}
-          <ol>{daySelected.map((stepId, index) => <li key={stepId}>
-            {available.steps.find(row => row.id === stepId)?.title ?? stepId}
-            <button type="button" disabled={saving || index === 0}
-              onClick={() => moveDayStep(stepId, -1)}>Вверх</button>
-            <button type="button" disabled={saving || index === daySelected.length - 1}
-              onClick={() => moveDayStep(stepId, 1)}>Вниз</button>
-            <button type="button" disabled={saving}
-              onClick={() => selectDayStep(stepId, false)}>Исключить</button>
-          </li>)}</ol>
-          {urls("stepIds", "ID шагов в порядке выполнения (по одному на строку)")}
-        </fieldset>
-      </> : <>
-        <label>Тип шага
+      <TrainerFormSection title="Основная информация">
+        {text("title", "Название *")}
+        {kind === "day" && <>
+          <label>Тип дня
+            <select value={str("type")} disabled={saving}
+              onChange={event => setField("type", event.target.value)}>
+              {([
+                ["regular", "Тренировочный день"], ["introduction", "Вводный блок"],
+                ["instructions", "Инструкции"], ["diagnostics", "Диагностика"],
+                ["summary", "Подведение итогов"],
+              ] as const).map(([value, label]) =>
+                <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          {text("equipment", "Необходимое оборудование")}
+          {checkbox("showCoursePathExport", "Показывать путь курса")}
+          {checkbox("shareProgressAcrossCourses", "Общий прогресс между курсами")}
+        </>}
+        {kind === "step" && <label>Тип шага
           <select value={str("type")} disabled={saving}
-            onChange={e => setField("type", e.target.value)}>
-            {["TRAINING", "EXAMINATION", "THEORY", "BREAK", "PRACTICE", "DIARY", "SURVEY"]
-              .map(t => <option key={t} value={t}>{t}</option>)}
+            onChange={event => setField("type", event.target.value)}>
+            {([
+              ["TRAINING", "Тренировочный"], ["EXAMINATION", "Экзаменационный"],
+              ["THEORY", "Теоретический"], ["BREAK", "Перерыв"],
+              ["PRACTICE", "Тренировка без таймера"], ["DIARY", "Дневник"],
+              ["SURVEY", "Анкета"],
+            ] as const).map(([value, label]) =>
+              <option key={value} value={value}>{label}</option>)}
           </select>
-        </label>
-        {number("durationSec", "Таймер (секунды)")}
-        {number("estimatedDurationSec", "Оценочная длительность (секунды)")}
-        {text("videoUrl", "URL видео")}
-        {urls("imageUrls", "URL изображений (по одному в строке)")}
-        {urls("pdfUrls", "URL PDF (по одному в строке)")}
-        {checkbox("requiresVideoReport", "Видеоотчёт")}
-        {checkbox("requiresWrittenFeedback", "Письменный отчёт")}
-        {checkbox("hasTestQuestions", "Тестовые вопросы")}
-        {checkbox("isDailyCourse", "Курс дня")}
-        {text("surveySlug", "Анкета (slug)")}
-        <label>Вопросы теста (JSON-массив)
-          <textarea value={checklistText} disabled={saving}
-            onChange={e => setChecklistText(e.target.value)} />
-        </label>
+        </label>}
+        <TrainerMarkdownEditor label="Описание" value={str("description")}
+          onChange={value => setField("description", value)} disabled={saving} />
+      </TrainerFormSection>
+
+      {kind === "day" ? <TrainerFormSection title="Состав дня"
+        hint="Выберите шаги и установите порядок прохождения.">
+        {available.phase === "loading" && <p role="status">Загрузка шагов…</p>}
+        {available.phase === "error" && <p role="alert">Не удалось загрузить список шагов.
+          <button type="button" className="trainer-button-secondary" disabled={saving}
+            onClick={() => setAvailableRetry(count => count + 1)}>Повторить</button>
+        </p>}
+        <TrainerCourseDayPicker kind="step" available={available.steps.map(row => ({
+          id: row.id, title: row.title,
+        }))} selectedIds={daySelected} disabled={saving || available.phase !== "ready"}
+          onChange={ids => setField("stepIds", ids)} />
+        <details><summary>Редактировать ID шагов вручную</summary>
+          {urls("stepIds", "ID шагов в порядке выполнения (по одному на строку)")}
+        </details>
+      </TrainerFormSection> : <>
+        <TrainerFormSection title="Время выполнения">
+          {number("durationSec", "Таймер (секунды)")}
+          {number("estimatedDurationSec", "Примерная длительность (секунды)")}
+        </TrainerFormSection>
+        <TrainerFormSection title="Медиа">
+          <TrainerVideoSelector values={state.draft && "videoUrl" in state.draft ?
+            state.draft.videoUrls ?? (state.draft.videoUrl ? [state.draft.videoUrl] : []) : []}
+            onChangeValues={urls => setState(previous => previous.phase === "ready" &&
+              previous.draft && "videoUrl" in previous.draft ? {
+                ...previous,
+                draft: { ...previous.draft, videoUrl: urls[0] ?? null, videoUrls: urls },
+              } : previous)}
+            disabled={saving} actor={p.actor} token={p.token} authEpoch={p.authEpoch}
+            getCurrentSession={p.getCurrentSession}
+            videoMetadataTransport={p.videoMetadataTransport} />
+          <TrainerMediaUrls label="Изображения" value={stepMedia("imageUrls")}
+            onChange={value => setField("imageUrls", value)} disabled={saving} max={10} />
+          <TrainerMediaUrls label="PDF-материалы" kind="pdf" value={stepMedia("pdfUrls")}
+            onChange={value => setField("pdfUrls", value)} disabled={saving} max={10} />
+        </TrainerFormSection>
+        <TrainerFormSection title="Настройки шага">
+          {checkbox("isDailyCourse", "Для курса дня")}
+          {str("type") === "SURVEY" && <label>Шаблон анкеты *
+            <select value={str("surveySlug")} disabled={saving}
+              onChange={event => setField("surveySlug", event.target.value)}>
+              <option value="">Выберите анкету</option>
+              {trainerSurveyChoices.map(({ value, label }) =>
+                <option value={value} key={value}>{label}</option>)}
+              {str("surveySlug") && !trainerSurveyChoices.some(row => row.value === str("surveySlug")) &&
+                <option value={str("surveySlug")}>Исторический шаблон: {str("surveySlug")}</option>}
+            </select>
+          </label>}
+          {str("type") === "EXAMINATION" && <>
+            {checkbox("requiresVideoReport", "Видеоотчёт")}
+            {checkbox("requiresWrittenFeedback", "Письменная обратная связь")}
+            {checkbox("hasTestQuestions", "Тестовые вопросы")}
+            {bool("hasTestQuestions") && (originalQuestions
+              ? <TrainerExamQuestions value={originalQuestions}
+                  onChange={questions => setChecklistText(JSON.stringify(questions))}
+                  disabled={saving} />
+              : <label>Вопросы теста (JSON-массив)
+                  <textarea value={checklistText} disabled={saving}
+                    onChange={event => setChecklistText(event.target.value)} />
+                </label>)}
+          </>}
+        </TrainerFormSection>
       </>}
-      <button type="submit" disabled={saving}>Сохранить</button>
-      <button type="button" disabled={saving} onClick={remove}>Удалить</button>
+      <TrainerFormActions>
+        <a className="trainer-form-back" href={kind === "step" ? "/steps" : "/days"}>Отмена</a>
+        <button type="submit" disabled={saving}>Сохранить</button>
+      </TrainerFormActions>
     </form>
+    <button className="trainer-button-danger" type="button" disabled={saving}
+      onClick={remove}>Удалить</button>
     {message && <p role="status">{message}</p>}
-  </main>;
+  </TrainerFormPage>;
 }

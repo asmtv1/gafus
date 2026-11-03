@@ -185,7 +185,7 @@ export function Cynologists({ source, onSaved }: { source: unknown; onSaved: () 
         «Расписания тренеров».
       </p>
       <p className="note">
-        <a href="/main-panel/consultations/bookings">Все брони</a>
+        <a href="/consultations/bookings">Все брони</a>
       </p>
       <div className="trainer-list">
         {visible.map((t) => (
@@ -263,7 +263,7 @@ export function Bookings({ source }: { source: unknown }) {
   return (
     <section className="content-card">
       <p className="note">
-        <a href="/main-panel/consultations">← К каталогу кинологов</a>
+        <a href="/consultations">← К каталогу кинологов</a>
       </p>
       <div className="data-head">
         <h2>Все брони консультаций</h2>

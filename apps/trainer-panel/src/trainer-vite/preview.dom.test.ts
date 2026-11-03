@@ -33,7 +33,7 @@ describe("AG4 jsdom browser-DOM characterization (not device/browser E2E)", () =
     const nav = host.querySelector("nav");
     expect(nav).not.toBeNull();
     const items = nav?.querySelectorAll("a[href]");
-    expect(items).toHaveLength(16);
+    expect(items).toHaveLength(15);
     expect(host.querySelectorAll("h1")).toHaveLength(1);
     expect(host.querySelectorAll("main")).toHaveLength(1);
   });

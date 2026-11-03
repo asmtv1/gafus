@@ -29,6 +29,7 @@ export interface Step {
   imageUrls: string[];
   pdfUrls: string[];
   videoUrl?: string;
+  videoUrls?: string[];
   authorId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -209,6 +210,7 @@ export interface TodayDailyCourseRead {
 export interface TrainingDayStepWire {
   id: string;
   videoUrl: string | null;
+  videoUrls?: string[];
   pdfUrls?: string[];
   imageUrls?: string[];
   title: string;

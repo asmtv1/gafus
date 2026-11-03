@@ -31,7 +31,7 @@ const plain = (v: unknown): v is Record<string, unknown> =>
 const noUnknown = (v: Record<string, unknown>, keys: readonly string[]) =>
   Object.keys(v).every(k => keys.includes(k));
 const stepKeys = [
-  "title", "description", "type", "durationSec", "estimatedDurationSec", "videoUrl",
+  "title", "description", "type", "durationSec", "estimatedDurationSec", "videoUrl", "videoUrls",
   "imageUrls", "pdfUrls", "checklist", "requiresVideoReport", "requiresWrittenFeedback",
   "hasTestQuestions", "surveySlug", "isDailyCourse",
 ] as const;
@@ -51,10 +51,7 @@ const dayKeys = [
 
 // Prevent cross-owner linking of trainer-owned steps, before Core creates joins.
 const createDayBodySchema = createTrainingDaySchema.omit({ authorId: true }).strict()
-  .extend({ stepIds: z.array(z.string().min(1)).max(250) })
-  .refine(value => new Set(value.stepIds).size === value.stepIds.length, {
-    message: "Повторяющиеся шаги", path: ["stepIds"],
-  });
+  .extend({ stepIds: z.array(z.string().min(1)).max(250) });
 
 type WriteResult = { success?: boolean; error?: string; dayId?: string };
 export type TrainerAuthoringPorts = {
@@ -159,7 +156,7 @@ export function createTrainerAuthoringRoutes(
     if (!plain(body) || !noUnknown(body, dayKeys)) return c.json(bad, 400);
     const parsed = createDayBodySchema.safeParse(body);
     if (!parsed.success) return c.json(bad, 400);
-    const ids = parsed.data.stepIds;
+    const ids = [...new Set(parsed.data.stepIds)];
     try {
       const owned = ids.length === 0 ? 0 :
         await ports.countOwnedSteps(ids, user.id, user.role === "ADMIN");

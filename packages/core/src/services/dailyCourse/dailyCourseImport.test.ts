@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   dailyCourseBundleCreate: vi.fn(),
   dailyCourseBundleStepCreateMany: vi.fn(),
   dailyCourseScheduleUpsert: vi.fn(),
+  dailyCourseScheduleCreate: vi.fn(),
   transaction: vi.fn(),
 }));
 
@@ -28,6 +29,7 @@ vi.mock("@gafus/prisma", () => ({
     dailyCourseSchedule: {
       findMany: (...args: unknown[]) => mocks.dailyCourseScheduleFindMany(...args),
       upsert: (...args: unknown[]) => mocks.dailyCourseScheduleUpsert(...args),
+      create: (...args: unknown[]) => mocks.dailyCourseScheduleCreate(...args),
       deleteMany: (...args: unknown[]) => mocks.dailyCourseScheduleDeleteMany(...args),
     },
     step: {
@@ -79,6 +81,8 @@ describe("daily course file import", () => {
         },
         dailyCourseSchedule: {
           upsert: (...args: unknown[]) => mocks.dailyCourseScheduleUpsert(...args),
+          create: (...args: unknown[]) => mocks.dailyCourseScheduleCreate(...args),
+      create: (...args: unknown[]) => mocks.dailyCourseScheduleCreate(...args),
           deleteMany: (...args: unknown[]) => mocks.dailyCourseScheduleDeleteMany(...args),
         },
         dailyCourseBundle: {
@@ -195,7 +199,7 @@ describe("daily course file import", () => {
       .mockResolvedValueOnce({ id: "step-1" })
       .mockResolvedValueOnce({ id: "step-2" });
     mocks.dailyCourseBundleCreate.mockResolvedValue({ id: "bundle-1" });
-    mocks.dailyCourseScheduleUpsert.mockResolvedValue({ id: "schedule-1" });
+    mocks.dailyCourseScheduleCreate.mockResolvedValue({ id: "schedule-1" });
 
     const result = await importDailyCourseFile(
       { id: "trainer-1", role: "TRAINER" },
@@ -221,12 +225,12 @@ describe("daily course file import", () => {
         }),
       }),
     );
-    expect(mocks.dailyCourseScheduleUpsert).toHaveBeenCalledWith(
+    expect(mocks.dailyCourseScheduleCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ isPublished: true }),
-        update: expect.objectContaining({ isPublished: true }),
+        data: expect.objectContaining({ isPublished: true }),
       }),
     );
+    expect(mocks.dailyCourseScheduleUpsert).not.toHaveBeenCalled();
   });
 
   it("previews full cleanup without counting daily-course steps linked to regular days as deletable", async () => {

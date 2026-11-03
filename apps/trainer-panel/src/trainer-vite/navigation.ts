@@ -24,7 +24,6 @@ export const mockNavigation = [
   { href: "/main-panel/exam-results", label: "Результаты экзаменов" },
   { href: "/main-panel/articles", label: "Статьи" },
   { href: "/main-panel/notes", label: "Заметки" },
-  { href: "/main-panel/faq", label: "Частые вопросы" },
   { href: "/main-panel/consultations", label: "Консультации кинолога" },
  ] as const satisfies readonly MockNavItem[];
 

@@ -769,6 +769,7 @@ describe("rewarded training step access", () => {
               durationSec: null,
               estimatedDurationSec: 60,
               videoUrl: "video.mp4",
+              videoUrls: ["video.mp4", "PRIVATE_SECOND_VIDEO.mp4"],
               imageUrls: ["image.png"],
               pdfUrls: ["file.pdf"],
               type: "THEORY",
@@ -820,11 +821,13 @@ describe("rewarded training step access", () => {
       locked: true,
       description: "",
       videoUrl: "",
+      videoUrls: [],
       imageUrls: [],
       pdfUrls: [],
       checklist: null,
       monetizationTarget: { targetType: "COURSE_STEP", targetId: "sod-1" },
     });
+    expect(JSON.stringify(result?.steps[0])).not.toContain("PRIVATE_SECOND_VIDEO");
     expect(result?.steps[1]).toMatchObject({ locked: false, description: "Free break" });
   });
 

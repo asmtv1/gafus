@@ -10,6 +10,8 @@ const actor = { id: "trainer-1", role: "TRAINER" as const };
 const headers = { "cache-control": "private, no-store" };
 const sample = {
   id: "video-1", displayName: "Начальный урок",
+  originalName: "original-dog-course.mp4", fileSize: 2_097_152,
+  hasThumbnail: true, hasPlayback: true, ownerName: null,
   transcodingStatus: "COMPLETED", durationSec: 120,
   createdAt: "2026-10-26T12:00:00.000Z",
 };
@@ -21,7 +23,10 @@ const read = vi.fn(async () => ({
   body: { success: true, data: { videos: [{ ...sample, displayName: currentName }] } },
 }));
 const write = vi.fn(async (req: Parameters<TrainerVideoManageTransport>[0]) => {
-  if (!stale) currentName = req.body.displayName;
+  if (req.method === "POST") return { status: 200, headers, body: {
+    success: true, data: { url: "/api/v1/training/video/video-1/manifest.m3u8?token=signed-ticket" },
+  } };
+  if (!stale) currentName = req.body?.displayName ?? null;
   return { status: 200, headers, body: { success: true } };
 });
 let host: HTMLDivElement;
@@ -84,6 +89,43 @@ describe("trainer video rename Vite", () => {
     await inputName("Другое название"); await submit();
     expect(host.textContent).not.toContain("Название подтверждено");
     expect(host.textContent).toContain("Обновление не подтверждено");
+  });
+  it("renders the Next-style card grid with poster, file size, date and status", async () => {
+    await mount();
+    expect(read.mock.calls[0]?.[0]).toBe("/api/v1/trainer/videos/catalog");
+    expect(host.querySelectorAll(".trainer-video-card")).toHaveLength(1);
+    expect(host.querySelector(".trainer-video-cover img")?.getAttribute("src"))
+      .toBe("/api/v1/trainer/videos/poster/video-1");
+    expect(host.textContent).toContain("2.0 МБ");
+    expect(host.textContent).toContain("Готово");
+    expect(host.textContent).toContain("Загрузка видео");
+    expect(host.querySelectorAll(".trainer-videos-grid .trainer-video-card")).toHaveLength(1);
+  });
+  it("searches by original filename, not just display name", async () => {
+    await mount();
+    const input = host.querySelector<HTMLInputElement>('input[type="search"]')!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    await act(async () => {
+      setter.call(input, "original-dog-course");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(host.querySelectorAll(".trainer-video-card")).toHaveLength(1);
+    await act(async () => {
+      setter.call(input, "not-found");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(host.querySelectorAll(".trainer-video-card")).toHaveLength(0);
+    expect(host.textContent).toContain("Ничего не найдено");
+  });
+  it("requests a signed playback ticket only after a user clicks a ready video", async () => {
+    await mount();
+    expect(write).not.toHaveBeenCalled();
+    const play = host.querySelector<HTMLButtonElement>('button[aria-label="Смотреть видео: Начальный урок"]');
+    expect(play).toBeTruthy();
+    await act(async () => { play!.click(); await Promise.resolve(); });
+    expect(write).toHaveBeenCalledOnce();
+    expect(write.mock.calls[0]?.[0]).toMatchObject({ method: "POST",
+      path: "/api/v1/trainer/videos/playback/video-1" });
   });
   it("never exposes video metadata to unauthorized or retired staff", async () => {
     denied = true;

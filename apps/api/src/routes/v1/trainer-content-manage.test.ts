@@ -80,6 +80,14 @@ describe("trainer secured step/day edit routes", () => {
     expect(ports.day.update).toHaveBeenCalledWith(
       { id: dayId, ...formDay }, { id: noteId, role: "TRAINER" });
   });
+  it("updates day with repeated steps, validating distinct IDs without collapsing order", async () => {
+    const { call, ports } = setup();
+    const ids = [id, id, id];
+    expect((await call("days", "PUT", dayId, { ...formDay, stepIds: ids })).status).toBe(200);
+    expect(ports.day.countSteps).toHaveBeenCalledWith([id], { id: noteId, role: "TRAINER" });
+    expect(ports.day.update).toHaveBeenCalledWith({ id: dayId, ...formDay, stepIds: ids },
+      { id: noteId, role: "TRAINER" });
+  });
   it("denies attempt to attach foreign step IDs", async () => {
     const { call, ports } = setup();
     vi.mocked(ports.day.countSteps).mockResolvedValueOnce(0);
@@ -87,7 +95,6 @@ describe("trainer secured step/day edit routes", () => {
     expect(res.status).toBe(404);
     expect(ports.day.update).not.toHaveBeenCalled();
     for (const invalid of [
-      { ...formDay, stepIds: [id, id] },
       { ...formDay, authorId: "foreign-trainer" },
       { ...formDay, stepIds: ["invalid/slash"] },
     ]) expect((await call("days", "PUT", dayId, invalid)).status).toBe(400);
