@@ -559,6 +559,22 @@ jobs:
         run: node --test ci-cd/scripts/deploy-only-contract.test.mjs ci-cd/scripts/workflow-consolidation-contract.test.mjs ci-cd/scripts/release-graph.contract.test.mjs ci-cd/scripts/workspace-dependency-graph.contract.test.mjs ci-cd/docker/prometheus/health-monitoring.contract.test.mjs ci-cd/scripts/backup-to-yandex.test.mjs ci-cd/scripts/emit-verified-backup-metric.test.mjs infra/cloudru/production-job-image-config.test.mjs
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media
+      # The media suite executes REAL FFmpeg/libx264 transcoding. Hosted Linux
+      # runner images do not guarantee ffmpeg in PATH; provision it explicitly
+      # instead of skipping the video test or relying on image preinstalls.
+      - name: Provision FFmpeg/libx264 for real media tests (blocking)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+          command -v ffmpeg
+          command -v ffprobe
+          # Do not grep -q/head under pipefail: early pipe close can SIGPIPE ffmpeg.
+          ffmpeg -hide_banner -encoders 2>/dev/null | grep 'libx264'
+          ffmpeg -hide_banner -version
       # Real Vitest suite, not a pnpm --filter no-op: any media-unit failure
       # blocks cloudru-media-contracts and therefore deploy-production.
       - name: Cloud media runtime unit contracts (blocking)

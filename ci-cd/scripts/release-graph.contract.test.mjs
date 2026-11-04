@@ -74,7 +74,15 @@ test('Cloud media CI gate runs actual Feed/Chat2/Questions Vitest instead of a p
   const verify = cloud.steps.find(x => x.name === 'Verify media workspace dependencies are built (blocking)');
   assert.match(verify?.run ?? '', /MEDIA_WORKSPACE_BUILD_CACHE_MISSING/);
   assert.match(verify?.run ?? '', /MEDIA_WORKSPACE_PACKAGE_NOT_BUILT/);
-  const gate = cloud.steps.find(x => x.name === 'Cloud media runtime unit contracts (blocking)');
+  const provision = cloud.steps.findIndex(x => x.name === 'Provision FFmpeg/libx264 for real media tests (blocking)');
+  const gateIndex = cloud.steps.findIndex(x => x.name === 'Cloud media runtime unit contracts (blocking)');
+  assert(provision !== -1 && provision < gateIndex, 'FFMPEG_PROVISION_MUST_PRECEDE_MEDIA_TESTS');
+  const install = cloud.steps[provision]?.run ?? '';
+  assert.match(install, /sudo apt-get install -y --no-install-recommends ffmpeg/);
+  assert.match(install, /command -v ffmpeg/);
+  assert.match(install, /ffmpeg -hide_banner -encoders.*libx264/);
+  assert.doesNotMatch(install, /grep -q ['\"]?libx264|\| head -n 1/);
+  const gate = cloud.steps[gateIndex];
   assert.equal(gate?.run, 'pnpm --filter @gafus/feed-cloud-runtime test',
     'CLOUD_RUNTIME_TEST_GATE_MISSING_OR_NOOP');
   assert(needs('deploy-production').includes('cloudru-media-contracts'),
