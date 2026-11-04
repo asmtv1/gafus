@@ -8,7 +8,9 @@ const cutover = read("ci-cd/scripts/production-schema-cutover.sh");
 const migration = read(
   "packages/prisma/migrations/20261015020000_course_content_revision/migration.sql",
 );
-const fresh = read("packages/prisma/scripts/fresh-db-extras.sql");
+const freshBootstrap = read("ci-cd/bootstrap/prisma-fresh/fresh-only-bootstrap.candidate.sql");
+const freshInvariants = read("ci-cd/bootstrap/prisma-fresh/010-live-historical-invariants.candidate.sql");
+const freshSeeds = read("ci-cd/bootstrap/prisma-fresh/020-synthetic-singletons.candidate.sql");
 const count = (str, text) => str.split(text).length - 1;
 function composeService(name) {
   const marker = `\n  ${name}:\n`;
@@ -43,13 +45,24 @@ test("durable migration and fresh bootstrap include all five invalidation trigge
   assert.match(read("packages/prisma/schema.prisma"), /model CourseContentRevision \{/);
   assert.match(migration, /UPDATE "CourseContentRevision"/);
   assert.match(migration, /INSERT INTO "CourseContentRevision"/);
-  assert.match(
-    read("packages/prisma/scripts/bootstrap-fresh-postgres.sh"),
-    /INSERT INTO "CourseContentRevision"/,
-  );
-  assert.match(fresh, /CREATE FUNCTION gafus_bump_course_content_revision/);
+  // Option A moved SQL out of the Bash entrypoint into a SHA-locked candidate.
+  // Check the executed path and real bootstrap SQL, not a retired inline seed.
+  const entry = read("packages/prisma/scripts/bootstrap-fresh-postgres.sh");
+  const apply = read("ci-cd/bootstrap/prisma-fresh/apply-new-empty-db.mjs");
+  assert.match(entry, /exec node "\$root\/ci-cd\/bootstrap\/prisma-fresh\/apply-new-empty-db\.mjs" --apply/);
+  assert.match(apply, /run\(process\.execPath, \[reviewGate\]/);
+  assert.match(apply, /join\(here, 'fresh-only-precondition\.sql'\)/);
+  assert.match(apply, /join\(here, 'fresh-only-bootstrap\.candidate\.sql'\)/);
+  assert.match(freshSeeds, /INSERT INTO "CourseContentRevision"/);
+  assert.match(freshBootstrap, /INSERT INTO "CourseContentRevision"/);
+  for (const sql of [freshInvariants, freshBootstrap]) {
+    assert.match(sql, /CREATE FUNCTION gafus_bump_course_content_revision/);
+    assert.match(sql, /UPDATE "CourseContentRevision"/);
+  }
   for (const name of ["course", "day_on_course", "training_day", "step_on_day", "step"]) {
-    assert.ok(migration.includes(`CREATE TRIGGER "course_content_revision_${name}"`));
-    assert.ok(fresh.includes(`CREATE TRIGGER "course_content_revision_${name}"`));
+    const trigger = `CREATE TRIGGER "course_content_revision_${name}"`;
+    assert.ok(migration.includes(trigger));
+    assert.ok(freshInvariants.includes(trigger));
+    assert.ok(freshBootstrap.includes(trigger));
   }
 });
