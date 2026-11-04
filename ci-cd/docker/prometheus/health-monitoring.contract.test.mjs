@@ -63,4 +63,14 @@ test('alerts are valid Prometheus rules and refer only to actual monitored metri
   assert(alloy.includes('metrics_path    = "/metrics/media"'));
   assert(prometheus.scrape_configs.some(job => job.job_name === 'worker-media' && job.metrics_path === '/metrics/media'));
   assert(rules.some(rule => rule.expr.includes('gafus_media_stalled_processing')));
+  assert(rules.some(rule => rule.alert === 'GafusMediaProcessingFailed' &&
+    rule.expr === 'gafus_media_failed_tasks > 0'));
+  const missingMedia = rules.find(rule => rule.alert === 'GafusMediaMetricsMissing');
+  assert(missingMedia, 'missing series alert is mandatory');
+  for (const pipeline of ['chat2', 'questions', 'feed', 'gallery']) {
+    for (const metric of ['gafus_media_failed_tasks', 'gafus_media_stalled_processing']) {
+      assert(missingMedia.expr.includes(`absent(${metric}{pipeline="${pipeline}"})`),
+        `missing alert must watch ${metric} for ${pipeline}`);
+    }
+  }
 });

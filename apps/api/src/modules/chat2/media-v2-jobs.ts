@@ -5,6 +5,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { prisma, Prisma } from "@gafus/prisma";
+import { mediaTaskFailurePolicy, mediaCleanupRetryDelayMs } from "@gafus/core/services/mediaDelivery";
 import { chat2V2DeleteObjects } from "@gafus/cdn-upload";
 import { chat2V2FinalKeys, validateChat2V2Job, validateChat2V2Manifest,
   type Chat2V2Job, type Chat2V2Manifest, type Chat2JobKind } from "@gafus/feed-cloud";
@@ -57,7 +58,7 @@ export function createChat2V2Queue(input:{
         data:{cleanupCompletedAt:now(),cleanupKind:null,cleanupToken:null,cleanupLeaseUntil:null}});
       return {cleaned:true};
     }catch{
-      const delay=Math.min(60*60_000,15_000*2**Math.min(record.cleanupAttempts,8));
+      const delay=mediaCleanupRetryDelayMs(record.cleanupAttempts);
       await input.database.chat2V2MediaTask.updateMany({where:{mediaId:record.mediaId,cleanupToken:token},
         data:{cleanupNextAt:new Date(now().getTime()+delay),cleanupToken:null,cleanupLeaseUntil:null}});
       return {cleaned:false};
@@ -169,12 +170,12 @@ export function createChat2V2Queue(input:{
         where:{mediaId,attemptToken,status:"PROCESSING",leaseUntil:{gt:now()}}
       });
       if(!task)return {accepted:false};
-      const terminal=task.attempts>=maxAttempts;
-      const backoffMs=Math.min(10*60_000,Math.pow(2,Math.max(0,task.attempts-1))*15_000);
+      const failure=mediaTaskFailurePolicy(task.attempts,maxAttempts,now());
+      const terminal=failure.terminal;
       const updated=await input.database.chat2V2MediaTask.updateMany({
         where:{mediaId,attemptToken,status:"PROCESSING",leaseUntil:{gt:now()}},
-        data:{status:terminal?"FAILED":"QUEUED",attemptToken:null,leaseUntil:null,
-          nextAttemptAt:new Date(now().getTime()+backoffMs),errorCode:code.slice(0,64),
+        data:{status:failure.status,attemptToken:null,leaseUntil:null,
+          nextAttemptAt:failure.nextAttemptAt,errorCode:code.slice(0,64),
           ...(terminal?{cleanupKind:"ALL",cleanupNextAt:now(),cleanupCompletedAt:null}:{})}
       });
       if(terminal&&updated.count===1)await cleanupOne(mediaId);

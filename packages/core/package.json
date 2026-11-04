@@ -273,6 +273,10 @@
       "types": "./dist/core/src/validation/petSchema.d.ts",
       "default": "./dist/core/src/validation/petSchema.js"
     },
+    "./services/chat2": {
+      "types": "./dist/core/src/services/chat2/index.d.ts",
+      "default": "./dist/core/src/services/chat2/index.js"
+    },
     "./services/cynologistChat": {
       "types": "./dist/core/src/services/cynologistChat/index.d.ts",
       "default": "./dist/core/src/services/cynologistChat/index.js"

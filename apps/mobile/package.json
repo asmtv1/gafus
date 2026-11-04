@@ -6,6 +6,7 @@
   "scripts": {
     "android": "expo run:android",
     "android:release": "expo run:android --device --variant release",
+    "build:android:production:local": "node ./scripts/build-android-production-local.mjs",
     "postinstall": "cd ../.. && pnpm exec turbo run build --filter=@gafus/logger --filter=@gafus/core --filter=@gafus/chat-media-quality",
     "ios": "expo run:ios",
     "ios:release": "expo run:ios --device --configuration Release",

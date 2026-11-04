@@ -48,7 +48,6 @@
         "backgroundColor": "#dad3c1"
       },
       "package": "ru.gafus.app",
-      "versionCode": 15,
       "intentFilters": [
         {
           "action": "VIEW",

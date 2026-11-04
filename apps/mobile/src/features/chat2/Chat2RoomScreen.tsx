@@ -28,6 +28,7 @@ import {
   type Chat2QualityMode,
 } from "@gafus/chat-media-quality";
 import { Centrifuge } from "centrifuge";
+import { chat2SubscriptionForConnection, chat2SubscriptionTransportOptions } from "@gafus/core-client/chat2/realtime-subscription";
 import { useAuthStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
@@ -158,28 +159,35 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
     async function connect() {
       if (!live || AppState.currentState !== "active") return;
       try {
-        const [{ wsUrl, token }, { channel, token: roomToken }] = await Promise.all([
-          chat2.connect(),
-          chat2.subscription(id),
-        ]);
+        const connection = await chat2.connect();
         if (!live) return;
-        client = new Centrifuge(wsUrl, {
-          token,
+        const subscription = await chat2SubscriptionForConnection(connection, id,
+          () => chat2.subscription(id));
+        if (!live) return;
+        client = new Centrifuge(connection.wsUrl, {
+          token: connection.token,
           getToken: async () => (await chat2.connect()).token,
           websocket: WebSocket,
         });
         client.on("connected", () => {
           if (live) {
-            setConnection("online");
+            // A connection is not proof of a permitted room subscription.
             void refresh();
           }
         });
         client.on("disconnected", () => {
           if (live) setConnection("fallback");
         });
-        const sub = client.newSubscription(channel, {
-          token: roomToken,
-          getToken: () => chat2.refreshSubscription(id),
+        // No legacy room token, including app-resume reconnect, when the API
+        // advertises the broker-verified proxy-only subscription mode.
+        const sub = client.newSubscription(subscription.channel,
+          chat2SubscriptionTransportOptions(subscription,
+            () => chat2.refreshSubscription(id)));
+        sub.on("subscribed", () => {
+          if (live) setConnection("online");
+        });
+        sub.on("unsubscribed", () => {
+          if (live) setConnection("fallback");
         });
         sub.on("publication", () => {
           if (live) void refresh();

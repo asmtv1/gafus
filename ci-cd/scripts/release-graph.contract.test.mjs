@@ -55,3 +55,18 @@ test('no release graph job is reached through a branchless manual bypass', () =>
     assert(jobs[name].if?.includes('github.ref'), `UNGUARDED_PRODUCTION_JOB:${name}`);
   }
 });
+
+
+test('Cloud media CI gate runs actual Feed/Chat2/Questions Vitest instead of a pnpm no-op', () => {
+  const manifest = JSON.parse(readFileSync('apps/feed-cloud/package.json', 'utf8'));
+  assert.match(manifest.scripts?.test ?? '', /vitest run.*vitest\.config\.ts/,
+    'CLOUD_RUNTIME_TEST_SCRIPT_MUST_EXECUTE_VITEST');
+  const cloud = jobs['cloudru-media-contracts'];
+  assert(cloud && typeof cloud.if === 'string' && cloud.if.includes('refs/heads/main'),
+    'CLOUD_RUNTIME_TEST_JOB_SCOPE_CHANGED');
+  const gate = cloud.steps.find(x => x.name === 'Cloud media runtime unit contracts (blocking)');
+  assert.equal(gate?.run, 'pnpm --filter @gafus/feed-cloud-runtime test',
+    'CLOUD_RUNTIME_TEST_GATE_MISSING_OR_NOOP');
+  assert(needs('deploy-production').includes('cloudru-media-contracts'),
+    'CLOUD_RUNTIME_TEST_MUST_BLOCK_DEPLOY');
+});

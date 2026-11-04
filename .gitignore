@@ -208,3 +208,6 @@ ci-cd/nginx/conf.d/.release-maintenance
 
 # IDE-generated code counting reports (not project sources)
 /.VSCodeCounter/
+
+# Local architecture QA workdirs (keep tracked root reports)
+/.gafus-refactoring/*/

@@ -1,0 +1,36 @@
+# Default deny: Prisma image needs the workspace metadata, patches and packages.
+# Never transfer local PostgreSQL data/snapshots, QA logs, other apps, secrets,
+# or unrelated project worktrees into a production image build context.
+**
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!turbo.json
+!tsconfig.base.json
+!patches
+!patches/**
+!packages
+!packages/**
+**/.env
+**/.env.*
+**/.secrets
+**/node_modules
+**/node_modules/**
+**/dist
+**/dist/**
+**/*.test.*
+**/*.spec.*
+**/__tests__
+**/__tests__/**
+**/tests
+**/tests/**
+**/.git
+**/.local-pg-scratch
+**/.gafus-refactoring
+**/*.log
+**/coverage
+**/coverage/**
+**/test-results
+**/test-results/**
+**/*.dump
+**/*.sql.gz

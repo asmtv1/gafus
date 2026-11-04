@@ -3,6 +3,12 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    // Worker integration-like unit suites dynamically import the full Core
+    // package. Parallel file imports can exhaust small CI/macOS runners and
+    // trigger false 5/15-second timeouts with cascaded mock call counts.
+    // Serialize source files rather than masking the issue by extending timeouts.
+    maxWorkers: 1,
+    fileParallelism: false,
     environment: "node",
     globals: true,
     include: ["src/**/*.test.ts"],

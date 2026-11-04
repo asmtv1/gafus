@@ -148,7 +148,7 @@ const expectedSelect={
   stepLinks:{orderBy:{order:"asc"},
     select:{id:true,order:true,step:{select:{
       id:true,title:true,description:true,type:true,durationSec:true,
-      estimatedDurationSec:true,videoUrl:true,imageUrls:true,pdfUrls:true,
+      estimatedDurationSec:true,videoUrl:true,videoUrls:true,imageUrls:true,pdfUrls:true,
       checklist:true,requiresVideoReport:true,requiresWrittenFeedback:true,
       hasTestQuestions:true,surveySlug:true,isDailyCourse:true,
     }}}},

@@ -21,6 +21,10 @@
       "types": "./dist/utils/social.d.ts",
       "default": "./dist/utils/social.js"
     },
+    "./chat2/realtime-subscription": {
+      "types": "./dist/chat2/realtimeSubscription.d.ts",
+      "default": "./dist/chat2/realtimeSubscription.js"
+    },
     "./media-delivery": {
       "types": "./dist/media-delivery/index.d.ts",
       "default": "./dist/media-delivery/index.js"

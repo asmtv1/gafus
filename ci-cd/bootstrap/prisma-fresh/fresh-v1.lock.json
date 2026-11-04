@@ -1,0 +1,11 @@
+{
+  "strategy": "OPTION_A_FRESH_ONLY",
+  "version": "gafus-fresh-v1",
+  "approvedScope": "NEW_EMPTY_LOCAL_OWNED_PG18_ONLY",
+  "frozenMigrationCount": 163,
+  "lastFrozenMigration": "20261103180000_step_multiple_video_urls",
+  "baselineInventorySha256": "6fede47303eb8b3be2985b383e16df4d89b5fd9421dff0a2387fd496df99349d",
+  "baselineSchemaSnapshotSha256": "437680b3a7e7b9e7d9f51e38fecff4c16e97dcc979bca4022283295364955386",
+  "baselineCombinedSqlSha256": "85506f97969e09a2c483a754b3697f24006d98ad53dea2c4c32924db77ddbff9",
+  "forwardMigrations": "strictly later migration directories are deployed, never pre-resolved"
+}

@@ -1,0 +1,40 @@
+{
+  "client": {
+    "allowed_origins": ["https://gafus.ru", "https://www.gafus.ru"],
+    "token": {
+      "issuer": "gafus-chat2",
+      "hmac_secret_key": "__INJECT_CONNECTION_HS256_SECRET_AT_RELEASE__"
+    },
+    "subscription_token": {
+      "enabled": true,
+      "hmac_secret_key": "__INJECT_DISTINCT_SUBSCRIPTION_HS256_SECRET_AT_RELEASE__"
+    }
+  },
+  "channel": {
+    "proxy": {
+      "subscribe": {
+        "endpoint": "__INTERNAL_ONLY_HONO_ENDPOINT__/internal/chat2/chat2-subscribe",
+        "timeout": "3s",
+        "http": {
+          "static_headers": {
+            "X-GAFUS-Subscribe-Proxy-Key": "__INJECT_BROKER_TO_API_SHARED_SECRET_AT_RELEASE__"
+          }
+        }
+      }
+    },
+    "namespaces": [
+      {
+        "name": "chat2",
+        "subscribe_proxy_enabled": true,
+        "history_size": 100,
+        "history_ttl": "120s",
+        "force_recovery": true
+      }
+    ]
+  },
+  "engine": {
+    "type": "redis",
+    "redis": { "address": "redis://redis:6379" }
+  },
+  "health": { "enabled": true }
+}

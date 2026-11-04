@@ -8,6 +8,7 @@
     "build:chat2-job": "node scripts/build-chat2-job.mjs",
     "build:questions-photo-job": "node scripts/build-questions-photo-job.mjs",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts --maxWorkers=1 --fileParallelism=false",
     "start": "node dist/server.js",
     "package:origin": "node scripts/package-origin.mjs"
   },

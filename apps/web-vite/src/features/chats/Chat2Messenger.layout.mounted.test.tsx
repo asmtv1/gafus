@@ -612,8 +612,11 @@ describe("Chat2 GAFUS header and quick actions", () => {
     await render();
     const { navigate } = await import("../../shared/router/location");
     await act(async () => navigate("/chats/direct-room"));
+    // querySelectorAll returns a STATIC NodeList; acquire it only after async
+    // route/message rendering has completed, rather than waiting on a snapshot.
+    await vi.waitFor(() =>
+      expect(host.querySelectorAll('div[class*="message_"]').length).toBe(2));
     const bubbles = host.querySelectorAll('div[class*="message_"]');
-    await vi.waitFor(() => expect(bubbles.length).toBe(2));
     const photo = bubbles[0].querySelector<HTMLImageElement>('span[class*="miniAvatar_"] img');
     expect(photo?.getAttribute("src")).toBe(avatarUrl);
     expect(bubbles[1].querySelector('span[class*="miniAvatar_"] img')).toBeNull();

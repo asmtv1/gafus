@@ -1,5 +1,5 @@
 import { enrichPaymentFinance, recordFinanceRefund } from "./paymentFinanceService";
-import { hashAdvisoryLockKey, getYookassaPaymentMethodDisplayTitle, normalizeFingerprintPart, amountsEqual } from "./paymentPure";
+import { hashAdvisoryLockKey, getYookassaPaymentMethodDisplayTitle, normalizeFingerprintPart, amountsEqual, msToDate, mapAppleServerStatus, applePaymentStatus } from "./paymentPure";
 import { createHmac, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 
@@ -7,12 +7,11 @@ import { Prisma, prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import {
   AppStoreServerAPIClient,
-  Environment,
   SignedDataVerifier,
-  Status as AppleSubscriptionStatus,
   Type,
 } from "@apple/app-store-server-library";
 
+import { resolveAppleEnvironment } from "./appleEnvironment";
 import { getAppSubscriptionAccess } from "./accessService";
 import {
   findAppSubscriptionPlanByAppleProductId,
@@ -64,34 +63,18 @@ class YookassaHttpError extends Error {
   }
 }
 
-function parseEnvBoolean(raw: string | undefined): boolean {
-  return raw === "1" || raw?.toLowerCase() === "true";
+function getAppleEnvironment(): ReturnType<typeof resolveAppleEnvironment> {
+  return resolveAppleEnvironment({
+    bundleIdRaw: process.env.APPLE_BUNDLE_ID,
+    useSandboxRaw: process.env.APPLE_USE_SANDBOX,
+    appIdRaw: process.env.APPLE_APP_ID,
+  });
 }
 
 function getAppleVerifier(): SignedDataVerifier | { ok: false; code: string; message: string } {
-  const bundleId = process.env.APPLE_BUNDLE_ID?.trim();
-  if (!bundleId) {
-    return { ok: false, code: "CONFIG_APPLE_IAP", message: "APPLE_BUNDLE_ID не задан" };
-  }
-  const useSandbox = parseEnvBoolean(process.env.APPLE_USE_SANDBOX);
-  const environment = useSandbox ? Environment.SANDBOX : Environment.PRODUCTION;
-
-  let appAppleId: number | undefined;
-  const appIdRaw = process.env.APPLE_APP_ID?.trim();
-  if (appIdRaw) {
-    const n = Number.parseInt(appIdRaw, 10);
-    if (!Number.isFinite(n) || n <= 0) {
-      return { ok: false, code: "CONFIG_APPLE_IAP", message: "Некорректный APPLE_APP_ID" };
-    }
-    appAppleId = n;
-  } else if (environment === Environment.PRODUCTION) {
-    return {
-      ok: false,
-      code: "CONFIG_APPLE_IAP",
-      message: "Для production требуется APPLE_APP_ID",
-    };
-  }
-
+  const config = getAppleEnvironment();
+  if (!config.ok) return config;
+  const { bundleId, environment, appAppleId } = config;
   const configKey = `${bundleId}|${environment}|${appAppleId ?? ""}`;
   if (appleVerifierSingleton && appleVerifierConfigKey === configKey) {
     return appleVerifierSingleton;
@@ -107,35 +90,6 @@ function getAppleVerifier(): SignedDataVerifier | { ok: false; code: string; mes
   );
   appleVerifierConfigKey = configKey;
   return appleVerifierSingleton;
-}
-
-function getAppleEnvironment():
-  | { ok: true; bundleId: string; environment: Environment; appAppleId?: number }
-  | { ok: false; code: string; message: string } {
-  const bundleId = process.env.APPLE_BUNDLE_ID?.trim();
-  if (!bundleId) {
-    return { ok: false, code: "CONFIG_APPLE_IAP", message: "APPLE_BUNDLE_ID не задан" };
-  }
-  const useSandbox = parseEnvBoolean(process.env.APPLE_USE_SANDBOX);
-  const environment = useSandbox ? Environment.SANDBOX : Environment.PRODUCTION;
-
-  let appAppleId: number | undefined;
-  const appIdRaw = process.env.APPLE_APP_ID?.trim();
-  if (appIdRaw) {
-    const n = Number.parseInt(appIdRaw, 10);
-    if (!Number.isFinite(n) || n <= 0) {
-      return { ok: false, code: "CONFIG_APPLE_IAP", message: "Некорректный APPLE_APP_ID" };
-    }
-    appAppleId = n;
-  } else if (environment === Environment.PRODUCTION) {
-    return {
-      ok: false,
-      code: "CONFIG_APPLE_IAP",
-      message: "Для production требуется APPLE_APP_ID",
-    };
-  }
-
-  return { ok: true, bundleId, environment, appAppleId };
 }
 
 function getApplePrivateKey():
@@ -218,12 +172,6 @@ function isAutoRenewableType(type: unknown): boolean {
 function appleMilliunitsToAmount(price: unknown): number | null {
   if (typeof price !== "number" || !Number.isFinite(price) || price < 0) return null;
   return Number((price / 1000).toFixed(3));
-}
-
-function msToDate(value: unknown): Date | null {
-  const n = Number(value ?? 0);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return new Date(n);
 }
 
 function isPrismaUniqueViolation(error: unknown): boolean {
@@ -1893,8 +1841,6 @@ export async function verifyAppleAppSubscription(_params: {
   return { success: true as const };
 }
 
-type AppleServerSyncStatus = "ACTIVE" | "PAST_DUE" | "EXPIRED" | "REVOKED";
-
 type AppleLastTransactionLike = {
   status?: number;
   originalTransactionId?: string;
@@ -1928,35 +1874,6 @@ type DecodedAppleRenewalLike = {
   renewalPrice?: number;
   currency?: string;
 };
-
-function mapAppleServerStatus(params: {
-  appleStatus: number | undefined;
-  transaction: DecodedAppleTransactionLike;
-  now: Date;
-}): AppleServerSyncStatus {
-  const revokedAt = msToDate(params.transaction.revocationDate);
-  if (revokedAt || params.appleStatus === AppleSubscriptionStatus.REVOKED) return "REVOKED";
-  if (params.appleStatus === AppleSubscriptionStatus.BILLING_RETRY) return "PAST_DUE";
-  if (params.appleStatus === AppleSubscriptionStatus.EXPIRED) return "EXPIRED";
-  if (
-    params.appleStatus === AppleSubscriptionStatus.ACTIVE ||
-    params.appleStatus === AppleSubscriptionStatus.BILLING_GRACE_PERIOD
-  ) {
-    return "ACTIVE";
-  }
-
-  const periodEnd = msToDate(params.transaction.expiresDate);
-  return periodEnd && periodEnd > params.now ? "ACTIVE" : "EXPIRED";
-}
-
-function applePaymentStatus(
-  status: AppleServerSyncStatus,
-): "SUCCEEDED" | "CANCELED" | "FAILED" | "REFUNDED" {
-  if (status === "ACTIVE") return "SUCCEEDED";
-  if (status === "PAST_DUE") return "FAILED";
-  if (status === "REVOKED") return "REFUNDED";
-  return "CANCELED";
-}
 
 async function decodeAppleLastTransaction(params: {
   verifier: SignedDataVerifier;

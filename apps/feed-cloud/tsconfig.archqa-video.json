@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["src", "tests/chat2-real-video.archqa.acceptance.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

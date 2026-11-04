@@ -108,7 +108,7 @@ const records:Row[]=[
 ];
 const coreSelect={
   id:true,title:true,description:true,durationSec:true,
-  estimatedDurationSec:true,type:true,videoUrl:true,
+  estimatedDurationSec:true,type:true,videoUrl:true,videoUrls:true,
   imageUrls:true,pdfUrls:true,checklist:true,surveySlug:true,
   isDailyCourse:true,authorId:true,createdAt:true,updatedAt:true,
   author:{select:{username:true,profile:{select:{fullName:true}}}},

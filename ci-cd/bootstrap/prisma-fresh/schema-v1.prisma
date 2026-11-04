@@ -1,0 +1,4143 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x", "darwin-arm64"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// No relation to User: durable cleanup outlives all cascaded records.
+// Independent, durable Beget edge revocation for individual Gallery/Feed deletion.
+// No User/Post foreign keys: deletion jobs must outlive deleted records.
+model MediaCdnPurge {
+  id              String   @id
+  scope           String   @db.VarChar(10)
+  paths           String[]
+  purgeOperations String[] @default([])
+  status          String   @default("pending") @db.VarChar(20)
+  availableAt     DateTime @default(now())
+  attemptToken    String?
+  leaseUntil      DateTime?
+  attempts        Int      @default(0)
+  errorCode       String?  @db.VarChar(64)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status, availableAt])
+}
+
+model AccountStorageCleanup {
+  id              String @id
+  ownerId         String
+  scope           String
+  keys            String[] @default([])
+  prefixes        String[] @default([])
+  keyCursor       Int @default(0)
+  status          String @default("pending")
+  purgeOperations String[] @default([])
+  purgeAfter      DateTime?
+  attempts        Int @default(0)
+  errorCode       String?
+  attemptToken    String?
+  leaseUntil      DateTime?
+  availableAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  @@unique([ownerId, scope])
+  @@index([status, availableAt])
+}
+
+model Course {
+  id                String             @id @default(cuid())
+  name              String
+  type              String             @unique @db.VarChar(50)
+  description       String             @default("")
+  equipment         String             @default("")
+  trainingLevel     TrainingLevel
+  shortDesc         String             @default("")
+  duration          String
+  logoImg           String
+  isPrivate         Boolean            @default(false)
+  isPaid            Boolean            @default(false)
+  authorId          String
+  avgRating         Float?
+  videoUrl          String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  // Global integer revision is incremented ONLY by the Course BEFORE UPDATE trigger.
+  version           Int                @default(1)
+  showInProfile     Boolean            @default(true)
+  isPersonalized    Boolean            @default(false)
+  guideContent      String?            @db.Text
+  awards            Award[]
+  author            User               @relation(fields: [authorId], references: [id])
+  access            CourseAccess[]
+  reviews           CourseReview[]
+  surveyResponses   SurveyResponse[]
+  dayLinks          DayOnCourse[]
+  favoritedBy       FavoriteCourse[]
+  userCourses       UserCourse[]
+}
+
+model TrainingDay {
+  id                         String        @id @default(cuid())
+  title                      String
+  equipment                  String        @default("")
+  description                String        @default("")
+  type                       String        @default("regular")
+  authorId                   String
+  showCoursePathExport       Boolean       @default(false)
+  shareProgressAcrossCourses Boolean       @default(false)
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @updatedAt
+  dayLinks                   DayOnCourse[]
+  diaryEntries               DiaryEntry[]
+  stepLinks                  StepOnDay[]
+  author                     User          @relation(fields: [authorId], references: [id])
+}
+
+model Step {
+  id                      String                  @id @default(cuid())
+  title                   String
+  description             String                  @default("")
+  durationSec             Int?
+  type                    StepType                @default(TRAINING)
+  imageUrls               String[]                @default([])
+  pdfUrls                 String[]                @default([])
+  videoUrl                String?
+  // Ordered attachments. videoUrl is the first-video compatibility alias.
+  videoUrls               String[]                @default([])
+  checklist               Json?
+  requiresVideoReport     Boolean                 @default(false)
+  requiresWrittenFeedback Boolean                 @default(false)
+  hasTestQuestions        Boolean                 @default(false)
+  surveySlug              String?
+  isDailyCourse           Boolean                 @default(false)
+  authorId                String
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @default(now())
+  estimatedDurationSec    Int?
+  examResults             ExamResult[]
+  surveyResponses         SurveyResponse[]
+  author                  User                    @relation(fields: [authorId], references: [id])
+  dailyCourseBundleLinks  DailyCourseBundleStep[]
+  stepLinks               StepOnDay[]
+}
+
+model StepCategory {
+  id          String         @id @default(cuid())
+  name        String         @unique
+  description String?
+  icon        String?
+  order       Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  templates   StepTemplate[]
+
+  @@index([order])
+}
+
+model StepTemplate {
+  id                      String        @id @default(cuid())
+  title                   String
+  description             String        @default("")
+  durationSec             Int?
+  type                    StepType      @default(TRAINING)
+  imageUrls               String[]      @default([])
+  pdfUrls                 String[]      @default([])
+  videoUrl                String?
+  checklist               Json?
+  requiresVideoReport     Boolean       @default(false)
+  requiresWrittenFeedback Boolean       @default(false)
+  hasTestQuestions        Boolean       @default(false)
+  surveySlug              String?
+  categoryId              String?
+  tags                    String[]      @default([])
+  isPublic                Boolean       @default(true)
+  usageCount              Int           @default(0)
+  authorId                String
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  estimatedDurationSec    Int?
+  author                  User          @relation(fields: [authorId], references: [id])
+  category                StepCategory? @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+  @@index([isPublic])
+  @@index([authorId])
+}
+
+model DayOnCourse {
+  id            String         @id @default(cuid())
+  courseId      String
+  dayId         String
+  order         Int
+  course        Course         @relation(fields: [courseId], references: [id])
+  day           TrainingDay    @relation(fields: [dayId], references: [id])
+  userTrainings UserTraining[]
+
+  @@unique([courseId, order])
+  @@index([courseId, order])
+  @@index([dayId])
+}
+
+model DiaryEntry {
+  id        String      @id @default(cuid())
+  userId    String
+  dayId     String
+  content   String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  day       TrainingDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayId])
+  @@index([userId])
+  @@index([dayId])
+}
+
+model StepOnDay {
+  id        String      @id @default(cuid())
+  dayId     String
+  stepId    String
+  order     Int
+  day       TrainingDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  step      Step        @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  userSteps UserStep[]
+
+  @@unique([dayId, order])
+  @@index([dayId, order])
+}
+
+model DailyCourseBundle {
+  id          String                  @id @default(cuid())
+  title       String
+  equipment   String                  @default("")
+  description String                  @default("")
+  type        String                  @default("regular")
+  authorId    String
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  author      User                    @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  schedules   DailyCourseSchedule[]
+  stepLinks   DailyCourseBundleStep[]
+
+  @@index([authorId])
+  @@index([updatedAt])
+}
+
+model DailyCourseBundleStep {
+  id                   String                @id @default(cuid())
+  bundleId             String
+  stepId               String
+  order                Int
+  bundle               DailyCourseBundle     @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  step                 Step                  @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  dailyCourseUserSteps DailyCourseUserStep[]
+
+  @@unique([bundleId, order])
+  @@index([bundleId, order])
+  @@index([stepId])
+}
+
+model UserTraining {
+  id               String         @id @default(cuid())
+  userId           String
+  dayOnCourseId    String
+  status           TrainingStatus @default(NOT_STARTED)
+  currentStepIndex Int?           @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @default(now())
+  steps            UserStep[]
+  dayOnCourse      DayOnCourse    @relation(fields: [dayOnCourseId], references: [id], onDelete: Cascade)
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayOnCourseId])
+}
+
+model UserStep {
+  id             String         @id @default(cuid())
+  userTrainingId String
+  stepOnDayId    String
+  status         TrainingStatus @default(NOT_STARTED)
+  paused         Boolean        @default(false)
+  remainingSec   Int?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @default(now())
+  examResult     ExamResult?
+  stepOnDay      StepOnDay      @relation(fields: [stepOnDayId], references: [id], onDelete: Cascade)
+  userTraining   UserTraining   @relation(fields: [userTrainingId], references: [id], onDelete: Cascade)
+
+  @@unique([userTrainingId, stepOnDayId])
+}
+
+model DailyCourseSchedule {
+  id            String                    @id @default(cuid())
+  date          DateTime                  @unique @db.Date
+  bundleId      String
+  createdById   String
+  isPublished   Boolean                   @default(true)
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  bundle        DailyCourseBundle         @relation(fields: [bundleId], references: [id], onDelete: Restrict)
+  createdBy     User                      @relation("DailyCourseSchedulesCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  userTrainings DailyCourseUserTraining[]
+
+  @@index([date])
+  @@index([bundleId])
+  @@index([createdById])
+}
+
+model DailyCourseUserTraining {
+  id               String                @id @default(cuid())
+  userId           String
+  scheduleId       String
+  status           TrainingStatus        @default(NOT_STARTED)
+  currentStepIndex Int?                  @default(0)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  schedule         DailyCourseSchedule   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps            DailyCourseUserStep[]
+
+  @@unique([userId, scheduleId])
+  @@index([scheduleId])
+  @@index([userId])
+}
+
+model DailyCourseUserStep {
+  id                        String                  @id @default(cuid())
+  dailyCourseUserTrainingId String
+  bundleStepId              String
+  status                    TrainingStatus          @default(NOT_STARTED)
+  paused                    Boolean                 @default(false)
+  remainingSec              Int?
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  dailyCourseUserTraining   DailyCourseUserTraining @relation(fields: [dailyCourseUserTrainingId], references: [id], onDelete: Cascade)
+  bundleStep                DailyCourseBundleStep   @relation(fields: [bundleStepId], references: [id], onDelete: Cascade)
+  examResult                ExamResult?
+
+  @@unique([dailyCourseUserTrainingId, bundleStepId])
+  @@index([dailyCourseUserTrainingId])
+  @@index([bundleStepId])
+}
+
+model User {
+  chat2CreatedConversations Chat2Conversation[] @relation("Chat2Creator")
+  chat2Memberships Chat2Member[] @relation("Chat2Membership")
+  chat2AuthoredMessages Chat2Message[] @relation("Chat2Author")
+  chat2MessageReactions Chat2MessageReaction[] @relation("Chat2ReactionUser")
+  chat2BlocksSent Chat2Block[] @relation("Chat2Blocker")
+  chat2BlocksReceived Chat2Block[] @relation("Chat2Blocked")
+  chat2PushReceipts Chat2PushReceipt[] @relation("Chat2PushRecipient")
+  chat2OwnedMedia Chat2Media[] @relation("Chat2MediaOwner")
+  chat2SubmittedReports Chat2Report[] @relation("Chat2ReportAuthor")
+  petCreateReceipts PetCreateReceipt[] @relation("PetCreateOwner")
+  offlineMutationReceipts OfflineMutationReceipt[] @relation("OfflineMutationOwner")
+  offlineResourceRevisions OfflineResourceRevision[] @relation("OfflineRevisionOwner")
+  feedBookmarks FeedBookmark[]
+  feedPostFeedback FeedUserPostFeedback[]
+  feedPersonalization FeedPersonalizationPreference?
+  feedImpressions FeedImpression[]
+  feedRankingEvents FeedRankingEvent[]
+  feedAffinitiesAsViewer FeedUserAuthorAffinity[] @relation("FeedAffinityViewer")
+  feedAffinitiesAsAuthor FeedUserAuthorAffinity[] @relation("FeedAffinityAuthor")
+  feedPreferences FeedAuthorPreference[] @relation("FeedPreferenceReader")
+  feedSubscribers FeedAuthorPreference[] @relation("FeedPreferenceAuthor")
+  feedPublishingBlocked Boolean @default(false)
+  feedPublishingBlockReason String? @db.VarChar(1000)
+  feedPosts FeedPost[]
+  feedPollVotes FeedPollVote[]
+  feedMediaAssets FeedMediaAsset[]
+  feedUploads FeedUpload[]
+  feedComments FeedComment[]
+  feedPostReactions FeedPostReaction[]
+  feedCommentReactions FeedCommentReaction[]
+  feedPostViews FeedPostView[]
+  feedNotifications FeedNotification[]
+  galleryAlbums GalleryAlbum[]
+  galleryPhotos GalleryPhoto[]
+  galleryUploads GalleryUpload[]
+  questions Question[]
+  questionAnswers QuestionAnswer[]
+  questionHearts QuestionHeart[]
+  questionViews QuestionView[]
+  questionPhotos QuestionPhoto[]
+  questionReports QuestionReport[]
+  questionBlock QuestionBlock?
+
+  clientCynologistChat CynologistChat? @relation("ChatClient")
+  trainerCynologistChats CynologistChat[] @relation("ChatTrainer")
+  communityChatOperations CommunityChatSendOperation[]
+  communityChatAttachments CommunityChatAttachment[]
+  id                               String                           @id @default(cuid())
+  username                         String                           @unique
+  email                            String?                          @unique
+  phone                            String?                          @unique
+  appleAppAccountToken             String?                          @unique @db.VarChar(36)
+  password                         String
+  passwordSetAt                    DateTime?
+  sessionsRevokedAt                DateTime?
+  onboardingTourCompletedAt        DateTime?
+  telegramId                       String?                          @unique
+  role                             UserRole                         @default(USER)
+  registrationChannel              RegistrationChannel              @default(UNKNOWN)
+  passwordResetRequestedAt         DateTime?
+  accountDeletionRequestedAt       DateTime?
+  createdAt                        DateTime                         @default(now())
+  updatedAt                        DateTime                         @default(now())
+  accounts                         Account[]
+  sessions                         Session[]
+  authoredCourses                  Course[]
+  courseAccesses                   CourseAccess[]
+  courseReviews                    CourseReview[]
+  diaryEntries                     DiaryEntry[]
+  diplomas                         Diploma[]
+  reviewedExamResults              ExamResult[]                     @relation("ExamResultReviewedBy")
+  surveyResponses                  SurveyResponse[]
+  favoriteCourses                  FavoriteCourse[]
+  passwordResetTokens              PasswordResetToken[]
+  accountDeletionTokens            AccountDeletionToken[]
+  pets                             Pet[]
+  petDocuments                     PetDocument[]
+  emailChangeTokens                EmailChangeToken[]
+  pushSubscriptions                PushSubscription[]
+  reengagementCampaigns            ReengagementCampaign[]
+  reengagementSettings             ReengagementSettings?
+  refreshTokens                    RefreshToken[]
+  reminders                        Reminder[]
+  reminderMutationReceipts         ReminderMutationReceipt[]
+  createdSteps                     Step[]
+  stepNotifications                StepNotification[]
+  createdStepTemplates             StepTemplate[]
+  trainerAIChats                   TrainerAIChat[]
+  trainerAIConfig                  TrainerAIConfig?
+  trainerNotes                     TrainerNote[]                    @relation("TrainerNotes")
+  studentNotes                     TrainerNoteStudent[]             @relation("StudentNotes")
+  trainerVideos                    TrainerVideo[]
+  trainings                        Training[]
+  trainingAccesses                 TrainingAccess[]
+  createdDays                      TrainingDay[]
+  dailyCourseBundles               DailyCourseBundle[]
+  userCourses                      UserCourse[]
+  profile                          UserProfile?
+  userTrainings                    UserTraining[]
+  userVideoProgresses              UserVideoProgress[]
+  consentLogs                      ConsentLog[]
+  petPreventionEntries             PetPreventionEntry[]
+  authoredArticles                 Article[]                        @relation("authoredArticles")
+  articleLikes                     ArticleLike[]
+  articleViews                     ArticleViewer[]
+  /// Профиль кинолога для консультаций (один к одному с пользователем-тренером)
+  consultationCynologist           ConsultationCynologist?
+  /// Бронирования консультаций как клиент
+  consultationBookingsAsClient     ConsultationBooking[]
+  /// Идемпотентность POST /book (ключ + клиент)
+  consultationBookingIdempotency   ConsultationBookingIdempotency[]
+  createdDailyCourseSchedules      DailyCourseSchedule[]            @relation("DailyCourseSchedulesCreatedBy")
+  dailyCourseUserTrainings         DailyCourseUserTraining[]
+  appSubscriptions                 AppSubscription[]                @relation("AppSubscriptionUser")
+  appSubscriptionPayments          AppSubscriptionPayment[]         @relation("AppSubscriptionPaymentUser")
+  appSubscriptionEvents            AppSubscriptionEvent[]           @relation("AppSubscriptionEventUser")
+  appSubscriptionTrials            AppSubscriptionTrial[]           @relation("AppSubscriptionTrialUser")
+  manualAppSubscriptionGrants      AppSubscription[]                @relation("ManualAppSubscriptionGrantedBy")
+  updatedAppSubscriptionSettings   AppSubscriptionSettings[]        @relation("AppSubscriptionSettingsUpdatedBy")
+  adminAppSubscriptionEvents       AppSubscriptionEvent[]           @relation("AppSubscriptionEventActor")
+  createdAppSubscriptionPromoCodes AppSubscriptionPromoCode[]       @relation("AppSubscriptionPromoCodeCreatedBy")
+  updatedAppSubscriptionPromoCodes AppSubscriptionPromoCode[]       @relation("AppSubscriptionPromoCodeUpdatedBy")
+  appSubscriptionPromoCodeEvents   AppSubscriptionPromoCodeEvent[]  @relation("AppSubscriptionPromoCodeEventActor")
+  profitVideoExpenses              ProfitVideoExpense[]
+  partnerProfile                   PartnerProfile?
+  referredByPartner                PartnerReferral?                 @relation("PartnerReferralBuyer")
+  savedRegistrationPromoCodeId     String?
+  savedRegistrationPromoCode       AppSubscriptionPromoCode?       @relation("UserSavedRegistrationPromoCode", fields: [savedRegistrationPromoCodeId], references: [id], onDelete: SetNull)
+  registrationEmailAttempts        RegistrationEmailAttempt[]
+  vkRegistrationContexts           VkRegistrationContext[]          @relation("VkRegistrationContextUser")
+  vkRegistrationResults            VkRegistrationContext[]          @relation("VkRegistrationContextResultUser")
+  vkLoginGrants                    VkLoginGrant[]
+  rewardedCreditWallet             RewardedCreditWallet?
+  gafusWallet                      GafusWallet?
+  gafusTransactions                GafusTransaction[]
+  gafusTransactionsAsAdmin         GafusTransaction[]             @relation("GafusTransactionAdminActor")
+  gafusRewardEvents                GafusRewardEvent[]
+  gafusTargetAccesses              GafusTargetAccess[]
+  gafusSettingsUpdated             GafusSettings[]                @relation("GafusSettingsUpdatedBy")
+  gafusSettingsRevisions            GafusSettingsRevision[]        @relation("GafusSettingsRevisionActor")
+  gafusAdminAudits                  GafusAdminAudit[]              @relation("GafusAdminAuditActor")
+  rewardedAdSessions               RewardedAdSession[]
+  rewardedTargetAccesses           RewardedTargetAccess[]
+  vkIdOneTimeLogins                VkIdOneTimeLogin[]
+  rewardedCreditTransactions       RewardedCreditTransaction[]
+  updatedRewardedAdSettings        RewardedAdSettings[]
+  updatedMobileAppReleasePolicies  MobileAppReleasePolicy[]         @relation("MobileAppReleasePolicyUpdatedBy")
+  mobileIntroAuthOutcomes          MobileIntroInstallation[]        @relation("MobileIntroAuthOutcomeUser")
+
+  /// False for every existing account. Set only while a VK registration still awaits consent.
+  registrationPending              Boolean                          @default(false)
+
+  @@index([savedRegistrationPromoCodeId])
+}
+
+enum MobileIntroPlatform {
+  IOS
+  ANDROID
+}
+
+enum MobileIntroCompletion {
+  COMPLETED
+  SKIPPED
+}
+
+enum MobileIntroAuthOutcome {
+  REGISTERED
+  LOGGED_IN
+}
+
+/// One first-run mobile introduction per anonymous installation and introduction version.
+/// The installation id is generated by the app and is never a user id or device fingerprint.
+model MobileIntroInstallation {
+  id                 String                    @id @default(cuid())
+  installationId     String                    @db.VarChar(128)
+  introVersion       String                    @db.VarChar(32)
+  platform           MobileIntroPlatform
+  openedAt           DateTime
+  receivedAt         DateTime                  @default(now())
+  completion         MobileIntroCompletion?
+  completedAt        DateTime?
+  authOutcome        MobileIntroAuthOutcome?
+  authOutcomeAt      DateTime?
+  authOutcomeUserId  String?
+  authOutcomeUser    User?                     @relation("MobileIntroAuthOutcomeUser", fields: [authOutcomeUserId], references: [id], onDelete: SetNull)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+
+  @@unique([installationId, introVersion])
+  @@index([openedAt])
+  @@index([authOutcomeUserId])
+}
+
+enum ConsentType {
+  PERSONAL_DATA
+  PRIVACY_POLICY
+  DATA_DISTRIBUTION
+}
+
+enum ConsentLogStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model ConsentLog {
+  id             String           @id @default(cuid())
+  tempSessionId  String
+  consentType    ConsentType
+  userId         String?
+  user           User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  consentVersion String
+  consentText    Json?
+  consentDate    DateTime
+  ipAddress      String?
+  userAgent      String?
+  formData       Json?
+  status         ConsentLogStatus
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([tempSessionId, consentType])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([status])
+  @@index([tempSessionId])
+}
+
+model TrainerVideo {
+  id                  String              @id @default(cuid())
+  trainerId           String
+  relativePath        String
+  originalName        String
+  mimeType            String
+  fileSize            BigInt
+  durationSec         Int?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @default(now()) @updatedAt
+  displayName         String?
+  hlsManifestPath     String?
+  transcodingStatus   TranscodingStatus   @default(PENDING)
+  transcodedAt        DateTime?
+  transcodingError    String?
+  thumbnailPath       String?
+  trainer             User                @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  userVideoProgresses UserVideoProgress[]
+
+  @@index([trainerId], map: "idx_trainer_videos_trainer")
+  @@index([transcodingStatus])
+}
+
+model UserVideoProgress {
+  id              String       @id @default(cuid())
+  userId          String
+  videoId         String
+  lastPositionSec Int
+  updatedAt       DateTime     @updatedAt
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video           TrainerVideo @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+  @@index([userId])
+  @@index([videoId])
+}
+
+model UserProfile {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  fullName  String?
+  city      String?
+  cityKey   String?   @db.VarChar(160)
+  birthDate DateTime?
+  about     String?
+  telegram  String?
+  instagram String?
+  website   String?
+  avatarUrl String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([cityKey])
+}
+
+model Diploma {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  issuedBy  String?
+  issuedAt  DateTime?
+  url       String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Training {
+  id        String           @id @default(cuid())
+  userId    String
+  name      String
+  isPrivate Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  access    TrainingAccess[]
+}
+
+model UserCourse {
+  userId          String
+  courseId        String
+  status          TrainingStatus @default(NOT_STARTED)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @default(now())
+  userDisplayName String?
+  userGender      String?
+  petName         String?
+  petNameDat      String?
+  petNameIns      String?
+  petGender       String?
+  petNameGen      String?
+  petNameAcc      String?
+  petNamePre      String?
+  course          Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, courseId])
+}
+
+model Pet {
+  offlinePreventionClientBindings OfflinePreventionClientBinding[] @relation("OfflineClientBindingPet")
+  id                String               @id @default(cuid())
+  ownerId           String
+  name              String
+  type              PetType
+  breed             String
+  breedKey          String?              @db.VarChar(160)
+  birthDate         DateTime
+  heightCm          Float?
+  weightKg          Float?
+  targetWeightKg    Float?
+  neckGirthCm       Float?
+  muzzleGirthCm     Float?
+  bellyGirthCm      Float?
+  photoUrl          String?
+  showInProfile     Boolean              @default(true)
+  notes             String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @default(now())
+  awards            Award[]
+  documents         PetDocument[]        @relation("PetDocumentsByOwner")
+  owner             User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  preventionEntries PetPreventionEntry[]
+  weightEntries     PetWeightEntry[]
+  vetVisits         PetVetVisit[]
+  surveyResponses   SurveyResponse[]
+
+  @@unique([id, ownerId])
+  @@index([breedKey])
+}
+
+model PetVetVisit {
+  id          String @id @default(cuid())
+  petId       String
+  ownerId     String
+  visitedOn   DateTime @db.Date
+  specialty   String @db.VarChar(200)
+  doctorName  String @default("") @db.VarChar(200)
+  clinic      String @default("") @db.VarChar(300)
+  diagnosis   String @default("")
+  conclusion  String @default("")
+  notes       String @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  pet         Pet @relation(fields: [petId, ownerId], references: [id, ownerId], onDelete: Cascade)
+  attachments PetVetAttachment[]
+
+  @@index([petId, visitedOn, createdAt])
+  @@index([ownerId])
+}
+
+model PetVetAttachment {
+  id          String @id @default(cuid())
+  visitId     String
+  name        String @db.VarChar(200)
+  mimeType    String
+  sizeBytes   Int
+  originalKey String @unique
+  previewKey  String? @unique
+  createdAt   DateTime @default(now())
+  visit       PetVetVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  @@index([visitId, createdAt])
+}
+
+model PetWeightEntry {
+  id         String   @id @default(cuid())
+  petId      String
+  ownerId    String
+  weightKg   Float
+  measuredAt DateTime
+  createdAt  DateTime @default(now())
+  pet        Pet      @relation(fields: [petId, ownerId], references: [id, ownerId], onDelete: Cascade)
+
+  @@index([petId, measuredAt])
+  @@index([ownerId])
+}
+
+model PetDocument {
+  id        String   @id @default(cuid())
+  petId     String
+  ownerId   String
+  name      String
+  mimeType  String
+  sizeBytes Int
+  url       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  pet       Pet      @relation("PetDocumentsByOwner", fields: [petId, ownerId], references: [id, ownerId], onDelete: Cascade)
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([petId, createdAt])
+  @@index([ownerId])
+}
+
+model Award {
+  id        String    @id @default(cuid())
+  petId     String
+  title     String
+  event     String?
+  date      DateTime?
+  rank      String?
+  examType  String?
+  examScore Int?
+  courseId  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  course    Course?   @relation(fields: [courseId], references: [id])
+  pet       Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+  @@index([courseId])
+}
+
+model PetPreventionEntry {
+  id                      String                    @id @default(cuid())
+  petId                   String
+  ownerId                 String
+  type                    PetPreventionType
+  performedAt             DateTime
+  productName             String?
+  notes                   String?
+  clientId                String?
+  /// Включено ли push-напоминание по этой записи
+  reminderEnabled         Boolean                   @default(true)
+  /// Способ задания даты напоминания: через N дней после выполненного или фиксированная дата
+  reminderKind            PetPreventionReminderKind @default(AFTER_DAYS)
+  /// Интервал в днях после performedAt (только при reminderKind = AFTER_DAYS)
+  reminderDaysAfter       Int?
+  /// Календарная дата напоминания (только при reminderKind = ON_DATE), хранится как date
+  reminderOnDate          DateTime?                 @db.Date
+  /// Вычисленный день срабатывания напоминания (для выборки воркером)
+  remindAt                DateTime?                 @db.Date
+  /// JSON-массив времён напоминания ["09:00","21:00"]; по умолчанию ["09:00"]
+  reminderTimes           Json                      @default("[\"09:00\"]")
+  /// Дата remindAt, по которой уже успешно отправили push (идемпотентность повторных прогонов)
+  lastNotifiedForRemindAt DateTime?                 @db.Date
+  /// Какие времена из reminderTimes уже отправлены для текущего remindAt (JSON массив строк)
+  sentTimesForRemindAt    Json?
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  pet                     Pet                       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  owner                   User                      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([petId, clientId])
+  @@index([petId])
+  @@index([ownerId])
+  @@index([petId, type, performedAt])
+  @@index([reminderEnabled, remindAt])
+}
+
+model TrainingAccess {
+  trainingId String
+  userId     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+  training   Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([trainingId, userId])
+}
+
+model CourseAccess {
+  courseId  String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+}
+
+
+
+model AppSubscriptionSettings {
+  key String @id @db.VarChar(32)
+
+  weeklyEnabled           Boolean @default(false)
+  monthlyEnabled          Boolean @default(true)
+  twoWeeksEnabled         Boolean @default(false)
+  threeMonthsEnabled      Boolean @default(false)
+  yookassaWeeklyPriceRub  Decimal @default(200.00) @db.Decimal(10, 2)
+  yookassaMonthlyPriceRub Decimal @default(1465.00) @db.Decimal(10, 2)
+  yookassaTwoWeeksPriceRub Decimal @default(1185.00) @db.Decimal(10, 2)
+  yookassaThreeMonthsPriceRub Decimal @default(2470.00) @db.Decimal(10, 2)
+  currency                String  @default("RUB") @db.VarChar(3)
+  weeklyIntervalDays      Int     @default(7)
+  monthlyIntervalDays     Int     @default(30)
+  twoWeeksIntervalDays    Int     @default(30)
+  threeMonthsIntervalDays Int     @default(30)
+  weeklyAppleProductId    String? @unique
+  monthlyAppleProductId   String? @unique
+
+  updatedById String?
+  updatedBy   User?   @relation("AppSubscriptionSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Additive Gafus economy. Do not remove the legacy rewarded-ad models during rollout.
+enum GafusTransactionKind {
+  EARN
+  SPEND
+  ADMIN_CREDIT
+  ADMIN_DEBIT
+  LEGACY_IMPORT
+}
+enum GafusRewardClass {
+  ACTIVITY
+  BONUS
+}
+enum GafusRewardKind {
+  POST_PUBLISHED
+  QUESTION_CREATED
+  ANSWER_CREATED
+  POST_REACTION_MILESTONE
+  BEST_ANSWER
+}
+enum GafusRewardDecision {
+  GRANTED
+  DENIED_ACTIVITY_LIMIT
+  DENIED_ANTI_ABUSE
+  DENIED_POLICY
+  DISABLED
+}
+enum GafusAccessTargetType {
+  COURSE_STEP
+  MINI_GUIDE
+  ARTICLE
+}
+enum GafusNotificationKind {
+  REACTION_MILESTONE
+  BEST_ANSWER
+}
+enum GafusOutboxStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+enum GafusFraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+enum GafusFraudStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model GafusWallet {
+  userId String @id
+  balance Int @default(0)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([updatedAt])
+}
+
+model GafusTransaction {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind GafusTransactionKind
+  delta Int
+  balanceBefore Int
+  balanceAfter Int
+  rewardKind GafusRewardKind?
+  sourceEntityType String? @db.VarChar(32)
+  sourceEntityId String?
+  targetType GafusAccessTargetType?
+  targetKey String?
+  idempotencyKey String @unique
+  settingsRevision Int?
+  adminActorId String?
+  adminActor User? @relation("GafusTransactionAdminActor", fields: [adminActorId], references: [id], onDelete: SetNull)
+  reason String? @db.VarChar(1000)
+  metadata Json?
+  createdAt DateTime @default(now())
+  rewardEvent GafusRewardEvent?
+  targetAccess GafusTargetAccess?
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([userId, kind, createdAt(sort: Desc)])
+  @@index([sourceEntityType, sourceEntityId])
+  @@index([targetType, targetKey])
+}
+
+model GafusRewardEvent {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewardClass GafusRewardClass
+  rewardKind GafusRewardKind
+  eventKey String @unique
+  sourceEntityId String?
+  decision GafusRewardDecision
+  amount Int
+  occurredAt DateTime
+  processedAt DateTime @default(now())
+  denialCode String? @db.VarChar(64)
+  settingsRevision Int
+  contentFingerprint String? @db.VarChar(64)
+  transactionId String? @unique
+  transaction GafusTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  metadata Json?
+  @@index([userId, rewardClass, decision, occurredAt])
+  @@index([userId, occurredAt(sort: Desc)])
+  @@index([rewardKind, occurredAt])
+}
+
+model GafusPostReactionProgram {
+  postId String @id
+  thresholdStep Int
+  highWaterReactionCount Int @default(0)
+  settingsRevision Int
+  enabledAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  milestones GafusPostReactionMilestone[]
+  @@index([enabledAt])
+}
+model GafusPostReactionMilestone {
+  id String @id @default(cuid())
+  postId String
+  program GafusPostReactionProgram @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  threshold Int
+  eligibleReactionCount Int
+  rewardEventId String @unique
+  settingsRevision Int
+  createdAt DateTime @default(now())
+  @@unique([postId, threshold])
+  @@index([postId, createdAt])
+}
+
+model GafusTargetAccess {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType GafusAccessTargetType
+  targetKey String
+  courseId String?
+  dayOnCourseId String?
+  stepOnDayId String?
+  transactionId String @unique
+  transaction GafusTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  settingsRevision Int
+  grantedAt DateTime @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([userId, targetType, targetKey, expiresAt])
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model GafusSettings {
+  key String @id @default("default") @db.VarChar(32)
+  revision Int @default(1)
+  economyEnabled Boolean @default(true)
+  earningEnabled Boolean @default(true)
+  spendingEnabled Boolean @default(true)
+  postReward Int @default(1)
+  questionReward Int @default(1)
+  answerReward Int @default(1)
+  activityLimit Int @default(3)
+  activityWindowSeconds Int @default(86400)
+  reactionThreshold Int @default(10)
+  reactionReward Int @default(1)
+  bestAnswerReward Int @default(1)
+  courseStepCost Int @default(1)
+  miniGuideCost Int @default(1)
+  accessDurationSeconds Int @default(604800)
+  updatedById String?
+  updatedBy User? @relation("GafusSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model GafusSettingsRevision {
+  revision Int @id
+  snapshot Json
+  actorId String?
+  actor User? @relation("GafusSettingsRevisionActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+}
+model GafusAdminAudit {
+  id String @id @default(cuid())
+  actorId String
+  actor User @relation("GafusAdminAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  action String @db.VarChar(64)
+  targetUserId String?
+  transactionId String?
+  reason String @db.VarChar(1000)
+  before Json?
+  after Json?
+  metadata Json?
+  createdAt DateTime @default(now())
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([action, createdAt])
+}
+model GafusNotificationOutbox {
+  id String @id @default(cuid())
+  rewardEventId String @unique
+  userId String
+  kind GafusNotificationKind
+  title String @db.VarChar(200)
+  body String @db.VarChar(500)
+  url String?
+  status GafusOutboxStatus @default(PENDING)
+  availableAt DateTime @default(now())
+  attempts Int @default(0)
+  attemptToken String? @unique
+  leaseUntil DateTime?
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, availableAt, leaseUntil])
+  @@index([userId, createdAt])
+}
+model GafusFraudSignal {
+  id String @id @default(cuid())
+  userId String
+  severity GafusFraudSeverity
+  status GafusFraudStatus @default(OPEN)
+  kind String @db.VarChar(64)
+  entityType String? @db.VarChar(32)
+  entityId String?
+  metadata Json?
+  resolvedAt DateTime?
+  resolvedById String?
+  createdAt DateTime @default(now())
+  @@index([status, severity, createdAt])
+  @@index([userId, createdAt])
+  @@index([kind, createdAt])
+}
+
+model RewardedAdSettings {
+  key String @id @default("default") @db.VarChar(32)
+
+  androidEnabled Boolean @default(false)
+  iosEnabled     Boolean @default(false)
+  dailyAdLimit   Int     @default(1)
+
+  yandexAndroidPlacementId String?
+  yandexIosPlacementId     String?
+
+  testMode Boolean @default(true)
+
+  updatedById String?
+  updatedBy   User?   @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RewardedCreditWallet {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  balance              Int @default(0)
+  pendingRefundCredits Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RewardedAdSession {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  platform    RewardedPlatform
+  provider    RewardedProvider @default(YANDEX)
+  placementId String
+
+  status RewardedAdSessionStatus @default(CREATED)
+
+  targetType RewardedTargetType?
+  targetId   String?
+
+  requestNonceHash String  @unique
+  providerPayload  Json?
+  errorCode        String?
+  errorMessage     String?
+
+  expiresAt  DateTime
+  rewardedAt DateTime?
+  grantedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events       RewardedAdEvent[]
+  targetAccess RewardedTargetAccess?
+  transactions RewardedCreditTransaction[]
+
+  @@index([userId, createdAt])
+  @@index([userId, rewardedAt])
+  @@index([userId, status, expiresAt])
+  @@index([platform, status, createdAt])
+  @@index([createdAt])
+  @@index([rewardedAt])
+  @@index([grantedAt])
+}
+
+model RewardedTargetAccess {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  targetType RewardedTargetAccessType
+  targetId   String
+
+  source   RewardedTargetAccessSource
+  platform RewardedPlatform?
+
+  sessionId String?            @unique
+  session   RewardedAdSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  grantedAt DateTime @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, targetType, targetId, expiresAt])
+  @@index([expiresAt])
+}
+
+model RewardedCreditTransaction {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type   RewardedCreditTransactionType
+  amount Int
+
+  balanceBefore Int
+  balanceAfter  Int
+
+  targetType RewardedTargetType?
+  targetId   String?
+
+  provider  RewardedProvider?
+  sessionId String?
+  session   RewardedAdSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  idempotencyKey String @unique
+
+  refundedTransactionId String?
+  refundReason          String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, type, createdAt])
+  @@index([userId, targetType, targetId])
+  @@index([sessionId])
+}
+
+model RewardedAdEvent {
+  id String @id @default(cuid())
+
+  sessionId String
+  session   RewardedAdSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  eventType String
+  payload   Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([createdAt])
+}
+
+model AppSubscription {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("AppSubscriptionUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  provider AppSubscriptionProvider
+  status   AppSubscriptionStatus   @default(PENDING)
+  planCode AppSubscriptionPlanCode @default(WEEKLY)
+
+  renewalPriceRub Decimal? @db.Decimal(12, 3)
+  renewalIntervalDays Int?
+  renewalCurrency String? @db.VarChar(3)
+  planTitle String?
+
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  pendingExpiresAt   DateTime?
+  isLifetime         Boolean   @default(false)
+  cancelAtPeriodEnd  Boolean   @default(false)
+  canceledAt         DateTime?
+
+  yookassaPaymentMethodId         String?   @unique
+  yookassaPaymentMethodLast4      String?   @db.VarChar(4)
+  yookassaPaymentMethodTitle      String?
+  renewalReminderSentForPeriodEnd DateTime?
+  renewalEmailThreeDaysSentForPeriodEnd DateTime?
+  appleOriginalTransactionId      String?
+  appleProductId                  String?
+
+  manualGrantedById String?
+  manualGrantedBy   User?   @relation("ManualAppSubscriptionGrantedBy", fields: [manualGrantedById], references: [id], onDelete: SetNull)
+  manualReason      String?
+
+  payments AppSubscriptionPayment[]
+  events   AppSubscriptionEvent[]
+  trials   AppSubscriptionTrial[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status, currentPeriodEnd])
+  @@index([provider, status, currentPeriodEnd])
+  @@index([provider, status, pendingExpiresAt])
+  @@index([provider, status, cancelAtPeriodEnd, currentPeriodEnd])
+  @@index([planCode])
+  @@index([appleOriginalTransactionId])
+}
+
+model AppSubscriptionTrial {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("AppSubscriptionTrialUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  provider AppSubscriptionProvider
+
+  subscriptionId String?
+  subscription   AppSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  startedAt                    DateTime
+  endedAt                      DateTime
+  paymentMethodFingerprintHash String?  @db.VarChar(64)
+  trialUnavailableReason       String?  @db.VarChar(64)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([provider, startedAt])
+  @@index([provider, paymentMethodFingerprintHash])
+  @@index([subscriptionId])
+}
+
+model AppSubscriptionPayment {
+  id String @id @default(cuid())
+
+  subscriptionId String?
+  subscription   AppSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  userId String
+  user   User   @relation("AppSubscriptionPaymentUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  provider AppSubscriptionProvider
+  kind     AppSubscriptionPaymentKind
+  status   AppSubscriptionPaymentStatus @default(PENDING)
+  planCode AppSubscriptionPlanCode      @default(WEEKLY)
+
+  planTitle String?
+  amount     Decimal? @db.Decimal(12, 3)
+  currency   String?  @db.VarChar(3)
+  buyerEmail String?  @db.VarChar(320)
+
+  promoCodeId          String?
+  promoCode            AppSubscriptionPromoCode? @relation(fields: [promoCodeId], references: [id], onDelete: Restrict)
+  promoCodeSnapshot    String?                   @db.VarChar(64)
+  promoDiscountPercent Int?
+  originalAmount       Decimal?                  @db.Decimal(12, 3)
+
+  npdReceipt NpdReceipt?
+  partnerCommissions PartnerCommission[]
+  financeRefunds AppSubscriptionFinanceRefund[]
+  providerPaymentMethodType String? @db.VarChar(64)
+  providerIncomeAmount Decimal? @db.Decimal(12, 2)
+  providerCapturedAt DateTime?
+  financeSyncedAt DateTime?
+  financeRefundsIncomplete Boolean @default(true)
+
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  idempotenceKey             String  @unique
+  yookassaPaymentId          String? @unique
+  appleTransactionId         String? @unique
+  appleOriginalTransactionId String?
+  applePriceMilliunits       Int?
+  appleStorefront            String?
+  appleEnvironment           String?
+  appleWebOrderLineItemId    String?
+
+  confirmationUrl String?
+  failureCode     String?
+  failureReason   String?
+  succeededAt     DateTime?
+
+  attemptCount  Int       @default(0)
+  lastAttemptAt DateTime?
+  nextAttemptAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, provider, status])
+  @@index([provider, status, nextAttemptAt])
+  @@index([planCode])
+  @@index([appleOriginalTransactionId])
+  @@index([promoCodeId])
+  @@index([provider, providerCapturedAt])
+}
+
+/// Partner identity is separated from a public referral code so codes can be rotated
+/// without changing already attributed buyers or financial history.
+model PartnerProfile {
+  id String @id @default(cuid())
+  userId String @unique
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Legacy random code retained only to display old profiles/history. New profiles use promoCodeId.
+  referralCode String? @unique @db.VarChar(32)
+  /// A real Premium promo code is the sole public partner code. It may belong to one partner only.
+  promoCodeId String? @unique
+  promoCode AppSubscriptionPromoCode? @relation("PartnerProfilePromoCode", fields: [promoCodeId], references: [id], onDelete: Restrict)
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  referrals PartnerReferral[] @relation("PartnerReferralPartner")
+  commissions PartnerCommission[] @relation("PartnerCommissionPartner")
+  payouts PartnerPayout[] @relation("PartnerPayoutPartner")
+  videoExpenses ProfitVideoExpense[]
+}
+
+/// Attribution is immutable: a buyer can belong to only one partner.
+model PartnerReferral {
+  id String @id @default(cuid())
+  partnerId String
+  partner PartnerProfile @relation("PartnerReferralPartner", fields: [partnerId], references: [id], onDelete: Restrict)
+  buyerId String @unique
+  buyer User @relation("PartnerReferralBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([partnerId, createdAt])
+}
+
+model PartnerCommission {
+  id String @id @default(cuid())
+  partnerId String
+  partner PartnerProfile @relation("PartnerCommissionPartner", fields: [partnerId], references: [id], onDelete: Restrict)
+  paymentId String
+  payment AppSubscriptionPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  /// Signed reward per successful payment: +25000 monthly, +75000 three-month, 0 two-week; reversed in full on refund.
+  amountKopecks Int
+  kind PartnerCommissionKind
+  createdAt DateTime @default(now())
+
+  @@unique([paymentId, kind])
+  @@index([partnerId, createdAt])
+}
+
+model PartnerPayout {
+  id String @id @default(cuid())
+  partnerId String
+  partner PartnerProfile @relation("PartnerPayoutPartner", fields: [partnerId], references: [id], onDelete: Restrict)
+  amountKopecks Int
+  status PartnerPayoutStatus @default(PENDING)
+  requestedAt DateTime @default(now())
+  processedAt DateTime?
+  note String? @db.VarChar(512)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partnerId, status, requestedAt])
+}
+
+/// Short-lived server-side context for the VK callback → consent → NextAuth flow.
+/// The opaque token itself never reaches the database; only its SHA-256 digest does.
+model VkIdOneTimeLogin {
+  id String @id @default(cuid())
+  tokenHash String @unique @db.VarChar(64)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  requiresConsent Boolean @default(false)
+  consentCompletedAt DateTime?
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+/// Idempotency record for credential registration. Password is deliberately absent:
+/// a retry must verify it independently against the resulting user account.
+model RegistrationEmailAttempt {
+  id String @id @default(cuid())
+  tempSessionId String @unique @db.VarChar(128)
+  dataFingerprint String @db.VarChar(64)
+  userId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  result RegistrationEmailAttemptResult?
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dataFingerprint])
+  @@index([userId])
+}
+
+/// Server-side OAuth/registration state. The browser sees only an opaque token;
+/// state is verified by hash and the PKCE verifier never enters a URL or cookie.
+model VkRegistrationContext {
+  id String @id @default(cuid())
+  contextTokenHash String @unique @db.VarChar(64)
+  stateHash String @unique @db.VarChar(64)
+  codeVerifier String @db.VarChar(128)
+  purpose VkRegistrationContextPurpose
+  expiresAt DateTime
+  selectedPromoCodeId String?
+  /// Normalized selection survives promo deletion so completion can reject it.
+  selectedPromoCodeValue String? @db.VarChar(128)
+  selectedPromoCode AppSubscriptionPromoCode? @relation("VkRegistrationContextSelectedPromoCode", fields: [selectedPromoCodeId], references: [id], onDelete: SetNull)
+  userId String?
+  user User? @relation("VkRegistrationContextUser", fields: [userId], references: [id], onDelete: SetNull)
+  resultUserId String?
+  resultUser User? @relation("VkRegistrationContextResultUser", fields: [resultUserId], references: [id], onDelete: SetNull)
+  loginGrants VkLoginGrant[]
+  completionFingerprint String? @db.VarChar(64)
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+  @@index([userId, expiresAt])
+  @@index([resultUserId])
+  @@index([completionFingerprint])
+  @@index([selectedPromoCodeId])
+}
+
+/// Replacement for legacy VkIdOneTimeLogin tokens. Each opaque grant is hashed,
+/// short-lived and consumed atomically; reissue creates a different row/token.
+model VkLoginGrant {
+  id String @id @default(cuid())
+  tokenHash String @unique @db.VarChar(64)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose VkLoginGrantPurpose
+  expiresAt DateTime
+  consentCompletedAt DateTime?
+  consumedAt DateTime?
+  reissuedFromId String?
+  registrationContextId String?
+  registrationContext VkRegistrationContext? @relation(fields: [registrationContextId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+  @@index([reissuedFromId])
+  @@index([registrationContextId])
+}
+
+model NpdConnection {
+  /// The database enforces that this singleton key is always "default".
+  id String @id @default("default") @db.VarChar(32)
+
+  inn      String @db.VarChar(12)
+  deviceId String @db.VarChar(128)
+
+  refreshTokenCipher     Bytes
+  refreshTokenIv         Bytes
+  refreshTokenTag        Bytes
+  refreshTokenKeyVersion Int
+
+  status                     NpdConnectionStatus @default(ACTIVE)
+  fiscalizationStartedAt     DateTime?
+  lastAuthorizedAt           DateTime?
+  lastSuccessfulOperationAt  DateTime?
+  lastRefreshedAt            DateTime?
+  lastErrorCode              String?             @db.VarChar(64)
+  lastErrorRedacted          String?             @db.VarChar(1024)
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+
+  receipts NpdReceipt[]
+}
+
+model NpdReceipt {
+  id String @id @default(cuid())
+
+  paymentId String                 @unique
+  payment   AppSubscriptionPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  connectionId String        @default("default") @db.VarChar(32)
+  connection   NpdConnection @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+
+  status             NpdReceiptStatus @default(PENDING)
+  amountKopecks      Int
+  currency           String           @default("RUB") @db.VarChar(3)
+  planCode           AppSubscriptionPlanCode
+  intervalDays       Int
+  serviceName        String           @db.VarChar(256)
+  buyerEmail         String?          @db.VarChar(320)
+  providerReceiptId  String?          @unique @db.VarChar(128)
+  operationAt        DateTime
+  printUrl           String?          @db.VarChar(2048)
+  jsonUrl            String?          @db.VarChar(2048)
+  issuedAt           DateTime?
+  canceledAt         DateTime?
+  cancellationReason String?          @db.VarChar(256)
+
+  operations    NpdReceiptOperation[]
+  emailDelivery NpdReceiptEmailDelivery?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([connectionId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model NpdReceiptOperation {
+  id String @id @default(cuid())
+
+  receiptId String
+  receipt   NpdReceipt                @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  type      NpdReceiptOperationType
+  status    NpdReceiptOperationStatus @default(PENDING)
+
+  attemptCount      Int       @default(0)
+  lastAttemptAt     DateTime?
+  nextAttemptAt     DateTime? @default(now())
+  leaseOwner        String?   @db.VarChar(128)
+  leaseExpiresAt    DateTime?
+  providerRequestId String?   @db.VarChar(128)
+  completedAt       DateTime?
+  lastErrorCode     String?   @db.VarChar(64)
+  lastErrorRedacted String?   @db.VarChar(1024)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([receiptId, type])
+  @@index([status, nextAttemptAt, leaseExpiresAt])
+  @@index([receiptId, status])
+}
+
+model NpdReceiptEmailDelivery {
+  id String @id @default(cuid())
+
+  receiptId String     @unique
+  receipt   NpdReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  status            NpdReceiptEmailDeliveryStatus @default(PENDING)
+  recipientEmail    String                        @db.VarChar(320)
+  attemptCount      Int                           @default(0)
+  lastAttemptAt     DateTime?
+  nextAttemptAt     DateTime?                     @default(now())
+  leaseOwner        String?                       @db.VarChar(128)
+  leaseExpiresAt    DateTime?
+  sentAt            DateTime?
+  providerMessageId String?                       @db.VarChar(128)
+  lastErrorCode     String?                       @db.VarChar(64)
+  lastErrorRedacted String?                       @db.VarChar(1024)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, nextAttemptAt, leaseExpiresAt])
+}
+
+model AppSubscriptionPromoCode {
+  id String @id @default(cuid())
+
+  code           String @db.VarChar(64)
+  normalizedCode String @unique @db.VarChar(64)
+
+  discountPercent Int
+  isActive        Boolean   @default(false)
+  revision        Int       @default(1)
+  archivedAt      DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("AppSubscriptionPromoCodeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?   @relation("AppSubscriptionPromoCodeUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  events   AppSubscriptionPromoCodeEvent[]
+  payments AppSubscriptionPayment[]
+  partnerProfile PartnerProfile? @relation("PartnerProfilePromoCode")
+  savedForRegistrationBy User[] @relation("UserSavedRegistrationPromoCode")
+  vkRegistrationContexts VkRegistrationContext[] @relation("VkRegistrationContextSelectedPromoCode")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, archivedAt])
+  @@index([createdAt])
+}
+
+model AppSubscriptionPromoCodeEvent {
+  id String @id @default(cuid())
+
+  promoCodeId String
+  promoCode   AppSubscriptionPromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Restrict)
+
+  type AppSubscriptionPromoCodeEventType
+
+  actorId String?
+  actor   User?   @relation("AppSubscriptionPromoCodeEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  discountPercent Int
+  isActive        Boolean
+  revision        Int
+  createdAt       DateTime @default(now())
+
+  @@index([promoCodeId, createdAt])
+  @@index([actorId])
+}
+
+model AppSubscriptionEvent {
+  id String @id @default(cuid())
+
+  subscriptionId String?
+  subscription   AppSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  userId String?
+  user   User?   @relation("AppSubscriptionEventUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  source              AppSubscriptionEventSource
+  eventType           String
+  providerEventKey    String?
+  idempotencyKey      String?
+  payloadHash         String?
+  processingStatus    AppSubscriptionEventProcessingStatus @default(RECEIVED)
+  processingAttempts  Int                                  @default(0)
+  lastProcessingError String?
+  actorId             String?
+  actor               User?                                @relation("AppSubscriptionEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  metadata            Json?
+
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([providerEventKey])
+  @@unique([idempotencyKey])
+  @@index([source, eventType, createdAt])
+  @@index([processingStatus, createdAt])
+  @@index([userId, createdAt])
+}
+
+
+
+model FavoriteCourse {
+  userId    String
+  courseId  String
+  createdAt DateTime @default(now())
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, courseId])
+}
+
+model CourseReview {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  rating    Float?
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([courseId, userId], map: "idx_rating_course_user")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  shortCode String?  @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Одноразовый код из письма для подтверждения удаления аккаунта.
+model AccountDeletionToken {
+  id        String   @id @default(cuid())
+  userId    String
+  shortCode String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Аудит фактов удаления аккаунтов (для аналитики и расследований).
+model AccountDeletionAudit {
+  id          String   @id @default(cuid())
+  userId      String
+  role        UserRole
+  hadEmail    Boolean  @default(false)
+  initiatedBy String   @default("SELF_SERVICE")
+  deletedAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([deletedAt])
+  @@index([userId])
+}
+
+/// Глобальный счетчик удаленных аккаунтов (одна строка с id = "global").
+model AccountDeletionCounter {
+  id           String   @id
+  totalDeleted Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// Подтверждение смены email: письмо на новый адрес со ссылкой по token.
+model EmailChangeToken {
+  id        String   @id @default(cuid())
+  userId    String
+  newEmail  String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  deviceId  String?
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  keys      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model StepNotification {
+  id           String   @id @default(uuid())
+  userId       String
+  day          Int
+  stepIndex    Int
+  // Stable ids for new bound training notifications; legacy history stays nullable.
+  dayOnCourseId String?
+  stepOnDayId   String?
+  originalStepId String?
+  endTs        Int
+  sent         Boolean  @default(false)
+  subscription Json
+  url          String?
+  jobId        String?
+  paused       Boolean  @default(false)
+  remainingSec Int?
+  stepTitle    String?
+  type         String   @default("step")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([day, stepIndex])
+  @@index([userId, dayOnCourseId, stepOnDayId], map: "StepNotification_bound_occurrence_idx")
+  @@index([type])
+}
+
+model ExamResult {
+  id                    String               @id @default(cuid())
+  userStepId            String?              @unique
+  dailyCourseUserStepId String?              @unique
+  stepId                String
+  testAnswers           Json?
+  testScore             Int?
+  testMaxScore          Int?
+  videoReportUrl        String?
+  videoDeletedAt        DateTime?
+  videoDeleteReason     String?
+  writtenFeedback       String?
+  overallScore          Int?
+  isPassed              Boolean?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  trainerComment        String?
+  reviewedAt            DateTime?
+  reviewedById          String?
+  reviewedBy            User?                @relation("ExamResultReviewedBy", fields: [reviewedById], references: [id])
+  step                  Step                 @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  userStep              UserStep?            @relation(fields: [userStepId], references: [id], onDelete: Cascade)
+  dailyCourseUserStep   DailyCourseUserStep? @relation(fields: [dailyCourseUserStepId], references: [id], onDelete: Cascade)
+
+  @@index([userStepId])
+  @@index([dailyCourseUserStepId])
+  @@index([stepId])
+  @@index([videoDeletedAt])
+  @@index([reviewedById])
+  @@index([reviewedAt])
+}
+
+enum SurveyPhase {
+  INITIAL
+  FINAL
+}
+
+model SurveyResponse {
+  id               String      @id @default(cuid())
+  userId           String
+  courseId         String
+  stepId           String
+  petId            String?
+  surveySlug       String
+  surveyFamilySlug String
+  phase            SurveyPhase
+  surveyVersion    Int
+  answers          Json
+  submittedAt      DateTime
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course           Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  step             Step        @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  pet              Pet?        @relation(fields: [petId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, stepId])
+  @@index([userId, courseId, surveyFamilySlug])
+  @@index([stepId])
+  @@index([petId])
+}
+
+model ReengagementCampaign {
+  id                     String                     @id @default(cuid())
+  userId                 String
+  isActive               Boolean                    @default(true)
+  currentLevel           Int                        @default(1)
+  lastActivityDate       DateTime
+  campaignStartDate      DateTime                   @default(now())
+  lastNotificationSent   DateTime?
+  nextNotificationDate   DateTime?
+  returned               Boolean                    @default(false)
+  returnedAt             DateTime?
+  unsubscribed           Boolean                    @default(false)
+  totalNotificationsSent Int                        @default(0)
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  user                   User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications          ReengagementNotification[]
+
+  @@index([userId])
+  @@index([isActive, nextNotificationDate])
+  @@index([lastActivityDate])
+}
+
+model ReengagementNotification {
+  id           String               @id @default(cuid())
+  campaignId   String
+  level        Int
+  messageType  String
+  variantId    String
+  title        String
+  body         String
+  url          String?
+  sent         Boolean              @default(false)
+  sentAt       DateTime?
+  opened       Boolean              @default(false)
+  openedAt     DateTime?
+  clicked      Boolean              @default(false)
+  clickedAt    DateTime?
+  successCount Int                  @default(0)
+  failedCount  Int                  @default(0)
+  createdAt    DateTime             @default(now())
+  campaign     ReengagementCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([sent, sentAt])
+}
+
+model ReengagementSettings {
+  id                      String    @id @default(cuid())
+  userId                  String    @unique
+  enabled                 Boolean   @default(true)
+  unsubscribedAt          DateTime?
+  preferredTime           String?
+  timezone                String    @default("Europe/Moscow")
+  maxNotificationsPerWeek Int       @default(2)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ReminderMutationReceipt {
+  ownerUserId   String
+  operationKey  String   @db.VarChar(36)
+  operationKind String   @default("CREATE") @db.VarChar(16)
+  fingerprint   String   @db.VarChar(64)
+  state         String   @default("PENDING") @db.VarChar(16)
+  reminderId    String?
+  responseJson  Json?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  owner         User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@id([ownerUserId, operationKey])
+  @@index([ownerUserId, expiresAt])
+}
+
+model Reminder {
+  id           String    @id @default(cuid())
+  userId       String
+  type         String
+  name         String
+  enabled      Boolean   @default(false)
+  reminderTime String    @default("09:00")
+  reminderDays String?
+  timezone     String    @default("Europe/Moscow")
+  metadata     Json?
+  lastSentAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries   TrainingReminderDelivery[]
+
+  @@index([userId, type])
+  @@index([enabled])
+  @@index([type])
+  @@index([reminderTime])
+}
+
+/// Durable per-local-day delivery record with a reclaimable worker lease.
+model TrainingReminderDelivery {
+  id             String   @id @default(cuid())
+  reminderId     String
+  localDate      String   @db.VarChar(10)
+  status         String   @default("PENDING")
+  leaseToken     String?
+  leaseExpiresAt DateTime?
+  attemptCount   Int      @default(0)
+  sentAt         DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  reminder       Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+
+  @@unique([reminderId, localDate])
+  @@index([status, leaseExpiresAt])
+}
+
+model ReengagementMetrics {
+  id               String   @id @default(cuid())
+  date             DateTime @default(now())
+  totalActive      Int
+  totalSent        Int
+  totalReturned    Int
+  level1Sent       Int      @default(0)
+  level2Sent       Int      @default(0)
+  level3Sent       Int      @default(0)
+  level4Sent       Int      @default(0)
+  openRate         Float?
+  clickRate        Float?
+  returnRate       Float?
+  emotionalSent    Int      @default(0)
+  educationalSent  Int      @default(0)
+  motivationalSent Int      @default(0)
+  mixedSent        Int      @default(0)
+
+  @@index([date])
+}
+
+model PresentationView {
+  id                String    @id @default(cuid())
+  sessionId         String
+  visitorId         String?
+  referrer          String?
+  referrerDomain    String?
+  utmSource         String?
+  utmMedium         String?
+  utmCampaign       String?
+  refParam          String?
+  campaignParam     String?
+  sourceParam       String?
+  tagParam          String?
+  userAgent         String?
+  ipAddress         String?
+  language          String?
+  deviceType        String?
+  screenWidth       Int?
+  screenHeight      Int?
+  timeOnPage        Int?
+  scrollDepth       Int?
+  reachedHero       Int?
+  reachedProblem    Int?
+  reachedSolution   Int?
+  reachedFeatures   Int?
+  reachedComparison Int?
+  reachedGoals      Int?
+  reachedContact    Int?
+  ctaClicks         Int       @default(0)
+  convertedToUser   Boolean   @default(false)
+  convertedUserId   String?
+  firstViewAt       DateTime  @default(now())
+  lastViewAt        DateTime  @default(now())
+  sessionEndedAt    DateTime?
+  additionalData    Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([sessionId])
+  @@index([visitorId])
+  @@index([referrerDomain])
+  @@index([refParam])
+  @@index([campaignParam])
+  @@index([firstViewAt])
+  @@index([createdAt])
+  @@index([convertedToUser])
+  @@index([convertedUserId])
+}
+
+model PresentationEvent {
+  id            String   @id @default(cuid())
+  sessionId     String
+  viewId        String?
+  eventType     String
+  eventName     String
+  targetElement String?
+  targetSection String?
+  scrollDepth   Int?
+  timeOnPage    Int?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([eventType])
+  @@index([viewId])
+  @@index([createdAt])
+}
+
+model ErrorLog {
+  id                String    @id @default(cuid())
+  message           String
+  stack             String?
+  level             String    @default("error")
+  appName           String
+  environment       String    @default("development")
+  context           String?
+  url               String?
+  userAgent         String?
+  userId            String?
+  sessionId         String?
+  componentStack    String?
+  additionalContext Json?
+  tags              String[]  @default([])
+  status            String    @default("new")
+  timestamp         DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  resolvedAt        DateTime?
+  resolvedBy        String?
+
+  @@index([appName, level, timestamp(sort: Desc)])
+  @@index([environment, timestamp(sort: Desc)])
+  @@index([status, timestamp(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+model TrainerAIChat {
+  id          String   @id @default(cuid())
+  trainerId   String
+  role        String
+  content     String
+  tokensUsed  Int?
+  createdAt   DateTime @default(now())
+  model       String?
+  attachments Json?
+  trainer     User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@index([trainerId, createdAt(sort: Desc)])
+  @@index([trainerId])
+}
+
+model TrainerAIConfig {
+  id        String   @id @default(cuid())
+  trainerId String   @unique
+  apiKey    String?  @db.VarChar(500)
+  model     String   @default("deepseek-chat")
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  provider  String   @default("openrouter")
+  trainer   User     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@index([trainerId])
+}
+
+model TrainerNote {
+  id        String               @id @default(cuid())
+  trainerId String
+  createdAt DateTime             @default(now())
+  title     String?              @db.VarChar(200)
+  tags      String[]             @default([])
+  trainer   User                 @relation("TrainerNotes", fields: [trainerId], references: [id], onDelete: Cascade)
+  entries   TrainerNoteEntry[]
+  students  TrainerNoteStudent[]
+
+  @@index([trainerId, createdAt(sort: Desc)])
+}
+
+model TrainerNoteEntry {
+  id                 String      @id @default(cuid())
+  noteId             String
+  content            String
+  order              Int         @default(0)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  isVisibleToStudent Boolean     @default(false)
+  note               TrainerNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId, order])
+}
+
+model TrainerNoteStudent {
+  id        String      @id @default(cuid())
+  noteId    String
+  studentId String
+  createdAt DateTime    @default(now())
+  note      TrainerNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  student   User        @relation("StudentNotes", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, studentId])
+  @@index([noteId])
+  @@index([studentId])
+  @@index([studentId, createdAt(sort: Desc)])
+}
+
+enum TrainingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  RESET
+}
+
+/**
+ * Канал первой регистрации (email/пароль); для старых записей — UNKNOWN
+ */
+enum RegistrationChannel {
+  WEB
+  IOS
+  ANDROID
+  UNKNOWN
+}
+
+enum UserRole {
+  USER
+  PARTNER
+  TRAINER
+  ADMIN
+  MODERATOR
+}
+
+enum PartnerCommissionKind {
+  EARNED
+  REFUND_ADJUSTMENT
+}
+
+enum PartnerPayoutStatus {
+  PENDING
+  PAID
+  REJECTED
+}
+
+enum RegistrationEmailAttemptResult {
+  SUCCEEDED
+  USERNAME_TAKEN
+  EMAIL_TAKEN
+  VALIDATION_ERROR
+}
+
+enum VkRegistrationContextPurpose {
+  REGISTER
+  LOGIN
+  LINK_ACCOUNT
+}
+
+enum VkLoginGrantPurpose {
+  LOGIN
+  REGISTRATION_CONSENT
+}
+
+enum PetType {
+  DOG
+  CAT
+}
+
+enum PetPreventionType {
+  VACCINATION
+  DEWORMING
+  TICKS_FLEAS
+}
+
+enum PetPreventionReminderKind {
+  AFTER_DAYS
+  ON_DATE
+}
+
+enum TrainingLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+enum StepType {
+  TRAINING
+  EXAMINATION
+  THEORY
+  BREAK
+  PRACTICE
+  DIARY
+  SURVEY
+}
+
+enum TranscodingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+
+
+enum AppSubscriptionProvider {
+  YOOKASSA
+  APPLE
+  MANUAL
+}
+
+enum AppSubscriptionPlanCode {
+  WEEKLY
+  TWO_WEEKS
+  MONTHLY
+  THREE_MONTHS
+}
+
+enum AppSubscriptionStatus {
+  PENDING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+  REFUNDED
+  REVOKED
+}
+
+enum AppSubscriptionPaymentKind {
+  INITIAL
+  RENEWAL
+}
+
+enum AppSubscriptionPaymentStatus {
+  PENDING
+  SUCCEEDED
+  CANCELED
+  FAILED
+  REFUNDED
+}
+
+enum NpdConnectionStatus {
+  ACTIVE
+  REAUTH_REQUIRED
+  DISABLED
+}
+
+enum NpdReceiptStatus {
+  PENDING
+  ISSUED
+  CANCEL_PENDING
+  CANCELED
+  RECONCILIATION_REQUIRED
+  FAILED
+}
+
+enum NpdReceiptOperationType {
+  CREATE
+  CANCEL
+}
+
+enum NpdReceiptOperationStatus {
+  PENDING
+  PROCESSING
+  RETRY
+  SUCCEEDED
+  NOT_REQUIRED
+  RECONCILIATION_REQUIRED
+  FAILED
+}
+
+enum NpdReceiptEmailDeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  DEAD_LETTER
+  SKIPPED
+}
+
+enum AppSubscriptionPromoCodeEventType {
+  CREATED
+  UPDATED
+  ENABLED
+  DISABLED
+  ARCHIVED
+}
+
+enum AppSubscriptionEventSource {
+  YOOKASSA
+  APPLE
+  ADMIN
+  SYSTEM
+}
+
+enum AppSubscriptionEventProcessingStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum RewardedPlatform {
+  ANDROID
+  IOS
+}
+
+enum RewardedProvider {
+  YANDEX
+}
+
+enum RewardedAdSessionStatus {
+  CREATED
+  LOADED
+  SHOWN
+  REWARDED
+  GRANTED
+  DISMISSED
+  FAILED
+  EXPIRED
+}
+
+enum RewardedCreditTransactionType {
+  EARN
+  SPEND
+  REFUND
+  ADJUSTMENT
+}
+
+enum RewardedTargetType {
+  ARTICLE
+  COURSE_STEP
+  DAILY_COURSE_STEP
+  CONSULTATION_BOOKING
+}
+
+enum RewardedTargetAccessType {
+  ARTICLE
+  COURSE_STEP
+}
+
+enum RewardedTargetAccessSource {
+  REWARDED_AD
+  LEGACY_GAFUS
+}
+
+
+
+enum ArticleContentType {
+  TEXT
+  HTML
+}
+
+enum ArticleVisibility {
+  PUBLIC
+  PAID
+}
+
+model Article {
+  id          String             @id @default(cuid())
+  authorId    String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  title       String
+  contentType ArticleContentType @default(HTML)
+  content     String             @db.Text
+  visibility  ArticleVisibility  @default(PUBLIC)
+  videoUrl    String?
+  logoImg     String             @default("")
+  imageUrls   String[]           @default([])
+  slug        String             @unique
+  viewCount   Int                @default(0)
+  description String             @default("") @db.Text
+
+  author       User               @relation("authoredArticles", fields: [authorId], references: [id])
+  articleLikes ArticleLike[]
+  viewers      ArticleViewer[]
+  guestViews   ArticleGuestView[]
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([visibility])
+}
+
+model ArticleLike {
+  userId    String
+  articleId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, articleId])
+  @@index([articleId])
+  @@index([userId])
+}
+
+
+
+/**
+ * Уникальные авторизованные просмотры (для аналитики тренера); общий счётчик — Article.viewCount
+ */
+model ArticleViewer {
+  articleId     String
+  userId        String
+  firstViewedAt DateTime @default(now())
+  lastViewedAt  DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, userId])
+  @@index([articleId])
+  @@index([userId])
+}
+
+/**
+ * Уникальные гостевые просмотры по ключу с клиента (localStorage / AsyncStorage)
+ */
+model ArticleGuestView {
+  articleId     String
+  visitorKey    String
+  firstViewedAt DateTime @default(now())
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, visitorKey])
+  @@index([articleId])
+}
+
+
+
+/// Публичные флаги клиентов (мобильное приложение и т.д.). Ключ — стабильный идентификатор.
+model AppFeatureFlag {
+  key           String   @id @db.VarChar(64)
+  enabled       Boolean  @default(false)
+  reviewEnabled Boolean?
+  updatedAt     DateTime @updatedAt
+}
+
+/// Управляет точной iOS-версией, которая должна получать review-профиль фича-флагов.
+model MobileAppReleasePolicy {
+  key              String   @id @default("default") @db.VarChar(32)
+  iosReviewVersion String?  @db.VarChar(32)
+  revision         Int      @default(1)
+  updatedById      String?
+  updatedBy        User?    @relation("MobileAppReleasePolicyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// --- Консультации с кинологом (web + mobile) ---
+
+enum ConsultationSlotStatus {
+  FREE
+  BOOKED
+  BLOCKED
+}
+
+enum ConsultationBookingStatus {
+  PENDING_TRAINER_CONFIRMATION
+  CONFIRMED
+  CANCELLED_BY_TRAINER
+  CANCELLED_BY_USER
+  CANCELLED_BY_SLA
+  CANCELLED_BY_SYSTEM
+  COMPLETED
+  NO_SHOW
+}
+
+enum ConsultationPetGender {
+  MALE
+  FEMALE
+}
+
+enum ConsultationEmailType {
+  TRAINER_CONFIRM_REQUEST
+  CLIENT_BOOKING_RECEIVED
+  CLIENT_BOOKING_CONFIRMED
+  TRAINER_BOOKING_CONFIRMED
+  CLIENT_BOOKING_CANCELLED_BY_TRAINER
+  TRAINER_BOOKING_CANCELLED_BY_USER
+  CLIENT_BOOKING_CANCELLED_BY_SLA
+  /// Исторический тип: сохраняет старые логи без Телемоста в публичных API.
+  CLIENT_BOOKING_VIDEO_FAILED
+  /// Напоминание за 30 минут (клиент)
+  CLIENT_CONSULTATION_REMINDER_30M
+  /// Клиенту: консультация начинается прямо сейчас
+  CLIENT_CONSULTATION_START
+  /// Напоминание за 30 минут (кинолог)
+  TRAINER_CONSULTATION_REMINDER_30M
+  /// Клиенту: тренер отметил, что подтверждённая консультация не состоялась
+  CLIENT_CONSULTATION_NO_SHOW
+}
+
+enum ConsultationEmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// Настройки кинолога для консультаций (роль TRAINER проверяется в core)
+model ConsultationCynologist {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  isListed           Boolean  @default(false)
+  slotDurationMin    Int      @default(30)
+  timezone           String   @default("Europe/Moscow")
+  bookingLeadTimeMin Int      @default(60)
+  slotHorizonDays    Int      @default(60)
+  confirmationSlaMin Int      @default(1440)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user              User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availabilityRules ConsultationAvailabilityRule[]
+  dayOffs           ConsultationDayOff[]
+  slotExceptions    ConsultationSlotException[]
+  slots             ConsultationSlot[]
+  bookings          ConsultationBooking[]
+
+  @@index([isListed])
+}
+
+model ConsultationAvailabilityRule {
+  id           String   @id @default(cuid())
+  cynologistId String
+  weekday      Int
+  startTime    String
+  endTime      String
+  isWorkingDay Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cynologist ConsultationCynologist @relation(fields: [cynologistId], references: [id], onDelete: Cascade)
+
+  @@unique([cynologistId, weekday])
+  @@index([cynologistId])
+}
+
+model ConsultationDayOff {
+  id           String   @id @default(cuid())
+  cynologistId String
+  date         DateTime @db.Date
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cynologist ConsultationCynologist @relation(fields: [cynologistId], references: [id], onDelete: Cascade)
+
+  @@unique([cynologistId, date])
+  @@index([cynologistId])
+}
+
+model ConsultationSlotException {
+  id           String   @id @default(cuid())
+  cynologistId String
+  startAt      DateTime
+  endAt        DateTime
+  reason       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  cynologist ConsultationCynologist @relation(fields: [cynologistId], references: [id], onDelete: Cascade)
+
+  @@index([cynologistId, startAt])
+}
+
+model ConsultationSlot {
+  id           String                 @id @default(cuid())
+  cynologistId String
+  startAt      DateTime
+  endAt        DateTime
+  status       ConsultationSlotStatus @default(FREE)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  cynologist ConsultationCynologist @relation(fields: [cynologistId], references: [id], onDelete: Cascade)
+  bookings   ConsultationBooking[]
+
+  @@unique([cynologistId, startAt])
+  @@index([cynologistId, status, startAt])
+}
+
+model ConsultationBooking {
+  id                     String                    @id @default(cuid())
+  clientId               String
+  cynologistId           String
+  slotId                 String
+  /// Имя владельца (как указано при записи)
+  clientOwnerName        String?
+  /// Телефон для связи, E.164 (+7…)
+  clientPhone            String?
+  petName                String?
+  petGender              ConsultationPetGender?
+  petAge                 String?
+  petBreed               String?
+  clientProblem          String?
+  /// Как пытались решить проблему самостоятельно
+  clientSelfHelpAttempt  String?
+  status                 ConsultationBookingStatus @default(PENDING_TRAINER_CONFIRMATION)
+  /// Set only on new COMPLETED transitions; legacy completions do not start a cooldown.
+  completedAt            DateTime?
+  trainerConfirmedAt     DateTime?
+  cancelReason           String?
+  confirmationDeadlineAt DateTime
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  client     User                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  cynologist ConsultationCynologist @relation(fields: [cynologistId], references: [id], onDelete: Cascade)
+  slot       ConsultationSlot       @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  emailLogs  ConsultationEmailLog[]
+
+  @@index([slotId])
+  @@index([cynologistId, status])
+  @@index([clientId, createdAt])
+  @@index([clientId, status, completedAt])
+}
+
+model ConsultationEmailLog {
+  id        String                  @id @default(cuid())
+  bookingId String
+  type      ConsultationEmailType
+  status    ConsultationEmailStatus @default(PENDING)
+  attempts  Int                     @default(0)
+  lastError String?
+  sentAt    DateTime?
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+
+  booking ConsultationBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, type])
+  @@index([bookingId, type])
+}
+
+model ConsultationBookingIdempotency {
+  clientId     String
+  key          String
+  bookingId    String?
+  responseJson Json
+  expiresAt    DateTime
+
+  client User @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@id([clientId, key])
+  @@index([expiresAt])
+}
+
+
+model CynologistChat {
+  id String @id @default(cuid())
+  clientUserId String @unique
+  trainerUserId String
+  streamChannelId String @unique
+  intake Json
+  provisionStatus String @default("PENDING")
+  firstMessageId String @unique
+  lastMessageAt DateTime?
+  lastClientMessageAt DateTime?
+  trainerReadAt DateTime?
+  unreadSince DateTime?
+  nextReminderAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  client User @relation("ChatClient", fields: [clientUserId], references: [id], onDelete: Cascade)
+  trainer User @relation("ChatTrainer", fields: [trainerUserId], references: [id], onDelete: Restrict)
+  operations ChatSendOperation[]
+  attachments ChatAttachment[]
+  notifications ChatNotification[]
+  @@index([trainerUserId, lastMessageAt])
+  @@index([nextReminderAt])
+}
+model ChatSendOperation {
+  id String @id @default(cuid())
+  chatId String
+  senderUserId String
+  clientMessageId String
+  streamMessageId String @unique
+  payloadHash String
+  state String @default("PENDING")
+  createdAt DateTime @default(now())
+  chat CynologistChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  @@unique([senderUserId, clientMessageId])
+}
+model ChatAttachment {
+  id String @id @default(cuid())
+  operationId String?
+  chatId String
+  ownerUserId String
+  kind String
+  url String
+  mime String
+  size Int
+  name String
+  state String @default("READY")
+  createdAt DateTime @default(now())
+  chat CynologistChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  @@index([state, createdAt])
+}
+model ChatWebhookEvent {
+  id String @id
+  payload Json
+  processedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([processedAt, createdAt])
+}
+model ChatNotification {
+  id String @id
+  chatId String
+  userId String
+  notificationId String? @unique
+  createdAt DateTime @default(now())
+  chat CynologistChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+}
+
+model CommunityChatSendOperation {
+  id String @id @default(cuid())
+  senderUserId String
+  clientMessageId String
+  streamMessageId String @unique
+  payloadHash String
+  state String @default("PENDING")
+  createdAt DateTime @default(now())
+  sender User @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+  @@unique([senderUserId, clientMessageId])
+}
+
+model CommunityChatAttachment {
+  id String @id @default(cuid())
+  operationId String?
+  ownerUserId String
+  kind String
+  url String
+  mime String
+  size Int
+  name String
+  state String @default("READY")
+  createdAt DateTime @default(now())
+  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  @@index([state, createdAt])
+}
+
+/// Financial ledger only; does not alter subscription access or tax receipts.
+model AppSubscriptionFinanceRefund {
+  id String @id @default(cuid())
+  providerRefundId String @unique
+  paymentId String
+  payment AppSubscriptionPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  amountKopecks Int
+  refundedAt DateTime
+  createdAt DateTime @default(now())
+  @@index([refundedAt, paymentId])
+  @@index([paymentId])
+}
+
+model ProfitVideoExpense {
+  id String @id @default(cuid())
+  requestKey String @unique @db.VarChar(64)
+  version Int @default(1)
+  partnerId String
+  partner PartnerProfile @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  paidAt DateTime
+  quantity Int
+  unitPriceKopecks Int @default(50000)
+  amountKopecks Int
+  comment String? @db.VarChar(512)
+  actorId String
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  canceledAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  revisions ProfitVideoExpenseRevision[]
+  @@index([paidAt, canceledAt])
+  @@index([partnerId, paidAt])
+}
+
+model ProfitVideoExpenseRevision {
+  id String @id @default(cuid())
+  expenseId String
+  expense ProfitVideoExpense @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+  actorId String
+  action String @db.VarChar(16)
+  snapshot Json
+  createdAt DateTime @default(now())
+  @@index([expenseId, createdAt])
+}
+
+// Community questions. All permissions and state transitions live in core.
+model Question {
+  id              String           @id @default(cuid())
+  authorId        String
+  clientRequestId String
+  title           String           @db.VarChar(150)
+  body            String           @db.Text
+  category        String
+  tags            String[]         @default([])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  editedAt        DateTime?
+  activityAt      DateTime         @default(now())
+  closedAt        DateTime?
+  deletedAt       DateTime?
+  hiddenAt        DateTime?
+  bestAnswerId    String?          @unique
+  author          User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  answers         QuestionAnswer[] @relation("QuestionAnswers")
+  bestAnswer      QuestionAnswer?  @relation("QuestionBestAnswer", fields: [bestAnswerId], references: [id], onDelete: SetNull)
+  photos          QuestionPhoto[]
+  views           QuestionView[]
+  reports         QuestionReport[]
+
+  @@unique([authorId, clientRequestId])
+  @@index([createdAt, id])
+  @@index([activityAt, id])
+  @@index([authorId, createdAt])
+  @@index([category, createdAt])
+}
+
+model QuestionAnswer {
+  id              String           @id @default(cuid())
+  questionId      String
+  authorId        String
+  clientRequestId String
+  body            String           @db.Text
+  parentId        String?
+  replyToId       String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  editedAt        DateTime?
+  deletedAt       DateTime?
+  hiddenAt        DateTime?
+  question        Question         @relation("QuestionAnswers", fields: [questionId], references: [id], onDelete: Cascade)
+  chosenIn        Question?        @relation("QuestionBestAnswer")
+  author          User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent          QuestionAnswer?  @relation("AnswerThread", fields: [parentId], references: [id], onDelete: SetNull)
+  children        QuestionAnswer[] @relation("AnswerThread")
+  replyTo         QuestionAnswer?  @relation("AnswerReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies         QuestionAnswer[] @relation("AnswerReply")
+  hearts          QuestionHeart[]
+  photos          QuestionPhoto[]
+  reports         QuestionReport[]
+
+  @@unique([authorId, clientRequestId])
+  @@index([questionId, parentId, createdAt])
+  @@index([authorId, createdAt])
+  @@index([replyToId])
+}
+
+model QuestionHeart {
+  answerId  String
+  userId    String
+  createdAt DateTime       @default(now())
+  answer    QuestionAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([answerId, userId])
+  @@index([userId])
+}
+
+model QuestionView {
+  questionId String
+  userId     String
+  createdAt  DateTime @default(now())
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, userId])
+  @@index([userId])
+}
+
+model QuestionPhoto {
+  id          String          @id @default(cuid())
+  ownerId     String
+  url         String
+  storagePath String
+  questionId  String?
+  answerId    String?
+  createdAt   DateTime        @default(now())
+  owner       User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  question    Question?       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer      QuestionAnswer? @relation(fields: [answerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, createdAt])
+  @@index([questionId])
+  @@index([answerId])
+}
+
+model QuestionReport {
+  id         String          @id @default(cuid())
+  reporterId String
+  questionId String
+  answerId   String?
+  targetKey  String
+  reason     String
+  details    String          @default("")
+  createdAt  DateTime        @default(now())
+  resolvedAt DateTime?
+  resolution String?
+  reporter   User            @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  question   Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer     QuestionAnswer? @relation(fields: [answerId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, targetKey])
+  @@index([resolvedAt, createdAt])
+  @@index([questionId])
+  @@index([answerId])
+}
+
+model QuestionBlock {
+  userId    String   @id
+  reason    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+
+// Gallery states use the same lowercase values as the shared DTOs.
+enum GalleryPhotoStatus {
+  pending
+  processing
+  ready
+  moving
+  failed
+}
+enum GalleryUploadStatus {
+  reserved
+  uploaded
+  processing
+  ready
+  failed
+  cancelled
+  expired
+}
+enum GalleryStorageJobKind {
+  publish
+  move
+  delete
+  vetPreview
+}
+enum GalleryStorageJobStatus {
+  pending
+  processing
+  done
+  failed
+  cancelled
+}
+model GalleryAlbum {
+  id String @id @default(cuid())
+  ownerId String
+  name String @db.VarChar(120)
+  description String? @db.VarChar(2000)
+  isVisible Boolean @default(true)
+  // Application validates same-album READY cover under the owner lock.
+  coverPhotoId String?
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  photos GalleryPhoto[]
+  @@index([ownerId, deletedAt, createdAt, id])
+}
+model GalleryPhoto {
+  id String @id @default(cuid())
+  ownerId String
+  albumId String
+  caption String? @db.VarChar(2000)
+  status GalleryPhotoStatus @default(pending)
+  thumbKey String?
+  fullKey String?
+  width Int?
+  height Int?
+  reservationExpiresAt DateTime
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  album GalleryAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  upload GalleryUpload?
+  @@index([ownerId, deletedAt, status, reservationExpiresAt])
+  @@index([albumId, deletedAt, createdAt, id])
+}
+model GalleryUpload {
+  id String @id @default(cuid())
+  ownerId String
+  photoId String @unique
+  clientRequestId String @db.VarChar(36)
+  requestFingerprint String
+  // A retry creates a new photo/key generation; no old callback can overwrite it.
+  retryOfId String? @unique
+  retryCount Int @default(0)
+  filename String @db.VarChar(255)
+  declaredMime String @db.VarChar(64)
+  declaredBytes Int
+  sourceKey String @unique
+  sourceETag String?
+  status GalleryUploadStatus @default(reserved)
+  postExpiresAt DateTime
+  reservationExpiresAt DateTime
+  attempts Int @default(0)
+  attemptToken String? @unique
+  leaseUntil DateTime?
+  nextAttemptAt DateTime @default(now())
+  stagedThumbKey String?
+  stagedFullKey String?
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  photo GalleryPhoto @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  @@unique([ownerId, clientRequestId])
+  @@index([status, reservationExpiresAt, leaseUntil])
+}
+// No foreign keys: jobs and their immutable key snapshots survive account cascades.
+model GalleryStorageJob {
+  id String @id @default(cuid())
+  dedupeKey String @unique
+  ownerId String
+  photoId String?
+  uploadId String?
+  destinationAlbumId String?
+  kind GalleryStorageJobKind
+  status GalleryStorageJobStatus @default(pending)
+  sourceKeys String[]
+  sourceETags String[]
+  targetKeys String[]
+  width Int?
+  height Int?
+  availableAt DateTime @default(now())
+  attempts Int @default(0)
+  attemptToken String? @unique
+  leaseUntil DateTime?
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, availableAt, leaseUntil])
+  @@index([ownerId, photoId])
+}
+
+// The feed has independent storage, revisions and cleanup lifecycles from gallery.
+enum FeedPostStatus {
+  draft
+  pending
+  published
+  failed
+  deleted
+}
+
+enum FeedRevisionStatus {
+  draft
+  pending
+  ready
+  failed
+  superseded
+}
+
+enum FeedMediaKind {
+  photo
+  video
+}
+
+enum FeedMediaStatus {
+  reserved
+  uploaded
+  processing
+  ready
+  failed
+  cancelled
+  expired
+}
+
+enum FeedJobKind {
+  copy_album
+  publish_photo
+  publish_video
+  delete_keys
+  cleanup_source
+}
+
+enum FeedJobStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum FeedReactionKind {
+  heart
+  laugh
+  dog
+  fire
+  like
+}
+
+enum FeedNotificationKind {
+  author_post
+  comment
+  reply
+  post_reaction
+  comment_reaction
+}
+
+model FeedPost {
+  moderationState String @default("visible") @db.VarChar(16)
+  moderationReason String? @db.VarChar(1000)
+  moderatedAt DateTime?
+  bookmarks FeedBookmark[]
+  feedback FeedUserPostFeedback[]
+  impressions FeedImpression[]
+  rankingEvents FeedRankingEvent[]
+  rankingStats FeedPostStats?
+  id String @id @default(cuid())
+  authorId String
+  status FeedPostStatus @default(draft)
+  clientRequestId String @db.VarChar(64)
+  version Int @default(0)
+  activeRevisionId String?
+  publishedAt DateTime?
+  editedAt DateTime?
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  revisions FeedPostRevision[]
+  poll FeedPoll?
+  media FeedMediaAsset[]
+  uploads FeedUpload[]
+  comments FeedComment[]
+  reactions FeedPostReaction[]
+  views FeedPostView[]
+  notifications FeedNotification[]
+  @@unique([authorId, clientRequestId])
+  @@index([status, publishedAt(sort: Desc), id(sort: Desc)])
+  @@index([authorId, status, publishedAt(sort: Desc), id(sort: Desc)])
+  @@index([authorId, deletedAt, updatedAt])
+}
+
+model FeedPostRevision {
+  id String @id @default(cuid())
+  postId String
+  revisionNumber Int
+  status FeedRevisionStatus @default(draft)
+  text String @default("") @db.VarChar(5000)
+  clientRequestId String @db.VarChar(64)
+  acceptedAt DateTime?
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  attachments FeedRevisionAttachment[]
+  @@unique([postId, revisionNumber])
+  @@unique([postId, clientRequestId])
+  @@index([postId, status, createdAt])
+}
+
+model FeedMediaAsset {
+  id String @id @default(cuid())
+  postId String
+  ownerId String
+  kind FeedMediaKind
+  status FeedMediaStatus @default(reserved)
+  width Int?
+  height Int?
+  durationSeconds Float?
+  // One canonical media pipeline: WebP 360/720/1440 and MP4 360/720/1080.
+  smallKey String?
+  thumbKey String?
+  fullKey String?
+  posterKey String?
+  mp4Keys String[] @default([])
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  upload FeedUpload?
+  attachments FeedRevisionAttachment[]
+  commentAttachments FeedCommentMedia[]
+  pollOptions FeedPollOption[]
+  @@index([postId, status])
+  @@index([ownerId, status])
+}
+
+model FeedRevisionAttachment {
+  revisionId String
+  mediaId String
+  position Int
+  revision FeedPostRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  media FeedMediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  @@id([revisionId, mediaId])
+  @@unique([revisionId, position])
+  @@index([mediaId])
+}
+
+// One optional poll per feed post. Poll mutations must follow the post's revision publication lifecycle.
+model FeedPoll {
+  id String @id @default(cuid())
+  postId String @unique
+  question String @db.VarChar(500)
+  explanation String? @db.VarChar(2000)
+  allowMultiple Boolean @default(false)
+  isQuiz Boolean @default(false)
+  isAnonymous Boolean @default(false)
+  hideResults Boolean @default(false)
+  shuffleOptions Boolean @default(false)
+  endDate DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  options FeedPollOption[]
+  votes FeedPollVote[]
+}
+
+model FeedPollOption {
+  id String @id @default(cuid())
+  pollId String
+  position Int
+  text String @db.VarChar(200)
+  imageMediaId String?
+  isCorrect Boolean @default(false)
+  poll FeedPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  imageMedia FeedMediaAsset? @relation(fields: [imageMediaId], references: [id], onDelete: SetNull)
+  selections FeedPollVoteSelection[]
+  // Used by the composite vote-selection FK to prevent choosing an option of a different poll.
+  @@unique([pollId, id])
+  @@unique([pollId, position])
+  @@index([imageMediaId])
+}
+
+model FeedPollVote {
+  pollId String
+  userId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  poll FeedPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  selections FeedPollVoteSelection[]
+  // Each user has at most one vote record per poll, including multiple-choice polls.
+  @@id([pollId, userId])
+  @@index([userId])
+}
+
+model FeedPollVoteSelection {
+  pollId String
+  userId String
+  optionId String
+  vote FeedPollVote @relation(fields: [pollId, userId], references: [pollId, userId], onDelete: Cascade)
+  option FeedPollOption @relation(fields: [pollId, optionId], references: [pollId, id], onDelete: Cascade)
+  @@id([pollId, userId, optionId])
+  @@index([pollId, optionId])
+}
+
+model FeedUpload {
+  id String @id @default(cuid())
+  ownerId String
+  postId String
+  mediaId String @unique
+  clientRequestId String @db.VarChar(64)
+  requestFingerprint String
+  filename String @db.VarChar(255)
+  declaredMime String @db.VarChar(64)
+  declaredBytes Int
+  purpose String @default("post") @db.VarChar(16)
+  sourceKey String @unique
+  sourceETag String?
+  status FeedMediaStatus @default(reserved)
+  postExpiresAt DateTime
+  reservationExpiresAt DateTime
+  attempts Int @default(0)
+  attemptToken String? @unique
+  leaseUntil DateTime?
+  nextAttemptAt DateTime @default(now())
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  media FeedMediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  @@unique([ownerId, clientRequestId])
+  @@index([status, reservationExpiresAt, leaseUntil])
+  @@index([postId, status])
+  @@index([purpose, createdAt])
+}
+
+// No FK: immutable storage keys survive account/post cascades until cleanup succeeds.
+model FeedStorageJob {
+  id String @id @default(cuid())
+  dedupeKey String @unique
+  ownerId String
+  postId String?
+  uploadId String?
+  mediaId String?
+  kind FeedJobKind
+  status FeedJobStatus @default(pending)
+  sourceKeys String[] @default([])
+  targetKeys String[] @default([])
+  availableAt DateTime @default(now())
+  attempts Int @default(0)
+  attemptToken String? @unique
+  leaseUntil DateTime?
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, availableAt, leaseUntil])
+  @@index([ownerId, postId])
+}
+
+model FeedComment {
+  moderationState String @default("visible") @db.VarChar(16)
+  moderationReason String? @db.VarChar(1000)
+  moderatedAt DateTime?
+  id String @id @default(cuid())
+  postId String
+  authorId String
+  text String @db.VarChar(2000)
+  rootId String?
+  replyToId String?
+  deletedAt DateTime?
+  editedAt DateTime?
+  clientRequestId String @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  root FeedComment? @relation("FeedCommentRoot", fields: [rootId], references: [id], onDelete: SetNull)
+  rootedReplies FeedComment[] @relation("FeedCommentRoot")
+  replyTo FeedComment? @relation("FeedCommentReplyTo", fields: [replyToId], references: [id], onDelete: SetNull)
+  addressedReplies FeedComment[] @relation("FeedCommentReplyTo")
+  reactions FeedCommentReaction[]
+  notifications FeedNotification[]
+  media FeedCommentMedia[]
+  @@unique([authorId, clientRequestId])
+  @@index([postId, rootId, createdAt, id])
+  @@index([replyToId])
+}
+
+model FeedCommentMedia {
+  commentId String
+  mediaId String @unique
+  position Int
+  comment FeedComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  media FeedMediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  @@id([commentId, mediaId])
+  @@unique([commentId, position])
+}
+
+model FeedPostReaction {
+  id String @id @default(cuid())
+  postId String
+  userId String
+  kind FeedReactionKind
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([postId, userId])
+  @@index([postId, kind, createdAt, id])
+}
+
+model FeedCommentReaction {
+  id String @id @default(cuid())
+  commentId String
+  userId String
+  kind FeedReactionKind
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  comment FeedComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([commentId, userId])
+  @@index([commentId, kind, createdAt, id])
+}
+
+model FeedPostView {
+  postId String
+  userId String
+  createdAt DateTime @default(now())
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([postId, userId])
+  @@index([postId])
+}
+
+/// Opt-in signals are controlled by the viewer, not by the content author.
+model FeedPersonalizationPreference {
+  userId String @id
+  enabled Boolean @default(true)
+  useCity Boolean @default(true)
+  usePets Boolean @default(true)
+  useBehavior Boolean @default(true)
+  exploration Boolean @default(true)
+  historyResetAt DateTime?
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Qualified exposures are separate from the lifetime FeedPostView counter.
+model FeedImpression {
+  id String @id @default(cuid())
+  eventId String @unique @db.VarChar(64)
+  userId String
+  postId String
+  rankingSessionId String @db.VarChar(64)
+  algorithmVersion String @db.VarChar(64)
+  rank Int
+  visibleMs Int @default(0)
+  features Json?
+  candidateSources String[] @default([])
+  modelVersion String? @db.VarChar(64)
+  experimentVariant String? @db.VarChar(16)
+  occurredAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@unique([userId, postId, rankingSessionId])
+  @@index([userId, occurredAt(sort: Desc)])
+  @@index([postId, occurredAt(sort: Desc)])
+  @@index([rankingSessionId])
+}
+
+/// Validated event tied to an immutable server-issued feed exposure.
+model FeedRankingEvent {
+  eventId String @id @db.VarChar(64)
+  userId String
+  postId String
+  rankingSessionId String @db.VarChar(64)
+  kind String @db.VarChar(32)
+  durationMs Int @default(0)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([postId, createdAt(sort: Desc)])
+  @@index([rankingSessionId])
+}
+
+model FeedPostStats {
+  postId String @id
+  reactionCount Int @default(0)
+  uniqueCommenterCount Int @default(0)
+  bookmarkCount Int @default(0)
+  uniqueViewCount Int @default(0)
+  qualifiedImpressionCount Int @default(0)
+  updatedAt DateTime @updatedAt
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model FeedUserAuthorAffinity {
+  userId String
+  authorId String
+  score Float @default(0)
+  reactionCount Int @default(0)
+  commentCount Int @default(0)
+  bookmarkCount Int @default(0)
+  qualifiedViewCount Int @default(0)
+  lastInteractionAt DateTime?
+  updatedAt DateTime @updatedAt
+  viewer User @relation("FeedAffinityViewer", fields: [userId], references: [id], onDelete: Cascade)
+  author User @relation("FeedAffinityAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  @@id([userId, authorId])
+  @@index([userId, score(sort: Desc)])
+}
+
+model FeedUserPostFeedback {
+  userId String
+  postId String
+  kind String @db.VarChar(32)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@id([userId, postId, kind])
+  @@index([postId])
+}
+
+/// Offline-trained artifact; deployment requires manual promotion.
+model FeedSmartRankerModel {
+  id String @id @default(cuid())
+  version String @unique @db.VarChar(64)
+  artifact Json
+  active Boolean @default(false)
+  trainedAt DateTime
+  trainRows Int
+  validationRows Int
+  createdAt DateTime @default(now())
+  @@index([active, trainedAt(sort: Desc)])
+}
+
+model FeedNotification {
+  id String @id @default(cuid())
+  recipientId String
+  postId String
+  commentId String?
+  kind FeedNotificationKind
+  groupKey String? @db.VarChar(255)
+  actorIds String[] @default([])
+  reaction FeedReactionKind?
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment FeedComment? @relation(fields: [commentId], references: [id], onDelete: SetNull)
+  @@index([recipientId, readAt, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([groupKey, createdAt])
+}
+
+// Delivery jobs are independent of recipient rows and allow idempotent recovery.
+model FeedNotificationOutbox {
+  id String @id @default(cuid())
+  notificationId String
+  recipientId String
+  availableAt DateTime @default(now())
+  status FeedJobStatus @default(pending)
+  attempts Int @default(0)
+  leaseUntil DateTime?
+  attemptToken String? @unique
+  lastErrorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([notificationId])
+  @@index([status, availableAt, leaseUntil])
+}
+
+model FeedBookmark {
+  userId String
+  postId String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  @@id([userId, postId])
+  @@index([userId, createdAt(sort: Desc), postId(sort: Desc)])
+}
+
+model FeedAuthorPreference {
+  userId String
+  authorId String
+  hidden Boolean @default(false)
+  notify Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation("FeedPreferenceReader", fields: [userId], references: [id], onDelete: Cascade)
+  author User @relation("FeedPreferenceAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  @@id([userId, authorId])
+  @@index([authorId, notify, hidden])
+}
+
+// Text evidence deliberately survives author edits/deletion and has no media copies.
+model FeedReport {
+  id String @id @default(cuid())
+  reporterId String
+  authorId String
+  targetType String @db.VarChar(16)
+  targetId String
+  postId String
+  snapshotText String @db.VarChar(5000)
+  reason String @db.VarChar(64)
+  comment String @default("") @db.VarChar(1000)
+  status String @default("pending") @db.VarChar(16)
+  resolution String? @db.VarChar(16)
+  resolutionReason String? @db.VarChar(1000)
+  moderatorId String?
+  resolvedAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([reporterId, targetType, targetId])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([authorId])
+}
+
+model FeedModerationAction {
+  id String @id @default(cuid())
+  moderatorId String
+  reportId String
+  action String @db.VarChar(16)
+  reason String @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  @@index([reportId, createdAt])
+}
+
+// Provider acceptance is distinct from delivery; event history is append-only.
+model TransactionalMailAttempt {
+  id                String   @id @default(cuid())
+  providerMessageId String?  @unique
+  recipientCount    Int
+  status            String   @default("PENDING")
+  errorCode         String?
+  createdAt         DateTime @default(now())
+  acceptedAt        DateTime?
+
+  @@index([createdAt])
+}
+
+// AES-256-GCM encrypted deferred transactional email. Never store plaintext
+// recipients, reset links or attachment contents in the database.
+model TransactionalMailOutbox {
+  id           String    @id
+  status       String    @default("PENDING")
+  ciphertext   String?
+  nonce        String?
+  authTag      String?
+  category     String    @default("general")
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  nextAttemptAt DateTime @default(now())
+  attempts     Int       @default(0)
+  leaseOwner   String?
+  leaseExpiresAt DateTime?
+  lastErrorCode String?
+  acceptedAt   DateTime?
+
+  @@index([status, nextAttemptAt])
+  @@index([status, leaseExpiresAt])
+  @@index([expiresAt])
+}
+
+model TransactionalMailEvent {
+  id                String   @id
+  providerMessageId String
+  type              String
+  occurredAt        DateTime
+  receivedAt        DateTime @default(now())
+  errorCode         String?
+
+  @@index([providerMessageId, occurredAt])
+}
+
+
+// Durable course/lesson cache version, advanced transactionally by PostgreSQL
+// triggers on content tables; Redis publication is only a secondary signal.
+model CourseContentRevision {
+  id       Int    @id
+  revision BigInt @default(0)
+}
+
+
+// AG4 APPROVED OFF021 SCHEMA DRAFT — NEW MODELS ONLY, NOT A MIGRATION.
+// Source of truth for AG1 Prisma additive draft. These four models are
+// accompanied by three inverse relation lines for User/Pet (see acceptance).
+// NO existing tables/columns/indexes/data/history may be modified or dropped.
+
+model OfflineMutationReceipt {
+  id             String   @id @default(uuid()) @db.Uuid
+  ownerId        String
+  eventId        String   @db.Uuid
+  method         String   @db.VarChar(8)
+  operation      String   @db.VarChar(64)
+  resourceKey    String   @db.VarChar(256)
+  payloadHash    String   @db.VarChar(64)
+  state          String   @default("RESERVED") @db.VarChar(16)
+  revision       BigInt?
+  responseStatus Int?
+  responseBody   Json?
+  createdAt      DateTime @default(now())
+  committedAt    DateTime?
+  expiresAt      DateTime?
+
+  owner              User                            @relation("OfflineMutationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  preventionBindings OfflinePreventionClientBinding[] @relation("OfflineMutationBinding")
+  effects            OfflineMutationEffect[]         @relation("OfflineMutationEffectReceipt")
+
+  @@unique([ownerId, eventId])
+  @@unique([id, ownerId])
+  @@index([ownerId, resourceKey, revision])
+  @@index([expiresAt])
+}
+
+model OfflineResourceRevision {
+  ownerId     String
+  resourceKey String @db.VarChar(256)
+  revision    BigInt @default(0)
+  videoLastPositionSec Int?
+  videoRecordedAt      DateTime? @db.Timestamptz(3)
+  owner       User   @relation("OfflineRevisionOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@id([ownerId, resourceKey])
+}
+
+model OfflinePreventionClientBinding {
+  id          String   @id @default(uuid()) @db.Uuid
+  ownerId     String
+  petId       String
+  clientId    String   @db.Uuid
+  payloadHash String   @db.VarChar(64)
+  receiptId   String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  pet     Pet                    @relation("OfflineClientBindingPet", fields: [petId, ownerId], references: [id, ownerId], onDelete: Cascade)
+  receipt OfflineMutationReceipt @relation("OfflineMutationBinding", fields: [receiptId, ownerId], references: [id, ownerId], onDelete: Cascade)
+
+  @@unique([petId, clientId])
+  @@index([ownerId, petId])
+}
+
+model OfflineMutationEffect {
+  id          String   @id @default(uuid()) @db.Uuid
+  ownerId     String
+  eventId     String   @db.Uuid
+  kind        String   @db.VarChar(64)
+  status      String   @default("PENDING") @db.VarChar(16)
+  payload     Json
+  attempts    Int      @default(0)
+  availableAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  receipt OfflineMutationReceipt @relation("OfflineMutationEffectReceipt", fields: [ownerId, eventId], references: [ownerId, eventId], onDelete: Cascade)
+
+  @@unique([ownerId, eventId, kind])
+  @@index([status, availableAt])
+}
+
+// G05 additive idempotency: immutable receipt survives pet deletion; belongs to owner.
+model PetCreateReceipt {
+  ownerId         String
+  clientRequestId String   @db.Uuid
+  payloadHash     String   @db.Char(64)
+  petId           String
+  responseStatus  Int      @default(201) @db.SmallInt
+  responseJson    Json
+  createdAt       DateTime @default(now()) @db.Timestamp(3)
+  owner           User     @relation("PetCreateOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@id([ownerId, clientRequestId], map: "PetCreateReceipt_ownerId_clientRequestId_key")
+}
+
+
+// WEB2: immutable per-object deletion intent outlives Pet/PetDocument cascade.
+// No FK to User/Pet: cleanup cannot disappear with the deleted record.
+// Provider is derived from the stored location, never from a runtime upload flag.
+model PetMediaDeletionIntent {
+  id           String   @id @db.Uuid
+  ownerId      String
+  petId        String
+  dedupeKey    String   @db.Char(64)
+  provider     String   @db.VarChar(24)
+  locator      String   @db.Text
+  reason       String   @db.VarChar(24)
+  status       String   @default("pending") @db.VarChar(16)
+  attempts     Int      @default(0)
+  availableAt  DateTime @default(now()) @db.Timestamp(3)
+  attemptToken String?  @db.Uuid
+  leaseUntil   DateTime? @db.Timestamp(3)
+  errorCode    String?  @db.VarChar(64)
+  createdAt    DateTime @default(now()) @db.Timestamp(3)
+  updatedAt    DateTime @default(now()) @db.Timestamp(3)
+
+  @@unique([ownerId, dedupeKey])
+  @@index([status, availableAt])
+  @@index([ownerId, petId])
+}
+
+// Chat 2.0 is deliberately additive. Legacy Stream-backed models remain intact
+// until archival, push cutover, and three-platform acceptance are verified.
+enum Chat2Kind {
+  DIRECT
+  CYNOLOGIST
+  COMMUNITY
+  COURSE
+  COURSE_TOPIC // User-owned groups about courses; never a system-scoped COURSE room
+  CITY
+  BREED
+  GROUP
+}
+
+enum Chat2Visibility {
+  PUBLIC
+  PRIVATE
+  UNLISTED
+}
+
+model Chat2Conversation {
+  id String @id @default(cuid())
+  kind Chat2Kind
+  visibility Chat2Visibility @default(PRIVATE)
+  name String? @db.VarChar(120)
+  description String? @db.VarChar(2000)
+  avatarMediaId String? // References Chat2Media in this room; lifecycle managed transactionally
+  // Canonical sorted user pair for DIRECT; cyno:<clientId> for CYNOLOGIST.
+  directKey String? @unique
+  // Singleton scope for system-managed CITY/BREED/COURSE chats.
+  scopeKey String?
+  createdById String?
+  createdBy User? @relation("Chat2Creator", fields: [createdById], references: [id], onDelete: SetNull)
+  nextSequence BigInt @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  members Chat2Member[]
+  messages Chat2Message[]
+  topics Chat2Topic[]
+  media Chat2Media[]
+  outbox Chat2OutboxEvent[]
+  reports Chat2Report[]
+  @@unique([kind, scopeKey])
+  @@index([kind, visibility, createdAt])
+}
+
+model Chat2Member {
+  id String @id @default(cuid())
+  conversationId String
+  userId String
+  role String @default("MEMBER") @db.VarChar(16)
+  joinedAt DateTime @default(now())
+  lastReadSequence BigInt @default(0)
+  mutedUntil DateTime?
+  hiddenAt DateTime?
+  conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user User @relation("Chat2Membership", fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([conversationId, userId])
+  @@index([userId, hiddenAt])
+}
+
+model Chat2Message {
+  id String @id @default(cuid())
+  conversationId String
+  sequence BigInt
+  authorId String
+  clientMessageId String @db.VarChar(64)
+  text String @db.VarChar(8000)
+  replyToId String?
+  createdAt DateTime @default(now())
+  editedAt DateTime?
+  deletedAt DateTime?
+  conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author User @relation("Chat2Author", fields: [authorId], references: [id], onDelete: Cascade)
+  attachments Chat2Media[]
+  pushReceipts Chat2PushReceipt[]
+  reports Chat2Report[]
+  reactions Chat2MessageReaction[]
+  @@unique([conversationId, sequence])
+  @@unique([conversationId, authorId, clientMessageId])
+  @@index([conversationId, createdAt])
+}
+
+/** One reaction per person per message; changing emoji replaces the previous one. */
+model Chat2MessageReaction {
+  messageId String
+  userId String
+  emoji String @db.VarChar(12)
+  createdAt DateTime @default(now())
+  message Chat2Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user User @relation("Chat2ReactionUser", fields: [userId], references: [id], onDelete: Cascade)
+  @@id([messageId, userId])
+  @@index([userId])
+}
+
+model Chat2Media {
+  id String @id @default(cuid())
+  messageId String?
+  conversationId String
+  ownerId String
+  objectKey String @unique
+  name String @db.VarChar(180)
+  kind String @db.VarChar(20)
+  mime String @db.VarChar(128)
+  bytes Int
+  status String @default("PENDING") @db.VarChar(20)
+  createdAt DateTime @default(now())
+  message Chat2Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  owner User @relation("Chat2MediaOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@index([ownerId, status, createdAt])
+  @@index([conversationId, messageId])
+}
+
+/// Independent deletion ledger: no User/Chat FK, so account- or room-level
+/// cascades cannot erase cleanup tasks before the worker deletes private S3 data.
+model Chat2MediaDeletionIntent {
+  objectKey String @id
+  status String @default("PENDING") @db.VarChar(16)
+  attempts Int @default(0)
+  availableAt DateTime @default(now()) @db.Timestamp(3)
+  claimedUntil DateTime? @db.Timestamp(3)
+  completedAt DateTime? @db.Timestamp(3)
+  errorCode String? @db.VarChar(64)
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+  @@index([status,availableAt])
+}
+
+/// One private abuse report per reporter and message; no public reporter identity.
+model Chat2Report {
+  id String @id @default(cuid())
+  reporterId String
+  conversationId String
+  messageId String
+  reason String @db.VarChar(24)
+  comment String @default("") @db.VarChar(500)
+  status String @default("OPEN") @db.VarChar(16)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  reporter User @relation("Chat2ReportAuthor", fields:[reporterId], references:[id], onDelete:Cascade)
+  conversation Chat2Conversation @relation(fields:[conversationId],references:[id],onDelete:Cascade)
+  message Chat2Message @relation(fields:[messageId],references:[id],onDelete:Cascade)
+  @@unique([reporterId,messageId])
+  @@index([conversationId,status,createdAt])
+}
+
+model Chat2Topic {
+  id String @id @default(cuid())
+  conversationId String
+  title String @db.VarChar(120)
+  createdAt DateTime @default(now())
+  conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Chat2Block {
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker User @relation("Chat2Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Chat2Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  @@id([blockerId, blockedId])
+}
+
+model Chat2OutboxEvent {
+  id String @id @default(cuid())
+  conversationId String
+  messageId String?
+  eventType String @db.VarChar(40)
+  createdAt DateTime @default(now())
+  deliveredAt DateTime?
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  claimedUntil DateTime?
+  conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@index([deliveredAt, nextAttemptAt])
+}
+
+model Chat2PushReceipt {
+  messageId String
+  recipientId String
+  notificationId String? @unique
+  createdAt DateTime @default(now())
+  message Chat2Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  recipient User @relation("Chat2PushRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  @@id([messageId, recipientId])
+}
+
+
+/// Chat 2.0 V2 only. Upload/Job processing is disabled until a separate
+/// isolated Refactor API cutover. Legacy Chat2Media remains untouched.
+model Chat2V2MediaTask {
+  mediaId String @id @db.Uuid
+  conversationId String
+  ownerId String
+  name String @db.VarChar(180)
+  sourceKey String @unique
+  sourceMime String @db.VarChar(100)
+  sourceBytes Int
+  status String @default("AWAITING_UPLOAD") @db.VarChar(24)
+  attemptToken String? @db.Uuid
+  leaseUntil DateTime? @db.Timestamp(3)
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now()) @db.Timestamp(3)
+  manifest Json?
+  errorCode String? @db.VarChar(64)
+  // Source-only after READY; all original+variants after terminal FAILED/EXPIRED.
+  cleanupKind String? @db.VarChar(10)
+  cleanupToken String? @db.Uuid
+  cleanupLeaseUntil DateTime? @db.Timestamp(3)
+  cleanupNextAt DateTime @default(now()) @db.Timestamp(3)
+  cleanupAttempts Int @default(0)
+  cleanupCompletedAt DateTime? @db.Timestamp(3)
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+  updatedAt DateTime @updatedAt @db.Timestamp(3)
+  @@index([status,nextAttemptAt,createdAt])
+  @@index([conversationId,ownerId,status])
+}
+
+// Questions Photo V2. Durable image-only queue, intentionally not cascaded from
+// QuestionPhoto: deletion/outbox cleanup must survive soft/hard parent removal.
+model QuestionV2MediaTask {
+  mediaId           String    @id @db.Uuid
+  photoId           String    @unique
+  ownerId           String
+  sourceKey         String    @unique
+  sourceMime        String    @db.VarChar(64)
+  sourceBytes       Int
+  status            String    @default("AWAITING_UPLOAD") @db.VarChar(24)
+  attemptToken      String?   @db.Uuid
+  leaseUntil        DateTime? @db.Timestamp(3)
+  attempts          Int       @default(0)
+  nextAttemptAt     DateTime  @default(now()) @db.Timestamp(3)
+  manifest          Json?
+  errorCode         String?   @db.VarChar(64)
+  cleanupKind       String?   @db.VarChar(10)
+  cleanupToken      String?   @db.Uuid
+  cleanupLeaseUntil DateTime? @db.Timestamp(3)
+  cleanupNextAt     DateTime  @default(now()) @db.Timestamp(3)
+  cleanupAttempts   Int       @default(0)
+  cleanupCompletedAt DateTime? @db.Timestamp(3)
+  createdAt         DateTime  @default(now()) @db.Timestamp(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamp(3)
+
+  @@index([status, nextAttemptAt, createdAt])
+  @@index([ownerId, status])
+  @@index([cleanupKind, cleanupNextAt])
+}

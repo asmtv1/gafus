@@ -4,7 +4,7 @@ const mock = vi.hoisted(() => {
   const chat2Member = {
     findUnique: fn(), findFirst: fn(), findMany: fn(), updateMany: fn(), update: fn(), upsert: fn(), delete: fn(), deleteMany: fn(),
   };
-  const chat2Block = { findFirst: fn() };
+  const chat2Block = { findFirst: fn(), findMany: fn() };
   const chat2Message = { findUnique: fn(), findFirst: fn(), findMany: fn(), create: fn(), findUniqueOrThrow: fn() };
   const chat2MessageReaction = { findMany: fn(), findUnique: fn(), upsert: fn(), delete: fn() };
   const chat2Media = { findMany: fn(), findFirst: fn(), updateMany: fn() };
@@ -99,6 +99,7 @@ const message = {
 beforeEach(() => {
   vi.resetAllMocks();
   mock.chat2Block.findFirst.mockResolvedValue(null);
+  mock.chat2Block.findMany.mockResolvedValue([]);
   mock.user.findFirst.mockResolvedValue(null);
   mock.chat2Member.findUnique.mockResolvedValue(member());
   mock.chat2Member.findFirst.mockResolvedValue({ userId: "other" });
@@ -474,6 +475,7 @@ describe("Chat2 user avatars in actor-scoped conversation DTOs", () => {
     vi.resetAllMocks();
     mock.chat2Conversation.findUnique.mockResolvedValue({ id: "community-default", nextSequence: 0n });
     mock.chat2Block.findFirst.mockResolvedValue(null);
+    mock.chat2Block.findMany.mockResolvedValue([]);
     mock.chat2Member.findUnique.mockResolvedValue(member());
     mock.avatarSignedUrl.mockResolvedValue(
       "http://127.0.0.1:9000/gafus-refactor-documents-test/target.jpg?X-Amz-Signature=test",
@@ -545,6 +547,42 @@ describe("Chat2 user avatars in actor-scoped conversation DTOs", () => {
         avatarUrl: expect.stringContaining("X-Amz-Signature=test") },
     ]);
     expect(mock.avatarSignedUrl).toHaveBeenCalledOnce();
+  });
+
+  it("hides both directions of blocked direct chats with ONE bounded database read", async () => {
+    const rows = Array.from({ length: 12 }, (_, index) => {
+      const otherId = `peer-${index}`;
+      const id = `direct-${index}`;
+      return {
+        conversationId: id, role: "MEMBER", mutedUntil: null, lastReadSequence: 0n,
+        conversation: {
+          ...room("DIRECT"), id, avatarMediaId: null,
+          name: null, description: null, visibility: "PRIVATE", messages: [],
+          members: [participants[0], { userId: otherId, role: "MEMBER", user: {
+            username: otherId, profile: { avatarUrl: null },
+          } }],
+        },
+      };
+    });
+    mock.chat2Member.findMany.mockResolvedValue(rows);
+    mock.chat2Block.findMany.mockResolvedValue([
+      { blockerId: "actor", blockedId: "peer-1" },
+      { blockerId: "peer-2", blockedId: "actor" },
+      { blockerId: "unrelated", blockedId: "foreign" },
+    ]);
+    const visible = await listChats("actor");
+    expect(visible.map(item => item.id)).toEqual(rows
+      .filter((_, index) => index !== 1 && index !== 2)
+      .map(item => item.conversation.id));
+    expect(mock.chat2Block.findMany).toHaveBeenCalledExactlyOnceWith({
+      where: { OR: [
+        { blockerId: "actor", blockedId: { in: Array.from({ length: 12 }, (_, index) => `peer-${index}`) } },
+        { blockedId: "actor", blockerId: { in: Array.from({ length: 12 }, (_, index) => `peer-${index}`) } },
+      ] },
+      select: { blockerId: true, blockedId: true },
+    });
+    expect(mock.chat2Block.findFirst).not.toHaveBeenCalled();
+    expect(mock.user.findFirst).not.toHaveBeenCalled();
   });
 
   it("includes the same participant avatar in conversation details", async () => {

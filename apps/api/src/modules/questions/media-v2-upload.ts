@@ -1,6 +1,7 @@
 /** Signed direct S3 POST for Questions. No photo bytes traverse Hono. */
 import { randomUUID } from "node:crypto";
 import { prisma } from "@gafus/prisma";
+import { questionsCanRetryConfirmedPhoto, questionsPhotoDailyLimitReached } from "@gafus/core/services/mediaDelivery";
 import { questionActor, QuestionError, scheduleQuestionsV2Cleanup } from "@gafus/core/services/questions";
 import { questionsV2PresignedPost, questionsV2Head, questionsV2Delivery,
   questionsV2Marker } from "@gafus/cdn-upload";
@@ -31,7 +32,7 @@ export async function reserveQuestionsPhoto(userId:string,input:{mime:string;byt
     await questionActor(userId,tx,true);
     const count=await tx.questionPhoto.count({where:{ownerId:userId,
       createdAt:{gte:new Date(Date.now()-86400000)}}});
-    if(count>=100)throw new QuestionError("UPLOAD_LIMIT","Лимит фото за сутки исчерпан",429);
+    if(questionsPhotoDailyLimitReached(count))throw new QuestionError("UPLOAD_LIMIT","Лимит фото за сутки исчерпан",429);
     const reserved=await tx.questionPhoto.create({
       data:{ownerId:userId,storagePath:"questions-v2:"+sourceKey,url:""},
     });
@@ -56,7 +57,7 @@ export async function confirmQuestionsPhoto(userId:string,photoId:string){
   enabled();
   const {task}=await own(userId,photoId);
   if(task.status!=="AWAITING_UPLOAD"){
-    if(["QUEUED","PROCESSING","READY"].includes(task.status)){
+    if(questionsCanRetryConfirmedPhoto(task.status)){
       if(task.status==="QUEUED")void enqueueQuestionsPhoto(task.mediaId).catch(()=>{});
       return {id:photoId,status:task.status};
     }
@@ -76,7 +77,7 @@ export async function confirmQuestionsPhoto(userId:string,photoId:string){
     // Another confirmation/discard raced with our CAS. Re-read exactly once;
     // recursive confirmations can spin forever if a row remains AWAITING_UPLOAD.
     const latest=await prisma.questionV2MediaTask.findUnique({where:{mediaId:task.mediaId}});
-    if(latest && ["QUEUED","PROCESSING","READY"].includes(latest.status)){
+    if(latest && questionsCanRetryConfirmedPhoto(latest.status)){
       if(latest.status==="QUEUED")void enqueueQuestionsPhoto(latest.mediaId).catch(()=>{});
       return {id:photoId,status:latest.status};
     }

@@ -50,7 +50,10 @@
     },
     "production-local": {
       "extends": "production",
-      "autoIncrement": false
+      "autoIncrement": false,
+      "env": {
+        "JAVA_TOOL_OPTIONS": "-Djdk.tls.client.protocols=TLSv1.2 -Dhttps.protocols=TLSv1.2"
+      }
     }
   },
   "submit": {

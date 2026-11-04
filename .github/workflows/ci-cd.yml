@@ -205,24 +205,27 @@ jobs:
       - name: Guard Worker Prisma boundary
         run: node scripts/check-worker-prisma-boundary.mjs
 
-      - name: Guard empty PostgreSQL bootstrap SQL against migration drift
-        run: python3 packages/prisma/scripts/generate-fresh-db-extras.py --check
+      - name: Guard source-locked fresh-only SQL and all 163 historical migrations
+        run: |
+          node ci-cd/bootstrap/prisma-fresh/review-gate.mjs
+          node ci-cd/bootstrap/prisma-fresh/apply-new-empty-db.mjs --check
+          node --test ci-cd/bootstrap/prisma-fresh/option-a.contract.test.mjs
 
       - name: Verify production course caching is automatic and migration-safe
         run: node --test ci-cd/scripts/course-cache-production-contract.test.mjs
 
-      - name: Bootstrap clean PostgreSQL with historical constraints
+      - name: Bootstrap NEW isolated CI PostgreSQL with SQL and official Prisma baseline
         env:
           DATABASE_URL: postgresql://gafus_ci:gafus_ci_disposable@localhost:5432/gafus_fresh
+          GAFUS_FRESH_BOOTSTRAP_CONFIRM: gafus_fresh
         run: |
           bash packages/prisma/scripts/bootstrap-fresh-postgres.sh
-          checks=$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_constraint WHERE contype='c' AND connamespace='public'::regnamespace")
-          triggers=$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal")
-          partial_indexes=$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexdef ILIKE '% WHERE %'")
-          test "$checks" -ge 54
-          test "$triggers" -ge 5
-          test "$partial_indexes" -ge 1
-          pnpm --filter @gafus/prisma exec prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel schema.prisma --exit-code
+          test "$(psql "$DATABASE_URL" -Atc 'SELECT count(*) FROM "_prisma_migrations"')" -ge 163
+          test "$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_constraint WHERE contype='c' AND connamespace='public'::regnamespace")" -ge 65
+          test "$(psql "$DATABASE_URL" -Atc 'SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal')" -ge 12
+          # Two reviewed historical raw indexes are deliberately richer than schema.prisma.
+          # apply-new-empty-db.mjs checks their exact SQL diff; never DROP them to force --exit-code=0.
+          pnpm --filter @gafus/prisma exec prisma migrate status
 
       - name: Guard safe Feed poll rollout before production deploy
         run: node --test ci-cd/scripts/feed-poll-release-contract.test.mjs
@@ -246,6 +249,15 @@ jobs:
 
       - name: Check workspace dependency cycles
         run: node scripts/check-workspace-graph.mjs
+
+      # Option A: source-only and deterministic; no cluster, DB credentials,
+      # production migration history, or apply permissions on this CI lane.
+      - name: Verify GAFUS fresh-only Prisma baseline source (blocking)
+        run: |
+          node ci-cd/bootstrap/prisma-fresh/fresh-v1-source-gate.mjs
+          node --check ci-cd/bootstrap/prisma-fresh/install-fresh-v1-owned-local.mjs
+          node --check ci-cd/bootstrap/prisma-fresh/verify-owned-baseline-pg18.mjs
+          node --test ci-cd/bootstrap/prisma-fresh/fresh-v1-installer.contract.test.mjs
 
       - name: Guard Mobile against core server imports
         run: node scripts/check-mobile-core-boundary.mjs
@@ -526,6 +538,10 @@ jobs:
         run: node --test ci-cd/scripts/deploy-only-contract.test.mjs ci-cd/scripts/workflow-consolidation-contract.test.mjs ci-cd/scripts/release-graph.contract.test.mjs ci-cd/scripts/workspace-dependency-graph.contract.test.mjs ci-cd/docker/prometheus/health-monitoring.contract.test.mjs ci-cd/scripts/backup-to-yandex.test.mjs ci-cd/scripts/emit-verified-backup-metric.test.mjs infra/cloudru/production-job-image-config.test.mjs
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media
+      # Real Vitest suite, not a pnpm --filter no-op: any media-unit failure
+      # blocks cloudru-media-contracts and therefore deploy-production.
+      - name: Cloud media runtime unit contracts (blocking)
+        run: pnpm --filter @gafus/feed-cloud-runtime test
       - name: Reject Yandex CDN release routes and verify fail-closed Beget gating
         run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs infra/cloudru/gallery-redirect-release-gate.test.mjs
       - name: Cloud.ru registry publication retry acceptance tests

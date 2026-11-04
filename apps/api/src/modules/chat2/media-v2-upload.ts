@@ -1,6 +1,7 @@
 /** Chat2 V2 direct Cloud.ru POST lifecycle, intentionally disabled until cutover. */
 import {randomUUID} from "node:crypto";
 import {prisma} from "@gafus/prisma";
+import { chat2CanRetryConfirmedUpload, chat2CanAttachVerifiedOriginal, chat2MediaWithoutRendition } from "@gafus/core/services/mediaDelivery";
 import {chat2V2SourceKey,chat2V2ClassifySource,validateChat2V2Manifest,
   type Chat2V2Mime,type Chat2V2Job,type Chat2V2Manifest} from "@gafus/feed-cloud";
 import {chat2V2DirectUploadForm,chat2V2CheckOriginal} from "@gafus/cdn-upload";
@@ -43,7 +44,7 @@ export async function confirmChat2V2Upload(userId:string,conversationId:string,m
   const task=await prisma.chat2V2MediaTask.findFirst({where:{mediaId,conversationId,ownerId:userId}});
   if(!task)throw new Chat2Error("MEDIA_V2_NOT_FOUND",404,"Загрузка не найдена");
   if(task.status!=="AWAITING_UPLOAD"){
-    if(["UPLOADED","QUEUED","PROCESSING","READY"].includes(task.status))
+    if(chat2CanRetryConfirmedUpload(task.status))
       return {mediaId,status:task.status};
     fail("MEDIA_V2_INVALID_STATUS",409,"Эту загрузку нельзя подтвердить");
   }
@@ -83,7 +84,8 @@ export async function attachChat2V2Media(userId: string, conversationId: string,
   const task=await prisma.chat2V2MediaTask.findFirst({
     where:{mediaId,conversationId,ownerId:userId,status:{in:["UPLOADED","QUEUED","PROCESSING","READY"]}},
   });
-  if(!task)return fail("MEDIA_V2_NOT_READY",409,"Файл ещё не загружен");
+  if(!task || !chat2CanAttachVerifiedOriginal(task.status))
+    return fail("MEDIA_V2_NOT_READY",409,"Файл ещё не загружен");
   const kind=chat2V2ClassifySource(task.sourceMime,task.sourceBytes).kind;
   if(task.status==="READY"){
     if(!task.manifest)fail("MEDIA_V2_NOT_READY",409,"Не найден результат обработки");
@@ -113,7 +115,7 @@ export async function readChat2V2Media(userId:string,conversationId:string,media
   if(!task)return fail("MEDIA_V2_NOT_FOUND",404,"Вложение недоступно");
   // No object URL for unprocessed media, even for authorized room members.
   // This state is returned only for a Chat2Media row bound to a real message.
-  if(["UPLOADED","QUEUED","PROCESSING","FAILED","EXPIRED"].includes(task.status))
+  if(chat2MediaWithoutRendition(task.status))
     return {url:"",status:task.status,name:task.name,mime:task.sourceMime,expiresIn:0};
   if(task.status!=="READY" || !task.manifest)
     return fail("MEDIA_V2_NOT_FOUND",404,"Вложение недоступно");

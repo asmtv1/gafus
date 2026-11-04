@@ -15,13 +15,12 @@ import type { ChecklistQuestion } from "@gafus/types";
 import { randomUUID } from "crypto";
 import { getMoscowDateKey, dateKeyToDate, toDateKey, getTodayDate, cleanDailyCourseMarkdownDescription } from "./dailyCoursePure";
 export { getMoscowDateKey } from "./dailyCoursePure";
+import { buildDailyCourseImportPreview } from "./dailyCourseImportPreview";
 import { estimateDayDurations } from "../../utils/training";
 import { invalidateStepsContentCache } from "../training/trainingDayContent";
 import { publishCourseContentChange } from "../training/trainingContentRevision";
 import {
   parseDailyCourseImportFile,
-  type ParsedDailyCourseImportDay,
-  type ParsedDailyCourseImportFile,
 } from "./importParser";
 import {
   dailyCourseRangeSchema,
@@ -218,31 +217,10 @@ export interface DailyCourseScheduleStatisticsDto {
   users: DailyCourseStatisticsUserDto[];
 }
 
-export interface DailyCourseImportConflictDto {
-  scheduleId: string;
-  bundleTitle: string;
-  isPublished: boolean;
-}
-
-export interface DailyCourseImportPreviewDayDto extends ParsedDailyCourseImportDay {
-  isPast: boolean;
-  conflict: DailyCourseImportConflictDto | null;
-  canReplaceConflict: boolean;
-  canImport: boolean;
-}
-
-export interface DailyCourseImportPreviewDto {
-  days: DailyCourseImportPreviewDayDto[];
-  hasErrors: boolean;
-  summary: {
-    totalDays: number;
-    emptyDays: number;
-    importableDays: number;
-    conflictDays: number;
-    errorDays: number;
-  };
-}
-
+export type {
+  DailyCourseImportConflictDto, DailyCourseImportPreviewDayDto, DailyCourseImportPreviewDto,
+} from "./dailyCourseImportPreview";
+import type { DailyCourseImportPreviewDayDto, DailyCourseImportPreviewDto } from "./dailyCourseImportPreview";
 export interface DailyCourseImportResultDto {
   preview: DailyCourseImportPreviewDto;
   importedDates: string[];
@@ -1614,21 +1592,7 @@ export async function previewDailyCourseImportFile(
     ]),
   );
 
-  const days = parsed.days.map((day): DailyCourseImportPreviewDayDto => {
-    const conflict = conflictByDate.get(day.date) ?? null;
-    const hasErrors = day.errors.length > 0 || day.steps.some((step) => step.errors.length > 0);
-    const isPast = day.date < today;
-    const canReplaceConflict = Boolean(conflict && day.date > today && !hasErrors);
-    return {
-      ...day,
-      isPast,
-      conflict,
-      canReplaceConflict,
-      canImport: !day.isEmpty && !hasErrors && !isPast && !conflict,
-    };
-  });
-
-  return buildImportPreview(days, parsed);
+  return buildDailyCourseImportPreview(parsed, today, conflictByDate);
 }
 
 export async function importDailyCourseFile(
@@ -1662,26 +1626,6 @@ export async function importDailyCourseFile(
   }
 
   return { preview, importedDates, skippedDates };
-}
-
-function buildImportPreview(
-  days: DailyCourseImportPreviewDayDto[],
-  parsed: ParsedDailyCourseImportFile,
-): DailyCourseImportPreviewDto {
-  const errorDays = days.filter(
-    (day) => day.errors.length > 0 || day.steps.some((step) => step.errors.length > 0),
-  ).length;
-  return {
-    days,
-    hasErrors: parsed.hasErrors || errorDays > 0,
-    summary: {
-      totalDays: days.length,
-      emptyDays: days.filter((day) => day.isEmpty).length,
-      importableDays: days.filter((day) => day.canImport).length,
-      conflictDays: days.filter((day) => day.conflict).length,
-      errorDays,
-    },
-  };
 }
 
 async function createDailyCourseImportDay(

@@ -1,0 +1,3584 @@
+{
+  "anonymousCheckOverrides": [
+    "AccountStorageCleanup_status_check",
+    "AccountStorageCleanup_scope_check"
+  ],
+  "combinedSha256": "85506f97969e09a2c483a754b3697f24006d98ad53dea2c4c32924db77ddbff9",
+  "extrasCandidateSha256": "167af9a6ada6771ef25e971b226343d7085f53e712e6b15e9271559c2ea6b9f4",
+  "historicalActiveIndexes": 471,
+  "historicalBackfillTablesNotReplayed": [
+    "AppSubscriptionTrial",
+    "RewardedTargetAccess",
+    "TrainerNoteEntry",
+    "TrainerNoteStudent"
+  ],
+  "historicalDataOperations": [
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20250223120001_diary_entry_day_id",
+      "ordinal": 1,
+      "sha256": "6e804ba0f8a3203f381c1e21e01f54d39e3ae9065d9f705ce571fdea2918849e"
+    },
+    {
+      "disposition": "legacy_existing_data_cleanup_skip_on_new_empty_db",
+      "kind": "DELETE",
+      "migration": "20250223120001_diary_entry_day_id",
+      "ordinal": 2,
+      "sha256": "09cc1eadc32747c49cab7cc11a8b723a402b5626ad8746d1621483269bc61846"
+    },
+    {
+      "disposition": "existing_user_rows_absent_fresh_db_skip",
+      "kind": "INSERT",
+      "migration": "20260126000000_change_note_to_many_students",
+      "ordinal": 2,
+      "sha256": "fb41bbedb7305480462cc8021792ee6de1fb623bed86b00095536e7168b04b7a",
+      "table": "TrainerNoteStudent"
+    },
+    {
+      "disposition": "existing_user_rows_absent_fresh_db_skip",
+      "kind": "INSERT",
+      "migration": "20260126010000_add_note_entries",
+      "ordinal": 2,
+      "sha256": "dfce917d4b15480a57e31ae1e93117f5e1bdd53bb11ea965829324f685bcc279",
+      "table": "TrainerNoteEntry"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20260220140000_consent_type_status",
+      "ordinal": 4,
+      "sha256": "69de8fab2f1abaf231b899cd711efc60820fc918752e0970ec7841cc9c10d3f1"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20260306120000_backfill_password_set_at",
+      "ordinal": 0,
+      "sha256": "020f5865519e0a89ec8d486dd928493b2b66337b92c473e7351713d03fd26405"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20260323140000_pet_prevention_reminder_fields",
+      "ordinal": 7,
+      "sha256": "84955762edb2570541f4d7ad609bee6f3e0a428715b23bb460d225942a6fc8bd"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20260323140000_pet_prevention_reminder_fields",
+      "ordinal": 8,
+      "sha256": "21ddfc5ef65f516ba84ac98fd0bc06cc0b5132d3d01d0427f96c0a11dca4ac58"
+    },
+    {
+      "disposition": "static_singleton_rewritten_to_current_schema",
+      "kind": "INSERT",
+      "migration": "20260424143000_add_account_deletion_audit_and_counter",
+      "ordinal": 4,
+      "sha256": "96ef4411feedfb1c210804f8389e088b5eede42d86a0905b7a8ce20a524a34d9",
+      "table": "AccountDeletionCounter"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20260429002000_repair_user_password_set_at",
+      "ordinal": 1,
+      "sha256": "ab6aa8009beff8b17fcfb49739f889f5f3c7483c6f224e812ea7ecd0655418cd"
+    },
+    {
+      "disposition": "legacy_existing_data_cleanup_skip_on_new_empty_db",
+      "kind": "DELETE",
+      "migration": "20260429123000_enforce_pet_document_owner_consistency",
+      "ordinal": 0,
+      "sha256": "7348ec5d57262a4105f28787291382e6e2a3e8b2cd5364fb06453cb0dc4332a8"
+    },
+    {
+      "disposition": "static_singleton_rewritten_to_current_schema",
+      "kind": "INSERT",
+      "migration": "20260510235500_add_app_subscription",
+      "ordinal": 38,
+      "sha256": "5f1c70f6d1b508d49c34fa5b94646827dadf33f74cb69eb118d86aa8afd19ad5",
+      "table": "AppSubscriptionSettings"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20260517123000_remove_premium_user_role",
+      "ordinal": 0,
+      "sha256": "4908491806370cbaeca466b6ccab88753914a0c4ccc318329f67fb8feba5cb31"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20260517123000_remove_premium_user_role",
+      "ordinal": 1,
+      "sha256": "422aa67d3b62258802847a54d5f772ff5282f8c6b25c2df31e5d4866b2dd56aa"
+    },
+    {
+      "disposition": "legacy_existing_data_cleanup_skip_on_new_empty_db",
+      "kind": "DELETE",
+      "migration": "20260518183000_unique_consultation_email_log",
+      "ordinal": 0,
+      "sha256": "e6cc8ac9ceb8363fd56729ca69d2c3cb57b49375650b26789967de6c5f22321d"
+    },
+    {
+      "disposition": "existing_user_rows_absent_fresh_db_skip",
+      "kind": "INSERT",
+      "migration": "20260530130000_add_app_subscription_trials",
+      "ordinal": 6,
+      "sha256": "8ed7c77349c69e5624cfa5fb8f2d9c67e438a9d7809e702d8e748fdc5194255f",
+      "table": "AppSubscriptionTrial"
+    },
+    {
+      "disposition": "static_singleton_rewritten_to_current_schema",
+      "kind": "INSERT",
+      "migration": "20260531140000_add_rewarded_credits",
+      "ordinal": 30,
+      "sha256": "8505b6be866adbce6cf6645ce4daa7552cdb7539241d26e6bb7d937b99672557",
+      "table": "RewardedAdSettings"
+    },
+    {
+      "disposition": "current_schema_defaults_encapsulate_final_tariff_state",
+      "kind": "UPDATE",
+      "migration": "20260621120000_add_monthly_app_subscription_plan",
+      "ordinal": 2,
+      "sha256": "b093807b12af1728bbff8966e5d75ee6dc86c869803f492dceabc5c3c6e1ec93"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20260709120000_consultation_confirmation_sla_24h",
+      "ordinal": 1,
+      "sha256": "18e6804b5b412679a1cc763098db5d24ade8c56eb1993cfd6693f0f197265494"
+    },
+    {
+      "disposition": "current_schema_defaults_encapsulate_final_tariff_state",
+      "kind": "UPDATE",
+      "migration": "20260715110000_monthly_app_subscription_only",
+      "ordinal": 0,
+      "sha256": "3fccf94a714991d258e2d4fe47677a779b333e2f897b542fbae9ebe99a8ef437"
+    },
+    {
+      "disposition": "legacy_existing_data_cleanup_skip_on_new_empty_db",
+      "kind": "DELETE",
+      "migration": "20260722000000_remove_web_rewarded_ads",
+      "ordinal": 0,
+      "sha256": "a928c392b1c2e778ebef6d7836bc651ed2f9d85271efeed07ce3fdf9184e6c25"
+    },
+    {
+      "disposition": "static_singleton_rewritten_to_current_schema",
+      "kind": "INSERT",
+      "migration": "20260726120000_mobile_release_policy",
+      "ordinal": 3,
+      "sha256": "acc159c86239ddf4c67a23d640939d3f0d5045ee00968f943d3a7e706a0550f9",
+      "table": "MobileAppReleasePolicy"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20260726120000_mobile_release_policy",
+      "ordinal": 4,
+      "sha256": "a41c75fcedac73dfa3d9ce24e6ea32c71e9de5c39b6bb17d682361e09c7df2b1"
+    },
+    {
+      "disposition": "static_singleton_rewritten_to_current_schema",
+      "kind": "INSERT",
+      "migration": "20260726120000_mobile_release_policy",
+      "ordinal": 5,
+      "sha256": "9c6792a9a24b37238f1660cccbc2d4cc95114e232fbb73bf3a1fe8603dc36c2b",
+      "table": "AppFeatureFlag"
+    },
+    {
+      "disposition": "existing_user_rows_absent_fresh_db_skip",
+      "kind": "INSERT",
+      "migration": "20260805120000_add_rewarded_target_access",
+      "ordinal": 8,
+      "sha256": "53f7df318bb76f094f487993777411e5edc67e6816a4dc0e837bb1446a565267",
+      "table": "RewardedTargetAccess"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20260805120000_add_rewarded_target_access",
+      "ordinal": 9,
+      "sha256": "9c59a017a3a9baba92e67f10b40c886e3f78344a1a43806574797800abae0dd0"
+    },
+    {
+      "disposition": "current_schema_defaults_encapsulate_final_tariff_state",
+      "kind": "UPDATE",
+      "migration": "20260813200000_add_yookassa_multiperiod_plans",
+      "ordinal": 3,
+      "sha256": "fcf834f61e5cc69bc4730686746ed89995c6fef36312b2fe06abd656e9f990dd"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20260909113000_registration_contracts_data",
+      "ordinal": 30,
+      "sha256": "c1b55ed2f0367dcfbde706e6c57208914d3ba280f8593cca1f1a07bf850ba26e"
+    },
+    {
+      "disposition": "current_schema_defaults_encapsulate_final_tariff_state",
+      "kind": "UPDATE",
+      "migration": "20261004120000_subscription_agreement_terms",
+      "ordinal": 4,
+      "sha256": "6686abb7eb51d826123c8773362be3f64601f4a4e5a128d3d7f91a2b495b0f15"
+    },
+    {
+      "disposition": "current_schema_defaults_encapsulate_final_tariff_state",
+      "kind": "UPDATE",
+      "migration": "20261004120000_subscription_agreement_terms",
+      "ordinal": 9,
+      "sha256": "3af51f3f5d00e698ec7b0d64fbb6208416129bf517540edf1de3d075a76af46a"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20261010180000_smart_feed",
+      "ordinal": 1,
+      "sha256": "4526fc8c9b3e10f3854371874d20b77509052c2f5405c5095255da1adafad1f8"
+    },
+    {
+      "disposition": "legacy_existing_data_backfill_skip_on_new_empty_db",
+      "kind": "UPDATE",
+      "migration": "20261010200000_smart_feed_events",
+      "ordinal": 2,
+      "sha256": "18df723b82eb1a67d8edfc941c8109d8c353c2bcd9cfea0e6fb89a03a66fec1e"
+    },
+    {
+      "disposition": "static_singleton_rewritten_to_current_schema",
+      "kind": "INSERT",
+      "migration": "20261015020000_course_content_revision",
+      "ordinal": 1,
+      "sha256": "0eb608c95bcd95a79dc62ac1fd4723eefb793c64868bbf7c125eb35734c08dcd",
+      "table": "CourseContentRevision"
+    },
+    {
+      "disposition": "legacy_existing_data_cleanup_skip_on_new_empty_db",
+      "kind": "DELETE",
+      "migration": "20261015050000_subscription_only_monetization",
+      "ordinal": 13,
+      "sha256": "fade01296175c1da7988a073c7549cdb87b561e8d0528dbabbf6abff10abc9ef"
+    }
+  ],
+  "historicalDataStatementCount": 34,
+  "historicalDoBlockCount": 18,
+  "historicalDoBlocks": [
+    {
+      "disposition": "legacy_data_or_schema_guard_skip_current_fresh_schema",
+      "migration": "20241108120000_exam_result_trainer_review",
+      "ordinal": 1,
+      "sha256": "7e37ce54fb9f1a78bc98857706187d51c1e4a775fb6e54a4a94a597282140487"
+    },
+    {
+      "disposition": "enum_definitions_in_current_schema",
+      "migration": "20260113163458_add_hls_fields_to_trainer_video",
+      "ordinal": 0,
+      "sha256": "75ebc494dae774236255f709b3e0d75a0d5af472f00241f438df32eb8e115107"
+    },
+    {
+      "disposition": "legacy_data_or_schema_guard_skip_current_fresh_schema",
+      "migration": "20260126030000_move_visibility_to_entries",
+      "ordinal": 1,
+      "sha256": "e666157063997a12c319cf246860b814eeac899c72a499ac692112726bb27640"
+    },
+    {
+      "disposition": "legacy_data_or_schema_guard_skip_current_fresh_schema",
+      "migration": "20260126030000_move_visibility_to_entries",
+      "ordinal": 3,
+      "sha256": "091c44c3f76949794f5baa46c641df74db4f3d335b3103706986ebbb13b70868"
+    },
+    {
+      "disposition": "enum_definitions_in_current_schema",
+      "migration": "20260128120000_add_payment_and_price",
+      "ordinal": 1,
+      "sha256": "df5c50a026a4cc544920a892dac572a7b2137b9cb8781b832b0080b09040553a"
+    },
+    {
+      "disposition": "legacy_data_or_schema_guard_skip_current_fresh_schema",
+      "migration": "20260429002000_repair_user_password_set_at",
+      "ordinal": 0,
+      "sha256": "1016055307586359bd21b347d0d6d9391777059c8bd84624960d3a90e4c75710"
+    },
+    {
+      "disposition": "legacy_data_or_schema_guard_skip_current_fresh_schema",
+      "migration": "20260503231000_daily_course_bundle_patch",
+      "ordinal": 7,
+      "sha256": "a69d68232d07e7e6094a9fcdfc3d334baaa27c75f5c0afef4fbf55884c86d573"
+    },
+    {
+      "disposition": "legacy_data_or_schema_guard_skip_current_fresh_schema",
+      "migration": "20260503231000_daily_course_bundle_patch",
+      "ordinal": 8,
+      "sha256": "ed011c5e02271f9bcae76a606d51d191cd5948669e9fd3153c3fa5dcd2692322"
+    },
+    {
+      "disposition": "legacy_data_or_schema_guard_skip_current_fresh_schema",
+      "migration": "20260503231000_daily_course_bundle_patch",
+      "ordinal": 9,
+      "sha256": "1ddb882dc91421cf56c2bbafc959cb38aaba00a35c30de31ca4f385c3efb4227"
+    },
+    {
+      "disposition": "legacy_data_or_schema_guard_skip_current_fresh_schema",
+      "migration": "20260503231000_daily_course_bundle_patch",
+      "ordinal": 10,
+      "sha256": "68f6f756402ae492629bbd305c47cea51f7922ea8c948e5394be3e80f0930dfd"
+    },
+    {
+      "disposition": "enum_definitions_in_current_schema",
+      "migration": "20260510235500_add_app_subscription",
+      "ordinal": 0,
+      "sha256": "226d1f24f483969b0bde581623e9166cf07800e3e0f20db38c53f9c393bc43eb"
+    },
+    {
+      "disposition": "enum_definitions_in_current_schema",
+      "migration": "20260510235500_add_app_subscription",
+      "ordinal": 1,
+      "sha256": "0bbba2b46dc252e96c84d11513a3ff72b814c66599b5f78b53bfc001228470a9"
+    },
+    {
+      "disposition": "enum_definitions_in_current_schema",
+      "migration": "20260510235500_add_app_subscription",
+      "ordinal": 2,
+      "sha256": "a83bb9032dbc63539b9051f13744a11a4d9851b8b72811a49f0db077d8acd52c"
+    },
+    {
+      "disposition": "enum_definitions_in_current_schema",
+      "migration": "20260510235500_add_app_subscription",
+      "ordinal": 3,
+      "sha256": "8541b330d4914500a114c933c219b6b9de9cd46f06f22d27294a780cfb27ca85"
+    },
+    {
+      "disposition": "enum_definitions_in_current_schema",
+      "migration": "20260510235500_add_app_subscription",
+      "ordinal": 4,
+      "sha256": "1772de8c030cbad9283f1a95da27601e207973cc998c3d298d2699e28e28d790"
+    },
+    {
+      "disposition": "enum_definitions_in_current_schema",
+      "migration": "20260510235500_add_app_subscription",
+      "ordinal": 5,
+      "sha256": "03f7d032392055f3dec02ae8d112908889cb10daea9fed733a261b653fc3d450"
+    },
+    {
+      "disposition": "legacy_data_or_schema_guard_skip_current_fresh_schema",
+      "migration": "20261004120000_subscription_agreement_terms",
+      "ordinal": 5,
+      "sha256": "6c65406163207ed4cfca6c97d1849352235368632975445a0c2136a0b282b9a4"
+    },
+    {
+      "disposition": "latest_private_scope_check_materialized_as_sql",
+      "migration": "20261025155900_account_cleanup_add_private_scopes",
+      "ordinal": 3,
+      "sha256": "a57f5ce9ec492d94aff0d7063f99c06fe7884e902eddc4a2568ab98ac5f4d1c3"
+    }
+  ],
+  "historicalOnlyIndexes": 34,
+  "liveExtraIndexes": 9,
+  "liveMissingIndexDecisions": [
+    {
+      "disposition": "restored_from_historical_statement",
+      "name": "AppSubscriptionEvent_idempotencyKey_unique",
+      "source": "20260510235500_add_app_subscription",
+      "table": "AppSubscriptionEvent"
+    },
+    {
+      "disposition": "restored_from_historical_statement",
+      "name": "AppSubscriptionEvent_providerEventKey_unique",
+      "source": "20260510235500_add_app_subscription",
+      "table": "AppSubscriptionEvent"
+    },
+    {
+      "disposition": "restored_from_historical_statement",
+      "name": "AppSubscriptionPayment_subscriptionId_status_succeededAt_idx",
+      "source": "20260511203000_add_app_subscription_payment_succeeded_at",
+      "table": "AppSubscriptionPayment"
+    },
+    {
+      "disposition": "restored_from_historical_statement",
+      "name": "AppSubscription_provider_status_cancelAtPeriodEnd_currentPeriodEnd_idx",
+      "source": "20260510235500_add_app_subscription",
+      "table": "AppSubscription"
+    },
+    {
+      "disposition": "restored_from_historical_statement",
+      "name": "AppSubscription_userId_provider_active_unique",
+      "source": "20260510235500_add_app_subscription",
+      "table": "AppSubscription"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "ArticleAccess_articleId_idx",
+      "source": "20260318120000_add_article_entity",
+      "table": "ArticleAccess"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "ArticleAccess_articleId_userId_key",
+      "source": "20260318120000_add_article_entity",
+      "table": "ArticleAccess"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "ArticleAccess_userId_idx",
+      "source": "20260318120000_add_article_entity",
+      "table": "ArticleAccess"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "ArticlePayment_articleId_idx",
+      "source": "20260319100000_add_article_description_and_payments",
+      "table": "ArticlePayment"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "ArticlePayment_status_idx",
+      "source": "20260319100000_add_article_description_and_payments",
+      "table": "ArticlePayment"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "ArticlePayment_userId_idx",
+      "source": "20260319100000_add_article_description_and_payments",
+      "table": "ArticlePayment"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "ArticlePayment_yookassaPaymentId_key",
+      "source": "20260319100000_add_article_description_and_payments",
+      "table": "ArticlePayment"
+    },
+    {
+      "disposition": "restored_from_historical_statement",
+      "name": "Chat2V2MediaTask_cleanup_pending_idx",
+      "source": "20261027172500_chat2_v2_media_task",
+      "table": "Chat2V2MediaTask"
+    },
+    {
+      "disposition": "restored_from_historical_statement",
+      "name": "ConsultationBooking_slotId_active_key",
+      "source": "20260421140000_consultation_booking_slot_partial_unique",
+      "table": "ConsultationBooking"
+    },
+    {
+      "disposition": "excluded_renamed_column",
+      "name": "Course_appleIapProductId_key",
+      "source": "20260401120000_add_apple_iap_course_fields",
+      "table": "Course"
+    },
+    {
+      "disposition": "excluded_renamed_column",
+      "name": "DiaryEntry_dayOnCourseId_idx",
+      "source": "20260130120001_add_diary_entry_table",
+      "table": "DiaryEntry"
+    },
+    {
+      "disposition": "excluded_renamed_column",
+      "name": "DiaryEntry_userId_dayOnCourseId_key",
+      "source": "20260130120001_add_diary_entry_table",
+      "table": "DiaryEntry"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "ErrorReport_appName_idx",
+      "source": "20251030160201_init",
+      "table": "ErrorReport"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "ErrorReport_createdAt_idx",
+      "source": "20251030160201_init",
+      "table": "ErrorReport"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "ErrorReport_environment_idx",
+      "source": "20251030160201_init",
+      "table": "ErrorReport"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "ErrorReport_resolved_idx",
+      "source": "20251030160201_init",
+      "table": "ErrorReport"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "OfertaAcceptance_acceptedAt_idx",
+      "source": "20260221120000_add_oferta_acceptance",
+      "table": "OfertaAcceptance"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "OfertaAcceptance_courseId_idx",
+      "source": "20260221120000_add_oferta_acceptance",
+      "table": "OfertaAcceptance"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "OfertaAcceptance_paymentId_idx",
+      "source": "20260221120000_add_oferta_acceptance",
+      "table": "OfertaAcceptance"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "OfertaAcceptance_userId_idx",
+      "source": "20260221120000_add_oferta_acceptance",
+      "table": "OfertaAcceptance"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "Payment_appleTransactionId_key",
+      "source": "20260401120000_add_apple_iap_course_fields",
+      "table": "Payment"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "Payment_courseId_idx",
+      "source": "20260128120000_add_payment_and_price",
+      "table": "Payment"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "Payment_status_idx",
+      "source": "20260128120000_add_payment_and_price",
+      "table": "Payment"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "Payment_userId_courseId_pending_key",
+      "source": "20260128120000_add_payment_and_price",
+      "table": "Payment"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "Payment_userId_idx",
+      "source": "20260128120000_add_payment_and_price",
+      "table": "Payment"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "Payment_yookassaPaymentId_key",
+      "source": "20260128120000_add_payment_and_price",
+      "table": "Payment"
+    },
+    {
+      "disposition": "restored_from_historical_statement",
+      "name": "PetDocument_petId_ownerId_idx",
+      "source": "20260429123000_enforce_pet_document_owner_consistency",
+      "table": "PetDocument"
+    },
+    {
+      "disposition": "excluded_retired_table",
+      "name": "PhoneChangeToken_shortCode_key",
+      "source": "20260216120000_add_phone_change_token",
+      "table": "PhoneChangeToken"
+    },
+    {
+      "disposition": "restored_from_historical_statement",
+      "name": "StepNotification_active_bound_unique",
+      "source": "20261025041500_step_notification_occurrence",
+      "table": "StepNotification"
+    }
+  ],
+  "migrationCount": 163,
+  "migrationsSha256": {
+    "20241108120000_exam_result_trainer_review": "97dac51e945195a177ec4b4fe7ae43382b42a9de8a8798fe68d8decb96dd7248",
+    "20250206120000_add_reset_to_training_status": "3463fb413880f7dc942c382b17a2dd7bb9c6bc75cc2d11095c5957ec02abb55a",
+    "20250223120000_add_share_progress_across_courses": "c01538e7262b06075b5ff8f49e417dbf5ce40d901b92ead280377386b2d4264f",
+    "20250223120001_diary_entry_day_id": "d89a1225c4c059762c2d0dccfd54278a1a9ed4698f5b7ee301dfd6b4dcebaf6d",
+    "20250301000000_drop_error_report": "35c00c63d44499102d6ec52fc2e2ee033e3ffa4313f49b53e0f989bdab8544f2",
+    "20250304120000_add_vk_auth_schema": "7c91cc6a4e8acfa539f75d5428557d8d212acb063c8139d495995a7036ca8edd",
+    "20251030160201_init": "ac75c5c6379108413a9fadf1938700c9a63ca3efaff87f46d7de2ea97b8201f1",
+    "20251108120000_exam_review_fields": "9f138f40c90e21271a4acfef521af52d64c4b568b52aa41d882499eec88a8543",
+    "20251118213747_add_trainer_video_display_name": "cb9c25ef45a9b38247d5d50b597c6163d18c8a0a5636f1bdd9db3abf2a054e72",
+    "20251118_add_trainer_videos": "d18788b0941361cf3d81122fc7a2491d295f9ef9b2b28e32a6cd328d7fbc7427",
+    "20251120230440_add_theory_step_type": "e49b976b9147fca3bc9fbae07e82ed08130c5e853f922d74a32dd5044272dd21",
+    "20251121120000_add_estimated_duration_sec": "e9930d7025239d5245951f8bdfd2addd94213ef90dcfce96eff65aaa0f34be85",
+    "20251205181534_add_error_log_table": "52832b5f0d911b29a6f518d5cb66a672d57aa133d286e45999da85f072f90fa3",
+    "20251215161200_add_break_to_steptype": "72e6773d929b89fbaf3ba97a43971c59665b331203d4aae91488d08f97155a90",
+    "20251215182249_add_practice_to_steptype": "9aa6eb38cfb277587228c5debb649ff9ba38614aa3e892f829394856fbbfb932",
+    "20251221120000_add_resolved_fields_to_error_log": "a7784921959a711b7fea29de4a3fc8e4b4beea7ba2fa45541fbaeebbb98be59b",
+    "20260104231543_init": "153e3d64f1ec1f97a306d10c1ba555c5710734fbcd522353354eb873518e1407",
+    "20260111173800_add_show_in_profile_to_course": "520dd45caba898ee566301e807746c2819ecf6114c37bfdefe840fe9f838ac06",
+    "20260113163458_add_hls_fields_to_trainer_video": "b33373ade850c8ae99d6a7922fe32b4f2a54b7df60c448e9938e54a91e738970",
+    "20260114152819_add_thumbnail_path_to_trainer_video": "10f24385a0f50bf72cc0a2a0873abaef18f64b3ea8374cf4f800388771bd9c3a",
+    "20260121120000_add_refresh_token": "0af767456f247026218837f6e2ffee539c51aff9e4901cbd48496fb801fb6884",
+    "20260123214803_add_trainer_ai_chat": "77537b1339998a7005287813a540f0e89560fbedc9076cdbf7bbd78d2a653507",
+    "20260123220000_make_trainer_ai_config_apikey_nullable": "a547cb2017710c79a4aa86ab3d41304468d69f8c05c76b7b372d47251810301e",
+    "20260125204831_add_trainer_ai_missing_fields": "8c349de1a3cf4c8e64dd578da63c8effdf72b32921f130123581b509604ae1c1",
+    "20260125210000_add_trainer_notes": "b913035585e71e2de98e9c582b314d262e778a3379cad5255f712b892920bf99",
+    "20260125230000_add_note_title_and_tags": "70e32b5989d397df42a4ace3ca6453c22b3525ac67a6f6e29b3d2c8e7b5ce406",
+    "20260126000000_change_note_to_many_students": "5d05897edf69488c258169cd208b04971d487a66b2f6892490d8cdf6407c332a",
+    "20260126010000_add_note_entries": "cbaebc9cfb0aeff862d89b3a8032b588ca048015e682f004adcb89e623f7be89",
+    "20260126020000_remove_note_content": "e8f22540bcbbce5bccba554bf2b1c89bf53e5b189a4a97d2e6793bd7ed4540d1",
+    "20260126030000_move_visibility_to_entries": "fe1420f8188b1d140d9fadc3225f987147a97d74d8903b4a56c726991ce20353",
+    "20260128120000_add_payment_and_price": "89f252a67a096da99437b20e91da6d4fc23943b19fa44d50409bdd5185a9d2bd",
+    "20260129120000_add_personalized_course_fields": "a4716e3eacc9821cb474f072476a0d327119bb71529cdf278429757579bf8cc6",
+    "20260129140000_add_pet_gender": "22ad32cc74ad43569d7ca50ad005c82108101b660a77cc2634369ab5ff997157",
+    "20260129150000_add_pet_name_case_overrides": "70d4241a98bcfe9ac93b118c14298feac54d80884d026b7554e1f552dce52c77",
+    "20260130120000_add_diary_to_steptype": "97cb86c04c180fbba4caac444e101b18f2092c8b66f55f18cd36f3b191f32839",
+    "20260130120001_add_diary_entry_table": "7487e90bcd5cad728f3312f33ac46a44e68b9e649d83054e2af480fe31d57f28",
+    "20260201213906_add_user_video_progress": "712c8492eefa2a3a3a4820495c6d54f8c99e0454105b1f37d7e4412a224af597",
+    "20260209120000_add_password_reset_short_code": "375531334c93115a36b0d700e25917f0592a5455cb8de3a6dffa28376cae6c2c",
+    "20260216120000_add_phone_change_token": "f1bef2dc348e540d0f026e684a2b72b4b36ac5a830993578c04215c65afb06ae",
+    "20260216130000_add_training_day_show_course_path_export": "65c94b5c87c281ab5f10a543b0cc9aa2d2e589ab06f1fefe81d5e742ee6d6bed",
+    "20260220120000_add_consent_log": "37f79989ad41a8f3235ecb236bb048fe62e14926747f8257eba343284cf32760",
+    "20260220140000_consent_type_status": "46b7da14e2712197cdc436a0aa96e3a5dd707e76dcc10a30ed6d0cb0d39d4681",
+    "20260221120000_add_oferta_acceptance": "5ba51b4bc39e14091ece7a965d285f26aee9eaa180a83be99d955156475a9139",
+    "20260306120000_backfill_password_set_at": "874a2ae87ec30485f6615420441e2c13f334a2990ae0a8fe8de026925283c503",
+    "20260308120000_user_training_user_cascade": "c643c890b646355513ec7056978279cd657d484c13cf50be9ffc2a03a8c2373f",
+    "20260308130000_add_vk_one_time_token": "f5698205adfe92900cc689a2ae4b9d3c291c96508dd204ee9101a925286d8fdc",
+    "20260308140000_drop_vk_one_time_token": "77ef23efe274a8763bfc875bc812ea9f533b1c70632b8843aaff2a6b011f4fd3",
+    "20260315120000_add_guide_content_to_course": "32e291163d89e99e253c6e7d6d5a79853dc0983e46fadbdcfc3a09c824e5e6b8",
+    "20260318120000_add_article_entity": "5828f247bf1e554ebe8579d111a73c872703432df409c48ae187dcc4bfb6176b",
+    "20260318130000_add_article_logo_img": "b386dc6969056638cf1700c3d21fd0ab3c993eebcf7d471755efb3ba6b1eb4c7",
+    "20260319000000_add_article_view_count": "7fd7cb53a0496797907bba00f2d1c28bf732ac3fa562be53eecd9efffeaff8c2",
+    "20260319100000_add_article_description_and_payments": "c103f33bc812afbd9cf8fff94011b2abd3070011a4082cb9a8cf66c67050e353",
+    "20260322120000_add_article_viewer": "f4f1400fc2be6707766b07be9dad3868bb50156c8a2591e6a6065eed6c418214",
+    "20260323120000_add_pet_prevention_entry": "25441ce6c82eda6f9cd6ce5a49b8294bfdf1df479ebb055255ae149d26c163d5",
+    "20260323140000_pet_prevention_reminder_fields": "ddc32fc12ff1e86a7b53884be50c03974b7643ab5d9f7fe4ad5a92564fb15fb9",
+    "20260324120000_add_article_guest_view": "8ceab9f0293cd22c967b29e5c91b78264d47b47c66ca14c8187a34cd28100ad5",
+    "20260325120000_app_feature_flag": "f9d6216dcd56dc2c9d12997a4bc99e99df9bcbb1c6ddaaf9aa54e11677723ec5",
+    "20260326120000_add_email_optional_phone": "7889bda3df3d17750fdda6ff59edd24f1dcb1c38d4461ef26bdece8e5879cf79",
+    "20260326140000_add_email_change_token": "897edf42eaa52395445ca831bb5d93ef0bbec4aa80356db1de95bf4960a817dd",
+    "20260326153000_remove_phone_change": "a26433028f36c424ada546a731a358a353e2bb51db03b38b86d517505ad3f5ff",
+    "20260326180000_account_deletion_email_code": "838f2f2cf6d239f81b9e7552d1f185dae8f418a60b092c33aefbe53c9d7fdb28",
+    "20260326200000_remove_user_is_confirmed": "f2b46cb4ff1d1801edfe167281bdde90e782a0354448044e5d35ff16cfa946eb",
+    "20260401120000_add_apple_iap_course_fields": "630f733cfebe916f1269eef0f65faa1b86487d7c6fb4727ff42ff00f159f76b8",
+    "20260403210000_add_reminder_times_to_prevention": "46b80e25b3575339dbc48ea99d3864fde02175f330813871733f3e387b24896a",
+    "20260406120000_add_user_registration_channel": "0310d2fc0dc2a4f251ff0ae035a013ab9a571ee10c15612d68a5aba46c6cd289",
+    "20260420120000_add_consultations": "8baa99f4c004a026a06f51c54853c5bebc9cb1ec06303390418ddd41ade2b75f",
+    "20260421130000_add_consultation_client_problem": "c7eee5d3cf46dde8f60bd89d2f0b21bba2e39ca644483d78d5e1fcd6ebcfb2bc",
+    "20260421140000_consultation_booking_slot_partial_unique": "4dc046a0d3bded7f17cb7b1f23e7d3c6652186b0f1c21901a0cdb01daad4109c",
+    "20260422120000_consultation_email_reminder_telemost": "524296d702090c44214cd0a05733e390f8848d2774862238259a305621758675",
+    "20260423120000_consultation_booking_intake_form": "fee926e549cef8e7d5e191fc3e9afcdb9b397d2ad11fd7cea10e029934cca5dd",
+    "20260424143000_add_account_deletion_audit_and_counter": "17f7371563fdab45b6ae41f3d05a8dc041c7da7a42655d7fedb782295631afef",
+    "20260428174000_add_pet_documents": "f75cb32520cbfb5e90b7a59f94475799f5f3da8412abcac0484d545997995bd9",
+    "20260429002000_repair_user_password_set_at": "2998606d0fd80747b82d92f8538bc09bddbcbef01cad4f0694fc8453ba9b08b9",
+    "20260429123000_enforce_pet_document_owner_consistency": "24eb042193e1b40dce8c9143434b5a021756c90f683dd96742e31e5b22224d53",
+    "20260503120000_add_daily_course": "2cf9adc891a6be407a0933fe8720f063ff5d696e776a3fe3cebddea025df9dff",
+    "20260503231000_daily_course_bundle_patch": "90810c17e11f80c52e8c0f17080dfb00ea4c4ceee0caaa67bb7b496b95eaaeb6",
+    "20260504100000_add_step_daily_course_flag": "8d39e69b959925a53ac21e4e29571937a22d9d9556f13a92dd0920b337383d91",
+    "20260505223000_add_pet_measurements": "b844a73dabdcf452835ac8acd9baba5c040c2e2916820256d5a5d77e01efd02a",
+    "20260508193000_daily_course_exam_results": "9265c1ded264e662f796f339353666194165202dbc63f85a2231fbc6c5242132",
+    "20260510235500_add_app_subscription": "f37effec2e98ba99ee75e4e2ccdaa56ce1dae4c88ea4d16c8ad1579427a28fda",
+    "20260511180000_add_app_subscription_card_and_reminder_fields": "d1286f5175ee79715d4e10373e54529f999e768a744aee482f8e8e2d10950e84",
+    "20260511203000_add_app_subscription_payment_succeeded_at": "d23652f6bdaa4d6de09e07126d8d407b80aa97fa52e80bbf522c4a5b2b3b648a",
+    "20260512103000_add_onboarding_tour_completed_at": "f74f071185f4a76f58555893086204a3a915d183b6c84b2db5db64ac4f5d4a66",
+    "20260513120000_add_consultation_no_show_email": "636ea062e36e171059d7f9648ae55869295f87602017e0c17ddf020419164cf7",
+    "20260517123000_remove_premium_user_role": "4648a567d28b5be1ef2cf10b976e3b8497525bc1a0cde9ce39c6b4977defd7d9",
+    "20260518181000_add_consultation_start_email": "cf43aac325117c855a5d27dfb5e90ffc157b650a3e91e6c02805f711fb79dc0a",
+    "20260518183000_unique_consultation_email_log": "a187707ad68c8ecfa37ac8bc5f61cb932cb6e03d2fc46ce0e9803d7e997f43d5",
+    "20260528130000_add_course_surveys": "0c0461435064513ec53ad687f1cfb91a847f7de69ce99e89fa8a9eb99b21ef7e",
+    "20260530101000_add_app_subscription_pending_expires_at": "8222fdfad2a2c1283fd3d6e7ab64344284da576518f0e88a8c0108b391454401",
+    "20260530130000_add_app_subscription_trials": "a6d3cddd9cd0bd7223c660e6ef96c7c4a960fdccf8b1591c9d8d62248bb6cdbc",
+    "20260531140000_add_rewarded_credits": "73b19589f7e34ccdf4aabda4ffcc4e2e5cd92f4049bc466e61b77183929398d7",
+    "20260609170000_allow_apple_subscription_history_per_user": "898f7eb574a6ed64b197819120f492b25e656576bbbacc5d359305108a408d85",
+    "20260610010000_add_yookassa_trial_card_fingerprint": "3d7872bdfaf1d40dadfc5c08cfcab605c6d83b03e66f51310408dd6d87ce8694",
+    "20260621120000_add_monthly_app_subscription_plan": "970b7ba028fdf167fe9fa13004ee45d03e0b5e5276ff103060a46106e2f4ec8e",
+    "20260709120000_consultation_confirmation_sla_24h": "97f76db300cb09fa635479fd6b386f06118542a7f097b409f3a1dea8ee0ed131",
+    "20260713000000_expand_trainer_video_file_size": "819b4a25d72e1501d82bbc507b5ffb5a30f8721b89fa417c78364e5cffff3f60",
+    "20260715110000_monthly_app_subscription_only": "0f0a97dbb4f919370754d1f6206fe267e6ad2a7a8ec3bc85f82afe1fef517b51",
+    "20260722000000_remove_web_rewarded_ads": "90d7e332bb6c4559b912c851d2be1640c79f32315dfb24a12b5f460e26cd39c6",
+    "20260722010000_remove_rewarded_paywall_cta": "b4b06eb254244469f78eaf9fb001185fb2cc70830fdefb51cab6231c361e0c1b",
+    "20260726120000_mobile_release_policy": "ea1bde2c05e47638753a62bb2bb8072a5e580053d16ca0a7d5afb8d6c550d65c",
+    "20260805120000_add_rewarded_target_access": "2a919a055c7b43fd96f795eaa9f57b9446b47ce3f8e49a1ee5c757a91e36d006",
+    "20260810120000_add_rewarded_ads_analytics_indexes": "6edbdcd97bb588b79329d057965baf6d809af0540b2039e22d185456502535b8",
+    "20260812120000_add_app_subscription_promo_codes": "57795271d03a701abd905951614d8677e6343206bfc6f21e31ff5d38f0bfd835",
+    "20260813180000_expand_rewarded_daily_limit": "1c57493904b99a27a9e51341ed37fc2bf1face00d1361e48f9b14fcac19145f8",
+    "20260813200000_add_yookassa_multiperiod_plans": "79d98e90da626791fc06df13617c40612ec54cb4f712fffb863db8eb50e14f7a",
+    "20260813201000_expand_app_subscription_promo_scope": "231337c2e06ca66aa3b6ce5f4b32ddf118613b173893e2357b4b806b9f4b337b",
+    "20260828120000_add_npd_receipts": "121967086ead0d130465d6d53d27f36b8ab53c2ea42fe2b6eb4ae488842cc1ef",
+    "20260906120000_add_three_day_renewal_email": "81ad38b4ca4995db1201400d8757510150d1a1117ddc630452d0a4dda1506cd0",
+    "20260908090000_partner_program": "75170736bacda1654c5355f76f492ef1f25d8ed2253b3fed1691897c60dc1670",
+    "20260908101500_vk_id_one_time_login": "fd0903cd5d209823c111a5f37a1c9da64c304fde110ebafc2f9e031ced615f74",
+    "20260909113000_registration_contracts_data": "238cbc7fef3c08e2684559885524c427b53397ccc0e0a0c050109649f2771ba5",
+    "20260909150000_vk_registration_completion": "fe0c2147dfe05352a12b5bdd27c5f1e89a5bb4bf1882cecdadb1c8bfcb4b7aad",
+    "20260912120000_security_session_revocation": "2a58fed70d55c14dd52d4f17ad10a426fe567c8478360d37c2531238f70f35e7",
+    "20260917110000_add_mobile_intro_installations": "c44b4adacadc580036c310ba5c3351ec2ee19554dd436921932cb28e1b7a1956",
+    "20260928193000_pet_weight_history": "2a2b5ad02a1752b44f7a9ace1a060e301b3082178696a7ab4235a65f1d02f63e",
+    "20261001170000_cynologist_chat": "f32c3ba322f977460bef3763ba26884d24abca9c554c18718a195fc53e88e94c",
+    "20261001200000_community_chat": "dee92a03b60da11587c1b7ebc9b2dbed94ce1b425f8cec3104bd4baefcd9731a",
+    "20261004090000_consultation_booking_cooldown": "da923dce9232cad2ae46c65d3824e0c4d794fecb83cfbb894195794c139f197d",
+    "20261004120000_subscription_agreement_terms": "a0476515b91204b70cd470498453c6ec58da3336b3091fdf28ca00a44a820823",
+    "20261005190000_profit_finance": "26e46abd979a42220a0a177564d05a9ed4c74f93fc3404ed7037ce28a7c2ba1a",
+    "20261007030000_community_questions": "13ca3d4411ce12a4c21345d61aca8dbcb7bb8f3df2fd00db6c622b7a72c42e6d",
+    "20261007120000_gallery": "623cb525a14e1e162a13e6e67b73e1ec38377f1a49658966d075b243e83ccfea",
+    "20261009072000_feed_initial": "ab08ae3da04707f13055f38de806e81c9b03d2302ee1d1f2c9b37c6c5fa3b99d",
+    "20261010120000_feed_preferences_moderation": "c279527b55fa55cc9ae2163519503411463fc16c8e58fb03adb892c6e8919521",
+    "20261010150000_pet_vet_visits": "d20f9872a57fdc4e97bdbc278c924286dbc5e3d169cc2ffcfb9b12e915c0eaac",
+    "20261010153000_add_user_profile_city": "96fb973e47076379a44bc60d6eb16921ebaf789e70ce24ecd585a33f08593ab7",
+    "20261010160000_account_storage_cleanup": "ecd0065efacc9e914cf130edb1ee95714f4cbbd335aacda7b09e6102230a889a",
+    "20261010170000_pet_profile_visibility": "715895a52ded96c2059c86135c41d3c88291b5a07ecbf749642ee54792efdb51",
+    "20261010180000_smart_feed": "b1d8af5a27fa90c112b2fe9b00db0617fbd449cf64608d0d659248d1ffd2712e",
+    "20261010190000_add_gafus_economy": "6b11077b72556fb8f57733febf04a63b01924adb24646277b474cdfe208c24db",
+    "20261010200000_smart_feed_events": "ce1a1b647f3a10e2e7fcd942afd89c574360ac22b44cc5502265559170f122d6",
+    "20261011150000_training_reminder_delivery": "7c854fa0d8db18918ba006c4e2f8ef3fdf7ba1d2016b960235b54f38e0bb6ab4",
+    "20261011173000_resend_mail_journal": "da2869ff026d8f740e11c9e5db6e7455920bd658807b62780b3d5654bc5ac2da",
+    "20261012064500_gallery_vet_preview_job": "ad2909bc13e9dde7c9229376f53bab119bf76bff5907a30c4aac5242e29fc813",
+    "20261013010000_consultation_voximplant": "5ed375e03c93b4977943f5c258659a9d88f210d337365207e50556a4e90337cb",
+    "20261014000000_feed_polls": "5a38dca42602fc1e1db8c11d1dae35e4e33abc69cff9bf35a111f9745e5cab44",
+    "20261014160000_transactional_mail_outbox": "8534103c714c8e4f1ed6fa106ad164903889e1fab35c2b20db38c960994e5a18",
+    "20261014222000_beget_media_purge": "c199708baa92b58d074ac46cc56018ae7d0472c0afe5be83714128f2f3f4c802",
+    "20261015020000_course_content_revision": "b1405be617076fbf12fcd8f50cbb7d04305bcbbb4bbc4c2aa17b6a1257672894",
+    "20261015050000_subscription_only_monetization": "6ef17eaf4f7a861c1c6171b2fbe46a831fcff25382fa74e91a4489de52985597",
+    "20261015170000_mail_attempt_correlation": "11138826e61c56c4972ff78bed407f0f7cf288078c69d9eaaea7acfa419f26a6",
+    "20261017090000_off021_offline_mutation_journal": "d85cfcbc7034660d3e87adb846ed4f28cdf23366892b1c41c6b5da95df3c10af",
+    "20261017190000_g05_pet_create_receipt": "42cb81e5b7e481033e6a11725090e5effd2c698c34c4c19b77acfd472b38e06e",
+    "20261018110000_reminder_mutation_receipt": "d9cc5e2e1778b7c2d3a229ff416f7f12230667f034e985598385b2eed241c9a8",
+    "20261018113000_offline_resource_video_history_additive": "695e7d21fa8f794492663013c00bc3c5be77030c9dcfedef39c709347fd15f6d",
+    "20261021135000_gafus_article_access": "606784fade4c23d30a80703629bc6add05115bccf9d919aa193098b72cbcaf72",
+    "20261022153000_course_version_global_trigger": "51aeab845a4859baecdffec2714b8cf91507962e0332e5ce20d89b2d34ac4f0b",
+    "20261022190000_npd_30_day_plan_intervals": "b70b3f9878a165a89e206da50524e0ccd71377375ad07bace8e30762b3ea258b",
+    "20261025041500_step_notification_occurrence": "e4abd638ad2be1dae5f74130965f1cb2f8fdac58641561e87f9dc5cf124e0ce1",
+    "20261025042000_step_notification_original_step": "c82fc4a14a98ceeeab1225111898ccd427e6cba342966a33fbd73fd3f4270f76",
+    "20261025155900_account_cleanup_add_private_scopes": "cd9edac978220dab974ed6c0dfe36c30ca92eef3a3e05e91d0c0759bb254484b",
+    "20261026074500_pet_media_deletion_intent": "230dd3650f633c11a60168127934bc37a6375a797893069dced5fc8430525850",
+    "20261026223000_chat2_foundation": "d862178d605cca6378619ea8e28f239e5a3f7ebf4b82f7423d2c82ff278136cd",
+    "20261027004500_chat2_reports": "b87fd23131f64b0e8f41f0d145528892c903e265e1a77ee2fb734d67fac96aa1",
+    "20261027011000_chat2_media_deletion_ledger": "78d1d34bd89f1656d891240c1f9f3cdf0859912596ed4a6f9c994d03f0b5d9c8",
+    "20261027025000_feed_v2_asset": "350d2f30f760c3e4aec86126621f59c06fb0138400f9f064c570a386bf6ea465",
+    "20261027141500_chat2_course_topic": "499dc51a1cefc0c759453a733a146c97038783c2567837737ba43e8fb878518d",
+    "20261027142000_chat2_group_avatar": "e897bb345f335752092f9a28f319544a4b7a49350271a07a3a2771c799273a86",
+    "20261027172500_chat2_v2_media_task": "87b37ef8d290a4215a38f451f46437571f7dc6bbdbcfa52dc079605686b5c3e0",
+    "20261028134000_questions_photo_v2": "9408696dcfe2102996e8760379e0d52ba94dfe0dbfae3d6a3c0be1456bc248a6",
+    "20261029163000_chat2_message_reactions": "16f27169322743dca0dc468a47c004eeef1de9c622f619318a7a5f474b7147c2",
+    "20261029173500_feed_comment_media": "61098c8e72ac17ac5b1e0e67d0b383c08f03601c9408a217f1f2f4cb4bd812c0",
+    "20261103180000_step_multiple_video_urls": "da4cc29de80851b5cf8d82f54dbf9ebef1dc2f5da029a79bdfd9e20cb231e6b9"
+  },
+  "notes": [
+    "No data backfill or old-user row migration on a fresh database.",
+    "No applied migration journal is inserted. No migrate resolve.",
+    "No check for production equivalence without independent full PG review.",
+    "Original 163 migrations remain unchanged and are never replayed here."
+  ],
+  "objects": {
+    "checks": {
+      "AppSubscriptionPayment_original_amount_check": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "88071f128e245a0b37a881a29afea349ba9e7c6b26b380e4369564fff585a1f1",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_period_order_check": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "bad4508874a59278fbac17b4e7f2c09f22508b219e451a5e304004aac8fbff58",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_promo_amount_check": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "88071f128e245a0b37a881a29afea349ba9e7c6b26b380e4369564fff585a1f1",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_promo_discount_check": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "88071f128e245a0b37a881a29afea349ba9e7c6b26b380e4369564fff585a1f1",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_promo_scope_check": {
+        "source": "20260813201000_expand_app_subscription_promo_scope",
+        "statementSha256": "1309114d3def60b735c25d4866aabd1ce2b5d018b8c6869440cbf2f680d939c8",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_promo_snapshot_check": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "88071f128e245a0b37a881a29afea349ba9e7c6b26b380e4369564fff585a1f1",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_yookassa_amount_check": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "bad4508874a59278fbac17b4e7f2c09f22508b219e451a5e304004aac8fbff58",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPromoCodeEvent_discountPercent_check": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "a67bbced359c88e48ac26ec96b531ebdcf1000204aed3169ac3a9975c4fd0dce",
+        "table": "AppSubscriptionPromoCodeEvent"
+      },
+      "AppSubscriptionPromoCodeEvent_revision_check": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "a67bbced359c88e48ac26ec96b531ebdcf1000204aed3169ac3a9975c4fd0dce",
+        "table": "AppSubscriptionPromoCodeEvent"
+      },
+      "AppSubscriptionPromoCode_archived_inactive_check": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "7938161ae1c43983579fe99472f9b746f09a1857b091b563f4b7dcbbc39f84d3",
+        "table": "AppSubscriptionPromoCode"
+      },
+      "AppSubscriptionPromoCode_code_check": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "7938161ae1c43983579fe99472f9b746f09a1857b091b563f4b7dcbbc39f84d3",
+        "table": "AppSubscriptionPromoCode"
+      },
+      "AppSubscriptionPromoCode_discountPercent_check": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "7938161ae1c43983579fe99472f9b746f09a1857b091b563f4b7dcbbc39f84d3",
+        "table": "AppSubscriptionPromoCode"
+      },
+      "AppSubscriptionPromoCode_revision_check": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "7938161ae1c43983579fe99472f9b746f09a1857b091b563f4b7dcbbc39f84d3",
+        "table": "AppSubscriptionPromoCode"
+      },
+      "AppSubscriptionSettings_currency_check": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "a34a0ee76f23e580b649d20b4ea6425072a74a1114e05be805d0c65035375d1b",
+        "table": "AppSubscriptionSettings"
+      },
+      "AppSubscription_renewal_terms_positive": {
+        "source": "20261004120000_subscription_agreement_terms",
+        "statementSha256": "746f1514b7ff1093203f67f8ed365893520412dae215934f11b628a4cf9d5635",
+        "table": "AppSubscription"
+      },
+      "Course_version_positive": {
+        "source": "20261022153000_course_version_global_trigger",
+        "statementSha256": "834555cb52aa357d446c0696d9da84731efdf1bfbacc62b071c894c4eb5f5aee",
+        "table": "Course"
+      },
+      "FeedRankingEvent_duration_chk": {
+        "source": "20261010200000_smart_feed_events",
+        "statementSha256": "4f357a0b68a5589b7868f1e5cf9ed745d7b046808f7d62cfc280aadb2285d723",
+        "table": "FeedRankingEvent"
+      },
+      "FeedRankingEvent_kind_chk": {
+        "source": "20261010200000_smart_feed_events",
+        "statementSha256": "4f357a0b68a5589b7868f1e5cf9ed745d7b046808f7d62cfc280aadb2285d723",
+        "table": "FeedRankingEvent"
+      },
+      "FeedUpload_purpose_check": {
+        "source": "20261029173500_feed_comment_media",
+        "statementSha256": "678bb41dee8a26ab1798d9ff8fc453448f2230708c263297e4b85f9d7d522223",
+        "table": "FeedUpload"
+      },
+      "GafusPostReactionMilestone_threshold_positive": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "93715c132697d6f4e594c0a11253d86df2093af4d99c9ba0993a5d0d358e1981",
+        "table": "GafusPostReactionMilestone"
+      },
+      "GafusPostReactionProgram_highwater_nonnegative": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "b423ba09000eeabfcf4925d5c4b21f46fa2d6779c831d9c9ede68162d3ead7ed",
+        "table": "GafusPostReactionProgram"
+      },
+      "GafusPostReactionProgram_threshold_positive": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "0bed2b5512a22bdd05bee0f3a42031e5da62148211b9196bdcaeb9257275aaa7",
+        "table": "GafusPostReactionProgram"
+      },
+      "GafusRewardEvent_amount_nonnegative": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "5a9ba34dd02bd903dd67387f669a1abd012a94de9ccf93c19f438dfdc20a2312",
+        "table": "GafusRewardEvent"
+      },
+      "GafusSettings_config_positive": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "2649fadd8adb10aa905f3ab32494cacce5fe4f3f4ca9674bc99c715b22bddf81",
+        "table": "GafusSettings"
+      },
+      "GafusTargetAccess_positive_duration": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "89c7f0e38c93ebadeb11617429ece8d2909bcfd0ecd4823f2d32142a4b0513e9",
+        "table": "GafusTargetAccess"
+      },
+      "GafusTargetAccess_target_shape": {
+        "source": "20261021135000_gafus_article_access",
+        "statementSha256": "f3df10398c5e5a5bcb2c98bc0a2f10674b53b2e665f7220076bfeebc5b752b0b",
+        "table": "GafusTargetAccess"
+      },
+      "GafusTransaction_balances_valid": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "9553ba0c8738ab6ab38dc171f3297b54475bab26a1dc9837f345c9293f5b0243",
+        "table": "GafusTransaction"
+      },
+      "GafusTransaction_delta_nonzero": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "8d9f2429d14f156c4e67970723111233b099226784670aa60333128be170e0a8",
+        "table": "GafusTransaction"
+      },
+      "GafusWallet_balance_nonnegative": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "c79fc9f531c91310e2a62ce39af6a112fda6e9d6f0a9ed1c4def4ee607b41f5a",
+        "table": "GafusWallet"
+      },
+      "NpdConnection_device_id_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "be7b122d994526bf640bfd817a2ced48eb2750688cfb4211759678ff1dad042f",
+        "table": "NpdConnection"
+      },
+      "NpdConnection_inn_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "be7b122d994526bf640bfd817a2ced48eb2750688cfb4211759678ff1dad042f",
+        "table": "NpdConnection"
+      },
+      "NpdConnection_refresh_token_cipher_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "be7b122d994526bf640bfd817a2ced48eb2750688cfb4211759678ff1dad042f",
+        "table": "NpdConnection"
+      },
+      "NpdConnection_refresh_token_iv_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "be7b122d994526bf640bfd817a2ced48eb2750688cfb4211759678ff1dad042f",
+        "table": "NpdConnection"
+      },
+      "NpdConnection_refresh_token_key_version_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "be7b122d994526bf640bfd817a2ced48eb2750688cfb4211759678ff1dad042f",
+        "table": "NpdConnection"
+      },
+      "NpdConnection_refresh_token_tag_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "be7b122d994526bf640bfd817a2ced48eb2750688cfb4211759678ff1dad042f",
+        "table": "NpdConnection"
+      },
+      "NpdConnection_singleton_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "be7b122d994526bf640bfd817a2ced48eb2750688cfb4211759678ff1dad042f",
+        "table": "NpdConnection"
+      },
+      "NpdReceiptEmailDelivery_attempt_count_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "80869ee9463d6e14650bcf124f8231ccf6960eca7da16f5e411a4b98267b42fb",
+        "table": "NpdReceiptEmailDelivery"
+      },
+      "NpdReceiptEmailDelivery_lease_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "80869ee9463d6e14650bcf124f8231ccf6960eca7da16f5e411a4b98267b42fb",
+        "table": "NpdReceiptEmailDelivery"
+      },
+      "NpdReceiptEmailDelivery_recipient_email_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "80869ee9463d6e14650bcf124f8231ccf6960eca7da16f5e411a4b98267b42fb",
+        "table": "NpdReceiptEmailDelivery"
+      },
+      "NpdReceiptOperation_attempt_count_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "3b1e4b056eee3128e405de39cd773181ad7e5fce13c70e4d4d647b9d7fa1d131",
+        "table": "NpdReceiptOperation"
+      },
+      "NpdReceiptOperation_lease_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "3b1e4b056eee3128e405de39cd773181ad7e5fce13c70e4d4d647b9d7fa1d131",
+        "table": "NpdReceiptOperation"
+      },
+      "NpdReceipt_amount_kopecks_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "d87f1a0c9c1a44c48cfc6fd2276316a286f7f3818e0447d1aa34f377b5a985d7",
+        "table": "NpdReceipt"
+      },
+      "NpdReceipt_currency_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "d87f1a0c9c1a44c48cfc6fd2276316a286f7f3818e0447d1aa34f377b5a985d7",
+        "table": "NpdReceipt"
+      },
+      "NpdReceipt_interval_days_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "d87f1a0c9c1a44c48cfc6fd2276316a286f7f3818e0447d1aa34f377b5a985d7",
+        "table": "NpdReceipt"
+      },
+      "NpdReceipt_issued_urls_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "d87f1a0c9c1a44c48cfc6fd2276316a286f7f3818e0447d1aa34f377b5a985d7",
+        "table": "NpdReceipt"
+      },
+      "NpdReceipt_plan_interval_check": {
+        "source": "20261022190000_npd_30_day_plan_intervals",
+        "statementSha256": "8ff1911d53f2aafce4f5cb33d7361f196aa0c5b2129a72783d37834748442ce1",
+        "table": "NpdReceipt"
+      },
+      "NpdReceipt_service_name_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "d87f1a0c9c1a44c48cfc6fd2276316a286f7f3818e0447d1aa34f377b5a985d7",
+        "table": "NpdReceipt"
+      },
+      "NpdReceipt_urls_paired_check": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "d87f1a0c9c1a44c48cfc6fd2276316a286f7f3818e0447d1aa34f377b5a985d7",
+        "table": "NpdReceipt"
+      },
+      "PetCreateReceipt_payloadHash_format": {
+        "source": "20261017190000_g05_pet_create_receipt",
+        "statementSha256": "aee0cec9b6357f9427be5399cf7dae3178467c53b25ae6e6686613df4bfe3817",
+        "table": "PetCreateReceipt"
+      },
+      "PetCreateReceipt_responseStatus_check": {
+        "source": "20261017190000_g05_pet_create_receipt",
+        "statementSha256": "aee0cec9b6357f9427be5399cf7dae3178467c53b25ae6e6686613df4bfe3817",
+        "table": "PetCreateReceipt"
+      },
+      "PetMediaDeletionIntent_attempts_check": {
+        "source": "20261026074500_pet_media_deletion_intent",
+        "statementSha256": "73c935640e967b354a5b713e57adbb85c62d1dfa0a8a4b1a5ad75896dda1a76d",
+        "table": "PetMediaDeletionIntent"
+      },
+      "PetMediaDeletionIntent_provider_check": {
+        "source": "20261026074500_pet_media_deletion_intent",
+        "statementSha256": "73c935640e967b354a5b713e57adbb85c62d1dfa0a8a4b1a5ad75896dda1a76d",
+        "table": "PetMediaDeletionIntent"
+      },
+      "PetMediaDeletionIntent_reason_check": {
+        "source": "20261026074500_pet_media_deletion_intent",
+        "statementSha256": "73c935640e967b354a5b713e57adbb85c62d1dfa0a8a4b1a5ad75896dda1a76d",
+        "table": "PetMediaDeletionIntent"
+      },
+      "PetMediaDeletionIntent_status_check": {
+        "source": "20261026074500_pet_media_deletion_intent",
+        "statementSha256": "73c935640e967b354a5b713e57adbb85c62d1dfa0a8a4b1a5ad75896dda1a76d",
+        "table": "PetMediaDeletionIntent"
+      },
+      "PetVetAttachment_size_check": {
+        "source": "20261010150000_pet_vet_visits",
+        "statementSha256": "899d8df18b151681fad388f7c2446e9c7b9210cebe9794478ae1c6ae62c59953",
+        "table": "PetVetAttachment"
+      },
+      "RewardedAdSettings_daily_limit_allowed": {
+        "source": "20260813180000_expand_rewarded_daily_limit",
+        "statementSha256": "eeaaa632912fae9afed1a20776183c304fc5fd3bcff48c7c2da9d39ba564d4ff",
+        "table": "RewardedAdSettings"
+      },
+      "RewardedCreditTransaction_amount_positive": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "0772b140034b483533f525adf860d46034e5031db76ff58bbd8b960b1d5b0520",
+        "table": "RewardedCreditTransaction"
+      },
+      "RewardedCreditWallet_balance_range": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "35a209a4871f40bd3a0ff245c589144a4edbae04427c0086a75af7de28845611",
+        "table": "RewardedCreditWallet"
+      },
+      "RewardedCreditWallet_pending_refund_non_negative": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "35a209a4871f40bd3a0ff245c589144a4edbae04427c0086a75af7de28845611",
+        "table": "RewardedCreditWallet"
+      },
+      "RewardedTargetAccess_source_consistency": {
+        "source": "20260805120000_add_rewarded_target_access",
+        "statementSha256": "2172b3ce689df16a98c95f0edf6f888b6d5162557fac8514465d5ba3e63fcc64",
+        "table": "RewardedTargetAccess"
+      },
+      "RewardedTargetAccess_target_id_nonempty": {
+        "source": "20260805120000_add_rewarded_target_access",
+        "statementSha256": "2172b3ce689df16a98c95f0edf6f888b6d5162557fac8514465d5ba3e63fcc64",
+        "table": "RewardedTargetAccess"
+      },
+      "RewardedTargetAccess_valid_period": {
+        "source": "20260805120000_add_rewarded_target_access",
+        "statementSha256": "2172b3ce689df16a98c95f0edf6f888b6d5162557fac8514465d5ba3e63fcc64",
+        "table": "RewardedTargetAccess"
+      },
+      "off021_video_position_pair_ck": {
+        "source": "20261018113000_offline_resource_video_history_additive",
+        "statementSha256": "18f7e3f0974df4ffc53bc88923d5f6cd5b78ab1c29e32c08ce350928a4c38498",
+        "table": "OfflineResourceRevision"
+      }
+    },
+    "extensions": {
+      "uuid-ossp": {
+        "source": "20260126010000_add_note_entries",
+        "statementSha256": "9683bfd3cb60e69242e333abde9e3088104d34106a748ca85ed6840a80b35da2"
+      }
+    },
+    "functions": {
+      "chat2_capture_media_deletion": {
+        "source": "20261027011000_chat2_media_deletion_ledger",
+        "statementSha256": "9a98a8b105fccac6b2297a426fb0c4090715f7335c94c941ecdcc4acb4273f25"
+      },
+      "feed_normalize_breed_key": {
+        "source": "20261010200000_smart_feed_events",
+        "statementSha256": "f870ef3672e183d45415072a4c847e324ac97ada3902975fc53de7243af8499e"
+      },
+      "feed_normalize_pet_breed": {
+        "source": "20261010200000_smart_feed_events",
+        "statementSha256": "20a0596c978787c1877a3e780c59366d70505d65593094e93838e3042f7d252d"
+      },
+      "feed_normalize_profile_city": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "0d615ab709a58b0fd15f3438d7e4a8840a943774556ac13d813f0245891b1d9b"
+      },
+      "gafus_bump_course_content_revision": {
+        "source": "20261015020000_course_content_revision",
+        "statementSha256": "337b7eee09114c1e69e7668a2d008328d38fe4d6418a004363bf87489d9267f9"
+      },
+      "gafus_course_increment_version": {
+        "source": "20261022153000_course_version_global_trigger",
+        "statementSha256": "d6e756083bb68e152f56a73eb6a4f695dd77cd8e55677a84f5d0420cabba6c38"
+      },
+      "guard_app_subscription_payment_price_snapshot": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "fe09d1d94cefb6ed403114fc8bcca6864b3e41b1220f1417dec53ddad6a0bae1"
+      },
+      "guard_app_subscription_promo_code_identity": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "125cc153e2bc0eaa9bc9bfce7c5923bea2a57a0acec96bbf10a9b88d1867a14e"
+      },
+      "prevent_app_subscription_promo_code_event_mutation": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "328f5682db655033c4115e4edcddfe6d637a396bb293b1a43960528ba9f41393"
+      }
+    },
+    "indexes": {
+      "AccountDeletionAudit_deletedAt_idx": {
+        "source": "20260424143000_add_account_deletion_audit_and_counter",
+        "statementSha256": "72808adcf3beed244f90960ce1eaca8225cf66ca694d7266b68666582b5de984",
+        "table": "AccountDeletionAudit"
+      },
+      "AccountDeletionAudit_userId_idx": {
+        "source": "20260424143000_add_account_deletion_audit_and_counter",
+        "statementSha256": "97840f0b5e893f51bfb686c679b52dea1e43b18dbee90c077036ac6a5441837c",
+        "table": "AccountDeletionAudit"
+      },
+      "AccountDeletionToken_shortCode_key": {
+        "source": "20260326180000_account_deletion_email_code",
+        "statementSha256": "b77995ac2755fac1d1ab44840b02f375a6ca25122a8c05681e231dfe248821cc",
+        "table": "AccountDeletionToken"
+      },
+      "AccountDeletionToken_userId_idx": {
+        "source": "20260326180000_account_deletion_email_code",
+        "statementSha256": "eb5626b1638ce13870d365da84c3bb35fc7fac4d671917a777bf6bda7a872f0b",
+        "table": "AccountDeletionToken"
+      },
+      "AccountStorageCleanup_status_availableAt_idx": {
+        "source": "20261010160000_account_storage_cleanup",
+        "statementSha256": "958ba14f535ee70744ea8fc0a25e682fb6459437576f758a5c353c9e3822cef9",
+        "table": "AccountStorageCleanup"
+      },
+      "Account_provider_providerAccountId_key": {
+        "source": "20250304120000_add_vk_auth_schema",
+        "statementSha256": "cd5d3ccf13c4b998d9bdacae2dc1846524fe1d3081e5bd81963e031131505c1e",
+        "table": "Account"
+      },
+      "Account_userId_idx": {
+        "source": "20250304120000_add_vk_auth_schema",
+        "statementSha256": "4b7f131a6e3d66a52aea5d0940e49853b8e111c6d2e0c89d1ef21d3436fedb13",
+        "table": "Account"
+      },
+      "AppSubscriptionEvent_idempotencyKey_unique": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "4c53a43c2e09b5828cbdbb8b4ffe9b5905ebae324d7beeb2145bab66dcf6be60",
+        "table": "AppSubscriptionEvent"
+      },
+      "AppSubscriptionEvent_processingStatus_createdAt_idx": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "f471e3c43f7deed2f25ae051e67729341ff6bde560824e12abe1abea8f02060d",
+        "table": "AppSubscriptionEvent"
+      },
+      "AppSubscriptionEvent_providerEventKey_unique": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "880d886c898c36f0cef4e66e6b629e855a222b9941cfafc0534e0108e1bf8b4f",
+        "table": "AppSubscriptionEvent"
+      },
+      "AppSubscriptionEvent_source_eventType_createdAt_idx": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "972fc8eea7e3dcdf640c416a3e7cc8c61eb0613dfbdd8597bc1deb019d690141",
+        "table": "AppSubscriptionEvent"
+      },
+      "AppSubscriptionEvent_userId_createdAt_idx": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "ce57465ad73f225dd0a546789bfd0d926a6467a8fc4530ea2e9dece94582407f",
+        "table": "AppSubscriptionEvent"
+      },
+      "AppSubscriptionFinanceRefund_paymentId_idx": {
+        "source": "20261005190000_profit_finance",
+        "statementSha256": "e426f309f01ecc72ade7e7208c8b2573be0b12dbf9b2dbbf3416b2ecbb7f9e8d",
+        "table": "AppSubscriptionFinanceRefund"
+      },
+      "AppSubscriptionFinanceRefund_providerRefundId_key": {
+        "source": "20261005190000_profit_finance",
+        "statementSha256": "2edbf678b2ce9989f3f4e2340f7ad6099831cc489bd372b2b2a1bf23970923d4",
+        "table": "AppSubscriptionFinanceRefund"
+      },
+      "AppSubscriptionFinanceRefund_refundedAt_paymentId_idx": {
+        "source": "20261005190000_profit_finance",
+        "statementSha256": "7bf8ca0ef29523b6cff16f277dd99f2c620b43239948a1aaa5d53004018475ac",
+        "table": "AppSubscriptionFinanceRefund"
+      },
+      "AppSubscriptionPayment_appleOriginalTransactionId_idx": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "ff17ebc83171547b9cc1e1fc61659795be3d576e4438f636a13573e083e61bdb",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_appleTransactionId_key": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "3f8c4b96d4ad93e7a1b0dcc646b1cd53a998c02e928639c67f5dfaf04a3032a3",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_idempotenceKey_key": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "e0fd55e9a4207f52d0ab2844dfb567a2ab112487539555371bbc34c3f8fb8ae9",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_planCode_idx": {
+        "source": "20260621120000_add_monthly_app_subscription_plan",
+        "statementSha256": "17cd1a83862fe394a504eb3ddb67d70ea04b42f85e18ab2d9a2922c247d1da15",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_promoCodeId_idx": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "6cfb0a7a9ff83a329605c731f15b606150e8ecc7c488fcb9ee6725a57cd56b48",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_provider_providerCapturedAt_idx": {
+        "source": "20261005190000_profit_finance",
+        "statementSha256": "2f6c71f35f18636a145bd20863ebfd9b79d5e77c270e488d77124e0034c1ad82",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_provider_status_nextAttemptAt_idx": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "fcaad028180a8d47a5542a38fe591da51e8d90e7b5a882da5951904423c02437",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_subscriptionId_status_succeededAt_idx": {
+        "source": "20260511203000_add_app_subscription_payment_succeeded_at",
+        "statementSha256": "1ce14240fc0e2a81c5983d6918a61184b9cff98492e47e8160257bd35ed6e0ae",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_userId_provider_status_idx": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "f5b63cdd54079cc3c7189f19c39b6fdff0d0a7d85a9ad16d5cb537f19a7b49d7",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPayment_yookassaPaymentId_key": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "e2360c8a5c865981862b4599d677f4eba14d903d7bc54cd13fe13177f242e5b0",
+        "table": "AppSubscriptionPayment"
+      },
+      "AppSubscriptionPromoCodeEvent_actorId_idx": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "0f5c9875a36b9d819acb5bab15e9a3fa72e509db7786edcd84261d0fb097d104",
+        "table": "AppSubscriptionPromoCodeEvent"
+      },
+      "AppSubscriptionPromoCodeEvent_promoCodeId_createdAt_idx": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "dcfe3d8997d4e0d962d2b9dca25d9889f02da63483997189202fecbe8d4b4b47",
+        "table": "AppSubscriptionPromoCodeEvent"
+      },
+      "AppSubscriptionPromoCode_createdAt_idx": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "1fbdc0e0e418d07312dec7ccbff8b2468f419b5413a4aeaae603f71e7eff5d2e",
+        "table": "AppSubscriptionPromoCode"
+      },
+      "AppSubscriptionPromoCode_isActive_archivedAt_idx": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "db35da289991d324dc53c68a06c7ddfdc82c5a559d72dab6dc8c03b84edcb67c",
+        "table": "AppSubscriptionPromoCode"
+      },
+      "AppSubscriptionPromoCode_normalizedCode_key": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "1aa107ae9d2c267015001b108adfb280a923efb6d64f65e090acd673915a9823",
+        "table": "AppSubscriptionPromoCode"
+      },
+      "AppSubscriptionSettings_monthlyAppleProductId_key": {
+        "source": "20260621120000_add_monthly_app_subscription_plan",
+        "statementSha256": "ed712524057cb38b4ec0a32ecbc8b3ddcc7940396a3169f0511703acbd20dd6f",
+        "table": "AppSubscriptionSettings"
+      },
+      "AppSubscriptionSettings_weeklyAppleProductId_key": {
+        "source": "20260621120000_add_monthly_app_subscription_plan",
+        "statementSha256": "608f18d2d4cab3f2b7efde65d1b53cf3d49f196e267b9c118e1d55277c83fec5",
+        "table": "AppSubscriptionSettings"
+      },
+      "AppSubscriptionTrial_provider_paymentMethodFingerprintHash_idx": {
+        "source": "20260610010000_add_yookassa_trial_card_fingerprint",
+        "statementSha256": "9324fa9e7021cff73a37aedc9d40e0de8f7dddffd25f905d3ccbad0f46b67878",
+        "table": "AppSubscriptionTrial"
+      },
+      "AppSubscriptionTrial_provider_startedAt_idx": {
+        "source": "20260530130000_add_app_subscription_trials",
+        "statementSha256": "4d859f3d02709853b33b3b7746a317f04cdf5fe7457df4d029270a76d701e199",
+        "table": "AppSubscriptionTrial"
+      },
+      "AppSubscriptionTrial_subscriptionId_idx": {
+        "source": "20260530130000_add_app_subscription_trials",
+        "statementSha256": "7c7205f7d058ca458ce2378bf05ba4201884c771885d53fc6cfc3090270b40f8",
+        "table": "AppSubscriptionTrial"
+      },
+      "AppSubscriptionTrial_userId_provider_key": {
+        "source": "20260530130000_add_app_subscription_trials",
+        "statementSha256": "1354fc79518c8caabba0d7ffb2d33850abaf02b7d730ea9e3d8ce929bf432f76",
+        "table": "AppSubscriptionTrial"
+      },
+      "AppSubscription_appleOriginalTransactionId_idx": {
+        "source": "20260609170000_allow_apple_subscription_history_per_user",
+        "statementSha256": "e5a0224a20993345694492ba7257e523dbc02c524e37aba5f4a5d0e107287d37",
+        "table": "AppSubscription"
+      },
+      "AppSubscription_planCode_idx": {
+        "source": "20260621120000_add_monthly_app_subscription_plan",
+        "statementSha256": "04e5586615b692a6e231085c114c6881fe94a63524641369a410bc8b73cbf926",
+        "table": "AppSubscription"
+      },
+      "AppSubscription_provider_status_cancelAtPeriodEnd_currentPeriodEnd_idx": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "e116a5bc2385ceae675e204e2e33767b033ee6eb8c6d6f4f3c01d370e81c4e41",
+        "table": "AppSubscription"
+      },
+      "AppSubscription_provider_status_currentPeriodEnd_idx": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "e8009676f8f5d3083d9bebb741a814d21be6d6b78323ac50932df910cf832e49",
+        "table": "AppSubscription"
+      },
+      "AppSubscription_provider_status_pendingExpiresAt_idx": {
+        "source": "20260530101000_add_app_subscription_pending_expires_at",
+        "statementSha256": "38ad268e744164292aee170ebb0ba413688817940654461c99c6fc2ab4c57c0e",
+        "table": "AppSubscription"
+      },
+      "AppSubscription_userId_provider_active_unique": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "68199101844585c5a85692bbaafd518047c44366351847ab78861f13daf74bb1",
+        "table": "AppSubscription"
+      },
+      "AppSubscription_userId_status_currentPeriodEnd_idx": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "f3746a37a0d053e2e2ac74c7c26d624af2973931e92fd8b26cb186cd4a83d926",
+        "table": "AppSubscription"
+      },
+      "AppSubscription_yookassaPaymentMethodId_key": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "18a14a8f50fdeabddbb664091905bfe77657a94b8b4b2a9c42a943f597e2ec34",
+        "table": "AppSubscription"
+      },
+      "ArticleAccess_articleId_idx": {
+        "source": "20260318120000_add_article_entity",
+        "statementSha256": "90433eeb3ace6cd1a94c3807497bd8078f73455c9e40a5d734d21b2e2b21f62b",
+        "table": "ArticleAccess"
+      },
+      "ArticleAccess_articleId_userId_key": {
+        "source": "20260318120000_add_article_entity",
+        "statementSha256": "517f1efe8c8484e3c7ded44241ad29aa5675543f39d7bdac2396a2ecebe0a364",
+        "table": "ArticleAccess"
+      },
+      "ArticleAccess_userId_idx": {
+        "source": "20260318120000_add_article_entity",
+        "statementSha256": "6dabde02608ec243e51a7657872731d58013343c9a99d88078806da37e8054b7",
+        "table": "ArticleAccess"
+      },
+      "ArticleGuestView_articleId_idx": {
+        "source": "20260324120000_add_article_guest_view",
+        "statementSha256": "0a0f3c6990a986320e38a5be011701bfa1f35bc48bae3e11b81f75b99c081673",
+        "table": "ArticleGuestView"
+      },
+      "ArticleLike_articleId_idx": {
+        "source": "20260318120000_add_article_entity",
+        "statementSha256": "96908996590482bfd1970851c3d2d4a9a60b08a7ae5bd89fdfb1acc5a1ffa4ab",
+        "table": "ArticleLike"
+      },
+      "ArticleLike_userId_idx": {
+        "source": "20260318120000_add_article_entity",
+        "statementSha256": "78e87f87d82dc6b32afe64f0e1fd6108159b22c18ace53a29581882a2fc25925",
+        "table": "ArticleLike"
+      },
+      "ArticlePayment_articleId_idx": {
+        "source": "20260319100000_add_article_description_and_payments",
+        "statementSha256": "9f70f2f2107bb8432bc9391cd2e28adedf5100ab8648e965ce513c1e9eafe645",
+        "table": "ArticlePayment"
+      },
+      "ArticlePayment_status_idx": {
+        "source": "20260319100000_add_article_description_and_payments",
+        "statementSha256": "a0e5317e4878606fab704f9ded819ba4d3c594627edcc18ceb32b5c9a445ecd7",
+        "table": "ArticlePayment"
+      },
+      "ArticlePayment_userId_idx": {
+        "source": "20260319100000_add_article_description_and_payments",
+        "statementSha256": "d625175ad149f7d40d63be653dedbad2335a14aab5a8f81ee8127d1ae01ead4d",
+        "table": "ArticlePayment"
+      },
+      "ArticlePayment_yookassaPaymentId_key": {
+        "source": "20260319100000_add_article_description_and_payments",
+        "statementSha256": "5c9bfad885936d2627d62fa2f5aa60ed60cb1e7fb20541080d377177f4d71e21",
+        "table": "ArticlePayment"
+      },
+      "ArticleViewer_articleId_idx": {
+        "source": "20260322120000_add_article_viewer",
+        "statementSha256": "72c3d182125d3443765c30d36ed83e931f2dbb469a03a977d463cc470c101873",
+        "table": "ArticleViewer"
+      },
+      "ArticleViewer_userId_idx": {
+        "source": "20260322120000_add_article_viewer",
+        "statementSha256": "a252cf27fdaae02e94d4dacddf6e2c71b91ad7bad140a7442277956481df7e9b",
+        "table": "ArticleViewer"
+      },
+      "Article_authorId_idx": {
+        "source": "20260318120000_add_article_entity",
+        "statementSha256": "cf3cfc1b7368addf0be6ebc4251e87277c4e8d43259b19b061c02f514342ae06",
+        "table": "Article"
+      },
+      "Article_createdAt_idx": {
+        "source": "20260318120000_add_article_entity",
+        "statementSha256": "161f069d865ae4d81ac9b0ed6565f51ca99e08db8273b39b6d326537bc3cf3fa",
+        "table": "Article"
+      },
+      "Article_slug_key": {
+        "source": "20260318120000_add_article_entity",
+        "statementSha256": "228cbe55a1ce28b3d1900ecc29855ab9b2fb48898d5ba12aa587239cf78a512d",
+        "table": "Article"
+      },
+      "Article_visibility_idx": {
+        "source": "20260318120000_add_article_entity",
+        "statementSha256": "5d946a657dcc164d7518c2d3545a0892f76ea838ad024dad2737954665aa322a",
+        "table": "Article"
+      },
+      "Award_courseId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "da0e1a1ea5a59bd43ef6c408e1633d449fcbf9b93127de2b0871dde5882d8383",
+        "table": "Award"
+      },
+      "Award_petId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "a4381561358d3b73ee7bef23cccb52b25d576abfc81fd084f81f4343e542980e",
+        "table": "Award"
+      },
+      "Chat2Conversation_kind_scopeKey_key": {
+        "source": "20261026223000_chat2_foundation",
+        "statementSha256": "b8e4ff79dc054fca4e8c5f4bbbf0814e45f25b979e940e19009fe68549caf524",
+        "table": "Chat2Conversation"
+      },
+      "Chat2Conversation_kind_visibility_createdAt_idx": {
+        "source": "20261026223000_chat2_foundation",
+        "statementSha256": "8f4d882425c9fe440637d62ef0198f0bad9fc4602d3f01e9b8d7636d7871edfd",
+        "table": "Chat2Conversation"
+      },
+      "Chat2MediaDeletionIntent_status_availableAt_idx": {
+        "source": "20261027011000_chat2_media_deletion_ledger",
+        "statementSha256": "2ea17dc2c997c73f1487f675970896ef68f7d09dfb75605dcf653d4597717457",
+        "table": "Chat2MediaDeletionIntent"
+      },
+      "Chat2Media_conversationId_messageId_idx": {
+        "source": "20261026223000_chat2_foundation",
+        "statementSha256": "77d1d3193d90caf059df60f9364099505512385da3b241940b8da0f5966e8059",
+        "table": "Chat2Media"
+      },
+      "Chat2Media_ownerId_status_createdAt_idx": {
+        "source": "20261026223000_chat2_foundation",
+        "statementSha256": "f2dcc1279b36de2fcc100526a185dc44e9e718cf5a48e82fa1dccde7e8219fef",
+        "table": "Chat2Media"
+      },
+      "Chat2Member_conversationId_userId_key": {
+        "source": "20261026223000_chat2_foundation",
+        "statementSha256": "13a98662665ff5b2b723f97885565cbb750e53105aeef7ac4bd938fe7cbcec99",
+        "table": "Chat2Member"
+      },
+      "Chat2Member_userId_hiddenAt_idx": {
+        "source": "20261026223000_chat2_foundation",
+        "statementSha256": "fba7d210bf207022b9f5a0487cc9d91008436913e70bb630a74ad9a81d9b1ee3",
+        "table": "Chat2Member"
+      },
+      "Chat2MessageReaction_userId_idx": {
+        "source": "20261029163000_chat2_message_reactions",
+        "statementSha256": "8e1af07dcf79dbc9aac0c70ab0e021edb3d04e28624c031cc34bcbebcea1777f",
+        "table": "Chat2MessageReaction"
+      },
+      "Chat2Message_conversationId_authorId_clientMessageId_key": {
+        "source": "20261026223000_chat2_foundation",
+        "statementSha256": "a04c692c843dbb870a38ce06936b3665f350e555657a28d2188d4d51469cbbe3",
+        "table": "Chat2Message"
+      },
+      "Chat2Message_conversationId_createdAt_idx": {
+        "source": "20261026223000_chat2_foundation",
+        "statementSha256": "b549ec826767af1c2235a4e9669e644102a5b880e125707b9f36c8111adb7496",
+        "table": "Chat2Message"
+      },
+      "Chat2Message_conversationId_sequence_key": {
+        "source": "20261026223000_chat2_foundation",
+        "statementSha256": "36804e45f9aa61e20a162ed50f77c92f9843f7952fefa3cbe3f033f1a9bc0415",
+        "table": "Chat2Message"
+      },
+      "Chat2OutboxEvent_deliveredAt_nextAttemptAt_idx": {
+        "source": "20261026223000_chat2_foundation",
+        "statementSha256": "537319ee9ee77d7506a3b7f5bfe8877a309ac3100bb07710dce181ec2033eb6c",
+        "table": "Chat2OutboxEvent"
+      },
+      "Chat2Report_conversationId_status_createdAt_idx": {
+        "source": "20261027004500_chat2_reports",
+        "statementSha256": "6555a029f0106cb6b6f6570bb75c4d5db2730c032a10e63924f58cadce71d6b4",
+        "table": "Chat2Report"
+      },
+      "Chat2Report_reporterId_messageId_key": {
+        "source": "20261027004500_chat2_reports",
+        "statementSha256": "5b29d23552adca172f04ab60c01eefa35631d91f87c085403feae12d9b21a7c6",
+        "table": "Chat2Report"
+      },
+      "Chat2V2MediaTask_cleanup_pending_idx": {
+        "source": "20261027172500_chat2_v2_media_task",
+        "statementSha256": "1deafdea3cb0f5b80b54d472f96b3d2e372068cb7a33cac10a0e4b7175390118",
+        "table": "Chat2V2MediaTask"
+      },
+      "Chat2V2MediaTask_conversationId_ownerId_status_idx": {
+        "source": "20261027172500_chat2_v2_media_task",
+        "statementSha256": "3e82612bed48986ca156354f175729a806c087f596cbfd825c46616a945823d1",
+        "table": "Chat2V2MediaTask"
+      },
+      "Chat2V2MediaTask_status_nextAttemptAt_createdAt_idx": {
+        "source": "20261027172500_chat2_v2_media_task",
+        "statementSha256": "03fc820fb27237924def451180f060596d45c5de6b77d567b606ef569d1052d5",
+        "table": "Chat2V2MediaTask"
+      },
+      "ChatAttachment_state_createdAt_idx": {
+        "source": "20261001170000_cynologist_chat",
+        "statementSha256": "fab8ee986bd4b761f418737a6a5614a9127d2f20b39f8634b4fce5f12ee8f1e4",
+        "table": "ChatAttachment"
+      },
+      "ChatNotification_notificationId_key": {
+        "source": "20261001170000_cynologist_chat",
+        "statementSha256": "d5a94fd030956238311f4dfaaf7b656769e0776d4905181cab2995bd2bb14c32",
+        "table": "ChatNotification"
+      },
+      "ChatSendOperation_senderUserId_clientMessageId_key": {
+        "source": "20261001170000_cynologist_chat",
+        "statementSha256": "3a7d5df8a8ca0b3c8dc41ad085f5da9a4ac219a165850baf0014e3146c9a53da",
+        "table": "ChatSendOperation"
+      },
+      "ChatSendOperation_streamMessageId_key": {
+        "source": "20261001170000_cynologist_chat",
+        "statementSha256": "e9902c372ac5fdd07b2aa8f693b5761b852c5e613aba1571daae64f46aac525e",
+        "table": "ChatSendOperation"
+      },
+      "ChatWebhookEvent_processedAt_createdAt_idx": {
+        "source": "20261001170000_cynologist_chat",
+        "statementSha256": "3ce1c654a94467d054dab870470143b6345ff2ce6d330ad301ad176619abb995",
+        "table": "ChatWebhookEvent"
+      },
+      "CommunityChatAttachment_state_createdAt_idx": {
+        "source": "20261001200000_community_chat",
+        "statementSha256": "41e883c4124b56dc92dc9ab5de84019936593ebe1e829e3818d300fdc1822a38",
+        "table": "CommunityChatAttachment"
+      },
+      "CommunityChatSendOperation_senderUserId_clientMessageId_key": {
+        "source": "20261001200000_community_chat",
+        "statementSha256": "51ed2c8b439ba18eb921c82124defab07f1595138c1102329f5fd6269b1015bc",
+        "table": "CommunityChatSendOperation"
+      },
+      "CommunityChatSendOperation_streamMessageId_key": {
+        "source": "20261001200000_community_chat",
+        "statementSha256": "60bd5da86ccb53aa4ffff0f999b8c7826a18a51bc3b7401f292e3601ed0a4f94",
+        "table": "CommunityChatSendOperation"
+      },
+      "ConsentLog_createdAt_idx": {
+        "source": "20260220120000_add_consent_log",
+        "statementSha256": "ca9deece593416348924ca47eb142ea6b706840fadab30f40bd0a2aa3792661c",
+        "table": "ConsentLog"
+      },
+      "ConsentLog_status_idx": {
+        "source": "20260220120000_add_consent_log",
+        "statementSha256": "ffb7c4da2ab22bbb446aefca5e5bf29dcca8ea23e62339165d27059f141e7d74",
+        "table": "ConsentLog"
+      },
+      "ConsentLog_tempSessionId_consentType_key": {
+        "source": "20260220140000_consent_type_status",
+        "statementSha256": "9f91aecba536fd694513f336f864451f01af7849d67193e443dc576f2b5e045a",
+        "table": "ConsentLog"
+      },
+      "ConsentLog_tempSessionId_idx": {
+        "source": "20260220140000_consent_type_status",
+        "statementSha256": "5fcb79450a2a533206d26c23ecbae3609ec9b634a5d43328468db93a81e50db9",
+        "table": "ConsentLog"
+      },
+      "ConsentLog_userId_idx": {
+        "source": "20260220120000_add_consent_log",
+        "statementSha256": "78e4134c7c19e2a997a29133ea7191e8117e876050d834d41c65259e012f01ca",
+        "table": "ConsentLog"
+      },
+      "ConsultationAvailabilityRule_cynologistId_idx": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "5534ffb5e631052b4437e9bfaf0814184570883e169b004daa948efe237b7e62",
+        "table": "ConsultationAvailabilityRule"
+      },
+      "ConsultationAvailabilityRule_cynologistId_weekday_key": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "3a70594e1ada16f421d71a8e49dfc2774caf6fc8cec3eba91b7595b46c151ce2",
+        "table": "ConsultationAvailabilityRule"
+      },
+      "ConsultationBookingIdempotency_expiresAt_idx": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "1553eae6a44cf7ef965e3ed53d1975594a47e72092e4ad26a2f1fa2168a09f68",
+        "table": "ConsultationBookingIdempotency"
+      },
+      "ConsultationBooking_clientId_createdAt_idx": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "9ca76263ffec79b4bd188605d8bc930290038787097939007a525226bb75367b",
+        "table": "ConsultationBooking"
+      },
+      "ConsultationBooking_clientId_status_completedAt_idx": {
+        "source": "20261004090000_consultation_booking_cooldown",
+        "statementSha256": "5417a9a9aeeacf6c555f2d56b0c88e994c8924c6d5e4c23b5a315c4c9b51c560",
+        "table": "ConsultationBooking"
+      },
+      "ConsultationBooking_cynologistId_status_idx": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "26802e3f357394aae324ed09b1d3f84a344c2c8132282d75ca79d447484fc53d",
+        "table": "ConsultationBooking"
+      },
+      "ConsultationBooking_slotId_active_key": {
+        "source": "20260421140000_consultation_booking_slot_partial_unique",
+        "statementSha256": "e76166be172f598c70e0a65fe399af98dc3cdeb6a2d4e56f027bfd847ee3b71f",
+        "table": "ConsultationBooking"
+      },
+      "ConsultationCynologist_isListed_idx": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "ebfdf3da211b39037bd695dfd3c4985a77420e8113311cb610e6de96bd9bba61",
+        "table": "ConsultationCynologist"
+      },
+      "ConsultationCynologist_userId_key": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "bfb8a0a97ea0e49dae91e1c5892e8c6106ff4098ebf4a854f2a01c95541f826b",
+        "table": "ConsultationCynologist"
+      },
+      "ConsultationDayOff_cynologistId_date_key": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "8c32f6f25df7233e901c26b94de9b749f10ec5b737476d58e77696ec25037fab",
+        "table": "ConsultationDayOff"
+      },
+      "ConsultationDayOff_cynologistId_idx": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "5028695a75608df8d7d9445af3318c84b0ff99e7686f4e27bfb3bb1b2e256c1d",
+        "table": "ConsultationDayOff"
+      },
+      "ConsultationEmailLog_bookingId_type_idx": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "d62030fa6a2d26a7e408136015d16278b8a84162e13d6463347433e882bb475e",
+        "table": "ConsultationEmailLog"
+      },
+      "ConsultationEmailLog_bookingId_type_key": {
+        "source": "20260518183000_unique_consultation_email_log",
+        "statementSha256": "2f82d567528e770ec88f2ea61654c162a51078b193f33e107b7f464f07c8f355",
+        "table": "ConsultationEmailLog"
+      },
+      "ConsultationSlotException_cynologistId_startAt_idx": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "e1aa43061056860e4cb6bc7b8bc294b40d870eb9cad1e7d51ac3ac403075a96b",
+        "table": "ConsultationSlotException"
+      },
+      "ConsultationSlot_cynologistId_startAt_key": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "a21bd7bc946fc96821fb86f421b01cec0f2ed5d9d48779a9c263c855ec190282",
+        "table": "ConsultationSlot"
+      },
+      "ConsultationSlot_cynologistId_status_startAt_idx": {
+        "source": "20260420120000_add_consultations",
+        "statementSha256": "d6f7c0b365188730ae898518c97b4343d05d72ea5c40e984f3ac77b08186c6e5",
+        "table": "ConsultationSlot"
+      },
+      "CourseAccess_courseId_userId_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "8ee9df50cd855af85fe23656ad665b328007ce30914ca58e855760c1578e6427",
+        "table": "CourseAccess"
+      },
+      "CourseReview_userId_courseId_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "a7830e07e88c03e5fc87367e608811ab5754900d3abbf06aa9f90bb49ad7b487",
+        "table": "CourseReview"
+      },
+      "Course_appleIapProductId_key": {
+        "source": "20260401120000_add_apple_iap_course_fields",
+        "statementSha256": "52441f2716f52691701fc929a01ac05deb1a05f50fb8fa0d5c4db026f314dcbb",
+        "table": "Course"
+      },
+      "Course_type_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "1dc34d40ef8338ff663c0b28e4742841adbee8a3cf51d3b2afc59b2b175da63d",
+        "table": "Course"
+      },
+      "CynologistChat_clientUserId_key": {
+        "source": "20261001170000_cynologist_chat",
+        "statementSha256": "e084e1810b8c2a1fcad77c4859e65547fdca195017b633bc69eca7c6cf407b55",
+        "table": "CynologistChat"
+      },
+      "CynologistChat_firstMessageId_key": {
+        "source": "20261001170000_cynologist_chat",
+        "statementSha256": "9abbc2bbeb6b11433adc0b23818710a66ab9b26afbcdfa56c31b8490b4e26dda",
+        "table": "CynologistChat"
+      },
+      "CynologistChat_nextReminderAt_idx": {
+        "source": "20261001170000_cynologist_chat",
+        "statementSha256": "31655aced1fa98e674531da998d81119858e812c925c5177f37091551ff27cf7",
+        "table": "CynologistChat"
+      },
+      "CynologistChat_streamChannelId_key": {
+        "source": "20261001170000_cynologist_chat",
+        "statementSha256": "caa2dcf07be14eb664d5221f62460f1323011d15a2740a96648c78decdd0a935",
+        "table": "CynologistChat"
+      },
+      "CynologistChat_trainerUserId_lastMessageAt_idx": {
+        "source": "20261001170000_cynologist_chat",
+        "statementSha256": "44ce07f086d0aac95f825f84f371bb2e6e08bb5de99e72c6391e3a723ec4aa34",
+        "table": "CynologistChat"
+      },
+      "DailyCourseBundleStep_bundleId_order_idx": {
+        "source": "20260503231000_daily_course_bundle_patch",
+        "statementSha256": "2fa131bd47b24647aa6cd1b5dd70d181b8dda0d63f491c20094990c57372814f",
+        "table": "DailyCourseBundleStep"
+      },
+      "DailyCourseBundleStep_bundleId_order_key": {
+        "source": "20260503231000_daily_course_bundle_patch",
+        "statementSha256": "4cf25cb5c4ddd36362afbd9e5519ee43d49d4e1ad4e275a026ee0f4d94c7e651",
+        "table": "DailyCourseBundleStep"
+      },
+      "DailyCourseBundleStep_stepId_idx": {
+        "source": "20260503231000_daily_course_bundle_patch",
+        "statementSha256": "9d0f2f04effce614a25b509a77b487c4b69215813f9d73ad8936016e0eba51ec",
+        "table": "DailyCourseBundleStep"
+      },
+      "DailyCourseBundle_authorId_idx": {
+        "source": "20260503231000_daily_course_bundle_patch",
+        "statementSha256": "3964165b06f9ab04fc2657ac1a485077bddbb4f44396224c958faab20ce4f3cb",
+        "table": "DailyCourseBundle"
+      },
+      "DailyCourseBundle_updatedAt_idx": {
+        "source": "20260503231000_daily_course_bundle_patch",
+        "statementSha256": "fbde679a3487124d83da6b512150afc7f38f99eb940419c3e379c9c8c2d3a330",
+        "table": "DailyCourseBundle"
+      },
+      "DailyCourseSchedule_bundleId_idx": {
+        "source": "20260503120000_add_daily_course",
+        "statementSha256": "0f475b835b1e1c426856ce08d5f15dd00f841c15ebf478aba775ccdfb2d76c5c",
+        "table": "DailyCourseSchedule"
+      },
+      "DailyCourseSchedule_createdById_idx": {
+        "source": "20260503120000_add_daily_course",
+        "statementSha256": "3ca652cdb59633c3202bb18da5903a4a04a350a6b63725eb366e55566ea58558",
+        "table": "DailyCourseSchedule"
+      },
+      "DailyCourseSchedule_date_idx": {
+        "source": "20260503120000_add_daily_course",
+        "statementSha256": "00632298c3621459b36af58bf8eeb1a781a892a47a5ccc20e92c296ca70b0258",
+        "table": "DailyCourseSchedule"
+      },
+      "DailyCourseSchedule_date_key": {
+        "source": "20260503120000_add_daily_course",
+        "statementSha256": "21192ede3d6b151d89d55eaa38f1ee0fdbd1bdc7cfe95627555a2eb5260b792b",
+        "table": "DailyCourseSchedule"
+      },
+      "DailyCourseUserStep_bundleStepId_idx": {
+        "source": "20260503120000_add_daily_course",
+        "statementSha256": "d18316d62530aed07725e8ae482a01ffa5d45e48687a0138c0c8741e93c0e0cf",
+        "table": "DailyCourseUserStep"
+      },
+      "DailyCourseUserStep_dailyCourseUserTrainingId_bundleStepId_key": {
+        "source": "20260503120000_add_daily_course",
+        "statementSha256": "7eabd55fc0a5cb302adc1050dbb8445dc37bddc5ece9a761e49fd965f6f18d17",
+        "table": "DailyCourseUserStep"
+      },
+      "DailyCourseUserStep_dailyCourseUserTrainingId_idx": {
+        "source": "20260503120000_add_daily_course",
+        "statementSha256": "f2909fe214d8527bab0dd1d9f83ef9df92fb97d287f4828aad27d4ed777c4099",
+        "table": "DailyCourseUserStep"
+      },
+      "DailyCourseUserTraining_scheduleId_idx": {
+        "source": "20260503120000_add_daily_course",
+        "statementSha256": "b9fa586a8b895a5c0fbe86e895f34dc4f96bb4032693e6906ad0c6b522bcfb06",
+        "table": "DailyCourseUserTraining"
+      },
+      "DailyCourseUserTraining_userId_idx": {
+        "source": "20260503120000_add_daily_course",
+        "statementSha256": "66a5e60cf426a2afc5b34d3288147d7e27dbc30b43ca8432b4ff592c5d7d3e85",
+        "table": "DailyCourseUserTraining"
+      },
+      "DailyCourseUserTraining_userId_scheduleId_key": {
+        "source": "20260503120000_add_daily_course",
+        "statementSha256": "795f7f0d5bbdf93fe726854e342c85ee596f56f9ebc61a700b81b63c78c69107",
+        "table": "DailyCourseUserTraining"
+      },
+      "DayOnCourse_courseId_order_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "6b6301db17550814a783173c212841cf576b71206118d1cf7627fd58208af6ba",
+        "table": "DayOnCourse"
+      },
+      "DayOnCourse_courseId_order_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "a28e62c005d53aeb42092d2de8352688f9316eee96342230ccb9c9eaa506ba54",
+        "table": "DayOnCourse"
+      },
+      "DayOnCourse_dayId_idx": {
+        "source": "20250223120000_add_share_progress_across_courses",
+        "statementSha256": "6bbb0d660f599b1f4d32351d55090add872a76a7ceb488904349dc230f27777f",
+        "table": "DayOnCourse"
+      },
+      "DiaryEntry_dayId_idx": {
+        "source": "20250223120001_diary_entry_day_id",
+        "statementSha256": "c54b7efdea4db44339b80af02c47e91775f479b15a047e5389f5bf3285c9e877",
+        "table": "DiaryEntry"
+      },
+      "DiaryEntry_dayOnCourseId_idx": {
+        "source": "20260130120001_add_diary_entry_table",
+        "statementSha256": "1fc5b77529d094176e15f82b40eac4aec93684f22729123e3d7ba7e5cb6a3bd9",
+        "table": "DiaryEntry"
+      },
+      "DiaryEntry_userId_dayOnCourseId_key": {
+        "source": "20260130120001_add_diary_entry_table",
+        "statementSha256": "c60a6419510cbb58ceb97a85aadbf78a04df636f442f0681a9ac6f6673184063",
+        "table": "DiaryEntry"
+      },
+      "DiaryEntry_userId_idx": {
+        "source": "20260130120001_add_diary_entry_table",
+        "statementSha256": "05a51c7c119cd526c0a5f53c8f9f3e7822d70a236ab5db38e026de07cef85487",
+        "table": "DiaryEntry"
+      },
+      "Diploma_userId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "58b73ce17876bd0f74a8cef72e5037037526b363c828c483812e303fe49e34a7",
+        "table": "Diploma"
+      },
+      "EmailChangeToken_token_key": {
+        "source": "20260326140000_add_email_change_token",
+        "statementSha256": "a13c61e25f8568103fcd20dfe7d6a35bcfde7bdbd006aaca4a2ef3eb9a096402",
+        "table": "EmailChangeToken"
+      },
+      "EmailChangeToken_userId_idx": {
+        "source": "20260326140000_add_email_change_token",
+        "statementSha256": "2b472166db421416b275d4a4055dce252439c222cb3d2c441c10308aa1d3227b",
+        "table": "EmailChangeToken"
+      },
+      "ErrorLog_appName_level_timestamp_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "e53827483af6d2cce00d6408e1057c6fefedde12f2ed18a61a2d8c61a0d73204",
+        "table": "ErrorLog"
+      },
+      "ErrorLog_createdAt_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "0fa614aa5f9c5bcaf472c443a707348c395056b3585c87e4f3fc60569124c3f2",
+        "table": "ErrorLog"
+      },
+      "ErrorLog_environment_timestamp_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "a51449671d3c8ce1c1dc176ad2a1edaa165f2fa7b6487fdc79a604d1a65fd5bf",
+        "table": "ErrorLog"
+      },
+      "ErrorLog_status_timestamp_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "0dd5ce9d1dfd10011864eb159bc369932480b9f6938a0115424a0c4890c36ed0",
+        "table": "ErrorLog"
+      },
+      "ErrorReport_appName_idx": {
+        "source": "20251030160201_init",
+        "statementSha256": "fa0d73a237fc0ee517cd3d5df68bcc607958b8806fb32460b5d47e0b7540c437",
+        "table": "ErrorReport"
+      },
+      "ErrorReport_createdAt_idx": {
+        "source": "20251030160201_init",
+        "statementSha256": "129e90c3a307f1746c201ed90246500deab11dd374b93245bfb9a264c2f82c9e",
+        "table": "ErrorReport"
+      },
+      "ErrorReport_environment_idx": {
+        "source": "20251030160201_init",
+        "statementSha256": "107fcc0fc75b6c28cf7d58d899b90a7950117db30e1ce78add78ff561f7bbcae",
+        "table": "ErrorReport"
+      },
+      "ErrorReport_resolved_idx": {
+        "source": "20251030160201_init",
+        "statementSha256": "6a080e88c7bbc0bd63b85c5875f9392a428eecd629bae3fe1abcd2e70cb59a9c",
+        "table": "ErrorReport"
+      },
+      "ExamResult_dailyCourseUserStepId_idx": {
+        "source": "20260508193000_daily_course_exam_results",
+        "statementSha256": "7a1ff2a05a91780eccb6e6284651e479b6dda30280147507413cbd7d03494ca4",
+        "table": "ExamResult"
+      },
+      "ExamResult_dailyCourseUserStepId_key": {
+        "source": "20260508193000_daily_course_exam_results",
+        "statementSha256": "253fb320235ef4a54349bf1df2fde8fbe2b1a5e758e9ee159f84a3c5c847e34e",
+        "table": "ExamResult"
+      },
+      "ExamResult_reviewedAt_idx": {
+        "source": "20241108120000_exam_result_trainer_review",
+        "statementSha256": "f1fc8a29318599b0669b347915230badca1c2885f5d826af55b26cae8492bd5d",
+        "table": "ExamResult"
+      },
+      "ExamResult_reviewedById_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "899c0b13009435ce429b334b573407acd464f811e41353e4151b6c9450187e93",
+        "table": "ExamResult"
+      },
+      "ExamResult_stepId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "2864e19b2e7cb9d0ba595fc10acb34f939f6f167dbac9b9174aae4fa35864d02",
+        "table": "ExamResult"
+      },
+      "ExamResult_userStepId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "0b53af1c168b729cf9fa89274e9e4868708036262bdd0706ff5e8e85d9076362",
+        "table": "ExamResult"
+      },
+      "ExamResult_userStepId_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "325a5e6f6ab11f702455fe764d3900928587a16bad6682d524961a0aa1f5ca29",
+        "table": "ExamResult"
+      },
+      "ExamResult_videoDeletedAt_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "0d28c35c15bdf3dfeb4f23088f27a682e12d37c427181746fba203125c37597d",
+        "table": "ExamResult"
+      },
+      "FeedAuthorPreference_authorId_notify_hidden_idx": {
+        "source": "20261010120000_feed_preferences_moderation",
+        "statementSha256": "5e680e31730bec0cb92df9c5ecc24504529aab6b8986f255788dc9f709f84d66",
+        "table": "FeedAuthorPreference"
+      },
+      "FeedBookmark_userId_createdAt_postId_idx": {
+        "source": "20261010120000_feed_preferences_moderation",
+        "statementSha256": "64b62cb0b7989c573b716ccac2ef40f5913f1d7029f3e78601c456957a37d5ed",
+        "table": "FeedBookmark"
+      },
+      "FeedCommentMedia_commentId_position_key": {
+        "source": "20261029173500_feed_comment_media",
+        "statementSha256": "aa22f171a8ecee9f1f847ef9252d476b87207585f0486ce4ff788203ccf491e3",
+        "table": "FeedCommentMedia"
+      },
+      "FeedCommentMedia_mediaId_key": {
+        "source": "20261029173500_feed_comment_media",
+        "statementSha256": "8abbd92f14e2bf574762a58f9620aa43bf8540316524bd16b939220a252fda7f",
+        "table": "FeedCommentMedia"
+      },
+      "FeedCommentReaction_commentId_kind_createdAt_id_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "5b989ac764310b893872f1ff09bddd4ad0194ee423c1f934761f4cc4cbdff2cd",
+        "table": "FeedCommentReaction"
+      },
+      "FeedCommentReaction_commentId_userId_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "4c34565112210f45434526b1288a6a10deb1a5cebf963f9d0ffddcc83be35262",
+        "table": "FeedCommentReaction"
+      },
+      "FeedComment_authorId_clientRequestId_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "ed86b6347579202dd1e2a82a50260cf5c0d7e053bafd4346290e8c012be99925",
+        "table": "FeedComment"
+      },
+      "FeedComment_postId_rootId_createdAt_id_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "3e0d7d88d4b7f1f7f0f21be507d981dab10c831dee709f40ef73267e6e2dcd11",
+        "table": "FeedComment"
+      },
+      "FeedComment_replyToId_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "99f21379372c0b2647e3e9b21acab0e9e7921431294525831d8c105877d02e94",
+        "table": "FeedComment"
+      },
+      "FeedImpression_eventId_key": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "c4a7a40cb7e64f4f2e644d0b2734a24c2c1777cdf21782458d899bab44c210fa",
+        "table": "FeedImpression"
+      },
+      "FeedImpression_postId_occurredAt_idx": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "936bd3b02c8143ef6194c213715d6f814a9b883845dedf1160d0e4983c70fe35",
+        "table": "FeedImpression"
+      },
+      "FeedImpression_rankingSessionId_idx": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "f9566f4c7b707c7a822162e2a8bab53a3cb34e1f6e350cacb766b0e5651b804f",
+        "table": "FeedImpression"
+      },
+      "FeedImpression_userId_occurredAt_idx": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "cf6c25d2fd0c68e3117068cfbeca69fc7236715c7ae3e9ca17d635feeffdebff",
+        "table": "FeedImpression"
+      },
+      "FeedImpression_userId_postId_rankingSessionId_key": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "174c3950761551d889cfc63c83f381e4e2d51d08a6c1f21b92aff6214327bc49",
+        "table": "FeedImpression"
+      },
+      "FeedMediaAsset_ownerId_status_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "4f226c2c333042bbd035cd611b99621540d05bd4ead905d66c94388d87e7195e",
+        "table": "FeedMediaAsset"
+      },
+      "FeedMediaAsset_postId_status_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "af85ef27961f393344b8969beecff8b5357aaf172668ae0a902b90f794107bd5",
+        "table": "FeedMediaAsset"
+      },
+      "FeedModerationAction_reportId_createdAt_idx": {
+        "source": "20261010120000_feed_preferences_moderation",
+        "statementSha256": "4c9c7e93c2e57594af362522af4e8e590c83a82cf8cc552b32a4b722c21b5e61",
+        "table": "FeedModerationAction"
+      },
+      "FeedNotificationOutbox_attemptToken_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "4ac1d98c933f1746888f2a74cf27969ac1bf510f02f9d1fe627351dba652804f",
+        "table": "FeedNotificationOutbox"
+      },
+      "FeedNotificationOutbox_notificationId_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "0ca9cad76656d388b3ac287bfeed62cda2a0fac7beced501e5e223e238431313",
+        "table": "FeedNotificationOutbox"
+      },
+      "FeedNotificationOutbox_status_availableAt_leaseUntil_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "a94f11079c8463cd433383a7d33f187225d988902ee993683476405dd6d7aa36",
+        "table": "FeedNotificationOutbox"
+      },
+      "FeedNotification_groupKey_createdAt_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "2d47a4a422044b2cd218ea96aa662200100750fcabc2f2830f157ac391f5e21c",
+        "table": "FeedNotification"
+      },
+      "FeedNotification_recipientId_readAt_createdAt_id_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "69a8b16f58efa3e4ed46aa71f758a968364cf18d24af3af72cbfa0988a4ab3d5",
+        "table": "FeedNotification"
+      },
+      "FeedPollOption_imageMediaId_idx": {
+        "source": "20261014000000_feed_polls",
+        "statementSha256": "a4fa86d306d1213ea61b301b474e0bd882f4e0a6416e4e68b5b396991b827237",
+        "table": "FeedPollOption"
+      },
+      "FeedPollOption_pollId_id_key": {
+        "source": "20261014000000_feed_polls",
+        "statementSha256": "42eeb852d5156b9b27d8d75c863b5a058c8d0bcb243d1eb2d4c4f52803a13e24",
+        "table": "FeedPollOption"
+      },
+      "FeedPollOption_pollId_position_key": {
+        "source": "20261014000000_feed_polls",
+        "statementSha256": "bce65644495751d3a4968edf35a88e6b9be2bf44aba96b9ad37353f1a5ce4744",
+        "table": "FeedPollOption"
+      },
+      "FeedPollVoteSelection_pollId_optionId_idx": {
+        "source": "20261014000000_feed_polls",
+        "statementSha256": "548c37c13f618b8af80f42b6c8bd5ec74b758aa437ba0e0c7c6721c2f1542bb6",
+        "table": "FeedPollVoteSelection"
+      },
+      "FeedPollVote_userId_idx": {
+        "source": "20261014000000_feed_polls",
+        "statementSha256": "a4e57948d17585874ec62dec4b9e3fb733388937675e9358384b4a55595e42bf",
+        "table": "FeedPollVote"
+      },
+      "FeedPoll_postId_key": {
+        "source": "20261014000000_feed_polls",
+        "statementSha256": "c4be89a8e7ca52104fba67f645437d6dc6f2300ceed517b719ada770cf1c0428",
+        "table": "FeedPoll"
+      },
+      "FeedPostReaction_postId_kind_createdAt_id_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "3dcd24ce76821df5c73693e73969777b884bd46f78f07dce4bb00fd03cfb417f",
+        "table": "FeedPostReaction"
+      },
+      "FeedPostReaction_postId_userId_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "dab75c8c457b0bf759e33f6ead14a3076359a1b247550ec16602a5af0de3388e",
+        "table": "FeedPostReaction"
+      },
+      "FeedPostRevision_postId_clientRequestId_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "c4028a7781814e10ee466ba0316465debdafcb839e6004e319a476f25d812cb3",
+        "table": "FeedPostRevision"
+      },
+      "FeedPostRevision_postId_revisionNumber_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "a20bef873f648c63556289aabe9e4e7d48e37956dc37fab1291daf7384280f96",
+        "table": "FeedPostRevision"
+      },
+      "FeedPostRevision_postId_status_createdAt_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "3654a285a81bc53d9328c1d6dc26138a9dd8276c89db8f12102952e48649b93d",
+        "table": "FeedPostRevision"
+      },
+      "FeedPostView_postId_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "468fad18f598719a0a0618a0abfbdcec65d830971df68e1353823e89f3f38769",
+        "table": "FeedPostView"
+      },
+      "FeedPost_authorId_clientRequestId_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "658cb925da95f178060c5884ac0c8dc55154bda278093c5e982a9cd8fed7fd4d",
+        "table": "FeedPost"
+      },
+      "FeedPost_authorId_deletedAt_updatedAt_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "b7ea21e72574f09c09796bcb54639d93b790097080a8e6bb434272a63d9529a5",
+        "table": "FeedPost"
+      },
+      "FeedPost_authorId_status_publishedAt_id_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "be7eb2bbe20118506d77db8f6f6cb291f27249d4846de196d8657fefaeba5be4",
+        "table": "FeedPost"
+      },
+      "FeedPost_status_publishedAt_id_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "1b490c86fae6ed3b77fb24c3042627627fbe8d609e0cb661c8a47c41820ef652",
+        "table": "FeedPost"
+      },
+      "FeedRankingEvent_postId_createdAt_idx": {
+        "source": "20261010200000_smart_feed_events",
+        "statementSha256": "8976d67c4f9813c38747a477d999f172cb5bfd24eaf9a81562af1447b920eb95",
+        "table": "FeedRankingEvent"
+      },
+      "FeedRankingEvent_rankingSessionId_idx": {
+        "source": "20261010200000_smart_feed_events",
+        "statementSha256": "6dc1f3ad3cbe67f8e71113b98569362ae343ffe6e64fddac6d38e3401e40df85",
+        "table": "FeedRankingEvent"
+      },
+      "FeedRankingEvent_userId_createdAt_idx": {
+        "source": "20261010200000_smart_feed_events",
+        "statementSha256": "40279008664ad783ecbb784e8491f6ec2c1a69bed24cdcb3608af4527a196877",
+        "table": "FeedRankingEvent"
+      },
+      "FeedReport_authorId_idx": {
+        "source": "20261010120000_feed_preferences_moderation",
+        "statementSha256": "5d5016cf26db4bce3f480d98c9905a225e80ec0e667180e1029786004c48c892",
+        "table": "FeedReport"
+      },
+      "FeedReport_reporterId_targetType_targetId_key": {
+        "source": "20261010120000_feed_preferences_moderation",
+        "statementSha256": "31b6a8e1bf4c25b097523fd9beae00bca88cf07f71f3b5cb1705ad5fcde5b3f9",
+        "table": "FeedReport"
+      },
+      "FeedReport_status_createdAt_id_idx": {
+        "source": "20261010120000_feed_preferences_moderation",
+        "statementSha256": "e779d2583ad0c28a1acb10b31aff37969cd1666da472a45231c0104d185de9c0",
+        "table": "FeedReport"
+      },
+      "FeedRevisionAttachment_mediaId_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "2591678b6ee931c14d24117996d76018358fdf095e9536f352209c2e33833f03",
+        "table": "FeedRevisionAttachment"
+      },
+      "FeedRevisionAttachment_revisionId_position_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "94657d54bca71d2ae2b32ba24e89895283bb80dae45cf4443b05a0a106b86ebf",
+        "table": "FeedRevisionAttachment"
+      },
+      "FeedSmartRankerModel_active_trainedAt_idx": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "9438310653610f639e914833de0af35dbe6deb99230cafd4d30576890458ae68",
+        "table": "FeedSmartRankerModel"
+      },
+      "FeedSmartRankerModel_version_key": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "f9bd2b70d2c3bb975ee359e6abe0b1a4b9473937a1bc13cd778ed6df55d8b18e",
+        "table": "FeedSmartRankerModel"
+      },
+      "FeedStorageJob_attemptToken_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "6fa91063569b2b5f0524547b8b1794d9e6cad65eff1140007c38f7344b7eec61",
+        "table": "FeedStorageJob"
+      },
+      "FeedStorageJob_dedupeKey_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "f973d1ef79375e811c0a203d20d3ebe62a33de95d5cc902b3b9141d7cf5aca95",
+        "table": "FeedStorageJob"
+      },
+      "FeedStorageJob_ownerId_postId_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "9f0a4b10d962f21d6cc8a1ab829c92d00a5a4441f3b93b68e475dbff94b3d3ec",
+        "table": "FeedStorageJob"
+      },
+      "FeedStorageJob_status_availableAt_leaseUntil_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "80ad6659c54d6afa8426fe70ea6a54ada76d61432738dbc31e1f9c3118f8c5bc",
+        "table": "FeedStorageJob"
+      },
+      "FeedUpload_attemptToken_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "733a3a0eb43b1b4d4d00cb2f19a537b71a0f6b6be01f36828e7e41641cfc1a06",
+        "table": "FeedUpload"
+      },
+      "FeedUpload_mediaId_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "dedd93dc65267ca593e40b73e714560529f4e0cd00789c8e0bbe7090119fd9b0",
+        "table": "FeedUpload"
+      },
+      "FeedUpload_ownerId_clientRequestId_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "bd2123ad27d8ad43e320e319136ea0b15c0bef2714156dbac9080072cb64714e",
+        "table": "FeedUpload"
+      },
+      "FeedUpload_postId_status_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "5911402fa8819979319950b53fd3e7196645e5f24c0d77e3bc32953c2f519353",
+        "table": "FeedUpload"
+      },
+      "FeedUpload_purpose_createdAt_idx": {
+        "source": "20261029173500_feed_comment_media",
+        "statementSha256": "705877983f92acab3642f04b82c0217cad40b208db034f9e1389e63d948c1fd8",
+        "table": "FeedUpload"
+      },
+      "FeedUpload_sourceKey_key": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "6bc6682f9a3368863c35e6e6a134485c367912dc1f985b0412cbca2a52188b59",
+        "table": "FeedUpload"
+      },
+      "FeedUpload_status_reservationExpiresAt_leaseUntil_idx": {
+        "source": "20261009072000_feed_initial",
+        "statementSha256": "8f0bbd091ca4f595131c64f07a100c0b6093d360af575b077c9ce3d9c52c1462",
+        "table": "FeedUpload"
+      },
+      "FeedUserAuthorAffinity_userId_score_idx": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "8b4e1bc163f15808672997f70ad9ba247af0e19af60c15b6b14f2bb6d93ca5df",
+        "table": "FeedUserAuthorAffinity"
+      },
+      "FeedUserPostFeedback_postId_idx": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "5bc31a72c768f0f0e06d5e4179a6ccc418ed351e607e973da9b8e7db73a6b87e",
+        "table": "FeedUserPostFeedback"
+      },
+      "GafusAdminAudit_action_createdAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "69a2bf86265b347ca10dba96656aad30d3366deff9ccf6bf8a8f85d57966a9f7",
+        "table": "GafusAdminAudit"
+      },
+      "GafusAdminAudit_actorId_createdAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "00ad7813d55bf2f9ddd46ce94462bc180e7d864eac27e63aa13da9b78cc527b1",
+        "table": "GafusAdminAudit"
+      },
+      "GafusAdminAudit_targetUserId_createdAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "a27ab9473e017b83a9129689b2e1629f3c425630c97403a10d7f0a5277e31911",
+        "table": "GafusAdminAudit"
+      },
+      "GafusFraudSignal_kind_createdAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "d64a3f4d636474b1058ef9f13e334c26b250083f3dcc40fece4213fe257b3772",
+        "table": "GafusFraudSignal"
+      },
+      "GafusFraudSignal_status_severity_createdAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "cf1663474b57ac5942b47603fb972ff02e19b99025c1f064e9b6c8bd3498385e",
+        "table": "GafusFraudSignal"
+      },
+      "GafusFraudSignal_userId_createdAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "37197836b308d72d90aeed33c13716ca541eb65ec2840250998ce43a6a37e95b",
+        "table": "GafusFraudSignal"
+      },
+      "GafusNotificationOutbox_attemptToken_key": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "bb728f3d62119e175f3ee42382e3b94dd267d299166d45982cb370ef158f8e65",
+        "table": "GafusNotificationOutbox"
+      },
+      "GafusNotificationOutbox_rewardEventId_key": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "4dd5323b780e1b7987a7964371503c3a2902ac25a6cb71ab651c7269cd049b86",
+        "table": "GafusNotificationOutbox"
+      },
+      "GafusNotificationOutbox_status_availableAt_leaseUntil_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "e9a975f771224b60b9689dfd00b1f220bcb26b5c4c6435b0c0da5d00140ba6f1",
+        "table": "GafusNotificationOutbox"
+      },
+      "GafusNotificationOutbox_userId_createdAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "7a8eed49d1e0484d250a48ef6ef1ccff832586b44aa25842a67903c12e62035a",
+        "table": "GafusNotificationOutbox"
+      },
+      "GafusPostReactionMilestone_postId_createdAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "f82c9de8ef9a37cee9a3c2c75ad8baedecbfe29eec27d116e5ab422415a59d54",
+        "table": "GafusPostReactionMilestone"
+      },
+      "GafusPostReactionMilestone_postId_threshold_key": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "1d76f50397411592281edb9b5753f7a50d5e4210351968a50452717f234482ad",
+        "table": "GafusPostReactionMilestone"
+      },
+      "GafusPostReactionMilestone_rewardEventId_key": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "a63cf499a20fb6a260728d5b0143a0c5b35c4635844a7138023a148bb583c36c",
+        "table": "GafusPostReactionMilestone"
+      },
+      "GafusPostReactionProgram_enabledAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "c4c0514d0adaa53c641300368bbe983b6c3e3c4db27e16b9231e580f134394db",
+        "table": "GafusPostReactionProgram"
+      },
+      "GafusRewardEvent_eventKey_key": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "dbfbf127b2aa87b254dbb12b8e4ddd565464fb1d3b5ab8ec6f6109aee1a7ed26",
+        "table": "GafusRewardEvent"
+      },
+      "GafusRewardEvent_rewardKind_occurredAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "807bf225f185390a6d98ecf04153cf56745eede7a6001d4a35d471c464288daa",
+        "table": "GafusRewardEvent"
+      },
+      "GafusRewardEvent_transactionId_key": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "414f8a2b9d0aa5eb5f71be4f9162d37112a356ba4f6e50e4f6d1a8144cbc20ed",
+        "table": "GafusRewardEvent"
+      },
+      "GafusRewardEvent_userId_occurredAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "f73dc7a68d3be630d59eb6d9d8bef411383835b947f4f6096e9866f3cf4b090b",
+        "table": "GafusRewardEvent"
+      },
+      "GafusRewardEvent_userId_rewardClass_decision_occurredAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "bead145e587d40880bb252209aec912005da3b4d0c5c6998c00839e5f50ac69e",
+        "table": "GafusRewardEvent"
+      },
+      "GafusTargetAccess_expiresAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "867611548fc936f83aec04a7c331853487e70ff3522627f2d77bacd1e257ab68",
+        "table": "GafusTargetAccess"
+      },
+      "GafusTargetAccess_transactionId_key": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "1c8ed4b47a45b59b4cf52ce4f68ac003c02535fd37e8cac01ac0d726c1710390",
+        "table": "GafusTargetAccess"
+      },
+      "GafusTargetAccess_userId_expiresAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "6e32db62b58c7a7b9b33962c21ebd3321e3c3d4fd9ac6a68df1efadaa4d43d78",
+        "table": "GafusTargetAccess"
+      },
+      "GafusTargetAccess_userId_targetType_targetKey_expiresAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "68b3a59a4fc4b5daeaa350f4df1fb50734c9507e27afbe73b1ea3645fa4ec568",
+        "table": "GafusTargetAccess"
+      },
+      "GafusTransaction_idempotencyKey_key": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "ba60a1f9fd8a88aed161040e8edda8ed56a5d81e923b3236ec5c289a5af63978",
+        "table": "GafusTransaction"
+      },
+      "GafusTransaction_sourceEntityType_sourceEntityId_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "87eeed280b9144ef8d8637eb2ef44027bb0deb15f618bcac4117167a9f231b80",
+        "table": "GafusTransaction"
+      },
+      "GafusTransaction_targetType_targetKey_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "193beda1f2565a19a333dc125ec9c98301506b8dde9d2f39af62ae9a6e66ae99",
+        "table": "GafusTransaction"
+      },
+      "GafusTransaction_userId_createdAt_id_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "ce9850e32d18155a89dd681cd64c21c24a2ddab972fe5c1efd92f7321a833d58",
+        "table": "GafusTransaction"
+      },
+      "GafusTransaction_userId_kind_createdAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "2856df512520b367c9855ff2838af3c10905928f098850e1530f1e5a55386aab",
+        "table": "GafusTransaction"
+      },
+      "GafusWallet_updatedAt_idx": {
+        "source": "20261010190000_add_gafus_economy",
+        "statementSha256": "11b5431bba9ae5b765f33da3969161c50d36123e654bf5df5acf5cd5b7375261",
+        "table": "GafusWallet"
+      },
+      "GalleryAlbum_ownerId_deletedAt_createdAt_id_idx": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "aa6d36e478cc61c8e57e758392221ea2a0aae859b5bede53680d2d5f2bbc0295",
+        "table": "GalleryAlbum"
+      },
+      "GalleryPhoto_albumId_deletedAt_createdAt_id_idx": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "2ab8770d89beff452ff735f35c46a7025826055776e97c0a64d8a530eade0702",
+        "table": "GalleryPhoto"
+      },
+      "GalleryPhoto_ownerId_deletedAt_status_reservationExpiresAt_idx": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "59e83fb10d344a868923b17d5846605961f4e03e8ef2aa9c5711ff711a548987",
+        "table": "GalleryPhoto"
+      },
+      "GalleryStorageJob_attemptToken_key": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "8e0e90aab3ee85bf2de7035d384995c0f13013f59ea4f3aebcd5fe59e94aa06a",
+        "table": "GalleryStorageJob"
+      },
+      "GalleryStorageJob_dedupeKey_key": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "fe25898ac55f5a105fe1e89fc647dab746b20015559893801345dde2e527575f",
+        "table": "GalleryStorageJob"
+      },
+      "GalleryStorageJob_ownerId_photoId_idx": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "c03cc3b4aa26f66abded6de362debc1a8068cbc4f7fe73e87dee181b98ad4686",
+        "table": "GalleryStorageJob"
+      },
+      "GalleryStorageJob_status_availableAt_leaseUntil_idx": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "7a25eea7eb616e9a62fd3afe3bd9fbcede24f83d8495e615527bccb65d18e9af",
+        "table": "GalleryStorageJob"
+      },
+      "GalleryUpload_attemptToken_key": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "056753f6362cfac96d7cfdf92bf4617a280742ba6f906f77c73fcdfe13d3abf0",
+        "table": "GalleryUpload"
+      },
+      "GalleryUpload_ownerId_clientRequestId_key": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "4338f8556bb8244021f46f00a227e1f175b0d83a568bb43b06bda37b2d23261f",
+        "table": "GalleryUpload"
+      },
+      "GalleryUpload_photoId_key": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "750d1484ad96499e7c3b1050d1a807621be5884591ec8f4ee769ba9a00cdf3f0",
+        "table": "GalleryUpload"
+      },
+      "GalleryUpload_retryOfId_key": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "10da7de347d5eb598126d331b53baf28447dbd8e259e65f2b1d7c16c09c25291",
+        "table": "GalleryUpload"
+      },
+      "GalleryUpload_sourceKey_key": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "c048de2c476f017c40f1854c52090a884fd08d808fd43c9039ee9283c71e734f",
+        "table": "GalleryUpload"
+      },
+      "GalleryUpload_status_reservationExpiresAt_leaseUntil_idx": {
+        "source": "20261007120000_gallery",
+        "statementSha256": "c2e933895d2183b1fe999ed35d99bda36f38b93abcc7865158c58439d7b1cbd5",
+        "table": "GalleryUpload"
+      },
+      "MediaCdnPurge_status_availableAt_idx": {
+        "source": "20261014222000_beget_media_purge",
+        "statementSha256": "9b03405bd9930beb7737017eea38cad347623b9147768713d366c5c721f4cfe9",
+        "table": "MediaCdnPurge"
+      },
+      "MobileIntroInstallation_authOutcomeUserId_idx": {
+        "source": "20260917110000_add_mobile_intro_installations",
+        "statementSha256": "7308e8fa23feac97383c18309cd549ae23991b9d5267940bb56f672e783cbb63",
+        "table": "MobileIntroInstallation"
+      },
+      "MobileIntroInstallation_installationId_introVersion_key": {
+        "source": "20260917110000_add_mobile_intro_installations",
+        "statementSha256": "b10df777a66237c0bfc3ac279c8d1cb7d14314d6059579df077a991f927aa1d5",
+        "table": "MobileIntroInstallation"
+      },
+      "MobileIntroInstallation_openedAt_idx": {
+        "source": "20260917110000_add_mobile_intro_installations",
+        "statementSha256": "38f1c381752969773dbbc6a71edb162041c8bc44f36e8228070aa171ffb48801",
+        "table": "MobileIntroInstallation"
+      },
+      "NpdReceiptEmailDelivery_receiptId_key": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "b66ba87e5c99dd38dfe318ee096703f9e51a1834bdf3122a938c66450cf3233b",
+        "table": "NpdReceiptEmailDelivery"
+      },
+      "NpdReceiptEmailDelivery_status_nextAttemptAt_leaseExpiresAt_idx": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "c2dd3dc89ad2c1411a87a5ad1aecfd91890ca22324efa650490a20e97c363320",
+        "table": "NpdReceiptEmailDelivery"
+      },
+      "NpdReceiptOperation_receiptId_status_idx": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "5a777d02fe679b597a7473dd49f1bbcb7c7a895199a2584dda73b33a5ffcdcc3",
+        "table": "NpdReceiptOperation"
+      },
+      "NpdReceiptOperation_receiptId_type_key": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "7a09505c7a3541a68fd37aecdd48a6db03fc7dd91be5ec06a68c77a7420a78c6",
+        "table": "NpdReceiptOperation"
+      },
+      "NpdReceiptOperation_status_nextAttemptAt_leaseExpiresAt_idx": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "2f9ebe0fe6803cd372279e7dc5cc6c41895e0af32585523f2190b14d8dc0876b",
+        "table": "NpdReceiptOperation"
+      },
+      "NpdReceipt_connectionId_status_createdAt_idx": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "b041426cf609a276c1ed753e47971b293028d289ba3b669da0fcdb04082be0b6",
+        "table": "NpdReceipt"
+      },
+      "NpdReceipt_paymentId_key": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "deaf5c50daf30e9a5d6631480930e927648411da43ead9770f0d23f592969eaf",
+        "table": "NpdReceipt"
+      },
+      "NpdReceipt_providerReceiptId_key": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "556a8760915f311b15c9965644562dabba5389e138c793ca33c3a1446cc103a7",
+        "table": "NpdReceipt"
+      },
+      "NpdReceipt_status_createdAt_idx": {
+        "source": "20260828120000_add_npd_receipts",
+        "statementSha256": "502a0a8bd0080d9e9cb0196e0f9af9a89560e63223bb618764e2cf82548d984b",
+        "table": "NpdReceipt"
+      },
+      "OfertaAcceptance_acceptedAt_idx": {
+        "source": "20260221120000_add_oferta_acceptance",
+        "statementSha256": "dcd1c8bac116ef72a6ac221b5f923a5c0529bc1c7404da8fb891197db3de2545",
+        "table": "OfertaAcceptance"
+      },
+      "OfertaAcceptance_courseId_idx": {
+        "source": "20260221120000_add_oferta_acceptance",
+        "statementSha256": "d1bb4e38f72dc0fe8d27dbd264e53f64a824a9fa34209377656926abcc7c1de8",
+        "table": "OfertaAcceptance"
+      },
+      "OfertaAcceptance_paymentId_idx": {
+        "source": "20260221120000_add_oferta_acceptance",
+        "statementSha256": "f499d9e50c6fd2c18b94592e7ccb0e5bf3fba51de8b2195d9d926bb3c9f7ab25",
+        "table": "OfertaAcceptance"
+      },
+      "OfertaAcceptance_userId_idx": {
+        "source": "20260221120000_add_oferta_acceptance",
+        "statementSha256": "9fd091859a939126443d344b6244cde5d234f8eeb7e8a3e05199f11e877a53c1",
+        "table": "OfertaAcceptance"
+      },
+      "OfflineMutationEffect_ownerId_eventId_kind_key": {
+        "source": "20261017090000_off021_offline_mutation_journal",
+        "statementSha256": "beac4f3761cba813ab927ce36e4cb6a7f54817079aec1aeaf816c54b5a92af78",
+        "table": "OfflineMutationEffect"
+      },
+      "OfflineMutationEffect_status_availableAt_idx": {
+        "source": "20261017090000_off021_offline_mutation_journal",
+        "statementSha256": "6fc287bbea50fca0f7e74775e492931fa869d3c9e9960535e10272f1c6ccddac",
+        "table": "OfflineMutationEffect"
+      },
+      "OfflineMutationReceipt_expiresAt_idx": {
+        "source": "20261017090000_off021_offline_mutation_journal",
+        "statementSha256": "f372a5b25f79b25442ddaa07d54ecb5d1bfa9f50360522c5d21c4892d9df2a4b",
+        "table": "OfflineMutationReceipt"
+      },
+      "OfflineMutationReceipt_id_ownerId_key": {
+        "source": "20261017090000_off021_offline_mutation_journal",
+        "statementSha256": "71f1b6572170f4d0739e9719b37f5485c94eda09ce8b4b80dfb1db96d262e7c7",
+        "table": "OfflineMutationReceipt"
+      },
+      "OfflineMutationReceipt_ownerId_eventId_key": {
+        "source": "20261017090000_off021_offline_mutation_journal",
+        "statementSha256": "85168f133916c386d9e73a243e8f0fa38ff8d08361660c3c856e4b8281fca85d",
+        "table": "OfflineMutationReceipt"
+      },
+      "OfflineMutationReceipt_ownerId_resourceKey_revision_idx": {
+        "source": "20261017090000_off021_offline_mutation_journal",
+        "statementSha256": "ed75490fc47089d66ea66449b3c41c98468b457bf4d1f45fcab38092184c5925",
+        "table": "OfflineMutationReceipt"
+      },
+      "OfflinePreventionClientBinding_ownerId_petId_idx": {
+        "source": "20261017090000_off021_offline_mutation_journal",
+        "statementSha256": "bdec92273c98c9a198d4a148a0d29b9fe0b45db3abfb5e8368366c49c8c25380",
+        "table": "OfflinePreventionClientBinding"
+      },
+      "OfflinePreventionClientBinding_petId_clientId_key": {
+        "source": "20261017090000_off021_offline_mutation_journal",
+        "statementSha256": "ff86d4736a40576d377309494c06cced50f46a9bf168496d0a2f48382311296e",
+        "table": "OfflinePreventionClientBinding"
+      },
+      "PartnerCommission_partnerId_createdAt_idx": {
+        "source": "20260908090000_partner_program",
+        "statementSha256": "59c2194ab5c910b797748763f09c7295a97d0159254809298b4b788a19e40b80",
+        "table": "PartnerCommission"
+      },
+      "PartnerCommission_paymentId_kind_key": {
+        "source": "20260908090000_partner_program",
+        "statementSha256": "b0fca7050383eaa3e79896e23fc8bc0c4d0014ee64bb339269776f7bc360fbd4",
+        "table": "PartnerCommission"
+      },
+      "PartnerPayout_partnerId_status_requestedAt_idx": {
+        "source": "20260908090000_partner_program",
+        "statementSha256": "362fbe8d31c994b79a548fe3397461c0870b15643d7b27a778a31b5e714979cb",
+        "table": "PartnerPayout"
+      },
+      "PartnerProfile_promoCodeId_key": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "e9200640d522a12aa807345d8eddccf27ba5e65e76ee079fd671a40c3cc13ffc",
+        "table": "PartnerProfile"
+      },
+      "PartnerProfile_referralCode_key": {
+        "source": "20260908090000_partner_program",
+        "statementSha256": "602ba31960ba8a38e982481b9c961fc4e07be5d0dba482cbb56583ffede4f8d3",
+        "table": "PartnerProfile"
+      },
+      "PartnerProfile_userId_key": {
+        "source": "20260908090000_partner_program",
+        "statementSha256": "f4d851ba4087b53a69a6dd00eb733a138f2aab384aecb25e904c74cde18bac9d",
+        "table": "PartnerProfile"
+      },
+      "PartnerReferral_buyerId_key": {
+        "source": "20260908090000_partner_program",
+        "statementSha256": "a7a665cd1392ba0badae9098460076553772b8db1db165c92214225ac3e9fb50",
+        "table": "PartnerReferral"
+      },
+      "PartnerReferral_partnerId_createdAt_idx": {
+        "source": "20260908090000_partner_program",
+        "statementSha256": "fdfdabfe174d83b6ea37ae665589345b93de3f71a7edf310002c0d37557794e5",
+        "table": "PartnerReferral"
+      },
+      "PasswordResetToken_shortCode_key": {
+        "source": "20260209120000_add_password_reset_short_code",
+        "statementSha256": "255510a19a58bb3482f6c388dd478531d88cb220f585e54a1058f105db10f19e",
+        "table": "PasswordResetToken"
+      },
+      "PasswordResetToken_token_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "0277f0ee0b455f70a6d8ba42805ce6f169b4b3cd39ab9dcf04316a29aaa25b17",
+        "table": "PasswordResetToken"
+      },
+      "Payment_appleTransactionId_key": {
+        "source": "20260401120000_add_apple_iap_course_fields",
+        "statementSha256": "6a2956e1f7eb0bf413972e5982f65a56e4d827be92ae7b2f96bed970cb216127",
+        "table": "Payment"
+      },
+      "Payment_courseId_idx": {
+        "source": "20260128120000_add_payment_and_price",
+        "statementSha256": "16832bfa573cecc1e13d46d28a4706aeda34994779fd81845381ef56050612ad",
+        "table": "Payment"
+      },
+      "Payment_status_idx": {
+        "source": "20260128120000_add_payment_and_price",
+        "statementSha256": "85b748d3b609bb307d8f2e4c29f665c5282301b819697bbd5cc74c07f495bc4f",
+        "table": "Payment"
+      },
+      "Payment_userId_courseId_pending_key": {
+        "source": "20260128120000_add_payment_and_price",
+        "statementSha256": "d0cb0c4741216be7e3e4d9403c4e433c2a86c918453d7a9df248c65de55fc882",
+        "table": "Payment"
+      },
+      "Payment_userId_idx": {
+        "source": "20260128120000_add_payment_and_price",
+        "statementSha256": "abfc69aa8d8e7bd92a9d90613c4961a82920cac5d95fa1192fffcfc0367a3815",
+        "table": "Payment"
+      },
+      "Payment_yookassaPaymentId_key": {
+        "source": "20260128120000_add_payment_and_price",
+        "statementSha256": "785e2adceae0008e4fc74ba7f470574d541e86650a4775b16e2d989274806ca8",
+        "table": "Payment"
+      },
+      "PetDocument_ownerId_idx": {
+        "source": "20260428174000_add_pet_documents",
+        "statementSha256": "c6f69de1773ca0828dcecbe684952673f9cadbc99693e24020fea0b19ccf09a3",
+        "table": "PetDocument"
+      },
+      "PetDocument_petId_createdAt_idx": {
+        "source": "20260428174000_add_pet_documents",
+        "statementSha256": "90da3360eadd551beafe2bdd7369d63cbd49adf46b7be9c7c1f3e032dc5c6863",
+        "table": "PetDocument"
+      },
+      "PetDocument_petId_ownerId_idx": {
+        "source": "20260429123000_enforce_pet_document_owner_consistency",
+        "statementSha256": "8731e711f3fa1a6b0734513aa26011131655d1901935502847290c759d0a8f79",
+        "table": "PetDocument"
+      },
+      "PetMediaDeletionIntent_ownerId_dedupeKey_key": {
+        "source": "20261026074500_pet_media_deletion_intent",
+        "statementSha256": "dd78daecda3fda910ea73890b694d02137d58882f79dc3b09b805f0e910dfb3f",
+        "table": "PetMediaDeletionIntent"
+      },
+      "PetMediaDeletionIntent_ownerId_petId_idx": {
+        "source": "20261026074500_pet_media_deletion_intent",
+        "statementSha256": "c2a12f06c6805d8b42436edb3c3349d2c75bad6f163d033e6cf28f86af2e2948",
+        "table": "PetMediaDeletionIntent"
+      },
+      "PetMediaDeletionIntent_status_availableAt_idx": {
+        "source": "20261026074500_pet_media_deletion_intent",
+        "statementSha256": "626f771663c25123365758549870ecce597866f50b426494f35cef6e0ab93024",
+        "table": "PetMediaDeletionIntent"
+      },
+      "PetPreventionEntry_ownerId_idx": {
+        "source": "20260323120000_add_pet_prevention_entry",
+        "statementSha256": "9d895317688df61f3f49f6b2cecbffcde115d16598ce6f23291e373140a5c777",
+        "table": "PetPreventionEntry"
+      },
+      "PetPreventionEntry_petId_clientId_key": {
+        "source": "20260323120000_add_pet_prevention_entry",
+        "statementSha256": "68ba7355709c981bbb67814001e31d95a08fd93e463acec9eafdceb15b621148",
+        "table": "PetPreventionEntry"
+      },
+      "PetPreventionEntry_petId_idx": {
+        "source": "20260323120000_add_pet_prevention_entry",
+        "statementSha256": "b0ea1336514996a6689eb0ffa29dd67af5c51f7a8a10c8aa3dae8db75d835ab3",
+        "table": "PetPreventionEntry"
+      },
+      "PetPreventionEntry_petId_type_performedAt_idx": {
+        "source": "20260323120000_add_pet_prevention_entry",
+        "statementSha256": "12c39eb40c80cb05bae9dac727c9bab48c277cd877daad07bbb8f0daf2dbddcd",
+        "table": "PetPreventionEntry"
+      },
+      "PetPreventionEntry_reminderEnabled_remindAt_idx": {
+        "source": "20260323140000_pet_prevention_reminder_fields",
+        "statementSha256": "ec6e5a59ad235cedad93c4536b5c51bfbfb5c31feb2d3de28984c76725032ae6",
+        "table": "PetPreventionEntry"
+      },
+      "PetVetAttachment_originalKey_key": {
+        "source": "20261010150000_pet_vet_visits",
+        "statementSha256": "8eb39a4d3655a980b1fcedb724d8fa31828a6323cd48686f8ffcb8cc809bdad3",
+        "table": "PetVetAttachment"
+      },
+      "PetVetAttachment_previewKey_key": {
+        "source": "20261010150000_pet_vet_visits",
+        "statementSha256": "f9523ada6f4e56b661de159775595278fa338239fbd8d7dd318775d4389da3a5",
+        "table": "PetVetAttachment"
+      },
+      "PetVetAttachment_visitId_createdAt_idx": {
+        "source": "20261010150000_pet_vet_visits",
+        "statementSha256": "729abbd4877f72c24308cccf6d66abd08673e22b24ddb7c12656f5d8e1552b8e",
+        "table": "PetVetAttachment"
+      },
+      "PetVetVisit_ownerId_idx": {
+        "source": "20261010150000_pet_vet_visits",
+        "statementSha256": "3c24ad7fdb5cc23cf325de9457d41fdf8434cbe35bb22239b303f815ed22e849",
+        "table": "PetVetVisit"
+      },
+      "PetVetVisit_petId_visitedOn_createdAt_idx": {
+        "source": "20261010150000_pet_vet_visits",
+        "statementSha256": "e0d7d5ebac453d3c739d15ef7fa3244a17882b2354a6c2670efc9a75a7dfd568",
+        "table": "PetVetVisit"
+      },
+      "PetWeightEntry_ownerId_idx": {
+        "source": "20260928193000_pet_weight_history",
+        "statementSha256": "d3d49a13d84dec4e5b0b345f70d8228acb641d6d56386932ce8c356f2e5ec12f",
+        "table": "PetWeightEntry"
+      },
+      "PetWeightEntry_petId_measuredAt_idx": {
+        "source": "20260928193000_pet_weight_history",
+        "statementSha256": "0d44cf748aa6f29a3e6b657eab91b7e15b59d77b375a690c4ab9e89ef0edada0",
+        "table": "PetWeightEntry"
+      },
+      "Pet_breedKey_idx": {
+        "source": "20261010200000_smart_feed_events",
+        "statementSha256": "0048fd112f44a20bae413ed439bdcd8144b11cab17e45e558273ce2d37d2bb97",
+        "table": "Pet"
+      },
+      "PhoneChangeToken_shortCode_key": {
+        "source": "20260216120000_add_phone_change_token",
+        "statementSha256": "9ef68a4c9841213778882ee443b8ed5fcc781e40cded1935c6d4a5d5a3b90017",
+        "table": "PhoneChangeToken"
+      },
+      "PresentationEvent_createdAt_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "496612e6835b1e9b562a0bf5fbbbf82c72ae02a534b8a76b6c2faba02674832f",
+        "table": "PresentationEvent"
+      },
+      "PresentationEvent_eventType_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "cec0f6fbe128ce277a6db7b9160bf424faac49a29a506e0be915ddf719728b57",
+        "table": "PresentationEvent"
+      },
+      "PresentationEvent_sessionId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "0742fb264b796173e929b8744cfefc340bcc9b9f46222fa8df058304175f5379",
+        "table": "PresentationEvent"
+      },
+      "PresentationEvent_viewId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "02c6216ca87f0e762569cb8f0971a1ea2a76320c5d4313f251c160505d774741",
+        "table": "PresentationEvent"
+      },
+      "PresentationView_campaignParam_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "d7c68c4ecf729f4a3ca5ed5c02d72ef1ba237ea64d512f1f61c26557cc9fff4c",
+        "table": "PresentationView"
+      },
+      "PresentationView_convertedToUser_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "4926932fa6b288ac3db27c44365fad02a80572e7f9ecfb853b12c2cc8c3acc0e",
+        "table": "PresentationView"
+      },
+      "PresentationView_convertedUserId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "cd3dc4daf15f9f2ebd317bc11825c50c4c81a6a6524f412c23982d7e154a658b",
+        "table": "PresentationView"
+      },
+      "PresentationView_createdAt_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "96a026a50254f7605274be05150fd8aef83996deaaeec1d8f0e4c17e9aa2fed9",
+        "table": "PresentationView"
+      },
+      "PresentationView_firstViewAt_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "82f296dc1624ba3046532ea54b199662a3702c3ab1f8604e99ed3f31c520b851",
+        "table": "PresentationView"
+      },
+      "PresentationView_refParam_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "13e5b46410ce880b4b345fb60e3a2af7d6db8c4cc84b004203a349bcb3c274b4",
+        "table": "PresentationView"
+      },
+      "PresentationView_referrerDomain_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "0025924b8b156bf19d5cf275c82d64d1dda1b8eb4f654f21218f345169501589",
+        "table": "PresentationView"
+      },
+      "PresentationView_sessionId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "9d75ffbbce4e3a63c769a30ff48d308caf58049eecbcb9c95f1209d01b6bc84e",
+        "table": "PresentationView"
+      },
+      "PresentationView_visitorId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "a9bcda40bf34b206ee8074306497798fd51ae57503496e5d6b583268f2a41574",
+        "table": "PresentationView"
+      },
+      "ProfitVideoExpenseRevision_expenseId_createdAt_idx": {
+        "source": "20261005190000_profit_finance",
+        "statementSha256": "a962453774fc137be8c6ddbb13f0af84a42d510c10b30647f309ab675be99104",
+        "table": "ProfitVideoExpenseRevision"
+      },
+      "ProfitVideoExpense_paidAt_canceledAt_idx": {
+        "source": "20261005190000_profit_finance",
+        "statementSha256": "14e657475b063701500cd6e452185aa4d5a6d35ae130c9fd44845883e01bd0db",
+        "table": "ProfitVideoExpense"
+      },
+      "ProfitVideoExpense_partnerId_paidAt_idx": {
+        "source": "20261005190000_profit_finance",
+        "statementSha256": "42376d17718b704bdd03772c8d2e5b47601b261abda2dfcac8073265044568eb",
+        "table": "ProfitVideoExpense"
+      },
+      "ProfitVideoExpense_requestKey_key": {
+        "source": "20261005190000_profit_finance",
+        "statementSha256": "4c4efafd964302a8c377de11ff7f8d1cdeace9fe4cbbdbf32382622e24cd3d4e",
+        "table": "ProfitVideoExpense"
+      },
+      "PushSubscription_endpoint_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "fe207bd465821e02f8f491f2a517425705ebeaf01581ca4ec67865f8c58397ed",
+        "table": "PushSubscription"
+      },
+      "PushSubscription_userId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "764b7e2378f42a06d48993b64ca293eadb89ef27e5a845db46356af8576d6beb",
+        "table": "PushSubscription"
+      },
+      "QuestionAnswer_authorId_clientRequestId_key": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "b454a844a9795951c8fbb53de5139802213b94d13e4bcee81bd40bc644e5e470",
+        "table": "QuestionAnswer"
+      },
+      "QuestionAnswer_authorId_createdAt_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "7315c153aa1529e2679297162d5d6afb84e6b9418568e49806904db5e8f114e6",
+        "table": "QuestionAnswer"
+      },
+      "QuestionAnswer_questionId_parentId_createdAt_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "d3e525e929de00b64cffa9b893eaf6c8f98b59489c01ab18b912dea3bd9f22b4",
+        "table": "QuestionAnswer"
+      },
+      "QuestionAnswer_replyToId_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "cc14fed26a7fd92b22f29a76484044465e7eea5afd384bec1acabeca4c78754b",
+        "table": "QuestionAnswer"
+      },
+      "QuestionHeart_userId_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "aa12c546cb8dbc2a84d27ca0be7fe821493e7af9c04f9198055464444c1ac507",
+        "table": "QuestionHeart"
+      },
+      "QuestionPhoto_answerId_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "1535aea5ea7f8fbf14e9ab63228cd7bad182baf3ec3bf2f680a16ff3e0007e04",
+        "table": "QuestionPhoto"
+      },
+      "QuestionPhoto_ownerId_createdAt_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "baf705dd3f245c0cc8ff58a4f3a076b3976c22bd96e66bc3f0e94c8a48f2a989",
+        "table": "QuestionPhoto"
+      },
+      "QuestionPhoto_questionId_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "8d4f6a82efbe77ed357f360103588e6a20b5af80bd00299d8d3b9700c6ce6a81",
+        "table": "QuestionPhoto"
+      },
+      "QuestionReport_answerId_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "f0da0e357e894a6a04132fd8855c37940c0a149c4db2ddca8e3a041df0fe92c7",
+        "table": "QuestionReport"
+      },
+      "QuestionReport_questionId_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "71cc9623a7a6904136ba97ced6e7ec149940a96d683ec0f621fd6a6d192ca749",
+        "table": "QuestionReport"
+      },
+      "QuestionReport_reporterId_targetKey_key": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "a17f1817fe37d458d188ce38283164771c5fc39c6731d30ee407a6e3585438cb",
+        "table": "QuestionReport"
+      },
+      "QuestionReport_resolvedAt_createdAt_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "a15e27d92b0853626c895ce6cb791e8eec69fdecf3f5846c8e9a5fc78dddf689",
+        "table": "QuestionReport"
+      },
+      "QuestionV2MediaTask_cleanupKind_cleanupNextAt_idx": {
+        "source": "20261028134000_questions_photo_v2",
+        "statementSha256": "ed2d3d77e8b5a727e27e31055e540b92af4922425724e1ac4ac9e4ab2df326c2",
+        "table": "QuestionV2MediaTask"
+      },
+      "QuestionV2MediaTask_ownerId_status_idx": {
+        "source": "20261028134000_questions_photo_v2",
+        "statementSha256": "a58fada8d8b52f4d62d8eeb673c51b957b6502e44b378f1691b230c6167cb354",
+        "table": "QuestionV2MediaTask"
+      },
+      "QuestionV2MediaTask_photoId_key": {
+        "source": "20261028134000_questions_photo_v2",
+        "statementSha256": "ee52c9a9a1a306b5e97f5851aed6fab136e7d5c18267608fe53ba8e6da5c3cac",
+        "table": "QuestionV2MediaTask"
+      },
+      "QuestionV2MediaTask_sourceKey_key": {
+        "source": "20261028134000_questions_photo_v2",
+        "statementSha256": "87a8152be7ec024946f2f054a9b0cf3617e12e3af9a9ae5fc2c182d0d21d0ed7",
+        "table": "QuestionV2MediaTask"
+      },
+      "QuestionV2MediaTask_status_nextAttemptAt_createdAt_idx": {
+        "source": "20261028134000_questions_photo_v2",
+        "statementSha256": "3cc0996fd1ca13eb622277ce83e9bb13170414d74f6acde4e039969145d4fc44",
+        "table": "QuestionV2MediaTask"
+      },
+      "QuestionView_userId_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "8be2fe6be0fd3df40dcf0cb4707612041e8086fd94971ec720ec3af862754fbf",
+        "table": "QuestionView"
+      },
+      "Question_activityAt_id_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "a77f9af72dddde7b5fe83273022666a1b5c1a9804ddbf9f50f5e3950e174a437",
+        "table": "Question"
+      },
+      "Question_authorId_clientRequestId_key": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "75914cc9347d8036b66d3f00bd392d2b575419c59c5f77cf83ae5cefdba59c44",
+        "table": "Question"
+      },
+      "Question_authorId_createdAt_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "96fd4d7399736883dabbfb19fef8f1714fc4755dfb82838b7b72efd55d004015",
+        "table": "Question"
+      },
+      "Question_bestAnswerId_key": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "ec6774edd358cf89c2294d9c07f95d9da1d5d7cd6e09f7dede9410bdfe986f84",
+        "table": "Question"
+      },
+      "Question_category_createdAt_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "385dc689c255bd27f9f8af7b82b7381e1247edcdf3c969b97081af437d3a8749",
+        "table": "Question"
+      },
+      "Question_createdAt_id_idx": {
+        "source": "20261007030000_community_questions",
+        "statementSha256": "05a8070f4fe6faaf2b8e0cbf2d077bd7a6a9ded662542bc3b3710f90e5603586",
+        "table": "Question"
+      },
+      "ReengagementCampaign_isActive_nextNotificationDate_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "dac8e947f5e130b4e2a3ca05c10beb231f8efb198d8db8e77d4e205672ef4481",
+        "table": "ReengagementCampaign"
+      },
+      "ReengagementCampaign_lastActivityDate_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "69f99dd3c57e39b5b647a112ad3fe663bb3839d3125471f3ba2757651d84b94c",
+        "table": "ReengagementCampaign"
+      },
+      "ReengagementCampaign_userId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "3f28305cc071ad8e7b4675ab52a48804adc2e6e77d07a13a8d7a0ea2d0d11af6",
+        "table": "ReengagementCampaign"
+      },
+      "ReengagementMetrics_date_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "904a236b7348285fab674a4e047bedc6a6c2a9cfa1ef702f6c008bf22d78bfdb",
+        "table": "ReengagementMetrics"
+      },
+      "ReengagementNotification_campaignId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "b2cd704950f1fb042a91b6b71f0cf4941ab531de4be7f4e627ffadeb6011a4d1",
+        "table": "ReengagementNotification"
+      },
+      "ReengagementNotification_sent_sentAt_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "83bc8339a2ab038e127209d3a41378577cb18cfbac2632b9333232c202b12cd1",
+        "table": "ReengagementNotification"
+      },
+      "ReengagementSettings_userId_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "4e6180138e4276536eb93b9990322a8e984d845c4f57e675b8fae08016ab27fd",
+        "table": "ReengagementSettings"
+      },
+      "RefreshToken_expiresAt_idx": {
+        "source": "20260121120000_add_refresh_token",
+        "statementSha256": "0f77e48884f4b09304d11af583d459aa2aa41f62a6fc25922dd41f2725f9dc2c",
+        "table": "RefreshToken"
+      },
+      "RefreshToken_tokenHash_idx": {
+        "source": "20260121120000_add_refresh_token",
+        "statementSha256": "b7d53d7f0f176e8cf07a1cf5f7fba8b1c9bda126e82753f715e873d7b95f2103",
+        "table": "RefreshToken"
+      },
+      "RefreshToken_tokenHash_key": {
+        "source": "20260121120000_add_refresh_token",
+        "statementSha256": "31e752eef375e57ee83a9c570a3a8ef40b31931ed5f501ec196d2c5d9f5e15d7",
+        "table": "RefreshToken"
+      },
+      "RefreshToken_userId_idx": {
+        "source": "20260121120000_add_refresh_token",
+        "statementSha256": "37bffd1e35e915c7ae6d253b508d636df405a8c65105b0dfc5b3bbc67ccc2e94",
+        "table": "RefreshToken"
+      },
+      "RegistrationEmailAttempt_dataFingerprint_idx": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "6108bf7bf3e7c2bbcb1f03045e3aa0cf6a4a36836ed126bb3e69bd194a19bc81",
+        "table": "RegistrationEmailAttempt"
+      },
+      "RegistrationEmailAttempt_tempSessionId_key": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "f201e94db395fea275c51389459e2f9aa23910416242c027038db9c1cab8240f",
+        "table": "RegistrationEmailAttempt"
+      },
+      "RegistrationEmailAttempt_userId_idx": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "72521c4cba878f3a63b535eb9d95c329a5602f45734f89f57b798612aac1240f",
+        "table": "RegistrationEmailAttempt"
+      },
+      "ReminderMutationReceipt_ownerUserId_expiresAt_idx": {
+        "source": "20261018110000_reminder_mutation_receipt",
+        "statementSha256": "d86705bb7c9fbb407645fe2ca4ff8e707b312b003ce90c83d1f4dc4f16523265",
+        "table": "ReminderMutationReceipt"
+      },
+      "Reminder_enabled_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "8464185e32ab2b2359f39fc47160bb7fc1bdf99081b4d3bb553c1006397d098e",
+        "table": "Reminder"
+      },
+      "Reminder_reminderTime_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "32a2c027c2f14b22d063aa1494185a283f85c89e338d63c6d43cc8a3be857692",
+        "table": "Reminder"
+      },
+      "Reminder_type_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "ea7b47b6e6ddb9f18beee66fc43a5667570413e135b0c2e27149889b94e6e750",
+        "table": "Reminder"
+      },
+      "Reminder_userId_type_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "7ff814ff6718debc4215d7080b325a3e535ef7c55e57f34ed244ad19508d9db2",
+        "table": "Reminder"
+      },
+      "RewardedAdEvent_createdAt_idx": {
+        "source": "20260810120000_add_rewarded_ads_analytics_indexes",
+        "statementSha256": "c133649fc53de09b1f3d6f8bce31248e27abb5e29de681b1ccaf93d37c41aa2f",
+        "table": "RewardedAdEvent"
+      },
+      "RewardedAdEvent_eventType_createdAt_idx": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "9fb7496a09902541f49b8f6f91fe8dfaf92273a28a7fae63d39e9404098da882",
+        "table": "RewardedAdEvent"
+      },
+      "RewardedAdEvent_sessionId_createdAt_idx": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "7c2d8b0774c9284c7f462f2f4c5f97e4e83aa01ab3818a0cf55f470cb390c74a",
+        "table": "RewardedAdEvent"
+      },
+      "RewardedAdSession_createdAt_idx": {
+        "source": "20260810120000_add_rewarded_ads_analytics_indexes",
+        "statementSha256": "49c5ae065afe3ef38fbb562215124c361c173078df8355d0ca60a8ed15ea974e",
+        "table": "RewardedAdSession"
+      },
+      "RewardedAdSession_grantedAt_idx": {
+        "source": "20260810120000_add_rewarded_ads_analytics_indexes",
+        "statementSha256": "6748b588dd9cb85004cb30a8cf0c0df3f3891e68d157e0a3639cd3e90fc8fd5e",
+        "table": "RewardedAdSession"
+      },
+      "RewardedAdSession_platform_status_createdAt_idx": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "0641b10b9050279952007dd553e1a2b4efacb8c65070cca654443f612b160f76",
+        "table": "RewardedAdSession"
+      },
+      "RewardedAdSession_requestNonceHash_key": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "6d6ea35720629f8e0035c98c127a23e241a6934e53e19bd5181755d4b63eea58",
+        "table": "RewardedAdSession"
+      },
+      "RewardedAdSession_rewardedAt_idx": {
+        "source": "20260810120000_add_rewarded_ads_analytics_indexes",
+        "statementSha256": "48ba62b2bc53927b6b3270875e05d0d3622a9153d80a158d705364c1c489e837",
+        "table": "RewardedAdSession"
+      },
+      "RewardedAdSession_userId_createdAt_idx": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "e8682ceac24f66ff57f104d8ba1f27b431f54e2d2a2563f8713917b4decd545b",
+        "table": "RewardedAdSession"
+      },
+      "RewardedAdSession_userId_rewardedAt_idx": {
+        "source": "20260813180000_expand_rewarded_daily_limit",
+        "statementSha256": "ca1c64f4fcbdf8ba0005ba9add2fde5f510dc2295e0b217f4e7fda82f294860c",
+        "table": "RewardedAdSession"
+      },
+      "RewardedAdSession_userId_status_expiresAt_idx": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "f336dd161ea7bdd66fc224c937215574fb4cea34a94869d1bfd0730f9e3ef98a",
+        "table": "RewardedAdSession"
+      },
+      "RewardedCreditTransaction_idempotencyKey_key": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "797642d5c1b4381f68abadc7a8bd6e07c8298573c3fd2c1dfbff1f1be7b040e6",
+        "table": "RewardedCreditTransaction"
+      },
+      "RewardedCreditTransaction_sessionId_idx": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "1db42fff24e6294d448873107d5547ab3e7edf547394565f6bde714b798c1a81",
+        "table": "RewardedCreditTransaction"
+      },
+      "RewardedCreditTransaction_userId_createdAt_idx": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "847d385cf92eabe996549f09c061fd2708b74c1ac2990d7fb7e946203bf777f9",
+        "table": "RewardedCreditTransaction"
+      },
+      "RewardedCreditTransaction_userId_targetType_targetId_idx": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "3e85c64bb99dbe8c448738717ff16e16eaaa045f3bd04a3aadf256fb486a5c6b",
+        "table": "RewardedCreditTransaction"
+      },
+      "RewardedCreditTransaction_userId_type_createdAt_idx": {
+        "source": "20260531140000_add_rewarded_credits",
+        "statementSha256": "e91392a3037aa46b2efacef3cf4912ced3e2b189f5ae261f2dccd30304e0d53e",
+        "table": "RewardedCreditTransaction"
+      },
+      "RewardedTargetAccess_expiresAt_idx": {
+        "source": "20260805120000_add_rewarded_target_access",
+        "statementSha256": "916cae9e5e33d5988f948ea1741c8b6451554648ceb6b8682e6f4ca276a9342a",
+        "table": "RewardedTargetAccess"
+      },
+      "RewardedTargetAccess_sessionId_key": {
+        "source": "20260805120000_add_rewarded_target_access",
+        "statementSha256": "6215f3e85c263b0d06abebadf73891e92e42099ed030329a27ee01ac676d6154",
+        "table": "RewardedTargetAccess"
+      },
+      "RewardedTargetAccess_userId_targetType_targetId_expiresAt_idx": {
+        "source": "20260805120000_add_rewarded_target_access",
+        "statementSha256": "7384257ff62bbe1670bff24653423bbcc3d23ea666fc9558471d4d7f5b43e3cc",
+        "table": "RewardedTargetAccess"
+      },
+      "Session_sessionToken_key": {
+        "source": "20250304120000_add_vk_auth_schema",
+        "statementSha256": "65befabf4aac29971ebc52a5fc3d668bde64072073b7e0375cf997cff560c0fb",
+        "table": "Session"
+      },
+      "Session_userId_idx": {
+        "source": "20250304120000_add_vk_auth_schema",
+        "statementSha256": "b6cb9b362eed686156059ce7e001e572efea8d3b8c937f0eee6abebeaaad5c01",
+        "table": "Session"
+      },
+      "StepCategory_name_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "9dd204ba9508c69609dc942679233342130d22d6690e368259a4edcab9e4f716",
+        "table": "StepCategory"
+      },
+      "StepCategory_order_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "d40e559a0ad6ba067e29bba82f69f115319cc4f0da74ea71ddc8b966f8dcf68d",
+        "table": "StepCategory"
+      },
+      "StepNotification_active_bound_unique": {
+        "source": "20261025041500_step_notification_occurrence",
+        "statementSha256": "b01316fa4b4d1d24019c7377ab0cbcc27659b7eafa5ee62656e50e69db67490d",
+        "table": "StepNotification"
+      },
+      "StepNotification_bound_occurrence_idx": {
+        "source": "20261025041500_step_notification_occurrence",
+        "statementSha256": "376b3709fda2ed56d0dc5abc33fe1f56259d51e05333b4b0ed43cb2863a601ff",
+        "table": "StepNotification"
+      },
+      "StepNotification_day_stepIndex_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "210208545db6ef6e8ca153cf6c11dea76172f5a81dac66dccbf61b43c6015d69",
+        "table": "StepNotification"
+      },
+      "StepNotification_type_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "0e8930c8f6b0af3f8bbe207e89d6bca3817058e0262a31e969641dd905cbfff7",
+        "table": "StepNotification"
+      },
+      "StepNotification_userId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "b1b11a7fe3184f4cf36d2630117dc4a78502c71f673dc6f61184b2fa057597c9",
+        "table": "StepNotification"
+      },
+      "StepOnDay_dayId_order_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "9877c49c4bea668318f53fca197130dabb2ef44e4f5ee60a60ceddd56f283520",
+        "table": "StepOnDay"
+      },
+      "StepOnDay_dayId_order_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "abc7fe0a75f14630823d75ba3a77d9925bac97bee4f2fd0c576a09e8929be458",
+        "table": "StepOnDay"
+      },
+      "StepTemplate_authorId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "997ad621d911a70086d1624e4d6923f4e9d9ae1983a36ca591caefa90a5bb867",
+        "table": "StepTemplate"
+      },
+      "StepTemplate_categoryId_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "c9e9bf342285e920457678007645573bddd949c5dc9c23589ba1654e18093812",
+        "table": "StepTemplate"
+      },
+      "StepTemplate_isPublic_idx": {
+        "source": "20260104231543_init",
+        "statementSha256": "2c7a292886ebad1460a8748f9d182f75a2d6e70b85b1f7973f1a0e8ea28a272a",
+        "table": "StepTemplate"
+      },
+      "SurveyResponse_petId_idx": {
+        "source": "20260528130000_add_course_surveys",
+        "statementSha256": "b781d2fe1163514b377cd052461e435e594de4e34fc6b448793479ce62208f94",
+        "table": "SurveyResponse"
+      },
+      "SurveyResponse_stepId_idx": {
+        "source": "20260528130000_add_course_surveys",
+        "statementSha256": "b14dd7cf69ce0a4f33f1f33bbd5516cf46375a9a60c28f0a90c83bc7c3ed1098",
+        "table": "SurveyResponse"
+      },
+      "SurveyResponse_userId_courseId_surveyFamilySlug_idx": {
+        "source": "20260528130000_add_course_surveys",
+        "statementSha256": "63cdc933a0084729d6e2f4b87e1402836c1d191b8861526bb119c0f960d8dde8",
+        "table": "SurveyResponse"
+      },
+      "SurveyResponse_userId_stepId_key": {
+        "source": "20260528130000_add_course_surveys",
+        "statementSha256": "2ac7796d814a6bd5656eb801459670479ea1ea75e3a44f63661d7fc5e3e54d26",
+        "table": "SurveyResponse"
+      },
+      "TrainerAIChat_trainerId_createdAt_idx": {
+        "source": "20260123214803_add_trainer_ai_chat",
+        "statementSha256": "09a89fa0ff7daeff30ea533167cdc528ccbd9e10f2064a4f28d1a083ca90be8a",
+        "table": "TrainerAIChat"
+      },
+      "TrainerAIChat_trainerId_idx": {
+        "source": "20260123214803_add_trainer_ai_chat",
+        "statementSha256": "c4ff33c265b466ab5e72c0198c62bb1f974af46a5aa9b2ea337db3e8e83af111",
+        "table": "TrainerAIChat"
+      },
+      "TrainerAIConfig_trainerId_idx": {
+        "source": "20260123214803_add_trainer_ai_chat",
+        "statementSha256": "f60213172903ebec953df876a806bfd8d44395c81052becdfe87331f3dd5368c",
+        "table": "TrainerAIConfig"
+      },
+      "TrainerAIConfig_trainerId_key": {
+        "source": "20260123214803_add_trainer_ai_chat",
+        "statementSha256": "6cf9790362577e1fb2fe920cbe8e9592bfddedfdc752daf3b60a5afc01b88d18",
+        "table": "TrainerAIConfig"
+      },
+      "TrainerNoteEntry_noteId_order_idx": {
+        "source": "20260126010000_add_note_entries",
+        "statementSha256": "09f5b56efbc85cae896a0172c85bed9dad1c72589a4b7fe08d4a63d42501d966",
+        "table": "TrainerNoteEntry"
+      },
+      "TrainerNoteStudent_noteId_idx": {
+        "source": "20260126000000_change_note_to_many_students",
+        "statementSha256": "f4614b060cb117534d96aa8a234511a1665b9ab1c505ad3961f9461f6e675134",
+        "table": "TrainerNoteStudent"
+      },
+      "TrainerNoteStudent_noteId_studentId_key": {
+        "source": "20260126000000_change_note_to_many_students",
+        "statementSha256": "c3c56706392fd3671066cb09ab72127d62fda5c00a66987f83e5d48e2fa30238",
+        "table": "TrainerNoteStudent"
+      },
+      "TrainerNoteStudent_studentId_createdAt_idx": {
+        "source": "20260126000000_change_note_to_many_students",
+        "statementSha256": "2cc71bf805a628d822b2b839a9706a44097532c7af85318eeb615b5178d57d53",
+        "table": "TrainerNoteStudent"
+      },
+      "TrainerNoteStudent_studentId_idx": {
+        "source": "20260126000000_change_note_to_many_students",
+        "statementSha256": "4ba642fde7d1ff6c585ad7bebbcf5a4d45a32f3db9324e26bb7ae6f2283da4e4",
+        "table": "TrainerNoteStudent"
+      },
+      "TrainerNote_trainerId_createdAt_idx": {
+        "source": "20260125210000_add_trainer_notes",
+        "statementSha256": "46c0ad30d45d024a4dfde7641d823940c92282e049484d37080bd6ce28b997d3",
+        "table": "TrainerNote"
+      },
+      "TrainerVideo_transcodingStatus_idx": {
+        "source": "20260113163458_add_hls_fields_to_trainer_video",
+        "statementSha256": "d2ee258d9a524746689191b4b6ef76d25a85c5d27a1802dff6054f8ef23520d0",
+        "table": "TrainerVideo"
+      },
+      "TrainingAccess_trainingId_userId_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "29e361433419840c074883d76f628462fde0a6eb2e12ceb4a83780effbfea941",
+        "table": "TrainingAccess"
+      },
+      "TrainingReminderDelivery_reminderId_localDate_key": {
+        "source": "20261011150000_training_reminder_delivery",
+        "statementSha256": "3085364e177de0ce904beeec016c173db4c574c0b64482af830e70b38c94de22",
+        "table": "TrainingReminderDelivery"
+      },
+      "TrainingReminderDelivery_status_leaseExpiresAt_idx": {
+        "source": "20261011150000_training_reminder_delivery",
+        "statementSha256": "f932e766e8bf119d1bdbccfc32ca6e8b7345a08b39c3ce8d4c7645dcd9bd673b",
+        "table": "TrainingReminderDelivery"
+      },
+      "TransactionalMailAttempt_createdAt_idx": {
+        "source": "20261011173000_resend_mail_journal",
+        "statementSha256": "e10e605c0313e613357ae5b1066a50d3a387fcc0ba899c69792fc4db50948dfd",
+        "table": "TransactionalMailAttempt"
+      },
+      "TransactionalMailAttempt_providerMessageId_key": {
+        "source": "20261011173000_resend_mail_journal",
+        "statementSha256": "9aa6ab934ecbdd9a696af68ada7b21baecbf3d63dffba913f2a5ae019f71985d",
+        "table": "TransactionalMailAttempt"
+      },
+      "TransactionalMailEvent_providerMessageId_occurredAt_idx": {
+        "source": "20261011173000_resend_mail_journal",
+        "statementSha256": "3db641eb67b59c9c5f839115168eee721b4bb26f46f7a52c9b503ac6ce021df2",
+        "table": "TransactionalMailEvent"
+      },
+      "TransactionalMailOutbox_expiresAt_idx": {
+        "source": "20261014160000_transactional_mail_outbox",
+        "statementSha256": "c2f2bb369889c4fae006386a19c112edebe2a0df32e9b02e8528474525a103e1",
+        "table": "TransactionalMailOutbox"
+      },
+      "TransactionalMailOutbox_status_leaseExpiresAt_idx": {
+        "source": "20261014160000_transactional_mail_outbox",
+        "statementSha256": "0a9c0234cce767b50c99d54c8c043252309ce369c787f7d212570755c627f354",
+        "table": "TransactionalMailOutbox"
+      },
+      "TransactionalMailOutbox_status_nextAttemptAt_idx": {
+        "source": "20261014160000_transactional_mail_outbox",
+        "statementSha256": "13b91015d8c392ddfd3d6a36b80621126da7bb98f76e2fc97e76130199863fc2",
+        "table": "TransactionalMailOutbox"
+      },
+      "UserProfile_cityKey_idx": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "0d6a624a6210c0ce79431558be65cb4222ea54d92fde206871cd38fcfb1a7c3c",
+        "table": "UserProfile"
+      },
+      "UserProfile_userId_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "0a88ed9d76e34f2bc575f2b28236d33cf18b9fed04bc630cdf52e02db607bc7f",
+        "table": "UserProfile"
+      },
+      "UserStep_userTrainingId_stepOnDayId_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "e36497083efad4ec65b942629b759c53759a7e2bf5c638bb3744b7dfca57a67c",
+        "table": "UserStep"
+      },
+      "UserTraining_userId_dayOnCourseId_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "03ec73899665895ce56f6dad00826c33a4a3c7e7eb7d90631030151ea11a045c",
+        "table": "UserTraining"
+      },
+      "UserVideoProgress_userId_idx": {
+        "source": "20260201213906_add_user_video_progress",
+        "statementSha256": "e38a9c27666dab88ffc71ad24d27d8ba81e7646e854371e4533eb39ac0983e26",
+        "table": "UserVideoProgress"
+      },
+      "UserVideoProgress_userId_videoId_key": {
+        "source": "20260201213906_add_user_video_progress",
+        "statementSha256": "b63e005c59e9ee410a7679a28f7dec22f20934d9d8634ff88942d19dc1c9b300",
+        "table": "UserVideoProgress"
+      },
+      "UserVideoProgress_videoId_idx": {
+        "source": "20260201213906_add_user_video_progress",
+        "statementSha256": "9cbfa8e8cf5fc3a478966e200d3444b76ea091bf0edd92aa326a5f6a1181ba3e",
+        "table": "UserVideoProgress"
+      },
+      "User_appleAppAccountToken_key": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "f04d7b11d4e26fa24b7a67eb6068c3829833716ce9bd183d4e022801c5de4045",
+        "table": "User"
+      },
+      "User_email_key": {
+        "source": "20260326120000_add_email_optional_phone",
+        "statementSha256": "da92941bb69246c195b8bde56c732b3d62d70f321880777f01eb7b22580d0031",
+        "table": "User"
+      },
+      "User_phone_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "3a5afcd857b6af712501d781be311f140d0b2ce2969bcc983cd0d4400b2417bc",
+        "table": "User"
+      },
+      "User_savedRegistrationPromoCodeId_idx": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "af663b71be3de2e8b89375c90559e5ff1da0299de38cbcabedc860e489027bca",
+        "table": "User"
+      },
+      "User_telegramId_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "e34f44c7b2a0c9c63b2c81737fe82d092dc0e85cef19a4365fac6a019071ce7d",
+        "table": "User"
+      },
+      "User_username_key": {
+        "source": "20260104231543_init",
+        "statementSha256": "e91874b7cf2d2317f53511253851ef59c43cd48198e19711f59c6e43ccdceacd",
+        "table": "User"
+      },
+      "VkIdOneTimeLogin_expiresAt_idx": {
+        "source": "20260908101500_vk_id_one_time_login",
+        "statementSha256": "e2d3027f37e4916e04f8c843b8e3b4232fc07c490285ccf5fec74fe8f78ee5d1",
+        "table": "VkIdOneTimeLogin"
+      },
+      "VkIdOneTimeLogin_tokenHash_key": {
+        "source": "20260908101500_vk_id_one_time_login",
+        "statementSha256": "5fc9df2deb5c71b9f4773abca3f3ce67a58c59a0334334eb9097b11bfab1577b",
+        "table": "VkIdOneTimeLogin"
+      },
+      "VkIdOneTimeLogin_userId_expiresAt_idx": {
+        "source": "20260908101500_vk_id_one_time_login",
+        "statementSha256": "28c0eab797d6efe24aadc84372beaca83a5932f3b812af8ceb0e28bba6c9f272",
+        "table": "VkIdOneTimeLogin"
+      },
+      "VkLoginGrant_expiresAt_idx": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "e098c2e347bd69f3e5e83c1fd575dfd30363e4b357b1a93f39b66eb4faa3a64c",
+        "table": "VkLoginGrant"
+      },
+      "VkLoginGrant_registrationContextId_idx": {
+        "source": "20260909150000_vk_registration_completion",
+        "statementSha256": "8e2444077caf9c92f74c99f22f5b3a6c476513444ae2da23d7726426ef26646f",
+        "table": "VkLoginGrant"
+      },
+      "VkLoginGrant_reissuedFromId_idx": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "9cbcc292a0ff902af0a5e20a6c7a196301f81cc3cb8793057977414b479bef6a",
+        "table": "VkLoginGrant"
+      },
+      "VkLoginGrant_tokenHash_key": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "0536d19c908ce8f8fb0c73db275f81cc9d50c02c863efd8d2f220bbaad83734d",
+        "table": "VkLoginGrant"
+      },
+      "VkLoginGrant_userId_expiresAt_idx": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "0c2644446022a460a34418576b891b44aa5ea2ab0252b93c986248099adcd36f",
+        "table": "VkLoginGrant"
+      },
+      "VkRegistrationContext_completionFingerprint_idx": {
+        "source": "20260909150000_vk_registration_completion",
+        "statementSha256": "cc7aa57c7314f2bbeed113681cc9b6933945618f2ae6059bd6c05321e6ad338b",
+        "table": "VkRegistrationContext"
+      },
+      "VkRegistrationContext_contextTokenHash_key": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "64bd3b280e48570c79358c49ee1712c3dc30c5fa359525719715f596cad1cfb9",
+        "table": "VkRegistrationContext"
+      },
+      "VkRegistrationContext_expiresAt_idx": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "e98699fa245ef124831602320ddf52ca053098cdd69844a964af9dcb52ededc7",
+        "table": "VkRegistrationContext"
+      },
+      "VkRegistrationContext_resultUserId_idx": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "963409782822dbf3880136c3bec1dee274e979736d7e51ae3fa812ddfb6227cd",
+        "table": "VkRegistrationContext"
+      },
+      "VkRegistrationContext_selectedPromoCodeId_idx": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "25bd8cdcf1afebe5ac5faa58ece7a16423f62b1e4199a2e834bc0ff8becc0b3e",
+        "table": "VkRegistrationContext"
+      },
+      "VkRegistrationContext_stateHash_key": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "6190c90d79de5306f446f3a46a5a409c02c6996b27935fc39950b88b280af4fb",
+        "table": "VkRegistrationContext"
+      },
+      "VkRegistrationContext_userId_expiresAt_idx": {
+        "source": "20260909113000_registration_contracts_data",
+        "statementSha256": "8c3cbd3917d9447680ad0d1c51dea042094d5482e83f407fbd506493e971741d",
+        "table": "VkRegistrationContext"
+      },
+      "idx_rating_course_user": {
+        "source": "20260104231543_init",
+        "statementSha256": "4e84e1bdb6062eb5492befbccb347098929fbea061d93f72bbb9bd66bf87c065",
+        "table": "CourseReview"
+      },
+      "idx_trainer_videos_trainer": {
+        "source": "20260104231543_init",
+        "statementSha256": "0b645670104f8241ef863ecb7a7a6c3635cf3814d76cacb7b4b5020bf9b00380",
+        "table": "TrainerVideo"
+      }
+    },
+    "partialIndexes": {
+      "AppSubscriptionEvent_idempotencyKey_unique": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "4c53a43c2e09b5828cbdbb8b4ffe9b5905ebae324d7beeb2145bab66dcf6be60",
+        "table": "AppSubscriptionEvent"
+      },
+      "AppSubscriptionEvent_providerEventKey_unique": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "880d886c898c36f0cef4e66e6b629e855a222b9941cfafc0534e0108e1bf8b4f",
+        "table": "AppSubscriptionEvent"
+      },
+      "AppSubscription_userId_provider_active_unique": {
+        "source": "20260510235500_add_app_subscription",
+        "statementSha256": "68199101844585c5a85692bbaafd518047c44366351847ab78861f13daf74bb1",
+        "table": "AppSubscription"
+      },
+      "Chat2V2MediaTask_cleanup_pending_idx": {
+        "source": "20261027172500_chat2_v2_media_task",
+        "statementSha256": "1deafdea3cb0f5b80b54d472f96b3d2e372068cb7a33cac10a0e4b7175390118",
+        "table": "Chat2V2MediaTask"
+      },
+      "ConsultationBooking_slotId_active_key": {
+        "source": "20260421140000_consultation_booking_slot_partial_unique",
+        "statementSha256": "e76166be172f598c70e0a65fe399af98dc3cdeb6a2d4e56f027bfd847ee3b71f",
+        "table": "ConsultationBooking"
+      },
+      "Payment_userId_courseId_pending_key": {
+        "source": "20260128120000_add_payment_and_price",
+        "statementSha256": "d0cb0c4741216be7e3e4d9403c4e433c2a86c918453d7a9df248c65de55fc882",
+        "table": "Payment"
+      },
+      "StepNotification_active_bound_unique": {
+        "source": "20261025041500_step_notification_occurrence",
+        "statementSha256": "b01316fa4b4d1d24019c7377ab0cbcc27659b7eafa5ee62656e50e69db67490d",
+        "table": "StepNotification"
+      }
+    },
+    "triggers": {
+      "AppSubscriptionPayment_price_snapshot_guard": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "47d3f5195b8299b8cfd4be34ea5a48ba38ed985d3c67d351871f3689a20bda94"
+      },
+      "AppSubscriptionPromoCodeEvent_immutable": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "117cd1359ae2116f01a14dbe11e02655337f46ef6f88f155afa2384dfe4405ee"
+      },
+      "AppSubscriptionPromoCode_identity_guard": {
+        "source": "20260812120000_add_app_subscription_promo_codes",
+        "statementSha256": "37ad459f732fcf36905d77a7c6cf7100ea394b178ef9b80d807812f96a392c9f"
+      },
+      "Course_global_version_increment": {
+        "source": "20261022153000_course_version_global_trigger",
+        "statementSha256": "b5f827e9fe7dd5598e57d49d2f326de859da1bdf9a4cd075a4dced7a8b48d04a"
+      },
+      "chat2_capture_media_deletion_trigger": {
+        "source": "20261027011000_chat2_media_deletion_ledger",
+        "statementSha256": "0cd1e381dc3864b4594d374dd151567ca1ba12b1659118017a05621d8349c596"
+      },
+      "course_content_revision_course": {
+        "source": "20261015020000_course_content_revision",
+        "statementSha256": "a4e3dd6b57328695054d36c50656a0b5d5c0407c4f3d08be45092206e434a2ac"
+      },
+      "course_content_revision_day_on_course": {
+        "source": "20261015020000_course_content_revision",
+        "statementSha256": "f94a5dea61f77217959322d139f98f62ac0bb9a3459cc83f8a5b144c11c597f2"
+      },
+      "course_content_revision_step": {
+        "source": "20261015020000_course_content_revision",
+        "statementSha256": "9bea7e12f8cd43cfd8c0bbbb82291983a339c71da5e2499edda123e635ab8d5e"
+      },
+      "course_content_revision_step_on_day": {
+        "source": "20261015020000_course_content_revision",
+        "statementSha256": "06b981f7b1173023c93828b1641789df34985d24f3636b7526207d5233b93656"
+      },
+      "course_content_revision_training_day": {
+        "source": "20261015020000_course_content_revision",
+        "statementSha256": "83c531f36ce5d24d9725614af70c733e91765d0b8b9543700a18027b85286ea1"
+      },
+      "feed_pet_breed_key_sync": {
+        "source": "20261010200000_smart_feed_events",
+        "statementSha256": "cbcd9fcae2c2b78894a022ec91fbb4a604b2ca9d68daa6836d989851ab78a090"
+      },
+      "feed_profile_city_key_sync": {
+        "source": "20261010180000_smart_feed",
+        "statementSha256": "f50a164df0bf72e011df5a2d231ca7d4e86c74a44dc7089c92948d559d34b343"
+      }
+    }
+  },
+  "purpose": "REVIEW_ONLY_FRESH_EMPTY_POSTGRES_NEVER_EXISTING_DB",
+  "retiredOrRenamedSameTableIndexesExcluded": [
+    "Course_appleIapProductId_key",
+    "DiaryEntry_dayOnCourseId_idx",
+    "DiaryEntry_userId_dayOnCourseId_key"
+  ],
+  "retiredPartialIndexExcluded": [
+    "Payment_userId_courseId_pending_key"
+  ],
+  "schemaCandidateSha256": "925b443719014dba348ac06ea9125d89b0a00f2a4660c02fd1008e15f9b449b5",
+  "schemaPrismaSha256": "437680b3a7e7b9e7d9f51e38fecff4c16e97dcc979bca4022283295364955386",
+  "singletonSeedTables": [
+    "AccountDeletionCounter",
+    "AppFeatureFlag",
+    "AppSubscriptionSettings",
+    "CourseContentRevision",
+    "MobileAppReleasePolicy",
+    "RewardedAdSettings"
+  ],
+  "syntheticSeedsSha256": "9b74398f897e1eb4ff158d168d1d165efd3bfb6d823831083d0f57bea6849f46"
+}

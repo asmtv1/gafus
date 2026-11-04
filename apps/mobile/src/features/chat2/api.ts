@@ -1,4 +1,5 @@
 import type { Chat2MediaRenditions } from "@gafus/chat-media-quality";
+import type { Chat2ConnectionGrant } from "@gafus/core-client/chat2/realtime-subscription";
 import { API_BASE_URL } from "@/shared/config";
 import { isPairedProductionChat2Origin } from "@/shared/lib/api/chat2ProductionOrigin";
 import { apiClient } from "@/shared/lib/api/client";
@@ -275,7 +276,7 @@ export const chat2 = {
     id: string,
     data: { name?: string; description?: string; visibility?: "PUBLIC" | "PRIVATE" | "UNLISTED" },
   ) => request<{ id: string }>(`/${safe(id)}/group`, "PATCH", data),
-  connect: () => request<{ token: string; wsUrl: string }>("/realtime/connect"),
+  connect: () => request<Chat2ConnectionGrant>("/realtime/connect"),
   subscription: (id: string) =>
     request<{ token: string; channel: string }>(`/${safe(id)}/realtime`),
   refreshSubscription: async (id: string): Promise<string> => {

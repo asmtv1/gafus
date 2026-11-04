@@ -54,6 +54,30 @@ groups:
           severity: warning
         annotations:
           summary: "GAFUS {{ $labels.pipeline }} media processing has expired leases"
+      - alert: GafusMediaProcessingFailed
+        expr: gafus_media_failed_tasks > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GAFUS {{ $labels.pipeline }} has media tasks in terminal FAILED state"
+      - alert: GafusMediaMetricsMissing
+        # Check all eight expected series; a missing one pipeline must fire
+        # even when others expose valid metrics.
+        expr: >-
+          absent(gafus_media_stalled_processing{pipeline="chat2"}) or
+          absent(gafus_media_stalled_processing{pipeline="questions"}) or
+          absent(gafus_media_stalled_processing{pipeline="feed"}) or
+          absent(gafus_media_stalled_processing{pipeline="gallery"}) or
+          absent(gafus_media_failed_tasks{pipeline="chat2"}) or
+          absent(gafus_media_failed_tasks{pipeline="questions"}) or
+          absent(gafus_media_failed_tasks{pipeline="feed"}) or
+          absent(gafus_media_failed_tasks{pipeline="gallery"})
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GAFUS media worker is missing one or both mandatory task gauges"
       - alert: GafusMediaMetricsUnavailable
         expr: up{job="worker-media"} == 0
         for: 5m

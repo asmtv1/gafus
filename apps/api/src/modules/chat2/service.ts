@@ -1,6 +1,7 @@
 /** Chat 2.0: durable actor-scoped operations; never trust client role or channel ID. */
 import { prisma, Prisma } from "@gafus/prisma";
 import { getCynologistEntitlements } from "@gafus/core/services/appSubscription";
+import { chat2MemberCanRead } from "@gafus/core/services/chat2";
 import { checkCourseAccessById } from "@gafus/core/services/course";
 import {
   chat2ReservePrivateObjectKey,
@@ -11,6 +12,9 @@ import {
 } from "@gafus/cdn-upload";
 
 import { revokeLiveRoomSubscription } from "./revocation.js";
+import { collectBlockedDirectPeerIds, collectDirectInboxPeerIds } from "./inboxVisibility.js";
+import { dto } from "./messageDto.js";
+export { dto } from "./messageDto.js";
 
 export class Chat2Error extends Error {
   constructor(
@@ -110,42 +114,6 @@ async function groupAvatarActor(userId: string, id: string) {
   return actor;
 }
 
-export const dto = (m: {
-  id: string;
-  conversationId: string;
-  sequence: bigint;
-  authorId: string;
-  clientMessageId: string;
-  text: string;
-  replyToId: string | null;
-  createdAt: Date;
-  editedAt: Date | null;
-  deletedAt: Date | null;
-  attachments?: {
-    id: string;
-    kind: string;
-    mime: string;
-    name: string;
-    bytes: number;
-    status: string;
-  }[];
-}) => ({
-  id: m.id,
-  conversationId: m.conversationId,
-  sequence: m.sequence.toString(),
-  authorId: m.authorId,
-  clientMessageId: m.clientMessageId,
-  text: m.deletedAt ? "" : m.text,
-  replyToId: m.replyToId,
-  createdAt: m.createdAt.toISOString(),
-  editedAt: m.editedAt?.toISOString() ?? null,
-  deletedAt: m.deletedAt?.toISOString() ?? null,
-  attachments: m.deletedAt
-    ? []
-    : (m.attachments ?? [])
-        .filter((x) => x.status === "READY")
-        .map((x) => ({ id: x.id, kind: x.kind, mime: x.mime, name: x.name, bytes: x.bytes })),
-});
 export async function readGate(userId: string, conversationId: string) {
   const m = await prisma.chat2Member.findUnique({
     where: { conversationId_userId: { conversationId, userId } },
@@ -174,8 +142,7 @@ export async function readGate(userId: string, conversationId: string) {
     )
       return fail("BLOCKED", 403, "Переписка недоступна");
   }
-  if (!m || m.role === "BANNED" ||
-      (m.conversation.kind === "COMMUNITY" && m.hiddenAt))
+  if (!chat2MemberCanRead(m))
     return fail("NOT_FOUND", 404, "Диалог не найден");
   if (m.conversation.kind === "COURSE") {
     const courseId = m.conversation.scopeKey;
@@ -308,15 +275,31 @@ export async function listChats(userId: string) {
   // Keep the default community at the top; all other chats retain their order.
   ms.sort((a, b) => Number(b.conversation.kind === "COMMUNITY") -
     Number(a.conversation.kind === "COMMUNITY"));
+  // One indexed read for all direct counterparts, not N database round-trips.
+  // The inbox is bounded to 100 memberships above; block enforcement when
+  // opening/sending still happens independently in readGate/writeGate.
+  const directPeerIds = collectDirectInboxPeerIds(ms, userId);
+  const blockRows = directPeerIds.length ? await prisma.chat2Block.findMany({
+    where: { OR: [
+      { blockerId: userId, blockedId: { in: directPeerIds } },
+      { blockedId: userId, blockerId: { in: directPeerIds } },
+    ] },
+    select: { blockerId: true, blockedId: true },
+  }) : [];
+  const blockedDirectPeers = collectBlockedDirectPeerIds(userId, blockRows);
+  // Specialist identity is invariant across this inbox. Avoid N identical user
+  // lookups when a trainer belongs to several assigned specialist rooms.
+  const needsSpecialist = ms.some(m => m.conversation.kind === "CYNOLOGIST" &&
+    m.conversation.createdById !== userId);
+  const isSpecialist = needsSpecialist && Boolean(await prisma.user.findFirst({
+    where: { id: userId, role: "TRAINER", accountDeletionRequestedAt: null, ...reservedCynologist },
+    select: { id: true },
+  }));
   const eligible = await Promise.all(
     ms.map(async (m) => {
       if (m.conversation.kind === "CYNOLOGIST")
         return (
-          m.conversation.createdById === userId ||
-          Boolean(await prisma.user.findFirst({
-            where: { id: userId, role: "TRAINER", accountDeletionRequestedAt: null, ...reservedCynologist },
-            select: { id: true },
-          }))
+          m.conversation.createdById === userId || isSpecialist
         );
       if (m.conversation.kind === "COURSE")
         return (
@@ -328,18 +311,7 @@ export async function listChats(userId: string) {
         // Hide any pre-existing private lane: no active alternative to paid access.
         if (m.conversation.members.some((x) => isCynologistUsername(x.user.username))) return false;
         const other = m.conversation.members.find((other) => other.userId !== userId);
-        if (
-          other &&
-          (await prisma.chat2Block.findFirst({
-            where: {
-              OR: [
-                { blockerId: userId, blockedId: other.userId },
-                { blockerId: other.userId, blockedId: userId },
-              ],
-            },
-          }))
-        )
-          return false;
+        if (other && blockedDirectPeers.has(other.userId)) return false;
       }
       return true;
     }),

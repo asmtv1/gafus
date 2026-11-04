@@ -19,8 +19,10 @@ const legacyPackages = [
   '@gafus/tracking-server',
   '@gafus/admin-reengagement-server',
 ];
-// Newly extracted Core dependency. Count from its actual deployed manifest,
-// never a guessed post-extraction 10/50 literal.
+// The new Chat2 Web/Mobile mode is an intentionally approved addition to the
+// original nine-package 49-export baseline. Verify it separately so missing
+// old exports cannot be obscured by new ones.
+const chat2ClientExport = '@gafus/core-client/chat2/realtime-subscription';
 const packages = [...legacyPackages, '@gafus/subscription-read-server'];
 const mode = process.argv[2];
 if (!['api', 'worker'].includes(mode)) throw Error('RUNTIME_IMAGE_TARGET_REQUIRED');
@@ -32,6 +34,7 @@ const assertFile = (path, label) => {
 assertFile(main, `${mode} main entry`);
 let exportsChecked = 0;
 let legacyExportsChecked = 0;
+let chat2ClientExportChecked = false;
 for (const name of packages) {
   // pnpm deploy may nest transitives under @gafus/core rather than exposing
   // them at the deployment root. Resolve from the real core consumer.
@@ -67,7 +70,8 @@ for (const name of packages) {
     assertFile(jsPath, `${specifier} compiled JS`);
     assertFile(resolve(moduleDir, exportPaths.types), `${specifier} compiled declarations`);
     exportsChecked++;
-    if (legacyPackages.includes(name)) legacyExportsChecked++;
+    if (specifier === chat2ClientExport) chat2ClientExportChecked = true;
+    else if (legacyPackages.includes(name)) legacyExportsChecked++;
   }
   // The deployed package must carry declarations, not just source-side exports.
   const types = manifest.types ?? manifest.typings ?? manifest.exports['.']?.types;
@@ -77,8 +81,9 @@ for (const name of packages) {
 }
 if (legacyPackages.length !== 9 || legacyExportsChecked !== 49)
   throw Error(`RUNTIME_LEGACY_PACKAGE_EXPORT_COVERAGE_CHANGED:packages=${legacyPackages.length}:exports=${legacyExportsChecked}`);
-// Post-extraction release contract is exact. Count is derived by iterating
-// the actual deployed manifests above; a missing OR unexpected export fails.
-if (packages.length !== 10 || exportsChecked !== 50)
+if (!chat2ClientExportChecked) throw Error('RUNTIME_CHAT2_CLIENT_EXPORT_MISSING');
+// Exactly 49 historical + 1 new Chat2 mode + 1 subscription-read server.
+// A missing or extra declared entrypoint still blocks image publication.
+if (packages.length !== 10 || exportsChecked !== 51)
   throw Error(`RUNTIME_POSTSUBSCRIPTION_EXPORT_COVERAGE_CHANGED:packages=${packages.length}:exports=${exportsChecked}`);
 console.log(`RUNTIME_PACKAGING_PASS target=${mode} packages=${packages.length} compiled_exports=${exportsChecked}`);

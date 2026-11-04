@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import { CHAT2_EMOJIS, updateChat2ReactionSummary } from "./messageReactions";
 import { Centrifuge } from "centrifuge";
+import { chat2SubscriptionForConnection, chat2SubscriptionTransportOptions } from "@gafus/core-client/chat2/realtime-subscription";
 import { useCurrentUser } from "../../shared/auth/useAuth";
 import { GafusHeader } from "../../brand/GafusHeader";
 import { RouteLink, navigate, useRoutePath, useRouteSearch } from "../../shared/router/location";
@@ -953,28 +954,29 @@ function Chat2Room({
     let socket: Centrifuge | undefined;
     async function connect() {
       try {
-        const [{ token, wsUrl }, { token: subscription, channel }] = await Promise.all([
-          chat2Api.connect(),
-          chat2Api.subscription(id),
-        ]);
+        const connection = await chat2Api.connect();
         if (disposed) return;
-        socket = new Centrifuge(wsUrl, {
-          token,
+        const subscription = await chat2SubscriptionForConnection(connection, id,
+          () => chat2Api.subscription(id));
+        if (disposed) return;
+        socket = new Centrifuge(connection.wsUrl, {
+          token: connection.token,
           getToken: async () => (await chat2Api.connect()).token,
         });
         socket.on("connected", () => {
           if (!disposed) {
-            setStatus("live");
+            // Connection alone does not grant room access; only subscribed does.
             void cache.invalidateQueries({ queryKey: ["chat2", "messages", ownerId, id] });
           }
         });
         socket.on("disconnected", () => {
           if (!disposed) setStatus("fallback");
         });
-        const sub = socket.newSubscription(channel, {
-          token: subscription,
-          getToken: () => refreshChat2RoomToken(id),
-        });
+        // Proxy-only is authorized on every new subscribe/reconnect by Core
+        // readGate in the internal broker callback. Never send a stale room JWT.
+        const sub = socket.newSubscription(subscription.channel,
+          chat2SubscriptionTransportOptions(subscription,
+            () => refreshChat2RoomToken(id)));
         sub.on("publication", () => {
           if (!disposed) {
             void cache.invalidateQueries({ queryKey: ["chat2", "messages", ownerId, id] });
@@ -983,6 +985,9 @@ function Chat2Room({
         });
         sub.on("subscribed", () => {
           if (!disposed) setStatus("live");
+        });
+        sub.on("unsubscribed", () => {
+          if (!disposed) setStatus("fallback");
         });
         sub.on("error", () => {
           if (!disposed) setStatus("fallback");

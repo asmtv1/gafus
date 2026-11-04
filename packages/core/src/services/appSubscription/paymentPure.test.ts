@@ -29,3 +29,42 @@ describe("pure payment boundary; stable semantics across extraction", () => {
     expect(amountsEqual("nan",1)).toBe(false);
   });
 });
+
+import { Status as AppleSubscriptionStatus } from "@apple/app-store-server-library";
+import { msToDate, mapAppleServerStatus, applePaymentStatus } from "./paymentPure";
+
+describe("pure Apple subscription lifecycle (extracted without provider I/O)", () => {
+  const now = new Date("2026-11-03T18:00:00.000Z");
+  const activeExpiry = now.getTime() + 86_400_000;
+  const pastExpiry = now.getTime() - 86_400_000;
+  it.each([
+    [AppleSubscriptionStatus.ACTIVE, undefined, activeExpiry, "ACTIVE"],
+    [AppleSubscriptionStatus.BILLING_GRACE_PERIOD, undefined, pastExpiry, "ACTIVE"],
+    [AppleSubscriptionStatus.BILLING_RETRY, undefined, activeExpiry, "PAST_DUE"],
+    [AppleSubscriptionStatus.EXPIRED, undefined, activeExpiry, "EXPIRED"],
+    [AppleSubscriptionStatus.REVOKED, undefined, activeExpiry, "REVOKED"],
+    [AppleSubscriptionStatus.ACTIVE, now.getTime(), activeExpiry, "REVOKED"],
+    [undefined, undefined, activeExpiry, "ACTIVE"],
+    [undefined, undefined, pastExpiry, "EXPIRED"],
+    [undefined, undefined, undefined, "EXPIRED"],
+  ] as const)("maps explicit/fallback Apple status %s revocation %s expiry %s to %s", (
+    appleStatus, revocationDate, expiresDate, expected,
+  ) => {
+    const result = mapAppleServerStatus({ appleStatus, transaction: {
+      revocationDate, expiresDate,
+    }, now });
+    expect(result).toBe(expected);
+  });
+  it("maps every final entitlement status to its exact persisted payment state", () => {
+    expect(applePaymentStatus("ACTIVE")).toBe("SUCCEEDED");
+    expect(applePaymentStatus("PAST_DUE")).toBe("FAILED");
+    expect(applePaymentStatus("EXPIRED")).toBe("CANCELED");
+    expect(applePaymentStatus("REVOKED")).toBe("REFUNDED");
+  });
+  it("rejects malformed millisecond timestamps before Apple status fallback", () => {
+    expect(msToDate(undefined)).toBeNull();
+    expect(msToDate(-1)).toBeNull();
+    expect(msToDate(Number.POSITIVE_INFINITY)).toBeNull();
+    expect(msToDate(now.getTime())?.toISOString()).toBe(now.toISOString());
+  });
+});

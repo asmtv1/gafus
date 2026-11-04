@@ -11,7 +11,15 @@ const wsAddress = () => {
   const raw = process.env.CHAT2_PUBLIC_WS_URL ?? "";
   try {
     const u = new URL(raw);
-    if (u.username || u.password || u.hash || !u.pathname.endsWith("/connection/websocket"))
+    // The signed connection JWT must never be handed to an arbitrary WSS
+    // origin, an alternative handler path or a URL with query credentials.
+    // Production Chat2 is served exclusively behind the canonical GAFUS edge;
+    // localhost ws:// remains available only outside production for QA.
+    if (u.username || u.password || u.search || u.hash ||
+        u.pathname !== "/connection/websocket" ||
+        (process.env.NODE_ENV === "production" &&
+          !["https://gafus.ru", "https://www.gafus.ru"].includes(
+            `https://${u.host}`)))
       throw Error("bad");
     if (
       u.protocol !== "wss:" &&
@@ -27,6 +35,18 @@ const wsAddress = () => {
     throw new Chat2Error("REALTIME_UNAVAILABLE", 503, "Realtime не настроен");
   }
 };
+/**
+ * Cutover remains off by default. Advertise proxy-only subscription mode
+ * ONLY when the internal broker->Hono secret is configured, otherwise fail
+ * closed instead of silently telling clients to send old room JWTs.
+ */
+export function chat2SubscriptionMode(): "token" | "proxy" {
+  if (process.env.CHAT2_SUBSCRIBE_PROXY_ENABLED !== "true") return "token";
+  if ((process.env.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET?.length ?? 0) < 32)
+    throw new Chat2Error("REALTIME_UNAVAILABLE", 503, "Realtime не настроен");
+  return "proxy";
+}
+
 export async function connectToken(userId: string) {
   const token = await new SignJWT({})
     .setIssuer("gafus-chat2")
@@ -35,7 +55,8 @@ export async function connectToken(userId: string) {
     .setIssuedAt()
     .setExpirationTime("5m")
     .sign(secret());
-  return { token, wsUrl: wsAddress() };
+  const mode = chat2SubscriptionMode();
+  return { token, wsUrl: wsAddress(), ...(mode === "proxy" ? { subscriptionMode: mode } : {}) };
 }
 export async function subscriptionToken(userId: string, id: string) {
   await readGate(userId, id);

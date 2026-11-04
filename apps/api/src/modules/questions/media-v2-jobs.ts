@@ -1,6 +1,7 @@
 /** Durable, Questions-only image queue. Redis events are never authoritative. */
 import { randomUUID } from "node:crypto";
 import { prisma, Prisma } from "@gafus/prisma";
+import { mediaTaskFailurePolicy, mediaCleanupRetryDelayMs, questionsSafeCleanupAt } from "@gafus/core/services/mediaDelivery";
 import { questionsV2Head, questionsV2Delete, questionsV2Marker } from "@gafus/cdn-upload";
 import {questionsV2FinalKeys,questionsV2ValidateJob,questionsV2ValidateManifest,
   type QuestionsV2Job,type QuestionsV2Manifest} from "@gafus/feed-cloud";
@@ -47,7 +48,7 @@ export function createQuestionsV2Queue(input:{
           leaseUntil:{lt:t}},
         data:{status:"FAILED",attemptToken:null,leaseUntil:null,
           cleanupKind:"ALL",cleanupCompletedAt:null,
-          cleanupNextAt:new Date(Math.max(t.getTime(),task.createdAt.getTime()+11*60_000))},
+          cleanupNextAt:questionsSafeCleanupAt(t,task.createdAt)},
       });
     }
     const deleted=await db.questionPhoto.findMany({
@@ -66,9 +67,7 @@ export function createQuestionsV2Queue(input:{
           where:{mediaId:task.mediaId,status:{notIn:["FAILED","EXPIRED"]}},
           data:{status:"EXPIRED",attemptToken:null,leaseUntil:null,
             cleanupKind:"ALL",cleanupCompletedAt:null,
-            cleanupNextAt:new Date(Math.max(t.getTime(),
-              task.createdAt.getTime()+11*60_000,
-              (task.leaseUntil?.getTime()??0)+60_000))},
+            cleanupNextAt:questionsSafeCleanupAt(t,task.createdAt,task.leaseUntil)},
         });
       }
     }
@@ -90,9 +89,7 @@ export function createQuestionsV2Queue(input:{
         where:{mediaId:task.mediaId,status:{in:["AWAITING_UPLOAD","QUEUED","PROCESSING","READY"]}},
         data:{status:"EXPIRED",attemptToken:null,leaseUntil:null,
           cleanupKind:"ALL",cleanupCompletedAt:null,
-          cleanupNextAt:new Date(Math.max(now().getTime(),
-            task.createdAt.getTime()+11*60_000,
-            (task.leaseUntil?.getTime()??0)+60_000))},
+          cleanupNextAt:questionsSafeCleanupAt(now(),task.createdAt,task.leaseUntil)},
       });
     }
   }
@@ -130,7 +127,7 @@ export function createQuestionsV2Queue(input:{
       await db.questionV2MediaTask.updateMany({where:{mediaId:task.mediaId,cleanupToken:token},
         data:{cleanupToken:null,cleanupLeaseUntil:null,
           cleanupNextAt:new Date(now().getTime()+
-            Math.min(3600000,15000*2**Math.min(task.cleanupAttempts,8)))}});
+            mediaCleanupRetryDelayMs(task.cleanupAttempts))}});
       return {cleaned:false};
     }
   }
@@ -203,15 +200,15 @@ export function createQuestionsV2Queue(input:{
       const task=await db.questionV2MediaTask.findFirst({
         where:{mediaId:id,attemptToken:token,status:"PROCESSING",leaseUntil:{gt:now()}}});
       if(!task)return {accepted:false};
-      const terminal=task.attempts>=limit;
+      const failure=mediaTaskFailurePolicy(task.attempts,limit,now());
+      const terminal=failure.terminal;
       const updated=await db.questionV2MediaTask.updateMany({
         where:{mediaId:id,attemptToken:token,status:"PROCESSING",leaseUntil:{gt:now()}},
-        data:{status:terminal?"FAILED":"QUEUED",attemptToken:null,leaseUntil:null,
-          nextAttemptAt:new Date(now().getTime()+Math.min(600000,15000*2**Math.max(0,task.attempts-1))),
+        data:{status:failure.status,attemptToken:null,leaseUntil:null,
+          nextAttemptAt:failure.nextAttemptAt,
           errorCode:code.slice(0,64),
           ...(terminal?{cleanupKind:"ALL",
-            cleanupNextAt:new Date(Math.max(now().getTime(),
-              task.createdAt.getTime()+11*60_000)),cleanupCompletedAt:null}:{})}});
+            cleanupNextAt:questionsSafeCleanupAt(now(),task.createdAt),cleanupCompletedAt:null}:{})}});
       if(terminal&&updated.count===1)await cleanupOne(id);
       return {accepted:updated.count===1};
     },

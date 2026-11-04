@@ -1,0 +1,111 @@
+# Execute with verified upstream Prometheus 3.x promtool:
+# promtool test rules ci-cd/docker/prometheus/gafus-alerts.promtool.test.yml
+# Real PromQL rule evaluator and alert FOR timing, synthetic offline series.
+# This does not assert any remote scrape, notification routing or production state.
+rule_files:
+  - gafus-alerts.yml
+evaluation_interval: 1m
+tests:
+  - name: terminal_failed_media_job_observed_after_for
+    interval: 1m
+    input_series:
+      - series: 'gafus_media_failed_tasks{pipeline="chat2"}'
+        values: '0+0x15'
+      - series: 'gafus_media_failed_tasks{pipeline="questions"}'
+        values: '3+0x15'
+      - series: 'gafus_media_failed_tasks{pipeline="feed"}'
+        values: '0+0x15'
+      - series: 'gafus_media_failed_tasks{pipeline="gallery"}'
+        values: '0+0x15'
+      - series: 'gafus_media_stalled_processing{pipeline="chat2"}'
+        values: '0+0x15'
+      - series: 'gafus_media_stalled_processing{pipeline="questions"}'
+        values: '0+0x15'
+      - series: 'gafus_media_stalled_processing{pipeline="feed"}'
+        values: '0+0x15'
+      - series: 'gafus_media_stalled_processing{pipeline="gallery"}'
+        values: '0+0x15'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: GafusMediaProcessingFailed
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: GafusMediaProcessingFailed
+        exp_alerts:
+          - exp_labels:
+              pipeline: questions
+              severity: warning
+            exp_annotations:
+              summary: 'GAFUS questions has media tasks in terminal FAILED state'
+      - eval_time: 11m
+        alertname: GafusMediaMetricsMissing
+        exp_alerts: []
+
+  - name: exactly_one_pipeline_gauge_missing_triggers_alarm
+    interval: 1m
+    input_series:
+      - series: 'gafus_media_failed_tasks{pipeline="chat2"}'
+        values: '0+0x15'
+      - series: 'gafus_media_failed_tasks{pipeline="questions"}'
+        values: '0+0x15'
+      - series: 'gafus_media_failed_tasks{pipeline="feed"}'
+        values: '0+0x15'
+      - series: 'gafus_media_failed_tasks{pipeline="gallery"}'
+        values: '0+0x15'
+      - series: 'gafus_media_stalled_processing{pipeline="chat2"}'
+        values: '0+0x15'
+      - series: 'gafus_media_stalled_processing{pipeline="questions"}'
+        values: '0+0x15'
+      # No feed stalled series; presence of seven other series must not mask it
+      - series: 'gafus_media_stalled_processing{pipeline="gallery"}'
+        values: '0+0x15'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: GafusMediaMetricsMissing
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: GafusMediaMetricsMissing
+        exp_alerts:
+          - exp_labels:
+              pipeline: feed
+              severity: warning
+            exp_annotations:
+              summary: 'GAFUS media worker is missing one or both mandatory task gauges'
+      - eval_time: 11m
+        alertname: GafusMediaProcessingFailed
+        exp_alerts: []
+
+  - name: stale_backup_alert_evaluates_actual_promql_time
+    interval: 1m
+    input_series:
+      - series: 'gafus_database_backup_last_success_timestamp_seconds{instance="synthetic"}'
+        values: '0+0x2400'
+    alert_rule_test:
+      - eval_time: 36h20m
+        alertname: GafusBackupStale
+        exp_alerts: []
+      - eval_time: 39h
+        alertname: GafusBackupStale
+        exp_alerts:
+          - exp_labels:
+              instance: synthetic
+              severity: critical
+            exp_annotations:
+              summary: 'Last remotely verified PostgreSQL backup is older than 36 hours'
+      - eval_time: 39h
+        alertname: GafusBackupMissing
+        exp_alerts: []
+
+  - name: backup_absent_alert_after_two_hours
+    interval: 1m
+    alert_rule_test:
+      - eval_time: 1h59m
+        alertname: GafusBackupMissing
+        exp_alerts: []
+      - eval_time: 2h1m
+        alertname: GafusBackupMissing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: 'No successfully verified backup timestamp has been exported'

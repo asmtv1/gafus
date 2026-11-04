@@ -1,4 +1,5 @@
 import { apiRequest } from "../../shared/api/client";
+import type { Chat2ConnectionGrant } from "@gafus/core-client/chat2/realtime-subscription";
 export type Chat2Kind =
   | "DIRECT"
   | "CYNOLOGIST"
@@ -176,7 +177,7 @@ export const chat2Api = {
   read: (id: string, sequence: string) =>
     request<{ lastReadSequence: string }>(`/${chatId(id)}/read`, "POST", { sequence }),
   leave: (id: string) => request<{ left: boolean }>(`/${chatId(id)}/leave`, "POST", {}),
-  connect: () => request<{ token: string; wsUrl: string }>("/realtime/connect"),
+  connect: () => request<Chat2ConnectionGrant>("/realtime/connect"),
   subscription: (id: string) =>
     request<{ token: string; channel: string }>(`/${chatId(id)}/realtime`),
   block: (userId: string, blocked: boolean) =>

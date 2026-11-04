@@ -10,7 +10,10 @@ const legacyPackageNames=['core-client','achievements-server','consent-server','
 const packageNames=[...legacyPackageNames,'subscription-read-server'];
 const manifestFor=(pkg)=>JSON.parse(readFileSync(new URL(`packages/${pkg}/package.json`,root),'utf8'));
 const actualManifestCount=packageNames.reduce((n,pkg)=>n+Object.keys(manifestFor(pkg).exports).length,0);
-assert.equal(legacyPackageNames.reduce((n,pkg)=>n+Object.keys(manifestFor(pkg).exports).length,0),49,'frozen nine-package manifest sum must stay 49');
+const newChat2Export = './chat2/realtime-subscription';
+assert.ok(manifestFor('core-client').exports[newChat2Export], 'new Chat2 client export is mandatory');
+assert.equal(legacyPackageNames.reduce((n,pkg)=>n+Object.keys(manifestFor(pkg).exports).length,0)-1,
+  49, 'frozen original nine-package exports excluding approved Chat2 entrypoint must stay 49');
 const write=(p,content)=>{mkdirSync(dirname(p),{recursive:true});writeFileSync(p,content);};
 const perform=(mode,corrupt)=>{
   const dir=mkdtempSync(join(tmpdir(),'gafus-agent2-runtime-layout-'));
@@ -62,6 +65,11 @@ const perform=(mode,corrupt)=>{
       write(join(folder,'package.json'),JSON.stringify(manifest));
       write(join(folder,'dist/qa-extra.js'),'export {};');
       write(join(folder,'dist/qa-extra.d.ts'),'export {};');
+    } else if (corrupt==='chat2-export-removed') {
+      const folder=join(physical,'core-client');
+      const manifest=manifestFor('core-client');
+      delete manifest.exports[newChat2Export];
+      write(join(folder,'package.json'),JSON.stringify(manifest));
     } else if (corrupt==='legacy-export-removed') {
       // Attempted coverage reduction must fail even when remaining exports
       // all resolve, and cannot be hidden by extra new-domain exports.
@@ -114,8 +122,14 @@ test('production guard fails closed when new nested exported JS is missing despi
   assert.match(run.stderr,/RUNTIME_PACKAGE_MISSING:@gafus\/subscription-read-server\/qa-missing-nested-js compiled JS/);
 });
 
-test('exact postsubscription 10/50 denies extra new export despite both compiled targets',()=>{
+test('exact postsubscription 10/51 denies extra new export despite both compiled targets',()=>{
   const run=perform('api','extracted-export-extra');
   assert.notEqual(run.status,0);
-  assert.match(run.stderr,/RUNTIME_POSTSUBSCRIPTION_EXPORT_COVERAGE_CHANGED:packages=10:exports=51/);
+  assert.match(run.stderr,/RUNTIME_POSTSUBSCRIPTION_EXPORT_COVERAGE_CHANGED:packages=10:exports=52/);
+});
+
+test('approved new Chat2 client mode is required without weakening 49 old exports',()=>{
+  const run=perform('api','chat2-export-removed');
+  assert.notEqual(run.status,0);
+  assert.match(run.stderr,/RUNTIME_CHAT2_CLIENT_EXPORT_MISSING/);
 });

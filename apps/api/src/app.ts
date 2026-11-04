@@ -9,6 +9,8 @@ import { galleryCdnRedirectResponse } from "@gafus/gallery-server";
 import { feedRoutes } from "./routes/v1/feed.js";
 import { internalGalleryRoutes } from "./routes/internal/gallery.js";
 import { chatsRoutes } from "./routes/v1/chats.js";
+import { createChat2SubscribeProxyRoutes } from "./modules/chat2/subscribeProxy.js";
+import { readGate } from "./modules/chat2/service.js";
 /**
  * Hono App Setup
  * Конфигурация middleware и маршрутов
@@ -358,6 +360,16 @@ app.route("/api/v1/feed", feedRoutes);
 // Internal cloud callbacks authenticate each raw request with HMAC and Redis-backed nonce replay protection.
 app.route("/internal/gallery", internalGalleryRoutes);
 app.route("/internal/feed", internalFeedRoutes);
+// Explicit opt-in only. No auth cookie/JWT or public /api/v1 route: the
+// broker authenticates with a distinct static shared secret. The handler
+// rechecks current database room access on EVERY subscription/reconnection.
+// Incorrect opt-in config fails app startup rather than exposing a weak route.
+if (process.env.CHAT2_SUBSCRIBE_PROXY_ENABLED === "true") {
+  app.route("/internal/chat2", createChat2SubscribeProxyRoutes({
+    brokerSharedSecret: process.env.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET ?? "",
+    checkCurrentMembership: readGate,
+  }));
+}
 app.route("/internal/chat2/media/jobs", internalChat2MediaJobRoutes);
 app.route("/internal/questions/media/jobs", internalQuestionsMediaJobRoutes);
 
