@@ -10,6 +10,7 @@ import {
 } from "@gafus/feed-cloud";
 import { processChat2V2Asset, type Chat2V2Objects } from "./chat2-v2-processor.js";
 import type { Chat2JobKind } from "@gafus/feed-cloud";
+import { localFeedWorkspaceRoot } from "./local-workspace-root.js";
 
 export interface Chat2V2Claim extends Chat2V2Job {
   attemptToken: string;
@@ -43,7 +44,7 @@ export function createChat2JobRunner(args: {
     const stat=await lstat(base);
     if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("CHAT2_JOB_INVALID_WORK_ROOT");
     if (process.env.GAFUS_LOCAL_ISOLATED_API === "1" || process.env.VITEST === "true") {
-      const localRoot="/Users/asmtv1/Desktop/gafus-refactor";
+      const localRoot=localFeedWorkspaceRoot();
       if (base!==localRoot && !base.startsWith(localRoot+sep))
         throw new Error("CHAT2_JOB_OUTSIDE_PROJECT");
     }

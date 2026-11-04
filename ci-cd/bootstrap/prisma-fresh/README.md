@@ -155,6 +155,9 @@ node ci-cd/bootstrap/prisma-fresh/verify-owned-local-pg18.mjs --run
 
 **До любой записи** новая DB должна быть абсолютно пустой, принадлежать явно указанному owner, иметь уникальное имя `gafus_fresh_*` или `archqa_fresh_*` (либо `gafus_fresh` для изолированного CI), находиться только на `127.0.0.1`/`localhost`, иметь явный порт и schema `public`, быть writable PostgreSQL 16–18, а `GAFUS_FRESH_BOOTSTRAP_CONFIRM` должен **в точности** совпадать с названием БД. Проброшенные через SSH порты production или внешние DB, даже если доступны через localhost, **запрещены операторским регламентом**. Удалённый/production запуск не предусмотрен кодом; для него необходим отдельный review и явное разрешение.
 
+**Исключение только для GitHub CI:** при обращении к одноразовому сервису `postgres:16` через `localhost:5432` сервер видит Docker bridge (`172.16.0.0/12`), а не loopback. Проверка принимает такой адрес только при `GITHUB_ACTIONS=true`, явном `GAFUS_FRESH_CI_POSTGRES_SERVICE=github-actions-disposable-postgres-16`, роли `gafus_ci`, базе `gafus_fresh` и адресе клиента из той же Docker-подсети. Проверки пустоты, владельца, точного подтверждения, checksum и атомарного SQL остаются обязательными. Для любого локального запуска вне CI продолжает действовать строгая проверка loopback-адреса сервера.
+
+
 ```bash
 cd /Users/asmtv1/Desktop/gafus-refactor
 node ci-cd/bootstrap/prisma-fresh/review-gate.mjs

@@ -8,6 +8,7 @@ import {
 } from "@gafus/feed-cloud";
 import { assertFeedObjectKey, feedSourcePattern } from "@gafus/feed-storage";
 import type { FeedCloudObjects } from "./objects.js";
+import { localFeedWorkspaceRoot } from "./local-workspace-root.js";
 /** Log only bounded, allowlisted diagnostics; never log SDK error objects or paths. */
 function safeMediaError(error: unknown): { category: string; httpStatus: number | null } {
   const obj = error !== null && typeof error === "object" ? error as {
@@ -106,7 +107,7 @@ export function createFeedCloudWorker(input: {
       let phase = "initialize";
       try {
         const local = process.env.VITEST === "true" || process.env.GAFUS_LOCAL_ISOLATED_API === "1";
-        const project = "/Users/asmtv1/Desktop/gafus-refactor";
+        const project = local ? localFeedWorkspaceRoot() : undefined;
         const cwd = realpathSync(process.cwd());
         if (local && cwd !== project && !cwd.startsWith(project + "/"))
           throw new Error("FEED_LOCAL_TEMP_OUTSIDE_PROJECT");

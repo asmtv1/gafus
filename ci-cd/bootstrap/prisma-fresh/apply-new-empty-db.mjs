@@ -10,6 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { allowsFreshPostgresEndpoint } from './postgres-network-policy.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../../..');
@@ -76,12 +77,17 @@ const prismaCommand = (command, args, options = {}) => run(prisma,
 
 // Before any write confirm local owner and completely empty public schema.
 const dbState = psql(`SELECT current_database() || '|' || current_user || '|' ||
-  COALESCE(host(inet_server_addr()),'') || '|' || pg_is_in_recovery() || '|' ||
+  COALESCE(host(inet_server_addr()),'') || '|' ||
+  COALESCE(host(inet_client_addr()),'') || '|' || pg_is_in_recovery() || '|' ||
   current_setting('server_version_num')`);
-const [actualDb, owner, address, recovery, version] = dbState.split('|');
+const [actualDb, owner, address, peer, recovery, version] = dbState.split('|');
 assert(actualDb === database && owner === decodeURIComponent(url.username),
   'WRONG_DATABASE_OR_OWNER');
-assert(['127.0.0.1', '::1'].includes(address) && ['f', 'false'].includes(recovery),
+assert(allowsFreshPostgresEndpoint({
+  address, peer, hostname: url.hostname, port: url.port, database, username: owner,
+  githubActions: process.env.GITHUB_ACTIONS,
+  ciService: process.env.GAFUS_FRESH_CI_POSTGRES_SERVICE,
+}) && ['f', 'false'].includes(recovery),
   `LOOPBACK_WRITABLE_POSTGRES_REQUIRED:address=${address} recovery=${recovery}`);
 assert(Number(version) >= 160000 && Number(version) < 190000,
   'TESTED_POSTGRES_16_TO_18_ONLY');
@@ -127,7 +133,7 @@ for (let i = 0; i < migrationNames.length; i++) {
   if ((i + 1) % 25 === 0 || i + 1 === migrationNames.length)
     console.log(`FRESH_OPTION_A_LEDGER_PROGRESS ${i + 1}/${migrationNames.length}`);
 }
-const rows = psql('SELECT migration_name || E\'\\t\' || checksum FROM "_prisma_migrations" ORDER BY migration_name');
+const rows = psql('SELECT migration_name || E\'\\t\' || checksum FROM "_prisma_migrations" ORDER BY migration_name COLLATE "C"');
 const actual = rows.split('\n').map(row => row.split('\t'));
 assert.equal(actual.length, migrationNames.length, 'BASELINE_JOURNAL_COUNT');
 for (const [i, [name, checksum]] of actual.entries()) {
@@ -141,7 +147,7 @@ assert.equal(psql('SELECT count(*) FROM "_prisma_migrations" WHERE finished_at I
 prismaCommand('deploy', [], { timeout: 120_000 });
 prismaCommand('deploy', [], { timeout: 120_000 });
 prismaCommand('status', [], { timeout: 55_000 });
-const fullLedgerRows = psql('SELECT migration_name || E\'\\t\' || checksum FROM "_prisma_migrations" ORDER BY migration_name');
+const fullLedgerRows = psql('SELECT migration_name || E\'\\t\' || checksum FROM "_prisma_migrations" ORDER BY migration_name COLLATE "C"');
 const fullLedger = fullLedgerRows.split('\n').map(row => row.split('\t'));
 assert.equal(fullLedger.length, allMigrationNames.length, 'ALL_FORWARD_MIGRATIONS_APPLIED');
 for (const [i, [name, checksum]] of fullLedger.entries()) {

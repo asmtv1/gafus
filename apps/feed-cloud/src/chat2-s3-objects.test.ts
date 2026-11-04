@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { randomUUID, createHash } from "node:crypto";
 import { Readable } from "node:stream";
@@ -6,7 +7,7 @@ import { join } from "node:path";
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
 import { chat2V2SourceKey, type Chat2V2Job } from "@gafus/feed-cloud";
 import { createChat2S3Objects } from "./chat2-s3-objects.js";
-const root="/Users/asmtv1/Desktop/gafus-refactor/apps/feed-cloud";
+const root=fileURLToPath(new URL("../", import.meta.url));
 const folders:string[]=[];
 const job=():Chat2V2Job=>{const conversationId="qa_room",ownerId="qa_owner",mediaId=randomUUID(),sourceMime="image/jpeg";
  return {conversationId,ownerId,mediaId,sourceMime,sourceBytes:40,

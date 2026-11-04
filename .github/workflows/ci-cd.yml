@@ -218,6 +218,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://gafus_ci:gafus_ci_disposable@localhost:5432/gafus_fresh
           GAFUS_FRESH_BOOTSTRAP_CONFIRM: gafus_fresh
+          # Narrow permission for this job's disposable Docker PostgreSQL only.
+          GAFUS_FRESH_CI_POSTGRES_SERVICE: github-actions-disposable-postgres-16
         run: |
           bash packages/prisma/scripts/bootstrap-fresh-postgres.sh
           test "$(psql "$DATABASE_URL" -Atc 'SELECT count(*) FROM "_prisma_migrations"')" -ge 163

@@ -6,6 +6,7 @@
  */
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
+import { localFeedWorkspaceRoot } from "./local-workspace-root.js";
 import {
   createFeedCommandRunner, processFeedV2Image, processFeedV2Video,
   type FeedImageEngine, type FeedV2VideoResult,
@@ -40,9 +41,9 @@ export async function processChat2V2Asset(
   // The caller must own the work directory. No global /tmp fallback or access
   // to other local repos is permitted during isolated refactor acceptance.
   const directory = await realpath(workDir);
-  const projectRoot = "/Users/asmtv1/Desktop/gafus-refactor";
-  if ((process.env.GAFUS_LOCAL_ISOLATED_API === "1" || process.env.VITEST === "true") &&
-      directory !== projectRoot && !directory.startsWith(projectRoot + sep))
+  const local = process.env.GAFUS_LOCAL_ISOLATED_API === "1" || process.env.VITEST === "true";
+  const projectRoot = local ? localFeedWorkspaceRoot() : undefined;
+  if (local && directory !== projectRoot && !directory.startsWith(projectRoot + sep))
     throw new Error("CHAT2_V2_WORKDIR_OUTSIDE_REFACTOR");
   const stat = await lstat(directory);
   if (!stat.isDirectory() || stat.isSymbolicLink() || resolve(directory) !== directory)

@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -6,7 +7,7 @@ import { chat2V2SourceKey, type Chat2V2Job } from "@gafus/feed-cloud";
 import { processChat2V2Asset, type Chat2V2Objects } from "./chat2-v2-processor";
 
 const directories: string[] = [];
-const root = "/Users/asmtv1/Desktop/gafus-refactor/apps/feed-cloud";
+const root = fileURLToPath(new URL("../", import.meta.url));
 afterEach(async () => {
   for (const dir of directories.splice(0)) await rm(dir, { recursive: true, force: true });
 });

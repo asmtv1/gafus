@@ -1,9 +1,10 @@
+import { fileURLToPath } from "node:url";
 import {describe,it,expect,vi} from "vitest";
 import {randomUUID} from "node:crypto";
 import {readdir} from "node:fs/promises";
 import {chat2V2FinalKeys,chat2V2SourceKey,type Chat2V2Job,type Chat2V2Manifest} from "@gafus/feed-cloud";
 import {createChat2JobRunner,type Chat2V2Claim,type Chat2V2Core} from "./chat2-job-runner.js";
-const root="/Users/asmtv1/Desktop/gafus-refactor/apps/feed-cloud";
+const root=fileURLToPath(new URL("../", import.meta.url));
 const fixture=():Chat2V2Claim=>{
   const conversationId="room1",ownerId="person1",mediaId=randomUUID(),sourceMime="image/jpeg";
   return {conversationId,ownerId,mediaId,sourceMime,sourceBytes:32,
