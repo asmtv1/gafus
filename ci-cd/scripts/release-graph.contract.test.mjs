@@ -64,6 +64,16 @@ test('Cloud media CI gate runs actual Feed/Chat2/Questions Vitest instead of a p
   const cloud = jobs['cloudru-media-contracts'];
   assert(cloud && typeof cloud.if === 'string' && cloud.if.includes('refs/heads/main'),
     'CLOUD_RUNTIME_TEST_JOB_SCOPE_CHANGED');
+  assert(needs('cloudru-media-contracts').includes('prepare-deps'),
+    'CLOUD_RUNTIME_MUST_WAIT_FOR_COMPILED_WORKSPACE_PACKAGES');
+  const restore = cloud.steps.find(x => x.name === 'Restore compiled workspace dependencies');
+  assert.equal(restore?.uses, 'actions/cache/restore@v5',
+    'CLOUD_RUNTIME_WORKSPACE_BUILD_RESTORE_MISSING');
+  assert.equal(restore?.with?.key, '${{ needs.prepare-deps.outputs.cache-key }}-deps');
+  assert.match(restore?.with?.path ?? '', /packages\/\*\/dist/);
+  const verify = cloud.steps.find(x => x.name === 'Verify media workspace dependencies are built (blocking)');
+  assert.match(verify?.run ?? '', /MEDIA_WORKSPACE_BUILD_CACHE_MISSING/);
+  assert.match(verify?.run ?? '', /MEDIA_WORKSPACE_PACKAGE_NOT_BUILT/);
   const gate = cloud.steps.find(x => x.name === 'Cloud media runtime unit contracts (blocking)');
   assert.equal(gate?.run, 'pnpm --filter @gafus/feed-cloud-runtime test',
     'CLOUD_RUNTIME_TEST_GATE_MISSING_OR_NOOP');

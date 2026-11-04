@@ -522,6 +522,9 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
 
   cloudru-media-contracts:
+    # Feed/Chat2/Questions tests import compiled workspace package entry points.
+    # A fresh runner has no packages/*/dist until prepare-deps builds them.
+    needs: prepare-deps
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
@@ -533,7 +536,23 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
+      - name: Restore compiled workspace dependencies
+        id: media-workspace-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            node_modules
+            packages/*/dist
+            packages/*/.prisma
+            ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
       - run: pnpm install --frozen-lockfile
+      - name: Verify media workspace dependencies are built (blocking)
+        run: |
+          test "${{ steps.media-workspace-cache.outputs.cache-hit }}" = 'true' || { echo 'MEDIA_WORKSPACE_BUILD_CACHE_MISSING' >&2; exit 1; }
+          for package in feed-cloud feed-storage cdn-upload logger; do
+            test -f "packages/$package/dist/index.js" || { echo "MEDIA_WORKSPACE_PACKAGE_NOT_BUILT:$package" >&2; exit 1; }
+          done
       - name: Production deploy workflow contract
         run: node --test ci-cd/scripts/deploy-only-contract.test.mjs ci-cd/scripts/workflow-consolidation-contract.test.mjs ci-cd/scripts/release-graph.contract.test.mjs ci-cd/scripts/workspace-dependency-graph.contract.test.mjs ci-cd/docker/prometheus/health-monitoring.contract.test.mjs ci-cd/scripts/backup-to-yandex.test.mjs ci-cd/scripts/emit-verified-backup-metric.test.mjs infra/cloudru/production-job-image-config.test.mjs
       - name: Offline Cloud.ru media acceptance and production release safety tests
