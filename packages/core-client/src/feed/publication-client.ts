@@ -353,8 +353,7 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
     },
     retry: (id: string) => {
       const job = jobs.get(id);
-      if (job && job.item.phase === "failed" &&
-          job.item.files?.some(file => file.phase === "failed" || file.phase === "waiting"))
+      if (job && job.item.phase === "failed")
         void run(job);
     },
     retryFile: (id: string, requestId: string) => {
