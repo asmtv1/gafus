@@ -8,7 +8,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const candidates = [
   "apps/feed-cloud/Dockerfile",
   "apps/feed-cloud/Dockerfile.chat2-job",
-  "apps/feed-cloud/Dockerfile.questions-photo",
   "apps/gallery-cloud/Dockerfile",
   "apps/gallery-cloud/Dockerfile.v2",
 ];
