@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { S3Client, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
-import { feedOriginKey } from "@gafus/feed-storage";
+import { feedOriginKey } from "@gafus/feed-storage/keys";
 import { feedV2Range } from "@gafus/feed-cloud";
 interface OriginEvent {
   httpMethod?: string; requestContext?: { http?: { method?: string } };

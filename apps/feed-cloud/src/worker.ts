@@ -6,7 +6,7 @@ import {
   processFeedV2Video, createFeedCommandRunner,
   type FeedCloudInternalClient, type FeedCloudJob, type FeedCloudOutput,
 } from "@gafus/feed-cloud";
-import { assertFeedObjectKey } from "@gafus/feed-storage";
+import { assertFeedObjectKey } from "@gafus/feed-storage/keys";
 import type { FeedCloudObjects } from "./objects.js";
 import { localFeedWorkspaceRoot } from "./local-workspace-root.js";
 /** Log only bounded, allowlisted diagnostics; never log SDK error objects or paths. */

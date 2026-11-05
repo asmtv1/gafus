@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { open, stat } from "node:fs/promises";
 import { S3Client, GetObjectCommand, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { assertFeedFinalKey, assertFeedObjectKey } from "@gafus/feed-storage";
+import { assertFeedFinalKey, assertFeedObjectKey } from "@gafus/feed-storage/keys";
 export interface FeedCloudObjects {
   download(key: string, file: string, maxBytes: number, signal: AbortSignal, etag?: string): Promise<void>;
   create(key: string, bytes: Uint8Array, contentType: string, signal: AbortSignal): Promise<void>;
