@@ -29,6 +29,20 @@ module.exports = function withDogWalkChronometer(config) {
         android:textSize="26sp"
         android:textStyle="bold"
         android:fontFamily="sans" />
+    <!-- Updated directly by the Android foreground step service. -->
+    <TextView
+        android:id="@+id/gafus_walk_metrics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginTop="76dp"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="14dp"
+        android:visibility="gone"
+        android:background="#F6F6E9"
+        android:textColor="#1E271A"
+        android:textSize="13sp"
+        android:fontFamily="sans" />
 `;
     for (const folder of ["layout", "layout-night"]) {
       const source = path.join(packageRoot, "android/src/main/res", folder, "rn_widget.xml");

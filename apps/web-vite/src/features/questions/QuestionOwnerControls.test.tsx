@@ -33,6 +33,7 @@ async function render(
   fetcher: ReturnType<typeof vi.fn>, overrides: Partial<QuestionOverview> = {},
 ) {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  vi.stubGlobal("crypto", { randomUUID: vi.fn(() => `00000000-0000-4000-8000-${String(Math.floor(Math.random()*1e12)).padStart(12,"0")}`) });
   window.history.replaceState(null, "", "/questions/question-A");
   vi.stubGlobal("fetch", fetcher);
   const container = document.createElement("div"); document.body.append(container);
@@ -157,14 +158,16 @@ describe("question owner changes", () => {
       Object.defineProperty(input, "files", { configurable: true, value: [testFile] });
       await act(async () => input.dispatchEvent(new Event("change", { bubbles: true })));
       await act(async () => { await new Promise(done => setTimeout(done, 20)); });
-      // One authenticated reservation POST and one authenticated confirmation
-      // POST; the photo bytes themselves went directly to S3 via XHR.
-      expect(fake.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
+      // Selecting a photo only prepares WebP. S3 must stay untouched until Save.
+      expect(fake.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
       expect(ui.container.textContent).toContain("2 из 5");
-      expect(direct).toHaveLength(2);
-      expect(direct.every(post=>post.withCredentials===false)).toBe(true);
+      expect(ui.container.textContent).toContain("Готово к отправке");
+      expect(direct).toHaveLength(0);
       expect(fake.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
       await ui.submit();
+      expect(fake.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
+      expect(direct).toHaveLength(2);
+      expect(direct.every(post=>post.withCredentials===false)).toBe(true);
       const patch = fake.mock.calls.filter(([, init]) => init?.method === "PATCH");
       expect(patch).toHaveLength(1);
       expect(JSON.parse(String(patch[0]?.[1]?.body)).photoIds).toEqual(["photo-1", "photo-2"]);
@@ -192,11 +195,14 @@ describe("question owner changes", () => {
         form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
         await Promise.resolve();
       });
+      expect(fake.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+      expect(fake.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
+      await act(async () => { await new Promise(done => setTimeout(done, 20)); });
+      await ui.submit();
       expect(fake.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
       expect(fake.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
       await act(async () => { completeUpload(photoV2Reservation("photo-2"));
         await new Promise(done => setTimeout(done, 20)); });
-      await ui.submit();
       const patches = fake.mock.calls.filter(([, init]) => init?.method === "PATCH");
       expect(patches).toHaveLength(1);
       expect(JSON.parse(String(patches[0]?.[1]?.body)).photoIds)

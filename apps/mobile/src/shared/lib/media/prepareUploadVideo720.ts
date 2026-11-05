@@ -1,6 +1,7 @@
 import type * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
 import { Platform } from "react-native";
+import { Video } from "react-native-compressor";
 import { canReuseMobile720, inspectMp4Upload, type Mp4RangeReader } from "./mp4UploadProbe";
 
 export interface PreparedUploadVideo720 {
@@ -16,27 +17,35 @@ export interface PreparedUploadVideo720 {
 export function target720LongEdge(width: number, height: number): number | null {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width < 2 || height < 2) return null;
   const short = Math.min(width, height), long = Math.max(width, height);
-  if (short < 720 || long / short > 4) return null;
+  if (long / short > 4) return null;
+  // 360p and other sub-720p sources must not be upscaled or rejected just
+  // because the user selected a lower-resolution video.
   return Math.min(long, Math.round(720 * long / short));
 }
 
-export interface Video720Compressor {
-  (uri: string, options: {
+export type Video720Failure =
+  | "VIDEO720_DISABLED" | "VIDEO720_DIMENSIONS" | "VIDEO720_NATIVE_ERROR"
+  | "VIDEO720_TIMEOUT" | "VIDEO720_INVALID_URI" | "VIDEO720_INVALID_MP4"
+  | "VIDEO720_FILE_EMPTY" | "VIDEO720_FILE_TOO_LARGE";
+
+export type Video720Compressor = (uri: string, options: {
     compressionMethod: "manual"; maxSize: number; bitrate: number;
     minimumFileSizeForCompress: number;
     getCancellationId?: (id: string) => void;
-  }): Promise<string>;
-}
+  }) => Promise<string>;
 
-/** A video is optimized once on the phone, never uploaded as two renditions.
- * Any unsupported/failed native compression falls back to the existing
- * authenticated upload and server processor; no arbitrary output is trusted. */
+/** Video is optimized once on the phone, never uploaded as two renditions.
+ * Native/format failure returns null plus a stable code; no server transcoder
+ * fallback is assumed and the original file always remains untouched. */
 export async function prepareUploadVideo720(
   asset: Pick<ImagePicker.ImagePickerAsset, "uri" | "width" | "height" | "mimeType" | "fileName">,
   compress?: Video720Compressor,
   probe?: (uri: string) => boolean,
+  onFailure?: (code: Video720Failure) => void,
 ): Promise<PreparedUploadVideo720 | null> {
-  if (Platform.OS === "web" || process.env.EXPO_PUBLIC_CLIENT_VIDEO_720 === "false") return null;
+  const fail = (code: Video720Failure): null => { onFailure?.(code); return null; };
+  if (Platform.OS === "web" || process.env.EXPO_PUBLIC_CLIENT_VIDEO_720 === "false")
+    return fail("VIDEO720_DISABLED");
   const meetsContract = probe ?? (uri => {
     try {
       const file = new File(uri);
@@ -55,14 +64,13 @@ export async function prepareUploadVideo720(
     return { uri: asset.uri, bytes, mime: "video/mp4", dispose() { /* original: preserve */ } };
   }
   const maxSize = target720LongEdge(asset.width, asset.height);
-  if (maxSize === null) return null;
+  if (maxSize === null) return fail("VIDEO720_DIMENSIONS");
   let cancelId: string | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let output: string | undefined;
-  const encoder: Video720Compressor = compress ?? (async (uri, options) => {
-    const { Video } = await import("react-native-compressor");
-    return Video.compress(uri, options);
-  });
+  // Expo SDK 55 / RN 0.83: dynamic native import() can fail with
+  // "Expected HMRClient.setup() call at startup" before compression starts.
+  const encoder: Video720Compressor = compress ?? ((uri, options) => Video.compress(uri, options));
   try {
     output = await Promise.race([
       encoder(asset.uri, {
@@ -72,23 +80,28 @@ export async function prepareUploadVideo720(
       }),
       new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("LOCAL_VIDEO_TIMEOUT")), 120_000); }),
     ]);
-    if (!output || output === asset.uri || !output.startsWith("file://")) return null;
+    // Native compressors may return an absolute file path rather than a URI.
+    if (output?.startsWith("/")) output = `file://${output}`;
+    if (!output || output === asset.uri || !output.startsWith("file://"))
+      return fail("VIDEO720_INVALID_URI");
     const bytes = new File(output).size;
     if (!bytes || bytes > 200 * 1024 * 1024 || !meetsContract(output)) {
+      const reason = !bytes ? "VIDEO720_FILE_EMPTY"
+        : bytes > 200 * 1024 * 1024 ? "VIDEO720_FILE_TOO_LARGE" : "VIDEO720_INVALID_MP4";
       try { new File(output).delete(); } catch { /* temporary native cache */ }
-      return null;
+      return fail(reason);
     }
     return { uri: output, bytes, mime: "video/mp4", dispose() {
       try { new File(output!).delete(); } catch { /* native cache already cleared */ }
     } };
-  } catch {
-    // Stale Android codecs, low storage, app suspension or a cancelled export:
-    // the server can still accept and process the original upload.
+  } catch (error) {
+    // Never expose file URIs or video bytes through analytics. The caller
+    // receives a stable reason to distinguish native, timeout and output errors.
     if (cancelId && !compress) {
-      try { const { Video } = await import("react-native-compressor");
-        await Video.cancelCompression(cancelId); } catch { /* best effort */ }
+      try { await Video.cancelCompression(cancelId); } catch { /* best effort */ }
     }
-    return null;
+    return fail(error instanceof Error && error.message === "LOCAL_VIDEO_TIMEOUT"
+      ? "VIDEO720_TIMEOUT" : "VIDEO720_NATIVE_ERROR");
   } finally {
     if (timer) clearTimeout(timer);
   }

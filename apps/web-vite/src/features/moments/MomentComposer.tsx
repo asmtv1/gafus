@@ -21,7 +21,8 @@ import { uploadMomentPollOptionImages } from "./momentPollOptionUpload";
 import { momentUploadPool } from "./momentUploadPool";
 import { createTextDraftPoll } from "./momentDraftPollApi";
 import { MomentPhotoUpload } from "./MomentPhotoUpload";
-import { uploadMomentPhoto, uploadMomentVideo,
+import { prepareMomentVideoBeforePublish, prepareMomentPhotoBeforePublish,
+  uploadMomentPhoto, uploadMomentVideo,
   validateMomentPhoto, validateMomentVideo } from "./feedMediaTransfer";
 import { videoRetryMessage } from "../../shared/media/videoRetryMessage";
 import { photoRetryMessage } from "../../shared/media/photoRetryMessage";
@@ -300,6 +301,13 @@ function MomentComposerTarget({ userId, draftId = null, embedded = false }: Mome
       setPhotoFailures(previous => Object.fromEntries(Object.entries(previous).filter(([key]) =>
         next.some(item => item.uploadKey === key))));
       setLocalMedia(files);
+      // Start 720p encoding and WebP poster generation while the author writes.
+      // Only submitPublish/quick publish may later reserve/upload to S3.
+      for (const file of files) {
+        if (file.type.startsWith("video/"))
+          void prepareMomentVideoBeforePublish(file).catch(() => undefined);
+        else void prepareMomentPhotoBeforePublish(file).catch(() => undefined);
+      }
       setLocalMediaError("");
       setQuickPublishError("");
     } catch (error) {
@@ -723,7 +731,13 @@ function MomentComposerTarget({ userId, draftId = null, embedded = false }: Mome
           selectedPhotoIds={localAlbumPhotoIds} onSelectLocal={toggleLocalAlbumPhoto}
           onBusy={setPhotoBusy} disabled={busy} />}
         {!current && <MomentInlinePoll value={localPoll} disabled={busy}
-          onChange={setLocalPoll} />}
+          onChange={next => {
+            setLocalPoll(next);
+            for (const option of next?.options ?? []) {
+              if (option.imageAsset?.file)
+                void prepareMomentPhotoBeforePublish(option.imageAsset.file).catch(() => undefined);
+            }
+          }} />}
         {(!current || canResumeMediaDraft) && composerActions()}
         {quickPublishError && <div className="moment-quick-publish-retry" role="alert">
           <p>{quickPublishError}</p>

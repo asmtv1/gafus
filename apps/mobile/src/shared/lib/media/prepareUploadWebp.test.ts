@@ -6,6 +6,7 @@ const mock = vi.hoisted(() => ({
   removed: [] as string[],
 }));
 vi.mock("expo-image-manipulator", () => ({
+  ImageManipulator: undefined,
   SaveFormat: { WEBP: "webp" }, manipulateAsync: mock.manipulate,
 }));
 vi.mock("expo-file-system", () => ({

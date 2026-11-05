@@ -6,7 +6,9 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf
 describe("all four mobile photo upload paths share the pre-S3 optimizer", () => {
   it("Moments optimizes photos while passing videos unchanged and signs the compressed metadata", () => {
     const src = read("../../../features/feed/uploads.ts");
-    expect(src).toContain("type.kind === \"photo\" ? await prepareUploadPhoto(asset) : null");
+    expect(src).toContain('if (type.kind === "photo") {');
+    expect(src).toContain("prepared = await prepareUploadPhoto(asset)");
+    expect(src).toContain("MOMENTS_CLIENT_JPEG_FAILED");
     expect(src).toContain("declaredMime: item.mime");
     expect(src).toContain("declaredBytes: item.bytes");
     expect(src).toContain("releaseFeedPickedMedia(item)");
@@ -39,7 +41,7 @@ describe("all four mobile photo upload paths share the pre-S3 optimizer", () => 
   it("Questions sends client-rendered WebP to S3 while retaining original URI for preview", () => {
     const src = read("../../../features/questions/ui.tsx");
     expect(src).toContain("classifyQuestionNativePhoto(asset);");
-    expect(src).toContain("prepared = await prepareUploadPhoto(asset);");
+    expect(src).toContain("prepared = await prepareUploadPhoto(asset)");
     expect(src).toContain("uploadClientQuestionsPhoto(prepared,p => setProgress(p))");
     expect(src).toContain("const next=[...photosRef.current,{...uploaded,url:asset.uri}]");
     expect(src).toContain("prepared?.dispose();");

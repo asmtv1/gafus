@@ -7,7 +7,8 @@ import { getPostFocusedComment } from "./postDetailReadApi";
 import { MomentCommentCard, type ReplyTarget } from "./MomentCommentCard";
 import { MomentReplies } from "./MomentReplies";
 import { MomentLocalMediaPreview } from "./MomentLocalMediaPreview";
-import { uploadMomentPhoto, uploadMomentVideo, validateMomentPhoto, validateMomentVideo } from "./feedMediaTransfer";
+import { prepareMomentVideoBeforePublish, prepareMomentPhotoBeforePublish,
+  uploadMomentPhoto, uploadMomentVideo, validateMomentPhoto, validateMomentVideo } from "./feedMediaTransfer";
 import { ApiError } from "../../shared/api/client";
 import { RouteLink } from "../../shared/router/location";
 import {PrimaryButton} from "../../shared/ui";
@@ -175,6 +176,11 @@ function MomentCommentsTarget({ postId, userId, focusedCommentId = null }: Momen
       next.forEach((file, index) => file.type.startsWith("video/")
         ? validateMomentVideo(file, index) : validateMomentPhoto(file, index));
       setFiles(next);
+      for (const file of selected) {
+        if (file.type.startsWith("video/"))
+          void prepareMomentVideoBeforePublish(file).catch(() => undefined);
+        else void prepareMomentPhotoBeforePublish(file).catch(() => undefined);
+      }
       // Appending another photo must not invalidate already-uploaded siblings.
       setFileFailures({});
       setFileError("");

@@ -1,6 +1,6 @@
 import { QUESTION_LIMITS } from "@gafus/types";
 import { ApiError } from "../../shared/api/client";
-import { prepareBrowserPhotoWebp } from "../../shared/media/browserPhotoWebp";
+import { prepareBrowserPhotoWebp, type BrowserWebpVariant } from "../../shared/media/browserPhotoWebp";
 import { uploadBrowserPhotoWebp, type WebpPost } from "../../shared/media/browserPhotoUpload";
 
 const BASE = "/api/v1/questions/photos";
@@ -8,6 +8,7 @@ const VALID_ID = /^[a-zA-Z0-9_-]{1,128}$/;
 const MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export type PendingQuestionPhoto = { id: string; localUrl: string };
+export type PreparedQuestionBrowserPhoto = { small: BrowserWebpVariant; medium: BrowserWebpVariant };
 
 export function validateQuestionFiles(files: File[], alreadyUploaded: number): void {
   if (!files.length || !Number.isInteger(alreadyUploaded) ||
@@ -42,9 +43,10 @@ async function parseResponse<T>(response: Response): Promise<T> {
 
 /** Web always sends ready WebP variants; no server photo processing jobs. */
 export async function uploadQuestionPhoto(file:File,
-  onProgress?:(percent:number)=>void):Promise<string>{
+  onProgress?:(percent:number)=>void,
+  prepared?: PreparedQuestionBrowserPhoto):Promise<string>{
   validateQuestionFiles([file],0);
-  const variants=await prepareBrowserPhotoWebp(file,{small:360,medium:1440});
+  const variants=prepared ?? await prepareBrowserPhotoWebp(file,{small:360,medium:1440});
   const reservation=await fetch(BASE+"/client-reservations",{
     method:"POST",credentials:"include",cache:"no-store",
     headers:{"Content-Type":"application/json",Accept:"application/json"},

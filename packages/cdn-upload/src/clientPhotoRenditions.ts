@@ -8,6 +8,26 @@ import sharp from "sharp";
 const MAX_CLIENT_WEBP_BYTES = 2 * 1024 * 1024;
 export interface VerifiedClientWebp { width: number; height: number; bytes: number; etag: string }
 
+/** The two device encodes can round the short edge independently by one pixel.
+ * Comparing aspect ratios with a fixed decimal epsilon incorrectly rejects
+ * valid narrow/wide images (e.g. 360x125 preview of a 379x131 screenshot).
+ * Scale by the longest edge and allow only pixel-quantisation error, while
+ * still rejecting crops or unrelated images before publishing them.
+ */
+export function clientWebpRenditionsMatchAspect(
+  small: Pick<VerifiedClientWebp, "width" | "height">,
+  medium: Pick<VerifiedClientWebp, "width" | "height">,
+): boolean {
+  const values = [small.width, small.height, medium.width, medium.height];
+  if (!values.every(v => Number.isSafeInteger(v) && v > 0) ||
+      medium.width < small.width || medium.height < small.height) return false;
+  const scale = Math.max(small.width, small.height) / Math.max(medium.width, medium.height);
+  // A pixel in each independently encoded rendition may round in opposite
+  // directions. At thumbnail resolution this creates <= 1px disagreement.
+  return Math.abs(small.width - medium.width * scale) <= 1.000001 &&
+    Math.abs(small.height - medium.height * scale) <= 1.000001;
+}
+
 export async function signClientWebpStaging(client: S3Client, bucket: string, key: string,
   maxBytes = MAX_CLIENT_WEBP_BYTES, expiresSeconds = 600) {
   if (!key || !bucket || maxBytes < 12 || maxBytes > 10 * 1024 * 1024 ||

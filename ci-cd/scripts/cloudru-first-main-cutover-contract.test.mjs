@@ -167,7 +167,7 @@ test('Cloud.ru release is hard-gated to main, exact SHA and deployed API, verifi
  assert(release.includes("['--cutover','--sync'].includes(mode)"));
  assert(release.includes('CLOUDRU_NEW_JOB_NOT_ACTIVATED'));
  assert(release.includes('V2_BACKEND_NOT_ACTIVATED'));
- assert(jobs.includes('docker buildx imagetools inspect'));
+ assert(jobs.includes('verify-cloudru-manifests.sh'));
  for(const mode of ['--cutover','--verify','--preflight']){
   const r=spawnSync(process.execPath,['infra/cloudru/production-job-release.mjs',mode],{
     encoding:'utf8',env:{...process.env,GITHUB_REF:'refs/heads/develop',GITHUB_EVENT_NAME:'push'},timeout:6000});

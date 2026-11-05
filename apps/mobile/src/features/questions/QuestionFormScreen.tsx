@@ -51,6 +51,7 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
   const [confirmed, setConfirmed] = useState(false);
   const mounted = useRef(true);
   const submitting = useRef(false);
+  const photoSubmitRef = useRef<(() => Promise<QuestionPhotoDto[]>) | null>(null);
   const unknownRef = useRef(false);
   const confirmedRef = useRef(false);
   const owner = useAuthStore((s) => (s.isAuthenticated && !s.isLoading ? s.user?.id : null));
@@ -101,9 +102,26 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
     setBusy(true);
     setError("");
     try {
+      // The picker prepared WebP locally. S3 upload starts only after Publish/Save.
+      // Upload failure is retryable; only an ambiguous question write locks re-submission.
+      let readyPhotos = photos;
+      try {
+        if (photoSubmitRef.current) readyPhotos = await photoSubmitRef.current();
+        else if (photos.some(photo => photo.id.startsWith("local-")))
+          throw new Error("Не удалось найти подготовленные фотографии");
+      } catch (reason) {
+        reportClientError(new Error("QUESTION_FORM_PHOTO_SEND_FAILED"), {
+          issueKey: "QuestionForm", keys: { operation: "photo_send" },
+        });
+        if (current(actor)) setError(reason instanceof Error ? reason.message :
+          "Не удалось отправить фото. Проверьте интернет и повторите.");
+        return;
+      }
+      if (!current(actor)) return;
+      const input = { ...checked.input, photoIds: readyPhotos.map(photo => photo.id) };
       const id = initial
-        ? (await questionsApi.edit(initial.id, checked.input), initial.id)
-        : (await questionsApi.create({ ...checked.input, clientRequestId: requestId })).id;
+        ? (await questionsApi.edit(initial.id, input), initial.id)
+        : (await questionsApi.create({ ...input, clientRequestId: requestId })).id;
       if (!current(actor)) return;
       // Successful server ACK is the only positive proof; a cache error must not
       // reclassify that ACK as an unknown write or trigger another POST.
@@ -239,7 +257,8 @@ function Form({ initial }: { initial?: QuestionDetailDto }) {
                 />
               </View>
             )}
-            <QPhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading} compact />
+            <QPhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading}
+              submitUploadsRef={photoSubmitRef} compact />
             {error && (
               <Text accessibilityRole="alert" style={st.error}>
                 {error}

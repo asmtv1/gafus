@@ -444,6 +444,9 @@ jobs:
           CHAT2_SUBSCRIBE_PROXY_ENABLED: 'true'
           CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET: ${{ secrets.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET }}
           CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: ${{ secrets.CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET }}
+          # Chat2 Mobile policy must never be blank after a production deploy.
+          CHAT2_MOBILE_IOS_MIN_VERSION: ${{ vars.CHAT2_MOBILE_IOS_MIN_VERSION || '1.7.3' }}
+          CHAT2_MOBILE_ANDROID_MIN_VERSION: ${{ vars.CHAT2_MOBILE_ANDROID_MIN_VERSION || '1.7.3' }}
         run: node scripts/refactor/check-chat2-prod-boundary.mjs --candidate
 
   # Prepare Docker build context
@@ -587,6 +590,7 @@ jobs:
         run: |
           node ci-cd/scripts/media-pipeline-guard.mjs
           node --test ci-cd/scripts/media-pipeline-guard.test.mjs
+          node --test ci-cd/scripts/verify-cloudru-manifests.test.mjs
           node --test scripts/qa/cloud-photo-jobs-retired.test.mjs
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media

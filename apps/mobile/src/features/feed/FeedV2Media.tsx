@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, Modal, PixelRatio, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { AppState, Modal, PixelRatio, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -7,6 +7,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useAuthStore } from "@/shared/stores";
 import { VideoQualitySettings, type VideoQualityMode } from "@/shared/components/media/VideoQualitySettings";
+import { SocialVideoControls } from "@/shared/components/media/SocialVideoControls";
 import { feedApi } from "@/shared/lib/api/feed";
 import { CdnImage, isSignedCloudruFallback } from "@/shared/components/media/CdnImage";
 import { prefersCloudruMedia } from "@/shared/lib/media/serverHealth";
@@ -66,8 +67,8 @@ function ActiveFeedV2Player({ url, publicMedia, onError, onReady, onStarted, ful
     instance.showNowPlayingNotification = false;
     instance.play();
   });
-  // Inline native controls may auto-hide under the feed card's touch surface.
-  // Keep an explicit, accessible play/pause button above the video on the feed.
+  // Both inline and fullscreen views use one seekable touch layer. Native
+  // playback chrome is disabled to avoid duplicate/hidden controls.
   const [isPlaying, setIsPlaying] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const loadedUrl = useRef(url);
@@ -107,37 +108,33 @@ function ActiveFeedV2Player({ url, publicMedia, onError, onReady, onStarted, ful
     });
     return () => { statusListener.remove(); playingListener.remove(); };
   }, [player, onError, onReady, onStarted]);
+  const togglePlayback = () => {
+    if (isPlaying) player.pause(); else player.play();
+    setIsPlaying(!isPlaying);
+  };
+  const qualityControl = <VideoQualitySettings embedded value={quality}
+    available={variants} onChange={onQualityChange} />;
   return <View style={s.videoFrame}>
-    {!expanded && <VideoView player={player} style={s.videoFrame} contentFit="contain"
-      nativeControls fullscreenOptions={{ enable: false }}
-      allowsPictureInPicture={false} />}
-    {!fullscreen && !expanded && <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={isPlaying ? "Пауза" : "Продолжить видео"}
-      onPress={event => {
-        // The parent feed card opens the post on press: never navigate from a video control.
-        event.stopPropagation();
-        if (isPlaying) player.pause(); else player.play();
-        setIsPlaying(!isPlaying);
-      }}
-      style={s.inlinePlaybackControl}>
-      <MaterialCommunityIcons name={isPlaying ? "pause" : "play"} size={26} color="#fff" />
-    </Pressable>}
-    {!fullscreen && !expanded && <Pressable accessibilityRole="button"
-      accessibilityLabel="Развернуть видео" style={s.inlineExpandControl}
-      onPress={event => { event.stopPropagation(); setExpanded(true); }}>
-      <MaterialCommunityIcons name="fullscreen" size={25} color="#fff" />
-    </Pressable>}
-    {!expanded && <VideoQualitySettings value={quality} available={variants} onChange={onQualityChange} />}
+    {!expanded && <>
+      <VideoView player={player} style={s.videoFrame} contentFit="contain"
+        nativeControls={false} fullscreenOptions={{ enable: false }}
+        allowsPictureInPicture={false}
+        surfaceType={Platform.OS === "android" ? "textureView" : undefined} />
+      <SocialVideoControls player={player} playing={isPlaying} onToggle={togglePlayback}
+        qualityControl={qualityControl}
+        onExpand={fullscreen ? undefined : () => setExpanded(true)} label="Момент" />
+    </>}
     {expanded && <Modal visible animationType="fade" presentationStyle="fullScreen"
       onRequestClose={() => setExpanded(false)}>
       <GestureHandlerRootView style={s.modal}>
         <SwipeDismissMedia onDismiss={() => setExpanded(false)}>
           <View style={s.expandedVideoContainer}>
             <VideoView player={player} style={s.expandedVideo} contentFit="contain"
-              nativeControls fullscreenOptions={{ enable: false }}
-              allowsPictureInPicture={false} />
-            <VideoQualitySettings value={quality} available={variants} onChange={onQualityChange} />
+              nativeControls={false} fullscreenOptions={{ enable: false }}
+              allowsPictureInPicture={false}
+              surfaceType={Platform.OS === "android" ? "textureView" : undefined} />
+            <SocialVideoControls player={player} playing={isPlaying}
+              onToggle={togglePlayback} qualityControl={qualityControl} label="Момент" />
             <Pressable accessibilityRole="button" accessibilityLabel="Закрыть видео"
               onPress={() => setExpanded(false)} style={s.expandedVideoClose}>
               <MaterialCommunityIcons name="close" size={26} color="#fff" />
@@ -321,14 +318,8 @@ export function FeedV2Video({ postId, media, visible, fullscreen = false }: {
 const s = StyleSheet.create({
   video: { width: "100%", overflow: "hidden", backgroundColor: "#151515" },
   videoFrame: { width: "100%", height: "100%", backgroundColor: "#151515" },
-  inlinePlaybackControl: { position: "absolute", top: 10, right: 10, zIndex: 2,
-    width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.65)", borderWidth: 1, borderColor: "rgba(255,255,255,0.4)" },
-  inlineExpandControl: { position: "absolute", top: 10, left: 10, zIndex: 2,
-    width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.65)", borderWidth: 1, borderColor: "rgba(255,255,255,0.4)" },
   expandedVideoContainer: { flex: 1, backgroundColor: "#101010", justifyContent: "center" },
-  expandedVideo: { width: "100%", height: "80%" },
+  expandedVideo: { width: "100%", height: "100%" },
   expandedVideoClose: { position: "absolute", top: 54, right: 16, zIndex: 2,
     width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(0,0,0,0.7)" },

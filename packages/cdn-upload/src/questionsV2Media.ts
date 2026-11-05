@@ -9,7 +9,8 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
-import { signClientWebpStaging, verifyClientWebp, copyVerifiedClientWebp } from "./clientPhotoRenditions.js";
+import { signClientWebpStaging, verifyClientWebp, copyVerifiedClientWebp,
+  clientWebpRenditionsMatchAspect } from "./clientPhotoRenditions.js";
 
 const variantPattern = /^questions\/uploads\/questions\/v2\/[A-Za-z0-9_-]{1,128}\/[a-f0-9-]{36}\/v1\/image\/[sm]\.webp$/i;
 const smallClientPattern = /^questions\/v2\/[A-Za-z0-9_-]{1,128}\/[a-f0-9-]{36}\/incoming\/small\.webp$/i;
@@ -117,8 +118,7 @@ export async function questionsV2FinishClientWebp(sourceKey: string, finalKeys: 
       verifyClientWebp(client, bucket, questionsV2ClientSmallKey(sourceKey), 360, 1_750_000),
       verifyClientWebp(client, bucket, sourceKey, 1440, 1_750_000),
     ]);
-    if (medium.width < small.width || medium.height < small.height ||
-        Math.abs(small.width / small.height - medium.width / medium.height) > 0.012)
+    if (!clientWebpRenditionsMatchAspect(small, medium))
       throw Error("QUESTIONS_V2_CLIENT_DIMENSIONS_INVALID");
     await Promise.all([
       copyVerifiedClientWebp(client, bucket, questionsV2ClientSmallKey(sourceKey), finalKeys.small, small),
@@ -191,9 +191,22 @@ export async function questionsV2Delete(keys:readonly string[]) {
   keys.forEach(key=>validate(key,"any"));
   const {client,bucket}=questionsV2Storage();
   try {
-    const results=await Promise.allSettled(keys.map(key=>
-      client.send(new DeleteObjectCommand({Bucket:bucket,Key:key}),
-        {abortSignal:AbortSignal.timeout(12_000)})));
+    const results=await Promise.allSettled(keys.map(async key=>{
+      // DELETE may succeed even for a missing object. Read back the same exact
+      // key to ensure the final S3 receipt represents physical disappearance.
+      // A 403, transient error or still-visible object must keep the PG outbox.
+      await client.send(new DeleteObjectCommand({Bucket:bucket,Key:key}),
+        {abortSignal:AbortSignal.timeout(12_000)});
+      try {
+        await client.send(new HeadObjectCommand({Bucket:bucket,Key:key}),
+          {abortSignal:AbortSignal.timeout(12_000)});
+      } catch (e) {
+        if ((e as {$metadata?:{httpStatusCode?:number}})?.$metadata?.httpStatusCode===404)
+          return;
+        throw e;
+      }
+      throw Error("QUESTIONS_V2_DELETE_NOT_CONFIRMED");
+    }));
     for (const result of results)
       if (result.status==="rejected") throw Error("QUESTIONS_V2_DELETE_RETRY");
   }finally{client.destroy();}

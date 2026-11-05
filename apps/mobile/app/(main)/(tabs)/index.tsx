@@ -4,6 +4,7 @@ import {
   StyleSheet,
   RefreshControl,
   Pressable,
+  ActivityIndicator,
   InteractionManager,
   Platform,
 } from "react-native";
@@ -17,7 +18,6 @@ import { useShallow } from "zustand/react/shallow";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 
-import { StartupLoader } from "@/shared/components/StartupLoader";
 import { TexturedSafeAreaView } from "@/shared/components";
 import { useAuthStore, useCourseStore } from "@/shared/stores";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
@@ -527,7 +527,17 @@ export function CoursesScreenContent({ showFavoritesUI = false }:
   }
 
   if (isLoading) {
-    return <StartupLoader />;
+    // This is a tab *content* loader, not a second full-screen startup poster.
+    // The old absolute-fill poster scaled incorrectly under Android's tab bar.
+    return (
+      <TexturedSafeAreaView style={styles.container} edges={[]}>
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
+        <View style={styles.catalogLoading}>
+          <ActivityIndicator color={COLORS.primary} size="large" />
+          <Text style={styles.catalogLoadingText}>Загружаем курсы…</Text>
+        </View>
+      </TexturedSafeAreaView>
+    );
   }
 
   return (
@@ -581,6 +591,17 @@ export function CoursesScreenContent({ showFavoritesUI = false }:
 }
 
 const styles = StyleSheet.create({
+  catalogLoading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+  },
+  catalogLoadingText: {
+    fontFamily: FONTS.montserratMedium,
+    fontSize: 14,
+    color: COLORS.primary,
+  },
   favoriteAction: { paddingVertical: 12, paddingHorizontal: SPACING.md, alignSelf: "flex-start" },
   favoriteActionText: { color: COLORS.primary, fontSize: 14, fontWeight: "600" },
   container: {

@@ -1,12 +1,6 @@
-/** Temporary rollout: two named accounts only, not every user with ADMIN role. */
+/** The walk journal is available to every signed-in account. */
 export function canUseDogWalkHistory(
-  user:
-    | {
-        username?: string | null;
-        role?: string | null;
-      }
-    | null
-    | undefined,
+  user: { id?: string | null } | null | undefined,
 ): boolean {
-  return Boolean(user && ["asmtv1", "admin"].includes(user.username?.trim().toLowerCase() ?? ""));
+  return Boolean(user?.id);
 }

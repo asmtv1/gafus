@@ -32,6 +32,7 @@ jobs:
         run: |
           node ci-cd/scripts/media-pipeline-guard.mjs
           node --test ci-cd/scripts/media-pipeline-guard.test.mjs
+          node --test ci-cd/scripts/verify-cloudru-manifests.test.mjs
           node --test scripts/qa/cloud-photo-jobs-retired.test.mjs
       - name: Cloud.ru registry publication retry acceptance tests
         run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs

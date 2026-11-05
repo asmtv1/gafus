@@ -33,7 +33,12 @@ const dto = (status: GalleryUploadDto["status"], uploadId = "parent"): GalleryUp
   postFields: { "Content-Type": "image/jpeg" },
   expiresAt: "2030-10-08T12:00:00Z",
   reservationExpiresAt: "2030-10-08T12:00:00Z",
-  photo: null,
+  photo: status === "ready" ? {
+    id: "photo-1", albumId: "album", caption: null, status: "ready",
+    thumbUrl: null, fullUrl: null, width: 480, height: 480,
+    urlsExpireAt: null, expiresAt: null, createdAt: "2026-11-05T00:00:00Z",
+    canEdit: true,
+  } : null,
 });
 const api = () => ({
   getUpload: vi.fn().mockResolvedValue(dto("failed")),
@@ -98,6 +103,31 @@ describe("native upload queue races", () => {
     expect(task().status).toBe("ready");
     expect(config.transfer).toHaveBeenCalledTimes(1);
   });
+  it("recovers a lost confirm response using GET, without a second POST", async () => {
+    const transport = api();
+    updateTask("task", { upload: dto("reserved"), status: "queued" }, fence);
+    transport.getUpload.mockResolvedValueOnce(dto("reserved"))
+      .mockResolvedValueOnce(dto("processing"));
+    transport.confirmUpload.mockRejectedValueOnce(new Error("network lost after commit"));
+    const config = options();
+    await runUpload("task", fence, transport, config);
+    expect(task().status).toBe("processing");
+    expect(transport.getUpload).toHaveBeenCalledTimes(2);
+    expect(transport.confirmUpload).toHaveBeenCalledTimes(1);
+    expect(config.transfer).toHaveBeenCalledTimes(1);
+  });
+  it("keeps an unacknowledged confirm UNKNOWN if safe readback is still reserved", async () => {
+    const transport = api();
+    updateTask("task", { upload: dto("reserved"), status: "queued" }, fence);
+    transport.getUpload.mockResolvedValue(dto("reserved"));
+    transport.confirmUpload.mockRejectedValueOnce(new Error("response timed out"));
+    const config = options();
+    await runUpload("task", fence, transport, config);
+    expect(task().status).toBe("unknown");
+    expect(task().error).toContain("автоматически");
+    expect(transport.confirmUpload).toHaveBeenCalledTimes(1);
+    expect(config.transfer).toHaveBeenCalledTimes(1);
+  });
   it("marks native S3 abort UNKNOWN after a transfer began, instead of hanging in sending", async () => {
     const transport = api();
     transport.getUpload.mockResolvedValue(dto("reserved"));
@@ -141,8 +171,8 @@ describe("native upload queue races", () => {
     const secondOptions = options();
     secondOptions.requestId.mockReturnValue("must-not-use");
     await runUpload("task", { epoch: 0, generation: 1 }, transport, secondOptions);
-    // One parent resolution plus one authoritative post-commit readback.
-    expect(transport.getUpload).toHaveBeenCalledTimes(2);
+    // One parent resolution plus confirm readback + one safe reconciliation GET.
+    expect(transport.getUpload).toHaveBeenCalledTimes(3);
     expect(transport.retryUpload.mock.calls).toEqual([
       ["parent", { clientRequestId: "logical-retry" }],
       ["parent", { clientRequestId: "logical-retry" }],

@@ -60,6 +60,29 @@ describe("Chat2 private attachment upload response contract", () => {
       .toBe(false);
   });
 
+  it("consumes pre-encoded draft WebPs only on explicit upload without re-encoding", async () => {
+    const prepped = {
+      small: {file: new File([new Uint8Array(120)], "small.webp", {type:"image/webp"}), width:360, height:270},
+      medium: {file: new File([new Uint8Array(240)], "medium.webp", {type:"image/webp"}), width:1440, height:1080},
+    };
+    const attached = {id:"attached-prepared",name:"puppy.png",kind:"image",mime:"image/webp",bytes:240};
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (uri: string) => {
+      requests.push(uri);
+      const payload = uri.endsWith("/client-reserve")
+        ? {mediaId,upload:signed,smallUpload:signed}
+        : uri.endsWith("/client-confirm") ? {mediaId,status:"READY"} : attached;
+      return new Response(JSON.stringify({success:true,data:payload}), {status:201});
+    }));
+    expect(requests).toHaveLength(0);
+    expect(uploadBrowserPhotoWebp).not.toHaveBeenCalled();
+    await expect(chat2Api.upload("room_01", file(), prepped)).resolves.toEqual(attached);
+    expect(prepareBrowserPhotoWebp).not.toHaveBeenCalled();
+    expect(vi.mocked(uploadBrowserPhotoWebp).mock.calls.map(([, stored]) => stored))
+      .toEqual([prepped.small.file, prepped.medium.file]);
+    expect(requests).toHaveLength(3);
+  });
+
   it("never falls back to legacy photo upload if browser API returns 503",async()=>{
     const mock=vi.fn().mockResolvedValue(new Response(JSON.stringify({
       success:false,error:"S3 временно недоступен",

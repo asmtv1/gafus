@@ -1,7 +1,7 @@
 import { ChatPushNavigation } from "@/shared/components/ChatPushNavigation";
 import { initAnalyticsMobile } from "@gafus/analytics/mobile";
 import Constants from "expo-constants";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Linking from "expo-linking";
@@ -113,18 +113,45 @@ export default function RootLayout() {
   const authLoading = useAuthStore((s) => s.isLoading);
   const [startupVisible, setStartupVisible] = useState(true);
   const [startupImageReady, setStartupImageReady] = useState(false);
+  const [nativeSplashHidden, setNativeSplashHidden] = useState(false);
+  const [appContentLaidOut, setAppContentLaidOut] = useState(false);
+  const onStartupReady = useCallback(() => setStartupImageReady(true), []);
+  const onContentLayout = useCallback(() => setAppContentLaidOut(true), []);
 
   useEffect(() => {
-    if (startupImageReady) {
-      void SplashScreen.hideAsync();
-    }
+    if (!startupImageReady) return;
+    let cancelled = false;
+    let secondFrame = 0;
+    // Android's launch screen must not be hidden before the poster has
+    // actually been composed. One onLoad callback alone is too early.
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        void SplashScreen.hideAsync()
+          .then(() => { if (!cancelled) setNativeSplashHidden(true); })
+          .catch(error => {
+            if (!cancelled) {
+              reportClientError(error, { issueKey: "SplashScreen",
+                keys: { operation: "hide_after_poster_paint" } });
+              // An interrupted native splash must not permanently block UI.
+              setNativeSplashHidden(true);
+            }
+          });
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
   }, [startupImageReady]);
 
   useEffect(() => {
-    if ((fontsReady || fontError) && !authLoading && startupImageReady) {
-      setStartupVisible(false);
-    }
-  }, [fontsReady, fontError, authLoading, startupImageReady]);
+    if (!nativeSplashHidden || !appContentLaidOut || authLoading ||
+        (!fontsReady && !fontError)) return;
+    // Allow the initial route to paint behind the poster before removing it.
+    const frame = requestAnimationFrame(() => setStartupVisible(false));
+    return () => cancelAnimationFrame(frame);
+  }, [nativeSplashHidden, appContentLaidOut, authLoading, fontsReady, fontError]);
 
   useEffect(() => {
     void checkAuth();
@@ -155,43 +182,45 @@ export default function RootLayout() {
     return () => sub.remove();
   }, []);
 
-  // Native fonts are embedded at build time; this gate only matters on web.
-  if (!fontsReady && !fontError) {
-    return <StartupLoader onReady={() => setStartupImageReady(true)} />;
-  }
-
+  // Keep exactly ONE poster mounted across font/auth initialization and the
+  // first route paint. Swapping the whole root from a standalone splash view
+  // into the navigator caused a blank/black frame on Android.
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
-        <ErrorBoundary>
-          <QueryProvider>
-            <ThemeProvider>
-              <RequiredAppUpdateGate>
-                <RequiredOtaUpdateGate>
-                  <AuthProvider>
-                    <View style={styles.container}>
-                      <WalkWidgetSessionSync />
-                      <AnalyticsNavigationListener />
-                      <ChatPushNavigation />
-                      <AnalyticsBootstrap />
-                      <TracerRuntimeContext />
-                      <OfflineIndicator />
-                      <SyncProgressOnReconnect />
-                      <SyncPreventionOnReconnect />
-                      <Stack screenOptions={{ headerShown: false }}>
-                        <Stack.Screen name="(auth)" />
-                        <Stack.Screen name="(main)" />
-                      </Stack>
-                    </View>
-                    <StatusBar style="auto" />
-                  </AuthProvider>
-                </RequiredOtaUpdateGate>
-              </RequiredAppUpdateGate>
-            </ThemeProvider>
-          </QueryProvider>
-        </ErrorBoundary>
+        {(fontsReady || fontError) && (
+          <View style={styles.container} onLayout={onContentLayout}>
+          <ErrorBoundary>
+            <QueryProvider>
+              <ThemeProvider>
+                <RequiredAppUpdateGate>
+                  <RequiredOtaUpdateGate>
+                    <AuthProvider>
+                      <View style={styles.container}>
+                        <WalkWidgetSessionSync />
+                        <AnalyticsNavigationListener />
+                        <ChatPushNavigation />
+                        <AnalyticsBootstrap />
+                        <TracerRuntimeContext />
+                        <OfflineIndicator />
+                        <SyncProgressOnReconnect />
+                        <SyncPreventionOnReconnect />
+                        <Stack screenOptions={{ headerShown: false }}>
+                          <Stack.Screen name="(auth)" />
+                          <Stack.Screen name="(main)" />
+                        </Stack>
+                      </View>
+                      <StatusBar style="auto" />
+                    </AuthProvider>
+                  </RequiredOtaUpdateGate>
+                </RequiredAppUpdateGate>
+              </ThemeProvider>
+            </QueryProvider>
+          </ErrorBoundary>
+          </View>
+        )}
+        {startupVisible && <StartupLoader overlay onReady={onStartupReady} />}
       </SafeAreaProvider>
-      {startupVisible && <StartupLoader onReady={() => setStartupImageReady(true)} />}
     </GestureHandlerRootView>
   );
 }

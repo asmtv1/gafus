@@ -45,6 +45,7 @@ vi.mock("react-native", async () => {
   return {
     AppState: { addEventListener: () => ({ remove() {} }) },
     PixelRatio: { get: () => 2 },
+    Platform: { OS: "ios" },
     Modal: ({ children }: { children: React.ReactNode }) => R.createElement("div", null, children),
     useWindowDimensions: () => ({ width: 390 }),
     StyleSheet: { create: (value: object) => value },
@@ -52,7 +53,8 @@ vi.mock("react-native", async () => {
       onPress: (event: { stopPropagation: () => void }) => void; children: React.ReactNode;
       disabled?: boolean; accessibilityLabel?: string;
     }) => R.createElement("button", { onClick: onPress, disabled, "aria-label": accessibilityLabel }, children),
-    View: ({ children }: { children: React.ReactNode }) => R.createElement("div", null, children),
+    View: ({ children, accessibilityLabel }: { children: React.ReactNode; accessibilityLabel?: string }) =>
+      R.createElement("div", { "aria-label": accessibilityLabel }, children),
     Text: ({ children, accessibilityRole }: { children: React.ReactNode; accessibilityRole?: string }) =>
       R.createElement("span", accessibilityRole ? { role: accessibilityRole } : null, children),
   };
@@ -153,7 +155,7 @@ describe("Mobile Moments native progressive MP4 cutover", () => {
     expect(host.querySelector("button")).toBeNull();
     expect(sources).toHaveLength(0);
   });
-  it("keeps an inline pause/resume control visible and never opens the parent feed card", async () => {
+  it("toggles play/pause by tapping the video without opening the parent feed card", async () => {
     const navigate = vi.fn();
     await act(async () => root.render(
       <div onClick={navigate}>
@@ -163,7 +165,8 @@ describe("Mobile Moments native progressive MP4 cutover", () => {
     await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Воспроизвести видео"]')?.click());
     expect(navigate).not.toHaveBeenCalled();
     expect(host.querySelector('[aria-label="Пауза"]')).not.toBeNull();
-    expect(host.querySelector('[data-icon="pause"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Перемотка видео"]')).not.toBeNull();
+    expect(host.querySelector('[data-icon="pause"]')).toBeNull(); // no floating pause button
     await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Пауза"]')?.click());
     expect(players[0]?.pause).toHaveBeenCalledOnce();
     expect(host.querySelector('[aria-label="Продолжить видео"]')).not.toBeNull();
@@ -218,7 +221,7 @@ describe("Mobile Moments native progressive MP4 cutover", () => {
     expect(host.querySelector('[aria-label="Развернуть видео"]')).not.toBeNull();
     expect(players).toHaveLength(1);
   });
-  it("keeps fullscreen video's native controls without duplicating an inline overlay", async () => {
+  it("keeps the same tap and timeline controls on fullscreen Moments", async () => {
     const { FeedV2Video } = await import("./FeedV2Media");
     await act(async () => root.render(<FeedV2Video postId="p" media={{
       id: "m", kind: "video", status: "ready", width: 720, height: 1280,
@@ -227,7 +230,8 @@ describe("Mobile Moments native progressive MP4 cutover", () => {
     }} visible fullscreen />));
     await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Воспроизвести видео"]')?.click());
     expect(host.querySelector('[data-testid="native-video"]')).not.toBeNull();
-    expect(host.querySelector('[aria-label="Пауза"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Пауза"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Перемотка видео"]')).not.toBeNull();
   });
   it("releases native player when its post leaves the visible area", async () => {
     await act(async () => root.render(<FeedVideo postId="p" mediaId="m" poster={null}

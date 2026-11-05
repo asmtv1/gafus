@@ -423,7 +423,10 @@
           ]
         }
       ],
-      "./plugins/withDogWalkChronometer"
+      "./plugins/withDogWalkChronometer",
+      "./plugins/withDogWalkBackgroundSteps",
+      "./plugins/withHermesCompiler",
+      "./plugins/withStartupWindowBackground"
     ],
     "experiments": {
       "typedRoutes": true

@@ -31,6 +31,7 @@ function QuestionOwnerTarget({
   onFinished, onCancel, showDelete = true,
 }: QuestionOwnerProps) {
   const flight = useRef(false);
+  const photoSubmitRef = useRef<(() => Promise<PendingQuestionPhoto[]>) | null>(null);
   const active = useRef(true);
   useEffect(() => {
     active.current = true;
@@ -133,11 +134,20 @@ function QuestionOwnerTarget({
     // Capture exactly the submitted fields; photo binding remains unchanged.
     // Core PATCH atomically rebinds exactly the retained and own new IDs;
     // detachment of old photos is never executed before PATCH acknowledgement.
-    const photoIds = [...retainedPhotoIds, ...pendingPhotos.map(photo => photo.id)];
-    void edit.mutateAsync({ title, body, category, tags, photoIds })
-      .catch(() => undefined).finally(() => {
-      flight.current = false;
-    });
+    void (async () => {
+      let readyPhotos: PendingQuestionPhoto[];
+      try {
+        readyPhotos = photoSubmitRef.current ? await photoSubmitRef.current() : pendingPhotos;
+        if (readyPhotos.some(photo => photo.id.startsWith("local-")))
+          throw Error("Подготовленные фотографии недоступны.");
+      } catch (reason) {
+        setFormError(reason instanceof Error ? reason.message : "Не удалось загрузить фото");
+        return;
+      }
+      const photoIds = [...retainedPhotoIds, ...readyPhotos.map(photo => photo.id)];
+      await edit.mutateAsync({ title, body, category, tags, photoIds })
+        .catch(() => undefined);
+    })().finally(() => { flight.current = false; });
   };
   const confirmDelete = () => {
     if (!deleteRequested || !showDelete || !question.canManage || busy ||
@@ -206,7 +216,8 @@ function QuestionOwnerTarget({
           {retainedPhotoIds.length > 0 &&
             <QuestionPhotoGallery manual location={{ questionId, photoIds: retainedPhotoIds }} />}
           <QuestionPhotoPicker photos={pendingPhotos} onChange={setPendingPhotos}
-            onBusy={onPhotoBusy} existingCount={retainedPhotoIds.length} />
+            onBusy={onPhotoBusy} existingCount={retainedPhotoIds.length}
+            submitUploadsRef={photoSubmitRef} />
         </fieldset>
         {formError && <p role="alert">{formError}</p>}
         <div className="web4-question-edit-actions">

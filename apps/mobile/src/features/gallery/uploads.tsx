@@ -31,6 +31,7 @@ import { prepareUploadWebpVariants } from "@/shared/lib/media/prepareUploadWebp"
 import { photoRetryMessage } from "@/shared/lib/media/photoRetryMessage";
 import { postClientWebp, type SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
 import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
+import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
 
 function detectedMime(file: File): "image/jpeg" | "image/png" | "image/webp" | null {
   const handle = file.open();
@@ -267,7 +268,7 @@ function UploadRow({ task, retry }: { task: UploadTask;
         galleryUploadForActor(actor, current),
       );
     },
-    enabled: !!viewer && current() && !!task.upload && task.status === "processing" && foreground,
+    enabled: !!viewer && current() && !!task.upload && (task.status === "processing" || task.status === "unknown") && foreground,
     refetchInterval: (query) =>
       foreground && !query.state.error &&
       (!query.state.data ||
@@ -579,6 +580,7 @@ export function UploadControls({
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ["images"], allowsMultipleSelection: !retryId,
           selectionLimit: retryId ? 1 : Math.max(1, 200 - usedSlots),quality: 1,
+          ...iosCompatiblePhotoPicker(),
         });
         if (result.canceled || !result.assets.length || !sdkValid()) return;
         assets=result.assets;

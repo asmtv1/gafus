@@ -9,11 +9,13 @@ import {
   View,
 } from "react-native";
 import { Pedometer } from "expo-sensors";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Crypto from "expo-crypto";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Text } from "react-native-paper";
 import { TexturedSafeAreaView } from "@/shared/components";
-import { COLORS, SPACING } from "@/shared/config";
+import { COLORS, FONTS } from "@/shared/config";
 import { reportClientError } from "@/shared/lib/tracer";
 import { useAuthStore } from "@/shared/stores/authStore";
 import {
@@ -38,6 +40,13 @@ import {
   type WalkJournal,
 } from "@/features/walk/walkStorage";
 import { publishWalkWidgetSnapshot } from "@/features/walk/walkWidgetSnapshot";
+import {
+  getAndroidWalkStepSnapshot,
+  getAndroidWalkStepAvailability,
+  reconcileAndroidWalkSteps,
+  startAndroidWalkSteps,
+  pauseAndroidWalkSteps,
+} from "@/features/walk/androidBackgroundSteps";
 import { canUseDogWalkHistory } from "@/features/walk/walkAccess";
 import { syncDogWalkHistory, reportWalkSyncIssue } from "@/features/walk/walkSync";
 import {
@@ -66,20 +75,56 @@ export default function DogWalkScreen() {
   const [minutesDraft, setMinutesDraft] = useState("30");
   const [notice, setNotice] = useState<string | null>(null);
   const saves = useRef<Promise<void>>(Promise.resolve());
+  const saveFailure = useRef<unknown>(null);
 
   useEffect(() => {
     ownerRef.current = owner;
+    saveFailure.current = null;
     journalRef.current = emptyWalkJournal();
     setJournal(journalRef.current);
     setReady(false);
     if (!owner) return;
     let cancelled = false;
     void loadWalkJournal(owner)
-      .then((loaded) => {
+      .then(async (loaded) => {
         if (cancelled || ownerRef.current !== owner) return;
         if (Platform.OS === "android" && loaded.active) {
-          loaded.active = { ...loaded.active, incompleteSteps: true };
+          try {
+            const snap = await getAndroidWalkStepSnapshot();
+            if (cancelled || ownerRef.current !== owner) return;
+            const updated = reconcileAndroidWalkSteps(loaded.active, owner, snap);
+            if (updated !== loaded.active) {
+              loaded.active = updated;
+              await saveWalkJournal(owner, loaded);
+            }
+            // A real foreground launch can recover counting after an ordinary
+            // OS process eviction, but a force-stop may leave an unknown gap.
+            if (isWalkRunning(loaded.active) && AppState.currentState === "active") {
+              const matches = snap?.ownerId === owner && snap.walkId === loaded.active.clientId;
+              if (!matches || !snap?.running) {
+                // The service was absent or explicitly stopped while the
+                // phone journal still showed a running walk: some steps may
+                // have been missed, regardless of the type of step sensor.
+                loaded.active = { ...loaded.active, incompleteSteps: true };
+                await saveWalkJournal(owner, loaded);
+              }
+              try {
+                await startAndroidWalkSteps(owner, loaded.active);
+              } catch (error) {
+                loaded.active = { ...loaded.active, incompleteSteps: true };
+                await saveWalkJournal(owner, loaded);
+                setNotice(
+                  "Фоновый шагомер не запустился. Проверьте разрешение на физическую активность.",
+                );
+                reportClientError(error, { issueKey: "DogWalkNativeRestore" });
+              }
+            }
+          } catch (error) {
+            loaded.active = { ...loaded.active, incompleteSteps: true };
+            reportClientError(error, { issueKey: "DogWalkNativeInitialSnapshot" });
+          }
         }
+        if (cancelled || ownerRef.current !== owner) return;
         journalRef.current = loaded;
         setJournal(loaded);
         setMinutesDraft(String(loaded.preference.countdownMinutes));
@@ -100,27 +145,81 @@ export default function DogWalkScreen() {
     };
   }, [owner]);
 
+  // Widget actions can modify the same phone journal while the app is on the
+  // launcher. Rehydrate on foreground before rendering stale running state.
+  useEffect(() => {
+    if (!owner || !ready) return;
+    let disposed = false;
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active" || busyRef.current) return;
+      void (async () => {
+        await saves.current.catch(() => undefined);
+        const latest = await loadWalkJournal(owner);
+        if (disposed || ownerRef.current !== owner || busyRef.current) return;
+        const previous = journalRef.current;
+        if (
+          previous.active?.clientId === latest.active?.clientId &&
+          previous.active?.runningSinceMs === latest.active?.runningSinceMs &&
+          previous.active?.steps === latest.active?.steps &&
+          previous.completed[0]?.finishedAtMs === latest.completed[0]?.finishedAtMs
+        ) return;
+        journalRef.current = latest;
+        setJournal(latest);
+      })().catch((error: unknown) =>
+        reportClientError(error, { issueKey: "DogWalkWidgetForegroundRefresh" }),
+      );
+    });
+    return () => { disposed = true; sub.remove(); };
+  }, [owner, ready]);
+
   const updateJournal = useCallback(
     (transform: (current: WalkJournal) => WalkJournal) => {
       if (!ownerRef.current || !ready) return;
       const actor = ownerRef.current;
-      const next = transform(journalRef.current);
-      if (next === journalRef.current) return;
+      const previous = journalRef.current;
+      const next = transform(previous);
+      if (next === previous) return;
+      // The Android OS updates native widget metrics directly.
+      // Avoid re-rendering the whole card after each pedometer poll.
+      const stepsOnly =
+        Platform.OS === "android" &&
+        previous.active !== null &&
+        next.active !== null &&
+        previous.active.clientId === next.active.clientId &&
+        previous.active.startedAtMs === next.active.startedAtMs &&
+        previous.active.runningSinceMs === next.active.runningSinceMs &&
+        previous.active.elapsedBeforePauseMs === next.active.elapsedBeforePauseMs &&
+        previous.active.incompleteSteps === next.active.incompleteSteps &&
+        previous.active.mode === next.active.mode &&
+        previous.active.steps !== next.active.steps &&
+        previous.completed === next.completed &&
+        previous.preference === next.preference;
       journalRef.current = next;
       setJournal(next);
       saves.current = saves.current
         .catch(() => undefined)
         .then(async () => {
-          await saveWalkJournal(actor, next);
-          if (ownerRef.current === actor) {
-            await publishWalkWidgetSnapshot(
-              next.active ?? next.completed[0] ?? null,
-              Date.now(),
-              next.preference.mode,
-            );
+          try {
+            await saveWalkJournal(actor, next);
+            if (ownerRef.current === actor) saveFailure.current = null;
+          } catch (error) {
+            if (ownerRef.current === actor) saveFailure.current = error;
+            reportClientError(error, { issueKey: "DogWalkSave" });
+            return;
           }
-        })
-        .catch((error: unknown) => reportClientError(error, { issueKey: "DogWalkSave" }));
+          if (ownerRef.current === actor && !stepsOnly) {
+            try {
+              await publishWalkWidgetSnapshot(
+                next.active ?? next.completed[0] ?? null,
+                Date.now(),
+                next.preference.mode,
+              );
+            } catch (error) {
+              // A widget redraw error must not invalidate safely stored walks.
+              reportClientError(error, { issueKey: "DogWalkWidgetPublish" });
+            }
+          }
+        });
     },
     [ready],
   );
@@ -146,9 +245,7 @@ export default function DogWalkScreen() {
   useEffect(() => {
     if (!ready || !owner || !active || !running) return;
     let cancelled = false;
-    let removeSteps: (() => void) | null = null;
     let polling: ReturnType<typeof setInterval> | null = null;
-    let lastCumulative: number | null = null;
     const segmentStart = active.runningSinceMs ?? active.startedAtMs;
     const baseline = active.stepBaselineAtResume ?? active.steps;
     const readIosSteps = async () => {
@@ -169,7 +266,40 @@ export default function DogWalkScreen() {
         }
       }
     };
+    const readAndroidSteps = async () => {
+      // Widget controls are authoritative while the app is on the launcher.
+      // Polling in background could overwrite a just-paused/finished walk.
+      if (AppState.currentState !== "active") return;
+      try {
+        const snapshot = await getAndroidWalkStepSnapshot();
+        if (cancelled || ownerRef.current !== owner || AppState.currentState !== "active") return;
+        updateActive((walk) => {
+          if (!isWalkRunning(walk) || walk.runningSinceMs !== segmentStart) return walk;
+          const merged = reconcileAndroidWalkSteps(walk, owner, snapshot);
+          if (
+            snapshot?.ownerId === owner &&
+            snapshot.walkId === walk.clientId &&
+            !snapshot.running
+          ) {
+            // A launcher pause/finish may be committed concurrently. Do not
+            // overwrite it from a stale screen poll.
+            return walk;
+          }
+          return merged;
+        });
+      } catch (error) {
+        if (!cancelled) reportClientError(error, { issueKey: "DogWalkNativePoll" });
+      }
+    };
     const startSensor = async () => {
+      if (Platform.OS === "android") {
+        await readAndroidSteps();
+        if (!cancelled)
+          polling = setInterval(() => {
+            void readAndroidSteps();
+          }, 3_000);
+        return;
+      }
       try {
         const available = await Pedometer.isAvailableAsync();
         const permissions = available ? await Pedometer.getPermissionsAsync() : null;
@@ -181,28 +311,10 @@ export default function DogWalkScreen() {
           );
           return;
         }
-        if (Platform.OS === "ios") {
-          await readIosSteps();
-          polling = setInterval(() => {
-            void readIosSteps();
-          }, 15_000);
-        } else if (Platform.OS === "android") {
-          const sub = Pedometer.watchStepCount(({ steps }) => {
-            if (cancelled || !Number.isFinite(steps)) return;
-            const value = Math.max(0, Math.floor(steps));
-            if (lastCumulative === null) {
-              lastCumulative = value;
-              return;
-            }
-            const delta = Math.max(0, value - lastCumulative);
-            lastCumulative = value;
-            if (delta > 0)
-              updateActive((walk) =>
-                isWalkRunning(walk) ? { ...walk, steps: walk.steps + delta } : walk,
-              );
-          });
-          removeSteps = () => sub.remove();
-        }
+        await readIosSteps();
+        polling = setInterval(() => {
+          void readIosSteps();
+        }, 15_000);
       } catch (error) {
         if (!cancelled) {
           setNotice("Не удалось запустить шагомер. Проверьте разрешения телефона.");
@@ -215,14 +327,14 @@ export default function DogWalkScreen() {
     };
     void startSensor();
     const appSub = AppState.addEventListener("change", (state) => {
-      if (state !== "active" && Platform.OS === "android") {
-        updateActive((walk) => (walk.incompleteSteps ? walk : { ...walk, incompleteSteps: true }));
+      if (state === "active" && Platform.OS !== "android") {
+        void readIosSteps();
       }
-      if (state === "active" && Platform.OS === "ios") void readIosSteps();
+      // Android foreground hydration lives in the separate journal effect;
+      // the normal 3s poll resumes only after that reconciliation.
     });
     return () => {
       cancelled = true;
-      removeSteps?.();
       if (polling) clearInterval(polling);
       appSub.remove();
     };
@@ -230,20 +342,35 @@ export default function DogWalkScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, owner, active?.startedAtMs, active?.runningSinceMs, running, updateActive]);
 
-  const captureSegmentSteps = useCallback(async (walk: DogWalk, now: number): Promise<DogWalk> => {
-    if (Platform.OS !== "ios" || !isWalkRunning(walk)) return walk;
-    try {
-      const result = await Pedometer.getStepCountAsync(
-        new Date(walk.runningSinceMs ?? walk.startedAtMs),
-        new Date(now),
-      );
-      const steps = Math.max(walk.steps, (walk.stepBaselineAtResume ?? 0) + result.steps);
-      return { ...walk, steps };
-    } catch (error) {
-      reportClientError(error, { issueKey: "DogWalkFinalSegmentSteps" });
-      return { ...walk, incompleteSteps: true };
-    }
-  }, []);
+  const captureSegmentSteps = useCallback(
+    async (walk: DogWalk, now: number, finish = false): Promise<DogWalk> => {
+      if (Platform.OS === "android") {
+        const actor = ownerRef.current;
+        if (!actor) return { ...walk, incompleteSteps: true };
+        try {
+          const snapshot = await pauseAndroidWalkSteps(actor, walk, finish);
+          return reconcileAndroidWalkSteps(walk, actor, snapshot);
+        } catch (error) {
+          reportClientError(error, { issueKey: "DogWalkNativePauseOrFinish" });
+          setNotice("Не удалось получить итоговые шаги с Android. Проверьте разрешения телефона.");
+          return { ...walk, incompleteSteps: true };
+        }
+      }
+      if (!isWalkRunning(walk)) return walk;
+      try {
+        const result = await Pedometer.getStepCountAsync(
+          new Date(walk.runningSinceMs ?? walk.startedAtMs),
+          new Date(now),
+        );
+        const steps = Math.max(walk.steps, (walk.stepBaselineAtResume ?? 0) + result.steps);
+        return { ...walk, steps };
+      } catch (error) {
+        reportClientError(error, { issueKey: "DogWalkFinalSegmentSteps" });
+        return { ...walk, incompleteSteps: true };
+      }
+    },
+    [],
+  );
 
   const notify = useCallback(async (actor: string, walk: DogWalk | null, granted: boolean) => {
     try {
@@ -253,6 +380,37 @@ export default function DogWalkScreen() {
       setNotice("Не удалось настроить напоминания. Прогулку можно продолжать без уведомлений.");
     }
   }, []);
+
+  const ensureAndroidTracking = useCallback(
+    async (actor: string, walk: DogWalk) => {
+      if (Platform.OS !== "android") return;
+      // The phone journal is durable before starting an OS service that may outlive React.
+      await saves.current;
+      if (ownerRef.current !== actor) return;
+      if (saveFailure.current) {
+        setNotice(
+          "Не удалось сохранить прогулку на телефоне. Фоновый шагомер не включён, чтобы не потерять данные.",
+        );
+        return;
+      }
+      try {
+        const native = await startAndroidWalkSteps(actor, walk);
+        if (ownerRef.current === actor) {
+          updateActive((current) => reconcileAndroidWalkSteps(current, actor, native));
+        }
+      } catch (error) {
+        if (ownerRef.current !== actor) return;
+        updateActive((current) =>
+          current.incompleteSteps ? current : { ...current, incompleteSteps: true },
+        );
+        setNotice(
+          "Не удалось включить фоновый подсчёт шагов. Проверьте разрешение на физическую активность и перезапустите прогулку.",
+        );
+        reportClientError(error, { issueKey: "DogWalkNativeStart" });
+      }
+    },
+    [updateActive],
+  );
 
   const performAction = useCallback(
     async (request: WalkAction) => {
@@ -283,19 +441,41 @@ export default function DogWalkScreen() {
                 ? { ...state, active: resumed }
                 : state,
             );
+            await ensureAndroidTracking(owner, resumed);
             await notify(owner, resumed, notificationsGranted);
             return;
           }
           let incompleteSteps = false;
           try {
-            const available = await Pedometer.isAvailableAsync();
-            const permission = available ? await Pedometer.requestPermissionsAsync() : null;
-            incompleteSteps = !available || !permission?.granted;
+            // Request Android motion permission even when Expo's own watcher is
+            // unavailable: our native Step Detector can still be present.
+            const permission =
+              Platform.OS === "android"
+                ? await Pedometer.requestPermissionsAsync()
+                : await (async () => {
+                    const available = await Pedometer.isAvailableAsync();
+                    return available ? Pedometer.requestPermissionsAsync() : null;
+                  })();
+            incompleteSteps = !permission?.granted;
           } catch (error) {
             incompleteSteps = true;
             reportClientError(error, { issueKey: "DogWalkStepPermissions" });
           }
           if (ownerRef.current !== owner) return;
+          if (Platform.OS === "android") {
+            try {
+              const sensor = await getAndroidWalkStepAvailability();
+              if (sensor !== "counter" && sensor !== "detector") incompleteSteps = true;
+              if (sensor === "detector") {
+                setNotice(
+                  "На телефоне нет аппаратного счётчика: отдельные шаги считаются в фоне, но после перезапуска системы возможен пропуск.",
+                );
+              }
+            } catch (error) {
+              incompleteSteps = true;
+              reportClientError(error, { issueKey: "DogWalkNativeSensorAvailability" });
+            }
+          }
           const preference = journalRef.current.preference;
           const walk = {
             ...beginSession(preference.mode, Date.now(), preference.countdownMinutes * 60),
@@ -303,11 +483,12 @@ export default function DogWalkScreen() {
             incompleteSteps,
           };
           updateJournal((state) => (state.active ? state : { ...state, active: walk }));
+          await ensureAndroidTracking(owner, walk);
           await notify(owner, walk, notificationsGranted);
         } else if (current) {
           if (request === "pause" && !isWalkRunning(current)) return;
           const now = Date.now();
-          const captured = await captureSegmentSteps(current, now);
+          const captured = await captureSegmentSteps(current, now, request === "finish");
           if (ownerRef.current !== owner) return;
           if (request === "pause") {
             const paused = pauseSession(captured, now);
@@ -340,7 +521,7 @@ export default function DogWalkScreen() {
         setBusy(false);
       }
     },
-    [ready, owner, updateJournal, notify, captureSegmentSteps],
+    [ready, owner, updateJournal, notify, captureSegmentSteps, ensureAndroidTracking],
   );
 
   // Widget links open this screen even when the app was not running. Consume
@@ -380,26 +561,37 @@ export default function DogWalkScreen() {
           },
     );
   }, [minutesDraft, updateJournal]);
-  const selected = active ?? journal.completed[0] ?? null;
+  const selected = active ?? null;
   const mode = active?.mode ?? journal.preference.mode;
   const seconds = selected
     ? mode === "countdown"
       ? countdownRemainingSeconds(selected, nowMs)
       : walkDurationSeconds(selected, nowMs)
-    : 0;
+    : mode === "countdown"
+      ? Math.max(1, Math.min(240, Number.parseInt(minutesDraft, 10) || 30)) * 60
+      : 0;
   const today = totalTodayWalks(journal.completed, nowMs);
 
   return (
     <TexturedSafeAreaView style={styles.page}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Назад"
-          onPress={() => router.back()}
-        >
-          <Text style={styles.back}>← Назад</Text>
-        </Pressable>
-        <Text style={styles.heading}>Прогулка с собакой</Text>
+        <View style={styles.topBar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Назад"
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <MaterialCommunityIcons name="chevron-left" size={27} color={COLORS.primaryDark} />
+          </Pressable>
+          <View style={styles.topTitles}>
+            <Text style={styles.eyebrow}>ВРЕМЯ ВМЕСТЕ</Text>
+            <Text style={styles.heading}>На прогулке</Text>
+          </View>
+          <View style={styles.topPaw}>
+            <MaterialCommunityIcons name="paw" size={23} color={COLORS.primary} />
+          </View>
+        </View>
         <Text style={styles.subheading}>Время, шаги и приблизительное расстояние</Text>
         <View style={styles.card}>
           <Text style={styles.caption}>Режим таймера</Text>
@@ -434,76 +626,98 @@ export default function DogWalkScreen() {
               />
             </View>
           ) : null}
-          <Text style={styles.caption}>
-            {!active ? "Таймер прогулки" : running ? "Гуляем сейчас" : "Прогулка на паузе"}
-          </Text>
-          <Text style={styles.timer}>{formatWalkDuration(seconds)}</Text>
-          {active?.mode === "countdown" && seconds === 0 ? (
-            <Text style={styles.warning}>Время вышло. Можно продолжить прогулку.</Text>
-          ) : null}
+          <LinearGradient
+            colors={["#677950", "#3C4C2E"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.timerPanel}
+          >
+            <View style={styles.timerStatus}>
+              <View style={[styles.statusDot, running && styles.statusDotRunning]} />
+              <Text style={styles.timerStatusText}>
+                {!active ? "ГОТОВЫ К ПРИКЛЮЧЕНИЮ" : running ? "ГУЛЯЕМ СЕЙЧАС" : "ПРОГУЛКА НА ПАУЗЕ"}
+              </Text>
+            </View>
+            <View style={styles.timerHalo}>
+              <MaterialCommunityIcons name="paw" size={23} color="#D8E5C4" />
+              <Text style={styles.timer}>{formatWalkDuration(seconds)}</Text>
+              <Text style={styles.timerHint}>
+                {mode === "countdown" ? "осталось времени" : "время прогулки"}
+              </Text>
+            </View>
+            {active?.mode === "countdown" && seconds === 0 ? (
+              <Text style={styles.timerWarning}>Время вышло. Можно продолжить прогулку.</Text>
+            ) : null}
           <View style={styles.metrics}>
             <View style={styles.metric}>
               <Text style={styles.value}>{selected?.steps.toLocaleString("ru-RU") ?? "0"}</Text>
-              <Text style={styles.caption}>шагов</Text>
+              <Text style={styles.metricCaption}>шагов</Text>
             </View>
             <View style={styles.metric}>
               <Text style={styles.value}>
                 ≈ {formatWalkDistance(estimatedWalkMeters(selected?.steps ?? 0))}
               </Text>
-              <Text style={styles.caption}>расстояние</Text>
+              <Text style={styles.metricCaption}>расстояние</Text>
             </View>
           </View>
+          </LinearGradient>
           {!ready ? (
             <Text style={styles.note}>Загрузка прогулок…</Text>
           ) : (
             <View style={styles.controls}>
-              <Pressable
+              {!running ? <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={active ? "Продолжить прогулку" : "Начать прогулку"}
-                disabled={busy || running}
+                disabled={busy}
                 onPress={() => {
                   void performAction("start");
                 }}
-                style={[styles.action, styles.startButton, (busy || running) && styles.disabled]}
+                style={[styles.action, styles.startButton, busy && styles.disabled]}
               >
-                <Text style={styles.buttonText}>{active ? "▶ Продолжить" : "▶ Старт"}</Text>
-              </Pressable>
-              <Pressable
+                <MaterialCommunityIcons name="play" size={20} color="#FFFFFF" />
+                <Text style={styles.buttonText}>{active ? "Продолжить" : "Начать"}</Text>
+              </Pressable> : null}
+              {running ? <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Пауза прогулки"
-                disabled={busy || !running}
+                disabled={busy}
                 onPress={() => {
                   void performAction("pause");
                 }}
-                style={[styles.action, styles.pauseButton, (busy || !running) && styles.disabled]}
+                style={[styles.action, styles.pauseButton, busy && styles.disabled]}
               >
-                <Text style={styles.buttonText}>Ⅱ Пауза</Text>
-              </Pressable>
-              <Pressable
+                <MaterialCommunityIcons name="pause" size={20} color="#FFFFFF" />
+                <Text style={styles.buttonText}>Пауза</Text>
+              </Pressable> : null}
+              {active ? <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Завершить прогулку"
-                disabled={busy || !active}
+                disabled={busy}
                 onPress={() => {
                   void performAction("finish");
                 }}
-                style={[styles.action, styles.finishButton, (busy || !active) && styles.disabled]}
+                style={[styles.action, styles.finishButton, busy && styles.disabled]}
               >
-                <Text style={styles.buttonText}>■ Конец</Text>
-              </Pressable>
+                <MaterialCommunityIcons name="stop" size={20} color={COLORS.primaryDark} />
+                <Text style={styles.finishText}>Завершить</Text>
+              </Pressable> : null}
             </View>
           )}
         </View>
         {notice ? <Text style={styles.warning}>{notice}</Text> : null}
         {selected?.incompleteSteps ? (
           <Text style={styles.warning}>
-            Данные о шагах могут быть неполными: Android не гарантирует их учёт при свёрнутом
-            приложении.
+            Данные о шагах могут быть неполными: датчик недоступен, разрешение отключено или подсчёт
+            прерывался системой. Проверьте разрешение на физическую активность.
           </Text>
         ) : null}
-        <Text style={styles.note}>
-          Расстояние оценивается по средней длине шага (0,8 м), без GPS. Звук уведомлений зависит от
-          системных настроек. На паузе напоминания отменяются.
-        </Text>
+        <View style={styles.hintCard}>
+          <MaterialCommunityIcons name="information-outline" size={21} color={COLORS.primary} />
+          <Text style={styles.note}>
+            Расстояние приблизительное: по шагам (0,8 м), без GPS. Звук уведомлений зависит от
+            системных настроек. На паузе напоминания отменяются.
+          </Text>
+        </View>
         <View style={styles.today}>
           <Text style={styles.todayHeading}>Сегодня вы гуляли</Text>
           <Text style={styles.todayText}>
@@ -519,61 +733,104 @@ export default function DogWalkScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: SPACING.lg, paddingBottom: 40, gap: 16 },
-  back: { fontSize: 15, color: COLORS.primary },
-  heading: { fontSize: 27, fontWeight: "700", color: COLORS.text },
-  subheading: { fontSize: 14, color: COLORS.textSecondary },
-  card: {
-    padding: 20,
-    borderRadius: 22,
-    backgroundColor: COLORS.cardBackground,
-    alignItems: "center",
-    gap: 18,
+  content: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 52, gap: 16 },
+  topBar: { flexDirection: "row", alignItems: "center", gap: 12 },
+  backButton: {
+    width: 44, height: 44, borderRadius: 16, backgroundColor: "#F5F0E5",
+    alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#DED9CC",
   },
-  caption: { fontSize: 13, color: COLORS.textSecondary },
-  timer: { fontSize: 44, fontWeight: "700", color: COLORS.text, fontVariant: ["tabular-nums"] },
-  modeRow: { flexDirection: "row", gap: 8, width: "100%" },
+  topTitles: { flex: 1 },
+  topPaw: {
+    width: 44, height: 44, borderRadius: 16, backgroundColor: "#DCE2CD",
+    alignItems: "center", justifyContent: "center",
+  },
+  eyebrow: {
+    color: "#777B62", fontSize: 10, fontFamily: FONTS.montserratBold,
+    letterSpacing: 1.5, marginBottom: 1,
+  },
+  heading: {
+    fontSize: 28, fontFamily: FONTS.montserratBold,
+    color: COLORS.text, letterSpacing: -0.5,
+  },
+  subheading: { fontSize: 13, color: "#777365", marginBottom: 1 },
+  card: {
+    padding: 16, borderRadius: 25, backgroundColor: "#F8F4EA",
+    gap: 16, borderWidth: 1, borderColor: "#E4DFD2",
+  },
+  caption: { fontSize: 13, color: "#777468", fontWeight: "600" },
+  modeRow: {
+    flexDirection: "row", gap: 6, width: "100%", padding: 5,
+    borderRadius: 17, backgroundColor: "#E9E8DD",
+  },
   modeButton: {
-    flex: 1,
-    borderRadius: 12,
-    padding: 12,
-    backgroundColor: "#E8E7DD",
-    alignItems: "center",
+    flex: 1, borderRadius: 13, paddingVertical: 12, paddingHorizontal: 4,
+    alignItems: "center", justifyContent: "center",
   },
   modeSelected: { backgroundColor: COLORS.primary },
-  modeLabel: { fontSize: 13, color: COLORS.text },
-  modeSelectedLabel: { color: "#FFFFFF", fontWeight: "700" },
-  minutesRow: { width: "100%", alignItems: "center", gap: 8 },
-  minutesInput: {
-    minWidth: 90,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    color: COLORS.text,
-    textAlign: "center",
-    fontSize: 18,
+  modeLabel: { fontSize: 12, color: COLORS.text, fontWeight: "600" },
+  modeSelectedLabel: { color: "#FFFFFF", fontWeight: "800" },
+  minutesRow: {
+    flexDirection: "row", width: "100%", alignItems: "center",
+    justifyContent: "space-between", gap: 10,
   },
-  metrics: { flexDirection: "row", width: "100%", justifyContent: "space-around" },
-  metric: { alignItems: "center", gap: 5 },
-  value: { fontSize: 21, fontWeight: "700", color: COLORS.text },
-  controls: { width: "100%", flexDirection: "row", gap: 6 },
+  minutesInput: {
+    minWidth: 84, borderRadius: 12, borderWidth: 1, borderColor: "#C4CDB0",
+    backgroundColor: "#FFFFFF", paddingVertical: 8, paddingHorizontal: 12,
+    color: COLORS.primaryDark, textAlign: "center", fontSize: 18, fontWeight: "700",
+  },
+  timerPanel: {
+    borderRadius: 24, paddingVertical: 22, paddingHorizontal: 16,
+    alignItems: "center", gap: 18, overflow: "hidden",
+  },
+  timerStatus: { flexDirection: "row", alignItems: "center", gap: 7 },
+  statusDot: { width: 7, height: 7, borderRadius: 5, backgroundColor: "#EBD596" },
+  statusDotRunning: { backgroundColor: "#BCE38C" },
+  timerStatusText: {
+    fontSize: 10, fontFamily: FONTS.montserratBold,
+    letterSpacing: 1, color: "#F5ECCF",
+  },
+  timerHalo: {
+    width: 208, height: 208, borderRadius: 110,
+    borderWidth: 9, borderColor: "#A5B897",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center", justifyContent: "center", gap: 7,
+  },
+  timer: {
+    fontSize: 38, fontFamily: FONTS.montserratBold, color: "#FFF9EB",
+    fontVariant: ["tabular-nums"], letterSpacing: -1.1,
+  },
+  timerHint: { fontSize: 11, color: "#E3E8D7" },
+  timerWarning: { color: "#FFF0CA", fontSize: 12, textAlign: "center", lineHeight: 18 },
+  metrics: { flexDirection: "row", width: "100%", gap: 9 },
+  metric: {
+    flex: 1, alignItems: "center", justifyContent: "center", gap: 5,
+    minHeight: 70, paddingHorizontal: 5, paddingVertical: 12,
+    borderRadius: 16, backgroundColor: "rgba(255,255,255,0.13)",
+  },
+  value: { fontSize: 20, fontFamily: FONTS.montserratBold, color: "#FFFFFF" },
+  metricCaption: { fontSize: 11, color: "#E3E8D7" },
+  controls: { width: "100%", flexDirection: "row", gap: 9 },
   action: {
-    flex: 1,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    alignItems: "center",
+    flex: 1, minHeight: 55, borderRadius: 16, paddingVertical: 12,
+    paddingHorizontal: 5, flexDirection: "row", justifyContent: "center",
+    gap: 6, alignItems: "center",
   },
   startButton: { backgroundColor: COLORS.primary },
-  pauseButton: { backgroundColor: "#9C812F" },
-  finishButton: { backgroundColor: "#57664C" },
-  buttonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
+  pauseButton: { backgroundColor: "#997439" },
+  finishButton: { borderWidth: 1.5, borderColor: "#9AA78A", backgroundColor: "#E5EAD9" },
+  buttonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
+  finishText: { color: COLORS.primaryDark, fontSize: 13, fontWeight: "800" },
   disabled: { opacity: 0.4 },
-  warning: { fontSize: 13, color: "#8F5D20", lineHeight: 20 },
-  note: { fontSize: 12, lineHeight: 18, color: COLORS.textSecondary },
-  today: { backgroundColor: COLORS.cardBackground, borderRadius: 18, padding: 18, gap: 7 },
-  todayHeading: { fontWeight: "700", fontSize: 17, color: COLORS.text },
-  todayText: { fontSize: 15, color: COLORS.text },
+  warning: { fontSize: 13, color: "#845A2B", lineHeight: 20 },
+  hintCard: {
+    padding: 14, borderRadius: 16, flexDirection: "row",
+    gap: 10, backgroundColor: "#EAEBDE", alignItems: "flex-start",
+  },
+  note: { flex: 1, fontSize: 12, lineHeight: 19, color: "#666A56" },
+  today: {
+    backgroundColor: "#FBF8EF", borderRadius: 20, padding: 20,
+    gap: 9, borderWidth: 1, borderColor: "#E5E0D4",
+  },
+  todayHeading: { fontFamily: FONTS.montserratBold, fontSize: 18, color: COLORS.text },
+  todayText: { fontSize: 14, fontWeight: "700", color: COLORS.primaryDark },
 });

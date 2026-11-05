@@ -9,6 +9,14 @@ vi.mock("./client", () => ({
   apiClient: mocks.apiClient,
   apiClientMultipart: mocks.apiClientMultipart,
 }));
+// The photo pipeline uses static imports in native Expo 55 (no secondary HMR
+// bundles). An error-code transport test must not initialize native codecs.
+vi.mock("@/shared/lib/media/prepareUploadWebp", () => ({
+  prepareUploadWebpVariants: vi.fn(),
+}));
+vi.mock("@/shared/lib/media/directPhotoUpload", () => ({
+  postClientWebp: vi.fn(),
+}));
 
 import { questionsApi } from "./questions";
 

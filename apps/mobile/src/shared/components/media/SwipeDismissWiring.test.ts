@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const feedViewer = read("../../../features/feed/FeedMediaViewer.tsx");
 const feedInline = read("../../../features/feed/FeedV2Media.tsx");
+const socialControls = read("./SocialVideoControls.tsx");
 const chat = read("../../../features/chat2/Chat2RoomScreen.tsx");
 const questions = read("../../../features/questions/ui.tsx");
 const training = read("../../../features/training/components/AccordionStep.tsx");
@@ -25,7 +26,8 @@ describe("Mobile fullscreen media swipe coverage", () => {
     expect(gallery).toContain(".failOffsetX([-24, 24])");
   });
   it("uses a custom dismissable fullscreen for moments video without another MP4 player", () => {
-    expect(feedInline).toContain('accessibilityLabel="Развернуть видео"');
+    expect(feedInline).toContain('onExpand={fullscreen ? undefined : () => setExpanded(true)}');
+    expect(socialControls).toContain('accessibilityLabel="Развернуть видео"');
     expect(feedInline).toContain('accessibilityLabel="Закрыть видео"');
     expect(feedInline).toContain("<SwipeDismissMedia onDismiss={() => setExpanded(false)}>");
     expect(feedInline).toContain("<VideoView player={player} style={s.expandedVideo}");

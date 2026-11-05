@@ -1,4 +1,5 @@
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import { SaveFormat } from "expo-image-manipulator";
+import { encodeUploadImage } from "./encodeUploadImage";
 import { File } from "expo-file-system";
 import type { UploadPhotoSource } from "./prepareUploadPhoto";
 
@@ -17,13 +18,13 @@ export async function prepareUploadWebp(source: UploadPhotoSource, maxEdge: numb
   const resize = Math.max(source.width, source.height) > maxEdge
     ? [{ resize: source.width >= source.height ? { width: maxEdge } : { height: maxEdge } }]
     : [];
-  let result = await manipulateAsync(source.uri, resize, {
+  let result = await encodeUploadImage(source.uri, resize, {
     format: SaveFormat.WEBP, compress: 0.8,
   });
   if (Math.max(result.width, result.height) > maxEdge) {
     const previous = result.uri;
     try {
-      result = await manipulateAsync(previous,
+      result = await encodeUploadImage(previous,
         [{ resize: result.width >= result.height ? { width: maxEdge } : { height: maxEdge } }],
         { format: SaveFormat.WEBP, compress: 0.8 });
     } finally { if (previous !== source.uri) new File(previous).delete(); }
@@ -36,7 +37,7 @@ export async function prepareUploadWebp(source: UploadPhotoSource, maxEdge: numb
     const previous = result.uri;
     const smallerEdge = Math.max(320, Math.floor(Math.max(result.width, result.height) * 0.8));
     try {
-      result = await manipulateAsync(previous,
+      result = await encodeUploadImage(previous,
         [{ resize: result.width >= result.height ? { width: smallerEdge } : { height: smallerEdge } }],
         { format: SaveFormat.WEBP, compress: 0.8 });
     } finally {

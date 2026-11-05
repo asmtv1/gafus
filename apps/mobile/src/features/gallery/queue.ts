@@ -1,5 +1,6 @@
 import type { createGalleryClient, GalleryUploadDto, GalleryUploadInput } from "@gafus/types";
 import { reportClientError } from "@/shared/lib/tracer";
+import { photoFailureCode } from "@/shared/lib/media/photoRetryMessage";
 import {
   galleryRequests,
   taskAt,
@@ -45,6 +46,17 @@ export async function pollTask(id: string, fence: TaskFence, api: UploadApi) {
   const upload = await api.getUpload(task.upload.uploadId);
   const current = taskAt(id, fence);
   if (!current) return;
+  if (
+    upload.uploadId !== current.upload?.uploadId ||
+    upload.albumId !== current.upload.albumId ||
+    (upload.status === "ready" &&
+      (!upload.photo?.id || upload.photo.albumId !== upload.albumId))
+  ) {
+    // Never clear an uncertainty lock on a mismatched or incomplete GET.
+    // Return the previously verified non-terminal receipt, not the malformed
+    // READY response: React Query requires non-undefined query data.
+    return current.upload;
+  }
   // A reservation after an ambiguous commit does not prove the commit failed.
   if (current.status === "unknown" && upload.status === "reserved") return upload;
   updateTask(id, uploadPatch(upload), fence);
@@ -342,20 +354,36 @@ export async function runUpload(
         issueKey: "GalleryUploadQueue",
         keys: { operation: "commit_and_readback" },
       });
-      if (commitAttempted && taskAt(id, fence) && current())
-        updateTask(
-          id,
-          {
-            status: "unknown",
-            error: "Результат подтверждения неизвестен. Проверьте статус без повторной отправки.",
-          },
-          fence,
-        );
+      if (!commitAttempted || !taskAt(id, fence) || !current()) return;
+      // The commit response or first readback can be lost *after* the server
+      // accepted it. A second GET is safe; a second POST is not.
+      try {
+        const authoritative = await api.getUpload(upload.uploadId);
+        if (!taskAt(id, fence) || !current()) return;
+        if (
+          authoritative.uploadId === upload.uploadId &&
+          authoritative.albumId === upload.albumId &&
+          ["uploaded", "processing", "ready", "failed", "expired", "cancelled"].includes(authoritative.status) &&
+          (authoritative.status !== "ready" ||
+            (authoritative.photo?.id && authoritative.photo.albumId === upload.albumId))
+        ) {
+          updateTask(id, uploadPatch(safeUpload(authoritative)), fence);
+          return;
+        }
+      } catch {
+        // Missing readback is inconclusive, not permission to upload twice.
+      }
+      if (taskAt(id, fence) && current()) {
+        updateTask(id, {
+          status: "unknown",
+          error: "Подтверждение пока не удалось проверить. Статус обновится автоматически; файл повторно не отправляется.",
+        }, fence);
+      }
     }
   } catch (error) {
     reportClientError(new Error("GALLERY_UPLOAD_PRECOMMIT_FAILED"), {
       issueKey: "GalleryUploadQueue",
-      keys: { operation: "prepare_reserve_transfer" },
+      keys: { operation: "prepare_reserve_transfer", reason: photoFailureCode(error) },
     });
     if (taskAt(id, fence)) {
       updateTask(id, storageAttempted

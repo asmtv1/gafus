@@ -1,5 +1,7 @@
 import { postChat2FileToS3 } from "./s3Upload";
-import type { SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
+import { postClientWebp, type SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
+import { prepareUploadWebpVariants, type PreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
+import { prepareVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWebp";
 import type { Chat2MediaRenditions } from "@gafus/chat-media-quality";
 import type { Chat2ConnectionGrant } from "@gafus/core-client/chat2/realtime-subscription";
 import { API_BASE_URL } from "@/shared/config";
@@ -9,6 +11,7 @@ import * as SecureStore from "expo-secure-store";
 import { getMobileClientHeaders } from "@/shared/lib/api/client-context";
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
+export type Chat2PreparedPhotoVariants = Record<"small" | "medium", PreparedWebpVariant>;
 export type Kind = "DIRECT" | "CYNOLOGIST" | "COMMUNITY" | "COURSE" | "CITY" | "BREED" | "GROUP" | "COURSE_TOPIC";
 export type Member = { userId: string; username: string; role: string; avatarUrl?: string | null };
 export type Attachment = {
@@ -161,7 +164,8 @@ async function request<T>(
 /** No image/video bytes through Hono. This path is enabled only after
  * protected Refactor API, scoped S3 and the Cloud Jobs pass E2E validation. */
 async function uploadChat2V2(
-  id: string, asset: { uri: string; name: string; mime: string; size: number; posterPreviewUri?: string },
+  id: string, asset: { uri: string; name: string; mime: string; size: number; posterPreviewUri?: string;
+    preparedPoster?: Awaited<ReturnType<typeof prepareVideoPosterWebp>> },
 ): Promise<Attachment> {
   const guard=guardActor();
   const base=`/${safe(id)}/media/v2`;
@@ -176,11 +180,8 @@ async function uploadChat2V2(
   if(dest.protocol!=="https:" ||
      !["s3.cloud.ru","gafus-chat2-media-2026.s3.cloud.ru"].includes(dest.hostname) ||
      dest.username||dest.password||dest.hash)throw Error("Недопустимый адрес хранилища");
-  const [{ prepareVideoPosterWebp }, { postClientWebp }] = await Promise.all([
-    import("@/shared/lib/media/prepareVideoPosterWebp"),
-    import("@/shared/lib/media/directPhotoUpload"),
-  ]);
-  const cover = await prepareVideoPosterWebp(asset.uri,asset.posterPreviewUri);
+  const cover = asset.preparedPoster ??
+    await prepareVideoPosterWebp(asset.uri,asset.posterPreviewUri);
   try {
     if(!reservation.posterUpload || reservation.posterUpload.method!=="POST")
       throw Error("Сервер не подписал обложку видео");
@@ -189,7 +190,7 @@ async function uploadChat2V2(
       postClientWebp(reservation.posterUpload,cover,
         ["s3.cloud.ru","gafus-chat2-media-2026.s3.cloud.ru"]),
     ]);
-  } finally { cover.dispose(); }
+  } finally { if (!asset.preparedPoster) cover.dispose(); }
   if(!guard())throw Error("Сессия изменилась");
   await request(`${base}/${reservation.mediaId}/confirm`, "POST", {});
   // The server moves UPLOADED -> QUEUED only after the message is sent.
@@ -203,16 +204,13 @@ async function uploadChat2V2(
 /** Device-encoded Chat2 360/1440 WebP: READY before attachment, no Photo Job. */
 async function uploadChat2ClientPhoto(id: string, asset: {
   uri: string; name: string; mime: string; size: number; width: number; height: number;
-}): Promise<Attachment> {
+}, preparedVariants?: Chat2PreparedPhotoVariants): Promise<Attachment> {
   const guard = guardActor();
   const base = `/${safe(id)}/media/v2`;
-  // Lazy-load the encoder only for opted-in mobile image uploads. Read-only
-  // Chat2/API access must not initialize Expo's native image runtime.
-  const [{ prepareUploadWebpVariants }, { postClientWebp }] = await Promise.all([
-    import("@/shared/lib/media/prepareUploadWebp"),
-    import("@/shared/lib/media/directPhotoUpload"),
-  ]);
-  const variants = await prepareUploadWebpVariants(asset, { small: 360, medium: 1440 });
+  // Expo 55 native development builds cannot reliably load Metro's async
+  // media chunks (HMRClient.setup). Avoid import() for upload dependencies.
+  const variants = preparedVariants ??
+    await prepareUploadWebpVariants(asset, { small: 360, medium: 1440 });
   try {
     if (!guard()) throw new Error("Сессия изменилась");
     const reserved = await request<{
@@ -239,7 +237,8 @@ async function uploadChat2ClientPhoto(id: string, asset: {
     if (!guard()) throw new Error("Сессия изменилась");
     return attached;
   } finally {
-    for (const item of Object.values(variants)) item.dispose();
+    // Draft variants belong to the composer until message success or cancellation.
+    if (!preparedVariants) for (const item of Object.values(variants)) item.dispose();
   }
 }
 
@@ -367,7 +366,9 @@ export const chat2 = {
   },
   upload: async (
     id: string,
-    asset: { uri: string; name: string; mime: string; size: number; width?: number; height?: number },
+    asset: { uri: string; name: string; mime: string; size: number; width?: number; height?: number;
+      preparedVariants?: Chat2PreparedPhotoVariants;
+      preparedPoster?: Awaited<ReturnType<typeof prepareVideoPosterWebp>> },
   ): Promise<Attachment> => {
     const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf", "video/mp4"];
     const limit = asset.mime === "video/mp4" ? 100 : 10;
@@ -386,7 +387,8 @@ export const chat2 = {
     if (asset.mime.startsWith("image/")) {
       if (!asset.width || !asset.height)
         throw Error("Для фото необходима обработка на устройстве");
-      return uploadChat2ClientPhoto(id, { ...asset, width: asset.width, height: asset.height });
+      return uploadChat2ClientPhoto(id, { ...asset, width: asset.width, height: asset.height },
+        asset.preparedVariants);
     }
     if ((releaseBuild || productionChat2 || process.env.EXPO_PUBLIC_CHAT2_MEDIA_V2 === "true") &&
         asset.mime !== "application/pdf")

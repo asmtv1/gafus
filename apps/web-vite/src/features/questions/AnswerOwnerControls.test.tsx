@@ -29,6 +29,7 @@ function api(data: unknown, status = 200) {
 async function mount(fetcher: ReturnType<typeof vi.fn>,
   overrides: Partial<QuestionAnswerCard> = {}) {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  vi.stubGlobal("crypto", { randomUUID: vi.fn(() => `00000000-0000-4000-8000-${String(Math.floor(Math.random()*1e12)).padStart(12,"0")}`) });
   vi.stubGlobal("fetch", fetcher);
   const host = document.createElement("div"); document.body.append(host);
   const root = createRoot(host);
@@ -133,13 +134,16 @@ describe("answer owner mutation controls", () => {
       Object.defineProperty(input, "files", { configurable: true, value: [file] });
       await act(async () => input.dispatchEvent(new Event("change", { bubbles: true })));
       await act(async () => { await new Promise(done => setTimeout(done, 20)); });
-      // Hono creates the reservation then confirms the direct S3 upload.
-      expect(fake.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(2);
+      // Save, not file selection, authorizes both S3 POSTs.
+      expect(fake.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(0);
       expect(ui.host.textContent).toContain("3 из 5");
-      expect(direct).toHaveLength(2);
-      expect(direct.every(post=>post.withCredentials===false)).toBe(true);
+      expect(ui.host.textContent).toContain("Готово к отправке");
+      expect(direct).toHaveLength(0);
       expect(fake.mock.calls.filter(([, options]) => options?.method === "PATCH")).toHaveLength(0);
       await ui.submit();
+      expect(fake.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(2);
+      expect(direct).toHaveLength(2);
+      expect(direct.every(post=>post.withCredentials===false)).toBe(true);
       const patches = fake.mock.calls.filter(([, options]) => options?.method === "PATCH");
       expect(patches).toHaveLength(1);
       expect(JSON.parse(String(patches[0]?.[1]?.body)).photoIds)
@@ -168,11 +172,14 @@ describe("answer owner mutation controls", () => {
         form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
         await Promise.resolve();
       });
+      expect(fake.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+      expect(fake.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
+      await act(async () => { await new Promise(done => setTimeout(done, 20)); });
+      await ui.submit();
       expect(fake.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
       expect(fake.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
       await act(async () => { completeUpload(photoV2Reservation("photo-3"));
         await new Promise(done => setTimeout(done, 20)); });
-      await ui.submit();
       const patches = fake.mock.calls.filter(([, init]) => init?.method === "PATCH");
       expect(patches).toHaveLength(1);
       expect(JSON.parse(String(patches[0]?.[1]?.body)).photoIds)

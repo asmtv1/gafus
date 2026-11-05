@@ -19,6 +19,8 @@ export function AnswerOwnerControls(props: AnswerOwnerProps) {
 
 function AnswerOwnerTarget({ userId, questionId, answer }: AnswerOwnerProps) {
   const flight = useRef(false);
+  const photoSubmitRef = useRef<(() => Promise<PendingQuestionPhoto[]>) | null>(null);
+  const [photoError, setPhotoError] = useState("");
   const active = useRef(true);
   useEffect(() => {
     active.current = true;
@@ -95,10 +97,20 @@ function AnswerOwnerTarget({ userId, questionId, answer }: AnswerOwnerProps) {
       flight.current || !body.trim()) return;
     flight.current = true;
     // Keep detached photos bound until original Core confirms the new set.
-    const photoIds = [...retainedPhotoIds, ...pendingPhotos.map(photo => photo.id)];
-    void edit.mutateAsync({ body, photoIds }).catch(() => undefined).finally(() => {
-      flight.current = false;
-    });
+    setPhotoError("");
+    void (async () => {
+      let readyPhotos: PendingQuestionPhoto[];
+      try {
+        readyPhotos = photoSubmitRef.current ? await photoSubmitRef.current() : pendingPhotos;
+        if (readyPhotos.some(photo => photo.id.startsWith("local-")))
+          throw Error("Подготовленные фотографии недоступны.");
+      } catch (reason) {
+        setPhotoError(reason instanceof Error ? reason.message : "Не удалось загрузить фото");
+        return;
+      }
+      const photoIds = [...retainedPhotoIds, ...readyPhotos.map(photo => photo.id)];
+      await edit.mutateAsync({ body, photoIds }).catch(() => undefined);
+    })().finally(() => { flight.current = false; });
   };
   const confirmDelete = () => {
     if (!deleteRequested || !answer.canDelete || busy || photosBusy ||
@@ -144,7 +156,9 @@ function AnswerOwnerTarget({ userId, questionId, answer }: AnswerOwnerProps) {
           <p>Выбранные фото будут отвязаны только после сохранения.</p>}
       </fieldset>
       <QuestionPhotoPicker photos={pendingPhotos} onChange={setPendingPhotos}
-        onBusy={onPhotoBusy} existingCount={retainedPhotoIds.length} />
+        onBusy={onPhotoBusy} existingCount={retainedPhotoIds.length}
+        submitUploadsRef={photoSubmitRef} />
+      {photoError && <p role="alert">{photoError}</p>}
       <PrimaryButton type="submit" disabled={busy || photosBusy}>
         {busy ? "Сохраняем…" : "Сохранить"}</PrimaryButton>
       <SecondaryButton variant="red" type="button" disabled={busy || photosBusy} onClick={() => {

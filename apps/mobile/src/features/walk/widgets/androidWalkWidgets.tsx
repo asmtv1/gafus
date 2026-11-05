@@ -4,6 +4,8 @@ import {
   requestWidgetUpdate,
   type WidgetTaskHandlerProps,
 } from "react-native-android-widget";
+import { NativeModules, Platform } from "react-native";
+import { handleAndroidWalkWidgetClick } from "../androidWalkWidgetActions";
 import type { WalkWidgetSnapshot } from "../walkWidgetSnapshot";
 import { loadWalkWidgetSnapshot } from "../walkWidgetSnapshot";
 
@@ -18,8 +20,8 @@ function WalkControl({
 }) {
   return (
     <FlexWidget
-      clickAction="OPEN_URI"
-      clickActionData={{ uri: `gafus://walk?action=${action}` }}
+      clickAction="WALK_CONTROL"
+      clickActionData={{ action }}
       style={{ backgroundColor: "#E3E9D8", borderRadius: 10, padding: 8 }}
     >
       <TextWidget text={label} style={{ fontSize: 13, fontWeight: "bold", color }} />
@@ -56,7 +58,7 @@ export function renderAndroidWalkWidget(_name: string, snapshot: WalkWidgetSnaps
       />
       <FlexWidget style={{ flexDirection: "row", flexGap: 7 }}>
         <WalkControl
-          label={snapshot.active && !snapshot.running ? "▶ Продолжить" : "▶ Старт"}
+          label={snapshot.active && !snapshot.running ? "▶ Дальше" : "▶ Старт"}
           action="start"
           color="#3C653B"
         />
@@ -72,11 +74,36 @@ export function renderAndroidWalkWidget(_name: string, snapshot: WalkWidgetSnaps
 
 export async function androidWalkWidgetTaskHandler(props: WidgetTaskHandlerProps): Promise<void> {
   if (props.widgetAction === "WIDGET_DELETED") return;
+  if (props.widgetAction === "WIDGET_CLICK") {
+    if (props.clickAction === "WALK_CONTROL") {
+      await handleAndroidWalkWidgetClick(props.clickActionData?.action);
+    }
+    return;
+  }
   const snapshot = await loadWalkWidgetSnapshot();
-  props.renderWidget(renderAndroidWalkWidget(props.widgetInfo.widgetName, snapshot));
+  // A new binary uses a native RemoteViews card. Never replace it with a
+  // rasterized React snapshot (that caused clipping and overlapping metrics).
+  const native = NativeModules.GafusDogWalkSteps as
+    | { publishWidget?: (snapshot: string) => Promise<boolean> }
+    | undefined;
+  if (native?.publishWidget) {
+    await native.publishWidget(JSON.stringify(snapshot));
+  } else {
+    props.renderWidget(renderAndroidWalkWidget(props.widgetInfo.widgetName, snapshot));
+  }
 }
 
 export async function updateAndroidWalkWidgets(snapshot: WalkWidgetSnapshot): Promise<void> {
+  const native = Platform.OS === "android"
+    ? (NativeModules.GafusDogWalkSteps as
+        | { publishWidget?: (snapshot: string) => Promise<boolean> }
+        | undefined)
+    : undefined;
+  if (native?.publishWidget) {
+    await native.publishWidget(JSON.stringify(snapshot));
+    return;
+  }
+  // Legacy installed builds still need a render until the next store binary.
   await requestWidgetUpdate({
     widgetName: "DogWalk",
     renderWidget: () => renderAndroidWalkWidget("DogWalk", snapshot),

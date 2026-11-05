@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, TextInput, View, Linking, Alert, FlatList, Modal, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
@@ -8,15 +8,21 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
 import * as ImagePicker from "expo-image-picker";
+import * as Crypto from "expo-crypto";
+import { prepareUploadWebpVariants } from "@/shared/lib/media/prepareUploadWebp";
+import type { PreparedQuestionPhotoVariants } from "@/shared/lib/api/questions";
 import { COLORS, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
-import { uploadQuestionPhoto, uploadClientQuestionsPhoto, discardQuestionPhoto } from "@/shared/lib/api/questions";
+import { uploadClientQuestionsPhoto, discardQuestionPhoto } from "@/shared/lib/api/questions";
 import { classifyQuestionNativePhoto } from "./photoSource";
 import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
-import { photoRetryMessage } from "@/shared/lib/media/photoRetryMessage";
+import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
+import { photoRetryMessage, photoFailureCode } from "@/shared/lib/media/photoRetryMessage";
+import { PhotoUploadStageError, logPhotoUploadFailure, photoStageDiagnostic } from "@/shared/lib/media/photoUploadStage";
 import { questionPhotoReadIdentity } from "./photoReadIdentity";
 import { allowQuestionsS3Fallback } from "./questionPhotoCdnFallback";
 import { questionPhotoTerminalNotice } from "./photoDisplay";
+import { questionPhotoGridRows } from "./photoGrid";
 import { reportClientError } from "@/shared/lib/tracer";
 import { questionAuthorProfileIdentifier } from "./profileLink";
 import {
@@ -258,46 +264,51 @@ export function QPhotos({
 
   return (
     <>
-      <View style={st.row}>
-        {photos.map((p, index) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={failed.includes(questionPhotoReadIdentity(p))
-              ? "Повторить загрузку фото" : `Открыть фото ${index + 1} из ${photos.length}`}
-            key={p.id}
-            disabled={!p.url || (failed.includes(questionPhotoReadIdentity(p)) && !onRetry)}
-            onPress={() => {
-              if(failed.includes(questionPhotoReadIdentity(p)))retryPhoto();
-              else if(p.url){setViewerFailed(false);setViewerIndex(index);}
-            }}
-          >
-            {p.url && !failed.includes(questionPhotoReadIdentity(p)) ? (
-              <Image source={{ uri: s3Images.includes(questionPhotoReadIdentity(p)) ? (p.fallbackSmallUrl ?? p.fallbackUrl ?? p.smallUrl ?? p.url) : (p.smallUrl ?? p.url) }}
-                contentFit="cover" style={st.photo} cachePolicy="disk"
-                recyclingKey={questionPhotoReadIdentity(p)}
-                onError={()=>{
-                  const key=questionPhotoReadIdentity(p);
-                  if(s3Images.includes(key)) {
-                    setFailed(items=>items.includes(key)?items:[...items,key]);
-                    return;
-                  }
-                  void allowQuestionsS3Fallback(p.smallUrl ?? p.url,
-                    p.fallbackSmallUrl ?? p.fallbackUrl, fetch, true).then(allowed => {
-                      if(allowed)setS3Images(items=>items.includes(key)?items:[...items,key]);
-                      else setFailed(items=>items.includes(key)?items:[...items,key]);
-                    });
+      <View style={st.photoGrid}>
+        {questionPhotoGridRows(photos).map((row, rowIndex) => (
+          <View key={rowIndex} style={st.photoGridRow}>
+            {row.map(({ photo: p, index }) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={failed.includes(questionPhotoReadIdentity(p))
+                  ? "Повторить загрузку фото" : `Открыть фото ${index + 1} из ${photos.length}`}
+                key={p.id}
+                style={[st.photoGridCell, photos.length === 1 && st.photoGridSingleCell]}
+                disabled={!p.url || (failed.includes(questionPhotoReadIdentity(p)) && !onRetry)}
+                onPress={() => {
+                  if(failed.includes(questionPhotoReadIdentity(p)))retryPhoto();
+                  else if(p.url){setViewerFailed(false);setViewerIndex(index);}
                 }}
-              />
-            ) : (
-              <View style={[st.photo,{alignItems:"center",justifyContent:"center"}]}>
-                <Text style={st.meta}>
-                  {failed.includes(questionPhotoReadIdentity(p))?"Фото недоступно · Повторить":
-                    p.status==="UNAVAILABLE"?"Фото недоступно":
-                    p.status==="FAILED"?"Ошибка обработки фото":"Обрабатываем фото…"}
-                </Text>
-              </View>
-            )}
-          </Pressable>
+              >
+                {p.url && !failed.includes(questionPhotoReadIdentity(p)) ? (
+                  <Image source={{ uri: s3Images.includes(questionPhotoReadIdentity(p)) ? (p.fallbackSmallUrl ?? p.fallbackUrl ?? p.smallUrl ?? p.url) : (p.smallUrl ?? p.url) }}
+                    contentFit="cover" style={st.photoGridImage} cachePolicy="disk"
+                    recyclingKey={questionPhotoReadIdentity(p)}
+                    onError={()=>{
+                      const key=questionPhotoReadIdentity(p);
+                      if(s3Images.includes(key)) {
+                        setFailed(items=>items.includes(key)?items:[...items,key]);
+                        return;
+                      }
+                      void allowQuestionsS3Fallback(p.smallUrl ?? p.url,
+                        p.fallbackSmallUrl ?? p.fallbackUrl, fetch, true).then(allowed => {
+                          if(allowed)setS3Images(items=>items.includes(key)?items:[...items,key]);
+                          else setFailed(items=>items.includes(key)?items:[...items,key]);
+                        });
+                    }}
+                  />
+                ) : (
+                  <View style={[st.photoGridImage,{alignItems:"center",justifyContent:"center"}]}>
+                    <Text style={st.meta}>
+                      {failed.includes(questionPhotoReadIdentity(p))?"Фото недоступно · Повторить":
+                        p.status==="UNAVAILABLE"?"Фото недоступно":
+                        p.status==="FAILED"?"Ошибка обработки фото":"Обрабатываем фото…"}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            ))}
+          </View>
         ))}
       </View>
       {terminalNotice && <Text accessibilityRole="alert" style={st.error}>{terminalNotice}</Text>}
@@ -423,43 +434,92 @@ export function QPhotoPicker({
   onBusy,
   compact = false,
   trailingAction,
+  submitUploadsRef,
 }: {
   photos: QuestionPhotoDto[];
   onChange: (photos: QuestionPhotoDto[]) => void;
   onBusy: (busy: boolean) => void;
   compact?: boolean;
   trailingAction?: ReactNode;
+  /** Non-null only in question/answer composers: no S3 before their submit button. */
+  submitUploadsRef?: RefObject<(() => Promise<QuestionPhotoDto[]>) | null>;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState<number | null>(null);
   const [failedPhotos, setFailedPhotos] = useState<{key:number;asset:ImagePicker.ImagePickerAsset;
     failure:string;uploading:boolean}[]>([]);
+  const [uploadFailures, setUploadFailures] = useState<Record<string, string>>({});
+  const preparedDrafts = useRef(new Map<string, PreparedQuestionPhotoVariants>());
+  const uploadedDrafts = useRef(new Map<string, QuestionPhotoDto>());
+  const live = useRef(true);
   // Do not let a question/answer publish while a chosen photo is still
   // waiting for its own retry or removal. The tile actions remain enabled.
   useEffect(() => {
     onBusy(busy || failedPhotos.length > 0);
   }, [busy, failedPhotos.length, onBusy]);
   useEffect(() => () => onBusy(false), [onBusy]);
+  useEffect(() => {
+    live.current = true;
+    const drafts = preparedDrafts.current;
+    const uploaded = uploadedDrafts.current;
+    return () => {
+      live.current = false;
+      for (const variants of drafts.values())
+        for (const variant of Object.values(variants)) variant.dispose();
+      drafts.clear();
+      uploaded.clear();
+    };
+  }, []);
+  // Removing a local tile, canceling an answer or saving the form frees native cache.
+  useEffect(() => {
+    const activeIds = new Set(photos.map(photo => photo.id));
+    for (const [id, variants] of preparedDrafts.current) {
+      if (activeIds.has(id)) continue;
+      for (const item of Object.values(variants)) item.dispose();
+      preparedDrafts.current.delete(id);
+      uploadedDrafts.current.delete(id);
+    }
+  }, [photos]);
   const photoSerial = useRef(0);
   const photosRef = useRef(photos);
   photosRef.current = photos;
   async function uploadOne(asset:ImagePicker.ImagePickerAsset,key?:number) {
     let prepared:Awaited<ReturnType<typeof prepareUploadPhoto>>|null = null;
+    let variants: PreparedQuestionPhotoVariants | null = null;
     if(key !== undefined)setFailedPhotos(items => items.map(item=>item.key === key
       ? {...item,uploading:true,failure:""} : item));
     try {
       classifyQuestionNativePhoto(asset);
       setProgress(0);
-      prepared = await prepareUploadPhoto(asset);
-      const uploaded = await uploadClientQuestionsPhoto(prepared,p => setProgress(p));
+      prepared = await prepareUploadPhoto(asset)
+        .catch(cause => { throw new PhotoUploadStageError("jpeg", cause); });
+      let uploaded: QuestionPhotoDto;
+      if (submitUploadsRef) {
+        // Both variants are generated locally, with NO reserve/POST/S3 call.
+        variants = await prepareUploadWebpVariants(prepared, { small: 360, medium: 1440 })
+          .catch(error => { throw new PhotoUploadStageError("webp", error); });
+        if (!live.current) return;
+        const localId = `local-${Crypto.randomUUID()}`;
+        preparedDrafts.current.set(localId, variants);
+        variants = null;
+        uploaded = { id: localId, url: asset.uri, status: "READY" };
+      } else {
+        uploaded = await uploadClientQuestionsPhoto(prepared,p => setProgress(p));
+      }
+      if (!live.current) return;
       const next=[...photosRef.current,{...uploaded,url:asset.uri}];
       photosRef.current=next;
       onChange(next);
       if(key !== undefined)setFailedPhotos(items => items.filter(item=>item.key!==key));
     } catch(cause) {
+      const diagnostic = photoStageDiagnostic(cause);
+      logPhotoUploadFailure("questions", cause);
       reportClientError(new Error("QUESTIONS_CLIENT_PHOTO_FAILED"),
-        {issueKey:"Questions",keys:{operation:"photo_upload"}});
+        {issueKey:"Questions",keys:{
+          operation:"photo_upload",reason:photoFailureCode(cause),stage:diagnostic.stage,
+          nativeName:diagnostic.name, code:diagnostic.code,
+        }});
       const failure=photoRetryMessage(cause);
       if(key === undefined)setFailedPhotos(items => [...items,{
         key:++photoSerial.current,asset,failure,uploading:false,
@@ -469,6 +529,7 @@ export function QPhotoPicker({
       setError("Не удалось добавить одно из фото. Нажмите круглую стрелку на нём. Другие фото не затронуты.");
     } finally {
       prepared?.dispose();
+      if (variants) for (const item of Object.values(variants)) item.dispose();
       setProgress(null);
     }
   }
@@ -480,6 +541,43 @@ export function QPhotoPicker({
     try {await uploadOne(failed.asset,key);}
     finally {setBusy(false);}
   }
+  async function flushDraftUploads(): Promise<QuestionPhotoDto[]> {
+    const ready: QuestionPhotoDto[] = [];
+    for (const photo of photosRef.current) {
+      if (!photo.id.startsWith("local-")) { ready.push(photo); continue; }
+      const completed = uploadedDrafts.current.get(photo.id);
+      if (completed) { ready.push(completed); continue; }
+      const variants = preparedDrafts.current.get(photo.id);
+      if (!variants) throw new Error("Локальное фото недоступно. Добавьте его заново.");
+      setProgress(0);
+      setUploadFailures(previous => { const copy = { ...previous }; delete copy[photo.id]; return copy; });
+      try {
+        const uploaded = await uploadClientQuestionsPhoto({
+          uri: variants.medium.uri, width: variants.medium.width, height: variants.medium.height,
+        }, p => setProgress(p), variants);
+        const confirmed = { ...uploaded, url: photo.url };
+        uploadedDrafts.current.set(photo.id, confirmed);
+        ready.push(confirmed);
+      } catch (reason) {
+        reportClientError(new Error("QUESTIONS_CLIENT_PHOTO_SEND_FAILED"), {
+          issueKey: "Questions", keys: { operation: "photo_send", reason: photoFailureCode(reason) },
+        });
+        setUploadFailures(previous => ({ ...previous,
+          [photo.id]: "Фото не загрузилось. Нажмите кнопку публикации ещё раз; остальные фото сохранятся.",
+        }));
+        throw new Error("Не удалось загрузить фото. Проверьте интернет и повторите отправку.");
+      } finally { setProgress(null); }
+    }
+    // All files confirmed. Parent receives actual IDs only after full success.
+    photosRef.current = ready;
+    onChange(ready);
+    return ready;
+  }
+  useEffect(() => {
+    if (!submitUploadsRef) return;
+    submitUploadsRef.current = flushDraftUploads;
+    return () => { submitUploadsRef.current = null; };
+  });
   const pick = async () => {
     setError("");
     setBusy(true);
@@ -494,6 +592,7 @@ export function QPhotoPicker({
         allowsMultipleSelection: true,
         selectionLimit: QUESTION_LIMITS.photos - photosRef.current.length - failedPhotos.length,
         quality: 1,
+        ...iosCompatiblePhotoPicker(),
       });
       if (result.canceled) return;
       if (result.assets.length + photosRef.current.length + failedPhotos.length > QUESTION_LIMITS.photos) {
@@ -513,17 +612,20 @@ export function QPhotoPicker({
   return (
     <View style={[st.group, compact && st.compactPhotoPicker]}>
       {(photos.length > 0 || failedPhotos.length > 0) && <View style={[st.row,{flexWrap:"wrap"}]}>
-        {failedPhotos.map(item=><View key={`failed-${item.key}`} style={{width:compact?100:110,marginRight:5,marginBottom:9}}>
-          <View style={{position:"relative",height:compact?90:110}}>
+        {failedPhotos.map(item=><View key={`failed-${item.key}`} style={{
+          width:"100%",flexDirection:"row",alignItems:"center",gap:12,padding:8,
+          backgroundColor:"#f4eee6",borderRadius:12,marginBottom:5,
+        }}>
+          <View style={{position:"relative",width:90,height:90,flexShrink:0}}>
             <Image source={{uri:item.asset.uri}} contentFit="cover"
-              style={[st.photo,compact && st.compactPhoto]}/>
-            {item.uploading ? <View style={{position:"absolute",left:3,top:3,
+              style={{width:90,height:90,borderRadius:10}}/>
+            {item.uploading ? <View style={{position:"absolute",left:27,top:27,
               borderRadius:18,backgroundColor:"#17211de0",padding:8}}>
               <MaterialCommunityIcons name="progress-clock" size={22} color="#fff"/>
             </View> : <Pressable accessibilityRole="button"
               accessibilityLabel={`Повторить обработку фото ${item.asset.fileName ?? item.key}`}
               disabled={busy} onPress={()=>void retryOne(item.key)}
-              style={{position:"absolute",top:29,left:29,width:48,height:48,
+              style={{position:"absolute",top:21,left:21,width:48,height:48,
                 borderRadius:24,backgroundColor:"#17211df0",borderWidth:1,
                 borderColor:"#fffc",alignItems:"center",justifyContent:"center"}}>
               <MaterialCommunityIcons name="refresh" size={30} color="#fff"/>
@@ -535,13 +637,30 @@ export function QPhotoPicker({
               <MaterialCommunityIcons name="close" size={18} color="#60392e"/>
             </Pressable>
           </View>
-          {!!item.failure && <Text accessibilityRole="alert" style={{color:"#92351f",fontSize:11,lineHeight:16}}>
-            {item.failure}
-          </Text>}
+          <View style={{flex:1,minWidth:0,gap:4}}>
+            <Text numberOfLines={1} style={{color:COLORS.text,fontSize:12}}>
+              {item.asset.fileName ?? "Фото не обработано"}
+            </Text>
+            {!!item.failure && <Text accessibilityRole="alert" style={{
+              color:"#92351f",fontSize:12,lineHeight:17,
+            }}>{item.failure}</Text>}
+          </View>
         </View>)}
         {photos.map((p) => (
           <View key={p.id}>
             <Image source={{ uri: p.url }} contentFit="cover" style={[st.photo, compact && st.compactPhoto]} />
+            {uploadFailures[p.id] && <Pressable accessibilityRole="button"
+              accessibilityLabel="Повторить загрузку этого фото при отправке"
+              onPress={() => setUploadFailures(previous => {
+                const next = { ...previous }; delete next[p.id]; return next;
+              })} style={{ position: "absolute", left: 3, top: 3, width: 34,
+                height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center",
+                backgroundColor: "#17211de8" }}>
+              <MaterialCommunityIcons name="refresh" size={23} color="#fff" />
+            </Pressable>}
+            {p.id.startsWith("local-") && <Text style={st.meta}>
+              {uploadFailures[p.id] ? "Ошибка загрузки · повторите отправку" : "Готово к отправке"}
+            </Text>}
             <Pressable
               disabled={busy}
               accessibilityRole="button"
@@ -556,7 +675,11 @@ export function QPhotoPicker({
                   try{
                     // Existing attached photos are unbound atomically when
                     // the editor saves; a draft upload needs explicit DELETE.
-                    if(!remote)await discardQuestionPhoto(p.id);
+                    if (p.id.startsWith("local-")) {
+                      const confirmed = uploadedDrafts.current.get(p.id);
+                      if (confirmed) await discardQuestionPhoto(confirmed.id);
+                      uploadedDrafts.current.delete(p.id);
+                    } else if (!remote) await discardQuestionPhoto(p.id);
                     onChange(photos.filter(x=>x.id!==p.id));
                   }catch(e){
                     reportClientError(e,{issueKey:"Questions",keys:{operation:"photo_remove"}});
@@ -597,7 +720,7 @@ export function QPhotoPicker({
             </View>
             <View style={st.compactPhotoCopy}>
               <Text numberOfLines={trailingAction ? 1 : 2} style={st.compactPhotoText}>
-                {busy
+                {busy || progress !== null
                   ? progress === null ? "Подготовка фото…" : progress >= 100 ? "Обработка фото…" : `Загрузка ${progress}%`
                   : photos.length + failedPhotos.length >= QUESTION_LIMITS.photos
                     ? "Добавлено максимум фото"
@@ -620,7 +743,7 @@ export function QPhotoPicker({
       ) : (
         <>
           <QButton
-            label={busy ? (progress===null?"Подготовка фото…" :
+            label={busy || progress !== null ? (progress===null?"Подготовка фото…" :
               progress>=100?"Обработка фото…":"Загрузка "+progress+"%") : "Прикрепить фото"}
             secondary
             icon="image-plus"
@@ -855,6 +978,11 @@ export const st = StyleSheet.create({
   avatar: { width: 36, height: 36, borderRadius: 18 },
   compactAvatar: { width: 32, height: 32, borderRadius: 16 },
   initial: { backgroundColor: "#e1e6d0", alignItems: "center", justifyContent: "center" },
+  photoGrid: { width: "100%", gap: 8 },
+  photoGridRow: { flexDirection: "row", width: "100%", gap: 8 },
+  photoGridCell: { flex: 1, minWidth: 0, aspectRatio: 1, borderRadius: 10, overflow: "hidden", backgroundColor: "#e9e5d9" },
+  photoGridSingleCell: { aspectRatio: 1.6 },
+  photoGridImage: { width: "100%", height: "100%" },
   photo: { width: 110, height: 110, borderRadius: 10 },
   removePhoto: {
     position: "absolute",

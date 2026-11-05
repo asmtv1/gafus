@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AppState,
   FlatList,
+  ScrollView,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -20,14 +21,18 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
 import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
-import { photoRetryMessage } from "@/shared/lib/media/photoRetryMessage";
-import { prepareUploadVideo720, type PreparedUploadVideo720 } from "@/shared/lib/media/prepareUploadVideo720";
-import { File } from "expo-file-system";
+import { prepareUploadWebpVariants } from "@/shared/lib/media/prepareUploadWebp";
+import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
+import { photoRetryMessage, photoFailureCode } from "@/shared/lib/media/photoRetryMessage";
+import { prepareVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWebp";
+import { prepareUploadVideo720, type PreparedUploadVideo720,
+  type Video720Failure } from "@/shared/lib/media/prepareUploadVideo720";
 import * as DocumentPicker from "expo-document-picker";
 import { VideoView, useVideoPlayer, type VideoPlayer, type VideoThumbnail } from "expo-video";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
 import { VideoQualitySettings } from "@/shared/components/media/VideoQualitySettings";
+import { SocialVideoControls } from "@/shared/components/media/SocialVideoControls";
 import { nativeMp4Hints, observeNativeMp4Start, loadNativeMp4Mode, useNativeMp4Mode } from "@/shared/lib/media/videoPlaybackPolicy";
 import { reportNativeVideoStarted } from "@/shared/lib/media/videoQualityTelemetry";
 import { videoRetryMessage, videoServerFailureMessage } from "@/shared/lib/media/videoRetryMessage";
@@ -47,10 +52,12 @@ import { TexturedSafeAreaView } from "@/shared/components/TexturedSafeAreaView";
 import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";
 import { SwipeReplyMessage } from "./SwipeReplyMessage";
 import { Chat2ImageBrowse } from "./Chat2ImageBrowse";
-import { chat2, nameFor, type Conversation, type Message, type Attachment } from "./api";
+import { chat2, nameFor, type Conversation, type Message, type Attachment,
+  type Chat2PreparedPhotoVariants } from "./api";
 import { Chat2S3UploadError } from "./s3Upload";
 import { Chat2SettingsSheet } from "./Chat2SettingsSheet";
 import { isCacheableChat2FinalUrl } from "./publicFinalCache";
+import { chatVideoFrameHeight } from "./chatVideoFrame";
 import { readProcessedChat2Media } from "./mediaProcessing";
 import { Chat2Avatar, Chat2MessageAuthorAvatar } from "./Chat2Avatar";
 import { Chat2ReportSheet } from "./Chat2ReportSheet";
@@ -93,7 +100,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
   const [media, setMedia] = useState<
       { localId: string; name: string; uri: string; attachment?: Attachment;
         sourceVideo?: ImagePicker.ImagePickerAsset; sourcePhoto?: ImagePicker.ImagePickerAsset;
-        failure?: string; uploading?: boolean }[]
+        failure?: string; uploading?: boolean; preparedPhoto?: boolean; preparedVideo?: boolean }[]
     >([]),
     [uploading, setUploading] = useState(false);
   const [connection, setConnection] = useState<"connecting" | "online" | "fallback">("connecting");
@@ -108,6 +115,13 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
   const mounted = useRef(true),
     lastRead = useRef("0"),
     listRef = useRef<FlatList<Message> | null>(null);
+  // Keep locally encoded photo renditions until send/cancel. No S3 call on selection.
+  const preparedPhotos = useRef(new Map<string, Chat2PreparedPhotoVariants>());
+  const activePhotos = useRef(new Set<string>());
+  const preparedVideos = useRef(new Map<string, PreparedUploadVideo720>());
+  const preparedVideoPosters = useRef(new Map<string, Awaited<ReturnType<typeof prepareVideoPosterWebp>>>());
+  const activeVideos = useRef(new Set<string>());
+  const sendingRef = useRef(false);
   const initialHistorySeen = useRef(false);
   const initialScrollDone = useRef(false);
   const olderRequest = useRef(false);
@@ -149,6 +163,11 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
   }, [id, current]);
   useEffect(() => {
     mounted.current = true;
+    const drafts = preparedPhotos.current;
+    const draftIds = activePhotos.current;
+    const videoDrafts = preparedVideos.current;
+    const videoPosterDrafts = preparedVideoPosters.current;
+    const videoIds = activeVideos.current;
     void refresh();
     const poll = setInterval(() => {
       if (AppState.currentState === "active") void refresh();
@@ -156,6 +175,15 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
     return () => {
       mounted.current = false;
       clearInterval(poll);
+      draftIds.clear();
+      for (const variants of drafts.values())
+        for (const item of Object.values(variants)) item.dispose();
+      drafts.clear();
+      videoIds.clear();
+      for (const prepared of videoDrafts.values()) prepared.dispose();
+      videoDrafts.clear();
+      for (const poster of videoPosterDrafts.values()) poster.dispose();
+      videoPosterDrafts.clear();
     };
   }, [refresh]);
   useEffect(() => {
@@ -276,68 +304,82 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
       if (mounted.current) setOlderPending(false);
     }
   }
-  async function uploadOnePhoto(localId: string, source: ImagePicker.ImagePickerAsset) {
-    // The original picker URI belongs to this failed tile. A retry re-runs
-    // JPEG preparation + WebP renditions + S3 confirmation for this tile only.
+  async function prepareOnePhoto(localId: string, source: ImagePicker.ImagePickerAsset) {
+    // Encode JPEG and both WebP renditions now. Only a send tap may reserve/upload to S3.
     let prepared: Awaited<ReturnType<typeof prepareUploadPhoto>> | null = null;
+    let variants: Chat2PreparedPhotoVariants | null = null;
     setMedia(previous => previous.map(item => item.localId === localId
-      ? {...item, uploading: true, failure: undefined} : item));
+      ? { ...item, uploading: true, failure: undefined, preparedPhoto: false } : item));
     try {
       prepared = await prepareUploadPhoto(source);
-      const attachment = await chat2.upload(id, {
-        uri: prepared.uri, name: source.fileName ?? "Фотография",
-        mime: prepared.mime, size: prepared.bytes,
-        width: prepared.width, height: prepared.height,
-      });
-      if (mounted.current) setMedia(previous => previous.map(item => item.localId === localId
-        ? {...item, uploading: false, attachment, failure: undefined} : item));
+      variants = await prepareUploadWebpVariants(prepared, { small: 360, medium: 1440 });
+      if (!mounted.current || !activePhotos.current.has(localId)) return;
+      preparedPhotos.current.set(localId, variants);
+      variants = null; // The composer now owns the variants until send/cancel.
+      setMedia(previous => previous.map(item => item.localId === localId
+        ? { ...item, uploading: false, preparedPhoto: true, failure: undefined } : item));
     } catch (cause) {
-      reportClientError(new Error("CHAT2_PHOTO_UPLOAD_FAILED"), {
-        issueKey: "Chat2Room", keys: {operation: "photo_upload"},
+      reportClientError(new Error("CHAT2_PHOTO_PREPARE_FAILED"), {
+        issueKey: "Chat2Room", keys: { operation: "photo_prepare", reason: photoFailureCode(cause) },
       });
-      if (mounted.current) setMedia(previous => previous.map(item => item.localId === localId
-        ? {...item, uploading: false, failure: photoRetryMessage(cause)} : item));
-    } finally { prepared?.dispose(); }
+      if (mounted.current && activePhotos.current.has(localId))
+        setMedia(previous => previous.map(item => item.localId === localId
+          ? { ...item, uploading: false, preparedPhoto: false,
+            failure: photoRetryMessage(cause) } : item));
+    } finally {
+      prepared?.dispose();
+      if (variants) for (const variant of Object.values(variants)) variant.dispose();
+    }
   }
   function retryOnePhoto(localId: string) {
     if (uploading || pending) return;
     const item = media.find(value => value.localId === localId);
-    if (!item?.sourcePhoto || !item.failure || item.attachment || item.uploading) return;
+    if (!item?.sourcePhoto || !item.failure || item.preparedPhoto || item.uploading) return;
     setUploading(true);
-    void uploadOnePhoto(localId, item.sourcePhoto).finally(() => {
+    void prepareOnePhoto(localId, item.sourcePhoto).finally(() => {
       if (mounted.current) setUploading(false);
     });
   }
-  async function uploadOneVideo(localId: string, source: ImagePicker.ImagePickerAsset) {
-    // Keep the unmodified picker URI until the attachment is sent/removed.
-    // Retry re-executes native H.264/AAC preparation for only this item.
+  async function prepareOneVideo(localId: string, source: ImagePicker.ImagePickerAsset) {
+    // Encode only on selection. No reservation, attach or S3 write before Send.
     let prepared: PreparedUploadVideo720 | null = null;
+    let failureCode: Video720Failure | undefined;
     setMedia(previous => previous.map(item => item.localId === localId
-      ? { ...item, failure: undefined, uploading: true } : item));
+      ? { ...item, failure: undefined, uploading: true, preparedVideo: false } : item));
     try {
-      prepared = await prepareUploadVideo720(source);
-      if (!prepared) throw new Error("Не удалось создать совместимый MP4 на устройстве.");
-      const attachment = await chat2.upload(id, {
-        uri: prepared.uri,
-        name: `video-${Crypto.randomUUID()}.mp4`, mime: prepared.mime,
-        size: prepared.bytes,
+      prepared = await prepareUploadVideo720(source, undefined, undefined, code => {
+        failureCode = code;
       });
-      if (mounted.current) setMedia(previous => previous.map(item => item.localId === localId
-        ? { ...item, attachment, failure: undefined, uploading: false } : item));
+      if (!prepared) throw new Error(failureCode ?? "VIDEO720_NATIVE_ERROR");
+      const poster = await prepareVideoPosterWebp(prepared.uri);
+      if (!mounted.current || !activeVideos.current.has(localId)) {
+        poster.dispose();
+        return;
+      }
+      preparedVideos.current.get(localId)?.dispose();
+      preparedVideoPosters.current.get(localId)?.dispose();
+      preparedVideos.current.set(localId, prepared);
+      preparedVideoPosters.current.set(localId, poster);
+      prepared = null; // The composer owns the encoded file and cover until send/cancel.
+      setMedia(previous => previous.map(item => item.localId === localId
+        ? { ...item, uploading: false, preparedVideo: true, failure: undefined } : item));
     } catch (cause) {
-      reportClientError(new Error("CHAT2_VIDEO_UPLOAD_FAILED"), {
-        issueKey: "Chat2Room", keys: { operation: "video_upload" },
+      reportClientError(new Error("CHAT2_VIDEO_PREPARE_FAILED"), {
+        issueKey: "Chat2Room", keys: { operation: "video_prepare",
+          reason: failureCode ?? "VIDEO720_NATIVE_ERROR" },
       });
-      if (mounted.current) setMedia(previous => previous.map(item => item.localId === localId
-        ? { ...item, uploading: false, failure: videoRetryMessage(cause) } : item));
+      if (mounted.current && activeVideos.current.has(localId))
+        setMedia(previous => previous.map(item => item.localId === localId
+          ? { ...item, uploading: false, preparedVideo: false,
+            failure: videoRetryMessage(cause) } : item));
     } finally { prepared?.dispose(); }
   }
   function retryOneVideo(localId: string) {
     if (uploading || pending) return;
     const item = media.find(value => value.localId === localId);
-    if (!item?.sourceVideo || !item.failure || item.attachment || item.uploading) return;
+    if (!item?.sourceVideo || !item.failure || item.preparedVideo || item.attachment || item.uploading) return;
     setUploading(true);
-    void uploadOneVideo(localId, item.sourceVideo).finally(() => {
+    void prepareOneVideo(localId, item.sourceVideo).finally(() => {
       if (mounted.current) setUploading(false);
     });
   }
@@ -354,21 +396,24 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
           mediaTypes: kind === "video" ? ["videos"] : ["images"],
           // Image bytes are encoded once by the shared JPEG 0.8 / 1920px path.
           quality: 1,
+          ...(kind === "image" ? iosCompatiblePhotoPicker() : {}),
           allowsMultipleSelection: false,
         });
         if (!selection.canceled && selection.assets[0]) {
           const f = selection.assets[0];
           if (kind === "image") {
             const localId = Crypto.randomUUID();
+            activePhotos.current.add(localId);
             setMedia(previous => [...previous, {localId, name:f.fileName ?? "Фотография",
               uri:f.uri, sourcePhoto:f, uploading:true}]);
-            await uploadOnePhoto(localId, f);
+            await prepareOnePhoto(localId, f);
             return;
           } else {
             const localId = Crypto.randomUUID();
+            activeVideos.current.add(localId);
             setMedia(previous => [...previous, { localId,
               name: f.fileName ?? "Видео", uri: f.uri, sourceVideo: f, uploading: true }]);
-            await uploadOneVideo(localId, f);
+            await prepareOneVideo(localId, f);
             return;
           }
         }
@@ -389,7 +434,8 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
       }
       if (!asset) return;
       const localId = Crypto.randomUUID();
-      setMedia((previous) => [...previous, { localId, name: asset!.name, uri: previewUri ?? asset!.uri }]);
+      setMedia((previous) => [...previous, { localId, name: asset!.name,
+        uri: previewUri ?? asset!.uri }]);
       try {
         const attachment = await chat2.upload(id, asset);
         if (mounted.current)
@@ -422,6 +468,16 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
     }
   }
   function removeMedia(file: { localId: string; attachment?: Attachment }) {
+    if (pending) return;
+    activePhotos.current.delete(file.localId);
+    activeVideos.current.delete(file.localId);
+    preparedVideos.current.get(file.localId)?.dispose();
+    preparedVideos.current.delete(file.localId);
+    preparedVideoPosters.current.get(file.localId)?.dispose();
+    preparedVideoPosters.current.delete(file.localId);
+    const variants = preparedPhotos.current.get(file.localId);
+    if (variants) for (const item of Object.values(variants)) item.dispose();
+    preparedPhotos.current.delete(file.localId);
     setMedia((previous) => previous.filter((x) => x.localId !== file.localId));
     if (file.attachment)
       void chat2
@@ -430,25 +486,77 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
   }
   async function send() {
     const value = text.trim();
-    if ((!value && !media.length) || pending || uploading || media.some((x) => !x.attachment))
-      return;
+    if ((!value && !media.length) || pending || sendingRef.current || uploading ||
+      media.some(file => !file.attachment && !file.preparedPhoto && !file.preparedVideo)) return;
+    sendingRef.current = true;
     setPending(true);
     setError("");
-    // Each confirmed logical send has one UUID; retain the same on an ambiguous failure.
-    const attachmentIds = media.flatMap((x) => (x.attachment ? [x.attachment.id] : []));
-    const requestId =
-      retry.current?.text === value &&
-      retry.current?.replyToId === reply?.id &&
-      retry.current?.attachmentIds.join("|") === attachmentIds.join("|")
-        ? retry.current.clientMessageId
-        : Crypto.randomUUID();
-    retry.current = {
-      text: value,
-      replyToId: reply?.id,
-      clientMessageId: requestId,
-      attachmentIds,
-    };
     try {
+      // Create S3 objects only after the user explicitly tapped Send.
+      // Previously completed attachments survive a failed send/retry.
+      const confirmed = [...media];
+      for (const [index, file] of confirmed.entries()) {
+        if (file.attachment) continue;
+        if (file.sourceVideo) {
+          const prepared = preparedVideos.current.get(file.localId);
+          const poster = preparedVideoPosters.current.get(file.localId);
+          if (!prepared || !poster) throw new Error("Видео или обложка не готовы. Повторите подготовку.");
+          try {
+            const attachment = await chat2.upload(id, {
+              uri: prepared.uri, name: "video-" + Crypto.randomUUID() + ".mp4",
+              mime: prepared.mime, size: prepared.bytes, preparedPoster: poster,
+            });
+            confirmed[index] = { ...file, attachment, failure: undefined };
+            if (mounted.current) setMedia(previous => previous.map(item =>
+              item.localId === file.localId
+                ? { ...item, attachment, failure: undefined } : item));
+          } catch (cause) {
+            reportClientError(new Error("CHAT2_VIDEO_UPLOAD_FAILED"), {
+              issueKey: "Chat2Room", keys: { operation: "video_upload" },
+            });
+            if (mounted.current) setMedia(previous => previous.map(item =>
+              item.localId === file.localId
+                ? { ...item, failure: "Видео не отправилось. Проверьте интернет и нажмите «Отправить» ещё раз." }
+                : item));
+            throw cause;
+          }
+          continue;
+        }
+        if (!file.sourcePhoto) continue;
+        const variants = preparedPhotos.current.get(file.localId);
+        if (!variants) throw new Error("Фотография не готова. Подготовьте её повторно.");
+        try {
+          const attachment = await chat2.upload(id, {
+            uri: variants.medium.uri, name: file.name, mime: "image/webp",
+            size: variants.medium.bytes, width: variants.medium.width,
+            height: variants.medium.height, preparedVariants: variants,
+          });
+          confirmed[index] = { ...file, attachment, failure: undefined };
+          if (mounted.current) setMedia(previous => previous.map(item =>
+            item.localId === file.localId
+              ? { ...item, attachment, failure: undefined } : item));
+        } catch (cause) {
+          reportClientError(new Error("CHAT2_PHOTO_UPLOAD_FAILED"), {
+            issueKey: "Chat2Room", keys: { operation: "photo_upload", reason: photoFailureCode(cause) },
+          });
+          if (mounted.current) setMedia(previous => previous.map(item =>
+            item.localId === file.localId
+              ? { ...item, failure: "Фото не отправилось. Проверьте соединение и нажмите «Отправить» ещё раз." }
+              : item));
+          throw cause;
+        }
+      }
+      const attachmentIds = confirmed.flatMap(file => file.attachment ? [file.attachment.id] : []);
+      // Reuse the logical ID only when the message's contents and attachments match.
+      const requestId =
+        retry.current?.text === value &&
+        retry.current?.replyToId === reply?.id &&
+        retry.current?.attachmentIds.join("|") === attachmentIds.join("|")
+          ? retry.current.clientMessageId
+          : Crypto.randomUUID();
+      retry.current = {
+        text: value, replyToId: reply?.id, clientMessageId: requestId, attachmentIds,
+      };
       if (editing) await chat2.edit(id, editing.id, value);
       else await chat2.send(id, value, requestId, reply?.id, attachmentIds);
       retry.current = null;
@@ -456,15 +564,24 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
       setReply(null);
       setEditing(null);
       setMedia([]);
+      activePhotos.current.clear();
+      for (const variants of preparedPhotos.current.values())
+        for (const item of Object.values(variants)) item.dispose();
+      preparedPhotos.current.clear();
+      activeVideos.current.clear();
+      for (const prepared of preparedVideos.current.values()) prepared.dispose();
+      preparedVideos.current.clear();
+      for (const poster of preparedVideoPosters.current.values()) poster.dispose();
+      preparedVideoPosters.current.clear();
       await refresh();
       listRef.current?.scrollToEnd({ animated: true });
     } catch (e) {
       reportClientError(new Error("CHAT2_SEND_FAILED"), {
-        issueKey: "Chat2Room",
-        keys: { operation: "send" },
+        issueKey: "Chat2Room", keys: { operation: "send" },
       });
       setError(e instanceof Error ? e.message : "Сообщение не отправлено. Повторите.");
     } finally {
+      sendingRef.current = false;
       setPending(false);
     }
   }
@@ -798,9 +915,11 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
           </View>
         )}
         {media.length > 0 && (
-          <View style={styles.mediaPending}>
+          <ScrollView style={styles.mediaPending} contentContainerStyle={styles.mediaPendingContent}
+            keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={media.length > 2}>
             {media.map((file) => (
               <View key={file.localId} style={styles.mediaChip}>
+                <View style={styles.mediaChipTop}>
                 {file.sourcePhoto || file.attachment?.kind === "image" || file.uri.match(/\.(jpg|jpeg|png|webp)$/i) ? (
                   <>
                   <Image
@@ -808,7 +927,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
                     style={styles.mediaThumb}
                     resizeMode="contain"
                   />
-                  {file.failure && file.sourcePhoto && <Pressable accessibilityRole="button"
+                  {file.failure && file.sourcePhoto && !file.preparedPhoto && <Pressable accessibilityRole="button"
                     accessibilityLabel={`Повторить обработку фото ${file.name}`}
                     disabled={uploading || pending} onPress={() => retryOnePhoto(file.localId)}
                     style={{position:"absolute",left:4,top:4,width:44,height:44,
@@ -821,7 +940,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
                   <View style={{ width: 52, height: 52, borderRadius: 12,
                     backgroundColor: "#25352c", alignItems: "center", justifyContent: "center" }}>
                     <MaterialCommunityIcons name="video-outline" size={27} color="#fff" />
-                    {file.failure && file.sourceVideo && <Pressable accessibilityRole="button"
+                    {file.failure && file.sourceVideo && !file.preparedVideo && <Pressable accessibilityRole="button"
                       accessibilityLabel={`Повторить обработку видео ${file.name}`}
                       disabled={uploading || pending} onPress={() => retryOneVideo(file.localId)}
                       style={{ position: "absolute", width: 46, height: 46,
@@ -836,17 +955,22 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
                 <Text numberOfLines={1} style={styles.mediaLabel}>
                   {file.name}
                 </Text>
-                <Text style={styles.mediaSmall}>{file.attachment ? "Готово" :
-                  file.failure ? "Ошибка обработки" : "Подготавливаем и загружаем…"}</Text>
-                {file.failure && <Text accessibilityRole="alert" style={{
-                  color: "#8c2b18", fontSize: 12, maxWidth: 215, lineHeight: 18,
-                }}>{file.failure}</Text>}
-                <Pressable onPress={() => removeMedia(file)} accessibilityLabel="Удалить вложение">
+                <Pressable onPress={() => removeMedia(file)} disabled={pending}
+                  accessibilityLabel="Удалить вложение">
                   <Text style={styles.mediaClose}>×</Text>
                 </Pressable>
+                </View>
+                <Text style={styles.mediaSmall}>{file.attachment ? "Загружено" :
+                  file.failure ? (file.preparedPhoto ? "Ошибка загрузки" : "Ошибка подготовки") :
+                  file.preparedPhoto ? (pending ? "Загружаем после отправки…" :
+                    "Готово к отправке") : "Подготавливаем на телефоне…"}</Text>
+                {!!file.failure && <Text accessibilityRole="alert" style={styles.mediaFailure}>
+                  {file.failure}
+                </Text>}
+
               </View>
             ))}
-          </View>
+          </ScrollView>
         )}
         <View style={styles.composer}>
           {!editing && (
@@ -880,7 +1004,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
               ((!text.trim() && !media.length) ||
                 pending ||
                 uploading ||
-                media.some((x) => !x.attachment)) &&
+                media.some((x) => !x.attachment && !x.preparedPhoto && !x.preparedVideo)) &&
                 styles.disabled,
             ]}
             onPress={() => void send()}
@@ -888,7 +1012,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
               (!text.trim() && !media.length) ||
               pending ||
               uploading ||
-              media.some((x) => !x.attachment)
+              media.some((x) => !x.attachment && !x.preparedPhoto && !x.preparedVideo)
             }
             accessibilityLabel="Отправить сообщение"
           >
@@ -1049,17 +1173,13 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.5 },
   sendText: { color: "white", fontWeight: "700", fontSize: 20 },
   attach: { fontSize: 23, padding: 7, color: olive },
-  mediaPending: { paddingHorizontal: 10, paddingVertical: 8, gap: 5, maxHeight: 90 },
-  mediaChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#edf1e4",
-    borderRadius: 9,
-    padding: 4,
-  },
+  mediaPending: { maxHeight: 220, marginHorizontal: 10, marginBottom: 5 },
+  mediaPendingContent: { paddingVertical: 5, gap: 7 },
+  mediaChip: { backgroundColor: "#edf1e4", borderRadius: 11, padding: 9, gap: 5 },
+  mediaChipTop: { flexDirection: "row", alignItems: "center", gap: 9, minWidth: 0 },
+  mediaFailure: { color: "#8c2b18", fontSize: 12, lineHeight: 18, flexShrink: 1 },
   mediaThumb: { width: 45, height: 45, borderRadius: 7 },
-  mediaLabel: { flex: 1, fontSize: 12, color: olive },
+  mediaLabel: { flex: 1, minWidth: 0, fontSize: 12, color: olive },
   mediaSmall: { fontSize: 10, color: muted },
   mediaClose: { fontSize: 22, color: "#ab4736", paddingHorizontal: 8 },
 });
@@ -1333,8 +1453,8 @@ function NativeChat2Image({ conversationId, file, images }: {
 /** Mount the paused native player with the message: it can render the first frame
  * even for legacy MP4s that do not have a separately processed poster. */
 function NativeChat2VideoPlayer({
-  url, onError, onReady, seekTo, onPlayer, onPlayingChange, resumeOnReady, controlsVisible,
-  requestThumbnail, onThumbnail,
+  url, onError, onReady, seekTo, onPlayer, onPlayingChange, resumeOnReady,
+  requestThumbnail, onThumbnail, hideView = false, frameHeight = 220, onDimensions,
 }: {
   url: string;
   onError: () => void;
@@ -1343,9 +1463,11 @@ function NativeChat2VideoPlayer({
   onPlayer: (player: VideoPlayer | null) => void;
   onPlayingChange: (playing: boolean) => void;
   resumeOnReady: boolean;
-  controlsVisible: boolean;
   requestThumbnail: boolean;
   onThumbnail: (url: string, frame: VideoThumbnail) => void;
+  hideView?: boolean;
+  frameHeight?: number;
+  onDimensions: (width: number, height: number) => void;
 }) {
   const startupAt = useRef(Date.now());
   const readyRecorded = useRef(false);
@@ -1368,6 +1490,8 @@ function NativeChat2VideoPlayer({
     const onStatus = (status: string) => {
       if (status === "error" && !failed) { failed = true; onError(); }
       if (status !== "readyToPlay") return;
+      const size = player.videoTrack?.size;
+      if (size?.width && size?.height) onDimensions(size.width, size.height);
       if (!readyRecorded.current) {
         readyRecorded.current = true;
         onReady(Date.now()-startupAt.current);
@@ -1394,10 +1518,12 @@ function NativeChat2VideoPlayer({
       onPlayingChange(isPlaying));
     onStatus(player.status);
     return () => { live = false; statusListener.remove(); playingListener.remove(); };
-  }, [player, onError, onReady, onPlayingChange, seekTo, resumeOnReady, requestThumbnail, onThumbnail, url]);
+  }, [player, onError, onReady, onPlayingChange, seekTo, resumeOnReady,
+    requestThumbnail, onThumbnail, url, onDimensions]);
+  if (hideView) return null; // Modal takes sole ownership of this native VideoView.
   return <VideoView player={player}
-    style={{ width: 220, height: 220, backgroundColor: "#17211d" }}
-    contentFit="contain" nativeControls={controlsVisible} allowsPictureInPicture={false}
+    style={{ width: 220, height: frameHeight, backgroundColor: "#17211d" }}
+    contentFit="contain" nativeControls={false} allowsPictureInPicture={false}
     surfaceType={Platform.OS === "android" ? "textureView" : undefined} />;
 }
 
@@ -1417,6 +1543,9 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
   const [posterFailed, setPosterFailed] = useState(false);
   const [posterViaS3, setPosterViaS3] = useState(false);
   const playerRef = useRef<VideoPlayer | null>(null);
+  const [controlPlayer, setControlPlayer] = useState<VideoPlayer | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [trackSize, setTrackSize] = useState<{ width: number; height: number } | null>(null);
   const signedAt = useRef(0);
   const [pending, setPending] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -1491,7 +1620,14 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
     reportNativeVideoStarted({surface:"chat",quality:selected,mode:quality,
       available:media.renditions.video,hints:qualityHints.current,fallback:usingFallback});
   }, [media, quality, usingFallback]);
-  const onPlayer = useCallback((player: VideoPlayer | null) => { playerRef.current = player; }, []);
+  const onPlayer = useCallback((player: VideoPlayer | null) => {
+    playerRef.current = player;
+    setControlPlayer(player);
+  }, []);
+  const onDimensions = useCallback((width: number, height: number) => {
+    setTrackSize(previous => previous?.width === width && previous?.height === height
+      ? previous : { width, height });
+  }, []);
   const onThumbnail = useCallback((url: string, frame: VideoThumbnail) => {
     setThumbnail({ url, frame });
   }, []);
@@ -1609,14 +1745,16 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
     ? media?.fallbackRenditions?.poster ?? media?.renditions?.poster
     : media?.renditions?.poster;
   const poster = posterFailed ? null : posterUrl;
+  const previewHeight = chatVideoFrameHeight(220, trackSize?.width, trackSize?.height);
   return <View style={{ marginTop: 8, width: 220 }}>
-    {url ? <View style={{ width: 220, height: 220, borderRadius: 12,
+    {url ? <View style={{ width: 220, height: previewHeight, borderRadius: 12,
         overflow: "hidden", backgroundColor: "#17211d", position: "relative" }}>
       <NativeChat2VideoPlayer key={url} url={url} onError={onError} onReady={onVideoReady} seekTo={seekTo}
         resumeOnReady={resumeOnReady} onPlayer={onPlayer} onPlayingChange={onPlayingChange}
-        controlsVisible={everPlayed} requestThumbnail={!poster} onThumbnail={onThumbnail} />
+        requestThumbnail={!poster} onThumbnail={onThumbnail} hideView={expanded}
+        frameHeight={previewHeight} onDimensions={onDimensions} />
       {!everPlayed && !playing && (poster || thumbnail?.url === url) && <View pointerEvents="none"
-        style={{ position: "absolute", width: 220, height: 220 }}>
+        style={{ position: "absolute", width: 220, height: previewHeight }}>
         {poster ? <ExpoImage source={{ uri: poster }} contentFit="contain"
           cachePolicy={isCacheableChat2FinalUrl(poster) ? "memory-disk" : "memory"}
           onError={() => {
@@ -1628,33 +1766,15 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
                 else setPosterFailed(true);
               }).catch(() => setPosterFailed(true));
           }}
-          style={{ width: 220, height: 220 }} /> :
+          style={{ width: 220, height: previewHeight }} /> :
           thumbnail?.url === url && <ExpoImage source={thumbnail.frame}
-            contentFit="contain" style={{ width: 220, height: 220 }} />}
+            contentFit="contain" style={{ width: 220, height: previewHeight }} />}
       </View>}
-      {!everPlayed && !playing && <Pressable accessibilityRole="button"
-        accessibilityLabel={`Воспроизвести ${file.name}`}
-        onPress={() => void play()} disabled={pending}
-        style={{ position: "absolute", left: 82, top: 82,
-          width: 56, height: 56, borderRadius: 28,
-          borderWidth: 1, borderColor: "#ffffff99", backgroundColor: "#17211dd4",
-          alignItems: "center", justifyContent: "center" }}>
-        {pending ? <ActivityIndicator color="#fff" /> :
-          <Text style={{ color: "#fff", fontSize: 27, marginLeft: 4 }}>▶</Text>}
-      </Pressable>}
-      {everPlayed && <Pressable accessibilityRole="button"
-        accessibilityLabel={playing ? "Пауза" : "Продолжить видео"}
-        onPress={event => { event.stopPropagation(); togglePlayback(); }}
-        style={{ position: "absolute", top: 8, right: 8, zIndex: 2,
-          width: 44, height: 44, borderRadius: 22,
-          borderWidth: 1, borderColor: "#ffffff99", backgroundColor: "#17211dd4",
-          alignItems: "center", justifyContent: "center" }}>
-        {playing ? <View style={{ flexDirection: "row", gap: 5 }}>
-          <View style={{ width: 4, height: 18, borderRadius: 1, backgroundColor: "#fff" }} />
-          <View style={{ width: 4, height: 18, borderRadius: 1, backgroundColor: "#fff" }} />
-        </View> : <Text style={{ color: "#fff", fontSize: 24, marginLeft: 3 }}>▶</Text>}
-      </Pressable>}
-      <VideoQualitySettings value={quality} onChange={choose} available={variants} />
+      {!expanded && <SocialVideoControls player={controlPlayer} playing={playing}
+        onToggle={togglePlayback} label={file.name}
+        onExpand={() => setExpanded(true)}
+        qualityControl={<VideoQualitySettings embedded value={quality}
+          onChange={choose} available={variants} />} />}
     </View> : <View style={{ width: 220, minHeight: 180, borderRadius: 12,
       backgroundColor: "#17211d", alignItems: "center", justifyContent: "center", padding: 16, gap: 12 }}>
       {pending ? <><ActivityIndicator color="#fff" />
@@ -1671,5 +1791,26 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
             <Text style={{ color: "#fff", fontSize: 12 }}>Проверить снова</Text>
           </Pressable></>}
     </View>}
+    {expanded && controlPlayer && url && <Modal visible animationType="fade"
+      presentationStyle="fullScreen" onRequestClose={() => setExpanded(false)}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#101010" }}>
+        <SwipeDismissMedia onDismiss={() => setExpanded(false)}>
+          <View style={{ flex: 1, backgroundColor: "#101010" }}>
+            <VideoView player={controlPlayer} style={{ width: "100%", height: "100%" }}
+              contentFit="contain" nativeControls={false} allowsPictureInPicture={false}
+              surfaceType={Platform.OS === "android" ? "textureView" : undefined} />
+            <SocialVideoControls player={controlPlayer} playing={playing} onToggle={togglePlayback}
+              label={file.name} qualityControl={<VideoQualitySettings embedded value={quality}
+                onChange={choose} available={variants} />} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Закрыть видео"
+              onPress={() => setExpanded(false)} style={{ position: "absolute", top: 48,
+                right: 15, width: 44, height: 44, borderRadius: 22,
+                backgroundColor: "#00000099", alignItems: "center", justifyContent: "center" }}>
+              <MaterialCommunityIcons name="close" color="#fff" size={25} />
+            </Pressable>
+          </View>
+        </SwipeDismissMedia>
+      </GestureHandlerRootView>
+    </Modal>}
   </View>;
 }

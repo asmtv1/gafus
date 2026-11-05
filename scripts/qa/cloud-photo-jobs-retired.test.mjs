@@ -165,6 +165,12 @@ test('No photo/cloud bootstrap or manual registry publishing in active release f
  assert(questionsWorker.includes('"claim"'));
  assert(questionsWorker.includes('"complete"'));
  assert(questionsWorker.includes('"fail"'));
+ const s3Delete=read('packages/cdn-upload/src/questionsV2Media.ts');
+ assert(s3Delete.includes('QUESTIONS_V2_DELETE_NOT_CONFIRMED'));
+ assert(s3Delete.includes('new HeadObjectCommand({Bucket:bucket,Key:key})'));
+ const deleteContract=read('packages/cdn-upload/src/questionsV2Cleanup.ts');
+ assert(deleteContract.includes('questionsV2CleanupKeys'));
+ assert(deleteContract.includes('QUESTIONS_V2_UNTRUSTED_CLEANUP_SOURCE'));
  const questionsCron=read('packages/worker/src/cron-scheduler.ts');
  const section=questionsCron.slice(questionsCron.indexOf('Questions S3 cleanup'),
    questionsCron.indexOf('// Independent durable Beget'));

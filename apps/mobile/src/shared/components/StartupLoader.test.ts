@@ -28,20 +28,38 @@ describe("mobile start screen uses one bundled static poster", () => {
     expect(splashPlugin?.[1]).toMatchObject({ ios: { resizeMode: "contain" } });
     expect(startup).toContain('resizeMode="contain"');
     expect(startup).not.toContain('resizeMode="cover"');
-    expect(startup).toContain("onLoadEnd={onReady}");
+    expect(startup).toContain("onLoad={() => setImageLoaded(true)}");
+    expect(startup).toContain("onLayout={() => setLaidOut(true)}");
+    expect(startup).toContain('width: "100%"');
+    expect(startup).toContain('height: "100%"');
+    expect(startup).not.toContain("style={StyleSheet.absoluteFill}");
+    expect(startup).toContain("if (laidOut && imageLoaded) onReady?.()");
   });
   it("never waits on GIF animation for startup and holds native splash until JS image loads", () => {
     expect(startup).not.toContain(".gif");
     expect(startup).not.toContain("autoplay");
     expect(rootLayout).toContain("SplashScreen.preventAutoHideAsync()");
-    expect(rootLayout).toContain("if (startupImageReady)");
+    expect(rootLayout).toContain("if (!startupImageReady) return;");
+    expect(rootLayout).toContain("requestAnimationFrame");
+    expect(rootLayout).toContain("appContentLaidOut");
+    expect(rootLayout).toContain("nativeSplashHidden");
+    expect(rootLayout).toContain("startupVisible && <StartupLoader overlay onReady={onStartupReady} />");
+    expect(rootLayout).not.toContain("return <StartupLoader onReady");
     expect(rootLayout).toContain("SplashScreen.hideAsync()");
     expect(rootLayout).not.toContain("loadingMascotReady");
     expect(rootLayout).not.toContain("warmUpLoadingMascot");
   });
-  it("keeps the poster visible instead of a spinner during the first courses fetch", () => {
-    expect(courses).toContain('import { StartupLoader } from "@/shared/components/StartupLoader"');
-    expect(courses).toMatch(/if \(isLoading\)\s*\{\s*return <StartupLoader \/>;/);
-    expect(courses).not.toContain('message="Загрузка курсов..."');
+  it("never repeats or zooms the startup poster inside the loaded tab navigator", () => {
+    expect(courses).not.toContain("import { StartupLoader }");
+    expect(courses).not.toContain("return <StartupLoader");
+    expect(courses).toContain("if (isLoading)");
+    expect(courses).toContain("Загружаем курсы…");
+    expect(courses).toContain("styles.catalogLoading");
+  });
+  it("keeps native Android's post-splash window sky-blue before React paints", () => {
+    const xml = readFileSync(resolve(mobileRoot,
+      "android/app/src/main/res/values/styles.xml"), "utf8");
+    expect(xml).toContain('<item name="android:windowBackground">@color/splashscreen_background</item>');
+    expect(app.expo.plugins).toContain("./plugins/withStartupWindowBackground");
   });
 });

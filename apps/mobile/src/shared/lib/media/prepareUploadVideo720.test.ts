@@ -2,6 +2,9 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { Platform } from "react-native";
 
 const files = vi.hoisted(() => ({ sizes: new Map<string, number>(), deleted: [] as string[] }));
+vi.mock("react-native-compressor", () => ({
+  Video: { compress: vi.fn(), cancelCompression: vi.fn() },
+}));
 vi.mock("expo-file-system", () => ({
   File: class {
     constructor(readonly uri: string) {}
@@ -29,7 +32,8 @@ describe("single phone 720p MP4 for Moments and Chat2", () => {
     expect(target720LongEdge(1080, 1920)).toBe(1280);
     expect(target720LongEdge(1280, 720)).toBe(1280);
     expect(target720LongEdge(720, 1280)).toBe(1280);
-    expect(target720LongEdge(640, 360)).toBeNull();
+    expect(target720LongEdge(640, 360)).toBe(640);
+    expect(target720LongEdge(360, 640)).toBe(640);
     expect(target720LongEdge(0, 0)).toBeNull();
     expect(target720LongEdge(100, 900)).toBeNull();
   });
@@ -67,6 +71,31 @@ describe("single phone 720p MP4 for Moments and Chat2", () => {
     expect(await prepareUploadVideo720({ uri: "file:///original.mp4", width: 1920, height: 1080 }, encoder))
       .toBeNull();
     expect(encoder).toHaveBeenCalledTimes(2);
+  });
+  it("accepts 360p originals without upscaling and reports explicit preparation failures", async () => {
+    const output = "file:///tmp/converted-low-res.mp4";
+    files.sizes.set(output, 250_000);
+    const encoder = vi.fn(async () => output);
+    const errors: string[] = [];
+    const video = await prepareUploadVideo720({ uri: "file:///tmp/low-res.mov",
+      width: 640, height: 360 }, encoder, uri => uri === output, code => errors.push(code));
+    expect(encoder).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ maxSize: 640 }));
+    expect(video).toMatchObject({ uri: output, bytes: 250_000 });
+    expect(errors).toHaveLength(0);
+    video?.dispose();
+    const bad = await prepareUploadVideo720({ uri: "file:///tmp/bad.mov",
+      width: 900, height: 100 }, encoder, () => false, code => errors.push(code));
+    expect(bad).toBeNull();
+    expect(errors).toEqual(["VIDEO720_DIMENSIONS"]);
+  });
+  it("does not silently classify a corrupt native output as a storage error", async () => {
+    const output = "file:///tmp/invalid.mp4";
+    files.sizes.set(output, 1000);
+    const codes: string[] = [];
+    await expect(prepareUploadVideo720({ uri: "file:///tmp/input.mov",
+      width: 1280, height: 720 }, async () => output, () => false, code => codes.push(code)))
+      .resolves.toBeNull();
+    expect(codes).toEqual(["VIDEO720_INVALID_MP4"]);
   });
   it("does not re-encode verified MP4 originals, and never deletes source", async () => {
     const uri = "file:///original/ready.mp4";

@@ -4,7 +4,7 @@
  * evaluation, where Expo deliberately disables automatic .env loading.
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "dotenv";
@@ -33,6 +33,19 @@ try {
 }
 
 const env = { ...process.env };
+// Homebrew JDK 17 is keg-only on macOS: /usr/bin/java may be a stub even
+// when a valid JDK is installed. EAS local runs Gradle in a child process.
+if (!env.JAVA_HOME && process.platform === "darwin") {
+  for (const home of [
+    "/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home",
+    "/usr/local/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home",
+  ]) {
+    if (!existsSync(resolve(home, "bin/java"))) continue;
+    env.JAVA_HOME = home;
+    env.PATH = `${resolve(home, "bin")}:${env.PATH ?? ""}`;
+    break;
+  }
+}
 // pnpm run exports npm_config_* workspace flags. They make nested npx treat
 // apps/mobile/lib as an npm workspace, even though that directory does not exist.
 for (const key of Object.keys(env)) {

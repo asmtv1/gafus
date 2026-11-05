@@ -59,11 +59,12 @@ beforeEach(() => {
 });
 
 describe("phone-first dog walk synchronization", () => {
-  it("grants exactly the two named accounts, not every ADMIN", () => {
-    expect(canUseDogWalkHistory({ username: "asmtv1", role: "USER" })).toBe(true);
-    expect(canUseDogWalkHistory({ username: "admin", role: "USER" })).toBe(true);
-    expect(canUseDogWalkHistory({ username: "other", role: "ADMIN" })).toBe(false);
-    expect(canUseDogWalkHistory({ username: "partner", role: "PARTNER" })).toBe(false);
+  it("allows any signed-in user, independent of username or role", () => {
+    expect(canUseDogWalkHistory({ id: "regular" })).toBe(true);
+    expect(canUseDogWalkHistory({ id: "admin-id" })).toBe(true);
+    expect(canUseDogWalkHistory({ id: "partner-id" })).toBe(true);
+    expect(canUseDogWalkHistory(null)).toBe(false);
+    expect(canUseDogWalkHistory({})).toBe(false);
   });
 
   it("locally overrides stale server copies while adopting server-only walks", () => {
@@ -89,8 +90,17 @@ describe("phone-first dog walk synchronization", () => {
     expect(mocked.save).toHaveBeenCalledWith("owner", merged);
   });
 
-  it("does not send any history for an unauthorized account", async () => {
-    mocked.user = { id: "owner", username: "other", role: "ADMIN" };
+  it("allows ordinary accounts to sync their own history", async () => {
+    mocked.user = { id: "owner", username: "other", role: "USER" };
+    await expect(syncDogWalkHistory("owner")).resolves.toBeDefined();
+    expect(mocked.api).toHaveBeenCalledWith(
+      "/api/v1/walks/sync",
+      expect.objectContaining({ method: "PUT" }),
+    );
+  });
+
+  it("does not send history for a signed-out account", async () => {
+    mocked.authenticated = false;
     await expect(syncDogWalkHistory("owner")).rejects.toThrow("WALK_SYNC_NOT_AUTHORIZED");
     expect(mocked.api).not.toHaveBeenCalled();
     expect(mocked.save).not.toHaveBeenCalled();

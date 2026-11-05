@@ -113,6 +113,41 @@ function signedPostAddress(value: string): string {
   return url.href;
 }
 
+// Browser WebP preparation starts when a photo is selected, before any S3 request.
+// Cache by original File so Publish, failed-upload retry and poll/comment paths
+// reuse the same already-encoded bytes. A failed encode remains retryable.
+const preparedMomentPhotos = new WeakMap<File, ReturnType<typeof prepareBrowserPhotoWebp<{
+  small: number; medium: number; large: number
+}>>>();
+export function prepareMomentPhotoBeforePublish(file: File) {
+  let task = preparedMomentPhotos.get(file);
+  if (!task) {
+    task = prepareBrowserPhotoWebp(file, { small: 360, medium: 720, large: 1440 })
+      .catch(error => { preparedMomentPhotos.delete(file); throw error; });
+    preparedMomentPhotos.set(file, task);
+  }
+  return task;
+}
+
+// The original File is the key: preprocessing begins at selection, without
+// any Core reservation or S3 request. A failed encode/poster can be retried.
+const preparedMomentVideos = new WeakMap<File, Promise<{ file: File; poster: File }>>();
+export function prepareMomentVideoBeforePublish(file: File,
+  onProgress?: (percent: number) => void): Promise<{ file: File; poster: File }> {
+  let task = preparedMomentVideos.get(file);
+  if (!task) {
+    task = prepareBrowserVideo720(file, onProgress, true).then(async prepared => ({
+      file: prepared,
+      poster: await prepareBrowserVideoPoster(prepared),
+    })).catch(error => {
+      preparedMomentVideos.delete(file);
+      throw error;
+    });
+    preparedMomentVideos.set(file, task);
+  }
+  return task;
+}
+
 /** No storage secret or signed URL is put in React Query or persistent browser state. */
 export type MomentMediaUpload = {
   postId: string;
@@ -131,13 +166,13 @@ async function uploadMomentAsset(input: MomentMediaUpload, kind: FeedMediaKind):
   else validateMomentVideo(input.file, input.existingCount);
 
   const variants = kind === "photo"
-    ? await prepareBrowserPhotoWebp(input.file,{small:360,medium:720,large:1440})
+    ? await prepareMomentPhotoBeforePublish(input.file)
     : null;
-  const sourceFile = kind === "video"
-    ? await prepareBrowserVideo720(input.file,
-        progress => input.onProgress?.(Math.round(progress * 0.2)), true)
-    : variants!.large.file;
-  const videoPoster = kind === "video" ? await prepareBrowserVideoPoster(sourceFile) : null;
+  const preparedVideo = kind === "video"
+    ? await prepareMomentVideoBeforePublish(input.file,
+        progress => input.onProgress?.(Math.round(progress * 0.2))) : null;
+  const sourceFile = preparedVideo?.file ?? variants!.large.file;
+  const videoPoster = preparedVideo?.poster ?? null;
   const reserve = validTicket(await feedClient.reserveUpload(input.postId, {
     filename: sourceFile.name, kind,
     declaredMime: sourceFile.type as FeedMimeType,

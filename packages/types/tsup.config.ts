@@ -10,7 +10,7 @@ export default defineConfig({
   outDir: "dist",
   clean: true,
   sourcemap: true,
-  external: ["@gafus/logger", "react-hook-form"],
+  external: ["@gafus/logger"],
   outExtension: () => ({ js: ".js" }),
   esbuildOptions(options) {
     options.banner = { js: '"use strict";' };

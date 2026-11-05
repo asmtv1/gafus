@@ -9,6 +9,9 @@ import { makeFeedVideoPoster } from "./videoPoster";
 import { prepareUploadVideo720, type PreparedUploadVideo720 } from "@/shared/lib/media/prepareUploadVideo720";
 import { prepareVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWebp";
 import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
+import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
+import { photoFailureCode } from "@/shared/lib/media/photoRetryMessage";
+import { reportClientError } from "@/shared/lib/tracer";
 import { prepareUploadWebpVariants, type PreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
 import { postClientWebp, type SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
 import { feedTransport } from "@/shared/lib/api/feed";
@@ -26,6 +29,9 @@ export interface FeedPickedMedia {
   previewUri?: string;
   clientRenditions?: { small: PreparedWebpVariant; medium: PreparedWebpVariant };
   preparedVideo?: PreparedUploadVideo720;
+  preparedPoster?: Awaited<ReturnType<typeof prepareVideoPosterWebp>>;
+  videoPreparation?: Promise<void>;
+  released?: boolean;
   /** Original local picker asset retained for a real per-file encode retry. */
   sourceVideo?: ImagePicker.ImagePickerAsset;
 }
@@ -55,14 +61,54 @@ function inferMediaType(asset: ImagePicker.ImagePickerAsset): {
   if (!inferred) throw new Error("Выберите JPG, PNG, WebP или HEIC.");
   return { kind: "photo", mime: inferred };
 }
+/** Start local 720p encode and one WebP cover before publish; never contact S3 here. */
+export function ensureFeedVideoPrepared(item: FeedPickedMedia): Promise<void> {
+  if (item.kind !== "video" || !item.sourceVideo) return Promise.resolve();
+  if (item.videoPreparation) return item.videoPreparation;
+  const task = (async () => {
+    if (item.released) throw new Error("Видео удалено из редактора.");
+    if (!item.preparedVideo || !new File(item.preparedVideo.uri).exists) {
+      item.preparedVideo?.dispose();
+      item.preparedVideo = undefined;
+      const prepared = await prepareUploadVideo720(item.sourceVideo!);
+      if (!prepared) throw new Error("Не удалось подготовить видео в MP4 H.264 на устройстве.");
+      if (item.released) { prepared.dispose(); throw new Error("Видео удалено из редактора."); }
+      item.preparedVideo = prepared;
+      item.uri = prepared.uri;
+      item.bytes = prepared.bytes;
+      item.mime = prepared.mime;
+      item.filename = item.filename.replace(/\.[^.]+$/, ".mp4");
+      item.converted = true;
+    }
+    if (!item.preparedPoster) {
+      const poster = await prepareVideoPosterWebp(item.uri, item.previewUri);
+      if (item.released) { poster.dispose(); throw new Error("Видео удалено из редактора."); }
+      item.preparedPoster = poster;
+    }
+  })();
+  item.videoPreparation = task;
+  void task.finally(() => {
+    if (item.videoPreparation === task) item.videoPreparation = undefined;
+  }).catch(() => undefined);
+  return task;
+}
+
 export async function prepareFeedPickedMedia(asset: ImagePicker.ImagePickerAsset): Promise<FeedPickedMedia> {
   const type = inferMediaType(asset);
-  const prepared = type.kind === "photo" ? await prepareUploadPhoto(asset) : null;
+  let prepared: Awaited<ReturnType<typeof prepareUploadPhoto>> | null = null;
+  if (type.kind === "photo") {
+    try { prepared = await prepareUploadPhoto(asset); }
+    catch (cause) {
+      reportClientError(new Error("MOMENTS_CLIENT_JPEG_FAILED"), {
+        issueKey: "Moments", keys: { operation: "photo_prepare", reason: photoFailureCode(cause) },
+      });
+      throw cause;
+    }
+  }
   // The cover is available immediately, before the potentially slow native encode.
   const posterUri = type.kind === "video" ? await makeFeedVideoPoster(asset.uri) : undefined;
-  // Video encoding is intentionally deferred until the publication queue.
-  // A native codec failure must leave a visible, retryable video tile instead
-  // of dropping the selection before any local publication item exists.
+  // Native encoding starts as soon as this file enters the composer.
+  // A codec failure leaves the selected original available for retry on publish.
   let renditions: Awaited<ReturnType<typeof prepareUploadWebpVariants<"small" | "medium" | "large">>> | undefined;
   try {
     if (prepared) {
@@ -71,6 +117,9 @@ export async function prepareFeedPickedMedia(asset: ImagePicker.ImagePickerAsset
       prepared.dispose();
     }
   } catch (error) {
+    reportClientError(new Error("MOMENTS_CLIENT_WEBP_FAILED"), {
+      issueKey: "Moments", keys: { operation: "photo_encode", reason: photoFailureCode(error) },
+    });
     prepared?.dispose();
     throw error;
   }
@@ -85,7 +134,7 @@ export async function prepareFeedPickedMedia(asset: ImagePicker.ImagePickerAsset
   const mime = renditions ? "image/webp" as const : prepared?.mime ?? type.mime;
   const extension = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
     "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm" }[mime];
-  return {
+  const item: FeedPickedMedia = {
     uri, kind: type.kind, mime, bytes,
     requestId: Crypto.randomUUID(), filename: `feed-${Crypto.randomUUID()}.${extension}`,
     width: renditions?.large.width ?? prepared?.width ?? asset.width,
@@ -94,10 +143,21 @@ export async function prepareFeedPickedMedia(asset: ImagePicker.ImagePickerAsset
     ...(type.kind === "video" ? { sourceVideo: asset } : {}),
     ...(renditions ? { clientRenditions: { small: renditions.small, medium: renditions.medium } } : {}),
   };
+  // Start preparation immediately, while the original asset remains available
+  // as a retry source. Failure does not discard the selected video tile.
+  if (item.kind === "video") void ensureFeedVideoPrepared(item).catch(() => undefined);
+  return item;
 }
 /** Native JPEG copy lives until post success/dismissal, or the user removes the photo. */
 export function releaseFeedPickedMedia(item: FeedPickedMedia): void {
-  if (item.preparedVideo) { item.preparedVideo.dispose(); return; }
+  item.released = true;
+  if (item.kind === "video") {
+    item.preparedVideo?.dispose();
+    item.preparedPoster?.dispose();
+    item.preparedVideo = undefined;
+    item.preparedPoster = undefined;
+    return;
+  }
   if (!item.converted || item.kind !== "photo") return;
   try { new File(item.uri).delete(); } catch { /* Native cache may already be cleared. */ }
   item.clientRenditions?.small.dispose();
@@ -127,6 +187,7 @@ export async function pickFeedMedia(source: "camera-photo" | "camera-video" | "l
     ? await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images", "videos"], allowsMultipleSelection: true, selectionLimit: 10,
       quality: 1, videoMaxDuration: FEED_LIMITS.videoSeconds,
+      ...iosCompatiblePhotoPicker(),
     })
     : await ImagePicker.launchCameraAsync({
       mediaTypes: source === "camera-photo" ? ["images"] : ["videos"], quality: 1,
@@ -149,6 +210,7 @@ export async function pickFeedPollOptionPhoto(): Promise<FeedPickedMedia | null>
   if (!permission.granted) throw new Error("Разрешите доступ к фото в настройках приложения.");
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"], allowsMultipleSelection: false, quality: 1,
+    ...iosCompatiblePhotoPicker(),
   });
   if (result.canceled || !result.assets[0]) return null;
   const photo = await prepareFeedPickedMedia(result.assets[0]);
@@ -157,22 +219,9 @@ export async function pickFeedPollOptionPhoto(): Promise<FeedPickedMedia | null>
 }
 export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedia,
   onProgress?: (loaded: number, total: number) => void, purpose?: "comment"): Promise<string> {
-  // Real first encode AND subsequent retries are owned by this specific
-  // retained video. No backend transcoder is assumed to fix a non-MP4 input.
-  if (item.kind === "video" && item.sourceVideo) {
-    if (!item.preparedVideo || !new File(item.preparedVideo.uri).exists) {
-      item.preparedVideo?.dispose();
-      item.preparedVideo = undefined;
-      const prepared = await prepareUploadVideo720(item.sourceVideo);
-      if (!prepared) throw new Error("Не удалось подготовить видео в MP4 H.264 на устройстве.");
-      item.preparedVideo = prepared;
-      item.uri = prepared.uri;
-      item.bytes = prepared.bytes;
-      item.mime = prepared.mime;
-      item.filename = item.filename.replace(/\.[^.]+$/, ".mp4");
-      item.converted = true;
-    }
-  }
+  // The composer starts preparation on selection. Await only its local result
+  // here; S3 is not reserved until the user explicitly publishes/replies.
+  if (item.kind === "video") await ensureFeedVideoPrepared(item);
   let reserved = await feedApi.reserveUpload(postId, {
     filename: item.filename, kind: item.kind, declaredMime: item.mime,
     declaredBytes: item.bytes, clientRequestId: item.requestId,
@@ -216,13 +265,12 @@ export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedi
     return completed.mediaId;
   }
   if (item.kind === "video") {
-    const poster = await prepareVideoPosterWebp(item.uri, item.previewUri);
-    try {
-      const signed = await feedTransport<SignedClientPhotoPost>(
-        `uploads/${reserved.uploadId}/client-video-poster`, { method: "POST", body: {} });
-      await postClientWebp(signed, poster,
-        ["s3.cloud.ru", "gafus-feed-private.s3.cloud.ru", "127.0.0.1", "localhost", "10.0.2.2"]);
-    } finally { poster.dispose(); }
+    const poster = item.preparedPoster;
+    if (!poster) throw new Error("Обложка видео не подготовлена.");
+    const signed = await feedTransport<SignedClientPhotoPost>(
+      "uploads/" + reserved.uploadId + "/client-video-poster", { method: "POST", body: {} });
+    await postClientWebp(signed, poster,
+      ["s3.cloud.ru", "gafus-feed-private.s3.cloud.ru", "127.0.0.1", "localhost", "10.0.2.2"]);
   }
   if (!reserved.postUrl || !reserved.postFields) throw new Error("Ссылка для загрузки истекла.");
   if (!reserved.postUrl.startsWith("https://")) throw new Error("Небезопасный адрес загрузки.");

@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   deleted: [] as string[],
 }));
 vi.mock("expo-image-manipulator", () => ({
+  ImageManipulator: undefined,
   SaveFormat: { JPEG: "jpeg" },
   manipulateAsync: state.manipulate,
 }));

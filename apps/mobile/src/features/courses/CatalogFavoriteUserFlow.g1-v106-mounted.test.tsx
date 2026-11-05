@@ -226,7 +226,8 @@ vi.mock("react-native", async () => {
     R.createElement("div", null, children);
   return {
     View: Box,
-    Image: () => null, // StartupLoader uses react-native Image; this DOM test has no bitmap.
+    ActivityIndicator: () => null,
+    Image: () => null, // Some media views use native Image; DOM tests do not paint bitmaps.
     StyleSheet: { absoluteFill: {}, absoluteFillObject: {}, create: (x: unknown) => x },
     Platform: { OS: "android" },
     Pressable: ({

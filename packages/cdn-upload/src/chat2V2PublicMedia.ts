@@ -2,7 +2,8 @@
 import {S3Client, HeadObjectCommand, DeleteObjectCommand} from "@aws-sdk/client-s3";
 import {verifyClientMp4,copyVerifiedClientMp4} from "./clientVideoMp4.js";
 import {createPresignedPost} from "@aws-sdk/s3-presigned-post";
-import {signClientWebpStaging,verifyClientWebp,copyVerifiedClientWebp} from "./clientPhotoRenditions.js";
+import {signClientWebpStaging,verifyClientWebp,copyVerifiedClientWebp,
+  clientWebpRenditionsMatchAspect} from "./clientPhotoRenditions.js";
 const bucket="gafus-chat2-media-2026";
 const sourcePattern=/^chat2\/[A-Za-z0-9_-]{1,128}\/[A-Za-z0-9_-]{1,128}\/[a-f0-9-]{36}\/incoming\/source\.(?:jpg|png|webp|heic|heif|mp4|mov|webm)$/i;
 const mimePattern=/^(?:image\/(?:jpeg|png|webp|heic|heif)|video\/(?:mp4|quicktime|webm))$/;
@@ -66,8 +67,7 @@ export async function chat2V2FinishClientWebp(sourceKey:string,keys:{small:strin
       verifyClientWebp(client,bucket,staged,360,1_750_000),
       verifyClientWebp(client,bucket,sourceKey,1440,1_750_000),
     ]);
-    if(medium.width<small.width||medium.height<small.height||
-       Math.abs(small.width/small.height-medium.width/medium.height)>0.012)
+    if(!clientWebpRenditionsMatchAspect(small,medium))
       throw Error("CHAT2_CLIENT_PHOTO_DIMENSIONS_INVALID");
     await Promise.all([
       copyVerifiedClientWebp(client,bucket,staged,keys.small,small),

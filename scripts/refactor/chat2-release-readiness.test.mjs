@@ -52,6 +52,33 @@ test('misconfigured broker, unactivated profile, insecure websocket, placeholder
   ]) assert.throws(() => validateCutoverConfig({ ...ready, ...values }), /CHAT2_RELEASE_BLOCKED/);
   assert.throws(() => parseDestinationEnv('CHAT2_API_ENABLED=enabled\nCHAT2_API_ENABLED=disabled'), /duplicate/);
 });
+test('candidate/release refuses missing, invalid or downgraded Mobile Chat2 minimums', () => {
+  for (const key of ['CHAT2_MOBILE_IOS_MIN_VERSION', 'CHAT2_MOBILE_ANDROID_MIN_VERSION']) {
+    for (const value of ['', '1.7.2', '1.7', '01.7.3', 'not-a-version', undefined]) {
+      assert.throws(() => validateCutoverConfig({ ...ready, [key]: value }),
+        new RegExp(`${key}.*1\.7\.3`));
+    }
+    assert.equal(validateCutoverConfig({ ...ready, [key]: '1.8.0' }), true);
+  }
+});
+
+test('CI and Docker Compose have durable 1.7.3 fallback even when GitHub vars are blank', () => {
+  const root = new URL('../../', import.meta.url);
+  const prod = readFileSync(new URL('.github/workflows/production-deploy-reusable.yml', root), 'utf8');
+  const ci = readFileSync(new URL('.github/workflows/ci-cd.yml', root), 'utf8');
+  const compose = readFileSync(new URL('ci-cd/docker/docker-compose.prod.yml', root), 'utf8');
+  for (const key of ['CHAT2_MOBILE_IOS_MIN_VERSION', 'CHAT2_MOBILE_ANDROID_MIN_VERSION']) {
+    const fallback = '${{ vars.' + key + " || '1.7.3' }}";
+    assert.equal(prod.split(fallback).length - 1, 2, `preflight and generated .env: ${key}`);
+    assert.ok(ci.includes(fallback), `CI preflight: ${key}`);
+    assert.ok(compose.includes(key + '=${' + key + ':-1.7.3}'), `Compose fallback: ${key}`);
+    assert.ok(prod.includes('CHAT2_MOBILE_MINIMUM_INVALID_'), 'destination .env must be checked');
+    const smoke = prod.indexOf('CHAT2_MOBILE_ROUTE_VERIFIED');
+    assert.ok(smoke > prod.indexOf('bash "$CUTOVER_SCRIPT" verify'));
+    assert.ok(smoke < prod.indexOf('bash "$CUTOVER_SCRIPT" open'));
+  }
+});
+
 test('historical READY=YES cannot override first QA READY=NO', () => {
   assert.throws(() => verifyQaStatus('READY=NO\nold READY=YES'), /QA readiness/);
   assert.equal(verifyQaStatus('READY=YES\nold READY=NO'), true);
@@ -209,10 +236,15 @@ test('optional mobile policy diagnostic uses read-only calls', async () => {
   await assert.rejects(verifyMobileForcedUpdate(ready,malicious),/not approved store/);
 });
 
- test('server release is independent of mobile store review and public version policy', () => {
+ test('server release is independent of store review but requires valid Chat2 Mobile minimums', () => {
    const env = {...ready};
-   for (const key of ['CHAT2_MOBILE_STORES_VERIFIED','CHAT2_MOBILE_IOS_MIN_VERSION','CHAT2_MOBILE_ANDROID_MIN_VERSION']) delete env[key];
+   delete env.CHAT2_MOBILE_STORES_VERIFIED;
    assert.equal(validateCutoverConfig(env),true);
+   for (const key of ['CHAT2_MOBILE_IOS_MIN_VERSION','CHAT2_MOBILE_ANDROID_MIN_VERSION']) {
+     const bad = {...env};
+     delete bad[key];
+     assert.throws(() => validateCutoverConfig(bad),new RegExp(key));
+   }
    const gate=readFileSync(new URL('./check-chat2-prod-boundary.mjs',import.meta.url),'utf8');
    assert.doesNotMatch(gate,/verifyMobileForcedUpdate/);
  });

@@ -11,12 +11,12 @@ export interface CompletedDogWalkInput {
   incompleteSteps: boolean;
 }
 
-/** Named accounts fetched from the database; no client-supplied identities. */
+/** Any existing authenticated account can access its own walks; owner ID comes from the JWT. */
 export async function assertWalkHistoryAccess(ownerId: string): Promise<void> {
   const user = await prisma.user.findUnique({
-    where: { id: ownerId }, select: { username: true },
+    where: { id: ownerId }, select: { id: true },
   });
-  if (!user || (!["asmtv1", "admin"].includes(user.username.toLowerCase()))) {
+  if (!user) {
     throw new Error("WALKS_FORBIDDEN");
   }
 }

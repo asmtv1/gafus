@@ -14,6 +14,7 @@ import {
   Image,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
 import { useFocusEffect, useRouter, type Href } from "expo-router";
 import { useAuthStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -92,6 +93,7 @@ function Chat2ListOwned({ owner, epoch }: { owner: string; epoch: string }) {
     try {
       const selection = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"], quality: 0.85, allowsMultipleSelection: false,
+        ...iosCompatiblePhotoPicker(),
       });
       if (selection.canceled) return;
       const chosen = selection.assets[0];

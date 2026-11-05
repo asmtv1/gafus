@@ -1,4 +1,5 @@
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
+import { SaveFormat } from "expo-image-manipulator";
+import { encodeUploadImage } from "./encodeUploadImage";
 import { File } from "expo-file-system";
 
 /** Resize and encode on-device before any S3 reservation, keeping originals untouched. */
@@ -27,7 +28,7 @@ export async function prepareUploadPhoto(source: UploadPhotoSource): Promise<Pre
     ? [{ resize: source.width >= source.height
       ? { width: UPLOAD_PHOTO_MAX_EDGE } : { height: UPLOAD_PHOTO_MAX_EDGE } }]
     : [];
-  let image = await manipulateAsync(source.uri, actions, {
+  let image = await encodeUploadImage(source.uri, actions, {
     format: SaveFormat.JPEG, compress: UPLOAD_PHOTO_QUALITY,
   });
   // Some native pickers provide unknown/stale dimensions. The resulting image
@@ -35,7 +36,7 @@ export async function prepareUploadPhoto(source: UploadPhotoSource): Promise<Pre
   if (Math.max(image.width, image.height) > UPLOAD_PHOTO_MAX_EDGE) {
     const previous = image.uri;
     try {
-      image = await manipulateAsync(previous, [{ resize: image.width >= image.height
+      image = await encodeUploadImage(previous, [{ resize: image.width >= image.height
         ? { width: UPLOAD_PHOTO_MAX_EDGE } : { height: UPLOAD_PHOTO_MAX_EDGE } }], {
         format: SaveFormat.JPEG, compress: UPLOAD_PHOTO_QUALITY,
       });

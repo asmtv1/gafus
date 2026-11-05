@@ -1,10 +1,11 @@
 import {
   createQuestionsClient,
-  type QuestionPhotoDto,
   type QuestionsTransport,
 } from "@gafus/types";
 import { apiClient } from "./client";
-import type { SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
+import { postClientWebp, type SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
+import { prepareUploadWebpVariants, type PreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
+import { PhotoUploadStageError, type PhotoUploadStage } from "@/shared/lib/media/photoUploadStage";
 const transport: QuestionsTransport = async <T>(
   path: string,
   options: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown } = {},
@@ -28,16 +29,20 @@ export const questionsApi = createQuestionsClient(transport);
 /** Zero-Job photo path: device generates 360/1440 WebP files, S3 copies
  * verified staging objects to immutable public keys, API commits READY.
  */
+export type PreparedQuestionPhotoVariants = Record<"small" | "medium", PreparedWebpVariant>;
 export async function uploadClientQuestionsPhoto(
   source: { uri: string; width: number; height: number },
   onProgress?: (percent: number) => void,
+  preparedVariants?: PreparedQuestionPhotoVariants,
 ): Promise<{ id: string; status: "READY"; url: string }> {
-  const [{ prepareUploadWebpVariants }, { postClientWebp }] = await Promise.all([
-    import("@/shared/lib/media/prepareUploadWebp"),
-    import("@/shared/lib/media/directPhotoUpload"),
-  ]);
-  const versions = await prepareUploadWebpVariants(source, { small: 360, medium: 1440 });
+  // Expo 55 / RN 0.83 can throw HMRClient.setup() on on-demand import()
+  // chunks in native development builds. Static imports avoid Metro's broken
+  // secondary HMR bundle while retaining the existing client-only pipeline.
+  const versions = preparedVariants ?? await prepareUploadWebpVariants(
+    source, { small: 360, medium: 1440 },
+  ).catch(error => { throw new PhotoUploadStageError("webp", error); });
   let reservationId: string | undefined;
+  let stage: PhotoUploadStage = "reserve";
   try {
     const reservation = await apiClient<{ id: string; upload: SignedClientPhotoPost;
       smallUpload: SignedClientPhotoPost }>("/api/v1/questions/photos/client-reservations", {
@@ -53,10 +58,17 @@ export async function uploadClientQuestionsPhoto(
     reservationId = item.id;
     const hosts = ["gafus-questions-public.s3.cloud.ru", "s3.cloud.ru",
       "127.0.0.1", "localhost", "10.0.2.2"];
-    await Promise.all([
+    stage = "transfer";
+    // Let *both* requests settle before releasing local WebP bytes. With
+    // Promise.all a failed thumbnail could delete the full image while the
+    // second XHR was still reading it.
+    const uploads = await Promise.allSettled([
       postClientWebp(item.smallUpload, versions.small, hosts, p => onProgress?.(Math.round(p / 2))),
       postClientWebp(item.upload, versions.medium, hosts, p => onProgress?.(50 + Math.round(p / 2))),
     ]);
+    const failure = uploads.find(result => result.status === "rejected");
+    if (failure && failure.status === "rejected") throw failure.reason;
+    stage = "confirm";
     const confirmation = await apiClient<{ id: string; status: "READY" }>(
       `/api/v1/questions/photos/${item.id}/client-confirm`, {
         method: "POST", suppressSubscriptionPaywall: true,
@@ -70,10 +82,12 @@ export async function uploadClientQuestionsPhoto(
     if (reservationId) void apiClient(`/api/v1/questions/photos/${reservationId}`, {
       method: "DELETE", suppressSubscriptionPaywall: true,
     }).catch(() => undefined);
-    throw error;
+    throw new PhotoUploadStageError(stage, error);
   } finally {
-    versions.small.dispose();
-    versions.medium.dispose();
+    if (!preparedVariants) {
+      versions.small.dispose();
+      versions.medium.dispose();
+    }
   }
 }
 

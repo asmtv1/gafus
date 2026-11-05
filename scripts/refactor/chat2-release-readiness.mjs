@@ -29,6 +29,19 @@ function compareVersions(left,right) {
   return 0;
 }
 
+// These are runtime Chat2 version gates, independent of store review status.
+// Missing values previously made every iOS/Android /api/v1/chats return 503.
+export function validateChat2MobileMinimums(env) {
+  for (const key of ['CHAT2_MOBILE_IOS_MIN_VERSION', 'CHAT2_MOBILE_ANDROID_MIN_VERSION']) {
+    const version = env[key];
+    if (typeof version !== 'string' ||
+        !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version) ||
+        compareVersions(version, '1.7.3') < 0)
+      FAIL(`${key} must be a valid version >= 1.7.3`);
+  }
+  return true;
+}
+
 export function validateCutoverConfig(env, stage = false) {
   for (const key of ['CHAT2_API_ENABLED', 'CHAT2_WORKER_ENABLED', 'CHAT2_PRIVATE_MEDIA_ENABLED']) {
     if (env[key] !== 'enabled') FAIL(`${key} must be enabled in destination`);
@@ -56,6 +69,7 @@ export function validateCutoverConfig(env, stage = false) {
     env.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET, env.CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET];
   if (new Set(secrets).size !== secrets.length)
     FAIL('Chat2 connection/broker/proxy/subscription-deny keys must be independent');
+  if (!stage) validateChat2MobileMinimums(env);
   return true;
 }
 
@@ -92,6 +106,9 @@ export function verifyLiveDestination(env, composeFile) {
   }
   for (const key of ['CHAT2_WORKER_ENABLED', 'CHAT2_CENTRIFUGO_HTTP_API']) {
     if (workerEnv[key] !== env[key]) FAIL(`running worker differs from destination: ${key}`);
+  }
+  for (const key of ['CHAT2_MOBILE_IOS_MIN_VERSION', 'CHAT2_MOBILE_ANDROID_MIN_VERSION']) {
+    if (apiEnv[key] !== env[key]) FAIL(`running API differs from destination: ${key}`);
   }
   // Never log secrets: compare only boolean equality of the existing service values.
   if (apiEnv.CHAT2_CENTRIFUGO_TOKEN_SECRET !== env.CHAT2_CENTRIFUGO_TOKEN_SECRET ||
@@ -219,6 +236,10 @@ export function validateStaticContracts(compose, nginx, broker, edgeNginx) {
     'CHAT2_CENTRIFUGO_TOKEN_SECRET=', 'CHAT2_SUBSCRIBE_PROXY_ENABLED=',
     'CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET=']) {
     if (!compose.includes(key)) FAIL(`missing Compose field: ${key}`);
+  }
+  for (const key of ['CHAT2_MOBILE_IOS_MIN_VERSION', 'CHAT2_MOBILE_ANDROID_MIN_VERSION']) {
+    if (!compose.includes(`${key}=${'${'}${key}:-1.7.3}`))
+      FAIL(`missing safe Chat2 mobile Compose version default: ${key}`);
   }
   if (!compose.includes('${CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET:-}'))
     FAIL('separate never-issued subscription key absent from broker configuration');

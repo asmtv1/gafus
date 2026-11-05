@@ -135,6 +135,7 @@ function QuestionDetailActorScreen({
   const [notice, setNotice] = useState("");
   const [body, setBody] = useState("");
   const [photos, setPhotos] = useState<QuestionPhotoDto[]>([]);
+  const photoSubmitRef = useRef<(() => Promise<QuestionPhotoDto[]>) | null>(null);
   const [uploading, setUploading] = useState(false);
   // Same three-minute retry window as the Web photo gallery. A user can
   // explicitly check again if the isolated worker has stopped.
@@ -349,13 +350,29 @@ function QuestionDetailActorScreen({
     setNotice("");
     let acknowledged = false;
     try {
+      // Only the Reply/Save tap authorizes S3 uploads; retain confirmed files on retry.
+      let readyPhotos = photos;
+      try {
+        if (photoSubmitRef.current) readyPhotos = await photoSubmitRef.current();
+        else if (photos.some(photo => photo.id.startsWith("local-")))
+          throw new Error("Не удалось найти подготовленные фотографии");
+      } catch (reason) {
+        reportClientError(new Error("QUESTION_ANSWER_PHOTO_SEND_FAILED"), {
+          issueKey: "QuestionAnswer", keys: { operation: "photo_send" },
+        });
+        if (current()) setError(reason instanceof Error ? reason.message :
+          "Не удалось загрузить фото. Проверьте интернет и повторите отправку.");
+        return;
+      }
+      if (!current()) return;
+      const input = { ...checked.input, photoIds: readyPhotos.map(photo => photo.id) };
       if (editing) {
         await questionsApi.editAnswer(editing.id, {
-          body: checked.input.body,
-          photoIds: checked.input.photoIds,
+          body: input.body,
+          photoIds: input.photoIds,
         });
       } else {
-        await questionsApi.answer(id, { ...checked.input, clientRequestId: requestId });
+        await questionsApi.answer(id, { ...input, clientRequestId: requestId });
       }
       if (!current()) return;
       acknowledged = true;
@@ -983,6 +1000,7 @@ function QuestionDetailActorScreen({
                     photos={photos}
                     onChange={setPhotos}
                     onBusy={setUploading}
+                    submitUploadsRef={photoSubmitRef}
                     compact
                     trailingAction={
                       <QButton

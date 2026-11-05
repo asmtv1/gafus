@@ -1,6 +1,6 @@
 import { prepareBrowserVideo720 } from "../../shared/media/browserVideo720";
 import { prepareBrowserVideoPoster } from "../../shared/media/browserVideoPoster";
-import { prepareBrowserPhotoWebp } from "../../shared/media/browserPhotoWebp";
+import { prepareBrowserPhotoWebp, type BrowserWebpVariant } from "../../shared/media/browserPhotoWebp";
 import { uploadBrowserPhotoWebp, type WebpPost } from "../../shared/media/browserPhotoUpload";
 import { apiRequest } from "../../shared/api/client";
 import type { Chat2ConnectionGrant } from "@gafus/core-client/chat2/realtime-subscription";
@@ -82,7 +82,7 @@ function request<T>(
 /** Feature-gated upgrade: direct-to-S3 source, one Cloud Job, then a ready
  * attachment bound through the existing authenticated chat API. Never silently
  * downgrade after a V2 reservation or upload failure. */
-async function uploadChat2V2(id: string, file: File): Promise<Chat2Attachment> {
+async function uploadChat2V2(id: string, file: File, poster?: File): Promise<Chat2Attachment> {
   const base = `/${chatId(id)}/media/v2`;
   const reservation = await request<{
     mediaId: string;
@@ -110,7 +110,7 @@ async function uploadChat2V2(id: string, file: File): Promise<Chat2Attachment> {
   if (!sent.ok) throw Error("Не удалось отправить файл в хранилище");
   if (!reservation.posterUpload || reservation.posterUpload.method !== "POST")
     throw Error("CHAT2_VIDEO_POSTER_FORM_MISSING");
-  const cover = await prepareBrowserVideoPoster(file);
+  const cover = poster ?? await prepareBrowserVideoPoster(file);
   await uploadBrowserPhotoWebp(reservation.posterUpload, cover, "chat2");
   // The verified 720p and its ONE poster become READY before the message bind.
   // The server still verifies membership, ownership and confirmed source.
@@ -118,11 +118,14 @@ async function uploadChat2V2(id: string, file: File): Promise<Chat2Attachment> {
   return request<Chat2Attachment>(`${base}/${reservation.mediaId}/attach`, "POST", {});
 }
 
+export type Chat2BrowserPreparedPhoto = { small: BrowserWebpVariant; medium: BrowserWebpVariant };
+
 /** Photos never traverse the legacy Chat2 image queue. Two WebP files are
  * created in the browser and verified/promoted by the authenticated API. */
-async function uploadChat2BrowserPhoto(id:string,file:File):Promise<Chat2Attachment>{
+async function uploadChat2BrowserPhoto(id:string,file:File,
+  prepared?:Chat2BrowserPreparedPhoto):Promise<Chat2Attachment>{
   const base=`/${chatId(id)}/media/v2`;
-  const versions=await prepareBrowserPhotoWebp(file,{small:360,medium:1440});
+  const versions=prepared ?? await prepareBrowserPhotoWebp(file,{small:360,medium:1440});
   const reservation=await request<{
     mediaId:string;upload:WebpPost;smallUpload:WebpPost;
   }>(base+"/client-reserve","POST",{
@@ -283,7 +286,9 @@ export const chat2Api = {
     return payload.data;
   },
   removeAvatar: (id: string) => request<{ avatarUrl: null }>(`/${chatId(id)}/avatar`, "DELETE"),
-  upload: async (id: string, file: File): Promise<Chat2Attachment> => {
+  upload: async (id: string, file: File,
+    prepared?:Chat2BrowserPreparedPhoto,
+    preparedVideo?: { file: File; poster: File }): Promise<Chat2Attachment> => {
     const limit = file.type === "video/mp4" ? 100 : 10;
     if (file.size > limit * 1024 * 1024 || file.size < 10)
       throw new Error("Видео — до 100 МБ, фото и PDF — до 10 МБ");
@@ -295,11 +300,12 @@ export const chat2Api = {
     // The API remains the source of truth and fails closed if V2 is off.
     if (import.meta.env.PROD && file.type === "application/pdf")
       throw new Error("PDF в чате пока недоступен. Отправьте фото или видео.");
-    if(file.type.startsWith("image/"))return uploadChat2BrowserPhoto(id,file);
+    if(file.type.startsWith("image/"))return uploadChat2BrowserPhoto(id,file,prepared);
     if ((import.meta.env.PROD || import.meta.env.VITE_CHAT2_MEDIA_V2 === "true") &&
         file.type !== "application/pdf")
       return uploadChat2V2(id, file.type === "video/mp4"
-        ? await prepareBrowserVideo720(file, undefined, true) : file);
+        ? preparedVideo?.file ?? await prepareBrowserVideo720(file, undefined, true) : file,
+        preparedVideo?.poster);
     const data = new FormData();
     data.append("file", file, file.name);
     const response = await fetch(`/api/v1/chats/${chatId(id)}/attachments`, {

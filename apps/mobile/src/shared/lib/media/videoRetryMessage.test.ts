@@ -6,6 +6,8 @@ describe("Mobile video retry guidance",()=>{
     expect(videoRetryMessage(new Error("LOCAL_VIDEO_TIMEOUT"))).toContain("H.264");
     expect(videoRetryMessage(new Error("Cloud S3 upload failed"))).toContain("интернет");
     expect(videoRetryMessage(new Error("unsupported mime"))).toContain("200 МБ");
+    expect(videoRetryMessage(new Error("VIDEO720_INVALID_MP4"))).toContain("MP4");
+    expect(videoRetryMessage(new Error("VIDEO720_TIMEOUT"))).toContain("GAFUS");
     expect(videoServerFailureMessage).toContain("не запустит её заново");
   });
 });

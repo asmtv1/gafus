@@ -1,6 +1,14 @@
 /** User-visible local retry guidance, distinct from an unavailable server job. */
 export function videoRetryMessage(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (/VIDEO720_DIMENSIONS|VIDEO720_INVALID_MP4/i.test(raw))
+    return "Не удалось подготовить совместимый MP4. Попробуйте другое видео или сохраните его как MP4 (H.264, до 30 кадров/с) и нажмите круглую стрелку.";
+  if (/VIDEO720_FILE_TOO_LARGE/i.test(raw))
+    return "Видео превышает 200 МБ после преобразования. Выберите более короткий ролик или уменьшите его размер.";
+  if (/VIDEO720_TIMEOUT|VIDEO720_NATIVE_ERROR|VIDEO720_FILE_EMPTY|VIDEO720_INVALID_URI/i.test(raw))
+    return "Не удалось преобразовать видео на устройстве. Оставьте GAFUS открытым, проверьте свободное место и повторите попытку стрелкой.";
+  if (/VIDEO720_DISABLED/i.test(raw))
+    return "Подготовка видео недоступна в этой сборке. Обновите GAFUS и повторите попытку.";
   if (/VIDEO_POSTER_/i.test(raw))
     return "Не получилось создать обложку видео. Освободите место, оставьте приложение открытым и нажмите круглую стрелку на этом видео. Вторая обложка для 360p не требуется.";
   if (/LOCAL_VIDEO|video.encode|encoder|codec|compress|перекодир|кодир|не удалось подготовить/i.test(raw))

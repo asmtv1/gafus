@@ -6,6 +6,7 @@ const mocks=vi.hoisted(()=>({
   photo:vi.fn(),variants:vi.fn(),signed:vi.fn(),post:vi.fn(),
   cover:vi.fn(),sent:vi.fn(),dispose:vi.fn(),coverDispose:vi.fn(),
 }));
+vi.mock("@/shared/lib/tracer",()=>({reportClientError:vi.fn()}));
 vi.mock("expo-crypto",()=>({randomUUID:()=>"video-uuid"}));
 vi.mock("expo-image-picker",()=>({}));
 vi.mock("expo-camera",()=>({Camera:{}}));
@@ -23,7 +24,7 @@ vi.mock("@/shared/lib/media/prepareVideoPosterWebp",()=>({prepareVideoPosterWebp
 vi.mock("@/shared/lib/api/feed",()=>({feedApi:{reserveUpload:mocks.reserve,completeUpload:mocks.complete},
   feedTransport:mocks.signed}));
 
-import { prepareFeedPickedMedia, uploadPickedFeedMedia, releaseFeedPickedMedia } from "./uploads";
+import { prepareFeedPickedMedia, ensureFeedVideoPrepared, uploadPickedFeedMedia, releaseFeedPickedMedia } from "./uploads";
 
 beforeEach(()=>{
   Object.values(mocks).forEach(value=>value.mockReset());
@@ -45,19 +46,18 @@ beforeEach(()=>{
 });
 
 describe("Mobile Moments original video retry without Cloud Job",()=>{
-  it("displays the selected original before encode, then retries only its failed native H264 conversion",async()=>{
+  it("prepares the selected video immediately without reserving S3 and retries only a failed encode", async () => {
     const original={type:"video",uri:"file:///original.mov",mimeType:"video/quicktime",
       fileName:"original.mov",width:1920,height:1080};
+    mocks.prepare.mockResolvedValueOnce(null);
     const picked=await prepareFeedPickedMedia(original as never);
     expect(picked).toMatchObject({kind:"video",uri:"file:///original.mov",
       previewUri:"file:///poster.jpg",sourceVideo:original});
-    expect(mocks.prepare).not.toHaveBeenCalled();
-    // A failed local encode makes a real failed tile; no S3 reservation at all.
-    mocks.prepare.mockResolvedValueOnce(null);
-    await expect(uploadPickedFeedMedia("post-1",picked)).rejects.toThrow("MP4 H.264");
+    expect(mocks.prepare).toHaveBeenCalledOnce();
+    await expect(picked.videoPreparation).rejects.toThrow("MP4 H.264");
     expect(mocks.reserve).not.toHaveBeenCalled();
-    expect(picked.uri).toBe(original.uri);
-    // The retry reuses original source; it does not pick a different video.
+    expect(mocks.post).not.toHaveBeenCalled();
+
     mocks.prepare.mockResolvedValueOnce({uri:"file:///compressed.mp4",bytes:1300,
       mime:"video/mp4",dispose:mocks.dispose});
     await expect(uploadPickedFeedMedia("post-1",picked)).resolves.toBe("media-1");
@@ -69,8 +69,25 @@ describe("Mobile Moments original video retry without Cloud Job",()=>{
     expect(mocks.sent).toHaveBeenCalledWith("POST","https://s3.cloud.ru/presigned-post");
     expect(mocks.cover).toHaveBeenCalledWith("file:///compressed.mp4","file:///poster.jpg");
     expect(mocks.post).toHaveBeenCalledOnce();
-    expect(mocks.coverDispose).toHaveBeenCalledOnce();
     releaseFeedPickedMedia(picked);
     expect(mocks.dispose).toHaveBeenCalledOnce();
+    expect(mocks.coverDispose).toHaveBeenCalledOnce();
+  });
+  it("reuses the locally encoded video and poster when publish happens after preparation",async()=>{
+    const prepared={uri:"file:///compressed.mp4",bytes:1300,
+      mime:"video/mp4",dispose:mocks.dispose};
+    mocks.prepare.mockResolvedValue(prepared);
+    const picked=await prepareFeedPickedMedia({type:"video",uri:"file:///original.mov",
+      fileName:"original.mov",mimeType:"video/quicktime",width:1280,height:720} as never);
+    await ensureFeedVideoPrepared(picked);
+    expect(mocks.prepare).toHaveBeenCalledOnce();
+    expect(mocks.cover).toHaveBeenCalledOnce();
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(mocks.sent).not.toHaveBeenCalled();
+    await uploadPickedFeedMedia("post-1",picked);
+    expect(mocks.prepare).toHaveBeenCalledOnce();
+    expect(mocks.cover).toHaveBeenCalledOnce();
+    expect(mocks.reserve).toHaveBeenCalledOnce();
+    releaseFeedPickedMedia(picked);
   });
 });

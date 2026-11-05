@@ -1,74 +1,77 @@
-import { useEffect, useId, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useId, useRef, useState, type ChangeEvent, type RefObject } from "react";
 import { QUESTION_LIMITS } from "@gafus/types";
 import {
   discardUnusedQuestionPhoto, uploadQuestionPhoto, validateQuestionFiles,
-  type PendingQuestionPhoto,
+  type PendingQuestionPhoto, type PreparedQuestionBrowserPhoto,
 } from "./questionMedia";
 import { SecondaryButton } from "../../shared/ui";
 import { photoRetryMessage } from "../../shared/media/photoRetryMessage";
+import { prepareBrowserPhotoWebp } from "../../shared/media/browserPhotoWebp";
 import "./QuestionPhotoPickerNext.css";
 
 type LocalPreview = { key: number; file: File; localUrl: string; progress: number;
   phase: "queued" | "uploading" | "failed"; failure?: string };
 
-/** Next's image-tile picker, with early local previews and safe server ACKs.
- * The parent receives only confirmed IDs; local preview tokens never enter DTO. */
-export function QuestionPhotoPicker({ photos, onChange, onBusy, existingCount = 0 }: {
+/** Device-only WebP conversion on selection; server IDs only after an explicit submit. */
+export function QuestionPhotoPicker({ photos, onChange, onBusy, existingCount = 0,
+  submitUploadsRef }: {
   photos: PendingQuestionPhoto[];
   onChange: (photos: PendingQuestionPhoto[]) => void;
   onBusy: (busy: boolean) => void;
   /** Already-bound photos share the same five-image limit. */
   existingCount?: number;
+  submitUploadsRef?: RefObject<(() => Promise<PendingQuestionPhoto[]>) | null>;
 }) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
   const [previews, setPreviews] = useState<LocalPreview[]>([]);
+  const [uploadFailures, setUploadFailures] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const urls = useRef(new Set<string>());
   const serial = useRef(0);
   const mounted = useRef(true);
   const current = useRef(photos);
   const busyRef = useRef(false);
+  const prepared = useRef(new Map<string, { source: File; variants: PreparedQuestionBrowserPhoto }>());
+  const confirmed = useRef(new Map<string, string>());
   current.current = photos;
-
-  useEffect(() => {
-    mounted.current = true;
-    const allocated = urls.current;
-    return () => {
-      mounted.current = false;
-      for (const url of allocated) URL.revokeObjectURL(url);
-      allocated.clear();
-    };
-  }, []);
-
   const previewsRef = useRef<LocalPreview[]>([]);
   const changePreviews = (change: (items: LocalPreview[]) => LocalPreview[]) => {
     previewsRef.current = change(previewsRef.current);
     if (mounted.current) setPreviews(previewsRef.current);
   };
-  async function sendPhoto(preview: LocalPreview) {
+  useEffect(() => {
+    mounted.current = true;
+    const allocated = urls.current;
+    const local = prepared.current;
+    const uploaded = confirmed.current;
+    return () => {
+      mounted.current = false;
+      for (const url of allocated) URL.revokeObjectURL(url);
+      allocated.clear();
+      local.clear();
+      uploaded.clear();
+    };
+  }, []);
+  async function preparePhoto(preview: LocalPreview) {
     changePreviews(items => items.map(item => item.key === preview.key
-      ? {...item, phase:"uploading", progress:0, failure:undefined} : item));
+      ? { ...item, phase: "uploading", failure: undefined } : item));
     try {
-      const id = await uploadQuestionPhoto(preview.file, progress => {
-        changePreviews(items => items.map(item => item.key === preview.key
-          ? {...item, progress} : item));
-      });
-      if (!mounted.current) {
-        await discardUnusedQuestionPhoto(id).catch(() => undefined);
-        return;
-      }
-      const next = [...current.current, {id, localUrl: preview.localUrl}];
+      // User has only selected a file: WebP conversion runs locally, no S3 request.
+      const variants = await prepareBrowserPhotoWebp(preview.file, { small: 360, medium: 1440 });
+      if (!mounted.current || !previewsRef.current.some(item => item.key === preview.key)) return;
+      const id = `local-${crypto.randomUUID()}`;
+      prepared.current.set(id, { source: preview.file, variants });
+      const next = [...current.current, { id, localUrl: preview.localUrl }];
       current.current = next;
       onChange(next);
       changePreviews(items => items.filter(item => item.key !== preview.key));
     } catch (cause) {
-      const failure = photoRetryMessage(cause);
       changePreviews(items => items.map(item => item.key === preview.key
-        ? {...item, phase:"failed", failure} : item));
-      if (mounted.current) setError("Не удалось загрузить одно из фото. Нажмите круглую стрелку на нём — другие фото повторно не отправятся.");
+        ? { ...item, phase: "failed", failure: photoRetryMessage(cause) } : item));
+      if (mounted.current) setError("Не удалось обработать одно из фото. Нажмите стрелку на нём.");
     }
   }
   async function retryPhoto(key: number) {
@@ -79,10 +82,13 @@ export function QuestionPhotoPicker({ photos, onChange, onBusy, existingCount = 
     setBusy(true);
     onBusy(true);
     setError("");
-    try { await sendPhoto(preview); }
+    try { await preparePhoto(preview); }
     finally {
       busyRef.current = false;
-      if (mounted.current) { setBusy(false); onBusy(previewsRef.current.some(item => item.phase === "failed")); }
+      if (mounted.current) {
+        setBusy(false);
+        onBusy(previewsRef.current.some(item => item.phase === "failed"));
+      }
     }
   }
   function removeFailed(key: number) {
@@ -109,7 +115,7 @@ export function QuestionPhotoPicker({ photos, onChange, onBusy, existingCount = 
       for (const file of files) {
         const localUrl = URL.createObjectURL(file);
         urls.current.add(localUrl);
-        queued.push({key: ++serial.current, file, localUrl, progress: 0, phase:"queued"});
+        queued.push({ key: ++serial.current, file, localUrl, progress: 0, phase: "queued" });
       }
     } catch {
       for (const item of queued) {
@@ -123,45 +129,115 @@ export function QuestionPhotoPicker({ photos, onChange, onBusy, existingCount = 
     setBusy(true);
     onBusy(true);
     try {
-      // One failed image must not prevent the remaining selected images from
-      // processing. Failed local File+preview stay until retry or removal.
       for (const item of queued) {
         if (!mounted.current) break;
-        await sendPhoto(item);
+        await preparePhoto(item);
       }
+    } finally {
+      busyRef.current = false;
+      if (mounted.current) {
+        setBusy(false);
+        onBusy(previewsRef.current.some(item => item.phase === "failed"));
+      }
+    }
+  }
+  async function uploadOneLocal(photo: PendingQuestionPhoto): Promise<string> {
+    const done = confirmed.current.get(photo.id);
+    if (done) return done;
+    const draft = prepared.current.get(photo.id);
+    if (!draft) throw Error("Фотография недоступна. Добавьте её заново.");
+    setUploadFailures(previous => { const next = { ...previous }; delete next[photo.id]; return next; });
+    try {
+      const id = await uploadQuestionPhoto(draft.source, undefined, draft.variants);
+      confirmed.current.set(photo.id, id);
+      return id;
+    } catch {
+      setUploadFailures(previous => ({ ...previous,
+        [photo.id]: "Ошибка отправки · повторите загрузку этого фото",
+      }));
+      throw Error("Не удалось загрузить фото. Проверьте интернет и нажмите отправку ещё раз.");
+    }
+  }
+  async function flushDraftUploads(): Promise<PendingQuestionPhoto[]> {
+    if (busyRef.current || removing) throw Error("Подготовка фотографий ещё не завершена.");
+    busyRef.current = true;
+    setBusy(true);
+    onBusy(true);
+    const selected = [...current.current];
+    const ready: PendingQuestionPhoto[] = [];
+    setError("");
+    try {
+      for (const photo of selected) {
+        if (!photo.id.startsWith("local-")) { ready.push(photo); continue; }
+        try {
+          const id = await uploadOneLocal(photo);
+          ready.push({ ...photo, id });
+        } catch (reason) {
+          if (mounted.current) setError(reason instanceof Error ? reason.message : "Ошибка отправки фото");
+          throw reason;
+        }
+      }
+      // Real server IDs may enter the question/answer only after every upload is confirmed.
+      if (mounted.current) {
+        current.current = ready;
+        onChange(ready);
+      }
+      return ready;
     } finally {
       busyRef.current = false;
       if (mounted.current) { setBusy(false); onBusy(previewsRef.current.some(item => item.phase === "failed")); }
     }
   }
-
+  useEffect(() => {
+    if (!submitUploadsRef) return;
+    submitUploadsRef.current = flushDraftUploads;
+    return () => { submitUploadsRef.current = null; };
+  });
+  async function retryFailedUpload(photo: PendingQuestionPhoto) {
+    if (busyRef.current || removing) return;
+    busyRef.current = true;
+    setBusy(true);
+    onBusy(true);
+    try {
+      await uploadOneLocal(photo);
+      if (mounted.current) {
+        setUploadFailures(previous => { const next = { ...previous }; delete next[photo.id]; return next; });
+        setError("");
+      }
+    } catch (reason) {
+      if (mounted.current) setError(reason instanceof Error ? reason.message : "Не удалось повторить загрузку");
+    } finally {
+      busyRef.current = false;
+      if (mounted.current) { setBusy(false); onBusy(false); }
+    }
+  }
   async function removePhoto(photo: PendingQuestionPhoto) {
     if (busyRef.current || removing) return;
     setRemoving(photo.id);
     onBusy(true);
     setError("");
     try {
-      // Keep the thumbnail until Core acknowledges deletion of the orphan.
-      await discardUnusedQuestionPhoto(photo.id);
+      // Never send an S3 DELETE for a never-submitted local photo.
+      const remoteId = photo.id.startsWith("local-")
+        ? confirmed.current.get(photo.id) : photo.id;
+      if (remoteId) await discardUnusedQuestionPhoto(remoteId);
       if (mounted.current) {
         const next = current.current.filter(item => item.id !== photo.id);
         current.current = next;
         onChange(next);
+        prepared.current.delete(photo.id);
+        confirmed.current.delete(photo.id);
+        setUploadFailures(previous => { const nextFailures = { ...previous };
+          delete nextFailures[photo.id]; return nextFailures; });
         URL.revokeObjectURL(photo.localUrl);
         urls.current.delete(photo.localUrl);
       }
-    } catch (cause) {
-      if (mounted.current) {
-        setError(cause instanceof Error ? cause.message : "Не удалось удалить фото");
-      }
+    } catch (reason) {
+      if (mounted.current) setError(reason instanceof Error ? reason.message : "Не удалось удалить фото");
     } finally {
-      if (mounted.current) {
-        setRemoving(null);
-        onBusy(false);
-      }
+      if (mounted.current) { setRemoving(null); onBusy(false); }
     }
   }
-
   const count = existingCount + photos.length + previews.length;
   const atLimit = count >= QUESTION_LIMITS.photos;
   return <div className="question-photo-picker question-photo-picker-next">
@@ -169,6 +245,17 @@ export function QuestionPhotoPicker({ photos, onChange, onBusy, existingCount = 
       {photos.map((photo, index) =>
         <div key={photo.id} className="question-photo-slot">
           <img src={photo.localUrl} alt={`Фото ${index + 1}`} />
+          {uploadFailures[photo.id] && <button type="button" className="question-photo-retry"
+            aria-label={`Повторить загрузку фото ${index + 1}`} title="Повторить отправку этого фото"
+            disabled={busy || Boolean(removing)} onClick={() => void retryFailedUpload(photo)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 11a8 8 0 1 0-2.3 6M20 4v7h-7" />
+            </svg>
+          </button>}
+          {photo.id.startsWith("local-") && <span className="question-photo-uploading" role="status">
+            {uploadFailures[photo.id] ? "Ошибка отправки · повторить" : "Готово к отправке"}
+          </span>}
           <SecondaryButton type="button" className="question-photo-remove"
             aria-label={`Убрать фото ${index + 1}`} title="Убрать фото"
             disabled={busy || Boolean(removing)}
@@ -185,7 +272,7 @@ export function QuestionPhotoPicker({ photos, onChange, onBusy, existingCount = 
           {preview.phase === "failed" ? <>
             <button type="button" className="question-photo-retry"
               aria-label={`Повторить обработку фото ${preview.file.name}`}
-              title="Повторить обработку и загрузку только этой фотографии"
+              title="Повторить локальную обработку этой фотографии"
               disabled={busy || Boolean(removing)} onClick={() => void retryPhoto(preview.key)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
                 strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -197,8 +284,7 @@ export function QuestionPhotoPicker({ photos, onChange, onBusy, existingCount = 
               disabled={busy} onClick={() => removeFailed(preview.key)}>×</button>
             <span className="question-photo-uploading question-photo-failed" title={preview.failure}>Ошибка · повторить</span>
           </> : <span className="question-photo-uploading" role="status">
-            {preview.phase === "queued" ? "В очереди" :
-              preview.progress>=100 ? "Подтверждаем…" : "Загружаем "+preview.progress+"%"}
+            {preview.phase === "queued" ? "В очереди" : "Подготавливаем на устройстве…"}
           </span>}
           {preview.failure && <span className="question-photo-failure-description" role="alert">
             {preview.failure}

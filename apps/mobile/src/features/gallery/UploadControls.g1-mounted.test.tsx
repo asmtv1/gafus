@@ -49,6 +49,7 @@ vi.mock("expo-image-picker", () => ({
   launchImageLibraryAsync: (...a: unknown[]) => m.picker(...a),
 }));
 vi.mock("expo-image-manipulator", () => ({
+  ImageManipulator: undefined,
   SaveFormat: { JPEG: "jpeg" },
   manipulateAsync: (...args: unknown[]) => m.manipulate(...args),
 }));
@@ -117,6 +118,7 @@ vi.mock("react-native", async () => {
   return {
     View: Box,
     Pressable,
+    Platform: { OS: "android" },
     Linking: { openSettings: vi.fn() },
     Alert: { alert: vi.fn() },
     AppState: {
@@ -321,6 +323,12 @@ describe("actual mounted ImagePicker -> prepare -> reserve -> storage -> commit 
       albumId: "album1", filename: "first.jpg", generation: 0,
       status: "unknown", upload: { ...reserved(), status: "reserved" as const, postUrl: null, postFields: null },
     }] });
+    // The backend still reports RESERVED: do not turn uncertainty into a
+    // successful upload, even with automatic foreground status polling.
+    m.api.mockImplementation(async (path: string) => {
+      if (path === "uploads/upload1") return reserved();
+      throw Error("unexpected path");
+    });
     await mounted();
     expect(button().disabled).toBe(true);
     expect(host.textContent).toContain("Новые фото временно заблокированы");

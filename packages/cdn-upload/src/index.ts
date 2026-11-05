@@ -71,7 +71,8 @@ export { questionsV2Storage, questionsV2PresignedPost, questionsV2Head,
   questionsV2Delete, questionsV2ClientSmallKey, questionsV2ClientSmallPost,
   questionsV2FinishClientWebp } from "./questionsV2Media";
 
-export { signClientWebpStaging, verifyClientWebp, copyVerifiedClientWebp } from "./clientPhotoRenditions.js";
+export { signClientWebpStaging, verifyClientWebp, copyVerifiedClientWebp,
+  clientWebpRenditionsMatchAspect } from "./clientPhotoRenditions.js";
 export type { VerifiedClientWebp } from "./clientPhotoRenditions.js";
 
 export {verifyClientMp4,copyVerifiedClientMp4} from "./clientVideoMp4.js";

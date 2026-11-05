@@ -16,6 +16,7 @@ import {
   type Chat2Message,
   type Chat2Kind,
   type Chat2Attachment,
+  type Chat2BrowserPreparedPhoto,
   type Chat2Member,
 } from "./chat2Api";
 import { Chat2ReportQueue } from "./Chat2ReportQueue";
@@ -26,6 +27,9 @@ import { webMp4Hints, observeWebMp4Start, savedWebMp4Mode, saveWebMp4Mode } from
 import { reportWebVideoStarted } from "../../shared/media/videoQualityTelemetry";
 import { videoRetryMessage, videoServerFailureMessage } from "../../shared/media/videoRetryMessage";
 import { photoRetryMessage } from "../../shared/media/photoRetryMessage";
+import { prepareBrowserPhotoWebp } from "../../shared/media/browserPhotoWebp";
+import { prepareBrowserVideo720 } from "../../shared/media/browserVideo720";
+import { prepareBrowserVideoPoster } from "../../shared/media/browserVideoPoster";
 import {
   chat2ImageSource, chat2VideoSource, chat2HasVideoQuality,
   chat2MatchedS3Variant, chat2CdnS3FailoverAllowed,
@@ -897,9 +901,13 @@ function Chat2Room({
   };
   const [pendingMedia, setPendingMedia] = useState<
     { localId: string; name: string; preview: string | null; kind: "image" | "video" | "file";
-      file: File; attachment?: Chat2Attachment; failure?: string; uploading?: boolean }[]
+      file: File; attachment?: Chat2Attachment; failure?: string; uploading?: boolean;
+      preparedPhoto?: boolean; preparedVideo?: { file: File; poster: File } }[]
   >([]);
   const [uploading, setUploading] = useState(false);
+  const preparedPhotos = useRef(new Map<string, Chat2BrowserPreparedPhoto>());
+  const activePhotos = useRef(new Set<string>());
+  const sendInFlight = useRef(false);
   const [reply, setReply] = useState<Chat2Message | null>(null);
   const [reactionPickerId, setReactionPickerId] = useState<string | null>(null);
   const [reactingId, setReactingId] = useState<string | null>(null);
@@ -1069,20 +1077,59 @@ function Chat2Room({
       setMoreLoading(false);
     }
   }
-  async function uploadPendingFile(localId: string, file: File) {
-    // This is an actual second local encode + S3 upload of ONE retained File.
-    // It never retries unrelated attachments or just re-queries a failed job.
+  // Never reserve server media on file selection. Browser produces two WebP copies now.
+  async function preparePendingPhoto(localId: string, file: File) {
+    setPendingMedia(previous => previous.map(item => item.localId === localId
+      ? { ...item, uploading: true, failure: undefined } : item));
+    try {
+      const prepared = await prepareBrowserPhotoWebp(file, { small: 360, medium: 1440 });
+      if (!activePhotos.current.has(localId)) return;
+      preparedPhotos.current.set(localId, prepared);
+      setPendingMedia(previous => previous.map(item => item.localId === localId
+        ? { ...item, uploading: false, preparedPhoto: true, failure: undefined } : item));
+    } catch (reason) {
+      if (activePhotos.current.has(localId))
+        setPendingMedia(previous => previous.map(item => item.localId === localId
+          ? { ...item, uploading: false, preparedPhoto: false,
+            failure: photoRetryMessage(reason) } : item));
+    }
+  }
+  useEffect(() => {
+    const active = activePhotos.current;
+    const prepared = preparedPhotos.current;
+    return () => { active.clear(); prepared.clear(); };
+  }, []);
+  async function preparePendingVideo(localId: string, file: File) {
+    // Only local H264/720p and one poster; never reserve or write S3 on selection.
     setPendingMedia(previous => previous.map(item => item.localId === localId
       ? { ...item, failure: undefined, uploading: true } : item));
     try {
-      const attachment = await chat2Api.upload(id, file);
+      const prepared = await prepareBrowserVideo720(file, undefined, true);
+      const poster = await prepareBrowserVideoPoster(prepared);
+      setPendingMedia(previous => previous.map(item => item.localId === localId
+        ? { ...item, preparedVideo: { file: prepared, poster },
+          uploading: false, failure: undefined } : item));
+    } catch (reason) {
+      setPendingMedia(previous => previous.map(item => item.localId === localId
+        ? { ...item, uploading: false, failure: videoRetryMessage(reason) } : item));
+    }
+  }
+  async function uploadPendingFile(localId: string, file: File,
+    preparedVideo?: { file: File; poster: File }) {
+    setPendingMedia(previous => previous.map(item => item.localId === localId
+      ? { ...item, failure: undefined, uploading: true } : item));
+    try {
+      const attachment = await chat2Api.upload(id, file,
+        preparedPhotos.current.get(localId), preparedVideo);
       setPendingMedia(previous => previous.map(item => item.localId === localId
         ? { ...item, attachment, uploading: false, failure: undefined } : item));
+      return attachment;
     } catch (reason) {
       setPendingMedia(previous => previous.map(item => item.localId === localId
         ? { ...item, uploading: false,
           failure: item.kind === "video" ? videoRetryMessage(reason)
             : item.kind === "image" ? photoRetryMessage(reason) : errorText(reason) } : item));
+      throw reason;
     }
   }
   async function selectFiles(files: FileList | null) {
@@ -1097,7 +1144,12 @@ function Chat2Room({
         const preview = kind !== "file" ? URL.createObjectURL(file) : null;
         setPendingMedia(previous => [...previous, { localId, name: file.name, preview,
           kind, file, uploading: true }]);
-        await uploadPendingFile(localId, file);
+        if (kind === "image") {
+          activePhotos.current.add(localId);
+          await preparePendingPhoto(localId, file);
+        } else if (kind === "video") {
+          await preparePendingVideo(localId, file);
+        } else await uploadPendingFile(localId, file).catch(() => undefined);
       }
     } finally { setUploading(false); }
   }
@@ -1106,13 +1158,21 @@ function Chat2Room({
     const target = pendingMedia.find(item => item.localId === localId);
     if (!target || !target.failure || target.attachment || target.uploading) return;
     setUploading(true);
-    void uploadPendingFile(localId, target.file).finally(() => setUploading(false));
+    const retry = target.kind === "image" && !target.preparedPhoto
+      ? preparePendingPhoto(localId, target.file)
+      : target.kind === "video" && !target.preparedVideo
+        ? preparePendingVideo(localId, target.file)
+        : uploadPendingFile(localId, target.file, target.preparedVideo);
+    void retry.catch(() => undefined).finally(() => setUploading(false));
   }
   function removeMedia(media: {
     localId: string;
     preview: string | null;
     attachment?: Chat2Attachment;
   }) {
+    if (busy) return;
+    activePhotos.current.delete(media.localId);
+    preparedPhotos.current.delete(media.localId);
     if (media.preview) URL.revokeObjectURL(media.preview);
     setPendingMedia((previous) => previous.filter((x) => x.localId !== media.localId));
     if (media.attachment)
@@ -1125,22 +1185,51 @@ function Chat2Room({
     const text = draft.trim();
     if (
       (!text && !pendingMedia.length) ||
-      busy ||
+      busy || sendInFlight.current ||
       uploading ||
-      pendingMedia.some((x) => !x.attachment)
+      pendingMedia.some((x) => !x.attachment && !x.preparedPhoto && !x.preparedVideo)
     )
       return;
-    const attachmentIds = pendingMedia.flatMap((x) => (x.attachment ? [x.attachment.id] : []));
-    const quoted = reply?.id;
-    const fingerprint = JSON.stringify([id, text, quoted ?? null, attachmentIds]);
-    const clientMessageId =
-      pendingSend.current?.fingerprint === fingerprint
-        ? pendingSend.current.clientMessageId
-        : crypto.randomUUID();
-    pendingSend.current = { fingerprint, clientMessageId };
+    sendInFlight.current = true;
     setBusy(true);
     setError("");
     try {
+      const confirmed = [...pendingMedia];
+      for (const [index, item] of confirmed.entries()) {
+        if (item.attachment) continue;
+        if (item.kind === "video") {
+          if (!item.preparedVideo) throw Error("Видео ещё не готово. Повторите подготовку.");
+          try {
+            const attachment = await uploadPendingFile(item.localId, item.file, item.preparedVideo);
+            confirmed[index] = { ...item, attachment, failure: undefined };
+          } catch (reason) {
+            throw Error("Видео не отправилось. Проверьте интернет и нажмите «Отправить» ещё раз.");
+          }
+          continue;
+        }
+        if (item.kind !== "image") continue;
+        const prepared = preparedPhotos.current.get(item.localId);
+        if (!prepared) throw Error("Фото ещё не подготовлено. Повторите подготовку.");
+        try {
+          // Upload to S3 only after Send, using previously prepared WebP bytes.
+          const attachment = await chat2Api.upload(id, item.file, prepared);
+          confirmed[index] = { ...item, attachment, failure: undefined };
+          setPendingMedia(previous => previous.map(file => file.localId === item.localId
+            ? { ...file, attachment, failure: undefined } : file));
+        } catch (reason) {
+          setPendingMedia(previous => previous.map(file => file.localId === item.localId
+            ? { ...file, failure: photoRetryMessage(reason) } : file));
+          throw Error("Фото не загрузилось. Проверьте интернет и нажмите «Отправить» ещё раз.");
+        }
+      }
+      const attachmentIds = confirmed.flatMap(item => item.attachment ? [item.attachment.id] : []);
+      const quoted = reply?.id;
+      const fingerprint = JSON.stringify([id, text, quoted ?? null, attachmentIds]);
+      const clientMessageId =
+        pendingSend.current?.fingerprint === fingerprint
+          ? pendingSend.current.clientMessageId
+          : crypto.randomUUID();
+      pendingSend.current = { fingerprint, clientMessageId };
       await chat2Api.send(id, {
         text,
         clientMessageId,
@@ -1149,6 +1238,8 @@ function Chat2Room({
       });
       for (const media of pendingMedia) if (media.preview) URL.revokeObjectURL(media.preview);
       pendingSend.current = null;
+      activePhotos.current.clear();
+      preparedPhotos.current.clear();
       setPendingMedia([]);
       writeDraft("");
       setReply(null);
@@ -1158,6 +1249,7 @@ function Chat2Room({
     } catch (e) {
       setError(errorText(e));
     } finally {
+      sendInFlight.current = false;
       setBusy(false);
     }
   }
@@ -1490,12 +1582,17 @@ function Chat2Room({
                   </button>}
                 </div>
                 <span>{item.name}</span>
-                <small>{item.attachment ? "Готово" : item.failure ? "Ошибка" : "Подготавливаем и загружаем…"}</small>
+                <small>{item.attachment ? "Загружено" : item.failure ? "Ошибка" :
+                  (item.preparedPhoto || item.preparedVideo) ? "Готово к отправке" :
+                  item.kind === "image" ? "Подготавливаем на устройстве…" :
+                  item.kind === "video" ? "Подготавливаем видео на устройстве…" :
+                  "Загружаем файл…"}</small>
                 {item.failure && <small role="alert" className={css.pendingFileError}>{item.failure}</small>}
                 <button
                   type="button"
                   aria-label={`Удалить ${item.name}`}
                   onClick={() => removeMedia(item)}
+                  disabled={busy}
                 >
                   ×
                 </button>
@@ -1553,7 +1650,7 @@ function Chat2Room({
               busy ||
               uploading ||
               (!draft.trim() && !pendingMedia.length) ||
-              pendingMedia.some((x) => !x.attachment)
+              pendingMedia.some((x) => !x.attachment && !x.preparedPhoto && !x.preparedVideo)
             }
             aria-label={edit ? "Сохранить сообщение" : "Отправить сообщение"}
           >

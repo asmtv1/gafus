@@ -22,8 +22,8 @@ const ownerId="isolated-redis-owner";
 try{
   if(phase==="seed"){
     const redis=new Redis({host:"127.0.0.1",port:35440,
-      maxRetriesPerRequest:1,enableOfflineQueue:false});
-    try{assert.equal(await redis.ping(),"PONG");}
+      maxRetriesPerRequest:1,enableOfflineQueue:false,lazyConnect:true});
+    try{await redis.connect();assert.equal(await redis.ping(),"PONG");}
     finally{redis.disconnect();}
     for(let i=0;i<5;i++){
       const mediaId=randomUUID(),photoId="isolated-redis-photo-"+i;
@@ -49,8 +49,8 @@ try{
     console.log("REDIS_DOWN_REAL_PG_CLEANUP_OUTBOX_PERSISTED=PASS");
   }else{
     const redis=new Redis({host:"127.0.0.1",port:35440,
-      maxRetriesPerRequest:1,enableOfflineQueue:false});
-    try{assert.equal(await redis.ping(),"PONG");}
+      maxRetriesPerRequest:1,enableOfflineQueue:false,lazyConnect:true});
+    try{await redis.connect();assert.equal(await redis.ping(),"PONG");}
     finally{redis.disconnect();}
     const queue=createQuestionsV2Queue({database:prisma});
     const cleaned=new Set<string>();

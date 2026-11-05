@@ -25,27 +25,28 @@ describe("Chat2 Mobile video preview parity with Web", () => {
     expect(setup).not.toContain("instance.play()");
     expect(player).toContain("onPlayingChange(isPlaying)");
     expect(player).toContain('surfaceType={Platform.OS === "android" ? "textureView" : undefined}');
-    expect(preview).toContain("accessibilityLabel={`Воспроизвести ${file.name}`}");
+    expect(preview).toContain("<SocialVideoControls player={controlPlayer} playing={playing}");
     expect(preview).toContain("playerRef.current?.play()");
-    expect(preview).toContain("controlsVisible={everPlayed}");
-    expect(player).toContain("nativeControls={controlsVisible}");
+    expect(preview).toContain("onToggle={togglePlayback}");
+    expect(player).toContain("nativeControls={false}");
     expect(player).toContain("requestThumbnail: boolean");
   });
 
-  it("keeps play/pause available after the first play instead of relying on native auto-hidden controls", () => {
-    expect(preview).toContain('{everPlayed && <Pressable accessibilityRole="button"');
-    expect(preview).toContain('accessibilityLabel={playing ? "Пауза" : "Продолжить видео"}');
-    expect(preview).toContain("onPress={event => { event.stopPropagation(); togglePlayback(); }}");
+  it("uses a single shared tap and draggable timeline instead of floating buttons", () => {
+    expect(preview).toContain('<SocialVideoControls player={controlPlayer} playing={playing}');
+    expect(preview).toContain('onToggle={togglePlayback}');
+    expect(preview).toContain('onExpand={() => setExpanded(true)}');
+    expect(preview).toContain('hideView={expanded}');
     expect(preview).toContain("player.pause()");
     expect(preview).toContain("playIntent.current = false;");
     expect(preview).toContain("void play();");
     expect(preview).toContain("setPlaying(false);");
-    expect(preview).toContain("controlsVisible={everPlayed}");
     expect(player).toContain("onPlayingChange(isPlaying)");
+    expect(player).toContain("nativeControls={false}");
   });
 
   it("renders settings gear inside the video instead of a permanent quality toolbar",()=>{
-    expect(preview).toContain('<VideoQualitySettings value={quality} onChange={choose} available={variants} />');
+    expect(preview).toContain('<VideoQualitySettings embedded value={quality}');
     expect(preview).not.toContain('{multiple && url && <View accessibilityLabel="Качество видео"');
     expect(preview).toContain('setSeekTo(playerRef.current?.currentTime ?? 0)');
     expect(preview).toContain('setResumeOnReady(playerRef.current?.playing ?? false)');

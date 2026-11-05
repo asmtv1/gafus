@@ -13,6 +13,7 @@ import {
 import { reportClientError } from "@/shared/lib/tracer";
 import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";
 import * as ImagePicker from "expo-image-picker";
+import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
 import { chat2, type ChatUser, type Conversation, type Member } from "./api";
 import { Chat2ReportQueue } from "./Chat2ReportQueue";
 
@@ -57,6 +58,7 @@ export function Chat2SettingsSheet({
     try {
       const selection = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"], quality: 0.85, allowsMultipleSelection: false,
+        ...iosCompatiblePhotoPicker(),
       });
       if (selection.canceled) return;
       const selected = selection.assets[0];

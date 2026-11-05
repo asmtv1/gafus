@@ -15,10 +15,11 @@ vi.mock("../../shared/media/browserPhotoUpload",()=>({
   uploadBrowserPhotoWebp:vi.fn(async()=>undefined),
 }));
 import {
-  uploadMomentPhoto, uploadMomentVideo, validateMomentPhoto,
+  prepareMomentPhotoBeforePublish, uploadMomentPhoto, uploadMomentVideo, validateMomentPhoto,
   validateMomentVideo,
 } from "./feedMediaTransfer";
 import { uploadBrowserPhotoWebp } from "../../shared/media/browserPhotoUpload";
+import { prepareBrowserPhotoWebp } from "../../shared/media/browserPhotoWebp";
 import { prepareBrowserVideoPoster } from "../../shared/media/browserVideoPoster";
 
 const UUID = "550e8400-e29b-41d4-a716-446655440000";
@@ -75,6 +76,21 @@ function stubVerifiedMp4() {
   });
 }
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
+
+describe("Moments photo preparation is local-only before the publish tap", () => {
+  it("encodes once on selection without any S3/Core request and reuses WebP later", async () => {
+    const local = new File(["my photo"], "new-post.jpg", {type: "image/jpeg"});
+    const requests = vi.fn();
+    vi.stubGlobal("fetch", requests);
+    const first = await prepareMomentPhotoBeforePublish(local);
+    const again = await prepareMomentPhotoBeforePublish(local);
+    expect(again).toBe(first);
+    expect(vi.mocked(prepareBrowserPhotoWebp)).toHaveBeenCalledExactlyOnceWith(local,
+      {small: 360, medium: 720, large: 1440});
+    expect(requests).not.toHaveBeenCalled();
+    expect(uploadBrowserPhotoWebp).not.toHaveBeenCalled();
+  });
+});
 
 describe("Moments browser WebP ready before publish",()=>{
   it("validates MP4/MOV/WebM video size and max attachment count", () => {

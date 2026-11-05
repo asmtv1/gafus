@@ -46,6 +46,8 @@ function QuestionDetailsScreen({ userId, questionId, editMode = false }: Questio
   const [replyTo, setReplyTo] = useState<{ id: string; authorName: string } | null>(null);
   const attempt = useRef<{ fingerprint: string; id: string } | null>(null);
   const submitFlight = useRef(false);
+  const photoSubmitRef = useRef<(() => Promise<PendingQuestionPhoto[]>) | null>(null);
+  const [photoError, setPhotoError] = useState("");
   const [showReplySuccess, setShowReplySuccess] = useState(false);
   const [shareState, setShareState] = useState<"idle" | "copied" | "error">("idle");
   const shareQuestion = async () => {
@@ -133,22 +135,27 @@ function QuestionDetailsScreen({ userId, questionId, editMode = false }: Questio
     if (!first?.canReply || reply.isPending || uploading || submitFlight.current) return;
     const content = answer.trim();
     if (!content || content.length > QUESTION_LIMITS.body) return;
-    const photoIds = photos.map((photo) => photo.id);
-    const fingerprint = JSON.stringify([questionId, replyTo?.id ?? null, content, photoIds]);
-    if (!attempt.current || attempt.current.fingerprint !== fingerprint) {
-      attempt.current = { fingerprint, id: crypto.randomUUID() };
-    }
     submitFlight.current = true;
     setShowReplySuccess(false);
-    void reply.mutateAsync({
-      questionId,
-      body: content,
-      clientRequestId: attempt.current.id,
-      replyToId: replyTo?.id ?? null,
-      photoIds,
-    }).catch(() => undefined).finally(() => {
-      submitFlight.current = false;
-    });
+    setPhotoError("");
+    void (async () => {
+      let readyPhotos: PendingQuestionPhoto[];
+      try {
+        readyPhotos = photoSubmitRef.current ? await photoSubmitRef.current() : photos;
+        if (readyPhotos.some(photo => photo.id.startsWith("local-")))
+          throw Error("Подготовленные фотографии недоступны.");
+      } catch (reason) {
+        setPhotoError(reason instanceof Error ? reason.message : "Не удалось отправить фото");
+        return;
+      }
+      const photoIds = readyPhotos.map(photo => photo.id);
+      const fingerprint = JSON.stringify([questionId, replyTo?.id ?? null, content, photoIds]);
+      if (!attempt.current || attempt.current.fingerprint !== fingerprint)
+        attempt.current = { fingerprint, id: crypto.randomUUID() };
+      await reply.mutateAsync({ questionId, body: content,
+        clientRequestId: attempt.current.id, replyToId: replyTo?.id ?? null,
+        photoIds }).catch(() => undefined);
+    })().finally(() => { submitFlight.current = false; });
   }
   // Core pins best answer on page 1; the actual page can contain it again.
   const seen = new Set<string>();
@@ -471,7 +478,9 @@ function QuestionDetailsScreen({ userId, questionId, editMode = false }: Questio
                 }}
               />
               <div className="web4-question-composer-footer">
-                <QuestionPhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading} />
+                <QuestionPhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading}
+                  submitUploadsRef={photoSubmitRef} />
+                {photoError && <p role="alert">{photoError}</p>}
                 <PrimaryButton type="submit"
                   disabled={reply.isPending || uploading || !answer.trim()}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"

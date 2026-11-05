@@ -25,6 +25,18 @@ const scenario = vi.hoisted(() => ({
   timeline: [] as unknown[],
   olderPage: vi.fn(),
 }));
+const preprocessing = vi.hoisted(() => ({
+  video: vi.fn(), poster: vi.fn(), photo: vi.fn(),
+}));
+vi.mock("../../shared/media/browserVideo720", () => ({
+  prepareBrowserVideo720: preprocessing.video,
+}));
+vi.mock("../../shared/media/browserVideoPoster", () => ({
+  prepareBrowserVideoPoster: preprocessing.poster,
+}));
+vi.mock("../../shared/media/browserPhotoWebp", () => ({
+  prepareBrowserPhotoWebp: preprocessing.photo,
+}));
 vi.mock("../../shared/auth/useAuth", () => ({
   useCurrentUser: () => ({ data: { id: "local-test-owner", username: "qa", role: scenario.role } }),
   useLogout: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
@@ -84,6 +96,13 @@ beforeEach(() => {
   scenario.react.mockReset().mockResolvedValue({
     messageId: "message-one", emoji: "👍", active: true,
   });
+  preprocessing.video.mockReset().mockImplementation(async (file: File) => file);
+  preprocessing.poster.mockReset().mockResolvedValue(new File(
+    [new Uint8Array(32)], "poster.webp", { type: "image/webp" }));
+  preprocessing.photo.mockReset().mockImplementation(async (file: File) => ({
+    small: {file, width: 360, height: 270},
+    medium: {file, width: 1440, height: 1080},
+  }));
   scenario.upload.mockReset();
   scenario.mediaUrl.mockReset().mockResolvedValue({
     url: "https://example.test/chat2/video.mp4", mime: "video/mp4", name: "walk.mp4", expiresIn: 900,
@@ -449,7 +468,7 @@ describe("Chat2 GAFUS header and quick actions", () => {
     );
   });
 
-  it("shows a circular arrow on only the failed photo and re-encodes its retained File",async()=>{
+  it("prepares photo before Send and retries only failed S3 transfer",async()=>{
     const NativeURL=URL;
     class PreviewURL extends NativeURL {
       static createObjectURL=vi.fn((_file:Blob)=>"blob:chat-photo-preview");
@@ -466,6 +485,10 @@ describe("Chat2 GAFUS header and quick actions", () => {
     const file=new File([new Uint8Array([255,216,255,1])],"dog.jpg",{type:"image/jpeg"});
     Object.defineProperty(input!,"files",{configurable:true,value:[file]});
     await act(async()=>input!.dispatchEvent(new Event("change",{bubbles:true})));
+    await vi.waitFor(()=>expect(host.textContent).toContain("Готово к отправке"));
+    expect(scenario.upload).not.toHaveBeenCalled();
+    await act(async()=>host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Отправить сообщение"]')?.click());
     const retry=await vi.waitFor(()=>{
       const button=host.querySelector<HTMLButtonElement>('button[aria-label="Повторить обработку фото dog.jpg"]');
       expect(button).not.toBeNull();return button!;
@@ -524,8 +547,8 @@ describe("Chat2 GAFUS header and quick actions", () => {
     );
   });
 
-  it("shows a retry arrow on only the failed video and re-uploads only its original File", async () => {
-    const makeUrl = vi.fn((file: File) => `blob:chat-test/${file.name}`);
+  it("prepares both videos before Send, then retries only the failed S3 transfer", async () => {
+    const makeUrl = vi.fn((file: File) => "blob:chat-test/" + file.name);
     vi.stubGlobal("URL", Object.assign(class extends URL {}, {
       createObjectURL: makeUrl, revokeObjectURL: vi.fn(),
     }));
@@ -533,28 +556,43 @@ describe("Chat2 GAFUS header and quick actions", () => {
       new File([new Uint8Array(256)],"good.mp4",{type:"video/mp4"})];
     scenario.upload.mockImplementation(async (_id:string, file:File) => {
       if (file === videos[0] && scenario.upload.mock.calls.filter(([,f]) => f === videos[0]).length === 1)
-        throw new Error("LOCAL_VIDEO_TIMEOUT");
+        throw new Error("S3 timeout");
       return {id:file.name,kind:"video",mime:"video/mp4",name:file.name,bytes:file.size};
     });
     await render();
     const { navigate } = await import("../../shared/router/location");
     await act(async()=>navigate("/chats/direct-room"));
     const picker=host.querySelector<HTMLInputElement>('input[type="file"][multiple]')!;
-    expect(picker).not.toBeNull();
     Object.defineProperty(picker,"files",{configurable:true,value:videos});
     await act(async()=>picker.dispatchEvent(new Event("change",{bubbles:true})));
-    await vi.waitFor(()=>expect(scenario.upload).toHaveBeenCalledTimes(2));
-    const failed=host.querySelector<HTMLButtonElement>('[aria-label="Повторить обработку видео bad.mp4"]');
-    expect(failed).not.toBeNull();
-    expect(host.querySelector('[aria-label="Повторить обработку видео good.mp4"]')).toBeNull();
+    await vi.waitFor(()=>expect(host.textContent).toContain("Готово к отправке"));
+    expect(preprocessing.video).toHaveBeenCalledTimes(2);
+    expect(preprocessing.poster).toHaveBeenCalledTimes(2);
+    expect(scenario.upload).not.toHaveBeenCalled();
     expect(host.querySelector('video[aria-label="bad.mp4"]')).not.toBeNull();
-    expect(host.textContent).toContain("нажмите круглую стрелку на этом ролике");
-    await act(async()=>failed?.click());
+
+    await act(async()=>host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Отправить сообщение"]')?.click());
+    await vi.waitFor(()=>expect(scenario.upload).toHaveBeenCalledTimes(1));
+    const failed=await vi.waitFor(()=>{
+      const button=host.querySelector<HTMLButtonElement>(
+        '[aria-label="Повторить обработку видео bad.mp4"]');
+      expect(button).not.toBeNull();
+      return button!;
+    });
+    expect(host.querySelector('[aria-label="Повторить обработку видео good.mp4"]')).toBeNull();
+    await act(async()=>failed.click());
+    await vi.waitFor(()=>expect(scenario.upload).toHaveBeenCalledTimes(2));
+    expect(scenario.upload.mock.calls[1]?.[1]).toBe(videos[0]);
+    expect(preprocessing.video).toHaveBeenCalledTimes(2);
+    expect(scenario.upload.mock.calls.filter(([,file])=>file===videos[1])).toHaveLength(0);
+
+    await act(async()=>host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Отправить сообщение"]')?.click());
     await vi.waitFor(()=>expect(scenario.upload).toHaveBeenCalledTimes(3));
-    expect(scenario.upload.mock.calls[2]?.[1]).toBe(videos[0]);
-    expect(scenario.upload.mock.calls.filter(([,file])=>file===videos[1])).toHaveLength(1);
-    await vi.waitFor(()=>expect(host.querySelector('[aria-label="Повторить обработку видео bad.mp4"]')).toBeNull());
-    expect(host.textContent).toContain("Готово");
+    expect(scenario.upload.mock.calls[2]?.[1]).toBe(videos[1]);
+    expect(scenario.sent).toHaveBeenCalledTimes(1);
+    expect(preprocessing.video).toHaveBeenCalledTimes(2);
   });
   it("keeps a recoverable video preview when the first signed URL request fails", async () => {
     scenario.timeline = [{

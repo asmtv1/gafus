@@ -8,7 +8,8 @@ import { createGalleryS3Client, createGalleryObjectStore } from './objects.js';
 import { sourcePattern, clientThumbPattern, assertGalleryKey, assertFinalKey } from './keys.js';
 import { signGalleryCdnUrl } from './cdn.js';
 import { localReadonlyCdnSecret } from '@gafus/cdn-upload/local-readonly-cdn';
-import { signClientWebpStaging, verifyClientWebp, copyVerifiedClientWebp } from '@gafus/cdn-upload';
+import { signClientWebpStaging, verifyClientWebp, copyVerifiedClientWebp,
+  clientWebpRenditionsMatchAspect } from '@gafus/cdn-upload';
 export { galleryStorageConfigFromEnv } from './config.js';
 export type { GalleryStorageConfig } from './config.js';
 /** Composition root can inject this port directly; no runtime core import. */
@@ -55,8 +56,7 @@ export function createGalleryStorageFromEnv(env: Record<string, string | undefin
         verifyClientWebp(client, config.bucket, stage, 480, 1_750_000),
         verifyClientWebp(client, config.bucket, input.sourceKey, 1920, 1_750_000),
       ]);
-      if (full.width < small.width || full.height < small.height ||
-          Math.abs(full.width/full.height-small.width/small.height)>0.012)
+      if (!clientWebpRenditionsMatchAspect(small, full))
         throw Error('GALLERY_CLIENT_PHOTO_DIMENSIONS_INVALID');
       await Promise.all([
         copyVerifiedClientWebp(client, config.bucket, stage, input.thumbKey, small, 'private, must-revalidate'),

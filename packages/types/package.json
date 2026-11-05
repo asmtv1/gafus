@@ -24,8 +24,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gafus/logger": "workspace:*",
-    "react-hook-form": "^7.53.2"
+    "@gafus/logger": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

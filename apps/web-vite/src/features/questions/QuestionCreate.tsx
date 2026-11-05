@@ -32,6 +32,8 @@ function QuestionCreateScreen({ userId }: { userId: string }) {
   const [uploading, setUploading] = useState(false);
   const attempt = useRef<Attempt | null>(null);
   const submitFlight = useRef(false);
+  const photoSubmitRef = useRef<(() => Promise<PendingQuestionPhoto[]>) | null>(null);
+  const [photoError, setPhotoError] = useState("");
   const active = useRef(true);
   useEffect(() => {
     active.current = true;
@@ -73,23 +75,26 @@ function QuestionCreateScreen({ userId }: { userId: string }) {
       return;
     }
     setTagsError("");
-    const photoIds = photos.map((photo) => photo.id);
-    const fingerprint = JSON.stringify([title.trim(), body.trim(), category, tags, photoIds]);
-    if (!attempt.current || attempt.current.fingerprint !== fingerprint) {
-      attempt.current = { fingerprint, id: crypto.randomUUID() };
-    }
-    // Acquire before React paints mutation.isPending, including same-turn submits.
+    // Lock the form before the first await; selecting a photo never contacted S3.
     submitFlight.current = true;
-    void mutation.mutateAsync({
-      title,
-      body,
-      category,
-      tags,
-      clientRequestId: attempt.current.id,
-      photoIds,
-    }).catch(() => undefined).finally(() => {
-      submitFlight.current = false;
-    });
+    setPhotoError("");
+    void (async () => {
+      let readyPhotos: PendingQuestionPhoto[];
+      try {
+        readyPhotos = photoSubmitRef.current ? await photoSubmitRef.current() : photos;
+        if (readyPhotos.some(photo => photo.id.startsWith("local-")))
+          throw Error("Подготовленные фотографии недоступны.");
+      } catch (reason) {
+        setPhotoError(reason instanceof Error ? reason.message : "Не удалось загрузить фото");
+        return;
+      }
+      const photoIds = readyPhotos.map(photo => photo.id);
+      const fingerprint = JSON.stringify([title.trim(), body.trim(), category, tags, photoIds]);
+      if (!attempt.current || attempt.current.fingerprint !== fingerprint)
+        attempt.current = { fingerprint, id: crypto.randomUUID() };
+      await mutation.mutateAsync({ title, body, category, tags,
+        clientRequestId: attempt.current.id, photoIds }).catch(() => undefined);
+    })().finally(() => { submitFlight.current = false; });
   }
   return (
     <section className="collection-section" aria-label="Создать вопрос">
@@ -158,7 +163,9 @@ function QuestionCreateScreen({ userId }: { userId: string }) {
           </div>
           <div className="web4-question-photos-block">
             <h3>Фотографии <span className="web4-question-optional">Необязательно</span></h3>
-          <QuestionPhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading} />
+          <QuestionPhotoPicker photos={photos} onChange={setPhotos} onBusy={setUploading}
+            submitUploadsRef={photoSubmitRef} />
+          {photoError && <p role="alert">{photoError}</p>}
           </div>
           <div className="web4-question-create-actions">
             <PrimaryButton disabled={mutation.isPending || uploading} type="submit">

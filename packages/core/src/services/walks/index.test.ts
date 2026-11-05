@@ -21,17 +21,12 @@ beforeEach(() => {
 });
 
 describe("dog walk persisted owner access", () => {
-  it.each(["asmtv1", "admin", "ADMIN"])("permits named account %s", async username => {
-    mocked.findUser.mockResolvedValue({ username });
+  it("permits any existing account", async () => {
+    mocked.findUser.mockResolvedValue({ id: "user-id" });
     await expect(assertWalkHistoryAccess("user-id")).resolves.toBeUndefined();
     expect(mocked.findUser).toHaveBeenCalledWith({
-      where: { id: "user-id" }, select: { username: true },
+      where: { id: "user-id" }, select: { id: true },
     });
-  });
-
-  it.each(["ordinary", "moderator", "trainer"])("rejects all other usernames, including privileged %s", async username => {
-    mocked.findUser.mockResolvedValue({ username });
-    await expect(assertWalkHistoryAccess("user-id")).rejects.toThrow("WALKS_FORBIDDEN");
   });
 
   it("rejects an unavailable/deleted owner", async () => {
@@ -40,7 +35,7 @@ describe("dog walk persisted owner access", () => {
   });
 
   it("upserts by compound owner and stable phone ID", async () => {
-    mocked.findUser.mockResolvedValue({ username: "asmtv1" });
+    mocked.findUser.mockResolvedValue({ id: "jwt-actor" });
     await syncCompletedDogWalks("jwt-actor", [{
       clientId: "fb2f0e7b-0c4d-4918-b518-45ed15ca19e2",
       startedAt: "2026-11-05T09:00:00Z",

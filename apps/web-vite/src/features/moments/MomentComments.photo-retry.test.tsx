@@ -7,6 +7,7 @@ import {afterEach,describe,expect,it,vi} from 'vitest';
 const photos=vi.hoisted(()=>({upload:vi.fn()}));
 vi.mock('./feedMediaTransfer',()=>({
   uploadMomentPhoto:photos.upload,
+  prepareMomentPhotoBeforePublish:vi.fn(async()=>undefined),
   uploadMomentVideo:vi.fn(),
   validateMomentPhoto:vi.fn(),
   validateMomentVideo:vi.fn(),

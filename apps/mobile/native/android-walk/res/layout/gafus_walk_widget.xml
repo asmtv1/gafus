@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/gafus_walk_card">
+
+    <TextView
+        android:id="@+id/gafus_walk_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🐕 Прогулка · обычный"
+        android:textSize="13sp"
+        android:textColor="#5B6644"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:fontFamily="sans" />
+
+    <Chronometer
+        android:id="@+id/gafus_walk_chronometer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:textSize="27sp"
+        android:textStyle="bold"
+        android:textColor="#1E271A"
+        android:fontFamily="sans"
+        android:includeFontPadding="false" />
+
+    <TextView
+        android:id="@+id/gafus_walk_metrics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="🐾 0 шагов · ≈ 0 м"
+        android:textSize="13sp"
+        android:textColor="#34442B"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:fontFamily="sans" />
+
+    <TextView
+        android:id="@+id/gafus_walk_warning"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:text="Шаги могут быть неполными"
+        android:textSize="10sp"
+        android:textColor="#8B6D34"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:fontFamily="sans" />
+
+    <View
+        android:layout_width="1dp"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:baselineAligned="false">
+        <TextView
+            android:id="@+id/gafus_walk_start"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="3dp"
+            android:gravity="center"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:text="▶ Старт"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#336039"
+            android:background="@drawable/gafus_walk_button_start"
+            android:contentDescription="Начать или продолжить прогулку" />
+        <TextView
+            android:id="@+id/gafus_walk_pause"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp"
+            android:gravity="center"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:text="Ⅱ Пауза"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#806322"
+            android:background="@drawable/gafus_walk_button_pause"
+            android:contentDescription="Приостановить прогулку" />
+        <TextView
+            android:id="@+id/gafus_walk_finish"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="3dp"
+            android:gravity="center"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:text="■ Конец"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="#AD493D"
+            android:background="@drawable/gafus_walk_button_finish"
+            android:contentDescription="Завершить прогулку" />
+    </LinearLayout>
+</LinearLayout>

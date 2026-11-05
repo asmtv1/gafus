@@ -44,8 +44,8 @@ jobs:
           CHAT2_SUBSCRIBE_PROXY_ENABLED: 'true'
           CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET: ${{ secrets.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET }}
           CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: ${{ secrets.CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET }}
-          CHAT2_MOBILE_IOS_MIN_VERSION: ${{ vars.CHAT2_MOBILE_IOS_MIN_VERSION }}
-          CHAT2_MOBILE_ANDROID_MIN_VERSION: ${{ vars.CHAT2_MOBILE_ANDROID_MIN_VERSION }}
+          CHAT2_MOBILE_IOS_MIN_VERSION: ${{ vars.CHAT2_MOBILE_IOS_MIN_VERSION || '1.7.3' }}
+          CHAT2_MOBILE_ANDROID_MIN_VERSION: ${{ vars.CHAT2_MOBILE_ANDROID_MIN_VERSION || '1.7.3' }}
         run: node scripts/refactor/check-chat2-prod-boundary.mjs --candidate
       - name: Gallery protected S3 redirect gate (read-only, no provider writes)
         env:
@@ -679,8 +679,8 @@ jobs:
               echo "CHAT2_SUBSCRIBE_PROXY_ENABLED=true"
               echo "CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET=${{ secrets.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET }}"
               echo "CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET=${{ secrets.CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET }}"
-              echo "CHAT2_MOBILE_IOS_MIN_VERSION=${{ vars.CHAT2_MOBILE_IOS_MIN_VERSION }}"
-              echo "CHAT2_MOBILE_ANDROID_MIN_VERSION=${{ vars.CHAT2_MOBILE_ANDROID_MIN_VERSION }}"
+              echo "CHAT2_MOBILE_IOS_MIN_VERSION=${{ vars.CHAT2_MOBILE_IOS_MIN_VERSION || '1.7.3' }}"
+              echo "CHAT2_MOBILE_ANDROID_MIN_VERSION=${{ vars.CHAT2_MOBILE_ANDROID_MIN_VERSION || '1.7.3' }}"
             } > ci-cd/docker/.env
           DEPLOY_SCRIPT_3: |2+
 
@@ -766,6 +766,18 @@ jobs:
             # Set secure permissions for .env file
             chmod 600 ci-cd/docker/.env
             echo "✅ .env file created with secure permissions"
+            # Fail before any container changes if the generated destination
+            # would make all mobile Chat2 requests return 503 after deployment.
+            python3 - <<'PY_CHAT2_MOBILE_MIN'
+            from pathlib import Path
+            import re
+            lines = Path('ci-cd/docker/.env').read_text().splitlines()
+            for key in ('CHAT2_MOBILE_IOS_MIN_VERSION', 'CHAT2_MOBILE_ANDROID_MIN_VERSION'):
+                values = [line.split('=', 1)[1] for line in lines if line.startswith(key + '=')]
+                if len(values) != 1 or re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)', values[0]) is None or tuple(map(int, values[0].split('.'))) < (1, 7, 3):
+                    raise SystemExit('CHAT2_MOBILE_MINIMUM_INVALID_' + key)
+            print('CHAT2_MOBILE_MINIMUMS_VALID')
+            PY_CHAT2_MOBILE_MIN
             # This is FIRST Refactor deployment: old runtime cannot pass Chat2 live
             # readiness. Candidate QA is checked before SSH; actual runtime/WSS
             # readiness is checked only AFTER the new broker/API/worker are live.
@@ -903,6 +915,26 @@ jobs:
 
             # Verify all replacement containers while traffic remains gated.
             bash "$CUTOVER_SCRIPT" verify
+            # A healthy API can still return 503 to every Mobile Chat2 client.
+            # Verify the live route's version gate before opening maintenance.
+            docker exec gafus-api node -e '
+              (async () => {
+                for (const [platform, minimum] of [
+                  ["ios", process.env.CHAT2_MOBILE_IOS_MIN_VERSION],
+                  ["android", process.env.CHAT2_MOBILE_ANDROID_MIN_VERSION],
+                ]) {
+                  for (const [version, expected] of [[minimum, 401], ["1.7.2", 426]]) {
+                    const response = await fetch("http://127.0.0.1:3001/api/v1/chats", {
+                      headers: { "X-Client-Platform": platform, "X-Client-Version": version },
+                      signal: AbortSignal.timeout(3000),
+                    });
+                    if (response.status !== expected)
+                      throw Error(`CHAT2_MOBILE_ROUTE_INVALID_${platform}_${version}_${response.status}`);
+                  }
+                }
+                console.log("CHAT2_MOBILE_ROUTE_VERIFIED");
+              })().catch(error => { console.error(error.message); process.exit(1); });
+            '
             # The gate opens only now: no old process can observe the
             # incompatible Prisma schema after the swap.
             bash "$CUTOVER_SCRIPT" open
