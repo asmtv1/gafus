@@ -94,6 +94,7 @@ const PetVetVisits = lazy(() => import("./features/pets/PetVetVisits").then(modu
 const ProfileOverview = lazy(() => import("./features/profile/ProfileOverview").then(module => ({ default: module.ProfileOverview })));
 const AccountDeleteConnected = lazy(() => import("./features/profile/AccountDeleteConnected").then(module => ({ default: module.AccountDeleteConnected })));
 const RemindersConnectedPage = lazy(() => import("./features/profile/RemindersConnectedPage").then(module => ({ default: module.RemindersConnectedPage })));
+const WalksConnectedPage = lazy(() => import("./features/walks/WalksConnectedPage").then(module => ({ default: module.WalksConnectedPage })));
 const ConsultationOptInHarness = lazy(() => import("./features/consultations/ConsultationOptInHarness").then(module => ({ default: module.ConsultationOptInHarness })));
 const ConsultationsLivePage = lazy(() => import("./features/consultations/ConsultationsLivePage").then(module => ({ default: module.ConsultationsLivePage })));
 const AccountMutationPage = lazy(() => import("./features/account/AccountMutationPage").then(module => ({ default: module.AccountMutationPage })));
@@ -308,6 +309,7 @@ function MainView({route,showExcusesOptIn=false,excusesSyntheticFixture,
   // The outer route boundary prevents anonymous private-page rendering.
   const hiddenAuthorsRoute=route==="/feed/hidden-authors";
   const remindersRoute=route==="/reminders";
+  const walksRoute=route==="/walks";
   const chatOwnerRoute=route==="/chats" || /^\/chats\/[A-Za-z0-9_-]{1,128}$/.test(route??"") ||
     route==="/cynologist-chat" || chatDialogIdFromPath(route ?? "")!==null;
 
@@ -339,7 +341,7 @@ function MainView({route,showExcusesOptIn=false,excusesSyntheticFixture,
     gallerySessionRoute||showTrainingFlowOptIn||showConsultationsFlowOptIn||
     showVetHonoOptIn||showNotificationsRouteOptIn||showWalletRouteOptIn||
     showGuidesRouteOptIn||showPartnerRouteOptIn||hiddenAuthorsRoute||
-    courseReadRoute||remindersRoute||consultationLiveRoute||chatOwnerRoute||vetOwnerRoute)||
+    courseReadRoute||remindersRoute||walksRoute||consultationLiveRoute||chatOwnerRoute||vetOwnerRoute)||
     stableOwner;
   // The public root is ONLY the original Next landing presentation.
   // A verified, stable signed-in principal goes straight to /courses.
@@ -376,7 +378,7 @@ function MainView({route,showExcusesOptIn=false,excusesSyntheticFixture,
         showConsultationsFlowOptIn||showVetHonoOptIn||
         showNotificationsRouteOptIn||showWalletRouteOptIn||
         showGuidesRouteOptIn||showPartnerRouteOptIn||hiddenAuthorsRoute||
-        courseReadRoute||remindersRoute||consultationLiveRoute||vetOwnerRoute)&&current.isSuccess&&
+        courseReadRoute||remindersRoute||walksRoute||consultationLiveRoute||vetOwnerRoute)&&current.isSuccess&&
         !connectedSessionSafe&&
         <section role="alert" aria-label="Защита сессии связанных разделов">
           <p>Сессия изменилась. Откройте приложение заново.</p>
@@ -475,6 +477,8 @@ function MainView({route,showExcusesOptIn=false,excusesSyntheticFixture,
               ownerId={userId} transport={partnerRouteWire}/>}
           {userId && remindersRoute&&
             <RemindersConnectedPage key={userId+":reminders-live"} ownerId={userId}/>}
+          {userId && walksRoute &&
+            <WalksConnectedPage key={userId+":walks-live"} ownerId={userId}/>}
           {userId && route === "/profile/change-email" &&
             <AccountMutationPage key={userId + ":email"} actorId={userId} mode="email" />}
           {userId && route === "/profile/set-password" &&
@@ -690,6 +694,8 @@ function AppRouter({showExcusesOptIn=false,excusesSyntheticFixture,
           <RouteLink to="/profile">Перейти в профиль</RouteLink></main>);
       return <MainView route={path} showWalletRouteOptIn
         walletRouteWire={walletRouteWire}/>;
+    case "/walks":
+      return <MainView route={path}/>;
     case "/reminders":
       // WEB046: registered owner-only GET, writes and Web Push remain closed.
       return <MainView route={path}/>;
@@ -1031,6 +1037,7 @@ function readPageTitle(path: RoutePath | null, search: string): string {
   if (path === "/subscription") return "Подписка" + READ_TITLE_SUFFIX;
   if (path === "/questions") return "Вопросы" + READ_TITLE_SUFFIX;
   if (path === "/moments") return "Моменты" + READ_TITLE_SUFFIX;
+  if (path === "/walks") return "Прогулки" + READ_TITLE_SUFFIX;
   if(consultationRouteFromPath(path)||consultationCallIdFromPath(path))return "Консультации с кинологом"+READ_TITLE_SUFFIX;
   if (path === "/profile") {
     // Presence is only used to select a generic label; the value is never
@@ -1139,6 +1146,7 @@ export function App(props:Parameters<typeof AppRouter>[0]={}){
     (currentPath==="/profile/albums"||galleryAlbumIdFromPath(currentPath)!==null);
   const notificationOwnerRoute=currentPath==="/feed/notifications";
   const reminderOwnerRoute=currentPath==="/reminders";
+  const walksOwnerRoute=currentPath==="/walks";
   const chatOwnerRoute=currentPath==="/chats" || /^\/chats\/[A-Za-z0-9_-]{1,128}$/.test(currentPath??"") ||
     currentPath==="/cynologist-chat" ||
     chatDialogIdFromPath(currentPath ?? "")!==null;
@@ -1154,7 +1162,7 @@ export function App(props:Parameters<typeof AppRouter>[0]={}){
   // and /courses pages to inherit the irreversible gallery recovery screen.
   // NextProtectedRouteBoundary still validates /auth/me for every private URL;
   // connected owner flows retain their stricter A→B→A protection below.
-  const connected=reminderOwnerRoute||chatOwnerRoute||trainingOwnerRoute||consultationOwnerRoute||
+  const connected=reminderOwnerRoute||walksOwnerRoute||chatOwnerRoute||trainingOwnerRoute||consultationOwnerRoute||
     hiddenAuthorsOwnerRoute||notificationOwnerRoute||
     galleryOwnerRoute||
     props.showTrainingFlowOptIn===true||

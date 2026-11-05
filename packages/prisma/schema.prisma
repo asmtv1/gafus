@@ -411,6 +411,7 @@ model User {
   refreshTokens                    RefreshToken[]
   reminders                        Reminder[]
   dogWalks                         DogWalkRecord[]
+  dogWalkTombstones                DogWalkTombstone[]
   reminderMutationReceipts         ReminderMutationReceipt[]
   createdSteps                     Step[]
   stepNotifications                StepNotification[]
@@ -4245,10 +4246,43 @@ model DogWalkRecord {
   estimatedMeters Int
   timerMode       String   @db.VarChar(12)
   incompleteSteps Boolean  @default(false)
+  gpsEnabled      Boolean  @default(false)
+  gpsMeters       Int?
+  trackPoints     DogWalkTrackPoint[]
   createdAt       DateTime @default(now()) @db.Timestamp(3)
   updatedAt       DateTime @updatedAt @db.Timestamp(3)
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, clientId])
   @@index([userId, startedAt(sort: Desc)])
+}
+
+/// Raw and classified GPS fixes. Not public or stored on the map tile CDN.
+model DogWalkTrackPoint {
+  userId       String
+  walkClientId String    @db.VarChar(64)
+  seq          Int
+  segment      Int
+  latitude     Float
+  longitude    Float
+  timestamp    DateTime @db.Timestamp(3)
+  accuracy     Float?
+  speed        Float?
+  accepted     Boolean
+  reason       String   @db.VarChar(24)
+  deltaMeters  Float    @default(0)
+  walk         DogWalkRecord @relation(fields: [userId, walkClientId], references: [userId, clientId], onDelete: Cascade)
+
+  @@id([userId, walkClientId, seq])
+  @@index([userId, walkClientId, segment, seq])
+}
+
+/// Owner-scoped deletion marker prevents offline devices from resurrecting removed routes.
+model DogWalkTombstone {
+  userId    String
+  clientId  String @db.VarChar(64)
+  deletedAt DateTime @default(now()) @db.Timestamp(3)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, clientId])
 }

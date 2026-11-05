@@ -67,6 +67,23 @@ describe("dog walk home screen snapshot", () => {
     expect(running.displayEndMs).toBe(880000);
   });
 
+  it("shows GPS distance in the native widget without adding the step estimate", () => {
+    const snapshot = buildWalkWidgetSnapshot(
+      {
+        startedAtMs: 1000,
+        finishedAtMs: null,
+        steps: 1000,
+        gpsEnabled: true,
+        gpsMeters: 1250,
+        incompleteSteps: false,
+      },
+      6000,
+    );
+    expect(snapshot.metersLabel).toBe("1.25 км");
+    expect(snapshot.gpsEnabled).toBe(true);
+    expect(snapshot.stepsLabel.replace(/\s/g, "")).toBe("1000");
+  });
+
   it("renders inactive empty widget without old walking metrics", () => {
     const snapshot = buildWalkWidgetSnapshot(null, 100);
     expect(snapshot.active).toBe(false);

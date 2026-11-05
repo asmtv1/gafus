@@ -21,6 +21,8 @@ import {
 } from "./androidBackgroundSteps";
 import { syncWalkNotifications } from "./walkNotifications";
 import { syncDogWalkHistory, reportWalkSyncIssue } from "./walkSync";
+import { startWalkGps, stopWalkGps } from "./walkGpsTask";
+import { gpsWalkMeters } from "./walkGpsStorage";
 
 /**
  * Only the verified and allowed account can bind home-screen controls.
@@ -77,17 +79,23 @@ async function perform(action: WidgetWalkAction): Promise<void> {
         incompleteSteps = true;
       }
       journal.active = {
-        ...startWalk(
-          journal.preference.mode,
-          now,
-          journal.preference.countdownMinutes * 60,
-        ),
+        ...startWalk(journal.preference.mode, now, journal.preference.countdownMinutes * 60),
         clientId: Crypto.randomUUID(),
         incompleteSteps,
       };
     }
     // Persist first so a killed headless JS task cannot leave an orphan step service.
     await saveWalkJournal(ownerId, journal);
+    try {
+      if (
+        journal.active?.clientId &&
+        (await startWalkGps(ownerId, journal.active.clientId, true))
+      ) {
+        journal.active.gpsEnabled = true;
+      }
+    } catch (error) {
+      reportClientError(error, { issueKey: "DogWalkWidgetGpsStart" });
+    }
     try {
       const native = await startAndroidWalkSteps(ownerId, journal.active!);
       journal.active = reconcileAndroidWalkSteps(journal.active!, ownerId, native);
@@ -97,6 +105,13 @@ async function perform(action: WidgetWalkAction): Promise<void> {
     }
   } else {
     if (!current || (action === "pause" && !isWalkRunning(current))) return;
+    if (current.clientId) {
+      try {
+        await stopWalkGps(ownerId, current.clientId);
+      } catch (error) {
+        reportClientError(error, { issueKey: "DogWalkWidgetGpsStop" });
+      }
+    }
     try {
       const native = await pauseAndroidWalkSteps(ownerId, current, action === "finish");
       current = reconcileAndroidWalkSteps(current, ownerId, native);
@@ -107,7 +122,15 @@ async function perform(action: WidgetWalkAction): Promise<void> {
     if (action === "pause") {
       journal.active = pauseWalk(current, now);
     } else {
-      const completed = finishWalk(current, now);
+      let meters: number | null = null;
+      if (current.clientId) {
+        try {
+          meters = await gpsWalkMeters(ownerId, current.clientId);
+        } catch (error) {
+          reportClientError(error, { issueKey: "DogWalkWidgetGpsFinish" });
+        }
+      }
+      const completed = finishWalk({ ...current, gpsMeters: meters ?? current.gpsMeters }, now);
       journal.active = null;
       journal.completed = [completed, ...journal.completed].slice(0, 2000);
     }

@@ -1,0 +1,67 @@
+diff --git a/android/src/main/java/expo/modules/location/LocationModule.kt b/android/src/main/java/expo/modules/location/LocationModule.kt
+--- a/android/src/main/java/expo/modules/location/LocationModule.kt
++++ b/android/src/main/java/expo/modules/location/LocationModule.kt
+@@ -254,7 +254,15 @@
+       if (!shouldUseForegroundService && isMissingBackgroundPermissions()) {
+         throw LocationBackgroundUnauthorizedException()
+       }
+-      if (!AppForegroundedSingleton.isForegrounded && options.foregroundService != null) {
++      // Existing foreground location consumers may safely update request options
++      // while the app is backgrounded: TaskService.registerTask calls setOptions
++      // without creating a new service. Starting a NEW foreground service still
++      // requires an app-foreground user action on Android 12+.
++      // Direct clicks on an app widget are a documented Android FGS start
++      // exemption. All other background callers still need a running consumer.
++      if (!AppForegroundedSingleton.isForegrounded && options.foregroundService != null &&
++        !mTaskManager.taskHasConsumerOfClass(taskName, LocationTaskConsumer::class.java) &&
++        options.widgetInitiated != true) {
+         throw ForegroundServiceStartNotAllowedException()
+       }
+ 
+diff --git a/android/src/main/java/expo/modules/location/records/LocationArguments.kt b/android/src/main/java/expo/modules/location/records/LocationArguments.kt
+--- a/android/src/main/java/expo/modules/location/records/LocationArguments.kt
++++ b/android/src/main/java/expo/modules/location/records/LocationArguments.kt
+@@ -43,7 +43,8 @@
+   @Field var deferredUpdatesDistance: Float? = 0f,
+   @Field var deferredUpdatesInterval: Float? = 0f,
+   @Field var deferredUpdatesTimeout: Float? = null,
+-  @Field var foregroundService: LocationTaskServiceOptions? = null
++  @Field var foregroundService: LocationTaskServiceOptions? = null,
++  @Field var widgetInitiated: Boolean? = null
+ ) : LocationOptions() {
+   internal fun toMutableMap(): MutableMap<String, Any?> = mutableMapOf<String, Any?>(
+     "accuracy" to accuracy,
+@@ -52,7 +53,8 @@
+     "timeInterval" to timeInterval,
+     "deferredUpdatesDistance" to deferredUpdatesDistance,
+     "deferredUpdatesInterval" to deferredUpdatesInterval,
+-    "deferredUpdatesTimeout" to deferredUpdatesTimeout
++    "deferredUpdatesTimeout" to deferredUpdatesTimeout,
++    "widgetInitiated" to (widgetInitiated == true)
+   ).apply {
+     foregroundService?.let {
+       this["foregroundService"] = it.toMutableMap()
+diff --git a/android/src/main/java/expo/modules/location/taskConsumers/LocationTaskConsumer.kt b/android/src/main/java/expo/modules/location/taskConsumers/LocationTaskConsumer.kt
+--- a/android/src/main/java/expo/modules/location/taskConsumers/LocationTaskConsumer.kt
++++ b/android/src/main/java/expo/modules/location/taskConsumers/LocationTaskConsumer.kt
+@@ -178,12 +178,16 @@
+     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+       return
+     }
+-    if (!AppForegroundedSingleton.isForegrounded) {
+-      Log.w(TAG, "Foreground location task cannot be started while the app is in the background!")
+-      return
+-    }
+     val task = mTask ?: run {
+       Log.w(TAG, "Location task is null")
++      return
++    }
++    val widgetInitiated = task.options["widgetInitiated"] == true
++    // The OS permits an FGS start immediately following a user interaction
++    // with an app widget (with location/background permissions already granted).
++    // A headless task or timer alone is NOT a valid reason to bypass this gate.
++    if (!AppForegroundedSingleton.isForegrounded && mService == null && !widgetInitiated) {
++      Log.w(TAG, "Foreground location task cannot be started from background without a widget tap")
+       return
+     }
+     val options: ReadableArguments = MapArguments(task.options)

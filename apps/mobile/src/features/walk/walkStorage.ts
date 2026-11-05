@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { readPersistedWalkJournal, writePersistedWalkJournal } from './walkGpsStorage';
 import { reportClientError } from "@/shared/lib/tracer";
 import { normalizeWalk, type DogWalk, type WalkTimerMode } from "./walkModel";
 
@@ -13,10 +13,8 @@ export const emptyWalkJournal = (): WalkJournal => ({
   completed: [],
   preference: { mode: "stopwatch", countdownMinutes: 30 },
 });
-const storageKey = (ownerId: string): string => `gafus:dog-walk:v1:${ownerId}`;
-
 export async function loadWalkJournal(ownerId: string): Promise<WalkJournal> {
-  const saved = await AsyncStorage.getItem(storageKey(ownerId));
+  const saved = await readPersistedWalkJournal(ownerId);
   if (!saved) return emptyWalkJournal();
   try {
     const data = JSON.parse(saved) as Partial<WalkJournal>;
@@ -67,7 +65,7 @@ export async function loadWalkJournal(ownerId: string): Promise<WalkJournal> {
             : 30,
       },
     };
-    if (migrated) await AsyncStorage.setItem(storageKey(ownerId), JSON.stringify(journal));
+    if (migrated) await writePersistedWalkJournal(ownerId, JSON.stringify(journal));
     return journal;
   } catch (error) {
     reportClientError(error, { issueKey: "DogWalkStoredJournalParse" });
@@ -76,5 +74,5 @@ export async function loadWalkJournal(ownerId: string): Promise<WalkJournal> {
 }
 
 export async function saveWalkJournal(ownerId: string, journal: WalkJournal): Promise<void> {
-  await AsyncStorage.setItem(storageKey(ownerId), JSON.stringify(journal));
+  await writePersistedWalkJournal(ownerId, JSON.stringify(journal));
 }

@@ -27,8 +27,8 @@ describe("AG2-G1-001: static inventory and existing Vite router, no parity claim
     }
   });
 
-  it("recognizes current 26 static Vite paths without claiming feature parity", () => {
-    expect(ROUTES).toHaveLength(26);
+  it("recognizes current 27 static Vite paths without claiming feature parity", () => {
+    expect(ROUTES).toHaveLength(27);
     expect(ROUTES).toContain("/cynologist-chat");
     for (const path of ROUTES) expect(routeForPath(path)).toBe(path);
     for (const page of inventory.pages.filter(page =>

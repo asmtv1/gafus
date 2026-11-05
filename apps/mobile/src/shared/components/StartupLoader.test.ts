@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -57,9 +58,19 @@ describe("mobile start screen uses one bundled static poster", () => {
     expect(courses).toContain("styles.catalogLoading");
   });
   it("keeps native Android's post-splash window sky-blue before React paints", () => {
-    const xml = readFileSync(resolve(mobileRoot,
-      "android/app/src/main/res/values/styles.xml"), "utf8");
-    expect(xml).toContain('<item name="android:windowBackground">@color/splashscreen_background</item>');
+    // android/ is generated and ignored by Git. Assert the Expo config-plugin
+    // transformation directly so clean GitHub Actions checkouts can validate it.
     expect(app.expo.plugins).toContain("./plugins/withStartupWindowBackground");
+    const require = createRequire(import.meta.url);
+    type Styles = { style: { $: { name: string }; item?: { $: { name: string }; _: string }[] }[] };
+    const { ensureStartupWindowBackground } = require(
+      resolve(mobileRoot, "plugins/withStartupWindowBackground.js"),
+    ) as { ensureStartupWindowBackground: (resources: Styles) => Styles };
+    const resources: Styles = { style: [{ $: { name: "AppTheme" }, item: [] }] };
+    const transformed = ensureStartupWindowBackground(resources);
+    expect(transformed.style[0]?.item).toContainEqual({
+      $: { name: "android:windowBackground" },
+      _: "@color/splashscreen_background",
+    });
   });
 });

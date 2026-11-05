@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import {
   countdownRemainingSeconds,
-  estimatedWalkMeters,
+  walkDistanceMeters,
   formatWalkDistance,
   formatWalkDuration,
   isWalkRunning,
@@ -25,6 +25,7 @@ export interface WalkWidgetSnapshot {
   stepsLabel: string;
   metersLabel: string;
   incomplete: boolean;
+  gpsEnabled?: boolean;
 }
 const KEY = "gafus:dog-walk:widget:snapshot:v2";
 
@@ -51,8 +52,9 @@ export function buildWalkWidgetSnapshot(
         )
       : "00:00",
     stepsLabel: (state?.steps ?? 0).toLocaleString("ru-RU"),
-    metersLabel: formatWalkDistance(estimatedWalkMeters(state?.steps ?? 0)),
+    metersLabel: formatWalkDistance(state ? walkDistanceMeters(state) : 0),
     incomplete: state?.incompleteSteps ?? false,
+    gpsEnabled: state?.gpsEnabled === true,
   };
 }
 

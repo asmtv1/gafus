@@ -1,10 +1,10 @@
-import { HStack, Link, Text, VStack } from "@expo/ui/swift-ui";
+import { HStack, Button, Text, VStack } from "@expo/ui/swift-ui";
 import { background, font, foregroundStyle, padding } from "@expo/ui/swift-ui/modifiers";
 import { createWidget } from "expo-widgets";
 
 import type { WalkWidgetSnapshot } from "../walkWidgetSnapshot";
 
-/** Single WidgetKit widget, with link actions reliable even if GAFUS was closed. */
+/** Real WidgetKit buttons persist commands in App Group; RN executes when its authenticated host process is available. */
 const DogWalkWidgetView = (props: WalkWidgetSnapshot) => {
   "widget";
   return (
@@ -36,25 +36,30 @@ const DogWalkWidgetView = (props: WalkWidgetSnapshot) => {
         </Text>
       )}
       <Text modifiers={[font({ size: 14, weight: "medium" }), foregroundStyle("#1E271A")]}>
-        🐾 {props.stepsLabel} шагов · ≈ {props.metersLabel}
+        🐾 {props.stepsLabel} шагов · {props.metersLabel}
       </Text>
       <HStack spacing={14}>
-        <Link
+        <Button
           label={props.active && !props.running ? "▶ Продолжить" : "▶ Старт"}
-          destination="gafus://walk?action=start"
+          target="walk:start"
           modifiers={[font({ size: 12, weight: "semibold" }), foregroundStyle("#3C653B")]}
         />
-        <Link
+        <Button
           label="Ⅱ Пауза"
-          destination="gafus://walk?action=pause"
+          target="walk:pause"
           modifiers={[font({ size: 12, weight: "semibold" }), foregroundStyle("#8C6E25")]}
         />
-        <Link
+        <Button
           label="■ Конец"
-          destination="gafus://walk?action=finish"
+          target="walk:finish"
           modifiers={[font({ size: 12, weight: "semibold" }), foregroundStyle("#B74A39")]}
         />
       </HStack>
+      {props.active && props.running && !props.gpsEnabled ? (
+        <Text modifiers={[font({ size: 10 }), foregroundStyle("#8B6D34")]}>
+          GPS недоступен — проверьте разрешения в GAFUS
+        </Text>
+      ) : null}
       {props.incomplete ? (
         <Text modifiers={[font({ size: 10 }), foregroundStyle("#8B6D34")]}>
           Данные о шагах неполные

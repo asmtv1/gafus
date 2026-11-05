@@ -53,7 +53,7 @@ export function renderAndroidWalkWidget(_name: string, snapshot: WalkWidgetSnaps
       {/* Native Android Chronometer covers this placeholder and ticks on its own. */}
       <TextWidget text=" " style={{ fontSize: 26, fontWeight: "bold", color: "#1E271A" }} />
       <TextWidget
-        text={`🐾 ${snapshot.stepsLabel} шагов  ·  ≈ ${snapshot.metersLabel}`}
+        text={`🐾 ${snapshot.stepsLabel} шагов  ·  ${snapshot.metersLabel}`}
         style={{ fontSize: 13, color: "#1E271A" }}
       />
       <FlexWidget style={{ flexDirection: "row", flexGap: 7 }}>

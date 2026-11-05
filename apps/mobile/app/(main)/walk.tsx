@@ -20,7 +20,6 @@ import { reportClientError } from "@/shared/lib/tracer";
 import { useAuthStore } from "@/shared/stores/authStore";
 import {
   countdownRemainingSeconds,
-  estimatedWalkMeters,
   finishWalk as finishSession,
   formatWalkDistance,
   formatWalkDuration,
@@ -30,6 +29,7 @@ import {
   startWalk as beginSession,
   totalTodayWalks,
   walkDurationSeconds,
+  walkDistanceMeters,
   type DogWalk,
   type WalkTimerMode,
 } from "@/features/walk/walkModel";
@@ -48,6 +48,9 @@ import {
   pauseAndroidWalkSteps,
 } from "@/features/walk/androidBackgroundSteps";
 import { canUseDogWalkHistory } from "@/features/walk/walkAccess";
+import { gpsWalkMeters } from "@/features/walk/walkGpsStorage";
+import { startWalkGps, stopWalkGps, requestWalkGpsPermissions } from "@/features/walk/walkGpsTask";
+import { WalkRouteMap } from "@/features/walk/WalkRouteMap";
 import { syncDogWalkHistory, reportWalkSyncIssue } from "@/features/walk/walkSync";
 import {
   configureWalkAlertPermission,
@@ -129,6 +132,12 @@ export default function DogWalkScreen() {
         setJournal(loaded);
         setMinutesDraft(String(loaded.preference.countdownMinutes));
         setReady(true);
+        if (loaded.active?.clientId && isWalkRunning(loaded.active)) {
+          // Recover an existing walk after a normal process restart, without prompting.
+          void startWalkGps(owner, loaded.active.clientId).catch((error) =>
+            reportClientError(error, { issueKey: "DogWalkGpsRestore" }),
+          );
+        }
         void publishWalkWidgetSnapshot(
           loaded.active ?? loaded.completed[0] ?? null,
           Date.now(),
@@ -162,14 +171,18 @@ export default function DogWalkScreen() {
           previous.active?.runningSinceMs === latest.active?.runningSinceMs &&
           previous.active?.steps === latest.active?.steps &&
           previous.completed[0]?.finishedAtMs === latest.completed[0]?.finishedAtMs
-        ) return;
+        )
+          return;
         journalRef.current = latest;
         setJournal(latest);
       })().catch((error: unknown) =>
         reportClientError(error, { issueKey: "DogWalkWidgetForegroundRefresh" }),
       );
     });
-    return () => { disposed = true; sub.remove(); };
+    return () => {
+      disposed = true;
+      sub.remove();
+    };
   }, [owner, ready]);
 
   const updateJournal = useCallback(
@@ -412,6 +425,63 @@ export default function DogWalkScreen() {
     [updateActive],
   );
 
+  const ensureGpsTracking = useCallback(
+    async (actor: string, walk: DogWalk, askPermission: boolean) => {
+      if (!walk.clientId) return;
+      await saves.current.catch(() => undefined);
+      if (ownerRef.current !== actor || saveFailure.current) return;
+      try {
+        if (askPermission && !(await requestWalkGpsPermissions())) {
+          setNotice(
+            "Маршрут GPS выключен. Разрешите геолокацию «Всегда» в настройках телефона, чтобы записывать прогулку в фоне. Таймер и шаги продолжают работать.",
+          );
+          return;
+        }
+        const started = await startWalkGps(actor, walk.clientId);
+        if (ownerRef.current !== actor) return;
+        if (started)
+          updateActive((current) =>
+            current.clientId === walk.clientId && !current.gpsEnabled
+              ? { ...current, gpsEnabled: true }
+              : current,
+          );
+        else if (askPermission)
+          setNotice("GPS недоступен, но прогулка продолжает записываться по времени и шагам.");
+      } catch (error) {
+        reportClientError(error, { issueKey: "DogWalkGpsStart" });
+        if (ownerRef.current === actor)
+          setNotice("Не удалось включить GPS. Прогулка сохранена, но маршрут может быть неполным.");
+      }
+    },
+    [updateActive],
+  );
+
+  useEffect(() => {
+    if (!ready || !owner || !journal.active?.clientId) return;
+    const walkId = journal.active.clientId;
+    let cancelled = false;
+    const read = async () => {
+      try {
+        const meters = await gpsWalkMeters(owner, walkId);
+        if (!cancelled && meters != null && ownerRef.current === owner) {
+          updateActive((current) =>
+            current.clientId === walkId && current.gpsMeters !== meters
+              ? { ...current, gpsMeters: meters }
+              : current,
+          );
+        }
+      } catch (error) {
+        reportClientError(error, { issueKey: "DogWalkGpsMetrics" });
+      }
+    };
+    void read();
+    const interval = setInterval(() => void read(), 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [ready, owner, journal.active?.clientId, updateActive]);
+
   const performAction = useCallback(
     async (request: WalkAction) => {
       if (!ready || !owner || ownerRef.current !== owner || busyRef.current) return;
@@ -442,6 +512,7 @@ export default function DogWalkScreen() {
                 : state,
             );
             await ensureAndroidTracking(owner, resumed);
+            await ensureGpsTracking(owner, resumed, true);
             await notify(owner, resumed, notificationsGranted);
             return;
           }
@@ -484,10 +555,18 @@ export default function DogWalkScreen() {
           };
           updateJournal((state) => (state.active ? state : { ...state, active: walk }));
           await ensureAndroidTracking(owner, walk);
+          await ensureGpsTracking(owner, walk, true);
           await notify(owner, walk, notificationsGranted);
         } else if (current) {
           if (request === "pause" && !isWalkRunning(current)) return;
           const now = Date.now();
+          if (current.clientId) {
+            try {
+              await stopWalkGps(owner, current.clientId);
+            } catch (error) {
+              reportClientError(error, { issueKey: "DogWalkGpsStop" });
+            }
+          }
           const captured = await captureSegmentSteps(current, now, request === "finish");
           if (ownerRef.current !== owner) return;
           if (request === "pause") {
@@ -498,7 +577,18 @@ export default function DogWalkScreen() {
                 : state,
             );
           } else {
-            const completed = finishSession(captured, now);
+            let finalGpsMeters: number | null = null;
+            if (current.clientId) {
+              try {
+                finalGpsMeters = await gpsWalkMeters(owner, current.clientId);
+              } catch (error) {
+                reportClientError(error, { issueKey: "DogWalkGpsFinish" });
+              }
+            }
+            const completed = finishSession(
+              { ...captured, gpsMeters: finalGpsMeters ?? captured.gpsMeters },
+              now,
+            );
             updateJournal((state) =>
               state.active?.startedAtMs === current.startedAtMs
                 ? {
@@ -521,7 +611,15 @@ export default function DogWalkScreen() {
         setBusy(false);
       }
     },
-    [ready, owner, updateJournal, notify, captureSegmentSteps, ensureAndroidTracking],
+    [
+      ready,
+      owner,
+      updateJournal,
+      notify,
+      captureSegmentSteps,
+      ensureAndroidTracking,
+      ensureGpsTracking,
+    ],
   );
 
   // Widget links open this screen even when the app was not running. Consume
@@ -592,7 +690,7 @@ export default function DogWalkScreen() {
             <MaterialCommunityIcons name="paw" size={23} color={COLORS.primary} />
           </View>
         </View>
-        <Text style={styles.subheading}>Время, шаги и приблизительное расстояние</Text>
+        <Text style={styles.subheading}>Время, шаги и маршрут прогулки по GPS</Text>
         <View style={styles.card}>
           <Text style={styles.caption}>Режим таймера</Text>
           <View style={styles.modeRow}>
@@ -648,62 +746,86 @@ export default function DogWalkScreen() {
             {active?.mode === "countdown" && seconds === 0 ? (
               <Text style={styles.timerWarning}>Время вышло. Можно продолжить прогулку.</Text>
             ) : null}
-          <View style={styles.metrics}>
-            <View style={styles.metric}>
-              <Text style={styles.value}>{selected?.steps.toLocaleString("ru-RU") ?? "0"}</Text>
-              <Text style={styles.metricCaption}>шагов</Text>
+            <View style={styles.metrics}>
+              <View style={styles.metric}>
+                <Text style={styles.value}>{selected?.steps.toLocaleString("ru-RU") ?? "0"}</Text>
+                <Text style={styles.metricCaption}>шагов</Text>
+              </View>
+              <View style={styles.metric}>
+                <Text style={styles.value}>
+                  {selected?.gpsMeters == null ? "≈ " : ""}
+                  {formatWalkDistance(selected ? walkDistanceMeters(selected) : 0)}
+                </Text>
+                <Text style={styles.metricCaption}>расстояние</Text>
+              </View>
             </View>
-            <View style={styles.metric}>
-              <Text style={styles.value}>
-                ≈ {formatWalkDistance(estimatedWalkMeters(selected?.steps ?? 0))}
-              </Text>
-              <Text style={styles.metricCaption}>расстояние</Text>
-            </View>
-          </View>
           </LinearGradient>
           {!ready ? (
             <Text style={styles.note}>Загрузка прогулок…</Text>
           ) : (
             <View style={styles.controls}>
-              {!running ? <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={active ? "Продолжить прогулку" : "Начать прогулку"}
-                disabled={busy}
-                onPress={() => {
-                  void performAction("start");
-                }}
-                style={[styles.action, styles.startButton, busy && styles.disabled]}
-              >
-                <MaterialCommunityIcons name="play" size={20} color="#FFFFFF" />
-                <Text style={styles.buttonText}>{active ? "Продолжить" : "Начать"}</Text>
-              </Pressable> : null}
-              {running ? <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Пауза прогулки"
-                disabled={busy}
-                onPress={() => {
-                  void performAction("pause");
-                }}
-                style={[styles.action, styles.pauseButton, busy && styles.disabled]}
-              >
-                <MaterialCommunityIcons name="pause" size={20} color="#FFFFFF" />
-                <Text style={styles.buttonText}>Пауза</Text>
-              </Pressable> : null}
-              {active ? <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Завершить прогулку"
-                disabled={busy}
-                onPress={() => {
-                  void performAction("finish");
-                }}
-                style={[styles.action, styles.finishButton, busy && styles.disabled]}
-              >
-                <MaterialCommunityIcons name="stop" size={20} color={COLORS.primaryDark} />
-                <Text style={styles.finishText}>Завершить</Text>
-              </Pressable> : null}
+              {!running ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={active ? "Продолжить прогулку" : "Начать прогулку"}
+                  disabled={busy}
+                  onPress={() => {
+                    void performAction("start");
+                  }}
+                  style={[styles.action, styles.startButton, busy && styles.disabled]}
+                >
+                  <MaterialCommunityIcons name="play" size={20} color="#FFFFFF" />
+                  <Text style={styles.buttonText}>{active ? "Продолжить" : "Начать"}</Text>
+                </Pressable>
+              ) : null}
+              {running ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Пауза прогулки"
+                  disabled={busy}
+                  onPress={() => {
+                    void performAction("pause");
+                  }}
+                  style={[styles.action, styles.pauseButton, busy && styles.disabled]}
+                >
+                  <MaterialCommunityIcons name="pause" size={20} color="#FFFFFF" />
+                  <Text style={styles.buttonText}>Пауза</Text>
+                </Pressable>
+              ) : null}
+              {active ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Завершить прогулку"
+                  disabled={busy}
+                  onPress={() => {
+                    void performAction("finish");
+                  }}
+                  style={[styles.action, styles.finishButton, busy && styles.disabled]}
+                >
+                  <MaterialCommunityIcons name="stop" size={20} color={COLORS.primaryDark} />
+                  <Text style={styles.finishText}>Завершить</Text>
+                </Pressable>
+              ) : null}
             </View>
           )}
         </View>
+        {active?.clientId && active.gpsEnabled ? (
+          <WalkRouteMap ownerId={owner ?? ""} walkId={active.clientId} />
+        ) : null}
+        {active && running && !active.gpsEnabled && owner ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Включить GPS-маршрут прогулки"
+            disabled={busy}
+            style={styles.gpsRetry}
+            onPress={() => {
+              void ensureGpsTracking(owner, active, true);
+            }}
+          >
+            <MaterialCommunityIcons name="crosshairs-gps" size={20} color={COLORS.primaryDark} />
+            <Text style={styles.gpsRetryText}>Включить GPS-маршрут</Text>
+          </Pressable>
+        ) : null}
         {notice ? <Text style={styles.warning}>{notice}</Text> : null}
         {selected?.incompleteSteps ? (
           <Text style={styles.warning}>
@@ -714,14 +836,24 @@ export default function DogWalkScreen() {
         <View style={styles.hintCard}>
           <MaterialCommunityIcons name="information-outline" size={21} color={COLORS.primary} />
           <Text style={styles.note}>
-            Расстояние приблизительное: по шагам (0,8 м), без GPS. Звук уведомлений зависит от
-            системных настроек. На паузе напоминания отменяются.
+            {selected?.gpsMeters != null
+              ? "Расстояние рассчитано по GPS."
+              : "Расстояние приблизительное: по шагам (0,8 м), пока нет достоверного GPS."}{" "}
+            Звук уведомлений зависит от системных настроек. На паузе напоминания отменяются.
           </Text>
         </View>
         <View style={styles.today}>
           <Text style={styles.todayHeading}>Сегодня вы гуляли</Text>
           <Text style={styles.todayText}>
-            {formatWalkDuration(today.seconds)} · {today.steps.toLocaleString("ru-RU")} шагов · ≈{" "}
+            {formatWalkDuration(today.seconds)} · {today.steps.toLocaleString("ru-RU")} шагов ·{" "}
+            {journal.completed.some(
+              (w) =>
+                w.gpsMeters == null &&
+                w.finishedAtMs !== null &&
+                new Date(w.finishedAtMs).toDateString() === new Date(nowMs).toDateString(),
+            )
+              ? "≈ "
+              : ""}
             {formatWalkDistance(today.meters)}
           </Text>
           <Text style={styles.caption}>Завершённые прогулки на этом устройстве</Text>
@@ -736,84 +868,148 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 52, gap: 16 },
   topBar: { flexDirection: "row", alignItems: "center", gap: 12 },
   backButton: {
-    width: 44, height: 44, borderRadius: 16, backgroundColor: "#F5F0E5",
-    alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#DED9CC",
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: "#F5F0E5",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DED9CC",
   },
   topTitles: { flex: 1 },
   topPaw: {
-    width: 44, height: 44, borderRadius: 16, backgroundColor: "#DCE2CD",
-    alignItems: "center", justifyContent: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: "#DCE2CD",
+    alignItems: "center",
+    justifyContent: "center",
   },
   eyebrow: {
-    color: "#777B62", fontSize: 10, fontFamily: FONTS.montserratBold,
-    letterSpacing: 1.5, marginBottom: 1,
+    color: "#777B62",
+    fontSize: 10,
+    fontFamily: FONTS.montserratBold,
+    letterSpacing: 1.5,
+    marginBottom: 1,
   },
   heading: {
-    fontSize: 28, fontFamily: FONTS.montserratBold,
-    color: COLORS.text, letterSpacing: -0.5,
+    fontSize: 28,
+    fontFamily: FONTS.montserratBold,
+    color: COLORS.text,
+    letterSpacing: -0.5,
   },
   subheading: { fontSize: 13, color: "#777365", marginBottom: 1 },
   card: {
-    padding: 16, borderRadius: 25, backgroundColor: "#F8F4EA",
-    gap: 16, borderWidth: 1, borderColor: "#E4DFD2",
+    padding: 16,
+    borderRadius: 25,
+    backgroundColor: "#F8F4EA",
+    gap: 16,
+    borderWidth: 1,
+    borderColor: "#E4DFD2",
   },
   caption: { fontSize: 13, color: "#777468", fontWeight: "600" },
   modeRow: {
-    flexDirection: "row", gap: 6, width: "100%", padding: 5,
-    borderRadius: 17, backgroundColor: "#E9E8DD",
+    flexDirection: "row",
+    gap: 6,
+    width: "100%",
+    padding: 5,
+    borderRadius: 17,
+    backgroundColor: "#E9E8DD",
   },
   modeButton: {
-    flex: 1, borderRadius: 13, paddingVertical: 12, paddingHorizontal: 4,
-    alignItems: "center", justifyContent: "center",
+    flex: 1,
+    borderRadius: 13,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
   modeSelected: { backgroundColor: COLORS.primary },
   modeLabel: { fontSize: 12, color: COLORS.text, fontWeight: "600" },
   modeSelectedLabel: { color: "#FFFFFF", fontWeight: "800" },
   minutesRow: {
-    flexDirection: "row", width: "100%", alignItems: "center",
-    justifyContent: "space-between", gap: 10,
+    flexDirection: "row",
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
   },
   minutesInput: {
-    minWidth: 84, borderRadius: 12, borderWidth: 1, borderColor: "#C4CDB0",
-    backgroundColor: "#FFFFFF", paddingVertical: 8, paddingHorizontal: 12,
-    color: COLORS.primaryDark, textAlign: "center", fontSize: 18, fontWeight: "700",
+    minWidth: 84,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#C4CDB0",
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    color: COLORS.primaryDark,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "700",
   },
   timerPanel: {
-    borderRadius: 24, paddingVertical: 22, paddingHorizontal: 16,
-    alignItems: "center", gap: 18, overflow: "hidden",
+    borderRadius: 24,
+    paddingVertical: 22,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    gap: 18,
+    overflow: "hidden",
   },
   timerStatus: { flexDirection: "row", alignItems: "center", gap: 7 },
   statusDot: { width: 7, height: 7, borderRadius: 5, backgroundColor: "#EBD596" },
   statusDotRunning: { backgroundColor: "#BCE38C" },
   timerStatusText: {
-    fontSize: 10, fontFamily: FONTS.montserratBold,
-    letterSpacing: 1, color: "#F5ECCF",
+    fontSize: 10,
+    fontFamily: FONTS.montserratBold,
+    letterSpacing: 1,
+    color: "#F5ECCF",
   },
   timerHalo: {
-    width: 208, height: 208, borderRadius: 110,
-    borderWidth: 9, borderColor: "#A5B897",
+    width: 208,
+    height: 208,
+    borderRadius: 110,
+    borderWidth: 9,
+    borderColor: "#A5B897",
     backgroundColor: "rgba(255,255,255,0.08)",
-    alignItems: "center", justifyContent: "center", gap: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
   },
   timer: {
-    fontSize: 38, fontFamily: FONTS.montserratBold, color: "#FFF9EB",
-    fontVariant: ["tabular-nums"], letterSpacing: -1.1,
+    fontSize: 38,
+    fontFamily: FONTS.montserratBold,
+    color: "#FFF9EB",
+    fontVariant: ["tabular-nums"],
+    letterSpacing: -1.1,
   },
   timerHint: { fontSize: 11, color: "#E3E8D7" },
   timerWarning: { color: "#FFF0CA", fontSize: 12, textAlign: "center", lineHeight: 18 },
   metrics: { flexDirection: "row", width: "100%", gap: 9 },
   metric: {
-    flex: 1, alignItems: "center", justifyContent: "center", gap: 5,
-    minHeight: 70, paddingHorizontal: 5, paddingVertical: 12,
-    borderRadius: 16, backgroundColor: "rgba(255,255,255,0.13)",
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    minHeight: 70,
+    paddingHorizontal: 5,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.13)",
   },
   value: { fontSize: 20, fontFamily: FONTS.montserratBold, color: "#FFFFFF" },
   metricCaption: { fontSize: 11, color: "#E3E8D7" },
   controls: { width: "100%", flexDirection: "row", gap: 9 },
   action: {
-    flex: 1, minHeight: 55, borderRadius: 16, paddingVertical: 12,
-    paddingHorizontal: 5, flexDirection: "row", justifyContent: "center",
-    gap: 6, alignItems: "center",
+    flex: 1,
+    minHeight: 55,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 5,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+    alignItems: "center",
   },
   startButton: { backgroundColor: COLORS.primary },
   pauseButton: { backgroundColor: "#997439" },
@@ -821,15 +1017,35 @@ const styles = StyleSheet.create({
   buttonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
   finishText: { color: COLORS.primaryDark, fontSize: 13, fontWeight: "800" },
   disabled: { opacity: 0.4 },
+  gpsRetry: {
+    borderRadius: 14,
+    padding: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+    borderWidth: 1,
+    borderColor: "#BFCBAE",
+    backgroundColor: "#F2F5EC",
+  },
+  gpsRetryText: { color: COLORS.primaryDark, fontWeight: "800", fontSize: 13 },
   warning: { fontSize: 13, color: "#845A2B", lineHeight: 20 },
   hintCard: {
-    padding: 14, borderRadius: 16, flexDirection: "row",
-    gap: 10, backgroundColor: "#EAEBDE", alignItems: "flex-start",
+    padding: 14,
+    borderRadius: 16,
+    flexDirection: "row",
+    gap: 10,
+    backgroundColor: "#EAEBDE",
+    alignItems: "flex-start",
   },
   note: { flex: 1, fontSize: 12, lineHeight: 19, color: "#666A56" },
   today: {
-    backgroundColor: "#FBF8EF", borderRadius: 20, padding: 20,
-    gap: 9, borderWidth: 1, borderColor: "#E5E0D4",
+    backgroundColor: "#FBF8EF",
+    borderRadius: 20,
+    padding: 20,
+    gap: 9,
+    borderWidth: 1,
+    borderColor: "#E5E0D4",
   },
   todayHeading: { fontFamily: FONTS.montserratBold, fontSize: 18, color: COLORS.text },
   todayText: { fontSize: 14, fontWeight: "700", color: COLORS.primaryDark },

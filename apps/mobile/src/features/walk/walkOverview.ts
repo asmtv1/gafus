@@ -1,4 +1,4 @@
-import { estimatedWalkMeters, walkDurationSeconds, type DogWalk } from "./walkModel";
+import { walkDistanceMeters, walkDurationSeconds, type DogWalk } from "./walkModel";
 
 export interface WalkDaySummary {
   /** Local calendar day (including DST-safe midnight boundaries). */
@@ -39,6 +39,7 @@ export function getWalkWeekOverview(walks: DogWalk[], nowMs: number): WalkWeekOv
   });
 
   let count = 0;
+  let meters = 0;
   let seconds = 0;
   let steps = 0;
   let latest: DogWalk | null = null;
@@ -52,8 +53,9 @@ export function getWalkWeekOverview(walks: DogWalk[], nowMs: number): WalkWeekOv
     days[dayIndex]!.seconds += duration;
     seconds += duration;
     steps += walk.steps;
+    meters += walkDistanceMeters(walk);
     count++;
   }
 
-  return { days, count, seconds, steps, meters: estimatedWalkMeters(steps), latest };
+  return { days, count, seconds, steps, meters, latest };
 }

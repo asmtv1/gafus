@@ -1,4 +1,4 @@
-import { walkDurationSeconds, type DogWalk } from "./walkModel";
+import { walkDurationSeconds, walkDistanceMeters, type DogWalk } from "./walkModel";
 
 export interface WalkHistoryRow {
   id: string;
@@ -7,6 +7,8 @@ export interface WalkHistoryRow {
   returnedAt: string;
   duration: string;
   steps: number;
+  meters: number;
+  hasGps: boolean;
 }
 
 export function formatWalkLength(seconds: number): string {
@@ -32,6 +34,8 @@ export function toWalkHistoryRows(walks: DogWalk[]): WalkHistoryRow[] {
         returnedAt: to.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
         duration: formatWalkLength(walkDurationSeconds(walk, walk.finishedAtMs!)),
         steps: walk.steps,
+        meters: walkDistanceMeters(walk),
+        hasGps: walk.gpsMeters != null,
       };
     });
 }

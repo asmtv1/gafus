@@ -10,6 +10,7 @@ import { BurgerIcon } from "./BurgerIcon";
 const navItems: { path: RoutePath; label: string; icon: string; iconFolder?: "tab-icons" | "profile-icons" }[] = [
   { path: "/profile", label: "Профиль", icon: "profile.webp" },
   { path: "/pets", label: "Питомцы", icon: "pets.webp" },
+  { path: "/walks", label: "Прогулки", icon: "pets.webp" },
   { path: "/courses", label: "Курсы", icon: "courses.webp" },
   { path: "/moments", label: "Моменты", icon: "feed.webp" },
   { path: "/questions", label: "Вопросы", icon: "questions.png" },

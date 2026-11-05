@@ -11,6 +11,9 @@ export interface DogWalk {
   steps: number;
   /** Sensor absent, denied, or unable to account for time in background. */
   incompleteSteps: boolean;
+  /** Null/undefined means no reliable GPS distance; use steps as approximate fallback. */
+  gpsMeters?: number | null;
+  gpsEnabled?: boolean;
   mode?: WalkTimerMode;
   /** Required for countdown; never implicitly ends the walk. */
   targetDurationSec?: number;
@@ -130,6 +133,11 @@ export function formatWalkDuration(seconds: number): string {
     : `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
+export function walkDistanceMeters(walk: DogWalk): number {
+  return walk.gpsMeters != null && Number.isFinite(walk.gpsMeters)
+    ? Math.max(0, Math.round(walk.gpsMeters)) : estimatedWalkMeters(walk.steps);
+}
+
 export function formatWalkDistance(meters: number): string {
   return meters >= 1000 ? `${(meters / 1000).toFixed(2).replace(/\.?0+$/, "")} км` : `${meters} м`;
 }
@@ -148,5 +156,5 @@ export function totalTodayWalks(
   );
   const seconds = walks.reduce((sum, walk) => sum + walkDurationSeconds(walk, nowMs), 0);
   const steps = walks.reduce((sum, walk) => sum + walk.steps, 0);
-  return { seconds, steps, meters: estimatedWalkMeters(steps) };
+  return { seconds, steps, meters: walks.reduce((sum, walk) => sum + walkDistanceMeters(walk), 0) };
 }

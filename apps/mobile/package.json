@@ -37,6 +37,7 @@
     "@gafus/core-client": "workspace:*",
     "@gafus/logger": "workspace:*",
     "@gafus/types": "workspace:*",
+    "@maplibre/maplibre-react-native": "^11.5.1",
     "@react-native-async-storage/async-storage": "~2.2.0",
     "@react-native-community/netinfo": "~11.5.2",
     "@react-navigation/native": "^7.1.33",
@@ -66,6 +67,7 @@
     "expo-image-picker": "^55.0.24",
     "expo-linear-gradient": "~55.0.18",
     "expo-linking": "~55.0.17",
+    "expo-location": "~55.1.15",
     "expo-notifications": "~55.0.27",
     "expo-router": "~55.0.18",
     "expo-screen-capture": "~55.0.18",
@@ -73,7 +75,9 @@
     "expo-secure-store": "~55.0.18",
     "expo-sensors": "~55.0.19",
     "expo-splash-screen": "~55.0.25",
+    "expo-sqlite": "~55.0.20",
     "expo-status-bar": "~55.0.6",
+    "expo-task-manager": "~55.0.20",
     "expo-updates": "~55.0.33",
     "expo-video": "~55.0.21",
     "expo-web-browser": "~55.0.20",
@@ -119,6 +123,13 @@
           "react-native-markdown-display"
         ],
         "listUnknownPackages": false
+      }
+    },
+    "autolinking": {
+      "android": {
+        "buildFromSource": [
+          "expo-location"
+        ]
       }
     }
   }

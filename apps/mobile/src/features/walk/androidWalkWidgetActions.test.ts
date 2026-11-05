@@ -16,6 +16,7 @@ const mock = vi.hoisted(() => {
     startSteps: vi.fn(),
     pauseSteps: vi.fn(),
     snapshot: vi.fn(),
+    gpsStart: vi.fn(),
   };
 });
 vi.mock("@react-native-async-storage/async-storage", () => ({
@@ -26,6 +27,11 @@ vi.mock("expo-notifications", () => ({
   getPermissionsAsync: vi.fn(async () => ({ granted: true })),
 }));
 vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("./walkGpsTask", () => ({
+  startWalkGps: (...args: unknown[]) => mock.gpsStart(...args),
+  stopWalkGps: vi.fn(async () => {}),
+}));
+vi.mock("./walkGpsStorage", () => ({ gpsWalkMeters: vi.fn(async () => null) }));
 vi.mock("./walkStorage", () => ({
   loadWalkJournal: vi.fn(async () => structuredClone(mock.journal)),
   saveWalkJournal: vi.fn(async (_owner: string, data: typeof mock.journal) => {
@@ -40,14 +46,27 @@ vi.mock("./androidBackgroundSteps", () => ({
   getAndroidWalkStepSnapshot: (...args: unknown[]) => mock.snapshot(...args),
   startAndroidWalkSteps: (...args: unknown[]) => mock.startSteps(...args),
   pauseAndroidWalkSteps: (...args: unknown[]) => mock.pauseSteps(...args),
-  reconcileAndroidWalkSteps: (walk: import("./walkModel").DogWalk, owner: string, native: {
-    ownerId: string; walkId: string; steps: number; incomplete: boolean
-  } | null) =>
+  reconcileAndroidWalkSteps: (
+    walk: import("./walkModel").DogWalk,
+    owner: string,
+    native: {
+      ownerId: string;
+      walkId: string;
+      steps: number;
+      incomplete: boolean;
+    } | null,
+  ) =>
     native?.ownerId === owner && native.walkId === walk.clientId
-      ? { ...walk, steps: Math.max(walk.steps, native.steps), incompleteSteps: walk.incompleteSteps || native.incomplete }
+      ? {
+          ...walk,
+          steps: Math.max(walk.steps, native.steps),
+          incompleteSteps: walk.incompleteSteps || native.incomplete,
+        }
       : walk,
 }));
-vi.mock("./walkNotifications", () => ({ syncWalkNotifications: (...args: unknown[]) => mock.notified(...args) }));
+vi.mock("./walkNotifications", () => ({
+  syncWalkNotifications: (...args: unknown[]) => mock.notified(...args),
+}));
 vi.mock("./walkSync", () => ({
   syncDogWalkHistory: (...args: unknown[]) => mock.synced(...args),
   reportWalkSyncIssue: vi.fn(),
@@ -63,13 +82,26 @@ describe("native Android widget start/pause/finish background actions", () => {
     mock.published.mockReset();
     mock.notified.mockReset();
     mock.synced.mockReset().mockResolvedValue(undefined);
-    mock.startSteps.mockReset().mockImplementation(async (_owner: string, walk: {clientId: string}) => ({
-      ownerId: "owner-42", walkId: walk.clientId, steps: 0, incomplete: false, running: true,
-    }));
-    mock.pauseSteps.mockReset().mockImplementation(async (_owner: string, walk: {clientId: string}) => ({
-      ownerId: "owner-42", walkId: walk.clientId, steps: 42, incomplete: false, running: false,
-    }));
+    mock.startSteps
+      .mockReset()
+      .mockImplementation(async (_owner: string, walk: { clientId: string }) => ({
+        ownerId: "owner-42",
+        walkId: walk.clientId,
+        steps: 0,
+        incomplete: false,
+        running: true,
+      }));
+    mock.pauseSteps
+      .mockReset()
+      .mockImplementation(async (_owner: string, walk: { clientId: string }) => ({
+        ownerId: "owner-42",
+        walkId: walk.clientId,
+        steps: 42,
+        incomplete: false,
+        running: false,
+      }));
     mock.snapshot.mockReset().mockResolvedValue(null);
+    mock.gpsStart.mockReset().mockResolvedValue(true);
   });
 
   it("does not launch a private walk without a verified bound owner", async () => {
@@ -85,6 +117,11 @@ describe("native Android widget start/pause/finish background actions", () => {
     await handleAndroidWalkWidgetClick("start");
     await handleAndroidWalkWidgetClick("start"); // double tap must not restart
     expect(mock.startSteps).toHaveBeenCalledTimes(1);
+    expect(mock.gpsStart).toHaveBeenCalledWith(
+      "owner-42",
+      "00000000-0000-4000-8000-000000000042",
+      true,
+    );
     expect(mock.journal.active?.clientId).toBe("00000000-0000-4000-8000-000000000042");
 
     vi.advanceTimersByTime(60000);

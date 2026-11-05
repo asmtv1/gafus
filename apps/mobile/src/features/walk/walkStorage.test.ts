@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({ values: new Map<string, string>() }));
-vi.mock("@react-native-async-storage/async-storage", () => ({
-  default: {
-    getItem: vi.fn(async (key: string) => state.values.get(key) ?? null),
-    setItem: vi.fn(async (key: string, value: string) => {
-      state.values.set(key, value);
-    }),
-  },
+vi.mock('./walkGpsStorage',()=>({
+ readPersistedWalkJournal:vi.fn(async (ownerId:string)=>state.values.get(ownerId)??null),
+ writePersistedWalkJournal:vi.fn(async (ownerId:string,value:string)=>{
+   state.values.set(ownerId,value);
+ }),
 }));
 vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
 
@@ -36,7 +34,7 @@ describe("per-account persisted dog walk journal", () => {
 
   it("migrates old records without preferences and filters malformed items", async () => {
     state.values.set(
-      "gafus:dog-walk:v1:alice",
+      "alice",
       JSON.stringify({
         active: { startedAtMs: 100, finishedAtMs: null, steps: 0, incompleteSteps: false },
         completed: [{ startedAtMs: 50, finishedAtMs: 75, steps: 10, incompleteSteps: false }, null],

@@ -297,7 +297,12 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
-        "android.permission.ACTIVITY_RECOGNITION"
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
@@ -310,6 +315,18 @@
     },
     "plugins": [
       "expo-asset",
+      [
+        "expo-location",
+        {
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "locationAlwaysAndWhenInUsePermission": "GAFUS записывает маршрут прогулки с собакой, даже когда экран телефона заблокирован. Геолокация используется только во время прогулки.",
+          "locationWhenInUsePermission": "GAFUS использует геолокацию для отображения маршрута прогулки с собакой."
+        }
+      ],
+      "expo-sqlite",
+      "@maplibre/maplibre-react-native",
       "expo-video",
       [
         "expo-splash-screen",
@@ -426,7 +443,8 @@
       "./plugins/withDogWalkChronometer",
       "./plugins/withDogWalkBackgroundSteps",
       "./plugins/withHermesCompiler",
-      "./plugins/withStartupWindowBackground"
+      "./plugins/withStartupWindowBackground",
+      "./plugins/withDogWalkWidgetEmbed"
     ],
     "experiments": {
       "typedRoutes": true

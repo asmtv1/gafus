@@ -19,6 +19,7 @@ export const ROUTES = [
   // WEB033 owner Gallery list: registered read-only GETs in the App shell.
   "/profile/albums",
   "/reminders",
+  "/walks",
   "/cynologist-chat",
   "/chats",
   "/profile/delete-account",

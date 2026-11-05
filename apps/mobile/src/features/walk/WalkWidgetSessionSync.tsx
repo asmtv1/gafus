@@ -16,6 +16,12 @@ import {
   reconcileAndroidWalkSteps,
 } from "./androidBackgroundSteps";
 import { isWalkRunning } from "./walkModel";
+import { activeGpsSession } from "./walkGpsStorage";
+import { stopAllWalkGps, startWalkGps } from "./walkGpsTask";
+import {
+  processPendingIosWalkCommands,
+  setVerifiedIosWalkWidgetOwner,
+} from "./iosWalkWidgetActions";
 
 /** Prevent a former account's walk metrics from leaking into home-screen widgets. */
 export function WalkWidgetSessionSync() {
@@ -32,15 +38,55 @@ export function WalkWidgetSessionSync() {
     if (loading || (isAuthenticated && !verified)) return;
     let cancelled = false;
     const refresh = async () => {
-      if (Platform.OS === "android") {
-        // Clear access immediately on logout/role loss, before redrawing the card.
-        if (ownerId && canUseDogWalkHistory(useAuthStore.getState().user)) {
-          await AsyncStorage.setItem(WALK_WIDGET_OWNER_KEY, ownerId);
-        } else {
-          await AsyncStorage.removeItem(WALK_WIDGET_OWNER_KEY);
+      // Both platform widget handlers require a verified owner; never continue
+      // tracking from the previous login after an account switch.
+      if (ownerId && canUseDogWalkHistory(useAuthStore.getState().user)) {
+        await AsyncStorage.setItem(WALK_WIDGET_OWNER_KEY, ownerId);
+      } else {
+        await AsyncStorage.removeItem(WALK_WIDGET_OWNER_KEY);
+      }
+      if (Platform.OS === "ios") {
+        try {
+          setVerifiedIosWalkWidgetOwner(
+            ownerId && canUseDogWalkHistory(useAuthStore.getState().user) ? ownerId : null,
+          );
+          await processPendingIosWalkCommands();
+        } catch (error) {
+          reportClientError(error, { issueKey: "IosWidgetCommandDrain" });
         }
       }
       const journal = ownerId ? await loadWalkJournal(ownerId) : null;
+      // OS location task must not keep recording a signed-out or switched account.
+      try {
+        const gps = await activeGpsSession();
+        if (
+          gps &&
+          (!ownerId ||
+            gps.ownerId !== ownerId ||
+            gps.walkId !== journal?.active?.clientId ||
+            !isWalkRunning(journal?.active ?? null))
+        ) {
+          await stopAllWalkGps();
+        }
+      } catch (error) {
+        reportClientError(error, { issueKey: "DogWalkGpsOwnerGuard" });
+      }
+      // Restore location collection whenever a running tracked walk returns
+      // to the app foreground after an OS process/service restart. Never ask
+      // for new permissions outside a deliberate user action.
+      if (
+        !cancelled &&
+        ownerId &&
+        journal?.active?.clientId &&
+        journal.active.gpsEnabled &&
+        isWalkRunning(journal.active)
+      ) {
+        try {
+          await startWalkGps(ownerId, journal.active.clientId);
+        } catch (error) {
+          reportClientError(error, { issueKey: "DogWalkGpsForegroundRestore" });
+        }
+      }
       if (cancelled) return;
       if (Platform.OS === "android") {
         try {
@@ -86,9 +132,10 @@ export function WalkWidgetSessionSync() {
         }
       }
     };
-    const run = () => void refresh().catch((error: unknown) =>
-      reportClientError(error, { issueKey: "DogWalkSessionWidgetSync" }),
-    );
+    const run = () =>
+      void refresh().catch((error: unknown) =>
+        reportClientError(error, { issueKey: "DogWalkSessionWidgetSync" }),
+      );
     run();
     // A session may be started or finished from the launcher while this app is
     // backgrounded. Refresh the local journal and retry remote sync on return.
@@ -100,6 +147,27 @@ export function WalkWidgetSessionSync() {
       sub.remove();
     };
   }, [ownerId, loading, isAuthenticated, verified]);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    let disposed = false;
+    let subscription: { remove(): void } | null = null;
+    void import("expo-widgets")
+      .then(({ addUserInteractionListener }) => {
+        if (disposed) return;
+        subscription = addUserInteractionListener((event) => {
+          if (event.source === "DogWalk")
+            void processPendingIosWalkCommands().catch((error) =>
+              reportClientError(error, { issueKey: "IosWidgetActionEvent" }),
+            );
+        });
+      })
+      .catch((error) => reportClientError(error, { issueKey: "IosWidgetListener" }));
+    return () => {
+      disposed = true;
+      subscription?.remove();
+    };
+  }, []);
 
   return null;
 }

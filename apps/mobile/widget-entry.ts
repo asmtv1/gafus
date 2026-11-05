@@ -1,3 +1,6 @@
+// Required for Android headless GPS delivery: the Expo entrypoint executes
+// TaskManager registration before Expo Router mounts any React tree.
+import "./src/features/walk/walkGpsTask";
 import "expo-router/entry";
 import { NativeModules, Platform, TurboModuleRegistry } from "react-native";
 import type { WidgetTaskHandlerProps } from "react-native-android-widget";

@@ -170,7 +170,9 @@
     "patchedDependencies": {
       "@voximplant/react-native-calls@2.0.0": "patches/@voximplant__react-native-calls@2.0.0.patch",
       "react-native-compressor@1.16.0": "patches/react-native-compressor@1.16.0.patch",
-      "react-native-android-widget@0.26.0": "patches/react-native-android-widget@0.26.0.patch"
+      "react-native-android-widget@0.26.0": "patches/react-native-android-widget@0.26.0.patch",
+      "expo-widgets@55.0.20": "patches/expo-widgets@55.0.20.patch",
+      "expo-location@55.1.15": "patches/expo-location@55.1.15.patch"
     }
   }
 }

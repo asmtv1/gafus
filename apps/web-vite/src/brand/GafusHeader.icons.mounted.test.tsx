@@ -8,6 +8,7 @@ import { GafusHeader } from "./GafusHeader";
 const images = [
   ["/profile", "profile", "/images/tab-icons/profile.webp"],
   ["/pets", "pets", "/images/tab-icons/pets.webp"],
+  ["/walks", "pets", "/images/tab-icons/pets.webp"],
   ["/courses", "courses", "/images/tab-icons/courses.webp"],
   ["/moments", "feed", "/images/tab-icons/feed.webp"],
   ["/questions", "questions", "/images/tab-icons/questions.png"],
@@ -43,7 +44,7 @@ afterEach(async () => {
   window.history.replaceState(null, "", "/");
 });
 describe("original Next menu artwork and consistent icon slots", () => {
-  it("uses ten original menu images and the actual Next logout artwork", async () => {
+  it("uses original menu images, a walking link and actual Next logout artwork", async () => {
     await render(true);
     await openMenu();
     const nav = node.querySelector('nav[aria-label="Разделы"]');
@@ -54,7 +55,7 @@ describe("original Next menu artwork and consistent icon slots", () => {
       .toHaveLength(3);
     expect(menuButton?.querySelector('img[src*="menu-icon"]')).toBeNull();
 
-    expect(nav?.querySelectorAll("span[data-menu-icon] img")).toHaveLength(11);
+    expect(nav?.querySelectorAll("span[data-menu-icon] img")).toHaveLength(12);
     for (const [href, key, src] of images) {
       const link = [...nav!.querySelectorAll<HTMLAnchorElement>("a")]
         .find((item) => item.getAttribute("href") === href);

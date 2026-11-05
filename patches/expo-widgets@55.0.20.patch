@@ -1,0 +1,102 @@
+diff --git a/ios/Widgets/AppIntent.swift b/ios/Widgets/AppIntent.swift
+--- a/ios/Widgets/AppIntent.swift
++++ b/ios/Widgets/AppIntent.swift
+@@ -2,7 +2,11 @@
+ import WidgetKit
+ 
+ @available(iOS 16.0, *)
++// AppIntent runs without presenting the GAFUS UI. iOS 26 requires
++// supportedModes; older iOS records a durable App Group command for app resume.
+ struct WidgetUserInteraction: AppIntent {
++  @available(iOS 26.0, *)
++  static var supportedModes: IntentModes { .foreground(.dynamic) }
+   // title is not used for non-discoverable intents, but it is required
+   static var title: LocalizedStringResource = "User Interaction"
+   static var isDiscoverable: Bool = false
+@@ -27,6 +31,30 @@
+   }
+ 
+   func perform() async throws -> some IntentResult {
++    // Persist before the optional JS widget renderer: cold-start JS may not
++    // exist yet. Each command has its own atomic file; rapid taps are durable.
++    if source == "DogWalk", let target = target,
++      ["walk:start", "walk:pause", "walk:finish"].contains(target),
++      let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.ru.gafus.app") {
++      let ownerId = UserDefaults(suiteName: "group.ru.gafus.app")?.string(forKey: "gafus.walk-widget.verified-owner")
++      guard let ownerId = ownerId, !ownerId.isEmpty else { return .result() }
++      let folder = root.appendingPathComponent("walk-widget-commands-v1", isDirectory: true)
++      try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
++      let id = UUID().uuidString
++      let payload: [String: Any] = ["id": id, "ownerId": ownerId, "action": String(target.dropFirst(5)),
++                                     "timestamp": Int(Date().timeIntervalSince1970 * 1000)]
++      if let data = try? JSONSerialization.data(withJSONObject: payload) {
++        try? data.write(to: folder.appendingPathComponent("\(id).json"), options: .atomic)
++      }
++    }
++    if source == "DogWalk" {
++      // AppIntent may execute before the JS widget layout is ready. Signal the
++      // host process immediately; the App Group files remain durable if JS is cold.
++      WidgetsEvents.shared.sendNotification(type: .userEvent, data: [
++        "source": source as Any, "target": target as Any,
++        "timestamp": Int(Date().timeIntervalSince1970 * 1000)
++      ])
++    }
+     guard let source else {
+       return .result()
+     }
+@@ -60,11 +88,13 @@
+       WidgetsStorage.set(newTimeline, forKey: "__expo_widgets_\(source)_timeline")
+     }
+ 
+-    WidgetsEvents.shared.sendNotification(type: .userEvent, data: [
+-      "source": source as Any,
+-      "target": target as Any,
+-      "timestamp": Int(Date().timeIntervalSince1970 * 1000)
+-    ])
++    if source != "DogWalk" {
++      WidgetsEvents.shared.sendNotification(type: .userEvent, data: [
++        "source": source as Any,
++        "target": target as Any,
++        "timestamp": Int(Date().timeIntervalSince1970 * 1000)
++      ])
++    }
+ 
+     WidgetCenter.shared.reloadTimelines(ofKind: source)
+ 
+diff --git a/ios/WidgetsModule.swift b/ios/WidgetsModule.swift
+--- a/ios/WidgetsModule.swift
++++ b/ios/WidgetsModule.swift
+@@ -47,6 +47,33 @@
+ 
+     Function("reloadAllWidgets") {
+       WidgetCenter.shared.reloadAllTimelines()
++    }
++
++    Function("setVerifiedDogWalkWidgetOwner") { (ownerId: String?) in
++      guard let defaults = UserDefaults(suiteName: "group.ru.gafus.app") else { return }
++      if let ownerId = ownerId, !ownerId.isEmpty {
++        defaults.set(ownerId, forKey: "gafus.walk-widget.verified-owner")
++      } else {
++        defaults.removeObject(forKey: "gafus.walk-widget.verified-owner")
++      }
++    }
++
++    Function("pendingDogWalkCommands") { () -> [[String: Any]] in
++      guard let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.ru.gafus.app") else { return [] }
++      let folder = root.appendingPathComponent("walk-widget-commands-v1", isDirectory: true)
++      let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
++      let commands: [[String: Any]] = files.compactMap { url in
++        guard url.pathExtension == "json", let data = try? Data(contentsOf: url) else { return nil }
++        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
++      }
++      return commands.sorted { ($0["timestamp"] as? Int ?? 0) < ($1["timestamp"] as? Int ?? 0) }
++    }
++
++    Function("ackDogWalkCommand") { (commandId: String) in
++      guard UUID(uuidString: commandId) != nil,
++        let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.ru.gafus.app") else { return }
++      let folder = root.appendingPathComponent("walk-widget-commands-v1", isDirectory: true)
++      try? FileManager.default.removeItem(at: folder.appendingPathComponent("\(commandId).json"))
+     }
+ 
+     Class("Widget", WidgetObject.self) {

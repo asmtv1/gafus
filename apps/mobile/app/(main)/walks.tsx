@@ -17,7 +17,7 @@ import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { canUseDogWalkHistory } from "@/features/walk/walkAccess";
 import { formatWalkLength, toWalkHistoryRows } from "@/features/walk/walkHistoryFormat";
-import { estimatedWalkMeters, formatWalkDistance, isWalkRunning } from "@/features/walk/walkModel";
+import { formatWalkDistance, isWalkRunning } from "@/features/walk/walkModel";
 import { getWalkWeekOverview } from "@/features/walk/walkOverview";
 import { loadWalkJournal, type WalkJournal } from "@/features/walk/walkStorage";
 import { syncDogWalkHistory } from "@/features/walk/walkSync";
@@ -237,7 +237,7 @@ export default function WalksHistoryScreen() {
             <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
               {overview.seconds ? formatWalkLength(overview.seconds) : "0 мин"}
             </Text>
-            <Text style={styles.statLabel}>в движении</Text>
+            <Text style={styles.statLabel}>без пауз</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, styles.statIconDistance]}>
@@ -246,7 +246,7 @@ export default function WalksHistoryScreen() {
             <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
               {formatWalkDistance(overview.meters)}
             </Text>
-            <Text style={styles.statLabel}>примерно</Text>
+            <Text style={styles.statLabel}>расстояние</Text>
           </View>
         </View>
         <View style={styles.chartCard}>
@@ -335,7 +335,15 @@ export default function WalksHistoryScreen() {
         ) : (
           <>
             {rows.slice(0, visibleCount).map((row, index) => (
-              <View key={row.id} style={styles.historyCard}>
+              <Pressable
+                key={row.id}
+                style={styles.historyCard}
+                onPress={() =>
+                  router.push(`/(main)/walk-route?walkId=${encodeURIComponent(row.id)}` as Href)
+                }
+                accessibilityRole="button"
+                accessibilityLabel={`Показать маршрут прогулки ${row.day}`}
+              >
                 <View style={styles.historyBadge}>
                   <MaterialCommunityIcons name="paw" size={23} color={COLORS.primary} />
                 </View>
@@ -355,7 +363,7 @@ export default function WalksHistoryScreen() {
                   <View style={styles.historyMetrics}>
                     <View style={styles.historyMetric}>
                       <Text style={styles.historyMetricValue}>{row.duration}</Text>
-                      <Text style={styles.historyMetricLabel}>в движении</Text>
+                      <Text style={styles.historyMetricLabel}>без пауз</Text>
                     </View>
                     <View style={styles.historyMetricDivider} />
                     <View style={styles.historyMetric}>
@@ -367,13 +375,14 @@ export default function WalksHistoryScreen() {
                     <View style={styles.historyMetricDivider} />
                     <View style={styles.historyMetric}>
                       <Text style={styles.historyMetricValue}>
-                        ≈{formatWalkDistance(estimatedWalkMeters(row.steps))}
+                        {row.hasGps ? "" : "≈"}
+                        {formatWalkDistance(row.meters)}
                       </Text>
                       <Text style={styles.historyMetricLabel}>расстояние</Text>
                     </View>
                   </View>
                 </View>
-              </View>
+              </Pressable>
             ))}
             {rows.length > visibleCount ? (
               <Pressable
@@ -406,8 +415,9 @@ export default function WalksHistoryScreen() {
         <View style={styles.privacyFooter}>
           <MaterialCommunityIcons name="shield-check-outline" size={18} color={COLORS.primary} />
           <Text style={styles.privacyText}>
-            История доступна только вам. Телефон хранит прогулки и синхронизирует их с сервером.
-            Расстояние рассчитано по шагам, без GPS.
+            История доступна только вам. Телефон хранит прогулки и синхронизирует их с сервером. При
+            доступном GPS показываем записанное расстояние и маршрут; иначе — приблизительное
+            расстояние по шагам.
           </Text>
         </View>
       </ScrollView>
