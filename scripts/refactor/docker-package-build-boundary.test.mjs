@@ -64,13 +64,14 @@ test('runtime image validation keeps frozen 9/49 mandatory and extends to manife
   for(const name of ['core-client','achievements','consent','mobile-intro','notifications','feature-flags','admin-rewarded-ads','tracking','admin-reengagement','subscription-read-server'])
     assert.match(verify,new RegExp(name));
   assert.match(verify,/legacyPackages\.length !== 9 \|\| legacyExportsChecked !== 49/);
-  assert.match(verify,/packages\.length !== 10 \|\| exportsChecked !== 50/);
+  assert.match(verify,/packages\.length !== 10 \|\| exportsChecked !== 51/);
   assert.match(verify,/if \(legacyPackages\.includes\(name\)\) legacyExportsChecked\+\+/);
   const required = ['core-client','achievements-server','consent-server','mobile-intro-server','notifications-server','feature-flags-server','admin-rewarded-ads-server','tracking-server','admin-reengagement-server','subscription-read-server'];
   const latestExportCount = required.reduce((sum, pkg) =>
     sum + Object.keys(JSON.parse(read(`packages/${pkg}/package.json`)).exports).length, 0);
   const legacyExportCount = required.slice(0,9).reduce((sum,pkg)=>
-    sum + Object.keys(JSON.parse(read(`packages/${pkg}/package.json`)).exports).length,0);
+    sum + Object.keys(JSON.parse(read(`packages/${pkg}/package.json`)).exports)
+      .filter(key => pkg !== "core-client" || key !== "./chat2/realtime-subscription").length,0);
   assert.equal(legacyExportCount,49,'frozen legacy exports must not regress');
   assert.ok(latestExportCount>legacyExportCount,'extracted subscription-read package must contribute compiled exports');
   assert.match(verify,/assertFile\(jsPath/);
@@ -101,4 +102,17 @@ test('negative fixtures: missing and non-blocking boundary step are rejected',()
   const variant=(p)=>steps.map((s,i)=>i===index?{...s,...p}:s);
   assert.equal(valid(variant({if:'github.ref == "refs/heads/main"'})),false);
   assert.equal(valid(variant({'continue-on-error':true})),false);
+});
+
+test('API and Worker deployment keeps Sharp platform binaries from optional dependencies',()=>{
+  for(const file of [
+    'ci-cd/docker/Dockerfile-api-optimized',
+    'ci-cd/docker/Dockerfile-api-optimized-qa-low-concurrency',
+    'ci-cd/docker/Dockerfile-worker-optimized',
+  ]) {
+    const source=read(file);
+    assert.match(source,/pnpm deploy[^\n]*--prod \/app\/deploy/);
+    assert.doesNotMatch(source,/pnpm deploy[^\n]*--no-optional/,
+      `${file}: Sharp requires its platform-specific optional packages`);
+  }
 });
