@@ -93,6 +93,9 @@ test('v1 baseline stays frozen when a later Prisma migration and model are appen
     const tempSchema = join(temp, 'packages/prisma/schema.prisma');
     cpSync('packages/prisma/schema.prisma', tempSchema);
     appendFileSync(tempSchema, '\nmodel ArchqaFutureOnly { id Int @id }\n');
+    const reviewed = Object.keys(JSON.parse(read(join(candidate, 'inventory.review.json'))).migrationsSha256).sort();
+    const existingForward = readdirSync(sourceMigrations, {withFileTypes: true})
+      .filter(item => item.isDirectory() && item.name > reviewed.at(-1)).length;
     const folder = join(sourceMigrations, '20990101000000_qa_forward_only');
     mkdirSync(folder);
     writeFileSync(join(folder, 'migration.sql'),
@@ -104,7 +107,7 @@ test('v1 baseline stays frozen when a later Prisma migration and model are appen
       });
     const good = check();
     assert.equal(good.status, 0, `${good.stdout}\n${good.stderr}`);
-    assert.match(good.stdout, /historical_migrations=163 forward_migrations=1/);
+    assert.match(good.stdout, new RegExp(`historical_migrations=163 forward_migrations=${existingForward + 1}\\b`));
     const old = readdirSync(sourceMigrations).filter(x => x.startsWith('2024')).sort()[0];
     assert(old, 'a frozen historical migration is required');
     appendFileSync(join(sourceMigrations, old, 'migration.sql'), '\n-- TAMPER_TEST_ONLY\n');
