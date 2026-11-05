@@ -195,6 +195,13 @@ function sectionFixture(url: string): unknown {
     };
   if (url === "/api/v1/admin/broadcasts/preview")
     return { subscriptions: 0, kind: "raw_subscription_rows" };
+  if (url.startsWith("/api/v1/admin/analytics/video-quality")) return {
+    days: 30, from: "2026-10-06", through: "2026-11-05",
+    total: 0, count360: 0, count720: 0, percent360: 0,
+    auto360: 0, manual360: 0, only360: 0, only720: 0,
+    fallbackStarts: 0, savingData360: 0,
+    byDay: [], bySurface: [], byPlatform: [], byNetwork: [],
+  };
   if (url === "/api/v1/admin/analytics/reengagement") return engagement;
   if (url.startsWith("/api/v1/admin/analytics/rewarded-ads")) return rewarded;
   if (url === "/api/v1/gafus/admin/dashboard")
@@ -360,7 +367,7 @@ describe("admin live application SPA flows with isolated API fixtures", () => {
     ).toBe(true);
   });
 
-  it("opens every one of the 18 menu routes and sends the matching authorized GET", async () => {
+  it("opens every menu route and sends the matching authorized GET", async () => {
     await mount("/main-panel/users");
     for (const section of adminSections) {
       const target = host.querySelector<HTMLAnchorElement>(

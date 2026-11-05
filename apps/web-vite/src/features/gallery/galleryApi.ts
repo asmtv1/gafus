@@ -1,5 +1,4 @@
 import {apiRequest,isolatedNonprodBrowserS3Url} from "../../shared/api/client";
-import {GALLERY_LIMITS, GALLERY_MIME_TYPES} from "@gafus/types";
 import type {GalleryUploadDto} from "@gafus/types";
 
 /** Original Hono Gallery dispatcher; all mutations retain Core owner ACL.
