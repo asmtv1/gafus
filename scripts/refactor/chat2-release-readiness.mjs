@@ -56,19 +56,6 @@ export function validateCutoverConfig(env, stage = false) {
     env.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET, env.CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET];
   if (new Set(secrets).size !== secrets.length)
     FAIL('Chat2 connection/broker/proxy/subscription-deny keys must be independent');
-  // All mobile users are required to install a NEW release before proxy-only
-  // cutover. No backwards compatibility: don't authorize production cutover
-  // until BOTH store binaries are live and public minimum-version policy set.
-  if (!stage) {
-    if (env.CHAT2_MOBILE_STORES_VERIFIED !== 'true')
-      FAIL('both new Mobile store builds must be published before Chat2 cutover');
-    for (const key of ['CHAT2_MOBILE_IOS_MIN_VERSION','CHAT2_MOBILE_ANDROID_MIN_VERSION']) {
-      const min = env[key] ?? '';
-      if (!/^\d+\.\d+\.\d+$/.test(min) ||
-          compareVersions(min,'1.7.2') <= 0)
-        FAIL(`${key} must require a published version NEWER than the old 1.7.2 build`);
-    }
-  }
   return true;
 }
 

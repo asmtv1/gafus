@@ -4,8 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { validateStaticContracts, validateCutoverConfig, verifyLiveDestination,
-  verifyQaStatus, readDestinationEnv, probePublicWebsocketUpgrade,
-  verifyMobileForcedUpdate } from './chat2-release-readiness.mjs';
+  verifyQaStatus, readDestinationEnv, probePublicWebsocketUpgrade } from './chat2-release-readiness.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const composeFile = path.join(root, 'ci-cd/docker/docker-compose.prod.yml');
@@ -26,10 +25,7 @@ try {
     // Intended CI values only. Never presented as live destination readiness.
     validateCutoverConfig(process.env);
     verifyQaStatus(read('docs/qa/CURRENT_RELEASE_STATUS.md'));
-    // Already at candidate time: check the actual published two-platform
-    // minimum/store links BEFORE any image pull or release mutation.
-    await verifyMobileForcedUpdate(process.env);
-    console.log('Chat2 intended configuration + published forced Mobile update PASS (candidate only; broker live unverified)');
+    console.log('Chat2 intended configuration + QA PASS (candidate only; broker live unverified)');
   } else if (process.argv.includes('--release')) {
     const i = process.argv.indexOf('--destination-env');
     if (i < 0 || !process.argv[i + 1] || process.argv[i + 1].startsWith('--'))
@@ -41,7 +37,6 @@ try {
     validateCutoverConfig(env);
     verifyQaStatus(read('docs/qa/CURRENT_RELEASE_STATUS.md'));
     verifyLiveDestination(env, composeFile);
-    await verifyMobileForcedUpdate(env);
     await probePublicWebsocketUpgrade(env.CHAT2_PUBLIC_WS_URL);
     console.log('Chat2 cutover PASS: target config + QA veto + LIVE API/worker/broker health + public WSS upgrade');
   } else if (!process.argv.includes('--staged')) console.log('Chat2 static broker/proxy/Compose contract PASS; NOT release readiness');

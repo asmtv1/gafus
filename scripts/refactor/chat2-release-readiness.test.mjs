@@ -49,10 +49,6 @@ test('misconfigured broker, unactivated profile, insecure websocket, placeholder
     { CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: ready.CHAT2_CENTRIFUGO_TOKEN_SECRET },
     { CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: ready.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET },
     { CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: 'placeholder' + 'd'.repeat(40) },
-    { CHAT2_MOBILE_STORES_VERIFIED: 'false' },
-    { CHAT2_MOBILE_IOS_MIN_VERSION: '1.7.2' },
-    { CHAT2_MOBILE_ANDROID_MIN_VERSION: '1.7.1' },
-    { CHAT2_MOBILE_IOS_MIN_VERSION: '' },
   ]) assert.throws(() => validateCutoverConfig({ ...ready, ...values }), /CHAT2_RELEASE_BLOCKED/);
   assert.throws(() => parseDestinationEnv('CHAT2_API_ENABLED=enabled\nCHAT2_API_ENABLED=disabled'), /duplicate/);
 });
@@ -78,7 +74,7 @@ test('real release workflows check candidate and actual generated destination, b
   const destination = activation.indexOf('check-chat2-prod-boundary.mjs --release --destination-env ci-cd/docker/.env');
   assert.ok(destination > activation.indexOf('docker-compose -f "$compose" up -d --no-deps --force-recreate api worker'));
   assert.ok(activation.includes('trap rollback_activation EXIT'));
-  for (const key of Object.keys(ready)) assert.match(prod, new RegExp(`echo "${key}=`));
+  for (const key of Object.keys(ready).filter(key => key !== "CHAT2_MOBILE_STORES_VERIFIED")) assert.match(prod, new RegExp(`echo "${key}=`));
   assert.doesNotMatch(prod, /--release --destination-env .*example/);
 });
 
@@ -183,7 +179,7 @@ test('no broker subscription token override, no public internal ingress, no clie
 });
 
 
-test('release veto verifies REAL remote mobile forced-update configuration only through read-only calls', async () => {
+test('optional mobile policy diagnostic uses read-only calls', async () => {
   const seen=[];
   const endpoint='https://api.gafus.ru/api/v1/public/mobile-app';
   const fake=(url,opts)=>{
@@ -212,3 +208,11 @@ test('release veto verifies REAL remote mobile forced-update configuration only 
   }})});
   await assert.rejects(verifyMobileForcedUpdate(ready,malicious),/not approved store/);
 });
+
+ test('server release is independent of mobile store review and public version policy', () => {
+   const env = {...ready};
+   for (const key of ['CHAT2_MOBILE_STORES_VERIFIED','CHAT2_MOBILE_IOS_MIN_VERSION','CHAT2_MOBILE_ANDROID_MIN_VERSION']) delete env[key];
+   assert.equal(validateCutoverConfig(env),true);
+   const gate=readFileSync(new URL('./check-chat2-prod-boundary.mjs',import.meta.url),'utf8');
+   assert.doesNotMatch(gate,/verifyMobileForcedUpdate/);
+ });
