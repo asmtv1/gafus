@@ -5,7 +5,6 @@ import type { PrismaClient } from "@gafus/prisma";
 import { createFeedPolls } from "./polls";
 import { createFeedService } from "./service";
 import { activateFeedPostRevisionTx } from "./publish";
-import { createFeedStorageJobs } from "./jobs";
 
 // Only an explicitly selected disposable local DB may run this suite.
 const url = process.env.FEED_POLL_TEST_DATABASE_URL;
@@ -55,49 +54,38 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
   });
   afterAll(async () => { await db?.$disconnect(); });
 
-  it("runs upload reservation → processing job → poll-only publish → vote → cleanup", async () => {
-    // Real PostgreSQL transactions and worker state machine, synthetic object-store metadata.
+  it("runs client WebP upload → synchronous readiness → poll-only publish → vote → cleanup", async () => {
+    // Real PostgreSQL transactions and client-photo state machine, synthetic object-store metadata.
     // No request leaves the local database, and no external S3 buckets are touched.
     const photoBytes = 22;
     let sourceKey = "";
+    const finalKeys = new Set<string>();
     const feed = createFeedService({ db: db!, enabled: () => true, now: clock,
       storage: {
         enabled: true,
         signCdn: storage.signCdn,
         presignPost: async () => ({ url: "https://upload.invalid", fields: {} }),
         head: async key => key === sourceKey
-          ? { etag: "test-e2e-etag", bytes: photoBytes, contentType: "image/png" } : null,
+          ? { etag: "test-e2e-etag", bytes: photoBytes, contentType: "image/webp" }
+          : finalKeys.has(key) ? {etag:"test-final-etag",bytes:photoBytes,contentType:"image/webp"} : null,
+        publishClientPhoto: async keys => {
+          [keys.smallKey,keys.thumbKey,keys.fullKey].forEach(key => finalKeys.add(key));
+          return {width:300,height:200};
+        },
       },
     });
     const clientRequestId = randomUUID();
-    const uploadInput = { clientRequestId, filename: "answer.png", kind: "photo" as const,
-      declaredMime: "image/png" as const, declaredBytes: photoBytes };
+    const uploadInput = { clientRequestId, filename: "answer.webp", kind: "photo" as const,
+      declaredMime: "image/webp" as const, declaredBytes: photoBytes };
     const reserved = await feed.reserveUpload(owner, postId, uploadInput);
     expect(reserved.status).toBe("reserved");
     const repeated = await feed.reserveUpload(owner, postId, uploadInput);
     expect(repeated.mediaId).toBe(reserved.mediaId);
     expect(repeated.uploadId).toBe(reserved.uploadId);
     sourceKey = (await db!.feedUpload.findUniqueOrThrow({ where: { id: reserved.uploadId } })).sourceKey;
-    await feed.completeUpload(owner, reserved.uploadId);
-    expect((await feed.getUpload(owner, reserved.uploadId)).status).toBe("uploaded");
-    const job = await db!.feedStorageJob.findUniqueOrThrow({
-      where: { dedupeKey: `feed-process:${reserved.uploadId}` },
-    });
-    const token = randomUUID();
-    await db!.feedStorageJob.update({ where: { id: job.id }, data: {
-      status: "processing", attempts: 1, attemptToken: token,
-      leaseUntil: new Date(at.getTime() + 60_000),
-    } });
-    // Feed Media V2 writes three immutable renditions under the media ID.
-    // Never weaken the worker's strict key validation to accept legacy posts/*.
+    await feed.completeClientPhoto(owner, reserved.uploadId);
     const base = `media/v2/${reserved.mediaId}/v1`;
-    const worker = createFeedStorageJobs({ db: db!, now: clock });
-    expect(await worker.complete(job.id, token, {
-      width: 300, height: 200,
-      smallKey: `${base}/image/s.webp`,
-      thumbKey: `${base}/image/m.webp`,
-      fullKey: `${base}/image/l.webp`,
-    })).toEqual({ accepted: true });
+    expect(await db!.feedStorageJob.count({where:{postId,kind:"publish_photo"}})).toBe(0);
     expect((await feed.getUpload(owner, reserved.uploadId)).status).toBe("ready");
     expect((await feed.reserveUpload(owner, postId, uploadInput)).mediaId).toBe(reserved.mediaId);
     const poll = await polls().save(owner, postId, { expectedVersion: 0,
