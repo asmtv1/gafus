@@ -7,7 +7,7 @@
     "dev": "vite --config vite.config.mjs",
     "build": "vite build --config vite.config.mjs",
     "typecheck": "tsc --noEmit --project tsconfig.json",
-    "lint": "eslint src vite.config.mjs",
+    "lint": "eslint src vite.config.mjs --max-warnings 0",
     "test": "node --test vite.config.test.mjs && vitest run src --maxWorkers=1",
     "test:preview": "pnpm build && node --test ../../scripts/refactor/vite-preview-smoke.test.mjs",
     "test:visual": "node ../../scripts/refactor/run-visual-regression.mjs",
