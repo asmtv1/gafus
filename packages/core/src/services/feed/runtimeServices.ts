@@ -33,3 +33,22 @@ export function createCurrentFeedInternalRuntime(storage: Pick<FeedStoragePort, 
     recovery: createFeedUploadRecovery({ db: prisma, storage }),
   };
 }
+
+export function createCurrentFeedMaintenanceRuntime() {
+  return {
+    db: {feedStorageJob: {findMany: prisma.feedStorageJob.findMany.bind(prisma.feedStorageJob)}},
+    jobs: createFeedStorageJobs({db: prisma}),
+    maintenance: createFeedMaintenance({db: prisma}),
+  };
+}
+
+export function listDueFeedCleanupJobs(db: {feedStorageJob: Pick<typeof prisma.feedStorageJob,"findMany">}, at: number) {
+  return db.feedStorageJob.findMany({
+        where:{kind:{in:['delete_keys','cleanup_source']},OR:[
+          {status:'pending',availableAt:{lte:new Date(at)}},
+          {status:'processing',leaseUntil:{lt:new Date(at)}},
+        ]},
+        orderBy:[{availableAt:'asc'},{id:'asc'}],take:10,
+        select:{id:true,ownerId:true,kind:true},
+      });
+}

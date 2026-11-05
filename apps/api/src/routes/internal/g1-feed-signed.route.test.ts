@@ -86,16 +86,16 @@ beforeEach(() => {
 
 describe("G1 mounted internal Feed: REAL signature verifier, fake disposable services", () => {
   it("returns bare Core DTO for authenticated claim; cache no-store", async () => {
-    const response = await app.request(path, signed(path, '{"batchSize":2}'));
+    const response = await app.request(path, signed(path, '{"batchSize":2,"workerType":"video"}'));
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual([]);
-    expect(m.claim).toHaveBeenCalledWith(2);
+    expect(m.claim).toHaveBeenCalledWith(2, "video");
   });
 
   it("rejects unsigned request before nonce/Core consumption", async () => {
     const response = await app.request(path, {
-      method: "POST", body: '{"batchSize":2}',
+      method: "POST", body: '{"batchSize":2,"workerType":"video"}',
       headers: { "content-type": "application/json" },
     });
     expect(response.status).toBe(401);
@@ -105,7 +105,7 @@ describe("G1 mounted internal Feed: REAL signature verifier, fake disposable ser
   });
 
   it("rejects signed-body substitution before nonce consumption", async () => {
-    const opts = signed(path, '{"batchSize":2}');
+    const opts = signed(path, '{"batchSize":2,"workerType":"video"}');
     const response = await app.request(path, { ...opts, body: '{"batchSize":3}' });
     expect(response.status).toBe(401);
     expect(m.consumeNonce).not.toHaveBeenCalled();
@@ -113,7 +113,7 @@ describe("G1 mounted internal Feed: REAL signature verifier, fake disposable ser
   });
 
   it("accepts only one of two simultaneous identical signed requests", async () => {
-    const opts = signed(path, '{"batchSize":2}');
+    const opts = signed(path, '{"batchSize":2,"workerType":"video"}');
     const [a, b] = await Promise.all([app.request(path, opts), app.request(path, opts)]);
     expect([a.status, b.status].sort()).toEqual([200, 401]);
     expect(m.claim).toHaveBeenCalledTimes(1);
@@ -121,7 +121,7 @@ describe("G1 mounted internal Feed: REAL signature verifier, fake disposable ser
 
   it("fails closed on nonce store failure without leaking internal detail", async () => {
     m.nonceOutage = true;
-    const response = await app.request(path, signed(path, '{"batchSize":2}'));
+    const response = await app.request(path, signed(path, '{"batchSize":2,"workerType":"video"}'));
     expect(response.status).toBe(503);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.text()).not.toContain("NONCE_STORE_SECRET_ERROR");
@@ -147,7 +147,7 @@ describe("G1 mounted internal Feed: REAL signature verifier, fake disposable ser
   it("rejects unsupported GET and query params before nonce Core", async () => {
     const get = await app.request(path);
     expect(get.status).toBe(405);
-    const query = await app.request(path + "?owner=attacker", signed(path, '{"batchSize":2}'));
+    const query = await app.request(path + "?owner=attacker", signed(path, '{"batchSize":2,"workerType":"video"}'));
     expect(query.status).toBe(404);
     expect(m.consumeNonce).not.toHaveBeenCalled();
     expect(m.claim).not.toHaveBeenCalled();

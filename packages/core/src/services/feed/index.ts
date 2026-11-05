@@ -39,3 +39,5 @@ export { runFeedBackgroundOperations, getFeedPushSubscriptions } from "./backgro
 export * from "./smartTelemetryService";
 
 export * from "./runtimeServices";
+
+export * from "./retiredPhotoQueue";

@@ -13,14 +13,12 @@ import { fileURLToPath } from "node:url";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const source = path.join(root, "packages/worker/src");
 const allowed = new Set([
-  // Frozen before the first Refactor release: these 5 EXISTING production
+  // Frozen before the first Refactor release: these 3 EXISTING production
   // workers already have direct Prisma access. Keep exact-name exceptions
   // only; new/renamed imports fail. Migrate into Core in a separate change.
   "chat2-media-recovery.ts",
   "chat2-outbox-worker.ts",
   "feed-media-recovery.ts",
-  "questions-photo-recovery.ts",
-  "questions-photo-trigger-worker.ts",
   // Two existing disposable local-only scripts (never production workers):
   "smart-experiment-report.ts",
   "smart-feed-sql-smoke.ts",

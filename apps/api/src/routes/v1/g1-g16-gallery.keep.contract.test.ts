@@ -308,14 +308,14 @@ describe("AG1 G16 bounded Gallery: GAL-01..07 actual Hono+dispatcher response fi
         input?: { clientRequestId?: string },
       ) => {
         expect(actor).toBe(A);
-        if (name === "reserveUpload") {
+        if (name === "reserveClientUpload") {
           reserved = true;
           return upload("reserved");
         }
         if (name === "cancelUpload") return upload("cancelled");
-        if (name === "confirmUpload") {
+        if (name === "confirmClientUpload") {
           expect(reserved).toBe(true);
-          return upload("uploaded");
+          return upload("ready");
         }
         if (name === "getUpload") return upload(retried ? "failed" : "uploaded");
         if (name === "retryUpload") {
@@ -329,25 +329,25 @@ describe("AG1 G16 bounded Gallery: GAL-01..07 actual Hono+dispatcher response fi
     );
     const request = {
       albumId,
-      filename: "dog.jpg",
-      declaredMime: "image/jpeg",
+      filename: "dog.webp",
+      declaredMime: "image/webp",
       declaredBytes: 1234,
       clientRequestId: reqId,
     };
-    const r = await post("GAL-03-reserve-200", "/uploads", "A", request);
+    const r = await post("GAL-03-reserve-200", "/uploads/client-reserve", "A", request);
     expect(r.status).toBe(200);
     expect(r.bodyJson.data.status).toBe("reserved");
     const pathReserve = await post(
       "GAL-03-album-upload-reserve-200",
-      `/albums/${albumId}/uploads`,
+      "/uploads/client-reserve",
       "A",
       request,
     );
     expect(pathReserve.status).toBe(200);
-    const confirm = await post("GAL-03-complete-200", `/uploads/${uploadId}/complete`, "A", {});
+    const confirm = await post("GAL-03-complete-200", `/uploads/${uploadId}/client-complete`, "A", {});
     expect(confirm.status).toBe(200);
-    expect(confirm.bodyJson.data.status).toBe("uploaded");
-    expect(confirm.bodyJson.data.status).not.toBe("ready");
+    expect(confirm.bodyJson.data.status).toBe("ready");
+    expect(confirm.bodyJson.data.status).not.toBe("uploaded");
     const status = await call("GAL-03-status-200", "GET", `/uploads/${uploadId}`, "A");
     expect(status.status).toBe(200);
     const again = await post("GAL-03-retry-200", `/uploads/${uploadId}/retry`, "A", {
@@ -373,16 +373,16 @@ describe("AG1 G16 bounded Gallery: GAL-01..07 actual Hono+dispatcher response fi
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
   it("GAL-04 bad mime/declared bytes/body 16KiB/content type, no Core calls", async () => {
-    const base = { albumId, filename: "dog.png", declaredBytes: 20, clientRequestId: reqId };
-    const badMime = await post("GAL-04-invalid-mime-400", "/uploads", "A", {
+    const base = { albumId, filename: "dog.webp", declaredBytes: 20, clientRequestId: reqId };
+    const badMime = await post("GAL-04-invalid-mime-400", "/uploads/client-reserve", "A", {
       ...base,
       declaredMime: "image/gif",
     });
     expect(badMime.status).toBe(400);
-    const tooMany = await post("GAL-04-declared-bytes-400", "/uploads", "A", {
+    const tooMany = await post("GAL-04-declared-bytes-400", "/uploads/client-reserve", "A", {
       ...base,
       declaredBytes: 10 * 1024 * 1024 + 1,
-      declaredMime: "image/png",
+      declaredMime: "image/webp",
     });
     expect(tooMany.status).toBe(400);
     const tooLarge = await call("GAL-04-body-413", "POST", "/albums", "A", {

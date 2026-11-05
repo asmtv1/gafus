@@ -17,7 +17,7 @@ function fixture(status:"READY"|"FAILED"|"EXPIRED"="READY") {
   if(where.cleanupKind){if(row.cleanupKind&&row.cleanupCompletedAt===null&&row.cleanupNextAt<=time&&
      (!where.mediaId||where.mediaId===row.mediaId)&&
      (!row.cleanupLeaseUntil||row.cleanupLeaseUntil<time))return {...row};return null;}
-  if(where.status==="PROCESSING")return row.status==="PROCESSING"?{...row}:null;
+  if(where.status=== "PROCESSING" || where.status?.in?.includes("PROCESSING"))return row.status==="PROCESSING"?{...row}:null;
   return null;
  });
  const updateMany=vi.fn(async({where,data}:any)=>{

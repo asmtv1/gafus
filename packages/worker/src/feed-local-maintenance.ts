@@ -2,13 +2,13 @@
  * Feed S3 janitor on existing GAFUS Worker; independent from Cloud.ru Jobs.
  * Cloud video workers are restricted to optional 360p, never image cleanup.
  */
-import {prisma} from '@gafus/prisma';
-import {createFeedMaintenance,createFeedStorageJobs} from '@gafus/core/services/feed';
+import type {prisma} from '@gafus/prisma';
+import {createFeedMaintenance,createFeedStorageJobs,createCurrentFeedMaintenanceRuntime,listDueFeedCleanupJobs} from '@gafus/core/services/feed';
 import {assertFeedObjectKey,createFeedJanitorObjects,type FeedJanitorObjects} from '@gafus/feed-storage';
 
 type Jobs=Pick<ReturnType<typeof createFeedStorageJobs>,'claim'|'complete'|'fail'>;
 type Maintenance=Pick<ReturnType<typeof createFeedMaintenance>,'run'>;
-type Database=Pick<typeof prisma,'feedStorageJob'>;
+type Database={feedStorageJob:Pick<typeof prisma.feedStorageJob,'findMany'>};
 export function createFeedLocalMaintenanceTick(input:{
   db:Database;jobs:Jobs;maintenance:Maintenance;objects:FeedJanitorObjects;
   now?:()=>number;
@@ -23,14 +23,7 @@ export function createFeedLocalMaintenanceTick(input:{
       // Expire uploads, retire old publish_photo and enqueue deletion first.
       await input.maintenance.run(10);
       const deadline=now()+50_000;
-      const due=await input.db.feedStorageJob.findMany({
-        where:{kind:{in:['delete_keys','cleanup_source']},OR:[
-          {status:'pending',availableAt:{lte:new Date(now())}},
-          {status:'processing',leaseUntil:{lt:new Date(now())}},
-        ]},
-        orderBy:[{availableAt:'asc'},{id:'asc'}],take:10,
-        select:{id:true,ownerId:true,kind:true},
-      });
+      const due=await listDueFeedCleanupJobs(input.db, now());
       for(const candidate of due){
         if(now()+10_000>=deadline)break;
         if(candidate.kind!=='delete_keys'&&candidate.kind!=='cleanup_source')continue;
@@ -84,10 +77,7 @@ export async function runFeedLocalMaintenanceTick(){
   if(process.env.FEED_LOCAL_STORAGE_JANITOR_ENABLED!=='true')return;
   if(!tick){
     const objects=createFeedJanitorObjects();
-    tick=createFeedLocalMaintenanceTick({db:prisma,objects,
-      jobs:createFeedStorageJobs({db:prisma}),
-      maintenance:createFeedMaintenance({db:prisma}),
-    });
+    tick=createFeedLocalMaintenanceTick({...createCurrentFeedMaintenanceRuntime(),objects});
   }
   await tick();
 }

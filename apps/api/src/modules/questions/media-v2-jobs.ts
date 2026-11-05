@@ -164,7 +164,8 @@ export function createQuestionsV2Queue(input:{
         cleanupKind:expectedKind,cleanupCompletedAt:null,
         status:{in:["READY","FAILED","EXPIRED"]}},
     });
-    if(!task || (task.status==="READY"&&task.cleanupKind!=="SOURCE") ||
+    if(!task || task.cleanupKind!==expectedKind ||
+       (task.status==="READY"&&task.cleanupKind!=="SOURCE") ||
        (task.status!=="READY"&&task.cleanupKind!=="ALL"))return {accepted:false};
     const replayDeadline=task.createdAt.getTime()+11*60_000;
     // A 10-minute signed upload might replay after the first source DELETE.
@@ -185,7 +186,8 @@ export function createQuestionsV2Queue(input:{
       where:{mediaId,cleanupToken:token,cleanupLeaseUntil:{gt:at},
         cleanupKind:expectedKind,cleanupCompletedAt:null},
     });
-    if(!task || (task.status==="READY"&&expectedKind!=="SOURCE") ||
+    if(!task || task.cleanupKind!==expectedKind ||
+       (task.status==="READY"&&expectedKind!=="SOURCE") ||
        (task.status!=="READY"&&expectedKind!=="ALL"))return {accepted:false};
     const updated=await db.questionV2MediaTask.updateMany({
       where:{mediaId,cleanupToken:token,cleanupLeaseUntil:{gt:at},

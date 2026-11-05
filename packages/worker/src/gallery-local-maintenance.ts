@@ -3,8 +3,7 @@
  * Gallery uploads are client-encoded WebP, finalized synchronously by Hono.
  * Only durable delete/move/storage reconciliation remains in the worker.
  */
-import {prisma} from "@gafus/prisma";
-import {createGalleryService,type GalleryService,type GalleryStorageJobClaim} from "@gafus/core/services/gallery";
+import {createCurrentGalleryService,type GalleryService,type GalleryStorageJobClaim} from "@gafus/core/services/gallery";
 import {createGalleryObjectStore,normalizeETag,objectMd5,type GalleryObjectStore,
   assertFinalKey,assertGalleryKey} from "@gafus/gallery-storage";
 
@@ -122,11 +121,11 @@ export async function runGalleryLocalMaintenanceTick(){
     // Never fall back to shared/public storage or a guessed bucket.
     const objects=createGalleryObjectStore({bucket,endpoint,accessKeyId,secretAccessKey,
       cacheableFinalEnabled:process.env.GALLERY_CDN_CACHEABLE_FINAL_ENABLED==="true"});
-    const core=createGalleryService({db:prisma,storage:{
+    const core=createCurrentGalleryService({
       enabled:true,head:key=>objects.head(key,AbortSignal.timeout(5000)),
       presignPost:async()=>{throw Error("GALLERY_JANITOR_NO_UPLOADS");},
       signCdn:async()=>{throw Error("GALLERY_JANITOR_NO_CDN_SIGNING");},
-    }});
+    });
     tick=createGalleryLocalMaintenanceTick({core,objects});
   }
   await tick();
