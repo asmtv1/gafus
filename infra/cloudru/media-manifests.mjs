@@ -6,12 +6,6 @@
 const cpuMemory = { 0.2: "512Mi", 0.5: "1024Mi", 1: "4096Mi", 2: "8192Mi" };
 const image = (role, revision) => `gafus.cr.cloud.ru/gafus-${role}:${revision}`;
 const env = (names) => names.map((name) => ({ name, value: `<secret:${name}>` }));
-const galleryCommon = [
-  "GALLERY_BUCKET",
-  "GALLERY_S3_ENDPOINT",
-  "GALLERY_S3_ACCESS_KEY_ID",
-  "GALLERY_S3_SECRET_ACCESS_KEY",
-];
 const feedCommon = [
   "FEED_BUCKET",
   "FEED_S3_ENDPOINT",
@@ -32,39 +26,9 @@ export function cloudruMediaManifests(projectId, revision) {
     throw new Error("INVALID_CLOUDRU_RELEASE_ID");
   // Gallery final media is served via a protected Hono 307 -> private S3
   // redirect and Beget CDN. No long-lived Container Apps origin is desired.
-  // Media processing remains in the independently managed Container Jobs.
+  // Only video processing uses Cloud.ru Jobs; Gallery cleanup is local Worker.
   const services = [];
   const jobs = [
-    {
-      name: "gafus-gallery-process",
-      imageRole: "gallery-worker",
-      cpu: "0.5",
-      timeout: 120,
-      envNames: [
-        ...galleryCommon,
-        "GALLERY_ENABLED",
-        "GALLERY_INTERNAL_BASE_URL",
-        "GALLERY_INTERNAL_HMAC_SECRET",
-        "GALLERY_CDN_CACHEABLE_FINAL_ENABLED",
-      ],
-    },
-    {
-      name: "gafus-feed-photo",
-      imageRole: "feed-worker",
-      // Owner-approved four-job Feed Media V2 pool: photo 1 vCPU / 2 GiB.
-      cpu: "1",
-      memory: "2048Mi",
-      timeout: 240,
-      envNames: [
-        ...feedCommon,
-        "GALLERY_S3_ENDPOINT",
-        "FEED_ALBUM_BUCKET",
-        "GALLERY_S3_ACCESS_KEY_ID",
-        "GALLERY_S3_SECRET_ACCESS_KEY",
-        "FEED_INTERNAL_BASE_URL",
-        "FEED_INTERNAL_HMAC_SECRET",
-      ],
-    },
     {
       name: "gafus-feed-video",
       imageRole: "feed-worker",
@@ -103,7 +67,7 @@ export function cloudruMediaManifests(projectId, revision) {
                   { name: "FEED_RUN_ONCE", value: "true" },
                   {
                     name: "FEED_WORKER_TYPE",
-                    value: spec.name.includes("-video") ? "video" : "photo",
+                    value: "video",
                   },
                 ],
               }

@@ -7,7 +7,7 @@ import { MomentComposer } from "./MomentComposer";
 
 const UUID = "550e8400-e29b-41d4-a716-446655440000";
 const transferPhoto = vi.hoisted(() => vi.fn(async (_input:{postId:string;existingCount:number;clientRequestId?:string}) => "photo-1"));
-const transferVideo = vi.hoisted(() => vi.fn(async (_input:{postId:string;existingCount:number}) => "video-1"));
+const transferVideo = vi.hoisted(() => vi.fn(async (_input:{postId:string;existingCount:number;clientRequestId?:string}) => "video-1"));
 vi.mock("./feedMediaTransfer", async importActual => {
   const original = await importActual<typeof import("./feedMediaTransfer")>();
   return { ...original, uploadMomentPhoto: transferPhoto, uploadMomentVideo: transferVideo };
@@ -196,7 +196,7 @@ describe("WEB4 Next single-action photo/video composition via the existing Core 
         .find(button => button.textContent?.trim() === "Опубликовать");
       await act(async () => publish?.click());
       await vi.waitFor(() => expect(ui.host.textContent)
-        .toContain("Не удалось загрузить фото или видео"));
+        .toContain("Не удалось обработать одно из фото"));
       const resume = ui.host.querySelector<HTMLAnchorElement>(
         'a[href="/moments/drafts/post-1"]');
       expect(resume?.textContent).toContain("Открыть сохранённый черновик");
@@ -233,10 +233,10 @@ describe("WEB4 Next single-action photo/video composition via the existing Core 
         .find(button => button.textContent?.trim() === "Опубликовать");
       await act(async () => action?.click());
       await vi.waitFor(() => expect(ui.host.textContent)
-        .toContain("Не удалось загрузить фото или видео"));
+        .toContain("Не удалось обработать одно из фото"));
       expect(requests.mock.calls.filter(([url]) => url === "/api/v1/feed/posts")).toHaveLength(1);
       const retry = [...ui.host.querySelectorAll<HTMLButtonElement>("button")]
-        .find(button => button.textContent?.includes("Повторить отправку с фото"));
+        .find(button => button.textContent?.includes("Повторить незавершённые вложения"));
       expect(retry?.disabled).toBe(false);
       const firstKey = transferPhoto.mock.calls[0]?.[0]?.clientRequestId;
       await act(async () => retry?.click());
@@ -250,6 +250,63 @@ describe("WEB4 Next single-action photo/video composition via the existing Core 
     } finally { await ui.cleanup(); }
   });
 
+  it("retries only the failed video by its round arrow, without duplicating a successful photo", async () => {
+    transferVideo.mockRejectedValueOnce(new Error("LOCAL_VIDEO_TIMEOUT"));
+    let version = 0;
+    const body = "Прогулка и тренировка";
+    const linked: string[] = [];
+    const fake = vi.fn((path: string, init?: RequestInit) => {
+      if (path.endsWith("/status")) return Promise.resolve(response({ enabled: true }));
+      if (path === "/api/v1/feed/posts") return Promise.resolve(response(editor));
+      if (path.endsWith("/revisions")) {
+        const json = JSON.parse(String(init?.body)) as {attachmentIds:string[];text:string};
+        linked.splice(0, linked.length, ...json.attachmentIds);
+        return Promise.resolve(response(revision(++version, linked.slice(), json.text)));
+      }
+      if (path.endsWith("/publish")) return Promise.resolve(response({
+        ...revision(version, linked, body), status: "published", pendingRevision:null,
+      }));
+      return Promise.resolve(response(null, 503));
+    });
+    const ui = await mount(fake);
+    try {
+      await ui.fill(body);
+      const photo = new File(["photo"], "dog.webp", {type:"image/webp"});
+      const video = new File(["video"], "walk.mp4", {type:"video/mp4"});
+      await ui.choose([photo, video]);
+      const publish = [...ui.host.querySelectorAll<HTMLButtonElement>("button")]
+        .find(button=>button.textContent?.trim()==="Опубликовать");
+      await act(async()=>publish?.click());
+      await vi.waitFor(()=>expect(ui.host.querySelector<HTMLButtonElement>(
+        '[aria-label="Повторить обработку видео walk.mp4"]')).not.toBeNull());
+      const retry=ui.host.querySelector<HTMLButtonElement>(
+        '[aria-label="Повторить обработку видео walk.mp4"]')!;
+      expect(ui.host.querySelector('[aria-label="Повторить обработку видео dog.webp"]')).toBeNull();
+      expect(ui.host.textContent).toContain("walk.mp4");
+      expect(ui.host.textContent).toContain("Исходник сохранён");
+      expect(transferPhoto).toHaveBeenCalledTimes(1);
+      expect(transferVideo).toHaveBeenCalledTimes(1);
+      const initialVideoRequestId=transferVideo.mock.calls[0]?.[0]?.clientRequestId;
+      expect(fake.mock.calls.filter(([path])=>path.endsWith("/revisions"))).toHaveLength(0);
+      await act(async()=>retry.click());
+      // A per-file arrow must ONLY re-upload this video. Publishing the whole
+      // draft remains a separate explicit author action.
+      await vi.waitFor(()=>expect(transferVideo).toHaveBeenCalledTimes(2));
+      expect(fake.mock.calls.filter(([path])=>path.endsWith("/publish"))).toHaveLength(0);
+      expect(fake.mock.calls.filter(([path])=>path.endsWith("/revisions"))).toHaveLength(0);
+      const finish=[...ui.host.querySelectorAll<HTMLButtonElement>("button")]
+        .find(button=>button.textContent?.trim()==="Опубликовать");
+      await vi.waitFor(()=>expect(finish?.disabled).toBe(false));
+      await act(async()=>finish?.click());
+      await vi.waitFor(()=>expect(fake.mock.calls.filter(([path])=>path.endsWith("/publish"))).toHaveLength(1));
+      expect(transferPhoto).toHaveBeenCalledTimes(1); // success reused, not resent
+      expect(transferVideo).toHaveBeenCalledTimes(2);
+      expect(transferVideo.mock.calls[1]?.[0]?.clientRequestId).toBe(initialVideoRequestId);
+      expect(fake.mock.calls.filter(([path])=>path==="/api/v1/feed/posts")).toHaveLength(1);
+      expect(linked).toEqual(["photo-1", "video-1"]);
+      expect(window.location.pathname).toBe("/moments");
+    } finally {await ui.cleanup();}
+  });
   it("one publish click starts five signed uploads before sequential ordered Core CAS writes", async () => {
     const finished = new Map<number, (mediaId: string) => void>();
     let inflight = 0, peak = 0;

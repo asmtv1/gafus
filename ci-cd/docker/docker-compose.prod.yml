@@ -96,6 +96,11 @@ services:
       - ../../infra/chat2/centrifugo.prod.json:/centrifugo/config.json:ro
     environment:
       - CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY=${CHAT2_CENTRIFUGO_TOKEN_SECRET:-}
+      # A distinct NO-ISSUER key prevents old room JWTs from bypassing readGate.
+      # No API or client is permitted to mint subscription tokens with this key.
+      - CENTRIFUGO_CLIENT_SUBSCRIPTION_TOKEN_HMAC_SECRET_KEY=${CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET:-}
+      # Centrifugo v6.9.7 interpolates CENTRIFUGO_VAR_ variables in static_headers.
+      - CENTRIFUGO_VAR_CHAT2_PROXY_SHARED_SECRET=${CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET:-}
       - CENTRIFUGO_HTTP_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}
     depends_on:
       redis:
@@ -117,7 +122,6 @@ services:
       - CHAT2_CENTRIFUGO_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}
       - CLOUDRU_MEDIA_JOBS_ENABLED=${CLOUDRU_MEDIA_JOBS_ENABLED:-false}
       # Both Gallery slots and all Feed V2 workers are activated together.
-      - GALLERY_PROCESSOR_SECOND_READY=${GALLERY_PROCESSOR_SECOND_READY:-false}
       - FEED_CLOUDRU_REFRACTOR_VERIFIED=${FEED_CLOUDRU_REFRACTOR_VERIFIED:-false}
       # Chat2 V2 uses its independent scoped Cloud.ru project and HMAC.
       - CHAT2_V2_CORE_ENABLED=${CHAT2_V2_CORE_ENABLED:-false}
@@ -137,9 +141,7 @@ services:
       # Questions Photo V2 remains OFF until a compatible production Hono API,
       # a matching HMAC secret and Cloud.ru public S3 have independent acceptance.
       - QUESTIONS_V2_MEDIA_ENABLED=${QUESTIONS_V2_MEDIA_ENABLED:-false}
-      - QUESTIONS_V2_PROCESSOR_READY=${QUESTIONS_V2_PROCESSOR_READY:-false}
       - QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED=${QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED:-false}
-      - QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED=${QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED:-false}
       - QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED=${QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED:-false}
       - QUESTIONS_V2_INTERNAL_BASE_URL=${QUESTIONS_V2_INTERNAL_BASE_URL:-https://api.gafus.ru/}
       - QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME=${QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME:-api.gafus.ru}
@@ -178,6 +180,8 @@ services:
       - GALLERY_S3_ENDPOINT=${GALLERY_S3_ENDPOINT:-https://s3.cloud.ru}
       - GALLERY_S3_ACCESS_KEY_ID=${GALLERY_S3_ACCESS_KEY_ID:-}
       - GALLERY_S3_SECRET_ACCESS_KEY=${GALLERY_S3_SECRET_ACCESS_KEY:-}
+      - GALLERY_LOCAL_STORAGE_JANITOR_ENABLED=${GALLERY_LOCAL_STORAGE_JANITOR_ENABLED:-true}
+      - FEED_RETIRED_PHOTO_QUEUE_SWEEP_ENABLED=${FEED_RETIRED_PHOTO_QUEUE_SWEEP_ENABLED:-true}
       - GALLERY_CDN_BASE_URL=${GALLERY_CDN_BASE_URL:-https://fupiquafifeswu.begetcdn.cloud}
       - GALLERY_CDN_PROVIDER=${GALLERY_CDN_PROVIDER:-beget}
       # Gallery CDN -> API 307 -> private S3. Disabled by default.
@@ -188,7 +192,6 @@ services:
       - GALLERY_CDN_CACHEABLE_FINAL_ENABLED=${GALLERY_CDN_CACHEABLE_FINAL_ENABLED:-false}
       - GALLERY_CDN_EDGE_TOKEN_VERIFIED=${GALLERY_CDN_EDGE_TOKEN_VERIFIED:-false}
       - GALLERY_MEDIA_FALLBACK_ENABLED=${GALLERY_MEDIA_FALLBACK_ENABLED:-false}
-      - GALLERY_PROCESSOR_READY=${GALLERY_PROCESSOR_READY:-false}
       - FEED_ENABLED=${FEED_ENABLED:-false}
       - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
       # Smart feed is enabled for production by default after migration deploy.
@@ -214,6 +217,7 @@ services:
       - FEED_S3_ENDPOINT=${FEED_S3_ENDPOINT:-https://s3.cloud.ru}
       - FEED_S3_ACCESS_KEY_ID=${FEED_S3_ACCESS_KEY_ID:-}
       - FEED_S3_SECRET_ACCESS_KEY=${FEED_S3_SECRET_ACCESS_KEY:-}
+      - FEED_LOCAL_STORAGE_JANITOR_ENABLED=${FEED_LOCAL_STORAGE_JANITOR_ENABLED:-true}
       - FEED_CDN_BASE_URL=${FEED_CDN_BASE_URL:-https://quepraquiecebquomiel.begetcdn.cloud}
       - FEED_CDN_PROVIDER=${FEED_CDN_PROVIDER:-beget}
       - FEED_CDN_EDGE_TOKEN_VERIFIED=${FEED_CDN_EDGE_TOKEN_VERIFIED:-false}
@@ -338,6 +342,11 @@ services:
       - CHAT2_PUBLIC_WS_URL=${CHAT2_PUBLIC_WS_URL:-}
       - CHAT2_CENTRIFUGO_TOKEN_SECRET=${CHAT2_CENTRIFUGO_TOKEN_SECRET:-}
       - CHAT2_CENTRIFUGO_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}
+      # Old room token support is removed: fail closed until proxy-only broker is ready.
+      - CHAT2_SUBSCRIBE_PROXY_ENABLED=${CHAT2_SUBSCRIBE_PROXY_ENABLED:-false}
+      - CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET=${CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET:-}
+      - CHAT2_MOBILE_IOS_MIN_VERSION=${CHAT2_MOBILE_IOS_MIN_VERSION:-}
+      - CHAT2_MOBILE_ANDROID_MIN_VERSION=${CHAT2_MOBILE_ANDROID_MIN_VERSION:-}
       - CHAT2_CENTRIFUGO_HTTP_API=${CHAT2_CENTRIFUGO_HTTP_API:-http://chat2-centrifugo:8000/api/publish}
       - CHAT2_PRIVATE_MEDIA_ENABLED=${CHAT2_PRIVATE_MEDIA_ENABLED:-disabled}
       # Voximplant server-only video consultation credentials (GitHub Actions Secrets).
@@ -409,13 +418,11 @@ services:
       - GALLERY_CDN_CACHEABLE_FINAL_ENABLED=${GALLERY_CDN_CACHEABLE_FINAL_ENABLED:-false}
       - GALLERY_INTERNAL_BASE_URL=https://api.gafus.ru
       - GALLERY_INTERNAL_HMAC_SECRET=${GALLERY_DEV_INTERNAL_HMAC_SECRET:-}
-      - GALLERY_PROCESSOR_READY=true
       - FEED_ENABLED=${FEED_ENABLED:-false}
       - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
       # Upload confirmations must enqueue immediate Cloud.ru processing.
       - CLOUDRU_MEDIA_JOBS_ENABLED=${CLOUDRU_MEDIA_JOBS_ENABLED:-false}
       # Both Gallery slots and all Feed V2 workers are activated together.
-      - GALLERY_PROCESSOR_SECOND_READY=${GALLERY_PROCESSOR_SECOND_READY:-false}
       - FEED_CLOUDRU_REFRACTOR_VERIFIED=${FEED_CLOUDRU_REFRACTOR_VERIFIED:-false}
       # Chat2 V2 uses its independent scoped Cloud.ru project and HMAC.
       - CHAT2_V2_CORE_ENABLED=${CHAT2_V2_CORE_ENABLED:-false}
@@ -433,9 +440,7 @@ services:
       # Questions Photo V2 remains OFF until a compatible production Hono API,
       # a matching HMAC secret and Cloud.ru public S3 have independent acceptance.
       - QUESTIONS_V2_MEDIA_ENABLED=${QUESTIONS_V2_MEDIA_ENABLED:-false}
-      - QUESTIONS_V2_PROCESSOR_READY=${QUESTIONS_V2_PROCESSOR_READY:-false}
       - QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED=${QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED:-false}
-      - QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED=${QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED:-false}
       - QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED=${QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED:-false}
       - QUESTIONS_V2_INTERNAL_BASE_URL=${QUESTIONS_V2_INTERNAL_BASE_URL:-https://api.gafus.ru/}
       - QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME=${QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME:-api.gafus.ru}

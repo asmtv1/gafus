@@ -28,22 +28,23 @@ describe("Chat2 media immediate triggers based on Feed",()=>{
   vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED","true");
   startChat2MediaProcessingTriggerWorker();expect(mocks.worker).not.toHaveBeenCalled();
  });
- it("routes photo and video to different pools with bounded Cloud API launch rate",async()=>{
+ it("runs only video pool, rejects retired photo wake-ups",async()=>{
   enabled();
   const {startChat2MediaProcessingTriggerWorker}=await import("./chat2-media-processing-trigger-worker.js");
   startChat2MediaProcessingTriggerWorker();
-  expect(mocks.create.mock.calls.map(x=>x[0])).toEqual(["photo","video"]);
+  expect(mocks.create.mock.calls.map(x=>x[0])).toEqual(["video"]);
   expect(mocks.worker).toHaveBeenCalledWith("chat2-media-v2-processing-trigger",
     expect.objectContaining({concurrency:1,limiter:{max:1,duration:500}}));
-  await mocks.processor!({data:{mediaId,kind:"photo"}});
+  await expect(mocks.processor!({data:{mediaId,kind:"photo"}}))
+    .rejects.toThrow("CHAT2_RETIRED_PHOTO_WAKE");
   await mocks.processor!({data:{mediaId,kind:"video"}});
-  expect(mocks.photo).toHaveBeenCalledOnce();expect(mocks.video).toHaveBeenCalledOnce();
+  expect(mocks.photo).not.toHaveBeenCalled();expect(mocks.video).toHaveBeenCalledOnce();
  });
  it("rejects untrusted IDs/types and retries failed Cloud wake-ups",async()=>{
   enabled();const {startChat2MediaProcessingTriggerWorker}=await import("./chat2-media-processing-trigger-worker.js");
   startChat2MediaProcessingTriggerWorker();
   await expect(mocks.processor!({data:{mediaId:"../../escape",kind:"photo"}})).rejects.toThrow("CHAT2_INVALID_WAKE_ID");
-  await expect(mocks.processor!({data:{mediaId,kind:"foreign"}})).rejects.toThrow("CHAT2_INVALID_WAKE_KIND");
+  await expect(mocks.processor!({data:{mediaId,kind:"foreign"}})).rejects.toThrow("CHAT2_RETIRED_PHOTO_WAKE");
   mocks.video.mockResolvedValueOnce({dispatched:0});
   await expect(mocks.processor!({data:{mediaId,kind:"video"}})).rejects.toThrow("CHAT2_WAKE_NOT_DISPATCHED");
   expect(mocks.photo).not.toHaveBeenCalled();

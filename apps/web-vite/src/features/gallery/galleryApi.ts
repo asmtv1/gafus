@@ -300,16 +300,19 @@ export function deleteAckMatches(raw:unknown,id:string){
 /** Short-lived upload reservation stays only in component memory. No signed
  * S3 URLs, private keys or form fields go into logs, telemetry or storage.
  */
+export type WebGalleryClientReceipt=GalleryUploadDto & {
+  thumbUpload?:{url:string;fields:Record<string,string>;method:"POST"};
+};
 export async function reserveGalleryPhoto(albumId:string,file:File,caption:string|null,
-  requestId:string):Promise<GalleryUploadDto>{
+  requestId:string):Promise<WebGalleryClientReceipt>{
   if(!identifier(albumId)||
-    !GALLERY_MIME_TYPES.includes(file.type as typeof GALLERY_MIME_TYPES[number])||
-    file.size<=0||file.size>GALLERY_LIMITS.photoBytes||
+    file.type!=="image/webp"||
+    file.size<=0||file.size>1_750_000||
     !file.name||
     file.name.length>255||!(/^[a-f0-9-]{36}$/i.test(requestId)))
     throw Error("INVALID_GALLERY_FILE");
-  return write<GalleryUploadDto>(
-    "/api/v1/gallery/albums/"+pathId(albumId)+"/uploads","POST",{
+  return write<WebGalleryClientReceipt>(
+    "/api/v1/gallery/uploads/client-reserve","POST",{
       albumId,filename:file.name,declaredMime:file.type,
       declaredBytes:file.size,caption,clientRequestId:requestId,
     });
@@ -402,7 +405,10 @@ export function uploadGalleryFormWithProgress(
 }
 
 export const confirmGalleryPhoto=(id:string)=>
-  write<GalleryUploadDto>("/api/v1/gallery/uploads/"+pathId(id)+"/complete","POST",{});
+  write<GalleryUploadDto>("/api/v1/gallery/uploads/"+pathId(id)+"/client-complete","POST",{});
+export const getGalleryClientThumbUpload=(id:string)=>
+  write<{url:string;fields:Record<string,string>;method:"POST"}>(
+    "/api/v1/gallery/uploads/"+pathId(id)+"/client-thumb","POST",{});
 export const galleryUploadStatus=(id:string)=>
   apiRequest<GalleryUploadDto>("/api/v1/gallery/uploads/"+pathId(id),
     {method:"GET",browserAuth:true,signal:AbortSignal.timeout(15_000)});

@@ -21,6 +21,7 @@ const scenario = vi.hoisted(() => ({
   sent: vi.fn(),
   react: vi.fn(),
   mediaUrl: vi.fn(),
+  upload: vi.fn(),
   timeline: [] as unknown[],
   olderPage: vi.fn(),
 }));
@@ -57,13 +58,13 @@ vi.mock("./chat2Api", () => ({
     send: scenario.sent,
     react: scenario.react,
     mediaUrl: scenario.mediaUrl,
+    upload: scenario.upload,
     read: async () => ({ lastReadSequence: "1" }),
     connect: async () => {
       throw new Error("test offline");
     },
     subscription: async () => ({ token: "none", channel: "none" }),
   },
-  refreshChat2RoomToken: vi.fn(),
 }));
 
 import { Chat2Messenger } from "./Chat2Messenger";
@@ -83,6 +84,7 @@ beforeEach(() => {
   scenario.react.mockReset().mockResolvedValue({
     messageId: "message-one", emoji: "👍", active: true,
   });
+  scenario.upload.mockReset();
   scenario.mediaUrl.mockReset().mockResolvedValue({
     url: "https://example.test/chat2/video.mp4", mime: "video/mp4", name: "walk.mp4", expiresIn: 900,
   });
@@ -423,6 +425,10 @@ describe("Chat2 GAFUS header and quick actions", () => {
     const { navigate } = await import("../../shared/router/location");
     await act(async () => navigate("/chats/direct-room"));
     await vi.waitFor(() => expect(host.querySelector('video[aria-label="cdn.mp4"]')).not.toBeNull());
+    // Inline settings gear, with no permanently visible choices below the player.
+    expect(host.querySelector('div[aria-label="Качество видео"]')).toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>(
+      '[aria-label="Настройки качества видео"]')?.click());
     // Explicit 720p user selection must not be downgraded to 360p on S3 fallback.
     const choices = [...host.querySelectorAll<HTMLButtonElement>('div[aria-label="Качество видео"] button')];
     await act(async () => choices.find(x => x.textContent === "720p")?.click());
@@ -443,6 +449,39 @@ describe("Chat2 GAFUS header and quick actions", () => {
     );
   });
 
+  it("shows a circular arrow on only the failed photo and re-encodes its retained File",async()=>{
+    const NativeURL=URL;
+    class PreviewURL extends NativeURL {
+      static createObjectURL=vi.fn((_file:Blob)=>"blob:chat-photo-preview");
+      static revokeObjectURL=vi.fn();
+    }
+    vi.stubGlobal("URL",PreviewURL);
+    scenario.upload.mockRejectedValueOnce(Error("S3 timeout"))
+      .mockResolvedValueOnce({id:"attached-photo",name:"dog.jpg",kind:"image",mime:"image/webp",bytes:123});
+    await render();
+    const {navigate}=await import("../../shared/router/location");
+    await act(async()=>navigate("/chats/direct-room"));
+    const input=host.querySelector<HTMLInputElement>('input[aria-label="Прикрепить фото, видео или PDF"]');
+    expect(input).not.toBeNull();
+    const file=new File([new Uint8Array([255,216,255,1])],"dog.jpg",{type:"image/jpeg"});
+    Object.defineProperty(input!,"files",{configurable:true,value:[file]});
+    await act(async()=>input!.dispatchEvent(new Event("change",{bubbles:true})));
+    const retry=await vi.waitFor(()=>{
+      const button=host.querySelector<HTMLButtonElement>('button[aria-label="Повторить обработку фото dog.jpg"]');
+      expect(button).not.toBeNull();return button!;
+    });
+    expect(host.querySelector('img[alt="dog.jpg"]')?.getAttribute("src"))
+      .toBe("blob:chat-photo-preview");
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain("интернет");
+    expect(scenario.upload).toHaveBeenCalledTimes(1);
+    expect(scenario.upload.mock.calls[0]?.[1]).toBe(file);
+    await act(async()=>retry.click());
+    await vi.waitFor(()=>expect(scenario.upload).toHaveBeenCalledTimes(2));
+    expect(scenario.upload.mock.calls[1]?.[1]).toBe(file);
+    await vi.waitFor(()=>expect(host.querySelector('button[aria-label="Повторить обработку фото dog.jpg"]'))
+      .toBeNull());
+  });
+
   it.each([503, 404])("gates image CDN → S3 without leaking 403/404 on HTTP %i", async status => {
     const base = "chat2/room/user/00000000-0000-4000-8000-000000000000/v1/";
     const cdn = "https://gonomudedoje.begetcdn.cloud/" + base;
@@ -457,10 +496,10 @@ describe("Chat2 GAFUS header and quick actions", () => {
     scenario.mediaUrl.mockResolvedValue({
       url: cdn + "image/m.webp", mime: "image/webp", name: "cdn.webp", expiresIn: 300,
       fallbackUrl: s3 + "image/m.webp",
-      renditions: {image: {360: cdn + "image/s.webp", 720: cdn + "image/m.webp"},
-        imageWidths: {360: 360, 720: 720}},
-      fallbackRenditions: {image: {360: s3 + "image/s.webp", 720: s3 + "image/m.webp"},
-        imageWidths: {360: 360, 720: 720}},
+      renditions: {image: {360: cdn + "image/s.webp", 1440: cdn + "image/m.webp"},
+        imageWidths: {360: 360, 1440: 1440}},
+      fallbackRenditions: {image: {360: s3 + "image/s.webp", 1440: s3 + "image/m.webp"},
+        imageWidths: {360: 360, 1440: 1440}},
     });
     const probe = vi.fn(async () => new Response(null, {status}));
     vi.stubGlobal("fetch", probe);
@@ -485,6 +524,38 @@ describe("Chat2 GAFUS header and quick actions", () => {
     );
   });
 
+  it("shows a retry arrow on only the failed video and re-uploads only its original File", async () => {
+    const makeUrl = vi.fn((file: File) => `blob:chat-test/${file.name}`);
+    vi.stubGlobal("URL", Object.assign(class extends URL {}, {
+      createObjectURL: makeUrl, revokeObjectURL: vi.fn(),
+    }));
+    const videos = [new File([new Uint8Array(256)],"bad.mp4",{type:"video/mp4"}),
+      new File([new Uint8Array(256)],"good.mp4",{type:"video/mp4"})];
+    scenario.upload.mockImplementation(async (_id:string, file:File) => {
+      if (file === videos[0] && scenario.upload.mock.calls.filter(([,f]) => f === videos[0]).length === 1)
+        throw new Error("LOCAL_VIDEO_TIMEOUT");
+      return {id:file.name,kind:"video",mime:"video/mp4",name:file.name,bytes:file.size};
+    });
+    await render();
+    const { navigate } = await import("../../shared/router/location");
+    await act(async()=>navigate("/chats/direct-room"));
+    const picker=host.querySelector<HTMLInputElement>('input[type="file"][multiple]')!;
+    expect(picker).not.toBeNull();
+    Object.defineProperty(picker,"files",{configurable:true,value:videos});
+    await act(async()=>picker.dispatchEvent(new Event("change",{bubbles:true})));
+    await vi.waitFor(()=>expect(scenario.upload).toHaveBeenCalledTimes(2));
+    const failed=host.querySelector<HTMLButtonElement>('[aria-label="Повторить обработку видео bad.mp4"]');
+    expect(failed).not.toBeNull();
+    expect(host.querySelector('[aria-label="Повторить обработку видео good.mp4"]')).toBeNull();
+    expect(host.querySelector('video[aria-label="bad.mp4"]')).not.toBeNull();
+    expect(host.textContent).toContain("нажмите круглую стрелку на этом ролике");
+    await act(async()=>failed?.click());
+    await vi.waitFor(()=>expect(scenario.upload).toHaveBeenCalledTimes(3));
+    expect(scenario.upload.mock.calls[2]?.[1]).toBe(videos[0]);
+    expect(scenario.upload.mock.calls.filter(([,file])=>file===videos[1])).toHaveLength(1);
+    await vi.waitFor(()=>expect(host.querySelector('[aria-label="Повторить обработку видео bad.mp4"]')).toBeNull());
+    expect(host.textContent).toContain("Готово");
+  });
   it("keeps a recoverable video preview when the first signed URL request fails", async () => {
     scenario.timeline = [{
       id: "video-message", conversationId: "direct-room", sequence: "1",
@@ -500,7 +571,7 @@ describe("Chat2 GAFUS header and quick actions", () => {
     await vi.waitFor(() => expect(host.textContent).toContain("Не удалось загрузить видео"));
     expect(host.querySelector('button[aria-label="Воспроизвести retry.mp4"]')).toBeNull();
     const retry = [...host.querySelectorAll<HTMLButtonElement>("button")]
-      .find((button) => button.textContent === "Повторить");
+      .find((button) => button.textContent === "Проверить состояние ещё раз");
     expect(retry).toBeDefined();
     await act(async () => retry?.click());
     await vi.waitFor(() => expect(host.querySelector('video[aria-label="retry.mp4"]')).not.toBeNull());

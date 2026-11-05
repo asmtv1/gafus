@@ -3,7 +3,6 @@
 import {readFileSync,lstatSync,realpathSync} from "node:fs";
 import {createFeedCloudInternalClient} from "@gafus/feed-cloud";
 import {createFeedCloudObjects} from "../../../feed-cloud/src/objects.js";
-import {sharpFeedEngine} from "../../../feed-cloud/src/sharp-engine.js";
 import {createFeedCloudWorker} from "../../../feed-cloud/src/worker.js";
 const ROOT="/Users/asmtv1/Desktop/gafus-refactor",SCRATCH=ROOT+"/.local-pg-scratch/feed-media-local-link-20261028";
 const expected={NODE_ENV:"development",GAFUS_LOCAL_ISOLATED_API:"1",GAFUS_WEB4_ISOLATED_MEDIA:"1",API_PORT:"3501",
@@ -23,7 +22,7 @@ const localFetcher:typeof fetch=async (input,init)=>{
  return fetch("http://127.0.0.1:3501"+u.pathname,init);
 };
 const core=createFeedCloudInternalClient({baseUrl:"https://127.0.0.1",key,fetcher:localFetcher});
-const worker=createFeedCloudWorker({core,objects:createFeedCloudObjects(),engine:sharpFeedEngine,onMetrics:stats=>{
+const worker=createFeedCloudWorker({core,objects:createFeedCloudObjects(),onMetrics:stats=>{
  console.log("LOCAL_FEED_METRIC",JSON.stringify({kind:stats.kind,processingMs:stats.processingMs,outputBytes:stats.outputBytes,variants:stats.variantCount}));
 }});
 const wait=(ms:number)=>new Promise(r=>setTimeout(r,ms));
@@ -38,14 +37,12 @@ for(;;){
  if(!s3.ok)throw Error("LOCAL_S3_UNAVAILABLE");
  await core.maintenance(20);
  let count=0;
- for(const kind of ["photo","video"] as const){
-  const jobs=await core.claimJobs(1,kind);
-  for(const job of jobs){
+ const jobs=await core.claimJobs(1,"video");
+ for(const job of jobs){
    const reply=await worker.process(job);
    if(!reply.accepted)throw Error("LOCAL_WORKER_CALLBACK_NOT_ACCEPTED");
    count++;console.log("LOCAL_FEED_JOB_COMPLETED",job.kind);
   }
- }
  if(runOnce){console.log("LOCAL_FEED_POLL_ONCE_OK",count);break}
  if(stopping)break;
  await wait(count?1000:7000);

@@ -82,24 +82,10 @@ export function galleryStorageConfigFromEnv(
     )
       throw new Error("UNSAFE_CDN_URL");
     config.cdnBaseUrl = url.origin;
-    if (
-      !/^[A-Za-z0-9_-]{24,128}$/.test(config.cdnSecret) ||
-      !env.GALLERY_INTERNAL_BASE_URL ||
-      !env.GALLERY_INTERNAL_HMAC_SECRET ||
-      Buffer.byteLength(env.GALLERY_INTERNAL_HMAC_SECRET) < 32 ||
-      env.GALLERY_PROCESSOR_READY !== "true"
-    )
+    // Client WebP finalization uses direct S3 HEAD/COPY in the API. No Gallery
+    // Cloud worker, HMAC callback URL or PROCESSOR_READY flag is required.
+    if (!/^[A-Za-z0-9_-]{24,128}$/.test(config.cdnSecret))
       throw new Error("MISSING_GALLERY_SECRETS");
-    const internal = new URL(env.GALLERY_INTERNAL_BASE_URL);
-    if (
-      internal.protocol !== "https:" ||
-      internal.pathname !== "/" ||
-      internal.username ||
-      internal.password ||
-      internal.search ||
-      internal.hash
-    )
-      throw new Error("UNSAFE_INTERNAL_URL");
   }
   if (env.GALLERY_BUCKET_PUBLIC === "true") throw new Error("PUBLIC_GALLERY_BUCKET");
   return config;

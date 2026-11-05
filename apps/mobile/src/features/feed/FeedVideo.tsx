@@ -5,10 +5,10 @@ import { FeedV2Video, stopFeedV2OutsidePosts } from "./FeedV2Media";
 export const stopFeedVideoOutsidePosts = stopFeedV2OutsidePosts;
 export function FeedVideo({ postId, mediaId, poster, visible, mp4Urls, width, height }: {
   postId: string; mediaId: string; poster: string | null; visible: boolean;
-  mp4Urls?: { 360: string; 720?: string; 1080?: string } | null;
+  mp4Urls?: { 360?: string; 720?: string } | null;
   width?: number; height?: number;
 }) {
-  if (!mp4Urls?.[360]) return null;
+  if (!(mp4Urls?.[360] || mp4Urls?.[720])) return null;
   const media: FeedV2VideoMedia = { id: mediaId, kind: "video", status: "ready",
     width: width ?? 1280, height: height ?? 720, durationSeconds: 0, access: "viewer",
     placeholder: null, expiresAt: null, posterUrl: poster ?? "", mp4: mp4Urls };

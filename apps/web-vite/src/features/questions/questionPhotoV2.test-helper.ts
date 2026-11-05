@@ -3,12 +3,15 @@ import { vi } from "vitest";
 
 export function photoV2Reservation(id: string) {
   return new Response(JSON.stringify({success:true,data:{id,upload:{
-    method:"POST",url:"https://isolated-s3.example/questions/test",
-    fields:{key:`questions/v2/${id}/source.jpg`},
+    method:"POST",url:"https://s3.cloud.ru/gafus-questions-public",
+    fields:{key:`questions/v2/${id}/incoming/source.webp`},
+  },smallUpload:{
+    method:"POST",url:"https://s3.cloud.ru/gafus-questions-public",
+    fields:{key:`questions/v2/${id}/incoming/small.webp`},
   }}}),{status:201});
 }
 export function photoV2Confirmation(id: string) {
-  return new Response(JSON.stringify({success:true,data:{id,status:"QUEUED"}}),{status:200});
+  return new Response(JSON.stringify({success:true,data:{id,status:"READY"}}),{status:200});
 }
 export function installQuestionPhotoV2Browser(preview: string) {
   const originalURL = URL;

@@ -1,4 +1,11 @@
 // @vitest-environment jsdom
+vi.mock("../../shared/media/browserPhotoWebp",()=>({
+  prepareBrowserPhotoWebp:vi.fn(async(_original:File,edges:Record<string,number>)=>
+    Object.fromEntries(Object.entries(edges).map(([name,edge])=>[
+      name,{file:new File([new Uint8Array(128)],name+".webp",{type:"image/webp"}),
+        width:edge,height:Math.round(edge*.75)},
+    ]))),
+}));
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -136,9 +143,9 @@ describe("question owner changes", () => {
 
   it("uploads own new photo and PATCH rebinds both existing and new IDs only on save", async () => {
     const fake = vi.fn(async (path: string, init?: RequestInit) =>
-      path === "/api/v1/questions/photos/reservations" && init?.method === "POST"
+      path === "/api/v1/questions/photos/client-reservations" && init?.method === "POST"
         ? photoV2Reservation("photo-2")
-        : path === "/api/v1/questions/photos/photo-2/confirm"
+        : path === "/api/v1/questions/photos/photo-2/client-confirm"
           ? photoV2Confirmation("photo-2") : response({ id: "question-A" }));
     const direct = installQuestionPhotoV2Browser("blob:question-edit-photo");
     const ui = await render(fake);
@@ -154,8 +161,8 @@ describe("question owner changes", () => {
       // POST; the photo bytes themselves went directly to S3 via XHR.
       expect(fake.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
       expect(ui.container.textContent).toContain("2 из 5");
-      expect(direct).toHaveLength(1);
-      expect(direct[0]?.withCredentials).toBe(false);
+      expect(direct).toHaveLength(2);
+      expect(direct.every(post=>post.withCredentials===false)).toBe(true);
       expect(fake.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(0);
       await ui.submit();
       const patch = fake.mock.calls.filter(([, init]) => init?.method === "PATCH");
@@ -168,8 +175,8 @@ describe("question owner changes", () => {
     let completeUpload!: (response: Response) => void;
     const upload = new Promise<Response>(resolve => { completeUpload = resolve; });
     const fake = vi.fn((path: string, init?: RequestInit) =>
-      path === "/api/v1/questions/photos/reservations" && init?.method === "POST"
-        ? upload : Promise.resolve(path === "/api/v1/questions/photos/photo-2/confirm"
+      path === "/api/v1/questions/photos/client-reservations" && init?.method === "POST"
+        ? upload : Promise.resolve(path === "/api/v1/questions/photos/photo-2/client-confirm"
           ? photoV2Confirmation("photo-2") : response({ id: "question-A" })));
     installQuestionPhotoV2Browser("blob:edit-upload-inflight");
     const ui = await render(fake);

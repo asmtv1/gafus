@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AppState,
   FlatList,
@@ -19,11 +19,22 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
 import * as ImagePicker from "expo-image-picker";
+import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
+import { photoRetryMessage } from "@/shared/lib/media/photoRetryMessage";
+import { prepareUploadVideo720, type PreparedUploadVideo720 } from "@/shared/lib/media/prepareUploadVideo720";
+import { File } from "expo-file-system";
 import * as DocumentPicker from "expo-document-picker";
 import { VideoView, useVideoPlayer, type VideoPlayer, type VideoThumbnail } from "expo-video";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
+import { VideoQualitySettings } from "@/shared/components/media/VideoQualitySettings";
+import { nativeMp4Hints, observeNativeMp4Start, loadNativeMp4Mode, useNativeMp4Mode } from "@/shared/lib/media/videoPlaybackPolicy";
+import { reportNativeVideoStarted } from "@/shared/lib/media/videoQualityTelemetry";
+import { videoRetryMessage, videoServerFailureMessage } from "@/shared/lib/media/videoRetryMessage";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image as ExpoImage } from "expo-image";
 import {
-  chat2ImageSource, chat2VideoSource, chat2HasVideoQuality,
+  chat2ImageSource, chat2VideoSource,
   chat2MatchedS3Variant, chat2CdnS3FailoverAllowed,
   type Chat2QualityMode,
 } from "@gafus/chat-media-quality";
@@ -33,7 +44,11 @@ import { useAuthStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/tracer";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { TexturedSafeAreaView } from "@/shared/components/TexturedSafeAreaView";
+import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";
+import { SwipeReplyMessage } from "./SwipeReplyMessage";
+import { Chat2ImageBrowse } from "./Chat2ImageBrowse";
 import { chat2, nameFor, type Conversation, type Message, type Attachment } from "./api";
+import { Chat2S3UploadError } from "./s3Upload";
 import { Chat2SettingsSheet } from "./Chat2SettingsSheet";
 import { isCacheableChat2FinalUrl } from "./publicFinalCache";
 import { readProcessedChat2Media } from "./mediaProcessing";
@@ -76,16 +91,19 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
     [reply, setReply] = useState<Message | null>(null),
     [editing, setEditing] = useState<Message | null>(null);
   const [media, setMedia] = useState<
-      { localId: string; name: string; uri: string; attachment?: Attachment }[]
+      { localId: string; name: string; uri: string; attachment?: Attachment;
+        sourceVideo?: ImagePicker.ImagePickerAsset; sourcePhoto?: ImagePicker.ImagePickerAsset;
+        failure?: string; uploading?: boolean }[]
     >([]),
     [uploading, setUploading] = useState(false);
   const [connection, setConnection] = useState<"connecting" | "online" | "fallback">("connecting");
+  const imageAttachments = useMemo(() => messages.flatMap(message => message.deletedAt
+    ? [] : (message.attachments ?? []).filter(file => file.kind === "image")), [messages]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [reportingId, setReportingId] = useState<string | null>(null);
   const [reportNotice, setReportNotice] = useState("");
   const [actionMessage, setActionMessage] = useState<Message | null>(null);
   const [reactingId, setReactingId] = useState<string | null>(null);
-  const touchOrigin = useRef<{ messageId: string; x: number; y: number } | null>(null);
   const swipeReplyId = useRef<string | null>(null);
   const mounted = useRef(true),
     lastRead = useRef("0"),
@@ -161,8 +179,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
       try {
         const connection = await chat2.connect();
         if (!live) return;
-        const subscription = await chat2SubscriptionForConnection(connection, id,
-          () => chat2.subscription(id));
+        const subscription = await chat2SubscriptionForConnection(connection, id);
         if (!live) return;
         client = new Centrifuge(connection.wsUrl, {
           token: connection.token,
@@ -181,8 +198,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
         // No legacy room token, including app-resume reconnect, when the API
         // advertises the broker-verified proxy-only subscription mode.
         const sub = client.newSubscription(subscription.channel,
-          chat2SubscriptionTransportOptions(subscription,
-            () => chat2.refreshSubscription(id)));
+          chat2SubscriptionTransportOptions(subscription));
         sub.on("subscribed", () => {
           if (live) setConnection("online");
         });
@@ -260,26 +276,101 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
       if (mounted.current) setOlderPending(false);
     }
   }
+  async function uploadOnePhoto(localId: string, source: ImagePicker.ImagePickerAsset) {
+    // The original picker URI belongs to this failed tile. A retry re-runs
+    // JPEG preparation + WebP renditions + S3 confirmation for this tile only.
+    let prepared: Awaited<ReturnType<typeof prepareUploadPhoto>> | null = null;
+    setMedia(previous => previous.map(item => item.localId === localId
+      ? {...item, uploading: true, failure: undefined} : item));
+    try {
+      prepared = await prepareUploadPhoto(source);
+      const attachment = await chat2.upload(id, {
+        uri: prepared.uri, name: source.fileName ?? "Фотография",
+        mime: prepared.mime, size: prepared.bytes,
+        width: prepared.width, height: prepared.height,
+      });
+      if (mounted.current) setMedia(previous => previous.map(item => item.localId === localId
+        ? {...item, uploading: false, attachment, failure: undefined} : item));
+    } catch (cause) {
+      reportClientError(new Error("CHAT2_PHOTO_UPLOAD_FAILED"), {
+        issueKey: "Chat2Room", keys: {operation: "photo_upload"},
+      });
+      if (mounted.current) setMedia(previous => previous.map(item => item.localId === localId
+        ? {...item, uploading: false, failure: photoRetryMessage(cause)} : item));
+    } finally { prepared?.dispose(); }
+  }
+  function retryOnePhoto(localId: string) {
+    if (uploading || pending) return;
+    const item = media.find(value => value.localId === localId);
+    if (!item?.sourcePhoto || !item.failure || item.attachment || item.uploading) return;
+    setUploading(true);
+    void uploadOnePhoto(localId, item.sourcePhoto).finally(() => {
+      if (mounted.current) setUploading(false);
+    });
+  }
+  async function uploadOneVideo(localId: string, source: ImagePicker.ImagePickerAsset) {
+    // Keep the unmodified picker URI until the attachment is sent/removed.
+    // Retry re-executes native H.264/AAC preparation for only this item.
+    let prepared: PreparedUploadVideo720 | null = null;
+    setMedia(previous => previous.map(item => item.localId === localId
+      ? { ...item, failure: undefined, uploading: true } : item));
+    try {
+      prepared = await prepareUploadVideo720(source);
+      if (!prepared) throw new Error("Не удалось создать совместимый MP4 на устройстве.");
+      const attachment = await chat2.upload(id, {
+        uri: prepared.uri,
+        name: `video-${Crypto.randomUUID()}.mp4`, mime: prepared.mime,
+        size: prepared.bytes,
+      });
+      if (mounted.current) setMedia(previous => previous.map(item => item.localId === localId
+        ? { ...item, attachment, failure: undefined, uploading: false } : item));
+    } catch (cause) {
+      reportClientError(new Error("CHAT2_VIDEO_UPLOAD_FAILED"), {
+        issueKey: "Chat2Room", keys: { operation: "video_upload" },
+      });
+      if (mounted.current) setMedia(previous => previous.map(item => item.localId === localId
+        ? { ...item, uploading: false, failure: videoRetryMessage(cause) } : item));
+    } finally { prepared?.dispose(); }
+  }
+  function retryOneVideo(localId: string) {
+    if (uploading || pending) return;
+    const item = media.find(value => value.localId === localId);
+    if (!item?.sourceVideo || !item.failure || item.attachment || item.uploading) return;
+    setUploading(true);
+    void uploadOneVideo(localId, item.sourceVideo).finally(() => {
+      if (mounted.current) setUploading(false);
+    });
+  }
   async function pick(kind: "image" | "video" | "pdf") {
     if (pending || uploading || media.length >= 8) return;
     setUploading(true);
     setError("");
     try {
-      let asset: { uri: string; name: string; mime: string; size: number } | null = null;
+      let asset: { uri: string; name: string; mime: string; size: number;
+        width?: number; height?: number } | null = null;
+      let previewUri: string | undefined;
       if (kind === "image" || kind === "video") {
         const selection = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: kind === "video" ? ["videos"] : ["images"],
-          quality: 0.85,
+          // Image bytes are encoded once by the shared JPEG 0.8 / 1920px path.
+          quality: 1,
           allowsMultipleSelection: false,
         });
-        if (!selection.canceled) {
+        if (!selection.canceled && selection.assets[0]) {
           const f = selection.assets[0];
-          asset = {
-            uri: f.uri,
-            name: f.fileName ?? (kind === "video" ? `video-${Crypto.randomUUID()}.mp4` : `photo-${Crypto.randomUUID()}.jpg`),
-            mime: f.mimeType ?? (kind === "video" ? "video/mp4" : "image/jpeg"),
-            size: f.fileSize ?? 0,
-          };
+          if (kind === "image") {
+            const localId = Crypto.randomUUID();
+            setMedia(previous => [...previous, {localId, name:f.fileName ?? "Фотография",
+              uri:f.uri, sourcePhoto:f, uploading:true}]);
+            await uploadOnePhoto(localId, f);
+            return;
+          } else {
+            const localId = Crypto.randomUUID();
+            setMedia(previous => [...previous, { localId,
+              name: f.fileName ?? "Видео", uri: f.uri, sourceVideo: f, uploading: true }]);
+            await uploadOneVideo(localId, f);
+            return;
+          }
         }
       } else {
         const selection = await DocumentPicker.getDocumentAsync({
@@ -298,7 +389,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
       }
       if (!asset) return;
       const localId = Crypto.randomUUID();
-      setMedia((previous) => [...previous, { localId, name: asset!.name, uri: asset!.uri }]);
+      setMedia((previous) => [...previous, { localId, name: asset!.name, uri: previewUri ?? asset!.uri }]);
       try {
         const attachment = await chat2.upload(id, asset);
         if (mounted.current)
@@ -308,7 +399,12 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
       } catch (e) {
         reportClientError(new Error("CHAT2_UPLOAD_FAILED"), {
           issueKey: "Chat2Room",
-          keys: { operation: "upload" },
+          keys: {
+            operation: "upload",
+            ...(e instanceof Chat2S3UploadError
+              ? { httpStatus: String(e.status), s3Code: e.s3Code ?? "unknown" }
+              : {}),
+          },
         });
         if (mounted.current) {
           setError(e instanceof Error ? e.message : "Не удалось загрузить файл");
@@ -431,7 +527,9 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
     <TexturedSafeAreaView edges={["top", "bottom"]} style={styles.root}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        // Expo Android edge-to-edge does not resize the window for the IME.
+        // Padding must be enabled on both platforms so the composer stays visible.
+        behavior="padding"
       >
         <View style={styles.header}>
           <Pressable
@@ -506,6 +604,8 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
           keyExtractor={(m) => m.id}
           style={styles.list}
           contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           // Native anchor preservation when older rows arrive at the beginning.
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           scrollEventThrottle={16}
@@ -551,6 +651,14 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
             return (
               <View>
                 {day !== prev && <Text style={styles.day}>{day}</Text>}
+                <SwipeReplyMessage enabled={!item.deletedAt} onReply={() => {
+                  swipeReplyId.current = item.id;
+                  // The gesture normally cancels Pressable; do not suppress a later real tap.
+                  setTimeout(() => {
+                    if (swipeReplyId.current === item.id) swipeReplyId.current = null;
+                  }, 280);
+                  replyTo(item);
+                }}>
                 <Pressable
                   accessibilityLabel={own ? "Моё сообщение" : "Сообщение участника"}
                   onPress={() => {
@@ -561,24 +669,6 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
                     showActions(item);
                   }}
                   onLongPress={() => showActions(item)}
-                  onTouchStart={(event) => {
-                    touchOrigin.current = {
-                      messageId: item.id,
-                      x: event.nativeEvent.pageX,
-                      y: event.nativeEvent.pageY,
-                    };
-                  }}
-                  onTouchEnd={(event) => {
-                    const first = touchOrigin.current;
-                    touchOrigin.current = null;
-                    if (!first || first.messageId !== item.id || item.deletedAt) return;
-                    const dx = event.nativeEvent.pageX - first.x;
-                    const dy = event.nativeEvent.pageY - first.y;
-                    if (dx > 70 && Math.abs(dy) < 45) {
-                      swipeReplyId.current = item.id;
-                      replyTo(item);
-                    }
-                  }}
                   style={[styles.message, own && styles.myMessage]}
                 >
                   {!own && (
@@ -605,7 +695,8 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
                     </Text>
                     {!item.deletedAt &&
                       (item.attachments ?? []).map((file) => (
-                        <NativeChat2Media key={file.id} conversationId={id} file={file} />
+                        <NativeChat2Media key={file.id} conversationId={id} file={file}
+                          images={imageAttachments} />
                       ))}
                     {!item.deletedAt && Boolean(item.reactions?.length) && (
                       <View style={styles.reactionBadges}>
@@ -635,6 +726,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
                     </Text>
                   </View>
                 </Pressable>
+                </SwipeReplyMessage>
               </View>
             );
           }}
@@ -643,6 +735,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
           onRequestClose={() => setActionMessage(null)}>
           <Pressable style={styles.actionBackdrop} onPress={() => setActionMessage(null)}>
             <Pressable style={styles.actionSheet} onPress={(event) => event.stopPropagation()}>
+              <SwipeDismissHandle close={() => setActionMessage(null)} disabled={Boolean(reactingId)} />
               <Text style={styles.actionTitle} numberOfLines={2}>
                 {actionMessage?.text || "Сообщение"}
               </Text>
@@ -708,21 +801,46 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
           <View style={styles.mediaPending}>
             {media.map((file) => (
               <View key={file.localId} style={styles.mediaChip}>
-                {file.attachment?.kind === "image" || file.uri.match(/\.(jpg|jpeg|png|webp)$/i) ? (
+                {file.sourcePhoto || file.attachment?.kind === "image" || file.uri.match(/\.(jpg|jpeg|png|webp)$/i) ? (
+                  <>
                   <Image
                     source={{ uri: file.uri }}
                     style={styles.mediaThumb}
                     resizeMode="contain"
                   />
-                ) : file.attachment?.kind === "video" || /\.mp4$/i.test(file.name) ? (
-                  <Text>Video</Text>
+                  {file.failure && file.sourcePhoto && <Pressable accessibilityRole="button"
+                    accessibilityLabel={`Повторить обработку фото ${file.name}`}
+                    disabled={uploading || pending} onPress={() => retryOnePhoto(file.localId)}
+                    style={{position:"absolute",left:4,top:4,width:44,height:44,
+                      borderRadius:22,backgroundColor:"#17211def",borderWidth:1,
+                      borderColor:"#ffffffae",alignItems:"center",justifyContent:"center"}}>
+                    <MaterialCommunityIcons name="refresh" size={28} color="#fff" />
+                  </Pressable>}
+                  </>
+                ) : file.sourceVideo || file.attachment?.kind === "video" || /\.mp4$/i.test(file.name) ? (
+                  <View style={{ width: 52, height: 52, borderRadius: 12,
+                    backgroundColor: "#25352c", alignItems: "center", justifyContent: "center" }}>
+                    <MaterialCommunityIcons name="video-outline" size={27} color="#fff" />
+                    {file.failure && file.sourceVideo && <Pressable accessibilityRole="button"
+                      accessibilityLabel={`Повторить обработку видео ${file.name}`}
+                      disabled={uploading || pending} onPress={() => retryOneVideo(file.localId)}
+                      style={{ position: "absolute", width: 46, height: 46,
+                        borderRadius: 23, borderWidth: 1, borderColor: "#fff8",
+                        backgroundColor: "#17211def", alignItems: "center", justifyContent: "center" }}>
+                      <MaterialCommunityIcons name="refresh" size={29} color="#fff" />
+                    </Pressable>}
+                  </View>
                 ) : (
                   <Text>📄</Text>
                 )}
                 <Text numberOfLines={1} style={styles.mediaLabel}>
                   {file.name}
                 </Text>
-                <Text style={styles.mediaSmall}>{file.attachment ? "Готово" : "Загрузка…"}</Text>
+                <Text style={styles.mediaSmall}>{file.attachment ? "Готово" :
+                  file.failure ? "Ошибка обработки" : "Подготавливаем и загружаем…"}</Text>
+                {file.failure && <Text accessibilityRole="alert" style={{
+                  color: "#8c2b18", fontSize: 12, maxWidth: 215, lineHeight: 18,
+                }}>{file.failure}</Text>}
                 <Pressable onPress={() => removeMedia(file)} accessibilityLabel="Удалить вложение">
                   <Text style={styles.mediaClose}>×</Text>
                 </Pressable>
@@ -752,6 +870,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
             value={text}
             onChangeText={setText}
             placeholder="Напишите сообщение…"
+            placeholderTextColor="#000000"
             style={styles.input}
             accessibilityLabel="Текст сообщения"
           />
@@ -946,10 +1065,12 @@ const styles = StyleSheet.create({
 });
 
 /** Images use API-authorized CDN/S3 pairs. Fullscreen stays inside the app. */
-function NativeChat2Media({ conversationId, file }: { conversationId: string; file: Attachment }) {
+function NativeChat2Media({ conversationId, file, images }: {
+  conversationId: string; file: Attachment; images: Attachment[];
+}) {
   if (file.kind === "video") return <NativeChat2Video conversationId={conversationId} file={file} />;
   if (file.kind === "file") return <NativeChat2Document conversationId={conversationId} file={file} />;
-  return <NativeChat2Image conversationId={conversationId} file={file} />;
+  return <NativeChat2Image conversationId={conversationId} file={file} images={images} />;
 }
 
 /** Existing PDF attachments retain the authenticated external document viewer. */
@@ -986,7 +1107,9 @@ type Chat2ImageViewer = {
   triedFallback: boolean;
   failed: boolean;
 };
-function NativeChat2Image({ conversationId, file }: { conversationId: string; file: Attachment }) {
+function NativeChat2Image({ conversationId, file, images }: {
+  conversationId: string; file: Attachment; images: Attachment[];
+}) {
   const [url, setUrl] = useState<string | null>(null);
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
   const [usingFallback, setUsingFallback] = useState(false);
@@ -995,6 +1118,10 @@ function NativeChat2Image({ conversationId, file }: { conversationId: string; fi
   const [failed, setFailed] = useState(false);
   const [reload, setReload] = useState(0);
   const [viewer, setViewer] = useState<Chat2ImageViewer | null>(null);
+  const [viewerFileId, setViewerFileId] = useState(file.id);
+  const [viewerLoading, setViewerLoading] = useState(false);
+  const viewerFlight = useRef(0);
+  const closeViewer = () => { viewerFlight.current++; setViewer(null); setViewerLoading(false); };
   const triedFallback = useRef(false);
   const requestGeneration = useRef(0);
   useEffect(() => {
@@ -1011,6 +1138,7 @@ function NativeChat2Image({ conversationId, file }: { conversationId: string; fi
     void readProcessedChat2Media(
       () => chat2.media(conversationId, file.id), controller.signal,
       () => { if (live) setProcessing(true); },
+      2500, 36, // 90s bounded wait: never strand a video behind an absent Job.
     ).then(result => {
         if (!live || requestGeneration.current !== generation) return;
         const primary = file.kind === "image"
@@ -1038,7 +1166,7 @@ function NativeChat2Image({ conversationId, file }: { conversationId: string; fi
     };
   }, [conversationId, file.id, file.kind, reload]);
   const retry = () => {
-    setViewer(null);
+    closeViewer();
     setReload(previous => previous + 1);
   };
   const thumbnailFailure = () => {
@@ -1061,25 +1189,63 @@ function NativeChat2Image({ conversationId, file }: { conversationId: string; fi
   };
   async function open() {
     if (pending || failed) return;
+    const viewerRequest = ++viewerFlight.current;
     const generation = requestGeneration.current;
     try {
       // Obtain fresh URLs: a message may have been visible longer than its signed TTL.
       const refreshed = await chat2.media(conversationId, file.id);
-      if (requestGeneration.current !== generation) return;
-      const primary = refreshed.renditions?.image?.[720] ?? refreshed.url;
+      if (requestGeneration.current !== generation ||
+          viewerFlight.current !== viewerRequest) return;
+      const primary = refreshed.renditions?.image?.[1440] ?? refreshed.url;
       const fallback = chat2MatchedS3Variant(primary, refreshed);
+      setViewerFileId(file.id);
       setViewer({ url: primary, fallbackUrl: fallback, triedFallback: false, failed: false });
     } catch {
-      if (requestGeneration.current !== generation) return;
+      if (requestGeneration.current !== generation ||
+          viewerFlight.current !== viewerRequest) return;
       reportClientError(new Error("CHAT2_MEDIA_OPEN_FAILED"), {
         issueKey: "Chat2Room", keys: { operation: "media_open" },
       });
       Alert.alert("Вложение недоступно", "Попробуйте обновить фотографию");
     }
   }
-  const fullscreenFailure = () => {
-    if (!viewer || viewer.triedFallback || !viewer.fallbackUrl) {
-      setViewer(previous => previous ? { ...previous, failed: true } : previous);
+  async function navigateImageAt(targetId: string) {
+    if (!images.some(item => item.id === targetId) || !viewer) return;
+    const generation = requestGeneration.current;
+    const viewerRequest = ++viewerFlight.current;
+    setViewerFileId(targetId);
+    setViewerLoading(true);
+    setViewer({ url: "", fallbackUrl: null, triedFallback: false, failed: false });
+    try {
+      // Every photo must be authorized independently; never reuse thumbnail URLs.
+      const fresh = await chat2.media(conversationId, targetId);
+      if (generation !== requestGeneration.current ||
+          viewerFlight.current !== viewerRequest) return;
+      const primary = fresh.renditions?.image?.[1440] ?? fresh.url;
+      setViewer({ url: primary, fallbackUrl: chat2MatchedS3Variant(primary, fresh),
+        triedFallback: false, failed: false });
+    } catch {
+      if (generation !== requestGeneration.current ||
+          viewerFlight.current !== viewerRequest) return;
+      reportClientError(new Error("CHAT2_IMAGE_BROWSE_FAILED"), {
+        issueKey: "Chat2Room", keys: { operation: "browse_image" },
+      });
+      setViewer({ url: "", fallbackUrl: null, triedFallback: false, failed: true });
+    } finally {
+      if (generation === requestGeneration.current && viewerFlight.current === viewerRequest)
+        setViewerLoading(false);
+    }
+  }
+  const navigateImage = (direction: -1 | 1) => {
+    const currentIndex = images.findIndex(item => item.id === viewerFileId);
+    const target = images[currentIndex + direction];
+    if (currentIndex >= 0 && target) void navigateImageAt(target.id);
+  };
+  const fullscreenFailure = (failedUrl: string) => {
+    if (!viewer || viewer.url !== failedUrl) return;
+    if (viewer.triedFallback || !viewer.fallbackUrl) {
+      setViewer(previous => previous?.url === failedUrl
+        ? { ...previous, failed: true } : previous);
       return;
     }
     const { url: original, fallbackUrl: backup } = viewer;
@@ -1125,27 +1291,41 @@ function NativeChat2Image({ conversationId, file }: { conversationId: string; fi
       </View>}
     </Pressable>
     <Modal visible={Boolean(viewer)} transparent animationType="fade"
-      statusBarTranslucent onRequestClose={() => setViewer(null)}>
-      <View style={{ flex: 1, backgroundColor: "#000e", justifyContent: "center" }}>
+      statusBarTranslucent onRequestClose={closeViewer}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#000e" }}>
+        <SwipeDismissMedia onDismiss={closeViewer}>
+          <View style={{ flex: 1, justifyContent: "center" }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Закрыть фотографию"
-          onPress={() => setViewer(null)}
+          onPress={closeViewer}
           style={{ position: "absolute", top: 55, right: 20, zIndex: 2,
             backgroundColor: "#243127", width: 44, height: 44, borderRadius: 22,
             alignItems: "center", justifyContent: "center" }}>
           <Text style={{ color: "#fff", fontSize: 28, lineHeight: 34 }}>×</Text>
         </Pressable>
+        {viewer && images.length > 1 && <View style={{ position: "absolute", top: 65,
+          left: 18, zIndex: 2 }} pointerEvents="none">
+          <Text style={{ color: "#fff", fontSize: 14 }}>
+            {Math.max(1, images.findIndex(item => item.id === viewerFileId) + 1)} / {images.length}
+          </Text>
+        </View>}
+        <Chat2ImageBrowse enabled={Boolean(viewer) && !viewerLoading && images.length > 1}
+          onNavigate={navigateImage}>
+        {viewerLoading ? <ActivityIndicator color="#fff" size="large" /> : null}
         {viewer?.failed ? <Pressable accessibilityRole="button"
           accessibilityLabel="Повторить открытие фотографии"
-          onPress={() => { setViewer(null); void open(); }}
+          onPress={() => void navigateImageAt(viewerFileId)}
           style={{ padding: 20, alignItems: "center" }}>
           <Text accessibilityRole="alert" style={{ color: "#fff", textAlign: "center" }}>
             Не удалось открыть фотографию · Повторить
           </Text>
         </Pressable> : viewer && <ExpoImage source={{ uri: viewer.url }}
           cachePolicy={isCacheableChat2FinalUrl(viewer.url) ? "memory-disk" : "memory"}
-          contentFit="contain" onError={fullscreenFailure}
+          contentFit="contain" onError={() => fullscreenFailure(viewer.url)}
           style={{ width: "100%", height: "82%" }} />}
-      </View>
+        </Chat2ImageBrowse>
+          </View>
+        </SwipeDismissMedia>
+      </GestureHandlerRootView>
     </Modal>
   </>;
 }
@@ -1153,11 +1333,12 @@ function NativeChat2Image({ conversationId, file }: { conversationId: string; fi
 /** Mount the paused native player with the message: it can render the first frame
  * even for legacy MP4s that do not have a separately processed poster. */
 function NativeChat2VideoPlayer({
-  url, onError, seekTo, onPlayer, onPlayingChange, resumeOnReady, controlsVisible,
+  url, onError, onReady, seekTo, onPlayer, onPlayingChange, resumeOnReady, controlsVisible,
   requestThumbnail, onThumbnail,
 }: {
   url: string;
   onError: () => void;
+  onReady: (elapsedMs: number) => void;
   seekTo: number;
   onPlayer: (player: VideoPlayer | null) => void;
   onPlayingChange: (playing: boolean) => void;
@@ -1166,6 +1347,8 @@ function NativeChat2VideoPlayer({
   requestThumbnail: boolean;
   onThumbnail: (url: string, frame: VideoThumbnail) => void;
 }) {
+  const startupAt = useRef(Date.now());
+  const readyRecorded = useRef(false);
   const player = useVideoPlayer({ uri: url, contentType: "progressive",
     useCaching: isCacheableChat2FinalUrl(url) }, instance => {
     instance.staysActiveInBackground = false;
@@ -1185,6 +1368,10 @@ function NativeChat2VideoPlayer({
     const onStatus = (status: string) => {
       if (status === "error" && !failed) { failed = true; onError(); }
       if (status !== "readyToPlay") return;
+      if (!readyRecorded.current) {
+        readyRecorded.current = true;
+        onReady(Date.now()-startupAt.current);
+      }
       if (requestThumbnail && !thumbnailRequested) {
         thumbnailRequested = true;
         // Legacy Chat2 MP4s do not have a poster object. Extract a single
@@ -1207,7 +1394,7 @@ function NativeChat2VideoPlayer({
       onPlayingChange(isPlaying));
     onStatus(player.status);
     return () => { live = false; statusListener.remove(); playingListener.remove(); };
-  }, [player, onError, onPlayingChange, seekTo, resumeOnReady, requestThumbnail, onThumbnail, url]);
+  }, [player, onError, onReady, onPlayingChange, seekTo, resumeOnReady, requestThumbnail, onThumbnail, url]);
   return <VideoView player={player}
     style={{ width: 220, height: 220, backgroundColor: "#17211d" }}
     contentFit="contain" nativeControls={controlsVisible} allowsPictureInPicture={false}
@@ -1217,7 +1404,11 @@ function NativeChat2VideoPlayer({
 function NativeChat2Video({ conversationId, file }: { conversationId: string; file: Attachment }) {
   type MediaResponse = Awaited<ReturnType<typeof chat2.media>>;
   const [media, setMedia] = useState<MediaResponse | null>(null);
-  const [quality, setQuality] = useState<Chat2QualityMode>("auto");
+  const [quality, setQuality] = useNativeMp4Mode();
+  // Freeze automatic selection for this file so a mid-playback network change cannot
+  // silently swap progressive MP4 URLs.
+  const qualityHints = useRef(nativeMp4Hints(220));
+  const [, refreshAutoSelection] = useState(0);
   const [seekTo, setSeekTo] = useState(0);
   const [resumeOnReady, setResumeOnReady] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -1230,10 +1421,12 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
   const [pending, setPending] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(false);
+  const [processingFailure, setProcessingFailure] = useState(false);
   const [reload, setReload] = useState(0);
   const [usingFallback, setUsingFallback] = useState(false);
   const recoveryInProgress = useRef(false);
   const playIntent = useRef(false);
+  const reportedRendition = useRef<string|null>(null);
   const recoveryGeneration = useRef(0);
 
   // Same lifecycle as Web: fetch the authorized media/cover immediately on mount.
@@ -1244,9 +1437,11 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
     const generation = ++recoveryGeneration.current;
     recoveryInProgress.current = false;
     playIntent.current = false;
+    reportedRendition.current = null;
     setPending(true);
     setProcessing(false);
     setError(false);
+    setProcessingFailure(false);
     setMedia(null);
     void readProcessedChat2Media(
       () => chat2.media(conversationId, file.id), controller.signal,
@@ -1254,18 +1449,20 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
     ).then(result => {
         if (!live) return;
         signedAt.current = Date.now();
+        qualityHints.current = nativeMp4Hints(220);
         setMedia(result);
         setPosterFailed(false);
         setPosterViaS3(false);
-        setQuality("auto");
         setUsingFallback(false);
         setSeekTo(0);
         setResumeOnReady(false);
         setPlaying(false);
         setEverPlayed(false);
       })
-      .catch(() => {
+      .catch(cause => {
         if (!live) return;
+        setProcessingFailure(cause instanceof Error &&
+          ["CHAT2_MEDIA_NOT_READY", "CHAT2_MEDIA_PROCESSING_TIMEOUT"].includes(cause.message));
         reportClientError(new Error("CHAT2_VIDEO_MEDIA_FETCH_FAILED"), {
           issueKey: "Chat2Room", keys: { operation: "video_media_fetch" },
         });
@@ -1283,18 +1480,36 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
 
   const onPlayingChange = useCallback((isPlaying: boolean) => {
     setPlaying(isPlaying);
-    if (isPlaying) setEverPlayed(true);
-  }, []);
+    if (!isPlaying) return;
+    setEverPlayed(true);
+    if (!media?.renditions?.video) return;
+    const variants = usingFallback ? media.fallbackRenditions?.video : media.renditions.video;
+    const source = chat2VideoSource(variants, quality, qualityHints.current);
+    const selected = source === variants?.[720] ? 720 : source === variants?.[360] ? 360 : null;
+    if (!source || !selected || reportedRendition.current === source) return;
+    reportedRendition.current = source;
+    reportNativeVideoStarted({surface:"chat",quality:selected,mode:quality,
+      available:media.renditions.video,hints:qualityHints.current,fallback:usingFallback});
+  }, [media, quality, usingFallback]);
   const onPlayer = useCallback((player: VideoPlayer | null) => { playerRef.current = player; }, []);
   const onThumbnail = useCallback((url: string, frame: VideoThumbnail) => {
     setThumbnail({ url, frame });
   }, []);
+  const onVideoReady = useCallback((elapsedMs: number) => {
+    // A paused player may defer decoding until the user taps Play minutes later.
+    // Never interpret that idle time as a slow network.
+    if (usingFallback || !media || elapsedMs > 15_000) return;
+    const available = media.renditions?.video;
+    const source = chat2VideoSource(available, quality, qualityHints.current);
+    const selected = source === available?.[720] ? 720 : source === available?.[360] ? 360 : null;
+    if (selected) observeNativeMp4Start(qualityHints.current, selected, elapsedMs);
+  }, [usingFallback, media, quality]);
   const onError = useCallback(() => {
     // Native players can emit multiple status errors during a single failed load.
     if (recoveryInProgress.current) return;
     const fail = () => { setPlaying(false); setError(true); setMedia(null); };
     if (usingFallback || !media) { fail(); return; }
-    const primary = chat2VideoSource(media.renditions?.video, quality, { width: 220 }) ?? media.url;
+    const primary = chat2VideoSource(media.renditions?.video, quality, qualityHints.current) ?? media.url;
     const backup = chat2MatchedS3Variant(primary, media);
     recoveryInProgress.current = true;
     const generation = recoveryGeneration.current;
@@ -1327,7 +1542,7 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
         const refreshed = await chat2.media(conversationId, file.id);
         signedAt.current = Date.now();
         setSeekTo(0);
-        setQuality("auto");
+        qualityHints.current = nativeMp4Hints(220);
         setUsingFallback(false);
         setPosterViaS3(false);
         setResumeOnReady(true);
@@ -1342,7 +1557,33 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
       } finally { setPending(false); }
       return;
     }
+    if (!everPlayed) {
+      const remembered = await loadNativeMp4Mode();
+      const variants = usingFallback ? media.fallbackRenditions?.video : media.renditions?.video;
+      const currentSource = chat2VideoSource(variants, quality, qualityHints.current);
+      // Network may have changed while the paused chat preview was visible.
+      // Re-evaluate exactly once on first Play, never during playback.
+      qualityHints.current = nativeMp4Hints(220);
+      const wanted = chat2VideoSource(variants, remembered, qualityHints.current);
+      if (remembered !== quality) setQuality(remembered);
+      if (wanted && wanted !== currentSource) {
+        setResumeOnReady(true);
+        if (remembered === quality) refreshAutoSelection(value => value + 1);
+        return;
+      }
+    }
     playerRef.current?.play();
+  }
+  function togglePlayback() {
+    const player = playerRef.current;
+    if (!player) return;
+    if (playing) {
+      playIntent.current = false;
+      player.pause();
+      setPlaying(false);
+    } else {
+      void play();
+    }
   }
   function choose(mode: Chat2QualityMode) {
     if (mode === quality) return;
@@ -1351,6 +1592,9 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
     setQuality(mode);
   }
   function retry() {
+    // Status check, not a queue restart. Only a retained local source can
+    // actually rerun native encoding/upload (see uploadOneVideo above).
+    setProcessingFailure(false);
     playIntent.current = false;
     recoveryInProgress.current = false;
     setMedia(null);
@@ -1359,17 +1603,16 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
     setReload(value => value + 1);
   }
   const variants = usingFallback ? media?.fallbackRenditions?.video : media?.renditions?.video;
-  const url = media ? chat2VideoSource(variants, quality, { width: 220 }) ??
+  const url = media ? chat2VideoSource(variants, quality, qualityHints.current) ??
     (usingFallback ? media.fallbackUrl ?? null : media.url) : null;
   const posterUrl = usingFallback || posterViaS3
     ? media?.fallbackRenditions?.poster ?? media?.renditions?.poster
     : media?.renditions?.poster;
   const poster = posterFailed ? null : posterUrl;
-  const multiple = chat2HasVideoQuality(variants, 360) && chat2HasVideoQuality(variants, 720);
   return <View style={{ marginTop: 8, width: 220 }}>
     {url ? <View style={{ width: 220, height: 220, borderRadius: 12,
         overflow: "hidden", backgroundColor: "#17211d", position: "relative" }}>
-      <NativeChat2VideoPlayer key={url} url={url} onError={onError} seekTo={seekTo}
+      <NativeChat2VideoPlayer key={url} url={url} onError={onError} onReady={onVideoReady} seekTo={seekTo}
         resumeOnReady={resumeOnReady} onPlayer={onPlayer} onPlayingChange={onPlayingChange}
         controlsVisible={everPlayed} requestThumbnail={!poster} onThumbnail={onThumbnail} />
       {!everPlayed && !playing && (poster || thumbnail?.url === url) && <View pointerEvents="none"
@@ -1399,6 +1642,19 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
         {pending ? <ActivityIndicator color="#fff" /> :
           <Text style={{ color: "#fff", fontSize: 27, marginLeft: 4 }}>▶</Text>}
       </Pressable>}
+      {everPlayed && <Pressable accessibilityRole="button"
+        accessibilityLabel={playing ? "Пауза" : "Продолжить видео"}
+        onPress={event => { event.stopPropagation(); togglePlayback(); }}
+        style={{ position: "absolute", top: 8, right: 8, zIndex: 2,
+          width: 44, height: 44, borderRadius: 22,
+          borderWidth: 1, borderColor: "#ffffff99", backgroundColor: "#17211dd4",
+          alignItems: "center", justifyContent: "center" }}>
+        {playing ? <View style={{ flexDirection: "row", gap: 5 }}>
+          <View style={{ width: 4, height: 18, borderRadius: 1, backgroundColor: "#fff" }} />
+          <View style={{ width: 4, height: 18, borderRadius: 1, backgroundColor: "#fff" }} />
+        </View> : <Text style={{ color: "#fff", fontSize: 24, marginLeft: 3 }}>▶</Text>}
+      </Pressable>}
+      <VideoQualitySettings value={quality} onChange={choose} available={variants} />
     </View> : <View style={{ width: 220, minHeight: 180, borderRadius: 12,
       backgroundColor: "#17211d", alignItems: "center", justifyContent: "center", padding: 16, gap: 12 }}>
       {pending ? <><ActivityIndicator color="#fff" />
@@ -1406,25 +1662,14 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
           {processing ? "Обрабатываем видео…" : "Загружаем видео…"}
         </Text></> :
         <><Text style={{ color: "#fff", fontSize: 12, textAlign: "center" }}>
-          {error ? "Не удалось загрузить видео" : "Видео недоступно"}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Повторить загрузку видео"
+          {error ? (processingFailure ? videoServerFailureMessage :
+            "Не удалось открыть видео. Проверьте интернет. Если сервер не завершил обработку, сохраните оригинал и отправьте заново после восстановления сервиса.") :
+            "Видео пока недоступно. Возможно, обработка ещё выполняется."}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Проверить доступность видео ещё раз"
             onPress={retry} style={{ paddingVertical: 7, paddingHorizontal: 14,
               backgroundColor: olive, borderRadius: 8 }}>
-            <Text style={{ color: "#fff", fontSize: 12 }}>Повторить</Text>
+            <Text style={{ color: "#fff", fontSize: 12 }}>Проверить снова</Text>
           </Pressable></>}
-    </View>}
-    {multiple && url && <View accessibilityLabel="Качество видео"
-      style={{ flexDirection: "row", gap: 4, padding: 5, marginTop: 4, borderRadius: 8, backgroundColor: "#25352c" }}>
-      {(["auto", 360, 720] as const).map(mode => (
-        <Pressable key={mode} accessibilityRole="button" accessibilityState={{ selected: quality === mode }}
-          onPress={() => choose(mode)}
-          style={{ flex: 1, borderRadius: 6, paddingVertical: 6, alignItems: "center",
-            backgroundColor: quality === mode ? olive : "transparent" }}>
-          <Text style={{ color: "#fff", fontWeight: "600", fontSize: 12 }}>
-            {mode === "auto" ? "Авто" : `${mode}p`}
-          </Text>
-        </Pressable>
-      ))}
     </View>}
   </View>;
 }

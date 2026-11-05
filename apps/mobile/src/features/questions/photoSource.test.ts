@@ -2,7 +2,7 @@ import { describe,expect,it } from "vitest";
 import { classifyQuestionNativePhoto } from "./photoSource";
 
 describe("Questions native image-only source classification",()=>{
-  it("preserves original supported JPG/PNG/WebP without extra JPEG compression",()=>{
+  it("classifies supported JPG/PNG/WebP before shared JPEG optimization",()=>{
     expect(classifyQuestionNativePhoto({mimeType:"image/jpeg",fileName:"photo.jpg"}))
       .toBe("image/jpeg");
     expect(classifyQuestionNativePhoto({mimeType:"image/png",fileName:"photo.png"}))
@@ -12,7 +12,7 @@ describe("Questions native image-only source classification",()=>{
     expect(classifyQuestionNativePhoto({mimeType:"",fileName:"IMG_123.jpeg"}))
       .toBe("image/jpeg");
   });
-  it("converts only HEIC/HEIF to a supported JPEG source",()=>{
+  it("recognizes HEIC/HEIF as convertible image input",()=>{
     expect(classifyQuestionNativePhoto({mimeType:"image/heic"})).toBe("convert-heic");
     expect(classifyQuestionNativePhoto({fileName:"IMG.HEIF"})).toBe("convert-heic");
   });

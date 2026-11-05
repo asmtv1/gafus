@@ -67,8 +67,7 @@ try {
     maintenance: limit => service.maintenance({ limit }),
   };
   const worker = createGalleryCloudWorker({
-    core, objects, engine: sharpGalleryEngine,
-    queue: { async send() { /* test-owned local invocation, no cloud queue */ } },
+    core, objects,
   });
   if (action === "process") {
     await worker.processUpload(uploadId);

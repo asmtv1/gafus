@@ -8,6 +8,12 @@ export interface MobileAppPublicConfig {
   iosRuCardPaymentHintEnabled: boolean;
   resolvedFeatureProfile?: "RELEASED" | "REVIEW";
   resolvedClientVersion?: string | null;
+  ota?: {
+    required: boolean;
+    version: string | null;
+    platform: "all" | "ios" | "android";
+    channel: "production";
+  };
   minimumSupportedVersion?: {
     ios?: string;
     android?: string;

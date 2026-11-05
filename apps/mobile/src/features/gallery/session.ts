@@ -11,6 +11,8 @@ export interface UploadTask {
   authEpoch?: string;
   albumId?: string;
   filename: string;
+  /** Ephemeral picker URI used only for local failed-photo previews/retries. */
+  previewUri?: string;
   upload?: GalleryUploadDto;
   generation: number;
   cancelRequested?: boolean;

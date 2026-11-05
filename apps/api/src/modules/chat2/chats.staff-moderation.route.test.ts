@@ -15,7 +15,7 @@ vi.mock("./service.js", () => ({
   resolveChatReport: mock.roomResolve,
 }));
 vi.mock("./realtime.js", () => ({
-  connectToken: vi.fn(), subscriptionToken: vi.fn(),
+  connectToken: vi.fn(),
 }));
 import { chatsRoutes } from "../../routes/v1/chats";
 

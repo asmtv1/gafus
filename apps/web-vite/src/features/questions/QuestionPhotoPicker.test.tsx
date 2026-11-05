@@ -1,4 +1,11 @@
 // @vitest-environment jsdom
+vi.mock("../../shared/media/browserPhotoWebp",()=>({
+  prepareBrowserPhotoWebp:vi.fn(async(_original:File,edges:Record<string,number>)=>
+    Object.fromEntries(Object.entries(edges).map(([name,edge])=>[
+      name,{file:new File([new Uint8Array(128)],name+".webp",{type:"image/webp"}),
+        width:edge,height:Math.round(edge*.75)},
+    ]))),
+}));
 import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -52,14 +59,17 @@ async function mount(fetcher: ReturnType<typeof vi.fn>, existingCount = 0) {
   vi.stubGlobal("URL",FakeURL);
   vi.stubGlobal("fetch",async (rawPath:string,options?:RequestInit)=>{
     const path=String(rawPath);
-    if(path.endsWith("/confirm"))return api({id:path.split("/").at(-2),status:"QUEUED"});
+    if(path.endsWith("/client-confirm"))return api({id:path.split("/").at(-2),status:"READY"});
     const request=fetcher as unknown as (url:string,init?:RequestInit)=>Promise<Response>;
     const result=await request(rawPath,options);
-    if(path.endsWith("/reservations") && result.ok){
+    if(path.endsWith("/client-reservations") && result.ok){
       const original=await result.clone().json() as {data?:{id?:string}};
       return api({id:original.data?.id,upload:{
-        url:"https://s3.cloud.ru/gafus-questions-test",method:"POST",
-        fields:{key:"questions/v2/owner/test/incoming/source.jpg"},
+        url:"https://s3.cloud.ru/gafus-questions-public",method:"POST",
+        fields:{key:"questions/v2/owner/test/incoming/source.webp"},
+      },smallUpload:{
+        url:"https://s3.cloud.ru/gafus-questions-public",method:"POST",
+        fields:{key:"questions/v2/owner/test/incoming/small.webp"},
       }},201);
     }
     return result;
@@ -166,7 +176,7 @@ describe("question media upload form", () => {
       expect(screen.host.querySelector(".question-photo-uploading")?.textContent)
         .toContain("Загружаем");
       expect(screen.host.querySelector('[data-testid="busy"]')?.textContent).toBe("busy");
-      expect(screen.host.textContent).toContain("0 из 5 фото");
+      expect(screen.host.textContent).toContain("1 из 5 фото");
       expect(screen.host.querySelector(".question-photo-remove")).toBeNull();
       await act(async () => resolveUpload(api({ id:"photo-1" })));
       await act(async () => { await new Promise(resolve => setTimeout(resolve,10)); });
@@ -177,21 +187,25 @@ describe("question media upload form", () => {
     } finally { await screen.cleanup(); }
   });
 
-  it("clears failed upload previews, preserves acknowledged ones and frees URLs", async () => {
+  it("keeps a failed file preview and retries only that photo without touching uploaded siblings", async () => {
     let index = 0;
-    const fetcher = vi.fn(() => Promise.resolve(++index === 1
-      ? api({ id:"photo-1" }) : api(null, 503)));
+    const fetcher = vi.fn(() => Promise.resolve(++index === 2 ? api(null, 503)
+      : api({ id: index === 1 ? "photo-1" : "photo-2" })));
     const screen = await mount(fetcher);
     try {
       await screen.select([jpeg(), jpeg()]);
+      expect(screen.host.querySelectorAll(".question-photo-slot-pending")).toHaveLength(1);
+      expect(screen.host.querySelectorAll(".question-photo-slot img")).toHaveLength(2);
+      expect(screen.host.querySelector(".question-photo-retry")?.getAttribute("aria-label"))
+        .toContain("pet.jpg");
+      expect(screen.host.textContent).toContain("2 из 5 фото");
+      expect(screen.revoke).not.toHaveBeenCalledWith("blob:local-2");
+      const before = fetcher.mock.calls.length;
+      await screen.click("Повторить обработку фото pet.jpg");
+      expect(fetcher.mock.calls.length).toBe(before + 1);
       expect(screen.host.querySelectorAll(".question-photo-slot-pending")).toHaveLength(0);
-      expect(screen.host.querySelectorAll(".question-photo-slot img")).toHaveLength(1);
-      expect(screen.host.querySelector("[role=alert]")?.textContent)
-        .toContain("Storage temporarily unavailable");
-      expect(screen.host.textContent).toContain("1 из 5 фото");
-      expect(screen.revoke).toHaveBeenCalledTimes(1);
-      expect(screen.revoke).toHaveBeenCalledWith("blob:local-2");
-      expect(screen.revoke).not.toHaveBeenCalledWith("blob:local-1");
+      expect(screen.host.querySelectorAll(".question-photo-slot img")).toHaveLength(2);
+      expect(screen.host.textContent).toContain("2 из 5 фото");
     } finally { await screen.cleanup(); }
   });
 

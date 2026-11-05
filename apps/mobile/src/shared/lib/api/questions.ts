@@ -4,6 +4,7 @@ import {
   type QuestionsTransport,
 } from "@gafus/types";
 import { apiClient } from "./client";
+import type { SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
 const transport: QuestionsTransport = async <T>(
   path: string,
   options: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown } = {},
@@ -24,6 +25,58 @@ const transport: QuestionsTransport = async <T>(
   return response.data;
 };
 export const questionsApi = createQuestionsClient(transport);
+/** Zero-Job photo path: device generates 360/1440 WebP files, S3 copies
+ * verified staging objects to immutable public keys, API commits READY.
+ */
+export async function uploadClientQuestionsPhoto(
+  source: { uri: string; width: number; height: number },
+  onProgress?: (percent: number) => void,
+): Promise<{ id: string; status: "READY"; url: string }> {
+  const [{ prepareUploadWebpVariants }, { postClientWebp }] = await Promise.all([
+    import("@/shared/lib/media/prepareUploadWebp"),
+    import("@/shared/lib/media/directPhotoUpload"),
+  ]);
+  const versions = await prepareUploadWebpVariants(source, { small: 360, medium: 1440 });
+  let reservationId: string | undefined;
+  try {
+    const reservation = await apiClient<{ id: string; upload: SignedClientPhotoPost;
+      smallUpload: SignedClientPhotoPost }>("/api/v1/questions/photos/client-reservations", {
+      method: "POST", body: { mediumBytes: versions.medium.bytes },
+      suppressSubscriptionPaywall: true,
+    });
+    if (!reservation.success || !reservation.data) {
+      const failure = new Error(reservation.error ?? "Ускоренная загрузка фото недоступна") as Error & { code?: string };
+      failure.code = reservation.code;
+      throw failure;
+    }
+    const item = reservation.data;
+    reservationId = item.id;
+    const hosts = ["gafus-questions-public.s3.cloud.ru", "s3.cloud.ru",
+      "127.0.0.1", "localhost", "10.0.2.2"];
+    await Promise.all([
+      postClientWebp(item.smallUpload, versions.small, hosts, p => onProgress?.(Math.round(p / 2))),
+      postClientWebp(item.upload, versions.medium, hosts, p => onProgress?.(50 + Math.round(p / 2))),
+    ]);
+    const confirmation = await apiClient<{ id: string; status: "READY" }>(
+      `/api/v1/questions/photos/${item.id}/client-confirm`, {
+        method: "POST", suppressSubscriptionPaywall: true,
+      });
+    if (!confirmation.success || confirmation.data?.status !== "READY" ||
+        confirmation.data.id !== item.id)
+      throw new Error(confirmation.error ?? "Готовая фотография не подтверждена");
+    onProgress?.(100);
+    return { id: item.id, status: "READY", url: source.uri };
+  } catch (error) {
+    if (reservationId) void apiClient(`/api/v1/questions/photos/${reservationId}`, {
+      method: "DELETE", suppressSubscriptionPaywall: true,
+    }).catch(() => undefined);
+    throw error;
+  } finally {
+    versions.small.dispose();
+    versions.medium.dispose();
+  }
+}
+
 /** Direct signed S3 POST; bearer tokens/cookies never go to the S3 host. */
 export async function uploadQuestionPhoto(uri:string,
   mime:"image/jpeg"|"image/png"|"image/webp",

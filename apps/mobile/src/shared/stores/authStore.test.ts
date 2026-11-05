@@ -119,6 +119,7 @@ describe("authStore checkAuth", () => {
       user: persistedUser,
       isLoading: false,
       isAuthenticated: false,
+      verifiedSessionEpoch: null,
       pendingVkPhone: false,
       pendingVkConsent: false,
       vkConsentToken: null,
@@ -126,6 +127,88 @@ describe("authStore checkAuth", () => {
       vkConsentTempSessionId: null,
       vkConsentPromoCode: null,
     });
+  });
+
+  it("migrates a previously authenticated user missing the V2 binding after an app update", async () => {
+    // Old builds persisted auth_token + user but did not create gafus-v2-auth-binding.
+    getItemAsyncMock.mockImplementation(async (key: string) =>
+      key === "auth_token" ? "old-still-valid-access-token" : null,
+    );
+    authApiMock.getProfile.mockResolvedValueOnce({ success: true, data: persistedUser });
+
+    await useAuthStore.getState().checkAuth();
+
+    expect(useAuthStore.getState()).toMatchObject({
+      user: persistedUser, isAuthenticated: true, isLoading: false,
+    });
+    const bindingWrite = setItemAsyncMock.mock.calls.find(([key]) =>
+      key === "gafus-v2-auth-binding");
+    expect(bindingWrite).toBeDefined();
+    expect(JSON.parse(bindingWrite![1])).toMatchObject({
+      schemaVersion: 2, principalId: persistedUser.id,
+    });
+    expect(useAuthStore.getState().verifiedSessionEpoch).toBe(
+      JSON.parse(bindingWrite![1]).authEpoch,
+    );
+    expect(deleteItemAsyncMock).not.toHaveBeenCalledWith("auth_token");
+    expect(deleteItemAsyncMock).not.toHaveBeenCalledWith("refresh_token");
+  });
+
+  it("preserves the existing verified offline epoch on upgrade", async () => {
+    const oldEpoch = "9bd127ef-891c-4a10-b286-0d3ba55b7ba0";
+    getItemAsyncMock.mockImplementation(async (key: string) => {
+      if (key === "auth_token") return "access-token";
+      if (key === "gafus-v2-auth-binding") return JSON.stringify({
+        schemaVersion: 2, principalId: persistedUser.id, authEpoch: oldEpoch,
+      });
+      return null;
+    });
+    authApiMock.getProfile.mockResolvedValueOnce({ success: true, data: persistedUser });
+    await useAuthStore.getState().checkAuth();
+
+    const { newOnlyV2NativeQueues } = await import("@/shared/lib/offline/newOnlyV2Native");
+    expect(newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch).toBe(oldEpoch);
+    expect(useAuthStore.getState().verifiedSessionEpoch).toBe(oldEpoch);
+    expect(setItemAsyncMock).not.toHaveBeenCalledWith(
+      "gafus-v2-auth-binding", expect.any(String),
+    );
+  });
+
+  it("publishes the verified epoch reactively after an optimistic cached login", async () => {
+    let completeProfile!: (value: { success: true; data: typeof persistedUser }) => void;
+    authApiMock.getProfile.mockImplementationOnce(() => new Promise(resolve => {
+      completeProfile = resolve;
+    }));
+    const check = useAuthStore.getState().checkAuth();
+    await vi.waitFor(() => {
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+      expect(useAuthStore.getState().isLoading).toBe(false);
+    });
+    expect(useAuthStore.getState().verifiedSessionEpoch).toBeNull();
+    const changes: (string | null)[] = [];
+    const unsubscribe = useAuthStore.subscribe(state => {
+      changes.push(state.verifiedSessionEpoch);
+    });
+    completeProfile({ success: true, data: persistedUser });
+    await check;
+    unsubscribe();
+    expect(useAuthStore.getState().verifiedSessionEpoch).not.toBeNull();
+    expect(changes).toContain(useAuthStore.getState().verifiedSessionEpoch);
+  });
+
+  it("never promotes cached identity to a new verified binding on a transient profile failure", async () => {
+    getItemAsyncMock.mockImplementation(async (key: string) =>
+      key === "auth_token" ? "access-token" : null,
+    );
+    authApiMock.getProfile.mockResolvedValueOnce({
+      success: false, error: "Сервер долго не отвечает. Попробуйте снова.", code: "REQUEST_TIMEOUT",
+    });
+    await useAuthStore.getState().checkAuth();
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().verifiedSessionEpoch).toBeNull();
+    expect(setItemAsyncMock).not.toHaveBeenCalledWith(
+      "gafus-v2-auth-binding", expect.any(String),
+    );
   });
 
   it("keeps a persisted user authenticated when profile check times out offline", async () => {

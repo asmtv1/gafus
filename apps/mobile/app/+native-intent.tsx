@@ -5,10 +5,13 @@
  * useVkLogin обрабатывает redirect через Linking.
  */
 import { reportClientError } from "@/shared/lib/tracer";
+import { nativePathForVerifiedGafusUrl } from "@/shared/lib/links/verifiedAppLinks";
 
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
     if (!path || typeof path !== "string") return path;
+    const verified = nativePathForVerifiedGafusUrl(path);
+    if (verified) return verified;
     // Intercept only the native VK OAuth callback, never ordinary app URLs
     // whose path or query happens to mention vk.ru.
     if (/^vk[0-9]+:\/\/vk\.ru(?:\/blank\.html)?(?:[?#][^\r\n]*)?$/i.test(path)) {

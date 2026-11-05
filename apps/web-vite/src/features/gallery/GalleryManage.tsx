@@ -7,12 +7,14 @@ import original from "../../brand/LegacyGallery.module.css";
 import {
   albumDraftMatches,albumWriteAck,deleteAckMatches,galleryAlbumCommands,
   getMyAlbum,getMyPhoto,listMyAlbums,confirmGalleryPhoto,galleryUploadStatus,
-  reserveGalleryPhoto,uploadGalleryForm,uploadReservationValid,
+  reserveGalleryPhoto,uploadGalleryForm,uploadReservationValid,getGalleryClientThumbUpload,
   galleryCoverAckMatches,verifiedGalleryCover,
   type AlbumDraft,type AlbumPhoto,type AlbumSummary,type GalleryAlbumCommands,
   type GalleryPage,
 } from "./galleryApi";
 import {PrimaryButton,SecondaryButton} from "../../shared/ui";
+import {prepareBrowserPhotoWebp} from "../../shared/media/browserPhotoWebp";
+import {uploadBrowserPhotoWebp} from "../../shared/media/browserPhotoUpload";
 
 type Commands=GalleryAlbumCommands;
 const message=(error:unknown)=>error instanceof ApiError&&
@@ -377,16 +379,21 @@ export function GalleryUpload({albumId,onRefresh}:{
         action.setNotice("Выберите настоящий файл JPG, PNG или WebP до 10 МиБ.");
         return;
       }
+      const prepared=await prepareBrowserPhotoWebp(file,{thumb:480,full:1920});
       await action.run(async()=>{
         // Non-idempotent S3 upload may commit before the browser loses ACK.
         // No second reservation or POST until the original upload is verified.
         setUncertain(true);setLastId(null);
         const requestId=crypto.randomUUID();
-        const reserved=await reserveGalleryPhoto(albumId,file,caption.trim()||null,requestId);
+        const reserved=await reserveGalleryPhoto(albumId,prepared.full.file,caption.trim()||null,requestId);
         if(!uploadReservationValid(reserved,albumId))throw Error("GALLERY_RESERVE_UNKNOWN");
         setLastId(reserved.uploadId);
         const ctrl=new AbortController();abort.current=ctrl;
-        await uploadGalleryForm(reserved,file,ctrl.signal);
+        const thumbnail=reserved.thumbUpload??await getGalleryClientThumbUpload(reserved.uploadId);
+        await Promise.all([
+          uploadGalleryForm(reserved,prepared.full.file,ctrl.signal),
+          uploadBrowserPhotoWebp(thumbnail,prepared.thumb.file,"gallery",undefined,ctrl.signal),
+        ]);
         if(!action.live())return;
         const result=await confirmGalleryPhoto(reserved.uploadId);
         if(result.uploadId!==reserved.uploadId||

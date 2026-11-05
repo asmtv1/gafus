@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { FlatList, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { CdnImage } from "@/shared/components/media/CdnImage";
 import { StatusBar } from "expo-status-bar";
 import { useQuery } from "@tanstack/react-query";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
 import type { FeedMediaDto } from "@gafus/types";
 import { FONTS } from "@/shared/config";
 import { feedApi } from "@/shared/lib/api/feed";
@@ -13,7 +14,7 @@ import { FeedV2Image, FeedV2Video } from "./FeedV2Media";
 
 /** The feed already contains authorized MP4 URLs; fullscreen opens without a ticket. */
 function FullscreenVideo({ postId, media, active }: { postId: string; media: FeedMediaDto; active: boolean }) {
-  if (!media.mp4Urls?.[360]) return <Text style={styles.message}>Видео недоступно.</Text>;
+  if (!(media.mp4Urls?.[360] || media.mp4Urls?.[720])) return <Text style={styles.message}>Видео недоступно.</Text>;
   return <FeedV2Video postId={postId} visible={active} fullscreen media={{
     id: media.id, kind: "video", status: "ready", width: media.width ?? 1280,
     height: media.height ?? 720, durationSeconds: media.durationSeconds ?? 0,
@@ -52,8 +53,9 @@ export function FeedMediaViewer({
     <Modal visible presentationStyle="fullScreen" animationType="fade"
       onRequestClose={closeViewer} supportedOrientations={["portrait", "landscape"]}>
       <StatusBar hidden />
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.screen} edges={["top", "bottom", "left", "right"]}>
+      <GestureHandlerRootView style={styles.screen}>
+        <SafeAreaProvider>
+          <SafeAreaView style={styles.screen} edges={["top", "bottom", "left", "right"]}>
           <View style={styles.toolbar}>
             <Text accessibilityLiveRegion="polite" style={styles.counter}>
               {media.length ? `${position + 1} / ${media.length}` : ""}
@@ -78,7 +80,8 @@ export function FeedMediaViewer({
             windowSize={3}
             maxToRenderPerBatch={3}
             renderItem={({ item, index: itemIndex }) => (
-              <View style={[styles.slide, { width }]}>
+              <SwipeDismissMedia style={[styles.slide, { width }]}
+                enabled={itemIndex === position} onDismiss={closeViewer}>
                 {item.kind === "photo" ? (
                   item.fullUrl || item.thumbUrl ? (
                     <CdnImage cdnUrl={item.fullUrl ?? item.thumbUrl ?? ""}
@@ -89,12 +92,13 @@ export function FeedMediaViewer({
                 ) : (
                   <FullscreenVideo postId={postId} media={item} active={itemIndex === position} />
                 )}
-              </View>
+              </SwipeDismissMedia>
             )}
           />
           {media.length > 1 && <Text style={styles.hint}>Листайте, чтобы посмотреть остальные вложения</Text>}
-        </SafeAreaView>
-      </SafeAreaProvider>
+          </SafeAreaView>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -115,7 +119,7 @@ export function FeedCommentAttachments({ postId, media }: {
                     medium: media.thumbUrl ?? media.fullUrl ?? media.smallUrl ?? "",
                     large: media.fullUrl ?? media.thumbUrl ?? media.smallUrl ?? "" },
                 }} />
-              : media.kind === "video" && media.mp4Urls?.[360]
+              : media.kind === "video" && (media.mp4Urls?.[360] || media.mp4Urls?.[720])
                 ? <FeedV2Video postId={postId} visible media={{
                     id: media.id, kind: "video", status: "ready",
                     width: media.width ?? 1280, height: media.height ?? 720,

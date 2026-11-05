@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import sharp from "sharp";
 import { createGalleryCloudWorker } from "./worker";
-import { sharpGalleryEngine } from "./sharp-engine";
 import { objectMd5 } from "@gafus/gallery-storage/objects";
 import type { GalleryObjectStore } from "@gafus/gallery-storage/objects";
 import type { GalleryInternalClient } from "./internal";
@@ -61,79 +60,14 @@ async function setup() {
       data.delete(k);
     }),
   } as GalleryObjectStore;
-  const queue = { send: vi.fn(async () => {}) };
   const worker = createGalleryCloudWorker({
     core,
     objects,
-    engine: sharpGalleryEngine,
-    queue,
     now: () => now,
   });
-  return { bytes, data, claim, core, objects, queue, worker };
+  return { bytes, data, claim, core, objects, worker };
 }
-describe("Gallery Media V2 direct-final flow", () => {
-  const prefix = "gallery/o/media/p/v2";
-  it("writes only two immutable final WebPs; no staged copy or publish job", async () => {
-    const x = await setup();
-    x.claim.thumbKey = prefix + "/thumb.webp";
-    x.claim.fullKey = prefix + "/full.webp";
-    vi.mocked(x.core.completeUpload).mockResolvedValue({ accepted: true, status: "ready" });
-    await x.worker.processUpload("u");
-    expect(x.objects.read).toHaveBeenCalledTimes(1);
-    expect(x.objects.create).toHaveBeenCalledTimes(2);
-    expect(x.data.has(prefix + "/thumb.webp")).toBe(true);
-    expect(x.data.has(prefix + "/full.webp")).toBe(true);
-    expect(x.data.has(staging + "/thumb.webp")).toBe(false);
-    expect(x.core.claimJobs).not.toHaveBeenCalled();
-    expect(x.core.completeUpload).toHaveBeenCalledTimes(1);
-    expect(x.core.failUpload).not.toHaveBeenCalled();
-  });
-  it("retries a partial final write safely without invoking legacy publish", async () => {
-    const x = await setup();
-    x.claim.thumbKey = prefix + "/thumb.webp";
-    x.claim.fullKey = prefix + "/full.webp";
-    vi.mocked(x.core.completeUpload).mockResolvedValue({ accepted: true, status: "ready" });
-    const create = vi.mocked(x.objects.create).getMockImplementation()!;
-    let fail = true;
-    vi.spyOn(x.objects,"create").mockImplementation(async (...args) => {
-      if (args[0] === prefix + "/full.webp" && fail) {
-        fail = false;
-        throw new Error("NETWORK");
-      }
-      return create(...args);
-    });
-    await expect(x.worker.processUpload("u")).rejects.toThrow("NETWORK");
-    expect(x.data.has(prefix + "/thumb.webp")).toBe(true);
-    await x.worker.processUpload("u");
-    expect(x.data.has(prefix + "/full.webp")).toBe(true);
-    expect(x.core.claimJobs).not.toHaveBeenCalled();
-    expect(x.objects.delete).not.toHaveBeenCalled();
-  });
-  it("rejects forged final keys before GET or PUT", async () => {
-    const x = await setup();
-    x.claim.thumbKey = "gallery/other/media/p/v2/thumb.webp";
-    x.claim.fullKey = "gallery/other/media/p/v2/full.webp";
-    await x.worker.processUpload("u");
-    expect(x.core.failUpload).toHaveBeenCalledWith(
-      expect.objectContaining({ errorCode: "UNTRUSTED_CLAIM", retryable: false }),
-    );
-    expect(x.objects.read).not.toHaveBeenCalled();
-    expect(x.objects.create).not.toHaveBeenCalled();
-  });
-});
-describe("lease, duplicate and job retries with real processing", () => {
-  it("duplicate delivery claims first and performs no unregistered read", async () => {
-    const x = await setup();
-    vi.mocked(x.core.claimUpload).mockResolvedValueOnce(x.claim).mockResolvedValueOnce(null);
-    await x.worker.processUpload("u");
-    const reads = vi.mocked(x.objects.read).mock.calls.length;
-    await x.worker.processUpload("u");
-    expect(x.objects.read).toHaveBeenCalledTimes(reads);
-    expect(x.core.completeUpload).toHaveBeenCalledWith(
-      expect.objectContaining({ attemptToken: "t", sourceETag: x.claim.sourceETag }),
-    );
-    expect(x.data.has(sourceKey)).toBe(true);
-  });
+describe("Gallery cloud: client WebP only; retention, move and vet preview",()=>{
   it("makes an immutable veterinary preview without removing the private original", async () => {
     const x = await setup();
     const source = "users/o/pets/p/vet-visits/v/a/original.png";
@@ -190,220 +124,75 @@ describe("lease, duplicate and job retries with real processing", () => {
     expect(x.objects.read).not.toHaveBeenCalled();
     expect(x.objects.create).not.toHaveBeenCalled();
   });
-  it("partial staging writes retry without deleting the source", async () => {
-    const x = await setup();
-    const original = vi.mocked(x.objects.create).getMockImplementation()!;
-    let once = true;
-    vi.spyOn(x.objects, "create").mockImplementation(async (...args) => {
-      if (args[0].endsWith("/full.webp") && once) {
-        once = false;
-        throw Error("NETWORK");
-      }
-      return original(...args);
-    });
-    await expect(x.worker.processUpload("u")).rejects.toThrow("NETWORK");
-    expect(x.data.has(staging + "/thumb.webp")).toBe(true);
-    expect(x.data.has(sourceKey)).toBe(true);
-    await x.worker.processUpload("u");
-    expect(x.core.completeUpload).toHaveBeenCalledTimes(1);
-    expect(x.objects.delete).not.toHaveBeenCalled();
-  });
-  it("ambiguous completion is retried without reporting failure", async () => {
-    const x = await setup();
-    vi.mocked(x.core.completeUpload).mockRejectedValueOnce(Error("NETWORK"));
-    await expect(x.worker.processUpload("u")).rejects.toThrow();
-    expect(x.core.failUpload).not.toHaveBeenCalled();
-    expect(x.data.has(sourceKey)).toBe(true);
-  });
-  it("expired lease performs no object read or write", async () => {
-    const x = await setup();
-    x.claim.leaseUntil = new Date(now + 4000).toISOString();
-    await expect(x.worker.processUpload("u")).rejects.toThrow("LEASE_EXPIRED");
+  it("rejects every old S3/queue photo upload before accessing Core or S3",async()=>{
+    const x=await setup();
+    await expect(x.worker.processUpload("u")).rejects.toThrow("GALLERY_CLIENT_WEBP_REQUIRED");
+    expect(x.core.claimUpload).not.toHaveBeenCalled();
     expect(x.objects.read).not.toHaveBeenCalled();
     expect(x.objects.create).not.toHaveBeenCalled();
   });
-  it("conditional snapshot mismatch fails permanently", async () => {
-    const x = await setup();
-    x.claim.sourceETag = '"' + "a".repeat(32) + '"';
-    await x.worker.processUpload("u");
-    expect(x.core.failUpload).toHaveBeenCalledWith(
-      expect.objectContaining({ errorCode: "SOURCE_CHANGED", retryable: false }),
-    );
-    expect(x.objects.create).not.toHaveBeenCalled();
+  it("ignores recovered legacy uploads while continuing S3 cleanup",async()=>{
+    const x=await setup();
+    const old="albums/o/a/incoming/u/source.png";
+    vi.mocked(x.core.claimJobs).mockResolvedValueOnce([{
+      jobId:"delete-1",kind:"delete",attemptToken:"token",
+      sourceKeys:[old],sourceETags:[],targetKeys:[],
+      leaseUntil:x.claim.leaseUntil,writeMode:"create-if-absent",
+    }]).mockResolvedValueOnce([]);
+    const result=await x.worker.maintenance();
+    expect(result.processUploadIds).toEqual(["u"]); // ignored, NEVER dispatched
+    expect(x.data.has(old)).toBe(false);
+    expect(x.core.claimUpload).not.toHaveBeenCalled();
+    expect(x.core.completeJob).toHaveBeenCalledWith({jobId:"delete-1",attemptToken:"token"});
   });
-  it("publish partial failure retries immutably and retains staging/source until durable cleanup", async () => {
-    const x = await setup();
-    await x.worker.processUpload("u");
-    const keys = [staging + "/thumb.webp", staging + "/full.webp"];
-    const job = {
-      jobId: "j",
-      kind: "publish" as const,
-      attemptToken: "jt",
-      sourceKeys: keys,
-      sourceETags: keys.map((k) => objectMd5(x.data.get(k)!)),
-      targetKeys: [final + "/thumb.webp", final + "/full.webp"],
-      leaseUntil: x.claim.leaseUntil,
-      writeMode: "create-if-absent" as const,
-    };
-    const original = vi.mocked(x.objects.create).getMockImplementation()!;
-    let once = true;
-    vi.spyOn(x.objects, "create").mockImplementation(async (...args) => {
-      if (args[0] === job.targetKeys[1] && once) {
-        once = false;
-        throw Error("NETWORK");
-      }
-      return original(...args);
-    });
-    await expect(x.worker.processJob(job, now + 50000)).rejects.toThrow("NETWORK");
-    expect(x.core.failJob).toHaveBeenCalledWith(
-      expect.objectContaining({ attemptToken: "jt", retryable: true }),
-    );
-    await x.worker.processJob(job, now + 50000);
-    expect(x.core.completeJob).toHaveBeenCalledTimes(1);
+  it("copies already-encoded WebP on album move, without any image encoder",async()=>{
+    const x=await setup();
+    const body=await sharp({create:{width:100,height:75,channels:3,background:"blue"}}).webp().toBuffer();
+    const a="albums/o/a/photos/p/thumb.webp",b="albums/o/a/photos/p/full.webp";
+    const c="albums/o/b/photos/p/thumb.webp",d="albums/o/b/photos/p/full.webp";
+    x.data.set(a,body);x.data.set(b,body);
+    await x.worker.processJob({
+      jobId:"move-1",kind:"move",attemptToken:"m1",
+      sourceKeys:[a,b],sourceETags:[objectMd5(body),objectMd5(body)],
+      targetKeys:[c,d],leaseUntil:x.claim.leaseUntil,writeMode:"create-if-absent",
+    },now+50_000);
+    expect(x.data.get(c)).toEqual(body);
+    expect(x.data.get(d)).toEqual(body);
     expect(x.objects.delete).not.toHaveBeenCalled();
-    expect(keys.every((k) => x.data.has(k))).toBe(true);
-    expect(x.data.has(sourceKey)).toBe(true);
+    expect(x.core.completeJob).toHaveBeenCalledOnce();
   });
-  it("publishes the exact completed upload immediately without waiting for maintenance", async () => {
-    const x = await setup();
-    vi.mocked(x.core.claimJobs).mockImplementation(async (_limit, uploadId) => {
-      if (uploadId !== "u") throw Error("UNSCOPED_CLAIM");
-      const keys = [staging + "/thumb.webp", staging + "/full.webp"];
-      return [
-        {
-          jobId: "immediate",
-          kind: "publish",
-          attemptToken: "jt",
-          sourceKeys: keys,
-          sourceETags: keys.map((key) => objectMd5(x.data.get(key)!)),
-          targetKeys: [final + "/thumb.webp", final + "/full.webp"],
-          leaseUntil: x.claim.leaseUntil,
-          writeMode: "create-if-absent",
-        },
-      ];
-    });
-    await x.worker.processUpload("u");
-    expect(x.core.claimJobs).toHaveBeenCalledWith(1, "u");
-    expect(x.core.completeJob).toHaveBeenCalledExactlyOnceWith({
-      jobId: "immediate",
-      attemptToken: "jt",
-    });
-    expect(x.data.has(final + "/thumb.webp")).toBe(true);
-    expect(x.data.has(final + "/full.webp")).toBe(true);
-    expect(x.core.maintenance).not.toHaveBeenCalled();
+  it("rejects foreign owner target before reading any private bytes",async()=>{
+    const x=await setup();
+    await expect(x.worker.processJob({
+      jobId:"move-2",kind:"move",attemptToken:"m2",
+      sourceKeys:["albums/o/a/photos/p/thumb.webp","albums/o/a/photos/p/full.webp"],
+      sourceETags:["some","some"],
+      targetKeys:["albums/foreign/b/photos/p/thumb.webp","albums/foreign/b/photos/p/full.webp"],
+      leaseUntil:x.claim.leaseUntil,writeMode:"create-if-absent",
+    },now+50_000)).rejects.toThrow();
+    expect(x.objects.read).not.toHaveBeenCalled();
   });
-  it("keeps the durable fallback when immediate publish claim fails", async () => {
-    const x = await setup();
-    vi.mocked(x.core.claimJobs).mockRejectedValueOnce(Error("NETWORK"));
-    await expect(x.worker.processUpload("u")).resolves.toBeUndefined();
-    expect(x.core.completeUpload).toHaveBeenCalledTimes(1);
-    expect(x.core.failUpload).not.toHaveBeenCalled();
-    expect(x.core.maintenance).not.toHaveBeenCalled();
-    expect(x.data.has(staging + "/thumb.webp")).toBe(true);
-    expect(x.data.has(staging + "/full.webp")).toBe(true);
-  });
-  it("maintenance drains cleanup before publishing within the same timer invocation", async () => {
-    const x = await setup();
-    await x.worker.processUpload("u");
-    vi.mocked(x.core.claimJobs).mockClear();
-    const keys = [staging + "/thumb.webp", staging + "/full.webp"];
-    vi.mocked(x.core.claimJobs)
-      .mockResolvedValueOnce([
-        {
-          jobId: "cleanup",
-          kind: "delete",
-          attemptToken: "ct",
-          sourceKeys: ["albums/o/a/incoming/old/source.png"],
-          sourceETags: [],
-          targetKeys: [],
-          leaseUntil: x.claim.leaseUntil,
-          writeMode: "create-if-absent",
-        },
-      ])
-      .mockResolvedValueOnce([
-        {
-          jobId: "publish",
-          kind: "publish",
-          attemptToken: "pt",
-          sourceKeys: keys,
-          sourceETags: keys.map((k) => objectMd5(x.data.get(k)!)),
-          targetKeys: [final + "/thumb.webp", final + "/full.webp"],
-          leaseUntil: x.claim.leaseUntil,
-          writeMode: "create-if-absent",
-        },
-      ])
-      .mockResolvedValueOnce([]);
-    await x.worker.maintenance();
-    expect(x.core.completeJob).toHaveBeenCalledWith({ jobId: "cleanup", attemptToken: "ct" });
-    expect(x.core.completeJob).toHaveBeenCalledWith({ jobId: "publish", attemptToken: "pt" });
-    expect(x.core.claimJobs).toHaveBeenCalledTimes(3);
-    expect(x.data.has(final + "/full.webp")).toBe(true);
-  });
-  it("bounds maintenance to ten jobs without claiming the remaining backlog", async () => {
-    const x = await setup();
-    let claimed = 0;
-    vi.mocked(x.core.claimJobs).mockImplementation(async () => [
-      {
-        jobId: `cleanup-${++claimed}`,
-        kind: "delete",
-        attemptToken: "ct",
-        sourceKeys: [],
-        sourceETags: [],
-        targetKeys: [],
-        leaseUntil: x.claim.leaseUntil,
-        writeMode: "create-if-absent",
-      },
-    ]);
+  it("maintains at most ten durable cleanup claims in one bounded invocation",async()=>{
+    const x=await setup();
+    let number=0;
+    vi.mocked(x.core.claimJobs).mockImplementation(async()=>[{
+      jobId:`cleanup-${++number}`,kind:"delete",attemptToken:"t",
+      sourceKeys:[],sourceETags:[],targetKeys:[],
+      leaseUntil:x.claim.leaseUntil,writeMode:"create-if-absent",
+    }]);
     await x.worker.maintenance();
     expect(x.core.claimJobs).toHaveBeenCalledTimes(10);
     expect(x.core.completeJob).toHaveBeenCalledTimes(10);
   });
-  it("does not claim another job when the invocation budget is nearly exhausted", async () => {
-    const x = await setup();
-    let clock = now;
-    vi.mocked(x.core.claimJobs).mockResolvedValue([
-      {
-        jobId: "cleanup",
-        kind: "delete",
-        attemptToken: "ct",
-        sourceKeys: [],
-        sourceETags: [],
-        targetKeys: [],
-        leaseUntil: x.claim.leaseUntil,
-        writeMode: "create-if-absent",
-      },
-    ]);
-    vi.mocked(x.core.completeJob).mockImplementation(async () => {
-      clock += 41000;
-      return { accepted: true, status: "done" };
-    });
-    const worker = createGalleryCloudWorker({
-      core: x.core,
-      objects: x.objects,
-      engine: sharpGalleryEngine,
-      queue: x.queue,
-      now: () => clock,
-    });
-    await worker.maintenance();
-    expect(x.core.claimJobs).toHaveBeenCalledTimes(1);
-    expect(x.core.completeJob).toHaveBeenCalledTimes(1);
-  });
-  it("maintenance queues recovered IDs and preserves cleanup while disabled", async () => {
-    const x = await setup();
-    await x.worker.maintenance();
-    expect(x.queue.send).toHaveBeenCalledWith("u");
-    x.queue.send.mockClear();
-    const disabled = createGalleryCloudWorker({
-      core: x.core,
-      objects: x.objects,
-      engine: sharpGalleryEngine,
-      queue: x.queue,
-      now: () => now,
-      enabled: false,
-    });
-    await disabled.maintenance();
-    expect(x.queue.send).not.toHaveBeenCalled();
-    expect(x.core.claimJobs).toHaveBeenCalledTimes(2);
-    expect(x.core.maintenance).toHaveBeenCalledTimes(2);
+  it("retries failed S3 deletes without acknowledging the job",async()=>{
+    const x=await setup();
+    vi.mocked(x.objects.delete).mockRejectedValueOnce(Error("S3_UNAVAILABLE"));
+    await expect(x.worker.processJob({
+      jobId:"cleanup",kind:"delete",attemptToken:"t",
+      sourceKeys:["albums/o/a/photos/p/full.webp"],sourceETags:[],targetKeys:[],
+      leaseUntil:x.claim.leaseUntil,writeMode:"create-if-absent",
+    },now+50_000)).rejects.toThrow("S3_UNAVAILABLE");
+    expect(x.core.failJob).toHaveBeenCalledOnce();
+    expect(x.core.completeJob).not.toHaveBeenCalled();
   });
 });

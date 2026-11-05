@@ -23,6 +23,12 @@ export function parseDestinationEnv(content) {
   return values;
 }
 
+function compareVersions(left,right) {
+  const a=left.split('.').map(Number),b=right.split('.').map(Number);
+  for (let i=0;i<3;i++) if (a[i]!==b[i]) return a[i]-b[i];
+  return 0;
+}
+
 export function validateCutoverConfig(env, stage = false) {
   for (const key of ['CHAT2_API_ENABLED', 'CHAT2_WORKER_ENABLED', 'CHAT2_PRIVATE_MEDIA_ENABLED']) {
     if (env[key] !== 'enabled') FAIL(`${key} must be enabled in destination`);
@@ -40,6 +46,29 @@ export function validateCutoverConfig(env, stage = false) {
   if (!env.CHAT2_CENTRIFUGO_API_KEY || env.CHAT2_CENTRIFUGO_API_KEY.length < 16 ||
       /^(changeme|example|placeholder|todo)/i.test(env.CHAT2_CENTRIFUGO_API_KEY))
     FAIL('destination broker API key absent/placeholder');
+  if (env.CHAT2_SUBSCRIBE_PROXY_ENABLED !== 'true')
+    FAIL('proxy-only Chat2 is mandatory; legacy room tokens are forbidden');
+  for (const key of ['CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET','CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET']) {
+    if (!env[key] || env[key].length < 32 || /^(changeme|example|placeholder|todo|replace|unique_)/i.test(env[key]))
+      FAIL(`destination ${key} absent/placeholder`);
+  }
+  const secrets = [env.CHAT2_CENTRIFUGO_TOKEN_SECRET, env.CHAT2_CENTRIFUGO_API_KEY,
+    env.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET, env.CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET];
+  if (new Set(secrets).size !== secrets.length)
+    FAIL('Chat2 connection/broker/proxy/subscription-deny keys must be independent');
+  // All mobile users are required to install a NEW release before proxy-only
+  // cutover. No backwards compatibility: don't authorize production cutover
+  // until BOTH store binaries are live and public minimum-version policy set.
+  if (!stage) {
+    if (env.CHAT2_MOBILE_STORES_VERIFIED !== 'true')
+      FAIL('both new Mobile store builds must be published before Chat2 cutover');
+    for (const key of ['CHAT2_MOBILE_IOS_MIN_VERSION','CHAT2_MOBILE_ANDROID_MIN_VERSION']) {
+      const min = env[key] ?? '';
+      if (!/^\d+\.\d+\.\d+$/.test(min) ||
+          compareVersions(min,'1.7.2') <= 0)
+        FAIL(`${key} must require a published version NEWER than the old 1.7.2 build`);
+    }
+  }
   return true;
 }
 
@@ -80,6 +109,8 @@ export function verifyLiveDestination(env, composeFile) {
   // Never log secrets: compare only boolean equality of the existing service values.
   if (apiEnv.CHAT2_CENTRIFUGO_TOKEN_SECRET !== env.CHAT2_CENTRIFUGO_TOKEN_SECRET ||
       apiEnv.CHAT2_CENTRIFUGO_API_KEY !== env.CHAT2_CENTRIFUGO_API_KEY ||
+      apiEnv.CHAT2_SUBSCRIBE_PROXY_ENABLED !== 'true' ||
+      apiEnv.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET !== env.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET ||
       workerEnv.CHAT2_CENTRIFUGO_API_KEY !== env.CHAT2_CENTRIFUGO_API_KEY)
     FAIL('running API/worker broker credentials differ from destination');
   try {
@@ -107,8 +138,47 @@ export function verifyLiveDestination(env, composeFile) {
   const broker = inspect(brokerId);
   const brokerEnv = liveEnv(broker);
   if (brokerEnv.CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY !== env.CHAT2_CENTRIFUGO_TOKEN_SECRET ||
+      brokerEnv.CENTRIFUGO_CLIENT_SUBSCRIPTION_TOKEN_HMAC_SECRET_KEY !==
+        env.CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET ||
+      brokerEnv.CENTRIFUGO_VAR_CHAT2_PROXY_SHARED_SECRET !==
+        env.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET ||
       brokerEnv.CENTRIFUGO_HTTP_API_KEY !== env.CHAT2_CENTRIFUGO_API_KEY)
     FAIL('live broker credentials differ from destination');
+  return true;
+}
+
+/** A READ-ONLY release veto: public config must already force both old
+ * mobile builds to stores. No automatic DB/config writes on production. */
+export async function verifyMobileForcedUpdate(env, request = fetch) {
+  for (const [platform, key] of [
+    ['ios','CHAT2_MOBILE_IOS_MIN_VERSION'],
+    ['android','CHAT2_MOBILE_ANDROID_MIN_VERSION'],
+  ]) {
+    let response;
+    try {
+      response = await request('https://api.gafus.ru/api/v1/public/mobile-app', {
+        method: 'GET', redirect: 'error',
+        headers: { 'X-Client-Platform':platform,'X-Client-Version':'1.7.2',
+          Accept:'application/json' },
+        signal: AbortSignal.timeout(4500),
+      });
+    } catch { FAIL(`published ${platform} Mobile update policy unavailable`); }
+    if (response.status !== 200) FAIL(`published ${platform} Mobile update policy not HTTP 200`);
+    let payload;
+    try { payload = await response.json(); }
+    catch { FAIL(`published ${platform} Mobile update policy not JSON`); }
+    const value=payload?.data?.minimumSupportedVersion?.[platform];
+    if (payload?.success !== true || value !== env[key])
+      FAIL(`published ${platform} Mobile minimum version differs from approved new build`);
+    const destination=payload?.data?.storeUrl?.[platform];
+    let store;
+    try { store=new URL(destination); }
+    catch { FAIL(`published ${platform} Mobile store URL missing`); }
+    const allowed=platform==='ios'?new Set(['apps.apple.com']):
+      new Set(['play.google.com','www.rustore.ru','rustore.ru']);
+    if (store.protocol!=='https:' || !allowed.has(store.hostname))
+      FAIL(`published ${platform} Mobile update destination not approved store`);
+  }
   return true;
 }
 
@@ -159,9 +229,12 @@ export async function probePublicWebsocketUpgrade(wsUrl, request = httpsRequest)
 export function validateStaticContracts(compose, nginx, broker, edgeNginx) {
   for (const key of ['CHAT2_LEGACY_RETIRE_ENABLED=', 'CHAT2_API_ENABLED=', 'CHAT2_WORKER_ENABLED=', 'CHAT2_PRIVATE_MEDIA_ENABLED=',
     'CHAT2_PUBLIC_WS_URL=', 'CHAT2_CENTRIFUGO_HTTP_API=', 'CHAT2_CENTRIFUGO_API_KEY=',
-    'CHAT2_CENTRIFUGO_TOKEN_SECRET=']) {
+    'CHAT2_CENTRIFUGO_TOKEN_SECRET=', 'CHAT2_SUBSCRIBE_PROXY_ENABLED=',
+    'CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET=']) {
     if (!compose.includes(key)) FAIL(`missing Compose field: ${key}`);
   }
+  if (!compose.includes('${CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET:-}'))
+    FAIL('separate never-issued subscription key absent from broker configuration');
   if (!compose.includes('profiles: [chat2]') || !compose.includes('chat2-centrifugo:'))
     FAIL('Chat2 Docker profile missing');
   if (!nginx.includes('location = /connection/websocket') ||
@@ -196,6 +269,10 @@ export function validateStaticContracts(compose, nginx, broker, edgeNginx) {
       !worker.includes('CHAT2_CENTRIFUGO_HTTP_API=') ||
       !worker.includes('CHAT2_CENTRIFUGO_API_KEY=') ||
       !centrifugo.includes('CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY=') ||
+      !centrifugo.includes('CENTRIFUGO_CLIENT_SUBSCRIPTION_TOKEN_HMAC_SECRET_KEY=') ||
+      !centrifugo.includes('CENTRIFUGO_VAR_CHAT2_PROXY_SHARED_SECRET=') ||
+      !api.includes('CHAT2_SUBSCRIBE_PROXY_ENABLED=') ||
+      !api.includes('CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET=') ||
       !centrifugo.includes('CENTRIFUGO_HTTP_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}') ||
       !centrifugo.includes('profiles: [chat2]'))
     FAIL('Chat2 private API/worker/broker Compose origin or readiness contract incompatible');
@@ -203,6 +280,30 @@ export function validateStaticContracts(compose, nginx, broker, edgeNginx) {
       broker.client?.token?.issuer !== 'gafus-chat2' || broker.health?.enabled !== true ||
       !broker.client.allowed_origins?.includes('https://gafus.ru'))
     FAIL('Centrifugo broker config invalid');
+  // Centrifugo prioritizes a provided room JWT OVER subscribe proxy. A distinct
+  // never-issued subscription verifier key is mandatory to reject old JWTs.
+  if (broker.client.subscription_token?.enabled !== true ||
+      broker.client.subscription_token?.issuer !== 'gafus-chat2-subscription-deny' ||
+      broker.channel.namespaces.length !== 1 ||
+      broker.channel.namespaces[0]?.name !== 'chat2' ||
+      broker.channel.namespaces[0]?.subscribe_proxy_enabled !== true ||
+      broker.channel.namespaces[0]?.allow_user_limited_channels !== false ||
+      broker.channel.namespaces[0]?.allow_subscribe_for_client !== false ||
+      broker.channel.proxy?.subscribe?.endpoint !==
+        'http://gafus-api:3001/internal/chat2/chat2-subscribe' ||
+      broker.channel.proxy.subscribe.http?.static_headers?.['X-GAFUS-Subscribe-Proxy-Key'] !==
+        '${CENTRIFUGO_VAR_CHAT2_PROXY_SHARED_SECRET}' ||
+      broker.channel.proxy.subscribe.http_headers?.length ||
+      broker.channel.proxy.subscribe.emulated_headers?.length)
+    FAIL('Chat2 broker must enforce proxy-only and reject legacy JWTs');
+  if (!/location\s+\^~\s+\/internal\/\s*\{\s*return\s+404;/.test(edgeNginx) ||
+      !/location\s+\^~\s+\/internal\/\s*\{\s*return\s+404;/.test(nginx))
+    FAIL('Chat2 internal proxy ingress must be closed at both public front doors');
+  const apiHost = edgeNginx.slice(edgeNginx.lastIndexOf('server_name api.gafus.ru;'));
+  if (!/location\s+\^~\s+\/internal\/chat2\/chat2-subscribe\s*\{\s*return\s+404;/.test(apiHost))
+    FAIL('public api.gafus.ru must deny broker subscription ingress (not Cloud media callbacks)');
+  if (/\bports:\s*\n[^\n]*8000/.test(centrifugo))
+    FAIL('Chat2 broker HTTP API must not publish a public port');
   return true;
 }
 

@@ -9,10 +9,12 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
+import { signClientWebpStaging, verifyClientWebp, copyVerifiedClientWebp } from "./clientPhotoRenditions.js";
 
 const variantPattern = /^questions\/uploads\/questions\/v2\/[A-Za-z0-9_-]{1,128}\/[a-f0-9-]{36}\/v1\/image\/[sm]\.webp$/i;
+const smallClientPattern = /^questions\/v2\/[A-Za-z0-9_-]{1,128}\/[a-f0-9-]{36}\/incoming\/small\.webp$/i;
 const sourcePattern = /^questions\/v2\/[A-Za-z0-9_-]{1,128}\/[a-f0-9-]{36}\/incoming\/source\.(?:jpg|png|webp)$/i;
-const keyPattern = /^(?:questions\/v2\/[A-Za-z0-9_-]{1,128}\/[a-f0-9-]{36}\/incoming\/source\.(?:jpg|png|webp)|questions\/uploads\/questions\/v2\/[A-Za-z0-9_-]{1,128}\/[a-f0-9-]{36}\/v1\/image\/[sm]\.webp)$/i;
+const keyPattern = /^(?:questions\/v2\/[A-Za-z0-9_-]{1,128}\/[a-f0-9-]{36}\/incoming\/small\.webp|questions\/v2\/[A-Za-z0-9_-]{1,128}\/[a-f0-9-]{36}\/incoming\/source\.(?:jpg|png|webp)|questions\/uploads\/questions\/v2\/[A-Za-z0-9_-]{1,128}\/[a-f0-9-]{36}\/v1\/image\/[sm]\.webp)$/i;
 const marker = "questions-v2:";
 const allowedMime = new Set(["image/jpeg", "image/png", "image/webp"]);
 // Beget CDN already provisioned for the existing public Cloud.ru Questions bucket.
@@ -87,6 +89,48 @@ export async function questionsV2Head(key:string) {
       etag:head.ETag?.replace(/"/g,"").toLowerCase() };
   } finally {client.destroy();}
 }
+/** Client-only staging is private; final published keys remain server-owned and immutable. */
+export function questionsV2ClientSmallKey(sourceKey: string): string {
+  validate(sourceKey, "source");
+  if (!sourceKey.endsWith("/source.webp")) throw Error("QUESTIONS_V2_CLIENT_SOURCE_INVALID");
+  const key = sourceKey.replace(/source\.webp$/, "small.webp");
+  if (!smallClientPattern.test(key)) throw Error("QUESTIONS_V2_CLIENT_KEY_INVALID");
+  return key;
+}
+export async function questionsV2ClientSmallPost(sourceKey: string) {
+  const key = questionsV2ClientSmallKey(sourceKey);
+  const { client, bucket } = questionsV2Storage();
+  try {
+    const form = await signClientWebpStaging(client, bucket, key, 1_750_000);
+    return confPublicPostUrl(bucket, form, process.env.QUESTIONS_V2_S3_ENDPOINT);
+  } finally { client.destroy(); }
+}
+export async function questionsV2FinishClientWebp(sourceKey: string, finalKeys: {
+  small: string; medium: string;
+}) {
+  validate(sourceKey, "source");
+  validate(finalKeys.small, "variant");
+  validate(finalKeys.medium, "variant");
+  const { client, bucket } = questionsV2Storage();
+  try {
+    const [small, medium] = await Promise.all([
+      verifyClientWebp(client, bucket, questionsV2ClientSmallKey(sourceKey), 360, 1_750_000),
+      verifyClientWebp(client, bucket, sourceKey, 1440, 1_750_000),
+    ]);
+    if (medium.width < small.width || medium.height < small.height ||
+        Math.abs(small.width / small.height - medium.width / medium.height) > 0.012)
+      throw Error("QUESTIONS_V2_CLIENT_DIMENSIONS_INVALID");
+    await Promise.all([
+      copyVerifiedClientWebp(client, bucket, questionsV2ClientSmallKey(sourceKey), finalKeys.small, small),
+      copyVerifiedClientWebp(client, bucket, sourceKey, finalKeys.medium, medium),
+    ]);
+    return { kind: "image" as const, variants: {
+      small: { key: finalKeys.small, width: small.width, height: small.height, bytes: small.bytes },
+      medium: { key: finalKeys.medium, width: medium.width, height: medium.height, bytes: medium.bytes },
+    } };
+  } finally { client.destroy(); }
+}
+
 export function questionsV2Marker(key:string) {
   validate(key,"variant");
   return marker + key;
@@ -142,7 +186,7 @@ export async function questionsV2SignedRead(location:string) {
 }
 /** Always delete exact owner-derived keys; no list-prefix or client paths. */
 export async function questionsV2Delete(keys:readonly string[]) {
-  if (!keys.length || keys.length>3 || new Set(keys).size!==keys.length)
+  if (!keys.length || keys.length>4 || new Set(keys).size!==keys.length)
     throw Error("QUESTIONS_V2_INVALID_CLEANUP_KEYS");
   keys.forEach(key=>validate(key,"any"));
   const {client,bucket}=questionsV2Storage();

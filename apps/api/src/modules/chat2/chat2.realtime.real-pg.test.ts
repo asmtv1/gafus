@@ -10,7 +10,6 @@ vi.mock("@gafus/cdn-upload", () => ({
   chat2SignedPrivateMedia: vi.fn(),
 }));
 import { chat2ReservePrivateObjectKey, chat2UploadPrivateImageOrPdf } from "@gafus/cdn-upload";
-import { SignJWT } from "jose";
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 // This test deliberately overrides the global Vitest queues/ioredis mocks, but
@@ -39,8 +38,10 @@ import {
   moderateGroup,
   deleteMessage,
   uploadAttachment,
+  readGate,
 } from "./service";
-import { connectToken, subscriptionToken } from "./realtime";
+import { chat2SubscriptionForConnection } from "@gafus/core-client/chat2/realtime-subscription";
+import { connectToken } from "./realtime";
 import {
   processChat2OutboxOnce,
   processChat2MediaDeletionIntentsOnce,
@@ -79,6 +80,11 @@ const environment = () => {
   ) as { jwt: string; api: string };
   process.env.CHAT2_CENTRIFUGO_TOKEN_SECRET = secrets.jwt;
   process.env.CHAT2_CENTRIFUGO_API_KEY = secrets.api;
+  // This opt-in acceptance requires local Centrifugo configured for the same
+  // broker->Hono subscription proxy; never enable a legacy room JWT fallback.
+  process.env.CHAT2_SUBSCRIBE_PROXY_ENABLED = "true";
+  process.env.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET =
+    "local-chat2-test-proxy-secret-not-for-production-minimum-32";
 };
 describe.skipIf(!enabled)("real isolated Chat2 realtime E2E", () => {
   beforeAll(async () => {
@@ -131,24 +137,23 @@ describe.skipIf(!enabled)("real isolated Chat2 realtime E2E", () => {
     await pushQueue.close();
     await connection.quit();
   });
-  it("rejects a nonmember's subscription JWT", async () => {
-    await expect(subscriptionToken(outsider, room)).rejects.toMatchObject({
+  it("rejects a nonmember's current room ACL before proxy subscription", async () => {
+    await expect(readGate(outsider, room)).rejects.toMatchObject({
       code: "NOT_FOUND",
       status: 404,
     });
   });
   it("delivers a post-commit outbox event over a real authenticated WebSocket to a different user", async () => {
-    const [{ token, wsUrl }, { channel, token: subscription }] = await Promise.all([
-      connectToken(reader),
-      subscriptionToken(reader, room),
-    ]);
+    const connectionGrant = await connectToken(reader);
+    const { token, wsUrl } = connectionGrant;
+    const { channel } = await chat2SubscriptionForConnection(connectionGrant, room);
     const client = new Centrifuge(wsUrl, { token, websocket: WebSocket });
     let onPublished: (messageId: string) => void = () => undefined;
     let state = "connecting";
     const observed = new Promise<string>((resolve) => {
       onPublished = resolve;
     });
-    const sub = client.newSubscription(channel, { token: subscription });
+    const sub = client.newSubscription(channel);
     sub.on("publication", (event: { data?: { messageId?: string } }) => {
       if (event.data?.messageId) onPublished(event.data.messageId);
     });
@@ -494,81 +499,40 @@ describe.skipIf(!enabled)("real isolated Chat2 realtime E2E", () => {
       await prisma.chat2MediaDeletionIntent.deleteMany({ where: { objectKey: { in: keys } } });
     }
   });
-  it("expires a COURSE websocket without login after entitlement is revoked", async () => {
+  it("denies a new COURSE proxy subscription after entitlement revocation", async () => {
     const suffix = crypto.randomUUID().slice(0, 12);
     const course = await prisma.course.create({
       data: {
-        name: `chat2 ws expiry ${suffix}`,
-        type: `chat2ws${suffix}`,
-        authorId: creator,
-        isPrivate: true,
-        isPaid: false,
-        duration: "1",
-        logoImg: "",
-        trainingLevel: "BEGINNER",
+        name: `chat2 ws expiry ${suffix}`, type: `chat2ws${suffix}`,
+        authorId: creator, isPrivate: true, isPaid: false,
+        duration: "1", logoImg: "", trainingLevel: "BEGINNER",
       },
     });
-    let client: InstanceType<typeof Centrifuge> | undefined;
     try {
       await prisma.courseAccess.create({ data: { courseId: course.id, userId: reader } });
       const id = (await openCourse(reader, course.id)).conversationId;
-      const [{ token, wsUrl }, { channel, token: issuedToken }] = await Promise.all([
-        connectToken(reader),
-        subscriptionToken(reader, id),
-      ]);
-      expect(issuedToken).toBeTruthy();
-      // Same server secret and claims as the 60s production token, but short
-      // lived to exercise the actual Centrifugo refresh/expiry in local tests.
-      const shortToken = await new SignJWT({ channel })
-        .setIssuer("gafus-chat2")
-        .setProtectedHeader({ alg: "HS256" })
-        .setSubject(reader)
-        .setIssuedAt()
-        .setExpirationTime("5s")
-        .sign(new TextEncoder().encode(process.env.CHAT2_CENTRIFUGO_TOKEN_SECRET!));
-      client = new Centrifuge(wsUrl, { token, websocket: WebSocket });
-      const sub = client.newSubscription(channel, {
-        token: shortToken,
-        getToken: async () => {
-          try {
-            return (await subscriptionToken(reader, id)).token;
-          } catch {
-            return "";
-          }
-        },
-      });
-      const subscribed = new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error("course subscription timeout")), 5000);
-        sub.on("subscribed", () => { clearTimeout(timer); resolve(); });
-      });
-      sub.subscribe();
-      client.connect();
-      await subscribed;
-      const expired = new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error("course refresh revoke timeout")), 16000);
-        sub.on("unsubscribed", () => { clearTimeout(timer); resolve(); });
-      });
+      const grant = await connectToken(reader);
+      expect((await chat2SubscriptionForConnection(grant,id)).channel).toBe(`chat2:${id}`);
+      await readGate(reader, id);
       await prisma.courseAccess.delete({
         where: { courseId_userId: { courseId: course.id, userId: reader } },
       });
-      await expect(subscriptionToken(reader, id)).rejects.toMatchObject({
+      await expect(readGate(reader,id)).rejects.toMatchObject({
         code: "COURSE_ACCESS_REQUIRED", status: 403,
       });
-      await expect(messages(reader, id)).rejects.toMatchObject({ status: 403 });
-      await expired;
-      expect(sub.state).toBe("unsubscribed");
+      await expect(messages(reader,id)).rejects.toMatchObject({status:403});
+      // Reused connection tokens can never grant a new room subscription:
+      // the broker MUST re-query readGate on every subscribe/reconnect.
+      expect(grant).not.toHaveProperty("roomToken");
     } finally {
-      client?.disconnect();
       await prisma.course.delete({ where: { id: course.id } });
     }
-  }, 30000);
+  },30000);
   it("revokes live WebSocket room subscription on group ban", async () => {
-    const [{ token, wsUrl }, { channel, token: roomToken }] = await Promise.all([
-      connectToken(reader),
-      subscriptionToken(reader, room),
-    ]);
-    const client = new Centrifuge(wsUrl, { token, websocket: WebSocket });
-    const sub = client.newSubscription(channel, { token: roomToken });
+    const grant = await connectToken(reader);
+    const { channel } = await chat2SubscriptionForConnection(grant,room);
+    const client = new Centrifuge(grant.wsUrl, { token: grant.token, websocket: WebSocket });
+    const sub = client.newSubscription(channel);
     try {
       const ready = new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error("subscribe timeout")), 4500);

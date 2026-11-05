@@ -4,13 +4,20 @@
  * evaluation, where Expo deliberately disables automatic .env loading.
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "dotenv";
 
 const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = resolve(mobileRoot, "../..");
+// Refuse an SDK-wide OTA runtime, stale marketing version or missing new native
+// modules BEFORE EAS touches Gradle, app signing credentials or provider APIs.
+const preflight = spawnSync(process.execPath,
+  [resolve(mobileRoot, "scripts/verify-native-release.mjs")],
+  { cwd: mobileRoot, stdio: "inherit" });
+if (preflight.error) throw preflight.error;
+if (preflight.status !== 0) throw Error("MOBILE_NATIVE_RELEASE_PREFLIGHT_FAILED");
 const required = [
   "EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID",
   "TRACER_PLUGIN_TOKEN_ANDROID",
@@ -75,6 +82,7 @@ if (mode === "--verify-cli") {
   console.log("PASS: production Expo config resolves with AppTracer tokens");
 } else {
   const forwarded = mode ? [mode, ...extraArgs] : [];
+  const buildStartedAt = Date.now();
   const result = spawnSync(
     "npx",
     [
@@ -90,5 +98,41 @@ if (mode === "--verify-cli") {
     { cwd: mobileRoot, env, stdio: "inherit" },
   );
   if (result.error) throw result.error;
-  process.exit(result.status ?? 1);
+  if (result.status !== 0) process.exit(result.status ?? 1);
+  // Validate the NEW AAB, not an older cached build. Google Play requires
+  // 16KiB-capable ELF LOAD segments in 64-bit native libraries. Other checks
+  // (bundletool ZIP alignment + device smoke) remain separate release gates.
+  const explicit = forwarded.findIndex(arg => arg === "--output");
+  const outputArgument = explicit >= 0 ? forwarded[explicit + 1] :
+    forwarded.find(arg => arg.startsWith("--output="))?.slice("--output=".length);
+  const candidates = outputArgument ? [resolve(mobileRoot, outputArgument)] :
+    readdirSync(mobileRoot)
+      .filter(name => name.endsWith(".aab"))
+      .map(name => resolve(mobileRoot, name))
+      .filter(path => statSync(path).mtimeMs >= buildStartedAt - 5000)
+      .sort((left,right) => statSync(right).mtimeMs - statSync(left).mtimeMs);
+  if (!candidates.length) {
+    throw Error("MOBILE_NEW_AAB_NOT_FOUND: provide --output and verify a fresh AAB before store upload");
+  }
+  const verifyAab = spawnSync(process.execPath,
+    [resolve(mobileRoot, "scripts/verify-android-aab-16k.mjs"), candidates[0]],
+    { cwd: mobileRoot, stdio: "inherit" });
+  if (verifyAab.error) throw verifyAab.error;
+  if (verifyAab.status !== 0) throw Error("MOBILE_ANDROID_AAB_16KB_ELF_CHECK_FAILED");
+  const verifyCompressor = spawnSync(process.execPath,
+    [resolve(mobileRoot, "scripts/verify-android-aab-compressor.mjs"), candidates[0]],
+    { cwd: mobileRoot, stdio: "inherit" });
+  if (verifyCompressor.error) throw verifyCompressor.error;
+  if (verifyCompressor.status !== 0) throw Error("MOBILE_ANDROID_NATIVE_COMPRESSOR_NOT_LINKED");
+  const nativeLinks = spawnSync(process.execPath,
+    [resolve(mobileRoot, "scripts/verify-android-aab-app-links.mjs"), candidates[0]],
+    { cwd: mobileRoot, stdio: "inherit" });
+  if (nativeLinks.error) throw nativeLinks.error;
+  if (nativeLinks.status !== 0) throw Error("MOBILE_ANDROID_APP_LINKS_NOT_LINKED");
+  const signingAssociation = spawnSync(process.execPath,
+    [resolve(repoRoot, "scripts/qa/verify-gafus-app-links.mjs"), "--aab", candidates[0]],
+    { cwd: repoRoot, stdio: "inherit" });
+  if (signingAssociation.error) throw signingAssociation.error;
+  if (signingAssociation.status !== 0) throw Error("MOBILE_ANDROID_ASSETLINKS_SIGNER_MISMATCH");
+  console.log("MOBILE_STORE_ANDROID_NATIVE_AAB_VERIFIED");
 }

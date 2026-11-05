@@ -18,10 +18,11 @@ export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enab
 
 const RELEASE_POLICY_KEY = "default";
 const REWARDED_SETTINGS_KEY = "default";
-const CURRENT_MOBILE_VERSION = "1.7.2";
+const CURRENT_MOBILE_VERSION = "1.7.2"; // Store gate unchanged; OTA 1.7.3 is independent.
 const DEFAULT_IOS_STORE_URL = "https://apps.apple.com/ru/app/gafus/id6760964612";
 const DEFAULT_ANDROID_STORE_URL = "https://www.rustore.ru/catalog/app/ru.gafus.app";
 const SEMANTIC_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+const OTA_VERSION_PATTERN = /^\d+\.\d+\.\d+-ota\.[1-9]\d*$/;
 
 const MOBILE_FLAG_DEFAULTS: Record<string, { released: boolean; review: boolean }> = {
   [APP_FEATURE_MOBILE_VK_LOGIN_IOS]: { released: false, review: false },
@@ -51,6 +52,7 @@ export type MobileVersionedFeatureValues = {
 export type MobileReleaseControlDto = {
   revision: number;
   iosReviewVersion: string | null;
+  ota: { required: boolean; version: string | null; platform: "all" | "ios" | "android" };
   released: MobileVersionedFeatureValues;
   review: MobileVersionedFeatureValues;
   global: {
@@ -110,6 +112,23 @@ function normalizeReviewVersion(value: string | null): string | null {
     throw new Error("Версия iOS должна быть в формате 1.7.0");
   }
   return normalized;
+}
+
+/** Version must match the immutable runtime's app version; invalid admin config never publishes. */
+export function normalizeOtaControl(
+  value: MobileReleaseControlDto["ota"],
+): MobileReleaseControlDto["ota"] {
+  const version = value.version?.trim() || null;
+  if (version !== null && !OTA_VERSION_PATTERN.test(version)) {
+    throw new Error("Версия OTA должна иметь формат 1.7.3-ota.1");
+  }
+  if (value.required && version === null) {
+    throw new Error("Нельзя требовать OTA без номера опубликованного обновления");
+  }
+  if (!["all", "ios", "android"].includes(value.platform)) {
+    throw new Error("Недопустимая платформа OTA");
+  }
+  return { required: value.required, version, platform: value.platform };
 }
 
 function flagsToValues(
@@ -221,6 +240,7 @@ export async function getMobileReleaseControl(): Promise<MobileReleaseControlDto
       where: { key: RELEASE_POLICY_KEY },
       select: {
         iosReviewVersion: true,
+        otaRequired: true, otaVersion: true, otaPlatform: true,
         revision: true,
         updatedAt: true,
         updatedBy: { select: { id: true, username: true } },
@@ -244,6 +264,12 @@ export async function getMobileReleaseControl(): Promise<MobileReleaseControlDto
   return {
     revision: policy?.revision ?? 1,
     iosReviewVersion: policy?.iosReviewVersion ?? null,
+    ota: {
+      required: policy?.otaRequired ?? false,
+      version: policy?.otaVersion ?? null,
+      platform: policy?.otaPlatform === "ios" || policy?.otaPlatform === "android"
+        ? policy.otaPlatform : "all",
+    },
     released: flagsToValues(rows, "RELEASED"),
     review: flagsToValues(rows, "REVIEW"),
     global: {
@@ -271,6 +297,7 @@ export async function updateMobileReleaseControl(
   actorId: string,
 ): Promise<MobileReleaseControlDto> {
   const iosReviewVersion = normalizeReviewVersion(input.iosReviewVersion);
+  const ota = normalizeOtaControl(input.ota);
   // The historical ad subsystem is retired. Neither Vite nor legacy Next action
   // may change it or stamp its audit columns during unrelated flag updates.
   const archived = await getMobileReleaseControl();
@@ -295,6 +322,9 @@ export async function updateMobileReleaseControl(
       where: { key: RELEASE_POLICY_KEY, revision: input.revision },
       data: {
         iosReviewVersion,
+        otaRequired: ota.required,
+        otaVersion: ota.version,
+        otaPlatform: ota.platform,
         revision: { increment: 1 },
         updatedById: actorId,
       },
@@ -357,6 +387,7 @@ export async function getMobileAppPublicConfig(
   iosRuCardPaymentHintEnabled: boolean;
   resolvedFeatureProfile: MobileFeatureProfile;
   resolvedClientVersion: string | null;
+  ota: { required: boolean; version: string | null; platform: "all" | "ios" | "android"; channel: "production" };
   minimumSupportedVersion: {
     ios: string;
     android: string;
@@ -369,7 +400,7 @@ export async function getMobileAppPublicConfig(
   const [policy, rows] = await Promise.all([
     prisma.mobileAppReleasePolicy.findUnique({
       where: { key: RELEASE_POLICY_KEY },
-      select: { iosReviewVersion: true },
+      select: { iosReviewVersion: true, otaRequired: true, otaVersion: true, otaPlatform: true },
     }),
     prisma.appFeatureFlag.findMany({
       where: {
@@ -409,6 +440,13 @@ export async function getMobileAppPublicConfig(
     iosRuCardPaymentHintEnabled: mobileFlags.iosRuCardPaymentHint,
     resolvedFeatureProfile,
     resolvedClientVersion: context.version,
+    ota: {
+      required: policy?.otaRequired ?? false,
+      version: policy?.otaVersion ?? null,
+      platform: policy?.otaPlatform === "ios" || policy?.otaPlatform === "android"
+        ? policy.otaPlatform : "all",
+      channel: "production",
+    },
     minimumSupportedVersion: {
       ios: getConfiguredVersion(process.env.MOBILE_IOS_MIN_VERSION),
       android: getConfiguredVersion(process.env.MOBILE_ANDROID_MIN_VERSION),

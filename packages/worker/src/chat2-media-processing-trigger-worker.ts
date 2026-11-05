@@ -13,17 +13,16 @@ export function startChat2MediaProcessingTriggerWorker():void{
      process.env.CHAT2_PROCESSOR_READY!=="true" ||
      process.env.CHAT2_V2_CORE_ENABLED!=="true" ||
      process.env.CHAT2_V2_MEDIA_ENABLED!=="true")return;
-  let photo:ReturnType<typeof createCloudruChatPoolDispatcher>;
   let video:ReturnType<typeof createCloudruChatPoolDispatcher>;
-  try{photo=createCloudruChatPoolDispatcher("photo");video=createCloudruChatPoolDispatcher("video");}
+  try{video=createCloudruChatPoolDispatcher("video");}
   catch{logger.error("Chat2 Cloud pool unavailable",Error("CHAT2_DISPATCH_CONFIG"));return;}
   const worker=new Worker<Chat2MediaProcessingJobData>(
     CHAT2_MEDIA_PROCESSING_QUEUE_NAME,
     async(job:Job<Chat2MediaProcessingJobData>)=>{
       if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(job.data.mediaId))
         throw Error("CHAT2_INVALID_WAKE_ID");
-      if(job.data.kind!=="photo"&&job.data.kind!=="video")throw Error("CHAT2_INVALID_WAKE_KIND");
-      const result=await (job.data.kind==="photo"?photo:video)();
+      if(job.data.kind!=="video")throw Error("CHAT2_RETIRED_PHOTO_WAKE");
+      const result=await video();
       if(result.dispatched!==1)throw Error("CHAT2_WAKE_NOT_DISPATCHED");
     },
     {connection,concurrency:1,limiter:{max:1,duration:500},

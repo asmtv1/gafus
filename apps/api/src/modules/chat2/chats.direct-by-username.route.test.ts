@@ -16,7 +16,6 @@ vi.mock("./service.js", () => ({
 }));
 vi.mock("./realtime.js", () => ({
   connectToken: vi.fn(),
-  subscriptionToken: vi.fn(),
 }));
 
 import { chatsRoutes } from "../../routes/v1/chats";

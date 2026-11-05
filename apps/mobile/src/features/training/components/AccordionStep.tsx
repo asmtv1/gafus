@@ -9,6 +9,8 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
 import { Image } from "expo-image";
 import { Text, Divider, IconButton } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -1244,7 +1246,7 @@ function AccordionStepComponent({
         statusBarTranslucent
         onRequestClose={() => setImageViewerOpen(false)}
       >
-        <View style={[styles.imageViewerRoot, { height: windowHeight }]}>
+        <GestureHandlerRootView style={[styles.imageViewerRoot, { height: windowHeight }]}>
           <View
             style={[
               styles.imageViewerHeader,
@@ -1275,16 +1277,17 @@ function AccordionStepComponent({
               index: i,
             })}
             renderItem={({ item }) => (
-              <View style={[styles.imageViewerPage, { width: windowWidth, height: windowHeight }]}>
+              <SwipeDismissMedia style={[styles.imageViewerPage, { width: windowWidth, height: windowHeight }]}
+                onDismiss={() => setImageViewerOpen(false)}>
                 <Image
                   source={{ uri: item }}
                   style={StyleSheet.absoluteFillObject}
                   contentFit="contain"
                 />
-              </View>
+              </SwipeDismissMedia>
             )}
           />
-        </View>
+        </GestureHandlerRootView>
       </Modal>
     </View>
   );

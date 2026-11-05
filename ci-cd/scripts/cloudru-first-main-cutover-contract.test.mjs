@@ -135,13 +135,13 @@ test('no Cloud.ru Docker build, push, phantom Job, old Gallery image or CDN/S3 m
  const plan=spawnSync(process.execPath,['infra/cloudru/production-job-release.mjs','--plan'],{encoding:'utf8'});
  assert.equal(plan.status,0,plan.stderr);
  const obj=JSON.parse(plan.stdout);
- assert.equal(obj.targets.length,11);
+ assert.equal(obj.targets.length,4);
  assert.equal(obj.mutates,false);
  assert.equal(obj.buildsImages,false);
  assert.equal(obj.provisionsJobs,false);
- assert.equal(obj.targets.filter(t=>t.targetImage.includes('7f8d4325')).length,2);
+ assert.equal(obj.targets.filter(t=>t.targetImage.includes('7f8d4325')).length,0);
  assert(!obj.targets.some(t=>t.targetImage.includes('652b3ce4')),'OLD_GALLERY_NOT_ALLOWED_AS_TARGET');
- assert(obj.targets.filter(t=>t.targetImage==='KEEP_EXISTING_PINNED_CHAT2_IMAGE').length===4);
+ assert(obj.targets.filter(t=>t.targetImage==='KEEP_EXISTING_PINNED_CHAT2_IMAGE').length===2);
 });
 
 test('no worker dispatch until Cloud.ru new-image cutover; activation has failure rollback',()=>{

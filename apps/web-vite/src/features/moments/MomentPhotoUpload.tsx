@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { FEED_LIMITS } from "@gafus/types";
 import { appendMomentMediaRevision, canAppendMomentMedia, type MomentEditor } from
@@ -8,6 +8,8 @@ import {
   validateMomentPhoto, validateMomentVideo,
 } from "./feedMediaTransfer";
 import {PrimaryButton} from "../../shared/ui";
+import { videoRetryMessage } from "../../shared/media/videoRetryMessage";
+import { photoRetryMessage } from "../../shared/media/photoRetryMessage";
 
 type Attempt = {
   fingerprint: string;
@@ -29,6 +31,15 @@ export function MomentPhotoUpload({
   const [mediaKind, setMediaKind] = useState<"photo" | "video">("photo");
   const [message, setMessage] = useState("");
   const [progress, setProgress] = useState(0);
+  const [preview, setPreview] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file || typeof URL.createObjectURL !== "function") {
+      setPreview(null); return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file, mediaKind]);
   const attempt = useRef<Attempt | null>(null);
   const linked = editor.pendingRevision?.attachmentIds ?? [];
   const available = canAppendMomentMedia(editor);
@@ -112,6 +123,18 @@ export function MomentPhotoUpload({
         accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm"
         onChange={select}
         disabled={disabled || mutation.isPending} />
+      {file && preview && <div className="moment-video-retry-preview">
+        {mediaKind === "video" ? <video src={preview} muted playsInline preload="metadata" aria-label={file.name} />
+          : <img src={preview} alt={`Предпросмотр фото ${file.name}`} style={{width:160,height:130,objectFit:"cover",borderRadius:12}}/>}
+        {mutation.isError && <button type="button" className="moment-video-retry-button"
+          disabled={disabled || mutation.isPending} onClick={() => mutation.mutate()}
+          aria-label={`Повторить обработку ${mediaKind === "video" ? "видео" : "фото"} ${file.name}`}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 11a8 8 0 1 0-2.3 6M20 4v7h-7" />
+          </svg>
+        </button>}
+      </div>}
       {file && <p>Выбрано: {file.name}</p>}
       {file && <PrimaryButton type="button"
         disabled={disabled || mutation.isPending}
@@ -121,7 +144,7 @@ export function MomentPhotoUpload({
       </PrimaryButton>}
       {mutation.isPending && <div role="status">
         <label htmlFor={"moment-progress-" + editor.id}>
-          Передача {mediaKind === "video" ? "видео" : "фото"}: {progress}%
+          {mediaKind === "video" ? "Подготовка и загрузка видео" : "Передача фото"}: {progress}%
         </label>
         <progress id={"moment-progress-" + editor.id} max={100} value={progress} />
       </div>}
@@ -132,8 +155,10 @@ export function MomentPhotoUpload({
     </p>}
     {message && <p role="status">{message}</p>}
     {mutation.isError && <p role="alert">
-      Не удалось завершить загрузку. Повтор использует прежнее резервирование
-      и не создаст дополнительное вложение.
+      {attempt.current?.mediaId
+        ? "Не удалось завершить загрузку: файл уже подготовлен и передан, но сервер не подтвердил привязку к черновику. Повторите подтверждение круглой стрелкой — повторно отправлять файл не нужно."
+        : mediaKind === "video" ? videoRetryMessage(mutation.error) : photoRetryMessage(mutation.error)}
+      {!attempt.current?.mediaId && " Круглая стрелка повторит подготовку только этого файла."}
     </p>}
   </section>;
 }

@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Linking from "expo-linking";
-import { usePreventScreenCapture } from "expo-screen-capture";
 import * as SplashScreen from "expo-splash-screen";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -23,7 +22,8 @@ import {
 } from "@/shared/lib/tracer";
 import { ErrorBoundary, OfflineIndicator, RequiredAppUpdateGate } from "@/shared/components";
 import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
-import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
+import { RequiredOtaUpdateGate } from "@/shared/components/RequiredOtaUpdateGate";
+import { useRoleAwareScreenCapture } from "@/shared/hooks/useRoleAwareScreenCapture";
 import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
 import { SyncPreventionOnReconnect } from "@/shared/components/SyncPreventionOnReconnect";
 import { useAuthStore } from "@/shared/stores";
@@ -31,6 +31,7 @@ import { COLORS } from "@/shared/config";
 import { useAppFonts } from "@/shared/hooks/useAppFonts";
 import { warmUpYandexMobileAds } from "@/features/rewarded-ads";
 import { StartupLoader } from "@/shared/components/StartupLoader";
+import { WalkWidgetSessionSync } from "@/features/walk/WalkWidgetSessionSync";
 
 // Initialize before React mounts so startup and provider errors are captured.
 initializeMobileJsTracer();
@@ -93,7 +94,7 @@ SplashScreen.preventAutoHideAsync();
  * Использует встроенные в native build шрифты; web загружает их асинхронно.
  */
 export default function RootLayout() {
-  usePreventScreenCapture("gafus-global-screen-protection");
+  useRoleAwareScreenCapture();
 
   useEffect(() => {
     void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
@@ -142,8 +143,6 @@ export default function RootLayout() {
     });
   }, [fontError]);
 
-  useOtaAutoApply();
-
   // DEBUG: лог любых deep link на Android для отладки VK redirect
   useEffect(() => {
     if (!__DEV__ || Platform.OS !== "android") return;
@@ -168,22 +167,25 @@ export default function RootLayout() {
           <QueryProvider>
             <ThemeProvider>
               <RequiredAppUpdateGate>
-                <AuthProvider>
-                  <View style={styles.container}>
-                    <AnalyticsNavigationListener />
-                    <ChatPushNavigation />
-                    <AnalyticsBootstrap />
-                    <TracerRuntimeContext />
-                    <OfflineIndicator />
-                    <SyncProgressOnReconnect />
-                    <SyncPreventionOnReconnect />
-                    <Stack screenOptions={{ headerShown: false }}>
-                      <Stack.Screen name="(auth)" />
-                      <Stack.Screen name="(main)" />
-                    </Stack>
-                  </View>
-                  <StatusBar style="auto" />
-                </AuthProvider>
+                <RequiredOtaUpdateGate>
+                  <AuthProvider>
+                    <View style={styles.container}>
+                      <WalkWidgetSessionSync />
+                      <AnalyticsNavigationListener />
+                      <ChatPushNavigation />
+                      <AnalyticsBootstrap />
+                      <TracerRuntimeContext />
+                      <OfflineIndicator />
+                      <SyncProgressOnReconnect />
+                      <SyncPreventionOnReconnect />
+                      <Stack screenOptions={{ headerShown: false }}>
+                        <Stack.Screen name="(auth)" />
+                        <Stack.Screen name="(main)" />
+                      </Stack>
+                    </View>
+                    <StatusBar style="auto" />
+                  </AuthProvider>
+                </RequiredOtaUpdateGate>
               </RequiredAppUpdateGate>
             </ThemeProvider>
           </QueryProvider>

@@ -788,31 +788,6 @@
   background: #42583f;
   cursor: pointer;
 }
-.videoAttachment .qualitySwitch {
-  display: flex;
-  gap: 4px;
-  padding: 6px 8px 8px;
-  background: #223329;
-}
-.videoAttachment .qualitySwitch button {
-  flex: 1;
-  min-height: 30px;
-  width: auto;
-  padding: 4px 8px;
-  border-radius: 7px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #e6ecdf;
-  background: transparent;
-}
-.videoAttachment .qualitySwitch .qualitySelected {
-  background: #78894e;
-  color: #fff;
-}
-.videoAttachment .qualitySwitch button:focus-visible {
-  outline: 2px solid #d6dda1;
-  outline-offset: -2px;
-}
 
 .storedMedia {
   display: block;
@@ -1806,3 +1781,14 @@
   outline-offset: 3px;
 }
 .storedMedia:disabled { cursor: default; opacity: 1; }
+
+/* Per-attachment retries live on the failed video, not on the entire chat. */
+.pendingFileMedia { position:relative; width:55px; height:55px; flex:none; }
+.pendingFileMedia img, .pendingFileMedia video { width:55px; height:55px; object-fit:contain; }
+.pendingFile .retryVideoOverlay { position:absolute; inset:5px; display:grid; place-items:center;
+  border:1px solid #fff9; border-radius:50%; background:#17211de8; color:white;
+  padding:8px; width:45px; height:45px; min-width:0; cursor:pointer; }
+.retryVideoOverlay svg { width:25px; height:25px; }
+.retryVideoOverlay:disabled { opacity:.5; cursor:wait; }
+.pendingFile .pendingFileError { display:block; max-width:230px; min-width:145px;
+  white-space:normal; color:#ffe1d4; font-size:12px; line-height:1.4; }

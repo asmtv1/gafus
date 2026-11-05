@@ -65,6 +65,26 @@ describe("Chat2 S3 request budget without reduced safety",()=>{
   expect(send).toHaveBeenCalledTimes(2);
   expect(send.mock.calls[1]?.[0]).toBeInstanceOf(HeadObjectCommand);
  });
+ it("background video GET can read only immutable 720p with video/mp4 and bounded size",async()=>{
+  const original=job(),sourceMime="video/mp4" as const;
+  const claim:Chat2V2Job={...original,sourceMime,
+    sourceKey:chat2V2SourceKey(original.conversationId,original.ownerId,original.mediaId,sourceMime),
+    phase:"background_360"};
+  const key=`chat2/${claim.conversationId}/${claim.ownerId}/${claim.mediaId}/v1/video/720.mp4`;
+  const bytes=Buffer.alloc(60,1),file=join(await dir(),"ready720.mp4");
+  const send=vi.fn(async cmd=>{
+   if(cmd instanceof GetObjectCommand)return {ContentLength:bytes.length,
+     ContentType:"video/mp4",Body:Readable.from([bytes])};
+   throw Error("UNEXPECTED_S3_REQUEST");
+  });
+  const storage=createChat2S3Objects(claim,{send} as unknown as S3Client);
+  await storage.download(key,file,200*1024*1024,new AbortController().signal);
+  expect(await readFile(file)).toEqual(bytes);
+  expect(send).toHaveBeenCalledOnce();
+  await expect(storage.download(claim.sourceKey,join(await dir(),"not-allowed"),
+    200*1024*1024,new AbortController().signal)).rejects.toThrow("CHAT2_S3_SOURCE_KEY_DENIED");
+  expect(send).toHaveBeenCalledOnce();
+ });
  it("streams an MP4 as one PUT without an unnecessary post-PUT HEAD",async()=>{
   const claim=job(),file=join(await dir(),"360.mp4"),bytes=Buffer.alloc(128,6);
   await writeFile(file,bytes);

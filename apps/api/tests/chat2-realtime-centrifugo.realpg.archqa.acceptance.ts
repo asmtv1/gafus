@@ -1,6 +1,6 @@
 /**
  * Opt-in real PostgreSQL 18 + own Redis + own in-memory Centrifugo v6:
- * real actor-scoped JWT subscription, persistent message/outbox, WebSocket,
+ * real actor-scoped proxy-only subscription, persistent outbox, WebSocket,
  * broker unsubscribe after group ban, and honest reconnect behavior.
  * No existing fixed-port infrastructure, no real users, no production broker.
  */
@@ -46,7 +46,8 @@ const WebSocket = requireWeb("ws") as typeof import("ws");
 import { prisma } from "@gafus/prisma";
 import { generateAccessToken } from "@gafus/auth/jwt";
 import { connection, pushQueue } from "@gafus/queues";
-import { connectToken, subscriptionToken } from "../src/modules/chat2/realtime";
+import { connectToken } from "../src/modules/chat2/realtime";
+import { SignJWT } from "jose";
 import {
   createGroup, inviteMember, sendMessage, messages, moderateGroup,
 } from "../src/modules/chat2/service";
@@ -64,17 +65,28 @@ function within<T>(promise: Promise<T>, label: string, timeout = 7000): Promise<
     setTimeout(() => reject(Error(`OWN_WS_TIMEOUT_${label}`)), timeout);
   })]);
 }
+/** Intentionally forged OLD room token signed with the CONNECTION secret.
+ * It is NEVER issued by the application or used for any legitimate subscribe;
+ * this tests that Centrifugo rejects bypass after BAN. */
+async function staleLegacyRoomToken(userId: string, roomId: string) {
+  return new SignJWT({ channel: `chat2:${roomId}` })
+    .setIssuer("gafus-chat2")
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(userId)
+    .setIssuedAt()
+    .setExpirationTime("60s")
+    .sign(new TextEncoder().encode(process.env.CHAT2_CENTRIFUGO_TOKEN_SECRET!));
+}
 async function subscribe(userId: string, roomId: string) {
-  const [connection, { channel, token: roomToken }] = await Promise.all([
-    connectToken(userId), subscriptionToken(userId, roomId),
-  ]);
+  const connection = await connectToken(userId);
+  const channel = `chat2:${roomId}`;
+  const roomToken = await staleLegacyRoomToken(userId, roomId);
   expect(connection.subscriptionMode).toBe("proxy");
   const { token, wsUrl } = connection;
   const client = new Centrifuge(wsUrl, { token, websocket: WebSocket });
   clients.push(client);
-  // Prototype migration mode: signed *connection* JWT + server-side per-room
-  // proxy for *every* subscription. The legacy token is kept only to test
-  // it cannot bypass the dedicated broker-side subscription signing key.
+  // Mandatory proxy-only: no room JWT ever sent. Synthetic old-token fixture
+  // is retained only for the negative replay test after a BAN.
   const sub = client.newSubscription(channel);
   const events: string[] = [];
   client.on("connecting", event => { events.push(`connecting:${event.code}:${event.reason}`); });
@@ -169,7 +181,7 @@ afterAll(async () => {
 });
 
 describe("real owned Centrifugo 6.9.7: pg ACL/outbox/revocation/reconnect", () => {
-  it("mounted authenticated /realtime/connect negotiates proxy-only without breaking legacy room API", async () => {
+  it("mounted authenticated /realtime/connect returns only proxy mode and old room-token API is gone", async () => {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: reader },
       select: { id: true, username: true, role: true } });
     const jwt = await generateAccessToken(user);
@@ -187,17 +199,21 @@ describe("real owned Centrifugo 6.9.7: pg ACL/outbox/revocation/reconnect", () =
     expect(connection.data.wsUrl).toBe(process.env.CHAT2_PUBLIC_WS_URL);
     const old = await app.request(`http://127.0.0.1/api/v1/chats/${room}/realtime`,
       { headers: auth });
-    expect(old.status).toBe(200);
-    const oldBody = await old.json() as { success: boolean; data: { channel: string; token: string } };
-    expect(oldBody.data).toMatchObject({ channel: `chat2:${room}` });
-    expect(oldBody.data.token).toBeTruthy();
-    // Backward-compatible HTTP *shape* does not make this room token acceptable
-    // to a broker using the distinct subscription HMAC key in proxy-only mode.
+    expect(old.status).toBe(404);
+    // No server-issued room JWT: old installed Mobile will be forced to update
+    // and cannot revive a banned subscription with an old signed token.
   });
 
-  it("disallows nonmember JWT and grants a real subscribed WebSocket to authorized member", async () => {
-    await expect(subscriptionToken(outsider, room))
-      .rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
+  it("disallows nonmember via mounted broker proxy and grants real authorized WS", async () => {
+    const { app } = await import("../src/app");
+    const denied = await app.request("http://127.0.0.1/internal/chat2/chat2-subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json",
+        "X-GAFUS-Subscribe-Proxy-Key": process.env.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET! },
+      body: JSON.stringify({ user: outsider, channel: `chat2:${room}` }),
+    });
+    expect(denied.status).toBe(200);
+    expect(await denied.json()).toEqual({ error: { code: 403, message: "permission denied" } });
     const { sub } = await subscribe(reader, room);
     expect(sub.state).toBe("subscribed");
     expect(proxyAudit.allowed).toBeGreaterThan(0);
@@ -268,15 +284,13 @@ describe("real owned Centrifugo 6.9.7: pg ACL/outbox/revocation/reconnect", () =
     expect(restored.sub.state).toBe("subscribed");
     restored.client.disconnect();
   }, 16_000);
-  it("group BAN triggers real broker unsubscribe and prevents fresh subscription JWT", async () => {
+  it("group BAN revokes real broker subscription, denies both stale JWT and new proxy-only WS", async () => {
     const { client, sub, channel, roomToken } = await subscribe(reader, room);
     const revoked = new Promise<void>((resolve) => sub.on("unsubscribed", () => resolve()));
     await moderateGroup(actor, room, reader, "BAN");
     await within(revoked, "REVOKED_FROM_BROKER");
     expect(sub.state).toBe("unsubscribed");
-    await expect(subscriptionToken(reader, room))
-      .rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
-    await expect(subscribe(reader, room))
+    await expect(messages(reader, room))
       .rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
     // A previously issued 60s subscription JWT must not allow another socket
     // to re-enter the room AFTER the database BAN/revocation. This detects a

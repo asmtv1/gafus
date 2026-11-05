@@ -32,7 +32,7 @@ export class FeedInternalHttpError extends Error {
   }
 }
 export interface FeedCloudInternalClient {
-  claimJobs(batchSize: number, workerType?: "photo" | "video"): Promise<FeedCloudJob[]>;
+  claimJobs(batchSize: number, workerType?: "video"): Promise<FeedCloudJob[]>;
   completeJob(id: string, attemptToken: string, output?: FeedCloudOutput): Promise<{ accepted: boolean }>;
   failJob(id: string, attemptToken: string, code?: string): Promise<{ accepted: boolean }>;
   renewJob(id: string, attemptToken: string): Promise<{ accepted: boolean }>;

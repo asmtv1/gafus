@@ -9,7 +9,7 @@ import { connection as redis } from "@gafus/queues";
 export const FEED_INTERNAL_MAX_BODY_BYTES = 16_384;
 const paths = new Set(["/internal/feed/jobs/claim", "/internal/feed/jobs/complete", "/internal/feed/jobs/fail", "/internal/feed/jobs/renew", "/internal/feed/maintenance"]);
 const batch = z.object({ batchSize: z.number().int().min(1).max(20) }).strict();
-const claimSchema = batch.extend({ workerType: z.enum(["photo", "video"]).optional() });
+const claimSchema = batch.extend({ workerType: z.literal("video") });
 const identity = { jobId: z.string().min(1).max(128), attemptToken: z.string().uuid() };
 const output = z.object({
   width: z.number().int().positive(), height: z.number().int().positive(),
@@ -94,7 +94,7 @@ export function createFeedInternalDispatcher(deps: InternalDependencies) {
     }
     if (path.endsWith("/claim")) {
       const data = claimSchema.parse(body);
-      return data.workerType ? deps.jobs.claim(data.batchSize, data.workerType) : deps.jobs.claim(data.batchSize);
+      return deps.jobs.claim(data.batchSize, data.workerType);
     }
     if (path.endsWith("/complete")) {
       const data = completion.parse(body);

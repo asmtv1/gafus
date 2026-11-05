@@ -15,8 +15,16 @@ const vkClientIdIos = process.env.VK_CLIENT_ID_IOS ?? "";
 const productionApiBaseUrl = "https://api.gafus.ru";
 const yandexSkAdNetworkIdentifiers = ["zq492l623r.skadnetwork"];
 
-function assertProductionApiBaseUrl() {
+function assertProductionApiBaseUrl(config) {
   if (process.env.APP_ENV !== "production") return;
+  // Also guard plain `eas build`/`expo export` invocations that bypass the
+  // production-local wrapper, so a native update can never share SDK-wide OTA.
+  if (config.runtimeVersion?.policy !== "appVersion" ||
+      config.version !== require("./package.json").version ||
+      config.android?.softwareKeyboardLayoutMode !== "resize" ||
+      config.android?.predictiveBackGestureEnabled !== true) {
+    throw new Error("Mobile production native runtime/version/keyboard contract is invalid");
+  }
 
   const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? productionApiBaseUrl;
   if (apiBaseUrl !== productionApiBaseUrl) {
@@ -30,7 +38,9 @@ function assertProductionApiBaseUrl() {
   }
 }
 
-assertProductionApiBaseUrl();
+// This check is intentionally on actual Expo config, not an unrelated env.
+const nativeConfig = require("./app.json").expo;
+assertProductionApiBaseUrl(nativeConfig);
 
 function withYandexSkAdNetworkItems(infoPlist = {}) {
   const existingItems = Array.isArray(infoPlist.SKAdNetworkItems) ? infoPlist.SKAdNetworkItems : [];
@@ -88,7 +98,9 @@ module.exports = ({ config }) => ({
   },
   extra: {
     ...config.extra,
-    appVersion: process.env.EXPO_PUBLIC_APP_VERSION ?? config.version ?? "1.7.2",
+    // Must reflect the actual native/store version. An old .env override can
+    // otherwise report 1.7.1 from a 1.7.3 binary and corrupt crash symbols.
+    appVersion: config.version,
     enableTracer: process.env.EXPO_PUBLIC_ENABLE_TRACER === "true",
     tracerAppToken: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN,
     tracerAppTokenJs: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN_JS,

@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
   isAuthenticated: true,
   isLoading: false,
   rootReady: true,
+  pathname: "/welcome",
   push: vi.fn(),
   getLast: vi.fn(),
   listen: vi.fn(),
@@ -19,6 +20,7 @@ const state = vi.hoisted(() => ({
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: state.push }),
   useRootNavigationState: () => state.rootReady ? { key: "root" } : null,
+  usePathname: () => state.pathname,
 }));
 vi.mock("@/shared/stores", () => ({
   useAuthStore: (selector: (v: unknown) => unknown) => selector({
@@ -57,6 +59,7 @@ beforeEach(() => {
   state.isAuthenticated = true;
   state.isLoading = false;
   state.rootReady = true;
+  state.pathname = "/welcome";
   state.pushCallback = null;
   state.deeplinkCallback = null;
   state.getLast.mockResolvedValue(null);
@@ -147,5 +150,40 @@ describe("legacy Next source push destination parity in native Expo", () => {
     await act(async () => root.render(createElement(ChatPushNavigation)));
     await settle();
     expect(state.push).toHaveBeenCalledExactlyOnceWith("/courses");
+  });
+});
+
+
+describe("Universal/App Links with login recovery", () => {
+  it("retains a moment link received while logged out, then opens the actual feed post after login", async () => {
+    state.isAuthenticated = false;
+    state.getInitialUrl.mockResolvedValue("https://gafus.ru/feed/post-1");
+    await mount();
+    expect(state.push).not.toHaveBeenCalled();
+    state.isAuthenticated = true;
+    await act(async () => root.render(createElement(ChatPushNavigation)));
+    await settle();
+    expect(state.push).toHaveBeenCalledExactlyOnceWith("/feed/post-1");
+  });
+  it("trusted question and chat links reach existing native destinations", async () => {
+    await mount();
+    await act(async () => state.deeplinkCallback?.({ url:"https://www.gafus.ru/questions/question-5" }));
+    await settle();
+    expect(state.push).toHaveBeenCalledExactlyOnceWith("/questions/question-5");
+  });
+  it("does not launch a duplicate route when Expo Router already opened the link", async () => {
+    state.pathname="/feed/post-1";
+    state.getInitialUrl.mockResolvedValue("https://gafus.ru/feed/post-1");
+    await mount();
+    expect(state.push).not.toHaveBeenCalled();
+  });
+  it("ignores foreign HTTPS and never replays reset tokens as a private destination", async () => {
+    await mount();
+    await act(async () => {
+      state.deeplinkCallback?.({ url:"https://evil.example/feed/post-1" });
+      state.deeplinkCallback?.({ url:"https://gafus.ru/reset-password?token=secrettoken" });
+    });
+    await settle();
+    expect(state.push).not.toHaveBeenCalled();
   });
 });

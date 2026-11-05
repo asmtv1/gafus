@@ -28,6 +28,11 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Validate CORS, images, protected CDN and owner media migration
         run: pnpm test:cloudru-media
+      - name: Verify two video image roles and no retired photo Jobs (blocking)
+        run: |
+          node ci-cd/scripts/media-pipeline-guard.mjs
+          node --test ci-cd/scripts/media-pipeline-guard.test.mjs
+          node --test scripts/qa/cloud-photo-jobs-retired.test.mjs
       - name: Cloud.ru registry publication retry acceptance tests
         run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
   build:
@@ -39,9 +44,6 @@ jobs:
       matrix:
         include:
           - { media: feed, role: worker, dockerfile: Dockerfile }
-          - { media: gallery, role: worker, dockerfile: Dockerfile }
-          - { media: questions, role: photo, dockerfile: Dockerfile.questions-photo }
-          - { media: chat, role: photo, dockerfile: Dockerfile.chat2-job }
           - { media: chat, role: video, dockerfile: Dockerfile.chat2-job }
     steps:
       - uses: actions/checkout@v5
@@ -51,7 +53,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: apps/${{ (matrix.media == 'chat' || matrix.media == 'questions') && 'feed' || matrix.media }}-cloud/${{ matrix.dockerfile }}
+          file: apps/${{ matrix.media == 'chat' && 'feed' || matrix.media }}-cloud/${{ matrix.dockerfile }}
           target: ${{ matrix.media == 'chat' && matrix.role || '' }}
           platforms: linux/amd64
           tags: gafus-${{ matrix.media }}-${{ matrix.role }}:${{ github.sha }}

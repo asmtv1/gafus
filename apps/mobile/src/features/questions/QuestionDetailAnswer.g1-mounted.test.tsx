@@ -13,6 +13,10 @@ const m = vi.hoisted(() => ({
   trace: vi.fn(),
   replace: vi.fn(),
   uuid: 0,
+  scrollToEnd: vi.fn(),
+  keyboardDidShow: null as null | (() => void),
+  removeKeyboardListener: vi.fn(),
+  onScrollLayout: null as null | (() => void),
 }));
 vi.mock("@/shared/stores", () => {
   const state = () => ({
@@ -124,14 +128,20 @@ vi.mock("./ui", async () => {
       label,
       value,
       onChange,
+      onFocus,
+      onBlur,
     }: {
       label: string;
       value: string;
       onChange: (v: string) => void;
+      onFocus?: () => void;
+      onBlur?: () => void;
     }) =>
       R.createElement("input", {
         "aria-label": label,
         value,
+        onFocus,
+        onBlur,
         onChange: (e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value),
       }),
     QButton: ({
@@ -164,12 +174,22 @@ vi.mock("react-native", async () => {
   const R = await import("react");
   const Box = ({ children }: { children?: React.ReactNode }) =>
     R.createElement("div", null, children);
-  const Scroll = R.forwardRef<HTMLDivElement, { children?: React.ReactNode }>(({ children }, ref) =>
-    R.createElement("div", { ref }, children),
-  );
+  const Scroll = R.forwardRef<{ scrollToEnd: typeof m.scrollToEnd }, {
+    children?: React.ReactNode; onLayout?: () => void;
+  }>(({ children, onLayout }, ref) => {
+    R.useImperativeHandle(ref, () => ({ scrollToEnd: m.scrollToEnd }));
+    m.onScrollLayout = onLayout ?? null;
+    return R.createElement("div", null, children);
+  });
   return {
     ScrollView: Scroll,
-    KeyboardAvoidingView: Box,
+    KeyboardAvoidingView: ({ children, behavior }: {
+      children?: React.ReactNode; behavior?: string;
+    }) => R.createElement("div", { "data-keyboard-behavior": behavior }, children),
+    Keyboard: { addListener: (_event: string, callback: () => void) => {
+      m.keyboardDidShow = callback;
+      return { remove: m.removeKeyboardListener };
+    } },
     View: Box,
     Text: ({ children }: { children?: React.ReactNode }) => R.createElement("span", null, children),
     Pressable: ({
@@ -182,7 +202,7 @@ vi.mock("react-native", async () => {
       accessibilityLabel?: string;
     }) => R.createElement("span", { "aria-label": accessibilityLabel, onClick: onPress }, children),
     StyleSheet: { create: (v: unknown) => v },
-    Platform: { OS: "ios" },
+    Platform: { OS: "android" },
     Alert: { alert: vi.fn() },
     Share: { share: vi.fn() },
     RefreshControl: () => null,
@@ -224,6 +244,12 @@ beforeEach(() => {
   m.authed = true;
   m.loading = false;
   m.uuid = 0;
+  m.keyboardDidShow = null;
+  m.onScrollLayout = null;
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    callback(0);
+    return 1;
+  });
   m.answer.mockResolvedValue({ id: "answer-1" });
   m.invalidate.mockResolvedValue(undefined);
   host = document.createElement("div");
@@ -233,10 +259,29 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => root.unmount());
+  vi.unstubAllGlobals();
   host.remove();
 });
 
 describe("AG3 SOC032 V52 real QuestionDetail answer composer mounted source/mock", () => {
+  it("keeps the Android answer field visible on focus, keyboard opening and screen resizing", async () => {
+    await render();
+    expect(host.querySelector('[data-keyboard-behavior="padding"]')).not.toBeNull();
+    const input = host.querySelector<HTMLInputElement>('input[aria-label="Ваш ответ"]');
+    expect(input).not.toBeNull();
+    await act(async () => input?.focus());
+    expect(m.scrollToEnd).toHaveBeenCalledWith({ animated: true });
+    m.scrollToEnd.mockClear();
+    await act(async () => m.keyboardDidShow?.());
+    expect(m.scrollToEnd).toHaveBeenCalledWith({ animated: true });
+    m.scrollToEnd.mockClear();
+    await act(async () => m.onScrollLayout?.());
+    expect(m.scrollToEnd).toHaveBeenCalledWith({ animated: true });
+    await act(async () => input?.blur());
+    m.scrollToEnd.mockClear();
+    await act(async () => m.keyboardDidShow?.());
+    expect(m.scrollToEnd).not.toHaveBeenCalled();
+  });
   it("guest cannot mount private detail or submit", async () => {
     m.authed = false;
     await render();

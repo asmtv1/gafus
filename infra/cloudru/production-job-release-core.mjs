@@ -82,7 +82,7 @@ export async function preflightJobs({ jobs = CLOUDRU_PRODUCTION_JOBS, images, li
     // be added during a guarded, post-Backend cutover; all other runtime keys
     // (including work root, kind, S3 bucket) remain mandatory.
     const chat2Bootstrap = readOnly && allowChat2MissingRuntime &&
-      (job.imageRole === "chat-photo" || job.imageRole === "chat-video");
+      job.imageRole === "chat-video";
     const bootstrapFields = new Set(["CHAT2_S3_ACCESS_KEY_ID", "CHAT2_S3_SECRET_ACCESS_KEY",
       "CHAT2_INTERNAL_BASE_URL", "CHAT2_INTERNAL_HMAC_SECRET"]);
     for (const name of runContract.required) {
@@ -98,22 +98,8 @@ export async function preflightJobs({ jobs = CLOUDRU_PRODUCTION_JOBS, images, li
     // accept this state; verification and mutation contracts remain strict.
     if (chat2Bootstrap && runtimeEnv.get("CHAT2_JOB_ENABLED")?.value === "false")
       exact.CHAT2_JOB_ENABLED = "false";
-    // An application release must be able to deploy a compatible Backend first.
-    // Questions may be present but deliberately dormant until signed Hono V2
-    // routes and the SAME HMAC are independently verified. Mutation preflights
-    // keep the strict active-job contract.
-    if (readOnly && job.imageRole === "questions-photo" &&
-        runtimeEnv.get("QUESTIONS_V2_JOB_ENABLED")?.value === "false") {
-      exact.QUESTIONS_V2_JOB_ENABLED = "false";
-      if (runtimeEnv.get("QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED")?.value !== "false")
-        throw Error("CLOUDRU_QUESTIONS_DORMANT_VERIFICATION_MUST_BE_FALSE");
-      const baseUrl = runtimeEnv.get("QUESTIONS_V2_INTERNAL_BASE_URL")?.value;
-      if (baseUrl !== "https://api.gafus.ru/" ||
-          runtimeEnv.get("QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME")?.value !== "api.gafus.ru")
-        throw Error("CLOUDRU_QUESTIONS_DORMANT_BACKEND_HOST_MISMATCH");
-    }
     if (job.imageRole === "feed-worker")
-      exact.FEED_WORKER_TYPE = job.name.includes("-video") ? "video" : "photo";
+      exact.FEED_WORKER_TYPE = "video";
     for (const [name, expected] of Object.entries(exact)) {
       if (runtimeEnv.get(name)?.value !== expected)
         throw Error("CLOUDRU_JOB_RUNTIME_ENV_MISMATCH_" + job.name + "_" + name);

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { createCloudruFeedPoolDispatcher, createCloudruMediaDispatcher,
-  createCloudruGalleryPoolDispatcher, createCloudruChatPoolDispatcher, safeCloudruDispatchError,
-  createCloudruQuestionsPhotoPoolDispatcher, CLOUDRU_QUESTIONS_PHOTO_POOL,
+  createCloudruChatPoolDispatcher, safeCloudruDispatchError,
   CLOUDRU_CHAT_JOB_POOLS } from "./cloudru-media-dispatcher";
 const env = {
   CLOUDRU_MEDIA_JOBS_ENABLED: "true",
@@ -23,55 +22,45 @@ describe("Cloud.ru durable media job trigger", () => {
   });
   it("blocks unverified same-named Cloud Feed jobs before any network request", () => {
     const req = vi.fn();
-    expect(() => createCloudruFeedPoolDispatcher("photo",
+    expect(() => createCloudruFeedPoolDispatcher("video",
       { ...env, FEED_CLOUDRU_REFRACTOR_VERIFIED: "false" }, req as never))
       .toThrow("CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION");
     expect(req).not.toHaveBeenCalled();
   });
-  it("fails closed on unsafe processor flags", () => {
+  it("fails closed on unsafe VIDEO processor flags", () => {
     expect(() =>
-      createCloudruMediaDispatcher({ ...env, GALLERY_PROCESSOR_READY: "false" }),
+      createCloudruMediaDispatcher({ ...env, FEED_PROCESSOR_READY: "false" }),
     ).toThrow("CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION");
   });
-  it("triggers exactly three bounded allowlisted jobs and reuses short IAM token", async () => {
+  it("triggers only feed video jobs with cached IAM token", async () => {
     const req = vi.fn(async (url: string) => {
       if (url.includes("auth/token"))
         return { ok: true, json: async () => ({ access_token: "test-token" }) };
       return { ok: true, status: 200 };
     });
     const dispatch = createCloudruMediaDispatcher(env, req as never);
-    expect(await dispatch()).toEqual({ dispatched: 3 });
-    expect(await dispatch()).toEqual({ dispatched: 3 });
-    expect(req).toHaveBeenCalledTimes(7);
+    expect(await dispatch()).toEqual({ dispatched: 1 });
+    expect(await dispatch()).toEqual({ dispatched: 1 });
+    expect(req).toHaveBeenCalledTimes(3);
     expect(req.mock.calls[0]?.[0]).toBe("https://iam.api.cloud.ru/api/v1/auth/token");
-    for (const name of ["gafus-gallery-process", "gafus-feed-photo", "gafus-feed-video"])
+    for (const name of ["gafus-feed-video"])
       expect(req.mock.calls.some((call) => String(call[0]).endsWith("/" + name + ":execute"))).toBe(
         true,
       );
   });
-  it("wakes only Gallery on immediate upload and does not require Feed readiness", async () => {
-    const req = vi.fn(async (url: string) =>
-      url.includes("auth/token")
-        ? { ok: true, json: async () => ({ access_token: "test-token" }) }
-        : { ok: true, status: 200 },
-    );
-    const dispatch = createCloudruMediaDispatcher(
-      { ...env, FEED_PROCESSOR_READY: "false" },
-      req as never,
-      ["gafus-gallery-process"],
-    );
-    expect(await dispatch()).toEqual({ dispatched: 1 });
-    expect(req).toHaveBeenCalledTimes(2);
-    expect(req.mock.calls[0]?.[0]).toBe("https://iam.api.cloud.ru/api/v1/auth/token");
-    expect(req.mock.calls[1]?.[0]).toContain("/gafus-gallery-process:execute");
-    expect(req.mock.calls.some(([url]) => String(url).includes("gafus-feed"))).toBe(false);
+  it("refuses retired Gallery Cloud calls before IAM/execute",()=>{
+    const req=vi.fn();
+    for(const name of ["gafus-gallery-process","gafus-gallery-process-2"])
+      expect(()=>createCloudruMediaDispatcher(env,req as never,[name] as never))
+        .toThrow("CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION");
+    expect(req).not.toHaveBeenCalled();
   });
   it("rejects an empty dispatch allowlist", () => {
     expect(() => createCloudruMediaDispatcher(env, fetch, [])).toThrow(
       "CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION",
     );
   });
-  it.each(["photo", "video"] as const)("splits ten %s uploads equally with one launch per upload", async (kind) => {
+  it.each(["video"] as const)("splits ten %s uploads equally with one launch per upload", async (kind) => {
     const launched: string[] = [];
     const req = vi.fn(async (url: string) => {
       if (url.includes("auth/token")) return { ok: true, json: async () => ({ access_token: "test-token" }) };
@@ -87,7 +76,7 @@ describe("Cloud.ru durable media job trigger", () => {
   });
   it("keeps both pool replicas disabled or fails closed on missing readiness", async () => {
     const req = vi.fn();
-    const dispatch = createCloudruFeedPoolDispatcher("photo", {}, req as never);
+    const dispatch = createCloudruFeedPoolDispatcher("video", {}, req as never);
     expect(await dispatch()).toEqual({ disabled: true, dispatched: 0 });
     expect(await dispatch()).toEqual({ disabled: true, dispatched: 0 });
     expect(req).not.toHaveBeenCalled();
@@ -106,52 +95,19 @@ describe("Cloud.ru durable media job trigger", () => {
     expect(await dispatch()).toEqual({ dispatched: 1 });
     expect(launched[1]).toContain("/gafus-feed-video-2:execute");
   });
-  it("gallery defaults to the existing job without requiring second readiness",async()=>{
-    const launched:string[]=[];
-    const req=vi.fn(async(url:string)=>{
-      if(url.includes("auth/token"))return {ok:true,json:async()=>({access_token:"test-token"})};
-      launched.push(url);return {ok:true,status:200};
-    });
-    const dispatch=createCloudruGalleryPoolDispatcher(env,req as never);
-    for(let i=0;i<4;i++)expect(await dispatch()).toEqual({dispatched:1});
-    expect(launched).toHaveLength(4);
-    expect(launched.every(url=>url.endsWith("/gafus-gallery-process:execute"))).toBe(true);
-  });
-  it("requires explicit second-gallery readiness for direct provider dispatch",()=>{
-    expect(()=>createCloudruMediaDispatcher(env,fetch,["gafus-gallery-process-2"]))
-      .toThrow("CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION");
-    expect(()=>createCloudruMediaDispatcher({...env,GALLERY_PROCESSOR_READY:"false",
-      GALLERY_PROCESSOR_SECOND_READY:"true"},fetch,["gafus-gallery-process-2"]))
-      .toThrow("CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION");
-  });
-  it("gallery two-job pool balances wake-ups and retries on next replica",async()=>{
-    const launched:string[]=[];
-    const req=vi.fn(async(url:string)=>{
-      if(url.includes("auth/token"))return {ok:true,json:async()=>({access_token:"test-token"})};
-      launched.push(url);return {ok:launched.length!==1,status:launched.length===1?503:200};
-    });
-    const dispatch=createCloudruGalleryPoolDispatcher({
-      ...env,GALLERY_PROCESSOR_SECOND_READY:"true",
-    },req as never);
-    await expect(dispatch()).rejects.toThrow("CLOUDRU_JOB_EXECUTION_FAILED_gafus-gallery-process_503");
-    for(let n=0;n<5;n++)expect(await dispatch()).toEqual({dispatched:1});
-    expect(launched.filter(url=>url.endsWith("/gafus-gallery-process:execute"))).toHaveLength(3);
-    expect(launched.filter(url=>url.endsWith("/gafus-gallery-process-2:execute"))).toHaveLength(3);
-    expect(launched[1]).toContain("/gafus-gallery-process-2:execute");
-  });
   it("does not report completed release if any job trigger fails", async () => {
     const req = vi.fn(async (url: string) => {
       if (url.includes("auth/token"))
         return { ok: true, json: async () => ({ access_token: "test-token" }) };
-      return { ok: !url.includes("feed-photo"), status: 503 };
+      return { ok: !url.includes("feed-video"), status: 503 };
     });
     const dispatch = createCloudruMediaDispatcher(env, req as never);
-    await expect(dispatch()).rejects.toThrow("CLOUDRU_JOB_EXECUTION_FAILED_gafus-feed-photo_503");
+    await expect(dispatch()).rejects.toThrow("CLOUDRU_JOB_EXECUTION_FAILED_gafus-feed-video_503");
   });
 });
 
 
-describe("Chat2 four Cloud Job pools: two identical resources per kind",()=>{
+describe("Chat2 video-only Cloud Job pool",()=>{
  const chatEnv={...env,CHAT2_PROCESSOR_READY:"true",CHAT2_V2_CORE_ENABLED:"true",
   CHAT2_V2_MEDIA_ENABLED:"true",CHAT2_CLOUDRU_PROJECT_VERIFIED:"true",
   CHAT2_CLOUDRU_PROJECT_ID:"6777bd18-4ee9-4d15-bb1b-134f7a18ed3a",
@@ -159,11 +115,10 @@ describe("Chat2 four Cloud Job pools: two identical resources per kind",()=>{
   CHAT2_CLOUDRU_KEY_SECRET:"isolated-chat2-test-secret"};
  it("declares the exact two/size job names without altering Feed",()=>{
   expect(CLOUDRU_CHAT_JOB_POOLS).toEqual({
-   photo:["gafus-chat-photo","gafus-chat-photo-2"],
    video:["gafus-chat-video","gafus-chat-video-2"],
   });
  });
- it.each(["photo","video"] as const)("alternates %s Jobs 1:1 on ten uploads",async kind=>{
+ it.each(["video"] as const)("alternates %s Jobs 1:1 on ten uploads",async kind=>{
   const launches:string[]=[];
   const http=vi.fn(async (url:string)=>{
    if(url.includes("auth/token"))return {ok:true,json:async()=>({access_token:"test-token"})};
@@ -189,10 +144,10 @@ describe("Chat2 four Cloud Job pools: two identical resources per kind",()=>{
     {...chatEnv,CHAT2_CLOUDRU_PROJECT_VERIFIED:"false"},
     {...chatEnv,CHAT2_CLOUDRU_KEY_ID:""},
   ])
-    expect(()=>createCloudruChatPoolDispatcher("photo",changed,http as never))
+    expect(()=>createCloudruChatPoolDispatcher("video",changed,http as never))
       .toThrow("CHAT2_CLOUDRU_NEW_ORGANIZATION_UNVERIFIED");
   expect(requests).toHaveLength(0);
-  const launch=createCloudruChatPoolDispatcher("photo",chatEnv,http as never);
+  const launch=createCloudruChatPoolDispatcher("video",chatEnv,http as never);
   expect(await launch()).toEqual({dispatched:1});
   expect(requests).toHaveLength(2);
   const login=JSON.parse(String(requests[0]!.init?.body)) as Record<string,string>;
@@ -205,7 +160,7 @@ describe("Chat2 four Cloud Job pools: two identical resources per kind",()=>{
  });
  it("does not dispatch without chat flags even if Feed is ready",async()=>{
   const http=vi.fn();
-  expect(await createCloudruChatPoolDispatcher("photo",{},http as never)())
+  expect(await createCloudruChatPoolDispatcher("video",{},http as never)())
    .toEqual({disabled:true,dispatched:0});
   expect(http).not.toHaveBeenCalled();
   expect(()=>createCloudruChatPoolDispatcher("video",env,http as never))
@@ -225,40 +180,23 @@ describe("Chat2 four Cloud Job pools: two identical resources per kind",()=>{
  });
 });
 
-describe("Questions V2: replace existing single Job within ten-Job quota",()=>{
-  const live={...env,CLOUDRU_MEDIA_JOBS_ENABLED:"true",
-    QUESTIONS_V2_MEDIA_ENABLED:"true",QUESTIONS_V2_PROCESSOR_READY:"true",
-    QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED:"true",
-    QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED:"true"};
-  it("targets the only existing Questions Job and does not require phantom -2",()=>{
-    expect(CLOUDRU_QUESTIONS_PHOTO_POOL).toEqual(["gafus-questions-photo"]);
-  });
-  it("dispatches repeated photo wakeups to one existing Job using confirmed v2 IAM",async()=>{
-    const urls:string[]=[];
-    const request=vi.fn(async(url:string)=>{
-      urls.push(url);
-      if(url.includes("/auth/token"))return {ok:true,json:async()=>({access_token:"isolated-token"})};
-      return {ok:true,status:200};
-    });
-    const dispatch=createCloudruQuestionsPhotoPoolDispatcher(live,request as never);
-    await expect(dispatch()).resolves.toEqual({dispatched:1});
-    await expect(dispatch()).resolves.toEqual({dispatched:1});
-    expect(urls.filter(url=>url.endsWith('/gafus-questions-photo:execute'))).toHaveLength(2);
-    expect(urls.some(url=>url.includes('gafus-questions-photo-2'))).toBe(false);
-    expect(urls.some(url=>url.includes('/api/v2/auth/token'))).toBe(true);
-  });
-  it("requires explicit Questions-only verification before enabling",()=>{
-    expect(()=>createCloudruQuestionsPhotoPoolDispatcher({
-      ...live,QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED:"false",
-    })).toThrow("CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION");
+describe("photo Cloud Job retirement",()=>{
+  it("rejects old photo job names before making any Cloud requests",()=>{
+    const request=vi.fn();
+    for(const name of ["gafus-feed-photo","gafus-feed-photo-2",
+      "gafus-chat-photo","gafus-chat-photo-2","gafus-questions-photo",
+      "gafus-gallery-process","gafus-gallery-process-2"]){
+      expect(()=>createCloudruMediaDispatcher(env,request as never,
+        [name] as never)).toThrow("CLOUDRU_MEDIA_DISPATCHER_UNSAFE_CONFIGURATION");
+    }
+    expect(request).not.toHaveBeenCalled();
   });
 });
-
 
 describe("Cloud dispatch diagnostics without leaking provider credentials", () => {
   it("surfaces HTTP IAM status and redacts raw response", async () => {
     const req = vi.fn(async () => new Response("private provider response", { status: 403 }));
-    const dispatch = createCloudruGalleryPoolDispatcher(env, req as never);
+    const dispatch = createCloudruFeedPoolDispatcher("video",env, req as never);
     await expect(dispatch()).rejects.toThrow("CLOUDRU_JOB_IAM_UNAVAILABLE_403");
     expect(safeCloudruDispatchError(new Error("CLOUDRU_JOB_IAM_UNAVAILABLE_403")).message)
       .toBe("CLOUDRU_JOB_IAM_UNAVAILABLE_403");
@@ -266,7 +204,7 @@ describe("Cloud dispatch diagnostics without leaking provider credentials", () =
   it("keeps DNS and timeout reasons while never logging untrusted errors", async () => {
     const err = new TypeError("fetch failed", { cause: Object.assign(new Error("dns"), { code: "EAI_AGAIN" }) });
     const req = vi.fn(async () => { throw err; });
-    await expect(createCloudruGalleryPoolDispatcher(env, req as never)())
+    await expect(createCloudruFeedPoolDispatcher("video",env, req as never)())
       .rejects.toThrow("CLOUDRU_JOB_IAM_NETWORK_EAI_AGAIN");
     expect(safeCloudruDispatchError(new Error("CLOUDRU_JOB_IAM_NETWORK_EAI_AGAIN")).message)
       .toBe("CLOUDRU_JOB_IAM_NETWORK_EAI_AGAIN");
@@ -278,7 +216,7 @@ describe("Cloud dispatch diagnostics without leaking provider credentials", () =
       if (url.includes("auth/token")) return new Response(JSON.stringify({ access_token: "synthetic" }), { status: 200 });
       throw new DOMException("Timed out", "TimeoutError");
     });
-    await expect(createCloudruGalleryPoolDispatcher(env, req as never)())
+    await expect(createCloudruFeedPoolDispatcher("video",env, req as never)())
       .rejects.toThrow("CLOUDRU_JOB_EXECUTION_NETWORK_TIMEOUT");
     expect(req).toHaveBeenCalledTimes(2);
   });
@@ -286,7 +224,7 @@ describe("Cloud dispatch diagnostics without leaking provider credentials", () =
 
 
 describe("bounded IAM recovery", () => {
-  it("recovers one temporary DNS failure before launching Gallery", async () => {
+  it("recovers one temporary DNS failure before launching Feed video", async () => {
     let attempts = 0;
     const req = vi.fn(async (url: string) => {
       if (url.includes("auth/token")) {
@@ -297,7 +235,7 @@ describe("bounded IAM recovery", () => {
       }
       return new Response(null, { status: 202 });
     });
-    await expect(createCloudruGalleryPoolDispatcher(env, req as never)())
+    await expect(createCloudruFeedPoolDispatcher("video",env, req as never)())
       .resolves.toEqual({ dispatched: 1 });
     expect(attempts).toBe(2);
     expect(req).toHaveBeenCalledTimes(3);
@@ -307,7 +245,7 @@ describe("bounded IAM recovery", () => {
       if (url.includes("auth/token")) return new Response("unavailable", { status: 503 });
       throw new Error("should not execute without credentials");
     });
-    await expect(createCloudruGalleryPoolDispatcher(env, req as never)())
+    await expect(createCloudruFeedPoolDispatcher("video",env, req as never)())
       .rejects.toThrow("CLOUDRU_JOB_IAM_UNAVAILABLE_503");
     expect(req).toHaveBeenCalledTimes(2);
   });

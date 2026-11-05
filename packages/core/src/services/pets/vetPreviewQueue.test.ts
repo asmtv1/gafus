@@ -78,21 +78,13 @@ describe("vet preview owner DTO", () => {
   });
 });
 describe("vet image processing mode", () => {
-  it("creates a durable preview job only after saving an image", async () => {
-    process.env.VET_PREVIEW_ASYNC_ENABLED = "true";
-    await addPetVetAttachment("p", "u", "v", photo());
-    expect(m.write.mock.calls[0]![3]).toEqual({ asyncPreview: true });
-    expect(m.create.mock.calls[0]![0].data.previewKey).toBeNull();
-    expect(m.queue.mock.calls[0]![0].data).toMatchObject({
-      kind: "vetPreview",
-      sourceKeys: [expect.stringMatching(/original.jpg$/)],
-      targetKeys: [expect.stringMatching(/thumb.webp$/)],
-      sourceETags: [expect.stringMatching(/^"[a-f0-9]{32}"$/)],
-    });
-    expect(m.reserve.mock.invocationCallOrder[0]).toBeLessThan(
-      m.write.mock.invocationCallOrder[0]!,
-    );
-    expect(m.write.mock.invocationCallOrder[0]).toBeLessThan(m.queue.mock.invocationCallOrder[0]!);
+  it("never schedules a Cloud photo preview Job even with retired async flag",async()=>{
+    process.env.VET_PREVIEW_ASYNC_ENABLED="true";
+    await addPetVetAttachment("p","u","v",photo());
+    expect(m.write.mock.calls[0]![3]).toEqual({asyncPreview:false});
+    expect(m.create.mock.calls[0]![0].data.previewKey).toMatch(/thumb.webp$/);
+    expect(m.queue).not.toHaveBeenCalled();
+    expect(m.reserve.mock.invocationCallOrder[0]).toBeLessThan(m.write.mock.invocationCallOrder[0]!);
   });
   it("keeps the old synchronous thumbnail by default", async () => {
     await addPetVetAttachment("p", "u", "v", photo());

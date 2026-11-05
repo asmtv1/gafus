@@ -9,7 +9,7 @@ import { FEED_VIDEO_MAX_BYTES, FEED_VIDEO_MAX_SECONDS } from "./video.js";
 
 const segment = /^[A-Za-z0-9_-]{1,128}$/;
 const mediaIdPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
-export const CHAT2_V2_IMAGE_EDGES = { small: 360, medium: 720 } as const;
+export const CHAT2_V2_IMAGE_EDGES = { small: 360, medium: 1440 } as const;
 export const CHAT2_V2_VIDEO_QUALITIES = [360, 720] as const;
 export const CHAT2_V2_MAX_DURATION_SECONDS = FEED_VIDEO_MAX_SECONDS;
 export const CHAT2_V2_MAX_IMAGE_BYTES = FEED_IMAGE_SOURCE_MAX_BYTES;
@@ -33,7 +33,7 @@ export type Chat2V2Quality = typeof CHAT2_V2_VIDEO_QUALITIES[number];
 export type Chat2V2Manifest =
   | { kind: "image"; width: number; height: number; keys: Record<Chat2V2Size, string>; imageSizes: Record<Chat2V2Size,{width:number;height:number}> }
   | { kind: "video"; width: number; height: number; durationSeconds: number;
-      posterKey: string; renditions: Array<{ quality: Chat2V2Quality;
+      posterKey?: string; renditions: Array<{ quality: Chat2V2Quality;
         key: string; width: number; height: number; bytes: number }> };
 
 export function chat2V2ClassifySource(mime: string, bytes: number) {
@@ -78,6 +78,8 @@ export interface Chat2V2Job {
   sourceMime: Chat2V2Mime;
   sourceBytes: number;
   sourceKey: string;
+  /** Authenticated Core-only claim hint, never supplied by a Web/Mobile client. */
+  phase?: "background_360";
 }
 /** Authorization, media record lookup and signed job claim must happen before calling this. */
 export function validateChat2V2Job(job: Chat2V2Job) {
@@ -103,13 +105,14 @@ export function validateChat2V2Manifest(job: Chat2V2Job, output: Chat2V2Manifest
         !output.imageSizes || Object.keys(output.imageSizes).length !== 2 ||
         !(["small","medium"] as const).every(size => Number.isSafeInteger(output.imageSizes[size]?.width) &&
           output.imageSizes[size].width >= 1 && output.imageSizes[size].width <= CHAT2_V2_IMAGE_EDGES[size] &&
-          Number.isSafeInteger(output.imageSizes[size]?.height) && output.imageSizes[size].height >= 1))
+          Number.isSafeInteger(output.imageSizes[size]?.height) && output.imageSizes[size].height >= 1 &&
+          (size !== "medium" || output.imageSizes[size].height <= CHAT2_V2_IMAGE_EDGES.medium)))
       throw new Error("CHAT2_V2_INVALID_MANIFEST");
     if(output.width !== output.imageSizes.medium.width || output.height !== output.imageSizes.medium.height)
       throw new Error("CHAT2_V2_INVALID_MANIFEST");
     return;
   }
-  if (output.posterKey !== keys.video.poster ||
+  if ((output.posterKey !== undefined && output.posterKey !== keys.video.poster) ||
       !Number.isFinite(output.durationSeconds) || output.durationSeconds <= 0 ||
       output.durationSeconds > FEED_VIDEO_MAX_SECONDS ||
       output.renditions.length < 1 || output.renditions.length > 2)
@@ -125,5 +128,6 @@ export function validateChat2V2Manifest(job: Chat2V2Job, output: Chat2V2Manifest
       throw new Error("CHAT2_V2_INVALID_MANIFEST");
     visited.add(file.quality);
   }
-  if (!visited.has(360)) throw new Error("CHAT2_V2_INVALID_MANIFEST");
+  if (!visited.has(360) && !visited.has(720))
+    throw new Error("CHAT2_V2_INVALID_MANIFEST");
 }

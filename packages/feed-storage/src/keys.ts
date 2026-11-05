@@ -5,9 +5,13 @@ const root = `posts/(${id})/(${id})`;
 export const feedSourcePattern = new RegExp(
   `^${root}/incoming/(${id})/source\\.(jpg|png|webp|mp4|mov|webm)$`,
 );
+/** Private phone-encoded staging objects, never eligible for CDN signing. */
+export const feedClientVariantPattern = new RegExp(
+  `^${root}/incoming/(${id})/(s|m|poster)\\.webp$`,
+);
 /** Only incoming source uploads and one immutable WebP/MP4 representation. */
 export function assertFeedObjectKey(key: string) {
-  if (!(feedSourcePattern.test(key) || feedV2FinalPattern.test(key))) {
+  if (!(feedSourcePattern.test(key) || feedClientVariantPattern.test(key) || feedV2FinalPattern.test(key))) {
     throw new Error("UNTRUSTED_FEED_KEY");
   }
 }

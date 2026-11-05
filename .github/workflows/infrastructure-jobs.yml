@@ -12,7 +12,7 @@ on:
         default: plan
         options: [plan, preflight, apply-existing-jobs, verify, publish-media-images, beget-readonly-diagnostic, beget-gallery-create, beget-gallery-configure, beget-gallery-canary]
       confirmation:
-        description: 'For apply: UPDATE_11_EXISTING_JOBS; for image publish: PUBLISH_MEDIA_IMAGES'
+        description: 'For apply: UPDATE_4_ACTIVE_VIDEO_JOBS; for image publish: PUBLISH_MEDIA_IMAGES'
         type: string
         required: false
 
@@ -103,10 +103,7 @@ jobs:
     environment: production
     env:
       CLOUDRU_WORKER_PINS_REQUIRED: ${{ vars.CLOUDRU_WORKER_PINS_REQUIRED || 'false' }}
-      CLOUDRU_GALLERY_WORKER_IMAGE: ${{ secrets.CLOUDRU_GALLERY_WORKER_IMAGE || vars.CLOUDRU_GALLERY_WORKER_IMAGE || '' }}
       CLOUDRU_FEED_WORKER_IMAGE: ${{ secrets.CLOUDRU_FEED_WORKER_IMAGE || vars.CLOUDRU_FEED_WORKER_IMAGE || '' }}
-      CLOUDRU_QUESTIONS_WORKER_IMAGE: ${{ secrets.CLOUDRU_QUESTIONS_WORKER_IMAGE || vars.CLOUDRU_QUESTIONS_WORKER_IMAGE || '' }}
-      CLOUDRU_CHAT_PHOTO_IMAGE: ${{ secrets.CLOUDRU_CHAT_PHOTO_IMAGE || vars.CLOUDRU_CHAT_PHOTO_IMAGE || '' }}
       CLOUDRU_CHAT_VIDEO_IMAGE: ${{ secrets.CLOUDRU_CHAT_VIDEO_IMAGE || vars.CLOUDRU_CHAT_VIDEO_IMAGE || '' }}
     steps:
       - uses: actions/checkout@v5
@@ -114,7 +111,7 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Print pinned image plan for existing 11 Jobs (no API writes)
+      - name: Print pinned image plan for 4 video Jobs (no API writes)
         run: node infra/cloudru/production-job-release.mjs --plan
       - name: Show current declared S3/CDN configuration without changing resources
         shell: bash
@@ -132,8 +129,8 @@ jobs:
         env:
           APPROVAL: ${{ inputs.confirmation }}
         run: |
-          test "$APPROVAL" = 'UPDATE_11_EXISTING_JOBS' || {
-            echo 'Blocked: type UPDATE_11_EXISTING_JOBS, then review production environment approval'
+          test "$APPROVAL" = 'UPDATE_4_ACTIVE_VIDEO_JOBS' || {
+            echo 'Blocked: type UPDATE_4_ACTIVE_VIDEO_JOBS, then review production environment approval'
             exit 1
           }
 

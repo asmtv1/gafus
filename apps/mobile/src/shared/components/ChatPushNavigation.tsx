@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useRootNavigationState, useRouter, type Href } from "expo-router";
+import { usePathname, useRootNavigationState, useRouter, type Href } from "expo-router";
 import { useAuthStore } from "@/shared/stores";
 import * as Linking from "expo-linking";
 import type { NotificationResponse } from "expo-notifications";
+import { nativePathForVerifiedGafusUrl } from "@/shared/lib/links/verifiedAppLinks";
 
 /**
  * Provider URLs are historically Next routes, while Expo Router uses
@@ -49,6 +50,7 @@ export function ChatPushNavigation() {
   const authenticated = useAuthStore((s) => s.isAuthenticated);
   const loading = useAuthStore((s) => s.isLoading);
   const nav = useRootNavigationState();
+  const pathname = usePathname();
   const router = useRouter();
   const lastResponseId = useRef<string | null>(null);
   useEffect(() => {
@@ -76,6 +78,19 @@ export function ChatPushNavigation() {
   }, []);
   useEffect(() => {
     const consume = (url: string) => {
+      // OS-verified HTTPS links can arrive on cold starts while auth is still
+      // loading. Keep the exact allowlisted destination in the root layout
+      // until the person signs in; main layout otherwise redirects to welcome
+      // and forgets the incoming post/question/chat. Reset-password remains a
+      // guest route handled directly by Expo Router (one-time token in URL).
+      const appLink = nativePathForVerifiedGafusUrl(url);
+      if (appLink) {
+        if (appLink.startsWith("/feed/") || appLink.startsWith("/questions/") ||
+            appLink.startsWith("/chats/") || appLink.startsWith("/training/")) {
+          setPending(appLink);
+        }
+        return;
+      }
       if (!url.startsWith("gafus:///")) return;
       const path = pushPath(url.slice("gafus://".length));
       if (path) setPending(path);
@@ -88,6 +103,12 @@ export function ChatPushNavigation() {
   }, []);
   useEffect(() => {
     if (!pending || !authenticated || loading || !nav?.key) return;
+    // Expo Router may already have handled this universal link directly.
+    // Avoid duplicate navigation on a warm start if it reached that screen.
+    if (!pending.includes("?") && pending === pathname) {
+      setPending(null);
+      return;
+    }
     // Next sends /courses for training reminders and /trainings/* for
     // course links. These are direct native routes, not chat IDs; do not
     // send them through the cynologist-chat API check.
@@ -116,6 +137,6 @@ export function ChatPushNavigation() {
     return () => {
       alive = false;
     };
-  }, [pending, authenticated, loading, nav?.key, router]);
+  }, [pending, authenticated, loading, nav?.key, pathname, router]);
   return null;
 }

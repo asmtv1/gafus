@@ -9,19 +9,21 @@ const reusable = readFileSync('.github/workflows/production-job-release-reusable
 
 const gates = [
   'QUESTIONS_V2_MEDIA_ENABLED',
-  'QUESTIONS_V2_PROCESSOR_READY',
   'QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED',
-  'QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED',
   'QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED',
 ];
 
-test('production API and worker default all Questions V2 readiness to false', () => {
+test('production API and worker gate Questions client WebP + S3 cleanup, not photo workers', () => {
   for (const gate of gates) {
     const composeLiteral = `${gate}=\${${gate}:-false}`;
     assert.equal(compose.split(composeLiteral).length - 1, 2, `API + Worker: ${gate}`);
     const defaultFalse = `vars.${gate} || 'false'`;
     assert(deploy.includes(`echo \"${gate}=false\"`), `bootstrap must default false: ${gate}`);
     assert.doesNotMatch(deploy, new RegExp(`${gate}=true`));
+  }
+  for(const retired of ['QUESTIONS_V2_PROCESSOR_READY','QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED']){
+    assert(!compose.includes(retired),'RETIRED_PHOTO_JOB_GATE_IN_COMPOSE_'+retired);
+    assert(!deploy.includes(retired),'RETIRED_PHOTO_JOB_GATE_IN_DEPLOY_'+retired);
   }
 });
 
@@ -44,6 +46,10 @@ test('regular app deploy cannot mutate Cloud.ru Job image or bypass incompatible
   assert(job.includes('desiredImageChanges'));
  assert(job.includes('configuredImage'));
   assert(job.includes('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS'));
-  assert(job.includes('QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED'));
+  // Old questions-photo Container Job is retired. Its former readiness flag
+  // must not authorize any Cloud photo processing on an app deploy.
+  assert(!job.includes("'questions-photo'"));
+  assert(!job.includes('gafus-questions-photo'));
+  assert(deploy.includes('echo "QUESTIONS_V2_MEDIA_ENABLED=false"'));
   assert(job.includes('INVALID_EXISTING_JOB_RELEASE_MODE'));
 });

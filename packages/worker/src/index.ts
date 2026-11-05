@@ -34,10 +34,8 @@ export async function startWorkers(): Promise<void> {
     { setupExamCleanupSchedule },
     { setupPetPreventionReminderSchedule },
     { startCronJobs },
-    { startGalleryProcessingTriggerWorker },
     { startFeedProcessingTriggerWorker },
     { startChat2MediaProcessingTriggerWorker },
-    { startQuestionsPhotoTriggerWorker },
   ] = await Promise.all([
     import("./push-worker"),
     import("./reengagement-worker"),
@@ -52,10 +50,8 @@ export async function startWorkers(): Promise<void> {
     import("./schedules/exam-cleanup-schedule"),
     import("./schedules/pet-prevention-reminder-schedule"),
     import("./cron-scheduler"),
-    import("./gallery-processing-trigger-worker"),
     import("./feed-processing-trigger-worker"),
     import("./chat2-media-processing-trigger-worker"),
-    import("./questions-photo-trigger-worker"),
   ]);
 
   // Запускаем exam cleanup worker
@@ -88,10 +84,8 @@ export async function startWorkers(): Promise<void> {
   startConsultationReminderWorker();
 
   // Immediate wake-ups for completed gallery uploads; cron remains recovery.
-  startGalleryProcessingTriggerWorker();
   startFeedProcessingTriggerWorker();
   startChat2MediaProcessingTriggerWorker();
-  startQuestionsPhotoTriggerWorker();
 
   // Запускаем cron-планировщик для re-engagement
   startCronJobs();

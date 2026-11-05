@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { adminSections, matchAdminRoute, maySeeRoute } from "./routes";
 
 describe("isolated live admin navigation", () => {
-  it("mounts all 18 requested legacy pages with unique paths and distinct API endpoints", () => {
-    expect(adminSections).toHaveLength(18);
-    expect(new Set(adminSections.map((x) => x.path)).size).toBe(18);
-    expect(new Set(adminSections.map((x) => x.key)).size).toBe(18);
+  it("mounts all 19 requested legacy pages with unique paths and distinct API endpoints", () => {
+    expect(adminSections).toHaveLength(19);
+    expect(new Set(adminSections.map((x) => x.path)).size).toBe(19);
+    expect(new Set(adminSections.map((x) => x.key)).size).toBe(19);
     expect(adminSections.every((x) => x.path.startsWith("/main-panel/"))).toBe(true);
     expect(adminSections.every((x) => x.api.startsWith("/api/v1/"))).toBe(true);
     expect(adminSections.map((x) => x.key)).toEqual([
@@ -14,6 +14,7 @@ describe("isolated live admin navigation", () => {
       "users",
       "mail",
       "media",
+      "video-quality",
       "admin",
       "partners",
       "profit",

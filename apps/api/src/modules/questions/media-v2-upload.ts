@@ -1,13 +1,12 @@
 /** Signed direct S3 POST for Questions. No photo bytes traverse Hono. */
 import { randomUUID } from "node:crypto";
 import { prisma } from "@gafus/prisma";
-import { questionsCanRetryConfirmedPhoto, questionsPhotoDailyLimitReached } from "@gafus/core/services/mediaDelivery";
+import { questionsPhotoDailyLimitReached } from "@gafus/core/services/mediaDelivery";
 import { questionActor, QuestionError, scheduleQuestionsV2Cleanup } from "@gafus/core/services/questions";
 import { questionsV2PresignedPost, questionsV2Head, questionsV2Delivery,
-  questionsV2Marker } from "@gafus/cdn-upload";
-import { questionsV2CheckSource, questionsV2SourceKey,
+  questionsV2Marker, questionsV2ClientSmallPost, questionsV2FinishClientWebp } from "@gafus/cdn-upload";
+import { questionsV2CheckSource, questionsV2SourceKey, questionsV2FinalKeys, questionsV2ValidateManifest,
   type QuestionsV2Mime,type QuestionsV2Manifest } from "@gafus/feed-cloud";
-import { enqueueQuestionsPhoto } from "@gafus/queues";
 function enabled(){
   if(process.env.QUESTIONS_V2_MEDIA_ENABLED!=="true")
     throw new QuestionError("PHOTO_V2_UNAVAILABLE","Сервис фотографий ещё не настроен",503);
@@ -21,7 +20,7 @@ async function own(userId:string,photoId:string){
   if(!photo||!task)throw new QuestionError("PHOTO_FORBIDDEN","Фото недоступно",403);
   return {photo,task};
 }
-export async function reserveQuestionsPhoto(userId:string,input:{mime:string;bytes:number}){
+async function reservePreparedQuestionsPhoto(userId:string,input:{mime:string;bytes:number}){
   enabled();
   let mime:QuestionsV2Mime;
   try{mime=questionsV2CheckSource(input.mime,input.bytes);}
@@ -53,41 +52,77 @@ export async function reserveQuestionsPhoto(userId:string,input:{mime:string;byt
     throw unavailable();
   }
 }
-export async function confirmQuestionsPhoto(userId:string,photoId:string){
+/** Web and Mobile upload pre-encoded 360/1440 WebP directly to S3 staging.
+ * The Core/Cloud Job path remains untouched for Web and older app versions.
+ */
+export async function reserveClientQuestionsPhoto(userId: string, input: { mediumBytes: number }) {
   enabled();
-  const {task}=await own(userId,photoId);
-  if(task.status!=="AWAITING_UPLOAD"){
-    if(questionsCanRetryConfirmedPhoto(task.status)){
-      if(task.status==="QUEUED")void enqueueQuestionsPhoto(task.mediaId).catch(()=>{});
-      return {id:photoId,status:task.status};
-    }
-    throw new QuestionError("PHOTO_UPLOAD_EXPIRED","Загрузка отменена или истекла",409);
+
+  if (!Number.isSafeInteger(input.mediumBytes) || input.mediumBytes < 12 || input.mediumBytes > 1_750_000)
+    throw new QuestionError("PHOTO_FORMAT", "Некорректный размер фото", 400);
+  const reserved = await reservePreparedQuestionsPhoto(userId, { mime: "image/webp", bytes: input.mediumBytes });
+  const sourceKey = questionsV2SourceKey(userId, reserved.mediaId, "image/webp");
+  try {
+    const smallUpload = await questionsV2ClientSmallPost(sourceKey);
+    return { ...reserved, smallUpload: { method: "POST" as const,
+      url: smallUpload.url, fields: smallUpload.fields, expiresIn: 600 } };
+  } catch {
+    await prisma.questionV2MediaTask.updateMany({
+      where: { mediaId: reserved.mediaId, ownerId: userId, status: "AWAITING_UPLOAD" },
+      data: { status: "EXPIRED", cleanupKind: "ALL", cleanupNextAt: new Date() },
+    });
+    throw unavailable();
   }
-  try{
-    const head=await questionsV2Head(task.sourceKey);
-    if(head.bytes!==task.sourceBytes||head.mime!==task.sourceMime)
-      throw Error("SOURCE_MISMATCH");
-  }catch{
-    throw new QuestionError("PHOTO_NOT_UPLOADED","Фото не загружено или не прошло проверку",409);
-  }
-  const done=await prisma.questionV2MediaTask.updateMany({
-    where:{mediaId:task.mediaId,ownerId:userId,status:"AWAITING_UPLOAD"},
-    data:{status:"QUEUED",nextAttemptAt:new Date()}});
-  if(!done.count){
-    // Another confirmation/discard raced with our CAS. Re-read exactly once;
-    // recursive confirmations can spin forever if a row remains AWAITING_UPLOAD.
-    const latest=await prisma.questionV2MediaTask.findUnique({where:{mediaId:task.mediaId}});
-    if(latest && questionsCanRetryConfirmedPhoto(latest.status)){
-      if(latest.status==="QUEUED")void enqueueQuestionsPhoto(latest.mediaId).catch(()=>{});
-      return {id:photoId,status:latest.status};
-    }
-    throw new QuestionError("PHOTO_CONFIRM_CONFLICT",
-      "Не удалось подтвердить фото. Проверьте статус загрузки",409);
-  }
-  // Redis errors never roll back an S3 upload or lose the durable QUEUED row.
-  void enqueueQuestionsPhoto(task.mediaId).catch(()=>{});
-  return {id:photoId,status:"QUEUED" as const};
 }
+export async function confirmClientQuestionsPhoto(userId: string, photoId: string) {
+  enabled();
+
+  const { task } = await own(userId, photoId);
+  if (task.status === "READY" && task.manifest) return { id: photoId, status: "READY" as const };
+  if (task.status !== "AWAITING_UPLOAD" || task.sourceMime !== "image/webp")
+    throw new QuestionError("PHOTO_CONFIRM_CONFLICT", "Неверный статус загрузки", 409);
+  const token = randomUUID();
+  const leased = await prisma.questionV2MediaTask.updateMany({
+    where: { mediaId: task.mediaId, ownerId: userId, status: "AWAITING_UPLOAD" },
+    data: { status: "CLIENT_PROCESSING", attemptToken: token,
+      leaseUntil: new Date(Date.now() + 180_000) },
+  });
+  if (leased.count !== 1)
+    throw new QuestionError("PHOTO_CONFIRM_CONFLICT", "Загрузка уже подтверждается", 409);
+  try {
+    const original = await questionsV2Head(task.sourceKey);
+    if (original.bytes !== task.sourceBytes || original.mime !== "image/webp")
+      throw Error("QUESTIONS_CLIENT_PHOTO_SOURCE_CHANGED");
+    const manifest = await questionsV2FinishClientWebp(task.sourceKey,
+      questionsV2FinalKeys(userId, task.mediaId));
+    questionsV2ValidateManifest({ mediaId: task.mediaId, ownerId: userId,
+      sourceKey: task.sourceKey, sourceMime: "image/webp", sourceBytes: task.sourceBytes }, manifest);
+    // The published QuestionPhoto URL and READY task must commit atomically.
+    // The worker path updates BOTH in one transaction; keeping that contract
+    // prevents a READY photo with an empty URL in Questions lists and answers.
+    await prisma.$transaction(async tx => {
+      const photo = await tx.questionPhoto.findFirst({ where: { id: task.photoId, ownerId: userId } });
+      if (!photo) throw Error("PHOTO_CLIENT_OWNER_CHANGED");
+      const updated = await tx.questionV2MediaTask.updateMany({
+        where: { mediaId: task.mediaId, ownerId: userId, status: "CLIENT_PROCESSING", attemptToken: token,
+          leaseUntil: { gt: new Date() } },
+        data: { status: "READY", manifest, attemptToken: null, leaseUntil: null,
+          cleanupKind: "SOURCE", cleanupNextAt: new Date(), cleanupCompletedAt: null },
+      });
+      if (updated.count !== 1) throw Error("PHOTO_CLIENT_COMPLETION_RACE");
+      await tx.questionPhoto.update({ where: { id: task.photoId },
+        data: { url: questionsV2Marker(manifest.variants.medium.key) } });
+    });
+    return { id: photoId, status: "READY" as const };
+  } catch {
+    await prisma.questionV2MediaTask.updateMany({
+      where: { mediaId: task.mediaId, ownerId: userId, status: "CLIENT_PROCESSING", attemptToken: token },
+      data: { status: "AWAITING_UPLOAD", attemptToken: null, leaseUntil: null },
+    });
+    throw new QuestionError("PHOTO_NOT_UPLOADED", "Готовые варианты фото не прошли проверку", 409);
+  }
+}
+
 export async function statusQuestionsPhoto(userId:string,photoId:string){
   enabled();
   const {task}=await own(userId,photoId);

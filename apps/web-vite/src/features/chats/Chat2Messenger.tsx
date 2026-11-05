@@ -12,7 +12,6 @@ import { RouteLink, navigate, useRoutePath, useRouteSearch } from "../../shared/
 import { BackButton, CaramelButton, PrimaryButton } from "../../shared/ui";
 import {
   chat2Api,
-  refreshChat2RoomToken,
   type Chat2Conversation,
   type Chat2Message,
   type Chat2Kind,
@@ -22,6 +21,11 @@ import {
 import { Chat2ReportQueue } from "./Chat2ReportQueue";
 import { Chat2StaffQueue } from "./Chat2StaffQueue";
 import css from "./Chat2Messenger.module.css";
+import { VideoQualitySettings } from "../../shared/media/VideoQualitySettings";
+import { webMp4Hints, observeWebMp4Start, savedWebMp4Mode, saveWebMp4Mode } from "../../shared/media/videoPlaybackPolicy";
+import { reportWebVideoStarted } from "../../shared/media/videoQualityTelemetry";
+import { videoRetryMessage, videoServerFailureMessage } from "../../shared/media/videoRetryMessage";
+import { photoRetryMessage } from "../../shared/media/photoRetryMessage";
 import {
   chat2ImageSource, chat2VideoSource, chat2HasVideoQuality,
   chat2MatchedS3Variant, chat2CdnS3FailoverAllowed,
@@ -892,7 +896,8 @@ function Chat2Room({
     onDraftChange(value);
   };
   const [pendingMedia, setPendingMedia] = useState<
-    { localId: string; name: string; preview: string | null; kind: "image" | "video" | "file"; attachment?: Chat2Attachment }[]
+    { localId: string; name: string; preview: string | null; kind: "image" | "video" | "file";
+      file: File; attachment?: Chat2Attachment; failure?: string; uploading?: boolean }[]
   >([]);
   const [uploading, setUploading] = useState(false);
   const [reply, setReply] = useState<Chat2Message | null>(null);
@@ -956,8 +961,7 @@ function Chat2Room({
       try {
         const connection = await chat2Api.connect();
         if (disposed) return;
-        const subscription = await chat2SubscriptionForConnection(connection, id,
-          () => chat2Api.subscription(id));
+        const subscription = await chat2SubscriptionForConnection(connection, id);
         if (disposed) return;
         socket = new Centrifuge(connection.wsUrl, {
           token: connection.token,
@@ -975,8 +979,7 @@ function Chat2Room({
         // Proxy-only is authorized on every new subscribe/reconnect by Core
         // readGate in the internal broker callback. Never send a stale room JWT.
         const sub = socket.newSubscription(subscription.channel,
-          chat2SubscriptionTransportOptions(subscription,
-            () => refreshChat2RoomToken(id)));
+          chat2SubscriptionTransportOptions(subscription));
         sub.on("publication", () => {
           if (!disposed) {
             void cache.invalidateQueries({ queryKey: ["chat2", "messages", ownerId, id] });
@@ -1066,6 +1069,22 @@ function Chat2Room({
       setMoreLoading(false);
     }
   }
+  async function uploadPendingFile(localId: string, file: File) {
+    // This is an actual second local encode + S3 upload of ONE retained File.
+    // It never retries unrelated attachments or just re-queries a failed job.
+    setPendingMedia(previous => previous.map(item => item.localId === localId
+      ? { ...item, failure: undefined, uploading: true } : item));
+    try {
+      const attachment = await chat2Api.upload(id, file);
+      setPendingMedia(previous => previous.map(item => item.localId === localId
+        ? { ...item, attachment, uploading: false, failure: undefined } : item));
+    } catch (reason) {
+      setPendingMedia(previous => previous.map(item => item.localId === localId
+        ? { ...item, uploading: false,
+          failure: item.kind === "video" ? videoRetryMessage(reason)
+            : item.kind === "image" ? photoRetryMessage(reason) : errorText(reason) } : item));
+    }
+  }
   async function selectFiles(files: FileList | null) {
     if (!files || uploading || busy) return;
     setUploading(true);
@@ -1073,23 +1092,21 @@ function Chat2Room({
     try {
       for (const file of Array.from(files).slice(0, 8 - pendingMedia.length)) {
         const localId = crypto.randomUUID();
-        const kind = file.type.startsWith("image/") ? "image" : file.type === "video/mp4" ? "video" : "file";
+        const kind = file.type.startsWith("image/") ? "image" :
+          file.type.startsWith("video/") ? "video" : "file";
         const preview = kind !== "file" ? URL.createObjectURL(file) : null;
-        setPendingMedia((previous) => [...previous, { localId, name: file.name, preview, kind }]);
-        try {
-          const attachment = await chat2Api.upload(id, file);
-          setPendingMedia((previous) =>
-            previous.map((x) => (x.localId === localId ? { ...x, attachment } : x)),
-          );
-        } catch (e) {
-          setPendingMedia((previous) => previous.filter((x) => x.localId !== localId));
-          if (preview) URL.revokeObjectURL(preview);
-          setError(errorText(e));
-        }
+        setPendingMedia(previous => [...previous, { localId, name: file.name, preview,
+          kind, file, uploading: true }]);
+        await uploadPendingFile(localId, file);
       }
-    } finally {
-      setUploading(false);
-    }
+    } finally { setUploading(false); }
+  }
+  function retryPendingFile(localId: string) {
+    if (uploading || busy) return;
+    const target = pendingMedia.find(item => item.localId === localId);
+    if (!target || !target.failure || target.attachment || target.uploading) return;
+    setUploading(true);
+    void uploadPendingFile(localId, target.file).finally(() => setUploading(false));
   }
   function removeMedia(media: {
     localId: string;
@@ -1458,10 +1475,23 @@ function Chat2Room({
           <div className={css.pendingMedia} aria-label="Вложения">
             {pendingMedia.map((item) => (
               <div className={css.pendingFile} key={item.localId}>
-                {item.preview && item.kind === "image" ? <img src={item.preview} alt={item.name} /> :
-                  item.preview && item.kind === "video" ? <video src={item.preview} muted playsInline preload="metadata" aria-label={item.name} /> : <span>📄</span>}
+                <div className={css.pendingFileMedia}>
+                  {item.preview && item.kind === "image" ? <img src={item.preview} alt={item.name} /> :
+                    item.preview && item.kind === "video" ? <video src={item.preview} muted playsInline preload="metadata" aria-label={item.name} /> : <span>📄</span>}
+                  {item.failure && (item.kind === "video" || item.kind === "image") && <button type="button"
+                    className={css.retryVideoOverlay}
+                    aria-label={`Повторить обработку ${item.kind === "image" ? "фото" : "видео"} ${item.name}`}
+                    title={`Повторить подготовку и загрузку только этого ${item.kind === "image" ? "фото" : "видео"}`}
+                    disabled={busy || uploading} onClick={() => retryPendingFile(item.localId)}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+                      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M20 11a8 8 0 1 0-2.3 6M20 4v7h-7" />
+                    </svg>
+                  </button>}
+                </div>
                 <span>{item.name}</span>
-                <small>{item.attachment ? "Готово" : "Загружается…"}</small>
+                <small>{item.attachment ? "Готово" : item.failure ? "Ошибка" : "Подготавливаем и загружаем…"}</small>
+                {item.failure && <small role="alert" className={css.pendingFileError}>{item.failure}</small>}
                 <button
                   type="button"
                   aria-label={`Удалить ${item.name}`}
@@ -1565,15 +1595,21 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
   type MediaResponse = Awaited<ReturnType<typeof chat2Api.mediaUrl>>;
   const [media, setMedia] = useState<MediaResponse | null>(null);
   const [src, setSrc] = useState<string | null>(null);
-  const [quality, setQuality] = useState<Chat2QualityMode>("auto");
+  const [quality, setQuality] = useState<Chat2QualityMode>(savedWebMp4Mode);
   const [usingFallback, setUsingFallback] = useState(false);
   const [posterSource, setPosterSource] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const resumeAt = useRef(0);
+  const playbackAttempt = useRef<{at:number; hints:Chat2VideoHints; quality:360|720}|null>(null);
+  const reportedRendition = useRef<string|null>(null);
+  const playedOnce = useRef(false);
+  const resumeAfterAutoSelection = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [reload, setReload] = useState(0);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const pendingSince = useRef(0);
+  const [processingTimedOut, setProcessingTimedOut] = useState(false);
   const [fullscreen, setFullscreen] = useState<{
     url: string; media: MediaResponse; fallback: boolean; error: boolean;
   } | null>(null);
@@ -1597,17 +1633,26 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
   }, [viewerOpen]);
   // Uploaded files appear in the message immediately; poll only pending jobs.
   useEffect(() => {
-    if (!pendingStatus || !["QUEUED", "PROCESSING"].includes(pendingStatus)) return;
+    if (!pendingStatus || !["QUEUED", "PROCESSING"].includes(pendingStatus) || processingTimedOut) return;
+    if (pendingSince.current && Date.now() - pendingSince.current > 90_000) {
+      setProcessingTimedOut(true);
+      setLoadError(true);
+      return;
+    }
     const timer = window.setTimeout(() => setReload(value => value + 1), 4000);
     return () => window.clearTimeout(timer);
-  }, [pendingStatus, reload]);
+  }, [pendingStatus, reload, processingTimedOut]);
   useEffect(() => {
     let live = true;
+    reportedRendition.current = null;
     void chat2Api.mediaUrl(chatId, file.id)
       .then((result) => {
         if (!live) return;
         setMedia(result);
         setPendingStatus(result.status && result.status !== "READY" ? result.status : null);
+        if (["QUEUED", "PROCESSING"].includes(result.status ?? "")) {
+          if (!pendingSince.current) pendingSince.current = Date.now();
+        } else pendingSince.current = 0;
         setUsingFallback(false);
         if (result.status === "FAILED" || result.status === "EXPIRED") {
           setSrc(null);
@@ -1616,14 +1661,16 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
         }
         if (result.status && result.status !== "READY") {
           setSrc(null);
-          setLoadError(false);
+          setLoadError(processingTimedOut);
           return;
         }
         setPosterSource(result.renditions?.poster ?? null);
+        const preferred = savedWebMp4Mode();
+        setQuality(preferred);
         setSrc(file.kind === "image"
           ? chat2ImageSource(result.renditions?.image, 320, window.devicePixelRatio, result.renditions?.imageWidths) ?? result.url
           : file.kind === "video"
-            ? chat2VideoSource(result.renditions?.video, "auto", videoHints()) ?? result.url
+            ? chat2VideoSource(result.renditions?.video, preferred, videoHints()) ?? result.url
             : result.url);
         setLoadError(false);
       })
@@ -1665,12 +1712,7 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
     return () => { active = false; cover.onerror = null; };
   }, [file.kind, media, usingFallback]);
   function videoHints(): Chat2VideoHints {
-    const network = (navigator as Navigator & {
-      connection?: { saveData?: boolean; downlink?: number; effectiveType?: Chat2VideoHints["effectiveType"] };
-    }).connection;
-    return { width: videoRef.current?.clientWidth || 320,
-      saveData: network?.saveData, downlinkMbps: network?.downlink,
-      effectiveType: network?.effectiveType };
+    return webMp4Hints(videoRef.current?.clientWidth || 320);
   }
   function switchQuality(mode: Chat2QualityMode) {
     if (!media?.renditions?.video) return;
@@ -1678,10 +1720,61 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
     const next = chat2VideoSource(variants, mode, videoHints());
     if (!next) return;
     if (next !== src) resumeAt.current = videoRef.current?.currentTime ?? 0;
+    playbackAttempt.current = null;
     setQuality(mode);
+    saveWebMp4Mode(mode);
     setSrc(next);
   }
+  function markVideoPlayIntent() {
+    if (!media?.renditions?.video || !src) return;
+    const variants = usingFallback ? media.fallbackRenditions?.video : media.renditions.video;
+    const selected = src === variants?.[720] ? 720 : src === variants?.[360] ? 360 : null;
+    if (!selected) return;
+    playbackAttempt.current = {at:Date.now(),hints:videoHints(),quality:selected};
+  }
+  function onVideoPlaying() {
+    setPlaying(true);
+    playedOnce.current = true;
+    if (src && src !== reportedRendition.current && media?.renditions?.video) {
+      const variants = usingFallback ? media.fallbackRenditions?.video : media.renditions.video;
+      const chosen = src === variants?.[720] ? 720 : src === variants?.[360] ? 360 : null;
+      if (chosen) {
+        reportedRendition.current = src;
+        reportWebVideoStarted({surface:"chat",quality:chosen,mode:quality,
+          hints:videoHints(),available:media.renditions.video,fallback:usingFallback});
+      }
+    }
+    const current = playbackAttempt.current;
+    playbackAttempt.current = null;
+    if (current && !usingFallback) observeWebMp4Start(current.hints, current.quality, Date.now() - current.at);
+  }
+  function onVideoWaiting() {
+    const current = playbackAttempt.current;
+    if (!current || Date.now() - current.at < 4000) return;
+    playbackAttempt.current = null;
+    if (!usingFallback) observeWebMp4Start(current.hints, current.quality, Date.now() - current.at);
+  }
+  function requestVideoPlayback() {
+    if (!playedOnce.current && media?.renditions?.video) {
+      const preferred = savedWebMp4Mode();
+      const variants = usingFallback ? media.fallbackRenditions?.video : media.renditions.video;
+      const wanted = chat2VideoSource(variants, preferred, videoHints());
+      if (preferred !== quality) setQuality(preferred);
+      // The preview can stay mounted while a user changes Wi-Fi. Re-select
+      // exactly once on first Play, never in the middle of a playing MP4.
+      if (wanted && wanted !== src) {
+        resumeAfterAutoSelection.current = true;
+        setSrc(wanted);
+        return;
+      }
+    }
+    markVideoPlayIntent();
+    void videoRef.current?.play().catch(() => undefined);
+  }
   function retryVideo() {
+    // Recheck only; no client may falsely pretend this restarts a failed Cloud Job.
+    pendingSince.current = 0;
+    setProcessingTimedOut(false);
     setLoadError(false);
     setPlaying(false);
     setSrc(null);
@@ -1724,10 +1817,16 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
         {src ? (
           <div className={css.videoFrame}>
           <video key={src} ref={videoRef} src={src} controls playsInline preload="metadata"
-            onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+            onPlay={() => setPlaying(true)} onPlaying={onVideoPlaying} onWaiting={onVideoWaiting}
+            onPause={() => setPlaying(false)}
             onEnded={() => setPlaying(false)}
             poster={posterSource ?? undefined} aria-label={file.name}
             onLoadedMetadata={(event) => {
+              if (resumeAfterAutoSelection.current) {
+                resumeAfterAutoSelection.current = false;
+                markVideoPlayIntent();
+                void event.currentTarget.play().catch(() => undefined);
+              }
               if (resumeAt.current > 0) {
                 event.currentTarget.currentTime = Math.min(resumeAt.current, Math.max(0, event.currentTarget.duration - 0.1));
                 resumeAt.current = 0;
@@ -1738,29 +1837,23 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
           {!playing && (
             <button type="button" className={css.videoPlayOverlay}
               aria-label={`Воспроизвести ${file.name}`}
-              onClick={() => { void videoRef.current?.play().catch(() => undefined); }}>
+              onClick={requestVideoPlayback}>
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="m8 5 11 7-11 7V5Z" />
               </svg>
             </button>
           )}
+            {both && <VideoQualitySettings value={quality} onChange={switchQuality}
+              available={variants} />}
           </div>
         ) : (
           <div className={css.videoLoadingState} role={loadError ? "alert" : "status"}>
-            {loadError ? <><span>Не удалось загрузить видео</span>
-              <button type="button" onClick={retryVideo}>Повторить</button></>
+            {loadError ? <><span>{pendingStatus === "FAILED" ? videoServerFailureMessage :
+              processingTimedOut ?
+              "Обработка видео слишком долго не завершается. Сервис обработки может быть недоступен. Сохраните оригинал. Можно проверить состояние ещё раз — это не перезапустит обработку." :
+              "Не удалось загрузить видео. Проверьте интернет и попробуйте открыть его снова."}</span>
+              {pendingStatus !== "FAILED" && <button type="button" onClick={retryVideo}>Проверить состояние ещё раз</button>}</>
               : "Загружаем видео…"}
-          </div>
-        )}
-        {both && src && (
-          <div className={css.qualitySwitch} role="group" aria-label="Качество видео">
-            {(["auto", 360, 720] as const).map((mode) => (
-              <button key={mode} type="button" aria-pressed={quality === mode}
-                className={quality === mode ? css.qualitySelected : undefined}
-                onClick={() => switchQuality(mode)}>
-                {mode === "auto" ? "Авто" : `${mode}p`}
-              </button>
-            ))}
           </div>
         )}
       </div>
@@ -1769,7 +1862,7 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
   const imageVariants: Chat2MediaRenditions["image"] =
     usingFallback ? media?.fallbackRenditions?.image : media?.renditions?.image;
   const srcset = file.kind === "image" && imageVariants
-    ? Array.from(new Map(([360, 720] as const)
+    ? Array.from(new Map(([360, 1440] as const)
         .filter((size) => imageVariants[size]?.startsWith("https://"))
         .map((size) => [media?.renditions?.imageWidths?.[size] ?? size, imageVariants[size]!] as const))
         .entries()).map(([width, url]) => `${url} ${width}w`).join(", ")

@@ -11,6 +11,8 @@ import { uploadMomentPhoto, uploadMomentVideo, validateMomentPhoto, validateMome
 import { ApiError } from "../../shared/api/client";
 import { RouteLink } from "../../shared/router/location";
 import {PrimaryButton} from "../../shared/ui";
+import {photoRetryMessage} from "../../shared/media/photoRetryMessage";
+import {videoRetryMessage} from "../../shared/media/videoRetryMessage";
 
 type MomentCommentsProps = {
   postId: string; userId: string; focusedCommentId?: string | null;
@@ -27,6 +29,18 @@ function MomentCommentsTarget({ postId, userId, focusedCommentId = null }: Momen
   const [files, setFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState(0);
   const [fileError, setFileError] = useState("");
+  const [fileFailures, setFileFailures] = useState<Record<number,string>>({});
+  // Server-acknowledged media IDs survive per-file retry of an unfinished
+  // comment. Never re-encode uploaded siblings merely to retry one image.
+  const verifiedFiles = useRef(new Map<string,string>());
+  // File upload idempotency must not change when the user edits comment text.
+  // Each selected File gets its own stable key independent of draft fingerprint.
+  const selectedFileIds=useRef(new WeakMap<File,string>());
+  const uploadIdFor=(file:File)=>{
+    let key=selectedFileIds.current.get(file);
+    if(!key){key=crypto.randomUUID();selectedFileIds.current.set(file,key);}
+    return key;
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
   const focusedRef = useRef<HTMLLIElement>(null);
@@ -87,15 +101,36 @@ function MomentCommentsTarget({ postId, userId, focusedCommentId = null }: Momen
       postId: string; text: string; replyToId: string | null;
       clientRequestId: string; files: File[]; uploadIds: string[];
     }) => {
-      const mediaIds = await Promise.all(submitted.files.map((file, index) => {
+      // Wait for all selected S3 transfers before showing per-photo retries.
+      // Promise.all rejects early while siblings can still be uploading; a
+      // user pressing retry in that window could overlap an accepted transfer.
+      const outcomes = await Promise.allSettled(submitted.files.map(async (file, index) => {
+        const uploadId=submitted.uploadIds[index]!;
+        const confirmed=verifiedFiles.current.get(uploadId);
+        if(confirmed)return confirmed;
         const upload = file.type.startsWith("video/") ? uploadMomentVideo : uploadMomentPhoto;
-        return upload({
-          postId: submitted.postId, file, clientRequestId: submitted.uploadIds[index]!,
-          purpose: "comment", existingCount: index,
-          onProgress: percentage => setProgress(current =>
-            Math.max(current, Math.round((index + percentage / 100) / submitted.files.length * 100))),
-        });
+        try {
+          const mediaId=await upload({
+            postId: submitted.postId, file, clientRequestId: uploadId,
+            purpose: "comment", existingCount: index,
+            onProgress: percentage => setProgress(current =>
+              Math.max(current, Math.round((index + percentage / 100) / submitted.files.length * 100))),
+          });
+          verifiedFiles.current.set(uploadId,mediaId);
+          if(active.current)setFileFailures(previous=>{
+            const next={...previous};delete next[index];return next;
+          });
+          return mediaId;
+        }catch(cause){
+          if(active.current)setFileFailures(previous=>({...previous,[index]:
+            file.type.startsWith("video/")?videoRetryMessage(cause):photoRetryMessage(cause)}));
+          throw cause;
+        }
       }));
+      const rejected=outcomes.find((result):result is PromiseRejectedResult =>
+        result.status==="rejected");
+      if(rejected)throw rejected.reason;
+      const mediaIds=outcomes.map(result=>(result as PromiseFulfilledResult<string>).value);
       return createMomentComment({
         postId: submitted.postId, text: submitted.text,
         replyToId: submitted.replyToId, clientRequestId: submitted.clientRequestId,
@@ -111,6 +146,8 @@ function MomentCommentsTarget({ postId, userId, focusedCommentId = null }: Momen
       ]);
       if (active.current && editorFingerprintRef.current === confirmedFingerprint) {
         attempt.current = null;
+        verifiedFiles.current.clear();
+        setFileFailures({});
         setText("");
         setFiles([]);
         setFileError("");
@@ -138,12 +175,34 @@ function MomentCommentsTarget({ postId, userId, focusedCommentId = null }: Momen
       next.forEach((file, index) => file.type.startsWith("video/")
         ? validateMomentVideo(file, index) : validateMomentPhoto(file, index));
       setFiles(next);
+      // Appending another photo must not invalidate already-uploaded siblings.
+      setFileFailures({});
       setFileError("");
       setProgress(0);
       attempt.current = null;
     } catch (error) {
       setFileError(error instanceof Error ? error.message : "Недопустимые вложения");
     }
+  }
+  async function retryOneFile(index:number){
+    if(submitFlight.current||add.isPending)return;
+    const selected=files[index];
+    const requestId=attempt.current?.uploadIds[index];
+    if(!selected||!requestId||!fileFailures[index]||
+        verifiedFiles.current.has(requestId))return;
+    submitFlight.current=true;
+    setFileFailures(previous=>{const next={...previous};delete next[index];return next;});
+    try{
+      const upload=selected.type.startsWith("video/")?uploadMomentVideo:uploadMomentPhoto;
+      const mediaId=await upload({postId,file:selected,clientRequestId:requestId,
+        purpose:"comment",existingCount:index,
+        onProgress:percentage=>setProgress(Math.round(percentage))});
+      verifiedFiles.current.set(requestId,mediaId);
+      if(active.current)setFileError("");
+    }catch(cause){
+      if(active.current)setFileFailures(previous=>({...previous,[index]:
+        selected.type.startsWith("video/")?videoRetryMessage(cause):photoRetryMessage(cause)}));
+    }finally{submitFlight.current=false;}
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -152,7 +211,7 @@ function MomentCommentsTarget({ postId, userId, focusedCommentId = null }: Momen
     const fingerprint = editorFingerprint;
     if (!attempt.current || attempt.current.fingerprint !== fingerprint) {
       attempt.current = { fingerprint, id: crypto.randomUUID(),
-        uploadIds: files.map(() => crypto.randomUUID()) };
+        uploadIds: files.map(uploadIdFor) };
     }
     submitFlight.current = true;
     setProgress(0);
@@ -278,9 +337,18 @@ function MomentCommentsTarget({ postId, userId, focusedCommentId = null }: Momen
         </button>
       </div>}
       {files.length > 0 && <div className="moment-comment-composer-preview">
-        <MomentLocalMediaPreview files={files} disabled={add.isPending}
+        <MomentLocalMediaPreview files={files} disabled={add.isPending||submitFlight.current}
+          failures={files.map((_,index)=>fileFailures[index])}
+          onRetry={index=>void retryOneFile(index)}
           onRemove={index => {
+            const removedKey=selectedFileIds.current.get(files[index]!);
+            if(removedKey)verifiedFiles.current.delete(removedKey);
             setFiles(previous => previous.filter((_, pos) => pos !== index));
+            setFileFailures(previous=>Object.fromEntries(Object.entries(previous)
+              .flatMap(([key,message])=>{
+                const number=Number(key);
+                return number===index?[]:[[number>index?number-1:number,message]];
+              })));
             attempt.current = null;
             setFileError("");
           }} />
@@ -338,7 +406,9 @@ function MomentCommentsTarget({ postId, userId, focusedCommentId = null }: Momen
         <progress max={100} value={progress} aria-label="Прогресс загрузки вложений" />
       </div>}
       {add.isError && <p role="alert" className="moment-comment-composer-error">
-        Не удалось отправить комментарий. Проверьте файлы и повторите попытку.
+        {Object.keys(fileFailures).length ?
+          "Не удалось обработать некоторые вложения на устройстве. Нажмите круглую стрелку на конкретной фотографии, проверьте интернет или сохраните фото как JPG/PNG. Уже переданные файлы не будут загружаться снова." :
+          "Не удалось отправить комментарий: сервер не подтвердил результат. Проверьте опубликованные комментарии перед повтором."}
       </p>}
     </form>}
   </section>;

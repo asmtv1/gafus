@@ -100,7 +100,8 @@ for (const flag of [
   "CLOUDRU_MEDIA_JOBS_ENABLED",
   "GALLERY_CDN_EDGE_TOKEN_VERIFIED",
   "FEED_CDN_EDGE_TOKEN_VERIFIED",
-  "GALLERY_PROCESSOR_READY",
+  "GALLERY_LOCAL_STORAGE_JANITOR_ENABLED",
+  "FEED_LOCAL_STORAGE_JANITOR_ENABLED",
 ])
   assert(prod.includes(flag + "="), "MISSING_PRODUCTION_COMPOSE_ENV_" + flag);
 // Static Vite Web has no server credentials; only Hono API enqueues Jobs.

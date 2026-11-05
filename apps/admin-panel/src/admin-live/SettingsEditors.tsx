@@ -192,14 +192,18 @@ const featureKeys = [
   ["iosRuCardPaymentHint", "Подсказка об оплате"],
 ] as const;
 function featureDraft(source: Record<string, unknown>): Record<string, unknown> {
-  const { revision, iosReviewVersion, released, review, global, rewardedAds } = source;
-  return { revision, iosReviewVersion, released, review, global, rewardedAds };
+  const { revision, iosReviewVersion, ota, released, review, global, rewardedAds } = source;
+  return { revision, iosReviewVersion, ota, released, review, global, rewardedAds };
 }
 function validFeatureControl(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value) || !Number.isSafeInteger(value.revision) ||
     !(Number(value.revision) > 0) ||
     !(value.iosReviewVersion === null || typeof value.iosReviewVersion === "string")) return false;
-  if (!["released", "review", "global", "rewardedAds"].every(key => isRecord(value[key]))) return false;
+  if (!["released", "review", "global", "rewardedAds", "ota"].every(key => isRecord(value[key]))) return false;
+  const ota = value.ota as Record<string, unknown>;
+  if (typeof ota.required !== "boolean" ||
+    !(ota.version === null || typeof ota.version === "string") ||
+    !["all", "ios", "android"].includes(String(ota.platform))) return false;
   const profiles = ["released", "review"];
   return profiles.every(profile =>
     ["vkLogin", "iosRuCardPayment", "subscriptionPromoCodes", "iosRuCardPaymentHint", "rewardedAds"]
@@ -210,8 +214,8 @@ function validFeatureControl(value: unknown): value is Record<string, unknown> {
 export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSaved: () => void }) {
   const [draft, setDraft] = useState<Record<string, unknown>>(() => {
     if (!isRecord(source)) return {};
-    const { revision, iosReviewVersion, released, review, global, rewardedAds } = source;
-    return { revision, iosReviewVersion, released, review, global, rewardedAds };
+    const { revision, iosReviewVersion, ota, released, review, global, rewardedAds } = source;
+    return { revision, iosReviewVersion, ota, released, review, global, rewardedAds };
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -223,7 +227,8 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
     !isRecord(draft.released) ||
     !isRecord(draft.review) ||
     !isRecord(draft.global) ||
-    !isRecord(draft.rewardedAds)
+    !isRecord(draft.rewardedAds) ||
+    !isRecord(draft.ota)
   )
     return <p role="alert">Некорректный формат настроек feature-flags</p>;
   const updateGroup = (group: string, key: string, value: unknown) =>
@@ -234,7 +239,16 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (writeLock.current || verifyRequired) return;
-    if (!window.confirm("Опубликовать новые значения feature-flags?")) return;
+    const ota = draft.ota as Record<string, unknown>;
+    if (ota.required && (
+      !ota.version || !/^\d+\.\d+\.\d+-ota\.[1-9]\d*$/.test(String(ota.version))
+    )) {
+      setError("Для обязательного OTA укажите опубликованную версию вида 1.7.3-ota.1");
+      return;
+    }
+    if (!window.confirm(ota.required
+      ? `Включить обязательное OTA ${String(ota.version)} для ${String(ota.platform)}? Убедитесь, что обновление опубликовано и доступно.`
+      : "Опубликовать новые значения feature-flags?")) return;
     writeLock.current = true;
     setSaving(true);
     setError(null);
@@ -248,6 +262,8 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
       const submitted = draft;
       if (Number(actual.revision) <= Number(submitted.revision) ||
         actual.iosReviewVersion !== submitted.iosReviewVersion ||
+        !Object.entries(submitted.ota as Record<string, unknown>).every(([key, value]) =>
+          (actual.ota as Record<string, unknown>)[key] === value) ||
         !["released", "review", "global"].every((group) =>
           Object.entries(submitted[group] as Record<string, unknown>).every(([key, value]) =>
             (actual[group] as Record<string, unknown>)[key] === value))) {
@@ -324,7 +340,7 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
           <label>
             Версия ревью iOS
             <input
-              placeholder="1.7.2"
+              placeholder="1.7.3"
               value={String(draft.iosReviewVersion ?? "")}
               onChange={(e) =>
                 setDraft((old) => ({
@@ -334,6 +350,45 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
               }
             />
           </label>
+        </fieldset>
+        <fieldset disabled={saving || verifyRequired}>
+          <legend>OTA-обновления · приложение 1.7.3</legend>
+          <p className="note">
+            Независимо от принудительных обновлений App Store / Google Play.
+            Включайте обязательность только после публикации OTA для нужных платформ.
+          </p>
+          <label>
+            Минимальная OTA-версия
+            <input
+              placeholder="1.7.3-ota.1"
+              maxLength={48}
+              value={String((draft.ota as Record<string, unknown>).version ?? "")}
+              onChange={(e) => updateGroup("ota", "version", e.target.value.trim() || null)}
+            />
+          </label>
+          <label>
+            Платформы
+            <select
+              value={String((draft.ota as Record<string, unknown>).platform)}
+              onChange={(e) => updateGroup("ota", "platform", e.target.value)}
+            >
+              <option value="all">iOS и Android</option>
+              <option value="ios">Только iOS</option>
+              <option value="android">Только Android</option>
+            </select>
+          </label>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={(draft.ota as Record<string, unknown>).required === true}
+              onChange={(e) => updateGroup("ota", "required", e.target.checked)}
+            />
+            Обязательное OTA-обновление
+          </label>
+          <p className="note">
+            Выключено: OTA применяется как обычно. Включено: старая OTA-ревизия
+            блокируется до успешной установки; при ошибке доступна повторная попытка.
+          </p>
         </fieldset>
         <fieldset disabled>
           <legend>Rewarded Ads (архив, только чтение)</legend>

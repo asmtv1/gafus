@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "ru.gafus.app",
+      "sha256_cert_fingerprints": [
+        "4A:B5:16:CF:4F:E2:61:31:A7:14:D0:84:86:AA:6C:2B:10:70:1E:8D:4B:BD:20:B3:04:3D:64:99:C0:40:D8:F9"
+      ]
+    }
+  }
+]

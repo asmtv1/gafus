@@ -1,4 +1,13 @@
 // @vitest-environment jsdom
+vi.mock("../../shared/media/browserPhotoWebp",()=>({
+  prepareBrowserPhotoWebp:vi.fn(async(_file:File)=>({
+    thumb:{file:new File([new Uint8Array(128)],"thumb.webp",{type:"image/webp"}),width:480,height:360},
+    full:{file:new File([new Uint8Array(256)],"full.webp",{type:"image/webp"}),width:1920,height:1440},
+  })),
+}));
+vi.mock("../../shared/media/browserPhotoUpload",()=>({
+  uploadBrowserPhotoWebp:vi.fn(async()=>undefined),
+}));
 import {act} from "react";
 import {createRoot,type Root} from "react-dom/client";
 import {beforeEach,afterEach,describe,it,expect,vi} from "vitest";
@@ -48,13 +57,14 @@ beforeEach(async()=>{
   reserveAckLost=false;retryAckLost=false;retryAttempts=[];
   refreshed=vi.fn<() => void>();
   fetcher=vi.fn(async(url:string,options?:RequestInit)=>{
-    const reserve=/^\/api\/v1\/gallery\/albums\/album_A\/uploads$/;
+    const reserve=/^\/api\/v1\/gallery\/uploads\/client-reserve$/;
     if(reserve.test(url)){
       const attempt=fetcher.mock.calls.filter(([key])=>reserve.test(key)).length;
       if(reserveAckLost&&attempt===1)throw Error("RESERVE_ACK_LOST");
       const id=reserveAckLost?ids[0]:ids[attempt-1];
       return reply({uploadId:id,albumId:"album_A",status:"reserved",
         postUrl:uploadUrl(id),postFields:{policy:"nonprod"},
+        thumbUpload:{method:"POST",url:uploadUrl(id),fields:{policy:"thumb"}},
         reservationExpiresAt:new Date(Date.now()+3600000).toISOString()});
     }
     if(url===`/api/v1/gallery/uploads/${ids[0]}/retry`){
@@ -63,9 +73,11 @@ beforeEach(async()=>{
       if(retryAckLost&&retryAttempts.length===1)throw Error("RETRY_ACK_LOST");
       return reply({uploadId:retryChild,albumId:"album_A",status:"reserved",
         postUrl:uploadUrl(retryChild),postFields:{policy:"nonprod"},
+        thumbUpload:{method:"POST",url:uploadUrl(retryChild),fields:{policy:"thumb"}},
         reservationExpiresAt:new Date(Date.now()+3600000).toISOString()});
     }
-    const match=url.match(/^\/api\/v1\/gallery\/uploads\/([^/]+)(\/complete)?$/);
+    if(url.endsWith("/client-thumb"))return reply({method:"POST",url:uploadUrl(retryChild),fields:{policy:"thumb"}});
+    const match=url.match(/^\/api\/v1\/gallery\/uploads\/([^/]+)(\/client-complete)?$/);
     if(match){
       const id=match[1];
       if(options?.method==="DELETE"){
@@ -114,10 +126,10 @@ describe("owner gallery multiple-photo queue",()=>{
     expect(host.textContent).toContain("second.jpg");
     await click("Загрузить фотографии");
     const urls=fetcher.mock.calls.map(([url])=>url);
-    expect(urls.filter(url=>url==="/api/v1/gallery/albums/album_A/uploads")).toHaveLength(2);
+    expect(urls.filter(url=>url==="/api/v1/gallery/uploads/client-reserve")).toHaveLength(2);
     expect(storageUrls).toEqual([uploadUrl(ids[0]),uploadUrl(ids[1])]);
-    expect(urls.filter(url=>url.endsWith("/complete"))).toHaveLength(2);
-    expect(urls.filter(url=>/^\/api\/v1\/gallery\/uploads\/[^/]+$/.test(url))).toHaveLength(2);
+    expect(urls.filter(url=>url.endsWith("/client-complete"))).toHaveLength(2);
+    expect(urls.filter(url=>/^\/api\/v1\/gallery\/uploads\/[^/]+$/.test(url)&&!url.endsWith("client-reserve"))).toHaveLength(2);
     expect(refreshed).toHaveBeenCalledTimes(2);
     expect(host.textContent).toContain("Ожидает обработки");
   });
@@ -129,7 +141,7 @@ describe("owner gallery multiple-photo queue",()=>{
     expect(button("Загрузить фотографии").disabled).toBe(true);
     // Both were already admitted into the five-slot pool before the first ACK failed.
     // A failure stops UNSTARTED uploads, not transfers already accepted by S3.
-    expect(fetcher.mock.calls.filter(([url])=>url==="/api/v1/gallery/albums/album_A/uploads")).toHaveLength(2);
+    expect(fetcher.mock.calls.filter(([url])=>url==="/api/v1/gallery/uploads/client-reserve")).toHaveLength(2);
     await click("Проверить состояние загрузки");
     expect(host.textContent).not.toContain("Статус отправки неизвестен");
     expect(storageUrls.filter(url=>url===uploadUrl(ids[0]))).toHaveLength(1);
@@ -220,7 +232,7 @@ describe("owner gallery multiple-photo queue",()=>{
     await click("Загрузить фотографии");
     expect(storageUrls).toEqual([uploadUrl(ids[0])]);
     const reservations=fetcher.mock.calls.filter(([url])=>
-      url==="/api/v1/gallery/albums/album_A/uploads");
+      url==="/api/v1/gallery/uploads/client-reserve");
     expect(reservations).toHaveLength(3);
     const keys=reservations.map(([,request])=>
       (JSON.parse(String(request?.body)) as {clientRequestId:string}).clientRequestId);
@@ -233,8 +245,8 @@ describe("owner gallery multiple-photo queue",()=>{
     await act(async()=>button("Загрузить фотографии").click());
     await flush();
     const progress=host.querySelector<HTMLProgressElement>("progress");
-    expect(progress?.value).toBe(60);
-    expect(progress?.getAttribute("aria-label")).toContain("60%");
+    expect(progress?.value).toBe(80);
+    expect(progress?.getAttribute("aria-label")).toContain("80%");
     expect(host.textContent).toContain("Загружается");
     expect(completeStorage).not.toBeNull();
     await act(async()=>completeStorage?.());
@@ -252,7 +264,7 @@ describe("owner gallery multiple-photo queue",()=>{
     await click("Прервать передачу");
     expect(host.textContent).toContain("Статус неизвестен");
     expect(storageUrls).toEqual([uploadUrl(ids[0])]);
-    expect(fetcher.mock.calls.filter(([url])=>url.endsWith("/complete"))).toHaveLength(0);
+    expect(fetcher.mock.calls.filter(([url])=>url.endsWith("/client-complete"))).toHaveLength(0);
     expect(button("Загрузить фотографии").disabled).toBe(true);
     await click("Отменить загрузку");
     expect(host.textContent).toContain("Отменено");
@@ -294,7 +306,11 @@ describe("owner gallery multiple-photo queue",()=>{
     expect(host.textContent).toContain("Статус неизвестен");
     await click("Проверить состояние загрузки");
     expect(host.textContent).toContain("Не отправлено");
-    await click("Повторить после ошибки");
+    await act(async()=>{
+      const retry=host.querySelector<HTMLButtonElement>('button[aria-label^="Повторить обработку фото"]');
+      expect(retry).not.toBeNull();
+      retry?.click();
+    }); await flush();
     expect(retryAttempts).toHaveLength(1);
     expect(storageUrls).toEqual([uploadUrl(ids[0]),uploadUrl(retryChild)]);
     expect(host.textContent).toContain("Ожидает обработки");
@@ -304,7 +320,11 @@ describe("owner gallery multiple-photo queue",()=>{
     await choose(photo("first.jpg"));
     await click("Загрузить фотографии");
     await click("Проверить состояние загрузки");
-    await click("Повторить после ошибки");
+    await act(async()=>{
+      const retry=host.querySelector<HTMLButtonElement>('button[aria-label^="Повторить обработку фото"]');
+      expect(retry).not.toBeNull();
+      retry?.click();
+    }); await flush();
     expect(host.textContent).toContain("Статус неизвестен");
     expect(retryAttempts).toHaveLength(1);
     expect(storageUrls).toEqual([uploadUrl(ids[0])]);
@@ -323,7 +343,7 @@ describe("owner gallery multiple-photo queue",()=>{
     expect(button("Загрузить фотографии")).toBeUndefined();
     await choose(photo("auto.jpg"));
     await flush();
-    expect(fetcher.mock.calls.filter(([url])=>url==="/api/v1/gallery/albums/album_A/uploads"))
+    expect(fetcher.mock.calls.filter(([url])=>url==="/api/v1/gallery/uploads/client-reserve"))
       .toHaveLength(1);
     expect(storageUrls).toEqual([uploadUrl(ids[0])]);
     expect(refreshed).toHaveBeenCalledTimes(1);
@@ -344,7 +364,7 @@ describe("owner gallery multiple-photo queue",()=>{
     await flush();
     expect(retryAttempts).toHaveLength(1);
     expect(storageUrls).toEqual([uploadUrl(retryChild)]);
-    expect(fetcher.mock.calls.filter(([url])=>url==="/api/v1/gallery/albums/album_A/uploads"))
+    expect(fetcher.mock.calls.filter(([url])=>url==="/api/v1/gallery/uploads/client-reserve"))
       .toHaveLength(0);
     expect(host.textContent).not.toContain("Выбрать файл и повторить");
     expect(host.textContent).toContain("Ожидает обработки");

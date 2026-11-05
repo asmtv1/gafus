@@ -68,6 +68,16 @@ vi.mock("react-native-reanimated", () => {
     LinearTransition: { duration },
   };
 });
+vi.mock("react-native-gesture-handler", async () => {
+  const R = await import("react");
+  return { GestureHandlerRootView: ({ children }: { children: React.ReactNode }) =>
+    R.createElement("div", null, children) };
+});
+vi.mock("@/shared/components/media/SwipeDismissMedia", async () => {
+  const R = await import("react");
+  return { SwipeDismissMedia: ({ children }: { children: React.ReactNode }) =>
+    R.createElement("div", null, children) };
+});
 vi.mock("expo-image", () => ({ Image: () => null }));
 vi.mock("react-native-webview", () => ({ WebView: () => null }));
 vi.mock("@/shared/components/ui", () => ({

@@ -2,7 +2,7 @@
  * Questions Photo Media V2 — image-only contract. The database owns status.
  * No chat/feed keys, videos, or client-supplied object paths.
  */
-export const QUESTIONS_V2_EDGES = { small: 360, medium: 720 } as const;
+export const QUESTIONS_V2_EDGES = { small: 360, medium: 1440 } as const;
 export const QUESTIONS_V2_MAX_BYTES = 10 * 1024 * 1024;
 export const QUESTIONS_V2_MAX_PIXELS = 50_000_000;
 const validId = /^[A-Za-z0-9_-]{1,128}$/;
@@ -59,7 +59,9 @@ export function questionsV2ValidateManifest(job: QuestionsV2Job, manifest: Quest
     if (!variant || !Number.isSafeInteger(variant.width) ||
         !Number.isSafeInteger(variant.height) || !Number.isSafeInteger(variant.bytes) ||
         variant.width < 1 || variant.width > QUESTIONS_V2_EDGES[name] ||
-        variant.height < 1 || variant.bytes < 12 || variant.bytes > 1_750_000)
+        variant.height < 1 ||
+        (name === "medium" && variant.height > QUESTIONS_V2_EDGES.medium) ||
+        variant.bytes < 12 || variant.bytes > 1_750_000)
       throw Error("QUESTIONS_V2_INVALID_MANIFEST");
   }
   // Tiny sources reuse the small rendition: no duplicate object/PUT.

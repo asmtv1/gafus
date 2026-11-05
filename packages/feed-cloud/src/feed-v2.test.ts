@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { FeedImageError, type FeedImageEngine } from "./image.js";
 import { FeedVideoError, type VideoInfo } from "./video.js";
-import { feedV2Mp4Arguments, feedV2SharedDecodeArguments, processFeedV2Image, validateFeedV2ImageInfo, validateFaststartMp4Header } from "./feed-v2.js";
+import { feedV2Mp4Arguments, feedV2SharedDecodeArguments, processFeedV2Image, validateFeedV2ImageInfo, validateFaststartMp4Header, canReuse720Mp4, feed720RemuxArguments } from "./feed-v2.js";
 
 const webp = () => {
   const bytes = new Uint8Array(90);
@@ -99,6 +99,21 @@ describe("Feed V2 MP4 processor", () => {
     expect(optimized.join(" ")).toContain("-movflags +faststart");
     expect(optimized.join(" ")).not.toMatch(/m3u8|hls|1080/);
   });
+  it("configures Cloud.ru Job medium with main 360p and high 720p (including shared-decode)", () => {
+    for (const quality of [360, 720] as const) {
+      const args = feedV2Mp4Arguments("source.mp4", "out.mp4", normal, quality,
+        { decoderThreads: 1, encoderThreads: 2, preset: "medium", rateControl: "capped-crf" });
+      expect(args[args.indexOf("-preset") + 1]).toBe("medium");
+      expect(args[args.indexOf("-profile:v") + 1]).toBe(quality === 360 ? "main" : "high");
+      expect(args[args.indexOf("-pix_fmt") + 1]).toBe("yuv420p");
+      expect(args[args.indexOf("-fpsmax") + 1]).toBe("30");
+    }
+    const shared = feedV2SharedDecodeArguments("source.mp4", "dir", normal,
+      [360,720], 2, { decoderThreads: 1, preset: "medium" });
+    expect(shared.filter(item => item === "medium")).toHaveLength(2);
+    const profiles = shared.flatMap((flag, index) => flag === "-profile:v" ? [shared[index + 1]] : []);
+    expect(profiles).toEqual(["main", "high"]);
+  });
   it("supports tuning both outputs of optional shared-decode without changing legacy callers", () => {
     const optimized=feedV2SharedDecodeArguments("source.mp4","dir",normal,[360,720],2,
       {decoderThreads:1,preset:"superfast"});
@@ -132,5 +147,40 @@ describe("Feed V2 MP4 processor", () => {
     expect(() => validateFaststartMp4Header(concat(ftyp, mdat))).toThrow();
     expect(() => validateFaststartMp4Header(concat(ftyp, moov))).toThrow();
     expect(() => validateFaststartMp4Header(new Uint8Array(24))).toThrow();
+  });
+});
+
+
+describe("phone-encoded 720p source fast path", () => {
+  const info: VideoInfo = { width: 1280, height: 720, durationSeconds: 60,
+    rotated: false, hdr: false, hasAudio: true };
+  const probe = { streams: [
+    { codec_type: "video", codec_name: "h264", pix_fmt: "yuv420p",
+      avg_frame_rate: "30/1", width: 1280, height: 720 },
+    { codec_type: "audio", codec_name: "aac" },
+  ] };
+  it("allows safe 720p H264/AAC and rejects high traffic, HDR, 60fps and unsafe codecs", () => {
+    expect(canReuse720Mp4(probe, info, 15_000_000)).toBe(true);
+    expect(canReuse720Mp4(probe, info, 35_000_000)).toBe(false);
+    expect(canReuse720Mp4(probe, { ...info, hdr: true }, 15_000_000)).toBe(false);
+    expect(canReuse720Mp4(probe, { ...info, rotated: true }, 15_000_000)).toBe(false);
+    expect(canReuse720Mp4(probe, { ...info, height: 1080 }, 15_000_000)).toBe(false);
+    expect(canReuse720Mp4({ streams: [{ ...probe.streams[0], avg_frame_rate: "60/1" }, probe.streams[1]] },
+      info, 15_000_000)).toBe(false);
+    expect(canReuse720Mp4({ streams: [{ ...probe.streams[0], codec_name: "hevc" }, probe.streams[1]] },
+      info, 15_000_000)).toBe(false);
+    expect(canReuse720Mp4({ streams: [{ ...probe.streams[0], pix_fmt: "yuv420p10le" }, probe.streams[1]] },
+      info, 15_000_000)).toBe(false);
+    expect(canReuse720Mp4({ streams: [{ ...probe.streams[0], avg_frame_rate: "0/0" }, probe.streams[1]] },
+      info, 15_000_000)).toBe(false);
+  });
+  it("remux strips client metadata, keeps H264/AAC and writes progressive faststart MP4", () => {
+    const flags = feed720RemuxArguments("phone.mp4", "720.mp4").join(" ");
+    expect(flags).toContain("-c copy");
+    expect(flags).toContain("-map_metadata -1");
+    expect(flags).toContain("-map_chapters -1");
+    expect(flags).toContain("-movflags +faststart");
+    expect(flags).not.toContain("libx264");
+    expect(flags).not.toContain("m3u8");
   });
 });

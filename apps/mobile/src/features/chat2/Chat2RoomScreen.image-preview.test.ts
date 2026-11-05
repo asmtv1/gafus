@@ -26,7 +26,7 @@ describe("Native Chat2 image delivery and lightbox", () => {
 
   it("opens a fresh authorized full-size image inside the app, not in a browser", () => {
     expect(image).toContain("const refreshed = await chat2.media(conversationId, file.id)");
-    expect(image).toContain("refreshed.renditions?.image?.[720] ?? refreshed.url");
+    expect(image).toContain("refreshed.renditions?.image?.[1440] ?? refreshed.url");
     expect(image).toContain("chat2MatchedS3Variant(primary, refreshed)");
     expect(image).toContain("<Modal visible={Boolean(viewer)} transparent");
     expect(image).toContain('accessibilityLabel="Закрыть фотографию"');

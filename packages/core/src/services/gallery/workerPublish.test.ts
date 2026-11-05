@@ -12,24 +12,19 @@ function setup(enabled = true) {
   return { worker: createGalleryWorkerOperations(ctx), findMany };
 }
 
-describe("scoped immediate publish claim", () => {
-  it("selects only a registered publish job for the requested upload", async () => {
+describe("Gallery Cloud maintenance excludes retired photo publication", () => {
+  it("refuses old exact publish upload without leasing any S3 job", async () => {
     const { worker, findMany } = setup();
     await expect(worker.claimStorageJobs({ limit: 1, uploadId: "upload-a" })).resolves.toEqual([]);
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ kind: "publish", uploadId: "upload-a" }),
-        take: 3,
-      }),
-    );
+    expect(findMany).not.toHaveBeenCalled();
   });
 
-  it("leaves the unscoped maintenance queue unchanged", async () => {
+  it("selects only cleanup, move and vet preview kinds from unscoped queue", async () => {
     const { worker, findMany } = setup();
     await worker.claimStorageJobs({ limit: 1 });
     const where = findMany.mock.calls[0]?.[0]?.where;
     expect(where).not.toHaveProperty("uploadId");
-    expect(where).not.toHaveProperty("kind");
+    expect(where.kind).toEqual({ in: ["delete", "move", "vetPreview"] });
   });
 
   it("does not allow publishing while the gallery is disabled", async () => {

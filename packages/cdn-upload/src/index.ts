@@ -62,9 +62,23 @@ export {
 } from "./chat2Media";
 
 // Cloud.ru Chat2 V2, disabled until isolated Refactor API cutover.
-export { chat2V2DirectUploadForm, chat2V2CheckOriginal, chat2V2DeleteObjects } from "./chat2V2PublicMedia";
+export { chat2V2DirectUploadForm, chat2V2CheckOriginal, chat2V2ClientSmallKey, chat2V2ClientSmallPost,
+  chat2V2FinishClientWebp, chat2V2DeleteObjects } from "./chat2V2PublicMedia";
 
 // Questions-only V2 image storage (private incoming and renditions).
 export { questionsV2Storage, questionsV2PresignedPost, questionsV2Head,
   questionsV2Marker, questionsV2IsMarker, questionsV2SignedRead, questionsV2PublicDelivery, questionsV2Delivery,
-  questionsV2Delete } from "./questionsV2Media";
+  questionsV2Delete, questionsV2ClientSmallKey, questionsV2ClientSmallPost,
+  questionsV2FinishClientWebp } from "./questionsV2Media";
+
+export { signClientWebpStaging, verifyClientWebp, copyVerifiedClientWebp } from "./clientPhotoRenditions.js";
+export type { VerifiedClientWebp } from "./clientPhotoRenditions.js";
+
+export {verifyClientMp4,copyVerifiedClientMp4} from "./clientVideoMp4.js";
+
+export {chat2V2FinishClientMp4} from "./chat2V2PublicMedia.js";
+
+export {chat2V2ClientVideoPosterPost,chat2V2ClientVideoPosterKey} from "./chat2V2PublicMedia.js";
+
+export { questionsV2CleanupKeys } from "./questionsV2Cleanup.js";
+export type { QuestionsV2CleanupKind, QuestionsV2CleanupIdentity } from "./questionsV2Cleanup.js";

@@ -22,12 +22,8 @@ jobs:
       GITHUB_EVENT_NAME: ${{ github.event_name }}
       CLOUDRU_PROD_DEPLOY_CONFIRM: preapproved-main-only-media-release
       CLOUDRU_NEW_BACKEND_DEPLOYED: ${{ (inputs.mode == 'cutover' || inputs.mode == 'sync') && 'true' || 'false' }}
-      GALLERY_INTERNAL_HMAC_SECRET: ${{ secrets.GALLERY_INTERNAL_HMAC_SECRET }}
       FEED_INTERNAL_HMAC_SECRET: ${{ secrets.FEED_INTERNAL_HMAC_SECRET }}
-      QUESTIONS_V2_INTERNAL_HMAC_SECRET: ${{ secrets.QUESTIONS_V2_INTERNAL_HMAC_SECRET }}
       CHAT2_INTERNAL_HMAC_SECRET: ${{ secrets.CHAT2_INTERNAL_HMAC_SECRET }}
-      QUESTIONS_V2_S3_ACCESS_KEY_ID: ${{ secrets.QUESTIONS_V2_S3_ACCESS_KEY_ID }}
-      QUESTIONS_V2_S3_SECRET_ACCESS_KEY: ${{ secrets.QUESTIONS_V2_S3_SECRET_ACCESS_KEY }}
       CHAT2_S3_ACCESS_KEY_ID: ${{ secrets.CHAT2_S3_ACCESS_KEY_ID }}
       CHAT2_S3_SECRET_ACCESS_KEY: ${{ secrets.CHAT2_S3_SECRET_ACCESS_KEY }}
       CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
@@ -38,10 +34,7 @@ jobs:
       CHAT2_CLOUDRU_KEY_SECRET: ${{ secrets.CHAT2_CLOUDRU_KEY_SECRET }}
       # Full repo@sha256 URL or sha256 digest. Secrets have precedence over Variables.
       CLOUDRU_WORKER_PINS_REQUIRED: ${{ vars.CLOUDRU_WORKER_PINS_REQUIRED || 'false' }}
-      CLOUDRU_GALLERY_WORKER_IMAGE: ${{ secrets.CLOUDRU_GALLERY_WORKER_IMAGE || vars.CLOUDRU_GALLERY_WORKER_IMAGE || '' }}
       CLOUDRU_FEED_WORKER_IMAGE: ${{ secrets.CLOUDRU_FEED_WORKER_IMAGE || vars.CLOUDRU_FEED_WORKER_IMAGE || '' }}
-      CLOUDRU_QUESTIONS_WORKER_IMAGE: ${{ secrets.CLOUDRU_QUESTIONS_WORKER_IMAGE || vars.CLOUDRU_QUESTIONS_WORKER_IMAGE || '' }}
-      CLOUDRU_CHAT_PHOTO_IMAGE: ${{ secrets.CLOUDRU_CHAT_PHOTO_IMAGE || vars.CLOUDRU_CHAT_PHOTO_IMAGE || '' }}
       CLOUDRU_CHAT_VIDEO_IMAGE: ${{ secrets.CLOUDRU_CHAT_VIDEO_IMAGE || vars.CLOUDRU_CHAT_VIDEO_IMAGE || '' }}
     steps:
       - uses: actions/checkout@v5
@@ -68,7 +61,7 @@ jobs:
           username: ${{ secrets.CLOUDRU_KEY_ID }}
           password: ${{ secrets.CLOUDRU_KEY_SECRET }}
       - name: Authenticate Chat2 registry if image overrides are supplied
-        if: inputs.mode != 'verify' && (env.CLOUDRU_CHAT_PHOTO_IMAGE != '' || env.CLOUDRU_CHAT_VIDEO_IMAGE != '')
+        if: inputs.mode != 'verify' && env.CLOUDRU_CHAT_VIDEO_IMAGE != ''
         uses: docker/login-action@v3
         with:
           registry: gafus-chat2-20261028.cr.cloud.ru
@@ -105,7 +98,7 @@ jobs:
               done
               [ "$verified" = true ] || exit 1
             done
-      - name: Reconcile existing 11 Jobs to declared images and secrets; verify after rollout
+      - name: Reconcile only 4 active video Jobs; verify after rollout
         env:
           PHASE: ${{ inputs.mode }}
         run: node infra/cloudru/production-job-release.mjs "--$PHASE"

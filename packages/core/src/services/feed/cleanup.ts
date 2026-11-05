@@ -5,7 +5,7 @@ export function feedPossibleOutputKeys(ownerId: string, postId: string, mediaId:
   const base = `media/v2/${mediaId}/v1/`;
   const outputs = kind === "photo"
     ? ["image/s.webp", "image/m.webp", "image/l.webp"]
-    : ["poster.webp", "video/360.mp4", "video/720.mp4", "video/1080.mp4"];
+    : ["poster.webp", "video/360.mp4", "video/720.mp4"];
   return outputs.map(name => base + name);
 }
 export async function enqueueFeedPostCleanup(tx: FeedTx, postId: string, ownerId: string, at: Date, reason: string) {
@@ -60,7 +60,7 @@ export async function enqueueFeedAccountCleanup(tx: Pick<FeedTx, "$executeRaw">,
       UNION SELECT 'media/v2/' || m."id" || '/v1/' || v.name
         FROM "FeedMediaAsset" m CROSS JOIN (VALUES
           ('image/s.webp'), ('image/m.webp'), ('image/l.webp'),
-          ('poster.webp'), ('video/360.mp4'), ('video/720.mp4'), ('video/1080.mp4')) v(name)
+          ('poster.webp'), ('video/360.mp4'), ('video/720.mp4')) v(name)
         WHERE m."ownerId" = ${ownerId}
     ) k WHERE k.key IS NOT NULL AND (
       left(k.key, length('posts/' || ${ownerId} || '/')) = 'posts/' || ${ownerId} || '/'

@@ -3,11 +3,18 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { sources, statusListeners, prefers, fallbackRequest } = vi.hoisted(() => ({
+const { sources, statusListeners, prefers, fallbackRequest, players } = vi.hoisted(() => ({
   prefers: vi.fn(), fallbackRequest: vi.fn(),
   sources: [] as { uri: string; contentType: string; useCaching: boolean }[],
   statusListeners: new Map<string, (event: { status: string }) => void>(),
+  players: [] as { play: ReturnType<typeof vi.fn>; pause: ReturnType<typeof vi.fn>;
+    replaceAsync: ReturnType<typeof vi.fn>; currentTime: number; playing: boolean }[],
 }));
+vi.mock("@expo/vector-icons", async () => {
+  const R = await import("react");
+  return { MaterialCommunityIcons: ({ name }: { name: string }) =>
+    R.createElement("span", { "data-icon": name }) };
+});
 vi.mock("@/shared/stores", () => ({
   useAuthStore: (selector: (state: { user: { id: string } }) => string) =>
     selector({ user: { id: "test-user" } }),
@@ -20,8 +27,19 @@ vi.mock("@/shared/components/media/CdnImage", () => ({
   isSignedCloudruFallback: (raw: string) => raw.startsWith("https://s3.cloud.ru/gafus-feed-private/") && raw.includes("X-Amz-Signature="),
 }));
 vi.mock("@/shared/lib/media/serverHealth", () => ({ prefersCloudruMedia: prefers }));
+vi.mock("react-native-gesture-handler", async () => {
+  const R = await import("react");
+  return { GestureHandlerRootView: ({ children }: { children: React.ReactNode }) =>
+    R.createElement("div", null, children) };
+});
+vi.mock("@/shared/components/media/SwipeDismissMedia", async () => {
+  const R = await import("react");
+  return { SwipeDismissMedia: ({ children }: { children: React.ReactNode }) =>
+    R.createElement("div", null, children) };
+});
 vi.mock("expo-router", () => ({ useFocusEffect: () => undefined }));
 vi.mock("expo-image", () => ({ Image: () => null }));
+vi.mock("@/shared/lib/media/videoQualityTelemetry", () => ({ reportNativeVideoStarted: vi.fn() }));
 vi.mock("react-native", async () => {
   const R = await import("react");
   return {
@@ -30,8 +48,10 @@ vi.mock("react-native", async () => {
     Modal: ({ children }: { children: React.ReactNode }) => R.createElement("div", null, children),
     useWindowDimensions: () => ({ width: 390 }),
     StyleSheet: { create: (value: object) => value },
-    Pressable: ({ onPress, children, disabled }: { onPress: () => void; children: React.ReactNode; disabled: boolean }) =>
-      R.createElement("button", { onClick: onPress, disabled }, children),
+    Pressable: ({ onPress, children, disabled, accessibilityLabel }: {
+      onPress: (event: { stopPropagation: () => void }) => void; children: React.ReactNode;
+      disabled?: boolean; accessibilityLabel?: string;
+    }) => R.createElement("button", { onClick: onPress, disabled, "aria-label": accessibilityLabel }, children),
     View: ({ children }: { children: React.ReactNode }) => R.createElement("div", null, children),
     Text: ({ children, accessibilityRole }: { children: React.ReactNode; accessibilityRole?: string }) =>
       R.createElement("span", accessibilityRole ? { role: accessibilityRole } : null, children),
@@ -43,21 +63,31 @@ vi.mock("expo-video", async () => {
     useVideoPlayer: (source: { uri: string; contentType: string; useCaching: boolean },
       setup?: (player: object) => void) => R.useMemo(() => {
         sources.push(source);
-        const player = { uri: source.uri, play: vi.fn(),
+        const listeners = new Set<() => void>();
+        const player = { uri: source.uri, currentTime: 0, duration: 120, playing: false,
+          play: vi.fn(), pause: vi.fn(),
+          replaceAsync: vi.fn(async (next: {uri: string}) => { player.uri = next.uri;
+            listeners.forEach(listener => listener()); }),
+          onReplace: (fn: () => void) => { listeners.add(fn); return () => listeners.delete(fn); },
           staysActiveInBackground: false, showNowPlayingNotification: false,
-          addListener: (_kind: string, listener: (event: { status: string }) => void) => {
-            statusListeners.set(source.uri, listener);
-            return { remove: () => statusListeners.delete(source.uri) };
+          addListener: (kind: string, listener: (event: { status: string }) => void) => {
+            if (kind === "statusChange") statusListeners.set(source.uri, listener);
+            return { remove: () => { if (kind === "statusChange") statusListeners.delete(source.uri); } };
           } };
+        players.push(player);
         setup?.(player);
         return player;
       }, [source.uri]),
     VideoView: ({ player, fullscreenOptions }: {
-      player: { uri: string }; fullscreenOptions?: { enable: boolean };
-    }) => R.createElement("div", {
-      "data-testid": "native-video", "data-uri": player.uri,
-      "data-fullscreen": String(fullscreenOptions?.enable),
-    }),
+      player: { uri: string; onReplace: (fn: () => void) => () => void }; fullscreenOptions?: { enable: boolean };
+    }) => {
+      const [uri, setUri] = R.useState(player.uri);
+      R.useEffect(() => player.onReplace(() => setUri(player.uri)), [player]);
+      return R.createElement("div", {
+        "data-testid": "native-video", "data-uri": uri,
+        "data-fullscreen": String(fullscreenOptions?.enable),
+      });
+    },
   };
 });
 import { FeedVideo } from "./FeedVideo";
@@ -71,7 +101,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => root.unmount()); host.remove();
-  sources.length = 0; statusListeners.clear(); vi.restoreAllMocks();
+  sources.length = 0; players.length = 0; statusListeners.clear(); vi.restoreAllMocks();
   prefers.mockReset(); fallbackRequest.mockReset();
 });
 describe("Mobile Moments native progressive MP4 cutover", () => {
@@ -83,7 +113,7 @@ describe("Mobile Moments native progressive MP4 cutover", () => {
     await act(async () => { host.querySelector("button")?.click(); });
     expect(sources).toEqual([{ uri: mp4, contentType: "progressive", useCaching: false }]);
     expect(host.querySelector('[data-testid="native-video"]')?.getAttribute("data-uri")).toBe(mp4);
-    expect(host.querySelector('[data-testid="native-video"]')?.getAttribute("data-fullscreen")).toBe("true");
+    expect(host.querySelector('[data-testid="native-video"]')?.getAttribute("data-fullscreen")).toBe("false");
     expect(fetcher).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
@@ -122,6 +152,82 @@ describe("Mobile Moments native progressive MP4 cutover", () => {
     await act(async () => root.render(<FeedVideo postId="p" mediaId="m" poster={null} visible />));
     expect(host.querySelector("button")).toBeNull();
     expect(sources).toHaveLength(0);
+  });
+  it("keeps an inline pause/resume control visible and never opens the parent feed card", async () => {
+    const navigate = vi.fn();
+    await act(async () => root.render(
+      <div onClick={navigate}>
+        <FeedVideo postId="p" mediaId="m" poster={null} visible mp4Urls={{ 360: mp4 }} />
+      </div>,
+    ));
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Воспроизвести видео"]')?.click());
+    expect(navigate).not.toHaveBeenCalled();
+    expect(host.querySelector('[aria-label="Пауза"]')).not.toBeNull();
+    expect(host.querySelector('[data-icon="pause"]')).not.toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Пауза"]')?.click());
+    expect(players[0]?.pause).toHaveBeenCalledOnce();
+    expect(host.querySelector('[aria-label="Продолжить видео"]')).not.toBeNull();
+    expect(host.querySelector('[data-icon="play"]')).not.toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Продолжить видео"]')?.click());
+    expect(players[0]?.play).toHaveBeenCalledTimes(2); // initial start + resume
+    expect(host.querySelector('[aria-label="Пауза"]')).not.toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+  it("reveals 360 / auto / 720 behind the same in-player gear without restarting the native player", async () => {
+    const mp4High="https://media.example.test/media/v2/m/v1/video/720.mp4";
+    await act(async()=>root.render(<FeedVideo postId="p" mediaId="m" poster={null}
+      visible mp4Urls={{360:mp4,720:mp4High}} />));
+    expect(host.querySelector('[aria-label="Настройки качества видео"]')).toBeNull(); // before playback
+    await act(async()=>host.querySelector<HTMLButtonElement>('[aria-label="Воспроизвести видео"]')?.click());
+    expect(players).toHaveLength(1);
+    const settings=()=>host.querySelector<HTMLButtonElement>('[aria-label="Настройки качества видео"]');
+    expect(settings()).not.toBeNull();
+    expect(host.querySelector('[aria-label="720p"]')).toBeNull();
+    await act(async()=>settings()?.click());
+    expect(host.querySelector('[aria-label="720p"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="360p"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Авто"]')).not.toBeNull();
+    // On retina displays Auto may already choose 720p, so force a different
+    // source first to prove the manual switch retains the same player.
+    await act(async()=>{host.querySelector<HTMLButtonElement>('[aria-label="360p"]')?.click();await Promise.resolve();});
+    await act(async()=>settings()?.click());
+    players[0]!.currentTime=22;
+    players[0]!.playing=true;
+    await act(async()=>{host.querySelector<HTMLButtonElement>('[aria-label="720p"]')?.click();await Promise.resolve();});
+    expect(players).toHaveLength(1); // replaceAsync reuses same native decoder
+    expect(players[0]?.replaceAsync).toHaveBeenCalledWith({
+      uri:mp4High,contentType:"progressive",useCaching:false,
+    });
+    expect(players[0]?.currentTime).toBe(22);
+    expect(host.querySelector('[aria-label="720p"]')).toBeNull(); // menu closes
+  });
+  it("opens inline MP4 in a swipe-dismissable modal without resetting its player", async () => {
+    await act(async () => root.render(<FeedVideo postId="p" mediaId="m" poster={null}
+      visible mp4Urls={{ 360: mp4 }} />));
+    await act(async () => host.querySelector<HTMLButtonElement>(
+      '[aria-label="Воспроизвести видео"]')?.click());
+    expect(players).toHaveLength(1);
+    expect(host.querySelector('[aria-label="Развернуть видео"]')).not.toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>(
+      '[aria-label="Развернуть видео"]')?.click());
+    expect(host.querySelector('[aria-label="Закрыть видео"]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="native-video"]')).not.toBeNull();
+    expect(players).toHaveLength(1); // same progressive MP4 player, no duplicate load
+    await act(async () => host.querySelector<HTMLButtonElement>(
+      '[aria-label="Закрыть видео"]')?.click());
+    expect(host.querySelector('[aria-label="Развернуть видео"]')).not.toBeNull();
+    expect(players).toHaveLength(1);
+  });
+  it("keeps fullscreen video's native controls without duplicating an inline overlay", async () => {
+    const { FeedV2Video } = await import("./FeedV2Media");
+    await act(async () => root.render(<FeedV2Video postId="p" media={{
+      id: "m", kind: "video", status: "ready", width: 720, height: 1280,
+      durationSeconds: 12, access: "viewer", expiresAt: null, placeholder: null,
+      posterUrl: "", mp4: { 360: mp4 },
+    }} visible fullscreen />));
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Воспроизвести видео"]')?.click());
+    expect(host.querySelector('[data-testid="native-video"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Пауза"]')).toBeNull();
   });
   it("releases native player when its post leaves the visible area", async () => {
     await act(async () => root.render(<FeedVideo postId="p" mediaId="m" poster={null}

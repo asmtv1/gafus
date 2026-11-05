@@ -636,12 +636,15 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     expect((await service.getUpload(owner, r.upload.id)).status).toBe("failed");
     expect((await service.listAlbums(owner, { username })).usedSlots).toBe(0);
   });
-  it("maintenance recovers a lost bucket event without adapter DB queries", async () => {
+  it("maintenance never promotes reserved uploads to a deleted Cloud photo processor", async () => {
     const dto = await service.reserveUpload(owner, input());
     const upload = await db!.galleryUpload.findUniqueOrThrow({ where: { id: dto.uploadId } });
     objects.set(upload.sourceKey, { etag: "event-lost", bytes: 1234, contentType: "image/jpeg" });
-    expect((await service.maintenance()).processUploadIds).toContain(dto.uploadId);
-    expect((await service.claimUpload({ uploadId: dto.uploadId }))?.sourceETag).toBe("event-lost");
+    expect((await service.maintenance()).processUploadIds).toEqual([]);
+    const readback=await service.getUpload(owner,dto.uploadId);
+    expect(readback.status).toBe("reserved");
+    expect((await db!.galleryUpload.findUniqueOrThrow({where:{id:dto.uploadId}})).status)
+      .toBe("reserved");
   });
   it("expired unclaimed upload releases slot and cannot process", async () => {
     const dto = await service.reserveUpload(owner, input());

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { reserveQuestionsPhoto, confirmQuestionsPhoto,
+import { reserveClientQuestionsPhoto, confirmClientQuestionsPhoto,
   statusQuestionsPhoto, discardQuestionsV2Photo
 } from "../../modules/questions/media-v2-upload.js";
 
@@ -21,23 +21,21 @@ questionsRoutes.use(
   }),
 );
 
-const photoReservation = z.object({
-  mime: z.enum(["image/jpeg","image/png","image/webp"]),
-  bytes: z.number().int().min(12).max(10*1024*1024),
-}).strict();
 function photoError(c: import("hono").Context, error:unknown) {
   const mapped=questionHttpError(error);
   return c.json(mapped.body,mapped.status as 400);
 }
-questionsRoutes.post("/photos/reservations",async c=>{
-  try{return c.json({success:true,data:await reserveQuestionsPhoto(
-    c.get("user").id,photoReservation.parse(await c.req.json()))},201);}
-  catch(e){return photoError(c,e);}
+questionsRoutes.post("/photos/client-reservations", async c => {
+  try {
+    const payload = z.object({ mediumBytes: z.number().int().min(12).max(1_750_000) }).strict()
+      .parse(await c.req.json());
+    return c.json({ success: true, data: await reserveClientQuestionsPhoto(c.get("user").id, payload) }, 201);
+  } catch (error) { return photoError(c, error); }
 });
-questionsRoutes.post("/photos/:id/confirm",async c=>{
-  try{return c.json({success:true,data:await confirmQuestionsPhoto(
-    c.get("user").id,c.req.param("id"))});}
-  catch(e){return photoError(c,e);}
+questionsRoutes.post("/photos/:id/client-confirm", async c => {
+  try { return c.json({ success: true, data: await confirmClientQuestionsPhoto(
+    c.get("user").id, c.req.param("id")) }); }
+  catch (error) { return photoError(c, error); }
 });
 questionsRoutes.get("/photos/:id/status",async c=>{
   try{return c.json({success:true,data:await statusQuestionsPhoto(

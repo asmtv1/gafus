@@ -6,9 +6,11 @@ type LocalPreview = { file: File; url: string };
 /** Display only local, user-selected files; never upload while rendering.
  * Object URLs are owned by this leaf and revoked on replacement/unmount.
  */
-export function MomentLocalMediaPreview({ files, disabled, onRemove }: {
+export function MomentLocalMediaPreview({ files, disabled, onRemove, failures, onRetry }: {
   files: readonly File[];
   disabled: boolean;
+  failures?: readonly (string | undefined)[];
+  onRetry?: (index: number) => void;
   onRemove: (index: number) => void;
 }) {
   const [previews, setPreviews] = useState<LocalPreview[]>([]);
@@ -39,7 +41,20 @@ export function MomentLocalMediaPreview({ files, disabled, onRemove }: {
               <img src={url} alt={`Предпросмотр фото ${file.name}`} /> :
               <span role="status">Подготавливаем предпросмотр…</span>}
             <span className="web4-compose-media-kind">{isVideo ? "Видео" : "Фото"}</span>
+            {failures?.[index] && onRetry && <button type="button"
+              className="web4-video-retry"
+              aria-label={`Повторить обработку ${isVideo ? "видео" : "фото"} ${file.name}`}
+              title={`Повторить подготовку и отправку только этого ${isVideo ? "видео" : "фото"}`} disabled={disabled}
+              onClick={() => onRetry(index)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+                strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 11a8 8 0 1 0-2.3 6M20 4v7h-7" />
+              </svg>
+            </button>}
           </div>
+          {failures?.[index] && <p role="alert" className="web4-video-retry-error">
+            {failures[index]}
+          </p>}
           <div className="web4-compose-media-caption">
             <span title={file.name}>{file.name}</span>
             <SecondaryButton variant="red" type="button" disabled={disabled}

@@ -263,6 +263,20 @@ jobs:
 
       - name: Guard Mobile against core server imports
         run: node scripts/check-mobile-core-boundary.mjs
+      # Source-only: native SDK/runtime compatibility is part of every future
+      # iOS/Android binary release, and MUST NOT silently revert to sdkVersion.
+      - name: Verify new Mobile native runtime, gesture and OTA release contract (blocking)
+        run: |
+          node apps/mobile/scripts/verify-native-release.mjs
+          node --test apps/mobile/scripts/native-release-contract.test.mjs
+          node --test apps/mobile/scripts/android-aab-16k.test.mjs
+          node --test apps/mobile/scripts/android-aab-compressor.test.mjs
+          node --test apps/mobile/scripts/verify-android-aab-app-links.test.mjs
+      - name: Verify iOS Universal Links and Android App Links associations (blocking)
+        run: |
+          node scripts/qa/verify-gafus-app-links.mjs
+          node --test scripts/qa/gafus-app-links-contract.test.mjs
+          node --test scripts/qa/gafus-app-links-live.test.mjs
       - name: Guard Web against core server imports
         run: node scripts/check-web-core-boundary.mjs
       - name: Check Chat2 broker and websocket release wiring
@@ -278,9 +292,12 @@ jobs:
           CHAT2_PRIVATE_MEDIA_ENABLED: enabled
           CHAT2_PUBLIC_WS_URL: wss://gafus.ru/connection/websocket
           CHAT2_CENTRIFUGO_HTTP_API: http://chat2-centrifugo:8000/api/publish
+          CHAT2_SUBSCRIBE_PROXY_ENABLED: 'true'
         run: |
           export CHAT2_CENTRIFUGO_TOKEN_SECRET="$(openssl rand -hex 32)"
           export CHAT2_CENTRIFUGO_API_KEY="$(openssl rand -hex 24)"
+          export CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET="$(openssl rand -hex 32)"
+          export CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET="$(openssl rand -hex 32)"
           node scripts/refactor/check-chat2-prod-boundary.mjs --staged
       - name: Guard Cloud media Docker Sharp version
         run: node scripts/qa/check-media-docker-sharp-version.mjs
@@ -424,6 +441,12 @@ jobs:
           COMPOSE_PROFILES: chat2
           CHAT2_CENTRIFUGO_TOKEN_SECRET: ${{ secrets.CHAT2_CENTRIFUGO_TOKEN_SECRET }}
           CHAT2_CENTRIFUGO_API_KEY: ${{ secrets.CHAT2_CENTRIFUGO_API_KEY }}
+          CHAT2_SUBSCRIBE_PROXY_ENABLED: 'true'
+          CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET: ${{ secrets.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET }}
+          CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: ${{ secrets.CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET }}
+          CHAT2_MOBILE_STORES_VERIFIED: ${{ vars.CHAT2_MOBILE_STORES_VERIFIED }}
+          CHAT2_MOBILE_IOS_MIN_VERSION: ${{ vars.CHAT2_MOBILE_IOS_MIN_VERSION }}
+          CHAT2_MOBILE_ANDROID_MIN_VERSION: ${{ vars.CHAT2_MOBILE_ANDROID_MIN_VERSION }}
         run: node scripts/refactor/check-chat2-prod-boundary.mjs --candidate
 
   # Prepare Docker build context
@@ -492,7 +515,13 @@ jobs:
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm --filter @gafus/prisma db:generate
           case '${{ matrix.image.name }}' in
-            web) pnpm --filter '@gafus/web-vite^...' --if-present run build; pnpm --filter @gafus/web-vite build ;;
+            web)
+              pnpm --filter '@gafus/web-vite^...' --if-present run build
+              pnpm --filter @gafus/web-vite build
+              # Fail closed if a Vite build omits dot-directories or copies
+              # stale mobile domain-association JSON into the release image.
+              node scripts/qa/verify-gafus-app-links.mjs --dist apps/web-vite/dist
+              ;;
             admin-panel) pnpm --filter '@gafus/admin-panel^...' --if-present run build; pnpm --filter @gafus/admin-panel build ;;
             trainer-panel) pnpm --filter '@gafus/trainer-panel^...' --if-present run build; pnpm --filter @gafus/trainer-panel build ;;
           esac
@@ -524,7 +553,7 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
 
   cloudru-media-contracts:
-    # Feed/Chat2/Questions tests import compiled workspace package entry points.
+    # Feed/Chat2 video and client-photo contracts import compiled workspace package entry points.
     # A fresh runner has no packages/*/dist until prepare-deps builds them.
     needs: prepare-deps
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -557,6 +586,11 @@ jobs:
           done
       - name: Production deploy workflow contract
         run: node --test ci-cd/scripts/deploy-only-contract.test.mjs ci-cd/scripts/workflow-consolidation-contract.test.mjs ci-cd/scripts/release-graph.contract.test.mjs ci-cd/scripts/workspace-dependency-graph.contract.test.mjs ci-cd/docker/prometheus/health-monitoring.contract.test.mjs ci-cd/scripts/backup-to-yandex.test.mjs ci-cd/scripts/emit-verified-backup-metric.test.mjs infra/cloudru/production-job-image-config.test.mjs
+      - name: Enforce client WebP/720p and only four active Cloud video Jobs (blocking)
+        run: |
+          node ci-cd/scripts/media-pipeline-guard.mjs
+          node --test ci-cd/scripts/media-pipeline-guard.test.mjs
+          node --test scripts/qa/cloud-photo-jobs-retired.test.mjs
       - name: Offline Cloud.ru media acceptance and production release safety tests
         run: pnpm test:cloudru-media
       # The media suite executes REAL FFmpeg/libx264 transcoding. Hosted Linux
@@ -694,11 +728,11 @@ jobs:
 
   # Production deploy is shared with manual Deploy Only. No second script.
   deploy-production:
-    # App-only releases skip the 11-Jobs preflight, not local CDN config checks,
+    # App-only releases skip the 6-Jobs preflight, not local CDN config checks,
     # source contracts or protected production QA.
     needs: [security, build-apps, build-images, cloudru-jobs-preflight, cloudru-media-contracts, cutover-preflight, beget-readonly-preflight]
     # `always()` is required solely because the temporary Gallery-only lane
-    # deliberately skips the unrelated Cloud.ru 11-Jobs preflight. Never
+    # deliberately skips the unrelated Cloud.ru 6-Jobs preflight. Never
     # bypass app tests, images, or successful conditional Beget checks.
     if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && needs.security.result == 'success' && needs.build-apps.result == 'success' && needs.build-images.result == 'success' && needs.cloudru-media-contracts.result == 'success' && needs.cutover-preflight.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-preflight.result == 'success') }}
     uses: ./.github/workflows/production-deploy-reusable.yml
@@ -711,7 +745,7 @@ jobs:
   # The job adapter does not build images, provision Jobs or touch S3.
   cloudru-jobs-sync:
     needs: [deploy-production]
-    # An app-only Gallery bootstrap may NOT touch any of the 11 Jobs.
+    # An app-only Gallery bootstrap may NOT touch any of the 4 active video Jobs.
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && !(vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') }}
     uses: ./.github/workflows/production-job-release-reusable.yml
     with:
@@ -733,7 +767,7 @@ jobs:
   # Never modify or fall back to Yandex on a provider outage.
   beget-verify-after-deploy:
     needs: [beget-provider-change-detect, beget-readonly-preflight, cloudru-jobs-verify, deploy-production]
-    # App-only bootstrap skips all 11 Cloud.ru Jobs. A provider change must
+    # App-only bootstrap skips all 4 active Cloud.ru video Jobs. A provider change must
     # still pass signed GET/HEAD/Range/deny verification after deployment.
     if: ${{ always() && github.ref == 'refs/heads/main' && github.event_name == 'push' && (needs.beget-provider-change-detect.outputs.provider_required == 'true' || vars.FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED == 'true') && needs.deploy-production.result == 'success' && needs.beget-readonly-preflight.result == 'success' && ((vars.GALLERY_CDN_APP_ONLY_BOOTSTRAP_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true') || needs.cloudru-jobs-verify.result == 'success' || needs.cloudru-jobs-verify.result == 'failure') }}
     runs-on: ubuntu-latest

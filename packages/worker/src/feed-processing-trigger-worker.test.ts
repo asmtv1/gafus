@@ -56,21 +56,22 @@ describe("Feed immediate trigger worker", () => {
     expect(mocks.worker).not.toHaveBeenCalled();
   });
 
-  it("routes each media kind to its own Cloud.ru job with rate limiting", async () => {
+  it("runs only video Cloud Jobs and refuses retired photo wake-ups", async () => {
     vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
     vi.stubEnv("FEED_PROCESSOR_READY", "true");
     const { startFeedProcessingTriggerWorker } = await import("./feed-processing-trigger-worker");
     startFeedProcessingTriggerWorker();
-    expect(mocks.createDispatcher.mock.calls.map(call => call[0])).toEqual(["photo", "video"]);
+    expect(mocks.createDispatcher.mock.calls.map(call => call[0])).toEqual(["video"]);
     expect(mocks.worker).toHaveBeenCalledWith("feed-processing-trigger", expect.objectContaining({
       concurrency: 1, limiter: { max: 1, duration: 500 },
     }));
-    await mocks.processor!({ data: { uploadId, kind: "photo" } });
-    expect(mocks.photoDispatch).toHaveBeenCalledOnce();
+    await expect(mocks.processor!({ data: { uploadId, kind: "photo" } }))
+      .rejects.toThrow("RETIRED_FEED_PHOTO_JOB");
+    expect(mocks.photoDispatch).not.toHaveBeenCalled();
     expect(mocks.videoDispatch).not.toHaveBeenCalled();
     await mocks.processor!({ data: { uploadId, kind: "video" } });
     expect(mocks.videoDispatch).toHaveBeenCalledOnce();
-    expect(mocks.photoDispatch).toHaveBeenCalledOnce();
+    expect(mocks.photoDispatch).not.toHaveBeenCalled();
   });
 
   it("rejects untrusted kinds/IDs and retries unaccepted Cloud.ru launches", async () => {
@@ -81,7 +82,7 @@ describe("Feed immediate trigger worker", () => {
     await expect(mocks.processor!({ data: { uploadId: "../private", kind: "photo" } }))
       .rejects.toThrow("INVALID_FEED_UPLOAD_ID");
     await expect(mocks.processor!({ data: { uploadId, kind: "other" } }))
-      .rejects.toThrow("INVALID_FEED_PROCESSING_KIND");
+      .rejects.toThrow("RETIRED_FEED_PHOTO_JOB");
     expect(mocks.photoDispatch).not.toHaveBeenCalled();
     mocks.videoDispatch.mockResolvedValueOnce({ dispatched: 0 });
     await expect(mocks.processor!({ data: { uploadId, kind: "video" } }))

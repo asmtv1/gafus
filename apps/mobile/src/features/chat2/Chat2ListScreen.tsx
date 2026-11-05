@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ScrollView,
+  Keyboard,
+  KeyboardAvoidingView,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +22,8 @@ import { TexturedSafeAreaView } from "@/shared/components/TexturedSafeAreaView";
 import { Chat2StaffQueue } from "./Chat2StaffQueue";
 import { Chat2ListNavigation } from "./Chat2ListNavigation";
 import { Chat2Avatar } from "./Chat2Avatar";
+import { Chat2SwipeRow } from "./Chat2SwipeRow";
+import { nextChatTab, type ChatTab } from "@/shared/components/gestures/swipePolicy";
 import { chat2, nameFor, type Conversation, type ChatUser, type Group } from "./api";
 
 const bg = "#fffdf8",
@@ -46,16 +51,38 @@ export default function Chat2ListScreen() {
   if (!owner || binding?.principalId !== owner || !binding.authEpoch)
     return <Text accessibilityRole="alert">Для доступа к чатам войдите в аккаунт.</Text>;
   // Per-auth-epoch React state: no stale conversation previews on account switches.
-  return <Chat2ListOwned key={`${owner}:${binding.authEpoch}`} owner={owner} />;
+  return <Chat2ListOwned key={`${owner}:${binding.authEpoch}`} owner={owner}
+    epoch={binding.authEpoch} />;
 }
-function Chat2ListOwned({ owner }: { owner: string }) {
+function Chat2ListOwned({ owner, epoch }: { owner: string; epoch: string }) {
   const router = useRouter();
   const staff = ["ADMIN", "MODERATOR"].includes(useAuthStore.getState().user?.role ?? "");
   const [list, setList] = useState<Conversation[]>([]),
     [mode, setMode] = useState<
       "list" | "people" | "create" | "discover" | "courses" | "moderation"
     >("list");
-  const [tab, setTab] = useState<"all" | "direct" | "group" | "unread">("all");
+  const [tab, setTab] = useState<ChatTab>("all");
+  const [refreshing, setRefreshing] = useState(false);
+  const chatActionFlight = useRef(false);
+  const [busyChatId, setBusyChatId] = useState<string | null>(null);
+  const tabsTouch = useRef<{ x: number; y: number } | null>(null);
+  const formScrollRef = useRef<ScrollView>(null);
+  const descriptionFocused = useRef(false);
+  const scrollDescriptionIntoView = useCallback(() => {
+    if (!descriptionFocused.current) return;
+    requestAnimationFrame(() => formScrollRef.current?.scrollToEnd({ animated: true }));
+  }, []);
+  useEffect(() => {
+    if (mode !== "create") { descriptionFocused.current = false; return; }
+    const subscription = Keyboard.addListener("keyboardDidShow", scrollDescriptionIntoView);
+    return () => subscription.remove();
+  }, [mode, scrollDescriptionIntoView]);
+  const currentActor = () => {
+    const auth = useAuthStore.getState();
+    const binding = newOnlyV2NativeQueues.getVerifiedBinding();
+    return auth.isAuthenticated && !auth.isLoading && auth.user?.id === owner &&
+      binding?.principalId === owner && binding.authEpoch === epoch;
+  };
   const [search, setSearch] = useState(""),
     [people, setPeople] = useState<ChatUser[]>([]),
     [groups, setGroups] = useState<Group[]>([]);
@@ -102,6 +129,32 @@ function Chat2ListOwned({ owner }: { owner: string }) {
       setError(e instanceof Error ? e.message : "Чаты недоступны");
     }
   }, [owner]);
+  const manualRefresh = async () => {
+    if (refreshing || !currentActor()) return;
+    setRefreshing(true);
+    try { await refresh(); }
+    finally { setRefreshing(false); }
+  };
+  const actOnConversation = async (room: Conversation, action: "read" | "mute") => {
+    if (chatActionFlight.current || !currentActor()) return;
+    if (action === "read" && (!room.unreadCount || !room.lastSequence)) return;
+    chatActionFlight.current = true;
+    setBusyChatId(room.id);
+    try {
+      if (action === "read") await chat2.read(room.id, room.lastSequence);
+      else await chat2.mute(room.id, !room.muted);
+      if (currentActor()) await refresh();
+    } catch (error) {
+      reportClientError(new Error("CHAT2_SWIPE_ACTION_FAILED"), {
+        issueKey: "Chat2List", keys: { operation: action },
+      });
+      if (currentActor()) setError(error instanceof Error ? error.message :
+        "Не удалось выполнить действие с чатом");
+    } finally {
+      chatActionFlight.current = false;
+      setBusyChatId(null);
+    }
+  };
   useFocusEffect(
     useCallback(() => {
       void refresh();
@@ -220,6 +273,7 @@ function Chat2ListOwned({ owner }: { owner: string }) {
         <TextInput
           style={styles.search}
           placeholder={mode === "people" ? "Поиск пользователя" : "Поиск по чатам"}
+          placeholderTextColor="#000000"
           value={search}
           onChangeText={setSearch}
           autoCorrect={false}
@@ -227,7 +281,16 @@ function Chat2ListOwned({ owner }: { owner: string }) {
         />
       )}
       {mode === "list" && (
-        <View style={styles.tabs}>
+        <View style={styles.tabs}
+          onTouchStart={event => { tabsTouch.current = {
+            x: event.nativeEvent.pageX, y: event.nativeEvent.pageY,
+          }; }}
+          onTouchEnd={event => {
+            const start = tabsTouch.current;
+            tabsTouch.current = null;
+            if (start) setTab(previous => nextChatTab(previous,
+              event.nativeEvent.pageX - start.x, event.nativeEvent.pageY - start.y));
+          }}>
           {(
             [
               ["all", "Все"],
@@ -264,9 +327,17 @@ function Chat2ListOwned({ owner }: { owner: string }) {
           {error}
         </Text>
       )}
+      <KeyboardAvoidingView style={styles.keyboardArea}
+        behavior={mode === "create" ? "padding" : undefined}>
       <ScrollView
+        ref={formScrollRef}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        onLayout={mode === "create" ? scrollDescriptionIntoView : undefined}
+        onContentSizeChange={mode === "create" ? scrollDescriptionIntoView : undefined}
         style={styles.list}
+        refreshControl={mode === "list" ? <RefreshControl
+          refreshing={refreshing} onRefresh={() => void manualRefresh()} /> : undefined}
         contentContainerStyle={styles.content}
       >
         {mode === "list" && (
@@ -276,7 +347,10 @@ function Chat2ListOwned({ owner }: { owner: string }) {
             </Text>
             {visible.length === 0 && <Text style={styles.empty}>Здесь пока нет переписок.</Text>}
             {visible.map((c) => (
-              <TouchableOpacity style={styles.row} onPress={() => open(c.id)} key={c.id}>
+              <Chat2SwipeRow key={c.id} room={c} busy={busyChatId !== null}
+                onRead={() => void actOnConversation(c, "read")}
+                onMute={() => void actOnConversation(c, "mute")}>
+              <TouchableOpacity style={styles.row} onPress={() => open(c.id)}>
                 <View style={styles.avatar}>
                   <Chat2Avatar room={c} ownerId={owner}>
                     <Text style={styles.emoji}>{emojii(c.kind)}</Text>
@@ -296,6 +370,7 @@ function Chat2ListOwned({ owner }: { owner: string }) {
                   </View>
                 )}
               </TouchableOpacity>
+              </Chat2SwipeRow>
             ))}
             <Chat2ListNavigation
               onDiscover={() => {
@@ -436,10 +511,13 @@ function Chat2ListOwned({ owner }: { owner: string }) {
             <Text style={styles.label}>Описание</Text>
             <TextInput
               style={[styles.input, styles.multiline]}
+              accessibilityLabel="Описание группы"
               multiline
               value={description}
               maxLength={2000}
               onChangeText={setDescription}
+              onFocus={() => { descriptionFocused.current = true; scrollDescriptionIntoView(); }}
+              onBlur={() => { descriptionFocused.current = false; }}
             />
             <TouchableOpacity
               style={styles.primary}
@@ -471,11 +549,13 @@ function Chat2ListOwned({ owner }: { owner: string }) {
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </TexturedSafeAreaView>
   );
 }
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: bg },
+  keyboardArea: { flex: 1 },
   controls: { margin: 16, marginBottom: 12, paddingBottom: 6, backgroundColor: bg, borderRadius: 22, borderWidth: 1, borderColor: border },
   header: { padding: 16, flexDirection: "row", alignItems: "center", gap: 10 },
   toolButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: "#e7eddb" },
@@ -489,6 +569,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
+    color: "#000000",
   },
   tabs: { flexDirection: "row", justifyContent: "space-evenly", marginBottom: 9 },
   tab: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 20 },

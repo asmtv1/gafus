@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -81,6 +81,19 @@ function QuestionDetailActorScreen({
   const cache = useQueryClient();
   const scroll = useRef<ScrollView>(null);
   const mounted = useRef(true);
+  const answerInputFocused = useRef(false);
+  const scrollToAnswer = useCallback(() => {
+    if (!answerInputFocused.current) return;
+    requestAnimationFrame(() => {
+      if (mounted.current && answerInputFocused.current) {
+        scroll.current?.scrollToEnd({ animated: true });
+      }
+    });
+  }, []);
+  useEffect(() => {
+    const listener = Keyboard.addListener("keyboardDidShow", scrollToAnswer);
+    return () => listener.remove();
+  }, [scrollToAnswer]);
   const answerSending = useRef(false);
   const actionInFlight = useRef(false);
   const topPageInFlight = useRef<{ sort: string; generation: number } | null>(null);
@@ -718,11 +731,16 @@ function QuestionDetailActorScreen({
     <TexturedSafeAreaView style={{ flex: 1 }} edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        // Android edge-to-edge also requires padding; relying on resize alone
+        // leaves the answer composer behind the on-screen keyboard.
+        behavior="padding"
       >
         <ScrollView
           ref={scroll}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          onLayout={scrollToAnswer}
+          onContentSizeChange={scrollToAnswer}
           contentContainerStyle={[st.content, styles.detailContent]}
           refreshControl={
             <RefreshControl
@@ -951,6 +969,11 @@ function QuestionDetailActorScreen({
                     }
                     value={body}
                     onChange={setBody}
+                    onFocus={() => {
+                      answerInputFocused.current = true;
+                      scrollToAnswer();
+                    }}
+                    onBlur={() => { answerInputFocused.current = false; }}
                     multiline
                     minHeight={84}
                     maxLength={QUESTION_LIMITS.body}

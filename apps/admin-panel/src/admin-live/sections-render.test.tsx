@@ -181,6 +181,7 @@ const sections = [
       source={{
         revision: 1,
         iosReviewVersion: null,
+        ota: { required: false, version: null, platform: "all" },
         released: rflag,
         review: rflag,
         global: { appSubscriptionPaywall: false, appSubscriptionGating: false },
@@ -307,6 +308,15 @@ describe("18 isolated Vite Admin section server DTO rendering", () => {
       "trainers-schedules",
     ]);
   });
+  it("shows the independent force-OTA controls on the mobile feature flags page", () => {
+    const html = renderToStaticMarkup(sections.find(([key]) => key === "feature-flags")![1]);
+    expect(html).toContain("OTA-обновления");
+    expect(html).toContain("Обязательное OTA-обновление");
+    expect(html).toContain("1.7.3-ota.1");
+    expect(html).toContain("Только Android");
+    expect(html).toContain("Только iOS");
+  });
+
   it.each(sections)("%s renders a real section for an empty server DTO", (_key, view, text) => {
     const html = renderToStaticMarkup(view);
     expect(html).toContain(text);

@@ -1,14 +1,24 @@
 // @vitest-environment jsdom
+vi.mock("../../shared/media/browserPhotoWebp",()=>({
+  prepareBrowserPhotoWebp:vi.fn(async(_file:File)=>({
+    thumb:{file:new File([new Uint8Array(128)],"thumb.webp",{type:"image/webp"}),width:480,height:360},
+    full:{file:new File([new Uint8Array(256)],"full.webp",{type:"image/webp"}),width:1920,height:1440},
+  })),
+}));
+vi.mock("../../shared/media/browserPhotoUpload",()=>({
+  uploadBrowserPhotoWebp:vi.fn(async()=>undefined),
+}));
 import {act} from "react";
 import {createRoot,type Root} from "react-dom/client";
 import {afterEach,beforeEach,describe,expect,it,vi} from "vitest";
 import {GalleryUpload} from "./GalleryManage";
 
-const path="/api/v1/gallery/albums/album_A/uploads";
+const path="/api/v1/gallery/uploads/client-reserve";
 const uploadPath="https://isolated-synthetic.example.invalid/photo";
 const id="upload_A";
 const reservation={uploadId:id,albumId:"album_A",status:"reserved",
   postUrl:uploadPath,postFields:{policy:"synthetic"},
+  thumbUpload:{method:"POST",url:uploadPath,fields:{policy:"thumb"}},
   reservationExpiresAt:new Date(Date.now()+3600000).toISOString()};
 const reply=(data:unknown)=>new Response(JSON.stringify({success:true,data}),{status:200});
 let root:Root,host:HTMLDivElement,fetcher:ReturnType<typeof vi.fn>;
@@ -38,7 +48,7 @@ beforeEach(()=>{
     if(url===`/api/v1/gallery/uploads/${id}`)return reply({
       ...reservation,status:processing?"processing":"reserved",
     });
-    if(url===`/api/v1/gallery/uploads/${id}/complete`)return reply({...reservation,status:"processing"});
+    if(url===`/api/v1/gallery/uploads/${id}/client-complete`)return reply({...reservation,status:"processing"});
     throw Error("UNEXPECTED_HTTP:"+url);
   });
   vi.stubGlobal("fetch",fetcher);

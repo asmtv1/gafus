@@ -22,6 +22,11 @@ const features = z.object({
 const payload = z.object({
   revision: z.number().int().positive(),
   iosReviewVersion: z.string().trim().regex(/^\d+\.\d+\.\d+$/).nullable(),
+  ota: z.object({
+    required: z.boolean(),
+    version: z.string().trim().regex(/^\d+\.\d+\.\d+-ota\.[1-9]\d*$/).nullable(),
+    platform: z.enum(["all", "ios", "android"]),
+  }).strict().refine(v => !v.required || v.version !== null, "Укажите OTA-версию"),
   released: features, review: features,
   global: z.object({
     appSubscriptionPaywall: z.boolean(), appSubscriptionGating: z.boolean(),

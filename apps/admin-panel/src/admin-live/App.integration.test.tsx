@@ -181,6 +181,7 @@ function sectionFixture(url: string): unknown {
     return {
       revision: 1,
       iosReviewVersion: null,
+        ota: { required: false, version: null, platform: "all" },
       released: flags,
       review: flags,
       global: { appSubscriptionPaywall: false, appSubscriptionGating: false },

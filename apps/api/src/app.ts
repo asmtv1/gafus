@@ -10,6 +10,7 @@ import { feedRoutes } from "./routes/v1/feed.js";
 import { internalGalleryRoutes } from "./routes/internal/gallery.js";
 import { chatsRoutes } from "./routes/v1/chats.js";
 import { createChat2SubscribeProxyRoutes } from "./modules/chat2/subscribeProxy.js";
+import { checkChat2MobileVersion } from "./lib/chat2-mobile-version-gate.js";
 import { readGate } from "./modules/chat2/service.js";
 /**
  * Hono App Setup
@@ -72,6 +73,7 @@ import { achievementsRoutes } from "./routes/v1/achievements.js";
 import { subscriptionsRoutes } from "./routes/v1/subscriptions.js";
 import { notesRoutes } from "./routes/v1/notes.js";
 import { remindersRoutes } from "./routes/v1/reminders.js";
+import { walksRoutes } from "./routes/v1/walks.js";
 import { paymentsRoutes } from "./routes/v1/payments.js";
 import { paymentProviderWebhooks } from "./routes/v1/payment-provider-webhooks.js";
 import { publicMobileRoutes } from "./routes/v1/public-mobile.js";
@@ -85,6 +87,7 @@ import { adminUsersRoutes } from "./routes/v1/admin-users.js";
 import { adminFeatureFlagsRoutes } from "./routes/v1/admin-feature-flags.js";
 import { adminMailRoutes } from "./routes/v1/admin-mail.js";
 import { adminAnalyticsRoutes } from "./routes/v1/admin-analytics.js";
+import { videoPlaybackQualityRoutes } from "./routes/v1/video-playback-quality.js";
 import { adminProfitRoutes } from "./routes/v1/admin-profit.js";
 import { adminModerationRoutes } from "./routes/v1/admin-moderation.js";
 import { adminSubscriptionRoutes } from "./routes/v1/admin-subscriptions.js";
@@ -194,6 +197,10 @@ app.use("/api/v1/admin/analytics/*", async (c, next) => {
 });
 app.use("/api/v1/admin/analytics/*", authMiddleware, apiRateLimiter);
 app.route("/api/v1/admin/analytics", adminAnalyticsRoutes);
+
+// Anonymous in storage but authenticated at ingestion. No PII or media URL is kept.
+app.use("/api/v1/video-quality/*", authMiddleware, apiRateLimiter);
+app.route("/api/v1/video-quality", videoPlaybackQualityRoutes);
 app.use("/api/v1/admin/reengagement/*", async (c, next) => {
   c.header("Cache-Control", "private, no-store");
   c.header("Referrer-Policy", "no-referrer");
@@ -325,6 +332,16 @@ const chat2Gate = async (c: Context, next: () => Promise<void>) => {
   c.header("Referrer-Policy", "no-referrer");
   if(process.env.CHAT2_API_ENABLED!=="enabled")
     return c.json({success:false,code:"CHAT2_DISABLED",error:"Новый чат ещё не включён"},503);
+  const allowedMobile = checkChat2MobileVersion({
+    platform: c.req.header("X-Client-Platform"),
+    version: c.req.header("X-Client-Version"),
+    iosMinimum: process.env.CHAT2_MOBILE_IOS_MIN_VERSION,
+    androidMinimum: process.env.CHAT2_MOBILE_ANDROID_MIN_VERSION,
+  });
+  if (!allowedMobile.allowed) return c.json({
+    success:false,code:allowedMobile.code,error:
+      allowedMobile.status===426?"Обновите Гафус, чтобы пользоваться чатами":"Чат временно недоступен",
+  },allowedMobile.status);
   await next();
 };
 app.use("/api/v1/chats", chat2Gate);
@@ -643,6 +660,20 @@ app.use("/api/v1/reminders/*", async (c, next) => {
 app.use("/api/v1/reminders/*", apiRateLimiter);
 app.use("/api/v1/reminders/*", authMiddleware);
 app.route("/api/v1/reminders", remindersRoutes);
+
+// Dog walk history: always JWT/registration-bound, private and owner-scoped.
+app.use("/api/v1/walks", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  await next();
+});
+app.use("/api/v1/walks/*", async (c, next) => {
+  c.header("Cache-Control", "private, no-store");
+  await next();
+});
+app.use("/api/v1/walks/*", apiRateLimiter, authMiddleware);
+app.use("/api/v1/walks", apiRateLimiter, authMiddleware);
+app.route("/api/v1/walks", walksRoutes);
+
 
 // Public signed/provider-verified callback before private legacy payment routes.
 app.route("/", paymentProviderWebhooks);

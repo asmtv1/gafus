@@ -2,11 +2,13 @@ import { cdnIsolatedAcceptance } from "./cdn-isolated-acceptance.js";
 import { isolatedNonprodS3Config } from "@gafus/cdn-upload/isolated-nonprod-s3";
 import { localReadonlyCdnSecret } from "@gafus/cdn-upload/local-readonly-cdn";
 import { createHash } from "node:crypto";
-import { S3Client, HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, HeadObjectCommand, GetObjectCommand, CopyObjectCommand } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { FeedStoragePort } from "@gafus/core/services/feed";
-import { feedSourcePattern, assertFeedObjectKey, assertFeedFinalKey } from "./keys.js";
+import { feedSourcePattern, feedClientVariantPattern, assertFeedObjectKey, assertFeedFinalKey } from "./keys.js";
+import { signClientWebpStaging, verifyClientWebp, copyVerifiedClientWebp,
+  verifyClientMp4,copyVerifiedClientMp4 } from "@gafus/cdn-upload";
 
 export interface FeedStorageConfig {
   enabled: boolean;
@@ -47,7 +49,7 @@ export function feedStorageConfigFromEnv(
     ...local, cdnBaseUrl: "", cdnSecret: "",
   };
   const config: FeedStorageConfig = {
-    enabled: env.FEED_ENABLED === "true" && env.FEED_PROCESSOR_READY === "true",
+    enabled: env.FEED_ENABLED === "true",
     bucket: env.FEED_BUCKET ?? "",
     endpoint: env.FEED_S3_ENDPOINT ?? "https://s3.cloud.ru",
     accessKeyId: env.FEED_S3_ACCESS_KEY_ID ?? "",
@@ -204,6 +206,125 @@ export function createFeedStorage(
           ["eq", "$success_action_status", "204"],
         ],
       });
+    },
+    async signClientRenditions(input) {
+      const s3 = requireClient();
+      const source = feedSourcePattern.exec(input.sourceKey);
+      const expires = Math.floor((input.expiresAt.getTime() - Date.now()) / 1000);
+      if (!source || source[4] !== "webp" || expires < 1 || expires > 600)
+        throw Error("FEED_CLIENT_PHOTO_POLICY_INVALID");
+      const prefix = input.sourceKey.replace(/source\.webp$/, "");
+      const smallKey = `${prefix}s.webp`, mediumKey = `${prefix}m.webp`;
+      if (!feedClientVariantPattern.test(smallKey) || !feedClientVariantPattern.test(mediumKey))
+        throw Error("FEED_CLIENT_PHOTO_KEYS_INVALID");
+      const [small, medium] = await Promise.all([
+        signClientWebpStaging(s3 as S3Client, config.bucket, smallKey, 1_750_000, expires),
+        signClientWebpStaging(s3 as S3Client, config.bucket, mediumKey, 1_750_000, expires),
+      ]);
+      return { small, medium };
+    },
+    async publishClientPhoto(input) {
+      const s3 = requireClient();
+      const source = feedSourcePattern.exec(input.sourceKey);
+      if (!source || source[4] !== "webp") throw Error("FEED_CLIENT_PHOTO_SOURCE_INVALID");
+      const stagePrefix = input.sourceKey.replace(/source\.webp$/, "");
+      const smallStage = `${stagePrefix}s.webp`, mediumStage = `${stagePrefix}m.webp`;
+      const m = /^media\/v2\/([A-Za-z0-9_-]{1,128})\/v1\/image\/s\.webp$/.exec(input.smallKey);
+      if (!m || input.thumbKey !== input.smallKey.replace(/s\.webp$/, "m.webp") ||
+          input.fullKey !== input.smallKey.replace(/s\.webp$/, "l.webp") ||
+          !feedClientVariantPattern.test(smallStage) || !feedClientVariantPattern.test(mediumStage))
+        throw Error("FEED_CLIENT_PHOTO_TARGET_INVALID");
+      [input.smallKey,input.thumbKey,input.fullKey].forEach(assertFeedFinalKey);
+      const [small, medium, full] = await Promise.all([
+        verifyClientWebp(s3 as S3Client, config.bucket, smallStage, 360, 1_750_000),
+        verifyClientWebp(s3 as S3Client, config.bucket, mediumStage, 720, 1_750_000),
+        verifyClientWebp(s3 as S3Client, config.bucket, input.sourceKey, 1440, 1_750_000),
+      ]);
+      const photos = [small, medium, full];
+      if (photos.some((x, i) => i > 0 && (x.width < photos[i-1]!.width ||
+          x.height < photos[i-1]!.height ||
+          Math.abs(x.width/x.height - photos[i-1]!.width/photos[i-1]!.height) > 0.012)))
+        throw Error("FEED_CLIENT_PHOTO_DIMENSIONS_INVALID");
+      await Promise.all([
+        copyVerifiedClientWebp(s3 as S3Client, config.bucket, smallStage, input.smallKey, small),
+        copyVerifiedClientWebp(s3 as S3Client, config.bucket, mediumStage, input.thumbKey, medium),
+        copyVerifiedClientWebp(s3 as S3Client, config.bucket, input.sourceKey, input.fullKey, full),
+      ]);
+      return { width: full.width, height: full.height };
+    },
+    async signClientVideoPoster(input) {
+      const s3=requireClient() as S3Client;
+      const source=feedSourcePattern.exec(input.sourceKey);
+      const seconds=Math.floor((input.expiresAt.getTime()-Date.now())/1000);
+      if(!source||source[4]!=="mp4"||seconds<1||seconds>600)
+        throw Error("FEED_CLIENT_VIDEO_POSTER_POLICY_DENIED");
+      const stage=input.sourceKey.replace(/source\.mp4$/,"poster.webp");
+      if(!feedClientVariantPattern.test(stage))throw Error("FEED_CLIENT_VIDEO_POSTER_KEY_DENIED");
+      return signClientWebpStaging(s3,config.bucket,stage,1_750_000,seconds);
+    },
+    async publishClientVideo(input) {
+      const s3=requireClient() as S3Client;
+      const source=feedSourcePattern.exec(input.sourceKey);
+      if(!source||source[4]!=="mp4"||
+        !/^media\/v2\/[A-Za-z0-9_-]{1,128}\/v1\/video\/720\.mp4$/.test(input.finalKey)||
+        input.posterKey!==input.finalKey.replace(/video\/720\.mp4$/,"poster.webp"))
+        throw Error("FEED_CLIENT_VIDEO_KEY_DENIED");
+      assertFeedFinalKey(input.finalKey);assertFeedFinalKey(input.posterKey);
+      const stage=input.sourceKey.replace(/source\.mp4$/,"poster.webp");
+      if(!feedClientVariantPattern.test(stage))throw Error("FEED_CLIENT_VIDEO_POSTER_KEY_DENIED");
+      const [valid,poster]=await Promise.all([
+        verifyClientMp4(s3,config.bucket,input.sourceKey,input.bytes),
+        verifyClientWebp(s3,config.bucket,stage,480,1_750_000),
+      ]);
+      if(Math.abs(valid.width/valid.height-poster.width/poster.height)>0.015)
+        throw Error("FEED_CLIENT_VIDEO_POSTER_ASPECT_MISMATCH");
+      await Promise.all([
+        copyVerifiedClientMp4(s3,config.bucket,input.sourceKey,input.finalKey,valid),
+        copyVerifiedClientWebp(s3,config.bucket,stage,input.posterKey,poster),
+      ]);
+      return {width:valid.width,height:valid.height,durationSeconds:valid.durationSeconds};
+    },
+    async copyGalleryPhotoVariants(input) {
+      const s3=requireClient() as S3Client;
+      const galleryBucket=runtimeEnv.GALLERY_BUCKET ?? (config.isolatedNonprod ? config.bucket : "");
+      if(!galleryBucket||!/^[a-z0-9][a-z0-9.-]{2,62}$/.test(galleryBucket))
+        throw Error("FEED_GALLERY_SOURCE_BUCKET_UNAVAILABLE");
+      const validId=(s:string)=>/^[A-Za-z0-9_-]{1,128}$/.test(s);
+      if(![input.ownerId,input.albumId,input.photoId,input.mediaId].every(validId))
+        throw Error("FEED_GALLERY_COPY_ID_INVALID");
+      const v2=`gallery/${input.ownerId}/media/${input.photoId}/v2`;
+      const legacy=`albums/${input.ownerId}/${input.albumId}/photos/${input.photoId}`;
+      if(![v2,legacy].some(prefix=>
+          input.thumbKey===`${prefix}/thumb.webp`&&input.fullKey===`${prefix}/full.webp`))
+        throw Error("FEED_GALLERY_COPY_SOURCE_UNAUTHORIZED");
+      const target=`media/v2/${input.mediaId}/v1/image/`;
+      const destinations=[target+"s.webp",target+"m.webp",target+"l.webp"];
+      destinations.forEach(assertFeedFinalKey);
+      // Existing photos are immutable. Decoder validation ensures no caller
+      // substitutes bad MIME, animated/metadata-laden bytes or forged size.
+      const [thumb,full]=await Promise.all([
+        verifyClientWebp(s3,galleryBucket,input.thumbKey,1920,10*1024*1024),
+        verifyClientWebp(s3,galleryBucket,input.fullKey,1920,10*1024*1024),
+      ]);
+      if(thumb.width>full.width||thumb.height>full.height||
+         Math.abs(thumb.width/thumb.height-full.width/full.height)>0.012)
+        throw Error("FEED_GALLERY_COPY_ASPECT_INVALID");
+      const srcKeys=[input.thumbKey,input.thumbKey,input.fullKey];
+      const etags=[thumb.etag,thumb.etag,full.etag];
+      const bytes=[thumb.bytes,thumb.bytes,full.bytes];
+      await Promise.all(destinations.map(async(dest,i)=>{
+        const src=`${galleryBucket}/${srcKeys[i]!.split("/").map(encodeURIComponent).join("/")}`;
+        await s3.send(new CopyObjectCommand({Bucket:config.bucket,Key:dest,
+          CopySource:src,CopySourceIfMatch:etags[i],
+          ContentType:"image/webp",MetadataDirective:"REPLACE",
+          CacheControl:"public, max-age=86400"}),
+        {abortSignal:AbortSignal.timeout(15_000)});
+        const head=await s3.send(new HeadObjectCommand({Bucket:config.bucket,Key:dest}),
+          {abortSignal:AbortSignal.timeout(12_000)});
+        if(head.ContentType!=="image/webp"||head.ContentLength!==bytes[i]||!head.ETag)
+          throw Error("FEED_GALLERY_COPY_DESTINATION_UNVERIFIED");
+      }));
+      return {width:full.width,height:full.height};
     },
     async head(key) {
       assertFeedObjectKey(key);

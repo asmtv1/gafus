@@ -92,23 +92,23 @@ describe("original Hono Gallery owner command transport boundaries",()=>{
   expect(uploadReservationValid({...res,reservationExpiresAt:"2020-01-01T00:00:00Z"},
     "album_01")).toBe(false);
  });
- it("file reserve uses original cookie POST and validates ACK id without exporting keys",async()=>{
+ it("client WebP reserve uses owner-scoped cookie POST and hides storage keys",async()=>{
   const reservation={uploadId:"upload_01",albumId:"album_01",status:"reserved",
     postUrl:"https://storage.example.test/private?sig=synthetic",
     postFields:{policy:"synthetic"},reservationExpiresAt:new Date(Date.now()+600_000).toISOString()};
   const fetch=vi.fn().mockImplementation(async()=>ok(reservation));
   vi.stubGlobal("fetch",fetch);
-  const file=new File(["synthetic"],"photo.jpg",{type:"image/jpeg"});
+  const file=new File(["synthetic"],"photo.webp",{type:"image/webp"});
   const id="4f77e329-caf1-4e59-b5ae-49f06f354c28";
   const result=await reserveGalleryPhoto("album_01",file,null,id);
   expect(result.uploadId).toBe("upload_01");
   expect(fetch).toHaveBeenCalledTimes(1);
-  expect(fetch.mock.calls[0][0]).toBe("/api/v1/gallery/albums/album_01/uploads");
+  expect(fetch.mock.calls[0][0]).toBe("/api/v1/gallery/uploads/client-reserve");
   expect(fetch.mock.calls[0][1].method).toBe("POST");
   expect(fetch.mock.calls[0][1].credentials).toBe("include");
   const submitted=JSON.parse(fetch.mock.calls[0][1].body as string);
   expect(submitted).toMatchObject({albumId:"album_01",
-    filename:"photo.jpg",declaredMime:"image/jpeg",declaredBytes:file.size,
+    filename:"photo.webp",declaredMime:"image/webp",declaredBytes:file.size,
     clientRequestId:id});
  });
  it("signed S3 FormData upload is one POST, no cookie and no blind automatic retry",async()=>{
@@ -134,7 +134,7 @@ describe("original Hono Gallery owner command transport boundaries",()=>{
   expect(await confirmGalleryPhoto("upload_01")).toMatchObject(payload);
   expect(await galleryUploadStatus("upload_01")).toMatchObject(payload);
   expect(fetch.mock.calls.map(([path])=>path)).toEqual([
-    "/api/v1/gallery/uploads/upload_01/complete",
+    "/api/v1/gallery/uploads/upload_01/client-complete",
     "/api/v1/gallery/uploads/upload_01",
   ]);
   expect(fetch.mock.calls.map(([,opt])=>opt.method)).toEqual(["POST","GET"]);

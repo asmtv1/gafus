@@ -1,35 +1,19 @@
 /**
- * Trigger Cloud.ru Container Jobs every minute while local GAFUS Worker is healthy.
+ * Trigger only Feed/Chat VIDEO Cloud.ru Jobs. All photo/image Jobs are retired.
  * Core owns all durable claims/leases; overlapping Cloud invocations are idempotent.
  * No schedule is installed unless CLOUDRU_MEDIA_JOBS_ENABLED=true.
  */
-const DEFAULT_MEDIA_JOB_NAMES = [
-  "gafus-gallery-process",
-  "gafus-feed-photo",
-  "gafus-feed-video",
-] as const;
+const DEFAULT_MEDIA_JOB_NAMES = ["gafus-feed-video"] as const;
 export const CLOUDRU_FEED_JOB_POOLS = {
-  photo: ["gafus-feed-photo", "gafus-feed-photo-2"],
   video: ["gafus-feed-video", "gafus-feed-video-2"],
 } as const;
-// Existing Cloud.ru project is at its 10-Job quota. Reuse the ONLY existing
-// Questions Job with up to two executions. Never create/dispatch a phantom -2.
-// The durable PostgreSQL Questions lease gate caps active photo conversions.
-export const CLOUDRU_QUESTIONS_PHOTO_POOL = [
-  "gafus-questions-photo",
-] as const;
 export const CLOUDRU_CHAT_JOB_POOLS = {
-  photo: ["gafus-chat-photo", "gafus-chat-photo-2"],
   video: ["gafus-chat-video", "gafus-chat-video-2"],
 } as const;
 export const CLOUDRU_MEDIA_JOB_NAMES = [
   ...DEFAULT_MEDIA_JOB_NAMES,
-  ...CLOUDRU_QUESTIONS_PHOTO_POOL,
-  ...CLOUDRU_CHAT_JOB_POOLS.photo,
   ...CLOUDRU_CHAT_JOB_POOLS.video,
-  "gafus-feed-photo-2",
   "gafus-feed-video-2",
-  "gafus-gallery-process-2",
 ] as const;
 
 export type CloudruMediaJobName = (typeof CLOUDRU_MEDIA_JOB_NAMES)[number];
@@ -73,19 +57,9 @@ export function createCloudruMediaDispatcher(
        // The legacy same-named Cloud jobs may point at api.gafus.ru.
        // Explicit operator verification of isolated Refactor-owned jobs is mandatory.
        env.FEED_CLOUDRU_REFRACTOR_VERIFIED !== "true")) ||
-    (names.some((name) => name.startsWith("gafus-questions-photo")) &&
-      (env.QUESTIONS_V2_MEDIA_ENABLED !== "true" ||
-       env.QUESTIONS_V2_PROCESSOR_READY !== "true" ||
-       env.QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED !== "true" ||
-       // Cloud resources must be separately owned and verified Refactor-only.
-       env.QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED !== "true")) ||
     (names.some((name) => name.startsWith("gafus-chat-")) &&
       (env.CHAT2_PROCESSOR_READY !== "true" || env.CHAT2_V2_CORE_ENABLED !== "true" ||
         env.CHAT2_V2_MEDIA_ENABLED !== "true")) ||
-    (names.some(name => name.startsWith("gafus-gallery-process")) &&
-      env.GALLERY_PROCESSOR_READY !== "true") ||
-    (names.includes("gafus-gallery-process-2") &&
-      env.GALLERY_PROCESSOR_SECOND_READY !== "true") ||
     names.length === 0 ||
     names.some((name) => !CLOUDRU_MEDIA_JOB_NAMES.includes(name))
   ) {
@@ -100,11 +74,10 @@ export function createCloudruMediaDispatcher(
     let dispatched = 0;
     try {
       if (!cachedToken || Date.now() > tokenExpires) {
-        // Cloud.ru requires IAM v2 for both Questions and the separately
-        // scoped Chat2 organization. Feed/Gallery still use IAM v1.
+        // Chat2 uses IAM v2 in its separate organization; Feed/Gallery use v1.
         // Keep this per-allowlisted-name: mixing IAM scopes is forbidden.
         const iamV2=names.every(name=>
-          name.startsWith("gafus-questions-photo") || name.startsWith("gafus-chat-"));
+          name.startsWith("gafus-chat-"));
         // IAM token exchange is safe to retry after a transient DNS timeout or
         // provider 429/5xx. NEVER retry :execute on an unknown ACK: duplicate
         // Cloud executions are billable and can race the durable lease gate.
@@ -177,33 +150,7 @@ export function createCloudruFeedPoolDispatcher(
   };
 }
 
-/** Gallery's second provisioned Job is strictly opt-in until its callback
- * permissions and S3 processor image have been independently deployed.
- * Retry after a lost launch ACK alternates Jobs; Core's attemptToken and
- * create-if-absent claims remain the only publish authority.
- */
-export function createCloudruGalleryPoolDispatcher(
-  env: Record<string, string | undefined> = process.env,
-  http: HttpFetch = fetch,
-) {
-  const names: CloudruMediaJobName[] = env.GALLERY_PROCESSOR_SECOND_READY === "true"
-    ? ["gafus-gallery-process", "gafus-gallery-process-2"]
-    : ["gafus-gallery-process"];
-  const dispatchers = names.map(name => createCloudruMediaDispatcher(env, http, [name]));
-  let next = 0;
-  return () => {
-    const chosen = dispatchers[next]!;
-    next = (next + 1) % dispatchers.length;
-    return chosen();
-  };
-}
-
-
-/** Chat2 V2 ONLY: two independent Cloud.ru Jobs per kind, alternating each
- * accepted wake-up. Redis carries only UUIDs, never media bytes. Core owns
- * the typed, SKIP LOCKED claim; the other chat kind cannot steal this task.
- * This is a separate opt-in pool: existing Feed/Gallery launch lists unchanged.
- */
+/** Chat2 video-only Cloud Jobs; photos are WebP encoded on the client. */
 export function createCloudruChatPoolDispatcher(
   kind: keyof typeof CLOUDRU_CHAT_JOB_POOLS,
   env: Record<string,string|undefined> = process.env,
@@ -226,21 +173,6 @@ export function createCloudruChatPoolDispatcher(
   };
   const dispatchers=CLOUDRU_CHAT_JOB_POOLS[kind].map(name=>
     createCloudruMediaDispatcher(scopedEnv,http,[name]));
-  let next=0;
-  return ()=>{
-    const selected=dispatchers[next]!;
-    next=(next+1)%dispatchers.length;
-    return selected();
-  };
-}
-
-/** One existing Questions photo-only Job, up to two independent executions.
- * Does not require a new Cloud Job or touch unrelated Feed/Gallery capacity. */
-export function createCloudruQuestionsPhotoPoolDispatcher(
-  env:Record<string,string|undefined>=process.env,http:HttpFetch=fetch,
-) {
-  const dispatchers=CLOUDRU_QUESTIONS_PHOTO_POOL.map(name=>
-    createCloudruMediaDispatcher(env,http,[name]));
   let next=0;
   return ()=>{
     const selected=dispatchers[next]!;

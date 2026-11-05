@@ -13,7 +13,7 @@ import { FeedVideoError, validateVideoProbe, FEED_VIDEO_MAX_SECONDS,
 export const FEED_V2_IMAGE_EDGES = { small: 360, medium: 720, large: 1440 } as const;
 export type FeedV2ImageSize = keyof typeof FEED_V2_IMAGE_EDGES;
 export type FeedV2ImageResult = Record<FeedV2ImageSize, FeedImageVariant>;
-export const FEED_V2_VIDEO_QUALITIES = [360, 720, 1080] as const;
+export const FEED_V2_VIDEO_QUALITIES = [360, 720] as const;
 export type FeedV2VideoQuality = typeof FEED_V2_VIDEO_QUALITIES[number];
 export const FEED_V2_MP4_MAX_BYTES = 200 * 1024 * 1024;
 /** Validate encoder output signature; a claimed image MIME is not proof of WebP bytes. */
@@ -80,12 +80,12 @@ export async function processFeedV2Image<K extends FeedV2ImageSize = FeedV2Image
 export interface FeedV2VideoEncodeProfile {
   decoderThreads?: 1 | 2;
   encoderThreads?: 1 | 2;
-  preset?: "veryfast" | "superfast";
+  preset?: "medium" | "veryfast" | "superfast";
   // Opt-in Feed VBR. Chat 2.0 and existing callers retain their ABR arguments.
   rateControl?: "capped-crf";
 }
 
-/** No enlargement: the smallest edge is the nominal quality (360p/720p/1080p). */
+/** No enlargement: the smallest edge is the nominal quality (360p/720p). */
 export function feedV2Mp4Arguments(input: string, output: string, info: VideoInfo, quality: FeedV2VideoQuality,
   profile: FeedV2VideoEncodeProfile = {}): string[] {
   if (!input || !output || !FEED_V2_VIDEO_QUALITIES.includes(quality)) throw new FeedVideoError("VIDEO_PATH");
@@ -95,12 +95,11 @@ export function feedV2Mp4Arguments(input: string, output: string, info: VideoInf
   const toneMap = info.hdr
     ? "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,"
     : "";
-  const bitrates = { 360: ["700k", "900k", "1800k"], 720: ["1800k", "2400k", "4800k"],
-    1080: ["3500k", "4500k", "9000k"] } as const;
+  const bitrates = { 360: ["700k", "900k", "1800k"], 720: ["1800k", "2400k", "4800k"] } as const;
   const [bitrate, maxRate, bufferSize] = bitrates[quality];
   const args = ["-hide_banner", "-nostdin", "-loglevel", "warning", "-y", "-threads", String(profile.decoderThreads ?? 2), "-i", input,
     "-map", "0:v:0", "-map", "0:a:0?", "-vf", `${toneMap}${scale},format=yuv420p`,
-    "-c:v", "libx264", "-preset", profile.preset ?? "veryfast", "-profile:v", "main", "-pix_fmt", "yuv420p",
+    "-c:v", "libx264", "-preset", profile.preset ?? "veryfast", "-profile:v", quality === 720 ? "high" : "main", "-pix_fmt", "yuv420p",
     "-fpsmax", "30", "-g", "60", "-keyint_min", "60", "-sc_threshold", "0",
     "-force_key_frames", "expr:gte(t,n_forced*2)",
     ...(profile.rateControl === "capped-crf" ? ["-crf", "23"] : ["-b:v", bitrate]),
@@ -109,6 +108,30 @@ export function feedV2Mp4Arguments(input: string, output: string, info: VideoInf
     "-max_muxing_queue_size", "1024", "-movflags", "+faststart", "-f", "mp4", output];
   if (profile.encoderThreads !== undefined) args.splice(args.length - 1, 0, "-threads:v", String(profile.encoderThreads));
   return args;
+}
+
+/** A phone-prepared 720p file can be remuxed (no video encode) only after
+ * the same authoritative ffprobe/decoded-frame checks as any server input.
+ * Fail closed: anything uncertain goes through normal FFmpeg transcoding.
+ */
+export function canReuse720Mp4(probe: ProbeResult, info: VideoInfo, sourceBytes: number): boolean {
+  const videos = probe.streams?.filter(stream => stream.codec_type === "video") ?? [];
+  const audio = probe.streams?.filter(stream => stream.codec_type === "audio") ?? [];
+  const fps = videos[0]?.avg_frame_rate?.match(/^(\d+)(?:\/(\d+))?$/);
+  const rate = fps ? Number(fps[1]) / Number(fps[2] ?? "1") : NaN;
+  const edge = Math.min(info.width, info.height);
+  return videos.length === 1 && audio.length <= 1 &&
+    videos[0]?.codec_name === "h264" && videos[0]?.pix_fmt === "yuv420p" &&
+    audio.every(stream => stream.codec_name === "aac") &&
+    !info.rotated && !info.hdr && edge >= 718 && edge <= 722 &&
+    Number.isFinite(rate) && rate > 0 && rate <= 30.01 &&
+    sourceBytes > 0 && sourceBytes <= info.durationSeconds * (3_000_000 / 8) + 300_000;
+}
+
+export function feed720RemuxArguments(input: string, output: string): string[] {
+  return ["-hide_banner", "-nostdin", "-loglevel", "warning", "-y", "-i", input,
+    "-map", "0:v:0", "-map", "0:a:0?", "-map_metadata", "-1", "-map_chapters", "-1",
+    "-c", "copy", "-movflags", "+faststart", "-f", "mp4", output];
 }
 
 /** Chat-only optimization: one decode, two H264 encoders, zero intermediate
@@ -178,7 +201,7 @@ export interface FeedV2VideoResult { info: VideoInfo; poster: string; mp4: FeedV
 export async function processFeedV2Video(
   source: string, attemptDir: string, runner: FeedV2Runner,
   qualities: readonly FeedV2VideoQuality[] = FEED_V2_VIDEO_QUALITIES,
-  options: { parallelRenditions?: boolean; sharedDecode?: boolean; threadsPerEncoder?: 1 | 2 } & FeedV2VideoEncodeProfile = {},
+  options: { parallelRenditions?: boolean; sharedDecode?: boolean; threadsPerEncoder?: 1 | 2; reuseClient720IfValid?: boolean; firstPlayableOnly?: boolean; skipPoster?: boolean } & FeedV2VideoEncodeProfile = {},
 ): Promise<FeedV2VideoResult> {
   if (!qualities.length || new Set(qualities).size !== qualities.length ||
       qualities.some(q => !FEED_V2_VIDEO_QUALITIES.includes(q)))
@@ -196,16 +219,24 @@ export async function processFeedV2Video(
   if (Math.max(...stamps) > FEED_VIDEO_MAX_SECONDS) throw new FeedVideoError("VIDEO_TOO_LONG");
   await mkdir(attemptDir, { recursive: true });
   const poster = join(attemptDir, "poster.webp");
-  // Reuse existing WebP poster converter; no JPEG intermediate.
-  const { feedPosterArguments } = await import("./video.js");
-  await runner("ffmpeg", feedPosterArguments(source, poster), 128 * 1024);
-  const posterInfo = await lstat(poster);
-  if (!posterInfo.isFile() || posterInfo.isSymbolicLink() || posterInfo.size <= 0 ||
-      posterInfo.size > FEED_IMAGE_OUTPUT_MAX_BYTES) throw new FeedVideoError("VIDEO_POSTER_SIZE");
+  // A background 360p rendition reuses the immutable poster from the
+  // already-visible 720p publication; producing another poster wastes CPU.
+  if (!options.skipPoster) {
+    const { feedPosterArguments } = await import("./video.js");
+    await runner("ffmpeg", feedPosterArguments(source, poster), 128 * 1024);
+    const posterInfo = await lstat(poster);
+    if (!posterInfo.isFile() || posterInfo.isSymbolicLink() || posterInfo.size <= 0 ||
+        posterInfo.size > FEED_IMAGE_OUTPUT_MAX_BYTES) throw new FeedVideoError("VIDEO_POSTER_SIZE");
+  }
   // Feed/Moments remains sequential. Chat opts in only on provisioned 4+ vCPU.
   // sharedDecode means ONE input decode and two H264 encoders in one process.
-  const desired = qualities.filter(q => q === 360 || Math.min(info.width, info.height) >= q);
-  const shared = options.sharedDecode === true && desired.length === 2;
+  let desired = qualities.filter(q => q === 360 || Math.min(info.width, info.height) >= q);
+  // Stage 1: publish 720p+poster before 360p. Very small source videos
+  // cannot yield a 720p rendition: publish their 360p as the primary one.
+  if (options.firstPlayableOnly) desired = desired.includes(720) ? [720] : [360];
+  const reuse720 = options.reuseClient720IfValid === true && desired.includes(720) &&
+    canReuse720Mp4(probe, info, sourceInfo.size);
+  const shared = options.sharedDecode === true && desired.length === 2 && !reuse720;
   const concurrent = !shared && options.parallelRenditions === true && desired.length === 2;
   const threads = options.threadsPerEncoder ?? 2;
   if (shared) {
@@ -221,7 +252,14 @@ export async function processFeedV2Video(
       rateControl: options.rateControl,
     });
     if (!shared) {
-      await runner("ffmpeg", args, 128 * 1024);
+      if (quality === 720 && reuse720) {
+        // A stream-copy preserves the phone H264/AAC bitstream, strips metadata
+        // and writes a faststart MP4. Fall back to encode on any remux failure.
+        try { await runner("ffmpeg", feed720RemuxArguments(source, path), 128 * 1024); }
+        catch { await runner("ffmpeg", args, 128 * 1024); }
+      } else {
+        await runner("ffmpeg", args, 128 * 1024);
+      }
     }
     const output = await lstat(path);
     if (!output.isFile() || output.isSymbolicLink() || output.size < 24 ||

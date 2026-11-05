@@ -12,6 +12,7 @@ import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { Loading } from "@/shared/components/ui";
 import { gafusApi } from "@/shared/lib/api/gafus";
 import { trackEvent } from "@/shared/lib/analytics";
+import { canUseDogWalkHistory } from "@/features/walk/walkAccess";
 import { TourTarget } from "@/shared/lib/tour-targets";
 
 const SECTIONS = [
@@ -31,7 +32,11 @@ const SECTIONS = [
     title: "Фотоальбомы",
     image: require("../../../assets/images/tab-icons/albums.webp"),
   },
-  { name: "chat", title: "Сообщения", image: require("../../../assets/images/tab-icons/chat.webp") },
+  {
+    name: "chat",
+    title: "Сообщения",
+    image: require("../../../assets/images/tab-icons/chat.webp"),
+  },
   {
     name: "consultations",
     title: "Кинолог",
@@ -46,6 +51,11 @@ const SECTIONS = [
     name: "articles",
     title: "Статьи",
     image: require("../../../assets/images/tab-icons/articles.webp"),
+  },
+  {
+    name: "walks",
+    title: "Прогулки",
+    image: require("../../../assets/images/tab-icons/pets.webp"),
   },
   {
     name: "reminders",
@@ -78,6 +88,7 @@ export default function MoreScreen() {
 function ActorMoreScreen({ owner, epoch }: { owner: string | null; epoch: string | null }) {
   const router = useRouter();
   const trainerRole = useAuthStore((s) => s.user?.role === "TRAINER" && s.isAuthenticated);
+  const walkHistoryAccess = useAuthStore((s) => s.isAuthenticated && canUseDogWalkHistory(s.user));
   const current = () => {
     const state = useAuthStore.getState();
     const verified = newOnlyV2NativeQueues.getVerifiedBinding();
@@ -117,7 +128,8 @@ function ActorMoreScreen({ owner, epoch }: { owner: string | null; epoch: string
             (section) =>
               (section.name !== "gafus" ||
                 (ready && !gafusState.isError && gafusState.data?.enabled.economy === true)) &&
-              (section.name !== "trainer-consultations" || (ready && trainerRole)),
+              (section.name !== "trainer-consultations" || (ready && trainerRole)) &&
+              (section.name !== "walks" || (ready && walkHistoryAccess)),
           ).map((section, index) => {
             const isChat = section.name === "chat";
             const loginRequired = isChat && !ready;
@@ -128,8 +140,16 @@ function ActorMoreScreen({ owner, epoch }: { owner: string | null; epoch: string
                 accessibilityLabel={section.title}
                 onPress={() => {
                   if (!current()) return;
-                  if (section.name === "trainer-consultations" &&
-                      useAuthStore.getState().user?.role !== "TRAINER") return;
+                  if (
+                    section.name === "trainer-consultations" &&
+                    useAuthStore.getState().user?.role !== "TRAINER"
+                  )
+                    return;
+                  if (
+                    section.name === "walks" &&
+                    !canUseDogWalkHistory(useAuthStore.getState().user)
+                  )
+                    return;
                   if (loginRequired) {
                     Alert.alert("Чат", "Для доступа к чату войдите в аккаунт.");
                     return;
@@ -145,16 +165,18 @@ function ActorMoreScreen({ owner, epoch }: { owner: string | null; epoch: string
                     (name === "chat"
                       ? "/(main)/(tabs)/messages"
                       : name === "gallery"
-                      ? "/(main)/(tabs)/albums"
-                      : name === "trainer-consultations"
-                        ? "/(main)/consultations/trainer"
-                      : name === "reminders"
-                        ? "/(main)/(tabs)/reminders"
-                        : name === "questions"
-                          ? "/(main)/(tabs)/questions"
-                          : name === "gafus"
-                            ? "/(main)/gafus"
-                            : `/(main)/(tabs)/${name}`) as Href,
+                        ? "/(main)/(tabs)/albums"
+                        : name === "trainer-consultations"
+                          ? "/(main)/consultations/trainer"
+                          : name === "walks"
+                            ? "/(main)/walks"
+                            : name === "reminders"
+                              ? "/(main)/(tabs)/reminders"
+                              : name === "questions"
+                                ? "/(main)/(tabs)/questions"
+                                : name === "gafus"
+                                  ? "/(main)/gafus"
+                                  : `/(main)/(tabs)/${name}`) as Href,
                   );
                 }}
                 style={({ pressed }) => [
@@ -183,11 +205,7 @@ function ActorMoreScreen({ owner, epoch }: { owner: string | null; epoch: string
                   <Text style={styles.label}>{section.title}</Text>
                   {loginRequired && <Text style={styles.status}>Требуется вход в аккаунт</Text>}
                 </View>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={22}
-                  color={COLORS.primary}
-                />
+                <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
               </Pressable>
             );
             return section.name === "pets" ? (

@@ -1,6 +1,6 @@
 /**
- * Native Question images use the original bytes whenever Sharp supports
- * their format. Only iOS HEIC/HEIF needs conversion to JPEG before S3 POST.
+ * Validate supported picker inputs before the shared on-device JPEG 0.8 /
+ * 1920px optimization. HEIC/HEIF are accepted for conversion too.
  * Filename is merely a picker fallback, never a server trust boundary.
  */
 export type QuestionNativeMime="image/jpeg"|"image/png"|"image/webp";

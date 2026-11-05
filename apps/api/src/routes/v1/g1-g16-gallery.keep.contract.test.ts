@@ -78,7 +78,6 @@ vi.mock("@gafus/gallery-server", async () => {
         request,
         path,
         injectedService as never,
-        mocks.enqueue,
       ),
   };
 });

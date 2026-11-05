@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { reportClientError } from "@/shared/lib/tracer";
+import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";
 import * as ImagePicker from "expo-image-picker";
 import { chat2, type ChatUser, type Conversation, type Member } from "./api";
 import { Chat2ReportQueue } from "./Chat2ReportQueue";
@@ -48,6 +49,9 @@ export function Chat2SettingsSheet({
   const [query, setQuery] = useState(""),
     [people, setPeople] = useState<ChatUser[]>([]);
   const group = ["GROUP", "CITY", "BREED", "COURSE_TOPIC"].includes(room.kind);
+  const unsavedSettings = editing && (
+    name !== (room.name ?? "") || description !== (room.description ?? "") ||
+    visibility !== (room.visibility === "PUBLIC" ? "PUBLIC" : "PRIVATE"));
   async function pickGroupAvatar() {
     if (busy) return;
     try {
@@ -137,6 +141,7 @@ export function Chat2SettingsSheet({
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
       <View style={style.overlay}>
         <View style={style.sheet}>
+          <SwipeDismissHandle close={onClose} disabled={busy || unsavedSettings} />
           <View style={style.header}>
             <Text style={style.title}>Настройки чата</Text>
             <Pressable accessibilityLabel="Закрыть настройки" onPress={onClose}>

@@ -6,7 +6,7 @@ import { GalleryError, createCurrentGalleryService, galleryParse, galleryListSch
   galleryClaimStorageJobsSchema, galleryCompleteStorageJobSchema, galleryFailStorageJobSchema,
 } from "@gafus/core/services/gallery";
 import type { GalleryService } from "@gafus/core/services/gallery";
-import { connection as redis, enqueueGalleryProcessing } from "@gafus/queues";
+import { connection as redis } from "@gafus/queues";
 import { createGalleryStorageFromEnv, signGalleryCloudruFallback } from "@gafus/gallery-storage";
 import { INTERNAL_GALLERY_PATHS, createGalleryRequestVerifier } from "@gafus/gallery-storage/hmac";
 import type { GalleryInternalPath, NonceStore } from "@gafus/gallery-storage/hmac";
@@ -96,40 +96,12 @@ function isKnownGalleryPath(parts: string[]): boolean {
       (parts[0] === "photos" && parts[2] === "move")));
 }
 
-/**
- * Queue only after Core committed `uploaded`. Cloud job credentials stay in the
- * Worker; a Redis outage cannot turn a successful S3 upload into a failed upload.
- * Core's uploaded status and the existing minute cron are the durable fallback.
- */
-async function signalGalleryProcessing(
-  uploadId: string,
-  enqueue: (id: string) => Promise<void>,
-): Promise<void> {
-  if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED !== "true" ||
-      process.env.GALLERY_PROCESSOR_READY !== "true") return;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    await Promise.race([
-      enqueue(uploadId),
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error("GALLERY_QUEUE_TIMEOUT")), 1200);
-      }),
-    ]);
-  } catch {
-    // Not a failed photo: the periodic Cloud.ru worker reconciles pending uploads.
-    console.warn("GALLERY_IMMEDIATE_TRIGGER_DEFERRED_TO_RECOVERY");
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
 /** Shared request-to-core adapter. Only bounded JSON and parsed values cross into core. */
 export async function dispatchGalleryRequest(
   actorId: string,
   request: Request,
   path: string,
   gallery: GalleryService = service,
-  enqueue: (id: string) => Promise<void> = enqueueGalleryProcessing,
 ): Promise<unknown> {
   const method = request.method.toUpperCase();
   if (process.env.GAFUS_LOCAL_READONLY_CDN === "enabled" && method !== "GET")
@@ -154,22 +126,19 @@ export async function dispatchGalleryRequest(
     const albumId = galleryParse(galleryIdSchema, parts[1]);
     return gallery.listPhotos(actorId, galleryParse(galleryAlbumPhotosSchema, { ...listQuery(url), albumId }));
   }
-  if ((parts.length === 1 && parts[0] === "uploads") || (parts.length === 3 && parts[0] === "albums" && parts[2] === "uploads")) {
-    if (method === "POST") {
-      const input = galleryParse(galleryUploadSchema, await body());
-      if (parts[0] === "albums" && input.albumId && input.albumId !== parts[1]) throw new GalleryError("VALIDATION", "Альбом в пути и запросе не совпадает", 400);
-      return gallery.reserveUpload(actorId, parts[0] === "albums" ? { ...input, albumId: parts[1] } : input);
-    }
-  }
+  if (parts.length === 2 && parts[0] === "uploads" && parts[1] === "client-reserve" && method === "POST")
+    return gallery.reserveClientUpload(actorId, galleryParse(galleryUploadSchema, await body()));
   if (parts.length >= 2 && parts[0] === "uploads") {
     const uploadId = galleryParse(galleryIdSchema, parts[1]);
     if (parts.length === 2 && method === "GET") return gallery.getUpload(actorId, uploadId);
     if (parts.length === 2 && method === "DELETE") { assertEmptyCommandBody(bodyValue); return gallery.cancelUpload(actorId, uploadId); }
-    if (parts.length === 3 && parts[2] === "complete" && method === "POST") {
+    if (parts.length === 3 && parts[2] === "client-thumb" && method === "POST") {
       assertEmptyCommandBody(bodyValue);
-      const result = await gallery.confirmUpload(actorId, uploadId);
-      if (result.status === "uploaded") await signalGalleryProcessing(result.uploadId, enqueue);
-      return result;
+      return gallery.getClientThumbUpload(actorId, uploadId);
+    }
+    if (parts.length === 3 && parts[2] === "client-complete" && method === "POST") {
+      assertEmptyCommandBody(bodyValue);
+      return gallery.confirmClientUpload(actorId, uploadId);
     }
     if (parts.length === 3 && parts[2] === "retry" && method === "POST") return gallery.retryUpload(actorId, uploadId, galleryParse(galleryUploadRetrySchema, await body()));
   }

@@ -29,7 +29,7 @@ printf '%s\n' "$*" >> "$RUNNER_TEMP/arguments"
 case "$FAKE_SCENARIO" in
   502-then-success) if (( counter < 3 )); then echo '${transientAuth}' >&2; exit 1; fi ;;
   registry-503) if (( counter == 1 )); then echo '${transientRegistry}' >&2; exit 1; fi ;;
-  tls-then-success) if (( counter < 3 )); then echo 'failed to do request: Head "https://gafus.cr.cloud.ru/v2/gafus-gallery-worker/blobs/sha256:test": net/http: TLS handshake timeout' >&2; exit 1; fi ;;
+  tls-then-success) if (( counter < 3 )); then echo 'failed to do request: Head "https://gafus.cr.cloud.ru/v2/gafus-feed-worker/blobs/sha256:test": net/http: TLS handshake timeout' >&2; exit 1; fi ;;
   always-429) echo 'failed to push to gafus.cr.cloud.ru/gafus-feed-worker: 429 Too Many Requests' >&2; exit 1 ;;
   unauthorized-401) echo 'failed to fetch oauth token: https://id.cloud.ru/auth/system/docker/token: 401 Unauthorized' >&2; exit 1 ;;
   forbidden-403) echo 'failed to fetch oauth token: https://id.cloud.ru/auth/system/docker/token: 403 Forbidden' >&2; exit 1 ;;
@@ -90,8 +90,8 @@ test("Cloud.ru registry 503 retries immutable publication", () => {
   assert.equal(count, 2);
 });
 
-test("Cloud.ru Gallery TLS handshake timeout retries without weakening auth checks", () => {
-  const { result, count, delays } = run("tls-then-success", ["gallery", "worker", "Dockerfile", revision]);
+test("Cloud.ru Feed video TLS handshake timeout retries without weakening auth checks", () => {
+  const { result, count, delays } = run("tls-then-success", ["feed", "worker", "Dockerfile", revision]);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(count, 3);
   assert.deepEqual(delays, ["10", "20"]);
@@ -120,6 +120,9 @@ test("Only reviewed Cloud.ru images and immutable SHA tags are allowed", () => {
     ["api", "worker", "Dockerfile", revision],
     // A retired, unnecessary always-on origin must not be republished.
     ["feed", "origin", "Dockerfile.origin", revision],
+    ["gallery", "worker", "Dockerfile", revision],
+    ["questions", "photo", "Dockerfile.questions-photo", revision],
+    ["chat", "photo", "Dockerfile.chat2-job", revision],
   ];
   for (const args of invalid) {
     const dir = mkdtempSync(join(scriptsDir, ".cloudru-publish-test-"));
@@ -139,8 +142,6 @@ test("Only reviewed Cloud.ru images and immutable SHA tags are allowed", () => {
 
 test("Scoped Questions and Chat2 publish selectors use intended Dockerfile, registry and target", () => {
   for (const [media,role,file,wanted] of [
-    ["questions","photo","Dockerfile.questions-photo",["apps/feed-cloud/Dockerfile.questions-photo","gafus.cr.cloud.ru/gafus-questions-worker:"]],
-    ["chat","photo","Dockerfile.chat2-job",["apps/feed-cloud/Dockerfile.chat2-job","--target photo","gafus-chat2-20261028.cr.cloud.ru/gafus-chat-photo:"]],
     ["chat","video","Dockerfile.chat2-job",["apps/feed-cloud/Dockerfile.chat2-job","--target video","gafus-chat2-20261028.cr.cloud.ru/gafus-chat-video:"]],
   ]) {
     const {result,argumentLog}=run("success",[media,role,file,revision]);

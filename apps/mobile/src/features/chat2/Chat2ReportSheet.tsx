@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { reportClientError } from "@/shared/lib/tracer";
+import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";
 import { chat2 } from "./api";
 const olive = "#748650";
 /** Only message ID and selected reason are sent; reporter identity comes from Hono JWT. */
@@ -43,6 +44,7 @@ export function Chat2ReportSheet({
     <Modal visible={!!messageId} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.cover}>
         <View style={styles.sheet}>
+          <SwipeDismissHandle close={onClose} disabled={busy || Boolean(comment.trim())} />
           <View style={styles.heading}>
             <Text style={styles.title}>Пожаловаться</Text>
             <Pressable onPress={onClose} accessibilityLabel="Закрыть жалобу">

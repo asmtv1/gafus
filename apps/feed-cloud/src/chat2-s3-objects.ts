@@ -47,15 +47,19 @@ export function createChat2S3Objects(job: Chat2V2Job, client: S3Client): Chat2V2
   }
   return {
     async download(key, destination, maxBytes, signal) {
-      if (key !== job.sourceKey || maxBytes !== info.maxBytes)
+      const background = job.phase === "background_360";
+      if (key !== (background ? keys.video.variants[720] : job.sourceKey) ||
+          (background && info.kind !== "video") || maxBytes !== info.maxBytes)
         throw new Error("CHAT2_S3_SOURCE_KEY_DENIED");
       // The API has already verified HEAD before enqueueing. Here use one
       // bounded GET instead of another HEAD+GET pair; check exact length/MIME
       // on the GET response before touching the filesystem.
       const response = await client.send(new GetObjectCommand({Bucket: CHAT2_CLOUD_BUCKET, Key: key}), {abortSignal: signal});
       const stream = response.Body;
-      if (response.ContentLength !== job.sourceBytes || job.sourceBytes > maxBytes ||
-          response.ContentType !== job.sourceMime) {
+      if ((background
+            ? !Number.isSafeInteger(response.ContentLength) || !response.ContentLength || response.ContentLength > maxBytes
+            : response.ContentLength !== job.sourceBytes || job.sourceBytes > maxBytes) ||
+          response.ContentType !== (background ? "video/mp4" : job.sourceMime)) {
         if (stream && "destroy" in stream) (stream as Readable).destroy();
         throw new Error("CHAT2_S3_SOURCE_SIZE_OR_MIME_MISMATCH");
       }
@@ -66,7 +70,7 @@ export function createChat2S3Objects(job: Chat2V2Job, client: S3Client): Chat2V2
         next(received <= maxBytes ? null : new Error("CHAT2_S3_SOURCE_TOO_LARGE"), received <= maxBytes ? chunk : undefined);
       }});
       await pipeline(stream as Readable, limiter, createWriteStream(destination, {flags: "wx"}), {signal});
-      if (received !== job.sourceBytes) throw new Error("CHAT2_S3_SOURCE_MISMATCH");
+      if (received !== response.ContentLength) throw new Error("CHAT2_S3_SOURCE_MISMATCH");
     },
     async create(key, bytes, mime, signal) {
       if (!webpKeys.has(key) || mime !== "image/webp" ||

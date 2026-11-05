@@ -44,7 +44,7 @@ test('CI exercises migrations and real PostgreSQL poll end-to-end before deployi
     `App-only release must not bypass ${mandatory}`);
   assert(deploy.if.includes("needs.cloudru-jobs-preflight.result == 'success'"),
     'Normal release must still gate on Cloud.ru Jobs preflight');
-  assert(ci.includes('mode: preflight'), 'CI validates 11 existing Jobs before app release');
+  assert(ci.includes('mode: preflight'), 'CI validates six active video/maintenance Jobs before app release');
   assert.match(ci, /github\.ref == 'refs\/heads\/main' && github\.event_name == 'push'/);
   assert.match(sharedDeploy, /production-schema-cutover\.sh/);
 });

@@ -2,9 +2,11 @@
 import {randomUUID} from "node:crypto";
 import {prisma} from "@gafus/prisma";
 import { chat2CanRetryConfirmedUpload, chat2CanAttachVerifiedOriginal, chat2MediaWithoutRendition } from "@gafus/core/services/mediaDelivery";
-import {chat2V2SourceKey,chat2V2ClassifySource,validateChat2V2Manifest,
+import {chat2V2SourceKey,chat2V2FinalKeys,chat2V2ClassifySource,validateChat2V2Manifest,
   type Chat2V2Mime,type Chat2V2Job,type Chat2V2Manifest} from "@gafus/feed-cloud";
-import {chat2V2DirectUploadForm,chat2V2CheckOriginal} from "@gafus/cdn-upload";
+import {chat2V2DirectUploadForm,chat2V2CheckOriginal,chat2V2ClientSmallPost,
+  chat2V2FinishClientWebp,chat2V2FinishClientMp4,
+  chat2V2ClientVideoPosterPost} from "@gafus/cdn-upload";
 import {writeGate,readGate,Chat2Error} from "./service.js";
 import { chat2V2Delivery } from "./media-v2-delivery.js";
 const fail=(code:string,status:Chat2Error["status"],message:string):never=>{
@@ -15,11 +17,18 @@ function enabled(){
     fail("MEDIA_V2_UNAVAILABLE",503,"Новый сервис медиа ещё не готов");
 }
 function safeName(raw:string){return raw.replace(/[^\p{L}\p{N} ._-]/gu,"").trim().slice(0,180)||"Вложение";}
-export async function reserveChat2V2Upload(userId:string,conversationId:string,input:{name:string;mime:string;bytes:number}){
+export async function reserveChat2V2Upload(userId:string,conversationId:string,
+  input:{name:string;mime:string;bytes:number},clientPhoto=false){
   enabled();
-  // Never accept a browser original into S3 when no verified Job can take it.
-  if(process.env.CHAT2_PROCESSOR_READY!=="true")
-    fail("MEDIA_V2_PROCESSOR_UNAVAILABLE",503,"Обработка медиа временно недоступна");
+  // Legacy image uploads are removed. Only /client-reserve accepts final WebP.
+  if(!clientPhoto && input.mime.startsWith("image/"))
+    fail("MEDIA_CLIENT_WEBP_REQUIRED",410,"Отправьте обработанную на устройстве фотографию");
+  if(clientPhoto){
+    if(input.mime!=="image/webp"||
+       input.bytes<12||input.bytes>1_750_000)
+      fail("MEDIA_V2_CLIENT_UNAVAILABLE",503,"Ускоренная загрузка фото не включена");
+  }else if(input.mime!=="video/mp4")
+    fail("MEDIA_CLIENT_H264_REQUIRED",410,"Подготовьте MP4 H.264 на устройстве");
   await writeGate(userId,conversationId);
   const kind=chat2V2ClassifySource(input.mime,input.bytes);
   const mediaId=randomUUID();const sourceKey=chat2V2SourceKey(conversationId,userId,mediaId,input.mime as Chat2V2Mime);
@@ -29,35 +38,124 @@ export async function reserveChat2V2Upload(userId:string,conversationId:string,i
   await prisma.chat2V2MediaTask.create({data:{mediaId,conversationId,ownerId:userId,name,
     sourceKey,sourceMime:input.mime,sourceBytes:input.bytes,status:"AWAITING_UPLOAD"}});
   let form:Awaited<ReturnType<typeof chat2V2DirectUploadForm>>;
-  try{form=await chat2V2DirectUploadForm(sourceKey,input.mime,input.bytes);}
+  let small:Awaited<ReturnType<typeof chat2V2ClientSmallPost>>|undefined;
+  let poster:Awaited<ReturnType<typeof chat2V2ClientVideoPosterPost>>|undefined;
+  try{
+    form=await chat2V2DirectUploadForm(sourceKey,input.mime,input.bytes);
+    if(clientPhoto)small=await chat2V2ClientSmallPost(sourceKey);
+    if(!clientPhoto&&kind.kind==="video")poster=await chat2V2ClientVideoPosterPost(sourceKey);
+  }
   catch{
     await prisma.chat2V2MediaTask.deleteMany({where:{mediaId,ownerId:userId,status:"AWAITING_UPLOAD"}})
       .catch(()=>undefined);
     throw new Chat2Error("MEDIA_V2_S3_UNAVAILABLE",503,"Хранилище временно недоступно");
   }
   return {mediaId,status:"AWAITING_UPLOAD" as const,name,kind:kind.kind,
-    upload:{url:form.url,fields:form.fields,method:"POST" as const,expiresIn:600}};
+    upload:{url:form.url,fields:form.fields,method:"POST" as const,expiresIn:600},
+    ...(small?{smallUpload:{url:small.url,fields:small.fields,method:"POST" as const,expiresIn:600}}:{}),
+    ...(poster?{posterUpload:{url:poster.url,fields:poster.fields,method:"POST" as const,expiresIn:600}}:{})};
 }
 /** Original is uploaded and verified, but processing begins only after a message is committed. */
 export async function confirmChat2V2Upload(userId:string,conversationId:string,mediaId:string){
   enabled();await writeGate(userId,conversationId);
-  const task=await prisma.chat2V2MediaTask.findFirst({where:{mediaId,conversationId,ownerId:userId}});
+  let task=await prisma.chat2V2MediaTask.findFirst({where:{mediaId,conversationId,ownerId:userId}});
   if(!task)throw new Chat2Error("MEDIA_V2_NOT_FOUND",404,"Загрузка не найдена");
-  if(task.status!=="AWAITING_UPLOAD"){
-    if(chat2CanRetryConfirmedUpload(task.status))
-      return {mediaId,status:task.status};
-    fail("MEDIA_V2_INVALID_STATUS",409,"Эту загрузку нельзя подтвердить");
+  // If API died after S3 COPY but before READY commit, fencing the expired
+  // lease makes a repeat safe. No second uploader can overtake a live lease.
+  if(task.status==="CLIENT_PROCESSING" && task.leaseUntil &&
+      task.leaseUntil.getTime()<Date.now()) {
+    await prisma.chat2V2MediaTask.updateMany({where:{mediaId,conversationId,ownerId:userId,
+      status:"CLIENT_PROCESSING",attemptToken:task.attemptToken,
+      leaseUntil:{lt:new Date()}},data:{status:"AWAITING_UPLOAD",
+        attemptToken:null,leaseUntil:null}});
+    task=await prisma.chat2V2MediaTask.findFirst({where:{mediaId,conversationId,ownerId:userId}});
+    if(!task)throw new Chat2Error("MEDIA_V2_NOT_FOUND",404,"Загрузка не найдена");
   }
-  try{await chat2V2CheckOriginal(task.sourceKey,task.sourceMime,task.sourceBytes);}
-  catch{fail("MEDIA_V2_SOURCE_NOT_READY",409,"Файл не загружен или не прошёл проверку");}
-  const committed=await prisma.chat2V2MediaTask.updateMany({
+  if(!task)throw new Chat2Error("MEDIA_V2_NOT_FOUND",404,"Загрузка не найдена");
+  if(task.sourceMime!=="video/mp4")
+    fail("MEDIA_CLIENT_H264_REQUIRED",410,"Видео должно быть подготовлено на устройстве");
+  if(task.status==="READY"&&task.manifest)return {mediaId,status:"READY" as const};
+  if(task.status!=="AWAITING_UPLOAD")
+    fail("MEDIA_V2_INVALID_STATUS",409,"Видео уже обрабатывается либо загрузка устарела");
+  const token=randomUUID();
+  const leased=await prisma.chat2V2MediaTask.updateMany({
     where:{mediaId,conversationId,ownerId:userId,status:"AWAITING_UPLOAD"},
-    data:{status:"UPLOADED",errorCode:null}
+    data:{status:"CLIENT_PROCESSING",attemptToken:token,
+      leaseUntil:new Date(Date.now()+180_000)},
   });
-  if(!committed.count)fail("MEDIA_V2_RACE",409,"Состояние загрузки изменилось");
-  // Not QUEUED until sendMessage binds the attachment in the same transaction.
-  return {mediaId,status:"UPLOADED" as const};
+  if(leased.count!==1)fail("MEDIA_V2_RACE",409,"Вложение уже подтверждается");
+  try{
+    await chat2V2CheckOriginal(task.sourceKey,task.sourceMime,task.sourceBytes);
+    const keys=chat2V2FinalKeys(conversationId,userId,mediaId);
+    // Bounded S3 Range GET reads only ftyp/moov metadata. Verified S3 COPY
+    // creates a server-authorized immutable final; no container transcode.
+    const prepared=await chat2V2FinishClientMp4(task.sourceKey,
+      keys.video.variants[720],task.sourceBytes);
+    const manifest:Chat2V2Manifest={kind:"video",width:prepared.width,
+      height:prepared.height,durationSeconds:prepared.durationSeconds,
+      posterKey:prepared.posterKey,
+      renditions:[{quality:720,key:keys.video.variants[720],
+        width:prepared.width,height:prepared.height,bytes:prepared.bytes}]};
+    const job:Chat2V2Job={conversationId,ownerId:userId,mediaId,
+      sourceKey:task.sourceKey,sourceMime:"video/mp4",sourceBytes:task.sourceBytes};
+    validateChat2V2Manifest(job,manifest);
+    const result=await prisma.chat2V2MediaTask.updateMany({
+      where:{mediaId,conversationId,ownerId:userId,status:"CLIENT_PROCESSING",attemptToken:token},
+      data:{status:"READY",manifest,attemptToken:null,leaseUntil:null,errorCode:null,
+        // Only after message bind will the 360p Cloud.ru worker be eligible.
+        nextAttemptAt:new Date("9999-01-01T00:00:00Z"),attempts:0,
+        cleanupKind:"SOURCE",cleanupNextAt:new Date(),cleanupCompletedAt:null},
+    });
+    if(result.count!==1)throw Error("CHAT2_CLIENT_MP4_FINALIZE_RACE");
+    return {mediaId,status:"READY" as const};
+  }catch(error){
+    await prisma.chat2V2MediaTask.updateMany({
+      where:{mediaId,conversationId,ownerId:userId,status:"CLIENT_PROCESSING",attemptToken:token},
+      data:{status:"AWAITING_UPLOAD",attemptToken:null,leaseUntil:null},
+    });
+    fail("MEDIA_V2_CLIENT_VIDEO_UNVERIFIED",409,
+      "Видео не прошло проверку MP4/H.264. Перекодируйте ролик и повторите отправку");
+  }
 }
+/** Client WebP finalization: verify/decode only, S3 server-side COPY, no video or photo Job. */
+export async function confirmClientChat2V2Upload(userId:string,conversationId:string,mediaId:string){
+  enabled();
+
+  await writeGate(userId,conversationId);
+  const task=await prisma.chat2V2MediaTask.findFirst({where:{mediaId,conversationId,ownerId:userId}});
+  if(!task)return fail("MEDIA_V2_NOT_FOUND",404,"Загрузка не найдена");
+  if(task.status==="READY"&&task.manifest)return {mediaId,status:"READY" as const};
+  if(task.status!=="AWAITING_UPLOAD"||task.sourceMime!=="image/webp")
+    fail("MEDIA_V2_INVALID_STATUS",409,"Неверный статус загрузки");
+  const token=randomUUID();
+  const leased=await prisma.chat2V2MediaTask.updateMany({
+    where:{mediaId,conversationId,ownerId:userId,status:"AWAITING_UPLOAD"},
+    data:{status:"CLIENT_PROCESSING",attemptToken:token,leaseUntil:new Date(Date.now()+180_000)},
+  });
+  if(leased.count!==1)fail("MEDIA_V2_RACE",409,"Файл уже подтверждается");
+  try{
+    await chat2V2CheckOriginal(task.sourceKey,task.sourceMime,task.sourceBytes);
+    const manifest=await chat2V2FinishClientWebp(task.sourceKey,
+      chat2V2FinalKeys(conversationId,userId,mediaId).image);
+    const job:Chat2V2Job={conversationId,ownerId:userId,mediaId,
+      sourceKey:task.sourceKey,sourceMime:"image/webp",sourceBytes:task.sourceBytes};
+    validateChat2V2Manifest(job,manifest);
+    const result=await prisma.chat2V2MediaTask.updateMany({
+      where:{mediaId,conversationId,ownerId:userId,status:"CLIENT_PROCESSING",attemptToken:token},
+      data:{status:"READY",manifest,attemptToken:null,leaseUntil:null,errorCode:null,
+        cleanupKind:"SOURCE",cleanupNextAt:new Date()},
+    });
+    if(result.count!==1)throw Error("CHAT2_CLIENT_COMPLETE_RACE");
+    return {mediaId,status:"READY" as const};
+  }catch{
+    await prisma.chat2V2MediaTask.updateMany({
+      where:{mediaId,conversationId,ownerId:userId,status:"CLIENT_PROCESSING",attemptToken:token},
+      data:{status:"AWAITING_UPLOAD",attemptToken:null,leaseUntil:null},
+    });
+    fail("MEDIA_V2_CLIENT_UNVERIFIED",409,"Не удалось проверить варианты фото в S3");
+  }
+}
+
 /** Temporary owner-only polling. Attachment registration is a distinct atomic step. */
 export async function getChat2V2UploadStatus(userId:string,conversationId:string,mediaId:string){
   enabled();await readGate(userId,conversationId);

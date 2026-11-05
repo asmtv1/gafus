@@ -20,6 +20,12 @@ export interface GalleryStoragePort {
     maxBytes: number;
     contentType: string;
   }): Promise<{ url: string; fields: Record<string, string> }>;
+  /** Optional, feature-gated Mobile path: no image encoder on Cloud Jobs. */
+  signClientThumb?(input: { sourceKey: string; expiresAt: Date }): Promise<{
+    url: string; fields: Record<string, string>;
+  }>;
+  publishClientPhoto?(input: { sourceKey: string; thumbKey: string; fullKey: string }):
+    Promise<{ width: number; height: number }>;
   head(key: string): Promise<GalleryObjectMetadata | null>;
   signCdn(input: { key: string; expiresAt: Date }): Promise<string>;
 }

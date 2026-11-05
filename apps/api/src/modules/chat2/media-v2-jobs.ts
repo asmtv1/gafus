@@ -6,7 +6,7 @@
 import { randomUUID } from "node:crypto";
 import { prisma, Prisma } from "@gafus/prisma";
 import { mediaTaskFailurePolicy, mediaCleanupRetryDelayMs } from "@gafus/core/services/mediaDelivery";
-import { chat2V2DeleteObjects } from "@gafus/cdn-upload";
+import { chat2V2DeleteObjects,chat2V2ClientSmallKey,chat2V2ClientVideoPosterKey } from "@gafus/cdn-upload";
 import { chat2V2FinalKeys, validateChat2V2Job, validateChat2V2Manifest,
   type Chat2V2Job, type Chat2V2Manifest, type Chat2JobKind } from "@gafus/feed-cloud";
 
@@ -50,8 +50,10 @@ export function createChat2V2Queue(input:{
     if(lock.count!==1)return {cleaned:false};
     try{
       const keys=chat2V2FinalKeys(record.conversationId,record.ownerId,record.mediaId);
-      const objects=record.cleanupKind==="SOURCE"?[record.sourceKey]:[
-        record.sourceKey,...Object.values(keys.image),keys.video.poster,...Object.values(keys.video.variants)];
+      const staged=record.sourceMime==="image/webp"?[chat2V2ClientSmallKey(record.sourceKey)]:
+        record.sourceMime==="video/mp4"?[chat2V2ClientVideoPosterKey(record.sourceKey)]:[];
+      const objects=record.cleanupKind==="SOURCE"?[record.sourceKey,...staged]:[
+        record.sourceKey,...staged,...Object.values(keys.image),keys.video.poster,...Object.values(keys.video.variants)];
       // Regenerate exact keys from the trusted DB identity, never caller input.
       await remove(objects);
       await input.database.chat2V2MediaTask.updateMany({where:{mediaId:record.mediaId,cleanupToken:token},
@@ -75,6 +77,27 @@ export function createChat2V2Queue(input:{
       where:{status:"UPLOADED",createdAt:{lt:new Date(now().getTime()-3_600_000)}},
       data:{status:"EXPIRED",cleanupKind:"ALL",cleanupNextAt:now()}
     });
+    // Client-only S3 verification/copy uses a separate lease; after a crash,
+    // restore the reservation without ever waking a Cloud photo Job.
+    await input.database.chat2V2MediaTask.updateMany({
+      where:{status:"CLIENT_PROCESSING",leaseUntil:{lt:now()}},
+      data:{status:"AWAITING_UPLOAD",attemptToken:null,leaseUntil:null},
+    });
+    // Old Chat2 photo Jobs are retired. A queued image has no processor and
+    // an expired image lease cannot be retried; settle both states directly.
+    // Client WebP never uses QUEUED/PROCESSING and video stays untouched.
+    await input.database.chat2V2MediaTask.updateMany({
+      where:{status:"QUEUED",sourceMime:{startsWith:"image/"}},
+      data:{status:"FAILED",attemptToken:null,leaseUntil:null,
+        errorCode:"PHOTO_JOB_RETIRED",cleanupKind:"ALL",cleanupNextAt:now(),
+        cleanupCompletedAt:null},
+    });
+    await input.database.chat2V2MediaTask.updateMany({
+      where:{status:"PROCESSING",sourceMime:{startsWith:"image/"},leaseUntil:{lt:now()}},
+      data:{status:"FAILED",attemptToken:null,leaseUntil:null,
+        errorCode:"PHOTO_JOB_RETIRED",cleanupKind:"ALL",cleanupNextAt:now(),
+        cleanupCompletedAt:null},
+    });
     // A crashed fourth attempt cannot be claimed again; schedule its cleanup.
     await input.database.chat2V2MediaTask.updateMany({
       where:{status:"PROCESSING",attempts:{gte:maxAttempts},leaseUntil:{lt:now()}},
@@ -92,7 +115,7 @@ export function createChat2V2Queue(input:{
     const expected=manifest.kind==="image"
       ?[{key:manifest.keys.small,mime:"image/webp",bytes:0},
         {key:manifest.keys.medium,mime:"image/webp",bytes:0}]
-      :[{key:manifest.posterKey,mime:"image/webp",bytes:0},
+      :[...(manifest.posterKey?[{key:manifest.posterKey,mime:"image/webp",bytes:0}]:[]),
         ...manifest.renditions.map(r=>({key:r.key,mime:"video/mp4",bytes:r.bytes}))];
     // Still independently HEAD EVERY variant before READY, but overlap
     // network latency for the two or three small metadata-only checks.
@@ -124,61 +147,100 @@ export function createChat2V2Queue(input:{
             AND ((${kind} = 'image' AND "sourceMime" LIKE 'image/%')
               OR (${kind} = 'video' AND "sourceMime" LIKE 'video/%'))
             AND (("status"='QUEUED' AND "nextAttemptAt" <= (NOW() AT TIME ZONE 'UTC'))
-              OR ("status"='PROCESSING' AND "leaseUntil" < (NOW() AT TIME ZONE 'UTC')))
-          ORDER BY "nextAttemptAt" ASC,"createdAt" ASC
+              OR ("status"='PROCESSING' AND "leaseUntil" < (NOW() AT TIME ZONE 'UTC'))
+              OR (${kind} = 'video' AND "status"='READY'
+                AND "nextAttemptAt" <= (NOW() AT TIME ZONE 'UTC')
+                AND ("attemptToken" IS NULL OR "leaseUntil" < (NOW() AT TIME ZONE 'UTC'))
+                AND ("manifest"->'renditions') @> '[{"quality":720}]'::jsonb
+                AND NOT ("manifest"->'renditions') @> '[{"quality":360}]'::jsonb))
+          -- A new message with an unpublished 720p always wins over an
+          -- already-playable video's optional 360p enrichment.
+          ORDER BY CASE WHEN "status"='READY' THEN 1 ELSE 0 END,
+            "nextAttemptAt" ASC,"createdAt" ASC
           LIMIT 1 FOR UPDATE SKIP LOCKED`;
         if(!candidates.length)return {jobs:[]};
         const token=randomUUID(),lease=new Date(now().getTime()+leaseMs);
+        const current=await tx.chat2V2MediaTask.findUnique({where:{mediaId:candidates[0]!.mediaId}});
+        if (!current) return {jobs:[]};
+        const background=current.status==="READY";
+        if (background && (current.sourceMime.startsWith("image/") || !current.manifest ||
+            (current.manifest as {kind?:string}).kind!=="video"))
+          throw Error("CHAT2_BACKGROUND_NOT_VIDEO");
         const task=await tx.chat2V2MediaTask.update({
-          where:{mediaId:candidates[0]!.mediaId},
-          data:{status:"PROCESSING",attemptToken:token,leaseUntil:lease,attempts:{increment:1}}
+          where:{mediaId:current.mediaId},
+          data:{status:background?"READY":"PROCESSING",attemptToken:token,leaseUntil:lease,
+            attempts:{increment:1}}
         });
         const job:Chat2V2Job={conversationId:task.conversationId,ownerId:task.ownerId,
           mediaId:task.mediaId,sourceMime:task.sourceMime as Chat2V2Job["sourceMime"],
           sourceBytes:task.sourceBytes,sourceKey:task.sourceKey};
         const verified=validateChat2V2Job(job);
         if(verified.kind!==kind)throw Error("CHAT2_CLAIM_MIME_KIND_MISMATCH");
-        return {jobs:[{...job,attemptToken:token,leaseUntil:lease.toISOString()}]};
+        return {jobs:[{...job,...(background?{phase:"background_360" as const}:{}),
+          attemptToken:token,leaseUntil:lease.toISOString()}]};
       });
     },
     async renew(mediaId,attemptToken){
       const updated=await input.database.chat2V2MediaTask.updateMany({
-        where:{mediaId,attemptToken,status:"PROCESSING",leaseUntil:{gt:now()}},
+        where:{mediaId,attemptToken,status:{in:["PROCESSING","READY"]},leaseUntil:{gt:now()}},
         data:{leaseUntil:new Date(now().getTime()+leaseMs)}
       });
       return {accepted:updated.count===1};
     },
     async complete(mediaId,attemptToken,manifest){
       const task=await input.database.chat2V2MediaTask.findFirst({
-        where:{mediaId,attemptToken,status:"PROCESSING",leaseUntil:{gt:now()}}
+        where:{mediaId,attemptToken,status:{in:["PROCESSING","READY"]},leaseUntil:{gt:now()}}
       });
       if(!task)return {accepted:false};
       const job:Chat2V2Job={conversationId:task.conversationId,ownerId:task.ownerId,
         mediaId:task.mediaId,sourceMime:task.sourceMime as Chat2V2Job["sourceMime"],
         sourceBytes:task.sourceBytes,sourceKey:task.sourceKey};
+      const background=task.status==="READY";
+      let finalManifest=manifest;
+      if(background){
+        if(!task.manifest)throw Error("CHAT2_360_BASE_MISSING");
+        const base=task.manifest as unknown as Chat2V2Manifest;
+        validateChat2V2Manifest(job,base);
+        if(base.kind!=="video" || manifest.kind!=="video" ||
+            base.renditions.length!==1 || base.renditions[0]?.quality!==720 ||
+            manifest.renditions.length!==1 || manifest.renditions[0]?.quality!==360 ||
+            !base.posterKey || manifest.posterKey !== undefined ||
+            manifest.width>base.width || manifest.height>base.height ||
+            Math.abs(manifest.durationSeconds-base.durationSeconds)>1)
+          throw Error("CHAT2_360_PHASE_MISMATCH");
+        finalManifest={...base,renditions:[...base.renditions,...manifest.renditions]};
+        validateChat2V2Manifest(job,finalManifest);
+      } else if(task.manifest) throw Error("CHAT2_INITIAL_ALREADY_HAS_MANIFEST");
       await verifyOutputs(job,manifest);
       const updated=await input.database.chat2V2MediaTask.updateMany({
-        where:{mediaId,attemptToken,status:"PROCESSING",leaseUntil:{gt:now()}},
-        data:{status:"READY",attemptToken:null,leaseUntil:null,manifest:manifest as unknown as Prisma.InputJsonValue,errorCode:null,
+        where:{mediaId,attemptToken,status:background?"READY":"PROCESSING",leaseUntil:{gt:now()}},
+        data:background?{attemptToken:null,leaseUntil:null,errorCode:null,
+          nextAttemptAt:new Date("9999-01-01T00:00:00Z"),
+          manifest:finalManifest as unknown as Prisma.InputJsonValue}:{
+          status:"READY",attemptToken:null,leaseUntil:null,manifest:manifest as unknown as Prisma.InputJsonValue,errorCode:null,
+          nextAttemptAt:manifest.kind==="video"&&manifest.renditions.length===1&&manifest.renditions[0]?.quality===720
+            ? now():new Date("9999-01-01T00:00:00Z"),
+          attempts:0, // New 360p phase has its own retry budget, independent of 720p.
           cleanupKind:"SOURCE",cleanupNextAt:now(),cleanupCompletedAt:null}
       });
-      if(updated.count===1)await cleanupOne(mediaId); // READY first, then remove original
+      if(updated.count===1&&!background)await cleanupOne(mediaId); // READY first, then remove source
       return {accepted:updated.count===1};
     },
     async fail(mediaId,attemptToken,code){
       const task=await input.database.chat2V2MediaTask.findFirst({
-        where:{mediaId,attemptToken,status:"PROCESSING",leaseUntil:{gt:now()}}
+        where:{mediaId,attemptToken,status:{in:["PROCESSING","READY"]},leaseUntil:{gt:now()}}
       });
       if(!task)return {accepted:false};
+      const background=task.status==="READY";
       const failure=mediaTaskFailurePolicy(task.attempts,maxAttempts,now());
       const terminal=failure.terminal;
       const updated=await input.database.chat2V2MediaTask.updateMany({
-        where:{mediaId,attemptToken,status:"PROCESSING",leaseUntil:{gt:now()}},
-        data:{status:failure.status,attemptToken:null,leaseUntil:null,
-          nextAttemptAt:failure.nextAttemptAt,errorCode:code.slice(0,64),
-          ...(terminal?{cleanupKind:"ALL",cleanupNextAt:now(),cleanupCompletedAt:null}:{})}
+        where:{mediaId,attemptToken,status:background?"READY":"PROCESSING",leaseUntil:{gt:now()}},
+        data:{status:background?"READY":failure.status,attemptToken:null,leaseUntil:null,
+          nextAttemptAt:failure.nextAttemptAt,errorCode:background?"VIDEO_360_RETRY":code.slice(0,64),
+          ...(!background&&terminal?{cleanupKind:"ALL",cleanupNextAt:now(),cleanupCompletedAt:null}:{})}
       });
-      if(terminal&&updated.count===1)await cleanupOne(mediaId);
+      if(terminal&&!background&&updated.count===1)await cleanupOne(mediaId);
       return {accepted:updated.count===1};
     },
   };

@@ -1,3 +1,7 @@
+import { prepareBrowserVideo720 } from "../../shared/media/browserVideo720";
+import { prepareBrowserVideoPoster } from "../../shared/media/browserVideoPoster";
+import { prepareBrowserPhotoWebp } from "../../shared/media/browserPhotoWebp";
+import { uploadBrowserPhotoWebp, type WebpPost } from "../../shared/media/browserPhotoUpload";
 import { apiRequest } from "../../shared/api/client";
 import type { Chat2ConnectionGrant } from "@gafus/core-client/chat2/realtime-subscription";
 export type Chat2Kind =
@@ -75,24 +79,6 @@ function request<T>(
     ...(json === undefined ? {} : { json }),
   });
 }
-/** 401/403/404 are terminal for this private Centrifugo channel; network
- * errors and 5xx must remain retryable. No private token is logged.
- */
-export function isChat2RoomAccessDenied(error: unknown): boolean {
-  return Boolean(
-    error && typeof error === "object" && "status" in error &&
-    typeof error.status === "number" && [401, 403, 404].includes(error.status),
-  );
-}
-export async function refreshChat2RoomToken(id: string): Promise<string> {
-  try {
-    return (await request<{ token: string }>(`/${chatId(id)}/realtime`)).token;
-  } catch (error) {
-    if (isChat2RoomAccessDenied(error)) return "";
-    throw error;
-  }
-}
-
 /** Feature-gated upgrade: direct-to-S3 source, one Cloud Job, then a ready
  * attachment bound through the existing authenticated chat API. Never silently
  * downgrade after a V2 reservation or upload failure. */
@@ -101,6 +87,7 @@ async function uploadChat2V2(id: string, file: File): Promise<Chat2Attachment> {
   const reservation = await request<{
     mediaId: string;
     upload: { url: string; fields: Record<string, string>; method: "POST" };
+    posterUpload: WebpPost;
   }>(base + "/reserve", "POST", { name: file.name, mime: file.type, bytes: file.size });
   if (!/^[a-f0-9-]{36}$/i.test(reservation.mediaId) ||
       reservation.upload.method !== "POST") throw Error("CHAT2_V2_INVALID_RESERVATION");
@@ -121,11 +108,38 @@ async function uploadChat2V2(id: string, file: File): Promise<Chat2Attachment> {
     redirect: "error", signal: AbortSignal.timeout(180_000),
   });
   if (!sent.ok) throw Error("Не удалось отправить файл в хранилище");
-  // Original is already in S3 and the durable task is QUEUED. Bind it to the
-  // message immediately; Web/Mobile render processing state until READY.
+  if (!reservation.posterUpload || reservation.posterUpload.method !== "POST")
+    throw Error("CHAT2_VIDEO_POSTER_FORM_MISSING");
+  const cover = await prepareBrowserVideoPoster(file);
+  await uploadBrowserPhotoWebp(reservation.posterUpload, cover, "chat2");
+  // The verified 720p and its ONE poster become READY before the message bind.
   // The server still verifies membership, ownership and confirmed source.
   await request(`${base}/${reservation.mediaId}/confirm`, "POST", {});
   return request<Chat2Attachment>(`${base}/${reservation.mediaId}/attach`, "POST", {});
+}
+
+/** Photos never traverse the legacy Chat2 image queue. Two WebP files are
+ * created in the browser and verified/promoted by the authenticated API. */
+async function uploadChat2BrowserPhoto(id:string,file:File):Promise<Chat2Attachment>{
+  const base=`/${chatId(id)}/media/v2`;
+  const versions=await prepareBrowserPhotoWebp(file,{small:360,medium:1440});
+  const reservation=await request<{
+    mediaId:string;upload:WebpPost;smallUpload:WebpPost;
+  }>(base+"/client-reserve","POST",{
+    name:file.name,mime:"image/webp",bytes:versions.medium.file.size,
+  });
+  if(!/^[a-f0-9-]{36}$/i.test(reservation.mediaId)||
+     reservation.upload?.method!=="POST"||reservation.smallUpload?.method!=="POST")
+    throw Error("Сервер не подтвердил загрузку готовых фото");
+  await Promise.all([
+    uploadBrowserPhotoWebp(reservation.smallUpload,versions.small.file,"chat2"),
+    uploadBrowserPhotoWebp(reservation.upload,versions.medium.file,"chat2"),
+  ]);
+  const confirmed=await request<{mediaId:string;status:string}>(
+    `${base}/${reservation.mediaId}/client-confirm`,"POST",{});
+  if(confirmed.mediaId!==reservation.mediaId||confirmed.status!=="READY")
+    throw Error("Сервер не подтвердил фотографию в S3");
+  return request<Chat2Attachment>(`${base}/${reservation.mediaId}/attach`,"POST",{});
 }
 
 export const chat2Api = {
@@ -178,8 +192,6 @@ export const chat2Api = {
     request<{ lastReadSequence: string }>(`/${chatId(id)}/read`, "POST", { sequence }),
   leave: (id: string) => request<{ left: boolean }>(`/${chatId(id)}/leave`, "POST", {}),
   connect: () => request<Chat2ConnectionGrant>("/realtime/connect"),
-  subscription: (id: string) =>
-    request<{ token: string; channel: string }>(`/${chatId(id)}/realtime`),
   block: (userId: string, blocked: boolean) =>
     request<{ blocked: boolean }>("/block", "POST", { userId: chatId(userId), blocked }),
   invite: (id: string, userId: string) =>
@@ -283,9 +295,11 @@ export const chat2Api = {
     // The API remains the source of truth and fails closed if V2 is off.
     if (import.meta.env.PROD && file.type === "application/pdf")
       throw new Error("PDF в чате пока недоступен. Отправьте фото или видео.");
+    if(file.type.startsWith("image/"))return uploadChat2BrowserPhoto(id,file);
     if ((import.meta.env.PROD || import.meta.env.VITE_CHAT2_MEDIA_V2 === "true") &&
         file.type !== "application/pdf")
-      return uploadChat2V2(id, file);
+      return uploadChat2V2(id, file.type === "video/mp4"
+        ? await prepareBrowserVideo720(file, undefined, true) : file);
     const data = new FormData();
     data.append("file", file, file.name);
     const response = await fetch(`/api/v1/chats/${chatId(id)}/attachments`, {

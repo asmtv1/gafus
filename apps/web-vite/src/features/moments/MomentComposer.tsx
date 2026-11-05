@@ -23,6 +23,8 @@ import { createTextDraftPoll } from "./momentDraftPollApi";
 import { MomentPhotoUpload } from "./MomentPhotoUpload";
 import { uploadMomentPhoto, uploadMomentVideo,
   validateMomentPhoto, validateMomentVideo } from "./feedMediaTransfer";
+import { videoRetryMessage } from "../../shared/media/videoRetryMessage";
+import { photoRetryMessage } from "../../shared/media/photoRetryMessage";
 import { MomentAlbumPhotoPicker } from "./MomentAlbumPhotoPicker";
 import { feedClient } from "./feedClient";
 import { MomentMediaReorder } from "./MomentMediaReorder";
@@ -72,7 +74,11 @@ function MomentComposerTarget({ userId, draftId = null, embedded = false }: Mome
   const [localPoll, setLocalPoll] = useState<MomentInlinePollDraft | null>(null);
   const [localMediaError, setLocalMediaError] = useState("");
   const [quickMediaProgress, setQuickMediaProgress] = useState("");
-  const mediaAttempts = useRef<{ file: File; uploadKey: string; revisionKey: string }[]>([]);
+  const [videoRetryBusy, setVideoRetryBusy] = useState(false);
+  const [videoFailures, setVideoFailures] = useState<Record<string, string>>({});
+  const [photoFailures, setPhotoFailures] = useState<Record<string, string>>({});
+  const mediaAttempts = useRef<{ file: File; uploadKey: string; revisionKey: string;
+    mediaId?: string }[]>([]);
   const albumAttempts = useRef(new Map<string, {
     copyKey: string; revisionKey: string; copiedMediaId: string | null;
   }>());
@@ -217,7 +223,7 @@ function MomentComposerTarget({ userId, draftId = null, embedded = false }: Mome
     },
   });
   const busy = createOnly.isPending || save.isPending || pollOnlyRevision.isPending ||
-    publish.isPending || quickPublishing || remove.isPending || photoBusy || reorderBusy;
+    publish.isPending || quickPublishing || remove.isPending || photoBusy || videoRetryBusy || reorderBusy;
   const current = editor;
   // A network failure can leave a server-created, otherwise untouched draft.
   // Reuse the original upload/revision idempotency keys for this exact state;
@@ -282,10 +288,17 @@ function MomentComposerTarget({ userId, draftId = null, embedded = false }: Mome
         if (file.type.startsWith("video/")) validateMomentVideo(file, i);
         else validateMomentPhoto(file, i);
       });
-      // New selection is a new operation; never reuse another file's S3 key.
-      mediaAttempts.current = files.map(file => ({
+      // Keep successful reservations bound to the SAME original file. Removing
+      // a neighboring file must not force a duplicate upload of this video.
+      const prior = mediaAttempts.current;
+      const next = files.map(file => prior.find(attempt => attempt.file === file) ?? ({
         file, uploadKey: crypto.randomUUID(), revisionKey: crypto.randomUUID(),
       }));
+      mediaAttempts.current = next;
+      setVideoFailures(previous => Object.fromEntries(Object.entries(previous).filter(([key]) =>
+        next.some(item => item.uploadKey === key))));
+      setPhotoFailures(previous => Object.fromEntries(Object.entries(previous).filter(([key]) =>
+        next.some(item => item.uploadKey === key))));
       setLocalMedia(files);
       setLocalMediaError("");
       setQuickPublishError("");
@@ -360,14 +373,33 @@ function MomentComposerTarget({ userId, draftId = null, embedded = false }: Mome
           async (attempt, index) => {
             if (!active.current || currentTextRef.current !== targetText)
               throw new Error("Редактор или текст изменился во время загрузки");
+            // A retry only re-encodes/uploads the failed file. Successful
+            // items return their exact mediaId; no new Core attachment.
+            if (attempt.mediaId) return attempt.mediaId;
             const isVideo = attempt.file.type.startsWith("video/");
             const transfer = isVideo ? uploadMomentVideo : uploadMomentPhoto;
-            return transfer({
-              postId: draft.id, file: attempt.file,
-              clientRequestId: attempt.uploadKey, existingCount: index,
-              onProgress: percent => { if (active.current)
-                setQuickMediaProgress(`Вложение ${index + 1} из ${files.length}: ${percent}%`); },
+            if (isVideo && active.current) setVideoFailures(previous => {
+              const next={...previous};delete next[attempt.uploadKey];return next;
             });
+            if (!isVideo && active.current) setPhotoFailures(previous => {
+              const next={...previous};delete next[attempt.uploadKey];return next;
+            });
+            try {
+              const mediaId = await transfer({
+                postId: draft.id, file: attempt.file,
+                clientRequestId: attempt.uploadKey, existingCount: index,
+                onProgress: percent => { if (active.current)
+                  setQuickMediaProgress(`Вложение ${index + 1} из ${files.length}: ${percent}%`); },
+              });
+              attempt.mediaId=mediaId;
+              return mediaId;
+            } catch (cause) {
+              if (isVideo && active.current) setVideoFailures(previous => ({...previous,
+                [attempt.uploadKey]:videoRetryMessage(cause)}));
+              if (!isVideo && active.current) setPhotoFailures(previous => ({...previous,
+                [attempt.uploadKey]:photoRetryMessage(cause)}));
+              throw cause;
+            }
           });
         for (const [index, attempt] of mediaAttempts.current.entries()) {
           if (!active.current || currentTextRef.current !== targetText)
@@ -465,9 +497,15 @@ function MomentComposerTarget({ userId, draftId = null, embedded = false }: Mome
       if (!active.current) return;
       const message = error instanceof Error ? error.message : "";
       const mediaNetworkError = /Сеть недоступна при передаче фото|Хранилище не подтвердило передачу медиа|Превышено время передачи фото|Failed to fetch|NetworkError|S3 connection lost/i.test(message);
-      setQuickPublishError(mediaNetworkError
-        ? "Не удалось загрузить фото или видео в хранилище. Черновик сохранён; повторите отправку, когда соединение восстановится."
-        : "Не удалось подтвердить публикацию. Черновик сохранён; проверьте его статус перед повтором.");
+      setQuickPublishError(mediaAttempts.current.some(item =>
+        !item.file.type.startsWith("video/") && !item.mediaId) ?
+          "Не удалось обработать одно из фото на устройстве или передать его в S3. Нажмите круглую стрелку на проблемной фотографии — остальные файлы не будут повторно отправлены. Проверьте интернет, свободное место и при необходимости выберите JPG или PNG." :
+        Object.keys(videoFailures).length ||
+        mediaAttempts.current.some(item => item.file.type.startsWith("video/") && !item.mediaId)
+        ? "Не удалось обработать или загрузить одно из видео. Исходник сохранён. Нажмите круглую стрелку прямо на проблемном видео — успешно загруженные файлы повторно не отправятся. Если обработка на сервере недоступна, публикация останется черновиком."
+        : mediaNetworkError
+          ? "Не удалось загрузить фото или видео в хранилище. Проверьте соединение и повторите."
+          : "Не удалось подтвердить публикацию. Черновик сохранён; проверьте его статус перед повтором.");
     }).finally(() => {
       writeFlight.current = false;
       if (active.current) {
@@ -475,6 +513,66 @@ function MomentComposerTarget({ userId, draftId = null, embedded = false }: Mome
         setQuickMediaProgress("");
       }
     });
+  }
+  async function retrySingleVideo(index: number) {
+    // The overlay is scoped to ONE original File and one idempotent S3 upload.
+    // A sibling's failed video must not be re-encoded by this action.
+    if (busy || writeFlight.current || !current || !canResumeMediaDraft || !active.current) return;
+    const attempt = mediaAttempts.current[index];
+    if (!attempt || !attempt.file.type.startsWith("video/") || attempt.mediaId ||
+        !videoFailures[attempt.uploadKey]) return;
+    writeFlight.current = true;
+    setVideoRetryBusy(true);
+    setQuickPublishError("");
+    setVideoFailures(previous => {
+      const next = {...previous}; delete next[attempt.uploadKey]; return next;
+    });
+    try {
+      const mediaId = await uploadMomentVideo({ postId: current.id, file: attempt.file,
+        clientRequestId: attempt.uploadKey, existingCount: index,
+        onProgress: progress => { if (active.current)
+          setQuickMediaProgress(`Повторяем видео ${index + 1}: ${progress}%`); },
+      });
+      attempt.mediaId = mediaId;
+    } catch (cause) {
+      if (active.current) {
+        const failure = videoRetryMessage(cause);
+        setVideoFailures(previous => ({...previous, [attempt.uploadKey]: failure}));
+        setQuickPublishError(failure);
+      }
+    } finally {
+      writeFlight.current = false;
+      if (active.current) {
+        setVideoRetryBusy(false);
+        setQuickMediaProgress("");
+      }
+    }
+  }
+  async function retrySinglePhoto(index:number) {
+    if (busy || writeFlight.current || !current || !canResumeMediaDraft ||
+        !active.current) return;
+    const attempt=mediaAttempts.current[index];
+    if(!attempt || attempt.file.type.startsWith("video/") || attempt.mediaId ||
+       !photoFailures[attempt.uploadKey])return;
+    writeFlight.current=true;
+    setPhotoBusy(true);
+    setQuickPublishError("");
+    setPhotoFailures(previous=>{const next={...previous};delete next[attempt.uploadKey];return next;});
+    try {
+      const mediaId=await uploadMomentPhoto({postId:current.id,file:attempt.file,
+        clientRequestId:attempt.uploadKey,existingCount:index,
+        onProgress:progress=>{if(active.current)setQuickMediaProgress(`Повторяем фото ${index+1}: ${progress}%`);}});
+      attempt.mediaId=mediaId;
+    }catch(cause){
+      if(active.current){
+        const failure=photoRetryMessage(cause);
+        setPhotoFailures(previous=>({...previous,[attempt.uploadKey]:failure}));
+        setQuickPublishError(failure);
+      }
+    }finally{
+      writeFlight.current=false;
+      if(active.current){setPhotoBusy(false);setQuickMediaProgress("");}
+    }
   }
   function submitPublish() {
     if (!status.data?.enabled || busy || writeFlight.current || !readyToPublish) return;
@@ -570,7 +668,7 @@ function MomentComposerTarget({ userId, draftId = null, embedded = false }: Mome
             publishKey.current = null;
           }} />
         <p id={countId}>{countFeedCharacters(text)} / {FEED_LIMITS.postCharacters} символов</p>
-        {!current && <section className="web4-compose-file-selection question-photo-picker-next"
+        {(!current || canResumeMediaDraft) && <section className="web4-compose-file-selection question-photo-picker-next"
           aria-label="Вложения публикации">
           <h3 className="web4-compose-file-label">Фото или видео</h3>
           <div className="question-photo-picker-grid web4-compose-media-grid">
@@ -588,6 +686,16 @@ function MomentComposerTarget({ userId, draftId = null, embedded = false }: Mome
                 <span>Добавить фото или видео</span>
               </SecondaryButton>}
             <MomentLocalMediaPreview files={localMedia} disabled={busy}
+              failures={localMedia.map(file => {
+                const entry=mediaAttempts.current.find(item => item.file === file);
+                return entry ? videoFailures[entry.uploadKey] ?? photoFailures[entry.uploadKey] : undefined;
+              })}
+              onRetry={index => {
+                const attempt=mediaAttempts.current[index];
+                if (!attempt || busy || writeFlight.current) return;
+                if (photoFailures[attempt.uploadKey]) void retrySinglePhoto(index);
+                else if (videoFailures[attempt.uploadKey]) void retrySingleVideo(index);
+              }}
               onRemove={index => selectLocalMedia(localMedia.filter((_, i) => i !== index))} />
           </div>
           <input ref={localMediaInputRef} id={`web4-compose-files-${instanceId}`}
@@ -616,12 +724,12 @@ function MomentComposerTarget({ userId, draftId = null, embedded = false }: Mome
           onBusy={setPhotoBusy} disabled={busy} />}
         {!current && <MomentInlinePoll value={localPoll} disabled={busy}
           onChange={setLocalPoll} />}
-        {!current && composerActions()}
+        {(!current || canResumeMediaDraft) && composerActions()}
         {quickPublishError && <div className="moment-quick-publish-retry" role="alert">
           <p>{quickPublishError}</p>
           {canResumeMediaDraft && <SecondaryButton type="button"
             onClick={submitQuickPublish} disabled={busy}>
-            Повторить отправку с фото
+            Повторить незавершённые вложения
           </SecondaryButton>}
           {current && <RouteLink to={momentDraftPath(current.id)}>
             Открыть сохранённый черновик и продолжить

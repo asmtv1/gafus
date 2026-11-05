@@ -9,7 +9,7 @@ describe("Feed V2 immutable object keys", () => {
     expect(feedV2ContentType(feedV2ObjectKey("abc", 1, "poster.webp"))).toBe("image/webp");
   });
   it("rejects HLS, source keys, traversal and unsafe ids", () => {
-    for (const key of ["media/v2/x/v1/video/720.m3u8", "media/v2/x/v1/video/segment-01.ts", "media/v2/../v1/poster.webp", "media/v2/x/v0/image/m.webp", "incoming/x/source.mp4", "media/v2/x/v1/../../private.mp4"]) {
+    for (const key of ["media/v2/x/v1/video/1080.mp4", "media/v2/x/v1/video/720.m3u8", "media/v2/x/v1/video/segment-01.ts", "media/v2/../v1/poster.webp", "media/v2/x/v0/image/m.webp", "incoming/x/source.mp4", "media/v2/x/v1/../../private.mp4"]) {
       expect(() => assertFeedV2FinalKey(key)).toThrow();
     }
     expect(() => feedV2ObjectKey("../../x", 1, "image/s.webp")).toThrow();

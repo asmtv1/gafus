@@ -1,4 +1,4 @@
-/** Internal Questions Photo Jobs API: HMAC, replay protection, exact schema. */
+/** Internal Questions S3 cleanup lease API. Physical DELETE runs only in Worker. */
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import { z } from "zod/v3";
@@ -6,20 +6,13 @@ import { connection as redis } from "@gafus/queues";
 import { createLiveQuestionsV2Queue, type QuestionsV2Queue } from "../../modules/questions/media-v2-jobs.js";
 
 const prefix="/internal/questions/media/jobs/";
-const routes=new Set(["claim","renew","complete","fail","cleanup"]);
-const uuid=z.string().uuid();
-const attempt=z.object({mediaId:uuid,attemptToken:uuid}).strict();
-const rendition=z.object({key:z.string().min(20).max(500),width:z.number().int().min(1),
-  height:z.number().int().min(1),bytes:z.number().int().min(12)}).strict();
+const routes=new Set(["claim","complete","fail"]);
 const schema={
   claim:z.object({batchSize:z.literal(1)}).strict(),
-  cleanup:z.object({batchSize:z.literal(1)}).strict(),
-  renew:attempt,
-  complete:attempt.extend({manifest:z.object({
-    kind:z.literal("image"),
-    variants:z.object({small:rendition,medium:rendition}).strict(),
-  }).strict()}).strict(),
-  fail:attempt.extend({code:z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/)}).strict(),
+  complete:z.object({mediaId:z.string().uuid(),cleanupToken:z.string().uuid(),
+    cleanupKind:z.enum(["SOURCE","ALL"])}).strict(),
+  fail:z.object({mediaId:z.string().uuid(),cleanupToken:z.string().uuid(),
+    cleanupKind:z.enum(["SOURCE","ALL"])}).strict(),
 } as const;
 function invalid(code:string,status:number){
   return Object.assign(new Error(code),{status});
@@ -27,7 +20,7 @@ function invalid(code:string,status:number){
 export function createQuestionsInternalDispatcher(deps:{
   secret:Uint8Array;
   consumeNonce:(nonce:string,expiry:number)=>Promise<boolean>;
-  queue:QuestionsV2Queue;
+  queue:Pick<QuestionsV2Queue,"claimCleanup"|"completeCleanup"|"failCleanup">;
   now?:()=>number;
 }){
   const now=deps.now??Date.now;
@@ -72,24 +65,24 @@ export function createQuestionsInternalDispatcher(deps:{
     let parsed:unknown;
     try{parsed=JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(body));}
     catch{throw invalid("INVALID_JSON",400);}
-    const checked=schema[op as keyof typeof schema].safeParse(parsed);
-    if(!checked.success)throw invalid("INVALID_COMMAND",400);
-    switch(op){
-      case "claim":return deps.queue.claimOne();
-      case "cleanup":return deps.queue.cleanupPending();
-      case "renew":{
-        const data=schema.renew.parse(parsed);
-        return deps.queue.renew(data.mediaId,data.attemptToken);
-      }
-      case "complete":{
-        const data=schema.complete.parse(parsed);
-        return deps.queue.complete(data.mediaId,data.attemptToken,data.manifest);
-      }
-      default:{
-        const data=schema.fail.parse(parsed);
-        return deps.queue.fail(data.mediaId,data.attemptToken,data.code);
-      }
+    if(op==="claim"){
+      const checked=schema.claim.safeParse(parsed);
+      if(!checked.success)throw invalid("INVALID_COMMAND",400);
+      return deps.queue.claimCleanup();
     }
+    if(op==="complete"){
+      const checked=schema.complete.safeParse(parsed);
+      if(!checked.success)throw invalid("INVALID_COMMAND",400);
+      return deps.queue.completeCleanup(checked.data.mediaId,checked.data.cleanupToken,
+        checked.data.cleanupKind);
+    }
+    if(op==="fail"){
+      const checked=schema.fail.safeParse(parsed);
+      if(!checked.success)throw invalid("INVALID_COMMAND",400);
+      return deps.queue.failCleanup(checked.data.mediaId,checked.data.cleanupToken,
+        checked.data.cleanupKind);
+    }
+    throw invalid("NOT_FOUND",404);
   };
 }
 export const internalQuestionsMediaJobRoutes=new Hono();
@@ -98,8 +91,7 @@ internalQuestionsMediaJobRoutes.use("*",async(c,next)=>{
   await next();
 });
 internalQuestionsMediaJobRoutes.all("*",async c=>{
-  if(process.env.QUESTIONS_V2_MEDIA_ENABLED!=="true" ||
-      process.env.QUESTIONS_V2_PROCESSOR_READY!=="true")
+  if(process.env.QUESTIONS_V2_MEDIA_ENABLED!=="true")
     return c.json({error:"QUESTIONS_V2_DISABLED"},503);
   const secret=Buffer.from(process.env.QUESTIONS_V2_INTERNAL_HMAC_SECRET??"","utf8");
   if(secret.length<32)return c.json({error:"QUESTIONS_V2_NOT_CONFIGURED"},503);

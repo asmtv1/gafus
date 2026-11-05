@@ -51,8 +51,7 @@ const Prisma = require("@prisma/client").PrismaClient as new(args: {
       maintenance: (limit) => service.maintenance({ limit }),
     };
     worker = createGalleryCloudWorker({
-      core: internal, objects, engine: sharpGalleryEngine,
-      queue: { async send() { /* no remote wake-ups in isolated test */ } },
+      core: internal, objects,
     });
     await db.user.create({
       data: { id: owner, username: "gallery-v2-flow-" + owner, password: "local-test-only" },

@@ -7,7 +7,6 @@ import { createCloudruFeedPoolDispatcher } from "./cloudru-media-dispatcher.js";
  */
 export function createFeedMediaRecoveryTick(input: {
   database: Pick<typeof prisma, "feedStorageJob">;
-  photo: ReturnType<typeof createCloudruFeedPoolDispatcher>;
   video: ReturnType<typeof createCloudruFeedPoolDispatcher>;
   now?: () => Date;
 }) {
@@ -25,18 +24,11 @@ export function createFeedMediaRecoveryTick(input: {
         ] },
         _count: { _all: true },
       });
-      let photos = 0, videos = 0;
+      let videos = 0;
       for (const row of due) {
         if (row.kind === "publish_video") videos += row._count._all;
-        else if (["publish_photo", "copy_album", "delete_keys", "cleanup_source"].includes(row.kind))
-          photos += row._count._all;
       }
       let dispatched = 0;
-      for (let i = 0; i < Math.min(2, photos); i++) {
-        const result = await input.photo();
-        if (result.dispatched !== 1) throw new Error("FEED_PHOTO_RECOVERY_NOT_DISPATCHED");
-        dispatched++;
-      }
       for (let i = 0; i < Math.min(2, videos); i++) {
         const result = await input.video();
         if (result.dispatched !== 1) throw new Error("FEED_VIDEO_RECOVERY_NOT_DISPATCHED");
@@ -53,7 +45,6 @@ export async function runFeedMediaRecoveryTick(): Promise<void> {
       process.env.FEED_PROCESSOR_READY !== "true") return;
   recovery ??= createFeedMediaRecoveryTick({
     database: prisma,
-    photo: createCloudruFeedPoolDispatcher("photo"),
     video: createCloudruFeedPoolDispatcher("video"),
   });
   await recovery();

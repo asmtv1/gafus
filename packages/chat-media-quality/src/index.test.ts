@@ -1,21 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
 import { chat2ImageQuality, chat2ImageSource, chat2VideoQuality, chat2VideoSource, chat2HasVideoQuality, chat2MatchedS3Variant, chat2CdnS3FailoverAllowed } from './index.js';
 const sources = { 360: 'https://gafus-chat-public.s3.cloud.ru/chat2/demo/360.mp4', 720: 'https://gafus-chat-public.s3.cloud.ru/chat2/demo/720.mp4' };
-describe('Chat2 automatic 360/720 quality shared across Web and Mobile', () => {
-  it('selects photo by rendered layout width * device pixel ratio', () => {
+const photos = {360:'https://gafus-chat-public.s3.cloud.ru/chat2/demo/image/s.webp',
+  1440:'https://gafus-chat-public.s3.cloud.ru/chat2/demo/image/m.webp'};
+describe('Chat2 shared photo 360/1440 and video 360/720 quality', () => {
+  it('selects photo by rendered width * DPR, with a genuine 1440px larger variant', () => {
     expect(chat2ImageQuality(120, 2)).toBe(360);
-    expect(chat2ImageQuality(340, 2)).toBe(720);
-    expect(chat2ImageSource(sources, 340, 2)).toBe(sources[720]);
-    expect(chat2ImageSource(sources, 220, 2, {360:200,720:500})).toBe(sources[720]);
-    expect(chat2ImageSource(sources, 120, 2, {360:200,720:500})).toBe(sources[720]);
-    expect(chat2ImageSource(sources, 90, 2, {360:200,720:500})).toBe(sources[360]);
-    expect(chat2ImageSource({ 360: sources[360] }, 340, 3)).toBe(sources[360]);
+    expect(chat2ImageQuality(340, 2)).toBe(1440);
+    expect(chat2ImageSource(photos, 340, 2)).toBe(photos[1440]);
+    expect(chat2ImageSource(photos, 220, 2, {360:200,1440:900})).toBe(photos[1440]);
+    expect(chat2ImageSource(photos, 90, 2, {360:200,1440:900})).toBe(photos[360]);
+    expect(chat2ImageSource({360:photos[360]}, 340, 3)).toBe(photos[360]);
+    expect(chat2ImageSource({360:'http://insecure',1440:photos[1440]},600,2))
+      .toBe(photos[1440]);
   });
   it('defaults unknown/slow/mobile-small playback to 360', () => {
     expect(chat2VideoQuality('auto', { width: 400 })).toBe(360);
     expect(chat2VideoQuality('auto', { width: 400, downlinkMbps: 5, saveData: true })).toBe(360);
     expect(chat2VideoQuality('auto', { width: 400, downlinkMbps: 5, effectiveType: '3g' })).toBe(360);
-    expect(chat2VideoQuality('auto', { width: 220, downlinkMbps: 5 })).toBe(360);
+    expect(chat2VideoQuality('auto', { width: 220, downlinkMbps: 5 })).toBe(720);
     expect(chat2VideoQuality('auto', { width: 400, downlinkMbps: 5 })).toBe(720);
   });
   it('respects manual choice, falls back when 720 missing, avoids constructed URLs', () => {
@@ -35,13 +38,14 @@ describe('Chat2 exact-key CDN → S3 delivery', () => {
   const response = {
     url: cdn + 'video/360.mp4', fallbackUrl: s3 + 'video/360.mp4',
     renditions: {video: {360: cdn + 'video/360.mp4', 720: cdn + 'video/720.mp4'},
-      image: {360: cdn + 'image/s.webp', 720: cdn + 'image/m.webp'}, poster: cdn + 'poster.webp'},
+      image: {360: cdn + 'image/s.webp', 1440: cdn + 'image/m.webp'}, poster: cdn + 'poster.webp'},
     fallbackRenditions: {video: {360: s3 + 'video/360.mp4', 720: s3 + 'video/720.mp4'},
-      image: {360: s3 + 'image/s.webp', 720: s3 + 'image/m.webp'}, poster: s3 + 'poster.webp'},
+      image: {360: s3 + 'image/s.webp', 1440: s3 + 'image/m.webp'}, poster: s3 + 'poster.webp'},
   };
   it('uses the exact matching rendition, never a different video quality or photo size', () => {
     expect(chat2MatchedS3Variant(cdn + 'video/720.mp4', response)).toBe(s3 + 'video/720.mp4');
     expect(chat2MatchedS3Variant(cdn + 'image/s.webp', response)).toBe(s3 + 'image/s.webp');
+    expect(chat2MatchedS3Variant(cdn + 'image/m.webp', response)).toBe(s3 + 'image/m.webp');
     expect(chat2MatchedS3Variant(cdn + 'poster.webp', response)).toBe(s3 + 'poster.webp');
     expect(chat2MatchedS3Variant('https://other.example/item', response)).toBeNull();
   });

@@ -183,6 +183,27 @@ export function createGalleryService({
     );
     return uploadDto(ctx, tx, upload, actorId, true);
   }
+  /** API can die after the S3 COPY but before READY. Client-only uploads
+   * have no publish Job, so their stale lease needs its own owner-scoped reset.
+   * The pending final-key cleanup guard identifies this exact path.
+   */
+  async function recoverClientLease(tx: GalleryTx, actorId: string, uploadId: string) {
+    const row = await uploadFor(tx, actorId, uploadId);
+    if (row.status !== "processing" || !row.leaseUntil || row.leaseUntil > now()) return row;
+    const guard = await tx.galleryStorageJob.findUnique({
+      where: { dedupeKey: `client-finals-guard:${uploadId}` },
+    });
+    if (!guard || guard.ownerId !== actorId || guard.status !== "pending") return row;
+    const restored = await tx.galleryUpload.updateMany({
+      where: { id: uploadId, ownerId: actorId, status: "processing",
+        attemptToken: row.attemptToken, leaseUntil: { lt: now() } },
+      data: { status: "reserved", attemptToken: null, leaseUntil: null },
+    });
+    if (!restored.count) return row;
+    await tx.galleryPhoto.updateMany({ where: { id: row.photoId, ownerId: actorId,
+      status: "processing", deletedAt: null }, data: { status: "pending" } });
+    return uploadFor(tx, actorId, uploadId);
+  }
   const service = {
     async listAlbums(
       actorId: string,
@@ -370,13 +391,124 @@ export function createGalleryService({
       const data = s.galleryParse(s.galleryUploadSchema, input);
       return ownerRequest(actorId, (tx) => reserve(tx, actorId, data));
     },
+    /** Single photo upload contract for all current Web and Mobile clients:
+     * final WebP variants are produced on-device and verified by S3/Core.
+     */
+    async reserveClientUpload(actorId: string, input: GalleryUploadInput) {
+      if (!storage.signClientThumb || !storage.publishClientPhoto)
+        throw new GalleryError("CLIENT_PHOTO_UNAVAILABLE", "Загрузка с устройства ещё не включена", 503);
+      const data = s.galleryParse(s.galleryUploadSchema, input);
+      if (data.declaredMime !== "image/webp" || data.declaredBytes > 1_750_000)
+        throw new GalleryError("VALIDATION", "Для ускоренной загрузки нужен WebP", 400);
+      return ownerRequest(actorId, async tx => {
+        const receipt = await reserve(tx, actorId, data);
+        const row = await uploadFor(tx, actorId, receipt.uploadId);
+        if (row.status !== "reserved") return receipt;
+        const keys = galleryPhotoV2Keys(actorId, row.photoId);
+        const stage = row.sourceKey.replace(/source\.webp$/, "thumb.webp");
+        await enqueueDelete(tx, actorId, [stage],
+          new Date(row.postExpiresAt.getTime() + 60_000), `client-thumb:${row.id}`);
+        // Tombstoned/incomplete uploads must not leave orphan final keys after S3 COPY.
+        await enqueueDelete(tx, actorId, [keys.thumbKey, keys.fullKey],
+          new Date(row.reservationExpiresAt.getTime() + 120_000), `client-finals-guard:${row.id}`);
+        const signed = await storage.signClientThumb!({
+          sourceKey: row.sourceKey, expiresAt: row.postExpiresAt,
+        });
+        return { ...receipt, thumbUpload: {
+          url: signed.url, fields: signed.fields, method: "POST" as const,
+        } };
+      });
+    },
+    /** Restore the second signed WebP POST after a process restart or a retry
+     * reservation. Only the owner of a STILL RESERVED upload may renew it.
+     * The original post's expiry is authoritative; no wider grant is issued.
+     */
+    async getClientThumbUpload(actorId: string, uploadId: string) {
+      if (!storage.signClientThumb || !storage.publishClientPhoto)
+        throw new GalleryError("CLIENT_PHOTO_UNAVAILABLE", "Загрузка с устройства ещё не включена", 503);
+      parseId(uploadId);
+      return ownerRequest(actorId, async tx => {
+        const row = await expireUpload(tx,
+          await recoverClientLease(tx, actorId, uploadId), now());
+        if (row.status !== "reserved" || row.declaredMime !== "image/webp" ||
+            row.declaredBytes > 1_750_000 || row.postExpiresAt <= now() ||
+            row.reservationExpiresAt <= now())
+          throw new GalleryError("INVALID_STATUS", "Ссылка для фото истекла", 409);
+        const keys = galleryPhotoV2Keys(actorId, row.photoId);
+        const stage = row.sourceKey.replace(/source\.webp$/, "thumb.webp");
+        await enqueueDelete(tx, actorId, [stage],
+          new Date(row.postExpiresAt.getTime() + 60_000), `client-thumb:${row.id}`);
+        await enqueueDelete(tx, actorId, [keys.thumbKey, keys.fullKey],
+          new Date(row.reservationExpiresAt.getTime() + 120_000), `client-finals-guard:${row.id}`);
+        const form = await storage.signClientThumb!({
+          sourceKey: row.sourceKey, expiresAt: row.postExpiresAt,
+        });
+        return { url: form.url, fields: form.fields, method: "POST" as const };
+      });
+    },
+    async confirmClientUpload(actorId: string, uploadId: string) {
+      if (!storage.publishClientPhoto)
+        throw new GalleryError("CLIENT_PHOTO_UNAVAILABLE", "Загрузка с устройства ещё не включена", 503);
+      const token = randomUUID();
+      const claim = await ownerRequest(actorId, async tx => {
+        const row = await expireUpload(tx,
+          await recoverClientLease(tx, actorId, uploadId), now());
+        if (row.status === "ready") return null;
+        if (row.status !== "reserved" || row.declaredMime !== "image/webp" ||
+            row.declaredBytes > 1_750_000 || row.reservationExpiresAt <= now())
+          throw new GalleryError("INVALID_STATUS", "Загрузка не может быть подтверждена", 409);
+        const source = await workers.inspectSource(row);
+        if (source.bytes !== row.declaredBytes || source.contentType !== "image/webp")
+          throw new GalleryError("SOURCE_CHANGED", "Неверный исходный файл", 409);
+        await tx.galleryUpload.update({ where: { id: uploadId },
+          data: { status: "processing", sourceETag: source.etag,
+            attemptToken: token, leaseUntil: new Date(now().getTime() + 180_000) } });
+        await tx.galleryPhoto.update({ where: { id: row.photoId }, data: { status: "processing" } });
+        return { sourceKey: row.sourceKey,
+          ...galleryPhotoV2Keys(actorId, row.photoId), photoId: row.photoId };
+      });
+      if (!claim) return service.getUpload(actorId, uploadId);
+      try {
+        const result = await storage.publishClientPhoto(claim);
+        return await ownerRequest(actorId, async tx => {
+          const row = await uploadFor(tx, actorId, uploadId);
+          if (row.status !== "processing" || row.attemptToken !== token || row.photoId !== claim.photoId)
+            throw new GalleryError("UPLOAD_CHANGED", "Загрузка изменилась", 409);
+          await outputHeads(ctx, [claim.thumbKey, claim.fullKey]);
+          await tx.galleryPhoto.update({ where: { id: claim.photoId }, data: {
+            status: "ready", thumbKey: claim.thumbKey, fullKey: claim.fullKey,
+            width: result.width, height: result.height,
+          } });
+          const ready = await tx.galleryUpload.update({ where: { id: uploadId }, data: {
+            status: "ready", attemptToken: null, leaseUntil: null, errorCode: null,
+          }, include: { photo: true } });
+          await tx.galleryStorageJob.updateMany({
+            where: { dedupeKey: `client-finals-guard:${uploadId}`, ownerId: actorId, status: "pending" },
+            data: { status: "cancelled" },
+          });
+          return uploadDto(ctx, tx, ready, actorId);
+        });
+      } catch (error) {
+        await galleryTransaction(ctx, async tx => {
+          await lockGalleryOwner(tx, actorId);
+          await tx.galleryUpload.updateMany({
+            where: { id: uploadId, ownerId: actorId, status: "processing", attemptToken: token },
+            data: { status: "reserved", attemptToken: null, leaseUntil: null },
+          });
+          await tx.galleryPhoto.updateMany({ where: { id: claim.photoId, ownerId: actorId,
+            deletedAt: null, status: "processing" }, data: { status: "pending" } });
+        });
+        throw error;
+      }
+    },
     async getUpload(actorId: string, uploadId: string) {
       parseId(uploadId);
       return ownerRequest(actorId, async (tx) =>
         uploadDto(
           ctx,
           tx,
-          await expireUpload(tx, await uploadFor(tx, actorId, uploadId), now()),
+          await expireUpload(tx,
+            await recoverClientLease(tx, actorId, uploadId), now()),
           actorId,
           true,
         ),
@@ -420,6 +552,12 @@ export function createGalleryService({
         });
         if (!row || row.ownerId !== actorId)
           throw new GalleryError("NOT_FOUND", "Загрузка недоступна", 404);
+        // Never recreate an old JPEG/PNG queue reservation on manual retry.
+        // An existing READY WebP or a pending client-only upload is the only source.
+        if (row.declaredMime !== "image/webp" || row.declaredBytes <= 0 ||
+            row.declaredBytes > 1_750_000 ||
+            !storage.signClientThumb || !storage.publishClientPhoto)
+          throw new GalleryError("CLIENT_PHOTO_REQUIRED", "Повторная отправка требует готовый WebP", 410);
         await albumFor(tx, actorId, row.photo.albumId, true);
         const child = await tx.galleryUpload.findUnique({
           where: { retryOfId: uploadId },

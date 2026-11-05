@@ -5,7 +5,7 @@ const ID = /^[A-Za-z0-9_-]{1,128}$/;
 export type MomentMedia = {
   id: string; kind: "photo" | "video"; url?: string; status?: string;
   smallUrl?: string; mediumUrl?: string; fullUrl?: string;
-  mp4Urls?: { 360: string; 720?: string; 1080?: string };
+  mp4Urls?: { 360?: string; 720?: string };
   width?: number; height?: number;
 };
 
@@ -52,17 +52,18 @@ export function momentMediaFromAttachments(attachments: unknown[]): MomentMedia[
     const safe = (value: unknown): string | undefined =>
       typeof value === "string" && value ? validSignedUrl(value) : undefined;
     const mp4 = record(asset.mp4Urls);
-    const mp4Small = safe(mp4?.["360"]);
-    if (asset.kind === "video" && !mp4Small) continue;
+    const mp4Small = safe(mp4?.["360"]), mp4Medium = safe(mp4?.["720"]);
+    if (asset.kind === "video" && !mp4Small && !mp4Medium) continue;
     const small = safe(asset.smallUrl), medium = safe(asset.thumbUrl);
     const full = safe(asset.fullUrl), poster = safe(asset.posterUrl);
     if (asset.kind === "photo" && !medium && !full && !small) continue;
     const url = asset.kind === "video" ? poster ?? "" : medium ?? small ?? full ?? "";
     items.push({ id: asset.id, kind: asset.kind, url,
       smallUrl: small, mediumUrl: medium, fullUrl: full,
-      mp4Urls: mp4Small ? { 360: mp4Small,
-        ...(safe(mp4?.["720"]) ? { 720: safe(mp4?.["720"]) } : {}),
-        ...(safe(mp4?.["1080"]) ? { 1080: safe(mp4?.["1080"]) } : {}) } : undefined,
+      mp4Urls: mp4Small || mp4Medium ? {
+        ...(mp4Small ? { 360: mp4Small } : {}),
+        ...(mp4Medium ? { 720: mp4Medium } : {}),
+      } : undefined,
       width: typeof asset.width === "number" ? asset.width : undefined,
       height: typeof asset.height === "number" ? asset.height : undefined,
     });

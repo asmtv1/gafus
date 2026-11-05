@@ -12,7 +12,8 @@ import { createFeedStorageFromEnv, signFeedCloudruFallback } from "@gafus/feed-s
 
 export const FEED_MAX_BODY_BYTES = 65_536;
 const allowed = new Set(["GET", "POST", "PATCH", "PUT", "DELETE"]);
-const flag = () => process.env.FEED_ENABLED === "true" && process.env.FEED_PROCESSOR_READY === "true";
+// Client-side media preparation remains available if optional 360p jobs are paused.
+const flag = () => process.env.FEED_ENABLED === "true";
 const storage = createFeedStorageFromEnv();
 const { service, social, preferences, smartPreferences, polls } = createCurrentFeedRuntime(storage, flag);
 export interface FeedHttpError {
@@ -276,9 +277,9 @@ export async function dispatchFeedRequest(
         throw new FeedError("NOT_FOUND", undefined, 404);
       if (!input || typeof input !== "object" || Array.isArray(input) ||
           Object.keys(input).length !== 1 || !("variant" in input) ||
-          !["thumb", "full", "poster", "video360", "video720", "video1080"].includes(String(input.variant)))
+          !["thumb", "full", "poster", "video360", "video720"].includes(String(input.variant)))
         throw new FeedError("VALIDATION_ERROR", "Недопустимый вариант файла", 400);
-      const { key } = await posts.fallbackSource(actorId, mediaId, input.variant as "thumb" | "full" | "poster" | "video360" | "video720" | "video1080");
+      const { key } = await posts.fallbackSource(actorId, mediaId, input.variant as "thumb" | "full" | "poster" | "video360" | "video720");
       const fallbackUrl = await signFeedCloudruFallback(key);
       return { url: fallbackUrl, source: "cloudru", expiresAt: new Date(Date.now() + 120_000).toISOString() };
     }
@@ -375,11 +376,23 @@ export async function dispatchFeedRequest(
       assertEmpty(input);
       return posts.cancelUpload(actorId, uploadId);
     }
+    if (len === 3 && three === "client-video-poster" && method === "POST") {
+      assertEmpty(input);
+      return posts.reserveClientVideoPoster(actorId, uploadId);
+    }
+    if (len === 3 && three === "client-renditions" && method === "POST") {
+      assertEmpty(input);
+      return posts.reserveClientRenditions(actorId, uploadId);
+    }
+    if (len === 3 && three === "client-complete" && method === "POST") {
+      assertEmpty(input);
+      return posts.completeClientPhoto(actorId, uploadId);
+    }
     if (len === 3 && three === "complete" && method === "POST") {
       assertEmpty(input);
       const upload = await posts.completeUpload(actorId, uploadId);
-      if (upload.status === "uploaded" && (upload.kind === "photo" || upload.kind === "video")) {
-        await signalFeedProcessing(upload.uploadId, upload.kind, enqueue);
+      if (upload.status === "ready" && upload.kind === "video") {
+        await signalFeedProcessing(upload.uploadId, "video", enqueue);
       }
       return upload;
     }

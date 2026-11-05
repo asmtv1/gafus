@@ -11,7 +11,7 @@ RUN ./node_modules/.bin/esbuild apps/feed-cloud/src/chat2-job-entry.ts \
   --outfile=chat2-job.mjs \
   '--banner:js=import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
 
-# Common runtime for both photo/video jobs; no ffmpeg in photo image.
+# Chat2 video job only: client WebP images bypass all Cloud.ru processing Jobs.
 FROM node:22-bookworm-slim AS runtime-base
 WORKDIR /app
 RUN npm install --omit=dev --ignore-scripts --no-save sharp@0.35.5 \
@@ -21,10 +21,7 @@ USER node
 ENV CHAT2_JOB_WORK_ROOT=/app/work
 CMD ["node", "/app/chat2-job.mjs"]
 
-# --target photo  : 1 vCPU, 2048 MiB. Sharp only, no FFmpeg dependency.
-FROM runtime-base AS photo
-
-# --target video  : 2 vCPU, 8192 MiB. FFmpeg H264/AAC 360p+720p.
+# --target video: 2 vCPU / 8192 MiB per Job, 2 existing Jobs; FFmpeg H264 Main 360p only.
 FROM runtime-base AS video
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates \

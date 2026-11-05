@@ -1,0 +1,21 @@
+.video-quality-settings { position:absolute; z-index:12; top:8px; right:8px; display:flex; align-items:flex-start; flex-direction:row-reverse; gap:6px; }
+.video-quality-settings button { appearance:none; font:inherit; cursor:pointer; }
+.video-quality-settings .video-quality-settings__trigger {
+  display:grid; place-items:center; width:40px; min-width:40px; height:40px; padding:0;
+  border:1px solid #ffffff77; border-radius:50%; background:#17211de3; color:#fff;
+  box-shadow:0 2px 10px #0005;
+}
+.video-quality-settings__trigger svg { width:23px; height:23px; }
+.video-quality-settings .video-quality-settings__menu {
+  display:flex; flex-direction:column; gap:2px; width:128px; padding:5px;
+  border:1px solid #ffffff37; border-radius:11px; background:#17211df5;
+  color:#fff; box-shadow:0 6px 26px #0008;
+}
+.video-quality-settings__heading { font-size:12px; font-weight:600; padding:3px 7px 4px; opacity:.78; }
+.video-quality-settings__menu button {
+  display:flex; align-items:center; justify-content:space-between; width:100%; min-width:0;
+  min-height:32px; padding:4px 9px; text-align:left; border:0; border-radius:7px;
+  background:transparent; color:#fff; font-size:13px; font-weight:500;
+}
+.video-quality-settings__menu button:hover, .video-quality-settings__menu .video-quality-settings__selected { background:#78894e; }
+.video-quality-settings button:focus-visible { outline:2px solid #d6dda1; outline-offset:2px; }

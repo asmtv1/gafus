@@ -6,11 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   client: null as unknown,
-  auth: { isAuthenticated: true, isLoading: false, user: { id: "USER_A" } },
+  auth: { isAuthenticated: true, isLoading: false, user: { id: "USER_A" }, verifiedSessionEpoch: "mock-epoch-USER_A" },
   favoritesFetch: vi.fn(),
   setCourseState: vi.fn(),
   resetUserStores: vi.fn(),
   reportClientError: vi.fn(),
+  bindingMissing: false,
 }));
 vi.mock("expo-router", () => ({ useRootNavigationState: () => ({ key: "root" }) }));
 vi.mock("react-native", () => ({
@@ -32,6 +33,18 @@ vi.mock("@/shared/stores/networkStatusStore", () => ({
   useNetworkStatusStore: (selector: (state: { isOffline: boolean }) => unknown) =>
     selector({ isOffline: true }),
 }));
+vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
+  newOnlyV2NativeQueues: {
+    getVerifiedBinding: () => mocks.bindingMissing ? null : {
+      principalId: mocks.auth.user?.id,
+      authEpoch: `mock-epoch-${mocks.auth.user?.id}`,
+    },
+  },
+}));
+vi.mock("@/shared/components/VerifiedSessionRecovery", async () => {
+  const React = await import("react");
+  return { VerifiedSessionRecovery: () => React.createElement("div", null, "repair") };
+});
 vi.mock("@/shared/stores/resetAll", () => ({ resetUserStores: mocks.resetUserStores }));
 vi.mock("@/shared/lib/api/favoritesQuery", () => ({
   favoritesQueryOptions: {
@@ -55,11 +68,12 @@ describe("AG3-CACHE-012 authenticated identity switch isolation", () => {
   }
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.bindingMissing = false;
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     mocks.client = new QueryClient({
       defaultOptions: { queries: { retry: false, staleTime: 0 } },
     });
-    mocks.auth = { isAuthenticated: true, isLoading: false, user: { id: "USER_A" } };
+    mocks.auth = { isAuthenticated: true, isLoading: false, user: { id: "USER_A" }, verifiedSessionEpoch: "mock-epoch-USER_A" };
     mocks.favoritesFetch.mockImplementation(async () => ({
       data: { favoriteIds: ["favorite-" + mocks.auth.user.id] },
     }));
@@ -79,7 +93,7 @@ describe("AG3-CACHE-012 authenticated identity switch isolation", () => {
     client.setQueryData(["chat"], [{ id: "PRIVATE_USER_A_CHAT" }]);
     expect(mocks.favoritesFetch).toHaveBeenCalledTimes(1);
 
-    mocks.auth = { isAuthenticated: true, isLoading: false, user: { id: "USER_B" } };
+    mocks.auth = { isAuthenticated: true, isLoading: false, user: { id: "USER_B" }, verifiedSessionEpoch: "mock-epoch-USER_B" };
     await render();
 
     expect(client.getQueryData(["pets"])).toBeUndefined();
@@ -103,7 +117,7 @@ describe("AG3-CACHE-012 authenticated identity switch isolation", () => {
     });
     await render();
     expect(mocks.favoritesFetch).toHaveBeenCalledTimes(1);
-    mocks.auth = { isAuthenticated: true, isLoading: false, user: { id: "USER_B" } };
+    mocks.auth = { isAuthenticated: true, isLoading: false, user: { id: "USER_B" }, verifiedSessionEpoch: "mock-epoch-USER_B" };
     await render();
     expect(mocks.favoritesFetch).toHaveBeenCalledTimes(2);
     await act(async () => {
@@ -121,12 +135,38 @@ describe("AG3-CACHE-012 authenticated identity switch isolation", () => {
     const client = mocks.client as QueryClient;
     client.setQueryData(["pets"], [{ id: "PRIVATE_USER_A_PET" }]);
 
-    mocks.auth = { isAuthenticated: true, isLoading: false, user: { id: "USER_A" } };
+    mocks.auth = { isAuthenticated: true, isLoading: false, user: { id: "USER_A" }, verifiedSessionEpoch: "mock-epoch-USER_A" };
     await render();
 
     expect(client.getQueryData(["pets"])).toEqual([{ id: "PRIVATE_USER_A_PET" }]);
     expect(mocks.favoritesFetch).toHaveBeenCalledTimes(1);
     expect(mocks.resetUserStores).not.toHaveBeenCalled();
+  });
+
+  it("blocks an optimistic cached session until V2 is restored, then prefetches safely", async () => {
+    mocks.bindingMissing = true;
+    await render();
+    expect(node.textContent).toContain("repair");
+    expect(mocks.favoritesFetch).not.toHaveBeenCalled();
+
+    // Auth check verified the profile and upgraded the native V2 binding.
+    mocks.bindingMissing = false;
+    await render();
+    expect(node.textContent).toContain("ready");
+    expect(mocks.favoritesFetch).toHaveBeenCalledOnce();
+  });
+
+  it("unblocks automatically when the same cached user receives a reactive verified epoch", async () => {
+    mocks.auth = { ...mocks.auth, verifiedSessionEpoch: null as unknown as string };
+    await render();
+    expect(node.textContent).toContain("repair");
+    expect(mocks.favoritesFetch).not.toHaveBeenCalled();
+
+    // Only the verified epoch changes; user ID and isAuthenticated remain identical.
+    mocks.auth = { ...mocks.auth, verifiedSessionEpoch: "mock-epoch-USER_A" };
+    await render();
+    expect(node.textContent).toContain("ready");
+    expect(mocks.favoritesFetch).toHaveBeenCalledOnce();
   });
 
   it("retains normal logout cleanup instead of treating logout as a direct switch", async () => {
@@ -136,6 +176,7 @@ describe("AG3-CACHE-012 authenticated identity switch isolation", () => {
       isAuthenticated: false,
       isLoading: false,
       user: null as unknown as { id: string },
+      verifiedSessionEpoch: null as unknown as string,
     };
     await render();
 

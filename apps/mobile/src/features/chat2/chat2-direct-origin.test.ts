@@ -20,6 +20,17 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
     getVerifiedBinding: () => ({ principalId: "sender", authEpoch: "dev-epoch" }),
   },
 }));
+vi.mock("@/shared/lib/media/prepareUploadWebp", () => ({
+  prepareUploadWebpVariants: vi.fn(async () => ({
+    small: {uri:"file:///small.webp",bytes:120,mime:"image/webp",width:360,height:240,dispose:vi.fn()},
+    medium:{uri:"file:///full.webp",bytes:240,mime:"image/webp",width:1440,height:960,dispose:vi.fn()},
+  })),
+}));
+vi.mock("@/shared/lib/media/directPhotoUpload", () => ({
+  postClientWebp: vi.fn(async () => undefined),
+}));
+import { prepareUploadWebpVariants } from "@/shared/lib/media/prepareUploadWebp";
+import { postClientWebp } from "@/shared/lib/media/directPhotoUpload";
 import { chat2 } from "./api";
 
 beforeEach(() => {
@@ -87,38 +98,38 @@ describe("Native Chat2 isolated API and direct-profile messaging", () => {
     vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://api.gafus.ru");
     mock.apiClient.mockResolvedValueOnce({ success: false, error: "V2 unavailable" });
     await expect(chat2.upload("room_1", {
-      uri: "file:///image.png", name: "image.png", mime: "image/png", size: 128,
+      uri: "file:///image.jpg", name: "image.png", mime: "image/jpeg", size: 128,
+      width:1440,height:960,
     })).rejects.toThrow("V2 unavailable");
     expect(mock.apiClient).toHaveBeenCalledExactlyOnceWith(
-      "/api/v1/chats/room_1/media/v2/reserve",
+      "/api/v1/chats/room_1/media/v2/client-reserve",
       expect.objectContaining({ chat2Origin: "https://api.gafus.ru" }),
     );
   });
 
-  it("attaches a confirmed V2 photo immediately and does not wait for READY before send", async () => {
-    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://api.gafus.ru");
-    const mediaId = "00000000-0000-4000-8000-000000000000";
-    const media = { id: "attachment-one", name: "photo.png", mime: "image/webp",
-      kind: "image", bytes: 128 };
-    mock.apiClient
-      .mockResolvedValueOnce({ success: true, data: {
-        mediaId, upload: { method: "POST", url: "https://s3.cloud.ru/incoming",
-          fields: { key: "chat2/test" } },
-      } })
-      .mockResolvedValueOnce({ success: true, data: { status: "UPLOADED" } })
-      .mockResolvedValueOnce({ success: true, data: media });
-    const upload = vi.fn().mockResolvedValue({ ok: true });
-    vi.stubGlobal("fetch", upload);
-    await expect(chat2.upload("room_1", {
-      uri: "file:///photo.png", name: "photo.png", mime: "image/png", size: 128,
+  it("attaches browser/device WebP only after client-confirm READY, never a photo Job",async()=>{
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN","https://api.gafus.ru");
+    const mediaId="00000000-0000-4000-8000-000000000000";
+    const media={id:"attachment-one",name:"photo.jpg",mime:"image/webp",kind:"image",bytes:240};
+    const upload={method:"POST",url:"https://s3.cloud.ru/gafus-chat2-media-2026",fields:{key:"source.webp"}};
+    mock.apiClient.mockResolvedValueOnce({success:true,data:{mediaId,upload,smallUpload:upload}})
+      .mockResolvedValueOnce({success:true,data:{mediaId,status:"READY"}})
+      .mockResolvedValueOnce({success:true,data:media});
+    await expect(chat2.upload("room_1",{
+      uri:"file:///photo.jpg",name:"photo.jpg",mime:"image/jpeg",size:128,
+      width:1440,height:960,
     })).resolves.toEqual(media);
-    expect(upload).toHaveBeenCalledExactlyOnceWith("https://s3.cloud.ru/incoming",
-      expect.objectContaining({ method: "POST", body: expect.any(FormData) }));
-    expect(mock.apiClient.mock.calls.map(([path]) => path)).toEqual([
-      "/api/v1/chats/room_1/media/v2/reserve",
-      `/api/v1/chats/room_1/media/v2/${mediaId}/confirm`,
+    expect(vi.mocked(prepareUploadWebpVariants)).toHaveBeenCalledWith(
+      expect.objectContaining({uri:"file:///photo.jpg"}),{small:360,medium:1440});
+    expect(vi.mocked(postClientWebp)).toHaveBeenCalledTimes(2);
+    expect(mock.apiClient.mock.calls.map(([path])=>path)).toEqual([
+      "/api/v1/chats/room_1/media/v2/client-reserve",
+      `/api/v1/chats/room_1/media/v2/${mediaId}/client-confirm`,
       `/api/v1/chats/room_1/media/v2/${mediaId}/attach`,
     ]);
+    expect(mock.apiClient.mock.calls[0]?.[1]?.body).toMatchObject({
+      mime:"image/webp",bytes:240,
+    });
   });
 
   it("blocks PDF uploads to production even in a development build", async () => {
@@ -129,24 +140,20 @@ describe("Native Chat2 isolated API and direct-profile messaging", () => {
     expect(mock.apiClient).not.toHaveBeenCalled();
   });
 
-  it("uses V2 reserve rather than the legacy multipart endpoint in release builds", async () => {
-    vi.stubGlobal("__DEV__", false);
-    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://chat2-refactor.example");
-    vi.stubEnv("EXPO_PUBLIC_CHAT2_MEDIA_V2", "false");
-    mock.apiClient.mockResolvedValueOnce({
-      success: false,
-      error: "V2 is not available",
-    });
-    await expect(chat2.upload("room_1", {
-      uri: "file:///image.png", name: "image.png", mime: "image/png", size: 128,
+  it("requires client-reserve WebP even if legacy media flag is disabled",async()=>{
+    vi.stubGlobal("__DEV__",false);
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN","https://chat2-refactor.example");
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_MEDIA_V2","false");
+    mock.apiClient.mockResolvedValueOnce({success:false,error:"V2 is not available"});
+    await expect(chat2.upload("room_1",{
+      uri:"file:///image.jpg",name:"image.png",mime:"image/jpeg",size:128,
+      width:1440,height:960,
     })).rejects.toThrow("V2 is not available");
     expect(mock.apiClient).toHaveBeenCalledExactlyOnceWith(
-      "/api/v1/chats/room_1/media/v2/reserve",
-      expect.objectContaining({
-        method: "POST",
-        body: { name: "image.png", mime: "image/png", bytes: 128 },
-        chat2Origin: "https://chat2-refactor.example",
-      }),
+      "/api/v1/chats/room_1/media/v2/client-reserve",
+      expect.objectContaining({method:"POST",
+        body:{name:"image.png",mime:"image/webp",bytes:240},
+        chat2Origin:"https://chat2-refactor.example"}),
     );
   });
 
@@ -159,14 +166,5 @@ describe("Native Chat2 isolated API and direct-profile messaging", () => {
     expect(mock.apiClient).not.toHaveBeenCalled();
   });
 
-  it("routes room token refresh to the same isolated chat origin", async () => {
-    mock.apiClient.mockResolvedValueOnce({
-      success: true, data: { token: "isolated-token", channel: "isolated-room" },
-    });
-    expect(await chat2.refreshSubscription("direct-room")).toBe("isolated-token");
-    expect(mock.apiClient).toHaveBeenCalledWith(
-      "/api/v1/chats/direct-room/realtime",
-      expect.objectContaining({ chat2Origin: "http://127.0.0.1:3003" }),
-    );
-  });
+
 });

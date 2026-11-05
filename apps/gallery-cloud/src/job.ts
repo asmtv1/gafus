@@ -1,6 +1,5 @@
 import { createGalleryObjectStore } from "@gafus/gallery-storage/objects";
 import { createGalleryInternalClient } from "./internal.js";
-import { sharpGalleryEngine } from "./sharp-engine.js";
 import { createGalleryCloudWorker } from "./worker.js";
 import { emitGalleryTelemetry } from "./telemetry.js";
 
@@ -23,7 +22,6 @@ const hasJobConfiguration = jobConfigNames.some(
 if (process.env.GALLERY_ENABLED === "false" && !hasJobConfiguration) {
   console.log("GALLERY_CLOUD_DORMANT");
 } else {
-const deadline = Date.now() + 50_000;
 const worker = createGalleryCloudWorker({
   core: createGalleryInternalClient({
     baseUrl: process.env.GALLERY_INTERNAL_BASE_URL ?? "",
@@ -36,14 +34,6 @@ const worker = createGalleryCloudWorker({
     secretAccessKey: process.env.GALLERY_S3_SECRET_ACCESS_KEY ?? "",
     cacheableFinalEnabled: process.env.GALLERY_CDN_CACHEABLE_FINAL_ENABLED === "true",
   }),
-  engine: sharpGalleryEngine,
-  enabled: process.env.GALLERY_ENABLED === "true",
-  queue: {
-    async send(uploadId) {
-      if (Date.now() + 10_000 >= deadline) throw new Error("INVOCATION_DEADLINE");
-      await worker.processUpload(uploadId, deadline);
-    },
-  },
   telemetry: emitGalleryTelemetry,
 });
 worker.maintenance().catch(() => {

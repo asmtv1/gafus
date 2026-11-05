@@ -111,7 +111,7 @@ export interface FeedMediaDto {
   fullUrl: string | null;
   posterUrl: string | null;
   /** Progressive MP4, signed along with the post instead of a playback ticket. */
-  mp4Urls?: { 360: string; 720?: string; 1080?: string } | null;
+  mp4Urls?: { 360?: string; 720?: string; 1080?: string } | null;
   urlsExpireAt: string | null;
   /** Only returned for the owner in editor/pending responses. */
   errorCode?: string | null;
@@ -550,7 +550,7 @@ export function createFeedClient(transport: FeedTransport) {
         method: "POST",
         body: {},
       }),
-    requestMediaFallback: (mediaId: string, variant: "thumb" | "full" | "poster" | "video360" | "video720" | "video1080") =>
+    requestMediaFallback: (mediaId: string, variant: "thumb" | "full" | "poster" | "video360" | "video720") =>
       transport<{ url: string; source: "cloudru"; expiresAt: string }>(`media/${encodeId(mediaId)}/fallback`, {
         method: "POST", body: { variant },
       }),

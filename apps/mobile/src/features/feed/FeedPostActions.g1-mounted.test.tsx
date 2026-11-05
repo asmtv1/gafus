@@ -96,6 +96,9 @@ vi.mock("@/shared/stores", async () => {
   };
 });
 import { useAuthStore } from "@/shared/stores";
+vi.mock("@/shared/components/gestures/SwipeDismissHandle", () => ({
+  SwipeDismissHandle: () => null,
+}));
 import { FeedPostActions, FeedReportButton } from "./FeedPostActions";
 import { reportClientError } from "@/shared/lib/tracer";
 import type { FeedPostDto } from "@gafus/types";

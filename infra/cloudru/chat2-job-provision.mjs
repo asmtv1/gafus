@@ -1,7 +1,7 @@
 /**
- * GAFUS Refactor only. FOUR dormant chat media Jobs, mirroring Feed resources.
+ * GAFUS Refactor only. TWO dormant video Jobs, matching active video-only pools.
  * --check only reads the Cloud.ru project. --create is opt-in and requires
- * DIGEST-PINNED real photo/video OCI images and verified nonproduction Core.
+ * DIGEST-PINNED real video OCI image and verified nonproduction Core.
  * Never starts execution, overwrites an existing Job or changes other Jobs.
  */
 import {readFileSync,lstatSync,realpathSync} from 'node:fs';
@@ -12,8 +12,6 @@ const PROJECT='6777bd18-4ee9-4d15-bb1b-134f7a18ed3a';
 const BUCKET='gafus-chat2-media-2026';
 const mode=process.argv[2]??'--check';
 const defs=Object.freeze([
- {name:'gafus-chat-photo',kind:'image',cpu:'1',memory:'2048Mi',timeout:240},
- {name:'gafus-chat-photo-2',kind:'image',cpu:'1',memory:'2048Mi',timeout:240},
  {name:'gafus-chat-video',kind:'video',cpu:'2',memory:'8192Mi',timeout:650},
  {name:'gafus-chat-video-2',kind:'video',cpu:'2',memory:'8192Mi',timeout:650},
 ]);
@@ -59,9 +57,9 @@ console.log(JSON.stringify({mode,projectId:PROJECT,existingJobs:jobs.length,desi
 if(mode==='--check')process.exit(0);
 if(defs.some(d=>jobs.some(job=>job.name===d.name)))
  throw Error('CHAT2_JOB_EXISTS_REFUSE_OVERWRITE_OR_PARTIAL_CREATE');
-if(process.env.GAFUS_CHAT2_JOB_CREATE_CONFIRM!=='four-dormant-refactor-chat-jobs')
+if(process.env.GAFUS_CHAT2_JOB_CREATE_CONFIRM!=='two-dormant-refactor-chat-video-jobs')
  throw Error('CHAT2_JOBS_CREATE_NOT_CONFIRMED');
-const imageFor={image:process.env.CHAT2_PHOTO_JOB_IMAGE??'',video:process.env.CHAT2_VIDEO_JOB_IMAGE??''};
+const imageFor={video:process.env.CHAT2_VIDEO_JOB_IMAGE??''};
 // Only digest-pinned images from the *separate* private Refactor registry.
 const refactorRegistry='gafus-chat2-20261028.cr.cloud.ru';
 for(const [kind,image] of Object.entries(imageFor)){

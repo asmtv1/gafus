@@ -1,4 +1,11 @@
 // @vitest-environment jsdom
+vi.mock("../../shared/media/browserPhotoWebp",()=>({
+  prepareBrowserPhotoWebp:vi.fn(async(_original:File,edges:Record<string,number>)=>
+    Object.fromEntries(Object.entries(edges).map(([name,edge])=>[
+      name,{file:new File([new Uint8Array(128)],name+".webp",{type:"image/webp"}),
+        width:edge,height:Math.round(edge*.75)},
+    ]))),
+}));
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -179,7 +186,7 @@ describe("text-only Moments create draft/revision/publish UI", () => {
       path.endsWith("/status") ? response({ enabled: true })
         : path.endsWith("/uploads") ? response({
           uploadId: "upload-1", postId: "post-1", mediaId: "media-1",
-          kind: "photo", status: "uploaded", postUrl: null,
+          kind: "photo", status: "ready", postUrl: null,
           postFields: null, urlExpiresAt: null,
         })
           : path.endsWith("/revisions") ? response(withPhoto)

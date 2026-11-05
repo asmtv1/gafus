@@ -36,6 +36,13 @@ export const adminSections = [
     roles: ["ADMIN"],
   },
   {
+    key: "video-quality",
+    title: "Качество видео",
+    path: "/main-panel/video-quality",
+    api: "/api/v1/admin/analytics/video-quality?days=30",
+    roles: ["ADMIN"],
+  },
+  {
     key: "admin",
     title: "Администрирование",
     path: "/main-panel/admin",
@@ -130,7 +137,7 @@ export const adminSections = [
 export type AdminSection = (typeof adminSections)[number];
 export type AdminRole = "USER" | "PARTNER" | "TRAINER" | "MODERATOR" | "ADMIN";
 export function matchAdminRoute(path: string): AdminSection | null {
-  if (path === "/main-panel" || path === "/main-panel/") return adminSections[5];
+  if (path === "/main-panel" || path === "/main-panel/") return adminSections.find(section => section.key === "admin") ?? null;
   const clean = path.replace(/\/+$/, "");
   const match = adminSections.find((section) => section.path === clean);
   if (match) return match;

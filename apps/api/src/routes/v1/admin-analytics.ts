@@ -3,6 +3,7 @@ import { z } from "zod/v3";
 import { readAdminActorRole } from "@gafus/core/services/adminUser";
 import { getReengagementMetrics } from "@gafus/core/services/adminReengagement";
 import { getRewardedAdsAdminDashboard } from "@gafus/core/services/adminRewardedAds";
+import { getVideoPlaybackQualityReport } from "@gafus/core/services/videoPlaybackQuality";
 import { requireRole } from "../../middleware/auth.js";
 
 export const adminAnalyticsRoutes = new Hono();
@@ -42,5 +43,21 @@ adminAnalyticsRoutes.get("/rewarded-ads", requireRole("ADMIN"), async c => {
     return c.json({ success: true, data });
   } catch {
     return c.json({ success: false, code: "REWARDED_DASHBOARD_UNAVAILABLE" }, 503);
+  }
+});
+
+
+// Privacy-minimal, aggregate-only MP4 rendition starts. ADMIN exclusively.
+adminAnalyticsRoutes.get("/video-quality", requireRole("ADMIN"), async c => {
+  const daysRaw = c.req.query("days") ?? "30";
+  const daysParsed = rewardedDays.safeParse(daysRaw);
+  if (!daysParsed.success) return c.json({ success:false, code:"INVALID_PERIOD" }, 400);
+  try {
+    if (!(await adminCurrent(c.get("user").id)))
+      return c.json({ success:false, code:"FORBIDDEN" }, 403);
+    const data = await getVideoPlaybackQualityReport(Number(daysParsed.data) as 7|30|90);
+    return c.json({ success:true, data });
+  } catch {
+    return c.json({ success:false, code:"VIDEO_QUALITY_REPORT_UNAVAILABLE" }, 503);
   }
 });

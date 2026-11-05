@@ -35,67 +35,19 @@ describe("gallery HTTP dispatch", () => {
     expect(calls[2]?.[2]).toMatchObject({ username: "gallery_qa_owner", cursor: "cursor-token", pageSize: 20 });
   });
 
-  it("wakes Cloud.ru immediately only after a confirmed upload", async () => {
-    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
-    vi.stubEnv("GALLERY_PROCESSOR_READY", "true");
-    try {
-      const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
-      const confirmUpload = vi.fn().mockResolvedValue({ uploadId, status: "uploaded" });
-      const gallery = { confirmUpload } as unknown as GalleryService;
-      const enqueue = vi.fn().mockResolvedValue(undefined);
-      const request = () => new Request(`https://x/uploads/${uploadId}/complete`, {
-        method: "POST", headers: { "content-type": "application/json" }, body: "{}",
-      });
-      await expect(dispatchGalleryRequest("actor", request(), `/uploads/${uploadId}/complete`, gallery, enqueue))
-        .resolves.toMatchObject({ status: "uploaded" });
-      expect(enqueue).toHaveBeenCalledExactlyOnceWith(uploadId);
-      expect(confirmUpload).toHaveBeenCalledExactlyOnceWith("actor", uploadId);
-
-      confirmUpload.mockResolvedValueOnce({ uploadId, status: "ready" });
-      await dispatchGalleryRequest("actor", request(), `/uploads/${uploadId}/complete`, gallery, enqueue);
-      expect(enqueue).toHaveBeenCalledTimes(1);
-
-      confirmUpload.mockRejectedValueOnce(new Error("failed before commit"));
-      await expect(dispatchGalleryRequest("actor", request(), `/uploads/${uploadId}/complete`, gallery, enqueue))
-        .rejects.toThrow("failed before commit");
-      expect(enqueue).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
-
-  it("preserves committed uploads when the immediate Redis enqueue fails", async () => {
-    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
-    vi.stubEnv("GALLERY_PROCESSOR_READY", "true");
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
-      const gallery = { confirmUpload: vi.fn().mockResolvedValue({ uploadId, status: "uploaded" }) } as unknown as GalleryService;
-      const enqueue = vi.fn().mockRejectedValue(new Error("Redis offline"));
-      const response = await dispatchGalleryRequest("actor", new Request(`https://x/uploads/${uploadId}/complete`, {
-        method: "POST", headers: { "content-type": "application/json" }, body: "{}",
-      }), `/uploads/${uploadId}/complete`, gallery, enqueue);
-      expect(response).toMatchObject({ status: "uploaded" });
-      expect(warning).toHaveBeenCalledWith("GALLERY_IMMEDIATE_TRIGGER_DEFERRED_TO_RECOVERY");
-    } finally {
-      warning.mockRestore();
-      vi.unstubAllEnvs();
-    }
-  });
-
-  it("does not enqueue on disabled Cloud.ru processing", async () => {
-    vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "false");
-    try {
-      const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
-      const gallery = { confirmUpload: vi.fn().mockResolvedValue({ uploadId, status: "uploaded" }) } as unknown as GalleryService;
-      const enqueue = vi.fn();
-      await dispatchGalleryRequest("actor", new Request(`https://x/uploads/${uploadId}/complete`, {
-        method: "POST", headers: { "content-type": "application/json" }, body: "{}",
-      }), `/uploads/${uploadId}/complete`, gallery, enqueue);
-      expect(enqueue).not.toHaveBeenCalled();
-    } finally {
-      vi.unstubAllEnvs();
-    }
+  it("rejects legacy photo upload /complete and accepts client-complete only",async()=>{
+    const id="8dc418f6-97da-42be-ab73-b3c172c95ccd";
+    const {gallery,calls}=fakeGallery();
+    const request=(route:string)=>new Request(`https://x/uploads/${id}/${route}`,{
+      method:"POST",headers:{"content-type":"application/json"},body:"{}",
+    });
+    await expect(dispatchGalleryRequest("actor",request("complete"),
+      `/uploads/${id}/complete`,gallery)).rejects.toMatchObject({status:405});
+    expect(calls).toHaveLength(0);
+    await expect(dispatchGalleryRequest("actor",request("client-complete"),
+      `/uploads/${id}/client-complete`,gallery))
+      .resolves.toMatchObject({called:"confirmClientUpload"});
+    expect(calls[0]).toEqual(["confirmClientUpload","actor",id]);
   });
 
   it("does not expose Cloud.ru URL or authorize arbitrary paths when fallback disabled", async () => {
@@ -127,22 +79,22 @@ describe("gallery HTTP dispatch", () => {
 
   it("rejects unsupported or oversized mutation bodies before calling core, including body-ignoring commands", async () => {
     const { gallery, calls } = fakeGallery();
-    const multipart = await dispatchGalleryRequest("actor", new Request("https://x/uploads/u1/complete", {
+    const multipart = await dispatchGalleryRequest("actor", new Request("https://x/uploads/u1/client-complete", {
       method: "POST", headers: { "content-type": "multipart/form-data; boundary=x" }, body: "--x--",
-    }), "/uploads/u1/complete", gallery).catch(galleryHttpError);
+    }), "/uploads/u1/client-complete", gallery).catch(galleryHttpError);
     expect(multipart.status).toBe(415);
     expect(multipart.body.code).toBe("UNSUPPORTED_MEDIA_TYPE");
     expect(calls).toHaveLength(0);
 
-    const oversized = await dispatchGalleryRequest("actor", new Request("https://x/uploads/u1/complete", {
+    const oversized = await dispatchGalleryRequest("actor", new Request("https://x/uploads/u1/client-complete", {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ value: "x".repeat(16_385) }),
-    }), "/uploads/u1/complete", gallery).catch(galleryHttpError);
+    }), "/uploads/u1/client-complete", gallery).catch(galleryHttpError);
     expect(oversized.status).toBe(413);
     expect(calls).toHaveLength(0);
 
-    const unknownCommandParam = await dispatchGalleryRequest("actor", new Request("https://x/uploads/u1/complete", {
+    const unknownCommandParam = await dispatchGalleryRequest("actor", new Request("https://x/uploads/u1/client-complete", {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ unexpected: true }),
-    }), "/uploads/u1/complete", gallery).catch(galleryHttpError);
+    }), "/uploads/u1/client-complete", gallery).catch(galleryHttpError);
     expect(unknownCommandParam.status).toBe(400);
     expect(calls).toHaveLength(0);
   });

@@ -7,6 +7,7 @@ import { COLORS, FONTS } from "@/shared/config";
 import { galleryApi } from "@/shared/lib/api/gallery";
 import { galleryError, galleryKeys, requestId, useAlbums, useGalleryContext } from "./data";
 import { UploadControls } from "./uploads";
+import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";
 
 type Mode = "actions" | "caption" | "albums" | "retry";
 
@@ -82,16 +83,19 @@ export function PhotoActionsMenu({ photo, album, onDismiss }: {
     >
       {mode === "actions" ? (
         <>
-          <Menu.Item leadingIcon="pencil-outline" title="Изменить подпись" disabled={busy}
+          <SwipeDismissHandle close={onDismiss} disabled={busy} />
+          <Menu.Item leadingIcon="pencil-outline" title="Изменить подпись" titleStyle={styles.actionText} disabled={busy}
             onPress={() => openMode("caption")} />
           {photo.status === "ready" ? (
             <>
               <Menu.Item leadingIcon="image-edit-outline"
                 title={album.coverPhotoId === photo.id ? "Убрать обложку" : "Сделать обложкой"}
+                titleStyle={styles.actionText}
                 disabled={busy}
                 onPress={() => void execute(() =>
                   galleryApi.setCover(album.id, { photoId: album.coverPhotoId === photo.id ? null : photo.id }))} />
               <Menu.Item leadingIcon="folder-move-outline" title="Переместить в альбом"
+                titleStyle={styles.actionText}
                 disabled={busy} onPress={() => openMode("albums")} />
             </>
           ) : (
@@ -101,6 +105,7 @@ export function PhotoActionsMenu({ photo, album, onDismiss }: {
               </Text>
               {photo.uploadId && (photo.status === "failed" || photo.status === "pending") ? (
                 <Menu.Item leadingIcon="refresh" title="Выбрать файл заново"
+                  titleStyle={styles.actionText}
                   disabled={busy} onPress={() => openMode("retry")} />
               ) : null}
             </>
@@ -214,6 +219,7 @@ const styles = StyleSheet.create({
   albumScroll: { maxHeight: 210 },
   albumRow: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 5 },
   albumName: { flex: 1, color: COLORS.text, fontFamily: FONTS.montserrat, fontSize: 13 },
+  actionText: { color: "#000000" },
   deleteText: { color: "#A83C24" },
   errorText: { color: "#922D38", fontFamily: FONTS.montserrat, fontSize: 12, padding: 10 },
   busy: { padding: 10 },

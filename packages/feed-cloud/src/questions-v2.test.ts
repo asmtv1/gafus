@@ -23,10 +23,15 @@ describe("Questions image-only V2 contract", () => {
     expect(()=>questionsV2CheckSource("video/mp4",500)).toThrow();
     expect(()=>questionsV2CheckSource("image/png",10*1024*1024+1)).toThrow();
   });
-  it("preserves real portrait width and height, never allows a width over 720",()=>{
-    expect(()=>questionsV2ValidateManifest(job,{kind:"image",variants:{small,medium}})).not.toThrow();
+  it("accepts 1440 px main photo in landscape or portrait, rejects 1441 px",()=>{
+    const landscape={...medium,width:1440,height:900};
+    const portrait={...medium,width:900,height:1440};
+    expect(()=>questionsV2ValidateManifest(job,{kind:"image",variants:{small,medium:landscape}})).not.toThrow();
+    expect(()=>questionsV2ValidateManifest(job,{kind:"image",variants:{small,medium:portrait}})).not.toThrow();
     expect(()=>questionsV2ValidateManifest(job,{kind:"image",variants:{
-      small,medium:{...medium,width:721}}})).toThrow();
+      small,medium:{...landscape,width:1441}}})).toThrow("QUESTIONS_V2_INVALID_MANIFEST");
+    expect(()=>questionsV2ValidateManifest(job,{kind:"image",variants:{
+      small,medium:{...portrait,height:1441}}})).toThrow("QUESTIONS_V2_INVALID_MANIFEST");
   });
   it("uses the small rendition for tiny photos but denies forged key aliases",()=>{
     const tiny={key:keys.small,width:180,height:280,bytes:130};

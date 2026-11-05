@@ -1,6 +1,6 @@
 {
   "name": "@gafus/web-vite",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,23 +14,24 @@
     "test:visual:update": "node ../../scripts/refactor/run-visual-regression.mjs --update"
   },
   "dependencies": {
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.0",
+    "@gafus/cdn-upload": "workspace:*",
     "@gafus/chat-media-quality": "workspace:*",
+    "@gafus/consultation-shared": "workspace:*",
+    "@gafus/core-client": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "@gafus/ui-components": "workspace:*",
+    "@mui/icons-material": "7.1.0",
+    "@mui/material": "7.1.0",
     "@tanstack/react-query": "5.90.20",
     "centrifuge": "5.8.0",
     "hls.js": "1.6.15",
+    "mediabunny": "1.62.1",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "react-markdown": "10.1.0",
-    "remark-gfm": "4.0.1",
-    "@mui/icons-material": "7.1.0",
-    "@mui/material": "7.1.0",
-    "@emotion/react": "11.14.0",
-    "@emotion/styled": "11.14.0",
-    "@gafus/types": "workspace:*",
-    "@gafus/cdn-upload": "workspace:*",
-    "@gafus/consultation-shared": "workspace:*",
-    "@gafus/core-client": "workspace:*",
-    "@gafus/ui-components": "workspace:*"
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
     "@gafus/core": "workspace:*",

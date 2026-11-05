@@ -12,7 +12,7 @@ const files=readdirSync(dir).filter(x=>x.endsWith('.yml')).sort();
 test('primary workflows, independent Beget audit/backup and internal workflows',()=>{
  assert.deepEqual(files,[
   'beget-provider-audit.yml','build-single-container.yml','ci-cd.yml','cloudru-media-images.yml',
-  'daily-backup.yml','deploy-only.yml','gallery-worker-publish.yml','infrastructure-jobs.yml',
+  'daily-backup.yml','deploy-only.yml','infrastructure-jobs.yml',
   'production-deploy-reusable.yml','production-job-release-reusable.yml'
  ]);
  const primary=['build-single-container','ci-cd','deploy-only','infrastructure-jobs'];
@@ -21,8 +21,6 @@ test('primary workflows, independent Beget audit/backup and internal workflows',
   assert(parse(name).on.workflow_call,name);
   assert.equal(parse(name).on.workflow_dispatch,undefined,name+' must not expose direct manual launch');
  }
- assert(parse('gallery-worker-publish').on.workflow_dispatch);
- assert.equal(parse('gallery-worker-publish').on.push,undefined);
  assert(parse('beget-provider-audit').on.schedule?.length);
  assert(Object.hasOwn(parse('beget-provider-audit').on,'workflow_dispatch'));
  assert(parse('daily-backup').on.schedule?.length);
@@ -125,7 +123,7 @@ test('Cloud.ru updates require explicit confirmation and cannot delete S3/Jobs',
  assert.deepEqual(infra.on.workflow_dispatch.inputs.operation.options,
   ['plan','preflight','apply-existing-jobs','verify','publish-media-images','beget-readonly-diagnostic',
    'beget-gallery-create','beget-gallery-configure','beget-gallery-canary']);
- assert(infra.jobs.guard.steps[0].run.includes('UPDATE_11_EXISTING_JOBS'));
+ assert(infra.jobs.guard.steps[0].run.includes('UPDATE_4_ACTIVE_VIDEO_JOBS'));
  assert(infra.jobs['publish-guard'].steps[0].run.includes('PUBLISH_MEDIA_IMAGES'));
  assert.equal(infra.jobs['apply-existing-jobs'].needs,'preflight');
  assert.equal(infra.jobs['publish-media-images'].needs,'publish-guard');

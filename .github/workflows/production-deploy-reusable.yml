@@ -41,6 +41,12 @@ jobs:
           COMPOSE_PROFILES: chat2
           CHAT2_CENTRIFUGO_TOKEN_SECRET: ${{ secrets.CHAT2_CENTRIFUGO_TOKEN_SECRET }}
           CHAT2_CENTRIFUGO_API_KEY: ${{ secrets.CHAT2_CENTRIFUGO_API_KEY }}
+          CHAT2_SUBSCRIBE_PROXY_ENABLED: 'true'
+          CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET: ${{ secrets.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET }}
+          CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: ${{ secrets.CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET }}
+          CHAT2_MOBILE_STORES_VERIFIED: ${{ vars.CHAT2_MOBILE_STORES_VERIFIED }}
+          CHAT2_MOBILE_IOS_MIN_VERSION: ${{ vars.CHAT2_MOBILE_IOS_MIN_VERSION }}
+          CHAT2_MOBILE_ANDROID_MIN_VERSION: ${{ vars.CHAT2_MOBILE_ANDROID_MIN_VERSION }}
         run: node scripts/refactor/check-chat2-prod-boundary.mjs --candidate
       - name: Gallery protected S3 redirect gate (read-only, no provider writes)
         env:
@@ -424,7 +430,7 @@ jobs:
               echo "NEXTAUTH_URL=https://gafus.ru"
               echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
               echo "NEXT_PUBLIC_TRACER_APP_TOKEN=${{ secrets.NEXT_PUBLIC_TRACER_APP_TOKEN }}"
-              echo "NEXT_PUBLIC_APP_VERSION=1.7.2"
+              echo "NEXT_PUBLIC_APP_VERSION=1.7.3"
               echo "NEXT_PUBLIC_ENABLE_TRACER=true"
               echo "WEB_APP_URL=${{ vars.WEB_APP_URL || 'https://gafus.ru' }}"
               echo ""
@@ -471,7 +477,6 @@ jobs:
               echo "GALLERY_CDN_PROVIDER=beget"
               echo "GALLERY_CDN_BASE_URL=https://fupiquafifeswu.begetcdn.cloud"
               echo "GALLERY_CDN_EDGE_TOKEN_VERIFIED=true"
-              echo "GALLERY_PROCESSOR_READY=true"
               echo "GALLERY_MEDIA_FALLBACK_ENABLED=true"
               # Old Yandex resource IDs are not active delivery or purge targets.
               # Any historical erasure is separately gated by legacy verification.
@@ -496,7 +501,6 @@ jobs:
               # Initial startup is Hono V2 without Cloud dispatch. Switch existing
               # jobs AFTER API is healthy; activation is a separate protected step.
               echo "CLOUDRU_MEDIA_JOBS_ENABLED=false"
-              echo "GALLERY_PROCESSOR_SECOND_READY=false"
               echo "FEED_CLOUDRU_REFRACTOR_VERIFIED=false"
               # All V2 handlers are enabled only by post-Cloud.ru-cutover stage.
               echo "CHAT2_V2_CORE_ENABLED=false"
@@ -517,9 +521,7 @@ jobs:
               # Prepare ONLY; independent release gates must explicitly flip all
               # Questions V2 flags after deployed API and Cloud Job HMAC match.
               echo "QUESTIONS_V2_MEDIA_ENABLED=false"
-              echo "QUESTIONS_V2_PROCESSOR_READY=false"
               echo "QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED=false"
-              echo "QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED=false"
               echo "QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED=false"
               echo "QUESTIONS_V2_INTERNAL_BASE_URL=https://api.gafus.ru/"
               echo "QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME=api.gafus.ru"
@@ -675,6 +677,12 @@ jobs:
               echo "CHAT2_CENTRIFUGO_HTTP_API=http://chat2-centrifugo:8000/api/publish"
               echo "CHAT2_CENTRIFUGO_TOKEN_SECRET=${{ secrets.CHAT2_CENTRIFUGO_TOKEN_SECRET }}"
               echo "CHAT2_CENTRIFUGO_API_KEY=${{ secrets.CHAT2_CENTRIFUGO_API_KEY }}"
+              echo "CHAT2_SUBSCRIBE_PROXY_ENABLED=true"
+              echo "CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET=${{ secrets.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET }}"
+              echo "CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET=${{ secrets.CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET }}"
+              echo "CHAT2_MOBILE_STORES_VERIFIED=${{ vars.CHAT2_MOBILE_STORES_VERIFIED }}"
+              echo "CHAT2_MOBILE_IOS_MIN_VERSION=${{ vars.CHAT2_MOBILE_IOS_MIN_VERSION }}"
+              echo "CHAT2_MOBILE_ANDROID_MIN_VERSION=${{ vars.CHAT2_MOBILE_ANDROID_MIN_VERSION }}"
             } > ci-cd/docker/.env
           DEPLOY_SCRIPT_3: |2+
 
@@ -729,12 +737,9 @@ jobs:
                     raise SystemExit('APP_ONLY_CDN_CONFIGURATION_NOT_PRESERVED_'+scope)
             activated = {
                 'CLOUDRU_MEDIA_JOBS_ENABLED':'true',
-                'GALLERY_PROCESSOR_SECOND_READY':'true',
                 'FEED_CLOUDRU_REFRACTOR_VERIFIED':'true',
                 'QUESTIONS_V2_MEDIA_ENABLED':'true',
-                'QUESTIONS_V2_PROCESSOR_READY':'true',
                 'QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED':'true',
-                'QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED':'true',
                 'QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED':'true',
                 'CHAT2_V2_CORE_ENABLED':'true',
                 'CHAT2_V2_MEDIA_ENABLED':'true',

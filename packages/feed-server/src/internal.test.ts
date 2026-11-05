@@ -11,20 +11,34 @@ function setup() {
   const deps = { key, nonces: { consume: vi.fn(async (id: string) => {
     if (seen.has(id)) return false; seen.add(id); return true;
   }) }, jobs: { renew: vi.fn(async () => ({ accepted: true })), claim: vi.fn(async () => []), complete: vi.fn(async () => ({ accepted: true })),
-    fail: vi.fn(async () => ({ accepted: true })) }, maintenance: { run: vi.fn(async () => ({ expired: 1, deleted: 0, orphaned: 0 })) } };
+    fail: vi.fn(async () => ({ accepted: true })) }, maintenance: { run: vi.fn(async () => ({ expired: 1, deleted: 0, orphaned: 0, retiredPhotos: 0 })) } };
   return { deps, dispatch: createFeedInternalDispatcher(deps) };
 }
-function request(route = path, body = '{"batchSize":2}', extra: Record<string, string> = {}) {
+function request(route = path,
+  body = route === path ? '{"batchSize":2,"workerType":"video"}' : '{"batchSize":2}',
+  extra: Record<string, string> = {}) {
   return new Request(`https://api.test${route}`, { method: "POST", body, headers: {
     "content-type": "application/json", ...signFeedRequest({ path: route as typeof path, body, key }), ...extra,
   } });
 }
 beforeEach(() => vi.unstubAllEnvs());
 describe("feed internal dispatch", () => {
+  it("rejects retired Cloud photo worker claims at internal HMAC boundary",async()=>{
+    const {deps,dispatch}=setup();
+    const body=JSON.stringify({batchSize:1,workerType:"photo"});
+    await expect(dispatch(request(path,body),path)).rejects.toMatchObject({status:400});
+    expect(deps.jobs.claim).not.toHaveBeenCalled();
+    const missingWorker=JSON.stringify({batchSize:1});
+    await expect(dispatch(request(path,missingWorker),path)).rejects.toMatchObject({status:400});
+    expect(deps.jobs.claim).not.toHaveBeenCalled();
+    const videoBody=JSON.stringify({batchSize:1,workerType:"video"});
+    await expect(dispatch(request(path,videoBody),path)).resolves.toEqual([]);
+    expect(deps.jobs.claim).toHaveBeenCalledExactlyOnceWith(1,"video");
+  });
   it("dispatches leased jobs without a public envelope", async () => {
     const { deps, dispatch } = setup();
     expect(await dispatch(request(), path)).toEqual([]);
-    expect(deps.jobs.claim).toHaveBeenCalledWith(2);
+    expect(deps.jobs.claim).toHaveBeenCalledWith(2,"video");
   });
   it("accepts only one of concurrent identical signed requests", async () => {
     const { deps, dispatch } = setup(); const req = request();
@@ -96,7 +110,7 @@ describe("feed internal dispatch", () => {
   it("allows maintenance with feature flags disabled", async () => {
     vi.stubEnv("FEED_ENABLED", "false"); vi.stubEnv("FEED_PROCESSOR_READY", "false");
     const { deps, dispatch } = setup(); const route = "/internal/feed/maintenance";
-    expect(await dispatch(request(route), route)).toEqual({ expired: 1, deleted: 0, orphaned: 0 });
+    expect(await dispatch(request(route), route)).toEqual({ expired: 1, deleted: 0, orphaned: 0, retiredPhotos: 0 });
     expect(deps.maintenance.run).toHaveBeenCalledWith(2);
   });
 });

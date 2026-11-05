@@ -37,12 +37,12 @@ describe("one canonical Moments media URL signing", () => {
     expect(result.fullUrl).toBeNull();
     expect(sign).toHaveBeenCalledOnce();
   });
-  it("signs only progressive MP4 360/720/1080 with WebP poster", async () => {
+  it("signs only progressive MP4 360/720 with WebP poster", async () => {
     sign.mockClear();
     const result = await signFeedMediaUrls({ ...photo, kind: "video",
       posterKey: prefix + "poster.webp",
       mp4Keys: [prefix + "video/360.mp4", prefix + "video/720.mp4",
-        prefix + "hls/playlist.m3u8", "media/v2/other/v1/video/1080.mp4"] }, sign);
+        prefix + "hls/playlist.m3u8", prefix + "video/1080.mp4", "media/v2/other/v1/video/1080.mp4"] }, sign);
     expect(result.mp4Urls).toEqual({
       360: `https://local-cdn.test/${prefix}video/360.mp4`,
       720: `https://local-cdn.test/${prefix}video/720.mp4`,
@@ -50,11 +50,18 @@ describe("one canonical Moments media URL signing", () => {
     expect(result.posterUrl).toContain("poster.webp");
     expect(sign).toHaveBeenCalledTimes(3);
   });
-  it("does not expose MP4 higher renditions if 360p or poster are absent", async () => {
+  it("delivers playable 720p immediately, even before the Cloud.ru 360p poster job", async () => {
     sign.mockClear();
     const result = await signFeedMediaUrls({ ...photo, kind: "video",
       posterKey: prefix + "poster.webp", mp4Keys: [prefix + "video/720.mp4"] }, sign);
-    expect(result.mp4Urls).toBeNull();
-    expect(result.posterUrl).toBeNull();
+    expect(result.mp4Urls).toEqual({720:`https://local-cdn.test/${prefix}video/720.mp4`});
+    expect(result.posterUrl).toBe(`https://local-cdn.test/${prefix}poster.webp`);
+    sign.mockClear();
+    const noPoster = await signFeedMediaUrls({ ...photo, kind:"video",
+      posterKey:null, mp4Keys:[prefix + "video/720.mp4"] }, sign);
+    expect(noPoster.mp4Urls).toEqual({
+      720:`https://local-cdn.test/${prefix}video/720.mp4`,
+    });
+    expect(noPoster.posterUrl).toBeNull();
   });
 });

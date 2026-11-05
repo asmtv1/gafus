@@ -1,155 +1,112 @@
 import { afterEach,describe,expect,it,vi } from "vitest";
-import { createHash,createHmac } from "node:crypto";
+import { createHash,createHmac,randomUUID } from "node:crypto";
+import { questionsV2CleanupKeys } from "@gafus/cdn-upload";
 import { createQuestionsPhotoRecoveryTick, questionsPhotoCleanupInternal } from "./questions-photo-recovery";
 
 afterEach(()=>vi.unstubAllGlobals());
-function recovery(count:number,active=0){
-  const cleanup=vi.fn(async()=>({cleaned:false}));
-  const dispatch=vi.fn(async()=>({dispatched:1}));
-  const database={questionV2MediaTask:{count:vi.fn(async(args:{where:{status?:string}})=>
-    args.where.status==="PROCESSING"?active:count)}};
-  const tick=createQuestionsPhotoRecoveryTick({
-    database:database as never,
-    dispatch:dispatch as never,cleanup,
-    now:()=>new Date("2026-10-28T12:00:00.000Z"),
+const mediaId=randomUUID(),cleanupToken=randomUUID(),ownerId="owner_1";
+const secret="isolated-questions-secret-longer-than-32-bytes";
+const base="/internal/questions/media/jobs/";
+const valid={mediaId,cleanupToken,ownerId,
+  sourceKey:`questions/v2/${ownerId}/${mediaId}/incoming/source.webp`,
+  sourceMime:"image/webp",cleanupKind:"SOURCE" as const,
+  cleanupLeaseUntil:new Date(Date.now()+150_000).toISOString(),
+};
+function setup(job:Record<string,unknown>|null=valid,overrides?:Record<string,string>){
+  const env={...process.env,QUESTIONS_V2_MEDIA_ENABLED:"true",
+    QUESTIONS_V2_INTERNAL_BASE_URL:"http://127.0.0.1:3001/",
+    QUESTIONS_V2_INTERNAL_HMAC_SECRET:secret,GAFUS_LOCAL_ISOLATED_API:"1",
+    NODE_ENV:"test",...overrides};
+  const visited:string[]=[];
+  const http=vi.fn(async(url:string,options:RequestInit)=>{
+    const route=url.split("/internal/questions/media/jobs/")[1];
+    expect(url).toBe("http://127.0.0.1:3001"+base+route);
+    expect(options.redirect).toBe("error");
+    const headers=options.headers as Record<string,string>;
+    const hash=createHash("sha256").update(String(options.body)).digest("hex");
+    const signature=createHmac("sha256",secret).update([
+      "POST",base+route,headers["x-questions-timestamp"],
+      headers["x-questions-nonce"],hash,
+    ].join("\n")).digest("hex");
+    expect(headers["x-questions-signature"]).toBe(signature);
+    visited.push(route!);
+    if(route==="claim")return new Response(JSON.stringify({job}),{status:200});
+    if(route==="complete"||route==="fail")return new Response(JSON.stringify({accepted:true}),{status:200});
+    throw Error("UNEXPECTED_ROUTE");
   });
-  return {tick,cleanup,dispatch,database};
+  const deleteObjects=vi.fn(async(_keys:readonly string[])=>undefined);
+  return {env,http,deleteObjects,visited};
 }
-describe("Questions-only durable PostgreSQL recovery",()=>{
-  it("cleans orphaned storage without launching empty Cloud Jobs",async()=>{
-    const t=recovery(0);
-    await expect(t.tick()).resolves.toEqual({dispatched:0});
-    expect(t.cleanup).toHaveBeenCalledOnce();
-    expect(t.dispatch).not.toHaveBeenCalled();
+describe("Questions photo physical S3 DELETE exclusively in existing Worker",()=>{
+ it("does not call S3 if no cleanup lease was issued",async()=>{
+  const s=setup(null);
+  await expect(questionsPhotoCleanupInternal(s)).resolves.toEqual({cleaned:false});
+  expect(s.visited).toEqual(["claim"]);
+  expect(s.deleteObjects).not.toHaveBeenCalled();
+ });
+ it("deletes exact SOURCE + small WebP keys, then acknowledges PG lease",async()=>{
+  const s=setup();
+  await expect(questionsPhotoCleanupInternal(s)).resolves.toEqual({cleaned:true});
+  expect(s.deleteObjects).toHaveBeenCalledExactlyOnceWith(questionsV2CleanupKeys(valid));
+  expect(s.visited).toEqual(["claim","complete"]);
+  const finished=JSON.parse(String(s.http.mock.calls[1]?.[1].body));
+  expect(finished).toEqual({mediaId,cleanupToken,cleanupKind:"SOURCE"});
+  expect(s.visited).not.toContain("cleanup");
+ });
+ it("deletes all four exact keys on FAILED/EXPIRED, not an S3 prefix",async()=>{
+  const job={...valid,cleanupKind:"ALL" as const};
+  const s=setup(job);
+  await expect(questionsPhotoCleanupInternal(s)).resolves.toEqual({cleaned:true});
+  expect(s.deleteObjects).toHaveBeenCalledWith(questionsV2CleanupKeys(job));
+  expect(questionsV2CleanupKeys(job)).toHaveLength(4);
+ });
+ it("rejects a forged owner/path and never touches S3 or acknowledges cleanup",async()=>{
+  const s=setup({...valid,sourceKey:`questions/v2/another/${mediaId}/incoming/source.webp`});
+  await expect(questionsPhotoCleanupInternal(s)).rejects.toThrow("UNTRUSTED_CLEANUP_SOURCE");
+  expect(s.visited).toEqual(["claim"]);
+  expect(s.deleteObjects).not.toHaveBeenCalled();
+ });
+ it("rejects arbitrary extra keys even when claim has a valid HMAC transport",async()=>{
+  const s=setup({...valid,keys:["untrusted/other/file.webp"]});
+  await expect(questionsPhotoCleanupInternal(s)).rejects.toThrow("UNTRUSTED_CLAIM");
+  expect(s.deleteObjects).not.toHaveBeenCalled();
+ });
+ it("on failed DELETE calls fail receipt and NEVER complete",async()=>{
+  const s=setup();s.deleteObjects.mockRejectedValueOnce(Error("S3 503"));
+  await expect(questionsPhotoCleanupInternal(s)).rejects.toThrow("DELETE_RETRY");
+  expect(s.visited).toEqual(["claim","fail"]);
+ });
+ it("on lost completion ACK does not claim success or send fail after S3 success",async()=>{
+  const s=setup();
+  const original=s.http.getMockImplementation()!;
+  s.http.mockImplementation(async(url:string,options:RequestInit)=>{
+    if(url.endsWith("/complete"))return new Response(JSON.stringify({accepted:false}),{status:200});
+    return original(url,options);
   });
-  it("launches at most two jobs for durable due images, not fixed empty jobs",async()=>{
-    const t=recovery(6);
-    await expect(t.tick()).resolves.toEqual({dispatched:2});
-    expect(t.dispatch).toHaveBeenCalledTimes(2);
-    expect(t.database.questionV2MediaTask.count).toHaveBeenCalledWith({
-      where:{attempts:{lt:4},OR:[
-        {status:"QUEUED",nextAttemptAt:{lte:new Date("2026-10-28T12:00:00.000Z")}},
-        {status:"PROCESSING",leaseUntil:{lt:new Date("2026-10-28T12:00:00.000Z")}},
-      ]},
-    });
-  });
-  it("does not launch when both PG photo leases are occupied",async()=>{
-    const t=recovery(5,2);
-    await expect(t.tick()).resolves.toEqual({dispatched:0});
-    expect(t.dispatch).not.toHaveBeenCalled();
-  });
-  it("does not strand queued uploads when independent cleanup is unavailable",async()=>{
-    const t=recovery(1);
-    t.cleanup.mockRejectedValueOnce(new Error("QUESTIONS_V2_RECOVERY_HTTP_503"));
-    await expect(t.tick()).resolves.toEqual({dispatched:1});
-    expect(t.dispatch).toHaveBeenCalledOnce();
-  });
-  it("launches only one when one of two leases is occupied",async()=>{
-    const t=recovery(5,1);
-    await expect(t.tick()).resolves.toEqual({dispatched:1});
-    expect(t.dispatch).toHaveBeenCalledOnce();
-  });
-  it("does not hide a Cloud launch failure, so next cron retries from PostgreSQL",async()=>{
-    const t=recovery(1);
-    t.dispatch.mockRejectedValueOnce(new Error("CLOUD_UNAVAILABLE"));
-    await expect(t.tick()).rejects.toThrow("CLOUD_UNAVAILABLE");
-    await expect(t.tick()).resolves.toEqual({dispatched:1});
-    expect(t.cleanup).toHaveBeenCalledTimes(2);
-  });
+  await expect(questionsPhotoCleanupInternal(s)).rejects.toThrow("COMPLETION_UNACKNOWLEDGED");
+  expect(s.deleteObjects).toHaveBeenCalledOnce();
+  expect(s.visited).toEqual(["claim"]);
+ });
+ it("blocks production origin lookalikes before a claim or S3 DELETE",async()=>{
+  const s=setup(valid,{GAFUS_LOCAL_ISOLATED_API:"0",NODE_ENV:"production",
+    QUESTIONS_V2_INTERNAL_BASE_URL:"https://evil.gafus.ru/",
+    QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED:"true",
+    QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME:"evil.gafus.ru"});
+  await expect(questionsPhotoCleanupInternal(s)).rejects.toThrow("UNSAFE_ORIGIN");
+  expect(s.http).not.toHaveBeenCalled();
+  expect(s.deleteObjects).not.toHaveBeenCalled();
+ });
 });
-describe("Questions-only recovery cleanup signature",()=>{
-  it("rejects verified-looking production app subdomains before network access",async()=>{
-    const names=["QUESTIONS_V2_INTERNAL_BASE_URL","QUESTIONS_V2_INTERNAL_HMAC_SECRET",
-      "QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED","QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME"] as const;
-    const initial=Object.fromEntries(names.map(name=>[name,process.env[name]]));
-    const request=vi.fn();
-    vi.stubGlobal("fetch",request);
-    try{
-      process.env.QUESTIONS_V2_INTERNAL_HMAC_SECRET="isolated-questions-secret-longer-than-32-bytes";
-      process.env.QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED="true";
-      for(const domain of ["dev-questions.gafus.app","dev-questions.gafus.ru",
-        "api.gafus.app","api.gafus.ru"]){
-        process.env.QUESTIONS_V2_INTERNAL_BASE_URL="https://"+domain+"/";
-        process.env.QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME=domain;
-        await expect(questionsPhotoCleanupInternal()).rejects.toThrow("UNSAFE_ORIGIN");
-      }
-      expect(request).not.toHaveBeenCalled();
-    }finally{
-      for(const name of names){
-        if(initial[name]===undefined)delete process.env[name];
-        else process.env[name]=initial[name];
-      }
-    }
-  });
-  it("allows only exact production HMAC API when production flags and host match",async()=>{
-    const keys=["NODE_ENV","GAFUS_LOCAL_ISOLATED_API","QUESTIONS_V2_INTERNAL_BASE_URL",
-      "QUESTIONS_V2_INTERNAL_HMAC_SECRET","QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED",
-      "QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME"] as const;
-    const original=Object.fromEntries(keys.map(key=>[key,process.env[key]]));
-    const request=vi.fn(async(_url:string,_init:RequestInit)=>
-      new Response(JSON.stringify({cleaned:false}),{status:200}));
-    vi.stubGlobal("fetch",request);
-    try{
-      process.env.NODE_ENV="production";
-      delete process.env.GAFUS_LOCAL_ISOLATED_API;
-      process.env.QUESTIONS_V2_INTERNAL_BASE_URL="https://api.gafus.ru/";
-      process.env.QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME="api.gafus.ru";
-      process.env.QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED="true";
-      process.env.QUESTIONS_V2_INTERNAL_HMAC_SECRET="production-only-synthetic-hmac-with-32-plus-bytes";
-      await expect(questionsPhotoCleanupInternal()).resolves.toBeUndefined();
-      expect(request).toHaveBeenCalledOnce();
-      expect(request.mock.calls[0]?.[0]).toBe("http://api:3001/internal/questions/media/jobs/cleanup");
-      expect(request.mock.calls[0]?.[1]).toMatchObject({method:"POST",redirect:"error"});
-      request.mockClear();
-      for(const invalid of ["https://admin.gafus.ru/","https://api.gafus.app/",
-        "http://api.gafus.ru/","https://api.gafus.ru:444/",
-        "https://api.gafus.ru/other/","https://api.gafus.ru/?debug=1"]){
-        process.env.QUESTIONS_V2_INTERNAL_BASE_URL=invalid;
-        await expect(questionsPhotoCleanupInternal()).rejects.toThrow("UNSAFE_ORIGIN");
-      }
-      expect(request).not.toHaveBeenCalled();
-      process.env.QUESTIONS_V2_INTERNAL_BASE_URL="https://api.gafus.ru/";
-      process.env.GAFUS_LOCAL_ISOLATED_API="1";
-      await expect(questionsPhotoCleanupInternal()).rejects.toThrow("UNSAFE_ORIGIN");
-      delete process.env.GAFUS_LOCAL_ISOLATED_API;
-      process.env.QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED="false";
-      await expect(questionsPhotoCleanupInternal()).rejects.toThrow("UNSAFE_ORIGIN");
-    }finally{
-      for(const key of keys){
-        if(original[key]===undefined)delete process.env[key];
-        else process.env[key]=original[key];
-      }
-    }
-  });
-  it("uses the exact HMAC verifier contract without sending S3 keys",async()=>{
-    const initial={...process.env};
-    const secret="local-only-test-secret-length-over-32";
-    process.env.QUESTIONS_V2_INTERNAL_BASE_URL="http://127.0.0.1:3001/";
-    process.env.QUESTIONS_V2_INTERNAL_HMAC_SECRET=secret;
-    process.env.GAFUS_LOCAL_ISOLATED_API="1";
-    const request=vi.fn(async(url:string,opts:RequestInit)=>{
-      expect(url).toBe("http://127.0.0.1:3001/internal/questions/media/jobs/cleanup");
-      const body=String(opts.body);
-      expect(JSON.parse(body)).toEqual({batchSize:1});
-      const headers=opts.headers as Record<string,string>;
-      const digest=createHash("sha256").update(body).digest("hex");
-      const signature=createHmac("sha256",secret).update([
-        "POST","/internal/questions/media/jobs/cleanup",
-        headers["x-questions-timestamp"],headers["x-questions-nonce"],digest,
-      ].join("\n")).digest("hex");
-      expect(headers["x-questions-signature"]).toBe(signature);
-      return new Response(JSON.stringify({cleaned:true}),{status:200});
-    });
-    vi.stubGlobal("fetch",request);
-    try{
-      await expect(questionsPhotoCleanupInternal()).resolves.toBeUndefined();
-      expect(request).toHaveBeenCalledOnce();
-    }finally{
-      for(const name of ["QUESTIONS_V2_INTERNAL_BASE_URL",
-        "QUESTIONS_V2_INTERNAL_HMAC_SECRET","GAFUS_LOCAL_ISOLATED_API"]){
-        if(initial[name]===undefined)delete process.env[name];
-        else process.env[name]=initial[name];
-      }
-    }
-  });
+describe("Questions cleanup local scheduler",()=>{
+ it("is non-overlapping; failure stays retryable without any Cloud photo Jobs",async()=>{
+  let release!:()=>void;
+  const cleanup=vi.fn(()=>new Promise<void>(resolve=>{release=resolve;}));
+  const tick=createQuestionsPhotoRecoveryTick({cleanup});
+  const inFlight=tick();
+  await expect(tick()).resolves.toEqual({skipped:true,dispatched:0});
+  release();await expect(inFlight).resolves.toEqual({dispatched:0});
+  expect(cleanup).toHaveBeenCalledOnce();
+  cleanup.mockRejectedValueOnce(Error("S3 retry"));
+  await expect(tick()).resolves.toEqual({dispatched:0});
+ });
 });

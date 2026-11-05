@@ -2,6 +2,8 @@ import { FeedReportButton } from "./FeedPostActions";
 import { FeedPostOwnerActions } from "./FeedPostOwnerActions";
 import { publicationPhaseLabel, type PublicationItem } from "@gafus/core-client/feed/publication-client";
 import { mobileFeedPublications } from "./publication";
+import { videoRetryMessage, videoServerFailureMessage } from "@/shared/lib/media/videoRetryMessage";
+import { photoRetryMessage } from "@/shared/lib/media/photoRetryMessage";
 import { mobilePendingRefreshInterval } from "./pendingRefresh";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ActivityIndicator, Alert, AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
@@ -27,7 +29,7 @@ import { Button } from "@/shared/components";
 import { feedApi, feedEditCommentGuarded, feedDeleteCommentGuarded, feedCommentReactionGuarded, feedPostReactionGuarded, feedCreateCommentGuarded, feedSaveRevisionGuarded, feedPublishPostGuarded } from "@/shared/lib/api/feed";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { reportClientError } from "@/shared/lib/tracer";
-import { pickFeedMedia, pickFeedPollOptionPhoto, uploadPickedFeedMedia, checkFeedPickedMedia, type FeedPickedMedia } from "./uploads";
+import { pickFeedMedia, pickFeedPollOptionPhoto, uploadPickedFeedMedia, checkFeedPickedMedia, releaseFeedPickedMedia, type FeedPickedMedia } from "./uploads";
 import { FeedVideo, stopFeedVideoOutsidePosts } from "./FeedVideo";
 import { mobileFeedTelemetry } from "./telemetry";
 import { FeedMediaViewer, FeedCommentAttachments } from "./FeedMediaViewer";
@@ -38,6 +40,7 @@ import { GafusReactionProgress } from "./GafusReactionProgress";
 import { FeedAlbumPicker } from "./FeedAlbumPicker";
 import { FeedCarouselDots } from "./FeedCarouselDots";
 import { FeedPublicationProgress } from "./FeedPublicationProgress";
+import { FeedDraftDeleteButton } from "./FeedDraftDeleteButton";
 import { getFeedPublicationPercent } from "./publicationProgressState";
 import { FeedPollCard } from "./FeedPollCard";
 import { FeedPollComposer, type MobileFeedPollDraft } from "./FeedPollComposer";
@@ -311,7 +314,7 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
       onScroll={event => updateMediaPosition(event.nativeEvent.contentOffset.x)}
       onMomentumScrollEnd={event => updateMediaPosition(event.nativeEvent.contentOffset.x)}>
       {media.map((asset, index) => <View style={[s.media, { width: mediaWidth, height: mediaHeight }]} key={asset.id}>
-        {asset.kind === "video" && asset.mp4Urls?.[360] ? (
+        {asset.kind === "video" && (asset.mp4Urls?.[360] || asset.mp4Urls?.[720]) ? (
           <FeedVideo postId={post.id} mediaId={asset.id} poster={asset.posterUrl ?? null}
             mp4Urls={asset.mp4Urls} width={asset.width ?? undefined}
             height={asset.height ?? undefined} visible />
@@ -396,6 +399,23 @@ export function FeedPostCard({ post, detailed = false }: { post: FeedPostDto; de
     </View>
   </Pressable>;
 }
+function RecoveredDraftExcerpt({ post, ownerId }: {
+  post: FeedPostDto; ownerId?: string;
+}) {
+  const details = useQuery({
+    queryKey: ["feed", "recovered-draft", ownerId, post.id],
+    queryFn: () => feedApi.getEditor(post.id),
+    enabled: !!ownerId && post.author?.id === ownerId && post.status !== "pending" && !post.text,
+    staleTime: 30_000,
+  });
+  const recoveredText = details.data?.id === post.id && details.data.author.id === ownerId
+    ? details.data.pendingRevision?.text : undefined;
+  const text = post.text || recoveredText;
+  return <Text style={s.publicationExcerpt} numberOfLines={2}>
+    {text || "Не все вложения были загружены. Добавьте файл заново или удалите черновик."}
+  </Text>;
+}
+
 export function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
   const router = useRouter();
   const cache = useQueryClient();
@@ -445,12 +465,63 @@ export function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
         {(item.phase === "uploading" || item.phase === "processing") && (
           <FeedPublicationProgress phase={item.phase} progress={item.progress} />
         )}
-        {!!item.error && <Text style={s.error}>{item.error}</Text>}
+        {item.files?.map(file => <View key={file.requestId} style={{
+          flexDirection: "row", gap: 10, alignItems: "center", marginTop: 9,
+          padding: 8, backgroundColor: "#eef0e8", borderRadius: 12,
+        }}>
+          <View style={{ width: 64, height: 64, borderRadius: 10, backgroundColor: "#17211d",
+            alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            {file.previewUri ? <Image source={{ uri: file.previewUri }}
+              style={{ width: 64, height: 64 }} contentFit="cover" /> :
+              <MaterialCommunityIcons name={file.kind === "video" ? "video-outline" : "image-outline"}
+                size={26} color="#fff" />}
+            {(file.kind === "video" || file.kind === "photo") && file.phase === "failed" &&
+              <Pressable accessibilityRole="button"
+                accessibilityLabel={`Повторить обработку ${file.kind === "photo" ? "фото" : "видео"} ${file.name ?? ""}`}
+                onPress={() => mobileFeedPublications.retryFile(item.id, file.requestId)}
+                style={{ position: "absolute", width: 50, height: 50, borderRadius: 25,
+                  backgroundColor: "#17211de9", borderColor: "#fffb", borderWidth: 1,
+                  alignItems: "center", justifyContent: "center" }}>
+                <MaterialCommunityIcons name="refresh" size={29} color="#fff" />
+              </Pressable>}
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text numberOfLines={1} style={{ fontSize: 12, fontWeight: "600", color: "#283f2b" }}>
+              {file.name ?? (file.kind === "video" ? "Видео" : "Фото")}</Text>
+            <Text style={{ fontSize: 12, color: file.phase === "failed" ? "#a23f27" : "#4b5947" }}>
+              {file.phase === "failed" ? "Не удалось обработать или отправить" :
+                file.phase === "ready" ? "Передано" :
+                file.phase === "uploading" ? "Подготовка и отправка…" : "Ожидает отправки"}
+            </Text>
+            {file.phase === "failed" && <Text accessibilityRole="alert" style={{
+              fontSize: 12, color: "#83301e", lineHeight: 17, marginTop: 3 }}>
+              {file.kind === "video" ? videoRetryMessage(file.error) : photoRetryMessage(file.error)}
+            </Text>}
+          </View>
+        </View>)}
+        {item.phase === "failed" && !item.files?.some(file => file.phase === "failed") &&
+          <Text accessibilityRole="alert" style={s.error}>
+            {item.files?.some(file => file.kind === "video") ? videoServerFailureMessage :
+              "Не удалось завершить обработку вложений. Проверьте состояние черновика."}
+            {" "}Откройте черновик для исправления.
+          </Text>}
         {item.phase === "failed" && <View style={s.publicationActions}>
-          <Button label="Повторить" height={38} fontSize={12} variant="primary" fullWidth={false}
-            onPress={() => mobileFeedPublications.retry(item.id)} />
-          <Pressable accessibilityRole="button" onPress={() => mobileFeedPublications.dismiss(item.id)}
-            style={s.publicationDismiss}><Text style={s.publicationExcerpt}>Скрыть</Text></Pressable>
+          {item.files?.some(file => file.phase === "failed") ?
+            <Text style={s.publicationExcerpt}>
+              Нажмите круглую стрелку на неудавшемся файле. Уже переданные вложения повторно не отправятся.
+            </Text> : item.files?.some(file => file.phase === "waiting") ?
+            <Pressable accessibilityRole="button" accessibilityLabel="Продолжить оставшиеся вложения"
+              onPress={() => mobileFeedPublications.retry(item.id)}>
+              <Text style={s.publicationLink}>Продолжить оставшиеся вложения</Text>
+            </Pressable> :
+            !!item.postId && <Pressable accessibilityRole="button"
+              accessibilityLabel="Открыть черновик для исправления"
+              onPress={() => router.push({ pathname: "/(main)/feed/create",
+                params: { edit: item.postId! } } as Href)}>
+              <Text style={s.publicationLink}>Открыть черновик</Text>
+            </Pressable>}
+          <FeedDraftDeleteButton ownerId={item.ownerId} postId={item.postId}
+            onDeleted={() => mobileFeedPublications.dismiss(item.id)} />
         </View>}
       </View>
     </View>)}
@@ -463,21 +534,32 @@ export function FeedPublicationQueue({ ownerId }: { ownerId?: string }) {
         <Text style={s.publicationTitle}>{post.status === "pending"
           ? "Обрабатываем публикацию…" : post.status === "failed"
             ? "Ошибка обработки" : "Черновик публикации"}</Text>
-        {!!post.text && <Text style={s.publicationExcerpt} numberOfLines={2}>{post.text}</Text>}
+        {post.status === "failed" && <Text accessibilityRole="alert" style={s.error}>
+          {post.attachments.some(media => media.kind === "video") ? videoServerFailureMessage :
+            "Сервер не завершил обработку вложений. Откройте черновик для исправления."}
+        </Text>}
+        {post.status !== "pending" ? <RecoveredDraftExcerpt post={post} ownerId={ownerId} />
+          : !!post.text && <Text style={s.publicationExcerpt} numberOfLines={2}>{post.text}</Text>}
         {uploadedPercent !== null && post.status !== "failed" && <>
           <Text style={s.publicationProgressLabel}>Файлы загружены: {uploadedPercent}%</Text>
           <FeedPublicationProgress phase="uploading" progress={uploadedPercent} />
           {post.status === "pending" && <Text style={s.publicationExcerpt}>
-            Обработка на сервере продолжается
+            Обработка продолжается. Если видео долго не готово, сервис может быть недоступен.
+            Сохраните исходник: повторная проверка не перезапускает обработку.
           </Text>}
         </>}
         {post.status === "pending" && uploadedPercent === null &&
           <FeedPublicationProgress phase="processing" />}
-        {post.status !== "pending" && <Pressable accessibilityRole="button"
-          accessibilityLabel="Продолжить незавершённую публикацию"
-          onPress={() => router.push({ pathname: "/(main)/feed/create", params: { edit: post.id } } as Href)}>
-          <Text style={s.publicationLink}>Продолжить редактирование</Text>
-        </Pressable>}
+        {post.status !== "pending" && <View style={s.publicationActions}>
+          <Pressable accessibilityRole="button"
+            accessibilityLabel="Продолжить незавершённую публикацию"
+            onPress={() => router.push({ pathname: "/(main)/feed/create", params: { edit: post.id } } as Href)}>
+            <Text style={s.publicationLink}>Продолжить редактирование</Text>
+          </Pressable>
+          {post.author?.id === ownerId && <FeedDraftDeleteButton
+            ownerId={post.author.id} postId={post.id}
+            onDeleted={() => undefined} />}
+        </View>}
       </View>
     </View>;
     })}
@@ -846,8 +928,9 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
     (Boolean(text.trim()) || attachedCount > 0 || !!poll) &&
     countFeedCharacters(text) <= FEED_LIMITS.postCharacters;
   const pick = async (source: "library" | "camera-photo" | "camera-video") => {
+    let assets: FeedPickedMedia[] = [];
     try {
-      const assets = await pickFeedMedia(source);
+      assets = await pickFeedMedia(source);
       const next = [...picked, ...assets];
       checkFeedPickedMedia(next);
       if (next.length + albumPhotoIds.length + existingMediaIds.length > FEED_LIMITS.maxAttachments) {
@@ -857,7 +940,11 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
         throw new Error("Максимум три видео.");
       }
       setPicked(next);
-    } catch (error) { Alert.alert("Не удалось выбрать файл", errorMessage(error)); }
+      assets = []; // Ownership moved into composer state (or the background publication manager).
+    } catch (error) {
+      for (const asset of assets) releaseFeedPickedMedia(asset);
+      Alert.alert("Не удалось выбрать файл", errorMessage(error));
+    }
   };
   const move = (index: number, destination: number) => {
     setPicked(items => {
@@ -885,17 +972,23 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
     try {
       const photo = await pickFeedPollOptionPhoto();
       if (!photo) return;
-      setPoll(current => current ? {
-        ...current, options: current.options.map((option, i) =>
-          i === index ? { ...option, imageAsset: photo } : option),
-      } : current);
+      setPoll(current => {
+        if (!current) { releaseFeedPickedMedia(photo); return current; }
+        const previous = current.options[index]?.imageAsset;
+        if (previous) releaseFeedPickedMedia(previous);
+        return { ...current, options: current.options.map((option, i) =>
+          i === index ? { ...option, imageAsset: photo } : option) };
+      });
     } catch (error) { Alert.alert("Не удалось выбрать фото", errorMessage(error)); }
   };
   const removePollImage = (index: number) => {
-    setPoll(current => current ? {
-      ...current, options: current.options.map((option, i) =>
-        i === index ? { ...option, imageAsset: undefined } : option),
-    } : current);
+    setPoll(current => {
+      if (!current) return current;
+      const previous = current.options[index]?.imageAsset;
+      if (previous) releaseFeedPickedMedia(previous);
+      return { ...current, options: current.options.map((option, i) =>
+        i === index ? { ...option, imageAsset: undefined } : option) };
+    });
   };
   const submit = async () => {
     if (!canSubmit || busy || (isEditing && original.isPending) ||
@@ -917,7 +1010,7 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
         mobileFeedPublications.enqueue({
           ownerId: userId!, text,
           files: picked.map(asset => ({
-            ...asset, previewUri: asset.kind === "photo" ? asset.uri : undefined,
+            ...asset, previewUri: asset.previewUri ?? (asset.kind === "photo" ? asset.uri : undefined),
           })),
           albumPhotoIds,
           ...(poll ? {
@@ -998,6 +1091,10 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
       // The feed shows server-owned progress; the post is NOT declared ready.
       editAcknowledged.current = true;
       if (currentEditActor()) {
+        for (const asset of picked) releaseFeedPickedMedia(asset);
+        for (const option of poll?.options ?? []) {
+          if (option.imageAsset) releaseFeedPickedMedia(option.imageAsset);
+        }
         router.replace("/(main)/(tabs)/feed" as Href);
         void cache.invalidateQueries({ queryKey: ["feed"] }).catch(() => {
           reportClientError(new Error("FEED_EDIT_CACHE_REFRESH_FAILED"), {
@@ -1086,9 +1183,13 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
         {picked.length > 0 && <View style={s.composeAttachments}>
           <Text style={s.composeAttachmentsTitle}>С устройства · {picked.length}</Text>
           <SortableMediaStrip
-            items={picked.map(asset => ({ id: asset.requestId, kind: asset.kind, uri: asset.kind === "photo" ? asset.uri : null }))}
+            items={picked.map(asset => ({ id: asset.requestId, kind: asset.kind,
+              uri: asset.previewUri ?? (asset.kind === "photo" ? asset.uri : null) }))}
             onMove={move}
-            onRemove={id => setPicked(items => items.filter(item => item.requestId !== id))}
+            onRemove={id => setPicked(items => {
+              for (const item of items) if (item.requestId === id) releaseFeedPickedMedia(item);
+              return items.filter(item => item.requestId !== id);
+            })}
             disabled={busy}
           />
           {picked.length > 1 && <Text style={s.composeReorderHint}>Удерживайте фотографию и перетаскивайте</Text>}
@@ -1113,6 +1214,12 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
             (isEditing && (!currentEditActor() || editFlight.current ||
               editUnknown.current || editAcknowledged.current))}
           onPress={() => void submit()} />
+        {isEditing && editActor && editId &&
+          (original.data?.status === "draft" || original.data?.status === "failed") &&
+          <View style={{ alignItems: "center" }}>
+            <FeedDraftDeleteButton ownerId={editActor.ownerId} postId={editId}
+              onDeleted={() => router.replace("/(main)/(tabs)/feed" as Href)} />
+          </View>}
       </> : <Status status={status} />}
     </ScrollView>
   </TexturedSafeAreaView>;
@@ -1144,6 +1251,10 @@ function ActorFeedDetailScreen({
   const userId = useAuthStore(state => state.user?.id);
   const [body, setBody] = useState("");
   const [commentFiles, setCommentFiles] = useState<FeedPickedMedia[]>([]);
+  const [commentFileFailures,setCommentFileFailures] = useState<Record<string,string>>({});
+  // Keep server-confirmed media IDs for this on-screen draft. Retrying one
+  // image never re-transcodes/re-sends already accepted neighbor attachments.
+  const confirmedCommentMedia = useRef(new Map<string,string>());
   const [uploadCount, setUploadCount] = useState(0);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyToName, setReplyToName] = useState("");
@@ -1222,20 +1333,43 @@ function ActorFeedDetailScreen({
   };
   const attachMedia = async (source: "camera-photo" | "camera-video" | "library") => {
     if (!currentActor() || busy || flight.current) return;
+    let picked: FeedPickedMedia[] = [];
     try {
-      const picked = await pickFeedMedia(source);
-      if (!currentActor() || !picked.length) return;
+      picked = await pickFeedMedia(source);
+      if (!currentActor()) return;
+      if (!picked.length) return;
       const next = [...commentFiles, ...picked];
       checkFeedPickedMedia(next);
       composerRevision.current += 1;
       setCommentFiles(next);
+      picked = []; // Retain prepared copies for this comment until sent/removed.
     } catch (error) {
       if (currentActor()) Alert.alert("Вложения", errorMessage(error));
+    } finally {
+      for (const file of picked) releaseFeedPickedMedia(file);
+    }
+  };
+  const retryCommentPhoto = async(requestId:string)=>{
+    if(flight.current||busy||unknown.current||!currentActor())return;
+    const selected=commentFiles.find(file=>file.requestId===requestId&&file.kind==="photo");
+    if(!selected||!commentFileFailures[requestId])return;
+    flight.current=true;
+    setBusy(true);
+    setCommentFileFailures(prev=>{const next={...prev};delete next[requestId];return next;});
+    try{
+      const mediaId=await uploadPickedFeedMedia(id,selected,undefined,"comment");
+      confirmedCommentMedia.current.set(requestId,mediaId);
+    }catch(cause){
+      if(currentActor())setCommentFileFailures(prev=>({...prev,[requestId]:photoRetryMessage(cause)}));
+    }finally{
+      flight.current=false;
+      if(currentActor())setBusy(false);
     }
   };
   const send = async () => {
     const text = body.trim();
     if (!currentActor() || status.data?.enabled !== true || flight.current || unknown.current ||
+        Object.keys(commentFileFailures).length>0 ||
         (!text && !commentFiles.length) ||
         countFeedCharacters(text) > FEED_LIMITS.commentCharacters) return;
     const submissionRevision = composerRevision.current;
@@ -1244,14 +1378,32 @@ function ActorFeedDetailScreen({
     const clientRequestId = Crypto.randomUUID();
     flight.current = true;
     setBusy(true);
+    let commentPostAttempted=false;
     try {
       const mediaIds: string[] = [];
       for (let index = 0; index < selectedFiles.length; index++) {
         if (!currentActor()) return;
         setUploadCount(index);
-        mediaIds.push(await uploadPickedFeedMedia(id, selectedFiles[index]!, undefined, "comment"));
+        const file=selectedFiles[index]!;
+        let mediaId=confirmedCommentMedia.current.get(file.requestId);
+        if(!mediaId){
+          try{
+            mediaId=await uploadPickedFeedMedia(id,file,undefined,"comment");
+            confirmedCommentMedia.current.set(file.requestId,mediaId);
+            setCommentFileFailures(previous=>{
+              const next={...previous};delete next[file.requestId];return next;
+            });
+          }catch(cause){
+            if(currentActor())setCommentFileFailures(previous=>({...previous,
+              [file.requestId]:file.kind==="photo"?photoRetryMessage(cause):videoRetryMessage(cause),
+            }));
+            throw cause;
+          }
+        }
+        mediaIds.push(mediaId);
       }
       if (!currentActor()) return;
+      commentPostAttempted=true;
       const ack = await feedCreateCommentGuarded(id,
         { text: body, replyToId, clientRequestId, ...(mediaIds.length ? { mediaIds } : {}) },
         currentActor);
@@ -1265,6 +1417,9 @@ function ActorFeedDetailScreen({
         composerRevision.current += 1;
         setBody("");
         setCommentFiles([]);
+        confirmedCommentMedia.current.clear();
+        setCommentFileFailures({});
+        for (const file of selectedFiles) releaseFeedPickedMedia(file);
         setUploadCount(0);
         setReplyTo(null);
         setReplyToName("");
@@ -1278,6 +1433,11 @@ function ActorFeedDetailScreen({
       }
     } catch {
       if (!currentActor()) return;
+      if(!commentPostAttempted){
+        // A device WebP/S3 error has not sent the comment. Keep all original
+        // files and confirmed photo IDs, allow the failed tile to retry.
+        return;
+      }
       unknown.current = true;
       reportClientError(new Error("FEED_CREATE_COMMENT_RESULT_UNCONFIRMED"), {
         issueKey: "FeedDetailComment", keys: { operation: "create_comment" },
@@ -1288,11 +1448,12 @@ function ActorFeedDetailScreen({
       if (currentActor()) setBusy(false);
     }
   };
-  const sendDisabled = busy || flight.current || unknown.current || !currentActor() ||
+  const sendDisabled = busy || flight.current || unknown.current ||
+    Object.keys(commentFileFailures).length>0 || !currentActor() ||
     (!body.trim() && !commentFiles.length) ||
     countFeedCharacters(body) > FEED_LIMITS.commentCharacters;
   return <TexturedSafeAreaView style={s.screen} edges={["top","left","right"]}>
-    <KeyboardAvoidingView style={s.screen} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView style={s.screen} behavior="padding">
       <View style={s.detailHeader}>
         <AppBackButton onPress={() => router.back()} />
         <Text style={s.detailHeading}>Публикация</Text>
@@ -1353,16 +1514,38 @@ function ActorFeedDetailScreen({
               ? <Image source={{ uri: file.uri }} style={{ width: 80, height: 80 }} />
               : <MaterialCommunityIcons name="video" size={32} color={COLORS.primary}
                   style={{ alignSelf: "center" }} />}
+            {file.kind === "photo" && commentFileFailures[file.requestId] &&
+              <Pressable accessibilityRole="button"
+                accessibilityLabel={`Повторить обработку фото ${file.filename}`}
+                disabled={busy} onPress={()=>void retryCommentPhoto(file.requestId)}
+                style={{position:"absolute",left:14,top:14,width:50,height:50,
+                  borderRadius:25,backgroundColor:"#17211def",borderWidth:1,
+                  borderColor:"#ffffffcc",alignItems:"center",justifyContent:"center"}}>
+                <MaterialCommunityIcons name="refresh" size={29} color="#fff"/>
+              </Pressable>}
             <Pressable accessibilityRole="button" accessibilityLabel={"Убрать вложение " + (index + 1)}
               disabled={busy} onPress={() => {
                 composerRevision.current += 1;
-                setCommentFiles(list => list.filter(item => item.requestId !== file.requestId));
+                confirmedCommentMedia.current.delete(file.requestId);
+                setCommentFileFailures(previous=>{
+                  const next={...previous};delete next[file.requestId];return next;
+                });
+                setCommentFiles(list => {
+                  for (const item of list) if (item.requestId === file.requestId) releaseFeedPickedMedia(item);
+                  return list.filter(item => item.requestId !== file.requestId);
+                });
               }} style={{ position: "absolute", right: 0, top: 0, backgroundColor: "#242424AA",
                 borderRadius: 12, padding: 2 }}>
               <MaterialCommunityIcons name="close" size={15} color="#fff" />
             </Pressable>
           </View>)}
         </ScrollView>}
+        {commentFiles.some(file=>commentFileFailures[file.requestId]) &&
+          <Text accessibilityRole="alert" style={{color:"#923b22",fontSize:12,lineHeight:18,
+            marginBottom:6}}>
+            {commentFiles.filter(file=>commentFileFailures[file.requestId]).map(file=>
+              `${file.filename}: ${commentFileFailures[file.requestId]}`).join(" ")}
+          </Text>}
         {busy && commentFiles.length > 0 && <Text accessibilityRole="text"
           style={s.composerLimit}>Загружаем вложения: {Math.min(uploadCount + 1, commentFiles.length)}/{commentFiles.length}</Text>}
         {replyTo && <View style={s.replyBanner}>

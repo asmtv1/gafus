@@ -10,19 +10,21 @@ const workflow = readFileSync(".github/workflows/cloudru-media-images.yml", "utf
 const publisher = readFileSync("ci-cd/scripts/publish-cloudru-image.sh", "utf8");
 assert(!workflow.includes("role: origin"));
 assert(!publisher.includes(":origin:Dockerfile.origin"));
-assert.equal(jobs.length, 5);
-assert.equal(new Set(jobs.map(job => job.name)).size, 5);
-for (const kind of ["photo", "video"]) {
-  const pool = jobs.filter(job => job.name.startsWith("gafus-feed-" + kind));
-  assert.equal(pool.length, 2);
-  for (const job of pool) {
-    assert.equal(job.template.containers[0].env.find(item => item.name === "FEED_WORKER_TYPE").value, kind);
+assert.equal(jobs.length, 2);
+assert.equal(new Set(jobs.map(job => job.name)).size, 2);
+for(const [prefix,expectedCpu,expectedMemory] of [
+  ["gafus-feed-video","2","8192Mi"],
+]){
+  const pool=jobs.filter(job=>job.name===prefix || job.name===prefix+"-2");
+  assert.equal(pool.length,2);
+  for(const job of pool){
     assert.deepEqual(job.template.containers[0].resources,
-      kind === "photo" ? { cpu: "1", memory: "2048Mi" } : { cpu: "2", memory: "8192Mi" });
+      {cpu:expectedCpu,memory:expectedMemory});
+    if(prefix.includes("feed"))assert.equal(job.template.containers[0].env.find(item=>item.name==="FEED_WORKER_TYPE").value,"video");
   }
-  assert.deepEqual(pool[0].template.containers[0].resources, pool[1].template.containers[0].resources);
-  assert.equal(pool[0].template.containers[0].image, pool[1].template.containers[0].image);
+  assert.equal(pool[0].template.containers[0].image,pool[1].template.containers[0].image);
 }
+assert(!jobs.some(j=>/photo|questions|chat/.test(j.name)));
 // No permanent Feed Container App: media processors remain as on-demand Jobs.
 for (const job of jobs) {
   assert.equal(job.runImmediately, false);
@@ -35,4 +37,4 @@ assert(
   ),
 );
 assert.throws(() => cloudruMediaManifests("bad", revision), /INVALID_CLOUDRU_RELEASE_ID/);
-console.log("Cloud.ru manifest layout 0 origin services + 5 bounded durable jobs PASS");
+console.log("Cloud.ru manifest layout 0 origin services + 2 Feed VIDEO-only primary jobs PASS");

@@ -11,6 +11,8 @@ import { resetUserStores } from "@/shared/stores/resetAll";
 import { flushMobileIntroEvents } from "@/shared/lib/api/mobile-intro";
 import { useNetworkStatusStore } from "@/shared/stores/networkStatusStore";
 import { Loading } from "@/shared/components/ui/Loading";
+import { VerifiedSessionRecovery } from "@/shared/components/VerifiedSessionRecovery";
+import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -25,14 +27,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const queryClient = useQueryClient();
   const navState = useRootNavigationState();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const sessionEpoch = useAuthStore((state) => state.verifiedSessionEpoch);
   const userId = useAuthStore((state) => state.user?.id);
   const isOffline = useNetworkStatusStore((state) => state.isOffline);
   const isLoading = useAuthStore((state) => state.isLoading);
   const prevAuthRef = useRef<{ authenticated: boolean; userId: string | null } | null>(null);
   const favoritesLoadedRef = useRef<string | null>(null);
+  const verified = newOnlyV2NativeQueues.getVerifiedBinding();
+  const verifiedEpoch = isAuthenticated && userId && sessionEpoch &&
+    verified?.principalId === userId && verified.authEpoch === sessionEpoch
+    ? sessionEpoch : null;
 
   useEffect(() => {
-    if (isLoading || isOffline) return;
+    if (isLoading || isOffline || (isAuthenticated && !verifiedEpoch)) return;
     const retry = () => {
       void flushMobileIntroEvents(isAuthenticated ? userId : undefined).catch(() => undefined);
     };
@@ -41,7 +48,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (state === "active") retry();
     });
     return () => subscription.remove();
-  }, [isAuthenticated, isLoading, isOffline, userId]);
+  }, [isAuthenticated, isLoading, isOffline, userId, verifiedEpoch]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -60,17 +67,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [isAuthenticated, isLoading, queryClient, userId]);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || (isAuthenticated && !verifiedEpoch)) return;
     void useStepStore.persist.rehydrate();
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, verifiedEpoch]);
 
   useEffect(() => {
-    if (!isAuthenticated || !userId) {
+    if (!isAuthenticated || !userId || !verifiedEpoch) {
       favoritesLoadedRef.current = null;
       return;
     }
-    if (favoritesLoadedRef.current === userId) return;
-    favoritesLoadedRef.current = userId;
+    const actorKey = `${userId}:${verifiedEpoch}`;
+    if (favoritesLoadedRef.current === actorKey) return;
+    favoritesLoadedRef.current = actorKey;
     let cancelled = false;
 
     (async () => {
@@ -79,7 +87,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // An earlier principal's request can resolve after the user switches.
         // Never copy its private favorites into the next account's store.
         const current = useAuthStore.getState();
-        if (cancelled || !current.isAuthenticated || current.user?.id !== userId) return;
+        if (cancelled || !current.isAuthenticated || current.user?.id !== userId ||
+          newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch !== verifiedEpoch) return;
         const ids = res.data?.favoriteIds;
         if (ids !== undefined) {
           useCourseStore.setState({
@@ -88,7 +97,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } catch (err) {
         const current = useAuthStore.getState();
-        if (cancelled || !current.isAuthenticated || current.user?.id !== userId) return;
+        if (cancelled || !current.isAuthenticated || current.user?.id !== userId ||
+          newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch !== verifiedEpoch) return;
         reportClientError(err, {
           issueKey: "AuthProvider",
           severity: "warning",
@@ -101,10 +111,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, queryClient, userId]);
+  }, [isAuthenticated, queryClient, userId, verifiedEpoch]);
 
   if (isLoading || !navState?.key) {
     return <Loading fullScreen />;
+  }
+
+  // A cached profile is not enough to enter protected screens after upgrading
+  // from an older release. Wait for a server-verified (and migrated) V2 binding;
+  // otherwise menus and owner-scoped reads can stay stuck indefinitely.
+  if (isAuthenticated && !verifiedEpoch) {
+    return <VerifiedSessionRecovery />;
   }
 
   return <>{children}</>;

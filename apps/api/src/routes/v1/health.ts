@@ -23,7 +23,7 @@ export function createHealthRoutes(
     return c.json({
       status: "ok",
       timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || "1.7.2",
+      version: process.env.npm_package_version || "1.7.3",
     });
   });
 

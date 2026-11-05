@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   policy: {
     key: "default",
     iosReviewVersion: null as string | null,
+    otaRequired: false, otaVersion: null as string | null, otaPlatform: "all",
     revision: 1,
     updatedAt: new Date("2026-07-26T12:00:00.000Z"),
     updatedBy: null as { id: string; username: string } | null,
@@ -64,6 +65,9 @@ const prismaMock = vi.hoisted(() => {
         where: { revision: number };
         data: {
           iosReviewVersion: string | null;
+          otaRequired: boolean;
+          otaVersion: string | null;
+          otaPlatform: string;
           revision: { increment: number };
           updatedById: string;
         };
@@ -72,6 +76,9 @@ const prismaMock = vi.hoisted(() => {
           return Promise.resolve({ count: 0 });
         }
         state.policy.iosReviewVersion = data.iosReviewVersion;
+        state.policy.otaRequired = data.otaRequired;
+        state.policy.otaVersion = data.otaVersion;
+        state.policy.otaPlatform = data.otaPlatform;
         state.policy.revision += data.revision.increment;
         state.policy.updatedBy = {
           id: data.updatedById,
@@ -127,6 +134,9 @@ describe("app feature flags", () => {
     vi.clearAllMocks();
     state.flags.clear();
     state.policy.iosReviewVersion = null;
+    state.policy.otaRequired = false;
+    state.policy.otaVersion = null;
+    state.policy.otaPlatform = "all";
     state.policy.revision = 1;
     state.policy.updatedBy = null;
     state.rewarded = null;
@@ -179,6 +189,33 @@ describe("app feature flags", () => {
     });
   });
 
+  it("saves and serves an independent mandatory OTA policy for 1.7.3", async () => {
+    const current = await getMobileReleaseControl();
+    expect(current.ota).toEqual({ required: false, version: null, platform: "all" });
+    const saved = await updateMobileReleaseControl({
+      ...current,
+      ota: { required: true, version: "1.7.3-ota.2", platform: "android" },
+    }, "admin-1");
+    expect(saved.ota).toEqual({
+      required: true, version: "1.7.3-ota.2", platform: "android",
+    });
+    await expect(getMobileAppPublicConfig({ platform: "android", version: "1.7.3" }))
+      .resolves.toMatchObject({
+        ota: { required: true, version: "1.7.3-ota.2", platform: "android", channel: "production" },
+      });
+    // Store version logic is independent of the OTA feature flag.
+    expect((await getMobileAppPublicConfig()).minimumSupportedVersion).toBeDefined();
+  });
+
+  it("refuses forcing an OTA with no release before the DB transaction", async () => {
+    const current = await getMobileReleaseControl();
+    await expect(updateMobileReleaseControl({
+      ...current,
+      ota: { required: true, version: null, platform: "all" },
+    }, "admin-1")).rejects.toThrow("Нельзя требовать OTA");
+    expect(prismaMock.mobileAppReleasePolicy.updateMany).not.toHaveBeenCalled();
+  });
+
   it("keeps paywall and gating global for the review profile", async () => {
     state.policy.iosReviewVersion = "1.7.0";
     await setAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, true);
@@ -209,6 +246,7 @@ describe("app feature flags", () => {
     await expect(updateMobileReleaseControl({
       revision: 1,
       iosReviewVersion: null,
+      ota: { required: false, version: null, platform: "all" },
       released: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
         iosRuCardPaymentHint: false, rewardedAds: false },
       review: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
@@ -226,6 +264,7 @@ describe("app feature flags", () => {
       {
         revision: 1,
         iosReviewVersion: "1.7.0",
+        ota: { required: false, version: null, platform: "all" },
         released: {
           vkLogin: true,
           iosRuCardPayment: true,
@@ -276,6 +315,7 @@ describe("app feature flags", () => {
     const result = await updateMobileReleaseControl({
       revision: snapshot.revision,
       iosReviewVersion: "1.7.0",
+      ota: { required: false, version: null, platform: "all" },
       released: { ...snapshot.released, vkLogin: true },
       review: snapshot.review,
       global: snapshot.global,
@@ -294,6 +334,7 @@ describe("app feature flags", () => {
   it("rejects direct Core attempts to enable retired iOS ads before writes", async () => {
     const archived = {
       revision: 1, iosReviewVersion: null,
+      ota: { required: false, version: null, platform: "all" },
       released: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
         iosRuCardPaymentHint: false, rewardedAds: true },
       review: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
@@ -315,6 +356,7 @@ describe("app feature flags", () => {
         {
           revision: 1,
           iosReviewVersion: "1.7.0",
+          ota: { required: false, version: null, platform: "all" },
           released: {
             vkLogin: true,
             iosRuCardPayment: true,
@@ -353,6 +395,7 @@ describe("app feature flags", () => {
         {
           revision: 1,
           iosReviewVersion: null,
+          ota: { required: false, version: null, platform: "all" },
           released: {
             vkLogin: false,
             iosRuCardPayment: false,

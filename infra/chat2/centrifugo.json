@@ -1,11 +1,29 @@
 {
   "client": {
     "allowed_origins": ["http://127.0.0.1:5173", "http://localhost:5173"],
-    "token": { "issuer": "gafus-chat2" }
+    "token": { "issuer": "gafus-chat2" },
+    "subscription_token": {
+      "enabled": true,
+      "issuer": "gafus-chat2-subscription-deny"
+    }
   },
   "channel": {
+    "proxy": {
+      "subscribe": {
+        "endpoint": "http://host.docker.internal:3001/internal/chat2/chat2-subscribe",
+        "timeout": "3s",
+        "http": {
+          "static_headers": {
+            "X-GAFUS-Subscribe-Proxy-Key": "${CENTRIFUGO_VAR_CHAT2_PROXY_SHARED_SECRET}"
+          }
+        }
+      }
+    },
     "namespaces": [{
       "name": "chat2",
+      "subscribe_proxy_enabled": true,
+      "allow_user_limited_channels": false,
+      "allow_subscribe_for_client": false,
       "history_size": 100,
       "history_ttl": "120s",
       "force_recovery": true

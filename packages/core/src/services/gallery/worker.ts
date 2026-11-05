@@ -574,19 +574,20 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
       if (Number(Boolean(data.uploadId)) + Number(Boolean(data.exactDelete)) +
         Number(Boolean(data.exactMove)) > 1)
         throw new GalleryError("VALIDATION", "Нельзя совмещать области заданий", 400);
-      // Disabled galleries may only perform cleanup, never targeted publishing.
-      if ((data.uploadId || data.exactMove) && !ctx.storage.enabled) return [];
+      // The Cloud photo-publish processor no longer exists. Legacy uploaded
+      // rows may remain in PG; never lease them and never let them displace
+      // DELETE, MOVE or veterinarian-preview work from a bounded claim page.
+      if (data.uploadId) return [];
+      if (data.exactMove && !ctx.storage.enabled) return [];
       const candidates = await ctx.db.galleryStorageJob.findMany({
         where: {
           ...(data.exactDelete
             ? { kind: "delete" as const, id: data.exactDelete.jobId, ownerId: data.exactDelete.ownerId }
             : data.exactMove
               ? { kind: "move" as const, id: data.exactMove.jobId, ownerId: data.exactMove.ownerId }
-            : data.uploadId
-              ? { kind: "publish" as const, uploadId: data.uploadId }
-            : ctx.storage.enabled
-              ? {}
-              : { kind: { in: ["delete", "vetPreview"] as ("delete" | "vetPreview")[] } }),
+            : { kind: { in: ctx.storage.enabled
+                  ? ["delete", "move", "vetPreview"] as ("delete" | "move" | "vetPreview")[]
+                  : ["delete", "vetPreview"] as ("delete" | "vetPreview")[] } }),
           availableAt: { lte: at },
           OR: [{ status: "pending" }, { status: "processing", leaseUntil: { lte: at } }],
         },
@@ -605,8 +606,8 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
               job.ownerId !== data.exactDelete.ownerId || job.kind !== "delete")) ||
             (data.exactMove && (job.id !== data.exactMove.jobId ||
               job.ownerId !== data.exactMove.ownerId || job.kind !== "move")) ||
+            (!["delete", "move", "vetPreview"].includes(job.kind)) ||
             (!ctx.storage.enabled && !["delete", "vetPreview"].includes(job.kind)) ||
-            (data.uploadId && (job.kind !== "publish" || job.uploadId !== data.uploadId)) ||
             job.availableAt > current ||
             (job.status !== "pending" &&
               !(job.status === "processing" && job.leaseUntil && job.leaseUntil <= current))
@@ -831,20 +832,19 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
           const row = await liveUpload(tx, upload.id);
           if (!row || row.status !== "processing" || !row.leaseUntil || row.leaseUntil > now())
             return;
-          if (row.attempts >= L.attempts)
-            await terminalUpload(tx, row, now(), "ATTEMPTS_EXHAUSTED");
-          else
-            await tx.galleryUpload.update({
-              where: { id: row.id },
-              data: {
-                status: "uploaded",
-                attemptToken: null,
-                leaseUntil: null,
-                stagedThumbKey: null,
-                stagedFullKey: null,
-                nextAttemptAt: now(),
-              },
-            });
+          // Client WebP's S3 COPY can outlive a server process. It has no
+          // Gallery photo Job to resume. Reopen the reservation, allowing the
+          // owning Web/Mobile client to safely re-confirm after status readback.
+          // JPEG/PNG photo processing is retired: fail old rows instead of
+          // restoring UPLOADED, which no worker will ever finish.
+          if (row.sourceKey.endsWith("/source.webp") && row.declaredMime === "image/webp") {
+            await tx.galleryUpload.update({where:{id:row.id},data:{
+              status:"reserved",attemptToken:null,leaseUntil:null,
+              stagedThumbKey:null,stagedFullKey:null,nextAttemptAt:now(),
+            }});
+          } else {
+            await terminalUpload(tx,row,now(),"LEGACY_PHOTO_PROCESSOR_RETIRED");
+          }
         });
       const jobs = await ctx.db.galleryStorageJob.findMany({
         where: {
@@ -858,6 +858,18 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
         await galleryTransaction(ctx, async (tx) => {
           const job = await jobForCallback(tx, candidate.id);
           if (!job || !["pending", "processing"].includes(job.status)) return;
+          // Historical Gallery publish jobs cannot be claimed now that Cloud
+          // photo Jobs are retired. Settle pending/expired attempts right here
+          // instead of indefinitely rotating their updatedAt in maintenance.
+          // An in-flight lease is left alone until it expires.
+          if (job.kind === "publish" &&
+              (job.status === "pending" ||
+               (job.leaseUntil && job.leaseUntil <= now()))) {
+            if (await reconcileJob(tx, job, now()))
+              await failJob(tx, job, now(), "LEGACY_PHOTO_PROCESSOR_RETIRED", false);
+            reconciledJobs++;
+            return;
+          }
           if (!(await reconcileJob(tx, job, now()))) {
             reconciledJobs++;
             return;
@@ -905,45 +917,11 @@ export function createGalleryWorkerOperations(ctx: GalleryContext) {
           });
           recoveredCleanupJobs++;
         });
+      // Never promote an unconfirmed client WebP to UPLOADED during janitor
+      // maintenance. Previously, the lost-S3-event scanner promoted RESERVED
+      // to UPLOADED and woke a now-deleted Sharp Cloud processor. Only the
+      // owning client may call /client-complete after S3 HEAD/validation.
       const processUploadIds: string[] = [];
-      if (ctx.storage.enabled) {
-        const pending = await ctx.db.galleryUpload.findMany({
-          where: {
-            status: { in: ["reserved", "uploaded"] },
-            reservationExpiresAt: { gt: now() },
-            nextAttemptAt: { lte: now() },
-          },
-          orderBy: [{ nextAttemptAt: "asc" }, { id: "asc" }],
-          take: limit,
-        });
-        for (const candidate of pending)
-          await galleryTransaction(ctx, async (tx) => {
-            const upload = await liveUpload(tx, candidate.id);
-            if (
-              !upload ||
-              !["reserved", "uploaded"].includes(upload.status) ||
-              upload.nextAttemptAt > now()
-            )
-              return;
-            // Recover a lost bucket event by HEAD only; application servers never read image bytes.
-            try {
-              const source = await inspectSource(upload);
-              await tx.galleryUpload.update({
-                where: { id: upload.id },
-                data: { status: "uploaded", sourceETag: upload.sourceETag ?? source.etag },
-              });
-              processUploadIds.push(upload.id);
-            } catch (error) {
-              if (!(error instanceof GalleryError)) throw error;
-              if (error.code === "SOURCE_MISSING")
-                await tx.galleryUpload.update({
-                  where: { id: upload.id },
-                  data: { nextAttemptAt: new Date(now().getTime() + 60_000) },
-                });
-              else await terminalUpload(tx, upload, now(), error.code);
-            }
-          });
-      }
       return { expiredUploads, reconciledJobs, recoveredCleanupJobs, processUploadIds };
     },
   };

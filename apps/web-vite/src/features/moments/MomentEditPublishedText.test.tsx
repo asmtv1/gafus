@@ -1,4 +1,11 @@
 // @vitest-environment jsdom
+vi.mock("../../shared/media/browserPhotoWebp",()=>({
+  prepareBrowserPhotoWebp:vi.fn(async(_original:File,edges:Record<string,number>)=>
+    Object.fromEntries(Object.entries(edges).map(([name,edge])=>[
+      name,{file:new File([new Uint8Array(128)],name+".webp",{type:"image/webp"}),
+        width:edge,height:Math.round(edge*.75)},
+    ]))),
+}));
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -159,7 +166,7 @@ describe("published Moments owner text editor UI", () => {
       ontimeout: null | (() => void) = null;
       open(method: string, url: string) {
         expect(method).toBe("POST");
-        expect(url).toContain("s3.example");
+        expect(url).toContain("s3.cloud.ru");
       }
       send(body: FormData) {
         expect(body.get("file")).toBeInstanceOf(File);
@@ -169,16 +176,23 @@ describe("published Moments owner text editor UI", () => {
     }
     vi.stubGlobal("XMLHttpRequest", FakeStorageXHR);
     const ticket = { uploadId: "upload-1", postId: "post-1", mediaId: "photo-new",
-      kind: "photo", status: "reserved", postUrl: "https://s3.example/upload",
-      postFields: { key: "posts/author/post-1/incoming/upload-1/source.jpg" },
+      kind: "photo", status: "reserved", postUrl: "https://s3.cloud.ru/gafus-feed-private",
+      postFields: { key: "posts/author/post-1/incoming/upload-1/source.webp" },
       urlExpiresAt: new Date(Date.now() + 600_000).toISOString() };
     const fake = vi.fn((path: string, options?: RequestInit) => {
       if (path.endsWith("/uploads") && options?.method === "POST") {
         uploadCalls.push("reserve"); return Promise.resolve(ok(ticket));
       }
-      if (path.endsWith("/uploads/upload-1/complete") && options?.method === "POST") {
+      if (path.endsWith("/uploads/upload-1/client-renditions") && options?.method === "POST") {
+        uploadCalls.push("sign-renditions");
+        return Promise.resolve(ok({
+          small:{method:"POST",url:ticket.postUrl,fields:{key:"small.webp"}},
+          medium:{method:"POST",url:ticket.postUrl,fields:{key:"medium.webp"}},
+        }));
+      }
+      if (path.endsWith("/uploads/upload-1/client-complete") && options?.method === "POST") {
         uploadCalls.push("complete"); return Promise.resolve(ok({ ...ticket,
-          status: "uploaded", postUrl: null, postFields: null, urlExpiresAt: null }));
+          status: "ready", postUrl: null, postFields: null, urlExpiresAt: null }));
       }
       if (path.endsWith("/revisions") && options?.method === "PUT") {
         uploadCalls.push("save-revision");
@@ -205,7 +219,7 @@ describe("published Moments owner text editor UI", () => {
         input!.dispatchEvent(new Event("change", { bubbles: true }));
       });
       await ui.submit();
-      expect(uploadCalls).toEqual(["reserve", "s3-post", "complete", "save-revision"]);
+      expect(uploadCalls).toEqual(["reserve", "sign-renditions", "s3-post", "s3-post", "s3-post", "complete", "save-revision"]);
       expect(savedBody).toMatchObject({
         text: "Старый текст", attachmentIds: ["photo-1", "photo-new"], expectedVersion: 1,
       });

@@ -41,7 +41,10 @@ vi.mock("react-native", async () => {
     Alert: { alert: m.alert },
     AppState: { addEventListener: () => ({ remove: vi.fn() }) },
     ActivityIndicator: node("div"),
-    KeyboardAvoidingView: node("div"),
+    KeyboardAvoidingView: (p: Record<string, unknown>) => R.createElement("div", {
+      "data-testid": "comment-keyboard-avoiding-view",
+      "data-behavior": p.behavior,
+    }, p.children as React.ReactNode),
     Modal: node("div"),
     Platform: { OS: "android" },
     Pressable: node("div"),
@@ -334,6 +337,16 @@ afterEach(async () => {
 });
 
 describe("AG3 V85 actual mounted FeedDetailScreen create-comment POST", () => {
+  it("keeps comment and reply input above the Android keyboard", async () => {
+    await mount();
+    const avoidingView = host.querySelector('[data-testid="comment-keyboard-avoiding-view"]');
+    expect(avoidingView?.getAttribute("data-behavior")).toBe("padding");
+    expect(avoidingView?.querySelector('[aria-label="Написать комментарий"]')).not.toBeNull();
+    expect(avoidingView?.querySelector('[aria-label="Отправить комментарий"]')).not.toBeNull();
+    await startReply();
+    expect(avoidingView?.textContent).toContain("Ответ для Owner");
+    expect(avoidingView?.querySelector('[aria-label="Написать комментарий"]')).not.toBeNull();
+  });
   it("attaches a gallery photo to a media-only comment using the existing native upload", async () => {
     vi.mocked(pickFeedMedia).mockResolvedValueOnce([{
       uri: "file:///synthetic-dog.webp", filename: "dog.webp",

@@ -455,6 +455,7 @@ export function GalleryAlbumScreen() {
                     <Menu.Item
                       leadingIcon="cog-outline"
                       title="Настройки альбома"
+                      titleStyle={styles.albumActionText}
                       onPress={() => {
                         setActionsOpen(false);
                         setEditing(true);
@@ -462,6 +463,7 @@ export function GalleryAlbumScreen() {
                     />
                     <Menu.Item
                       leadingIcon="image-edit-outline"
+                      titleStyle={styles.albumActionText}
                       title={
                         choosingCover
                           ? "Отменить выбор обложки"
@@ -479,6 +481,7 @@ export function GalleryAlbumScreen() {
                     <Menu.Item
                       leadingIcon="information-outline"
                       title="Правила загрузки"
+                      titleStyle={styles.albumActionText}
                       onPress={() => {
                         setActionsOpen(false);
                         Alert.alert(
@@ -682,6 +685,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cardBackground,
   },
   albumActionsMenu: { backgroundColor: COLORS.cardBackground },
+  albumActionText: { color: "#000000" },
   albumDeleteText: { color: "#A53825" },
   albumCoverHint: {
     flexDirection: "row",

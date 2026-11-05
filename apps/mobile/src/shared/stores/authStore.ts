@@ -28,6 +28,8 @@ interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** Memory-only verified native session epoch; never persisted or inferred from cached user. */
+  verifiedSessionEpoch: string | null;
   pendingVkPhone: boolean;
   /** Новый VK-пользователь — нужно собрать согласия */
   pendingVkConsent: boolean;
@@ -96,9 +98,18 @@ async function beginV2AfterVerifiedProfile(principalId: string): Promise<void> {
     reportClientError(error, { issueKey: "V2OfflineAuthBinding" });
   }
 }
-async function restoreV2AfterVerifiedProfile(principalId: string): Promise<void> {
+async function restoreV2AfterVerifiedProfile(
+  principalId: string,
+  sessionIsCurrent: () => boolean,
+): Promise<void> {
   try {
-    await newOnlyV2NativeQueues.restoreVerifiedSession(principalId);
+    const restored = await newOnlyV2NativeQueues.restoreVerifiedSession(principalId);
+    if (!restored && sessionIsCurrent()) {
+      // An app upgraded from a pre-V2 build can have a valid JWT and profile
+      // but no native V2 session binding. Bootstrap ONLY after the server has
+      // verified the profile; do not promote an unverified cached user.
+      await newOnlyV2NativeQueues.beginVerifiedLogin(principalId);
+    }
   } catch (error) {
     reportClientError(error, { issueKey: "V2OfflineAuthRestore" });
   }
@@ -184,6 +195,7 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       isLoading: true,
       isAuthenticated: false,
+      verifiedSessionEpoch: null,
       pendingVkPhone: false,
       pendingVkConsent: false,
       vkConsentToken: null,
@@ -230,6 +242,7 @@ export const useAuthStore = create<AuthStore>()(
           set({
             user,
             isAuthenticated: true,
+            verifiedSessionEpoch: newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null,
             isLoading: false,
             pendingVkPhone: false,
             pendingVkConsent: false,
@@ -293,6 +306,7 @@ export const useAuthStore = create<AuthStore>()(
             set({
               user: { ...user, phone: "", email: null } as User,
               isAuthenticated: false,
+              verifiedSessionEpoch: null,
               pendingVkPhone: false,
               pendingVkConsent: true,
               vkConsentToken: pendingContextToken,
@@ -321,6 +335,7 @@ export const useAuthStore = create<AuthStore>()(
             set({
               user: { ...user, phone: "", email: null } as User,
               isAuthenticated: false,
+              verifiedSessionEpoch: null,
               pendingVkPhone: true,
             });
             return { success: true, needsPhone: true };
@@ -335,6 +350,7 @@ export const useAuthStore = create<AuthStore>()(
           set({
             user: profileRes.data,
             isAuthenticated: true,
+            verifiedSessionEpoch: newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null,
             pendingVkPhone: false,
             pendingVkConsent: false,
             vkConsentToken: null,
@@ -396,6 +412,7 @@ export const useAuthStore = create<AuthStore>()(
           set({
             user: response.data.user,
             isAuthenticated: true,
+            verifiedSessionEpoch: newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null,
             pendingVkPhone: false,
             pendingVkConsent: false,
             vkConsentToken: null,
@@ -438,6 +455,7 @@ export const useAuthStore = create<AuthStore>()(
         set({
           user: null,
           isAuthenticated: false,
+          verifiedSessionEpoch: null,
           pendingVkPhone: false,
           pendingVkConsent: false,
           vkConsentToken: null,
@@ -522,6 +540,7 @@ export const useAuthStore = create<AuthStore>()(
                   set({
                     isLoading: false,
                     isAuthenticated: false,
+                    verifiedSessionEpoch: null,
                     user: null,
                     pendingVkPhone: false,
                     pendingVkConsent: true,
@@ -541,6 +560,7 @@ export const useAuthStore = create<AuthStore>()(
                   set({
                     isLoading: false,
                     isAuthenticated: false,
+                    verifiedSessionEpoch: null,
                     user: null,
                     pendingVkPhone: false,
                     pendingVkConsent: true,
@@ -560,6 +580,7 @@ export const useAuthStore = create<AuthStore>()(
               set({
                 isLoading: false,
                 isAuthenticated: false,
+                verifiedSessionEpoch: null,
                 user: null,
                 pendingVkPhone: false,
                 pendingVkConsent: false,
@@ -574,6 +595,7 @@ export const useAuthStore = create<AuthStore>()(
               set({
                 user: persistedUser,
                 isAuthenticated: !pendingVkPhone,
+                verifiedSessionEpoch: null,
                 isLoading: false,
                 pendingVkPhone,
               });
@@ -588,8 +610,6 @@ export const useAuthStore = create<AuthStore>()(
 
             if (response.success && response.data) {
               const userData = response.data;
-              await restoreV2AfterVerifiedProfile(userData.id);
-              if (generation !== authSessionGeneration) return;
               if (__DEV__) {
                 console.log("[authStore] checkAuth profile", { id: userData.id });
               }
@@ -599,6 +619,7 @@ export const useAuthStore = create<AuthStore>()(
                 set({
                   user: userData,
                   isAuthenticated: false,
+                  verifiedSessionEpoch: null,
                   isLoading: false,
                   pendingVkPhone: true,
                 });
@@ -608,9 +629,16 @@ export const useAuthStore = create<AuthStore>()(
                 return;
               }
 
+              // Migrate an existing, server-verified login from a pre-V2 app.
+              await restoreV2AfterVerifiedProfile(
+                userData.id, () => generation === authSessionGeneration,
+              );
+              if (generation !== authSessionGeneration) return;
+
               set({
                 user: userData,
                 isAuthenticated: true,
+                verifiedSessionEpoch: newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null,
                 isLoading: false,
                 pendingVkPhone: false,
                 pendingVkConsent: false,
@@ -629,6 +657,7 @@ export const useAuthStore = create<AuthStore>()(
               set({
                 isLoading: false,
                 isAuthenticated: false,
+                verifiedSessionEpoch: null,
                 pendingVkPhone: false,
               });
             } else {
@@ -638,6 +667,7 @@ export const useAuthStore = create<AuthStore>()(
               set({
                 isLoading: false,
                 isAuthenticated: false,
+                verifiedSessionEpoch: null,
                 user: null,
                 pendingVkPhone: false,
               });
@@ -670,6 +700,7 @@ export const useAuthStore = create<AuthStore>()(
         set({
           user: null,
           isAuthenticated: false,
+          verifiedSessionEpoch: null,
           pendingVkPhone: false,
           pendingVkConsent: false,
           vkConsentToken: null,
@@ -743,6 +774,7 @@ export const useAuthStore = create<AuthStore>()(
           set({
             user: null,
             isAuthenticated: false,
+            verifiedSessionEpoch: null,
             pendingVkPhone: false,
             pendingVkConsent: false,
             vkConsentToken: null,
@@ -784,6 +816,7 @@ export const useAuthStore = create<AuthStore>()(
               set({
                 user: null,
                 isAuthenticated: false,
+                verifiedSessionEpoch: null,
                 pendingVkPhone: false,
                 pendingVkConsent: false,
                 vkConsentToken: null,
@@ -807,6 +840,7 @@ export const useAuthStore = create<AuthStore>()(
             set({
               user: { ...user, phone: "", email: null } as User,
               isAuthenticated: false,
+              verifiedSessionEpoch: null,
               pendingVkPhone: true,
               pendingVkConsent: false,
               vkConsentToken: null,
@@ -820,6 +854,7 @@ export const useAuthStore = create<AuthStore>()(
             set({
               user: user as User,
               isAuthenticated: true,
+              verifiedSessionEpoch: newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null,
               pendingVkPhone: false,
               pendingVkConsent: false,
               vkConsentToken: null,
@@ -863,6 +898,7 @@ export const useAuthStore = create<AuthStore>()(
           set({
             user,
             isAuthenticated: true,
+            verifiedSessionEpoch: newOnlyV2NativeQueues.getVerifiedBinding()?.authEpoch ?? null,
             pendingVkPhone: false,
           });
           identifyUser(user.id);

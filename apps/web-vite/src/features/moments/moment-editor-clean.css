@@ -329,3 +329,11 @@
     flex: 1 1 100%;
   }
 }
+
+.moment-video-retry-preview { position:relative; width:min(100%,260px); overflow:hidden;
+ border-radius:12px; background:#17211d; aspect-ratio:16/9; }
+.moment-video-retry-preview video {display:block;width:100%;height:100%;object-fit:contain;}
+.moment-video-retry-preview .moment-video-retry-button {position:absolute;top:50%;left:50%;
+ transform:translate(-50%,-50%);display:grid;place-items:center;width:54px;height:54px;
+ border-radius:50%;border:1px solid #fffc;background:#17211df0;color:#fff;cursor:pointer;padding:11px;}
+.moment-video-retry-preview .moment-video-retry-button svg{width:28px;height:28px;}

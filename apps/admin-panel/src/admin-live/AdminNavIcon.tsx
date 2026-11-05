@@ -20,6 +20,7 @@ const iconBySection: Record<AdminSection["key"], typeof Flag> = {
   users: People,
   mail: MarkEmailUnread,
   media: Storage,
+  "video-quality": Slideshow,
   admin: AdminPanelSettings,
   partners: Handshake,
   profit: TrendingUp,

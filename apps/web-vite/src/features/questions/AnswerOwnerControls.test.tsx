@@ -1,4 +1,11 @@
 // @vitest-environment jsdom
+vi.mock("../../shared/media/browserPhotoWebp",()=>({
+  prepareBrowserPhotoWebp:vi.fn(async(_original:File,edges:Record<string,number>)=>
+    Object.fromEntries(Object.entries(edges).map(([name,edge])=>[
+      name,{file:new File([new Uint8Array(128)],name+".webp",{type:"image/webp"}),
+        width:edge,height:Math.round(edge*.75)},
+    ]))),
+}));
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -112,9 +119,9 @@ describe("answer owner mutation controls", () => {
 
   it("new uploaded answer photo joins retained originals only after PATCH", async () => {
     const fake = vi.fn(async (path: string, init?: RequestInit) =>
-      path === "/api/v1/questions/photos/reservations" && init?.method === "POST"
+      path === "/api/v1/questions/photos/client-reservations" && init?.method === "POST"
         ? photoV2Reservation("photo-3")
-        : path === "/api/v1/questions/photos/photo-3/confirm"
+        : path === "/api/v1/questions/photos/photo-3/client-confirm"
           ? photoV2Confirmation("photo-3") : api({ id: "answer-1" }));
     const direct = installQuestionPhotoV2Browser("blob:local-answer");
     const ui = await mount(fake);
@@ -129,8 +136,8 @@ describe("answer owner mutation controls", () => {
       // Hono creates the reservation then confirms the direct S3 upload.
       expect(fake.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(2);
       expect(ui.host.textContent).toContain("3 из 5");
-      expect(direct).toHaveLength(1);
-      expect(direct[0]?.withCredentials).toBe(false);
+      expect(direct).toHaveLength(2);
+      expect(direct.every(post=>post.withCredentials===false)).toBe(true);
       expect(fake.mock.calls.filter(([, options]) => options?.method === "PATCH")).toHaveLength(0);
       await ui.submit();
       const patches = fake.mock.calls.filter(([, options]) => options?.method === "PATCH");
@@ -144,8 +151,8 @@ describe("answer owner mutation controls", () => {
     let completeUpload!: (reply: Response) => void;
     const upload = new Promise<Response>(resolve => { completeUpload = resolve; });
     const fake = vi.fn((path: string, init?: RequestInit) =>
-      path === "/api/v1/questions/photos/reservations" && init?.method === "POST"
-        ? upload : Promise.resolve(path === "/api/v1/questions/photos/photo-3/confirm"
+      path === "/api/v1/questions/photos/client-reservations" && init?.method === "POST"
+        ? upload : Promise.resolve(path === "/api/v1/questions/photos/photo-3/client-confirm"
           ? photoV2Confirmation("photo-3") : api({ id: "answer-1" })));
     installQuestionPhotoV2Browser("blob:answer-pending");
     const ui = await mount(fake);

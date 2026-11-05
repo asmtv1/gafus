@@ -7,7 +7,6 @@ import {createCloudruChatPoolDispatcher} from "./cloudru-media-dispatcher.js";
  */
 export function createChat2MediaRecoveryTick(input:{
   database: Pick<typeof prisma,"chat2V2MediaTask">;
-  photo:ReturnType<typeof createCloudruChatPoolDispatcher>;
   video:ReturnType<typeof createCloudruChatPoolDispatcher>;
   now?:()=>Date;
 }) {
@@ -19,23 +18,21 @@ export function createChat2MediaRecoveryTick(input:{
       const now=input.now?.()??new Date();
       const grouped=await input.database.chat2V2MediaTask.groupBy({
         by:["sourceMime"],
-        where:{attempts:{lt:4},OR:[
+        where:{attempts:{lt:4},sourceMime:{startsWith:"video/"},OR:[
           {status:"QUEUED",nextAttemptAt:{lte:now}},
           {status:"PROCESSING",leaseUntil:{lt:now}},
+          {status:"READY",nextAttemptAt:{lte:now},
+            OR:[{attemptToken:null},{leaseUntil:{lt:now}}],
+            manifest:{path:["renditions"],array_contains:[{quality:720}]},
+            NOT:{manifest:{path:["renditions"],array_contains:[{quality:360}]}}},
         ]},
         _count:{_all:true},
       });
-      let photos=0,videos=0;
+      let videos=0;
       for(const item of grouped){
-        if(item.sourceMime.startsWith("image/"))photos+=item._count._all;
-        else if(item.sourceMime.startsWith("video/"))videos+=item._count._all;
+        if(item.sourceMime.startsWith("video/"))videos+=item._count._all;
       }
       let dispatched=0;
-      for(let i=0;i<Math.min(2,photos);i++){
-        const result=await input.photo();
-        if(result.dispatched!==1)throw Error("CHAT2_PHOTO_RECOVERY_DISPATCH_FAILED");
-        dispatched++;
-      }
       for(let i=0;i<Math.min(2,videos);i++){
         const result=await input.video();
         if(result.dispatched!==1)throw Error("CHAT2_VIDEO_RECOVERY_DISPATCH_FAILED");
@@ -53,7 +50,6 @@ export async function runChat2MediaRecoveryTick():Promise<void>{
      process.env.CHAT2_V2_MEDIA_ENABLED!=="true" ||
      process.env.CHAT2_V2_CORE_ENABLED!=="true")return;
   recovery??=createChat2MediaRecoveryTick({database:prisma,
-    photo:createCloudruChatPoolDispatcher("photo"),
     video:createCloudruChatPoolDispatcher("video")});
   await recovery();
 }

@@ -1,0 +1,19 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "PJQ8PP666S.ru.gafus.app",
+        "paths": [
+          "/feed/*",
+          "/questions/*",
+          "/chats/*",
+          "/training/*",
+          "/moments",
+          "/moments/*",
+          "/reset-password"
+        ]
+      }
+    ]
+  }
+}

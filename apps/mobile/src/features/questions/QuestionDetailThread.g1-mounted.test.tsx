@@ -215,6 +215,7 @@ vi.mock("react-native", async () => {
   return {
     ScrollView: Scroll,
     KeyboardAvoidingView: Box,
+    Keyboard: { addListener: () => ({ remove: () => undefined }) },
     View: Box,
     Text: ({ children, accessibilityRole, accessibilityLabel, accessibilityLiveRegion }: {
       children?: React.ReactNode;

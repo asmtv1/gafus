@@ -1,7 +1,6 @@
 import { createServer } from "node:http";
 import { createFeedCloudInternalClient } from "@gafus/feed-cloud";
 import { createFeedCloudObjects } from "./objects.js";
-import { sharpFeedEngine } from "./sharp-engine.js";
 import { createFeedCloudWorker } from "./worker.js";
 // Container Jobs exit after one bounded invocation; HTTP mode is retained for existing triggers.
 export async function processFeedJobs(): Promise<number> {
@@ -10,22 +9,15 @@ export async function processFeedJobs(): Promise<number> {
     baseUrl: process.env.FEED_INTERNAL_BASE_URL ?? "",
     key,
   });
-  // Cleanup and recovery remain active when new publications are disabled.
-  // Never log the caught object: network SDK errors can include signed URLs.
-  try {
-    await core.maintenance(20);
-  } catch {
-    console.error("FEED_MEDIA_V2_RUNTIME_FAILURE", JSON.stringify({ phase: "maintenance" }));
-    throw new Error("FEED_MAINTENANCE_FAILED");
-  }
+  // Cleanup, retention and recovery are owned by the always-on GAFUS Worker.
+  // The Cloud.ru Job exclusively transcodes a verified 720p into 360p.
   const worker = createFeedCloudWorker({
     core,
     objects: createFeedCloudObjects(),
-    engine: sharpFeedEngine,
     onMetrics: metrics => process.stdout.write(`FEED_MEDIA_V2_METRIC ${JSON.stringify(metrics)}\n`),
   });
   const workerType = process.env.FEED_WORKER_TYPE;
-  if (workerType !== "photo" && workerType !== "video") throw new Error("INVALID_FEED_WORKER_TYPE");
+  if (workerType !== "video") throw new Error("INVALID_FEED_WORKER_TYPE: photo processing Jobs were removed");
   let jobs: Awaited<ReturnType<typeof core.claimJobs>>;
   try {
     jobs = await core.claimJobs(1, workerType);

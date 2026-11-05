@@ -9,6 +9,7 @@ export interface ProbeStream {
   height?: number;
   duration?: string;
   avg_frame_rate?: string;
+  pix_fmt?: string;
   color_transfer?: string;
   side_data_list?: { rotation?: number }[];
 }

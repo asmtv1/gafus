@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Alert, AppState, Linking, Pressable, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "react-native-paper";
+import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { File } from "expo-file-system";
 import { useQuery } from "@tanstack/react-query";
 import { GALLERY_LIMITS } from "@gafus/types";
@@ -26,6 +26,11 @@ import { styles as s } from "./styles";
 import { cancelTask, pollTask, runUpload, unexpiredUpload } from "./queue";
 import { galleryUploadRejected } from "./storage-error";
 import { acquireGalleryUploadSlot } from "./uploadConcurrency";
+import { galleryTransport } from "@/shared/lib/api/gallery";
+import { prepareUploadWebpVariants } from "@/shared/lib/media/prepareUploadWebp";
+import { photoRetryMessage } from "@/shared/lib/media/photoRetryMessage";
+import { postClientWebp, type SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
+import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
 
 function detectedMime(file: File): "image/jpeg" | "image/png" | "image/webp" | null {
   const handle = file.open();
@@ -45,38 +50,25 @@ function detectedMime(file: File): "image/jpeg" | "image/png" | "image/webp" | n
 }
 async function prepare(asset: ImagePicker.ImagePickerAsset, current: () => boolean) {
   if (!current()) throw new Error("GALLERY_UPLOAD_STALE_SESSION");
-  let file = new File(asset.uri);
-  let mime = detectedMime(file);
-  let temporary = false;
-  if (!mime) {
-    if (!/hei[cf]/i.test(`${asset.mimeType ?? ""} ${asset.fileName ?? ""}`)) {
-      throw new Error("Выберите JPG, PNG, WebP или HEIC. Другие форматы не поддерживаются.");
-    }
-    const longest = Math.max(asset.width, asset.height);
-    const image = await manipulateAsync(
-      asset.uri,
-      longest > 4096
-        ? [{ resize: asset.width >= asset.height ? { width: 4096 } : { height: 4096 } }]
-        : [],
-      { format: SaveFormat.JPEG, compress: 0.9 },
-    );
-    if (!current()) throw new Error("GALLERY_UPLOAD_STALE_SESSION");
-    file = new File(image.uri);
-    mime = detectedMime(file);
-    temporary = true;
+  const original = new File(asset.uri);
+  const mime = detectedMime(original);
+  if (!mime && !/hei[cf]/i.test(`${asset.mimeType ?? ""} ${asset.fileName ?? ""}`)) {
+    throw new Error("Выберите JPG, PNG, WebP или HEIC. Другие форматы не поддерживаются.");
   }
+  const prepared = await prepareUploadPhoto(asset);
   if (!current()) {
-    if (temporary) file.delete();
+    prepared.dispose();
     throw new Error("GALLERY_UPLOAD_STALE_SESSION");
   }
-  if (!mime || file.size <= 0 || file.size > GALLERY_LIMITS.photoBytes) {
-    if (temporary) file.delete();
-    throw new Error("Файл должен быть JPG, PNG или WebP размером до 10 МиБ. Выберите другой файл.");
+  const file = new File(prepared.uri);
+  if (detectedMime(file) !== "image/jpeg" ||
+      prepared.bytes > GALLERY_LIMITS.photoBytes ||
+      prepared.width * prepared.height > GALLERY_LIMITS.pixels) {
+    prepared.dispose();
+    throw new Error("Не удалось подготовить JPG размером до 10 МиБ.");
   }
-  if (!temporary && asset.width * asset.height > GALLERY_LIMITS.pixels)
-    throw new Error("Фото должно быть не больше 50 мегапикселей.");
-  const extension = mime === "image/jpeg" ? "jpg" : mime === "image/png" ? "png" : "webp";
-  return { file, mime, temporary, filename: `photo-${requestId()}.${extension}` };
+  return { file, mime: prepared.mime, temporary: true, filename: `photo-${requestId()}.jpg`,
+    width: prepared.width, height: prepared.height };
 }
 async function send(
   asset: ImagePicker.ImagePickerAsset,
@@ -85,7 +77,30 @@ async function send(
   actor: GalleryActor,
   current: () => boolean,
 ) {
-  const api = galleryUploadForActor(actor, current);
+  const originalApi = galleryUploadForActor(actor, current);
+  const clientProcessing = true; // Browser and Mobile always deliver final WebP renditions.
+  const clientThumbForms = new Map<string, SignedClientPhotoPost>();
+  const api = clientProcessing ? {
+    ...originalApi,
+    reserveUpload: async (input: Parameters<typeof originalApi.reserveUpload>[0]) => {
+      if (!current() || !sameGalleryActor(actor)) throw Error("GALLERY_UPLOAD_STALE_SESSION");
+      const response = await galleryTransport<import("@gafus/types").GalleryUploadDto & {
+        thumbUpload?: SignedClientPhotoPost;
+      }>("uploads/client-reserve", { method: "POST", body: input,
+        requestGuard: () => current() && sameGalleryActor(actor) });
+      if (!current() || !sameGalleryActor(actor)) throw Error("GALLERY_UPLOAD_STALE_SESSION");
+      const { thumbUpload, ...safe } = response;
+      if (thumbUpload) clientThumbForms.set(safe.uploadId, thumbUpload);
+      return safe;
+    },
+    confirmUpload: async (uploadId: string) => {
+      // This is a client-only photo reservation. No normal /complete Job fallback.
+      if (!current() || !sameGalleryActor(actor)) throw Error("GALLERY_UPLOAD_STALE_SESSION");
+      return galleryTransport<import("@gafus/types").GalleryUploadDto>(
+        `uploads/${uploadId}/client-complete`, { method: "POST", body: {},
+          requestGuard: () => current() && sameGalleryActor(actor) });
+    },
+  } : originalApi;
   await runUpload(task.id, { epoch, generation: task.generation }, api, {
     acquire: acquireGalleryUploadSlot,
     active: () => AppState.currentState === "active",
@@ -95,21 +110,66 @@ async function send(
     prepare: async () => {
       if (!current()) throw new Error("GALLERY_UPLOAD_STALE_SESSION");
       const prepared = await prepare(asset, current);
+      let clientVersions: Awaited<ReturnType<typeof prepareUploadWebpVariants<"thumb" | "full">>> | undefined;
+      try {
+        if (clientProcessing) {
+          clientVersions = await prepareUploadWebpVariants({
+            uri: prepared.file.uri, width: prepared.width, height: prepared.height,
+          }, { thumb: 480, full: 1920 });
+        }
+      } catch (error) {
+        if (prepared.temporary) prepared.file.delete();
+        throw error;
+      }
       return {
         input: {
-          filename: prepared.filename,
-          declaredMime: prepared.mime,
-          declaredBytes: prepared.file.size,
+          filename: clientVersions ? `photo-${requestId()}.webp` : prepared.filename,
+          declaredMime: clientVersions ? "image/webp" as const : prepared.mime,
+          declaredBytes: clientVersions?.full.bytes ?? prepared.file.size,
         },
         dispose: () => {
+          clientVersions?.thumb.dispose();
+          clientVersions?.full.dispose();
           if (prepared.temporary) prepared.file.delete();
         },
         transfer: async (upload, controller) => {
+          let thumb = clientThumbForms.get(upload.uploadId);
+          // The upload may have been reserved before a network interruption or
+          // as the idempotent retry child. Re-authorize a fresh thumbnail POST;
+          // never downgrade an existing WebP reservation into legacy Photo Jobs.
+          if (clientVersions && !thumb && upload.postFields?.["Content-Type"] === "image/webp") {
+            thumb = await galleryTransport<SignedClientPhotoPost>(
+              `uploads/${upload.uploadId}/client-thumb`, {
+                method: "POST", body: {},
+                requestGuard: () => current() && !controller.signal.aborted && sameGalleryActor(actor),
+              });
+            clientThumbForms.set(upload.uploadId, thumb);
+          }
+          if (clientProcessing && (!clientVersions || !thumb))
+            throw Error("GALLERY_CLIENT_WEBP_REQUIRED");
+          if (clientVersions && thumb) {
+            if (!upload.postUrl || !upload.postFields)
+              throw Error("GALLERY_CLIENT_PHOTO_POST_MISSING");
+            const hosts = ["s3.cloud.ru", "127.0.0.1", "localhost", "10.0.2.2"];
+            await Promise.all([
+              postClientWebp(thumb, clientVersions.thumb, hosts, undefined, controller.signal),
+              postClientWebp({ url: upload.postUrl, fields: upload.postFields, method: "POST" },
+                clientVersions.full, hosts, undefined, controller.signal),
+            ]);
+            return;
+          }
+
           if (!current() || controller.signal.aborted) return;
           if (!unexpiredUpload(upload)) throw new Error("GALLERY_UPLOAD_EXPIRED");
+          // A pre-existing retry may carry a legacy JPEG reservation even if
+          // client-side processing is now enabled. Match the signed MIME exactly.
+          const savedMime = upload.postFields?.["Content-Type"];
+          const useWebp = savedMime === "image/webp" && !!clientVersions;
+          const transferMime = useWebp ? "image/webp" : prepared.mime;
+          const transferUri = useWebp ? clientVersions!.full.uri : prepared.file.uri;
+          const transferFilename = useWebp ? `photo-${task.id}.webp` : prepared.filename;
           if (
-            upload.postFields?.["Content-Type"] &&
-            upload.postFields["Content-Type"] !== prepared.mime
+            savedMime && savedMime !== transferMime
           )
             throw new Error(
               "Для повтора выберите фотографию того же формата, что и исходный файл.",
@@ -119,9 +179,9 @@ async function send(
           const body = new FormData();
           for (const [key, value] of Object.entries(upload.postFields)) body.append(key, value);
           body.append("file", {
-            uri: prepared.file.uri,
-            name: prepared.filename,
-            type: prepared.mime,
+            uri: transferUri,
+            name: transferFilename,
+            type: transferMime,
           } as unknown as Blob);
           const background = AppState.addEventListener("change", (state) => {
             if (state !== "active") controller.abort();
@@ -165,7 +225,8 @@ const statusLabel: Record<UploadTask["status"], string> = {
   cancelling: "Проверяется отмена…",
   cancelled: "Загрузка отменена",
 };
-function UploadRow({ task, retry }: { task: UploadTask; retry: (id?: string) => void }) {
+function UploadRow({ task, retry }: { task: UploadTask;
+  retry: (id?: string, taskId?: string) => void }) {
   const { viewer, cache, actor } = useGalleryContext();
   const foreground = useForeground();
   const current = () =>
@@ -240,7 +301,19 @@ function UploadRow({ task, retry }: { task: UploadTask; retry: (id?: string) => 
   return (
     <View style={s.uploadNotice}>
       <View style={s.uploadNoticeRow}>
-        {active ? (
+        {task.previewUri && <View style={{position:"relative",width:64,height:64,
+          borderRadius:12,overflow:"hidden",backgroundColor:"#e8e8e2"}}>
+          <Image source={{uri:task.previewUri}} style={{width:64,height:64}} contentFit="cover"/>
+          {retryable && <Pressable accessibilityRole="button"
+            accessibilityLabel={`Повторить обработку фото ${task.filename}`}
+            onPress={()=>retry(task.upload?.uploadId ?? task.retrySourceId,task.id)}
+            style={{position:"absolute",left:10,top:10,width:44,height:44,
+              borderRadius:22,borderWidth:1,borderColor:"#ffffffcc",
+              backgroundColor:"#17211df0",alignItems:"center",justifyContent:"center"}}>
+            <MaterialCommunityIcons name="refresh" color="#fff" size={28}/>
+          </Pressable>}
+        </View>}
+        {!task.previewUri && (active ? (
           <MaterialCommunityIcons name="progress-clock" size={20} color={COLORS.primary} />
         ) : (
           <MaterialCommunityIcons
@@ -254,7 +327,7 @@ function UploadRow({ task, retry }: { task: UploadTask; retry: (id?: string) => 
             size={20}
             color={retryable ? "#A35A43" : COLORS.primary}
           />
-        )}
+        ))}
         <View style={s.uploadNoticeText}>
           <Text numberOfLines={1} ellipsizeMode="middle" style={s.uploadFileName}>
             {task.filename}
@@ -262,14 +335,17 @@ function UploadRow({ task, retry }: { task: UploadTask; retry: (id?: string) => 
           <Text numberOfLines={1} style={[s.uploadStatus, retryable && s.uploadStatusError]}>
             {statusLabel[task.status]}
           </Text>
+          {retryable && <Text accessibilityRole="alert" style={{color:"#923b22",fontSize:11,lineHeight:16}}>
+            {photoRetryMessage(task.error)}
+          </Text>}
         </View>
-        {retryable ? (
+        {retryable && !task.previewUri ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Повторить загрузку ${task.filename}, выбрать файл заново`}
             hitSlop={5}
             style={s.uploadNoticeAction}
-            onPress={() => retry(task.upload?.uploadId ?? task.retrySourceId)}
+            onPress={() => retry(task.upload?.uploadId ?? task.retrySourceId,task.id)}
           >
             <MaterialCommunityIcons name="refresh" size={23} color={COLORS.primary} />
           </Pressable>
@@ -373,6 +449,10 @@ export function UploadControls({
   const { viewer, cache, actor, username } = useGalleryContext();
   const tasks = useGallerySession((state) => state.tasks);
   const pickInFlight = useRef(false);
+  // Original picker assets never go to persistent stores; retain only in the
+  // mounted owner/album scope. Each arrow retries its own source URI.
+  const cachedSources = useRef(new Map<string,{asset:ImagePicker.ImagePickerAsset;
+    epoch:number;ownerId:string;albumId?:string}>());
   const mounted = useRef(true);
   const routeRef = useRef({ owner, albumId });
   routeRef.current = { owner, albumId };
@@ -380,9 +460,10 @@ export function UploadControls({
     mounted.current = true;
     return () => {
       mounted.current = false;
+      cachedSources.current.clear();
     };
   }, []);
-  const pick = async (retryId?: string) => {
+  const pick = async (retryId?: string, cachedTaskId?: string) => {
     if (
       pickInFlight.current ||
       !actor ||
@@ -431,7 +512,10 @@ export function UploadControls({
                   t.retrySourceId === retryId ||
                   t.retryOperation?.parentId === retryId),
             )
-        : undefined;
+        : cachedTaskId ? useGallerySession.getState().tasks.find(task =>
+          task.id === cachedTaskId && task.owner === capturedOwner &&
+          task.ownerId === capturedActor.ownerId && task.authEpoch === capturedActor.authEpoch &&
+          (task.status === "failed" || task.status === "expired")) : undefined;
       if (retryId && !retryTask) {
         // PhotoActionsMenu opens a historical failed photo without an in-memory task.
         // Verify the exact owner-scoped server upload first: a reserved/processing
@@ -474,34 +558,38 @@ export function UploadControls({
       validTask = () => valid() && (!retryTask || !!taskAt(retryTask.id, pickFence!));
       const sdkValid = () => validTask() && AppState.currentState === "active";
       if (!sdkValid()) return;
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!sdkValid()) return;
-      if (!permission.granted) {
-        Alert.alert("Доступ к фотографиям", "Разрешите доступ к фото в настройках телефона.", [
-          { text: "Отмена", style: "cancel" },
-          {
-            text: "Настройки",
-            onPress: () => {
-              if (validTask()) void Linking.openSettings();
-            },
-          },
-        ]);
-        return;
+      const remembered = cachedTaskId ? cachedSources.current.get(cachedTaskId) : undefined;
+      const usable = remembered?.epoch === epoch &&
+        remembered.ownerId === capturedActor.ownerId &&
+        remembered.albumId === capturedAlbumId && retryTask?.id === cachedTaskId;
+      let assets:ImagePicker.ImagePickerAsset[];
+      if (usable && remembered) {
+        assets=[remembered.asset];
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!sdkValid()) return;
+        if (!permission.granted) {
+          Alert.alert("Доступ к фотографиям", "Разрешите доступ к фото в настройках телефона.", [
+            { text: "Отмена", style: "cancel" },
+            { text: "Настройки", onPress: () => { if (validTask()) void Linking.openSettings(); } },
+          ]);
+          return;
+        }
+        if (!sdkValid()) return;
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ["images"], allowsMultipleSelection: !retryId,
+          selectionLimit: retryId ? 1 : Math.max(1, 200 - usedSlots),quality: 1,
+        });
+        if (result.canceled || !result.assets.length || !sdkValid()) return;
+        assets=result.assets;
       }
-      if (!sdkValid()) return;
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsMultipleSelection: !retryId,
-        selectionLimit: retryId ? 1 : Math.max(1, 200 - usedSlots),
-        quality: 1,
-      });
-      if (result.canceled || !result.assets.length || !sdkValid()) return;
-      const selected = result.assets.map((asset) => ({
+      const selected = assets.map((asset) => ({
         asset,
         task: retryTask
           ? {
               ...retryTask,
               filename: asset.fileName ?? "Фотография",
+              previewUri: asset.uri,
               status: "queued" as const,
             }
           : {
@@ -511,10 +599,14 @@ export function UploadControls({
               authEpoch: capturedActor.authEpoch,
               albumId,
               filename: asset.fileName ?? "Фотография",
+              previewUri: asset.uri,
               status: "queued" as const,
               generation: 0,
             },
       }));
+      for (const item of selected) cachedSources.current.set(item.task.id,{
+        asset:item.asset,epoch,ownerId:capturedActor.ownerId,albumId:capturedAlbumId,
+      });
       if (retryTask && pickFence) updateTask(retryTask.id, selected[0].task, pickFence);
       else
         useGallerySession.setState((state) => ({
@@ -635,7 +727,7 @@ export function UploadControls({
       ) : null}
       {!compact &&
         visibleTasks.map((task) => (
-          <UploadRow key={task.id} task={task} retry={(id) => void pick(id)} />
+          <UploadRow key={task.id} task={task} retry={(id, taskId) => void pick(id, taskId)} />
         ))}
     </View>
   );

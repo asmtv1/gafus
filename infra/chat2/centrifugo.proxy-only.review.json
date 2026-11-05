@@ -1,13 +1,17 @@
 {
   "client": {
-    "allowed_origins": ["https://gafus.ru", "https://www.gafus.ru"],
+    "allowed_origins": [
+      "https://gafus.ru",
+      "https://www.gafus.ru"
+    ],
     "token": {
       "issuer": "gafus-chat2",
       "hmac_secret_key": "__INJECT_CONNECTION_HS256_SECRET_AT_RELEASE__"
     },
     "subscription_token": {
       "enabled": true,
-      "hmac_secret_key": "__INJECT_DISTINCT_SUBSCRIPTION_HS256_SECRET_AT_RELEASE__"
+      "issuer": "gafus-chat2-subscription-deny",
+      "hmac_secret_key": "__INJECT_DISTINCT_NEVER_ISSUED_DENY_SECRET_AT_RELEASE__"
     }
   },
   "channel": {
@@ -28,13 +32,19 @@
         "subscribe_proxy_enabled": true,
         "history_size": 100,
         "history_ttl": "120s",
-        "force_recovery": true
+        "force_recovery": true,
+        "allow_user_limited_channels": false,
+        "allow_subscribe_for_client": false
       }
     ]
   },
   "engine": {
     "type": "redis",
-    "redis": { "address": "redis://redis:6379" }
+    "redis": {
+      "address": "redis://redis:6379"
+    }
   },
-  "health": { "enabled": true }
+  "health": {
+    "enabled": true
+  }
 }

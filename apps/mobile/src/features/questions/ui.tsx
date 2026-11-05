@@ -1,16 +1,19 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text, TextInput, View, Linking, Alert, FlatList, Modal, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
 import * as ImagePicker from "expo-image-picker";
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { COLORS, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
-import { uploadQuestionPhoto, discardQuestionPhoto } from "@/shared/lib/api/questions";
+import { uploadQuestionPhoto, uploadClientQuestionsPhoto, discardQuestionPhoto } from "@/shared/lib/api/questions";
 import { classifyQuestionNativePhoto } from "./photoSource";
+import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
+import { photoRetryMessage } from "@/shared/lib/media/photoRetryMessage";
 import { questionPhotoReadIdentity } from "./photoReadIdentity";
 import { allowQuestionsS3Fallback } from "./questionPhotoCdnFallback";
 import { questionPhotoTerminalNotice } from "./photoDisplay";
@@ -312,8 +315,9 @@ export function QPhotos({
           supportedOrientations={["portrait", "landscape"]}
         >
           <StatusBar hidden />
-          <SafeAreaProvider>
-            <SafeAreaView edges={["top", "bottom"]} style={st.questionPhotoViewer}>
+          <GestureHandlerRootView style={st.questionPhotoViewer}>
+            <SafeAreaProvider>
+              <SafeAreaView edges={["top", "bottom"]} style={st.questionPhotoViewer}>
             <View style={st.questionPhotoViewerHeader}>
               <Text style={st.questionPhotoViewerCount}>
                 {viewerIndex + 1} / {photos.length}
@@ -347,7 +351,8 @@ export function QPhotos({
                 );
               }}
               renderItem={({ item, index }) => (
-                <View style={[st.questionPhotoViewerPage, { width }]}>
+                <SwipeDismissMedia style={[st.questionPhotoViewerPage, { width }]}
+                  enabled={index === viewerIndex} onDismiss={closeViewer}>
                   <Image
                     source={{ uri: s3Images.includes(questionPhotoReadIdentity(item)) ? (item.fallbackUrl ?? item.url) : item.url }}
                     cachePolicy="disk"
@@ -364,7 +369,7 @@ export function QPhotos({
                     style={st.questionPhotoViewerImage}
                     accessibilityLabel={`Фото ${index + 1} из ${photos.length}`}
                   />
-                </View>
+                </SwipeDismissMedia>
               )}
             />
               {viewerFailed && (
@@ -375,8 +380,9 @@ export function QPhotos({
                   <Text style={{color:COLORS.primary}}>Фото недоступно · Повторить</Text>
                 </Pressable>
               )}
-            </SafeAreaView>
-          </SafeAreaProvider>
+              </SafeAreaView>
+            </SafeAreaProvider>
+          </GestureHandlerRootView>
         </Modal>
       )}
     </>
@@ -427,10 +433,56 @@ export function QPhotoPicker({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState<number | null>(null);
+  const [failedPhotos, setFailedPhotos] = useState<{key:number;asset:ImagePicker.ImagePickerAsset;
+    failure:string;uploading:boolean}[]>([]);
+  // Do not let a question/answer publish while a chosen photo is still
+  // waiting for its own retry or removal. The tile actions remain enabled.
+  useEffect(() => {
+    onBusy(busy || failedPhotos.length > 0);
+  }, [busy, failedPhotos.length, onBusy]);
+  useEffect(() => () => onBusy(false), [onBusy]);
+  const photoSerial = useRef(0);
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
+  async function uploadOne(asset:ImagePicker.ImagePickerAsset,key?:number) {
+    let prepared:Awaited<ReturnType<typeof prepareUploadPhoto>>|null = null;
+    if(key !== undefined)setFailedPhotos(items => items.map(item=>item.key === key
+      ? {...item,uploading:true,failure:""} : item));
+    try {
+      classifyQuestionNativePhoto(asset);
+      setProgress(0);
+      prepared = await prepareUploadPhoto(asset);
+      const uploaded = await uploadClientQuestionsPhoto(prepared,p => setProgress(p));
+      const next=[...photosRef.current,{...uploaded,url:asset.uri}];
+      photosRef.current=next;
+      onChange(next);
+      if(key !== undefined)setFailedPhotos(items => items.filter(item=>item.key!==key));
+    } catch(cause) {
+      reportClientError(new Error("QUESTIONS_CLIENT_PHOTO_FAILED"),
+        {issueKey:"Questions",keys:{operation:"photo_upload"}});
+      const failure=photoRetryMessage(cause);
+      if(key === undefined)setFailedPhotos(items => [...items,{
+        key:++photoSerial.current,asset,failure,uploading:false,
+      }]);
+      else setFailedPhotos(items => items.map(item=>item.key===key
+        ? {...item,uploading:false,failure} : item));
+      setError("Не удалось добавить одно из фото. Нажмите круглую стрелку на нём. Другие фото не затронуты.");
+    } finally {
+      prepared?.dispose();
+      setProgress(null);
+    }
+  }
+  async function retryOne(key:number) {
+    if(busy)return;
+    const failed=failedPhotos.find(item=>item.key===key&&!item.uploading);
+    if(!failed)return;
+    setBusy(true);setError("");
+    try {await uploadOne(failed.asset,key);}
+    finally {setBusy(false);}
+  }
   const pick = async () => {
     setError("");
     setBusy(true);
-    onBusy(true);
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
@@ -440,46 +492,53 @@ export function QPhotoPicker({
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         allowsMultipleSelection: true,
-        selectionLimit: QUESTION_LIMITS.photos - photos.length,
+        selectionLimit: QUESTION_LIMITS.photos - photosRef.current.length - failedPhotos.length,
         quality: 1,
       });
       if (result.canceled) return;
-      if (result.assets.length + photos.length > QUESTION_LIMITS.photos) {
+      if (result.assets.length + photosRef.current.length + failedPhotos.length > QUESTION_LIMITS.photos) {
         setError("Можно прикрепить до 5 фото");
         return;
       }
-      const next = [...photos];
-      for (const asset of result.assets) {
-        const classification=classifyQuestionNativePhoto(asset);
-        let uri=asset.uri;
-        let mime:"image/jpeg"|"image/png"|"image/webp";
-        if(classification==="convert-heic"){
-          // iOS-only HEIC import. The worker never accepts HEIC and the
-          // regular JPEG/PNG/WebP originals are not re-encoded or resized.
-          const converted=await manipulateAsync(asset.uri,[],
-            {compress:1,format:SaveFormat.JPEG});
-          uri=converted.uri;
-          mime="image/jpeg";
-        }else{
-          mime=classification;
-        }
-        setProgress(0);
-        next.push(await uploadQuestionPhoto(uri,mime,p=>setProgress(p)));
-        onChange([...next]);
-        setProgress(null);
-      }
+      // One failed image must not stop processing later selected photos.
+      for(const asset of result.assets) await uploadOne(asset);
     } catch (e) {
       reportClientError(e,{issueKey:"Questions",keys:{operation:"photo_upload"}});
       setError(e instanceof Error ? e.message : "Не удалось загрузить фото");
     } finally {
       setBusy(false);
       setProgress(null);
-      onBusy(false);
     }
   };
   return (
     <View style={[st.group, compact && st.compactPhotoPicker]}>
-      {photos.length > 0 && <View style={st.row}>
+      {(photos.length > 0 || failedPhotos.length > 0) && <View style={[st.row,{flexWrap:"wrap"}]}>
+        {failedPhotos.map(item=><View key={`failed-${item.key}`} style={{width:compact?100:110,marginRight:5,marginBottom:9}}>
+          <View style={{position:"relative",height:compact?90:110}}>
+            <Image source={{uri:item.asset.uri}} contentFit="cover"
+              style={[st.photo,compact && st.compactPhoto]}/>
+            {item.uploading ? <View style={{position:"absolute",left:3,top:3,
+              borderRadius:18,backgroundColor:"#17211de0",padding:8}}>
+              <MaterialCommunityIcons name="progress-clock" size={22} color="#fff"/>
+            </View> : <Pressable accessibilityRole="button"
+              accessibilityLabel={`Повторить обработку фото ${item.asset.fileName ?? item.key}`}
+              disabled={busy} onPress={()=>void retryOne(item.key)}
+              style={{position:"absolute",top:29,left:29,width:48,height:48,
+                borderRadius:24,backgroundColor:"#17211df0",borderWidth:1,
+                borderColor:"#fffc",alignItems:"center",justifyContent:"center"}}>
+              <MaterialCommunityIcons name="refresh" size={30} color="#fff"/>
+            </Pressable>}
+            <Pressable accessibilityRole="button" accessibilityLabel="Убрать неудавшееся фото"
+              disabled={busy} onPress={()=>setFailedPhotos(items=>items.filter(photo=>photo.key!==item.key))}
+              style={{position:"absolute",right:0,top:0,width:28,height:28,
+                borderRadius:14,backgroundColor:"#faf7ef",alignItems:"center",justifyContent:"center"}}>
+              <MaterialCommunityIcons name="close" size={18} color="#60392e"/>
+            </Pressable>
+          </View>
+          {!!item.failure && <Text accessibilityRole="alert" style={{color:"#92351f",fontSize:11,lineHeight:16}}>
+            {item.failure}
+          </Text>}
+        </View>)}
         {photos.map((p) => (
           <View key={p.id}>
             <Image source={{ uri: p.url }} contentFit="cover" style={[st.photo, compact && st.compactPhoto]} />
@@ -493,7 +552,6 @@ export function QPhotoPicker({
                 const remove=async()=>{
                   const remote=p.url.startsWith("https://") || p.url.startsWith("http://");
                   setBusy(true);
-                  onBusy(true);
                   setError("");
                   try{
                     // Existing attached photos are unbound atomically when
@@ -505,7 +563,6 @@ export function QPhotoPicker({
                     setError(e instanceof Error?e.message:"Не удалось удалить фото");
                   }finally{
                     setBusy(false);
-                    onBusy(false);
                   }
                 };
                 void remove();
@@ -520,15 +577,15 @@ export function QPhotoPicker({
         <View style={[st.compactPhotoToolbar, !trailingAction && st.compactPhotoToolbarStandalone]}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={photos.length >= QUESTION_LIMITS.photos ? "Лимит фото достигнут" : "Добавить фото"}
-            accessibilityHint={`${photos.length} из ${QUESTION_LIMITS.photos} фото. До 10 МБ каждое`}
-            accessibilityState={{ disabled: busy || photos.length >= QUESTION_LIMITS.photos }}
-            disabled={busy || photos.length >= QUESTION_LIMITS.photos}
+            accessibilityLabel={photos.length + failedPhotos.length >= QUESTION_LIMITS.photos ? "Лимит фото достигнут" : "Добавить фото"}
+            accessibilityHint={`${photos.length + failedPhotos.length} из ${QUESTION_LIMITS.photos} фото. До 10 МБ каждое`}
+            accessibilityState={{ disabled: busy || photos.length + failedPhotos.length >= QUESTION_LIMITS.photos }}
+            disabled={busy || photos.length + failedPhotos.length >= QUESTION_LIMITS.photos}
             onPress={() => void pick()}
             style={({ pressed }) => [
               st.compactPhotoAction,
               !trailingAction && st.compactPhotoActionStandalone,
-              (pressed || busy || photos.length >= QUESTION_LIMITS.photos) && { opacity: 0.6 },
+              (pressed || busy || photos.length + failedPhotos.length >= QUESTION_LIMITS.photos) && { opacity: 0.6 },
             ]}
           >
             <View style={[st.compactPhotoIcon, !trailingAction && st.compactPhotoIconLarge]}>
@@ -542,18 +599,18 @@ export function QPhotoPicker({
               <Text numberOfLines={trailingAction ? 1 : 2} style={st.compactPhotoText}>
                 {busy
                   ? progress === null ? "Подготовка фото…" : progress >= 100 ? "Обработка фото…" : `Загрузка ${progress}%`
-                  : photos.length >= QUESTION_LIMITS.photos
+                  : photos.length + failedPhotos.length >= QUESTION_LIMITS.photos
                     ? "Добавлено максимум фото"
                     : photos.length > 0 ? "Добавить ещё фото" : "Добавить фото"}
               </Text>
               {!trailingAction && (
                 <Text style={st.compactPhotoHint}>
-                  {photos.length} из {QUESTION_LIMITS.photos} фото · до 10 МБ каждое
+                  {photos.length + failedPhotos.length} из {QUESTION_LIMITS.photos} фото · до 10 МБ каждое
                 </Text>
               )}
             </View>
             {trailingAction ? (
-              <Text style={st.compactPhotoHint}>{photos.length}/{QUESTION_LIMITS.photos}</Text>
+              <Text style={st.compactPhotoHint}>{photos.length + failedPhotos.length}/{QUESTION_LIMITS.photos}</Text>
             ) : (
               <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.primary} />
             )}
@@ -567,7 +624,7 @@ export function QPhotoPicker({
               progress>=100?"Обработка фото…":"Загрузка "+progress+"%") : "Прикрепить фото"}
             secondary
             icon="image-plus"
-            disabled={busy || photos.length >= QUESTION_LIMITS.photos}
+            disabled={busy || photos.length + failedPhotos.length >= QUESTION_LIMITS.photos}
             onPress={() => void pick()}
           />
           <Text style={st.meta}>До 5 фото · до 10 МБ каждое</Text>
@@ -585,6 +642,8 @@ export function QInput({
   label,
   value,
   onChange,
+  onFocus,
+  onBlur,
   multiline,
   minHeight,
   maxLength,
@@ -593,6 +652,8 @@ export function QInput({
   label: string;
   value: string;
   onChange: (text: string) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   multiline?: boolean;
   minHeight?: number;
   maxLength?: number;
@@ -605,6 +666,8 @@ export function QInput({
         accessibilityLabel={label}
         value={value}
         onChangeText={onChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
         multiline={multiline}
         scrollEnabled={multiline ? false : undefined}
         maxLength={maxLength}

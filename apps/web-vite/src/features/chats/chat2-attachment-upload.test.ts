@@ -1,95 +1,86 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
+vi.mock("../../shared/media/browserVideoPoster",()=>({
+  prepareBrowserVideoPoster:vi.fn(async()=>new File([new Uint8Array(500)],"poster.webp",
+    {type:"image/webp"})),
+}));
+vi.mock("../../shared/media/browserPhotoWebp",()=>({
+  prepareBrowserPhotoWebp:vi.fn(async()=>({
+    small:{file:new File([new Uint8Array(120)],"small.webp",{type:"image/webp"}),width:360,height:270},
+    medium:{file:new File([new Uint8Array(240)],"medium.webp",{type:"image/webp"}),width:1440,height:1080},
+  })),
+}));
+vi.mock("../../shared/media/browserPhotoUpload",()=>({
+  uploadBrowserPhotoWebp:vi.fn(async()=>undefined),
+}));
 import { chat2Api } from "./chat2Api";
+import { uploadBrowserPhotoWebp } from "../../shared/media/browserPhotoUpload";
+import { prepareBrowserPhotoWebp } from "../../shared/media/browserPhotoWebp";
 
 const file = () => new File([new Uint8Array(128)], "puppy.png", { type: "image/png" });
 
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.clearAllMocks(); });
 
 describe("Chat2 private attachment upload response contract", () => {
-  it("accepts the real API 201 envelope with the id inside data", async () => {
-    const expected = {
-      id: "media_01", name: "puppy.png", kind: "image", mime: "image/png", bytes: 128,
-    };
-    const fetchMock = vi.fn().mockResolvedValue(new Response(
-      JSON.stringify({ success: true, data: expected }),
-      { status: 201, headers: { "Content-Type": "application/json" } },
-    ));
-    vi.stubGlobal("fetch", fetchMock);
-    await expect(chat2Api.upload("room_01", file())).resolves.toEqual(expected);
-    expect(fetchMock).toHaveBeenCalledOnce();
-    const [path, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(path).toBe("/api/v1/chats/room_01/attachments");
-    expect(init).toMatchObject({ method: "POST", credentials: "include", cache: "no-store" });
-    expect(init.headers).toMatchObject({ "X-Gafus-Auth-Transport": "cookie" });
-    expect(init.body).toBeInstanceOf(FormData);
-    expect((init.body as FormData).get("file")).toBeInstanceOf(File);
-  });
-
-  it("rejects malformed or unsuccessful envelopes, not valid 201 uploads", async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(
-      JSON.stringify({ success: true, data: { name: "puppy.png" } }), { status: 201 },
-    )).mockResolvedValueOnce(new Response(
-      JSON.stringify({ success: false, error: "Storage unavailable" }), { status: 503 },
-    ));
-    vi.stubGlobal("fetch", fetchMock);
-    await expect(chat2Api.upload("room_01", file())).rejects.toThrow("Не удалось загрузить вложение");
-    await expect(chat2Api.upload("room_01", file())).rejects.toThrow("Не удалось загрузить вложение");
-  });
-
-  it("uploads V2 originals to Cloud.ru, attaches before processing and allows immediate send", async () => {
-    vi.stubEnv("VITE_CHAT2_MEDIA_V2", "true");
-    const mediaId = "00000000-0000-4000-8000-000000000006";
-    const attached = { id: "attached_6", name: "puppy.png", kind: "image", mime: "image/webp", bytes: 128 };
-    const seen: string[] = [];
-    const mocked = vi.fn().mockImplementation((uri: string, init?: RequestInit) => {
-      seen.push(uri);
-      if (uri.endsWith("/reserve")) return Promise.resolve(new Response(JSON.stringify({
-        success: true, data: { mediaId, upload: {
-          method: "POST", url: "https://s3.cloud.ru/gafus-chat2-media-2026",
-          fields: { key: "chat2/test/incoming/source.png", "Content-Type": "image/png" },
-        } },
-      }), { status: 201 }));
-      if (uri === "https://s3.cloud.ru/gafus-chat2-media-2026") {
-        expect(init?.credentials).toBe("omit");
-        expect(init?.body).toBeInstanceOf(FormData);
-        expect((init?.body as FormData).get("file")).toBeInstanceOf(File);
-        return Promise.resolve(new Response(null, { status: 204 }));
-      }
-      if (uri.endsWith("/confirm")) return Promise.resolve(new Response(JSON.stringify({
-        success: true, data: { mediaId, status: "UPLOADED" },
-      }), { status: 200 }));
-      if (uri.endsWith("/attach")) return Promise.resolve(new Response(JSON.stringify({
-        success: true, data: attached,
-      }), { status: 201 }));
-      if (uri.endsWith(mediaId)) return Promise.resolve(new Response(JSON.stringify({
-        success: true, data: { mediaId, status: "READY" },
-      }), { status: 200 }));
-      throw Error("Unexpected upload endpoint: " + uri);
+  const mediaId="00000000-0000-4000-8000-000000000006";
+  const signed={method:"POST",url:"https://s3.cloud.ru/gafus-chat2-media-2026",
+    fields:{key:"chat2/room/incoming/source.webp"}};
+  it("sends browser-rendered 360/1440 WebP and attaches only after READY",async()=>{
+    const attached={id:"attached_6",name:"puppy.png",kind:"image",mime:"image/webp",bytes:240};
+    const requests:string[]=[];
+    const mocked=vi.fn((uri:string,_init?:RequestInit)=>{
+      requests.push(uri);
+      if(uri.endsWith("/client-reserve"))return Promise.resolve(new Response(JSON.stringify({
+        success:true,data:{mediaId,upload:signed,smallUpload:signed},
+      }),{status:201}));
+      if(uri.endsWith("/client-confirm"))return Promise.resolve(new Response(JSON.stringify({
+        success:true,data:{mediaId,status:"READY"},
+      }),{status:200}));
+      if(uri.endsWith("/attach"))return Promise.resolve(new Response(JSON.stringify({
+        success:true,data:attached,
+      }),{status:201}));
+      throw Error("Unexpected endpoint "+uri);
     });
-    vi.stubGlobal("fetch", mocked);
-    await expect(chat2Api.upload("room_01", file())).resolves.toEqual(attached);
-    expect(seen).toHaveLength(4);
-    expect(seen.at(-1)).toContain("/attach");
-    expect(seen.some(uri => uri.endsWith(mediaId))).toBe(false);
-    expect(seen).not.toContain("/api/v1/chats/room_01/attachments");
+    vi.stubGlobal("fetch",mocked);
+    await expect(chat2Api.upload("room_01",file())).resolves.toEqual(attached);
+    expect(requests).toEqual([
+      "/api/v1/chats/room_01/media/v2/client-reserve",
+      `/api/v1/chats/room_01/media/v2/${mediaId}/client-confirm`,
+      `/api/v1/chats/room_01/media/v2/${mediaId}/attach`,
+    ]);
+    expect(JSON.parse(String(mocked.mock.calls[0]?.[1]?.body))).toMatchObject({
+      name:"puppy.png",mime:"image/webp",bytes:240,
+    });
+    expect(vi.mocked(prepareBrowserPhotoWebp)).toHaveBeenCalledWith(
+      expect.any(File), {small:360,medium:1440});
+    expect(vi.mocked(uploadBrowserPhotoWebp)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(uploadBrowserPhotoWebp).mock.calls.map(args=>args[1].type))
+      .toEqual(["image/webp","image/webp"]);
+    expect(requests.some(uri=>uri.endsWith("/attachments")||uri.endsWith("/reserve")))
+      .toBe(false);
   });
 
-  it("never sends production photos through the disabled legacy S3 endpoint", async () => {
-    vi.stubEnv("PROD", true);
-    vi.stubEnv("VITE_CHAT2_MEDIA_V2", "false");
-    const fetchMock = vi.fn().mockResolvedValue(new Response(
-      JSON.stringify({ success: false, error: "Обработка медиа временно недоступна" }),
-      { status: 503, headers: { "Content-Type": "application/json" } },
-    ));
-    vi.stubGlobal("fetch", fetchMock);
-    await expect(chat2Api.upload("room_01", file())).rejects.toThrow();
-    // The V2 reserve API request must occur before the browser ever sends any
-    // bytes; the old /attachments endpoint must not receive production files.
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
-      "/api/v1/chats/room_01/media/v2/reserve",
-    );
+  it("never falls back to legacy photo upload if browser API returns 503",async()=>{
+    const mock=vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      success:false,error:"S3 временно недоступен",
+    }),{status:503}));
+    vi.stubGlobal("fetch",mock);
+    await expect(chat2Api.upload("room_01",file())).rejects.toThrow();
+    expect(mock).toHaveBeenCalledOnce();
+    expect(String(mock.mock.calls[0][0])).toContain("/client-reserve");
+    expect(vi.mocked(uploadBrowserPhotoWebp)).not.toHaveBeenCalled();
+  });
+
+  it("does not attach a photo when the API refuses READY",async()=>{
+    const mock=vi.fn((uri:string)=>Promise.resolve(new Response(JSON.stringify({
+      success:true,data:uri.endsWith("/client-reserve")
+        ? {mediaId,upload:signed,smallUpload:signed}
+        : {mediaId,status:"PROCESSING"},
+    }),{status:200})));
+    vi.stubGlobal("fetch",mock);
+    await expect(chat2Api.upload("room_01",file())).rejects.toThrow("не подтвердил");
+    expect(mock).toHaveBeenCalledTimes(2);
+    expect(mock.mock.calls.some(([uri])=>String(uri).endsWith("/attach"))).toBe(false);
   });
 
   it("does not put private PDF attachments into the public V2 bucket", async () => {
@@ -111,5 +102,60 @@ describe("Chat2 private attachment upload response contract", () => {
     await expect(chat2Api.upload("room_01", video)).resolves.toEqual(expected);
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect((init.body as FormData).get("file")).toBeInstanceOf(File);
+  });
+});
+
+describe("Chat2 browser-prepared MP4 reservation", () => {
+  it("does not reserve or send unprepared MP4 when browser-side processing fails", async () => {
+    vi.stubEnv("VITE_CHAT2_MEDIA_V2","true");
+    const fetchMock=vi.fn();
+    vi.stubGlobal("fetch",fetchMock);
+    const source=new File([new Uint8Array(6500)],"dog.mp4",{type:"video/mp4"});
+    await expect(chat2Api.upload("room-1",source))
+      .rejects.toThrow("LOCAL_VIDEO_BROWSER_UNSUPPORTED");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it("sends compressed 720p bytes to S3 and preserves the V2 reservation contract", async () => {
+    vi.stubEnv("VITE_CHAT2_MEDIA_V2", "true");
+    vi.stubGlobal("VideoDecoder", class {});
+    vi.stubGlobal("VideoEncoder", class {});
+    const prepared = new File([new Uint8Array(2400)], "chat-720.mp4", { type: "video/mp4" });
+    class FakeWorker {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onerror: (() => void) | null = null;
+      terminate() {}
+      postMessage() { queueMicrotask(() => this.onmessage?.({ data: { kind: "result", file: prepared } } as MessageEvent)); }
+    }
+    vi.stubGlobal("Worker", FakeWorker);
+    const id = "00000000-0000-4000-8000-000000000006";
+    const requests: { url: string; init?: RequestInit }[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
+      requests.push({ url, init });
+      if (url.endsWith("/reserve")) return Promise.resolve(new Response(JSON.stringify({
+        success: true, data: { mediaId: id, upload: {
+          method: "POST", url: "https://s3.cloud.ru/gafus-chat2-media-2026",
+          fields: { key: "chat2/test/incoming/source.mp4", "Content-Type": "video/mp4" },
+        },posterUpload:{method:"POST",url:"https://s3.cloud.ru/gafus-chat2-media-2026",
+          fields:{key:"chat2/test/incoming/poster.webp","Content-Type":"image/webp"}} },
+      }), { status: 201 }));
+      if (url === "https://s3.cloud.ru/gafus-chat2-media-2026")
+        return Promise.resolve(new Response(null, { status: 204 }));
+      if (url.endsWith("/confirm")) return Promise.resolve(new Response(JSON.stringify({
+        success: true, data: { mediaId: id, status: "UPLOADED" },
+      }), { status: 200 }));
+      if (url.endsWith("/attach")) return Promise.resolve(new Response(JSON.stringify({
+        success: true, data: { id: "file-1", kind: "video", mime: "video/mp4", bytes: 2400 },
+      }), { status: 201 }));
+      throw Error("Unexpected endpoint " + url);
+    }));
+    const original = new File([new Uint8Array(6500)], "chat-original.mp4", { type: "video/mp4" });
+    await chat2Api.upload("room-1", original);
+    const data = JSON.parse(String(requests[0]?.init?.body));
+    expect(data).toMatchObject({ name: "chat-720.mp4", mime: "video/mp4", bytes: 2400 });
+    expect((requests[1]?.init?.body as FormData).get("file")).toMatchObject({name: prepared.name, size: prepared.size, type: prepared.type});
+    expect(requests.map(r => r.url).slice(-2)).toEqual([
+      "/api/v1/chats/room-1/media/v2/" + id + "/confirm",
+      "/api/v1/chats/room-1/media/v2/" + id + "/attach",
+    ]);
   });
 });

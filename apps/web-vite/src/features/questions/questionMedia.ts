@@ -1,5 +1,7 @@
 import { QUESTION_LIMITS } from "@gafus/types";
-import { ApiError, isolatedNonprodBrowserS3Url } from "../../shared/api/client";
+import { ApiError } from "../../shared/api/client";
+import { prepareBrowserPhotoWebp } from "../../shared/media/browserPhotoWebp";
+import { uploadBrowserPhotoWebp, type WebpPost } from "../../shared/media/browserPhotoUpload";
 
 const BASE = "/api/v1/questions/photos";
 const VALID_ID = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -38,62 +40,39 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return envelope.data as T;
 }
 
-/** Cookie auth and trusted-origin verification are enforced by Hono. */
+/** Web always sends ready WebP variants; no server photo processing jobs. */
 export async function uploadQuestionPhoto(file:File,
   onProgress?:(percent:number)=>void):Promise<string>{
   validateQuestionFiles([file],0);
-  const reservation=await fetch(BASE+"/reservations",{
+  const variants=await prepareBrowserPhotoWebp(file,{small:360,medium:1440});
+  const reservation=await fetch(BASE+"/client-reservations",{
     method:"POST",credentials:"include",cache:"no-store",
     headers:{"Content-Type":"application/json",Accept:"application/json"},
-    body:JSON.stringify({mime:file.type,bytes:file.size}),
+    body:JSON.stringify({mediumBytes:variants.medium.file.size}),
   });
   const receipt=await parseResponse<{
-    id:string;upload:{url:string;fields:Record<string,string>;method:"POST"};
+    id:string;upload:WebpPost;smallUpload:WebpPost;
   }>(reservation);
-  if(!receipt || !VALID_ID.test(receipt.id) || receipt.upload?.method!=="POST")
-    throw new Error("Некорректное подтверждение загрузки");
-  let target:URL;
-  try{target=new URL(receipt.upload.url);}
-  catch{throw new Error("Некорректный адрес хранилища");}
-  // No arbitrary http cross-origin upload. The exact MinIO dev URL is
-  // guarded by the shared isolated S3 helper, not a production allowance.
-  if(!(target.protocol==="https:" ||
-       isolatedNonprodBrowserS3Url(target.href,"questions","form-post")))
-    throw new Error("Небезопасный адрес загрузки");
+  if(!receipt||!VALID_ID.test(receipt.id)||
+     receipt.upload?.method!=="POST"||receipt.smallUpload?.method!=="POST")
+    throw Error("Сервер не подтвердил резервирование готовых фото");
   try{
-    await new Promise<void>((resolve,reject)=>{
-      const xhr=new XMLHttpRequest();
-      const timer=window.setTimeout(()=>xhr.abort(),120_000);
-      xhr.open("POST",target.href);
-      xhr.withCredentials=false;
-      xhr.upload.onprogress=event=>{
-        if(event.lengthComputable&&event.total)
-          onProgress?.(Math.min(99,Math.round(event.loaded/event.total*100)));
-      };
-      xhr.onload=()=>{
-        window.clearTimeout(timer);
-        if(xhr.status===200||xhr.status===201||xhr.status===204)resolve();
-        else reject(new Error("Не удалось отправить фото в хранилище"));
-      };
-      xhr.onerror=()=>{window.clearTimeout(timer);reject(new Error("Соединение с хранилищем потеряно"));};
-      xhr.onabort=()=>{window.clearTimeout(timer);reject(new Error("Время загрузки истекло"));};
-      const form=new FormData();
-      for(const [name,value] of Object.entries(receipt.upload.fields))form.append(name,value);
-      form.append("file",file,file.name);
-      xhr.send(form);
-    });
-    onProgress?.(100);
-    const confirm=await fetch(BASE+"/"+receipt.id+"/confirm",{
+    await Promise.all([
+      uploadBrowserPhotoWebp(receipt.smallUpload,variants.small.file,"questions",
+        p=>onProgress?.(Math.min(49,Math.round(p/2)))),
+      uploadBrowserPhotoWebp(receipt.upload,variants.medium.file,"questions",
+        p=>onProgress?.(50+Math.min(49,Math.round(p/2)))),
+    ]);
+    const confirm=await fetch(BASE+"/"+receipt.id+"/client-confirm",{
       method:"POST",credentials:"include",cache:"no-store",
       headers:{Accept:"application/json"},
     });
     const confirmed=await parseResponse<{id:string;status:string}>(confirm);
-    if(confirmed.id!==receipt.id || !["QUEUED","PROCESSING","READY"].includes(confirmed.status))
-      throw new Error("Сервер не подтвердил обработку");
+    if(confirmed.id!==receipt.id||confirmed.status!=="READY")
+      throw Error("Сервер не подтвердил готовую фотографию");
+    onProgress?.(100);
     return receipt.id;
   }catch(error){
-    // Deletion may race with an S3 POST; the durable abandoned-upload sweep
-    // independently cleans any object that arrives after this request.
     await discardUnusedQuestionPhoto(receipt.id).catch(()=>undefined);
     throw error;
   }

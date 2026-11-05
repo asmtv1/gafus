@@ -5,12 +5,12 @@ import { apiRequest } from "../../shared/api/client";
 import { sameOriginCdnProbeFetch } from "../../shared/api/cdnProbe";
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
-type Variant = "thumb" | "full" | "poster" | "video360" | "video720" | "video1080";
+type Variant = "thumb" | "full" | "poster" | "video360" | "video720";
 
 /** The server rechecks media visibility and signs this particular object.
  * Unknown or stale fallback responses are not accepted as image sources. */
 export async function requestFeedImageFallback(mediaId: string, variant: Variant): Promise<string> {
-  if (!ID.test(mediaId) || !["thumb", "full", "poster", "video360", "video720", "video1080"].includes(variant))
+  if (!ID.test(mediaId) || !["thumb", "full", "poster", "video360", "video720"].includes(variant))
     throw Error("INVALID_MEDIA");
   const data = await apiRequest<unknown>(`/api/v1/feed/media/${mediaId}/fallback`, {
     method: "POST", browserAuth: true, json: { variant },

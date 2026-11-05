@@ -22,9 +22,19 @@ describe("feed storage", () => {
       feedStorageConfigFromEnv({ GALLERY_ENABLED: "true", GALLERY_PROCESSOR_READY: "true" })
         .enabled,
     ).toBe(false);
-    expect(
-      feedStorageConfigFromEnv({ FEED_ENABLED: "true", FEED_PROCESSOR_READY: "false" }).enabled,
-    ).toBe(false);
+    const clientOnly = feedStorageConfigFromEnv({FEED_ENABLED:"false",FEED_PROCESSOR_READY:"false"});
+    expect(clientOnly.enabled).toBe(false);
+    // In the client-first rollout the core feed is independent of optional
+    // Cloud.ru 360p processing. Storage credentials are still mandatory.
+    const standalone = feedStorageConfigFromEnv({
+      FEED_ENABLED:"true",FEED_PROCESSOR_READY:"false",
+      FEED_BUCKET:"gafus-private-test", FEED_S3_ENDPOINT:"https://s3.cloud.ru",
+      FEED_S3_ACCESS_KEY_ID:"test-access",FEED_S3_SECRET_ACCESS_KEY:"test-secret",
+      FEED_CDN_BASE_URL:"https://quepraquiecebquomiel.begetcdn.cloud",
+      FEED_CDN_SECRET:"a".repeat(24),FEED_CDN_EDGE_TOKEN_VERIFIED:"true",
+      FEED_INTERNAL_HMAC_SECRET:"a".repeat(32),
+    });
+    expect(standalone.enabled).toBe(true);
   });
   it("rejects enabled incomplete or public storage configuration", () => {
     expect(() =>
@@ -116,7 +126,11 @@ describe("feed storage", () => {
     };
     expect(createFeedStorage(prod, undefined, {}).longLivedUrls).toBe(false);
     for(const flag of Object.keys(ready)) {
-      expect(() => createFeedStorage(prod,undefined,{...ready,[flag]:"false"}))
+      // Disabling the master gate is safe: browser caching stays OFF.
+      if(flag==="FEED_PUBLIC_BROWSER_CACHE_24H_VERIFIED") {
+        expect(createFeedStorage(prod,undefined,{...ready,[flag]:"false"}).longLivedUrls)
+          .toBe(false);
+      } else expect(() => createFeedStorage(prod,undefined,{...ready,[flag]:"false"}))
         .toThrow("FEED_PUBLIC_BROWSER_CACHE_24H_UNVERIFIED");
     }
     expect(createFeedStorage(prod,undefined,ready).longLivedUrls).toBe(true);

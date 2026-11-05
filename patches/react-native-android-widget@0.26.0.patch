@@ -1,0 +1,64 @@
+diff --git a/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java b/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
+index df7e6a63f04000f08bd0260b8c059c62eefca764..893fc0e7318904fe771e63f6f75063a507a4956d 100644
+--- a/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
++++ b/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
+@@ -10,6 +10,7 @@ import android.graphics.Rect;
+ import android.net.Uri;
+ import android.os.Build;
+ import android.os.Bundle;
++import android.os.SystemClock;
+ import android.util.Base64;
+ import android.util.TypedValue;
+ import android.view.View;
+@@ -21,6 +22,7 @@ import androidx.annotation.RequiresApi;
+ import com.facebook.react.bridge.Arguments;
+ import com.facebook.react.bridge.ReactApplicationContext;
+ import com.facebook.react.bridge.ReadableMap;
++import com.facebook.react.bridge.ReadableArray;
+ import com.facebook.react.bridge.WritableArray;
+ import com.facebook.react.bridge.WritableMap;
+ import com.reactnativeandroidwidget.builder.ClickableView;
+@@ -118,6 +120,43 @@ public class RNWidget {
+         }
+         addCollectionViews(widgetId, remoteWidgetView, widgetWithViews, lightImageNames, darkImageNames);
+ 
++        // GAFUS: the rendered image is static; a real Android Chronometer is
++        // overlaid above it. The OS ticks it even while the JS process is dead.
++        // All other react-native-android-widget consumers remain untouched.
++        if ("DogWalk".equals(widgetName)) {
++            try {
++                ReadableArray children = light.getArray("children");
++                if (children != null && children.size() > 0 && !children.isNull(0)) {
++                    ReadableMap metaNode = children.getMap(0);
++                    ReadableMap metaProps = metaNode.getMap("props");
++                    String meta = metaProps.getString("text");
++                    if (meta != null && meta.startsWith("gafus-clock|")) {
++                        String[] tokens = meta.split("\\|");
++                        if (tokens.length == 6) {
++                            boolean running = "1".equals(tokens[2]);
++                            boolean countdown = "countdown".equals(tokens[3]);
++                            long displayStartMs = Long.parseLong(tokens[4]);
++                            long displayEndMs = Long.parseLong(tokens[5]);
++                            long wallNow = System.currentTimeMillis();
++                            long elapsedRealtime = SystemClock.elapsedRealtime();
++                            long base = countdown
++                                ? elapsedRealtime + Math.max(0L, displayEndMs - wallNow)
++                                : elapsedRealtime - Math.max(0L, wallNow - displayStartMs);
++                            int clockId = appContext.getResources().getIdentifier(
++                                "gafus_walk_chronometer", "id", appContext.getPackageName());
++                            if (clockId != 0) {
++                                remoteWidgetView.setViewVisibility(clockId, View.VISIBLE);
++                                remoteWidgetView.setChronometerCountDown(clockId, countdown);
++                                remoteWidgetView.setChronometer(clockId, base, null,
++                                    running && (!countdown || displayEndMs > wallNow));
++                            }
++                        }
++                    }
++                }
++            } catch (Exception error) {
++                android.util.Log.w("DogWalkWidget", "Native chronometer update failed", error);
++            }
++        }
+         AppWidgetManager.getInstance(appContext)
+             .updateAppWidget(widgetId, remoteWidgetView);
+     }

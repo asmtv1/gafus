@@ -5,7 +5,6 @@
 const mode = process.argv[2] ?? "--plan";
 if (!["--plan", "--apply", "--verify"].includes(mode)) throw Error("INVALID_POOL_ACTION");
 const pairs = [
-  { source: "gafus-feed-photo", target: "gafus-feed-photo-2", kind: "photo" },
   { source: "gafus-feed-video", target: "gafus-feed-video-2", kind: "video" },
 ];
 if (mode === "--plan") {
@@ -52,7 +51,7 @@ function validate(job, name, kind) {
     throw Error("POOL_UNSAFE_CONFIG_" + name);
   return c;
 }
-// Preflight both sources and any existing replicas before creating anything.
+// Preflight the video source and any existing replica before creating anything.
 const planned = [];
 for (const pair of pairs) {
   const source = await api("GET", "/jobs/" + pair.source + query);

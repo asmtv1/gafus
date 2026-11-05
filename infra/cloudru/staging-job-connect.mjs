@@ -7,8 +7,6 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 const e=process.env;
 const scope={
- 'gafus-gallery-process-staging':{key:'GALLERY',type:'gallery'},
- 'gafus-feed-photo-staging':{key:'FEED',type:'feed'},
  'gafus-feed-video-staging':{key:'FEED',type:'feed'},
 };
 const action=process.argv[2]??'--inspect';

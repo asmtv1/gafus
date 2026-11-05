@@ -87,6 +87,12 @@
       ],
       "@gafus/consent-server": [
         "../../packages/consent-server/dist/index.d.ts"
+      ],
+      "@gafus/gallery-storage": [
+        "../gallery-storage/dist/index.d.ts"
+      ],
+      "@gafus/feed-storage": [
+        "../feed-storage/dist/index.d.ts"
       ]
     }
   },

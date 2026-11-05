@@ -85,6 +85,42 @@ describe("Web Feed V2 native rendering", () => {
     expect(html).not.toMatch(/<video[^>]+poster=/);
     expect(html).not.toMatch(/<video[^>]+src=/);
   });
+  it("hides video quality choices behind in-player settings and resumes at the same second", async () => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    const both = {...movie, mp4:{360:"/media/v2/a/v1/video/360.mp4",720:"/media/v2/a/v1/video/720.mp4"}};
+    const host=document.createElement("div");document.body.append(host);
+    const root=createRoot(host);
+    try {
+      await act(async()=>root.render(createElement(FeedV2Video,{media:both})));
+      const video=host.querySelector("video")!;
+      const settings=()=>host.querySelector<HTMLButtonElement>('[aria-label="Настройки качества видео"]');
+      expect(settings()).not.toBeNull();
+      expect(host.querySelector('[aria-label="Качество видео"]')).toBeNull();
+      expect(video.hasAttribute("src")).toBe(false);
+      await act(async()=>settings()?.click());
+      expect(host.querySelector('[aria-label="Качество видео"]')?.textContent).toContain("360p");
+      await act(async()=>host.querySelector<HTMLButtonElement>('[aria-label="Качество видео"] button:nth-of-type(3)')?.click());
+      expect(video.hasAttribute("src")).toBe(false); // settings never autoplays preview
+      await act(async()=>host.querySelector<HTMLButtonElement>('.feed-v2-video-play')?.click());
+      expect(video.getAttribute("src")).toBe(both.mp4[720]);
+      Object.defineProperty(video,"paused",{configurable:true,get:()=>false});
+      video.currentTime=18.5;
+      await act(async()=>settings()?.click());
+      await act(async()=>host.querySelector<HTMLButtonElement>('[aria-label="Качество видео"] button:nth-of-type(2)')?.click());
+      expect(video.getAttribute("src")).toBe(both.mp4[360]);
+      await act(async()=>video.dispatchEvent(new Event("loadedmetadata")));
+      expect(video.currentTime).toBeCloseTo(18.5);
+      expect(play).toHaveBeenCalledTimes(2);
+      expect(host.querySelector('[aria-label="Качество видео"]')).toBeNull();
+    } finally {await act(async()=>root.unmount());host.remove();}
+  });
+  it("hides the gear until both video qualities actually exist", () => {
+    const html = renderToStaticMarkup(createElement(FeedV2Video,{media:movie}));
+    expect(html).not.toContain('Настройки качества видео');
+  });
   it("does not request playback ticket and leaves MP4 unloaded until click", async () => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();

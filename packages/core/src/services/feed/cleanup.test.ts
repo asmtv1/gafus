@@ -46,7 +46,7 @@ describe("feed post S3 cleanup", () => {
     expect(keys).toContain(video + "poster.webp");
     expect(keys).toContain(video + "video/360.mp4");
     expect(keys).toContain(video + "video/720.mp4");
-    expect(keys).toContain(video + "video/1080.mp4");
+    expect(keys).not.toContain(video + "video/1080.mp4");
     expect(keys).toContain(photo + "image/s.webp");
     expect(keys).toContain(photo + "image/m.webp");
     expect(keys).toContain(photo + "image/l.webp");
@@ -65,7 +65,7 @@ describe("feed post S3 cleanup", () => {
   it("enumerates every immutable MP4 and WebP variant after an interrupted upload", () => {
     expect(feedPossibleOutputKeys("o", "p", "m", "video")).toEqual([
       "media/v2/m/v1/poster.webp", "media/v2/m/v1/video/360.mp4",
-      "media/v2/m/v1/video/720.mp4", "media/v2/m/v1/video/1080.mp4",
+      "media/v2/m/v1/video/720.mp4",
     ]);
     expect(feedPossibleOutputKeys("o", "p", "m", "photo")).toEqual([
       "media/v2/m/v1/image/s.webp", "media/v2/m/v1/image/m.webp",
@@ -82,7 +82,7 @@ describe("feed post S3 cleanup", () => {
     const sql = segments.join("?");
     expect(sql).toContain('max(GREATEST(u."postExpiresAt", u."reservationExpiresAt"))');
     expect(sql).toContain('m."mp4Keys"');
-    expect(sql).toContain("video/1080.mp4");
+    expect(sql).not.toContain("video/1080.mp4");
     expect(sql).toContain("image/s.webp");
     expect(sql).not.toContain("hls/");
     expect(sql).toContain("ON CONFLICT");

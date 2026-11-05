@@ -1,16 +1,9 @@
-import {
-  createGalleryImageProcessor,
-  type GalleryImageEngine,
-} from "@gafus/core/services/gallery/imageProcessing";
-import { sourceUploadId, assertGalleryKey, assertFinalKey, v2FinalPattern } from "@gafus/gallery-storage/keys";
+import { assertGalleryKey, assertFinalKey } from "@gafus/gallery-storage/keys";
 import { objectMd5, normalizeETag, type GalleryObjectStore } from "@gafus/gallery-storage/objects";
 import type { GalleryStorageJobClaim } from "@gafus/core/services/gallery";
 import type { GalleryInternalClient } from "./internal.js";
 import type { GalleryMetric, GalleryTelemetry } from "./telemetry.js";
 import { createVetPreview } from "./vet-preview.js";
-export interface GalleryQueue {
-  send(uploadId: string): Promise<void>;
-}
 const permanent = new Set([
   "IMAGE_SIZE",
   "IMAGE_PIXELS",
@@ -49,10 +42,7 @@ function lease(until: string, invocationDeadline: number, now: () => number) {
 export function createGalleryCloudWorker(input: {
   core: GalleryInternalClient;
   objects: GalleryObjectStore;
-  engine: GalleryImageEngine;
-  queue: GalleryQueue;
   now?: () => number;
-  enabled?: boolean;
   telemetry?: GalleryTelemetry;
 }) {
   const now = input.now ?? Date.now;
@@ -63,116 +53,11 @@ export function createGalleryCloudWorker(input: {
       /* Observability cannot interrupt cleanup or publication. */
     }
   };
-  const processImage = createGalleryImageProcessor(input.engine);
-  async function processUpload(uploadId: string, invocationDeadline = now() + 50_000) {
-    const started = now();
-    if (input.enabled === false) return;
-    if (!/^[A-Za-z0-9_-]{1,128}$/.test(uploadId)) throw new Error("UNTRUSTED_UPLOAD_ID");
-    // No storage read before the registered upload has been claimed server-side.
-    const claim = await input.core.claimUpload(uploadId);
-    if (!claim) {
-      record({ operation: "upload", outcome: "skipped", durationMs: now() - started });
-      return;
-    }
-    let guard: ReturnType<typeof lease> | undefined;
-    let completing = false;
-    try {
-      guard = lease(claim.leaseUntil, invocationDeadline, now);
-      const source = sourceUploadId(claim.sourceKey);
-      if (claim.uploadId !== uploadId || source !== uploadId || !claim.sourceETag)
-        throw new Error("UNTRUSTED_CLAIM");
-      const prefix = claim.sourceKey.slice(0, claim.sourceKey.lastIndexOf("/"));
-      const expected = `${prefix}/attempts/${claim.attemptToken}`;
-      assertGalleryKey(claim.thumbKey);
-      assertGalleryKey(claim.fullKey);
-      const v2 = `gallery/${claim.sourceKey.split("/")[1]}/media/${claim.photoId}/v2`;
-      const isV2 = v2FinalPattern.test(claim.thumbKey) &&
-        claim.thumbKey === `${v2}/thumb.webp` &&
-        claim.fullKey === `${v2}/full.webp`;
-      const isLegacy = claim.thumbKey === `${expected}/thumb.webp` &&
-        claim.fullKey === `${expected}/full.webp`;
-      if (!isV2 && !isLegacy) throw new Error("UNTRUSTED_CLAIM");
-      guard.check();
-      const sourceObject = await input.objects.read(
-        claim.sourceKey,
-        claim.sourceETag,
-        guard.signal,
-      );
-      if (sourceObject.metadata.etag !== normalizeETag(claim.sourceETag))
-        throw new Error("SOURCE_CHANGED");
-      const images = await processImage(sourceObject.bytes);
-      guard.check();
-      const thumbStored = await input.objects.create(claim.thumbKey, images.thumb.bytes, "image/webp", guard.signal);
-      guard.check();
-      const fullStored = await input.objects.create(claim.fullKey, images.full.bytes, "image/webp", guard.signal);
-      guard.check();
-      if (thumbStored.contentType !== "image/webp" || fullStored.contentType !== "image/webp")
-        throw new Error("INVALID_OUTPUT");
-      completing = true;
-      const result = await input.core.completeUpload({
-        uploadId,
-        attemptToken: claim.attemptToken,
-        sourceETag: claim.sourceETag,
-        width: images.full.width,
-        height: images.full.height,
-        ...(isV2 ? { manifest: {
-          thumb: { ...thumbStored, width: images.thumb.width, height: images.thumb.height,
-                   contentType: "image/webp" as const },
-          full: { ...fullStored, width: images.full.width, height: images.full.height,
-                  contentType: "image/webp" as const },
-        } } : {}),
-      });
-      if (!result.accepted) throw new Error("CALLBACK_REJECTED");
-      record({ operation: "upload", outcome: "success", durationMs: now() - started });
-      // Legacy uploads may still have a publish job. Claim only this
-      // upload's job immediately instead of waiting for the five-minute timer.
-      // Errors here must not invalidate a successfully staged image: maintenance
-      // can safely retry the durable job after its lease/backoff expires.
-      if (!isV2 && result.status !== "ready" && now() + 10_000 < invocationDeadline) {
-        try {
-          const jobs = await input.core.claimJobs(1, uploadId);
-          if (jobs.length > 1 || jobs.some((job) => job.kind !== "publish"))
-            throw new Error("UNTRUSTED_CLAIM");
-          for (const job of jobs) await processJob(job, invocationDeadline);
-        } catch (error) {
-          // processJob records its own failure and persists retry/backoff.
-          // Avoid logging request details, paths, signed headers or exception text.
-          record({
-            operation: "publish",
-            outcome: "retry",
-            durationMs: now() - started,
-            errorCode: errorCode(error),
-          });
-        }
-      }
-    } catch (error) {
-      if (!completing) {
-        const code = errorCode(error);
-        await input.core.failUpload({
-          uploadId,
-          attemptToken: claim.attemptToken,
-          errorCode: code,
-          retryable: !permanent.has(code),
-        });
-        record({
-          operation: "upload",
-          outcome: permanent.has(code) ? "failure" : "retry",
-          durationMs: now() - started,
-          errorCode: code,
-        });
-        if (permanent.has(code)) return;
-      }
-      if (completing)
-        record({
-          operation: "upload",
-          outcome: "retry",
-          durationMs: now() - started,
-          errorCode: errorCode(error),
-        });
-      throw error;
-    } finally {
-      guard?.close();
-    }
+  /** No legacy album photo processing: only client-verified WebP can become READY.
+   * Stale Queue/S3 event deliveries must not GET or transform source images.
+   */
+  async function processUpload(_uploadId:string):Promise<never>{
+    throw new Error("GALLERY_CLIENT_WEBP_REQUIRED");
   }
   async function processJob(job: GalleryStorageJobClaim, invocationDeadline: number) {
     const started = now();
@@ -222,13 +107,28 @@ export function createGalleryCloudWorker(input: {
         await input.objects.create(target, preview, "image/webp", guard.signal);
       } else {
         if (
-          !["move", "publish"].includes(job.kind) ||
+          job.kind !== "move" ||
           job.sourceKeys.length !== 2 ||
           job.targetKeys.length !== 2 ||
           job.sourceETags.length !== 2
         )
           throw new Error("UNTRUSTED_CLAIM");
         job.targetKeys.forEach(assertFinalKey);
+        const parseAlbumKey=(key:string)=>
+          /^albums\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/photos\/([A-Za-z0-9_-]+)\/(thumb|full)\.webp$/.exec(key);
+        const sources=job.sourceKeys.map(parseAlbumKey);
+        const destinations=job.targetKeys.map(parseAlbumKey);
+        if(sources.some(x=>!x)||destinations.some(x=>!x)||
+           sources[0]![1]!==sources[1]![1]||
+           sources[0]![3]!==sources[1]![3]||
+           destinations[0]![1]!==sources[0]![1]||
+           destinations[1]![1]!==sources[0]![1]||
+           destinations[0]![3]!==sources[0]![3]||
+           destinations[1]![3]!==sources[0]![3]||
+           sources[0]![4]!=="thumb"||sources[1]![4]!=="full"||
+           destinations[0]![4]!=="thumb"||destinations[1]![4]!=="full"||
+           destinations[0]![2]!==destinations[1]![2])
+          throw new Error("UNTRUSTED_CLAIM");
         for (let i = 0; i < 2; i++) {
           guard.check();
           const source = await input.objects.read(
@@ -291,11 +191,7 @@ export function createGalleryCloudWorker(input: {
       const started = now();
       const deadline = now() + 50_000;
       const result = await input.core.maintenance(10);
-      if (input.enabled !== false)
-        for (const id of result.processUploadIds) {
-          if (now() >= deadline) throw new Error("INVOCATION_DEADLINE");
-          await input.queue.send(id);
-        }
+      // Discard retired upload wake-ups; DELETE/move/vet-preview remain active.
       // Scheduled delete recovery must keep running when product is disabled.
       if (now() >= deadline) throw new Error("INVOCATION_DEADLINE");
       // Drain a bounded page in one timer invocation. One job every five minutes
@@ -314,7 +210,7 @@ export function createGalleryCloudWorker(input: {
         expiredUploads: result.expiredUploads,
         recoveredCleanupJobs: result.recoveredCleanupJobs,
         reconciledJobs: result.reconciledJobs,
-        queuedUploads: input.enabled !== false ? result.processUploadIds.length : 0,
+        queuedUploads: 0,
       });
       return result;
     },

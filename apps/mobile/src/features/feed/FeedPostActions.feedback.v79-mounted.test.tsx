@@ -107,6 +107,9 @@ vi.mock("@/shared/stores", async () => {
   };
 });
 import { useAuthStore } from "@/shared/stores";
+vi.mock("@/shared/components/gestures/SwipeDismissHandle", () => ({
+  SwipeDismissHandle: () => null,
+}));
 import { FeedPostActions } from "./FeedPostActions";
 import type { FeedPostDto } from "@gafus/types";
 const fixtureUser = (id: string) => ({

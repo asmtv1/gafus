@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { signGalleryRequest } from '../../packages/gallery-storage/dist/hmac.js';
 import { signFeedRequest } from '../../packages/feed-cloud/dist/hmac.js';
 const txt=await readFile(join(homedir(),'.codex/cloudru/gafus-media-core-staging/core.env'),'utf8');
 const x=Object.fromEntries(txt.split('\n').filter(y=>y.includes('=')).map(z=>z.split('=',2)));
@@ -11,8 +10,7 @@ if ((u.hostname!=='127.0.0.1' && !u.hostname.endsWith('.ngrok-free.dev')) ||
     (u.protocol!=='https:' && u.hostname!=='127.0.0.1') || u.pathname!=='/')
   throw Error('UNVERIFIED_STAGING_CORE_URL');
 const calls=[
- {name:'gallery',path:'/internal/gallery/maintenance',body:JSON.stringify({limit:1}),headers:()=>signGalleryRequest({method:'POST',path:'/internal/gallery/maintenance',body:JSON.stringify({limit:1}),secret:x.GALLERY_INTERNAL_HMAC_SECRET})},
- {name:'feed',path:'/internal/feed/jobs/claim',body:JSON.stringify({batchSize:1,workerType:'photo'}),headers:()=>signFeedRequest({path:'/internal/feed/jobs/claim',body:JSON.stringify({batchSize:1,workerType:'photo'}),key:Buffer.from(x.FEED_INTERNAL_HMAC_SECRET)})},
+ {name:'feed',path:'/internal/feed/jobs/claim',body:JSON.stringify({batchSize:1,workerType:'video'}),headers:()=>signFeedRequest({path:'/internal/feed/jobs/claim',body:JSON.stringify({batchSize:1,workerType:'video'}),key:Buffer.from(x.FEED_INTERNAL_HMAC_SECRET)})},
 ];
 for(const item of calls){
  const req=async(headers)=>fetch(base+item.path,{method:'POST',headers:{'content-type':'application/json',...headers},body:item.body,signal:AbortSignal.timeout(15000)});

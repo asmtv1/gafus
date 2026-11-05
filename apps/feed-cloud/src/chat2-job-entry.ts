@@ -1,4 +1,4 @@
-/** Same isolated one-shot worker image for four Chat2 photo/video Container Jobs. */
+/** One-shot Cloud.ru worker for CHAT VIDEO only. Client WebP photo Jobs are retired. */
 import { S3Client } from "@aws-sdk/client-s3";
 import { createChat2JobRunner } from "./chat2-job-runner.js";
 import { createChat2JobCore } from "./chat2-job-core.js";
@@ -7,7 +7,7 @@ import { sharpFeedEngine } from "./sharp-engine.js";
 
 async function main() {
   const env=process.env;
-  if(env.CHAT2_JOB_ENABLED!=="true" || !["image","video"].includes(env.CHAT2_JOB_KIND??"") ||
+  if(env.CHAT2_JOB_ENABLED!=="true" || env.CHAT2_JOB_KIND!=="video" ||
       env.CHAT2_S3_BUCKET!==CHAT2_CLOUD_BUCKET ||
       env.CHAT2_S3_ENDPOINT!=="https://s3.cloud.ru" ||
       !env.CHAT2_S3_ACCESS_KEY_ID || !env.CHAT2_S3_SECRET_ACCESS_KEY ||
@@ -23,7 +23,7 @@ async function main() {
     const core=createChat2JobCore({baseUrl:env.CHAT2_INTERNAL_BASE_URL,
       secret:Buffer.from(env.CHAT2_INTERNAL_HMAC_SECRET,"utf8")});
     const run=createChat2JobRunner({
-      core,kind:env.CHAT2_JOB_KIND as "image"|"video",engine:sharpFeedEngine,workRoot:env.CHAT2_JOB_WORK_ROOT,
+      core,kind:"video",engine:sharpFeedEngine,workRoot:env.CHAT2_JOB_WORK_ROOT,
       objectsFor:(job)=>createChat2S3Objects(job,client),
     });
     const count=await run();

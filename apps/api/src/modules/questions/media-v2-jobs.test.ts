@@ -72,7 +72,7 @@ describe("Questions V2 durable PostgreSQL queue",()=>{
   it("claims two independent images under SKIP LOCKED and creates unique attempt tokens",async()=>{
     const data=fakeDb([media(),media()]);
     const queue=createQuestionsV2Queue({database:data.database,now:()=>now,
-      head:data.head,deleteObjects:data.deleteObjects});
+      head:data.head});
     const [first,second]=await Promise.all([queue.claimOne(),queue.claimOne()]);
     expect(first.jobs).toHaveLength(1);
     expect(second.jobs).toHaveLength(1);
@@ -111,7 +111,7 @@ describe("Questions V2 durable PostgreSQL queue",()=>{
       medium:{key:keys.medium,width:720,height:480,bytes:100},
     }};
     const queue=createQuestionsV2Queue({database:data.database,now:()=>now,
-      head:data.head,deleteObjects:data.deleteObjects});
+      head:data.head});
     const result=await queue.complete(task.mediaId,task.attemptToken,manifest);
     expect(result.accepted).toBe(true);
     expect(data.head).toHaveBeenCalledTimes(2);
@@ -132,7 +132,7 @@ describe("Questions V2 durable PostgreSQL queue",()=>{
       mime:key.endsWith("/m.webp")?"image/png":"image/webp",bytes:100,etag:undefined,
     }));
     const queue=createQuestionsV2Queue({database:data.database,now:()=>now,
-      head:badHead,deleteObjects:data.deleteObjects});
+      head:badHead});
     await expect(queue.complete(task.mediaId,task.attemptToken,{
       kind:"image",variants:{
         small:{key:keys.small,width:360,height:240,bytes:100},

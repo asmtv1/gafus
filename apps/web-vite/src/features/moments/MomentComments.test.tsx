@@ -1,4 +1,11 @@
 // @vitest-environment jsdom
+vi.mock("../../shared/media/browserPhotoWebp",()=>({
+  prepareBrowserPhotoWebp:vi.fn(async(_original:File,edges:Record<string,number>)=>
+    Object.fromEntries(Object.entries(edges).map(([name,edge])=>[
+      name,{file:new File([new Uint8Array(128)],name+".webp",{type:"image/webp"}),
+        width:edge,height:Math.round(edge*.75)},
+    ]))),
+}));
 import { withRejectedRefreshCookie } from "../../test/rejectedRefreshCookie";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
@@ -374,7 +381,7 @@ describe("Web Moments comments with shared Core", () => {
     const ticket = {
       uploadId: "upload-1", mediaId: "photo-1", postId: "post-1",
       kind: "photo", status: "reserved",
-      postUrl: "https://test-storage.invalid/upload",
+      postUrl: "https://s3.cloud.ru/gafus-feed-private",
       postFields: { key: "posts/viewer-1/post-1/incoming/file" },
       urlExpiresAt: "2099-12-30T00:00:00.000Z",
       reservationExpiresAt: "2099-12-31T00:00:00.000Z",
@@ -396,9 +403,14 @@ describe("Web Moments comments with shared Core", () => {
     const fake = vi.fn((path: string, options?: RequestInit) => {
       if (path.endsWith("/uploads") && options?.method === "POST")
         return Promise.resolve(envelope(ticket));
-      if (path.endsWith("/complete"))
+      if (path.endsWith("/client-renditions"))
         return Promise.resolve(envelope({
-          ...ticket, status: "processing", postUrl: null, postFields: null,
+          small:{method:"POST",url:ticket.postUrl,fields:{key:"s.webp"}},
+          medium:{method:"POST",url:ticket.postUrl,fields:{key:"m.webp"}},
+        }));
+      if (path.endsWith("/client-complete"))
+        return Promise.resolve(envelope({
+          ...ticket, status: "ready", postUrl: null, postFields: null,
         }));
       if (path.endsWith("/comments") && options?.method === "POST") {
         publish = options;
@@ -415,9 +427,10 @@ describe("Web Moments comments with shared Core", () => {
       await ui.submit();
       const reserve = fake.mock.calls.find(call => call[0].endsWith("/uploads"));
       expect(JSON.parse(String(reserve?.[1]?.body))).toMatchObject({
-        purpose: "comment", filename: "dog.webp", kind: "photo",
+        purpose: "comment", filename: "large.webp", kind: "photo",
+        declaredMime: "image/webp", declaredBytes: 128,
       });
-      expect(sent).toHaveLength(1);
+      expect(sent).toHaveLength(3);
       expect(sent[0]?.get("file")).toBeInstanceOf(File);
       expect(JSON.parse(String(publish?.body))).toMatchObject({
         text: "", mediaIds: ["photo-1"],

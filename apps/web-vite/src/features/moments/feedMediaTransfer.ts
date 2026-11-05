@@ -3,7 +3,11 @@ import {
   type FeedMimeType, type FeedMediaKind,
 } from "@gafus/types";
 import { feedClient } from "./feedClient";
-import { isolatedNonprodBrowserS3Url } from "../../shared/api/client";
+import { prepareBrowserVideo720 } from "../../shared/media/browserVideo720";
+import { prepareBrowserVideoPoster } from "../../shared/media/browserVideoPoster";
+import { apiRequest, isolatedNonprodBrowserS3Url } from "../../shared/api/client";
+import { prepareBrowserPhotoWebp } from "../../shared/media/browserPhotoWebp";
+import { uploadBrowserPhotoWebp, type WebpPost } from "../../shared/media/browserPhotoUpload";
 import { browserStorageUploadUrl } from
   "../../shared/media/browserStorageUploadUrl";
 
@@ -126,14 +130,23 @@ async function uploadMomentAsset(input: MomentMediaUpload, kind: FeedMediaKind):
   if (kind === "photo") validateMomentPhoto(input.file, input.existingCount);
   else validateMomentVideo(input.file, input.existingCount);
 
+  const variants = kind === "photo"
+    ? await prepareBrowserPhotoWebp(input.file,{small:360,medium:720,large:1440})
+    : null;
+  const sourceFile = kind === "video"
+    ? await prepareBrowserVideo720(input.file,
+        progress => input.onProgress?.(Math.round(progress * 0.2)), true)
+    : variants!.large.file;
+  const videoPoster = kind === "video" ? await prepareBrowserVideoPoster(sourceFile) : null;
   const reserve = validTicket(await feedClient.reserveUpload(input.postId, {
-    filename: input.file.name, kind,
-    declaredMime: input.file.type as FeedMimeType,
-    declaredBytes: input.file.size,
+    filename: sourceFile.name, kind,
+    declaredMime: sourceFile.type as FeedMimeType,
+    declaredBytes: sourceFile.size,
     clientRequestId: input.clientRequestId,
     ...(input.purpose === "comment" ? { purpose: "comment" as const } : {}),
   }), input.postId, kind);
-  if (DONE.has(reserve.status)) return reserve.mediaId;
+  if (reserve.status === "ready")
+    return reserve.mediaId;
   if (reserve.status !== "reserved") {
     throw new Error("Срок резервирования файла истёк. Выберите фото повторно.");
   }
@@ -142,16 +155,49 @@ async function uploadMomentAsset(input: MomentMediaUpload, kind: FeedMediaKind):
       Date.parse(reserve.urlExpiresAt) <= Date.now()) {
     throw new Error("Срок ссылки загрузки истёк");
   }
+  if (variants) {
+    const extra=await apiRequest<{small:WebpPost;medium:WebpPost}>(
+      `/api/v1/feed/uploads/${reserve.uploadId}/client-renditions`,
+      {method:"POST",json:{}});
+    if(extra.small?.method!=="POST"||extra.medium?.method!=="POST")
+      throw Error("Сервер не подписал варианты WebP");
+    const progress=[0,0,0];
+    const sizes=[variants.small.file.size,variants.medium.file.size,sourceFile.size];
+    const update=(index:number)=>(value:number)=>{
+      progress[index]=Math.max(progress[index]??0,value);
+      const transferred=progress.reduce((acc,p,i)=>acc+p/100*sizes[i]!,0);
+      input.onProgress?.(Math.min(99,Math.round(transferred/sizes.reduce((a,b)=>a+b,0)*100)));
+    };
+    await Promise.all([
+      uploadBrowserPhotoWebp(extra.small,variants.small.file,"feed",update(0)),
+      uploadBrowserPhotoWebp(extra.medium,variants.medium.file,"feed",update(1)),
+      uploadBrowserPhotoWebp({url:reserve.postUrl,fields:reserve.postFields,method:"POST"},
+        sourceFile,"feed",update(2)),
+    ]);
+    const completed=validTicket(await apiRequest(`/api/v1/feed/uploads/${reserve.uploadId}/client-complete`,
+      {method:"POST",json:{}}),input.postId,kind);
+    if(completed.uploadId!==reserve.uploadId||completed.mediaId!==reserve.mediaId||
+       completed.status!=="ready")throw Error("S3 не подтвердил готовое фото");
+    input.onProgress?.(100);
+    return completed.mediaId;
+  }
+  const posterPost = videoPoster ? await apiRequest<WebpPost>(
+    `/api/v1/feed/uploads/${reserve.uploadId}/client-video-poster`,
+    { method: "POST", json: {} }) : null;
+  if (posterPost) {
+    if (posterPost.method !== "POST") throw Error("Сервер не подписал обложку видео");
+    await uploadBrowserPhotoWebp(posterPost, videoPoster!, "feed");
+  }
   const address = signedPostAddress(reserve.postUrl);
   if (reserve.postFields["Content-Type"] &&
-      reserve.postFields["Content-Type"] !== input.file.type) {
+      reserve.postFields["Content-Type"] !== sourceFile.type) {
     throw new Error("Формат файла не соответствует резервированию");
   }
   const body = new FormData();
   for (const [key, value] of Object.entries(reserve.postFields)) {
     body.append(key, value);
   }
-  body.append("file", input.file, input.file.name);
+  body.append("file", sourceFile, sourceFile.name);
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", isolatedNonprodBrowserS3Url(address,"feed","form-post")
@@ -160,7 +206,8 @@ async function uploadMomentAsset(input: MomentMediaUpload, kind: FeedMediaKind):
     xhr.timeout = 10 * 60_000;
     xhr.upload.onprogress = event => {
       if (event.lengthComputable && event.total > 0) {
-        input.onProgress?.(Math.round(event.loaded * 100 / event.total));
+        const sent = Math.round(event.loaded * 100 / event.total);
+        input.onProgress?.(kind === "video" ? 20 + Math.round(sent * 0.8) : sent);
       }
     };
     xhr.onload = () => xhr.status >= 200 && xhr.status < 300
@@ -173,7 +220,7 @@ async function uploadMomentAsset(input: MomentMediaUpload, kind: FeedMediaKind):
     await feedClient.completeUpload(reserve.uploadId), input.postId, kind,
   );
   if (completed.uploadId !== reserve.uploadId ||
-      completed.mediaId !== reserve.mediaId || !DONE.has(completed.status)) {
+      completed.mediaId !== reserve.mediaId || completed.status !== "ready") {
     throw new Error("Сервер не подтвердил обработку фото");
   }
   input.onProgress?.(100);

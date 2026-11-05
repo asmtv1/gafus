@@ -16,7 +16,7 @@ export interface SignedFeedMediaUrls {
   thumbUrl: string | null;
   fullUrl: string | null;
   posterUrl: string | null;
-  mp4Urls: { 360: string; 720?: string; 1080?: string } | null;
+  mp4Urls: { 360?: string; 720?: string } | null;
 }
 export async function signFeedMediaUrls(
   asset: FeedMediaUrlKeys,
@@ -34,19 +34,18 @@ export async function signFeedMediaUrls(
     return { smallUrl, thumbUrl, fullUrl, posterUrl: null, mp4Urls: null };
   }
   const posterUrl = await exact(asset.posterKey, "poster.webp");
-  const qualities = [360, 720, 1080] as const;
+  const qualities = [360, 720] as const;
   const candidates = await Promise.all(qualities.map(quality =>
     exact(asset.mp4Keys.find(key => key === `${prefix}video/${quality}.mp4`),
       `video/${quality}.mp4`),
   ));
-  if (!posterUrl || !candidates[0]) {
+  if (!candidates.some(Boolean)) {
     return { smallUrl: null, thumbUrl: null, fullUrl: null, posterUrl: null, mp4Urls: null };
   }
   return {
     smallUrl: null, thumbUrl: null, fullUrl: null, posterUrl,
-    mp4Urls: { 360: candidates[0],
+    mp4Urls: { ...(candidates[0] ? { 360: candidates[0] } : {}),
       ...(candidates[1] ? { 720: candidates[1] } : {}),
-      ...(candidates[2] ? { 1080: candidates[2] } : {}),
     },
   };
 }

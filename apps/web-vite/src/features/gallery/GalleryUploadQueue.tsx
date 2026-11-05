@@ -6,14 +6,17 @@ import original from "../../brand/LegacyGallery.module.css";
 import recovery from "./GalleryUploadQueue.module.css";
 import {
   cancelGalleryUpload,confirmGalleryPhoto,galleryUploadStatus,reserveGalleryPhoto,
-  retryGalleryUpload,
+  getGalleryClientThumbUpload,retryGalleryUpload,
   type AlbumPhoto,
   uploadGalleryFormWithProgress,uploadReservationValid,
 } from "./galleryApi";
+import {prepareBrowserPhotoWebp} from "../../shared/media/browserPhotoWebp";
+import {uploadBrowserPhotoWebp} from "../../shared/media/browserPhotoUpload";
+import {photoRetryMessage} from "../../shared/media/photoRetryMessage";
 
 type State="queued"|"sending"|"processing"|"ready"|"failed"|"unknown"|"cancelled";
 export const GALLERY_WEB_MAX_PARALLEL_UPLOADS=5;
-type Entry={id:string;file:File;state:State;uploadId?:string;
+type Entry={id:string;file:File;state:State;uploadId?:string;previewUrl?:string;
   recoveredParentId?:string;
   message?:string;progress?:number;processingStartedAt?:number;transferActive?:boolean;
   pendingRetry?:{parentId:string;requestId:string}};
@@ -66,7 +69,8 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
   useEffect(()=>{
     live.current=true;
     const controllers=active.current;
-    return ()=>{live.current=false;for(const ctrl of controllers.values())ctrl?.abort();};
+    return ()=>{live.current=false;for(const ctrl of controllers.values())ctrl?.abort();
+      for(const entry of entriesRef.current)if(entry.previewUrl)URL.revokeObjectURL(entry.previewUrl);};
   },[]);
   const locked=entries.some(e=>e.state==="unknown");
   const pendingIds=entries.filter(e=>e.state==="processing"&&e.uploadId)
@@ -141,6 +145,7 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
       e.state==="queued"||e.state==="sending").length);
     const added=Array.from(files).slice(0,available).map(file=>({
       id:crypto.randomUUID(),file,state:"queued" as const,
+      previewUrl:typeof URL.createObjectURL==="function"?URL.createObjectURL(file):undefined,
     }));
     entriesRef.current=[...entriesRef.current,...added];setEntries(entriesRef.current);
     if(files.length>available)setNotice("Для части фотографий превышен лимит альбома (200). ");
@@ -170,14 +175,18 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
   }
   async function sendOne(entry:Entry){
     let reservationId:string|undefined;
+    let reserveAttempted=false;
     try{
       if(!await fileValid(entry.file)){
-        update(entry.id,{state:"failed",message:"Нужен настоящий JPG, PNG или WebP до 10 МиБ."});
+        update(entry.id,{state:"failed",message:"Нужен настоящий JPG, PNG или WebP до 10 МиБ. Выберите подходящий файл и повторите обработку на этом фото."});
         return;
       }
       if(!live.current)return;
-      // Stable per-file UUID: server can safely recognize an earlier reserve.
-      const reserved=await reserveGalleryPhoto(albumId,entry.file,null,entry.id);
+      // Browser produces both final WebP sizes before obtaining S3 grants.
+      const prepared=await prepareBrowserPhotoWebp(entry.file,{thumb:480,full:1920});
+      if(!live.current)return;
+      reserveAttempted=true;
+      const reserved=await reserveGalleryPhoto(albumId,prepared.full.file,null,entry.id);
       if(!live.current)return;
       if(!uploadReservationValid(reserved,albumId))throw Error("GALLERY_RESERVE_UNKNOWN");
       reservationId=reserved.uploadId;
@@ -185,8 +194,14 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
       const controller=new AbortController();
       active.current.set(entry.id,controller);
       update(entry.id,{transferActive:true});
-      await uploadGalleryFormWithProgress(reserved,entry.file,controller.signal,
-        progress=>{if(live.current)update(entry.id,{progress});});
+      const signedThumb=reserved.thumbUpload??await getGalleryClientThumbUpload(reserved.uploadId);
+      await Promise.all([
+        uploadBrowserPhotoWebp(signedThumb,prepared.thumb.file,"gallery",
+          progress=>{if(live.current)update(entry.id,{progress:Math.floor(progress/2)});},
+          controller.signal),
+        uploadGalleryFormWithProgress(reserved,prepared.full.file,controller.signal,
+          progress=>{if(live.current)update(entry.id,{progress:50+Math.floor(progress/2)});}),
+      ]);
       if(!live.current)return;
       const completed=await confirmGalleryPhoto(reservationId);
       if(completed.uploadId!==reservationId||completed.albumId!==albumId||
@@ -203,15 +218,27 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
       if(!live.current)return;
       const rejected=!reservationId&&error instanceof ApiError&&
         [400,401,403,404,409,413,415,429].includes(error.status);
-      update(entry.id,{state:rejected?"failed":"unknown",uploadId:reservationId,
-        message:rejected?"Сервер отклонил файл. Исправьте ошибку перед новой отправкой.":
-          "Не повторяйте запись: подтверждение сервера или хранилища потеряно."});
+      const safeToRetry=!reserveAttempted||rejected;
+      update(entry.id,{state:safeToRetry?"failed":"unknown",uploadId:reservationId,
+        message:safeToRetry?photoRetryMessage(error):
+          "Результат отправки неизвестен. Сначала проверьте статус на сервере — повторять S3-запись без подтверждения нельзя."});
       // Freeze unstarted tasks. Active S3 transfers settle independently to
       // avoid turning valid uploads into additional unknown outcomes.
       autoPaused.current=true;
     }finally{
       if(live.current)update(entry.id,{transferActive:false});
     }
+  }
+  function retryUnreservedPhoto(entry:Entry){
+    if(!live.current||busyRef.current||active.current.size>0||entry.uploadId||
+       entry.state!=="failed")return;
+    active.current.set(entry.id,null);
+    update(entry.id,{state:"sending",progress:0,message:undefined});
+    setBusy(true);
+    void sendOne(entry).finally(()=>{
+      active.current.delete(entry.id);
+      if(live.current)setBusy(active.current.size>0);
+    });
   }
   async function reconcile(entry:Entry){
     if(!entry.uploadId||busyRef.current)return;
@@ -252,7 +279,8 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
     try{
       // The initial reservation may already exist. The original clientRequestId
       // is an idempotency key, and NO storage POST occurred without its ACK.
-      const recovered=await reserveGalleryPhoto(albumId,entry.file,null,entry.id);
+      const prepared=await prepareBrowserPhotoWebp(entry.file,{thumb:480,full:1920});
+      const recovered=await reserveGalleryPhoto(albumId,prepared.full.file,null,entry.id);
       if(!live.current)return;
       if(!uploadReservationValid(recovered,albumId))
         throw Error("GALLERY_RESERVATION_RECOVERY_UNCONFIRMED");
@@ -281,6 +309,7 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
       }
       if(!live.current||busyRef.current)return;
       const entry:Entry={id:crypto.randomUUID(),file,state:"failed",
+        previewUrl:typeof URL.createObjectURL==="function"?URL.createObjectURL(file):undefined,
         uploadId:photo.uploadId,recoveredParentId:photo.uploadId};
       entriesRef.current=[...entriesRef.current,entry];
       setEntries(entriesRef.current);
@@ -305,8 +334,8 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
         operation={parentId:entry.uploadId,requestId:crypto.randomUUID()};
         update(entry.id,{pendingRetry:operation});
       }
-      // Replaying the exact retry operation is safe by Core's clientRequestId,
-      // unlike creating a second child. This is only a deliberate user action.
+      const prepared=await prepareBrowserPhotoWebp(entry.file,{thumb:480,full:1920});
+      // The exact retry ID is idempotent and retains WebP metadata.
       const replacement=await retryGalleryUpload(operation.parentId,operation.requestId);
       if(!live.current)return;
       if(!uploadReservationValid(replacement,albumId))
@@ -316,8 +345,14 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
         message:undefined,pendingRetry:undefined});
       const controller=new AbortController();active.current.set(entry.id,controller);
       update(entry.id,{transferActive:true});
-      await uploadGalleryFormWithProgress(replacement,entry.file,controller.signal,
-        value=>{if(live.current)update(entry.id,{progress:value});});
+      const thumb=await getGalleryClientThumbUpload(replacement.uploadId);
+      await Promise.all([
+        uploadBrowserPhotoWebp(thumb,prepared.thumb.file,"gallery",
+          value=>{if(live.current)update(entry.id,{progress:Math.floor(value/2)});},
+          controller.signal),
+        uploadGalleryFormWithProgress(replacement,prepared.full.file,controller.signal,
+          value=>{if(live.current)update(entry.id,{progress:50+Math.floor(value/2)});}),
+      ]);
       if(!live.current)return;
       const confirmed=await confirmGalleryPhoto(replacementId);
       if(confirmed.albumId!==albumId||confirmed.uploadId!==replacementId||
@@ -407,7 +442,26 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
     <ul className={autoUpload?original.queue:undefined}
       aria-label="Очередь фотографий">
       {entries.map(entry=><li key={entry.id}>
-        <span>{entry.file.name} — {labels[entry.state]}</span>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{position:"relative",width:76,height:76,flexShrink:0,
+            background:"#e8e8de",borderRadius:12,overflow:"hidden"}}>
+            {entry.previewUrl && <img src={entry.previewUrl} alt={entry.file.name}
+              style={{width:"100%",height:"100%",objectFit:"cover"}}/>}
+            {entry.state==="failed"&&<button type="button"
+              aria-label={`Повторить обработку фото ${entry.file.name}`}
+              title="Повторить только эту фотографию" disabled={busy}
+              onClick={()=>entry.uploadId?void retry(entry):retryUnreservedPhoto(entry)}
+              style={{position:"absolute",inset:"13px",width:50,height:50,
+                display:"grid",placeItems:"center",borderRadius:"50%",background:"#17211deb",
+                border:"1px solid #fffc",color:"white",cursor:"pointer"}}>
+              <svg viewBox="0 0 24 24" width="29" height="29" fill="none" stroke="currentColor"
+                strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 11a8 8 0 1 0-2.3 6M20 4v7h-7" />
+              </svg>
+            </button>}
+          </div>
+          <span>{entry.file.name} — {labels[entry.state]}</span>
+        </div>
         {entry.state==="sending"&&
           <progress max={100} value={entry.progress??0}
             aria-label={`Загрузка ${entry.file.name}: ${entry.progress??0}%`}/>}
@@ -420,6 +474,7 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
         </>}
         {entry.message&&<p role="alert">{entry.message}</p>}
         {entry.state==="queued"&&!busy&&<SecondaryButton variant="red" className="gafus-inline-red-action" type="button" onClick={()=>{
+          if(entry.previewUrl)URL.revokeObjectURL(entry.previewUrl);
           entriesRef.current=entriesRef.current.filter(e=>e.id!==entry.id);
           setEntries(entriesRef.current);
         }}>Убрать из очереди</SecondaryButton>}
@@ -431,10 +486,7 @@ export function GalleryUploadQueue({albumId,usedSlots,onRefresh,failedPhotos=[],
           <PrimaryButton type="button" onClick={()=>void retry(entry)}>
             Восстановить запрос повтора
           </PrimaryButton>}
-        {entry.state==="failed"&&entry.uploadId&&!entry.pendingRetry&&!busy&&
-          <PrimaryButton type="button" onClick={()=>void retry(entry)}>
-            Повторить после ошибки
-          </PrimaryButton>}
+
         {entry.state==="sending"&&entry.transferActive&&
           <SecondaryButton variant="red" type="button" onClick={()=>active.current.get(entry.id)?.abort()}>
             Прервать передачу

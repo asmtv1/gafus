@@ -25,14 +25,19 @@ const output = {
 function mockDb(options: {
   stale?: boolean; deleted?: boolean; mediaStatus?: string; pending?: boolean;
   attempts?: number; kind?: "publish_photo" | "publish_video" | "delete_keys" | "cleanup_source"; sourceKeys?: string[];
-  uploadPurpose?: "post" | "comment";
+  uploadPurpose?: "post" | "comment"; background?: boolean;
 } = {}) {
   const j = { ...job, attempts: options.attempts ?? job.attempts,
-    kind: options.kind ?? job.kind, sourceKeys: options.sourceKeys ?? job.sourceKeys };
+    kind: options.kind ?? job.kind,
+    sourceKeys: options.background ? ["media/v2/asset_1/v1/video/720.mp4"] : options.sourceKeys ?? job.sourceKeys,
+    targetKeys: options.background ? ["media/v2/asset_1/v1/video/360.mp4"] : [],
+    uploadId: options.background ? null : job.uploadId };
   const updates = vi.fn(async () => ({ count: 1 }));
   const mediaUpdate = vi.fn(async () => ({}));
   const published = vi.fn(async () => ({}));
-  const media = { id: "asset_1", status: options.mediaStatus ?? "uploaded" };
+  const media = { id: "asset_1", status: options.mediaStatus ?? "uploaded",
+    mp4Keys: options.background ? ["media/v2/asset_1/v1/video/720.mp4"] : [],
+    width: 1280, height: 720, durationSeconds: 30 };
   const post = {
     id: "post_1", authorId: "alice", deletedAt: options.deleted ? now : null,
     version: 1, publishedAt: null, activeRevisionId: null,
@@ -69,11 +74,94 @@ function mockDb(options: {
 }
 afterEach(() => vi.unstubAllEnvs());
 describe("feed processing job lease and fencing", () => {
-  it("issues a lease token atomically and restricts claims to 20", async () => {
-    const { worker, updates } = mockDb();
-    const claimed = await worker.claim(1);
+  it("publishes verified 720p+poster and schedules the durable 360p enhancement", async () => {
+    const x=mockDb({kind:"publish_video",pending:false});
+    const completion=await x.worker.complete(job.id,job.attemptToken,{
+      width:1280,height:720,durationSeconds:30,
+      posterKey:"media/v2/asset_1/v1/poster.webp",
+      mp4Keys:["media/v2/asset_1/v1/video/720.mp4"],
+    });
+    expect(completion).toEqual({accepted:true});
+    expect(x.mediaUpdate).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({
+      status:"ready",mp4Keys:["media/v2/asset_1/v1/video/720.mp4"]})}));
+    expect(x.tx.feedStorageJob.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where:{dedupeKey:"feed-video-360:asset_1"},create:expect.objectContaining({
+        kind:"publish_video",uploadId:null,
+        sourceKeys:["media/v2/asset_1/v1/video/720.mp4"],
+        targetKeys:["media/v2/asset_1/v1/video/360.mp4"]})}));
+  });
+  it("appends 360p without revoking READY 720p or publishing another revision", async () => {
+    const x=mockDb({kind:"publish_video",background:true,mediaStatus:"ready"});
+    const res=await x.worker.complete(job.id,job.attemptToken,{
+      width:1280,height:720,durationSeconds:30,
+      mp4Keys:["media/v2/asset_1/v1/video/360.mp4"],
+    });
+    expect(res).toEqual({accepted:true});
+    expect(x.mediaUpdate).toHaveBeenCalledWith({where:{id:"asset_1"},
+      data:{mp4Keys:["media/v2/asset_1/v1/video/720.mp4",
+        "media/v2/asset_1/v1/video/360.mp4"]}});
+    expect(x.tx.feedStorageJob.upsert).not.toHaveBeenCalled();
+    expect(x.published).not.toHaveBeenCalled();
+  });
+  it("adds ONLY 360p to READY 720p without mutating the one client poster", async()=>{
+    const x=mockDb({kind:"publish_video",background:true,mediaStatus:"ready"});
+    expect(await x.worker.complete(job.id,job.attemptToken,{
+      width:1280,height:720,durationSeconds:30,
+      mp4Keys:["media/v2/asset_1/v1/video/360.mp4"],
+    })).toEqual({accepted:true});
+    expect(x.mediaUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where:{id:"asset_1"},data:expect.objectContaining({
+        mp4Keys:["media/v2/asset_1/v1/video/720.mp4",
+          "media/v2/asset_1/v1/video/360.mp4"]})}));
+    expect(x.published).not.toHaveBeenCalled();
+  });
+  it("exhausts failed background 360p without marking READY media failed or deleting 720p", async () => {
+    const x=mockDb({kind:"publish_video",background:true,mediaStatus:"ready",attempts:5});
+    expect(await x.worker.fail(job.id,job.attemptToken,"360_FAILED")).toEqual({accepted:true});
+    expect(x.mediaUpdate).not.toHaveBeenCalled();
+    expect(x.tx.feedMediaAsset.updateMany).not.toHaveBeenCalled();
+    expect(x.tx.feedStorageJob.upsert).not.toHaveBeenCalled();
+    expect(x.updates).toHaveBeenCalledWith(expect.objectContaining({
+      data:expect.objectContaining({status:"failed"})}));
+  });
+  it("does not publish background 360 after post deletion or stale lease", async () => {
+    const deleted=mockDb({kind:"publish_video",background:true,mediaStatus:"ready",deleted:true});
+    expect(await deleted.worker.complete(job.id,job.attemptToken,{
+      width:1280,height:720,durationSeconds:30,
+      mp4Keys:["media/v2/asset_1/v1/video/360.mp4"]})).toEqual({accepted:false});
+    expect(deleted.mediaUpdate).not.toHaveBeenCalled();
+    const stale=mockDb({kind:"publish_video",background:true,mediaStatus:"ready",stale:true});
+    expect(await stale.worker.complete(job.id,job.attemptToken,{
+      width:1280,height:720,durationSeconds:30,
+      mp4Keys:["media/v2/asset_1/v1/video/360.mp4"]})).toEqual({accepted:false});
+  });
+  it("prioritizes a new 720p publication over an older backlog of 360p jobs",async()=>{
+    const x=mockDb({kind:"publish_video"});
+    const find=vi.mocked(x.db.feedStorageJob.findMany);
+    const primary={...job,kind:"publish_video" as const,id:"new720",targetKeys:[]};
+    const background={...job,kind:"publish_video" as const,id:"older360",
+      sourceKeys:["media/v2/asset_1/v1/video/720.mp4"],
+      targetKeys:["media/v2/asset_1/v1/video/360.mp4"],uploadId:null};
+    find.mockImplementation(async(args)=>args.where?.targetKeys?.isEmpty===true
+      && args.where?.kind==="publish_video" ? [primary] as never :
+      args.where?.targetKeys?.isEmpty===false ? [background] as never : [] as never);
+    const claimed=await x.worker.claim(1,"video");
+    expect(claimed.map(row=>row.id)).toEqual(["new720"]);
+    expect(find.mock.calls[0]?.[0]?.where).toMatchObject({kind:"publish_video",
+      targetKeys:{isEmpty:true}});
+    expect(find).toHaveBeenCalledTimes(1);
+    find.mockClear();
+    find.mockImplementation(async(args)=>args.where?.targetKeys?.isEmpty===false
+      ? [background] as never : [] as never);
+    const later=await x.worker.claim(1,"video");
+    expect(later.map(row=>row.id)).toEqual(["older360"]);
+    expect(find).toHaveBeenCalledTimes(2); // primary, background. Cleanup is local
+  });
+  it("issues a lease token for video and restricts claims to 20", async () => {
+    const { worker, updates } = mockDb({ kind: "publish_video" });
+    const claimed = await worker.claim(1, "video");
     expect(claimed).toHaveLength(1);
-    expect(claimed[0]).toMatchObject({ id: "job_1", kind: "publish_photo", attempts: 2 });
+    expect(claimed[0]).toMatchObject({ id: "job_1", kind: "publish_video", attempts: 2 });
     expect(claimed[0]?.attemptToken).not.toEqual(job.attemptToken);
     expect(updates).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: "processing", attempts: { increment: 1 },
@@ -81,10 +169,12 @@ describe("feed processing job lease and fencing", () => {
     }));
     await expect(worker.claim(21)).rejects.toThrow();
   });
-  it("claims exactly one own retired S3 cleanup job, never another owner or worker kind", async () => {
+  it("claims exact owner-bound S3 photo cleanup on local Worker, never another owner", async () => {
     const x = mockDb({ kind: "delete_keys", sourceKeys: ["media/v2/asset_1/v1/image/l.webp"] });
     const bound = { jobId: job.id, ownerId: "alice", kind: "delete_keys" as const };
-    const rows = await x.worker.claim(1, "photo", bound);
+    await expect(x.worker.claim(1, "video", bound)).rejects.toMatchObject({status:400});
+    expect(x.db.feedStorageJob.findMany).not.toHaveBeenCalled();
+    const rows = await x.worker.claim(1, undefined, bound);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ ownerId: "alice", kind: "delete_keys", id: job.id });
     expect(x.db.feedStorageJob.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -94,42 +184,53 @@ describe("feed processing job lease and fencing", () => {
       where: expect.objectContaining({ id: job.id, ownerId: "alice", kind: "delete_keys" }),
     }));
     const foreign = mockDb({ kind: "delete_keys" });
-    expect(await foreign.worker.claim(1,"photo",{jobId:job.id,ownerId:"stranger",kind:"delete_keys"})).toEqual([]);
+    expect(await foreign.worker.claim(1, undefined, {
+      jobId: job.id, ownerId: "stranger", kind: "delete_keys",
+    })).toEqual([]);
     expect(foreign.updates).not.toHaveBeenCalled();
   });
-  it("leases exactly the specified local photo or video job without claiming unrelated cleanup", async () => {
-    const photo = mockDb({ kind: "publish_photo" });
-    const scope = { jobId: job.id, ownerId: "alice", kind: "publish_photo" as const };
-    const claimed = await photo.worker.claim(1, "photo", undefined, scope);
+  it("only leases owner-bound video jobs and forbids retired photo jobs", async () => {
+    const video = mockDb({ kind: "publish_video" });
+    const scope = { jobId: job.id, ownerId: "alice", kind: "publish_video" as const };
+    const claimed = await video.worker.claim(1, "video", undefined, scope);
     expect(claimed).toHaveLength(1);
-    expect(photo.db.feedStorageJob.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining(scope && { id: job.id, ownerId: "alice", kind: "publish_photo" }),
+    expect(video.db.feedStorageJob.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: job.id, ownerId: "alice", kind: "publish_video" }),
     }));
-    expect(photo.updates).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ id: job.id, ownerId: "alice", kind: "publish_photo" }),
-    }));
-    const other = mockDb({ kind: "publish_photo" });
-    expect(await other.worker.claim(1, "photo", undefined, {
+    const foreign = mockDb({ kind: "publish_video" });
+    expect(await foreign.worker.claim(1, "video", undefined, {
       ...scope, ownerId: "another-user",
     })).toEqual([]);
-    expect(other.updates).not.toHaveBeenCalled();
-    await expect(photo.worker.claim(1, "video", undefined, scope)).rejects.toThrow();
-    await expect(photo.worker.claim(1, "photo", undefined, {
+    expect(foreign.updates).not.toHaveBeenCalled();
+    const photo = mockDb({ kind: "publish_photo" });
+    await expect(photo.worker.claim(1, "photo")).rejects.toMatchObject({ status: 410 });
+    await expect(photo.worker.claim(1, "video", undefined, {
+      ...scope, kind: "publish_photo",
+    })).rejects.toThrow();
+    expect(photo.db.feedStorageJob.findMany).not.toHaveBeenCalled();
+    await expect(video.worker.claim(1, "video", undefined, {
       ...scope, jobId: "../unsafe",
     })).rejects.toThrow();
-    await expect(photo.worker.claim(1, "photo", {
+    await expect(video.worker.claim(1, "video", {
       jobId: job.id, ownerId: "alice", kind: "delete_keys",
     }, scope)).rejects.toThrow();
   });
-
-  it("refuses invalid, conflicting and forbidden scoped cleanup before DB access", async () => {
-    const x = mockDb({kind:"delete_keys"});
+  it("rejects malformed scoped cleanup; only local Worker accepts valid cleanup", async () => {
+    const x = mockDb({ kind: "delete_keys" });
     for (const scope of [
-      {jobId:"../foreign", ownerId:"alice",kind:"delete_keys" as const},
-      {jobId:job.id,ownerId:"alice/../foreign",kind:"delete_keys" as const},
-    ]) await expect(x.worker.claim(1,"photo",scope)).rejects.toThrow();
-    await expect(x.worker.claim(1,"video",{jobId:job.id,ownerId:"alice",kind:"delete_keys"})).rejects.toThrow();
+      { jobId: "../foreign", ownerId: "alice", kind: "delete_keys" as const },
+      { jobId: job.id, ownerId: "alice/../foreign", kind: "delete_keys" as const },
+    ]) await expect(x.worker.claim(1, undefined, scope)).rejects.toThrow();
+    await expect(x.worker.claim(1, "photo", {
+      jobId: job.id, ownerId: "alice", kind: "delete_keys",
+    })).rejects.toMatchObject({ status: 410 });
     expect(x.db.feedStorageJob.findMany).not.toHaveBeenCalled();
+    await expect(x.worker.claim(1, "video", {
+      jobId: job.id, ownerId: "alice", kind: "delete_keys",
+    })).rejects.toMatchObject({status:400});
+    expect(await x.worker.claim(1, undefined, {
+      jobId: job.id, ownerId: "alice", kind: "delete_keys",
+    })).toHaveLength(1);
   });
   it("rejects outdated attempt without changing a media asset", async () => {
     const { worker, mediaUpdate } = mockDb({ stale: true });
@@ -175,7 +276,8 @@ describe("feed processing job lease and fencing", () => {
     expect(published).not.toHaveBeenCalled();
   });
   it("terminalises a repeatedly failed comment upload without failing its parent post", async () => {
-    const { worker, tx } = mockDb({ attempts: 5, uploadPurpose: "comment" });
+    const { worker, tx } = mockDb({ attempts: 5, uploadPurpose: "comment", kind: "publish_video",
+      sourceKeys:["posts/alice/post_1/incoming/upload_1/source.mp4"] });
     expect(await worker.claim(1)).toEqual([]);
     expect(tx.feedMediaAsset.updateMany).toHaveBeenCalled();
     expect(tx.feedPostRevision.updateMany).not.toHaveBeenCalled();
@@ -222,7 +324,8 @@ describe("feed processing job lease and fencing", () => {
     }));
   });
   it("terminalises jobs whose final leased attempt crashed", async () => {
-    const { worker, tx } = mockDb({ attempts: 5 });
+    const { worker, tx } = mockDb({ attempts: 5, kind: "publish_video",
+      sourceKeys:["posts/alice/post_1/incoming/upload_1/source.mp4"] });
     expect(await worker.claim(1)).toEqual([]);
     expect(tx.feedStorageJob.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ status: "failed", attemptToken: null }),

@@ -2,197 +2,110 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
 import type { FeedCloudJob, FeedCloudInternalClient } from "@gafus/feed-cloud";
 import { createFeedCloudWorker, type FeedMediaV2Metrics } from "./worker.js";
-import { sharpFeedEngine } from "./sharp-engine.js";
 import type { FeedCloudObjects } from "./objects.js";
 const execute = promisify(execFile);
-function job(kind: FeedCloudJob["kind"] = "publish_photo"): FeedCloudJob {
+function job(kind: FeedCloudJob["kind"] = "publish_video"): FeedCloudJob {
   return { id: "job", ownerId: "owner", postId: "post", uploadId: "upload", mediaId: "media",
     attemptToken: "12345678-1234-4234-8234-123456789012", kind, attempts: 1,
-    sourceKeys: ["posts/owner/post/incoming/upload/source.jpg"], targetKeys: [],
+    sourceKeys: ["posts/owner/post/incoming/upload/source.mp4"], targetKeys: [],
     leaseUntil: new Date(Date.now() + 120_000).toISOString(), sourceETag: '"source-etag"', sourceBytes: 1000 };
 }
-function setup(source: Uint8Array, onMetrics?: (metrics: FeedMediaV2Metrics) => void) {
+function setup(source: Uint8Array = new Uint8Array(), onMetrics?: (metrics: FeedMediaV2Metrics) => void) {
   const written = new Map<string, { bytes: Uint8Array; type: string }>();
   const core: FeedCloudInternalClient = { claimJobs: vi.fn(async () => []),
     completeJob: vi.fn(async () => ({ accepted: true })), failJob: vi.fn(async () => ({ accepted: true })),
     renewJob: vi.fn(async () => ({ accepted: true })), maintenance: vi.fn(async () => ({})) };
   const objects: FeedCloudObjects = {
-    download: vi.fn(async (_key, path, max, signal) => { signal.throwIfAborted(); if (source.byteLength > max) throw new Error("SOURCE_SIZE"); await writeFile(path, source); }),
-    create: vi.fn(async (key, bytes, type, signal) => { signal.throwIfAborted(); written.set(key, { bytes, type }); }),
+    download: vi.fn(async (_key, path, max, signal) => {
+      signal.throwIfAborted(); if (source.byteLength > max) throw new Error("SOURCE_SIZE");
+      await writeFile(path, source);
+    }),
+    create: vi.fn(async (key, bytes, type, signal) => {
+      signal.throwIfAborted(); written.set(key, { bytes, type });
+    }),
     createFile: vi.fn(async (key, path, signal) => {
       signal.throwIfAborted(); written.set(key, { bytes: await readFile(path), type: "video/mp4" });
     }),
     delete: vi.fn(async () => undefined),
   };
-  return { core, objects, written, worker: createFeedCloudWorker({ core, objects, engine: sharpFeedEngine, onMetrics }) };
+  return { core, objects, written, worker: createFeedCloudWorker({ core, objects, onMetrics }) };
 }
-describe("feed cloud processing / actual Sharp and FFmpeg", () => {
-  it("reports sanitized numeric time/byte/CPU metrics only after successful READY", async () => {
-    const source = await sharp({ create: { width: 360, height: 540,
-      channels: 3, background: "#112233" } }).jpeg().toBuffer();
-    const onMetrics = vi.fn();
-    const { worker, core } = setup(source, onMetrics);
-    expect(onMetrics).not.toHaveBeenCalled();
-    expect(await worker.process(job())).toEqual({ accepted: true });
-    expect(core.completeJob).toHaveBeenCalledOnce();
-    expect(onMetrics).toHaveBeenCalledWith(expect.objectContaining({
-      kind: "photo", attempt: 1, variantCount: 3,
-      outputBytes: expect.any(Number), sourceBytes: 1000,
-      processingMs: expect.any(Number), downloadMs: expect.any(Number),
-      uploadMs: expect.any(Number), coreVerificationMs: expect.any(Number),
-      totalMs: expect.any(Number), rssAtCompletionBytes: expect.any(Number),
-    }));
-    expect(JSON.stringify(onMetrics.mock.calls)).not.toContain("posts/");
-    expect(JSON.stringify(onMetrics.mock.calls)).not.toContain("source-etag");
-  });
-  it("classifies storage denial without exposing SDK messages or secret URLs in logs", async () => {
-    const source = await sharp({ create: { width: 16, height: 16,
-      channels: 3, background: "#334455" } }).png().toBuffer();
-    const { worker, objects, core } = setup(source);
-    const secret = "https://private.example/object?X-Amz-Signature=private-token";
-    vi.mocked(objects.download).mockRejectedValueOnce(Object.assign(new Error(secret), {
-      name: "AccessDenied", $metadata: { httpStatusCode: 403 },
-    }));
-    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    try {
-      await expect(worker.process(job())).rejects.toThrow();
-      expect(core.failJob).toHaveBeenCalledOnce();
-      expect(log).toHaveBeenCalledWith("FEED_MEDIA_V2_PROCESS_FAILURE", JSON.stringify({
-        phase: "download", kind: "photo", attempt: 1,
-        category: "S3_ACCESS_DENIED", httpStatus: 403,
-      }));
-      expect(JSON.stringify(log.mock.calls)).not.toContain(secret);
-      expect(JSON.stringify(log.mock.calls)).not.toContain("X-Amz-Signature");
-    } finally { log.mockRestore(); }
-  });
-  it("decodes, orients and strips photo metadata before publication", async () => {
-    const source = await sharp({ create: { width: 800, height: 600, channels: 3, background: "#335533" } }).jpeg().withMetadata({ orientation: 6 }).toBuffer();
-    const { core, written, worker } = setup(source);
-    expect(await worker.process(job())).toEqual({ accepted: true });
-    expect(written.size).toBe(3);
-    const full = await sharp(written.get("media/v2/media/v1/image/l.webp")!.bytes).metadata();
-    expect(full).toMatchObject({ width: 600, height: 800, format: "webp" });
-    expect(full.exif).toBeUndefined(); expect(full.icc).toBeUndefined();
-    expect(core.completeJob).toHaveBeenCalledWith("job", expect.any(String), expect.objectContaining({ width: 600, height: 800 }));
-  });
-  it("starts all three WebP uploads and waits for all before completing", async () => {
-    const source = await sharp({ create: { width: 600, height: 480, channels: 3,
-      background: "#445533" } }).png().toBuffer();
-    const { worker, objects, core } = setup(source);
-    const resolveWrites: (() => void)[] = [];
-    vi.mocked(objects.create).mockImplementation(async () => new Promise<void>(resolve => {
-      resolveWrites.push(resolve);
-    }));
-    const processing = worker.process(job());
-    await vi.waitFor(() => expect(objects.create).toHaveBeenCalledTimes(3));
-    expect(core.completeJob).not.toHaveBeenCalled();
-    resolveWrites[0]!();
-    await Promise.resolve();
-    expect(core.completeJob).not.toHaveBeenCalled();
-    resolveWrites[1]!();
-    await Promise.resolve();
-    expect(core.completeJob).not.toHaveBeenCalled();
-    resolveWrites[2]!();
-    await expect(processing).resolves.toEqual({ accepted: true });
-    expect(core.completeJob).toHaveBeenCalledOnce();
-  });
-
-  it("does not fail a claim until concurrent S3 writes have settled", async () => {
-    const source = await sharp({ create: { width: 200, height: 200, channels: 3,
-      background: "#445533" } }).png().toBuffer();
-    const { worker, objects, core } = setup(source);
-    let rejectFirst!: (error: Error) => void;
-    const pending: (() => void)[] = [];
-    vi.mocked(objects.create)
-      .mockImplementationOnce(() => new Promise<void>((_, reject) => { rejectFirst = reject; }))
-      .mockImplementationOnce(() => new Promise<void>(resolve => { pending.push(resolve); }))
-      .mockImplementationOnce(() => new Promise<void>(resolve => { pending.push(resolve); }));
-    const processing = worker.process(job());
-    const completion = expect(processing).rejects.toThrow("S3 rejected one variant");
-    await vi.waitFor(() => expect(objects.create).toHaveBeenCalledTimes(3));
-    rejectFirst(new Error("S3 rejected one variant"));
-    await Promise.resolve();
-    expect(core.failJob).not.toHaveBeenCalled();
-    pending.forEach(resolve => resolve());
-    await completion;
-    expect(core.failJob).toHaveBeenCalledOnce();
+describe("Feed Cloud Job is ONLY background H264 360p", () => {
+  it("refuses stale publish_photo and copy_album claims before reading S3 or writing READY", async () => {
+    const { worker, objects, core } = setup();
+    for (const kind of ["publish_photo", "copy_album"] as const) {
+      await expect(worker.process({ ...job(kind),
+        sourceKeys: kind === "publish_photo"
+          ? ["posts/owner/post/incoming/upload/source.webp"]
+          : ["albums/owner/album/photos/photo/full.webp"],
+      })).rejects.toThrow("UNTRUSTED_CLAIM");
+    }
+    expect(objects.download).not.toHaveBeenCalled();
+    expect(objects.create).not.toHaveBeenCalled();
     expect(core.completeJob).not.toHaveBeenCalled();
   });
-
-  it("creates an independent album copy without deleting album files", async () => {
-    const source = await sharp({ create: { width: 80, height: 60, channels: 3, background: "#335533" } }).webp().toBuffer();
-    const { objects, written, worker } = setup(source);
-    const claim = { ...job("copy_album"), uploadId: null, sourceETag: undefined,
-      sourceKeys: ["albums/owner/album/photos/photo/thumb.webp", "albums/owner/album/photos/photo/full.webp"],
-      targetKeys: ["media/v2/media/v1/image/s.webp", "media/v2/media/v1/image/m.webp",
-        "media/v2/media/v1/image/l.webp"] };
-    await worker.process(claim);
-    expect(written.size).toBe(3); expect(objects.delete).not.toHaveBeenCalled();
-    expect(objects.download).toHaveBeenCalledWith(claim.sourceKeys[1], expect.any(String), 10 * 1024 * 1024, expect.any(AbortSignal), undefined);
+  it("rejects old Cloud 720p/original-video transcode claims before downloading or writing anything", async () => {
+    const { worker, objects, core } = setup();
+    await expect(worker.process(job())).rejects.toThrow("UNTRUSTED_CLAIM");
+    expect(objects.download).not.toHaveBeenCalled();
+    expect(objects.createFile).not.toHaveBeenCalled();
+    expect(core.completeJob).not.toHaveBeenCalled();
   });
-  it("transcodes a small video into progressive MP4 and a WebP poster", async () => {
-    const dir = await mkdtemp(join(process.cwd(), ".feed-video-fixture-"));
+  it("encodes only optional 360p from verified 720p, preserving the original poster", async () => {
+    const dir = await mkdtemp(join(process.cwd(), ".feed-video-360-only-fixture-"));
     try {
       const file = join(dir, "source.mp4");
-      await execute("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
-        "color=c=green:s=320x240:r=15:d=3", "-c:v", "libx264", "-pix_fmt", "yuv420p", file]);
-      const { worker, written, core } = setup(await readFile(file));
-      const claim = { ...job("publish_video"), sourceKeys: ["posts/owner/post/incoming/upload/source.mp4"] };
-      await worker.process(claim);
-      const output = vi.mocked(core.completeJob).mock.calls[0][2]!;
-      expect(output).toMatchObject({ width: 320, height: 240, durationSeconds: 3 });
-      expect(output.mp4Keys).toEqual(["media/v2/media/v1/video/360.mp4"]);
-      expect(written.get(output.mp4Keys![0]!)?.type).toBe("video/mp4");
-      expect(written.get(output.mp4Keys![0]!)!.bytes.byteLength).toBeGreaterThan(1000);
-      expect(written.get(output.posterKey!)!.type).toBe("image/webp");
-      expect([...written.keys()].some(key => key.endsWith(".m3u8"))).toBe(false);
+      await execute("ffmpeg", ["-hide_banner", "-nostdin", "-loglevel", "error", "-y",
+        "-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=15", "-t", "2",
+        "-threads", "2", "-c:v", "libx264", "-preset", "ultrafast",
+        "-pix_fmt", "yuv420p", file]);
+      const onMetrics = vi.fn();
+      const { worker, written, core, objects } = setup(await readFile(file), onMetrics);
+      const final720 = "media/v2/media/v1/video/720.mp4";
+      const final360 = "media/v2/media/v1/video/360.mp4";
+      const background:FeedCloudJob={...job(),uploadId:null,
+        sourceKeys:[final720],targetKeys:[final360],sourceETag:undefined,sourceBytes:undefined};
+      await expect(worker.process(background)).resolves.toEqual({ accepted: true });
+      const output = vi.mocked(core.completeJob).mock.calls[0]?.[2];
+      expect(output).toMatchObject({width:1280,height:720,durationSeconds:2,
+        mp4Keys:[final360]});
+      expect(output?.posterKey).toBeUndefined();
+      expect(written.has(final360)).toBe(true);
+      expect(written.has(final720)).toBe(false);
+      expect(written.has("media/v2/media/v1/poster.webp")).toBe(false);
+      expect(written.size).toBe(1);
+      expect(objects.create).not.toHaveBeenCalled();
+      expect(vi.mocked(objects.download).mock.calls[0]?.[0]).toBe(final720);
+      expect(onMetrics).toHaveBeenCalledWith(expect.objectContaining({kind:"video",variantCount:1}));
+      const saved = join(dir, "360.mp4");
+      await writeFile(saved, written.get(final360)!.bytes);
+      const probe = JSON.parse(await execute("ffprobe", ["-v", "error", "-select_streams", "v:0",
+        "-show_entries", "stream=codec_name,profile,width,height", "-of", "json", saved]).then(x=>x.stdout));
+      expect(probe.streams[0]).toMatchObject({codec_name:"h264",profile:"Main",width:640,height:360});
+      expect(JSON.stringify(onMetrics.mock.calls)).not.toContain("posts/owner/post");
     } finally { await rm(dir, { recursive: true, force: true }); }
-  });
-  it("rejects another owner's source before touching storage", async () => {
-    const { worker, objects, core } = setup(new Uint8Array(1));
-    await expect(worker.process({ ...job(), sourceKeys: ["posts/other/post/incoming/upload/source.jpg"] })).rejects.toThrow("UNTRUSTED_CLAIM");
-    expect(objects.download).not.toHaveBeenCalled(); expect(core.completeJob).not.toHaveBeenCalled();
-  });
-  it("rejects corrupt image bytes and records a failed attempt", async () => {
-    const { worker, core, written } = setup(new Uint8Array([1, 2, 3]));
-    await expect(worker.process(job())).rejects.toThrow("INVALID_IMAGE");
-    expect(core.failJob).toHaveBeenCalled(); expect(core.completeJob).not.toHaveBeenCalled(); expect(written.size).toBe(0);
-  });
-  it("does not erase outputs after a lost completion response", async () => {
-    const source = await sharp({ create: { width: 50, height: 50, channels: 3, background: "green" } }).png().toBuffer();
-    const { worker, core, objects, written } = setup(source);
-    vi.mocked(core.completeJob).mockRejectedValue(new Error("lost response"));
-    await expect(worker.process(job())).rejects.toThrow("lost response");
-    expect(core.failJob).not.toHaveBeenCalled(); expect(objects.delete).not.toHaveBeenCalled(); expect(written.size).toBe(3);
-  });
-  it("deletes original upload and all WebP/MP4 variants", async () => {
-    const { worker, objects, core } = setup(new Uint8Array());
-    const keys = ["posts/owner/post/incoming/upload/source.mp4",
-      "media/v2/photo/v1/image/s.webp", "media/v2/photo/v1/image/m.webp",
-      "media/v2/photo/v1/image/l.webp", "media/v2/video/v1/poster.webp",
-      "media/v2/video/v1/video/360.mp4", "media/v2/video/v1/video/720.mp4"];
-    await expect(worker.process({ ...job("delete_keys"), sourceKeys: keys })).resolves.toEqual({ accepted: true });
-    expect(vi.mocked(objects.delete).mock.calls.map(([key]) => key)).toEqual(keys);
-    expect(core.completeJob).toHaveBeenCalledTimes(1);
-  });
-  it("does not complete a cleanup job when S3 deletion fails, allowing a retry", async () => {
-    const { worker, objects, core } = setup(new Uint8Array());
-    vi.mocked(objects.delete).mockRejectedValueOnce(new Error("S3 temporarily unavailable"));
-    await expect(worker.process({
-      ...job("delete_keys"), sourceKeys: ["media/v2/media/v1/image/l.webp"],
-    })).rejects.toThrow("S3 temporarily unavailable");
+  }, 90_000);
+  it("rejects cleanup, image jobs and other non-video claims without mutating S3", async () => {
+    const { worker, objects, core } = setup();
+    for (const kind of ["delete_keys", "cleanup_source", "publish_photo", "copy_album"] as const) {
+      await expect(worker.process({ ...job(kind), sourceKeys: ["media/v2/photo/v1/image/s.webp"] }))
+        .rejects.toThrow("UNTRUSTED_CLAIM");
+    }
+    expect(objects.delete).not.toHaveBeenCalled();
+    expect(objects.create).not.toHaveBeenCalled();
+    expect(objects.createFile).not.toHaveBeenCalled();
     expect(core.completeJob).not.toHaveBeenCalled();
-    expect(core.failJob).toHaveBeenCalledWith("job", expect.any(String), "MEDIA_PROCESSING_FAILED");
   });
-  it("cleanup can delete only feed keys and requires a live lease", async () => {
-    const { worker, objects } = setup(new Uint8Array());
-    await worker.process({ ...job("delete_keys"), sourceKeys: ["media/v2/media/v1/image/l.webp"] });
-    expect(objects.delete).toHaveBeenCalledTimes(1);
-    await expect(worker.process({ ...job("delete_keys"), sourceKeys: ["albums/owner/album/photos/photo/full.webp"] })).rejects.toThrow();
-    await expect(worker.process({ ...job(), leaseUntil: new Date(Date.now() - 1).toISOString() })).rejects.toThrow("LEASE_EXPIRED");
+  it("rejects an expired background 360p lease before accessing S3", async () => {
+    const { worker, objects } = setup();
+    await expect(worker.process({ ...job("publish_video"), uploadId: null,
+      sourceKeys: ["media/v2/media/v1/video/720.mp4"],
+      targetKeys: ["media/v2/media/v1/video/360.mp4"],
+      sourceETag: undefined, sourceBytes: undefined,
+      leaseUntil: new Date(Date.now() - 1000).toISOString() }))
+      .rejects.toThrow("LEASE_EXPIRED");
   });
 });

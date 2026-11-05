@@ -85,6 +85,7 @@ describe("AG3-AUTH-010 login fences startup checkAuth after a principal switch",
       user: oldUser,
       isLoading: false,
       isAuthenticated: false,
+      verifiedSessionEpoch: null,
       pendingVkPhone: false,
       pendingVkConsent: false,
     });

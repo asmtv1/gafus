@@ -7,7 +7,8 @@ export function createFeedUploadRecovery(input: { db: FeedDb; storage: Pick<Feed
       if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 20) throw new Error("INVALID_FEED_BATCH_SIZE");
       const at = now();
       const uploads = await input.db.feedUpload.findMany({
-        where: { status: "reserved", reservationExpiresAt: { gt: at } },
+        where: { status: "reserved", reservationExpiresAt: { gt: at },
+          declaredMime: { in: ["video/mp4", "video/quicktime", "video/webm"] } },
         orderBy: [{ updatedAt: "asc" }, { id: "asc" }], take: batchSize,
       });
       let recovered = 0;
@@ -33,7 +34,7 @@ export function createFeedUploadRecovery(input: { db: FeedDb; storage: Pick<Feed
           await tx.feedStorageJob.upsert({ where: { dedupeKey: `feed-process:${upload.id}` },
             create: { dedupeKey: `feed-process:${upload.id}`, ownerId: upload.ownerId, postId: upload.postId,
               uploadId: upload.id, mediaId: upload.mediaId, sourceKeys: [upload.sourceKey],
-              kind: upload.declaredMime.startsWith("image/") ? "publish_photo" : "publish_video", availableAt: now() }, update: {},
+              kind: "publish_video", availableAt: now() }, update: {},
           });
           recovered++;
         });

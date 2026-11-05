@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { validateCutoverConfig, parseDestinationEnv, validateStaticContracts,
-  verifyQaStatus, probePublicWebsocketUpgrade } from './chat2-release-readiness.mjs';
+  verifyQaStatus, probePublicWebsocketUpgrade, verifyMobileForcedUpdate } from './chat2-release-readiness.mjs';
 
 const ready = Object.freeze({
   COMPOSE_PROFILES: 'chat2', CHAT2_LEGACY_RETIRE_ENABLED: 'enabled', CHAT2_API_ENABLED: 'enabled', CHAT2_WORKER_ENABLED: 'enabled',
@@ -12,6 +12,12 @@ const ready = Object.freeze({
   CHAT2_PUBLIC_WS_URL: 'wss://gafus.ru/connection/websocket',
   CHAT2_CENTRIFUGO_HTTP_API: 'http://chat2-centrifugo:8000/api/publish',
   CHAT2_CENTRIFUGO_TOKEN_SECRET: 'a'.repeat(40), CHAT2_CENTRIFUGO_API_KEY: 'b'.repeat(20),
+  CHAT2_SUBSCRIBE_PROXY_ENABLED: 'true',
+  CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET: 'c'.repeat(40),
+  CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: 'd'.repeat(40),
+  CHAT2_MOBILE_STORES_VERIFIED: 'true',
+  CHAT2_MOBILE_IOS_MIN_VERSION: '1.7.3',
+  CHAT2_MOBILE_ANDROID_MIN_VERSION: '1.7.3',
 });
 
 test('ready INTENDED destination configuration passes configuration validation only', () => {
@@ -36,6 +42,17 @@ test('misconfigured broker, unactivated profile, insecure websocket, placeholder
     { CHAT2_CENTRIFUGO_HTTP_API: 'https://attacker.test/api/publish' },
     { CHAT2_CENTRIFUGO_TOKEN_SECRET: 'example' + 'a'.repeat(40) },
     { CHAT2_CENTRIFUGO_API_KEY: 'changeme' + 'b'.repeat(20) },
+    { CHAT2_SUBSCRIBE_PROXY_ENABLED: 'false' },
+    { CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET: '' },
+    { CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET: ready.CHAT2_CENTRIFUGO_TOKEN_SECRET },
+    { CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET: ready.CHAT2_CENTRIFUGO_API_KEY },
+    { CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: ready.CHAT2_CENTRIFUGO_TOKEN_SECRET },
+    { CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: ready.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET },
+    { CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: 'placeholder' + 'd'.repeat(40) },
+    { CHAT2_MOBILE_STORES_VERIFIED: 'false' },
+    { CHAT2_MOBILE_IOS_MIN_VERSION: '1.7.2' },
+    { CHAT2_MOBILE_ANDROID_MIN_VERSION: '1.7.1' },
+    { CHAT2_MOBILE_IOS_MIN_VERSION: '' },
   ]) assert.throws(() => validateCutoverConfig({ ...ready, ...values }), /CHAT2_RELEASE_BLOCKED/);
   assert.throws(() => parseDestinationEnv('CHAT2_API_ENABLED=enabled\nCHAT2_API_ENABLED=disabled'), /duplicate/);
 });
@@ -142,4 +159,56 @@ test('main CI has a real source-only staged lane; production still fails closed 
     deploy.indexOf('Pulling seven immutable Docker images'), 'release live gate must remain before mutation');
   assert.doesNotMatch(deploy, /check-chat2-prod-boundary\.mjs --staged/,
     'staged source-only command must never replace the actual production live release gate');
+});
+
+
+test('no broker subscription token override, no public internal ingress, no client token bypass', () => {
+  const root = new URL('../../', import.meta.url);
+  const read = name => readFileSync(new URL(name,root),'utf8');
+  const broker=JSON.parse(read('infra/chat2/centrifugo.prod.json'));
+  const compose=read('ci-cd/docker/docker-compose.prod.yml');
+  const edge=read('ci-cd/nginx/conf.d/gafus.ru.conf');
+  const vite=read('ci-cd/docker/nginx-vite-refactor.conf');
+  const verify=(conf=broker,c=compose,e=edge,v=vite)=>validateStaticContracts(c,v,conf,e);
+  assert.equal(verify(),true);
+  for(const broken of [
+    { ...broker, client:{ ...broker.client, subscription_token:{ enabled:false } } },
+    { ...broker, channel:{ ...broker.channel, namespaces:[{...broker.channel.namespaces[0], subscribe_proxy_enabled:false}] } },
+    { ...broker, channel:{ ...broker.channel, namespaces:[{...broker.channel.namespaces[0], allow_user_limited_channels:true}] } },
+    { ...broker, channel:{ ...broker.channel, proxy:{ subscribe:{
+      ...broker.channel.proxy.subscribe, http_headers:['X-GAFUS-Subscribe-Proxy-Key'] } } } },
+  ]) assert.throws(()=>verify(broken),/proxy-only|JWT/);
+  assert.throws(()=>verify(broker,compose,edge.replace('location ^~ /internal/ { return 404; }','')),/ingress/);
+  assert.throws(()=>verify(broker,compose,edge,vite.replace('location ^~ /internal/ { return 404; }','')),/ingress/);
+});
+
+
+test('release veto verifies REAL remote mobile forced-update configuration only through read-only calls', async () => {
+  const seen=[];
+  const endpoint='https://api.gafus.ru/api/v1/public/mobile-app';
+  const fake=(url,opts)=>{
+    seen.push([url,opts]);
+    const platform=opts.headers['X-Client-Platform'];
+    return Promise.resolve({status:200,json:async()=>({success:true,data:{
+      minimumSupportedVersion:{ios:'1.7.3',android:'1.7.3'},
+      storeUrl:{ios:'https://apps.apple.com/app/id000',android:'https://play.google.com/store/apps/details?id=example'},
+    }})});
+  };
+  assert.equal(await verifyMobileForcedUpdate(ready,fake),true);
+  assert.deepEqual(seen.map(([url,options])=>[url,options.method,
+    options.headers['X-Client-Platform'],options.headers['X-Client-Version']]),[
+      [endpoint,'GET','ios','1.7.2'],[endpoint,'GET','android','1.7.2'],
+    ]);
+  const stale=async()=>({status:200,json:async()=>({success:true,data:{
+    minimumSupportedVersion:{ios:'1.7.2',android:'1.7.2'},
+    storeUrl:{ios:'https://apps.apple.com/app/id000',android:'https://play.google.com/store/apps/details?id=example'},
+  }})});
+  await assert.rejects(verifyMobileForcedUpdate(ready,stale),/minimum version differs/);
+  const unreachable=async()=>{throw Error('unavailable')};
+  await assert.rejects(verifyMobileForcedUpdate(ready,unreachable),/policy unavailable/);
+  const malicious=async()=>({status:200,json:async()=>({success:true,data:{
+    minimumSupportedVersion:{ios:'1.7.3',android:'1.7.3'},
+    storeUrl:{ios:'https://malicious.invalid/download',android:'https://play.google.com/store/apps/details?id=example'},
+  }})});
+  await assert.rejects(verifyMobileForcedUpdate(ready,malicious),/not approved store/);
 });

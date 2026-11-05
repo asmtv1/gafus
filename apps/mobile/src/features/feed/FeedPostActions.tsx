@@ -27,6 +27,7 @@ import {
 } from "@/shared/lib/api/feed";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { reportClientError } from "@/shared/lib/tracer";
+import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";
 
 function Sheet({
   title,
@@ -45,6 +46,7 @@ function Sheet({
       >
         <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Закрыть" onPress={close} />
         <View style={styles.sheet} accessibilityViewIsModal>
+          <SwipeDismissHandle close={close} />
           <ScrollView keyboardShouldPersistTaps="handled">
             <Text accessibilityRole="header" style={styles.title}>
               {title}

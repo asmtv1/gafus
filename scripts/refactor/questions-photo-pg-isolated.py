@@ -18,9 +18,11 @@ assert ROOT == Path.cwd().resolve(strict=True)
 assert subprocess.check_output(
     ["git", "-C", str(ROOT), "rev-parse", "--show-toplevel"], text=True
 ).strip() == str(ROOT)
+# The refactor workspace now uses main; this is still its fixed local path,
+# never the old production checkout at /Users/asmtv1/Desktop/gafus1.
 assert subprocess.check_output(
     ["git", "-C", str(ROOT), "branch", "--show-current"], text=True
-).strip() == "vite"
+).strip() in {"vite", "main"}
 parent = ROOT / ".refactor-acceptance"
 if parent.exists():
     assert parent.is_dir() and not parent.is_symlink()

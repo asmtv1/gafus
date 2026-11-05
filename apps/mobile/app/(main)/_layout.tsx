@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { Platform } from "react-native";
 import { Redirect, Stack, useRouter } from "expo-router";
 
 import { COLORS } from "@/shared/config";
@@ -62,6 +63,10 @@ export default function MainLayout() {
           <AppSubscriptionOnboardingCoordinator />
           <Stack
             screenOptions={{
+              // iOS: native edge-to-back gesture. Android: system back navigation.
+              // Full-screen swipes would conflict with media carousels and editors.
+              gestureEnabled: Platform.OS === "ios",
+              fullScreenGestureEnabled: false,
               headerShown: false,
               contentStyle: { backgroundColor: COLORS.background },
               headerStyle: {

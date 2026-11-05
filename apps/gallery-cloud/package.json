@@ -1,5 +1,5 @@
 {
-  "version": "1.7.2",
+  "version": "1.7.3",
   "private": true,
   "type": "module",
   "sideEffects": false,
@@ -8,13 +8,11 @@
     "build": "node scripts/build.mjs",
     "package:linux": "node scripts/package-linux.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config vitest.config.ts",
-    "benchmark": "node scripts/benchmark.mjs"
+    "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@gafus/core": "workspace:*",
     "@gafus/gallery-storage": "workspace:*",
-    "@aws-sdk/client-sqs": "3.980.0",
     "sharp": "0.35.5"
   },
   "optionalDependencies": {

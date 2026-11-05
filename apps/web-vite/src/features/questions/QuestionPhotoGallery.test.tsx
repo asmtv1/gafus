@@ -76,7 +76,7 @@ describe("VK-inspired inline question photo previews", () => {
     const fake=vi.fn(()=>Promise.resolve(envelope({photos:[{
       id:"photo-1",url:"https://cdn.example/m.webp?sig=1",
       smallUrl:"https://cdn.example/s.webp?sig=1",
-      smallWidth:360,smallHeight:576,width:720,height:1152,
+      smallWidth:360,smallHeight:225,width:1440,height:900,
     }]})));
     const ui=await render(fake);
     try{
@@ -84,14 +84,14 @@ describe("VK-inspired inline question photo previews", () => {
       const image=ui.host.querySelector<HTMLImageElement>(".question-photo-preview-tile img");
       expect(image?.getAttribute("src")).toContain("/s.webp");
       expect(image?.getAttribute("srcset")).toContain("360w");
-      expect(image?.getAttribute("srcset")).toContain("720w");
+      expect(image?.getAttribute("srcset")).toContain("1440w");
       expect(image?.getAttribute("sizes")).toContain("180px");
       expect(image?.getAttribute("width")).toBe("360");
       await ui.click(".question-photo-preview-tile");
       const viewer=document.querySelector<HTMLImageElement>(".question-photo-lightbox-image");
       expect(viewer?.getAttribute("src")).toContain("/m.webp");
       expect(viewer?.getAttribute("sizes")).toBe("100vw");
-      expect(viewer?.getAttribute("height")).toBe("1152");
+      expect(viewer?.getAttribute("height")).toBe("900");
     }finally{await ui.cleanup();}
   });
   it("keeps queued media as a processing placeholder and hides failed originals",async()=>{

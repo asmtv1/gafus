@@ -112,12 +112,14 @@ vi.mock("react-native-paper", async () => {
           title,
           onPress,
           disabled,
+          titleStyle,
         }: {
           title: string;
           onPress?: () => void;
           disabled?: boolean;
+          titleStyle?: { color?: string };
         }) =>
-          R.createElement("button", { onClick: onPress, disabled, "data-menu-item": title }, title),
+          R.createElement("button", { onClick: onPress, disabled, "data-menu-item": title, "data-title-color": titleStyle?.color }, title),
       },
     ),
   };
@@ -310,6 +312,27 @@ function deleteCalls() {
     (args: unknown[]) => (args[1] as { method?: string } | undefined)?.method === "DELETE",
   );
 }
+describe("gallery album menu readability", () => {
+  it("uses black action text while keeping album deletion red", async () => {
+    m.route = "detail";
+    await draw();
+    await vi.waitFor(() =>
+      expect(host.querySelector('button[aria-label="Действия с альбомом"]')).not.toBeNull(),
+    );
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('button[aria-label="Действия с альбомом"]')!.click(),
+    );
+    for (const label of ["Настройки альбома", "Изменить обложку", "Правила загрузки"]) {
+      const item = Array.from(host.querySelectorAll<HTMLButtonElement>("button[data-menu-item]"))
+        .find(button => button.getAttribute("data-menu-item") === label);
+      expect(item?.getAttribute("data-title-color"), label).toBe("#000000");
+    }
+    expect(
+      host.querySelector('button[data-menu-item="Удалить альбом"]')?.getAttribute("data-title-color"),
+    ).toBe("#A53825");
+  });
+});
+
 describe("actual GalleryAlbumScreen Alert -> single DELETE -> GET NOT_FOUND", () => {
   it("cancel Alert never sends DELETE", async () => {
     m.route = "detail";

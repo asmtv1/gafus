@@ -1,5 +1,5 @@
 import { SignJWT } from "jose";
-import { Chat2Error, readGate } from "./service.js";
+import { Chat2Error } from "./service.js";
 /** Short-lived JWTs, issued only after Hono actor/room authorization. */
 const secret = () => {
   const s = process.env.CHAT2_CENTRIFUGO_TOKEN_SECRET;
@@ -35,19 +35,21 @@ const wsAddress = () => {
     throw new Chat2Error("REALTIME_UNAVAILABLE", 503, "Realtime не настроен");
   }
 };
-/**
- * Cutover remains off by default. Advertise proxy-only subscription mode
- * ONLY when the internal broker->Hono secret is configured, otherwise fail
- * closed instead of silently telling clients to send old room JWTs.
- */
-export function chat2SubscriptionMode(): "token" | "proxy" {
-  if (process.env.CHAT2_SUBSCRIBE_PROXY_ENABLED !== "true") return "token";
-  if ((process.env.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET?.length ?? 0) < 32)
+/** No legacy fallback: a missing broker proxy configuration blocks realtime. */
+export function requireChat2ProxyOnly(): void {
+  const configured = process.env.CHAT2_SUBSCRIBE_PROXY_ENABLED === "true";
+  const shared = process.env.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET ?? "";
+  const signing = process.env.CHAT2_CENTRIFUGO_TOKEN_SECRET ?? "";
+  const brokerKey = process.env.CHAT2_CENTRIFUGO_API_KEY ?? "";
+  if (!configured || shared.length < 32 || signing.length < 32 ||
+      shared === signing || shared === brokerKey || (brokerKey && signing === brokerKey)) {
     throw new Chat2Error("REALTIME_UNAVAILABLE", 503, "Realtime не настроен");
-  return "proxy";
+  }
 }
 
 export async function connectToken(userId: string) {
+  requireChat2ProxyOnly();
+  const wsUrl = wsAddress();
   const token = await new SignJWT({})
     .setIssuer("gafus-chat2")
     .setProtectedHeader({ alg: "HS256" })
@@ -55,18 +57,5 @@ export async function connectToken(userId: string) {
     .setIssuedAt()
     .setExpirationTime("5m")
     .sign(secret());
-  const mode = chat2SubscriptionMode();
-  return { token, wsUrl: wsAddress(), ...(mode === "proxy" ? { subscriptionMode: mode } : {}) };
-}
-export async function subscriptionToken(userId: string, id: string) {
-  await readGate(userId, id);
-  const channel = `chat2:${id}`;
-  const token = await new SignJWT({ channel })
-    .setIssuer("gafus-chat2")
-    .setProtectedHeader({ alg: "HS256" })
-    .setSubject(userId)
-    .setIssuedAt()
-    .setExpirationTime("60s")
-    .sign(secret());
-  return { token, channel };
+  return { token, wsUrl, subscriptionMode: "proxy" as const };
 }

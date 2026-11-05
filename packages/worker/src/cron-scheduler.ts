@@ -167,25 +167,27 @@ export function startCronJobs(): void {
       { timezone: "UTC" },
     );
   }
-  // Cloud.ru jobs are opt-in, and Feed is driven by durable due DB jobs,
-  // never by an unconditional launch every minute. Gallery stays independent.
+  // Feed S3 cleanup + retired photo reconciliation are entirely local.
+  // Never wake the video Cloud pool merely to remove photo/source objects.
+  if(process.env.FEED_LOCAL_STORAGE_JANITOR_ENABLED==="true"){
+    cron.schedule("* * * * *",()=>{
+      void import("./feed-local-maintenance")
+        .then(({runFeedLocalMaintenanceTick})=>runFeedLocalMaintenanceTick())
+        .catch(()=>logger.error("Feed local S3 cleanup failed",
+          new Error("FEED_LOCAL_JANITOR_FAILED")));
+    },{timezone:"UTC"});
+  }
+  // Gallery no longer launches Cloud.ru photo/image Jobs. S3 deletion,
+  // legacy moves and bounded maintenance run in this existing Worker.
+  if (process.env.GALLERY_LOCAL_STORAGE_JANITOR_ENABLED==="true") {
+    cron.schedule("* * * * *",()=>{
+      void import("./gallery-local-maintenance")
+        .then(({runGalleryLocalMaintenanceTick})=>runGalleryLocalMaintenanceTick())
+        .catch(()=>logger.error("Gallery local S3 janitor failed",new Error("GALLERY_LOCAL_JANITOR_FAILED")));
+    },{timezone:"UTC"});
+  }
+  // Feed VIDEO and Chat VIDEO still use Cloud.ru Jobs. Photo conversion does not.
   if (process.env.CLOUDRU_MEDIA_JOBS_ENABLED === "true") {
-    if (process.env.GALLERY_PROCESSOR_READY === "true") {
-      let recovery: (() => Promise<{ dispatched: number }>) | undefined;
-      cron.schedule("* * * * *", () => {
-        void Promise.all([
-          import("./gallery-cloud-recovery.js"),
-          import("./cloudru-media-dispatcher.js"),
-        ]).then(async ([{ createProductionGalleryCloudRecoveryTick }, { safeCloudruDispatchError }]) => {
-          try {
-            recovery ??= createProductionGalleryCloudRecoveryTick();
-            await recovery();
-          } catch (error) {
-            logger.error("Cloud.ru gallery trigger failed", safeCloudruDispatchError(error));
-          }
-        }).catch(() => logger.error("Cloud.ru gallery trigger failed", new Error("GALLERY_CLOUD_RECOVERY_INIT_FAILED")));
-      }, { timezone: "UTC" });
-    }
     if (process.env.FEED_PROCESSOR_READY === "true") {
       cron.schedule("* * * * *", () => {
         void import("./feed-media-recovery.js")
@@ -195,8 +197,7 @@ export function startCronJobs(): void {
     }
   }
   // Chat2 is independent of Feed and entirely disabled until isolated cutover.
-  // Poll due claims every minute; only launch when photo/video work exists.
-  // Each tick may start two photo and two video Cloud Jobs concurrently.
+  // Only video claims start Cloud Jobs; device-encoded photos never do.
   if(process.env.CLOUDRU_MEDIA_JOBS_ENABLED==="true" &&
       process.env.CHAT2_PROCESSOR_READY==="true" &&
       process.env.CHAT2_V2_CORE_ENABLED==="true" &&
@@ -207,11 +208,31 @@ export function startCronJobs(): void {
         .catch(error=>logger.error("Chat2 media recovery tick failed",error as Error));
     },{timezone:"UTC"});
   }
-  // Questions image-only recovery: no empty Cloud Jobs and no video pool.
+  // One-way terminal reconciliation for photo/album-copy tasks created before
+  // client WebP cutover; no new image Jobs or Cloud wake-up is possible.
+  if(process.env.FEED_RETIRED_PHOTO_QUEUE_SWEEP_ENABLED==="true"){
+    cron.schedule("* * * * *",()=>{
+      void import("./feed-retired-photo-queue")
+        .then(({runRetiredFeedPhotoQueueTick})=>runRetiredFeedPhotoQueueTick())
+        .catch(()=>logger.error("Retired Feed photo queue cleanup failed",
+          new Error("RETIRED_FEED_PHOTO_QUEUE_SWEEP_FAILED")));
+    },{timezone:"UTC"});
+  }
+  // Chat2 client WebP cleanup/recovery is independent from Cloud video Jobs.
+  // Every tick resets expired CLIENT_PROCESSING leases via Hono + PostgreSQL.
+  if(process.env.CHAT2_V2_MEDIA_ENABLED==="true" &&
+     process.env.CHAT2_V2_CORE_ENABLED==="true"){
+    cron.schedule("* * * * *",()=>{
+      void import("./chat2-photo-cleanup")
+        .then(({runChat2PhotoCleanupTick})=>runChat2PhotoCleanupTick())
+        .catch(()=>logger.error("Chat2 client photo recovery failed",
+          new Error("CHAT2_CLIENT_PHOTO_RECOVERY_FAILED")));
+    },{timezone:"UTC"});
+  }
+  // Questions S3 cleanup does not use or launch Cloud photo Jobs. Keep the
+  // HMAC janitor alive regardless of video Cloud pool / retired photo flags.
   if (process.env.QUESTIONS_V2_MEDIA_ENABLED==="true" &&
-      process.env.QUESTIONS_V2_PROCESSOR_READY==="true" &&
-      process.env.CLOUDRU_MEDIA_JOBS_ENABLED==="true" &&
-      process.env.QUESTIONS_V2_CLOUD_REFRACTOR_VERIFIED==="true") {
+      process.env.QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED==="true") {
     cron.schedule("* * * * *",()=>{
       void import("./questions-photo-recovery")
         .then(({runQuestionsPhotoRecoveryTick})=>runQuestionsPhotoRecoveryTick())

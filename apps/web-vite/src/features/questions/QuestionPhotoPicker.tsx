@@ -5,9 +5,11 @@ import {
   type PendingQuestionPhoto,
 } from "./questionMedia";
 import { SecondaryButton } from "../../shared/ui";
+import { photoRetryMessage } from "../../shared/media/photoRetryMessage";
 import "./QuestionPhotoPickerNext.css";
 
-type LocalPreview = { key: number; localUrl: string; progress: number };
+type LocalPreview = { key: number; file: File; localUrl: string; progress: number;
+  phase: "queued" | "uploading" | "failed"; failure?: string };
 
 /** Next's image-tile picker, with early local previews and safe server ACKs.
  * The parent receives only confirmed IDs; local preview tokens never enter DTO. */
@@ -41,77 +43,95 @@ export function QuestionPhotoPicker({ photos, onChange, onBusy, existingCount = 
     };
   }, []);
 
+  const previewsRef = useRef<LocalPreview[]>([]);
+  const changePreviews = (change: (items: LocalPreview[]) => LocalPreview[]) => {
+    previewsRef.current = change(previewsRef.current);
+    if (mounted.current) setPreviews(previewsRef.current);
+  };
+  async function sendPhoto(preview: LocalPreview) {
+    changePreviews(items => items.map(item => item.key === preview.key
+      ? {...item, phase:"uploading", progress:0, failure:undefined} : item));
+    try {
+      const id = await uploadQuestionPhoto(preview.file, progress => {
+        changePreviews(items => items.map(item => item.key === preview.key
+          ? {...item, progress} : item));
+      });
+      if (!mounted.current) {
+        await discardUnusedQuestionPhoto(id).catch(() => undefined);
+        return;
+      }
+      const next = [...current.current, {id, localUrl: preview.localUrl}];
+      current.current = next;
+      onChange(next);
+      changePreviews(items => items.filter(item => item.key !== preview.key));
+    } catch (cause) {
+      const failure = photoRetryMessage(cause);
+      changePreviews(items => items.map(item => item.key === preview.key
+        ? {...item, phase:"failed", failure} : item));
+      if (mounted.current) setError("Не удалось загрузить одно из фото. Нажмите круглую стрелку на нём — другие фото повторно не отправятся.");
+    }
+  }
+  async function retryPhoto(key: number) {
+    if (busyRef.current || removing) return;
+    const preview = previewsRef.current.find(item => item.key === key && item.phase === "failed");
+    if (!preview) return;
+    busyRef.current = true;
+    setBusy(true);
+    onBusy(true);
+    setError("");
+    try { await sendPhoto(preview); }
+    finally {
+      busyRef.current = false;
+      if (mounted.current) { setBusy(false); onBusy(previewsRef.current.some(item => item.phase === "failed")); }
+    }
+  }
+  function removeFailed(key: number) {
+    if (busyRef.current) return;
+    const preview = previewsRef.current.find(item => item.key === key && item.phase === "failed");
+    if (!preview) return;
+    changePreviews(items => items.filter(item => item.key !== key));
+    onBusy(previewsRef.current.some(item => item.phase === "failed"));
+    URL.revokeObjectURL(preview.localUrl);
+    urls.current.delete(preview.localUrl);
+  }
   async function addPhotos(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.currentTarget.files ?? []);
     event.currentTarget.value = "";
     if (!files.length || busyRef.current || removing) return;
     setError("");
-    try {
-      validateQuestionFiles(files, existingCount + current.current.length);
-    } catch (cause) {
+    try { validateQuestionFiles(files, existingCount + current.current.length + previewsRef.current.length); }
+    catch (cause) {
       setError(cause instanceof Error ? cause.message : "Некорректные фотографии");
       return;
     }
-
-    // Immediately show every chosen thumbnail before the first network ACK.
-    // Keep the local URL so the successful item does not flash/reload.
     const queued: LocalPreview[] = [];
     try {
       for (const file of files) {
         const localUrl = URL.createObjectURL(file);
         urls.current.add(localUrl);
-        queued.push({ key: ++serial.current, localUrl, progress: 0 });
+        queued.push({key: ++serial.current, file, localUrl, progress: 0, phase:"queued"});
       }
-    } catch (cause) {
-      for (const preview of queued) {
-        URL.revokeObjectURL(preview.localUrl);
-        urls.current.delete(preview.localUrl);
+    } catch {
+      for (const item of queued) {
+        URL.revokeObjectURL(item.localUrl); urls.current.delete(item.localUrl);
       }
-      setError(cause instanceof Error ? cause.message : "Не удалось показать фотографии");
+      setError("Не удалось показать выбранное фото. Выберите файл заново.");
       return;
     }
-
-    setPreviews(queued);
+    changePreviews(items => [...items, ...queued]);
     busyRef.current = true;
     setBusy(true);
     onBusy(true);
-    let confirmed = 0;
     try {
-      for (const [index, file] of files.entries()) {
-        const preview=queued[index]!;
-        const id = await uploadQuestionPhoto(file, progress=>{
-          if(mounted.current)setPreviews(current=>current.map(item=>
-            item.key===preview.key?{...item,progress}:item));
-        });
-        if (!mounted.current) {
-          // Never adopt media into an unmounted author/editor. Core's 24h
-          // orphan cleanup remains the fallback if this DELETE also fails.
-          await discardUnusedQuestionPhoto(id).catch(() => undefined);
-          break;
-        }
-        const item = queued[index];
-        const next = [...current.current, { id, localUrl: item.localUrl }];
-        current.current = next;
-        onChange(next);
-        confirmed = index + 1;
-        setPreviews(queued.slice(confirmed));
-      }
-    } catch (cause) {
-      if (mounted.current) {
-        setError(cause instanceof Error ? cause.message : "Не удалось загрузить фото");
+      // One failed image must not prevent the remaining selected images from
+      // processing. Failed local File+preview stay until retry or removal.
+      for (const item of queued) {
+        if (!mounted.current) break;
+        await sendPhoto(item);
       }
     } finally {
-      // Only confirmed photos survive; failed/unprocessed previews are revoked.
-      for (const item of queued.slice(confirmed)) {
-        if (!urls.current.delete(item.localUrl)) continue;
-        URL.revokeObjectURL(item.localUrl);
-      }
       busyRef.current = false;
-      if (mounted.current) {
-        setPreviews([]);
-        setBusy(false);
-        onBusy(false);
-      }
+      if (mounted.current) { setBusy(false); onBusy(previewsRef.current.some(item => item.phase === "failed")); }
     }
   }
 
@@ -142,7 +162,7 @@ export function QuestionPhotoPicker({ photos, onChange, onBusy, existingCount = 
     }
   }
 
-  const count = existingCount + photos.length;
+  const count = existingCount + photos.length + previews.length;
   const atLimit = count >= QUESTION_LIMITS.photos;
   return <div className="question-photo-picker question-photo-picker-next">
     <div className="question-photo-picker-grid" aria-label="Фотографии к публикации">
@@ -160,11 +180,29 @@ export function QuestionPhotoPicker({ photos, onChange, onBusy, existingCount = 
         </div>)}
       {previews.map((preview, index) =>
         <div key={preview.key} className="question-photo-slot question-photo-slot-pending"
-          aria-label={`Фото ${count + index + 1} загружается`}>
-          <img src={preview.localUrl} alt={`Фото ${count + index + 1}`} />
-          <span className="question-photo-uploading" role="status">
-            {preview.progress>=100?"Обрабатываем фото…":"Загружаем "+preview.progress+"%"}
-          </span>
+          aria-label={`Фото ${index + 1}: ${preview.phase === "failed" ? "ошибка" : "загрузка"}`}>
+          <img src={preview.localUrl} alt={`Фото ${index + 1}`} />
+          {preview.phase === "failed" ? <>
+            <button type="button" className="question-photo-retry"
+              aria-label={`Повторить обработку фото ${preview.file.name}`}
+              title="Повторить обработку и загрузку только этой фотографии"
+              disabled={busy || Boolean(removing)} onClick={() => void retryPhoto(preview.key)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+                strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 11a8 8 0 1 0-2.3 6M20 4v7h-7"/>
+              </svg>
+            </button>
+            <button type="button" className="question-photo-remove-failed"
+              aria-label={`Убрать неудавшееся фото ${preview.file.name}`}
+              disabled={busy} onClick={() => removeFailed(preview.key)}>×</button>
+            <span className="question-photo-uploading question-photo-failed" title={preview.failure}>Ошибка · повторить</span>
+          </> : <span className="question-photo-uploading" role="status">
+            {preview.phase === "queued" ? "В очереди" :
+              preview.progress>=100 ? "Подтверждаем…" : "Загружаем "+preview.progress+"%"}
+          </span>}
+          {preview.failure && <span className="question-photo-failure-description" role="alert">
+            {preview.failure}
+          </span>}
         </div>)}
       {!atLimit && <SecondaryButton className="question-photo-add" type="button"
         disabled={busy || Boolean(removing)}

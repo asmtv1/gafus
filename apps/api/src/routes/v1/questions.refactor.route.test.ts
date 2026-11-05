@@ -11,8 +11,8 @@ vi.mock("@gafus/questions-server", () => ({
   questionHttpError: mocks.error,
 }));
 vi.mock("../../modules/questions/media-v2-upload.js",()=>({
-  reserveQuestionsPhoto:mocks.reservePhoto,
-  confirmQuestionsPhoto:mocks.confirmPhoto,
+  reserveClientQuestionsPhoto:mocks.reservePhoto,
+  confirmClientQuestionsPhoto:mocks.confirmPhoto,
   statusQuestionsPhoto:mocks.statusPhoto,
   discardQuestionsV2Photo:mocks.discardPhoto,
 }));
@@ -294,12 +294,12 @@ describe("Hono questions-server reused by Vite browser questions", () => {
   it("reserves direct S3 upload with the authenticated owner and strict JSON",async()=>{
     mocks.reservePhoto.mockResolvedValue({id:"photo-1",status:"AWAITING_UPLOAD",
       upload:{method:"POST",url:"https://isolated-s3.example",fields:{key:"synthetic"}}});
-    const response=await app().request("/api/v1/questions/photos/reservations",{
+    const response=await app().request("/api/v1/questions/photos/client-reservations",{
       method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({mime:"image/jpeg",bytes:1200}),
+      body:JSON.stringify({mediumBytes:1200}),
     });
     expect(response.status).toBe(201);
-    expect(mocks.reservePhoto).toHaveBeenCalledWith(actor.id,{mime:"image/jpeg",bytes:1200});
+    expect(mocks.reservePhoto).toHaveBeenCalledWith(actor.id,{mediumBytes:1200});
     expect(mocks.dispatch).not.toHaveBeenCalled();
     expect(response.headers.get("cache-control")).toBe("no-store");
   });

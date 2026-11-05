@@ -1,8 +1,8 @@
 import { Hono, type Context } from "hono";
-import {reserveChat2V2Upload,confirmChat2V2Upload,getChat2V2UploadStatus,attachChat2V2Media} from "../../modules/chat2/media-v2-upload.js";
+import {reserveChat2V2Upload,confirmChat2V2Upload,confirmClientChat2V2Upload,getChat2V2UploadStatus,attachChat2V2Media} from "../../modules/chat2/media-v2-upload.js";
 import { bodyLimit } from "hono/body-limit";
 import { z, ZodError } from "zod/v3";
-import { connectToken, subscriptionToken } from "../../modules/chat2/realtime.js";
+import { connectToken } from "../../modules/chat2/realtime.js";
 import {
   Chat2Error,
   listChats,
@@ -82,9 +82,6 @@ chatsRoutes.onError((error, c) => {
 });
 chatsRoutes.get("/", async (c) => c.json(ok(await listChats(actor(c)))));
 chatsRoutes.get("/realtime/connect", async (c) => c.json(ok(await connectToken(actor(c)))));
-chatsRoutes.get("/:id/realtime", async (c) =>
-  c.json(ok(await subscriptionToken(actor(c), id.parse(c.req.param("id"))))),
-);
 chatsRoutes.get("/users", async (c) => {
   const q = z
     .string()
@@ -209,6 +206,15 @@ chatsRoutes.post("/:id/media/v2/reserve",async c=>{
   const input=mediaV2Reserve.parse(await c.req.json());
   return c.json(ok(await reserveChat2V2Upload(actor(c),room,input)),201);
 });
+chatsRoutes.post("/:id/media/v2/client-reserve",async c=>{
+  const room=id.parse(c.req.param("id"));
+  const input=mediaV2Reserve.extend({mime:z.literal("image/webp"),bytes:z.number().int().min(12).max(1_750_000)})
+    .parse(await c.req.json());
+  return c.json(ok(await reserveChat2V2Upload(actor(c),room,input,true)),201);
+});
+chatsRoutes.post("/:id/media/v2/:mediaId/client-confirm",async c=>
+  c.json(ok(await confirmClientChat2V2Upload(actor(c),id.parse(c.req.param("id")),
+    z.string().uuid().parse(c.req.param("mediaId"))))));
 chatsRoutes.post("/:id/media/v2/:mediaId/confirm",async c=>
   c.json(ok(await confirmChat2V2Upload(actor(c),id.parse(c.req.param("id")),
     z.string().uuid().parse(c.req.param("mediaId"))))));

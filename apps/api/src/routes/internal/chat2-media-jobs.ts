@@ -8,19 +8,15 @@ const prefix="/internal/chat2/media/jobs/";
 const acceptedPaths=new Set(["claim","renew","complete","fail","cleanup"]);
 const identifier=z.string().uuid();
 const attempt=z.object({mediaId:identifier,attemptToken:identifier}).strict();
-const dimensions=z.object({width:z.number().int().positive(),height:z.number().int().positive()}).strict();
-const image=z.object({kind:z.literal("image"),width:z.number().int().positive(),height:z.number().int().positive(),
-  keys:z.object({small:z.string().min(8).max(500),medium:z.string().min(8).max(500)}).strict(),
-  imageSizes:z.object({small:dimensions,medium:dimensions}).strict()}).strict();
 const video=z.object({kind:z.literal("video"),width:z.number().int().positive(),height:z.number().int().positive(),
   durationSeconds:z.number().positive().max(120),posterKey:z.string().min(8).max(500),
   renditions:z.array(z.object({quality:z.union([z.literal(360),z.literal(720)]),key:z.string().min(8).max(500),
     width:z.number().int().positive(),height:z.number().int().positive(),bytes:z.number().int().min(24)}).strict()).min(1).max(2)}).strict();
 const schemas={
-  claim:z.object({batchSize:z.literal(1),kind:z.enum(["image","video"])}).strict(),
+  claim:z.object({batchSize:z.literal(1),kind:z.literal("video")}).strict(),
   cleanup:z.object({batchSize:z.literal(1)}).strict(),
   renew:attempt,
-  complete:attempt.extend({manifest:z.discriminatedUnion("kind",[image,video])}).strict(),
+  complete:attempt.extend({manifest:video}).strict(),
   fail:attempt.extend({code:z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/)}).strict(),
 };
 export interface Chat2InternalDependencies {

@@ -132,4 +132,90 @@ describe("Moments background publication manager", () => {
     expect(client.saveRevision).toHaveBeenCalledTimes(1);
     expect(upload).toHaveBeenCalledTimes(2);
   });
+  it("Mobile preserves the text in a server draft before an S3 video failure, then retries the original video", async () => {
+    let version = 0, published = false;
+    const saved: Array<{ expectedVersion: number; text: string; attachmentIds: string[] }> = [];
+    const editor = () => ({ ...post(published ? "published" : "draft"), version,
+      pendingRevision: version ? { text: "Прогулка с собакой", attachmentIds: saved.at(-1)?.attachmentIds ?? [] } : null,
+    });
+    const client = {
+      createPost: vi.fn().mockImplementation(async () => editor()),
+      getEditor: vi.fn().mockImplementation(async () => editor()),
+      saveRevision: vi.fn().mockImplementation(async (_id: string, request: {
+        expectedVersion: number; text: string; attachmentIds: string[];
+      }) => {
+        expect(request.expectedVersion).toBe(version);
+        saved.push(request);
+        version++;
+        return editor();
+      }),
+      publishPost: vi.fn().mockImplementation(async () => { published = true; return editor(); }),
+      copyAlbumPhoto: vi.fn(),
+    };
+    const upload = vi.fn().mockRejectedValueOnce(new Error("S3 недоступен"))
+      .mockResolvedValue("video-asset");
+    const manager = createFeedPublicationManager({
+      api: client, upload, makeId: () => crypto.randomUUID(),
+      preserveDraftTextBeforeUpload: true,
+    });
+    const id = manager.enqueue({ ownerId: "me", text: "Прогулка с собакой",
+      files: [{ requestId: "video-file", bytes: 300, previewUri: "file:///poster.jpg" }],
+      albumPhotoIds: [],
+    });
+    await vi.waitFor(() => expect(manager.getSnapshot()[0]?.phase).toBe("failed"));
+    expect(manager.getSnapshot()[0]?.previewUri).toBe("file:///poster.jpg");
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatchObject({ expectedVersion: 0, text: "Прогулка с собакой", attachmentIds: [] });
+    expect(editor().pendingRevision?.text).toBe("Прогулка с собакой");
+    manager.retry(id);
+    await vi.waitFor(() => expect(manager.getSnapshot()[0]?.phase).toBe("published"));
+    expect(saved).toHaveLength(2);
+    expect(saved[1]).toMatchObject({ expectedVersion: 1, text: "Прогулка с собакой", attachmentIds: ["video-asset"] });
+    expect(client.createPost).toHaveBeenCalledTimes(1);
+    expect(upload).toHaveBeenCalledTimes(2);
+    expect(client.publishPost).toHaveBeenCalledTimes(1);
+  });
+
+  it("replays the early text revision with its original version when the ACK is lost", async () => {
+    let version = 0, published = false, first = true;
+    let originalRequestId = "";
+    const client = {
+      createPost: vi.fn().mockResolvedValue(post("draft")),
+      getEditor: vi.fn().mockImplementation(async () => ({ ...post(published ? "published" : "draft"), version })),
+      saveRevision: vi.fn().mockImplementation(async (_id: string, request: {
+        clientRequestId: string; expectedVersion: number; attachmentIds: string[];
+      }) => {
+        if (!request.attachmentIds.length) {
+          if (first) {
+            first = false;
+            originalRequestId = request.clientRequestId;
+            version = 1;
+            throw new Error("ACK lost");
+          }
+          expect(request.clientRequestId).toBe(originalRequestId);
+          expect(request.expectedVersion).toBe(0);
+          return { ...post("draft"), version };
+        }
+        expect(request.expectedVersion).toBe(1);
+        version = 2;
+        return { ...post("draft"), version };
+      }),
+      publishPost: vi.fn().mockImplementation(async () => { published = true; return post("published"); }),
+      copyAlbumPhoto: vi.fn(),
+    };
+    const upload = vi.fn().mockResolvedValue("media-1");
+    const manager = createFeedPublicationManager({ api: client, upload,
+      makeId: () => crypto.randomUUID(), preserveDraftTextBeforeUpload: true,
+    });
+    const id = manager.enqueue({ ownerId: "me", text: "Сохрани это",
+      files: [{ requestId: "clip", bytes: 10 }], albumPhotoIds: [],
+    });
+    await vi.waitFor(() => expect(manager.getSnapshot()[0]?.phase).toBe("failed"));
+    expect(upload).not.toHaveBeenCalled();
+    manager.retry(id);
+    await vi.waitFor(() => expect(manager.getSnapshot()[0]?.phase).toBe("published"));
+    expect(upload).toHaveBeenCalledTimes(1);
+    expect(client.saveRevision).toHaveBeenCalledTimes(3);
+  });
+
 });

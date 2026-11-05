@@ -410,6 +410,7 @@ model User {
   reengagementSettings             ReengagementSettings?
   refreshTokens                    RefreshToken[]
   reminders                        Reminder[]
+  dogWalks                         DogWalkRecord[]
   reminderMutationReceipts         ReminderMutationReceipt[]
   createdSteps                     Step[]
   stepNotifications                StepNotification[]
@@ -607,6 +608,7 @@ model UserProfile {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([cityKey])
 }
 
@@ -832,8 +834,6 @@ model CourseAccess {
   @@unique([courseId, userId])
 }
 
-
-
 model AppSubscriptionSettings {
   key String @id @db.VarChar(32)
 
@@ -868,10 +868,12 @@ enum GafusTransactionKind {
   ADMIN_DEBIT
   LEGACY_IMPORT
 }
+
 enum GafusRewardClass {
   ACTIVITY
   BONUS
 }
+
 enum GafusRewardKind {
   POST_PUBLISHED
   QUESTION_CREATED
@@ -879,6 +881,7 @@ enum GafusRewardKind {
   POST_REACTION_MILESTONE
   BEST_ANSWER
 }
+
 enum GafusRewardDecision {
   GRANTED
   DENIED_ACTIVITY_LIMIT
@@ -886,26 +889,31 @@ enum GafusRewardDecision {
   DENIED_POLICY
   DISABLED
 }
+
 enum GafusAccessTargetType {
   COURSE_STEP
   MINI_GUIDE
   ARTICLE
 }
+
 enum GafusNotificationKind {
   REACTION_MILESTONE
   BEST_ANSWER
 }
+
 enum GafusOutboxStatus {
   PENDING
   PROCESSING
   DONE
   FAILED
 }
+
 enum GafusFraudSeverity {
   LOW
   MEDIUM
   HIGH
 }
+
 enum GafusFraudStatus {
   OPEN
   RESOLVED
@@ -918,6 +926,7 @@ model GafusWallet {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@index([updatedAt])
 }
 
@@ -943,6 +952,7 @@ model GafusTransaction {
   createdAt DateTime @default(now())
   rewardEvent GafusRewardEvent?
   targetAccess GafusTargetAccess?
+
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([userId, kind, createdAt(sort: Desc)])
   @@index([sourceEntityType, sourceEntityId])
@@ -967,6 +977,7 @@ model GafusRewardEvent {
   transactionId String? @unique
   transaction GafusTransaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
   metadata Json?
+
   @@index([userId, rewardClass, decision, occurredAt])
   @@index([userId, occurredAt(sort: Desc)])
   @@index([rewardKind, occurredAt])
@@ -980,8 +991,10 @@ model GafusPostReactionProgram {
   enabledAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   milestones GafusPostReactionMilestone[]
+
   @@index([enabledAt])
 }
+
 model GafusPostReactionMilestone {
   id String @id @default(cuid())
   postId String
@@ -991,6 +1004,7 @@ model GafusPostReactionMilestone {
   rewardEventId String @unique
   settingsRevision Int
   createdAt DateTime @default(now())
+
   @@unique([postId, threshold])
   @@index([postId, createdAt])
 }
@@ -1010,6 +1024,7 @@ model GafusTargetAccess {
   grantedAt DateTime @default(now())
   expiresAt DateTime
   createdAt DateTime @default(now())
+
   @@index([userId, targetType, targetKey, expiresAt])
   @@index([userId, expiresAt])
   @@index([expiresAt])
@@ -1037,6 +1052,7 @@ model GafusSettings {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
 model GafusSettingsRevision {
   revision Int @id
   snapshot Json
@@ -1044,6 +1060,7 @@ model GafusSettingsRevision {
   actor User? @relation("GafusSettingsRevisionActor", fields: [actorId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
 }
+
 model GafusAdminAudit {
   id String @id @default(cuid())
   actorId String
@@ -1056,10 +1073,12 @@ model GafusAdminAudit {
   after Json?
   metadata Json?
   createdAt DateTime @default(now())
+
   @@index([actorId, createdAt])
   @@index([targetUserId, createdAt])
   @@index([action, createdAt])
 }
+
 model GafusNotificationOutbox {
   id String @id @default(cuid())
   rewardEventId String @unique
@@ -1076,9 +1095,11 @@ model GafusNotificationOutbox {
   errorCode String? @db.VarChar(64)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@index([status, availableAt, leaseUntil])
   @@index([userId, createdAt])
 }
+
 model GafusFraudSignal {
   id String @id @default(cuid())
   userId String
@@ -1091,6 +1112,7 @@ model GafusFraudSignal {
   resolvedAt DateTime?
   resolvedById String?
   createdAt DateTime @default(now())
+
   @@index([status, severity, createdAt])
   @@index([userId, createdAt])
   @@index([kind, createdAt])
@@ -1716,8 +1738,6 @@ model AppSubscriptionEvent {
   @@index([processingStatus, createdAt])
   @@index([userId, createdAt])
 }
-
-
 
 model FavoriteCourse {
   userId    String
@@ -2348,8 +2368,6 @@ enum TranscodingStatus {
   FAILED
 }
 
-
-
 enum AppSubscriptionProvider {
   YOOKASSA
   APPLE
@@ -2491,8 +2509,6 @@ enum RewardedTargetAccessSource {
   LEGACY_GAFUS
 }
 
-
-
 enum ArticleContentType {
   TEXT
   HTML
@@ -2542,8 +2558,6 @@ model ArticleLike {
   @@index([userId])
 }
 
-
-
 /**
  * Уникальные авторизованные просмотры (для аналитики тренера); общий счётчик — Article.viewCount
  */
@@ -2575,8 +2589,6 @@ model ArticleGuestView {
   @@index([articleId])
 }
 
-
-
 /// Публичные флаги клиентов (мобильное приложение и т.д.). Ключ — стабильный идентификатор.
 model AppFeatureFlag {
   key           String   @id @db.VarChar(64)
@@ -2589,6 +2601,9 @@ model AppFeatureFlag {
 model MobileAppReleasePolicy {
   key              String   @id @default("default") @db.VarChar(32)
   iosReviewVersion String?  @db.VarChar(32)
+  otaRequired      Boolean  @default(false)
+  otaVersion       String?  @db.VarChar(48)
+  otaPlatform      String   @default("all") @db.VarChar(16)
   revision         Int      @default(1)
   updatedById      String?
   updatedBy        User?    @relation("MobileAppReleasePolicyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
@@ -2795,7 +2810,6 @@ model ConsultationBookingIdempotency {
   @@index([expiresAt])
 }
 
-
 model CynologistChat {
   id String @id @default(cuid())
   clientUserId String @unique
@@ -2816,9 +2830,11 @@ model CynologistChat {
   operations ChatSendOperation[]
   attachments ChatAttachment[]
   notifications ChatNotification[]
+
   @@index([trainerUserId, lastMessageAt])
   @@index([nextReminderAt])
 }
+
 model ChatSendOperation {
   id String @id @default(cuid())
   chatId String
@@ -2829,8 +2845,10 @@ model ChatSendOperation {
   state String @default("PENDING")
   createdAt DateTime @default(now())
   chat CynologistChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
   @@unique([senderUserId, clientMessageId])
 }
+
 model ChatAttachment {
   id String @id @default(cuid())
   operationId String?
@@ -2844,15 +2862,19 @@ model ChatAttachment {
   state String @default("READY")
   createdAt DateTime @default(now())
   chat CynologistChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
   @@index([state, createdAt])
 }
+
 model ChatWebhookEvent {
   id String @id
   payload Json
   processedAt DateTime?
   createdAt DateTime @default(now())
+
   @@index([processedAt, createdAt])
 }
+
 model ChatNotification {
   id String @id
   chatId String
@@ -2871,6 +2893,7 @@ model CommunityChatSendOperation {
   state String @default("PENDING")
   createdAt DateTime @default(now())
   sender User @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+
   @@unique([senderUserId, clientMessageId])
 }
 
@@ -2886,6 +2909,7 @@ model CommunityChatAttachment {
   state String @default("READY")
   createdAt DateTime @default(now())
   owner User @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
   @@index([state, createdAt])
 }
 
@@ -2898,6 +2922,7 @@ model AppSubscriptionFinanceRefund {
   amountKopecks Int
   refundedAt DateTime
   createdAt DateTime @default(now())
+
   @@index([refundedAt, paymentId])
   @@index([paymentId])
 }
@@ -2919,6 +2944,7 @@ model ProfitVideoExpense {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   revisions ProfitVideoExpenseRevision[]
+
   @@index([paidAt, canceledAt])
   @@index([partnerId, paidAt])
 }
@@ -2931,6 +2957,7 @@ model ProfitVideoExpenseRevision {
   action String @db.VarChar(16)
   snapshot Json
   createdAt DateTime @default(now())
+
   @@index([expenseId, createdAt])
 }
 
@@ -3062,7 +3089,6 @@ model QuestionBlock {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-
 // Gallery states use the same lowercase values as the shared DTOs.
 enum GalleryPhotoStatus {
   pending
@@ -3071,6 +3097,7 @@ enum GalleryPhotoStatus {
   moving
   failed
 }
+
 enum GalleryUploadStatus {
   reserved
   uploaded
@@ -3080,12 +3107,14 @@ enum GalleryUploadStatus {
   cancelled
   expired
 }
+
 enum GalleryStorageJobKind {
   publish
   move
   delete
   vetPreview
 }
+
 enum GalleryStorageJobStatus {
   pending
   processing
@@ -3093,6 +3122,7 @@ enum GalleryStorageJobStatus {
   failed
   cancelled
 }
+
 model GalleryAlbum {
   id String @id @default(cuid())
   ownerId String
@@ -3106,8 +3136,10 @@ model GalleryAlbum {
   updatedAt DateTime @updatedAt
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   photos GalleryPhoto[]
+
   @@index([ownerId, deletedAt, createdAt, id])
 }
+
 model GalleryPhoto {
   id String @id @default(cuid())
   ownerId String
@@ -3125,9 +3157,11 @@ model GalleryPhoto {
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   album GalleryAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
   upload GalleryUpload?
+
   @@index([ownerId, deletedAt, status, reservationExpiresAt])
   @@index([albumId, deletedAt, createdAt, id])
 }
+
 model GalleryUpload {
   id String @id @default(cuid())
   ownerId String
@@ -3156,9 +3190,11 @@ model GalleryUpload {
   updatedAt DateTime @updatedAt
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   photo GalleryPhoto @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
   @@unique([ownerId, clientRequestId])
   @@index([status, reservationExpiresAt, leaseUntil])
 }
+
 // No foreign keys: jobs and their immutable key snapshots survive account cascades.
 model GalleryStorageJob {
   id String @id @default(cuid())
@@ -3181,6 +3217,7 @@ model GalleryStorageJob {
   errorCode String? @db.VarChar(64)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@index([status, availableAt, leaseUntil])
   @@index([ownerId, photoId])
 }
@@ -3277,6 +3314,7 @@ model FeedPost {
   reactions FeedPostReaction[]
   views FeedPostView[]
   notifications FeedNotification[]
+
   @@unique([authorId, clientRequestId])
   @@index([status, publishedAt(sort: Desc), id(sort: Desc)])
   @@index([authorId, status, publishedAt(sort: Desc), id(sort: Desc)])
@@ -3296,6 +3334,7 @@ model FeedPostRevision {
   updatedAt DateTime @updatedAt
   post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   attachments FeedRevisionAttachment[]
+
   @@unique([postId, revisionNumber])
   @@unique([postId, clientRequestId])
   @@index([postId, status, createdAt])
@@ -3325,6 +3364,7 @@ model FeedMediaAsset {
   attachments FeedRevisionAttachment[]
   commentAttachments FeedCommentMedia[]
   pollOptions FeedPollOption[]
+
   @@index([postId, status])
   @@index([ownerId, status])
 }
@@ -3335,6 +3375,7 @@ model FeedRevisionAttachment {
   position Int
   revision FeedPostRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
   media FeedMediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
   @@id([revisionId, mediaId])
   @@unique([revisionId, position])
   @@index([mediaId])
@@ -3369,6 +3410,7 @@ model FeedPollOption {
   poll FeedPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
   imageMedia FeedMediaAsset? @relation(fields: [imageMediaId], references: [id], onDelete: SetNull)
   selections FeedPollVoteSelection[]
+
   // Used by the composite vote-selection FK to prevent choosing an option of a different poll.
   @@unique([pollId, id])
   @@unique([pollId, position])
@@ -3383,6 +3425,7 @@ model FeedPollVote {
   poll FeedPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   selections FeedPollVoteSelection[]
+
   // Each user has at most one vote record per poll, including multiple-choice polls.
   @@id([pollId, userId])
   @@index([userId])
@@ -3394,6 +3437,7 @@ model FeedPollVoteSelection {
   optionId String
   vote FeedPollVote @relation(fields: [pollId, userId], references: [pollId, userId], onDelete: Cascade)
   option FeedPollOption @relation(fields: [pollId, optionId], references: [pollId, id], onDelete: Cascade)
+
   @@id([pollId, userId, optionId])
   @@index([pollId, optionId])
 }
@@ -3424,6 +3468,7 @@ model FeedUpload {
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   media FeedMediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
   @@unique([ownerId, clientRequestId])
   @@index([status, reservationExpiresAt, leaseUntil])
   @@index([postId, status])
@@ -3449,6 +3494,7 @@ model FeedStorageJob {
   errorCode String? @db.VarChar(64)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@index([status, availableAt, leaseUntil])
   @@index([ownerId, postId])
 }
@@ -3477,6 +3523,7 @@ model FeedComment {
   reactions FeedCommentReaction[]
   notifications FeedNotification[]
   media FeedCommentMedia[]
+
   @@unique([authorId, clientRequestId])
   @@index([postId, rootId, createdAt, id])
   @@index([replyToId])
@@ -3488,6 +3535,7 @@ model FeedCommentMedia {
   position Int
   comment FeedComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
   media FeedMediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
   @@id([commentId, mediaId])
   @@unique([commentId, position])
 }
@@ -3501,6 +3549,7 @@ model FeedPostReaction {
   updatedAt DateTime @updatedAt
   post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([postId, userId])
   @@index([postId, kind, createdAt, id])
 }
@@ -3514,6 +3563,7 @@ model FeedCommentReaction {
   updatedAt DateTime @updatedAt
   comment FeedComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([commentId, userId])
   @@index([commentId, kind, createdAt, id])
 }
@@ -3524,6 +3574,7 @@ model FeedPostView {
   createdAt DateTime @default(now())
   post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@id([postId, userId])
   @@index([postId])
 }
@@ -3559,6 +3610,7 @@ model FeedImpression {
   updatedAt DateTime @updatedAt
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
   @@unique([userId, postId, rankingSessionId])
   @@index([userId, occurredAt(sort: Desc)])
   @@index([postId, occurredAt(sort: Desc)])
@@ -3576,6 +3628,7 @@ model FeedRankingEvent {
   createdAt DateTime @default(now())
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
   @@index([userId, createdAt(sort: Desc)])
   @@index([postId, createdAt(sort: Desc)])
   @@index([rankingSessionId])
@@ -3604,6 +3657,7 @@ model FeedUserAuthorAffinity {
   updatedAt DateTime @updatedAt
   viewer User @relation("FeedAffinityViewer", fields: [userId], references: [id], onDelete: Cascade)
   author User @relation("FeedAffinityAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
   @@id([userId, authorId])
   @@index([userId, score(sort: Desc)])
 }
@@ -3615,6 +3669,7 @@ model FeedUserPostFeedback {
   createdAt DateTime @default(now())
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
   @@id([userId, postId, kind])
   @@index([postId])
 }
@@ -3629,6 +3684,7 @@ model FeedSmartRankerModel {
   trainRows Int
   validationRows Int
   createdAt DateTime @default(now())
+
   @@index([active, trainedAt(sort: Desc)])
 }
 
@@ -3647,6 +3703,7 @@ model FeedNotification {
   recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   comment FeedComment? @relation(fields: [commentId], references: [id], onDelete: SetNull)
+
   @@index([recipientId, readAt, createdAt(sort: Desc), id(sort: Desc)])
   @@index([groupKey, createdAt])
 }
@@ -3664,6 +3721,7 @@ model FeedNotificationOutbox {
   lastErrorCode String? @db.VarChar(64)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
   @@unique([notificationId])
   @@index([status, availableAt, leaseUntil])
 }
@@ -3674,6 +3732,7 @@ model FeedBookmark {
   createdAt DateTime @default(now())
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   post FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
   @@id([userId, postId])
   @@index([userId, createdAt(sort: Desc), postId(sort: Desc)])
 }
@@ -3687,6 +3746,7 @@ model FeedAuthorPreference {
   updatedAt DateTime @updatedAt
   user User @relation("FeedPreferenceReader", fields: [userId], references: [id], onDelete: Cascade)
   author User @relation("FeedPreferenceAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
   @@id([userId, authorId])
   @@index([authorId, notify, hidden])
 }
@@ -3708,6 +3768,7 @@ model FeedReport {
   moderatorId String?
   resolvedAt DateTime?
   createdAt DateTime @default(now())
+
   @@unique([reporterId, targetType, targetId])
   @@index([status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([authorId])
@@ -3720,6 +3781,7 @@ model FeedModerationAction {
   action String @db.VarChar(16)
   reason String @db.VarChar(1000)
   createdAt DateTime @default(now())
+
   @@index([reportId, createdAt])
 }
 
@@ -3770,14 +3832,12 @@ model TransactionalMailEvent {
   @@index([providerMessageId, occurredAt])
 }
 
-
 // Durable course/lesson cache version, advanced transactionally by PostgreSQL
 // triggers on content tables; Redis publication is only a secondary signal.
 model CourseContentRevision {
   id       Int    @id
   revision BigInt @default(0)
 }
-
 
 // AG4 APPROVED OFF021 SCHEMA DRAFT — NEW MODELS ONLY, NOT A MIGRATION.
 // Source of truth for AG1 Prisma additive draft. These four models are
@@ -3869,7 +3929,6 @@ model PetCreateReceipt {
   @@id([ownerId, clientRequestId], map: "PetCreateReceipt_ownerId_clientRequestId_key")
 }
 
-
 // WEB2: immutable per-object deletion intent outlives Pet/PetDocument cascade.
 // No FK to User/Pet: cleanup cannot disappear with the deleted record.
 // Provider is derived from the stored location, never from a runtime upload flag.
@@ -3936,6 +3995,7 @@ model Chat2Conversation {
   media Chat2Media[]
   outbox Chat2OutboxEvent[]
   reports Chat2Report[]
+
   @@unique([kind, scopeKey])
   @@index([kind, visibility, createdAt])
 }
@@ -3951,6 +4011,7 @@ model Chat2Member {
   hiddenAt DateTime?
   conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user User @relation("Chat2Membership", fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([conversationId, userId])
   @@index([userId, hiddenAt])
 }
@@ -3972,12 +4033,15 @@ model Chat2Message {
   pushReceipts Chat2PushReceipt[]
   reports Chat2Report[]
   reactions Chat2MessageReaction[]
+
   @@unique([conversationId, sequence])
   @@unique([conversationId, authorId, clientMessageId])
   @@index([conversationId, createdAt])
 }
 
-/** One reaction per person per message; changing emoji replaces the previous one. */
+/**
+ * One reaction per person per message; changing emoji replaces the previous one.
+ */
 model Chat2MessageReaction {
   messageId String
   userId String
@@ -3985,6 +4049,7 @@ model Chat2MessageReaction {
   createdAt DateTime @default(now())
   message Chat2Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user User @relation("Chat2ReactionUser", fields: [userId], references: [id], onDelete: Cascade)
+
   @@id([messageId, userId])
   @@index([userId])
 }
@@ -4004,6 +4069,7 @@ model Chat2Media {
   message Chat2Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
   owner User @relation("Chat2MediaOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
   @@index([ownerId, status, createdAt])
   @@index([conversationId, messageId])
 }
@@ -4019,6 +4085,7 @@ model Chat2MediaDeletionIntent {
   completedAt DateTime? @db.Timestamp(3)
   errorCode String? @db.VarChar(64)
   createdAt DateTime @default(now()) @db.Timestamp(3)
+
   @@index([status,availableAt])
 }
 
@@ -4036,6 +4103,7 @@ model Chat2Report {
   reporter User @relation("Chat2ReportAuthor", fields:[reporterId], references:[id], onDelete:Cascade)
   conversation Chat2Conversation @relation(fields:[conversationId],references:[id],onDelete:Cascade)
   message Chat2Message @relation(fields:[messageId],references:[id],onDelete:Cascade)
+
   @@unique([reporterId,messageId])
   @@index([conversationId,status,createdAt])
 }
@@ -4054,6 +4122,7 @@ model Chat2Block {
   createdAt DateTime @default(now())
   blocker User @relation("Chat2Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
   blocked User @relation("Chat2Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
   @@id([blockerId, blockedId])
 }
 
@@ -4068,6 +4137,7 @@ model Chat2OutboxEvent {
   nextAttemptAt DateTime @default(now())
   claimedUntil DateTime?
   conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
   @@index([deliveredAt, nextAttemptAt])
 }
 
@@ -4078,9 +4148,9 @@ model Chat2PushReceipt {
   createdAt DateTime @default(now())
   message Chat2Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   recipient User @relation("Chat2PushRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
   @@id([messageId, recipientId])
 }
-
 
 /// Chat 2.0 V2 only. Upload/Job processing is disabled until a separate
 /// isolated Refactor API cutover. Legacy Chat2Media remains untouched.
@@ -4108,6 +4178,7 @@ model Chat2V2MediaTask {
   cleanupCompletedAt DateTime? @db.Timestamp(3)
   createdAt DateTime @default(now()) @db.Timestamp(3)
   updatedAt DateTime @updatedAt @db.Timestamp(3)
+
   @@index([status,nextAttemptAt,createdAt])
   @@index([conversationId,ownerId,status])
 }
@@ -4140,4 +4211,44 @@ model QuestionV2MediaTask {
   @@index([status, nextAttemptAt, createdAt])
   @@index([ownerId, status])
   @@index([cleanupKind, cleanupNextAt])
+}
+
+// Anonymous, idempotent evidence of the rendition that ACTUALLY started playing.
+// Do not store user IDs, media IDs, URLs, IP addresses, or network identifiers.
+// One UUID per started video rendition; a manual quality switch yields a new UUID.
+model VideoPlaybackQualityEvent {
+  id           String   @id @db.Uuid
+  createdAt    DateTime @default(now())
+  surface      String   @db.VarChar(10)
+  platform     String   @db.VarChar(10)
+  quality      Int      @db.SmallInt
+  mode         String   @db.VarChar(10)
+  available360 Boolean
+  available720 Boolean
+  networkClass String   @db.VarChar(10)
+  saveData     Boolean  @default(false)
+  fallback     Boolean  @default(false)
+
+  @@index([createdAt])
+}
+
+/// Completed dog walks synchronised from a phone. The client-generated ID makes
+/// retries idempotent; owner is always the authenticated principal on the API.
+model DogWalkRecord {
+  id              String   @id @default(cuid())
+  userId          String
+  clientId        String   @db.VarChar(64)
+  startedAt       DateTime @db.Timestamp(3)
+  finishedAt      DateTime @db.Timestamp(3)
+  durationSeconds Int
+  steps           Int
+  estimatedMeters Int
+  timerMode       String   @db.VarChar(12)
+  incompleteSteps Boolean  @default(false)
+  createdAt       DateTime @default(now()) @db.Timestamp(3)
+  updatedAt       DateTime @updatedAt @db.Timestamp(3)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@index([userId, startedAt(sort: Desc)])
 }

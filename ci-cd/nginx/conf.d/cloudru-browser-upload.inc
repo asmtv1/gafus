@@ -19,3 +19,25 @@ location = /__cloudru-upload/gallery {
     include /etc/nginx/conf.d/cloudru-browser-upload-proxy.inc;
     proxy_pass https://s3.cloud.ru/gafus-gallery-private/;
 }
+
+# Exact, signed-only browser photo POST relays. Cloud.ru S3 does not reliably
+# accept browser OPTIONS/CORS. No image decode, no Cloud Photo Job or credentials.
+location = /__cloudru-upload/questions {
+    if ($request_method != POST) { return 405; }
+    if ($args != "") { return 400; }
+    limit_req zone=cloudru_form_upload burst=20 nodelay;
+    client_max_body_size 5m;
+    client_body_timeout 180s;
+    include /etc/nginx/conf.d/cloudru-browser-upload-proxy.inc;
+    proxy_pass https://s3.cloud.ru/gafus-questions-public/;
+}
+
+location = /__cloudru-upload/chat2 {
+    if ($request_method != POST) { return 405; }
+    if ($args != "") { return 400; }
+    limit_req zone=cloudru_form_upload burst=20 nodelay;
+    client_max_body_size 5m;
+    client_body_timeout 180s;
+    include /etc/nginx/conf.d/cloudru-browser-upload-proxy.inc;
+    proxy_pass https://s3.cloud.ru/gafus-chat2-media-2026/;
+}

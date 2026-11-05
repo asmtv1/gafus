@@ -76,7 +76,7 @@ const core: GalleryInternalClient = {
   failJob: input => service.failStorageJob(input),
   maintenance: limit => service.maintenance({ limit }),
 };
-const worker = createGalleryCloudWorker({ core, objects, engine: sharpGalleryEngine,
+const worker = createGalleryCloudWorker({ core, objects,
   queue: { async send() { /* this is a genuine one-shot Sharp worker invocation */ } },
 });
 const owner = randomUUID();

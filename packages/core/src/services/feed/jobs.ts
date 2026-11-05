@@ -51,11 +51,23 @@ function assertOutput(job: FeedStorageJobClaim, output: FeedAssetOutput) {
       keys.length !== new Set(keys).size) {
     throw new FeedError("VALIDATION_ERROR", "Некорректные ключи результата", 422);
   }
-  if (job.kind === "publish_video") {
+  if (job.kind === "publish_video" && job.targetKeys.length === 1) {
+    // Separate non-blocking enhancement: 360p may only supplement a READY 720p.
+    if (job.uploadId || job.sourceKeys.length !== 1 ||
+        job.sourceKeys[0] !== prefix + "video/720.mp4" ||
+        job.targetKeys[0] !== prefix + "video/360.mp4" ||
+        output.posterKey ||
+        output.smallKey || output.thumbKey || output.fullKey ||
+        output.mp4Keys?.length !== 1 || output.mp4Keys[0] !== job.targetKeys[0] ||
+        !Number.isFinite(output.durationSeconds) || !output.durationSeconds ||
+        output.durationSeconds > 120) {
+      throw new FeedError("VALIDATION_ERROR", "Недопустимый результат фоновой 360p", 422);
+    }
+  } else if (job.kind === "publish_video") {
     const quality = (output.mp4Keys ?? []).map(key => key.slice(prefix.length));
     if (!output.posterKey || output.posterKey !== prefix + "poster.webp" ||
-        !quality.includes("video/360.mp4") || quality.length > 3 ||
-        quality.some(name => !/^video\/(360|720|1080)\.mp4$/.test(name)) ||
+        !quality.some(q => q === "video/720.mp4" || q === "video/360.mp4") || quality.length > 2 ||
+        quality.some(name => !/^video\/(360|720)\.mp4$/.test(name)) ||
         !Number.isFinite(output.durationSeconds) || !output.durationSeconds ||
         output.durationSeconds > 120 || output.smallKey || output.thumbKey || output.fullKey) {
       throw new FeedError("VALIDATION_ERROR", "Неполная обработка MP4", 422);
@@ -97,9 +109,10 @@ export function createFeedStorageJobs({ db, now = () => new Date(), storage }: {
   }
   async function enqueueTerminalCleanup(tx: Parameters<Parameters<FeedDb["$transaction"]>[0]>[0], job: {
     id: string; ownerId: string; postId: string | null; uploadId: string | null;
-    mediaId: string | null; kind: string; sourceKeys: string[];
+    mediaId: string | null; kind: string; sourceKeys: string[]; targetKeys: string[];
   }, at: Date) {
-    if (!job.mediaId || !["publish_photo", "publish_video", "copy_album"].includes(job.kind)) return;
+    if (!job.mediaId || !["publish_photo", "publish_video", "copy_album"].includes(job.kind) ||
+        (job.kind === "publish_video" && job.targetKeys.length === 1)) return;
     const sourceKeys = job.sourceKeys.filter(key => key.startsWith("posts/") && key.includes("/incoming/"));
     const generated = feedPossibleOutputKeys(job.ownerId, job.postId ?? "", job.mediaId,
       job.kind === "publish_video" ? "video" : "photo");
@@ -119,8 +132,9 @@ export function createFeedStorageJobs({ db, now = () => new Date(), storage }: {
     exactMedia?: { jobId: string; ownerId: string; kind: "publish_photo" | "publish_video" },
   ): Promise<FeedStorageJobClaim[]> {
     validateBatch(batchSize);
-    if (workerType !== undefined && workerType !== "photo" && workerType !== "video") throw new FeedError("VALIDATION_ERROR", undefined, 400);
-    if (exactCleanup && (workerType === "video" || exactMedia ||
+    if (workerType !== undefined && workerType !== "video")
+      throw new FeedError("VALIDATION_ERROR", "Обработчики фотографий удалены", 410);
+    if (exactCleanup && (workerType !== undefined || exactMedia ||
         !/^[A-Za-z0-9_-]{1,128}$/.test(exactCleanup.jobId) ||
         !/^[A-Za-z0-9_-]{1,128}$/.test(exactCleanup.ownerId) ||
         !["delete_keys", "cleanup_source"].includes(exactCleanup.kind))) {
@@ -129,21 +143,44 @@ export function createFeedStorageJobs({ db, now = () => new Date(), storage }: {
     if (exactMedia && (exactCleanup ||
         !/^[A-Za-z0-9_-]{1,128}$/.test(exactMedia.jobId) ||
         !/^[A-Za-z0-9_-]{1,128}$/.test(exactMedia.ownerId) ||
-        (workerType !== (exactMedia.kind === "publish_photo" ? "photo" : "video")))) {
+        exactMedia.kind !== "publish_video" || workerType !== "video")) {
       throw new FeedError("VALIDATION_ERROR", "Недопустимая область медиа-задачи", 400);
     }
     const at = now();
-    const rows = await db.feedStorageJob.findMany({
-      where: { ...(workerType ? { kind: workerType === "video" ? "publish_video" : { in: ["copy_album", "publish_photo", "delete_keys", "cleanup_source"] } } : {}),
-        ...(exactCleanup ? { id: exactCleanup.jobId, ownerId: exactCleanup.ownerId, kind: exactCleanup.kind } : {}),
-        ...(exactMedia ? { id: exactMedia.jobId, ownerId: exactMedia.ownerId, kind: exactMedia.kind } : {}),
-        OR: [
-        { status: "pending", availableAt: { lte: at } },
-        { status: "processing", leaseUntil: { lt: at } },
-      ] },
-      orderBy: [{ availableAt: "asc" }, { id: "asc" }],
-      take: batchSize * 2,
-    });
+    const due = [
+      { status: "pending" as const, availableAt: { lte: at } },
+      { status: "processing" as const, leaseUntil: { lt: at } },
+    ];
+    // Primary 720p + poster takes precedence over slow background 360p.
+    // Do not do a single LIMIT scan of older background rows: that could
+    // starve a new publication when the 360 backlog is large.
+    // Cloud VIDEO invocation must never claim S3 cleanup tasks. Those are
+    // exclusively leased by the existing GAFUS Worker via exactCleanup.
+    const tiers = exactCleanup ? ["cleanup"] as const :
+      exactMedia || workerType === "video" ? ["primary", "background"] as const :
+      ["primary", "cleanup", "background"] as const;
+    const rows: Awaited<ReturnType<FeedDb["feedStorageJob"]["findMany"]>> = [];
+    for (const tier of tiers) {
+      const scoped = await db.feedStorageJob.findMany({
+        where: {
+          kind: tier === "cleanup" ? { in: ["delete_keys", "cleanup_source"] } : "publish_video",
+          targetKeys: { isEmpty: tier !== "background" },
+          ...(exactCleanup ? { id: exactCleanup.jobId, ownerId: exactCleanup.ownerId,
+            kind: exactCleanup.kind } : {}),
+          ...(exactMedia ? { id: exactMedia.jobId, ownerId: exactMedia.ownerId,
+            kind: exactMedia.kind } : {}),
+          OR: due,
+        },
+        orderBy: [{ availableAt: "asc" }, { id: "asc" }],
+        take: batchSize * 2,
+      });
+      // The extra filter protects pure/mocked DB ports that do not apply where.
+      rows.push(...scoped.filter(row => tier === "cleanup"
+        ? (row.kind === "delete_keys" || row.kind === "cleanup_source") && row.targetKeys.length === 0
+        : row.kind === "publish_video" && (tier === "background"
+          ? row.targetKeys.length === 1 : row.targetKeys.length === 0)));
+      if (rows.length >= batchSize) break;
+    }
     const claimed: FeedStorageJobClaim[] = [];
     for (const row of rows) {
       if (claimed.length >= batchSize) break;
@@ -169,6 +206,7 @@ export function createFeedStorageJobs({ db, now = () => new Date(), storage }: {
               errorCode: "MEDIA_PROCESSING_FAILED" },
           });
           if (!changed.count) return;
+          if (row.kind === "publish_video" && row.targetKeys.length === 1) return;
           await enqueueTerminalCleanup(tx, row, at);
           if (row.mediaId) await tx.feedMediaAsset.updateMany({
             where: { id: row.mediaId, status: { in: ["reserved", "uploaded", "processing"] } },
@@ -261,7 +299,26 @@ export function createFeedStorageJobs({ db, now = () => new Date(), storage }: {
         postId: job.postId, uploadId: job.uploadId, mediaId: job.mediaId,
         sourceKeys: job.sourceKeys, targetKeys: job.targetKeys, attempts: job.attempts,
       };
-      if (job.kind === "copy_album" || job.kind === "publish_photo" || job.kind === "publish_video") {
+      if (job.kind === "publish_video" && job.targetKeys.length === 1) {
+        if (!output) throw new FeedError("VALIDATION_ERROR", "Нет варианта 360p", 422);
+        assertOutput(claim, output);
+        await verifyFinalObjects(output);
+        const post = await tx.feedPost.findUnique({ where: { id: job.postId! } });
+        const media = await tx.feedMediaAsset.findFirst({ where: { id: job.mediaId!, postId: job.postId! } });
+        if (!post || post.deletedAt || !media || media.status !== "ready" ||
+            !media.mp4Keys.includes(job.sourceKeys[0]!) ||
+            (media.durationSeconds !== null &&
+              Math.abs(media.durationSeconds - output.durationSeconds!) > 1) ||
+            output.width > (media.width ?? 0) || output.height > (media.height ?? 0)) {
+          return { accepted: false };
+        }
+        // Preserve existing 720p key and publication status at every failure/retry.
+        const missing360 = !media.mp4Keys.includes(output.mp4Keys![0]!);
+        if (missing360) await tx.feedMediaAsset.update({
+          where: { id: media.id },
+          data: { mp4Keys: [...media.mp4Keys, output.mp4Keys![0]!] },
+        });
+      } else if (job.kind === "copy_album" || job.kind === "publish_photo" || job.kind === "publish_video") {
         if (!output) throw new FeedError("VALIDATION_ERROR", "Отсутствует результат обработки", 422);
         assertOutput(claim, output);
         await verifyFinalObjects(output);
@@ -308,6 +365,21 @@ export function createFeedStorageJobs({ db, now = () => new Date(), storage }: {
               ownerId: job.ownerId, postId: job.postId, kind: "cleanup_source",
               sourceKeys: job.sourceKeys,
               availableAt: new Date(upload.postExpiresAt.getTime() + 60_000) },
+            update: {},
+          });
+        }
+        // The stage-2 job is a separate durable video Job. It reads the
+        // verified immutable 720p object; cleanup of the original may proceed.
+        // Its failure is never permitted to revoke this READY attachment.
+        if (job.kind === "publish_video" && output.mp4Keys?.includes(`media/v2/${media.id}/v1/video/720.mp4`) &&
+            !output.mp4Keys.includes(`media/v2/${media.id}/v1/video/360.mp4`)) {
+          const base = `media/v2/${media.id}/v1/video/`;
+          await tx.feedStorageJob.upsert({
+            where: { dedupeKey: `feed-video-360:${media.id}` },
+            create: { dedupeKey: `feed-video-360:${media.id}`,
+              kind: "publish_video", ownerId: job.ownerId, postId: job.postId,
+              mediaId: media.id, uploadId: null, sourceKeys: [base + "720.mp4"],
+              targetKeys: [base + "360.mp4"], availableAt: now() },
             update: {},
           });
         }
@@ -364,7 +436,7 @@ export function createFeedStorageJobs({ db, now = () => new Date(), storage }: {
         },
       });
       if (!changed.count) return { accepted: false };
-      if (exhausted && job.mediaId) {
+      if (exhausted && job.mediaId && !(job.kind === "publish_video" && job.targetKeys.length === 1)) {
         await enqueueTerminalCleanup(tx, job, at);
         await tx.feedMediaAsset.updateMany({
           where: { id: job.mediaId, status: { in: ["reserved", "uploaded", "processing"] } },

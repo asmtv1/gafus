@@ -41,7 +41,9 @@ const values = {
   iosRuCardPaymentHint: false, rewardedAds: false,
 };
 const body = {
-  revision: 3, iosReviewVersion: "1.7.0", released: values, review: values,
+  revision: 3, iosReviewVersion: "1.7.0",
+  ota: { required: false, version: null, platform: "all" },
+  released: values, review: values,
   global: { appSubscriptionPaywall: true, appSubscriptionGating: true },
   rewardedAds: {
     androidEnabled: false, dailyAdLimit: 3,
@@ -93,6 +95,21 @@ describe("admin mobile release flags", () => {
     const response = await req("PUT", body);
     expect(response.status).toBe(403);
     expect(fake.write).not.toHaveBeenCalled();
+  });
+
+  it("refuses to require an unpublished OTA revision", async () => {
+    const response = await req("PUT", {
+      ...body, ota: { required: true, version: null, platform: "all" },
+    });
+    expect(response.status).toBe(400);
+    expect(fake.write).not.toHaveBeenCalled();
+  });
+
+  it("accepts a correctly formatted minimum OTA revision without touching store flags", async () => {
+    const payload = { ...body, ota: { required: true, version: "1.7.3-ota.1", platform: "ios" } };
+    const response = await req("PUT", payload);
+    expect(response.status).toBe(200);
+    expect(fake.write).toHaveBeenCalledWith(payload, "admin");
   });
 
   it("rejects unexpected keys in nested flags", async () => {

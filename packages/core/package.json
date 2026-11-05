@@ -1,6 +1,6 @@
 {
   "name": "@gafus/core",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -164,6 +164,14 @@
     "./services/mobileIntro": {
       "types": "./dist/core/src/services/mobileIntro/index.d.ts",
       "default": "./dist/core/src/services/mobileIntro/index.js"
+    },
+    "./services/walks": {
+      "types": "./dist/core/src/services/walks/index.d.ts",
+      "default": "./dist/core/src/services/walks/index.js"
+    },
+    "./services/videoPlaybackQuality": {
+      "types": "./dist/core/src/services/videoPlaybackQuality/index.d.ts",
+      "default": "./dist/core/src/services/videoPlaybackQuality/index.js"
     },
     "./services/adminStorage": {
       "types": "./dist/core/src/services/adminStorage/index.d.ts",

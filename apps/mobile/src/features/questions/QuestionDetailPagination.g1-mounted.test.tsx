@@ -230,6 +230,7 @@ vi.mock("react-native", async () => {
   return {
     ScrollView: Scroll,
     KeyboardAvoidingView: Box,
+    Keyboard: { addListener: () => ({ remove: () => undefined }) },
     View: Box,
     Text: ({ children }: { children?: React.ReactNode }) => R.createElement("span", null, children),
     Pressable: ({

@@ -18,7 +18,11 @@ services:
       - ./centrifugo.json:/centrifugo/config.json:ro
     environment:
       CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY: ${CHAT2_CENTRIFUGO_TOKEN_SECRET:?Set a unique 32+ character dev-only secret}
+      CENTRIFUGO_CLIENT_SUBSCRIPTION_TOKEN_HMAC_SECRET_KEY: ${CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET:?Set a DIFFERENT never-issued 32+ character deny secret}
+      CENTRIFUGO_VAR_CHAT2_PROXY_SHARED_SECRET: ${CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET:?Set a different internal broker proxy secret}
       CENTRIFUGO_HTTP_API_KEY: ${CHAT2_CENTRIFUGO_API_KEY:?Set a unique dev-only API key}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:8039:8000"
     networks: [chat2]

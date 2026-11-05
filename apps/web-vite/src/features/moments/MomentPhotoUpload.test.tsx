@@ -1,4 +1,11 @@
 // @vitest-environment jsdom
+vi.mock("../../shared/media/browserPhotoWebp",()=>({
+  prepareBrowserPhotoWebp:vi.fn(async(_original:File,edges:Record<string,number>)=>
+    Object.fromEntries(Object.entries(edges).map(([name,edge])=>[
+      name,{file:new File([new Uint8Array(128)],name+".webp",{type:"image/webp"}),
+        width:edge,height:Math.round(edge*.75)},
+    ]))),
+}));
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -14,7 +21,7 @@ const editor: MomentEditor = {
 };
 const ticket = {
   uploadId: "upload-1", postId: "post-1", mediaId: "media-1",
-  kind: "photo", status: "uploaded",
+  kind: "photo", status: "ready",
   postUrl: null, postFields: null, urlExpiresAt: null,
 };
 function response(data: unknown, status = 200) {
@@ -44,7 +51,7 @@ async function mount(
     host, saved, busy,
     async select(type = "image/webp", name = "pet.webp") {
       const input = host.querySelector<HTMLInputElement>('input[type="file"]')!;
-      const selected = new File(["short-file"], name, { type });
+      const selected = new File([type.startsWith("video/") ? new Uint8Array(2048) : "short-file"], name, { type });
       Object.defineProperty(input, "files", { configurable: true, value: [selected] });
       await act(async () => input.dispatchEvent(
         new Event("change", { bubbles: true }),
@@ -115,6 +122,15 @@ describe("Moments photo editor", () => {
   });
 
   it("video selection uses same Core-only revision and never auto-publishes", async () => {
+    // This test checks revision/CAS, so its synthetic MP4 is explicitly
+    // approved by a fake worker instead of requiring a real video codec.
+    vi.stubGlobal("VideoDecoder", class {});
+    vi.stubGlobal("VideoEncoder", class {});
+    vi.stubGlobal("Worker", class {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      terminate() { /* fake worker */ }
+      postMessage() { queueMicrotask(() => this.onmessage?.({ data: {kind:"reusable"} } as MessageEvent)); }
+    });
     const videoTicket = {
       ...ticket, kind: "video",
     };

@@ -276,7 +276,7 @@ export function createFeedSocial({ db, storage, now = () => new Date(), enabled 
             media.posterKey, ...media.mp4Keys,
             prefix + "image/s.webp", prefix + "image/m.webp", prefix + "image/l.webp",
             prefix + "poster.webp", prefix + "video/360.mp4",
-            prefix + "video/720.mp4", prefix + "video/1080.mp4",
+            prefix + "video/720.mp4",
           ].filter((key): key is string => !!key);
           const reservationEnd = media.upload
             ? Math.max(media.upload.postExpiresAt.getTime(),

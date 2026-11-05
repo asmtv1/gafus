@@ -26,12 +26,15 @@ export function chat2V2Delivery(manifest: Chat2V2Manifest,
   const publicUrl = (key: string) => `${cdn ?? CHAT2_V2_S3_PUBLIC_ORIGIN}/${key}`;
   const directUrl = (key: string) => `${CHAT2_V2_S3_PUBLIC_ORIGIN}/${key}`;
   const mapping = (url: (key: string) => string) => manifest.kind === "image"
-    ? { image: { 360: url(manifest.keys.small), 720: url(manifest.keys.medium) },
-        imageWidths: { 360: manifest.imageSizes.small.width, 720: manifest.imageSizes.medium.width } }
-    : { poster: url(manifest.posterKey),
-        video: Object.fromEntries(manifest.renditions.map(v => [v.quality, url(v.key)])) };
+    ? { image: { 360: url(manifest.keys.small), 1440: url(manifest.keys.medium) },
+        imageWidths: { 360: manifest.imageSizes.small.width, 1440: manifest.imageSizes.medium.width },
+        poster: undefined, video: undefined }
+    : { poster: manifest.posterKey ? url(manifest.posterKey) : undefined,
+        video: Object.fromEntries(manifest.renditions.map(v => [v.quality, url(v.key)])),
+        image: undefined, imageWidths: undefined };
   const primary = manifest.kind === "image"
-    ? manifest.keys.medium : manifest.renditions.find(x => x.quality === 360)?.key;
+    ? manifest.keys.medium : (manifest.renditions.find(x => x.quality === 360) ??
+      manifest.renditions.find(x => x.quality === 720))?.key;
   if (!primary) throw Error("CHAT2_V2_NO_PRIMARY");
   return { url: publicUrl(primary), renditions: mapping(publicUrl),
     ...(cdn ? { fallbackUrl: directUrl(primary), fallbackRenditions: mapping(directUrl) } : {}),

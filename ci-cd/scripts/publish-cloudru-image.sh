@@ -9,7 +9,7 @@ dockerfile="${3:?dockerfile is required}"
 revision="${4:?revision is required}"
 
 case "${media}:${role}:${dockerfile}" in
-  gallery:worker:Dockerfile|feed:worker:Dockerfile|questions:photo:Dockerfile.questions-photo|chat:photo:Dockerfile.chat2-job|chat:video:Dockerfile.chat2-job) ;;
+  feed:worker:Dockerfile|chat:video:Dockerfile.chat2-job) ;;
   *) echo "Invalid Cloud.ru image selector" >&2; exit 2 ;;
 esac
 if [[ ! "${revision}" =~ ^[0-9a-f]{40}$ ]]; then
@@ -20,15 +20,12 @@ fi
 registry="gafus.cr.cloud.ru"
 context_dir="apps/${media}-cloud"
 target_arg=(--platform linux/amd64)
-if [[ "$media" == "questions" ]]; then
-  context_dir="apps/feed-cloud"
-elif [[ "$media" == "chat" ]]; then
+if [[ "$media" == "chat" ]]; then
   registry="gafus-chat2-20261028.cr.cloud.ru"
   context_dir="apps/feed-cloud"
   target_arg+=(--target "$role")
 fi
 repository="gafus-${media}-${role}"
-if [[ "$media" == "questions" ]]; then repository="gafus-questions-worker"; fi
 tag="${registry}/${repository}:${revision}"
 log_file="$(mktemp "${RUNNER_TEMP:-$PWD/ci-cd/scripts}/cloudru-build.XXXXXXXX")"
 trap 'rm -f -- "$log_file"' EXIT

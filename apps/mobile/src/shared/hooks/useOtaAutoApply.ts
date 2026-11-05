@@ -25,12 +25,12 @@ async function checkFetchAndReload(): Promise<void> {
  * Продакшен: проверка OTA после старта и при возврате в приложение.
  * На Android первая проверка без задержки часто падает или не видит обновление из‑за сети.
  */
-export function useOtaAutoApply(): void {
+export function useOtaAutoApply(enabled = true): void {
   const lastForegroundCheckRef = useRef(0);
   const runningRef = useRef(false);
 
   useEffect(() => {
-    if (__DEV__) {
+    if (!enabled || __DEV__) {
       return;
     }
     if (!Updates.isEnabled) {
@@ -105,5 +105,5 @@ export function useOtaAutoApply(): void {
       }
       sub.remove();
     };
-  }, []);
+  }, [enabled]);
 }

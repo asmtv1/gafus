@@ -43,6 +43,20 @@ describe("Moment media ephemeral signed delivery", () => {
     expect(JSON.stringify(media)).not.toContain("PRIVATE_NEVER_EXPOSE");
   });
 
+  it("shows the immediately available 720p even before background 360p is ready", async () => {
+    const poster = "https://cdn.example/poster.webp?sig=private";
+    const video720 = "https://cdn.example/video/720.mp4?sig=private";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(envelope({
+      id: "post-1", status: "published", attachments: [{
+        id: "video-1", kind: "video", status: "ready", posterUrl: poster,
+        mp4Urls: { "720": video720, "1080": "https://cdn.example/unsupported-1080.mp4" },
+      }],
+    })));
+    expect(await loadMomentMedia("post-1")).toMatchObject([{
+      id: "video-1", kind: "video", url: poster, mp4Urls: { 720: video720 },
+    }]);
+  });
+
   it("accepts only explicitly signed isolated loopback Feed media, never naked or foreign HTTP", async () => {
     const signed="http://127.0.0.1:9000/gafus-refactor-feed-test/feed/photo.webp"+
       "?X-Amz-Expires=60&X-Amz-Signature=synthetic";

@@ -1,4 +1,11 @@
 // @vitest-environment jsdom
+vi.mock("../../shared/media/browserPhotoWebp",()=>({
+  prepareBrowserPhotoWebp:vi.fn(async(_original:File,edges:Record<string,number>)=>
+    Object.fromEntries(Object.entries(edges).map(([name,edge])=>[
+      name,{file:new File([new Uint8Array(128)],name+".webp",{type:"image/webp"}),
+        width:edge,height:Math.round(edge*.75)},
+    ]))),
+}));
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -132,9 +139,9 @@ describe("question publication through shared Core/Hono", () => {
   it("uploads the selected photo before sending its ID with question creation", async () => {
     const direct = installQuestionPhotoV2Browser("blob:local-upload");
     const fake = vi.fn((path: string, init?: RequestInit) => {
-      if (path === "/api/v1/questions/photos/reservations")
+      if (path === "/api/v1/questions/photos/client-reservations")
         return Promise.resolve(photoV2Reservation("photo-1"));
-      if (path === "/api/v1/questions/photos/photo-1/confirm")
+      if (path === "/api/v1/questions/photos/photo-1/client-confirm")
         return Promise.resolve(photoV2Confirmation("photo-1"));
       if (path === "/api/v1/questions" && init?.method === "POST")
         return Promise.resolve(api({ id: "question-C" }));
@@ -163,15 +170,18 @@ describe("question publication through shared Core/Hono", () => {
       title: "Почему собака боится улицы?",
       photoIds: ["photo-1"], clientRequestId: UUID,
     });
-    const reservation = fake.mock.calls.find(call=>call[0] === "/api/v1/questions/photos/reservations");
+    const reservation = fake.mock.calls.find(call=>call[0] === "/api/v1/questions/photos/client-reservations");
     expect(reservation?.[1]?.credentials).toBe("include");
-    expect(JSON.parse(String(reservation?.[1]?.body))).toEqual({mime:"image/jpeg",bytes:3});
-    expect(direct).toHaveLength(1);
-    expect(direct[0]).toMatchObject({method:"POST",withCredentials:false});
-    expect(direct[0]?.form?.get("key")).toBe("questions/v2/photo-1/source.jpg");
-    expect((direct[0]?.form?.get("file") as File).name).toBe("dog.jpg");
+    expect(JSON.parse(String(reservation?.[1]?.body))).toEqual({mediumBytes:128});
+    expect(direct).toHaveLength(2);
+    expect(direct.every(post=>post.method==="POST"&&!post.withCredentials)).toBe(true);
+    expect(direct.map(post=>post.form?.get("key"))).toEqual([
+      "questions/v2/photo-1/incoming/small.webp",
+      "questions/v2/photo-1/incoming/source.webp",
+    ]);
+    expect((direct[0]?.form?.get("file") as File).type).toBe("image/webp");
     expect(fake.mock.calls.map(([path])=>path))
-      .toContain("/api/v1/questions/photos/photo-1/confirm");
+      .toContain("/api/v1/questions/photos/photo-1/client-confirm");
   });
 
   it("retry of identical content reuses UUID after HTTP failure", async () => {

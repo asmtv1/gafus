@@ -9,9 +9,20 @@ import {
 const id = "room_1", owner = "actor_1", mediaId = randomUUID();
 describe("Chat 2.0 Moments V2 future-job contract", () => {
   it("uses the same image dimensions, video tiers and duration cap as Moments", () => {
-    expect(CHAT2_V2_IMAGE_EDGES).toEqual({ small: 360, medium: 720 });
+    expect(CHAT2_V2_IMAGE_EDGES).toEqual({ small: 360, medium: 1440 });
     expect(CHAT2_V2_VIDEO_QUALITIES).toEqual([360, 720]);
     expect(CHAT2_V2_MAX_DURATION_SECONDS).toBe(120);
+  });
+  it("accepts 1440px chat photos in both orientations and rejects 1441px",()=>{
+    const job={conversationId:id,ownerId:owner,mediaId,sourceMime:"image/webp" as const,
+      sourceBytes:4096,sourceKey:chat2V2SourceKey(id,owner,mediaId,"image/webp")};
+    const keys=chat2V2FinalKeys(id,owner,mediaId).image;
+    const make=(width:number,height:number)=>({kind:"image" as const,width,height,keys,
+      imageSizes:{small:{width:360,height:225},medium:{width,height}}});
+    expect(()=>validateChat2V2Manifest(job,make(1440,900))).not.toThrow();
+    expect(()=>validateChat2V2Manifest(job,make(900,1440))).not.toThrow();
+    expect(()=>validateChat2V2Manifest(job,make(1441,900))).toThrow("CHAT2_V2_INVALID_MANIFEST");
+    expect(()=>validateChat2V2Manifest(job,make(900,1441))).toThrow("CHAT2_V2_INVALID_MANIFEST");
   });
   it("reserves strictly isolated originals and immutable WebP/MP4 variants", () => {
     expect(chat2V2SourceKey(id, owner, mediaId, "video/quicktime"))

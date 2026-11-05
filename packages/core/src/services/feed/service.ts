@@ -1,3 +1,4 @@
+import { feedClientPhotoStageKeys } from "./clientPhotoStageKeys";
 import { stableMediaExpiry, stablePublicFeedExpiry } from "../mediaDelivery/signedExpiry";
 import { signFeedMediaUrls } from "./media-urls";
 import { assertFeedPublishingAllowed } from "./preferences";
@@ -184,6 +185,37 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       publishedMediaCount: revision.attachments.length,
     });
     return true;
+  }
+  /** Stale client-prepared photo/video S3 COPY has no Cloud.ru primary Job.
+   * Reopen only when its exact final-key cleanup guard proves client ownership.
+   * Never alter normal worker-owned PROCESSING rows.
+   */
+  async function recoverClientMediaLease(actorId: string, uploadId: string,
+    known?: { status: string; leaseUntil: Date | null; postId: string } | null) {
+    const candidate = known ?? await db.feedUpload.findFirst({ where: { id: uploadId, ownerId: actorId } });
+    if (!candidate || candidate.status !== "processing" ||
+        !candidate.leaseUntil || candidate.leaseUntil >= now()) return;
+    await transact(async tx => {
+      await lock(tx, candidate.postId);
+      const row = await tx.feedUpload.findFirst({ where: { id: uploadId, ownerId: actorId } });
+      if (!row || row.status !== "processing" || !row.leaseUntil || row.leaseUntil >= now()) return;
+      const guardDedupe = row.declaredMime === "video/mp4"
+        ? `feed-client-video-final-guard:${uploadId}`
+        : `feed-client-final-guard:${uploadId}`;
+      const guard = await tx.feedStorageJob.findUnique({
+        where: { dedupeKey: guardDedupe },
+      });
+      if (!guard || guard.ownerId !== actorId || guard.status !== "pending") return;
+      const result = await tx.feedUpload.updateMany({
+        where: { id: uploadId, ownerId: actorId, status: "processing",
+          attemptToken: row.attemptToken, leaseUntil: { lt: now() } },
+        data: { status: "reserved", attemptToken: null, leaseUntil: null },
+      });
+      if (result.count) await tx.feedMediaAsset.updateMany({
+        where: { id: row.mediaId, ownerId: actorId, status: "processing" },
+        data: { status: "reserved" },
+      });
+    });
   }
   const service = {
     async list(actorId: string, query: FeedPostListQuery = {}, bookmarksOnly = false): Promise<FeedPostPageDto> {
@@ -481,7 +513,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
     },
     editor,
     /** Authoritative media lookup for short-lived outage fallback, never trusting a client path. */
-    async fallbackSource(actorId: string, mediaId: string, variant: "thumb" | "full" | "poster" | "video360" | "video720" | "video1080") {
+    async fallbackSource(actorId: string, mediaId: string, variant: "thumb" | "full" | "poster" | "video360" | "video720") {
       await actor(actorId);
       s.feedParse(s.feedIdSchema, mediaId);
       const media = await db.feedMediaAsset.findFirst({ where: { id: mediaId, status: "ready" } });
@@ -505,7 +537,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
               moderationState: "visible" } }, select: { mediaId: true },
           }) : null;
       if (!linked && !pollPhoto && !commentMedia) throw new FeedError("NOT_FOUND", undefined, 404);
-      const videoQuality = /^video(360|720|1080)$/.exec(variant)?.[1];
+      const videoQuality = /^video(360|720)$/.exec(variant)?.[1];
       const expectedVideoKey = videoQuality ? `media/v2/${media.id}/v1/video/${videoQuality}.mp4` : null;
       const key = expectedVideoKey
         ? media.mp4Keys.includes(expectedVideoKey) ? expectedVideoKey : null
@@ -609,17 +641,26 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       await actor(actorId);
       if (!storage.enabled) throw new FeedError("FEED_DISABLED", "Обработка вложений пока недоступна", 503);
       const value = s.feedParse(s.feedUploadSchema, input);
+      if (value.kind === "photo" && (value.declaredMime !== "image/webp" ||
+          value.declaredBytes > 1_750_000))
+        throw new FeedError("VALIDATION_ERROR", "Нужна фотография WebP, подготовленная на устройстве", 410);
       // Purpose determines authorization, not a second storage/processing pipeline.
       // A published post allows comment-media uploads by other authenticated users.
       // A draft only allows uploads by its author.
       // A signed POST may have succeeded while its Complete ACK was lost.
       // Probe the existing owner's key OUTSIDE the PostgreSQL transaction;
       // do not expire a valid uploaded object merely because the POST URL aged.
-      const prior = await db.feedUpload.findUnique({
+      let prior = await db.feedUpload.findUnique({
         where: { ownerId_clientRequestId: {
           ownerId: actorId, clientRequestId: value.clientRequestId,
         } },
       });
+      if (prior?.status === "processing" && prior.leaseUntil && prior.leaseUntil < now()) {
+        await recoverClientMediaLease(actorId, prior.id, prior);
+        prior = await db.feedUpload.findUnique({
+          where: { ownerId_clientRequestId: { ownerId: actorId, clientRequestId: value.clientRequestId } },
+        });
+      }
       let recoveredSource: { id: string; etag: string } | null = null;
       if (prior?.status === "reserved" && prior.postExpiresAt <= now() &&
           prior.reservationExpiresAt > now()) {
@@ -646,7 +687,8 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
           const fingerprint = createHash("sha256").update(JSON.stringify({ postId, kind: value.kind, declaredMime: value.declaredMime, declaredBytes: value.declaredBytes, filename: value.filename, ...(value.purpose === "comment" ? { purpose: "comment" } : {}) })).digest("hex");
           if (previous.requestFingerprint !== fingerprint) throw new FeedError("VERSION_CONFLICT", undefined, 409);
           if (previous.status === "reserved" && previous.postExpiresAt <= now()) {
-            if (previous.reservationExpiresAt > now() &&
+            if (!previous.declaredMime.startsWith("image/") &&
+                previous.reservationExpiresAt > now() &&
                 recoveredSource?.id === previous.id) {
               // Same verified object, recovered after a lost Complete ACK.
               // Preserve its original media ID and enqueue the normal worker.
@@ -658,7 +700,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
                 dedupeKey: `feed-process:${previous.id}`,
                 postId, ownerId: actorId, uploadId: previous.id,
                 mediaId: previous.mediaId,
-                kind: previous.declaredMime.startsWith("image/") ? "publish_photo" : "publish_video",
+                kind: "publish_video",
                 sourceKeys: [previous.sourceKey],
               } });
               return { ...previous, status: "uploaded" as const };
@@ -707,6 +749,7 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
     async getUpload(actorId: string, uploadId: string): Promise<FeedUploadDto> {
       await actor(actorId);
       s.feedParse(s.feedIdSchema, uploadId);
+      await recoverClientMediaLease(actorId, uploadId);
       const row = await db.feedUpload.findFirst({ where: { id: uploadId, ownerId: actorId } });
       if (!row) throw new FeedError("NOT_FOUND", undefined, 404);
       return {
@@ -718,54 +761,256 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
         errorMessage: row.errorCode ? FEED_ERROR_MESSAGES.MEDIA_PROCESSING_FAILED : null,
       };
     },
+    /** Phone-side photo WebP renditions; old clients retain the Cloud Job route. */
+    async reserveClientRenditions(actorId: string, uploadId: string) {
+      await actor(actorId);
+      if (!storage.signClientRenditions || !storage.publishClientPhoto)
+        throw new FeedError("FEED_DISABLED", "Ускоренная загрузка ещё не включена", 503);
+      const row = await db.feedUpload.findFirst({ where: { id: uploadId, ownerId: actorId } });
+      if (!row) throw new FeedError("NOT_FOUND", undefined, 404);
+      if (row.status !== "reserved" || row.reservationExpiresAt <= now() ||
+          row.postExpiresAt <= now() || row.declaredMime !== "image/webp" ||
+          row.declaredBytes > 1_750_000)
+        throw new FeedError("VALIDATION_ERROR", "Недопустимая загрузка готовых фото", 409);
+      let staging: ReturnType<typeof feedClientPhotoStageKeys>;
+      try { staging = feedClientPhotoStageKeys(row.sourceKey); }
+      catch { throw new FeedError("VALIDATION_ERROR", "Неверный временный ключ фото", 422); }
+      const guardKeys = [staging.small, staging.medium];
+      await transact(async tx => {
+        await lock(tx, row.postId);
+        const fresh = await tx.feedUpload.findUnique({ where: { id: uploadId } });
+        if (!fresh || fresh.ownerId !== actorId || fresh.status !== "reserved")
+          throw new FeedError("VALIDATION_ERROR", undefined, 409);
+        await tx.feedStorageJob.upsert({
+          where: { dedupeKey: `feed-client-staging:${uploadId}` },
+          create: { dedupeKey: `feed-client-staging:${uploadId}`, ownerId: actorId,
+            uploadId, postId: row.postId, mediaId: row.mediaId, kind: "delete_keys",
+            sourceKeys: guardKeys, availableAt: new Date(row.postExpiresAt.getTime() + 60_000) },
+          update: {},
+        });
+        await tx.feedStorageJob.upsert({
+          where: { dedupeKey: `feed-client-final-guard:${uploadId}` },
+          create: { dedupeKey: `feed-client-final-guard:${uploadId}`, ownerId: actorId,
+            uploadId, postId: row.postId, mediaId: row.mediaId, kind: "delete_keys",
+            sourceKeys: [`media/v2/${row.mediaId}/v1/image/s.webp`,
+              `media/v2/${row.mediaId}/v1/image/m.webp`, `media/v2/${row.mediaId}/v1/image/l.webp`],
+            availableAt: new Date(row.reservationExpiresAt.getTime() + 120_000) },
+          update: {},
+        });
+      });
+      const signed = await storage.signClientRenditions({
+        sourceKey: row.sourceKey, expiresAt: row.postExpiresAt,
+      });
+      return { small: { ...signed.small, method: "POST" as const },
+        medium: { ...signed.medium, method: "POST" as const } };
+    },
+    async completeClientPhoto(actorId: string, uploadId: string): Promise<FeedUploadDto> {
+      await actor(actorId);
+      if (!storage.publishClientPhoto)
+        throw new FeedError("FEED_DISABLED", "Ускоренная загрузка ещё не включена", 503);
+      await recoverClientMediaLease(actorId, uploadId);
+      const row = await db.feedUpload.findFirst({ where: { id: uploadId, ownerId: actorId } });
+      if (!row) throw new FeedError("NOT_FOUND", undefined, 404);
+      if (row.status === "ready") return service.getUpload(actorId, uploadId);
+      if (row.status !== "reserved" || row.declaredMime !== "image/webp" ||
+          row.reservationExpiresAt <= now() || row.declaredBytes > 1_750_000)
+        throw new FeedError("VALIDATION_ERROR", "Файл нельзя подтвердить", 409);
+      const head = await storage.head(row.sourceKey);
+      if (!head || head.contentType !== "image/webp" || head.bytes !== row.declaredBytes || !head.etag)
+        throw new FeedError("VALIDATION_ERROR", "Файл не прошёл проверку S3", 422);
+      const token = randomUUID();
+      const claimed = await transact(async tx => {
+        await lock(tx, row.postId);
+        const post = row.purpose === "comment"
+          ? await tx.feedPost.findFirst({ where: { id: row.postId, status: "published",
+            deletedAt: null, moderationState: "visible" } })
+          : await ownedPost(tx, actorId, row.postId);
+        if (!post) throw new FeedError("NOT_FOUND", undefined, 404);
+        const fresh = await tx.feedUpload.findUnique({ where: { id: uploadId } });
+        if (!fresh || fresh.status !== "reserved" || fresh.reservationExpiresAt <= now())
+          throw new FeedError("VALIDATION_ERROR", "Повторное подтверждение", 409);
+        await tx.feedUpload.update({ where: { id: uploadId }, data: {
+          status: "processing", attemptToken: token, sourceETag: head.etag,
+          leaseUntil: new Date(now().getTime() + 180_000),
+        } });
+        await tx.feedMediaAsset.update({ where: { id: row.mediaId }, data: { status: "processing" } });
+        return true;
+      });
+      if (!claimed) throw new FeedError("VALIDATION_ERROR", undefined, 409);
+      const keys = { sourceKey: row.sourceKey,
+        smallKey: `media/v2/${row.mediaId}/v1/image/s.webp`,
+        thumbKey: `media/v2/${row.mediaId}/v1/image/m.webp`,
+        fullKey: `media/v2/${row.mediaId}/v1/image/l.webp` };
+      try {
+        const output = await storage.publishClientPhoto(keys);
+        await transact(async tx => {
+          await lock(tx, row.postId);
+          const fresh = await tx.feedUpload.findUnique({ where: { id: uploadId } });
+          if (!fresh || fresh.ownerId !== actorId || fresh.status !== "processing" ||
+              fresh.attemptToken !== token)
+            throw new FeedError("VALIDATION_ERROR", "Подтверждение устарело", 409);
+          const verified = await Promise.all([keys.smallKey,keys.thumbKey,keys.fullKey]
+            .map(key => storage.head(key)));
+          if (verified.some(v => !v || !v.etag || v.bytes <= 0 || v.contentType !== "image/webp"))
+            throw new FeedError("VALIDATION_ERROR", "Варианты фото не найдены в S3", 422);
+          await tx.feedMediaAsset.update({ where: { id: row.mediaId }, data: {
+            status: "ready", width: output.width, height: output.height,
+            smallKey: keys.smallKey, thumbKey: keys.thumbKey, fullKey: keys.fullKey,
+          } });
+          await tx.feedUpload.update({ where: { id: uploadId }, data: {
+            status: "ready", attemptToken: null, leaseUntil: null,
+          } });
+          await tx.feedStorageJob.updateMany({
+            where: { dedupeKey: `feed-client-final-guard:${uploadId}`, ownerId: actorId, status: "pending" },
+            data: { status: "completed" },
+          });
+        });
+        return service.getUpload(actorId, uploadId);
+      } catch (error) {
+        await transact(async tx => {
+          await lock(tx, row.postId);
+          const reset = await tx.feedUpload.updateMany({
+            where: { id: uploadId, ownerId: actorId, status: "processing", attemptToken: token },
+            data: { status: "reserved", attemptToken: null, leaseUntil: null },
+          });
+          if (reset.count) await tx.feedMediaAsset.updateMany({
+            where: { id: row.mediaId, ownerId: actorId, status: "processing" }, data: { status: "reserved" },
+          });
+        });
+        throw error;
+      }
+    },
+    /** Reserve only an owner-derived private poster.webp staging key for MP4. */
+    async reserveClientVideoPoster(actorId:string,uploadId:string) {
+      await actor(actorId);s.feedParse(s.feedIdSchema,uploadId);
+      if(!storage.signClientVideoPoster)
+        throw new FeedError("FEED_DISABLED","Загрузка обложки недоступна",503);
+      const row=await db.feedUpload.findFirst({where:{id:uploadId,ownerId:actorId}});
+      if(!row)throw new FeedError("NOT_FOUND",undefined,404);
+      if(row.declaredMime!=="video/mp4"||row.status!=="reserved"||
+        row.reservationExpiresAt<=now()||row.postExpiresAt<=now())
+        throw new FeedError("VALIDATION_ERROR","Загрузка обложки устарела",409);
+      const stage=row.sourceKey.replace(/source\.mp4$/,"poster.webp");
+      if(stage===row.sourceKey)throw new FeedError("VALIDATION_ERROR",undefined,422);
+      await transact(async tx=>{
+        await lock(tx,row.postId);
+        const fresh=await tx.feedUpload.findUnique({where:{id:uploadId}});
+        if(!fresh||fresh.ownerId!==actorId||fresh.status!=="reserved")
+          throw new FeedError("VERSION_CONFLICT",undefined,409);
+        await tx.feedStorageJob.upsert({
+          where:{dedupeKey:`feed-client-video-staging:${uploadId}`},
+          create:{dedupeKey:`feed-client-video-staging:${uploadId}`,kind:"delete_keys",
+            ownerId:actorId,postId:row.postId,mediaId:row.mediaId,uploadId,
+            sourceKeys:[stage],availableAt:new Date(row.postExpiresAt.getTime()+60_000)},update:{},
+        });
+      });
+      return {...await storage.signClientVideoPoster({sourceKey:row.sourceKey,
+        expiresAt:row.postExpiresAt}),method:"POST" as const};
+    },
+    /** A ready H.264 720p and device-generated poster are published here,
+     * without waiting on the optional 360p Job.
+     * Only server-verified S3 MP4 metadata is accepted; the user supplies no
+     * width/fps/duration/key and cannot promote an arbitrary S3 object.
+     */
     async completeUpload(actorId: string, uploadId: string): Promise<FeedUploadDto> {
       await actor(actorId);
       s.feedParse(s.feedIdSchema, uploadId);
-      if (!storage.enabled) throw new FeedError("FEED_DISABLED", "Обработка вложений пока недоступна", 503);
-      const existing = await db.feedUpload.findFirst({ where: { id: uploadId, ownerId: actorId } });
-      if (!existing) throw new FeedError("NOT_FOUND", undefined, 404);
-      if (existing.status !== "reserved") return service.getUpload(actorId, uploadId);
-      if (existing.reservationExpiresAt <= now()) {
-        await db.feedUpload.updateMany({
-          where: { id: uploadId, ownerId: actorId, status: "reserved" },
-          data: { status: "expired" },
-        });
-        throw new FeedError("UPLOAD_EXPIRED", undefined, 409);
-      }
-      const metadata = await storage.head(existing.sourceKey);
-      if (!metadata) throw new FeedError("VALIDATION_ERROR", "Загрузка файла ещё не завершена", 409);
-      if (metadata.contentType !== existing.declaredMime || metadata.bytes !== existing.declaredBytes ||
-          metadata.bytes <= 0 || metadata.bytes > (existing.declaredMime.startsWith("image/") ? L.photoBytes : L.videoBytes)) {
-        throw new FeedError("VALIDATION_ERROR", "Файл не соответствует заявленным параметрам", 422);
-      }
+      if (!storage.enabled || !storage.publishClientVideo)
+        throw new FeedError("FEED_DISABLED", "Хранилище видео недоступно", 503);
+      await recoverClientMediaLease(actorId, uploadId);
+      const row = await db.feedUpload.findFirst({ where: { id: uploadId, ownerId: actorId } });
+      if (!row) throw new FeedError("NOT_FOUND", undefined, 404);
+      if (row.declaredMime !== "video/mp4")
+        throw new FeedError("VALIDATION_ERROR", "Отправьте готовое видео MP4 H.264", 410);
+      if (row.status === "ready") return service.getUpload(actorId, uploadId);
+      if (row.status !== "reserved" || row.reservationExpiresAt <= now())
+        throw new FeedError("UPLOAD_EXPIRED", "Загрузка устарела. Повторите отправку этого видео", 409);
+      const metadata = await storage.head(row.sourceKey);
+      if (!metadata || metadata.contentType !== "video/mp4" ||
+          metadata.bytes !== row.declaredBytes || !metadata.etag)
+        throw new FeedError("VALIDATION_ERROR", "S3 не подтвердил загрузку MP4", 422);
+      const finalKey = `media/v2/${row.mediaId}/v1/video/720.mp4`;
+      const posterKey = `media/v2/${row.mediaId}/v1/poster.webp`;
+      const token = randomUUID();
       await transact(async tx => {
-        await lock(tx, existing.postId);
-        const post = existing.purpose === "comment"
-          ? await tx.feedPost.findFirst({ where: {
-              id: existing.postId, status: "published", deletedAt: null, moderationState: "visible",
-            } }) : await ownedPost(tx, actorId, existing.postId);
-        if (!post || post.deletedAt) throw new FeedError("NOT_FOUND", undefined, 404);
-        const fresh = await tx.feedUpload.findUnique({ where: { id: uploadId } });
-        if (fresh?.status !== "reserved") return;
-        if (fresh.reservationExpiresAt <= now()) throw new FeedError("UPLOAD_EXPIRED", undefined, 409);
-        await tx.feedUpload.update({
-          where: { id: uploadId },
-          data: { status: "uploaded", sourceETag: metadata.etag },
+        await lock(tx,row.postId);
+        const post = row.purpose === "comment"
+          ? await tx.feedPost.findFirst({where:{id:row.postId,status:"published",
+              deletedAt:null,moderationState:"visible"}})
+          : await ownedPost(tx,actorId,row.postId);
+        if (!post) throw new FeedError("NOT_FOUND",undefined,404);
+        const fresh=await tx.feedUpload.findUnique({where:{id:uploadId}});
+        if (!fresh || fresh.ownerId !== actorId || fresh.status !== "reserved" ||
+            fresh.reservationExpiresAt <= now())
+          throw new FeedError("VERSION_CONFLICT", "Загрузка уже подтверждается", 409);
+        await tx.feedStorageJob.upsert({
+          where:{dedupeKey:`feed-client-video-final-guard:${uploadId}`},
+          create:{dedupeKey:`feed-client-video-final-guard:${uploadId}`,
+            ownerId:actorId,postId:row.postId,mediaId:row.mediaId,uploadId,
+            kind:"delete_keys",sourceKeys:[finalKey,posterKey],
+            availableAt:new Date(row.postExpiresAt.getTime()+180_000)},update:{},
         });
-        await tx.feedMediaAsset.update({
-          where: { id: fresh.mediaId },
-          data: { status: "uploaded" },
-        });
-        await tx.feedStorageJob.create({
-          data: {
-            dedupeKey: `feed-process:${uploadId}`, postId: fresh.postId,
-            ownerId: actorId, uploadId, mediaId: fresh.mediaId,
-            kind: fresh.declaredMime.startsWith("image/") ? "publish_photo" : "publish_video",
-            sourceKeys: [fresh.sourceKey],
-          },
-        });
+        await tx.feedUpload.update({where:{id:uploadId},data:{status:"processing",
+          attemptToken:token,leaseUntil:new Date(now().getTime()+180_000),
+          sourceETag:metadata.etag}});
+        await tx.feedMediaAsset.update({where:{id:row.mediaId},data:{status:"processing"}});
       });
-      return service.getUpload(actorId, uploadId);
+      try {
+        const output=await storage.publishClientVideo({sourceKey:row.sourceKey,
+          finalKey,posterKey,bytes:row.declaredBytes});
+        const [finalHead,posterHead]=await Promise.all([
+          storage.head(finalKey),storage.head(posterKey),
+        ]);
+        if(!finalHead || finalHead.contentType!=="video/mp4" ||
+            finalHead.bytes!==row.declaredBytes || !finalHead.etag ||
+            !posterHead || posterHead.contentType!=="image/webp" ||
+            posterHead.bytes<12 || posterHead.bytes>1_750_000 || !posterHead.etag)
+          throw new FeedError("VALIDATION_ERROR", "MP4 не удалось сохранить в S3", 422);
+        await transact(async tx=>{
+          await lock(tx,row.postId);
+          const fresh=await tx.feedUpload.findUnique({where:{id:uploadId}});
+          if(!fresh || fresh.ownerId!==actorId || fresh.status!=="processing" ||
+              fresh.attemptToken!==token)
+            throw new FeedError("VERSION_CONFLICT", "Подтверждение видео устарело",409);
+          await tx.feedMediaAsset.update({where:{id:row.mediaId},data:{
+            status:"ready",width:output.width,height:output.height,
+            durationSeconds:output.durationSeconds,mp4Keys:[finalKey],posterKey,
+          }});
+          await tx.feedUpload.update({where:{id:uploadId},data:{
+            status:"ready",attemptToken:null,leaseUntil:null,
+          }});
+          await tx.feedStorageJob.upsert({
+            where:{dedupeKey:`feed-video-360:${row.mediaId}`},
+            create:{dedupeKey:`feed-video-360:${row.mediaId}`,kind:"publish_video",
+              ownerId:actorId,postId:row.postId,mediaId:row.mediaId,
+              uploadId:null,sourceKeys:[finalKey],
+              targetKeys:[`media/v2/${row.mediaId}/v1/video/360.mp4`],availableAt:now()},
+            update:{},
+          });
+          await tx.feedStorageJob.updateMany({where:{
+            dedupeKey:`feed-client-video-final-guard:${uploadId}`,status:"pending",
+          },data:{status:"completed"}});
+          await tx.feedStorageJob.upsert({
+            where:{dedupeKey:`feed-client-video-source-cleanup:${uploadId}`},
+            create:{dedupeKey:`feed-client-video-source-cleanup:${uploadId}`,
+              kind:"delete_keys",ownerId:actorId,postId:row.postId,
+              mediaId:row.mediaId,uploadId,sourceKeys:[row.sourceKey],
+              availableAt:new Date(Math.max(now().getTime(),row.postExpiresAt.getTime())+60_000)},
+            update:{},
+          });
+        });
+        return service.getUpload(actorId,uploadId);
+      }catch(cause){
+        await transact(async tx=>{
+          await lock(tx,row.postId);
+          const reset=await tx.feedUpload.updateMany({where:{id:uploadId,
+            ownerId:actorId,status:"processing",attemptToken:token},
+            data:{status:"reserved",attemptToken:null,leaseUntil:null}});
+          if(reset.count)await tx.feedMediaAsset.updateMany({where:{
+            id:row.mediaId,ownerId:actorId,status:"processing"},data:{status:"reserved"}});
+        });
+        throw cause;
+      }
     },
     async cancelUpload(actorId: string, uploadId: string): Promise<FeedUploadDto> {
       await actor(actorId);
@@ -817,48 +1062,95 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
         clientRequestId: validated.clientRequestId,
       });
     },
+    /** Reuse already-encoded Gallery WebP through S3 CopyObject, not a photo Job.
+     * The idempotency binding is a FeedUpload row, never a queued image job.
+     */
     async copyAlbumPhoto(actorId: string, postId: string, input: FeedCopyAlbumPhotoInput) {
       await actor(actorId);
-      if (!storage.enabled) throw new FeedError("FEED_DISABLED", "Обработка вложений пока недоступна", 503);
+      if (!storage.enabled || !storage.copyGalleryPhotoVariants)
+        throw new FeedError("FEED_DISABLED", "Копирование фото из альбома не настроено", 503);
       const value = s.feedParse(s.feedCopyPhotoSchema, input);
-      return transact(async tx => {
+      const fingerprint = createHash("sha256").update(JSON.stringify({
+        kind: "album-webp-copy", postId, photoId: value.photoId,
+      })).digest("hex");
+      const pending = await transact(async tx => {
         await lock(tx, postId);
         const post = await ownedPost(tx, actorId, postId);
-        const previous = await tx.feedStorageJob.findUnique({
-          where: { dedupeKey: `copy-album:${postId}:${value.clientRequestId}` },
-        });
-        if (previous) {
-          if (!previous.mediaId || previous.ownerId !== actorId) {
-            throw new FeedError("VERSION_CONFLICT", undefined, 409);
-          }
-          const existing = await tx.feedMediaAsset.findFirst({
-            where: { id: previous.mediaId, postId, ownerId: actorId },
-          });
-          if (!existing) throw new FeedError("NOT_FOUND", undefined, 404);
-          return {
-            id: existing.id, kind: "photo" as const, position: 0, status: existing.status,
-            width: existing.width, height: existing.height, durationSeconds: null,
-            thumbUrl: null, fullUrl: null, posterUrl: null, urlsExpireAt: null,
-          };
-        }
         checkEditable(post, now());
-        const photo = await tx.galleryPhoto.findFirst({
-          where: { id: value.photoId, ownerId: actorId, deletedAt: null, status: "ready",
-            album: { deletedAt: null } },
-        });
-        if (!photo?.thumbKey || !photo.fullKey) throw new FeedError("NOT_FOUND", "Фотография недоступна", 404);
-        const id = randomUUID();
-        const base = `media/v2/${id}/v1/image`;
-        await tx.feedMediaAsset.create({ data: { id, postId, ownerId: actorId, kind: "photo", status: "processing" } });
-        await tx.feedStorageJob.create({ data: {
-          dedupeKey: `copy-album:${postId}:${value.clientRequestId}`, ownerId: actorId, postId, mediaId: id,
-          kind: "copy_album", sourceKeys: [photo.thumbKey, photo.fullKey],
-          targetKeys: [`${base}/s.webp`, `${base}/m.webp`, `${base}/l.webp`],
+        const photo = await tx.galleryPhoto.findFirst({ where: {
+          id: value.photoId, ownerId: actorId, deletedAt: null, status: "ready",
+          album: { deletedAt: null },
         } });
-        return { id, kind: "photo" as const, position: 0, status: "processing" as const,
-          width: photo.width, height: photo.height, durationSeconds: null, thumbUrl: null,
-          fullUrl: null, posterUrl: null, urlsExpireAt: null };
+        if (!photo?.thumbKey || !photo.fullKey)
+          throw new FeedError("NOT_FOUND", "Фотография недоступна", 404);
+        const previous = await tx.feedUpload.findUnique({
+          where: { ownerId_clientRequestId: { ownerId: actorId, clientRequestId: value.clientRequestId } },
+        });
+        if (previous && (previous.postId !== postId ||
+            previous.requestFingerprint !== fingerprint || previous.declaredMime !== "image/webp"))
+          throw new FeedError("VERSION_CONFLICT", "Конфликт повторной отправки", 409);
+        if (previous && !["ready", "processing"].includes(previous.status))
+          throw new FeedError("VERSION_CONFLICT", "Фотография уже отменена", 409);
+        if (previous) return {
+          uploadId: previous.id, mediaId: previous.mediaId,
+          photoId: photo.id, albumId: photo.albumId,
+          thumbKey: photo.thumbKey, fullKey: photo.fullKey,
+          ready: previous.status === "ready",
+        };
+        const uploadId = randomUUID(), mediaId = randomUUID(), at = now();
+        await tx.feedMediaAsset.create({ data: {
+          id: mediaId, ownerId: actorId, postId, kind: "photo", status: "processing",
+        } });
+        await tx.feedUpload.create({ data: {
+          id: uploadId, ownerId: actorId, postId, mediaId,
+          clientRequestId: value.clientRequestId, requestFingerprint: fingerprint,
+          filename: "album-photo.webp", declaredMime: "image/webp",
+          declaredBytes: 1, purpose: "post", status: "processing",
+          sourceKey: `posts/${actorId}/${postId}/incoming/${uploadId}/source.webp`,
+          postExpiresAt: new Date(at.getTime() + 600_000),
+          reservationExpiresAt: new Date(at.getTime() + 900_000),
+        } });
+        return { uploadId, mediaId, photoId: photo.id, albumId: photo.albumId,
+          thumbKey: photo.thumbKey, fullKey: photo.fullKey, ready: false };
       });
+      if (pending.ready) {
+        const existing = await db.feedMediaAsset.findUnique({ where: { id: pending.mediaId } });
+        if (!existing || existing.ownerId !== actorId || existing.status !== "ready")
+          throw new FeedError("VERSION_CONFLICT", "Результат копирования изменился", 409);
+        return { id: existing.id, kind: "photo" as const, position: 0,
+          status: "ready" as const, width: existing.width, height: existing.height,
+          durationSeconds: null, thumbUrl: null, fullUrl: null,
+          posterUrl: null, urlsExpireAt: null };
+      }
+      const copied = await storage.copyGalleryPhotoVariants({
+        ownerId: actorId, albumId: pending.albumId, photoId: pending.photoId,
+        mediaId: pending.mediaId, thumbKey: pending.thumbKey, fullKey: pending.fullKey,
+      });
+      await transact(async tx => {
+        await lock(tx, postId);
+        const post = await ownedPost(tx, actorId, postId);
+        if (post.deletedAt) throw new FeedError("NOT_FOUND", undefined, 404);
+        const row = await tx.feedUpload.findUnique({ where: { id: pending.uploadId } });
+        if (!row || row.ownerId !== actorId || row.mediaId !== pending.mediaId ||
+            !["processing", "ready"].includes(row.status))
+          throw new FeedError("VERSION_CONFLICT", "Копирование отменено", 409);
+        if (row.status === "ready") return;
+        const prefix = `media/v2/${pending.mediaId}/v1/image/`;
+        for (const key of [prefix+"s.webp",prefix+"m.webp",prefix+"l.webp"]) {
+          const meta = await storage.head(key);
+          if (!meta || meta.contentType !== "image/webp" || !meta.etag || !meta.bytes)
+            throw new FeedError("VALIDATION_ERROR", "S3 не подтвердил скопированное фото", 422);
+        }
+        await tx.feedMediaAsset.update({ where: { id: pending.mediaId }, data: {
+          status: "ready", width: copied.width, height: copied.height,
+          smallKey: prefix + "s.webp", thumbKey: prefix + "m.webp", fullKey: prefix + "l.webp",
+        } });
+        await tx.feedUpload.update({ where: { id: pending.uploadId }, data: { status: "ready" } });
+      });
+      return { id: pending.mediaId, kind: "photo" as const, position: 0,
+        status: "ready" as const, width: copied.width, height: copied.height,
+        durationSeconds: null, thumbUrl: null, fullUrl: null,
+        posterUrl: null, urlsExpireAt: null };
     },
     // Asset completion is handled exclusively by createFeedStorageJobs.complete():
     // its lease token and transactional CAS prevent a stale processor from publishing.

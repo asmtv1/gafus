@@ -8,18 +8,26 @@ const rootLayout = readFileSync(resolve(mobileRoot, "app/_layout.tsx"), "utf8");
 const courses = readFileSync(resolve(mobileRoot, "app/(main)/(tabs)/index.tsx"), "utf8");
 const app = JSON.parse(readFileSync(resolve(mobileRoot, "app.json"), "utf8")) as {
   expo: {
-    splash: { image: string };
-    ios: { splash: { image: string } };
+    splash: { image: string; resizeMode: string };
+    ios: { splash: { image: string; resizeMode: string } };
     plugins: unknown[];
   };
 };
 
 describe("mobile start screen uses one bundled static poster", () => {
-  it("shares the identical PNG between native splash and the React cover", () => {
+  it("displays the complete startup poster on tall screens without cropping", () => {
     expect(app.expo.splash.image).toBe("./assets/images/startup-splash.png");
     expect(app.expo.ios.splash.image).toBe("./assets/images/startup-splash.png");
     expect(startup).toContain('require("../../../assets/images/startup-splash.png")');
-    expect(startup).toContain('resizeMode="cover"');
+    expect(app.expo.splash.resizeMode).toBe("contain");
+    expect(app.expo.ios.splash.resizeMode).toBe("contain");
+    const splashPlugin = app.expo.plugins.find(
+      (plugin): plugin is [string, Record<string, unknown>] =>
+        Array.isArray(plugin) && plugin[0] === "expo-splash-screen",
+    );
+    expect(splashPlugin?.[1]).toMatchObject({ ios: { resizeMode: "contain" } });
+    expect(startup).toContain('resizeMode="contain"');
+    expect(startup).not.toContain('resizeMode="cover"');
     expect(startup).toContain("onLoadEnd={onReady}");
   });
   it("never waits on GIF animation for startup and holds native splash until JS image loads", () => {

@@ -1,0 +1,74 @@
+diff --git a/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/compressor/Compressor.kt b/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/compressor/Compressor.kt
+index 78773ed0614f252ebde5e6be078a10aee1589c35..ef7dfc4d8c6bd085d08a58696f6efe68a03a1a85 100644
+--- a/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/compressor/Compressor.kt
++++ b/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/compressor/Compressor.kt
+@@ -196,6 +196,7 @@ object Compressor {
+           var outputDone = false
+ 
+           var videoTrackIndex = -5
++          var lastRenderedTimestampUs = -1L // GAFUS: bound real output FPS, not just encoder metadata
+ 
+           inputSurface = InputSurface(encoder.createInputSurface())
+           inputSurface.makeCurrent()
+@@ -337,7 +338,10 @@ object Compressor {
+                                 }
+                                 decoderStatus < 0 -> throw RuntimeException("unexpected result from decoder.dequeueOutputBuffer: $decoderStatus")
+                                 else -> {
+-                                    val doRender = bufferInfo.size != 0
++                                    val timestampUs = bufferInfo.presentationTimeUs
++                                    val doRender = bufferInfo.size != 0 &&
++                                        (lastRenderedTimestampUs < 0 || timestampUs - lastRenderedTimestampUs >= 33_000L)
++                                    if (doRender) lastRenderedTimestampUs = timestampUs
+ 
+                                     decoder.releaseOutputBuffer(decoderStatus, doRender)
+                                     if (doRender) {
+diff --git a/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/utils/CompressorUtils.kt b/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/utils/CompressorUtils.kt
+index edcb37696759a358c70856fccfbd327471950134..f56fce3581bf54b662fee3da03420bb1a3cc3002 100644
+--- a/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/utils/CompressorUtils.kt
++++ b/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/utils/CompressorUtils.kt
+@@ -71,7 +71,7 @@ object CompressorUtils {
+     outputFormat: MediaFormat,
+     newBitrate: Int,
+   ) {
+-    val newFrameRate = getFrameRate(inputFormat)
++    val newFrameRate = getFrameRate(inputFormat).coerceIn(1, 30) // GAFUS: at most 30 FPS
+     val iFrameInterval = getIFrameIntervalRate(inputFormat)
+     outputFormat.apply {
+       setInteger(
+diff --git a/ios/Video/NextLevelSessionExporter.swift b/ios/Video/NextLevelSessionExporter.swift
+index c749e0d9b2853fc1264d563441d953f1afec3fa7..44b371b086de799cff1cece97cfc7fbde05edf16 100644
+--- a/ios/Video/NextLevelSessionExporter.swift
++++ b/ios/Video/NextLevelSessionExporter.swift
+@@ -479,7 +479,7 @@ extension NextLevelSessionExporter {
+             if frameRate == 0 {
+                 frameRate = 30
+             }
+-            videoComposition.frameDuration = CMTimeMake(value: 1, timescale: Int32(frameRate))
++            videoComposition.frameDuration = CMTimeMake(value: 1, timescale: min(30, max(1, Int32(frameRate))))
+             
+             // determine the appropriate size and transform
+             
+diff --git a/ios/Video/VideoMain.swift b/ios/Video/VideoMain.swift
+index af8a0b56637af10a898b697f823202dcdf788330..8a35e5f17e8bfbe9da4b3e4b2b5edcd65c3ca362 100644
+--- a/ios/Video/VideoMain.swift
++++ b/ios/Video/VideoMain.swift
+@@ -258,6 +258,10 @@ class VideoCompressor {
++        // Preserve 24/25 FPS sources. The common GAFUS maximum is 30 FPS.
++        let sourceFps = getVideoTrack(asset: asset).nominalFrameRate
++        let boundedFps = sourceFps.isFinite && sourceFps > 0 ? min(30, max(1, Int(ceil(sourceFps)))) : 30
+         let compressionDict: [String: Any] = [
+           AVVideoAverageBitRateKey: bitRate,
+           AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
++          AVVideoAverageNonDroppableFrameRateKey: NSNumber(value: boundedFps), // GAFUS <=30 FPS
+         ]
+         exporter.optimizeForNetworkUse = true;
+         exporter.videoOutputConfiguration = [
+@@ -269,7 +270,7 @@ class VideoCompressor {
+         ]
+         exporter.audioOutputConfiguration = [
+           AVFormatIDKey: kAudioFormatMPEG4AAC,
+-          AVEncoderBitRateKey: NSNumber(integerLiteral: 128000),
++          AVEncoderBitRateKey: NSNumber(integerLiteral: 96000), // GAFUS AAC 96kbps
+           AVNumberOfChannelsKey: NSNumber(integerLiteral: 2),
+           AVSampleRateKey: NSNumber(value: Float(44100))
+         ]

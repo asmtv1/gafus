@@ -28,33 +28,39 @@ const url="https://refactor.example.invalid"+path;
 describe("Chat2 Job Core strict HMAC transport",()=>{
   it("accepts signed bounded claim and supports one job",async()=>{
     const {dispatch,queue,consumeNonce}=fixture();
-    const reply=await dispatch(signed(url,JSON.stringify({batchSize:1,kind:"image"})),path);
+    const reply=await dispatch(signed(url,JSON.stringify({batchSize:1,kind:"video"})),path);
     expect(reply).toEqual({jobs:[]});expect(queue.claimOne).toHaveBeenCalledTimes(1);
     expect(consumeNonce).toHaveBeenCalledTimes(1);
   });
   it("rejects replay even with a valid unchanged signature",async()=>{
     const {dispatch,queue}=fixture();const nonce=randomUUID();
-    await dispatch(signed(url,'{"batchSize":1,"kind":"image"}',{nonce}),path);
-    await expect(dispatch(signed(url,'{"batchSize":1,"kind":"image"}',{nonce}),path)).rejects.toMatchObject({status:401});
+    await dispatch(signed(url,'{"batchSize":1,"kind":"video"}',{nonce}),path);
+    await expect(dispatch(signed(url,'{"batchSize":1,"kind":"video"}',{nonce}),path)).rejects.toMatchObject({status:401});
     expect(queue.claimOne).toHaveBeenCalledTimes(1);
   });
   it("rejects changed payload, stale timestamp, unsigned and query-string requests",async()=>{
     const {dispatch,queue}=fixture();
-    await expect(dispatch(signed(url,'{"batchSize":2,"kind":"image"}',{signature:"0".repeat(64)}),path))
+    await expect(dispatch(signed(url,'{"batchSize":2,"kind":"video"}',{signature:"0".repeat(64)}),path))
       .rejects.toMatchObject({status:401});
-    await expect(dispatch(signed(url,'{"batchSize":1,"kind":"image"}',{stamp:String(Math.floor(Date.now()/1000)-500)}),path))
+    await expect(dispatch(signed(url,'{"batchSize":1,"kind":"video"}',{stamp:String(Math.floor(Date.now()/1000)-500)}),path))
       .rejects.toMatchObject({status:401});
-    await expect(dispatch(new Request(url,{method:"POST",body:'{"batchSize":1,"kind":"image"}'}),path))
+    await expect(dispatch(new Request(url,{method:"POST",body:'{"batchSize":1,"kind":"video"}'}),path))
       .rejects.toMatchObject({status:415});
-    await expect(dispatch(signed(url+"?x=1",'{"batchSize":1,"kind":"image"}'),path))
+    await expect(dispatch(signed(url+"?x=1",'{"batchSize":1,"kind":"video"}'),path))
       .rejects.toMatchObject({status:404});
     expect(queue.claimOne).not.toHaveBeenCalled();
   });
   it("rejects invalid JSON command and forbidden batch size after signature",async()=>{
     const {dispatch,queue}=fixture();
-    await expect(dispatch(signed(url,'{"batchSize":2,"kind":"image"}'),path))
+    await expect(dispatch(signed(url,'{"batchSize":2,"kind":"video"}'),path))
       .rejects.toMatchObject({status:400});
-    await expect(dispatch(signed(url,'{"batchSize":1,"kind":"image","inject":true}'),path))
+    await expect(dispatch(signed(url,'{"batchSize":1,"kind":"video","inject":true}'),path))
+      .rejects.toMatchObject({status:400});
+    expect(queue.claimOne).not.toHaveBeenCalled();
+  });
+  it("rejects retired image claims even when signed",async()=>{
+    const {dispatch,queue}=fixture();
+    await expect(dispatch(signed(url,'{"batchSize":1,"kind":"image"}'),path))
       .rejects.toMatchObject({status:400});
     expect(queue.claimOne).not.toHaveBeenCalled();
   });

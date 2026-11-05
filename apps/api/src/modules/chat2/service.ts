@@ -19,7 +19,7 @@ export { dto } from "./messageDto.js";
 export class Chat2Error extends Error {
   constructor(
     public code: string,
-    public status: 400 | 403 | 404 | 409 | 429 | 503,
+    public status: 400 | 403 | 404 | 409 | 410 | 429 | 503,
     message: string,
   ) {
     super(message);
@@ -712,7 +712,7 @@ export async function messages(userId: string, id: string, before?: bigint, afte
     }),
   }));
 }
-/** Redis is only a wake-up signal. PostgreSQL QUEUED is authoritative if
+/** Redis is only a wake-up signal. PostgreSQL QUEUED or READY/due-360 is authoritative if
  * the API crashes or the signal fails after message commit. */
 async function wakeCommittedChat2Media(userId:string,conversationId:string,messageId:string,ids:string[]){
   const rows=await prisma.chat2Media.findMany({
@@ -723,7 +723,10 @@ async function wakeCommittedChat2Media(userId:string,conversationId:string,messa
     .map(row=>row.objectKey.slice("chat2-v2:".length));
   if(!mediaIds.length)return;
   const tasks=await prisma.chat2V2MediaTask.findMany({
-    where:{mediaId:{in:mediaIds},status:"QUEUED"},
+    where:{mediaId:{in:mediaIds},OR:[
+      {status:"QUEUED"},
+      {status:"READY",sourceMime:"video/mp4",nextAttemptAt:{lte:new Date()}},
+    ]},
     select:{mediaId:true,sourceMime:true},
   });
   if(!tasks.length)return;
@@ -862,6 +865,13 @@ export async function sendMessage(
                 where:{mediaId:{in:v2Ids},conversationId:id,ownerId:userId,status:"UPLOADED"},
                 data:{status:"QUEUED",nextAttemptAt:new Date(),errorCode:null},
               });
+              // READY 720p is attached immediately. Only NOW may its
+              // background 360p Cloud Job run: never process abandoned drafts.
+              await tx.chat2V2MediaTask.updateMany({
+                where:{mediaId:{in:v2Ids},conversationId:id,ownerId:userId,
+                  status:"READY",sourceMime:"video/mp4"},
+                data:{nextAttemptAt:new Date(),attempts:0,errorCode:null},
+              });
             }
           }
           await tx.chat2OutboxEvent.create({
@@ -964,17 +974,19 @@ export async function blockUser(userId: string, otherId: string, blocked: boolea
       where: { directKey: key },
       select: { id: true },
     });
+    // Persist the block FIRST. Any reconnect racing the broker unsubscribe
+    // must encounter a committed readGate denial, never the old room grant.
+    await prisma.chat2Block.upsert({
+      where: { blockerId_blockedId: { blockerId: userId, blockedId: otherId } },
+      update: {},
+      create: { blockerId: userId, blockedId: otherId },
+    });
     if (room) {
       await Promise.all([
         revokeLiveRoomSubscription(userId, room.id),
         revokeLiveRoomSubscription(otherId, room.id),
       ]);
     }
-    await prisma.chat2Block.upsert({
-      where: { blockerId_blockedId: { blockerId: userId, blockedId: otherId } },
-      update: {},
-      create: { blockerId: userId, blockedId: otherId },
-    });
   } else await prisma.chat2Block.deleteMany({ where: { blockerId: userId, blockedId: otherId } });
   return { blocked };
 }
@@ -1249,9 +1261,8 @@ export async function moderateGroup(
   if (!target) return fail("NOT_FOUND", 404, "Участник не найден");
   if (target.role === "OWNER" || (actor.role === "ADMIN" && target.role !== "MEMBER"))
     return fail("FORBIDDEN", 403, "Недостаточно прав для этого участника");
-  if (action === "BAN" || action === "KICK") {
-    await revokeLiveRoomSubscription(targetId, id);
-  }
+  // A broker revoke before committing BAN creates a race: the client can
+  // reconnect in the gap. Commit the ban/kick first, then revoke the socket.
   if (action === "UNBAN") {
     if (target.role !== "BANNED") return fail("INVALID_STATE", 409, "Пользователь не исключён");
     await prisma.chat2Member.update({
@@ -1271,6 +1282,11 @@ export async function moderateGroup(
   } else if (action === "DEMOTE" && actor.role === "OWNER" && target.role === "ADMIN") {
     await prisma.chat2Member.update({ where: { id: target.id }, data: { role: "MEMBER" } });
   } else return fail("INVALID_STATE", 409, "Действие недоступно");
+  if (action === "BAN" || action === "KICK") {
+    // After this committed write, readGate denies all new subscriptions.
+    // Existing live sockets are explicitly revoked through private broker API.
+    await revokeLiveRoomSubscription(targetId, id);
+  }
   return { done: true };
 }
 export async function transferGroupOwner(userId: string, id: string, targetId: string) {

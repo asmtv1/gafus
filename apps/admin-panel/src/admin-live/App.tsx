@@ -8,6 +8,7 @@ import {
   type AuthActor,
 } from "./api";
 import { DataPanel } from "./DataPanel";
+import { VideoQualityPanel } from "./VideoQualityPanel";
 import { AdminActions } from "./AdminActions";
 import { FeatureFlagsEditor, PricingEditor } from "./SettingsEditors";
 import { Cynologists, Bookings } from "./Consultations";
@@ -146,6 +147,14 @@ function Section({
   const [rewardedDays, setRewardedDays] = useState<RewardedPeriod>(() =>
     rewardedPeriodFromSearch(window.location.search),
   );
+  const [videoQualityDays, setVideoQualityDays] = useState<RewardedPeriod>(() =>
+    rewardedPeriodFromSearch(window.location.search),
+  );
+  const chooseVideoQualityPeriod = (days: RewardedPeriod) => {
+    if (section?.key !== "video-quality" || days === videoQualityDays) return;
+    window.history.pushState(null, "", toAdminBrowserHref("/main-panel/video-quality?days=" + days));
+    setVideoQualityDays(days);
+  };
   const chooseRewardedPeriod = (days: RewardedPeriod) => {
     if (section?.key !== "rewarded-ads" || days === rewardedDays) return;
     window.history.pushState(null, "", toAdminBrowserHref(rewardedPeriodUrl(days)));
@@ -175,6 +184,7 @@ function Section({
     );
     setSubscriptionSearch(normalizedSubscriptionsSearch(window.location.search));
     setRewardedDays(rewardedPeriodFromSearch(window.location.search));
+    setVideoQualityDays(rewardedPeriodFromSearch(window.location.search));
     setProfitSearch(profitSearchFromLocation(window.location.search));
     setMobileRange((previous) => {
       const next = mobileIntroFilterFromSearch(window.location.search);
@@ -190,6 +200,7 @@ function Section({
       );
       setSubscriptionSearch(normalizedSubscriptionsSearch(window.location.search));
       setRewardedDays(rewardedPeriodFromSearch(window.location.search));
+      setVideoQualityDays(rewardedPeriodFromSearch(window.location.search));
       setProfitSearch(profitSearchFromLocation(window.location.search));
       setMobileRange((previous) => {
       const next = mobileIntroFilterFromSearch(window.location.search);
@@ -220,6 +231,8 @@ function Section({
     if (section.key === "mobile-intro") url = mobileIntroReportUrl(mobileRange);
     if (section.key === "rewarded-ads")
       url = `/api/v1/admin/analytics/rewarded-ads?days=${rewardedDays}`;
+    if (section.key === "video-quality")
+      url = "/api/v1/admin/analytics/video-quality?days=" + videoQualityDays;
     if (section.key === "gafus" && gafusPage !== "dashboard") {
       url =
         gafusPage === "fraud"
@@ -261,6 +274,7 @@ function Section({
     scheduleTrainerId,
     subscriptionSearch,
     rewardedDays,
+    videoQualityDays,
     profitSearch,
     gafusPage,
     mobileRange,
@@ -360,6 +374,14 @@ function Section({
           ))}
         </div>
       )}
+      {section.key === "video-quality" && (
+        <div className="filter-toolbar" role="group" aria-label="Период статистики качества видео">
+          {(["7","30","90"] as const).map(days => <button key={days}
+            className={videoQualityDays === days ? "" : "secondary"}
+            aria-pressed={videoQualityDays === days}
+            onClick={() => chooseVideoQualityPeriod(days)}>{days} дней</button>)}
+        </div>
+      )}
       {section.key === "gafus" && (
         <div className="filter-toolbar" role="group" aria-label="Инструменты гафусов">
           {(["dashboard", "fraud", "preflight"] as const).map((tab) => (
@@ -412,6 +434,9 @@ function Section({
         <div className="content-card loading" role="status">
           Получаем данные из GAFUS API…
         </div>
+      )}
+      {!loading && !error && data !== undefined && section.key === "video-quality" && (
+        <VideoQualityPanel source={data} />
       )}
       {!loading && !error && data !== undefined && section.key === "rewarded-ads" && (
         <RewardedAdsPanel source={data} />
@@ -505,6 +530,7 @@ function Section({
         data !== undefined &&
         ![
           "rewarded-ads",
+          "video-quality",
           "reengagement",
           "broadcasts",
           "gafus",

@@ -19,9 +19,6 @@ const api=async (method,url,payload)=>{
  return r.json();
 };
 const existing=await api('GET',`${base}?projectId=${e.CLOUDRU_PROJECT_ID}&pageSize=100`);
-const galleryEnv={GALLERY_BUCKET:'gafus-gallery-private',GALLERY_S3_ENDPOINT:'https://s3.cloud.ru',
- GALLERY_S3_ACCESS_KEY_ID:e.CLOUDRU_S3_ACCESS_KEY_ID,GALLERY_S3_SECRET_ACCESS_KEY:e.CLOUDRU_S3_SECRET_ACCESS_KEY,
- GALLERY_ENABLED:'false',GALLERY_INTERNAL_BASE_URL:'https://stage-core-not-configured.invalid',GALLERY_INTERNAL_HMAC_SECRET:pass};
 const feedEnv={FEED_BUCKET:'gafus-feed-private',FEED_S3_ENDPOINT:'https://s3.cloud.ru',
  FEED_S3_ACCESS_KEY_ID:e.CLOUDRU_S3_ACCESS_KEY_ID,FEED_S3_SECRET_ACCESS_KEY:e.CLOUDRU_S3_SECRET_ACCESS_KEY,
  GALLERY_S3_ENDPOINT:'https://s3.cloud.ru',FEED_ALBUM_BUCKET:'gafus-gallery-private',
@@ -30,8 +27,6 @@ const feedEnv={FEED_BUCKET:'gafus-feed-private',FEED_S3_ENDPOINT:'https://s3.clo
  FEED_RUN_ONCE:'true'};
 const rev='stg-20261012-05c5b67f';
 const jobs=[
- ['gafus-gallery-process-staging','gallery-worker','0.5','1024Mi',120,3,galleryEnv],
- ['gafus-feed-photo-staging','feed-worker','0.5','1024Mi',240,3,{...feedEnv,FEED_WORKER_TYPE:'photo'}],
  ['gafus-feed-video-staging','feed-worker','1','4096Mi',650,3,{...feedEnv,FEED_WORKER_TYPE:'video'}],
 ];
 for(const [name,image,cpu,memory,timeout,maxRetries,variables] of jobs){

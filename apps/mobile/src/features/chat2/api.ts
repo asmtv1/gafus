@@ -1,3 +1,5 @@
+import { postChat2FileToS3 } from "./s3Upload";
+import type { SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
 import type { Chat2MediaRenditions } from "@gafus/chat-media-quality";
 import type { Chat2ConnectionGrant } from "@gafus/core-client/chat2/realtime-subscription";
 import { API_BASE_URL } from "@/shared/config";
@@ -7,7 +9,6 @@ import * as SecureStore from "expo-secure-store";
 import { getMobileClientHeaders } from "@/shared/lib/api/client-context";
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
-import { isTerminalChat2RefreshFailure } from "./refreshAccessPolicy";
 export type Kind = "DIRECT" | "CYNOLOGIST" | "COMMUNITY" | "COURSE" | "CITY" | "BREED" | "GROUP" | "COURSE_TOPIC";
 export type Member = { userId: string; username: string; role: string; avatarUrl?: string | null };
 export type Attachment = {
@@ -160,13 +161,14 @@ async function request<T>(
 /** No image/video bytes through Hono. This path is enabled only after
  * protected Refactor API, scoped S3 and the Cloud Jobs pass E2E validation. */
 async function uploadChat2V2(
-  id: string, asset: { uri: string; name: string; mime: string; size: number },
+  id: string, asset: { uri: string; name: string; mime: string; size: number; posterPreviewUri?: string },
 ): Promise<Attachment> {
   const guard=guardActor();
   const base=`/${safe(id)}/media/v2`;
   const reservation=await request<{
     mediaId: string;
     upload: { method: "POST"; url: string; fields: Record<string, string> };
+    posterUpload: SignedClientPhotoPost;
   }>(base + "/reserve", "POST", {name:asset.name,mime:asset.mime,bytes:asset.size});
   if(!guard() || !/^[a-f0-9-]{36}$/i.test(reservation.mediaId) ||
      reservation.upload.method!=="POST")throw Error("Сессия или разрешение загрузки изменились");
@@ -174,17 +176,20 @@ async function uploadChat2V2(
   if(dest.protocol!=="https:" ||
      !["s3.cloud.ru","gafus-chat2-media-2026.s3.cloud.ru"].includes(dest.hostname) ||
      dest.username||dest.password||dest.hash)throw Error("Недопустимый адрес хранилища");
-  const form=new FormData();
-  for(const [key,value] of Object.entries(reservation.upload.fields))form.append(key,value);
-  form.append("file", {uri:asset.uri,name:asset.name,type:asset.mime} as unknown as Blob);
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),180_000);
-  try{
-    const uploaded=await fetch(dest.toString(),{
-      method:"POST",body:form,signal:controller.signal,redirect:"error",
-    });
-    if(!uploaded.ok)throw Error("Не удалось отправить файл в Cloud.ru S3");
-  }finally{clearTimeout(timer);}
+  const [{ prepareVideoPosterWebp }, { postClientWebp }] = await Promise.all([
+    import("@/shared/lib/media/prepareVideoPosterWebp"),
+    import("@/shared/lib/media/directPhotoUpload"),
+  ]);
+  const cover = await prepareVideoPosterWebp(asset.uri,asset.posterPreviewUri);
+  try {
+    if(!reservation.posterUpload || reservation.posterUpload.method!=="POST")
+      throw Error("Сервер не подписал обложку видео");
+    await Promise.all([
+      postChat2FileToS3(dest.toString(),reservation.upload.fields,asset,guard),
+      postClientWebp(reservation.posterUpload,cover,
+        ["s3.cloud.ru","gafus-chat2-media-2026.s3.cloud.ru"]),
+    ]);
+  } finally { cover.dispose(); }
   if(!guard())throw Error("Сессия изменилась");
   await request(`${base}/${reservation.mediaId}/confirm`, "POST", {});
   // The server moves UPLOADED -> QUEUED only after the message is sent.
@@ -193,6 +198,49 @@ async function uploadChat2V2(
   const attached = await request<Attachment>(`${base}/${reservation.mediaId}/attach`, "POST", {});
   if (!guard()) throw Error("Сессия изменилась");
   return attached;
+}
+
+/** Device-encoded Chat2 360/1440 WebP: READY before attachment, no Photo Job. */
+async function uploadChat2ClientPhoto(id: string, asset: {
+  uri: string; name: string; mime: string; size: number; width: number; height: number;
+}): Promise<Attachment> {
+  const guard = guardActor();
+  const base = `/${safe(id)}/media/v2`;
+  // Lazy-load the encoder only for opted-in mobile image uploads. Read-only
+  // Chat2/API access must not initialize Expo's native image runtime.
+  const [{ prepareUploadWebpVariants }, { postClientWebp }] = await Promise.all([
+    import("@/shared/lib/media/prepareUploadWebp"),
+    import("@/shared/lib/media/directPhotoUpload"),
+  ]);
+  const variants = await prepareUploadWebpVariants(asset, { small: 360, medium: 1440 });
+  try {
+    if (!guard()) throw new Error("Сессия изменилась");
+    const reserved = await request<{
+      mediaId: string;
+      upload: SignedClientPhotoPost;
+      smallUpload: SignedClientPhotoPost;
+    }>(`${base}/client-reserve`, "POST", {
+      name: asset.name, mime: "image/webp", bytes: variants.medium.bytes,
+    });
+    if (!guard() || !reserved.smallUpload || !reserved.upload ||
+        !/^[a-f0-9-]{36}$/i.test(reserved.mediaId))
+      throw new Error("Не удалось подготовить загрузку готовых фото");
+    const allowedHosts = ["s3.cloud.ru", "gafus-chat2-media-2026.s3.cloud.ru"];
+    await Promise.all([
+      postClientWebp(reserved.smallUpload, variants.small, allowedHosts),
+      postClientWebp(reserved.upload, variants.medium, allowedHosts),
+    ]);
+    if (!guard()) throw new Error("Сессия изменилась");
+    const confirmation = await request<{ mediaId: string; status: string }>(
+      `${base}/${reserved.mediaId}/client-confirm`, "POST", {});
+    if (confirmation.mediaId !== reserved.mediaId || confirmation.status !== "READY")
+      throw new Error("Готовые варианты фотографии не подтверждены");
+    const attached = await request<Attachment>(`${base}/${reserved.mediaId}/attach`, "POST", {});
+    if (!guard()) throw new Error("Сессия изменилась");
+    return attached;
+  } finally {
+    for (const item of Object.values(variants)) item.dispose();
+  }
 }
 
 export const chat2 = {
@@ -277,25 +325,6 @@ export const chat2 = {
     data: { name?: string; description?: string; visibility?: "PUBLIC" | "PRIVATE" | "UNLISTED" },
   ) => request<{ id: string }>(`/${safe(id)}/group`, "PATCH", data),
   connect: () => request<Chat2ConnectionGrant>("/realtime/connect"),
-  subscription: (id: string) =>
-    request<{ token: string; channel: string }>(`/${safe(id)}/realtime`),
-  refreshSubscription: async (id: string): Promise<string> => {
-    const guard = guardActor();
-    const response = await apiClient<{ token: string; channel: string }>(
-      `/api/v1/chats/${safe(id)}/realtime`,
-      {
-        requestGuard: guard,
-        suppressSubscriptionPaywall: true,
-        chat2Origin: guardChat2Destination(),
-      },
-    );
-    if (!guard()) return "";
-    if (!response.success || !response.data?.token) {
-      if (isTerminalChat2RefreshFailure(response.code)) return "";
-      throw new Error(response.error ?? "Chat 2.0 subscription refresh failed");
-    }
-    return response.data.token;
-  },
   media: (id: string, fileId: string) =>
     request<{ url: string; mime: string; name: string; expiresIn: number;
       renditions?: Chat2MediaRenditions;
@@ -338,7 +367,7 @@ export const chat2 = {
   },
   upload: async (
     id: string,
-    asset: { uri: string; name: string; mime: string; size: number },
+    asset: { uri: string; name: string; mime: string; size: number; width?: number; height?: number },
   ): Promise<Attachment> => {
     const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf", "video/mp4"];
     const limit = asset.mime === "video/mp4" ? 100 : 10;
@@ -354,6 +383,11 @@ export const chat2 = {
     // Never send production attachments through the legacy local-only adapter.
     if ((releaseBuild || productionChat2) && asset.mime === "application/pdf")
       throw new Error("PDF в чате пока недоступен. Отправьте фото или видео.");
+    if (asset.mime.startsWith("image/")) {
+      if (!asset.width || !asset.height)
+        throw Error("Для фото необходима обработка на устройстве");
+      return uploadChat2ClientPhoto(id, { ...asset, width: asset.width, height: asset.height });
+    }
     if ((releaseBuild || productionChat2 || process.env.EXPO_PUBLIC_CHAT2_MEDIA_V2 === "true") &&
         asset.mime !== "application/pdf")
       return uploadChat2V2(id, asset);

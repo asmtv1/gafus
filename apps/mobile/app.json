@@ -2,7 +2,7 @@
   "expo": {
     "name": "Гафус",
     "slug": "gafus",
-    "version": "1.7.2",
+    "version": "1.7.3",
     "orientation": "default",
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
@@ -14,7 +14,7 @@
     "icon": "./assets/images/icon512.png",
     "splash": {
       "image": "./assets/images/startup-splash.png",
-      "resizeMode": "cover",
+      "resizeMode": "contain",
       "backgroundColor": "#B5E5EB"
     },
     "androidStatusBar": {
@@ -26,19 +26,23 @@
       "bundleIdentifier": "ru.gafus.app",
       "buildNumber": "15",
       "associatedDomains": [
-        "applinks:gafus.ru"
+        "applinks:gafus.ru",
+        "applinks:www.gafus.ru"
       ],
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMotionUsageDescription": "Подсчёт шагов нужен для отображения шагов и примерного расстояния во время прогулки с собакой."
       },
       "appleTeamId": "PJQ8PP666S",
       "splash": {
         "image": "./assets/images/startup-splash.png",
-        "resizeMode": "cover",
+        "resizeMode": "contain",
         "backgroundColor": "#B5E5EB"
       }
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
+      "predictiveBackGestureEnabled": true,
       "splash": {
         "backgroundColor": "#B5E5EB"
       },
@@ -56,12 +60,232 @@
             {
               "scheme": "https",
               "host": "gafus.ru",
-              "pathPrefix": "/training"
-            },
+              "pathPrefix": "/training/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
             {
               "scheme": "https",
               "host": "gafus.ru",
-              "pathPrefix": "/reset-password"
+              "path": "/training"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "gafus.ru",
+              "pathPrefix": "/feed/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "gafus.ru",
+              "pathPrefix": "/questions/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "gafus.ru",
+              "pathPrefix": "/chats/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "gafus.ru",
+              "pathPrefix": "/moments/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "gafus.ru",
+              "path": "/moments"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "gafus.ru",
+              "path": "/reset-password"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.gafus.ru",
+              "pathPrefix": "/training/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.gafus.ru",
+              "path": "/training"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.gafus.ru",
+              "pathPrefix": "/feed/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.gafus.ru",
+              "pathPrefix": "/questions/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.gafus.ru",
+              "pathPrefix": "/chats/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.gafus.ru",
+              "pathPrefix": "/moments/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.gafus.ru",
+              "path": "/moments"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "www.gafus.ru",
+              "path": "/reset-password"
             }
           ],
           "category": [
@@ -72,7 +296,8 @@
       ],
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACTIVITY_RECOGNITION"
       ],
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
@@ -92,7 +317,7 @@
           "backgroundColor": "#B5E5EB",
           "ios": {
             "image": "./assets/images/startup-splash.png",
-            "resizeMode": "cover",
+            "resizeMode": "contain",
             "enableFullScreenImage_legacy": true
           },
           "android": {
@@ -164,13 +389,47 @@
           ]
         }
       ],
-      "expo-iap"
+      "expo-iap",
+      [
+        "expo-widgets",
+        {
+          "widgets": [
+            {
+              "name": "DogWalk",
+              "displayName": "Прогулка с собакой",
+              "description": "Таймер, шаги, расстояние и управление прогулкой",
+              "supportedFamilies": [
+                "systemMedium",
+                "systemLarge"
+              ]
+            }
+          ]
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "DogWalk",
+              "label": "Прогулка с собакой",
+              "description": "Время, шаги, метры: старт, пауза, конец",
+              "minWidth": "250dp",
+              "minHeight": "150dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 3,
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ],
+      "./plugins/withDogWalkChronometer"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "runtimeVersion": {
-      "policy": "sdkVersion"
+      "policy": "appVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/6c36fab5-6226-450f-8ee5-64e9beeea7db",

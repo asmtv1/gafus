@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { z } from "zod/v3";
 import { fileTypeFromBuffer } from "file-type";
 import { prisma, type Prisma } from "@gafus/prisma";
@@ -157,13 +157,10 @@ export async function addPetVetAttachment(
     throw new VetVisitError("Разрешены фотографии JPEG, PNG, WebP и документы PDF");
   const id = randomUUID();
   const keys = vetVisitFileKeys(ownerId, petId, visitId, id, detected.mime);
-  // Gradual rollout: legacy synchronous processing stays the default until the
-  // Gallery cloud worker and its durable callback path are deployed together.
-  const asyncFlag = process.env.VET_PREVIEW_ASYNC_ENABLED;
-  if (asyncFlag && !["true", "false"].includes(asyncFlag))
-    throw new VetVisitError("Некорректная конфигурация предпросмотра", 409);
-  const asyncPreview = asyncFlag === "true" && !!keys.previewKey;
-  const originalETag = `"${createHash("md5").update(bytes).digest("hex")}"`;
+  // All veterinary image thumbnails are committed synchronously with their
+  // original. Never enqueue a Cloud.ru vetPreview Job: those photo jobs retire.
+  // PDF attachments intentionally have no image preview.
+  const asyncPreview = false;
   const dedupeKey = `vet-upload:${id}`;
   // Durable cleanup is reserved BEFORE storage I/O. It survives crashes, partial uploads and owner deletion.
   await prisma.$transaction(async (tx) => {
@@ -202,28 +199,12 @@ export async function addPetVetAttachment(
         id,
         visitId,
         ...keys,
-        previewKey: asyncPreview ? null : keys.previewKey,
+        previewKey: keys.previewKey,
         name: rawName || `Медкарта.${detected.ext}`,
         mimeType: detected.mime,
         sizeBytes: bytes.byteLength,
       },
     });
-    if (asyncPreview && keys.previewKey) {
-      // The preview is invisible until Gallery core verifies the worker's
-      // finished object and atomically commits previewKey. No polling in API.
-      await tx.galleryStorageJob.create({
-        data: {
-          id: randomUUID(),
-          dedupeKey: `vet-preview:${id}`,
-          kind: "vetPreview",
-          ownerId,
-          sourceKeys: [keys.originalKey],
-          sourceETags: [originalETag],
-          targetKeys: [keys.previewKey],
-          availableAt: new Date(),
-        },
-      });
-    }
   });
   return { id };
 }

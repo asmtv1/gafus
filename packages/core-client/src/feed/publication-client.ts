@@ -17,11 +17,23 @@ export interface PublicationItem {
   /** Actual bytes acknowledged by upload progress events / completed uploads. */
   progress: number | null;
   error?: string;
+  /** Local owner-only per-file state; never injected into a published feed item. */
+  files?: PublicationFileState[];
+}
+export interface PublicationFileState {
+  requestId: string;
+  kind?: "video" | "photo";
+  name?: string;
+  previewUri?: string;
+  phase: "waiting" | "uploading" | "ready" | "failed";
+  error?: string;
 }
 export interface PublicationAsset {
   requestId: string;
   bytes: number;
   previewUri?: string;
+  filename?: string;
+  kind?: "photo" | "video";
 }
 export interface PublicationApi {
   createPost(input: { clientRequestId: string }): Promise<FeedPostEditorDto>;
@@ -48,6 +60,8 @@ export interface PublicationDependencies<T extends PublicationAsset> {
   makeId: () => string;
   /** Web polls every 5 s; Mobile every 2 s. Shared processing budget remains 10 min. */
   pollIntervalMs?: number;
+  /** Save the text to the server before attachments, so an S3 failure cannot strand an empty draft. */
+  preserveDraftTextBeforeUpload?: boolean;
   /** Poll photo upload status must be checked before poll creation/publishing. */
   pollImageStatus?: (postId: string, asset: T, mediaId: string) => Promise<"ready" | "pending" | "failed">;
   onPublished?: (postId: string) => void;
@@ -60,6 +74,9 @@ type Job<T extends PublicationAsset> = {
   input: PublicationInput<T>;
   createRequestId: string;
   revisionRequestId: string;
+  initialTextRequestId: string;
+  initialTextBaseVersion?: number;
+  initialTextSaved?: boolean;
   publishRequestId: string;
   copied: Map<string, { requestId: string; mediaId?: string }>;
   completed: Map<string, string>;
@@ -118,6 +135,12 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
     job.item = { ...job.item, ...patch };
     emit();
   };
+  const updateFile = (job: Job<T>, requestId: string,
+    patch: Partial<PublicationFileState>) => {
+    if (!job.item.files?.some(file => file.requestId === requestId)) return;
+    update(job, { files: job.item.files.map(file => file.requestId === requestId
+      ? { ...file, ...patch } : file) });
+  };
   const succeed = (job: Job<T>, postId: string) => {
     update(job, { phase: "published", progress: 100, error: undefined, postId });
     deps.onPublished?.(postId);
@@ -130,14 +153,14 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
       }
     }, 6000);
   };
-  const run = async (job: Job<T>) => {
+  const run = async (job: Job<T>, onlyRequestId?: string) => {
     if (job.running) return;
     job.running = true;
     update(job, { phase: "uploading", error: undefined, progress: null });
     try {
       const { input } = job;
       const api = deps.api;
-      const post = job.item.postId
+      let post = job.item.postId
         ? await api.getEditor(job.item.postId)
         : await api.createPost({ clientRequestId: job.createRequestId });
       update(job, { postId: post.id });
@@ -146,6 +169,19 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
       let processingDeadline: number | undefined;
       if (post.status !== "pending") {
         const pollPhotos = input.pollOptionImages ?? [];
+        if (deps.preserveDraftTextBeforeUpload && !job.initialTextSaved && input.text.trim() &&
+            input.files.length + input.albumPhotoIds.length + pollPhotos.length > 0) {
+          job.initialTextBaseVersion ??= post.version;
+          // This revision can be replayed with the same idempotency key if its ACK was lost.
+          // The final revision replaces it once all media IDs are known.
+          post = await api.saveRevision(post.id, {
+            clientRequestId: job.initialTextRequestId,
+            expectedVersion: job.initialTextBaseVersion,
+            text: input.text,
+            attachmentIds: [],
+          });
+          job.initialTextSaved = true;
+        }
         if (pollPhotos.length && (!input.poll || !deps.pollImageStatus)) {
           throw new Error("Загрузка фотографий для опроса недоступна.");
         }
@@ -167,15 +203,22 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
           update(job, { phase: "uploading", progress: Math.min(100,
             Math.floor(transferred / totalBytes * 100)) });
         };
-        const queued = assets.filter(asset => !job.completed.has(asset.requestId));
+        const queued = assets.filter(asset => !job.completed.has(asset.requestId) &&
+          (!onlyRequestId || asset.requestId === onlyRequestId));
         let cursor = 0;
         let failed: { error: unknown } | null = null;
         const uploadNext = async () => {
           while (cursor < queued.length && !failed) {
             const asset = queued[cursor++]!;
+            updateFile(job, asset.requestId, { phase: "uploading", error: undefined });
             try {
               await withUploadSlot(async () => {
-                if (failed) return; // another upload failed while we waited for the slot
+                if (failed) {
+                  // A previous upload has failed while this item waited for a
+                  // slot. Leave this particular file WAITING, not spinning.
+                  updateFile(job, asset.requestId, { phase: "waiting" });
+                  return;
+                }
                 const mediaId = await deps.upload(post.id, asset, (bytes, total) => {
                   if (total <= 0 || !Number.isFinite(bytes)) return;
                   const previous = loaded.get(asset.requestId) ?? 0;
@@ -184,16 +227,27 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
                   refreshProgress();
                 });
                 job.completed.set(asset.requestId, mediaId);
+                updateFile(job, asset.requestId, { phase: "ready", error: undefined });
                 loaded.set(asset.requestId, asset.bytes);
                 refreshProgress();
               });
             } catch (error) {
+              updateFile(job, asset.requestId, { phase: "failed",
+                error: error instanceof Error ? error.message : "Ошибка передачи видео" });
               failed ??= { error };
             }
           }
         };
         await Promise.all(Array.from({ length: Math.min(5, queued.length) }, () => uploadNext()));
         if (failed) throw (failed as { error: unknown }).error;
+        // An explicit arrow on a single failed thumbnail must NEVER start any
+        // neighboring unfinished photo/video. Keep them queued for a separate
+        // "continue" action. The accepted mediaId remains attached to this draft.
+        if (onlyRequestId && assets.some(asset => !job.completed.has(asset.requestId))) {
+          update(job, {phase:"failed", progress:null,
+            error:"Выбранный файл повторно отправлен. Остальные незавершённые вложения можно продолжить отдельно."});
+          return;
+        }
         // Completion can arrive out of order. Revision attachments retain the
         // exact user's file order; poll-photo assets stay independent of it.
         const attachmentIds = input.files.map(asset => job.completed.get(asset.requestId)!);
@@ -283,9 +337,13 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
           attachmentCount: input.files.length + input.albumPhotoIds.length + (input.pollOptionImages?.length ?? 0),
           previewUri: input.files[0]?.previewUri ?? input.pollOptionImages?.[0]?.asset.previewUri,
           phase: "uploading", progress: null,
+          files: input.files.map(file => ({ requestId: file.requestId,
+            kind: file.kind, name: file.filename, previewUri: file.previewUri,
+            phase: "waiting" as const })),
         },
         input, createRequestId: deps.makeId(), revisionRequestId: deps.makeId(),
-        publishRequestId: deps.makeId(), copied: new Map(), completed: new Map(),
+        initialTextRequestId: deps.makeId(), publishRequestId: deps.makeId(),
+        copied: new Map(), completed: new Map(),
         saved: false, pollSaved: false, running: false,
       };
       jobs.set(id, job);
@@ -295,7 +353,18 @@ export function createFeedPublicationManager<T extends PublicationAsset>(deps: P
     },
     retry: (id: string) => {
       const job = jobs.get(id);
-      if (job && job.item.phase === "failed") void run(job);
+      if (job && job.item.phase === "failed" &&
+          job.item.files?.some(file => file.phase === "failed" || file.phase === "waiting"))
+        void run(job);
+    },
+    retryFile: (id: string, requestId: string) => {
+      const job = jobs.get(id);
+      if (!job || job.running || job.item.phase !== "failed" ||
+          !job.input.files.some(file => file.requestId === requestId) ||
+          !job.item.files?.some(file => file.requestId === requestId && file.phase === "failed")) return;
+      // The per-file arrow MUST target this one requestId, even when several
+      // neighbors failed or waited for an upload slot. No already-ready file runs.
+      void run(job,requestId);
     },
     dismiss: (id: string) => {
       const job = jobs.get(id);

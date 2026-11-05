@@ -1,4 +1,5 @@
 import NetInfo from "@react-native-community/netinfo";
+import { updateNativeMp4Network } from "@/shared/lib/media/videoPlaybackPolicy";
 import {
   focusManager,
   onlineManager,
@@ -36,6 +37,7 @@ export const queryClient = new QueryClient({
 function useNativeQueryLifecycle(): void {
   useEffect(() => {
     return NetInfo.addEventListener((state) => {
+      updateNativeMp4Network(state);
       const status = deriveNetworkStatus(state);
 
       setNetworkStatus(status);

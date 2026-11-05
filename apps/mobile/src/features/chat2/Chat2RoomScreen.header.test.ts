@@ -36,9 +36,9 @@ describe("Native Chat2 Telegram-like message actions", () => {
   it("opens actions on tap or long press, and replies via horizontal swipe", () => {
     expect(source).toContain("onPress={() => {");
     expect(source).toContain("onLongPress={() => showActions(item)}");
-    expect(source).toContain("onTouchStart={(event) => {");
-    expect(source).toContain("onTouchEnd={(event) => {");
-    expect(source).toContain("if (dx > 70 && Math.abs(dy) < 45)");
+    expect(source).toContain("<SwipeReplyMessage enabled={!item.deletedAt} onReply={() => {");
+    expect(source).toContain("onLongPress={() => showActions(item)}");
+    expect(source).not.toContain("touchOrigin.current =");
     expect(source).toContain("swipeReplyId.current = item.id");
     expect(source).toContain("replyTo(item)");
   });
@@ -48,5 +48,14 @@ describe("Native Chat2 Telegram-like message actions", () => {
     expect(source).toContain('CHAT2_EMOJIS.map((emoji) =>');
     expect(source).toContain("item.reactions?.map((reaction) =>");
     expect(source).toContain("event.stopPropagation()");
+  });
+});
+
+
+describe("Native Chat2 composer placeholder contrast", () => {
+  it("renders the message placeholder in black on the light composer", () => {
+    expect(source).toMatch(
+      /placeholder="Напишите сообщение…"\s+placeholderTextColor="#000000"/,
+    );
   });
 });

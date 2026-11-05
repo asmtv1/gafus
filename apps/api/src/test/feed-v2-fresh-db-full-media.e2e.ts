@@ -1,6 +1,6 @@
-/** Explicit opt-in end-to-end ORIGINAL feed pipeline, completely fresh local PostgreSQL DB.
+/** Explicit opt-in end-to-end Feed VIDEO + S3-cleanup pipeline, fresh isolated DB.
  * Safety: pg_dump --schema-only from verified WORK snapshot, create an OWN random DB,
- * then real presigned local MinIO upload -> publish -> cloud worker -> GET/WebP/MP4 Range.
+ * then signed local MinIO client-ready H264 -> READY immediately -> 360 Cloud Job -> GET/MP4 Range.
  * No modifications of WORK DB or user data, no production/network provider access,
  * no remote CDN and no shared worker queue draining. Only own generated keys removed.
  */
@@ -30,8 +30,6 @@ check(process.env.GAFUS_FEED_V2_EPHEMERAL_E2E === "1", "OPT_IN_REQUIRED");
 // Only explicitly selected synthetic durations; never read customer media.
 const videoSeconds = Number(process.env.GAFUS_FEED_V2_E2E_VIDEO_SECONDS ?? "1");
 check([1,30,120].includes(videoSeconds), "VIDEO_DURATION_NOT_ALLOWED");
-const photoShape = process.env.GAFUS_FEED_V2_E2E_PHOTO_SHAPE ?? "landscape";
-check(["landscape","portrait"].includes(photoShape), "PHOTO_SHAPE_NOT_ALLOWED");
 check(realpathSync(ROOT) === ROOT && realpathSync(process.cwd()) === ROOT + "/apps/api", "PROJECT_CWD");
 check(realpathSync(SCRATCH) === SCRATCH && realpathSync(socket) === socket &&
   realpathSync(appEnv) === appEnv && (statSync(appEnv).mode & 0o777) === 0o600, "WORK_PATHS");
@@ -113,7 +111,6 @@ try {
   // Core independently verifies real MinIO HEAD for every WebP/MP4 before READY.
   const jobs=createFeedStorageJobs({db,storage});
   const {createFeedCloudWorker}=await import("../../../../apps/feed-cloud/src/worker");
-  const {sharpFeedEngine}=await import("../../../../apps/feed-cloud/src/sharp-engine");
   const core={
     claimJobs:(size:number,kind?:"photo"|"video")=>jobs.claim(size,kind),
     completeJob:(id:string,token:string,output?:Parameters<typeof jobs.complete>[2])=>jobs.complete(id,token,output),
@@ -126,20 +123,18 @@ try {
   const metrics: {kind:string;sourceBytes:number|null;outputBytes:number;variantCount:number;
     downloadMs:number;processingMs:number;uploadMs:number;coreVerificationMs:number;totalMs:number;
     cpuUserMs:number;cpuSystemMs:number;rssAtCompletionBytes:number}[]=[];
-  const worker=createFeedCloudWorker({core,objects:uploader,engine:sharpFeedEngine,
+  const worker=createFeedCloudWorker({core,objects:uploader,
     onMetrics:value=>metrics.push(value)});
   const dir=await mkdtemp(join(SCRATCH,".feed-v2-e2e-ffmpeg-"));
   try {
-    const mediaInput=[{kind:"photo" as const, ext:"png",mime:"image/png" as const,file:join(dir,"photo.png")},
-      {kind:"video" as const,ext:"mp4",mime:"video/mp4" as const,file:join(dir,"video.mp4")}];
-    execFileSync("ffmpeg",["-hide_banner","-nostdin","-loglevel","error","-y","-f","lavfi","-i",
-      photoShape==="portrait" ? "color=c=green:s=1200x2400:d=1" : "color=c=green:s=640x360:d=1",
-      "-frames:v","1",mediaInput[0]!.file],{cwd:dir,timeout:20000});
+    const mediaInput=[{kind:"video" as const,ext:"mp4",mime:"video/mp4" as const,file:join(dir,"video.mp4")}];
     execFileSync("ffmpeg",["-hide_banner","-nostdin","-loglevel","error","-y","-f","lavfi","-i",
       "testsrc=size=1280x720:rate=24","-f","lavfi","-i","sine=frequency=440:sample_rate=44100",
-      "-t",String(videoSeconds),"-threads","2","-c:v","libx264","-pix_fmt","yuv420p","-c:a","aac",
-      "-shortest",mediaInput[1]!.file],{cwd:dir,timeout:Math.max(60000,videoSeconds*2500)});
-    const receipts:{kind:"photo"|"video",postId:string,mediaId:string}[]=[];
+      "-t",String(videoSeconds),"-threads","2","-c:v","libx264","-pix_fmt","yuv420p",
+      "-profile:v","high","-b:v","1200k","-maxrate","1800k","-bufsize","3600k",
+      "-movflags","+faststart","-c:a","aac","-b:a","96k",
+      "-shortest",mediaInput[0]!.file],{cwd:dir,timeout:Math.max(60000,videoSeconds*2500)});
+    const receipts:{kind:"video",postId:string,mediaId:string}[]=[];
     let video720Ssim: number | null = null;
     for(const input of mediaInput){
       const source=await readFile(input.file);
@@ -158,82 +153,85 @@ try {
       const response=await fetch(ticket.postUrl!,{method:"POST",body:form,signal:AbortSignal.timeout(15000)});
       check(response.status===204,"SIGNED_SOURCE_UPLOAD");
       check((await storage.head(uploadRow.sourceKey))?.bytes===source.length,"SOURCE_IN_MINIO");
+      // The synthetic user also prepares ONE 480px WebP frame. The Cloud.ru
+      // 360p job is intentionally unable to generate/rewrite this poster.
+      const posterFile=join(dir,"device-poster.webp");
+      execFileSync("ffmpeg",["-hide_banner","-nostdin","-loglevel","error","-y",
+        "-i",input.file,"-frames:v","1","-vf","scale=480:-2",
+        "-c:v","libwebp","-quality","80",posterFile],{cwd:dir,timeout:30000});
+      const posterBytes=await readFile(posterFile);
+      const posterForm=await feed.reserveClientVideoPoster(owner,ticket.uploadId);
+      const stagedPoster=uploadRow.sourceKey.replace(/source\.mp4$/,"poster.webp");
+      ownKeys.add(stagedPoster);
+      const signedPoster=new FormData();
+      for(const [key,value] of Object.entries(posterForm.fields))signedPoster.append(key,value);
+      signedPoster.append("file",new Blob([posterBytes],{type:"image/webp"}),"poster.webp");
+      const posterSent=await fetch(posterForm.url,{method:"POST",body:signedPoster,
+        signal:AbortSignal.timeout(15000)});
+      check(posterSent.status===204,"CLIENT_WEBP_POSTER_DIRECT_S3");
+      check((await storage.head(stagedPoster))?.bytes===posterBytes.length,
+        "POSTER_STAGED_IN_PRIVATE_S3");
+      const base=`media/v2/${ticket.mediaId}/v1/`;
+      for(const key of ["image/s.webp","image/m.webp","image/l.webp","poster.webp",
+        "video/360.mp4","video/720.mp4","video/1080.mp4"])ownKeys.add(base+key);
       const uploaded=await feed.completeUpload(owner,ticket.uploadId);
-      check(uploaded.status==="uploaded","SOURCE_CONFIRMED");
+      check(uploaded.status==="ready","CLIENT_720_READY_WITHOUT_CLOUDRU_JOB");
+      const row=await db.feedMediaAsset.findUniqueOrThrow({where:{id:ticket.mediaId}});
+      check(row.status==="ready"&&row.mp4Keys.length===1&&
+        row.mp4Keys[0]===base+"video/720.mp4"&&row.posterKey===base+"poster.webp",
+        "S3_VERIFIED_DIRECT_720_AND_CLIENT_POSTER_READY");
+      check((await storage.head(base+"video/720.mp4"))?.bytes===source.length,
+        "CLIENT_MP4_SERVER_SIDE_COPY_IMMUTABLE_FINAL");
+      const posterBefore=await storage.head(base+"poster.webp");
+      check(posterBefore?.bytes===posterBytes.length,
+        "ONE_SERVER_VERIFIED_CLIENT_POSTER");
       await feed.saveRevision(owner,draft.id,{clientRequestId:randomUUID(),expectedVersion:draft.version,
         text:`local synthetic ${input.kind}`,attachmentIds:[ticket.mediaId]});
       const published=await feed.publish(owner,draft.id,{clientRequestId:randomUUID()});
-      check(published.status==="pending","PUBLICATION_PENDING");
-      // Two racing containers may both receive the same wake-up; only one
-      // transaction may own the PostgreSQL SKIP LOCKED + attempt-token lease.
-      const competing=await Promise.all([jobs.claim(1,input.kind),jobs.claim(1,input.kind)]);
-      const claim=competing.flat();
-      check(claim.length===1 && claim[0]?.mediaId===ticket.mediaId && claim[0]?.ownerId===owner,"EXCLUSIVE_REAL_PG_LEASE");
-      // Enumerate ALL expected output keys in advance so a failed upload is also cleaned.
-      const base=`media/v2/${ticket.mediaId}/v1/`;
-      for(const key of ["image/s.webp","image/m.webp","image/l.webp","poster.webp",
-        "video/360.mp4","video/720.mp4","video/1080.mp4"]) ownKeys.add(base+key);
-      check((await worker.process(claim[0]!)).accepted===true,"WORKER_READY_CALLBACK");
-      const row=await db.feedMediaAsset.findUniqueOrThrow({where:{id:ticket.mediaId}});
-      check(row.status==="ready","MEDIA_READY_SQL");
-      // Source deletion is a durable DB job, not a best-effort worker finally.
-      // Process its immediate claim and verify the real S3 original is gone.
-      const cleanup=await jobs.claim(1,"photo");
-      check(cleanup.length===1 && cleanup[0]?.kind==="cleanup_source" &&
-        cleanup[0]?.sourceKeys.includes(uploadRow.sourceKey),"DURABLE_IMMEDIATE_ORIGINAL_CLEANUP");
-      check((await worker.process(cleanup[0]!)).accepted===true,"ORIGINAL_CLEANUP_ACK");
-      check((await storage.head(uploadRow.sourceKey))===null,"ORIGINAL_DELETED_AFTER_READY");
+      check(published.status==="published","PUBLICATION_DIRECT_READY");
+      const early=await feed.get(reader,draft.id);
+      check(early.status==="published" && early.attachments.length===1,"VISIBLE_720_BEFORE_360");
+      const primary=early.attachments[0]!;
+      check(typeof primary.mp4Urls?.[720]==="string" && !primary.mp4Urls?.[360] &&
+        Boolean(primary.posterUrl) && row.mp4Keys.length===1,
+        "ONLY_720_MP4_PLUS_CLIENT_POSTER_BEFORE_BACKGROUND");
+      // The presigned source stays temporarily for safe expiry fencing. The
+      // separate 360p Job reads only the immutable published 720p final.
+      const competing=await Promise.all([jobs.claim(1,"video"),jobs.claim(1,"video")]);
+      const background=competing.flat();
+      check(background.length===1 && background[0]?.kind==="publish_video" &&
+        background[0]?.uploadId===null &&
+        background[0]?.sourceKeys[0]===base+"video/720.mp4" &&
+        background[0]?.targetKeys[0]===base+"video/360.mp4", "ASYNC_360_EXCLUSIVE_PG_LEASE");
+      check((await worker.process(background[0]!)).accepted===true,"ASYNC_360_READY_CALLBACK");
+      const updated=await db.feedMediaAsset.findUniqueOrThrow({where:{id:ticket.mediaId}});
+      const posterAfter=await storage.head(base+"poster.webp");
+      check(updated.posterKey===base+"poster.webp" &&
+        posterAfter?.etag===posterBefore?.etag &&
+        posterAfter?.bytes===posterBefore?.bytes,
+        "CLOUD_360_MUST_NEVER_TOUCH_CLIENT_POSTER");
       const visible=await feed.get(reader,draft.id);
-      check(visible.status==="published" && visible.attachments.length===1,"VISIBLE_TO_OTHER_USER");
+      check(visible.status==="published" && visible.attachments.length===1,"STILL_VISIBLE_AFTER_BACKGROUND");
       const asset=visible.attachments[0]!;
-      if(input.kind==="photo"){
-        check(Boolean(asset.smallUrl&&asset.thumbUrl&&asset.fullUrl),"THREE_SIGNED_WEBPS");
-        check(!asset.mp4Urls,"NO_MP4_FOR_PHOTO");
-        check(new URL(asset.thumbUrl!).origin === "http://127.0.0.1:9000", "SIGNED_WEBP_LOOPBACK_ONLY");
-        const download=await fetch(asset.thumbUrl!,{signal:AbortSignal.timeout(15000),redirect:"error"});
-        check(download.status===200,"SIGNED_WEBP_DOWNLOAD");
-        const payload=Buffer.from(await download.arrayBuffer());
-        check(payload.toString("latin1",0,4)==="RIFF" && payload.toString("latin1",8,12)==="WEBP","WEBP_MAGIC");
-        if(photoShape==="portrait") {
-          const variants=[{url:asset.smallUrl!,width:180,height:360},
-            {url:asset.thumbUrl!,width:360,height:720},
-            {url:asset.fullUrl!,width:720,height:1440}];
-          for(const variant of variants) {
-            const response=await fetch(variant.url,{signal:AbortSignal.timeout(15000),redirect:"error"});
-            check(response.status===200,"PORTRAIT_WEBP_SIGNED_DOWNLOAD");
-            const info=await sharpFeedEngine.inspect(Buffer.from(await response.arrayBuffer()),50_000_000);
-            check(info.format==="webp" && info.width===variant.width && info.height===variant.height,
-              "PORTRAIT_WEBP_LONG_EDGE_DIMENSIONS");
-          }
-        }
-        // A signed delivery URL must not imply that the underlying S3 object is public.
-        const unsigned=new URL(asset.thumbUrl!); unsigned.search="";
-        check((await fetch(unsigned,{signal:AbortSignal.timeout(15000),redirect:"error"})).status===403,
-          "PRIVATE_WEBP_UNSIGNED_DENIED");
-      }else{
-        check(Boolean(asset.mp4Urls?.[360]&&asset.mp4Urls?.[720]&&asset.posterUrl)&&row.mp4Keys.length===2,"TWO_PROGRESSIVE_MP4_URLS");
-        check(new URL(asset.mp4Urls![360]).origin === "http://127.0.0.1:9000", "SIGNED_MP4_LOOPBACK_ONLY");
-        const download=await fetch(asset.mp4Urls![360],{headers:{Range:"bytes=0-127"},signal:AbortSignal.timeout(15000),redirect:"error"});
+        const video360=asset.mp4Urls?.[360],video720=asset.mp4Urls?.[720];
+        check(typeof video360==="string"&&typeof video720==="string"&&
+          Boolean(asset.posterUrl)&&updated.mp4Keys.length===2,"TWO_PROGRESSIVE_MP4_URLS");
+        check(new URL(video360).origin === "http://127.0.0.1:9000", "SIGNED_MP4_LOOPBACK_ONLY");
+        const download=await fetch(video360,{headers:{Range:"bytes=0-127"},signal:AbortSignal.timeout(15000),redirect:"error"});
         check(download.status===206 && download.headers.get("content-range")?.startsWith("bytes 0-127/"),"SIGNED_MP4_RANGE");
         const payload=Buffer.from(await download.arrayBuffer());
         check(payload.length===128 && payload.toString("latin1",4,8)==="ftyp","VALID_MP4_BYTES");
-        const invalidRange=await fetch(asset.mp4Urls![360],{
+        const invalidRange=await fetch(video360,{
           headers:{Range:"bytes=999999999999-"},signal:AbortSignal.timeout(15000),redirect:"error"});
         check(invalidRange.status===416,"MP4_INVALID_RANGE_416");
-        // Decode the signed 720p output and compare it to the unmodified source.
-        // Synthetic SSIM is a regression gate, not a real-user visual-quality benchmark.
-        const fullVideo=await fetch(asset.mp4Urls![720]!, {signal:AbortSignal.timeout(30000),redirect:"error"});
+        // The browser/phone MP4 was already compatible. Immutable S3 COPY must
+        // preserve the original bit-for-bit; no extra 720p encoder or quality loss.
+        const fullVideo=await fetch(video720!, {signal:AbortSignal.timeout(30000),redirect:"error"});
         check(fullVideo.status===200,"SIGNED_720_MP4_DOWNLOAD");
-        const signed720=join(dir,"signed-roundtrip-720.mp4");
-        await writeFile(signed720,Buffer.from(await fullVideo.arrayBuffer()));
-        const compare=spawnSync("ffmpeg",["-hide_banner","-nostdin","-i",input.file,
-          "-i",signed720,"-filter_complex","[0:v:0][1:v:0]ssim",
-          "-an","-f","null","-"],{cwd:dir,encoding:"utf8",timeout:120000,maxBuffer:1024*1024});
-        check(compare.status===0,"SSIM_FFMPEG_VALIDATION_FAILED");
-        const score=/\bAll:([0-9.]+)/.exec(compare.stderr)?.[1];
-        video720Ssim=score?Number(score):null;
-        check(video720Ssim!==null && video720Ssim>=0.95,`VIDEO_720_SYNTHETIC_SSIM_${video720Ssim}`);
-        const unsigned=new URL(asset.mp4Urls![360]); unsigned.search="";
+        const roundtrip=Buffer.from(await fullVideo.arrayBuffer());
+        check(source.equals(roundtrip),"DIRECT_720_BIT_IDENTICAL_NO_REENCODE");
+        video720Ssim=1;
+        const unsigned=new URL(video360); unsigned.search="";
         check((await fetch(unsigned,{signal:AbortSignal.timeout(15000),redirect:"error"})).status===403,
           "PRIVATE_MP4_UNSIGNED_DENIED");
         try { await s3!.send(new HeadObjectCommand({Bucket:bucket,Key:base+"video/1080.mp4"}));
@@ -242,21 +240,22 @@ try {
           check((error as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode===404,
             "1080_VARIANT_NOT_CREATED");
         }
-      }
       receipts.push({kind:input.kind,postId:draft.id,mediaId:ticket.mediaId});
     }
     const list=await feed.list(reader,{sort:"new",pageSize:10});
     check(receipts.every(receipt=>list.items.some(row=>row.id===receipt.postId)),"FEED_LIST_PUBLISHED");
     const dbCount=psql(`SELECT (SELECT count(*) FROM "FeedPost") || ':' ||
       (SELECT count(*) FROM "FeedMediaAsset")`,dbName);
-    check(dbCount==="2:2","EXACT_TWO_SYNTHETIC_ROWS");
-    console.log("FEED_V2_FRESH_DB_FULL_E2E_PASS",JSON.stringify({
+    check(dbCount==="1:1","EXACT_ONE_SYNTHETIC_VIDEO_POST");
+    console.log("FEED_V2_FRESH_DB_VIDEO_E2E_PASS",JSON.stringify({
       isolated:true,newDatabaseOnly:true,posts:receipts.length,
-      photoWebps:3,photoShape,portraitWebpDimensionsVerified:photoShape==="portrait",
-      videoMp4:2,videoSeconds,video720Ssim,realS3SignedGet:true,range206:true,
+      videoOnly:true,clientPhotosTestedBy:"client-photo-real-minio-acceptance.mjs",
+      videoMp4:2,oneClientWebpPoster:true,ready720Before360:true,
+      cloudJobCreatesOnly360:true,sourceCleanupAfterPresignExpiry:true,
+      videoSeconds,video720Ssim,realS3SignedGet:true,range206:true,
       noHls:true,privateUnsignedDenied:true,range416:true,no1080Variant:true,sharedWorkUnchanged:true,
       exclusiveParallelPostgresClaims:true,
-      originalDeletedAfterReady:true,
+      originalSourceDeletionDeferredUntilPresignExpires:true,
       syntheticMetrics:metrics.map(({kind,sourceBytes,outputBytes,variantCount,
         downloadMs,processingMs,uploadMs,coreVerificationMs,totalMs,cpuUserMs,cpuSystemMs,
         rssAtCompletionBytes})=>({kind,sourceBytes,outputBytes,variantCount,
