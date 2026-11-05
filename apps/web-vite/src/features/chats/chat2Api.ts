@@ -3,6 +3,7 @@ import { prepareBrowserVideoPoster } from "../../shared/media/browserVideoPoster
 import { prepareBrowserPhotoWebp, type BrowserWebpVariant } from "../../shared/media/browserPhotoWebp";
 import { uploadBrowserPhotoWebp, type WebpPost } from "../../shared/media/browserPhotoUpload";
 import { apiRequest } from "../../shared/api/client";
+import type { Chat2MediaRenditions } from "@gafus/chat-media-quality";
 import type { Chat2ConnectionGrant } from "@gafus/core-client/chat2/realtime-subscription";
 export type Chat2Kind =
   | "DIRECT"
@@ -261,9 +262,9 @@ export const chat2Api = {
   mediaUrl: (id: string, attachmentId: string) =>
     request<{ url: string; mime: string; name: string; expiresIn: number;
       status?: "READY" | "QUEUED" | "PROCESSING" | "FAILED" | "EXPIRED";
-      renditions?: import("@gafus/chat-media-quality").Chat2MediaRenditions;
+      renditions?: Chat2MediaRenditions;
       fallbackUrl?: string;
-      fallbackRenditions?: import("@gafus/chat-media-quality").Chat2MediaRenditions }>(
+      fallbackRenditions?: Chat2MediaRenditions }>(
       `/${chatId(id)}/attachments/${chatId(attachmentId)}`,
     ),
   discard: (id: string, attachmentId: string) =>

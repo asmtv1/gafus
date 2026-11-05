@@ -146,7 +146,7 @@ describe("Chat2 browser-prepared MP4 reservation", () => {
     class FakeWorker {
       onmessage: ((event: MessageEvent) => void) | null = null;
       onerror: (() => void) | null = null;
-      terminate() {}
+      terminate() { /* Fake worker has no resources to release. */ }
       postMessage() { queueMicrotask(() => this.onmessage?.({ data: { kind: "result", file: prepared } } as MessageEvent)); }
     }
     vi.stubGlobal("Worker", FakeWorker);

@@ -80,8 +80,8 @@ describe("Web Feed V2 native rendering", () => {
   });
   it("renders poster through verified CDN/S3 image recovery rather than an unobserved video poster", () => {
     const html = renderToStaticMarkup(createElement(FeedV2Video, { media: movie }));
-    expect(html).toContain('feed-v2-video-poster');
-    expect(html).toContain('poster.webp');
+    expect(html).toContain("feed-v2-video-poster");
+    expect(html).toContain("poster.webp");
     expect(html).not.toMatch(/<video[^>]+poster=/);
     expect(html).not.toMatch(/<video[^>]+src=/);
   });
@@ -104,7 +104,7 @@ describe("Web Feed V2 native rendering", () => {
       expect(host.querySelector('[aria-label="Качество видео"]')?.textContent).toContain("360p");
       await act(async()=>host.querySelector<HTMLButtonElement>('[aria-label="Качество видео"] button:nth-of-type(3)')?.click());
       expect(video.hasAttribute("src")).toBe(false); // settings never autoplays preview
-      await act(async()=>host.querySelector<HTMLButtonElement>('.feed-v2-video-play')?.click());
+      await act(async()=>host.querySelector<HTMLButtonElement>(".feed-v2-video-play")?.click());
       expect(video.getAttribute("src")).toBe(both.mp4[720]);
       Object.defineProperty(video,"paused",{configurable:true,get:()=>false});
       video.currentTime=18.5;
@@ -119,7 +119,7 @@ describe("Web Feed V2 native rendering", () => {
   });
   it("hides the gear until both video qualities actually exist", () => {
     const html = renderToStaticMarkup(createElement(FeedV2Video,{media:movie}));
-    expect(html).not.toContain('Настройки качества видео');
+    expect(html).not.toContain("Настройки качества видео");
   });
   it("does not request playback ticket and leaves MP4 unloaded until click", async () => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

@@ -27,7 +27,7 @@ async function mount(fetcher:ReturnType<typeof vi.fn>) {
     createElement(MomentComposer,{userId:"viewer"}))));
   await act(async()=>{await new Promise(resolve=>setTimeout(resolve,25));});
   const click=async(label:string)=>{
-    const btn=[...host.querySelectorAll<HTMLButtonElement>('button')]
+    const btn=[...host.querySelectorAll<HTMLButtonElement>("button")]
       .find(b=>b.textContent?.trim().includes(label));
     expect(btn).toBeDefined();
     await act(async()=>btn?.click());
@@ -35,8 +35,8 @@ async function mount(fetcher:ReturnType<typeof vi.fn>) {
   const fill=async(selector:string,text:string)=>{
     const input=host.querySelector<HTMLInputElement>(selector)!;
     expect(input).not.toBeNull();
-    const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!;
-    await act(async()=>{set.call(input,text);input.dispatchEvent(new Event('input',{bubbles:true}));});
+    const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!;
+    await act(async()=>{set.call(input,text);input.dispatchEvent(new Event("input",{bubbles:true}));});
   };
   return {host,click,fill,cleanup:async()=>{
     await act(async()=>root.unmount());cache.clear();host.remove();
@@ -45,50 +45,50 @@ async function mount(fetcher:ReturnType<typeof vi.fn>) {
 }
 afterEach(()=>vi.unstubAllGlobals());
 
-describe('WEB4 single action source poll without duplicating Core ledger',()=>{
-  it('blocks invalid 2-option polls before any draft POST',async()=>{
+describe("WEB4 single action source poll without duplicating Core ledger",()=>{
+  it("blocks invalid 2-option polls before any draft POST",async()=>{
     const fake=vi.fn((_path:string,_init?:RequestInit)=>Promise.resolve(response({enabled:true})));
     const ui=await mount(fake);
     try {
-      await ui.click('+ Добавить опрос');
-      expect(Array.from(ui.host.querySelectorAll<HTMLButtonElement>('button')).find(
-        button => button.textContent?.trim() === 'Опубликовать')?.hasAttribute('disabled')).toBe(true);
-      expect(fake.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(0);
+      await ui.click("+ Добавить опрос");
+      expect(Array.from(ui.host.querySelectorAll<HTMLButtonElement>("button")).find(
+        button => button.textContent?.trim() === "Опубликовать")?.hasAttribute("disabled")).toBe(true);
+      expect(fake.mock.calls.filter(([,init])=>init?.method==="POST")).toHaveLength(0);
     }finally{await ui.cleanup();}
   });
-  it('publishes poll-only via create → GET absent → PUT validated → GET confirmed → pollOnly CAS → publish',async()=>{
+  it("publishes poll-only via create → GET absent → PUT validated → GET confirmed → pollOnly CAS → publish",async()=>{
     let exists=false;
     const fake=vi.fn((path:string,init?:RequestInit)=>{
-      if(path.endsWith('/status'))return Promise.resolve(response({enabled:true}));
-      if(path==='/api/v1/feed/posts')return Promise.resolve(response(editor));
-      if(path.endsWith('/draft-poll'))
+      if(path.endsWith("/status"))return Promise.resolve(response({enabled:true}));
+      if(path==="/api/v1/feed/posts")return Promise.resolve(response(editor));
+      if(path.endsWith("/draft-poll"))
         return Promise.resolve(response(exists ? savedPoll : null));
-      if(path.endsWith('/poll')){
-        if(init?.method==='PUT'){ exists=true; return Promise.resolve(response(savedPoll)); }
+      if(path.endsWith("/poll")){
+        if(init?.method==="PUT"){ exists=true; return Promise.resolve(response(savedPoll)); }
         return Promise.resolve(exists?response(savedPoll):response(null,404));
       }
-      if(path.endsWith('/revisions'))return Promise.resolve(response(draftRevision));
-      if(path.endsWith('/publish'))return Promise.resolve(response({
-        ...draftRevision,status:'published',pendingRevision:null,
+      if(path.endsWith("/revisions"))return Promise.resolve(response(draftRevision));
+      if(path.endsWith("/publish"))return Promise.resolve(response({
+        ...draftRevision,status:"published",pendingRevision:null,
       }));
       return Promise.resolve(response(null,503));
     });
     const ui=await mount(fake);
     try {
-      await ui.click('+ Добавить опрос');
+      await ui.click("+ Добавить опрос");
       await ui.fill('section.web4-inline-poll input[placeholder="Что вы думаете?"]',savedPoll.question);
       await ui.fill('input[aria-label="Вариант ответа 1"]',savedPoll.options[0]!.text);
       await ui.fill('input[aria-label="Вариант ответа 2"]',savedPoll.options[1]!.text);
-      const quick=Array.from(ui.host.querySelectorAll<HTMLButtonElement>('button')).find(
-        button => button.textContent?.trim() === 'Опубликовать')!;
+      const quick=Array.from(ui.host.querySelectorAll<HTMLButtonElement>("button")).find(
+        button => button.textContent?.trim() === "Опубликовать")!;
       expect(quick?.disabled).toBe(false);
       await act(async()=>quick.click());
-      for(let i=0;i<23&&!fake.mock.calls.some(([path])=>path.endsWith('/publish'));i++)
+      for(let i=0;i<23&&!fake.mock.calls.some(([path])=>path.endsWith("/publish"));i++)
         await act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
-      const writes=fake.mock.calls.filter(([,init])=>init?.method && init.method!=='GET');
+      const writes=fake.mock.calls.filter(([,init])=>init?.method && init.method!=="GET");
       expect(writes.map(([path])=>path)).toEqual([
-        '/api/v1/feed/posts', '/api/v1/feed/posts/post-1/poll',
-        '/api/v1/feed/posts/post-1/revisions', '/api/v1/feed/posts/post-1/publish',
+        "/api/v1/feed/posts", "/api/v1/feed/posts/post-1/poll",
+        "/api/v1/feed/posts/post-1/revisions", "/api/v1/feed/posts/post-1/publish",
       ]);
       expect(JSON.parse(String(writes[1]?.[1]?.body))).toMatchObject({
         question:savedPoll.question,expectedVersion:0,options:[
@@ -96,11 +96,11 @@ describe('WEB4 single action source poll without duplicating Core ledger',()=>{
         ],
       });
       expect(JSON.parse(String(writes[2]?.[1]?.body))).toMatchObject({
-        text:'',attachmentIds:[],pollOnly:true,expectedVersion:0,
+        text:"",attachmentIds:[],pollOnly:true,expectedVersion:0,
       });
-      for(let i=0;i<10&&window.location.pathname!=='/moments';i++)
+      for(let i=0;i<10&&window.location.pathname!=="/moments";i++)
         await act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
-      expect(window.location.pathname).toBe('/moments');
+      expect(window.location.pathname).toBe("/moments");
     }finally{await ui.cleanup();}
   });
 });

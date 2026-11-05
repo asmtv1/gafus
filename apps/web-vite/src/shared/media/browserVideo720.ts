@@ -8,9 +8,12 @@ const verifiedCache = new WeakMap<File, Promise<File>>();
 let previous: Promise<void> = Promise.resolve();
 
 export function browserVideo720Available(): boolean {
-  return import.meta.env.VITE_CLIENT_VIDEO_720 !== "false" &&
+  return (
+    import.meta.env.VITE_CLIENT_VIDEO_720 !== "false" &&
     typeof Worker !== "undefined" &&
-    typeof VideoDecoder !== "undefined" && typeof VideoEncoder !== "undefined";
+    typeof VideoDecoder !== "undefined" &&
+    typeof VideoEncoder !== "undefined"
+  );
 }
 
 /** Strict mode is used for NEW uploads when no backend transcoder is available.
@@ -20,35 +23,53 @@ export function browserVideo720Available(): boolean {
  * Non-strict callers retain the existing compatibility behavior.
  */
 export function prepareBrowserVideo720(
-  file: File, onProgress?: (progress: number) => void, requirePrepared = false,
+  file: File,
+  onProgress?: (progress: number) => void,
+  requirePrepared = false,
 ): Promise<File> {
   if (!file.type.startsWith("video/") || file.size < 1024) {
-    return requirePrepared ? Promise.reject(new Error("LOCAL_VIDEO_INVALID")) : Promise.resolve(file);
+    return requirePrepared
+      ? Promise.reject(new Error("LOCAL_VIDEO_INVALID"))
+      : Promise.resolve(file);
   }
   if (!browserVideo720Available()) {
-    return requirePrepared ? Promise.reject(new Error("LOCAL_VIDEO_BROWSER_UNSUPPORTED")) : Promise.resolve(file);
+    return requirePrepared
+      ? Promise.reject(new Error("LOCAL_VIDEO_BROWSER_UNSUPPORTED"))
+      : Promise.resolve(file);
   }
   const store = requirePrepared ? verifiedCache : cache;
   const cached = store.get(file);
   if (cached) return cached;
-  const job = previous.catch(() => undefined).then(() => encodeInWorker(file, onProgress, requirePrepared));
+  const job = previous
+    .catch(() => undefined)
+    .then(() => encodeInWorker(file, onProgress, requirePrepared));
   // Only one hardware encode per browser tab, including failed attempts.
-  previous = job.then(() => undefined, () => undefined);
-  const result = requirePrepared ? job.catch(error => {
-    // Retry on the same file really starts a fresh worker, not a cached failure.
-    verifiedCache.delete(file);
-    throw error;
-  }) : job.catch(() => file);
+  previous = job.then(
+    () => undefined,
+    () => undefined,
+  );
+  const result = requirePrepared
+    ? job.catch((error) => {
+        // Retry on the same file really starts a fresh worker, not a cached failure.
+        verifiedCache.delete(file);
+        throw error;
+      })
+    : job.catch(() => file);
   store.set(file, result);
   return result;
 }
 
-function encodeInWorker(file: File, onProgress?: (progress: number) => void,
-  requirePrepared = false): Promise<File> {
+function encodeInWorker(
+  file: File,
+  onProgress?: (progress: number) => void,
+  requirePrepared = false,
+): Promise<File> {
   return new Promise((resolve, reject) => {
     let worker: Worker;
     try {
-      worker = new Worker(new URL("./browserVideo720.worker.ts", import.meta.url), { type: "module" });
+      worker = new Worker(new URL("./browserVideo720.worker.ts", import.meta.url), {
+        type: "module",
+      });
     } catch {
       if (requirePrepared) reject(new Error("LOCAL_VIDEO_BROWSER_UNSUPPORTED"));
       else resolve(file);
@@ -63,7 +84,10 @@ function encodeInWorker(file: File, onProgress?: (progress: number) => void,
       resolve(result);
     };
     const fallback = () => {
-      if (!requirePrepared) { finish(file); return; }
+      if (!requirePrepared) {
+        finish(file);
+        return;
+      }
       if (ended) return;
       ended = true;
       clearTimeout(deadline);
@@ -72,9 +96,14 @@ function encodeInWorker(file: File, onProgress?: (progress: number) => void,
     };
     const deadline = setTimeout(fallback, MAX_ENCODE_MS);
     worker.onerror = fallback;
-    worker.onmessage = (event: MessageEvent<
-      { kind: "progress"; value: number } | { kind: "result"; file: File } | { kind: "fallback" } | { kind: "reusable" }
-    >) => {
+    worker.onmessage = (
+      event: MessageEvent<
+        | { kind: "progress"; value: number }
+        | { kind: "result"; file: File }
+        | { kind: "fallback" }
+        | { kind: "reusable" }
+      >,
+    ) => {
       if (event.data.kind === "progress") {
         if (Number.isFinite(event.data.value))
           onProgress?.(Math.round(Math.max(0, Math.min(1, event.data.value)) * 100));
@@ -82,12 +111,20 @@ function encodeInWorker(file: File, onProgress?: (progress: number) => void,
         finish(file);
       } else if (event.data.kind === "result") {
         const prepared = event.data.file;
-        if (prepared instanceof File && prepared.type === "video/mp4" &&
-          prepared.size >= 1024 && prepared.size <= 200 * 1024 * 1024) finish(prepared);
+        if (
+          prepared instanceof File &&
+          prepared.type === "video/mp4" &&
+          prepared.size >= 1024 &&
+          prepared.size <= 200 * 1024 * 1024
+        )
+          finish(prepared);
         else fallback();
       } else fallback();
     };
-    try { worker.postMessage({ file }); }
-    catch { fallback(); }
+    try {
+      worker.postMessage({ file });
+    } catch {
+      fallback();
+    }
   });
 }

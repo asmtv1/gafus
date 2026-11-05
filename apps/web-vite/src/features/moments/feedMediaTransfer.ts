@@ -15,7 +15,6 @@ const ID = /^[a-zA-Z0-9_-]{1,128}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PHOTO_MIME: readonly string[] = FEED_PHOTO_MIME_TYPES;
 const VIDEO_MIME: readonly string[] = FEED_VIDEO_MIME_TYPES;
-const DONE = new Set(["uploaded", "processing", "ready"]);
 
 // Keep the five-transfer budget global to the browser tab, not per editor.
 // Acquire before requesting a short-lived signed POST so waiting uploads do

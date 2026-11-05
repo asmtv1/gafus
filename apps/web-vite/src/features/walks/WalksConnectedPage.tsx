@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../../shared/api/client";
 import "maplibre-gl/dist/maplibre-gl.css";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import styles from "./WalksConnectedPage.module.css";
 
 const configuredMapStyle = import.meta.env.VITE_WALK_MAP_STYLE_URL as string | undefined;
@@ -71,7 +72,7 @@ function WalkMap({ points }: { points: WebGpsPoint[] }) {
   useEffect(() => {
     if (!container.current || !accepted.length) return;
     let destroyed = false;
-    let map: import("maplibre-gl").Map | undefined;
+    let map: MapLibreMap | undefined;
     void import("maplibre-gl")
       .then((maplibregl) => {
         if (destroyed || !container.current) return;
@@ -112,7 +113,9 @@ function WalkMap({ points }: { points: WebGpsPoint[] }) {
           nextMap.fitBounds(bounds, { padding: 38, maxZoom: 16, duration: 0 });
         });
       })
-      .catch(() => {});
+      .catch(() => {
+        // Map unavailable: retain the accessible walk summary.
+      });
     return () => {
       destroyed = true;
       map?.remove();

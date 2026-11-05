@@ -63,19 +63,19 @@ describe("Moments saved publications", () => {
       expect(ui.container.textContent).toContain("Сохранённый момент");
       expect(ui.container.querySelector('a[href="/moments/post-1"]')).not.toBeNull();
       // Saved cards must use the SAME MomentSummary and action layout as Feed.
-      const savedPage = ui.container.querySelector('.moments-saved-page.next-feed-page');
+      const savedPage = ui.container.querySelector(".moments-saved-page.next-feed-page");
       expect(savedPage).not.toBeNull();
-      const savedCard = savedPage?.querySelector('.moments-catalog-grid > .moment-summary-card');
+      const savedCard = savedPage?.querySelector(".moments-catalog-grid > .moment-summary-card");
       expect(savedCard).not.toBeNull();
-      expect(savedCard?.querySelector('.web4-moment-compact-author')).not.toBeNull();
-      expect(savedCard?.querySelector('.moment-engagement-actions')).not.toBeNull();
-      expect(savedCard?.querySelector('.moment-comment-action')).not.toBeNull();
+      expect(savedCard?.querySelector(".web4-moment-compact-author")).not.toBeNull();
+      expect(savedCard?.querySelector(".moment-engagement-actions")).not.toBeNull();
+      expect(savedCard?.querySelector(".moment-comment-action")).not.toBeNull();
       const button = savedCard?.querySelector<HTMLButtonElement>(
         'button.moment-action-save-feed[aria-pressed="true"]',
       );
       expect(button?.getAttribute("aria-label")).toBe("Убрать из закладок");
       expect(button?.getAttribute("title")).toBe("Убрать из закладок");
-      expect(button?.querySelector('svg[aria-hidden="true"]')?.getAttribute('fill')).toBe('currentColor');
+      expect(button?.querySelector('svg[aria-hidden="true"]')?.getAttribute("fill")).toBe("currentColor");
       await act(async () => button?.click());
       await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)); });
       expect(fake.mock.calls.find(call => call[1]?.method === "DELETE")?.[0])

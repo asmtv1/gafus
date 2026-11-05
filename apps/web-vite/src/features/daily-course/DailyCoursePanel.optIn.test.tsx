@@ -342,13 +342,13 @@ describe("COURSE011_DAILY_PARENT_MARKDOWN verified summary and full day instruct
     await open();
     // Source Next Day: description starts collapsed and only mounts private
     // Markdown after an explicit expansion, never from schedule summary.
-    expect(host.querySelector('.daily-next-description-body')).toBeNull();
+    expect(host.querySelector(".daily-next-description-body")).toBeNull();
     const showDescription=host.querySelector<HTMLButtonElement>(
-      '.daily-next-description-header');
+      ".daily-next-description-header");
     expect(showDescription?.getAttribute("aria-expanded")).toBe("false");
     await act(async()=>showDescription?.click());
     const detailBlock=host.querySelector<HTMLElement>(
-      '.daily-next-description-body');
+      ".daily-next-description-body");
     expect(detailBlock?.querySelector("h2")?.textContent).toBe("Инструкции дня");
     expect(detailBlock?.querySelectorAll("ul > li")).toHaveLength(2);
     expect(detailBlock?.querySelector("table")).not.toBeNull();
@@ -364,7 +364,7 @@ describe("COURSE011_DAILY_PARENT_MARKDOWN verified summary and full day instruct
       '.daily-course-summary [aria-label="Описание задания дня"] p')?.textContent)
       .toBe("Обычная тренировка");
     await open();
-    expect(host.querySelector('.daily-next-description-body')).toBeNull();
+    expect(host.querySelector(".daily-next-description-body")).toBeNull();
     expect(host.querySelectorAll(".training-step-card")).toHaveLength(2);
   });
   it("pending/403/mismatch fresh Daily detail and denied schedule do not reveal private Markdown",async()=>{
@@ -393,17 +393,17 @@ describe("LIVE-NEXT-CATALOG daily source card (connected route only)",()=>{
     await mount(<CourseCatalog userId="A" showDailyCourseOptIn
       dailyRouteMode dailyTodayLoader={loadToday} dailyDayLoader={loadDay}/>);
     await flush();
-    const card=host.querySelector('[data-next-daily-course-card]');
-    const search=host.querySelector('[data-next-course-search]');
+    const card=host.querySelector("[data-next-daily-course-card]");
+    const search=host.querySelector("[data-next-course-search]");
     expect(card).not.toBeNull();
     expect(search).not.toBeNull();
     expect((card?.compareDocumentPosition(search!) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING)
       .toBeTruthy();
     expect(card?.querySelector('a[href="/daily-course/schedule_A"]')).not.toBeNull();
-    expect(card?.querySelector('img[alt="Курс дня"]')?.getAttribute('src'))
-      .toContain('/uploads/courses/course-day-logo.png');
-    expect(card?.textContent).toContain('Задание дня');
-    expect(card?.textContent).toContain('1/2 выполнено');
+    expect(card?.querySelector('img[alt="Курс дня"]')?.getAttribute("src"))
+      .toContain("/uploads/courses/course-day-logo.png");
+    expect(card?.textContent).toContain("Задание дня");
+    expect(card?.textContent).toContain("1/2 выполнено");
     expect(card?.querySelector('[aria-label="Прогресс курса дня: 50%"]')).not.toBeNull();
     expect(loadToday).toHaveBeenCalledTimes(1);
     expect(loadDay).not.toHaveBeenCalled();
@@ -415,8 +415,8 @@ describe("LIVE-NEXT-CATALOG daily source card (connected route only)",()=>{
     await mount(<CourseCatalog userId="A" showDailyCourseOptIn
       dailyRouteMode dailyTodayLoader={loadToday} dailyDayLoader={loadDay}/>);
     await flush();
-    expect(host.querySelector('[data-next-daily-course-card]')).toBeNull();
-    expect(host.querySelector('[data-next-course-search]')).not.toBeNull();
+    expect(host.querySelector("[data-next-daily-course-card]")).toBeNull();
+    expect(host.querySelector("[data-next-course-search]")).not.toBeNull();
     expect(loadDay).not.toHaveBeenCalled();
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
@@ -425,12 +425,12 @@ describe("LIVE-NEXT-CATALOG daily source card (connected route only)",()=>{
     loadToday.mockReturnValueOnce(pending.promise);
     await mount(<CourseCatalog userId="A" showDailyCourseOptIn
       dailyRouteMode dailyTodayLoader={loadToday} dailyDayLoader={loadDay}/>);
-    expect(host.querySelector('[data-next-daily-course-card]')).toBeNull();
+    expect(host.querySelector("[data-next-daily-course-card]")).toBeNull();
     await act(async()=>pending.resolve(today));await flush();
-    expect(host.querySelector('[data-next-daily-course-card]')).not.toBeNull();
+    expect(host.querySelector("[data-next-daily-course-card]")).not.toBeNull();
     await act(async()=>cache.setQueryData(CURRENT_USER_QUERY_KEY,
       {id:"B",username:"user_B",role:"USER"}));
-    expect(host.querySelector('[data-next-daily-course-card]')).toBeNull();
-    expect(host.textContent).not.toContain('Работа с возбуждением');
+    expect(host.querySelector("[data-next-daily-course-card]")).toBeNull();
+    expect(host.textContent).not.toContain("Работа с возбуждением");
   });
 });

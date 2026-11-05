@@ -1,11 +1,22 @@
 import { sameOriginCdnProbeFetch } from "../../shared/api/cdnProbe";
 import { Loading } from "../../shared/ui";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import { CHAT2_EMOJIS, updateChat2ReactionSummary } from "./messageReactions";
 import { Centrifuge } from "centrifuge";
-import { chat2SubscriptionForConnection, chat2SubscriptionTransportOptions } from "@gafus/core-client/chat2/realtime-subscription";
+import {
+  chat2SubscriptionForConnection,
+  chat2SubscriptionTransportOptions,
+} from "@gafus/core-client/chat2/realtime-subscription";
 import { useCurrentUser } from "../../shared/auth/useAuth";
 import { GafusHeader } from "../../brand/GafusHeader";
 import { RouteLink, navigate, useRoutePath, useRouteSearch } from "../../shared/router/location";
@@ -23,7 +34,12 @@ import { Chat2ReportQueue } from "./Chat2ReportQueue";
 import { Chat2StaffQueue } from "./Chat2StaffQueue";
 import css from "./Chat2Messenger.module.css";
 import { VideoQualitySettings } from "../../shared/media/VideoQualitySettings";
-import { webMp4Hints, observeWebMp4Start, savedWebMp4Mode, saveWebMp4Mode } from "../../shared/media/videoPlaybackPolicy";
+import {
+  webMp4Hints,
+  observeWebMp4Start,
+  savedWebMp4Mode,
+  saveWebMp4Mode,
+} from "../../shared/media/videoPlaybackPolicy";
 import { reportWebVideoStarted } from "../../shared/media/videoQualityTelemetry";
 import { videoRetryMessage, videoServerFailureMessage } from "../../shared/media/videoRetryMessage";
 import { photoRetryMessage } from "../../shared/media/photoRetryMessage";
@@ -31,9 +47,14 @@ import { prepareBrowserPhotoWebp } from "../../shared/media/browserPhotoWebp";
 import { prepareBrowserVideo720 } from "../../shared/media/browserVideo720";
 import { prepareBrowserVideoPoster } from "../../shared/media/browserVideoPoster";
 import {
-  chat2ImageSource, chat2VideoSource, chat2HasVideoQuality,
-  chat2MatchedS3Variant, chat2CdnS3FailoverAllowed,
-  type Chat2QualityMode, type Chat2MediaRenditions, type Chat2VideoHints,
+  chat2ImageSource,
+  chat2VideoSource,
+  chat2HasVideoQuality,
+  chat2MatchedS3Variant,
+  chat2CdnS3FailoverAllowed,
+  type Chat2QualityMode,
+  type Chat2MediaRenditions,
+  type Chat2VideoHints,
 } from "@gafus/chat-media-quality";
 import { publicImageUrl } from "../profile/publicProfileApi";
 import { isolatedNonprodBrowserS3Url } from "../../shared/api/client";
@@ -74,6 +95,7 @@ function chat2ImageUrl(raw: string | null): string | null {
   if (isolatedNonprodBrowserS3Url(raw, "documents", "signed-get")) {
     const url = new URL(raw);
     if (
+      // eslint-disable-next-line max-len -- Security: keep the exact allowlist regex auditable.
       /^\/gafus-refactor-documents-test\/chat2\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/[a-f0-9-]{36}\.(?:jpg|png|webp)$/.test(
         url.pathname,
       )
@@ -131,7 +153,9 @@ function Chat2MessageAvatar({ avatarUrl }: { avatarUrl?: string | null }) {
           referrerPolicy="no-referrer"
           onError={() => setFailed(true)}
         />
-      ) : "👤"}
+      ) : (
+        "👤"
+      )}
     </span>
   );
 }
@@ -900,9 +924,18 @@ function Chat2Room({
     onDraftChange(value);
   };
   const [pendingMedia, setPendingMedia] = useState<
-    { localId: string; name: string; preview: string | null; kind: "image" | "video" | "file";
-      file: File; attachment?: Chat2Attachment; failure?: string; uploading?: boolean;
-      preparedPhoto?: boolean; preparedVideo?: { file: File; poster: File } }[]
+    {
+      localId: string;
+      name: string;
+      preview: string | null;
+      kind: "image" | "video" | "file";
+      file: File;
+      attachment?: Chat2Attachment;
+      failure?: string;
+      uploading?: boolean;
+      preparedPhoto?: boolean;
+      preparedVideo?: { file: File; poster: File };
+    }[]
   >([]);
   const [uploading, setUploading] = useState(false);
   const preparedPhotos = useRef(new Map<string, Chat2BrowserPreparedPhoto>());
@@ -939,12 +972,16 @@ function Chat2Room({
     try {
       const result = await chat2Api.react(id, messageId, emoji);
       // Keep paginated older messages in sync without reloading the entire room.
-      setOlder((previous) => previous.map((message) =>
-        message.id === messageId ? {
-          ...message,
-          reactions: updateChat2ReactionSummary(message.reactions, emoji, result.active),
-        } : message,
-      ));
+      setOlder((previous) =>
+        previous.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                reactions: updateChat2ReactionSummary(message.reactions, emoji, result.active),
+              }
+            : message,
+        ),
+      );
       setReactionPickerId(null);
       await cache.invalidateQueries({ queryKey: ["chat2", "messages", ownerId, id] });
     } catch (err) {
@@ -986,8 +1023,10 @@ function Chat2Room({
         });
         // Proxy-only is authorized on every new subscribe/reconnect by Core
         // readGate in the internal broker callback. Never send a stale room JWT.
-        const sub = socket.newSubscription(subscription.channel,
-          chat2SubscriptionTransportOptions(subscription));
+        const sub = socket.newSubscription(
+          subscription.channel,
+          chat2SubscriptionTransportOptions(subscription),
+        );
         sub.on("publication", () => {
           if (!disposed) {
             void cache.invalidateQueries({ queryKey: ["chat2", "messages", ownerId, id] });
@@ -1052,8 +1091,13 @@ function Chat2Room({
   }, [id, newestSequence, onRefresh]);
   async function loadOlder() {
     // The ref locks synchronously: two scroll events in one render cannot fetch twice.
-    if (olderRequest.current || !hasMore || !merged.length ||
-        lastFetchedBefore.current === merged[0].sequence) return;
+    if (
+      olderRequest.current ||
+      !hasMore ||
+      !merged.length ||
+      lastFetchedBefore.current === merged[0].sequence
+    )
+      return;
     olderRequest.current = true;
     setMoreLoading(true);
     setError("");
@@ -1079,56 +1123,120 @@ function Chat2Room({
   }
   // Never reserve server media on file selection. Browser produces two WebP copies now.
   async function preparePendingPhoto(localId: string, file: File) {
-    setPendingMedia(previous => previous.map(item => item.localId === localId
-      ? { ...item, uploading: true, failure: undefined } : item));
+    setPendingMedia((previous) =>
+      previous.map((item) =>
+        item.localId === localId ? { ...item, uploading: true, failure: undefined } : item,
+      ),
+    );
     try {
       const prepared = await prepareBrowserPhotoWebp(file, { small: 360, medium: 1440 });
       if (!activePhotos.current.has(localId)) return;
       preparedPhotos.current.set(localId, prepared);
-      setPendingMedia(previous => previous.map(item => item.localId === localId
-        ? { ...item, uploading: false, preparedPhoto: true, failure: undefined } : item));
+      setPendingMedia((previous) =>
+        previous.map((item) =>
+          item.localId === localId
+            ? { ...item, uploading: false, preparedPhoto: true, failure: undefined }
+            : item,
+        ),
+      );
     } catch (reason) {
       if (activePhotos.current.has(localId))
-        setPendingMedia(previous => previous.map(item => item.localId === localId
-          ? { ...item, uploading: false, preparedPhoto: false,
-            failure: photoRetryMessage(reason) } : item));
+        setPendingMedia((previous) =>
+          previous.map((item) =>
+            item.localId === localId
+              ? {
+                  ...item,
+                  uploading: false,
+                  preparedPhoto: false,
+                  failure: photoRetryMessage(reason),
+                }
+              : item,
+          ),
+        );
     }
   }
   useEffect(() => {
     const active = activePhotos.current;
     const prepared = preparedPhotos.current;
-    return () => { active.clear(); prepared.clear(); };
+    return () => {
+      active.clear();
+      prepared.clear();
+    };
   }, []);
   async function preparePendingVideo(localId: string, file: File) {
     // Only local H264/720p and one poster; never reserve or write S3 on selection.
-    setPendingMedia(previous => previous.map(item => item.localId === localId
-      ? { ...item, failure: undefined, uploading: true } : item));
+    setPendingMedia((previous) =>
+      previous.map((item) =>
+        item.localId === localId ? { ...item, failure: undefined, uploading: true } : item,
+      ),
+    );
     try {
       const prepared = await prepareBrowserVideo720(file, undefined, true);
       const poster = await prepareBrowserVideoPoster(prepared);
-      setPendingMedia(previous => previous.map(item => item.localId === localId
-        ? { ...item, preparedVideo: { file: prepared, poster },
-          uploading: false, failure: undefined } : item));
+      setPendingMedia((previous) =>
+        previous.map((item) =>
+          item.localId === localId
+            ? {
+                ...item,
+                preparedVideo: { file: prepared, poster },
+                uploading: false,
+                failure: undefined,
+              }
+            : item,
+        ),
+      );
     } catch (reason) {
-      setPendingMedia(previous => previous.map(item => item.localId === localId
-        ? { ...item, uploading: false, failure: videoRetryMessage(reason) } : item));
+      setPendingMedia((previous) =>
+        previous.map((item) =>
+          item.localId === localId
+            ? { ...item, uploading: false, failure: videoRetryMessage(reason) }
+            : item,
+        ),
+      );
     }
   }
-  async function uploadPendingFile(localId: string, file: File,
-    preparedVideo?: { file: File; poster: File }) {
-    setPendingMedia(previous => previous.map(item => item.localId === localId
-      ? { ...item, failure: undefined, uploading: true } : item));
+  async function uploadPendingFile(
+    localId: string,
+    file: File,
+    preparedVideo?: { file: File; poster: File },
+  ) {
+    setPendingMedia((previous) =>
+      previous.map((item) =>
+        item.localId === localId ? { ...item, failure: undefined, uploading: true } : item,
+      ),
+    );
     try {
-      const attachment = await chat2Api.upload(id, file,
-        preparedPhotos.current.get(localId), preparedVideo);
-      setPendingMedia(previous => previous.map(item => item.localId === localId
-        ? { ...item, attachment, uploading: false, failure: undefined } : item));
+      const attachment = await chat2Api.upload(
+        id,
+        file,
+        preparedPhotos.current.get(localId),
+        preparedVideo,
+      );
+      setPendingMedia((previous) =>
+        previous.map((item) =>
+          item.localId === localId
+            ? { ...item, attachment, uploading: false, failure: undefined }
+            : item,
+        ),
+      );
       return attachment;
     } catch (reason) {
-      setPendingMedia(previous => previous.map(item => item.localId === localId
-        ? { ...item, uploading: false,
-          failure: item.kind === "video" ? videoRetryMessage(reason)
-            : item.kind === "image" ? photoRetryMessage(reason) : errorText(reason) } : item));
+      setPendingMedia((previous) =>
+        previous.map((item) =>
+          item.localId === localId
+            ? {
+                ...item,
+                uploading: false,
+                failure:
+                  item.kind === "video"
+                    ? videoRetryMessage(reason)
+                    : item.kind === "image"
+                      ? photoRetryMessage(reason)
+                      : errorText(reason),
+              }
+            : item,
+        ),
+      );
       throw reason;
     }
   }
@@ -1139,11 +1247,16 @@ function Chat2Room({
     try {
       for (const file of Array.from(files).slice(0, 8 - pendingMedia.length)) {
         const localId = crypto.randomUUID();
-        const kind = file.type.startsWith("image/") ? "image" :
-          file.type.startsWith("video/") ? "video" : "file";
+        const kind = file.type.startsWith("image/")
+          ? "image"
+          : file.type.startsWith("video/")
+            ? "video"
+            : "file";
         const preview = kind !== "file" ? URL.createObjectURL(file) : null;
-        setPendingMedia(previous => [...previous, { localId, name: file.name, preview,
-          kind, file, uploading: true }]);
+        setPendingMedia((previous) => [
+          ...previous,
+          { localId, name: file.name, preview, kind, file, uploading: true },
+        ]);
         if (kind === "image") {
           activePhotos.current.add(localId);
           await preparePendingPhoto(localId, file);
@@ -1151,18 +1264,21 @@ function Chat2Room({
           await preparePendingVideo(localId, file);
         } else await uploadPendingFile(localId, file).catch(() => undefined);
       }
-    } finally { setUploading(false); }
+    } finally {
+      setUploading(false);
+    }
   }
   function retryPendingFile(localId: string) {
     if (uploading || busy) return;
-    const target = pendingMedia.find(item => item.localId === localId);
+    const target = pendingMedia.find((item) => item.localId === localId);
     if (!target || !target.failure || target.attachment || target.uploading) return;
     setUploading(true);
-    const retry = target.kind === "image" && !target.preparedPhoto
-      ? preparePendingPhoto(localId, target.file)
-      : target.kind === "video" && !target.preparedVideo
-        ? preparePendingVideo(localId, target.file)
-        : uploadPendingFile(localId, target.file, target.preparedVideo);
+    const retry =
+      target.kind === "image" && !target.preparedPhoto
+        ? preparePendingPhoto(localId, target.file)
+        : target.kind === "video" && !target.preparedVideo
+          ? preparePendingVideo(localId, target.file)
+          : uploadPendingFile(localId, target.file, target.preparedVideo);
     void retry.catch(() => undefined).finally(() => setUploading(false));
   }
   function removeMedia(media: {
@@ -1185,7 +1301,8 @@ function Chat2Room({
     const text = draft.trim();
     if (
       (!text && !pendingMedia.length) ||
-      busy || sendInFlight.current ||
+      busy ||
+      sendInFlight.current ||
       uploading ||
       pendingMedia.some((x) => !x.attachment && !x.preparedPhoto && !x.preparedVideo)
     )
@@ -1202,7 +1319,7 @@ function Chat2Room({
           try {
             const attachment = await uploadPendingFile(item.localId, item.file, item.preparedVideo);
             confirmed[index] = { ...item, attachment, failure: undefined };
-          } catch (reason) {
+          } catch {
             throw Error("Видео не отправилось. Проверьте интернет и нажмите «Отправить» ещё раз.");
           }
           continue;
@@ -1214,15 +1331,25 @@ function Chat2Room({
           // Upload to S3 only after Send, using previously prepared WebP bytes.
           const attachment = await chat2Api.upload(id, item.file, prepared);
           confirmed[index] = { ...item, attachment, failure: undefined };
-          setPendingMedia(previous => previous.map(file => file.localId === item.localId
-            ? { ...file, attachment, failure: undefined } : file));
+          setPendingMedia((previous) =>
+            previous.map((file) =>
+              file.localId === item.localId ? { ...file, attachment, failure: undefined } : file,
+            ),
+          );
         } catch (reason) {
-          setPendingMedia(previous => previous.map(file => file.localId === item.localId
-            ? { ...file, failure: photoRetryMessage(reason) } : file));
+          setPendingMedia((previous) =>
+            previous.map((file) =>
+              file.localId === item.localId
+                ? { ...file, failure: photoRetryMessage(reason) }
+                : file,
+            ),
+          );
           throw Error("Фото не загрузилось. Проверьте интернет и нажмите «Отправить» ещё раз.");
         }
       }
-      const attachmentIds = confirmed.flatMap(item => item.attachment ? [item.attachment.id] : []);
+      const attachmentIds = confirmed.flatMap((item) =>
+        item.attachment ? [item.attachment.id] : [],
+      );
       const quoted = reply?.id;
       const fingerprint = JSON.stringify([id, text, quoted ?? null, attachmentIds]);
       const clientMessageId =
@@ -1407,11 +1534,14 @@ function Chat2Room({
               {date !== previousDate && <div className={css.date}>{date}</div>}
               <div className={`${css.message} ${own ? css.own : ""}`}>
                 {!own && <Chat2MessageAvatar avatarUrl={members.get(m.authorId)?.avatarUrl} />}
-                <div className={css.bubble} onContextMenu={(event) => {
-                  if (m.deletedAt) return;
-                  event.preventDefault();
-                  setReactionPickerId(m.id);
-                }}>
+                <div
+                  className={css.bubble}
+                  onContextMenu={(event) => {
+                    if (m.deletedAt) return;
+                    event.preventDefault();
+                    setReactionPickerId(m.id);
+                  }}
+                >
                   {!own && room?.kind !== "DIRECT" && (
                     <b className={css.author}>{members.get(m.authorId)?.username ?? "Участник"}</b>
                   )}
@@ -1434,11 +1564,14 @@ function Chat2Room({
                   {!m.deletedAt && Boolean(m.reactions?.length) && (
                     <div className={css.reactionBadges} aria-label="Реакции на сообщение">
                       {m.reactions?.map((reaction) => (
-                        <button type="button" key={reaction.emoji}
+                        <button
+                          type="button"
+                          key={reaction.emoji}
                           className={reaction.mine ? css.reactionMine : ""}
                           disabled={Boolean(reactingId)}
                           aria-label={`${reaction.emoji}, ${reaction.count}, ${reaction.mine ? "убрать мою реакцию" : "поставить реакцию"}`}
-                          onClick={() => void react(m.id, reaction.emoji)}>
+                          onClick={() => void react(m.id, reaction.emoji)}
+                        >
                           {reaction.emoji} <span>{reaction.count}</span>
                         </button>
                       ))}
@@ -1454,9 +1587,14 @@ function Chat2Room({
                       >
                         ↩ Ответить
                       </button>
-                      <button type="button" title="Поставить реакцию"
+                      <button
+                        type="button"
+                        title="Поставить реакцию"
                         aria-label="Поставить реакцию на сообщение"
-                        onClick={() => setReactionPickerId((current) => current === m.id ? null : m.id)}>
+                        onClick={() =>
+                          setReactionPickerId((current) => (current === m.id ? null : m.id))
+                        }
+                      >
                         ☺ Реакция
                       </button>
                       {!own && (
@@ -1494,12 +1632,23 @@ function Chat2Room({
                   {reactionPickerId === m.id && !m.deletedAt && (
                     <div className={css.reactionPicker} aria-label="Выбор реакции">
                       {CHAT2_EMOJIS.map((emoji) => (
-                        <button key={emoji} type="button" disabled={Boolean(reactingId)}
+                        <button
+                          key={emoji}
+                          type="button"
+                          disabled={Boolean(reactingId)}
                           aria-label={`Поставить реакцию ${emoji}`}
-                          onClick={() => void react(m.id, emoji)}>{emoji}</button>
+                          onClick={() => void react(m.id, emoji)}
+                        >
+                          {emoji}
+                        </button>
                       ))}
-                      <button type="button" aria-label="Закрыть реакции"
-                        onClick={() => setReactionPickerId(null)}>×</button>
+                      <button
+                        type="button"
+                        aria-label="Закрыть реакции"
+                        onClick={() => setReactionPickerId(null)}
+                      >
+                        ×
+                      </button>
                     </div>
                   )}
                   {!own && reportingId === m.id && !m.deletedAt && (
@@ -1568,26 +1717,61 @@ function Chat2Room({
             {pendingMedia.map((item) => (
               <div className={css.pendingFile} key={item.localId}>
                 <div className={css.pendingFileMedia}>
-                  {item.preview && item.kind === "image" ? <img src={item.preview} alt={item.name} /> :
-                    item.preview && item.kind === "video" ? <video src={item.preview} muted playsInline preload="metadata" aria-label={item.name} /> : <span>📄</span>}
-                  {item.failure && (item.kind === "video" || item.kind === "image") && <button type="button"
-                    className={css.retryVideoOverlay}
-                    aria-label={`Повторить обработку ${item.kind === "image" ? "фото" : "видео"} ${item.name}`}
-                    title={`Повторить подготовку и загрузку только этого ${item.kind === "image" ? "фото" : "видео"}`}
-                    disabled={busy || uploading} onClick={() => retryPendingFile(item.localId)}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-                      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M20 11a8 8 0 1 0-2.3 6M20 4v7h-7" />
-                    </svg>
-                  </button>}
+                  {item.preview && item.kind === "image" ? (
+                    <img src={item.preview} alt={item.name} />
+                  ) : item.preview && item.kind === "video" ? (
+                    <video
+                      src={item.preview}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      aria-label={item.name}
+                    />
+                  ) : (
+                    <span>📄</span>
+                  )}
+                  {item.failure && (item.kind === "video" || item.kind === "image") && (
+                    <button
+                      type="button"
+                      className={css.retryVideoOverlay}
+                      aria-label={`Повторить обработку ${item.kind === "image" ? "фото" : "видео"} ${item.name}`}
+                      title={`Повторить подготовку и загрузку только этого ${item.kind === "image" ? "фото" : "видео"}`}
+                      disabled={busy || uploading}
+                      onClick={() => retryPendingFile(item.localId)}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M20 11a8 8 0 1 0-2.3 6M20 4v7h-7" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
                 <span>{item.name}</span>
-                <small>{item.attachment ? "Загружено" : item.failure ? "Ошибка" :
-                  (item.preparedPhoto || item.preparedVideo) ? "Готово к отправке" :
-                  item.kind === "image" ? "Подготавливаем на устройстве…" :
-                  item.kind === "video" ? "Подготавливаем видео на устройстве…" :
-                  "Загружаем файл…"}</small>
-                {item.failure && <small role="alert" className={css.pendingFileError}>{item.failure}</small>}
+                <small>
+                  {item.attachment
+                    ? "Загружено"
+                    : item.failure
+                      ? "Ошибка"
+                      : item.preparedPhoto || item.preparedVideo
+                        ? "Готово к отправке"
+                        : item.kind === "image"
+                          ? "Подготавливаем на устройстве…"
+                          : item.kind === "video"
+                            ? "Подготавливаем видео на устройстве…"
+                            : "Загружаем файл…"}
+                </small>
+                {item.failure && (
+                  <small role="alert" className={css.pendingFileError}>
+                    {item.failure}
+                  </small>
+                )}
                 <button
                   type="button"
                   aria-label={`Удалить ${item.name}`}
@@ -1697,8 +1881,10 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
   const [posterSource, setPosterSource] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const resumeAt = useRef(0);
-  const playbackAttempt = useRef<{at:number; hints:Chat2VideoHints; quality:360|720}|null>(null);
-  const reportedRendition = useRef<string|null>(null);
+  const playbackAttempt = useRef<{ at: number; hints: Chat2VideoHints; quality: 360 | 720 } | null>(
+    null,
+  );
+  const reportedRendition = useRef<string | null>(null);
   const playedOnce = useRef(false);
   const resumeAfterAutoSelection = useRef(false);
   const [playing, setPlaying] = useState(false);
@@ -1708,7 +1894,10 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
   const pendingSince = useRef(0);
   const [processingTimedOut, setProcessingTimedOut] = useState(false);
   const [fullscreen, setFullscreen] = useState<{
-    url: string; media: MediaResponse; fallback: boolean; error: boolean;
+    url: string;
+    media: MediaResponse;
+    fallback: boolean;
+    error: boolean;
   } | null>(null);
   const openButton = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -1718,6 +1907,7 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     closeButton.current?.focus();
+    const triggerButton = openButton.current;
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setFullscreen(null);
     };
@@ -1725,24 +1915,26 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
     return () => {
       document.removeEventListener("keydown", onEscape);
       document.body.style.overflow = previousOverflow;
-      openButton.current?.focus();
+      triggerButton?.focus();
     };
   }, [viewerOpen]);
   // Uploaded files appear in the message immediately; poll only pending jobs.
   useEffect(() => {
-    if (!pendingStatus || !["QUEUED", "PROCESSING"].includes(pendingStatus) || processingTimedOut) return;
+    if (!pendingStatus || !["QUEUED", "PROCESSING"].includes(pendingStatus) || processingTimedOut)
+      return;
     if (pendingSince.current && Date.now() - pendingSince.current > 90_000) {
       setProcessingTimedOut(true);
       setLoadError(true);
       return;
     }
-    const timer = window.setTimeout(() => setReload(value => value + 1), 4000);
+    const timer = window.setTimeout(() => setReload((value) => value + 1), 4000);
     return () => window.clearTimeout(timer);
   }, [pendingStatus, reload, processingTimedOut]);
   useEffect(() => {
     let live = true;
     reportedRendition.current = null;
-    void chat2Api.mediaUrl(chatId, file.id)
+    void chat2Api
+      .mediaUrl(chatId, file.id)
       .then((result) => {
         if (!live) return;
         setMedia(result);
@@ -1764,28 +1956,51 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
         setPosterSource(result.renditions?.poster ?? null);
         const preferred = savedWebMp4Mode();
         setQuality(preferred);
-        setSrc(file.kind === "image"
-          ? chat2ImageSource(result.renditions?.image, 320, window.devicePixelRatio, result.renditions?.imageWidths) ?? result.url
-          : file.kind === "video"
-            ? chat2VideoSource(result.renditions?.video, preferred, videoHints()) ?? result.url
-            : result.url);
+        setSrc(
+          file.kind === "image"
+            ? (chat2ImageSource(
+                result.renditions?.image,
+                320,
+                window.devicePixelRatio,
+                result.renditions?.imageWidths,
+              ) ?? result.url)
+            : file.kind === "video"
+              ? (chat2VideoSource(result.renditions?.video, preferred, videoHints()) ?? result.url)
+              : result.url,
+        );
         setLoadError(false);
       })
-      .catch(() => { if (live) { setSrc(null); setLoadError(true); } });
-    return () => { live = false; };
-  }, [chatId, file.id, file.kind, reload]);
+      .catch(() => {
+        if (live) {
+          setSrc(null);
+          setLoadError(true);
+        }
+      });
+    return () => {
+      live = false;
+    };
+  }, [chatId, file.id, file.kind, reload, processingTimedOut]);
   // Browser media onError does not expose HTTP status. Only a verified
   // CDN 410/5xx (or timed-out HEAD) can switch to the matching public S3 key.
   function handleMediaFailure(primary: string, kind: "image" | "video") {
     const fail = () => {
-      if (kind === "video") { setPlaying(false); setLoadError(true); }
+      if (kind === "video") {
+        setPlaying(false);
+        setLoadError(true);
+      }
       setSrc(null);
     };
-    if (!media || usingFallback) { fail(); return; }
+    if (!media || usingFallback) {
+      fail();
+      return;
+    }
     const fallback = chat2MatchedS3Variant(primary, media);
     void chat2CdnS3FailoverAllowed(primary, fallback, sameOriginCdnProbeFetch)
-      .then(allowed => {
-        if (!allowed || !fallback) { fail(); return; }
+      .then((allowed) => {
+        if (!allowed || !fallback) {
+          fail();
+          return;
+        }
         if (kind === "video") resumeAt.current = videoRef.current?.currentTime ?? 0;
         setUsingFallback(true);
         setSrc(fallback);
@@ -1802,11 +2017,15 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
     const cover = new Image();
     cover.onerror = () => {
       const fallback = chat2MatchedS3Variant(primary, media);
-      void chat2CdnS3FailoverAllowed(primary, fallback, sameOriginCdnProbeFetch)
-        .then(allowed => { if (active && allowed && fallback) setPosterSource(fallback); });
+      void chat2CdnS3FailoverAllowed(primary, fallback, sameOriginCdnProbeFetch).then((allowed) => {
+        if (active && allowed && fallback) setPosterSource(fallback);
+      });
     };
     cover.src = primary;
-    return () => { active = false; cover.onerror = null; };
+    return () => {
+      active = false;
+      cover.onerror = null;
+    };
   }, [file.kind, media, usingFallback]);
   function videoHints(): Chat2VideoHints {
     return webMp4Hints(videoRef.current?.clientWidth || 320);
@@ -1827,7 +2046,7 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
     const variants = usingFallback ? media.fallbackRenditions?.video : media.renditions.video;
     const selected = src === variants?.[720] ? 720 : src === variants?.[360] ? 360 : null;
     if (!selected) return;
-    playbackAttempt.current = {at:Date.now(),hints:videoHints(),quality:selected};
+    playbackAttempt.current = { at: Date.now(), hints: videoHints(), quality: selected };
   }
   function onVideoPlaying() {
     setPlaying(true);
@@ -1837,13 +2056,20 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
       const chosen = src === variants?.[720] ? 720 : src === variants?.[360] ? 360 : null;
       if (chosen) {
         reportedRendition.current = src;
-        reportWebVideoStarted({surface:"chat",quality:chosen,mode:quality,
-          hints:videoHints(),available:media.renditions.video,fallback:usingFallback});
+        reportWebVideoStarted({
+          surface: "chat",
+          quality: chosen,
+          mode: quality,
+          hints: videoHints(),
+          available: media.renditions.video,
+          fallback: usingFallback,
+        });
       }
     }
     const current = playbackAttempt.current;
     playbackAttempt.current = null;
-    if (current && !usingFallback) observeWebMp4Start(current.hints, current.quality, Date.now() - current.at);
+    if (current && !usingFallback)
+      observeWebMp4Start(current.hints, current.quality, Date.now() - current.at);
   }
   function onVideoWaiting() {
     const current = playbackAttempt.current;
@@ -1883,28 +2109,48 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
       const fresh = await chat2Api.mediaUrl(chatId, file.id);
       if (fresh.status && fresh.status !== "READY") return;
       if (file.kind === "image") {
-        const url = chat2ImageSource(fresh.renditions?.image, 1200,
-          window.devicePixelRatio, fresh.renditions?.imageWidths) ?? fresh.url;
+        const url =
+          chat2ImageSource(
+            fresh.renditions?.image,
+            1200,
+            window.devicePixelRatio,
+            fresh.renditions?.imageWidths,
+          ) ?? fresh.url;
         if (!url) return;
         setFullscreen({ url, media: fresh, fallback: false, error: false });
         return;
       }
       // PDF documents retain their normal external-document behavior.
       if (fresh.url) window.open(fresh.url, "_blank", "noopener,noreferrer");
-    } catch { setLoadError(true); }
+    } catch {
+      setLoadError(true);
+    }
   }
   function handleFullscreenFailure() {
     if (!fullscreen) return;
     const original = fullscreen.url;
     if (fullscreen.fallback) {
-      setFullscreen(current => current?.url === original ? {...current,error:true} : current);
+      setFullscreen((current) =>
+        current?.url === original ? { ...current, error: true } : current,
+      );
       return;
     }
     const backup = chat2MatchedS3Variant(original, fullscreen.media);
-    void chat2CdnS3FailoverAllowed(original, backup, sameOriginCdnProbeFetch).then(allowed => {
-      setFullscreen(current => current?.url !== original ? current :
-        allowed && backup ? {...current,url:backup,fallback:true} : {...current,error:true});
-    }).catch(() => setFullscreen(current => current?.url === original ? {...current,error:true} : current));
+    void chat2CdnS3FailoverAllowed(original, backup, sameOriginCdnProbeFetch)
+      .then((allowed) => {
+        setFullscreen((current) =>
+          current?.url !== original
+            ? current
+            : allowed && backup
+              ? { ...current, url: backup, fallback: true }
+              : { ...current, error: true },
+        );
+      })
+      .catch(() =>
+        setFullscreen((current) =>
+          current?.url === original ? { ...current, error: true } : current,
+        ),
+      );
   }
   if (file.kind === "video") {
     const variants = media?.renditions?.video;
@@ -1913,89 +2159,179 @@ function Chat2StoredMedia({ chatId, file }: { chatId: string; file: Chat2Attachm
       <div className={css.videoAttachment}>
         {src ? (
           <div className={css.videoFrame}>
-          <video key={src} ref={videoRef} src={src} controls playsInline preload="metadata"
-            onPlay={() => setPlaying(true)} onPlaying={onVideoPlaying} onWaiting={onVideoWaiting}
-            onPause={() => setPlaying(false)}
-            onEnded={() => setPlaying(false)}
-            poster={posterSource ?? undefined} aria-label={file.name}
-            onLoadedMetadata={(event) => {
-              if (resumeAfterAutoSelection.current) {
-                resumeAfterAutoSelection.current = false;
-                markVideoPlayIntent();
-                void event.currentTarget.play().catch(() => undefined);
+            <video
+              key={src}
+              ref={videoRef}
+              src={src}
+              controls
+              playsInline
+              preload="metadata"
+              onPlay={() => setPlaying(true)}
+              onPlaying={onVideoPlaying}
+              onWaiting={onVideoWaiting}
+              onPause={() => setPlaying(false)}
+              onEnded={() => setPlaying(false)}
+              poster={posterSource ?? undefined}
+              aria-label={file.name}
+              onLoadedMetadata={(event) => {
+                if (resumeAfterAutoSelection.current) {
+                  resumeAfterAutoSelection.current = false;
+                  markVideoPlayIntent();
+                  void event.currentTarget.play().catch(() => undefined);
+                }
+                if (resumeAt.current > 0) {
+                  event.currentTarget.currentTime = Math.min(
+                    resumeAt.current,
+                    Math.max(0, event.currentTarget.duration - 0.1),
+                  );
+                  resumeAt.current = 0;
+                  void event.currentTarget.play().catch(() => undefined);
+                }
+              }}
+              onError={(event) =>
+                handleMediaFailure(event.currentTarget.currentSrc || src, "video")
               }
-              if (resumeAt.current > 0) {
-                event.currentTarget.currentTime = Math.min(resumeAt.current, Math.max(0, event.currentTarget.duration - 0.1));
-                resumeAt.current = 0;
-                void event.currentTarget.play().catch(() => undefined);
-              }
-            }}
-            onError={(event) => handleMediaFailure(event.currentTarget.currentSrc || src, "video")} />
-          {!playing && (
-            <button type="button" className={css.videoPlayOverlay}
-              aria-label={`Воспроизвести ${file.name}`}
-              onClick={requestVideoPlayback}>
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="m8 5 11 7-11 7V5Z" />
-              </svg>
-            </button>
-          )}
-            {both && <VideoQualitySettings value={quality} onChange={switchQuality}
-              available={variants} />}
+            />
+            {!playing && (
+              <button
+                type="button"
+                className={css.videoPlayOverlay}
+                aria-label={`Воспроизвести ${file.name}`}
+                onClick={requestVideoPlayback}
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="m8 5 11 7-11 7V5Z" />
+                </svg>
+              </button>
+            )}
+            {both && (
+              <VideoQualitySettings value={quality} onChange={switchQuality} available={variants} />
+            )}
           </div>
         ) : (
           <div className={css.videoLoadingState} role={loadError ? "alert" : "status"}>
-            {loadError ? <><span>{pendingStatus === "FAILED" ? videoServerFailureMessage :
-              processingTimedOut ?
-              "Обработка видео слишком долго не завершается. Сервис обработки может быть недоступен. Сохраните оригинал. Можно проверить состояние ещё раз — это не перезапустит обработку." :
-              "Не удалось загрузить видео. Проверьте интернет и попробуйте открыть его снова."}</span>
-              {pendingStatus !== "FAILED" && <button type="button" onClick={retryVideo}>Проверить состояние ещё раз</button>}</>
-              : "Загружаем видео…"}
+            {loadError ? (
+              <>
+                <span>
+                  {pendingStatus === "FAILED"
+                    ? videoServerFailureMessage
+                    : processingTimedOut
+                      ? "Обработка видео слишком долго не завершается. Сервис обработки может быть недоступен. Сохраните оригинал. Можно проверить состояние ещё раз — это не перезапустит обработку."
+                      : "Не удалось загрузить видео. Проверьте интернет и попробуйте открыть его снова."}
+                </span>
+                {pendingStatus !== "FAILED" && (
+                  <button type="button" onClick={retryVideo}>
+                    Проверить состояние ещё раз
+                  </button>
+                )}
+              </>
+            ) : (
+              "Загружаем видео…"
+            )}
           </div>
         )}
       </div>
     );
   }
-  const imageVariants: Chat2MediaRenditions["image"] =
-    usingFallback ? media?.fallbackRenditions?.image : media?.renditions?.image;
-  const srcset = file.kind === "image" && imageVariants
-    ? Array.from(new Map(([360, 1440] as const)
-        .filter((size) => imageVariants[size]?.startsWith("https://"))
-        .map((size) => [media?.renditions?.imageWidths?.[size] ?? size, imageVariants[size]!] as const))
-        .entries()).map(([width, url]) => `${url} ${width}w`).join(", ")
-    : undefined;
-  return <>
-    <button ref={openButton} type="button" className={css.storedMedia}
-      onClick={() => loadError ? setReload(value => value + 1) : void open()}
-      disabled={!src && !loadError}
-      aria-label={loadError ? `Повторить загрузку ${file.name}` : `Открыть ${file.name}`}>
-      {file.kind === "image" && src ? (
-        <img src={src} srcSet={srcset || undefined}
-          sizes={srcset ? "(max-width: 600px) 90vw, 320px" : undefined}
-          alt={file.name} loading="lazy" referrerPolicy="no-referrer"
-          onError={(event) => handleMediaFailure(event.currentTarget.currentSrc || src, "image")} />
-      ) : <span role="status">{loadError ? "Не удалось обработать фото · Повторить" :
-          pendingStatus ? "Обрабатываем фото…" : "Загружаем фото…"}</span>}
-    </button>
-    {fullscreen && createPortal(
-      <div className={css.mediaLightbox} role="presentation" onClick={() => setFullscreen(null)}>
-        <div className={css.mediaLightboxInner} role="dialog" aria-modal="true"
-          aria-label="Просмотр фотографии" onClick={event => event.stopPropagation()}>
-          <button ref={closeButton} type="button" className={css.mediaLightboxClose}
-            aria-label="Закрыть просмотр" onClick={() => setFullscreen(null)}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
-              stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"
-              aria-hidden="true" focusable="false">
-              <path d="M5 5l14 14M19 5 5 19" />
-            </svg>
-          </button>
-          {fullscreen.error ? <p role="alert">Не удалось открыть фотографию</p> :
-            <img src={fullscreen.url} alt={file.name} referrerPolicy="no-referrer"
-              onError={handleFullscreenFailure} />}
-        </div>
-      </div>, document.body,
-    )}
-  </>;
+  const imageVariants: Chat2MediaRenditions["image"] = usingFallback
+    ? media?.fallbackRenditions?.image
+    : media?.renditions?.image;
+  const srcset =
+    file.kind === "image" && imageVariants
+      ? Array.from(
+          new Map(
+            ([360, 1440] as const)
+              .filter((size) => imageVariants[size]?.startsWith("https://"))
+              .map(
+                (size) =>
+                  [media?.renditions?.imageWidths?.[size] ?? size, imageVariants[size]!] as const,
+              ),
+          ).entries(),
+        )
+          .map(([width, url]) => `${url} ${width}w`)
+          .join(", ")
+      : undefined;
+  return (
+    <>
+      <button
+        ref={openButton}
+        type="button"
+        className={css.storedMedia}
+        onClick={() => (loadError ? setReload((value) => value + 1) : void open())}
+        disabled={!src && !loadError}
+        aria-label={loadError ? `Повторить загрузку ${file.name}` : `Открыть ${file.name}`}
+      >
+        {file.kind === "image" && src ? (
+          <img
+            src={src}
+            srcSet={srcset || undefined}
+            sizes={srcset ? "(max-width: 600px) 90vw, 320px" : undefined}
+            alt={file.name}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={(event) => handleMediaFailure(event.currentTarget.currentSrc || src, "image")}
+          />
+        ) : (
+          <span role="status">
+            {loadError
+              ? "Не удалось обработать фото · Повторить"
+              : pendingStatus
+                ? "Обрабатываем фото…"
+                : "Загружаем фото…"}
+          </span>
+        )}
+      </button>
+      {fullscreen &&
+        createPortal(
+          <div
+            className={css.mediaLightbox}
+            role="presentation"
+            onClick={() => setFullscreen(null)}
+          >
+            <div
+              className={css.mediaLightboxInner}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Просмотр фотографии"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                ref={closeButton}
+                type="button"
+                className={css.mediaLightboxClose}
+                aria-label="Закрыть просмотр"
+                onClick={() => setFullscreen(null)}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M5 5l14 14M19 5 5 19" />
+                </svg>
+              </button>
+              {fullscreen.error ? (
+                <p role="alert">Не удалось открыть фотографию</p>
+              ) : (
+                <img
+                  src={fullscreen.url}
+                  alt={file.name}
+                  referrerPolicy="no-referrer"
+                  onError={handleFullscreenFailure}
+                />
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
 }
 
 function Chat2RoomSettings({

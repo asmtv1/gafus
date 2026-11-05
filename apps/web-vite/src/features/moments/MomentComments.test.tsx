@@ -395,7 +395,7 @@ describe("Web Moments comments with shared Core", () => {
       onload: (() => void) | null = null;
       onerror: (() => void) | null = null;
       ontimeout: (() => void) | null = null;
-      open() {}
+      open() { /* Fake upload connection. */ }
       send(data: FormData) { sent.push(data); this.onload?.(); }
     }
     vi.stubGlobal("XMLHttpRequest", FakeUpload);

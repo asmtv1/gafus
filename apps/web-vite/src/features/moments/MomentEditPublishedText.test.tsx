@@ -774,7 +774,7 @@ describe("minimalist published editor layout contracts", () => {
       const panel = ui.host.querySelector<HTMLElement>("section.moment-published-editor")!;
       const heading = panel.querySelector("header h3");
       expect(panel.getAttribute("aria-labelledby")).toBe(heading?.id);
-      expect(panel.querySelector('textarea[aria-describedby]')).not.toBeNull();
+      expect(panel.querySelector("textarea[aria-describedby]")).not.toBeNull();
       const chooser = panel.querySelector<HTMLInputElement>(
         'input[type="file"][aria-label="Добавить вложения к публикации"]',
       );

@@ -26,7 +26,9 @@ const scenario = vi.hoisted(() => ({
   olderPage: vi.fn(),
 }));
 const preprocessing = vi.hoisted(() => ({
-  video: vi.fn(), poster: vi.fn(), photo: vi.fn(),
+  video: vi.fn(),
+  poster: vi.fn(),
+  photo: vi.fn(),
 }));
 vi.mock("../../shared/media/browserVideo720", () => ({
   prepareBrowserVideo720: preprocessing.video,
@@ -94,18 +96,24 @@ beforeEach(() => {
   scenario.createGroup.mockReset().mockResolvedValue({ conversationId: "course-topic-room" });
   scenario.sent.mockReset();
   scenario.react.mockReset().mockResolvedValue({
-    messageId: "message-one", emoji: "👍", active: true,
+    messageId: "message-one",
+    emoji: "👍",
+    active: true,
   });
   preprocessing.video.mockReset().mockImplementation(async (file: File) => file);
-  preprocessing.poster.mockReset().mockResolvedValue(new File(
-    [new Uint8Array(32)], "poster.webp", { type: "image/webp" }));
+  preprocessing.poster
+    .mockReset()
+    .mockResolvedValue(new File([new Uint8Array(32)], "poster.webp", { type: "image/webp" }));
   preprocessing.photo.mockReset().mockImplementation(async (file: File) => ({
-    small: {file, width: 360, height: 270},
-    medium: {file, width: 1440, height: 1080},
+    small: { file, width: 360, height: 270 },
+    medium: { file, width: 1440, height: 1080 },
   }));
   scenario.upload.mockReset();
   scenario.mediaUrl.mockReset().mockResolvedValue({
-    url: "https://example.test/chat2/video.mp4", mime: "video/mp4", name: "walk.mp4", expiresIn: 900,
+    url: "https://example.test/chat2/video.mp4",
+    mime: "video/mp4",
+    name: "walk.mp4",
+    expiresIn: 900,
   });
   scenario.timeline = [];
   scenario.olderPage.mockReset().mockResolvedValue([]);
@@ -179,9 +187,9 @@ describe("Chat2 GAFUS header and quick actions", () => {
     ];
     await render();
     await act(async () => {
-      const shortcut = [...host.querySelectorAll<HTMLButtonElement>(
-        '[class*="shortcuts_"] button',
-      )].find((element) => element.textContent?.includes("Чаты курсов"));
+      const shortcut = [
+        ...host.querySelectorAll<HTMLButtonElement>('[class*="shortcuts_"] button'),
+      ].find((element) => element.textContent?.includes("Чаты курсов"));
       shortcut?.click();
     });
     await vi.waitFor(() => {
@@ -216,23 +224,27 @@ describe("Chat2 GAFUS header and quick actions", () => {
   });
 
   it("keeps the default community in the conversation list, not in lower shortcuts", async () => {
-    scenario.rooms = [{
-      id: "general-room",
-      kind: "COMMUNITY",
-      name: "Общий чат GAFUS",
-      members: [{ userId: "local-test-owner", username: "qa", role: "MEMBER" }],
-      unreadCount: 0,
-      lastMessage: null,
-    }];
+    scenario.rooms = [
+      {
+        id: "general-room",
+        kind: "COMMUNITY",
+        name: "Общий чат GAFUS",
+        members: [{ userId: "local-test-owner", username: "qa", role: "MEMBER" }],
+        unreadCount: 0,
+        lastMessage: null,
+      },
+    ];
     await render();
     const row = await vi.waitFor(() => {
-      const found = [...host.querySelectorAll<HTMLButtonElement>('button[class*="chatRow_"]')]
-        .find((button) => button.textContent?.includes("Общий чат GAFUS"));
+      const found = [...host.querySelectorAll<HTMLButtonElement>('button[class*="chatRow_"]')].find(
+        (button) => button.textContent?.includes("Общий чат GAFUS"),
+      );
       expect(found).toBeDefined();
       return found!;
     });
-    expect(host.querySelector('[class*="shortcuts_"]')?.textContent)
-      .not.toContain("Общий чат GAFUS");
+    expect(host.querySelector('[class*="shortcuts_"]')?.textContent).not.toContain(
+      "Общий чат GAFUS",
+    );
     await act(async () => row.click());
     expect(window.location.pathname).toBe("/chats/general-room");
   });
@@ -289,19 +301,30 @@ describe("Chat2 GAFUS header and quick actions", () => {
 
   it("loads older messages when scrolling up and anchors the visible position without duplicates", async () => {
     const message = (sequence: number) => ({
-      id: `history-${sequence}`, conversationId: "direct-room", sequence: String(sequence),
-      authorId: "local-test-owner", clientMessageId: `msg-${sequence}`,
-      text: `Сообщение ${sequence}`, replyToId: null,
-      createdAt: "2026-10-27T09:00:00Z", editedAt: null, deletedAt: null,
+      id: `history-${sequence}`,
+      conversationId: "direct-room",
+      sequence: String(sequence),
+      authorId: "local-test-owner",
+      clientMessageId: `msg-${sequence}`,
+      text: `Сообщение ${sequence}`,
+      replyToId: null,
+      createdAt: "2026-10-27T09:00:00Z",
+      editedAt: null,
+      deletedAt: null,
       attachments: [],
     });
     scenario.timeline = Array.from({ length: 60 }, (_, i) => message(i + 61));
     const firstPage = Array.from({ length: 60 }, (_, i) => message(i + 1));
     const earlierPage = Array.from({ length: 12 }, (_, i) => message(i - 11));
     let resolveFirst!: (value: typeof firstPage) => void;
-    scenario.olderPage.mockImplementationOnce(() =>
-      new Promise<typeof firstPage>((resolve) => { resolveFirst = resolve; }),
-    ).mockResolvedValueOnce(earlierPage);
+    scenario.olderPage
+      .mockImplementationOnce(
+        () =>
+          new Promise<typeof firstPage>((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(earlierPage);
     await render();
     const { navigate } = await import("../../shared/router/location");
     await act(async () => navigate("/chats/direct-room"));
@@ -310,7 +333,8 @@ describe("Chat2 GAFUS header and quick actions", () => {
     await vi.waitFor(() => expect(host.textContent).toContain("Сообщение 120"));
     expect(host.textContent).not.toContain("Загрузить предыдущие сообщения");
     Object.defineProperty(list, "scrollHeight", {
-      configurable: true, get: () => 800 + list.querySelectorAll('div[class*="message_"]').length * 40,
+      configurable: true,
+      get: () => 800 + list.querySelectorAll('div[class*="message_"]').length * 40,
     });
     Object.defineProperty(list, "clientHeight", { configurable: true, value: 400 });
     // A user scrolling downward never starts history pagination.
@@ -382,21 +406,45 @@ describe("Chat2 GAFUS header and quick actions", () => {
   });
 
   it("shows a video cover and centered Play immediately, without requiring a second fetch", async () => {
-    scenario.timeline = [{
-      id: "video-message", conversationId: "direct-room", sequence: "1",
-      authorId: "local-test-owner", clientMessageId: "test-video", text: "",
-      replyToId: null, createdAt: "2026-10-29T12:00:00Z",
-      editedAt: null, deletedAt: null,
-      attachments: [{ id: "attachment-video", name: "walk.mp4", kind: "video", mime: "video/mp4", bytes: 200 }],
-    }];
+    scenario.timeline = [
+      {
+        id: "video-message",
+        conversationId: "direct-room",
+        sequence: "1",
+        authorId: "local-test-owner",
+        clientMessageId: "test-video",
+        text: "",
+        replyToId: null,
+        createdAt: "2026-10-29T12:00:00Z",
+        editedAt: null,
+        deletedAt: null,
+        attachments: [
+          {
+            id: "attachment-video",
+            name: "walk.mp4",
+            kind: "video",
+            mime: "video/mp4",
+            bytes: 200,
+          },
+        ],
+      },
+    ];
     scenario.mediaUrl.mockResolvedValue({
-      url: "https://cdn.test/original.mp4", mime: "video/mp4", name: "walk.mp4", expiresIn: 900,
-      renditions: { poster: "https://cdn.test/cover.webp", video: { 360: "https://cdn.test/360.mp4" } },
+      url: "https://cdn.test/original.mp4",
+      mime: "video/mp4",
+      name: "walk.mp4",
+      expiresIn: 900,
+      renditions: {
+        poster: "https://cdn.test/cover.webp",
+        video: { 360: "https://cdn.test/360.mp4" },
+      },
     });
     await render();
     const { navigate } = await import("../../shared/router/location");
     await act(async () => navigate("/chats/direct-room"));
-    await vi.waitFor(() => expect(host.querySelector('video[aria-label="walk.mp4"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(host.querySelector('video[aria-label="walk.mp4"]')).not.toBeNull(),
+    );
     const video = host.querySelector<HTMLVideoElement>('video[aria-label="walk.mp4"]')!;
     expect(scenario.mediaUrl).toHaveBeenCalledExactlyOnceWith("direct-room", "attachment-video");
     expect(video.getAttribute("src")).toBe("https://cdn.test/360.mp4");
@@ -405,11 +453,15 @@ describe("Chat2 GAFUS header and quick actions", () => {
     expect(video.hasAttribute("autoplay")).toBe(false);
     expect(video.getAttribute("preload")).toBe("metadata");
     expect(host.textContent).not.toContain("▶ Воспроизвести видео");
-    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(function (this: HTMLMediaElement) {
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(function (
+      this: HTMLMediaElement,
+    ) {
       this.dispatchEvent(new Event("play"));
       return Promise.resolve();
     });
-    const overlay = host.querySelector<HTMLButtonElement>('button[aria-label="Воспроизвести walk.mp4"]');
+    const overlay = host.querySelector<HTMLButtonElement>(
+      'button[aria-label="Воспроизвести walk.mp4"]',
+    );
     expect(overlay?.className).toContain("videoPlayOverlay");
     await act(async () => overlay?.click());
     expect(play).toHaveBeenCalledOnce();
@@ -417,47 +469,78 @@ describe("Chat2 GAFUS header and quick actions", () => {
     expect(scenario.mediaUrl).toHaveBeenCalledTimes(1);
   });
 
-  it.each([503, 404])("gates rendered video CDN → exact quality S3 on HTTP %i", async status => {
+  it.each([503, 404])("gates rendered video CDN → exact quality S3 on HTTP %i", async (status) => {
     const base = "chat2/room/user/00000000-0000-4000-8000-000000000000/v1/";
     const cdn = "https://gonomudedoje.begetcdn.cloud/" + base;
     const s3 = "https://gafus-chat2-media-2026.s3.cloud.ru/" + base;
-    scenario.timeline = [{
-      id: "cdn-video-message", conversationId: "direct-room", sequence: "1",
-      authorId: "local-test-owner", clientMessageId: "cdn-video", text: "",
-      replyToId: null, createdAt: "2026-10-30T12:00:00Z",
-      editedAt: null, deletedAt: null,
-      attachments: [{ id: "cdn-video", name: "cdn.mp4", kind: "video", mime: "video/mp4", bytes: 900 }],
-    }];
+    scenario.timeline = [
+      {
+        id: "cdn-video-message",
+        conversationId: "direct-room",
+        sequence: "1",
+        authorId: "local-test-owner",
+        clientMessageId: "cdn-video",
+        text: "",
+        replyToId: null,
+        createdAt: "2026-10-30T12:00:00Z",
+        editedAt: null,
+        deletedAt: null,
+        attachments: [
+          { id: "cdn-video", name: "cdn.mp4", kind: "video", mime: "video/mp4", bytes: 900 },
+        ],
+      },
+    ];
     scenario.mediaUrl.mockResolvedValue({
-      url: cdn + "video/360.mp4", mime: "video/mp4", name: "cdn.mp4", expiresIn: 300,
+      url: cdn + "video/360.mp4",
+      mime: "video/mp4",
+      name: "cdn.mp4",
+      expiresIn: 300,
       fallbackUrl: s3 + "video/360.mp4",
-      renditions: {poster: cdn + "poster.webp", video: {
-        360: cdn + "video/360.mp4", 720: cdn + "video/720.mp4",
-      }},
-      fallbackRenditions: {poster: s3 + "poster.webp", video: {
-        360: s3 + "video/360.mp4", 720: s3 + "video/720.mp4",
-      }},
+      renditions: {
+        poster: cdn + "poster.webp",
+        video: {
+          360: cdn + "video/360.mp4",
+          720: cdn + "video/720.mp4",
+        },
+      },
+      fallbackRenditions: {
+        poster: s3 + "poster.webp",
+        video: {
+          360: s3 + "video/360.mp4",
+          720: s3 + "video/720.mp4",
+        },
+      },
     });
-    const probe = vi.fn(async () => new Response(null, {status}));
+    const probe = vi.fn(async () => new Response(null, { status }));
     vi.stubGlobal("fetch", probe);
     await render();
     const { navigate } = await import("../../shared/router/location");
     await act(async () => navigate("/chats/direct-room"));
-    await vi.waitFor(() => expect(host.querySelector('video[aria-label="cdn.mp4"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(host.querySelector('video[aria-label="cdn.mp4"]')).not.toBeNull(),
+    );
     // Inline settings gear, with no permanently visible choices below the player.
     expect(host.querySelector('div[aria-label="Качество видео"]')).toBeNull();
-    await act(async () => host.querySelector<HTMLButtonElement>(
-      '[aria-label="Настройки качества видео"]')?.click());
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('[aria-label="Настройки качества видео"]')?.click(),
+    );
     // Explicit 720p user selection must not be downgraded to 360p on S3 fallback.
-    const choices = [...host.querySelectorAll<HTMLButtonElement>('div[aria-label="Качество видео"] button')];
-    await act(async () => choices.find(x => x.textContent === "720p")?.click());
+    const choices = [
+      ...host.querySelectorAll<HTMLButtonElement>('div[aria-label="Качество видео"] button'),
+    ];
+    await act(async () => choices.find((x) => x.textContent === "720p")?.click());
     const player = host.querySelector<HTMLVideoElement>('video[aria-label="cdn.mp4"]')!;
     expect(player.getAttribute("src")).toBe(cdn + "video/720.mp4");
     await act(async () => player.dispatchEvent(new Event("error")));
     if (status === 503) {
-      await vi.waitFor(() => expect(host.querySelector('video[aria-label="cdn.mp4"]')?.getAttribute("src"))
-        .toBe(s3 + "video/720.mp4"));
-      expect(host.querySelector('video[aria-label="cdn.mp4"]')?.getAttribute("poster")).toBe(s3 + "poster.webp");
+      await vi.waitFor(() =>
+        expect(host.querySelector('video[aria-label="cdn.mp4"]')?.getAttribute("src")).toBe(
+          s3 + "video/720.mp4",
+        ),
+      );
+      expect(host.querySelector('video[aria-label="cdn.mp4"]')?.getAttribute("poster")).toBe(
+        s3 + "poster.webp",
+      );
     } else {
       await vi.waitFor(() => expect(host.textContent).toContain("Не удалось загрузить видео"));
       expect(host.querySelector('video[aria-label="cdn.mp4"]')).toBeNull();
@@ -468,63 +551,97 @@ describe("Chat2 GAFUS header and quick actions", () => {
     );
   });
 
-  it("prepares photo before Send and retries only failed S3 transfer",async()=>{
-    const NativeURL=URL;
+  it("prepares photo before Send and retries only failed S3 transfer", async () => {
+    const NativeURL = URL;
     class PreviewURL extends NativeURL {
-      static createObjectURL=vi.fn((_file:Blob)=>"blob:chat-photo-preview");
-      static revokeObjectURL=vi.fn();
+      static createObjectURL = vi.fn((_file: Blob) => "blob:chat-photo-preview");
+      static revokeObjectURL = vi.fn();
     }
-    vi.stubGlobal("URL",PreviewURL);
-    scenario.upload.mockRejectedValueOnce(Error("S3 timeout"))
-      .mockResolvedValueOnce({id:"attached-photo",name:"dog.jpg",kind:"image",mime:"image/webp",bytes:123});
+    vi.stubGlobal("URL", PreviewURL);
+    scenario.upload
+      .mockRejectedValueOnce(Error("S3 timeout"))
+      .mockResolvedValueOnce({
+        id: "attached-photo",
+        name: "dog.jpg",
+        kind: "image",
+        mime: "image/webp",
+        bytes: 123,
+      });
     await render();
-    const {navigate}=await import("../../shared/router/location");
-    await act(async()=>navigate("/chats/direct-room"));
-    const input=host.querySelector<HTMLInputElement>('input[aria-label="Прикрепить фото, видео или PDF"]');
+    const { navigate } = await import("../../shared/router/location");
+    await act(async () => navigate("/chats/direct-room"));
+    const input = host.querySelector<HTMLInputElement>(
+      'input[aria-label="Прикрепить фото, видео или PDF"]',
+    );
     expect(input).not.toBeNull();
-    const file=new File([new Uint8Array([255,216,255,1])],"dog.jpg",{type:"image/jpeg"});
-    Object.defineProperty(input!,"files",{configurable:true,value:[file]});
-    await act(async()=>input!.dispatchEvent(new Event("change",{bubbles:true})));
-    await vi.waitFor(()=>expect(host.textContent).toContain("Готово к отправке"));
+    const file = new File([new Uint8Array([255, 216, 255, 1])], "dog.jpg", { type: "image/jpeg" });
+    Object.defineProperty(input!, "files", { configurable: true, value: [file] });
+    await act(async () => input!.dispatchEvent(new Event("change", { bubbles: true })));
+    await vi.waitFor(() => expect(host.textContent).toContain("Готово к отправке"));
     expect(scenario.upload).not.toHaveBeenCalled();
-    await act(async()=>host.querySelector<HTMLButtonElement>(
-      'button[aria-label="Отправить сообщение"]')?.click());
-    const retry=await vi.waitFor(()=>{
-      const button=host.querySelector<HTMLButtonElement>('button[aria-label="Повторить обработку фото dog.jpg"]');
-      expect(button).not.toBeNull();return button!;
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('button[aria-label="Отправить сообщение"]')?.click(),
+    );
+    const retry = await vi.waitFor(() => {
+      const button = host.querySelector<HTMLButtonElement>(
+        'button[aria-label="Повторить обработку фото dog.jpg"]',
+      );
+      expect(button).not.toBeNull();
+      return button!;
     });
-    expect(host.querySelector('img[alt="dog.jpg"]')?.getAttribute("src"))
-      .toBe("blob:chat-photo-preview");
+    expect(host.querySelector('img[alt="dog.jpg"]')?.getAttribute("src")).toBe(
+      "blob:chat-photo-preview",
+    );
     expect(host.querySelector('[role="alert"]')?.textContent).toContain("интернет");
     expect(scenario.upload).toHaveBeenCalledTimes(1);
     expect(scenario.upload.mock.calls[0]?.[1]).toBe(file);
-    await act(async()=>retry.click());
-    await vi.waitFor(()=>expect(scenario.upload).toHaveBeenCalledTimes(2));
+    await act(async () => retry.click());
+    await vi.waitFor(() => expect(scenario.upload).toHaveBeenCalledTimes(2));
     expect(scenario.upload.mock.calls[1]?.[1]).toBe(file);
-    await vi.waitFor(()=>expect(host.querySelector('button[aria-label="Повторить обработку фото dog.jpg"]'))
-      .toBeNull());
+    await vi.waitFor(() =>
+      expect(
+        host.querySelector('button[aria-label="Повторить обработку фото dog.jpg"]'),
+      ).toBeNull(),
+    );
   });
 
-  it.each([503, 404])("gates image CDN → S3 without leaking 403/404 on HTTP %i", async status => {
+  it.each([503, 404])("gates image CDN → S3 without leaking 403/404 on HTTP %i", async (status) => {
     const base = "chat2/room/user/00000000-0000-4000-8000-000000000000/v1/";
     const cdn = "https://gonomudedoje.begetcdn.cloud/" + base;
     const s3 = "https://gafus-chat2-media-2026.s3.cloud.ru/" + base;
-    scenario.timeline = [{
-      id: "cdn-image-message", conversationId: "direct-room", sequence: "1",
-      authorId: "local-test-owner", clientMessageId: "cdn-image", text: "",
-      replyToId: null, createdAt: "2026-10-30T12:00:00Z",
-      editedAt: null, deletedAt: null,
-      attachments: [{ id: "cdn-image", name: "cdn.webp", kind: "image", mime: "image/webp", bytes: 900 }],
-    }];
+    scenario.timeline = [
+      {
+        id: "cdn-image-message",
+        conversationId: "direct-room",
+        sequence: "1",
+        authorId: "local-test-owner",
+        clientMessageId: "cdn-image",
+        text: "",
+        replyToId: null,
+        createdAt: "2026-10-30T12:00:00Z",
+        editedAt: null,
+        deletedAt: null,
+        attachments: [
+          { id: "cdn-image", name: "cdn.webp", kind: "image", mime: "image/webp", bytes: 900 },
+        ],
+      },
+    ];
     scenario.mediaUrl.mockResolvedValue({
-      url: cdn + "image/m.webp", mime: "image/webp", name: "cdn.webp", expiresIn: 300,
+      url: cdn + "image/m.webp",
+      mime: "image/webp",
+      name: "cdn.webp",
+      expiresIn: 300,
       fallbackUrl: s3 + "image/m.webp",
-      renditions: {image: {360: cdn + "image/s.webp", 1440: cdn + "image/m.webp"},
-        imageWidths: {360: 360, 1440: 1440}},
-      fallbackRenditions: {image: {360: s3 + "image/s.webp", 1440: s3 + "image/m.webp"},
-        imageWidths: {360: 360, 1440: 1440}},
+      renditions: {
+        image: { 360: cdn + "image/s.webp", 1440: cdn + "image/m.webp" },
+        imageWidths: { 360: 360, 1440: 1440 },
+      },
+      fallbackRenditions: {
+        image: { 360: s3 + "image/s.webp", 1440: s3 + "image/m.webp" },
+        imageWidths: { 360: 360, 1440: 1440 },
+      },
     });
-    const probe = vi.fn(async () => new Response(null, {status}));
+    const probe = vi.fn(async () => new Response(null, { status }));
     vi.stubGlobal("fetch", probe);
     await render();
     const { navigate } = await import("../../shared/router/location");
@@ -534,9 +651,14 @@ describe("Chat2 GAFUS header and quick actions", () => {
     expect(img.getAttribute("src")).toBe(cdn + "image/s.webp");
     await act(async () => img.dispatchEvent(new Event("error")));
     if (status === 503) {
-      await vi.waitFor(() => expect(host.querySelector('img[alt="cdn.webp"]')?.getAttribute("src"))
-        .toBe(s3 + "image/s.webp"));
-      expect(host.querySelector('img[alt="cdn.webp"]')?.getAttribute("srcset")).toContain(s3 + "image/s.webp");
+      await vi.waitFor(() =>
+        expect(host.querySelector('img[alt="cdn.webp"]')?.getAttribute("src")).toBe(
+          s3 + "image/s.webp",
+        ),
+      );
+      expect(host.querySelector('img[alt="cdn.webp"]')?.getAttribute("srcset")).toContain(
+        s3 + "image/s.webp",
+      );
     } else {
       await vi.waitFor(() => expect(host.querySelector('img[alt="cdn.webp"]')).toBeNull());
       expect(host.querySelector('img[alt="cdn.webp"]')).toBeNull();
@@ -549,100 +671,143 @@ describe("Chat2 GAFUS header and quick actions", () => {
 
   it("prepares both videos before Send, then retries only the failed S3 transfer", async () => {
     const makeUrl = vi.fn((file: File) => "blob:chat-test/" + file.name);
-    vi.stubGlobal("URL", Object.assign(class extends URL {}, {
-      createObjectURL: makeUrl, revokeObjectURL: vi.fn(),
-    }));
-    const videos = [new File([new Uint8Array(256)],"bad.mp4",{type:"video/mp4"}),
-      new File([new Uint8Array(256)],"good.mp4",{type:"video/mp4"})];
-    scenario.upload.mockImplementation(async (_id:string, file:File) => {
-      if (file === videos[0] && scenario.upload.mock.calls.filter(([,f]) => f === videos[0]).length === 1)
+    vi.stubGlobal(
+      "URL",
+      Object.assign(class extends URL {}, {
+        createObjectURL: makeUrl,
+        revokeObjectURL: vi.fn(),
+      }),
+    );
+    const videos = [
+      new File([new Uint8Array(256)], "bad.mp4", { type: "video/mp4" }),
+      new File([new Uint8Array(256)], "good.mp4", { type: "video/mp4" }),
+    ];
+    scenario.upload.mockImplementation(async (_id: string, file: File) => {
+      if (
+        file === videos[0] &&
+        scenario.upload.mock.calls.filter(([, f]) => f === videos[0]).length === 1
+      )
         throw new Error("S3 timeout");
-      return {id:file.name,kind:"video",mime:"video/mp4",name:file.name,bytes:file.size};
+      return { id: file.name, kind: "video", mime: "video/mp4", name: file.name, bytes: file.size };
     });
     await render();
     const { navigate } = await import("../../shared/router/location");
-    await act(async()=>navigate("/chats/direct-room"));
-    const picker=host.querySelector<HTMLInputElement>('input[type="file"][multiple]')!;
-    Object.defineProperty(picker,"files",{configurable:true,value:videos});
-    await act(async()=>picker.dispatchEvent(new Event("change",{bubbles:true})));
-    await vi.waitFor(()=>expect(host.textContent).toContain("Готово к отправке"));
+    await act(async () => navigate("/chats/direct-room"));
+    const picker = host.querySelector<HTMLInputElement>('input[type="file"][multiple]')!;
+    Object.defineProperty(picker, "files", { configurable: true, value: videos });
+    await act(async () => picker.dispatchEvent(new Event("change", { bubbles: true })));
+    await vi.waitFor(() => expect(host.textContent).toContain("Готово к отправке"));
     expect(preprocessing.video).toHaveBeenCalledTimes(2);
     expect(preprocessing.poster).toHaveBeenCalledTimes(2);
     expect(scenario.upload).not.toHaveBeenCalled();
     expect(host.querySelector('video[aria-label="bad.mp4"]')).not.toBeNull();
 
-    await act(async()=>host.querySelector<HTMLButtonElement>(
-      'button[aria-label="Отправить сообщение"]')?.click());
-    await vi.waitFor(()=>expect(scenario.upload).toHaveBeenCalledTimes(1));
-    const failed=await vi.waitFor(()=>{
-      const button=host.querySelector<HTMLButtonElement>(
-        '[aria-label="Повторить обработку видео bad.mp4"]');
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('button[aria-label="Отправить сообщение"]')?.click(),
+    );
+    await vi.waitFor(() => expect(scenario.upload).toHaveBeenCalledTimes(1));
+    const failed = await vi.waitFor(() => {
+      const button = host.querySelector<HTMLButtonElement>(
+        '[aria-label="Повторить обработку видео bad.mp4"]',
+      );
       expect(button).not.toBeNull();
       return button!;
     });
     expect(host.querySelector('[aria-label="Повторить обработку видео good.mp4"]')).toBeNull();
-    await act(async()=>failed.click());
-    await vi.waitFor(()=>expect(scenario.upload).toHaveBeenCalledTimes(2));
+    await act(async () => failed.click());
+    await vi.waitFor(() => expect(scenario.upload).toHaveBeenCalledTimes(2));
     expect(scenario.upload.mock.calls[1]?.[1]).toBe(videos[0]);
     expect(preprocessing.video).toHaveBeenCalledTimes(2);
-    expect(scenario.upload.mock.calls.filter(([,file])=>file===videos[1])).toHaveLength(0);
+    expect(scenario.upload.mock.calls.filter(([, file]) => file === videos[1])).toHaveLength(0);
 
-    await act(async()=>host.querySelector<HTMLButtonElement>(
-      'button[aria-label="Отправить сообщение"]')?.click());
-    await vi.waitFor(()=>expect(scenario.upload).toHaveBeenCalledTimes(3));
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('button[aria-label="Отправить сообщение"]')?.click(),
+    );
+    await vi.waitFor(() => expect(scenario.upload).toHaveBeenCalledTimes(3));
     expect(scenario.upload.mock.calls[2]?.[1]).toBe(videos[1]);
     expect(scenario.sent).toHaveBeenCalledTimes(1);
     expect(preprocessing.video).toHaveBeenCalledTimes(2);
   });
   it("keeps a recoverable video preview when the first signed URL request fails", async () => {
-    scenario.timeline = [{
-      id: "video-message", conversationId: "direct-room", sequence: "1",
-      authorId: "local-test-owner", clientMessageId: "retry-video", text: "",
-      replyToId: null, createdAt: "2026-10-29T12:00:00Z",
-      editedAt: null, deletedAt: null,
-      attachments: [{ id: "retry-media", name: "retry.mp4", kind: "video", mime: "video/mp4", bytes: 200 }],
-    }];
+    scenario.timeline = [
+      {
+        id: "video-message",
+        conversationId: "direct-room",
+        sequence: "1",
+        authorId: "local-test-owner",
+        clientMessageId: "retry-video",
+        text: "",
+        replyToId: null,
+        createdAt: "2026-10-29T12:00:00Z",
+        editedAt: null,
+        deletedAt: null,
+        attachments: [
+          { id: "retry-media", name: "retry.mp4", kind: "video", mime: "video/mp4", bytes: 200 },
+        ],
+      },
+    ];
     scenario.mediaUrl.mockRejectedValueOnce(new Error("temporary outage"));
     await render();
     const { navigate } = await import("../../shared/router/location");
     await act(async () => navigate("/chats/direct-room"));
     await vi.waitFor(() => expect(host.textContent).toContain("Не удалось загрузить видео"));
     expect(host.querySelector('button[aria-label="Воспроизвести retry.mp4"]')).toBeNull();
-    const retry = [...host.querySelectorAll<HTMLButtonElement>("button")]
-      .find((button) => button.textContent === "Проверить состояние ещё раз");
+    const retry = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Проверить состояние ещё раз",
+    );
     expect(retry).toBeDefined();
     await act(async () => retry?.click());
-    await vi.waitFor(() => expect(host.querySelector('video[aria-label="retry.mp4"]')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(host.querySelector('video[aria-label="retry.mp4"]')).not.toBeNull(),
+    );
     expect(scenario.mediaUrl).toHaveBeenCalledTimes(2);
     expect(host.querySelector('button[aria-label="Воспроизвести retry.mp4"]')).not.toBeNull();
   });
 
   it("offers discoverable reply and reaction actions for a specific message", async () => {
-    scenario.rooms = [{
-      id: "direct-room", kind: "COMMUNITY", name: "Общий чат GAFUS",
-      unreadCount: 0, lastMessage: null,
-      members: [
-        { userId: "local-test-owner", username: "qa", role: "MEMBER", avatarUrl: null },
-        { userId: "target", username: "admin", role: "MEMBER", avatarUrl: null },
-      ],
-    }];
-    scenario.timeline = [{
-      id: "message-one", conversationId: "direct-room", sequence: "1",
-      authorId: "target", clientMessageId: "message-test-one",
-      text: "Привет из общего чата", replyToId: null,
-      createdAt: "2026-10-27T09:00:00Z", editedAt: null,
-      deletedAt: null, attachments: [],
-    }];
+    scenario.rooms = [
+      {
+        id: "direct-room",
+        kind: "COMMUNITY",
+        name: "Общий чат GAFUS",
+        unreadCount: 0,
+        lastMessage: null,
+        members: [
+          { userId: "local-test-owner", username: "qa", role: "MEMBER", avatarUrl: null },
+          { userId: "target", username: "admin", role: "MEMBER", avatarUrl: null },
+        ],
+      },
+    ];
+    scenario.timeline = [
+      {
+        id: "message-one",
+        conversationId: "direct-room",
+        sequence: "1",
+        authorId: "target",
+        clientMessageId: "message-test-one",
+        text: "Привет из общего чата",
+        replyToId: null,
+        createdAt: "2026-10-27T09:00:00Z",
+        editedAt: null,
+        deletedAt: null,
+        attachments: [],
+      },
+    ];
     await render();
     const { navigate } = await import("../../shared/router/location");
     await act(async () => navigate("/chats/direct-room"));
     await vi.waitFor(() =>
-      expect(host.querySelector('button[aria-label="Ответить на сообщение"]')).not.toBeNull());
+      expect(host.querySelector('button[aria-label="Ответить на сообщение"]')).not.toBeNull(),
+    );
     await act(async () =>
-      host.querySelector<HTMLButtonElement>('button[aria-label="Ответить на сообщение"]')?.click());
+      host.querySelector<HTMLButtonElement>('button[aria-label="Ответить на сообщение"]')?.click(),
+    );
     expect(host.textContent).toContain("Ответ на: Привет из общего чата");
     await act(async () =>
-      host.querySelector<HTMLButtonElement>('button[aria-label="Поставить реакцию на сообщение"]')?.click());
+      host
+        .querySelector<HTMLButtonElement>('button[aria-label="Поставить реакцию на сообщение"]')
+        ?.click(),
+    );
     expect(host.querySelectorAll('div[aria-label="Выбор реакции"] button')).toHaveLength(7);
     const emojiButton = host.querySelector<HTMLButtonElement>(
       'div[aria-label="Выбор реакции"] button',
@@ -655,7 +820,8 @@ describe("Chat2 GAFUS header and quick actions", () => {
       await Promise.resolve();
     });
     await vi.waitFor(() =>
-      expect(scenario.react).toHaveBeenCalledWith("direct-room", "message-one", "👍"));
+      expect(scenario.react).toHaveBeenCalledWith("direct-room", "message-one", "👍"),
+    );
   });
 
   it("shows the other participant's avatar in the list and room, then falls back on image error", async () => {
@@ -696,15 +862,20 @@ describe("Chat2 GAFUS header and quick actions", () => {
 
   it("shows the message sender's profile photo in a community, with fallback on failure", async () => {
     const avatarUrl = "https://static.example.test/images/admin.webp";
-    scenario.rooms = [{
-      id: "direct-room", kind: "COMMUNITY", name: "Общий чат GAFUS",
-      unreadCount: 0, lastMessage: null,
-      members: [
-        { userId: "local-test-owner", username: "qa", role: "MEMBER", avatarUrl: null },
-        { userId: "target", username: "admin", role: "MEMBER", avatarUrl },
-        { userId: "without-avatar", username: "guest", role: "MEMBER", avatarUrl: null },
-      ],
-    }];
+    scenario.rooms = [
+      {
+        id: "direct-room",
+        kind: "COMMUNITY",
+        name: "Общий чат GAFUS",
+        unreadCount: 0,
+        lastMessage: null,
+        members: [
+          { userId: "local-test-owner", username: "qa", role: "MEMBER", avatarUrl: null },
+          { userId: "target", username: "admin", role: "MEMBER", avatarUrl },
+          { userId: "without-avatar", username: "guest", role: "MEMBER", avatarUrl: null },
+        ],
+      },
+    ];
     scenario.timeline = ["target", "without-avatar"].map((authorId, index) => ({
       id: "group-message-" + index,
       conversationId: "direct-room",
@@ -723,8 +894,7 @@ describe("Chat2 GAFUS header and quick actions", () => {
     await act(async () => navigate("/chats/direct-room"));
     // querySelectorAll returns a STATIC NodeList; acquire it only after async
     // route/message rendering has completed, rather than waiting on a snapshot.
-    await vi.waitFor(() =>
-      expect(host.querySelectorAll('div[class*="message_"]').length).toBe(2));
+    await vi.waitFor(() => expect(host.querySelectorAll('div[class*="message_"]').length).toBe(2));
     const bubbles = host.querySelectorAll('div[class*="message_"]');
     const photo = bubbles[0].querySelector<HTMLImageElement>('span[class*="miniAvatar_"] img');
     expect(photo?.getAttribute("src")).toBe(avatarUrl);

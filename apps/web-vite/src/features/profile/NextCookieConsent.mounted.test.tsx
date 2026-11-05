@@ -39,7 +39,7 @@ afterEach(async () => {
 describe("WEB1 original Next cookie-consent semantics on mounted Vite", () => {
   it("web settings omit the nonfunctional About app row and keep useful information links", async () => {
     await render(true);
-    const settings = node.querySelector('[data-next-profile-settings]');
+    const settings = node.querySelector("[data-next-profile-settings]");
     expect(settings).not.toBeNull();
     expect(settings?.textContent).toContain("Информация");
     expect(settings?.textContent).not.toContain("О приложении");

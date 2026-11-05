@@ -13,7 +13,7 @@ function rule(selector: string): string {
 
 describe("Chat2 viewport scrolling independent of browser document", () => {
   it("scopes viewport locking only to the messenger, not the global app", () => {
-    expect(component).toContain('className={`gafus-app ${css.appViewport}`}');
+    expect(component).toContain("className={`gafus-app ${css.appViewport}`}");
     const app = rule(".appViewport:global(.gafus-app)");
     expect(app).toContain("height: 100dvh;");
     expect(app).toContain("overflow: hidden;");

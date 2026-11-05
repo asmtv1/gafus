@@ -43,7 +43,7 @@ export function MomentPendingPosts({ userId }: { userId: string }) {
     // Core's regular feed GET remains authoritative for actual visibility.
     void cache.invalidateQueries({ queryKey: ["moments", "list", userId] });
     void cache.invalidateQueries({ queryKey: ["moments", "drafts", userId] });
-  }, [cache, query.dataUpdatedAt, query.isSuccess, query.isFetching, userId]);
+  }, [cache, query.data, query.dataUpdatedAt, query.isSuccess, query.isFetching, userId]);
   const denied = query.error instanceof ApiError &&
     [401, 403, 404].includes(query.error.status);
   const ready = query.isSuccess && !query.isFetching;

@@ -8,8 +8,6 @@ import { publicImageUrl } from "../profile/publicProfileApi";
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const STATUS = new Set(["published"]);
-const MEDIA = new Set(["photo", "video"]);
-const READY = new Set(["ready", "reserved", "uploaded", "processing", "failed"]);
 const isId = (v: unknown): v is string => typeof v === "string" && ID.test(v);
 const rec = (v: unknown): Record<string, unknown> | null =>
   v !== null && typeof v === "object" && !Array.isArray(v)

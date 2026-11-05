@@ -194,7 +194,7 @@ describe("W2 day steps read-only mounted route-free opt-in",()=>{
     expect(host.textContent).toContain("Видео 1 из 2");
     expect(host.textContent).toContain("Видео 2 из 2");
     expect(host.querySelectorAll(".training-step-video-attachment")[0]?.querySelector(
-      '[data-training-step-video]')?.getAttribute("data-original-url") ??
+      "[data-training-step-video]")?.getAttribute("data-original-url") ??
       host.querySelectorAll(".training-step-video-attachment").length).toBeTruthy();
   });
   it("completed THEORY restores the olive noninteractive Прочитано pseudo-button",async()=>{

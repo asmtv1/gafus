@@ -334,7 +334,7 @@ const momentReaction = (host: HTMLDivElement, emoji: string) => {
 };
 const momentBookmark = (host: HTMLDivElement) => {
   const button = host.querySelector<HTMLButtonElement>(
-    '.moment-actions button.moment-action-save[aria-pressed][aria-label]',
+    ".moment-actions button.moment-action-save[aria-pressed][aria-label]",
   );
   if (!button) throw Error("Missing bookmark control");
   return button;

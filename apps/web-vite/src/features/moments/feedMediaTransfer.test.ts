@@ -71,7 +71,7 @@ function stubVerifiedMp4() {
   vi.stubGlobal("VideoEncoder",class {});
   vi.stubGlobal("Worker",class {
     onmessage:((event:MessageEvent)=>void)|null=null;
-    terminate() {}
+    terminate() { /* Fake worker has no resources to release. */ }
     postMessage() {queueMicrotask(()=>this.onmessage?.({data:{kind:"reusable"}} as MessageEvent));}
   });
 }
