@@ -118,47 +118,48 @@ describe("feed shared HTTP dispatcher", () => {
     expect(posts.cancelUpload).toHaveBeenCalledWith(actor, "upload_1");
     expect(posts.retryUpload).toHaveBeenCalledWith(actor, "upload_1", { clientRequestId: "123e4567-e89b-42d3-a456-426614174000" });
   });
-  it.each(["photo", "video"] as const)("wakes only the committed %s upload processor", async kind => {
+  it.each(["photo", "video"] as const)("signals only READY video, never the %s photo-processing pipeline", async kind => {
     vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
     vi.stubEnv("FEED_PROCESSOR_READY", "true");
     const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
-    const posts = { completeUpload: vi.fn().mockResolvedValue({ uploadId, status: "uploaded", kind }) };
+    const posts = { completeUpload: vi.fn().mockResolvedValue({ uploadId, status: "ready", kind }) };
     const enqueue = vi.fn().mockResolvedValue(undefined);
     const request = () => new Request(`https://x/uploads/${uploadId}/complete`, {
       method: "POST", headers: { "content-type": "application/json" }, body: "{}",
     });
     const run = () => dispatchFeedRequest(actor, request(), `/uploads/${uploadId}/complete`,
       posts as unknown as FeedService, {} as FeedSocialService, undefined, undefined, enqueue);
-    await expect(run()).resolves.toMatchObject({ uploadId, status: "uploaded", kind });
-    expect(enqueue).toHaveBeenCalledExactlyOnceWith(uploadId, kind);
+    await expect(run()).resolves.toMatchObject({ uploadId, status: "ready", kind });
+    if(kind === "video") expect(enqueue).toHaveBeenCalledExactlyOnceWith(uploadId, kind);
+    else expect(enqueue).not.toHaveBeenCalled();
     expect(posts.completeUpload).toHaveBeenCalledExactlyOnceWith(actor, uploadId);
-    posts.completeUpload.mockResolvedValueOnce({ uploadId, kind, status: "ready" });
+    posts.completeUpload.mockResolvedValueOnce({ uploadId, kind, status: "uploaded" });
     await run();
-    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(enqueue).toHaveBeenCalledTimes(kind === "video" ? 1 : 0);
     posts.completeUpload.mockRejectedValueOnce(new Error("transaction aborted"));
     await expect(run()).rejects.toThrow("transaction aborted");
-    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(enqueue).toHaveBeenCalledTimes(kind === "video" ? 1 : 0);
   });
-  it("never turns a successfully uploaded photo into a failed upload on Redis error", async () => {
+  it("never turns a successfully prepared video into a failed upload on Redis error", async () => {
     vi.stubEnv("CLOUDRU_MEDIA_JOBS_ENABLED", "true");
     vi.stubEnv("FEED_PROCESSOR_READY", "true");
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     try {
       const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
-      const posts = { completeUpload: vi.fn().mockResolvedValue({ uploadId, kind: "photo", status: "uploaded" }) };
+      const posts = { completeUpload: vi.fn().mockResolvedValue({ uploadId, kind: "video", status: "ready" }) };
       const enqueue = vi.fn().mockRejectedValue(new Error("redis failure"));
       const request = new Request(`https://x/uploads/${uploadId}/complete`, {
         method: "POST", headers: { "content-type": "application/json" }, body: "{}",
       });
       await expect(dispatchFeedRequest(actor, request, `/uploads/${uploadId}/complete`,
         posts as unknown as FeedService, {} as FeedSocialService, undefined, undefined, enqueue))
-        .resolves.toMatchObject({ status: "uploaded" });
+        .resolves.toMatchObject({ status: "ready" });
       expect(warning).toHaveBeenCalledWith("FEED_IMMEDIATE_TRIGGER_DEFERRED_TO_RECOVERY");
     } finally { warning.mockRestore(); }
   });
   it("does not wake media jobs without an enabled Cloud.ru release or trusted media kind", async () => {
     const uploadId = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
-    const posts = { completeUpload: vi.fn().mockResolvedValue({ uploadId, kind: "video", status: "uploaded" }) };
+    const posts = { completeUpload: vi.fn().mockResolvedValue({ uploadId, kind: "video", status: "ready" }) };
     const enqueue = vi.fn();
     const run = () => dispatchFeedRequest(actor, new Request(`https://x/uploads/${uploadId}/complete`, {
       method: "POST", headers: { "content-type": "application/json" }, body: "{}",
@@ -171,7 +172,7 @@ describe("feed shared HTTP dispatcher", () => {
     vi.stubEnv("FEED_PROCESSOR_READY", "false");
     await run();
     vi.stubEnv("FEED_PROCESSOR_READY", "true");
-    posts.completeUpload.mockResolvedValueOnce({ uploadId, kind: "untrusted", status: "uploaded" });
+    posts.completeUpload.mockResolvedValueOnce({ uploadId, kind: "untrusted", status: "ready" });
     await run();
     expect(enqueue).not.toHaveBeenCalled();
   });
