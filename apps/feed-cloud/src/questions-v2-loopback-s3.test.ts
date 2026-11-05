@@ -202,7 +202,8 @@ describe("Questions V2 real loopback S3-compatible HTTP transport",()=>{
     await uploadAndProcess(0);
     expect(requests.POST-before.POST).toBe(1);
     expect(requests.PUT-before.PUT).toBe(2);
-    expect(requests.HEAD-before.HEAD).toBe(1);
+    // One upload confirmation HEAD + one absence check per deleted object.
+    expect(requests.HEAD-before.HEAD).toBe(1+3);
     expect(requests.GET-before.GET).toBe(2);
     expect(requests.DELETE-before.DELETE).toBe(3);
   },30_000);
@@ -248,7 +249,8 @@ describe("Questions V2 real loopback S3-compatible HTTP transport",()=>{
     await Promise.all(Array.from({length:5},(_,i)=>uploadAndProcess(i+1)));
     expect(requests.POST-before.POST).toBe(5);
     expect(requests.PUT-before.PUT).toBe(10);
-    expect(requests.HEAD-before.HEAD).toBe(5);
+    // Every source HEAD is followed by three fail-closed deletion receipts.
+    expect(requests.HEAD-before.HEAD).toBe(5*(1+3));
     expect(requests.GET-before.GET).toBe(10);
     expect(requests.DELETE-before.DELETE).toBe(15);
     expect(keys.size).toBe(0);

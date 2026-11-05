@@ -6,8 +6,14 @@ describe('Mobile photo retry remains per-file and entirely client-side',()=>{
   it('Chat2 retains the original picker source and only retries the failed local chip',()=>{
     const source=read('../../../features/chat2/Chat2RoomScreen.tsx');
     expect(source).toContain('uri:f.uri, sourcePhoto:f, uploading:true');
-    expect(source).toContain('async function uploadOnePhoto(localId: string, source: ImagePicker.ImagePickerAsset)');
+    expect(source).toContain('async function prepareOnePhoto(localId: string, source: ImagePicker.ImagePickerAsset)');
     expect(source).toContain('prepared = await prepareUploadPhoto(source)');
+    expect(source).toContain('preparedPhotos.current.set(localId, variants)');
+    // Images must never reach S3 while composing. Upload is triggered only by Send.
+    const prepare = source.split('async function prepareOnePhoto(')[1]!.split('function retryOnePhoto(')[0]!;
+    expect(prepare).not.toContain('chat2.upload(');
+    expect(source).toContain('const variants = preparedPhotos.current.get(file.localId)');
+    expect(source).toContain('const attachment = await chat2.upload(id, {');
     expect(source).toContain('function retryOnePhoto(localId: string)');
     expect(source).toContain('photoRetryMessage(cause)');
     expect(source).toContain('`Повторить обработку фото ${file.name}`');
