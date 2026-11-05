@@ -650,6 +650,7 @@ describe("WEB005_SOC041_TEXT_DRAFT_A11Y existing text save and publish controls"
       await ui.fill("Подтверждённый текст");
       const saveButton = exactAction(ui.host, "Сохранить черновик");
       await act(async () => { saveButton.focus(); saveButton.click(); await Promise.resolve(); });
+      await tick();
       expect(ui.host.textContent).not.toContain("Текст черновика сохранён");
       expect(ui.host.querySelector<HTMLFormElement>("form")?.getAttribute("aria-busy"))
         .toBe("true");

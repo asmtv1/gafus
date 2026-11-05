@@ -6,6 +6,10 @@ vi.mock("../../shared/media/browserPhotoWebp",()=>({
         width:edge,height:Math.round(edge*.75)},
     ]))),
 }));
+vi.mock("../../shared/media/browserVideoPoster", () => ({
+  prepareBrowserVideoPoster: vi.fn(async () =>
+    new File([new Uint8Array(128)], "poster.webp", { type: "image/webp" })),
+}));
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

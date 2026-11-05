@@ -265,9 +265,6 @@
     "apps/api/src/test/ag1-daily-training-simultaneous-http-work.acceptance.ts": [
       "import {prisma} from '@gafus/prisma';"
     ],
-    "apps/api/src/test/ag1-feed-ready-real-worker-work-http.acceptance.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
     "apps/api/src/test/ag1-feed-video-hls-real-worker-work-http.acceptance.ts": [
       "import { prisma } from \"@gafus/prisma\";"
     ],
@@ -371,9 +368,6 @@
       "import(\"@gafus/prisma\")"
     ],
     "apps/api/src/test/live-cdn-preview-readonly.http.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
-    ],
-    "apps/api/src/test/web4-mixed-photo-poll-ready-r37.acceptance.ts": [
       "import { prisma } from \"@gafus/prisma\";"
     ],
     "apps/api/src/test/web4-video120-3501-browser.acceptance.ts": [

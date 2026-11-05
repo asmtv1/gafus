@@ -172,7 +172,7 @@ if (process.argv.includes("--self-test")) {
   process.exit(0);
 }
 const frozenTotal = Object.values(baseline).reduce((n, values) => n + values.length, 0);
-if (frozenTotal !== 127) throw Error("PRISMA_BASELINE_TOTAL_UNEXPECTED");
+if (frozenTotal !== 125) throw Error("PRISMA_BASELINE_TOTAL_UNEXPECTED");
 if (violations.length) {
   console.error(violations.join("\n"));
   console.error(
