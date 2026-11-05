@@ -4271,7 +4271,7 @@ model DogWalkTrackPoint {
   accepted     Boolean
   reason       String   @db.VarChar(24)
   deltaMeters  Float    @default(0)
-  walk         DogWalkRecord @relation(fields: [userId, walkClientId], references: [userId, clientId], onDelete: Cascade)
+  walk         DogWalkRecord @relation(fields: [userId, walkClientId], references: [userId, clientId], onDelete: Cascade, map: "DogWalkTrackPoint_walk_fkey")
 
   @@id([userId, walkClientId, seq])
   @@index([userId, walkClientId, segment, seq])

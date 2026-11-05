@@ -31,7 +31,7 @@ describe("Web Chat2 photo viewer close control", () => {
       component.indexOf("</button>", component.indexOf("ref={closeButton}")));
     expect(button).toContain('aria-label="Закрыть просмотр"');
     expect(button).toContain("onClick={() => setFullscreen(null)}");
-    expect(button).toContain('<svg viewBox="0 0 24 24"');
+    expect(button).toMatch(/<svg\s+viewBox="0 0 24 24"/);
     expect(button).toContain('aria-hidden="true"');
     expect(button).toContain('<path d="M5 5l14 14M19 5 5 19" />');
     expect(button).not.toContain(">×");

@@ -173,7 +173,7 @@ export function FeedV2Image({
               <img
                 src={fullFallback ?? media.urls.large}
                 alt={alt}
-                className={`feed-v2-lightbox-image${fullLoaded ? "is-loaded" : ""}`}
+                className={`feed-v2-lightbox-image${fullLoaded ? " is-loaded" : ""}`}
                 width={media.width}
                 height={media.height}
                 onLoad={() => {
