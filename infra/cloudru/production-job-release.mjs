@@ -10,12 +10,17 @@ import { configuredImage, imagePlan } from './production-job-image-config.mjs';
 import { waitForGalleryJobRollout } from './gallery-rollout-poll.mjs';
 
 const mode=process.argv[2]??'--plan';
-if(!['--plan','--preflight','--sync','--cutover','--verify'].includes(mode))
+if(!['--plan','--preflight','--sync','--cutover','--verify',
+  '--plan-feed-only','--preflight-feed-only','--sync-feed-only','--verify-feed-only'].includes(mode))
   throw Error('INVALID_EXISTING_JOB_RELEASE_MODE');
 const e=process.env;
+const feedOnly=mode.endsWith('-feed-only');
+const selectedJobs=feedOnly ? CLOUDRU_PRODUCTION_JOBS.filter(j=>j.imageRole==='feed-worker') : CLOUDRU_PRODUCTION_JOBS;
+if(feedOnly && (selectedJobs.length!==2 || selectedJobs.some(j=>j.project!=='primary')))
+  throw Error('FEED_ONLY_JOB_INVENTORY_MISMATCH');
 const target=j=>configuredImage(j,e);
-const requested=imagePlan(e);
-if(mode==='--plan'){
+const requested=imagePlan(e,selectedJobs);
+if(mode==='--plan'||mode==='--plan-feed-only'){
   console.log(JSON.stringify({mode,mutates:false,buildsImages:false,provisionsJobs:false,
     targets:requested.map(({job:j,targetImage})=>({name:j.name,projectId:CLOUDRU_PROJECTS[j.project].projectId,
       targetImage:targetImage??'KEEP_EXISTING_PINNED_CHAT2_IMAGE'}))},null,2));
@@ -25,15 +30,15 @@ if(e.GITHUB_REF!=='refs/heads/main'||!['push','workflow_dispatch'].includes(e.GI
    !/^[a-f0-9]{40}$/.test(e.RELEASE_SHA??'')||e.RELEASE_SHA!==e.GITHUB_SHA||
    e.CLOUDRU_PROD_DEPLOY_CONFIRM!=='preapproved-main-only-media-release')
    throw Error('PROD_CLOUDRU_JOB_RELEASE_GUARD');
-const bindings=resolveProjectBindings(e);
-if(['--cutover','--sync'].includes(mode) && e.CLOUDRU_NEW_BACKEND_DEPLOYED!=='true')throw Error('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS');
+const bindings=resolveProjectBindings(e,selectedJobs);
+if(['--cutover','--sync','--sync-feed-only'].includes(mode) && e.CLOUDRU_NEW_BACKEND_DEPLOYED!=='true')throw Error('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS');
 // Fail before deploying the new Backend if the first-release Cloud.ru
 // activation cannot authenticate or initialize its protected media routes.
-for(const key of ['FEED_INTERNAL_HMAC_SECRET','CHAT2_INTERNAL_HMAC_SECRET']){
+for(const key of feedOnly ? ['FEED_INTERNAL_HMAC_SECRET'] : ['FEED_INTERNAL_HMAC_SECRET','CHAT2_INTERNAL_HMAC_SECRET']){
   if(typeof e[key]!=='string'||Buffer.byteLength(e[key],'utf8')<32)
     throw Error('CLOUDRU_RELEASE_SECRET_MISSING_'+key);
 }
-for(const key of ['CHAT2_S3_ACCESS_KEY_ID','CHAT2_S3_SECRET_ACCESS_KEY']){
+for(const key of feedOnly ? [] : ['CHAT2_S3_ACCESS_KEY_ID','CHAT2_S3_SECRET_ACCESS_KEY']){
   if(!e[key])throw Error('CLOUDRU_RELEASE_STORAGE_CREDENTIAL_MISSING_'+key);
 }
 const hmacRoles={'feed-worker':'FEED_INTERNAL_HMAC_SECRET',
@@ -43,7 +48,7 @@ async function req(url,method='GET',body,token){
   const u=new URL(url);
   if(!['iam.api.cloud.ru','containers.api.cloud.ru'].includes(u.hostname)||u.protocol!=='https:')throw Error('CLOUDRU_UNEXPECTED_ENDPOINT');
   if((method==='POST'&&u.hostname!=='iam.api.cloud.ru')||!['GET','POST','PATCH'].includes(method)||
-     (method==='PATCH'&&(!['--cutover','--sync'].includes(mode)||u.hostname!=='containers.api.cloud.ru')))
+     (method==='PATCH'&&(!['--cutover','--sync','--sync-feed-only'].includes(mode)||u.hostname!=='containers.api.cloud.ru')))
     throw Error('CLOUDRU_OPERATION_FORBIDDEN');
   const response=await fetch(url,{method,headers:{...(token?{authorization:`Bearer ${token}`}:{ }),
    ...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,
@@ -51,7 +56,7 @@ async function req(url,method='GET',body,token){
   if(!response.ok)throw Error(`CLOUDRU_${method}_HTTP_${response.status}_${u.pathname}`);
   const t=await response.text();return t?JSON.parse(t):{};
 }
-for(const j of CLOUDRU_PRODUCTION_JOBS){
+for(const j of selectedJobs){
   const scope=j.project+':'+j.iamVersion;
   if(tokens.has(scope))continue;
   const auth=bindings[j.project];
@@ -65,7 +70,7 @@ const client={
   get:async(scope,id,name,v)=>req(`${api}/${encodeURIComponent(name)}?projectId=${id}`,'GET',null,tokens.get(scope+':'+v)),
   patch:async(scope,id,name,v,payload)=>req(`${api}/${encodeURIComponent(name)}?projectId=${id}`,'PATCH',payload,tokens.get(scope+':'+v)),
 };
-const snapshots=await preflightJobs({...client,readOnly:true,allowChat2MissingRuntime:mode!=='--verify'});
+const snapshots=await preflightJobs({...client,jobs:selectedJobs,readOnly:true,allowChat2MissingRuntime:mode!=='--verify' && mode!=='--verify-feed-only'});
 // Current digest may differ from desired image: this is the drift to sync.
  // preflightJobs ensures pinned, correctly scoped images and exact Job identities.
 const imageChanges=snapshots.filter(s=>target(s)!==null &&
@@ -106,17 +111,17 @@ function jobMatches(a,b){return JSON.stringify(a.configuration)===JSON.stringify
 function patchBody(j){return {name:j.name,projectId:j.projectId,description:j.description,runImmediately:false,
  configuration:j.configuration,template:j.template};}
 const desired=snapshots.map(s=>({snapshot:s,job:desiredConfig(s,e)}));
-if(mode==='--preflight'){
+if(mode==='--preflight'||mode==='--preflight-feed-only'){
  console.log(JSON.stringify({stage:'preflight',checked:snapshots.length,
    mutates:false,desiredImageChanges:imageChanges,
    jobsRequiringConfigurationUpdate:desired.filter(({snapshot,job})=>
      !jobMatches(snapshot.before,job)).map(({snapshot})=>snapshot.name)}));
  process.exit(0);
 }
-if(mode==='--verify'){
+if(mode==='--verify'||mode==='--verify-feed-only'){
  for(const {snapshot:s,job} of desired)
    if(!jobMatches(s.before,job))throw Error('CLOUDRU_NEW_JOB_NOT_ACTIVATED_'+s.name);
- for(const path of ['/internal/chat2/media/jobs/claim']){
+ for(const path of feedOnly ? [] : ['/internal/chat2/media/jobs/claim']){
    const response=await fetch('https://api.gafus.ru'+path,{signal:AbortSignal.timeout(10000)});
    if(response.status!==405)throw Error('V2_BACKEND_NOT_ACTIVATED_'+path+'_'+response.status);
  }
@@ -126,7 +131,7 @@ if(mode==='--verify'){
 // job identities, digests, configuration fields and snapshots are validated.
 const health=await fetch('https://api.gafus.ru/ready',{signal:AbortSignal.timeout(10000)});
 if(!health.ok)throw Error('NEW_PRODUCTION_BACKEND_NOT_HEALTHY');
-for(const path of ['/internal/chat2/media/jobs/claim']){
+for(const path of feedOnly ? [] : ['/internal/chat2/media/jobs/claim']){
  const status=(await fetch('https://api.gafus.ru'+path,{signal:AbortSignal.timeout(10000)})).status;
  // GET must be rejected by mounted Hono route, not 404 (old Backend).
  if(![405,503].includes(status))throw Error('NEW_PRODUCTION_BACKEND_ROUTE_MISSING_'+path+'_'+status);
@@ -140,7 +145,7 @@ if(pending.length===0){
 const file=process.env.RUNNER_TEMP??'/tmp';
 const stamp=`${file}/gafus-cloudru-job-sync-${e.RELEASE_SHA}.json`;
 mkdirSync(file,{recursive:true});
-writeFileSync(stamp,JSON.stringify({projectIds:Object.values(CLOUDRU_PROJECTS).map(x=>x.projectId),
+writeFileSync(stamp,JSON.stringify({projectIds:[...new Set(selectedJobs.map(j=>CLOUDRU_PROJECTS[j.project].projectId))],
   snapshots:snapshots.map(s=>s.before),releaseSha:e.RELEASE_SHA}),{mode:0o600,flag:'wx'});
 chmodSync(stamp,0o600);
 console.log('CLOUDRU_ROLLBACK_SNAPSHOT_SAVED_RUNNER_ONLY');

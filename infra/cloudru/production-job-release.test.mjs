@@ -38,6 +38,14 @@ function mock(states=new Map(CLOUDRU_PRODUCTION_JOBS.map(x=>[x.name,jobState(x)]
  };
  return {states,calls,list,get,patch};
 }
+test('feed-only release plan selects exactly two video Jobs and cannot update Chat2',()=>{
+ const result=spawnSync(process.execPath,['infra/cloudru/production-job-release.mjs','--plan-feed-only'],
+   {cwd:process.cwd(),encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ const plan=JSON.parse(result.stdout);
+ assert.deepEqual(plan.targets.map(x=>x.name),['gafus-feed-video','gafus-feed-video-2']);
+ assert(plan.targets.every(x=>x.targetImage.startsWith('gafus.cr.cloud.ru/gafus-feed-worker@sha256:')));
+});
 test('inventory exactly matches dispatcher names, projects, image roles, no phantom job',()=>{
  const dispatcher=readFileSync('packages/worker/src/cloudru-media-dispatcher.ts','utf8');
  const declared=new Set([...dispatcher.matchAll(/"(gafus-(?:feed-video|chat-video)(?:-2)?)"/g)].map(x=>x[1]));

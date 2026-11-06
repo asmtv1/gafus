@@ -1,0 +1,71 @@
+name: 'Internal / Deploy only two Feed 360p Jobs'
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Read-only preflight, apply exactly two Feed video Jobs, or verify'
+        required: true
+        type: choice
+        options: [preflight, apply, verify]
+      image:
+        description: 'Immutable gafus.cr.cloud.ru/gafus-feed-worker@sha256:<64 hex> reference'
+        required: true
+        type: string
+      confirmation:
+        description: 'For apply only: UPDATE_ONLY_2_FEED_VIDEO_JOBS'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gafus-only-two-feed-video-jobs
+  cancel-in-progress: false
+
+jobs:
+  update-feed-only:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    env:
+      RELEASE_SHA: ${{ github.sha }}
+      CLOUDRU_PROD_DEPLOY_CONFIRM: preapproved-main-only-media-release
+      CLOUDRU_NEW_BACKEND_DEPLOYED: 'true'
+      CLOUDRU_PROJECT_ID: ${{ secrets.CLOUDRU_PROJECT_ID }}
+      CLOUDRU_KEY_ID: ${{ secrets.CLOUDRU_KEY_ID }}
+      CLOUDRU_KEY_SECRET: ${{ secrets.CLOUDRU_KEY_SECRET }}
+      FEED_INTERNAL_HMAC_SECRET: ${{ secrets.FEED_INTERNAL_HMAC_SECRET }}
+      CLOUDRU_FEED_WORKER_IMAGE: ${{ inputs.image }}
+      CLOUDRU_WORKER_PINS_REQUIRED: 'true'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Verify exact image format and operation confirmation
+        env:
+          ACTION: ${{ inputs.operation }}
+          APPROVAL: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          [[ "$CLOUDRU_FEED_WORKER_IMAGE" =~ ^gafus\.cr\.cloud\.ru/gafus-feed-worker@sha256:[a-f0-9]{64}$ ]] || exit 1
+          if [[ "$ACTION" == apply ]]; then
+            test "$APPROVAL" = UPDATE_ONLY_2_FEED_VIDEO_JOBS
+          fi
+          node infra/cloudru/production-job-release.mjs --plan-feed-only | jq -e '.targets|length == 2'
+      - name: Verify published digest without writing to Registry
+        run: printf '%s\n' "$CLOUDRU_FEED_WORKER_IMAGE" | bash ci-cd/scripts/verify-cloudru-manifests.sh
+      - name: Validate only two Feed Jobs, their credentials and safe image drift
+        run: node infra/cloudru/production-job-release.mjs --preflight-feed-only
+      - name: Update only two existing Feed video Jobs, with rollback on failure
+        if: inputs.operation == 'apply'
+        run: node infra/cloudru/production-job-release.mjs --sync-feed-only
+      - name: Check that only two Feed video Jobs match the new immutable image
+        if: inputs.operation != 'preflight'
+        run: node infra/cloudru/production-job-release.mjs --verify-feed-only
