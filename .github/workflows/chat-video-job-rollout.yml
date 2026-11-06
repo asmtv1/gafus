@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: gafus-only-two-chat2-video-jobs
@@ -61,8 +62,20 @@ jobs:
             test "$APPROVAL" = UPDATE_ONLY_2_CHAT2_VIDEO_JOBS
           fi
           node infra/cloudru/production-job-release.mjs --plan-chat-only | jq -e '.targets|length == 2'
-      - name: Read-only immutable image verification
-        run: printf '%s\n' "$CLOUDRU_CHAT_VIDEO_IMAGE" | bash ci-cd/scripts/verify-cloudru-manifests.sh
+      - name: Verify image digest against successful immutable publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          published_run=42304520858
+          source_sha=2e16542f460a985e10cc2c122aa0c7c5565fa3dd
+          digest=ed9171f5d91c07642125aad4a740aa289d52188c53b864725e85c8f56f011fc6
+          test "$CLOUDRU_CHAT_VIDEO_IMAGE" = "gafus-chat2-20261028.cr.cloud.ru/gafus-chat-video@sha256:$digest"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$published_run" --jq '.status+" "+.conclusion+" "+.head_sha' |
+            grep -Fx "completed success $source_sha"
+          gh run view "$published_run" --repo "$GITHUB_REPOSITORY" --log |
+            grep -F "gafus-chat2-20261028.cr.cloud.ru/gafus-chat-video:$source_sha@sha256:$digest" >/dev/null
+          echo "CHAT2_PUBLISHED_IMMUTABLE_IMAGE_VERIFIED=1"
       - name: Preflight existing Chat2 Jobs, snapshots and IAM v2
         run: node infra/cloudru/production-job-release.mjs --preflight-chat-only
       - name: Update only two Chat2 video Jobs with rollback protection
