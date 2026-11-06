@@ -3,6 +3,7 @@ import { AppState, Modal, PixelRatio, Platform, Pressable, StyleSheet, Text, Vie
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
 import { useVideoPlayer, VideoView } from "expo-video";
+import { playVideoFromBeginningIfEnded } from "@/shared/lib/media/replayVideo";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useAuthStore } from "@/shared/stores";
@@ -70,6 +71,7 @@ function ActiveFeedV2Player({ url, publicMedia, onError, onReady, onStarted, ful
   // Both inline and fullscreen views use one seekable touch layer. Native
   // playback chrome is disabled to avoid duplicate/hidden controls.
   const [isPlaying, setIsPlaying] = useState(true);
+  const playbackEnded = useRef(false);
   const [expanded, setExpanded] = useState(false);
   const loadedUrl = useRef(url);
   // A quality selection must reuse the same native player: preserve current
@@ -106,11 +108,21 @@ function ActiveFeedV2Player({ url, publicMedia, onError, onReady, onStarted, ful
       setIsPlaying(event.isPlaying);
       if (event.isPlaying && player.status === "readyToPlay") onStarted(loadedUrl.current);
     });
-    return () => { statusListener.remove(); playingListener.remove(); };
+    const endedListener = player.addListener("playToEnd", () => {
+      playbackEnded.current = true;
+      setIsPlaying(false);
+    });
+    return () => { statusListener.remove(); playingListener.remove(); endedListener.remove(); };
   }, [player, onError, onReady, onStarted]);
   const togglePlayback = () => {
-    if (isPlaying) player.pause(); else player.play();
-    setIsPlaying(!isPlaying);
+    if (isPlaying) {
+      player.pause();
+      setIsPlaying(false);
+    } else {
+      playVideoFromBeginningIfEnded(player, playbackEnded.current);
+      playbackEnded.current = false;
+      setIsPlaying(true);
+    }
   };
   const qualityControl = <VideoQualitySettings embedded value={quality}
     available={variants} onChange={onQualityChange} />;

@@ -24,9 +24,10 @@ describe("Chat2 Mobile video preview parity with Web", () => {
     expect(setup).toContain("instance.pause()");
     expect(setup).not.toContain("instance.play()");
     expect(player).toContain("onPlayingChange(isPlaying)");
+    expect(player).toContain('player.addListener("playToEnd", onPlaybackEnd)');
     expect(player).toContain('surfaceType={Platform.OS === "android" ? "textureView" : undefined}');
     expect(preview).toContain("<SocialVideoControls player={controlPlayer} playing={playing}");
-    expect(preview).toContain("playerRef.current?.play()");
+    expect(preview).toContain("playVideoFromBeginningIfEnded(playerRef.current, playbackEnded.current)");
     expect(preview).toContain("onToggle={togglePlayback}");
     expect(player).toContain("nativeControls={false}");
     expect(player).toContain("requestThumbnail: boolean");
@@ -40,6 +41,8 @@ describe("Chat2 Mobile video preview parity with Web", () => {
     expect(preview).toContain("player.pause()");
     expect(preview).toContain("playIntent.current = false;");
     expect(preview).toContain("void play();");
+    expect(preview).toContain("playVideoFromBeginningIfEnded(playerRef.current, playbackEnded.current)");
+    expect(preview).toContain("playbackEnded.current = true;");
     expect(preview).toContain("setPlaying(false);");
     expect(player).toContain("onPlayingChange(isPlaying)");
     expect(player).toContain("nativeControls={false}");

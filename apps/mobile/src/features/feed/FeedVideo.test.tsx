@@ -3,12 +3,14 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { sources, statusListeners, prefers, fallbackRequest, players } = vi.hoisted(() => ({
+const { sources, statusListeners, endListeners, prefers, fallbackRequest, players } = vi.hoisted(() => ({
   prefers: vi.fn(), fallbackRequest: vi.fn(),
   sources: [] as { uri: string; contentType: string; useCaching: boolean }[],
   statusListeners: new Map<string, (event: { status: string }) => void>(),
+  endListeners: new Map<string, () => void>(),
   players: [] as { play: ReturnType<typeof vi.fn>; pause: ReturnType<typeof vi.fn>;
-    replaceAsync: ReturnType<typeof vi.fn>; currentTime: number; playing: boolean }[],
+    replaceAsync: ReturnType<typeof vi.fn>; replay: ReturnType<typeof vi.fn>;
+    currentTime: number; playing: boolean }[],
 }));
 vi.mock("@expo/vector-icons", async () => {
   const R = await import("react");
@@ -68,13 +70,18 @@ vi.mock("expo-video", async () => {
         const listeners = new Set<() => void>();
         const player = { uri: source.uri, currentTime: 0, duration: 120, playing: false,
           play: vi.fn(), pause: vi.fn(),
+          replay: vi.fn(() => { player.currentTime = 0; player.playing = true; }),
           replaceAsync: vi.fn(async (next: {uri: string}) => { player.uri = next.uri;
             listeners.forEach(listener => listener()); }),
           onReplace: (fn: () => void) => { listeners.add(fn); return () => listeners.delete(fn); },
           staysActiveInBackground: false, showNowPlayingNotification: false,
           addListener: (kind: string, listener: (event: { status: string }) => void) => {
             if (kind === "statusChange") statusListeners.set(source.uri, listener);
-            return { remove: () => { if (kind === "statusChange") statusListeners.delete(source.uri); } };
+            if (kind === "playToEnd") endListeners.set(source.uri, listener as () => void);
+            return { remove: () => {
+              if (kind === "statusChange") statusListeners.delete(source.uri);
+              if (kind === "playToEnd") endListeners.delete(source.uri);
+            } };
           } };
         players.push(player);
         setup?.(player);
@@ -103,7 +110,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await act(async () => root.unmount()); host.remove();
-  sources.length = 0; players.length = 0; statusListeners.clear(); vi.restoreAllMocks();
+  sources.length = 0; players.length = 0; statusListeners.clear(); endListeners.clear(); vi.restoreAllMocks();
   prefers.mockReset(); fallbackRequest.mockReset();
 });
 describe("Mobile Moments native progressive MP4 cutover", () => {
@@ -175,6 +182,19 @@ describe("Mobile Moments native progressive MP4 cutover", () => {
     expect(players[0]?.play).toHaveBeenCalledTimes(2); // initial start + resume
     expect(host.querySelector('[aria-label="Пауза"]')).not.toBeNull();
     expect(navigate).not.toHaveBeenCalled();
+  });
+  it("plays a completed Moments MP4 again from zero after native playToEnd", async () => {
+    await act(async () => root.render(<FeedVideo postId="p" mediaId="m" poster={null}
+      visible mp4Urls={{360:mp4}} />));
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Воспроизвести видео"]')?.click());
+    expect(players[0]?.play).toHaveBeenCalledOnce();
+    players[0]!.currentTime=120;
+    await act(async () => endListeners.get(mp4)?.());
+    expect(host.querySelector('[aria-label="Продолжить видео"]')).not.toBeNull();
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Продолжить видео"]')?.click());
+    expect(players[0]?.currentTime).toBe(0);
+    expect(players[0]?.replay).toHaveBeenCalledOnce();
+    expect(players[0]?.play).toHaveBeenCalledOnce();
   });
   it("reveals 360 / auto / 720 behind the same in-player gear without restarting the native player", async () => {
     const mp4High="https://media.example.test/media/v2/m/v1/video/720.mp4";

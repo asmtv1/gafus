@@ -29,6 +29,7 @@ import { prepareUploadVideo720, type PreparedUploadVideo720,
   type Video720Failure } from "@/shared/lib/media/prepareUploadVideo720";
 import * as DocumentPicker from "expo-document-picker";
 import { VideoView, useVideoPlayer, type VideoPlayer, type VideoThumbnail } from "expo-video";
+import { playVideoFromBeginningIfEnded } from "@/shared/lib/media/replayVideo";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
 import { VideoQualitySettings } from "@/shared/components/media/VideoQualitySettings";
@@ -1453,7 +1454,7 @@ function NativeChat2Image({ conversationId, file, images }: {
 /** Mount the paused native player with the message: it can render the first frame
  * even for legacy MP4s that do not have a separately processed poster. */
 function NativeChat2VideoPlayer({
-  url, onError, onReady, seekTo, onPlayer, onPlayingChange, resumeOnReady,
+  url, onError, onReady, seekTo, onPlayer, onPlayingChange, onPlaybackEnd, resumeOnReady,
   requestThumbnail, onThumbnail, hideView = false, frameHeight = 220, onDimensions,
 }: {
   url: string;
@@ -1462,6 +1463,7 @@ function NativeChat2VideoPlayer({
   seekTo: number;
   onPlayer: (player: VideoPlayer | null) => void;
   onPlayingChange: (playing: boolean) => void;
+  onPlaybackEnd: () => void;
   resumeOnReady: boolean;
   requestThumbnail: boolean;
   onThumbnail: (url: string, frame: VideoThumbnail) => void;
@@ -1516,9 +1518,10 @@ function NativeChat2VideoPlayer({
     const statusListener = player.addListener("statusChange", ({ status }) => onStatus(status));
     const playingListener = player.addListener("playingChange", ({ isPlaying }) =>
       onPlayingChange(isPlaying));
+    const endedListener = player.addListener("playToEnd", onPlaybackEnd);
     onStatus(player.status);
-    return () => { live = false; statusListener.remove(); playingListener.remove(); };
-  }, [player, onError, onReady, onPlayingChange, seekTo, resumeOnReady,
+    return () => { live = false; statusListener.remove(); playingListener.remove(); endedListener.remove(); };
+  }, [player, onError, onReady, onPlayingChange, onPlaybackEnd, seekTo, resumeOnReady,
     requestThumbnail, onThumbnail, url, onDimensions]);
   if (hideView) return null; // Modal takes sole ownership of this native VideoView.
   return <VideoView player={player}
@@ -1538,6 +1541,7 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
   const [seekTo, setSeekTo] = useState(0);
   const [resumeOnReady, setResumeOnReady] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const playbackEnded = useRef(false);
   const [everPlayed, setEverPlayed] = useState(false);
   const [thumbnail, setThumbnail] = useState<{ url: string; frame: VideoThumbnail } | null>(null);
   const [posterFailed, setPosterFailed] = useState(false);
@@ -1621,8 +1625,14 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
       available:media.renditions.video,hints:qualityHints.current,fallback:usingFallback});
   }, [media, quality, usingFallback]);
   const onPlayer = useCallback((player: VideoPlayer | null) => {
+    if (player && playerRef.current !== player) playbackEnded.current = false;
     playerRef.current = player;
     setControlPlayer(player);
+  }, []);
+  const onPlaybackEnd = useCallback(() => {
+    playbackEnded.current = true;
+    playIntent.current = false;
+    setPlaying(false);
   }, []);
   const onDimensions = useCallback((width: number, height: number) => {
     setTrackSize(previous => previous?.width === width && previous?.height === height
@@ -1708,7 +1718,10 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
         return;
       }
     }
-    playerRef.current?.play();
+    if (playerRef.current) {
+      playVideoFromBeginningIfEnded(playerRef.current, playbackEnded.current);
+      playbackEnded.current = false;
+    }
   }
   function togglePlayback() {
     const player = playerRef.current;
@@ -1751,6 +1764,7 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
         overflow: "hidden", backgroundColor: "#17211d", position: "relative" }}>
       <NativeChat2VideoPlayer key={url} url={url} onError={onError} onReady={onVideoReady} seekTo={seekTo}
         resumeOnReady={resumeOnReady} onPlayer={onPlayer} onPlayingChange={onPlayingChange}
+        onPlaybackEnd={onPlaybackEnd}
         requestThumbnail={!poster} onThumbnail={onThumbnail} hideView={expanded}
         frameHeight={previewHeight} onDimensions={onDimensions} />
       {!everPlayed && !playing && (poster || thumbnail?.url === url) && <View pointerEvents="none"
