@@ -7,7 +7,7 @@ import { CLOUDRU_PRODUCTION_JOBS, imageRepository } from './production-job-inven
 
 export const RELEASE_DIGESTS = Object.freeze({
   'feed-worker':'81a3a80f1d8c7c3beec390c15ae860316d71585e9918b0cea68621a79217789f',
-  'chat-video':'97f4e6e38c6ae9f289b56369fc203a631d7b691ae1ca681b4b1abd5e04b939c4',
+  'chat-video':'ed9171f5d91c07642125aad4a740aa289d52188c53b864725e85c8f56f011fc6',
 });
 export const IMAGE_OVERRIDE_ENV = Object.freeze({
   'feed-worker':'CLOUDRU_FEED_WORKER_IMAGE',

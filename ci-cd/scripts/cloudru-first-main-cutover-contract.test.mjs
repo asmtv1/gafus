@@ -141,7 +141,7 @@ test('no Cloud.ru Docker build, push, phantom Job, old Gallery image or CDN/S3 m
  assert.equal(obj.provisionsJobs,false);
  assert.equal(obj.targets.filter(t=>t.targetImage.includes('7f8d4325')).length,0);
  assert(!obj.targets.some(t=>t.targetImage.includes('652b3ce4')),'OLD_GALLERY_NOT_ALLOWED_AS_TARGET');
- assert(obj.targets.filter(t=>t.name.startsWith('gafus-chat-video') && t.targetImage==='gafus-chat2-20261028.cr.cloud.ru/gafus-chat-video@sha256:97f4e6e38c6ae9f289b56369fc203a631d7b691ae1ca681b4b1abd5e04b939c4').length===2);
+ assert(obj.targets.filter(t=>t.name.startsWith('gafus-chat-video') && t.targetImage==='gafus-chat2-20261028.cr.cloud.ru/gafus-chat-video@sha256:ed9171f5d91c07642125aad4a740aa289d52188c53b864725e85c8f56f011fc6').length===2);
 });
 
 test('no worker dispatch until Cloud.ru new-image cutover; activation has failure rollback',()=>{

@@ -30,7 +30,7 @@ test('production requires the configured Feed VIDEO pin (existing GitHub product
    assert.equal(configuredImage(job,config),ref(job));
  }
  const chat=CLOUDRU_PRODUCTION_JOBS.find(x=>x.imageRole==='chat-video');
- assert.equal(configuredImage(chat,{}),imageRepository(chat)+'@sha256:97f4e6e38c6ae9f289b56369fc203a631d7b691ae1ca681b4b1abd5e04b939c4');
+ assert.equal(configuredImage(chat,{}),imageRepository(chat)+'@sha256:ed9171f5d91c07642125aad4a740aa289d52188c53b864725e85c8f56f011fc6');
  assert.throws(()=>configuredImage(chat,enforced),/REQUIRED_CLOUDRU_IMAGE_PIN_MISSING_CLOUDRU_CHAT_VIDEO_IMAGE/);
 });
 
