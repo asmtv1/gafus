@@ -6,7 +6,7 @@
 import { CLOUDRU_PRODUCTION_JOBS, imageRepository } from './production-job-inventory.mjs';
 
 export const RELEASE_DIGESTS = Object.freeze({
-  'feed-worker':'cbf25f7f60e8f33ff261c6eeeab39f3f89412fc561340cc7f10ad903b5e16a02',
+  'feed-worker':'81a3a80f1d8c7c3beec390c15ae860316d71585e9918b0cea68621a79217789f',
 });
 export const IMAGE_OVERRIDE_ENV = Object.freeze({
   'feed-worker':'CLOUDRU_FEED_WORKER_IMAGE',

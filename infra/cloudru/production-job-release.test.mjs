@@ -126,7 +126,7 @@ test('offline four-video-job plan and unauthorized apply never reach Cloud.ru',(
  assert.equal(parsed.targets.filter(x=>x.targetImage.includes('652b3ce4')).length,0);
  const feed=parsed.targets.filter(x=>/^gafus-feed-video(-2)?$/.test(x.name));
  assert.equal(feed.length,2,'one shared Feed image must cover only the video Jobs');
- const pinned='gafus.cr.cloud.ru/gafus-feed-worker@sha256:cbf25f7f60e8f33ff261c6eeeab39f3f89412fc561340cc7f10ad903b5e16a02';
+ const pinned='gafus.cr.cloud.ru/gafus-feed-worker@sha256:81a3a80f1d8c7c3beec390c15ae860316d71585e9918b0cea68621a79217789f';
  assert(feed.every(x=>x.targetImage===pinned),'CI must use exactly the deployed, immutable Feed digest');
 
  const blocked=run('--apply');assert.notEqual(blocked.status,0);assert.match(blocked.stderr,/INVALID_EXISTING_JOB_RELEASE_MODE/);
