@@ -71,3 +71,29 @@ describe("chat photo/video job cannot steal opposite kind",()=>{
   expect(core.complete).not.toHaveBeenCalled();
  });
 });
+
+describe("Safe Chat2 360 Cloud failure diagnostics",()=>{
+ it("reports only a phase, safe category and integer HTTP status",async()=>{
+  const base=fixture();
+  const job={...base,sourceMime:"video/mp4" as const,phase:"background_360" as const,
+    sourceKey:chat2V2SourceKey(base.conversationId,base.ownerId,base.mediaId,"video/mp4")};
+  const {core,objectsFor}=mocks(job);
+  const onFailure=vi.fn();
+  const process=vi.fn(async (_job:unknown,_dir:unknown,deps:{onPhase?:(phase:"download")=>void})=>{
+    deps.onPhase?.("download");
+    throw Object.assign(Error("https://private.example/path?token=SECRET"),
+      {name:"AccessDenied",$metadata:{httpStatusCode:403}});
+  });
+  await expect(createChat2JobRunner({core,kind:"video",objectsFor,workRoot:root,
+    engine:{} as never,process:process as never,onFailure})()).rejects.toThrow();
+  expect(onFailure).toHaveBeenCalledWith({phase:"download",category:"AccessDenied",status:403});
+  expect(JSON.stringify(onFailure.mock.calls)).not.toContain("SECRET");
+ });
+ it("does not copy potentially sensitive error strings to diagnostics",async()=>{
+  const {chat2SafeErrorCategory,chat2SafeErrorStatus}=await import("./chat2-job-runner.js");
+  const e=Object.assign(Error("password=abc456 and https://private"),{name:"NetworkRequestError",$metadata:{httpStatusCode:302}});
+  expect(chat2SafeErrorCategory(e)).toBe("UNKNOWN");
+  expect(chat2SafeErrorStatus(e)).toBeNull();
+  expect(chat2SafeErrorCategory(Error("CHAT2_360_PHASE_MISMATCH"))).toBe("CHAT2_360_PHASE_MISMATCH");
+ });
+});

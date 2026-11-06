@@ -27,6 +27,7 @@ export interface Chat2V2Deps {
   engine: FeedImageEngine;
   processVideo?: typeof processFeedV2Video;
   runner?: ReturnType<typeof createFeedCommandRunner>;
+  onPhase?: (phase: "download" | "transform" | "upload" | "manifest") => void;
 }
 export async function processChat2V2Asset(
   job: Chat2V2Job, workDir: string, deps: Chat2V2Deps, signal: AbortSignal,
@@ -46,12 +47,14 @@ export async function processChat2V2Asset(
     throw Error("CHAT2_V2_INVALID_WORKDIR");
   const keys = chat2V2FinalKeys(job.conversationId, job.ownerId, job.mediaId);
   const sourceFile = join(directory, "source");
+  deps.onPhase?.("download");
   await deps.objects.download(keys.video.variants[720], sourceFile, source.maxBytes, signal);
   const sourceStat = await lstat(sourceFile);
   if (!sourceStat.isFile() || sourceStat.isSymbolicLink() ||
       sourceStat.size < 24 || sourceStat.size > source.maxBytes)
     throw Error("CHAT2_V2_SOURCE_MISMATCH");
   signal.throwIfAborted();
+  deps.onPhase?.("transform");
   const result = await (deps.processVideo ?? processFeedV2Video)(
     sourceFile, directory, deps.runner ?? createFeedCommandRunner({ signal, timeoutMs: 550_000 }),
     [360],
@@ -65,10 +68,12 @@ export async function processChat2V2Asset(
     throw Error("CHAT2_CLOUD_UNEXPECTED_VIDEO_RENDITION");
   const video = result.mp4[0];
   // Await all transfers; don't delete a working directory while a write is in flight.
+  deps.onPhase?.("upload");
   const uploads = await Promise.allSettled([
     deps.objects.createFile(keys.video.variants[360], video.path, signal),
   ]);
   for (const upload of uploads) if (upload.status === "rejected") throw upload.reason;
+  deps.onPhase?.("manifest");
   const manifest: Chat2V2Manifest = {
     kind: "video", width: result.info.width, height: result.info.height,
     durationSeconds: result.info.durationSeconds,

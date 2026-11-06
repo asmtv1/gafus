@@ -1,6 +1,6 @@
 /** One-shot Cloud.ru worker for CHAT VIDEO only. Client WebP photo Jobs are retired. */
 import { S3Client } from "@aws-sdk/client-s3";
-import { createChat2JobRunner } from "./chat2-job-runner.js";
+import { createChat2JobRunner, chat2SafeErrorCategory, chat2SafeErrorStatus } from "./chat2-job-runner.js";
 import { createChat2JobCore } from "./chat2-job-core.js";
 import { createChat2S3Objects, CHAT2_CLOUD_BUCKET } from "./chat2-s3-objects.js";
 import { sharpFeedEngine } from "./sharp-engine.js";
@@ -25,9 +25,14 @@ async function main() {
     const run=createChat2JobRunner({
       core,kind:"video",engine:sharpFeedEngine,workRoot:env.CHAT2_JOB_WORK_ROOT,
       objectsFor:(job)=>createChat2S3Objects(job,client),
+      onFailure:failure=>console.error("CHAT2_360_FAILURE",JSON.stringify(failure)),
     });
     const count=await run();
     console.log(count ? "CHAT2_JOB_PROCESSED=1" : "CHAT2_JOB_IDLE=1");
   }finally{client.destroy();}
 }
-main().catch(()=>{console.error("CHAT2_JOB_FAILED");process.exitCode=1;});
+main().catch(error=>{
+  console.error("CHAT2_JOB_FAILED",JSON.stringify({category:chat2SafeErrorCategory(error),
+    status:chat2SafeErrorStatus(error)}));
+  process.exitCode=1;
+});

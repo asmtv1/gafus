@@ -30,16 +30,19 @@ export function createChat2JobRunner(args: {
   workRoot: string;
   now?: () => number;
   process?: typeof processChat2V2Asset;
+  onFailure?: (failure: {phase: string; category: string; status: number | null}) => void;
 }) {
   const now = args.now ?? Date.now;
   return async function runOnce(): Promise<number> {
     if(args.kind!=="image"&&args.kind!=="video")throw Error("CHAT2_JOB_KIND_REQUIRED");
+    let phase = "claim";
     const job = await args.core.claimOne(args.kind);
     if (!job) return 0;
     if(validateChat2V2Job(job).kind!==args.kind)throw Error("CHAT2_JOB_WRONG_KIND");
     if (!/^[A-Za-z0-9_-]{16,256}$/.test(job.attemptToken) ||
         !Number.isFinite(Date.parse(job.leaseUntil)) || Date.parse(job.leaseUntil) <= now())
       throw new Error("CHAT2_JOB_INVALID_LEASE");
+    phase = "workdir";
     const base=await realpath(args.workRoot);
     const stat=await lstat(base);
     if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("CHAT2_JOB_INVALID_WORK_ROOT");
@@ -63,15 +66,18 @@ export function createChat2JobRunner(args: {
     },30_000);
     try{
       directory=await mkdtemp(join(base,".chat2-job-"));
+      phase = "processing";
       const manifest=await (args.process??processChat2V2Asset)(job,directory,
-        {objects:args.objectsFor(job),engine:args.engine},controller.signal);
+        {objects:args.objectsFor(job),engine:args.engine,onPhase:p=>{phase=p;}},controller.signal);
       controller.signal.throwIfAborted();
       validateChat2V2Manifest(job,manifest);
       submitting=true;
+      phase = "complete";
       const completed=await args.core.complete(job,manifest);
       if(!completed.accepted)throw new Error("CHAT2_JOB_COMPLETION_REJECTED");
       return 1;
     }catch(error){
+      args.onFailure?.({phase,category:chat2SafeErrorCategory(error),status:chat2SafeErrorStatus(error)});
       // A timeout/lost completion acknowledgement is ambiguous. Never roll
       // back bytes while another claimant may have committed READY.
       if(!submitting)await args.core.fail(job,"CHAT2_MEDIA_PROCESSING_FAILED").catch(()=>undefined);
@@ -81,4 +87,21 @@ export function createChat2JobRunner(args: {
       if(directory)await rm(directory,{recursive:true,force:true});
     }
   };
+}
+
+/** No free-form error text, object keys, tokens, or URLs may enter Cloud logs. */
+export function chat2SafeErrorCategory(error: unknown): string {
+  if (!error || typeof error !== "object") return "UNKNOWN";
+  const name=(error as {name?:unknown}).name;
+  const code=(error as {code?:unknown}).code;
+  const message=(error as {message?:unknown}).message;
+  if(typeof message==="string" && /^CHAT2_[A-Z0-9_]{4,72}$/.test(message)) return message;
+  if(typeof code==="string" && /^(ENOENT|EACCES|ENOSPC|EPIPE|ETIMEDOUT|ECONNRESET|ENOTFOUND)$/.test(code))return code;
+  if(typeof name==="string" && /^(AccessDenied|NoSuchKey|NoSuchBucket|PreconditionFailed|TimeoutError|AbortError|CredentialsProviderError|NetworkingError)$/.test(name))return name;
+  return "UNKNOWN";
+}
+export function chat2SafeErrorStatus(error: unknown): number|null {
+  if (!error || typeof error !== "object") return null;
+  const value=(error as {$metadata?:{httpStatusCode?:unknown}}).$metadata?.httpStatusCode;
+  return Number.isInteger(value) && typeof value==="number" && value>=400 && value<=599 ? value:null;
 }
