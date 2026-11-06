@@ -12,7 +12,8 @@ const files=readdirSync(dir).filter(x=>x.endsWith('.yml')).sort();
 test('primary workflows, independent Beget audit/backup and internal workflows',()=>{
  assert.deepEqual(files,[
   'beget-provider-audit.yml','build-single-container.yml','ci-cd.yml','cloudru-media-images.yml',
-  'daily-backup.yml','deploy-only.yml','infrastructure-jobs.yml',
+  'daily-backup.yml','deploy-only.yml','feed-video-job-rollout.yml',
+  'feed-worker-image-release.yml','infrastructure-jobs.yml',
   'production-deploy-reusable.yml','production-job-release-reusable.yml'
  ]);
  const primary=['build-single-container','ci-cd','deploy-only','infrastructure-jobs'];
@@ -23,6 +24,13 @@ test('primary workflows, independent Beget audit/backup and internal workflows',
  }
  assert(parse('beget-provider-audit').on.schedule?.length);
  assert(Object.hasOwn(parse('beget-provider-audit').on,'workflow_dispatch'));
+ for(const name of ['feed-worker-image-release','feed-video-job-rollout']){
+  const wf=parse(name);
+  assert(wf.on.workflow_dispatch,name+' must require an explicit manual launch');
+  assert.equal(wf.on.push,undefined,name+' must not deploy on push');
+  assert.equal(wf.jobs[Object.keys(wf.jobs)[0]].environment,'production');
+  assert.equal(wf.concurrency['cancel-in-progress'],false);
+ }
  assert(parse('daily-backup').on.schedule?.length);
  assert(Object.hasOwn(parse('daily-backup').on,'workflow_dispatch'));
 });
