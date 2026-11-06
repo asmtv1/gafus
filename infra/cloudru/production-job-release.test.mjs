@@ -38,6 +38,15 @@ function mock(states=new Map(CLOUDRU_PRODUCTION_JOBS.map(x=>[x.name,jobState(x)]
  };
  return {states,calls,list,get,patch};
 }
+test('chat-only release plan selects exactly two Chat2 video Jobs',()=>{
+ const result=spawnSync(process.execPath,['infra/cloudru/production-job-release.mjs','--plan-chat-only'],
+   {cwd:process.cwd(),encoding:'utf8'});
+ assert.equal(result.status,0,result.stderr);
+ const plan=JSON.parse(result.stdout);
+ assert.deepEqual(plan.targets.map(x=>x.name),['gafus-chat-video','gafus-chat-video-2']);
+ assert(plan.targets.every(x=>x.projectId==='6777bd18-4ee9-4d15-bb1b-134f7a18ed3a'));
+ assert.equal(plan.mutates,false);
+});
 test('feed-only release plan selects exactly two video Jobs and cannot update Chat2',()=>{
  const result=spawnSync(process.execPath,['infra/cloudru/production-job-release.mjs','--plan-feed-only'],
    {cwd:process.cwd(),encoding:'utf8'});

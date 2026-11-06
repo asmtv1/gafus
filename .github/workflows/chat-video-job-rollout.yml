@@ -1,0 +1,73 @@
+name: 'Internal / Deploy only two Chat2 360p Jobs'
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Read-only preflight, update exactly two Chat2 video Jobs, or verify'
+        required: true
+        type: choice
+        options: [preflight, apply, verify]
+      image:
+        description: 'Immutable Chat2 video image digest: repository@sha256:<64 hex>'
+        required: true
+        type: string
+      confirmation:
+        description: 'For apply only: UPDATE_ONLY_2_CHAT2_VIDEO_JOBS'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gafus-only-two-chat2-video-jobs
+  cancel-in-progress: false
+
+jobs:
+  update-chat-only:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      RELEASE_SHA: ${{ github.sha }}
+      CLOUDRU_PROD_DEPLOY_CONFIRM: preapproved-main-only-media-release
+      CLOUDRU_NEW_BACKEND_DEPLOYED: 'true'
+      CHAT2_CLOUDRU_PROJECT_ID: ${{ secrets.CHAT2_CLOUDRU_PROJECT_ID }}
+      CHAT2_CLOUDRU_KEY_ID: ${{ secrets.CHAT2_CLOUDRU_KEY_ID }}
+      CHAT2_CLOUDRU_KEY_SECRET: ${{ secrets.CHAT2_CLOUDRU_KEY_SECRET }}
+      CHAT2_INTERNAL_HMAC_SECRET: ${{ secrets.CHAT2_INTERNAL_HMAC_SECRET }}
+      CHAT2_S3_ACCESS_KEY_ID: ${{ secrets.CHAT2_S3_ACCESS_KEY_ID }}
+      CHAT2_S3_SECRET_ACCESS_KEY: ${{ secrets.CHAT2_S3_SECRET_ACCESS_KEY }}
+      CLOUDRU_CHAT_VIDEO_IMAGE: ${{ inputs.image }}
+      CLOUDRU_WORKER_PINS_REQUIRED: 'true'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Verify exact immutable Chat2 image and apply confirmation
+        env:
+          ACTION: ${{ inputs.operation }}
+          APPROVAL: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          [[ "$CLOUDRU_CHAT_VIDEO_IMAGE" =~ ^gafus-chat2-20261028\.cr\.cloud\.ru/gafus-chat-video@sha256:[a-f0-9]{64}$ ]] || exit 1
+          if [[ "$ACTION" == apply ]]; then
+            test "$APPROVAL" = UPDATE_ONLY_2_CHAT2_VIDEO_JOBS
+          fi
+          node infra/cloudru/production-job-release.mjs --plan-chat-only | jq -e '.targets|length == 2'
+      - name: Read-only immutable image verification
+        run: printf '%s\n' "$CLOUDRU_CHAT_VIDEO_IMAGE" | bash ci-cd/scripts/verify-cloudru-manifests.sh
+      - name: Preflight existing Chat2 Jobs, snapshots and IAM v2
+        run: node infra/cloudru/production-job-release.mjs --preflight-chat-only
+      - name: Update only two Chat2 video Jobs with rollback protection
+        if: inputs.operation == 'apply'
+        run: node infra/cloudru/production-job-release.mjs --sync-chat-only
+      - name: Verify Chat2 Job images and backend configuration
+        if: inputs.operation != 'preflight'
+        run: node infra/cloudru/production-job-release.mjs --verify-chat-only

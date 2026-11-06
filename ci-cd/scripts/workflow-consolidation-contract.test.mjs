@@ -12,6 +12,7 @@ const files=readdirSync(dir).filter(x=>x.endsWith('.yml')).sort();
 test('primary workflows, independent Beget audit/backup and internal workflows',()=>{
  assert.deepEqual(files,[
   'beget-provider-audit.yml','build-single-container.yml','chat-video-image-release.yml',
+  'chat-video-job-rollout.yml',
   'ci-cd.yml','cloudru-media-images.yml',
   'daily-backup.yml','deploy-only.yml','feed-video-job-rollout.yml',
   'feed-worker-image-release.yml','infrastructure-jobs.yml',
@@ -25,7 +26,7 @@ test('primary workflows, independent Beget audit/backup and internal workflows',
  }
  assert(parse('beget-provider-audit').on.schedule?.length);
  assert(Object.hasOwn(parse('beget-provider-audit').on,'workflow_dispatch'));
- for(const name of ['feed-worker-image-release','feed-video-job-rollout','chat-video-image-release']){
+ for(const name of ['feed-worker-image-release','feed-video-job-rollout','chat-video-image-release','chat-video-job-rollout']){
   const wf=parse(name);
   assert(wf.on.workflow_dispatch,name+' must require an explicit manual launch');
   assert.equal(wf.on.push,undefined,name+' must not deploy on push');

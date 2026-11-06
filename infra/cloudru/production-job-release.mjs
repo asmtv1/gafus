@@ -11,16 +11,21 @@ import { waitForGalleryJobRollout } from './gallery-rollout-poll.mjs';
 
 const mode=process.argv[2]??'--plan';
 if(!['--plan','--preflight','--sync','--cutover','--verify',
-  '--plan-feed-only','--preflight-feed-only','--sync-feed-only','--verify-feed-only'].includes(mode))
+  '--plan-feed-only','--preflight-feed-only','--sync-feed-only','--verify-feed-only',
+  '--plan-chat-only','--preflight-chat-only','--sync-chat-only','--verify-chat-only'].includes(mode))
   throw Error('INVALID_EXISTING_JOB_RELEASE_MODE');
 const e=process.env;
 const feedOnly=mode.endsWith('-feed-only');
-const selectedJobs=feedOnly ? CLOUDRU_PRODUCTION_JOBS.filter(j=>j.imageRole==='feed-worker') : CLOUDRU_PRODUCTION_JOBS;
+const chatOnly=mode.endsWith('-chat-only');
+const selectedJobs=feedOnly ? CLOUDRU_PRODUCTION_JOBS.filter(j=>j.imageRole==='feed-worker') :
+  chatOnly ? CLOUDRU_PRODUCTION_JOBS.filter(j=>j.imageRole==='chat-video') : CLOUDRU_PRODUCTION_JOBS;
+if(chatOnly && (selectedJobs.length!==2 || selectedJobs.some(j=>j.project!=='chat2')))
+  throw Error('CHAT_ONLY_JOB_INVENTORY_MISMATCH');
 if(feedOnly && (selectedJobs.length!==2 || selectedJobs.some(j=>j.project!=='primary')))
   throw Error('FEED_ONLY_JOB_INVENTORY_MISMATCH');
 const target=j=>configuredImage(j,e);
 const requested=imagePlan(e,selectedJobs);
-if(mode==='--plan'||mode==='--plan-feed-only'){
+if(mode==='--plan'||mode==='--plan-feed-only'||mode==='--plan-chat-only'){
   console.log(JSON.stringify({mode,mutates:false,buildsImages:false,provisionsJobs:false,
     targets:requested.map(({job:j,targetImage})=>({name:j.name,projectId:CLOUDRU_PROJECTS[j.project].projectId,
       targetImage:targetImage??'KEEP_EXISTING_PINNED_CHAT2_IMAGE'}))},null,2));
@@ -31,10 +36,10 @@ if(e.GITHUB_REF!=='refs/heads/main'||!['push','workflow_dispatch'].includes(e.GI
    e.CLOUDRU_PROD_DEPLOY_CONFIRM!=='preapproved-main-only-media-release')
    throw Error('PROD_CLOUDRU_JOB_RELEASE_GUARD');
 const bindings=resolveProjectBindings(e,selectedJobs);
-if(['--cutover','--sync','--sync-feed-only'].includes(mode) && e.CLOUDRU_NEW_BACKEND_DEPLOYED!=='true')throw Error('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS');
+if(['--cutover','--sync','--sync-feed-only','--sync-chat-only'].includes(mode) && e.CLOUDRU_NEW_BACKEND_DEPLOYED!=='true')throw Error('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS');
 // Fail before deploying the new Backend if the first-release Cloud.ru
 // activation cannot authenticate or initialize its protected media routes.
-for(const key of feedOnly ? ['FEED_INTERNAL_HMAC_SECRET'] : ['FEED_INTERNAL_HMAC_SECRET','CHAT2_INTERNAL_HMAC_SECRET']){
+for(const key of feedOnly ? ['FEED_INTERNAL_HMAC_SECRET'] : chatOnly ? ['CHAT2_INTERNAL_HMAC_SECRET'] : ['FEED_INTERNAL_HMAC_SECRET','CHAT2_INTERNAL_HMAC_SECRET']){
   if(typeof e[key]!=='string'||Buffer.byteLength(e[key],'utf8')<32)
     throw Error('CLOUDRU_RELEASE_SECRET_MISSING_'+key);
 }
@@ -48,7 +53,7 @@ async function req(url,method='GET',body,token){
   const u=new URL(url);
   if(!['iam.api.cloud.ru','containers.api.cloud.ru'].includes(u.hostname)||u.protocol!=='https:')throw Error('CLOUDRU_UNEXPECTED_ENDPOINT');
   if((method==='POST'&&u.hostname!=='iam.api.cloud.ru')||!['GET','POST','PATCH'].includes(method)||
-     (method==='PATCH'&&(!['--cutover','--sync','--sync-feed-only'].includes(mode)||u.hostname!=='containers.api.cloud.ru')))
+     (method==='PATCH'&&(!['--cutover','--sync','--sync-feed-only','--sync-chat-only'].includes(mode)||u.hostname!=='containers.api.cloud.ru')))
     throw Error('CLOUDRU_OPERATION_FORBIDDEN');
   const response=await fetch(url,{method,headers:{...(token?{authorization:`Bearer ${token}`}:{ }),
    ...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,
@@ -70,7 +75,7 @@ const client={
   get:async(scope,id,name,v)=>req(`${api}/${encodeURIComponent(name)}?projectId=${id}`,'GET',null,tokens.get(scope+':'+v)),
   patch:async(scope,id,name,v,payload)=>req(`${api}/${encodeURIComponent(name)}?projectId=${id}`,'PATCH',payload,tokens.get(scope+':'+v)),
 };
-const snapshots=await preflightJobs({...client,jobs:selectedJobs,readOnly:true,allowChat2MissingRuntime:mode!=='--verify' && mode!=='--verify-feed-only'});
+const snapshots=await preflightJobs({...client,jobs:selectedJobs,readOnly:true,allowChat2MissingRuntime:mode!=='--verify' && mode!=='--verify-feed-only' && mode!=='--verify-chat-only'});
 // Current digest may differ from desired image: this is the drift to sync.
  // preflightJobs ensures pinned, correctly scoped images and exact Job identities.
 const imageChanges=snapshots.filter(s=>target(s)!==null &&
@@ -111,14 +116,14 @@ function jobMatches(a,b){return JSON.stringify(a.configuration)===JSON.stringify
 function patchBody(j){return {name:j.name,projectId:j.projectId,description:j.description,runImmediately:false,
  configuration:j.configuration,template:j.template};}
 const desired=snapshots.map(s=>({snapshot:s,job:desiredConfig(s,e)}));
-if(mode==='--preflight'||mode==='--preflight-feed-only'){
+if(mode==='--preflight'||mode==='--preflight-feed-only'||mode==='--preflight-chat-only'){
  console.log(JSON.stringify({stage:'preflight',checked:snapshots.length,
    mutates:false,desiredImageChanges:imageChanges,
    jobsRequiringConfigurationUpdate:desired.filter(({snapshot,job})=>
      !jobMatches(snapshot.before,job)).map(({snapshot})=>snapshot.name)}));
  process.exit(0);
 }
-if(mode==='--verify'||mode==='--verify-feed-only'){
+if(mode==='--verify'||mode==='--verify-feed-only'||mode==='--verify-chat-only'){
  for(const {snapshot:s,job} of desired)
    if(!jobMatches(s.before,job))throw Error('CLOUDRU_NEW_JOB_NOT_ACTIVATED_'+s.name);
  for(const path of feedOnly ? [] : ['/internal/chat2/media/jobs/claim']){
