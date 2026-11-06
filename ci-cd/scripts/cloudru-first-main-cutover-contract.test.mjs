@@ -164,7 +164,7 @@ test('Cloud.ru release is hard-gated to main, exact SHA and deployed API, verifi
  assert(release.includes('NEW_BACKEND_MUST_BE_DEPLOYED_BEFORE_JOBS'));
  assert(release.includes("e.GITHUB_REF!=='refs/heads/main'"));
  assert(release.includes('e.RELEASE_SHA!==e.GITHUB_SHA'));
- assert(release.includes("['--cutover','--sync'].includes(mode)"));
+ assert(release.includes("['--cutover','--sync','--sync-feed-only','--sync-chat-only'].includes(mode)"));
  assert(release.includes('CLOUDRU_NEW_JOB_NOT_ACTIVATED'));
  assert(release.includes('V2_BACKEND_NOT_ACTIVATED'));
  assert(jobs.includes('verify-cloudru-manifests.sh'));
