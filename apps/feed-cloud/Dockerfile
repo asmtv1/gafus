@@ -8,7 +8,7 @@ COPY packages/feed-cloud/src packages/feed-cloud/src
 COPY packages/feed-storage/src packages/feed-storage/src
 COPY packages/cdn-upload/src/isolatedNonprodS3.ts packages/cdn-upload/src/isolatedNonprodS3.ts
 COPY packages/cdn-upload/src/localReadonlyCdn.ts packages/cdn-upload/src/localReadonlyCdn.ts
-RUN ./node_modules/.bin/esbuild apps/feed-cloud/src/server.ts --bundle --platform=node --target=node22 --format=esm --external:sharp --alias:@gafus/feed-cloud=./packages/feed-cloud/src/index.ts --alias:@gafus/feed-storage=./packages/feed-storage/src/keys.ts --alias:@gafus/cdn-upload/isolated-nonprod-s3=./packages/cdn-upload/src/isolatedNonprodS3.ts --alias:@gafus/cdn-upload/local-readonly-cdn=./packages/cdn-upload/src/localReadonlyCdn.ts --outfile=server.mjs '--banner:js=import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
+RUN ./node_modules/.bin/esbuild apps/feed-cloud/src/server.ts --bundle --platform=node --target=node22 --format=esm --external:sharp --alias:@gafus/feed-cloud=./packages/feed-cloud/src/index.ts --alias:@gafus/feed-storage/keys=./packages/feed-storage/src/keys.ts --alias:@gafus/cdn-upload/isolated-nonprod-s3=./packages/cdn-upload/src/isolatedNonprodS3.ts --alias:@gafus/cdn-upload/local-readonly-cdn=./packages/cdn-upload/src/localReadonlyCdn.ts --outfile=server.mjs '--banner:js=import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
 FROM node:22-bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
