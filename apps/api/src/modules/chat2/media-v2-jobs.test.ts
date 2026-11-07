@@ -110,13 +110,23 @@ describe("Chat2 720-ready / async 360 lifecycle",()=>{
  it("commits the playable 720p without a 360p object and schedules enrichment",async()=>{
   const row=videoRow(false),x=db(row),q=createChat2V2Queue({database:x.db as never,head:liveHead,now:envDate});
   const base=backgroundOutput(row);
-  const manifest={...base,renditions:[{quality:720 as const,
+  const manifest={...base,posterKey:chat2V2FinalKeys(row.conversationId,row.ownerId,row.mediaId).video.poster,
+    renditions:[{quality:720 as const,
     key:chat2V2FinalKeys(row.conversationId,row.ownerId,row.mediaId).video.variants[720],
     width:1280,height:720,bytes:4096}]};
   expect(await q.complete(row.mediaId,row.attemptToken,manifest)).toEqual({accepted:true});
   expect(x.updateMany).toHaveBeenCalledWith(expect.objectContaining({
     data:expect.objectContaining({status:"READY",nextAttemptAt:now,attempts:0,
       manifest:expect.objectContaining({renditions:[expect.objectContaining({quality:720})]})})}));
+ });
+ it("requires an initial video poster even though signed background_360 omits one",async()=>{
+  const row=videoRow(false),x=db(row),q=createChat2V2Queue({database:x.db as never,head:liveHead,now:envDate});
+  const missingPoster={...backgroundOutput(row),renditions:[{quality:720 as const,
+    key:chat2V2FinalKeys(row.conversationId,row.ownerId,row.mediaId).video.variants[720],
+    width:1280,height:720,bytes:4096}]};
+  await expect(q.complete(row.mediaId,row.attemptToken,missingPoster))
+    .rejects.toThrow("CHAT2_INITIAL_POSTER_REQUIRED");
+  expect(x.updateMany).not.toHaveBeenCalled();
  });
  it("claims only due video READY as phase background_360, with lease fencing",async()=>{
   const row=videoRow(true),x=db(row),q=createChat2V2Queue({database:x.db as never,now:envDate});

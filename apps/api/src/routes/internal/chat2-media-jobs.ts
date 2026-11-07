@@ -9,7 +9,7 @@ const acceptedPaths=new Set(["claim","renew","complete","fail","cleanup"]);
 const identifier=z.string().uuid();
 const attempt=z.object({mediaId:identifier,attemptToken:identifier}).strict();
 const video=z.object({kind:z.literal("video"),width:z.number().int().positive(),height:z.number().int().positive(),
-  durationSeconds:z.number().positive().max(120),posterKey:z.string().min(8).max(500),
+  durationSeconds:z.number().positive().max(120),posterKey:z.string().min(8).max(500).optional(),
   renditions:z.array(z.object({quality:z.union([z.literal(360),z.literal(720)]),key:z.string().min(8).max(500),
     width:z.number().int().positive(),height:z.number().int().positive(),bytes:z.number().int().min(24)}).strict()).min(1).max(2)}).strict();
 const schemas={

@@ -32,6 +32,21 @@ describe("Chat2 Job Core strict HMAC transport",()=>{
     expect(reply).toEqual({jobs:[]});expect(queue.claimOne).toHaveBeenCalledTimes(1);
     expect(consumeNonce).toHaveBeenCalledTimes(1);
   });
+  it("accepts signed background_360 completion without a new posterKey",async()=>{
+    const {dispatch,queue}=fixture();
+    const mediaId=randomUUID(),attemptToken=randomUUID();
+    const manifest={kind:"video",width:718,height:1558,durationSeconds:28.4,
+      renditions:[{quality:360,key:"chat2/room/owner/media/v1/video/360.mp4",
+        width:360,height:780,bytes:2653297}]};
+    const command={mediaId,attemptToken,manifest};
+    const completePath="/internal/chat2/media/jobs/complete";
+    expect(await dispatch(signed("https://refactor.example.invalid"+completePath,
+      JSON.stringify(command)),completePath)).toEqual({accepted:true});
+    expect(queue.complete).toHaveBeenCalledWith(mediaId,attemptToken,manifest);
+    await expect(dispatch(signed("https://refactor.example.invalid"+completePath,
+      JSON.stringify({...command,manifest:{...manifest,posterKey:null}})),completePath))
+      .rejects.toMatchObject({status:400});
+  });
   it("rejects replay even with a valid unchanged signature",async()=>{
     const {dispatch,queue}=fixture();const nonce=randomUUID();
     await dispatch(signed(url,'{"batchSize":1,"kind":"video"}',{nonce}),path);

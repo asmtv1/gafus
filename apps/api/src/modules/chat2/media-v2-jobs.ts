@@ -210,7 +210,13 @@ export function createChat2V2Queue(input:{
           throw Error("CHAT2_360_PHASE_MISMATCH");
         finalManifest={...base,renditions:[...base.renditions,...manifest.renditions]};
         validateChat2V2Manifest(job,finalManifest);
-      } else if(task.manifest) throw Error("CHAT2_INITIAL_ALREADY_HAS_MANIFEST");
+      } else {
+        if(task.manifest)throw Error("CHAT2_INITIAL_ALREADY_HAS_MANIFEST");
+        // Background 360p legitimately omits posterKey, but the first playable
+        // video publication must still carry an authenticated immutable poster.
+        if(manifest.kind==="video"&&!manifest.posterKey)
+          throw Error("CHAT2_INITIAL_POSTER_REQUIRED");
+      }
       await verifyOutputs(job,manifest);
       const updated=await input.database.chat2V2MediaTask.updateMany({
         where:{mediaId,attemptToken,status:background?"READY":"PROCESSING",leaseUntil:{gt:now()}},
