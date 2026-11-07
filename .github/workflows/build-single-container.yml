@@ -149,9 +149,30 @@ jobs:
             root=/root/gafus
             compose="$root/ci-cd/docker/docker-compose.prod.yml"
             test -f "$compose" || { echo 'MISSING_COMPOSE'; exit 1; }
-            test "$(git -C "$root" rev-parse HEAD)" = "$sha" || {
-              echo 'PRODUCTION_SHA_DIFFERS: full coordinated release required'; exit 1;
-            }
+            production_sha="$(git -C "$root" rev-parse HEAD)"
+            if [[ "$production_sha" != "$sha" ]]; then
+              # A standalone API image can be newer than the checkout when
+              # the intervening commit changes only API source/tests and this
+              # release workflow. Never advance the production worktree here.
+              [[ "$service" == api ]] || {
+                echo 'PRODUCTION_SHA_DIFFERS: full coordinated release required'; exit 1;
+              }
+              git -C "$root" fetch --quiet --no-tags origin "$sha" || {
+                echo 'HOTFIX_COMMIT_UNAVAILABLE'; exit 1;
+              }
+              git -C "$root" merge-base --is-ancestor "$production_sha" "$sha" || {
+                echo 'HOTFIX_NOT_FAST_FORWARD'; exit 1;
+              }
+              changed="$(git -C "$root" diff --name-only "$production_sha" "$sha")"
+              [[ -n "$changed" ]] || { echo 'HOTFIX_EMPTY_DIFF'; exit 1; }
+              while IFS= read -r file; do
+                case "$file" in
+                  apps/api/*|.github/workflows/build-single-container.yml|ci-cd/scripts/workflow-consolidation-contract.test.mjs) ;;
+                  *) echo "HOTFIX_UNSAFE_DIFF=$file"; exit 1 ;;
+                esac
+              done <<< "$changed"
+              echo 'HOTFIX_API_ONLY_DIFF_VERIFIED'
+            fi
             current="$image:latest"
             previous="$(docker image inspect "$current" --format '{{.Id}}' 2>/dev/null)" || {
               echo 'MISSING_PREVIOUS_IMAGE: refusing unsafe standalone deploy'; exit 1;

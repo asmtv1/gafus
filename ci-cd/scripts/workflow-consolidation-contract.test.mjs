@@ -121,6 +121,10 @@ test('single build has immutable digest and only touches the selected service',(
  assert(deploy.concurrency.group==='gafus-production-deploy');
  assert(deploy.steps[0].with.script.includes('docker pull "$image@$digest"'));
  assert(deploy.steps[0].with.script.includes('PRODUCTION_SHA_DIFFERS'));
+ assert(deploy.steps[0].with.script.includes('HOTFIX_API_ONLY_DIFF_VERIFIED'));
+ assert(deploy.steps[0].with.script.includes('HOTFIX_UNSAFE_DIFF'));
+ assert(deploy.steps[0].with.script.includes('merge-base --is-ancestor'));
+ assert(deploy.steps[0].with.script.includes('[[ "$service" == api ]]'));
  assert(deploy.steps[0].with.script.includes('trap restore ERR'));
  assert(deploy.steps[0].with.script.includes('--no-deps --force-recreate "$service"'));
  assert(!deploy.steps[0].with.script.includes('docker volume rm'));
