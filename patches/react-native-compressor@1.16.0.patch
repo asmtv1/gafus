@@ -2,26 +2,44 @@ diff --git a/android/src/main/java/com/reactnativecompressor/Video/VideoCompress
 index 78773ed0614f252ebde5e6be078a10aee1589c35..ef7dfc4d8c6bd085d08a58696f6efe68a03a1a85 100644
 --- a/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/compressor/Compressor.kt
 +++ b/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/compressor/Compressor.kt
-@@ -196,6 +196,7 @@ object Compressor {
+@@ -196,6 +196,8 @@ object Compressor {
            var outputDone = false
  
            var videoTrackIndex = -5
 +          var lastRenderedTimestampUs = -1L // GAFUS: bound real output FPS, not just encoder metadata
++          var lastWrittenTimestampUs = -1L // GAFUS: enforce a 30fps floor on muxed sample duration
  
            inputSurface = InputSurface(encoder.createInputSurface())
            inputSurface.makeCurrent()
-@@ -337,7 +338,10 @@ object Compressor {
+@@ -337,7 +339,10 @@ object Compressor {
                                  }
                                  decoderStatus < 0 -> throw RuntimeException("unexpected result from decoder.dequeueOutputBuffer: $decoderStatus")
                                  else -> {
 -                                    val doRender = bufferInfo.size != 0
 +                                    val timestampUs = bufferInfo.presentationTimeUs
 +                                    val doRender = bufferInfo.size != 0 &&
-+                                        (lastRenderedTimestampUs < 0 || timestampUs - lastRenderedTimestampUs >= 33_000L)
++                                        (lastRenderedTimestampUs < 0 || timestampUs - lastRenderedTimestampUs >= 33_332L)
 +                                    if (doRender) lastRenderedTimestampUs = timestampUs
  
                                      decoder.releaseOutputBuffer(decoderStatus, doRender)
                                      if (doRender) {
+@@ -355,7 +360,15 @@
+                                         if (!errorWait) {
+                                             outputSurface.drawImage()
+ 
+-                                            inputSurface.setPresentationTime(bufferInfo.presentationTimeUs * 1000)
++                                            // Device timestamp jitter can create a 30.2+ FPS STTS entry
++                                            // even when MediaCodec.KEY_FRAME_RATE is 30. Keep every
++                                            // written sample >= 33,334us apart without accelerating
++                                            // sparse VFR input frames or altering the source file.
++                                            val presentationUs = if (lastWrittenTimestampUs < 0L)
++                                                bufferInfo.presentationTimeUs
++                                              else maxOf(bufferInfo.presentationTimeUs, lastWrittenTimestampUs + 33_334L)
++                                            lastWrittenTimestampUs = presentationUs
++                                            inputSurface.setPresentationTime(presentationUs * 1000L)
+ 
+                                             compressionProgressListener.onProgressChanged(
+                                                 id,
 diff --git a/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/utils/CompressorUtils.kt b/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/utils/CompressorUtils.kt
 index edcb37696759a358c70856fccfbd327471950134..f56fce3581bf54b662fee3da03420bb1a3cc3002 100644
 --- a/android/src/main/java/com/reactnativecompressor/Video/VideoCompressor/utils/CompressorUtils.kt

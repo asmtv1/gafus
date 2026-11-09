@@ -6,7 +6,7 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
 import { useQuery } from "@tanstack/react-query";
-import { GALLERY_LIMITS } from "@gafus/types";
+import { GALLERY_LIMITS, type GalleryUploadDto } from "@gafus/types";
 import { Button } from "@/shared/components/ui";
 import { COLORS } from "@/shared/config";
 import { galleryUploadForActor } from "./uploadScopedApi";
@@ -23,7 +23,7 @@ import {
   type UploadTask,
 } from "./session";
 import { styles as s } from "./styles";
-import { cancelTask, pollTask, runUpload, unexpiredUpload } from "./queue";
+import { cancelTask, galleryUploadPollDelay, pollTask, reconfirmReservedClientUpload, runUpload, unexpiredUpload } from "./queue";
 import { galleryUploadRejected } from "./storage-error";
 import { acquireGalleryUploadSlot } from "./uploadConcurrency";
 import { galleryTransport } from "@/shared/lib/api/gallery";
@@ -238,6 +238,7 @@ function UploadRow({ task, retry }: { task: UploadTask;
   const epoch = useGallerySession((state) => state.epoch);
   const dismissible = canDismissUploadTask(task.status);
   const [slowProcessing, setSlowProcessing] = useState(false);
+  const [reconfirming, setReconfirming] = useState(false);
   useEffect(() => {
     setSlowProcessing(false);
     if (task.status !== "processing") return;
@@ -269,12 +270,10 @@ function UploadRow({ task, retry }: { task: UploadTask;
       );
     },
     enabled: !!viewer && current() && !!task.upload && (task.status === "processing" || task.status === "unknown") && foreground,
-    refetchInterval: (query) =>
-      foreground && !query.state.error &&
-      (!query.state.data ||
-        ["reserved", "uploaded", "processing"].includes(query.state.data.status))
-        ? 5000
-        : false,
+    refetchInterval: (query) => galleryUploadPollDelay(
+      foreground, task.status, query.state.data?.status, !!query.state.error,
+    ),
+    refetchOnReconnect: true,
     retry: false,
     gcTime: 0,
   });
@@ -363,6 +362,37 @@ function UploadRow({ task, retry }: { task: UploadTask;
             <MaterialCommunityIcons name="refresh" size={23} color={COLORS.primary} />
           </Pressable>
         ) : null}
+        {task.status === "unknown" && status.data?.status === "reserved" ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Возобновить подтверждение уже отправленного фото без повторной загрузки"
+            disabled={reconfirming}
+            style={s.uploadNoticeAction}
+            onPress={() => {
+              if (!actor || !current() || reconfirming) return;
+              setReconfirming(true);
+              const api = {
+                ...galleryUploadForActor(actor, current),
+                confirmUpload: (uploadId: string) => galleryTransport<GalleryUploadDto>(
+                  `uploads/${uploadId}/client-complete`, {
+                    method: "POST", body: {},
+                    requestGuard: () => current() && sameGalleryActor(actor),
+                  }),
+              };
+              void reconfirmReservedClientUpload(task.id,
+                { epoch, generation: task.generation }, api)
+                .catch(() => {
+                  reportClientError(new Error("GALLERY_COMMIT_RECOVERY_FAILED"), {
+                    issueKey: "GalleryUploadQueue", keys: { operation: "manual_commit_recovery" },
+                  });
+                  if (current()) void status.refetch();
+                })
+                .finally(() => setReconfirming(false));
+            }}
+          >
+            <MaterialCommunityIcons name="cloud-check-outline" size={23} color={COLORS.primary} />
+          </Pressable>
+        ) : null}
         {active ? (
           <Pressable
             accessibilityRole="button"
@@ -394,6 +424,11 @@ function UploadRow({ task, retry }: { task: UploadTask;
           </Pressable>
         ) : null}
       </View>
+      {task.status === "unknown" && status.data?.status === "reserved" ? (
+        <Text style={s.uploadNoticeError}>
+          Файл уже мог загрузиться. Нажмите значок облака, чтобы повторить только подтверждение без повторной отправки фото.
+        </Text>
+      ) : null}
       {task.error ? (
         <Text selectable numberOfLines={2} accessibilityRole="alert" style={s.uploadNoticeError}>
           {task.error}

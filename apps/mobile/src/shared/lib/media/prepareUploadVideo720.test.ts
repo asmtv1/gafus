@@ -52,6 +52,18 @@ describe("single phone 720p MP4 for Moments and Chat2", () => {
     prepared?.dispose();
     expect(files.deleted).toEqual(["file:///tmp/encoded.mp4"]);
   });
+  it("targets 1.45Mbps for Android, below the server's 1.9Mbps limit", async () => {
+    Platform.OS = "android";
+    const output="file:///tmp/android.mp4";
+    files.sizes.set(output, 2_000_000);
+    const encoder=vi.fn(async()=>output);
+    const prepared=await prepareUploadVideo720({uri:"file:///source.mov",width:1080,height:1920},
+      encoder, uri=>uri===output);
+    expect(encoder).toHaveBeenCalledWith("file:///source.mov",expect.objectContaining({
+      maxSize:1280,bitrate:1_450_000,compressionMethod:"manual",
+    }));
+    expect(prepared?.uri).toBe(output);
+  });
   it("keeps the legacy server fallback on native errors without deleting the original", async () => {
     expect(await prepareUploadVideo720({ uri: "file:///original.mp4", width: 1920, height: 1080 },
       async () => { throw Error("CODEC_UNAVAILABLE"); })).toBeNull();

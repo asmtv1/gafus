@@ -27,7 +27,9 @@ export async function prepareUploadWebp(source: UploadPhotoSource, maxEdge: numb
       result = await encodeUploadImage(previous,
         [{ resize: result.width >= result.height ? { width: maxEdge } : { height: maxEdge } }],
         { format: SaveFormat.WEBP, compress: 0.8 });
-    } finally { if (previous !== source.uri) new File(previous).delete(); }
+    } finally { if (previous !== source.uri) {
+      try { new File(previous).delete(); } catch { /* temporary cache cleanup */ }
+    } }
   }
   // Detailed photos can exceed a signed S3 policy even at quality 0.8.
   // Reduce dimensions automatically rather than telling users to resize the photo.

@@ -54,7 +54,7 @@ describe("Mobile Moments original video retry without Cloud Job",()=>{
     expect(picked).toMatchObject({kind:"video",uri:"file:///original.mov",
       previewUri:"file:///poster.jpg",sourceVideo:original});
     expect(mocks.prepare).toHaveBeenCalledOnce();
-    await expect(picked.videoPreparation).rejects.toThrow("MP4 H.264");
+    await expect(picked.videoPreparation).rejects.toThrow("VIDEO720_NATIVE_ERROR");
     expect(mocks.reserve).not.toHaveBeenCalled();
     expect(mocks.post).not.toHaveBeenCalled();
 
@@ -88,6 +88,60 @@ describe("Mobile Moments original video retry without Cloud Job",()=>{
     expect(mocks.prepare).toHaveBeenCalledOnce();
     expect(mocks.cover).toHaveBeenCalledOnce();
     expect(mocks.reserve).toHaveBeenCalledOnce();
+    releaseFeedPickedMedia(picked);
+  });
+  it("confirms a previously UPLOADED video without resending it to S3", async () => {
+    mocks.prepare.mockResolvedValue({uri:"file:///compressed.mp4",bytes:1300,
+      mime:"video/mp4",dispose:mocks.dispose});
+    mocks.reserve.mockResolvedValue({uploadId:"up-1",mediaId:"media-1",status:"uploaded",
+      postUrl:null,postFields:null});
+    const picked=await prepareFeedPickedMedia({type:"video",uri:"file:///original.mov",
+      fileName:"original.mov",mimeType:"video/quicktime",width:1280,height:720} as never);
+    await expect(uploadPickedFeedMedia("post-1",picked)).resolves.toBe("media-1");
+    expect(mocks.complete).toHaveBeenCalledExactlyOnceWith("up-1");
+    expect(mocks.sent).not.toHaveBeenCalled();
+    expect(mocks.post).not.toHaveBeenCalled();
+    releaseFeedPickedMedia(picked);
+  });
+  it("rotates only an authoritative expired upload ticket before the next retry",async()=>{
+    mocks.prepare.mockResolvedValue({uri:"file:///compressed.mp4",bytes:1300,
+      mime:"video/mp4",dispose:mocks.dispose});
+    mocks.reserve.mockResolvedValueOnce({uploadId:"up-1",mediaId:"media-1",status:"uploaded"});
+    mocks.complete.mockRejectedValueOnce(Object.assign(new Error("old ticket"),{code:"UPLOAD_EXPIRED"}));
+    const picked=await prepareFeedPickedMedia({type:"video",uri:"file:///original.mov",
+      fileName:"original.mov",mimeType:"video/quicktime",width:1280,height:720} as never);
+    picked.videoReservationRequestId="stale-id";
+    await expect(uploadPickedFeedMedia("post-1",picked)).rejects.toThrow(
+      "FEED_VIDEO_COMPLETE_FAILED__UPLOAD_EXPIRED");
+    expect(picked.videoReservationRequestId).toBe("video-uuid");
+    expect(mocks.sent).not.toHaveBeenCalled();
+    releaseFeedPickedMedia(picked);
+  });
+  it("does not treat PROCESSING or unconfirmed UPLOADED video as READY", async () => {
+    mocks.prepare.mockResolvedValue({uri:"file:///compressed.mp4",bytes:1300,
+      mime:"video/mp4",dispose:mocks.dispose});
+    const picked=await prepareFeedPickedMedia({type:"video",uri:"file:///original.mov",
+      fileName:"original.mov",mimeType:"video/quicktime",width:1280,height:720} as never);
+    mocks.reserve.mockResolvedValueOnce({uploadId:"up-1",mediaId:"media-1",status:"processing"});
+    await expect(uploadPickedFeedMedia("post-1",picked)).rejects.toThrow("FEED_VIDEO_COMPLETE_FAILED");
+    expect(mocks.complete).not.toHaveBeenCalled();
+    mocks.reserve.mockResolvedValueOnce({uploadId:"up-1",mediaId:"media-1",status:"uploaded"});
+    mocks.complete.mockResolvedValueOnce({uploadId:"up-1",mediaId:"media-1",status:"uploaded"});
+    await expect(uploadPickedFeedMedia("post-1",picked)).rejects.toThrow("FEED_VIDEO_COMPLETE_FAILED");
+    expect(mocks.sent).not.toHaveBeenCalled();
+    releaseFeedPickedMedia(picked);
+  });
+  it("confirms an already-uploaded video after its signed S3 POST expires", async () => {
+    mocks.prepare.mockResolvedValue({uri:"file:///compressed.mp4",bytes:1300,
+      mime:"video/mp4",dispose:mocks.dispose});
+    mocks.reserve.mockResolvedValue({uploadId:"up-1",mediaId:"media-1",status:"reserved",
+      postUrl:null,postFields:null});
+    const picked=await prepareFeedPickedMedia({type:"video",uri:"file:///original.mov",
+      fileName:"original.mov",mimeType:"video/quicktime",width:1280,height:720} as never);
+    await expect(uploadPickedFeedMedia("post-1",picked)).resolves.toBe("media-1");
+    expect(mocks.complete).toHaveBeenCalledExactlyOnceWith("up-1");
+    expect(mocks.sent).not.toHaveBeenCalled();
+    expect(mocks.post).not.toHaveBeenCalled();
     releaseFeedPickedMedia(picked);
   });
 });

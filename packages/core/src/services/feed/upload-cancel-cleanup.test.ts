@@ -10,7 +10,7 @@ describe("Feed S3 upload cancellation cleanup", () => {
     let status = "reserved";
     const upload = {
       id: "upload-1", ownerId: "owner-1", postId: "post-1", mediaId: "media-1",
-      declaredMime: "image/jpeg", sourceKey: "posts/owner-1/post-1/incoming/upload-1/source.jpg",
+      declaredMime: "image/webp", sourceKey: "posts/owner-1/post-1/incoming/upload-1/source.webp",
       postExpiresAt: new Date(now.getTime() + 600_000),
       reservationExpiresAt: new Date(now.getTime() + 900_000),
       leaseUntil: null, errorCode: null,
@@ -47,20 +47,26 @@ describe("Feed S3 upload cancellation cleanup", () => {
   it.each([
     { name: "signed URL expired with no original", head: null,
       expected: "expired", job: "delete_keys" },
-    { name: "signed URL expired but POST succeeded; Complete ACK lost",
-      head: { etag: "etag-confirmed", bytes: 100, contentType: "image/jpeg" },
-      expected: "uploaded", job: "publish_photo" },
+    { name: "signed video URL expired but POST succeeded; Complete ACK lost",
+      head: { etag: "etag-confirmed", bytes: 100, contentType: "video/mp4" },
+      expected: "uploaded", job: "publish_video" },
+    { name: "client-first MP4 expired signed URL but verified source keeps RESERVED",
+      head: { etag: "etag-confirmed", bytes: 100, contentType: "video/mp4" },
+      expected: "reserved", job: "client" },
     { name: "object has incorrect byte length",
-      head: { etag: "invalid-etag", bytes: 101, contentType: "image/jpeg" },
+      head: { etag: "invalid-etag", bytes: 101, contentType: "image/webp" },
       expected: "expired", job: "delete_keys" },
     { name: "S3 HEAD unavailable: never delete an unknown original",
       head: "error", expected: "reserved", job: "none" },
   ])("recovers safely: $name", async ({ head, expected, job }) => {
     const now = new Date("2026-10-26T10:11:00Z");
+    const isVideo = job === "publish_video" || job === "client";
     const input = {
       clientRequestId: "d31e10b6-449a-462e-b7a4-61d377a91ad6",
-      filename: "dog.jpg", kind: "photo" as const,
-      declaredMime: "image/jpeg" as const, declaredBytes: 100,
+      filename: isVideo ? "dog.mp4" : "dog.webp",
+      kind: (isVideo ? "video" : "photo") as "video" | "photo",
+      declaredMime: (isVideo ? "video/mp4" : "image/webp") as "video/mp4" | "image/webp",
+      declaredBytes: 100,
     };
     const fingerprint = createHash("sha256").update(JSON.stringify({
       postId: "post-1", kind: input.kind, declaredMime: input.declaredMime,
@@ -68,7 +74,9 @@ describe("Feed S3 upload cancellation cleanup", () => {
     })).digest("hex");
     const row = {
       id: "upload-1", ownerId: "owner-1", postId: "post-1", mediaId: "media-1",
-      requestFingerprint: fingerprint, sourceKey: "posts/owner-1/post-1/incoming/upload-1/source.jpg",
+      requestFingerprint: fingerprint, sourceKey: isVideo
+        ? "posts/owner-1/post-1/incoming/upload-1/source.mp4"
+        : "posts/owner-1/post-1/incoming/upload-1/source.webp",
       declaredMime: input.declaredMime, declaredBytes: input.declaredBytes,
       filename: input.filename, errorCode: null,
       postExpiresAt: new Date(now.getTime() - 60_000),
@@ -91,7 +99,8 @@ describe("Feed S3 upload cancellation cleanup", () => {
         findUnique: vi.fn(async () => ({ ...row, status })), update: updateUpload,
       },
       feedMediaAsset: { update: updateMedia },
-      feedStorageJob: { create: createJob },
+      feedStorageJob: { create: createJob,
+        findUnique: vi.fn(async () => job === "client" ? { id: "signed-poster" } : null) },
     };
     const db = {
       user: { findUnique: vi.fn().mockResolvedValue({ id: "owner-1" }) },
@@ -114,6 +123,18 @@ describe("Feed S3 upload cancellation cleanup", () => {
     const first = await feed.reserveUpload("owner-1", "post-1", input);
     expect(first.status).toBe(expected);
     expect(first.postUrl).toBeNull();
+    if (job === "client") {
+      expect(tx.feedStorageJob.findUnique).toHaveBeenCalledWith({
+        where: { dedupeKey: "feed-client-video-staging:upload-1" },
+        select: { id: true },
+      });
+      expect(updateUpload).not.toHaveBeenCalled();
+      expect(updateMedia).not.toHaveBeenCalled();
+      expect(createJob).not.toHaveBeenCalled();
+      expect((await feed.reserveUpload("owner-1", "post-1", input)).status).toBe("reserved");
+      expect(storage.presignPost).not.toHaveBeenCalled();
+      return;
+    }
     expect(updateUpload).toHaveBeenCalledTimes(1);
     expect(updateMedia).toHaveBeenCalledTimes(1);
     expect(createJob).toHaveBeenCalledTimes(1);

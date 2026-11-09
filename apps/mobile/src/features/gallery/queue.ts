@@ -40,6 +40,21 @@ export function uploadPatch(upload: GalleryUploadDto): Partial<UploadTask> {
           : undefined,
   };
 }
+/** Keep status reconciliation alive after transient GET/network errors.
+ * A failed readback is not an authoritative terminal upload status. */
+export function galleryUploadPollDelay(
+  foreground: boolean,
+  taskStatus: UploadTask["status"],
+  serverStatus: GalleryUploadDto["status"] | undefined,
+  failed: boolean,
+): number | false {
+  if (!foreground || !["processing", "unknown"].includes(taskStatus)) return false;
+  if (serverStatus && ["ready", "failed", "expired", "cancelled"].includes(serverStatus))
+    return false;
+  // Recheck GET only. Never replay a potentially committed S3 POST.
+  return failed ? 15_000 : 5_000;
+}
+
 export async function pollTask(id: string, fence: TaskFence, api: UploadApi) {
   const task = taskAt(id, fence);
   if (!task?.upload) return;
@@ -57,11 +72,58 @@ export async function pollTask(id: string, fence: TaskFence, api: UploadApi) {
     // READY response: React Query requires non-undefined query data.
     return current.upload;
   }
-  // A reservation after an ambiguous commit does not prove the commit failed.
-  if (current.status === "unknown" && upload.status === "reserved") return upload;
+  // A RESERVED readback after a previously PROCESSING/UNKNOWN client commit
+  // is inconclusive. The server may have rolled its lease back for a retry;
+  // never mislabel it FAILED or permit a duplicate S3 upload.
+  if (upload.status === "reserved") {
+    if (current.status === "unknown") return upload;
+    if (current.status === "processing") {
+      updateTask(id, {
+        upload: safeUpload(upload), status: "unknown",
+        error: "Подтверждение прервалось. Проверьте статус или возобновите подтверждение без повторной отправки фото.",
+      }, fence);
+      return upload;
+    }
+    if (current.status === "ready") return current.upload;
+  }
   updateTask(id, uploadPatch(upload), fence);
   return upload;
 }
+/** Manually recover an UNKNOWN client-only upload whose S3 transfer may have
+ * succeeded. This never resends media: GET must first prove that the server
+ * reservation is still live, then the server validates the already-staged
+ * object before completing it. READY/PROCESSING receipts are not replayed. */
+export async function reconfirmReservedClientUpload(
+  id: string, fence: TaskFence, api: UploadApi,
+): Promise<void> {
+  const task = taskAt(id, fence);
+  if (task?.status !== "unknown" || !task.upload) return;
+  const expected = task.upload;
+  const valid = (receipt: GalleryUploadDto) =>
+    receipt.uploadId === expected.uploadId && receipt.albumId === expected.albumId &&
+    (receipt.status !== "ready" ||
+      (!!receipt.photo?.id && receipt.photo.albumId === expected.albumId));
+  const before = await api.getUpload(expected.uploadId);
+  if (!taskAt(id, fence)) return;
+  if (!valid(before)) throw new Error("GALLERY_COMMIT_RECOVERY_READBACK_MISMATCH");
+  if (before.status !== "reserved") {
+    updateTask(id, uploadPatch(before), fence);
+    return;
+  }
+  const deadline = Date.parse(before.reservationExpiresAt);
+  if (!Number.isFinite(deadline) || deadline - Date.now() < 5_000)
+    throw new Error("GALLERY_COMMIT_RECOVERY_RESERVATION_EXPIRED");
+  // /client-complete performs a fresh S3 HEAD and is safe to call for the
+  // same reservation after authoritative GET shows it is still RESERVED.
+  await api.confirmUpload(expected.uploadId);
+  if (!taskAt(id, fence)) return;
+  const after = await api.getUpload(expected.uploadId);
+  if (!taskAt(id, fence)) return;
+  if (!valid(after) || after.status === "reserved")
+    throw new Error("GALLERY_COMMIT_RECOVERY_NOT_CONFIRMED");
+  updateTask(id, uploadPatch(after), fence);
+}
+
 /** Cancellation supersedes every transfer/confirmation/poll from the prior generation. */
 export async function cancelTask(
   id: string,

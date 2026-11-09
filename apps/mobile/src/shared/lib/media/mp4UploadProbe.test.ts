@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canReuseMobile720, inspectMp4Upload } from './mp4UploadProbe';
+import { canReuseMobile720, canAcceptEncodedMobile720, canAcceptAndroidServer720, inspectMp4Upload } from './mp4UploadProbe';
 
 const u16=(n:number)=>[(n>>>8)&255,n&255];
 const u32=(n:number)=>[(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255];
@@ -45,6 +45,30 @@ describe('bounded native MP4 sample-table validator',()=>{
     expect(good).toMatchObject({videoCodec:'h264',audioCodec:'aac',width:1280,height:720,fpsMax:30});
     expect(good?.videoBitrate).toBe(1_200_000);
     expect(canReuseMobile720(good)).toBe(true);
+  });
+  it('allows small Android MediaCodec 30.2 FPS timestamp rounding but not sustained high FPS',()=>{
+    const encoded=mp4();
+    const stts=encoded.findIndex((_,i)=> i+4<=encoded.length &&
+      encoded[i]===115 && encoded[i+1]===116 && encoded[i+2]===116 && encoded[i+3]===115);
+    expect(stts).toBeGreaterThan(0);
+    // 15360 / 509 = 30.177 FPS; native encoders commonly round STTS deltas.
+    encoded.set(u32(509), stts+16);
+    const metadata=inspect(encoded);
+    expect(metadata?.fpsMax).toBeGreaterThan(30);
+    expect(metadata?.fpsAverage).toBeGreaterThan(30);
+    expect(canAcceptEncodedMobile720(metadata)).toBe(true);
+    expect(canReuseMobile720(metadata)).toBe(true);
+    const sustained60=inspect(mp4(60));
+    expect(canAcceptEncodedMobile720(sustained60)).toBe(false);
+  });
+  it('enforces production server limits for Android encoded MP4',()=>{
+    const good=inspect(mp4());
+    expect(canAcceptAndroidServer720(good)).toBe(true);
+    expect(canAcceptAndroidServer720({...good!,fpsMax:30.15})).toBe(false);
+    expect(canAcceptAndroidServer720({...good!,videoBitrate:1_900_001})).toBe(false);
+    expect(canAcceptAndroidServer720({...good!,audioBitrate:128_001})).toBe(false);
+    expect(canAcceptAndroidServer720({...good!,rotated:true})).toBe(false);
+    expect(canAcceptAndroidServer720({...good!,videoCodec:'hevc'})).toBe(false);
   });
   it('fails closed on 60 FPS, HEVC and excessive source bitrate',()=>{
     const fast=inspect(mp4(60));

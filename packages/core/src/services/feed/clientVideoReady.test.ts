@@ -14,7 +14,9 @@ function harness(options:{mime?:string; failCopy?:boolean}={}){
   const media={id:"media1",status:"reserved",mp4Keys:[] as string[],posterKey:null as string|null,
     width:null as number|null,height:null as number|null,durationSeconds:null as number|null};
   let copied=false;
-  const jobs:Record<string,{kind:string;sourceKeys:string[];targetKeys?:string[];status:string}>={};
+  const jobs:Record<string,{id?:string;ownerId?:string;uploadId?:string;mediaId?:string;
+    kind:string;sourceKeys:string[];targetKeys?:string[];status:string;
+    attemptToken?:string|null;leaseUntil?:Date|null}>={};
   const upsert=vi.fn(async({where,create}:{where:{dedupeKey:string};create:{kind:string;sourceKeys:string[];
     targetKeys?:string[]}})=>{
     jobs[where.dedupeKey]??={...create,status:"pending"};
@@ -42,10 +44,13 @@ function harness(options:{mime?:string; failCopy?:boolean}={}){
     },
     feedStorageJob:{
       upsert,
-      updateMany:vi.fn(async({where,data}:{where:{dedupeKey:string;status:string};data:{status:string}})=>{
-        const job=jobs[where.dedupeKey];
+      findUnique:vi.fn(async({where}:{where:{dedupeKey:string}})=>jobs[where.dedupeKey]??null),
+      updateMany:vi.fn(async({where,data}:{where:{dedupeKey?:string;id?:string;status:string};
+        data:{status:string;attemptToken?:null;leaseUntil?:null}})=>{
+        const job=where.dedupeKey ? jobs[where.dedupeKey] :
+          Object.values(jobs).find(j=>j.id===where.id);
         if(!job||job.status!==where.status)return {count:0};
-        job.status=data.status;return {count:1};
+        Object.assign(job,data);return {count:1};
       }),
     },
   };
@@ -85,6 +90,70 @@ describe("Moments API-first ready H.264 720p, background 360 Cloud.ru",()=>{
     expect(await h.service.completeUpload("user1","upload1")).toMatchObject({status:"ready"});
     expect(h.storage.publishClientVideo).toHaveBeenCalledTimes(1);
     expect(h.upsert).toHaveBeenCalledTimes(3);
+  });
+  it("reclaims a staged MP4 stolen by legacy recovery, then verifies and publishes READY",async()=>{
+    const h=harness();
+    h.row.status="uploaded";h.media.status="uploaded";
+    h.jobs["feed-client-video-staging:upload1"]={id:"stage1",kind:"delete_keys",
+      ownerId:"user1",uploadId:"upload1",sourceKeys:["poster.webp"],status:"pending"};
+    h.jobs["feed-process:upload1"]={id:"legacy1",kind:"publish_video",ownerId:"user1",
+      uploadId:"upload1",mediaId:"media1",sourceKeys:[h.source],targetKeys:[],status:"pending"};
+    const answer=await h.service.completeUpload("user1","upload1");
+    expect(answer).toMatchObject({status:"ready",mediaId:"media1"});
+    expect(h.jobs["feed-process:upload1"]?.status).toBe("completed");
+    expect(h.tx.feedStorageJob.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where:expect.objectContaining({id:"legacy1",status:"pending"}),
+      data:expect.objectContaining({status:"completed"}),
+    }));
+    expect(h.storage.publishClientVideo).toHaveBeenCalledTimes(1);
+    expect(h.jobs["feed-video-360:media1"]?.status).toBe("pending");
+    expect(h.row.status).toBe("ready");
+  });
+  it("fences expired legacy video and schedules owner-scoped cleanup before new retry",async()=>{
+    const h=harness();
+    h.row.status="uploaded";h.media.status="uploaded";
+    h.row.reservationExpiresAt=new Date(Date.now()-5_000);
+    h.jobs["feed-client-video-staging:upload1"]={id:"stage1",kind:"delete_keys",
+      ownerId:"user1",uploadId:"upload1",sourceKeys:["poster.webp"],status:"pending"};
+    h.jobs["feed-process:upload1"]={id:"legacy1",kind:"publish_video",ownerId:"user1",
+      uploadId:"upload1",mediaId:"media1",sourceKeys:[h.source],targetKeys:[],status:"pending"};
+    await expect(h.service.completeUpload("user1","upload1"))
+      .rejects.toMatchObject({status:409,code:"UPLOAD_EXPIRED"});
+    expect(h.row.status).toBe("expired");
+    expect(h.media.status).toBe("expired");
+    expect(h.jobs["feed-process:upload1"]?.status).toBe("completed");
+    expect(h.jobs["feed-expired-client-video:upload1"]).toMatchObject({
+      kind:"delete_keys",status:"pending",sourceKeys:expect.arrayContaining([h.source,h.final]),
+    });
+    expect(h.storage.publishClientVideo).not.toHaveBeenCalled();
+  });
+  it("returns VERSION_CONFLICT for a live PROCESSING upload, not false expiration",async()=>{
+    const h=harness();
+    h.row.status="processing";
+    await expect(h.service.completeUpload("user1","upload1"))
+      .rejects.toMatchObject({status:409,code:"VERSION_CONFLICT"});
+    expect(h.storage.publishClientVideo).not.toHaveBeenCalled();
+  });
+  it("never steals a legacy job that a worker is processing",async()=>{
+    const h=harness();
+    h.row.status="uploaded";h.media.status="uploaded";
+    h.jobs["feed-client-video-staging:upload1"]={id:"stage1",kind:"delete_keys",
+      ownerId:"user1",uploadId:"upload1",sourceKeys:["poster.webp"],status:"pending"};
+    h.jobs["feed-process:upload1"]={id:"legacy1",kind:"publish_video",ownerId:"user1",
+      uploadId:"upload1",mediaId:"media1",sourceKeys:[h.source],targetKeys:[],status:"processing"};
+    await expect(h.service.completeUpload("user1","upload1")).rejects.toMatchObject({status:409});
+    expect(h.row.status).toBe("uploaded");
+    expect(h.jobs["feed-process:upload1"]?.status).toBe("processing");
+    expect(h.storage.publishClientVideo).not.toHaveBeenCalled();
+  });
+  it("never reclaims an unmarked legacy upload",async()=>{
+    const h=harness();
+    h.row.status="uploaded";h.media.status="uploaded";
+    h.jobs["feed-process:upload1"]={id:"legacy1",kind:"publish_video",ownerId:"user1",
+      uploadId:"upload1",mediaId:"media1",sourceKeys:[h.source],targetKeys:[],status:"pending"};
+    await expect(h.service.completeUpload("user1","upload1")).rejects.toMatchObject({status:409});
+    expect(h.jobs["feed-process:upload1"]?.status).toBe("pending");
+    expect(h.storage.publishClientVideo).not.toHaveBeenCalled();
   });
   it("does not report READY if the client's poster is absent or unverified in S3",async()=>{
     const h=harness();

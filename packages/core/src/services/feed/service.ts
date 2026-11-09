@@ -12,7 +12,7 @@ import type {
   FeedPostCreateInput, FeedRevisionInput, FeedPublishInput, FeedReserveUploadInput,
   FeedCopyAlbumPhotoInput, FeedListQuery, FeedPostListQuery, FeedReaction, FeedReactionCountDto,
 } from "@gafus/types";
-import { FEED_LIMITS as L, FEED_ERROR_MESSAGES } from "../../../../types/src/feed";
+import { FEED_LIMITS as L, FEED_ERROR_MESSAGES } from "@gafus/types";
 import type { FeedDb, FeedTx, FeedStoragePort } from "./ports";
 import { FeedError } from "./errors";
 import * as s from "./schemas";
@@ -217,6 +217,67 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       });
     });
   }
+  /** Recover client-first MP4 stolen by the legacy auto-upload scanner.
+   * Only a still-pending legacy job can be fenced, and only when the durable
+   * client-video-poster staging marker proves the newer protocol. This cannot
+   * take ownership away from an active worker or confirm unverified S3 bytes.
+   */
+  async function reclaimPrematureClientVideoUpload(actorId: string, uploadId: string,
+    postId: string): Promise<void> {
+    await transact(async tx => {
+      await lock(tx, postId);
+      const current = await tx.feedUpload.findUnique({ where: { id: uploadId } });
+      if (!current || current.ownerId !== actorId || current.status !== "uploaded" ||
+          current.declaredMime !== "video/mp4") return;
+      const stage = await tx.feedStorageJob.findUnique({
+        where: { dedupeKey: `feed-client-video-staging:${uploadId}` },
+      });
+      const legacy = await tx.feedStorageJob.findUnique({
+        where: { dedupeKey: `feed-process:${uploadId}` },
+      });
+      if (!stage || stage.ownerId !== actorId || stage.uploadId !== uploadId ||
+          !legacy || legacy.ownerId !== actorId || legacy.uploadId !== uploadId ||
+          legacy.mediaId !== current.mediaId || legacy.kind !== "publish_video" ||
+          legacy.status !== "pending" || legacy.targetKeys.length !== 0) return;
+      // CAS the legacy job out of the worker queue first. PostgreSQL rolls
+      // the entire transaction back if media and upload cannot both be reset.
+      const fenced = await tx.feedStorageJob.updateMany({
+        where: { id: legacy.id, ownerId: actorId, uploadId, status: "pending",
+          kind: "publish_video" },
+        data: { status: "completed", attemptToken: null, leaseUntil: null },
+      });
+      if (fenced.count !== 1) return;
+      const expired = current.reservationExpiresAt <= now();
+      const nextStatus = expired ? "expired" : "reserved";
+      const upload = await tx.feedUpload.updateMany({
+        where: { id: uploadId, ownerId: actorId, status: "uploaded" },
+        data: { status: nextStatus, attemptToken: null, leaseUntil: null },
+      });
+      const media = upload.count ? await tx.feedMediaAsset.updateMany({
+        where: { id: current.mediaId, ownerId: actorId, status: "uploaded" },
+        data: { status: nextStatus },
+      }) : { count: 0 };
+      if (upload.count !== 1 || media.count !== 1)
+        throw new FeedError("VERSION_CONFLICT", "Состояние видео изменилось", 409);
+      if (expired) {
+        // This ticket is no longer usable: fence the abandoned worker and
+        // durably clean only this upload's source and derived final keys.
+        const prefix = `media/v2/${current.mediaId}/v1/`;
+        await tx.feedStorageJob.upsert({
+          where: { dedupeKey: `feed-expired-client-video:${uploadId}` },
+          create: { dedupeKey: `feed-expired-client-video:${uploadId}`,
+            ownerId: actorId, postId: current.postId, mediaId: current.mediaId, uploadId,
+            kind: "delete_keys",
+            sourceKeys: [current.sourceKey, prefix + "video/720.mp4",
+              prefix + "video/360.mp4", prefix + "poster.webp"],
+            availableAt: new Date(Math.max(now().getTime(),
+              current.postExpiresAt.getTime(), current.reservationExpiresAt.getTime()) + 60_000) },
+          update: {},
+        });
+      }
+    });
+  }
+
   const service = {
     async list(actorId: string, query: FeedPostListQuery = {}, bookmarksOnly = false): Promise<FeedPostPageDto> {
       await actor(actorId);
@@ -690,8 +751,17 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
             if (!previous.declaredMime.startsWith("image/") &&
                 previous.reservationExpiresAt > now() &&
                 recoveredSource?.id === previous.id) {
-              // Same verified object, recovered after a lost Complete ACK.
-              // Preserve its original media ID and enqueue the normal worker.
+              // A poster staging job proves the device-first MP4 protocol.
+              // Preserve RESERVED for client COMPLETE to verify both S3 objects;
+              // never enqueue a legacy primary-video worker for this ticket.
+              const clientStage = previous.declaredMime === "video/mp4"
+                ? await tx.feedStorageJob.findUnique({
+                    where: { dedupeKey: `feed-client-video-staging:${previous.id}` },
+                    select: { id: true },
+                  }) : null;
+              if (clientStage) return previous;
+              // Only older clients without device-generated posters use the
+              // legacy source-recovery job after their POST URL expires.
               await tx.feedUpload.update({ where: { id: previous.id },
                 data: { status: "uploaded", sourceETag: recoveredSource.etag } });
               await tx.feedMediaAsset.update({ where: { id: previous.mediaId },
@@ -918,11 +988,19 @@ export function createFeedService({ db, storage, now = () => new Date(), enabled
       if (!storage.enabled || !storage.publishClientVideo)
         throw new FeedError("FEED_DISABLED", "Хранилище видео недоступно", 503);
       await recoverClientMediaLease(actorId, uploadId);
-      const row = await db.feedUpload.findFirst({ where: { id: uploadId, ownerId: actorId } });
+      let row = await db.feedUpload.findFirst({ where: { id: uploadId, ownerId: actorId } });
       if (!row) throw new FeedError("NOT_FOUND", undefined, 404);
       if (row.declaredMime !== "video/mp4")
         throw new FeedError("VALIDATION_ERROR", "Отправьте готовое видео MP4 H.264", 410);
       if (row.status === "ready") return service.getUpload(actorId, uploadId);
+      if (row.status === "uploaded") {
+        await reclaimPrematureClientVideoUpload(actorId, uploadId, row.postId);
+        row = await db.feedUpload.findFirst({ where: { id: uploadId, ownerId: actorId } });
+        if (!row) throw new FeedError("NOT_FOUND", undefined, 404);
+        if (row.status === "ready") return service.getUpload(actorId, uploadId);
+      }
+      if (row.status === "processing" || row.status === "uploaded")
+        throw new FeedError("VERSION_CONFLICT", "Подтверждение видео ещё выполняется", 409);
       if (row.status !== "reserved" || row.reservationExpiresAt <= now())
         throw new FeedError("UPLOAD_EXPIRED", "Загрузка устарела. Повторите отправку этого видео", 409);
       const metadata = await storage.head(row.sourceKey);

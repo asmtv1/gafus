@@ -14,7 +14,7 @@ import {
   updateTask,
   useGallerySession,
 } from "./session";
-import { cancelTask, pollTask, runUpload } from "./queue";
+import { cancelTask, galleryUploadPollDelay, pollTask, reconfirmReservedClientUpload, runUpload } from "./queue";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -421,5 +421,81 @@ describe("upload status notification dismissal", () => {
     expect(task().generation).toBe(1);
     dismissUploadTask("task", { epoch: 0, generation: 1 });
     expect(useGallerySession.getState().tasks).toEqual([]);
+  });
+});
+
+
+describe("gallery upload status polling under intermittent network loss", () => {
+  it("keeps GET reconciliation active after transient errors, without replaying POST", () => {
+    expect(galleryUploadPollDelay(true, "unknown", undefined, true)).toBe(15_000);
+    expect(galleryUploadPollDelay(true, "processing", "reserved", true)).toBe(15_000);
+    expect(galleryUploadPollDelay(true, "unknown", "reserved", false)).toBe(5_000);
+    expect(galleryUploadPollDelay(true, "unknown", "processing", false)).toBe(5_000);
+    expect(galleryUploadPollDelay(true, "unknown", "ready", false)).toBe(false);
+    expect(galleryUploadPollDelay(true, "unknown", "expired", false)).toBe(false);
+    expect(galleryUploadPollDelay(false, "unknown", "reserved", true)).toBe(false);
+    expect(galleryUploadPollDelay(true, "failed", undefined, true)).toBe(false);
+  });
+});
+
+
+describe("safe reserved readback after transient server processing", () => {
+  it("keeps an interrupted processing lease UNKNOWN instead of FAILED", async () => {
+    const state = useGallerySession.getState();
+    const fence = { epoch: state.epoch, generation: 0 };
+    useGallerySession.setState({ ...state, tasks: [{
+      id: "processing-recovery", generation: 0, status: "processing", upload: dto("processing"),
+      albumId: "album", filename: "photo.webp", owner: "alice", ownerId: "A",
+      authEpoch: "E1", previewUri: "file:///photo.jpg", createdAt: 0,
+    } as unknown as typeof state.tasks[number]] });
+    const remote = api();
+    remote.getUpload.mockResolvedValueOnce(dto("reserved"));
+    await pollTask("processing-recovery", fence, remote);
+    expect(useGallerySession.getState().tasks[0]?.status).toBe("unknown");
+    expect(remote.confirmUpload).not.toHaveBeenCalled();
+  });
+});
+
+describe("manual client-only commit recovery", () => {
+  beforeEach(() => {
+    clearGallerySession();
+  });
+  function unknownTask() {
+    const epoch = useGallerySession.getState().epoch;
+    const nextFence = { epoch, generation: 0 };
+    const current = useGallerySession.getState();
+    useGallerySession.setState({ ...current, tasks: [{
+      id: "recovery", generation: 0, status: "unknown", upload: dto("reserved"),
+      albumId: "album", filename: "photo.webp", owner: "alice", ownerId: "A",
+      authEpoch: "E1", previewUri: "file:///photo.jpg", createdAt: 0,
+    } as unknown as typeof current.tasks[number]] });
+    return nextFence;
+  }
+  it("only re-confirms server-verified RESERVED upload without resending bytes", async () => {
+    const fence = unknownTask();
+    const remote = api();
+    remote.getUpload.mockResolvedValueOnce(dto("reserved")).mockResolvedValueOnce(dto("ready"));
+    remote.confirmUpload.mockResolvedValue(dto("ready"));
+    await reconfirmReservedClientUpload("recovery", fence, remote);
+    expect(remote.confirmUpload).toHaveBeenCalledExactlyOnceWith("parent");
+    expect(remote.reserveUpload).not.toHaveBeenCalled();
+    expect(remote.retryUpload).not.toHaveBeenCalled();
+    expect(useGallerySession.getState().tasks[0]?.status).toBe("ready");
+  });
+  it("uses GET only when the remote commit has already finished", async () => {
+    const fence = unknownTask();
+    const remote = api();
+    remote.getUpload.mockResolvedValueOnce(dto("ready"));
+    await reconfirmReservedClientUpload("recovery", fence, remote);
+    expect(remote.confirmUpload).not.toHaveBeenCalled();
+    expect(useGallerySession.getState().tasks[0]?.status).toBe("ready");
+  });
+  it("preserves uncertainty when a fresh confirmation cannot be verified", async () => {
+    const fence = unknownTask();
+    const remote = api();
+    remote.getUpload.mockResolvedValue(dto("reserved"));
+    remote.confirmUpload.mockRejectedValueOnce(new Error("network failed"));
+    await expect(reconfirmReservedClientUpload("recovery", fence, remote)).rejects.toThrow("network failed");
+    expect(useGallerySession.getState().tasks[0]?.status).toBe("unknown");
   });
 });

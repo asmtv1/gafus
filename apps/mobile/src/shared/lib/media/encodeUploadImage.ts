@@ -17,6 +17,7 @@ export async function encodeUploadImage(
     return manipulateAsync(uri, actions, options);
   const context = ImageManipulator.manipulate(uri);
   let image: Awaited<ReturnType<typeof context.renderAsync>> | undefined;
+  let lostNativeRef = false;
   try {
     for (const action of actions) {
       if ("resize" in action) context.resize(action.resize);
@@ -24,9 +25,21 @@ export async function encodeUploadImage(
     }
     image = await context.renderAsync();
     return await image.saveAsync(options);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (!/NativeSharedObjectNotFoundException|Unable to find the native shared object/i.test(message))
+      throw error;
+    // Expo 55 Android can lose a native SharedObject during a context render.
+    // Recreate the context once using Expo's own supported wrapper. Never retry
+    // network writes or mutate the original; this only creates a local copy.
+    lostNativeRef = true;
   } finally {
-    // The image ref must be released before its context. Never leak bitmap
-    // memory when renderAsync or saveAsync throws.
-    try { image?.release(); } finally { context.release(); }
+    // Expo 55 itself releases the context before the image ref. Treat cleanup
+    // as best-effort: a stale SharedObject during release must never turn a
+    // successfully saved file into an upload failure.
+    try { context.release(); } catch { /* native ref already released */ }
+    try { image?.release(); } catch { /* native ref already released */ }
   }
+  if (lostNativeRef) return manipulateAsync(uri, actions, options);
+  throw new Error("PHOTO_ENCODER_UNEXPECTED_STATE");
 }

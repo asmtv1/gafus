@@ -13,7 +13,7 @@ type Track = { kind: string; codec: string; width: number; height: number;
   rotated: boolean };
 export type MobileMp4Probe = {
   videoCodec: string; audioCodec: string | null; width: number; height: number;
-  fpsMax: number; seconds: number; videoBitrate: number; audioBitrate: number;
+  fpsMax: number; fpsAverage: number; seconds: number; videoBitrate: number; audioBitrate: number;
   rotated: boolean;
 };
 
@@ -146,17 +146,38 @@ export function inspectMp4Upload(reader: Mp4RangeReader): MobileMp4Probe | null 
       v.bytes+(a?.bytes??0)>mediaBytes)return null;
     const seconds=v.ticks/v.timescale;
     return {videoCodec:'h264',audioCodec:a?'aac':null,width:v.width,height:v.height,
-      fpsMax:v.maxFps,seconds,videoBitrate:v.bytes*8/seconds,
+      fpsMax:v.maxFps,fpsAverage:v.samples/seconds,seconds,videoBitrate:v.bytes*8/seconds,
       audioBitrate:a?a.bytes*8/(a.ticks/a.timescale):0,rotated:v.rotated};
   }catch{return null;}
 }
 
 export function canReuseMobile720(input: MobileMp4Probe | null): boolean {
+  return mobile720Compatible(input) && input!.videoBitrate<=1_900_000 && input!.audioBitrate<=128_000;
+}
+
+/** AVFoundation targets an average bitrate and may overshoot slightly on
+ * short clips. Distinguish a freshly encoded video from an unmodified source. */
+export function canAcceptEncodedMobile720(input: MobileMp4Probe | null): boolean {
+  return mobile720Compatible(input) && input!.videoBitrate<=2_500_000 && input!.audioBitrate<=160_000;
+}
+
+/** Strict Android gate matching the deployed Feed S3 commit validator.
+ * Android cannot upload an export that the server would reject at COMPLETE. */
+export function canAcceptAndroidServer720(input: MobileMp4Probe | null): boolean {
+  return canAcceptEncodedMobile720(input) && !!input &&
+    input.fpsMax <= 30.05 && input.videoBitrate <= 1_900_000 &&
+    input.audioBitrate <= 128_000 && !input.rotated;
+}
+
+function mobile720Compatible(input: MobileMp4Probe | null): boolean {
   return !!input && input.videoCodec==='h264' && (input.audioCodec===null||input.audioCodec==='aac') &&
     input.width>0 && input.height>0 && Math.min(input.width,input.height)<=720 &&
     input.seconds>0 && input.seconds<=120 &&
-    Number.isFinite(input.fpsMax) && input.fpsMax>0 && input.fpsMax<=30.05 &&
-    Number.isFinite(input.videoBitrate) && input.videoBitrate>0 && input.videoBitrate<=1_900_000 &&
-    Number.isFinite(input.audioBitrate) && input.audioBitrate<=128_000 &&
-    !input.rotated;
+    // Android MediaCodec writes variable frame durations (e.g. 30.2 instantaneous
+    // FPS within an otherwise 30 FPS output). Enforce the aggregate frame rate
+    // rather than rejecting valid variable-frame-rate encodes for one short STTS delta.
+    Number.isFinite(input.fpsAverage) && input.fpsAverage>0 && input.fpsAverage<=30.5 &&
+    Number.isFinite(input.fpsMax) && input.fpsMax>=input.fpsAverage && input.fpsMax<=30.5 &&
+    Number.isFinite(input.videoBitrate) && input.videoBitrate>0 &&
+    Number.isFinite(input.audioBitrate) && input.audioBitrate>=0;
 }

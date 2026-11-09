@@ -29,6 +29,9 @@ export interface FeedPickedMedia {
   previewUri?: string;
   clientRenditions?: { small: PreparedWebpVariant; medium: PreparedWebpVariant };
   preparedVideo?: PreparedUploadVideo720;
+  /** Stable server request ID for the prepared MP4. The composer attachment
+   * requestId stays unchanged across retries and UI progress updates. */
+  videoReservationRequestId?: string;
   preparedPoster?: Awaited<ReturnType<typeof prepareVideoPosterWebp>>;
   videoPreparation?: Promise<void>;
   released?: boolean;
@@ -70,8 +73,11 @@ export function ensureFeedVideoPrepared(item: FeedPickedMedia): Promise<void> {
     if (!item.preparedVideo || !new File(item.preparedVideo.uri).exists) {
       item.preparedVideo?.dispose();
       item.preparedVideo = undefined;
-      const prepared = await prepareUploadVideo720(item.sourceVideo!);
-      if (!prepared) throw new Error("Не удалось подготовить видео в MP4 H.264 на устройстве.");
+      let failureCode = "VIDEO720_NATIVE_ERROR";
+      const prepared = await prepareUploadVideo720(item.sourceVideo!, undefined, undefined, code => {
+        failureCode = code;
+      });
+      if (!prepared) throw new Error(failureCode);
       if (item.released) { prepared.dispose(); throw new Error("Видео удалено из редактора."); }
       item.preparedVideo = prepared;
       item.uri = prepared.uri;
@@ -81,9 +87,18 @@ export function ensureFeedVideoPrepared(item: FeedPickedMedia): Promise<void> {
       item.converted = true;
     }
     if (!item.preparedPoster) {
-      const poster = await prepareVideoPosterWebp(item.uri, item.previewUri);
-      if (item.released) { poster.dispose(); throw new Error("Видео удалено из редактора."); }
-      item.preparedPoster = poster;
+      try {
+        const poster = await prepareVideoPosterWebp(item.uri, item.previewUri);
+        if (item.released) { poster.dispose(); throw new Error("Видео удалено из редактора."); }
+        item.preparedPoster = poster;
+      } catch (error) {
+        if (item.released) throw error;
+        if (typeof __DEV__ !== "undefined" && __DEV__) console.warn("[gafus:video720] cover preparation failed", {
+          stage: "poster", reason: error instanceof Error && error.message.startsWith("VIDEO_POSTER_")
+            ? error.message : "VIDEO_POSTER_WEBP_FAILED",
+        });
+        throw Error("VIDEO_POSTER_WEBP_FAILED");
+      }
     }
   })();
   item.videoPreparation = task;
@@ -99,6 +114,8 @@ export async function prepareFeedPickedMedia(asset: ImagePicker.ImagePickerAsset
   if (type.kind === "photo") {
     try { prepared = await prepareUploadPhoto(asset); }
     catch (cause) {
+      if (typeof __DEV__ !== "undefined" && __DEV__)
+        console.warn("[gafus:photo] local prepare failed", { stage: "jpeg", reason: photoFailureCode(cause) });
       reportClientError(new Error("MOMENTS_CLIENT_JPEG_FAILED"), {
         issueKey: "Moments", keys: { operation: "photo_prepare", reason: photoFailureCode(cause) },
       });
@@ -117,6 +134,8 @@ export async function prepareFeedPickedMedia(asset: ImagePicker.ImagePickerAsset
       prepared.dispose();
     }
   } catch (error) {
+    if (typeof __DEV__ !== "undefined" && __DEV__)
+      console.warn("[gafus:photo] local prepare failed", { stage: "webp", reason: photoFailureCode(error) });
     reportClientError(new Error("MOMENTS_CLIENT_WEBP_FAILED"), {
       issueKey: "Moments", keys: { operation: "photo_encode", reason: photoFailureCode(error) },
     });
@@ -219,15 +238,62 @@ export async function pickFeedPollOptionPhoto(): Promise<FeedPickedMedia | null>
 }
 export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedia,
   onProgress?: (loaded: number, total: number) => void, purpose?: "comment"): Promise<string> {
+  // Give each video transfer failure a stable stage. Native errors and S3
+  // messages otherwise collapse to the same generic retry text in the feed.
+  let videoStage = "PREPARE";
+  try {
   // The composer starts preparation on selection. Await only its local result
   // here; S3 is not reserved until the user explicitly publishes/replies.
-  if (item.kind === "video") await ensureFeedVideoPrepared(item);
+  if (item.kind === "video") {
+    await ensureFeedVideoPrepared(item);
+    // Fail closed if an older queue holds a shallow copy of an asset whose
+    // preparation promise updated a different object. Never reserve HEVC under
+    // a video/mp4 Content-Type or upload a mismatched byte count.
+    if (!item.preparedVideo || item.uri !== item.preparedVideo.uri ||
+        item.bytes !== item.preparedVideo.bytes || item.mime !== "video/mp4") {
+      throw new Error("FEED_VIDEO_STALE_PREPARATION");
+    }
+    // Earlier builds reserved the original HEVC size under item.requestId.
+    // Give the successfully prepared MP4 its own stable idempotency key, so an
+    // existing failed draft can retry without colliding with that old ticket.
+    item.videoReservationRequestId ??= Crypto.randomUUID();
+  }
+  videoStage = "RESERVE";
   let reserved = await feedApi.reserveUpload(postId, {
     filename: item.filename, kind: item.kind, declaredMime: item.mime,
-    declaredBytes: item.bytes, clientRequestId: item.requestId,
+    declaredBytes: item.bytes,
+    clientRequestId: item.kind === "video" ? item.videoReservationRequestId! : item.requestId,
     ...(purpose === "comment" ? { purpose: "comment" as const } : {}),
   });
-  if (["uploaded", "processing", "ready"].includes(reserved.status)) return reserved.mediaId;
+  if (reserved.status === "ready") return reserved.mediaId;
+  if (item.kind === "video" && reserved.status === "uploaded") {
+    // Legacy recovery may have stolen a successful S3 upload while its
+    // immediate COMPLETE request was in flight. Reconcile on the server;
+    // never claim success for UPLOADED without a verified READY receipt.
+    videoStage = "COMPLETE";
+    const completed = await feedApi.completeUpload(reserved.uploadId);
+    if (completed.status !== "ready" || completed.mediaId !== reserved.mediaId)
+      throw new Error("FEED_VIDEO_UNCONFIRMED");
+    return completed.mediaId;
+  }
+  if (item.kind === "video" && reserved.status === "reserved" &&
+      (!reserved.postUrl || !reserved.postFields)) {
+    // The signed S3 POST can expire after the bytes arrived. Ask the server
+    // to verify existing source+poster, not upload the file a second time.
+    videoStage = "COMPLETE";
+    const completed = await feedApi.completeUpload(reserved.uploadId);
+    if (completed.status !== "ready" || completed.mediaId !== reserved.mediaId)
+      throw new Error("FEED_VIDEO_UNCONFIRMED");
+    return completed.mediaId;
+  }
+  if (item.kind === "video" && reserved.status === "processing") {
+    // A still-leased server-side copy is not a published video. Retain the
+    // draft and let a later retry reconcile it instead of returning a media ID.
+    videoStage = "COMPLETE";
+    throw new Error("FEED_VIDEO_PROCESSING_PENDING");
+  }
+  if (item.kind === "photo" && ["uploaded", "processing"].includes(reserved.status))
+    return reserved.mediaId;
   if (["expired", "failed", "cancelled"].includes(reserved.status)) {
     reserved = await feedApi.retryUpload(reserved.uploadId, { clientRequestId: Crypto.randomUUID() });
   }
@@ -267,11 +333,14 @@ export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedi
   if (item.kind === "video") {
     const poster = item.preparedPoster;
     if (!poster) throw new Error("Обложка видео не подготовлена.");
+    videoStage = "POSTER_SIGN";
     const signed = await feedTransport<SignedClientPhotoPost>(
       "uploads/" + reserved.uploadId + "/client-video-poster", { method: "POST", body: {} });
+    videoStage = "POSTER_UPLOAD";
     await postClientWebp(signed, poster,
       ["s3.cloud.ru", "gafus-feed-private.s3.cloud.ru", "127.0.0.1", "localhost", "10.0.2.2"]);
   }
+  if (item.kind === "video") videoStage = "VIDEO_UPLOAD";
   if (!reserved.postUrl || !reserved.postFields) throw new Error("Ссылка для загрузки истекла.");
   if (!reserved.postUrl.startsWith("https://")) throw new Error("Небезопасный адрес загрузки.");
   const fields = new FormData();
@@ -293,8 +362,34 @@ export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedi
     xhr.timeout = 10 * 60 * 1000;
     xhr.send(fields);
   });
+  if (item.kind === "video") videoStage = "COMPLETE";
   const complete = await feedApi.completeUpload(reserved.uploadId);
   if (complete.status !== "ready" || complete.mediaId !== reserved.mediaId)
     throw Error("Сервер не подтвердил видео и обложку в S3");
   return reserved.mediaId;
+  } catch (error) {
+    if (item.kind !== "video") throw error;
+    const raw = error instanceof Error ? error.message : "";
+    // Keep established preparation reasons, but label every other video failure
+    // with the operation that failed. No URLs, tokens or file paths in logs.
+    // The API client exposes its own stable error code (not the response body).
+    // Preserve only known-safe alphanumeric codes, never server messages/URLs.
+    const apiCode = error && typeof error === "object" && "code" in error &&
+      typeof error.code === "string" && /^[A-Z][A-Z0-9_]{1,63}$/.test(error.code)
+      ? error.code : null;
+    // Only an authoritative expired reservation permits a fresh ticket on
+    // the NEXT explicit retry. Never rotate it on VERSION_CONFLICT or timeout:
+    // the previous S3 commit/worker may still be in progress.
+    if (apiCode === "UPLOAD_EXPIRED") item.videoReservationRequestId = Crypto.randomUUID();
+    const stable = /^(?:VIDEO720_|VIDEO_POSTER_|FEED_VIDEO_STALE_PREPARATION$)/.test(raw)
+      ? raw : `FEED_VIDEO_${videoStage}_FAILED${apiCode ? `__${apiCode}` : ""}`;
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.warn("[gafus:feed-video] upload failed", {
+        stage: videoStage, reason: stable,
+        apiCode: apiCode ?? "UNAVAILABLE",
+        kind: error instanceof TypeError ? "TypeError" : "Error",
+      });
+    }
+    throw new Error(stable);
+  }
 }

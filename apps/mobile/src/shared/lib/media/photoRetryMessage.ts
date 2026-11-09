@@ -6,6 +6,8 @@ export function photoFailureCode(reason: unknown):
   "NETWORK" | "STORAGE" | "SIZE" | "UNKNOWN" {
   const original = reason instanceof PhotoUploadStageError ? reason.original : reason;
   const raw = original instanceof Error ? original.message : String(original ?? "");
+  if (/NativeSharedObjectNotFoundException|Unable to find the native shared object|PHOTO_ENCODER_UNEXPECTED_STATE/i.test(raw))
+    return "ENCODE";
   if (/cannot find native module|native module.*(missing|not found|null)|ExpoImageManipulator.*(missing|undefined)|requireNativeModule/i.test(raw))
     return "NATIVE_MISSING";
   if (/PHOTO_SOURCE_MISSING|ENOENT|no such file|file.*not found|file.*does not exist|could not (open|read) file/i.test(raw))
@@ -47,6 +49,8 @@ export function photoRetryMessage(reason: unknown): string {
       return "Фото слишком большое. Уменьшите его или выберите другое и нажмите круглую стрелку.";
     case "DECODE":
       return "Не удалось прочитать фото. Сохраните его в галерее как JPG или PNG и повторите стрелкой.";
+    case "ENCODE":
+      return "Не удалось создать обработанную фотографию. Повторите стрелкой; если ошибка останется, выберите фото из галереи заново.";
     case "NETWORK":
     case "STORAGE":
       return "Фото не отправилось. Проверьте интернет и нажмите круглую стрелку на этом фото.";

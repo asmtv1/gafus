@@ -25,6 +25,26 @@ export function createFeedUploadRecovery(input: { db: FeedDb; storage: Pick<Feed
           await tx.$queryRaw`SELECT "id" FROM "FeedPost" WHERE "id" = ${upload.postId} FOR UPDATE`;
           const post = await tx.feedPost.findFirst({ where: { id: upload.postId, authorId: upload.ownerId, deletedAt: null } });
           if (!post) return;
+          // A staged WebP poster identifies the current device-first 720p flow.
+          // It is exclusively completed by POST /uploads/:id/complete. Auto-claiming
+          // it here races that request and turns RESERVED into UPLOADED, leaving
+          // the client's immediate READY confirmation with VERSION_CONFLICT.
+          // Recheck under the same FeedPost lock used by poster sign/complete.
+          if (upload.declaredMime === "video/mp4") {
+            const staged = await tx.feedStorageJob.findUnique({
+              where: { dedupeKey: `feed-client-video-staging:${upload.id}` },
+              select: { id: true },
+            });
+            if (staged) {
+              // Do not let 20 in-progress client-first MP4 reservations starve
+              // genuinely legacy recovery candidates behind the bounded scan.
+              await tx.feedUpload.updateMany({
+                where: { id: upload.id, status: "reserved" },
+                data: { updatedAt: now() },
+              });
+              return;
+            }
+          }
           const changed = await tx.feedUpload.updateMany({
             where: { id: upload.id, status: "reserved", reservationExpiresAt: { gt: now() } },
             data: { status: "uploaded", sourceETag: metadata.etag },

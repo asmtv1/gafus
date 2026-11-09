@@ -2,19 +2,21 @@ import { describe, expect, it, vi } from "vitest";
 import { createFeedUploadRecovery } from "./recovery";
 import type { FeedDb } from "./ports";
 const at = new Date("2026-10-09T12:00:00Z");
-function setup(options: { missing?: boolean; deleted?: boolean; claimed?: boolean; failure?: boolean } = {}) {
-  const upload = { id: "upload", ownerId: "owner", postId: "post", mediaId: "media", sourceKey: "posts/owner/post/incoming/upload/source.jpg",
-    declaredBytes: 100, declaredMime: "image/jpeg" };
+function setup(options: { missing?: boolean; deleted?: boolean; claimed?: boolean; failure?: boolean;
+  clientStaged?: boolean } = {}) {
+  const upload = { id: "upload", ownerId: "owner", postId: "post", mediaId: "media", sourceKey: "posts/owner/post/incoming/upload/source.mp4",
+    declaredBytes: 100, declaredMime: "video/mp4" };
   const head = vi.fn(async () => {
     if (options.failure) throw new Error("storage unavailable");
-    return options.missing ? null : { etag: "etag", bytes: 100, contentType: "image/jpeg" };
+    return options.missing ? null : { etag: "etag", bytes: 100, contentType: "video/mp4" };
   });
   const jobs = vi.fn(async () => ({}));
   const changed = vi.fn(async () => ({ count: options.claimed ? 0 : 1 }));
   const tx = { $queryRaw: vi.fn(async () => [{ id: "post" }]),
     feedPost: { findFirst: vi.fn(async () => options.deleted ? null : { id: "post" }) },
     feedUpload: { updateMany: changed }, feedMediaAsset: { updateMany: vi.fn(async () => ({ count: 1 })) },
-    feedStorageJob: { upsert: jobs } };
+    feedStorageJob: { upsert: jobs,
+      findUnique: vi.fn(async () => options.clientStaged ? { id: "signed-poster" } : null) } };
   const touch = vi.fn(async () => ({ count: 1 }));
   const db = { feedUpload: { findMany: vi.fn(async () => [upload]), updateMany: touch },
     $transaction: vi.fn(async (callback: (tx: typeof tx) => Promise<unknown>) => callback(tx)) } as unknown as FeedDb;
@@ -26,6 +28,18 @@ describe("feed upload recovery", () => {
     expect(await recovery.run()).toEqual({ recovered: 1 });
     expect(tx.feedUpload.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "uploaded", sourceETag: "etag" } }));
     expect(jobs).toHaveBeenCalledWith(expect.objectContaining({ where: { dedupeKey: "feed-process:upload" } }));
+  });
+  it("never steals a verified MP4 with a client-first poster staging marker", async () => {
+    const { recovery, jobs, tx } = setup({ clientStaged: true });
+    expect(await recovery.run()).toEqual({ recovered: 0 });
+    expect(tx.feedStorageJob.findUnique).toHaveBeenCalledWith({
+      where: { dedupeKey: "feed-client-video-staging:upload" }, select: { id: true },
+    });
+    expect(tx.feedUpload.updateMany).toHaveBeenCalledExactlyOnceWith({
+      where: { id: "upload", status: "reserved" },
+      data: { updatedAt: at },
+    });
+    expect(jobs).not.toHaveBeenCalled();
   });
   it("rotates missing objects without scheduling processing", async () => {
     const { recovery, jobs, touch } = setup({ missing: true });

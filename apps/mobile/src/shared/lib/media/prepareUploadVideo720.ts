@@ -2,7 +2,7 @@ import type * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
 import { Platform } from "react-native";
 import { Video } from "react-native-compressor";
-import { canReuseMobile720, inspectMp4Upload, type Mp4RangeReader } from "./mp4UploadProbe";
+import { canReuseMobile720, canAcceptEncodedMobile720, canAcceptAndroidServer720, inspectMp4Upload, type Mp4RangeReader } from "./mp4UploadProbe";
 
 export interface PreparedUploadVideo720 {
   uri: string;
@@ -46,20 +46,23 @@ export async function prepareUploadVideo720(
   const fail = (code: Video720Failure): null => { onFailure?.(code); return null; };
   if (Platform.OS === "web" || process.env.EXPO_PUBLIC_CLIENT_VIDEO_720 === "false")
     return fail("VIDEO720_DISABLED");
-  const meetsContract = probe ?? (uri => {
+  const meetsContract = (uri: string, encoded: boolean) => probe ? probe(uri) : (() => {
     try {
       const file = new File(uri);
       const handle = file.open();
       try {
         const reader: Mp4RangeReader = { size: file.size,
           read: (offset,length) => { handle.offset = offset; return handle.readBytes(length); } };
-        return canReuseMobile720(inspectMp4Upload(reader));
+        const metadata = inspectMp4Upload(reader);
+        return Platform.OS === "android"
+          ? canAcceptAndroidServer720(metadata) && (encoded || canReuseMobile720(metadata))
+          : encoded ? canAcceptEncodedMobile720(metadata) : canReuseMobile720(metadata);
       } finally { handle.close(); }
     } catch { return false; }
-  });
+  })();
   // Skip another lossy export for an already compliant small H264/AAC MP4.
   if ((asset.mimeType === "video/mp4" || /\.mp4(?:$|\?)/i.test(asset.fileName ?? asset.uri)) &&
-      meetsContract(asset.uri)) {
+      meetsContract(asset.uri, false)) {
     const bytes = new File(asset.uri).size;
     return { uri: asset.uri, bytes, mime: "video/mp4", dispose() { /* original: preserve */ } };
   }
@@ -74,7 +77,10 @@ export async function prepareUploadVideo720(
   try {
     output = await Promise.race([
       encoder(asset.uri, {
-        compressionMethod: "manual", maxSize, bitrate: 1_800_000,
+        // Android hardware CBR can overshoot the target on short clips.
+        // 1.45Mbps headroom keeps the encoded output under the Feed server's 1.9Mbps ceiling.
+        compressionMethod: "manual", maxSize,
+        bitrate: Platform.OS === "android" ? 1_450_000 : 1_800_000,
         minimumFileSizeForCompress: 0,
         getCancellationId: id => { cancelId = id; },
       }),
@@ -85,7 +91,7 @@ export async function prepareUploadVideo720(
     if (!output || output === asset.uri || !output.startsWith("file://"))
       return fail("VIDEO720_INVALID_URI");
     const bytes = new File(output).size;
-    if (!bytes || bytes > 200 * 1024 * 1024 || !meetsContract(output)) {
+    if (!bytes || bytes > 200 * 1024 * 1024 || !meetsContract(output, true)) {
       const reason = !bytes ? "VIDEO720_FILE_EMPTY"
         : bytes > 200 * 1024 * 1024 ? "VIDEO720_FILE_TOO_LARGE" : "VIDEO720_INVALID_MP4";
       try { new File(output).delete(); } catch { /* temporary native cache */ }

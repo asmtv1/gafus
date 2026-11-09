@@ -12,6 +12,11 @@ describe("safe phone photo recovery advice", () => {
     expect(photoFailureCode(new Error("Cannot find native module 'ExpoImageManipulator'"))).toBe("NATIVE_MISSING");
     expect(photoRetryMessage(new Error("Cannot find native module 'ExpoImageManipulator'"))).toContain("магазин приложений");
   });
+  it("recognizes Expo 55 Android lost SharedObject as recoverable encode failure", () => {
+    const error = new Error("NativeSharedObjectNotFoundException: native shared object not found");
+    expect(photoFailureCode(error)).toBe("ENCODE");
+    expect(photoRetryMessage(error)).toContain("Повторите стрелкой");
+  });
   it("categorizes Android memory failures without leaking diagnostics", () => {
     expect(photoFailureCode(new Error("android.graphics.OutOfMemoryError Bitmap allocation"))).toBe("MEMORY");
     expect(photoRetryMessage(new Error("android.graphics.OutOfMemoryError"))).toContain("памяти");

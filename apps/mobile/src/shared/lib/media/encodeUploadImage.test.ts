@@ -25,7 +25,7 @@ beforeEach(() => {
   native.save.mockResolvedValue({ uri: "file:///cache/photo.webp", width: 720, height: 600 });
 });
 describe("Expo 55 Android image lifetime", () => {
-  it("releases both native refs after successful save, without deprecated API", async () => {
+  it("releases context before image after successful save, without deprecated API", async () => {
     const result = await encodeUploadImage("file:///source.jpg",
       [{ resize: { width: 720 } }], { format: "webp" as never, compress: 0.8 });
     expect(result.width).toBe(720);
@@ -34,8 +34,24 @@ describe("Expo 55 Android image lifetime", () => {
     expect(native.legacy).not.toHaveBeenCalled();
     expect(native.releaseImage).toHaveBeenCalledOnce();
     expect(native.releaseContext).toHaveBeenCalledOnce();
-    expect(native.releaseImage.mock.invocationCallOrder[0])
-      .toBeLessThan(native.releaseContext.mock.invocationCallOrder[0]!);
+    expect(native.releaseContext.mock.invocationCallOrder[0])
+      .toBeLessThan(native.releaseImage.mock.invocationCallOrder[0]!);
+  });
+  it("does not discard a saved photo if native cleanup throws", async () => {
+    native.releaseContext.mockImplementationOnce(() => { throw new Error("NativeSharedObjectNotFoundException"); });
+    native.releaseImage.mockImplementationOnce(() => { throw new Error("already released"); });
+    await expect(encodeUploadImage("file:///source.jpg", [], { format: "jpeg" as never }))
+      .resolves.toMatchObject({ uri: "file:///cache/photo.webp" });
+    expect(native.releaseContext).toHaveBeenCalledOnce();
+    expect(native.releaseImage).toHaveBeenCalledOnce();
+  });
+  it("retries once using Expo's wrapper if the native SharedObject was lost", async () => {
+    native.render.mockRejectedValueOnce(new Error("NativeSharedObjectNotFoundException"));
+    native.legacy.mockResolvedValueOnce({ uri: "file:///cache/fallback.jpg", width: 800, height: 600 });
+    await expect(encodeUploadImage("file:///source.jpg", [], { format: "jpeg" as never }))
+      .resolves.toMatchObject({ uri: "file:///cache/fallback.jpg" });
+    expect(native.legacy).toHaveBeenCalledExactlyOnceWith("file:///source.jpg", [], { format: "jpeg" });
+    expect(native.releaseContext).toHaveBeenCalledOnce();
   });
   it("releases native refs even when Android encoder fails", async () => {
     native.save.mockRejectedValueOnce(new Error("cannot encode bitmap"));
