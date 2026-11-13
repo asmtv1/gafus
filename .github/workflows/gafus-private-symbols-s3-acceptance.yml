@@ -1,0 +1,90 @@
+# Manual private-bucket acceptance only. No production telemetry or source maps.
+# Do not enable automatic map uploading until this passes against real S3.
+name: GAFUS private source maps S3 acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: 'Reviewed 40-character main SHA with this workflow'
+        required: true
+        type: string
+      confirmation:
+        description: 'Type: gafus-symbols-private-only'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gafus-private-symbols-s3-acceptance
+  cancel-in-progress: false
+
+jobs:
+  private-s3-smoke:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: ota-preview
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      GAFUS_TELEMETRY_ENVIRONMENT: preview
+      GAFUS_TELEMETRY_PRODUCTION_APPROVED: 'false'
+    steps:
+      - name: Checkout explicitly reviewed SHA, without persisted GitHub token
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable main SHA and manual source-map bucket approval
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          GAFUS_SYMBOLS_PROBE_ALLOWED: ${{ vars.GAFUS_SYMBOLS_PROBE_ALLOWED }}
+        run: |
+          set -euo pipefail
+          test "$GAFUS_TELEMETRY_ENVIRONMENT" = 'preview'
+          test "$GAFUS_TELEMETRY_PRODUCTION_APPROVED" = 'false'
+          test "$GAFUS_SYMBOLS_PROBE_ALLOWED" = 'true'
+          test "$CONFIRMATION" = 'gafus-symbols-private-only'
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+          test -z "$(git status --porcelain)"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install isolated SDK dependencies without postinstall scripts
+        shell: bash
+        run: pnpm install --filter @gafus/cdn-upload --frozen-lockfile --ignore-scripts
+
+      - name: Test fail-closed S3 probe and source-only release contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test packages/cdn-upload/scripts/check-private-symbols-s3.test.mjs
+
+      - name: Verify real signed Cloud.ru PUT HEAD GET, anonymous denial and cleanup
+        shell: bash
+        env:
+          GAFUS_SYMBOLS_PROBE_ALLOWED: ${{ vars.GAFUS_SYMBOLS_PROBE_ALLOWED }}
+          SYMBOLS_S3_PROBE_CONFIRMATION: ${{ inputs.confirmation }}
+          SYMBOLS_S3_BUCKET: ${{ secrets.SYMBOLS_S3_BUCKET }}
+          SYMBOLS_S3_ENDPOINT: ${{ secrets.SYMBOLS_S3_ENDPOINT }}
+          SYMBOLS_S3_REGION: ${{ vars.SYMBOLS_S3_REGION }}
+          SYMBOLS_S3_ACCESS_KEY: ${{ secrets.SYMBOLS_S3_ACCESS_KEY }}
+          SYMBOLS_S3_SECRET_KEY: ${{ secrets.SYMBOLS_S3_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          node packages/cdn-upload/scripts/check-private-symbols-s3.mjs
