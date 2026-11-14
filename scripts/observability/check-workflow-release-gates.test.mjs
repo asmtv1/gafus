@@ -1,6 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {parse as parseYaml} from 'yaml';
 import {auditWorkflowReleaseGates} from './check-workflow-release-gates.mjs';
 const originals=()=>({
  main:readFileSync('.github/workflows/ci-cd.yml','utf8'),
@@ -85,4 +87,25 @@ test('private symbols S3 acceptance requires the protected preview environment',
  inputs.symbolsS3=inputs.symbolsS3.replace(
   'environment: ota-preview', 'environment: public-unprotected');
  assert.throws(()=>auditWorkflowReleaseGates(inputs),/PRIVATE_S3_SMOKE_MANUAL_GATE_BYPASS/);
+});
+
+
+test('reusable SSH deployment script remains below GitHub scalar limit and byte-identical after fragmentation',()=>{
+ const source=readFileSync('.github/workflows/production-deploy-reusable.yml','utf8');
+ const parsed=parseYaml(source);
+ const steps=parsed.jobs['deploy-production'].steps;
+ const remote=steps.find(step=>step.name==='Deploy to production server');
+ assert.ok(remote,'the immutable release must retain its real SSH action');
+ const names=['DEPLOY_SCRIPT_1','DEPLOY_SCRIPT_1B','DEPLOY_SCRIPT_2','DEPLOY_SCRIPT_3'];
+ const fragments=names.map(name=>{
+  const value=remote.env[name];
+  assert.equal(typeof value,'string',`missing ${name}`);
+  assert.ok(value.length<16000,`${name} exceeds conservative GitHub expression size limit`);
+  return value;
+ });
+ assert.equal(remote.with.script,
+  "${{ format('{0}{1}{2}{3}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_1B, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}");
+ assert.equal(createHash('sha256').update(fragments.join(''),'utf8').digest('hex'),
+  '6b448a778aa9b7137f6050308ff1079a7af72131a59dd2fe1864e75507885813',
+  'split must reproduce exactly the previously reviewed production script');
 });

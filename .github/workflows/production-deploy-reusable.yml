@@ -442,6 +442,7 @@ jobs:
             echo "✅ Repository updated successfully"
             echo "📁 Current directory: $(pwd)"
             echo "📋 Git status:"
+          DEPLOY_SCRIPT_1B: |2+
             git status --porcelain || echo "Git status check failed"
             echo "Git remote configured; credentials are not printed."
 
@@ -1098,4 +1099,4 @@ jobs:
           command_timeout: 60m
           envs: GAFUS_RELEASE_MANIFEST_B64,GAFUS_RELEASE_RUN_ID,GAFUS_RELEASE_RUN_ATTEMPT,GAFUS_RELEASE_SHA
           # Keep each interpolated scalar below GitHub's 21,000-character expression limit.
-          script: ${{ format('{0}{1}{2}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}
+          script: ${{ format('{0}{1}{2}{3}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_1B, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}
