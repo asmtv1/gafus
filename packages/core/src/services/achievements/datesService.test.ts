@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { createMockLogger } from "../../test/test-utils";
-import { getUserTrainingDates } from "./datesService";
+import { getUserTrainingDates } from "@gafus/achievements-server/datesService";
 
 const mockUserStepFindMany = vi.fn();
 const mockUserTrainingFindMany = vi.fn();
@@ -29,9 +29,7 @@ describe("getUserTrainingDates", () => {
       { updatedAt: new Date("2025-03-15T10:00:00") },
       { updatedAt: new Date("2025-03-14T12:00:00") },
     ]);
-    mockUserTrainingFindMany.mockResolvedValue([
-      { updatedAt: new Date("2025-03-15T18:00:00") },
-    ]);
+    mockUserTrainingFindMany.mockResolvedValue([{ updatedAt: new Date("2025-03-15T18:00:00") }]);
 
     const result = await getUserTrainingDates("user-1");
 

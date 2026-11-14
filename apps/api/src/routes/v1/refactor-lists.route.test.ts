@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   getUserPets: vi.fn(),
   getPetById: vi.fn(),
 }));
-vi.mock("@gafus/core/services/article", () => ({
+vi.mock("../../modules/articles/composition/article-rows.js", () => ({
   getArticles: mocks.getArticles,
   getArticleBySlugForMonetizedAccess: mocks.getArticleBySlugForMonetizedAccess,
 }));
@@ -72,9 +72,13 @@ describe("Hono authenticated list endpoints reused by Vite", () => {
     const response = await app().request("/api/v1/pets");
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(mocks.getUserPets).toHaveBeenCalledWith("user-1", {
-      throwOnError: true,
-    });
+    expect(mocks.getUserPets).toHaveBeenCalledWith(
+      "user-1",
+      {
+        throwOnError: true,
+      },
+      expect.any(Function),
+    );
     vi.stubGlobal(
       "fetch",
       vi.fn((path: string) => app().request(path)),
@@ -112,7 +116,7 @@ describe("Hono authenticated list endpoints reused by Vite", () => {
     const response = await app().request("/api/v1/pets/pet123");
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(mocks.getPetById).toHaveBeenCalledWith("pet123", user.id);
+    expect(mocks.getPetById).toHaveBeenCalledWith("pet123", user.id, expect.any(Function));
     vi.stubGlobal(
       "fetch",
       vi.fn((path: string) => app().request(path)),

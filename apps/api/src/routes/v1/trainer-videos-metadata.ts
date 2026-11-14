@@ -1,6 +1,6 @@
 /** AG1 v5: server-owned trainer videos safe metadata only. */
 import {Hono} from "hono";
-import { readTrainerVideoMetadataRows } from "@gafus/core/services/trainerVideo";
+import { readTrainerVideoMetadataRows } from "@gafus/statistics";
 import type {TrainerVideoMetadataItem,TrainerVideoMetadataRead} from
   "../../../../../packages/types/src/data/trainer-read-contracts";
 export const trainerVideosMetadataRoutes=new Hono();

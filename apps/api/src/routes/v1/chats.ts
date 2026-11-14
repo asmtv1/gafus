@@ -58,7 +58,7 @@ const send = z
     clientMessageId: z.string().uuid(),
     text: z.string().trim().max(8000).default(""),
     replyToId: id.optional(),
-    attachmentIds: z.array(id).max(8).default([]),
+    attachmentIds: z.array(id).max(10).default([]),
   })
   .strict()
   .refine((x) => x.text.length > 0 || x.attachmentIds.length > 0, { message: "Сообщение пустое" });

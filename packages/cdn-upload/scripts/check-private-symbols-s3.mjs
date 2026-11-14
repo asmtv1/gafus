@@ -14,7 +14,7 @@ export const BUCKET='gafus-symbols-private';
 export const ENDPOINT='https://s3.cloud.ru';
 const REGION='ru-central-1';
 const sha = bytes=>createHash('sha256').update(bytes).digest('hex');
-const must=(yes,code)=>{if(!yes)throw Error('PRIVATE_SYMBOLS_S3_'+code)};
+const must=(yes,code)=>{if(!yes)throw Error('PRIVATE_SYMBOLS_S3_'+code);};
 export function probeConfig(env=process.env){
  must(env.CI==='true','CI_REQUIRED');
  must(env.GAFUS_TELEMETRY_PRODUCTION_APPROVED==='false','PRODUCTION_MUST_REMAIN_OFF');

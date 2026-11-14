@@ -5,7 +5,7 @@ vi.mock("@gafus/prisma",()=>({prisma:{
   user:{findUnique:m.user},appSubscription:{findMany:m.subs},
   appSubscriptionPayment:{findFirst:m.payments},$transaction:m.writes,
 }}));
-import { getAppSubscriptionAccess } from "./accessService";
+import { getAppSubscriptionAccess } from "@gafus/subscription-read-server";
 const now=new Date("2026-10-18T06:00:00Z");
 const subscription=(overrides:Record<string,unknown>={})=>({
   id:"synthetic-sub",userId:"owner-A",status:"ACTIVE",isLifetime:false,

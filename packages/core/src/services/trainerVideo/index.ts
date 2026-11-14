@@ -11,13 +11,14 @@ export {
   getVideoIdAndPathsFromUrl,
   getVideoForPlaybackCheck,
 } from "./trainerVideoService";
-export { getAuthorizedVideoInfoForStreaming, getVideoInfoForStreaming } from "./helpers";
+
 export type {
+  TrainerVideoPersistencePort,
   GetDeletePayloadResult,
   VideoStatusResult,
   VideoMetadata,
 } from "./trainerVideoService";
-export type { VideoInfoForStreaming } from "./helpers";
+
 export {
   registerTrainerVideoSchema,
   updateTrainerVideoNameSchema,
@@ -30,6 +31,3 @@ export type {
   DeleteTrainerVideoInput,
   GetTrainerVideosOptions,
 } from "./schemas";
-
-export * from "./transcodingLifecycle";
-export { readTrainerVideoMetadataRows } from "./readTrainerVideoMetadataRows";

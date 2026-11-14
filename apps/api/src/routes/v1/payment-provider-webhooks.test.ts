@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { createHmac } from "node:crypto";
 import { afterEach,describe,expect,it,vi } from "vitest";
 const { yoo,apple } = vi.hoisted(()=>({yoo:vi.fn(),apple:vi.fn()}));
-vi.mock("@gafus/core/services/appSubscription",()=>({
+vi.mock("../../modules/app-subscription/composition/payment-transitions.js",()=>({
   handleYookassaAppSubscriptionWebhook:yoo,
   handleAppleAppSubscriptionNotification:apple,
 }));

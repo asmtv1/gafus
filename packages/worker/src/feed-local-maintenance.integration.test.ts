@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 /** Opt-in disposable PostgreSQL; never talk to Cloud.ru, prod DB, or S3. */
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
@@ -44,7 +45,7 @@ const db=uri?new Client({datasources:{db:{url:uri}}}):null;
   expect(queued).toMatchObject({kind:'delete_keys',status:'pending'});
   time=new Date(time.getTime()+180_000);
   const tick=createFeedLocalMaintenanceTick({
-    db:db!,jobs:createFeedStorageJobs({db:db!,now:()=>time}),maintenance:core,
+    db:db!,jobs:createFeedStorageJobs({ enqueueDeletedMediaPurge, db:db!,now:()=>time}),maintenance:core,
     objects:{delete:deleted,exists},now:()=>time.getTime(),
   });
   await expect(tick()).resolves.toEqual({processed:1});

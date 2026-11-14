@@ -3,7 +3,7 @@
   "version": "1.7.3",
   "private": true,
   "scripts": {
-    "build": "vite build --config vite.config.mjs",
+    "build": "vite build --config vite.config.mjs && node ../../scripts/observability/postbuild-vite-maps.mjs gafus-admin-panel",
     "dev": "vite --config vite.config.mjs",
     "start": "vite preview --config vite.config.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.vite.json",
@@ -19,7 +19,8 @@
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.0",
     "react": "19.2.1",
-    "react-dom": "19.2.1"
+    "react-dom": "19.2.1",
+    "@gafus/error-handling": "workspace:*"
   },
   "devDependencies": {
     "vite": "8.0.10",

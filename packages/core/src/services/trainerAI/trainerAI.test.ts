@@ -1,25 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createTrainerAIService } from "./index";
 
-const mocks = vi.hoisted(() => ({
+const mocks = {
   findUser: vi.fn(),
   count: vi.fn(),
   findMany: vi.fn(),
   deleteMany: vi.fn(),
-}));
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    user: { findUnique: mocks.findUser },
-    trainerAIChat: {
-      count: mocks.count,
-      findMany: mocks.findMany,
-      deleteMany: mocks.deleteMany,
-    },
+};
+const service = createTrainerAIService({
+  readTrainerAIActorRole: async (actor: string) => {
+    const row = await mocks.findUser(actor);
+    return row?.role ?? null;
   },
-}));
+  readTrainerAIStreamConfig: vi.fn(),
+  readTrainerAISettingsSummary: vi.fn(),
+  readTrainerAIHistoryRows: async (actor: string, skip: number, take: number) => ({
+    total: await mocks.count({ where: { trainerId: actor } }),
+    messages: await mocks.findMany({ where: { trainerId: actor }, skip, take }),
+  }),
+  clearTrainerAIHistoryAuthorized: async (actor: string) =>
+    (await mocks.deleteMany({ where: { trainerId: actor } })).count,
+  saveTrainerAIExchangeAuthorized: vi.fn(),
+});
+const { assertTrainerAIAccess, getTrainerAIHistory, clearTrainerAIHistory } = service;
 
-import { assertTrainerAIAccess, getTrainerAIHistory, clearTrainerAIHistory } from "./index";
-
-describe("trainer AI history core boundary", () => {
+describe("Trainer AI Core history projection via explicit server ports", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.findUser.mockResolvedValue({ role: "TRAINER" });
@@ -31,7 +36,7 @@ describe("trainer AI history core boundary", () => {
     expect(mocks.findMany).not.toHaveBeenCalled();
   });
 
-  it("checks the current database role rather than cached client claims", async () => {
+  it("checks current role rather than cached claims", async () => {
     mocks.findUser.mockResolvedValue(null);
     await expect(assertTrainerAIAccess("missing")).rejects.toThrow("FORBIDDEN");
   });
@@ -42,15 +47,18 @@ describe("trainer AI history core boundary", () => {
       { id: "2", role: "assistant", content: "Ответ", createdAt: new Date("2026-10-11T10:02Z") },
       { id: "1", role: "user", content: "Вопрос", createdAt: new Date("2026-10-11T10:01Z") },
     ]);
-    const r = await getTrainerAIHistory("u1", -3, 500);
-    expect(r.messages.map(m => m.id)).toEqual(["1", "2"]);
-    expect(r.total).toBe(3);
-    expect(mocks.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      take: 100, skip: 0,
-    }));
+    const result = await getTrainerAIHistory("u1", -3, 500);
+    expect(result.messages.map((m) => m.id)).toEqual(["1", "2"]);
+    expect(result.total).toBe(3);
+    expect(mocks.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 100,
+        skip: 0,
+      }),
+    );
   });
 
-  it("clears only the requesting trainer's messages", async () => {
+  it("clears only requesting trainer's messages", async () => {
     mocks.deleteMany.mockResolvedValue({ count: 2 });
     expect(await clearTrainerAIHistory("u1")).toBe(2);
     expect(mocks.deleteMany).toHaveBeenCalledWith({ where: { trainerId: "u1" } });

@@ -18,6 +18,15 @@ test('SDK-wide OTA runtime is forbidden after native compressor/gestures change'
       .includes('MOBILE_OTA_RUNTIME_MUST_BE_APP_VERSION_NOT_SDK_VERSION'));
   }
 });
+test('SDK57 startup poster is full bleed; SDK55 legacy policy remains unchanged',()=>{
+  assert(!check().includes('MOBILE_SPLASH_MUST_FIT_SCREEN'));
+  assert(check({expo:{...good.expo,splash:{...good.expo.splash,resizeMode:'contain'}}})
+    .includes('MOBILE_SPLASH_MUST_FIT_SCREEN'));
+  assert(!check({expo:{...good.expo,version:'1.7.4',
+    splash:{...good.expo.splash,resizeMode:'contain'},
+    ios:{...good.expo.ios,splash:{...good.expo.ios.splash,resizeMode:'contain'}}}})
+    .includes('MOBILE_SPLASH_MUST_FIT_SCREEN'));
+});
 test('we cannot silently reuse old native store version or mismatched package',()=>{
   assert(check({expo:{...good.expo,version:'1.7.2'}})
     .includes('MOBILE_VERSION_NEW_NATIVE_BUILD_REQUIRED'));
@@ -41,14 +50,14 @@ test('an obsolete environment version must not affect the store release contract
   assert.deepEqual(check({env:{EXPO_PUBLIC_APP_VERSION:'1.7.1'}}),[]);
 });
 test('OTA production is stopped until both NEW store binaries of same runtime exist',()=>{
-  const attestation=env=>validateOtaPublishAttestation({channel:'production',expoVersion:'1.7.3',env});
+  const attestation=env=>validateOtaPublishAttestation({channel:'production',expoVersion:'1.7.4',env});
   assert(attestation({}).includes('MOBILE_OTA_PRODUCTION_REQUIRES_BOTH_STORES_PUBLISHED'));
   assert(attestation({GAFUS_MOBILE_NATIVE_STORES_PUBLISHED:'true',
     GAFUS_MOBILE_NATIVE_PUBLISHED_VERSION:'1.7.2'})
     .includes('MOBILE_OTA_PUBLISHED_VERSION_MUST_MATCH_RUNTIME'));
   assert.deepEqual(attestation({GAFUS_MOBILE_NATIVE_STORES_PUBLISHED:'true',
-    GAFUS_MOBILE_NATIVE_PUBLISHED_VERSION:'1.7.3'}),[]);
-  assert.deepEqual(validateOtaPublishAttestation({channel:'preview',expoVersion:'1.7.3',env:{}}),[]);
+    GAFUS_MOBILE_NATIVE_PUBLISHED_VERSION:'1.7.4'}),[]);
+  assert.deepEqual(validateOtaPublishAttestation({channel:'preview',expoVersion:'1.7.4',env:{}}),[]);
 });
 test('OTA CLI channel must be explicit, not silently production',()=>{
   assert.equal(parseOtaChannel(['--channel','production']),'production');

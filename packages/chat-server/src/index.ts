@@ -1,22 +1,19 @@
 import { connection } from "@gafus/queues";
 import { ZodError } from "zod/v3";
 import {
-  getChatState,
-  startChat,
-  getChatSession,
-  sendChatMessage,
-  listChatDialogs,
   ChatError,
-  manageChatReaction,
-  manageOwnChatMessage,
-  communityModerationOverview,
-  moderateCommunityChat,
-  getCommunityChatState,
-  getCommunityChatSession,
-  sendCommunityChatMessage,
 } from "@gafus/core/services/cynologistChat";
-import { deleteChatAttachment } from "@gafus/core/services/cynologistChat/upload";
+import { getChatState, startChat, getChatSession, sendChatMessage, listChatDialogs } from "./service.js";
+import { manageChatReaction } from "./reactions.js";
+import { manageOwnChatMessage } from "./messageManagement.js";
+import {
+  communityModerationOverview, moderateCommunityChat,
+  getCommunityChatState, getCommunityChatSession, sendCommunityChatMessage,
+} from "./community.js";
+import { deleteChatAttachment } from "./upload-service.js";
 import { uploadChatAttachmentRequest } from "./upload.js";
+import { persistChatMessageDeletion } from "./message-tombstone.js";
+export { acceptChatWebhook, refreshChatUnread, processChatEvent, processChatSweep, cleanupChatAttachments } from "./notifications.js";
 
 export function chatHttpError(error: unknown) {
   if (error instanceof ChatError)
@@ -122,7 +119,8 @@ export async function dispatchChatRequest(
       throw new ChatError("INVALID_INPUT", "Неверный JSON");
     }
     if (action === "reactions") return manageChatReaction(userId, body, chatId, community);
-    if (action === "message-actions") return manageOwnChatMessage(userId, body, chatId, community);
+    if (action === "message-actions")
+      return manageOwnChatMessage(userId, body, chatId, community, persistChatMessageDeletion);
     if (community && action === "moderation") return moderateCommunityChat(userId, body);
     return community
       ? sendCommunityChatMessage(userId, body)

@@ -36,7 +36,7 @@ vi.mock("@gafus/logger", () => ({
 import { authMiddleware } from "../../middleware/auth.js";
 import { adminConsultationScheduleRoutes } from "./admin-consultation-schedules";
 import { consultationMskDayKey } from "../../../../../packages/core/src/services/consultation/consultationMskFormat";
-import { getAvailableSlots } from "../../../../../packages/core/src/services/consultation/slotService";
+import { getAvailableSlots } from "@gafus/consultation-server/slot-service";
 
 const root = "/api/v1/admin/consultations/schedules";
 const trainerId = "admin5_http_trainer";

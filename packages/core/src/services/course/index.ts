@@ -1,5 +1,5 @@
 export * from "./courseService";
-export * from "./publicCatalogService";
-export * from "./favoriteService";
-export * from "./personalizationService";
-export * from "./reviewService";
+export { registerCatalogReadPort } from "./catalogReadPort";
+export type { CatalogReadPort } from "./catalogReadPort";
+
+export * from "./publicOutlinePolicy";

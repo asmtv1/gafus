@@ -3,7 +3,7 @@
  * called by any live route. Needs AG4 shared Prisma schema/migration gate.
  */
 import { createHash } from "node:crypto";
-import { prisma } from "@gafus/prisma";
+/** Core receives transaction-local capabilities, not Prisma or server imports. */
 
 const TYPE = "training";
 const DEFAULT_TZ = "Europe/Moscow";
@@ -56,9 +56,14 @@ export type CanonicalReminderDraft = {
   timezone: string;
 };
 export function canonicalReminderDraft(draft: ReminderCreateDraft): CanonicalReminderDraft {
-  if (typeof draft.name !== "string" || draft.name.length < 1 || draft.name.length > 100 ||
-      typeof draft.reminderTime !== "string" || !TIME.test(draft.reminderTime) ||
-      (draft.reminderDays != null && !DAYS.test(draft.reminderDays))) {
+  if (
+    typeof draft.name !== "string" ||
+    draft.name.length < 1 ||
+    draft.name.length > 100 ||
+    typeof draft.reminderTime !== "string" ||
+    !TIME.test(draft.reminderTime) ||
+    (draft.reminderDays != null && !DAYS.test(draft.reminderDays))
+  ) {
     throw new ReminderIdempotencyInvalidError();
   }
   let tz: string;
@@ -70,7 +75,8 @@ export function canonicalReminderDraft(draft: ReminderCreateDraft): CanonicalRem
     throw new ReminderIdempotencyInvalidError();
   }
   const days = draft.reminderDays
-    ? [...new Set(draft.reminderDays.split(","))].sort().join(",") : null;
+    ? [...new Set(draft.reminderDays.split(","))].sort().join(",")
+    : null;
   return {
     name: draft.name,
     reminderTime: draft.reminderTime,
@@ -82,10 +88,18 @@ export function canonicalReminderDraft(draft: ReminderCreateDraft): CanonicalRem
 export function reminderPayloadFingerprint(draft: ReminderCreateDraft): string {
   const c = canonicalReminderDraft(draft);
   // An array fixes field order and includes schema revision + reminder type.
-  return createHash("sha256").update(JSON.stringify([
-    "gafus.reminder.create.v1", TYPE, c.name, c.reminderTime,
-    c.reminderDays, c.timezone,
-  ])).digest("hex");
+  return createHash("sha256")
+    .update(
+      JSON.stringify([
+        "gafus.reminder.create.v1",
+        TYPE,
+        c.name,
+        c.reminderTime,
+        c.reminderDays,
+        c.timezone,
+      ]),
+    )
+    .digest("hex");
 }
 
 export function assertReminderCreateKey(key: string): string {
@@ -107,7 +121,43 @@ function snapshot(value: unknown): ReminderCreateJson {
 
 type Receipt = { fingerprint: string; responseJson: unknown };
 
-export async function createReminderWithReceipt(
+/**
+ * Review-only application port. The implementation MUST use a single owner-
+ * locked transaction for receipt lookup, reminder insert and receipt write.
+ * A rejected transaction must roll back both SQL records; the Core policy
+ * cannot fall back to a second connection or re-create an unknown receipt.
+ */
+export interface ReminderCreateReviewPorts<TTransaction> {
+  withOwnerTransaction<T>(
+    ownerId: string,
+    action: (tx: TTransaction) => Promise<T>,
+  ): Promise<T>;
+  readReceipt(
+    tx: TTransaction, ownerId: string, key: string,
+  ): PromiseLike<readonly { fingerprint: string; responseJson: unknown }[]>;
+  countOwnerReminders(tx: TTransaction, ownerId: string): PromiseLike<number>;
+  createOwnerReminder(
+    tx: TTransaction, ownerId: string, draft: CanonicalReminderDraft,
+  ): PromiseLike<{ id: string }>;
+  storeReceipt(
+    tx: TTransaction, ownerId: string, key: string, fingerprint: string,
+    reminderId: string, responseJson: ReminderCreateJson,
+  ): PromiseLike<unknown>;
+  lookupReceipt(
+    ownerId: string, key: string,
+  ): PromiseLike<readonly { responseJson: unknown }[]>;
+}
+
+/** Explicit wiring keeps review-only SQL out of runtime Core. */
+export function createReminderCreateReviewUseCase<TTransaction>(
+  ports: ReminderCreateReviewPorts<TTransaction>,
+) {
+  const {
+    withOwnerTransaction, readReceipt, countOwnerReminders,
+    createOwnerReminder, storeReceipt, lookupReceipt,
+  } = ports;
+
+async function createReminderWithReceipt(
   verifiedOwnerId: string,
   draft: ReminderCreateDraft,
   untrustedKey: string,
@@ -116,51 +166,36 @@ export async function createReminderWithReceipt(
   const canonical = canonicalReminderDraft(draft);
   const fingerprint = reminderPayloadFingerprint(canonical);
   if (!verifiedOwnerId) throw new ReminderIdempotencyInvalidError();
-  return prisma.$transaction(async (tx) => {
+  return withOwnerTransaction(verifiedOwnerId, async (tx) => {
     // All keyed creates for one owner are serialized across API processes.
     // POST with NO key still calls legacy createReminder and is NOT fenced.
-    await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(615721, hashtext(${verifiedOwnerId}))`;
-    const existing = await tx.$queryRaw<Receipt[]>`
-      SELECT "fingerprint", "responseJson" FROM "ReminderCreateIdempotency"
-      WHERE "userId" = ${verifiedOwnerId} AND "key" = ${key}
-      LIMIT 1
-    `;
+
+    const existing = await readReceipt(tx, verifiedOwnerId, key);
     if (existing.length) {
       if (existing[0]?.fingerprint !== fingerprint) throw new ReminderIdempotencyConflictError();
       return { kind: "idempotent_replay", reminder: snapshot(existing[0]?.responseJson) };
     }
-    const count = await tx.reminder.count({ where: { userId: verifiedOwnerId, type: TYPE } });
+    const count = await countOwnerReminders(tx, verifiedOwnerId);
     if (count >= MAX_REMINDERS) throw new ReminderLimitError();
-    const created = await tx.reminder.create({
-      data: {
-        userId: verifiedOwnerId, type: TYPE, name: canonical.name,
-        reminderTime: canonical.reminderTime, reminderDays: canonical.reminderDays,
-        timezone: canonical.timezone, enabled: true,
-      },
-    });
+    const created = await createOwnerReminder(tx, verifiedOwnerId, canonical);
     const responseJson = snapshot(created);
     // Receipt INSERT and Reminder CREATE commit or roll back together.
     // Includes immutable response snapshot even when reminder later edited.
-    await tx.$executeRaw`
-      INSERT INTO "ReminderCreateIdempotency"
-        ("userId", "key", "fingerprint", "reminderId", "responseJson", "createdAt")
-      VALUES (${verifiedOwnerId}, ${key}, ${fingerprint}, ${created.id}, ${JSON.stringify(responseJson)}::jsonb, now())
-    `;
+    await storeReceipt(tx, verifiedOwnerId, key, fingerprint, created.id, responseJson);
     return { kind: "created", reminder: responseJson };
   });
 }
 
-export async function lookupOwnReminderCreateReceipt(
+async function lookupOwnReminderCreateReceipt(
   verifiedOwnerId: string,
   untrustedKey: string,
 ): Promise<ReminderCreateLookup> {
   const key = assertReminderCreateKey(untrustedKey);
   if (!verifiedOwnerId) throw new ReminderIdempotencyInvalidError();
-  const result = await prisma.$queryRaw<{ responseJson: unknown }[]>`
-    SELECT "responseJson" FROM "ReminderCreateIdempotency"
-    WHERE "userId" = ${verifiedOwnerId} AND "key" = ${key}
-    LIMIT 1
-  `;
+  const result = await lookupReceipt(verifiedOwnerId, key);
   if (!result[0]) return { state: "UNKNOWN" };
   return { state: "FOUND", reminder: snapshot(result[0].responseJson) };
+}
+
+  return { createReminderWithReceipt, lookupOwnReminderCreateReceipt };
 }

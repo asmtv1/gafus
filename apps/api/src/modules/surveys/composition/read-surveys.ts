@@ -1,9 +1,8 @@
 /** Lazy Core READ bindings: no survey lookups during composition initialization. */
+import { getSurveyTemplate } from "@gafus/core/services/survey";
 import {
-  getSurveyComparison,
-  getSurveyResponse,
-  getSurveyTemplate,
-} from "@gafus/core/services/survey";
+  getSurveyComparison, getSurveyResponse,
+} from "./survey-rows.js";
 import { createReadSurveysApplication } from "../application/read-surveys.js";
 
 export const readSurveysApplication = createReadSurveysApplication({

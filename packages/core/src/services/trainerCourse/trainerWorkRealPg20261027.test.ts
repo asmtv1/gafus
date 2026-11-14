@@ -15,8 +15,14 @@ vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ info: vi.fn(), error: vi.fn(), warn: vi.fn() }),
 }));
 import { createCourse, updateCourse } from "./trainerCourseService";
-import { getCourseEditorSnapshot } from "./courseEditorSnapshotService";
-import { deleteCourseVersioned } from "./courseDeleteVersionedService";
+import { getCourseEditorSnapshot as coreSnapshot } from "./courseEditorSnapshotService";
+import { readCourseEditorSnapshot } from "@gafus/course-read-server/editor-snapshot";
+const getCourseEditorSnapshot = (id: string, actor: { id: string; role: string }) =>
+  coreSnapshot(id, actor, readCourseEditorSnapshot);
+
+import { createCourseVersionedDeleter } from "./courseDeleteVersionedService";
+import { deleteVersionedCourseRows } from "@gafus/course-server/course-delete-versioned";
+const deleteCourseVersioned = createCourseVersionedDeleter(deleteVersionedCourseRows);
 
 const nonce = randomBytes(10).toString("hex");
 const id = randomUUID();
@@ -27,32 +33,53 @@ const foreign = { id: "foreign_work_" + nonce, role: "TRAINER" as const };
 const dbName = "gafus_refactor_real_work_20261024";
 async function guard(): Promise<void> {
   const d = new URL(process.env.DATABASE_URL ?? "postgresql://missing/invalid");
-  if (process.env.GAFUS_TRAINER_WORK_REALPG !== "1" ||
-      d.hostname !== "127.0.0.1" || d.port !== "55921" ||
-      d.pathname !== "/" + dbName || d.username !== "gafus_refactor_local_real" ||
-      d.search !== "?schema=public" || !d.password) throw Error("REFUSE_NON_WORK_DB");
+  if (
+    process.env.GAFUS_TRAINER_WORK_REALPG !== "1" ||
+    d.hostname !== "127.0.0.1" ||
+    d.port !== "55921" ||
+    d.pathname !== "/" + dbName ||
+    d.username !== "gafus_refactor_local_real" ||
+    d.search !== "?schema=public" ||
+    !d.password
+  )
+    throw Error("REFUSE_NON_WORK_DB");
   // SQL is a fixed literal, never constructed from client input.
-  const rows = await prisma.$queryRawUnsafe<
-    { db: string; principal: string; host: string }[]
-  >("SELECT current_database() AS db, current_user AS principal, inet_server_addr()::text AS host");
+  const rows = await prisma.$queryRawUnsafe<{ db: string; principal: string; host: string }[]>(
+    "SELECT current_database() AS db, current_user AS principal, inet_server_addr()::text AS host",
+  );
   // Postgres inet_server_addr() may stringify as the local /32 CIDR.
-  if (rows.length !== 1 || rows[0]?.db !== dbName ||
-      rows[0].principal !== "gafus_refactor_local_real" ||
-      !["127.0.0.1", "127.0.0.1/32"].includes(rows[0].host))
+  if (
+    rows.length !== 1 ||
+    rows[0]?.db !== dbName ||
+    rows[0].principal !== "gafus_refactor_local_real" ||
+    !["127.0.0.1", "127.0.0.1/32"].includes(rows[0].host)
+  )
     throw Error("WRONG_DATABASE_SESSION");
 }
 const form = {
-  id, name: "Trainer synthetic", duration: "4 дня",
-  description: "Only test data", shortDesc: "Synthetic course",
-  logoImg: "", videoUrl: null, guideContent: null,
-  isPublic: true, isPaid: false, showInProfile: false, isPersonalized: false,
-  equipment: "", trainingLevel: "BEGINNER" as const,
-  allowedUsers: [] as string[], trainingDays: [dayId],
+  id,
+  name: "Trainer synthetic",
+  duration: "4 дня",
+  description: "Only test data",
+  shortDesc: "Synthetic course",
+  logoImg: "",
+  videoUrl: null,
+  guideContent: null,
+  isPublic: true,
+  isPaid: false,
+  showInProfile: false,
+  isPersonalized: false,
+  equipment: "",
+  trainingLevel: "BEGINNER" as const,
+  allowedUsers: [] as string[],
+  trainingDays: [dayId],
 };
 describe.skipIf(process.env.GAFUS_TRAINER_WORK_REALPG !== "1")(
   "trainer full-form Core actual isolated WORK PostgreSQL",
   () => {
-    let hasUser = false, hasDay = false, hasCourse = false;
+    let hasUser = false,
+      hasDay = false,
+      hasCourse = false;
     beforeAll(async () => {
       await guard();
       const checks = await Promise.all([
@@ -63,8 +90,11 @@ describe.skipIf(process.env.GAFUS_TRAINER_WORK_REALPG !== "1")(
       if (checks.some(Boolean)) throw Error("SYNTHETIC_ID_COLLISION");
       await prisma.user.create({
         data: {
-          id: trainerId, username: trainerId, role: "TRAINER",
-          email: trainerId + "@invalid.example", password: "INVALID_NO_LOGIN",
+          id: trainerId,
+          username: trainerId,
+          role: "TRAINER",
+          email: trainerId + "@invalid.example",
+          password: "INVALID_NO_LOGIN",
         },
       });
       hasUser = true;
@@ -91,13 +121,18 @@ describe.skipIf(process.env.GAFUS_TRAINER_WORK_REALPG !== "1")(
       expect(snap.status).toBe("found");
       if (snap.status !== "found") throw Error("SNAPSHOT_MISSING");
       expect(snap.data.version).toBe(1);
-      expect(snap.data.dayLinks.map(item => item.dayId)).toEqual([dayId]);
+      expect(snap.data.dayLinks.map((item) => item.dayId)).toEqual([dayId]);
       expect(await getCourseEditorSnapshot(id, foreign)).toEqual({ status: "not_found" });
     });
     it("updates full-form using real atomic CAS", async () => {
-      const r = await updateCourse({
-        ...form, expectedVersion: 1, name: "Updated synthetic",
-      }, owner);
+      const r = await updateCourse(
+        {
+          ...form,
+          expectedVersion: 1,
+          name: "Updated synthetic",
+        },
+        owner,
+      );
       expect(r).toMatchObject({ success: true, version: 2 });
       const snap = await getCourseEditorSnapshot(id, owner);
       expect(snap.status).toBe("found");
@@ -106,9 +141,14 @@ describe.skipIf(process.env.GAFUS_TRAINER_WORK_REALPG !== "1")(
       expect(snap.data.version).toBe(2);
     });
     it("refuses stale writes and keeps committed name", async () => {
-      const r = await updateCourse({
-        ...form, expectedVersion: 1, name: "Stale overwrite",
-      }, owner);
+      const r = await updateCourse(
+        {
+          ...form,
+          expectedVersion: 1,
+          name: "Stale overwrite",
+        },
+        owner,
+      );
       expect(r.status).toBe("stale");
       const snap = await getCourseEditorSnapshot(id, owner);
       expect(snap.status).toBe("found");

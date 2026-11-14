@@ -78,6 +78,24 @@ describe("shared native video gestures", () => {
     expect(host.textContent).toContain("0:45");
     expect(host.textContent).toContain("2:00");
   });
+  it("does not set a disposed native SharedObject during unmount", async () => {
+    const native = { released: false, interval: 0 };
+    const disposedPlayer = {
+      currentTime: 0, duration: 20,
+      get timeUpdateEventInterval() { return native.interval; },
+      set timeUpdateEventInterval(value: number) {
+        if (native.released) throw new Error("NativeSharedObjectNotFoundException: set");
+        native.interval = value;
+      },
+      addListener: () => ({ remove: vi.fn() }),
+    } as unknown as VideoPlayer;
+    await act(async () => root.render(<SocialVideoControls player={disposedPlayer}
+      playing onToggle={vi.fn()} />));
+    expect(native.interval).toBe(0.2);
+    // Simulates expo-video releasing the object before the React effect cleanup.
+    native.released = true;
+    await expect(act(async () => root.render(<></>))).resolves.toBeUndefined();
+  });
   it("drags the full-width timeline and seeks only when the finger is released", async () => {
     await act(async () => root.render(<SocialVideoControls player={player} playing={false}
       onToggle={vi.fn()} />));

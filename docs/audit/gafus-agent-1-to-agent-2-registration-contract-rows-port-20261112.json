@@ -1,0 +1,217 @@
+{
+  "schema": "gafus-agent1-to-a2-reg-contract-rows/v1",
+  "generated_utc": "2026-11-12T03:21:48.177926+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "registration-contracts-opaque-transaction-server-rows",
+  "edges_before": 30,
+  "edges_after": 29,
+  "frozen_ratchet": {
+    "baseline": 41,
+    "resolved": 12,
+    "new": 0
+  },
+  "historical": {
+    "initial": 142,
+    "removed": 113
+  },
+  "baseline_json_changed": false,
+  "git_commit_merge_push_deploy": false,
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "b8604e5fa98bd59489008b7058dafa118f6b3853766d918aff1b769dade9b05b",
+      "sha256_after": "3dfd3e790d67abfab40e5ccf8d511f9994112e8500e325e7b993f0bd8fc0faf9",
+      "before_backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/registration-contracts-sql-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/auth/composition/install-registration-contract-rows.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "34283cb662b1d2da16b4ac8f1f3250f838567934f22b1c58e61fabb0f883ff2d",
+      "before_backup_path": null
+    },
+    {
+      "path": "apps/api/src/modules/auth/composition/install-registration-contract-rows.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "1402a9c1de678028b6ab516ea6cae7528b563ee65a36cc95bfe4d8158bc421ac",
+      "before_backup_path": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "6c5a848c04a312055132708ef22f4b5840ecbd8e1c50d1b1f7cd4f59109ff4d1",
+      "sha256_after": "76fd0ae7732a4bd4eabd370a2676cd5009b3177c2265cf72eeb0ef37b92de68e",
+      "before_backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/registration-contracts-sql-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "227f395c384e7549c42ed16881bc8fbbee66a508537a42bd6d5df0c6e772615d",
+      "sha256_after": "e62ac9fae8ab46efd7e71a0450d9085425206f4adf281fbf3b917518c4896e43",
+      "before_backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/registration-contracts-sql-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/auth/registerUserWithCredentials.integration.test.ts",
+      "status": "M",
+      "sha256_before": "da17d6a921f487d7a92976537d175454e842d096e3dc13e1ed3d0cb1b4b27cdb",
+      "sha256_after": "dd2599ff93ead3b5ebfdc30aa9f9361e179034c975c9ea0d898d29e40a8c67d9",
+      "before_backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/registration-contracts-sql-port-prechange/packages/core/src/services/auth/registerUserWithCredentials.integration.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/auth/registrationContractRowsPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "e58e0ae37eb5580c0ac789ca1d4d736357b2152560be82d01d5ef788d04616e3",
+      "before_backup_path": null
+    },
+    {
+      "path": "packages/core/src/services/auth/registrationContractRowsPort.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "d8bb91126f72ab01b38d2707015f80d83a78736b707b809bada60fc9e4229190",
+      "before_backup_path": null
+    },
+    {
+      "path": "packages/core/src/services/auth/registrationContracts.ts",
+      "status": "M",
+      "sha256_before": "4518c5faf91ddf07184b424ee941a9f5499c0350a68a5401a068c122ab136ab7",
+      "sha256_after": "f61afdd0f31ce22e1dc8d320759bbd9b70268815ce08be3e87ecb7f47b1913ee",
+      "before_backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/registration-contracts-sql-port-prechange/packages/core/src/services/auth/registrationContracts.ts"
+    },
+    {
+      "path": "packages/core/src/services/auth/vkRegistrationCompletion.test.ts",
+      "status": "M",
+      "sha256_before": "6f9cb8d846145552b259d2e279257c9e3409e009fdbd194499c734f5d1380319",
+      "sha256_after": "636520e841de233ef71485976d74358b21d1e77e340dc585ae067c62dd7c5695",
+      "before_backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/registration-contracts-sql-port-prechange/packages/core/src/services/auth/vkRegistrationCompletion.test.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "d892d284e727181a56700606f866e2ab44ac385ea9e3a84af370a0c84d991b17",
+      "sha256_after": "16481b4336f9ac443cfbc81cd7d2460a5c39a48f55c4646e7dda2e4e2f640e9b",
+      "before_backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/registration-contracts-sql-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "title": "Existing credential+VK replay and registration context",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/auth/vkRegistrationCompletion.test.ts src/services/auth/registerUserWithCredentials.test.ts src/services/auth/registerUserWithCredentials.integration.test.ts src/services/auth/registrationContextPort.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 14,
+      "tests_skipped": 2,
+      "log": "/tmp/a1-reg-contracts-test-adapted.log"
+    },
+    {
+      "title": "Core registration SQL port, advisory-lock and replay",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/auth/registrationContractRowsPort.test.ts src/services/auth/vkRegistrationCompletion.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 7,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-reg-contract-rows-target-tests.log"
+    },
+    {
+      "title": "API opaque transaction installer",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/auth/composition/install-registration-contract-rows.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-reg-contract-rows-api-target.log"
+    },
+    {
+      "title": "Full Core suite",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2091,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-registration-contract-rows-core-full.log"
+    },
+    {
+      "title": "Full API suite",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2749,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-registration-contract-rows-api-full.log"
+    },
+    {
+      "title": "Core typecheck",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-reg-contract-rows-core-ts-final.log"
+    },
+    {
+      "title": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-reg-contract-rows-core-build-final.log"
+    },
+    {
+      "title": "API typecheck",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-reg-contract-rows-api-ts.log"
+    },
+    {
+      "title": "Worker typecheck",
+      "command": "pnpm --filter @gafus/worker typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-registration-contract-rows-worker-types.log"
+    },
+    {
+      "title": "Workspace graph",
+      "command": "node scripts/check-workspace-graph.mjs",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-registration-contract-rows-graph.log"
+    },
+    {
+      "title": "Core server boundaries",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-reg-contract-rows-boundaries.log"
+    }
+  ],
+  "prechange_backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/registration-contracts-sql-port-prechange",
+  "public_contracts": {
+    "status_codes": [
+      "REGISTRATION_ATTEMPT_FINGERPRINT_MISMATCH",
+      "VK_CONTEXT_INVALID",
+      "VK_LOGIN_GRANT_INVALID"
+    ],
+    "transaction": "11 total persistence method ports: 10 row methods and one existing same-transaction callback; opaque Tx in Core; only API composes actual Prisma.TransactionClient",
+    "tokens": "Core still hashes opaque token, state, LOGIN grant with SHA256 and checks expiry/purpose before returning",
+    "failure": "REGISTRATION_CONTRACT_ROWS_PORT_UNBOUND fail-closed; REGISTRATION_CONTRACT_ROWS_PORT_ALREADY_BOUND hot-rebind denied",
+    "advisory_lock": "lock before reading idempotency attempt, original DB transaction preserved"
+  },
+  "unmet_gates": [
+    {
+      "id": "REGISTER_CONTRACT_REAL_PG",
+      "requires": "Dedicated disposable loopback PostgreSQL with production-equivalent schema + fixture users/promo/VK contexts and consent, with concurrency for advisory-lock/replay, short-lived LOGIN grant race and rollback; do not use prod DB."
+    },
+    {
+      "id": "VK_OAUTH_EXTERNAL",
+      "requires": "Approved VK test client and nonproduction OAuth/PKCE callbacks; validate LOGIN vs REGISTER consent and fingerprint without production credentials."
+    },
+    {
+      "id": "FINAL_ARCHITECTURE",
+      "requires": "Eliminate 29 remaining Core→server edges, then combined A1/A2/A3 33-stage architecture final + 5-stage chaos and Web/Mobile/Worker/panels/PG/Redis gates. Frozen baseline must not advance earlier."
+    }
+  ],
+  "handoff": "Compare full SHA256 after. These hashes are of shared uncommitted worktree at time of edits, NOT Git HEAD. A2 semantically merge app.ts, scripts guard and audit files, never overwrite other streams. No merge, push or deploy by A1."
+}

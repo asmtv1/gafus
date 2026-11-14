@@ -18,6 +18,9 @@ vi.mock("@gafus/logger", () => ({
 }));
 // IMPORTANT: normal package resolution, no Vitest alias to Core .ts source.
 import { createPet } from "@gafus/core/services/pets";
+import { withPetSqlTx, claimPetCreationReceipt } from "@gafus/pets-server/pet-rows";
+// Packaging smoke must install the production Pet SQL adapter explicitly.
+import "../../modules/pets/composition/install-pet-rows";
 
 const owner = "synthetic-owner-G05";
 const createInput = (name: string, extra: Record<string, unknown> = {}) => ({
@@ -44,10 +47,16 @@ describe("G05 current shared packaged Core smoke (NO SQL)", () => {
   it("P01 actual package export is importable from shared dist", () => {
     expect(typeof createPet).toBe("function");
   });
-  it("P02 compiled createPet includes the versioned receipt/UUID transaction path", () => {
-    expect(packedCreate).toContain("PetCreateReceipt");
+  it("P02 compiled createPet delegates the UUID receipt to an atomic persistence transaction", () => {
     expect(packedCreate).toContain("clientRequestId");
-    expect(packedCreate).toContain("$transaction");
+    expect(packedCreate).toContain("withPetSqlTx");
+    expect(packedCreate).toContain("claimPetCreationReceipt");
+    // The SQL is no longer embedded in Core. Inspect the actual compiled
+    // infrastructure functions, not a stale path or a source comment.
+    expect(Function.prototype.toString.call(withPetSqlTx)).toContain("$transaction");
+    const claim = Function.prototype.toString.call(claimPetCreationReceipt);
+    expect(claim).toContain('INSERT INTO "PetCreateReceipt"');
+    expect(claim).toContain('ON CONFLICT ("ownerId","clientRequestId") DO NOTHING');
   });
   it("P03 normal unkeyed packaged runtime still creates independently (legacy-compatible)", async () => {
     const a = await createPet(owner, createInput("A"));

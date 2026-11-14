@@ -9,7 +9,7 @@ const fakes = vi.hoisted(() => ({
 
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: fakes.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: fakes.registration }));
-vi.mock("@gafus/core/services/adminStorage", () => ({ getStorageStats: fakes.read }));
+vi.mock("@gafus/statistics", () => ({ getStorageStats: fakes.read }));
 
 import { authMiddleware } from "../../middleware/auth";
 import { adminMediaRoutes } from "./admin-media";

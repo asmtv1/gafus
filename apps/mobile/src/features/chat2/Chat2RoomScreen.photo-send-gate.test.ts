@@ -8,12 +8,22 @@ const send = source.slice(source.indexOf("async function send()"),
   source.indexOf("const retry = useRef<"));
 
 describe("Chat 2.0 photo upload consent gate", () => {
+  it("allows selecting multiple images up to the remaining ten slots", () => {
+    expect(source).toContain('allowsMultipleSelection: kind === "image"');
+    expect(source).toContain('selectionLimit: 10 - media.length');
+    expect(source).toContain('selection.assets.slice(0, 10 - media.length)');
+  });
+  it("keeps attachment previews directly above the composer without growing into the chat", () => {
+    expect(source).toMatch(/mediaPending:\s*\{[^}]*flexGrow:\s*0[^}]*flexShrink:\s*0/);
+    expect(source.indexOf("style={styles.mediaPending}")).toBeLessThan(
+      source.indexOf("<View style={styles.composer}>"));
+  });
   it("encodes both WebP sizes before sending, without network side effects", () => {
     expect(prepare).toContain("prepareUploadPhoto(source)");
     expect(prepare).toContain("prepareUploadWebpVariants(prepared, { small: 360, medium: 1440 })");
     expect(prepare).not.toContain("chat2.upload(");
     expect(prepare).not.toContain("client-reserve");
-    expect(source).toContain("await prepareOnePhoto(localId, f)");
+    expect(source).toContain("await prepareOnePhoto(localId, photo)");
     expect(source).toContain("Готово к отправке");
   });
   it("uploads only from the send handler, then sends confirmed attachments", () => {

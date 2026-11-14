@@ -16,10 +16,12 @@ vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: async () 
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ info: vi.fn(), error: m.log }),
 }));
-vi.mock("@gafus/core/services/course", () => ({
+vi.mock("@gafus/course-server/reviews", () => ({
   getCourseReviews: (...args: unknown[]) => m.getReviews(...args),
+  createCourseReview:vi.fn(),rateCourse:vi.fn(),
+  updateCourseReview:vi.fn(),deleteCourseReview:vi.fn(),
 }));
-import { getCourseReviews } from "../../../../../packages/core/src/services/course/reviewService";
+import { getCourseReviews } from "../../../../../packages/course-server/src/reviewService";
 import { authMiddleware } from "../../middleware/auth";
 import { coursesRoutes } from "./courses";
 

@@ -13,7 +13,7 @@ const m = vi.hoisted(() => ({
 vi.mock("@gafus/prisma", () => ({
   prisma: { trainerNote: { findMany: m.findNotes } },
 }));
-vi.mock("@gafus/core/services/notifications", () => ({
+vi.mock("@gafus/notifications-server", () => ({
   createImmediatePushNotification: m.unsafeNotification,
 }));
 vi.mock("@gafus/logger", () => ({
@@ -24,10 +24,12 @@ vi.mock("@gafus/logger", () => ({
 // All application, composition and Hono code remains real.
 vi.mock("@gafus/core/services/notes", async () => {
   const source = await import("../../../../../packages/core/src/services/notes/notesService");
-  return { getStudentNotes: source.getStudentNotes };
+  // Actual Core policy functions are called with an explicit SQL port by composition.
+  return { ...source };
 });
 
 import { getStudentNotes } from "../../../../../packages/core/src/services/notes/notesService";
+import { notesPersistence } from "../../modules/student-notes/composition/notes-rows";
 import { notesRoutes } from "./notes";
 
 const owner = "fictional-sensitive-owner-A";
@@ -159,7 +161,7 @@ describe("AG1 student notes real Core repo-failure boundary -> Hono 500", () => 
   it("legacy direct Core callers still receive [] on repository error, but no exception/PII is logged", async () => {
     const marker = "PRIVATE_RECORD_AND_RAW_SQL_ERROR_TOKEN";
     m.findNotes.mockRejectedValueOnce(new Error(`error ${marker} actor ${owner}`));
-    await expect(getStudentNotes(owner)).resolves.toEqual([]);
+    await expect(getStudentNotes(notesPersistence, owner)).resolves.toEqual([]);
     expectRepositoryOwnerProjection();
     expect(m.error).toHaveBeenCalledTimes(1);
     expect(m.error.mock.calls[0]).toEqual(["Student notes read failed"]);

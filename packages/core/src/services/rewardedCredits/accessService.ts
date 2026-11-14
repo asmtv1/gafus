@@ -1,5 +1,5 @@
-import { prisma } from "@gafus/prisma";
-import { hasGafusUnlockForUserStep, findGafusUnlockedStepForVideoUrl } from "./gafusInterop";
+import { requireRewardedAccessReadPort } from "./rewardedAccessReadPort";
+import type { createGafusInteropService } from "./gafusInterop";
 import { hasActiveGafusCourseStepAccess } from "../contentAccess";
 
 import { SubscriptionOrCreditsRequiredError } from "./errors";
@@ -64,25 +64,7 @@ async function resolveRegularCourseTargetByDayOnCourseAndStep(input: {
   dayOnCourseId: string;
   stepIndex: number;
 }): Promise<ResolvedTarget> {
-  const dayOnCourse = await prisma.dayOnCourse.findFirst({
-    where: {
-      id: input.dayOnCourseId,
-      userTrainings: { some: { userId: input.userId } },
-    },
-    select: {
-      day: {
-        select: {
-          stepLinks: {
-            orderBy: { order: "asc" },
-            select: {
-              id: true,
-              step: { select: { type: true } },
-            },
-          },
-        },
-      },
-    },
-  });
+  const dayOnCourse = await requireRewardedAccessReadPort().readOwnedCourseDayRewardedSteps(input.userId, input.dayOnCourseId);
   const stepLink = dayOnCourse?.day.stepLinks[input.stepIndex];
   if (!stepLink) return undefined;
   return courseStepTarget(stepLink.id, stepLink.step.type);
@@ -92,27 +74,7 @@ async function resolveTargetForUserStep(input: {
   userId: string;
   userStepId: string;
 }): Promise<ResolvedTarget> {
-  const userStep = await prisma.userStep.findFirst({
-    where: {
-      id: input.userStepId,
-      userTraining: { userId: input.userId },
-    },
-    select: {
-      stepOnDay: {
-        select: {
-          id: true,
-          step: { select: { type: true } },
-        },
-      },
-      userTraining: {
-        select: {
-          dayOnCourse: {
-            select: { course: { select: { id: true, isPaid: true, isPrivate: true } } },
-          },
-        },
-      },
-    },
-  });
+  const userStep = await requireRewardedAccessReadPort().readOwnedRewardedUserStep(input.userId, input.userStepId);
   if (userStep) {
     // Free public course children share /training/day's entitlement, including
     // exam results/submission. A paid step still requires subscription/Gafus;
@@ -121,10 +83,7 @@ async function resolveTargetForUserStep(input: {
     if (policy.isPrivate) {
       // Private course assignment is required even for paid subscribers.
       // Revocation must fence all existing userStep IDs, not only the page GET.
-      const assigned = await prisma.courseAccess.findFirst({
-        where: { userId: input.userId, courseId: policy.id },
-        select: { courseId: true },
-      });
+      const assigned = await requireRewardedAccessReadPort().readRewardedPrivateCourseAssignment(input.userId, policy.id);
       if (!assigned) throw new SubscriptionOrCreditsRequiredError();
       return null;
     }
@@ -132,17 +91,7 @@ async function resolveTargetForUserStep(input: {
     return courseStepTarget(userStep.stepOnDay.id, userStep.stepOnDay.step.type);
   }
 
-  const dailyStep = await prisma.dailyCourseUserStep.findFirst({
-    where: {
-      id: input.userStepId,
-      dailyCourseUserTraining: { userId: input.userId },
-    },
-    select: {
-      bundleStepId: true,
-      dailyCourseUserTraining: { select: { scheduleId: true } },
-      bundleStep: { select: { step: { select: { type: true } } } },
-    },
-  });
+  const dailyStep = await requireRewardedAccessReadPort().readOwnedDailyRewardedUserStep(input.userId, input.userStepId);
   // Курс дня полностью бесплатный, включая все дочерние действия шага.
   if (dailyStep) return null;
   return undefined;
@@ -153,51 +102,15 @@ async function resolveTargetForVideoUrl(input: {
   videoUrl: string;
   now?: Date;
 }): Promise<ResolvedTarget> {
-  const dailyStep = await prisma.dailyCourseBundleStep.findFirst({
-    where: {
-      step: { videoUrl: input.videoUrl },
-      bundle: {
-        schedules: {
-          some: {
-            isPublished: true,
-            date: { lte: input.now ?? new Date() },
-          },
-        },
-      },
-    },
-    select: { id: true },
-  });
+  const dailyStep = await requireRewardedAccessReadPort().readPublishedDailyRewardedVideo(input.videoUrl, input.now ?? new Date());
   // Курс дня полностью бесплатный, даже до создания пользовательского прогресса.
   if (dailyStep) return null;
 
-  const userStep = await prisma.userStep.findFirst({
-    where: {
-      userTraining: { userId: input.userId },
-      stepOnDay: { step: { videoUrl: input.videoUrl } },
-    },
-    select: {
-      stepOnDay: {
-        select: {
-          id: true,
-          step: { select: { type: true } },
-        },
-      },
-      userTraining: {
-        select: {
-          dayOnCourse: {
-            select: { course: { select: { id: true, isPaid: true, isPrivate: true } } },
-          },
-        },
-      },
-    },
-  });
+  const userStep = await requireRewardedAccessReadPort().readOwnedRewardedVideoStep(input.userId, input.videoUrl);
   if (userStep) {
     const policy = userStep.userTraining.dayOnCourse.course;
     if (policy.isPrivate) {
-      const assignment = await prisma.courseAccess.findFirst({
-        where: { userId: input.userId, courseId: policy.id },
-        select: { courseId: true },
-      });
+      const assignment = await requireRewardedAccessReadPort().readRewardedPrivateCourseAssignment(input.userId, policy.id);
       if (!assignment) throw new SubscriptionOrCreditsRequiredError();
       return null;
     }
@@ -219,15 +132,7 @@ export async function hasRewardedTargetUnlock(input: {
     return false;
   }
 
-  const access = await prisma.rewardedTargetAccess.findFirst({
-    where: {
-      userId: input.userId,
-      targetType: input.target.targetType,
-      targetId: input.target.targetId,
-      expiresAt: { gt: input.now ?? new Date() },
-    },
-    select: { id: true },
-  });
+  const access = await requireRewardedAccessReadPort().readActiveLegacyRewardedGrant(input.userId, input.target.targetType, input.target.targetId, input.now ?? new Date());
   return Boolean(access);
 }
 
@@ -260,9 +165,7 @@ export async function getPremiumOrRewardedAccess(input: {
   // Ordinary paid articles/course steps are open to admins and trainers as
   // established by contentAccess/policy.ts. Keep subscription plan entitlements
   // for cynologist chat and bookings unchanged.
-  const viewer = await prisma.user.findUnique({
-    where: { id: input.userId }, select: { role: true },
-  });
+  const viewer = await requireRewardedAccessReadPort().readRewardedViewerRole(input.userId);
   if (viewer?.role === "ADMIN" || viewer?.role === "TRAINER") {
     return {
       allowed: true, source: "PREMIUM", skippedDueToPremium: true, target: input.target,
@@ -284,7 +187,12 @@ export async function requirePremiumOrRewardedUnlock(input: {
   return getPremiumOrRewardedAccess(input);
 }
 
-export async function requirePremiumOrRewardedAccessForUserStep(input: {
+/** Explicit port required: no implicit server singleton in a Core entitlement decision. */
+export function createGafusRewardedAccessService(gafus: Pick<
+  ReturnType<typeof createGafusInteropService>,
+  "hasGafusUnlockForUserStep" | "findGafusUnlockedStepForVideoUrl"
+>) {
+  async function requirePremiumOrRewardedAccessForUserStep(input: {
   userId: string;
   platform: MonetizedAccessPlatform;
   userStepId: string;
@@ -295,7 +203,7 @@ export async function requirePremiumOrRewardedAccessForUserStep(input: {
   if (target === undefined) {
     return requirePremiumFallback(input);
   }
-  if (target.targetType === "COURSE_STEP" && await hasGafusUnlockForUserStep(input)) {
+  if (target.targetType === "COURSE_STEP" && await gafus.hasGafusUnlockForUserStep(input)) {
     return { allowed: true, source: "GAFUS", skippedDueToPremium: false, target };
   }
   return requirePremiumOrRewardedUnlock({
@@ -306,7 +214,7 @@ export async function requirePremiumOrRewardedAccessForUserStep(input: {
   });
 }
 
-export async function requirePremiumOrRewardedAccessForVideoUrl(input: {
+async function requirePremiumOrRewardedAccessForVideoUrl(input: {
   userId: string;
   platform: MonetizedAccessPlatform;
   videoUrl: string;
@@ -314,7 +222,7 @@ export async function requirePremiumOrRewardedAccessForVideoUrl(input: {
 }): Promise<PremiumOrRewardedAccessDto | null> {
   // Check actual occurrence grants before the legacy UserStep-based target
   // lookup: a newly purchased step/guide may have no progress row yet.
-  const unlockedStepId = await findGafusUnlockedStepForVideoUrl(input);
+  const unlockedStepId = await gafus.findGafusUnlockedStepForVideoUrl(input);
   if (unlockedStepId) {
     return {
       allowed: true, source: "GAFUS", skippedDueToPremium: false,
@@ -328,23 +236,11 @@ export async function requirePremiumOrRewardedAccessForVideoUrl(input: {
     // any Premium user through the legacy "unknown video -> Premium" fallback.
     // The video may belong to more than one course; accept an independently
     // authorized occurrence and reject otherwise.
-    const occurrences = await prisma.dayOnCourse.findMany({
-      where: { day: { stepLinks: { some: { step: { videoUrl: input.videoUrl } } } } },
-      select: {
-        course: { select: { id: true, isPrivate: true, isPaid: true } },
-        day: { select: { stepLinks: {
-          where: { step: { videoUrl: input.videoUrl } },
-          select: { id: true, step: { select: { type: true } } },
-        } } },
-      },
-    });
+    const occurrences = await requireRewardedAccessReadPort().readRewardedCourseVideoOccurrences(input.videoUrl);
     if (occurrences.length > 0) {
       for (const occurrence of occurrences) {
         if (occurrence.course.isPrivate) {
-          const assignment = await prisma.courseAccess.findFirst({
-            where: { userId: input.userId, courseId: occurrence.course.id },
-            select: { courseId: true },
-          });
+          const assignment = await requireRewardedAccessReadPort().readRewardedPrivateCourseAssignment(input.userId, occurrence.course.id);
           if (assignment) return null;
           continue;
         }
@@ -379,6 +275,12 @@ export async function requirePremiumOrRewardedAccessForVideoUrl(input: {
   });
 }
 
+  return {
+    requirePremiumOrRewardedAccessForUserStep,
+    requirePremiumOrRewardedAccessForVideoUrl,
+  };
+}
+
 export async function requirePremiumOrRewardedAccessForStepNotification(input: {
   userId: string;
   platform: MonetizedAccessPlatform;
@@ -390,16 +292,7 @@ export async function requirePremiumOrRewardedAccessForStepNotification(input: {
 }): Promise<PremiumOrRewardedAccessDto | null> {
   let dayOnCourseId = input.dayOnCourseId ?? parseDayOnCourseIdFromUrl(input.maybeUrl);
   if (!dayOnCourseId) {
-    const notification = await prisma.stepNotification.findFirst({
-      where: {
-        userId: input.userId,
-        day: input.day,
-        stepIndex: input.stepIndex,
-        sent: false,
-      },
-      orderBy: { createdAt: "desc" },
-      select: { url: true },
-    });
+    const notification = await requireRewardedAccessReadPort().readPendingRewardedStepNotificationUrl(input.userId, input.day, input.stepIndex);
     dayOnCourseId = parseDayOnCourseIdFromUrl(notification?.url);
   }
 

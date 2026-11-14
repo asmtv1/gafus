@@ -1,0 +1,68 @@
+{
+  "name": "@gafus/media-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./purge-repository": {
+      "types": "./dist/mediaCdnPurgeRepository.d.ts",
+      "default": "./dist/mediaCdnPurgeRepository.js"
+    },
+    "./trainer-transcoding": {
+      "types": "./dist/trainerTranscoding.d.ts",
+      "default": "./dist/trainerTranscoding.js"
+    },
+    "./question-photo-task": {
+      "types": "./dist/questionPhotoTaskRead.d.ts",
+      "default": "./dist/questionPhotoTaskRead.js"
+    },
+    "./deleted-media-purge": {
+      "types": "./dist/deletedMediaPurge.d.ts",
+      "default": "./dist/deletedMediaPurge.js"
+    },
+    "./question-v2-cleanup": {
+      "types": "./dist/questionV2Cleanup.d.ts",
+      "default": "./dist/questionV2Cleanup.js"
+    },
+    "./trainer-video-rows": {
+      "types": "./dist/trainerVideoRows.d.ts",
+      "default": "./dist/trainerVideoRows.js"
+    },
+    "./media-db-ports": {
+      "types": "./dist/mediaDbPorts.d.ts",
+      "default": "./dist/mediaDbPorts.js"
+    },
+    "./feed-ranked-rows": {
+      "types": "./dist/feedRankedRows.d.ts",
+      "default": "./dist/feedRankedRows.js"
+    },
+    "./question-photo-presenter": {
+      "types": "./dist/questionPhotoPresenter.d.ts",
+      "default": "./dist/questionPhotoPresenter.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/media-shared": "workspace:*",
+    "@gafus/cdn-upload": "workspace:*",
+    "@gafus/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  }
+}

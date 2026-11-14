@@ -17,7 +17,11 @@ function getExtra(key: string): string | undefined {
 }
 
 function getAppVersion(): string {
-  return getStr("EXPO_PUBLIC_APP_VERSION", "appVersion") ?? getExtra("appVersion") ?? "1.7.3";
+  // Signed self-hosted OTA source maps are uploaded for an update-specific
+  // version. Expo config extra is reliable in Hermes even when dynamic env
+  // property lookup is not inlined by Metro.
+  return getExtra("otaTracerVersion") ?? getStr("EXPO_PUBLIC_APP_VERSION", "appVersion") ??
+    getExtra("appVersion") ?? Constants.nativeAppVersion ?? "unknown";
 }
 
 function isEnableFlag(): boolean {

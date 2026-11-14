@@ -11,8 +11,8 @@ const { redis, core } = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/queues", () => ({ connection: redis }));
 vi.mock("@gafus/prisma", () => ({ prisma: {} }));
-vi.mock("@gafus/core/services/gallery", async importOriginal => ({
-  ...await importOriginal<object>(), createCurrentGalleryService: () => core,
+vi.mock("../../../../../packages/gallery-server/src/runtimeService.js", () => ({
+  createCurrentGalleryService: () => core,
 }));
 // Exercise current source, rather than an older workspace dist build.
 vi.mock("@gafus/gallery-server", async () => import("../../../../../packages/gallery-server/src/index.js"));

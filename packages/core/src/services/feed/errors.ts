@@ -1,4 +1,4 @@
-import { FEED_ERROR_MESSAGES } from "../../../../types/src/feed";
+import { FEED_ERROR_MESSAGES } from "@gafus/types";
 export class FeedError extends Error {
   constructor(
     public readonly code: string,

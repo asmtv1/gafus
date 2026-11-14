@@ -79,3 +79,8 @@ describe("G1 Core actual vet visit owner conditions", () => {
     expect(mock.mediaUrl).not.toHaveBeenCalled();
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalVetVisitRowsPort from "@gafus/pets-server/vet-visit-write-rows";
+import { registerVetVisitRowsPort } from "./vetVisitRowsPort";
+registerVetVisitRowsPort({ ...originalVetVisitRowsPort, isVetVisitDbError: (error): error is originalVetVisitRowsPort.VetVisitDbError => error instanceof originalVetVisitRowsPort.VetVisitDbError });

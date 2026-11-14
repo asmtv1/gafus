@@ -55,7 +55,7 @@ import {getAppSubscriptionAccess} from "@gafus/core/services/appSubscription";
 import {
   getAppFeatureFlagEnabled,
   APP_FEATURE_APP_SUBSCRIPTION_GATING,
-} from "@gafus/core/services/appFeatureFlags";
+} from "@gafus/feature-flags-server";
 
 const ACTORS={
   A:{id:"ag1-ach140-a",username:"userA",role:"USER"},

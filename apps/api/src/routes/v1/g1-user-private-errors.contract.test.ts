@@ -1,3 +1,9 @@
+
+vi.mock("../../modules/user/composition/account-deletion.js", () => ({
+  readAccountDeletionPreflight: vi.fn(),
+  requestAccountDeletionCode: vi.fn(),
+  deleteUserAccount: vi.fn(),
+}));
 /** AG1-G1-001: private profile failures must have no-store without changing DTO. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";

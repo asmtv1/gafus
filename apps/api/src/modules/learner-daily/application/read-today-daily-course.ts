@@ -1,7 +1,8 @@
 /** AG1-001: learner /today delegates one existing Core READ through an injected port. */
-import type { getTodayDailyCourse } from "@gafus/core/services/dailyCourse";
+import type { createDailyCourseService } from "@gafus/course-progress-server/daily-course-service";
 
-type TodayDailyCourseReader = (userId: string) => ReturnType<typeof getTodayDailyCourse>;
+/** The owning server factory supplies the callable shape, never a runtime import. */
+type TodayDailyCourseReader = ReturnType<typeof createDailyCourseService>["getTodayDailyCourse"];
 
 export function createReadTodayDailyCourseApplication(dependencies: {
   readToday: TodayDailyCourseReader;

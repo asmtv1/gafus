@@ -25,9 +25,7 @@ type FirstBarrier = {
   rollback: boolean;
 };
 
-type Outcome<T> =
-  | { status: "fulfilled"; value: T }
-  | { status: "rejected"; reason: unknown };
+type Outcome<T> = { status: "fulfilled"; value: T } | { status: "rejected"; reason: unknown };
 
 const db = vi.hoisted(() => ({
   rows: new Map<string, Receipt>(),
@@ -43,15 +41,18 @@ const db = vi.hoisted(() => ({
 }));
 
 const ZERO = "0".repeat(64);
-const primaryKey = (row: Receipt): string =>
-  `${row.ownerUserId}:${row.operationKey}`;
+const primaryKey = (row: Receipt): string => `${row.ownerUserId}:${row.operationKey}`;
 
 vi.mock("@gafus/prisma", () => ({
   prisma: {
-    $transaction: async <T>(action: (client: {
-      $queryRaw: (parts: TemplateStringsArray, ...bindings: unknown[]) =>
-        Promise<{ affectedCount: number }[]>;
-    }) => Promise<T>): Promise<T> => {
+    $transaction: async <T>(
+      action: (client: {
+        $queryRaw: (
+          parts: TemplateStringsArray,
+          ...bindings: unknown[]
+        ) => Promise<{ affectedCount: number }[]>;
+      }) => Promise<T>,
+    ): Promise<T> => {
       const transactionId = ++db.nextTransactionId;
       const staged = new Map<string, Receipt>();
       const ownedLocks: string[] = [];
@@ -73,7 +74,7 @@ vi.mock("@gafus/prisma", () => ({
               '"responseJson" = NULL',
               '"reminderId" = NULL',
               '"fingerprint" = ?PARAM?',
-              '"state" = \'EXPIRED\'',
+              "\"state\" = 'EXPIRED'",
               '"ownerUserId" = expired."ownerUserId"',
               '"operationKey" = expired."operationKey"',
               "RETURNING 1",
@@ -83,9 +84,14 @@ vi.mock("@gafus/prisma", () => ({
               if (!sql.includes(fragment)) throw new Error("MOCK_SQL_SHAPE_CHANGED");
             }
             const [oldFingerprint, limit, newFingerprint] = bindings;
-            if (oldFingerprint !== ZERO || newFingerprint !== ZERO ||
-              typeof limit !== "number" || !Number.isSafeInteger(limit) ||
-              limit < 1 || limit > 200) {
+            if (
+              oldFingerprint !== ZERO ||
+              newFingerprint !== ZERO ||
+              typeof limit !== "number" ||
+              !Number.isSafeInteger(limit) ||
+              limit < 1 ||
+              limit > 200
+            ) {
               throw new Error("MOCK_BATCH_BINDINGS_CHANGED");
             }
 
@@ -94,12 +100,17 @@ vi.mock("@gafus/prisma", () => ({
             const available = [...db.rows.entries()]
               .filter(([key, row]) => {
                 if (db.locks.has(key) || row.expiresAt > db.clock) return false;
-                return row.responseJson !== null || row.reminderId !== null ||
-                  row.fingerprint !== ZERO || row.state !== "EXPIRED";
+                return (
+                  row.responseJson !== null ||
+                  row.reminderId !== null ||
+                  row.fingerprint !== ZERO ||
+                  row.state !== "EXPIRED"
+                );
               })
-              .sort(([keyA, a], [keyB, b]) =>
-                a.expiresAt.getTime() - b.expiresAt.getTime() ||
-                keyA.localeCompare(keyB))
+              .sort(
+                ([keyA, a], [keyB, b]) =>
+                  a.expiresAt.getTime() - b.expiresAt.getTime() || keyA.localeCompare(keyB),
+              )
               .slice(0, limit);
             for (const [key, row] of available) {
               if (db.locks.has(key)) throw new Error("MOCK_DOUBLE_ROW_LOCK");
@@ -149,8 +160,7 @@ vi.mock("@gafus/prisma", () => ({
   },
 }));
 
-import { redactExpiredReminderReceiptPII } from
-  "./g1ReminderExpiryPIIRedaction.review";
+import { redactExpiredReminderReceiptPII } from "@gafus/notifications-server/reminder-expiry-redaction";
 
 function deferred<T = void>() {
   let resolve!: (value: T) => void;
@@ -205,18 +215,18 @@ function seed201(): Map<string, Receipt> {
 function assertExactBeforeAfter(original: Map<string, Receipt>, committed: Set<string>) {
   expect(db.rows.size).toBe(original.size);
   for (const [key, before] of original) {
-    const expected = committed.has(key) ? {
-      ...before,
-      responseJson: null,
-      reminderId: null,
-      fingerprint: ZERO,
-      state: "EXPIRED",
-    } : before;
+    const expected = committed.has(key)
+      ? {
+          ...before,
+          responseJson: null,
+          reminderId: null,
+          fingerprint: ZERO,
+          state: "EXPIRED",
+        }
+      : before;
     expect(db.rows.get(key)).toStrictEqual(expected);
   }
-  expect(db.rows.get([...original.keys()].at(-1)!)).toStrictEqual(
-    [...original.values()].at(-1),
-  ); // Active receipt must be byte-for-byte unchanged.
+  expect(db.rows.get([...original.keys()].at(-1)!)).toStrictEqual([...original.values()].at(-1)); // Active receipt must be byte-for-byte unchanged.
 }
 
 function assertNoAbandonedLocks() {
@@ -224,19 +234,20 @@ function assertNoAbandonedLocks() {
   expect(db.running.size).toBe(0);
 }
 
-async function acquiredOrWorkerError(
-  signal: Promise<void>, workerA: Promise<Outcome<number>>,
-) {
-  return bounded(Promise.race([
-    signal,
-    workerA.then((outcome) => {
-      throw new Error(
-        outcome.status === "rejected" ?
-          `MOCK_WORKER_STOPPED_BEFORE_ACQUIRED:${String(outcome.reason)}` :
-          "MOCK_WORKER_COMPLETED_BEFORE_ACQUIRED",
-      );
-    }),
-  ]), "acquired-or-worker-error");
+async function acquiredOrWorkerError(signal: Promise<void>, workerA: Promise<Outcome<number>>) {
+  return bounded(
+    Promise.race([
+      signal,
+      workerA.then((outcome) => {
+        throw new Error(
+          outcome.status === "rejected"
+            ? `MOCK_WORKER_STOPPED_BEFORE_ACQUIRED:${String(outcome.reason)}`
+            : "MOCK_WORKER_COMPLETED_BEFORE_ACQUIRED",
+        );
+      }),
+    ]),
+    "acquired-or-worker-error",
+  );
 }
 
 beforeEach(() => {
@@ -287,8 +298,10 @@ describe("AG1 two independent SKIP LOCKED transaction clients — MOCK ONLY", ()
     } finally {
       release.resolve();
       // Both workers are observed even when a barrier/assertion fails.
-      await bounded(Promise.allSettled([workerA, ...(workerB ? [workerB] : [])]),
-        "release-and-reap-both-workers");
+      await bounded(
+        Promise.allSettled([workerA, ...(workerB ? [workerB] : [])]),
+        "release-and-reap-both-workers",
+      );
     }
 
     const outcomeA = await bounded(workerA, "worker-A-settled");
@@ -305,8 +318,9 @@ describe("AG1 two independent SKIP LOCKED transaction clients — MOCK ONLY", ()
     } else {
       expect(outcomeA).toEqual({ status: "fulfilled", value: 200 });
     }
-    const allExpiredKeys = new Set([...original].filter(([, row]) =>
-      row.expiresAt <= db.clock).map(([key]) => key));
+    const allExpiredKeys = new Set(
+      [...original].filter(([, row]) => row.expiresAt <= db.clock).map(([key]) => key),
+    );
     expect(allExpiredKeys.size).toBe(201);
     assertExactBeforeAfter(original, allExpiredKeys);
     assertNoAbandonedLocks();
@@ -343,8 +357,10 @@ describe("AG1 two independent SKIP LOCKED transaction clients — MOCK ONLY", ()
       );
     } finally {
       release.resolve();
-      await bounded(Promise.allSettled([workerA, workerB]),
-        "failed-acquisition-release-and-reap-both-workers");
+      await bounded(
+        Promise.allSettled([workerA, workerB]),
+        "failed-acquisition-release-and-reap-both-workers",
+      );
     }
     expect(await workerA).toMatchObject({ status: "rejected" });
     expect(await workerB).toEqual({ status: "fulfilled", value: 200 });
@@ -359,7 +375,9 @@ describe("AG1 two independent SKIP LOCKED transaction clients — MOCK ONLY", ()
     const acquired = deferred<void>();
     const release = deferred<void>();
     db.firstBarrier = {
-      acquired: () => { /* simulate lost acquisition notification */ },
+      acquired: () => {
+        /* simulate lost acquisition notification */
+      },
       failed: (error) => acquired.reject(error),
       release: release.promise,
       rollback: false,
@@ -368,16 +386,23 @@ describe("AG1 two independent SKIP LOCKED transaction clients — MOCK ONLY", ()
     const workerB = observed(redactExpiredReminderReceiptPII());
     try {
       // Even if the notification is lost, the bounded test must not hang.
-      await expect(bounded(Promise.race([
-        acquired.promise,
-        workerA.then(() => { throw new Error("EARLY_WORKER_EXIT"); }),
-      ]), "intentional-missing-acquired-notification")).rejects.toThrow(
-        "MOCK_BARRIER_TIMEOUT:intentional-missing-acquired-notification",
-      );
+      await expect(
+        bounded(
+          Promise.race([
+            acquired.promise,
+            workerA.then(() => {
+              throw new Error("EARLY_WORKER_EXIT");
+            }),
+          ]),
+          "intentional-missing-acquired-notification",
+        ),
+      ).rejects.toThrow("MOCK_BARRIER_TIMEOUT:intentional-missing-acquired-notification");
     } finally {
       release.resolve();
-      await bounded(Promise.allSettled([workerA, workerB]),
-        "timeout-release-and-reap-both-workers");
+      await bounded(
+        Promise.allSettled([workerA, workerB]),
+        "timeout-release-and-reap-both-workers",
+      );
     }
     expect(await workerA).toEqual({ status: "fulfilled", value: 200 });
     expect(await workerB).toEqual({ status: "fulfilled", value: 1 });

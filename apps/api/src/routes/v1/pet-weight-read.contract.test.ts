@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseOwnedPetWeightHistoryData } from "@gafus/types";
 
 const service = vi.hoisted(() => vi.fn());
-vi.mock("@gafus/core/services/pets", async importOriginal => ({
-  ...await importOriginal<object>(), getPetWeightHistory: service,
+vi.mock("@gafus/pets-server/weight", () => ({getPetWeightHistory: service,
+  addPetWeightEntry: vi.fn(), deletePetWeightEntry: vi.fn(), setPetTargetWeight: vi.fn(),
 }));
 import { petsRoutes } from "./pets";
 

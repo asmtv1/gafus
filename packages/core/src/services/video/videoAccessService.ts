@@ -1,9 +1,11 @@
 /**
- * Сервис проверки прав доступа к видео (IDOR protection)
+ * Video playback entitlement policy. The caller (API composition root) owns
+ * SQL read adapters and supplies them as an explicit port. No infrastructure
+ * implementation or ORM imports belong in this Core policy.
  */
+import { createWebLogger } from "@gafus/logger";
 
-import { prisma } from "@gafus/prisma";
-import { resolveCourseStepTargetTx, resolveCourseStepAccessTx } from "../contentAccess";
+const logger = createWebLogger("video-access-service");
 
 export interface VideoManifestInfo {
   hlsManifestPath: string | null;
@@ -11,103 +13,73 @@ export interface VideoManifestInfo {
   transcodingStatus: string;
   trainerId: string;
 }
-
-/**
- * Получает информацию о видео для manifest/segment (путь к HLS, статус, trainerId).
- */
-export async function getVideoManifestInfo(videoId: string): Promise<VideoManifestInfo | null> {
-  const video = await prisma.trainerVideo.findUnique({
-    where: { id: videoId },
-    select: {
-      hlsManifestPath: true,
-      thumbnailPath: true,
-      transcodingStatus: true,
-      trainerId: true,
-    },
-  });
-  return video;
-}
-import { createWebLogger } from "@gafus/logger";
-
-const logger = createWebLogger("video-access-service");
-
 export interface CheckVideoAccessParams {
   userId: string;
   videoId: string;
 }
 
-/**
- * Проверяет, имеет ли пользователь право просматривать указанное видео
- *
- * Пользователь имеет доступ если:
- * 1. Он является владельцем видео (trainerId === userId)
- * 2. Видео входит в курс, к которому у пользователя есть доступ:
- *    - публичный бесплатный курс (isPrivate=false, isPaid=false) — доступ всем;
- *    - платный/приватный — нужна запись CourseAccess (или оплата).
- *
- * @param params - userId и videoId
- * @returns true если доступ разрешен, false если запрещен
+/** Narrow contract: all returned objects are owner/occurrence-scoped projections;
+ * there is no raw client query, unrestricted row accessor or payment bypass.
  */
-export async function checkVideoAccess(params: CheckVideoAccessParams): Promise<boolean> {
-  const { userId, videoId } = params;
+export interface VideoAccessReadPorts {
+  manifest(videoId: string): Promise<VideoManifestInfo | null>;
+  owner(videoId: string): Promise<{ trainerId: string } | null>;
+  stepOccurrences(videoId: string): Promise<{ id: string; dayId: string }[]>;
+  dayOccurrences(dayIds: string[]): Promise<{ id: string; dayId: string }[]>;
+  hasPublishedDailyCourseVideo(videoId: string, at: Date): Promise<boolean>;
+  allowedCourseStep(
+    userId: string,
+    dayOnCourseId: string,
+    stepOnDayId: string,
+    at: Date,
+  ): Promise<boolean>;
+}
 
-  try {
-    const video = await prisma.trainerVideo.findUnique({
-      where: { id: videoId },
-      select: { id: true, trainerId: true },
-    });
-
-    if (!video) {
-      logger.warn("Video access check failed: video not found", { userId, videoId });
-      return false;
-    }
-
-    if (video.trainerId === userId) {
-      logger.info("Video access granted: user is owner", { userId, videoId });
-      return true;
-    }
-
-    // An occurrence is unique to a course/day even when a TrainingDay is reused.
-    const stepLinks = await prisma.stepOnDay.findMany({
-      where: { step: { videoUrl: { contains: videoId } } },
-      select: { id: true, dayId: true },
-    });
-    const dayIds = [...new Set(stepLinks.map(link => link.dayId))];
-    if (dayIds.length) {
-      const occurrences = await prisma.dayOnCourse.findMany({
-        where: { dayId: { in: dayIds } },
-        select: { id: true, dayId: true },
-      });
-      const now = new Date();
-      for (const occurrence of occurrences) {
-        for (const link of stepLinks) {
-          if (link.dayId !== occurrence.dayId) continue;
-          const target = await resolveCourseStepTargetTx(prisma, occurrence.id, link.id);
-          if (!target) continue;
-          const entitlement = await resolveCourseStepAccessTx(prisma, userId, target, now);
-          if (entitlement.allowed) return true;
-          // Never authorize lesson video from historical rewarded-ad rows.
-          // The common entitlement above is the only source of playback rights.
+export function createVideoAccessService(reads: VideoAccessReadPorts) {
+  return {
+    /** For manifests and segments, keep the existing exact metadata DTO. */
+    async getVideoManifestInfo(videoId: string): Promise<VideoManifestInfo | null> {
+      return reads.manifest(videoId);
+    },
+    /** Fail closed on missing media or read failure. A reused TrainingDay never
+     * confers access to a video from a different course occurrence.
+     */
+    async checkVideoAccess({ userId, videoId }: CheckVideoAccessParams): Promise<boolean> {
+      try {
+        const video = await reads.owner(videoId);
+        if (!video) {
+          logger.warn("Video access check failed: video not found", { userId, videoId });
+          return false;
         }
+        if (video.trainerId === userId) {
+          logger.info("Video access granted: user is owner", { userId, videoId });
+          return true;
+        }
+        const stepLinks = await reads.stepOccurrences(videoId);
+        const dayIds = [...new Set(stepLinks.map((link) => link.dayId))];
+        if (dayIds.length) {
+          const occurrences = await reads.dayOccurrences(dayIds);
+          const now = new Date();
+          for (const occurrence of occurrences) {
+            for (const link of stepLinks) {
+              if (link.dayId !== occurrence.dayId) continue;
+              if (await reads.allowedCourseStep(userId, occurrence.id, link.id, now)) {
+                return true;
+              }
+            }
+          }
+        }
+        if (await reads.hasPublishedDailyCourseVideo(videoId, new Date())) return true;
+        logger.warn("Video access denied: no permissions", {
+          userId,
+          videoId,
+          trainerId: video.trainerId,
+        });
+        return false;
+      } catch (error) {
+        logger.error("Video access check error", error as Error, { userId, videoId });
+        return false;
       }
-    }
-    const daily = await prisma.dailyCourseBundleStep.findFirst({
-      where: {
-        step: { videoUrl: { contains: videoId } },
-        bundle: { schedules: { some: { isPublished: true, date: { lte: new Date() } } } },
-      },
-      select: { id: true },
-    });
-    if (daily) return true;
-
-    logger.warn("Video access denied: no permissions", {
-      userId,
-      videoId,
-      trainerId: video.trainerId,
-    });
-    return false;
-  } catch (error) {
-    logger.error("Video access check error", error as Error, { userId, videoId });
-    return false;
-  }
+    },
+  };
 }

@@ -26,7 +26,7 @@ vi.mock("@gafus/logger",()=>({
   createWebLogger:()=>({error:vi.fn(),warn:vi.fn(),info:vi.fn()}),
 }));
 vi.mock("./petVetVisitService",()=>({lockVetPet:vi.fn(),enqueuePetVetCleanup:vi.fn()}));
-vi.mock("./petMediaDeletionSql",()=>({
+vi.mock("@gafus/pets-server/pet-media-deletion-sql",()=>({
   petMediaOutboxEnabled:()=>process.env.PET_MEDIA_DELETION_OUTBOX_ENABLED==="true",
   enqueuePetMediaDeletionIntent:m.intent,
   consumePetMediaUploadReservation:m.consume,
@@ -105,3 +105,9 @@ describe("WEB2 before-PUT document outbox intent producer",()=>{
     expect(m.upload).not.toHaveBeenCalled();
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
+import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
+import * as originalMediaOutboxAdapter from "@gafus/pets-server/pet-media-deletion-sql";
+registerPetRowsPort({ ...originalPetRowsPort, ...(originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent && { enqueuePetMediaDeletionIntent: originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent }), ...(originalMediaOutboxAdapter.consumePetMediaUploadReservation && { consumePetMediaUploadReservation: originalMediaOutboxAdapter.consumePetMediaUploadReservation }), ...(originalMediaOutboxAdapter.petMediaOutboxEnabled && { petMediaOutboxEnabled: originalMediaOutboxAdapter.petMediaOutboxEnabled }) } as PetRowsPort);

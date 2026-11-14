@@ -19,11 +19,10 @@ import {
   renamePetDocument,
   uploadPetDocument,
   updatePetPhoto,
-  getPetWeightHistory,
-  addPetWeightEntry,
-  deletePetWeightEntry,
-  setPetTargetWeight,
 } from "@gafus/core/services/pets";
+import {
+  getPetWeightHistory, addPetWeightEntry, deletePetWeightEntry, setPetTargetWeight,
+} from "@gafus/pets-server/weight";
 import { createWebLogger } from "@gafus/logger";
 import { presentOwnedPetPhoto } from "./present-pet-photo";
 import { prepareHonoPetPhoto } from "./pet-photo-file";

@@ -1,3 +1,8 @@
+// This route now binds the occurrence-specific read adapter at composition,
+// while the original Core error mock preserves the historical HTTP response.
+vi.mock("../../modules/rewarded-credits/composition/gafus-access.js", () => ({
+  requirePremiumOrRewardedAccessForUserStep: forbidden.rewarded,
+}));
 /** LEARN032/G3: registered survey GET Hono -> original composed Core -> owned PG18 JSON wire. */
 import { Hono } from "hono";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";

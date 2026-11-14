@@ -1,8 +1,9 @@
 /** LEARN032: real Prisma + private PostgreSQL18 Survey READ, NO submit. */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@gafus/prisma";
-import { createReadSurveysApplication } from "../../../../../apps/api/src/modules/surveys/application/read-surveys";
-import { getSurveyComparison, getSurveyResponse, getSurveyTemplate } from "./surveyService";
+import {
+  readSurveysApplication,
+} from "../../../../../apps/api/src/modules/surveys/composition/read-surveys";
 
 const forbidden = vi.hoisted(() =>
   vi.fn(() => {
@@ -42,11 +43,7 @@ const users = Object.values(user),
 const family = "dog-home-alone",
   otherFamily = "synthetic-other-family";
 const now = new Date("2026-10-24T12:00:00.000Z");
-const app = createReadSurveysApplication({
-  comparison: getSurveyComparison,
-  response: getSurveyResponse,
-  template: getSurveyTemplate,
-});
+const app = readSurveysApplication;
 let seeded = false;
 
 async function guard() {

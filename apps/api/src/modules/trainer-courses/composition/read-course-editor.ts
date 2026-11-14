@@ -1,8 +1,6 @@
 /** AG1-001/TR012: lazy bindings to the original Core draft/snapshot readers. */
-import {
-  getCourseDraftWithRelations,
-  getCourseEditorSnapshot,
-} from "@gafus/core/services/trainerCourse";
+import { getCourseDraftWithRelations } from "@gafus/core/services/trainerCourse";
+import { getCourseEditorSnapshot } from "./editor-snapshot-port.js";
 import { createReadCourseEditorApplication } from "../application/read-course-editor.js";
 
 export const readCourseEditorApplication = createReadCourseEditorApplication({

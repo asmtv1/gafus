@@ -1,0 +1,789 @@
+{
+  "schema": "gafus/integration-payment-overlay/v1",
+  "recordedAtUtc": "2026-11-12T00:30:02.893054+00:00",
+  "paymentManifestPath": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.json",
+  "paymentManifestSha256": "87d0fbedf7ab2692637cbeed6fcf819b865f23c70f92094e4f5dd905a728a362",
+  "manifestGeneratedAtUtc": "2026-11-12T00:10:52.549733+00:00",
+  "manifestHead": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "A1RegistryStatus": "PARTIAL_PAYMENT_GROUP_NOT_FINAL_ARCHITECTURE",
+  "manifestGroup": "app-subscription-payment-server-composition",
+  "facades": {
+    "before": 41,
+    "after": 40,
+    "resolved": 1,
+    "newForbidden": 0
+  },
+  "statusCounts": {
+    "M": 13,
+    "D": 1,
+    "A": 4
+  },
+  "categoryCounts": {
+    "core-domain-boundary": 5,
+    "server-jws-acceptance": 2,
+    "api-payment-composition": 1,
+    "api-routes-and-contracts": 6,
+    "worker-payment-cron": 4
+  },
+  "fileCount": 18,
+  "A1CurrentFilesMatchManifest": true,
+  "A1BeforeSHAFromAvailableBackupVerified": true,
+  "missingBeforeBackupFiles": [
+    "packages/core/src/services/appSubscription/appleJws.archqa.acceptance.ts",
+    "apps/api/src/routes/v1/admin-users.ts",
+    "apps/api/src/routes/v1/admin-users.test.ts"
+  ],
+  "directA2P0Paths": [],
+  "directA2CommittedPaths": [],
+  "directA3FinalSetPaths": [],
+  "A3FinalManifestPath": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-3-final-local-handoff-20261112.json",
+  "A3FinalManifestSha256": "b98783d54906caeb0e0f9c86861863a9b38b464cc0cb39bed29a5da5166fe3d7",
+  "A3FinalSetCount": 39,
+  "A2P0Count": 6,
+  "existingTriageSha256": "8787dcce528f47ff9bd6f1e51e0e4c67ee31c30c8806db9b39e997ce0742dfed",
+  "P0SchemaAndLockVerifiedInputs": {
+    "A1SchemaSha256": "309d51a18f02ceea136cf35c913677e35fa04df3fef01e9f5212d35263871e62",
+    "A2CommittedSchemaSha256": "394807900daf41830279681ed578d80dbc462388884e6bca0ba619c1cf3247c7",
+    "A1VsA2CommittedSchemaOnlyMetricsGeneratorFlag": false,
+    "A1VsA2WorkingSchemaOnlyMetricsGeneratorFlag": true,
+    "A1OnlyModelsMissingInA2Committed": [
+      "QuestionLegacyPhotoDeletion"
+    ],
+    "A1OnlyOutboxFieldsMissingInA2Committed": [
+      "claimToken String?",
+      "operationId String?",
+      "traceId String?",
+      "lastErrorCode String?",
+      "deadLetteredAt DateTime?"
+    ],
+    "schemaRequiresManualA1BaselinePlusA2MetricsHunk": true,
+    "A1PaymentModelsPresent": {
+      "AppSubscription": true,
+      "AppSubscriptionPayment": true,
+      "AppSubscriptionPromoCode": true,
+      "AppSubscriptionEvent": true,
+      "AppSubscriptionFinanceRefund": true
+    },
+    "A1LockSha256": "75bbecbb00658fb56817c800fb55b9b323a9a8359f6cb1193e1e7125d4a94a7f",
+    "A2CommittedLockSha256": "8bd2ad9028d5361daefa25846e2ac402287270d7fa161c8396a77c170f30ef0c",
+    "lockfilesIdentical": false,
+    "A1SubscriptionPaymentServerWorkspaceLink": true,
+    "A1CriticalPatches": {
+      "patches/expo-modules-core@55.0.27.patch": {
+        "fileExists": true,
+        "referencedByLock": true
+      },
+      "patches/react-native-reanimated@4.2.1.patch": {
+        "fileExists": true,
+        "referencedByLock": true
+      },
+      "patches/react-native-compressor@1.16.0.patch": {
+        "fileExists": true,
+        "referencedByLock": true
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "packages/core/src/services/appSubscription/paymentService.ts",
+      "changeType": "M",
+      "category": "core-domain-boundary",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "19ca950044f69f46aaaf696a8c612926c937a806f68448050a076fc134ed3db8",
+      "afterSha256CurrentA1": "19ca950044f69f46aaaf696a8c612926c937a806f68448050a076fc134ed3db8",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "3febc1395d9625f7559e3349e84b295c23a04e67cff55f34ca49efa0709a19c1",
+      "beforeBackupManifestMatches": true,
+      "beforeBackedUp": true,
+      "A3WorktreeSha256": "3febc1395d9625f7559e3349e84b295c23a04e67cff55f34ca49efa0709a19c1",
+      "A2WorktreeSha256": "02ea1092aa9569fa7db841f93b8add1519f12c6d8d645358882465077129c51c",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "CORE_ARCH",
+        "CORE"
+      ],
+      "minimumCommands": [
+        "pnpm check:core-boundaries && node scripts/check-core-server-facades.mjs && pnpm --filter @gafus/core typecheck",
+        "pnpm --filter @gafus/core exec vitest run src/services/appSubscription/__tests__/paymentService.test.ts --config vitest.config.ts"
+      ],
+      "semanticConstraint": "No runtime @gafus/subscription-payment-server import or re-export from Core; preserve promo policy and owner ACL"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/index.ts",
+      "changeType": "M",
+      "category": "core-domain-boundary",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "356953d2cf4ed339d08597b104e3090774389e936cf94038437efb192126e77b",
+      "afterSha256CurrentA1": "356953d2cf4ed339d08597b104e3090774389e936cf94038437efb192126e77b",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "363a33f952583ed346c52386d9cabbb5176d15cf5daab4e2149c1243eb07984d",
+      "beforeBackupManifestMatches": true,
+      "beforeBackedUp": true,
+      "A3WorktreeSha256": "363a33f952583ed346c52386d9cabbb5176d15cf5daab4e2149c1243eb07984d",
+      "A2WorktreeSha256": "df2cc09cafadf3f338e3756880922bfe3c6ed43cfd131542f7e18fdfcd563d54",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "CORE_ARCH",
+        "CORE"
+      ],
+      "minimumCommands": [
+        "pnpm check:core-boundaries && node scripts/check-core-server-facades.mjs && pnpm --filter @gafus/core typecheck",
+        "pnpm --filter @gafus/core exec vitest run src/services/appSubscription/__tests__/paymentService.test.ts --config vitest.config.ts"
+      ],
+      "semanticConstraint": "No runtime @gafus/subscription-payment-server import or re-export from Core; preserve promo policy and owner ACL"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/__tests__/paymentService.test.ts",
+      "changeType": "M",
+      "category": "core-domain-boundary",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "ad813c73d46b0ee9532f291eb2b5b27c7d0e0021f5cd5ea9e8d3036d01c6328e",
+      "afterSha256CurrentA1": "ad813c73d46b0ee9532f291eb2b5b27c7d0e0021f5cd5ea9e8d3036d01c6328e",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "b4ec75e6c92f198b5747fed2b904bb5cea62aca2bcfe72b20648aa0ef696b150",
+      "beforeBackupManifestMatches": true,
+      "beforeBackedUp": true,
+      "A3WorktreeSha256": "b4ec75e6c92f198b5747fed2b904bb5cea62aca2bcfe72b20648aa0ef696b150",
+      "A2WorktreeSha256": "0eea99f5bade694a5a7f2b514f25b7e75a1cf92bb9c55fdf353aef5e04f73dc5",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "CORE_ARCH",
+        "CORE"
+      ],
+      "minimumCommands": [
+        "pnpm check:core-boundaries && node scripts/check-core-server-facades.mjs && pnpm --filter @gafus/core typecheck",
+        "pnpm --filter @gafus/core exec vitest run src/services/appSubscription/__tests__/paymentService.test.ts --config vitest.config.ts"
+      ],
+      "semanticConstraint": "No runtime @gafus/subscription-payment-server import or re-export from Core; preserve promo policy and owner ACL"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/__tests__/paymentService.realpg.archqa.test.ts",
+      "changeType": "M",
+      "category": "core-domain-boundary",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "3faf9850fb89adf7fc81ce1899bfc44427a1529e3121e2ffcb336d513e97da45",
+      "afterSha256CurrentA1": "3faf9850fb89adf7fc81ce1899bfc44427a1529e3121e2ffcb336d513e97da45",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "e1955f2326176729fe91ea527a7ffc13002230a53480dd12064f0bbbfc62f3f7",
+      "beforeBackupManifestMatches": true,
+      "beforeBackedUp": true,
+      "A3WorktreeSha256": "e1955f2326176729fe91ea527a7ffc13002230a53480dd12064f0bbbfc62f3f7",
+      "A2WorktreeSha256": "e1955f2326176729fe91ea527a7ffc13002230a53480dd12064f0bbbfc62f3f7",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "A1_ONLY_OR_ALREADY_MATCHED_BASE",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "CORE_ARCH",
+        "CORE"
+      ],
+      "minimumCommands": [
+        "pnpm check:core-boundaries && node scripts/check-core-server-facades.mjs && pnpm --filter @gafus/core typecheck",
+        "pnpm --filter @gafus/core exec vitest run src/services/appSubscription/__tests__/paymentService.test.ts --config vitest.config.ts"
+      ],
+      "semanticConstraint": "No runtime @gafus/subscription-payment-server import or re-export from Core; preserve promo policy and owner ACL"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/appleJws.archqa.acceptance.ts",
+      "changeType": "D",
+      "category": "core-domain-boundary",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": null,
+      "afterSha256CurrentA1": "ABSENT",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "a611956526004cff593d095d9cda0615396b04b30eb8a5aaf49af27c3b3154e5",
+      "beforeBackupManifestMatches": null,
+      "beforeBackedUp": false,
+      "A3WorktreeSha256": "a611956526004cff593d095d9cda0615396b04b30eb8a5aaf49af27c3b3154e5",
+      "A2WorktreeSha256": "a611956526004cff593d095d9cda0615396b04b30eb8a5aaf49af27c3b3154e5",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "A1_ONLY_OR_ALREADY_MATCHED_BASE",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "CORE_ARCH",
+        "CORE"
+      ],
+      "minimumCommands": [
+        "pnpm check:core-boundaries && node scripts/check-core-server-facades.mjs && pnpm --filter @gafus/core typecheck",
+        "pnpm --filter @gafus/core exec vitest run src/services/appSubscription/__tests__/paymentService.test.ts --config vitest.config.ts"
+      ],
+      "semanticConstraint": "No runtime @gafus/subscription-payment-server import or re-export from Core; preserve promo policy and owner ACL"
+    },
+    {
+      "path": "packages/subscription-payment-server/src/appleJws.archqa.acceptance.ts",
+      "changeType": "A",
+      "category": "server-jws-acceptance",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "4103ce29a6656c64cc744bcfa99b8bbcc8ba5c2959fa165a32986c5b7602a075",
+      "afterSha256CurrentA1": "4103ce29a6656c64cc744bcfa99b8bbcc8ba5c2959fa165a32986c5b7602a075",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": null,
+      "beforeBackupManifestMatches": null,
+      "beforeBackedUp": false,
+      "A3WorktreeSha256": "ABSENT",
+      "A2WorktreeSha256": "ABSENT",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "A1_ONLY_OR_ALREADY_MATCHED_BASE",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "SERVER",
+        "CORE_ARCH"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/subscription-payment-server test && pnpm --filter @gafus/subscription-payment-server typecheck",
+        "pnpm check:core-boundaries && node scripts/check-core-server-facades.mjs && pnpm --filter @gafus/core typecheck"
+      ],
+      "semanticConstraint": "Keep Apple JWS/CA test-only in server package; do not treat synthetic JWS as Apple sandbox"
+    },
+    {
+      "path": "packages/subscription-payment-server/src/appleJws.archqa.acceptance.test.ts",
+      "changeType": "A",
+      "category": "server-jws-acceptance",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "ded3f87dd10a74934a53a1ce148065ab8fbfcbba26623d479d563b0b77d42747",
+      "afterSha256CurrentA1": "ded3f87dd10a74934a53a1ce148065ab8fbfcbba26623d479d563b0b77d42747",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": null,
+      "beforeBackupManifestMatches": null,
+      "beforeBackedUp": false,
+      "A3WorktreeSha256": "ABSENT",
+      "A2WorktreeSha256": "ABSENT",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "A1_ONLY_OR_ALREADY_MATCHED_BASE",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "SERVER",
+        "CORE_ARCH"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/subscription-payment-server test && pnpm --filter @gafus/subscription-payment-server typecheck",
+        "pnpm check:core-boundaries && node scripts/check-core-server-facades.mjs && pnpm --filter @gafus/core typecheck"
+      ],
+      "semanticConstraint": "Keep Apple JWS/CA test-only in server package; do not treat synthetic JWS as Apple sandbox"
+    },
+    {
+      "path": "apps/api/src/modules/app-subscription/composition/payment-transitions.ts",
+      "changeType": "A",
+      "category": "api-payment-composition",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "756db331dac5c8c1bc1b938fe5af67a9241f109c5cad98d748ad7084abd3d6ad",
+      "afterSha256CurrentA1": "756db331dac5c8c1bc1b938fe5af67a9241f109c5cad98d748ad7084abd3d6ad",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": null,
+      "beforeBackupManifestMatches": null,
+      "beforeBackedUp": false,
+      "A3WorktreeSha256": "ABSENT",
+      "A2WorktreeSha256": "ABSENT",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "A1_ONLY_OR_ALREADY_MATCHED_BASE",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "API_TYPES",
+        "API",
+        "CORE_ARCH"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/api typecheck",
+        "pnpm --filter @gafus/api exec vitest run src/routes/v1/app-subscription.route.test.ts src/routes/v1/payment-provider-webhooks.test.ts src/routes/v1/admin-users.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts",
+        "pnpm check:core-boundaries && node scripts/check-core-server-facades.mjs && pnpm --filter @gafus/core typecheck"
+      ],
+      "semanticConstraint": "Bind server factory via Core promo policy; single composition instance, no Core provider import"
+    },
+    {
+      "path": "apps/api/src/routes/v1/app-subscription.ts",
+      "changeType": "M",
+      "category": "api-routes-and-contracts",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "17c67d024170c2ad31daf4be66db8a6db6c4d1301c32067db5a8dd6cb9a3a39b",
+      "afterSha256CurrentA1": "17c67d024170c2ad31daf4be66db8a6db6c4d1301c32067db5a8dd6cb9a3a39b",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "a15b57509ecdf620bc1ea4b1a19060a3a0a1b7b76c4e7abcee38a33b5a5bdb96",
+      "beforeBackupManifestMatches": true,
+      "beforeBackedUp": true,
+      "A3WorktreeSha256": "a15b57509ecdf620bc1ea4b1a19060a3a0a1b7b76c4e7abcee38a33b5a5bdb96",
+      "A2WorktreeSha256": "13b1967ef686493c63e8fad26415ff8c1c9c6cae485393684c34aed757285276",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "API_TYPES",
+        "API"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/api typecheck",
+        "pnpm --filter @gafus/api exec vitest run src/routes/v1/app-subscription.route.test.ts src/routes/v1/payment-provider-webhooks.test.ts src/routes/v1/admin-users.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts"
+      ],
+      "semanticConstraint": "Preserve webhook authentication/IP checks, cancel/idempotency, admin role scope, provider errors"
+    },
+    {
+      "path": "apps/api/src/routes/v1/payment-provider-webhooks.ts",
+      "changeType": "M",
+      "category": "api-routes-and-contracts",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "2181fa0c1bf695677340f05018bf8d48c899461728dbc5b22efdb80eb16a77d6",
+      "afterSha256CurrentA1": "2181fa0c1bf695677340f05018bf8d48c899461728dbc5b22efdb80eb16a77d6",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "228feae96c8e77dfaa9ae208bc6d795b47ce0c7d97448a3d4cac77e474dfd3fa",
+      "beforeBackupManifestMatches": true,
+      "beforeBackedUp": true,
+      "A3WorktreeSha256": "228feae96c8e77dfaa9ae208bc6d795b47ce0c7d97448a3d4cac77e474dfd3fa",
+      "A2WorktreeSha256": "228feae96c8e77dfaa9ae208bc6d795b47ce0c7d97448a3d4cac77e474dfd3fa",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "A1_ONLY_OR_ALREADY_MATCHED_BASE",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "API_TYPES",
+        "API"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/api typecheck",
+        "pnpm --filter @gafus/api exec vitest run src/routes/v1/app-subscription.route.test.ts src/routes/v1/payment-provider-webhooks.test.ts src/routes/v1/admin-users.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts"
+      ],
+      "semanticConstraint": "Preserve webhook authentication/IP checks, cancel/idempotency, admin role scope, provider errors"
+    },
+    {
+      "path": "apps/api/src/routes/v1/app-subscription.route.test.ts",
+      "changeType": "M",
+      "category": "api-routes-and-contracts",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "8217a2e9b078bbd2166fadce0a626c0bc1219bc1d3110ac99a58b7bf09a126b4",
+      "afterSha256CurrentA1": "8217a2e9b078bbd2166fadce0a626c0bc1219bc1d3110ac99a58b7bf09a126b4",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "e1bb9941c2bef760a7b4a7c826a5bc404c60cf099e2e1028dc1b33155309ecb0",
+      "beforeBackupManifestMatches": true,
+      "beforeBackedUp": true,
+      "A3WorktreeSha256": "e1bb9941c2bef760a7b4a7c826a5bc404c60cf099e2e1028dc1b33155309ecb0",
+      "A2WorktreeSha256": "01d5f19ddd585a232fdcd8e917ed432721edc2dc0f312d100e24dfd0248c34f5",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "API_TYPES",
+        "API"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/api typecheck",
+        "pnpm --filter @gafus/api exec vitest run src/routes/v1/app-subscription.route.test.ts src/routes/v1/payment-provider-webhooks.test.ts src/routes/v1/admin-users.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts"
+      ],
+      "semanticConstraint": "Preserve webhook authentication/IP checks, cancel/idempotency, admin role scope, provider errors"
+    },
+    {
+      "path": "apps/api/src/routes/v1/payment-provider-webhooks.test.ts",
+      "changeType": "M",
+      "category": "api-routes-and-contracts",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "d8985254073965e6beba32d8e4b91019d69aa82a6af3222f90cde7c9af3734bf",
+      "afterSha256CurrentA1": "d8985254073965e6beba32d8e4b91019d69aa82a6af3222f90cde7c9af3734bf",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "b139b493c972b26652e136ba0c1d829e63a93a1c9f34c47cac130825fbb48d1d",
+      "beforeBackupManifestMatches": true,
+      "beforeBackedUp": true,
+      "A3WorktreeSha256": "b139b493c972b26652e136ba0c1d829e63a93a1c9f34c47cac130825fbb48d1d",
+      "A2WorktreeSha256": "b139b493c972b26652e136ba0c1d829e63a93a1c9f34c47cac130825fbb48d1d",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "A1_ONLY_OR_ALREADY_MATCHED_BASE",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "API_TYPES",
+        "API"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/api typecheck",
+        "pnpm --filter @gafus/api exec vitest run src/routes/v1/app-subscription.route.test.ts src/routes/v1/payment-provider-webhooks.test.ts src/routes/v1/admin-users.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts"
+      ],
+      "semanticConstraint": "Preserve webhook authentication/IP checks, cancel/idempotency, admin role scope, provider errors"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-users.ts",
+      "changeType": "M",
+      "category": "api-routes-and-contracts",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "096d6820490e5d11e81f5f100b286e61205f27485adc6781cf3cf202d2d3c348",
+      "afterSha256CurrentA1": "096d6820490e5d11e81f5f100b286e61205f27485adc6781cf3cf202d2d3c348",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "d6e3718aea67f3e0e5e579d078ec05248fec57f562b6f7d1a63a18d43af7bfe1",
+      "beforeBackupManifestMatches": null,
+      "beforeBackedUp": false,
+      "A3WorktreeSha256": "6613025de0e3fc90f8cee286674e769292bf6f3cb670d5616957382c41050b03",
+      "A2WorktreeSha256": "a03644107a5dda55ef6b0f4cee736af18457b2c02d319ce35f9d52b62738e984",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "API_TYPES",
+        "API"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/api typecheck",
+        "pnpm --filter @gafus/api exec vitest run src/routes/v1/app-subscription.route.test.ts src/routes/v1/payment-provider-webhooks.test.ts src/routes/v1/admin-users.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts"
+      ],
+      "semanticConstraint": "Preserve webhook authentication/IP checks, cancel/idempotency, admin role scope, provider errors"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-users.test.ts",
+      "changeType": "M",
+      "category": "api-routes-and-contracts",
+      "sourceOfTruth": "A1/payment-manifest",
+      "afterSha256Manifest": "0db0794e379dd3972eba48586fdeaac933f6ab29a9ab1924907826f70d7feb68",
+      "afterSha256CurrentA1": "0db0794e379dd3972eba48586fdeaac933f6ab29a9ab1924907826f70d7feb68",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "c2ab3158c64aa1dc4d94760d726e05b6953c80acfee35baed28be72ff5d77295",
+      "beforeBackupManifestMatches": null,
+      "beforeBackedUp": false,
+      "A3WorktreeSha256": "68813e96a88dfd810f659a6caf30b8a453d9e3d80a5abd6379714c7650bd6e18",
+      "A2WorktreeSha256": "7d1258bcfd3945650474eb1aee15e759543af047d661bc7323d4fda28fbf8b2e",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "transferPlan": "A1 GROUP: transfer with related ports/tests after freeze",
+      "qaGateIds": [
+        "API_TYPES",
+        "API"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/api typecheck",
+        "pnpm --filter @gafus/api exec vitest run src/routes/v1/app-subscription.route.test.ts src/routes/v1/payment-provider-webhooks.test.ts src/routes/v1/admin-users.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts"
+      ],
+      "semanticConstraint": "Preserve webhook authentication/IP checks, cancel/idempotency, admin role scope, provider errors"
+    },
+    {
+      "path": "packages/worker/src/composition/app-subscription-payment.ts",
+      "changeType": "A",
+      "category": "worker-payment-cron",
+      "sourceOfTruth": "A1/payment-manifest with A3 Worker review",
+      "afterSha256Manifest": "0283325a2e079dbb7c30fda43d326ec712c2fd686ffd0ac7bb4f9cf42f0059ed",
+      "afterSha256CurrentA1": "0283325a2e079dbb7c30fda43d326ec712c2fd686ffd0ac7bb4f9cf42f0059ed",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": null,
+      "beforeBackupManifestMatches": null,
+      "beforeBackedUp": false,
+      "A3WorktreeSha256": "ABSENT",
+      "A2WorktreeSha256": "ABSENT",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "A1_ONLY_OR_ALREADY_MATCHED_BASE",
+      "transferPlan": "A1 GROUP: adopt after source freeze; never replace full A3 worker runtime",
+      "qaGateIds": [
+        "WORKER_TYPES",
+        "WORKER",
+        "A3"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/worker typecheck",
+        "pnpm --filter @gafus/worker exec vitest run src/cron-scheduler.test.ts src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts --config vitest.config.ts",
+        "bash scripts/qa/a3-jobs-media-isolated-acceptance.sh a3-int-payment-final"
+      ],
+      "semanticConstraint": "Keep A3 consultation cron/worker TS paths and reliable outbox scheduler, add only A1 payment composition"
+    },
+    {
+      "path": "packages/worker/src/cron-scheduler.ts",
+      "changeType": "M",
+      "category": "worker-payment-cron",
+      "sourceOfTruth": "A1/payment-manifest with A3 Worker review",
+      "afterSha256Manifest": "44e38f79fd9382cc9d7d3e7c95cf7e971ca8041d37c1aea456dedf5afca29acd",
+      "afterSha256CurrentA1": "44e38f79fd9382cc9d7d3e7c95cf7e971ca8041d37c1aea456dedf5afca29acd",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "3a121f97da08a8d024b5532487802dee99e54a17e662da7ca0325635a7f715ca",
+      "beforeBackupManifestMatches": true,
+      "beforeBackedUp": true,
+      "A3WorktreeSha256": "6a9a6c63d272ac466ed30c8bf37fa4a46bc9b79c0cc219af0ddb27f3ac97fa0d",
+      "A2WorktreeSha256": "2b4872cf52941a6d4272edf120baa6ae04cf3395a2f70ca258971773268c29ee",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "transferPlan": "A1 GROUP: adopt after source freeze; never replace full A3 worker runtime",
+      "qaGateIds": [
+        "WORKER_TYPES",
+        "WORKER",
+        "A3"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/worker typecheck",
+        "pnpm --filter @gafus/worker exec vitest run src/cron-scheduler.test.ts src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts --config vitest.config.ts",
+        "bash scripts/qa/a3-jobs-media-isolated-acceptance.sh a3-int-payment-final"
+      ],
+      "semanticConstraint": "Keep A3 consultation cron/worker TS paths and reliable outbox scheduler, add only A1 payment composition"
+    },
+    {
+      "path": "packages/worker/src/cron-scheduler.test.ts",
+      "changeType": "M",
+      "category": "worker-payment-cron",
+      "sourceOfTruth": "A1/payment-manifest with A3 Worker review",
+      "afterSha256Manifest": "ac3ef75d316c8448e2e5131acb889e7284dbfd31602b32de5086dd765f04d120",
+      "afterSha256CurrentA1": "ac3ef75d316c8448e2e5131acb889e7284dbfd31602b32de5086dd765f04d120",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "666ca3d5765abd4e46afaf6193c1efe901b03d976e86def34f2b12833646d790",
+      "beforeBackupManifestMatches": true,
+      "beforeBackedUp": true,
+      "A3WorktreeSha256": "35ed32e9b43582487aae9f8299aef106be306854fd18e3f2b770f50094afb048",
+      "A2WorktreeSha256": "c64ff6d0a21f637807e8bb072df737e591d4b724595b74fffb5b30bfbbec478d",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "transferPlan": "A1 GROUP: adopt after source freeze; never replace full A3 worker runtime",
+      "qaGateIds": [
+        "WORKER_TYPES",
+        "WORKER",
+        "A3"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/worker typecheck",
+        "pnpm --filter @gafus/worker exec vitest run src/cron-scheduler.test.ts src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts --config vitest.config.ts",
+        "bash scripts/qa/a3-jobs-media-isolated-acceptance.sh a3-int-payment-final"
+      ],
+      "semanticConstraint": "Keep A3 consultation cron/worker TS paths and reliable outbox scheduler, add only A1 payment composition"
+    },
+    {
+      "path": "packages/worker/src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts",
+      "changeType": "M",
+      "category": "worker-payment-cron",
+      "sourceOfTruth": "A1/payment-manifest with A3 Worker review",
+      "afterSha256Manifest": "9659a9ee16f87094d3369c8f82898a1014ef32bf75d920d9b14ddecc9d715114",
+      "afterSha256CurrentA1": "9659a9ee16f87094d3369c8f82898a1014ef32bf75d920d9b14ddecc9d715114",
+      "afterShaVerified": true,
+      "beforeSha256Manifest": "8a5cdaac966831d8e66cbe8aae6232377b71bb1fd2d6d6cb35bc58fe6a17d051",
+      "beforeBackupManifestMatches": true,
+      "beforeBackedUp": true,
+      "A3WorktreeSha256": "423361db2733fe55945c51ddb9ed678db241d0dd472d13dd4419838fee047048",
+      "A2WorktreeSha256": "7648c621da00a169c1cd5f15923cfe6d7395df1371e0a64d7bcfc8b4dda3614b",
+      "sameAsA3Worktree": false,
+      "sameAsA2Worktree": false,
+      "directA2P0Overlap": false,
+      "directA2AnyCommittedOverlap": false,
+      "directA3FinalSetOverlap": false,
+      "a3FinalScope": null,
+      "existingTriageClassification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "transferPlan": "A1 GROUP: adopt after source freeze; never replace full A3 worker runtime",
+      "qaGateIds": [
+        "WORKER_TYPES",
+        "WORKER",
+        "A3"
+      ],
+      "minimumCommands": [
+        "pnpm --filter @gafus/worker typecheck",
+        "pnpm --filter @gafus/worker exec vitest run src/cron-scheduler.test.ts src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts --config vitest.config.ts",
+        "bash scripts/qa/a3-jobs-media-isolated-acceptance.sh a3-int-payment-final"
+      ],
+      "semanticConstraint": "Keep A3 consultation cron/worker TS paths and reliable outbox scheduler, add only A1 payment composition"
+    }
+  ],
+  "semanticCrossings": [
+    {
+      "priority": "P0",
+      "relatedPath": "packages/prisma/schema.prisma",
+      "relatedOwner": "A2 telemetry + A1 Prisma domain schema",
+      "intersection": "INDIRECT: payment transitions query existing AppSubscription and payment models; manifest does not edit schema",
+      "decision": "Keep A1 complete models and add A2 previewFeatures=[\"metrics\"] in generator only; no schema reset/migration solely for telemetry flag",
+      "minimumGateIds": [
+        "SCHEMA",
+        "CORE_ARCH",
+        "API_TYPES",
+        "WORKER_TYPES",
+        "A2"
+      ],
+      "gateNote": "Confirm generated Prisma client exposes metrics; check payment models and no destructive migration"
+    },
+    {
+      "priority": "P0",
+      "relatedPath": "pnpm-lock.yaml",
+      "relatedOwner": "recalculate from final combined manifests/patches",
+      "intersection": "INDIRECT: A1 payment composition relies on subscription-payment-server workspace export; main lock has many packages/patches missing in A2 older lock",
+      "decision": "Never copy A2 lockfile over A1. After owner package.json consensus regenerate lockfile once, verify Expo/RN patch references, then frozen install",
+      "minimumGateIds": [
+        "LOCK",
+        "CORE_ARCH",
+        "API_TYPES",
+        "WORKER_TYPES"
+      ],
+      "gateNote": "A1 payment manifest contains no package.json or lockfile edit; they are separate integration inputs"
+    },
+    {
+      "priority": "P0",
+      "relatedPath": "apps/api/src/lib/operation-observability.ts",
+      "relatedOwner": "A2 API observability",
+      "intersection": "INDIRECT: payment checkout/webhooks/admin route need original middleware requestId/operationId and fail-open OTLP",
+      "decision": "Keep A1 payment routes; A2 trace adapter/metrics composed at app boundary, never log tokens/payment credentials",
+      "minimumGateIds": [
+        "API",
+        "API_TYPES",
+        "A2"
+      ],
+      "gateNote": "Check identical request correlation for checkout and webhook with privacy redaction"
+    },
+    {
+      "priority": "P0",
+      "relatedPath": "packages/logger/src/serverTelemetry.ts",
+      "relatedOwner": "A2 logger telemetry",
+      "intersection": "INDIRECT: do not emit card, receipt, YooKassa keys or Apple JWS in spans",
+      "decision": "Combine A1 domain errors and A2 safe JSON trace spans without raw payment payloads",
+      "minimumGateIds": [
+        "API",
+        "WORKER",
+        "A2"
+      ],
+      "gateNote": "Unit and privacy contract for payment webhook, worker retry and callback"
+    },
+    {
+      "priority": "P0",
+      "relatedPath": "ci-cd/docker/prometheus/config.alloy",
+      "relatedOwner": "A2 monitoring config",
+      "intersection": "INDIRECT: new payment route/cron labels must be bounded, no PII/payment IDs",
+      "decision": "Keep A2 label allowlist and authenticated scrape; no direct payment-specific scrape claimed",
+      "minimumGateIds": [
+        "A2"
+      ],
+      "gateNote": "Monitoring contract and low-cardinality labels"
+    },
+    {
+      "priority": "P0",
+      "relatedPath": "ci-cd/docker/prometheus/gafus-alerts.yml",
+      "relatedOwner": "A2 alert rules",
+      "intersection": "INDIRECT: worker cron changes must not break shared Worker health/outbox signals",
+      "decision": "Preserve A2 alert rules; verify no missing Worker metrics; test recipient actual alert remains staging PENDING",
+      "minimumGateIds": [
+        "WORKER",
+        "A2"
+      ],
+      "gateNote": "Local rules/alert harness, actual staging firing/resolved still PENDING"
+    },
+    {
+      "priority": "P1",
+      "relatedPath": "packages/worker/tsconfig.json",
+      "relatedOwner": "A3 final shared A1 source",
+      "intersection": "INDIRECT: A1 payment cron uses server composition and A3 consultation cron needs booking-application TS path",
+      "decision": "Keep current shared A1 tsconfig; A3 final SHA matches it; do not copy older A3 worktree file",
+      "minimumGateIds": [
+        "WORKER_TYPES",
+        "WORKER",
+        "A3"
+      ],
+      "gateNote": "Cron payment + consultation jobs and worker tsconfig paths"
+    },
+    {
+      "priority": "P1",
+      "relatedPath": "apps/api/src/routes/v1/admin-media.ts",
+      "relatedOwner": "A3 DLQ shared A1 source",
+      "intersection": "INDIRECT: adjacent admin routes and role guards, not the same file as A1 admin-users.ts",
+      "decision": "Keep A3 DLQ GET/POST and A1 payment admin-users cancellation; verify both role scopes",
+      "minimumGateIds": [
+        "API",
+        "A3"
+      ],
+      "gateNote": "Admin payment cancellation and DLQ 409/403 mounted smoke"
+    }
+  ],
+  "qaCommands": {
+    "CORE": "pnpm --filter @gafus/core exec vitest run src/services/appSubscription/__tests__/paymentService.test.ts --config vitest.config.ts",
+    "CORE_ARCH": "pnpm check:core-boundaries && node scripts/check-core-server-facades.mjs && pnpm --filter @gafus/core typecheck",
+    "SERVER": "pnpm --filter @gafus/subscription-payment-server test && pnpm --filter @gafus/subscription-payment-server typecheck",
+    "API": "pnpm --filter @gafus/api exec vitest run src/routes/v1/app-subscription.route.test.ts src/routes/v1/payment-provider-webhooks.test.ts src/routes/v1/admin-users.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts",
+    "API_TYPES": "pnpm --filter @gafus/api typecheck",
+    "WORKER": "pnpm --filter @gafus/worker exec vitest run src/cron-scheduler.test.ts src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts --config vitest.config.ts",
+    "WORKER_TYPES": "pnpm --filter @gafus/worker typecheck",
+    "SCHEMA": "pnpm --filter @gafus/prisma prisma:generate && pnpm --filter @gafus/prisma typecheck",
+    "LOCK": "pnpm install --frozen-lockfile && node scripts/check-workspace-graph.mjs",
+    "A2": "A2_OBS_WITH_DB_RESTORE=1 bash scripts/qa/observability-agent2-local-gates.sh",
+    "A3": "bash scripts/qa/a3-jobs-media-isolated-acceptance.sh a3-int-payment-final"
+  },
+  "localVerifiedTestsByA1": {
+    "paymentCore": 50,
+    "paymentApiAndArchitecture": 134,
+    "workerCron": 13,
+    "serverJWS": 5
+  },
+  "externalStillPending": [
+    "realPGPaymentConcurrencyRollback",
+    "YooKassaTestShop",
+    "AppleSandbox",
+    "full33RegressionAfterPayment",
+    "full5ChaosAfterPayment",
+    "cloud360pCDNBackendAlertLoadAB"
+  ],
+  "noGitHistoryMutation": true
+}

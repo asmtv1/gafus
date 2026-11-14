@@ -1,3 +1,9 @@
+
+vi.mock("../../modules/user/composition/account-deletion.js", () => ({
+  readAccountDeletionPreflight: vi.fn(),
+  requestAccountDeletionCode: vi.fn(),
+  deleteUserAccount: vi.fn(),
+}));
 /** AG1-USER-020: anonymous public profile must expose only public DTO fields. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";

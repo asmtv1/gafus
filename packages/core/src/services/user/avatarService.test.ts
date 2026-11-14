@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   logInfo: vi.fn(),
   logError: vi.fn(),
   events: [] as string[],
+  priorKey: vi.fn(),
 }));
 
 vi.mock("@gafus/prisma", () => ({
@@ -18,8 +19,8 @@ vi.mock("@gafus/prisma", () => ({
 vi.mock("@gafus/cdn-upload", () => ({
   uploadFileToCDN: mocks.upload,
   deleteFileFromCDN: mocks.remove,
-  getRelativePathFromCDNUrl: () => "old/avatar.png",
-  getUserAvatarPath: () => "new/avatar.png",
+  getRelativePathFromCDNUrl: (...args: unknown[]) => mocks.priorKey(...args),
+  getUserAvatarPath: () => "users/u1/avatar/new.png",
 }));
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ info: mocks.logInfo, error: mocks.logError }),
@@ -29,12 +30,19 @@ vi.mock("../cynologistChat/authorRole", () => ({
 }));
 
 import { updateAvatar } from "./profileService";
+// Bind unchanged identity-write SQL projections against the existing synthetic
+// Prisma test rows; production composition runs before Hono routes.
+import { registerProfileRowsPort } from "./profileRowsPort";
+import * as profileSql from "@gafus/identity-write-server/profile-rows";
+registerProfileRowsPort(profileSql);
+
 
 describe("avatar updates never perform CDN I/O under database locks", () => {
   const image = { name: "portrait.png" } as File;
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.events.length = 0;
+    mocks.priorKey.mockReturnValue("users/u1/avatar/old.png");
     mocks.upload.mockImplementation(async () => {
       mocks.events.push("upload");
       return "https://cdn.example/new/avatar.png";
@@ -71,7 +79,7 @@ describe("avatar updates never perform CDN I/O under database locks", () => {
     mocks.upsert.mockRejectedValueOnce(new Error("SYNTHETIC_DB_WRITE_FAILURE"));
     mocks.remove.mockRejectedValueOnce(new Error(canary));
     await expect(updateAvatar("u1", image)).rejects.toThrow("SYNTHETIC_DB_WRITE_FAILURE");
-    expect(mocks.remove).toHaveBeenCalledWith("new/avatar.png");
+    expect(mocks.remove).toHaveBeenCalledWith("users/u1/avatar/new.png");
     const logged = mocks.logError.mock.calls.flat().map((arg: unknown) =>
       arg instanceof Error ? [arg.message, arg.stack].join(" ") : JSON.stringify(arg)
     ).join(" ");
@@ -94,13 +102,38 @@ describe("avatar updates never perform CDN I/O under database locks", () => {
     const url = await updateAvatar("u1", image);
     expect(url).toBe("https://cdn.example/new/avatar.png");
     expect(mocks.events).toEqual(["upload", "lock", "commit", "remove"]);
-    expect(mocks.remove).toHaveBeenCalledWith("old/avatar.png");
+    expect(mocks.remove).toHaveBeenCalledWith("users/u1/avatar/old.png");
+  });
+
+  it("does not delete a forged old-avatar key belonging to another owner", async () => {
+    mocks.priorKey.mockReturnValue("users/foreign/avatar/private.png");
+    await expect(updateAvatar("u1", image)).resolves.toContain("new/avatar.png");
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
+  it("does not delete an untrusted external URL, traversal, or another media category", async () => {
+    for (const key of [
+      "https://example.invalid/a.jpg", "users/u1/pets/other.png",
+      "users/u1/avatar/../pets/other.png", "users/u1/avatar/photo?token=x",
+    ]) {
+      mocks.priorKey.mockReturnValue(key);
+      await updateAvatar("u1", image);
+    }
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
+  it("deletes only the isolated local S3 avatar location after a successful commit", async () => {
+    const ownKey = "isodev-avatar:documents/uploads/users/u1/avatar/old.png";
+    mocks.priorKey.mockReturnValue(ownKey);
+    await updateAvatar("u1", image);
+    expect(mocks.remove).toHaveBeenCalledOnce();
+    expect(mocks.remove).toHaveBeenCalledWith(ownKey);
   });
 
   it("cleans up a newly uploaded image when database write fails", async () => {
     mocks.upsert.mockRejectedValue(new Error("DATABASE_FAILURE"));
     await expect(updateAvatar("u1", image)).rejects.toThrow("DATABASE_FAILURE");
-    expect(mocks.remove).toHaveBeenCalledWith("new/avatar.png");
+    expect(mocks.remove).toHaveBeenCalledWith("users/u1/avatar/new.png");
   });
 
   it("does not fail committed update if obsolete CDN object cannot be removed", async () => {
@@ -111,6 +144,6 @@ describe("avatar updates never perform CDN I/O under database locks", () => {
   it("rejects missing user and compensates the uploaded object", async () => {
     mocks.lock.mockResolvedValue([]);
     await expect(updateAvatar("missing", image)).rejects.toThrow("Пользователь не найден");
-    expect(mocks.remove).toHaveBeenCalledWith("new/avatar.png");
+    expect(mocks.remove).toHaveBeenCalledWith("users/u1/avatar/new.png");
   });
 });

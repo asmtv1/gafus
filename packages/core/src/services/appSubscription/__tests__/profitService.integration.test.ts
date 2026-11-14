@@ -4,8 +4,8 @@ import {
   cancelProfitVideoExpense,
   getProfitDashboard,
   saveProfitVideoExpense,
-} from "../profitService";
-import { recordFinanceRefund } from "../paymentFinanceService";
+} from "@gafus/subscription-finance-server/profit-application";
+import { recordFinanceRefund } from "@gafus/subscription-payment-server/payment-finance";
 
 // Explicit opt-in and a dedicated database prevent writes to developer/production data.
 const enabled =

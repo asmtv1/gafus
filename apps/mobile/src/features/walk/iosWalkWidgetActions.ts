@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
+import Constants from "expo-constants";
 import { Pedometer } from "expo-sensors";
 import * as Notifications from "expo-notifications";
 import { requireNativeModule, type NativeModule } from "expo";
@@ -38,7 +39,7 @@ function bridge(): WalkWidgetNativeBridge {
   return requireNativeModule<WalkWidgetNativeBridge>("ExpoWidgets");
 }
 export function setVerifiedIosWalkWidgetOwner(ownerId: string | null): void {
-  if (Platform.OS === "ios") bridge().setVerifiedDogWalkWidgetOwner(ownerId);
+  if (Platform.OS === "ios" && Constants.appOwnership !== "expo") bridge().setVerifiedDogWalkWidgetOwner(ownerId);
 }
 
 async function finishIosStepSegment(walk: DogWalk, now: number): Promise<DogWalk> {
@@ -130,6 +131,7 @@ async function apply(ownerId: string, action: WidgetWalkAction): Promise<void> {
 
 /** Persistent App Group queue is drained when app-side JS is available, not by widget-extension JS. */
 export function processPendingIosWalkCommands(): Promise<void> {
+  if (Constants.appOwnership === "expo") return Promise.resolve();
   if (Platform.OS !== "ios") return Promise.resolve();
   const next = serial
     .catch(() => undefined)

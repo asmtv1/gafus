@@ -1,2 +1,2 @@
-/** Compatibility re-export; authoritative implementation: @gafus/consent-server. */
-export * from "@gafus/consent-server/types";
+/** Core-facing type contract: no runtime server/persistence dependencies. */
+export type { ConsentPayload, CreateConsentLogsParams } from "@gafus/types";

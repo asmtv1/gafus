@@ -109,3 +109,82 @@ tests:
               severity: critical
             exp_annotations:
               summary: 'No successfully verified backup timestamp has been exported'
+
+  - name: chat2_outbox_pending_age_alarms_only_after_full_for
+    interval: 1m
+    input_series:
+      - series: 'gafus_chat2_outbox_oldest_age_seconds{instance="synthetic"}'
+        values: '0+0x3 360+0x16'
+      - series: 'gafus_chat2_outbox_pending{instance="synthetic"}'
+        values: '1+0x19'
+      - series: 'gafus_chat2_outbox_dead_letters{instance="synthetic"}'
+        values: '0+0x19'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: GafusChat2OutboxOldestPending
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: GafusChat2OutboxOldestPending
+        exp_alerts:
+          - exp_labels:
+              instance: synthetic
+              severity: warning
+            exp_annotations:
+              summary: 'Oldest Chat2 outbox event is older than five minutes'
+
+  - name: chat2_dead_letters_held_for_two_minutes
+    interval: 1m
+    input_series:
+      - series: 'gafus_chat2_outbox_pending{instance="synthetic"}'
+        values: '0+0x15'
+      - series: 'gafus_chat2_outbox_dead_letters{instance="synthetic"}'
+        values: '0+0x2 2+0x12'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: GafusChat2OutboxDeadLetters
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: GafusChat2OutboxDeadLetters
+        exp_alerts:
+          - exp_labels:
+              instance: synthetic
+              severity: warning
+            exp_annotations:
+              summary: 'Chat2 outbox dead letters need an admin review'
+
+  - name: outbox_missing_metric_is_alarm_after_ten_minutes
+    interval: 1m
+    input_series:
+      - series: 'gafus_chat2_outbox_dead_letters{instance="synthetic"}'
+        values: '0+0x15'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: GafusChat2OutboxMetricsMissing
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: GafusChat2OutboxMetricsMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: 'Chat2 outbox metrics are not exported by the worker'
+
+  - name: questions_legacy_failed_cleanup_held_for_five_minutes
+    interval: 1m
+    input_series:
+      - series: 'gafus_questions_legacy_delete_enabled{instance="synthetic"}'
+        values: '1+0x14'
+      - series: 'gafus_questions_legacy_delete_failed{instance="synthetic"}'
+        values: '0+0x2 2+0x12'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: GafusQuestionsLegacyDeletionDeadLetters
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: GafusQuestionsLegacyDeletionDeadLetters
+        exp_alerts:
+          - exp_labels:
+              instance: synthetic
+              severity: warning
+            exp_annotations:
+              summary: 'Questions legacy photo cleanup has terminal deletion failures'

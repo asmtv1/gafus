@@ -1,0 +1,247 @@
+{
+  "schemaVersion": 1,
+  "runPrefix": "a2-obs-",
+  "observedAt": "2026-11-11T22:51:49.399739+00:00",
+  "scope": "localhost-only 2 real Hono APIs / 2 real Chat2 Workers with ephemeral PostgreSQL/Redis/Centrifugo, synthetic outbox and callback",
+  "topology": {
+    "api": 2,
+    "chat2Workers": 2,
+    "postgres": 1,
+    "redis": 1,
+    "centrifugo": 1
+  },
+  "loadProfile": {
+    "targets": 2,
+    "warmupSecondsPerWindow": 2,
+    "durationSecondsPerWindow": 12,
+    "requestsPerSecondBase": 30,
+    "concurrency": 28,
+    "burstMultiplier": 3,
+    "windowsPerStage": 3,
+    "preAndPostRestoreSameCode": true,
+    "notReleaseCandidateComparison": true
+  },
+  "baseline": {
+    "requestsPerSecond": 44.83,
+    "errorRate": 0,
+    "p50Ms": 2.65,
+    "p95Ms": 9.52,
+    "p99Ms": 25.95,
+    "capacityDropRate": 0
+  },
+  "afterRestore": {
+    "requestsPerSecond": 44.17,
+    "errorRate": 0,
+    "p50Ms": 1.84,
+    "p95Ms": 11.09,
+    "p99Ms": 50.49,
+    "capacityDropRate": 0
+  },
+  "medianP95ChangePercent": 16.49,
+  "medianComparatorPassed": true,
+  "medianComparatorThresholdPercent": 20,
+  "allLoadWindows": {
+    "method": "predeclared-median-p95-of-three",
+    "baselineP95Ms": [
+      9.52,
+      17.35,
+      5.34
+    ],
+    "candidateP95Ms": [
+      5.88,
+      11.09,
+      15.73
+    ],
+    "baselineP99Ms": [
+      25.95,
+      33.73,
+      9.28
+    ],
+    "candidateP99Ms": [
+      7.75,
+      50.49,
+      26.79
+    ],
+    "baselineRunIds": [
+      "a2-obs-1794437399676",
+      "a2-obs-1794437413777",
+      "a2-obs-1794437427896"
+    ],
+    "candidateRunIds": [
+      "a2-obs-1794437460813",
+      "a2-obs-1794437474913",
+      "a2-obs-1794437489055"
+    ]
+  },
+  "databaseDownBothAPIsNotReady": true,
+  "databaseRecoveryAllFourReady": true,
+  "redisDownBothAPIsNotReady": true,
+  "redisRecoveryAllFourReady": true,
+  "syntheticOutboxDeliveredViaRealWorkerBroker": true,
+  "trace": {
+    "localSearchSpanCount": 6,
+    "stages": [
+      "chat2.outbox.ack",
+      "chat2.outbox.dispatch",
+      "chat2.outbox.publish",
+      "chat2.synthetic.callback.reconcile",
+      "chat2.synthetic.outbox.enqueue"
+    ],
+    "operationIdAcrossDifferentTraces": true,
+    "realCloudJobAndDeployedSearch": "PENDING"
+  },
+  "restore": {
+    "localFullServiceRtoMs": 2603,
+    "observedAcknowledgedRpoIntervalMs": 466,
+    "intentionalAcknowledgedWriteLossCount": 1,
+    "restoredPendingAndDLQ": true,
+    "restoredPendingDrainMs": 1829,
+    "staging": "PENDING"
+  },
+  "alertDelivery": {
+    "scope": "isolated Prometheus Alertmanager webhook",
+    "records": [
+      {
+        "name": "GafusChat2OutboxDeadLetters",
+        "status": "firing"
+      },
+      {
+        "name": "GafusMediaLeaseStalled",
+        "status": "firing"
+      },
+      {
+        "name": "GafusChat2OutboxDeadLetters",
+        "status": "resolved"
+      },
+      {
+        "name": "GafusMediaLeaseStalled",
+        "status": "resolved"
+      }
+    ],
+    "deployedRecipient": "PENDING",
+    "extendedPromtoolFixtures": "PENDING_NETWORK"
+  },
+  "localGates": [
+    {
+      "gate": "logger_build",
+      "status": "PASS"
+    },
+    {
+      "gate": "prisma_generate",
+      "status": "PASS"
+    },
+    {
+      "gate": "prisma_typecheck",
+      "status": "PASS"
+    },
+    {
+      "gate": "opentelemetry",
+      "status": "PASS"
+    },
+    {
+      "gate": "local_multi_instance",
+      "status": "PASS"
+    },
+    {
+      "gate": "multi_window_comparator",
+      "status": "PASS"
+    },
+    {
+      "gate": "monitoring_contract",
+      "status": "PASS"
+    },
+    {
+      "gate": "bounded_logging_overlay",
+      "status": "PASS"
+    },
+    {
+      "gate": "staging_release_preflight_contract",
+      "status": "PASS"
+    },
+    {
+      "gate": "api_operation_contract",
+      "status": "PASS"
+    },
+    {
+      "gate": "otel_micro_overhead",
+      "status": "PASS"
+    },
+    {
+      "gate": "isolated_database_restore",
+      "status": "PASS"
+    }
+  ],
+  "sourceSHA256": {
+    "packages/logger/src/serverTelemetry.ts": "645b7d59b6d7edf93fd40a188c47cffc6f18dbd6381d8dd7604ce9f035890142",
+    "apps/api/src/lib/operation-observability.ts": "2e49911720b7ed53d6c79847d79842ee6cbf66355d0d60ec27cea89b9e4276d2",
+    "packages/prisma/schema.prisma": "409d03078b161b9bdd8f5b073dbc24d76de4d8eb294706e6834477db86faa9df",
+    "scripts/qa/observability-real-multi-instance-isolated.sh": "986237161919a3a0131d7da96ec5aaae38101b5e98e6d310f8848fba5df18522",
+    "ci-cd/docker/docker-compose.observability-logs.yml": "f9ec330c87caf29603e3cf9e015fb059464780a0e8bafb898f8f4d2f2783096c",
+    "scripts/qa/observability-staging-preflight.mjs": "1fff75ff554b1eb5abe6e8435e1e07f8a44293605b9267ff15081953b6c3abb0",
+    "scripts/qa/observability-otel-overhead.mjs": "24174bad2eb8748aa171960c6b048e874dc5c2937e56fb9d63316bf453192788"
+  },
+  "externalGate16": "PENDING_REAL_CLOUD_JOB_DEPLOYED_OTLP_STORAGE_AND_HISTORY",
+  "externalGate17": "PENDING_ISOLATED_STAGING_RECEIVER_AND_ALERT_ROUTE",
+  "combined33Regression": "PENDING_WEB_VK_CONSENT_FAIL_ON_SHARED_SNAPSHOT",
+  "productionTouched": false,
+  "localGatesObservedAt": "2026-11-11T23:02:56.574411+00:00",
+  "workerRestart": {
+    "deliveredCounterBeforeRestart": 1,
+    "metricsSourceDisappeared": true,
+    "counterAfterRestart": 0,
+    "deliveredCounterAfterNewAcknowledgedOutboxEvent": 1,
+    "otherWorkerRestored": true,
+    "scraperAlertFiringResolved": "PENDING_PROMETHEUS_RUNTIME"
+  },
+  "otelLocalMicrobenchmark": {
+    "medianP95OffMs": 0.005,
+    "medianP95OnMs": 0.042,
+    "relativeP95ChangePercent": 740,
+    "otlpAcceptedSpans": 6480,
+    "otlpAcceptedRequests": 27,
+    "scope": "microbenchmark synthetic async spans only; not HTTP, SQL or production"
+  },
+  "performanceRepeatability": {
+    "status": "PENDING_INDEPENDENT_CONTROLLED_STAGING_AB_RELEASE_COMPARISON",
+    "localSameVersionReadinessRunsPercentDelta": [
+      -7.99,
+      47.37,
+      16.49
+    ],
+    "observedRegressionThresholdPercent": 20,
+    "prior47PercentRun": "FAIL; job fb9a0461e7a0d1d971fcb6be83643b877a022f03eac27fb6; raw windows overwritten before archive was added",
+    "subsequentRawWindowArchival": "New runs copy preceding raw windows and receipts into artifacts/a2-obs-history before overwriting latest paths",
+    "comparisonWasBetweenDifferentCodeVersions": false
+  },
+  "boundedLoggingOverlay": {
+    "serviceCount": 18,
+    "maxUncompressedMiB": 440,
+    "schemaAndComposeMergeFixture": "PASS",
+    "liveDockerRotation": "PENDING",
+    "configuredInProduction": "NO"
+  },
+  "stagingPreflight": {
+    "template": "docs/audit/gafus-agent-2-staging-evidence-template.json",
+    "status": "PENDING",
+    "claimsNotIndependentlyVerified": true,
+    "noStagingOrProductionMutation": true,
+    "unitTests": 5
+  },
+  "architectureGuardChecks": {
+    "coreBoundariesNegativeAndPositiveCases": "14/14 PASS",
+    "workspaceGraph": "46 projects / zero cycles / PASS",
+    "releaseGraphAndWorkspaceContracts": "6/6 PASS",
+    "jobId": "db0c7129c881a354d9e6fe6ee1dcb76644f9346d30a8650b",
+    "recordedAt": "2026-11-11T23:05:58.590118+00:00"
+  },
+  "sharedWebBlocker": {
+    "targetedVkConsentWeb": "1/1 PASS",
+    "targetedJobId": "d0d8831208fd82cb84f98154e0ea48e68aeeb68a4d4b8485",
+    "fullChunkFailures": [
+      "PrincipalIsolation.test.tsx: textarea not yet mounted",
+      "VkConsentWeb.test.tsx: Suspense fallback was still visible"
+    ],
+    "reactActWarnings": true,
+    "all33RegressionGatesGreen": false
+  }
+}

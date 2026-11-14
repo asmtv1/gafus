@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { recordVideoPlaybackQuality } from "@gafus/core/services/videoPlaybackQuality";
+import { recordVideoPlaybackQuality } from "@gafus/statistics";
 import type { VideoPlaybackQualityEvent } from "@gafus/types";
 
 export const videoPlaybackQualityRoutes = new Hono();

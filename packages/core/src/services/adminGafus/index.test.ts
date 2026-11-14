@@ -34,6 +34,12 @@ vi.mock("@gafus/prisma", () => {
   };
   return { prisma: { $transaction: async (fn: (value: typeof tx) => unknown) => fn(tx) } };
 });
+vi.mock("./adminRowsPort", () => ({
+  withGafusAdminRows: async (action: (rows: unknown) => Promise<unknown>, options?: object) => {
+    const server = await import("@gafus/gafus-server/admin-rows");
+    return server.withGafusAdminRows(action as never, options as never);
+  },
+}));
 vi.mock("../gafus/locking", () => ({ lockGafusUser: vi.fn(async () => {}) }));
 vi.mock("../gafus/walletService", () => ({
   changeGafusBalanceTx: vi.fn(async (_tx: unknown, input: {

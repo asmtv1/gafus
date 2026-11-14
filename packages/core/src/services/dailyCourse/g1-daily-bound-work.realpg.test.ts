@@ -5,7 +5,7 @@ import { prisma } from "@gafus/prisma";
 import {
   getDailyCourseDayWithUserSteps,
   updateDailyCourseStepAndDay,
-} from "./dailyCourseService.ts";
+} from "../../../../../apps/api/src/modules/daily-course/composition/dailyCourseApplication";
 
 const run = process.env.AG1_DAILY_BOUND_WORK_PG === "1" ? describe : describe.skip;
 const prefix = "ag1_dc_binding_20261025_" + randomBytes(5).toString("hex");

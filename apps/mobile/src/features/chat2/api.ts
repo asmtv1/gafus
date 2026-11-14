@@ -1,7 +1,7 @@
 import { postChat2FileToS3 } from "./s3Upload";
 import { postClientWebp, type SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
-import { prepareUploadWebpVariants, type PreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
-import { prepareVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWebp";
+import { prepareUploadWebpVariants, sanitizePreparedWebpVariant, type PreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
+import { prepareVideoPosterWebp, sanitizeVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWebp";
 import type { Chat2MediaRenditions } from "@gafus/chat-media-quality";
 import type { Chat2ConnectionGrant } from "@gafus/core-client/chat2/realtime-subscription";
 import { API_BASE_URL } from "@/shared/config";
@@ -185,11 +185,18 @@ async function uploadChat2V2(
   try {
     if(!reservation.posterUpload || reservation.posterUpload.method!=="POST")
       throw Error("Сервер не подписал обложку видео");
-    await Promise.all([
+    // A cached Chat2 video poster may have been encoded by the old Android
+    // WebP pipeline. Verify and strip ICCP before sending it to strict S3.
+    cover.bytes = await sanitizeVideoPosterWebp(cover.uri);
+    // Wait for *both* transfers even when one fails. Otherwise the finally
+    // block could delete the poster while its native XHR is still active.
+    const outcomes = await Promise.allSettled([
       postChat2FileToS3(dest.toString(),reservation.upload.fields,asset,guard),
       postClientWebp(reservation.posterUpload,cover,
         ["s3.cloud.ru","gafus-chat2-media-2026.s3.cloud.ru"]),
     ]);
+    const failed = outcomes.find(outcome => outcome.status === "rejected");
+    if (failed && failed.status === "rejected") throw failed.reason;
   } finally { if (!asset.preparedPoster) cover.dispose(); }
   if(!guard())throw Error("Сессия изменилась");
   await request(`${base}/${reservation.mediaId}/confirm`, "POST", {});
@@ -213,6 +220,12 @@ async function uploadChat2ClientPhoto(id: string, asset: {
     await prepareUploadWebpVariants(asset, { small: 360, medium: 1440 });
   try {
     if (!guard()) throw new Error("Сессия изменилась");
+    // The composer can keep an old Android WebP in memory until the user
+    // presses Send. Sanitize both cached variants *before* the reservation:
+    // declared bytes must equal the actual S3 payload after ICC removal.
+    await sanitizePreparedWebpVariant(variants.small);
+    await sanitizePreparedWebpVariant(variants.medium);
+    if (!guard()) throw new Error("Сессия изменилась");
     const reserved = await request<{
       mediaId: string;
       upload: SignedClientPhotoPost;
@@ -224,10 +237,14 @@ async function uploadChat2ClientPhoto(id: string, asset: {
         !/^[a-f0-9-]{36}$/i.test(reserved.mediaId))
       throw new Error("Не удалось подготовить загрузку готовых фото");
     const allowedHosts = ["s3.cloud.ru", "gafus-chat2-media-2026.s3.cloud.ru"];
-    await Promise.all([
+    // Do not dispose newly generated WebPs after the first failure while
+    // the other signed S3 POST is still reading its local file.
+    const outcomes = await Promise.allSettled([
       postClientWebp(reserved.smallUpload, variants.small, allowedHosts),
       postClientWebp(reserved.upload, variants.medium, allowedHosts),
     ]);
+    const failed = outcomes.find(outcome => outcome.status === "rejected");
+    if (failed && failed.status === "rejected") throw failed.reason;
     if (!guard()) throw new Error("Сессия изменилась");
     const confirmation = await request<{ mediaId: string; status: string }>(
       `${base}/${reserved.mediaId}/client-confirm`, "POST", {});

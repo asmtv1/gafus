@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AppState } from "react-native";
 import * as Crypto from "expo-crypto";
-import { useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "expo-router/react-navigation";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import {
   privateGalleryReads,
@@ -80,7 +80,14 @@ export function useAlbums(owner: string) {
     }, expiryDelay);
     return () => clearTimeout(timer);
   }, [foreground, viewer, expiryDelay, actor, refetch]);
-  return query;
+  // A request may resolve after logout/role switch, before React processes the
+  // auth-store subscription update. Do not expose even an already-cached page
+  // while the original verified actor/epoch is no longer the current one.
+  // Query keys and transport guards alone do not protect that render gap.
+  return {
+    ...query,
+    data: actor && sameGalleryActor(actor) ? query.data : undefined,
+  };
 }
 export function galleryError(error: unknown): string {
   const code = (error as { code?: string } | null)?.code;

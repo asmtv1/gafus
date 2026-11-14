@@ -1,3 +1,5 @@
+/** SOURCE REVIEW ONLY. Never import this composition in apps/api/src/app.ts. */
+import "../../modules/reminders/composition/install-ag4-review-rows.review.js";
 import { Hono } from "hono";
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
@@ -6,7 +8,7 @@ import {
   createReminder,
   updateReminder,
   deleteReminder,
-} from "@gafus/core/services/reminders";
+} from "@gafus/notifications-server/training-reminder-application";
 import {
   createReminderAG4,
   ReminderConflictError,

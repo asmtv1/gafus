@@ -3,28 +3,6 @@ import path from "path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  // The adjacent stale trainingService.js must not shadow the current TS source
-  // when the training barrel is imported in API Vitest. Scope this redirect
-  // strictly to that one module, not other application/test imports.
-  plugins: [
-    {
-      name: "gafus-core-training-ts-test-resolution",
-      enforce: "pre",
-      resolveId(source, importer) {
-        if (
-          source === "./trainingService" &&
-          importer?.split("?")[0] ===
-            path.resolve(__dirname, "../../packages/core/src/services/training/index.ts")
-        ) {
-          return path.resolve(
-            __dirname,
-            "../../packages/core/src/services/training/trainingService.ts",
-          );
-        }
-        return null;
-      },
-    },
-  ],
   test: {
     environment: "node",
     globals: true,
@@ -51,6 +29,17 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // More-specific subpath MUST precede the broad appSubscription index
+      // redirect: otherwise Vite tries index.ts/renewalPolicy (ENOTDIR).
+      "@gafus/core/services/appSubscription/renewalPolicy": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/appSubscription/renewalPolicy.ts",
+      ),
+      // Resolve the pure anonymous course policy before the broad source-index alias.
+      "@gafus/core/services/course/publicOutlinePolicy": path.resolve(
+        __dirname,
+        "../../packages/core/src/services/course/publicOutlinePolicy.ts",
+      ),
       "@gafus/core/services/course": path.resolve(
         __dirname,
         "../../packages/core/src/services/course/index.ts",
@@ -58,6 +47,9 @@ export default defineConfig({
       "@gafus/core/services/pets": path.resolve(
         __dirname,
         "../../packages/core/src/services/pets/index.ts",
+      ),
+      "@gafus/core/services/training/cache-publication": path.resolve(
+        __dirname, "../../packages/core/src/services/training/cachePublication.ts",
       ),
       "@gafus/core/services/training": path.resolve(
         __dirname,
@@ -67,29 +59,13 @@ export default defineConfig({
         __dirname,
         "../../packages/core/src/services/user/index.ts",
       ),
-      "@gafus/core/services/exam": path.resolve(
-        __dirname,
-        "../../packages/core/src/services/exam/index.ts",
-      ),
       "@gafus/core/services/offline": path.resolve(
         __dirname,
         "../../packages/core/src/services/offline/index.ts",
       ),
-      "@gafus/core/services/achievements": path.resolve(
-        __dirname,
-        "../../packages/core/src/services/achievements/index.ts",
-      ),
-      "@gafus/core/services/notifications": path.resolve(
-        __dirname,
-        "../../packages/core/src/services/notifications/index.ts",
-      ),
       "@gafus/core/services/appSubscription": path.resolve(
         __dirname,
         "../../packages/core/src/services/appSubscription/index.ts",
-      ),
-      "@gafus/core/services/appFeatureFlags": path.resolve(
-        __dirname,
-        "../../packages/core/src/services/appFeatureFlags/index.ts",
       ),
       "@gafus/core/errors": path.resolve(__dirname, "../../packages/core/src/errors/index.ts"),
       "@gafus/core/validation/auth-register": path.resolve(

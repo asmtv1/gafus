@@ -32,13 +32,13 @@ export function StartupLoader({
       <Image
         source={require("../../../assets/images/startup-splash.png")}
         style={styles.poster}
-        resizeMode="contain"
+        resizeMode="cover"
         onLoad={() => setImageLoaded(true)}
         // A bundled asset failure must not trap the user on the native splash.
         onError={() => setImageLoaded(true)}
         accessibilityLabel="Всё у тебя получится!"
       />
-      <StatusBar style="dark" backgroundColor="#B5E5EB" />
+      <StatusBar style="dark" />
     </View>
   );
 }
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   },
   fullScreen: { flex: 1 },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 100,
     elevation: 100,
   },

@@ -11,7 +11,7 @@ const {
   updateDailyCourseStepAndDayMock: vi.fn(),
 }));
 
-vi.mock("@gafus/core/services/dailyCourse", () => ({
+vi.mock("../../modules/daily-course/composition/dailyCourseApplication.js", () => ({
   getDailyCourseDayWithUserSteps: getDailyCourseDayWithUserStepsMock,
   getTodayDailyCourse: getTodayDailyCourseMock,
   updateDailyCourseStepAndDay: updateDailyCourseStepAndDayMock,

@@ -1,3 +1,9 @@
+import {
+  listDueYookassaSubscriptionRenewals, getRenewalBuyerEmail,
+  prepareYookassaRenewalAttempt, isYookassaRenewalStillEligible,
+  recordYookassaRenewalFailure, recordYookassaRenewalProviderId,
+  recordYookassaRenewalCanceled, finalizeVerifiedSubscriptionRenewal,
+} from "@gafus/subscription-write-server";
 import { acquireRenewalLock } from "./renewalLock";
 
 import { createWorkerLogger } from "@gafus/logger";
@@ -7,16 +13,12 @@ import {
 } from "./app-subscription-metrics";
 import { getWorkerSubscriptionRenewalPlan } from "./app-subscription-plan";
 import {
-} from "@gafus/core/services/appSubscription";
-import {
-  enrichPaymentFinance, finalizeVerifiedSubscriptionRenewal,
-  listDueYookassaSubscriptionRenewals, getRenewalBuyerEmail,
-  prepareYookassaRenewalAttempt, isYookassaRenewalStillEligible,
-  recordYookassaRenewalFailure, recordYookassaRenewalProviderId,
-  recordYookassaRenewalCanceled,
   buildYookassaRenewalPaymentPayload, classifyYookassaRenewalProviderResponse,
   type YookassaRenewalProviderResponse,
 } from "@gafus/core/services/appSubscription";
+import { ensureNpdReceiptForSucceededPayment } from "@gafus/subscription-finance-server/npd-receipts";
+import { enrichPaymentFinance } from "@gafus/subscription-payment-server/payment-finance";
+import { recordPartnerCommissionForPayment } from "@gafus/subscription-payment-server/partner";
 
 const logger = createWorkerLogger("app-subscription-renewals");
 const RENEWALS_LOCK_KEY = 90210017;
@@ -207,7 +209,7 @@ export async function processDueYookassaAppSubscriptionRenewals(params?: { batch
             currency,
             periodStart,
             periodEnd,
-          });
+          }, { recordPartnerCommissionForPayment, ensureNpdReceiptForSucceededPayment });
         }
 
         processed += 1;

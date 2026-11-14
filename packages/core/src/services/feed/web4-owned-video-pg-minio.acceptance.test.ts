@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
@@ -85,7 +86,7 @@ const Client = require("@prisma/client").PrismaClient as new (args: {
         expect((await feed.publish(owner, draft.id, { clientRequestId: randomUUID() })).status)
           .toBe("pending");
         await expect(feed.get(reader, draft.id)).rejects.toMatchObject({ status: 404 });
-        const jobs = createFeedStorageJobs({ db });
+        const jobs = createFeedStorageJobs({ enqueueDeletedMediaPurge,  db });
         const claimed = await jobs.claim(1, "video");
         expect(claimed).toHaveLength(1);
         expect(claimed[0]).toMatchObject({ ownerId: owner, postId: draft.id,
@@ -138,7 +139,7 @@ const Client = require("@prisma/client").PrismaClient as new (args: {
         await expect(feed.get(reader, draft.id)).rejects.toMatchObject({ status: 404 });
         // Execute actual scheduled HLS cleanup after the signed POST expiry,
         // including crash-orphan segment keys through the shared 90 max.
-        const cleanupClock = createFeedStorageJobs({ db,
+        const cleanupClock = createFeedStorageJobs({ enqueueDeletedMediaPurge,  db,
           now: () => new Date(Date.now() + 2 * 60 * 60_000) });
         const cleanupClaims = await cleanupClock.claim(20, "photo");
         expect(cleanupClaims.some(job => job.kind === "delete_keys")).toBe(true);

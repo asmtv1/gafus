@@ -26,7 +26,7 @@ prometheus.remote_write "yc" {
 prometheus.relabel "yc_allowlist" {
   rule {
     source_labels = ["__name__"]
-    regex         = "probe_success|pg_up|redis_up|gafus_database_backup_last_success_timestamp_seconds|up|gafus_media_(stalled_processing|failed_tasks)|node_cpu_seconds_total|node_memory_MemTotal_bytes|node_memory_MemAvailable_bytes|node_memory_MemFree_bytes|node_memory_Buffers_bytes|node_memory_Cached_bytes|node_memory_SReclaimable_bytes|node_filesystem_avail_bytes|node_filesystem_size_bytes|gafus_mail_(stalled_pending|unresolved_unknown|expired_unknown|recent_failed|delivery_failures_24h|queue_failed|queue_expired|queue_stalled)"
+    regex         = "probe_success|pg_up|redis_up|gafus_database_backup_last_success_timestamp_seconds|up|gafus_media_(stalled_processing|failed_tasks)|gafus_chat2_outbox_(pending|leased|dead_letters|oldest_age_seconds)|gafus_questions_legacy_delete_(enabled|pending|processing|failed|oldest_age_seconds)|job_attempts_total|job_failures_total|job_duration_seconds_(bucket|sum|count)|db_query_duration_seconds_(bucket|sum|count)|db_pool_wait_seconds_(bucket|sum|count)|db_pool_wait_metrics_fresh|pg_stat_activity_count|pg_settings_max_connections|http_requests_total|http_request_duration_seconds_(bucket|sum|count)|http_inflight_requests|node_cpu_seconds_total|node_memory_MemTotal_bytes|node_memory_MemAvailable_bytes|node_memory_MemFree_bytes|node_memory_Buffers_bytes|node_memory_Cached_bytes|node_memory_SReclaimable_bytes|node_filesystem_avail_bytes|node_filesystem_size_bytes|gafus_mail_(stalled_pending|unresolved_unknown|expired_unknown|recent_failed|delivery_failures_24h|queue_failed|queue_expired|queue_stalled)"
     action        = "keep"
   }
   forward_to = [prometheus.remote_write.yc.receiver]
@@ -97,4 +97,23 @@ prometheus.scrape "worker_media" {
   metrics_path    = "/metrics/media"
   scrape_interval = "60s"
   forward_to      = [prometheus.relabel.yc_allowlist.receiver]
+}
+
+
+// Strictly internal metrics: the Bearer credential is a runtime secret, NOT
+// committed to the repository. Without a configured API_METRICS_KEY the API
+// deliberately responds 404, preventing unauthenticated metric disclosure.
+prometheus.scrape "api_operations" {
+  targets = [{
+    __address__ = "api:3001",
+    instance    = "gafus-api",
+    job         = "api-operations",
+  }]
+  metrics_path    = "/internal/metrics"
+  scrape_interval = "60s"
+  authorization {
+    type        = "Bearer"
+    credentials = sys.env("API_METRICS_KEY")
+  }
+  forward_to = [prometheus.relabel.yc_allowlist.receiver]
 }

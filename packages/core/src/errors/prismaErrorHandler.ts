@@ -1,4 +1,3 @@
-import { Prisma } from "@gafus/prisma";
 import {
   ServiceError,
   NotFoundError,
@@ -12,14 +11,36 @@ const UNKNOWN_PRISMA_CODE_USER_MESSAGE =
   "Не удалось выполнить операцию. Попробуйте позже.";
 
 /**
- * Преобразует ошибку Prisma в ServiceError или null, если это не ошибка Prisma.
- * Используется в handlePrismaError и getErrorMessage.
+ * Identify database error envelopes without importing the ORM into Core.
+ * Prisma's public error names and codes are stable across separate generated
+ * clients in one Node process; a generic Error with a coincidentally
+ * matching code must NEVER be treated as a database error.
  */
+function hasPrismaClientEnvelope(error: unknown, name: string): error is Error & { clientVersion: string } {
+  return error instanceof Error && error.name === name &&
+    typeof (error as Error & { clientVersion?: unknown }).clientVersion === "string" &&
+    (error as Error & { clientVersion: string }).clientVersion.length > 0;
+}
+
+function isKnownPrismaError(error: unknown): error is Error & {
+  code: string;
+  meta?: { target?: unknown };
+} {
+  if (!hasPrismaClientEnvelope(error, "PrismaClientKnownRequestError")) return false;
+  const code = (error as Error & { code?: unknown }).code;
+  return typeof code === "string" && /^P\d{4}$/.test(code);
+}
+
+function isPrismaValidationError(error: unknown): error is Error {
+  return hasPrismaClientEnvelope(error, "PrismaClientValidationError");
+}
+
+/** Преобразует Prisma-ошибку в ServiceError без зависимости Core от клиента БД. */
 export function prismaErrorToServiceError(
   error: unknown,
   context?: string,
 ): ServiceError | null {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+  if (isKnownPrismaError(error)) {
     switch (error.code) {
       case "P2002": {
         const raw = error.meta?.target as string | string[] | undefined;
@@ -52,7 +73,7 @@ export function prismaErrorToServiceError(
     }
   }
 
-  if (error instanceof Prisma.PrismaClientValidationError) {
+  if (isPrismaValidationError(error)) {
     return new ValidationError("Ошибка валидации данных");
   }
 

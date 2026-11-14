@@ -1,0 +1,45 @@
+{
+  "name": "@gafus/pets-shared",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./pet-media-deletion-outbox": {
+      "types": "./dist/petMediaDeletionOutbox.d.ts",
+      "default": "./dist/petMediaDeletionOutbox.js"
+    },
+    "./vet-visit-error": {
+      "types": "./dist/vetVisitError.d.ts",
+      "default": "./dist/vetVisitError.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  },
+  "typesVersions": {
+    "*": {
+      "pet-media-deletion-outbox": [
+        "dist/petMediaDeletionOutbox.d.ts"
+      ],
+      "vet-visit-error": [
+        "dist/vetVisitError.d.ts"
+      ]
+    }
+  }
+}

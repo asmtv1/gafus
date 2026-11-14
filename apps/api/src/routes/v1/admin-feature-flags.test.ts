@@ -6,8 +6,8 @@ const fake = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: fake.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: fake.reg }));
-vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: fake.role }));
-vi.mock("@gafus/core/services/appFeatureFlags", () => ({
+vi.mock("../../modules/admin-users/composition/service.js", () => ({ readAdminActorRole: fake.role }));
+vi.mock("@gafus/feature-flags-server", () => ({
   getMobileReleaseControl: fake.read,
   updateMobileReleaseControl: fake.write,
   MobileReleaseControlConflictError: class MobileReleaseControlConflictError extends Error {},
@@ -146,7 +146,7 @@ describe("admin mobile release flags", () => {
   });
 
   it("maps Core stale revision to 409", async () => {
-    const { MobileReleaseControlConflictError } = await import("@gafus/core/services/appFeatureFlags");
+    const { MobileReleaseControlConflictError } = await import("@gafus/feature-flags-server");
     fake.write.mockRejectedValue(new MobileReleaseControlConflictError());
     const response = await req("PUT", body);
     expect(response.status).toBe(409);

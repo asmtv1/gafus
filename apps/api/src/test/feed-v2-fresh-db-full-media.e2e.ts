@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 /** Explicit opt-in end-to-end Feed VIDEO + S3-cleanup pipeline, fresh isolated DB.
  * Safety: pg_dump --schema-only from verified WORK snapshot, create an OWN random DB,
  * then signed local MinIO client-ready H264 -> READY immediately -> 360 Cloud Job -> GET/MP4 Range.
@@ -109,7 +110,7 @@ try {
   const storage=createFeedStorage({enabled:true,isolatedNonprod:true,...local,cdnBaseUrl:"",cdnSecret:""});
   const feed=createFeedService({db,storage,enabled:()=>true});
   // Core independently verifies real MinIO HEAD for every WebP/MP4 before READY.
-  const jobs=createFeedStorageJobs({db,storage});
+  const jobs=createFeedStorageJobs({ enqueueDeletedMediaPurge, db,storage});
   const {createFeedCloudWorker}=await import("../../../../apps/feed-cloud/src/worker");
   const core={
     claimJobs:(size:number,kind?:"photo"|"video")=>jobs.claim(size,kind),

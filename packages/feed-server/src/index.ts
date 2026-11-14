@@ -1,12 +1,15 @@
+import {
+  hasSmartFeedActor, getSmartFeedTelemetryPreference,
+  eligibleSmartImpressionPostIds, recordSmartFeedImpressions,
+  eligibleSmartOutcomePostIds, getQualifiedSmartImpressions,
+  recordSmartFeedRankingEvents, storeSmartFeedPostFeedback,
+} from "./smartTelemetryService.js";
 import { FeedError, feedParse, feedListSchema, feedPostListSchema, feedReactionListSchema,
   feedCreatePostSchema, feedRevisionSchema, feedPublishSchema, feedCommentSchema, feedCommentEditSchema,
   feedReactionSchema, feedUploadSchema, feedCopyPhotoSchema, feedIdSchema, feedPollSaveSchema, feedPollVoteSchema,
   smartImpressionsSchema, smartRankingEventsSchema, smartRedisTimeout, smartFeedbackSchema, isSmartMlVector, verifySmartExposure,
-  hasSmartFeedActor, getSmartFeedTelemetryPreference,
-  eligibleSmartImpressionPostIds, recordSmartFeedImpressions,
-  createCurrentFeedRuntime, eligibleSmartOutcomePostIds, getQualifiedSmartImpressions,
-  recordSmartFeedRankingEvents, storeSmartFeedPostFeedback,
-} from "@gafus/core/services/feed";
+ } from "@gafus/core/services/feed";
+import { createCurrentFeedRuntime } from "./runtimeServices.js";
 import type { FeedService, FeedSocialService, FeedPollService, createFeedPreferences } from "@gafus/core/services/feed";
 import { createFeedStorageFromEnv, signFeedCloudruFallback } from "@gafus/feed-storage";
 
@@ -429,3 +432,7 @@ export async function dispatchFeedRequest(
 }
 
 export { createFeedInternalDispatcher, dispatchFeedInternalRequest, FEED_INTERNAL_MAX_BODY_BYTES } from "./internal.js";
+
+// Database-backed moderator adapter. All role/row ACL checks still execute in
+// createFeedPreferences, not in the HTTP route.
+export { getAdminFeedReports, moderateAdminFeedReport } from "./adminModeration.js";

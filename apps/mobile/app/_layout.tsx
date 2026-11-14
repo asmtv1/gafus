@@ -9,7 +9,7 @@ import * as SplashScreen from "expo-splash-screen";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { Platform, StyleSheet, View } from "react-native";
+import { NativeModules, Platform, StyleSheet, View } from "react-native";
 import { AuthProvider, QueryProvider, ThemeProvider } from "@/shared/providers";
 import { AnalyticsNavigationListener } from "@/shared/components/AnalyticsNavigationListener";
 import { getOrCreateMobileAnalyticsId } from "@/shared/lib/analytics-id";
@@ -30,8 +30,9 @@ import { useAuthStore } from "@/shared/stores";
 import { COLORS } from "@/shared/config";
 import { useAppFonts } from "@/shared/hooks/useAppFonts";
 import { warmUpYandexMobileAds } from "@/features/rewarded-ads";
-import { StartupLoader } from "@/shared/components/StartupLoader";
 import { WalkWidgetSessionSync } from "@/features/walk/WalkWidgetSessionSync";
+
+import { startMobileTelemetryUploadWorker } from "@/shared/lib/telemetry/mobileTelemetryClient";
 
 // Initialize before React mounts so startup and provider errors are captured.
 initializeMobileJsTracer();
@@ -95,6 +96,7 @@ SplashScreen.preventAutoHideAsync();
  */
 export default function RootLayout() {
   useRoleAwareScreenCapture();
+  useEffect(() => startMobileTelemetryUploadWorker(), []);
 
   useEffect(() => {
     void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
@@ -111,47 +113,31 @@ export default function RootLayout() {
   const checkAuth = useAuthStore((s) => s.checkAuth);
   const { fontsReady, fontError } = useAppFonts();
   const authLoading = useAuthStore((s) => s.isLoading);
-  const [startupVisible, setStartupVisible] = useState(true);
-  const [startupImageReady, setStartupImageReady] = useState(false);
-  const [nativeSplashHidden, setNativeSplashHidden] = useState(false);
   const [appContentLaidOut, setAppContentLaidOut] = useState(false);
-  const onStartupReady = useCallback(() => setStartupImageReady(true), []);
   const onContentLayout = useCallback(() => setAppContentLaidOut(true), []);
 
+  // As in 1.6.9, the native Expo splash remains in place during bootstrap.
+  // Wait for actual React layout to avoid showing an empty frame on Android.
   useEffect(() => {
-    if (!startupImageReady) return;
-    let cancelled = false;
-    let secondFrame = 0;
-    // Android's launch screen must not be hidden before the poster has
-    // actually been composed. One onLoad callback alone is too early.
-    const firstFrame = requestAnimationFrame(() => {
-      secondFrame = requestAnimationFrame(() => {
-        void SplashScreen.hideAsync()
-          .then(() => { if (!cancelled) setNativeSplashHidden(true); })
-          .catch(error => {
-            if (!cancelled) {
-              reportClientError(error, { issueKey: "SplashScreen",
-                keys: { operation: "hide_after_poster_paint" } });
-              // An interrupted native splash must not permanently block UI.
-              setNativeSplashHidden(true);
-            }
+    if (!appContentLaidOut || authLoading || (!fontsReady && !fontError)) return;
+    const frame = requestAnimationFrame(() => {
+      void SplashScreen.hideAsync()
+        .catch((error) => {
+          reportClientError(error instanceof Error ? error : new Error(String(error)), {
+            issueKey: "SplashScreen",
+            keys: { operation: "hide_after_initial_layout" },
           });
-      });
+        })
+        .finally(() => {
+          // Android's static native poster is independent of the JS bundle.
+          // Release it only after auth, fonts and initial route layout are ready.
+          if (Platform.OS === "android") {
+            NativeModules.GafusStartupPoster?.hide();
+          }
+        });
     });
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(firstFrame);
-      cancelAnimationFrame(secondFrame);
-    };
-  }, [startupImageReady]);
-
-  useEffect(() => {
-    if (!nativeSplashHidden || !appContentLaidOut || authLoading ||
-        (!fontsReady && !fontError)) return;
-    // Allow the initial route to paint behind the poster before removing it.
-    const frame = requestAnimationFrame(() => setStartupVisible(false));
     return () => cancelAnimationFrame(frame);
-  }, [nativeSplashHidden, appContentLaidOut, authLoading, fontsReady, fontError]);
+  }, [appContentLaidOut, authLoading, fontsReady, fontError]);
 
   useEffect(() => {
     void checkAuth();
@@ -219,7 +205,6 @@ export default function RootLayout() {
           </ErrorBoundary>
           </View>
         )}
-        {startupVisible && <StartupLoader overlay onReady={onStartupReady} />}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

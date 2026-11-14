@@ -4,7 +4,7 @@ import {
   getRewardedAdsAdminDashboard,
   summarizeRewardedAdsSessions,
   type RewardedAdsSessionInput,
-} from "./adminRewardedAdsService";
+} from "@gafus/admin-rewarded-ads-server";
 
 const rewardedAdSessionFindMany = vi.fn();
 const rewardedAdSettingsFindUnique = vi.fn();

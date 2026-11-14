@@ -192,18 +192,39 @@ vi.mock("../appSubscription", () => ({
 vi.mock("../contentAccess", () => ({
   hasActiveGafusCourseStepAccess: vi.fn(async () => state.gafusUnlocked),
 }));
-vi.mock("./gafusInterop", () => ({
-  hasGafusUnlockForUserStep: vi.fn(async () => state.gafusUnlocked),
-  hasGafusUnlockForVideoUrl: vi.fn(async () => state.gafusUnlocked),
-  findGafusUnlockedStepForVideoUrl: vi.fn(async () => state.gafusUnlocked ? "gafus-video-occurrence" : null),
-}));
+
 
 import {
   getPremiumOrRewardedAccess,
   requirePremiumOrRewardedAccessForStepNotification,
+  createGafusRewardedAccessService,
+} from "./accessService";
+// Existing synthetic Prisma owner/period fixtures retain the original SQL
+// SELECTs, now injected through the Application read boundary.
+import { registerRewardedAccessReadPort } from "./rewardedAccessReadPort";
+import {
+  readOwnedCourseDayRewardedSteps, readOwnedRewardedUserStep,
+  readRewardedPrivateCourseAssignment, readOwnedDailyRewardedUserStep,
+  readPublishedDailyRewardedVideo, readOwnedRewardedVideoStep,
+  readActiveLegacyRewardedGrant, readRewardedViewerRole,
+  readRewardedCourseVideoOccurrences, readPendingRewardedStepNotificationUrl,
+} from "@gafus/entitlements-server/rewarded-access-reads";
+registerRewardedAccessReadPort({
+  readOwnedCourseDayRewardedSteps, readOwnedRewardedUserStep,
+  readRewardedPrivateCourseAssignment, readOwnedDailyRewardedUserStep,
+  readPublishedDailyRewardedVideo, readOwnedRewardedVideoStep,
+  readActiveLegacyRewardedGrant, readRewardedViewerRole,
+  readRewardedCourseVideoOccurrences, readPendingRewardedStepNotificationUrl,
+});
+
+const {
   requirePremiumOrRewardedAccessForUserStep,
   requirePremiumOrRewardedAccessForVideoUrl,
-} from "./accessService";
+} = createGafusRewardedAccessService({
+  hasGafusUnlockForUserStep: vi.fn(async () => state.gafusUnlocked),
+  findGafusUnlockedStepForVideoUrl: vi.fn(async () =>
+    state.gafusUnlocked ? "gafus-video-occurrence" : null),
+});
 
 describe("premium or rewarded access", () => {
   beforeEach(() => {

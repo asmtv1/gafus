@@ -46,7 +46,7 @@ vi.mock("@gafus/core/services/auth",async original=>({
 }));
 // Import actual registered app and Core source / compiled package, NOT Core mocks.
 import { app } from "../../app";
-import { getPetWeightHistory } from "@gafus/core/services/pets";
+import { getPetWeightHistory } from "@gafus/pets-server/weight";
 import { generateAccessToken } from "@gafus/auth/jwt";
 
 const A="pet_owner_A";
@@ -166,7 +166,7 @@ beforeEach(()=>{
   });
 });
 
-describe("V98 real registered pet weight GET -> actual Core owner history",()=>{
+describe("V98 real registered pet weight GET -> actual pets-server owner history",()=>{
   it("A->B->A JWT actor-scoped history, measuredAt then createdAt ASC, nullable weights",async()=>{
     expect(typeof getPetWeightHistory).toBe("function");
     const cases=[

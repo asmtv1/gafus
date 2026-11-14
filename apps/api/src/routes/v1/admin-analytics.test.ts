@@ -1,18 +1,23 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const fake = vi.hoisted(() => ({
-  verify: vi.fn(), reg: vi.fn(), role: vi.fn(), reengagement: vi.fn(), rewarded: vi.fn(), quality:vi.fn(),
+  verify: vi.fn(),
+  reg: vi.fn(),
+  role: vi.fn(),
+  reengagement: vi.fn(),
+  rewarded: vi.fn(),
+  quality: vi.fn(),
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: fake.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: fake.reg }));
-vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: fake.role }));
-vi.mock("@gafus/core/services/adminReengagement", () => ({
+vi.mock("../../modules/admin-users/composition/service.js", () => ({ readAdminActorRole: fake.role }));
+vi.mock("@gafus/admin-reengagement-server", () => ({
   getReengagementMetrics: fake.reengagement,
 }));
-vi.mock("@gafus/core/services/adminRewardedAds", () => ({
+vi.mock("@gafus/admin-rewarded-ads-server", () => ({
   getRewardedAdsAdminDashboard: fake.rewarded,
 }));
-vi.mock("@gafus/core/services/videoPlaybackQuality", () => ({
+vi.mock("@gafus/statistics", () => ({
   getVideoPlaybackQualityReport: fake.quality,
 }));
 import { authMiddleware } from "../../middleware/auth";
@@ -24,9 +29,10 @@ function app() {
   h.route(base, adminAnalyticsRoutes);
   return h;
 }
-const req = (url: string, auth = true) => app().request(`http://local.test${base}${url}`, {
-  headers: auth ? { authorization: "Bearer token" } : {},
-});
+const req = (url: string, auth = true) =>
+  app().request(`http://local.test${base}${url}`, {
+    headers: auth ? { authorization: "Bearer token" } : {},
+  });
 beforeEach(() => {
   vi.clearAllMocks();
   fake.verify.mockResolvedValue({ id: "admin1", role: "ADMIN", username: "admin" });
@@ -34,7 +40,7 @@ beforeEach(() => {
   fake.role.mockResolvedValue("ADMIN");
   fake.reengagement.mockResolvedValue({ success: true, data: { overview: { totalCampaigns: 2 } } });
   fake.rewarded.mockResolvedValue({ totals: { completed: 3 } });
-  fake.quality.mockResolvedValue({total:12,count360:3,count720:9});
+  fake.quality.mockResolvedValue({ total: 12, count360: 3, count720: 9 });
 });
 describe("admin analytics read endpoints", () => {
   it("denies guests to both dashboards", async () => {
@@ -44,7 +50,7 @@ describe("admin analytics read endpoints", () => {
     expect(fake.reengagement).not.toHaveBeenCalled();
     expect(fake.rewarded).not.toHaveBeenCalled();
   });
-  it.each(["USER", "MODERATOR", "TRAINER"])("denies %s", async role => {
+  it.each(["USER", "MODERATOR", "TRAINER"])("denies %s", async (role) => {
     fake.verify.mockResolvedValue({ id: "u1", role, username: "u" });
     expect((await req("/reengagement")).status).toBe(403);
     expect((await req("/rewarded-ads")).status).toBe(403);
@@ -63,10 +69,11 @@ describe("admin analytics read endpoints", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toContain("no-store");
     expect(await response.json()).toEqual({
-      success: true, data: { overview: { totalCampaigns: 2 } },
+      success: true,
+      data: { overview: { totalCampaigns: 2 } },
     });
   });
-  it.each(["7", "30", "90"])("requests %s days of rewarded history", async days => {
+  it.each(["7", "30", "90"])("requests %s days of rewarded history", async (days) => {
     const response = await req(`/rewarded-ads?days=${days}`);
     expect(response.status).toBe(200);
     expect(fake.rewarded).toHaveBeenCalledWith({ days: Number(days) });
@@ -76,13 +83,16 @@ describe("admin analytics read endpoints", () => {
     expect(response.status).toBe(400);
     expect(fake.rewarded).not.toHaveBeenCalled();
   });
-  it.each(["7","30","90"])("GET video-quality %s days is ADMIN-only and aggregate", async days => {
-    const res=await req("/video-quality?days="+days);
-    expect(res.status).toBe(200);
-    expect(res.headers.get("cache-control")).toContain("no-store");
-    expect(fake.quality).toHaveBeenCalledWith(Number(days));
-    expect((await res.json()).data.total).toBe(12);
-  });
+  it.each(["7", "30", "90"])(
+    "GET video-quality %s days is ADMIN-only and aggregate",
+    async (days) => {
+      const res = await req("/video-quality?days=" + days);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("cache-control")).toContain("no-store");
+      expect(fake.quality).toHaveBeenCalledWith(Number(days));
+      expect((await res.json()).data.total).toBe(12);
+    },
+  );
   it("rejects invalid video quality reporting periods", async () => {
     expect((await req("/video-quality?days=3650")).status).toBe(400);
     expect(fake.quality).not.toHaveBeenCalled();

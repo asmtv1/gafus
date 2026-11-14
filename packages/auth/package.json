@@ -28,7 +28,8 @@
     "bcryptjs": "^3.0.2",
     "jose": "^5.10.0",
     "libphonenumber-js": "1.12.8",
-    "@gafus/core": "workspace:*"
+    "@gafus/core": "workspace:*",
+    "@gafus/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

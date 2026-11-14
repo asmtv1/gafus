@@ -19,7 +19,7 @@ const mock = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: mock.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: mock.reg }));
-vi.mock("@gafus/core/services/adminUser", () => ({
+vi.mock("../../modules/admin-users/composition/service.js", () => ({
   getAllUsers: mock.users,
   updateUserAdmin: mock.update,
   deleteUserAdmin: mock.remove,
@@ -27,12 +27,16 @@ vi.mock("@gafus/core/services/adminUser", () => ({
   checkAdminUserMutationAccess: mock.access,
   readAdminActorRole: mock.dbRole,
 }));
-vi.mock("@gafus/core/services/appSubscription", () => ({
+vi.mock("@gafus/subscription-write-server", () => ({
   getFreePartnerPromoCodesForAdminPanel: mock.promos,
+}));
+vi.mock("@gafus/subscription-finance-server/admin-application", () => ({
   getUserAppSubscriptionAdminSummary: mock.grantSummary,
   adminGrantPaidUntil: mock.paidUntil,
   adminGrantLifetime: mock.lifetime,
   adminClearManualGrant: mock.clear,
+}));
+vi.mock("../../modules/app-subscription/composition/payment-transitions.js", () => ({
   cancelYookassaAppSubscription: mock.cancelRenewal,
 }));
 

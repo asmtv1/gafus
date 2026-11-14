@@ -8,9 +8,9 @@ import { zValidator } from "@hono/zod-validator";
 import {
   getArticles,
   getArticleBySlugForMonetizedAccess,
-  toggleArticleLikeWithMonetizedAccess,
   incrementArticleView,
-} from "@gafus/core/services/article";
+} from "../../modules/articles/composition/article-rows.js";
+import { toggleArticleLikeWithMonetizedAccess } from "../../modules/articles/composition/article-like.js";
 import { SubscriptionOrCreditsRequiredError } from "@gafus/core/services/rewardedCredits";
 import { createWebLogger } from "@gafus/logger";
 import { getBrowserAccessToken } from "../../lib/browser-auth.js";

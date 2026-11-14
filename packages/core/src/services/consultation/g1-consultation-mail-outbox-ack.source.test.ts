@@ -24,11 +24,11 @@ vi.mock("@gafus/prisma", () => ({
     transactionalMailAttempt: { findUnique: m.attempt },
   },
 }));
-vi.mock("./consultationTransactionalMail", () => ({
+vi.mock("@gafus/core/services/consultation/transactional-mail", () => ({
   sendConsultationEmailFromLog: (...args: unknown[]) => m.bridge(...args),
 }));
 import { sendTransactionalMail } from "../../../../mailer/src/send-transactional-mail";
-import { processConsultationEmailLog } from "./consultationEmailDelivery";
+import { processConsultationEmailLog } from "@gafus/consultation-server/mail-delivery";
 import type { MailerEnv } from "../../../../mailer/src/env";
 
 const syntheticEnv = { provider: "resend" } as MailerEnv;

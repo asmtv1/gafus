@@ -134,7 +134,7 @@ describe("Moments background publication manager", () => {
   });
   it("Mobile preserves the text in a server draft before an S3 video failure, then retries the original video", async () => {
     let version = 0, published = false;
-    const saved: Array<{ expectedVersion: number; text: string; attachmentIds: string[] }> = [];
+    const saved: { expectedVersion: number; text: string; attachmentIds: string[] }[] = [];
     const editor = () => ({ ...post(published ? "published" : "draft"), version,
       pendingRevision: version ? { text: "Прогулка с собакой", attachmentIds: saved.at(-1)?.attachmentIds ?? [] } : null,
     });

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMobileFeatureFlagEnabledMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@gafus/core/services/appFeatureFlags", () => ({
+vi.mock("@gafus/feature-flags-server", () => ({
   APP_FEATURE_MOBILE_VK_LOGIN_IOS: "mobile_vk_login_ios",
   getMobileFeatureFlagEnabled: getMobileFeatureFlagEnabledMock,
 }));

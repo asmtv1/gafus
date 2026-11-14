@@ -1,16 +1,33 @@
 import { decryptRefreshToken, encryptRefreshToken, NpdGateway, NpdGatewayError } from "@gafus/npd";
 import { createWorkerLogger } from "@gafus/logger";
 import {
-  persistNpdIssuedReceipt as persistIssuedReceipt,
-  persistNpdRefreshedConnection,
-  getNpdWorkerDatabase,
   reconciliationMatches,
   buildNpdCreateReceiptPayload,
   processDueNpdReceiptOperationsCore,
   NPD_RECONCILIATION_WINDOW_MS,
+  type NpdOperationPersistencePort,
+} from "@gafus/core/services/appSubscription";
+import {
+  getNpdWorkerDatabase,
+  claimNpdReceiptOperation,
+  finishNpdReceiptOperation,
+  markNpdReceiptReconciliation,
+  persistNpdIssuedReceipt as persistIssuedReceipt,
+  persistNpdRefreshedConnection,
+  markNpdConnectionReauthorizationRequired,
+  persistNpdCanceledReceipt,
   type NpdReceiptWorkerDb as Db,
   type NpdClaimedOperation as Operation,
-} from "@gafus/core/services/appSubscription";
+} from "@gafus/subscription-finance-server/npd-operation-persistence";
+
+const persistence: NpdOperationPersistencePort<Db, Operation> = {
+  claim: claimNpdReceiptOperation,
+  finish: finishNpdReceiptOperation,
+  markReconciliation: markNpdReceiptReconciliation,
+  persistIssuedReceipt,
+  persistCanceledReceipt: persistNpdCanceledReceipt,
+  markReauthorization: markNpdConnectionReauthorizationRequired,
+};
 
 export { reconciliationMatches } from "@gafus/core/services/appSubscription";
 
@@ -66,7 +83,7 @@ async function reconcileAmbiguousCreate(db: Db, op: Operation): Promise<boolean>
 /** Worker is only the provider/queue/crypto transport adapter. */
 export async function processDueNpdReceiptOperations(params: { batchSize?: number; db?: Db } = {}) {
   const db = params.db ?? getNpdWorkerDatabase();
-  return processDueNpdReceiptOperationsCore(db, {
+  return processDueNpdReceiptOperationsCore<Db, Operation>(db, {
     safeError,
     onCrash(error, op) {
       logger.error("NPD operation crashed", error as Error, { operationId: op.id, type: op.type });
@@ -92,5 +109,5 @@ export async function processDueNpdReceiptOperations(params: { batchSize?: numbe
   }, {
     batchSize: params.batchSize ?? Number(process.env.NPD_BATCH_SIZE ?? 20),
     enabled: enabled(),
-  });
+  }, persistence);
 }

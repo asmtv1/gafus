@@ -1,0 +1,132 @@
+{
+  "schema": "a1-a2-course-content-revision-checkpoint/v2",
+  "created_utc": "2026-11-12T04:20:06.233350+00:00",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "edges_before": 26,
+  "edges_after": 25,
+  "frozen_baseline": 41,
+  "resolved": 16,
+  "new": 0,
+  "historical_retired": 117,
+  "hash_basis": "Fresh CURRENT post-system-error file bytes; NOT historical before-state, not a merge patch",
+  "files": [
+    {
+      "path": "packages/core/src/services/training/trainingContentRevision.ts",
+      "sha256_current": "5356e0920569df98b7d3c9126a59d0af03a9c87645278f1e69295ca783bec2a4"
+    },
+    {
+      "path": "packages/core/src/services/training/trainingContentRevision.test.ts",
+      "sha256_current": "10e4a66e6276181c9c9b4fe4d9afa9365d7e2bcf501cd68c309721ede7bd4bb9"
+    },
+    {
+      "path": "packages/core/src/services/training/index.ts",
+      "sha256_current": "a185660da4c1740a3b78766ad2698292a7649bf93bb1d4ed09320056c616d875"
+    },
+    {
+      "path": "packages/core/src/services/training/contentRevisionReadPort.test.ts",
+      "sha256_current": "ee130e170b35a6280a57a38a09279b45b2e6435da92edb1dc53854a1f4716bf2"
+    },
+    {
+      "path": "apps/api/src/app.ts",
+      "sha256_current": "52932825b7b06cee24d06a3367dbd1c2cec5cb1a147fa471b37504374cde3824"
+    },
+    {
+      "path": "apps/api/src/modules/training/composition/install-content-revision-read.ts",
+      "sha256_current": "0924b21781dbb7c17f22fe3cc224e1cdcad8571d6eeb44c3f36f1d6a75f6a7d1"
+    },
+    {
+      "path": "apps/api/src/modules/training/composition/install-content-revision-read.contract.test.ts",
+      "sha256_current": "c4f8ad7b63080d920feedccc5113420b31d0e76bc08817b75c3437ce2803f1a8"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "sha256_current": "2c77bf214697a13b2f9eac013fea59fdff3542499a571ed6fc45d3ff2bf9cb87"
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "sha256_current": "2ed534c67d0c4b92b1be0be44adf23438267cebb492837f36a35aca048a83270"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "sha256_current": "5aada74a00eb278098c0db4ef1b86454653a978db092ef7aabce1029532d6c0b"
+    }
+  ],
+  "verified_checks": [
+    {
+      "name": "Core old cache+lesson",
+      "status": "PASS",
+      "log": "/tmp/a1-content-revision-target-tests.log",
+      "tests": 30,
+      "skipped": 0
+    },
+    {
+      "name": "Core new fail-closed port",
+      "status": "PASS",
+      "log": "/tmp/a1-content-revision-port-core-tests.log",
+      "tests": 4,
+      "skipped": 0
+    },
+    {
+      "name": "API SQL install",
+      "status": "PASS",
+      "log": "/tmp/a1-content-revision-api-test.log",
+      "tests": 1,
+      "skipped": 0
+    },
+    {
+      "name": "Full Core",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-content-revision-core-full.log",
+      "tests": 2107,
+      "skipped": 136
+    },
+    {
+      "name": "Full API",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-content-revision-api-full.log",
+      "tests": 2753,
+      "skipped": 266
+    },
+    {
+      "name": "Architecture",
+      "status": "PASS",
+      "log": "/tmp/a1-content-revision-boundaries.log",
+      "tests": null,
+      "skipped": null
+    },
+    {
+      "name": "Core TS",
+      "status": "PASS",
+      "log": "/tmp/a1-content-revision-core-ts.log",
+      "tests": null,
+      "skipped": null
+    },
+    {
+      "name": "Core build",
+      "status": "PASS",
+      "log": "/tmp/a1-content-revision-core-build.log",
+      "tests": null,
+      "skipped": null
+    },
+    {
+      "name": "API TS",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-content-revision-api-types.log",
+      "tests": null,
+      "skipped": null
+    },
+    {
+      "name": "Course read TS",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-content-revision-server-types.log",
+      "tests": null,
+      "skipped": null
+    }
+  ],
+  "no_merge_commit_push_deploy": true,
+  "external_blockers": [
+    "Need disposable PG with content-revision SQL triggers and trainer edit atomicity",
+    "Need Redis-offline and Web/Mobile cache reuse parity",
+    "Need all 25 residual backward dependencies and combined 33+5 regression"
+  ]
+}

@@ -7,8 +7,8 @@ const f = vi.hoisted(() => ({
 vi.mock("@gafus/queues", () => ({ connection: { set: f.redisSet, get: f.redisGet } }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.reg }));
-vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: f.role }));
-vi.mock("@gafus/core/services/adminBroadcast", () => ({ sendBroadcastPush: f.broadcast, countBroadcastSubscriptionRows: f.count }));
+vi.mock("../../modules/admin-users/composition/service.js", () => ({ readAdminActorRole: f.role }));
+vi.mock("@gafus/notifications-server/adminBroadcastService", () => ({ sendBroadcastPush: f.broadcast, countBroadcastSubscriptionRows: f.count }));
 import { authMiddleware } from "../../middleware/auth";
 import { adminBroadcastRoutes } from "./admin-broadcasts";
 const base = "/api/v1/admin/broadcasts";

@@ -1,0 +1,69 @@
+{
+  "name": "@gafus/gafus-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./activity-read": {
+      "types": "./dist/activityRead.d.ts",
+      "default": "./dist/activityRead.js"
+    },
+    "./settings-read": {
+      "types": "./dist/settingsRead.d.ts",
+      "default": "./dist/settingsRead.js"
+    },
+    "./wallet-lock": {
+      "types": "./dist/walletLock.d.ts",
+      "default": "./dist/walletLock.js"
+    },
+    "./rewarded-settings": {
+      "types": "./dist/rewardedSettings.d.ts",
+      "default": "./dist/rewardedSettings.js"
+    },
+    "./wallet-records": {
+      "types": "./dist/walletRecords.d.ts",
+      "default": "./dist/walletRecords.js"
+    },
+    "./legacy-import-records": {
+      "types": "./dist/legacy-import-records.d.ts",
+      "default": "./dist/legacy-import-records.js"
+    },
+    "./unlock-records": {
+      "types": "./dist/unlock-records.d.ts",
+      "default": "./dist/unlock-records.js"
+    },
+    "./admin-rows": {
+      "types": "./dist/admin-rows.d.ts",
+      "default": "./dist/admin-rows.js"
+    },
+    "./rewarded-wallet-rows": {
+      "types": "./dist/rewardedWalletRows.d.ts",
+      "default": "./dist/rewardedWalletRows.js"
+    },
+    "./rewarded-ad-rows": {
+      "types": "./dist/rewardedAdRows.d.ts",
+      "default": "./dist/rewardedAdRows.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  }
+}

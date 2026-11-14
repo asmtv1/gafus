@@ -15,7 +15,7 @@ vi.mock("@gafus/queues", () => {
 vi.mock("@hono/node-server", () => {
   throw Error("UNEXPECTED_SOCKET_IMPORT_ON_PREFLIGHT");
 });
-vi.mock("@gafus/core/services/systemHealth", () => {
+vi.mock("@gafus/statistics/database-health", () => {
   throw Error("UNEXPECTED_DATABASE_PROVIDER_IMPORT_ON_PREFLIGHT");
 });
 vi.mock("./media-cdn-monitor", () => {

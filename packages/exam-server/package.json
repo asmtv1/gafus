@@ -1,0 +1,45 @@
+{
+  "name": "@gafus/exam-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cleanup": {
+      "types": "./dist/cleanupService.d.ts",
+      "default": "./dist/cleanupService.js"
+    },
+    "./exam-service": {
+      "types": "./dist/examService.d.ts",
+      "default": "./dist/examService.js"
+    },
+    "./retention-policy": {
+      "types": "./dist/retentionPolicy.d.ts",
+      "default": "./dist/retentionPolicy.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/cdn-upload": "workspace:*",
+    "@gafus/logger": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "@gafus/notifications-server": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "@types/node": "20.4.8",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  }
+}

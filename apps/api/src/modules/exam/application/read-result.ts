@@ -1,7 +1,6 @@
-/** AG1-001/LEARN032: only the existing Core exam READ; entitlement stays in Hono. */
-import type { getExamResult } from "@gafus/core/services/exam";
+import type { ExamResultData } from "@gafus/types";
 
-type ExamResultReader = typeof getExamResult;
+type ExamResultReader = (actorUserId: string, userStepId: string) => Promise<ExamResultData | null>;
 
 export function createReadExamResultApplication(dependencies: { readResult: ExamResultReader }) {
   return {

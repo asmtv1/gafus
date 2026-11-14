@@ -86,6 +86,9 @@ export async function startWorkers(): Promise<void> {
   // Immediate wake-ups for completed gallery uploads; cron remains recovery.
   startFeedProcessingTriggerWorker();
   startChat2MediaProcessingTriggerWorker();
+  // Opt-in SDK57 diagnostics, isolated from product queues and auth flows.
+  const {startMobileTelemetryExportWorker} = await import("./mobile-telemetry-spool-worker");
+  startMobileTelemetryExportWorker();
 
   // Запускаем cron-планировщик для re-engagement
   startCronJobs();

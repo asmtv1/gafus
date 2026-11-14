@@ -1,6 +1,7 @@
 import { Hono } from "hono";
-import { readAdminActorRole } from "@gafus/core/services/adminUser";
-import { getCourseCacheMetricsSnapshot, refreshCourseContentRevision } from "@gafus/core/services/training";
+import { readAdminActorRole } from "../../modules/admin-users/composition/service.js";
+import { getCourseCacheMetricsSnapshot } from "@gafus/core/services/training";
+import { refreshCourseContentRevision } from "@gafus/course-server/cache-revision";
 import { requireRole } from "../../middleware/auth.js";
 
 /** Hono/Vite cache boundary: Next revalidateTag only works inside Next. */

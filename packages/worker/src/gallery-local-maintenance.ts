@@ -3,7 +3,8 @@
  * Gallery uploads are client-encoded WebP, finalized synchronously by Hono.
  * Only durable delete/move/storage reconciliation remains in the worker.
  */
-import {createCurrentGalleryService,type GalleryService,type GalleryStorageJobClaim} from "@gafus/core/services/gallery";
+import {createCurrentGalleryService} from "@gafus/gallery-server/runtime-service";
+import type {GalleryService,GalleryStorageJobClaim} from "@gafus/core/services/gallery";
 import {createGalleryObjectStore,normalizeETag,objectMd5,type GalleryObjectStore,
   assertFinalKey,assertGalleryKey} from "@gafus/gallery-storage";
 

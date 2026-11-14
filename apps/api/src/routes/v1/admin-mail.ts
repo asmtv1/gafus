@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { readAdminActorRole } from "@gafus/core/services/adminUser";
-import { getAdminMailDashboard, getAdminMailAlertCount } from "@gafus/core/services/systemHealth";
+import { readAdminActorRole } from "../../modules/admin-users/composition/service.js";
+import { getAdminMailDashboard, getAdminMailAlertCount } from "@gafus/statistics/mail-monitoring";
 import { requireRole } from "../../middleware/auth.js";
 
 /** Privacy-preserving mail queue overview: no recipients, bodies, tokens or attachments. */

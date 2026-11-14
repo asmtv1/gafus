@@ -3,7 +3,7 @@ import type * as GafusPrisma from "@gafus/prisma";
 
 import { ConsultationSlotStatus } from "@gafus/prisma";
 
-import { ConsultationNotFoundError } from "./errors";
+import { ConsultationNotFoundError } from "@gafus/core/services/consultation/errors";
 
 const {
   cynologistFindUnique,
@@ -110,7 +110,7 @@ describe("getAvailableSlots", () => {
 
   it("бросает ConsultationNotFoundError, если кинолог не найден", async () => {
     cynologistFindUnique.mockResolvedValue(null);
-    const { getAvailableSlots } = await import("./slotService");
+    const { getAvailableSlots } = await import("@gafus/consultation-server/slot-service");
     await expect(getAvailableSlots("user-missing", new Date(), new Date())).rejects.toBeInstanceOf(
       ConsultationNotFoundError,
     );
@@ -134,7 +134,7 @@ describe("getAvailableSlots", () => {
         status: ConsultationSlotStatus.FREE,
       },
     ]);
-    const { getAvailableSlots } = await import("./slotService");
+    const { getAvailableSlots } = await import("@gafus/consultation-server/slot-service");
     const out = await getAvailableSlots("user-1", from, to);
     expect(out).toHaveLength(1);
     expect(out[0]?.id).toBe("sl1");
@@ -160,7 +160,7 @@ describe("getAvailableSlots", () => {
         bookings: [],
       },
     ]);
-    const { getCalendarSlots } = await import("./slotService");
+    const { getCalendarSlots } = await import("@gafus/consultation-server/slot-service");
     const out = await getCalendarSlots("user-1", from, to);
     expect(out).toHaveLength(1);
     expect(out[0]?.status).toBe(ConsultationSlotStatus.FREE);
@@ -184,7 +184,7 @@ describe("getAvailableSlots", () => {
         _count: { bookings: 1 },
       },
     ]);
-    const { rebuildSlotsForCynologist } = await import("./slotService");
+    const { rebuildSlotsForCynologist } = await import("@gafus/consultation-server/slot-service");
     await rebuildSlotsForCynologist(
       "cy1",
       new Date("2026-10-26T00:00:00Z"),
@@ -216,7 +216,7 @@ describe("getAvailableSlots", () => {
       },
     ]);
     txSlotFindFirst.mockResolvedValue({ id: "slot-historical" });
-    const { rebuildSlotsForCynologist } = await import("./slotService");
+    const { rebuildSlotsForCynologist } = await import("@gafus/consultation-server/slot-service");
     await rebuildSlotsForCynologist(
       "cy1",
       new Date("2026-10-26T00:00:00Z"),
@@ -271,7 +271,7 @@ describe("getAvailableSlots", () => {
       },
     ]);
 
-    const { getCalendarSlots } = await import("./slotService");
+    const { getCalendarSlots } = await import("@gafus/consultation-server/slot-service");
     const out = await getCalendarSlots("user-1", from, to);
 
     expect(prismaTransaction).toHaveBeenCalledTimes(1);

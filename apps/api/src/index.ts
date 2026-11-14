@@ -20,13 +20,15 @@ async function loadApiRuntime(): Promise<ApiServerRuntime> {
     { connection: redis },
     { createWebLogger },
     { startMediaCdnMonitor },
+    { flushServerTelemetry },
   ] = await Promise.all([
     import("./app.js"),
     import("@hono/node-server"),
-    import("@gafus/core/services/systemHealth"),
+    import("@gafus/statistics/database-health"),
     import("@gafus/queues"),
     import("@gafus/logger"),
     import("./lib/media-cdn-monitor.js"),
+    import("@gafus/logger/server-telemetry"),
   ]);
 
   const logger = createWebLogger("api-server");
@@ -56,7 +58,7 @@ async function loadApiRuntime(): Promise<ApiServerRuntime> {
         busy = true;
         try {
           const { reconcilePendingBoundNotificationIntents } = await import(
-            "@gafus/core/services/notifications"
+            "@gafus/notifications-server"
           );
           await reconcilePendingBoundNotificationIntents({ userId: scopeUserId, limit: 10, retryDelayMs: recoveryAge });
         } catch (error) {
@@ -72,6 +74,13 @@ async function loadApiRuntime(): Promise<ApiServerRuntime> {
     },
     disconnectDatabase: disconnectCoreDatabase,
     quitRedis: () => redis.quit(),
+    flushTelemetry: async () => {
+      // Never block graceful shutdown on an unreachable telemetry collector.
+      await Promise.race([
+        flushServerTelemetry(),
+        new Promise<void>(resolve => setTimeout(resolve, 4_500)),
+      ]);
+    },
     logInfo: (message) => logger.info(message),
     logError: (message) => logger.error(message, new Error(message)),
   };

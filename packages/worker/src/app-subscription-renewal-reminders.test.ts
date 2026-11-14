@@ -9,7 +9,7 @@ vi.mock("@gafus/prisma", () => ({ prisma: {
   $queryRawUnsafe: mocks.queryRawUnsafe,
 } }));
 vi.mock("@gafus/mailer", () => ({ sendTransactionalMail: mocks.mail }));
-vi.mock("@gafus/core/services/notifications", () => ({ sendImmediatePushNotification: mocks.push }));
+vi.mock("@gafus/notifications-server", () => ({ sendImmediatePushNotification: mocks.push }));
 vi.mock("@gafus/logger", () => ({ createWorkerLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }), createWebLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }) }));
 
 import { sendYookassaAppSubscriptionRenewalReminders } from "./app-subscription-renewal-reminders";

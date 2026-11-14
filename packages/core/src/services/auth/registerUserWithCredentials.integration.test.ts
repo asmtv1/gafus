@@ -6,6 +6,47 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@gafus/prisma";
 
 import { registerUserWithCredentials } from "./registerUserWithCredentials";
+// The production owner-scoped SQL rows are still called, but are now bound
+// through the Core transaction port; mocks keep the same Prisma Tx in-process.
+import { registerRegistrationContractRowsPort } from "./registrationContracts";
+import * as registrationRows from "@gafus/identity-write-server/registration-contract-rows";
+const asServerTx = (tx: unknown): registrationRows.RegistrationContractDbTx =>
+  tx as registrationRows.RegistrationContractDbTx;
+registerRegistrationContractRowsPort({
+  withRegistrationTransaction: (action, options) =>
+    registrationRows.withRegistrationTransaction(tx => action(tx), options),
+  readRegistrationPromoRowTx: (tx, code) => registrationRows.readRegistrationPromoRowTx(asServerTx(tx), code),
+  saveRegistrationPromoRowTx: (tx, userId, promoId) => registrationRows.saveRegistrationPromoRowTx(asServerTx(tx), userId, promoId),
+  lockRegistrationEmailAttemptTx: (tx, id) => registrationRows.lockRegistrationEmailAttemptTx(asServerTx(tx), id),
+  readRegistrationEmailAttemptTx: (tx, id) => registrationRows.readRegistrationEmailAttemptTx(asServerTx(tx), id),
+  insertRegistrationEmailAttemptTx: (tx, input) => registrationRows.insertRegistrationEmailAttemptTx(asServerTx(tx), input),
+  finishRegistrationEmailAttemptTx: (tx, id, input) => registrationRows.finishRegistrationEmailAttemptTx(asServerTx(tx), id, input),
+  insertVkRegistrationContextTx: (tx, input) => registrationRows.insertVkRegistrationContextTx(asServerTx(tx), input),
+  claimVkRegistrationContextUserTx: (tx, input) => registrationRows.claimVkRegistrationContextUserTx(asServerTx(tx), input),
+  insertVkLoginGrantTx: (tx, input) => registrationRows.insertVkLoginGrantTx(asServerTx(tx), input),
+  consumeVkLoginGrantRowTx: (tx, input) => registrationRows.consumeVkLoginGrantRowTx(asServerTx(tx), input),
+});
+
+import { registerCredentialRegistrationPort } from "./registerUserWithCredentials";
+import {
+  withRegistrationTransaction,
+  readCredentialRegistrationReplayUserTx,
+  insertCredentialRegistrationUserTx,
+  markCredentialRegistrationAttemptSucceededTx,
+  registrationUniqueErrorTargets,
+  createCompletedConsentLogsInTransaction,
+  attributePartnerReferralIfCurrentPartnerInTransaction,
+} from "@gafus/identity-write-server/registration-contract-rows";
+registerCredentialRegistrationPort({
+  withRegistrationTransaction,
+  readCredentialRegistrationReplayUserTx,
+  insertCredentialRegistrationUserTx,
+  markCredentialRegistrationAttemptSucceededTx,
+  registrationUniqueErrorTargets,
+  createCompletedConsentLogsInTransaction,
+  attributePartnerReferralIfCurrentPartnerInTransaction,
+});
+
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const integration = databaseUrl ? describe : describe.skip;

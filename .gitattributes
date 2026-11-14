@@ -1,0 +1,6 @@
+# Unified diff hunk context lines have a mandatory leading space, including
+# blank upstream context. Do not report that syntactic prefix as trailing
+# whitespace; keep other Git whitespace checks (including newly added lines).
+patches/*.patch whitespace=-blank-at-eol,-blank-at-eof
+# Matrix TSV files preserve trailing empty columns as tab separators.
+docs/audit/*.tsv whitespace=-blank-at-eol

@@ -1,0 +1,1256 @@
+{
+  "kind": "gafus/integration-preflight-policy/v1",
+  "sourceRoots": {
+    "agent1": "/Users/asmtv1/Desktop/gafus-refactor",
+    "agent2": "/Users/asmtv1/Desktop/gafus-agent2-observability",
+    "agent3": "/Users/asmtv1/Desktop/gafus-agent3-worker"
+  },
+  "pinnedSourceManifests": {
+    "payment": {
+      "path": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.json",
+      "sha256": "87d0fbedf7ab2692637cbeed6fcf819b865f23c70f92094e4f5dd905a728a362",
+      "expectedKind": "gafus-agent-1-to-agent-2-handoff/v1",
+      "expectedCount": 18
+    },
+    "agent3": {
+      "path": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-3-final-local-handoff-20261112.json",
+      "sha256": "b98783d54906caeb0e0f9c86861863a9b38b464cc0cb39bed29a5da5166fe3d7",
+      "expectedSchema": "gafus/agent3-final-local-handoff/v1",
+      "expectedCount": 39
+    }
+  },
+  "p0": {
+    "requiredPaths": [
+      "apps/api/src/lib/operation-observability.ts",
+      "packages/logger/src/serverTelemetry.ts",
+      "ci-cd/docker/prometheus/config.alloy",
+      "ci-cd/docker/prometheus/gafus-alerts.yml",
+      "packages/prisma/schema.prisma",
+      "pnpm-lock.yaml"
+    ],
+    "integratedContentApprovedSha256": {
+      "apps/api/src/lib/operation-observability.ts": [
+        "2e49911720b7ed53d6c79847d79842ee6cbf66355d0d60ec27cea89b9e4276d2"
+      ],
+      "packages/logger/src/serverTelemetry.ts": [
+        "645b7d59b6d7edf93fd40a188c47cffc6f18dbd6381d8dd7604ce9f035890142"
+      ],
+      "ci-cd/docker/prometheus/config.alloy": [
+        "0835c811e73524aa9db2c361276fb752f3f461470de81ce410a13c3019ee5163"
+      ],
+      "ci-cd/docker/prometheus/gafus-alerts.yml": [
+        "31405f04f97be3f1dd4663ec23d339907b9c4f243e6936ecf74992b7b6743cea"
+      ]
+    },
+    "agent2CommittedSha256": {
+      "apps/api/src/lib/operation-observability.ts": "2e49911720b7ed53d6c79847d79842ee6cbf66355d0d60ec27cea89b9e4276d2",
+      "packages/logger/src/serverTelemetry.ts": "645b7d59b6d7edf93fd40a188c47cffc6f18dbd6381d8dd7604ce9f035890142",
+      "ci-cd/docker/prometheus/config.alloy": "0835c811e73524aa9db2c361276fb752f3f461470de81ce410a13c3019ee5163",
+      "ci-cd/docker/prometheus/gafus-alerts.yml": "31405f04f97be3f1dd4663ec23d339907b9c4f243e6936ecf74992b7b6743cea",
+      "packages/prisma/schema.prisma": "394807900daf41830279681ed578d80dbc462388884e6bca0ba619c1cf3247c7",
+      "pnpm-lock.yaml": "8bd2ad9028d5361daefa25846e2ac402287270d7fa161c8396a77c170f30ef0c"
+    }
+  },
+  "schema": {
+    "path": "packages/prisma/schema.prisma",
+    "baselineA1WithoutMetricsSha256": "309d51a18f02ceea136cf35c913677e35fa04df3fef01e9f5212d35263871e62",
+    "requiredFeature": "metrics",
+    "requiredModels": [
+      "AppSubscription",
+      "AppSubscriptionPayment",
+      "AppSubscriptionPromoCode",
+      "AppSubscriptionEvent",
+      "AppSubscriptionFinanceRefund",
+      "QuestionLegacyPhotoDeletion",
+      "Chat2OutboxEvent"
+    ],
+    "requiredChat2OutboxFields": [
+      "claimToken",
+      "operationId",
+      "traceId",
+      "lastErrorCode",
+      "deadLetteredAt"
+    ],
+    "requiredChat2OutboxIndex": "@@index([deadLetteredAt, deliveredAt, createdAt])"
+  },
+  "lockfile": {
+    "path": "pnpm-lock.yaml",
+    "knownStaleSha256": [
+      "8bd2ad9028d5361daefa25846e2ac402287270d7fa161c8396a77c170f30ef0c"
+    ],
+    "approvedCandidateSha256": [],
+    "observedA1SnapshotSha256": "f131a5960bfffbb2dd894d23ee1e0820884fce6188798ba989eab7743e48524e",
+    "requiredImporters": [
+      ".",
+      "apps/api",
+      "apps/mobile",
+      "packages/worker",
+      "packages/subscription-payment-server"
+    ],
+    "requirePaymentWorkspaceConsumers": [
+      "apps/api",
+      "packages/worker"
+    ],
+    "requiredPatches": {
+      "patches/expo-modules-core@55.0.27.patch": {
+        "sha256": "e1dd0bf3d90f86a1f30109b54192f71f9814ace00c00badff4f307ffd1308d33",
+        "lockKey": "expo-modules-core@55.0.27"
+      },
+      "patches/react-native-reanimated@4.2.1.patch": {
+        "sha256": "bd4600248541277689069d2d8bfe0cfda949f8e344f6a3a6b534c3b19618d6c0",
+        "lockKey": "react-native-reanimated@4.2.1"
+      },
+      "patches/react-native-compressor@1.16.0.patch": {
+        "sha256": "792d480104bf8b6d8f873d2ee366edd838840a703723bbb1f3770006379caffb",
+        "lockKey": "react-native-compressor@1.16.0"
+      }
+    }
+  },
+  "finalArchitecture": {
+    "manifestPath": null,
+    "approvedManifestSha256": null,
+    "required": true,
+    "note": "A1 37 remaining is INTERMEDIATE; final registry + explicit authorization required"
+  },
+  "readyForIntegration": false,
+  "rule": "Only after FINAL A1 registry, approved refreshed source+candidate lock SHA, and all checks PASS",
+  "previousPolicySha256": "9a5ae9ff14a879dfb6d3368b46aa9bffc62a0dff2bb161268cd681159f706715",
+  "a1AdditionalBatches": [
+    {
+      "name": "reminder",
+      "path": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-1-to-agent-2-reminder-review-ports-20261112.json",
+      "sha256": "44405745affa7196c746db547ca1190fc53dfb2ec9ebf003dd9b3aa8cac50fba",
+      "expectedCount": 7,
+      "kind": "gafus-ag1-handoff-to-ag2/v1",
+      "schema": null,
+      "facadesAfter": 39,
+      "sha256MatchesRawDocument": true
+    },
+    {
+      "name": "flags_access",
+      "path": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.json",
+      "sha256": "f3f19b3543366102f46e85aab92d15b11a1cd8bcb51dc4b05bfa5920a086769a",
+      "expectedCount": 26,
+      "kind": null,
+      "schema": "gafus-ag1-handoff-to-a2/v1",
+      "facadesAfter": 37,
+      "sha256MatchesRawDocument": true
+    }
+  ],
+  "a1Coverage": {
+    "schema": "gafus/a1-r37-integration-coverage/v1",
+    "ratchet": {
+      "frozen": 41,
+      "current": 37,
+      "resolved": 4,
+      "newForbidden": 0,
+      "final": false
+    },
+    "sourceInventoryPriorPath": "/Users/asmtv1/Desktop/gafus-agent2-observability/docs/audit/gafus-agents-integration-inventory-20261112.json",
+    "sourceInventoryPriorSha256": "1b24dcb456c1e92e72147c20924d550b264133f1c63f4e41b4fec3a14884d87b",
+    "sourceDirtyPathSetSha256": "2073c4a1d51b4657c7ede15c661744ba3a13ceb35b115c3a7cda8964ab26e2a2",
+    "sourceDirtyPathCount": 1803,
+    "newlyDirtyPaths": [
+      "apps/api/src/modules/app-feature-flags/composition/install-core-flags.contract.test.ts",
+      "apps/api/src/modules/app-feature-flags/composition/install-core-flags.ts",
+      "apps/api/src/modules/app-subscription/composition/install-core-subscription-access.contract.test.ts",
+      "apps/api/src/modules/app-subscription/composition/install-core-subscription-access.ts",
+      "docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.json",
+      "docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.md",
+      "packages/core/src/services/appFeatureFlags/appFeatureFlagsPort.test.ts",
+      "packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts",
+      "packages/core/src/services/appFeatureFlags/index.ts",
+      "packages/core/src/services/appSubscription/__tests__/accessService.facade.g1.test.ts",
+      "packages/core/src/services/appSubscription/__tests__/accessService.readBaseline.g1.test.ts",
+      "packages/core/src/services/appSubscription/__tests__/accessService.test.ts",
+      "packages/core/src/services/appSubscription/__tests__/cynologistEntitlements.test.ts",
+      "packages/core/src/services/appSubscription/accessPort.test.ts",
+      "packages/core/src/services/appSubscription/accessService.ts",
+      "packages/core/src/services/appSubscription/g1-achievements-snapshot-access-source.test.ts",
+      "packages/feature-flags-server/package.json",
+      "packages/feature-flags-server/src/appFeatureFlagsService.ts",
+      "packages/types/src/contracts/mobileReleaseErrors.ts"
+    ],
+    "newlyDirtyCount": 19,
+    "unaccountedNewA1Paths": [],
+    "batches": [
+      {
+        "name": "payment",
+        "path": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.json",
+        "sha256": "87d0fbedf7ab2692637cbeed6fcf819b865f23c70f92094e4f5dd905a728a362",
+        "expectedCount": 18,
+        "kind": "gafus-agent-1-to-agent-2-handoff/v1",
+        "schema": null,
+        "facadesAfter": 40,
+        "sha256MatchesRawDocument": true
+      },
+      {
+        "name": "reminder",
+        "path": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-1-to-agent-2-reminder-review-ports-20261112.json",
+        "sha256": "44405745affa7196c746db547ca1190fc53dfb2ec9ebf003dd9b3aa8cac50fba",
+        "expectedCount": 7,
+        "kind": "gafus-ag1-handoff-to-ag2/v1",
+        "schema": null,
+        "facadesAfter": 39,
+        "sha256MatchesRawDocument": true
+      },
+      {
+        "name": "flags_access",
+        "path": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.json",
+        "sha256": "f3f19b3543366102f46e85aab92d15b11a1cd8bcb51dc4b05bfa5920a086769a",
+        "expectedCount": 26,
+        "kind": null,
+        "schema": "gafus-ag1-handoff-to-a2/v1",
+        "facadesAfter": 37,
+        "sha256MatchesRawDocument": true
+      }
+    ],
+    "fileDecisions": {
+      "apps/api/src/app.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 API composition startup, reconcile A2 telemetry/A3 shared routes; manual hunk review mandatory",
+        "latestBatch": "flags_access",
+        "sha256": "0cccaf1fdfb5bf4b5a8b7c130713695153e7d10816b743e1568c685163d48c4c",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "0cccaf1fdfb5bf4b5a8b7c130713695153e7d10816b743e1568c685163d48c4c"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "apps/api/src/modules/app-feature-flags/composition/install-core-flags.contract.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "b03fed2c2f057a3c15730db12f25e766a9c60804e00b8e2a533b7c20839c1957",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "A",
+            "sha256_after": "b03fed2c2f057a3c15730db12f25e766a9c60804e00b8e2a533b7c20839c1957"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "apps/api/src/modules/app-feature-flags/composition/install-core-flags.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "a8c69b5fb84e281727c29017aa4b7f50e18544bbf991694fcef93aa6abde016c",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "A",
+            "sha256_after": "a8c69b5fb84e281727c29017aa4b7f50e18544bbf991694fcef93aa6abde016c"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "apps/api/src/modules/app-subscription/composition/install-core-subscription-access.contract.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "a8881b27212c138d7ab7500b02a269f75da0f77800e20aa0b28ed8bbc564999e",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "A",
+            "sha256_after": "a8881b27212c138d7ab7500b02a269f75da0f77800e20aa0b28ed8bbc564999e"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "apps/api/src/modules/app-subscription/composition/install-core-subscription-access.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "bae598ee1b95691cfe9e536a9261f9db0811403d502ad3f86b36a613fdc5b1b5",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "A",
+            "sha256_after": "bae598ee1b95691cfe9e536a9261f9db0811403d502ad3f86b36a613fdc5b1b5"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "apps/api/src/modules/app-subscription/composition/payment-transitions.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "756db331dac5c8c1bc1b938fe5af67a9241f109c5cad98d748ad7084abd3d6ad",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "A",
+            "sha256_after": "756db331dac5c8c1bc1b938fe5af67a9241f109c5cad98d748ad7084abd3d6ad"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "apps/api/src/modules/reminders/composition/create-receipt-review.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "reminder",
+        "sha256": "94da00991d2c2e22552a4ecce88c8eec6cc334c7322bad6bee38cc3c8f33278c",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "reminder",
+            "change": "A",
+            "sha256_after": "94da00991d2c2e22552a4ecce88c8eec6cc334c7322bad6bee38cc3c8f33278c"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "apps/api/src/routes/v1/admin-users.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "0db0794e379dd3972eba48586fdeaac933f6ab29a9ab1924907826f70d7feb68",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "0db0794e379dd3972eba48586fdeaac933f6ab29a9ab1924907826f70d7feb68"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "apps/api/src/routes/v1/admin-users.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "096d6820490e5d11e81f5f100b286e61205f27485adc6781cf3cf202d2d3c348",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "096d6820490e5d11e81f5f100b286e61205f27485adc6781cf3cf202d2d3c348"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "apps/api/src/routes/v1/app-subscription.route.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "8217a2e9b078bbd2166fadce0a626c0bc1219bc1d3110ac99a58b7bf09a126b4",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "8217a2e9b078bbd2166fadce0a626c0bc1219bc1d3110ac99a58b7bf09a126b4"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "apps/api/src/routes/v1/app-subscription.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "17c67d024170c2ad31daf4be66db8a6db6c4d1301c32067db5a8dd6cb9a3a39b",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "17c67d024170c2ad31daf4be66db8a6db6c4d1301c32067db5a8dd6cb9a3a39b"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "apps/api/src/routes/v1/g1-reminder-create-lookup.review.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "reminder",
+        "sha256": "4dc6b659b3cd90d5ecd11e68d09650ba489a9d4c239e946fcac1dddcdee2157f",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "reminder",
+            "change": "M",
+            "sha256_after": "4dc6b659b3cd90d5ecd11e68d09650ba489a9d4c239e946fcac1dddcdee2157f"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "apps/api/src/routes/v1/g1-reminder-create-lookup.review.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "reminder",
+        "sha256": "55b197d4d3a7b99934cda284fe0169bd852f31dbf9c60bfb22eb88598698403f",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "reminder",
+            "change": "M",
+            "sha256_after": "55b197d4d3a7b99934cda284fe0169bd852f31dbf9c60bfb22eb88598698403f"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "apps/api/src/routes/v1/g1-subscription-readonly.contract.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "2e81891d858e01cbdef22039be717301c94d301f64e7adf04069d9db85570b7d",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "2e81891d858e01cbdef22039be717301c94d301f64e7adf04069d9db85570b7d"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "apps/api/src/routes/v1/payment-provider-webhooks.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "d8985254073965e6beba32d8e4b91019d69aa82a6af3222f90cde7c9af3734bf",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "d8985254073965e6beba32d8e4b91019d69aa82a6af3222f90cde7c9af3734bf"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "apps/api/src/routes/v1/payment-provider-webhooks.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "2181fa0c1bf695677340f05018bf8d48c899461728dbc5b22efdb80eb16a77d6",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "2181fa0c1bf695677340f05018bf8d48c899461728dbc5b22efdb80eb16a77d6"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "docs/audit/core-server-adapter-risk-inventory-20261111.md": {
+        "decision": "EXCLUDE_AUDIT_ONLY",
+        "reason": "Historical progress/risk evidence retained in A1 audit, not runtime integration source",
+        "latestBatch": "flags_access",
+        "sha256": "6a03dd8ae9ccb6b01c3dc702a58b8ca03c3eaf6205dca610c8736312201adba2",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "reminder",
+            "change": "M",
+            "sha256_after": "db3557d6d79576370117ccac65ed0b834c3c0da054c32dff4cf75971a4b2cee6"
+          },
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "6a03dd8ae9ccb6b01c3dc702a58b8ca03c3eaf6205dca610c8736312201adba2"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "docs/audit/core-server-bulk-progress-20261111.md": {
+        "decision": "EXCLUDE_AUDIT_ONLY",
+        "reason": "Historical progress/risk evidence retained in A1 audit, not runtime integration source",
+        "latestBatch": "flags_access",
+        "sha256": "74ef2ce1ec72353e32d53e618c8ceab0ee92306ec0f745b637169e0fb0d64662",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "reminder",
+            "change": "M",
+            "sha256_after": "899de9459a8d138e04b37e70a36d67bb2c5e82b5c8c8e65d64e0dd51cbb29fa0"
+          },
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "74ef2ce1ec72353e32d53e618c8ceab0ee92306ec0f745b637169e0fb0d64662"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/core/package.json": {
+        "decision": "SHA_REQUIRED",
+        "reason": "Cross-agent package/export/ratchet contract; preserve A1 ports and A2 telemetry, manual review",
+        "latestBatch": "flags_access",
+        "sha256": "145379e3172ebc1dcbdf19510a282f0118bfa6b13dccf85bf0294f76d4ce25e5",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "145379e3172ebc1dcbdf19510a282f0118bfa6b13dccf85bf0294f76d4ce25e5"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/core/src/services/appFeatureFlags/appFeatureFlagsPort.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "29cb2a4819ba1117d53a6910caeec5155288042257b0a082b02ab0ebab06f216",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "A",
+            "sha256_after": "29cb2a4819ba1117d53a6910caeec5155288042257b0a082b02ab0ebab06f216"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "9c7fbd23502089185fb11dd8c6bae9293d6d5962e05fed64bc9e621630268bcb",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "9c7fbd23502089185fb11dd8c6bae9293d6d5962e05fed64bc9e621630268bcb"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/core/src/services/appFeatureFlags/index.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "c123bc8224a8b185914ce3c63c25249208aee6fa970162cb4a9ca052bf8d661f",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "c123bc8224a8b185914ce3c63c25249208aee6fa970162cb4a9ca052bf8d661f"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/core/src/services/appSubscription/__tests__/accessService.facade.g1.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "9b72a710990682e7f79bfd308d4f95fe4a24585ea19b192dd6bc0733172b98e6",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "9b72a710990682e7f79bfd308d4f95fe4a24585ea19b192dd6bc0733172b98e6"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/core/src/services/appSubscription/__tests__/accessService.readBaseline.g1.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "98c74ff0cb8f049bb154e86d5646bd32feff9b4128165bbeb6bc9a782bf0e2d6",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "98c74ff0cb8f049bb154e86d5646bd32feff9b4128165bbeb6bc9a782bf0e2d6"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/core/src/services/appSubscription/__tests__/accessService.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "88f8235029ea33c1ac3fb66eac14ae9a59fe8fa4110c3c93e062f9fb212cdf80",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "88f8235029ea33c1ac3fb66eac14ae9a59fe8fa4110c3c93e062f9fb212cdf80"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/core/src/services/appSubscription/__tests__/cynologistEntitlements.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "350bfab01b6a5f6a7fe8a829cb6a5926fc60fba549fffde212e9fe0b7e8a3e6e",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "350bfab01b6a5f6a7fe8a829cb6a5926fc60fba549fffde212e9fe0b7e8a3e6e"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/core/src/services/appSubscription/__tests__/paymentService.realpg.archqa.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "3faf9850fb89adf7fc81ce1899bfc44427a1529e3121e2ffcb336d513e97da45",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "3faf9850fb89adf7fc81ce1899bfc44427a1529e3121e2ffcb336d513e97da45"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/core/src/services/appSubscription/__tests__/paymentService.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "ad813c73d46b0ee9532f291eb2b5b27c7d0e0021f5cd5ea9e8d3036d01c6328e",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "ad813c73d46b0ee9532f291eb2b5b27c7d0e0021f5cd5ea9e8d3036d01c6328e"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/core/src/services/appSubscription/accessPort.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "ce887f931f5c7feb1dd409edd1befa9c8561db4481af1e27ea4f3d55478ab0f9",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "A",
+            "sha256_after": "ce887f931f5c7feb1dd409edd1befa9c8561db4481af1e27ea4f3d55478ab0f9"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/core/src/services/appSubscription/accessService.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "0a9bbf842ac94e91664de745746a488d820cc6ac1b849e8dbd96211829ccc470",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "0a9bbf842ac94e91664de745746a488d820cc6ac1b849e8dbd96211829ccc470"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/core/src/services/appSubscription/appleJws.archqa.acceptance.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": null,
+        "latestChange": "D",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "D",
+            "sha256_after": null
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/core/src/services/appSubscription/g1-achievements-snapshot-access-source.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "4b6fbd0baa3ece8dbaa9b936bde643dcfd8bbe95dafbb3cbcf6e02d1b3bc0c76",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "4b6fbd0baa3ece8dbaa9b936bde643dcfd8bbe95dafbb3cbcf6e02d1b3bc0c76"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/core/src/services/appSubscription/index.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "356953d2cf4ed339d08597b104e3090774389e936cf94038437efb192126e77b",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "356953d2cf4ed339d08597b104e3090774389e936cf94038437efb192126e77b"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/core/src/services/appSubscription/paymentService.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "19ca950044f69f46aaaf696a8c612926c937a806f68448050a076fc134ed3db8",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "19ca950044f69f46aaaf696a8c612926c937a806f68448050a076fc134ed3db8"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/core/src/services/consultation/bookingService.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "8cb7f7fd2df8fd50612d11bf9419622ea71d89fc42e2d6998340061fcf9ed9ec",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "8cb7f7fd2df8fd50612d11bf9419622ea71d89fc42e2d6998340061fcf9ed9ec"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "reminder",
+        "sha256": "f175ddfef0163fa996001d78175a425894acd4e092999c2c09ac87e413f5cf1e",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "reminder",
+            "change": "M",
+            "sha256_after": "f175ddfef0163fa996001d78175a425894acd4e092999c2c09ac87e413f5cf1e"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "reminder",
+        "sha256": "073fff926ff6754ebdc30c8d88534c808597d5fc6138c8ae9d3fb80ad588ef62",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "reminder",
+            "change": "M",
+            "sha256_after": "073fff926ff6754ebdc30c8d88534c808597d5fc6138c8ae9d3fb80ad588ef62"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/feature-flags-server/package.json": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "a750b637068c625d5de7f2bb69dd6c668cf4f45032d4ee1c2b9f1f3c48478a43",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "a750b637068c625d5de7f2bb69dd6c668cf4f45032d4ee1c2b9f1f3c48478a43"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/feature-flags-server/src/appFeatureFlagsService.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "e2e428e7da75b097f0e9e0f764816ad850160796e4cf1d12911c6fa51648262f",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "e2e428e7da75b097f0e9e0f764816ad850160796e4cf1d12911c6fa51648262f"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/subscription-payment-server/src/appleJws.archqa.acceptance.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "ded3f87dd10a74934a53a1ce148065ab8fbfcbba26623d479d563b0b77d42747",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "A",
+            "sha256_after": "ded3f87dd10a74934a53a1ce148065ab8fbfcbba26623d479d563b0b77d42747"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/subscription-payment-server/src/appleJws.archqa.acceptance.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "4103ce29a6656c64cc744bcfa99b8bbcc8ba5c2959fa165a32986c5b7602a075",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "A",
+            "sha256_after": "4103ce29a6656c64cc744bcfa99b8bbcc8ba5c2959fa165a32986c5b7602a075"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/types/src/contracts/mobileReleaseErrors.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "flags_access",
+        "sha256": "33902af423bd13d144ff7ce3aae50c1aa217ae2f1d2ca4578d6c22c481faa20f",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "A",
+            "sha256_after": "33902af423bd13d144ff7ce3aae50c1aa217ae2f1d2ca4578d6c22c481faa20f"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": true
+      },
+      "packages/types/src/index.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "Cross-agent package/export/ratchet contract; preserve A1 ports and A2 telemetry, manual review",
+        "latestBatch": "flags_access",
+        "sha256": "a78c60d0e3634d2d3c79ad99d824f95e853823c4131c5138c76a7803c964074d",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "a78c60d0e3634d2d3c79ad99d824f95e853823c4131c5138c76a7803c964074d"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/worker/src/composition/app-subscription-payment.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "0283325a2e079dbb7c30fda43d326ec712c2fd686ffd0ac7bb4f9cf42f0059ed",
+        "latestChange": "A",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "A",
+            "sha256_after": "0283325a2e079dbb7c30fda43d326ec712c2fd686ffd0ac7bb4f9cf42f0059ed"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/worker/src/cron-scheduler.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "ac3ef75d316c8448e2e5131acb889e7284dbfd31602b32de5086dd765f04d120",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "ac3ef75d316c8448e2e5131acb889e7284dbfd31602b32de5086dd765f04d120"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/worker/src/cron-scheduler.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "44e38f79fd9382cc9d7d3e7c95cf7e971ca8041d37c1aea456dedf5afca29acd",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "44e38f79fd9382cc9d7d3e7c95cf7e971ca8041d37c1aea456dedf5afca29acd"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "packages/worker/src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts": {
+        "decision": "SHA_REQUIRED",
+        "reason": "A1 owned group file; pinned after SHA required unless reconciliation SHA independently approved",
+        "latestBatch": "payment",
+        "sha256": "9659a9ee16f87094d3369c8f82898a1014ef32bf75d920d9b14ddecc9d715114",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "payment",
+            "change": "M",
+            "sha256_after": "9659a9ee16f87094d3369c8f82898a1014ef32bf75d920d9b14ddecc9d715114"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "pnpm-lock.yaml": {
+        "decision": "REGENERATE_APPROVED_LOCK",
+        "reason": "Manual A2 P0 collision: preserve final pnpm overrides, workspace links, patches; require new approved lock SHA",
+        "latestBatch": "flags_access",
+        "sha256": "f131a5960bfffbb2dd894d23ee1e0820884fce6188798ba989eab7743e48524e",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "f131a5960bfffbb2dd894d23ee1e0820884fce6188798ba989eab7743e48524e"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": true,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      },
+      "scripts/check-core-server-boundary.mjs": {
+        "decision": "SHA_REQUIRED",
+        "reason": "Cross-agent package/export/ratchet contract; preserve A1 ports and A2 telemetry, manual review",
+        "latestBatch": "flags_access",
+        "sha256": "c4a4f84c9f14d5d2263d070ebc485c944aad7789ee6fdcfb7dd26158e8380c9e",
+        "latestChange": "M",
+        "history": [
+          {
+            "batch": "flags_access",
+            "change": "M",
+            "sha256_after": "c4a4f84c9f14d5d2263d070ebc485c944aad7789ee6fdcfb7dd26158e8380c9e"
+          }
+        ],
+        "reconciliationApprovedSha256": [],
+        "a2P0Direct": false,
+        "a3FinalDirect": false,
+        "a2ActiveWorktreeDiffers": true,
+        "a3ActiveWorktreeDiffers": true,
+        "newSincePinnedInventory": false
+      }
+    },
+    "excludedCompanionDocs": [
+      {
+        "path": "docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.md",
+        "sha256": "7eac6efdfa51cc113680bedf2ad8acc2e8e349fe63341e7255ad51c3c22bb708",
+        "decision": "EXCLUDE_AUDIT_ONLY",
+        "reason": "Human-readable companion document, not runtime integration source"
+      },
+      {
+        "path": "docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.json",
+        "sha256": "87d0fbedf7ab2692637cbeed6fcf819b865f23c70f92094e4f5dd905a728a362",
+        "decision": "EXCLUDE_AUDIT_ONLY",
+        "reason": "JSON SHA-pinned input evidence; validate manifest separately, not runtime source"
+      },
+      {
+        "path": "docs/audit/gafus-agent-1-to-agent-2-reminder-review-ports-20261112.md",
+        "sha256": "952bc9f0689205297679642b20d9d4c1f952d4c2cccae76045c82caaf1b3abe3",
+        "decision": "EXCLUDE_AUDIT_ONLY",
+        "reason": "Human-readable companion document, not runtime integration source"
+      },
+      {
+        "path": "docs/audit/gafus-agent-1-to-agent-2-reminder-review-ports-20261112.json",
+        "sha256": "44405745affa7196c746db547ca1190fc53dfb2ec9ebf003dd9b3aa8cac50fba",
+        "decision": "EXCLUDE_AUDIT_ONLY",
+        "reason": "JSON SHA-pinned input evidence; validate manifest separately, not runtime source"
+      },
+      {
+        "path": "docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.md",
+        "sha256": "f5ab4ab0012ddc2d9463f43d086ac0684ca93571e18a8270f14b95f2810bd8f9",
+        "decision": "EXCLUDE_AUDIT_ONLY",
+        "reason": "Human-readable companion document, not runtime integration source"
+      },
+      {
+        "path": "docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.json",
+        "sha256": "f3f19b3543366102f46e85aab92d15b11a1cd8bcb51dc4b05bfa5920a086769a",
+        "decision": "EXCLUDE_AUDIT_ONLY",
+        "reason": "JSON SHA-pinned input evidence; validate manifest separately, not runtime source"
+      }
+    ],
+    "uniquePaths": 49,
+    "manifestEntryCount": 51,
+    "statusCounts": {
+      "SHA_REQUIRED": 46,
+      "EXCLUDE_AUDIT_ONLY": 2,
+      "REGENERATE_APPROVED_LOCK": 1
+    },
+    "A2P0DirectOverlaps": [
+      "pnpm-lock.yaml"
+    ],
+    "A3FinalDirectOverlaps": [],
+    "newManifestP0DirectOverlaps": [
+      "pnpm-lock.yaml"
+    ],
+    "lastManifest": "flags_access",
+    "note": "A1 remaining 37 is intermediate; final architecture registry still absent"
+  },
+  "r37OnlyPreflightStatus": "PENDING_FINAL_A1_AND_LOCK_APPROVAL"
+}

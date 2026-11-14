@@ -10,7 +10,7 @@ import {
   getCourseVersion,
   checkCourseUpdates,
   downloadFullCourse,
-} from "@gafus/core/services/offline";
+} from "@gafus/course-read-server/offline-application";
 import { getTrainingDays, requireCourseStepOperationAccess } from "@gafus/core/services/training";
 import { batchEntrySchema } from "@gafus/core/services/petPrevention";
 // Journal exports are loaded ONLY for v2 requests: a mixed-version API

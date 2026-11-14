@@ -6,7 +6,7 @@ import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "../../../../prisma/node_modules/@prisma/client";
 import { prisma } from "@gafus/prisma";
-import { listQuestions } from "./service";
+import { listQuestions } from "@gafus/questions-server/service";
 
 const key = randomBytes(6).toString("hex");
 const prefix = "ag1web040q_" + key + "_";

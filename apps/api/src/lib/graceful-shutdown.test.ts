@@ -82,6 +82,20 @@ describe("API shutdown: synthetic handles and exit only; never imports the API e
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("flushes telemetry after DB/Redis cleanup and does not fail business exit on exporter failure", async () => {
+    const t = syntheticTasks();
+    const flushTelemetry = vi.fn(async () => { throw Error("private-exporter-secret"); });
+    t.tasks.flushTelemetry = flushTelemetry;
+    await createGracefulShutdown(t.tasks)("SIGTERM");
+    expect(flushTelemetry).toHaveBeenCalledTimes(1);
+    expect(flushTelemetry.mock.invocationCallOrder[0]).toBeGreaterThan(
+      t.disconnectDatabase.mock.invocationCallOrder[0]!,
+    );
+    expect(t.logInfo).toHaveBeenCalledWith("Telemetry flush incomplete");
+    expect(t.exit).toHaveBeenCalledExactlyOnceWith(0);
+    expect(JSON.stringify(t.logInfo.mock.calls)).not.toContain("private-exporter-secret");
+  });
+
   it("original RED scenario: throwing monitor stop still closes HTTP/DB/Redis and exits 1", async () => {
     const t = syntheticTasks();
     t.stopMonitor.mockImplementationOnce(() => {

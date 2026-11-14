@@ -31,7 +31,21 @@ vi.mock("@gafus/core/services/cynologistChat", () => ({
     }
   },
 }));
-vi.mock("@gafus/core/services/cynologistChat/upload", () => ({ deleteChatAttachment: vi.fn() }));
+vi.mock("./service.js", () => ({
+  getChatState: mocks.state,
+  sendChatMessage: mocks.send,
+  startChat: vi.fn(), getChatSession: vi.fn(), listChatDialogs: vi.fn(),
+}));
+vi.mock("./community.js", () => ({
+  getCommunityChatState: mocks.communityState,
+  getCommunityChatSession: vi.fn(),
+  sendCommunityChatMessage: vi.fn(),
+  communityModerationOverview: vi.fn(),
+  moderateCommunityChat: mocks.moderation,
+}));
+vi.mock("./reactions.js", () => ({ manageChatReaction: vi.fn() }));
+vi.mock("./messageManagement.js", () => ({ manageOwnChatMessage: vi.fn() }));
+vi.mock("./upload-service.js", () => ({ deleteChatAttachment: vi.fn() }));
 vi.mock("./upload.js", () => ({ uploadChatAttachmentRequest: vi.fn() }));
 import { dispatchChatRequest, chatHttpError } from "./index";
 beforeEach(() => {

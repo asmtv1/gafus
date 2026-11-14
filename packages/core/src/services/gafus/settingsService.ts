@@ -1,4 +1,3 @@
-import { prisma } from "@gafus/prisma";
 import type { GafusSettingsConfig, GafusTx } from "./types";
 
 export const DEFAULT_GAFUS_SETTINGS: Readonly<GafusSettingsConfig> = Object.freeze({
@@ -21,6 +20,11 @@ export const DEFAULT_GAFUS_SETTINGS: Readonly<GafusSettingsConfig> = Object.free
 
 export async function getGafusSettingsTx(tx: GafusTx): Promise<GafusSettingsConfig> {
   const row = await tx.gafusSettings.findUnique({ where: { key: "default" } });
+  return mapGafusSettings(row);
+}
+
+/** Apply the exact same validated business policy to transactional and GET reads. */
+function mapGafusSettings(row: GafusSettingsConfig | null): GafusSettingsConfig {
   if (!row) {
     // No admin-configured row yet: all three economy switches are enabled by default.
     return { ...DEFAULT_GAFUS_SETTINGS };
@@ -46,6 +50,11 @@ export async function getGafusSettingsTx(tx: GafusTx): Promise<GafusSettingsConf
   };
 }
 
-export async function getGafusSettings(): Promise<GafusSettingsConfig> {
-  return getGafusSettingsTx(prisma);
+/** Pure read policy: persistence is explicitly injected by the API composition.
+ * The caller must never open a second SQL transaction during an economy write.
+ */
+export async function getGafusSettings(
+  readSettingsRow: () => Promise<GafusSettingsConfig | null>,
+): Promise<GafusSettingsConfig> {
+  return mapGafusSettings(await readSettingsRow());
 }

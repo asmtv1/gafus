@@ -1,14 +1,11 @@
-import { prisma, type Prisma } from "@gafus/prisma";
+import type { GafusLedgerMetadata } from "@gafus/types";
+import { requireGafusLedgerRowsPort } from "./gafusLedgerPort";
 import { GafusError } from "./errors";
 import type { GafusTx } from "./types";
 
 // Caller must acquire lockGafusUser(tx, userId) in the same transaction.
 export async function ensureGafusWalletTx(tx: GafusTx, userId: string) {
-  return tx.gafusWallet.upsert({
-    where: { userId },
-    create: { userId, balance: 0 },
-    update: {},
-  });
+  return requireGafusLedgerRowsPort().ensureWalletRow(tx,userId);
 }
 
 type MutationInput = {
@@ -22,7 +19,7 @@ type MutationInput = {
   targetType?: "COURSE_STEP" | "MINI_GUIDE" | "ARTICLE";
   targetKey?: string;
   settingsRevision?: number;
-  metadata?: Prisma.InputJsonValue;
+  metadata?: GafusLedgerMetadata;
 };
 
 export async function changeGafusBalanceTx(
@@ -41,9 +38,7 @@ export async function changeGafusBalanceTx(
   if (!input.idempotencyKey || input.idempotencyKey.length > 512) {
     throw new GafusError("GAFUS_IDEMPOTENCY_CONFLICT", "Invalid idempotency key");
   }
-  const prior = await tx.gafusTransaction.findUnique({
-    where: { idempotencyKey: input.idempotencyKey },
-  });
+  const prior = await requireGafusLedgerRowsPort().findLedgerEntry(tx,input.idempotencyKey);
   if (prior) {
     if (prior.userId !== input.userId || prior.delta !== delta
       || prior.kind !== kind || prior.targetKey !== (input.targetKey ?? null)) {
@@ -59,15 +54,11 @@ export async function changeGafusBalanceTx(
   if (!Number.isSafeInteger(balanceAfter) || balanceAfter < 0 || balanceAfter > 2_147_483_647) {
     throw new GafusError("GAFUS_INVALID_AMOUNT", "Invalid resulting balance");
   }
-  const updated = await tx.gafusWallet.updateMany({
-    where: { userId: input.userId, ...(delta < 0 ? { balance: { gte: -delta } } : {}) },
-    data: { balance: delta > 0 ? { increment: delta } : { decrement: -delta } },
-  });
+  const updated = await requireGafusLedgerRowsPort().updateWalletBalanceRow(tx,input.userId,delta);
   if (updated.count !== 1) {
     throw new GafusError("GAFUS_INSUFFICIENT_BALANCE", "Not enough Gafus");
   }
-  const entry = await tx.gafusTransaction.create({
-    data: {
+  const entry = await requireGafusLedgerRowsPort().appendLedgerEntry(tx,{
       userId: input.userId, kind, delta,
       balanceBefore: wallet.balance, balanceAfter,
       idempotencyKey: input.idempotencyKey,
@@ -78,15 +69,12 @@ export async function changeGafusBalanceTx(
       targetKey: input.targetKey,
       settingsRevision: input.settingsRevision,
       metadata: input.metadata,
-    },
   });
   return { transactionId: entry.id, balance: balanceAfter, replay: false };
 }
 
 export async function getGafusBalance(userId: string): Promise<number> {
-  const row = await prisma.gafusWallet.findUnique({
-    where: { userId }, select: { balance: true },
-  });
+  const row = await requireGafusLedgerRowsPort().readWalletBalanceRow(userId);
   return row?.balance ?? 0;
 }
 
@@ -96,12 +84,7 @@ export async function listGafusTransactions(input: {
   limit?: number;
 }) {
   const limit = Math.max(1, Math.min(input.limit ?? 20, 100));
-  const rows = await prisma.gafusTransaction.findMany({
-    where: { userId: input.userId },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
-    take: limit + 1,
-  });
+  const rows = await requireGafusLedgerRowsPort().readWalletLedgerRows(input.userId,input.cursor,limit);
   return {
     items: rows.slice(0, limit),
     nextCursor: rows.length > limit ? rows[limit - 1]?.id ?? null : null,

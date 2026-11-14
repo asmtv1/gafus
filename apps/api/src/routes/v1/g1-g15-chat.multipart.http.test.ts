@@ -15,7 +15,8 @@ vi.mock("@gafus/core/services/cynologistChat", () => ({
   requireCanSend: m.canSend,
   requireCommunityCanSend: vi.fn(),
 }));
-vi.mock("@gafus/core/services/cynologistChat/upload", () => ({
+vi.mock("../../../../../packages/chat-server/dist/service.js", () => ({ requireCanSend: m.canSend }));
+vi.mock("../../../../../packages/chat-server/dist/upload-service.js", () => ({
   uploadChatAttachment: m.save,
   deleteChatAttachment: vi.fn(),
 }));

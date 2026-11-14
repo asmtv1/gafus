@@ -23,9 +23,11 @@ const fixed = vi.hoisted(() => {
   return { owner, photoId, mediaId, sourceKey, small, medium, task, photo, tx, db, s3 };
 });
 vi.mock("@gafus/prisma", () => ({ prisma: fixed.db }));
-vi.mock("@gafus/core/services/questions", () => ({
-  questionActor: vi.fn(async () => undefined),
+vi.mock("@gafus/media-server/question-v2-cleanup", () => ({
   scheduleQuestionsV2Cleanup: vi.fn(),
+}));
+vi.mock("@gafus/questions-server/service", () => ({
+  questionActor: vi.fn(async () => undefined),
   QuestionError: class extends Error { constructor(readonly code: string,
     message: string, readonly status: number) { super(message); } },
 }));

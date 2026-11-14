@@ -2,7 +2,7 @@
 /** TR012 new Core→approved DTO boundary; source-backed, mocked Prisma, no mounted HTTP. */
 import {beforeEach,expect,it,vi} from "vitest";
 import {parseTrainerCourseDraftEnvelope} from "./trainerCourseDraftReadContract";
-const m=vi.hoisted(()=>({find:vi.fn(),writes:vi.fn()}));
+const m=vi.hoisted(()=>({find:vi.fn(),readDraft:vi.fn(),writes:vi.fn()}));
 vi.mock("@gafus/prisma",()=>({
  prisma:{course:{findUnique:m.find,create:m.writes,update:m.writes,delete:m.writes},
   $transaction:m.writes},
@@ -16,6 +16,12 @@ vi.mock("../../../../packages/core/src/services/training/trainingDayContent",()=
 }));
 vi.mock("../../../../packages/core/src/services/training/trainingContentRevision",()=>({
  publishCourseContentChange:vi.fn(),
+}));
+// The new Core service reads via the fail-closed persistence port, not Prisma.
+// Mock only the port adapter; real Core ownership filtering and DTO projection run.
+vi.mock("../../../../packages/core/src/services/trainerCourse/trainerCourseRowsPort", async (original) => ({
+ ...(await original<Record<string, unknown>>()),
+ readCourseDraftRow: (id: string) => m.readDraft(id),
 }));
 // Runtime loads ACTUAL Core implementation without compiling server internals in Trainer tsconfig.
 const corePath="../../../../packages/core/src/services/trainerCourse/trainerCourseService";
@@ -32,7 +38,7 @@ const draft={
   id:"link-A",dayId:"day-A",order:1,day:{id:"day-A",title:"Day A"},
  }],access:[{userId:"user-A",user:{id:"user-A",username:"PRIVATE_LEARNER"}}],
 };
-beforeEach(()=>{vi.resetAllMocks();m.find.mockResolvedValue(draft);});
+beforeEach(()=>{vi.resetAllMocks();m.readDraft.mockResolvedValue(draft);});
 it("actual Core owner-safe DTO passes strict Vite draft schema, preserves ordered day/access",async()=>{
  const actual=await getCourseDraftWithRelations("course-cuid-1","trainer-A",{
   allowAdmin:false,
@@ -42,9 +48,8 @@ it("actual Core owner-safe DTO passes strict Vite draft schema, preserves ordere
   dayId:"day-A",order:1,
  }],access:[{userId:"user-A",user:{username:"PRIVATE_LEARNER"}}]});
  expect(JSON.stringify(parsed)).not.toContain("authorId");
- expect(m.find).toHaveBeenCalledWith({where:{id:"course-cuid-1"},
-  select:expect.objectContaining({authorId:true,dayLinks:expect.any(Object),
-   access:expect.any(Object)})});
+ expect(m.readDraft).toHaveBeenCalledWith("course-cuid-1");
+ expect(m.find).not.toHaveBeenCalled();
  expect(m.writes).not.toHaveBeenCalled();
 });
 it("Core foreign TRAINER receives null; API must map to masked 404, not private DTO",async()=>{
@@ -64,21 +69,21 @@ it("only HTTP-authenticated ADMIN may cause allowAdmin=true: Core itself trusts 
  expect(m.writes).not.toHaveBeenCalled();
 });
 it("missing course Core returns null; no author/course existence oracle",async()=>{
- m.find.mockResolvedValueOnce(null);
+ m.readDraft.mockResolvedValueOnce(null);
  expect(await getCourseDraftWithRelations("missing","trainer-A",{
   allowAdmin:false,
  })).toBeNull();
  expect(m.writes).not.toHaveBeenCalled();
 });
 it("Core database error also returns null, not distinguishable from 404 by thin route",async()=>{
- m.find.mockRejectedValueOnce(Error("PRIVATE_DB_STACK"));
+ m.readDraft.mockRejectedValueOnce(Error("PRIVATE_DB_STACK"));
  expect(await getCourseDraftWithRelations("course-cuid-1","trainer-A",{
   allowAdmin:false,
  })).toBeNull();
  expect(m.writes).not.toHaveBeenCalled();
 });
 it("Core course with trailing fields is projected explicitly, never sent raw to client",async()=>{
- m.find.mockResolvedValueOnce({...draft,internalSecret:"PRIVATE_SECRET",userCourses:[{
+ m.readDraft.mockResolvedValueOnce({...draft,internalSecret:"PRIVATE_SECRET",userCourses:[{
   email:"PRIVATE_EMAIL",
  }]});
  const result=await getCourseDraftWithRelations("course-cuid-1","trainer-A",{

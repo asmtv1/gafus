@@ -719,14 +719,14 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   tourTargetFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   courseImage: {
     width: "100%",
     height: "100%",
   },
   courseImagePlaceholder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f4efe2",

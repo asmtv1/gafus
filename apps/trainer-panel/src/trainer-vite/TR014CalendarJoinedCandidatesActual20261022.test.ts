@@ -9,7 +9,7 @@ import type {Root} from "react-dom/client";
 import {TrainerDailyCalendarRead20261022} from "./TrainerDailyCalendarRead20261022";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as PrismaModule from "@gafus/prisma";
-import type { DailyCourseScheduleDto } from "@gafus/core/services/dailyCourse";
+import type { DailyCourseScheduleDto } from "@gafus/course-progress-server/daily-course-service";
 
 const m=vi.hoisted(()=>({
   schedules:vi.fn(),candidates:vi.fn(),session:vi.fn(),registration:vi.fn(),write:vi.fn(),
@@ -43,7 +43,7 @@ vi.mock("@gafus/prisma",async original=>{
 vi.mock("@gafus/core/services/auth",async original=>({
   ...await original<object>(),isRegistrationCompleted:m.registration,
 }));
-// No vi.mock("@gafus/core/services/dailyCourse").
+// No vi.mock("@gafus/course-progress-server/daily-course-service").
 const {app}=await vi.importActual<{app:{request:(path:string,init?:RequestInit)=>Promise<Response>}}>("../../../api/src/app");
 const {generateAccessToken}=await vi.importActual<{generateAccessToken:(actor:{id:string;username:string;role:string})=>Promise<string>}>("@gafus/auth/jwt");
 

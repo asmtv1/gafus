@@ -1,0 +1,433 @@
+{
+  "schema": "gafus/agent3-final-local-handoff/v1",
+  "capturedAt": "2026-11-12T03:37:59+04:00",
+  "repo": {
+    "root": "/Users/asmtv1/Desktop/gafus-refactor",
+    "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+    "branch": "main",
+    "workingTreeClean": false,
+    "changedPathCount": 1765,
+    "statusCounts": {
+      "modified": 769,
+      "deleted": 212,
+      "untracked": 784
+    },
+    "stagedPaths": [],
+    "stagedCount": 0,
+    "note": "Common dirty worktree includes Agent1/Agent2 edits; this inventory is NOT a standalone commit."
+  },
+  "files": [
+    {
+      "scope": "owned",
+      "path": "packages/worker/src/feed-processing-trigger-worker.ts",
+      "contribution": "Worker Feed wake",
+      "gitStatus": " M",
+      "bytes": 2596,
+      "sha256": "a9ab7a0e053ebf6a420604bc8ea2d9d66f5df353381204a69f7610a5d67d158c"
+    },
+    {
+      "scope": "owned",
+      "path": "packages/worker/src/feed-processing-trigger-worker.test.ts",
+      "contribution": "Feed wake тест",
+      "gitStatus": " M",
+      "bytes": 7790,
+      "sha256": "005a52782c4f7140e345370cd7dd564e98d4aa5b55a2069479f5b685745336d9"
+    },
+    {
+      "scope": "owned",
+      "path": "packages/worker/src/chat2-media-processing-trigger-worker.ts",
+      "contribution": "Chat2 wake",
+      "gitStatus": " M",
+      "bytes": 2047,
+      "sha256": "b24c93e6ca7a7b2335b0913f910e9e83c06d4229f31d67f6426cca8b63bd8fe3"
+    },
+    {
+      "scope": "owned",
+      "path": "packages/worker/src/chat2-media-processing-trigger-worker.test.ts",
+      "contribution": "Chat2 wake тест",
+      "gitStatus": " M",
+      "bytes": 6168,
+      "sha256": "83deeb03f35d34013facf164797947634b02d4d4cb7117c5149c8d40464d61d1"
+    },
+    {
+      "scope": "owned",
+      "path": "packages/worker/src/cloudru-trigger-error-policy.ts",
+      "contribution": "Cloudru error classifier",
+      "gitStatus": "??",
+      "bytes": 1891,
+      "sha256": "3b56e623f8d05bc66021c4ccefc459b0d8c2078bef807656d7e8bb0910a8a430"
+    },
+    {
+      "scope": "owned",
+      "path": "packages/worker/src/cloudru-trigger-error-policy.test.ts",
+      "contribution": "Classifier тест",
+      "gitStatus": "??",
+      "bytes": 2279,
+      "sha256": "06f95f2151d5fe375dabd6a4d67bc3e0a47b77aed6784962d35b5b3b3f5ed1f5"
+    },
+    {
+      "scope": "owned",
+      "path": "packages/worker/src/a3-media-priority.real-services.spec.ts",
+      "contribution": "Priority PG/Redis integration",
+      "gitStatus": "??",
+      "bytes": 5393,
+      "sha256": "f238b31cc242ae13b2431824e8fd9f245bdc3c06fa4586c3114504561e7d01d4"
+    },
+    {
+      "scope": "owned",
+      "path": "packages/worker/vitest.a3-priority-isolated.config.ts",
+      "contribution": "Priority QA config",
+      "gitStatus": "??",
+      "bytes": 362,
+      "sha256": "2c5343b736bfe98923039169dc0627b98e310674d307e961fae1b59a2ac5d025"
+    },
+    {
+      "scope": "owned",
+      "path": "packages/core/src/services/feed/clientVideoReady.test.ts",
+      "contribution": "Feed video media contract test",
+      "gitStatus": " M",
+      "bytes": 11587,
+      "sha256": "f8896647f398e852c4ba54e801a090ad4a6bbc8fd57ba0c913073e074ab205c3"
+    },
+    {
+      "scope": "owned",
+      "path": "apps/admin-panel/src/admin-live/ChatOutboxPanel.tsx",
+      "contribution": "DLQ admin UI",
+      "gitStatus": "??",
+      "bytes": 3464,
+      "sha256": "53dc1f9c045c453de566eeb4965f25170eac67121c7e91c540db4e367b917de5"
+    },
+    {
+      "scope": "owned",
+      "path": "apps/admin-panel/src/admin-live/ChatOutboxPanel.mounted.test.tsx",
+      "contribution": "Mounted UI тест",
+      "gitStatus": "??",
+      "bytes": 3660,
+      "sha256": "29b3a43ab2389bd9d380d71edcef732ec784562da26e2c7e6a338641fe1a7a13"
+    },
+    {
+      "scope": "owned",
+      "path": "apps/api/src/modules/chat2/infrastructure/outbox-diagnostics.ts",
+      "contribution": "Chat2 diagnostics adapter",
+      "gitStatus": "??",
+      "bytes": 187,
+      "sha256": "20f0aa33470a757db1f74b8de1432af99e2ec097b8e959445e7b43d0ef652270"
+    },
+    {
+      "scope": "owned",
+      "path": "packages/chat-server/src/outbox-diagnostics.ts",
+      "contribution": "Chat2 diagnostics contract",
+      "gitStatus": "??",
+      "bytes": 170,
+      "sha256": "8d8c74407eea9072654d08e201ab9ec3d0e0156f7fdb305bd55eb08851364268"
+    },
+    {
+      "scope": "owned",
+      "path": "packages/prisma/src/chat2OutboxDiagnostics.ts",
+      "contribution": "DLQ persistence CAS",
+      "gitStatus": "??",
+      "bytes": 1017,
+      "sha256": "3c7aee667ab5ee6e04b0e98b2cf5246f63a3dbe93d401a44a31aa3ab7b8ace92"
+    },
+    {
+      "scope": "owned",
+      "path": "apps/api/src/routes/v1/admin-media-dlq.real-pg.test.ts",
+      "contribution": "Hono + PG DLQ тест",
+      "gitStatus": "??",
+      "bytes": 4078,
+      "sha256": "56a6190e6529c02bf08b99cebe032d2475bd7b5dbdbb58e33b6ffeb727bd6e31"
+    },
+    {
+      "scope": "owned",
+      "path": "apps/api/src/test/a3-admin-dlq-browser-server.ts",
+      "contribution": "Local Hono QA fixture",
+      "gitStatus": "??",
+      "bytes": 2779,
+      "sha256": "b8961e9ac227e9fe2841e223f3ac19adf24f6b7b26c09afca33120680a9809ed"
+    },
+    {
+      "scope": "owned",
+      "path": "apps/api/vitest.a3-admin-dlq-isolated.config.ts",
+      "contribution": "Vitest DLQ QA config",
+      "gitStatus": "??",
+      "bytes": 313,
+      "sha256": "ec905112fcc59964949b8438720e530ad9077a62c9a568a078e44bdd9435f58a"
+    },
+    {
+      "scope": "owned",
+      "path": "packages/prisma/tests/a3AdminDlqFixture.ts",
+      "contribution": "PG-only fixture inside persistence package",
+      "gitStatus": "??",
+      "bytes": 1761,
+      "sha256": "824f682daa913758ac0f5f2df78f29a2de766986d02c7b791987aa52e5359543"
+    },
+    {
+      "scope": "owned",
+      "path": "scripts/qa/a3-admin-dlq-browser-check.mjs",
+      "contribution": "Personal Chrome MCP E2E",
+      "gitStatus": "??",
+      "bytes": 6716,
+      "sha256": "cbc3f275491554daea607b101110e4966de12b6f79311c3e16edc9acf8780b99"
+    },
+    {
+      "scope": "owned",
+      "path": "scripts/qa/a3-admin-dlq-browser-full-acceptance.sh",
+      "contribution": "Chrome E2E runner",
+      "gitStatus": "??",
+      "bytes": 2208,
+      "sha256": "a99413cd8dc1e40ad84332c8712580ca83d288228604b3126b40ea90df6583fc"
+    },
+    {
+      "scope": "owned",
+      "path": "scripts/qa/a3-admin-dlq-browser-isolated.sh",
+      "contribution": "Browser test server",
+      "gitStatus": "??",
+      "bytes": 3489,
+      "sha256": "4aa75385d9f8ec66ced7e00f5da6283802e6eedcd8c83c1caa2d9508e1d84509"
+    },
+    {
+      "scope": "owned",
+      "path": "scripts/qa/a3-admin-dlq-isolated-acceptance.sh",
+      "contribution": "PG DLQ isolation runner",
+      "gitStatus": "??",
+      "bytes": 2139,
+      "sha256": "77151d181d8e8a8b4a2814a4e35f2d7db7730f446e3782b22200fe90ac627369"
+    },
+    {
+      "scope": "owned",
+      "path": "scripts/qa/a3-jobs-media-isolated-acceptance.sh",
+      "contribution": "16-gate acceptance runner",
+      "gitStatus": "??",
+      "bytes": 2474,
+      "sha256": "b69cd2d37c4b44b99670b8125a022d81dd98cf64120ca97f2a6f7fe876902ef9"
+    },
+    {
+      "scope": "owned",
+      "path": "scripts/qa/a3-media-priority-isolated.sh",
+      "contribution": "Real PG/Redis burst runner",
+      "gitStatus": "??",
+      "bytes": 2872,
+      "sha256": "f67d6ba53f1abde90335b9048c12b4b364b7a4278838cb8c1a8d36f09b629566"
+    },
+    {
+      "scope": "owned",
+      "path": "scripts/qa/a3-jobs-regression-no-build.sh",
+      "contribution": "Read-only no-force regression",
+      "gitStatus": "??",
+      "bytes": 2915,
+      "sha256": "bb06c6321e4386fbbb2798cb7d22d3876c6e04af43ae8b36395a59335a2e12cd"
+    },
+    {
+      "scope": "owned",
+      "path": "docs/audit/gafus-agent-3-implementation-receipt-20261111.md",
+      "contribution": "A3 receipt",
+      "gitStatus": "??",
+      "bytes": 47432,
+      "sha256": "6b0d0df95fc9e4a28ef16c7bc05f69ea3d2e469e0b1e745fb1061181a3d8a7ad"
+    },
+    {
+      "scope": "owned",
+      "path": "docs/audit/gafus-agent-3-agent-1-compat-handoff-20261112.md",
+      "contribution": "A1 compatibility handoff",
+      "gitStatus": "??",
+      "bytes": 6079,
+      "sha256": "c65792be51e97dc70c160e26df6847c1a2f2ec44dc80feb39f8f38a5ba0cfd29"
+    },
+    {
+      "scope": "owned",
+      "path": "docs/audit/gafus-agent-3-agent-2-stage-handoff-20261112.md",
+      "contribution": "A2 stage requirements",
+      "gitStatus": "??",
+      "bytes": 13483,
+      "sha256": "3516e1b24412d1c4a710eedb9d33d7ee815a9454507c6343f6ffdcf75fa641e9"
+    },
+    {
+      "scope": "shared",
+      "path": "apps/api/src/routes/v1/admin-media.ts",
+      "contribution": "Только GET DLQ и POST retry; изменение импорта статистики не считать целиком A3",
+      "gitStatus": " M",
+      "bytes": 1980,
+      "sha256": "bd9489597a6c4de2e0d445d0e7b8ce7c05e4f5e548f84af8bca767bb1ffa7312"
+    },
+    {
+      "scope": "shared",
+      "path": "apps/admin-panel/src/admin-live/App.tsx",
+      "contribution": "Только импорт и ADMIN mount ChatOutboxPanel; остальная страница общая",
+      "gitStatus": " M",
+      "bytes": 30628,
+      "sha256": "7bf7db9c12761c7b67994028de83d27991a8ddf1b0dc677ef97956414fdd741d"
+    },
+    {
+      "scope": "shared",
+      "path": "packages/worker/tsconfig.json",
+      "contribution": "Только TS paths консультационного booking-application; другие записи параллельные",
+      "gitStatus": " M",
+      "bytes": 15545,
+      "sha256": "c4093dc102bf73013a642c5a51b1ad596ec03d5c1cbe43b4a283dd6c7d5d8b20"
+    },
+    {
+      "scope": "shared",
+      "path": "scripts/qa/account-cleanup-snapshot-isolated-pg.smoke.ts",
+      "contribution": "Только импорт действующего API composition вместо старого Core direct function",
+      "gitStatus": "??",
+      "bytes": 8020,
+      "sha256": "3c7aaf5ef42642039765ff15d48473492015ac9f5b363209748c8cb71852b397"
+    },
+    {
+      "scope": "readonly",
+      "path": "packages/consultation-server/src/slotService.ts",
+      "contribution": "A1 runtime",
+      "gitStatus": "??",
+      "bytes": 14254,
+      "sha256": "acda1c3c05baca5be38118ea7ffdf08e558880dc43fa75b0df955d37aab08a6c"
+    },
+    {
+      "scope": "readonly",
+      "path": "packages/consultation-server/package.json",
+      "contribution": "A1 экспорт ./slot-service",
+      "gitStatus": "??",
+      "bytes": 1729,
+      "sha256": "781d600816947bc2a46631201d970c156a3081ef30acb832e4becc5d870db76b"
+    },
+    {
+      "scope": "readonly",
+      "path": "packages/core/src/services/consultation/slotService.test.ts",
+      "contribution": "A1 тесты слотов",
+      "gitStatus": " M",
+      "bytes": 9721,
+      "sha256": "e50c93e461e7ab4c122cdd9a6c711d0be8303a82840dfba11ef0b82d124c57c4"
+    },
+    {
+      "scope": "readonly",
+      "path": "apps/api/src/routes/v1/admin-consultation-schedules.realpg.test.ts",
+      "contribution": "A1 маршрутный тест",
+      "gitStatus": " M",
+      "bytes": 8646,
+      "sha256": "c683bac5979b8a035da5cc908cb40c7c201b887ba35669e06503b0ab0d4db51a"
+    },
+    {
+      "scope": "readonly",
+      "path": "apps/api/src/modules/trainer-courses/composition/name-only-observed-review.ts",
+      "contribution": "A1 текущий API TS blocker",
+      "gitStatus": "??",
+      "bytes": 1002,
+      "sha256": "8a603ce72f337c0fdd97f0e87147b54728c517b6780f5bd33c16cb8ba92e82e1"
+    },
+    {
+      "scope": "readonly",
+      "path": "packages/core/src/services/course/publicOutlinePolicy.ts",
+      "contribution": "A1 уже корректный policy module",
+      "gitStatus": "??",
+      "bytes": 2147,
+      "sha256": "9be5ca4f15e6fe0a8296ab3a050545879624b2f84d9a45259a16e49d36b082d1"
+    },
+    {
+      "scope": "readonly",
+      "path": "docs/audit/gafus-agent-3-reliability-20261111.md",
+      "contribution": "Исходное задание, не результат правки A3",
+      "gitStatus": "??",
+      "bytes": 19263,
+      "sha256": "38653e9f619aee699a1f4cd9827268de917f76247627889a3b1a417574c7f1b5"
+    }
+  ],
+  "a3OwnedFileCount": 28,
+  "sharedTouchpointCount": 4,
+  "readOnlyOwnerA1Count": 7,
+  "verifications": {
+    "media": {
+      "result": "PASS",
+      "count": 16,
+      "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-jobs-media-nov12-r6/results.tsv",
+      "gates": [
+        "chat2-http-websocket",
+        "cdn-hono-minio",
+        "chat2-360-recovery",
+        "media-deletion-outbox",
+        "media-cdn-purge",
+        "account-cleanup",
+        "pet-media-outbox",
+        "admin-dlq-real-pg",
+        "media-priority-burst",
+        "admin-dlq-mounted",
+        "unit-gallery-server",
+        "unit-gallery-storage",
+        "unit-feed-server",
+        "unit-media-server",
+        "unit-chat-server",
+        "unit-worker"
+      ]
+    },
+    "chaos": {
+      "result": "PASS",
+      "count": 5,
+      "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-jobs-chaos-nov12-r5/chaos-results.tsv",
+      "gates": [
+        "outbox-pg",
+        "outbox-multiprocess",
+        "cloudru-bullmq-synthetic",
+        "phase-f-pg",
+        "backup-restore-pg"
+      ]
+    },
+    "slotService": {
+      "result": "PASS",
+      "tests": 6,
+      "owner": "agent1",
+      "module": "@gafus/consultation-server/slot-service",
+      "legacyCoreFileAbsent": true,
+      "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-jobs-handoff-nov12/slotService-targeted.log"
+    },
+    "architecture": {
+      "result": "PASS",
+      "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-jobs-handoff-nov12/architecture.log"
+    },
+    "workerTypecheck": {
+      "result": "PASS",
+      "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-jobs-handoff-nov12/worker-typecheck.log"
+    },
+    "adminPanelTypecheck": {
+      "result": "PASS",
+      "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-jobs-handoff-nov12/admin-panel-typecheck.log"
+    },
+    "apiTypecheck": {
+      "result": "FAIL_OTHER_OWNER",
+      "owner": "agent1",
+      "errors": [
+        "src/modules/trainer-courses/composition/name-only-observed-review.ts(8,10): error TS2305: Module '\"@gafus/core/services/trainerCourse\"' has no exported member 'createTrainerCourseNameOnlyService'.",
+        "src/modules/trainer-courses/composition/name-only-observed-review.ts(12,10): error TS2724: '\"@gafus/core/services/training/cache-publication\"' has no exported member named 'invalidateCourseContentCache'. Did you mean 'invalidateStepsContentCache'?"
+      ],
+      "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-jobs-handoff-nov12/api-typecheck.log"
+    },
+    "hygiene": {
+      "result": "PASS",
+      "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-jobs-handoff-nov12/scoped-hygiene.log"
+    },
+    "cloudruOffline": {
+      "result": "PASS_NOT_EXTERNAL",
+      "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-jobs-handoff-nov12/cloudru-offline-contracts.log"
+    },
+    "begetOffline": {
+      "result": "PASS_NOT_EXTERNAL",
+      "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-jobs-handoff-nov12/beget-offline-guard.log"
+    },
+    "browserPrevious": {
+      "result": "PASS_PREVIOUS_RUN",
+      "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-jobs-dlq-browser-nov12-r5/browser-results.log"
+    },
+    "browserCurrent": {
+      "result": "BLOCKED_MCP_CDP",
+      "error": "HTTP 502 Shared MCP initialization failed; direct MCP session terminated"
+    }
+  },
+  "externalBlockerIds": [
+    "CLOUDRU_STAGE_360P",
+    "BEGET_NONPROD_EDGE",
+    "HISTORICAL_16_MEDIA_PG",
+    "AGENT2_SHARED_STAGE"
+  ],
+  "noActions": [
+    "No commit/merge/push",
+    "No production/Cloud.ru/Beget external acceptance",
+    "No edits to Agent1 slotService or Agent2 observability"
+  ]
+}

@@ -22,34 +22,48 @@ if (enabled) {
 const fake = vi.hoisted(() => ({
   id: "", reminder: "", endpoint: "", sends: vi.fn(),
 }));
-// Candidate list is hard-bound to this test's synthetic reminder. Never call
-// the broad production-shaped Core scan that would include unrelated users.
-vi.mock("@gafus/core/services/reminders", async (importOriginal) => {
-  const original = await importOriginal<object>();
+// The recovery query is hard-bound to this opt-in synthetic fixture.
+// The same lease/retry/ack SQL implementation remains real in this repository.
+vi.mock("@gafus/notifications-server/training-reminder-delivery", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@gafus/notifications-server/training-reminder-delivery")>();
   const { prisma: db } = await import("@gafus/prisma");
-  const trainingReminderLocalDayKey = (original as {
-    trainingReminderLocalDayKey: (timezone:string,now:Date)=>string
-  }).trainingReminderLocalDayKey;
+  const { trainingReminderLocalDayKey } = await import("@gafus/core/services/reminders");
   const projection = { id: true, userId: true, name: true, reminderTime: true,
     reminderDays: true, timezone: true, lastSentAt: true } as const;
   return {
     ...original,
+    createTrainingReminderDeliveryRepository: (policy: Parameters<typeof original.createTrainingReminderDeliveryRepository>[0]) => ({
+      ...original.createTrainingReminderDeliveryRepository(policy),
+      listRetryableTrainingReminderCandidates: async (now:Date) => {
+        if (!fake.id || !fake.reminder) throw Error("DENIED: no WEB1 owned synthetic fixture");
+        const rows = await db.trainingReminderDelivery.findMany({
+          where: {reminderId:fake.reminder,status:"PENDING",
+            OR:[{leaseExpiresAt:null},{leaseExpiresAt:{lt:now}}],
+            reminder:{userId:fake.id,type:"training",enabled:true}},
+          select:{localDate:true,reminder:{select:projection}},
+        });
+        return rows.filter(row =>
+          row.localDate===trainingReminderLocalDayKey(row.reminder.timezone,now))
+          .map(row=>row.reminder);
+      },
+    }),
+  };
+});
+// Never run a broad actor scan in this opt-in real-DB fixture; one user/reminder only.
+vi.mock("@gafus/notifications-server/trainingReminderClaims", async () => {
+  const { prisma: db } = await import("@gafus/prisma");
+  const projection = { id: true, userId: true, name: true, reminderTime: true,
+    reminderDays: true, timezone: true, lastSentAt: true } as const;
+  return {
     listActiveTrainingReminderCandidates: async () => {
       if (!fake.id || !fake.reminder) throw Error("DENIED: no WEB1 owned synthetic fixture");
       return db.reminder.findMany({where:{id:fake.reminder,userId:fake.id,type:"training",enabled:true},select:projection});
     },
-    listRetryableTrainingReminderCandidates: async (now:Date) => {
-      if (!fake.id || !fake.reminder) throw Error("DENIED: no WEB1 owned synthetic fixture");
-      const rows = await db.trainingReminderDelivery.findMany({
-        where: {reminderId:fake.reminder,status:"PENDING",
-          OR:[{leaseExpiresAt:null},{leaseExpiresAt:{lt:now}}],
-          reminder:{userId:fake.id,type:"training",enabled:true}},
-        select:{localDate:true,reminder:{select:projection}},
-      });
-      return rows.filter(row=>
-        row.localDate===trainingReminderLocalDayKey(row.reminder.timezone,now))
-        .map(row=>row.reminder);
+    getTrainingReminderPushSubscriptions: async (userId:string) => {
+      if (!fake.id || userId!==fake.id) throw Error("DENIED: foreign WEB1 push user");
+      return db.pushSubscription.findMany({ where:{userId:fake.id,endpoint:fake.endpoint} });
     },
+    removeInvalidTrainingReminderEndpoints: async () => { throw Error("DENIED: simulated provider cannot delete subscriptions"); },
   };
 });
 vi.mock("@gafus/webpush", () => ({

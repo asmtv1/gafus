@@ -29,3 +29,23 @@ export interface ExamResultRead {
   success: true;
   data: ExamResultWire;
 }
+
+/** Server-side exam result before Hono serializes the timestamps. */
+export interface ExamResultData extends Omit<ExamResultWire, "reviewedAt" | "createdAt" | "updatedAt"> {
+  reviewedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ExamSubmissionData {
+  userStepId: string;
+  stepId: string;
+  testAnswers?: Record<string, number>;
+  testScore?: number;
+  testMaxScore?: number;
+  /** null — явно очистить URL видео в БД (undefined — не менять поле). */
+  videoReportUrl?: string | null;
+  writtenFeedback?: string;
+  overallScore?: number;
+  isPassed?: boolean;
+}

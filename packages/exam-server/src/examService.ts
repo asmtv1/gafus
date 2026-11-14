@@ -1,0 +1,1300 @@
+/**
+ * Exam Service
+ * Сервис для работы с экзаменами
+ */
+import { randomUUID } from "crypto";
+import {
+  deleteFileFromCDN,
+  getExamVideoPath,
+  getRelativePathFromCDNUrl,
+  uploadBufferToCDN,
+} from "@gafus/cdn-upload";
+import type { Prisma, TrainingStatus as PrismaTrainingStatus } from "@gafus/prisma";
+import { prisma } from "@gafus/prisma";
+import { createWebLogger } from "@gafus/logger";
+import {
+  calculateDayStatusFromStatuses,
+  type ActionResult,
+  type ExamResultData,
+  type ExamSubmissionData,
+} from "@gafus/types";
+
+export type { ExamResultData, ExamSubmissionData } from "@gafus/types";
+
+const logger = createWebLogger("core-exam");
+
+/** Действие проверки экзамена: утвердить или отклонить */
+export type ExamReviewAction = "approve" | "reject";
+
+/** Входные данные для проверки результата экзамена тренером */
+export interface ReviewExamResultData {
+  userStepId: string;
+  action: ExamReviewAction;
+  trainerComment?: string | null;
+}
+
+/** Экзамен, ожидающий проверки (для списка тренера) */
+export interface PendingExamResult {
+  id: string;
+  userStepId: string;
+  stepTitle: string;
+  studentUsername: string;
+  courseName: string;
+  dayTitle: string;
+  hasTestQuestions: boolean;
+  hasWrittenFeedback: boolean;
+  hasVideoReport: boolean;
+  testAnswers: Record<string, number> | null;
+  testScore: number | null;
+  testMaxScore: number | null;
+  writtenFeedback: string | null;
+  videoReportUrl: string | null;
+  submittedAt: Date;
+}
+
+/** Опции для getExamResults */
+export interface GetExamResultsOptions {
+  hideCompleted?: boolean;
+}
+
+/** Результат экзамена с полными деталями для списка тренера */
+export interface ExamResultWithDetails {
+  id: string;
+  testAnswers: unknown;
+  testScore: number | null;
+  testMaxScore: number | null;
+  videoReportUrl: string | null;
+  writtenFeedback: string | null;
+  overallScore: number | null;
+  isPassed: boolean | null;
+  trainerComment: string | null;
+  reviewedAt: Date | null;
+  reviewedById: string | null;
+  reviewedBy: {
+    id: string;
+    username: string;
+    profile: {
+      fullName: string | null;
+      avatarUrl: string | null;
+    } | null;
+  } | null;
+  createdAt: Date;
+  updatedAt: Date;
+  userStep: {
+    id: string;
+    status: string;
+    userTraining: {
+      id: string;
+      user: {
+        id: string;
+        username: string;
+        profile: {
+          fullName: string | null;
+          avatarUrl: string | null;
+        } | null;
+      };
+      dayOnCourse: {
+        id: string;
+        day: {
+          id: string;
+          title: string;
+        };
+        course: {
+          id: string;
+          name: string;
+          type: string;
+        };
+      };
+    };
+    stepOnDay: {
+      id: string;
+      order: number;
+      step: {
+        id: string;
+        title: string;
+        type: string;
+        hasTestQuestions: boolean;
+        requiresVideoReport: boolean;
+        requiresWrittenFeedback: boolean;
+        checklist: unknown;
+      };
+    };
+  };
+}
+
+const examResultDataSelect = {
+  id: true,
+  testAnswers: true,
+  testScore: true,
+  testMaxScore: true,
+  videoReportUrl: true,
+  writtenFeedback: true,
+  overallScore: true,
+  isPassed: true,
+  trainerComment: true,
+  reviewedAt: true,
+  reviewedById: true,
+  reviewedBy: {
+    select: {
+      username: true,
+      profile: {
+        select: {
+          fullName: true,
+        },
+      },
+    },
+  },
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+function parseExamTestAnswers(value: unknown): Record<string, number> | null {
+  if (!value) return null;
+  try {
+    const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+
+    const prototype: unknown = Object.getPrototypeOf(parsed);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+
+    const answers = parsed as Record<string, unknown>;
+    if (
+      !Object.values(answers).every(
+        (answer) => typeof answer === "number" && Number.isFinite(answer),
+      )
+    ) {
+      return null;
+    }
+    return answers as Record<string, number>;
+  } catch {
+    // Parsing errors can include stored answers; never log their raw contents.
+    logger.error("Ошибка парсинга testAnswers");
+    return null;
+  }
+}
+
+type ExamStepForGrading = {
+  hasTestQuestions?: boolean | null;
+  requiresVideoReport?: boolean | null;
+  requiresWrittenFeedback?: boolean | null;
+  checklist?: unknown;
+};
+
+type ChecklistQuestionForGrading = {
+  id: string;
+  correctAnswer: number;
+};
+
+type AutoTestGrade = {
+  testScore: number;
+  testMaxScore: number;
+  overallScore: number;
+  isPassed: boolean;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseChecklistQuestions(value: unknown): ChecklistQuestionForGrading[] | null {
+  if (!value) return null;
+
+  let parsed: unknown = value;
+  if (typeof value === "string") {
+    try {
+      parsed = JSON.parse(value);
+    } catch (error) {
+      logger.error("Ошибка парсинга checklist экзамена", error as Error);
+      return null;
+    }
+  }
+
+  if (!Array.isArray(parsed)) return null;
+
+  const questions = parsed.filter((question): question is ChecklistQuestionForGrading => {
+    if (!isRecord(question)) return false;
+    return typeof question.id === "string" && typeof question.correctAnswer === "number";
+  });
+
+  return questions.length > 0 ? questions : null;
+}
+
+function isTestQuestionsOnlyStep(step: ExamStepForGrading): boolean {
+  return (
+    step.hasTestQuestions === true &&
+    step.requiresVideoReport !== true &&
+    step.requiresWrittenFeedback !== true
+  );
+}
+
+function calculateAutoTestGrade(
+  step: ExamStepForGrading,
+  answers: Record<string, number> | undefined,
+): AutoTestGrade | null {
+  if (!isTestQuestionsOnlyStep(step) || !answers) return null;
+
+  const checklist = parseChecklistQuestions(step.checklist);
+  if (!checklist) return null;
+
+  const testScore = checklist.reduce((score, question) => {
+    return answers[question.id] === question.correctAnswer ? score + 1 : score;
+  }, 0);
+  const testMaxScore = checklist.length;
+  const ratio = testScore / testMaxScore;
+
+  return {
+    testScore,
+    testMaxScore,
+    overallScore: Math.round(ratio * 100),
+    isPassed: ratio > 0.5,
+  };
+}
+
+/**
+ * Получает результат экзамена для конкретного userStepId
+ */
+export async function getExamResult(
+  userId: string,
+  userStepId: string,
+): Promise<ExamResultData | null> {
+  try {
+    const userStep = await prisma.userStep.findFirst({
+      where: {
+        id: userStepId,
+        userTraining: {
+          userId,
+        },
+      },
+    });
+
+    const dailyCourseUserStep = userStep
+      ? null
+      : await prisma.dailyCourseUserStep.findFirst({
+          where: {
+            id: userStepId,
+            dailyCourseUserTraining: { userId },
+          },
+          select: { id: true },
+        });
+
+    if (!userStep && !dailyCourseUserStep) {
+      return null;
+    }
+
+    const examResult = await prisma.examResult.findFirst({
+      where: userStep ? { userStepId } : { dailyCourseUserStepId: userStepId },
+      select: examResultDataSelect,
+    });
+
+    if (!examResult) {
+      return null;
+    }
+
+    return {
+      ...examResult,
+      testAnswers: parseExamTestAnswers(examResult.testAnswers),
+    };
+  } catch (error) {
+    logger.error("Ошибка при получении результата экзамена", error as Error);
+    throw new Error(error instanceof Error ? error.message : "Неизвестная ошибка");
+  }
+}
+
+/**
+ * Получает URL существующего видео экзамена (для удаления перед заменой).
+ */
+export async function getExistingExamVideoReport(
+  userStepId: string,
+): Promise<{ videoReportUrl: string | null } | null> {
+  const exam = await prisma.examResult.findFirst({
+    where: {
+      OR: [{ userStepId }, { dailyCourseUserStepId: userStepId }],
+    },
+    select: { videoReportUrl: true },
+  });
+  return exam;
+}
+
+/**
+ * Помечает видео экзамена как удалённое (после удаления из CDN).
+ */
+export async function markExamVideoDeleted(userStepId: string): Promise<void> {
+  await prisma.examResult.updateMany({
+    where: {
+      OR: [{ userStepId }, { dailyCourseUserStepId: userStepId }],
+    },
+    data: {
+      videoDeletedAt: new Date(),
+      videoDeleteReason: "replaced",
+    },
+  });
+}
+
+/**
+ * Проверяет доступ пользователя к загрузке видео экзамена до CDN upload.
+ * Fail fast — вызывать до загрузки на CDN.
+ */
+export async function prepareExamVideoUpload(
+  userStepId: string,
+  userId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const userStep = await prisma.userStep.findFirst({
+    where: {
+      id: userStepId,
+      userTraining: { userId },
+    },
+    include: {
+      stepOnDay: { include: { step: true } },
+    },
+  });
+  if (userStep) {
+    if (userStep.stepOnDay.step.type !== "EXAMINATION") {
+      return { success: false, error: "Этот шаг не является экзаменационным" };
+    }
+    return { success: true };
+  }
+
+  const dailyCourseUserStep = await prisma.dailyCourseUserStep.findFirst({
+    where: {
+      id: userStepId,
+      dailyCourseUserTraining: { userId },
+    },
+    include: {
+      bundleStep: { include: { step: true } },
+    },
+  });
+  if (!dailyCourseUserStep) {
+    return { success: false, error: "Шаг не найден или нет доступа" };
+  }
+  if (dailyCourseUserStep.bundleStep.step.type !== "EXAMINATION") {
+    return { success: false, error: "Этот шаг не является экзаменационным" };
+  }
+  return { success: true };
+}
+
+const EXAM_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+
+/** Расширение файла для пути в CDN (имя или MIME). */
+function pickExamVideoExtension(file: File): string {
+  const fromName = file.name.split(".").pop()?.toLowerCase();
+  if (fromName && /^[a-z0-9]{1,8}$/.test(fromName)) {
+    return fromName;
+  }
+  const mime = file.type.toLowerCase();
+  if (mime.includes("webm")) return "webm";
+  if (mime.includes("quicktime")) return "mov";
+  if (mime.includes("3gpp")) return "3gp";
+  if (mime.includes("mp4")) return "mp4";
+  return "mp4";
+}
+
+export type UploadExamVideoFileResult =
+  | { success: true; videoUrl: string }
+  | { success: false; error: string };
+
+/**
+ * Загрузка видео экзамена на CDN: проверки, удаление предыдущего файла, S3.
+ * Используется в Next Server Action и REST API (multipart).
+ */
+export async function uploadExamVideoFile(
+  userId: string,
+  userStepId: string,
+  file: File,
+): Promise<UploadExamVideoFileResult> {
+  if (!file.type.startsWith("video/")) {
+    return { success: false, error: "Файл должен быть видео" };
+  }
+  if (file.size > EXAM_VIDEO_MAX_BYTES) {
+    return { success: false, error: "Размер видео не должен превышать 100MB" };
+  }
+
+  const prepResult = await prepareExamVideoUpload(userStepId, userId);
+  if (!prepResult.success) {
+    return { success: false, error: prepResult.error ?? "Нет доступа" };
+  }
+
+  logger.info(
+    `Загружаем видео экзамена для userStepId ${userStepId}, размер: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
+  );
+
+  try {
+    const existingExam = await getExistingExamVideoReport(userStepId);
+    if (existingExam?.videoReportUrl) {
+      try {
+        const oldRelativePath = getRelativePathFromCDNUrl(existingExam.videoReportUrl);
+        await deleteFileFromCDN(oldRelativePath);
+        await markExamVideoDeleted(userStepId);
+        logger.success("Старое видео удалено перед загрузкой нового");
+      } catch (error) {
+        logger.warn(
+          `Не удалось удалить старое видео (не критично): ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  } catch (error) {
+    logger.warn(
+      `Ошибка при проверке старого видео: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  const extension = pickExamVideoExtension(file);
+  const uuid = randomUUID();
+  const relativePath = getExamVideoPath(userStepId, uuid, extension);
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const videoUrl = await prisma.$transaction(
+    async (tx) => {
+      const owners = await tx.$queryRaw<
+        { id: string }[]
+      >`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+      if (!owners.length) throw new Error("Пользователь не найден");
+      return uploadBufferToCDN(buffer, relativePath, file.type || "video/mp4");
+    },
+    { timeout: 90_000 },
+  );
+
+  logger.info(`Видео экзамена успешно загружено на CDN: ${videoUrl}`);
+  return { success: true, videoUrl };
+}
+
+/**
+ * Сохраняет результат экзамена
+ */
+export async function submitExamResult(
+  userId: string,
+  data: ExamSubmissionData,
+): Promise<{ success: boolean; examResultId: string }> {
+  try {
+    const userStep = await prisma.userStep.findFirst({
+      where: {
+        id: data.userStepId,
+        userTraining: {
+          userId,
+        },
+      },
+      include: {
+        stepOnDay: {
+          include: {
+            step: true,
+          },
+        },
+      },
+    });
+
+    const dailyCourseUserStep = userStep
+      ? null
+      : await prisma.dailyCourseUserStep.findFirst({
+          where: {
+            id: data.userStepId,
+            dailyCourseUserTraining: { userId },
+          },
+          include: {
+            bundleStep: {
+              include: {
+                step: true,
+              },
+            },
+          },
+        });
+
+    if (!userStep && !dailyCourseUserStep) {
+      throw new Error("Шаг не найден или нет доступа");
+    }
+
+    const step = userStep?.stepOnDay.step ?? dailyCourseUserStep!.bundleStep.step;
+    if (step.type !== "EXAMINATION") {
+      throw new Error(
+        `Этот шаг не является экзаменационным. Тип шага: ${step.type || "не определен"}`,
+      );
+    }
+
+    const autoTestGrade = calculateAutoTestGrade(step, data.testAnswers);
+    const testScore = autoTestGrade?.testScore ?? data.testScore;
+    const testMaxScore = autoTestGrade?.testMaxScore ?? data.testMaxScore;
+    const overallScore = autoTestGrade?.overallScore ?? data.overallScore;
+    const isPassed = autoTestGrade?.isPassed ?? data.isPassed;
+    const nextStepStatus = autoTestGrade?.isPassed === true ? "COMPLETED" : "IN_PROGRESS";
+
+    // Создаем или обновляем результат экзамена
+    const updateData: Partial<{
+      testAnswers: string;
+      testScore: number;
+      testMaxScore: number;
+      videoReportUrl: string | null;
+      writtenFeedback: string;
+      overallScore: number;
+      isPassed: boolean;
+      trainerComment: string | null;
+      reviewedAt: Date | null;
+      reviewedById: string | null;
+      updatedAt: Date;
+    }> = {
+      updatedAt: new Date(),
+    };
+
+    // Добавляем в updateData только те поля, которые были переданы
+    if (data.testAnswers !== undefined) {
+      updateData.testAnswers = JSON.stringify(data.testAnswers);
+    }
+    if (testScore !== undefined) {
+      updateData.testScore = testScore;
+    }
+    if (testMaxScore !== undefined) {
+      updateData.testMaxScore = testMaxScore;
+    }
+    if (data.videoReportUrl !== undefined) {
+      updateData.videoReportUrl = data.videoReportUrl;
+    }
+    if (data.writtenFeedback !== undefined) {
+      updateData.writtenFeedback = data.writtenFeedback;
+    }
+    if (overallScore !== undefined) {
+      updateData.overallScore = overallScore;
+    }
+    if (isPassed !== undefined) {
+      updateData.isPassed = isPassed;
+    }
+
+    // Сбрасываем результат проверки тренером при повторной отправке
+    updateData.trainerComment = null;
+    updateData.reviewedAt = null;
+    updateData.reviewedById = null;
+
+    const examResult = await prisma.examResult.upsert({
+      where: userStep
+        ? { userStepId: data.userStepId }
+        : { dailyCourseUserStepId: data.userStepId },
+      update: updateData,
+      create: {
+        userStepId: userStep ? data.userStepId : undefined,
+        dailyCourseUserStepId: dailyCourseUserStep ? data.userStepId : undefined,
+        stepId: data.stepId,
+        testAnswers: data.testAnswers !== undefined ? JSON.stringify(data.testAnswers) : undefined,
+        testScore: testScore ?? null,
+        testMaxScore: testMaxScore ?? null,
+        videoReportUrl: data.videoReportUrl ?? null,
+        writtenFeedback: data.writtenFeedback ?? null,
+        overallScore: overallScore ?? null,
+        isPassed: isPassed ?? null,
+      },
+    });
+
+    if (userStep) {
+      await prisma.userStep.update({
+        where: {
+          id: data.userStepId,
+        },
+        data: {
+          status: nextStepStatus,
+        },
+      });
+    } else {
+      await prisma.dailyCourseUserStep.update({
+        where: {
+          id: data.userStepId,
+        },
+        data: {
+          status: nextStepStatus,
+        },
+      });
+      if (autoTestGrade?.isPassed === true) {
+        const dailySteps = await prisma.dailyCourseUserStep.findMany({
+          where: { dailyCourseUserTrainingId: dailyCourseUserStep!.dailyCourseUserTrainingId },
+          select: { id: true, status: true },
+        });
+        const statuses = dailySteps.map((step) =>
+          step.id === data.userStepId ? "COMPLETED" : step.status,
+        );
+        const correctedStatus = calculateDayStatusFromStatuses(statuses);
+        const nextCurrentStepIndex =
+          correctedStatus === "COMPLETED"
+            ? dailySteps.length - 1
+            : statuses.findIndex((status) => status !== "COMPLETED");
+        await prisma.dailyCourseUserTraining.update({
+          where: { id: dailyCourseUserStep!.dailyCourseUserTrainingId },
+          data: {
+            status: correctedStatus as PrismaTrainingStatus,
+            currentStepIndex: nextCurrentStepIndex < 0 ? 0 : nextCurrentStepIndex,
+          },
+        });
+      } else {
+        await prisma.dailyCourseUserTraining.update({
+          where: { id: dailyCourseUserStep!.dailyCourseUserTrainingId },
+          data: { status: "IN_PROGRESS" },
+        });
+      }
+    }
+
+    return { success: true, examResultId: examResult.id };
+  } catch (error) {
+    logger.error("Ошибка при сохранении результата экзамена", error as Error);
+    throw new Error(error instanceof Error ? error.message : "Неизвестная ошибка");
+  }
+}
+
+const ALLOWED_REVIEWER_ROLES = ["TRAINER", "ADMIN", "MODERATOR"] as const;
+
+/**
+ * Проверка и утверждение/отклонение результата экзамена тренером.
+ * Обновляет UserStep и ExamResult в одной транзакции, затем отправляет пуш-уведомление.
+ */
+export type ExamPushSender = (input: {
+  userId: string;
+  title: string;
+  body: string;
+  url?: string;
+}) => Promise<{ success: boolean; notificationId?: string; error?: string }>;
+
+export async function reviewExamResult(
+  reviewerId: string,
+  reviewerRole: string,
+  data: ReviewExamResultData,
+  sendExamPush: ExamPushSender,
+): Promise<ActionResult> {
+  try {
+    if (!ALLOWED_REVIEWER_ROLES.includes(reviewerRole as (typeof ALLOWED_REVIEWER_ROLES)[number])) {
+      return { success: false, error: "Недостаточно прав доступа" };
+    }
+
+    const userStep = await prisma.userStep.findUnique({
+      where: { id: data.userStepId },
+      include: {
+        userTraining: {
+          include: {
+            user: true,
+            dayOnCourse: {
+              include: {
+                course: true,
+              },
+            },
+          },
+        },
+        stepOnDay: {
+          include: {
+            step: true,
+          },
+        },
+        examResult: true,
+      },
+    });
+
+    const finalComment = data.trainerComment ?? null;
+    const action = data.action;
+
+    if (!userStep) {
+      const dailyCourseUserStep = await prisma.dailyCourseUserStep.findUnique({
+        where: { id: data.userStepId },
+        include: {
+          dailyCourseUserTraining: {
+            include: {
+              user: true,
+              schedule: {
+                include: {
+                  bundle: true,
+                },
+              },
+            },
+          },
+          bundleStep: {
+            include: {
+              step: true,
+            },
+          },
+          examResult: true,
+        },
+      });
+
+      if (!dailyCourseUserStep) {
+        return { success: false, error: "Шаг не найден" };
+      }
+
+      const courseAuthorId = dailyCourseUserStep.dailyCourseUserTraining.schedule.bundle.authorId;
+      if (courseAuthorId !== reviewerId && reviewerRole !== "ADMIN") {
+        return { success: false, error: "Вы не можете проверять экзамены для чужих курсов" };
+      }
+
+      if (!dailyCourseUserStep.examResult) {
+        return { success: false, error: "Результат экзамена не найден" };
+      }
+      if (isTestQuestionsOnlyStep(dailyCourseUserStep.bundleStep.step)) {
+        return { success: false, error: "Тестовые вопросы проверяются автоматически" };
+      }
+      const examResultId = dailyCourseUserStep.examResult.id;
+
+      await prisma.$transaction(async (tx) => {
+        await tx.dailyCourseUserStep.update({
+          where: { id: data.userStepId },
+          data: {
+            status: action === "approve" ? "COMPLETED" : "IN_PROGRESS",
+            paused: false,
+            remainingSec: null,
+          },
+        });
+        const dailySteps = await tx.dailyCourseUserStep.findMany({
+          where: { dailyCourseUserTrainingId: dailyCourseUserStep.dailyCourseUserTrainingId },
+          select: { id: true, status: true },
+        });
+        const statuses = dailySteps.map((step) =>
+          step.id === data.userStepId
+            ? action === "approve"
+              ? "COMPLETED"
+              : "IN_PROGRESS"
+            : step.status,
+        );
+        const correctedStatus = calculateDayStatusFromStatuses(statuses);
+        const nextCurrentStepIndex =
+          correctedStatus === "COMPLETED"
+            ? dailySteps.length - 1
+            : statuses.findIndex((status) => status !== "COMPLETED");
+        await tx.dailyCourseUserTraining.update({
+          where: { id: dailyCourseUserStep.dailyCourseUserTrainingId },
+          data: {
+            status: correctedStatus as PrismaTrainingStatus,
+            currentStepIndex: nextCurrentStepIndex < 0 ? 0 : nextCurrentStepIndex,
+          },
+        });
+        await tx.examResult.update({
+          where: { id: examResultId },
+          data: {
+            isPassed: action === "approve",
+            overallScore: action === "approve" ? 100 : 0,
+            trainerComment: finalComment,
+            reviewedAt: new Date(),
+            reviewedById: reviewerId,
+            updatedAt: new Date(),
+          },
+        });
+      });
+
+      logger.info(
+        `Тренер проверил экзамен dailyCourseUserStep ${data.userStepId}: ${action === "approve" ? "утверждён" : "отклонён"}`,
+        { reviewerId, commentProvided: Boolean(finalComment) },
+      );
+
+      const stepTitle = dailyCourseUserStep.bundleStep.step.title;
+      const userId = dailyCourseUserStep.dailyCourseUserTraining.userId;
+      const scheduleId = dailyCourseUserStep.dailyCourseUserTraining.schedule.id;
+
+      const defaultRejectBody =
+        "Тренер вернул экзамен на доработку. Ознакомьтесь с комментарием и отправьте отчёт ещё раз.";
+      const trimmedComment =
+        finalComment &&
+        (finalComment.length > 180 ? `${finalComment.slice(0, 177)}...` : finalComment);
+      const pushPayload =
+        action === "approve"
+          ? {
+              title: `"${stepTitle}" зачтён! ✅`,
+              body: "Тренер проверил ваш экзамен. Можете переходить к следующему шагу.",
+            }
+          : {
+              title: `"${stepTitle}" требует доработки ❗️`,
+              body: trimmedComment ? `Комментарий тренера: ${trimmedComment}` : defaultRejectBody,
+            };
+
+      try {
+        const pushResult = await sendExamPush({
+          userId,
+          title: pushPayload.title,
+          body: pushPayload.body,
+          url: `/daily-course/${scheduleId}`,
+        });
+        if (pushResult.success) {
+          logger.success(`Пуш-уведомление отправлено пользователю ${userId}`, {
+            notificationId: pushResult.notificationId,
+            action,
+          });
+        } else {
+          logger.warn(`Не удалось отправить пуш-уведомление: ${pushResult.error}`, {
+            userId,
+            action,
+          });
+        }
+      } catch (pushError) {
+        logger.error("Ошибка при отправке пуш-уведомления (не критично)", pushError as Error, {
+          userStepId: data.userStepId,
+          action,
+        });
+      }
+
+      return { success: true };
+    }
+
+    const courseAuthorId = userStep.userTraining.dayOnCourse.course.authorId;
+    if (courseAuthorId !== reviewerId && reviewerRole !== "ADMIN") {
+      return { success: false, error: "Вы не можете проверять экзамены для чужих курсов" };
+    }
+
+    if (!userStep.examResult) {
+      return { success: false, error: "Результат экзамена не найден" };
+    }
+    if (isTestQuestionsOnlyStep(userStep.stepOnDay.step)) {
+      return { success: false, error: "Тестовые вопросы проверяются автоматически" };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.userStep.update({
+        where: { id: data.userStepId },
+        data: {
+          status: action === "approve" ? "COMPLETED" : "IN_PROGRESS",
+        },
+      });
+      await tx.examResult.update({
+        where: { id: userStep.examResult!.id },
+        data: {
+          isPassed: action === "approve",
+          overallScore: action === "approve" ? 100 : 0,
+          trainerComment: finalComment,
+          reviewedAt: new Date(),
+          reviewedById: reviewerId,
+          updatedAt: new Date(),
+        },
+      });
+    });
+
+    logger.info(
+      `Тренер проверил экзамен userStep ${data.userStepId}: ${action === "approve" ? "утверждён" : "отклонён"}`,
+      { reviewerId, commentProvided: Boolean(finalComment) },
+    );
+
+    const stepTitle = userStep.stepOnDay.step.title;
+    const courseType = userStep.userTraining.dayOnCourse.course.type;
+    const dayOrder = userStep.userTraining.dayOnCourse.order;
+    const userId = userStep.userTraining.userId;
+
+    const defaultRejectBody =
+      "Тренер вернул экзамен на доработку. Ознакомьтесь с комментарием и отправьте отчёт ещё раз.";
+    const trimmedComment =
+      finalComment &&
+      (finalComment.length > 180 ? `${finalComment.slice(0, 177)}...` : finalComment);
+
+    const pushPayload =
+      action === "approve"
+        ? {
+            title: `"${stepTitle}" зачтён! ✅`,
+            body: "Тренер проверил ваш экзамен. Можете переходить к следующему шагу.",
+          }
+        : {
+            title: `"${stepTitle}" требует доработки ❗️`,
+            body: trimmedComment ? `Комментарий тренера: ${trimmedComment}` : defaultRejectBody,
+          };
+
+    try {
+      const pushResult = await sendExamPush({
+        userId,
+        title: pushPayload.title,
+        body: pushPayload.body,
+        url: `/trainings/${courseType}/${dayOrder}`,
+      });
+      if (pushResult.success) {
+        logger.success(`Пуш-уведомление отправлено пользователю ${userId}`, {
+          notificationId: pushResult.notificationId,
+          action,
+        });
+      } else {
+        logger.warn(`Не удалось отправить пуш-уведомление: ${pushResult.error}`, {
+          userId,
+          action,
+        });
+      }
+    } catch (pushError) {
+      logger.error("Ошибка при отправке пуш-уведомления (не критично)", pushError as Error, {
+        userStepId: data.userStepId,
+        action,
+      });
+    }
+
+    return { success: true };
+  } catch (error) {
+    logger.error("Ошибка при проверке экзамена", error as Error, {
+      reviewerId,
+      userStepId: data.userStepId,
+    });
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Не удалось проверить экзамен",
+    };
+  }
+}
+
+/**
+ * Получает список экзаменов, ожидающих проверки тренером.
+ */
+export async function getPendingExamResults(
+  trainerId: string,
+  isAdmin: boolean,
+): Promise<PendingExamResult[]> {
+  const examResults = await prisma.examResult.findMany({
+    where: {
+      userStep: {
+        status: "IN_PROGRESS",
+        stepOnDay: {
+          step: {
+            NOT: {
+              hasTestQuestions: true,
+              requiresVideoReport: false,
+              requiresWrittenFeedback: false,
+            },
+          },
+        },
+        userTraining: {
+          dayOnCourse: {
+            course: {
+              ...(!isAdmin && { authorId: trainerId }),
+            },
+          },
+        },
+      },
+    },
+    include: {
+      userStep: {
+        include: {
+          userTraining: {
+            include: {
+              user: { select: { username: true } },
+              dayOnCourse: {
+                include: {
+                  course: { select: { name: true } },
+                  day: { select: { title: true } },
+                },
+              },
+            },
+          },
+          stepOnDay: {
+            include: {
+              step: {
+                select: {
+                  title: true,
+                  hasTestQuestions: true,
+                  requiresWrittenFeedback: true,
+                  requiresVideoReport: true,
+                  checklist: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return examResults
+    .filter((result) => result.userStep !== null)
+    .map((result) => {
+      const userStep = result.userStep!;
+      let testAnswers: Record<string, number> | null = null;
+      if (result.testAnswers) {
+        try {
+          testAnswers =
+            typeof result.testAnswers === "string"
+              ? JSON.parse(result.testAnswers)
+              : (result.testAnswers as Record<string, number>);
+        } catch {
+          // игнорируем ошибку парсинга
+        }
+      }
+      return {
+        id: result.id,
+        userStepId: userStep.id,
+        stepTitle: userStep.stepOnDay.step.title,
+        studentUsername: userStep.userTraining.user.username,
+        courseName: userStep.userTraining.dayOnCourse.course.name,
+        dayTitle: userStep.userTraining.dayOnCourse.day.title,
+        hasTestQuestions: userStep.stepOnDay.step.hasTestQuestions,
+        hasWrittenFeedback: userStep.stepOnDay.step.requiresWrittenFeedback,
+        hasVideoReport: userStep.stepOnDay.step.requiresVideoReport,
+        testAnswers,
+        testScore: result.testScore,
+        testMaxScore: result.testMaxScore,
+        writtenFeedback: result.writtenFeedback,
+        videoReportUrl: result.videoReportUrl,
+        submittedAt: result.createdAt,
+      };
+    });
+}
+
+/**
+ * Возвращает количество экзаменов, ожидающих проверки тренером.
+ */
+export async function getPendingExamCount(trainerId: string, isAdmin: boolean): Promise<number> {
+  const [regularCount, dailyCourseCount] = await Promise.all([
+    prisma.examResult.count({
+      where: {
+        userStep: {
+          status: "IN_PROGRESS",
+          stepOnDay: {
+            step: {
+              NOT: {
+                hasTestQuestions: true,
+                requiresVideoReport: false,
+                requiresWrittenFeedback: false,
+              },
+            },
+          },
+          userTraining: {
+            dayOnCourse: {
+              course: {
+                ...(!isAdmin && { authorId: trainerId }),
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.examResult.count({
+      where: {
+        dailyCourseUserStep: {
+          status: "IN_PROGRESS",
+          bundleStep: {
+            step: {
+              NOT: {
+                hasTestQuestions: true,
+                requiresVideoReport: false,
+                requiresWrittenFeedback: false,
+              },
+            },
+          },
+          dailyCourseUserTraining: {
+            schedule: {
+              bundle: {
+                ...(!isAdmin && { authorId: trainerId }),
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+  return regularCount + dailyCourseCount;
+}
+
+const EXAM_RESULTS_INCLUDE = {
+  reviewedBy: {
+    select: {
+      id: true,
+      username: true,
+      profile: {
+        select: {
+          fullName: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  },
+  userStep: {
+    include: {
+      userTraining: {
+        include: {
+          user: {
+            include: { profile: true },
+          },
+          dayOnCourse: {
+            include: {
+              day: true,
+              // Only the exact fields in ExamResultWithDetails are required.
+              // A full Course selection would read the newer version column
+              // even in an old, otherwise compatible exam-result database.
+              course: { select: { id: true, name: true, type: true } },
+            },
+          },
+        },
+      },
+      stepOnDay: {
+        include: {
+          step: true,
+        },
+      },
+    },
+  },
+} as const;
+
+const DAILY_COURSE_EXAM_RESULTS_INCLUDE = {
+  reviewedBy: {
+    select: {
+      id: true,
+      username: true,
+      profile: {
+        select: {
+          fullName: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  },
+  dailyCourseUserStep: {
+    include: {
+      dailyCourseUserTraining: {
+        include: {
+          user: {
+            include: { profile: true },
+          },
+          schedule: {
+            include: {
+              bundle: true,
+            },
+          },
+        },
+      },
+      bundleStep: {
+        include: {
+          step: true,
+        },
+      },
+    },
+  },
+} as const;
+
+type DailyCourseExamResultRow = Prisma.ExamResultGetPayload<{
+  include: typeof DAILY_COURSE_EXAM_RESULTS_INCLUDE;
+}>;
+
+function mapDailyCourseExamResultToDetails(
+  result: DailyCourseExamResultRow,
+): ExamResultWithDetails {
+  const dailyStep = result.dailyCourseUserStep;
+  if (!dailyStep) {
+    throw new Error("DAILY_COURSE_EXAM_RESULT_WITHOUT_STEP");
+  }
+  const training = dailyStep.dailyCourseUserTraining;
+  const schedule = training.schedule;
+  const bundle = schedule.bundle;
+  const step = dailyStep.bundleStep.step;
+
+  return {
+    id: result.id,
+    testAnswers: result.testAnswers,
+    testScore: result.testScore,
+    testMaxScore: result.testMaxScore,
+    videoReportUrl: result.videoReportUrl,
+    writtenFeedback: result.writtenFeedback,
+    overallScore: result.overallScore,
+    isPassed: result.isPassed,
+    trainerComment: result.trainerComment,
+    reviewedAt: result.reviewedAt,
+    reviewedById: result.reviewedById,
+    reviewedBy: result.reviewedBy,
+    createdAt: result.createdAt,
+    updatedAt: result.updatedAt,
+    userStep: {
+      id: dailyStep.id,
+      status: dailyStep.status,
+      userTraining: {
+        id: training.id,
+        user: training.user,
+        dayOnCourse: {
+          id: schedule.id,
+          day: {
+            id: bundle.id,
+            title: bundle.title,
+          },
+          course: {
+            id: `daily-course:${schedule.id}`,
+            name: "Курс дня",
+            type: "daily-course",
+          },
+        },
+      },
+      stepOnDay: {
+        id: dailyStep.bundleStep.id,
+        order: dailyStep.bundleStep.order,
+        step,
+      },
+    },
+  };
+}
+
+/**
+ * Получает результаты экзаменов для тренера (все или с фильтром hideCompleted).
+ */
+export async function getExamResults(
+  trainerId: string,
+  options?: GetExamResultsOptions,
+  isAdmin?: boolean,
+): Promise<ExamResultWithDetails[]> {
+  const [regularResults, dailyCourseResults] = await Promise.all([
+    prisma.examResult.findMany({
+      where: {
+        userStep: {
+          ...(options?.hideCompleted && { status: "IN_PROGRESS" }),
+          userTraining: {
+            dayOnCourse: {
+              course: {
+                ...(isAdmin !== true && { authorId: trainerId }),
+              },
+            },
+          },
+        },
+      },
+      include: EXAM_RESULTS_INCLUDE,
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.examResult.findMany({
+      where: {
+        dailyCourseUserStep: {
+          ...(options?.hideCompleted && { status: "IN_PROGRESS" }),
+          dailyCourseUserTraining: {
+            schedule: {
+              bundle: {
+                ...(isAdmin !== true && { authorId: trainerId }),
+              },
+            },
+          },
+        },
+      },
+      include: DAILY_COURSE_EXAM_RESULTS_INCLUDE,
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  return [
+    ...(regularResults.filter((result) => result.userStep !== null) as ExamResultWithDetails[]),
+    ...dailyCourseResults
+      .filter((result) => result.dailyCourseUserStep !== null)
+      .map(mapDailyCourseExamResultToDetails),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+/**
+ * Получает результаты экзаменов по курсу (с проверкой доступа).
+ */
+export async function getExamResultsByCourse(
+  courseId: string,
+  trainerId: string,
+  isAdmin: boolean,
+): Promise<ExamResultWithDetails[]> {
+  const course = await prisma.course.findFirst({
+    where: {
+      id: courseId,
+      ...(!isAdmin && { authorId: trainerId }),
+    },
+  });
+  if (!course) {
+    throw new Error("Курс не найден или нет доступа");
+  }
+  const examResults = await prisma.examResult.findMany({
+    where: {
+      userStep: {
+        userTraining: {
+          dayOnCourse: {
+            courseId,
+          },
+        },
+      },
+    },
+    include: EXAM_RESULTS_INCLUDE,
+    orderBy: { createdAt: "desc" },
+  });
+  return examResults as ExamResultWithDetails[];
+}
+
+/** Outer server composition for the existing three-argument Core exam API.
+ * Push is loaded only after review; exam ACL and transaction stay unchanged. */
+export function reviewExamResultWithPush(
+  reviewerId: string,
+  reviewerRole: string,
+  data: ReviewExamResultData,
+): Promise<ActionResult> {
+  return reviewExamResult(reviewerId, reviewerRole, data, async input => {
+    const { sendImmediatePushNotification } = await import("@gafus/notifications-server/immediatePushService");
+    return sendImmediatePushNotification(input);
+  });
+}

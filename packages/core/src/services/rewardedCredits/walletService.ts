@@ -1,4 +1,4 @@
-import { prisma, type Prisma } from "@gafus/prisma";
+import { requireRewardedWalletPort, type RewardedWalletTx } from "./rewardedWalletPort";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
 
 import {
@@ -6,7 +6,11 @@ import {
   REWARDED_DAILY_LIMIT_TIMEZONE,
   REWARDED_MAX_CREDIT_BALANCE,
 } from "./constants";
-import { RewardedBalanceFullError, RewardedCreditsRequiredError, RewardedAdsDisabledError } from "./errors";
+import {
+  RewardedBalanceFullError,
+  RewardedCreditsRequiredError,
+  RewardedAdsDisabledError,
+} from "./errors";
 import { resolveRewardedPlatformSettings } from "./settingsService";
 import type { ClientAppContext } from "../appFeatureFlags";
 import type {
@@ -18,12 +22,6 @@ import type {
   RewardedTargetInput,
 } from "./types";
 import { getAppSubscriptionAccess } from "../appSubscription";
-
-type PrismaTx = typeof prisma;
-
-function getPrismaClient(client?: PrismaTx): PrismaTx {
-  return client ?? prisma;
-}
 
 function nextMskReset(now: Date): { start: Date; end: Date } {
   const msk = toZonedTime(now, REWARDED_DAILY_LIMIT_TIMEZONE);
@@ -37,71 +35,45 @@ function nextMskReset(now: Date): { start: Date; end: Date } {
   };
 }
 
-async function withUserWalletLock<T>(userId: string, fn: (tx: PrismaTx) => Promise<T>): Promise<T> {
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe?.(
-      "SELECT pg_advisory_xact_lock(hashtext($1))",
-      `rewarded:${userId}`,
-    );
-    return fn(tx as PrismaTx);
-  });
-}
-
-async function ensureWallet(client: PrismaTx, userId: string) {
-  return client.rewardedCreditWallet.upsert({
-    where: { userId },
-    create: { userId, balance: 0, pendingRefundCredits: 0 },
-    update: {},
-  });
+function ensureWallet(client: RewardedWalletTx, userId: string) {
+  return requireRewardedWalletPort().ensureRewardedWalletRow(userId, client);
 }
 
 export async function getRewardedCreditBalance(userId: string): Promise<number> {
-  return withUserWalletLock(userId, async (tx) => {
+  return requireRewardedWalletPort().withLockedRewardedWallet(userId, async (tx) => {
     const wallet = await applyPendingRefundCredits(tx, userId);
     return wallet.balance;
   });
 }
 
-async function applyPendingRefundCredits(client: PrismaTx, userId: string) {
+async function applyPendingRefundCredits(client: RewardedWalletTx, userId: string) {
   const wallet = await ensureWallet(client, userId);
   const missing = Math.max(0, REWARDED_MAX_CREDIT_BALANCE - wallet.balance);
   const applied = Math.min(missing, wallet.pendingRefundCredits);
   if (applied <= 0) {
     return wallet;
   }
-  return client.rewardedCreditWallet.update({
-    where: { userId },
-    data: {
-      balance: wallet.balance + applied,
-      pendingRefundCredits: wallet.pendingRefundCredits - applied,
-    },
+  return requireRewardedWalletPort().updateRewardedWalletRow(client, userId, {
+    balance: wallet.balance + applied,
+    pendingRefundCredits: wallet.pendingRefundCredits - applied,
   });
 }
 
-async function getAdsWatchedToday(client: PrismaTx, userId: string, now: Date): Promise<number> {
+async function getAdsWatchedToday(
+  client: RewardedWalletTx,
+  userId: string,
+  now: Date,
+): Promise<number> {
   const { start, end } = nextMskReset(now);
-  return client.rewardedAdSession.count({
-    where: {
-      userId,
-      rewardedAt: { gte: start, lt: end },
-    },
-  });
+  return requireRewardedWalletPort().countTodayRewardedAds(client, userId, start, end);
 }
 
 async function hasTargetUnlock(
-  client: PrismaTx,
+  client: RewardedWalletTx,
   userId: string,
   target: RewardedTargetInput,
 ): Promise<boolean> {
-  const transaction = await client.rewardedCreditTransaction.findFirst({
-    where: {
-      userId,
-      type: "SPEND",
-      targetType: target.targetType,
-      targetId: target.targetId,
-    },
-    select: { id: true },
-  });
+  const transaction = await requireRewardedWalletPort().hasRewardedTargetSpendRow(client, userId, target);
   return Boolean(transaction);
 }
 
@@ -113,7 +85,7 @@ export async function getRewardedCreditsStatus(input: {
   now?: Date;
 }): Promise<RewardedCreditsStatusDto> {
   const now = input.now ?? new Date();
-  return withUserWalletLock(input.userId, async (tx) => {
+  return requireRewardedWalletPort().withLockedRewardedWallet(input.userId, async (tx) => {
     const wallet = await applyPendingRefundCredits(tx, input.userId);
     const platformSettings = await resolveRewardedPlatformSettings(
       input.platform,
@@ -180,10 +152,8 @@ export async function grantRewardedCreditsToWallet(input: {
   now?: Date;
 }): Promise<RewardedGrantResultDto> {
   const now = input.now ?? new Date();
-  return withUserWalletLock(input.userId, async (tx) => {
-    const existing = await tx.rewardedCreditTransaction.findUnique({
-      where: { idempotencyKey: `rewarded:earn:${input.sessionId}` },
-    });
+  return requireRewardedWalletPort().withLockedRewardedWallet(input.userId, async (tx) => {
+    const existing = await requireRewardedWalletPort().findRewardedTransactionByKey(tx, `rewarded:earn:${input.sessionId}`);
     if (existing) {
       const wallet = await applyPendingRefundCredits(tx, input.userId);
       const platformSettings = await resolveRewardedPlatformSettings(input.platform);
@@ -209,21 +179,18 @@ export async function grantRewardedCreditsToWallet(input: {
       REWARDED_CREDITS_PER_REWARD,
       REWARDED_MAX_CREDIT_BALANCE - wallet.balance,
     );
-    const updated = await tx.rewardedCreditWallet.update({
-      where: { userId: input.userId },
-      data: { balance: wallet.balance + grantedCredits },
+    const updated = await requireRewardedWalletPort().updateRewardedWalletRow(tx, input.userId, {
+      balance: wallet.balance + grantedCredits,
     });
-    const transaction = await tx.rewardedCreditTransaction.create({
-      data: {
-        userId: input.userId,
-        type: "EARN",
-        amount: grantedCredits,
-        balanceBefore: wallet.balance,
-        balanceAfter: updated.balance,
-        provider: "YANDEX",
-        sessionId: input.sessionId,
-        idempotencyKey: `rewarded:earn:${input.sessionId}`,
-      },
+    const transaction = await requireRewardedWalletPort().appendRewardedWalletEntry(tx, {
+      userId: input.userId,
+      type: "EARN",
+      amount: grantedCredits,
+      balanceBefore: wallet.balance,
+      balanceAfter: updated.balance,
+      provider: "YANDEX",
+      sessionId: input.sessionId,
+      idempotencyKey: `rewarded:earn:${input.sessionId}`,
     });
     const platformSettings = await resolveRewardedPlatformSettings(input.platform);
 
@@ -253,7 +220,7 @@ export async function spendRewardedCredits(input: {
   if (process.env.GAFUS_LEGACY_REWARDED_DISABLED === "true") throw new RewardedAdsDisabledError();
   const subscription = await getAppSubscriptionAccess(input.userId, input.now);
   if (subscription.hasActiveSubscription) {
-    const wallet = await ensureWallet(getPrismaClient(), input.userId);
+    const wallet = await requireRewardedWalletPort().ensureRewardedWalletRow(input.userId);
     return {
       transactionId: null,
       spentCredits: 0,
@@ -264,10 +231,8 @@ export async function spendRewardedCredits(input: {
     };
   }
 
-  return withUserWalletLock(input.userId, async (tx) => {
-    const existing = await tx.rewardedCreditTransaction.findUnique({
-      where: { idempotencyKey: input.idempotencyKey },
-    });
+  return requireRewardedWalletPort().withLockedRewardedWallet(input.userId, async (tx) => {
+    const existing = await requireRewardedWalletPort().findRewardedTransactionByKey(tx, input.idempotencyKey);
     if (existing) {
       const wallet = await applyPendingRefundCredits(tx, input.userId);
       return {
@@ -284,22 +249,19 @@ export async function spendRewardedCredits(input: {
     if (wallet.balance < input.amount) {
       throw new RewardedCreditsRequiredError();
     }
-    const afterSpend = await tx.rewardedCreditWallet.update({
-      where: { userId: input.userId },
-      data: { balance: wallet.balance - input.amount },
+    const afterSpend = await requireRewardedWalletPort().updateRewardedWalletRow(tx, input.userId, {
+      balance: wallet.balance - input.amount,
     });
-    const transaction = await tx.rewardedCreditTransaction.create({
-      data: {
-        userId: input.userId,
-        type: "SPEND",
-        amount: input.amount,
-        balanceBefore: wallet.balance,
-        balanceAfter: afterSpend.balance,
-        targetType: input.target.targetType,
-        targetId: input.target.targetId,
-        idempotencyKey: input.idempotencyKey,
-        metadata: input.metadata as Prisma.InputJsonValue | undefined,
-      },
+    const transaction = await requireRewardedWalletPort().appendRewardedWalletEntry(tx, {
+      userId: input.userId,
+      type: "SPEND",
+      amount: input.amount,
+      balanceBefore: wallet.balance,
+      balanceAfter: afterSpend.balance,
+      targetType: input.target.targetType,
+      targetId: input.target.targetId,
+      idempotencyKey: input.idempotencyKey,
+      metadata: input.metadata,
     });
     const finalWallet = await applyPendingRefundCredits(tx, input.userId);
 
@@ -324,10 +286,8 @@ export async function refundRewardedCredits(input: {
   metadata?: Record<string, unknown>;
   now?: Date;
 }): Promise<RewardedRefundResultDto> {
-  return withUserWalletLock(input.userId, async (tx) => {
-    const existing = await tx.rewardedCreditTransaction.findUnique({
-      where: { idempotencyKey: input.idempotencyKey },
-    });
+  return requireRewardedWalletPort().withLockedRewardedWallet(input.userId, async (tx) => {
+    const existing = await requireRewardedWalletPort().findRewardedTransactionByKey(tx, input.idempotencyKey);
     if (existing) {
       const wallet = await applyPendingRefundCredits(tx, input.userId);
       return {
@@ -343,27 +303,22 @@ export async function refundRewardedCredits(input: {
     const availableSpace = Math.max(0, REWARDED_MAX_CREDIT_BALANCE - wallet.balance);
     const toBalance = Math.min(availableSpace, input.amount);
     const overflow = input.amount - toBalance;
-    const updated = await tx.rewardedCreditWallet.update({
-      where: { userId: input.userId },
-      data: {
-        balance: wallet.balance + toBalance,
-        pendingRefundCredits: wallet.pendingRefundCredits + overflow,
-      },
+    const updated = await requireRewardedWalletPort().updateRewardedWalletRow(tx, input.userId, {
+      balance: wallet.balance + toBalance,
+      pendingRefundCredits: wallet.pendingRefundCredits + overflow,
     });
-    const transaction = await tx.rewardedCreditTransaction.create({
-      data: {
-        userId: input.userId,
-        type: "REFUND",
-        amount: input.amount,
-        balanceBefore: wallet.balance,
-        balanceAfter: updated.balance,
-        targetType: input.target.targetType,
-        targetId: input.target.targetId,
-        idempotencyKey: input.idempotencyKey,
-        refundedTransactionId: input.originalSpendId,
-        refundReason: input.reason,
-        metadata: input.metadata as Prisma.InputJsonValue | undefined,
-      },
+    const transaction = await requireRewardedWalletPort().appendRewardedWalletEntry(tx, {
+      userId: input.userId,
+      type: "REFUND",
+      amount: input.amount,
+      balanceBefore: wallet.balance,
+      balanceAfter: updated.balance,
+      targetType: input.target.targetType,
+      targetId: input.target.targetId,
+      idempotencyKey: input.idempotencyKey,
+      refundedTransactionId: input.originalSpendId,
+      refundReason: input.reason,
+      metadata: input.metadata,
     });
 
     return {

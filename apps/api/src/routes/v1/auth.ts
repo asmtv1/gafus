@@ -62,7 +62,7 @@ import {
 import {
   APP_FEATURE_MOBILE_VK_LOGIN_IOS,
   getMobileFeatureFlagEnabled,
-} from "@gafus/core/services/appFeatureFlags";
+} from "@gafus/feature-flags-server";
 import { createWebLogger } from "@gafus/logger";
 import { getClientAppContext } from "../../lib/client-app-context.js";
 import { authMiddleware } from "../../middleware/auth.js";
@@ -132,7 +132,9 @@ const usernameChangeSchema = z.object({
 // Preserve the original Zod issue codes/order/messages exposed in HTTP 400.
 // Constraint values and character policy are shared with browser normalization.
 const usernameAvailableQuerySchema = z.object({
-  username: z.string().trim()
+  username: z
+    .string()
+    .trim()
     .min(USERNAME_AVAILABILITY_MIN_LENGTH)
     .max(USERNAME_AVAILABILITY_MAX_LENGTH)
     .regex(USERNAME_AVAILABILITY_ALLOWED_CHARACTERS, "Логин: латиница, цифры, _"),
@@ -326,11 +328,14 @@ authRoutes.post(
       // Never reflect or log internal database/provider/credential error text.
       // Server alerts can be correlated by request id; log only the safe code.
       logger.error("Register error", new Error("REGISTRATION_UNAVAILABLE"));
-      return c.json({
-        success: false,
-        code: "REGISTRATION_UNAVAILABLE",
-        error: "Не удалось зарегистрироваться. Попробуйте позже.",
-      }, 500);
+      return c.json(
+        {
+          success: false,
+          code: "REGISTRATION_UNAVAILABLE",
+          error: "Не удалось зарегистрироваться. Попробуйте позже.",
+        },
+        500,
+      );
     }
   },
 );
@@ -386,7 +391,10 @@ authRoutes.post(
 
       if (!result.valid) {
         if (result.reason === "recently_consumed") {
-          return c.json({ success: false, code: "REFRESH_CONFLICT", error: "Сессия уже обновляется" }, 409);
+          return c.json(
+            { success: false, code: "REFRESH_CONFLICT", error: "Сессия уже обновляется" },
+            409,
+          );
         }
         if (result.reason === "token_reuse" && result.userId) {
           logger.warn("Refresh token reuse detected - possible token theft!", {
@@ -428,7 +436,10 @@ authRoutes.post(
         });
       } catch (error) {
         if (error instanceof RefreshRotationConflictError) {
-          return c.json({ success: false, code: "REFRESH_CONFLICT", error: "Сессия уже обновляется" }, 409);
+          return c.json(
+            { success: false, code: "REFRESH_CONFLICT", error: "Сессия уже обновляется" },
+            409,
+          );
         }
         throw error;
       }
@@ -496,7 +507,14 @@ authRoutes.post("/logout-all", authMiddleware, bodyLimit({ maxSize: 1024 }), asy
     return c.json({ success: true }, 200);
   } catch {
     logger.error("Logout-all revocation failed", new Error("LOGOUT_ALL_REVOKE_FAILED"));
-    return c.json({ success: false, code: "LOGOUT_ALL_REVOKE_FAILED", error: "Не удалось завершить все сеансы" }, 503);
+    return c.json(
+      {
+        success: false,
+        code: "LOGOUT_ALL_REVOKE_FAILED",
+        error: "Не удалось завершить все сеансы",
+      },
+      503,
+    );
   }
 });
 
@@ -507,11 +525,15 @@ authRoutes.post(
   "/check-phone-match",
   bodyLimit({ maxSize: 5 * 1024 }),
   zValidator("json", checkPhoneMatchSchema),
-  (c) => c.json({
-    success: false,
-    code: "PHONE_MATCH_UNAVAILABLE",
-    error: "Проверка номера недоступна. Восстановите доступ через email.",
-  }, 410),
+  (c) =>
+    c.json(
+      {
+        success: false,
+        code: "PHONE_MATCH_UNAVAILABLE",
+        error: "Проверка номера недоступна. Восстановите доступ через email.",
+      },
+      410,
+    ),
 );
 
 // POST /api/v1/auth/password-reset-request — письмо со ссылкой на email
@@ -1108,7 +1130,8 @@ authRoutes.get(
       const user = c.get("user");
       const available = await isUsernameAvailable(username, user.id);
       const response: UsernameAvailabilityServiceResponse = {
-        success: true, data: { available },
+        success: true,
+        data: { available },
       };
       return c.json(response);
     } catch {
@@ -1117,7 +1140,11 @@ authRoutes.get(
         new Error("G03_USERNAME_AVAILABILITY_UNAVAILABLE"),
       );
       return c.json(
-        { success: false, code: "USERNAME_UNAVAILABLE", error: "Ошибка проверки логина" } satisfies UsernameAvailabilityServiceResponse,
+        {
+          success: false,
+          code: "USERNAME_UNAVAILABLE",
+          error: "Ошибка проверки логина",
+        } satisfies UsernameAvailabilityServiceResponse,
         500,
       );
     }

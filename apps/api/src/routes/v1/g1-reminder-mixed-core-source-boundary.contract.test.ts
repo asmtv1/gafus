@@ -2,31 +2,89 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 const route = readFileSync(new URL("./reminders.ts", import.meta.url), "utf8");
-const coreSource = readFileSync(new URL(
-  "../../../../../packages/core/src/services/reminders/reminderService.ts", import.meta.url), "utf8");
-const coreDist = readFileSync(new URL(
-  "../../../../../packages/core/dist/core/src/services/reminders/reminderService.js", import.meta.url), "utf8");
-const keyedSource = readFileSync(new URL(
-  "../../../../../packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts", import.meta.url), "utf8");
-describe("Reminder actual Core module boundary: mixed keyed/keyless cap5", () => {
-  it("P0_01 original keyed and keyless Core source both lock same owner User row", () => {
-    expect(coreSource).toContain("AND \"registrationPending\" = false FOR UPDATE");
-    expect(keyedSource).toContain("AND \"registrationPending\" = false FOR UPDATE");
-    expect(coreSource).toContain("return prisma.$transaction(async (tx) => {");
-    expect(keyedSource).toContain("return await prisma.$transaction(async (tx) => {");
-    expect(coreSource).toContain("await tx.reminder.count");
-    expect(keyedSource).toContain("await tx.reminder.count");
+const applicationSource = readFileSync(
+  new URL(
+    "../../../../../packages/notifications-server/src/training-reminder-application.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const applicationDist = readFileSync(
+  new URL(
+    "../../../../../packages/notifications-server/dist/training-reminder-application.js",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const storageSource = readFileSync(
+  new URL(
+    "../../../../../packages/notifications-server/src/training-reminder-storage.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const storageDist = readFileSync(
+  new URL(
+    "../../../../../packages/notifications-server/dist/training-reminder-storage.js",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const keyedSource = readFileSync(
+  new URL(
+    "../../../../../packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const keyedRowsSource = readFileSync(
+  new URL(
+    "../../../../../packages/identity-write-server/src/reminderReviewRows.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
+describe("Reminder packaged boundary: shared keyed/keyless cap5", () => {
+  it("P0_01 both keyed and keyless reminder CREATE lock the same User before cap and insert", () => {
+    expect(applicationSource).toContain('from "./training-reminder-storage.js"');
+    expect(applicationSource).toContain(
+      "return createTrainingReminderRow(userId,name,reminderTime,reminderDays,timezone)",
+    );
+    expect(applicationSource).not.toContain('from "@gafus/prisma"');
+    expect(keyedSource).toContain("requireReminderAG4ReviewRowsPort()");
+    expect(keyedSource).not.toContain("@gafus/identity-write-server/reminder-review-rows");
+    const adapterComposer=readFileSync(new URL("../../modules/reminders/composition/install-ag4-review-rows.review.ts",import.meta.url),"utf8");
+    expect(adapterComposer).toContain("@gafus/identity-write-server/reminder-review-rows");
+    for (const impl of [storageSource, keyedRowsSource]) {
+      expect(impl).toContain('AND "registrationPending" = false FOR UPDATE');
+      expect(impl).toContain("prisma.$transaction(async");
+      expect(impl).toContain("tx.reminder.count");
+      expect(impl).toContain("tx.reminder.create");
+    }
+    expect(storageSource).toContain("if(count>=MAX_REMINDERS)");
+    expect(storageSource).toContain("MAX_REMINDERS=5");
+    expect(storageSource).toContain("type:REMINDER_TYPE");
   });
-  it("P0_02 AG4 built Core legacy module must have owner lock", () => {
-    expect(coreDist).toContain("FOR UPDATE");
-    expect(coreDist).toContain("$transaction(");
+  it("P0_02 compiled application delegates to owner-locked storage", () => {
+    expect(applicationDist).toContain('"./training-reminder-storage.js"');
+    expect(applicationDist).toContain(
+      "createTrainingReminderRow(userId, name, reminderTime, reminderDays, timezone)",
+    );
+    expect(applicationDist).not.toContain('"@gafus/prisma"');
+    expect(storageDist).toContain('AND "registrationPending" = false FOR UPDATE');
+    expect(storageDist).toContain("$transaction(");
+    expect(storageDist).toContain("tx.reminder.count");
+    expect(storageDist).toContain("tx.reminder.create");
   });
-  it("P0_03 keyed/keyless GET all import one published compiled Core package", () => {
+  it("P0_03 keyed and legacy flows use their published packages", () => {
     expect(route).toContain('} from "@gafus/core/services/reminders";');
-    expect(route).toContain("  createReminder,");
+    expect(route).toContain('import {getReminders,createReminder,updateReminder,deleteReminder} from "@gafus/notifications-server/training-reminder-application";');
     expect(route).toContain("  createReminderAG4,");
     expect(route).not.toContain("packages/core/src/services/reminders/");
-    const lookup = readFileSync(new URL("./g1-reminder-operation-lookupAG4.review.ts", import.meta.url), "utf8");
+    const lookup = readFileSync(
+      new URL("./g1-reminder-operation-lookupAG4.review.ts", import.meta.url),
+      "utf8",
+    );
     expect(lookup).toContain('} from "@gafus/core/services/reminders";');
     expect(lookup).not.toContain("packages/core/src/services/reminders/");
   });

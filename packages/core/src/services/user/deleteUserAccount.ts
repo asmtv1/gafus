@@ -5,11 +5,10 @@
 
 import crypto from "crypto";
 
-import { prisma, Prisma } from "@gafus/prisma";
+
 import { createWebLogger } from "@gafus/logger";
 import { z } from "zod/v3";
 
-import { enqueueAccountStorageCleanup } from "../accountCleanup/enqueue";
 
 import { sendAccountDeletionCodeEmail } from "../auth/transactionalAuthMail";
 
@@ -30,11 +29,7 @@ export type DeleteUserAccountBody = z.infer<typeof deleteUserAccountBodySchema>;
 
 export type DeleteUserAccountInput = { actorUserId: string } & DeleteUserAccountBody;
 
-export type DeleteUserAccountErrorCode =
-  | "FORBIDDEN"
-  | "VALIDATION"
-  | "CONFLICT"
-  | "INTERNAL";
+export type DeleteUserAccountErrorCode = "FORBIDDEN" | "VALIDATION" | "CONFLICT" | "INTERNAL";
 
 export type DeleteUserAccountResult =
   | { success: true }
@@ -52,15 +47,54 @@ export type RequestAccountDeletionCodeResult =
       code?: DeleteUserAccountErrorCode;
     };
 
+/** Storage operations are bound at the API composition root. SQL and locks
+ * remain in the identity-write adapter and the cleanup callback runs INSIDE
+ * its original transaction. No Prisma dependency is exposed to Core.
+ */
+export interface AccountDeletionPorts {
+  readAccountDeletionPreflightRow: (actorId: string) => Promise<{
+    id: string; username: string; email: string | null;
+  } | null>;
+  readAccountDeletionActorRow: (actorId: string) => Promise<{
+    id: string; username: string; role: string; email: string | null;
+  } | null>;
+  readAccountDeletionAuthoredCounts: (actorId: string) => Promise<[
+    number, number, number, number, number,
+  ]>;
+  readAccountDeletionRequestedAt: (actorId: string) => Promise<{
+    accountDeletionRequestedAt: Date | null;
+  } | null>;
+  readAccountDeletionChallenge: (
+    actorId: string, shortCode: string,
+  ) => Promise<{ expiresAt: Date } | null>;
+  replaceAccountDeletionChallenge: (
+    actorId: string, expiresAt: Date, attempts: number,
+    generateCode: () => string,
+  ) => Promise<string>;
+  deleteAccountAndPersistCleanup: (
+    actorId: string, role: string, hadEmail: boolean, at: Date,
+  ) => Promise<void>;
+  deletionPrismaRequestErrorCode: (error: unknown) => string | null;
+}
+
+export function createAccountDeletionService(ports: AccountDeletionPorts) {
+  const {
+    readAccountDeletionPreflightRow,
+    readAccountDeletionActorRow,
+    readAccountDeletionAuthoredCounts,
+    readAccountDeletionRequestedAt,
+    readAccountDeletionChallenge,
+    replaceAccountDeletionChallenge,
+    deleteAccountAndPersistCleanup,
+    deletionPrismaRequestErrorCode,
+  } = ports;
+
 /** Minimal self-delete preflight deliberately avoids avatar/CDN signing.
  *  Never expose the email address or challenge token to the browser.
  */
-export async function readAccountDeletionPreflight(actorUserId: string) {
+async function readAccountDeletionPreflight(actorUserId: string) {
   if (!actorUserId?.trim()) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: actorUserId },
-    select: { id: true, username: true, email: true },
-  });
+  const user = await readAccountDeletionPreflightRow(actorUserId);
   if (!user) return null;
   return { id: user.id, username: user.username, hasEmail: !!user.email?.trim() };
 }
@@ -79,15 +113,7 @@ async function assertSelfDeletionUser(actorUserId: string): Promise<
     }
   | { ok: false; result: DeleteUserAccountResult }
 > {
-  const user = await prisma.user.findUnique({
-    where: { id: actorUserId },
-    select: {
-      id: true,
-      username: true,
-      role: true,
-      email: true,
-    },
-  });
+  const user = await readAccountDeletionActorRow(actorUserId);
 
   if (!user) {
     return {
@@ -105,28 +131,21 @@ async function assertSelfDeletionUser(actorUserId: string): Promise<
       ok: false,
       result: {
         success: false,
-        error:
-          "Удаление аккаунта доступно только для пользователей. Обратитесь в поддержку.",
+        error: "Удаление аккаунта доступно только для пользователей. Обратитесь в поддержку.",
         code: "FORBIDDEN",
       },
     };
   }
 
-  const [courses, days, steps, templates, articles] = await Promise.all([
-    prisma.course.count({ where: { authorId: actorUserId } }),
-    prisma.trainingDay.count({ where: { authorId: actorUserId } }),
-    prisma.step.count({ where: { authorId: actorUserId } }),
-    prisma.stepTemplate.count({ where: { authorId: actorUserId } }),
-    prisma.article.count({ where: { authorId: actorUserId } }),
-  ]);
+  const [courses, days, steps, templates, articles] =
+    await readAccountDeletionAuthoredCounts(actorUserId);
 
   if (courses + days + steps + templates + articles > 0) {
     return {
       ok: false,
       result: {
         success: false,
-        error:
-          "Невозможно удалить аккаунт: у вас есть созданный контент. Обратитесь в поддержку.",
+        error: "Невозможно удалить аккаунт: у вас есть созданный контент. Обратитесь в поддержку.",
         code: "CONFLICT",
       },
     };
@@ -138,7 +157,7 @@ async function assertSelfDeletionUser(actorUserId: string): Promise<
 /**
  * Отправляет на email профиля код для подтверждения удаления (throttle 2 мин).
  */
-export async function requestAccountDeletionCode(
+async function requestAccountDeletionCode(
   actorUserId: string,
 ): Promise<RequestAccountDeletionCodeResult> {
   if (!actorUserId?.trim()) {
@@ -159,16 +178,12 @@ export async function requestAccountDeletionCode(
     if (!email) {
       return {
         success: false,
-        error:
-          "Укажите email в профиле — на него будет отправлен код подтверждения удаления.",
+        error: "Укажите email в профиле — на него будет отправлен код подтверждения удаления.",
         code: "FORBIDDEN",
       };
     }
 
-    const fullUser = await prisma.user.findUnique({
-      where: { id: actorUserId },
-      select: { accountDeletionRequestedAt: true },
-    });
+    const fullUser = await readAccountDeletionRequestedAt(actorUserId);
 
     const now = Date.now();
     if (
@@ -183,40 +198,12 @@ export async function requestAccountDeletionCode(
     }
 
     const expiresAt = new Date(now + DELETION_CODE_TTL_MS);
-    let shortCode = "";
-
-    await prisma.$transaction(async (tx) => {
-      await tx.accountDeletionToken.deleteMany({ where: { userId: actorUserId } });
-
-      for (let i = 0; i < SHORT_CODE_ATTEMPTS; i += 1) {
-        const candidate = randomSixDigitCode();
-        const exists = await tx.accountDeletionToken.findUnique({
-          where: { shortCode: candidate },
-          select: { id: true },
-        });
-        if (exists) {
-          continue;
-        }
-        await tx.accountDeletionToken.create({
-          data: {
-            userId: actorUserId,
-            shortCode: candidate,
-            expiresAt,
-          },
-        });
-        shortCode = candidate;
-        break;
-      }
-
-      if (!shortCode) {
-        throw new Error("Не удалось сгенерировать код");
-      }
-
-      await tx.user.update({
-        where: { id: actorUserId },
-        data: { accountDeletionRequestedAt: new Date() },
-      });
-    });
+    const shortCode = await replaceAccountDeletionChallenge(
+      actorUserId,
+      expiresAt,
+      SHORT_CODE_ATTEMPTS,
+      randomSixDigitCode,
+    );
 
     await sendAccountDeletionCodeEmail(email, shortCode);
     logger.info("Код удаления аккаунта отправлен", { userId: actorUserId });
@@ -238,7 +225,7 @@ export async function requestAccountDeletionCode(
 /**
  * Удаляет пользователя после проверки роли, кода из письма и отсутствия авторского контента.
  */
-export async function deleteUserAccount(
+async function deleteUserAccount(
   input: DeleteUserAccountInput,
 ): Promise<DeleteUserAccountResult> {
   const { actorUserId, code } = input;
@@ -257,9 +244,7 @@ export async function deleteUserAccount(
       return gate.result;
     }
 
-    const token = await prisma.accountDeletionToken.findFirst({
-      where: { userId: actorUserId, shortCode: code },
-    });
+    const token = await readAccountDeletionChallenge(actorUserId, code);
 
     if (!token || token.expiresAt.getTime() <= Date.now()) {
       return {
@@ -271,52 +256,19 @@ export async function deleteUserAccount(
     const hadEmail = gate.user.email != null && gate.user.email.length > 0;
     const deletionRole = gate.user.role;
     const deletionTimestamp = new Date();
-    await prisma.$transaction(async (tx) => {
-      await tx.accountDeletionToken.deleteMany({ where: { userId: actorUserId } });
-      await tx.refreshToken.updateMany({
-        where: { userId: actorUserId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-      await tx.consentLog.updateMany({
-        where: { userId: actorUserId },
-        data: {
-          formData: Prisma.DbNull,
-          ipAddress: null,
-          userAgent: null,
-        },
-      });
-      await enqueueAccountStorageCleanup(tx, actorUserId, deletionTimestamp);
-      await tx.user.delete({ where: { id: actorUserId } });
-      await tx.$executeRaw`
-        INSERT INTO "AccountDeletionAudit"
-          ("id", "userId", "role", "hadEmail", "initiatedBy", "deletedAt", "createdAt", "updatedAt")
-        VALUES
-          (
-            ${crypto.randomUUID()},
-            ${actorUserId},
-            ${deletionRole}::"UserRole",
-            ${hadEmail},
-            'SELF_SERVICE',
-            ${deletionTimestamp},
-            ${deletionTimestamp},
-            ${deletionTimestamp}
-          )
-      `;
-      await tx.$executeRaw`
-        INSERT INTO "AccountDeletionCounter" ("id", "totalDeleted", "createdAt", "updatedAt")
-        VALUES ('global', 1, ${deletionTimestamp}, ${deletionTimestamp})
-        ON CONFLICT ("id")
-        DO UPDATE
-          SET "totalDeleted" = "AccountDeletionCounter"."totalDeleted" + 1,
-              "updatedAt" = EXCLUDED."updatedAt"
-      `;
-    });
+    await deleteAccountAndPersistCleanup(
+      actorUserId,
+      deletionRole,
+      hadEmail,
+      deletionTimestamp,
+    );
 
     logger.success("Аккаунт удалён", { userId: actorUserId, hadEmail });
     return { success: true };
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === "P2003") {
+    const deletionErrorCode = deletionPrismaRequestErrorCode(error);
+    if (deletionErrorCode !== null) {
+      if (deletionErrorCode === "P2003") {
         logger.error(
           "FK при удалении пользователя",
           error instanceof Error ? error : new Error(String(error)),
@@ -328,7 +280,7 @@ export async function deleteUserAccount(
           code: "INTERNAL",
         };
       }
-      if (error.code === "P2025") {
+      if (deletionErrorCode === "P2025") {
         logger.warn("Пользователь не найден при удалении", { userId: actorUserId });
         return {
           success: false,
@@ -349,4 +301,11 @@ export async function deleteUserAccount(
       code: "INTERNAL",
     };
   }
+}
+
+  return {
+    readAccountDeletionPreflight,
+    requestAccountDeletionCode,
+    deleteUserAccount,
+  };
 }

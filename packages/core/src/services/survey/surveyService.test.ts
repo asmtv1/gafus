@@ -1,6 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getSurveyComparison, getSurveyResponse, submitSurveyResponse } from "./surveyService";
+import {
+  getSurveyComparison as readCoreSurveyComparison,
+  getSurveyResponse as readCoreSurveyResponse,
+  submitSurveyResponse as writeCoreSurveyResponse,
+} from "./surveyService";
+import type { SurveyPersistencePort } from "./surveyPersistencePort";
+import {
+  readSurveyResponseRow, readSurveyComparisonRows, readSurveyStepRow,
+  readOwnedSurveyUserStepRow, writeSurveyResponseRows,
+} from "@gafus/course-progress-server/survey-rows";
+
+/** Unit tests exercise real Core policy with explicit test-time SQL adapter. */
+const surveyPersistence: SurveyPersistencePort = {
+  readSurveyResponseRow, readSurveyComparisonRows, readSurveyStepRow,
+  readOwnedSurveyUserStepRow, writeSurveyResponseRows,
+};
+const getSurveyComparison = (userId: string, courseId: string, familySlug: string) =>
+  readCoreSurveyComparison(surveyPersistence, userId, courseId, familySlug);
+const getSurveyResponse = (userId: string, stepId: string) =>
+  readCoreSurveyResponse(surveyPersistence, userId, stepId);
+const submitSurveyResponse = (
+  userId: string, input: Parameters<typeof writeCoreSurveyResponse>[2],
+) => writeCoreSurveyResponse(surveyPersistence, userId, input);
+
 
 const mocks = vi.hoisted(() => ({
   stepFindFirst: vi.fn(),

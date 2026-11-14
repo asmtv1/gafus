@@ -1,0 +1,220 @@
+{
+  "schema": "gafus-A1-to-A2-wallet-lock/v1",
+  "timestamp_utc": "2026-11-12T03:46:09.656340+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "git_head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "gafus-owner-wallet-postgres-advisory-lock-port",
+  "edges_before": 27,
+  "edges_after": 26,
+  "ratchet": {
+    "baseline": 41,
+    "resolved": 15,
+    "new": 0
+  },
+  "historical": {
+    "initial": 142,
+    "removed": 116
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "a1d4f8f349b686e429a19d8810f47ea076a758e72fd96f5d952c9b860bd6e145",
+      "sha256_after": "77ddad6519c032cf3ebc5d8ff88d504db1d88f9a0ec3ac3738a015d56f3d8fd7",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-lock-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-wallet-lock.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "3390754179c23d8acf1ec7de46b0420e9147cb0a8c039a0a99fcf9b5313c02d2",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-wallet-lock.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "45775b452f85efb679de40bd65695ad8e7d2de9475d6bb21b5f54fff3ebe74dd",
+      "backup_before": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "9a55bc59e0c94d0eca172a7b2a24ec627dea451fd90a2606e9c919878efdef9b",
+      "sha256_after": "edd2eae00d123f40e87870f7ab14f92654370c12e53a314a4923f439da596ae1",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-lock-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "785561bc3ffe1067cd6046a5061fc32a6fc767778f2229e960e72b08751a637f",
+      "sha256_after": "dce082ee123f5fa2a7ea9ce3ef36c5a9bf71802d81c19bf8cd289c6d2de50002",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-lock-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/gafus/admin2GafusConcurrency.postgres.test.ts",
+      "status": "M",
+      "sha256_before": "e4259b55f164092941438c89bcd217813b85447f7c8f0e914d51f369d0640341",
+      "sha256_after": "93a8c5ecf55343d1caeb5678fd2a23601dce0de2de4414f8d8eb84222bf1b3ad",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-lock-port-prechange/packages/core/src/services/gafus/admin2GafusConcurrency.postgres.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/g1-offline-training-reward-boundary.test.ts",
+      "status": "M",
+      "sha256_before": "e387c345bb35b8935c54201e27ce8423be8704be1d013c58551b58f34c79e5c1",
+      "sha256_after": "ce089a407098014a8815b7672514a7869b640e3690a9675234a735006ab63f2f",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-lock-port-prechange/packages/core/src/services/gafus/g1-offline-training-reward-boundary.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/gafus-content-parity.isolatedpg.test.ts",
+      "status": "M",
+      "sha256_before": "ad7bc7beb707cd342d54ae5fee1570399d8978e80abd2e5939fd12c963a30c4c",
+      "sha256_after": "ab291c4f25574238168922ffb6ec2e387c7b16ce6cca3244a9dcba3db31300cc",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-lock-port-prechange/packages/core/src/services/gafus/gafus-content-parity.isolatedpg.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/gafus.postgres.test.ts",
+      "status": "M",
+      "sha256_before": "5d2ae22eb51406965bb0390726021d3b36f33b8bd9cc8f3fcf285e1bff70012e",
+      "sha256_after": "7b9dc2087c3505fa19bea0a2ee608e85f7e24b6f96493ebe8d257765fa38b7a1",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-lock-port-prechange/packages/core/src/services/gafus/gafus.postgres.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/gafusLockPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "eea0f2ceb7b5b36443ffa1aec41739cbe40030ade6d669b09f3cbeeeb4e6b3c6",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/gafus/locking.ts",
+      "status": "M",
+      "sha256_before": "01e0e6f4e806c5497b9173f382aa595713b387a3ec408ee14185688aed25bc9e",
+      "sha256_after": "6506694bd40c463e0cf8ba7ec0a8c01274d06bf3c5899b1b751a8a4f28bc0c36",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-lock-port-prechange/packages/core/src/services/gafus/locking.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/rewardService.test.ts",
+      "status": "M",
+      "sha256_before": "0bec2f9cbe94143a549a10eecce722eecfe7d81806b138cac775c555e70f8e53",
+      "sha256_after": "b925340bcc8eb029a0125fcdb5e4c1b716ad4a0978be20d2a8289def311e4ff9",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-lock-port-prechange/packages/core/src/services/gafus/rewardService.test.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "a75473d081e57fb4b55c846f4f6f4297c6a12192975b48e468f47ba96b47ae14",
+      "sha256_after": "9b92737c06b1315e65f8888792197c788368284910bb8932964b396d004dd34c",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-lock-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Core port, Promise owner error, 2 reward scenarios",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/gafus/gafusLockPort.test.ts src/services/gafus/rewardService.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 6,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-gafus-lock-port-core-tests-v2.log"
+    },
+    {
+      "name": "Core training/reward replay boundary, fixed test injection",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/gafus/g1-offline-training-reward-boundary.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 8,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-gafus-wallet-lock-offline-target.log"
+    },
+    {
+      "name": "API lock SQL composition",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/gafus/composition/install-wallet-lock.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-gafus-lock-api-contract.log"
+    },
+    {
+      "name": "Final full Core",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2103,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-lock-core-full-v2.log"
+    },
+    {
+      "name": "Final full API",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2752,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-lock-api-full-v2.log"
+    },
+    {
+      "name": "Core types",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-wallet-lock-core-ts.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-gafus-lock-core-build.log"
+    },
+    {
+      "name": "API types",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-lock-api-types.log"
+    },
+    {
+      "name": "Gafus server types",
+      "command": "pnpm --filter @gafus/gafus-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-lock-server-types.log"
+    },
+    {
+      "name": "Architecture boundary",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-gafus-wallet-lock-boundaries.log"
+    }
+  ],
+  "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-lock-port-prechange",
+  "no_merge_commit_push_deploy": true,
+  "frozen_baseline_json_edited": false,
+  "public_contracts": {
+    "lock_sql": "Unchanged PostgreSQL pg_advisory_xact_lock(hashtext(`gafus-wallet:${userId}`)) within original transaction",
+    "legacy_error": "GAFUS_WALLET_OWNER_REQUIRED preserved as rejected Promise for invalid owner",
+    "unbound": "GAFUS_WALLET_LOCK_PORT_UNBOUND for valid owner without composition",
+    "rebind": "GAFUS_WALLET_LOCK_PORT_ALREADY_BOUND",
+    "one_transaction": "withGafusUserLock callback receives same server-locked TransactionClient, no JS mutex or second connection"
+  },
+  "diagnostic": "First whole Core suite failed in four synthetic OFF021 Gafus reward tests because they did not explicitly compose the new port. Added real SQL lock binding inside their controlled in-memory transaction fixture. Targeted 8/8 and final Core 2103/2103 passed. Evidence for failure a1-gafus-lock-core-full.log; never counted it as a pass.",
+  "unmet_gates": [
+    {
+      "id": "WALLET_REAL_PG_RACE",
+      "requires": "Dedicated disposable localhost PostgreSQL with current schema, owner A/B, concurrent grants/spends, account deletion race, advisory lock same Pg connection; specific test URLs must satisfy hard-gated checks; no production DB."
+    },
+    {
+      "id": "GAFUS_EXTERNAL_BOOT",
+      "requires": "Approved integrated API/Worker staging startup that binds the lock before reward writes; Worker currently shows no direct Gafus economy port reads, recheck after shared integration."
+    },
+    {
+      "id": "FINAL_ARCH",
+      "requires": "Remove remaining 26 Core→server links, then A1/A2/A3 33-stage regression, 5-stage chaos and all Web/Mobile/Worker/panels/PG/Redis gates; frozen baseline 41 until full pass."
+    }
+  ],
+  "handoff": "A2 must verify full sha256_after, semantically merge shared apps/api/src/app.ts and scripts guard and Core Gafus tests. Core and SQL installer are inseparable; do not take a partial patch."
+}

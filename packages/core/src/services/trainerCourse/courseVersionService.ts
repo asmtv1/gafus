@@ -3,7 +3,6 @@
  * DO NOT run until the additive Course.version migration is applied.
  * Name-only: no full-form/day/access changes.
  */
-import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { invalidateCourseContentCache } from "../training/trainingDayContent";
 import { publishCourseContentChange } from "../training/trainingContentRevision";
@@ -19,6 +18,33 @@ export type CourseVersionResult =
   | { status: "found"; data: VersionedName }
   | { status: "updated"; data: VersionedName }
   | { status: "stale" | "not_found" | "invalid" | "unknown" };
+
+/** Persistence is the sole owner of Course.version, SQL owner predicate,
+ * transaction row lock and trigger. The Core handler owns status/validation.
+ * A missing binding becomes the existing UNKNOWN status, never a blind retry.
+ */
+export interface CourseVersionRowsPort {
+  readCourseVersionRows(courseId: string, actor: CourseVersionActor): Promise<VersionedName[]>;
+  writeCourseNameVersionRows(
+    input: { courseId: string; name: string; expectedVersion: number },
+    actor: CourseVersionActor,
+  ): Promise<VersionedName[]>;
+  setCourseLogoVersionRows(
+    input: { courseId: string; logoUrl: string; expectedVersion: number },
+    actor: CourseVersionActor,
+  ): Promise<CourseLogoVersionResult>;
+}
+let installedCourseVersionPort: Readonly<CourseVersionRowsPort> | null = null;
+export function registerCourseVersionRowsPort(port: CourseVersionRowsPort): void {
+  if (installedCourseVersionPort !== null && installedCourseVersionPort !== port) {
+    throw new Error("COURSE_VERSION_PORT_ALREADY_BOUND");
+  }
+  installedCourseVersionPort = port;
+}
+function requireCourseVersionRowsPort(): Readonly<CourseVersionRowsPort> {
+  if (installedCourseVersionPort === null) throw new Error("COURSE_VERSION_PORT_UNBOUND");
+  return installedCourseVersionPort;
+}
 
 function validActor(actor: CourseVersionActor): boolean {
   return !!actor && idPattern.test(actor.id) &&
@@ -38,14 +64,7 @@ export async function readCourseNameVersion(
   if (!idPattern.test(courseId) || !validActor(actor))
     return { status: "invalid" };
   try {
-    const rows = actor.role === "ADMIN"
-      ? await prisma.$queryRaw<VersionedName[]>`
-          SELECT "id","name","version" FROM "Course" WHERE "id" = ${courseId}
-        `
-      : await prisma.$queryRaw<VersionedName[]>`
-          SELECT "id","name","version" FROM "Course"
-          WHERE "id" = ${courseId} AND "authorId" = ${actor.id}
-        `;
+    const rows = await requireCourseVersionRowsPort().readCourseVersionRows(courseId, actor);
     if (rows.length === 0) return { status: "not_found" };
     if (rows.length !== 1 || !isDbRow(rows[0]))
       return { status: "unknown" };
@@ -72,20 +91,7 @@ export async function updateCourseNameVersioned(
     return { status: "invalid" };
   let rows: VersionedName[];
   try {
-    rows = actor.role === "ADMIN"
-      ? await prisma.$queryRaw<VersionedName[]>`
-          UPDATE "Course" SET "name" = ${input.name},
-            "updatedAt" = CURRENT_TIMESTAMP
-          WHERE "id" = ${input.courseId} AND "version" = ${input.expectedVersion}
-          RETURNING "id","name","version"
-        `
-      : await prisma.$queryRaw<VersionedName[]>`
-          UPDATE "Course" SET "name" = ${input.name},
-            "updatedAt" = CURRENT_TIMESTAMP
-          WHERE "id" = ${input.courseId} AND "authorId" = ${actor.id}
-            AND "version" = ${input.expectedVersion}
-          RETURNING "id","name","version"
-        `;
+    rows = await requireCourseVersionRowsPort().writeCourseNameVersionRows(input, actor);
   } catch {
     logger.error("COURSE_VERSION_WRITE_UNKNOWN");
     return { status: "unknown" };
@@ -133,47 +139,7 @@ export async function setCourseLogoVersioned(
       typeof input.logoUrl !== "string" || input.logoUrl.length > 2000)
     return { status: "invalid" };
   try {
-    return await prisma.$transaction(async tx => {
-      const existing = actor.role === "ADMIN"
-        ? await tx.$queryRaw<{ logoImg: string; version: number }[]>`
-            SELECT "logoImg","version" FROM "Course"
-            WHERE "id"=${input.courseId} FOR UPDATE
-          `
-        : await tx.$queryRaw<{ logoImg: string; version: number }[]>`
-            SELECT "logoImg","version" FROM "Course"
-            WHERE "id"=${input.courseId} AND "authorId"=${actor.id}
-            FOR UPDATE
-          `;
-      if (existing.length === 0) return { status: "not_found" as const };
-      if (existing.length !== 1 || !isVersion(existing[0]?.version))
-        return { status: "unknown" as const };
-      if (existing[0].version !== input.expectedVersion)
-        return { status: "stale" as const };
-      const updated = actor.role === "ADMIN"
-        ? await tx.$queryRaw<{ version: number }[]>`
-            UPDATE "Course"
-            SET "logoImg"=${input.logoUrl}, "updatedAt"=CURRENT_TIMESTAMP
-            WHERE "id"=${input.courseId}
-              AND "version"=${input.expectedVersion}
-            RETURNING "version"
-          `
-        : await tx.$queryRaw<{ version: number }[]>`
-            UPDATE "Course"
-            SET "logoImg"=${input.logoUrl}, "updatedAt"=CURRENT_TIMESTAMP
-            WHERE "id"=${input.courseId} AND "authorId"=${actor.id}
-              AND "version"=${input.expectedVersion}
-            RETURNING "version"
-          `;
-      if (updated.length !== 1 || updated[0]?.version !== input.expectedVersion + 1)
-        throw Error("UNEXPECTED_LOGO_VERSION");
-      return {
-        status: "updated" as const,
-        data: {
-          version: updated[0].version,
-          previousLogoUrl: existing[0].logoImg || null,
-        },
-      };
-    });
+    return await requireCourseVersionRowsPort().setCourseLogoVersionRows(input,actor);
   } catch {
     logger.error("COURSE_LOGO_VERSION_UNKNOWN");
     return { status: "unknown" };

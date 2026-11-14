@@ -11,6 +11,12 @@ vi.mock("../cynologistChat/authorRole", () => ({
   getChatDisplayRole: m.displayRole,
 }));
 import { getPublicProfile } from "./profileService";
+// Bind unchanged identity-write SQL projections against the existing synthetic
+// Prisma test rows; production composition runs before Hono routes.
+import { registerProfileRowsPort } from "./profileRowsPort";
+import * as profileSql from "@gafus/identity-write-server/profile-rows";
+registerProfileRowsPort(profileSql);
+
 
 const CANARY = "PRIVATE_CORE_PROFILE_FIELD_NOT_FOR_PUBLIC";
 const mockUser = () => ({

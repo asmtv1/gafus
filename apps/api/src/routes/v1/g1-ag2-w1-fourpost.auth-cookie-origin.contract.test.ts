@@ -9,7 +9,7 @@ const m=vi.hoisted(()=>({verify:vi.fn(),reg:vi.fn(),emailRequest:vi.fn(),emailCo
 vi.mock("@gafus/auth/jwt",()=>({verifyAccessToken:m.verify,assertCompletedUser:vi.fn(),generateAccessToken:vi.fn(),generateRefreshToken:vi.fn(),verifyRefreshToken:vi.fn()}));
 vi.mock("@gafus/auth",()=>({InvalidPasswordResetTokenError:class extends Error{}}));
 vi.mock("@gafus/core/services/auth",()=>({isRegistrationCompleted:m.reg,requestEmailChange:m.emailRequest,confirmEmailChangeByToken:m.emailConfirm,setPassword:m.passwordSet,changePassword:m.passwordChange,REGISTRATION_CHANNEL:{WEB:"WEB",IOS:"IOS",ANDROID:"ANDROID"}}));
-vi.mock("@gafus/core/services/appFeatureFlags",()=>({APP_FEATURE_MOBILE_VK_LOGIN_IOS:"mobile_vk_login_ios",getMobileFeatureFlagEnabled:vi.fn()}));
+vi.mock("@gafus/feature-flags-server",()=>({APP_FEATURE_MOBILE_VK_LOGIN_IOS:"mobile_vk_login_ios",getMobileFeatureFlagEnabled:vi.fn()}));
 vi.mock("@gafus/logger",()=>({createWebLogger:()=>({info:vi.fn(),error:vi.fn(),warn:vi.fn(),debug:vi.fn()})}));
 import {authRoutes} from "./auth";
 import {corsMiddleware} from "../../middleware/cors";

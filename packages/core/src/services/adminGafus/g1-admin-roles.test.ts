@@ -13,6 +13,12 @@ const db = vi.hoisted(() => ({
 vi.mock("@gafus/prisma", () => ({
   prisma: { $transaction: db.transaction },
 }));
+vi.mock("./adminRowsPort", () => ({
+  withGafusAdminRows: async (action: (rows: unknown) => Promise<unknown>, options?: object) => {
+    const server = await import("@gafus/gafus-server/admin-rows");
+    return server.withGafusAdminRows(action as never, options as never);
+  },
+}));
 vi.mock("../gafus/locking", () => ({ lockGafusUser: db.locking }));
 vi.mock("../gafus/walletService", () => ({ changeGafusBalanceTx: db.changeBalance }));
 vi.mock("../gafus/settingsService", () => ({

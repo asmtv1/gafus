@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 const db = vi.hoisted(() => ({ npdConnection: { findUnique: vi.fn() }, npdReceipt: { count: vi.fn(), findMany: vi.fn(), findUnique: vi.fn() }, npdReceiptOperation: { count: vi.fn(), updateMany: vi.fn() } }));
 vi.mock("@gafus/prisma", () => ({ prisma: db }));
 
-import { getNpdAdminPage } from "../adminService";
+import { getNpdAdminPage } from "@gafus/subscription-finance-server/admin-application";
 
 describe("getNpdAdminPage", () => {
   it("queries only the requested page and returns safe DTO", async () => {
@@ -18,7 +18,7 @@ describe("getNpdAdminPage", () => {
   it("keeps reconciliation fail-closed and only records a local review request", async () => {
     db.npdReceipt.findUnique.mockResolvedValue({ status: "RECONCILIATION_REQUIRED", operations: [{ id: "op", status: "RECONCILIATION_REQUIRED" }] });
     db.npdReceiptOperation.updateMany.mockResolvedValue({ count: 1 });
-    const { adminQueueNpdReconciliation } = await import("../adminService");
+    const { adminQueueNpdReconciliation } = await import("@gafus/subscription-finance-server/admin-application");
     await expect(adminQueueNpdReconciliation("r")).resolves.toEqual({ ok: true });
     expect(db.npdReceiptOperation.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ lastErrorCode: "ADMIN_RECONCILIATION_REQUESTED" }) }));
     expect(db.npdReceiptOperation.updateMany.mock.calls[0][0].data.status).toBeUndefined();

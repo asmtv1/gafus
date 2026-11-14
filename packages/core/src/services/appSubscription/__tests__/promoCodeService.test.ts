@@ -34,6 +34,24 @@ import {
   previewAppSubscriptionPromoCode,
   updateAppSubscriptionPromoCode,
 } from "../promoCodeService";
+// Test keeps the real SERIALIZABLE SQL row adapter with an in-memory mocked
+// Prisma transaction, matching the API application composition boundary.
+import { registerSubscriptionPromoPort } from "../promoCodePort";
+import {
+  userHasSuccessfulPromoBlockingPayment,
+  readPromoSettingsRow,
+  readPromoCodeByNormalizedCode,
+  withPromoCodeRecordsTransaction,
+  isUniquePromoCodeError,
+} from "@gafus/subscription-finance-server/promo-code-rows";
+registerSubscriptionPromoPort({
+  userHasSuccessfulPromoBlockingPayment,
+  readPromoSettingsRow,
+  readPromoCodeByNormalizedCode,
+  withPromoCodeRecordsTransaction,
+  isUniquePromoCodeError,
+});
+
 
 const tx = {
   appSubscriptionPromoCode: {

@@ -3,13 +3,11 @@ import {
   MD3LightTheme,
   MD3DarkTheme,
   PaperProvider,
-  adaptNavigationTheme,
 } from "react-native-paper";
 import {
-  DarkTheme as NavigationDarkTheme,
   DefaultTheme as NavigationDefaultTheme,
   ThemeProvider as NavigationThemeProvider,
-} from "@react-navigation/native";
+} from "expo-router/react-navigation";
 import { useColorScheme } from "react-native";
 import { COLORS, FONTS } from "@/shared/config";
 
@@ -148,26 +146,31 @@ const customDarkTheme = {
   },
 };
 
-// Адаптация для React Navigation
-const { LightTheme, DarkTheme } = adaptNavigationTheme({
-  reactNavigationLight: NavigationDefaultTheme,
-  reactNavigationDark: NavigationDarkTheme,
-});
-
-// Объединение тем для React Navigation (без fonts, так как Navigation не поддерживает)
+// Expo Router SDK 56+ exposes NavigationDefaultTheme with ColorValue colors.
+// React Native Paper's legacy adaptNavigationTheme expects string-only colors,
+// so build the matching light/dark NavigationTheme directly from MD3 colors.
 const navigationLightTheme = {
-  ...LightTheme,
+  ...NavigationDefaultTheme,
   colors: {
-    ...LightTheme.colors,
+    ...NavigationDefaultTheme.colors,
     ...customLightTheme.colors,
+    card: customLightTheme.colors.surface,
+    text: customLightTheme.colors.onSurface,
+    border: customLightTheme.colors.outline,
+    notification: customLightTheme.colors.error,
   },
 };
 
 const navigationDarkTheme = {
-  ...DarkTheme,
+  ...NavigationDefaultTheme,
+  dark: true,
   colors: {
-    ...DarkTheme.colors,
+    ...NavigationDefaultTheme.colors,
     ...customDarkTheme.colors,
+    card: customDarkTheme.colors.surface,
+    text: customDarkTheme.colors.onSurface,
+    border: customDarkTheme.colors.outline,
+    notification: customDarkTheme.colors.error,
   },
 };
 

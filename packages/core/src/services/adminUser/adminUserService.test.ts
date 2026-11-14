@@ -1,13 +1,13 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
+import { createAdminUserService } from "./adminUserService";
 import {
-  getAllUsers,
-  updateUserAdmin,
-  deleteUserAdmin,
-  partnerChangeRequiresAdmin,
-  checkAdminUserMutationAccess,
-  readAdminActorRole,
-} from "./adminUserService";
+  readAdminUserRoles, readAdminUserRole, readAdminUserListRows,
+} from "@gafus/identity-write-server/admin-user-reads";
+import {
+  updateAdminUserRows, deleteAdminUserRows,
+  bindPartnerPromoCodeInTransaction,
+} from "@gafus/identity-write-server/admin-user-writes";
 import { ServiceError, NotFoundError } from "../../errors/ServiceError";
 
 const mockUserFindMany = vi.fn();
@@ -37,7 +37,7 @@ vi.mock("@gafus/prisma", () => ({
   },
 }));
 
-vi.mock("../appSubscription/partnerService", () => ({
+vi.mock("@gafus/subscription-payment-server/partner", () => ({
   bindPartnerPromoCodeInTransaction: (...args: unknown[]) =>
     mockBindPartnerPromoCodeInTransaction(...args),
 }));
@@ -57,6 +57,23 @@ vi.mock("@gafus/logger", () => ({
     success: vi.fn(),
   }),
 }));
+
+// Compose domain policy with actual persistence adapters for integration-style
+// SQL mock assertions; production composition is in apps/api.
+const {
+  getAllUsers, updateUserAdmin, deleteUserAdmin,
+  partnerChangeRequiresAdmin, checkAdminUserMutationAccess, readAdminActorRole,
+} = createAdminUserService({
+  readAdminUserRoles, readAdminUserRole, readAdminUserListRows,
+  updateAdminUserRows: (userId, input, actorId, authorize) =>
+    updateAdminUserRows(userId, input, actorId, {
+      authorize,
+      bindPartner: (tx, ownerId, promoCodeId) =>
+        bindPartnerPromoCodeInTransaction(tx, { userId: ownerId, promoCodeId }),
+    }),
+  deleteAdminUserRows: (userId, actorId, authorize) =>
+    deleteAdminUserRows(userId, actorId, authorize, async () => {}),
+});
 
 describe("partnerChangeRequiresAdmin", () => {
   let actorRole = "MODERATOR";

@@ -10,7 +10,7 @@ const { prismaQueryRawMock, redisPingMock, canReadMetricsMock, getMetricsMock } 
   }),
 );
 
-vi.mock("@gafus/core/services/systemHealth", () => ({
+vi.mock("@gafus/statistics/database-health", () => ({
   checkCoreDatabaseReady: prismaQueryRawMock,
 }));
 

@@ -1,0 +1,40 @@
+diff --git a/android/cmake/main.cmake b/android/cmake/main.cmake
+--- a/android/cmake/main.cmake
++++ b/android/cmake/main.cmake
+@@ -73,15 +73,17 @@
+ 
+   if (${CMAKE_BUILD_TYPE} MATCHES "Debug")
+     set(BUILD_TYPE "debug")
++    set(BUILD_VARIANT "Debug")
+   else ()
+     set(BUILD_TYPE "release")
++    set(BUILD_VARIANT "Release")
+   endif ()
+ 
+   set_target_properties(
+     worklets
+     PROPERTIES
+     IMPORTED_LOCATION
+-    "${REACT_NATIVE_WORKLETS_DIR}/android/build/intermediates/cmake/${BUILD_TYPE}/obj/${ANDROID_ABI}/libworklets.so"
++    "${REACT_NATIVE_WORKLETS_DIR}/android/build/intermediates/library_jni/${BUILD_TYPE}/copy${BUILD_VARIANT}JniLibsProjectOnly/jni/${ANDROID_ABI}/libworklets.so"
+   )
+ 
+   target_link_libraries(
+diff --git a/android/build.gradle b/android/build.gradle
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -75,6 +75,14 @@
+     println(workletsProject.tasks.getByName("mergeReleaseNativeLibs"))
+     tasks.getByName("buildCMakeDebug").dependsOn(workletsProject.tasks.getByName("mergeDebugNativeLibs"))
+     tasks.getByName("buildCMakeRelWithDebInfo").dependsOn(workletsProject.tasks.getByName("mergeReleaseNativeLibs"))
++    // The imported libworklets.so path points to the JNI copy output.
++    // Ensure that output exists before any ABI-specific CMake link task runs.
++    tasks.matching { it.name.startsWith("buildCMakeRelWithDebInfo") }.configureEach {
++      dependsOn(workletsProject.tasks.named("copyReleaseJniLibsProjectOnly"))
++    }
++    tasks.matching { it.name.startsWith("buildCMakeDebug") }.configureEach {
++      dependsOn(workletsProject.tasks.named("copyDebugJniLibsProjectOnly"))
++    }
+   }
+ }
+ 

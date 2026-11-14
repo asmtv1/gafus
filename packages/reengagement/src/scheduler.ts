@@ -3,11 +3,10 @@
  * Запускается ежедневно по cron, анализирует пользователей и создает задачи
  */
 
+import { scheduleReengagementInCore } from "@gafus/core/services/reengagement";
 import {
-  scheduleReengagementInCore,
-  isReengagementNotificationDue,
-  getActiveReengagementCampaignForScheduling,
-} from "@gafus/core/services/reengagement";
+  isReengagementNotificationDue, getActiveReengagementCampaignForScheduling,
+} from "./infra/schedulerQueries.js";
 import { reengagementQueue } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { findInactiveUsers } from "./analyzer";

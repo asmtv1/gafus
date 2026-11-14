@@ -1,12 +1,7 @@
-/** AG1-001: ordinary pets READ; ownership, JSON and HTTP errors stay in existing layers. */
-import type { getUserPets, getPetById } from "@gafus/core/services/pets";
-
-type UserPetsReader = typeof getUserPets;
-type PetDetailReader = typeof getPetById;
-
-export function createReadPetsApplication(dependencies: {
-  readList: UserPetsReader;
-  readDetail: PetDetailReader;
+/** Pure pet READ orchestration; all data projections are injected by API composition. */
+export function createReadPetsApplication<ListItem, DetailItem>(dependencies: {
+  readList: (actorUserId: string, options: { throwOnError: boolean }) => Promise<ListItem[]>;
+  readDetail: (petId: string, actorUserId: string) => Promise<DetailItem | null>;
 }) {
   return {
     list({ actorUserId }: { actorUserId: string }) {

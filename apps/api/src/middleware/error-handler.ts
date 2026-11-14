@@ -3,9 +3,17 @@
  * Централизованная обработка ошибок
  */
 import type { Context } from "hono";
+import { ServiceError } from "@gafus/core/errors";
+import { APPLICATION_PUBLIC_ERROR_HTTP, APPLICATION_PUBLIC_ERROR_MESSAGE, classifyApplicationPublicError } from "@gafus/types";
 import { createWebLogger, isZodErrorLike, sanitizeZodErrorForLogMeta } from "@gafus/logger";
 
 const logger = createWebLogger("api-error");
+
+/** Domain errors have safe stable codes, but their messages may include private IDs. */
+function safeDomainCode(error: Error) {
+  if (!(error instanceof ServiceError)) return null;
+  return classifyApplicationPublicError(error.code, error.statusCode);
+}
 
 export const errorHandler = (err: Error, c: Context) => {
   // Dynamic URL segments may contain user identifiers, signed tokens or PII.
@@ -14,15 +22,22 @@ export const errorHandler = (err: Error, c: Context) => {
     route: c.req.routePath,
     method: c.req.method,
     requestId: c.get("requestId"),
+    traceId: c.get("traceId"),
+    operationId: c.get("operationId"),
     hasBody: c.req.method === "POST" || c.req.method === "PUT" || c.req.method === "PATCH",
   };
 
   // Classify validation by its structure, never by an incidental message or name.
   const validationError = isZodErrorLike(err);
+  const domainCode = safeDomainCode(err);
   if (validationError) {
     logger.error("Unhandled validation error", undefined, {
       ...base,
       ...sanitizeZodErrorForLogMeta(err),
+    });
+  } else if (domainCode) {
+    logger.error("Handled domain error", undefined, {
+      ...base, category: "domain", code: domainCode,
     });
   } else {
     // Provider errors can embed user data or credentials in both message and
@@ -43,6 +58,15 @@ export const errorHandler = (err: Error, c: Context) => {
       },
       400,
     );
+  }
+
+  if (domainCode) {
+    return c.json({
+      success: false,
+      error: APPLICATION_PUBLIC_ERROR_MESSAGE[domainCode],
+      code: domainCode,
+      requestId: c.get("requestId"),
+    }, APPLICATION_PUBLIC_ERROR_HTTP[domainCode]);
   }
 
   return c.json(

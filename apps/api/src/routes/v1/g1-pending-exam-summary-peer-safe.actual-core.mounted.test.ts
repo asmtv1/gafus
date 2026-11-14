@@ -40,7 +40,7 @@ vi.mock("@gafus/core/services/auth",async original=>({
 // No @gafus/core/services/exam mock.
 import {app} from "../../app";
 import {generateAccessToken} from "@gafus/auth/jwt";
-import {getPendingExamResults} from "@gafus/core/services/exam";
+import {getPendingExamResults} from "@gafus/exam-server/exam-service";
 
 const PATH="/api/v1/trainer/exam-results/pending-summary";
 const SECRET="PRIVATE_STUDENT_EMAIL_AND_WRITTEN_FEEDBACK_VIDEO_TEST_ANSWERS";

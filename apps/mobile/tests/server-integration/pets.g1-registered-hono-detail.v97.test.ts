@@ -295,7 +295,7 @@ describe("V97 actual registered Hono individual GET → real Mobile getById/V96 
       notes: PRIVATE_NOTE,
     });
     expect(dto).toHaveProperty("awards");
-    expect(m.detail).toHaveBeenCalledExactlyOnceWith("pet-X", owners.A.id);
+    expect(m.detail).toHaveBeenCalledExactlyOnceWith("pet-X", owners.A.id, expect.any(Function));
     expect(m.wire[0]).toMatchObject({
       path: "/api/v1/pets/pet-X",
       method: "GET",
@@ -349,7 +349,7 @@ describe("V97 actual registered Hono individual GET → real Mobile getById/V96 
     m.currentTokenOwner = "B";
     m.detail.mockResolvedValueOnce(null);
     await expect(readDetail("foreign-X")).rejects.toThrow("PET_DETAIL_NOT_FOUND");
-    expect(m.detail).toHaveBeenCalledExactlyOnceWith("foreign-X", owners.B.id);
+    expect(m.detail).toHaveBeenCalledExactlyOnceWith("foreign-X", owners.B.id, expect.any(Function));
     expect(m.wire[0]).toMatchObject({ status: 404, errorNotFound: true, codePresent: false });
     privateHeaderChecks(m.wire[0]!);
   });
@@ -391,7 +391,7 @@ describe("V97 actual registered Hono individual GET → real Mobile getById/V96 
     await expect(readDetail("pet-X")).rejects.toThrow("PET_DETAIL_INVALID");
     expect(m.wire[0]).toMatchObject({ status: 200, envelopeSuccess: true, dataCount: 0 });
     privateHeaderChecks(m.wire[0]!);
-    expect(m.detail).toHaveBeenCalledExactlyOnceWith("pet-X", owners.A.id);
+    expect(m.detail).toHaveBeenCalledExactlyOnceWith("pet-X", owners.A.id, expect.any(Function));
   });
   it("Core failure: actual Hono500 private envelope, no token echo or fake not-found", async () => {
     m.detail.mockRejectedValueOnce(Error("PRIVATE_DATABASE_TOKEN"));
@@ -432,7 +432,7 @@ describe("V97 actual registered Hono individual GET → real Mobile getById/V96 
   it("signed JWT B while native owner A: Mobile V96 rejects foreign200", async () => {
     m.currentTokenOwner = "B";
     await expect(readDetail("pet-X")).rejects.toThrow("PET_DETAIL_INVALID");
-    expect(m.detail).toHaveBeenCalledExactlyOnceWith("pet-X", owners.B.id);
+    expect(m.detail).toHaveBeenCalledExactlyOnceWith("pet-X", owners.B.id, expect.any(Function));
     expect(m.wire[0]).toMatchObject({ status: 200, dataOwner: owners.B.id });
     privateHeaderChecks(m.wire[0]!);
   });

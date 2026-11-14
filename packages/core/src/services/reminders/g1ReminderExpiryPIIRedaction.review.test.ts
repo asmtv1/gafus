@@ -98,8 +98,26 @@ vi.mock("@gafus/prisma", () => ({
   },
 }));
 
-import { redactExpiredReminderReceiptPII } from "./g1ReminderExpiryPIIRedaction.review";
+import { redactExpiredReminderReceiptPII } from "@gafus/notifications-server/reminder-expiry-redaction";
 import { createReminderAG4, lookupReminderAG4, ReminderUnknownError } from "./g1ReminderMutationReceiptAG4.review";
+// Source-review-only SQL composition for mock transaction fixtures; this
+// is not a production route activation or a DB schema migration.
+import { registerReminderAG4ReviewRowsPort } from "./reminderAG4ReviewPort";
+import * as rows from "@gafus/identity-write-server/reminder-review-rows";
+const asTx = (opaque: unknown): rows.ReminderReviewTx => opaque as rows.ReminderReviewTx;
+registerReminderAG4ReviewRowsPort({
+  withAG4ReminderCreateTx: (fn) => rows.withAG4ReminderCreateTx(tx => fn(tx)),
+  lockAG4ReminderOwner: (tx, owner) => rows.lockAG4ReminderOwner(asTx(tx), owner),
+  readAG4ReminderReceipt: (tx, owner, key) => rows.readAG4ReminderReceipt(asTx(tx), owner, key),
+  checkOwnerTrainingReminder: (owner, id, tx) => rows.checkOwnerTrainingReminder(owner, id, tx === undefined ? undefined : asTx(tx)),
+  beginAG4ReminderReceipt: (tx, owner, key, fingerprint, expires) => rows.beginAG4ReminderReceipt(asTx(tx), owner, key, fingerprint, expires),
+  countAG4TrainingReminders: (tx, owner) => rows.countAG4TrainingReminders(asTx(tx), owner),
+  createAG4Reminder: (tx, owner, draft) => rows.createAG4Reminder(asTx(tx), owner, draft),
+  commitAG4ReminderReceipt: (tx, owner, key, reminder, response) => rows.commitAG4ReminderReceipt(asTx(tx), owner, key, reminder, response),
+  readAG4ReminderReceiptForLookup: rows.readAG4ReminderReceiptForLookup,
+  isReminderUniqueConstraintError: rows.isReminderUniqueConstraintError,
+});
+
 
 function seed(n: number, options: {
   owner?: string; expired?: boolean; atExpiry?: boolean;

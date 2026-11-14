@@ -68,3 +68,8 @@ describe("PETS021 direct Core birthday write boundary", () => {
     }
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
+import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
+registerPetRowsPort(originalPetRowsPort as PetRowsPort);

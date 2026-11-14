@@ -1,0 +1,76 @@
+{
+  "name": "@gafus/subscription-finance-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./payment-finance": {
+      "types": "./dist/paymentFinance.d.ts",
+      "default": "./dist/paymentFinance.js"
+    },
+    "./npd-operation-persistence": {
+      "types": "./dist/npd-operation-persistence.d.ts",
+      "default": "./dist/npd-operation-persistence.js"
+    },
+    "./npd-receipts": {
+      "types": "./dist/npd-receipts.d.ts",
+      "default": "./dist/npd-receipts.js"
+    },
+    "./profit-reconciliation-rows": {
+      "types": "./dist/profit-reconciliation-rows.d.ts",
+      "default": "./dist/profit-reconciliation-rows.js"
+    },
+    "./promo-code-rows": {
+      "types": "./dist/promoCodeRows.d.ts",
+      "default": "./dist/promoCodeRows.js"
+    },
+    "./profit-dashboard-rows": {
+      "types": "./dist/profit-dashboard-rows.d.ts",
+      "default": "./dist/profit-dashboard-rows.js"
+    },
+    "./profit-video-rows": {
+      "types": "./dist/profit-video-rows.d.ts",
+      "default": "./dist/profit-video-rows.js"
+    },
+    "./partner-rows": {
+      "types": "./dist/partnerRows.d.ts",
+      "default": "./dist/partnerRows.js"
+    },
+    "./admin-rows": {
+      "types": "./dist/adminRows.d.ts",
+      "default": "./dist/adminRows.js"
+    },
+    "./admin-application": {
+      "types": "./dist/admin-application.d.ts",
+      "default": "./dist/admin-application.js"
+    },
+    "./profit-application": {
+      "types": "./dist/profit-application.d.ts",
+      "default": "./dist/profit-application.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/subscription-shared": "workspace:*",
+    "luxon": "^3.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0",
+    "@types/luxon": "^3.7.1"
+  }
+}

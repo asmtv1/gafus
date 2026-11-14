@@ -6,6 +6,7 @@ import { handlePrismaError } from "./prismaErrorHandler";
 const MockKnownError = vi.hoisted(() => {
   return class extends Error {
     code: string;
+    clientVersion = "6.10.1";
     meta?: Record<string, unknown>;
 
     constructor(message: string, opts: { code: string; meta?: Record<string, unknown> }) {
@@ -19,6 +20,7 @@ const MockKnownError = vi.hoisted(() => {
 
 const MockValidationError = vi.hoisted(() => {
   return class extends Error {
+    clientVersion = "6.10.1";
     constructor(message?: string) {
       super(message ?? "Validation error");
       this.name = "PrismaClientValidationError";
@@ -34,6 +36,18 @@ vi.mock("@gafus/prisma", () => ({
 }));
 
 describe("handlePrismaError", () => {
+  it("does not interpret arbitrary user errors with Prisma-like codes as database errors", () => {
+    const plain = Object.assign(new Error("ordinary client failure"), { code: "P2002" });
+    const spoofedObject = { name: "PrismaClientKnownRequestError", code: "P2002" };
+    expect(() => handlePrismaError(plain)).toThrow(InternalServiceError);
+    expect(() => handlePrismaError(spoofedObject)).toThrow(InternalServiceError);
+    expect(() => handlePrismaError(plain)).not.toThrow(ConflictError);
+    const renamed = Object.assign(new Error("forged"), {
+      name: "PrismaClientKnownRequestError", code: "P2002",
+    });
+    expect(() => handlePrismaError(renamed)).not.toThrow(ConflictError);
+  });
+
   it("rethrows same ServiceError when error is already ServiceError", () => {
     const original = new NotFoundError("User", "123");
     expect(() => handlePrismaError(original)).toThrow(original);

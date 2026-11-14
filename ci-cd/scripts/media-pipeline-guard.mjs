@@ -84,7 +84,7 @@ export function checkMediaPipeline({images,jobs,selectors,jobRelease,manualRelea
     workerCron?.includes('runFeedLocalMaintenanceTick'),
     'FEED_CLOUD_JOB_MUST_ONLY_RUN_360_LOCAL_WORKER_OWNS_CLEANUP');
   add(feedService?.includes('const posterKey = `media/v2/${row.mediaId}/v1/poster.webp`') &&
-    feedService.includes('storage.head(finalKey),storage.head(posterKey)') &&
+    /storage\.head\(finalKey\)\s*,\s*storage\.head\(posterKey\)/.test(feedService) &&
     chatClientVideoFinalize?.includes('posterKey:prepared.posterKey'),
     'CLIENT_720_AND_CLIENT_POSTER_MUST_BE_VERIFIED_BEFORE_READY');
   add(galleryWorker?.includes('createGalleryLocalMaintenanceTick') &&

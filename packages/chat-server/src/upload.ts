@@ -1,3 +1,5 @@
+import { requireCanSend } from "./service.js";
+import { requireCommunityCanSend } from "./community.js";
 import { createWriteStream } from "node:fs";
 import { mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,10 +10,8 @@ import busboy from "busboy";
 import { CHAT_LIMITS } from "@gafus/consultation-shared";
 import {
   ChatError,
-  requireCanSend,
-  requireCommunityCanSend,
 } from "@gafus/core/services/cynologistChat";
-import { uploadChatAttachment } from "@gafus/core/services/cynologistChat/upload";
+import { uploadChatAttachment } from "./upload-service.js";
 let activeUploads = 0;
 /** One file per request, backpressure, byte cap and bounded temporary storage. */
 export async function uploadChatAttachmentRequest(

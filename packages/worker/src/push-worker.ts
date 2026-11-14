@@ -2,7 +2,7 @@ import {
   getPushNotificationForDelivery, getUserPushSubscriptionsForDelivery,
   deleteInvalidPushEndpoint, recordPushNotificationDelivery,
   getEligiblePushNotificationJob,
-} from "@gafus/core/services/notifications";
+} from "@gafus/notifications-server";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import type { Job } from "bullmq";

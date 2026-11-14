@@ -4,7 +4,8 @@
  * Чистая бизнес-логика без Next.js специфики.
  */
 
-import { prisma } from "@gafus/prisma";
+import type { DiaryEntryWithDay, DiaryPersistencePort } from "./diaryPersistencePort";
+export type { DiaryEntryWithDay, DiaryPersistencePort } from "./diaryPersistencePort";
 import { createWebLogger } from "@gafus/logger";
 
 import { checkCourseAccessById } from "../course/courseService";
@@ -14,38 +15,11 @@ const logger = createWebLogger("diary-service");
 const MAX_CONTENT_LENGTH = 10000;
 
 /**
- * Возвращает Course.id по переданному значению: если это cuid — ищем по id,
- * иначе по type (чтобы mobile и др. могли передавать courseType до загрузки дня).
- */
-async function resolveCourseId(courseIdOrType: string): Promise<string | null> {
-  const byId = await prisma.course.findUnique({
-    where: { id: courseIdOrType },
-    select: { id: true },
-  });
-  if (byId) return byId.id;
-  const byType = await prisma.course.findFirst({
-    where: { type: courseIdOrType },
-    select: { id: true },
-  });
-  return byType?.id ?? null;
-}
-
-export interface DiaryEntryWithDay {
-  id: string;
-  content: string;
-  createdAt: Date;
-  updatedAt: Date;
-  dayId: string;
-  dayOnCourseId: string;
-  dayOrder: number;
-  dayTitle: string;
-}
-
-/**
  * Сохраняет запись дневника (upsert по userId + dayOnCourseId).
  * Проверяет доступ к курсу по dayOnCourseId; ограничивает длину content.
  */
 export async function saveDiaryEntry(
+  repo: DiaryPersistencePort,
   userId: string,
   dayOnCourseId: string,
   content: string,
@@ -61,10 +35,7 @@ export async function saveDiaryEntry(
     };
   }
 
-  const dayOnCourse = await prisma.dayOnCourse.findUnique({
-    where: { id: dayOnCourseId },
-    select: { dayId: true, courseId: true },
-  });
+  const dayOnCourse = await repo.readDiaryDayOccurrence(dayOnCourseId);
   if (!dayOnCourse) {
     return { success: false, error: "День курса не найден" };
   }
@@ -79,17 +50,7 @@ export async function saveDiaryEntry(
     return { success: false, error: "Нет доступа к курсу" };
   }
 
-  await prisma.diaryEntry.upsert({
-    where: {
-      userId_dayId: { userId, dayId: dayOnCourse.dayId },
-    },
-    create: {
-      userId,
-      dayId: dayOnCourse.dayId,
-      content: trimmed,
-    },
-    update: { content: trimmed, updatedAt: new Date() },
-  });
+  await repo.writeDiaryUserDay(userId, dayOnCourse.dayId, trimmed);
 
   logger.info("Запись дневника сохранена", { userId, dayOnCourseId });
   return { success: true };
@@ -101,11 +62,12 @@ export async function saveDiaryEntry(
  * При upToDayOnCourseId — только дни до и включая указанный (по order).
  */
 export async function getDiaryEntries(
+  repo: DiaryPersistencePort,
   userId: string,
   courseIdOrType: string,
   upToDayOnCourseId?: string,
 ): Promise<{ entries: DiaryEntryWithDay[]; error?: string }> {
-  const courseId = await resolveCourseId(courseIdOrType);
+  const courseId = await repo.resolveDiaryCourseId(courseIdOrType);
   if (!courseId) {
     return { entries: [], error: "Курс не найден" };
   }
@@ -119,66 +81,11 @@ export async function getDiaryEntries(
     return { entries: [], error: "Нет доступа к курсу" };
   }
 
-  let upToOrder: number | null = null;
-  if (upToDayOnCourseId) {
-    const day = await prisma.dayOnCourse.findUnique({
-      where: { id: upToDayOnCourseId, courseId },
-      select: { order: true },
-    });
-    if (day) upToOrder = day.order;
-  }
-
-  const courseDays = await prisma.dayOnCourse.findMany({
-    where: {
-      courseId,
-      ...(upToOrder !== null ? { order: { lte: upToOrder } } : {}),
-    },
-    orderBy: { order: "asc" },
-    select: {
-      id: true,
-      order: true,
-      dayId: true,
-      day: { select: { title: true } },
-    },
-  });
-  const dayIds = courseDays.map((d) => d.dayId);
-  const dayIdToDoc = new Map(
-    courseDays.map((d) => [
-      d.dayId,
-      { order: d.order, title: d.day.title, dayOnCourseId: d.id },
-    ]),
+  const entries: DiaryEntryWithDay[] = await repo.readDiaryCourseEntries(
+    userId,
+    courseId,
+    upToDayOnCourseId,
   );
-
-  const rawEntries = await prisma.diaryEntry.findMany({
-    where: { userId, dayId: { in: dayIds } },
-    select: {
-      id: true,
-      content: true,
-      createdAt: true,
-      updatedAt: true,
-      dayId: true,
-    },
-  });
-
-  rawEntries.sort(
-    (a, b) =>
-      (dayIdToDoc.get(a.dayId)?.order ?? 0) -
-      (dayIdToDoc.get(b.dayId)?.order ?? 0),
-  );
-
-  const entries: DiaryEntryWithDay[] = rawEntries.map((e) => {
-    const doc = dayIdToDoc.get(e.dayId)!;
-    return {
-      id: e.id,
-      content: e.content,
-      createdAt: e.createdAt,
-      updatedAt: e.updatedAt,
-      dayId: e.dayId,
-      dayOnCourseId: doc.dayOnCourseId,
-      dayOrder: doc.order,
-      dayTitle: doc.title,
-    };
-  });
 
   return { entries };
 }

@@ -1,0 +1,22 @@
+/** Real read-side adapter for occurrence-specific Gafus grants.
+ * Core owns the policy, Persistence owns SQL and the grant read; never infer
+ * private entitlement from a URL or a UserStep belonging to another user.
+ */
+import {
+  createGafusInteropService, createGafusRewardedAccessService,
+} from "@gafus/core/services/rewardedCredits";
+import {
+  readGafusUserStepOccurrence, readGafusVideoOccurrences,
+} from "@gafus/course-read-server/gafus-entitlement-reads";
+import { hasActiveGafusCourseStepAccess } from "@gafus/core/services/contentAccess";
+
+export const gafusInteropApplication = createGafusInteropService({
+  readUserStepOccurrence: readGafusUserStepOccurrence,
+  readVideoOccurrences: readGafusVideoOccurrences,
+  hasActiveCourseStepGrant: hasActiveGafusCourseStepAccess,
+});
+
+export const {
+  requirePremiumOrRewardedAccessForUserStep,
+  requirePremiumOrRewardedAccessForVideoUrl,
+} = createGafusRewardedAccessService(gafusInteropApplication);

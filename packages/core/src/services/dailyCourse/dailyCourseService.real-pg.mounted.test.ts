@@ -6,7 +6,7 @@ import {
   getMoscowDateKey,
   getTodayDailyCourse,
   updateDailyCourseStepAndDay,
-} from "./dailyCourseService";
+} from "../../../../../apps/api/src/modules/daily-course/composition/dailyCourseApplication";
 import { createReadTodayDailyCourseApplication } from "../../../../../apps/api/src/modules/learner-daily/application/read-today-daily-course";
 import { createDayAndStepCommandsApplication } from "../../../../../apps/api/src/modules/learner-daily/application/day-and-step-commands";
 
@@ -20,10 +20,8 @@ const cacheCalls = vi.hoisted(() => ({
     throw Error("FORBIDDEN_REDIS_PUBLICATION");
   }),
 }));
-vi.mock("../training/trainingDayContent", () => ({
+vi.mock("@gafus/core/services/training/cache-publication", () => ({
   invalidateStepsContentCache: cacheCalls.invalidate,
-}));
-vi.mock("../training/trainingContentRevision", () => ({
   publishCourseContentChange: cacheCalls.publish,
 }));
 vi.mock("@gafus/logger", () => ({

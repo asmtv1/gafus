@@ -30,7 +30,7 @@ vi.mock("./notificationService", () => ({
     return mail(...args);
   },
 }));
-vi.mock("../notifications/immediatePushService", () => ({
+vi.mock("../notifications", () => ({
   sendImmediatePushNotification: (...args: unknown[]) => push(...args),
 }));
 vi.mock("@gafus/logger", () => ({
@@ -42,7 +42,7 @@ vi.mock("../appSubscription", () => ({
   SubscriptionRequiredError: class SubscriptionRequiredError extends Error {},
 }));
 
-import { bookSlot } from "./bookingService";
+import { bookSlot } from "@gafus/consultation-server/booking-application";
 import { lookupOwnConsultationBookingByKey } from "../../../../../apps/api/src/lib/consultation-booking-lookup";
 
 const dbName = "gafus_ag1_booking_atomicity_synthetic_20261017";

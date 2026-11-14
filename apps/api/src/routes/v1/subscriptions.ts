@@ -6,7 +6,7 @@ import {
   getPushSubscriptionStatusForEndpoints,
   deletePushSubscriptionByEndpoint,
   deleteAllPushSubscriptions,
-} from "@gafus/core/services/subscriptions";
+} from "@gafus/notifications-server/push-subscriptions";
 import { createWebLogger } from "@gafus/logger";
 import { getBrowserAccessToken } from "../../lib/browser-auth.js";
 import { decodeJwt } from "jose";
@@ -17,7 +17,7 @@ import {
   savePushSubscription,
   PushEndpointOwnerConflictError,
   PushSessionStaleError,
-} from "../../../../../packages/core/src/services/subscriptions/pushSubscriptionService.js";
+} from "@gafus/notifications-server/push-subscriptions";
 
 const logger = createWebLogger("api-subscriptions");
 export const subscriptionsRoutes = new Hono();

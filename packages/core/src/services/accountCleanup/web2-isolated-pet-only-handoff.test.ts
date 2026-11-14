@@ -4,7 +4,16 @@ const m=vi.hoisted(()=>({gallery:vi.fn(),feed:vi.fn()}));
 vi.mock("../gallery/accountCleanup",()=>({enqueueGalleryAccountCleanup:m.gallery}));
 vi.mock("../feed/cleanup",()=>({enqueueFeedAccountCleanup:m.feed}));
 vi.mock("@gafus/cdn-upload",()=>({DUAL_PROVIDER_CLEANUP_MARKER:"DUAL_PROVIDER_REVIEW"}));
-import {enqueueAccountStorageCleanup} from "./enqueue";
+import {createAccountStorageCleanup} from "./enqueue";
+import {insertAccountMediaCleanupSnapshotsTx} from "@gafus/identity-write-server/account-cleanup-records";
+import {enqueueGalleryAccountCleanup} from "../gallery/accountCleanup";
+import {enqueueFeedAccountCleanup} from "../feed/cleanup";
+const enqueueAccountStorageCleanup=createAccountStorageCleanup({
+  readIntent:()=>({dualGallery:false,dualFeed:false,dualProviderMarker:"DUAL_PROVIDER_REVIEW"}),
+  insertSnapshot:insertAccountMediaCleanupSnapshotsTx,
+  enqueueGallery:enqueueGalleryAccountCleanup,
+  enqueueFeed:enqueueFeedAccountCleanup,
+});
 import {accountStorageTargets} from "../../../../cdn-upload/src/accountStorageCleanup";
 const owner="owner_A";
 describe("WEB2 account deletion: isolated pet photo with no documents or avatar",()=>{

@@ -14,7 +14,7 @@ const m = vi.hoisted(() => ({
   onError: null as null | ((error: Error) => void),
 }));
 vi.mock("@gafus/queues", () => ({ connection: {} }));
-vi.mock("@gafus/core/services/consultation", () => ({
+vi.mock("@gafus/consultation-server/mail-delivery", () => ({
   processConsultationEmailLog: m.core,
 }));
 vi.mock("@gafus/logger", () => ({

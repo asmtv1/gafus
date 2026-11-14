@@ -29,7 +29,7 @@ import { Button } from "@/shared/components";
 import { feedApi, feedEditCommentGuarded, feedDeleteCommentGuarded, feedCommentReactionGuarded, feedPostReactionGuarded, feedCreateCommentGuarded, feedSaveRevisionGuarded, feedPublishPostGuarded } from "@/shared/lib/api/feed";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { reportClientError } from "@/shared/lib/tracer";
-import { pickFeedMedia, pickFeedPollOptionPhoto, uploadPickedFeedMedia, checkFeedPickedMedia, releaseFeedPickedMedia, type FeedPickedMedia } from "./uploads";
+import { pickFeedMedia, pickFeedPollOptionPhoto, uploadPickedFeedMedia, checkFeedPickedMedia, releaseFeedPickedMedia, feedAssetForPublication, type FeedPickedMedia } from "./uploads";
 import { FeedVideo, stopFeedVideoOutsidePosts } from "./FeedVideo";
 import { mobileFeedTelemetry } from "./telemetry";
 import { FeedMediaViewer, FeedCommentAttachments } from "./FeedMediaViewer";
@@ -798,7 +798,7 @@ export function FeedScreen() {
       </Text>}
   </>;
   return <TexturedSafeAreaView style={s.screen} edges={[]}>
-    <StatusBar style="dark" translucent backgroundColor="transparent" />
+    <StatusBar style="dark" />
     {status.isPending ? <Loading fullScreen embedded /> :
       status.data?.enabled !== true ? <View style={s.padding}>{listHeader}<Status status={status} /></View> :
       <FlashList
@@ -1009,9 +1009,10 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
       try {
         mobileFeedPublications.enqueue({
           ownerId: userId!, text,
-          files: picked.map(asset => ({
-            ...asset, previewUri: asset.previewUri ?? (asset.kind === "photo" ? asset.uri : undefined),
-          })),
+          // Keep the original mutable media object: native HEVC→H.264
+          // preparation updates it asynchronously. A spread copy retains
+          // the 22 MB HEVC URI/size and breaks the signed S3 reservation.
+          files: picked.map(feedAssetForPublication),
           albumPhotoIds,
           ...(poll ? {
             poll: { ...poll, options: poll.options.map(({ imageAsset: _imageAsset, ...option }) => option) },
@@ -1115,7 +1116,7 @@ function ActorFeedComposeScreen({editActor}:{editActor:FeedEditorActor|null}) {
     }
   };
   return <TexturedSafeAreaView style={s.screen} edges={["left","right"]}>
-    <StatusBar style="dark" translucent backgroundColor="transparent" />
+    <StatusBar style="dark" />
     <Stack.Screen options={{ headerShown: false }} />
     <View style={[s.composeTopBar, { paddingTop: insets.top + 8 }]}>
       <AppBackButton onPress={() => router.back()} />
@@ -1921,7 +1922,7 @@ function ActorCommentRow({
 }
 const s = StyleSheet.create({
   screen: { flex: 1 }, padding: { padding: SPACING.md, paddingBottom: 100, gap: SPACING.md },
-  videoPlayOverlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  videoPlayOverlay: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
   videoPlayCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: "rgba(22,31,17,0.78)", alignItems: "center", justifyContent: "center" },
   list: { paddingHorizontal: 8, paddingBottom: 80 }, listItem: { marginBottom: 7 },
   momentsHeaderArtwork: { height: 180, marginHorizontal: -8, marginBottom: SPACING.sm },
@@ -1935,7 +1936,7 @@ const s = StyleSheet.create({
   bookmarksButtonCompact: { width: 112 },
   bookmarksButtonBackground: { width: "100%", height: 44 },
   bookmarksContent: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
@@ -1949,14 +1950,14 @@ const s = StyleSheet.create({
   newPostButton: { width: 44, height: 44, position: "relative" },
   newPostButtonCompact: { width: 42 },
   newPostButtonBackground: { width: "100%", height: 44 },
-  newPostIcon: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
+  newPostIcon: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center" },
   card: { backgroundColor: COLORS.cardBackground, borderRadius: 20, padding: 16, gap: 12 },
   publicationQueue: { gap: 10, marginHorizontal: 8, marginBottom: 12 },
   publicationCard: { flexDirection: "row", gap: 10, alignItems: "center", padding: 12,
     borderRadius: 16, backgroundColor: COLORS.cardBackground },
   publicationMedia: { width: 88, height: 88, borderRadius: 12, backgroundColor: COLORS.cardBackground,
     alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  publicationPreview: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
+  publicationPreview: { ...StyleSheet.absoluteFill, opacity: 0.48 },
   publicationBody: { flex: 1, minWidth: 0, gap: 7 },
   publicationTitle: { fontFamily: FONTS.montserratMedium, fontSize: 14, color: COLORS.primary },
   publicationExcerpt: { fontFamily: FONTS.montserrat, fontSize: 12, color: COLORS.textSecondary },

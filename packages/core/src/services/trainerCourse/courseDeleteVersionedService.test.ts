@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { deleteCourseVersioned } from "./courseDeleteVersionedService";
+import { createCourseVersionedDeleter } from "./courseDeleteVersionedService";
+import { deleteVersionedCourseRows } from "@gafus/course-server/course-delete-versioned";
+const deleteCourseVersioned = createCourseVersionedDeleter(deleteVersionedCourseRows);
 
 const m = vi.hoisted(() => ({
   rows: [] as { id: string; version: number; logoImg: string }[],

@@ -6,15 +6,37 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "scripts": { "build": "tsc", "typecheck": "tsc --noEmit", "test": "vitest run --config vitest.config.ts" },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./runtime-service": {
+      "types": "./dist/runtimeService.d.ts",
+      "default": "./dist/runtimeService.js"
+    },
+    "./cloud-recovery": {
+      "types": "./dist/recovery.d.ts",
+      "default": "./dist/recovery.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
   "dependencies": {
     "@gafus/core": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
     "@gafus/gallery-storage": "workspace:*",
     "@gafus/types": "workspace:*",
-    "zod": "^3.25.56"
+    "zod": "^3.25.56",
+    "@gafus/media-server": "workspace:*"
   },
-  "devDependencies": { "@types/node": "20.4.8", "typescript": "5.8.3", "vitest": "^4.0.17" }
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "vitest": "^4.0.17"
+  }
 }

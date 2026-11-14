@@ -2,6 +2,7 @@ import type { Logger as PinoLogger } from "pino";
 import pino from "pino";
 
 import { reportServerError } from "./tracerServer.js";
+import { emitServerErrorSignal } from "./diagnosticSink.js";
 import type { Logger, LoggerConfig, LogMeta, LogLevel } from "./logger-types.js";
 
 /**
@@ -122,6 +123,7 @@ export class UnifiedLogger implements Logger {
   error(message: string, error?: Error, meta?: LogMeta): void {
     if (this.shouldLog("error")) {
       this.pinoLogger.error({ err: error, ...meta }, message);
+      emitServerErrorSignal("error", error instanceof Error ? error : undefined);
       if (error instanceof Error) {
         reportServerError(error, {
           appName: this.config.appName,
@@ -136,6 +138,7 @@ export class UnifiedLogger implements Logger {
   fatal(message: string, error?: Error, meta?: LogMeta): void {
     if (this.shouldLog("fatal")) {
       this.pinoLogger.fatal({ err: error, ...meta }, message);
+      emitServerErrorSignal("fatal", error instanceof Error ? error : undefined);
       if (error instanceof Error) {
         reportServerError(error, {
           appName: this.config.appName,

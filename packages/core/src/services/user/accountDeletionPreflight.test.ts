@@ -2,7 +2,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const m = vi.hoisted(() => ({ user: vi.fn() }));
 vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: m.user } } }));
 vi.mock("@gafus/logger", () => ({ createWebLogger: () => ({ info: vi.fn(), error: vi.fn() }) }));
-import { readAccountDeletionPreflight } from "./deleteUserAccount";
+import { createAccountDeletionService } from "./deleteUserAccount";
+import { readAccountDeletionPreflightRow } from "@gafus/identity-write-server/account-deletion-rows";
+const { readAccountDeletionPreflight } = createAccountDeletionService({
+  readAccountDeletionPreflightRow,
+  readAccountDeletionActorRow: vi.fn(),
+  readAccountDeletionAuthoredCounts: vi.fn(),
+  readAccountDeletionRequestedAt: vi.fn(),
+  readAccountDeletionChallenge: vi.fn(),
+  replaceAccountDeletionChallenge: vi.fn(),
+  deleteAccountAndPersistCleanup: vi.fn(),
+  deletionPrismaRequestErrorCode: vi.fn(),
+});
 beforeEach(() => vi.resetAllMocks());
 describe("account deletion preflight, isolated minimal owner projection", () => {
  it("reads only own ID, username and email, then returns boolean presence", async () => {

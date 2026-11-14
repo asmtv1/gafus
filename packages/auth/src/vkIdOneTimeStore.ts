@@ -2,5 +2,5 @@
 export {
   consumeVkIdOneTimeUser, completeVkIdOneTimeConsent,
   getVkIdUserFromToken, storeVkIdOneTimeUser,
-} from "@gafus/core/services/auth/vkGrant";
-export type { VkIdUser } from "@gafus/core/services/auth/vkGrant";
+} from "./vkGrant.js";
+export type { VkIdUser } from "./vkGrant.js";

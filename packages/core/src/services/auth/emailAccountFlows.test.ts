@@ -30,6 +30,32 @@ vi.mock("./transactionalAuthMail", () => ({
 }));
 
 import { sendPasswordResetRequestByEmail } from "./emailAccountFlows";
+import { registerEmailAccountRowsPort } from "./emailAccountFlows";
+import {
+  readPasswordResetRequestUser,
+  claimPasswordResetEmailToken,
+  rollbackFailedPasswordResetEmailToken,
+  retireOlderPasswordResetEmailTokens,
+  readEmailChangeAccount,
+  readEmailOwner,
+  stageEmailChange,
+  rollbackUndeliveredEmailChange,
+  retireOlderEmailChangeTokens,
+  consumeEmailChangeConfirmation,
+} from "@gafus/identity-write-server/email-account-rows";
+registerEmailAccountRowsPort({
+  readPasswordResetRequestUser,
+  claimPasswordResetEmailToken,
+  rollbackFailedPasswordResetEmailToken,
+  retireOlderPasswordResetEmailTokens,
+  readEmailChangeAccount,
+  readEmailOwner,
+  stageEmailChange,
+  rollbackUndeliveredEmailChange,
+  retireOlderEmailChangeTokens,
+  consumeEmailChangeConfirmation,
+});
+
 
 describe("sendPasswordResetRequestByEmail", () => {
   beforeEach(() => {

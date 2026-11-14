@@ -1,0 +1,85 @@
+{
+  "name": "@gafus/course-progress-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./completion": {
+      "types": "./dist/completion.d.ts",
+      "default": "./dist/completion.js"
+    },
+    "./course-version-rows": {
+      "types": "./dist/courseVersionRows.d.ts",
+      "default": "./dist/courseVersionRows.js"
+    },
+    "./diary-entries": {
+      "types": "./dist/diary-entries.d.ts",
+      "default": "./dist/diary-entries.js"
+    },
+    "./training-day-rows": {
+      "types": "./dist/trainingDayRows.d.ts",
+      "default": "./dist/trainingDayRows.js"
+    },
+    "./survey-rows": {
+      "types": "./dist/surveyRows.d.ts",
+      "default": "./dist/surveyRows.js"
+    },
+    "./trainer-note-rows": {
+      "types": "./dist/trainerNoteRows.d.ts",
+      "default": "./dist/trainerNoteRows.js"
+    },
+    "./trainer-course-rows": {
+      "types": "./dist/trainerCourseRows.d.ts",
+      "default": "./dist/trainerCourseRows.js"
+    },
+    "./offline-video-rows": {
+      "types": "./dist/offlineVideoRows.d.ts",
+      "default": "./dist/offlineVideoRows.js"
+    },
+    "./offline-mutation-rows": {
+      "types": "./dist/offlineMutationRows.d.ts",
+      "default": "./dist/offlineMutationRows.js"
+    },
+    "./trainer-step-rows": {
+      "types": "./dist/trainerStepRows.d.ts",
+      "default": "./dist/trainerStepRows.js"
+    },
+    "./training-service": {
+      "types": "./dist/trainingService.d.ts",
+      "default": "./dist/trainingService.js"
+    },
+    "./daily-course-service": {
+      "types": "./dist/dailyCourseService.d.ts",
+      "default": "./dist/dailyCourseService.js"
+    },
+    "./user-progress-application": {
+      "types": "./dist/userProgressApplication.d.ts",
+      "default": "./dist/userProgressApplication.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "@gafus/logger": "workspace:*",
+    "@gafus/course-read-server": "workspace:*",
+    "zod": "^3.25.56"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  }
+}

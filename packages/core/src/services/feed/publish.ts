@@ -1,3 +1,4 @@
+import type { GafusTx } from "../gafus/types";
 import type { FeedTx } from "./ports";
 import { FeedError } from "./errors";
 import { enqueueFeedAuthorPush } from "./preferences";
@@ -45,7 +46,7 @@ export async function activateFeedPostRevisionTx(
     },
   });
   if (!post.publishedAt) {
-    await registerGafusPostPublicationTx(tx, post, {
+    await registerGafusPostPublicationTx(tx as unknown as GafusTx, post, {
       publishedAt: at,
       text: input.text,
       hasPublishedMedia: input.publishedMediaCount > 0,

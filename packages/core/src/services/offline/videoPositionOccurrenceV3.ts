@@ -2,7 +2,6 @@
  * The occurrence links are database identity, not Step.id or Course.id.
  */
 import { createHash } from "node:crypto";
-import type { Prisma } from "@gafus/prisma";
 import {
   resolveCourseStepTargetTx,
   resolveCourseStepAccessTx,
@@ -121,7 +120,7 @@ export function stepContainsExactTrainerVideoUrl(
  * Strict fail-closed on missing or foreign media and unrelated occurrences.
  */
 export async function authorizeVideoOccurrenceV3(
-  tx: Prisma.TransactionClient,
+  tx: Parameters<typeof resolveCourseStepTargetTx>[0],
   ownerId: string,
   v: VideoOccurrenceV3,
   now = new Date(),

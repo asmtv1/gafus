@@ -1,5 +1,5 @@
 /** Lazy binding to original diary Core POST; no write during creation. */
-import { saveDiaryEntry } from "@gafus/core/services/diary";
+import { saveDiaryEntry } from "./diary-rows.js";
 import { createWriteDiaryApplication } from "../application/write-diary.js";
 
 export const writeDiaryApplication = createWriteDiaryApplication({

@@ -68,10 +68,8 @@ vi.mock("@gafus/core/services/auth",async original=>({
 // @gafus/core/services/consultation is intentionally NOT mocked.
 import { app } from "../../app";
 import { generateAccessToken } from "@gafus/auth/jwt";
-import {
-  getConsultationBookingEligibility,
-  listListedCynologists,
-} from "@gafus/core/services/consultation";
+import { getConsultationBookingEligibility } from "../../modules/consultations/composition/booking-eligibility.js";
+import { listListedCynologists } from "../../modules/consultations/composition/catalog-schedule.js";
 
 const actors={
   A:{id:"owner_A",username:"a",role:"USER"},
@@ -153,7 +151,7 @@ describe("AG1-001 registered Hono consultation catalog -> real dual-Core",()=>{
       expect(JSON.stringify(body)).not.toContain("private@example.invalid");
       expect(JSON.stringify(body)).not.toContain("hidden@example.invalid");
       expect(m.cynologists).toHaveBeenCalledWith({
-        where:{isListed:true},select:{
+        where:{isListed:true,user:{role:"TRAINER"}},select:{
           id:true,userId:true,slotDurationMin:true,user:{select:{
             username:true,profile:{select:{fullName:true,avatarUrl:true,about:true}},
           }},

@@ -29,6 +29,12 @@ vi.mock("@gafus/prisma", () => {
     gafusAdminAudit: { create: vi.fn(async ({ data }: { data: object }) => {
       state.audits.push(data);
     }) },
+    $queryRaw: vi.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
+      const statement=parts.join("?");
+      if (statement.includes('FROM "User"')) return state.admin ? [{id:values[0]}] : [];
+      if (statement.includes('pg_advisory_xact_lock')) return [{locked:""}];
+      throw Error("UNEXPECTED_LEGACY_IMPORT_SQL");
+    }),
     $transaction: async (fn: (tx: unknown) => unknown) => fn(db),
   };
   return { prisma: db };
@@ -46,7 +52,24 @@ vi.mock("./walletService", () => ({
   }),
 }));
 
-import { getLegacyGafusImportPreflight, importLegacyRewardedBatch } from "./legacyImportService";
+import {
+  getLegacyGafusImportPreflight as corePreflight,
+  importLegacyRewardedBatch as coreImport,
+  type LegacyGafusImportPorts,
+} from "./legacyImportService";
+import {
+  readLegacyImportActorRole, readLegacyImportPreflightRows,
+  readLegacyImportCandidates, runOneLegacyImportTransaction,
+} from "@gafus/gafus-server/legacy-import-records";
+const ports: LegacyGafusImportPorts = {
+  readActorRole: readLegacyImportActorRole,
+  readPreflightRows: readLegacyImportPreflightRows,
+  readCandidates: readLegacyImportCandidates,
+  runOneTransaction: runOneLegacyImportTransaction,
+};
+const getLegacyGafusImportPreflight = (actorId: string) => corePreflight(actorId,ports);
+const importLegacyRewardedBatch = (input: Parameters<typeof coreImport>[0]) => coreImport(input,ports);
+
 
 describe("one-time legacy rewarded-credit import", () => {
   const oldDisabled = process.env.GAFUS_LEGACY_REWARDED_DISABLED;

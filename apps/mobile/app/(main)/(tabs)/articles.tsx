@@ -479,7 +479,7 @@ function ArticlesActor({ owner, epoch }: { owner: string | null; epoch: string |
   if (isPending) return <Loading fullScreen message="Загрузка статей..." />;
   return (
     <TexturedSafeAreaView style={styles.container} edges={[]}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       {isError ? (
         <View style={styles.errorContainer}>
           {listHeader}
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#ECE5D2",
   },
   logoLoadingPlaceholder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#ECE5D2",

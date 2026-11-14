@@ -9,7 +9,7 @@ import { getAppSubscriptionAccess } from "@gafus/core/services/appSubscription";
 import {
   APP_FEATURE_APP_SUBSCRIPTION_GATING,
   getAppFeatureFlagEnabled,
-} from "@gafus/core/services/appFeatureFlags";
+} from "@gafus/feature-flags-server";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-achievements");
@@ -31,9 +31,14 @@ achievementsRoutes.use("*", async (c, next) => {
       // SELECT-only snapshot: NEVER reconcile YooKassa/Apple/payments on GET.
       const access = await getAppSubscriptionAccess(owner);
       if (!access.hasActiveSubscription) {
-        return c.json({
-          success: false, code: "SUBSCRIPTION_REQUIRED", error: "Для действия нужна подписка",
-        }, 403);
+        return c.json(
+          {
+            success: false,
+            code: "SUBSCRIPTION_REQUIRED",
+            error: "Для действия нужна подписка",
+          },
+          403,
+        );
       }
     }
   } catch {

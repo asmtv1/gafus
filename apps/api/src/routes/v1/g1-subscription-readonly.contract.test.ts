@@ -7,12 +7,17 @@ const { access, offer, reconcile } = vi.hoisted(() => ({
   reconcile: vi.fn(),
 }));
 
+vi.mock("../../modules/app-subscription/composition/read-offer.js", () => ({
+  getAppSubscriptionOffer: offer,
+}));
 vi.mock("@gafus/core/services/appSubscription", () => ({
   getAppSubscriptionAccess: access,
-  getAppSubscriptionOffer: offer,
+}));
+// Payment reads are now injected by API composition, never from Core facade.
+vi.mock("../../modules/app-subscription/composition/payment-transitions.js", () => ({
   reconcilePendingYookassaAppSubscription: reconcile,
 }));
-vi.mock("@gafus/core/services/appFeatureFlags", () => ({
+vi.mock("@gafus/feature-flags-server", () => ({
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT: "ios_card",
   getMobileFeatureFlagEnabled: vi.fn(),
 }));

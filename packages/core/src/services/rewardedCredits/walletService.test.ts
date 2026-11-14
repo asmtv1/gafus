@@ -128,6 +128,28 @@ import {
   refundRewardedCredits,
   spendRewardedCredits,
 } from "./walletService";
+// Keep the original PostgreSQL row implementation against this test's
+// synthetic Prisma transaction, via the same typed API composition boundary.
+import { registerRewardedWalletPort, type RewardedWalletTx } from "./rewardedWalletPort";
+import {
+  withLockedRewardedWallet, ensureRewardedWalletRow,
+  updateRewardedWalletRow, countTodayRewardedAds,
+  hasRewardedTargetSpendRow, findRewardedTransactionByKey,
+  appendRewardedWalletEntry,
+  type RewardedWalletTx as SqlRewardedWalletTx,
+} from "@gafus/gafus-server/rewarded-wallet-rows";
+const sqlTx = (tx: RewardedWalletTx): SqlRewardedWalletTx => tx as unknown as SqlRewardedWalletTx;
+registerRewardedWalletPort({
+  withLockedRewardedWallet: (userId, fn) =>
+    withLockedRewardedWallet(userId, tx => fn(tx as unknown as RewardedWalletTx)),
+  ensureRewardedWalletRow: (userId, tx) => ensureRewardedWalletRow(userId, tx ? sqlTx(tx) : undefined),
+  updateRewardedWalletRow: (tx, userId, data) => updateRewardedWalletRow(sqlTx(tx), userId, data),
+  countTodayRewardedAds: (tx, userId, start, end) => countTodayRewardedAds(sqlTx(tx), userId, start, end),
+  hasRewardedTargetSpendRow: (tx, userId, target) => hasRewardedTargetSpendRow(sqlTx(tx), userId, target),
+  findRewardedTransactionByKey: (tx, key) => findRewardedTransactionByKey(sqlTx(tx), key),
+  appendRewardedWalletEntry: (tx, entry) => appendRewardedWalletEntry(sqlTx(tx), entry),
+});
+
 
 describe("rewarded credits wallet", () => {
   beforeEach(() => {

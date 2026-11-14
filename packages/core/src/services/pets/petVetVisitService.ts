@@ -1,10 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod/v3";
 import { fileTypeFromBuffer } from "file-type";
-import { prisma, type Prisma } from "@gafus/prisma";
+import {
+ isVetVisitDbError,lockVetPetRowTx,listOwnPetVetRows,
+ upsertOwnPetVetVisit,removeOwnPetVetVisit,requireOwnPetVetVisit,
+ reservePetVetAttachment,commitPetVetAttachment,removeOwnPetVetAttachment,
+ readOwnPetVetAttachment,enqueueOwnPetVetCleanupTx,
+ type VetVisitDbRow,type VetVisitDbTx,
+} from "./vetVisitRowsPort";
 import { uploadVetVisitFile, vetVisitFileKeys, vetVisitMediaUrl } from "@gafus/cdn-upload";
 import {
-  VET_VISIT_MAX_ATTACHMENTS,
   VET_VISIT_MAX_FILE_BYTES,
   VET_VISIT_MIME_TYPES,
   type PetVetVisit,
@@ -45,8 +50,7 @@ export const petVetVisitSchema = z.object({
   conclusion: text(10_000),
   notes: text(10_000),
 });
-type VisitRow = Prisma.PetVetVisitGetPayload<{ include: { attachments: true } }>;
-const include = { attachments: { orderBy: { createdAt: "asc" as const } } };
+type VisitRow = VetVisitDbRow;
 function dto(row: VisitRow, pending = new Set<string>()): PetVetVisit {
   return {
     id: row.id,
@@ -68,70 +72,38 @@ function dto(row: VisitRow, pending = new Set<string>()): PetVetVisit {
     })),
   };
 }
-async function petOwner(petId: string, ownerId: string) {
-  if (!(await prisma.pet.findFirst({ where: { id: petId, ownerId }, select: { id: true } })))
-    throw new VetVisitError("Питомец не найден", 404);
+/** Public API error boundary stays in Core, never leaks SQL or clinical PII. */
+async function vetDb<T>(action:()=>Promise<T>):Promise<T>{
+ try{return await action();}
+ catch(error){
+  if(isVetVisitDbError(error)){
+   switch(error.kind){
+    case "pet":throw new VetVisitError("Питомец не найден",404);
+    case "visit":throw new VetVisitError("Посещение не найдено",404);
+    case "attachment":throw new VetVisitError("Вложение не найдено",404);
+    case "limit":throw new VetVisitError("На одно посещение можно добавить до 5 вложений",409);
+    case "reservation":throw new VetVisitError("Загрузка заняла слишком много времени. Повторите попытку",409);
+   }
+  }
+  throw error;
+ }
 }
-export async function lockVetPet(tx: Prisma.TransactionClient, petId: string, ownerId: string) {
-  await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${ownerId} FOR UPDATE`;
-  const pets = await tx.$queryRaw<
-    { id: string }[]
-  >`SELECT "id" FROM "Pet" WHERE "id" = ${petId} AND "ownerId" = ${ownerId} FOR UPDATE`;
-  if (!pets.length) throw new VetVisitError("Питомец не найден", 404);
+
+export async function lockVetPet(tx:VetVisitDbTx,petId:string,ownerId:string){
+ await vetDb(()=>lockVetPetRowTx(tx,petId,ownerId));
 }
-async function lockVisit(tx: Prisma.TransactionClient, petId: string, ownerId: string, id: string) {
-  await lockVetPet(tx, petId, ownerId);
-  const rows = await tx.$queryRaw<
-    { id: string }[]
-  >`SELECT v."id" FROM "PetVetVisit" v JOIN "Pet" p ON p."id" = v."petId" AND p."ownerId" = v."ownerId" WHERE v."id" = ${id} AND v."petId" = ${petId} AND v."ownerId" = ${ownerId} FOR UPDATE OF v`;
-  if (!rows.length) throw new VetVisitError("Посещение не найдено", 404);
+export async function listPetVetVisits(petId:string,ownerId:string){
+ const {rows,pending}=await vetDb(()=>listOwnPetVetRows(petId,ownerId));
+ return rows.map(row=>dto(row,pending));
 }
-export async function listPetVetVisits(petId: string, ownerId: string) {
-  await petOwner(petId, ownerId);
-  const rows = await prisma.petVetVisit.findMany({
-    where: { petId, ownerId },
-    include,
-    orderBy: [{ visitedOn: "desc" }, { createdAt: "desc" }],
-  });
-  const candidates = rows.flatMap((row) =>
-    row.attachments
-      .filter((a) => !a.previewKey && a.mimeType.startsWith("image/"))
-      .map((a) => `vet-preview:${a.id}`),
-  );
-  const active = candidates.length
-    ? await prisma.galleryStorageJob.findMany({
-        where: { dedupeKey: { in: candidates }, status: { in: ["pending", "processing"] } },
-        select: { dedupeKey: true },
-      })
-    : [];
-  const pending = new Set(active.map((job) => job.dedupeKey));
-  return rows.map((row) => dto(row, pending));
+export async function savePetVetVisit(petId:string,ownerId:string,input:unknown,id?:string){
+ const parsed=petVetVisitSchema.parse(input);
+ const data={...parsed,visitedOn:new Date(`${parsed.visitedOn}T00:00:00Z`)};
+ const row=await vetDb(()=>upsertOwnPetVetVisit(petId,ownerId,data,id));
+ return dto(row);
 }
-export async function savePetVetVisit(petId: string, ownerId: string, input: unknown, id?: string) {
-  const parsed = petVetVisitSchema.parse(input);
-  const data = { ...parsed, visitedOn: new Date(`${parsed.visitedOn}T00:00:00Z`) };
-  return prisma.$transaction(async (tx) => {
-    if (id) {
-      await lockVisit(tx, petId, ownerId, id);
-      return dto(await tx.petVetVisit.update({ where: { id }, data, include }));
-    }
-    await lockVetPet(tx, petId, ownerId);
-    return dto(await tx.petVetVisit.create({ data: { ...data, petId, ownerId }, include }));
-  });
-}
-export async function deletePetVetVisit(petId: string, ownerId: string, id: string) {
-  await prisma.$transaction(async (tx) => {
-    await lockVisit(tx, petId, ownerId, id);
-    const attachments = await tx.petVetAttachment.findMany({ where: { visitId: id } });
-    await enqueueDelete(
-      tx,
-      ownerId,
-      attachments.flatMap((a) => [a.originalKey, a.previewKey]),
-      new Date(),
-      `vet-visit:${id}`,
-    );
-    await tx.petVetVisit.delete({ where: { id } });
-  });
+export async function deletePetVetVisit(petId:string,ownerId:string,id:string){
+ await vetDb(()=>removeOwnPetVetVisit(petId,ownerId,id,enqueueDelete));
 }
 export async function addPetVetAttachment(
   petId: string,
@@ -139,13 +111,7 @@ export async function addPetVetAttachment(
   visitId: string,
   file: File,
 ) {
-  if (
-    !(await prisma.petVetVisit.findFirst({
-      where: { id: visitId, petId, ownerId },
-      select: { id: true },
-    }))
-  )
-    throw new VetVisitError("Посещение не найдено", 404);
+  await vetDb(()=>requireOwnPetVetVisit(petId,ownerId,visitId));
   if (!file.size || file.size > VET_VISIT_MAX_FILE_BYTES)
     throw new VetVisitError("Размер файла должен быть от 1 байта до 10 МБ", 413);
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -163,18 +129,7 @@ export async function addPetVetAttachment(
   const asyncPreview = false;
   const dedupeKey = `vet-upload:${id}`;
   // Durable cleanup is reserved BEFORE storage I/O. It survives crashes, partial uploads and owner deletion.
-  await prisma.$transaction(async (tx) => {
-    await lockVisit(tx, petId, ownerId, visitId);
-    if ((await tx.petVetAttachment.count({ where: { visitId } })) >= VET_VISIT_MAX_ATTACHMENTS)
-      throw new VetVisitError("На одно посещение можно добавить до 5 вложений", 409);
-    await enqueueDelete(
-      tx,
-      ownerId,
-      [keys.originalKey, keys.previewKey],
-      new Date(Date.now() + 10 * 60_000),
-      dedupeKey,
-    );
-  });
+  await vetDb(()=>reservePetVetAttachment(petId,ownerId,visitId,keys,dedupeKey,enqueueDelete));
   await uploadVetVisitFile(bytes, detected.mime, keys, { asyncPreview });
   const rawName = file.name
     .split("")
@@ -185,48 +140,17 @@ export async function addPetVetAttachment(
     .join("")
     .trim()
     .slice(0, 200);
-  await prisma.$transaction(async (tx) => {
-    await lockVisit(tx, petId, ownerId, visitId);
-    if ((await tx.petVetAttachment.count({ where: { visitId } })) >= VET_VISIT_MAX_ATTACHMENTS)
-      throw new VetVisitError("На одно посещение можно добавить до 5 вложений", 409);
-    const removed = await tx.galleryStorageJob.deleteMany({
-      where: { dedupeKey, status: "pending", availableAt: { gt: new Date() } },
-    });
-    if (removed.count !== 1)
-      throw new VetVisitError("Загрузка заняла слишком много времени. Повторите попытку", 409);
-    await tx.petVetAttachment.create({
-      data: {
-        id,
-        visitId,
-        ...keys,
-        previewKey: keys.previewKey,
-        name: rawName || `Медкарта.${detected.ext}`,
-        mimeType: detected.mime,
-        sizeBytes: bytes.byteLength,
-      },
-    });
-  });
+  await vetDb(()=>commitPetVetAttachment(petId,ownerId,visitId,{
+   id,keys,dedupeKey,
+   name:rawName||`Медкарта.${detected.ext}`,
+   mimeType:detected.mime,sizeBytes:bytes.byteLength,
+  }));
   return { id };
 }
 export async function deletePetVetAttachment(
-  petId: string,
-  ownerId: string,
-  visitId: string,
-  id: string,
-) {
-  await prisma.$transaction(async (tx) => {
-    await lockVisit(tx, petId, ownerId, visitId);
-    const attachment = await tx.petVetAttachment.findFirst({ where: { id, visitId } });
-    if (!attachment) throw new VetVisitError("Вложение не найдено", 404);
-    await enqueueDelete(
-      tx,
-      ownerId,
-      [attachment.originalKey, attachment.previewKey],
-      new Date(),
-      `vet-attachment:${id}`,
-    );
-    await tx.petVetAttachment.delete({ where: { id } });
-  });
+ petId:string,ownerId:string,visitId:string,id:string,
+){
+ await vetDb(()=>removeOwnPetVetAttachment(petId,ownerId,visitId,id,enqueueDelete));
 }
 export async function getPetVetMedia(
   petId: string,
@@ -235,10 +159,7 @@ export async function getPetVetMedia(
   id: string,
   variant: string,
 ) {
-  const attachment = await prisma.petVetAttachment.findFirst({
-    where: { id, visitId, visit: { petId, ownerId } },
-  });
-  if (!attachment) throw new VetVisitError("Вложение не найдено", 404);
+  const attachment=await vetDb(()=>readOwnPetVetAttachment(petId,ownerId,visitId,id));
   if (!["preview", "original", "download"].includes(variant))
     throw new VetVisitError("Неизвестный вид вложения");
   if (variant === "preview" && !attachment.previewKey)
@@ -251,18 +172,6 @@ export async function getPetVetMedia(
   };
 }
 
-export async function enqueuePetVetCleanup(
-  tx: Prisma.TransactionClient,
-  petId: string,
-  ownerId: string,
-) {
-  const rows = await tx.petVetAttachment.findMany({ where: { visit: { petId, ownerId } } });
-  for (const attachment of rows)
-    await enqueueDelete(
-      tx,
-      ownerId,
-      [attachment.originalKey, attachment.previewKey],
-      new Date(),
-      `vet-pet:${petId}:${attachment.id}`,
-    );
+export async function enqueuePetVetCleanup(tx:VetVisitDbTx,petId:string,ownerId:string){
+ await vetDb(()=>enqueueOwnPetVetCleanupTx(tx,petId,ownerId,enqueueDelete));
 }

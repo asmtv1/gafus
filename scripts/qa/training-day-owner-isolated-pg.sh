@@ -1,0 +1,24 @@
+#!/bin/bash
+# Disposable localhost PostgreSQL 18, never production or remote database.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$ROOT"
+export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"
+for bin in initdb pg_ctl createdb python3; do command -v "$bin" >/dev/null || { echo "TRAINING_DAY_TEST_BIN_MISSING:$bin"; exit 2; }; done
+DIR="$(mktemp -d /tmp/gafus-training-day-qa.XXXXXX)"
+PORT="$(python3 -c 'import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()')"
+started=0
+cleanup() { if [ "$started" = 1 ]; then pg_ctl -D "$DIR/pg" -m immediate stop >/dev/null 2>&1 || true; fi;
+  if [[ "$DIR" == /tmp/gafus-training-day-qa.* && ! -L "$DIR" ]]; then rm -rf -- "$DIR"; fi; }
+trap cleanup EXIT INT TERM
+umask 077
+initdb -D "$DIR/pg" -A trust -U trainingdayqa --no-instructions > "$DIR/init.log" 2>&1
+pg_ctl -D "$DIR/pg" -l "$DIR/postgres.log" -o "-h 127.0.0.1 -p $PORT -c timezone=UTC" -w start >/dev/null
+started=1
+createdb -h 127.0.0.1 -p "$PORT" -U trainingdayqa gafus_training_day_qa
+export DATABASE_URL="postgresql://trainingdayqa@127.0.0.1:$PORT/gafus_training_day_qa?schema=public"
+export GAFUS_TRAINING_DAY_REAL_PG=enabled NODE_ENV=test
+(cd packages/prisma && pnpm exec prisma db push --skip-generate > "$DIR/schema.log" 2>&1) || { tail -55 "$DIR/schema.log"; exit 1; }
+export NODE_OPTIONS="${NODE_OPTIONS:-} --require $ROOT/scripts/qa/block-nonlocal-network.cjs"
+pnpm --filter @gafus/course-progress-server exec vitest run src/trainingDayRows.realpg.test.ts --maxWorkers=1
+echo TRAINING_DAY_OWNER_REAL_PG_PASS

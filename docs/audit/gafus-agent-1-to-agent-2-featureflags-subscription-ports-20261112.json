@@ -1,0 +1,493 @@
+{
+  "schema": "gafus-ag1-handoff-to-a2/v1",
+  "created_utc": "2026-11-12T01:04:25.041284+00:00",
+  "repository_root": "/Users/asmtv1/Desktop/gafus-refactor",
+  "git_branch": "main",
+  "git_HEAD_at_manifest": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "snapshot_basis": "actual working tree before each A1 group; not git HEAD",
+  "commit_merge_push_deploy_performed": false,
+  "groups": [
+    {
+      "name": "feature_flags",
+      "risk": "L",
+      "core_server_edges_before": 39,
+      "after": 38,
+      "summary": "Pure Core port, API startup composition, shared error identity, runtime dependency removed from Core."
+    },
+    {
+      "name": "subscription_access",
+      "risk": "H",
+      "core_server_edges_before": 38,
+      "after": 37,
+      "summary": "Owner-scoped subscription and cynologist rights through fail-closed Core port bound in API; original Persistence SQL untouched."
+    }
+  ],
+  "frozen_facade_baseline": 41,
+  "facade_current": 37,
+  "facade_resolved_relative_to_frozen": 4,
+  "facade_new": 0,
+  "historical_initial": 142,
+  "historical_resolved": 105,
+  "baseline_json_changed": false,
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "5a43f689d75bdcef9911e7be9a47621db415f277fab2cab5ee98af45be613de7",
+      "sha256_after": "0cccaf1fdfb5bf4b5a8b7c130713695153e7d10816b743e1568c685163d48c4c",
+      "groups": [
+        "shared_composition_or_guard"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/app-feature-flags/composition/install-core-flags.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "b03fed2c2f057a3c15730db12f25e766a9c60804e00b8e2a533b7c20839c1957",
+      "groups": [
+        "feature_flags"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": null
+    },
+    {
+      "path": "apps/api/src/modules/app-feature-flags/composition/install-core-flags.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "a8c69b5fb84e281727c29017aa4b7f50e18544bbf991694fcef93aa6abde016c",
+      "groups": [
+        "feature_flags"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": null
+    },
+    {
+      "path": "apps/api/src/modules/app-subscription/composition/install-core-subscription-access.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "a8881b27212c138d7ab7500b02a269f75da0f77800e20aa0b28ed8bbc564999e",
+      "groups": [
+        "subscription_access"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": null
+    },
+    {
+      "path": "apps/api/src/modules/app-subscription/composition/install-core-subscription-access.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "bae598ee1b95691cfe9e536a9261f9db0811403d502ad3f86b36a613fdc5b1b5",
+      "groups": [
+        "subscription_access"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": null
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-subscription-readonly.contract.test.ts",
+      "status": "M",
+      "sha256_before": "20f9c78405c2918745731924a1fb5b15c7386d34bfefd3ea7b4c4d13907a350a",
+      "sha256_after": "2e81891d858e01cbdef22039be717301c94d301f64e7adf04069d9db85570b7d",
+      "groups": [
+        "compatibility_with_existing_a2_payment_composition"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/apps/api/src/routes/v1/g1-subscription-readonly.contract.test.ts"
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "db3557d6d79576370117ccac65ed0b834c3c0da054c32dff4cf75971a4b2cee6",
+      "sha256_after": "6a03dd8ae9ccb6b01c3dc702a58b8ca03c3eaf6205dca610c8736312201adba2",
+      "groups": [
+        "shared_composition_or_guard"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "899de9459a8d138e04b37e70a36d67bb2c5e82b5c8c8e65d64e0dd51cbb29fa0",
+      "sha256_after": "74ef2ce1ec72353e32d53e618c8ceab0ee92306ec0f745b637169e0fb0d64662",
+      "groups": [
+        "shared_composition_or_guard"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/package.json",
+      "status": "M",
+      "sha256_before": "2186ed8b53513f13daea04988f74d03514a2ad6b08855af28b6f152a0936dd0c",
+      "sha256_after": "145379e3172ebc1dcbdf19510a282f0118bfa6b13dccf85bf0294f76d4ce25e5",
+      "groups": [
+        "shared_composition_or_guard"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/packages/core/package.json"
+    },
+    {
+      "path": "packages/core/src/services/appFeatureFlags/appFeatureFlagsPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "29cb2a4819ba1117d53a6910caeec5155288042257b0a082b02ab0ebab06f216",
+      "groups": [
+        "feature_flags"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": null
+    },
+    {
+      "path": "packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts",
+      "status": "M",
+      "sha256_before": "8de99d7fb986781bca5d445ee4db62a6bf6e989e0cd102c47285996128756cc1",
+      "sha256_after": "9c7fbd23502089185fb11dd8c6bae9293d6d5962e05fed64bc9e621630268bcb",
+      "groups": [
+        "feature_flags"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts"
+    },
+    {
+      "path": "packages/core/src/services/appFeatureFlags/index.ts",
+      "status": "M",
+      "sha256_before": "249465b71cff18bca7936a4880ade671ab2962290b8e09e1bd45b66565b35ec2",
+      "sha256_after": "c123bc8224a8b185914ce3c63c25249208aee6fa970162cb4a9ca052bf8d661f",
+      "groups": [
+        "feature_flags"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/packages/core/src/services/appFeatureFlags/index.ts"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/__tests__/accessService.facade.g1.test.ts",
+      "status": "M",
+      "sha256_before": "599dc9faef4128b18e20c4a9eadeb5420edc0789d43250786a1d922b5c3b0613",
+      "sha256_after": "9b72a710990682e7f79bfd308d4f95fe4a24585ea19b192dd6bc0733172b98e6",
+      "groups": [
+        "subscription_access"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-access-port-prechange/packages/core/src/services/appSubscription/__tests__/accessService.facade.g1.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/__tests__/accessService.readBaseline.g1.test.ts",
+      "status": "M",
+      "sha256_before": "582e37920f4aaeebb06082bbbc1f67ad21ae5e2113ab165d4039e90cd1938bd3",
+      "sha256_after": "98c74ff0cb8f049bb154e86d5646bd32feff9b4128165bbeb6bc9a782bf0e2d6",
+      "groups": [
+        "subscription_access"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-access-port-prechange/packages/core/src/services/appSubscription/__tests__/accessService.readBaseline.g1.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/__tests__/accessService.test.ts",
+      "status": "M",
+      "sha256_before": "e9495f2bed37ae37a3e0ede3dc3d4b100a2a7dc768d2af8c162b98018fa0d989",
+      "sha256_after": "88f8235029ea33c1ac3fb66eac14ae9a59fe8fa4110c3c93e062f9fb212cdf80",
+      "groups": [
+        "subscription_access"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-access-port-prechange/packages/core/src/services/appSubscription/__tests__/accessService.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/__tests__/cynologistEntitlements.test.ts",
+      "status": "M",
+      "sha256_before": "cdc4a1b84d16eeca20e64abcc099a238b5b6a1fe24e683cb177bda133773a16e",
+      "sha256_after": "350bfab01b6a5f6a7fe8a829cb6a5926fc60fba549fffde212e9fe0b7e8a3e6e",
+      "groups": [
+        "subscription_access"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-access-port-prechange/packages/core/src/services/appSubscription/__tests__/cynologistEntitlements.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/accessPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "ce887f931f5c7feb1dd409edd1befa9c8561db4481af1e27ea4f3d55478ab0f9",
+      "groups": [
+        "subscription_access"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": null
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/accessService.ts",
+      "status": "M",
+      "sha256_before": "267e13915d913aeba5c22f92e7c5f09ac6849d3f8324efac6c705cc58052164b",
+      "sha256_after": "0a9bbf842ac94e91664de745746a488d820cc6ac1b849e8dbd96211829ccc470",
+      "groups": [
+        "subscription_access"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-access-port-prechange/packages/core/src/services/appSubscription/accessService.ts"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/g1-achievements-snapshot-access-source.test.ts",
+      "status": "M",
+      "sha256_before": "f6f5734dcfad203e91f1d836855ba2be2cbef515ba0c38274ddd5984a28b49ea",
+      "sha256_after": "4b6fbd0baa3ece8dbaa9b936bde643dcfd8bbe95dafbb3cbcf6e02d1b3bc0c76",
+      "groups": [
+        "subscription_access"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-access-port-prechange/packages/core/src/services/appSubscription/g1-achievements-snapshot-access-source.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/consultation/bookingService.test.ts",
+      "status": "M",
+      "sha256_before": "c0765476e716ba6f2138d825e2899d2fad7a721d7d01a4872c81f1879f38a357",
+      "sha256_after": "8cb7f7fd2df8fd50612d11bf9419622ea71d89fc42e2d6998340061fcf9ed9ec",
+      "groups": [
+        "subscription_access"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-access-port-prechange/packages/core/src/services/consultation/bookingService.test.ts"
+    },
+    {
+      "path": "packages/feature-flags-server/package.json",
+      "status": "M",
+      "sha256_before": "8997fc767d1bcb1754768c4eedd27709b49198e2a9706d22506bbdf5c251da53",
+      "sha256_after": "a750b637068c625d5de7f2bb69dd6c668cf4f45032d4ee1c2b9f1f3c48478a43",
+      "groups": [
+        "feature_flags"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/packages/feature-flags-server/package.json"
+    },
+    {
+      "path": "packages/feature-flags-server/src/appFeatureFlagsService.ts",
+      "status": "M",
+      "sha256_before": "ae46d3a75fb78bf15674d6001ff45288b6db21f8d0f5970c79420b1e67b22de3",
+      "sha256_after": "e2e428e7da75b097f0e9e0f764816ad850160796e4cf1d12911c6fa51648262f",
+      "groups": [
+        "feature_flags"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/packages/feature-flags-server/src/appFeatureFlagsService.ts"
+    },
+    {
+      "path": "packages/types/src/contracts/mobileReleaseErrors.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "33902af423bd13d144ff7ce3aae50c1aa217ae2f1d2ca4578d6c22c481faa20f",
+      "groups": [
+        "feature_flags"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": null
+    },
+    {
+      "path": "packages/types/src/index.ts",
+      "status": "M",
+      "sha256_before": "bf98e16bdb6195efd38127a8cf42ec4f18997e6e0236cdccfeec4c4581d5c91c",
+      "sha256_after": "a78c60d0e3634d2d3c79ad99d824f95e853823c4131c5138c76a7803c964074d",
+      "groups": [
+        "feature_flags"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/packages/types/src/index.ts"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "status": "M",
+      "sha256_before": "75bbecbb00658fb56817c800fb55b9b323a9a8359f6cb1193e1e7125d4a94a7f",
+      "sha256_after": "f131a5960bfffbb2dd894d23ee1e0820884fce6188798ba989eab7743e48524e",
+      "groups": [
+        "shared_composition_or_guard"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/pnpm-lock.yaml"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "e905f3d41e5293bf9d92c25b07cfa1d8938ee3366865f93774382a0bbb9289ed",
+      "sha256_after": "c4a4f84c9f14d5d2263d070ebc485c944aad7789ee6fdcfb7dd26158e8380c9e",
+      "groups": [
+        "shared_composition_or_guard"
+      ],
+      "before_is_git_HEAD": false,
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/feature-flags-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "validation": [
+    {
+      "title": "Core and feature flag pure port policy",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2058,
+      "tests_skipped": 136,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-two-ports-core-final.log"
+    },
+    {
+      "title": "API routes, composition and app integration",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2741,
+      "tests_skipped": 266,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-two-ports-api-full-shared-errors.log"
+    },
+    {
+      "title": "Shared types",
+      "command": "pnpm --filter @gafus/types test",
+      "status": "PASS",
+      "tests_passed": 89,
+      "tests_skipped": 0,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-two-ports-types-tests.log"
+    },
+    {
+      "title": "Core subscription port, monetary and wallet rights",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/appSubscription/accessPort.test.ts src/services/appSubscription/g1-achievements-snapshot-access-source.test.ts src/services/rewardedCredits/accessService.test.ts src/services/rewardedCredits/walletService.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 35,
+      "tests_skipped": 0,
+      "evidence": "/tmp/a1-subscription-core-tests.log"
+    },
+    {
+      "title": "Core owner locks, read source, consultation mocks",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/consultation/bookingService.test.ts src/services/appSubscription/__tests__/accessService.facade.g1.test.ts src/services/appSubscription/__tests__/accessService.readBaseline.g1.test.ts src/services/appSubscription/__tests__/accessService.test.ts src/services/appSubscription/__tests__/cynologistEntitlements.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 51,
+      "tests_skipped": 0,
+      "evidence": "/tmp/a1-subscription-test-rewire.log"
+    },
+    {
+      "title": "API subscription route and strict architecture",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/app-subscription/composition/install-core-subscription-access.contract.test.ts src/routes/v1/g1-subscription-readonly.contract.test.ts src/routes/v1/app-subscription.route.test.ts src/routes/v1/training.route.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 186,
+      "tests_skipped": 0,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-subscription-api-target.log"
+    },
+    {
+      "title": "API feature flags, training and architecture",
+      "command": "pnpm --filter @gafus/api exec vitest run src/routes/v1/admin-feature-flags.test.ts src/routes/v1/app-subscription.route.test.ts src/routes/v1/training.route.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 194,
+      "tests_skipped": 0,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-flags-api-target-tests.log"
+    },
+    {
+      "title": "Core mobile flags, release profiles and shared errors",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/appFeatureFlags/appFeatureFlagsPort.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 6,
+      "tests_skipped": 0,
+      "evidence": "/tmp/a1-flags-parity-test.log"
+    },
+    {
+      "title": "Strict boundaries, regressions and port composition",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-two-ports-boundary-final.log"
+    },
+    {
+      "title": "API TypeScript typecheck",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-two-ports-api-types-final.log"
+    },
+    {
+      "title": "Core TypeScript typecheck",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ports-core-types-shared.log"
+    },
+    {
+      "title": "Feature-flags server TypeScript typecheck",
+      "command": "pnpm --filter @gafus/feature-flags-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-two-ports-flags-server-types-final.log"
+    },
+    {
+      "title": "Worker TypeScript typecheck",
+      "command": "pnpm --filter @gafus/worker typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ports-worker-ts.log"
+    },
+    {
+      "title": "Workspace DAG no cycles",
+      "command": "node scripts/check-workspace-graph.mjs",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ports-graph-shared.log"
+    },
+    {
+      "title": "Offline frozen lockfile",
+      "command": "pnpm install --frozen-lockfile --lockfile-only --offline --ignore-scripts",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-two-ports-frozen-lock-final.log"
+    },
+    {
+      "title": "Types production build",
+      "command": "pnpm --filter @gafus/types build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ports-types-build.log"
+    },
+    {
+      "title": "Feature-flag server production build",
+      "command": "pnpm --filter @gafus/feature-flags-server build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ports-flag-server-build.log"
+    },
+    {
+      "title": "Core production build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "evidence": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ports-core-build-shared.log"
+    }
+  ],
+  "unmet_gates": [
+    {
+      "id": "MULTI_AGENT_INTEGRATION",
+      "needs": "A2/A3 streams finalized and explicit release candidate. Shared files apps/api/src/app.ts, packages/core/package.json, pnpm-lock.yaml, packages/types/src/index.ts, scripts/check-core-server-boundary.mjs and prior A2 payment compatibility test require semantic conflict resolution against before/after SHA-256. No git add -A/reset/rebase/merge/push without coordination."
+    },
+    {
+      "id": "POSTGRES_SUBSCRIPTION_REAL_PG",
+      "needs": "Dedicated disposable current-schema PostgreSQL with sandbox rows for owner A/B, PARTNER role revocation, active/expired/trial/paid three-month overlaps, concurrent updates and provider failure. Run attached real-PG gates under explicit safe credentials; no production DB."
+    },
+    {
+      "id": "IOS_REVIEW_RELEASE",
+      "needs": "Approved staging iOS 1.7.3 review/released configuration and mobile client sandbox; verify exact iOS version profile, feature flags for promo/card/rewarded ads, OTA and rollback. No App Store production writes."
+    },
+    {
+      "id": "WORKER_BOOTSTRAP_GUARD",
+      "needs": "Worker currently has no direct feature-flag/subscription access reader call sites; if new Worker paths call these Core compatibility ports, add its own composition before starting jobs and test it. Current unbound state intentionally fails closed."
+    },
+    {
+      "id": "FULL_ARCH_FINAL",
+      "needs": "All remaining 37 Core→server edges removed through safe ports and full A1/A2/A3 integrated candidate, 33-stage architecture-final-regression, 5-stage chaos, full Worker/Web/Mobile/trainer/admin and PG/Redis gates. Ratchet baseline remains frozen at 41 until all required checks pass."
+    }
+  ],
+  "related_handoffs": [
+    "docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.json",
+    "docs/audit/gafus-agent-1-to-agent-2-reminder-review-ports-20261112.json"
+  ],
+  "integration_warning": "A1 intentionally did not commit, stage, merge, push or deploy. Compare current file hashes to sha256_after before applying."
+}

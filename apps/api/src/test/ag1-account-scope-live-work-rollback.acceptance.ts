@@ -2,7 +2,7 @@
 import {randomBytes,randomUUID} from "node:crypto";
 import {realpathSync} from "node:fs";
 import {prisma} from "@gafus/prisma";
-import {enqueueAccountStorageCleanup} from "../../../../packages/core/src/services/accountCleanup/enqueue";
+import {enqueueAccountStorageCleanup} from "../modules/account-cleanup/composition/enqueue.js";
 const ROOT="/Users/asmtv1/Desktop/gafus-refactor";
 const marker="ag1_scope_tx_"+randomBytes(5).toString("hex");
 function assert(x:unknown,name:string):asserts x{if(!x)throw Error("ACCOUNT_MIGRATION_SOURCE_"+name);}

@@ -1,0 +1,166 @@
+{
+  "schema": "gafus-a1-a2-handoff/v1",
+  "created_utc": "2026-11-12T06:15:54.681753+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "offline-video-v3-port",
+  "edges_before": 17,
+  "edges_after": 16,
+  "frozen_ratchet": {
+    "baseline": 41,
+    "resolved": 25,
+    "new": 0
+  },
+  "historical": {
+    "start": 142,
+    "removed": 126
+  },
+  "files": [
+    {
+      "path": "apps/api/src/modules/offline/composition/install-video-position-v3-review.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "d521a43c041127a12068073b6d9c0753a750936bdbebbf9ec494aa090f31be0d",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/offline/composition/install-video-position-v3-review.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "93570973283ad9b6b799468ac8727a629e20e05fff73f58812f1be493a30c9d2",
+      "backup_before": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "e8d7d4fdc797ae98a3f53622ba00b7f71b555501cc068cebd177d0f826dd2591",
+      "sha256_after_current": "048505b33e4e4ab13af4195c56d4fcd6abde144810758c62d23b116e4426fafd",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/offline-video-v3-readwrite-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "313bf69627a42518363c394dc4a1c9f52b06f92007c6aa98f866ce163808f965",
+      "sha256_after_current": "29c01ce931b79e1ff64f293c79397fddb5713a63aa1c55908aba003a5309f8eb",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/offline-video-v3-readwrite-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/offline/index.ts",
+      "status": "M",
+      "sha256_before": "33309af33f435122b519073363dde7e8cdb2c259ce5bcb829e47b09ad9fda711",
+      "sha256_after_current": "45b0f2c05d588ca4fbaed9f361d3c7aaeddae7a8f64f7dcc91e26a2d1c52f363",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/offline-video-v3-readwrite-port-prechange/packages/core/src/services/offline/index.ts"
+    },
+    {
+      "path": "packages/core/src/services/offline/offlineVideoPositionV3Service.ts",
+      "status": "M",
+      "sha256_before": "952e2d09c738b8b63e262d81eb4afb175fd0e895ee267b2a688356fa8d83e289",
+      "sha256_after_current": "2f361c0da7023973af06aec1b97730f180a7606096f337563bad424e75b17ec7",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/offline-video-v3-readwrite-port-prechange/packages/core/src/services/offline/offlineVideoPositionV3Service.ts"
+    },
+    {
+      "path": "packages/core/src/services/offline/offlineVideoSqlPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "d51bc5e1aee954af515221583b5b596590f44ffddb9b85130175c5151aa425ad",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/offline/offlineVideoSqlPort.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "d6d964969d29d53d8b4930fce400f06e2231af90fe1964668aaa1d1b6b502621",
+      "backup_before": null
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "38900d5710ff5d2206e7db807d8074ed0ae79780ab80a2b51521562e5be74b3b",
+      "sha256_after_current": "60692f05147722b67a9332d7a8cf96979353b1773dba69afa97cc57ea2b41f63",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/offline-video-v3-readwrite-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Core six source-only SQL port + two exact occurrence ACL tests",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/offline/offlineVideoSqlPort.test.ts src/services/offline/videoPositionOccurrenceV3.accessParity.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 8,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-offline-video-v3-core-target-final.log"
+    },
+    {
+      "name": "API composer unmounted and existing v2 route tests",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/offline/composition/install-video-position-v3-review.contract.test.ts src/routes/v1/offline.route.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 6,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-offline-video-v3-api-target-final.log"
+    },
+    {
+      "name": "Core TypeScript",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-offline-video-v3-core-types-final.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-offline-video-v3-core-build-final.log"
+    },
+    {
+      "name": "API TypeScript",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-offline-video-v3-api-types-final.log"
+    },
+    {
+      "name": "Course-progress SQL adapter types",
+      "command": "pnpm --filter @gafus/course-progress-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-offline-video-v3-server-types-final.log"
+    },
+    {
+      "name": "Workspace DAG",
+      "command": "node scripts/check-workspace-graph.mjs",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-offline-video-v3-workspace-graph.log"
+    },
+    {
+      "name": "Architecture boundaries and no live v3 route",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-offline-video-v3-boundaries.log"
+    }
+  ],
+  "sha_basis": "Fresh prechange snapshot of shared uncommitted working tree, final SHA256 computed and verified now; NEVER reuse older A2 shared-file hashes.",
+  "prechange_backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/offline-video-v3-readwrite-port-prechange",
+  "public_contract_invariants": [
+    "Семь SQL-команд (owner-scoped unique receipt claim, replay, FOR UPDATE revision, CAS, ACK commit) переходят из Core в порт; серверные транзакции не разбиваются. Source service remains OFF021 v3 review only.",
+    "Core сохраняет authorizeVideoOccurrenceV3(tx, ownerId, parsed, now) ДО поиска даже уже сохранённого ACK; отзыв доступа не открывает платное видео. Проверяются exact course/day/step/video occurrence и payloadHash.",
+    "Та же проверка revision: новая версия только expectedRevision+1, время recordedAt не откатывается; конфликт receipt/старая ревизия дают прежний 409, нет DB reader — 503, отказ доступа 403.",
+    "Композиция v3 SQL объявлена в apps/api/src/modules/offline/composition, но НЕ импортируется ни app.ts, ни действующим v2 offline.ts. Новый маршрут, миграция и dual-write НЕ активированы."
+  ],
+  "external_gates": [
+    "Disposable PostgreSQL with new OFF021 additive schema: concurrent events same owner/resource, unique claim owner/event, FOR UPDATE CAS, rollback on failure, grant revocation during replay.",
+    "Design and test intentional dual-write compatibility with legacy UserVideoProgress, plus full UI/HTTP authenticated Web/Mobile acceptance before any v3 route activation.",
+    "Remove remaining 16 reverse Core→server edges; after all A1/A2/A3 streams conduct shared 33-stage full regression and 5-stage chaos. Do not modify frozen baseline or deploy."
+  ],
+  "no_commit_merge_push_deploy": true,
+  "frozen_baseline_json_modified": false,
+  "handoff": "A2 must compare all final SHA256 after before integrating. Shared app.ts, guards and audit files require semantic merging; never overwrite concurrent streams. Port, API installer and tests are an atomic patch."
+}

@@ -1,0 +1,392 @@
+{
+  "schema": "gafus/a3-cross-worktree-premerge/v1",
+  "capturedAt": "2026-11-12T04:02:18+04:00",
+  "roots": {
+    "main": "/Users/asmtv1/Desktop/gafus-refactor",
+    "agent2": "/Users/asmtv1/Desktop/gafus-agent2-observability"
+  },
+  "refs": {
+    "mainHead": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+    "agent2Head": "bd93aef2234e228191c1e112655d0c5c1b2a711e",
+    "commonAncestor": "0dcd18c13c8d567d543d1981b18d3caa52b16503"
+  },
+  "dirty": {
+    "mainPathCount": 1773,
+    "agent2PathCount": 41,
+    "mainStagedCount": 0,
+    "agent2StagedCount": 0
+  },
+  "a3Manifest": {
+    "fileCount": 39,
+    "a3PathOverlapWithAgent2Touched": []
+  },
+  "crossWorktreeConflicts": [
+    {
+      "path": "apps/api/src/app.ts",
+      "mainGitStatus": " M",
+      "agent2GitStatus": " M",
+      "agent2CommittedDiff": false,
+      "sha256Main": "5a43f689d75bdcef9911e7be9a47621db415f277fab2cab5ee98af45be613de7",
+      "sha256Agent2": "5a43f689d75bdcef9911e7be9a47621db415f277fab2cab5ee98af45be613de7",
+      "identicalBytes": true,
+      "sourceOfTruth": "A1 API composition; A2 observability only",
+      "manualConflictRisk": "LOW",
+      "dependentTests": "API route tests; A2 multi-instance local test",
+      "decision": "Both dirty and SHA-identical today. Do not replay A2 full app patch; A1 reviews route/telemetry wiring."
+    },
+    {
+      "path": "apps/api/src/lib/operation-observability.test.ts",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "6b8f39601c60af1485d5533ffd07bc2bc4f560751be2013b63cbcfae92570d7a",
+      "sha256Agent2": "6b8f39601c60af1485d5533ffd07bc2bc4f560751be2013b63cbcfae92570d7a",
+      "identicalBytes": true,
+      "sourceOfTruth": "A2 observability",
+      "manualConflictRisk": "LOW",
+      "dependentTests": "apps/api/src/lib/operation-observability.test.ts",
+      "decision": "Byte-identical test; stage only once under A2 ownership."
+    },
+    {
+      "path": "apps/api/src/lib/operation-observability.ts",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "37b9ca546103b8a22799cfc728799599393bd1466dc6dba1595f98134c4c6e7b",
+      "sha256Agent2": "2e49911720b7ed53d6c79847d79842ee6cbf66355d0d60ec27cea89b9e4276d2",
+      "identicalBytes": false,
+      "sourceOfTruth": "A2 observability",
+      "manualConflictRisk": "HIGH",
+      "dependentTests": "apps/api/src/lib/operation-observability.test.ts; A2 OTLP synthetic trace",
+      "decision": "Different revisions; A2 owns semantic PII-safe fields, reconcile source changes rather than overwrite latest main."
+    },
+    {
+      "path": "ci-cd/docker/docker-compose.prod.yml",
+      "mainGitStatus": " M",
+      "agent2GitStatus": " M",
+      "agent2CommittedDiff": false,
+      "sha256Main": "8be486bec840867ca00f5078fb0111fc8b5e54ac4b00d792cc92bb66ef75fc14",
+      "sha256Agent2": "8be486bec840867ca00f5078fb0111fc8b5e54ac4b00d792cc92bb66ef75fc14",
+      "identicalBytes": true,
+      "sourceOfTruth": "A1 release approval + A2 observability services",
+      "manualConflictRisk": "MEDIUM",
+      "dependentTests": "docker compose config on integration; A2 staging preflight",
+      "decision": "Both dirty, same bytes now; do not redeploy or replay compose changes."
+    },
+    {
+      "path": "ci-cd/docker/grafana/dashboards/gafus-api-latency.json",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "67d9dedcf5a487a5b476ba9b3ab73293d131d163b00cc3955c86c26984e134e4",
+      "sha256Agent2": "18ce7306df898a0661be23fbad1746414549a6050a78c83bb59110b3e68641b2",
+      "identicalBytes": false,
+      "sourceOfTruth": "A2 observability dashboards",
+      "manualConflictRisk": "MEDIUM",
+      "dependentTests": "A2 Grafana dashboard/OTLP receipt",
+      "decision": "Different JSON; preserve latest validated panel expressions/labels."
+    },
+    {
+      "path": "ci-cd/docker/grafana/dashboards/gafus-media-chat.json",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "9e95a599699be69c854ff6b7d9a0c353516e5b1a2d85325d4140ac08e36684f6",
+      "sha256Agent2": "9e95a599699be69c854ff6b7d9a0c353516e5b1a2d85325d4140ac08e36684f6",
+      "identicalBytes": true,
+      "sourceOfTruth": "A2 observability dashboards",
+      "manualConflictRisk": "LOW",
+      "dependentTests": "A2 Grafana media dashboard receipt",
+      "decision": "Identical JSON; import once, no patch conflict."
+    },
+    {
+      "path": "ci-cd/docker/grafana/dashboards/gafus-operations-reliability.json",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "38f4f0b24d553c82b8353c76ce8984b5c1469555c613796f3700b22aa76e4759",
+      "sha256Agent2": "38f4f0b24d553c82b8353c76ce8984b5c1469555c613796f3700b22aa76e4759",
+      "identicalBytes": true,
+      "sourceOfTruth": "A2 observability dashboards",
+      "manualConflictRisk": "LOW",
+      "dependentTests": "A2 Grafana operations receipt",
+      "decision": "Identical JSON; import once, no patch conflict."
+    },
+    {
+      "path": "ci-cd/docker/prometheus/config.alloy",
+      "mainGitStatus": " M",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "b3d563aad61b3508a4aaf62ce3016d1ddf9095c969174f29c6cc02b064c05b05",
+      "sha256Agent2": "0835c811e73524aa9db2c361276fb752f3f461470de81ce410a13c3019ee5163",
+      "identicalBytes": false,
+      "sourceOfTruth": "A2 telemetry pipeline",
+      "manualConflictRisk": "HIGH",
+      "dependentTests": "A2 OTLP collector test; staging preflight",
+      "decision": "Different Alloy config; avoid losing filtering and exporter routes."
+    },
+    {
+      "path": "ci-cd/docker/prometheus/gafus-alerts.promtool.test.yml",
+      "mainGitStatus": " M",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "6e4e8b4dd61d416ee53c95aabdd5ea6bdcd318606f5b87e8d69e43d192301479",
+      "sha256Agent2": "6e4e8b4dd61d416ee53c95aabdd5ea6bdcd318606f5b87e8d69e43d192301479",
+      "identicalBytes": true,
+      "sourceOfTruth": "A2 alerting",
+      "manualConflictRisk": "LOW",
+      "dependentTests": "promtool test rules; A2 alert firing/resolved",
+      "decision": "Same file bytes; use one A2 copy."
+    },
+    {
+      "path": "ci-cd/docker/prometheus/gafus-alerts.yml",
+      "mainGitStatus": " M",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "290f6cbbc00861a8d6e8a5c60bef40b35b0df0fa951daeb78fe18e0924ed8f5e",
+      "sha256Agent2": "31405f04f97be3f1dd4663ec23d339907b9c4f243e6936ecf74992b7b6743cea",
+      "identicalBytes": false,
+      "sourceOfTruth": "A2 alerting",
+      "manualConflictRisk": "MEDIUM",
+      "dependentTests": "promtool test rules; A2 alert firing/resolved",
+      "decision": "Different alert expressions; compare 360p/DLQ thresholds and labels, no blind replacement."
+    },
+    {
+      "path": "ci-cd/docker/prometheus/health-monitoring.contract.test.mjs",
+      "mainGitStatus": " M",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "d7abb0e48116bc5f4742e7e0b15aab29ec9f66fa51b0fdd4fd51dd9ddb4a0ee8",
+      "sha256Agent2": "381148f8207ee65c3a7a7569c31b677696c43bb86ebce4267fdd936673e6d893",
+      "identicalBytes": false,
+      "sourceOfTruth": "A2 monitoring contracts",
+      "manualConflictRisk": "MEDIUM",
+      "dependentTests": "node --test ci-cd/docker/prometheus/health-monitoring.contract.test.mjs",
+      "decision": "Different acceptance contracts; keep matching rules and test assertions."
+    },
+    {
+      "path": "docs/audit/gafus-agent-2-observability-20261111.md",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "d3bd3da637aa8d0744467cd0c4351a6f94135f58ff18a84544be564d8c6d128b",
+      "sha256Agent2": "d2b58b530c9c45efdeea84c89c7f355f3705d80703363d3117d1547450f76e8c",
+      "identicalBytes": false,
+      "sourceOfTruth": "A2 audit history",
+      "manualConflictRisk": "LOW",
+      "dependentTests": "A2 local receipt JSON and replay logs",
+      "decision": "Separate provenance; never replace more recent receipts with stale notes."
+    },
+    {
+      "path": "packages/logger/package.json",
+      "mainGitStatus": " M",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "37b8cb9fb3e7fd73d1d5cb2c6d68210342d0cfd779c92860134ac887de491180",
+      "sha256Agent2": "37b8cb9fb3e7fd73d1d5cb2c6d68210342d0cfd779c92860134ac887de491180",
+      "identicalBytes": true,
+      "sourceOfTruth": "A2 telemetry deps",
+      "manualConflictRisk": "LOW",
+      "dependentTests": "API Worker typecheck; pnpm frozen lockfile",
+      "decision": "Same dependency declarations; avoid duplicate edits."
+    },
+    {
+      "path": "packages/logger/src/serverTelemetry.ts",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "99c57f750945bef986b1567343254ff09222795a15b9073553cc8cf7337bd2bd",
+      "sha256Agent2": "645b7d59b6d7edf93fd40a188c47cffc6f18dbd6381d8dd7604ce9f035890142",
+      "identicalBytes": false,
+      "sourceOfTruth": "A2 telemetry APIs and sanitization",
+      "manualConflictRisk": "HIGH",
+      "dependentTests": "API operation-observability.test.ts; Worker tracing.test.ts; A2 OTLP local",
+      "decision": "Different implementations; preserve PII-safe spans and stable correlated IDs, A2 decides final implementation."
+    },
+    {
+      "path": "packages/prisma/schema.prisma",
+      "mainGitStatus": " M",
+      "agent2GitStatus": " M",
+      "agent2CommittedDiff": true,
+      "sha256Main": "309d51a18f02ceea136cf35c913677e35fa04df3fef01e9f5212d35263871e62",
+      "sha256Agent2": "409d03078b161b9bdd8f5b073dbc24d76de4d8eb294706e6834477db86faa9df",
+      "identicalBytes": false,
+      "sourceOfTruth": "A3 schema/migrations + A2 generator metrics; A1 shared models",
+      "manualConflictRisk": "HIGH",
+      "dependentTests": "prisma validate/generate; chat2-outbox-isolated-pg.sh; A2 metrics QA",
+      "decision": "Same Chat2 DLQ fields; A2 adds generator previewFeatures metrics absent in main. Merge exact generator option after A3/A1 schema signoff, never replace full schema."
+    },
+    {
+      "path": "packages/worker/src/chat2-outbox-metrics.ts",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "??",
+      "agent2CommittedDiff": false,
+      "sha256Main": "f406fe40b55229a0d02d0d562588d400b4d44ab7a27cca7317f76f72c966717f",
+      "sha256Agent2": "f406fe40b55229a0d02d0d562588d400b4d44ab7a27cca7317f76f72c966717f",
+      "identicalBytes": true,
+      "sourceOfTruth": "A2 metrics contract; A3 worker consumer",
+      "manualConflictRisk": "MEDIUM",
+      "dependentTests": "src/chat2-outbox-metrics.test.ts; A2 Prometheus sampling",
+      "decision": "Same SHA, both untracked; import exactly once to avoid duplicate-add conflict."
+    },
+    {
+      "path": "packages/worker/src/chat2-outbox-tracing.ts",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "??",
+      "agent2CommittedDiff": false,
+      "sha256Main": "f07fb6a63230a2bb129cc2392e258242a3ed88a2c67fd50e14c22ba124862202",
+      "sha256Agent2": "f07fb6a63230a2bb129cc2392e258242a3ed88a2c67fd50e14c22ba124862202",
+      "identicalBytes": true,
+      "sourceOfTruth": "A2 trace contract; A3 worker consumer",
+      "manualConflictRisk": "MEDIUM",
+      "dependentTests": "src/chat2-outbox-tracing.test.ts; A2 OTLP trace receipt",
+      "decision": "Same SHA, both untracked; import once, verify operationId across retries."
+    },
+    {
+      "path": "packages/worker/src/chat2-outbox-worker.ts",
+      "mainGitStatus": " M",
+      "agent2GitStatus": " M",
+      "agent2CommittedDiff": false,
+      "sha256Main": "aafc7ad36516921e054b1056baf477f229cb02b00d9dd14f3730353addea7638",
+      "sha256Agent2": "aafc7ad36516921e054b1056baf477f229cb02b00d9dd14f3730353addea7638",
+      "identicalBytes": true,
+      "sourceOfTruth": "A3 Worker/outbox semantics; A2 tracing/metrics integration",
+      "manualConflictRisk": "HIGH",
+      "dependentTests": "src/chat2-outbox-reliability.test.ts; chat2-outbox-multiprocess-acceptance.sh; A2 multi-instance",
+      "decision": "Both dirty, identical bytes now; preserve A3 CAS/lease/idempotency and A2 bounded labels/traces, do not replay two separate worker patches."
+    },
+    {
+      "path": "packages/worker/src/reliable-job-policy.ts",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "??",
+      "agent2CommittedDiff": false,
+      "sha256Main": "47c527b46eda10761972fe75812bf98eb116246868010aa25ee1b74eccfbb947",
+      "sha256Agent2": "47c527b46eda10761972fe75812bf98eb116246868010aa25ee1b74eccfbb947",
+      "identicalBytes": true,
+      "sourceOfTruth": "A3 retry semantics signoff; A2 originally added support",
+      "manualConflictRisk": "MEDIUM",
+      "dependentTests": "src/reliable-job-policy.test.ts; chat2-outbox-multiprocess-acceptance.sh",
+      "decision": "Same SHA and both untracked; review terminal/retry classifications once under A3 owner."
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "mainGitStatus": " M",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "75bbecbb00658fb56817c800fb55b9b323a9a8359f6cb1193e1e7125d4a94a7f",
+      "sha256Agent2": "8bd2ad9028d5361daefa25846e2ac402287270d7fa161c8396a77c170f30ef0c",
+      "identicalBytes": false,
+      "sourceOfTruth": "A1 common dependency lock; A2 dependency additions",
+      "manualConflictRisk": "HIGH",
+      "dependentTests": "pnpm install --frozen-lockfile on integration; API Worker typecheck",
+      "decision": "Different lockfile revisions; regenerate once in integration via A1, never replace with A2 lockfile."
+    },
+    {
+      "path": "scripts/qa/otel-local-collector.test.mjs",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "885294aae682d80d9021bd771eab5a8de3d3b0c0bf5bb5da6e1df27831e603df",
+      "sha256Agent2": "fd0bddefc2107e6060a5f32382be55049212f989ea0ff4965b827e6469b6db25",
+      "identicalBytes": false,
+      "sourceOfTruth": "A2 OTLP local QA",
+      "manualConflictRisk": "MEDIUM",
+      "dependentTests": "node --test scripts/qa/otel-local-collector.test.mjs",
+      "decision": "Different test revisions, choose A2 validated local acceptance with safe synthetic data."
+    },
+    {
+      "path": "scripts/qa/prometheus-alertmanager-isolated.sh",
+      "mainGitStatus": "??",
+      "agent2GitStatus": "committed-or-unchanged",
+      "agent2CommittedDiff": true,
+      "sha256Main": "5afa0bdfbe7995a9bb7eb99b7a6a74468bf972a51c446b72da3ae71fbf229695",
+      "sha256Agent2": "eb461e13e25f1025bb90f3f916f632f583d370258d4431fbd609c133e8905a81",
+      "identicalBytes": false,
+      "sourceOfTruth": "A2 alerting QA",
+      "manualConflictRisk": "MEDIUM",
+      "dependentTests": "A2 local alert manager firing/resolved test",
+      "decision": "Different shell QA; preserve bounded localhost and cleanup without prod alerts."
+    }
+  ],
+  "a3SharedMainTouchpoints": [
+    {
+      "path": "apps/api/src/routes/v1/admin-media.ts",
+      "sourceOfTruth": "A3 DLQ GET/POST endpoints; A1 keeps stats/service changes",
+      "dependentTests": "A3 admin DLQ real-PG and API contract; core boundary",
+      "manualConflictRisk": "HIGH",
+      "decision": "Only apply A3 DLQ route hunks, preserve A1 statistics import; A2 did not modify path",
+      "mainGitStatus": " M",
+      "agent2Touches": false,
+      "sha256Main": "bd9489597a6c4de2e0d445d0e7b8ce7c05e4f5e548f84af8bca767bb1ffa7312",
+      "sha256Agent2": "90173777531d5e0df77fce47c13472316fdd7110467f6346f6ba531c120fc83b"
+    },
+    {
+      "path": "apps/admin-panel/src/admin-live/App.tsx",
+      "sourceOfTruth": "A1 page composition, A3 conditional ADMIN ChatOutboxPanel mount",
+      "dependentTests": "A3 ChatOutboxPanel.mounted.test.tsx; Admin full suite",
+      "manualConflictRisk": "HIGH",
+      "decision": "Apply only import/mount, preserve A1 navigation and role guard; no A2 edit",
+      "mainGitStatus": " M",
+      "agent2Touches": false,
+      "sha256Main": "7bf7db9c12761c7b67994028de83d27991a8ddf1b0dc677ef97956414fdd741d",
+      "sha256Agent2": "aec8b5a023454370243b01b3becefc6658568279454f10992fa38e2e0059dfd2"
+    },
+    {
+      "path": "packages/worker/tsconfig.json",
+      "sourceOfTruth": "A3 only consultation-server/booking-application TS paths; A1 owns remaining paths",
+      "dependentTests": "pnpm --filter @gafus/worker typecheck",
+      "manualConflictRisk": "HIGH",
+      "decision": "Do not replace 323-line parallel TS paths diff with A3 one-line patch",
+      "mainGitStatus": " M",
+      "agent2Touches": false,
+      "sha256Main": "c4093dc102bf73013a642c5a51b1ad596ec03d5c1cbe43b4a283dd6c7d5d8b20",
+      "sha256Agent2": "941a4d2e0466dd6c0249ac07378375dcd101d408c57d8f2da7bdbc550a383668"
+    },
+    {
+      "path": "scripts/qa/account-cleanup-snapshot-isolated-pg.smoke.ts",
+      "sourceOfTruth": "A1 account cleanup QA, A3 only composition import fix",
+      "dependentTests": "bash scripts/qa/account-cleanup-snapshot-isolated-pg.sh",
+      "manualConflictRisk": "MEDIUM",
+      "decision": "Keep A1 fixture; ensure A3 import points at API composition",
+      "mainGitStatus": "??",
+      "agent2Touches": false,
+      "sha256Main": "3c7aaf5ef42642039765ff15d48473492015ac9f5b363209748c8cb71852b397",
+      "sha256Agent2": null
+    }
+  ],
+  "agent2OnlySemanticInputs": [
+    {
+      "path": "packages/prisma/src/client.ts",
+      "sourceOfTruth": "A2 telemetry instrumentation",
+      "dependentTests": "A2 isolated Prisma query metrics; pnpm --filter @gafus/prisma typecheck",
+      "manualConflictRisk": "MEDIUM",
+      "decision": "A2 committed source differs from main committed baseline; adopt only after verifying Prisma client metrics mode",
+      "sha256Main": "bd4ea849e9babc80ca0465ec401b944cc8b4754a153dd06159c69eac4962347a",
+      "sha256Agent2": "2a5a6cec66ae180920c8ed28fcebf7ea6f3653686978f955dc1bfb5d4b85d096"
+    },
+    {
+      "path": "packages/worker/src/a2-observability-private-worker.ts",
+      "sourceOfTruth": "A2 private synthetic runner",
+      "dependentTests": "A2 observability-multi-instance localhost-only QA",
+      "manualConflictRisk": "LOW",
+      "decision": "A2-only test module absent from main; add for shared local tests, never wire into production Worker by default",
+      "sha256Main": null,
+      "sha256Agent2": "8f569a4855ce87d60ae85710068ca21a921af2f4caf61a3faaaaabd0b66cde01"
+    }
+  ],
+  "replay": {
+    "command": "bash scripts/qa/a3-merged-worker-dlq-acceptance.sh a3-merged-<unique-id>",
+    "validatedRun": "a3-merged-preflight-nov12-r2",
+    "gatesPassed": 10,
+    "gatesTotal": 10,
+    "receipt": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a3-merged-preflight-nov12-r2/results.tsv",
+    "sha256Runner": "36824980077e77b71fc452d40311e2681418ae9e15fbcc045cb44025a60904a6",
+    "noExternalProviders": true
+  },
+  "warnings": [
+    "Do not git merge/cherry-pick/commit/push until owner approval",
+    "Byte-identical changed paths are already reconciled in both workspaces; do not stage duplicate copies",
+    "All 22 overlap paths are broader main-vs-agent2 intersections, not 22 A3-authored files",
+    "A3 shared integration files require selective hunks; do not overwrite Agent1 app/tsconfig/QA"
+  ]
+}

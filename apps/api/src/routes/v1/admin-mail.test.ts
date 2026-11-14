@@ -5,8 +5,8 @@ const fake = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: fake.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: fake.reg }));
-vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: fake.role }));
-vi.mock("@gafus/core/services/systemHealth", () => ({
+vi.mock("../../modules/admin-users/composition/service.js", () => ({ readAdminActorRole: fake.role }));
+vi.mock("@gafus/statistics/mail-monitoring", () => ({
   getAdminMailDashboard: fake.dashboard,
   getAdminMailAlertCount: fake.alerts,
 }));

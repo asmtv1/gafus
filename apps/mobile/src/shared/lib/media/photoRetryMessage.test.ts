@@ -17,6 +17,12 @@ describe("safe phone photo recovery advice", () => {
     expect(photoFailureCode(error)).toBe("ENCODE");
     expect(photoRetryMessage(error)).toContain("Повторите стрелкой");
   });
+  it("does not mislabel a Feed server confirmation error as Android memory failure", () => {
+    expect(photoRetryMessage("PHOTO_CONFIRM_FAILED")).toContain("Сервер не подтвердил");
+    expect(photoRetryMessage(new Error("PHOTO_CONFIRM_FAILED"))).toContain("Сервер не подтвердил");
+    expect(photoRetryMessage("PHOTO_WEBP_FAILED")).toContain("WebP");
+    expect(photoRetryMessage("PHOTO_RESERVE_FAILED")).toContain("сервере");
+  });
   it("categorizes Android memory failures without leaking diagnostics", () => {
     expect(photoFailureCode(new Error("android.graphics.OutOfMemoryError Bitmap allocation"))).toBe("MEMORY");
     expect(photoRetryMessage(new Error("android.graphics.OutOfMemoryError"))).toContain("памяти");

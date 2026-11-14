@@ -2,6 +2,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   deleteDays, getTrainingDayForEdit, updateTrainingDay,
 } from "./trainingDayService";
+// Bind original atomic SQL rows against this test's mocked Prisma client.
+import { registerTrainingDayRowsPort } from "./trainingDayRowsPort";
+import {
+  readTrainingDayForEdit, insertTrainingDay, replaceTrainingDay,
+  deleteTrainingDayRows, listVisibleTrainingDays,
+} from "@gafus/course-progress-server/training-day-rows";
+registerTrainingDayRowsPort({
+  readTrainingDayForEdit, insertTrainingDay, replaceTrainingDay,
+  deleteTrainingDayRows, listVisibleTrainingDays,
+});
+
 
 const m = vi.hoisted(() => ({
   findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), deleteMany: vi.fn(),

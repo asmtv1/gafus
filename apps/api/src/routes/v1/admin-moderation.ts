@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { getAdminFeedReports, moderateAdminFeedReport } from "@gafus/core/services/feed";
+import { getAdminFeedReports, moderateAdminFeedReport } from "@gafus/feed-server";
 import {
   getQuestionModeration, moderateQuestionReport, unblockQuestionsUser,
-} from "@gafus/core/services/questions";
+} from "@gafus/questions-server";
 import { requireRole } from "../../middleware/auth.js";
 
 /** Real feed/question moderation, driven by the existing Core state transitions. */

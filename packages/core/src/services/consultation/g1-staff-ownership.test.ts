@@ -9,7 +9,9 @@ vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }),
 }));
 
-import { resolveTargetTrainerUserIdForStaff } from "./cynologistService";
+import * as catalogRows from "@gafus/consultation-query-server/cynologist-catalog-rows";
+import { createCynologistService } from "./cynologistService";
+const { resolveTargetTrainerUserIdForStaff } = createCynologistService(catalogRows);
 import { ConsultationForbiddenError } from "./errors";
 
 const trainer = { id: "trainer-A", role: "TRAINER" } as const;

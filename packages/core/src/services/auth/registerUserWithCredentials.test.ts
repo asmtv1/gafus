@@ -15,8 +15,8 @@ vi.mock("@gafus/prisma", () => ({
   prisma: { $transaction: (...args: unknown[]) => mocks.transaction(...args) },
 }));
 vi.mock("@gafus/logger", () => ({ createWebLogger: () => ({ success: vi.fn(), warn: vi.fn(), error: vi.fn() }) }));
-vi.mock("../appSubscription/partnerService", () => ({ attributePartnerReferralIfCurrentPartnerInTransaction: (...args: unknown[]) => mocks.attributeReferral(...args) }));
-vi.mock("../consent", () => ({ createCompletedConsentLogsInTransaction: (...args: unknown[]) => mocks.createConsents(...args) }));
+vi.mock("@gafus/subscription-payment-server/partner", () => ({ attributePartnerReferralIfCurrentPartnerInTransaction: (...args: unknown[]) => mocks.attributeReferral(...args) }));
+vi.mock("@gafus/consent-server/consentService", () => ({ createCompletedConsentLogsInTransaction: (...args: unknown[]) => mocks.createConsents(...args) }));
 vi.mock("./registrationContracts", () => ({
   RegistrationContractError: class RegistrationContractError extends Error { code: string; constructor(code: string) { super(code); this.code = code; } },
   fingerprintRegistrationAttempt: vi.fn(() => "fingerprint"),
@@ -27,6 +27,26 @@ vi.mock("./registrationContracts", () => ({
 import { canRegisterEmailDomain } from "./registerEmailDomainDns";
 
 import { registerUserWithCredentials } from "./registerUserWithCredentials";
+import { registerCredentialRegistrationPort } from "./registerUserWithCredentials";
+import {
+  withRegistrationTransaction,
+  readCredentialRegistrationReplayUserTx,
+  insertCredentialRegistrationUserTx,
+  markCredentialRegistrationAttemptSucceededTx,
+  registrationUniqueErrorTargets,
+  createCompletedConsentLogsInTransaction,
+  attributePartnerReferralIfCurrentPartnerInTransaction,
+} from "@gafus/identity-write-server/registration-contract-rows";
+registerCredentialRegistrationPort({
+  withRegistrationTransaction,
+  readCredentialRegistrationReplayUserTx,
+  insertCredentialRegistrationUserTx,
+  markCredentialRegistrationAttemptSucceededTx,
+  registrationUniqueErrorTargets,
+  createCompletedConsentLogsInTransaction,
+  attributePartnerReferralIfCurrentPartnerInTransaction,
+});
+
 
 const context = {
   tempSessionId: "9d7ca270-0e15-4e37-a0f9-9c62529c63d2",

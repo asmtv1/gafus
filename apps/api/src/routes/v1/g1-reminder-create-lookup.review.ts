@@ -3,9 +3,10 @@ import { Hono } from "hono";
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 import {
-  lookupOwnReminderCreateReceipt,
   ReminderIdempotencyInvalidError,
 } from "../../../../../packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.js";
+import { lookupOwnReminderCreateReceipt } from
+  "../../modules/reminders/composition/create-receipt-review.js";
 
 export const reminderCreateLookupReviewRoutes = new Hono();
 

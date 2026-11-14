@@ -8,9 +8,9 @@ import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 
 import {
-  requirePremiumOrRewardedAccessForUserStep,
   SubscriptionOrCreditsRequiredError,
 } from "@gafus/core/services/rewardedCredits";
+import { requirePremiumOrRewardedAccessForUserStep } from "../../modules/rewarded-credits/composition/gafus-access.js";
 import { readSurveysApplication } from "../../modules/surveys/composition/read-surveys.js";
 import { writeSurveyResponseApplication } from "../../modules/surveys/composition/write-response.js";
 import { createWebLogger } from "@gafus/logger";

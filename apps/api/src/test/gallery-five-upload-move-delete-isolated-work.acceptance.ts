@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 /** Original registered Hono -> WORK PG -> local MinIO -> existing Sharp gallery-cloud worker -> original Hono READY. */
 import { realpathSync } from "node:fs";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -6,7 +7,7 @@ import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, S3Client } fr
 import { prisma } from "@gafus/prisma";
 import { galleryStorageConfigFromEnv, createGalleryStorageFromEnv } from "@gafus/gallery-storage";
 import { createGalleryS3Client, createGalleryObjectStore } from "@gafus/gallery-storage/objects";
-import { createCurrentGalleryService } from "@gafus/core/services/gallery";
+import { createCurrentGalleryService } from "@gafus/gallery-server/runtime-service";
 import { createGalleryService } from "../../../../packages/core/src/services/gallery/service";
 
 const root="/Users/asmtv1/Desktop/gafus-refactor";
@@ -172,7 +173,7 @@ async function main(){
  // Exact-move selector is new Refactor SOURCE logic. The stock Hono/Cloud
  // dist remains unchanged while other agents are building; use the identical
  // source Core worker only for this precisely owner-scoped move claim.
- const moveSourceService=createGalleryService({db:prisma,storage:createGalleryStorageFromEnv()});
+ const moveSourceService=createGalleryService({ enqueueDeletedMediaPurge, db:prisma,storage:createGalleryStorageFromEnv()});
  const moveClaims=await moveSourceService.claimStorageJobs({limit:1,
   exactMove:{jobId:moveId,ownerId:owner.id}});
  assert(moveClaims.length===1&&moveClaims[0]?.jobId===moveId&&moveClaims[0].kind==="move","EXACT_OWN_MOVE_CLAIM");

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateAchievements,
   type AchievementStats,
-} from "./calculateAchievements";
+} from "@gafus/achievements-server/calculateAchievements";
 
 const baseStats: AchievementStats = {
   totalCourses: 0,
@@ -20,9 +20,7 @@ const baseStats: AchievementStats = {
 
 describe("calculateAchievements", () => {
   it("returns empty array for null/undefined", () => {
-    expect(calculateAchievements(null as unknown as AchievementStats)).toEqual(
-      [],
-    );
+    expect(calculateAchievements(null as unknown as AchievementStats)).toEqual([]);
   });
 
   it("returns all achievements for zero stats, all unlocked false", () => {

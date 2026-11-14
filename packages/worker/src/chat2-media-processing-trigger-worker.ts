@@ -1,8 +1,9 @@
-import {Worker,type Job} from "bullmq";
+import {Worker,UnrecoverableError,type Job} from "bullmq";
 import {connection,CHAT2_MEDIA_PROCESSING_QUEUE_NAME,
   type Chat2MediaProcessingJobData} from "@gafus/queues";
 import {createWorkerLogger} from "@gafus/logger";
 import {createCloudruChatPoolDispatcher} from "./cloudru-media-dispatcher.js";
+import { safeCloudruWakeFailure } from "./cloudru-trigger-error-policy.js";
 
 const logger=createWorkerLogger("chat2-media-processing-trigger");
 /** Only activate after BOTH chat pools, isolated Core and storage are verified.
@@ -20,9 +21,11 @@ export function startChat2MediaProcessingTriggerWorker():void{
     CHAT2_MEDIA_PROCESSING_QUEUE_NAME,
     async(job:Job<Chat2MediaProcessingJobData>)=>{
       if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(job.data.mediaId))
-        throw Error("CHAT2_INVALID_WAKE_ID");
-      if(job.data.kind!=="video")throw Error("CHAT2_RETIRED_PHOTO_WAKE");
-      const result=await video();
+        throw new UnrecoverableError("CHAT2_INVALID_WAKE_ID");
+      if(job.data.kind!=="video")throw new UnrecoverableError("CHAT2_RETIRED_PHOTO_WAKE");
+      let result;
+      try { result=await video(); }
+      catch(error) { throw safeCloudruWakeFailure(error); }
       if(result.dispatched!==1)throw Error("CHAT2_WAKE_NOT_DISPATCHED");
     },
     {connection,concurrency:1,limiter:{max:1,duration:500},

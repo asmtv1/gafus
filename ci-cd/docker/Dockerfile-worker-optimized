@@ -52,7 +52,7 @@ RUN apk add --no-cache curl ffmpeg
 COPY --from=base --chown=worker:nodejs /app/deploy/ ./
 
 # Проверяем импорты, которые сломали запуск production worker.
-RUN node -e "Promise.all([import(require('node:path').join(require('node:path').dirname(require.resolve('@gafus/core')), 'services/cynologistChat/stream.js')), import('@gafus/core/services/questions')]).then(() => process.exit(0)).catch(error => { console.error(error); process.exit(1); })"
+RUN node -e "Promise.all([import(require('node:path').join(require('node:path').dirname(require.resolve('@gafus/core')), 'services/cynologistChat/stream.js')), import('@gafus/questions-server/photos'), import('@gafus/chat-server')]).then(() => process.exit(0)).catch(error => { console.error(error); process.exit(1); })"
 
 # Fail image creation if any extracted server/client package is missing its compiled exports.
 COPY ci-cd/docker/check-runtime-package-exports.mjs /app/check-runtime-package-exports.mjs

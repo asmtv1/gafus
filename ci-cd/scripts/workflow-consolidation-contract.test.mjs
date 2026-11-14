@@ -15,7 +15,10 @@ test('primary workflows, independent Beget audit/backup and internal workflows',
   'chat-video-job-rollout.yml',
   'ci-cd.yml','cloudru-media-images.yml',
   'daily-backup.yml','deploy-only.yml','feed-video-job-rollout.yml',
-  'feed-worker-image-release.yml','infrastructure-jobs.yml',
+  'feed-worker-image-release.yml','gafus-private-symbols-s3-acceptance.yml',
+  'gafus-sdk57-qa.yml','gafus-self-hosted-ota-preview.yml',
+  'gafus-uptrace-collector-qa.yml','gafus-uptrace-nonprod-acceptance.yml',
+  'infrastructure-jobs.yml',
   'production-deploy-reusable.yml','production-job-release-reusable.yml'
  ]);
  const primary=['build-single-container','ci-cd','deploy-only','infrastructure-jobs'];
@@ -32,6 +35,16 @@ test('primary workflows, independent Beget audit/backup and internal workflows',
   assert.equal(wf.on.push,undefined,name+' must not deploy on push');
   assert.equal(wf.jobs[Object.keys(wf.jobs)[0]].environment,'production');
   assert.equal(wf.concurrency['cancel-in-progress'],false);
+ }
+ // Release-adjacent QA is intentionally manual. A push to main must not
+ // publish OTA cohorts, upload private symbols, or switch Uptrace collectors.
+ for (const name of ['gafus-private-symbols-s3-acceptance', 'gafus-sdk57-qa',
+   'gafus-self-hosted-ota-preview', 'gafus-uptrace-collector-qa',
+   'gafus-uptrace-nonprod-acceptance']) {
+   const qa=parse(name);
+   assert(qa.on.workflow_dispatch, name+' must retain an explicit QA launch');
+   assert.equal(qa.on.push, undefined, name+' must not run on pushes');
+   assert.equal(qa.on.pull_request, undefined, name+' must not run on PRs');
  }
  assert(parse('daily-backup').on.schedule?.length);
  assert(Object.hasOwn(parse('daily-backup').on,'workflow_dispatch'));

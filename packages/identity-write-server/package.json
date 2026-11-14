@@ -1,0 +1,88 @@
+{
+  "name": "@gafus/identity-write-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./password-reset": {
+      "types": "./dist/passwordReset.d.ts",
+      "default": "./dist/passwordReset.js"
+    },
+    "./email-account-rows": {
+      "types": "./dist/emailAccountRows.d.ts",
+      "default": "./dist/emailAccountRows.js"
+    },
+    "./profile-rows": {
+      "types": "./dist/profileRows.d.ts",
+      "default": "./dist/profileRows.js"
+    },
+    "./registration-context-reads": {
+      "types": "./dist/registration-context-reads.d.ts",
+      "default": "./dist/registration-context-reads.js"
+    },
+    "./vk-completion-rows": {
+      "types": "./dist/vk-completion-rows.d.ts",
+      "default": "./dist/vk-completion-rows.js"
+    },
+    "./account-cleanup-records": {
+      "types": "./dist/account-cleanup-records.d.ts",
+      "default": "./dist/account-cleanup-records.js"
+    },
+    "./account-cleanup-worker-rows": {
+      "types": "./dist/account-cleanup-worker-rows.d.ts",
+      "default": "./dist/account-cleanup-worker-rows.js"
+    },
+    "./registration-contract-rows": {
+      "types": "./dist/registration-contract-rows.d.ts",
+      "default": "./dist/registration-contract-rows.js"
+    },
+    "./admin-user-reads": {
+      "types": "./dist/adminUserReads.d.ts",
+      "default": "./dist/adminUserReads.js"
+    },
+    "./admin-user-writes": {
+      "types": "./dist/adminUserWrites.d.ts",
+      "default": "./dist/adminUserWrites.js"
+    },
+    "./account-deletion-rows": {
+      "types": "./dist/accountDeletionRows.d.ts",
+      "default": "./dist/accountDeletionRows.js"
+    },
+    "./auth-rows": {
+      "types": "./dist/authRows.d.ts",
+      "default": "./dist/authRows.js"
+    },
+    "./vk-auth-rows": {
+      "types": "./dist/vkAuthRows.d.ts",
+      "default": "./dist/vkAuthRows.js"
+    },
+    "./reminder-review-rows": {
+      "types": "./dist/reminderReviewRows.d.ts",
+      "default": "./dist/reminderReviewRows.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/entitlements-server": "workspace:*",
+    "@gafus/consent-server": "workspace:*",
+    "@gafus/subscription-payment-server": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  }
+}

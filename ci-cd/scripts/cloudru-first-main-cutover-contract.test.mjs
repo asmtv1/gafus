@@ -104,15 +104,22 @@ for(const dep of ['cloudru-media-contracts','cutover-preflight','beget-readonly-
  assert(!ci.includes('mode: cutover'),'ONE_TIME_CUTOVER_NOT_IN_AUTOMATIC_CI');
 });
 
-test('Vite image matrix sets up Node without requiring pnpm before pnpm install',()=>{
+test('Vite image matrix restores the verified build-apps artifact instead of recompiling',()=>{
  const graph=byJobs(ci);
- const steps=graph['build-images'].steps;
- const setupIndex=steps.findIndex(x=>x.name==='Setup Node for Vite release assets');
- const pnpmIndex=steps.findIndex(x=>x.name==='Setup pnpm for Vite release assets');
- assert(setupIndex>=0 && pnpmIndex>setupIndex,'VITE_NODE_AND_PNPM_STEPS_REQUIRED');
- assert.equal(steps[setupIndex].with['node-version'],'24');
- assert.equal(steps[setupIndex].with['package-manager-cache'],false,
+ const build=graph['build-images'].steps;
+ const install=build.findIndex(x=>x.name==='Setup Node to verify immutable Vite release artifacts');
+ const download=build.findIndex(x=>x.name==='Download same-SHA public Vite release artifact');
+ const verify=build.findIndex(x=>x.name==='Restore and verify exact public Vite dist from build-apps');
+ const publish=build.findIndex(x=>x.name?.startsWith('Build and push'));
+ assert(install>=0 && install<download && download<verify && verify<publish,
+  'VITE_VERIFIED_ARTIFACT_TRANSFER_REQUIRED');
+ assert.equal(build[install].with['node-version'],'24');
+ assert.equal(build[install].with['package-manager-cache'],false,
   'SETUP_NODE_AUTO_CACHE_UNINSTALLED_PNPM');
+ assert(!build.some(x=>x.run?.includes('pnpm install') || x.run?.includes('pnpm --filter @gafus/web-vite build')),
+  'VITE_DUPLICATE_DOCKER_COMPILE_FORBIDDEN');
+ assert(build[verify].run.includes('vite-release-dist-artifacts.mjs restore'),
+  'VITE_PUBLIC_DIST_HASH_VERIFICATION_REQUIRED');
  const images=graph['build-images'].strategy.matrix.image.map(x=>x.name);
  assert.deepEqual(images.sort(),['admin-panel','api','bull-board','prisma','trainer-panel','web','worker'].sort());
 });

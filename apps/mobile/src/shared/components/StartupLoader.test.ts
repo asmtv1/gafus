@@ -16,19 +16,19 @@ const app = JSON.parse(readFileSync(resolve(mobileRoot, "app.json"), "utf8")) as
 };
 
 describe("mobile start screen uses one bundled static poster", () => {
-  it("displays the complete startup poster on tall screens without cropping", () => {
+  it("fills tall screens without blue letterboxing", () => {
     expect(app.expo.splash.image).toBe("./assets/images/startup-splash.png");
     expect(app.expo.ios.splash.image).toBe("./assets/images/startup-splash.png");
     expect(startup).toContain('require("../../../assets/images/startup-splash.png")');
-    expect(app.expo.splash.resizeMode).toBe("contain");
-    expect(app.expo.ios.splash.resizeMode).toBe("contain");
+    expect(app.expo.splash.resizeMode).toBe("cover");
+    expect(app.expo.ios.splash.resizeMode).toBe("cover");
     const splashPlugin = app.expo.plugins.find(
       (plugin): plugin is [string, Record<string, unknown>] =>
         Array.isArray(plugin) && plugin[0] === "expo-splash-screen",
     );
-    expect(splashPlugin?.[1]).toMatchObject({ ios: { resizeMode: "contain" } });
-    expect(startup).toContain('resizeMode="contain"');
-    expect(startup).not.toContain('resizeMode="cover"');
+    expect(splashPlugin?.[1]).toMatchObject({ ios: { resizeMode: "cover" } });
+    expect(startup).toContain('resizeMode="cover"');
+    expect(startup).not.toContain('resizeMode="contain"');
     expect(startup).toContain("onLoad={() => setImageLoaded(true)}");
     expect(startup).toContain("onLayout={() => setLaidOut(true)}");
     expect(startup).toContain('width: "100%"');
@@ -40,11 +40,11 @@ describe("mobile start screen uses one bundled static poster", () => {
     expect(startup).not.toContain(".gif");
     expect(startup).not.toContain("autoplay");
     expect(rootLayout).toContain("SplashScreen.preventAutoHideAsync()");
-    expect(rootLayout).toContain("if (!startupImageReady) return;");
+    expect(rootLayout).toContain("if (!appContentLaidOut || authLoading || (!fontsReady && !fontError)) return;");
     expect(rootLayout).toContain("requestAnimationFrame");
     expect(rootLayout).toContain("appContentLaidOut");
-    expect(rootLayout).toContain("nativeSplashHidden");
-    expect(rootLayout).toContain("startupVisible && <StartupLoader overlay onReady={onStartupReady} />");
+    expect(rootLayout).not.toContain("nativeSplashHidden");
+    expect(rootLayout).not.toContain("startupVisible && <StartupLoader");
     expect(rootLayout).not.toContain("return <StartupLoader onReady");
     expect(rootLayout).toContain("SplashScreen.hideAsync()");
     expect(rootLayout).not.toContain("loadingMascotReady");

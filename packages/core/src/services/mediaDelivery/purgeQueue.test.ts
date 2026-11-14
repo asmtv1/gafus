@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { deletedMediaPurgePaths, enqueueDeletedMediaPurge } from "./purgeQueue";
-import { verifyEdgePurgeJob } from "./purgeWorker";
+import { deletedMediaPurgePaths } from "./purgeQueue";
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 const gallery = "albums/owner/album/photos/p/thumb.webp";
 const galleryVet = "users/owner/pets/p/vet-visits/v/a/thumb.webp";
 const galleryV2Thumb = "gallery/owner/media/p/v2/thumb.webp";
@@ -56,18 +56,6 @@ describe("transactional media edge purge outbox", () => {
     const strings = sql.mock.calls[0]![0] as TemplateStringsArray;
     expect(strings.join(" ")).toContain('ON CONFLICT ("id") DO NOTHING');
     expect(sql.mock.calls[0]!.slice(1)).toEqual(["gallery:job-1", "gallery", ["/" + gallery, "/" + galleryVet]]);
-  });
-  it("accepts Gallery V2 final objects through the actual edge purge worker gate", () => {
-    const job = {
-      id: "gallery:v2-delete-job", scope: "gallery",
-      paths: ["/" + galleryV2Thumb, "/" + galleryV2Full],
-      purgeOperations: [], attempts: 1,
-      attemptToken: "11111111-1111-4111-8111-111111111111",
-    };
-    expect(() => verifyEdgePurgeJob(job)).not.toThrow();
-    expect(() => verifyEdgePurgeJob({
-      ...job, paths: ["/gallery/owner/media/p/v2/source.jpg"],
-    })).toThrow("MEDIA_PURGE_JOB_UNTRUSTED");
   });
   it("never schedules CDN purge for noncacheable source uploads", async () => {
     const sql = vi.fn();

@@ -3,7 +3,8 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({ notes: vi.fn(), error: vi.fn() }));
-vi.mock("@gafus/core/services/notes", () => ({ getStudentNotes: m.notes }));
+// The application binds this student-scoped provider through composition.
+vi.mock("../../modules/student-notes/composition/notes-rows.js", () => ({ getStudentNotes: m.notes }));
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ error: m.error }),
 }));

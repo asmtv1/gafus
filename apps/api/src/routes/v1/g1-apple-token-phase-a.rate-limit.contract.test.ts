@@ -28,7 +28,7 @@ vi.mock("@hono-rate-limiter/redis", () => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: jwtVerify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: registration }));
-vi.mock("@gafus/core/services/appSubscription", () => ({
+vi.mock("@gafus/subscription-write-server", () => ({
   initializeAppleTokenForAuthenticatedOwner: init,
   AppleTokenOwnerUnavailableError: class AppleTokenOwnerUnavailableError extends Error {
     code = "APPLE_TOKEN_OWNER_UNAVAILABLE";

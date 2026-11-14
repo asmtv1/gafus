@@ -753,7 +753,7 @@ export default function ProfileScreen() {
 
   return (
     <TexturedSafeAreaView style={styles.container} edges={[]}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Image
           source={require("../../../assets/images/profile-header.png")}

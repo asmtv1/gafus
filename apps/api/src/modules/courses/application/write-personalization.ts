@@ -1,5 +1,5 @@
-/** Existing course personalization command delegates only to injected Core. */
-import type { saveCoursePersonalization } from "@gafus/core/services/course";
+/** Existing course personalization command delegates only to injected persistence port. */
+import type { saveCoursePersonalization } from "@gafus/course-server/personalization";
 
 export function createWriteCoursePersonalizationApplication(dependencies: {
   persist: typeof saveCoursePersonalization;

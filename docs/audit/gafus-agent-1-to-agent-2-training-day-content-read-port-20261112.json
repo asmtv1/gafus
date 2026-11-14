@@ -1,0 +1,229 @@
+{
+  "schema": "gafus-a1-a2-training-day-content-read/v1",
+  "created_utc": "2026-11-12T04:39:11.040813+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "course-type-and-day-occurrence-owner-neutral-content-reads",
+  "edges_before": 24,
+  "edges_after": 23,
+  "ratchet": {
+    "frozen": 41,
+    "resolved": 18,
+    "new": 0
+  },
+  "historical": {
+    "start": 142,
+    "removed": 119
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "9d721c057fe2b12007bb402805f1b869f163bf57abcc73382df2372dc90e90e4",
+      "sha256_after_current": "73084f90f769b1ce2933b1f0edbca5bc1525781add06f065219de825e002b000",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/training-day-content-projection-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/training/composition/install-day-content-read.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "9cacdfeaa20bf9116e438dbd6bcfc303eb478e0c6234964f2af4bf69322201f7",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/training/composition/install-day-content-read.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "f02a7522d8ea22b7c37a4e75d821059d7a76f3f6291ea79dd54cc01531a17556",
+      "backup_before": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "b7deb3562a06fcadc21c066201630860277231d74be92b0b35bd2064c323469f",
+      "sha256_after_current": "0de066c4cf30eb63124263cb3801a3bb4aeb14b06e86ba805a39f986f35684df",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/training-day-content-projection-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "13464844c7fb5ee5e74afcb1901b87beb05d817c54d559c11484c3ecf2c38183",
+      "sha256_after_current": "33b580a2aade038ceb11bde9ba2ea62ca2a12d34d7157adb58bce0ffd85daadc",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/training-day-content-projection-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/training/index.ts",
+      "status": "M",
+      "sha256_before": "a185660da4c1740a3b78766ad2698292a7649bf93bb1d4ed09320056c616d875",
+      "sha256_after_current": "1f689299e683bc97abd7478dbf861a1845629bfbde1136681b03985110770c61",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/training-day-content-projection-prechange/packages/core/src/services/training/index.ts"
+    },
+    {
+      "path": "packages/core/src/services/training/trainingContentCluster.integration.test.ts",
+      "status": "M",
+      "sha256_before": "489914c8091a7362fc59d12610bd1b8a05f0bee3becc574301d93e11c848dbf0",
+      "sha256_after_current": "4890b18524e3589109e1470bc97bef891dacb6fa1e4bfcc507bd957b2365bf56",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/training-day-content-projection-prechange/packages/core/src/services/training/trainingContentCluster.integration.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/training/trainingDayContent.test.ts",
+      "status": "M",
+      "sha256_before": "fb88df1d272a975f1009239c2a877113ca3adf879da1d0b2cb605291b357e31f",
+      "sha256_after_current": "1374dcece8d282fe9eb2dd0b6228b46dc1fee1d3550a1e95bea56d62c8d8cb2c",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/training-day-content-projection-prechange/packages/core/src/services/training/trainingDayContent.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/training/trainingDayContent.ts",
+      "status": "M",
+      "sha256_before": "61ef38fa9d531776d65ed53b21cd9f8bb52911c7b48d5b5f403b22cfd43ab612",
+      "sha256_after_current": "0ed8930bb7544af609ff34d61d29f8e76ad02876cb59404addd5a1f436a4387d",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/training-day-content-projection-prechange/packages/core/src/services/training/trainingDayContent.ts"
+    },
+    {
+      "path": "packages/core/src/services/training/trainingDayContentReadPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "33c73b61463812656467ed6e0b1aec2ae8129794f6a7252a526e2c7de060a8a6",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/training/trainingDayContentReadPort.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "2c23f160952a5e8cc3a758cfd14e4d4dcf527a8fab179555014a751a6966a2b4",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/training/trainingService.test.ts",
+      "status": "M",
+      "sha256_before": "98238474dc858092cee2c4bc33612a784e8bde44f7960910a26e29ff228ac97a",
+      "sha256_after_current": "2c1015b718472c33499bd73e797bd8603170522eb5d03ed6cca8a81bbbfb91bd",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/training-day-content-projection-prechange/packages/core/src/services/training/trainingService.test.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "0eb19e8c4083da9474a4b898d726fb1fb20d3fee3ff763e70147781ea72e7bb2",
+      "sha256_after_current": "53916d92e4b4297f7f39f54b438d4afa1b9c78172e12eb8ae4ec970bd6298705",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/training-day-content-projection-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Existing Core course cache and revision",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/training/trainingDayContent.test.ts src/services/training/trainingContentRevision.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 30,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-training-day-target-tests.log"
+    },
+    {
+      "name": "Core fail-closed day content DB port",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/training/trainingDayContentReadPort.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 4,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-training-day-new-core-tests.log"
+    },
+    {
+      "name": "Core progress and per-process revision, repaired fixtures",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/training/trainingService.test.ts src/services/training/trainingContentCluster.integration.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 44,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-training-day-repaired-two-suites.log"
+    },
+    {
+      "name": "API day read SQL projection composition",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/training/composition/install-day-content-read.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-training-day-api-target.log"
+    },
+    {
+      "name": "Full Core suite final",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2115,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-day-content-core-full-v3.log"
+    },
+    {
+      "name": "Full API suite final",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2755,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-day-content-api-full-v3.log"
+    },
+    {
+      "name": "Core types",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-day-content-core-types-final.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-training-day-core-build-v3.log"
+    },
+    {
+      "name": "API types",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-day-content-api-types-final.log"
+    },
+    {
+      "name": "Course-read adapter types",
+      "command": "pnpm --filter @gafus/course-read-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-day-content-server-types-v2.log"
+    },
+    {
+      "name": "Architecture boundaries",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-training-day-boundaries.log"
+    }
+  ],
+  "prechange_backups": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/training-day-content-projection-prechange",
+  "hash_basis": "Fresh SHA256 captured at this cluster start from current uncommitted shared tree, not earlier A2 snapshots. SHA256 after computed just now.",
+  "public_contracts": {
+    "scope": "SQL `where: { id: dayOnCourseId, course: { type: courseType } }` unchanged",
+    "owner": "Actor-neutral day snapshot; learner authorization not cached; ID and media keys not global entitlement proof",
+    "cache": "Only committed PostgreSQL content revision authorizes reuse, Redis best effort; TTL 60s, max 256 entries, concurrent probe fencing retained",
+    "error": "TRAINING_DAY_CONTENT_READ_PORT_UNBOUND and TRAINING_DAY_CONTENT_READ_PORT_ALREADY_BOUND",
+    "json_and_step_types": "Browser-safe StepType and optional-key JsonObject-compatible shape; no Core Prisma import"
+  },
+  "diagnostics": "First API typecheck rejected broad string instead of shared StepType and JsonObject required-index signature. Corrected both in domain DTO. First Core full suite failed 24 synthetic tests because trainingService.test and process cache test did not bind newly mandatory adapter. Added original SQL adapter to existing fixtures (after vi.resetModules for each simulated process); 44 targeted and final 2115 Core/2755 API PASS.",
+  "external_blockers": [
+    {
+      "id": "PG_TRIGGER_AND_READ",
+      "requires": "Disposable full-schema PostgreSQL with row-level trigger on CourseContentRevision; verify trainer edit commits a new revision in same SQL transaction while other requests are in flight, including cached day mutations."
+    },
+    {
+      "id": "REDIS_AND_CLIENTS",
+      "requires": "API/Web/Mobile staging with cache rollout flags, Redis disconnect, slow/out-of-order PostgreSQL probes and paid/private video; ensure bypass never shows stale/foreign content."
+    },
+    {
+      "id": "FINAL_ARCHITECTURE",
+      "requires": "Remove remaining 23 Core→server edges; combine A1/A2/A3 and run 33-stage architecture final + 5-stage chaos + Worker/panels/PG/Redis/Web/Mobile before ratcheting baseline."
+    }
+  ],
+  "no_merge_commit_push_deploy": true,
+  "baseline_json_changed": false,
+  "integration": "A2: Compare final SHA256 per file. Semantically integrate shared app.ts, scripts guard, training/index.ts and audits. Never overwrite A2/A3 work. Do not accept SQL reader without its Composition startup and tests."
+}

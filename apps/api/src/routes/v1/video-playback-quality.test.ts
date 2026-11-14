@@ -6,7 +6,7 @@ const mocks=vi.hoisted(()=>({
 }));
 vi.mock("@gafus/auth/jwt",()=>({verifyAccessToken:mocks.verify}));
 vi.mock("@gafus/core/services/auth",()=>({isRegistrationCompleted:mocks.registration}));
-vi.mock("@gafus/core/services/videoPlaybackQuality",()=>({
+vi.mock("@gafus/statistics",()=>({
   recordVideoPlaybackQuality:mocks.record,
 }));
 import { authMiddleware } from "../../middleware/auth";

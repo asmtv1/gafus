@@ -9,6 +9,12 @@ import {
 } from "./trainingService.ts";
 import { checkCourseAccess } from "../course";
 import { clearTrainingDayContentCache } from "./trainingDayContent";
+// Core explicitly composes the same server-side course/day read SQL
+// in this synthetic local Prisma test; the production process uses API bootstrap.
+import { registerTrainingDayContentReadPort } from "./trainingDayContentReadPort";
+import { readTrainingDayContent } from "@gafus/course-read-server";
+registerTrainingDayContentReadPort({ readTrainingDayContent });
+
 
 vi.mock("./trainingContentRevision", () => ({
   courseContentSyncEnabled: () => true,
@@ -1373,3 +1379,9 @@ describe("getTrainingDayWithUserSteps", () => {
     expect(result?.steps).toHaveLength(1);
   });
 });
+
+// Unit fixture composes the real SQL-backed training service explicitly, just
+// like the API startup. Its mocked Prisma is scoped to this Vitest process.
+import { createTrainingService as createTrainingServiceForTest } from "@gafus/course-progress-server/training-service";
+import { registerTrainingServicePort, getCoreTrainingDependencies } from "./trainingService";
+registerTrainingServicePort(createTrainingServiceForTest(getCoreTrainingDependencies()));

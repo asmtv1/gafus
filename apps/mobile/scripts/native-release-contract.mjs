@@ -5,7 +5,7 @@
  * A new native module MUST NOT share the old SDK-wide OTA runtime. Expo SDK 55
  * explicitly supports appVersion runtime isolation for this use case.
  */
-export const minimumStoreRelease = '1.7.3';
+export const minimumStoreRelease = '1.7.4';
 const semver = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 export function compareStoreVersions(a,b) {
@@ -31,7 +31,10 @@ export function validateNativeReleaseContract({ expo, mobilePackage, eas, env = 
     'MOBILE_ANDROID_PREDICTIVE_BACK_REQUIRED');
   requireCheck(expo.android?.package==='ru.gafus.app' && expo.ios?.bundleIdentifier==='ru.gafus.app',
     'MOBILE_STORE_BUNDLE_IDENTIFIER_CHANGED');
-  requireCheck(expo.splash?.resizeMode==='contain' && expo.ios?.splash?.resizeMode==='contain',
+  // SDK57 keeps the full-bleed startup poster on tall displays. Older SDK55
+  // release profiles retain their previous contain policy.
+  const splashMode=compareStoreVersions(expo.version ?? '', '1.8.0')>=0?'cover':'contain';
+  requireCheck(expo.splash?.resizeMode===splashMode && expo.ios?.splash?.resizeMode===splashMode,
     'MOBILE_SPLASH_MUST_FIT_SCREEN');
   const plugins=(expo.plugins ?? []).map(p=>typeof p==='string'?p:p?.[0]);
   for(const key of ['expo-video','expo-image-picker','expo-notifications','expo-secure-store','./plugins/withAppTracerNative']) {
@@ -54,7 +57,7 @@ export function validateNativeReleaseContract({ expo, mobilePackage, eas, env = 
 }
 
 /** Run before the first production OTA network request.
- * New runtime 1.7.3 must NOT receive OTA until an actual store binary with
+ * New runtime 1.7.4 must NOT receive OTA until an actual store binary with
  * matching native code has been published on both iOS + Android. Preview
  * channel is intentionally exempt; it must use its own preview binary. */
 export function validateOtaPublishAttestation({ channel, expoVersion, env }) {
@@ -65,6 +68,31 @@ export function validateOtaPublishAttestation({ channel, expoVersion, env }) {
   if(env.GAFUS_MOBILE_NATIVE_PUBLISHED_VERSION!==expoVersion)
     errors.push('MOBILE_OTA_PUBLISHED_VERSION_MUST_MATCH_RUNTIME');
   return errors;
+}
+
+/** Resolve target without substring checks: --channel=production and spaced form are equal. */
+export function resolveEasUpdateTarget(argv) {
+  const read = (flag) => {
+    const choices=[];
+    for (let i=0;i<argv.length;i++) {
+      if (argv[i]===flag) choices.push(argv[i+1] ?? '');
+      else if (argv[i].startsWith(`${flag}=`)) choices.push(argv[i].slice(flag.length+1));
+    }
+    if (choices.length > 1 || choices.some(v=>!v || v.startsWith('--')))
+      throw Error('MOBILE_OTA_TARGET_AMBIGUOUS');
+    return choices[0] ?? '';
+  };
+  const channel=read('--channel');
+  const branch=read('--branch');
+  const environment=read('--environment');
+  if ((channel && branch) || (!channel && !branch) || (branch && branch!=='main'))
+    throw Error('MOBILE_OTA_TARGET_AMBIGUOUS');
+  const targetChannel=channel || 'production';
+  if (!['preview','production'].includes(targetChannel))
+    throw Error('MOBILE_OTA_TARGET_UNSUPPORTED');
+  if (environment && environment!==targetChannel)
+    throw Error('MOBILE_OTA_CHANNEL_ENVIRONMENT_MISMATCH');
+  return { channel:targetChannel, environment:environment || targetChannel, viaBranch:!!branch };
 }
 
 export function parseOtaChannel(argv) {

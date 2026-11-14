@@ -7,9 +7,10 @@ const f = vi.hoisted(() => ({
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.register }));
 vi.mock("@gafus/core/services/training", () => ({
-  getCourseCacheMetricsSnapshot: f.metrics, refreshCourseContentRevision: f.refresh,
+  getCourseCacheMetricsSnapshot: f.metrics,
 }));
-vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: f.role }));
+vi.mock("../../modules/admin-users/composition/service.js", () => ({ readAdminActorRole: f.role }));
+vi.mock("@gafus/course-server/cache-revision",()=>({refreshCourseContentRevision:f.refresh}));
 import { authMiddleware } from "../../middleware/auth";
 import { adminCacheRoutes } from "./admin-cache";
 const base = "/api/v1/admin/cache";

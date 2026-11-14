@@ -8,12 +8,18 @@ vi.mock("@gafus/prisma", () => ({
     user: {
       findUnique: async () => ({
         sessionsRevokedAt: null,
-        registrationPending: false, role: "USER",
+        registrationPending: false,
+        role: "USER",
       }),
     },
   },
 }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: async () => true }));
+vi.mock("@gafus/notifications-server/training-reminder-application", async () => {
+  const core = (await import("@gafus/core/services/reminders")) as unknown as Record<string, unknown>;
+  return {getReminders:core.getReminders,createReminder:core.createReminder,
+    updateReminder:core.updateReminder,deleteReminder:core.deleteReminder};
+});
 vi.mock("@gafus/core/services/reminders", () => ({
   getReminders: vi.fn().mockResolvedValue([]),
   createReminder: m.legacy,

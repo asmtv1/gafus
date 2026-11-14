@@ -24,7 +24,7 @@ vi.mock("@gafus/core/services/auth",async orig=>({
 import {app} from "../../app";
 import {generateAccessToken} from "@gafus/auth/jwt";
 import {getDailyCourseCandidates,getDailyCourseScheduleRange}
- from "@gafus/core/services/dailyCourse";
+ from "../../modules/daily-course/composition/dailyCourseApplication.js";
 
 const tag="ag1_calendar_real_"+randomBytes(4).toString("hex")+"_";
 const makeId=(value:string)=>tag+value;

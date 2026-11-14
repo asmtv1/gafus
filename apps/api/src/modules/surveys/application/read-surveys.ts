@@ -1,27 +1,25 @@
-/** Existing survey READ lookups. All private queries and survey rules stay in Core. */
+/** API application receives only the unchanged actor-scoped public signatures. */
 import type {
-  getSurveyComparison,
-  getSurveyResponse,
-  getSurveyTemplate,
+  getSurveyComparison, getSurveyResponse, getSurveyTemplate,
 } from "@gafus/core/services/survey";
 
-export function createReadSurveysApplication(dependencies: {
-  comparison: typeof getSurveyComparison;
-  template: typeof getSurveyTemplate;
-  response: typeof getSurveyResponse;
-}) {
+type ReadSurveysDependencies = {
+  comparison: (
+    actorUserId: string, courseId: string, familySlug: string,
+  ) => ReturnType<typeof getSurveyComparison>;
+  template: (slug: string) => ReturnType<typeof getSurveyTemplate>;
+  response: (actorUserId: string, stepId: string) => ReturnType<typeof getSurveyResponse>;
+};
+
+export function createReadSurveysApplication(dependencies: ReadSurveysDependencies) {
   return {
-    getComparison(
-      actorUserId: string,
-      courseId: string,
-      familySlug: string,
-    ): ReturnType<typeof getSurveyComparison> {
+    getComparison(actorUserId: string, courseId: string, familySlug: string) {
       return dependencies.comparison(actorUserId, courseId, familySlug);
     },
-    getTemplate(slug: string): ReturnType<typeof getSurveyTemplate> {
+    getTemplate(slug: string) {
       return dependencies.template(slug);
     },
-    getResponse(actorUserId: string, stepId: string): ReturnType<typeof getSurveyResponse> {
+    getResponse(actorUserId: string, stepId: string) {
       return dependencies.response(actorUserId, stepId);
     },
   };

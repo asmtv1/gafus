@@ -17,6 +17,9 @@ const mocked = vi.hoisted(() => ({
   notificationPermissions: vi.fn(),
   notify: vi.fn(),
 }));
+vi.mock("expo-constants", () => ({
+  default: { appOwnership: "standalone" },
+}));
 vi.mock("expo", () => ({
   requireNativeModule: () => ({
     pendingDogWalkCommands: mocked.pending,

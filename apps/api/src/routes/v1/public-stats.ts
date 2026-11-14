@@ -20,7 +20,7 @@ publicStatsRoutes.get("/",async c=>{
   if(!inFlight){
    inFlight=(async()=>{
     const {countPlatformStudents}=await import(
-      "../../../../../packages/core/src/services/user/platformStats.js");
+      "@gafus/statistics/platform-stats");
     const students=await countPlatformStudents();
     if(!Number.isSafeInteger(students)||students<0)
       throw new Error("Invalid count");

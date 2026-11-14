@@ -18,7 +18,7 @@ vi.mock("@gafus/queues", () => {
   m.redisModuleLoad();
   return { connection: { ping: m.redis } };
 });
-vi.mock("@gafus/core/services/systemHealth", () => {
+vi.mock("@gafus/statistics/database-health", () => {
   m.databaseModuleLoad();
   return { checkCoreDatabaseReady: m.database };
 });

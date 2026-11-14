@@ -12,6 +12,10 @@ import { connection, pushQueue } from '@gafus/queues';
 import { generateAccessToken } from '@gafus/auth/jwt';
 import { startChat2OutboxWorker } from '../../../../../packages/worker/src/chat2-outbox-worker';
 import { startHealthServer } from '../../../../../packages/worker/src/health-server';
+import { withGafusUserLock, changeGafusBalanceTx } from "@gafus/core/services/gafus";
+import {
+  chat2SubscriptionForConnection, chat2SubscriptionTransportOptions,
+} from "@gafus/core-client/chat2/realtime-subscription";
 
 const requireWeb=createRequire('/Users/asmtv1/Desktop/gafus-refactor/apps/web-vite/package.json');
 const {Centrifuge}=requireWeb('centrifuge');
@@ -135,17 +139,20 @@ describe('real isolated Hono → PostgreSQL outbox worker → signed Centrifugo 
   });
   it('delivers actual authorized message via outbox to signed websocket; readback and retry are idempotent',async()=>{
     const connect=await json(await fetchAuth(memberJwt,'/realtime/connect'));
-    const subscribe=await json(await fetchAuth(memberJwt,`/${room}/realtime`));
     expect(connect.status).toBe(200);
-    expect(subscribe.status).toBe(200);
+    // Chat2.0 is broker-proxy only. No per-room JWT is sent to Centrifugo.
+    const subscribe = await chat2SubscriptionForConnection(connect.body.data, room);
     const client=new Centrifuge(connect.body.data.wsUrl,{
       token:connect.body.data.token,websocket:Ws,
     });
-    const sub=client.newSubscription(subscribe.body.data.channel,{token:subscribe.body.data.token});
-    const publication=new Promise<string>((resolve,reject)=>{
+    const sub=client.newSubscription(subscribe.channel,chat2SubscriptionTransportOptions(subscribe));
+    const publication=new Promise<{messageId:string;eventId:string}>((resolve,reject)=>{
       const timer=setTimeout(()=>reject(Error('CHAT2_FULL_WS_EVENT_TIMEOUT')),8500);
-      sub.on('publication',(evt:{data?:{messageId?:string}})=>{
-        if(evt.data?.messageId){clearTimeout(timer);resolve(evt.data.messageId)}
+      sub.on('publication',(evt:{data?:{messageId?:string;eventId?:string}})=>{
+        if(evt.data?.messageId && evt.data.eventId){
+          clearTimeout(timer);
+          resolve({messageId:evt.data.messageId,eventId:evt.data.eventId});
+        }
       });
     });
     const subscribed=new Promise<void>((resolve,reject)=>{
@@ -155,21 +162,99 @@ describe('real isolated Hono → PostgreSQL outbox worker → signed Centrifugo 
     try{
       sub.subscribe();client.connect();await subscribed;
       const payload={clientMessageId:randomUUID(),text:'agent2 real fully isolated event'};
-      const response=await json(await fetchAuth(ownerJwt,`/${room}/messages`,'POST',payload));
+      const raw=await fetchAuth(ownerJwt,`/${room}/messages`,'POST',payload);
+      const response=await json(raw);
       expect(response.status).toBe(201);
+      const traceId=raw.headers.get('x-trace-id');
+      const operationId=raw.headers.get('x-operation-id');
+      expect(traceId).toMatch(/^[a-f0-9]{32}$/);
+      expect(operationId).toMatch(/^[a-f0-9-]{36}$/);
       const messageId=response.body.data.id;
       const repeated=await json(await fetchAuth(ownerJwt,`/${room}/messages`,'POST',payload));
       expect(repeated.status).toBe(201);
       expect(repeated.body.data.id).toBe(messageId);
       expect(await prisma.chat2Message.count({where:{conversationId:room,clientMessageId:payload.clientMessageId}})).toBe(1);
-      expect(await prisma.chat2OutboxEvent.count({where:{messageId}})).toBe(1);
-      expect(await publication).toBe(messageId);
+      const events=await prisma.chat2OutboxEvent.findMany({where:{messageId}});
+      expect(events).toHaveLength(1);
+      expect(events[0]?.traceId).toBe(traceId);
+      // The durable PG event and subsequent Worker attempts keep the *same*
+      // operation ID returned by the initiating authenticated HTTP request.
+      expect(events[0]?.operationId).toBe(operationId);
+      const deliveredEvent=await publication;
+      expect(deliveredEvent).toEqual({messageId,eventId:events[0]!.id});
       await waitFor(async()=>Boolean((await prisma.chat2OutboxEvent.findFirst({where:{messageId}}))?.deliveredAt));
       const readback=await json(await fetchAuth(memberJwt,`/${room}/messages`));
       expect(readback.status).toBe(200);
       expect(readback.body.data.some((entry:{id:string})=>entry.id===messageId)).toBe(true);
     }finally{client.disconnect()}
   });
+  it('persists messages during broker outage, retries, then drains after recovery',async()=>{
+    const configured=process.env.CHAT2_CENTRIFUGO_HTTP_API;
+    if(configured!=='http://127.0.0.1:58339/api/publish')throw Error('CHAT2_FULL_ISOLATION_DENIED');
+    const transient='http://127.0.0.1:58343/api/publish';
+    process.env.CHAT2_CENTRIFUGO_HTTP_API=transient;
+    let messageId='';
+    try{
+      const response=await json(await fetchAuth(ownerJwt,'/'+room+'/messages','POST',{
+        clientMessageId:randomUUID(),text:'synthetic broker outage recovery',
+      }));
+      expect(response.status).toBe(201);
+      messageId=response.body.data.id;
+      await waitFor(async()=>{
+        const event=await prisma.chat2OutboxEvent.findFirst({where:{messageId}});
+        return Boolean(event && event.attempts>=1 && !event.deliveredAt && !event.deadLetteredAt);
+      },10000);
+      const pending=await prisma.chat2OutboxEvent.findFirst({where:{messageId}});
+      expect(pending?.deliveredAt).toBeNull();
+      expect(pending?.deadLetteredAt).toBeNull();
+    } finally {
+      process.env.CHAT2_CENTRIFUGO_HTTP_API=configured;
+    }
+    await waitFor(async()=>Boolean((await prisma.chat2OutboxEvent.findFirst({
+      where:{messageId},select:{deliveredAt:true},
+    }))?.deliveredAt),18000);
+    expect(await prisma.chat2Message.count({where:{id:messageId}})).toBe(1);
+    const final=await prisma.chat2OutboxEvent.findFirst({where:{messageId}});
+    expect(final?.attempts).toBeGreaterThanOrEqual(1);
+    expect(final?.deadLetteredAt).toBeNull();
+  },26000);
+  it('serializes eight concurrent wallet replays and never double-debits Gafus',async()=>{
+    // The preflight guard has already validated the brand-new isolated PG data directory.
+    const user=await prisma.user.create({
+      data:{username:'walletqa_'+randomUUID().slice(0,8),
+        email:'walletqa_'+randomUUID()+'@example.invalid',password:'local-only'},
+      select:{id:true},
+    });
+    const spendKey='wallet_qa_'+randomUUID();
+    try {
+      const seeded=await withGafusUserLock(user.id,tx=>changeGafusBalanceTx(tx,{
+        userId:user.id, amount:3, kind:'EARN', idempotencyKey:'seed_'+randomUUID(),
+      }));
+      expect(seeded.balance).toBe(3);
+      const spend=()=>withGafusUserLock(user.id,tx=>changeGafusBalanceTx(tx,{
+        userId:user.id, amount:-1, kind:'SPEND', idempotencyKey:spendKey,
+        targetType:'ARTICLE', targetKey:'same-purchase',
+      }));
+      const replays=await Promise.all(Array.from({length:8},spend));
+      expect(new Set(replays.map(result=>result.transactionId)).size).toBe(1);
+      expect(replays.filter(result=>!result.replay)).toHaveLength(1);
+      expect(replays.filter(result=>result.replay)).toHaveLength(7);
+      expect(await prisma.gafusTransaction.count({
+        where:{userId:user.id,kind:'SPEND',idempotencyKey:spendKey},
+      })).toBe(1);
+      expect((await prisma.gafusWallet.findUnique({where:{userId:user.id}}))?.balance).toBe(2);
+      await expect(withGafusUserLock(user.id,tx=>changeGafusBalanceTx(tx,{
+        userId:user.id, amount:-2, kind:'SPEND',idempotencyKey:spendKey,
+        targetType:'ARTICLE',targetKey:'different-purchase',
+      }))).rejects.toMatchObject({code:'GAFUS_IDEMPOTENCY_CONFLICT'});
+      await expect(withGafusUserLock(user.id,tx=>changeGafusBalanceTx(tx,{
+        userId:user.id, amount:-100, kind:'SPEND',idempotencyKey:'insufficient_'+randomUUID(),
+      }))).rejects.toMatchObject({code:'GAFUS_INSUFFICIENT_BALANCE'});
+      expect((await prisma.gafusWallet.findUnique({where:{userId:user.id}}))?.balance).toBe(2);
+    } finally {
+      await prisma.user.delete({where:{id:user.id}});
+    }
+  },26000);
   it('worker stopped → stale or offline 503, and worker endpoint survives malformed auth header',async()=>{
     const Unicode='é'+'A'.repeat(process.env.CHAT2_CENTRIFUGO_API_KEY!.length-1);
     expect((await fetch('http://127.0.0.1:58342/internal/chat2/ready',{

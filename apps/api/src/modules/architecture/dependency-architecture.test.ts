@@ -14,6 +14,7 @@ type Wiring = {
   module: string; route: string; exportName: string; factory: string;
   application: string; ports: Record<string, string>; repository?: string;
   runtimeServiceModule?: string;
+  runtimeServiceByPort?: Readonly<Record<string,string>>;
 };
 const WIRINGS: readonly Wiring[] = [
   { module:"modules/user/composition/profile.ts",
@@ -41,7 +42,8 @@ const WIRINGS: readonly Wiring[] = [
     factory:"createListCynologistsApplication",
     application:"modules/consultations/application/list-cynologists.ts",
     ports:{listListedCynologists:"listListedCynologists",
-      getBookingEligibility:"getConsultationBookingEligibility"} },
+      getBookingEligibility:"getConsultationBookingEligibility"},
+    runtimeServiceByPort:{listListedCynologists:"./catalog-schedule.js",getBookingEligibility:"./booking-eligibility.js"} },
   { module:"modules/training/composition/read-training-day.ts",
     route:"routes/v1/training.ts", exportName:"readTrainingDayApplication",
     factory:"createReadTrainingDayApplication",
@@ -53,7 +55,16 @@ const WIRINGS: readonly Wiring[] = [
     factory:"createCourseReadApplication",
     application:"modules/courses/application/read-courses.ts",
     ports:{catalog:"getCoursesWithProgress", favorites:"getFavoritesCourses",
-      metadata:"getCourseMetadata", reviews:"getCourseReviews"} },
+      metadata:"getCourseMetadata", reviews:"getCourseReviews"},
+    runtimeServiceByPort:{reviews:"@gafus/course-server/reviews", favorites:"@gafus/course-server/favorites"} },
+  { module:"modules/courses/composition/read-public-outline.ts",
+    route:"routes/v1/public-paid-course-outline.ts", exportName:"publicPaidCourseOutlineApplication",
+    factory:"createPublicPaidCourseOutlineApplication",
+    application:"modules/courses/application/read-public-outline.ts",
+    ports:{metadata:"getCourseMetadata", outline:"getCourseOutline",
+      isPublicPaidCourse:"isPublicPaidCourse", projectPublicPaidCourseOutline:"projectPublicPaidCourseOutline"},
+    runtimeServiceByPort:{isPublicPaidCourse:"@gafus/core/services/course/publicOutlinePolicy",
+      projectPublicPaidCourseOutline:"@gafus/core/services/course/publicOutlinePolicy"} },
   { module:"modules/courses/composition/read-access.ts",
     route:"routes/v1/courses.ts", exportName:"readCourseAccessApplication",
     factory:"createReadCourseAccessApplication",
@@ -63,17 +74,20 @@ const WIRINGS: readonly Wiring[] = [
     route:"routes/v1/courses.ts", exportName:"writeCoursePersonalizationApplication",
     factory:"createWriteCoursePersonalizationApplication",
     application:"modules/courses/application/write-personalization.ts",
+    runtimeServiceModule:"@gafus/course-server/personalization",
     ports:{persist:"saveCoursePersonalization"} },
   { module:"modules/courses/composition/write-favorite.ts",
     route:"routes/v1/courses.ts", exportName:"writeFavoriteApplication",
     factory:"createWriteFavoriteApplication",
     application:"modules/courses/application/write-favorite.ts",
+    runtimeServiceModule:"@gafus/course-server/favorites",
     ports:{add:"addFavoriteCourse", remove:"removeFavoriteCourse",
       toggle:"toggleFavoriteCourse"} },
   { module:"modules/courses/composition/write-reviews.ts",
     route:"routes/v1/courses.ts", exportName:"writeReviewsApplication",
     factory:"createWriteReviewsApplication",
     application:"modules/courses/application/write-reviews.ts",
+    runtimeServiceModule:"@gafus/course-server/reviews",
     ports:{create:"createCourseReview", rate:"rateCourse",
       update:"updateCourseReview", remove:"deleteCourseReview"} },
   { module:"modules/pets/composition/read-pets.ts",
@@ -97,12 +111,14 @@ const WIRINGS: readonly Wiring[] = [
     route:"routes/v1/training.ts", exportName:"readDiaryApplication",
     factory:"createReadDiaryApplication",
     application:"modules/training/application/read-diary.ts",
-    ports:{readDiary:"getDiaryEntries"} },
+    ports:{readDiary:"getDiaryEntries"},
+    runtimeServiceModule:"./diary-rows.js" },
   { module:"modules/training/composition/write-diary.ts",
     route:"routes/v1/training.ts", exportName:"writeDiaryApplication",
     factory:"createWriteDiaryApplication",
     application:"modules/training/application/write-diary.ts",
-    ports:{save:"saveDiaryEntry"} },
+    ports:{save:"saveDiaryEntry"},
+    runtimeServiceModule:"./diary-rows.js" },
   { module:"modules/training/composition/write-step-progress.ts",
     route:"routes/v1/training.ts", exportName:"writeStepProgressApplication",
     factory:"createWriteStepProgressApplication",
@@ -112,39 +128,48 @@ const WIRINGS: readonly Wiring[] = [
     route:"routes/v1/notes.ts", exportName:"readStudentNotesApplication",
     factory:"createReadStudentNotesApplication",
     application:"modules/student-notes/application/read-student-notes.ts",
-    ports:{readNotes:"getStudentNotes"} },
+    ports:{readNotes:"getStudentNotes"},
+    runtimeServiceModule:"./notes-rows.js" },
   { module:"modules/surveys/composition/read-surveys.ts",
     route:"routes/v1/surveys.ts", exportName:"readSurveysApplication",
     factory:"createReadSurveysApplication",
     application:"modules/surveys/application/read-surveys.ts",
     ports:{comparison:"getSurveyComparison", template:"getSurveyTemplate",
-      response:"getSurveyResponse"} },
+      response:"getSurveyResponse"},
+    runtimeServiceByPort:{
+      comparison:"./survey-rows.js", response:"./survey-rows.js",
+    } },
   { module:"modules/surveys/composition/write-response.ts",
     route:"routes/v1/surveys.ts", exportName:"writeSurveyResponseApplication",
     factory:"createWriteSurveyResponseApplication",
     application:"modules/surveys/application/write-response.ts",
-    ports:{submit:"submitSurveyResponse"} },
+    ports:{submit:"submitSurveyResponse"},
+    runtimeServiceModule:"./survey-rows.js" },
   { module:"modules/exam/composition/read-result.ts",
     route:"routes/v1/exam.ts", exportName:"readExamResultApplication",
     factory:"createReadExamResultApplication",
     application:"modules/exam/application/read-result.ts",
-    ports:{readResult:"getExamResult"} },
+    ports:{readResult:"getExamResult"},
+    runtimeServiceModule:"@gafus/exam-server/exam-service" },
   { module:"modules/exam/composition/write-submit.ts",
     route:"routes/v1/exam.ts", exportName:"writeExamSubmitApplication",
     factory:"createWriteExamSubmitApplication",
     application:"modules/exam/application/write-submit.ts",
-    ports:{submit:"submitExamResult"} },
+    ports:{submit:"submitExamResult"},
+    runtimeServiceModule:"@gafus/exam-server/exam-service" },
   { module:"modules/learner-daily/composition/read-today-daily-course.ts",
     route:"routes/v1/daily-course.ts", exportName:"readTodayDailyCourseApplication",
     factory:"createReadTodayDailyCourseApplication",
     application:"modules/learner-daily/application/read-today-daily-course.ts",
-    ports:{readToday:"getTodayDailyCourse"} },
+    ports:{readToday:"getTodayDailyCourse"},
+    runtimeServiceModule:"../../daily-course/composition/dailyCourseApplication.js" },
   { module:"modules/learner-daily/composition/day-and-step-commands.ts",
     route:"routes/v1/daily-course.ts", exportName:"dayAndStepCommandsApplication",
     factory:"createDayAndStepCommandsApplication",
     application:"modules/learner-daily/application/day-and-step-commands.ts",
     ports:{readOrCreateDay:"getDailyCourseDayWithUserSteps",
-      updateStep:"updateDailyCourseStepAndDay"} },
+      updateStep:"updateDailyCourseStepAndDay"},
+    runtimeServiceModule:"../../daily-course/composition/dailyCourseApplication.js" },
   { module:"modules/pet-prevention/composition/journal.ts",
     route:"routes/v1/pet-prevention.ts", exportName:"preventionJournalApplication",
     factory:"createPreventionJournalApplication",
@@ -170,7 +195,8 @@ const WIRINGS: readonly Wiring[] = [
     exportName:"readTrainerExamMetadataApplication",
     factory:"createReadTrainerExamMetadataApplication",
     application:"modules/trainer-exam/application/read-trainer-exam-metadata.ts",
-    ports:{examResults:"getExamResults", pendingExamResults:"getPendingExamResults"} },
+    ports:{examResults:"getExamResults", pendingExamResults:"getPendingExamResults"},
+    runtimeServiceModule:"@gafus/exam-server/exam-service" },
   { module:"modules/trainer-daily/composition/read-trainer-daily.ts",
     route:"routes/v1/trainer-daily-bundles.ts",
     exportName:"readTrainerDailyApplication",
@@ -179,7 +205,8 @@ const WIRINGS: readonly Wiring[] = [
     ports:{readBundles:"getDailyCourseBundles",
       readBundleStepCandidates:"getDailyCourseBundleStepCandidates",
       readScheduleRange:"getDailyCourseScheduleRange",
-      readCandidates:"getDailyCourseCandidates"} },
+      readCandidates:"getDailyCourseCandidates"},
+    runtimeServiceModule:"../../daily-course/composition/dailyCourseApplication.js" },
   { module:"modules/trainer-days/composition/read-visible-days.ts",
     route:"routes/v1/trainer-days.ts",
     exportName:"readVisibleDaysApplication",
@@ -191,6 +218,7 @@ const WIRINGS: readonly Wiring[] = [
     exportName:"readTrainerStatisticsApplication",
     factory:"createReadTrainerStatisticsApplication",
     application:"modules/trainer-statistics/application/read-trainer-statistics.ts",
+    runtimeServiceModule:"@gafus/statistics",
     ports:{readCourses:"getCourseStatistics", readSteps:"getStepStatistics"} },
   { module:"modules/trainer-steps/composition/read-visible-steps.ts",
     route:"routes/v1/trainer-steps.ts",
@@ -210,8 +238,31 @@ const WIRINGS: readonly Wiring[] = [
     factory:"createReadCourseEditorApplication",
     application:"modules/trainer-courses/application/read-course-editor.ts",
     ports:{readDraft:"getCourseDraftWithRelations",
-      readEditorSnapshot:"getCourseEditorSnapshot"} },
+      readEditorSnapshot:"getCourseEditorSnapshot"},
+    runtimeServiceByPort:{readEditorSnapshot:"./editor-snapshot-port.js"} },
 ];
+
+// Exact erased callable signatures are allowed only in their matching Course
+// application module. Runtime imports from these persistence packages are denied.
+const courseTypeSignatures:Readonly<Record<string, readonly string[]>>={
+  "modules/courses/application/read-courses.ts":[
+    "@gafus/course-server/reviews","@gafus/course-server/favorites",
+  ],
+  "modules/courses/application/write-personalization.ts":["@gafus/course-server/personalization"],
+  "modules/courses/application/write-reviews.ts":["@gafus/course-server/reviews"],
+  "modules/courses/application/write-favorite.ts":["@gafus/course-server/favorites"],
+  // Exact erased callable signatures from the owning daily-course server.
+  // Runtime imports and unrelated application owners remain forbidden.
+  "modules/learner-daily/application/read-today-daily-course.ts":["@gafus/course-progress-server/daily-course-service"],
+  "modules/learner-daily/application/day-and-step-commands.ts":["@gafus/course-progress-server/daily-course-service"],
+  "modules/trainer-daily/application/read-trainer-daily.ts":["@gafus/course-progress-server/daily-course-service"],
+};
+const allowedCourseTypeOnly = (path:string, imported:ReturnType<typeof importsIn>[number]) =>
+  !imported.runtime && Boolean(courseTypeSignatures[path]?.includes(imported.specifier)) &&
+  Boolean(imported.declaration.importClause?.isTypeOnly ||
+    (imported.declaration.importClause?.namedBindings &&
+     ts.isNamedImports(imported.declaration.importClause.namedBindings) &&
+     imported.declaration.importClause.namedBindings.elements.every(el=>el.isTypeOnly)));
 
 const applicationSource = (file:string) =>
   /^modules\/[^/]+\/application\/[^/]+\.ts$/.test(file) &&
@@ -309,7 +360,93 @@ function exportedBindings(file:ts.SourceFile) {
   }
   return exports;
 }
-function objectBinding(node:ts.Expression,key:string,allowStrictStudentNotes=false):string|null {
+/** Strictly pinned instrumentation of existing Core read/write ports. A literal,
+ * constant span is a transparent outer wrapper, never a substitute for the
+ * previously approved Core function or its owner arguments. */
+const APPROVED_CORRELATED_STAGES: Readonly<Record<string, Readonly<Record<string,string>>>> = {
+  "modules/consultations/composition/list-cynologists.ts": {
+    listListedCynologists: "consultations.cynologists.catalog.read",
+    getBookingEligibility: "consultations.booking.eligibility.read",
+  },
+  "modules/courses/composition/read-access.ts": {
+    byType: "courses.entitlement.type.read", byId: "courses.entitlement.id.read",
+  },
+  "modules/training/composition/read-training-day.ts": {
+    readDay: "training.day.detail.read", checkAccess: "training.day.access.read",
+  },
+  "modules/achievements/composition/read-achievements.ts": {
+    readStats: "achievements.stats.read",
+    readTrainingDates: "achievements.training_dates.read",
+  },
+  "modules/trainer-daily/composition/read-trainer-daily.ts": {
+    readBundles: "trainer.daily.bundles.read",
+    readBundleStepCandidates: "trainer.daily.step_candidates.read",
+    readScheduleRange: "trainer.daily.schedule.read",
+    readCandidates: "trainer.daily.candidates.read",
+  },
+  "modules/trainer-articles/composition/read-own-article-metadata.ts": {
+    readRows: "trainer.articles.own_metadata.read",
+  },
+  "modules/exam/composition/read-result.ts": {
+    readResult: "exam.learner.result.read",
+  },
+  "modules/learner-daily/composition/read-today-daily-course.ts": {
+    readToday: "learner.daily.today.read",
+  },
+  "modules/trainer-days/composition/read-visible-days.ts": {
+    readVisibleDays: "trainer.days.visible.read",
+  },
+  "modules/trainer-exam/composition/read-trainer-exam-metadata.ts": {
+    examResults: "trainer.exam.results.read",
+    pendingExamResults: "trainer.exam.pending.read",
+  },
+  "modules/trainer-notes/composition/read-notes-summary.ts": {
+    readSnapshot: "trainer.notes.summary.read",
+  },
+  "modules/trainer-steps/composition/read-visible-steps.ts": {
+    readSteps: "trainer.steps.visible.read",
+  },
+  "modules/trainer-templates/composition/read-public-templates.ts": {
+    readTemplates: "trainer.templates.public.read",
+  },
+  "modules/training/composition/read-training-days.ts": {
+    readDays: "training.days.list.read",
+  },
+  "modules/user/composition/read-public-profile.ts": {
+    loadPublicProfile: "user.public_profile.read",
+  },
+  "modules/learner-daily/composition/day-and-step-commands.ts": {
+    readOrCreateDay: "learner.daily.day.read_or_create",
+    updateStep: "learner.daily.step.update",
+  },
+  "modules/pet-prevention/composition/journal.ts": {
+    list: "pets.prevention.entries.read",
+    create: "pets.prevention.entry.create",
+    batch: "pets.prevention.entries.batch_upsert",
+    update: "pets.prevention.entry.update",
+    remove: "pets.prevention.entry.delete",
+  },
+  "modules/training/composition/write-step-progress.ts": {
+    updateStep: "training.step_progress.update",
+  },
+  "modules/user/composition/onboarding-tour.ts": {
+    readStatus: "user.onboarding_tour.status.read",
+    markSeen: "user.onboarding_tour.seen.update",
+  },
+};
+
+function approvedReadCall(body:ts.ConciseBody, requiredStage?:string):ts.CallExpression|null {
+  if(!requiredStage) return ts.isCallExpression(body)?body:null;
+  if(!ts.isCallExpression(body) || !ts.isIdentifier(body.expression) ||
+     body.expression.text!=="withCorrelatedUseCase" || body.arguments.length!==2) return null;
+  const [name,callback]=body.arguments;
+  if(!name || !ts.isStringLiteral(name) || name.text!==requiredStage ||
+     !callback || !ts.isArrowFunction(callback) || callback.parameters.length!==0 ||
+     !ts.isCallExpression(callback.body)) return null;
+  return callback.body;
+}
+
+function objectBinding(node:ts.Expression,key:string,allowStrictStudentNotes=false,allowFavoritesPolicyPort=false,allowPetsReadPort=false,requiredStage?:string):string|null {
   if(!ts.isObjectLiteralExpression(node)) return null;
   for(const prop of node.properties) {
     if(ts.isShorthandPropertyAssignment(prop) && prop.name.text===key)
@@ -326,26 +463,67 @@ function objectBinding(node:ts.Expression,key:string,allowStrictStudentNotes=fal
        (ts.isIdentifier(prop.name)||ts.isStringLiteral(prop.name)) &&
        prop.name.text===key && ts.isArrowFunction(prop.initializer)) {
       const arrow=prop.initializer;
+      const call=approvedReadCall(arrow.body,requiredStage);
+      if(!call) return null;
+      // Some overloaded/read-source ports must preserve the full original
+      // argument tuple. Only the exact spread of the sole rest parameter is
+      // accepted, and only when its immutable stage name is pinned above.
+      if(requiredStage && ts.isIdentifier(call.expression) &&
+         arrow.parameters.length===1 && arrow.parameters[0]?.dotDotDotToken &&
+         ts.isIdentifier(arrow.parameters[0].name) && call.arguments.length===1 &&
+         ts.isSpreadElement(call.arguments[0]) &&
+         ts.isIdentifier(call.arguments[0].expression) &&
+         call.arguments[0].expression.text===arrow.parameters[0].name.text)
+        return call.expression.text;
       if(!allowStrictStudentNotes &&
-         ts.isCallExpression(arrow.body) && ts.isIdentifier(arrow.body.expression) &&
+         ts.isCallExpression(call) && ts.isIdentifier(call.expression) &&
          arrow.parameters.every(p=>ts.isIdentifier(p.name)) &&
-         arrow.body.arguments.length===arrow.parameters.length &&
-         arrow.body.arguments.every((arg,i)=>ts.isIdentifier(arg) &&
+         call.arguments.length===arrow.parameters.length &&
+         call.arguments.every((arg,i)=>ts.isIdentifier(arg) &&
            arg.text===(arrow.parameters[i].name as ts.Identifier).text)) {
-        return arrow.body.expression.text;
+        return call.expression.text;
+      }
+      // The only approved extra Application argument is the explicit
+      // Core entitlement port, preventing private paid favorites from accidentally
+      // bypassing the historical access policy after persistence extraction.
+      if (allowFavoritesPolicyPort && key==="favorites" &&
+          ts.isCallExpression(call) && ts.isIdentifier(call.expression) &&
+          call.expression.text==="getFavoritesCourses" &&
+          arrow.parameters.length===1 && ts.isIdentifier(arrow.parameters[0].name) &&
+          call.arguments.length===2 &&
+          ts.isIdentifier(call.arguments[0]) &&
+          call.arguments[0].text===arrow.parameters[0].name.text &&
+          ts.isIdentifier(call.arguments[1]) &&
+          call.arguments[1].text==="paidAccessForActor") {
+        return "getFavoritesCourses";
+      }
+      // The only approved extra Pets READ argument is the owner-scoped
+      // server projection, never a route/client-supplied alternate owner or
+      // a DB method allowing unscoped queries. Both arguments are exact.
+      if(allowPetsReadPort && (key==="readList" || key==="readDetail") &&
+         ts.isCallExpression(call) && ts.isIdentifier(call.expression) &&
+         call.expression.text===(key==="readList"?"getUserPets":"getPetById") &&
+         arrow.parameters.length===2 &&
+         arrow.parameters.every(p=>ts.isIdentifier(p.name)) &&
+         call.arguments.length===3 &&
+         call.arguments.slice(0,2).every((arg,i)=>ts.isIdentifier(arg) &&
+           arg.text===(arrow.parameters[i].name as ts.Identifier).text) &&
+         ts.isIdentifier(call.arguments[2]) &&
+         call.arguments[2].text===(key==="readList"?"readOwnedPets":"readOwnedPetDetail")) {
+        return call.expression.text;
       }
       // Exact AG1 StudentNotes API failure-mode flag. Every other composition
       // must continue forwarding only the declared arguments with no additions.
       if(allowStrictStudentNotes && key==="readNotes" &&
-         ts.isCallExpression(arrow.body) && ts.isIdentifier(arrow.body.expression) &&
-         arrow.body.expression.text==="getStudentNotes" &&
+         ts.isCallExpression(call) && ts.isIdentifier(call.expression) &&
+         call.expression.text==="getStudentNotes" &&
          arrow.parameters.length===1 && ts.isIdentifier(arrow.parameters[0].name) &&
-         arrow.body.arguments.length===2 &&
-         ts.isIdentifier(arrow.body.arguments[0]) &&
-         arrow.body.arguments[0].text===arrow.parameters[0].name.text &&
-         ts.isObjectLiteralExpression(arrow.body.arguments[1]) &&
-         arrow.body.arguments[1].properties.length===1) {
-        const prop=arrow.body.arguments[1].properties[0];
+         call.arguments.length===2 &&
+         ts.isIdentifier(call.arguments[0]) &&
+         call.arguments[0].text===arrow.parameters[0].name.text &&
+         ts.isObjectLiteralExpression(call.arguments[1]) &&
+         call.arguments[1].properties.length===1) {
+        const prop=call.arguments[1].properties[0];
         if(ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) &&
            prop.name.text==="throwOnError" && prop.initializer.kind===ts.SyntaxKind.TrueKeyword)
           return "getStudentNotes";
@@ -367,7 +545,8 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
     deps.set(path,[]);
     for(const imported of importsIn(file)) {
       const spec=imported.specifier;
-      if(!imported.runtime && spec.startsWith("@gafus/core/"))continue;
+      if(!imported.runtime && (spec.startsWith("@gafus/core/") || spec==="@gafus/types"))continue;
+      if(allowedCourseTypeOnly(path,imported))continue;
       if(isAllowedTr013WireTypeImport(path,imported.declaration,sources))continue;
       if(spec.startsWith(".")){
         const dest=resolveLocal(path,spec,sources);
@@ -420,6 +599,99 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
   };
   for(const file of deps.keys())dfs(file);
 
+  if(sources["modules/trainer-courses/composition/editor-snapshot-port.ts"]){
+    const portFile=parsed.get("modules/trainer-courses/composition/editor-snapshot-port.ts");
+    const imports=portFile ? importsIn(portFile) : [];
+    const hasCore=imports.some(i=>i.runtime &&
+      i.specifier==="@gafus/core/services/trainerCourse" &&
+      i.names.includes("coreSnapshot"));
+    const hasRepo=imports.some(i=>i.runtime &&
+      i.specifier==="@gafus/course-read-server/editor-snapshot" &&
+      i.names.includes("readCourseEditorSnapshot"));
+    const source=sources["modules/trainer-courses/composition/editor-snapshot-port.ts"];
+    if(!hasCore || !hasRepo ||
+       !source.includes("coreSnapshot(courseId, actor, readCourseEditorSnapshot)"))
+      errors.push("editor snapshot missing exact Core policy and SQL read port binding");
+  } else if(wiring.some(w=>w.exportName==="readCourseEditorApplication")){
+    errors.push("editor snapshot SQL read port composition missing");
+  }
+  const diaryPortFile="modules/training/composition/diary-rows.ts";
+  const diarySource=sources[diaryPortFile];
+  if(wiring.some(x=>x.module==="modules/training/composition/read-diary.ts" ||
+                    x.module==="modules/training/composition/write-diary.ts")) {
+    const importCore=parsed.get(diaryPortFile)
+      ? importsIn(parsed.get(diaryPortFile)!) : [];
+    const core=importCore.find(x=>x.runtime &&
+      x.specifier==="@gafus/core/services/diary");
+    const repo=importCore.find(x=>x.runtime &&
+      x.specifier==="@gafus/course-progress-server/diary-entries");
+    const requiredRepo=[
+      "resolveDiaryCourseId","readDiaryDayOccurrence",
+      "writeDiaryUserDay","readDiaryCourseEntries",
+    ];
+    if(!diarySource || !core ||
+       !["readCoreDiary","writeCoreDiary"].every(x=>core.names.includes(x)) ||
+       !repo || requiredRepo.some(x=>!repo.names.includes(x)) ||
+       /from ["']@gafus\/prisma["']/.test(diarySource) ||
+       !/readCoreDiary\(diaryPersistence,\s*userId,\s*courseId,\s*upToDayOnCourseId\)/.test(diarySource) ||
+       !/writeCoreDiary\(diaryPersistence,\s*userId,\s*dayOnCourseId,\s*content\)/.test(diarySource)) {
+      errors.push("diary SQL composition must use exact Core read/write policy and owner-scoped port");
+    }
+  }
+  const notesPortFile="modules/student-notes/composition/notes-rows.ts";
+  if(wiring.some(w=>w.module==="modules/student-notes/composition/read-student-notes.ts")){
+    const notesSource=sources[notesPortFile]??"";
+    const items=parsed.get(notesPortFile)?importsIn(parsed.get(notesPortFile)!):[];
+    const core=items.find(i=>i.runtime && i.specifier==="@gafus/core/services/notes");
+    const sql=items.find(i=>i.runtime &&
+      i.specifier==="@gafus/course-progress-server/trainer-note-rows");
+    const push=items.find(i=>i.runtime &&
+      i.specifier==="@gafus/notifications-server" &&
+      i.names.includes("createImmediatePushNotification"));
+    const requiredSql=[
+      "readStudentNoteRows","readTrainerNoteStudentRoles","createTrainerNoteRows",
+      "readTrainerNoteForUpdate","updateTrainerNoteRows","readTrainerNoteForDelete",
+      "deleteTrainerNoteRows","readTrainerNoteRows",
+    ];
+    const requiredCore=[
+      "coreGetStudentNotes","coreCreateTrainerNote","coreUpdateTrainerNote",
+      "coreDeleteTrainerNote","coreGetTrainerNotes",
+    ];
+    if(!notesSource || !core || requiredCore.some(x=>!core.names.includes(x)) ||
+       !sql || requiredSql.some(x=>!sql.names.includes(x)) ||
+       !push || !notesSource.includes("createImmediatePushNotification(message)") ||
+       !notesSource.includes("coreGetStudentNotes(notesPersistence, studentId, options)") ||
+       !notesSource.includes("coreCreateTrainerNote(notesPersistence, input, actorId, sendTrainerNotePush)") ||
+       !notesSource.includes("coreUpdateTrainerNote(notesPersistence, input, actorId, isAdmin, sendTrainerNotePush)") ||
+       !notesSource.includes("coreDeleteTrainerNote(notesPersistence, input, actorId, isAdmin)") ||
+       /from ["']@gafus\/prisma["']/.test(notesSource))
+      errors.push("notes SQL composition must call Core policy with exact owner-scoped port");
+  }
+  const surveyAdapterFile="modules/surveys/composition/survey-rows.ts";
+  if(wiring.some(w=>w.module==="modules/surveys/composition/read-surveys.ts" ||
+                    w.module==="modules/surveys/composition/write-response.ts")){
+    const surveySource=sources[surveyAdapterFile]??"";
+    const surveyImports=parsed.get(surveyAdapterFile)
+      ? importsIn(parsed.get(surveyAdapterFile)!) : [];
+    const policy=surveyImports.find(i=>i.runtime &&
+      i.specifier==="@gafus/core/services/survey");
+    const persistence=surveyImports.find(i=>i.runtime &&
+      i.specifier==="@gafus/course-progress-server/survey-rows");
+    const required=[
+      "readSurveyResponseRow","readSurveyComparisonRows","readSurveyStepRow",
+      "readOwnedSurveyUserStepRow","writeSurveyResponseRows",
+    ];
+    if(!policy ||
+       !["readCoreSurveyComparison","readCoreSurveyResponse",
+         "writeCoreSurveyResponse"].every(x=>policy.names.includes(x)) ||
+       !persistence || required.some(x=>!persistence.names.includes(x)) ||
+       !/readCoreSurveyComparison\(surveyPersistence,\s*userId,\s*courseId,\s*familySlug\)/.test(surveySource) ||
+       !/readCoreSurveyResponse\(surveyPersistence,\s*userId,\s*stepId\)/.test(surveySource) ||
+       !/writeCoreSurveyResponse\(surveyPersistence,\s*userId,\s*input\)/.test(surveySource) ||
+       /from ["']@gafus\/prisma["']/.test(surveySource)){
+      errors.push("survey SQL composition must use exact Core policy and owner-scoped SQL port");
+    }
+  }
   for(const entry of wiring){
     const root=parsed.get(entry.module), route=parsed.get(entry.route);
     const port=parsed.get(entry.application);
@@ -442,19 +714,39 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
       for(const [portName,coreName] of Object.entries(entry.ports)){
         const strictNotesPort=entry.exportName==="readStudentNotesApplication" &&
           portName==="readNotes" && coreName==="getStudentNotes";
-        if(objectBinding(binding.arguments[0],portName,strictNotesPort)!==coreName)
+        const strictCourseFavoritesPort=entry.exportName==="courseReadApplication" &&
+          portName==="favorites" && coreName==="getFavoritesCourses";
+        const strictPetReadPort=entry.exportName==="readPetsApplication" &&
+          (portName==="readList" || portName==="readDetail");
+        const requiredStage=APPROVED_CORRELATED_STAGES[entry.module]?.[portName];
+        if(requiredStage && !sourceImports.some(i=>i.runtime &&
+            i.specifier==="../../../lib/operation-observability.js" &&
+            i.names.length===1 && i.names[0]==="withCorrelatedUseCase"))
+          errors.push("composition missing approved correlation helper "+entry.module);
+        if(objectBinding(binding.arguments[0],portName,strictNotesPort,strictCourseFavoritesPort,strictPetReadPort,requiredStage)!==coreName)
           errors.push("composition wrong Core binding "+entry.exportName+"."+portName);
         if(entry.repository){
           if(!hasRouteImport(root,entry.repository,coreName,sources,entry.module))
             errors.push("composition missing approved repository "+coreName);
         } else if(!sourceImports.some(i=>i.runtime &&
-           (entry.runtimeServiceModule
-             ? i.specifier===entry.runtimeServiceModule
-             : i.specifier.startsWith("@gafus/core/services/")) &&
+           (entry.runtimeServiceByPort?.[portName]
+             ? i.specifier===entry.runtimeServiceByPort[portName]
+             : entry.runtimeServiceModule
+               ? i.specifier===entry.runtimeServiceModule
+               : i.specifier.startsWith("@gafus/core/services/")) &&
            i.names.includes(coreName))) {
           errors.push("composition missing runtime Core service "+coreName);
         }
       }
+    }
+    if(entry.exportName==="readPetsApplication") {
+      const required=["readOwnedPets","readOwnedPetDetail"];
+      const projectionImports=sourceImports.filter(i=>i.runtime &&
+        i.specifier==="@gafus/pets-server/pet-reads");
+      if(projectionImports.length!==1 ||
+         required.some(name=>!projectionImports[0].names.includes(name)) ||
+         projectionImports[0].names.length!==2)
+        errors.push("pet READ composition missing exact scoped SQL port imports");
     }
     if(entry.repository){
       const repository=parsed.get(entry.repository);
@@ -481,6 +773,16 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
     if(!root)continue;
     const allowed=new Set(wiring.filter(w=>w.module===composition)
       .flatMap(w=>Object.values(w.ports)));
+    if(composition==="modules/courses/composition/read-courses.ts"){
+      // Only this composition may inject the real Core paywall policy.
+      // This is not permission for arbitrary Core imports in Course adapters.
+      allowed.add("resolveCourseEntitlement");
+      const policyImports=importsIn(root).filter(i=>i.runtime &&
+        i.specifier==="@gafus/core/services/contentAccess" &&
+        i.names.includes("resolveCourseEntitlement"));
+      if(policyImports.length!==1)
+        errors.push("course favorites requires exactly one Core entitlement policy import");
+    }
     const coreImports=importsIn(root)
       .filter(i=>i.runtime && i.specifier.startsWith("@gafus/core/services/"))
       .flatMap(i=>i.names);
@@ -500,6 +802,13 @@ function actualSources():Sources {
   const files=new Set<string>(WIRINGS.flatMap(w=>[
     w.module,w.route,w.application,...(w.repository ? [w.repository] : []),
   ]));
+  files.add("modules/trainer-courses/composition/editor-snapshot-port.ts");
+  // The diary SQL adapter is an explicit intermediate composition: the
+  // application-facing roots import it, never a database facade directly.
+  files.add("modules/training/composition/diary-rows.ts");
+  // Survey SQL adapter also lives behind exactly one API-only composition.
+  files.add("modules/surveys/composition/survey-rows.ts");
+  files.add("modules/student-notes/composition/notes-rows.ts");
   for(const name of readdirSync(join(srcRoot,"modules"),{withFileTypes:true})){
     if(!name.isDirectory() || name.isSymbolicLink())continue;
     const appDir=join(srcRoot,"modules",name.name,"application");
@@ -534,13 +843,15 @@ const APP_B="modules/b/application/b.ts";
 const simpleApp="export function createApp(){return {execute(){return 1;}};}";
 
 describe("AG1-001 actual API application/composition architecture gate",()=>{
-  it("real thirty-two-application and thirty-one-composition + nineteen-route module graph PASS",()=>{
+  it("real application/composition + route module graph PASS (strict source allowlist)",()=>{
     const sources=actualSources();
     expect(Object.keys(sources).filter(applicationSource).sort()).toEqual([
       "modules/achievements/application/read-achievements.ts",
+      "modules/admin-analytics/application/read-admin-analytics.ts",
       "modules/consultations/application/list-cynologists.ts",
       "modules/courses/application/read-access.ts",
       "modules/courses/application/read-courses.ts",
+      "modules/courses/application/read-public-outline.ts",
       "modules/courses/application/write-favorite.ts",
       "modules/courses/application/write-personalization.ts",
       "modules/courses/application/write-reviews.ts",
@@ -572,8 +883,143 @@ describe("AG1-001 actual API application/composition architecture gate",()=>{
       "modules/user/application/read-public-profile.ts",
       "modules/user/application/update-profile.ts",
     ]);
-    expect(Object.keys(sources)).toHaveLength(89);
+    expect(Object.keys(sources)).toHaveLength(97);
     expect(assess(sources,WIRINGS)).toEqual([]);
+  });
+  it("rejects dynamic or wrong-name telemetry stages in owner-scoped course reads",()=>{
+    const file="modules/courses/composition/read-access.ts";
+    const original=actualSources();
+    expect(original[file]).toContain('withCorrelatedUseCase("courses.entitlement.id.read"');
+    const dynamic={...original,[file]:original[file].replace(
+      'withCorrelatedUseCase("courses.entitlement.id.read",',
+      'withCorrelatedUseCase("courses.entitlement." + userId,',
+    )};
+    expect(assess(dynamic,WIRINGS)).toContain(
+      "composition wrong Core binding readCourseAccessApplication.byId");
+    const wrongName={...original,[file]:original[file].replace(
+      'withCorrelatedUseCase("courses.entitlement.id.read",',
+      'withCorrelatedUseCase("courses.entitlement.type.read",',
+    )};
+    expect(assess(wrongName,WIRINGS)).toContain(
+      "composition wrong Core binding readCourseAccessApplication.byId");
+  });
+  it("rejects a telemetry callback that changes the authorized principal",()=>{
+    const file="modules/achievements/composition/read-achievements.ts";
+    const original=actualSources();
+    expect(original[file]).toContain("getAchievementStats(actorUserId)");
+    const swapped={...original,[file]:original[file].replace(
+      "getAchievementStats(actorUserId)", 'getAchievementStats("OTHER_USER")',
+    )};
+    expect(assess(swapped,WIRINGS)).toContain(
+      "composition wrong Core binding readAchievementsApplication.readStats");
+  });
+  it("rejects argument-array substitution even behind a fixed read span",()=>{
+    const file="modules/training/composition/read-training-day.ts";
+    const original=actualSources();
+    expect(original[file]).toContain("getTrainingDayWithMonetizedSteps(...args)");
+    const swapped={...original,[file]:original[file].replace(
+      "getTrainingDayWithMonetizedSteps(...args)",
+      "getTrainingDayWithMonetizedSteps(...[])",
+    )};
+    expect(assess(swapped,WIRINGS)).toContain(
+      "composition wrong Core binding readTrainingDayApplication.readDay");
+  });
+  it("rejects telemetry helper substitution outside the approved correlation module",()=>{
+    const file="modules/exam/composition/read-result.ts";
+    const original=actualSources();
+    expect(original[file]).toContain('"../../../lib/operation-observability.js"');
+    const swapped={...original,[file]:original[file].replace(
+      '"../../../lib/operation-observability.js"',
+      '"../../../lib/evil-observability.js"',
+    )};
+    expect(assess(swapped,WIRINGS)).toContain(
+      "composition missing approved correlation helper "+file);
+  });
+  it("rejects trainer-note push transport bypassing the explicit Core notification port",()=>{
+    const originals=actualSources();
+    const file="modules/student-notes/composition/notes-rows.ts";
+    const source=originals[file] ?? "";
+    expect(source).toContain("coreCreateTrainerNote(notesPersistence, input, actorId, sendTrainerNotePush)");
+    const bypass={...originals,[file]:source.replace(
+      "coreCreateTrainerNote(notesPersistence, input, actorId, sendTrainerNotePush)",
+      "coreCreateTrainerNote(notesPersistence, input, actorId)",
+    )};
+    expect(assess(bypass,WIRINGS)).toContain(
+      "notes SQL composition must call Core policy with exact owner-scoped port");
+  });
+  it("rejects student notes SQL composition bypass of Core authorization",()=>{
+    const sources=actualSources();
+    const file="modules/student-notes/composition/notes-rows.ts";
+    const source=sources[file];
+    expect(source).toContain("coreGetStudentNotes(notesPersistence, studentId, options)");
+    sources[file]=source.replace(
+      "coreGetStudentNotes(notesPersistence, studentId, options)",
+      "readStudentNoteRows(studentId)",
+    );
+    expect(assess(sources,WIRINGS)).toContain(
+      "notes SQL composition must call Core policy with exact owner-scoped port");
+  });
+  it("rejects survey composition bypass of Core authorization or persistence port",()=>{
+    const sources=actualSources();
+    const file="modules/surveys/composition/survey-rows.ts";
+    const original=sources[file];
+    expect(original).toContain("writeCoreSurveyResponse(surveyPersistence, userId, input)");
+    sources[file]=original.replace(
+      "writeCoreSurveyResponse(surveyPersistence, userId, input)",
+      "writeSurveyResponseRows(input, () => true, () => 'COMPLETED')",
+    );
+    expect(assess(sources,WIRINGS)).toContain(
+      "survey SQL composition must use exact Core policy and owner-scoped SQL port");
+    sources[file]=original.replace(
+      "readCoreSurveyComparison(surveyPersistence, userId, courseId, familySlug)",
+      "readSurveyComparisonRows(userId, courseId, familySlug)",
+    );
+    expect(assess(sources,WIRINGS)).toContain(
+      "survey SQL composition must use exact Core policy and owner-scoped SQL port");
+  });
+  it("rejects diary composition bypass of Core authorization or persistence port",()=>{
+    const sources=actualSources();
+    const file="modules/training/composition/diary-rows.ts";
+    const original=sources[file];
+    expect(original).toMatch(/readCoreDiary\(diaryPersistence, userId, courseId, upToDayOnCourseId\)/);
+    sources[file]=original.replace(
+      "readCoreDiary(diaryPersistence, userId, courseId, upToDayOnCourseId)",
+      "readDiaryCourseEntries(userId, courseId, upToDayOnCourseId)",
+    );
+    expect(assess(sources,WIRINGS)).toContain(
+      "diary SQL composition must use exact Core read/write policy and owner-scoped port");
+    sources[file]=original.replace("writeCoreDiary(diaryPersistence, userId, dayOnCourseId, content)",
+      "writeDiaryUserDay(userId, dayOnCourseId, content)");
+    expect(assess(sources,WIRINGS)).toContain(
+      "diary SQL composition must use exact Core read/write policy and owner-scoped port");
+  });
+  it("rejects unscoped or substituted SQL pet-read ports",()=>{
+    const sources=actualSources();
+    const key="modules/pets/composition/read-pets.ts";
+    const original=sources[key];
+    expect(original).toContain("getUserPets(actorUserId, options, readOwnedPets)");
+    sources[key]=original.replace(
+      "getUserPets(actorUserId, options, readOwnedPets)",
+      "getUserPets(actorUserId, options, unscopedPets)",
+    );
+    expect(assess(sources,WIRINGS)).toContain(
+      "composition wrong Core binding readPetsApplication.readList");
+    sources[key]=original.replace(
+      'from "@gafus/pets-server/pet-reads"',
+      'from "@gafus/pets-server/pet-rows"',
+    );
+    expect(assess(sources,WIRINGS)).toContain(
+      "pet READ composition missing exact scoped SQL port imports");
+  });
+  it("fails closed when the editor snapshot DB port is detached from Core",()=>{
+    const sources=actualSources();
+    const key="modules/trainer-courses/composition/editor-snapshot-port.ts";
+    sources[key]=sources[key].replace(
+      "coreSnapshot(courseId, actor, readCourseEditorSnapshot)",
+      "readCourseEditorSnapshot(courseId, actor)",
+    );
+    expect(assess(sources,WIRINGS)).toContain(
+      "editor snapshot missing exact Core policy and SQL read port binding");
   });
   it("rejects non-Core exam READ substitution in the sole exam result composition",()=>{
     const sources=actualSources();
@@ -788,6 +1234,26 @@ describe("AG1-001 actual API application/composition architecture gate",()=>{
   it("rejects TR012 wire import from unrelated application",()=>{
     const code=`import type { TrainerCourseDraftItem } from "${sharedWire}";`;
     expect(assess({[APP_A]:code+"\n"+simpleApp},[]).length).toBeGreaterThan(0);
+  });
+  it("allows only exact erased course-server signatures, never runtime persistence in Application",()=>{
+    const app="modules/courses/application/write-reviews.ts";
+    const sources=actualSources();
+    const original=sources[app];
+    expect(original).toBeDefined();
+    const forbidden=original!.replace(
+      'import type {',
+      'import {',
+    );
+    expect(assess({...sources,[app]:forbidden},WIRINGS)).toContain(
+      app+": forbidden application runtime/external dependency: @gafus/course-server/reviews",
+    );
+    const wrong=original!.replace(
+      '"@gafus/course-server/reviews"',
+      '"@gafus/course-server/public-catalog"',
+    );
+    expect(assess({...sources,[app]:wrong},WIRINGS)).toContain(
+      app+": forbidden application runtime/external dependency: @gafus/course-server/public-catalog",
+    );
   });
   it("rejects cross-application runtime import cycle",()=>{
     const sources={

@@ -1,0 +1,574 @@
+{
+  "version": 1,
+  "note": "Transitional compatibility facades; not pure Core Domain/Application.",
+  "imports": [
+    {
+      "file": "packages/core/src/services/accountCleanup/enqueue.ts",
+      "import": "@gafus/identity-write-server/account-cleanup-records"
+    },
+    {
+      "file": "packages/core/src/services/accountCleanup/worker.ts",
+      "import": "@gafus/identity-write-server/account-cleanup-worker-rows"
+    },
+    {
+      "file": "packages/core/src/services/achievements/calculateAchievements.ts",
+      "import": "@gafus/achievements-server/calculateAchievements"
+    },
+    {
+      "file": "packages/core/src/services/achievements/calculateStreaks.ts",
+      "import": "@gafus/achievements-server/calculateStreaks"
+    },
+    {
+      "file": "packages/core/src/services/achievements/datesService.ts",
+      "import": "@gafus/achievements-server/datesService"
+    },
+    {
+      "file": "packages/core/src/services/achievements/index.ts",
+      "import": "@gafus/achievements-server"
+    },
+    {
+      "file": "packages/core/src/services/achievements/statsService.ts",
+      "import": "@gafus/achievements-server/statsService"
+    },
+    {
+      "file": "packages/core/src/services/adminGafus/index.ts",
+      "import": "@gafus/gafus-server/admin-rows"
+    },
+    {
+      "file": "packages/core/src/services/adminReengagement/adminReengagementService.ts",
+      "import": "@gafus/admin-reengagement-server/adminReengagementService"
+    },
+    {
+      "file": "packages/core/src/services/adminReengagement/index.ts",
+      "import": "@gafus/admin-reengagement-server"
+    },
+    {
+      "file": "packages/core/src/services/adminReengagement/types.ts",
+      "import": "@gafus/admin-reengagement-server/types"
+    },
+    {
+      "file": "packages/core/src/services/adminRewardedAds/adminRewardedAdsService.ts",
+      "import": "@gafus/admin-rewarded-ads-server/adminRewardedAdsService"
+    },
+    {
+      "file": "packages/core/src/services/adminRewardedAds/index.ts",
+      "import": "@gafus/admin-rewarded-ads-server"
+    },
+    {
+      "file": "packages/core/src/services/adminRewardedAds/types.ts",
+      "import": "@gafus/admin-rewarded-ads-server/types"
+    },
+    {
+      "file": "packages/core/src/services/adminUser/adminUserService.ts",
+      "import": "@gafus/identity-write-server/admin-user-reads"
+    },
+    {
+      "file": "packages/core/src/services/adminUser/adminUserService.ts",
+      "import": "@gafus/identity-write-server/admin-user-writes"
+    },
+    {
+      "file": "packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts",
+      "import": "@gafus/feature-flags-server/appFeatureFlagsService"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/accessService.ts",
+      "import": "@gafus/subscription-read-server"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/adminService.ts",
+      "import": "@gafus/subscription-finance-server/admin-rows"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/appleEnvironment.ts",
+      "import": "@gafus/subscription-payment-server/apple-environment"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/npdOperationPersistence.ts",
+      "import": "@gafus/subscription-finance-server/npd-operation-persistence"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/npdOperationPersistence.ts",
+      "import": "@gafus/subscription-finance-server/npd-operation-persistence"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/npdReceiptService.ts",
+      "import": "@gafus/subscription-finance-server/npd-receipts"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/partnerService.ts",
+      "import": "@gafus/subscription-payment-server/partner"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/paymentFinanceService.ts",
+      "import": "@gafus/subscription-payment-server/payment-finance"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/paymentPure.ts",
+      "import": "@gafus/subscription-payment-server/payment-pure"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/paymentService.ts",
+      "import": "@gafus/subscription-payment-server/service"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/plans.ts",
+      "import": "@gafus/subscription-payment-server/plans"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/profitFinanceSync.ts",
+      "import": "@gafus/subscription-finance-server/profit-reconciliation-rows"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/profitMath.ts",
+      "import": "@gafus/subscription-payment-server/profit-math"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/profitService.ts",
+      "import": "@gafus/subscription-finance-server/profit-dashboard-rows"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/profitService.ts",
+      "import": "@gafus/subscription-finance-server/profit-video-rows"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/promoCode.ts",
+      "import": "@gafus/subscription-payment-server/promo-code"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/promoCodeService.ts",
+      "import": "@gafus/subscription-finance-server/promo-code-rows"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/settingsService.ts",
+      "import": "@gafus/subscription-read-server"
+    },
+    {
+      "file": "packages/core/src/services/appSubscription/trialService.ts",
+      "import": "@gafus/subscription-trial-server/trial-usage"
+    },
+    {
+      "file": "packages/core/src/services/article/articleLikeService.ts",
+      "import": "@gafus/article-server/likes"
+    },
+    {
+      "file": "packages/core/src/services/article/articleService.ts",
+      "import": "@gafus/article-server"
+    },
+    {
+      "file": "packages/core/src/services/article/articleService.ts",
+      "import": "@gafus/article-server/article-rows"
+    },
+    {
+      "file": "packages/core/src/services/auth/authService.ts",
+      "import": "@gafus/identity-write-server/auth-rows"
+    },
+    {
+      "file": "packages/core/src/services/auth/emailAccountFlows.ts",
+      "import": "@gafus/identity-write-server/email-account-rows"
+    },
+    {
+      "file": "packages/core/src/services/auth/passwordReset.ts",
+      "import": "@gafus/identity-write-server/password-reset"
+    },
+    {
+      "file": "packages/core/src/services/auth/registerUserWithCredentials.ts",
+      "import": "@gafus/identity-write-server/registration-contract-rows"
+    },
+    {
+      "file": "packages/core/src/services/auth/registrationContracts.ts",
+      "import": "@gafus/identity-write-server/registration-contract-rows"
+    },
+    {
+      "file": "packages/core/src/services/auth/registrationUseCases.ts",
+      "import": "@gafus/identity-write-server/registration-context-reads"
+    },
+    {
+      "file": "packages/core/src/services/auth/vkAuth.ts",
+      "import": "@gafus/identity-write-server/auth-rows"
+    },
+    {
+      "file": "packages/core/src/services/auth/vkAuth.ts",
+      "import": "@gafus/identity-write-server/vk-auth-rows"
+    },
+    {
+      "file": "packages/core/src/services/auth/vkRegistrationCompletion.ts",
+      "import": "@gafus/identity-write-server/vk-completion-rows"
+    },
+    {
+      "file": "packages/core/src/services/consent/consentService.ts",
+      "import": "@gafus/consent-server/consentService"
+    },
+    {
+      "file": "packages/core/src/services/consent/index.ts",
+      "import": "@gafus/consent-server"
+    },
+    {
+      "file": "packages/core/src/services/consent/types.ts",
+      "import": "@gafus/consent-server/types"
+    },
+    {
+      "file": "packages/core/src/services/consultation/availabilityService.ts",
+      "import": "@gafus/consultation-query-server/schedule-rows"
+    },
+    {
+      "file": "packages/core/src/services/consultation/bookingEligibility.ts",
+      "import": "@gafus/consultation-query-server/booking-eligibility"
+    },
+    {
+      "file": "packages/core/src/services/consultation/bookingService.ts",
+      "import": "@gafus/consultation-write-server/service"
+    },
+    {
+      "file": "packages/core/src/services/consultation/consultationTransactionalMail.ts",
+      "import": "@gafus/consultation-query-server"
+    },
+    {
+      "file": "packages/core/src/services/consultation/cynologistService.ts",
+      "import": "@gafus/consultation-query-server/cynologist-catalog-rows"
+    },
+    {
+      "file": "packages/core/src/services/consultation/notificationService.ts",
+      "import": "@gafus/notifications-server/consultation-email-outbox"
+    },
+    {
+      "file": "packages/core/src/services/consultation/slotService.ts",
+      "import": "@gafus/consultation-query-server/slot-rows"
+    },
+    {
+      "file": "packages/core/src/services/contentAccess/index.ts",
+      "import": "@gafus/entitlements-server"
+    },
+    {
+      "file": "packages/core/src/services/contentAccess/policy.ts",
+      "import": "@gafus/entitlements-server/policy-reads"
+    },
+    {
+      "file": "packages/core/src/services/course/courseService.ts",
+      "import": "@gafus/course-read-server/legacy-catalog-rows"
+    },
+    {
+      "file": "packages/core/src/services/coursePath/coursePathService.ts",
+      "import": "@gafus/course-read-server/course-path-read"
+    },
+    {
+      "file": "packages/core/src/services/cynologistChat/authorRole.ts",
+      "import": "@gafus/entitlements-server/policy-reads"
+    },
+    {
+      "file": "packages/core/src/services/dailyCourse/dailyCourseService.ts",
+      "import": "@gafus/course-progress-server/daily-course-service"
+    },
+    {
+      "file": "packages/core/src/services/dailyCourse/dailyCourseService.ts",
+      "import": "@gafus/course-progress-server/daily-course-service"
+    },
+    {
+      "file": "packages/core/src/services/diary/diaryService.ts",
+      "import": "@gafus/course-progress-server/diary-entries"
+    },
+    {
+      "file": "packages/core/src/services/diary/diaryService.ts",
+      "import": "@gafus/course-progress-server/diary-entries"
+    },
+    {
+      "file": "packages/core/src/services/exam/examService.ts",
+      "import": "@gafus/exam-server/exam-service"
+    },
+    {
+      "file": "packages/core/src/services/exam/examService.ts",
+      "import": "@gafus/exam-server/exam-service"
+    },
+    {
+      "file": "packages/core/src/services/exam/examService.ts",
+      "import": "@gafus/exam-server/exam-service"
+    },
+    {
+      "file": "packages/core/src/services/exam/retentionPolicy.ts",
+      "import": "@gafus/exam-server/retention-policy"
+    },
+    {
+      "file": "packages/core/src/services/feed/ports.ts",
+      "import": "@gafus/media-server/media-db-ports"
+    },
+    {
+      "file": "packages/core/src/services/feed/service.ts",
+      "import": "@gafus/media-server/feed-ranked-rows"
+    },
+    {
+      "file": "packages/core/src/services/feed/service.ts",
+      "import": "@gafus/media-server/media-db-ports"
+    },
+    {
+      "file": "packages/core/src/services/gafus/accessGrantService.ts",
+      "import": "@gafus/gafus-server/unlock-records"
+    },
+    {
+      "file": "packages/core/src/services/gafus/legacyImportService.ts",
+      "import": "@gafus/gafus-server/legacy-import-records"
+    },
+    {
+      "file": "packages/core/src/services/gafus/locking.ts",
+      "import": "@gafus/gafus-server/wallet-lock"
+    },
+    {
+      "file": "packages/core/src/services/gafus/settingsService.ts",
+      "import": "@gafus/gafus-server/settings-read"
+    },
+    {
+      "file": "packages/core/src/services/gafus/statusService.ts",
+      "import": "@gafus/gafus-server/activity-read"
+    },
+    {
+      "file": "packages/core/src/services/gafus/types.ts",
+      "import": "@gafus/gafus-server/wallet-lock"
+    },
+    {
+      "file": "packages/core/src/services/gafus/types.ts",
+      "import": "@gafus/gafus-server/wallet-records"
+    },
+    {
+      "file": "packages/core/src/services/gafus/walletService.ts",
+      "import": "@gafus/gafus-server/wallet-records"
+    },
+    {
+      "file": "packages/core/src/services/gallery/persistence.ts",
+      "import": "@gafus/media-server/media-db-ports"
+    },
+    {
+      "file": "packages/core/src/services/gallery/ports.ts",
+      "import": "@gafus/media-server/media-db-ports"
+    },
+    {
+      "file": "packages/core/src/services/mediaDelivery/purgeQueue.ts",
+      "import": "@gafus/media-server/deleted-media-purge"
+    },
+    {
+      "file": "packages/core/src/services/mediaDelivery/purgeQueue.ts",
+      "import": "@gafus/media-server/deleted-media-purge"
+    },
+    {
+      "file": "packages/core/src/services/mobileIntro/index.ts",
+      "import": "@gafus/mobile-intro-server"
+    },
+    {
+      "file": "packages/core/src/services/mobileIntro/mobileIntroService.ts",
+      "import": "@gafus/mobile-intro-server/mobileIntroService"
+    },
+    {
+      "file": "packages/core/src/services/mobileIntro/types.ts",
+      "import": "@gafus/mobile-intro-server/types"
+    },
+    {
+      "file": "packages/core/src/services/notes/notesService.ts",
+      "import": "@gafus/course-progress-server/trainer-note-rows"
+    },
+    {
+      "file": "packages/core/src/services/notifications/immediatePushService.ts",
+      "import": "@gafus/notifications-server/immediatePushService"
+    },
+    {
+      "file": "packages/core/src/services/notifications/index.ts",
+      "import": "@gafus/notifications-server"
+    },
+    {
+      "file": "packages/core/src/services/notifications/pushWorkerService.ts",
+      "import": "@gafus/notifications-server/pushWorkerService"
+    },
+    {
+      "file": "packages/core/src/services/notifications/stepNotificationService.ts",
+      "import": "@gafus/notifications-server/stepNotificationService"
+    },
+    {
+      "file": "packages/core/src/services/offline/offlineMutationJournal.ts",
+      "import": "@gafus/course-progress-server/offline-mutation-rows"
+    },
+    {
+      "file": "packages/core/src/services/offline/offlineService.ts",
+      "import": "@gafus/course-read-server"
+    },
+    {
+      "file": "packages/core/src/services/offline/offlineVideoPositionV3Service.ts",
+      "import": "@gafus/course-progress-server/offline-video-rows"
+    },
+    {
+      "file": "packages/core/src/services/petPrevention/petPreventionService.ts",
+      "import": "@gafus/pets-server/prevention-rows"
+    },
+    {
+      "file": "packages/core/src/services/petPrevention/reminderDelivery.ts",
+      "import": "@gafus/pets-server/prevention-reminder-rows"
+    },
+    {
+      "file": "packages/core/src/services/pets/g1VetVisitDetailRead.review.ts",
+      "import": "@gafus/pets-server/vet-visit-detail"
+    },
+    {
+      "file": "packages/core/src/services/pets/petMediaDeletionOutbox.ts",
+      "import": "@gafus/pets-server/pet-media-deletion-outbox"
+    },
+    {
+      "file": "packages/core/src/services/pets/petMediaDeletionSql.ts",
+      "import": "@gafus/pets-server/pet-media-deletion-default"
+    },
+    {
+      "file": "packages/core/src/services/pets/petMediaDeletionSql.ts",
+      "import": "@gafus/pets-server/pet-media-deletion-sql"
+    },
+    {
+      "file": "packages/core/src/services/pets/petsReadService.ts",
+      "import": "@gafus/pets-server/pet-reads"
+    },
+    {
+      "file": "packages/core/src/services/pets/petsService.ts",
+      "import": "@gafus/pets-server/pet-rows"
+    },
+    {
+      "file": "packages/core/src/services/pets/petVetVisitService.ts",
+      "import": "@gafus/pets-server/vet-visit-write-rows"
+    },
+    {
+      "file": "packages/core/src/services/questions/errors.ts",
+      "import": "@gafus/questions-write-server/errors"
+    },
+    {
+      "file": "packages/core/src/services/questions/mediaV2Cleanup.ts",
+      "import": "@gafus/media-server/question-v2-cleanup"
+    },
+    {
+      "file": "packages/core/src/services/questions/presentPhoto.ts",
+      "import": "@gafus/media-server/question-photo-task"
+    },
+    {
+      "file": "packages/core/src/services/questions/schemas.ts",
+      "import": "@gafus/questions-write-server/schemas"
+    },
+    {
+      "file": "packages/core/src/services/questions/service.ts",
+      "import": "@gafus/questions-write-server/service"
+    },
+    {
+      "file": "packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.ts",
+      "import": "@gafus/identity-write-server/reminder-review-rows"
+    },
+    {
+      "file": "packages/core/src/services/reminders/g1ReminderExpiryPIIRedaction.review.ts",
+      "import": "@gafus/notifications-server/reminder-expiry-redaction"
+    },
+    {
+      "file": "packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts",
+      "import": "@gafus/identity-write-server/reminder-review-rows"
+    },
+    {
+      "file": "packages/core/src/services/reminders/reminderService.ts",
+      "import": "@gafus/notifications-server/training-reminder-storage"
+    },
+    {
+      "file": "packages/core/src/services/rewardedCredits/accessService.ts",
+      "import": "@gafus/entitlements-server/rewarded-access-reads"
+    },
+    {
+      "file": "packages/core/src/services/rewardedCredits/adSessionService.ts",
+      "import": "@gafus/gafus-server/rewarded-ad-rows"
+    },
+    {
+      "file": "packages/core/src/services/rewardedCredits/gafusInterop.ts",
+      "import": "@gafus/course-read-server/gafus-entitlement-reads"
+    },
+    {
+      "file": "packages/core/src/services/rewardedCredits/settingsService.ts",
+      "import": "@gafus/gafus-server/rewarded-settings"
+    },
+    {
+      "file": "packages/core/src/services/rewardedCredits/walletService.ts",
+      "import": "@gafus/gafus-server/rewarded-wallet-rows"
+    },
+    {
+      "file": "packages/core/src/services/survey/surveyService.ts",
+      "import": "@gafus/course-progress-server/survey-rows"
+    },
+    {
+      "file": "packages/core/src/services/tracking/trackingService.ts",
+      "import": "@gafus/tracking-server/trackingService"
+    },
+    {
+      "file": "packages/core/src/services/trainerAI/index.ts",
+      "import": "@gafus/trainer-ai-server/persistence"
+    },
+    {
+      "file": "packages/core/src/services/trainerAI/settingsService.ts",
+      "import": "@gafus/trainer-ai-server/persistence"
+    },
+    {
+      "file": "packages/core/src/services/trainerCourse/courseDeleteVersionedService.ts",
+      "import": "@gafus/course-server/course-delete-versioned"
+    },
+    {
+      "file": "packages/core/src/services/trainerCourse/courseEditorSnapshotService.ts",
+      "import": "@gafus/course-read-server/editor-snapshot"
+    },
+    {
+      "file": "packages/core/src/services/trainerCourse/courseVersionService.ts",
+      "import": "@gafus/course-progress-server/course-version-rows"
+    },
+    {
+      "file": "packages/core/src/services/trainerCourse/trainerCourseNameOnlyService.ts",
+      "import": "@gafus/course-progress-server/course-version-rows"
+    },
+    {
+      "file": "packages/core/src/services/trainerCourse/trainerCourseService.ts",
+      "import": "@gafus/course-progress-server/trainer-course-rows"
+    },
+    {
+      "file": "packages/core/src/services/trainerStep/trainerStepService.ts",
+      "import": "@gafus/course-progress-server/trainer-step-rows"
+    },
+    {
+      "file": "packages/core/src/services/trainerVideo/trainerVideoService.ts",
+      "import": "@gafus/media-server/trainer-video-rows"
+    },
+    {
+      "file": "packages/core/src/services/training/trainingContentRevision.ts",
+      "import": "@gafus/course-read-server/content-revision"
+    },
+    {
+      "file": "packages/core/src/services/training/trainingDayContent.ts",
+      "import": "@gafus/course-read-server"
+    },
+    {
+      "file": "packages/core/src/services/training/trainingService.ts",
+      "import": "@gafus/course-progress-server/training-service"
+    },
+    {
+      "file": "packages/core/src/services/training/trainingService.ts",
+      "import": "@gafus/course-progress-server/training-service"
+    },
+    {
+      "file": "packages/core/src/services/trainingDay/helpers.ts",
+      "import": "@gafus/course-read-server/course-path-read"
+    },
+    {
+      "file": "packages/core/src/services/trainingDay/trainingDayService.ts",
+      "import": "@gafus/course-progress-server/training-day-rows"
+    },
+    {
+      "file": "packages/core/src/services/user/deleteUserAccount.ts",
+      "import": "@gafus/identity-write-server/account-deletion-rows"
+    },
+    {
+      "file": "packages/core/src/services/user/profileService.ts",
+      "import": "@gafus/identity-write-server/profile-rows"
+    },
+    {
+      "file": "packages/core/src/services/user/userCourseService.ts",
+      "import": "@gafus/course-progress-server/completion"
+    },
+    {
+      "file": "packages/core/src/services/user/userProgressService.ts",
+      "import": "@gafus/course-progress-server"
+    },
+    {
+      "file": "packages/core/src/services/video/videoAccessService.ts",
+      "import": "@gafus/course-read-server/video-access-read"
+    }
+  ]
+}

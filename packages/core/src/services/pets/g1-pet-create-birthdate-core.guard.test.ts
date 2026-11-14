@@ -105,3 +105,8 @@ describe("PETS021 G05 direct Core create requires a real nonfuture date before a
     expect(args[2]).toBe(requestKey);
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
+import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
+registerPetRowsPort(originalPetRowsPort as PetRowsPort);

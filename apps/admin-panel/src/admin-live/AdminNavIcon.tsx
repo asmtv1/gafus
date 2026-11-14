@@ -24,6 +24,7 @@ const iconBySection: Record<AdminSection["key"], typeof Flag> = {
   admin: AdminPanelSettings,
   partners: Handshake,
   profit: TrendingUp,
+  "mobile-ota": Slideshow,
   "feature-flags": Flag,
   broadcasts: Notifications,
   reengagement: TrendingUp,

@@ -14,6 +14,20 @@ vi.mock("@gafus/logger", () => ({
 
 import { prisma } from "@gafus/prisma";
 import { getCoursesWithProgress } from "./courseService";
+// The original Prisma projections remain authoritative but are now bound
+// at the Core/application boundary; existing wire/owner assertions unchanged.
+import { registerCatalogReadPort } from "./catalogReadPort";
+import {
+  readCatalogCourseRows, readCatalogProgressRows, readCatalogFavoriteRows,
+  readCourseAccessByType, readCourseAccessById,
+  readCourseMetadataRow, readCourseOutlineRow,
+} from "@gafus/course-read-server/legacy-catalog-rows";
+registerCatalogReadPort({
+  readCatalogCourseRows, readCatalogProgressRows, readCatalogFavoriteRows,
+  readCourseAccessByType, readCourseAccessById,
+  readCourseMetadataRow, readCourseOutlineRow,
+});
+
 
 const requireTrue = (condition: boolean, code: string) => {
   if (!condition) throw Error(code);

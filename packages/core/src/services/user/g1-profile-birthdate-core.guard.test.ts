@@ -6,6 +6,12 @@ vi.mock("@gafus/prisma", () => ({ prisma: { userProfile: { upsert: db.upsert } }
 vi.mock("@gafus/logger", () => ({ createWebLogger: () => ({ info: vi.fn(), error: vi.fn() }) }));
 vi.mock("../cynologistChat/authorRole", () => ({ getChatDisplayRole: async () => null }));
 import { updateUserProfile } from "./profileService";
+// Bind unchanged identity-write SQL projections against the existing synthetic
+// Prisma test rows; production composition runs before Hono routes.
+import { registerProfileRowsPort } from "./profileRowsPort";
+import * as profileSql from "@gafus/identity-write-server/profile-rows";
+registerProfileRowsPort(profileSql);
+
 
 beforeEach(() => {
   vi.clearAllMocks();

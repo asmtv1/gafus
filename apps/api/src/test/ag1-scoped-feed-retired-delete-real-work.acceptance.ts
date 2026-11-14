@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 /** New-owned original Hono upload/cancel -> exact one Core delete lease -> existing Feed S3 worker, no foreign queue drain. */
 import { randomBytes, randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
@@ -81,7 +82,7 @@ async function main(){
  pass("ORIGINAL_HONO_DELETE_CREATES_EXACT_OWN_RETIRED_QUEUE_JOB");
  phase="exact-core-job-claim";
  const module=await import("../../../../packages/core/src/services/feed/"+"jobs.ts");
- const coreJobs=module.createFeedStorageJobs({db:prisma});
+ const coreJobs=module.createFeedStorageJobs({ enqueueDeletedMediaPurge, db:prisma});
  const wrong=await coreJobs.claim(1,"photo",{jobId:job.id,ownerId:"not_this_actor",kind:"delete_keys"});
  assert(wrong.length===0&&
   (await prisma.feedStorageJob.findUnique({where:{id:job.id}}))?.status==="pending","WRONG_OWNER_CANNOT_CLAIM_OWN_JOB");

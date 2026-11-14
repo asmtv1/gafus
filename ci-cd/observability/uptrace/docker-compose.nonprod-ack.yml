@@ -1,0 +1,124 @@
+# NONPROD ONLY. This is an isolated preview candidate, NOT the production
+# docker-compose. Never attach to GAFUS production networks, DB, Redis or jobs.
+# Requires exact user/secret preflight and separately verified hard spool quota.
+name: gafus-uptrace-nonprod-ack
+services:
+  ack-gateway:
+    image: node:24-alpine
+    profiles: [preview]
+    user: "${GAFUS_NONPROD_UID:?Use the UID owning the 0600 secret files}"
+    working_dir: /app
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 128m
+    cpus: 0.5
+    restart: unless-stopped
+    stop_grace_period: 20s
+    networks: [isolated-egress]
+    environment:
+      HOME: /home/node
+      GAFUS_TELEMETRY_ENVIRONMENT: preview
+      GAFUS_UPTRACE_ACK_GATEWAY_ENABLED: "true"
+      GAFUS_UPTRACE_ACK_GATEWAY_DSN_FILE: /run/secrets/nonprod-ingest-dsn
+      GAFUS_UPTRACE_ACK_GATEWAY_TOKEN_FILE: /run/secrets/ack-gateway-token
+    volumes:
+      - type: bind
+        source: ../../../scripts/observability/uptrace-ack-gateway.mjs
+        target: /app/uptrace-ack-gateway.mjs
+        read_only: true
+      - type: bind
+        source: ${GAFUS_NONPROD_CREDENTIALS_DIR:?Path to Nonprod-only private credentials}/uptrace-nonprod-ingest.dsn
+        target: /run/secrets/nonprod-ingest-dsn
+        read_only: true
+      - type: bind
+        source: ${GAFUS_NONPROD_CREDENTIALS_DIR:?Path to Nonprod-only private credentials}/uptrace-nonprod-ack-gateway.token
+        target: /run/secrets/ack-gateway-token
+        read_only: true
+    command: [node, /app/uptrace-ack-gateway.mjs]
+    healthcheck:
+      # Liveness must not restart the process on an upstream auth outage.
+      # /healthz independently returns 503 until Uptrace ACKs successfully.
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:54319/livez').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options: {max-size: 2m, max-file: "2"}
+
+  spool-owner:
+    image: node:24-alpine
+    profiles: [preview]
+    read_only: true
+    # One-shot chown needs only CHOWN, never privileged host/production mounts.
+    cap_drop: [ALL]
+    cap_add: [CHOWN]
+    security_opt: [no-new-privileges:true]
+    network_mode: none
+    restart: "no"
+    user: "0:0"
+    volumes:
+      - source: nonprod-wal
+        target: /var/lib/alloy
+        type: volume
+    command: [chown, "${GAFUS_NONPROD_UID:?UID required}", /var/lib/alloy]
+    logging:
+      driver: json-file
+      options: {max-size: 1m, max-file: "1"}
+
+  alloy:
+    # Pin the verified image digest before any permanent deployment.
+    image: grafana/alloy:v1.22.0
+    profiles: [preview]
+    user: "${GAFUS_NONPROD_UID:?UID required}"
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 256m
+    cpus: 1.0
+    restart: unless-stopped
+    stop_grace_period: 30s
+    # Both processes use loopback; there are no published host ports.
+    network_mode: service:ack-gateway
+    depends_on:
+      ack-gateway: {condition: service_healthy}
+      spool-owner: {condition: service_completed_successfully}
+    volumes:
+      - source: nonprod-wal
+        target: /var/lib/alloy
+        type: volume
+      - type: bind
+        source: ./alloy.nonprod-sidecar.alloy
+        target: /etc/alloy/config.alloy
+        read_only: true
+      - type: bind
+        source: ${GAFUS_NONPROD_CREDENTIALS_DIR:?Path to Nonprod-only private credentials}/uptrace-nonprod-ack-gateway.token
+        target: /run/secrets/ack-gateway-token
+        read_only: true
+    command:
+      - run
+      # The file-backed OTLP sending queue is public-preview in Alloy 1.22.
+      - --stability.level=public-preview
+      - --storage.path=/var/lib/alloy
+      - --server.http.listen-addr=127.0.0.1:12345
+      - /etc/alloy/config.alloy
+    logging:
+      driver: json-file
+      options: {max-size: 5m, max-file: "2"}
+
+networks:
+  isolated-egress:
+    driver: bridge
+    internal: false # Uptrace 9383 egress only: process-level allowlist
+    attachable: false
+volumes:
+  nonprod-wal:
+    # Named volume is durable, but NOT a hard filesystem quota. Explicitly
+    # block unattended rollout until a platform-enforced disk cap is verified.
+    name: gafus-uptrace-nonprod-wal

@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 /**
  * One-shot REAL Gallery Cloud Sharp worker for the dedicated local browser E2E.
  * Exact local DB, exact loopback S3, and an existing test-owned upload only.
@@ -56,7 +57,7 @@ try {
   };
   const objects = createGalleryObjectStore(galleryStorageConfigFromEnv(config));
   const signer = createGalleryStorageFromEnv(config);
-  const service = createGalleryService({ db, storage: { ...signer, head: objects.head } });
+  const service = createGalleryService({ enqueueDeletedMediaPurge,  db, storage: { ...signer, head: objects.head } });
   const core: GalleryInternalClient = {
     claimUpload: id => service.claimUpload({ uploadId: id }),
     completeUpload: input => service.completeUpload(input),

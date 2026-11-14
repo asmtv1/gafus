@@ -1,13 +1,15 @@
 import crypto from "node:crypto";
 
-import {
-  Prisma,
-  prisma,
-  type AppSubscriptionPromoCode,
-  type RegistrationChannel,
-  type VkLoginGrantPurpose,
-  type VkRegistrationContextPurpose,
-} from "@gafus/prisma";
+import { requireRegistrationContractRowsPort } from "./registrationContractRowsPort";
+import type {
+  RegistrationContractDbTx,
+  RegistrationContractChannel as RegistrationChannel,
+  RegistrationContractVkPurpose as VkRegistrationContextPurpose,
+  RegistrationContractLoginPurpose as VkLoginGrantPurpose,
+  RegistrationPromoDbRow,
+} from "./registrationContractRowsPort";
+export { registerRegistrationContractRowsPort } from "./registrationContractRowsPort";
+export type { RegistrationContractRowsPort } from "./registrationContractRowsPort";
 
 import { parseAppSubscriptionPromoCode } from "../appSubscription/promoCode";
 
@@ -31,10 +33,7 @@ export class RegistrationContractError extends Error {
   }
 }
 
-export type RegistrationPromoResolution = Pick<
-  AppSubscriptionPromoCode,
-  "id" | "code" | "normalizedCode" | "discountPercent" | "revision"
->;
+export type RegistrationPromoResolution = RegistrationPromoDbRow;
 
 export function hashRegistrationOpaqueValue(value: string): string {
   return crypto.createHash("sha256").update(value).digest("hex");
@@ -67,17 +66,14 @@ export function fingerprintRegistrationAttempt(input: {
 }
 
 export async function resolveRegistrationPromoCodeInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: RegistrationContractDbTx,
   rawCode: unknown,
 ): Promise<RegistrationPromoResolution | null> {
   if (rawCode === undefined || rawCode === null || rawCode === "") return null;
   const identity = parseAppSubscriptionPromoCode(rawCode);
   if (!identity) throw new RegistrationContractError("REGISTRATION_PROMO_INVALID");
 
-  const promoCode = await tx.appSubscriptionPromoCode.findUnique({
-    where: { normalizedCode: identity.normalizedCode },
-    select: { id: true, code: true, normalizedCode: true, discountPercent: true, revision: true, isActive: true, archivedAt: true },
-  });
+  const promoCode = await requireRegistrationContractRowsPort().readRegistrationPromoRowTx(tx,identity.normalizedCode);
   if (!promoCode) throw new RegistrationContractError("REGISTRATION_PROMO_INVALID");
   if (promoCode.archivedAt) throw new RegistrationContractError("REGISTRATION_PROMO_ARCHIVED");
   if (!promoCode.isActive) throw new RegistrationContractError("REGISTRATION_PROMO_INACTIVE");
@@ -87,42 +83,35 @@ export async function resolveRegistrationPromoCodeInTransaction(
 
 /** Persists the selected valid Premium promo independently from partner attribution. */
 export async function saveRegistrationPromoCodeInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: RegistrationContractDbTx,
   params: { userId: string; rawCode: unknown },
 ): Promise<RegistrationPromoResolution | null> {
   const promoCode = await resolveRegistrationPromoCodeInTransaction(tx, params.rawCode);
   if (promoCode) {
-    await tx.user.update({
-      where: { id: params.userId },
-      data: { savedRegistrationPromoCodeId: promoCode.id },
-    });
+    await requireRegistrationContractRowsPort().saveRegistrationPromoRowTx(tx,params.userId,promoCode.id);
   }
   return promoCode;
 }
 
 export async function getOrCreateRegistrationEmailAttemptInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: RegistrationContractDbTx,
   params: { tempSessionId: string; dataFingerprint: string },
 ) {
   // A unique-violation catch cannot query PostgreSQL afterwards: the transaction
   // is already aborted. Serialize every observation/creation of this stable key.
-  await tx.$executeRaw(
-    Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${params.tempSessionId}, 0))`,
-  );
-  const existing = await tx.registrationEmailAttempt.findUnique({
-    where: { tempSessionId: params.tempSessionId },
-  });
+  await requireRegistrationContractRowsPort().lockRegistrationEmailAttemptTx(tx,params.tempSessionId);
+  const existing = await requireRegistrationContractRowsPort().readRegistrationEmailAttemptTx(tx,params.tempSessionId);
   if (existing) {
     if (existing.dataFingerprint !== params.dataFingerprint) {
       throw new RegistrationContractError("REGISTRATION_ATTEMPT_FINGERPRINT_MISMATCH");
     }
     return existing;
   }
-  return tx.registrationEmailAttempt.create({ data: params });
+  return requireRegistrationContractRowsPort().insertRegistrationEmailAttemptTx(tx,params);
 }
 
 export async function completeRegistrationEmailAttemptInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: RegistrationContractDbTx,
   params: {
     tempSessionId: string;
     dataFingerprint: string;
@@ -132,14 +121,11 @@ export async function completeRegistrationEmailAttemptInTransaction(
 ) {
   const attempt = await getOrCreateRegistrationEmailAttemptInTransaction(tx, params);
   if (attempt.completedAt) return attempt;
-  return tx.registrationEmailAttempt.update({
-    where: { id: attempt.id },
-    data: { result: params.result, userId: params.userId ?? null, completedAt: new Date() },
-  });
+  return requireRegistrationContractRowsPort().finishRegistrationEmailAttemptTx(tx,attempt.id,params);
 }
 
 export async function createVkRegistrationContextInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: RegistrationContractDbTx,
   params: {
     contextToken: string;
     state: string;
@@ -150,17 +136,13 @@ export async function createVkRegistrationContextInTransaction(
     userId?: string | null;
   },
 ) {
-  return tx.vkRegistrationContext.create({
-    data: {
-      contextTokenHash: hashRegistrationOpaqueValue(params.contextToken),
-      stateHash: hashRegistrationOpaqueValue(params.state),
-      codeVerifier: params.codeVerifier,
-      purpose: params.purpose,
-      selectedPromoCodeId: params.selectedPromoCodeId ?? null,
-      selectedPromoCodeValue: params.selectedPromoCodeValue ?? null,
-      userId: params.userId ?? null,
-      expiresAt: new Date(Date.now() + VK_CONTEXT_TTL_MS),
-    },
+  return requireRegistrationContractRowsPort().insertVkRegistrationContextTx(tx,{
+    contextTokenHash:hashRegistrationOpaqueValue(params.contextToken),
+    stateHash:hashRegistrationOpaqueValue(params.state),
+    codeVerifier:params.codeVerifier,purpose:params.purpose,
+    selectedPromoCodeId:params.selectedPromoCodeId,
+    selectedPromoCodeValue:params.selectedPromoCodeValue,userId:params.userId,
+    expiresAt:new Date(Date.now()+VK_CONTEXT_TTL_MS),
   });
 }
 
@@ -169,26 +151,20 @@ export async function createVkRegistrationContextInTransaction(
  * consent completion: a pending VK user remains unable to authenticate.
  */
 export async function claimVkRegistrationContextUserInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: RegistrationContractDbTx,
   params: { contextToken: string; state: string; userId: string; purpose: VkRegistrationContextPurpose },
 ) {
   const now = new Date();
-  const updated = await tx.vkRegistrationContext.updateMany({
-    where: {
-      contextTokenHash: hashRegistrationOpaqueValue(params.contextToken),
-      stateHash: hashRegistrationOpaqueValue(params.state),
-      purpose: params.purpose,
-      expiresAt: { gt: now },
-      completedAt: null,
-      OR: [{ userId: null }, { userId: params.userId }],
-    },
-    data: { userId: params.userId },
+  const updated = await requireRegistrationContractRowsPort().claimVkRegistrationContextUserTx(tx,{
+    contextTokenHash:hashRegistrationOpaqueValue(params.contextToken),
+    stateHash:hashRegistrationOpaqueValue(params.state),
+    purpose:params.purpose,userId:params.userId,now,
   });
   if (updated.count !== 1) throw new RegistrationContractError("VK_CONTEXT_INVALID");
 }
 
 export async function issueVkLoginGrantInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: RegistrationContractDbTx,
   params: {
     token: string;
     userId: string;
@@ -198,48 +174,31 @@ export async function issueVkLoginGrantInTransaction(
     expiresAt?: Date;
   },
 ) {
-  return tx.vkLoginGrant.create({
-    data: {
-      tokenHash: hashRegistrationOpaqueValue(params.token),
-      userId: params.userId,
-      purpose: params.purpose,
-      reissuedFromId: params.reissuedFromId,
-      registrationContextId: params.registrationContextId,
-      expiresAt: params.expiresAt ?? new Date(Date.now() + VK_CONTEXT_TTL_MS),
-    },
+  return requireRegistrationContractRowsPort().insertVkLoginGrantTx(tx,{
+    tokenHash:hashRegistrationOpaqueValue(params.token),
+    userId:params.userId,purpose:params.purpose,
+    reissuedFromId:params.reissuedFromId,
+    registrationContextId:params.registrationContextId,
+    expiresAt:params.expiresAt??new Date(Date.now()+VK_CONTEXT_TTL_MS),
   });
 }
 
 export async function consumeVkLoginGrantInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: RegistrationContractDbTx,
   params: { token: string; purpose: VkLoginGrantPurpose; requireConsent?: boolean },
 ) {
   const now = new Date();
-  const grant = await tx.vkLoginGrant.findFirst({
-    where: { tokenHash: hashRegistrationOpaqueValue(params.token), purpose: params.purpose, expiresAt: { gt: now }, consumedAt: null },
+  const grant = await requireRegistrationContractRowsPort().consumeVkLoginGrantRowTx(tx,{
+    tokenHash:hashRegistrationOpaqueValue(params.token),
+    purpose:params.purpose,requireConsent:params.requireConsent,now,
   });
-  if (!grant || (params.requireConsent && !grant.consentCompletedAt)) {
-    throw new RegistrationContractError("VK_LOGIN_GRANT_INVALID");
-  }
-  const consumed = await tx.vkLoginGrant.updateMany({
-    // The user state is in this conditional update so a pending account cannot
-    // turn a previously issued LOGIN grant into an authenticated session.
-    where: {
-      id: grant.id,
-      expiresAt: { gt: now },
-      consumedAt: null,
-      ...(params.requireConsent ? { consentCompletedAt: { not: null } } : {}),
-      user: { registrationPending: false },
-    },
-    data: { consumedAt: now },
-  });
-  if (consumed.count !== 1) throw new RegistrationContractError("VK_LOGIN_GRANT_INVALID");
+  if(!grant)throw new RegistrationContractError("VK_LOGIN_GRANT_INVALID");
   return grant;
 }
 
 /** Reissue consumes the old grant first, then produces a distinct, hashed token row. */
 export async function reissueVkLoginGrantInTransaction(
-  tx: Prisma.TransactionClient,
+  tx: RegistrationContractDbTx,
   params: { oldToken: string; newToken: string; purpose: VkLoginGrantPurpose; requireConsent?: boolean },
 ) {
   const old = await consumeVkLoginGrantInTransaction(tx, {
@@ -257,5 +216,5 @@ export async function reissueVkLoginGrantInTransaction(
 }
 
 export async function createVkRegistrationContext(params: Parameters<typeof createVkRegistrationContextInTransaction>[1]) {
-  return prisma.$transaction((tx) => createVkRegistrationContextInTransaction(tx, params));
+  return requireRegistrationContractRowsPort().withRegistrationTransaction((tx) => createVkRegistrationContextInTransaction(tx, params));
 }

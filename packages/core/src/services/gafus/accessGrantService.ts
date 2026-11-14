@@ -1,6 +1,5 @@
-import { prisma } from "@gafus/prisma";
+import { requireGafusUnlockRowsPort } from "./gafusUnlockPort";
 import { GafusError } from "./errors";
-import { lockGafusUser } from "./locking";
 import { getGafusSettingsTx } from "./settingsService";
 import { changeGafusBalanceTx, ensureGafusWalletTx } from "./walletService";
 import {
@@ -38,9 +37,7 @@ export async function unlockContentWithGafus(input: {
   const now = input.now ?? new Date();
   const idempotencyKey = `gafus:unlock:${input.userId}:${input.clientRequestId}`;
 
-  return prisma.$transaction(async tx => {
-    // Serialize every wallet mutation for one user, regardless of source/platform.
-    await lockGafusUser(tx, input.userId);
+  return requireGafusUnlockRowsPort().withGafusUnlockTransaction(input.userId,async tx => {
     const requestedTarget = input.target.type === "COURSE_STEP"
       ? await resolveCourseStepTargetTx(tx, input.target.dayOnCourseId, input.target.stepOnDayId)
       : input.target.type === "MINI_GUIDE"
@@ -53,10 +50,7 @@ export async function unlockContentWithGafus(input: {
     if (!target) {
       throw new GafusError("GAFUS_TARGET_NOT_ELIGIBLE", "Content not found");
     }
-    const prior = await tx.gafusTransaction.findUnique({
-      where: { idempotencyKey },
-      include: { targetAccess: true },
-    });
+    const prior = await requireGafusUnlockRowsPort().readGafusUnlockReplayTx(tx,idempotencyKey);
     if (prior) {
       if (prior.userId !== input.userId || prior.kind !== "SPEND"
         || prior.targetType !== target.type || prior.targetKey !== target.targetKey) {
@@ -100,25 +94,23 @@ export async function unlockContentWithGafus(input: {
       settingsRevision: settings.revision,
     });
     const expiresAt = new Date(now.getTime() + settings.accessDurationSeconds * 1000);
-    await tx.gafusTargetAccess.create({
-      data: {
-        userId: input.userId,
-        targetType: target.type,
-        targetKey: target.targetKey,
-        courseId: target.type === "ARTICLE" ? null : target.courseId,
-        dayOnCourseId: target.type === "COURSE_STEP" ? target.dayOnCourseId : null,
-        stepOnDayId: target.type === "COURSE_STEP" ? target.stepOnDayId : null,
-        transactionId: debit.transactionId,
-        settingsRevision: settings.revision,
-        grantedAt: now,
-        expiresAt,
-      },
+    await requireGafusUnlockRowsPort().insertGafusUnlockGrantTx(tx,{
+      userId: input.userId,
+      targetType: target.type,
+      targetKey: target.targetKey,
+      courseId: target.type === "ARTICLE" ? null : target.courseId,
+      dayOnCourseId: target.type === "COURSE_STEP" ? target.dayOnCourseId : null,
+      stepOnDayId: target.type === "COURSE_STEP" ? target.stepOnDayId : null,
+      transactionId: debit.transactionId,
+      settingsRevision: settings.revision,
+      grantedAt: now,
+      expiresAt,
     });
     return {
       spent: cost, balance: debit.balance, accessSource: "GAFUS",
       expiresAt: expiresAt.toISOString(), replay: false,
     };
-  }, { maxWait: 10_000, timeout: 30_000 });
+  });
 }
 
 export async function unlockCourseStepWithGafus(input: {

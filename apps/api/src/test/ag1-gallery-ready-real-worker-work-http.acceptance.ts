@@ -6,7 +6,7 @@ import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, S3Client } fr
 import { prisma } from "@gafus/prisma";
 import { galleryStorageConfigFromEnv, createGalleryStorageFromEnv } from "@gafus/gallery-storage";
 import { createGalleryS3Client, createGalleryObjectStore } from "@gafus/gallery-storage/objects";
-import { createCurrentGalleryService } from "@gafus/core/services/gallery";
+import { createCurrentGalleryService } from "@gafus/gallery-server/runtime-service";
 
 const root="/Users/asmtv1/Desktop/gafus-refactor";
 const base="http://127.0.0.1:3001/api/v1";

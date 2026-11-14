@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 /** Opt-in REAL GAFUS Gallery Core + Sharp worker + PostgreSQL + private MinIO. */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
@@ -66,7 +67,7 @@ const storage = {
     });
   },
 };
-const service = createGalleryService({ db: prisma, storage });
+const service = createGalleryService({ enqueueDeletedMediaPurge,  db: prisma, storage });
 const core: GalleryInternalClient = {
   claimUpload: id => service.claimUpload({ uploadId: id }),
   completeUpload: input => service.completeUpload(input),

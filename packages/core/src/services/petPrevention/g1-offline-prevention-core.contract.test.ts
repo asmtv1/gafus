@@ -63,3 +63,8 @@ describe("AG3 prevention actual Core orchestration with fake Prisma (NO SQL)",()
   expect(r.success).toBe(false);expect(m.rows.size).toBe(0);
  });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalPreventionRowsPort from "@gafus/pets-server/prevention-rows";
+import { registerPreventionRowsPort, type PreventionRowsPort } from "./preventionRowsPort";
+registerPreventionRowsPort(originalPreventionRowsPort as PreventionRowsPort);

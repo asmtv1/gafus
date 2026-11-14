@@ -3,8 +3,8 @@
  * approved live create/cancel smoke test; it deliberately does not bootstrap
  * credentials and does not perform an external NPD write.
  */
-import { applyNpdFiscalizationCutover } from "@gafus/core/services/appSubscription";
-import { disconnectCoreDatabase } from "@gafus/core/services/systemHealth";
+import { applyNpdFiscalizationCutover } from "@gafus/subscription-write-server";
+import { disconnectCoreDatabase } from "@gafus/statistics/database-health";
 
 async function main() {
   if (!process.argv.includes("--confirm")) {

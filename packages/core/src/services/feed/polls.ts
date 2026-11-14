@@ -1,14 +1,24 @@
 import { stableMediaExpiry, stablePublicFeedExpiry } from "../mediaDelivery/signedExpiry";
-import { Prisma } from "@gafus/prisma";
 import { createHash } from "node:crypto";
 import type { FeedPollDto, FeedPollSaveInput, FeedPollVoteInput } from "@gafus/types";
-import { FEED_LIMITS } from "../../../../types/src/feed";
+import { FEED_LIMITS } from "@gafus/types";
 import { FeedError } from "./errors";
 import { assertFeedPublishingAllowed } from "./preferences";
 import type { FeedDb, FeedStoragePort, FeedTx } from "./ports";
 import { feedIdSchema, feedParse, feedPollSaveSchema, feedPollVoteSchema } from "./schemas";
 
 /** Polls deliberately stay independent of edits to published FeedPostRevision text. */
+/** Prisma's stable public error identity can be inspected without loading the
+ * ORM into pure poll policy. Require the concrete named Error prototype, not
+ * an arbitrary object that happens to contain a P2002 `code` property.
+ */
+function isUniqueVoteConflict(error: unknown): boolean {
+  return error instanceof Error &&
+    error.name === "PrismaClientKnownRequestError" &&
+    error.constructor?.name === "PrismaClientKnownRequestError" &&
+    "code" in error && error.code === "P2002";
+}
+
 export function createFeedPolls({ db, storage, now = () => new Date(), enabled = () => false }: {
   db: FeedDb;
   storage: Pick<FeedStoragePort, "signCdn" | "longLivedUrls">;
@@ -385,7 +395,7 @@ export function createFeedPolls({ db, storage, now = () => new Date(), enabled =
           });
         });
       } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        if (isUniqueVoteConflict(error)) {
           throw new FeedError("ALREADY_VOTED", "Вы уже проголосовали", 409);
         }
         throw error;

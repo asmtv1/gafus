@@ -1,3 +1,4 @@
+import { consumeVkIdOneTimeUser } from "@gafus/auth";
 /** Independent Web VK ID PKCE flow for GAFUS Refactor.
  * External VK and redirect URI configuration are mandatory; never fall back
  * to the existing GAFUS Main callback or return bearer tokens to browser JS.
@@ -13,7 +14,7 @@ import {
 } from "@gafus/auth/jwt";
 import {
   claimVkRegistrationContextUser, completeVkRegistration,
-  consumeVkIdOneTimeUser, createRefreshSession, createVkLoginGrantToken,
+  createRefreshSession, createVkLoginGrantToken,
   createVkRegistrationContextWithPromo, exchangeVkCodeAndGetUser,
   getValidVkRegistrationContext, getVkConsentContextSummary,
   REGISTRATION_CHANNEL, VK_ID_OAUTH_SCOPE,

@@ -1,5 +1,6 @@
 /** Chat 2.0: durable actor-scoped operations; never trust client role or channel ID. */
 import { prisma, Prisma } from "@gafus/prisma";
+import { getOutboxCorrelation } from "../../lib/operation-observability.js";
 import { getCynologistEntitlements } from "@gafus/core/services/appSubscription";
 import { chat2MemberCanRead } from "@gafus/core/services/chat2";
 import { checkCourseAccessById } from "@gafus/core/services/course";
@@ -674,7 +675,7 @@ export async function toggleMessageReaction(
       });
     }
     await tx.chat2OutboxEvent.create({
-      data: { conversationId: id, messageId, eventType: "message.reacted" },
+      data: { conversationId: id, messageId, eventType: "message.reacted", ...getOutboxCorrelation() },
     });
     return { messageId, emoji, active: existing?.emoji !== emoji };
   });
@@ -782,7 +783,7 @@ export async function sendMessage(
           const attachmentIds = [...new Set(data.attachmentIds ?? [])];
           if (
             attachmentIds.length !== (data.attachmentIds ?? []).length ||
-            attachmentIds.length > 8
+            attachmentIds.length > 10
           )
             return fail("INVALID_ATTACHMENTS", 400, "Недопустимые вложения");
           const files = attachmentIds.length
@@ -875,7 +876,7 @@ export async function sendMessage(
             }
           }
           await tx.chat2OutboxEvent.create({
-            data: { conversationId: id, messageId: m.id, eventType: "message.created" },
+            data: { conversationId: id, messageId: m.id, eventType: "message.created", ...getOutboxCorrelation() },
           });
           const full = await tx.chat2Message.findUniqueOrThrow({
             where: { id: m.id },
@@ -936,7 +937,7 @@ export async function editMessage(userId: string, id: string, messageId: string,
     if (!updated.count) return fail("NOT_FOUND", 404, "Сообщение не найдено");
     const message = await tx.chat2Message.findUniqueOrThrow({ where: { id: messageId } });
     await tx.chat2OutboxEvent.create({
-      data: { conversationId: id, messageId, eventType: "message.edited" },
+      data: { conversationId: id, messageId, eventType: "message.edited", ...getOutboxCorrelation() },
     });
     return dto(message);
   });
@@ -950,7 +951,7 @@ export async function deleteMessage(userId: string, id: string, messageId: strin
     });
     if (!changed.count) return fail("NOT_FOUND", 404, "Сообщение не найдено");
     await tx.chat2OutboxEvent.create({
-      data: { conversationId: id, messageId, eventType: "message.deleted" },
+      data: { conversationId: id, messageId, eventType: "message.deleted", ...getOutboxCorrelation() },
     });
     return { deleted: true };
   });

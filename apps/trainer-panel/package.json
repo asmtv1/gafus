@@ -3,7 +3,7 @@
   "version": "1.7.3",
   "private": true,
   "scripts": {
-    "build": "vite build --config src/trainer-vite/live/vite.config.mjs",
+    "build": "vite build --config src/trainer-vite/live/vite.config.mjs && node ../../scripts/observability/postbuild-vite-maps.mjs gafus-trainer-panel",
     "dev": "vite --config src/trainer-vite/live/vite.config.mjs",
     "start": "vite preview --config src/trainer-vite/live/vite.config.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.vite.json",
@@ -16,6 +16,8 @@
     "@dnd-kit/utilities": "3.2.2",
     "@gafus/consultation-shared": "workspace:*",
     "@gafus/core": "workspace:*",
+    "@gafus/course-progress-server": "workspace:*",
+    "@gafus/error-handling": "workspace:*",
     "@gafus/prisma": "workspace:*",
     "@gafus/types": "workspace:*",
     "@gafus/ui-components": "workspace:*",

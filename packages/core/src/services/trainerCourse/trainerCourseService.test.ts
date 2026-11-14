@@ -71,6 +71,14 @@ const txStub = {
 
 const mockTransaction = vi.fn((fn: (tx: typeof txStub) => Promise<unknown>) => fn(txStub));
 
+vi.mock("./trainerCourseRowsPort", async () => {
+  const persistence = await import("@gafus/course-progress-server/trainer-course-rows");
+  return {
+    ...persistence,
+    isCourseVersionNoMatch: (error: unknown) => error instanceof persistence.CourseVersionNoMatch,
+  };
+});
+
 vi.mock("@gafus/prisma", () => ({
   prisma: {
     $transaction: (fn: (tx: unknown) => Promise<unknown>) => mockTransaction(fn),

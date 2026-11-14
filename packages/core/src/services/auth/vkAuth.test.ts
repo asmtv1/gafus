@@ -485,3 +485,11 @@ describe("linkVkToUser", () => {
     expect(mockUserUpdate).toHaveBeenCalled();
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalAuthRowsPort from "@gafus/identity-write-server/auth-rows";
+import { registerAuthRowsPort, type AuthRowsPort } from "./authRowsPort";
+registerAuthRowsPort(originalAuthRowsPort as AuthRowsPort);
+import * as originalVkAuthRowsPort from "@gafus/identity-write-server/vk-auth-rows";
+import { registerVkAuthRowsPort, type VkAuthRowsPort } from "./vkAuthRowsPort";
+registerVkAuthRowsPort(originalVkAuthRowsPort as VkAuthRowsPort);

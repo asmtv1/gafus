@@ -2,7 +2,7 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks=vi.hoisted(()=>({flag:vi.fn(),access:vi.fn(),stats:vi.fn(),dates:vi.fn()}));
-vi.mock("@gafus/core/services/appFeatureFlags",()=>({
+vi.mock("@gafus/feature-flags-server",()=>({
   APP_FEATURE_APP_SUBSCRIPTION_GATING:"app_subscription_gating_enabled",
   getAppFeatureFlagEnabled:mocks.flag,
 }));

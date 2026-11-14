@@ -26,17 +26,6 @@ vi.mock("@gafus/logger", () => ({
   }),
 }));
 vi.mock("@gafus/queues", () => ({ connection: {} }));
-vi.mock("@gafus/core/services/reengagement", () => ({
-  getReengagementCampaignState: async () => ({
-    isActive: true, returned: false, unsubscribed: false,
-  }),
-  getReengagementPushSubscriptions: async () => state.typeList.map((type: string) => ({
-    endpoint: type === "web" ? "https://example.invalid/owned" : "synthetic-"+type,
-    keys: { p256dh: type, auth: type },
-  })),
-  deleteInvalidReengagementPushEndpoints: (...args: unknown[]) => state.deleteEndpoints(...args),
-  isReengagementDispatchAllowed: async () => true,
-}));
 vi.mock("@gafus/webpush", () => ({
   PushNotificationService: {
     fromEnvironment: () => state.fromEnv(),
@@ -51,6 +40,16 @@ vi.mock("@gafus/webpush", () => ({
   sendRustorePushNotifications: (...args: unknown[]) => state.rustore(...args),
 }));
 vi.mock("@gafus/reengagement", () => ({
+
+  getReengagementCampaignState: async () => ({
+    isActive: true, returned: false, unsubscribed: false,
+  }),
+  getReengagementPushSubscriptions: async () => state.typeList.map((type: string) => ({
+    endpoint: type === "web" ? "https://example.invalid/owned" : "synthetic-"+type,
+    keys: { p256dh: type, auth: type },
+  })),
+  deleteInvalidReengagementPushEndpoints: (...args: unknown[]) => state.deleteEndpoints(...args),
+  isReengagementDispatchAllowed: async () => true,
   getCampaignData: async () => ({ sentVariantIds: [] }),
   updateCampaignAfterSend: (...args: unknown[]) => state.recorded(...args),
   createNotificationRecord: async () => "synthetic-notification",

@@ -45,3 +45,6 @@ export type {
   DeleteStepsInput,
   CreateStepFromTemplateInput,
 } from "./schemas";
+
+export { registerTrainerStepRowsPort } from "./trainerStepRowsPort";
+export type { TrainerStepRowsPort } from "./trainerStepRowsPort";

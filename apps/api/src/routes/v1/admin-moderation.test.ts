@@ -6,10 +6,10 @@ const f = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.reg }));
-vi.mock("@gafus/core/services/feed", () => ({
+vi.mock("@gafus/feed-server", () => ({
   getAdminFeedReports: f.feedList, moderateAdminFeedReport: f.feedAction,
 }));
-vi.mock("@gafus/core/services/questions", () => ({
+vi.mock("@gafus/questions-server", () => ({
   getQuestionModeration: f.questionList,
   moderateQuestionReport: f.questionAction,
   unblockQuestionsUser: f.questionUnblock,

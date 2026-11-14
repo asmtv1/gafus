@@ -1,50 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getAppSubscriptionOffer, getAppSubscriptionOfferSnapshot } from "../settingsService";
-import { ensureAppleAppAccountToken } from "../appleAccountTokenService";
+import { createSubscriptionOfferReader } from "../settingsService";
 
-const mockSettingsFindUnique = vi.fn();
-const mockPaymentFindFirst = vi.fn();
-const mockUserFindUnique = vi.fn();
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    user: {
-      findUnique: (...args: unknown[]) => mockUserFindUnique(...args),
-    },
-    appSubscriptionSettings: {
-      findUnique: (...args: unknown[]) => mockSettingsFindUnique(...args),
-    },
-    appSubscriptionPayment: {
-      findFirst: (...args: unknown[]) => mockPaymentFindFirst(...args),
-    },
-  },
-}));
-
-vi.mock("../appleAccountTokenService", () => ({
-  ensureAppleAppAccountToken: vi.fn().mockResolvedValue("app-account-token"),
-}));
-
-vi.mock("../../appFeatureFlags", () => ({
-  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT: "mobile_ios_ru_card_payment_enabled",
-  APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES:
-    "mobile_ios_subscription_promo_codes",
-  getMobileFeatureFlagEnabled: vi.fn().mockResolvedValue(true),
-}));
+const mockReadOffer = vi.fn();
+const getAppSubscriptionOffer = createSubscriptionOfferReader({
+  readOfferSnapshot: mockReadOffer,
+  readMobileFlag: vi.fn().mockResolvedValue(true),
+  readPromoCodeState: vi.fn().mockResolvedValue({ entryEnabled: true, eligible: true }),
+});
 
 describe("getAppSubscriptionOffer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSettingsFindUnique.mockResolvedValue({
-      monthlyEnabled: true,
-      yookassaMonthlyPriceRub: 2500,
-      currency: "RUB",
-      weeklyIntervalDays: 7,
-      monthlyIntervalDays: 30,
-      weeklyAppleProductId: "premium-week",
-      monthlyAppleProductId: "premium-month",
+    mockReadOffer.mockResolvedValue({
+      settings: {
+        monthlyEnabled: true,
+        yookassaMonthlyPriceRub: 2500,
+        currency: "RUB",
+        weeklyIntervalDays: 7,
+        monthlyIntervalDays: 30,
+        weeklyAppleProductId: "premium-week",
+        monthlyAppleProductId: "premium-month",
+      },
+      appleAppAccountToken: "persisted-apple-id",
+      savedRegistrationPromoCode: null,
     });
-    mockPaymentFindFirst.mockResolvedValue(null);
-    mockUserFindUnique.mockResolvedValue(null);
   });
 
   it("returns only the monthly plan", async () => {
@@ -65,16 +45,20 @@ describe("getAppSubscriptionOffer", () => {
   });
 
   it("filters disabled plans from the public offer", async () => {
-    mockSettingsFindUnique.mockResolvedValue({
-      weeklyEnabled: false,
-      monthlyEnabled: true,
-      yookassaWeeklyPriceRub: 200,
-      yookassaMonthlyPriceRub: 2500,
-      currency: "RUB",
-      weeklyIntervalDays: 7,
-      monthlyIntervalDays: 30,
-      weeklyAppleProductId: "premium-week",
-      monthlyAppleProductId: "premium-month",
+    mockReadOffer.mockResolvedValue({
+      settings: {
+        weeklyEnabled: false,
+        monthlyEnabled: true,
+        yookassaWeeklyPriceRub: 200,
+        yookassaMonthlyPriceRub: 2500,
+        currency: "RUB",
+        weeklyIntervalDays: 7,
+        monthlyIntervalDays: 30,
+        weeklyAppleProductId: "premium-week",
+        monthlyAppleProductId: "premium-month",
+      },
+      appleAppAccountToken: "persisted-apple-id",
+      savedRegistrationPromoCode: null,
     });
 
     const result = await getAppSubscriptionOffer("user-1");
@@ -89,22 +73,25 @@ describe("getAppSubscriptionOffer", () => {
   });
 
   it("G1 snapshot token returns existing persisted identity without allocation", async () => {
-    mockUserFindUnique.mockImplementation(
-      async ({ select }: { select: { appleAppAccountToken?: boolean } }) =>
-        select.appleAppAccountToken ? { appleAppAccountToken: "persisted-apple-id" } : null,
-    );
-    const result = await getAppSubscriptionOfferSnapshot("user-1", { platform: "ios", version: "1.7.0" });
+    const result = await getAppSubscriptionOffer("user-1", { platform: "ios", version: "1.7.0" });
     expect(result.appleAppAccountToken).toBe("persisted-apple-id");
-    expect(ensureAppleAppAccountToken).not.toHaveBeenCalled();
-    expect(mockUserFindUnique).toHaveBeenCalledWith({
-      where: { id: "user-1" }, select: { appleAppAccountToken: true },
-    });
+    expect(mockReadOffer).toHaveBeenCalledWith("user-1");
   });
 
   it("G1 snapshot token returns null for uninitialized account rather than random UUID", async () => {
-    mockUserFindUnique.mockResolvedValue(null);
-    const result = await getAppSubscriptionOfferSnapshot("user-missing");
+    mockReadOffer.mockResolvedValue({
+      settings: null, appleAppAccountToken: null, savedRegistrationPromoCode: null,
+    });
+    const result = await getAppSubscriptionOffer("user-missing");
     expect(result.appleAppAccountToken).toBeNull();
-    expect(ensureAppleAppAccountToken).not.toHaveBeenCalled();
+    expect(mockReadOffer).toHaveBeenCalledWith("user-missing");
+  });
+  it("read-only legacy GET alias never allocates token", async () => {
+    mockReadOffer.mockResolvedValue({
+      settings: null, appleAppAccountToken: null, savedRegistrationPromoCode: null,
+    });
+    const offer = await getAppSubscriptionOffer("actor-id", { platform: "ios", version: "1.7.3" });
+    expect(offer.appleAppAccountToken).toBeNull();
+    expect(mockReadOffer).toHaveBeenCalledExactlyOnceWith("actor-id");
   });
 });

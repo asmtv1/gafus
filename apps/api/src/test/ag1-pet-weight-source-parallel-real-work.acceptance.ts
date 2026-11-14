@@ -2,7 +2,7 @@
 import {randomBytes} from 'node:crypto';
 import {realpathSync} from 'node:fs';
 import {prisma} from '@gafus/prisma';
-import {deletePetWeightEntry,addPetWeightEntry} from '../../../../packages/core/src/services/pets/petWeightService';
+import {deletePetWeightEntry,addPetWeightEntry} from "@gafus/pets-server/weight";
 const root='/Users/asmtv1/Desktop/gafus-refactor';
 const prefix='ag1_weight_core_race_'+randomBytes(5).toString('hex');
 let owner:string|undefined,petId:string|undefined,phase='GUARD';

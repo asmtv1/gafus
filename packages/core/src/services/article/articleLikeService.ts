@@ -1,44 +1,31 @@
 /**
- * ArticleLike Service — переключение лайка статьи.
+ * Core article-like entitlement policy. Atomic mutation and the article
+ * existence query are SQL-backed ports owned by API composition.
  */
-import { prisma } from "@gafus/prisma";
-
 import type { MonetizedAccessPlatform } from "../rewardedCredits";
 import { SubscriptionOrCreditsRequiredError } from "../rewardedCredits";
 import { resolveArticleEntitlement } from "../contentAccess/policy";
 
-/**
- * Переключает лайк статьи пользователем.
- * @returns true если лайк поставлен, false если снят
- */
-export async function toggleArticleLike(userId: string, articleId: string): Promise<boolean> {
-  const existing = await prisma.articleLike.findUnique({
-    where: { userId_articleId: { userId, articleId } },
-  });
-
-  if (existing) {
-    await prisma.articleLike.delete({
-      where: { userId_articleId: { userId, articleId } },
-    });
-    return false;
-  }
-
-  await prisma.articleLike.create({
-    data: { userId, articleId },
-  });
-  return true;
+export interface ArticleLikePorts {
+  articleExists(articleId: string): Promise<boolean>;
+  toggleArticleLikeAtomic(userId: string, articleId: string): Promise<boolean>;
 }
 
-export async function toggleArticleLikeWithMonetizedAccess(input: {
+export interface ArticleLikeInput {
   userId: string;
   articleId: string;
   platform: MonetizedAccessPlatform;
-}): Promise<boolean> {
-  const article = await prisma.article.findUnique({
-    where: { id: input.articleId }, select: { id: true },
-  });
-  if (!article) throw new Error("ARTICLE_NOT_FOUND");
-  const access = await resolveArticleEntitlement(article.id, input.userId, input.platform);
+}
+
+/** Never mutate or even check the protected like row unless Core paywall
+ * authorizes the precise actor/article/platform occurrence.
+ */
+export async function toggleArticleLikeWithMonetizedAccess(
+  input: ArticleLikeInput,
+  ports: ArticleLikePorts,
+): Promise<boolean> {
+  if (!(await ports.articleExists(input.articleId))) throw new Error("ARTICLE_NOT_FOUND");
+  const access = await resolveArticleEntitlement(input.articleId, input.userId, input.platform);
   if (!access.allowed) throw new SubscriptionOrCreditsRequiredError();
-  return toggleArticleLike(input.userId, article.id);
+  return ports.toggleArticleLikeAtomic(input.userId, input.articleId);
 }

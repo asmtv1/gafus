@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createMockLogger } from "./test/test-utils";
+const createMockLogger = () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn() });
 
 vi.mock("@gafus/logger", () => ({
   createWorkerLogger: () => createMockLogger(),

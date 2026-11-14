@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
 vi.mock("@gafus/prisma", () => ({
   prisma: {
     $transaction: async (callback: (tx: unknown) => unknown) => callback({
+      $queryRaw: vi.fn().mockResolvedValue([{locked:'0'}]),
       gafusTransaction: {
         findUnique: async ({ where }: { where: { idempotencyKey: string } }) =>
           state.transactions.get(where.idempotencyKey) ?? null,
@@ -93,6 +94,16 @@ vi.mock("./walletService", () => ({
 }));
 
 import { unlockContentWithGafus } from "./accessGrantService";
+import { registerGafusUnlockRowsPort } from "./gafusUnlockPort";
+import {
+  withGafusUnlockTransaction,
+  readGafusUnlockReplayTx,
+  insertGafusUnlockGrantTx,
+} from "@gafus/gafus-server/unlock-records";
+registerGafusUnlockRowsPort({
+  withGafusUnlockTransaction, readGafusUnlockReplayTx, insertGafusUnlockGrantTx,
+});
+
 
 const request = (clientRequestId: string) => ({
   userId: "user-1", clientRequestId,

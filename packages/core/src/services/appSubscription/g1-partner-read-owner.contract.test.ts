@@ -21,7 +21,7 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
 });
 import {
   getPartnerDashboard, getPartnerProfile, PartnerProgramError,
-} from "./partnerService";
+} from "@gafus/subscription-payment-server/partner";
 
 const PRIVATE = "PRIVATE_BUYER_BANK_CARD_PAYMENT_DETAILS";
 const profile = (userId: string, role = "PARTNER", hasPromo = true) => ({

@@ -587,3 +587,8 @@ describe("setVkPhone / setPassword / changePassword", () => {
     }));
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalAuthRowsPort from "@gafus/identity-write-server/auth-rows";
+import { registerAuthRowsPort, type AuthRowsPort } from "./authRowsPort";
+registerAuthRowsPort(originalAuthRowsPort as AuthRowsPort);

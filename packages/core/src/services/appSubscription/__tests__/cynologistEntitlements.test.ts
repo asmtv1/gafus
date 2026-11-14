@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({ user: vi.fn(), rows: vi.fn() }));
 vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: mock.user }, appSubscription: { findMany: mock.rows } } }));
-import { getCynologistEntitlements } from "../accessService";
+import { getCynologistEntitlements } from "@gafus/subscription-read-server";
 import { getAppSubscriptionPlanConfig } from "../plans";
 beforeEach(() => { mock.user.mockResolvedValue({ role: "USER" }); mock.rows.mockResolvedValue([]); });
 const row = (provider: string, planCode: string, extra = {}) => ({ provider, planCode, isLifetime: false, yookassaPaymentMethodId: null, payments: [], ...extra });

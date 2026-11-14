@@ -1,0 +1,214 @@
+{
+  "schema": "gafus-A1-to-A2-vk-completion/v1",
+  "created_utc": "2026-11-12T02:33:22.705042+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "git_branch": "main",
+  "git_head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "vk-completion-context-locked-consent-and-login-grants",
+  "before": 32,
+  "after": 31,
+  "frozen": {
+    "baseline": 41,
+    "resolved": 10,
+    "new": 0
+  },
+  "historical": {
+    "initial": 142,
+    "removed": 111
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "8406323dd59f3457d71f7f855f88511af7bebeb69a536c2fdbec84a1d979797f",
+      "sha256_after": "320a085004a483898cd0894c2309e00e23ffc1729415da71f68dfe73b1c0bc78",
+      "backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/vk-completion-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/auth/composition/install-vk-completion.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "f7c224f6cf899b11bf51a7ba714d6f6839e13e7f2a67416fc353d32a991d31a7",
+      "backup": null
+    },
+    {
+      "path": "apps/api/src/modules/auth/composition/install-vk-completion.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "341230b51bb6b47a1a8aa475ef2e5ac5ab238d8ed667b559d5bc3e079de447d8",
+      "backup": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "e9be94d7ba9ed3658492a2eeb7b3ecf19f21fdeb7866debed73fe02a8af0a9fb",
+      "sha256_after": "1d41c4a6224de60e8964de2e91e7a857fd52bcd91add181fa04fa9028c11e8d8",
+      "backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/vk-completion-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "bb0ad0265096342a78e00df0a6562871423655714f26e707d9e08a7d0fa9dd07",
+      "sha256_after": "4e1bbe8579c9c6ec95b627ec926417f7c0e350e7b94ced9d1ba424838b027094",
+      "backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/vk-completion-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/auth/vkCompletionPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "20a7d9ceb1e7a0f7a28bd46c5515bcdc9179c38c0869f953dce38eda64f7811d",
+      "backup": null
+    },
+    {
+      "path": "packages/core/src/services/auth/vkRegistrationCompletion.test.ts",
+      "status": "M",
+      "sha256_before": "3cd4efe9574e30bf686525a9f7399b44f14eb8616d5d4ba26e78b41ea3c71e32",
+      "sha256_after": "6f9cb8d846145552b259d2e279257c9e3409e009fdbd194499c734f5d1380319",
+      "backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/vk-completion-port-prechange/packages/core/src/services/auth/vkRegistrationCompletion.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/auth/vkRegistrationCompletion.ts",
+      "status": "M",
+      "sha256_before": "984f05bf38c1a42847ffb9da4303d8999a81620522a629f5bafe19f9f1a82e5b",
+      "sha256_after": "876d8619ed7b00f8ac41129295d4f27a0cab277d05779976b184fadfdf89bd91",
+      "backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/vk-completion-port-prechange/packages/core/src/services/auth/vkRegistrationCompletion.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "07cc7166c4f5ff76f56185123301cc768f3a2bf397cfc7764845df2e63da70aa",
+      "sha256_after": "ecbd7ab2cbc5079a1fab806ec1ff9427a71cc3f4d4f5ee012c8daebfc8774b3b",
+      "backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/vk-completion-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "label": "Core policy, replay and fail-closed port",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/auth/vkCompletionPort.test.ts src/services/auth/vkRegistrationCompletion.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 6,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-vk-completion-core-ports-tests.log"
+    },
+    {
+      "label": "API VK context-locked composition",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/auth/composition/install-vk-completion.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-vk-completion-api-contract.log"
+    },
+    {
+      "label": "Full Core",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2082,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-vk-completion-core-full.log"
+    },
+    {
+      "label": "Full API",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2747,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-vk-completion-api-full.log"
+    },
+    {
+      "label": "Core types",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-vk-completion-core-types.log"
+    },
+    {
+      "label": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-vk-completion-core-build.log"
+    },
+    {
+      "label": "API types",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-vk-completion-api-types.log"
+    },
+    {
+      "label": "Persistence types",
+      "command": "pnpm --filter @gafus/identity-write-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-vk-completion-persistence-types.log"
+    },
+    {
+      "label": "Worker types",
+      "command": "pnpm --filter @gafus/worker typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-vk-completion-worker-types.log"
+    },
+    {
+      "label": "Workspace graph",
+      "command": "node scripts/check-workspace-graph.mjs",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-vk-completion-graph.log"
+    },
+    {
+      "label": "Boundaries",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-vk-completion-boundaries.log"
+    },
+    {
+      "label": "Frozen AST ratchet",
+      "command": "node scripts/check-core-server-facades.mjs",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-vk-completion-ratchet.log"
+    }
+  ],
+  "backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/vk-completion-port-prechange",
+  "frozen_baseline_json_edited": false,
+  "commit_merge_push_deploy": false,
+  "public_contracts": {
+    "statuses": [
+      "VK_CONTEXT_INVALID",
+      "VK_CONTEXT_EXPIRED",
+      "VK_COMPLETION_ATTEMPT_CONFLICT",
+      "VK_LOGIN_GRANT_INVALID"
+    ],
+    "atomic": "One SQL advisory-lock transaction for consent logs, referral, pending-user CAS, completion marker and exactly one WEB LOGIN grant",
+    "no_bypass": "REGISTER purpose, consent fingerprint, expiry and replay equality checked before any state update",
+    "ports": [
+      "VK_COMPLETION_PORT_UNBOUND",
+      "VK_COMPLETION_PORT_ALREADY_BOUND"
+    ]
+  },
+  "open_acceptance_gates": [
+    {
+      "id": "VK_REAL_PG_CONCURRENCY",
+      "requires": "Disposable current-schema PostgreSQL and exact test owner/foreign/pending context; prove advisory lock and one transaction for consent/referral/CAS/login grant under racing requests and lost response. No production DB."
+    },
+    {
+      "id": "VK_ID_SANDBOX",
+      "requires": "Approved isolated VK OAuth PKCE test client and nonproduction callback; check WEB/MOBILE replay and expiring login grant; no bearer token leaks."
+    },
+    {
+      "id": "FINAL_ARCHITECTURE",
+      "requires": "Remove remaining 31 Core→server, then run integrated A1/A2/A3 33-stage regression, 5-stage chaos, Web/Mobile/Worker/panels/PG/Redis gates. Baseline remains frozen at 41 until verified."
+    }
+  ],
+  "integration": "Compare full sha256_after in common worktree. Merged Core port, API install, tests and architecture guard atomically. No git merge/commit/push."
+}

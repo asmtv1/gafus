@@ -258,7 +258,7 @@ function ActorConsultationsMineScreen() {
 
   return (
     <TexturedSafeAreaView style={styles.root} edges={[]}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.scroll}>
         <Stack.Screen options={{ headerBackVisible: false }} />
         <Image

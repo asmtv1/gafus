@@ -28,7 +28,7 @@ vi.mock("@gafus/core/services/auth",async original=>({
 // Intentionally no Core statistics, Prisma or JWT mocks.
 import {app} from "../../app";
 import {generateAccessToken} from "@gafus/auth/jwt";
-import {getCourseStatistics} from "@gafus/core/services/statistics";
+import {getCourseStatistics} from "@gafus/statistics";
 
 const tag="ag1_stats135_"+randomBytes(4).toString("hex")+"_";
 const id=(name:string)=>tag+name;

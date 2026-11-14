@@ -2,5 +2,7 @@
 FROM nginx:1.27-alpine
 COPY ci-cd/docker/nginx-trainer-panel-vite.conf /etc/nginx/conf.d/default.conf
 COPY apps/trainer-panel/src/trainer-vite/live/dist/ /usr/share/nginx/html/
+# Vite artifacts may arrive with runner umask 077; Nginx runs as unprivileged worker.
+RUN chmod -R a+rX /usr/share/nginx/html
 EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:3001/healthz || exit 1

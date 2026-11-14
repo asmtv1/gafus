@@ -187,9 +187,6 @@ export function PricingEditor({
 
 const featureKeys = [
   ["vkLogin", "Вход ВКонтакте"],
-  ["iosRuCardPayment", "Оплата российской картой iOS"],
-  ["subscriptionPromoCodes", "Промокоды"],
-  ["iosRuCardPaymentHint", "Подсказка об оплате"],
 ] as const;
 function featureDraft(source: Record<string, unknown>): Record<string, unknown> {
   const { revision, iosReviewVersion, ota, released, review, global, rewardedAds } = source;

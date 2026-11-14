@@ -5,7 +5,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 const m=vi.hoisted(()=>({flag:vi.fn(),access:vi.fn(),stats:vi.fn(),dates:vi.fn()}));
 vi.mock("@gafus/prisma",()=>({prisma:{user:{findUnique:async()=>({sessionsRevokedAt:null,registrationPending:false, role: "USER",})}}}));
 vi.mock("@gafus/core/services/auth",()=>({isRegistrationCompleted:async()=>true}));
-vi.mock("@gafus/core/services/appFeatureFlags",()=>({
+vi.mock("@gafus/feature-flags-server",()=>({
   APP_FEATURE_APP_SUBSCRIPTION_GATING:"app_subscription_gating_enabled",
   getAppFeatureFlagEnabled:m.flag,
 }));

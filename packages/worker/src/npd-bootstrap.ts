@@ -6,8 +6,8 @@ import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, stderr } from "node:process";
 import { NpdGateway, encryptRefreshToken } from "@gafus/npd";
-import { getNpdBootstrapDeviceId, saveNpdBootstrapConnection } from "@gafus/core/services/appSubscription";
-import { disconnectCoreDatabase } from "@gafus/core/services/systemHealth";
+import { getNpdBootstrapDeviceId, saveNpdBootstrapConnection } from "@gafus/subscription-write-server";
+import { disconnectCoreDatabase } from "@gafus/statistics/database-health";
 
 const prompt = createInterface({ input: stdin, output: stdout });
 async function main(): Promise<void> {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, TextInput, View, Linking, Alert, FlatList, Modal, useWindowDimensions } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View, Linking, Alert, FlatList, Modal, PixelRatio, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
@@ -22,7 +22,9 @@ import { PhotoUploadStageError, logPhotoUploadFailure, photoStageDiagnostic } fr
 import { questionPhotoReadIdentity } from "./photoReadIdentity";
 import { allowQuestionsS3Fallback } from "./questionPhotoCdnFallback";
 import { questionPhotoTerminalNotice } from "./photoDisplay";
-import { questionPhotoGridRows } from "./photoGrid";
+import { questionPhotoPreviewSource } from "./photoPreviewSource";
+import { questionPhotoGridRows, questionSinglePhotoPreviewRatio,
+  questionSinglePhotoPreviewHeight, questionPhotoRowLayout } from "./photoGrid";
 import { reportClientError } from "@/shared/lib/tracer";
 import { questionAuthorProfileIdentifier } from "./profileLink";
 import {
@@ -250,7 +252,12 @@ export function QPhotos({
   const [failed,setFailed] = useState<string[]>([]);
   const [viewerFailed,setViewerFailed] = useState(false);
   const [s3Images,setS3Images] = useState<string[]>([]);
+  // The DTO does not include dimensions. Expo Image reports the loaded
+  // image size for CDN URLs, allowing a portrait-aware preview.
+  const [photoRatios,setPhotoRatios] = useState<Record<string, number>>({});
+  const [gridWidth,setGridWidth] = useState(0);
   const { width } = useWindowDimensions();
+  const availableWidth = gridWidth || Math.max(1, width - 64);
   const terminalNotice=questionPhotoTerminalNotice(photos);
   const transientFailure=photos.some(p=>failed.includes(questionPhotoReadIdentity(p)));
   const closeViewer = () => {setViewerIndex(null);setViewerFailed(false);};
@@ -264,16 +271,36 @@ export function QPhotos({
 
   return (
     <>
-      <View style={st.photoGrid}>
-        {questionPhotoGridRows(photos).map((row, rowIndex) => (
+      <View style={st.photoGrid} onLayout={event => {
+        const measured = event.nativeEvent.layout.width;
+        if (measured > 0) setGridWidth(previous => previous === measured ? previous : measured);
+      }}>
+        {questionPhotoGridRows(photos).map((row, rowIndex) => {
+          const layout = photos.length === 1
+            ? { height: questionSinglePhotoPreviewHeight(availableWidth,
+                photoRatios[questionPhotoReadIdentity(row[0]!.photo)] ?? 1),
+                weights: [1] }
+            : questionPhotoRowLayout(availableWidth, row.map(({photo}) =>
+                photoRatios[questionPhotoReadIdentity(photo)] ?? 1));
+          return (
           <View key={rowIndex} style={st.photoGridRow}>
-            {row.map(({ photo: p, index }) => (
+            {row.map(({ photo: p, index }, cellIndex) => {
+              const rowSpace = availableWidth - 8 * (row.length - 1);
+              const totalWeight = layout.weights.reduce((sum, weight) => sum + weight, 0);
+              const cellWidth = rowSpace * (layout.weights[cellIndex] ?? 1) / totalWeight;
+              const preview = questionPhotoPreviewSource(p, cellWidth, PixelRatio.get(),
+                photos.length === 1);
+              const identity = questionPhotoReadIdentity(p);
+              const fallbackActive = s3Images.includes(identity);
+              return (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={failed.includes(questionPhotoReadIdentity(p))
                   ? "Повторить загрузку фото" : `Открыть фото ${index + 1} из ${photos.length}`}
                 key={p.id}
-                style={[st.photoGridCell, photos.length === 1 && st.photoGridSingleCell]}
+                style={[st.photoGridCell, {
+                  flex: layout.weights[cellIndex], height: layout.height,
+                }]}
                 disabled={!p.url || (failed.includes(questionPhotoReadIdentity(p)) && !onRetry)}
                 onPress={() => {
                   if(failed.includes(questionPhotoReadIdentity(p)))retryPhoto();
@@ -281,17 +308,23 @@ export function QPhotos({
                 }}
               >
                 {p.url && !failed.includes(questionPhotoReadIdentity(p)) ? (
-                  <Image source={{ uri: s3Images.includes(questionPhotoReadIdentity(p)) ? (p.fallbackSmallUrl ?? p.fallbackUrl ?? p.smallUrl ?? p.url) : (p.smallUrl ?? p.url) }}
-                    contentFit="cover" style={st.photoGridImage} cachePolicy="disk"
+                  <Image source={{ uri: fallbackActive ? (preview.fallbackUrl ?? preview.url) : preview.url }}
+                    contentFit="contain" style={st.photoGridImage} cachePolicy="disk"
                     recyclingKey={questionPhotoReadIdentity(p)}
+                    onLoad={({ source }) => {
+                      const ratio = questionSinglePhotoPreviewRatio(source.width, source.height);
+                      const key = questionPhotoReadIdentity(p);
+                      setPhotoRatios(current => current[key] === ratio
+                        ? current : { ...current, [key]: ratio });
+                    }}
                     onError={()=>{
                       const key=questionPhotoReadIdentity(p);
                       if(s3Images.includes(key)) {
                         setFailed(items=>items.includes(key)?items:[...items,key]);
                         return;
                       }
-                      void allowQuestionsS3Fallback(p.smallUrl ?? p.url,
-                        p.fallbackSmallUrl ?? p.fallbackUrl, fetch, true).then(allowed => {
+                      void allowQuestionsS3Fallback(preview.url,
+                        preview.fallbackUrl, fetch, true).then(allowed => {
                           if(allowed)setS3Images(items=>items.includes(key)?items:[...items,key]);
                           else setFailed(items=>items.includes(key)?items:[...items,key]);
                         });
@@ -307,9 +340,11 @@ export function QPhotos({
                   </View>
                 )}
               </Pressable>
-            ))}
+              );
+            })}
           </View>
-        ))}
+          );
+        })}
       </View>
       {terminalNotice && <Text accessibilityRole="alert" style={st.error}>{terminalNotice}</Text>}
       {transientFailure && onRetry && (
@@ -980,8 +1015,7 @@ export const st = StyleSheet.create({
   initial: { backgroundColor: "#e1e6d0", alignItems: "center", justifyContent: "center" },
   photoGrid: { width: "100%", gap: 8 },
   photoGridRow: { flexDirection: "row", width: "100%", gap: 8 },
-  photoGridCell: { flex: 1, minWidth: 0, aspectRatio: 1, borderRadius: 10, overflow: "hidden", backgroundColor: "#e9e5d9" },
-  photoGridSingleCell: { aspectRatio: 1.6 },
+  photoGridCell: { minWidth: 0, borderRadius: 10, overflow: "hidden", backgroundColor: "#e9e5d9" },
   photoGridImage: { width: "100%", height: "100%" },
   photo: { width: 110, height: 110, borderRadius: 10 },
   removePhoto: {

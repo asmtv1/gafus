@@ -1,5 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveArticleEntitlement, resolveCourseEntitlement } from "./policy";
+import { registerContentPolicyReadPort } from "./policy";
+import {
+  readAccessActorRole, hasCurrentPaidSubscription,
+  hasAssignedPrivateCourse, hasActiveGafusArticleAccess,
+} from "@gafus/entitlements-server/policy-reads";
+registerContentPolicyReadPort({
+  readAccessActorRole,
+  hasCurrentPaidSubscription,
+  hasAssignedPrivateCourse,
+  hasActiveGafusArticleAccess,
+});
 
 const role = vi.fn();
 const subscription = vi.fn();
@@ -7,13 +18,11 @@ const assignment = vi.fn();
 const gafus = vi.fn();
 const flag = vi.fn();
 
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    user: { findUnique: (...args: unknown[]) => role(...args) },
-    appSubscription: { findFirst: (...args: unknown[]) => subscription(...args) },
-    courseAccess: { findFirst: (...args: unknown[]) => assignment(...args) },
-    gafusTargetAccess: { findFirst: (...args: unknown[]) => gafus(...args) },
-  },
+vi.mock("@gafus/entitlements-server/policy-reads", () => ({
+  readAccessActorRole: (...args: unknown[]) => role(...args),
+  hasCurrentPaidSubscription: (...args: unknown[]) => subscription(...args),
+  hasAssignedPrivateCourse: (...args: unknown[]) => assignment(...args),
+  hasActiveGafusArticleAccess: (...args: unknown[]) => gafus(...args),
 }));
 vi.mock("../appFeatureFlags", () => ({
   APP_FEATURE_APP_SUBSCRIPTION_GATING: "app_subscription_gating_enabled",
@@ -29,10 +38,10 @@ describe("shared Web/Mobile subscription access policy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     flag.mockResolvedValue(true);
-    role.mockResolvedValue({ role: "USER" });
-    subscription.mockResolvedValue(null);
-    assignment.mockResolvedValue(null);
-    gafus.mockResolvedValue(null);
+    role.mockResolvedValue("USER");
+    subscription.mockResolvedValue(false);
+    assignment.mockResolvedValue(false);
+    gafus.mockResolvedValue(false);
   });
 
   it("guests can access a free course, but no paid/private material", async () => {
@@ -43,25 +52,18 @@ describe("shared Web/Mobile subscription access policy", () => {
   });
 
   it("active subscription opens all regular courses and articles", async () => {
-    subscription.mockResolvedValue({ id: "subscription" });
+    subscription.mockResolvedValue(true);
     expect((await resolveCourseEntitlement(paid, "user", now)).source).toBe("SUBSCRIPTION");
     expect((await resolveArticleEntitlement("article", "user", "WEB_DESKTOP", now)).allowed).toBe(true);
-    expect(subscription).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        status: "ACTIVE",
-        OR: [{ isLifetime: true }, { currentPeriodEnd: { gt: now } }],
-      }),
-    }));
+    expect(subscription).toHaveBeenCalledWith("user",now);
   });
 
   it("private courses need assignment, even with subscription", async () => {
-    subscription.mockResolvedValue({ id: "subscription" });
+    subscription.mockResolvedValue(true);
     expect((await resolveCourseEntitlement(privateCourse, "user", now)).allowed).toBe(false);
-    assignment.mockResolvedValue({ courseId: "private-course" });
+    assignment.mockResolvedValue(true);
     expect((await resolveCourseEntitlement(privateCourse, "user", now)).source).toBe("PRIVATE_ASSIGNMENT");
-    expect(assignment).toHaveBeenCalledWith(expect.objectContaining({
-      where: { courseId: "private-course", userId: "user" },
-    }));
+    expect(assignment).toHaveBeenCalledWith("user","private-course");
   });
 
   it("expired subscription cannot use a stale entitlement", async () => {
@@ -70,11 +72,11 @@ describe("shared Web/Mobile subscription access policy", () => {
   });
 
   it("lifetime subscriptions and privileged roles are handled", async () => {
-    subscription.mockResolvedValue({ id: "lifetime" });
+    subscription.mockResolvedValue(true);
     expect((await resolveCourseEntitlement(paid, "user", now)).allowed).toBe(true);
-    subscription.mockResolvedValue(null);
+    subscription.mockResolvedValue(false);
     for (const privilegedRole of ["ADMIN", "PARTNER", "TRAINER"]) {
-      role.mockResolvedValue({ role: privilegedRole });
+      role.mockResolvedValue(privilegedRole);
       expect((await resolveArticleEntitlement("article", "user", "WEB_DESKTOP", now)).source).toBe("ROLE");
     }
   });
@@ -87,19 +89,15 @@ describe("shared Web/Mobile subscription access policy", () => {
   });
 
   it("one active Gafus article unlock works on iOS, Android and Web", async () => {
-    gafus.mockResolvedValue({ id: "gafus-grant" });
+    gafus.mockResolvedValue(true);
     for (const platform of ["IOS", "ANDROID", "WEB_DESKTOP", "WEB_TOUCH"] as const) {
       expect((await resolveArticleEntitlement("article", "user", platform, now)).source).toBe("GAFUS");
     }
-    expect(gafus).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        targetType: "ARTICLE", targetKey: "article:article", expiresAt: { gt: now },
-      }),
-    }));
+    expect(gafus).toHaveBeenCalledWith("user","article",now);
   });
 
   it("expired/missing article unlock remains closed on all platforms", async () => {
-    gafus.mockResolvedValue(null);
+    gafus.mockResolvedValue(false);
     expect((await resolveArticleEntitlement("article", "user", "IOS", now)).allowed).toBe(false);
     expect((await resolveArticleEntitlement("article", "user", "WEB_DESKTOP", now)).allowed).toBe(false);
   });

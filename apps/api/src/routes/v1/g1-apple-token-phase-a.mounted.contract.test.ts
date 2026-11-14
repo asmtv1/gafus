@@ -27,9 +27,14 @@ vi.mock("@gafus/auth/jwt", async (importOriginal) => ({
 vi.mock("@gafus/core/services/auth", async (importOriginal) => ({
   ...await importOriginal<object>(), isRegistrationCompleted: registration,
 }));
-vi.mock("@gafus/core/services/appSubscription", async (importOriginal) => ({
-  ...await importOriginal<object>(), initializeAppleTokenForAuthenticatedOwner: initialize,
+vi.mock("../../modules/app-subscription/composition/read-offer.js", () => ({
   getAppSubscriptionOffer: legacyOffer,
+}));
+vi.mock("@gafus/subscription-write-server", () => ({
+  initializeAppleTokenForAuthenticatedOwner: initialize,
+  AppleTokenOwnerUnavailableError: class AppleTokenOwnerUnavailableError extends Error {
+    readonly code = "APPLE_TOKEN_OWNER_UNAVAILABLE";
+  },
 }));
 
 import { app } from "../../app";

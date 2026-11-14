@@ -42,3 +42,5 @@ coverage/
 
 expo-env.d.ts
 # @end expo-cli
+# Self-hosted OTA native signing certificates (injected by protected CI)
+.ota-certs/

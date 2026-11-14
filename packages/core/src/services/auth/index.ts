@@ -8,5 +8,8 @@ export * from "./vkRegistrationCompletion";
 
 export * from "./passwordReset";
 
-export * from "./identityReadService";
-export * from "./vkGrant";
+export { registerAuthRowsPort } from "./authRowsPort";
+export type { AuthRowsPort } from "./authRowsPort";
+
+export { registerVkAuthRowsPort } from "./vkAuthRowsPort";
+export type { VkAuthRowsPort } from "./vkAuthRowsPort";

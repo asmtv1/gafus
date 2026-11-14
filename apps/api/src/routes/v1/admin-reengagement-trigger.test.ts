@@ -5,7 +5,7 @@ const fake = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: fake.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: fake.registration }));
-vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: fake.role }));
+vi.mock("../../modules/admin-users/composition/service.js", () => ({ readAdminActorRole: fake.role }));
 vi.mock("@gafus/queues", () => ({ connection: { set: fake.set, eval: fake.eval } }));
 vi.mock("@gafus/reengagement", () => ({ manualTriggerScheduler: fake.run }));
 import { authMiddleware } from "../../middleware/auth";

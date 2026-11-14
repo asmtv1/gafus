@@ -7,13 +7,13 @@ import type { ExamResultRead } from "../../../../../packages/types/src/data/exam
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 
-import { uploadExamVideoFile } from "@gafus/core/services/exam";
+import { uploadExamVideoFile } from "@gafus/exam-server/exam-service";
 import { writeExamSubmitApplication } from "../../modules/exam/composition/write-submit.js";
 import { readExamResultApplication } from "../../modules/exam/composition/read-result.js";
 import {
-  requirePremiumOrRewardedAccessForUserStep,
   SubscriptionOrCreditsRequiredError,
 } from "@gafus/core/services/rewardedCredits";
+import { requirePremiumOrRewardedAccessForUserStep } from "../../modules/rewarded-credits/composition/gafus-access.js";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-exam");

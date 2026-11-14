@@ -10,7 +10,7 @@ const m = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: m.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: m.completed }));
-vi.mock("@gafus/core/services/dailyCourse", () => ({
+vi.mock("../../modules/daily-course/composition/dailyCourseApplication.js", () => ({
   getDailyCourseDayWithUserSteps: m.day,
   getTodayDailyCourse: m.today,
   updateDailyCourseStepAndDay: m.update,

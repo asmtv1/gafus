@@ -28,7 +28,8 @@ import { prepareVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWeb
 import { prepareUploadVideo720, type PreparedUploadVideo720,
   type Video720Failure } from "@/shared/lib/media/prepareUploadVideo720";
 import * as DocumentPicker from "expo-document-picker";
-import { VideoView, useVideoPlayer, type VideoPlayer, type VideoThumbnail } from "expo-video";
+import { VideoView, createVideoPlayer, type VideoPlayer, type VideoThumbnail } from "expo-video";
+import { SerializedVideoSource } from "@/shared/lib/media/serializedVideoSource";
 import { playVideoFromBeginningIfEnded } from "@/shared/lib/media/replayVideo";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
@@ -385,7 +386,11 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
     });
   }
   async function pick(kind: "image" | "video" | "pdf") {
-    if (pending || uploading || media.length >= 8) return;
+    if (pending || uploading) return;
+    if (media.length >= 10) {
+      Alert.alert("Лимит вложений", "В одном сообщении можно отправить не более 10 файлов.");
+      return;
+    }
     setUploading(true);
     setError("");
     try {
@@ -398,16 +403,22 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
           // Image bytes are encoded once by the shared JPEG 0.8 / 1920px path.
           quality: 1,
           ...(kind === "image" ? iosCompatiblePhotoPicker() : {}),
-          allowsMultipleSelection: false,
+          allowsMultipleSelection: kind === "image",
+          ...(kind === "image" ? { selectionLimit: 10 - media.length } : {}),
         });
         if (!selection.canceled && selection.assets[0]) {
           const f = selection.assets[0];
           if (kind === "image") {
-            const localId = Crypto.randomUUID();
-            activePhotos.current.add(localId);
-            setMedia(previous => [...previous, {localId, name:f.fileName ?? "Фотография",
-              uri:f.uri, sourcePhoto:f, uploading:true}]);
-            await prepareOnePhoto(localId, f);
+            const photos = selection.assets.slice(0, 10 - media.length);
+            const queued = photos.map(photo => ({ localId: Crypto.randomUUID(), photo }));
+            for (const { localId } of queued) activePhotos.current.add(localId);
+            setMedia(previous => [...previous, ...queued.map(({ localId, photo }) => ({
+              localId, name: photo.fileName ?? "Фотография", uri: photo.uri,
+              sourcePhoto: photo, uploading: true,
+            }))]);
+            // Process sequentially to avoid memory spikes from ten large originals.
+            // No network upload happens until the user explicitly sends the message.
+            for (const { localId, photo } of queued) await prepareOnePhoto(localId, photo);
             return;
           } else {
             const localId = Crypto.randomUUID();
@@ -1174,7 +1185,9 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.5 },
   sendText: { color: "white", fontWeight: "700", fontSize: 20 },
   attach: { fontSize: 23, padding: 7, color: olive },
-  mediaPending: { maxHeight: 220, marginHorizontal: 10, marginBottom: 5 },
+  // ScrollView defaults to flexGrow: 1 and otherwise leaves a large empty gap
+  // between the pending attachment and the message composer.
+  mediaPending: { maxHeight: 220, flexGrow: 0, flexShrink: 0, marginHorizontal: 10, marginBottom: 5 },
   mediaPendingContent: { paddingVertical: 5, gap: 7 },
   mediaChip: { backgroundColor: "#edf1e4", borderRadius: 11, padding: 9, gap: 5 },
   mediaChipTop: { flexDirection: "row", alignItems: "center", gap: 9, minWidth: 0 },
@@ -1473,58 +1486,127 @@ function NativeChat2VideoPlayer({
 }) {
   const startupAt = useRef(Date.now());
   const readyRecorded = useRef(false);
-  const player = useVideoPlayer({ uri: url, contentType: "progressive",
-    useCaching: isCacheableChat2FinalUrl(url) }, instance => {
-    instance.staysActiveInBackground = false;
-    instance.showNowPlayingNotification = false;
-    instance.pause(); // Never autoplay when entering the chat.
-  });
+  const thumbnailRequested = useRef(false);
+  const firstUrl = useRef(url);
+  const loadedUrl = useRef(firstUrl.current);
+  const requestedUrl = useRef(firstUrl.current);
+  const replacing = useRef(false);
+  const seekOnReady = useRef<{url: string; time: number; resume: boolean} | null>(
+    { url: firstUrl.current, time: seekTo, resume: resumeOnReady });
+  const mounted = useRef(false);
+  // SDK 55's useVideoPlayer releases the SharedObject on unmount even when an
+  // asynchronous replacement is running. Own it explicitly and release only
+  // after the last replaceAsync settles, not while iOS is still loading an item.
+  const [owned, setOwned] = useState<{
+    player: VideoPlayer;
+    source: SerializedVideoSource<{ uri: string; contentType: "progressive"; useCaching: boolean }>;
+  } | null>(null);
+  const latest = useRef({ url, onError, onReady, onPlayingChange, onPlaybackEnd,
+    onDimensions, onThumbnail, requestThumbnail });
+  latest.current = { url, onError, onReady, onPlayingChange, onPlaybackEnd,
+    onDimensions, onThumbnail, requestThumbnail };
+  const onNativeStatus = useRef<(status: string) => void>(() => undefined);
+
   useEffect(() => {
+    mounted.current = true;
+    const player = createVideoPlayer({ uri: firstUrl.current, contentType: "progressive",
+      useCaching: isCacheableChat2FinalUrl(firstUrl.current) });
+    player.staysActiveInBackground = false;
+    player.showNowPlayingNotification = false;
+    player.pause(); // The chat preview never autoplays.
+    const source = new SerializedVideoSource(player);
+    setOwned({ player, source });
+    return () => {
+      mounted.current = false;
+      source.dispose();
+    };
+  }, []);
+  const player = owned?.player;
+
+  useEffect(() => {
+    if (!player) return;
     onPlayer(player);
     return () => onPlayer(null);
   }, [player, onPlayer]);
+
+  // One native player/VideoView survives every 360p ↔ 720p change. Rapid
+  // selections are serialized and superseded work is dropped. A source change
+  // restores the captured position and playing state after the new MP4 is ready.
   useEffect(() => {
-    let sought = false;
-    let resumed = false;
-    let failed = false;
-    let thumbnailRequested = false;
-    let live = true;
+    if (!owned || requestedUrl.current === url) return;
+    requestedUrl.current = url;
+    replacing.current = true;
+    seekOnReady.current = { url, time: seekTo, resume: resumeOnReady };
+    void owned.source.replace({ uri: url, contentType: "progressive",
+      useCaching: isCacheableChat2FinalUrl(url) }, () => {
+      loadedUrl.current = url;
+      replacing.current = false;
+      onNativeStatus.current(owned.player.status);
+    }).catch(() => {
+      if (mounted.current && requestedUrl.current === url) {
+        replacing.current = false;
+        latest.current.onError();
+      }
+    });
+  }, [owned, url, seekTo, resumeOnReady]);
+
+  useEffect(() => {
+    if (!owned) return;
+    const player = owned.player;
+    let failedUrl: string | null = null;
     const onStatus = (status: string) => {
-      if (status === "error" && !failed) { failed = true; onError(); }
+      if (!mounted.current || replacing.current || loadedUrl.current !== latest.current.url) return;
+      if (status === "error") {
+        if (failedUrl !== loadedUrl.current) {
+          failedUrl = loadedUrl.current;
+          latest.current.onError();
+        }
+        return;
+      }
       if (status !== "readyToPlay") return;
       const size = player.videoTrack?.size;
-      if (size?.width && size?.height) onDimensions(size.width, size.height);
+      if (size?.width && size?.height) latest.current.onDimensions(size.width, size.height);
       if (!readyRecorded.current) {
         readyRecorded.current = true;
-        onReady(Date.now()-startupAt.current);
+        latest.current.onReady(Date.now() - startupAt.current);
       }
-      if (requestThumbnail && !thumbnailRequested) {
-        thumbnailRequested = true;
-        // Legacy Chat2 MP4s do not have a poster object. Extract a single
-        // still using the native decoder; the paused VideoView remains a fallback.
-        void player.generateThumbnailsAsync(0, { maxWidth: 440, maxHeight: 440 })
-          .then(frames => { if (live && frames[0]) onThumbnail(url, frames[0]); })
-          .catch(() => undefined);
+      const pendingSeek = seekOnReady.current;
+      if (pendingSeek?.url === loadedUrl.current) {
+        seekOnReady.current = null;
+        if (pendingSeek.time > 0) {
+          const duration = player.duration;
+          player.currentTime = Number.isFinite(duration)
+            ? Math.min(pendingSeek.time, Math.max(0, duration - 0.1)) : pendingSeek.time;
+        }
+        if (pendingSeek.resume) player.play();
       }
-      if (!sought) {
-        if (seekTo > 0) player.currentTime = Math.min(seekTo, Math.max(0, player.duration - 0.1));
-        sought = true;
-      }
-      if (resumeOnReady && !resumed) {
-        resumed = true;
-        player.play();
+      // A thumbnail is generated at most once for this message. Generating
+      // again while changing the player item can overlap the iOS generator.
+      if (latest.current.requestThumbnail && !thumbnailRequested.current) {
+        thumbnailRequested.current = true;
+        void owned.source.perform(
+          () => player.generateThumbnailsAsync(0, { maxWidth: 440, maxHeight: 440 }),
+          frames => {
+            if (mounted.current && frames[0]) {
+              latest.current.onThumbnail(loadedUrl.current, frames[0]);
+            }
+          },
+        ).catch(() => undefined);
       }
     };
+    onNativeStatus.current = onStatus;
     const statusListener = player.addListener("statusChange", ({ status }) => onStatus(status));
     const playingListener = player.addListener("playingChange", ({ isPlaying }) =>
-      onPlayingChange(isPlaying));
-    const endedListener = player.addListener("playToEnd", onPlaybackEnd);
+      latest.current.onPlayingChange(isPlaying));
+    const endedListener = player.addListener("playToEnd", () => latest.current.onPlaybackEnd());
     onStatus(player.status);
-    return () => { live = false; statusListener.remove(); playingListener.remove(); endedListener.remove(); };
-  }, [player, onError, onReady, onPlayingChange, onPlaybackEnd, seekTo, resumeOnReady,
-    requestThumbnail, onThumbnail, url, onDimensions]);
+    return () => {
+      onNativeStatus.current = () => undefined;
+      statusListener.remove(); playingListener.remove(); endedListener.remove();
+    };
+  }, [owned]);
   if (hideView) return null; // Modal takes sole ownership of this native VideoView.
-  return <VideoView player={player}
+  return <VideoView player={player ?? null}
     style={{ width: 220, height: frameHeight, backgroundColor: "#17211d" }}
     contentFit="contain" nativeControls={false} allowsPictureInPicture={false}
     surfaceType={Platform.OS === "android" ? "textureView" : undefined} />;
@@ -1762,12 +1844,12 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
   return <View style={{ marginTop: 8, width: 220 }}>
     {url ? <View style={{ width: 220, height: previewHeight, borderRadius: 12,
         overflow: "hidden", backgroundColor: "#17211d", position: "relative" }}>
-      <NativeChat2VideoPlayer key={url} url={url} onError={onError} onReady={onVideoReady} seekTo={seekTo}
+      <NativeChat2VideoPlayer url={url} onError={onError} onReady={onVideoReady} seekTo={seekTo}
         resumeOnReady={resumeOnReady} onPlayer={onPlayer} onPlayingChange={onPlayingChange}
         onPlaybackEnd={onPlaybackEnd}
         requestThumbnail={!poster} onThumbnail={onThumbnail} hideView={expanded}
         frameHeight={previewHeight} onDimensions={onDimensions} />
-      {!everPlayed && !playing && (poster || thumbnail?.url === url) && <View pointerEvents="none"
+      {!everPlayed && !playing && (poster || thumbnail) && <View pointerEvents="none"
         style={{ position: "absolute", width: 220, height: previewHeight }}>
         {poster ? <ExpoImage source={{ uri: poster }} contentFit="contain"
           cachePolicy={isCacheableChat2FinalUrl(poster) ? "memory-disk" : "memory"}
@@ -1781,7 +1863,7 @@ function NativeChat2Video({ conversationId, file }: { conversationId: string; fi
               }).catch(() => setPosterFailed(true));
           }}
           style={{ width: 220, height: previewHeight }} /> :
-          thumbnail?.url === url && <ExpoImage source={thumbnail.frame}
+          thumbnail && <ExpoImage source={thumbnail.frame}
             contentFit="contain" style={{ width: 220, height: previewHeight }} />}
       </View>}
       {!expanded && <SocialVideoControls player={controlPlayer} playing={playing}

@@ -1,0 +1,2880 @@
+{
+  "policy": "/Users/asmtv1/Desktop/gafus-agent2-observability/docs/audit/gafus-agents-integration-preflight-policy-20261112-r17.json",
+  "candidate": null,
+  "kind": "gafus/integration-preflight-result/v1",
+  "verdict": "FAIL",
+  "counts": {
+    "PASS": 565,
+    "FAIL": 5,
+    "BLOCKED": 3
+  },
+  "checks": [
+    {
+      "id": "POLICY_SCHEMA",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "PAYMENT_MANIFEST_SHA",
+      "status": "PASS",
+      "detail": "87d0fbedf7ab2692637cbeed6fcf819b865f23c70f92094e4f5dd905a728a362"
+    },
+    {
+      "id": "AGENT3_MANIFEST_SHA",
+      "status": "PASS",
+      "detail": "b98783d54906caeb0e0f9c86861863a9b38b464cc0cb39bed29a5da5166fe3d7"
+    },
+    {
+      "id": "PAYMENT_MANIFEST_CONTENT",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A3_MANIFEST_CONTENT",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_CHECKPOINT_STRUCTURE",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_RECOVERY_IS_LAST_MANIFEST",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-payment-composition-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-payment-composition-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-reminder-review-ports-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-reminder-review-ports-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-rewarded-settings-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-rewarded-settings-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-course-version-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-course-version-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-registration-context-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-registration-context-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-password-reset-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-password-reset-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-email-account-rows-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-email-account-rows-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-vk-completion-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-vk-completion-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-credential-registration-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-credential-registration-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-registration-contract-rows-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-registration-contract-rows-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-content-policy-reads-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-content-policy-reads-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-content-occurrence-reads-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-content-occurrence-reads-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-gafus-wallet-lock-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-gafus-wallet-lock-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-content-revision-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-content-revision-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-course-catalog-read-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-course-catalog-read-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-training-day-content-read-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-training-day-content-read-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-subscription-promo-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-subscription-promo-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-gafus-ledger-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-gafus-ledger-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-gafus-unlock-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-gafus-unlock-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-training-day-rows-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-training-day-rows-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-rewarded-access-read-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-rewarded-access-read-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_MANIFEST_SHA:gafus-agent-1-to-agent-2-reminder-ag4-recovery-port-20261112.json",
+      "status": "PASS",
+      "detail": "whole manifest SHA pinned"
+    },
+    {
+      "id": "A1_R17_MANIFEST_ENTRIES:gafus-agent-1-to-agent-2-reminder-ag4-recovery-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_AG4_RECOVERY_REGISTRY",
+      "status": "PASS",
+      "detail": "recovered AG4 review port: remaining 17, 0 new forbidden"
+    },
+    {
+      "id": "A1_R17_COMPLETE_276_ENTRIES",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_ALL_183_PATHS_CLASSIFIED",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_A2_COMMITTED_39_GIT_GRAPH",
+      "status": "PASS",
+      "detail": "overlap list must match real four A2 commits, not only authored policy"
+    },
+    {
+      "id": "A1_R17_A2_4_COMMITTED_OVERLAP",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_A3_FINAL39_PINNED_PATH_SET",
+      "status": "PASS",
+      "detail": "A3 39 paths must match the pinned final A3 manifest"
+    },
+    {
+      "id": "A1_R17_A3_FINAL39_OVERLAP",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_P0_OVERLAP",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/paymentService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/paymentService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/index.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/index.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/__tests__/paymentService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/__tests__/paymentService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/__tests__/paymentService.realpg.archqa.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/__tests__/paymentService.realpg.archqa.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/subscription-payment-server/src/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/subscription-payment-server/src/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/subscription-payment-server/src/appleJws.archqa.acceptance.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/subscription-payment-server/src/appleJws.archqa.acceptance.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/app-subscription/composition/payment-transitions.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/app-subscription/composition/payment-transitions.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/app-subscription.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/app-subscription.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/payment-provider-webhooks.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/payment-provider-webhooks.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/app-subscription.route.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/app-subscription.route.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/payment-provider-webhooks.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/payment-provider-webhooks.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/admin-users.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/admin-users.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/admin-users.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/admin-users.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/worker/src/composition/app-subscription-payment.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/worker/src/composition/app-subscription-payment.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/worker/src/cron-scheduler.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/worker/src/cron-scheduler.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/worker/src/cron-scheduler.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/worker/src/cron-scheduler.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/worker/src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/worker/src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/reminders/composition/create-receipt-review.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/reminders/composition/create-receipt-review.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/g1-reminder-create-lookup.review.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/g1-reminder-create-lookup.review.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/g1-reminder-create-lookup.review.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/g1-reminder-create-lookup.review.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "FAIL",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "FAIL",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/app.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/app.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/app-feature-flags/composition/install-core-flags.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/app-feature-flags/composition/install-core-flags.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/app-feature-flags/composition/install-core-flags.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/app-feature-flags/composition/install-core-flags.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/g1-subscription-readonly.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/g1-subscription-readonly.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/package.json",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/package.json",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appFeatureFlags/appFeatureFlagsPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appFeatureFlags/appFeatureFlagsPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appFeatureFlags/index.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appFeatureFlags/index.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/__tests__/accessService.facade.g1.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/__tests__/accessService.facade.g1.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/__tests__/accessService.readBaseline.g1.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/__tests__/accessService.readBaseline.g1.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/__tests__/accessService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/__tests__/accessService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/__tests__/cynologistEntitlements.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/__tests__/cynologistEntitlements.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/accessPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/accessPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/accessService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/accessService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/g1-achievements-snapshot-access-source.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/g1-achievements-snapshot-access-source.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/consultation/bookingService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/consultation/bookingService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/feature-flags-server/package.json",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/feature-flags-server/package.json",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/feature-flags-server/src/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/feature-flags-server/src/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/types/src/contracts/mobileReleaseErrors.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/types/src/contracts/mobileReleaseErrors.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/types/src/index.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/types/src/index.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:pnpm-lock.yaml",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:pnpm-lock.yaml",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:scripts/check-core-server-boundary.mjs",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:scripts/check-core-server-boundary.mjs",
+      "status": "FAIL",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/rewarded-credits/composition/install-core-settings.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/rewarded-credits/composition/install-core-settings.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/rewarded-credits/composition/install-core-settings.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/rewarded-credits/composition/install-core-settings.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/rewardedCredits/settingsPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/rewardedCredits/settingsPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/rewardedCredits/settingsService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/rewardedCredits/settingsService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/rewardedCredits/settingsService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/rewardedCredits/settingsService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/trainer-courses/composition/install-core-version-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/trainer-courses/composition/install-core-version-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/trainer-courses/composition/install-core-version-rows.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/trainer-courses/composition/install-core-version-rows.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/trainerCourse/courseVersionPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/trainerCourse/courseVersionPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/trainerCourse/courseVersionService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/trainerCourse/courseVersionService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/trainerCourse/g1-course-global-version.cas.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/trainerCourse/g1-course-global-version.cas.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/trainerCourse/g1-fullschema-course-version-work-stage.real-pg.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/trainerCourse/g1-fullschema-course-version-work-stage.real-pg.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/trainerCourse/index.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/trainerCourse/index.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-registration-context.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-registration-context.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-registration-context.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-registration-context.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/registrationContextPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/registrationContextPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/registrationUseCases.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/registrationUseCases.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-password-reset.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-password-reset.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-password-reset.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-password-reset.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/passwordReset.notice.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/passwordReset.notice.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/passwordReset.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/passwordReset.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/passwordResetPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/passwordResetPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-email-account-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-email-account-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-email-account-rows.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-email-account-rows.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/emailAccountFlows.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/emailAccountFlows.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/emailAccountFlows.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/emailAccountFlows.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/emailAccountRowsPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/emailAccountRowsPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/g1-w1-email-change.core.scoped.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/g1-w1-email-change.core.scoped.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/g1-w1-email-change.realdb.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/g1-w1-email-change.realdb.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-vk-completion.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-vk-completion.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-vk-completion.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-vk-completion.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/vkCompletionPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/vkCompletionPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/vkRegistrationCompletion.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/vkRegistrationCompletion.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/vkRegistrationCompletion.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/vkRegistrationCompletion.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-credential-registration.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-credential-registration.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-credential-registration.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-credential-registration.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/credentialRegistrationPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/credentialRegistrationPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/registerUserWithCredentials.integration.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/registerUserWithCredentials.integration.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/registerUserWithCredentials.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/registerUserWithCredentials.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/registerUserWithCredentials.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/registerUserWithCredentials.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-registration-contract-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-registration-contract-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/auth/composition/install-registration-contract-rows.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/auth/composition/install-registration-contract-rows.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/registrationContractRowsPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/registrationContractRowsPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/registrationContractRowsPort.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/registrationContractRowsPort.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/auth/registrationContracts.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/auth/registrationContracts.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/content-access/composition/install-policy-reads.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/content-access/composition/install-policy-reads.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/content-access/composition/install-policy-reads.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/content-access/composition/install-policy-reads.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/contentAccess/contentPolicyPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/contentAccess/contentPolicyPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/contentAccess/index.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/contentAccess/index.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/contentAccess/policy.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/contentAccess/policy.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/contentAccess/policy.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/contentAccess/policy.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/content-access/composition/install-occurrence-reads.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/content-access/composition/install-occurrence-reads.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/content-access/composition/install-occurrence-reads.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/content-access/composition/install-occurrence-reads.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/contentAccess/courseOccurrenceReadPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/contentAccess/courseOccurrenceReadPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/contentAccess/courseStepGrantLookup.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/contentAccess/courseStepGrantLookup.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/contentAccess/courseStepGrantReads.realpg.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/contentAccess/courseStepGrantReads.realpg.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/gafus/composition/install-wallet-lock.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/gafus/composition/install-wallet-lock.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/gafus/composition/install-wallet-lock.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/gafus/composition/install-wallet-lock.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/admin2GafusConcurrency.postgres.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/admin2GafusConcurrency.postgres.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/g1-offline-training-reward-boundary.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/g1-offline-training-reward-boundary.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/gafus-content-parity.isolatedpg.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/gafus-content-parity.isolatedpg.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/gafus.postgres.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/gafus.postgres.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/gafusLockPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/gafusLockPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/locking.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/locking.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/rewardService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/rewardService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/training/trainingContentRevision.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/training/trainingContentRevision.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/training/trainingContentRevision.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/training/trainingContentRevision.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/training/index.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/training/index.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/training/contentRevisionReadPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/training/contentRevisionReadPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/training/composition/install-content-revision-read.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/training/composition/install-content-revision-read.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/training/composition/install-content-revision-read.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/training/composition/install-content-revision-read.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/courses/composition/install-catalog-read.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/courses/composition/install-catalog-read.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/courses/composition/install-catalog-read.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/courses/composition/install-catalog-read.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/course/catalogReadPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/course/catalogReadPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/course/catalogReadPort.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/course/catalogReadPort.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/course/courseService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/course/courseService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/course/courseService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/course/courseService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/course/g1-course-favorites-private-work-read.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/course/g1-course-favorites-private-work-read.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/course/index.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/course/index.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/training/composition/install-day-content-read.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/training/composition/install-day-content-read.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/training/composition/install-day-content-read.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/training/composition/install-day-content-read.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/training/trainingContentCluster.integration.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/training/trainingContentCluster.integration.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/training/trainingDayContent.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/training/trainingDayContent.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/training/trainingDayContent.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/training/trainingDayContent.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/training/trainingDayContentReadPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/training/trainingDayContentReadPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/training/trainingDayContentReadPort.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/training/trainingDayContentReadPort.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/training/trainingService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/training/trainingService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/app-subscription/composition/install-promo-code-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/app-subscription/composition/install-promo-code-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/app-subscription/composition/install-promo-code-rows.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/app-subscription/composition/install-promo-code-rows.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/__tests__/promoCodeService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/__tests__/promoCodeService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/promoCodePort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/promoCodePort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/promoCodePort.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/promoCodePort.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/appSubscription/promoCodeService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/appSubscription/promoCodeService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/gafus/composition/install-ledger-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/gafus/composition/install-ledger-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/gafus/composition/install-ledger-rows.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/gafus/composition/install-ledger-rows.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/g1-wallet-readonly-status-history.audit.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/g1-wallet-readonly-status-history.audit.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/gafusLedgerPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/gafusLedgerPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/gafusLedgerPort.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/gafusLedgerPort.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/index.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/index.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/walletService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/walletService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/walletService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/walletService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/gafus/composition/install-unlock-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/gafus/composition/install-unlock-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/gafus/composition/install-unlock-rows.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/gafus/composition/install-unlock-rows.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/accessGrantService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/accessGrantService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/accessGrantService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/accessGrantService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/gafusUnlockPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/gafusUnlockPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/gafus/gafusUnlockPort.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/gafus/gafusUnlockPort.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/trainer-days/composition/install-training-day-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/trainer-days/composition/install-training-day-rows.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/trainer-days/composition/install-training-day-rows.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/trainer-days/composition/install-training-day-rows.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/trainingDay/index.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/trainingDay/index.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/trainingDay/trainingDayOwnerScope.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/trainingDay/trainingDayOwnerScope.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/trainingDay/trainingDayRowsPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/trainingDay/trainingDayRowsPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/trainingDay/trainingDayRowsPort.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/trainingDay/trainingDayRowsPort.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/trainingDay/trainingDayService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/trainingDay/trainingDayService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/trainingDay/trainingDayService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/trainingDay/trainingDayService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/rewarded-credits/composition/install-access-reads.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/rewarded-credits/composition/install-access-reads.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/rewarded-credits/composition/install-access-reads.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/rewarded-credits/composition/install-access-reads.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/rewardedCredits/accessService.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/rewardedCredits/accessService.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/rewardedCredits/accessService.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/rewardedCredits/accessService.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/rewardedCredits/index.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/rewardedCredits/index.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/rewardedCredits/rewardedAccessReadPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/rewardedCredits/rewardedAccessReadPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/rewardedCredits/rewardedAccessReadPort.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/rewardedCredits/rewardedAccessReadPort.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/reminders/composition/install-ag4-review-rows.review.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/reminders/composition/install-ag4-review-rows.review.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/modules/reminders/composition/install-ag4-review-rows.review.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/modules/reminders/composition/install-ag4-review-rows.review.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/g1-reminder-mixed-core-source-boundary.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/g1-reminder-mixed-core-source-boundary.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/g1-reminder-packaged-core-review-gate.contract.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/g1-reminder-packaged-core-review-gate.contract.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/g1-reminder-receipt-migration-history.review.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/g1-reminder-receipt-migration-history.review.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/g1-reminders-v2-unmounted.review.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/g1-reminders-v2-unmounted.review.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:apps/api/src/routes/v1/reminders.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:apps/api/src/routes/v1/reminders.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/reminders/g1ReminderExpiryPIIRedaction.review.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/reminders/g1ReminderExpiryPIIRedaction.review.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/reminders/index.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/reminders/index.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/reminders/reminderAG4ReviewPort.test.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/reminders/reminderAG4ReviewPort.test.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_DECISION:packages/core/src/services/reminders/reminderAG4ReviewPort.ts",
+      "status": "PASS",
+      "detail": "every A1 manifest item has latest SHA and explicit runtime/audit/lock classification"
+    },
+    {
+      "id": "A1_R17_SOURCE_SHA:packages/core/src/services/reminders/reminderAG4ReviewPort.ts",
+      "status": "PASS",
+      "detail": "source must equal latest SHA, older intermediate SHA not accepted"
+    },
+    {
+      "id": "A1_R17_COMPANION_AUDIT_COVERAGE",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-reminder-review-ports-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-reminder-review-ports-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-rewarded-settings-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-rewarded-settings-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-course-version-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-course-version-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-registration-context-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-registration-context-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-password-reset-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-password-reset-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-email-account-rows-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-email-account-rows-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-vk-completion-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-vk-completion-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-credential-registration-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-credential-registration-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-registration-contract-rows-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-registration-contract-rows-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-content-policy-reads-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-content-policy-reads-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-content-occurrence-reads-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-content-occurrence-reads-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-gafus-wallet-lock-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-gafus-wallet-lock-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-content-revision-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-content-revision-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-course-catalog-read-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-course-catalog-read-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-training-day-content-read-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-training-day-content-read-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-subscription-promo-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-subscription-promo-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-gafus-ledger-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-gafus-ledger-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-gafus-unlock-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-gafus-unlock-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-training-day-rows-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-training-day-rows-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-rewarded-access-read-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-rewarded-access-read-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-reminder-ag4-recovery-port-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-to-agent-2-reminder-ag4-recovery-port-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_COMPANION_SOURCE_SHA:docs/audit/gafus-agent-1-recovery-verified-checkpoint-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_PRIOR_INVENTORY_SHA",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_GIT_DIRTY_INVENTORY",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R17_SOURCE_DIRTY_SET_SHA",
+      "status": "FAIL",
+      "detail": "any later A1 source changes invalidate this intermediate snapshot"
+    },
+    {
+      "id": "A1_R17_NEW_DIRTY_PATHS_ACCOUNTED",
+      "status": "FAIL",
+      "detail": "new=154, missing=apps/api/src/modules/offline/composition/install-video-position-v3-review.contract.test.ts,apps/api/src/modules/offline/composition/install-video-position-v3-review.ts,docs/audit/gafus-agent-1-to-agent-2-offline-video-v3-port-20261112.json,docs/audit/gafus-agent-1-to-agent-2-offline-video-v3-port-20261112.md,packages/core/src/services/offline/offlineVideoSqlPort.test.ts,packages/core/src/services/offline/offlineVideoSqlPort.ts"
+    },
+    {
+      "id": "A1_R17_EXPLICIT_INTEGRATION_APPROVAL",
+      "status": "BLOCKED",
+      "detail": "17 remaining is not final A1; no merge/commit/push"
+    },
+    {
+      "id": "A1_FINAL_REGISTRY_PIN",
+      "status": "BLOCKED",
+      "detail": "No approved final A1 architecture registry. Payment batch / prior results.tsv are insufficient."
+    },
+    {
+      "id": "LOCK_PROOF_EVIDENCE_SHA",
+      "status": "PASS",
+      "detail": "expected pinned JSON evidence"
+    },
+    {
+      "id": "LOCK_PROOF_EVIDENCE_CONTENT",
+      "status": "PASS",
+      "detail": "two identical offline-only regenerations; provisional, NOT final lock approval"
+    },
+    {
+      "id": "LOCK_PROOF_SNAPSHOT_88_FILES",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:.npmrc",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/admin-panel/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/api/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/bull-board/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/feed-cloud/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/gallery-cloud/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/mobile/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/trainer-panel/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/web-vite/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/achievements-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/admin-reengagement-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/admin-rewarded-ads-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/analytics/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/article-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/auth/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/cdn-upload/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/chat-media-quality/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/chat-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/consent-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/consultation-query-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/consultation-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/consultation-shared/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/consultation-write-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/core-client/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/core/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/course-progress-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/course-read-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/course-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/csrf/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/entitlements-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/error-handling/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/exam-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/feature-flags-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/feed-cloud/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/feed-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/feed-storage/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/gafus-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/gallery-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/gallery-storage/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/identity-write-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/logger/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/mailer/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/media-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/media-shared/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/mobile-intro-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/notifications-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/npd/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/pets-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/pets-shared/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/prisma/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/prisma/schema.prisma",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/questions-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/questions-shared/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/questions-write-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/queues/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/react-query/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/reengagement/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/statistics/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-finance-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-payment-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-read-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-shared/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-trial-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-write-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/tracking-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/trainer-ai-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/types/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/ui-components/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/video-access/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/webpush/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/worker/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/@voximplant__react-native-calls@2.0.0.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/expo-location@55.1.15.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/expo-modules-core@3.0.29.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/expo-modules-core@55.0.27.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/expo-widgets@55.0.20.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-android-widget@0.26.0.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-compressor@1.16.0.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-reanimated@4.1.6.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-reanimated@4.2.1.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-screens@4.16.0.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-worklets@0.5.1.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native@0.81.5.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:pnpm-lock.yaml",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:pnpm-workspace.yaml",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:scripts/architecture-workspace-cycles.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:scripts/check-workspace-graph.mjs",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "CANDIDATE_COPY",
+      "status": "BLOCKED",
+      "detail": "No candidate provided; no writes performed."
+    }
+  ],
+  "noMutation": true,
+  "warning": "Read-only preflight. Passing this does not authorize commit, merge, push, production, Cloud.ru, CDN, 33/5/18 regression or stage acceptance."
+}

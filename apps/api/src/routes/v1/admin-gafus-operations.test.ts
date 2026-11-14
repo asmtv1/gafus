@@ -133,7 +133,7 @@ describe("Gafus admin fraud and operator legacy import", () => {
   it("preflight is read-only and receives the authenticated actor", async () => {
     const response = await request("/legacy/preflight");
     expect(response.status).toBe(200);
-    expect(f.preflight).toHaveBeenCalledWith("admin-1");
+    expect(f.preflight).toHaveBeenCalledWith("admin-1", expect.objectContaining({ readActorRole: expect.any(Function) }));
     expect(f.importBatch).not.toHaveBeenCalled();
   });
 
@@ -152,7 +152,7 @@ describe("Gafus admin fraud and operator legacy import", () => {
     expect(response.status).toBe(200);
     expect(f.importBatch).toHaveBeenCalledWith({
       actorId: "admin-1", confirmed: true, batchSize: 50, cursor: "next1",
-    });
+    }, expect.objectContaining({ runOneTransaction: expect.any(Function) }));
     expect(await response.json()).toEqual({
       success: true, data: { imported: 1, credits: 3, nextCursor: null },
     });

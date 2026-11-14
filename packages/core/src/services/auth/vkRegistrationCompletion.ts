@@ -1,10 +1,7 @@
 import crypto from "node:crypto";
 
-import { ConsentLogStatus, Prisma, prisma } from "@gafus/prisma";
 
-import { attributePartnerReferralIfCurrentPartnerInTransaction } from "../appSubscription/partnerService";
-import { createCompletedConsentLogsInTransaction } from "../consent/consentService";
-import type { CreateConsentLogsParams } from "../consent/types";
+import type { CreateConsentLogsParams } from "@gafus/types";
 import {
   RegistrationContractError,
   hashRegistrationOpaqueValue,
@@ -12,6 +9,57 @@ import {
   resolveRegistrationPromoCodeInTransaction,
   saveRegistrationPromoCodeInTransaction,
 } from "./registrationContracts";
+
+/** VK context is owned by one advisory-locked PostgreSQL transaction.
+ * Every consent, referral, pending-user CAS, completion marker and LOGIN grant
+ * consumes the SAME Tx. Never infer successful completion from a cookie.
+ */
+type VkCompletionTx = Parameters<typeof issueVkLoginGrantInTransaction>[0];
+export type VkCompletionContext = {
+  id: string;
+  stateHash: string;
+  purpose: string;
+  expiresAt: Date;
+  completedAt: Date | null;
+  completionFingerprint: string | null;
+  selectedPromoCodeValue: string | null;
+  selectedPromoCode: { code: string } | null;
+  user: {
+    id: string; username: string; role: string; phone: string | null;
+    registrationPending: boolean;
+  } | null;
+  resultUser: {
+    id: string; username: string; role: string; phone: string | null;
+  } | null;
+};
+export interface VkCompletionPorts {
+  withLockedVkCompletion<T>(
+    contextTokenHash: string,
+    action: (tx: VkCompletionTx, context: VkCompletionContext | null, now: Date) => Promise<T>,
+  ): Promise<T>;
+  revokePriorVkCompletionLoginGrantsTx(tx: VkCompletionTx, contextId: string, now: Date): Promise<unknown>;
+  completePendingVkRegistrationUserTx(tx: VkCompletionTx, userId: string): Promise<{ count: number }>;
+  markVkRegistrationContextCompletedTx(
+    tx: VkCompletionTx, contextId: string, userId: string, fingerprint: string, now: Date,
+  ): Promise<unknown>;
+  createCompletedConsentLogsInTransaction(
+    tx: VkCompletionTx, params: CreateConsentLogsParams,
+  ): Promise<void>;
+  attributePartnerReferralIfCurrentPartnerInTransaction(
+    tx: VkCompletionTx, userId: string, promoCode: string,
+  ): Promise<unknown>;
+}
+let installedVkCompletionPort: Readonly<VkCompletionPorts> | null = null;
+export function registerVkCompletionPort(port: VkCompletionPorts): void {
+  if (installedVkCompletionPort !== null && installedVkCompletionPort !== port) {
+    throw new Error("VK_COMPLETION_PORT_ALREADY_BOUND");
+  }
+  installedVkCompletionPort = port;
+}
+function requireVkCompletionPort(): Readonly<VkCompletionPorts> {
+  if (!installedVkCompletionPort) throw new Error("VK_COMPLETION_PORT_UNBOUND");
+  return installedVkCompletionPort;
+}
 
 export type VkCompletionTransport = "WEB" | "MOBILE";
 
@@ -74,21 +122,10 @@ export async function completeVkRegistration(params: CompleteVkRegistrationParam
   }
   assertAcceptedConsent(params.consent);
 
-  return prisma.$transaction(async (tx) => {
-    // Serialize completion/replay and grant reissue by opaque context, while
-    // leaving external OAuth calls outside this transaction.
-    await tx.$executeRaw(
-      Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended(${hashRegistrationOpaqueValue(params.contextToken)}, 0))`,
-    );
-    const now = new Date();
-    const context = await tx.vkRegistrationContext.findUnique({
-      where: { contextTokenHash: hashRegistrationOpaqueValue(params.contextToken) },
-      include: {
-        user: { select: { id: true, username: true, role: true, phone: true, registrationPending: true } },
-        selectedPromoCode: { select: { code: true } },
-        resultUser: { select: { id: true, username: true, role: true, phone: true } },
-      },
-    });
+  // Require a transaction-bearing adapter before any context or consent work.
+  const port = requireVkCompletionPort();
+  const contextTokenHash = hashRegistrationOpaqueValue(params.contextToken);
+  return port.withLockedVkCompletion(contextTokenHash,async (tx,context,now) => {
     if (!context || context.stateHash !== hashRegistrationOpaqueValue(params.state)) {
       throw new RegistrationContractError("VK_CONTEXT_INVALID");
     }
@@ -108,10 +145,7 @@ export async function completeVkRegistration(params: CompleteVkRegistrationParam
       if (params.transport === "WEB") {
         // The context lock makes "invalidate then reissue" deterministic. A
         // lost response can retry, but the previous unconsumed grant is dead.
-        await tx.vkLoginGrant.updateMany({
-          where: { registrationContextId: context.id, purpose: "LOGIN", consumedAt: null },
-          data: { consumedAt: now },
-        });
+        await port.revokePriorVkCompletionLoginGrantsTx(tx,context.id,now);
         await issueVkLoginGrantInTransaction(tx, {
           token: params.loginGrantToken!, userId: context.resultUser.id,
           purpose: "LOGIN", registrationContextId: context.id, expiresAt: context.expiresAt,
@@ -135,22 +169,16 @@ export async function completeVkRegistration(params: CompleteVkRegistrationParam
       : null;
     if (resolvedPromo) {
       await saveRegistrationPromoCodeInTransaction(tx, { userId: context.user.id, rawCode: selectedPromo });
-      await attributePartnerReferralIfCurrentPartnerInTransaction(tx, context.user.id, resolvedPromo.normalizedCode);
+      await port.attributePartnerReferralIfCurrentPartnerInTransaction(tx, context.user.id, resolvedPromo.normalizedCode);
     }
-    await createCompletedConsentLogsInTransaction(tx, {
+    await port.createCompletedConsentLogsInTransaction(tx, {
       ...params.consent,
       userId: context.user.id,
-    }, ConsentLogStatus.COMPLETED);
-    const completedUser = await tx.user.updateMany({
-      where: { id: context.user.id, registrationPending: true },
-      data: { registrationPending: false },
     });
+    const completedUser = await port.completePendingVkRegistrationUserTx(tx,context.user.id);
     if (completedUser.count !== 1) throw new RegistrationContractError("VK_COMPLETION_ATTEMPT_CONFLICT");
 
-    await tx.vkRegistrationContext.update({
-      where: { id: context.id },
-      data: { resultUserId: context.user.id, completionFingerprint: fingerprint, completedAt: now },
-    });
+    await port.markVkRegistrationContextCompletedTx(tx,context.id,context.user.id,fingerprint,now);
     let loginGrantToken: string | undefined;
     if (params.transport === "WEB") {
       await issueVkLoginGrantInTransaction(tx, {

@@ -315,3 +315,9 @@ secrets/
 **/*.stdout
 **/*.stderr
 **/*.exit
+
+# Release-candidate scratch trees and generated QA bundles are not Docker inputs.
+# Excluding them prevents transmitting untracked local data to BuildKit.
+.qa/
+.gafus-refactoring/
+artifacts/

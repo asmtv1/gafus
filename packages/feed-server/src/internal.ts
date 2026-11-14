@@ -3,7 +3,7 @@ import { z } from "zod/v3";
 import { FEED_LIMITS } from "@gafus/types";
 import { createFeedRequestVerifier, type FeedNonceStore } from "@gafus/feed-cloud";
 import { FeedError, type createFeedStorageJobs, type createFeedMaintenance } from "@gafus/core/services/feed";
-import { createCurrentFeedInternalRuntime } from "@gafus/core/services/feed";
+import { createCurrentFeedInternalRuntime } from "./runtimeServices.js";
 import { connection as redis } from "@gafus/queues";
 
 export const FEED_INTERNAL_MAX_BODY_BYTES = 16_384;

@@ -1,0 +1,170 @@
+# Draft only. Do NOT import/activate until 14-day source parity is accepted.
+# Metric series may not exist in Uptrace Production until gated rollout.
+schema: v2
+name: 'GAFUS: Production Operations'
+description: 'Unactivated and unverified metrics-only dashboard, 12 operational groups.'
+tags: [prom, app, infra]
+version: v26.11.13
+setup_link: https://uptrace.dev/ingest/prometheus
+min_interval: 1m
+
+grid_sections:
+  - title: 1. Availability
+    items:
+      - title: Service probes
+        metrics:
+          - probe_success as $up
+        query:
+          - min($up) as health group by service
+      - title: PostgreSQL and Redis reachability
+        metrics:
+          - pg_up as $pg
+          - redis_up as $redis
+        query:
+          - min($pg) as postgres
+          - min($redis) as redis
+
+  - title: 2. API
+    items:
+      - title: HTTP requests by method
+        metrics:
+          - http_requests_total as $requests
+        query:
+          - perMin(sum($requests)) as request_rate group by method
+      - title: HTTP request failures
+        metrics:
+          - http_requests_total as $requests
+        query:
+          - perMin(sum($requests{status="500"})) as http_500
+          - perMin(sum($requests{status="503"})) as http_503
+
+  - title: 3. Worker
+    items:
+      - title: Queued chat outbox
+        metrics:
+          - gafus_chat2_outbox_pending as $pending
+        query:
+          - max($pending) as pending
+      - title: Dead-letter outbox
+        metrics:
+          - gafus_chat2_outbox_dead_letters as $dead
+        query:
+          - max($dead) as dead
+      - title: Worker job failures
+        metrics:
+          - job_failures_total as $failed
+        query:
+          - perMin(sum($failed)) as failed_jobs_per_min
+
+  - title: 4. Mobile iOS
+    items:
+      - title: iOS pending and dead events
+        metrics:
+          - gafus_mobile_telemetry_service_spool_entries as $queue
+        query:
+          - sum($queue{service="gafus-mobile-ios"}) as events group by status
+      - title: iOS exports
+        metrics:
+          - gafus_mobile_telemetry_service_export_total as $export
+        query:
+          - perMin(sum($export{service="gafus-mobile-ios"})) as per_min group by outcome
+
+  - title: 5. Mobile Android
+    items:
+      - title: Android pending and dead events
+        metrics:
+          - gafus_mobile_telemetry_service_spool_entries as $queue
+        query:
+          - sum($queue{service="gafus-mobile-android"}) as events group by status
+      - title: Android exports
+        metrics:
+          - gafus_mobile_telemetry_service_export_total as $export
+        query:
+          - perMin(sum($export{service="gafus-mobile-android"})) as per_min group by outcome
+
+  - title: 6. Web
+    items:
+      - title: Browser diagnostics pending and dead
+        metrics:
+          - gafus_mobile_telemetry_service_spool_entries as $queue
+        query:
+          - sum($queue{service="gafus-web"}) as events group by status
+
+  - title: 7. Panels
+    items:
+      - title: Admin and Trainer diagnostics
+        metrics:
+          - gafus_mobile_telemetry_service_spool_entries as $queue
+        query:
+          - sum($queue{service="gafus-admin-panel"}) as admin group by status
+          - sum($queue{service="gafus-trainer-panel"}) as trainer group by status
+      - title: Bull Board diagnostics
+        metrics:
+          - gafus_mobile_telemetry_service_spool_entries as $queue
+        query:
+          - sum($queue{service="gafus-bull-board"}) as bull_board group by status
+
+  - title: 8. PostgreSQL
+    items:
+      - title: Database sessions
+        metrics:
+          - pg_stat_activity_count as $sessions
+        query:
+          - sum($sessions) as active_sessions
+      - title: Database availability
+        metrics:
+          - pg_up as $pg
+        query:
+          - min($pg) as available
+
+  - title: 9. Redis
+    items:
+      - title: Redis availability
+        metrics:
+          - redis_up as $up
+        query:
+          - min($up) as available
+
+  - title: 10. Host Resources
+    items:
+      - title: Available RAM bytes
+        metrics:
+          - node_memory_MemAvailable_bytes as $free
+        query:
+          - sum($free) as available_bytes
+      - title: Free storage
+        metrics:
+          - node_filesystem_avail_bytes as $free
+        query:
+          - sum($free) as available_bytes group by mountpoint
+
+  - title: 11. Email and Media
+    items:
+      - title: Mail stalled
+        metrics:
+          - gafus_mail_stalled_pending as $stalled
+        query:
+          - max($stalled) as stalled_mail
+      - title: Media failures
+        metrics:
+          - gafus_media_failed_tasks as $failed
+        query:
+          - max($failed) as failed_media
+
+  - title: 12. Uptrace Delivery
+    items:
+      - title: Server diagnostic exporter backlog
+        metrics:
+          - gafus_server_diagnostic_otlp_queue as $queue
+        query:
+          - max($queue) as pending
+      - title: Server diagnostic rejected or dropped
+        metrics:
+          - gafus_server_diagnostic_otlp_dropped_total as $dropped
+        query:
+          - perMin(sum($dropped)) as dropped_per_min
+      - title: All mobile, browser, and panel exporters blocked
+        metrics:
+          - gafus_mobile_telemetry_auth_suspended as $auth
+        query:
+          - max($auth) as blocked

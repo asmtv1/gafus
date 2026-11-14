@@ -143,7 +143,7 @@ function QuestionsActorScreen({ owner, epoch }: { owner: string; epoch: string }
   };
   return (
     <TexturedSafeAreaView style={{ flex: 1 }} edges={[]}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       <ScrollView
         style={styles.scroll}
         contentInsetAdjustmentBehavior="never"

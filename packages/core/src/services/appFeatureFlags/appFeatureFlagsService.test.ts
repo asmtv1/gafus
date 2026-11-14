@@ -5,7 +5,9 @@ const state = vi.hoisted(() => ({
   policy: {
     key: "default",
     iosReviewVersion: null as string | null,
-    otaRequired: false, otaVersion: null as string | null, otaPlatform: "all",
+    otaRequired: false,
+    otaVersion: null as string | null,
+    otaPlatform: "all",
     revision: 1,
     updatedAt: new Date("2026-07-26T12:00:00.000Z"),
     updatedBy: null as { id: string; username: string } | null,
@@ -101,7 +103,10 @@ const prismaMock = vi.hoisted(() => {
     findUnique: vi.fn().mockResolvedValue({ role: "ADMIN" }),
   };
   const client = {
-    appFeatureFlag, mobileAppReleasePolicy, rewardedAdSettings, user,
+    appFeatureFlag,
+    mobileAppReleasePolicy,
+    rewardedAdSettings,
+    user,
     $queryRaw: vi.fn().mockResolvedValue([{ id: "admin-1" }]),
   };
   return {
@@ -127,7 +132,7 @@ import {
   resolveMobileFeatureProfile,
   setAppFeatureFlagEnabled,
   updateMobileReleaseControl,
-} from "./appFeatureFlagsService";
+} from "@gafus/feature-flags-server/appFeatureFlagsService";
 
 describe("app feature flags", () => {
   beforeEach(() => {
@@ -159,7 +164,7 @@ describe("app feature flags", () => {
     );
   });
 
-  it("returns independent released and review mobile values", async () => {
+  it("keeps retired iOS card payments disabled for review and released profiles even with legacy flags", async () => {
     state.policy.iosReviewVersion = "1.7.0";
     for (const key of [
       APP_FEATURE_MOBILE_VK_LOGIN_IOS,
@@ -183,8 +188,9 @@ describe("app feature flags", () => {
       getMobileAppPublicConfig({ platform: "ios", version: "1.6.3" }),
     ).resolves.toMatchObject({
       vkLoginEnabledOnIos: true,
-      iosRuCardPaymentEnabled: true,
-      iosRuCardPaymentHintEnabled: true,
+      // Historical true DB rows must never reopen external checkout on iOS.
+      iosRuCardPaymentEnabled: false,
+      iosRuCardPaymentHintEnabled: false,
       resolvedFeatureProfile: "RELEASED",
     });
   });
@@ -192,27 +198,38 @@ describe("app feature flags", () => {
   it("saves and serves an independent mandatory OTA policy for 1.7.3", async () => {
     const current = await getMobileReleaseControl();
     expect(current.ota).toEqual({ required: false, version: null, platform: "all" });
-    const saved = await updateMobileReleaseControl({
-      ...current,
-      ota: { required: true, version: "1.7.3-ota.2", platform: "android" },
-    }, "admin-1");
+    const saved = await updateMobileReleaseControl(
+      {
+        ...current,
+        ota: { required: true, version: "1.7.3-ota.2", platform: "android" },
+      },
+      "admin-1",
+    );
     expect(saved.ota).toEqual({
-      required: true, version: "1.7.3-ota.2", platform: "android",
+      required: true,
+      version: "1.7.3-ota.2",
+      platform: "android",
     });
-    await expect(getMobileAppPublicConfig({ platform: "android", version: "1.7.3" }))
-      .resolves.toMatchObject({
-        ota: { required: true, version: "1.7.3-ota.2", platform: "android", channel: "production" },
-      });
+    await expect(
+      getMobileAppPublicConfig({ platform: "android", version: "1.7.3" }),
+    ).resolves.toMatchObject({
+      ota: { required: true, version: "1.7.3-ota.2", platform: "android", channel: "production" },
+    });
     // Store version logic is independent of the OTA feature flag.
     expect((await getMobileAppPublicConfig()).minimumSupportedVersion).toBeDefined();
   });
 
   it("refuses forcing an OTA with no release before the DB transaction", async () => {
     const current = await getMobileReleaseControl();
-    await expect(updateMobileReleaseControl({
-      ...current,
-      ota: { required: true, version: null, platform: "all" },
-    }, "admin-1")).rejects.toThrow("Нельзя требовать OTA");
+    await expect(
+      updateMobileReleaseControl(
+        {
+          ...current,
+          ota: { required: true, version: null, platform: "all" },
+        },
+        "admin-1",
+      ),
+    ).rejects.toThrow("Нельзя требовать OTA");
     expect(prismaMock.mobileAppReleasePolicy.updateMany).not.toHaveBeenCalled();
   });
 
@@ -243,18 +260,38 @@ describe("app feature flags", () => {
 
   it("rejects a demoted admin while holding the DB row lock", async () => {
     prismaMock.user.findUnique.mockResolvedValueOnce({ role: "USER" });
-    await expect(updateMobileReleaseControl({
-      revision: 1,
-      iosReviewVersion: null,
-      ota: { required: false, version: null, platform: "all" },
-      released: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
-        iosRuCardPaymentHint: false, rewardedAds: false },
-      review: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
-        iosRuCardPaymentHint: false, rewardedAds: false },
-      global: { appSubscriptionPaywall: true, appSubscriptionGating: true },
-      rewardedAds: { androidEnabled: false, dailyAdLimit: 1,
-        yandexAndroidPlacementId: null, yandexIosPlacementId: null, testMode: true },
-    }, "admin-1")).rejects.toThrow("FORBIDDEN");
+    await expect(
+      updateMobileReleaseControl(
+        {
+          revision: 1,
+          iosReviewVersion: null,
+          ota: { required: false, version: null, platform: "all" },
+          released: {
+            vkLogin: false,
+            iosRuCardPayment: false,
+            subscriptionPromoCodes: false,
+            iosRuCardPaymentHint: false,
+            rewardedAds: false,
+          },
+          review: {
+            vkLogin: false,
+            iosRuCardPayment: false,
+            subscriptionPromoCodes: false,
+            iosRuCardPaymentHint: false,
+            rewardedAds: false,
+          },
+          global: { appSubscriptionPaywall: true, appSubscriptionGating: true },
+          rewardedAds: {
+            androidEnabled: false,
+            dailyAdLimit: 1,
+            yandexAndroidPlacementId: null,
+            yandexIosPlacementId: null,
+            testMode: true,
+          },
+        },
+        "admin-1",
+      ),
+    ).rejects.toThrow("FORBIDDEN");
     expect(prismaMock.mobileAppReleasePolicy.updateMany).not.toHaveBeenCalled();
     expect(prismaMock.$queryRaw).toHaveBeenCalledOnce();
   });
@@ -303,48 +340,76 @@ describe("app feature flags", () => {
 
   it("preserves existing historic ad settings while updating unrelated mobile flags", async () => {
     state.flags.set(APP_FEATURE_MOBILE_REWARDED_ADS_IOS, {
-      enabled: true, reviewEnabled: true,
+      enabled: true,
+      reviewEnabled: true,
     });
     state.rewarded = {
-      key: "default", androidEnabled: true, iosEnabled: true,
-      dailyAdLimit: 9, yandexAndroidPlacementId: "historical-android",
-      yandexIosPlacementId: "historical-ios", testMode: false,
+      key: "default",
+      androidEnabled: true,
+      iosEnabled: true,
+      dailyAdLimit: 9,
+      yandexAndroidPlacementId: "historical-android",
+      yandexIosPlacementId: "historical-ios",
+      testMode: false,
     };
     const snapshot = await getMobileReleaseControl();
     const historical = { ...state.rewarded };
-    const result = await updateMobileReleaseControl({
-      revision: snapshot.revision,
-      iosReviewVersion: "1.7.0",
-      ota: { required: false, version: null, platform: "all" },
-      released: { ...snapshot.released, vkLogin: true },
-      review: snapshot.review,
-      global: snapshot.global,
-      rewardedAds: snapshot.rewardedAds,
-    }, "admin-1");
+    const result = await updateMobileReleaseControl(
+      {
+        revision: snapshot.revision,
+        iosReviewVersion: "1.7.0",
+        ota: { required: false, version: null, platform: "all" },
+        released: { ...snapshot.released, vkLogin: true },
+        review: snapshot.review,
+        global: snapshot.global,
+        rewardedAds: snapshot.rewardedAds,
+      },
+      "admin-1",
+    );
     expect(result.revision).toBe(2);
     expect(result.released.vkLogin).toBe(true);
     expect(result.released.rewardedAds).toBe(true);
     expect(result.review.rewardedAds).toBe(true);
     expect(state.rewarded).toEqual(historical);
     expect(prismaMock.rewardedAdSettings.upsert).not.toHaveBeenCalled();
-    expect(prismaMock.appFeatureFlag.upsert.mock.calls.some(([arg]) =>
-      arg.where.key === APP_FEATURE_MOBILE_REWARDED_ADS_IOS)).toBe(false);
+    expect(
+      prismaMock.appFeatureFlag.upsert.mock.calls.some(
+        ([arg]) => arg.where.key === APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
+      ),
+    ).toBe(false);
   });
 
   it("rejects direct Core attempts to enable retired iOS ads before writes", async () => {
     const archived = {
-      revision: 1, iosReviewVersion: null,
+      revision: 1,
+      iosReviewVersion: null,
       ota: { required: false, version: null, platform: "all" },
-      released: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
-        iosRuCardPaymentHint: false, rewardedAds: true },
-      review: { vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: false,
-        iosRuCardPaymentHint: false, rewardedAds: false },
+      released: {
+        vkLogin: false,
+        iosRuCardPayment: false,
+        subscriptionPromoCodes: false,
+        iosRuCardPaymentHint: false,
+        rewardedAds: true,
+      },
+      review: {
+        vkLogin: false,
+        iosRuCardPayment: false,
+        subscriptionPromoCodes: false,
+        iosRuCardPaymentHint: false,
+        rewardedAds: false,
+      },
       global: { appSubscriptionPaywall: true, appSubscriptionGating: true },
-      rewardedAds: { androidEnabled: false, dailyAdLimit: 1,
-        yandexAndroidPlacementId: null, yandexIosPlacementId: null, testMode: true },
+      rewardedAds: {
+        androidEnabled: false,
+        dailyAdLimit: 1,
+        yandexAndroidPlacementId: null,
+        yandexIosPlacementId: null,
+        testMode: true,
+      },
     };
-    await expect(updateMobileReleaseControl(archived, "admin-1"))
-      .rejects.toBeInstanceOf(RetiredRewardedAdsReadOnlyError);
+    await expect(updateMobileReleaseControl(archived, "admin-1")).rejects.toBeInstanceOf(
+      RetiredRewardedAdsReadOnlyError,
+    );
     expect(prismaMock.mobileAppReleasePolicy.updateMany).not.toHaveBeenCalled();
     expect(prismaMock.rewardedAdSettings.upsert).not.toHaveBeenCalled();
   });

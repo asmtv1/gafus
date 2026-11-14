@@ -2,16 +2,13 @@ import { Hono } from "hono";
 import { z } from "zod/v3";
 import { zValidator } from "@hono/zod-validator";
 import {
-  getReminders,
-  createReminder,
-  updateReminder,
-  deleteReminder,
   createReminderAG4,
   ReminderConflictError,
   ReminderUnknownError,
   ReminderInvalidError,
   ReminderCapError,
 } from "@gafus/core/services/reminders";
+import {getReminders,createReminder,updateReminder,deleteReminder} from "@gafus/notifications-server/training-reminder-application";
 import { reminderOperationLookupAG4ReviewRoutes } from
   "./g1-reminder-operation-lookupAG4.review.js";
 import { createWebLogger } from "@gafus/logger";

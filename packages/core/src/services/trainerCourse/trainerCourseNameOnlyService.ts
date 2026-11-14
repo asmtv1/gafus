@@ -4,10 +4,7 @@
  * No retry after UNKNOWN, and never use destructive full-form updateCourse.
  */
 import { z } from "zod/v3";
-import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { invalidateCourseContentCache } from "../training/trainingDayContent";
-import { publishCourseContentChange } from "../training/trainingContentRevision";
 
 const logger = createWebLogger("trainer-course-name-only");
 const revisionPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
@@ -34,12 +31,25 @@ export interface TrainerCourseNameOnlyInput {
 
 export type TrainerCourseNameOnlyResult = { status: TrainerCourseNameWriteStatus };
 
+/** Explicit persistence + postcommit publication ports. No live CAS route is
+ * enabled until the separate all-writers/migration proof is approved. */
+export interface TrainerCourseNameOnlyPorts {
+  writeObservedCas(where: { id: string; authorId?: string; updatedAt: Date },
+    name: string, newUpdatedAt: Date): Promise<{ count: number }>;
+  readObservedRevision(courseId: string, authorId?: string): Promise<{
+    updatedAt: Date;
+  } | null>;
+  invalidateCache(courseId: string): void;
+  publishContentChange(): Promise<void>;
+}
+
+export function createTrainerCourseNameOnlyService(ports: TrainerCourseNameOnlyPorts) {
 /**
  * Actor ownership and observed revision are in the SAME Prisma CAS predicate.
  * Advances timestamp at least 1 ms even if Date.now has not advanced.
  * Old full-form writers may still collide: real DB and all-writers proof gated.
  */
-export async function updateTrainerCourseNameOnly(
+async function updateTrainerCourseNameOnly(
   input: TrainerCourseNameOnlyInput,
   actor: TrainerCourseNameOnlyActor,
 ): Promise<TrainerCourseNameOnlyResult> {
@@ -65,10 +75,7 @@ export async function updateTrainerCourseNameOnly(
   };
   let count: number;
   try {
-    const result = await prisma.course.updateMany({
-      where,
-      data: { name: parsed.data.name, updatedAt: new Date(nextTime) },
-    });
+    const result = await ports.writeObservedCas(where,parsed.data.name,new Date(nextTime));
     count = result.count;
   } catch {
     logger.error("TRAINER_COURSE_NAME_WRITE_UNKNOWN");
@@ -78,13 +85,7 @@ export async function updateTrainerCourseNameOnly(
   if (count !== 1) {
     if (count !== 0) return { status: "unknown" };
     try {
-      const found = await prisma.course.findFirst({
-        where: {
-          id: parsed.data.courseId,
-          ...(actor.role === "TRAINER" ? { authorId: actor.id } : {}),
-        },
-        select: { updatedAt: true },
-      });
+      const found = await ports.readObservedRevision(parsed.data.courseId,actor.role === "TRAINER" ? actor.id : undefined);
       if (!found) return { status: "not_found" };
       // A matching revision after count0 is ambiguous, not provably stale.
       return { status: found.updatedAt.getTime() === observed.getTime()
@@ -97,11 +98,14 @@ export async function updateTrainerCourseNameOnly(
 
   // Commit already happened; failed publication is UNKNOWN, never "failed".
   try {
-    invalidateCourseContentCache(parsed.data.courseId);
-    await publishCourseContentChange();
+    ports.invalidateCache(parsed.data.courseId);
+    await ports.publishContentChange();
     return { status: "updated" };
   } catch {
     logger.error("TRAINER_COURSE_NAME_PUBLICATION_UNKNOWN");
     return { status: "unknown" };
   }
+}
+
+  return { updateTrainerCourseNameOnly };
 }

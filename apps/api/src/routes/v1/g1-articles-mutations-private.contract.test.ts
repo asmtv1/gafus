@@ -8,11 +8,13 @@ const mocks = vi.hoisted(() => ({
   list: vi.fn(),
   detail: vi.fn(),
 }));
-vi.mock("@gafus/core/services/article", () => ({
+vi.mock("../../modules/articles/composition/article-rows.js", () => ({
   getArticles: mocks.list,
   getArticleBySlugForMonetizedAccess: mocks.detail,
-  toggleArticleLikeWithMonetizedAccess: mocks.like,
   incrementArticleView: mocks.view,
+}));
+vi.mock("../../modules/articles/composition/article-like.js", () => ({
+  toggleArticleLikeWithMonetizedAccess: mocks.like,
 }));
 vi.mock("@gafus/core/services/rewardedCredits", () => ({
   SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {},

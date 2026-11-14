@@ -1,0 +1,440 @@
+{
+  "schema": "gafus-a1-final-zero-facades/v1",
+  "created_utc": "2026-11-12T09:45:35.137Z",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "repository": "/Users/asmtv1/Desktop/gafus-refactor",
+  "checkpoint": {
+    "starting_remaining": 12,
+    "remaining": 0,
+    "frozen_reference_total": 41,
+    "frozen_resolved": 41,
+    "new": 0,
+    "historical_initial": 142,
+    "historical_resolved": 142
+  },
+  "checks": {
+    "core_boundaries": "PASS: 26 assertions; no new Prisma or server imports",
+    "core_typecheck": "PASS",
+    "api_typecheck": "PASS",
+    "core_build": "PASS",
+    "api_build": "PASS",
+    "full_workspace_typecheck": "PASS: pnpm -r --workspace-concurrency 5 typecheck",
+    "core_vitest": "PASS: 2159 passed, 136 skipped",
+    "api_vitest": "PASS: 2767 passed, 266 skipped",
+    "port_contract_vitest": "PASS: 8 passed",
+    "workspace_graph": "PASS: 69 projects, 0 cycles",
+    "live_pg_redis": "NOT_RUN: disposable infrastructure required",
+    "a1_a2_a3_integration": "NOT_RUN: pending separate integration preflight"
+  },
+  "invariants": [
+    "No Core import from @gafus/*-server",
+    "No Core import from @gafus/prisma or @prisma/client",
+    "SQL implementations remain in original server packages",
+    "Transaction objects forwarded unchanged; no synthetic successful replies",
+    "Owner ACL/idempotency/SQL CAS code unchanged in server adapters",
+    "Single binding per port; missing binding fails closed",
+    "No changes to frozen baselines, merge, push or production"
+  ],
+  "frozen": [
+    {
+      "path": "docs/audit/core-server-facade-baseline.json",
+      "sha256": "bdfd656a6e778d6fa165ea5b3abce4ca730676c0222a9fd730414e3e1f047fb2"
+    },
+    {
+      "path": "docs/audit/architecture-boundary-baseline.json",
+      "sha256": "b12d3d418d509c1281aa244f56e2a3e88ebafe5b5d7e7f0c543c0b79c0561755"
+    }
+  ],
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "sha256": "1454f2e170e20aeb7334dfa28018d3b18e938d6df493f8ce586a024207862ce8",
+      "bytes": 41437
+    },
+    {
+      "path": "apps/api/src/modules/auth/composition/install-core-auth-rows.ts",
+      "sha256": "e29fb8dcdcef463018db0b86d7bc68945153664b6c885913c37e5ad16bec7e6d",
+      "bytes": 1475
+    },
+    {
+      "path": "apps/api/src/modules/auth/composition/install-core-vk-auth-rows.ts",
+      "sha256": "458420de64d99e0195df7a4927b4115e5a40bf6316cd23876bbec577773bf2af",
+      "bytes": 824
+    },
+    {
+      "path": "apps/api/src/modules/content-access/composition/install-occurrence-reads.ts",
+      "sha256": "395dbf120eb2be5d29bba4c5415b46e6ca3a93d64954e308fa048bb17e292eab",
+      "bytes": 866
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-admin-rows.ts",
+      "sha256": "d4b41a1bd8609ffc1193bc1cb5e0ea48a12487b091468bf424c4646864664939",
+      "bytes": 575
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-ledger-rows.ts",
+      "sha256": "50e730c72563f2713756e414526dab8e71df1468558884ab9149de12e444c49d",
+      "bytes": 1095
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-unlock-rows.ts",
+      "sha256": "899bcd3bcff416bcb868620b00bfacbf5fafa97a3657758806e69f6a7923ede6",
+      "bytes": 906
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-wallet-lock.ts",
+      "sha256": "e3c1802b115b93308ef8db466ccd352c86584fa37f4da09ecae38dd3c4220c13",
+      "bytes": 660
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/legacy-import.ts",
+      "sha256": "b85235fff651ebc1cefd6a9a3cd798519377cca6c97f27893d34b42680324abc",
+      "bytes": 1076
+    },
+    {
+      "path": "apps/api/src/modules/offline/composition/install-offline-mutation-rows.ts",
+      "sha256": "f0925b3f13ce81450e476993607553e9503f0b4c94987a833c8c44d8b65deba7",
+      "bytes": 2293
+    },
+    {
+      "path": "apps/api/src/modules/offline/composition/install-video-position-v3-review.ts",
+      "sha256": "0f0864cd5ae22f56aef10d8c62a3d3a8b9ccd90192ac2fddad97e165219fefa4",
+      "bytes": 1759
+    },
+    {
+      "path": "apps/api/src/modules/pet-prevention/composition/install-prevention-rows.ts",
+      "sha256": "2959d50e2a9a195442747abb4f4ade55cfda3129d7793021f21ffe31de5e9c72",
+      "bytes": 1962
+    },
+    {
+      "path": "apps/api/src/modules/pets/composition/install-pet-rows.ts",
+      "sha256": "25fa467116e48d1eba86b7251e06540ed2fef64f3c5f648eb65d95aed64396c2",
+      "bytes": 2643
+    },
+    {
+      "path": "apps/api/src/modules/pets/composition/install-vet-visit-rows.ts",
+      "sha256": "96ecf39bcf99e61a82eda26f40eabf178ea012433002a10776184e85a7fe0676",
+      "bytes": 1628
+    },
+    {
+      "path": "apps/api/src/modules/rewarded-credits/composition/install-ad-session-rows.ts",
+      "sha256": "91a6bfe21af27ff91d25307b189d8c0c0843e53accaba368a1cdfa76afc9e3aa",
+      "bytes": 2455
+    },
+    {
+      "path": "apps/api/src/modules/trainer-steps/composition/install-trainer-step-rows.ts",
+      "sha256": "0ff2ff6499da0f9f02d2610fafd1c4e878f6e788acfc4ac542477f74f32528f2",
+      "bytes": 2694
+    },
+    {
+      "path": "apps/api/src/modules/training/composition/install-training-service.ts",
+      "sha256": "b0e1875dbe9f92dd2fcbe1f35efc5ac7c3f0dfd2e2b6bc1de614b363c578f390",
+      "bytes": 994
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-g05-packaged-runtime.observation.test.ts",
+      "sha256": "b5841cd53e860096fb51dae34a46042c1bf74b905991ebff8cd2d4b8cf7cd1e2",
+      "bytes": 4275
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "sha256": "1cea9bb9a517103d5af19d30d5feb33c3f95903b7ec7473e7379af6fd9693fc8",
+      "bytes": 21130
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "sha256": "3c27f0bb222f0c79791e4955278583e0ca60ebce7eb6ac2470b14fba39ecf0e7",
+      "bytes": 46151
+    },
+    {
+      "path": "packages/core/src/services/auth/authRowsPort.ts",
+      "sha256": "90454a10cd98b22e328976f1a7659da499e014a772a688b52ff867254f5cd289",
+      "bytes": 10250
+    },
+    {
+      "path": "packages/core/src/services/auth/authService.test.ts",
+      "sha256": "f49752b24cc20721d83238760376eb1418407d92eb53a09bc1782ed3b53ca394",
+      "bytes": 19290
+    },
+    {
+      "path": "packages/core/src/services/auth/authService.ts",
+      "sha256": "7a42929618bd57489b2c66350224b92358f193a8e3032be701853d1729f22b6e",
+      "bytes": 14182
+    },
+    {
+      "path": "packages/core/src/services/auth/g1-w1-g02-password.core.test.ts",
+      "sha256": "df8c85777cd3867eeb59126e763b282d6fa6a5eed21345810c32bc69e41ab1fb",
+      "bytes": 8574
+    },
+    {
+      "path": "packages/core/src/services/auth/index.ts",
+      "sha256": "f6fce546e421c28d293a2308e6962fe64e75ccf4f10e1fb18b7f1a3b5dfc1657",
+      "bytes": 524
+    },
+    {
+      "path": "packages/core/src/services/auth/vkAuth.test.ts",
+      "sha256": "99cc20d775d4495ce1436d3ad6d72cd703a066d1feb487d8e1de2235523c35c5",
+      "bytes": 14327
+    },
+    {
+      "path": "packages/core/src/services/auth/vkAuth.ts",
+      "sha256": "84de388607b5b67e5d9edb968561a18d2a7329f1cd7404f7313b11d5f3589fc0",
+      "bytes": 15622
+    },
+    {
+      "path": "packages/core/src/services/auth/vkAuthRowsPort.ts",
+      "sha256": "430ef23757d2cb2281f043050fe12665ddc7c66ba2f5ef37867f02bb30bf3335",
+      "bytes": 6324
+    },
+    {
+      "path": "packages/core/src/services/feed/publish.ts",
+      "sha256": "8fae4f8c031caf35cb1f9c83f0307e1c102b4fe0707f530f1c4b606ae0c7ca61",
+      "bytes": 2237
+    },
+    {
+      "path": "packages/core/src/services/feed/social.ts",
+      "sha256": "202a3c440b33fe46eae60c277624f3d55f30a148522c1f62fe35bdcb2def94d1",
+      "bytes": 28000
+    },
+    {
+      "path": "packages/core/src/services/gafus/g1-offline-training-reward-boundary.test.ts",
+      "sha256": "6fd7209b842cabb186eca541d92d1e287a276507c99ca68fbc0d3b56a7207af0",
+      "bytes": 10511
+    },
+    {
+      "path": "packages/core/src/services/gafus/types.ts",
+      "sha256": "7465596cb54506d495154154928b354455a5a91c3539f821f6cbddabdfc0539e",
+      "bytes": 4458
+    },
+    {
+      "path": "packages/core/src/services/offline/index.ts",
+      "sha256": "168577d4144341900ce45f3e8ab7a6c0d3d862eff8b80f9e3938520cb9ea512a",
+      "bytes": 492
+    },
+    {
+      "path": "packages/core/src/services/offline/offlineMutationJournal.ts",
+      "sha256": "e7b6997b554b5807c43eaefcc8b07ace950408e74e09e6570cc3fdc1b046ca0c",
+      "bytes": 15733
+    },
+    {
+      "path": "packages/core/src/services/offline/offlineMutationJournal.unit.test.ts",
+      "sha256": "981088c61d323312c3f2ab262a58e2dc10c663623d33f8b32705defb86b59bb3",
+      "bytes": 8069
+    },
+    {
+      "path": "packages/core/src/services/offline/offlineMutationRowsPort.ts",
+      "sha256": "65535de548a57183c6c357558bf0bc7fa1d9cdf9997b77424498642272a24113",
+      "bytes": 4814
+    },
+    {
+      "path": "packages/core/src/services/petPrevention/g1-offline-prevention-core.contract.test.ts",
+      "sha256": "0630ecf9e5809f3f15ade17b75dd2b1c2219f8225697238c8bb308558d93f283",
+      "bytes": 4789
+    },
+    {
+      "path": "packages/core/src/services/petPrevention/g1-prevention-private-logging.contract.test.ts",
+      "sha256": "881464e9aebfd8a7ad4210516cddf51121ec65f7b66d7c9254838d5c6e39023a",
+      "bytes": 2804
+    },
+    {
+      "path": "packages/core/src/services/petPrevention/index.ts",
+      "sha256": "7c2239f931d7b939c3fc5df87c50cd9236dcbc615379c523238b8d6cbfbb468a",
+      "bytes": 308
+    },
+    {
+      "path": "packages/core/src/services/petPrevention/petPreventionService.ts",
+      "sha256": "fd9fba8e143a221862f020881486e13d06b4263132e9c87d6c66f2527b05bdb5",
+      "bytes": 19361
+    },
+    {
+      "path": "packages/core/src/services/petPrevention/preventionRowsPort.ts",
+      "sha256": "6d111deb49e5adc4e09a9f9ce5e6e95baf6c6952ee4268e5de703ebba706aee0",
+      "bytes": 8073
+    },
+    {
+      "path": "packages/core/src/services/pets/g1-g05-create-weight.red-regression.test.ts",
+      "sha256": "74e401d9af85a4da408c65c012a09f2dc12e33e704727b6571185d724b2214d9",
+      "bytes": 2323
+    },
+    {
+      "path": "packages/core/src/services/pets/g1-pet-create-birthdate-core.guard.test.ts",
+      "sha256": "e69cf924a88b377d1a4a0e5afafe09d08af4f86940f09c54223305f35ea1ddb8",
+      "bytes": 4237
+    },
+    {
+      "path": "packages/core/src/services/pets/g1-pet-documents-owner.contract.test.ts",
+      "sha256": "8a725774e1752ce977f73d26bd27937ecd1127016cfd1b83d9e24566649f2607",
+      "bytes": 6768
+    },
+    {
+      "path": "packages/core/src/services/pets/g1-pet-measurements-nullable-clear.test.ts",
+      "sha256": "7fd1275403e27e744f5c7bfdc81bdb632e4bafeecc128c370de95bd91c076a31",
+      "bytes": 2796
+    },
+    {
+      "path": "packages/core/src/services/pets/g1-pet-update-birthdate-core.guard.test.ts",
+      "sha256": "ab05e44d70695332fa28f8185345babfff71c587d487b45f1665f23144e47061",
+      "bytes": 2982
+    },
+    {
+      "path": "packages/core/src/services/pets/g1-pets-core-private-error-log.contract.test.ts",
+      "sha256": "d6176676ee8be89bff1cb7aaffa02d02c77082c35190ea47970751fe2cc82da8",
+      "bytes": 3427
+    },
+    {
+      "path": "packages/core/src/services/pets/g1-vet-owner-policy.test.ts",
+      "sha256": "a7cb5730114e500fd8149554329b3e0c344c608bae7bc8d3d2d06819adf23bfe",
+      "bytes": 4321
+    },
+    {
+      "path": "packages/core/src/services/pets/g1VetVisitHistoryList.readonly.contract.test.ts",
+      "sha256": "57984498a6b247d542b069fabd7ef1bf197602da50d4981bfd0465603f33fac7",
+      "bytes": 3985
+    },
+    {
+      "path": "packages/core/src/services/pets/index.ts",
+      "sha256": "47b68bb6771bde7d27af5c46539b0d31c4b8f61e05c158be9a8cd72c203ea630",
+      "bytes": 332
+    },
+    {
+      "path": "packages/core/src/services/pets/petDeletePostCommit.mounted.test.ts",
+      "sha256": "9609f43791cec7d0118af6d4a3c73ed4f1afde907e08e6b9e7a17b937cabeff5",
+      "bytes": 7106
+    },
+    {
+      "path": "packages/core/src/services/pets/petMediaDirectPhotoFence.mounted.test.ts",
+      "sha256": "e04189018afe905c81a2205138bec2ae4c785a16b9b4d14baf7a9d9bb09b4bdf",
+      "bytes": 7847
+    },
+    {
+      "path": "packages/core/src/services/pets/petMediaDocumentUploadIntent.mounted.test.ts",
+      "sha256": "0889e720751fdb620959166f44d38d4bceeaa3c51580d46c25907d1c787f7ee0",
+      "bytes": 5746
+    },
+    {
+      "path": "packages/core/src/services/pets/petPhotoUpdateCore.mounted.test.ts",
+      "sha256": "9ba08d18c24d80ee4ec3847d0eb944e92bac9b5a4c93675f5cb10afcb2efe391",
+      "bytes": 6804
+    },
+    {
+      "path": "packages/core/src/services/pets/petRowsPort.ts",
+      "sha256": "7aff4c4dcbe10a8740f3752bfc1c8d40da33278eba0dd4577a1abf32847a4efd",
+      "bytes": 12201
+    },
+    {
+      "path": "packages/core/src/services/pets/petVetVisitService.ts",
+      "sha256": "332ec041f2a319c24f6e75b85f743df12e21661ad898beed7285102ec9b2b4b6",
+      "bytes": 6972
+    },
+    {
+      "path": "packages/core/src/services/pets/petsService.ts",
+      "sha256": "d52a886fa1d1551402f83f2e487ad0f031bd6ce404523c2e4e2fe7851f25deab",
+      "bytes": 32547
+    },
+    {
+      "path": "packages/core/src/services/pets/privateDocuments.test.ts",
+      "sha256": "fb85c26ccf0a2c8c2b26bdcecae01bc87b5cc12d1e7b983d3fef0d5b0be12834",
+      "bytes": 5552
+    },
+    {
+      "path": "packages/core/src/services/pets/vetPreviewQueue.test.ts",
+      "sha256": "163264700f73d71d71b6b390b47698ea2e98462cee15980f454f1d9dc095d45c",
+      "bytes": 4698
+    },
+    {
+      "path": "packages/core/src/services/pets/vetVisitRowsPort.ts",
+      "sha256": "650f2589c97df997fd4bede961bb130a3ca1b0b7c44ec5dadbfc9cfbe3cb2c53",
+      "bytes": 5503
+    },
+    {
+      "path": "packages/core/src/services/portContracts/coreServerAdapterPorts.contract.test.ts",
+      "sha256": "c9df9503d3463ba83d8c1603a263bf9b7f365ea7e7ed06716c74dfc00e87652b",
+      "bytes": 2532
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/adSessionService.test.ts",
+      "sha256": "879d3c85c5d24172777a68e2bf9b7d9ad70bfcaaf07a6a3fdfe5122669abbbc3",
+      "bytes": 20883
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/adSessionService.ts",
+      "sha256": "0ec732c64b58f54f59d76a15d532b0299da75e9156fd72df64c0210e37c26e51",
+      "bytes": 13918
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/index.ts",
+      "sha256": "e08df5c2524867dc5a1d2042c48a65b84226d6b39dd0ce21ab96325e046acbc0",
+      "bytes": 781
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/rewardedAdRowsPort.ts",
+      "sha256": "56111e60158f76c86bad0cd0d0e5657428bfbb427b9fb9dbe101eecd076d5f57",
+      "bytes": 10952
+    },
+    {
+      "path": "packages/core/src/services/trainerStep/editDto.test.ts",
+      "sha256": "426b95415ebaa68d6188e1dfa3155e060f4da0261341bd739c039d88446d862e",
+      "bytes": 2548
+    },
+    {
+      "path": "packages/core/src/services/trainerStep/index.ts",
+      "sha256": "a68f646a1160fdd294cf014493806235f15f224d3ef417f9f246550851160174",
+      "bytes": 1133
+    },
+    {
+      "path": "packages/core/src/services/trainerStep/trainerStepOwnerScope.test.ts",
+      "sha256": "2d7db17064f5383efb03b5948bfd1279cbe8a233b13fb256d507a338a0cd0b2c",
+      "bytes": 5096
+    },
+    {
+      "path": "packages/core/src/services/trainerStep/trainerStepRowsPort.ts",
+      "sha256": "c0c6d97c4b98a9a0a48e4e9b410ac6f0c5deff0b0ac1032fb2a47fb38a740726",
+      "bytes": 16199
+    },
+    {
+      "path": "packages/core/src/services/trainerStep/trainerStepService.test.ts",
+      "sha256": "aaf1f0acb1cffba98276ccc2e556597c65bda27a64a2f3fdcaae3cf92e8c23f7",
+      "bytes": 5364
+    },
+    {
+      "path": "packages/core/src/services/trainerStep/trainerStepService.ts",
+      "sha256": "82344c180dc3889132a7e4d9a73b5585c08bdc89b3e1a05c67b4d79282e4585e",
+      "bytes": 19474
+    },
+    {
+      "path": "packages/core/src/services/training/index.ts",
+      "sha256": "9fbbade1db2e18eac6f3010e4e0238d9aed198f0fcd41c39dc3c580217a2274e",
+      "bytes": 1256
+    },
+    {
+      "path": "packages/core/src/services/training/trainingService.test.ts",
+      "sha256": "951c2f61de971bcd263e838dcef9835bdce8f17eefe51442042ec3550e0c400a",
+      "bytes": 47563
+    },
+    {
+      "path": "packages/core/src/services/training/trainingService.ts",
+      "sha256": "89b90038e3be271f47c6d5bc8854b12587aa593467e6f3c572c38884b9103e44",
+      "bytes": 4300
+    },
+    {
+      "path": "packages/core/src/services/training/trainingServiceContract.ts",
+      "sha256": "59f321f8db550f929b13e52798ecd24dbf2a629df2ca1d3f76c368003ee2a7c1",
+      "bytes": 5267
+    },
+    {
+      "path": "packages/course-server/src/miniGuideService.ts",
+      "sha256": "1283312e4c93553b56a4ec49a8cfe3e18113bd9e15bf5bbd8a75c05359932b9c",
+      "bytes": 2628
+    },
+    {
+      "path": "packages/questions-server/src/service.ts",
+      "sha256": "119d62db77785db0aded9a7334323b93c0ea237356d3914ce525e8d73016561e",
+      "bytes": 916
+    },
+    {
+      "path": "scripts/qa/training-source-no-shadow.test.mjs",
+      "sha256": "1dee9e3975bbff24512b3bf0258d86e9dc1059bf734b2676e81a6a86bb5d709d",
+      "bytes": 2603
+    }
+  ]
+}

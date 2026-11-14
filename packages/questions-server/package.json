@@ -8,6 +8,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./notifications": {
+      "types": "./dist/notifications.d.ts",
+      "default": "./dist/notifications.js"
+    },
+    "./photos": {
+      "types": "./dist/photos.d.ts",
+      "default": "./dist/photos.js"
+    },
+    "./service": {
+      "types": "./dist/service.d.ts",
+      "default": "./dist/service.js"
     }
   },
   "main": "./dist/index.js",
@@ -20,7 +32,13 @@
   "dependencies": {
     "@gafus/core": "workspace:*",
     "@gafus/types": "workspace:*",
-    "zod": "^3.25.56"
+    "zod": "^3.25.56",
+    "@gafus/queues": "workspace:*",
+    "@gafus/prisma": "workspace:*",
+    "@gafus/cdn-upload": "workspace:*",
+    "@gafus/media-server": "workspace:*",
+    "@gafus/questions-write-server": "workspace:*",
+    "@gafus/questions-shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

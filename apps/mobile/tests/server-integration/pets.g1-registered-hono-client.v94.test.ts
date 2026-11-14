@@ -253,7 +253,7 @@ describe("V94 existing Mobile petsApi.getAll+strictvalidator → ACTUAL register
       { id: "pet_owner_A", ownerId: owners.A.id, type: "DOG", notes: PRIVATE_NOTE },
     ]);
     expect(projected.data?.[0]).toHaveProperty("awards"); // real raw Core relation, not fake projection
-    expect(m.pets).toHaveBeenCalledExactlyOnceWith(owners.A.id, { throwOnError: true });
+    expect(m.pets).toHaveBeenCalledExactlyOnceWith(owners.A.id, { throwOnError: true }, expect.any(Function));
     expect(m.wire).toHaveLength(1);
     expect(m.wire[0]).toMatchObject({
       path: "/api/v1/pets",
@@ -282,7 +282,7 @@ describe("V94 existing Mobile petsApi.getAll+strictvalidator → ACTUAL register
   it("valid signed B JWT with stale native A actor rejects foreign Core rows at Mobile boundary", async () => {
     m.currentTokenOwner = "B";
     await expect(petsQueryOptions.queryFn()).rejects.toThrow("PETS_LIST_INVALID");
-    expect(m.pets).toHaveBeenCalledExactlyOnceWith("owner_B", { throwOnError: true });
+    expect(m.pets).toHaveBeenCalledExactlyOnceWith("owner_B", { throwOnError: true }, expect.any(Function));
     expect(m.wire[0]?.status).toBe(200);
     privateHeaderChecks(m.wire[0]!);
   });

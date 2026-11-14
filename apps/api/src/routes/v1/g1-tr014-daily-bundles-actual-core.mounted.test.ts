@@ -46,7 +46,7 @@ vi.mock("@gafus/core/services/auth", async original => ({
 // NO vi.mock for @gafus/core/services/dailyCourse.
 import { app } from "../../app";
 import { generateAccessToken } from "@gafus/auth/jwt";
-import { getDailyCourseBundles as actualCore } from "@gafus/core/services/dailyCourse";
+import { getDailyCourseBundles as actualCore } from "../../modules/daily-course/composition/dailyCourseApplication.js";
 import {
   bundleSchema, readDailyBundles, TR014_PROPOSED_PATH,
 } from "../../../../../apps/trainer-panel/src/trainer-vite/tr014DailyBundlesRead20261022";

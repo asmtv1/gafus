@@ -117,6 +117,8 @@ services:
     dns_opt:
       - use-vc
     environment:
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-0.1}
       - CHAT2_WORKER_ENABLED=${CHAT2_WORKER_ENABLED:-disabled}
       - CHAT2_CENTRIFUGO_HTTP_API=${CHAT2_CENTRIFUGO_HTTP_API:-http://chat2-centrifugo:8000/api/publish}
       - CHAT2_CENTRIFUGO_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}
@@ -335,6 +337,10 @@ services:
     environment:
       # Chat 2.0 is disabled until its websocket broker, worker, and scoped media
       # have passed independent release gates. Never silently fall back to Stream.
+      # Read-only API metrics are disabled unless a private key is provided.
+      - API_METRICS_KEY=${API_METRICS_KEY:-}
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-0.1}
       - CHAT2_LEGACY_RETIRE_ENABLED=${CHAT2_LEGACY_RETIRE_ENABLED:-disabled}
       - CHAT2_API_ENABLED=${CHAT2_API_ENABLED:-disabled}
       # The API must know the worker is enabled before retiring the legacy chat.
@@ -358,6 +364,12 @@ services:
       - VOXIMPLANT_PRIVATE_KEY_BASE64=${VOXIMPLANT_PRIVATE_KEY_BASE64:?VOXIMPLANT_PRIVATE_KEY_BASE64 is required}
       - VOXIMPLANT_CREDENTIAL_SECRET=${VOXIMPLANT_CREDENTIAL_SECRET:?VOXIMPLANT_CREDENTIAL_SECRET is required}
       - VOXIMPLANT_ADMISSION_SECRET=${VOXIMPLANT_ADMISSION_SECRET:?VOXIMPLANT_ADMISSION_SECRET is required}
+      # Signed OTA: immutable assets via Cloud.ru S3, without CDN.
+      # Callback, manifest and telemetry are disabled unless explicitly configured.
+      - MOBILE_OTA_ASSET_ORIGIN=${MOBILE_OTA_ASSET_ORIGIN:-https://global.s3.cloud.ru/gafus-ota-updates}
+      - MOBILE_OTA_CI_CALLBACK_TOKEN=${MOBILE_OTA_CI_CALLBACK_TOKEN:-}
+      - MOBILE_OTA_DELIVERY_ENV=${MOBILE_OTA_DELIVERY_ENV:-}
+      - MOBILE_OTA_INSTALLATION_HASH_KEY=${MOBILE_OTA_INSTALLATION_HASH_KEY:-}
       - CLOUDRU_USER_MEDIA_ENABLED=${CLOUDRU_USER_MEDIA_ENABLED:-false}
       - CLOUDRU_S3_ENDPOINT=${CLOUDRU_S3_ENDPOINT:-https://s3.cloud.ru}
       - CLOUDRU_S3_ACCESS_KEY_ID=${CLOUDRU_S3_ACCESS_KEY_ID:-}
@@ -626,6 +638,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - YC_MONITORING_API_KEY=${YC_MONITORING_API_KEY}
+      - API_METRICS_KEY=${API_METRICS_KEY:-}
     restart: unless-stopped
     healthcheck:
       test:

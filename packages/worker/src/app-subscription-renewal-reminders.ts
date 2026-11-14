@@ -1,7 +1,7 @@
 import { sendTransactionalMail } from "@gafus/mailer";
-import { listDueSubscriptionRenewalReminders, markSubscriptionRenewalReminderSent } from "@gafus/core/services/appSubscription";
+import { listDueSubscriptionRenewalReminders, markSubscriptionRenewalReminderSent } from "@gafus/subscription-write-server";
 import { createWorkerLogger } from "@gafus/logger";
-import { sendImmediatePushNotification } from "@gafus/core/services/notifications";
+import { sendImmediatePushNotification } from "@gafus/notifications-server";
 import { getWorkerSubscriptionRenewalPlan } from "./app-subscription-plan";
 
 const logger = createWorkerLogger("app-subscription-renewal-reminders");

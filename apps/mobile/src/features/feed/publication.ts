@@ -11,7 +11,8 @@ export const mobileFeedPublications = createFeedPublicationManager<FeedPickedMed
   pollImageStatus: async (postId, asset, mediaId) => {
     const upload = await feedApi.reserveUpload(postId, {
       filename: asset.filename, kind: "photo", declaredMime: asset.mime,
-      declaredBytes: asset.bytes, clientRequestId: asset.requestId,
+      declaredBytes: asset.bytes,
+      clientRequestId: asset.photoReservationRequestId ?? asset.requestId,
     });
     if (upload.mediaId !== mediaId) throw new Error("Не совпадает изображение опроса.");
     return upload.status === "ready" ? "ready" :

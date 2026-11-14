@@ -1,4 +1,3 @@
-import { Prisma } from "@gafus/prisma";
 import type { FeedDb } from "./ports";
 import { retrieveSmartCandidates } from "./smart-retrieval";
 import { scoreSmartMl, toSmartMlVector, type SmartMlModel } from "./smart-ml";
@@ -7,6 +6,17 @@ import {
   rerankSmartFeed, smartAffinity, smartExploration,
   type RankedSmartPost, type SmartFeedSignals,
 } from "./smart-ranking";
+
+export type SmartFeedPostStats = {
+  postId: string;
+  reactions: number;
+  uniqueCommenters: number;
+  bookmarks: number;
+  impressions: number;
+};
+
+/** SQL is owned and executed by feed-server. Core only accepts a bounded snapshot. */
+export type SmartFeedStatsReader = (postIds: readonly string[], at: Date) => Promise<SmartFeedPostStats[]>;
 
 /**
  * Build a bounded, server-only recommendation snapshot.
@@ -20,6 +30,7 @@ export async function rankSmartCandidates(
     multiSource?: boolean;
     mlModel?: SmartMlModel | null;
   },
+  readSmartFeedPostStats: SmartFeedStatsReader,
 ): Promise<RankedSmartPost[]> {
   const since = preferences.historyResetAt;
   const recentlySeenSince = new Date(Math.max(
@@ -47,50 +58,7 @@ export async function rankSmartCandidates(
       id: true, profile: { select: { city: true } },
       pets: { where: { showInProfile: true }, select: { type: true, breed: true } },
     } }),
-    db.$queryRaw<{ postId: string; reactions: number; uniqueCommenters: number; bookmarks: number; impressions: number }[]>(Prisma.sql`
-      WITH fresh AS (
-        SELECT s.* FROM "FeedPostStats" s
-        WHERE s."postId" IN (${Prisma.join(postIds)})
-          AND s."updatedAt" >= ${new Date(at.getTime() - 5 * 60_000)}
-      )
-      SELECT p."id" AS "postId",
-             COALESCE(s."reactionCount", r.n, 0)::integer AS reactions,
-             COALESCE(s."uniqueCommenterCount", c.n, 0)::integer AS "uniqueCommenters",
-             COALESCE(s."bookmarkCount", b.n, 0)::integer AS bookmarks,
-             COALESCE(s."qualifiedImpressionCount", 0)::integer AS impressions
-      FROM "FeedPost" p
-      LEFT JOIN fresh s ON s."postId" = p."id"
-      LEFT JOIN (
-        SELECT r."postId", COUNT(*)::integer AS n
-        FROM "FeedPostReaction" r
-        JOIN "FeedPost" post ON post."id" = r."postId"
-        LEFT JOIN fresh f ON f."postId" = r."postId"
-        WHERE r."postId" IN (${Prisma.join(postIds)}) AND f."postId" IS NULL
-          AND r."userId" <> post."authorId"
-        GROUP BY r."postId"
-      ) r ON r."postId" = p."id"
-      LEFT JOIN (
-        SELECT c."postId", COUNT(DISTINCT c."authorId")::integer AS n
-        FROM "FeedComment" c
-        JOIN "FeedPost" post ON post."id" = c."postId"
-        LEFT JOIN fresh f ON f."postId" = c."postId"
-        WHERE c."postId" IN (${Prisma.join(postIds)})
-          AND f."postId" IS NULL
-          AND c."deletedAt" IS NULL AND c."moderationState" = 'visible'
-          AND c."authorId" <> post."authorId"
-        GROUP BY c."postId"
-      ) c ON c."postId" = p."id"
-      LEFT JOIN (
-        SELECT b."postId", COUNT(*)::integer AS n
-        FROM "FeedBookmark" b
-        JOIN "FeedPost" post ON post."id" = b."postId"
-        LEFT JOIN fresh f ON f."postId" = b."postId"
-        WHERE b."postId" IN (${Prisma.join(postIds)}) AND f."postId" IS NULL
-          AND b."userId" <> post."authorId"
-        GROUP BY b."postId"
-      ) b ON b."postId" = p."id"
-      WHERE p."id" IN (${Prisma.join(postIds)})
-    `),
+    readSmartFeedPostStats(postIds, at),
     db.feedPostView.findMany({ where: { userId: viewerId,
       postId: { in: postIds }, createdAt: { gte: recentlySeenSince },
     }, select: { postId: true } }),

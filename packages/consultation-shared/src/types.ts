@@ -12,6 +12,23 @@ export type ConsultationBookingStatus =
 
 export type ConsultationPetGender = "MALE" | "FEMALE";
 
+/** Domain email categories are stable across Prisma and the Core mail policy. */
+export const CONSULTATION_EMAIL_TYPES = [
+  "TRAINER_CONFIRM_REQUEST",
+  "CLIENT_BOOKING_RECEIVED",
+  "CLIENT_BOOKING_CONFIRMED",
+  "TRAINER_BOOKING_CONFIRMED",
+  "CLIENT_BOOKING_CANCELLED_BY_TRAINER",
+  "TRAINER_BOOKING_CANCELLED_BY_USER",
+  "CLIENT_BOOKING_CANCELLED_BY_SLA",
+  "CLIENT_BOOKING_VIDEO_FAILED",
+  "CLIENT_CONSULTATION_REMINDER_30M",
+  "CLIENT_CONSULTATION_START",
+  "TRAINER_CONSULTATION_REMINDER_30M",
+  "CLIENT_CONSULTATION_NO_SHOW",
+] as const;
+export type ConsultationEmailType = (typeof CONSULTATION_EMAIL_TYPES)[number];
+
 export interface ListedCynologistCardDto {
   id: string;
   userId: string;

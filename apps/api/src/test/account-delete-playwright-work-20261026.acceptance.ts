@@ -11,7 +11,7 @@ import { S3Client, HeadObjectCommand, HeadBucketCommand, CreateBucketCommand } f
 import { uploadPrivateUserMedia, deletePrivateUserMedia, privateMediaLocation } from '@gafus/cdn-upload';
 import { isolatedNonprodS3Config } from '@gafus/cdn-upload/isolated-nonprod-s3';
 import { uploadIsolatedAvatar, deleteIsolatedAvatarLocation } from '../../../../packages/cdn-upload/src/isolatedAvatarMedia';
-import { processPrivateAccountStorageCleanupForOwner } from '../../../../packages/core/src/services/accountCleanup/worker';
+import { processPrivateAccountStorageCleanupForOwner } from '../../../../packages/worker/src/accountCleanupWorker';
 import { chromium } from '../../../../.local-browser-mcp/node_modules/playwright/index.js';
 
 const R = '/Users/asmtv1/Desktop/gafus-refactor';

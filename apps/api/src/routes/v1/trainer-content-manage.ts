@@ -3,7 +3,7 @@
  * mutations/cache revisions; Hono supplies authenticated actor and strict DTOs.
  */
 import { Hono } from "hono";
-import { countEditableDaySteps } from "@gafus/core/services/trainerCourse";
+import { countEditableDaySteps } from "@gafus/statistics/trainer-editor-counts";
 import {
   getStepForEdit, updateStep, deleteSteps, updateStepSchema,
   type UpdateStepInput,

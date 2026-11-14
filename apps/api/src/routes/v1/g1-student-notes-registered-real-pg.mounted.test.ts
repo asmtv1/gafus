@@ -10,7 +10,7 @@ const pushAttempt = vi.hoisted(() =>
     throw Error("UNUSED_STUDENT_NOTE_NOTIFICATION_WRITE_FORBIDDEN");
   }),
 );
-vi.mock("@gafus/core/services/notifications", () => ({
+vi.mock("@gafus/notifications-server", () => ({
   createImmediatePushNotification: pushAttempt,
 }));
 vi.mock("@gafus/logger", () => ({

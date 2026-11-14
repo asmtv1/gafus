@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { Text } from "react-native-paper";
-import { Map, Camera, GeoJSONSource, Layer, UserLocation } from "@maplibre/maplibre-react-native";
+import Constants from "expo-constants";
+// No MapLibre native bridge exists in Expo Go; do not evaluate its package there.
+const nativeMap = Constants.appOwnership === "expo" ? null :
+  (require("@maplibre/maplibre-react-native") as typeof import("@maplibre/maplibre-react-native"));
+const { Map, Camera, GeoJSONSource, Layer, UserLocation } = nativeMap ??
+  ({} as typeof import("@maplibre/maplibre-react-native"));
 import { allGpsPoints, type StoredGpsPoint } from "./walkGpsStorage";
 import { toWalkGeoJson } from "./walkRouteGeoJson";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -102,6 +107,12 @@ export function WalkRouteMap({
     }
     return [west, south, east, north];
   }, [accepted, live]);
+  if (Constants.appOwnership === "expo") return (
+    <View style={styles.panel}>
+      <Text style={styles.title}>Маршрут прогулки</Text>
+      <Text style={styles.footer}>Карта маршрута доступна в сборке GAFUS для разработки. В Expo Go остальные разделы работают без карты.</Text>
+    </View>
+  );
   if (!live && (loading || error || !accepted.length))
     return (
       <View style={styles.panel}>

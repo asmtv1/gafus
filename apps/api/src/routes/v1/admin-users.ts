@@ -1,21 +1,23 @@
+import { getFreePartnerPromoCodesForAdminPanel } from "@gafus/subscription-write-server";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod/v3";
 import {
-  getFreePartnerPromoCodesForAdminPanel,
+  cancelYookassaAppSubscription,
+} from "../../modules/app-subscription/composition/payment-transitions.js";
+import {
   getUserAppSubscriptionAdminSummary,
   adminGrantPaidUntil,
   adminGrantLifetime,
   adminClearManualGrant,
-  cancelYookassaAppSubscription,
-} from "@gafus/core/services/appSubscription";
+} from "@gafus/subscription-finance-server/admin-application";
 import {
   getAllUsers,
   updateUserAdmin,
   deleteUserAdmin,
   checkAdminUserMutationAccess,
   readAdminActorRole,
-} from "@gafus/core/services/adminUser";
+} from "../../modules/admin-users/composition/service.js";
 
 import { requireRole } from "../../middleware/auth.js";
 

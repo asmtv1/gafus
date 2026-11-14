@@ -1,0 +1,645 @@
+{
+  "policy": "/Users/asmtv1/Desktop/gafus-agent2-observability/docs/audit/gafus-agents-integration-preflight-policy-20261112-r37.json",
+  "candidate": null,
+  "kind": "gafus/integration-preflight-result/v1",
+  "verdict": "BLOCKED",
+  "counts": {
+    "PASS": 123,
+    "FAIL": 0,
+    "BLOCKED": 3
+  },
+  "checks": [
+    {
+      "id": "POLICY_SCHEMA",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "PAYMENT_MANIFEST_SHA",
+      "status": "PASS",
+      "detail": "87d0fbedf7ab2692637cbeed6fcf819b865f23c70f92094e4f5dd905a728a362"
+    },
+    {
+      "id": "AGENT3_MANIFEST_SHA",
+      "status": "PASS",
+      "detail": "b98783d54906caeb0e0f9c86861863a9b38b464cc0cb39bed29a5da5166fe3d7"
+    },
+    {
+      "id": "PAYMENT_MANIFEST_CONTENT",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A3_MANIFEST_CONTENT",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R37_THREE_BATCHES",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_BATCH_SHA:payment",
+      "status": "PASS",
+      "detail": "87d0fbedf7ab2692637cbeed6fcf819b865f23c70f92094e4f5dd905a728a362"
+    },
+    {
+      "id": "A1_BATCH_FILES:payment",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_BATCH_SHA:reminder",
+      "status": "PASS",
+      "detail": "44405745affa7196c746db547ca1190fc53dfb2ec9ebf003dd9b3aa8cac50fba"
+    },
+    {
+      "id": "A1_BATCH_FILES:reminder",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_BATCH_SHA:flags_access",
+      "status": "PASS",
+      "detail": "f3f19b3543366102f46e85aab92d15b11a1cd8bcb51dc4b05bfa5920a086769a"
+    },
+    {
+      "id": "A1_BATCH_FILES:flags_access",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R37_INTERMEDIATE_RATCHET",
+      "status": "PASS",
+      "detail": "R37 is a partial ratchet; must not impersonate the final A1 registry"
+    },
+    {
+      "id": "A1_R37_COMPLETE_DECISIONS",
+      "status": "PASS",
+      "detail": "51 manifest records collapse to 49 unique paths; every path needs a decision"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/paymentService.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/paymentService.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/index.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/index.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/paymentService.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/paymentService.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/paymentService.realpg.archqa.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/paymentService.realpg.archqa.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/subscription-payment-server/src/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/subscription-payment-server/src/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/subscription-payment-server/src/appleJws.archqa.acceptance.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/subscription-payment-server/src/appleJws.archqa.acceptance.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/app-subscription/composition/payment-transitions.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/app-subscription/composition/payment-transitions.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/app-subscription.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/app-subscription.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/payment-provider-webhooks.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/payment-provider-webhooks.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/app-subscription.route.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/app-subscription.route.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/payment-provider-webhooks.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/payment-provider-webhooks.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/admin-users.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/admin-users.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/admin-users.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/admin-users.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/worker/src/composition/app-subscription-payment.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/worker/src/composition/app-subscription-payment.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/worker/src/cron-scheduler.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/worker/src/cron-scheduler.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/worker/src/cron-scheduler.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/worker/src/cron-scheduler.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/worker/src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/worker/src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/reminders/composition/create-receipt-review.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/reminders/composition/create-receipt-review.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/g1-reminder-create-lookup.review.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/g1-reminder-create-lookup.review.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/g1-reminder-create-lookup.review.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/g1-reminder-create-lookup.review.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "PASS",
+      "detail": "audit-only, pinned source, not copied to runtime"
+    },
+    {
+      "id": "A1_DECISION:docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "PASS",
+      "detail": "audit-only, pinned source, not copied to runtime"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/app.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/app.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/app-feature-flags/composition/install-core-flags.contract.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/app-feature-flags/composition/install-core-flags.contract.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/app-feature-flags/composition/install-core-flags.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/app-feature-flags/composition/install-core-flags.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.contract.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.contract.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/g1-subscription-readonly.contract.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/g1-subscription-readonly.contract.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/package.json",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/package.json",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appFeatureFlags/appFeatureFlagsPort.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appFeatureFlags/appFeatureFlagsPort.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appFeatureFlags/index.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appFeatureFlags/index.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/accessService.facade.g1.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/accessService.facade.g1.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/accessService.readBaseline.g1.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/accessService.readBaseline.g1.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/accessService.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/accessService.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/cynologistEntitlements.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/cynologistEntitlements.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/accessPort.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/accessPort.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/accessService.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/accessService.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/g1-achievements-snapshot-access-source.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/g1-achievements-snapshot-access-source.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/consultation/bookingService.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/consultation/bookingService.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/feature-flags-server/package.json",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/feature-flags-server/package.json",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/feature-flags-server/src/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/feature-flags-server/src/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/types/src/contracts/mobileReleaseErrors.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/types/src/contracts/mobileReleaseErrors.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/types/src/index.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/types/src/index.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:pnpm-lock.yaml",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:pnpm-lock.yaml",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:scripts/check-core-server-boundary.mjs",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:scripts/check-core-server-boundary.mjs",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_COMPANION_EXCLUSIONS",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-reminder-review-ports-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-reminder-review-ports-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_PRIOR_INVENTORY_SHA",
+      "status": "PASS",
+      "detail": "pinned inventory used to detect unmanifested new A1 files"
+    },
+    {
+      "id": "A1_SOURCE_DIRTY_INVENTORY_AVAILABLE",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_NEW_FILES_ACCOUNTED",
+      "status": "PASS",
+      "detail": "newDirty=19, unaccounted=none"
+    },
+    {
+      "id": "A1_DIRTY_PATH_SET_SHA",
+      "status": "PASS",
+      "detail": "new/removed A1 dirty source paths require a refreshed policy and file classification"
+    },
+    {
+      "id": "A1_R37_EXPLICIT_INTEGRATION_APPROVAL",
+      "status": "BLOCKED",
+      "detail": "Await separate permission; no branch creation/merge/push"
+    },
+    {
+      "id": "A1_FINAL_REGISTRY_PIN",
+      "status": "BLOCKED",
+      "detail": "No approved final A1 architecture registry. Payment batch / prior results.tsv are insufficient."
+    },
+    {
+      "id": "CANDIDATE_COPY",
+      "status": "BLOCKED",
+      "detail": "No candidate provided; no writes performed."
+    }
+  ],
+  "noMutation": true,
+  "warning": "Read-only preflight. Passing this does not authorize commit, merge, push, production, Cloud.ru, CDN, 33/5/18 regression or stage acceptance."
+}

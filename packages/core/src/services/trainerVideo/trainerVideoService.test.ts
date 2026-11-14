@@ -3,32 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const prismaMocks = vi.hoisted(() => ({
   create: vi.fn(),
   findMany: vi.fn(),
-  stepFindMany: vi.fn(),
-  stepUpdateMany: vi.fn(),
-  stepTemplateUpdateMany: vi.fn(),
+  stepClear: vi.fn(),
+  templateClear: vi.fn(),
   videoDelete: vi.fn(),
   invalidateSteps: vi.fn(),
 }));
 
 vi.mock("../training/trainingDayContent", () => ({
   invalidateStepsContentCache: prismaMocks.invalidateSteps,
-}));
-
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    trainerVideo: {
-      create: prismaMocks.create,
-      findMany: prismaMocks.findMany,
-      delete: prismaMocks.videoDelete,
-    },
-    step: {
-      findMany: prismaMocks.stepFindMany,
-      updateMany: prismaMocks.stepUpdateMany,
-    },
-    stepTemplate: {
-      updateMany: prismaMocks.stepTemplateUpdateMany,
-    },
-  },
 }));
 
 vi.mock("@gafus/logger", () => ({
@@ -50,10 +32,34 @@ vi.mock("@gafus/video-access", () => ({
 }));
 
 import {
-  deleteTrainerVideoRecord,
-  getTrainerVideos,
-  registerTrainerVideo,
+  deleteTrainerVideoRecord as coreDeleteTrainerVideoRecord,
+  getTrainerVideos as coreGetTrainerVideos,
+  registerTrainerVideo as coreRegisterTrainerVideo,
+  type TrainerVideoPersistencePort,
 } from "./trainerVideoService";
+import type { RegisterTrainerVideoInput } from "./schemas";
+
+const repo: TrainerVideoPersistencePort = {
+  createTrainerVideoRow: prismaMocks.create,
+  markTrainerVideoTranscodingFailedRow: vi.fn(),
+  readTrainerVideoDeleteRow: vi.fn(),
+  clearTrainerStepVideoReferences: prismaMocks.stepClear,
+  clearTrainerTemplateVideoReferences: prismaMocks.templateClear,
+  deleteTrainerVideoRow: prismaMocks.videoDelete,
+  readTrainerVideoOwnerRow: vi.fn(),
+  renameTrainerVideoForOwner: vi.fn(),
+  readTrainerVideosRows: prismaMocks.findMany,
+  readTrainerVideoStatusRows: vi.fn(),
+  readTrainerVideoMetadataRow: vi.fn(),
+  readTrainerVideoManifestRow: vi.fn(),
+  readTrainerVideoPlaybackRow: vi.fn(),
+};
+const registerTrainerVideo = (input: RegisterTrainerVideoInput) =>
+  coreRegisterTrainerVideo(repo, input);
+const getTrainerVideos = (actor: string, options: { forAdmin?: boolean } = {}) =>
+  coreGetTrainerVideos(repo, actor, options);
+const deleteTrainerVideoRecord = (id: string, fullCdnUrl: string | null) =>
+  coreDeleteTrainerVideoRecord(repo, id, fullCdnUrl);
 
 const TWO_POINT_ONE_GIB = Math.ceil(2.1 * 1024 * 1024 * 1024);
 const now = new Date("2026-07-13T00:00:00.000Z");
@@ -100,7 +106,7 @@ describe("trainer video file size", () => {
     expect(TWO_POINT_ONE_GIB).toBeGreaterThan(2_147_483_647);
     expect(prismaMocks.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ fileSize: BigInt(TWO_POINT_ONE_GIB) }),
+        fileSize: TWO_POINT_ONE_GIB,
       }),
     );
     expect(result).toMatchObject({ success: true, data: { fileSize: TWO_POINT_ONE_GIB } });
@@ -118,9 +124,9 @@ describe("trainer video file size", () => {
 describe("video deletion invalidates affected cached lesson steps", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    prismaMocks.stepFindMany.mockResolvedValue([{ id: "step-a" }, { id: "step-b" }]);
-    prismaMocks.stepUpdateMany.mockResolvedValue({ count: 2 });
-    prismaMocks.stepTemplateUpdateMany.mockResolvedValue({ count: 0 });
+    prismaMocks.stepClear.mockResolvedValue(["step-a", "step-b"]);
+
+    prismaMocks.templateClear.mockResolvedValue(undefined);
     prismaMocks.videoDelete.mockResolvedValue({});
   });
 
@@ -128,17 +134,12 @@ describe("video deletion invalidates affected cached lesson steps", () => {
     const result = await deleteTrainerVideoRecord("video-1", "https://cdn/video-1");
 
     expect(result.success).toBe(true);
-    expect(prismaMocks.stepFindMany).toHaveBeenCalledWith({
-      where: {
-        OR: [{ videoUrl: { contains: "video-1" } }, { videoUrl: "https://cdn/video-1" }],
-      },
-      select: { id: true },
-    });
+    expect(prismaMocks.stepClear).toHaveBeenCalledWith("video-1", "https://cdn/video-1");
     expect(prismaMocks.invalidateSteps).toHaveBeenCalledExactlyOnceWith(["step-a", "step-b"]);
   });
 
   it("does not invalidate when the DB step update fails", async () => {
-    prismaMocks.stepUpdateMany.mockRejectedValueOnce(new Error("db down"));
+    prismaMocks.stepClear.mockRejectedValueOnce(new Error("db down"));
 
     const result = await deleteTrainerVideoRecord("video-1", "https://cdn/video-1");
 

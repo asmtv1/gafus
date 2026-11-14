@@ -1,6 +1,6 @@
 /** AG1-002: erased-only exact whole GET /daily-course/day JSON producer. */
 import type { JSONParsed } from "hono/utils/types";
-import type { DailyCourseDayResponse, DailyCourseStepDto } from "@gafus/core/services/dailyCourse";
+import type { DailyCourseDayResponse, DailyCourseStepDto } from "../../modules/daily-course/composition/dailyCourseApplication.js";
 import type { TrainingStatus } from "../../../../../packages/types/src/utils/training-status";
 import type {
   DailyCourseDayWire,

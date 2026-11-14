@@ -2,19 +2,25 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const viteClient = readFileSync(new URL(
-  "../../../../../apps/web-vite/src/features/pets/PetVetVisitsConnected.tsx",
-  import.meta.url,
-), "utf8");
-const viteTransport = readFileSync(new URL(
-  "../../../../../apps/web-vite/src/features/pets/vetVisitsHonoReadConsumer.ts",
-  import.meta.url,
-), "utf8");
+const viteClient = readFileSync(
+  new URL(
+    "../../../../../apps/web-vite/src/features/pets/PetVetVisitsConnected.tsx",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const viteTransport = readFileSync(
+  new URL(
+    "../../../../../apps/web-vite/src/features/pets/vetVisitsHonoReadConsumer.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const hono = readFileSync(new URL("./pet-vet-visits.ts", import.meta.url), "utf8");
-const shared = readFileSync(new URL(
-  "../../../../../packages/core/src/services/pets/petVetVisitHttp.ts",
-  import.meta.url,
-), "utf8");
+const shared = readFileSync(
+  new URL("../../../../../packages/core/src/services/pets/petVetVisitHttp.ts", import.meta.url),
+  "utf8",
+);
 
 describe("Current Vite/Hono Vet visit source transport contract", () => {
   it("V01 Vite GET uses browser auth and pet-scoped Hono route", () => {
@@ -35,7 +41,7 @@ describe("Current Vite/Hono Vet visit source transport contract", () => {
     expect(shared).toContain('!parts.length && method === "GET"');
     expect(shared).toContain("listPetVetVisits(petId, ownerId)");
     expect(shared).toContain('parts.length === 1 && method === "GET"');
-    expect(shared).toContain("getOwnVetVisitDetail(ownerId, petId, visitId!)");
+    expect(shared).toContain("getOwnVetVisitDetail(ownerId, petId, visitId!, readDetail)");
     expect(shared).toContain('"Cache-Control": "private, no-store, max-age=0"');
   });
 });

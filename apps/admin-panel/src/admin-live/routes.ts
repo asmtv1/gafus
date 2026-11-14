@@ -64,6 +64,13 @@ export const adminSections = [
     roles: ["ADMIN"],
   },
   {
+    key: "mobile-ota",
+    title: "Мобильные релизы",
+    path: "/main-panel/mobile-ota",
+    api: "/api/v1/admin/mobile-ota/deployments",
+    roles: ["ADMIN"],
+  },
+  {
     key: "feature-flags",
     title: "Флаги приложения",
     path: "/main-panel/feature-flags",

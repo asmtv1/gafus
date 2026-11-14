@@ -1,5 +1,25 @@
 # GAFUS Refactor — текущая готовность релизного кандидата
 
+**READY=NO · PRODUCTION_VERIFIED=NO · DEPLOYED=NO · STORE_RELEASE=OWNER**
+
+**14.11.2026, кандидат перед push в `main`:** изолированный checkout `codex/gafus-release-candidate-20261114`, база `0aec3b1ffd7bd523db7732db59254afe1349a5d7` (сверено с GitHub), текущий локальный SHA см. через `git rev-parse HEAD`. Исходный `/Users/asmtv1/Desktop/gafus-refactor` не изменялся в процессе QA, push/merge/production mutation/Store release не выполнялись.
+
+**Локальные PASS:** frozen install, audit без high/critical, полный lint, `turbo test --force` **117/117 задач, 13 501 тест PASS / 566 SKIP / 0 FAIL** (неподнятые внешние и real-PG условия учитываются отдельно), исходный Gallery Cloud timeout устранён сериализацией файлов теста. TypeScript, source boundaries и frozen PG bootstrap проходили предыдущие проверки того же набора исходников. 67 source-only CI/rollout contracts, `actionlint`, ShellCheck, проверка остановки cutover при отказах — PASS. Docker Linux/AMD64: собраны и прошли проверки runtime семь основных ролей (Web, Trainer, Admin, API, Worker, Bull Board, Prisma); API имеет 38 пакетов / 232 exports, Worker 37 / 222. Feed Worker image отдельно прошёл. Chat2 video image также собран для Linux/AMD64; offline smoke проверил JavaScript, Sharp и реальное FFmpeg H.264-кодирование. Cloud.ru Job с реальным S3 не запускался. Предыдущий текущий production SHA `bd49e5137...`, семь immutable GHCR digest доступны через read-only `docker manifest inspect` на VPS; это подтверждает наличие образов, но не совместимость rollback после миграций.
+
+**PostgreSQL:** локальный fresh PG18 Option A — 163 frozen historical baseline + 17 forward migrations, 180 migration records, повторное применение no-op. В изолированной PG15 с schema-only production snapshot выполнен forward upgrade и повторный no-op. Синтетическая/обезличенная схема **не доказывает** upgrade реальной базы с данными или обратную совместимость старых клиентов. Production на 14.11 — PostgreSQL 15.18, 168 применённых миграций, 4 rolled back; из применённых 162 SHA совпадают с кандидатными файлами, **6 несовпадений**, remote-only имён нет, 12 forward directories пока не применены. Два SHA production соответствуют исторической версии Git `ab72291e3922`, но SQL кандидата и frozen fresh-bootstrap manifest уже привязаны к другим байтам; четыре checksum поля production отсутствуют или имеют нестандартный формат. Автоматически переписывать исторические миграции или production ledger нельзя.
+
+**Добавленная защита:** release workflow использует подтверждённый guard из control SHA даже при откате на старый код без команды `preflight`, сравнивает реальные production миграции с точными SQL файлами выбранного SHA **до** image pulls, maintenance 503, остановки writers и любых миграций. При отказе возвращает previous Git checkout. Негативные сценарии, включая устаревший cutover-скрипт и corrupted checksum, прошли локально. Текущий production read-only probe предсказуемо даёт veto на шесть несовпадений.
+
+**Открытые обязательные условия:** (1) согласованная документированная reconciliation шести checksum и повтор на безопасной PG15-копии с данными; (2) авторизованный сквозной Web/Trainer/Admin E2E с изолированными ролями, инфраструктурой и side-effects; (3) Android/iOS cold launch, release-signing/identity проверка, реальная Cloud.ru Chat2 Job интеграция; (4) новый полный GitHub Actions run, release manifest, production preflight и подтверждённая совместимость schema rollback на конечном коммите. OTA и Uptrace production активация — отдельные решения владельца. Наличие предыдущего исторического успешного run не закрывает текущий SHA.
+
+**Release gate:** пока хотя бы один обязательный пункт не закрыт, ни `main` push, ни автоматический production deploy, ни Store release не выполняются. Эта первая запись `READY=NO` — актуальный veto для `verifyQaStatus`; любое старое `READY=YES` ниже относится только к архиву.
+
+---
+
+## Архив. Старый релизный кандидат от 31.10.2026 (не действует для 14.11.2026)
+
+# GAFUS Refactor — текущая готовность релизного кандидата
+
 **READY=YES** — локальная/source-приёмка **для передачи в процесс выкладки**, по согласованным владельцем критериям от 31.10.2026. Эта отметка подтверждает готовность релизного кандидата, **но не факт успешного production-деплоя**.
 
 **PRODUCTION_VERIFIED=NO · DEPLOYED=NO · STORE_RELEASE=OWNER**. Работы выполнялись только в `/Users/asmtv1/Desktop/gafus-refactor`. Не было production-деплоя, push, миграций, изменений Cloud.ru Jobs, production PostgreSQL, S3 или CDN.

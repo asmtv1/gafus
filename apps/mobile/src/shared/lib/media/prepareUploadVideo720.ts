@@ -1,7 +1,8 @@
 import type * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
 import { Platform } from "react-native";
-import { Video } from "react-native-compressor";
+import Constants from "expo-constants";
+import type { Video as CompressorVideo } from "react-native-compressor";
 import { canReuseMobile720, canAcceptEncodedMobile720, canAcceptAndroidServer720, inspectMp4Upload, type Mp4RangeReader } from "./mp4UploadProbe";
 
 export interface PreparedUploadVideo720 {
@@ -53,10 +54,24 @@ export async function prepareUploadVideo720(
       try {
         const reader: Mp4RangeReader = { size: file.size,
           read: (offset,length) => { handle.offset = offset; return handle.readBytes(length); } };
-        const metadata = inspectMp4Upload(reader);
-        return Platform.OS === "android"
+        let parseReason: string | undefined;
+        const metadata = inspectMp4Upload(reader, reason => { parseReason = reason; });
+        const acceptable = Platform.OS === "android"
           ? canAcceptAndroidServer720(metadata) && (encoded || canReuseMobile720(metadata))
           : encoded ? canAcceptEncodedMobile720(metadata) : canReuseMobile720(metadata);
+        if (!acceptable && __DEV__) {
+          // No file paths or video contents in diagnostics.
+          console.warn("[gafus:video720] MP4 rejected", metadata ? {
+            stage: encoded ? "encoded" : "original",
+            width: metadata.width, height: metadata.height,
+            fps: Math.round(metadata.fpsMax * 100) / 100,
+            averageFps: Math.round(metadata.fpsAverage * 100) / 100,
+            videoKbps: Math.round(metadata.videoBitrate / 1000),
+            audioKbps: Math.round(metadata.audioBitrate / 1000),
+            rotated: metadata.rotated, seconds: Math.round(metadata.seconds),
+          } : { stage: encoded ? "encoded" : "original", reason: parseReason ?? "MP4_PARSER_REJECTED" });
+        }
+        return acceptable;
       } finally { handle.close(); }
     } catch { return false; }
   })();
@@ -73,12 +88,18 @@ export async function prepareUploadVideo720(
   let output: string | undefined;
   // Expo SDK 55 / RN 0.83: dynamic native import() can fail with
   // "Expected HMRClient.setup() call at startup" before compression starts.
-  const encoder: Video720Compressor = compress ?? ((uri, options) => Video.compress(uri, options));
+  // Expo Go has no compressor native module. Keep ordinary routes usable and
+  // report a clean upload error instead of crashing during module evaluation.
+  if (!compress && Constants.appOwnership === "expo") return fail("VIDEO720_DISABLED");
+  let Video: typeof CompressorVideo | null = null;
   try {
+    Video = compress ? null : (require("react-native-compressor") as { Video: typeof CompressorVideo }).Video;
+    if (!compress && !Video?.compress) return fail("VIDEO720_DISABLED");
+    const encoder: Video720Compressor = compress ?? ((uri, options) => Video!.compress(uri, options));
     output = await Promise.race([
       encoder(asset.uri, {
-        // Android hardware CBR can overshoot the target on short clips.
-        // 1.45Mbps headroom keeps the encoded output under the Feed server's 1.9Mbps ceiling.
+        // Android hardware CBR can overshoot its target on short clips.
+        // Target 1.45Mbps to keep under Feed's 1.9Mbps commit limit.
         compressionMethod: "manual", maxSize,
         bitrate: Platform.OS === "android" ? 1_450_000 : 1_800_000,
         minimumFileSizeForCompress: 0,
@@ -101,10 +122,20 @@ export async function prepareUploadVideo720(
       try { new File(output!).delete(); } catch { /* native cache already cleared */ }
     } };
   } catch (error) {
+    // Keep private paths and the native error message out of logs. Only expose
+    // known, non-sensitive exporter status codes for troubleshooting on device.
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      const message = error instanceof Error ? error.message : "";
+      const reason = message.includes("VIDEO_EXPORT_NO_VIDEO_TRACK") ? "VIDEO_EXPORT_NO_VIDEO_TRACK"
+        : message.includes("VIDEO_EXPORT_FAILED") ? "VIDEO_EXPORT_FAILED"
+        : message === "LOCAL_VIDEO_TIMEOUT" ? "LOCAL_VIDEO_TIMEOUT"
+        : "NATIVE_COMPRESSOR_EXCEPTION";
+      console.warn("[gafus:video720] native export failed", { reason });
+    }
     // Never expose file URIs or video bytes through analytics. The caller
     // receives a stable reason to distinguish native, timeout and output errors.
     if (cancelId && !compress) {
-      try { await Video.cancelCompression(cancelId); } catch { /* best effort */ }
+      try { await Video?.cancelCompression(cancelId); } catch { /* best effort */ }
     }
     return fail(error instanceof Error && error.message === "LOCAL_VIDEO_TIMEOUT"
       ? "VIDEO720_TIMEOUT" : "VIDEO720_NATIVE_ERROR");

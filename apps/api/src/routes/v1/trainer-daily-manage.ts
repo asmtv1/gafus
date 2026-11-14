@@ -8,7 +8,7 @@ import {
   upsertDailyCourseSchedule, upsertDailyCourseScheduleSchema,
   deleteDailyCourseSchedule, deleteDailyCourseScheduleSchema,
   type DailyCourseActor,
-} from "@gafus/core/services/dailyCourse";
+} from "../../modules/daily-course/composition/dailyCourseApplication.js";
 
 export type TrainerDailyManagePorts = {
   putBundle: typeof upsertDailyCourseBundle;

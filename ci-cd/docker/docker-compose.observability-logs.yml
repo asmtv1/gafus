@@ -1,0 +1,53 @@
+# Optional, explicit Compose overlay. Do NOT apply to production automatically.
+# Operator must review merge (`docker compose -f ... -f ... config`), then
+# stage / canary / rollback through the normal release process.
+# Docker's `local` driver bounds storage by SIZE, not by an exact number of days.
+x-a2-application-logging: &a2-application-logging
+  driver: local
+  options:
+    max-size: "20m"
+    max-file: "5"
+    compress: "true"
+x-a2-infrastructure-logging: &a2-infrastructure-logging
+  driver: local
+  options:
+    max-size: "5m"
+    max-file: "3"
+    compress: "true"
+services:
+  api:
+    logging: *a2-application-logging
+  worker:
+    logging: *a2-application-logging
+  web:
+    logging: *a2-infrastructure-logging
+  trainer-panel:
+    logging: *a2-infrastructure-logging
+  admin-panel:
+    logging: *a2-infrastructure-logging
+  chat2-centrifugo:
+    logging: *a2-infrastructure-logging
+  bull-board:
+    logging: *a2-infrastructure-logging
+  prisma:
+    logging: *a2-infrastructure-logging
+  postgres:
+    logging: *a2-infrastructure-logging
+  redis:
+    logging: *a2-infrastructure-logging
+  nginx:
+    logging: *a2-infrastructure-logging
+  certbot:
+    logging: *a2-infrastructure-logging
+  node-exporter:
+    logging: *a2-infrastructure-logging
+  postgres-exporter:
+    logging: *a2-infrastructure-logging
+  redis-exporter:
+    logging: *a2-infrastructure-logging
+  blackbox-exporter:
+    logging: *a2-infrastructure-logging
+  grafana-alloy:
+    logging: *a2-infrastructure-logging
+  yandex-metrics-sync:
+    logging: *a2-infrastructure-logging

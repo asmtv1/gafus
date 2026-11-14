@@ -11,6 +11,7 @@ import { DataPanel } from "./DataPanel";
 import { VideoQualityPanel } from "./VideoQualityPanel";
 import { AdminActions } from "./AdminActions";
 import { FeatureFlagsEditor, PricingEditor } from "./SettingsEditors";
+import { MobileReleasesPanel } from "./MobileReleasesPanel";
 import { Cynologists, Bookings } from "./Consultations";
 import { ScheduleEditor, TrainerPicker } from "./ScheduleEditor";
 import { editableScheduleRangeMsk } from "./consultationScheduleTime";
@@ -28,6 +29,7 @@ import {
   mobileIntroReportUrl,
 } from "./MobileIntroPanel";
 import { AdminCacheSection, AdminStorageSection, MailPanel, StoragePanel } from "./SystemPanels";
+import { ChatOutboxPanel } from "./ChatOutboxPanel";
 import { SubscriptionPanel } from "./SubscriptionPanels";
 import { UsersPanel } from "./UserManagement";
 import { PartnersPanel } from "./PartnersPanel";
@@ -494,7 +496,10 @@ function Section({
         <MailPanel data={data} onRefresh={reload} />
       )}
       {!loading && !error && data !== undefined && section.key === "media" && (
-        <StoragePanel data={data} />
+        <>
+          <StoragePanel data={data} />
+          {actor.role === "ADMIN" && <ChatOutboxPanel />}
+        </>
       )}
       {!loading && !error && data !== undefined && section.key === "feed-moderation" && (
         <FeedModerationPanel key={epoch} source={data} onSaved={reload} />
@@ -577,6 +582,9 @@ function Section({
           onSaved={reload}
         />
       )}
+      {!loading && !error && data !== undefined && section.key === "mobile-ota" && (
+        <MobileReleasesPanel source={data} />
+      )}
       {actor.role === "ADMIN" &&
         !error &&
         !loading &&
@@ -601,6 +609,7 @@ function Section({
           "feed-moderation",
           "questions",
           "app-subscriptions",
+          "mobile-ota",
         ].includes(section.key) && <AdminActions sectionKey={section.key} onSaved={reload} />}
       <footer className="content-footer">
         Источник: авторизованный GAFUS API. Изменения сохраняются на сервере.

@@ -17,7 +17,7 @@ vi.mock("@gafus/queues", () => ({
   removeConsultationReminderJob: vi.fn(),
 }));
 vi.mock("./notificationService", () => ({ enqueueConsultationEmail: m.mail }));
-vi.mock("../notifications/immediatePushService", () => ({
+vi.mock("../notifications", () => ({
   sendImmediatePushNotification: m.push,
 }));
 vi.mock("@gafus/logger", () => ({
@@ -26,8 +26,8 @@ vi.mock("@gafus/logger", () => ({
 import {
   cancelBookingByUser, confirmBookingByTrainer, completeBookingByTrainer,
   markBookingNoShowByTrainer, rejectBookingByTrainer,
-} from "./bookingService";
-import { createConsultationCallAdmission, signConsultationOneTimeKey } from "./voximplantService";
+} from "@gafus/consultation-server/booking-application";
+import { createConsultationCallAdmission, signConsultationOneTimeKey } from "@gafus/consultation-server/vox";
 
 const suffix = randomBytes(10).toString("hex");
 const trainer = "cons_trainer_" + suffix;

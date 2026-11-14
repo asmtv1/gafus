@@ -152,11 +152,16 @@ async function send(
             if (!upload.postUrl || !upload.postFields)
               throw Error("GALLERY_CLIENT_PHOTO_POST_MISSING");
             const hosts = ["s3.cloud.ru", "127.0.0.1", "localhost", "10.0.2.2"];
-            await Promise.all([
+            // Both S3 POSTs must settle before runUpload releases the source
+            // WebPs. Promise.all rejects early and may delete a file while a
+            // second native XHR is still reading it on Android.
+            const outcomes = await Promise.allSettled([
               postClientWebp(thumb, clientVersions.thumb, hosts, undefined, controller.signal),
               postClientWebp({ url: upload.postUrl, fields: upload.postFields, method: "POST" },
                 clientVersions.full, hosts, undefined, controller.signal),
             ]);
+            const failed = outcomes.find(outcome => outcome.status === "rejected");
+            if (failed && failed.status === "rejected") throw failed.reason;
             return;
           }
 

@@ -9,8 +9,8 @@ import {
   Prisma,
 } from "@gafus/prisma";
 
-import { ConsultationBookingNotIncludedError, ConsultationSlotTakenError } from "./errors";
-import { SubscriptionRequiredError } from "../appSubscription/errors";
+import { ConsultationBookingNotIncludedError, ConsultationSlotTakenError } from "@gafus/core/services/consultation/errors";
+import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 
 const enqueueConsultationEmail = vi.fn();
 const queueAdd = vi.fn();
@@ -19,6 +19,31 @@ const removeConsultationReminderJob = vi.fn();
 const sendImmediatePushNotification = vi.fn();
 const getAppSubscriptionAccess = vi.fn();
 
+// Consultation booking composition now reads subscription state through the
+// server adapter, not the historical relative Core re-export.
+vi.mock("@gafus/subscription-read-server", () => ({
+  getAppSubscriptionAccess: (...args: unknown[]) => getAppSubscriptionAccess(...args),
+  getCynologistEntitlements: async (...args: unknown[]) => {
+    const status = await getAppSubscriptionAccess(...args);
+    return {
+      canUseCynologistChat: Boolean(status?.hasActiveSubscription),
+      canBookConsultations: Boolean(status?.hasActiveSubscription && status?.planCode !== "TWO_WEEKS"),
+    };
+  },
+}));
+// The booked server application imports the packaged Core port. Stub exactly
+// that dependency, keeping the original SubscriptionRequiredError identity.
+vi.mock("@gafus/core/services/appSubscription", async (importOriginal) => ({
+  ...(await importOriginal<typeof AppSubscriptionModule>()),
+  getAppSubscriptionAccess: (...args: unknown[]) => getAppSubscriptionAccess(...args),
+  getCynologistEntitlements: async (...args: unknown[]) => {
+    const status = await getAppSubscriptionAccess(...args);
+    return {
+      canUseCynologistChat: Boolean(status?.hasActiveSubscription),
+      canBookConsultations: Boolean(status?.hasActiveSubscription && status?.planCode !== "TWO_WEEKS"),
+    };
+  },
+}));
 vi.mock("../appSubscription", async (importOriginal) => ({
   ...(await importOriginal<typeof AppSubscriptionModule>()),
   getAppSubscriptionAccess: (...args: unknown[]) => getAppSubscriptionAccess(...args),
@@ -33,11 +58,11 @@ vi.mock("../appSubscription", async (importOriginal) => ({
   },
 }));
 
-vi.mock("./notificationService", () => ({
+vi.mock("@gafus/notifications-server/consultation-email-outbox", () => ({
   enqueueConsultationEmail: (...a: unknown[]) => enqueueConsultationEmail(...a),
 }));
 
-vi.mock("../notifications/immediatePushService", () => ({
+vi.mock("@gafus/notifications-server/immediatePushService", () => ({
   sendImmediatePushNotification: (...a: unknown[]) => sendImmediatePushNotification(...a),
 }));
 
@@ -132,7 +157,7 @@ describe("processBookingSlaTimeout", () => {
 
   it("ничего не делает, если бронь не найдена", async () => {
     prismaFindUniqueBooking.mockResolvedValue(null);
-    const { processBookingSlaTimeout } = await import("./bookingService");
+    const { processBookingSlaTimeout } = await import("@gafus/consultation-server/booking-application");
     await processBookingSlaTimeout("missing");
     expect(prismaTransaction).not.toHaveBeenCalled();
     expect(enqueueConsultationEmail).not.toHaveBeenCalled();
@@ -145,7 +170,7 @@ describe("processBookingSlaTimeout", () => {
       slotId: "s1",
       slot: { id: "s1" },
     });
-    const { processBookingSlaTimeout } = await import("./bookingService");
+    const { processBookingSlaTimeout } = await import("@gafus/consultation-server/booking-application");
     await processBookingSlaTimeout("b1");
     expect(prismaTransaction).not.toHaveBeenCalled();
   });
@@ -166,7 +191,7 @@ describe("processBookingSlaTimeout", () => {
       confirmationDeadlineAt: new Date(Date.now() - 60 * 1000),
       slot: { id: "s1" },
     });
-    const { processBookingSlaTimeout } = await import("./bookingService");
+    const { processBookingSlaTimeout } = await import("@gafus/consultation-server/booking-application");
     await processBookingSlaTimeout("b1");
     expect(txBookingUpdateMany).toHaveBeenCalled();
     expect(txSlotUpdate).toHaveBeenCalled();
@@ -181,7 +206,7 @@ describe("processBookingSlaTimeout", () => {
       confirmationDeadlineAt: new Date(Date.now() + 60 * 60 * 1000),
       slot: { id: "s1" },
     });
-    const { processBookingSlaTimeout } = await import("./bookingService");
+    const { processBookingSlaTimeout } = await import("@gafus/consultation-server/booking-application");
     await processBookingSlaTimeout("b-early");
     expect(prismaTransaction).not.toHaveBeenCalled();
     expect(enqueueConsultationEmail).not.toHaveBeenCalled();
@@ -203,7 +228,7 @@ describe("processConsultationReminder", () => {
       client: { id: "client-1" },
     });
 
-    const { processConsultationReminder } = await import("./bookingService");
+    const { processConsultationReminder } = await import("@gafus/consultation-server/booking-application");
     await processConsultationReminder("b-start", "start");
 
     expect(enqueueConsultationEmail).toHaveBeenCalledWith("b-start", "CLIENT_CONSULTATION_START");
@@ -234,7 +259,7 @@ describe("processConsultationReminder", () => {
       client: { id: "client-1" },
     });
 
-    const { processConsultationReminder } = await import("./bookingService");
+    const { processConsultationReminder } = await import("@gafus/consultation-server/booking-application");
     await processConsultationReminder("b-start-duplicate", "start");
 
     expect(sendImmediatePushNotification).not.toHaveBeenCalled();
@@ -273,7 +298,7 @@ describe("reconcileMissedConsultationReminders", () => {
       client: { id: "client-1" },
     });
 
-    const { reconcileMissedConsultationReminders } = await import("./bookingService");
+    const { reconcileMissedConsultationReminders } = await import("@gafus/consultation-server/booking-application");
     const result = await reconcileMissedConsultationReminders();
 
     expect(result).toEqual({ checked: 1, triggered30m: 0, triggeredStart: 1 });
@@ -297,7 +322,7 @@ describe("markBookingNoShowByTrainer", () => {
       cynologist: { userId: "trainer-1" },
     });
 
-    const { markBookingNoShowByTrainer } = await import("./bookingService");
+    const { markBookingNoShowByTrainer } = await import("@gafus/consultation-server/booking-application");
     await markBookingNoShowByTrainer("trainer-1", "TRAINER", "b-no-show");
 
     expect(removeConsultationReminderJob).toHaveBeenCalledWith("b-no-show");
@@ -333,7 +358,7 @@ describe("confirmBookingByTrainer", () => {
       slot: { startAt },
     });
 
-    const { confirmBookingByTrainer } = await import("./bookingService");
+    const { confirmBookingByTrainer } = await import("@gafus/consultation-server/booking-application");
     await confirmBookingByTrainer("trainer-1", "TRAINER", "b-confirm");
 
     expect(queueAdd).toHaveBeenCalledWith(
@@ -410,7 +435,7 @@ describe("bookSlot", () => {
       id: "bid",
       status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
     });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     const out = await bookSlot("client1", {
       slotId: "s1",
       idempotencyKey: "k1",
@@ -454,7 +479,7 @@ describe("bookSlot", () => {
       confirmationDeadlineAt: new Date("2026-05-01T09:00:00.000Z"),
       createdAt: new Date("2026-04-30T09:00:00.000Z"),
     });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     const out = await bookSlot("client1", {
       slotId: "s1",
       idempotencyKey: "k-replay",
@@ -518,7 +543,7 @@ describe("bookSlot", () => {
       };
       return cb(tx);
     });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     const cancelled = await bookSlot("client1", {
       slotId: "s1",
       idempotencyKey: "k-cancelled",
@@ -551,7 +576,7 @@ describe("bookSlot", () => {
       };
       return cb(tx);
     });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     await expect(
       bookSlot("c1", { slotId: "s1", idempotencyKey: "k2", ...bookBodyBase }),
     ).rejects.toBeInstanceOf(ConsultationSlotTakenError);
@@ -594,7 +619,7 @@ describe("bookSlot", () => {
       };
       return cb(tx);
     });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     await expect(
       bookSlot("c1", { slotId: "slot1", idempotencyKey: "k-p2002", ...bookBodyBase }),
     ).rejects.toBeInstanceOf(ConsultationSlotTakenError);
@@ -668,7 +693,7 @@ describe("bookSlot", () => {
           createdAt: new Date("2026-07-08T20:20:24.951Z"),
         });
 
-      const { bookSlot } = await import("./bookingService");
+      const { bookSlot } = await import("@gafus/consultation-server/booking-application");
       await bookSlot("c1", { slotId: "slot1", idempotencyKey: "k-24h", ...bookBodyBase });
 
       expect(txCreateBooking).toHaveBeenCalledWith(
@@ -699,7 +724,7 @@ describe("subscription-only consultation access", () => {
   });
 
   it("requires an active paid subscription for slot verification", async () => {
-    const { requireConsultationSlotsSubscriptionAccess } = await import("./bookingService");
+    const { requireConsultationSlotsSubscriptionAccess } = await import("@gafus/consultation-server/booking-application");
 
     await expect(
       requireConsultationSlotsSubscriptionAccess({
@@ -717,7 +742,7 @@ describe("subscription-only consultation access", () => {
 
   it("rejects a new booking without a subscription before touching a slot", async () => {
     idemFindUnique.mockResolvedValue(null);
-    const { bookSlotWithSubscription } = await import("./bookingService");
+    const { bookSlotWithSubscription } = await import("@gafus/consultation-server/booking-application");
 
     await expect(
       bookSlotWithSubscription({
@@ -735,7 +760,7 @@ describe("subscription-only consultation access", () => {
       planCode: "TWO_WEEKS",
     });
     const { bookSlotWithSubscription, requireConsultationSlotsSubscriptionAccess } = await import(
-      "./bookingService"
+      "@gafus/consultation-server/booking-application"
     );
 
     await expect(
@@ -751,7 +776,7 @@ describe("subscription-only consultation access", () => {
   });
 
   it("restricts new consultation bookings to the three-month plan", async () => {
-    const { canBookConsultations } = await import("./bookingService");
+    const { canBookConsultations } = await import("@gafus/consultation-server/booking-application");
 
     for (const subscription of [
       { hasActiveSubscription: true, provider: "YOOKASSA", planCode: "MONTHLY" },
@@ -802,7 +827,7 @@ describe("subscription-only consultation access", () => {
       id: "booking-replay",
       status: ConsultationBookingStatus.PENDING_TRAINER_CONFIRMATION,
     });
-    const { bookSlotWithSubscription } = await import("./bookingService");
+    const { bookSlotWithSubscription } = await import("@gafus/consultation-server/booking-application");
 
     await expect(
       bookSlotWithSubscription({
@@ -981,7 +1006,7 @@ describe("G1 booking atomicity: retained key, concurrent replay, fault injection
 
   it("AT01 receipt insert exception rolls booking+slot staging back, no notifications", async () => {
     const e = setupEngine({ failReceiptInsert: true });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     await expect(bookSlot("owner-atomic", form("atomic-fault-1"))).rejects.toThrow(
       "SYNTHETIC_LEDGER_INSERT_FAULT",
     );
@@ -993,7 +1018,7 @@ describe("G1 booking atomicity: retained key, concurrent replay, fault injection
   });
   it("AT02 successful booking and ledger commit before emails, queue and push", async () => {
     const e = setupEngine();
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     enqueueConsultationEmail.mockImplementation(async () => {
       expect(e.commits).toContain("transaction_committed");
       return "created";
@@ -1009,7 +1034,7 @@ describe("G1 booking atomicity: retained key, concurrent replay, fault injection
   });
   it("AT03 concurrent exact same key: one booking, one 200 replay, one postcommit notification round", async () => {
     const e = setupEngine({ forceTwoPrereads: true });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     const [a, b] = await Promise.all([
       bookSlot("owner-atomic", form("same-key-1")),
       bookSlot("owner-atomic", form("same-key-1")),
@@ -1022,7 +1047,7 @@ describe("G1 booking atomicity: retained key, concurrent replay, fault injection
   });
   it("AT04 concurrent same key with different payload rejects conflict before second slot lock", async () => {
     const e = setupEngine({ forceTwoPrereads: true });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     const outcomes = await Promise.allSettled([
       bookSlot("owner-atomic", form("same-key-different")),
       bookSlot("owner-atomic", form("same-key-different", { clientPhone: "+79990000001" })),
@@ -1039,7 +1064,7 @@ describe("G1 booking atomicity: retained key, concurrent replay, fault injection
   });
   it("AT05 lost ACK after transaction commit: next request finds retained receipt, no duplicated emails", async () => {
     const e = setupEngine({ failNotificationsOnce: true });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     await expect(bookSlot("owner-atomic", form("lost-ack-key"))).rejects.toThrow(
       "SYNTHETIC_EMAIL_AFTER_COMMIT_FAULT",
     );
@@ -1051,7 +1076,7 @@ describe("G1 booking atomicity: retained key, concurrent replay, fault injection
   });
   it("AT06 wrong fingerprint rejects before booking transaction", async () => {
     const e = setupEngine();
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     await bookSlot("owner-atomic", form("fp-conflict"));
     await expect(
       bookSlot("owner-atomic", form("fp-conflict", { petName: "NOT_SAME_DOG" })),
@@ -1061,7 +1086,7 @@ describe("G1 booking atomicity: retained key, concurrent replay, fault injection
   });
   it("AT08 booking insert fault rolls back staged FREE slot and never persists a receipt", async () => {
     const e = setupEngine({ failBookingInsert: true });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     await expect(bookSlot("owner-atomic", form("booking-insert-fault"))).rejects.toThrow(
       "SYNTHETIC_BOOKING_INSERT_FAULT",
     );
@@ -1072,7 +1097,7 @@ describe("G1 booking atomicity: retained key, concurrent replay, fault injection
   });
   it("AT09 precommit fault after receipt INSERT rolls back booking, slot and receipt together", async () => {
     const e = setupEngine({ failAfterReceiptBeforeCommit: true });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     await expect(bookSlot("owner-atomic", form("precommit-fault"))).rejects.toThrow(
       "SYNTHETIC_PRECOMMIT_FAILURE",
     );
@@ -1084,7 +1109,7 @@ describe("G1 booking atomicity: retained key, concurrent replay, fault injection
   });
   it("AT10 parallel DIFFERENT keys same slot result one created, one slot-taken; no duplicate receipt", async () => {
     const e = setupEngine({ forceTwoPrereads: true });
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     const res = await Promise.allSettled([
       bookSlot("owner-atomic", form("different-slot-key-1")),
       bookSlot("owner-atomic", form("different-slot-key-2")),
@@ -1100,7 +1125,7 @@ describe("G1 booking atomicity: retained key, concurrent replay, fault injection
   });
   it("AT11 canonical digest changes when slot changes; same key rejects regardless of availability", async () => {
     const e = setupEngine();
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     await bookSlot("owner-atomic", form("key-slot-mismatch"));
     await expect(
       bookSlot("owner-atomic", form("key-slot-mismatch", { slotId: "other-slot" })),
@@ -1109,7 +1134,7 @@ describe("G1 booking atomicity: retained key, concurrent replay, fault injection
   });
   it("AT07 expired retained key cannot create a second booking from unknown old intent", async () => {
     const e = setupEngine();
-    const { bookSlot } = await import("./bookingService");
+    const { bookSlot } = await import("@gafus/consultation-server/booking-application");
     await bookSlot("owner-atomic", form("retention-expired"));
     const receipt = e.ledger.get("owner-atomic:retention-expired")!;
     receipt.expiresAt = new Date(Date.now() - 1000);

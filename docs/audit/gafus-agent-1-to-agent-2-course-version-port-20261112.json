@@ -1,0 +1,241 @@
+{
+  "schema": "gafus-agent1-a2-handoff/v1",
+  "timestamp_utc": "2026-11-12T01:58:40.027454+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "git_head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "branch": "main",
+  "group": "trainer-course-version-owner-cas-rows-port",
+  "dependency_count_before": 36,
+  "dependency_count_after": 35,
+  "frozen_baseline": 41,
+  "resolved_since_frozen": 6,
+  "new_violations": 0,
+  "historical_initial": 142,
+  "historical_removed": 107,
+  "baseline_json_edited": false,
+  "merge_commit_push_deploy": false,
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "change": "M",
+      "sha256_before": "ce11980a76910f83c3ffe9dcc9dbcd8b16d2c02cd497beed6b9fa3f75a647651",
+      "sha256_after": "bd13670c457e14c9cfeee116394c8f8c14e539fc82f4ac5413d2b50fcf8800ef",
+      "backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-version-port-prechange/apps/api/src/app.ts",
+      "before_reconstructed_from_exact_patch": false
+    },
+    {
+      "path": "apps/api/src/modules/trainer-courses/composition/install-core-version-rows.contract.test.ts",
+      "change": "A",
+      "sha256_before": null,
+      "sha256_after": "1cde49eb5afdc7c7df23712c95cefb4acf05daa90f003dfd7efe3b012e753e6a",
+      "backup_path": null,
+      "before_reconstructed_from_exact_patch": false
+    },
+    {
+      "path": "apps/api/src/modules/trainer-courses/composition/install-core-version-rows.ts",
+      "change": "A",
+      "sha256_before": null,
+      "sha256_after": "02048572bf5f6c1e2b7478e53cb3e0ac5749b30b98b5dec28f676ce71f63c938",
+      "backup_path": null,
+      "before_reconstructed_from_exact_patch": false
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "change": "M",
+      "sha256_before": "0689e305ef8e9d26316208eba81beb0e3947b9472d6a5224ef5ba17ec5e243b1",
+      "sha256_after": "937e7d0cdbaa5ed3aa0054f89e4e8c790456ca22577bcbb2ad9a347e25bee34f",
+      "backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-version-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "before_reconstructed_from_exact_patch": false
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "change": "M",
+      "sha256_before": "0c508534989946246174b1ddc63b56c2db1e9f3f8d53939cefc85b94119328f9",
+      "sha256_after": "309d95bfdbc9a66825bde381ca2b95c197bdee69738121fd4bbef63553674fcb",
+      "backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-version-port-prechange/docs/audit/core-server-bulk-progress-20261111.md",
+      "before_reconstructed_from_exact_patch": false
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/courseVersionPort.test.ts",
+      "change": "A",
+      "sha256_before": null,
+      "sha256_after": "ed5b574560442681374115461b3a43192eeeec8ab57fe1f4e48c2765d8c323b3",
+      "backup_path": null,
+      "before_reconstructed_from_exact_patch": false
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/courseVersionService.ts",
+      "change": "M",
+      "sha256_before": "7fbe8b1334d624a495f3bc9f7c5f229ff10cc361b02fbcd5c89d93df6a0e0090",
+      "sha256_after": "9a07ecd9398dd379c8eb32c96c06ae26ae9276d67b741c8a93c63199448b316e",
+      "backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-version-port-prechange/packages/core/src/services/trainerCourse/courseVersionService.ts",
+      "before_reconstructed_from_exact_patch": false
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/g1-course-global-version.cas.test.ts",
+      "change": "M",
+      "sha256_before": "7f34fa9deed8a59e517b05163c61c42703cbf624269aa12bc2892e139a02ef06",
+      "sha256_after": "b350423312bdecc962e00f06280dc6121f69e37ab0800c4f659b93e42783dcf4",
+      "backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-version-port-prechange/packages/core/src/services/trainerCourse/g1-course-global-version.cas.test.ts",
+      "before_reconstructed_from_exact_patch": false
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/g1-fullschema-course-version-work-stage.real-pg.test.ts",
+      "change": "M",
+      "sha256_before": "8cc45e7585c2789ef6fc96e4aadce581aa2ef24124a865a4eb72d344ed2c1e89",
+      "sha256_after": "fedb546e0f39d77876da1c61610b005f535434cf9f3333f9d468a6c966f81313",
+      "backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-version-port-prechange/packages/core/src/services/trainerCourse/g1-fullschema-course-version-work-stage.real-pg.test.ts",
+      "before_reconstructed_from_exact_patch": false
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/index.ts",
+      "change": "M",
+      "sha256_before": "0d09c90b0b6fe246345cd89eac2e71a33ccb9aae315eb2211599dcfd7cadd119",
+      "sha256_after": "4686e6dfb9667c574a84c68945a69d71ac9ab7f8d641e485333178b9a426ff9c",
+      "backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-version-port-prechange/packages/core/src/services/trainerCourse/index.ts",
+      "before_reconstructed_from_exact_patch": true
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "change": "M",
+      "sha256_before": "d85c6e3c810c85e79236f244e26a68151dfcbdfba92fd72501cca93d9b82c3a8",
+      "sha256_after": "2152ba3fd961ecbd6f8ee5a9dcd028d66174591f237287453c8e6cc49990a78f",
+      "backup_path": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-version-port-prechange/scripts/check-core-server-boundary.mjs",
+      "before_reconstructed_from_exact_patch": false
+    }
+  ],
+  "checks": [
+    {
+      "name": "Core CAS + injected port",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/trainerCourse/courseVersionPort.test.ts src/services/trainerCourse/g1-course-global-version.cas.test.ts --config vitest.config.ts",
+      "result": "PASS",
+      "tests_passed": 18,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-course-version-port-tests.log"
+    },
+    {
+      "name": "API composition port",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/trainer-courses/composition/install-core-version-rows.contract.test.ts --config vitest.config.ts",
+      "result": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-course-version-api-port-test-v3.log"
+    },
+    {
+      "name": "Core full tests",
+      "command": "pnpm --filter @gafus/core test",
+      "result": "PASS",
+      "tests_passed": 2066,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-course-version-core-full.log"
+    },
+    {
+      "name": "API full tests",
+      "command": "pnpm --filter @gafus/api test",
+      "result": "PASS",
+      "tests_passed": 2743,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-course-version-api-full.log"
+    },
+    {
+      "name": "Core typecheck",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "result": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-course-version-core-ts.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "result": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-course-version-core-build.log"
+    },
+    {
+      "name": "API typecheck",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "result": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-course-version-api-types.log"
+    },
+    {
+      "name": "Persistence typecheck",
+      "command": "pnpm --filter @gafus/course-progress-server typecheck",
+      "result": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-course-version-persistence-types.log"
+    },
+    {
+      "name": "Worker typecheck",
+      "command": "pnpm --filter @gafus/worker typecheck",
+      "result": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-course-version-worker-types.log"
+    },
+    {
+      "name": "Workspace graph",
+      "command": "node scripts/check-workspace-graph.mjs",
+      "result": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-course-version-graph.log"
+    },
+    {
+      "name": "Architecture boundary",
+      "command": "pnpm check:core-boundaries",
+      "result": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-course-version-boundaries.log"
+    },
+    {
+      "name": "Core server facade AST",
+      "command": "node scripts/check-core-server-facades.mjs",
+      "result": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-course-version-ratchet.log"
+    }
+  ],
+  "backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-version-port-prechange",
+  "public_statuses": {
+    "course_version": [
+      "found",
+      "updated",
+      "stale",
+      "not_found",
+      "invalid",
+      "unknown"
+    ],
+    "course_logo": [
+      "updated",
+      "stale",
+      "not_found",
+      "invalid",
+      "unknown"
+    ],
+    "owner_scope": "Trainer authorId predicate SQL, ADMIN read/UPDATE owner-override unchanged",
+    "no_unknown_replay": "An ambiguous DB write or postcommit publication remains UNKNOWN; no automated write retry",
+    "unbound": "For a valid request, missing Core port is mapped to UNKNOWN by unchanged catch; never creates a success"
+  },
+  "open_acceptance": [
+    {
+      "id": "VERSIONED_COURSE_FULLSCHEMA_PG",
+      "access": "Dedicated disposable full restored PostgreSQL current schema Course.version trigger and trainer/admin identities. Enable GAFUS_AG1_FULLSCHEMA_STAGE_CAS=1 only against locally guarded gafus_refactor_course_cas_stage_20261025 DB, role gafus_refactor_local_real, loopback host and zero existing user/course rows. The real-PG test is opt-in and was not run."
+    },
+    {
+      "id": "TRAINER_PANEL_MULTI_INSTANCE",
+      "access": "Approved integrated A1/A2/A3 candidate with API and trainer-panel writers; verify every course editor path observes same DB version, logo CAS, content revision and cache signals; no production writes."
+    },
+    {
+      "id": "FINAL_INTEGRATION",
+      "access": "Remove remaining 35 Core→server edges, then run complete 33-stage architecture-final-regression, 5-stage chaos and all API/Web/Mobile/Worker/panel/PG/Redis acceptance suites with disk reserve; only after all green ratchet may change."
+    }
+  ],
+  "handoff_note": "Do not merge/push; compare SHA256 after on every path. Shared apps/api/src/app.ts, scripts guard, core/trainerCourse index and audits must be semantically merged with other agents. Existing file backups are exact; for trainerCourse/index.ts backup was reconstructed from exact known inserted lines."
+}

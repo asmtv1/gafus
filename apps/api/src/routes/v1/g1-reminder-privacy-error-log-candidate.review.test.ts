@@ -2,14 +2,26 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({
-  audit: vi.fn(), list: vi.fn(), update: vi.fn(), remove: vi.fn(),
+  audit: vi.fn(),
+  list: vi.fn(),
+  update: vi.fn(),
+  remove: vi.fn(),
 }));
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ error: m.audit }),
 }));
+vi.mock("@gafus/notifications-server/training-reminder-application", async () => {
+  const core = (await import("@gafus/core/services/reminders")) as unknown as Record<string, unknown>;
+  return {getReminders:core.getReminders,createReminder:core.createReminder,
+    updateReminder:core.updateReminder,deleteReminder:core.deleteReminder};
+});
 vi.mock("@gafus/core/services/reminders", () => ({
-  getReminders: m.list, updateReminder: m.update, deleteReminder: m.remove,
-  createReminder: vi.fn(), createReminderAG4: vi.fn(), lookupReminderAG4: vi.fn(),
+  getReminders: m.list,
+  updateReminder: m.update,
+  deleteReminder: m.remove,
+  createReminder: vi.fn(),
+  createReminderAG4: vi.fn(),
+  lookupReminderAG4: vi.fn(),
   ReminderConflictError: class ReminderConflictError extends Error {},
   ReminderUnknownError: class ReminderUnknownError extends Error {},
   ReminderInvalidError: class ReminderInvalidError extends Error {},
@@ -24,7 +36,9 @@ app.use("/api/v1/reminders/*", async (c, next) => {
 });
 app.route("/api/v1/reminders", remindersRoutes);
 const canary = "SYNTHETIC_PRIVATE_ERROR_CANARY_DO_NOT_LOG";
-beforeEach(() => { vi.clearAllMocks(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 const verify = async (res: Response, event: string) => {
   expect(res.status).toBe(500);
   expect(res.headers.get("cache-control")).toContain("no-store");
@@ -32,7 +46,9 @@ const verify = async (res: Response, event: string) => {
   expect(m.audit).toHaveBeenCalledTimes(1);
   const [label, err] = m.audit.mock.calls[0] as [string, Error];
   expect(label).toBe(`${event} reminders error`);
-  expect(err.message).toBe(`REMINDER_${event === "GET" ? "READ" : event === "PUT" ? "UPDATE" : event}_FAILED`);
+  expect(err.message).toBe(
+    `REMINDER_${event === "GET" ? "READ" : event === "PUT" ? "UPDATE" : event}_FAILED`,
+  );
   expect(JSON.stringify(m.audit.mock.calls)).not.toContain(canary);
 };
 describe("Reminder readonly/list + update/delete error logging is privacy safe", () => {
@@ -41,9 +57,10 @@ describe("Reminder readonly/list + update/delete error logging is privacy safe",
     const res = await app.request("/api/v1/reminders");
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toContain("no-store");
-    expect(await res.json()).toEqual({ success: true, data: [
-      { id: "synthetic-owned", name: "Training" },
-    ] });
+    expect(await res.json()).toEqual({
+      success: true,
+      data: [{ id: "synthetic-owned", name: "Training" }],
+    });
     expect(m.list).toHaveBeenCalledExactlyOnceWith("synthetic-owner");
     expect(m.update).not.toHaveBeenCalled();
     expect(m.remove).not.toHaveBeenCalled();
@@ -55,13 +72,20 @@ describe("Reminder readonly/list + update/delete error logging is privacy safe",
   });
   it("P02 owner PUT must not log private payload/ORM exception", async () => {
     m.update.mockRejectedValueOnce(new Error(canary));
-    await verify(await app.request("/api/v1/reminders/synthetic-one", {
-      method: "PUT", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "synthetic training" }),
-    }), "PUT");
+    await verify(
+      await app.request("/api/v1/reminders/synthetic-one", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "synthetic training" }),
+      }),
+      "PUT",
+    );
   });
   it("P03 owner DELETE must not log raw ORM exception", async () => {
     m.remove.mockRejectedValueOnce(new Error(canary));
-    await verify(await app.request("/api/v1/reminders/synthetic-one", { method: "DELETE" }), "DELETE");
+    await verify(
+      await app.request("/api/v1/reminders/synthetic-one", { method: "DELETE" }),
+      "DELETE",
+    );
   });
 });

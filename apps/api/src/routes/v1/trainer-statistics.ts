@@ -8,7 +8,7 @@
 import { Hono } from "hono";
 import type {TrainerCourseStatisticsRead,TrainerStepStatisticsRead} from
   "../../../../../packages/types/src/data/trainer-read-contracts";
-import { isCurrentTrainerUser } from "@gafus/core/services/statistics";
+import { isCurrentTrainerUser } from "@gafus/statistics";
 import { readTrainerStatisticsApplication } from "../../modules/trainer-statistics/composition/read-trainer-statistics.js";
 import { resolveTrainerStatisticsScope } from "../../lib/trainer-statistics-g1-proposal.js";
 

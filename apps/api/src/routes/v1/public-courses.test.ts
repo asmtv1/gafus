@@ -4,9 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // legacy getCoursesWithProgress. Only the Prisma read repository is stubbed.
 const courseFindManyMock = vi.hoisted(() => vi.fn());
 vi.mock("@gafus/prisma", () => ({ prisma: { course: { findMany: courseFindManyMock } } }));
-vi.mock("@gafus/core/services/course", async () => ({
+vi.mock("@gafus/course-server/public-catalog", async () => ({
   getPublicCoursesCatalog: (
-    await import("../../../../../packages/core/src/services/course/publicCatalogService")
+    await import("../../../../../packages/course-server/src/publicCatalogService")
   ).getPublicCoursesCatalog,
 }));
 vi.mock("@gafus/logger", () => ({

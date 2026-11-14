@@ -1,9 +1,12 @@
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
-import { join, sep } from "node:path";
+import { join, resolve, sep } from "node:path";
 
 // This is NOT a selectable S3 provider. The only additional backend is the
 // project-owned, loopback-only development instance with private test buckets.
-const root = "/Users/asmtv1/Desktop/gafus-refactor";
+// Bind to the real source checkout (including isolated release candidates), never to
+// someone else's fixed home directory. Existing loopback, uid and 0700/0600
+// checks below remain mandatory for every checkout.
+const root = resolve(__dirname, "../../..");
 const origin = "http://127.0.0.1:9000";
 // Exact additional WEB4-only loopback identity. No selectable host, bucket or path.
 const web4Origin = "http://127.0.0.1:9500";

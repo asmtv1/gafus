@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getAppSubscriptionAccess } from "../accessService";
+import { getAppSubscriptionAccess } from "@gafus/subscription-read-server";
 
 const mockFindMany = vi.fn();
 const mockPaymentFindFirst = vi.fn();

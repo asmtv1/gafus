@@ -1,12 +1,13 @@
 import { z } from "zod/v3";
-import * as service from "@gafus/core/services/questions";
-import { deleteUnusedQuestionPhoto } from "@gafus/core/services/questions";
+import * as service from "./service.js";
+import { deleteUnusedQuestionPhoto } from "./photos.js";
 import {
   getQuestionModeration,
   moderateQuestionReport,
   unblockQuestionsUser,
-} from "@gafus/core/services/questions";
-import { QuestionError } from "@gafus/core/services/questions";
+} from "./moderation.js";
+export { getQuestionModeration, moderateQuestionReport, unblockQuestionsUser } from "./moderation.js";
+import { QuestionError } from "./service.js";
 const pageSchema = z.coerce.number().int().min(1).max(10000).default(1);
 /** Shared request decoding. No authorization, quotas, or state rules in adapters. */
 export async function dispatchQuestionsRequest(userId: string, request: Request, path: string) {
@@ -73,7 +74,7 @@ export async function dispatchQuestionsRequest(userId: string, request: Request,
   throw new QuestionError("NOT_FOUND", "Маршрут не найден", 404);
 }
 
-export { questionHttpError } from "@gafus/core/services/questions";
+export { questionHttpError } from "@gafus/questions-shared/errors";
 
 async function readLimitedBody(request: Request, limit: number) {
   const reader = request.body?.getReader();

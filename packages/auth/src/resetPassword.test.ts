@@ -1,207 +1,84 @@
-/**
- * Объединённые тесты для resetPasswordByToken и resetPasswordByShortCode.
- * Оба используют prisma.$transaction; общий мок избегает конфликтов между файлами.
- */
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createHash } from "crypto";
+/** Tests the real Core reset workflow through its composed persistence receipt port.
+ * SQL locking/revocation atomicity is covered by identity-write-server tests;
+ * these transport tests must never bypass the port or access Prisma directly. */
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 
-const mockTransaction = vi.fn();
-const mockBcryptHash = vi.fn();
+const m = vi.hoisted(() => ({ consume: vi.fn(), phone: vi.fn(), hash: vi.fn() }));
+vi.mock("bcryptjs", () => ({ default: { hash: (...args: unknown[]) => m.hash(...args) } }));
+vi.mock("@gafus/logger", () => ({ createWebLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn() }) }));
 
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    $transaction: (cb: (tx: unknown) => Promise<void>) => mockTransaction(cb),
-  },
-}));
+import { registerPasswordResetPort } from "@gafus/core/services/auth/passwordReset";
+import { resetPasswordByToken } from "./resetPasswordByToken";
+import { resetPasswordByShortCode } from "./resetPasswordByShortCode";
 
-vi.mock("bcryptjs", () => ({
-  default: {
-    hash: (...args: unknown[]) => mockBcryptHash(...args),
-  },
-}));
+class ReceiptUnavailable extends Error {}
+const port = {
+  consumePasswordResetReceipt: (...args: unknown[]) => m.consume(...args),
+  lookupPhoneByNormalizedUsername: (...args: unknown[]) => m.phone(...args),
+  isReceiptUnavailableError: (error: unknown) => error instanceof ReceiptUnavailable,
+};
+beforeAll(() => registerPasswordResetPort(port));
+beforeEach(() => {
+  vi.clearAllMocks();
+  m.hash.mockResolvedValue("safe-bcrypt-hash");
+  m.consume.mockResolvedValue(null);
+});
 
-describe("resetPasswordByToken", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockBcryptHash.mockResolvedValue("hashed");
-  });
+const hashOf = (raw: string) => `sha256:${createHash("sha256").update(raw).digest("hex")}`;
 
-  it("success: обновляет пароль, удаляет токен", async () => {
-    const mockFindUnique = vi.fn();
-    const mockUpdate = vi.fn();
-    const mockDelete = vi.fn();
-    const mockRefreshUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
-    mockTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<void>) => {
-      const tx = {
-        passwordResetToken: { findUnique: mockFindUnique, delete: mockDelete },
-        user: { update: mockUpdate },
-        refreshToken: { updateMany: mockRefreshUpdateMany },
-      };
-      await cb(tx);
-    });
-    mockFindUnique.mockResolvedValue({
-      id: "token-id",
-      userId: "user-1",
-      expiresAt: new Date(Date.now() + 3600000),
-    });
-    mockUpdate.mockResolvedValue({});
-    mockDelete.mockResolvedValue({});
-
-    const { resetPasswordByToken } = await import("./resetPasswordByToken.ts");
+describe("resetPasswordByToken (transport to Core receipt port)", () => {
+  it("hashes password and hashes link token before one atomic receipt call", async () => {
     await resetPasswordByToken("valid-token", "newPassword");
-
-    expect(mockBcryptHash).toHaveBeenCalledWith("newPassword", 12);
-    expect(mockFindUnique).toHaveBeenCalledWith({
-      where: { token: `sha256:${createHash("sha256").update("valid-token").digest("hex")}` },
-    });
-    expect(mockUpdate).toHaveBeenCalled();
-    expect(mockRefreshUpdateMany).toHaveBeenCalledWith({
-      where: { userId: "user-1", revokedAt: null },
-      data: { revokedAt: expect.any(Date) },
-    });
-    expect(mockDelete).toHaveBeenCalledWith({ where: { id: "token-id" } });
-  });
-
-  it("принимает выданную до перехода ссылку и удаляет запись", async () => {
-    const legacyToken = "a".repeat(43);
-    const mockFindUnique = vi
-      .fn()
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "old-token-id",
-        userId: "user-1",
-        expiresAt: new Date(Date.now() + 3600000),
-      });
-    const mockDelete = vi.fn();
-    mockTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<void>) => {
-      await cb({
-        passwordResetToken: { findUnique: mockFindUnique, delete: mockDelete },
-        user: { update: vi.fn() },
-        refreshToken: { updateMany: vi.fn() },
-      });
-    });
-
-    const { resetPasswordByToken } = await import("./resetPasswordByToken.ts");
-    await resetPasswordByToken(legacyToken, "newPassword");
-
-    expect(mockFindUnique).toHaveBeenNthCalledWith(2, { where: { token: legacyToken } });
-    expect(mockDelete).toHaveBeenCalledWith({ where: { id: "old-token-id" } });
-  });
-
-  it("не принимает хеш из базы как ссылку", async () => {
-    const storedHash = `sha256:${"a".repeat(64)}`;
-    const mockFindUnique = vi.fn().mockResolvedValue(null);
-    mockTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<void>) => {
-      await cb({ passwordResetToken: { findUnique: mockFindUnique } });
-    });
-
-    const { resetPasswordByToken } = await import("./resetPasswordByToken.ts");
-    await expect(resetPasswordByToken(storedHash, "newPassword")).rejects.toThrow(
-      "Ссылка устарела или уже использована",
-    );
-    expect(mockFindUnique).toHaveBeenCalledTimes(1);
-  });
-
-  it("throw при несуществующем токене", async () => {
-    const mockFindUnique = vi.fn().mockResolvedValue(null);
-    mockTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<void>) => {
-      await cb({
-        passwordResetToken: { findUnique: mockFindUnique, delete: vi.fn() },
-        user: { update: vi.fn() },
-      });
-    });
-
-    const { resetPasswordByToken } = await import("./resetPasswordByToken.ts");
-    await expect(resetPasswordByToken("invalid", "newPass")).rejects.toThrow(
-      "Ссылка устарела или уже использована",
+    expect(m.hash).toHaveBeenCalledExactlyOnceWith("newPassword", 12);
+    expect(m.consume).toHaveBeenCalledExactlyOnceWith(
+      { kind: "token", tokenHash: hashOf("valid-token") }, "safe-bcrypt-hash",
     );
   });
-
-  it("throw при истёкшем токене", async () => {
-    const mockFindUnique = vi.fn().mockResolvedValue({
-      token: "expired",
-      userId: "user-1",
-      expiresAt: new Date(Date.now() - 1000),
-    });
-    mockTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<void>) => {
-      await cb({
-        passwordResetToken: { findUnique: mockFindUnique, delete: vi.fn() },
-        user: { update: vi.fn() },
-      });
-    });
-
-    const { resetPasswordByToken } = await import("./resetPasswordByToken.ts");
-    await expect(resetPasswordByToken("expired", "newPass")).rejects.toThrow(
+  it("supports legacy 43-character issued link, without using raw token as hash", async () => {
+    const legacy = "a".repeat(43);
+    await resetPasswordByToken(legacy, "newPassword");
+    expect(m.consume).toHaveBeenCalledExactlyOnceWith(
+      { kind: "token", tokenHash: hashOf(legacy), legacyRawToken: legacy }, "safe-bcrypt-hash",
+    );
+  });
+  it("never treats a stored SHA-256 hash as an old raw 43-character link", async () => {
+    const databaseHash = `sha256:${"a".repeat(64)}`;
+    m.consume.mockRejectedValueOnce(new ReceiptUnavailable());
+    await expect(resetPasswordByToken(databaseHash, "newPassword")).rejects.toThrow(
       "Ссылка устарела или уже использована",
     );
+    expect(m.consume).toHaveBeenCalledExactlyOnceWith(
+      { kind: "token", tokenHash: hashOf(databaseHash) }, "safe-bcrypt-hash",
+    );
+  });
+  it.each(["missing", "expired", "already-consumed"])("masks %s invalid receipts", async (token) => {
+    m.consume.mockRejectedValueOnce(new ReceiptUnavailable());
+    await expect(resetPasswordByToken(token, "newPassword")).rejects.toThrow(
+      "Ссылка устарела или уже использована",
+    );
+    expect(m.consume).toHaveBeenCalledTimes(1);
+  });
+  it("preserves unexpected server errors without claiming a successful reset", async () => {
+    m.consume.mockRejectedValueOnce(new Error("UNEXPECTED_DB_FAILURE"));
+    await expect(resetPasswordByToken("valid-token", "password")).rejects.toThrow("UNEXPECTED_DB_FAILURE");
+    expect(m.consume).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("resetPasswordByShortCode", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockBcryptHash.mockResolvedValue("hashed");
-  });
-
-  it("success: обновляет пароль и отзывает сессии при коротком коде", async () => {
-    const mockFindUnique = vi.fn();
-    const mockUpdate = vi.fn();
-    const mockDelete = vi.fn();
-    const mockRefreshUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
-
-    mockTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<void>) => {
-      const tx = {
-        passwordResetToken: {
-          findUnique: mockFindUnique,
-          delete: mockDelete,
-        },
-        user: { update: mockUpdate },
-        refreshToken: { updateMany: mockRefreshUpdateMany },
-      };
-      await cb(tx);
-    });
-
-    mockFindUnique.mockResolvedValue({
-      id: "token-id",
-      shortCode: "123456",
-      userId: "user-1",
-      expiresAt: new Date(Date.now() + 3600000),
-    });
-    mockUpdate.mockResolvedValue({});
-    mockDelete.mockResolvedValue({});
-
-    const { resetPasswordByShortCode } = await import("./resetPasswordByShortCode.ts");
+describe("resetPasswordByShortCode (same receipt port)", () => {
+  it("hashes password and passes the short code through exactly once", async () => {
     await resetPasswordByShortCode("123456", "newPassword");
-
-    expect(mockBcryptHash).toHaveBeenCalledWith("newPassword", 12);
-    expect(mockFindUnique).toHaveBeenCalledWith({
-      where: { shortCode: "123456" },
-      include: { user: true },
-    });
-    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({ password: "hashed", passwordSetAt: expect.any(Date), sessionsRevokedAt: expect.any(Date) }),
-    }));
-    expect(mockRefreshUpdateMany).toHaveBeenCalledWith({
-      where: { userId: "user-1", revokedAt: null },
-      data: { revokedAt: expect.any(Date) },
-    });
-    expect(mockDelete).toHaveBeenCalledWith({ where: { id: "token-id" } });
+    expect(m.hash).toHaveBeenCalledExactlyOnceWith("newPassword", 12);
+    expect(m.consume).toHaveBeenCalledExactlyOnceWith(
+      { kind: "shortCode", shortCode: "123456" }, "safe-bcrypt-hash",
+    );
   });
-
-  it("throw при недействительном коде", async () => {
-    mockTransaction.mockImplementation(async (cb: (tx: unknown) => Promise<void>) => {
-      await cb({
-        passwordResetToken: {
-          findUnique: vi.fn().mockResolvedValue(null),
-          delete: vi.fn(),
-        },
-        user: { update: vi.fn() },
-      });
-    });
-
-    const { resetPasswordByShortCode } = await import("./resetPasswordByShortCode.ts");
-    await expect(resetPasswordByShortCode("000000", "newPass")).rejects.toThrow(
+  it("maps an unavailable code to the public denied error", async () => {
+    m.consume.mockRejectedValueOnce(new ReceiptUnavailable());
+    await expect(resetPasswordByShortCode("000000", "newPassword")).rejects.toThrow(
       "Код недействителен или устарел",
     );
+    expect(m.consume).toHaveBeenCalledTimes(1);
   });
 });

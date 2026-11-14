@@ -5,6 +5,7 @@
  * local temp cluster in the dedicated architecture-qa scratch directory.
  */
 import assert from 'node:assert/strict';
+import { verifyFreshV1Source } from './fresh-v1-installer.mjs';
 import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -16,7 +17,10 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const here = dirname(fileURLToPath(import.meta.url));
 const scratch = join(root, '.gafus-refactoring/architecture-qa-20261103-local/bootstrap');
 const candidate = join(here, 'fresh-only-bootstrap.candidate.sql');
-const schema = join(root, 'packages/prisma/schema.prisma');
+// Historical v1 candidate is SHA-frozen. Compare it ONLY to the locked v1
+// snapshot; the mutable current schema is validated by the versioned
+// fresh-v1 installer after its normal forward migrations, not here.
+const schema = join(here, 'schema.v1.prisma');
 const cli = join(root, 'packages/prisma/node_modules/.bin/prisma');
 const bin = '/opt/homebrew/opt/postgresql@18/bin';
 const exe = name => join(bin, name);
@@ -24,6 +28,7 @@ const manifest = JSON.parse(readFileSync(join(here, 'inventory.review.json'), 'u
 assert(manifest.purpose === 'REVIEW_ONLY_FRESH_EMPTY_POSTGRES_NEVER_EXISTING_DB');
 assert(manifest.migrationCount === 163);
 assert(existsSync(candidate) && existsSync(schema));
+verifyFreshV1Source(); // SHA256 v1 snapshot, 163 migrations, forward order
 for (const command of ['postgres','initdb','pg_ctl','psql','createdb','pg_dump','pg_restore'])
   assert(existsSync(exe(command)), `LOCAL_PG18_BINARY_UNAVAILABLE:${command}`);
 const version=spawnSync(exe('postgres'), ['--version'], {encoding:'utf8',timeout:4000});
@@ -105,13 +110,13 @@ try {
   count("SELECT count(*) FROM pg_tables WHERE schemaname='public'",186,'REPLAY_NO_SCHEMA_CHANGE');
   console.log('PASS nonempty database refused before candidate DDL, atomic transaction rolled back');
   // A fresh DB with historical raw indexes is intentionally richer than
-  // schema.prisma, which cannot represent all custom indexes. Prisma's diff
+  // the frozen v1 Prisma snapshot, which cannot represent all custom indexes. Diff
   // must contain ONLY explicitly documented drops of those extra indexes;
   // claiming it is empty would normalize away preserved historical behavior.
   const migrationDiff = run(cli,['migrate','diff','--from-url',url,
     '--to-schema-datamodel',schema,'--script'],
     {timeout:90000,extraEnv:{DATABASE_URL:url}}).stdout;
-  console.log('OWN_FRESH_PG18_DIFF_TO_PRISMA_SCHEMA_ONLY: '+migrationDiff.replace(/\s+/g,' ').slice(0,650));
+  console.log('OWN_FRESH_PG18_DIFF_TO_FROZEN_V1_SCHEMA_ONLY: '+migrationDiff.replace(/\s+/g,' ').slice(0,650));
   const diffSql = migrationDiff.replace(/^--[^\n]*$/gm,'').trim();
   const statements = diffSql.split(';').map(x=>x.trim()).filter(Boolean);
   const allowedExtraIndexes = new Set([

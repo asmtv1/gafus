@@ -1,0 +1,190 @@
+import { cynologistIntakeSchema } from "@gafus/consultation-shared";
+import { z } from "zod/v3";
+
+/** Литералы Prisma enum — не `z.nativeEnum` из @gafus/prisma: в server-бандлах Next именованные экспорты Prisma-enum иногда undefined. */
+const CONSULTATION_SLOT_STATUS = ["FREE", "BOOKED", "BLOCKED"] as const;
+const CONSULTATION_BOOKING_STATUS = [
+  "PENDING_TRAINER_CONFIRMATION",
+  "CONFIRMED",
+  "CANCELLED_BY_TRAINER",
+  "CANCELLED_BY_USER",
+  "CANCELLED_BY_SLA",
+  "CANCELLED_BY_SYSTEM",
+  "COMPLETED",
+  "NO_SHOW",
+] as const;
+
+const HH_MM = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+const uuidV4 = z.string().uuid("Нужен Idempotency-Key (UUID в заголовке или теле)");
+
+/** ISO-строки from/to; верхняя граница длины — защита от чрезмерного ввода в query. */
+export const getSlotsQuerySchema = z
+  .object({
+    from: z.string().min(1).max(64),
+    to: z.string().min(1).max(64),
+    /** «1» — календарь со всеми статусами слотов (как web с includeBusy). */
+    includeBusy: z.enum(["0", "1"]).optional(),
+  })
+  .refine(
+    (d) => {
+      const a = new Date(d.from).getTime();
+      const b = new Date(d.to).getTime();
+      return !Number.isNaN(a) && !Number.isNaN(b) && b >= a && b - a <= 60 * 24 * 60 * 60 * 1000;
+    },
+    { message: "Интервал не более 60 дней и from ≤ to", path: ["to"] },
+  );
+
+export const bookSlotInputSchema = cynologistIntakeSchema
+  .omit({ clientProblemDuration: true })
+  .extend({
+    slotId: z.string().min(1),
+    idempotencyKey: uuidV4,
+  });
+
+interface BookSlotInputShape {
+  slotId: string;
+  idempotencyKey: string;
+  clientOwnerName: string;
+  clientPhone: string;
+  petName: string;
+  petGender: "MALE" | "FEMALE";
+  petAge: string;
+  petBreed: string;
+  clientProblem: string;
+  clientSelfHelpAttempt: string;
+}
+
+export const trainerConfirmInputSchema = z.object({
+  bookingId: z.string().min(1),
+});
+
+export const trainerRejectInputSchema = z.object({
+  bookingId: z.string().min(1),
+  reason: z.string().max(500).optional(),
+});
+
+export const cancelBookingInputSchema = z.object({
+  bookingId: z.string().min(1),
+  reason: z.string().max(500).optional(),
+});
+
+/** Тело POST отмены, когда bookingId в path. */
+export const cancelBookingBodySchema = z.object({
+  reason: z.string().max(500).optional(),
+});
+
+const availabilityRuleRowSchema = z
+  .object({
+    weekday: z.number().int().min(0).max(6),
+    startTime: z.string().regex(HH_MM, "Время начала HH:MM"),
+    endTime: z.string().regex(HH_MM, "Время окончания HH:MM"),
+    isWorkingDay: z.boolean().default(true),
+  })
+  .refine(
+    (r) => {
+      const [sh, sm] = r.startTime.split(":").map(Number);
+      const [eh, em] = r.endTime.split(":").map(Number);
+      return eh * 60 + em > sh * 60 + sm;
+    },
+    { message: "Конец интервала должен быть позже начала", path: ["endTime"] },
+  );
+
+export const trainerAvailabilityInputSchema = z.object({
+  // Prisma enforces @@unique([cynologistId, weekday]): never accept multiple
+  // rows for the same day and return a deterministic 400 before touching SQL.
+  rules: z
+    .array(availabilityRuleRowSchema)
+    .min(1)
+    .max(7)
+    .superRefine((rules, ctx) => {
+      const seen = new Set<number>();
+      rules.forEach((rule, index) => {
+        if (seen.has(rule.weekday)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [index, "weekday"],
+            message: "Для каждого дня недели допускается только один интервал",
+          });
+        }
+        seen.add(rule.weekday);
+      });
+    }),
+});
+
+export const dayOffInputSchema = z.object({
+  // A regex alone accepts 2026-02-31, which JS Date silently normalizes to
+  // March. The date must round-trip in UTC before staff changes the calendar.
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Дата YYYY-MM-DD")
+    .refine((iso) => {
+      const value = new Date(`${iso}T12:00:00.000Z`);
+      return Number.isFinite(value.getTime()) && value.toISOString().slice(0, 10) === iso;
+    }, "Несуществующая календарная дата"),
+  reason: z.string().max(500).optional(),
+});
+
+export const slotExceptionInputSchema = z
+  .object({
+    startAt: z.string().datetime({ offset: true }),
+    endAt: z.string().datetime({ offset: true }),
+    reason: z.string().max(500).optional(),
+  })
+  .refine((d) => new Date(d.endAt).getTime() > new Date(d.startAt).getTime(), {
+    message: "endAt должен быть позже startAt",
+    path: ["endAt"],
+  });
+
+export const adminListedCynologistsInputSchema = z.object({
+  cynologistUserIds: z.array(z.string().min(1)),
+});
+
+export const cursorPaginationSchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+});
+
+/** Id в Prisma — cuid/uuid-строки; не привязываемся к одному формату. */
+const consultationEntityIdSchema = z.string().min(1).max(128);
+
+/** Валидация JSON при replay идемпотентности брони (защита от подмены записи в БД). */
+const consultationSlotDtoSchema = z.object({
+  id: consultationEntityIdSchema,
+  startAtUtc: z.string().min(1),
+  endAtUtc: z.string().min(1),
+  status: z.enum(CONSULTATION_SLOT_STATUS),
+});
+
+const consultationPetGenderDtoSchema = z.enum(["MALE", "FEMALE"]);
+
+const consultationBookingDtoSchema = z.object({
+  id: consultationEntityIdSchema,
+  status: z.enum(CONSULTATION_BOOKING_STATUS),
+  slot: consultationSlotDtoSchema,
+  cynologistUserId: z.string().min(1),
+  cynologistDisplayName: z.string().nullable(),
+  /** Старые ответы идемпотентности без поля — допускаем отсутствие ключа. */
+  clientUsername: z.string().nullable().optional(),
+  clientOwnerName: z.string().nullable(),
+  clientPhone: z.string().nullable(),
+  petName: z.string().nullable(),
+  petGender: consultationPetGenderDtoSchema.nullable(),
+  petAge: z.string().nullable(),
+  petBreed: z.string().nullable(),
+  clientProblem: z.string().nullable(),
+  clientSelfHelpAttempt: z.string().nullable(),
+  cancelReason: z.string().nullable(),
+  confirmationDeadlineAt: z.string().min(1),
+  createdAt: z.string().min(1),
+});
+
+export const bookSlotResultSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("created"), booking: consultationBookingDtoSchema }),
+  z.object({ kind: z.literal("idempotent_replay"), booking: consultationBookingDtoSchema }),
+]);
+
+export type GetSlotsQuery = z.infer<typeof getSlotsQuerySchema>;
+export type BookSlotInput = BookSlotInputShape;
+export type TrainerAvailabilityInput = z.infer<typeof trainerAvailabilityInputSchema>;
+export type AdminListedCynologistsInput = z.infer<typeof adminListedCynologistsInputSchema>;

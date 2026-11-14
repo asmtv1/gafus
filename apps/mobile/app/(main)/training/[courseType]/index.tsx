@@ -1427,7 +1427,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   guideSpinnerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(255, 255, 255, 0.7)",
     alignItems: "center",
     justifyContent: "center",
@@ -1570,7 +1570,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   webViewOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: COLORS.surface,
   },
   webViewFlex: {

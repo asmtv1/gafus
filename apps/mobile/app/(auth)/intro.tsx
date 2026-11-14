@@ -149,7 +149,7 @@ export default function IntroScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.background, overflow: "hidden" },
-  posterBackground: { ...StyleSheet.absoluteFillObject },
+  posterBackground: { ...StyleSheet.absoluteFill },
   top: { zIndex: 2, flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: SPACING.md, paddingTop: SPACING.sm },
   brand: { color: COLORS.primary, fontFamily: FONTS.impact, fontSize: 25 },
   skipButton: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: "rgba(91, 88, 35, 0.24)", backgroundColor: "rgba(255, 249, 230, 0.52)" },

@@ -54,7 +54,8 @@ export default defineConfig(({ command, isPreview }) => {
     },
     // Isolated client: no SW, no Workbox, no PWA manifest, no plugins.
     root: import.meta.dirname,
-    build: { outDir: "dist", emptyOutDir: true },
+    build: { outDir: "dist", emptyOutDir: true,
+      sourcemap: process.env.GAFUS_PRIVATE_MAPS_ENABLED === "true" ? "hidden" : false },
     // Preview serves static assets only. Never inherit a dev proxy.
     preview: { host: "127.0.0.1", port: 4175, strictPort: true, proxy: {} },
     server: {

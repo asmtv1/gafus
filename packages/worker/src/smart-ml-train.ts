@@ -1,5 +1,5 @@
-import { disconnectCoreDatabase } from "@gafus/core/services/systemHealth";
-import { trainCurrentSmartFeedRanker } from "@gafus/core/services/feed";
+import { disconnectCoreDatabase } from "@gafus/statistics/database-health";
+import { trainCurrentSmartFeedRanker } from "@gafus/feed-server/smart-persistence";
 
 /** Manual offline training, never auto-promotes artifacts. */
 async function main() {

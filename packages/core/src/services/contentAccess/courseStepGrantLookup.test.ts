@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { hasActiveGafusCourseStepAccess } from "./index";
+import { registerCourseOccurrenceReadsPort } from "./index";
+import { readActiveCourseStepGafusGrant, readAllowedVideoCourseStepAccess } from "@gafus/entitlements-server";
+registerCourseOccurrenceReadsPort({ readActiveCourseStepGafusGrant, readAllowedVideoCourseStepAccess });
+
 
 const lookupDay = vi.fn();
 const lookupStep = vi.fn();

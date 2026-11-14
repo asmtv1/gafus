@@ -20,6 +20,18 @@ import {
   updateCourseNameVersioned,
   setCourseLogoVersioned,
 } from "./courseVersionService";
+import {
+  readCourseVersionRows,
+  writeCourseNameVersionRows,
+  setCourseLogoVersionRows,
+} from "@gafus/course-progress-server/course-version-rows";
+import { registerCourseVersionRowsPort } from "./courseVersionService";
+registerCourseVersionRowsPort({
+  readCourseVersionRows,
+  writeCourseNameVersionRows,
+  setCourseLogoVersionRows,
+});
+
 
 const courseId = "ag1FullSchemaCASCourse20261025";
 const ownerId = "ag1FullSchemaCASOwner20261025";

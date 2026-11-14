@@ -75,6 +75,12 @@ vi.mock("@gafus/core/services/auth", async (original) => ({
 vi.mock("@gafus/core/services/pets", async (original) => ({
   ...(await original<typeof PetsCore>()),
   getUserPets: m.pets,
+}));
+// The mounted Hono weight endpoint now imports the owning pets-server repo.
+// Mock that exact repository boundary while keeping the real registered API,
+// middleware, JSON response and Mobile parser under test.
+vi.mock("@gafus/pets-server/weight", async (original) => ({
+  ...(await original<object>()),
   getPetWeightHistory: m.weight,
 }));
 vi.mock("expo-secure-store", () => ({

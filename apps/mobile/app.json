@@ -2,7 +2,7 @@
   "expo": {
     "name": "Гафус",
     "slug": "gafus",
-    "version": "1.7.3",
+    "version": "1.8.0",
     "orientation": "default",
     "scheme": "gafus",
     "userInterfaceStyle": "automatic",
@@ -14,7 +14,7 @@
     "icon": "./assets/images/icon512.png",
     "splash": {
       "image": "./assets/images/startup-splash.png",
-      "resizeMode": "contain",
+      "resizeMode": "cover",
       "backgroundColor": "#B5E5EB"
     },
     "androidStatusBar": {
@@ -36,7 +36,7 @@
       "appleTeamId": "PJQ8PP666S",
       "splash": {
         "image": "./assets/images/startup-splash.png",
-        "resizeMode": "contain",
+        "resizeMode": "cover",
         "backgroundColor": "#B5E5EB"
       }
     },
@@ -332,9 +332,12 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#B5E5EB",
+          "image": "./assets/images/startup-splash.png",
+          "imageWidth": 200,
+          "resizeMode": "cover",
           "ios": {
             "image": "./assets/images/startup-splash.png",
-            "resizeMode": "contain",
+            "resizeMode": "cover",
             "enableFullScreenImage_legacy": true
           },
           "android": {
@@ -359,8 +362,6 @@
       "./plugins/withMinSdkFromGradleProps",
       "./plugins/withIosAppMetrica516Compatibility",
       "./plugins/withAppTracerNative",
-      "./plugins/withExpo55ReactHost",
-      "./plugins/withExpo55IosAppDelegate",
       "./plugins/withVoximplantIosPods",
       "expo-router",
       "expo-secure-store",
@@ -407,6 +408,7 @@
         }
       ],
       "expo-iap",
+      "./plugins/withDogWalkWidgetEmbed",
       [
         "expo-widgets",
         {
@@ -423,6 +425,7 @@
           ]
         }
       ],
+      "./plugins/withDogWalkBackgroundSteps",
       [
         "react-native-android-widget",
         {
@@ -441,10 +444,9 @@
         }
       ],
       "./plugins/withDogWalkChronometer",
-      "./plugins/withDogWalkBackgroundSteps",
-      "./plugins/withHermesCompiler",
       "./plugins/withStartupWindowBackground",
-      "./plugins/withDogWalkWidgetEmbed"
+      "./plugins/withNativeAndroidStartup",
+      "./plugins/withIosStoreKitOnlyPodfile"
     ],
     "experiments": {
       "typedRoutes": true

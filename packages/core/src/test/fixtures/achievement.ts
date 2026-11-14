@@ -1,7 +1,7 @@
 /**
  * Fixture для тестов достижений
  */
-import type { AchievementStats } from "../../services/achievements/calculateAchievements";
+import type { AchievementStats } from "@gafus/types";
 
 export function createAchievementStatsFixture(
   overrides?: Partial<AchievementStats>,

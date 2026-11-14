@@ -63,7 +63,7 @@ describe("enqueueConsultationEmail", () => {
       }),
     );
 
-    const { enqueueConsultationEmail } = await import("./notificationService");
+    const { enqueueConsultationEmail } = await import("@gafus/notifications-server/consultation-email-outbox");
     const result = await enqueueConsultationEmail(
       "booking-1",
       ConsultationEmailType.CLIENT_CONSULTATION_START,

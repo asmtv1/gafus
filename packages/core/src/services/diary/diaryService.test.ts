@@ -1,157 +1,110 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getDiaryEntries as coreReadDiary,
+  saveDiaryEntry as coreSaveDiary,
+  type DiaryPersistencePort,
+} from "./diaryService";
 
-import { getDiaryEntries, saveDiaryEntry } from "./diaryService";
-
-const mockCheckCourseAccessById = vi.fn();
-const mockCourseFindUnique = vi.fn();
-const mockCourseFindFirst = vi.fn();
-const mockDayOnCourseFindUnique = vi.fn();
-const mockDayOnCourseFindMany = vi.fn();
-const mockDiaryEntryUpsert = vi.fn();
-const mockDiaryEntryFindMany = vi.fn();
-
+const courseAccess = vi.fn();
 vi.mock("../course/courseService", () => ({
-  checkCourseAccessById: (...args: unknown[]) => mockCheckCourseAccessById(...args),
+  checkCourseAccessById: (...args: unknown[]) => courseAccess(...args),
 }));
-
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    course: {
-      findUnique: (...args: unknown[]) => mockCourseFindUnique(...args),
-      findFirst: (...args: unknown[]) => mockCourseFindFirst(...args),
-    },
-    dayOnCourse: {
-      findUnique: (...args: unknown[]) => mockDayOnCourseFindUnique(...args),
-      findMany: (...args: unknown[]) => mockDayOnCourseFindMany(...args),
-    },
-    diaryEntry: {
-      upsert: (...args: unknown[]) => mockDiaryEntryUpsert(...args),
-      findMany: (...args: unknown[]) => mockDiaryEntryFindMany(...args),
-    },
-  },
-}));
-
 vi.mock("@gafus/logger", () => ({
-  createWebLogger: () => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    success: vi.fn(),
-  }),
+  createWebLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn() }),
 }));
 
-describe("saveDiaryEntry", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockCheckCourseAccessById.mockResolvedValue({ hasAccess: true });
-    mockDiaryEntryUpsert.mockResolvedValue({});
-  });
-
-  it("ошибка при пустом тексте", async () => {
-    const r = await saveDiaryEntry("u1", "doc1", "   ");
-
-    expect(r.success).toBe(false);
-    expect(r.error).toContain("пустым");
-  });
-
-  it("ошибка при слишком длинном тексте", async () => {
-    const r = await saveDiaryEntry("u1", "doc1", "x".repeat(10001));
-
-    expect(r.success).toBe(false);
-    expect(r.error).toContain("10000");
-  });
-
-  it("ошибка если день курса не найден", async () => {
-    mockDayOnCourseFindUnique.mockResolvedValue(null);
-
-    const r = await saveDiaryEntry("u1", "doc1", "Текст");
-
-    expect(r.success).toBe(false);
-    expect(r.error).toContain("не найден");
-  });
-
-  it("ошибка без доступа к курсу", async () => {
-    mockDayOnCourseFindUnique.mockResolvedValue({
-      dayId: "d1",
-      courseId: "c1",
-    });
-    mockCheckCourseAccessById.mockResolvedValue({ hasAccess: false });
-
-    const r = await saveDiaryEntry("u1", "doc1", "Запись");
-
-    expect(r.success).toBe(false);
-    expect(r.error).toContain("доступа");
-  });
-
-  it("успешный upsert", async () => {
-    mockDayOnCourseFindUnique.mockResolvedValue({
-      dayId: "d1",
-      courseId: "c1",
-    });
-
-    const r = await saveDiaryEntry("u1", "doc1", "  Запись  ");
-
-    expect(r.success).toBe(true);
-    expect(mockDiaryEntryUpsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId_dayId: { userId: "u1", dayId: "d1" } },
-        create: expect.objectContaining({ content: "Запись" }),
-      }),
-    );
-  });
+const repo = {
+  resolveDiaryCourseId: vi.fn(),
+  readDiaryDayOccurrence: vi.fn(),
+  writeDiaryUserDay: vi.fn(),
+  readDiaryCourseEntries: vi.fn(),
+} satisfies DiaryPersistencePort;
+const save = (user: string, occurrence: string, text: string) =>
+  coreSaveDiary(repo, user, occurrence, text);
+const get = (user: string, course: string, upTo?: string) =>
+  coreReadDiary(repo, user, course, upTo);
+beforeEach(() => {
+  vi.clearAllMocks();
+  courseAccess.mockResolvedValue({ hasAccess: true });
+  repo.resolveDiaryCourseId.mockResolvedValue("course-A");
+  repo.readDiaryDayOccurrence.mockResolvedValue({ dayId: "day-A", courseId: "course-A" });
+  repo.writeDiaryUserDay.mockResolvedValue({});
+  repo.readDiaryCourseEntries.mockResolvedValue([]);
 });
 
-describe("getDiaryEntries", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockCheckCourseAccessById.mockResolvedValue({ hasAccess: true });
-    mockDiaryEntryFindMany.mockResolvedValue([]);
+describe("Core diary policy with injected owner-scoped SQL", () => {
+  it("rejects blank content before any SQL lookup", async () => {
+    await expect(save("owner-A", "occ-A", "   ")).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("пустым"),
+    });
+    expect(repo.readDiaryDayOccurrence).not.toHaveBeenCalled();
+    expect(repo.writeDiaryUserDay).not.toHaveBeenCalled();
   });
-
-  it("курс не найден", async () => {
-    mockCourseFindUnique.mockResolvedValue(null);
-    mockCourseFindFirst.mockResolvedValue(null);
-
-    const r = await getDiaryEntries("u1", "unknown-type");
-
-    expect(r.entries).toEqual([]);
-    expect(r.error).toContain("не найден");
+  it("rejects oversized content before any SQL lookup", async () => {
+    await expect(save("owner-A", "occ-A", "x".repeat(10001))).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("10000"),
+    });
+    expect(repo.readDiaryDayOccurrence).not.toHaveBeenCalled();
   });
-
-  it("нет доступа", async () => {
-    mockCourseFindUnique.mockResolvedValue({ id: "c1" });
-    mockCheckCourseAccessById.mockResolvedValue({ hasAccess: false });
-
-    const r = await getDiaryEntries("u1", "c1");
-
-    expect(r.entries).toEqual([]);
-    expect(r.error).toContain("доступа");
+  it("does not mutate when course occurrence is absent", async () => {
+    repo.readDiaryDayOccurrence.mockResolvedValue(null);
+    await expect(save("owner-A", "missing", "текст")).resolves.toMatchObject({ success: false });
+    expect(courseAccess).not.toHaveBeenCalled();
+    expect(repo.writeDiaryUserDay).not.toHaveBeenCalled();
   });
-
-  it("возвращает записи в порядке дней", async () => {
-    mockCourseFindUnique.mockResolvedValue({ id: "c1" });
-    mockDayOnCourseFindMany.mockResolvedValue([
-      {
-        id: "doc1",
-        order: 1,
-        dayId: "d1",
-        day: { title: "День 1" },
-      },
-    ]);
-    mockDiaryEntryFindMany.mockResolvedValue([
-      {
-        id: "e1",
-        content: "текст",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        dayId: "d1",
-      },
-    ]);
-
-    const r = await getDiaryEntries("u1", "c1");
-
-    expect(r.error).toBeUndefined();
-    expect(r.entries).toHaveLength(1);
-    expect(r.entries[0].dayTitle).toBe("День 1");
+  it("checks the exact owner's course access before touching the diary", async () => {
+    courseAccess.mockResolvedValue({ hasAccess: false });
+    await expect(save("owner-A", "occ-A", "текст")).resolves.toMatchObject({
+      success: false,
+      error: expect.stringContaining("доступа"),
+    });
+    expect(repo.readDiaryDayOccurrence).toHaveBeenCalledExactlyOnceWith("occ-A");
+    expect(courseAccess).toHaveBeenCalledExactlyOnceWith("course-A", "owner-A");
+    expect(repo.writeDiaryUserDay).not.toHaveBeenCalled();
+  });
+  it("writes only the requesting owner's day with trimmed content", async () => {
+    await expect(save("owner-A", "occ-A", "  Запись  ")).resolves.toEqual({ success: true });
+    expect(repo.writeDiaryUserDay).toHaveBeenCalledExactlyOnceWith("owner-A", "day-A", "Запись");
+  });
+  it("denies an unknown course before a member diary read", async () => {
+    repo.resolveDiaryCourseId.mockResolvedValue(null);
+    await expect(get("owner-A", "missing")).resolves.toMatchObject({
+      entries: [],
+      error: expect.stringContaining("найден"),
+    });
+    expect(courseAccess).not.toHaveBeenCalled();
+    expect(repo.readDiaryCourseEntries).not.toHaveBeenCalled();
+  });
+  it("never reads another owner's diary when the course entitlement is denied", async () => {
+    courseAccess.mockResolvedValue({ hasAccess: false });
+    await expect(get("owner-A", "course-A")).resolves.toMatchObject({
+      entries: [],
+      error: expect.stringContaining("доступа"),
+    });
+    expect(repo.resolveDiaryCourseId).toHaveBeenCalledExactlyOnceWith("course-A");
+    expect(repo.readDiaryCourseEntries).not.toHaveBeenCalled();
+  });
+  it("passes owner, resolved course and optional course-occurrence cutoff to SQL", async () => {
+    const entry = {
+      id: "entry-A",
+      content: "training",
+      createdAt: new Date("2026-11-01T12:00:00Z"),
+      updatedAt: new Date("2026-11-01T12:00:00Z"),
+      dayId: "day-A",
+      dayOnCourseId: "occ-A",
+      dayOrder: 1,
+      dayTitle: "Урок 1",
+    };
+    repo.readDiaryCourseEntries.mockResolvedValue([entry]);
+    await expect(get("owner-A", "course-type", "occ-A")).resolves.toEqual({ entries: [entry] });
+    expect(repo.resolveDiaryCourseId).toHaveBeenCalledExactlyOnceWith("course-type");
+    expect(courseAccess).toHaveBeenCalledExactlyOnceWith("course-A", "owner-A");
+    expect(repo.readDiaryCourseEntries).toHaveBeenCalledExactlyOnceWith(
+      "owner-A",
+      "course-A",
+      "occ-A",
+    );
   });
 });

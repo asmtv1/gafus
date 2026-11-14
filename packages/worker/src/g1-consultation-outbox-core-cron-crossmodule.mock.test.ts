@@ -1,6 +1,6 @@
 /**
  * WORK070 distinct in-process trust boundary: actual source mailer OUTBOX
- * -> actual source Core consultationEmailDelivery.reconcile
+ * -> actual source Consultation Server consultationEmailDelivery.reconcile
  * -> actual source worker cron alert. All IO is synthetic, pre-import mocked.
  * Does NOT build, import broad packages, connect to Redis, Prisma or provider.
  */
@@ -56,30 +56,38 @@ vi.mock("node-cron", () => ({
 vi.mock("@gafus/mailer", () => ({
   processDueTransactionalMailOutbox: (...args: unknown[]) => m.actualOutbox(...args),
 }));
-vi.mock("@gafus/core/services/consultation", () => ({
-  reconcileConsultationEmailLog: (...args: unknown[]) => m.actualReconcile(...args),
+vi.mock("@gafus/consultation-server/booking-application", () => ({
   reconcileMissedConsultationReminders: vi.fn().mockResolvedValue({
     checked: 0, triggered30m: 0, triggeredStart: 0,
   }),
 }));
-// Every unrelated cron import must be inert before importing actual scheduler.
-vi.mock("@gafus/core/services/questions", () => ({
-  reconcileQuestionNotifications: vi.fn(), cleanupUnusedQuestionPhotos: vi.fn(),
+vi.mock("@gafus/consultation-server/mail-delivery", () => ({
+  reconcileConsultationEmailLog: (...args: unknown[]) => m.actualReconcile(...args),
 }));
-vi.mock("@gafus/core/services/accountCleanup", () => ({
+// Every unrelated cron import must be inert before importing actual scheduler.
+vi.mock("@gafus/questions-server/notifications", () => ({
+  reconcileQuestionNotifications: vi.fn(),
+}));
+vi.mock("@gafus/questions-server/photos", () => ({
+  cleanupUnusedQuestionPhotos: vi.fn(),
+  processDueLegacyQuestionPhotoDeletions: vi.fn(),
+}));
+vi.mock("./accountCleanupWorker", () => ({
   processAccountStorageCleanup: vi.fn(),
 }));
-vi.mock("@gafus/core/services/feed", () => ({
+vi.mock("@gafus/feed-server/smart-persistence", () => ({
   refreshCurrentSmartFeedStats: vi.fn(),
   refreshCurrentSmartAuthorAffinities: vi.fn(),
   getCurrentSmartFeedHealth: vi.fn(),
   pruneCurrentSmartFeedSignals: vi.fn(),
   trainCurrentSmartFeedRanker: vi.fn(),
 }));
+vi.mock("@gafus/core/services/feed", () => ({
+}));
 vi.mock("@gafus/reengagement", () => ({
   scheduleReengagementCampaigns: vi.fn(), recordDailyMetrics: vi.fn(),
 }));
-vi.mock("@gafus/core/services/appSubscription", () => ({
+vi.mock("./composition/app-subscription-payment", () => ({
   reconcileAppleAppSubscriptionsFromServer: vi.fn(),
   reconcileStaleYookassaPendingAppSubscriptions: vi.fn(),
 }));
@@ -128,7 +136,7 @@ beforeAll(async () => {
   // These explicit source imports run only after Vitest hoisted all mocks.
   const [mailer, core, worker] = await Promise.all([
     import("../../mailer/src/outbox"),
-    import("../../core/src/services/consultation/consultationEmailDelivery"),
+    import("../../consultation-server/src/consultationEmailDelivery"),
     import("./cron-scheduler"),
   ]);
   makeEnvelope = mailer.encryptMailPayload;

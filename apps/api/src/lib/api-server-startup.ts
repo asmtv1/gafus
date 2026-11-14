@@ -15,6 +15,7 @@ export type ApiServerRuntime = {
   startMonitor: () => () => void | Promise<void>;
   disconnectDatabase: () => Promise<void>;
   quitRedis: () => Promise<unknown>;
+  flushTelemetry?: () => Promise<void>;
   logInfo: (message: string) => void;
   logError: (message: string) => void;
 };
@@ -52,6 +53,7 @@ export async function startApiServer(
       closeHttp: (onClosed) => server!.close(onClosed),
       disconnectDatabase: runtime.disconnectDatabase,
       quitRedis: runtime.quitRedis,
+      flushTelemetry: runtime.flushTelemetry,
       logInfo: runtime.logInfo,
       logError: runtime.logError,
       exit: runtimeProcess.exit,

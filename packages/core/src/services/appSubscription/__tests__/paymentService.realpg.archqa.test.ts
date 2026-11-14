@@ -8,7 +8,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@gafus/prisma";
-import { handleYookassaAppSubscriptionWebhook } from "../paymentService";
+import { createPaymentService } from "@gafus/subscription-payment-server/service";
+import { AppSubscriptionPromoCodeDomainError, isAppSubscriptionPromoCodeEntryEnabled } from "../promoCodeService";
+const { handleYookassaAppSubscriptionWebhook } = createPaymentService({
+  AppSubscriptionPromoCodeDomainError, isAppSubscriptionPromoCodeEntryEnabled,
+});
 
 const database = process.env.DATABASE_URL ?? "";
 const safe = (() => {

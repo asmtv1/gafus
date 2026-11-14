@@ -1,3 +1,4 @@
+export type { NotesPersistencePort } from "./notesPersistencePort";
 export {
   getStudentNotes,
   createTrainerNote,
@@ -11,6 +12,7 @@ export type {
   PagerResult,
   TrainerNoteDto,
   TrainerNoteEntryDto,
+  TrainerNotePushPort,
 } from "./notesService";
 export {
   createTrainerNoteSchema,

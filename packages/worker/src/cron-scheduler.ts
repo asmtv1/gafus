@@ -1,29 +1,26 @@
-import {
-  reconcileQuestionNotifications,
-  cleanupUnusedQuestionPhotos,
-} from "@gafus/core/services/questions";
+import { reconcileQuestionNotifications } from "@gafus/questions-server/notifications";
+import { cleanupUnusedQuestionPhotos, processDueLegacyQuestionPhotoDeletions } from "@gafus/questions-server/photos";
 /**
  * Cron-планировщик для периодических задач
  * Запускает re-engagement планировщик ежедневно
  */
 
 import cron from "node-cron";
-import { processAccountStorageCleanup } from "@gafus/core/services/accountCleanup";
+import { processAccountStorageCleanup } from "./accountCleanupWorker";
 import {
-  refreshCurrentSmartFeedStats,
-  refreshCurrentSmartAuthorAffinities,
-  getCurrentSmartFeedHealth,
-  pruneCurrentSmartFeedSignals,
+  refreshCurrentSmartFeedStats, refreshCurrentSmartAuthorAffinities,
+  getCurrentSmartFeedHealth, pruneCurrentSmartFeedSignals,
   trainCurrentSmartFeedRanker,
-} from "@gafus/core/services/feed";
+} from "@gafus/feed-server/smart-persistence";
 import { scheduleReengagementCampaigns } from "@gafus/reengagement";
 import { recordDailyMetrics } from "@gafus/reengagement";
 import { createWorkerLogger } from "@gafus/logger";
 import {
   reconcileAppleAppSubscriptionsFromServer,
   reconcileStaleYookassaPendingAppSubscriptions,
-} from "@gafus/core/services/appSubscription";
-import { reconcileMissedConsultationReminders, reconcileConsultationEmailLog } from "@gafus/core/services/consultation";
+} from "./composition/app-subscription-payment";
+import { reconcileMissedConsultationReminders } from "@gafus/consultation-server/booking-application";
+import { reconcileConsultationEmailLog } from "@gafus/consultation-server/mail-delivery";
 import { TRAINING_REMINDER_CRON_EXPRESSION } from "./training-reminder-schedule";
 import { sendTrainingReminders } from "./training-reminders-sender";
 import { processDueYookassaAppSubscriptionRenewals } from "./app-subscription-renewals";
@@ -267,7 +264,7 @@ export function startCronJobs(): void {
   if (process.env.PET_MEDIA_DELETION_OUTBOX_ENABLED === "true" &&
       process.env.PET_MEDIA_CLEANUP_WORKER_ENABLED === "true") {
     cron.schedule("* * * * *", () => {
-      void import("@gafus/core/services/pets")
+      void import("./petMediaDeletionRuntime")
         .then(({processDuePetMediaDeletionIntents})=>processDuePetMediaDeletionIntents(3))
         .catch(() => logger.error("PET_MEDIA_DELETION_SCHEDULER_FAILED"));
     }, {timezone:"UTC"});
@@ -289,6 +286,18 @@ export function startCronJobs(): void {
       logger.error("Question photo cleanup failed", error as Error),
     );
   });
+
+  // Post-commit S3 deletion of legacy detached Question photos.
+  // EXPAND QuestionLegacyPhotoDeletion migration before enabling this Worker.
+  // Opt-in because older production schemas have not been migrated yet.
+  if (process.env.QUESTIONS_LEGACY_PHOTO_DELETE_WORKER_ENABLED === "true") {
+    cron.schedule("* * * * *", () => {
+      void processDueLegacyQuestionPhotoDeletions({limit:20}).catch(() =>
+        logger.error("QUESTIONS_LEGACY_DELETE_WORKER_FAILED",
+          new Error("QUESTIONS_LEGACY_DELETE_WORKER_FAILED")),
+      );
+    });
+  }
 
   // Задача 1: Re-engagement планировщик (ежедневно в 8:00 МСК)
   cron.schedule(

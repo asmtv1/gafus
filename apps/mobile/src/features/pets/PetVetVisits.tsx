@@ -17,7 +17,7 @@ import { Text } from "react-native-paper";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Stack, useNavigation, useRouter } from "expo-router";
-import { usePreventRemove } from "@react-navigation/native";
+import { usePreventRemove } from "expo-router/react-navigation";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useFocusEffect } from "expo-router";

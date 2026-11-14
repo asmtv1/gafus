@@ -7,12 +7,13 @@ import { FEED_LIMITS, FEED_PHOTO_MIME_TYPES, FEED_VIDEO_MIME_TYPES,
 import { feedApi } from "@/shared/lib/api/feed";
 import { makeFeedVideoPoster } from "./videoPoster";
 import { prepareUploadVideo720, type PreparedUploadVideo720 } from "@/shared/lib/media/prepareUploadVideo720";
-import { prepareVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWebp";
+import { prepareVideoPosterWebp, sanitizeVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWebp";
 import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
 import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
 import { photoFailureCode } from "@/shared/lib/media/photoRetryMessage";
+import { PhotoUploadStageError, logPhotoUploadFailure, type PhotoUploadStage } from "@/shared/lib/media/photoUploadStage";
 import { reportClientError } from "@/shared/lib/tracer";
-import { prepareUploadWebpVariants, type PreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
+import { prepareUploadWebpVariants, sanitizePreparedWebpVariant, type PreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
 import { postClientWebp, type SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
 import { feedTransport } from "@/shared/lib/api/feed";
 
@@ -32,6 +33,10 @@ export interface FeedPickedMedia {
   /** Stable server request ID for the prepared MP4. The composer attachment
    * requestId stays unchanged across retries and UI progress updates. */
   videoReservationRequestId?: string;
+  /** New idempotency token only when a cached Android photo's WebP bytes change.
+   * Keep requestId stable for the draft's retry button and media ordering.
+   */
+  photoReservationRequestId?: string;
   preparedPoster?: Awaited<ReturnType<typeof prepareVideoPosterWebp>>;
   videoPreparation?: Promise<void>;
   released?: boolean;
@@ -236,12 +241,40 @@ export async function pickFeedPollOptionPhoto(): Promise<FeedPickedMedia | null>
   if (photo.kind !== "photo") throw new Error("Для варианта опроса можно выбрать только фото.");
   return photo;
 }
+/** Preserve the exact object being modified by the asynchronous native video
+ * encoder. Spreading it into a queue snapshot copies the original HEVC URI,
+ * MIME and byte size, while the pending preparation updates another object.
+ */
+export function feedAssetForPublication(item: FeedPickedMedia): FeedPickedMedia {
+  if (!item.previewUri && item.kind === "photo") item.previewUri = item.uri;
+  return item;
+}
+
 export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedia,
   onProgress?: (loaded: number, total: number) => void, purpose?: "comment"): Promise<string> {
   // Give each video transfer failure a stable stage. Native errors and S3
   // messages otherwise collapse to the same generic retry text in the feed.
   let videoStage = "PREPARE";
+  let photoStage: PhotoUploadStage = "reserve";
   try {
+  if (item.kind === "photo" && item.clientRenditions) {
+    // Older Android drafts may hold already-encoded WebPs with ICC metadata.
+    // Normalize all three BEFORE reserving S3, so declaredBytes matches the
+    // actual file length. A changed payload must use a fresh server ticket;
+    // keep the composer requestId stable for retryFile(), but rotate the S3 ID.
+    photoStage = "webp";
+    const sizes = [item.clientRenditions.small, item.clientRenditions.medium];
+    const large: PreparedWebpVariant = {
+      uri: item.uri, bytes: item.bytes, width: item.width ?? 0,
+      height: item.height ?? 0, mime: "image/webp", dispose: () => undefined,
+    };
+    for (const rendition of [...sizes, large]) {
+      if (await sanitizePreparedWebpVariant(rendition))
+        item.photoReservationRequestId ??= Crypto.randomUUID();
+    }
+    item.bytes = large.bytes;
+  }
+  photoStage = "reserve";
   // The composer starts preparation on selection. Await only its local result
   // here; S3 is not reserved until the user explicitly publishes/replies.
   if (item.kind === "video") {
@@ -262,7 +295,8 @@ export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedi
   let reserved = await feedApi.reserveUpload(postId, {
     filename: item.filename, kind: item.kind, declaredMime: item.mime,
     declaredBytes: item.bytes,
-    clientRequestId: item.kind === "video" ? item.videoReservationRequestId! : item.requestId,
+    clientRequestId: item.kind === "video" ? item.videoReservationRequestId! :
+      item.photoReservationRequestId ?? item.requestId,
     ...(purpose === "comment" ? { purpose: "comment" as const } : {}),
   });
   if (reserved.status === "ready") return reserved.mediaId;
@@ -305,6 +339,7 @@ export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedi
     const extra = await feedTransport<{ small: SignedClientPhotoPost;
       medium: SignedClientPhotoPost }>(`uploads/${reserved.uploadId}/client-renditions`,
       { method: "POST", body: {} });
+    photoStage = "transfer";
     const hosts = ["s3.cloud.ru", "127.0.0.1", "localhost", "10.0.2.2"];
     const full: PreparedWebpVariant = {
       uri: item.uri, mime: "image/webp", bytes: item.bytes,
@@ -324,6 +359,7 @@ export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedi
       postClientWebp({ url: reserved.postUrl, fields: reserved.postFields, method: "POST" },
         full, hosts, updated(2)),
     ]);
+    photoStage = "confirm";
     const completed = await feedTransport<{ mediaId: string; status: string }>(
       `uploads/${reserved.uploadId}/client-complete`, { method: "POST", body: {} });
     if (completed.mediaId !== reserved.mediaId || completed.status !== "ready")
@@ -337,6 +373,9 @@ export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedi
     const signed = await feedTransport<SignedClientPhotoPost>(
       "uploads/" + reserved.uploadId + "/client-video-poster", { method: "POST", body: {} });
     videoStage = "POSTER_UPLOAD";
+    // A retry may reuse an earlier, metadata-bearing Android poster.
+    // Normalize again immediately before S3, without re-encoding the video.
+    poster.bytes = await sanitizeVideoPosterWebp(poster.uri);
     await postClientWebp(signed, poster,
       ["s3.cloud.ru", "gafus-feed-private.s3.cloud.ru", "127.0.0.1", "localhost", "10.0.2.2"]);
   }
@@ -368,7 +407,12 @@ export async function uploadPickedFeedMedia(postId: string, item: FeedPickedMedi
     throw Error("Сервер не подтвердил видео и обложку в S3");
   return reserved.mediaId;
   } catch (error) {
-    if (item.kind !== "video") throw error;
+    if (item.kind !== "video") {
+      const staged = error instanceof PhotoUploadStageError
+        ? error : new PhotoUploadStageError(photoStage, error);
+      logPhotoUploadFailure("moments", staged);
+      throw staged;
+    }
     const raw = error instanceof Error ? error.message : "";
     // Keep established preparation reasons, but label every other video failure
     // with the operation that failed. No URLs, tokens or file paths in logs.

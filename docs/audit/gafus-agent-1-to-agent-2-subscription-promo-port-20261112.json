@@ -1,0 +1,220 @@
+{
+  "schema": "gafus-a1-to-a2-subscription-promo/v1",
+  "timestamp_utc": "2026-11-12T04:45:28.519525+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "subscription-promo-one-serializable-revision-audit-transaction",
+  "edges_before": 23,
+  "edges_after": 22,
+  "ratchet": {
+    "frozen": 41,
+    "resolved": 19,
+    "new": 0
+  },
+  "historical": {
+    "start": 142,
+    "removed": 120
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "73084f90f769b1ce2933b1f0edbca5bc1525781add06f065219de825e002b000",
+      "sha256_after_current": "c05e895faae2c7d953ab431f3bb3fd13d242da2026cab320e5b5bf5d18085657",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-promo-serializable-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/app-subscription/composition/install-promo-code-rows.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "52f077f6b8c4af81f3a378bf21289433691aff7b6a30970eea4865e906c20a46",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/app-subscription/composition/install-promo-code-rows.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "9c17f60b5290eacad057b968b6a5c699538b21a4820555a625dd76676a12d34a",
+      "backup_before": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "0de066c4cf30eb63124263cb3801a3bb4aeb14b06e86ba805a39f986f35684df",
+      "sha256_after_current": "6c94d8f3e49baab758aa95c2b5e02445cc07d29eca131b6eed58c58df3295a2d",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-promo-serializable-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "33b580a2aade038ceb11bde9ba2ea62ca2a12d34d7157adb58bce0ffd85daadc",
+      "sha256_after_current": "14a8f4431d4be6e60602026720860fde8aff025c96a530e31d155da2afa303bb",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-promo-serializable-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/__tests__/promoCodeService.test.ts",
+      "status": "M",
+      "sha256_before": "817996d6a39f40f3770750d366d104710a3aded86e4b82788e2b6b317744a38d",
+      "sha256_after_current": "784109cbb6cbfa773142b1aa94b487e5db41d3bb57892919804468694f922b22",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-promo-serializable-port-prechange/packages/core/src/services/appSubscription/__tests__/promoCodeService.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/index.ts",
+      "status": "M",
+      "sha256_before": "356953d2cf4ed339d08597b104e3090774389e936cf94038437efb192126e77b",
+      "sha256_after_current": "f915f60bb6663117e433985894b00fc15a87341125b5ee04caf7a2d541573254",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-promo-serializable-port-prechange/packages/core/src/services/appSubscription/index.ts"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/promoCodePort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "4841c37c6a9caf3e52774769ffd8889eca830429dbb1659a7b8c423a5ffc165d",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/promoCodePort.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "05e04787bc07094ecddeeaa9bad7a6f980819eb43784e1543f0c650c4ae7339f",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/promoCodeService.ts",
+      "status": "M",
+      "sha256_before": "33242d157953fb284a8d497d1da4c8f98668fb9e94d09ea3def829682f5d04f0",
+      "sha256_after_current": "23a4c729e98de48fc549737698dcc819f67fcff4df82378f53e4225dbc58c056",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-promo-serializable-port-prechange/packages/core/src/services/appSubscription/promoCodeService.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "53916d92e4b4297f7f39f54b438d4afa1b9c78172e12eb8ae4ec970bd6298705",
+      "sha256_after_current": "8dd475ca00cb12dd1f98a595339eaffaccb5dee622e16f1ffd1f978330ba16be",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-promo-serializable-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Core existing promo policy+SERIALIZABLE audit",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/appSubscription/__tests__/promoCodeService.test.ts src/services/appSubscription/__tests__/promoCode.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 36,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-promo-existing-target.log"
+    },
+    {
+      "name": "Core new unbound/eligibility/rebind port",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/appSubscription/promoCodePort.test.ts src/services/appSubscription/__tests__/promoCodeService.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 19,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-promo-port-core-tests.log"
+    },
+    {
+      "name": "API composition SERIALIZABLE transaction",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/app-subscription/composition/install-promo-code-rows.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-promo-api-contract.log"
+    },
+    {
+      "name": "Full Core",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2118,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-promo-core-full.log"
+    },
+    {
+      "name": "Full API",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2756,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-promo-api-full.log"
+    },
+    {
+      "name": "Core TS",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-promo-core-types-final.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-promo-core-build.log"
+    },
+    {
+      "name": "API TS",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-promo-api-types-final.log"
+    },
+    {
+      "name": "Subscription finance adapter TS",
+      "command": "pnpm --filter @gafus/subscription-finance-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-promo-server-types.log"
+    },
+    {
+      "name": "Architecture boundaries and ratchet",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-promo-boundaries.log"
+    }
+  ],
+  "before_backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/subscription-promo-serializable-port-prechange",
+  "sha_basis": "Fresh byte-level before snapshot of this group; current after hashes computed at completion, not historical A2 shared-file checksums.",
+  "public_contracts": {
+    "sql_tx": "Original Prisma.TransactionIsolationLevel.Serializable for find/create/update+revision/event audit rows; no second connection",
+    "eligibility": "Permanent block after YooKassa succeeded/refunded/succeededAt, not Apple/manual/failed",
+    "validation": "Same plan MONTHLY|THREE_MONTHS, exact normalized code, percent 1..50",
+    "errors": [
+      "PROMO_CODE_DUPLICATE",
+      "PROMO_CODE_NOT_FOUND",
+      "PROMO_CODE_ARCHIVED",
+      "PROMO_CODE_INACTIVE",
+      "PROMO_CODE_NOT_ELIGIBLE",
+      "PROMO_CODE_FEATURE_DISABLED",
+      "PROMO_CODE_CHANGED",
+      "PROMO_PLAN_NOT_ELIGIBLE"
+    ],
+    "failure": "SUBSCRIPTION_PROMO_PORT_UNBOUND",
+    "hot_swap": "SUBSCRIPTION_PROMO_PORT_ALREADY_BOUND"
+  },
+  "external_blockers": [
+    {
+      "id": "PG_PROMO_CONCURRENCY",
+      "requires": "Dedicated disposable full-schema PostgreSQL + historical YooKassa payment rows + archived/duplicate promo fixture, race to edit/archive/create code. Verify SERIALIZABLE retries, P2002, exactly-once audit/revision and rollback on rejected request."
+    },
+    {
+      "id": "YOOKASSA_EXTERNAL",
+      "requires": "Approved nonproduction YooKassa sandbox API and webhook replay history for succeeded/refunded payment + registration promo preview; no live charge or production code."
+    },
+    {
+      "id": "IOS_FEATURE_FLAGS",
+      "requires": "Staging iOS app client contexts for disabled/enabled promo flag, verify same HTTP reason codes and not payable below monthly plan."
+    },
+    {
+      "id": "FINAL_ARCH",
+      "requires": "Eliminate 22 remaining Core→server edges, integrate A1/A2/A3, then 33-stage architecture final +5-stage chaos and Web/Mobile/Worker/panels/PG/Redis gates before frozen baseline update."
+    }
+  ],
+  "no_merge_commit_push_deploy": true,
+  "baseline_json_changed": false,
+  "integration": "A2 must compare every final SHA256; bring Core DTO+SQL installer+guard together. Use semantic merge for shared app.ts/appSubscription/index.ts/architecture script/audit and preserve A2/A3 work."
+}

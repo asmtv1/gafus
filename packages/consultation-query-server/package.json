@@ -1,0 +1,45 @@
+{
+  "name": "@gafus/consultation-query-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./booking-eligibility": {
+      "types": "./dist/bookingEligibility.d.ts",
+      "default": "./dist/bookingEligibility.js"
+    },
+    "./cynologist-catalog-rows": {
+      "types": "./dist/cynologist-catalog-rows.d.ts",
+      "default": "./dist/cynologist-catalog-rows.js"
+    },
+    "./schedule-rows": {
+      "types": "./dist/schedule-rows.d.ts",
+      "default": "./dist/schedule-rows.js"
+    },
+    "./slot-rows": {
+      "types": "./dist/slotRows.d.ts",
+      "default": "./dist/slotRows.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  }
+}

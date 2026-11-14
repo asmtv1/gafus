@@ -20,6 +20,12 @@ vi.mock("../cynologistChat/authorRole", () => ({
 }));
 
 import { getPublicProfile, getUserProfileForApi, updateUserProfile } from "./profileService";
+// Bind unchanged identity-write SQL projections against the existing synthetic
+// Prisma test rows; production composition runs before Hono routes.
+import { registerProfileRowsPort } from "./profileRowsPort";
+import * as profileSql from "@gafus/identity-write-server/profile-rows";
+registerProfileRowsPort(profileSql);
+
 
 describe("core profile city ownership", () => {
   beforeEach(() => {

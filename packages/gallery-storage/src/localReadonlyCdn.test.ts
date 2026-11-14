@@ -1,9 +1,20 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { existsSync, openSync, writeSync, closeSync, unlinkSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { localReadonlyCdnSecret } from "@gafus/cdn-upload/local-readonly-cdn";
 import { createGalleryStorageFromEnv } from "./index.js";
 
-const file = "/Users/asmtv1/Desktop/gafus-refactor/.local-pg-scratch/live-media-cdn-readonly.json";
+// Use only the checkout from which tests actually run; never open developer secrets.
+function ownWorkspaceRoot(): string {
+  let current = process.cwd();
+  while (!existsSync(join(current, "pnpm-workspace.yaml"))) {
+    const parent = dirname(current);
+    if (parent === current) throw new Error("ISOLATED_WORKSPACE_NOT_FOUND");
+    current = parent;
+  }
+  return current;
+}
+const file = join(ownWorkspaceRoot(), ".local-pg-scratch/live-media-cdn-readonly.json");
 const gallerySecret = "A".repeat(32);
 const feedSecret = "B".repeat(28);
 const env = {

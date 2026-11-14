@@ -1,4 +1,24 @@
-import { prisma } from "@gafus/prisma";
+/** Core remains authoritative on access policy; all owner-scoped DB reads
+ * are supplied at Application composition, not imported from Persistence.
+ * No adapter means an error, never a fabricated successful entitlement.
+ */
+export interface ContentPolicyReadPort {
+  readAccessActorRole(userId: string): Promise<string | null>;
+  hasCurrentPaidSubscription(userId: string, now: Date): Promise<boolean>;
+  hasAssignedPrivateCourse(userId: string, courseId: string): Promise<boolean>;
+  hasActiveGafusArticleAccess(userId: string, articleId: string, now: Date): Promise<boolean>;
+}
+let contentPolicyReader: Readonly<ContentPolicyReadPort> | null = null;
+export function registerContentPolicyReadPort(port: ContentPolicyReadPort): void {
+  if (contentPolicyReader !== null && contentPolicyReader !== port) {
+    throw new Error("CONTENT_POLICY_READ_PORT_ALREADY_BOUND");
+  }
+  contentPolicyReader = port;
+}
+function requireContentPolicyReadPort(): Readonly<ContentPolicyReadPort> {
+  if (!contentPolicyReader) throw new Error("CONTENT_POLICY_READ_PORT_UNBOUND");
+  return contentPolicyReader;
+}
 import { APP_FEATURE_APP_SUBSCRIPTION_GATING, getAppFeatureFlagEnabled } from "../appFeatureFlags";
 
 export type CoursePolicy = { id: string; isPrivate: boolean; isPaid: boolean };
@@ -10,18 +30,12 @@ const denied: ContentAccessDecision = { allowed: false, source: "DENIED" };
 
 /** Role is read from PostgreSQL; an expired subscription never grants access. */
 async function premiumAccess(userId: string, now: Date): Promise<ContentAccessDecision> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-  if (!user) return denied;
-  if (user.role === "ADMIN" || user.role === "PARTNER" || user.role === "TRAINER")
+  const role = await requireContentPolicyReadPort().readAccessActorRole(userId);
+  if (!role) return denied;
+  if (role === "ADMIN" || role === "PARTNER" || role === "TRAINER")
     return { allowed: true, source: "ROLE" };
-  const active = await prisma.appSubscription.findFirst({
-    where: {
-      userId, status: "ACTIVE",
-      OR: [{ isLifetime: true }, { currentPeriodEnd: { gt: now } }],
-    },
-    select: { id: true },
-  });
-  return active ? { allowed: true, source: "SUBSCRIPTION" } : denied;
+  return await requireContentPolicyReadPort().hasCurrentPaidSubscription(userId, now)
+    ? { allowed: true, source: "SUBSCRIPTION" } : denied;
 }
 
 export async function resolveCourseEntitlement(
@@ -32,10 +46,8 @@ export async function resolveCourseEntitlement(
   if (!course) return denied;
   if (course.isPrivate) {
     if (!userId) return denied;
-    const assigned = await prisma.courseAccess.findFirst({
-      where: { userId, courseId: course.id }, select: { courseId: true },
-    });
-    return assigned ? { allowed: true, source: "PRIVATE_ASSIGNMENT" } : denied;
+    return await requireContentPolicyReadPort().hasAssignedPrivateCourse(userId, course.id)
+      ? { allowed: true, source: "PRIVATE_ASSIGNMENT" } : denied;
   }
   if (!course.isPaid) return { allowed: true, source: "FREE" };
   if (!await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true))
@@ -58,14 +70,8 @@ export async function resolveArticleEntitlement(
   const premium = await premiumAccess(userId, now);
   if (premium.allowed) return premium;
   if (articleId) {
-    const unlocked = await prisma.gafusTargetAccess.findFirst({
-      where: {
-        userId, targetType: "ARTICLE", targetKey: `article:${articleId}`,
-        expiresAt: { gt: now },
-      },
-      select: { id: true },
-    });
-    if (unlocked) return { allowed: true, source: "GAFUS" };
+    if (await requireContentPolicyReadPort().hasActiveGafusArticleAccess(userId, articleId, now))
+      return { allowed: true, source: "GAFUS" };
   }
   return denied;
 }

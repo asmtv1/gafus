@@ -12,7 +12,7 @@ import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import {
   startTrainerVideoTranscoding, completeTrainerVideoTranscoding, failTrainerVideoTranscoding,
-} from "@gafus/core/services/trainerVideo";
+} from "@gafus/media-server/trainer-transcoding";
 import { deleteFileFromCDN, streamFileFromCDN, uploadBufferToCDN } from "@gafus/cdn-upload";
 import type { VideoTranscodingJobData, VideoTranscodingResult } from "@gafus/types";
 import {

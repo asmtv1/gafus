@@ -1,12 +1,41 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import {
-  createTrainerNote,
-  updateTrainerNote,
-  deleteTrainerNote,
-  getStudentNotes,
-  getTrainerNotes,
+  createTrainerNote as coreCreateTrainerNote,
+  updateTrainerNote as coreUpdateTrainerNote,
+  deleteTrainerNote as coreDeleteTrainerNote,
+  getStudentNotes as coreGetStudentNotes,
+  getTrainerNotes as coreGetTrainerNotes,
 } from "./notesService";
+import type { NotesPersistencePort } from "./notesPersistencePort";
+import {
+  readStudentNoteRows, readTrainerNoteStudentRoles,
+  createTrainerNoteRows, readTrainerNoteForUpdate,
+  updateTrainerNoteRows, readTrainerNoteForDelete,
+  deleteTrainerNoteRows, readTrainerNoteRows,
+} from "@gafus/course-progress-server/trainer-note-rows";
+import type {
+  CreateTrainerNoteInput, UpdateTrainerNoteInput, DeleteTrainerNoteInput,
+  NotesQueryInput,
+} from "./schemas";
+
+const notesPersistence: NotesPersistencePort = {
+  readStudentNoteRows, readTrainerNoteStudentRoles,
+  createTrainerNoteRows, readTrainerNoteForUpdate,
+  updateTrainerNoteRows, readTrainerNoteForDelete,
+  deleteTrainerNoteRows, readTrainerNoteRows,
+};
+const getStudentNotes = (id: string, opts?: { throwOnError?: boolean }) =>
+  coreGetStudentNotes(notesPersistence, id, opts);
+const createTrainerNote = (input: CreateTrainerNoteInput, trainerId: string) =>
+  coreCreateTrainerNote(notesPersistence, input, trainerId, mockCreateImmediatePushNotification);
+const updateTrainerNote = (input: UpdateTrainerNoteInput, trainerId: string, isAdmin: boolean) =>
+  coreUpdateTrainerNote(notesPersistence, input, trainerId, isAdmin, mockCreateImmediatePushNotification);
+const deleteTrainerNote = (input: DeleteTrainerNoteInput, trainerId: string, isAdmin: boolean) =>
+  coreDeleteTrainerNote(notesPersistence, input, trainerId, isAdmin);
+const getTrainerNotes = (query: NotesQueryInput) =>
+  coreGetTrainerNotes(notesPersistence, query);
+
 
 const mockHandlePrismaError = vi.fn(() => {
   throw new Error("Prisma mock error");
@@ -56,12 +85,28 @@ vi.mock("@gafus/logger", () => ({
   }),
 }));
 
-vi.mock("@gafus/core/services/notifications", () => ({
-  createImmediatePushNotification: (...args: unknown[]) =>
-    mockCreateImmediatePushNotification(...args),
-}));
 
 describe("createTrainerNote", () => {
+  it("requires an explicit notification port before touching persisted notes", async () => {
+    await expect(coreCreateTrainerNote(notesPersistence, {
+      studentIds: ["student-owner"], entries: [],
+    } as CreateTrainerNoteInput, "trainer", undefined as never)).rejects.toThrow("NOTE_PUSH_PORT_REQUIRED");
+    expect(mockUserFindMany).not.toHaveBeenCalled();
+    expect(mockTrainerNoteCreate).not.toHaveBeenCalled();
+  });
+  it("retains a saved visible note when push delivery fails without logging private errors", async () => {
+    vi.clearAllMocks();
+    mockUserFindMany.mockResolvedValue([{ id: "student-A", role: "USER" }]);
+    mockTrainerNoteCreate.mockResolvedValue({});
+    mockCreateImmediatePushNotification.mockRejectedValueOnce(new Error("PRIVATE_PUSH_TOKEN"));
+    const result = await createTrainerNote({
+      studentIds: ["student-A"], entries: [{ content: "private diary", order: 0, isVisibleToStudent: true }],
+    }, "trainer-A");
+    expect(result).toEqual({ success: true });
+    expect(mockCreateImmediatePushNotification).toHaveBeenCalledExactlyOnceWith({
+      userId: "student-A", title: "Новая заметка", body: "Тренер добавил вам заметку", url: "/profile",
+    });
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     const tx = { trainerNote: { create: mockTrainerNoteCreate } };
@@ -480,7 +525,7 @@ describe("deleteTrainerNote", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(mockTrainerNoteDelete).toHaveBeenCalledWith({ where: { id: "note-1" } });
+    expect(mockTrainerNoteDelete).toHaveBeenCalledWith({ where: { id: "note-1", trainerId: "trainer-1" } });
   });
 
   it("allows admin to delete note owned by other trainer", async () => {

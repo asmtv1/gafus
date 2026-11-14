@@ -202,3 +202,8 @@ describe("AG1 OFF021 actual journal source with mock-only SQL adapter", () => {
     });
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalOfflineMutationRowsPort from "@gafus/course-progress-server/offline-mutation-rows";
+import { registerOfflineMutationRowsPort, type OfflineMutationRowsPort } from "./offlineMutationRowsPort";
+registerOfflineMutationRowsPort(originalOfflineMutationRowsPort as OfflineMutationRowsPort);

@@ -11,7 +11,7 @@ import type {
   TrainerDailyScheduleRangeRead,
   TrainerDailyCandidatesRead,
 } from "../../../../../packages/types/src/data/trainer-read-contracts";
-import { dailyCourseRangeSchema } from "@gafus/core/services/dailyCourse";
+import { dailyCourseRangeSchema } from "../../modules/daily-course/composition/dailyCourseApplication.js";
 import { readTrainerDailyApplication } from "../../modules/trainer-daily/composition/read-trainer-daily.js";
 
 export const trainerDailyBundlesRoutes = new Hono();

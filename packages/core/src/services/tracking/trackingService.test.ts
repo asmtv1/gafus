@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
-import { trackReengagementClick } from "./trackingService";
+import { trackReengagementClick } from "@gafus/tracking-server/trackingService";
 
 const mockReengagementNotificationUpdate = vi.fn();
 

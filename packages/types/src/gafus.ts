@@ -65,3 +65,14 @@ export type GafusReactionProgressDto = {
   thresholdStep: number;
   progress: number;
 };
+
+/** Persistence-independent equivalent of Prisma InputJsonValue.
+ * Includes serializable objects exposing toJSON(), because Prisma allows
+ * these in JSON inputs (and existing rewards may already provide them).
+ * Top-level null is intentionally excluded, as in Prisma.InputJsonValue.
+ */
+export type GafusLedgerMetadata =
+  | string | number | boolean
+  | { readonly [key: string]: GafusLedgerMetadata | null | undefined }
+  | readonly (GafusLedgerMetadata | null)[]
+  | { toJSON(): unknown };

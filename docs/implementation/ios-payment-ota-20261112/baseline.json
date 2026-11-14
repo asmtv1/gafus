@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-12T13:49:53Z",
+  "gitHead": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "statusCount": 1651,
+  "files": {
+    "apps/mobile/src/features/app-subscription/components/AppSubscriptionPaywall.tsx": "864aeb4db53d941fd8ef234beb0d5b536ea2c886749b1b375517fc4ab7639f11",
+    "apps/mobile/src/features/app-subscription/lib/appleAppSubscriptionPurchase.ts": "260e7a05298bac7717b059920eb399ecf9cbfb0601f5c278df908d69e645a055",
+    "apps/mobile/src/features/app-subscription/api/appSubscriptionApi.ts": "fafbd29ca24549be4fee733833deeb7d55497015cd3467ab1fbaf15d2919a80a",
+    "apps/api/src/routes/v1/app-subscription.ts": "17c67d024170c2ad31daf4be66db8a6db6c4d1301c32067db5a8dd6cb9a3a39b",
+    "apps/api/src/routes/v1/admin-feature-flags.ts": "7b25543509c27834e2974736c229b0d99a225e00dd92c56460ee2937d0148e07",
+    "apps/api/src/routes/v1/public-mobile.ts": "39070947e155aeb446788b64b4b962df44aaf04634dd5c32aba0419563dac1d5",
+    "packages/feature-flags-server/src/appFeatureFlagsService.ts": "e2e428e7da75b097f0e9e0f764816ad850160796e4cf1d12911c6fa51648262f",
+    "apps/admin-panel/src/admin-live/SettingsEditors.tsx": "8ac69b57180b21f8d330bb34f1a362c2d4ff553c3484bd47538a90f751d2b3e5",
+    "apps/mobile/scripts/native-release-contract.mjs": "e95214e49f71a2dae76f3f59f46e87e40c71fc1f5e5fe4ae1f1c3a36c66acf4b",
+    "pnpm-lock.yaml": "f131a5960bfffbb2dd894d23ee1e0820884fce6188798ba989eab7743e48524e"
+  }
+}

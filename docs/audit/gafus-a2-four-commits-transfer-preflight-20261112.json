@@ -1,0 +1,1364 @@
+{
+  "schema": "gafus/a2-four-commits-transfer-plan/v1",
+  "observedAtUtc": "2026-11-12T02:56:37.057176+00:00",
+  "A2Head": "bd93aef2234e228191c1e112655d0c5c1b2a711e",
+  "A2Branch": "agent2/observability-20261111",
+  "A2Base": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "A1HeadDuringPreflight": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "A1FinalManifestPublished": false,
+  "A1FinalManifestCandidates": [],
+  "A3FinalManifestPath": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-3-final-local-handoff-20261112.json",
+  "A3FinalManifestSha256": "b98783d54906caeb0e0f9c86861863a9b38b464cc0cb39bed29a5da5166fe3d7",
+  "A3Final39Overlap": [],
+  "A2P0Paths": [
+    "apps/api/src/lib/operation-observability.ts",
+    "ci-cd/docker/prometheus/config.alloy",
+    "ci-cd/docker/prometheus/gafus-alerts.yml",
+    "packages/logger/src/serverTelemetry.ts",
+    "packages/prisma/schema.prisma",
+    "pnpm-lock.yaml"
+  ],
+  "commitCount": 4,
+  "uniquePathCount": 39,
+  "perCommitDiffCount": 56,
+  "commits": [
+    {
+      "sequence": 1,
+      "sha": "751a435ec5096211b4325d80821cdfff271edd8d",
+      "parent": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+      "subject": "feat(observability): add Agent2 telemetry alerts load and restore gates",
+      "changeCount": 23,
+      "classes": {
+        "ALREADY_EXACT_AT_THIS_COMMIT": 5,
+        "POTENTIAL_ADD_ADD": 6,
+        "BASE_MATCH_OR_NEW_PATH": 8,
+        "POTENTIAL_CONTENT_CONFLICT": 4
+      },
+      "files": [
+        {
+          "status": "A",
+          "path": "apps/api/src/lib/operation-observability.test.ts",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "6b8f39601c60af1485d5533ffd07bc2bc4f560751be2013b63cbcfae92570d7a",
+          "A1CurrentSha256": "6b8f39601c60af1485d5533ffd07bc2bc4f560751be2013b63cbcfae92570d7a",
+          "classificationAgainstUnmergedA1": "ALREADY_EXACT_AT_THIS_COMMIT",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_RUNTIME_OR_CONTRACT",
+          "resolutionRule": "Preserve final A2 runtime semantics, tests and A1 composition contracts; verify API/Worker/logger/Prisma types."
+        },
+        {
+          "status": "A",
+          "path": "apps/api/src/lib/operation-observability.ts",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "ea29fcf26ee59a73e0978968a91cb133b3ee5d6da5bf26ed2451298255a8748e",
+          "A1CurrentSha256": "37b9ca546103b8a22799cfc728799599393bd1466dc6dba1595f98134c4c6e7b",
+          "classificationAgainstUnmergedA1": "POTENTIAL_ADD_ADD",
+          "A2P0": true,
+          "A3Final39": false,
+          "riskCategory": "P0_API_TRACING_REVIEW",
+          "resolutionRule": "Preserve A1 API operationId/requestId boundaries and existing middleware; reconcile A2 latest wrappers and privacy-safe OTLP exporter; local API contract test."
+        },
+        {
+          "status": "A",
+          "path": "ci-cd/docker/grafana/dashboards/gafus-a2-storage-dependencies.json",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "2682d382bf4a803c04c3f278e44b40eb3a72bcf6244a2e74174f6222ad4a37dd",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+          "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING."
+        },
+        {
+          "status": "A",
+          "path": "ci-cd/docker/grafana/dashboards/gafus-api-latency.json",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "18ce7306df898a0661be23fbad1746414549a6050a78c83bb59110b3e68641b2",
+          "A1CurrentSha256": "67d9dedcf5a487a5b476ba9b3ab73293d131d163b00cc3955c86c26984e134e4",
+          "classificationAgainstUnmergedA1": "POTENTIAL_ADD_ADD",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "P1_GRAFANA_PANEL_REVIEW",
+          "resolutionRule": "A1 may have newer dashboard layout and metric families; merge panel IDs/queries without blind whole-file replacement."
+        },
+        {
+          "status": "A",
+          "path": "ci-cd/docker/grafana/dashboards/gafus-media-chat.json",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "9e95a599699be69c854ff6b7d9a0c353516e5b1a2d85325d4140ac08e36684f6",
+          "A1CurrentSha256": "9e95a599699be69c854ff6b7d9a0c353516e5b1a2d85325d4140ac08e36684f6",
+          "classificationAgainstUnmergedA1": "ALREADY_EXACT_AT_THIS_COMMIT",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+          "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING."
+        },
+        {
+          "status": "A",
+          "path": "ci-cd/docker/grafana/dashboards/gafus-operations-reliability.json",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "38f4f0b24d553c82b8353c76ce8984b5c1469555c613796f3700b22aa76e4759",
+          "A1CurrentSha256": "38f4f0b24d553c82b8353c76ce8984b5c1469555c613796f3700b22aa76e4759",
+          "classificationAgainstUnmergedA1": "ALREADY_EXACT_AT_THIS_COMMIT",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+          "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING."
+        },
+        {
+          "status": "M",
+          "path": "ci-cd/docker/prometheus/config.alloy",
+          "A2ParentSha256": "cef18d703a4dd9f3eaa179771b6ff5cc2f6ffe6e30921bf45ea585f567aaf179",
+          "A2AfterThisCommitSha256": "9127c249390dad3999eed9003854bf2996b95d3775d5ea84df2b1767f8368e3c",
+          "A1CurrentSha256": "b3d563aad61b3508a4aaf62ce3016d1ddf9095c969174f29c6cc02b064c05b05",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": true,
+          "A3Final39": false,
+          "riskCategory": "P0_ALLOY_PIPELINES_REVIEW",
+          "resolutionRule": "Merge A1 existing scrape/routing and A2 OTLP/metrics guards and bounded labels; no secret exposure."
+        },
+        {
+          "status": "A",
+          "path": "ci-cd/docker/prometheus/gafus-alerts-agent2.promtool.test.yml",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "4aea47ae21de09797f2b9bc4300c68374300f51c94b202fbf0079f8adae2139d",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+          "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING."
+        },
+        {
+          "status": "M",
+          "path": "ci-cd/docker/prometheus/gafus-alerts.promtool.test.yml",
+          "A2ParentSha256": "8c9d4b5cfea641f5b0181dd1a93a23a7f24ba7800a385ff3a338c1fbfa3260c5",
+          "A2AfterThisCommitSha256": "6e4e8b4dd61d416ee53c95aabdd5ea6bdcd318606f5b87e8d69e43d192301479",
+          "A1CurrentSha256": "6e4e8b4dd61d416ee53c95aabdd5ea6bdcd318606f5b87e8d69e43d192301479",
+          "classificationAgainstUnmergedA1": "ALREADY_EXACT_AT_THIS_COMMIT",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+          "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING."
+        },
+        {
+          "status": "M",
+          "path": "ci-cd/docker/prometheus/gafus-alerts.yml",
+          "A2ParentSha256": "99868afe1faa3e37a76cdf6c436693a405e2198f45dfac7995d4451172eb0693",
+          "A2AfterThisCommitSha256": "31405f04f97be3f1dd4663ec23d339907b9c4f243e6936ecf74992b7b6743cea",
+          "A1CurrentSha256": "290f6cbbc00861a8d6e8a5c60bef40b35b0df0fa951daeb78fe18e0924ed8f5e",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": true,
+          "A3Final39": false,
+          "riskCategory": "P0_ALERT_RULES_REVIEW",
+          "resolutionRule": "Union A1 existing rules and A2 new reliability families; avoid duplicate alert names, keep DLQ/360p rules; run local rules tests."
+        },
+        {
+          "status": "M",
+          "path": "ci-cd/docker/prometheus/health-monitoring.contract.test.mjs",
+          "A2ParentSha256": "2e1597d58fce61a137c8e40fa89fffeb5feef3ff186a4f77887871ae46317cff",
+          "A2AfterThisCommitSha256": "7f9a4b3c090e5f57e3f697cf02cf809718110f75445623d303bd2aa32145b885",
+          "A1CurrentSha256": "d7abb0e48116bc5f4742e7e0b15aab29ec9f66fa51b0fdd4fd51dd9ddb4a0ee8",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "P1_MONITORING_CONTRACT_RECONCILE",
+          "resolutionRule": "Preserve A1 existing test coverage + A2 data labels/Prisma metrics, 12 local OTLP/monitor tests."
+        },
+        {
+          "status": "A",
+          "path": "docs/audit/gafus-agent-2-observability-20261111.md",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "55ddc322939369e5305d12bfc49a5e93fa5a61159c01a22b929240b97c1b2857",
+          "A1CurrentSha256": "d3bd3da637aa8d0744467cd0c4351a6f94135f58ff18a84544be564d8c6d128b",
+          "classificationAgainstUnmergedA1": "POTENTIAL_ADD_ADD",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+          "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance."
+        },
+        {
+          "status": "M",
+          "path": "packages/logger/package.json",
+          "A2ParentSha256": "e5455281a4c95b4fa040ef3bf7771dac5121b51c2a900ac160f2aa83a0766598",
+          "A2AfterThisCommitSha256": "37b8cb9fb3e7fd73d1d5cb2c6d68210342d0cfd779c92860134ac887de491180",
+          "A1CurrentSha256": "37b8cb9fb3e7fd73d1d5cb2c6d68210342d0cfd779c92860134ac887de491180",
+          "classificationAgainstUnmergedA1": "ALREADY_EXACT_AT_THIS_COMMIT",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "P0_LOGGER_PACKAGE_PRESERVE_OR_VERIFY",
+          "resolutionRule": "A1 already contains committed A2 five OTel dependencies and ./server-telemetry exports; require matching SHA or approved reconciled package manifest."
+        },
+        {
+          "status": "A",
+          "path": "packages/logger/src/serverTelemetry.ts",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "e8f7cf1e4e861875a6c6a85ef28dff89a2ca12a578c0836154002168a2f4ca36",
+          "A1CurrentSha256": "99c57f750945bef986b1567343254ff09222795a15b9073553cc8cf7337bd2bd",
+          "classificationAgainstUnmergedA1": "POTENTIAL_ADD_ADD",
+          "A2P0": true,
+          "A3Final39": false,
+          "riskCategory": "P0_LOGGER_PRIVACY_REVIEW",
+          "resolutionRule": "Use latest A2 committed tracing implementation reconciled with A1 query labels; no SQL, JWS, tokens, PII; emit bounded metrics and fail-open OTLP."
+        },
+        {
+          "status": "A",
+          "path": "packages/prisma/scripts/a2-query-duration-isolated.ts",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "c1deda111c9cb2ab8ee66c35edc482a7f95d30e4238d802ca380955f90bad566",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_RUNTIME_OR_CONTRACT",
+          "resolutionRule": "Preserve final A2 runtime semantics, tests and A1 composition contracts; verify API/Worker/logger/Prisma types."
+        },
+        {
+          "status": "M",
+          "path": "packages/prisma/src/client.ts",
+          "A2ParentSha256": "bd4ea849e9babc80ca0465ec401b944cc8b4754a153dd06159c69eac4962347a",
+          "A2AfterThisCommitSha256": "2a5a6cec66ae180920c8ed28fcebf7ea6f3653686978f955dc1bfb5d4b85d096",
+          "A1CurrentSha256": "bd4ea849e9babc80ca0465ec401b944cc8b4754a153dd06159c69eac4962347a",
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "P1_PRISMA_CLIENT_WRAP_REVIEW",
+          "resolutionRule": "Preserve A1 client lifecycle/reuse and A2 query duration; ensure metrics preview and no duplicated PrismaClient."
+        },
+        {
+          "status": "M",
+          "path": "pnpm-lock.yaml",
+          "A2ParentSha256": "b5e653ac8f7484e54e9a6860667dc666f571c46b34cfcd4a8557a9199b62aa6a",
+          "A2AfterThisCommitSha256": "8bd2ad9028d5361daefa25846e2ac402287270d7fa161c8396a77c170f30ef0c",
+          "A1CurrentSha256": "f131a5960bfffbb2dd894d23ee1e0820884fce6188798ba989eab7743e48524e",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": true,
+          "A3Final39": false,
+          "riskCategory": "P0_LOCK_REGENERATE_FROM_FINAL_A1_MANIFESTS",
+          "resolutionRule": "Preserve A1 70 workspace importer graph and 7 patches; A1 already has 5 A2 OTel deps. Never use old A2 whole lock. Regenerate once offline on isolated candidate after package reconciliation."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-agent2-local-gates.sh",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "44430aef5ce453c0fb54e4167ba5780114cdf9f21cbfbe9331af5fce2c15e2f4",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-multi-instance.mjs",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "8d339f66d16ff05131e1d46b788ee9f79437bf80fec18476d6d22991d5a6be27",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-multi-instance.test.mjs",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "7ea33b91f99fecabbf04d5c88b59081c3ce2e2b4a38ba42db171119463deb273",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-restore-rpo-rto.sh",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "bc65cfeb9bf12a60d7e7aa264759b189e2d489ccd61261a3459504ab62a1d768",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/otel-local-collector.test.mjs",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "74bff51705d77de50315319deb0bc24abf1bf07392a040887f9cbbfd29f0a76c",
+          "A1CurrentSha256": "885294aae682d80d9021bd771eab5a8de3d3b0c0bf5bb5da6e1df27831e603df",
+          "classificationAgainstUnmergedA1": "POTENTIAL_ADD_ADD",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/prometheus-alertmanager-isolated.sh",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "eb461e13e25f1025bb90f3f916f632f583d370258d4431fbd609c133e8905a81",
+          "A1CurrentSha256": "5afa0bdfbe7995a9bb7eb99b7a6a74468bf972a51c446b72da3ae71fbf229695",
+          "classificationAgainstUnmergedA1": "POTENTIAL_ADD_ADD",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        }
+      ]
+    },
+    {
+      "sequence": 2,
+      "sha": "b05ca9c4e1c767fd4f10ea55531048f434a52527",
+      "parent": "751a435ec5096211b4325d80821cdfff271edd8d",
+      "subject": "feat(observability): prove pool wait traces and two-instance recovery",
+      "changeCount": 20,
+      "classes": {
+        "BASE_MATCH_OR_NEW_PATH": 9,
+        "POTENTIAL_CONTENT_CONFLICT": 7,
+        "MISSING_A1_MODIFIED_PATH": 4
+      },
+      "files": [
+        {
+          "status": "A",
+          "path": "apps/api/src/a2-observability-private-server.ts",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "3c3c15be98b5ac796f7d294f28947ff40015cb4c655bfda65a64705b864c783f",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_RUNTIME_OR_CONTRACT",
+          "resolutionRule": "Preserve final A2 runtime semantics, tests and A1 composition contracts; verify API/Worker/logger/Prisma types."
+        },
+        {
+          "status": "M",
+          "path": "apps/api/src/lib/operation-observability.ts",
+          "A2ParentSha256": "ea29fcf26ee59a73e0978968a91cb133b3ee5d6da5bf26ed2451298255a8748e",
+          "A2AfterThisCommitSha256": "2e49911720b7ed53d6c79847d79842ee6cbf66355d0d60ec27cea89b9e4276d2",
+          "A1CurrentSha256": "37b9ca546103b8a22799cfc728799599393bd1466dc6dba1595f98134c4c6e7b",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": true,
+          "A3Final39": false,
+          "riskCategory": "P0_API_TRACING_REVIEW",
+          "resolutionRule": "Preserve A1 API operationId/requestId boundaries and existing middleware; reconcile A2 latest wrappers and privacy-safe OTLP exporter; local API contract test."
+        },
+        {
+          "status": "M",
+          "path": "ci-cd/docker/grafana/dashboards/gafus-a2-storage-dependencies.json",
+          "A2ParentSha256": "2682d382bf4a803c04c3f278e44b40eb3a72bcf6244a2e74174f6222ad4a37dd",
+          "A2AfterThisCommitSha256": "eaadc1d4c712a3deadf1ef691b936ca9baa0a53f2eaa0299885384ce4b55edd4",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "MISSING_A1_MODIFIED_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+          "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING."
+        },
+        {
+          "status": "M",
+          "path": "ci-cd/docker/prometheus/config.alloy",
+          "A2ParentSha256": "9127c249390dad3999eed9003854bf2996b95d3775d5ea84df2b1767f8368e3c",
+          "A2AfterThisCommitSha256": "0835c811e73524aa9db2c361276fb752f3f461470de81ce410a13c3019ee5163",
+          "A1CurrentSha256": "b3d563aad61b3508a4aaf62ce3016d1ddf9095c969174f29c6cc02b064c05b05",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": true,
+          "A3Final39": false,
+          "riskCategory": "P0_ALLOY_PIPELINES_REVIEW",
+          "resolutionRule": "Merge A1 existing scrape/routing and A2 OTLP/metrics guards and bounded labels; no secret exposure."
+        },
+        {
+          "status": "M",
+          "path": "ci-cd/docker/prometheus/gafus-alerts-agent2.promtool.test.yml",
+          "A2ParentSha256": "4aea47ae21de09797f2b9bc4300c68374300f51c94b202fbf0079f8adae2139d",
+          "A2AfterThisCommitSha256": "44319882bb8a0b23733eef7aa3e498fc5cb77fe5cc672c161b1d888b59c704e2",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "MISSING_A1_MODIFIED_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+          "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING."
+        },
+        {
+          "status": "M",
+          "path": "ci-cd/docker/prometheus/health-monitoring.contract.test.mjs",
+          "A2ParentSha256": "7f9a4b3c090e5f57e3f697cf02cf809718110f75445623d303bd2aa32145b885",
+          "A2AfterThisCommitSha256": "381148f8207ee65c3a7a7569c31b677696c43bb86ebce4267fdd936673e6d893",
+          "A1CurrentSha256": "d7abb0e48116bc5f4742e7e0b15aab29ec9f66fa51b0fdd4fd51dd9ddb4a0ee8",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "P1_MONITORING_CONTRACT_RECONCILE",
+          "resolutionRule": "Preserve A1 existing test coverage + A2 data labels/Prisma metrics, 12 local OTLP/monitor tests."
+        },
+        {
+          "status": "A",
+          "path": "docs/audit/gafus-agent-2-followup-20261112.md",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "588484d93bf961f36778763d9ace888fb9d7e800d6664d380264061a01fa8a31",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+          "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance."
+        },
+        {
+          "status": "M",
+          "path": "docs/audit/gafus-agent-2-observability-20261111.md",
+          "A2ParentSha256": "55ddc322939369e5305d12bfc49a5e93fa5a61159c01a22b929240b97c1b2857",
+          "A2AfterThisCommitSha256": "d2b58b530c9c45efdeea84c89c7f355f3705d80703363d3117d1547450f76e8c",
+          "A1CurrentSha256": "d3bd3da637aa8d0744467cd0c4351a6f94135f58ff18a84544be564d8c6d128b",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+          "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance."
+        },
+        {
+          "status": "A",
+          "path": "docs/audit/gafus-agent-2-observability-local-receipt-20261112.json",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "36ef1cb04b22b6b586d245cf111b571f53195757ca5286ba5099340de00fd885",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+          "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance."
+        },
+        {
+          "status": "M",
+          "path": "packages/logger/src/serverTelemetry.ts",
+          "A2ParentSha256": "e8f7cf1e4e861875a6c6a85ef28dff89a2ca12a578c0836154002168a2f4ca36",
+          "A2AfterThisCommitSha256": "57adeb58c52dd4abe68d08c85f08edb0acc20ba1c48ee80e9f78b8045d42258b",
+          "A1CurrentSha256": "99c57f750945bef986b1567343254ff09222795a15b9073553cc8cf7337bd2bd",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": true,
+          "A3Final39": false,
+          "riskCategory": "P0_LOGGER_PRIVACY_REVIEW",
+          "resolutionRule": "Use latest A2 committed tracing implementation reconciled with A1 query labels; no SQL, JWS, tokens, PII; emit bounded metrics and fail-open OTLP."
+        },
+        {
+          "status": "M",
+          "path": "packages/prisma/schema.prisma",
+          "A2ParentSha256": "aba8363f40e72efc349870a8037a4fe69f98c7bf7a137ff5a2c6d9e9fbfc85e7",
+          "A2AfterThisCommitSha256": "394807900daf41830279681ed578d80dbc462388884e6bca0ba619c1cf3247c7",
+          "A1CurrentSha256": "309d51a18f02ceea136cf35c913677e35fa04df3fef01e9f5212d35263871e62",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": true,
+          "A3Final39": false,
+          "riskCategory": "P0_PRISMA_METRICS_HUNK_ONLY",
+          "resolutionRule": "Preserve all A1 models, migrations, QuestionLegacyPhotoDeletion and Chat2 outbox fields/index; add only Prisma client previewFeatures metrics if absent. Verify prisma validate + empty DDL diff for flag."
+        },
+        {
+          "status": "M",
+          "path": "packages/prisma/scripts/a2-query-duration-isolated.ts",
+          "A2ParentSha256": "c1deda111c9cb2ab8ee66c35edc482a7f95d30e4238d802ca380955f90bad566",
+          "A2AfterThisCommitSha256": "a681b09464bc3943f9a07994453a5cfeea4956b27f410932644d9562c90fd8d2",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "MISSING_A1_MODIFIED_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_RUNTIME_OR_CONTRACT",
+          "resolutionRule": "Preserve final A2 runtime semantics, tests and A1 composition contracts; verify API/Worker/logger/Prisma types."
+        },
+        {
+          "status": "A",
+          "path": "packages/worker/src/a2-observability-private-worker.ts",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "8f569a4855ce87d60ae85710068ca21a921af2f4caf61a3faaaaabd0b66cde01",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_RUNTIME_OR_CONTRACT",
+          "resolutionRule": "Preserve final A2 runtime semantics, tests and A1 composition contracts; verify API/Worker/logger/Prisma types."
+        },
+        {
+          "status": "M",
+          "path": "scripts/qa/observability-agent2-local-gates.sh",
+          "A2ParentSha256": "44430aef5ce453c0fb54e4167ba5780114cdf9f21cbfbe9331af5fce2c15e2f4",
+          "A2AfterThisCommitSha256": "2e2418a59c4f2b3a0f65f487d6fd6e09ab4620135d8601d4461681f349677af2",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "MISSING_A1_MODIFIED_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-load-median.mjs",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "3646b72659c9880ecc6ecaf17cb5a8bbe9edc258710407dc8c49c2a7d103fb3b",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-load-median.test.mjs",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "b6c77297b77444da7436673cb653c01a94a31550a0d849e1b9baf354ecbad26d",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-local-trace-sink.mjs",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "98f56eacfdcb3fdecd400b9e086e60348498a92feccb56948e52c3dc5c615905",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-promtool-rules.sh",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "e99450581f76a1f1873a89ed95f8eb0d149e9637dd04a29c695ebb2f30926ff2",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-real-multi-instance-isolated.sh",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "a5955359dd7937afb23cbe8151f04d6a8cd43eba15b5f5f4207d26ee0e468951",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "M",
+          "path": "scripts/qa/otel-local-collector.test.mjs",
+          "A2ParentSha256": "74bff51705d77de50315319deb0bc24abf1bf07392a040887f9cbbfd29f0a76c",
+          "A2AfterThisCommitSha256": "fd0bddefc2107e6060a5f32382be55049212f989ea0ff4965b827e6469b6db25",
+          "A1CurrentSha256": "885294aae682d80d9021bd771eab5a8de3d3b0c0bf5bb5da6e1df27831e603df",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        }
+      ]
+    },
+    {
+      "sequence": 3,
+      "sha": "fbd89d62a977726828d4df132db5a848cb96c851",
+      "parent": "b05ca9c4e1c767fd4f10ea55531048f434a52527",
+      "subject": "test(observability): verify worker metric reset and stage gates",
+      "changeCount": 11,
+      "classes": {
+        "BASE_MATCH_OR_NEW_PATH": 6,
+        "MISSING_A1_MODIFIED_PATH": 4,
+        "POTENTIAL_CONTENT_CONFLICT": 1
+      },
+      "files": [
+        {
+          "status": "A",
+          "path": "ci-cd/docker/docker-compose.observability-logs.yml",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "f9ec330c87caf29603e3cf9e015fb059464780a0e8bafb898f8f4d2f2783096c",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+          "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING."
+        },
+        {
+          "status": "A",
+          "path": "ci-cd/docker/observability-log-rotation.contract.test.mjs",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "2ad5e8c3ada32bb613397a60976723302b1594ebfc4e86388371005a5b7a80c0",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+          "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING."
+        },
+        {
+          "status": "M",
+          "path": "docs/audit/gafus-agent-2-followup-20261112.md",
+          "A2ParentSha256": "588484d93bf961f36778763d9ace888fb9d7e800d6664d380264061a01fa8a31",
+          "A2AfterThisCommitSha256": "953545381eb515c8b46b978c5191330df75d05b11be149eb258fe87800585040",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "MISSING_A1_MODIFIED_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+          "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance."
+        },
+        {
+          "status": "M",
+          "path": "docs/audit/gafus-agent-2-observability-local-receipt-20261112.json",
+          "A2ParentSha256": "36ef1cb04b22b6b586d245cf111b571f53195757ca5286ba5099340de00fd885",
+          "A2AfterThisCommitSha256": "25433c7009dc2396c5feb0f611524f303971407e4efe47a36ebc301087a53477",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "MISSING_A1_MODIFIED_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+          "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance."
+        },
+        {
+          "status": "A",
+          "path": "docs/audit/gafus-agent-2-staging-evidence-template.json",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "e38e576f460ef6a5c493823cd868be39b7edd739da3d323aa9f476bfd3e79cf4",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+          "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance."
+        },
+        {
+          "status": "M",
+          "path": "packages/logger/src/serverTelemetry.ts",
+          "A2ParentSha256": "57adeb58c52dd4abe68d08c85f08edb0acc20ba1c48ee80e9f78b8045d42258b",
+          "A2AfterThisCommitSha256": "645b7d59b6d7edf93fd40a188c47cffc6f18dbd6381d8dd7604ce9f035890142",
+          "A1CurrentSha256": "99c57f750945bef986b1567343254ff09222795a15b9073553cc8cf7337bd2bd",
+          "classificationAgainstUnmergedA1": "POTENTIAL_CONTENT_CONFLICT",
+          "A2P0": true,
+          "A3Final39": false,
+          "riskCategory": "P0_LOGGER_PRIVACY_REVIEW",
+          "resolutionRule": "Use latest A2 committed tracing implementation reconciled with A1 query labels; no SQL, JWS, tokens, PII; emit bounded metrics and fail-open OTLP."
+        },
+        {
+          "status": "M",
+          "path": "scripts/qa/observability-agent2-local-gates.sh",
+          "A2ParentSha256": "2e2418a59c4f2b3a0f65f487d6fd6e09ab4620135d8601d4461681f349677af2",
+          "A2AfterThisCommitSha256": "a29a21d09f9a1f525f0da2de28bf05ef4305a61a49844f36de189b4ec807e52d",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "MISSING_A1_MODIFIED_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-otel-overhead.mjs",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "24174bad2eb8748aa171960c6b048e874dc5c2937e56fb9d63316bf453192788",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "M",
+          "path": "scripts/qa/observability-real-multi-instance-isolated.sh",
+          "A2ParentSha256": "a5955359dd7937afb23cbe8151f04d6a8cd43eba15b5f5f4207d26ee0e468951",
+          "A2AfterThisCommitSha256": "986237161919a3a0131d7da96ec5aaae38101b5e98e6d310f8848fba5df18522",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "MISSING_A1_MODIFIED_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-staging-preflight.mjs",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "1fff75ff554b1eb5abe6e8435e1e07f8a44293605b9267ff15081953b6c3abb0",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        },
+        {
+          "status": "A",
+          "path": "scripts/qa/observability-staging-preflight.test.mjs",
+          "A2ParentSha256": null,
+          "A2AfterThisCommitSha256": "d875d3c9f965d5d1f5d4762db1dea80e84c91adf1293ecf3b0c120282dbbdce1",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "BASE_MATCH_OR_NEW_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "A2_QA_GATE_SEQUENCE",
+          "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain."
+        }
+      ]
+    },
+    {
+      "sequence": 4,
+      "sha": "bd93aef2234e228191c1e112655d0c5c1b2a711e",
+      "parent": "fbd89d62a977726828d4df132db5a848cb96c851",
+      "subject": "docs(observability): record architecture checks and shared Web blocker",
+      "changeCount": 2,
+      "classes": {
+        "MISSING_A1_MODIFIED_PATH": 2
+      },
+      "files": [
+        {
+          "status": "M",
+          "path": "docs/audit/gafus-agent-2-followup-20261112.md",
+          "A2ParentSha256": "953545381eb515c8b46b978c5191330df75d05b11be149eb258fe87800585040",
+          "A2AfterThisCommitSha256": "129b2c5b019980ff2c836a829f58d8ba96b4cf6fd0f7d34f8355abb6e70784a8",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "MISSING_A1_MODIFIED_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+          "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance."
+        },
+        {
+          "status": "M",
+          "path": "docs/audit/gafus-agent-2-observability-local-receipt-20261112.json",
+          "A2ParentSha256": "25433c7009dc2396c5feb0f611524f303971407e4efe47a36ebc301087a53477",
+          "A2AfterThisCommitSha256": "638c4473b85487a6bbab54719f403f944c96efef9dc4f04d4febc308a7749236",
+          "A1CurrentSha256": null,
+          "classificationAgainstUnmergedA1": "MISSING_A1_MODIFIED_PATH",
+          "A2P0": false,
+          "A3Final39": false,
+          "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+          "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance."
+        }
+      ]
+    }
+  ],
+  "uniquePaths": [
+    {
+      "path": "apps/api/src/lib/operation-observability.test.ts",
+      "firstCommit": 1,
+      "A1CurrentSha256": "6b8f39601c60af1485d5533ffd07bc2bc4f560751be2013b63cbcfae92570d7a",
+      "riskCategory": "A2_RUNTIME_OR_CONTRACT",
+      "resolutionRule": "Preserve final A2 runtime semantics, tests and A1 composition contracts; verify API/Worker/logger/Prisma types.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "6b8f39601c60af1485d5533ffd07bc2bc4f560751be2013b63cbcfae92570d7a",
+      "A1EqualsA2Final": true
+    },
+    {
+      "path": "apps/api/src/lib/operation-observability.ts",
+      "firstCommit": 1,
+      "A1CurrentSha256": "37b9ca546103b8a22799cfc728799599393bd1466dc6dba1595f98134c4c6e7b",
+      "riskCategory": "P0_API_TRACING_REVIEW",
+      "resolutionRule": "Preserve A1 API operationId/requestId boundaries and existing middleware; reconcile A2 latest wrappers and privacy-safe OTLP exporter; local API contract test.",
+      "commitIndices": [
+        1,
+        2
+      ],
+      "A2P0": true,
+      "A3Final39": false,
+      "A2FinalSha256": "2e49911720b7ed53d6c79847d79842ee6cbf66355d0d60ec27cea89b9e4276d2",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "ci-cd/docker/grafana/dashboards/gafus-a2-storage-dependencies.json",
+      "firstCommit": 1,
+      "A1CurrentSha256": null,
+      "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+      "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING.",
+      "commitIndices": [
+        1,
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "eaadc1d4c712a3deadf1ef691b936ca9baa0a53f2eaa0299885384ce4b55edd4",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "ci-cd/docker/grafana/dashboards/gafus-api-latency.json",
+      "firstCommit": 1,
+      "A1CurrentSha256": "67d9dedcf5a487a5b476ba9b3ab73293d131d163b00cc3955c86c26984e134e4",
+      "riskCategory": "P1_GRAFANA_PANEL_REVIEW",
+      "resolutionRule": "A1 may have newer dashboard layout and metric families; merge panel IDs/queries without blind whole-file replacement.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "18ce7306df898a0661be23fbad1746414549a6050a78c83bb59110b3e68641b2",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "ci-cd/docker/grafana/dashboards/gafus-media-chat.json",
+      "firstCommit": 1,
+      "A1CurrentSha256": "9e95a599699be69c854ff6b7d9a0c353516e5b1a2d85325d4140ac08e36684f6",
+      "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+      "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "9e95a599699be69c854ff6b7d9a0c353516e5b1a2d85325d4140ac08e36684f6",
+      "A1EqualsA2Final": true
+    },
+    {
+      "path": "ci-cd/docker/grafana/dashboards/gafus-operations-reliability.json",
+      "firstCommit": 1,
+      "A1CurrentSha256": "38f4f0b24d553c82b8353c76ce8984b5c1469555c613796f3700b22aa76e4759",
+      "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+      "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "38f4f0b24d553c82b8353c76ce8984b5c1469555c613796f3700b22aa76e4759",
+      "A1EqualsA2Final": true
+    },
+    {
+      "path": "ci-cd/docker/prometheus/config.alloy",
+      "firstCommit": 1,
+      "A1CurrentSha256": "b3d563aad61b3508a4aaf62ce3016d1ddf9095c969174f29c6cc02b064c05b05",
+      "riskCategory": "P0_ALLOY_PIPELINES_REVIEW",
+      "resolutionRule": "Merge A1 existing scrape/routing and A2 OTLP/metrics guards and bounded labels; no secret exposure.",
+      "commitIndices": [
+        1,
+        2
+      ],
+      "A2P0": true,
+      "A3Final39": false,
+      "A2FinalSha256": "0835c811e73524aa9db2c361276fb752f3f461470de81ce410a13c3019ee5163",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "ci-cd/docker/prometheus/gafus-alerts-agent2.promtool.test.yml",
+      "firstCommit": 1,
+      "A1CurrentSha256": null,
+      "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+      "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING.",
+      "commitIndices": [
+        1,
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "44319882bb8a0b23733eef7aa3e498fc5cb77fe5cc672c161b1d888b59c704e2",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "ci-cd/docker/prometheus/gafus-alerts.promtool.test.yml",
+      "firstCommit": 1,
+      "A1CurrentSha256": "6e4e8b4dd61d416ee53c95aabdd5ea6bdcd318606f5b87e8d69e43d192301479",
+      "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+      "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "6e4e8b4dd61d416ee53c95aabdd5ea6bdcd318606f5b87e8d69e43d192301479",
+      "A1EqualsA2Final": true
+    },
+    {
+      "path": "ci-cd/docker/prometheus/gafus-alerts.yml",
+      "firstCommit": 1,
+      "A1CurrentSha256": "290f6cbbc00861a8d6e8a5c60bef40b35b0df0fa951daeb78fe18e0924ed8f5e",
+      "riskCategory": "P0_ALERT_RULES_REVIEW",
+      "resolutionRule": "Union A1 existing rules and A2 new reliability families; avoid duplicate alert names, keep DLQ/360p rules; run local rules tests.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": true,
+      "A3Final39": false,
+      "A2FinalSha256": "31405f04f97be3f1dd4663ec23d339907b9c4f243e6936ecf74992b7b6743cea",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "ci-cd/docker/prometheus/health-monitoring.contract.test.mjs",
+      "firstCommit": 1,
+      "A1CurrentSha256": "d7abb0e48116bc5f4742e7e0b15aab29ec9f66fa51b0fdd4fd51dd9ddb4a0ee8",
+      "riskCategory": "P1_MONITORING_CONTRACT_RECONCILE",
+      "resolutionRule": "Preserve A1 existing test coverage + A2 data labels/Prisma metrics, 12 local OTLP/monitor tests.",
+      "commitIndices": [
+        1,
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "381148f8207ee65c3a7a7569c31b677696c43bb86ebce4267fdd936673e6d893",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "docs/audit/gafus-agent-2-observability-20261111.md",
+      "firstCommit": 1,
+      "A1CurrentSha256": "d3bd3da637aa8d0744467cd0c4351a6f94135f58ff18a84544be564d8c6d128b",
+      "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+      "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance.",
+      "commitIndices": [
+        1,
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "d2b58b530c9c45efdeea84c89c7f355f3705d80703363d3117d1547450f76e8c",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "packages/logger/package.json",
+      "firstCommit": 1,
+      "A1CurrentSha256": "37b8cb9fb3e7fd73d1d5cb2c6d68210342d0cfd779c92860134ac887de491180",
+      "riskCategory": "P0_LOGGER_PACKAGE_PRESERVE_OR_VERIFY",
+      "resolutionRule": "A1 already contains committed A2 five OTel dependencies and ./server-telemetry exports; require matching SHA or approved reconciled package manifest.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "37b8cb9fb3e7fd73d1d5cb2c6d68210342d0cfd779c92860134ac887de491180",
+      "A1EqualsA2Final": true
+    },
+    {
+      "path": "packages/logger/src/serverTelemetry.ts",
+      "firstCommit": 1,
+      "A1CurrentSha256": "99c57f750945bef986b1567343254ff09222795a15b9073553cc8cf7337bd2bd",
+      "riskCategory": "P0_LOGGER_PRIVACY_REVIEW",
+      "resolutionRule": "Use latest A2 committed tracing implementation reconciled with A1 query labels; no SQL, JWS, tokens, PII; emit bounded metrics and fail-open OTLP.",
+      "commitIndices": [
+        1,
+        2,
+        3
+      ],
+      "A2P0": true,
+      "A3Final39": false,
+      "A2FinalSha256": "645b7d59b6d7edf93fd40a188c47cffc6f18dbd6381d8dd7604ce9f035890142",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "packages/prisma/scripts/a2-query-duration-isolated.ts",
+      "firstCommit": 1,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_RUNTIME_OR_CONTRACT",
+      "resolutionRule": "Preserve final A2 runtime semantics, tests and A1 composition contracts; verify API/Worker/logger/Prisma types.",
+      "commitIndices": [
+        1,
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "a681b09464bc3943f9a07994453a5cfeea4956b27f410932644d9562c90fd8d2",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "packages/prisma/src/client.ts",
+      "firstCommit": 1,
+      "A1CurrentSha256": "bd4ea849e9babc80ca0465ec401b944cc8b4754a153dd06159c69eac4962347a",
+      "riskCategory": "P1_PRISMA_CLIENT_WRAP_REVIEW",
+      "resolutionRule": "Preserve A1 client lifecycle/reuse and A2 query duration; ensure metrics preview and no duplicated PrismaClient.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "2a5a6cec66ae180920c8ed28fcebf7ea6f3653686978f955dc1bfb5d4b85d096",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "firstCommit": 1,
+      "A1CurrentSha256": "f131a5960bfffbb2dd894d23ee1e0820884fce6188798ba989eab7743e48524e",
+      "riskCategory": "P0_LOCK_REGENERATE_FROM_FINAL_A1_MANIFESTS",
+      "resolutionRule": "Preserve A1 70 workspace importer graph and 7 patches; A1 already has 5 A2 OTel deps. Never use old A2 whole lock. Regenerate once offline on isolated candidate after package reconciliation.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": true,
+      "A3Final39": false,
+      "A2FinalSha256": "8bd2ad9028d5361daefa25846e2ac402287270d7fa161c8396a77c170f30ef0c",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-agent2-local-gates.sh",
+      "firstCommit": 1,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        1,
+        2,
+        3
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "a29a21d09f9a1f525f0da2de28bf05ef4305a61a49844f36de189b4ec807e52d",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-multi-instance.mjs",
+      "firstCommit": 1,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "8d339f66d16ff05131e1d46b788ee9f79437bf80fec18476d6d22991d5a6be27",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-multi-instance.test.mjs",
+      "firstCommit": 1,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "7ea33b91f99fecabbf04d5c88b59081c3ce2e2b4a38ba42db171119463deb273",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-restore-rpo-rto.sh",
+      "firstCommit": 1,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "bc65cfeb9bf12a60d7e7aa264759b189e2d489ccd61261a3459504ab62a1d768",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/otel-local-collector.test.mjs",
+      "firstCommit": 1,
+      "A1CurrentSha256": "885294aae682d80d9021bd771eab5a8de3d3b0c0bf5bb5da6e1df27831e603df",
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        1,
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "fd0bddefc2107e6060a5f32382be55049212f989ea0ff4965b827e6469b6db25",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/prometheus-alertmanager-isolated.sh",
+      "firstCommit": 1,
+      "A1CurrentSha256": "5afa0bdfbe7995a9bb7eb99b7a6a74468bf972a51c446b72da3ae71fbf229695",
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        1
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "eb461e13e25f1025bb90f3f916f632f583d370258d4431fbd609c133e8905a81",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "apps/api/src/a2-observability-private-server.ts",
+      "firstCommit": 2,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_RUNTIME_OR_CONTRACT",
+      "resolutionRule": "Preserve final A2 runtime semantics, tests and A1 composition contracts; verify API/Worker/logger/Prisma types.",
+      "commitIndices": [
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "3c3c15be98b5ac796f7d294f28947ff40015cb4c655bfda65a64705b864c783f",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "docs/audit/gafus-agent-2-followup-20261112.md",
+      "firstCommit": 2,
+      "A1CurrentSha256": null,
+      "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+      "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance.",
+      "commitIndices": [
+        2,
+        3,
+        4
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "129b2c5b019980ff2c836a829f58d8ba96b4cf6fd0f7d34f8355abb6e70784a8",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "docs/audit/gafus-agent-2-observability-local-receipt-20261112.json",
+      "firstCommit": 2,
+      "A1CurrentSha256": null,
+      "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+      "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance.",
+      "commitIndices": [
+        2,
+        3,
+        4
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "638c4473b85487a6bbab54719f403f944c96efef9dc4f04d4febc308a7749236",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "packages/prisma/schema.prisma",
+      "firstCommit": 2,
+      "A1CurrentSha256": "309d51a18f02ceea136cf35c913677e35fa04df3fef01e9f5212d35263871e62",
+      "riskCategory": "P0_PRISMA_METRICS_HUNK_ONLY",
+      "resolutionRule": "Preserve all A1 models, migrations, QuestionLegacyPhotoDeletion and Chat2 outbox fields/index; add only Prisma client previewFeatures metrics if absent. Verify prisma validate + empty DDL diff for flag.",
+      "commitIndices": [
+        2
+      ],
+      "A2P0": true,
+      "A3Final39": false,
+      "A2FinalSha256": "394807900daf41830279681ed578d80dbc462388884e6bca0ba619c1cf3247c7",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "packages/worker/src/a2-observability-private-worker.ts",
+      "firstCommit": 2,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_RUNTIME_OR_CONTRACT",
+      "resolutionRule": "Preserve final A2 runtime semantics, tests and A1 composition contracts; verify API/Worker/logger/Prisma types.",
+      "commitIndices": [
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "8f569a4855ce87d60ae85710068ca21a921af2f4caf61a3faaaaabd0b66cde01",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-load-median.mjs",
+      "firstCommit": 2,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "3646b72659c9880ecc6ecaf17cb5a8bbe9edc258710407dc8c49c2a7d103fb3b",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-load-median.test.mjs",
+      "firstCommit": 2,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "b6c77297b77444da7436673cb653c01a94a31550a0d849e1b9baf354ecbad26d",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-local-trace-sink.mjs",
+      "firstCommit": 2,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "98f56eacfdcb3fdecd400b9e086e60348498a92feccb56948e52c3dc5c615905",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-promtool-rules.sh",
+      "firstCommit": 2,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        2
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "e99450581f76a1f1873a89ed95f8eb0d149e9637dd04a29c695ebb2f30926ff2",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-real-multi-instance-isolated.sh",
+      "firstCommit": 2,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        2,
+        3
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "986237161919a3a0131d7da96ec5aaae38101b5e98e6d310f8848fba5df18522",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "ci-cd/docker/docker-compose.observability-logs.yml",
+      "firstCommit": 3,
+      "A1CurrentSha256": null,
+      "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+      "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING.",
+      "commitIndices": [
+        3
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "f9ec330c87caf29603e3cf9e015fb059464780a0e8bafb898f8f4d2f2783096c",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "ci-cd/docker/observability-log-rotation.contract.test.mjs",
+      "firstCommit": 3,
+      "A1CurrentSha256": null,
+      "riskCategory": "DOCKER_MONITORING_TEST_OR_DASHBOARD",
+      "resolutionRule": "Keep latest A2 monitoring/rotation config and check local dashboards/rules; real staging recipient still PENDING.",
+      "commitIndices": [
+        3
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "2ad5e8c3ada32bb613397a60976723302b1594ebfc4e86388371005a5b7a80c0",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "docs/audit/gafus-agent-2-staging-evidence-template.json",
+      "firstCommit": 3,
+      "A1CurrentSha256": null,
+      "riskCategory": "DOC_VERIFY_HISTORICAL_ONLY",
+      "resolutionRule": "Include A2 commit audit receipt for traceability, but do not treat historic 33/5 or staging PENDING as new acceptance.",
+      "commitIndices": [
+        3
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "e38e576f460ef6a5c493823cd868be39b7edd739da3d323aa9f476bfd3e79cf4",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-otel-overhead.mjs",
+      "firstCommit": 3,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        3
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "24174bad2eb8748aa171960c6b048e874dc5c2937e56fb9d63316bf453192788",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-staging-preflight.mjs",
+      "firstCommit": 3,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        3
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "1fff75ff554b1eb5abe6e8435e1e07f8a44293605b9267ff15081953b6c3abb0",
+      "A1EqualsA2Final": false
+    },
+    {
+      "path": "scripts/qa/observability-staging-preflight.test.mjs",
+      "firstCommit": 3,
+      "A1CurrentSha256": null,
+      "riskCategory": "A2_QA_GATE_SEQUENCE",
+      "resolutionRule": "Preserve final revision from later A2 commits; run local tests only after integrating full QA script chain.",
+      "commitIndices": [
+        3
+      ],
+      "A2P0": false,
+      "A3Final39": false,
+      "A2FinalSha256": "d875d3c9f965d5d1f5d4762db1dea80e84c91adf1293ecf3b0c120282dbbdce1",
+      "A1EqualsA2Final": false
+    }
+  ],
+  "A1SourceSnapshotStableDuringPreflight": true,
+  "dryRun": [
+    {
+      "sequence": 1,
+      "sha": "751a435ec5096211b4325d80821cdfff271edd8d",
+      "gitApplyCheckOnA1PathCopy": "FAIL",
+      "stderrSha256": "4b34f943328d7f7a45f0f7845967f86c4ec9695df2ee7e8142cc8ad7a8ca0465",
+      "stderrLineCount": 21,
+      "note": "Read-only git apply --check against same UNPATCHED A1 snapshot; commit 2-4 lack earlier A2 prerequisites and cannot predict future sequential merge."
+    },
+    {
+      "sequence": 2,
+      "sha": "b05ca9c4e1c767fd4f10ea55531048f434a52527",
+      "gitApplyCheckOnA1PathCopy": "FAIL",
+      "stderrSha256": "f7427944866c490d80be367b4f64d99cf49a6411b83733bf6f0e799b5d9a692a",
+      "stderrLineCount": 16,
+      "note": "Read-only git apply --check against same UNPATCHED A1 snapshot; commit 2-4 lack earlier A2 prerequisites and cannot predict future sequential merge."
+    },
+    {
+      "sequence": 3,
+      "sha": "fbd89d62a977726828d4df132db5a848cb96c851",
+      "gitApplyCheckOnA1PathCopy": "FAIL",
+      "stderrSha256": "b75b9d5fb84727cb0d16333734bcf412a96c30f69ede6be7087be91c28bf572b",
+      "stderrLineCount": 6,
+      "note": "Read-only git apply --check against same UNPATCHED A1 snapshot; commit 2-4 lack earlier A2 prerequisites and cannot predict future sequential merge."
+    },
+    {
+      "sequence": 4,
+      "sha": "bd93aef2234e228191c1e112655d0c5c1b2a711e",
+      "gitApplyCheckOnA1PathCopy": "FAIL",
+      "stderrSha256": "5bbbe5c69d22872da84e1ccd2706ffd1a485d11faba2786b513beb08e93fc624",
+      "stderrLineCount": 2,
+      "note": "Read-only git apply --check against same UNPATCHED A1 snapshot; commit 2-4 lack earlier A2 prerequisites and cannot predict future sequential merge."
+    }
+  ],
+  "phase": "PREPARED_NOT_APPROVED_NO_SOURCE_CHANGES",
+  "preconditions": [
+    "A1 FINAL architecture source registry with all files and SHA",
+    "freeze A1 source into a CLEAN dedicated approved integration branch",
+    "explicit permission for local integration and acceptance",
+    "A3 final shared source owner review and lockfile proof refresh"
+  ],
+  "noBranchCreated": true,
+  "noPatchApplied": true,
+  "noCommitsMade": true,
+  "noPushOrDeploy": true
+}

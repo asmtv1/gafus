@@ -60,6 +60,26 @@ test('alerts are valid Prometheus rules and refer only to actual monitored metri
   assert(localCompose.includes('--collector.textfile.directory=/backup-metrics'));
   assert(localCompose.includes('./prometheus/local-backup-metrics:/backup-metrics:ro'));
   assert(alloy.includes('gafus_media_(stalled_processing|failed_tasks)'));
+  assert(alloy.includes('prometheus.scrape "api_operations"'));
+  assert(alloy.includes('metrics_path    = "/internal/metrics"'));
+  assert(alloy.includes('credentials = sys.env("API_METRICS_KEY")'));
+  const compose = load('../docker-compose.prod.yml');
+  assert.match(compose, /api:[\s\S]*?- API_METRICS_KEY=\$\{API_METRICS_KEY:-\}/);
+  assert.match(compose, /grafana-alloy:[\s\S]*?- API_METRICS_KEY=\$\{API_METRICS_KEY:-\}/);
+  assert.match(compose, /worker:[\s\S]*?- OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=\$\{OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-\}/);
+
+  assert(alloy.includes('gafus_chat2_outbox_(pending|leased|dead_letters|oldest_age_seconds)'));
+  assert(rules.some(rule => rule.alert === 'GafusChat2OutboxDeadLetters'));
+  assert(alloy.includes('gafus_questions_legacy_delete_(enabled|pending|processing|failed|oldest_age_seconds)'));
+  for (const [name, expression] of [
+    ['GafusQuestionsLegacyDeletionDeadLetters', 'gafus_questions_legacy_delete_failed > 0'],
+    ['GafusQuestionsLegacyDeletionStalled', 'gafus_questions_legacy_delete_oldest_age_seconds > 3600'],
+    ['GafusQuestionsLegacyDeletionMetricsMissing', 'absent(gafus_questions_legacy_delete_enabled)'],
+  ]) {
+    assert(rules.some(rule=>rule.alert===name && rule.expr===expression),
+      'Questions delete outbox alert must have its exact gauge expression: '+name);
+  }
+
   assert(alloy.includes('metrics_path    = "/metrics/media"'));
   assert(prometheus.scrape_configs.some(job => job.job_name === 'worker-media' && job.metrics_path === '/metrics/media'));
   assert(rules.some(rule => rule.expr.includes('gafus_media_stalled_processing')));
@@ -73,4 +93,111 @@ test('alerts are valid Prometheus rules and refer only to actual monitored metri
         `missing alert must watch ${metric} for ${pipeline}`);
     }
   }
+});
+
+test('Chat2 execution metrics remain scraped, bounded and visible on dashboard', () => {
+  for (const family of ['job_attempts_total', 'job_failures_total',
+    'job_duration_seconds_(bucket|sum|count)']) {
+    assert(alloy.includes(family), 'Alloy must forward '+family);
+  }
+  const worker = load('../../../packages/worker/src/chat2-outbox-worker.ts');
+  const metrics = load('../../../packages/worker/src/chat2-outbox-metrics.ts');
+  assert(worker.includes('chat2OutboxExecutionMetrics.record('));
+  assert(metrics.includes('job_duration_seconds_bucket'));
+  for (const forbidden of ['userId', 'conversationId', 'messageId', 'operationId']) {
+    assert(!metrics.includes(`job_type="${forbidden}"`));
+  }
+  const paths = ['../grafana/dashboards/gafus-api-latency.json',
+    '../grafana/dashboards/gafus-media-chat.json'];
+  for (const filename of paths) {
+    const dashboard = JSON.parse(load(filename));
+    assert(dashboard.panels.length >= 6);
+    for (const panel of dashboard.panels) {
+      assert(panel.targets?.length > 0);
+      for (const target of panel.targets) {
+        assert(target.expr);
+        assert(!/userId|operationId|messageId|conversationId/.test(target.expr));
+      }
+    }
+  }
+  const storm = alerts.groups.flatMap(group => group.rules)
+    .find(rule => rule.alert === 'GafusChat2DispatchRetryStorm');
+  assert(storm?.expr.includes('job_attempts_total'));
+  assert(storm.expr.includes('> 20'));
+  assert(storm.expr.includes('> 0.25'));
+});
+
+
+test('Agent 2 SLO and dependency alerts use bounded exported metrics', () => {
+  const rules = alerts.groups.flatMap(group => group.rules);
+  const byName = name => rules.find(r => r.alert === name);
+  for (const name of [
+    'GafusApi5xxElevated', 'GafusApiP95High',
+    'GafusWorkerNoSuccessWithBacklog', 'GafusWorkerAttemptMetricsMissing',
+    'GafusPostgresConnectionsHigh', 'GafusApiMetricsMissing',
+  ]) assert(byName(name)?.for && byName(name).labels?.severity, name);
+  for (const metric of [
+    'http_requests_total', 'http_request_duration_seconds_(bucket|sum|count)',
+    'job_attempts_total', 'db_query_duration_seconds_(bucket|sum|count)',
+    'db_pool_wait_seconds_(bucket|sum|count)', 'db_pool_wait_metrics_fresh',
+    'pg_stat_activity_count', 'pg_settings_max_connections',
+  ]) assert(alloy.includes(metric), 'Alloy is missing source: ' + metric);
+  assert(byName('GafusApi5xxElevated').expr.includes('>= 100'),
+    '5xx ratio without traffic floor is noisy at low volume');
+  assert(byName('GafusApiP95High').expr.includes('>= 100'),
+    'p95 alert must have a traffic floor');
+  assert(byName('GafusWorkerNoSuccessWithBacklog').expr.includes('outcome="delivered"'),
+    'only successful Worker deliveries prove queue progress');
+  assert(byName('GafusApiMetricsMissing').expr.includes('up{job="api-operations"}'),
+    'fresh API with no requests must not be declared missing');
+  assert(!rules.some(rule => /userId|requestId|operationId|messageId/.test(rule.expr)),
+    'high cardinality identifiers must never become alert labels');
+});
+
+test('Agent 2 Grafana storage view exposes all verified measurement families and environment selection', () => {
+  const dashboard = JSON.parse(load('../grafana/dashboards/gafus-a2-storage-dependencies.json'));
+  assert.equal(dashboard.panels.length, 10);
+  assert(dashboard.templating.list.some(variable =>
+    variable.name === 'environment' && variable.includeAll && variable.allValue === '.*'));
+  const expressions = dashboard.panels.flatMap(panel => panel.targets.map(target => target.expr));
+  for (const name of [
+    'pg_up', 'redis_up', 'pg_stat_activity_count',
+    'pg_settings_max_connections', 'db_query_duration_seconds_bucket',
+    'db_pool_wait_seconds_bucket', 'db_pool_wait_metrics_fresh',
+    'redis_memory_used_bytes', 'dependency_errors_total',
+  ]) assert(expressions.some(expr => expr.includes(name)), 'missing source ' + name);
+  for (const expression of expressions) {
+    assert(expression.includes('environment=~"$environment"'));
+    assert(!/operationId|messageId|userId|requestId|db\.statement/.test(expression));
+  }
+});
+
+test('actual Prisma pool-wait metric requires engine preview, guarded scrape and bounded labels', () => {
+  const schema = load('../../../packages/prisma/schema.prisma');
+  const telemetry = load('../../../packages/logger/src/serverTelemetry.ts');
+  const middleware = load('../../../apps/api/src/lib/operation-observability.ts');
+  assert.match(schema, /previewFeatures\s*=\s*\["metrics"\]/);
+  assert(telemetry.includes('prisma_client_queries_wait_histogram_ms'));
+  assert(telemetry.includes('recordPrismaPoolWaitHistogram'));
+  assert(telemetry.includes('db_pool_wait_metrics_fresh'));
+  assert(middleware.includes('authorizedOperationMetrics('));
+  assert(middleware.includes('refreshPoolWaitMetrics()'));
+  assert(middleware.includes('invalidatePrismaPoolWaitHistogram()'));
+  assert(!telemetry.includes('db_pool_wait_seconds{userId='));
+  assert(alloy.includes('db_pool_wait_seconds_(bucket|sum|count)'));
+});
+
+test('expanded synthetic alert suites include all required API, Worker, media and dependency cases', () => {
+  const suites = [YAML.parse(load('gafus-alerts.promtool.test.yml')),
+    YAML.parse(load('gafus-alerts-agent2.promtool.test.yml'))];
+  const cases = suites.flatMap(s => s.tests ?? []);
+  assert(cases.length >= 20);
+  const checkedNames = new Set(cases.flatMap(t => (t.alert_rule_test ?? []).map(a => a.alertname)));
+  for (const name of [
+    'GafusApi5xxElevated', 'GafusApiP95High', 'GafusWorkerNoSuccessWithBacklog',
+    'GafusChat2OutboxOldestPending', 'GafusChat2DispatchRetryStorm',
+    'GafusChat2OutboxDeadLetters', 'GafusMediaLeaseStalled',
+    'GafusPostgresUnavailable', 'GafusRedisUnavailable', 'GafusHttpServiceDown',
+    'GafusWorkerAttemptMetricsMissing', 'GafusApiMetricsMissing',
+  ]) assert(checkedNames.has(name), 'missing rule fixture: ' + name);
 });

@@ -8,6 +8,9 @@ import {
   invalidateTrainingDaysContentCache,
   invalidateStepsContentCache,
 } from "./trainingDayContent";
+import { registerTrainingDayContentReadPort } from "./trainingDayContentReadPort";
+import { readTrainingDayContent } from "@gafus/course-read-server";
+registerTrainingDayContentReadPort({ readTrainingDayContent });
 import {
   getCourseCacheMetricsSnapshot,
   resetCourseCacheMetricsForTests,

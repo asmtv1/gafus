@@ -1,0 +1,68 @@
+{
+  "name": "@gafus/course-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./public-catalog": {
+      "types": "./dist/publicCatalogService.d.ts",
+      "default": "./dist/publicCatalogService.js"
+    },
+    "./personalization": {
+      "types": "./dist/personalizationService.d.ts",
+      "default": "./dist/personalizationService.js"
+    },
+    "./reviews": {
+      "types": "./dist/reviewService.d.ts",
+      "default": "./dist/reviewService.js"
+    },
+    "./favorites": {
+      "types": "./dist/favoriteService.d.ts",
+      "default": "./dist/favoriteService.js"
+    },
+    "./mini-guides": {
+      "types": "./dist/miniGuideService.d.ts",
+      "default": "./dist/miniGuideService.js"
+    },
+    "./cache-revision": {
+      "types": "./dist/cacheRevisionService.d.ts",
+      "default": "./dist/cacheRevisionService.js"
+    },
+    "./online-step-binding": {
+      "types": "./dist/onlineStepBindingService.d.ts",
+      "default": "./dist/onlineStepBindingService.js"
+    },
+    "./video-progress": {
+      "types": "./dist/videoProgressService.d.ts",
+      "default": "./dist/videoProgressService.js"
+    },
+    "./course-delete-versioned": {
+      "types": "./dist/course-delete-versioned.d.ts",
+      "default": "./dist/course-delete-versioned.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "@gafus/logger": "workspace:*",
+    "@gafus/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "@types/node": "20.4.8",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  }
+}

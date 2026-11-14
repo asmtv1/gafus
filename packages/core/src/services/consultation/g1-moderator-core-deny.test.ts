@@ -37,13 +37,16 @@ vi.mock("@gafus/queues", () => ({
   removeConsultationReminderJob: vi.fn(),
 }));
 vi.mock("./notificationService", () => ({ enqueueConsultationEmail: vi.fn() }));
-vi.mock("../notifications/immediatePushService", () => ({ sendImmediatePushNotification: vi.fn() }));
-import { ConsultationForbiddenError } from "./errors";
+vi.mock("../notifications", () => ({ sendImmediatePushNotification: vi.fn() }));
+import { ConsultationForbiddenError } from "@gafus/core/services/consultation/errors";
+import { ConsultationForbiddenError as CoreConsultationForbiddenError } from "./errors";
 import {
   confirmBookingByTrainer, completeBookingByTrainer, markBookingNoShowByTrainer,
   rejectBookingByTrainer, listTrainerBookings,
-} from "./bookingService";
-import { adminSetListedCynologists } from "./cynologistService";
+} from "@gafus/consultation-server/booking-application";
+import * as catalogRows from "@gafus/consultation-query-server/cynologist-catalog-rows";
+import { createCynologistService } from "./cynologistService";
+const { adminSetListedCynologists } = createCynologistService(catalogRows);
 import {
   canAdminManageListed, canTrainerActAsCynologist, isTrainerOrAdmin,
 } from "./permissions";
@@ -81,7 +84,7 @@ describe("AG4 decision: Core must reject MODERATOR before any data access", () =
 
   it("MODERATOR cannot relist trainers even when body is empty", async () => {
     await expect(adminSetListedCynologists("mod-A", "MODERATOR", []))
-      .rejects.toBeInstanceOf(ConsultationForbiddenError);
+      .rejects.toBeInstanceOf(CoreConsultationForbiddenError);
     expect(m.usersFindMany).not.toHaveBeenCalled();
     expect(m.tx).not.toHaveBeenCalled();
   });

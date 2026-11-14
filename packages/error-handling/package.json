@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browserTelemetry.d.ts",
+      "default": "./dist/browserTelemetry.js"
     }
   },
   "main": "dist/index.js",

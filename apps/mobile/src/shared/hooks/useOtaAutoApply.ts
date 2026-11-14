@@ -3,6 +3,8 @@ import { AppState, type AppStateStatus } from "react-native";
 import * as Updates from "expo-updates";
 
 import { reportClientError } from "@/shared/lib/tracer";
+import { ensureOtaInstallationIdentity } from "@/shared/lib/ota/installationIdentity";
+import { trackOtaEvent, trackOtaLaunch } from "@/shared/lib/ota/telemetry";
 
 /** Даём сети на Android подняться до первого запроса к Expo Update. */
 const INITIAL_DELAY_MS = 1200;
@@ -13,12 +15,31 @@ const RETRY_AFTER_ERROR_MS = 4500;
 const FOREGROUND_CHECK_COOLDOWN_MS = 90_000;
 
 async function checkFetchAndReload(): Promise<void> {
-  const result = await Updates.checkForUpdateAsync();
-  if (!result.isAvailable) {
-    return;
+  await ensureOtaInstallationIdentity();
+  let result: Awaited<ReturnType<typeof Updates.checkForUpdateAsync>>;
+  try {
+    result = await Updates.checkForUpdateAsync();
+  } catch (error) {
+    void trackOtaEvent("UPDATE_ERROR", undefined, "CHECK_FAILED");
+    throw error;
   }
-  await Updates.fetchUpdateAsync();
-  await Updates.reloadAsync();
+  void trackOtaEvent("CHECKED");
+  if (!result.isAvailable) return;
+  const updateId = "manifest" in result ? result.manifest?.id : undefined;
+  try {
+    await Updates.fetchUpdateAsync();
+  } catch (error) {
+    void trackOtaEvent("UPDATE_ERROR", updateId, "FETCH_FAILED");
+    throw error;
+  }
+  // The event is queued on device before reload; network delivery is best effort.
+  await trackOtaEvent("DOWNLOADED", updateId, undefined, true);
+  try {
+    await Updates.reloadAsync();
+  } catch (error) {
+    void trackOtaEvent("UPDATE_ERROR", updateId, "RELOAD_FAILED");
+    throw error;
+  }
 }
 
 /**
@@ -82,6 +103,7 @@ export function useOtaAutoApply(enabled = true): void {
       }
     }
 
+    void trackOtaLaunch();
     void tryOta("cold_start", INITIAL_DELAY_MS);
 
     const onAppState = (state: AppStateStatus) => {

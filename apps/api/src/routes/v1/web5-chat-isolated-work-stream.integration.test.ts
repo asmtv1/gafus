@@ -107,12 +107,12 @@ run("WEB5 registered Hono+Core+isolated SQL+development Stream",()=>{
     if(created.status!==200){
       console.warn("WEB5_START_SAFE_DIAGNOSTIC",created.status,created.body.code??"NO_CODE");
       try{
-        const service=await import("@gafus/core/services/cynologistChat");
+        const service=await import("../../../../../packages/chat-server/src/service");
         await service.startChat(ids[0],intake);
-        console.warn("WEB5_CORE_DIRECT_DIAG=RESOLVED");
+        console.warn("WEB5_CHAT_SERVER_DIRECT_DIAG=RESOLVED");
       }catch(e){
         const v=e as {name?:string;code?:string|number;message?:string};
-        console.warn("WEB5_CORE_DIRECT_DIAG",v.name??"unknown",v.code??"NO_CODE",
+        console.warn("WEB5_CHAT_SERVER_DIRECT_DIAG",v.name??"unknown",v.code??"NO_CODE",
           String(v.message??"").replaceAll(process.env.STREAM_API_KEY??"[none]","[REDACTED]").slice(0,220));
       }
     }

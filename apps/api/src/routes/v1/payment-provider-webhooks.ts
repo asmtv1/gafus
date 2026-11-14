@@ -1,12 +1,12 @@
 /** Public provider notifications ported from the retained Next handlers.
  * Run ONLY behind a trusted proxy that overwrites x-forwarded-for/x-real-ip.
- * Finance authority remains the verified provider read inside Core. */
+ * Financial authority stays in the verified provider read inside the server service. */
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import {
   handleYookassaAppSubscriptionWebhook,
   handleAppleAppSubscriptionNotification,
-} from "@gafus/core/services/appSubscription";
+} from "../../modules/app-subscription/composition/payment-transitions.js";
 
 export const paymentProviderWebhooks = new Hono();
 const allowedPrefixes = ["185.71.76.", "185.71.77.", "77.75.153.", "77.75.154.", "2a02:5180:"];

@@ -1,0 +1,43 @@
+diff --git a/android/CMakeLists.txt b/android/CMakeLists.txt
+--- a/android/CMakeLists.txt
++++ b/android/CMakeLists.txt
+@@ -76,8 +76,10 @@
+ 
+ if(${CMAKE_BUILD_TYPE} MATCHES "Debug")
+   set(BUILD_TYPE "debug")
++  set(BUILD_VARIANT "Debug")
+ else()
+   set(BUILD_TYPE "release")
++  set(BUILD_VARIANT "Release")
+ endif()
+ 
+ add_library(worklets SHARED IMPORTED)
+@@ -86,7 +88,7 @@
+   worklets
+   PROPERTIES
+     IMPORTED_LOCATION
+-    "${REACT_NATIVE_WORKLETS_DIR}/android/build/intermediates/cmake/${BUILD_TYPE}/obj/${ANDROID_ABI}/libworklets.so"
++    "${REACT_NATIVE_WORKLETS_DIR}/android/build/intermediates/library_jni/${BUILD_TYPE}/copy${BUILD_VARIANT}JniLibsProjectOnly/jni/${ANDROID_ABI}/libworklets.so"
+ )
+ 
+ set_target_properties(reanimated PROPERTIES LINKER_LANGUAGE CXX)
+diff --git a/android/build.gradle b/android/build.gradle
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -352,5 +352,14 @@
+     afterEvaluate {
+         tasks.getByName("externalNativeBuildDebug").dependsOn(findProject(":react-native-worklets").tasks.getByName("externalNativeBuildDebug"))
+         tasks.getByName("externalNativeBuildRelease").dependsOn(findProject(":react-native-worklets").tasks.getByName("externalNativeBuildRelease"))
+-    }
+-}
++        // Native CMake links the JNI copy output. Gradle must produce it before
++        // each ABI-specific CMake task, not only before externalNativeBuildRelease.
++        def worklets = findProject(":react-native-worklets")
++        tasks.matching { it.name.startsWith("buildCMakeRelWithDebInfo") }.configureEach {
++            dependsOn(worklets.tasks.named("copyReleaseJniLibsProjectOnly"))
++        }
++        tasks.matching { it.name.startsWith("buildCMakeDebug") }.configureEach {
++            dependsOn(worklets.tasks.named("copyDebugJniLibsProjectOnly"))
++        }
++    }
++}

@@ -30,6 +30,21 @@ export function photoFailureCode(reason: unknown):
 /** User instructions must not expose native details or presigned S3 URLs. */
 export function photoRetryMessage(reason: unknown): string {
   const category = photoFailureCode(reason);
+  // The Feed publication queue persists a stable error.message STRING, not
+  // the PhotoUploadStageError instance. Decode only our known-safe stage codes,
+  // so a server-side 500 never appears as "out of space on your phone".
+  const raw = reason instanceof Error ? reason.message : reason;
+  const stage = reason instanceof PhotoUploadStageError ? reason.stage :
+    typeof raw === "string" && /^PHOTO_(JPEG|WEBP|RESERVE|TRANSFER|CONFIRM)_FAILED$/.test(raw)
+      ? raw.slice(6, -7).toLowerCase() : null;
+  if (stage === "confirm")
+    return "Сервер не подтвердил отправленное фото. Нажмите круглую стрелку для повтора. Если ошибка повторится, сообщите о проблеме.";
+  if (stage === "reserve" || stage === "transfer")
+    return "Фото не удалось отправить или зарезервировать на сервере. Проверьте интернет и повторите круглой стрелкой.";
+  if (!(reason instanceof PhotoUploadStageError) && stage === "jpeg")
+    return "Не удалось открыть фото для преобразования. Выберите его заново или сохраните как JPG.";
+  if (!(reason instanceof PhotoUploadStageError) && stage === "webp")
+    return "Не удалось создать WebP-версию фото на устройстве. Выберите фото заново или сохраните как JPG.";
   if (reason instanceof PhotoUploadStageError &&
       (category === "UNKNOWN" || category === "ENCODE")) {
     if (reason.stage === "jpeg")

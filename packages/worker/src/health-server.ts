@@ -1,10 +1,15 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import { createWorkerLogger } from "@gafus/logger";
+import { flushServerTelemetry, renderServerDiagnosticOtlpMetrics } from "@gafus/logger/server-telemetry";
 import { renderAppSubscriptionMetricsPrometheus } from "./app-subscription-metrics";
 import { renderMailDeliveryMetricsPrometheus } from "./mail-delivery-monitor";
 import { renderMediaProcessingMetricsPrometheus } from "./media-processing-metrics";
+import { chat2OutboxMetricsSnapshot } from "./chat2-outbox-worker";
+import { chat2OutboxExecutionMetrics } from "./chat2-outbox-metrics";
+import { renderQuestionsLegacyDeletionMetricsPrometheus } from "@gafus/questions-server/photos";
 import { chat2PollIsFresh, hasChat2ReadinessKey } from "./chat2-readiness";
+import { renderMobileTelemetryMetricsPrometheus } from "./mobile-telemetry-spool-worker";
 
 const HEALTH_BODY = '{"ok":true}';
 
@@ -23,11 +28,12 @@ export function startHealthServer(): Server {
     // Only reachable within the private worker network and requires a shared
     // server-only broker key. Never publish a readiness result for a guest.
     if (path === "/internal/chat2/ready") {
-      const authenticated = method === "GET" &&
-        hasChat2ReadinessKey(req.headers["x-chat2-readiness-key"]);
+      const authenticated =
+        method === "GET" && hasChat2ReadinessKey(req.headers["x-chat2-readiness-key"]);
       const ready = authenticated && chat2PollIsFresh();
       res.writeHead(!authenticated ? 404 : ready ? 200 : 503, {
-        "Content-Type": "application/json", "Cache-Control": "no-store",
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
       });
       res.end(ready ? '{"ready":true}' : '{"ready":false}');
       return;
@@ -47,8 +53,13 @@ export function startHealthServer(): Server {
     // Independent media metrics, so slow subscription reporting cannot mask
     // orphaned processing leases. Results never include account/media keys.
     if ((method === "GET" || method === "HEAD") && path === "/metrics/media") {
-      renderMediaProcessingMetricsPrometheus()
-        .then((metrics) => {
+      Promise.all([
+        renderMediaProcessingMetricsPrometheus(),
+        chat2OutboxMetricsSnapshot(),
+        renderQuestionsLegacyDeletionMetricsPrometheus(),
+      ])
+        .then((parts) => {
+          const metrics = [...parts, chat2OutboxExecutionMetrics.render()].join("\n");
           res.writeHead(200, {
             "Content-Type": "text/plain; version=0.0.4; charset=utf-8",
             "Cache-Control": "no-store",
@@ -57,9 +68,27 @@ export function startHealthServer(): Server {
         })
         .catch(() => {
           log.error("Media metrics render failed", Error("MEDIA_METRICS_UNAVAILABLE"));
-          res.writeHead(503, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+          res.writeHead(503, {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-store",
+          });
           res.end("# media_metrics_error 1\n");
         });
+      return;
+    }
+
+    // Bounded SDK57 ingest/export metrics, kept independent from product queues.
+    if ((method === "GET" || method === "HEAD") && path === "/metrics/mobile-telemetry") {
+      renderMobileTelemetryMetricsPrometheus().then((metrics) => {
+        const body = metrics + renderServerDiagnosticOtlpMetrics();
+        res.writeHead(200, {"Content-Type":"text/plain; version=0.0.4; charset=utf-8",
+          "Cache-Control":"no-store"});
+        res.end(method === "GET" ? body : undefined);
+      }).catch(() => {
+        res.writeHead(503, {"Content-Type":"text/plain; charset=utf-8",
+          "Cache-Control":"no-store"});
+        res.end("# mobile_telemetry_metrics_unavailable 1\n");
+      });
       return;
     }
 
@@ -111,7 +140,13 @@ export function startHealthServer(): Server {
   process.on("SIGTERM", () => {
     setTimeout(() => {
       server.close(() => {
-        process.exit(0);
+        // A telemetry outage is never allowed to block Worker termination.
+        // Normal exporter timeout is 5s; this cap leaves room for other
+        // container shutdown hooks without logging sensitive provider errors.
+        void Promise.race([
+          flushServerTelemetry().catch(() => undefined),
+          new Promise<void>(resolve => setTimeout(resolve, 4_500)),
+        ]).finally(() => process.exit(0));
       });
     }, 2000);
   });

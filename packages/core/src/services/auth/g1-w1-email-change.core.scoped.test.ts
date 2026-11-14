@@ -81,6 +81,32 @@ return {prisma:{user:fakeUser,emailChangeToken:fakeToken,
 vi.mock("@gafus/logger",()=>({createWebLogger:()=>({info:vi.fn(),error:vi.fn(),warn:vi.fn()})}));
 vi.mock("./transactionalAuthMail",()=>({getPublicWebBaseUrl:()=>"https://synthetic.invalid",sendEmailChangeConfirmEmail:m.mail,sendEmailChangedNoticeEmail:m.notice,sendPasswordResetLinkEmail:vi.fn()}));
 import { requestEmailChange,confirmEmailChangeByToken } from "./emailAccountFlows";
+import { registerEmailAccountRowsPort } from "./emailAccountFlows";
+import {
+  readPasswordResetRequestUser,
+  claimPasswordResetEmailToken,
+  rollbackFailedPasswordResetEmailToken,
+  retireOlderPasswordResetEmailTokens,
+  readEmailChangeAccount,
+  readEmailOwner,
+  stageEmailChange,
+  rollbackUndeliveredEmailChange,
+  retireOlderEmailChangeTokens,
+  consumeEmailChangeConfirmation,
+} from "@gafus/identity-write-server/email-account-rows";
+registerEmailAccountRowsPort({
+  readPasswordResetRequestUser,
+  claimPasswordResetEmailToken,
+  rollbackFailedPasswordResetEmailToken,
+  retireOlderPasswordResetEmailTokens,
+  readEmailChangeAccount,
+  readEmailOwner,
+  stageEmailChange,
+  rollbackUndeliveredEmailChange,
+  retireOlderEmailChangeTokens,
+  consumeEmailChangeConfirmation,
+});
+
 const lastToken=()=>{
  const url=String(m.mail.mock.calls.at(-1)?.[1]??"");return new URL(url).searchParams.get("token")??"";
 };

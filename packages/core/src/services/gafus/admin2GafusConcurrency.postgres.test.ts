@@ -4,7 +4,23 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@gafus/prisma";
 import { awardActivityTx } from "./rewardService";
 import { changeGafusBalanceTx } from "./walletService";
+// Compose the original SQL repository into the Core domain port. Synthetic
+// fixtures still own their Prisma TransactionClient and no new DB is opened.
+import { registerGafusLedgerRowsPort } from "./gafusLedgerPort";
+import {
+  ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
+  appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
+} from "@gafus/gafus-server/wallet-records";
+registerGafusLedgerRowsPort({
+  ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
+  appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
+});
+
 import { lockGafusUser } from "./locking";
+import { registerGafusLockPort } from "./locking";
+import { lockGafusUser as dbLockGafusUser, withGafusUserLock as dbWithGafusUserLock } from "@gafus/gafus-server/wallet-lock";
+registerGafusLockPort({ lockGafusUser: dbLockGafusUser, withGafusUserLock: dbWithGafusUserLock });
+
 
 // Test fixtures run exclusively against a dedicated disposable local database.
 const url = process.env.GAFUS_TEST_DATABASE_URL;

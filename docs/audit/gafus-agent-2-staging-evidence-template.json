@@ -1,0 +1,50 @@
+{
+  "program": "a2-obs-rehearsal",
+  "environment": "staging",
+  "syntheticDataOnly": true,
+  "approval": {
+    "changeId": null,
+    "testOnlyRecipientVerified": false
+  },
+  "isolation": {
+    "postgres": "dedicated-ephemeral",
+    "redis": "dedicated-ephemeral",
+    "cloudJob": "PENDING_TEST_JOB",
+    "objectStorage": "PENDING_TEST_BUCKET",
+    "notificationDestination": "PENDING_TEST_ONLY"
+  },
+  "endpoints": {
+    "api": null,
+    "worker": null,
+    "otlpSearch": null,
+    "prometheus": null,
+    "alertWebhook": null,
+    "cdn": null
+  },
+  "images": {
+    "old": {"api": null, "worker": null},
+    "candidate": {"api": null, "worker": null}
+  },
+  "canaryPercent": [10,25,50,100],
+  "migrations": {
+    "expandOnly": false,
+    "destructiveStatements": 0,
+    "oldVersionReadCompatible": false
+  },
+  "backup": {"restoredAndVerified": false},
+  "rollback": {
+    "applicationDigest": null,
+    "flagOff": false,
+    "preserveOutboxAndDlq": true
+  },
+  "acceptance": {
+    "realCloudJob360p": false,
+    "searchableOtlpAndHistoricalRecords": false,
+    "firingResolvedInVerifiedTestChannel": false,
+    "baselineSameTrafficAndHardware": false,
+    "stagedRpoRtoMeasured": false,
+    "all18ScenariosVerified": false,
+    "all33RegressionGatesGreen": false,
+    "all5ChaosGatesGreen": false
+  }
+}

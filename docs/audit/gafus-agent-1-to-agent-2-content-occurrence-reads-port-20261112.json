@@ -1,0 +1,202 @@
+{
+  "schema": "gafus-agent1-to-a2-occurrence-port/v1",
+  "created_utc": "2026-11-12T03:36:42.909031+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "owner-course-step-occurrence-entitlement-reader-port",
+  "edges_before": 28,
+  "edges_after": 27,
+  "ratchet": {
+    "baseline": 41,
+    "resolved": 14,
+    "new": 0
+  },
+  "historical": {
+    "initial": 142,
+    "removed": 115
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "c0ca1131b0491f4e0b41a9cd6e3aa07f68f8ebd2c1b5faf64b5e7eeebafaa7e3",
+      "sha256_after": "a1d4f8f349b686e429a19d8810f47ea076a758e72fd96f5d952c9b860bd6e145",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-occurrence-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/content-access/composition/install-occurrence-reads.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "603d68838a389655f030ae48c9a160066f2ddea3fb5793d6fbef32dad77ea461",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/content-access/composition/install-occurrence-reads.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "32b119ac68a029b99bc9319c1a1b86cdcce7cba20df25608e3a3ae41823a1d42",
+      "backup_before": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "edab522d7d1332e0960fd3dd65e733977f2baf4a7175069323a16177dae9e60c",
+      "sha256_after": "9a55bc59e0c94d0eca172a7b2a24ec627dea451fd90a2606e9c919878efdef9b",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-occurrence-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "78314583baee7b361672e09523240160b2ea7370a80edd60e64ea207602a342c",
+      "sha256_after": "785561bc3ffe1067cd6046a5061fc32a6fc767778f2229e960e72b08751a637f",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-occurrence-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/contentAccess/courseOccurrenceReadPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "b4ba31558276c7baa15b7f07deb4b5641545797bee139cac026680866fc92178",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/contentAccess/courseStepGrantLookup.test.ts",
+      "status": "M",
+      "sha256_before": "0f1290ebb71c3942b001b8f0da03be9f0bbd120eb4e9528d4cb76faa5adf8eb2",
+      "sha256_after": "ab55aff336d0a466173f0d065a5601beb7e9a75eba7a3c68678d3f41e671eea8",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-occurrence-port-prechange/packages/core/src/services/contentAccess/courseStepGrantLookup.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/contentAccess/courseStepGrantReads.realpg.test.ts",
+      "status": "M",
+      "sha256_before": "7c651eda70b284e0ed6d1b0db6efe791e0fa688ade8ec79112548dab068f754b",
+      "sha256_after": "1d1723d1f4cf2f862222e90bb8e3175cd680fa4985bd7bfbcd0cafb2d42c15c0",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-occurrence-port-prechange/packages/core/src/services/contentAccess/courseStepGrantReads.realpg.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/contentAccess/index.ts",
+      "status": "M",
+      "sha256_before": "cbc212afa95b8ecd8de68ca82994b94f6bdb1262f086469f947be262f18540df",
+      "sha256_after": "9192f60464e9688c5afc56b03c20286174155e379e5b5aef9b69c31341bf0de3",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-occurrence-port-prechange/packages/core/src/services/contentAccess/index.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "fe4a70fc9cfb6e96a222d6c09bdab7fb40315941dc8c8c3b97766e84aaa0d28c",
+      "sha256_after": "a75473d081e57fb4b55c846f4f6f4297c6a12192975b48e468f47ba96b47ae14",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-occurrence-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Core prior occurrence grant and canonical access policy",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/contentAccess/courseStepGrantLookup.test.ts src/services/contentAccess/courseStepGrantReads.realpg.test.ts src/services/contentAccess/index.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 13,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-occurrence-core-target.log"
+    },
+    {
+      "name": "Core port fail-closed & strict occurrence args",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/contentAccess/courseOccurrenceReadPort.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 3,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-occurrence-port-core-test.log"
+    },
+    {
+      "name": "API occurrence SQL composition",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/content-access/composition/install-occurrence-reads.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-occurrence-api-test.log"
+    },
+    {
+      "name": "Full Core",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2099,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-occurrence-core-full.log"
+    },
+    {
+      "name": "Full API",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2751,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-occurrence-api-full.log"
+    },
+    {
+      "name": "Core TypeScript",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-occurrence-core-ts.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-occurrence-core-build.log"
+    },
+    {
+      "name": "API TypeScript",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-occurrence-api-ts.log"
+    },
+    {
+      "name": "Entitlements adapter TypeScript",
+      "command": "pnpm --filter @gafus/entitlements-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-occurrence-entitlements-ts.log"
+    },
+    {
+      "name": "Architecture boundary",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-occurrence-boundaries.log"
+    }
+  ],
+  "backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-occurrence-port-prechange",
+  "no_commit_merge_push_deploy": true,
+  "baseline_json_changed": false,
+  "public_contracts": {
+    "methods": [
+      "hasActiveGafusCourseStepAccess",
+      "hasAllowedVideoCourseStepAccess"
+    ],
+    "strict_scope": "owner userId, dayOnCourseId, stepOnDayId, now; no global Step/media-key fallback",
+    "private": "Core target callback rejects private without assignment even with Gafus grant",
+    "grant": "MINI_GUIDE shared child grant only for same public monetized course",
+    "fail_closed": "COURSE_OCCURRENCE_READ_PORT_UNBOUND",
+    "hot_rebind": "COURSE_OCCURRENCE_READ_PORT_ALREADY_BOUND"
+  },
+  "open_gates": [
+    {
+      "id": "GRANT_OWNER_REAL_PG",
+      "requires": "Disposable localhost PostgreSQL with production schema, test paid/private/guide/free step occurrence rows and Gafus target grants; verify owned vs outsider, revoked private assignment, expired grant, cross-day step and article; gated real-PG suite was skipped."
+    },
+    {
+      "id": "VIDEO_STAGING",
+      "requires": "Approved API + mobile/web test media with video of paid/private course; check range/manifest endpoint denies without exact owner/day/step access. No prod media writes."
+    },
+    {
+      "id": "FINAL_ARCH",
+      "requires": "Remove remaining 27 Core→server edges before joint A1/A2/A3 33-stage architecture final + 5-stage chaos, Web/Mobile/Worker/panels/PG/Redis gates. Do not modify frozen 41 baseline prematurely."
+    }
+  ],
+  "integration": "All SHA256 are of current shared uncommitted worktree at group start/end. Before was not git HEAD. app.ts/index.ts/guard/audit shared; semantically merge only, do not overwrite other A2/A3."
+}

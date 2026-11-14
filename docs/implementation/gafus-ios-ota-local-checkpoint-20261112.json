@@ -1,0 +1,37 @@
+{
+  "checkpoint": "gafus-ios-self-hosted-ota-local-20261112",
+  "baseline": "0dcd18c13",
+  "generatedUtc": "2026-11-12T17:27:31.889812+00:00",
+  "productionChanged": false,
+  "gitMergedOrPushed": false,
+  "files": {
+    ".github/workflows/gafus-self-hosted-ota-preview.yml": "a48dae048ad00cd1adf138fffad925437046d135085671f140665cbc6122f163",
+    "apps/mobile/src/features/app-subscription/components/AppSubscriptionPaywall.ios.tsx": "1bf9bc4cf228721dbedec66271f20a5b92cc4d555faf3b88e069e723cfdb7ed3",
+    "apps/mobile/src/features/app-subscription/components/AppSubscriptionPaywall.ios-restore.test.tsx": "9ada960e26ce21200bf520f5161888121fcc4da4ed29f9dc087dd00386128739",
+    "apps/mobile/scripts/self-hosted-ota-artifact.mjs": "550057a9b45608db7d8f879bc15360d4f6a61c3af83354606b3a615a21cacf3f",
+    "apps/mobile/scripts/source-recovery-preflight.mjs": "9550043d7c0f871d4829d184bef013c54292faccd6e06822743a13d34588c478",
+    "apps/mobile/scripts/native-source-fingerprint.mjs": "1dd51bfc88783ee85ef09ce27316f3bd0f3978bfcec95d7e9737ed86bce90b26",
+    "packages/mobile-ota-server/src/ci-registration.ts": "768ebb3113dcb3d8576730f5cc56f28bae7de523d8afe10134bc0661f19ffab0",
+    "packages/mobile-ota-server/src/patch-commands.ts": "cd9bcb0403aae1326ea1b654ecb3898833aef4b7f744e64eb968686a4baeb35a",
+    "packages/mobile-ota-server/src/deployment-commands.ts": "a9a56f490a3f7b30018fa3f97a419725ae42b2aa35b966211565eaa3a8d7a4dd",
+    "packages/mobile-ota-server/src/queries.ts": "3b1c85168d3a7fd1a0876c2e2807bd7fa92162e8ada1b2177e1f560590920da5",
+    "packages/mobile-ota-server/src/repository.ts": "52b0a4c78ab7b4c53c9984ce768395d5c488c15b763dc750d14a0bd79a408603",
+    "packages/mobile-ota-server/tests/ci-registration.realpg.test.ts": "cf02dbae28594f38611146dcecd4d5be94b5782720193f39d9107aff366a1fff",
+    "packages/mobile-ota-server/tests/deployment-commands.realpg.test.ts": "55e4ff1bfbe673ad0179aacfc1771b021cd2eea74dc37a926ecbbe44941ebbc7",
+    "packages/prisma/migrations/20261112201500_mobile_ota_native_fingerprint_isolation/migration.sql": "210183745503ab35f97f37e303e3995ccbbc64d68c80b9815368e8e6a87f7f34",
+    "packages/prisma/migrations/20261112211500_mobile_source_patch_operation_id/migration.sql": "a2d934b23342c9b472ec418b67484540e2f54774d9677ca9dae58cde486068d4",
+    "apps/mobile/app.config.js": "87d298f16760083e3ebfb91ff215af5b9ae4650730de93ab6e4bfaac98c914cd",
+    "apps/mobile/scripts/export-self-hosted-ota.mjs": "bb02c15f96108cf3e1247afa14e66137b628db75014d8ef0ff9d472fcaa6ed34",
+    "apps/mobile/scripts/self-hosted-ota-public-env.mjs": "43c3772f19e081cc10121f45938f208af7adeaf352ec83f9eac2414ed54b3a18",
+    "apps/mobile/scripts/self-hosted-ota-public-env.test.mjs": "976da22bee8f249fe868d74e34789ad104b5c6363cd98b597541f525222596d6",
+    "apps/mobile/src/shared/lib/tracer/tracerConfig.ts": "e3526ff977e08c6be6e87824f439b63ec4fa7a2d32646281730eb4483ce6f202",
+    "apps/mobile/src/shared/lib/tracer/tracerConfig.self-hosted-ota.test.ts": "1ce520c0cf9c96665ff55ea0477a4d3049a1da0623759654ccef69fe0c0292c8"
+  },
+  "tests": {
+    "mobilePaymentAndTracer": 101,
+    "api": 59,
+    "isolatedPostgres": 13,
+    "script": 25
+  },
+  "externalQaComplete": false
+}

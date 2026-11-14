@@ -15,7 +15,7 @@ vi.mock("@gafus/prisma", () => ({
 import {
   getEligiblePushNotificationJob,
   getPushNotificationForDelivery,
-} from "./pushWorkerService";
+} from "@gafus/notifications-server/pushWorkerService";
 
 const original = {
   id: "n1",

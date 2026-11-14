@@ -12,10 +12,8 @@ const forbidden = vi.hoisted(() => ({
     throw Error("WRITE_REVISION_PUBLICATION_FORBIDDEN");
   }),
 }));
-vi.mock("../training/trainingDayContent", () => ({
+vi.mock("@gafus/core/services/training/cache-publication", () => ({
   invalidateStepsContentCache: forbidden.invalidate,
-}));
-vi.mock("../training/trainingContentRevision", () => ({
   publishCourseContentChange: forbidden.publish,
 }));
 vi.mock("@gafus/logger", () => ({

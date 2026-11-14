@@ -67,3 +67,10 @@ export {
 export type { AppSubscriptionPlanCode, AppSubscriptionProvider, AppSubscriptionStatusCode, YookassaTrialUnavailableReason, AppSubscriptionStatusDto } from "./contracts/appSubscriptionRead";
 
 export type { VideoPlaybackQualityEvent, VideoPlaybackQualityReport, VideoPlaybackQualityBreakdown, VideoPlaybackSurface, VideoPlaybackPlatform, VideoPlaybackMode, VideoPlaybackNetworkClass } from "./video-playback-analytics";
+
+export type { ConsentDocumentType, ConsentPayload, CreateConsentLogsParams } from "./contracts/consent";
+
+export * from "./contracts/applicationError";
+export * from "./contracts/mobileReleaseErrors";
+
+export * from "./contracts/mobileTelemetry";

@@ -8,13 +8,10 @@ import { isValidBirthDateEditWire } from "./petCreateBirthDate";
 import { zValidator } from "@hono/zod-validator";
 import { profileEditValidationError } from "./g1-field-validation";
 
+import { deleteUserAccountBodySchema, updateAvatar } from "@gafus/core/services/user";
 import {
-  deleteUserAccount,
-  deleteUserAccountBodySchema,
-  requestAccountDeletionCode,
-  readAccountDeletionPreflight,
-  updateAvatar,
-} from "@gafus/core/services/user";
+  deleteUserAccount, requestAccountDeletionCode, readAccountDeletionPreflight,
+} from "../../modules/user/composition/account-deletion.js";
 import {
   readProfileApplication,
   updateProfileApplication,
@@ -24,7 +21,7 @@ import {
   normalizeInstagramInput,
   normalizeWebsiteUrl,
 } from "@gafus/core/utils/social";
-import { getTrainingReminderPushSubscriptions } from "@gafus/core/services/reminders";
+import { getTrainingReminderPushSubscriptions } from "@gafus/notifications-server/trainingReminderClaims";
 import { onboardingTourApplication } from "../../modules/user/composition/onboarding-tour.js";
 import { readPublicProfileApplication } from "../../modules/user/composition/read-public-profile.js";
 import { createWebLogger } from "@gafus/logger";

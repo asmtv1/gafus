@@ -1,3 +1,37 @@
+import "./modules/app-feature-flags/composition/install-core-flags.js";
+import "./modules/app-subscription/composition/install-core-subscription-access.js";
+import "./modules/rewarded-credits/composition/install-core-settings.js";
+import "./modules/trainer-courses/composition/install-core-version-rows.js";
+import "./modules/auth/composition/install-registration-context.js";
+import "./modules/auth/composition/install-password-reset.js";
+import "./modules/auth/composition/install-email-account-rows.js";
+import "./modules/auth/composition/install-vk-completion.js";
+import "./modules/auth/composition/install-credential-registration.js";
+import "./modules/auth/composition/install-registration-contract-rows.js";
+import "./modules/content-access/composition/install-policy-reads.js";
+import "./modules/content-access/composition/install-occurrence-reads.js";
+import "./modules/gafus/composition/install-wallet-lock.js";
+import "./modules/training/composition/install-content-revision-read.js";
+import "./modules/courses/composition/install-catalog-read.js";
+import "./modules/training/composition/install-day-content-read.js";
+import "./modules/app-subscription/composition/install-promo-code-rows.js";
+import "./modules/gafus/composition/install-ledger-rows.js";
+import "./modules/gafus/composition/install-unlock-rows.js";
+import "./modules/trainer-days/composition/install-training-day-rows.js";
+import "./modules/rewarded-credits/composition/install-access-reads.js";
+import "./modules/rewarded-credits/composition/install-wallet-rows.js";
+import "./modules/user/composition/install-profile-rows.js";
+import "./modules/gafus/composition/install-admin-rows.js";
+import "./modules/trainer-courses/composition/install-trainer-course-rows.js";
+import "./modules/training/composition/install-training-service.js";
+import "./modules/auth/composition/install-core-auth-rows.js";
+import "./modules/auth/composition/install-core-vk-auth-rows.js";
+import "./modules/offline/composition/install-offline-mutation-rows.js";
+import "./modules/pet-prevention/composition/install-prevention-rows.js";
+import "./modules/pets/composition/install-pet-rows.js";
+import "./modules/pets/composition/install-vet-visit-rows.js";
+import "./modules/rewarded-credits/composition/install-ad-session-rows.js";
+import "./modules/trainer-steps/composition/install-trainer-step-rows.js";
 import { internalFeedRoutes } from "./routes/internal/feed.js";
 import { internalChat2MediaJobRoutes } from "./routes/internal/chat2-media-jobs.js";
 import { internalQuestionsMediaJobRoutes } from "./routes/internal/questions-media-jobs.js";
@@ -85,6 +119,8 @@ import { adminMediaRoutes } from "./routes/v1/admin-media.js";
 import { adminPartnerRoutes } from "./routes/v1/admin-partners.js";
 import { adminUsersRoutes } from "./routes/v1/admin-users.js";
 import { adminFeatureFlagsRoutes } from "./routes/v1/admin-feature-flags.js";
+import { adminMobileOtaRoutes } from "./routes/v1/admin-mobile-ota.js";
+import { internalMobileOtaCiRoutes } from "./routes/v1/internal-mobile-ota-ci.js";
 import { adminMailRoutes } from "./routes/v1/admin-mail.js";
 import { adminAnalyticsRoutes } from "./routes/v1/admin-analytics.js";
 import { videoPlaybackQualityRoutes } from "./routes/v1/video-playback-quality.js";
@@ -99,15 +135,23 @@ import { adminReengagementTriggerRoutes } from "./routes/v1/admin-reengagement-t
 import { adminCacheRoutes } from "./routes/v1/admin-cache.js";
 import { consultationsRoutes } from "./routes/v1/consultations.js";
 import { appSubscriptionRoutes } from "./routes/v1/app-subscription.js";
+import { mobileOtaRoutes } from "./routes/mobile-ota.js";
+import { mobileOtaTelemetryRoutes } from "./routes/mobile-ota-telemetry.js";
+import { mobileTelemetryRoutes } from "./routes/v1/mobile-telemetry.js";
+import { webTelemetryRoutes } from "./routes/v1/web-telemetry.js";
+import { observePreviewRoutes } from "./routes/v1/mobile-observe-preview.js";
 import { appleTokenInitializationReviewRoutes } from "./routes/v1/g1-apple-token-initialization.review.js";
 import { rewardedAdsRoutes } from "./routes/v1/rewarded-ads.js";
 import { partnersRoutes } from "./routes/v1/partners.js";
 import { mobileIntroRoutes } from "./routes/v1/mobile-intro.js";
 import { shouldRateLimitAppSubscriptionPath } from "./middleware/app-subscription-rate-limit.js";
 
+import { operationMetricsMiddleware, authorizedOperationMetrics, renderOperationMetrics } from "./lib/operation-observability.js";
+
 export const app = new Hono();
 
 // Global middleware
+app.use("*", operationMetricsMiddleware);
 app.use("*", requestId());
 app.use("*", logger());
 app.use("*", secureHeaders());
@@ -118,6 +162,24 @@ app.use("*", corsMiddleware);
 for (const path of ["/albums/*", "/users/*", "/gallery/*"]) {
   app.on(["GET", "HEAD"], path, c => galleryCdnRedirectResponse(c.req.raw));
 }
+
+// Private read-only diagnostic endpoint; no response without a server-only 32+ character key.
+app.get("/internal/metrics", c => {
+  c.header("Cache-Control", "no-store");
+  if (!authorizedOperationMetrics(c.req.header("Authorization"), process.env.API_METRICS_KEY)) return c.body(null, 404);
+  return c.text(renderOperationMetrics(), 200, { "Content-Type": "text/plain; version=0.0.4; charset=utf-8" });
+});
+
+// Signed Expo OTA endpoint; remains disabled until a verified native delivery profile exists.
+app.route("/ota", mobileOtaRoutes);
+// Device lifecycle reports: no user data, separate keyed-hash storage and rate limit.
+app.use("/ota/telemetry", apiRateLimiter);
+app.route("/ota", mobileOtaTelemetryRoutes);
+
+// SDK57 telemetry is opt-in, anonymous short-grant, separately budgeted.
+app.route("/api/v1/telemetry", mobileTelemetryRoutes);
+app.route("/api/v1/telemetry/web", webTelemetryRoutes);
+app.route("/api/v1/telemetry/observe", observePreviewRoutes);
 
 // Health routes (no auth)
 app.route("/", healthRoutes);
@@ -178,6 +240,14 @@ const adminFlagsPrivate = async (c: Context, next: () => Promise<void>) => {
 app.use("/api/v1/admin/feature-flags", adminFlagsPrivate, authMiddleware, apiRateLimiter);
 app.use("/api/v1/admin/feature-flags/*", adminFlagsPrivate, authMiddleware, apiRateLimiter);
 app.route("/api/v1/admin/feature-flags", adminFeatureFlagsRoutes);
+
+// Signed OTA operations: auth/role guard + optimistic version + audited SQL transaction.
+app.use("/api/v1/admin/mobile-ota/*", authMiddleware, apiRateLimiter);
+app.route("/api/v1/admin/mobile-ota", adminMobileOtaRoutes);
+
+// Off by default: protected CI callback, no cookie auth, never accepts app tokens.
+app.use("/api/v1/internal/mobile-ota/*", apiRateLimiter);
+app.route("/api/v1/internal/mobile-ota", internalMobileOtaCiRoutes);
 
 const adminMailPrivate = async (c: Context, next: () => Promise<void>) => {
   c.header("Cache-Control", "private, no-store");

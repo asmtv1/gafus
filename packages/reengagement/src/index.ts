@@ -11,3 +11,9 @@ export * from "./analyzer";
 export * from "./campaign-manager";
 export * from "./scheduler";
 export * from "./metrics";
+
+// Persistence-backed delivery adapters are owned by reengagement infrastructure.
+export { getReengagementCampaignState, getReengagementPushSubscriptions,
+  deleteInvalidReengagementPushEndpoints, isReengagementDispatchAllowed } from "./workerQueries";
+
+export { getReengagementSettings, updateReengagementSettings } from "./infra/reengagementSettings";

@@ -3,11 +3,10 @@
  * Проверка доступа и сбор курса, дневника, дат — в core.
  */
 
-import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 import { getDiaryEntries } from "../diary";
-import { checkCourseAccessById } from "../course/courseService";
+import type { DiaryPersistencePort } from "../diary";
 
 import type { CoursePathData, CoursePathEntry } from "./types";
 
@@ -15,35 +14,42 @@ const logger = createWebLogger("core-course-path");
 
 const EXCERPT_LENGTH = 250;
 
+/** SQL/entitlement reads are supplied by an outer composition root. Core must
+ * not select course rows or reveal diary content before checking viewer access. */
+export interface CoursePathReadPorts {
+  checkCourseAccess: (courseId: string, viewerId: string) => Promise<{ hasAccess: boolean }>;
+  readCoursePathHeader: (courseId: string) => Promise<{ name: string; type: string } | null>;
+  readOwnedCoursePathProgress: (viewerId: string, courseId: string) => Promise<{
+    startedAt: Date | null;
+    completedAt: Date | null;
+  } | null>;
+}
+
 export async function getCoursePathData(
+  diaryPersistence: DiaryPersistencePort,
   userId: string,
   courseId: string,
+  reads: CoursePathReadPorts,
 ): Promise<{ success: true; data: CoursePathData } | { success: false; error: string }> {
   try {
-    const { hasAccess } = await checkCourseAccessById(courseId, userId);
+    const { hasAccess } = await reads.checkCourseAccess(courseId, userId);
     if (!hasAccess) {
-      logger.warn("Access denied for course path", { userId, courseId });
+      logger.warn("Access denied for course path");
       return { success: false, error: "Нет доступа к курсу" };
     }
 
-    const course = await prisma.course.findUnique({
-      where: { id: courseId },
-      select: { name: true, type: true },
-    });
+    const course = await reads.readCoursePathHeader(courseId);
     if (!course) {
       return { success: false, error: "Курс не найден" };
     }
 
-    const diaryResult = await getDiaryEntries(userId, courseId);
+    const diaryResult = await getDiaryEntries(diaryPersistence, userId, courseId);
     if (diaryResult.error) {
-      logger.warn("Diary entries error", { error: diaryResult.error, userId, courseId });
+      logger.warn("Diary entries error");
       return { success: false, error: diaryResult.error };
     }
 
-    const userCourse = await prisma.userCourse.findUnique({
-      where: { userId_courseId: { userId, courseId } },
-      select: { startedAt: true, completedAt: true },
-    });
+    const userCourse = await reads.readOwnedCoursePathProgress(userId, courseId);
 
     const entriesWithExcerpt: CoursePathEntry[] = diaryResult.entries.map((entry) => ({
       ...entry,
@@ -54,8 +60,6 @@ export async function getCoursePathData(
     }));
 
     logger.info("Course path data retrieved", {
-      userId,
-      courseId,
       entriesCount: entriesWithExcerpt.length,
     });
 
@@ -68,8 +72,10 @@ export async function getCoursePathData(
     };
 
     return { success: true, data };
-  } catch (error) {
-    logger.error("Failed to get course path data", error as Error, { userId, courseId });
+  } catch {
+    // Database exceptions may contain owner IDs or diary data; never log raw
+    // provider errors in the course-path projection.
+    logger.error("Failed to get course path data");
     return { success: false, error: "Не удалось получить данные пути" };
   }
 }

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { prisma } from "@gafus/prisma";
 import {
   assertWalkHistoryAccess, listCompletedDogWalks, syncCompletedDogWalks,
-} from "../../packages/core/src/services/walks/index.js";
+} from "../../packages/tracking-server/src/walksService.js";
 
 const address = new URL(process.env.DATABASE_URL ?? "http://invalid");
 if (address.protocol !== "postgresql:" || address.hostname !== "127.0.0.1" || !address.port) {

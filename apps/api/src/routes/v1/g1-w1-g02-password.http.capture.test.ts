@@ -8,7 +8,7 @@ const m=vi.hoisted(()=>({set:vi.fn(),change:vi.fn(),verify:vi.fn(),reg:vi.fn(),p
 vi.mock("@gafus/auth/jwt",()=>({verifyAccessToken:m.verify,assertCompletedUser:vi.fn(),generateAccessToken:vi.fn(),generateRefreshToken:vi.fn(),verifyRefreshToken:vi.fn()}));
 vi.mock("@gafus/auth",()=>({InvalidPasswordResetTokenError:class extends Error{}}));
 vi.mock("@gafus/core/services/auth",()=>({setPassword:m.set,changePassword:m.change,isRegistrationCompleted:m.reg,REGISTRATION_CHANNEL:{WEB:"WEB",IOS:"IOS",ANDROID:"ANDROID"}}));
-vi.mock("@gafus/core/services/appFeatureFlags",()=>({APP_FEATURE_MOBILE_VK_LOGIN_IOS:"mobile_vk_login_ios",getMobileFeatureFlagEnabled:vi.fn()}));
+vi.mock("@gafus/feature-flags-server",()=>({APP_FEATURE_MOBILE_VK_LOGIN_IOS:"mobile_vk_login_ios",getMobileFeatureFlagEnabled:vi.fn()}));
 vi.mock("@gafus/logger",()=>({createWebLogger:()=>({info:vi.fn(),error:vi.fn(),warn:vi.fn(),debug:vi.fn()})}));
 import {authRoutes} from "./auth";
 const ROOT="/Users/asmtv1/Desktop/gafus-refactor/apps/api/.w1-g02-ag1-isolated-20261017/captures";

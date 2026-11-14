@@ -1,19 +1,28 @@
 /** Staff-owned article metadata and author-authorized viewer details. */
 import { Hono } from "hono";
-import { getArticleViewersForAuthor } from "@gafus/core/services/article";
+import { getArticleViewersForAuthor } from "../../modules/articles/composition/article-rows.js";
 import { z } from "zod/v3";
 import { readTrainerOwnArticleMetadataApplication } from "../../modules/trainer-articles/composition/read-own-article-metadata.js";
 import type { TrainerArticleOwnMetadataRead } from "../../../../../packages/types/src/data/trainer-read-contracts";
 
 const idPattern = /^[a-zA-Z0-9_-]{1,128}$/;
-const validViewer = z.object({
-  userId: z.string().min(1), username: z.string(), fullName: z.string().nullable(),
-  lastViewedAt: z.string().datetime(),
-}).strict();
+const validViewer = z
+  .object({
+    userId: z.string().min(1),
+    username: z.string(),
+    fullName: z.string().nullable(),
+    lastViewedAt: z.string().datetime(),
+  })
+  .strict();
 type ViewerReader = typeof getArticleViewersForAuthor;
 const staffUser = (user: unknown): user is { id: string; role: string } =>
-  !!user && typeof user === "object" && "id" in user && "role" in user &&
-  typeof user.id === "string" && !!user.id && typeof user.role === "string" &&
+  !!user &&
+  typeof user === "object" &&
+  "id" in user &&
+  "role" in user &&
+  typeof user.id === "string" &&
+  !!user.id &&
+  typeof user.role === "string" &&
   ["TRAINER", "ADMIN"].includes(user.role);
 
 export function createTrainerArticlesOwnSummaryRoutes(
@@ -27,7 +36,7 @@ export function createTrainerArticlesOwnSummaryRoutes(
     await next();
     c.header("Cache-Control", "private, no-store");
   });
-  app.get("/own-summary", async c => {
+  app.get("/own-summary", async (c) => {
     const actor: unknown = c.get("user");
     if (!staffUser(actor))
       return c.json({ success: false, code: "FORBIDDEN", error: "Недостаточно прав" }, 403);
@@ -40,12 +49,15 @@ export function createTrainerArticlesOwnSummaryRoutes(
       const payload: TrainerArticleOwnMetadataRead = { success: true, data: { articles } };
       return c.json(payload, 200);
     } catch {
-      return c.json({ success: false, code: "INTERNAL_SERVER_ERROR", error: "Внутренняя ошибка сервера" }, 500);
+      return c.json(
+        { success: false, code: "INTERNAL_SERVER_ERROR", error: "Внутренняя ошибка сервера" },
+        500,
+      );
     }
   });
   // Guest views are included in aggregated viewCount but have no viewer record.
   // Even ADMIN can read only viewers of their OWN articles, as in Next.
-  app.get("/own-summary/:id/viewers", async c => {
+  app.get("/own-summary/:id/viewers", async (c) => {
     const actor: unknown = c.get("user");
     if (!staffUser(actor)) return c.json({ success: false, code: "FORBIDDEN" }, 403);
     const id = c.req.param("id");

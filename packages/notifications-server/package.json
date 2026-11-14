@@ -15,6 +15,33 @@
       ],
       "immediatePushService": [
         "dist/immediatePushService.d.ts"
+      ],
+      "trainingReminderClaims": [
+        "dist/trainingReminderClaims.d.ts"
+      ],
+      "adminBroadcastService": [
+        "dist/adminBroadcastService.d.ts"
+      ],
+      "push-subscriptions": [
+        "dist/push-subscriptions.d.ts"
+      ],
+      "gafus-delivery": [
+        "dist/gafus-delivery.d.ts"
+      ],
+      "training-reminder-delivery": [
+        "dist/training-reminder-delivery.d.ts"
+      ],
+      "consultation-email-outbox": [
+        "dist/consultation-email-outbox.d.ts"
+      ],
+      "reminder-expiry-redaction": [
+        "dist/reminder-expiry-redaction.d.ts"
+      ],
+      "training-reminder-storage": [
+        "dist/training-reminder-storage.d.ts"
+      ],
+      "training-reminder-application": [
+        "dist/training-reminder-application.d.ts"
       ]
     }
   },
@@ -34,20 +61,59 @@
     "./immediatePushService": {
       "types": "./dist/immediatePushService.d.ts",
       "default": "./dist/immediatePushService.js"
+    },
+    "./trainingReminderClaims": {
+      "types": "./dist/trainingReminderClaims.d.ts",
+      "default": "./dist/trainingReminderClaims.js"
+    },
+    "./adminBroadcastService": {
+      "types": "./dist/adminBroadcastService.d.ts",
+      "default": "./dist/adminBroadcastService.js"
+    },
+    "./push-subscriptions": {
+      "types": "./dist/push-subscriptions.d.ts",
+      "default": "./dist/push-subscriptions.js"
+    },
+    "./gafus-delivery": {
+      "types": "./dist/gafus-delivery.d.ts",
+      "default": "./dist/gafus-delivery.js"
+    },
+    "./training-reminder-delivery": {
+      "types": "./dist/training-reminder-delivery.d.ts",
+      "default": "./dist/training-reminder-delivery.js"
+    },
+    "./consultation-email-outbox": {
+      "types": "./dist/consultation-email-outbox.d.ts",
+      "default": "./dist/consultation-email-outbox.js"
+    },
+    "./reminder-expiry-redaction": {
+      "types": "./dist/reminder-expiry-redaction.d.ts",
+      "default": "./dist/reminder-expiry-redaction.js"
+    },
+    "./training-reminder-storage": {
+      "types": "./dist/training-reminder-storage.d.ts",
+      "default": "./dist/training-reminder-storage.js"
+    },
+    "./training-reminder-application": {
+      "types": "./dist/training-reminder-application.d.ts",
+      "default": "./dist/training-reminder-application.js"
     }
   },
   "scripts": {
     "build": "tsc && ts-add-js-extension --dir dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
-    "@gafus/logger": "workspace:*"
+    "@gafus/logger": "workspace:*",
+    "@gafus/webpush": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",
     "typescript": "5.8.3",
-    "ts-add-js-extension": "^1.6.6"
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
   }
 }

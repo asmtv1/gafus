@@ -1,7 +1,12 @@
 /** AG1 original LEARN032: controlled concurrent real Prisma + private PG18 survey submissions. */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@gafus/prisma";
-import { submitSurveyResponse } from "./surveyService";
+import {
+  writeSurveyResponseApplication,
+} from "../../../../../apps/api/src/modules/surveys/composition/write-response";
+
+/** End-to-end Core policy exercised via ACTUAL API SQL composition. */
+const submitSurveyResponse = writeSurveyResponseApplication.execute;
 
 // Side-effect imports unrelated to the tested survey Core are fail-closed.
 const forbiddenTrainer = vi.hoisted(() =>

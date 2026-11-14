@@ -6,14 +6,21 @@ import {
   getVerifiedCourseContentRevision,
   publishCourseContentChange,
 } from "./trainingContentRevision";
+import { registerCourseContentRevisionReadPort } from "./trainingContentRevision";
+import { readDurableCourseContentRevision } from "@gafus/course-read-server/content-revision";
+registerCourseContentRevisionReadPort({ readDurableCourseContentRevision });
 
 const bridge = vi.hoisted(() => ({
   read: vi.fn(),
   bump: vi.fn(),
 }));
 const durable = vi.hoisted(() => ({ query: vi.fn() }));
-vi.mock("@gafus/prisma", () => ({
-  prisma: { $queryRaw: (...args: unknown[]) => durable.query(...args) },
+vi.mock("@gafus/course-read-server/content-revision",()=>({
+  readDurableCourseContentRevision:async()=>{
+    const rows=await durable.query();
+    if(rows.length!==1 || typeof rows[0]?.revision!=="bigint")throw Error("COURSE_CACHE_DURABLE_REVISION_MISSING");
+    return rows[0].revision.toString();
+  },
 }));
 
 vi.mock("@gafus/queues/course-cache-sync", () => ({

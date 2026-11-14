@@ -1,4 +1,4 @@
-import type { UserRole as AuthRole } from "@gafus/prisma";
+import type { GafusUserRole as AuthRole } from "@gafus/types";
 
 const ADMIN_ROLES: AuthRole[] = ["ADMIN"];
 

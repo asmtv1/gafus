@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.13)" },
   slide: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   media: { width: "100%", height: "100%" },
-  videoFallback: { ...StyleSheet.absoluteFillObject, justifyContent: "center", alignItems: "center", gap: 14, padding: 24 },
+  videoFallback: { ...StyleSheet.absoluteFill, justifyContent: "center", alignItems: "center", gap: 14, padding: 24 },
   message: { color: "#FFF8EB", fontFamily: FONTS.montserrat, fontSize: 14, textAlign: "center" },
   retry: { backgroundColor: "#4D5C2D", borderRadius: 14, paddingHorizontal: 20, paddingVertical: 12 },
   retryText: { color: "#FFF8EB", fontFamily: FONTS.montserratMedium, fontSize: 14 },

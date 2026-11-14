@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { findGafusUnlockedStepForVideoUrl } from "./gafusInterop";
+import { createGafusInteropService } from "./gafusInterop";
+import {
+  readGafusUserStepOccurrence, readGafusVideoOccurrences,
+} from "@gafus/course-read-server/gafus-entitlement-reads";
+import { hasActiveGafusCourseStepAccess } from "../contentAccess";
 
 const mockOccurrences = vi.fn();
 const mockHasGafus = vi.fn();
@@ -9,6 +13,15 @@ vi.mock("@gafus/prisma", () => ({
 vi.mock("../contentAccess", () => ({
   hasActiveGafusCourseStepAccess: (...args: unknown[]) => mockHasGafus(...args),
 }));
+
+const {
+  findGafusUnlockedStepForVideoUrl,
+  hasGafusUnlockForUserStep,
+} = createGafusInteropService({
+  readUserStepOccurrence: readGafusUserStepOccurrence,
+  readVideoOccurrences: readGafusVideoOccurrences,
+  hasActiveCourseStepGrant: hasActiveGafusCourseStepAccess,
+});
 
 describe("video Gafus entitlement without progress rows", () => {
   beforeEach(() => {
@@ -65,6 +78,26 @@ describe("video Gafus entitlement without progress rows", () => {
         videoUrl: "https://cdn.example.com/unknown.mp4",
       }),
     ).toBeNull();
+    expect(mockHasGafus).not.toHaveBeenCalled();
+  });
+});
+
+// A URL or a replayed step ID is never entitlement evidence without the
+// user's occurrence-bound active grant.
+describe("Gafus occurrence port safety", () => {
+  it("rejects missing actor/URL and never queries the database", async () => {
+    vi.clearAllMocks();
+    await expect(findGafusUnlockedStepForVideoUrl({ userId: "", videoUrl: "valid" })).resolves.toBeNull();
+    await expect(findGafusUnlockedStepForVideoUrl({ userId: "owner", videoUrl: "" })).resolves.toBeNull();
+    await expect(hasGafusUnlockForUserStep({ userId: "", userStepId: "step" })).resolves.toBe(false);
+    expect(mockOccurrences).not.toHaveBeenCalled();
+    expect(mockHasGafus).not.toHaveBeenCalled();
+  });
+  it("fails closed when a video lookup's persistence port rejects", async () => {
+    mockOccurrences.mockRejectedValueOnce(new Error("PRIVATE_SQL_FAILURE"));
+    await expect(findGafusUnlockedStepForVideoUrl({
+      userId: "owner", videoUrl: "protected-video",
+    })).rejects.toThrow("PRIVATE_SQL_FAILURE");
     expect(mockHasGafus).not.toHaveBeenCalled();
   });
 });

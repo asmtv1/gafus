@@ -1,10 +1,39 @@
 import { createHash } from "node:crypto";
 import bcrypt from "bcryptjs";
-import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 import { sendPasswordChangedNoticeEmail } from "./transactionalAuthMail";
 
 const logger = createWebLogger("password-reset");
+
+/** Core password-reset workflow depends on an atomic server receipt port.
+ * SQL must consume ONE token, update the password and revoke all sessions
+ * inside the SAME transaction. The error classifier is composed from the
+ * authoritative server constructor: public InvalidPasswordResetTokenError
+ * must remain the same Core class even across separate built packages.
+ */
+export type PasswordResetReceiptProof =
+  | { kind: "token"; tokenHash: string; legacyRawToken?: string }
+  | { kind: "shortCode"; shortCode: string };
+export interface PasswordResetPorts {
+  consumePasswordResetReceipt(
+    proof: PasswordResetReceiptProof, passwordHash: string,
+  ): Promise<string | null>;
+  lookupPhoneByNormalizedUsername(username: string): Promise<string | null>;
+  isReceiptUnavailableError(error: unknown): boolean;
+}
+let installedPasswordResetPort: Readonly<PasswordResetPorts> | null = null;
+export function registerPasswordResetPort(port: PasswordResetPorts): void {
+  if (installedPasswordResetPort !== null && installedPasswordResetPort !== port) {
+    throw new Error("PASSWORD_RESET_PORT_ALREADY_BOUND");
+  }
+  installedPasswordResetPort = port;
+}
+function requirePasswordResetPort(): Readonly<PasswordResetPorts> {
+  if (!installedPasswordResetPort) throw new Error("PASSWORD_RESET_PORT_UNBOUND");
+  return installedPasswordResetPort;
+}
+
+
 
 /** Send only after a successful DB commit; mail failure cannot undo a reset. */
 async function notifyPasswordReset(email: string | null | undefined): Promise<void> {
@@ -25,58 +54,36 @@ export class InvalidPasswordResetTokenError extends Error {
 
 /** One atomic state change: password, session revocation, refresh-token revocation, token consumption. */
 export async function resetPasswordByToken(token: string, newPassword: string) {
+  const port = requirePasswordResetPort();
   const hashed = await bcrypt.hash(newPassword, 12);
   const tokenHash = `sha256:${createHash("sha256").update(token).digest("hex")}`;
-  const email = await prisma.$transaction(async tx => {
-    const record =
-      (await tx.passwordResetToken.findUnique({ where: { token: tokenHash } })) ??
-      (/^[A-Za-z0-9_-]{43}$/.test(token)
-        ? await tx.passwordResetToken.findUnique({ where: { token } })
-        : null);
-    if (!record || record.expiresAt < new Date()) {
-      throw new InvalidPasswordResetTokenError();
-    }
-    const at = new Date();
-    const updatedUser = await tx.user.update({
-      where: { id: record.userId },
-      data: { password: hashed, passwordSetAt: at, sessionsRevokedAt: at },
-      select: { email: true },
-    });
-    await tx.refreshToken.updateMany({
-      where: { userId: record.userId, revokedAt: null }, data: { revokedAt: at },
-    });
-    await tx.passwordResetToken.delete({ where: { id: record.id } });
-    return updatedUser?.email;
-  });
+  let email: string | null;
+  try {
+    email = await port.consumePasswordResetReceipt({
+      kind:"token",tokenHash,
+      ...( /^[A-Za-z0-9_-]{43}$/.test(token) ? {legacyRawToken:token} : {} ),
+    },hashed);
+  } catch(error) {
+    if(port.isReceiptUnavailableError(error))throw new InvalidPasswordResetTokenError();
+    throw error;
+  }
   await notifyPasswordReset(email);
 }
 
 /** Short-code reset must also revoke old sessions; it grants the same password-changing capability. */
 export async function resetPasswordByShortCode(shortCode: string, newPassword: string) {
+  const port = requirePasswordResetPort();
   const hashed = await bcrypt.hash(newPassword, 12);
-  const email = await prisma.$transaction(async tx => {
-    const record = await tx.passwordResetToken.findUnique({
-      where: { shortCode }, include: { user: true },
-    });
-    if (!record || record.expiresAt < new Date()) throw new Error("Код недействителен или устарел");
-    const at = new Date();
-    const updatedUser = await tx.user.update({
-      where: { id: record.userId },
-      data: { password: hashed, passwordSetAt: at, sessionsRevokedAt: at },
-      select: { email: true },
-    });
-    await tx.refreshToken.updateMany({
-      where: { userId: record.userId, revokedAt: null }, data: { revokedAt: at },
-    });
-    await tx.passwordResetToken.delete({ where: { id: record.id } });
-    return updatedUser?.email;
-  });
+  let email: string | null;
+  try {
+    email = await port.consumePasswordResetReceipt({kind:"shortCode",shortCode},hashed);
+  } catch(error) {
+    if(port.isReceiptUnavailableError(error))throw new Error("Код недействителен или устарел");
+    throw error;
+  }
   await notifyPasswordReset(email);
 }
 
 export async function getUserPhoneByUsername(username: string) {
-  const user = await prisma.user.findUnique({
-    where: { username: username.toLowerCase().trim() }, select: { phone: true },
-  });
-  return user?.phone ?? null;
+  return requirePasswordResetPort().lookupPhoneByNormalizedUsername(username);
 }

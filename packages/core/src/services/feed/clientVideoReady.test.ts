@@ -26,6 +26,10 @@ function harness(options:{mime?:string; failCopy?:boolean}={}){
     $queryRaw:vi.fn(async()=>[{id:"post1"}]),
     feedPost:{findFirst:vi.fn(async()=>({id:"post1",authorId:"user1",deletedAt:null,
       moderationState:"visible",status:"draft"}))},
+    // This scenario has no pending post revision. The production completion
+    // hook must still be called, but activating a different revision is not
+    // part of the client video READY fixture.
+    feedPostRevision:{findFirst:vi.fn(async()=>null)},
     feedUpload:{
       findUnique:vi.fn(async()=>({...row})),
       update:vi.fn(async({data}:{data:Record<string,unknown>})=>{Object.assign(row,data);return {...row};}),

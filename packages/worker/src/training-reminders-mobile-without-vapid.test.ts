@@ -13,14 +13,23 @@ vi.mock("@gafus/logger", () => ({
 }));
 vi.mock("@gafus/core/services/reminders", () => ({
   shouldSendTrainingReminder: () => true,
+  trainingReminderLocalDayKey: () => "2026-11-07",
+  getTrainingReminderLocalTime: () => ({ year: 2026, month: 11, day: 7 }),
+  trainingReminderAlreadySentToday: () => false,
+}));
+vi.mock("@gafus/notifications-server/training-reminder-delivery", () => ({
+  createTrainingReminderDeliveryRepository: () => ({
+    listRetryableTrainingReminderCandidates: async () => [],
+    claimDailyTrainingReminderDelivery: (...args: unknown[]) => state.claim(...args),
+    acknowledgeDailyTrainingReminderDelivery: (...args: unknown[]) => state.ack(...args),
+    releaseDailyTrainingReminderDelivery: (...args: unknown[]) => state.release(...args),
+  }),
+}));
+vi.mock("@gafus/notifications-server/trainingReminderClaims", () => ({
   listActiveTrainingReminderCandidates: async () => [{
     id: "synthetic-reminder", userId: "synthetic-owner", name: "Сделать упражнения",
     timezone: "Europe/Samara", reminderTime: "15:00", reminderDays: null, lastSentAt: null,
   }],
-  listRetryableTrainingReminderCandidates: async () => [],
-  claimDailyTrainingReminderDelivery: (...args: unknown[]) => state.claim(...args),
-  acknowledgeDailyTrainingReminderDelivery: (...args: unknown[]) => state.ack(...args),
-  releaseDailyTrainingReminderDelivery: (...args: unknown[]) => state.release(...args),
   getTrainingReminderPushSubscriptions: async () => state.types.map(type => ({
     endpoint: type === "web" ? "https://example.invalid/web-test" :
       type === "expo" ? "ExpoPushToken[synthetic]" : "synthetic-rustore-token",

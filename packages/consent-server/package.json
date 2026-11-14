@@ -7,8 +7,12 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
-      "consentService": ["dist/consentService.d.ts"],
-      "types": ["dist/types.d.ts"]
+      "consentService": [
+        "dist/consentService.d.ts"
+      ],
+      "types": [
+        "dist/types.d.ts"
+      ]
     }
   },
   "exports": {
@@ -32,7 +36,8 @@
   },
   "dependencies": {
     "@gafus/prisma": "workspace:*",
-    "@gafus/logger": "workspace:*"
+    "@gafus/logger": "workspace:*",
+    "@gafus/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

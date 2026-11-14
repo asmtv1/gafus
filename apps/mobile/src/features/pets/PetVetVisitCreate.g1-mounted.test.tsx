@@ -86,7 +86,7 @@ vi.mock("expo-router", async () => {
     useFocusEffect: (fn: () => void | (() => void)) => R.useEffect(fn, [fn]),
   };
 });
-vi.mock("@react-navigation/native", () => ({ usePreventRemove: vi.fn() }));
+vi.mock("expo-router/react-navigation", () => ({ usePreventRemove: vi.fn() }));
 vi.mock("react-native-safe-area-context", async () => {
   const R = await import("react");
   return {

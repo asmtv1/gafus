@@ -9,7 +9,7 @@ vi.mock("@gafus/prisma", () => ({
   },
 }));
 
-import { adminQueueNpdReconciliation, adminRetryNpdReceiptOperation } from "../adminService";
+import { adminQueueNpdReconciliation, adminRetryNpdReceiptOperation } from "@gafus/subscription-finance-server/admin-application";
 
 beforeEach(() => {
   vi.clearAllMocks();

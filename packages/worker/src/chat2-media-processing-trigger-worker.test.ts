@@ -7,10 +7,14 @@ const mocks=vi.hoisted(()=>({
 }));
 vi.mock("@gafus/queues",()=>({connection:{},CHAT2_MEDIA_PROCESSING_QUEUE_NAME:"chat2-media-v2-processing-trigger"}));
 vi.mock("@gafus/logger",()=>({createWorkerLogger:()=>({error:vi.fn(),success:vi.fn()})}));
-vi.mock("./cloudru-media-dispatcher.js",()=>({createCloudruChatPoolDispatcher:(kind:string)=>{
+vi.mock("./cloudru-media-dispatcher.js",()=>({
+  safeCloudruDispatchError:(error:unknown)=>error instanceof Error?error:Error("CLOUDRU_JOB_UNKNOWN_FAILURE"),
+  createCloudruChatPoolDispatcher:(kind:string)=>{
   mocks.create(kind);return kind==="photo"?mocks.photo:mocks.video;
 }}));
-vi.mock("bullmq",()=>({Worker:class{
+vi.mock("bullmq",()=>({
+  UnrecoverableError:class UnrecoverableError extends Error {name="UnrecoverableError";},
+  Worker:class{
  constructor(name:string,processor:typeof mocks.processor,options:unknown){mocks.worker(name,options);mocks.processor=processor;}
  on(){return this;}
 }}));
@@ -48,5 +52,55 @@ describe("Chat2 media immediate triggers based on Feed",()=>{
   mocks.video.mockResolvedValueOnce({dispatched:0});
   await expect(mocks.processor!({data:{mediaId,kind:"video"}})).rejects.toThrow("CHAT2_WAKE_NOT_DISPATCHED");
   expect(mocks.photo).not.toHaveBeenCalled();
+ });
+ it("does not ask BullMQ to retry an uncertain Cloud.ru :execute POST",async()=>{
+  enabled();
+  const {startChat2MediaProcessingTriggerWorker}=await import("./chat2-media-processing-trigger-worker.js");
+  startChat2MediaProcessingTriggerWorker();
+  mocks.video.mockRejectedValueOnce(Error("CLOUDRU_JOB_EXECUTION_NETWORK_TIMEOUT"));
+  const failure=await mocks.processor!({data:{mediaId,kind:"video"}}).catch(error=>error);
+  expect(failure.name).toBe("UnrecoverableError");
+  expect(failure.message).toBe("CLOUDRU_JOB_EXECUTION_ACK_UNKNOWN");
+  expect(mocks.video).toHaveBeenCalledOnce();
+  mocks.video.mockRejectedValueOnce(Error("CLOUDRU_JOB_IAM_UNAVAILABLE_503"));
+  await expect(mocks.processor!({data:{mediaId,kind:"video"}}))
+    .rejects.toThrow("CLOUDRU_JOB_IAM_UNAVAILABLE_503");
+ });
+
+});
+
+describe("Chat2 Cloud.ru immediate wake fencing",()=>{
+ it("never retries a rejected ID or retired photo wake",async()=>{
+  enabled();
+  const {startChat2MediaProcessingTriggerWorker}=await import("./chat2-media-processing-trigger-worker.js");
+  startChat2MediaProcessingTriggerWorker();
+  for(const data of [{mediaId:"not-a-uuid",kind:"video"},{mediaId,kind:"photo"}]){
+   const failure=await mocks.processor!({data}).catch((error:Error)=>error);
+   expect((failure as Error).name).toBe("UnrecoverableError");
+  }
+  expect(mocks.video).not.toHaveBeenCalled();
+ });
+
+ afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();mocks.processor=undefined;});
+ it.each([
+  ["CLOUDRU_JOB_EXECUTION_NETWORK_ECONNRESET","CLOUDRU_JOB_EXECUTION_ACK_UNKNOWN"],
+  ["CLOUDRU_JOB_EXECUTION_FAILED_gafus-chat-video-2_502","CLOUDRU_JOB_EXECUTION_ACK_UNKNOWN"],
+  ["CLOUDRU_JOB_EXECUTION_FAILED_gafus-chat-video_401","CLOUDRU_JOB_EXECUTION_PERMANENT_REJECTION"],
+ ])("never immediately replays ambiguous or permanently rejected launch %s",async(code,expected)=>{
+  enabled();
+  const {startChat2MediaProcessingTriggerWorker}=await import("./chat2-media-processing-trigger-worker.js");
+  startChat2MediaProcessingTriggerWorker();
+  mocks.video.mockRejectedValueOnce(Error(code));
+  await expect(mocks.processor!({data:{mediaId,kind:"video"}})).rejects.toThrow(expected);
+  expect(mocks.video).toHaveBeenCalledOnce();
+ });
+ it("keeps known 429 as retryable",async()=>{
+  enabled();
+  const {startChat2MediaProcessingTriggerWorker}=await import("./chat2-media-processing-trigger-worker.js");
+  startChat2MediaProcessingTriggerWorker();
+  mocks.video.mockRejectedValueOnce(Error("CLOUDRU_JOB_EXECUTION_FAILED_gafus-chat-video_429"));
+  await expect(mocks.processor!({data:{mediaId,kind:"video"}})).rejects.toThrow("CLOUDRU_JOB_EXECUTION_FAILED_gafus-chat-video_429");
+  await expect(mocks.processor!({data:{mediaId,kind:"video"}})).resolves.toBeUndefined();
+  expect(mocks.video).toHaveBeenCalledTimes(2);
  });
 });

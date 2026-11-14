@@ -1,3 +1,11 @@
+vi.mock("@gafus/consultation-server/slot-service", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
+vi.mock("@gafus/consultation-server/booking-application", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
 /** G1-POLICY-001: exact approved MODERATOR deny matrix (AG4 handoff).
  * Real Hono middleware/route dispatch, Core mocked, no DB/network.
  */
@@ -17,20 +25,25 @@ vi.mock("@gafus/auth/jwt", async original => ({
 vi.mock("@gafus/core/services/auth", async original => ({
   ...(await original<object>()), isRegistrationCompleted: m.registration,
 }));
+vi.mock("@gafus/consultation-server/admin-bookings", () => ({ listAdminBookings: m.adminBookings }));
 vi.mock("@gafus/core/services/consultation", async original => ({
   ...(await original<object>()),
-  resolveTargetTrainerUserIdForStaff: m.target,
   listTrainerBookings: m.list,
   confirmBookingByTrainer: m.confirm,
   completeBookingByTrainer: m.complete,
   markBookingNoShowByTrainer: m.noShow,
   rejectBookingByTrainer: m.reject,
+
+}));
+vi.mock("../../modules/consultations/composition/catalog-schedule.js", () => ({
+  resolveTargetTrainerUserIdForStaff: m.target,
   getTrainerAvailability: m.getAvailability,
   setTrainerAvailability: m.setAvailability,
-  addDayOff: m.addDayOff, removeDayOff: m.removeDayOff,
-  addSlotException: m.addException, removeSlotException: m.removeException,
+  addDayOff: m.addDayOff,
+  removeDayOff: m.removeDayOff,
+  addSlotException: m.addException,
+  removeSlotException: m.removeException,
   listAllTrainersForAdmin: m.adminList,
-  listAdminBookings: m.adminBookings,
   adminSetListedCynologists: m.adminSet,
 }));
 import { authMiddleware } from "../../middleware/auth";

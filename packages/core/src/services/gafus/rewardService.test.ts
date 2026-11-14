@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest";
 import type { GafusTx } from "./types";
 import { awardActivityTx, awardBonusTx } from "./rewardService";
+// Compose the original SQL repository into the Core domain port. Synthetic
+// fixtures still own their Prisma TransactionClient and no new DB is opened.
+import { registerGafusLedgerRowsPort } from "./gafusLedgerPort";
+import {
+  ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
+  appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
+} from "@gafus/gafus-server/wallet-records";
+registerGafusLedgerRowsPort({
+  ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
+  appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
+});
+
+import { registerGafusLockPort } from "./locking";
+import { lockGafusUser as dbLockGafusUser, withGafusUserLock as dbWithGafusUserLock } from "@gafus/gafus-server/wallet-lock";
+registerGafusLockPort({ lockGafusUser: dbLockGafusUser, withGafusUserLock: dbWithGafusUserLock });
+
 import { DEFAULT_GAFUS_SETTINGS } from "./settingsService";
 
 type TestEvent = {

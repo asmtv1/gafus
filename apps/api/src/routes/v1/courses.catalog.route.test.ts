@@ -7,6 +7,12 @@ const { getCoursesMock, addFavoriteMock, removeFavoriteMock } = vi.hoisted(() =>
   removeFavoriteMock: vi.fn(),
 }));
 
+vi.mock("@gafus/course-server/favorites",()=>({
+  getFavoritesCourses:vi.fn(),
+  addFavoriteCourse:addFavoriteMock,
+  removeFavoriteCourse:removeFavoriteMock,
+  toggleFavoriteCourse:vi.fn(),
+}));
 vi.mock("@gafus/core/services/course", () => ({
   getCoursesWithProgress: getCoursesMock,
   addFavoriteCourse: addFavoriteMock,

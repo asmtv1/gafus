@@ -156,12 +156,13 @@ function assertNoRealOrSyntheticIO(): void {
 describe("AG1 approved ISOLATED consultation import, no Redis/network", () => {
   it("actual public Core and mailer package specifiers resolve with hoisted mocks", async () => {
     // Explicit bounded imports; no broad unguarded Node import of worker/app.
-    const [core, mailer] = await Promise.all([
+    const [core, mailer, mailDelivery] = await Promise.all([
       import("@gafus/core/services/consultation"),
       import("@gafus/mailer"),
+      import("@gafus/consultation-server/mail-delivery"),
     ]);
-    expect(typeof core.processConsultationEmailLog).toBe("function");
-    expect(typeof core.reconcileConsultationEmailLog).toBe("function");
+    expect(typeof mailDelivery.processConsultationEmailLog).toBe("function");
+    expect(typeof mailDelivery.reconcileConsultationEmailLog).toBe("function");
     expect(typeof core.sendConsultationEmailFromLog).toBe("function");
     expect(typeof mailer.sendTransactionalMailWithDisposition).toBe("function");
     expect(typeof mailer.processDueTransactionalMailOutbox).toBe("function");
@@ -172,7 +173,7 @@ describe("AG1 approved ISOLATED consultation import, no Redis/network", () => {
   });
   it("real bounded Core process handles missing log via mock Prisma, zero enqueue/provider", async () => {
     const { processConsultationEmailLog, reconcileConsultationEmailLog } =
-      await import("@gafus/core/services/consultation");
+      await import("@gafus/consultation-server/mail-delivery");
     expect(await processConsultationEmailLog("synthetic-log-id")).toBe("missing");
     expect(await reconcileConsultationEmailLog("synthetic-log-id")).toBe("missing");
     expect(m.prismaFindLog).toHaveBeenCalledTimes(2);
@@ -181,9 +182,9 @@ describe("AG1 approved ISOLATED consultation import, no Redis/network", () => {
     });
     assertNoRealOrSyntheticIO();
   });
-  it("real Core terminal FAILED log does not touch queues or provider", async () => {
+  it("real server-owned terminal FAILED log does not touch queues or provider", async () => {
     const { processConsultationEmailLog } =
-      await import("@gafus/core/services/consultation");
+      await import("@gafus/consultation-server/mail-delivery");
     m.prismaFindLog.mockResolvedValueOnce({
       id: "synthetic-log-failed",
       type: "CLIENT_BOOKING_RECEIVED", status: "FAILED",

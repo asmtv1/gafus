@@ -86,3 +86,17 @@ export interface AchievementCalculationResult {
     currentStreak: number;
   };
 }
+
+/** Pure business statistics contract; shared by Core fixtures and server calculator. */
+export interface AchievementStats {
+  totalCourses: number;
+  completedCourses: number;
+  inProgressCourses: number;
+  totalCompletedDays: number;
+  totalDays: number;
+  overallProgress: number;
+  totalTrainingTime: number;
+  averageCourseProgress: number;
+  longestStreak: number;
+  currentStreak: number;
+}

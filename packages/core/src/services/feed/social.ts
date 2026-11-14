@@ -1,12 +1,12 @@
+import type { GafusTx } from "../gafus/types";
 import { assertFeedPublishingAllowed } from "./preferences";
 import { randomUUID } from "node:crypto";
-import type { Prisma } from "@gafus/prisma";
 import type {
   FeedCommentDto, FeedCommentPageDto, FeedCommentInput, FeedCommentEditInput,
   FeedListQuery, FeedReaction, FeedReactionUserPageDto, FeedReactionCountDto,
   FeedNotificationDto, FeedNotificationPageDto,
 } from "@gafus/types";
-import { FEED_LIMITS as L } from "../../../../types/src/feed";
+import { FEED_LIMITS as L } from "@gafus/types";
 import { FeedError } from "./errors";
 import { feedReactionToKind } from "./service";
 import { lockGafusPostReactionTx, advanceGafusReactionMilestonesTx } from "../gafus/reactionRewardService";
@@ -17,7 +17,24 @@ import * as s from "./schemas";
 const kindToReaction = { heart: "❤️", laugh: "😂", dog: "🐶", fire: "🔥", like: "👍" } as const;
 const profile = { id: true, username: true, profile: { select: { fullName: true, avatarUrl: true } } } as const;
 const commentInclude = { author: { select: profile } } as const;
-type CommentRow = Prisma.FeedCommentGetPayload<{ include: typeof commentInclude }>;
+/** Projection consumed by the comment presentation policy; no generated ORM types. */
+type CommentRow = {
+  id: string;
+  postId: string;
+  authorId: string;
+  text: string;
+  createdAt: Date;
+  editedAt: Date | null;
+  deletedAt: Date | null;
+  moderationState: string;
+  rootId: string | null;
+  replyToId: string | null;
+  author: {
+    id: string;
+    username: string;
+    profile: { fullName: string | null; avatarUrl: string | null } | null;
+  };
+};
 
 export function createFeedSocial({ db, storage, now = () => new Date(), enabled = () => false }: {
   db: FeedDb;
@@ -298,7 +315,7 @@ export function createFeedSocial({ db, storage, now = () => new Date(), enabled 
       await auth(actorId);
       const { reaction: emoji } = s.feedParse(s.feedReactionSchema, { reaction });
       return transaction(async tx => {
-        await lockGafusPostReactionTx(tx, postId);
+        await lockGafusPostReactionTx(tx as unknown as GafusTx, postId);
         const post = await readablePost(tx, postId);
         const at = now(), kind = feedReactionToKind[emoji];
         const old = await tx.feedPostReaction.findUnique({ where: { postId_userId: { postId, userId: actorId } } });
@@ -307,17 +324,17 @@ export function createFeedSocial({ db, storage, now = () => new Date(), enabled 
             create: { postId, userId: actorId, kind }, update: { kind } });
           if (!old) await groupedReaction(tx, post.authorId, postId, null, "post_reaction", actorId, kind, at);
         }
-        await advanceGafusReactionMilestonesTx(tx, { postId, authorId: post.authorId, at });
+        await advanceGafusReactionMilestonesTx(tx as unknown as GafusTx, { postId, authorId: post.authorId, at });
         return { reaction: emoji };
       });
     },
     async removePostReaction(actorId: string, postId: string) {
       await auth(actorId);
       return transaction(async tx => {
-        await lockGafusPostReactionTx(tx, postId);
+        await lockGafusPostReactionTx(tx as unknown as GafusTx, postId);
         const post = await readablePost(tx, postId);
         await tx.feedPostReaction.deleteMany({ where: { postId, userId: actorId } });
-        await advanceGafusReactionMilestonesTx(tx, { postId, authorId: post.authorId, at: now() });
+        await advanceGafusReactionMilestonesTx(tx as unknown as GafusTx, { postId, authorId: post.authorId, at: now() });
         return { reaction: null };
       });
     },

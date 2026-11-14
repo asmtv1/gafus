@@ -1,7 +1,12 @@
 /** AG1 LEARN032: original survey submit with REAL Prisma transaction on own PG18. */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@gafus/prisma";
-import { submitSurveyResponse } from "./surveyService";
+import {
+  writeSurveyResponseApplication,
+} from "../../../../../apps/api/src/modules/surveys/composition/write-response";
+
+/** End-to-end Core policy exercised via ACTUAL API SQL composition. */
+const submitSurveyResponse = writeSurveyResponseApplication.execute;
 
 // Never run an unused trainer Course.version/cache/media writer; target survey
 // Core, actual public-free course authorization and Prisma are NOT mocked.

@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@gafus/prisma";
 import type { ExamResultWire } from "../../../../types/src/data/exam";
 import { createReadExamResultApplication } from "../../../../../apps/api/src/modules/exam/application/read-result";
-import { getExamResult } from "./examService";
+import { getExamResult } from "@gafus/exam-server/exam-service";
 
 const forbiddenMedia = vi.hoisted(() =>
   vi.fn(() => {
@@ -22,7 +22,7 @@ vi.mock("@gafus/cdn-upload", () => ({
   getRelativePathFromCDNUrl: forbiddenMedia,
   uploadBufferToCDN: forbiddenMedia,
 }));
-vi.mock("../notifications/immediatePushService", () => ({
+vi.mock("@gafus/notifications-server/immediatePushService", () => ({
   sendImmediatePushNotification: forbiddenPush,
 }));
 vi.mock("@gafus/logger", () => ({

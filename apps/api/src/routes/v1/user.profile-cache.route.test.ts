@@ -1,3 +1,9 @@
+
+vi.mock("../../modules/user/composition/account-deletion.js", () => ({
+  readAccountDeletionPreflight: vi.fn(),
+  requestAccountDeletionCode: vi.fn(),
+  deleteUserAccount: vi.fn(),
+}));
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

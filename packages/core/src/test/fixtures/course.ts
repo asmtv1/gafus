@@ -1,9 +1,7 @@
 /**
  * Fixture для тестов курсов
  */
-import type { Course } from "@gafus/prisma";
-
-export function createCourseFixture(overrides?: Partial<Course>): Partial<Course> {
+function defaultCourseFixture() {
   return {
     id: "test-course-id",
     name: "Тестовый курс",
@@ -14,6 +12,11 @@ export function createCourseFixture(overrides?: Partial<Course>): Partial<Course
     authorId: "test-user-id",
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
-    ...overrides,
   };
+}
+
+type CourseFixture = ReturnType<typeof defaultCourseFixture>;
+
+export function createCourseFixture(overrides?: Partial<CourseFixture>): Partial<CourseFixture> {
+  return { ...defaultCourseFixture(), ...overrides };
 }

@@ -1,10 +1,42 @@
 /** Chat 2.0 durable outbox: no Stream webhooks, only successful PostgreSQL writes. */
+import { randomUUID } from "node:crypto";
+import {
+  classifyJobError,
+  nextJobAttemptDelay,
+  MAX_CHAT2_OUTBOX_ATTEMPTS,
+} from "./reliable-job-policy.js";
+import { createWorkerLogger } from "@gafus/logger";
+import {
+  configureServerTelemetry,
+  startCorrelatedSpan,
+  withServerSpan,
+  markServerSpanError,
+} from "@gafus/logger/server-telemetry";
 import { prisma } from "@gafus/prisma";
+import {
+  renderChat2OutboxMetricsPrometheus,
+  chat2OutboxExecutionMetrics,
+  type Chat2OutboxOutcome,
+  type Chat2OutboxFailureClass,
+} from "./chat2-outbox-metrics.js";
+import { traceChat2DispatchStage } from "./chat2-outbox-tracing.js";
 import type { Prisma } from "@gafus/prisma";
 import { pushQueue } from "@gafus/queues";
 import { chat2DeletePrivateMedia, chat2V2DeleteObjects } from "@gafus/cdn-upload";
-import { recordChat2PollSuccess, resetChat2PollReadiness, probeChat2BrokerAuth,
-  chat2BrokerPublishUrl } from "./chat2-readiness";
+import {
+  recordChat2PollSuccess,
+  resetChat2PollReadiness,
+  probeChat2BrokerAuth,
+  chat2BrokerPublishUrl,
+} from "./chat2-readiness";
+
+// The 1.7.2 Worker has no deadLetteredAt filter. Keep quarantined events
+// outside its due-time query during rolling deployments, in addition to the
+// PostgreSQL mixed-version UPDATE trigger that fences stale legacy claims.
+const CHAT2_DLQ_UNCLAIMABLE_AT = new Date("9999-12-31T00:00:00.000Z");
+
+const outboxLog = createWorkerLogger("chat2-outbox");
+configureServerTelemetry("gafus-worker");
 
 async function publish(
   channel: string,
@@ -24,7 +56,24 @@ async function publish(
     headers: { "Content-Type": "application/json", "X-API-Key": key },
     body: JSON.stringify({ channel, data: { eventId, eventType, messageId } }),
   });
-  if (!response.ok) throw new Error("CHAT2_CENTRIFUGO_PUBLISH_FAILED");
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403)
+      throw new Error("CHAT2_BROKER_AUTH_DENIED");
+    if (response.status === 400 || response.status === 404)
+      throw new Error("CHAT2_BROKER_BAD_REQUEST");
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("retry-after");
+      const seconds = retryAfter && /^\d+$/.test(retryAfter) ? Number(retryAfter) : NaN;
+      const until =
+        retryAfter && !Number.isFinite(seconds) ? Date.parse(retryAfter) - Date.now() : NaN;
+      const retryAfterMs = Number.isFinite(seconds) ? seconds * 1000 : until;
+      const failure = new Error("CHAT2_CENTRIFUGO_RATE_LIMITED");
+      if (Number.isFinite(retryAfterMs))
+        Object.assign(failure, { retryAfterMs: Math.min(3_600_000, Math.max(0, retryAfterMs)) });
+      throw failure;
+    }
+    throw new Error("CHAT2_CENTRIFUGO_PUBLISH_FAILED");
+  }
   const ack = (await response.json()) as { error?: unknown };
   if (ack.error) throw new Error("CHAT2_CENTRIFUGO_PUBLISH_REJECTED");
 }
@@ -148,29 +197,44 @@ async function deleteChat2MediaObject(key: string): Promise<void> {
     await chat2DeletePrivateMedia(key);
     return;
   }
-  const mediaId=key.slice("chat2-v2:".length);
+  const mediaId = key.slice("chat2-v2:".length);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mediaId))
     throw Error("CHAT2_V2_DELETE_INVALID_MARKER");
-  const task=await prisma.chat2V2MediaTask.findUnique({where:{mediaId}});
+  const task = await prisma.chat2V2MediaTask.findUnique({ where: { mediaId } });
   if (!task) throw Error("CHAT2_V2_DELETE_TASK_MISSING");
-  if (!["READY","FAILED","EXPIRED"].includes(task.status))
+  if (!["READY", "FAILED", "EXPIRED"].includes(task.status))
     throw Error("CHAT2_V2_DELETE_ACTIVE_PROCESSING");
-  const base=`chat2/${task.conversationId}/${task.ownerId}/${task.mediaId}`;
+  const base = `chat2/${task.conversationId}/${task.ownerId}/${task.mediaId}`;
   if (!task.sourceKey.startsWith(base + "/incoming/source."))
     throw Error("CHAT2_V2_DELETE_INVALID_SOURCE");
-  const finalBase=base+"/v1/";
+  const finalBase = base + "/v1/";
   // Mark the row before touching S3. A crash can be retried from both this
   // independent deletion intent and the Media V2 terminal-cleanup queue.
   await prisma.chat2V2MediaTask.updateMany({
-    where:{mediaId,status:{in:["READY","FAILED","EXPIRED"]}},
-    data:{status:"EXPIRED",cleanupKind:"ALL",cleanupNextAt:new Date(),cleanupCompletedAt:null},
+    where: { mediaId, status: { in: ["READY", "FAILED", "EXPIRED"] } },
+    data: {
+      status: "EXPIRED",
+      cleanupKind: "ALL",
+      cleanupNextAt: new Date(),
+      cleanupCompletedAt: null,
+    },
   });
-  await chat2V2DeleteObjects([task.sourceKey,
-    finalBase+"image/s.webp", finalBase+"image/m.webp",
-    finalBase+"poster.webp", finalBase+"video/360.mp4", finalBase+"video/720.mp4"]);
+  await chat2V2DeleteObjects([
+    task.sourceKey,
+    finalBase + "image/s.webp",
+    finalBase + "image/m.webp",
+    finalBase + "poster.webp",
+    finalBase + "video/360.mp4",
+    finalBase + "video/720.mp4",
+  ]);
   await prisma.chat2V2MediaTask.updateMany({
-    where:{mediaId,status:"EXPIRED"},
-    data:{cleanupKind:null,cleanupCompletedAt:new Date(),cleanupToken:null,cleanupLeaseUntil:null},
+    where: { mediaId, status: "EXPIRED" },
+    data: {
+      cleanupKind: null,
+      cleanupCompletedAt: new Date(),
+      cleanupToken: null,
+      cleanupLeaseUntil: null,
+    },
   });
 }
 
@@ -204,55 +268,207 @@ async function purgeDeletedChat2Attachments(conversationId: string, messageId: s
   }
 }
 
+export async function chat2OutboxMetricsSnapshot(now = new Date()): Promise<string> {
+  const pending = { deliveredAt: null, deadLetteredAt: null };
+  const [count, dead, oldest, leased] = await Promise.all([
+    prisma.chat2OutboxEvent.count({ where: pending }),
+    prisma.chat2OutboxEvent.count({ where: { deadLetteredAt: { not: null } } }),
+    prisma.chat2OutboxEvent.findFirst({
+      where: pending,
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    }),
+    prisma.chat2OutboxEvent.count({ where: { ...pending, claimedUntil: { gt: now } } }),
+  ]);
+  return renderChat2OutboxMetricsPrometheus(
+    {
+      pending: count,
+      dead,
+      oldest: oldest?.createdAt ?? null,
+      leased,
+    },
+    now,
+  );
+}
+
 export async function processChat2OutboxOnce(limit = 20) {
   const now = new Date();
   const items = await prisma.chat2OutboxEvent.findMany({
     where: {
       deliveredAt: null,
+      deadLetteredAt: null,
       nextAttemptAt: { lte: now },
       OR: [{ claimedUntil: null }, { claimedUntil: { lt: now } }],
     },
     orderBy: { createdAt: "asc" },
     take: Math.min(100, Math.max(1, limit)),
   });
-  let delivered = 0, failed = 0;
+  let delivered = 0,
+    failed = 0,
+    deadLettered = 0;
   for (const item of items) {
-    const until = new Date(Date.now() + 30000);
+    // Older rows which exhausted the pre-migration unbounded policy are
+    // retained and quarantined; they are not silently discarded.
+    if (item.attempts >= MAX_CHAT2_OUTBOX_ATTEMPTS) {
+      const moved = await prisma.chat2OutboxEvent.updateMany({
+        where: {
+          id: item.id,
+          deliveredAt: null,
+          deadLetteredAt: null,
+          OR: [{ claimedUntil: null }, { claimedUntil: { lt: new Date() } }],
+        },
+        data: {
+          deadLetteredAt: new Date(),
+          nextAttemptAt: CHAT2_DLQ_UNCLAIMABLE_AT,
+          claimedUntil: null,
+          claimToken: null,
+          lastErrorCode: item.lastErrorCode ?? "CHAT2_OUTBOX_ATTEMPTS_EXHAUSTED",
+        },
+      });
+      deadLettered += moved.count;
+      continue;
+    }
+    const until = new Date(Date.now() + 30_000);
+    const claimToken = randomUUID();
     const claimed = await prisma.chat2OutboxEvent.updateMany({
       where: {
         id: item.id,
         deliveredAt: null,
+        deadLetteredAt: null,
         OR: [{ claimedUntil: null }, { claimedUntil: { lt: new Date() } }],
       },
-      data: { claimedUntil: until, attempts: { increment: 1 } },
+      data: {
+        claimedUntil: until,
+        claimToken,
+        operationId: item.operationId ?? item.id,
+        attempts: { increment: 1 },
+      },
     });
     if (!claimed.count) continue;
+    const attemptStart = performance.now();
+    let attemptOutcome: Chat2OutboxOutcome = "stale";
+    let failureClass: Chat2OutboxFailureClass | undefined;
+    const span = startCorrelatedSpan({
+      name: "chat2.outbox.dispatch",
+      service: "gafus-worker",
+      kind: "consumer",
+      traceId: item.traceId,
+      operationId: item.operationId ?? item.id,
+      attributes: { "gafus.job_attempt": item.attempts + 1 },
+    });
+    // Long-running attachment deletion may exceed a single 30-second lease.
+    // Renew only while the DB still recognizes this claimant. An older worker
+    // cannot extend or ACK after another worker's fencing token took over.
+    let lostLease = false;
+    let renewing = false;
+    const heartbeat = setInterval(() => {
+      if (renewing) return;
+      renewing = true;
+      void prisma.chat2OutboxEvent
+        .updateMany({
+          where: {
+            id: item.id,
+            claimToken,
+            deliveredAt: null,
+            deadLetteredAt: null,
+            claimedUntil: { gt: new Date() },
+          },
+          data: { claimedUntil: new Date(Date.now() + 30_000) },
+        })
+        .then((result) => {
+          if (result.count !== 1) lostLease = true;
+        })
+        .catch(() => {
+          lostLease = true;
+        })
+        .finally(() => {
+          renewing = false;
+        });
+    }, 10_000);
+    heartbeat.unref();
     try {
-      if (item.eventType === "message.created" && item.messageId)
-        await enqueueChatPush(item.conversationId, item.messageId);
-      if (item.eventType === "message.deleted" && item.messageId)
-        await purgeDeletedChat2Attachments(item.conversationId, item.messageId);
-      await publish(`chat2:${item.conversationId}`, item.id, item.eventType, item.messageId);
-      await prisma.chat2OutboxEvent.updateMany({
-        where: { id: item.id, claimedUntil: until },
-        data: { deliveredAt: new Date(), claimedUntil: null },
+      await withServerSpan(span, async () => {
+        if (item.eventType === "message.created" && item.messageId)
+          await traceChat2DispatchStage("chat2.outbox.push", item.operationId ?? item.id, () =>
+            enqueueChatPush(item.conversationId, item.messageId!),
+          );
+        if (item.eventType === "message.deleted" && item.messageId)
+          await traceChat2DispatchStage(
+            "chat2.outbox.media_cleanup",
+            item.operationId ?? item.id,
+            () => purgeDeletedChat2Attachments(item.conversationId, item.messageId!),
+          );
+        // If our heartbeat lost the lease, avoid a new external side effect.
+        // Work already in flight may still be delivered at least once.
+        if (lostLease) throw new Error("CHAT2_OUTBOX_CLAIM_LOST");
+        // Stable eventId is the receiver's deduplication identity even across
+        // crashes between external acknowledgement and this DB commit.
+        await traceChat2DispatchStage("chat2.outbox.publish", item.operationId ?? item.id, () =>
+          publish("chat2:" + item.conversationId, item.id, item.eventType, item.messageId),
+        );
+        const saved = await traceChat2DispatchStage(
+          "chat2.outbox.ack",
+          item.operationId ?? item.id,
+          () =>
+            prisma.chat2OutboxEvent.updateMany({
+              where: { id: item.id, claimToken, deliveredAt: null, deadLetteredAt: null },
+              data: {
+                deliveredAt: new Date(),
+                claimedUntil: null,
+                claimToken: null,
+                lastErrorCode: null,
+              },
+            }),
+        );
+        delivered += saved.count;
+        attemptOutcome = saved.count ? "delivered" : "stale";
       });
-      delivered++;
-    } catch {
+    } catch (error) {
       failed++;
-      // Never log private message body, provider credentials, or signed URLs.
-      await prisma.chat2OutboxEvent.updateMany({
-        where: { id: item.id, claimedUntil: until },
+      const failure = classifyJobError(error);
+      markServerSpanError(span, failure.code);
+      const exhausted = item.attempts + 1 >= MAX_CHAT2_OUTBOX_ATTEMPTS;
+      const terminal = exhausted || !failure.retryable;
+      failureClass = terminal ? "terminal" : "retryable";
+      const saved = await prisma.chat2OutboxEvent.updateMany({
+        where: { id: item.id, claimToken, deliveredAt: null, deadLetteredAt: null },
         data: {
           claimedUntil: null,
-          nextAttemptAt: new Date(
-            Date.now() + Math.min(60000, 1000 * 2 ** Math.min(6, item.attempts)),
-          ),
+          claimToken: null,
+          lastErrorCode: failure.code,
+          ...(terminal
+            ? { deadLetteredAt: new Date(), nextAttemptAt: CHAT2_DLQ_UNCLAIMABLE_AT }
+            : {
+                nextAttemptAt: new Date(
+                  Date.now() +
+                    Math.max(nextJobAttemptDelay(item.attempts + 1), failure.retryAfterMs ?? 0),
+                ),
+              }),
         },
       });
+      attemptOutcome = saved.count ? (terminal ? "dead_letter" : "retry") : "stale";
+      if (terminal) {
+        deadLettered += saved.count;
+        if (saved.count)
+          outboxLog.warn("chat2.outbox.dead_letter", {
+            traceId: item.traceId,
+            operationId: item.operationId ?? item.id,
+            attempt: item.attempts + 1,
+            errorCode: failure.code,
+            eventType: item.eventType,
+          });
+      }
+    } finally {
+      chat2OutboxExecutionMetrics.record({
+        outcome: attemptOutcome,
+        failureClass,
+        durationMs: performance.now() - attemptStart,
+      });
+      clearInterval(heartbeat);
+      span.end();
     }
   }
-  return { inspected: items.length, delivered, failed };
+  return { inspected: items.length, delivered, failed, deadLettered };
 }
 /** Independent of Chat2Media/User/Conversation cascades. An AFTER DELETE database
  * trigger creates this intent in the same transaction as deleting the row.
@@ -361,7 +577,7 @@ export function startChat2OutboxWorker() {
         const poll = await processChat2OutboxOnce();
         // Both a real DB poll and authenticated broker /api/info must work.
         // Failed delivery is not healthy merely because the broker /health is 200.
-        if (poll.failed === 0 && await probeChat2BrokerAuth()) recordChat2PollSuccess();
+        if (poll.failed === 0 && (await probeChat2BrokerAuth())) recordChat2PollSuccess();
         else resetChat2PollReadiness();
       } catch {
         resetChat2PollReadiness();

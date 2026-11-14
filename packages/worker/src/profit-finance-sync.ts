@@ -1,5 +1,5 @@
-import { disconnectCoreDatabase } from "@gafus/core/services/systemHealth";
-import { syncProfitFinance } from "@gafus/core/services/appSubscription";
+import { disconnectCoreDatabase } from "@gafus/statistics/database-health";
+import { syncProfitFinance } from "./profitFinanceSync.js";
 
 async function main() {
   const args = process.argv.slice(2);

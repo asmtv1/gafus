@@ -1,0 +1,72 @@
+import {test,after} from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {prepareNativeVerification,hashNativePackage} from './prepare-self-hosted-native-verification.mjs';
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'gafus-native-artifact-qa-'));
+const binary=path.join(root,'signed.ipa');
+const payload=Buffer.alloc(1024*1024+24,0x61);
+payload.set(Buffer.from([0x50,0x4b,0x03,0x04]),0);
+fs.writeFileSync(binary,payload);
+const cert=fs.readFileSync(new URL('../ota-public-certificates/gafus-preview-20261114.cert.txt',import.meta.url),'utf8');
+const native={id:crypto.randomUUID(),verified:false,environment:'preview',
+  channel:'preview',platform:'ios',signingKeyId:'gafus-preview-20261114',
+  appId:'gafus',bundleId:'ru.gafus.app',runtimeVersion:'1.8.0',appVersion:'1.8.0',
+  sourceSha:'a'.repeat(40),nativeFingerprint:'b'.repeat(64),
+  certificatePem:cert,certificateSha256:crypto.createHash('sha256').update(cert).digest('hex'),
+  updateUrl:'https://preview-api.gafus.ru/ota/manifest'};
+const evidence={physicalDeviceVerified:true,distributionVerified:true,
+  operationId:'qa-artifact-device-verified-001',
+  reason:'Explicit evidence of IPA device installation and distribution validation',
+  reference:'qa-device-session-20261114'};
+after(()=>fs.rmSync(root,{recursive:true,force:true}));
+test('verification requires explicit human review and hashes the exact native artifact',async()=>{
+  const result=await prepareNativeVerification({native,evidence,packageFile:binary});
+  assert.equal(result.action,'VERIFY');
+  assert.equal(result.evidence.nativeArtifactSha256,crypto.createHash('sha256').update(payload).digest('hex'));
+  assert.equal(result.evidence.physicalDeviceVerified,true);
+});
+test('neither distribution nor physical device verification can be silently invented',async()=>{
+  for(const override of [{physicalDeviceVerified:false},{distributionVerified:false},
+    {operationId:'short'},{reference:'x'},{reason:'too short'}])
+    await assert.rejects(()=>prepareNativeVerification({native,evidence:{...evidence,...override},
+      packageFile:binary}),/EXPLICIT_HUMAN_QA_EVIDENCE_REQUIRED/);
+});
+test('rejects production release, unknown key, or already-verified candidate',async()=>{
+  for(const override of [{verified:true},{environment:'production'},
+    {signingKeyId:'not-our-key'},{id:'invalid'}])
+    await assert.rejects(()=>prepareNativeVerification({native:{...native,...override},
+      evidence,packageFile:binary}),/UNTRUSTED_NATIVE_DESCRIPTOR/);
+});
+test('rejects replacing trusted native cert, runtime, origin or app id',async()=>{
+  for(const override of [{certificatePem:cert+'\n'},
+    {certificateSha256:'a'.repeat(64)}])
+    await assert.rejects(()=>prepareNativeVerification({native:{...native,...override},
+      evidence,packageFile:binary}),/UNPINNED_NATIVE_CERTIFICATE/);
+  for(const override of [{updateUrl:'https://api.gafus.ru/ota/manifest'},
+    {updateUrl:'http://preview-api.gafus.ru/ota/manifest'}])
+    await assert.rejects(()=>prepareNativeVerification({native:{...native,...override},
+      evidence,packageFile:binary}),/UNTRUSTED_NATIVE_MANIFEST_ORIGIN/);
+  for(const override of [{appId:'bad'},{appVersion:'1.7.4'},
+    {sourceSha:'oops'}])
+    await assert.rejects(()=>prepareNativeVerification({native:{...native,...override},
+      evidence,packageFile:binary}),/UNTRUSTED_NATIVE_DESCRIPTOR/);
+});
+test('rejects symlink, non-ZIP bytes, invalid extension and undersized native package',async()=>{
+  await assert.rejects(()=>hashNativePackage(binary,'android'),/PACKAGE_PLATFORM_EXTENSION_MISMATCH/);
+  const symlink=path.join(root,'link.ipa');fs.symlinkSync(binary,symlink);
+  await assert.rejects(()=>hashNativePackage(symlink,'ios'),/PACKAGE_MISSING_OR_TOO_SMALL/);
+  const fake=path.join(root,'fake.ipa');fs.writeFileSync(fake,Buffer.alloc(payload.length));
+  await assert.rejects(()=>hashNativePackage(fake,'ios'),/INVALID_ZIP_CONTAINER/);
+  const small=path.join(root,'small.ipa');fs.writeFileSync(small,Buffer.from('PK\x03\x04fake'));
+  await assert.rejects(()=>hashNativePackage(small,'ios'),/PACKAGE_MISSING_OR_TOO_SMALL/);
+});
+test('hash detects payload modifications and checks Android package extensions',async()=>{
+  const first=await hashNativePackage(binary,'ios');
+  fs.appendFileSync(binary,Buffer.from('bytes changed'));
+  assert.notEqual(await hashNativePackage(binary,'ios'),first);
+  const android=path.join(root,'signed.apk');fs.copyFileSync(binary,android);
+  assert.equal(await hashNativePackage(android,'android'),await hashNativePackage(binary,'ios'));
+});

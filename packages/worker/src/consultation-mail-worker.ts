@@ -1,6 +1,6 @@
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
-import { processConsultationEmailLog } from "@gafus/core/services/consultation";
+import { processConsultationEmailLog } from "@gafus/consultation-server/mail-delivery";
 import type { Job } from "bullmq";
 import { Worker } from "bullmq";
 

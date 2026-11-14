@@ -228,7 +228,7 @@ function ZoomableDocumentImage({
   return (
     <GestureDetector gesture={Gesture.Simultaneous(pinchGesture, panGesture)}>
       <Animated.View style={[styles.documentViewerContent, animatedStyle]}>
-        <Image source={{ uri }} style={StyleSheet.absoluteFillObject} contentFit="contain" />
+        <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="contain" />
       </Animated.View>
     </GestureDetector>
   );
@@ -1633,7 +1633,7 @@ function ActorPetsTabScreen({actor}: {actor: PetsReadActor}) {
 
   return (
     <TexturedSafeAreaView style={styles.safeArea} edges={[]}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       <ScrollView
         ref={scrollRef}
         onLayout={(event) => {
@@ -2236,7 +2236,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   documentRenameModalDismiss: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   documentModalPreview: {
     width: "100%",

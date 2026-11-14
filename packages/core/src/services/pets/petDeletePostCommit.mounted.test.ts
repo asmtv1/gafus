@@ -19,7 +19,7 @@ vi.mock("@gafus/logger",()=>({
 vi.mock("./petVetVisitService",()=>({
   lockVetPet:m.lockVet,enqueuePetVetCleanup:m.enqueueVet,
 }));
-vi.mock("./petMediaDeletionSql",()=>({
+vi.mock("@gafus/pets-server/pet-media-deletion-sql",()=>({
   petMediaOutboxEnabled:()=>process.env.PET_MEDIA_DELETION_OUTBOX_ENABLED==="true",
   enqueuePetMediaDeletionIntent:m.mediaIntent,
   consumePetMediaUploadReservation:vi.fn(),
@@ -124,3 +124,9 @@ describe("SQL-first pet deletion, scoped attachment cleanup",()=>{
     expect(m.mediaDelete).toHaveBeenCalledTimes(2);
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
+import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
+import * as originalMediaOutboxAdapter from "@gafus/pets-server/pet-media-deletion-sql";
+registerPetRowsPort({ ...originalPetRowsPort, ...(originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent && { enqueuePetMediaDeletionIntent: originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent }), ...(originalMediaOutboxAdapter.consumePetMediaUploadReservation && { consumePetMediaUploadReservation: originalMediaOutboxAdapter.consumePetMediaUploadReservation }), ...(originalMediaOutboxAdapter.petMediaOutboxEnabled && { petMediaOutboxEnabled: originalMediaOutboxAdapter.petMediaOutboxEnabled }) } as PetRowsPort);

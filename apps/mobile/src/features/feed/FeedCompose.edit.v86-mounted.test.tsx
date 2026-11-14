@@ -191,6 +191,7 @@ vi.mock("./uploads", () => ({
   pickFeedPollOptionPhoto: vi.fn(),
   uploadPickedFeedMedia: vi.fn(),
   checkFeedPickedMedia: vi.fn(),
+  feedAssetForPublication: (asset: unknown) => asset,
 }));
 vi.mock("./FeedVideo", () => ({ FeedVideo: () => null, stopFeedVideoOutsidePosts: vi.fn() }));
 vi.mock("./telemetry", () => ({ mobileFeedTelemetry: vi.fn() }));

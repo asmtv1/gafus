@@ -3,7 +3,22 @@
  */
 import { ZodError } from "zod/v3";
 
-import { prisma, Prisma } from "@gafus/prisma";
+import {
+  readOwnedPreventionPet,
+  readOwnedPreventionEntryForUpdate,
+  readOwnedPreventionEntryId,
+  createPreventionRow,
+  updateOwnedPreventionRow,
+  deleteOwnedPreventionRow,
+  readPreventionRowsByPet,
+  readOwnedPreventionPetIds,
+  readPreventionRowsByPets,
+  withPreventionTransaction,
+  readExistingPreventionClientRow,
+  createPreventionRowTx,
+  updateOwnedPreventionRowTx,
+  type PreventionTx,
+} from "./preventionRowsPort";
 import { createWebLogger } from "@gafus/logger";
 import {
   handlePrismaError,
@@ -49,19 +64,17 @@ function logPetPreventionFailure(
   error: unknown,
   _context: Record<string, unknown>,
 ): void {
-  const safeCode = error instanceof ZodError
-    ? "PET_PREVENTION_VALIDATION_FAILED"
-    : error instanceof ServiceError
-      ? "PET_PREVENTION_SERVICE_FAILED"
-      : "PET_PREVENTION_OPERATION_FAILED";
+  const safeCode =
+    error instanceof ZodError
+      ? "PET_PREVENTION_VALIDATION_FAILED"
+      : error instanceof ServiceError
+        ? "PET_PREVENTION_SERVICE_FAILED"
+        : "PET_PREVENTION_OPERATION_FAILED";
   logger.error(label, new Error(safeCode));
 }
 
 /** Клиенту не отдаём message из Prisma/ServiceError (поля, коды P*) */
-function mapServiceErrorToUserMessage(
-  serviceError: unknown,
-  operationFallback: string,
-): string {
+function mapServiceErrorToUserMessage(serviceError: unknown, operationFallback: string): string {
   if (serviceError instanceof ValidationError) {
     return USER_MSG_VALIDATION;
   }
@@ -70,25 +83,6 @@ function mapServiceErrorToUserMessage(
   }
   return operationFallback;
 }
-
-const SELECT_ENTRY = {
-  id: true,
-  type: true,
-  performedAt: true,
-  productName: true,
-  notes: true,
-  clientId: true,
-  reminderEnabled: true,
-  reminderKind: true,
-  reminderDaysAfter: true,
-  reminderOnDate: true,
-  remindAt: true,
-  reminderTimes: true,
-  lastNotifiedForRemindAt: true,
-  sentTimesForRemindAt: true,
-  createdAt: true,
-  updatedAt: true,
-} as const;
 
 type EntrySelect = {
   id: string;
@@ -133,10 +127,7 @@ export async function createEntry(
 ): Promise<CreateEntryResult> {
   try {
     const validated = createEntrySchema.parse(data);
-    const pet = await prisma.pet.findFirst({
-      where: { id: petId, ownerId: userId },
-      select: { id: true },
-    });
+    const pet = await readOwnedPreventionPet(userId, petId);
     if (!pet) {
       return { success: false, error: "Питомец не найден" };
     }
@@ -151,24 +142,20 @@ export async function createEntry(
       reminderTimes: validated.reminderTimes,
     });
 
-    const entry = await prisma.petPreventionEntry.create({
-      data: {
-        petId,
-        ownerId: userId,
-        type: validated.type,
-        performedAt: validated.performedAt,
-        productName: validated.productName ?? null,
-        notes: validated.notes ?? null,
-        reminderEnabled: computed.reminderEnabled,
-        reminderKind: computed.reminderKind,
-        reminderDaysAfter: computed.reminderDaysAfter,
-        reminderOnDate: computed.reminderOnDate,
-        remindAt: computed.remindAt,
-        reminderTimes: computed.reminderTimes,
-        lastNotifiedForRemindAt: null,
-        sentTimesForRemindAt: Prisma.DbNull,
-      },
-      select: SELECT_ENTRY,
+    const entry = await createPreventionRow({
+      petId,
+      ownerId: userId,
+      type: validated.type,
+      performedAt: validated.performedAt,
+      productName: validated.productName ?? null,
+      notes: validated.notes ?? null,
+      reminderEnabled: computed.reminderEnabled,
+      reminderKind: computed.reminderKind,
+      reminderDaysAfter: computed.reminderDaysAfter,
+      reminderOnDate: computed.reminderOnDate,
+      remindAt: computed.remindAt,
+      reminderTimes: computed.reminderTimes,
+      lastNotifiedForRemindAt: null,
     });
     return { success: true, data: entry };
   } catch (error) {
@@ -202,23 +189,7 @@ export async function updateEntry(
 ): Promise<CreateEntryResult> {
   try {
     const validated = updateEntrySchema.parse(data);
-    const existing = await prisma.petPreventionEntry.findFirst({
-      where: { id: entryId, ownerId: userId, petId },
-      select: {
-        id: true,
-        type: true,
-        performedAt: true,
-        productName: true,
-        notes: true,
-        reminderEnabled: true,
-        reminderKind: true,
-        reminderDaysAfter: true,
-        reminderOnDate: true,
-        remindAt: true,
-        reminderTimes: true,
-        lastNotifiedForRemindAt: true,
-      },
-    });
+    const existing = await readOwnedPreventionEntryForUpdate(userId, petId, entryId);
     if (!existing) {
       return { success: false, error: "Запись не найдена" };
     }
@@ -229,8 +200,8 @@ export async function updateEntry(
       productName:
         validated.productName !== undefined
           ? validated.productName
-          : existing.productName ?? undefined,
-      notes: validated.notes !== undefined ? validated.notes : existing.notes ?? undefined,
+          : (existing.productName ?? undefined),
+      notes: validated.notes !== undefined ? validated.notes : (existing.notes ?? undefined),
       reminderEnabled: validated.reminderEnabled ?? existing.reminderEnabled,
       reminderKind: validated.reminderKind ?? existing.reminderKind,
       reminderDaysAfter:
@@ -240,11 +211,13 @@ export async function updateEntry(
       reminderOnDate:
         validated.reminderOnDate !== undefined
           ? validated.reminderOnDate
-          : existing.reminderOnDate ?? undefined,
+          : (existing.reminderOnDate ?? undefined),
       reminderTimes:
         validated.reminderTimes !== undefined
           ? validated.reminderTimes
-          : Array.isArray(existing.reminderTimes) ? existing.reminderTimes as string[] : ["09:00"],
+          : Array.isArray(existing.reminderTimes)
+            ? (existing.reminderTimes as string[])
+            : ["09:00"],
     };
 
     const computed = computeReminderFields({
@@ -262,9 +235,11 @@ export async function updateEntry(
     const lastNotifiedForRemindAt =
       prevRemind === nextRemind ? existing.lastNotifiedForRemindAt : null;
 
-    const entry = await prisma.petPreventionEntry.update({
-      where: { id: entryId },
-      data: {
+    const entry = await updateOwnedPreventionRow(
+      userId,
+      petId,
+      entryId,
+      {
         type: merged.type,
         performedAt: merged.performedAt,
         productName: merged.productName,
@@ -276,10 +251,9 @@ export async function updateEntry(
         remindAt: computed.remindAt,
         reminderTimes: computed.reminderTimes,
         lastNotifiedForRemindAt,
-        sentTimesForRemindAt: prevRemind === nextRemind ? undefined : Prisma.DbNull,
       },
-      select: SELECT_ENTRY,
-    });
+      prevRemind !== nextRemind,
+    );
     return { success: true, data: entry };
   } catch (error) {
     const ctx = { entryId, petId, userId };
@@ -310,16 +284,11 @@ export async function deleteEntry(
   entryId: string,
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const existing = await prisma.petPreventionEntry.findFirst({
-      where: { id: entryId, ownerId: userId, petId },
-      select: { id: true },
-    });
+    const existing = await readOwnedPreventionEntryId(userId, petId, entryId);
     if (!existing) {
       return { success: false, error: "Запись не найдена" };
     }
-    await prisma.petPreventionEntry.delete({
-      where: { id: entryId },
-    });
+    await deleteOwnedPreventionRow(userId, petId, entryId);
     return { success: true };
   } catch (error) {
     const ctx = { entryId, petId, userId };
@@ -344,24 +313,13 @@ export async function deleteEntry(
 /**
  * Получение записей профилактики по питомцу
  */
-export async function getEntriesByPet(
-  userId: string,
-  petId: string,
-): Promise<GetEntriesResult> {
+export async function getEntriesByPet(userId: string, petId: string): Promise<GetEntriesResult> {
   try {
-    const pet = await prisma.pet.findFirst({
-      where: { id: petId, ownerId: userId },
-      select: { id: true },
-    });
+    const pet = await readOwnedPreventionPet(userId, petId);
     if (!pet) {
       return { success: false, error: "Питомец не найден" };
     }
-    const entries = await prisma.petPreventionEntry.findMany({
-      where: { petId },
-      orderBy: { performedAt: "desc" },
-      take: 100,
-      select: SELECT_ENTRY,
-    });
+    const entries = await readPreventionRowsByPet(userId, petId);
     return { success: true, data: entries };
   } catch (error) {
     const ctx = { petId, userId };
@@ -395,30 +353,13 @@ export async function getEntriesByPets(
       return { success: true, data: {} };
     }
 
-    const ownedPets = await prisma.pet.findMany({
-      where: {
-        ownerId: userId,
-        id: { in: petIds },
-      },
-      select: { id: true },
-    });
+    const ownedPets = await readOwnedPreventionPetIds(userId, petIds);
     const ownedPetIds = new Set(ownedPets.map((pet) => pet.id));
     if (ownedPetIds.size === 0) {
       return { success: true, data: {} };
     }
 
-    const entries = await prisma.petPreventionEntry.findMany({
-      where: {
-        ownerId: userId,
-        petId: { in: Array.from(ownedPetIds) },
-      },
-      orderBy: { performedAt: "desc" },
-      take: 500,
-      select: {
-        petId: true,
-        ...SELECT_ENTRY,
-      },
-    });
+    const entries = await readPreventionRowsByPets(userId, Array.from(ownedPetIds));
 
     const grouped: Record<string, EntrySelect[]> = {};
     for (const entry of entries) {
@@ -467,10 +408,8 @@ export async function getEntriesByPets(
 function batchEntryToComputed(entry: BatchEntryInput) {
   const reminderEnabled = entry.reminderEnabled ?? true;
   let reminderKind = entry.reminderKind ?? "AFTER_DAYS";
-  let reminderDaysAfter =
-    entry.reminderDaysAfter !== undefined ? entry.reminderDaysAfter : null;
-  const reminderOnDate =
-    entry.reminderOnDate !== undefined ? entry.reminderOnDate : null;
+  let reminderDaysAfter = entry.reminderDaysAfter !== undefined ? entry.reminderDaysAfter : null;
+  const reminderOnDate = entry.reminderOnDate !== undefined ? entry.reminderOnDate : null;
 
   if (reminderEnabled && reminderKind === "ON_DATE" && !reminderOnDate) {
     reminderKind = "AFTER_DAYS";
@@ -497,31 +436,27 @@ function batchEntryToComputed(entry: BatchEntryInput) {
  * This does not change any legacy upsert behavior.
  */
 export async function createNewPreventionEntryTx(
-  tx: Prisma.TransactionClient,
+  tx: PreventionTx,
   userId: string,
   petId: string,
   entry: BatchEntryInput,
 ): Promise<{ id: string }> {
   const computed = batchEntryToComputed(entry);
-  return tx.petPreventionEntry.create({
-    data: {
-      petId,
-      ownerId: userId,
-      type: entry.type,
-      performedAt: entry.performedAt,
-      productName: entry.productName ?? null,
-      notes: entry.notes ?? null,
-      clientId: entry.clientId,
-      reminderEnabled: computed.reminderEnabled,
-      reminderKind: computed.reminderKind,
-      reminderDaysAfter: computed.reminderDaysAfter,
-      reminderOnDate: computed.reminderOnDate,
-      remindAt: computed.remindAt,
-      reminderTimes: computed.reminderTimes,
-      lastNotifiedForRemindAt: null,
-      sentTimesForRemindAt: Prisma.DbNull,
-    },
-    select: { id: true },
+  return createPreventionRowTx(tx, {
+    petId,
+    ownerId: userId,
+    type: entry.type,
+    performedAt: entry.performedAt,
+    productName: entry.productName ?? null,
+    notes: entry.notes ?? null,
+    clientId: entry.clientId,
+    reminderEnabled: computed.reminderEnabled,
+    reminderKind: computed.reminderKind,
+    reminderDaysAfter: computed.reminderDaysAfter,
+    reminderOnDate: computed.reminderOnDate,
+    remindAt: computed.remindAt,
+    reminderTimes: computed.reminderTimes,
+    lastNotifiedForRemindAt: null,
   });
 }
 
@@ -535,10 +470,7 @@ export async function upsertPreventionEntriesBatch(
 ): Promise<BatchResult> {
   try {
     const parsed = batchRequestSchema.parse({ entries });
-    const pet = await prisma.pet.findFirst({
-      where: { id: petId, ownerId: userId },
-      select: { id: true },
-    });
+    const pet = await readOwnedPreventionPet(userId, petId);
     if (!pet) {
       return { success: false, error: "Питомец не найден" };
     }
@@ -546,24 +478,22 @@ export async function upsertPreventionEntriesBatch(
     let created = 0;
     let updated = 0;
 
-    await prisma.$transaction(async (tx) => {
+    await withPreventionTransaction(async (tx) => {
       for (const entry of parsed.entries) {
         const computed = batchEntryToComputed(entry);
-        const existing = await tx.petPreventionEntry.findUnique({
-          where: {
-            petId_clientId: { petId, clientId: entry.clientId },
-          },
-          select: { id: true, remindAt: true, lastNotifiedForRemindAt: true },
-        });
+        const existing = await readExistingPreventionClientRow(tx, petId, entry.clientId);
         if (existing) {
           const prevRemind = existing.remindAt ? utcDayStart(existing.remindAt).getTime() : null;
           const nextRemind = computed.remindAt ? utcDayStart(computed.remindAt).getTime() : null;
           const lastNotifiedForRemindAt =
             prevRemind === nextRemind ? existing.lastNotifiedForRemindAt : null;
 
-          await tx.petPreventionEntry.update({
-            where: { id: existing.id },
-            data: {
+          await updateOwnedPreventionRowTx(
+            tx,
+            userId,
+            petId,
+            existing.id,
+            {
               type: entry.type,
               performedAt: entry.performedAt,
               productName: entry.productName ?? null,
@@ -575,29 +505,26 @@ export async function upsertPreventionEntriesBatch(
               remindAt: computed.remindAt,
               reminderTimes: computed.reminderTimes,
               lastNotifiedForRemindAt,
-              sentTimesForRemindAt: prevRemind === nextRemind ? undefined : Prisma.DbNull,
             },
-          });
+            prevRemind !== nextRemind,
+          );
           updated += 1;
         } else {
-          await tx.petPreventionEntry.create({
-            data: {
-              petId,
-              ownerId: userId,
-              type: entry.type,
-              performedAt: entry.performedAt,
-              productName: entry.productName ?? null,
-              notes: entry.notes ?? null,
-              clientId: entry.clientId,
-              reminderEnabled: computed.reminderEnabled,
-              reminderKind: computed.reminderKind,
-              reminderDaysAfter: computed.reminderDaysAfter,
-              reminderOnDate: computed.reminderOnDate,
-              remindAt: computed.remindAt,
-              reminderTimes: computed.reminderTimes,
-              lastNotifiedForRemindAt: null,
-              sentTimesForRemindAt: Prisma.DbNull,
-            },
+          await createPreventionRowTx(tx, {
+            petId,
+            ownerId: userId,
+            type: entry.type,
+            performedAt: entry.performedAt,
+            productName: entry.productName ?? null,
+            notes: entry.notes ?? null,
+            clientId: entry.clientId,
+            reminderEnabled: computed.reminderEnabled,
+            reminderKind: computed.reminderKind,
+            reminderDaysAfter: computed.reminderDaysAfter,
+            reminderOnDate: computed.reminderOnDate,
+            remindAt: computed.remindAt,
+            reminderTimes: computed.reminderTimes,
+            lastNotifiedForRemindAt: null,
           });
           created += 1;
         }

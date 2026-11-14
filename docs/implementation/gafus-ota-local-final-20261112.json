@@ -1,0 +1,81 @@
+{
+  "checkpoint": "gafus-ota-local-final-20261112",
+  "generatedUtc": "2026-11-12T19:14:29.493509+00:00",
+  "baselineHead": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "gitPush": false,
+  "merge": false,
+  "productionChanged": false,
+  "realPreviewCloudQa": false,
+  "finalRegression": {
+    "manifest": "/tmp/gafus-ota-regression-final-20261112/manifest.json",
+    "stagesPassed": 17,
+    "stagesTotal": 17,
+    "apiTests": 69,
+    "mobileTests": 118,
+    "realPostgresTests": 23,
+    "offlineSecurityTests": 31,
+    "s3CdnTests": 4,
+    "cohortTests": 4
+  },
+  "schemaBackcompat": {
+    "baselineModels": 190,
+    "currentModels": 200,
+    "oldColumnsVerified": 1926,
+    "oldRuntimeSmoke": false,
+    "cleanMigrationsFromBlank": false
+  },
+  "expoExports": {
+    "ios": {
+      "bytes": 7073900,
+      "assets": 116
+    },
+    "android": {
+      "bytes": 7146628,
+      "assets": 131
+    }
+  },
+  "sha256": {
+    ".github/workflows/gafus-self-hosted-ota-preview.yml": "a48dae048ad00cd1adf138fffad925437046d135085671f140665cbc6122f163",
+    "apps/api/src/app.ts": "5d22008938502a2bd991ce95380a93079486841f721d73e1845d8dd0677e2a8e",
+    "apps/api/src/routes/mobile-ota-telemetry.ts": "3cdabcd71ba1186d1a1a0307519bc7d196100e052db2dccf64de6e825e6f460a",
+    "apps/api/src/routes/v1/admin-mobile-ota.ts": "88c0cf90c1b57255c1772c78be960c8c80f51548cb223536e329be347de78732",
+    "apps/api/src/routes/mobile-ota-telemetry.test.ts": "925acdef9c47661d457a392791af9ff29b1a527fe65911eebc3ff275b876eb52",
+    "apps/api/src/modules/mobile-ota/manifest-protocol.ts": "ddc53460dd0bf948cf78e70a1fd6ea969233f87515fc1cdc01c2e04a2f658a31",
+    "apps/mobile/app.config.js": "87d298f16760083e3ebfb91ff215af5b9ae4650730de93ab6e4bfaac98c914cd",
+    "apps/mobile/scripts/self-hosted-native-profile.cjs": "a1e7cd09beddcd1ae1c445cbd395ed7d77b93754ab7be22df9962fba2e3c863e",
+    "apps/mobile/scripts/verify-ota-preview-workflow.test.mjs": "85fca22b586ae50b531cdf6acb7fe5e56fa6e248ba5b74bdb65c6deeaac4de2f",
+    "apps/mobile/src/shared/hooks/useOtaAutoApply.ts": "24463a77e255d7bed13f938e78e8badce49c233b2ecf87d128df499fae92b0e5",
+    "apps/mobile/src/shared/components/RequiredOtaUpdateGate.tsx": "a1ef59ad6d9ec2f23897df689456ad1dc3c380b63e9590ad83ef0fbc14bbc448",
+    "apps/mobile/src/shared/lib/ota/installationIdentity.ts": "b55a836855a0a1af6dcffb54d4a8c69d0f5d247affea57c21e4fe4ced940f596",
+    "apps/mobile/src/shared/lib/ota/installationIdentity.test.ts": "1c973a03d3248da63397e8de47fa9f3f10cdd75c7e1b45d20aa6fefb0488b65d",
+    "apps/mobile/src/shared/lib/ota/telemetry.ts": "abfffaeb4675b342e6d12ac6570a96f5b945aa40902cd7d1b01096a4f81d05ec",
+    "apps/mobile/src/shared/lib/ota/telemetry.test.ts": "b91aaa714ccc492de7b0103eba3c0b7dfed963440befa07febfb39b4104caaed",
+    "apps/mobile/src/features/app-subscription/components/AppSubscriptionPaywall.ios.tsx": "1bf9bc4cf228721dbedec66271f20a5b92cc4d555faf3b88e069e723cfdb7ed3",
+    "apps/mobile/src/features/app-subscription/components/AppSubscriptionPaywall.ios-restore.test.tsx": "9ada960e26ce21200bf520f5161888121fcc4da4ed29f9dc087dd00386128739",
+    "packages/mobile-ota-server/src/rollout-policy.ts": "d127b5a76d7cf6657d007bf04d735d2542b127496718a828c9f88ac5bcf579d9",
+    "packages/mobile-ota-server/src/repository.ts": "cd7c5fc7250c453171a6a4d63475968197be0570819364f4cd310f1981f0136b",
+    "packages/mobile-ota-server/src/deployment-commands.ts": "cd8f828a7b537a78d1aeffea369668b8a80e8d30516b03e516569b6377ed05dd",
+    "packages/mobile-ota-server/src/ci-registration.ts": "768ebb3113dcb3d8576730f5cc56f28bae7de523d8afe10134bc0661f19ffab0",
+    "packages/mobile-ota-server/src/telemetry.ts": "c8fbb7d373c6c18a28c7a3e592df781f6537c0f769a795ef056199f307f8f08d",
+    "packages/mobile-ota-server/tests/rollout-policy.test.ts": "6329029f72f60fead90ac985f7afb42d11ec15bc40f24be41c1b976b6863b987",
+    "packages/mobile-ota-server/tests/full-cycle.realpg.test.ts": "e03a4fc0818041231d4799dc6282c89645a7f2a74d207ca53aa07c4521dee855",
+    "packages/mobile-ota-server/tests/telemetry.realpg.test.ts": "8e8a2c081067be749e0b24ea14f1491adf19bf072989cc7c36828df7899a6f76",
+    "packages/mobile-ota-server/tests/deployment-commands.realpg.test.ts": "f5309028e6a2b02ceaa92654070e388df4ceabd8e46b2c7792f1d22d9b898d76",
+    "packages/mobile-ota-server/tests/ci-registration.realpg.test.ts": "cf02dbae28594f38611146dcecd4d5be94b5782720193f39d9107aff366a1fff",
+    "packages/mobile-ota-server/scripts/prune-telemetry.mjs": "8b60cdc9d39327d89d755b16203fc46caa6bce3b69dd513d8c9eecdafd452613",
+    "packages/mobile-ota-server/package.json": "22688a1dbcf2dbfd29d93c8ca81d71a845003c3316fafb8c0ffa6d5c6c1ed125",
+    "packages/prisma/schema.prisma": "5fd5d4f3e22c911e09822c92b07580cf2c5c4d1bcf462a128bc9ca9afee1ea0f",
+    "packages/prisma/migrations/20261112224500_mobile_ota_cohort_rollouts/migration.sql": "8bb474ff34b833c00df0c732f049e3dc465aa46e3555d7a2463d4a302d3c77a9",
+    "packages/prisma/migrations/20261112230000_mobile_ota_installation_telemetry/migration.sql": "9eb3a2e2da101afe8dd22eb4a065e7a246fd3f9057596716863a437f31cef471",
+    "scripts/gafus-ota-local-regression.mjs": "45a89c506575355b9c831da80d7be8042fc2f7d38cb8bc6ab0e37f18843a6daa",
+    "scripts/verify-ota-schema-backcompat.mjs": "b7a1a6fc7e7ce91d5c55730fd2a63e16a11cd7636c10383d6bded69fad8f4624",
+    "scripts/check-domain-package-prisma-boundary.mjs": "0c895cb296eb50201c85f54c70cde7f5d312df3398670bafc0c37409d57ff2e5"
+  },
+  "remainingExternal": [
+    "real native StoreKit and devices",
+    "Cloud.ru/Beget/AppTracer",
+    "protected CI",
+    "App Review",
+    "old/new runtime full QA"
+  ]
+}

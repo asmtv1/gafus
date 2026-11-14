@@ -34,6 +34,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       release_sha: ${{ steps.release.outputs.sha }}
+      release_manifest_b64: ${{ steps.release.outputs.manifest_b64 }}
+      release_run_id: ${{ steps.release.outputs.run_id }}
+      release_run_attempt: ${{ steps.release.outputs.run_attempt }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -68,20 +71,47 @@ jobs:
           test -s "$RUNNER_TEMP/release-runs" || { echo 'NO_MAIN_CI_RUN'; exit 1; }
           verified=false
           while IFS= read -r run; do
+            # A historical run without a seven-digest receipt cannot be
+            # reconstructed from mutable :latest or unchecked SHA tags.
+            run_state="$(gh api "repos/$GH_REPO/actions/runs/$run" --jq '[.event,.head_branch,.head_sha,.status,.conclusion,.run_attempt] | @tsv')"
+            IFS=$'\t' read -r event branch head_sha run_status conclusion attempt <<< "$run_state"
+            [[ "$event" == push && "$branch" == main && "$head_sha" == "$sha" && "$run_status" == completed && "$conclusion" == success ]] || continue
             gh api --paginate "repos/$GH_REPO/actions/runs/$run/jobs?per_page=100" \
               --jq '.jobs[] | [.name,.conclusion] | @tsv' > "$RUNNER_TEMP/release-jobs"
             count="$(awk -F '\t' '$1 ~ /^build-images \(/ && $2 == "success" {n++} END {print n+0}' "$RUNNER_TEMP/release-jobs")"
             if [[ "$count" -eq 7 ]] &&
               grep -q $'security\tsuccess' "$RUNNER_TEMP/release-jobs" &&
+              grep -q $'observability-contracts\tsuccess' "$RUNNER_TEMP/release-jobs" &&
               grep -q $'build-apps\tsuccess' "$RUNNER_TEMP/release-jobs" &&
-              grep -q $'cloudru-media-contracts\tsuccess' "$RUNNER_TEMP/release-jobs"; then
+              grep -q $'release-images-manifest\tsuccess' "$RUNNER_TEMP/release-jobs" &&
+              grep -q $'cloudru-media-contracts\tsuccess' "$RUNNER_TEMP/release-jobs" &&
+              grep -q $'cutover-preflight\tsuccess' "$RUNNER_TEMP/release-jobs"; then
+              mkdir -p "$RUNNER_TEMP/release-artifact-$run"
+              if ! gh run download "$run" --repo "$GH_REPO" \
+                --name "release-images-attempt-$attempt" --dir "$RUNNER_TEMP/release-artifact-$run"; then
+                echo "RELEASE_MANIFEST_UNAVAILABLE:$run" >&2
+                continue
+              fi
+              manifest="$RUNNER_TEMP/release-artifact-$run/release-images.json"
+              if ! node ci-cd/scripts/release-image-manifest.mjs verify \
+                 --manifest "$manifest" \
+                 --checksum "$manifest.sha256" \
+                 --sourceSha "$sha" --runId "$run" --runAttempt "$attempt"; then
+                echo "RELEASE_MANIFEST_INVALID:$run" >&2
+                continue
+              fi
               verified=true
+              {
+                echo "run_id=$run"
+                echo "run_attempt=$attempt"
+                echo "manifest_b64=$(base64 -w 0 "$manifest")"
+              } >> "$GITHUB_OUTPUT"
               break
             fi
           done < "$RUNNER_TEMP/release-runs"
           [[ "$verified" == true ]] || { echo 'RELEASE_IMAGES_OR_QA_NOT_VERIFIED'; exit 1; }
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          echo "Verified seven previously built images for $sha; no builds or Cloud.ru mutations"
+          echo "Verified immutable digests and successful main CI for $sha; no rebuild or Cloud.ru mutation"
 
   preflight-cdn:
     needs: validate-release
@@ -127,5 +157,8 @@ jobs:
     uses: ./.github/workflows/production-deploy-reusable.yml
     with:
       release_sha: ${{ needs.validate-release.outputs.release_sha }}
+      release_manifest_b64: ${{ needs.validate-release.outputs.release_manifest_b64 }}
+      release_run_id: ${{ needs.validate-release.outputs.release_run_id }}
+      release_run_attempt: ${{ needs.validate-release.outputs.release_run_attempt }}
       app_only: true
     secrets: inherit

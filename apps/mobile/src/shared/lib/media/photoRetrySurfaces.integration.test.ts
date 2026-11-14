@@ -5,7 +5,8 @@ const read=(path:string)=>readFileSync(new URL(path,import.meta.url),'utf8');
 describe('Mobile photo retry remains per-file and entirely client-side',()=>{
   it('Chat2 retains the original picker source and only retries the failed local chip',()=>{
     const source=read('../../../features/chat2/Chat2RoomScreen.tsx');
-    expect(source).toContain('uri:f.uri, sourcePhoto:f, uploading:true');
+    expect(source).toContain('sourcePhoto: photo, uploading: true');
+    expect(source).toContain('uri: photo.uri');
     expect(source).toContain('async function prepareOnePhoto(localId: string, source: ImagePicker.ImagePickerAsset)');
     expect(source).toContain('prepared = await prepareUploadPhoto(source)');
     expect(source).toContain('preparedPhotos.current.set(localId, variants)');

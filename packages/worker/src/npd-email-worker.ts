@@ -1,6 +1,6 @@
 import { renderNpdReceiptEmail, sendTransactionalMail } from "@gafus/mailer";
-import { processDueNpdReceiptEmailDeliveriesCore } from "@gafus/core/services/appSubscription";
-export type { NpdEmailWorkerResult } from "@gafus/core/services/appSubscription";
+import { processDueNpdReceiptEmailDeliveriesCore } from "@gafus/subscription-write-server";
+export type { NpdEmailWorkerResult } from "@gafus/subscription-write-server";
 
 /** External SMTP transport only: all claim/retry/state transitions are in core. */
 export async function processDueNpdReceiptEmailDeliveries(

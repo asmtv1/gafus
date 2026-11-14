@@ -1,4 +1,5 @@
-import { runFeedBackgroundOperations, getFeedPushSubscriptions, type FeedNotificationDelivery } from "@gafus/core/services/feed";
+import { runFeedBackgroundOperations, getFeedPushSubscriptions } from "@gafus/feed-server/background-operations";
+import type { FeedNotificationDelivery } from "@gafus/core/services/feed";
 import { PushNotificationService, partitionPushSubscriptions, sendExpoPushNotifications, sendRustorePushNotifications } from "@gafus/webpush";
 let running = false;
 let web: ReturnType<typeof PushNotificationService.fromEnvironment> | undefined;

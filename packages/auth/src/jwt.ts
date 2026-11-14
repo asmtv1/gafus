@@ -9,8 +9,8 @@
  */
 import { SignJWT, jwtVerify } from "jose";
 import { createSecretKey, type KeyObject } from "crypto";
-import { sessionIsCurrent } from "@gafus/core/services/auth/identityReadService";
-export { assertCompletedUser } from "@gafus/core/services/auth/identityReadService";
+import { sessionIsCurrent } from "./identityReadService.js";
+export { assertCompletedUser, sessionIsCurrent } from "./identityReadService.js";
 
 const JWT_ISSUER = "https://api.gafus.ru";
 const JWT_AUDIENCE = "gafus-app";

@@ -3,12 +3,8 @@
  * private student entries to a public or summary endpoint.
  */
 import { Hono } from "hono";
-import { searchStudentsByUsername } from "@gafus/core/services/user";
+import { searchStudentsByUsername } from "@gafus/statistics/user-search";
 import {
-  createTrainerNote,
-  updateTrainerNote,
-  deleteTrainerNote,
-  getTrainerNotes,
   createTrainerNoteSchema,
   updateTrainerNoteSchema,
   deleteTrainerNoteSchema,
@@ -16,6 +12,9 @@ import {
   type UpdateTrainerNoteInput,
   type DeleteTrainerNoteInput,
 } from "@gafus/core/services/notes";
+import {
+  createTrainerNote, updateTrainerNote, deleteTrainerNote, getTrainerNotes,
+} from "../../modules/student-notes/composition/notes-rows.js";
 
 type Actor = { id: string; role: string };
 type Result = { success?: boolean; error?: string };

@@ -1,113 +1,48 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { TrainingDetail } from "@gafus/types";
+import {
+  onlineStepOccurrencesMatch, projectOnlineStepBinding,
+} from "./onlineStepBinding";
 
-const db = vi.hoisted(() => ({
-  links: vi.fn(),
-  training: vi.fn(),
-  progress: vi.fn(),
-}));
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    stepOnDay: { findMany: db.links },
-    userTraining: { findUnique: db.training },
-    userStep: { findMany: db.progress },
-  },
-}));
-import { withOnlineStepBinding } from "./onlineStepBinding";
-
-// Only the relevant DTO fields are needed for this read-only projection.
-const detail = (): TrainingDetail =>
-  ({
-    trainingDayId: "day1",
-    steps: [
-      {
-        id: "step1",
-        order: 1,
-        status: "IN_PROGRESS",
-        isPausedOnServer: false,
-        remainingSecOnServer: 30,
-        locked: false,
-      },
-    ],
-  }) as unknown as TrainingDetail;
-
-beforeEach(() => {
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date("2026-11-02T12:00:00.000Z"));
-  db.links.mockReset().mockResolvedValue([{ id: "occ1", stepId: "step1", order: 1 }]);
-  db.training.mockReset().mockResolvedValue({ id: "training1" });
-  db.progress
-    .mockReset()
-    .mockResolvedValue([
-      {
-        stepOnDayId: "occ1",
-        status: "IN_PROGRESS",
-        paused: false,
-        remainingSec: 30,
-        updatedAt: new Date("2026-11-02T12:00:00.000Z"),
-      },
-    ]);
-});
-afterEach(() => vi.useRealTimers());
-
-describe("opt-in online step binding", () => {
-  it("binds only the matching occurrence with a bounded server timer", async () => {
-    const original = detail();
-    const value = await withOnlineStepBinding("actor", "day-on-course", original);
-    expect(value).toMatchObject({
-      serverNow: "2026-11-02T12:00:00.000Z",
+const now = new Date("2026-11-07T12:00:00.000Z");
+const dto = () => ({
+  trainingDayId: "day-1",
+  steps: [{ id: "step-1", order: 1, status: "IN_PROGRESS",
+    locked: false, isPausedOnServer: false, remainingSecOnServer: 30 }],
+}) as unknown as TrainingDetail;
+const links = [{ id: "physical-1", stepId: "step-1", order: 1 }];
+const progress = [{ stepOnDayId: "physical-1", status: "IN_PROGRESS",
+  paused: false, remainingSec: 30, updatedAt: now }];
+describe("pure, deterministic opt-in online training step binding policy", () => {
+  it("does not modify source DTO and exposes no userTrainingId", () => {
+    const original = dto();
+    const projected = projectOnlineStepBinding(original, links, progress, now);
+    expect(projected).toMatchObject({
       onlineStepBinding: "STEP_ON_DAY_ID_V1",
-      steps: [
-        {
-          stepOnDayId: "occ1",
-          timerSnapshot: {
-            remainingSecAtServerNow: 30,
-            expiresAt: "2026-11-02T12:00:30.000Z",
-          },
-        },
-      ],
+      serverNow: "2026-11-07T12:00:00.000Z",
+      steps: [{stepOnDayId: "physical-1", timerSnapshot: {
+        remainingSecAtServerNow: 30,
+        expiresAt: "2026-11-07T12:00:30.000Z",
+      }}],
     });
     expect(original.steps[0]).not.toHaveProperty("stepOnDayId");
-    expect(JSON.stringify(value)).not.toContain("training1");
-    expect(db.training).toHaveBeenCalledWith({
-      where: { userId_dayOnCourseId: { userId: "actor", dayOnCourseId: "day-on-course" } },
-      select: { id: true },
-    });
   });
-
-  it("fails closed if physical step mapping does not match rendered DTO", async () => {
-    db.links.mockResolvedValue([{ id: "occ1", stepId: "other", order: 1 }]);
-    const original = detail();
-    expect(await withOnlineStepBinding("actor", "day-on-course", original)).toBe(original);
-    expect(db.training).not.toHaveBeenCalled();
+  it("returns the exact untouched DTO on physical occurrence mismatch", () => {
+    const original=dto();
+    expect(onlineStepOccurrencesMatch(original,[{...links[0],stepId:"different"}])).toBe(false);
+    expect(projectOnlineStepBinding(original,[{...links[0],stepId:"different"}],progress,now))
+      .toBe(original);
   });
-
-  it("fails closed on a concurrent progress change", async () => {
-    db.progress.mockResolvedValue([
-      {
-        stepOnDayId: "occ1",
-        status: "COMPLETED",
-        paused: false,
-        remainingSec: 30,
-        updatedAt: new Date(),
-      },
-    ]);
-    const original = detail();
-    expect(await withOnlineStepBinding("actor", "day-on-course", original)).toBe(original);
+  it("returns the untouched DTO when persisted state differs from read model", () => {
+    const original=dto();
+    expect(projectOnlineStepBinding(original,links,
+      [{...progress[0],status:"COMPLETED"}],now)).toBe(original);
   });
-
-  it("does not mutate locked/hidden steps", async () => {
-    const original = detail();
-    original.steps[0].locked = true;
-    const value = await withOnlineStepBinding("actor", "day-on-course", original);
-    expect(value.steps[0]).toEqual(original.steps[0]);
-    expect(value.steps[0]).not.toHaveProperty("stepOnDayId");
-  });
-
-  it("does not create training progress for users without existing training", async () => {
-    db.training.mockResolvedValue(null);
-    const value = await withOnlineStepBinding("actor", "day-on-course", detail());
-    expect(db.progress).not.toHaveBeenCalled();
-    expect(value).toHaveProperty("onlineStepBinding", "STEP_ON_DAY_ID_V1");
+  it("never binds locked step or reveals private progress", () => {
+    const original=dto();
+    original.steps[0]!.locked=true;
+    const projected=projectOnlineStepBinding(original,links,progress,now);
+    expect(projected.steps[0]).toEqual(original.steps[0]);
+    expect(JSON.stringify(projected)).not.toContain("userTrainingId");
   });
 });

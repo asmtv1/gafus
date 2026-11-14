@@ -1,4 +1,4 @@
-import { getAppSubscriptionMetricsSnapshot } from "@gafus/core/services/appSubscription";
+import { getAppSubscriptionMetricsSnapshot } from "@gafus/subscription-read-server";
 
 let renewalAttemptTotal = 0;
 let renewalFailedTotal = 0;

@@ -1,53 +1,38 @@
-/** Original owner-scoped Pet list/detail Core READ, isolated from Vet/CDN/write imports. */
-import { prisma } from "@gafus/prisma";
+/**
+ * Pet list/detail policy: caller chooses authenticated owner; the injected
+ * adapter performs owner-scoped SQL reads and has no actor override options.
+ */
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("core-pets");
 
-/**
- * Получить список питомцев пользователя
- */
-export async function getUserPets(userId: string, options: { throwOnError?: boolean } = {}) {
-  try {
-    const pets = await prisma.pet.findMany({
-      where: { ownerId: userId },
-      include: {
-        awards: {
-          orderBy: { date: "desc" },
-        },
-        // Source Next PetCard displays owner-only counts in its collapsed
-        // footer. Prisma relation aggregates avoid N+1 clinical-document GETs.
-        _count: { select: { preventionEntries: true, documents: true } },
-      },
-      orderBy: { createdAt: "asc" },
-    });
+export interface PetReadPorts<ListItem, DetailItem> {
+  readOwnedPets(ownerId: string): Promise<ListItem[]>;
+  readOwnedPetDetail(petId: string, ownerId: string): Promise<DetailItem | null>;
+}
 
-    return pets;
+/** Preserve strict Hono failures and old lenient Web fallback independently
+ * from the persistence implementation. Never log raw DB errors or owner IDs.
+ */
+export async function getUserPets<T>(
+  userId: string,
+  options: { throwOnError?: boolean } = {},
+  readOwnedPets: (ownerId: string) => Promise<T[]>,
+): Promise<T[]> {
+  try {
+    return await readOwnedPets(userId);
   } catch (error) {
-    // No raw Prisma exception, provider data, actor ID, or replacement stack.
     logger.error("PET_LIST_FAILED");
-    // Preserve the old fallback for existing Web consumers. Hono opts into
-    // strict failure, so outages are not mistaken for users with zero pets.
     if (options.throwOnError) throw error;
     return [];
   }
 }
 
-/**
- * Получить питомца по ID
- */
-export async function getPetById(petId: string, userId: string) {
-  const pet = await prisma.pet.findFirst({
-    where: {
-      id: petId,
-      ownerId: userId,
-    },
-    include: {
-      awards: {
-        orderBy: { date: "desc" },
-      },
-    },
-  });
-
-  return pet;
+/** A foreign or missing pet stays null; the adapter requires BOTH keys. */
+export async function getPetById<T>(
+  petId: string,
+  userId: string,
+  readOwnedPetDetail: (petId: string, ownerId: string) => Promise<T | null>,
+): Promise<T | null> {
+  return readOwnedPetDetail(petId, userId);
 }

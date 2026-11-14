@@ -1,4 +1,4 @@
-import {createRetiredFeedPhotoQueueTick,createCurrentRetiredFeedPhotoQueueTick} from "@gafus/core/services/feed";
+import {createRetiredFeedPhotoQueueTick,createCurrentRetiredFeedPhotoQueueTick} from "@gafus/feed-server/retired-photo-queue";
 export {createRetiredFeedPhotoQueueTick};
 let tick:ReturnType<typeof createRetiredFeedPhotoQueueTick>|undefined;
 export async function runRetiredFeedPhotoQueueTick(){

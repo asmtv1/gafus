@@ -1,0 +1,44 @@
+# Exact dashboard model from Uptrace UI, plus two VERIFIED cloud series.
+# GAFUS Nonprod project 9383, cloud dashboard 55170.
+# Does not create alert monitors or share any credentials.
+schema: v2
+name: "GAFUS: Nonprod Telemetry Delivery"
+tags:
+- prom
+- app
+- logs
+version: v26.11.13
+min_interval: 1m0s
+layout:
+  mode: rows
+  items:
+  - type: group
+    title: Verified Cloud Ingestion
+    max_column_count: 12
+    column_width_mode: auto
+    row_height_mode: standard
+    items:
+    - title: OTLP/HTTP synthetic metrics
+      type: chart
+      metrics:
+      - gafus_nonprod_canary_delivery as $otlp
+      query:
+      - max($otlp{}) as otlp_delivery
+    - title: Prometheus Remote Write
+      type: chart
+      metrics:
+      - gafus_nonprod_prom_rw_canary as $remote
+      query:
+      - max($remote{}) as remote_write_delivery
+    - title: Grafana Alloy local OTLP/WAL pipeline
+      type: chart
+      metrics:
+      - gafus_nonprod_alloy_probe as $alloy
+      query:
+      - max($alloy{}) as alloy_delivery
+    - title: Expo Observe SDK57 sanitized startup metric
+      type: chart
+      metrics:
+      - expo_app_startup_tti as $native
+      query:
+      - max($native{}) as native_startup_tti

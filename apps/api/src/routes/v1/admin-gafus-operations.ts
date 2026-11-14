@@ -4,10 +4,7 @@ import {
   listGafusFraudSignalsAdmin,
   reviewGafusFraudSignalAdmin,
 } from "@gafus/core/services/adminGafus";
-import {
-  getLegacyGafusImportPreflight,
-  importLegacyRewardedBatch,
-} from "@gafus/core/services/gafus";
+import { legacyGafusImportApplication } from "../../modules/gafus/composition/legacy-import.js";
 import { requireRole } from "../../middleware/auth.js";
 
 /** Completes legacy Next admin Gafus fraud and operator-only import actions. */
@@ -88,7 +85,7 @@ adminGafusOperationsRoutes.post("/fraud/:signalId/review", requireRole("ADMIN"),
 
 adminGafusOperationsRoutes.get("/legacy/preflight", requireRole("ADMIN"), async c => {
   try {
-    const data = await getLegacyGafusImportPreflight(c.get("user").id);
+    const data = await legacyGafusImportApplication.preflight(c.get("user").id);
     return c.json({ success: true, data });
   } catch (error) {
     const mapped = coreError(error);
@@ -101,7 +98,7 @@ adminGafusOperationsRoutes.post("/legacy/import", requireRole("ADMIN"), async c 
   const parsed = importSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ success: false, code: "IMPORT_NOT_CONFIRMED" }, 400);
   try {
-    const data = await importLegacyRewardedBatch({
+    const data = await legacyGafusImportApplication.importBatch({
       actorId: c.get("user").id, confirmed: true,
       batchSize: 50, cursor: parsed.data.cursor || undefined,
     });

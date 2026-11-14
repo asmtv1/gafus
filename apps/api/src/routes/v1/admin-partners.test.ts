@@ -6,7 +6,7 @@ const fake = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: fake.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: fake.registration }));
-vi.mock("@gafus/core/services/appSubscription", () => ({
+vi.mock("@gafus/subscription-write-server", () => ({
   listPartnerAdminBalances: fake.list,
   getPartnerAdminBalanceDetail: fake.detail,
   markPartnerBalancePaidAdmin: fake.mark,

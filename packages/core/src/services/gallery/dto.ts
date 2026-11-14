@@ -1,5 +1,5 @@
 import { stableMediaExpiry } from "../mediaDelivery/signedExpiry";
-import { GALLERY_LIMITS as L } from "../../../../types/src/gallery";
+import { GALLERY_LIMITS as L } from "@gafus/types";
 import type { GalleryAlbumDto, GalleryPhotoDto, GalleryUploadDto } from "@gafus/types";
 import type { AlbumRow, PhotoRow, UploadRow } from "./persistence";
 import { alive, published } from "./persistence";

@@ -1,15 +1,52 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import {
-  createArticle,
-  deleteArticle,
-  getArticleBySlug,
-  getArticleBySlugForMonetizedAccess,
-  getArticleForEdit,
-  getArticles,
-  incrementArticleView,
-  updateArticle,
+  createArticle as coreCreateArticle,
+  deleteArticle as coreDeleteArticle,
+  getArticleBySlug as coreGetArticleBySlug,
+  getArticleBySlugForMonetizedAccess as coreGetArticleBySlugForMonetizedAccess,
+  getArticleForEdit as coreGetArticleForEdit,
+  getArticles as coreGetArticles,
+  incrementArticleView as coreIncrementArticleView,
+  updateArticle as coreUpdateArticle,
+  type ArticleOwnerWritesPort,
+  type ArticleReadPort,
 } from "./articleService";
+import {
+  readArticleCatalogRows,
+  readArticleGrantRows,
+  readArticleDetailRow,
+  readArticleForEditRow,
+  readArticleIdBySlug,
+  readArticleViewersForAuthorRow,
+  createArticleRow,
+  recordArticleViewRow,
+} from "@gafus/article-server/article-rows";
+
+const rows: ArticleReadPort = {
+  readArticleCatalogRows,
+  readArticleGrantRows,
+  readArticleDetailRow,
+  readArticleForEditRow,
+  readArticleIdBySlug,
+  readArticleViewersForAuthorRow,
+  createArticleRow,
+  recordArticleViewRow,
+};
+const getArticles = (userId?: string, take = 50, skip = 0, authorId?: string) =>
+  coreGetArticles(rows, userId, take, skip, authorId);
+const getArticleBySlug = (slug: string, userId?: string) =>
+  coreGetArticleBySlug(rows, slug, userId);
+const getArticleBySlugForMonetizedAccess = (
+  input: Parameters<typeof coreGetArticleBySlugForMonetizedAccess>[1],
+) => coreGetArticleBySlugForMonetizedAccess(rows, input);
+const getArticleForEdit = (id: string, userId: string) => coreGetArticleForEdit(rows, id, userId);
+const createArticle = (input: Record<string, unknown>, userId: string) =>
+  coreCreateArticle(rows, input, userId);
+const incrementArticleView = (
+  slug: string,
+  options?: Parameters<typeof coreIncrementArticleView>[2],
+) => coreIncrementArticleView(rows, slug, options);
 
 const mockArticleFindMany = vi.fn();
 const mockGafusAccessFindMany = vi.fn();
@@ -18,6 +55,17 @@ const mockArticleCreate = vi.fn();
 const mockArticleUpdate = vi.fn();
 const mockArticleDelete = vi.fn();
 const mockArticleUpdateMany = vi.fn();
+const mockGetArticleAuthorId = vi.fn();
+const mockUpdateOwnedArticle = vi.fn();
+const mockDeleteOwnedArticle = vi.fn();
+const writes: ArticleOwnerWritesPort = {
+  getArticleAuthorId: mockGetArticleAuthorId,
+  updateOwnedArticle: mockUpdateOwnedArticle,
+  deleteOwnedArticle: mockDeleteOwnedArticle,
+};
+const updateArticle = (id: string, input: Record<string, unknown>, actorId: string) =>
+  coreUpdateArticle(id, input, actorId, writes);
+const deleteArticle = (id: string, actorId: string) => coreDeleteArticle(id, actorId, writes);
 const mockTransaction = vi.fn();
 const mockArticleViewerCreate = vi.fn();
 const mockArticleViewerCreateMany = vi.fn();
@@ -25,7 +73,9 @@ const mockArticleViewerUpdate = vi.fn();
 const mockArticleGuestViewCreate = vi.fn();
 const mockArticleGuestViewCreateMany = vi.fn();
 const mockGetPremiumOrRewardedAccess = vi.fn();
-const mockResolveArticleEntitlement = vi.fn().mockResolvedValue({ allowed: false, source: "DENIED" });
+const mockResolveArticleEntitlement = vi
+  .fn()
+  .mockResolvedValue({ allowed: false, source: "DENIED" });
 
 vi.mock("../contentAccess/policy", () => ({
   resolveArticleEntitlement: (...args: unknown[]) => mockResolveArticleEntitlement(...args),
@@ -127,10 +177,12 @@ describe("getArticles", () => {
   });
 
   it("a locked catalog item only exposes its cover, not its video or gallery", async () => {
-    mockArticleFindMany.mockResolvedValue([listRow({
-      videoUrl: "https://media.example/paid-video",
-      imageUrls: ["preview.jpg", "private-photo.jpg"],
-    })]);
+    mockArticleFindMany.mockResolvedValue([
+      listRow({
+        videoUrl: "https://media.example/paid-video",
+        imageUrls: ["preview.jpg", "private-photo.jpg"],
+      }),
+    ]);
 
     const result = await getArticles("viewer");
     expect(result.success).toBe(true);
@@ -150,20 +202,24 @@ describe("getArticles", () => {
     const result = await getArticles("viewer");
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.map(article => article.hasAccess)).toEqual([true, false]);
+      expect(result.data.map((article) => article.hasAccess)).toEqual([true, false]);
       expect(result.data[0]?.videoUrl).toBe("https://example.com/a1.mp4");
     }
-    expect(mockGafusAccessFindMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ userId: "viewer", targetType: "ARTICLE" }),
-    }));
+    expect(mockGafusAccessFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: "viewer", targetType: "ARTICLE" }),
+      }),
+    );
   });
 
   it("subscribers receive complete article media in the catalog", async () => {
     mockResolveArticleEntitlement.mockResolvedValueOnce({ allowed: true, source: "SUBSCRIPTION" });
-    mockArticleFindMany.mockResolvedValue([listRow({
-      videoUrl: "https://media.example/paid-video",
-      imageUrls: ["cover.jpg", "gallery.jpg"],
-    })]);
+    mockArticleFindMany.mockResolvedValue([
+      listRow({
+        videoUrl: "https://media.example/paid-video",
+        imageUrls: ["cover.jpg", "gallery.jpg"],
+      }),
+    ]);
 
     const result = await getArticles("subscriber");
     expect(result.success).toBe(true);
@@ -255,10 +311,13 @@ describe("getArticleBySlugForMonetizedAccess: subscription-only articles", () =>
 
   it("a paid article is redacted without subscription", async () => {
     mockArticleFindUnique.mockResolvedValue({
-      ...listRow({ visibility: "PAID" }), content: "<p>Secret</p>",
+      ...listRow({ visibility: "PAID" }),
+      content: "<p>Secret</p>",
     });
     const result = await getArticleBySlugForMonetizedAccess({
-      slug: "paid-slug", userId: "u1", platform: "WEB_DESKTOP",
+      slug: "paid-slug",
+      userId: "u1",
+      platform: "WEB_DESKTOP",
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -269,11 +328,17 @@ describe("getArticleBySlugForMonetizedAccess: subscription-only articles", () =>
 
   it("a locked article detail never returns video or gallery URLs", async () => {
     mockArticleFindUnique.mockResolvedValue({
-      ...listRow({ visibility: "PAID", videoUrl: "https://media.example/paid-video", imageUrls: ["cover.jpg", "secret.jpg"] }),
+      ...listRow({
+        visibility: "PAID",
+        videoUrl: "https://media.example/paid-video",
+        imageUrls: ["cover.jpg", "secret.jpg"],
+      }),
       content: "<p>Secret</p>",
     });
     const result = await getArticleBySlugForMonetizedAccess({
-      slug: "paid-slug", userId: "viewer", platform: "ANDROID",
+      slug: "paid-slug",
+      userId: "viewer",
+      platform: "ANDROID",
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -285,11 +350,14 @@ describe("getArticleBySlugForMonetizedAccess: subscription-only articles", () =>
 
   it("an active subscription opens a paid article", async () => {
     mockArticleFindUnique.mockResolvedValue({
-      ...listRow({ visibility: "PAID" }), content: "<p>Available</p>",
+      ...listRow({ visibility: "PAID" }),
+      content: "<p>Available</p>",
     });
     mockResolveArticleEntitlement.mockResolvedValue({ allowed: true, source: "SUBSCRIPTION" });
     const result = await getArticleBySlugForMonetizedAccess({
-      slug: "paid-slug", userId: "u1", platform: "WEB_DESKTOP",
+      slug: "paid-slug",
+      userId: "u1",
+      platform: "WEB_DESKTOP",
     });
     expect(result.success).toBe(true);
     if (result.success) {
@@ -305,7 +373,9 @@ describe("getArticleBySlugForMonetizedAccess: subscription-only articles", () =>
       content: "<p>Old purchase</p>",
     });
     const result = await getArticleBySlugForMonetizedAccess({
-      slug: "paid-slug", userId: "u1", platform: "WEB_DESKTOP",
+      slug: "paid-slug",
+      userId: "u1",
+      platform: "WEB_DESKTOP",
     });
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.content).toBeNull();
@@ -316,7 +386,9 @@ describe("getArticleBySlugForMonetizedAccess: subscription-only articles", () =>
     mockArticleFindUnique.mockResolvedValue({ ...listRow(), content: "<p>Ad</p>" });
     mockResolveArticleEntitlement.mockResolvedValue({ allowed: true, source: "REWARDED" });
     const result = await getArticleBySlugForMonetizedAccess({
-      slug: "ad", userId: "u1", platform: "IOS",
+      slug: "ad",
+      userId: "u1",
+      platform: "IOS",
     });
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.content).toBe("<p>Ad</p>");
@@ -383,11 +455,11 @@ describe("createArticle", () => {
 describe("updateArticle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockArticleUpdate.mockResolvedValue({});
+    mockUpdateOwnedArticle.mockResolvedValue(true);
   });
 
   it("статья не найдена", async () => {
-    mockArticleFindUnique.mockResolvedValue(null);
+    mockGetArticleAuthorId.mockResolvedValue(null);
 
     const r = await updateArticle("a1", { title: "N" }, "u1");
 
@@ -398,7 +470,7 @@ describe("updateArticle", () => {
   });
 
   it("чужой автор", async () => {
-    mockArticleFindUnique.mockResolvedValue({ authorId: "other" });
+    mockGetArticleAuthorId.mockResolvedValue("other");
 
     const r = await updateArticle("a1", { title: "N" }, "u1");
 
@@ -409,26 +481,29 @@ describe("updateArticle", () => {
   });
 
   it("ошибка валидации частичного update", async () => {
-    mockArticleFindUnique.mockResolvedValue({ authorId: "u1" });
+    mockGetArticleAuthorId.mockResolvedValue("u1");
 
     const r = await updateArticle("a1", { slug: "НЕ_ЛАТИНИЦА" }, "u1");
 
     expect(r.success).toBe(false);
-    expect(mockArticleUpdate).not.toHaveBeenCalled();
+    expect(mockUpdateOwnedArticle).not.toHaveBeenCalled();
+  });
+
+  it("stale owner read cannot bypass the UPDATE actor predicate", async () => {
+    mockGetArticleAuthorId.mockResolvedValue("u1");
+    mockUpdateOwnedArticle.mockResolvedValueOnce(false);
+    const result = await updateArticle("a1", { title: "Raced transfer" }, "u1");
+    expect(result).toMatchObject({ success: false, error: "Нет прав на редактирование" });
+    expect(mockUpdateOwnedArticle).toHaveBeenCalledWith("a1", "u1", { title: "Raced transfer" });
   });
 
   it("успешное обновление", async () => {
-    mockArticleFindUnique.mockResolvedValue({ authorId: "u1" });
+    mockGetArticleAuthorId.mockResolvedValue("u1");
 
     const r = await updateArticle("a1", { title: "Новый заголовок" }, "u1");
 
     expect(r.success).toBe(true);
-    expect(mockArticleUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "a1" },
-        data: { title: "Новый заголовок" },
-      }),
-    );
+    expect(mockUpdateOwnedArticle).toHaveBeenCalledWith("a1", "u1", { title: "Новый заголовок" });
   });
 });
 
@@ -601,25 +676,33 @@ describe("incrementArticleView", () => {
 describe("deleteArticle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockArticleDelete.mockResolvedValue({});
+    mockDeleteOwnedArticle.mockResolvedValue(true);
   });
 
   it("не найдена", async () => {
-    mockArticleFindUnique.mockResolvedValue(null);
+    mockGetArticleAuthorId.mockResolvedValue(null);
 
     const r = await deleteArticle("a1", "u1");
 
     expect(r.success).toBe(false);
-    expect(mockArticleDelete).not.toHaveBeenCalled();
+    expect(mockDeleteOwnedArticle).not.toHaveBeenCalled();
+  });
+
+  it("stale ownership cannot delete a transferred article", async () => {
+    mockGetArticleAuthorId.mockResolvedValue("u1");
+    mockDeleteOwnedArticle.mockResolvedValueOnce(false);
+    const result = await deleteArticle("a1", "u1");
+    expect(result).toMatchObject({ success: false, error: "Нет прав на удаление" });
+    expect(mockDeleteOwnedArticle).toHaveBeenCalledWith("a1", "u1");
   });
 
   it("успех", async () => {
-    mockArticleFindUnique.mockResolvedValue({ authorId: "u1" });
+    mockGetArticleAuthorId.mockResolvedValue("u1");
 
     const r = await deleteArticle("a1", "u1");
 
     expect(r.success).toBe(true);
     expect(r.trainerId).toBe("u1");
-    expect(mockArticleDelete).toHaveBeenCalledWith({ where: { id: "a1" } });
+    expect(mockDeleteOwnedArticle).toHaveBeenCalledWith("a1", "u1");
   });
 });

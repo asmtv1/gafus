@@ -105,3 +105,8 @@ describe("Core trainer-step ownership at the mutation boundary", () => {
     expect(m.publish).toHaveBeenCalledTimes(1);
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalTrainerStepRowsPort from "@gafus/course-progress-server/trainer-step-rows";
+import { registerTrainerStepRowsPort, type TrainerStepRowsPort } from "./trainerStepRowsPort";
+registerTrainerStepRowsPort(originalTrainerStepRowsPort as TrainerStepRowsPort);

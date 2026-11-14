@@ -1,6 +1,7 @@
 /** Динамический конфиг: прокидывает env в extra для Constants.expoConfig */
 const path = require("path");
 const { load } = require("@expo/env");
+const { applyNativeSelfHostedProfile } = require("./scripts/self-hosted-native-profile.cjs");
 
 // Загружаем env в правильном порядке:
 // 1. Локальный apps/mobile/.env (если есть) — для локальных EAS-сборок
@@ -85,7 +86,8 @@ const vkIntentFilters = vkClientIdAndroid
     ]
   : [];
 
-module.exports = ({ config }) => ({
+const { withObservePreviewExperiment } = require('./scripts/observe-preview-config.cjs');
+module.exports = ({ config }) => withObservePreviewExperiment(applyNativeSelfHostedProfile({
   ...config,
   scheme: resolveSchemes(config),
   ios: {
@@ -99,8 +101,14 @@ module.exports = ({ config }) => ({
   extra: {
     ...config.extra,
     // Must reflect the actual native/store version. An old .env override can
-    // otherwise report 1.7.1 from a 1.7.3 binary and corrupt crash symbols.
+    // otherwise report 1.7.1 from a 1.7.4 binary and corrupt crash symbols.
     appVersion: config.version,
+    // Expo only inlines static process.env.EXPO_PUBLIC_* property accesses.
+    // Dynamic process.env[key] reads are not reliable in a release Hermes bundle,
+    // so preserve the exact signed OTA source-map version in Expo manifest extra.
+    ...(process.env.GAFUS_OTA_TRANSPORT === "self-hosted"
+      ? { otaTracerVersion: process.env.EXPO_PUBLIC_APP_VERSION }
+      : {}),
     enableTracer: process.env.EXPO_PUBLIC_ENABLE_TRACER === "true",
     tracerAppToken: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN,
     tracerAppTokenJs: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN_JS,
@@ -117,4 +125,4 @@ module.exports = ({ config }) => ({
     rewardedAdsTestMode: process.env.EXPO_PUBLIC_REWARDED_ADS_TEST_MODE === "true",
     analyticsDebug: process.env.EXPO_PUBLIC_GAFUS_ANALYTICS_DEBUG === "1",
   },
-});
+}));

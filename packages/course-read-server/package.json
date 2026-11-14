@@ -1,0 +1,59 @@
+{
+  "name": "@gafus/course-read-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./course-path-read": {
+      "types": "./dist/coursePathRead.d.ts",
+      "default": "./dist/coursePathRead.js"
+    },
+    "./content-revision": {
+      "types": "./dist/durableContentRevision.d.ts",
+      "default": "./dist/durableContentRevision.js"
+    },
+    "./editor-snapshot": {
+      "types": "./dist/editorSnapshot.d.ts",
+      "default": "./dist/editorSnapshot.js"
+    },
+    "./gafus-entitlement-reads": {
+      "types": "./dist/gafus-entitlement-reads.d.ts",
+      "default": "./dist/gafus-entitlement-reads.js"
+    },
+    "./video-access-read": {
+      "types": "./dist/videoAccessRead.d.ts",
+      "default": "./dist/videoAccessRead.js"
+    },
+    "./legacy-catalog-rows": {
+      "types": "./dist/legacyCatalogRows.d.ts",
+      "default": "./dist/legacyCatalogRows.js"
+    },
+    "./offline-application": {
+      "types": "./dist/offlineApplication.d.ts",
+      "default": "./dist/offlineApplication.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "@gafus/logger": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  }
+}

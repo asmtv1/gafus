@@ -1,8 +1,9 @@
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
-import { join, sep } from "node:path";
+import { join, resolve, sep } from "node:path";
 
 /** Development-only CDN *reading*: production objects, buckets and providers are never mutated. */
-const root = "/Users/asmtv1/Desktop/gafus-refactor";
+// Scope credentials to this verified checkout; never access another working tree.
+const root = resolve(__dirname, "../../..");
 const directory = join(root, ".local-pg-scratch");
 const secretFile = join(directory, "live-media-cdn-readonly.json");
 

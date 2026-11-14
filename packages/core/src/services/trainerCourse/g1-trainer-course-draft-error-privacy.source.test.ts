@@ -7,6 +7,9 @@ const m = vi.hoisted(() => ({
   find: vi.fn(), create: vi.fn(), update: vi.fn(), remove: vi.fn(),
   write: vi.fn(), logError: vi.fn(),
 }));
+vi.mock("./trainerCourseRowsPort", () => ({
+  readCourseDraftRow: (id: string) => m.find({ where: { id } }),
+}));
 vi.mock("@gafus/prisma", () => ({
   prisma: {
     course: {

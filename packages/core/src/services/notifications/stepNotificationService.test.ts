@@ -10,7 +10,7 @@ import {
   toggleStepNotificationPause,
   deleteStepNotification,
   getDayFromDayOnCourseId,
-} from "./stepNotificationService";
+} from "@gafus/notifications-server/stepNotificationService";
 
 const mockPushSubscriptionFindMany = vi.fn();
 const mockStepNotificationCreate = vi.fn();
@@ -75,9 +75,7 @@ describe("createImmediatePushNotification", () => {
   });
 
   it("queues notification when subscriptions exist", async () => {
-    mockPushSubscriptionFindMany.mockResolvedValue([
-      { endpoint: "ep1", keys: {} },
-    ]);
+    mockPushSubscriptionFindMany.mockResolvedValue([{ endpoint: "ep1", keys: {} }]);
     mockStepNotificationCreate.mockResolvedValue({
       id: "notif-1",
       day: 0,
@@ -101,9 +99,7 @@ describe("createImmediatePushNotification", () => {
   });
 
   it("returns QUEUE_ERROR when queue add fails", async () => {
-    mockPushSubscriptionFindMany.mockResolvedValue([
-      { endpoint: "ep1", keys: {} },
-    ]);
+    mockPushSubscriptionFindMany.mockResolvedValue([{ endpoint: "ep1", keys: {} }]);
     mockStepNotificationCreate.mockResolvedValue({
       id: "notif-1",
       day: 0,
@@ -177,9 +173,7 @@ describe("createStepNotification", () => {
   });
 
   it("uses null stepTitle when stepTitle is empty string", async () => {
-    mockPushSubscriptionFindMany.mockResolvedValue([
-      { endpoint: "ep1", keys: {} },
-    ]);
+    mockPushSubscriptionFindMany.mockResolvedValue([{ endpoint: "ep1", keys: {} }]);
     mockStepNotificationCreate.mockResolvedValue({ id: "notif-1" });
     mockPushQueueAdd.mockResolvedValue({ id: "job-1" });
     mockStepNotificationUpdate.mockResolvedValue({});
@@ -200,9 +194,7 @@ describe("createStepNotification", () => {
   });
 
   it("uses null stepTitle when stepTitle is null", async () => {
-    mockPushSubscriptionFindMany.mockResolvedValue([
-      { endpoint: "ep1", keys: {} },
-    ]);
+    mockPushSubscriptionFindMany.mockResolvedValue([{ endpoint: "ep1", keys: {} }]);
     mockStepNotificationCreate.mockResolvedValue({ id: "notif-1" });
     mockPushQueueAdd.mockResolvedValue({ id: "job-1" });
     mockStepNotificationUpdate.mockResolvedValue({});
@@ -321,9 +313,7 @@ describe("resetStepNotification", () => {
 describe("resumeStepNotification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPushSubscriptionFindMany.mockResolvedValue([
-      { endpoint: "ep1", keys: {} },
-    ]);
+    mockPushSubscriptionFindMany.mockResolvedValue([{ endpoint: "ep1", keys: {} }]);
     mockPushQueueAdd.mockResolvedValue({ id: "job-1" });
     mockStepNotificationUpdate.mockResolvedValue({});
   });
@@ -525,12 +515,7 @@ describe("createStepNotificationForStepStart", () => {
   it("returns STEP_NOT_FOUND when dayOnCourse not found", async () => {
     mockDayOnCourseFindUnique.mockResolvedValue(null);
 
-    const result = await createStepNotificationForStepStart(
-      "user-1",
-      "day-1",
-      0,
-      60,
-    );
+    const result = await createStepNotificationForStepStart("user-1", "day-1", 0, 60);
 
     expect(result).toEqual({ queued: false, reason: "STEP_NOT_FOUND" });
   });
@@ -543,12 +528,7 @@ describe("createStepNotificationForStepStart", () => {
       course: { type: "fitness" },
     });
 
-    const result = await createStepNotificationForStepStart(
-      "user-1",
-      "day-1",
-      0,
-      60,
-    );
+    const result = await createStepNotificationForStepStart("user-1", "day-1", 0, 60);
 
     expect(result).toEqual({ queued: false, reason: "STEP_NOT_FOUND" });
   });
@@ -570,8 +550,6 @@ describe("getDayFromDayOnCourseId", () => {
   it("throws when dayOnCourse not found", async () => {
     mockDayOnCourseFindUnique.mockResolvedValue(null);
 
-    await expect(getDayFromDayOnCourseId("invalid")).rejects.toThrow(
-      /DayOnCourse not found/,
-    );
+    await expect(getDayFromDayOnCourseId("invalid")).rejects.toThrow(/DayOnCourse not found/);
   });
 });

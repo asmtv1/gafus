@@ -3,9 +3,7 @@ import type { FeedDb } from "./ports";
 import { createFeedService } from "./service";
 
 const redisSet = vi.fn().mockResolvedValue("OK");
-vi.mock("@gafus/queues", () => ({
-  connection: { status: "ready", set: redisSet },
-}));
+
 afterEach(() => vi.unstubAllEnvs());
 
 describe("sticky experiment control session", () => {
@@ -22,6 +20,7 @@ describe("sticky experiment control session", () => {
     } as unknown as FeedDb;
     const service = createFeedService({
       db, enabled: () => true, storage: { enabled: true } as never,
+      smartSessionCache: { status: "ready", set: redisSet, get: vi.fn().mockResolvedValue(null) },
     });
     const result = await service.list("viewer", { sort: "smart", pageSize: 5 });
     expect(result.items).toEqual([]);

@@ -7,17 +7,21 @@ const f = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.reg }));
-vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: f.role }));
-vi.mock("@gafus/core/services/appSubscription", () => ({
-  getAppSubscriptionAdminDashboard: f.dashboard,
+vi.mock("../../modules/admin-users/composition/service.js", () => ({ readAdminActorRole: f.role }));
+vi.mock("@gafus/subscription-read-server", () => ({
   getAppSubscriptionPaymentHistory: f.payments,
   getAppSubscriptionPromoCodesAdmin: f.promos,
+}));
+vi.mock("@gafus/subscription-finance-server/admin-application", () => ({
+  getAppSubscriptionAdminDashboard: f.dashboard,
   getNpdAdminPage: f.npd,
+  adminRetryNpdReceiptOperation: f.npdRetry,
+  adminQueueNpdReconciliation: f.npdReconcile,
+}));
+vi.mock("@gafus/core/services/appSubscription", () => ({
   createAppSubscriptionPromoCode: f.promoCreate,
   updateAppSubscriptionPromoCode: f.promoUpdate,
   archiveAppSubscriptionPromoCode: f.promoArchive,
-  adminRetryNpdReceiptOperation: f.npdRetry,
-  adminQueueNpdReconciliation: f.npdReconcile,
   AppSubscriptionPromoCodeDomainError: class AppSubscriptionPromoCodeDomainError extends Error {
     constructor(public code: string, msg: string) { super(msg); }
   },

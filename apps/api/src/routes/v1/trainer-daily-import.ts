@@ -7,7 +7,7 @@ import { z } from "zod/v3";
 import {
   previewDailyCourseImportFile, importDailyCourseFile,
   type DailyCourseActor, type DailyCourseImportPreviewDto,
-} from "@gafus/core/services/dailyCourse";
+} from "../../modules/daily-course/composition/dailyCourseApplication.js";
 
 const MAX_FILE = 1_048_576;
 const inputSchema = z.object({ content: z.string().min(1).max(MAX_FILE) }).strict();

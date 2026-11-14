@@ -1,10 +1,5 @@
-import type { PrismaClient, Prisma } from "@gafus/prisma";
-/** No singleton import: composition injects the actual Prisma 6.10.1 client. */
-export type GalleryDb = Pick<
-  PrismaClient,
-  "$transaction" | "user" | "galleryAlbum" | "galleryPhoto" | "galleryUpload" | "galleryStorageJob"
->;
-export type GalleryTx = Prisma.TransactionClient;
+import type { GalleryDb, GalleryTx } from "@gafus/media-shared/media-db-ports";
+export type { GalleryDb, GalleryTx };
 export interface GalleryObjectMetadata {
   etag: string;
   bytes: number;
@@ -22,10 +17,14 @@ export interface GalleryStoragePort {
   }): Promise<{ url: string; fields: Record<string, string> }>;
   /** Optional, feature-gated Mobile path: no image encoder on Cloud Jobs. */
   signClientThumb?(input: { sourceKey: string; expiresAt: Date }): Promise<{
-    url: string; fields: Record<string, string>;
+    url: string;
+    fields: Record<string, string>;
   }>;
-  publishClientPhoto?(input: { sourceKey: string; thumbKey: string; fullKey: string }):
-    Promise<{ width: number; height: number }>;
+  publishClientPhoto?(input: {
+    sourceKey: string;
+    thumbKey: string;
+    fullKey: string;
+  }): Promise<{ width: number; height: number }>;
   head(key: string): Promise<GalleryObjectMetadata | null>;
   signCdn(input: { key: string; expiresAt: Date }): Promise<string>;
 }

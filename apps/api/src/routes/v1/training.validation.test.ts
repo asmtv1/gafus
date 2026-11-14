@@ -1,3 +1,8 @@
+// This route now binds the occurrence-specific read adapter at composition,
+// while the original Core error mock preserves the historical HTTP response.
+vi.mock("../../modules/rewarded-credits/composition/gafus-access.js", () => ({
+  requirePremiumOrRewardedAccessForVideoUrl: requirePremiumOrRewardedAccessForVideoUrlMock,
+}));
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -71,7 +76,7 @@ vi.mock("@gafus/core/services/course", () => ({
   checkCourseAccess: vi.fn(),
 }));
 
-vi.mock("@gafus/core/services/appFeatureFlags", () => ({
+vi.mock("@gafus/feature-flags-server", () => ({
   APP_FEATURE_APP_SUBSCRIPTION_GATING: "app_subscription_gating_enabled",
   getAppFeatureFlagEnabled: getAppFeatureFlagEnabledMock,
 }));
@@ -80,12 +85,12 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
   getAppSubscriptionAccess: getAppSubscriptionAccessMock,
 }));
 
-vi.mock("@gafus/core/services/diary", () => ({
+vi.mock("../../modules/training/composition/diary-rows", () => ({
   saveDiaryEntry: vi.fn(),
   getDiaryEntries: vi.fn(),
 }));
 
-vi.mock("@gafus/core/services/notifications", () => ({
+vi.mock("@gafus/notifications-server", () => ({
   createStepNotificationForStepStart: vi.fn(),
   getDayFromDayOnCourseId: vi.fn(),
   pauseStepNotification: vi.fn(),
@@ -93,12 +98,14 @@ vi.mock("@gafus/core/services/notifications", () => ({
   resumeStepNotification: vi.fn(),
 }));
 
-vi.mock("@gafus/core/services/video", () => ({
+vi.mock("../../modules/video/composition/video-access.js", () => ({
   checkVideoAccess: checkVideoAccessMock,
   getProgress: getProgressMock,
   getVideoManifestInfo: vi.fn(),
   saveProgress: saveProgressMock,
 }));
+vi.mock("@gafus/course-server/video-progress", () => ({ getProgress: getProgressMock, saveProgress: saveProgressMock }));
+
 
 vi.mock("@gafus/cdn-upload", () => ({
   downloadFileFromCDN: downloadFileFromCDNMock,
@@ -115,7 +122,7 @@ vi.mock("@gafus/video-access", () => ({
   })),
 }));
 
-const { getVideoManifestInfo } = await import("@gafus/core/services/video");
+const { getVideoManifestInfo } = await import("../../modules/video/composition/video-access.js");
 const { invalidateVideoPlaybackAccessCache } = await import("./training");
 
 function createTestApp() {

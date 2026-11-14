@@ -1,14 +1,15 @@
-/** Existing survey submission Core port; HTTP owns preflight and error mapping. */
-import type { submitSurveyResponse } from "@gafus/core/services/survey";
+/** HTTP uses two public args; Core receives the SQL port only in composition. */
+import type {
+  submitSurveyResponse,
+} from "@gafus/core/services/survey";
 
 export function createWriteSurveyResponseApplication(dependencies: {
-  submit: typeof submitSurveyResponse;
+  submit: (
+    actorUserId: string, input: Parameters<typeof submitSurveyResponse>[2],
+  ) => ReturnType<typeof submitSurveyResponse>;
 }) {
   return {
-    execute(
-      actorUserId: Parameters<typeof submitSurveyResponse>[0],
-      input: Parameters<typeof submitSurveyResponse>[1],
-    ): ReturnType<typeof submitSurveyResponse> {
+    execute(actorUserId: string, input: Parameters<typeof submitSurveyResponse>[2]) {
       return dependencies.submit(actorUserId, input);
     },
   };

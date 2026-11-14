@@ -37,7 +37,7 @@ vi.mock("@/shared/lib/api/gallery", () => ({
   galleryTransport: (...args: unknown[]) => m.fetch(...args),
   galleryApi: { setCover: vi.fn(), deleteAlbum: vi.fn() },
 }));
-vi.mock("@react-navigation/native", () => ({ useIsFocused: () => true }));
+vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => "fake" }));
 vi.mock("expo-image", () => ({ Image: () => null }));
 vi.mock("expo-status-bar", () => ({ StatusBar: () => null }));

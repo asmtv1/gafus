@@ -745,11 +745,11 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   poster: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "#000",
   },
   errorOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.7)",
@@ -767,7 +767,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   playOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.2)",
@@ -878,7 +878,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   qualityModalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.55)",
   },
   qualitySheet: {

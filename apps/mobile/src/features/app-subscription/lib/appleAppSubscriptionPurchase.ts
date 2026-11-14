@@ -8,7 +8,7 @@ import {
 import type { Purchase } from "expo-iap";
 
 import { reportClientError } from "@/shared/lib/tracer";
-import { appSubscriptionApi } from "../api/appSubscriptionApi";
+import { appSubscriptionAppleApi } from "../api/appSubscriptionAppleApi";
 import { getApplePurchaseReadiness } from "./applePurchaseReadiness";
 
 export type AppleAppSubscriptionPurchaseResult =
@@ -102,7 +102,7 @@ export async function runAppleAppSubscriptionPurchase(
       };
     }
 
-    const verify = await appSubscriptionApi.verifyAppleSubscription({ signedTransactionInfo: jws });
+    const verify = await appSubscriptionAppleApi.verifyAppleSubscription({ signedTransactionInfo: jws });
     if (!isCurrent()) {
       return {
         ok: false,
@@ -149,7 +149,7 @@ export async function runAppleAppSubscriptionPurchase(
 }
 
 export async function appleAppSubscriptionPurchase(params: { signedTransactionInfo: string }) {
-  const verify = await appSubscriptionApi.verifyAppleSubscription({
+  const verify = await appSubscriptionAppleApi.verifyAppleSubscription({
     signedTransactionInfo: params.signedTransactionInfo,
   });
   return verify.success && verify.data?.success === true;

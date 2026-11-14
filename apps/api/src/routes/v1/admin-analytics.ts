@@ -1,9 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { readAdminActorRole } from "@gafus/core/services/adminUser";
-import { getReengagementMetrics } from "@gafus/core/services/adminReengagement";
-import { getRewardedAdsAdminDashboard } from "@gafus/core/services/adminRewardedAds";
-import { getVideoPlaybackQualityReport } from "@gafus/core/services/videoPlaybackQuality";
+import { readAdminActorRole } from "../../modules/admin-users/composition/service.js";
+import { adminAnalyticsQueries } from "../../modules/admin-analytics/composition/server-sources.js";
+import { getVideoPlaybackQualityReport } from "@gafus/statistics";
 import { requireRole } from "../../middleware/auth.js";
 
 export const adminAnalyticsRoutes = new Hono();
@@ -17,12 +16,12 @@ async function adminCurrent(userId: string) {
   return (await readAdminActorRole(userId)) === "ADMIN";
 }
 
-adminAnalyticsRoutes.get("/reengagement", requireRole("ADMIN"), async c => {
+adminAnalyticsRoutes.get("/reengagement", requireRole("ADMIN"), async (c) => {
   try {
     if (!(await adminCurrent(c.get("user").id))) {
       return c.json({ success: false, code: "FORBIDDEN" }, 403);
     }
-    const result = await getReengagementMetrics();
+    const result = await adminAnalyticsQueries.reengagement();
     if (!result.success) return c.json({ success: false, code: "REENGAGEMENT_UNAVAILABLE" }, 503);
     return c.json({ success: true, data: result.data });
   } catch {
@@ -31,7 +30,7 @@ adminAnalyticsRoutes.get("/reengagement", requireRole("ADMIN"), async c => {
 });
 
 const rewardedDays = z.union([z.literal("7"), z.literal("30"), z.literal("90")]);
-adminAnalyticsRoutes.get("/rewarded-ads", requireRole("ADMIN"), async c => {
+adminAnalyticsRoutes.get("/rewarded-ads", requireRole("ADMIN"), async (c) => {
   const daysRaw = c.req.query("days") ?? "30";
   const days = rewardedDays.safeParse(daysRaw);
   if (!days.success) return c.json({ success: false, code: "INVALID_PERIOD" }, 400);
@@ -39,25 +38,24 @@ adminAnalyticsRoutes.get("/rewarded-ads", requireRole("ADMIN"), async c => {
     if (!(await adminCurrent(c.get("user").id))) {
       return c.json({ success: false, code: "FORBIDDEN" }, 403);
     }
-    const data = await getRewardedAdsAdminDashboard({ days: Number(days.data) as 7 | 30 | 90 });
+    const data = await adminAnalyticsQueries.rewarded({ days: Number(days.data) as 7 | 30 | 90 });
     return c.json({ success: true, data });
   } catch {
     return c.json({ success: false, code: "REWARDED_DASHBOARD_UNAVAILABLE" }, 503);
   }
 });
 
-
 // Privacy-minimal, aggregate-only MP4 rendition starts. ADMIN exclusively.
-adminAnalyticsRoutes.get("/video-quality", requireRole("ADMIN"), async c => {
+adminAnalyticsRoutes.get("/video-quality", requireRole("ADMIN"), async (c) => {
   const daysRaw = c.req.query("days") ?? "30";
   const daysParsed = rewardedDays.safeParse(daysRaw);
-  if (!daysParsed.success) return c.json({ success:false, code:"INVALID_PERIOD" }, 400);
+  if (!daysParsed.success) return c.json({ success: false, code: "INVALID_PERIOD" }, 400);
   try {
     if (!(await adminCurrent(c.get("user").id)))
-      return c.json({ success:false, code:"FORBIDDEN" }, 403);
-    const data = await getVideoPlaybackQualityReport(Number(daysParsed.data) as 7|30|90);
-    return c.json({ success:true, data });
+      return c.json({ success: false, code: "FORBIDDEN" }, 403);
+    const data = await getVideoPlaybackQualityReport(Number(daysParsed.data) as 7 | 30 | 90);
+    return c.json({ success: true, data });
   } catch {
-    return c.json({ success:false, code:"VIDEO_QUALITY_REPORT_UNAVAILABLE" }, 503);
+    return c.json({ success: false, code: "VIDEO_QUALITY_REPORT_UNAVAILABLE" }, 503);
   }
 });

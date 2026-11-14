@@ -88,7 +88,7 @@ describe("live Trainer browser cookie transport, local URL & identity fences", (
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
   it("distinguishes bad credentials, true permission denial and an untrusted Origin", async () => {
-    const cases: Array<[number, string, string]> = [
+    const cases: [number, string, string][] = [
       [401, "Неверные учётные данные", "Неверный логин или пароль"],
       [403, "Недоверенный Origin", "Origin"],
       [403, "Доступ запрещён", "Недостаточно прав"],

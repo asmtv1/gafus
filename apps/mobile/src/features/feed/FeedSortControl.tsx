@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   sortButton: { flex: 1, minWidth: 0, height: 44, position: "relative" },
   sortButtonBackground: { width: "100%", height: 44 },
   sortButtonContent: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,

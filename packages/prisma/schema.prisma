@@ -1,5 +1,6 @@
 generator client {
   provider      = "prisma-client-js"
+  previewFeatures = ["metrics"]
   binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x", "darwin-arm64"]
 }
 
@@ -3062,6 +3063,25 @@ model QuestionPhoto {
   @@index([answerId])
 }
 
+// GAFUS Questions legacy photos: transactionally durable S3 delete intent.
+// Not linked to User/QuestionPhoto: obligations survive parent/owner deletion.
+// Expand DB schema BEFORE application or Worker code is deployed.
+model QuestionLegacyPhotoDeletion {
+  id           String    @id
+  ownerId      String
+  locator      String
+  status       String    @default("PENDING") @db.VarChar(16)
+  attempts     Int       @default(0)
+  availableAt  DateTime  @default(now()) @db.Timestamp(3)
+  attemptToken String?   @db.Uuid
+  leaseUntil   DateTime? @db.Timestamp(3)
+  errorCode    String?   @db.VarChar(64)
+  createdAt    DateTime  @default(now()) @db.Timestamp(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamp(3)
+
+  @@index([status, availableAt, createdAt])
+}
+
 model QuestionReport {
   id         String          @id @default(cuid())
   reporterId String
@@ -4137,9 +4157,17 @@ model Chat2OutboxEvent {
   attempts Int @default(0)
   nextAttemptAt DateTime @default(now())
   claimedUntil DateTime?
+  // Lease fencing: only the current claimant may complete or reschedule.
+  claimToken String? @db.Uuid
+  // Stable business operation and W3C trace correlation (not metric labels).
+  operationId String? @db.VarChar(64)
+  traceId String? @db.VarChar(32)
+  lastErrorCode String? @db.VarChar(64)
+  deadLetteredAt DateTime?
   conversation Chat2Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([deliveredAt, nextAttemptAt])
+  @@index([deadLetteredAt, deliveredAt, createdAt])
 }
 
 model Chat2PushReceipt {
@@ -4285,4 +4313,247 @@ model DogWalkTombstone {
   user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, clientId])
+}
+
+// --- Signed, self-hosted Expo OTA registry (additive to legacy EAS delivery) ---
+// Production publication is disabled until the native binary and signing trust
+// have been verified. These records never store signing private keys.
+model MobileNativeRelease {
+  id                  String   @id @default(uuid()) @db.Uuid
+  appId               String   @db.VarChar(64)
+  platform            String   @db.VarChar(12)
+  environment         String   @db.VarChar(24)
+  distribution        String   @db.VarChar(32)
+  bundleId            String   @db.VarChar(160)
+  appVersion          String   @db.VarChar(32)
+  buildNumber         String   @db.VarChar(40)
+  runtimeVersion      String   @db.VarChar(100)
+  channel             String   @db.VarChar(48)
+  updateUrl           String   @db.VarChar(512)
+  signingKeyId        String   @db.VarChar(64)
+  certificateSha256   String   @db.VarChar(64)
+  certificatePem      String?  @db.Text
+  attestation         Json?
+  nativeFingerprint   String   @db.VarChar(64)
+  sourceSha           String   @db.VarChar(40)
+  embeddedUpdateId    String?  @db.Uuid
+  verified            Boolean  @default(false)
+  verifiedAt          DateTime?
+  createdAt           DateTime @default(now())
+  otaReleases         MobileOtaRelease[]
+  patchApplications   MobilePatchApplication[]
+  auditEvents         MobileNativeReleaseAuditEvent[]
+
+  @@unique([appId, platform, environment, distribution, buildNumber], map: "mobile_native_unique_build")
+  @@index([appId, platform, environment, channel, runtimeVersion])
+}
+
+model MobilePatchDefinition {
+  id                   String    @id @default(uuid()) @db.Uuid
+  operationId          String?   @unique @db.VarChar(120)
+  version              String    @db.VarChar(100)
+  sha256               String    @unique @db.VarChar(64)
+  allowedBases         Json
+  allowedPaths         Json
+  nativeRequirements   Json
+  sourceLocation       String    @db.VarChar(512)
+  createdAt            DateTime  @default(now())
+  applications         MobilePatchApplication[]
+}
+
+model MobilePatchApplication {
+  id                 String   @id @default(uuid()) @db.Uuid
+  patchDefinitionId  String   @db.Uuid
+  nativeReleaseId    String   @db.Uuid
+  baseSha            String   @db.VarChar(40)
+  resultSha          String?  @db.VarChar(40)
+  operationId        String   @unique @db.VarChar(120)
+  state              String   @default("DRAFT") @db.VarChar(28)
+  initiatedById      String   @db.VarChar(100)
+  checks             Json     @default("{}")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  patchDefinition    MobilePatchDefinition @relation(fields: [patchDefinitionId], references: [id])
+  nativeRelease      MobileNativeRelease @relation(fields: [nativeReleaseId], references: [id])
+}
+
+model MobileOtaRelease {
+  id                 String   @id @default(uuid()) @db.Uuid
+  nativeReleaseId    String   @db.Uuid
+  appId              String   @db.VarChar(64)
+  platform           String   @db.VarChar(12)
+  environment        String   @db.VarChar(24)
+  channel            String   @db.VarChar(48)
+  runtimeVersion     String   @db.VarChar(100)
+  sourceSha          String   @db.VarChar(40)
+  revision           Int
+  updateId           String   @unique @db.Uuid
+  manifestBody       Bytes
+  signatureHeader    String   @db.VarChar(1024)
+  signingKeyId       String   @db.VarChar(64)
+  state              String   @default("DRAFT") @db.VarChar(28)
+  checks             Json     @default("{}")
+  appTracerRef       String?  @db.VarChar(256)
+  operationId        String?  @unique @db.VarChar(120)
+  buildAttempt       Int      @default(1)
+  ciRunId            String?  @db.VarChar(100)
+  updatedAt          DateTime @updatedAt @default(now())
+  createdAt          DateTime @default(now())
+  readyAt            DateTime?
+  nativeRelease      MobileNativeRelease @relation(fields: [nativeReleaseId], references: [id])
+  artifacts          MobileOtaArtifact[]
+  activeIn           MobileOtaDeployment[] @relation("ActiveMobileOta")
+  previousIn         MobileOtaDeployment[] @relation("PreviousMobileOta")
+
+  @@unique([appId, platform, environment, channel, runtimeVersion, revision], map: "mobile_ota_revision_unique")
+  @@index([platform, environment, channel, runtimeVersion, state])
+}
+
+model MobileOtaArtifact {
+  id                 String   @id @default(uuid()) @db.Uuid
+  releaseId          String   @db.Uuid
+  assetKey           String   @db.VarChar(256)
+  immutableUrl       String   @db.VarChar(1024)
+  sha256             String   @db.VarChar(64)
+  mimeType           String   @db.VarChar(128)
+  sizeBytes          BigInt
+  verified           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  release            MobileOtaRelease @relation(fields: [releaseId], references: [id])
+
+  @@unique([releaseId, assetKey])
+}
+
+model MobileOtaDeployment {
+  id                 String   @id @default(uuid()) @db.Uuid
+  appId              String   @db.VarChar(64)
+  platform           String   @db.VarChar(12)
+  environment        String   @db.VarChar(24)
+  channel            String   @db.VarChar(48)
+  runtimeVersion     String   @db.VarChar(100)
+  signingKeyId       String   @db.VarChar(64)
+  nativeFingerprint  String   @db.VarChar(64)
+  activeReleaseId    String?  @db.Uuid
+  previousReleaseId  String?  @db.Uuid
+  rowVersion         Int      @default(1)
+  paused             Boolean  @default(true)
+  rolloutPercent     Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  activeRelease      MobileOtaRelease? @relation("ActiveMobileOta", fields: [activeReleaseId], references: [id])
+  previousRelease    MobileOtaRelease? @relation("PreviousMobileOta", fields: [previousReleaseId], references: [id])
+  auditEvents        MobileOtaAuditEvent[]
+
+  @@unique([appId, platform, environment, channel, runtimeVersion, signingKeyId, nativeFingerprint], map: "mobile_ota_deployment_unique")
+}
+
+model MobileOtaAuditEvent {
+  id                 String   @id @default(uuid()) @db.Uuid
+  deploymentId       String   @db.Uuid
+  operationId        String   @unique @db.VarChar(120)
+  action             String   @db.VarChar(28)
+  actorId            String   @db.VarChar(100)
+  expectedVersion    Int
+  resultingVersion   Int
+  rolloutPercent     Int?
+  releaseId          String?  @db.Uuid
+  reason             String   @db.VarChar(512)
+  createdAt          DateTime @default(now())
+  deployment         MobileOtaDeployment @relation(fields: [deploymentId], references: [id])
+}
+
+
+model MobileNativeReleaseAuditEvent {
+  id                 String   @id @default(uuid()) @db.Uuid
+  nativeReleaseId    String   @db.Uuid
+  operationId        String   @unique @db.VarChar(120)
+  action             String   @db.VarChar(28)
+  actorId            String   @db.VarChar(100)
+  evidence           Json
+  createdAt          DateTime @default(now())
+  nativeRelease      MobileNativeRelease @relation(fields: [nativeReleaseId], references: [id])
+
+  @@index([nativeReleaseId, createdAt])
+}
+
+// Client-reported, unauthenticated telemetry. Store only a keyed hash of a random
+// installation UUID; never persist IP, username, user ID or raw error strings.
+model MobileOtaTelemetryEvent {
+  id                  String   @id @default(uuid()) @db.Uuid
+  eventId             String   @unique @db.Uuid
+  installationHash    String   @db.VarChar(64)
+  platform            String   @db.VarChar(12)
+  environment         String   @db.VarChar(24)
+  channel             String   @db.VarChar(48)
+  runtimeVersion      String   @db.VarChar(100)
+  nativeFingerprint   String   @db.VarChar(64)
+  updateId            String?  @db.Uuid
+  event               String   @db.VarChar(32)
+  failureCode         String?  @db.VarChar(40)
+  createdAt           DateTime @default(now())
+
+  @@index([createdAt])
+  // Short, explicit name: PostgreSQL truncates the autogenerated identifier at 63 bytes.
+  @@index([platform, environment, runtimeVersion, updateId, event, createdAt], map: "mobile_ota_telemetry_lookup_idx")
+  @@index([installationHash, createdAt])
+}
+
+// SDK 57 diagnostics: anonymous short-lived upload grants. Only a SHA-256 digest
+// of the random bearer grant is persisted; no device ID, user ID, IP or cookies.
+model MobileTelemetryUploadSession {
+  id             String   @id @default(uuid()) @db.Uuid
+  tokenHash      String   @unique @db.VarChar(64)
+  environment    String   @db.VarChar(24)
+  platform       String   @db.VarChar(12)
+  appVersion     String   @db.VarChar(48)
+  build          String   @db.VarChar(40)
+  channel        String   @db.VarChar(48)
+  nativeFingerprint String @db.VarChar(64)
+  runtimeVersion String   @db.VarChar(100)
+  eventBudget    Int      @default(100)
+  usedEvents     Int      @default(0)
+  expiresAt      DateTime @db.Timestamp(3)
+  createdAt      DateTime @default(now()) @db.Timestamp(3)
+
+  @@index([expiresAt], map: "mobile_telemetry_session_expiry")
+}
+
+// Durable ACK boundary: do not return 202 until the DB transaction commits.
+// Payload has passed the v1 allowlist and stack normalization. The worker
+// exports at-least-once; eventId remains stable for grouping/deduplication.
+model MobileTelemetrySpool {
+  id               String    @id @default(uuid()) @db.Uuid
+  eventId          String    @db.Uuid
+  environment      String    @db.VarChar(24)
+  service          String    @db.VarChar(40)
+  platform         String    @db.VarChar(12)
+  eventKind        String    @db.VarChar(32)
+  severity         String    @db.VarChar(12)
+  runtimeVersion   String    @db.VarChar(100)
+  updateId         String    @db.VarChar(40)
+  appVersion       String    @db.VarChar(48)
+  payload          Json
+  status           String    @default("PENDING") @db.VarChar(16)
+  attempts         Int       @default(0)
+  availableAt      DateTime  @default(now()) @db.Timestamp(3)
+  lockedAt         DateTime? @db.Timestamp(3)
+  lockedBy         String?   @db.VarChar(80)
+  exportedAt       DateTime? @db.Timestamp(3)
+  lastFailureCode  String?   @db.VarChar(40)
+  retentionUntil   DateTime  @db.Timestamp(3)
+  createdAt        DateTime  @default(now()) @db.Timestamp(3)
+
+  @@unique([environment, service, eventId], map: "mobile_telemetry_spool_dedup")
+  @@index([status, availableAt, lockedAt], map: "mobile_telemetry_spool_ready")
+  @@index([retentionUntil], map: "mobile_telemetry_spool_expiry")
+}
+
+// Durable aggregate safety budget, independent of Redis and device identifiers.
+model MobileTelemetryDailyQuota {
+  environment String @db.VarChar(24)
+  day DateTime @db.Date
+  acceptedEvents Int @default(0)
+  acceptedBytes BigInt @default(0)
+
+  @@id([environment, day])
 }

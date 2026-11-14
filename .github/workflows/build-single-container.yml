@@ -61,6 +61,10 @@ jobs:
           version: 10.12.4
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Enforce Uptrace release contracts even for manual image deployment
+        run: |
+          node scripts/observability/check-workflow-release-gates.mjs
+          node --test scripts/observability/check-workflow-release-gates.test.mjs
       - name: Enforce Core and browser/server boundaries (blocking)
         run: pnpm check:core-boundaries
       - name: Build Types and execute public API regression tests (blocking)
@@ -70,13 +74,19 @@ jobs:
           pnpm --filter @gafus/types build
           pnpm --filter @gafus/types test
       - name: Compile selected static Vite app before Docker packaging
-        if: contains(fromJSON('["web","admin-panel","trainer-panel"]'), inputs.container)
         env:
+          GAFUS_PRIVATE_MAPS_ENABLED: 'true'
+          GAFUS_PRIVATE_MAPS_DIR: ${{ runner.temp }}/gafus-private-single-container
+          GAFUS_RELEASE_SHA: ${{ github.sha }}
+          VITE_GAFUS_BUILD_ID: ${{ github.sha }}
           TARGET: ${{ inputs.container }}
+        if: contains(fromJSON('["web","admin-panel","trainer-panel"]'), inputs.container)
         shell: bash
         run: |
           set -euo pipefail
           pnpm --filter @gafus/prisma db:generate
+          mkdir -p "$GAFUS_PRIVATE_MAPS_DIR"
+          chmod 700 "$GAFUS_PRIVATE_MAPS_DIR"
           case "$TARGET" in
             web)
               pnpm --filter '@gafus/web-vite^...' --if-present run build
@@ -91,6 +101,36 @@ jobs:
               pnpm --filter @gafus/trainer-panel build
               ;;
           esac
+          private_dir="$GAFUS_PRIVATE_MAPS_DIR/gafus-$TARGET/$GAFUS_RELEASE_SHA/$VITE_GAFUS_BUILD_ID"
+          node scripts/observability/upload-private-web-sourcemaps.mjs --directory "$private_dir"
+          case "$TARGET" in
+            web) public_dist=apps/web-vite/dist ;;
+            admin-panel) public_dist=apps/admin-panel/dist ;;
+            trainer-panel) public_dist=apps/trainer-panel/src/trainer-vite/live/dist ;;
+          esac
+          test -z "$(find "$public_dist" -name '*.map' -type f -print -quit)"
+
+      - name: Upload approved private source maps before manual image publish
+        if: ${{ vars.GAFUS_WEB_SYMBOLS_PRODUCTION_APPROVED == 'true' && contains(fromJSON('["web","admin-panel","trainer-panel"]'), inputs.container) }}
+        shell: bash
+        env:
+          CI: 'true'
+          GAFUS_TELEMETRY_ENVIRONMENT: production
+          GAFUS_WEB_SYMBOLS_PRODUCTION_APPROVED: 'true'
+          GAFUS_WEB_SYMBOLS_VERIFIED_BUILD: 'true'
+          GAFUS_WEB_SYMBOLS_EXECUTE: 'true'
+          GAFUS_PRIVATE_MAPS_DIR: ${{ runner.temp }}/gafus-private-single-container
+          GAFUS_RELEASE_SHA: ${{ github.sha }}
+          VITE_GAFUS_BUILD_ID: ${{ github.sha }}
+          GAFUS_WEB_SYMBOLS_BUCKET: ${{ secrets.GAFUS_WEB_SYMBOLS_BUCKET }}
+          GAFUS_WEB_SYMBOLS_S3_ENDPOINT: https://s3.cloud.ru
+          GAFUS_WEB_SYMBOLS_ACCESS_KEY: ${{ secrets.GAFUS_WEB_SYMBOLS_ACCESS_KEY }}
+          GAFUS_WEB_SYMBOLS_SECRET_KEY: ${{ secrets.GAFUS_WEB_SYMBOLS_SECRET_KEY }}
+          TARGET: ${{ inputs.container }}
+        run: |
+          set -euo pipefail
+          node scripts/observability/upload-private-web-sourcemaps.mjs             --directory "$GAFUS_PRIVATE_MAPS_DIR/gafus-$TARGET/$GAFUS_RELEASE_SHA/$VITE_GAFUS_BUILD_ID"
+
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:

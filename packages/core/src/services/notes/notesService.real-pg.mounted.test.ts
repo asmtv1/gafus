@@ -1,7 +1,7 @@
 /** INFRA032: exact own PG18 schema clone and fictional StudentNotes READ acceptance. */
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@gafus/prisma";
-import { getStudentNotes } from "./notesService";
+import { getStudentNotes } from "../../../../../apps/api/src/modules/student-notes/composition/notes-rows";
 import { createReadStudentNotesApplication } from "../../../../../apps/api/src/modules/student-notes/application/read-student-notes";
 
 const pushAttempt = vi.hoisted(() =>

@@ -27,7 +27,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gafus/prisma": "workspace:*"
+    "@gafus/prisma": "workspace:*",
+    "@gafus/types": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

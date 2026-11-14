@@ -3,6 +3,7 @@ import type { PhotoUploadStageError } from "../media/photoUploadStage";
 
 const m = vi.hoisted(() => ({
   prepare: vi.fn(),
+  sanitize: vi.fn(),
   post: vi.fn(),
   api: vi.fn(),
   smallDispose: vi.fn(),
@@ -12,6 +13,7 @@ vi.mock("@gafus/types", () => ({ createQuestionsClient: () => ({}) }));
 vi.mock("./client", () => ({ apiClient: (...args: unknown[]) => m.api(...args) }));
 vi.mock("../media/prepareUploadWebp", () => ({
   prepareUploadWebpVariants: (...args: unknown[]) => m.prepare(...args),
+  sanitizePreparedWebpVariant: (...args: unknown[]) => m.sanitize(...args),
 }));
 vi.mock("../media/directPhotoUpload", () => ({
   postClientWebp: (...args: unknown[]) => m.post(...args),
@@ -32,6 +34,7 @@ const versions = () => ({
 beforeEach(() => {
   vi.resetAllMocks();
   m.prepare.mockResolvedValue(versions());
+  m.sanitize.mockResolvedValue(false);
   m.post.mockResolvedValue(undefined);
   m.api.mockImplementation(async (path: string) => {
     if (path.endsWith("client-reservations")) {
@@ -68,6 +71,29 @@ describe("client-only Questions photo uploads", () => {
     expect(m.post.mock.calls.map(([, file]) => file.uri).sort()).toEqual([
       "file:///cache/m.webp", "file:///cache/s.webp",
     ]);
+    expect(m.smallDispose).not.toHaveBeenCalled();
+    expect(m.mediumDispose).not.toHaveBeenCalled();
+  });
+  it("cleans pre-fix Android WebP drafts before Questions reservation and S3", async () => {
+    const cached=versions();
+    m.sanitize.mockImplementation(async (file: {uri:string;bytes:number}) => {
+      file.bytes = file.uri.endsWith("s.webp") ? 1372 : 14472;
+      return true;
+    });
+    await uploadClientQuestionsPhoto(src, undefined, cached);
+    expect(m.api.mock.calls[0]?.[1]?.body).toMatchObject({mediumBytes:14472});
+    expect(m.post.mock.calls.map(([,f])=>f.bytes)).toEqual([1372,14472]);
+    expect(m.prepare).not.toHaveBeenCalled();
+    expect(m.smallDispose).not.toHaveBeenCalled();
+    expect(m.mediumDispose).not.toHaveBeenCalled();
+  });
+  it("rejects a corrupt cached WebP before any Questions S3 reservation", async () => {
+    const cached=versions();
+    m.sanitize.mockRejectedValueOnce(new Error("corrupted RIFF"));
+    await expect(uploadClientQuestionsPhoto(src,undefined,cached))
+      .rejects.toMatchObject({name:"PhotoUploadStageError",stage:"webp"});
+    expect(m.api).not.toHaveBeenCalled();
+    expect(m.post).not.toHaveBeenCalled();
     expect(m.smallDispose).not.toHaveBeenCalled();
     expect(m.mediumDispose).not.toHaveBeenCalled();
   });

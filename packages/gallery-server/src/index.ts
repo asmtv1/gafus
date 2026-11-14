@@ -1,10 +1,11 @@
-import { GalleryError, createCurrentGalleryService, galleryParse, galleryListSchema, galleryIdSchema,
+import { GalleryError, galleryParse, galleryListSchema, galleryIdSchema,
   galleryAlbumCreateSchema, galleryAlbumUpdateSchema, galleryAlbumPhotosSchema,
   galleryProfileAlbumsSchema,
   galleryPhotoUpdateSchema, galleryUploadSchema, galleryUploadRetrySchema, galleryCoverSchema,
   galleryMoveSchema, galleryClaimUploadSchema, galleryCompleteUploadSchema, galleryFailUploadSchema,
   galleryClaimStorageJobsSchema, galleryCompleteStorageJobSchema, galleryFailStorageJobSchema,
 } from "@gafus/core/services/gallery";
+import { createCurrentGalleryService } from './runtimeService.js';
 import type { GalleryService } from "@gafus/core/services/gallery";
 import { connection as redis } from "@gafus/queues";
 import { createGalleryStorageFromEnv, signGalleryCloudruFallback } from "@gafus/gallery-storage";

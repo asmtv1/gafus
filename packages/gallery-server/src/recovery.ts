@@ -1,0 +1,19 @@
+import { prisma } from "@gafus/prisma";
+import type { GalleryDb } from "@gafus/core/services/gallery";
+
+/** Durable database predicate for scheduled Cloud.ru Gallery wake-ups.
+ * gallery-server binds the Gallery Prisma model and its recovery eligibility contract.
+ * One accepted launch is sufficient: Cloud Jobs claim bounded PG batches. */
+export async function hasDueGalleryCloudWork(
+  database: Pick<GalleryDb, "galleryStorageJob"> = prisma,
+  at: Date = new Date(),
+): Promise<boolean> {
+  const cleanupCutoff = new Date(at.getTime() - 60 * 60 * 1000);
+  const storage = await database.galleryStorageJob.count({ where: {
+    kind: { in: ["delete", "move", "vetPreview"] }, OR: [
+    { status: "pending", availableAt: { lte: at } },
+    { status: "processing", leaseUntil: { lte: at } },
+    { kind: "delete", status: "failed", updatedAt: { lte: cleanupCutoff } },
+  ] } });
+  return storage > 0;
+}

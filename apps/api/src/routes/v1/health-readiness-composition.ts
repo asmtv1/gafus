@@ -6,7 +6,7 @@ export async function loadReadinessProbes(): Promise<ReadinessProbes> {
   // If one import rejects, still await the other before letting this probe
   // pair release ownership. /ready's existing 5s deadline stays independent.
   const [core, queues] = await Promise.allSettled([
-    import("@gafus/core/services/systemHealth"),
+    import("@gafus/statistics/database-health"),
     import("@gafus/queues"),
   ]);
   if (core.status !== "fulfilled" || queues.status !== "fulfilled") {

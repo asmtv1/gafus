@@ -1,76 +1,69 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { createHash } from "node:crypto";
 const mock = vi.hoisted(() => ({
-  transaction: vi.fn(),
-  notice: vi.fn(),
-  bcrypt: vi.fn(),
-  logError: vi.fn(),
+ consume: vi.fn(), notice: vi.fn(), bcrypt: vi.fn(), logError: vi.fn(),
 }));
-vi.mock("@gafus/prisma", () => ({
-  prisma: { $transaction: mock.transaction },
+vi.mock("@gafus/identity-write-server/password-reset",()=>({
+ consumePasswordResetReceipt:(...args:unknown[])=>mock.consume(...args),
+ lookupPhoneByNormalizedUsername:vi.fn(),
+ ResetReceiptUnavailableError:class ResetReceiptUnavailableError extends Error{},
 }));
 vi.mock("bcryptjs", () => ({ default: { hash: mock.bcrypt } }));
-vi.mock("@gafus/logger", () => ({
-  createWebLogger: () => ({ error: mock.logError }),
-}));
-vi.mock("./transactionalAuthMail", () => ({
-  sendPasswordChangedNoticeEmail: mock.notice,
-}));
-
-import { resetPasswordByToken, resetPasswordByShortCode } from "./passwordReset";
-
-function txFixture(email = "owner@example.test") {
-  return {
-    passwordResetToken: {
-      findUnique: vi.fn().mockResolvedValue({
-        id: "receipt-1", userId: "owner-1", expiresAt: new Date(Date.now() + 60_000),
-      }),
-      delete: vi.fn().mockResolvedValue({ id: "receipt-1" }),
-    },
-    user: { update: vi.fn().mockResolvedValue({ email }) },
-    refreshToken: { updateMany: vi.fn().mockResolvedValue({ count: 2 }) },
-  };
-}
-
-beforeEach(() => {
-  vi.resetAllMocks();
-  mock.bcrypt.mockResolvedValue("hashed-bcrypt-12");
-  mock.notice.mockResolvedValue(undefined);
+vi.mock("@gafus/logger", () => ({ createWebLogger: () => ({ error: mock.logError }) }));
+vi.mock("./transactionalAuthMail", () => ({ sendPasswordChangedNoticeEmail: mock.notice }));
+import {resetPasswordByToken,resetPasswordByShortCode,InvalidPasswordResetTokenError} from "./passwordReset";
+import { registerPasswordResetPort } from "./passwordReset";
+import {
+  consumePasswordResetReceipt,
+  lookupPhoneByNormalizedUsername,
+  ResetReceiptUnavailableError,
+} from "@gafus/identity-write-server/password-reset";
+registerPasswordResetPort({
+  consumePasswordResetReceipt,
+  lookupPhoneByNormalizedUsername,
+  isReceiptUnavailableError: (error: unknown) => error instanceof ResetReceiptUnavailableError,
 });
 
-describe("reset notices are post-commit and do not change auth semantics", () => {
-  it.each(["token", "short-code"])("%s: sends only after password+session revocation commits", async (flow) => {
-    const tx = txFixture();
-    let committed = false;
-    mock.transaction.mockImplementation(async (handler: (tx: typeof tx) => Promise<unknown>) => {
-      const result = await handler(tx);
-      expect(tx.refreshToken.updateMany).toHaveBeenCalledExactlyOnceWith({
-        where: { userId: "owner-1", revokedAt: null }, data: { revokedAt: expect.any(Date) },
-      });
-      expect(mock.notice).not.toHaveBeenCalled();
-      committed = true;
-      return result;
-    });
-    if (flow === "token") await resetPasswordByToken("valid-token", "NewPass9");
-    else await resetPasswordByShortCode("valid-short-code", "NewPass9");
-    expect(committed).toBe(true);
-    expect(mock.notice).toHaveBeenCalledExactlyOnceWith("owner@example.test");
-    expect(tx.passwordResetToken.delete).toHaveBeenCalledTimes(1);
-  });
 
-  it("mailer failure does not acknowledge a reset failure after commit", async () => {
-    mock.transaction.mockImplementation(async (handler: (tx: ReturnType<typeof txFixture>) => Promise<unknown>) => {
-      return handler(txFixture());
-    });
-    mock.notice.mockRejectedValueOnce(new Error("SMTP_PROVIDER_INTERNAL"));
-    await expect(resetPasswordByToken("valid-token", "NewPass9")).resolves.toBeUndefined();
-    expect(mock.logError).toHaveBeenCalledTimes(1);
-    expect(JSON.stringify(mock.logError.mock.calls)).not.toContain("SMTP_PROVIDER_INTERNAL");
+beforeEach(()=>{
+ vi.resetAllMocks();
+ mock.bcrypt.mockResolvedValue("hashed-bcrypt-12");
+ mock.consume.mockResolvedValue("owner@example.test");
+ mock.notice.mockResolvedValue(undefined);
+});
+describe("reset notices run strictly after the atomic credential-and-session receipt transaction",()=>{
+ it.each(["token","short-code"])("%s: sends only after server persistence commits",async flow=>{
+  let committed=false;
+  mock.consume.mockImplementationOnce(async()=>{
+   expect(mock.notice).not.toHaveBeenCalled();
+   committed=true;return "owner@example.test";
   });
-
-  it("never sends a change notice when token consumption transaction fails", async () => {
-    mock.transaction.mockRejectedValueOnce(new Error("SQL_ABORT"));
-    await expect(resetPasswordByToken("bad-token", "NewPass9")).rejects.toThrow("SQL_ABORT");
-    expect(mock.notice).not.toHaveBeenCalled();
-  });
+  if(flow==="token")await resetPasswordByToken("valid-token","NewPass9");
+  else await resetPasswordByShortCode("valid-short-code","NewPass9");
+  expect(committed).toBe(true);
+  expect(mock.notice).toHaveBeenCalledExactlyOnceWith("owner@example.test");
+  expect(mock.bcrypt).toHaveBeenCalledExactlyOnceWith("NewPass9",12);
+  expect(mock.consume).toHaveBeenCalledWith(expect.any(Object),"hashed-bcrypt-12");
+ });
+ it("hashed token lookup keeps only sha256 digest, except narrow legacy 43-char fallback",async()=>{
+  await resetPasswordByToken("valid-token","NewPass9");
+  expect(mock.consume.mock.calls[0]?.[0]).toEqual({kind:"token",tokenHash:`sha256:${createHash("sha256").update("valid-token").digest("hex")}`});
+ });
+ it("mailer failure after commit never changes successful reset acknowledgment",async()=>{
+  mock.notice.mockRejectedValueOnce(new Error("SMTP_PROVIDER_INTERNAL"));
+  await expect(resetPasswordByToken("valid-token","NewPass9")).resolves.toBeUndefined();
+  expect(mock.logError).toHaveBeenCalledOnce();
+  expect(JSON.stringify(mock.logError.mock.calls)).not.toContain("SMTP_PROVIDER_INTERNAL");
+ });
+ it("never sends a notice when receipt transaction fails",async()=>{
+  mock.consume.mockRejectedValueOnce(new Error("SQL_ABORT"));
+  await expect(resetPasswordByToken("bad-token","NewPass9")).rejects.toThrow("SQL_ABORT");
+  expect(mock.notice).not.toHaveBeenCalled();
+ });
+ it("maps unavailable reset token to existing public error",async()=>{
+  const {ResetReceiptUnavailableError}=await import("@gafus/identity-write-server/password-reset");
+  mock.consume.mockRejectedValueOnce(new ResetReceiptUnavailableError());
+  await expect(resetPasswordByToken("bad-token","NewPass9")).rejects.toBeInstanceOf(InvalidPasswordResetTokenError);
+  expect(mock.notice).not.toHaveBeenCalled();
+ });
 });

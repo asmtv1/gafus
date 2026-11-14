@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 import { describe, expect, it, vi } from "vitest";
 import { createGalleryWorkerOperations } from "./worker";
 import { createGalleryService } from "./service";
@@ -111,7 +112,7 @@ describe("Gallery V2 Core atomic final publication", () => {
     f.photo.status = "ready";
     f.photo.thumbKey = keys.thumbKey;
     f.photo.fullKey = keys.fullKey;
-    const service = createGalleryService({
+    const service = createGalleryService({ enqueueDeletedMediaPurge,
       db: f.ctx.db as GalleryDb,
       storage: f.ctx.storage as GalleryStoragePort,
       now: () => at,

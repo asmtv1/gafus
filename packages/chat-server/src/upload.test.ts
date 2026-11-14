@@ -15,7 +15,9 @@ vi.mock("@gafus/core/services/cynologistChat", () => ({
     }
   },
 }));
-vi.mock("@gafus/core/services/cynologistChat/upload", () => ({
+vi.mock("./service.js", () => ({ requireCanSend: mocks.access, chatForActor: vi.fn() }));
+vi.mock("./community.js", () => ({ requireCommunityCanSend: mocks.access }));
+vi.mock("./upload-service.js", () => ({
   uploadChatAttachment: mocks.upload,
 }));
 import { uploadChatAttachmentRequest } from "./upload";

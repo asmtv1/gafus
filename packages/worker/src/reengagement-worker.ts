@@ -11,7 +11,7 @@ import { PushNotificationService } from "@gafus/webpush";
 import {
   getReengagementCampaignState, getReengagementPushSubscriptions,
   deleteInvalidReengagementPushEndpoints, isReengagementDispatchAllowed,
-} from "@gafus/core/services/reengagement";
+} from "@gafus/reengagement";
 import {
   partitionPushSubscriptions,
   sendExpoPushNotifications,

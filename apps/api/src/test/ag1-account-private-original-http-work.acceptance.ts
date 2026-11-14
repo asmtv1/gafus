@@ -3,7 +3,7 @@
  * Tests durable erasure intents, NOT execution of global purge workers.
  */
 import {randomUUID,randomBytes} from "node:crypto";
-import {processPrivateAccountStorageCleanupForOwner} from "@gafus/core/services/accountCleanup";
+import {processPrivateAccountStorageCleanupForOwner} from "../../../../packages/worker/src/accountCleanupWorker";
 import {deleteIsolatedAvatarLocation} from "../../../../packages/cdn-upload/src/isolatedAvatarMedia";
 import {S3Client,HeadObjectCommand} from "@aws-sdk/client-s3";
 import {realpathSync} from "node:fs";

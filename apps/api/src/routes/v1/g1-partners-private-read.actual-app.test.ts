@@ -5,7 +5,7 @@
  */
 import { randomBytes } from "node:crypto";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type * as PartnerService from "@gafus/core/services/appSubscription";
+import type * as PartnerService from "@gafus/subscription-payment-server/partner";
 import type * as PrismaModule from "@gafus/prisma";
 
 const m = vi.hoisted(() => ({
@@ -39,14 +39,14 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
 vi.mock("@gafus/core/services/auth", async (importOriginal) => ({
   ...await importOriginal<object>(), isRegistrationCompleted: m.registration,
 }));
-vi.mock("@gafus/core/services/appSubscription", async (importOriginal) => ({
+vi.mock("@gafus/subscription-payment-server/partner", async (importOriginal) => ({
   ...await importOriginal<typeof PartnerService>(),
   getPartnerProfile: m.profile,
   getPartnerDashboard: m.dashboard,
 }));
 import { app } from "../../app";
 import { generateAccessToken } from "@gafus/auth/jwt";
-import { PartnerProgramError } from "@gafus/core/services/appSubscription";
+import { PartnerProgramError } from "@gafus/subscription-payment-server/partner";
 
 const path = "/api/v1/partners/me";
 const SECRET = "PRIVATE_PARTNER_BANK_ACCOUNT_BUYER_EMAIL_PAYMENT_TOKEN";

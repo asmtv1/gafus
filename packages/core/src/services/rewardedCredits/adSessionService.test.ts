@@ -660,3 +660,8 @@ describe("rewarded ad direct target access", () => {
     expect(state.sessions.get(session.sessionId)?.status).toBe("EXPIRED");
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalRewardedAdRowsPort from "@gafus/gafus-server/rewarded-ad-rows";
+import { registerRewardedAdRowsPort, type RewardedAdRowsPort } from "./rewardedAdRowsPort";
+registerRewardedAdRowsPort(originalRewardedAdRowsPort as RewardedAdRowsPort);

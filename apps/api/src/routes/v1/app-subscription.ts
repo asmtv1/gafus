@@ -1,21 +1,19 @@
+import { getAppSubscriptionOffer } from "../../modules/app-subscription/composition/read-offer.js";
 import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod/v3";
 import {
-  cancelYookassaAppSubscription,
   getAppSubscriptionAccess,
-  getAppSubscriptionOffer,
   previewAppSubscriptionPromoCode,
-  restoreAppleAppSubscription,
-  startYookassaAppSubscriptionPayment,
   SubscriptionRequiredError,
   AppSubscriptionPromoCodeDomainError,
-  verifyAppleAppSubscription,
 } from "@gafus/core/services/appSubscription";
 import {
-  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
-  getMobileFeatureFlagEnabled,
-} from "@gafus/core/services/appFeatureFlags";
+  cancelYookassaAppSubscription,
+  restoreAppleAppSubscription,
+  startYookassaAppSubscriptionPayment,
+  verifyAppleAppSubscription,
+} from "../../modules/app-subscription/composition/payment-transitions.js";
 import { createWebLogger } from "@gafus/logger";
 import { getClientAppContext } from "../../lib/client-app-context.js";
 
@@ -38,7 +36,10 @@ const restoreAppleSchema = z.object({
 
 const startYookassaSchema = z.object({
   planCode: z.enum(["TWO_WEEKS", "MONTHLY", "THREE_MONTHS"]),
-  returnPath: z.string().regex(/^\/consultations\/[A-Za-z0-9_-]{1,128}$/).optional(),
+  returnPath: z
+    .string()
+    .regex(/^\/consultations\/[A-Za-z0-9_-]{1,128}$/)
+    .optional(),
   promoCode: z
     .object({
       code: z.string(),
@@ -110,7 +111,15 @@ appSubscriptionRoutes.get("/offer", async (c) => {
     const user = c.get("user");
     const clientContext = getClientAppContext(c);
     const data = await getAppSubscriptionOffer(user.id, clientContext);
-    return c.json({ success: true, data });
+    // Retain the v1 DTO shape for old clients without allowing retired iOS checkout flags.
+    // This is a compatibility projection only; the offer read must never mutate state.
+    return c.json({
+      success: true,
+      data: clientContext.platform === "ios"
+        ? { ...data, iosRuCardPaymentEnabled: false,
+            promoCode: { ...data.promoCode, entryEnabled: false, eligible: false } }
+        : data,
+    });
   } catch (error) {
     logger.error("GET /offer error", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
@@ -120,6 +129,10 @@ appSubscriptionRoutes.get("/offer", async (c) => {
 appSubscriptionRoutes.post("/promo-code/preview", async (c) => {
   try {
     const user = c.get("user");
+    // Promo preview belongs to new YooKassa checkout, not Apple IAP.
+    if (getClientAppContext(c).platform === "ios") {
+      return c.json({ success: false, error: "Промокод для этой оплаты недоступен", code: "FEATURE_DISABLED" }, 403);
+    }
     const body = await c.req.json().catch(() => null);
     const parsed = previewPromoCodeSchema.safeParse(body);
     if (!parsed.success) {
@@ -151,15 +164,9 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
   try {
     const user = c.get("user");
     const clientContext = getClientAppContext(c);
-    if (
-      clientContext.platform === "ios" &&
-      !(await getMobileFeatureFlagEnabled(
-        APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
-        clientContext,
-        false,
-        false,
-      ))
-    ) {
+    // No new YooKassa checkout from any recognized iOS client, regardless of
+    // review/released profile or previously persisted feature-flag values.
+    if (clientContext.platform === "ios") {
       return c.json(
         {
           success: false,

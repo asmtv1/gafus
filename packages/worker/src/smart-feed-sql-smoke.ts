@@ -1,3 +1,4 @@
+import { readSmartFeedPostStats } from "@gafus/feed-server/runtime-services";
 export {};
 /**
  * Non-destructive SQL verification, for a disposable migrated test database.
@@ -18,7 +19,7 @@ async function main(): Promise<void> {
   process.env.DATABASE_URL = databaseUrl;
   const { prisma } = await import("@gafus/prisma");
   const { refreshSmartFeedStats, trainSmartFeedRanker } =
-    await import("@gafus/core/services/feed");
+    await import("@gafus/feed-server/smart-persistence");
   const rollbackTag = "SMART_SQL_VERIFICATION_ROLLBACK";
   let succeeded = false;
   try {
@@ -57,8 +58,9 @@ async function main(): Promise<void> {
     await prisma.$transaction(async tx => {
       const { randomUUID } = await import("node:crypto");
       const { PetType } = await import("@gafus/prisma");
-      const { rankSmartCandidates, refreshSmartAuthorAffinities, getSmartExperimentReport } =
-        await import("@gafus/core/services/feed");
+      const { rankSmartCandidates } = await import("@gafus/core/services/feed");
+      const { refreshSmartAuthorAffinities, getSmartExperimentReport } =
+        await import("@gafus/feed-server/smart-persistence");
       const at = new Date();
       const stamp = randomUUID().replace(/-/g, "").slice(0, 15);
       // Isolated synthetic fixtures: never commit a profile, post or interaction.
@@ -149,7 +151,8 @@ async function main(): Promise<void> {
       // Match locality and pet interests without the intentional seen-post penalty.
       const options = { useCity: true, usePets: true, useBehavior: false,
         exploration: false, multiSource: true };
-      const ranked = await rankSmartCandidates(tx as never, viewer.id, at, options);
+      const readSmartStatsInTx = (ids: readonly string[], at: Date) => readSmartFeedPostStats(ids, at, tx);
+      const ranked = await rankSmartCandidates(tx as never, viewer.id, at, options, readSmartStatsInTx);
       const localRank = ranked.findIndex(row => row.id === localPost.id);
       const remoteRank = ranked.findIndex(row => row.id === remotePost.id);
       if (localRank < 0 || (remoteRank >= 0 && localRank >= remoteRank)) {
@@ -158,7 +161,7 @@ async function main(): Promise<void> {
       await tx.feedUserPostFeedback.create({ data: {
         userId: viewer.id, postId: remotePost.id, kind: "not_interested",
       } });
-      const filtered = await rankSmartCandidates(tx as never, viewer.id, at, options);
+      const filtered = await rankSmartCandidates(tx as never, viewer.id, at, options, readSmartStatsInTx);
       if (filtered.some(row => row.id === remotePost.id)) {
         throw new Error("Negative feedback failed to exclude the post");
       }
@@ -169,7 +172,7 @@ async function main(): Promise<void> {
           const started = performance.now();
           const page = await rankSmartCandidates(tx as never, viewer.id, at, {
             ...options, useBehavior: true,
-          });
+          }, readSmartStatsInTx);
           if (page.length === 0 || page.length > 200) {
             throw new Error("Unexpected benchmark recommendation count");
           }

@@ -1,5 +1,5 @@
-import { disconnectCoreDatabase } from "@gafus/core/services/systemHealth";
-import { activateCurrentSmartFeedRanker } from "@gafus/core/services/feed";
+import { disconnectCoreDatabase } from "@gafus/statistics/database-health";
+import { activateCurrentSmartFeedRanker } from "@gafus/feed-server/smart-persistence";
 
 /**
  * Operator-only command. Training never calls this.

@@ -9,11 +9,13 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/core/services/reengagement", () => ({
   scheduleReengagementInCore: mocks.scheduler,
-  isReengagementNotificationDue: mocks.due,
-  getActiveReengagementCampaignForScheduling: mocks.active,
   findInactiveUsers: vi.fn(),
   checkAndCloseReturnedCampaigns: vi.fn(),
   createCampaign: vi.fn(),
+}));
+vi.mock("./infra/schedulerQueries.js", () => ({
+  isReengagementNotificationDue: mocks.due,
+  getActiveReengagementCampaignForScheduling: mocks.active,
 }));
 vi.mock("@gafus/queues", () => ({
   reengagementQueue: { add: mocks.sendJob },

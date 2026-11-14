@@ -1,5 +1,5 @@
 import { z } from "zod/v3";
-import { FEED_LIMITS } from "../../../../types/src/feed";
+import { FEED_LIMITS } from "@gafus/types";
 import type { FeedDb } from "./ports";
 import { FeedError } from "./errors";
 import { feedParse } from "./schemas";

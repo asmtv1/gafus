@@ -1,3 +1,8 @@
+// This route now binds the occurrence-specific read adapter at composition,
+// while the original Core error mock preserves the historical HTTP response.
+vi.mock("../../modules/rewarded-credits/composition/gafus-access.js", () => ({
+  requirePremiumOrRewardedAccessForVideoUrl: vi.fn(),
+}));
 /** AG1/G1 native offline wire: real Hono routes/methods/Zod/auth middleware,
  * injected Core/Prisma/mailer/JWT. DO NOT claim SQL or old native-device ACK. */
 import {Hono} from "hono";
@@ -14,16 +19,18 @@ vi.mock("@gafus/core/services/training",()=>({
  getTrainingDays:vi.fn(),getTrainingDayWithMonetizedSteps:vi.fn(),requireCourseStepOperationAccess:m.access,
  syncUserCourseStatusFromDays:m.sync,updateStepAndDay:m.step,validateTheoryStepForCompletion:m.theory,
 }));
-vi.mock("@gafus/core/services/dailyCourse",()=>({getDailyCourseDayWithUserSteps:vi.fn(),getTodayDailyCourse:vi.fn(),updateDailyCourseStepAndDay:m.daily}));
+vi.mock("../../modules/daily-course/composition/dailyCourseApplication.js",()=>({getDailyCourseDayWithUserSteps:vi.fn(),getTodayDailyCourse:vi.fn(),updateDailyCourseStepAndDay:m.daily}));
 vi.mock("@gafus/core/services/petPrevention",async()=>{
  const schema=await import("../../../../../packages/core/src/services/petPrevention/schemas");
  return {...schema,upsertPreventionEntriesBatch:m.prevention,createEntry:vi.fn(),updateEntry:vi.fn(),deleteEntry:vi.fn(),getEntriesByPet:vi.fn()};
 });
-vi.mock("@gafus/core/services/diary",()=>({getDiaryEntries:vi.fn(),saveDiaryEntry:vi.fn()}));
+vi.mock("../../modules/training/composition/diary-rows",()=>({getDiaryEntries:vi.fn(),saveDiaryEntry:vi.fn()}));
 vi.mock("@gafus/core/services/course",()=>({checkCourseAccess:vi.fn()}));
 vi.mock("@gafus/core/services/rewardedCredits",()=>({SubscriptionOrCreditsRequiredError:class extends Error{},requirePremiumOrRewardedAccessForVideoUrl:vi.fn()}));
-vi.mock("@gafus/core/services/video",()=>({getProgress:vi.fn(),checkVideoAccess:m.vidAccess,getVideoManifestInfo:m.vid,saveProgress:m.saveVideo}));
-vi.mock("@gafus/core/services/notifications",()=>({createStepNotificationForStepStart:m.notifications,getDayFromDayOnCourseId:vi.fn(),pauseStepNotification:vi.fn(),resetStepNotification:vi.fn(),resumeStepNotification:vi.fn()}));
+vi.mock("../../modules/video/composition/video-access.js",()=>({getProgress:vi.fn(),checkVideoAccess:m.vidAccess,getVideoManifestInfo:m.vid,saveProgress:m.saveVideo}));
+vi.mock("@gafus/course-server/video-progress", () => ({ getProgress: vi.fn(), saveProgress: m.saveVideo }));
+
+vi.mock("@gafus/notifications-server",()=>({createStepNotificationForStepStart:m.notifications,getDayFromDayOnCourseId:vi.fn(),pauseStepNotification:vi.fn(),resetStepNotification:vi.fn(),resumeStepNotification:vi.fn()}));
 vi.mock("@gafus/logger",()=>({createWebLogger:()=>({error:vi.fn(),warn:vi.fn(),info:vi.fn()})}));
 vi.mock("@gafus/cdn-upload",()=>({downloadFileFromCDN:vi.fn(),extractVideoIdFromCdnUrl:vi.fn(),getSignedDownloadUrl:vi.fn(),streamFileFromCDN:vi.fn()}));
 vi.mock("@gafus/video-access",()=>({VIDEO_PLAYBACK_TOKEN_TTL_MINUTES:720,getVideoAccessService:vi.fn()}));

@@ -75,3 +75,9 @@ export function shouldSendTrainingReminder(input: {
     trainingReminderMatchesTime(input.reminderTime, local.hour, local.minute) &&
     !trainingReminderAlreadySentToday(input.lastSentAt, input.timezone, local);
 }
+
+/** Date key is in the recipient's timezone, never the worker's timezone. */
+export function trainingReminderLocalDayKey(timezone: string, at: Date): string {
+  const t = getTrainingReminderLocalTime(timezone, at);
+  return `${t.year}-${String(t.month).padStart(2, "0")}-${String(t.day).padStart(2, "0")}`;
+}

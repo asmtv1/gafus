@@ -1,0 +1,36 @@
+{
+  "status": "PASS",
+  "cases": [
+    {
+      "case": "tampered_mapping_refused",
+      "exitCode": 2,
+      "expected": true,
+      "tail": "COVERAGE_REJECTED A3_COVERAGE_DENIED:STAGE_DRIFT:@gafus/achievements-server"
+    },
+    {
+      "case": "historical_receipt_refused",
+      "exitCode": 2,
+      "expected": true,
+      "tail": "COVERAGE_REJECTED A3_COVERAGE_DENIED:FRESH_SESSION_MISSING:a3-merged-preflight-nov12-r2"
+    },
+    {
+      "case": "invalid_run_id_refused",
+      "exitCode": 2,
+      "expected": true,
+      "tail": "COVERAGE_REJECTED A3_COVERAGE_DENIED:VALID_UNIQUE_RUN_ID_REQUIRED"
+    },
+    {
+      "case": "live_inventory_complete_69_57_12",
+      "exitCode": 0,
+      "expected": true,
+      "tail": "MATRIX_69_57_12_MATCH {\"workspace\": 69, \"testScripts\": 57, \"architecture\": 26, \"extras\": 31, \"noTestScripts\": 12, \"missingScriptSourceTests\": 29} RUN_STATUS=NOT_RUN"
+    }
+  ],
+  "note": "Read-only inventory and negative paths only; no package/application tests executed.",
+  "freshSessionNegative": {
+    "runId": "a3cov-selftest-nov12-r1",
+    "sourceDigestRecorded": true,
+    "verificationOfMissingGatesRejected": true,
+    "sessionRemovedAfterCheck": true
+  }
+}

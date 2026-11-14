@@ -1,0 +1,207 @@
+{
+  "schema": "gafus-A1-to-A2-content-policy-port/v1",
+  "created_utc": "2026-11-12T03:30:42.680126+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "owner-scoped-paid-private-article-content-policy-read-port",
+  "edges_before": 29,
+  "edges_after": 28,
+  "ratchet": {
+    "baseline": 41,
+    "resolved": 13,
+    "new": 0
+  },
+  "historical": {
+    "initial": 142,
+    "removed": 114
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "3dfd3e790d67abfab40e5ccf8d511f9994112e8500e325e7b993f0bd8fc0faf9",
+      "sha256_after": "c0ca1131b0491f4e0b41a9cd6e3aa07f68f8ebd2c1b5faf64b5e7eeebafaa7e3",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-policy-read-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/content-access/composition/install-policy-reads.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "c02cdfeda9a04b41c2d645a672a58a3cbb831fc266632e9de9f7b54952e84c2b",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/content-access/composition/install-policy-reads.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "340d923ebba5fe9e8501c22c8b046d2da5ed22b3b03f8057b1af022e72039bf4",
+      "backup_before": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "76fd0ae7732a4bd4eabd370a2676cd5009b3177c2265cf72eeb0ef37b92de68e",
+      "sha256_after": "edab522d7d1332e0960fd3dd65e733977f2baf4a7175069323a16177dae9e60c",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-policy-read-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "e62ac9fae8ab46efd7e71a0450d9085425206f4adf281fbf3b917518c4896e43",
+      "sha256_after": "78314583baee7b361672e09523240160b2ea7370a80edd60e64ea207602a342c",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-policy-read-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/contentAccess/contentPolicyPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "204ffa66a301637860db16d40855ff157341b6ad39a95e78582e0fd9764a34b9",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/contentAccess/index.ts",
+      "status": "M",
+      "sha256_before": "57a71ab3947796b8e9a4c736f1dda4bef1627e1bcffe6e9c2998d91bc178b19c",
+      "sha256_after": "cbc212afa95b8ecd8de68ca82994b94f6bdb1262f086469f947be262f18540df",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-policy-read-port-prechange/packages/core/src/services/contentAccess/index.ts"
+    },
+    {
+      "path": "packages/core/src/services/contentAccess/policy.test.ts",
+      "status": "M",
+      "sha256_before": "e9682744416a2aa86d2978672766da6be46a46f4d6b85837868d177b58858ee9",
+      "sha256_after": "4ca9c2fe4b23ef61be7af17bb7e6a62b44896938af878bc9c93e178306f07299",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-policy-read-port-prechange/packages/core/src/services/contentAccess/policy.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/contentAccess/policy.ts",
+      "status": "M",
+      "sha256_before": "b17dee3e2949f7bfc37374be90e60a29ecaa3ee18a236819e1bacae958238d81",
+      "sha256_after": "b2ff3d23cbb64065f9d52065cd61cd6b7bc3e7b4f8a8174ada5952413506a6c5",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-policy-read-port-prechange/packages/core/src/services/contentAccess/policy.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "16481b4336f9ac443cfbc81cd7d2460a5c39a48f55c4646e7dda2e4e2f640e9b",
+      "sha256_after": "fe4a70fc9cfb6e96a222d6c09bdab7fb40315941dc8c8c3b97766e84aaa0d28c",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-policy-read-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Core original policy & occurrence access",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/contentAccess/policy.test.ts src/services/contentAccess/index.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 15,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-content-policy-core-target.log"
+    },
+    {
+      "name": "Core fail-closed owner/paid access port",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/contentAccess/contentPolicyPort.test.ts src/services/contentAccess/policy.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 13,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-content-policy-port-tests.log"
+    },
+    {
+      "name": "API private-course SQL composition",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/content-access/composition/install-policy-reads.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-content-policy-api-port-test.log"
+    },
+    {
+      "name": "Full Core",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2096,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-content-policy-core-full.log"
+    },
+    {
+      "name": "Full API",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2750,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-content-policy-api-full.log"
+    },
+    {
+      "name": "Core typecheck",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-content-policy-core-ts.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-content-policy-core-build.log"
+    },
+    {
+      "name": "API typecheck",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-content-policy-api-types.log"
+    },
+    {
+      "name": "Entitlements adapter typecheck",
+      "command": "pnpm --filter @gafus/entitlements-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-content-policy-server-types.log"
+    },
+    {
+      "name": "Architecture boundary",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-content-policy-boundaries.log"
+    }
+  ],
+  "backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/content-policy-read-port-prechange",
+  "no_commit_merge_push_deploy": true,
+  "baseline_json_changed": false,
+  "public_contracts": {
+    "results": [
+      "FREE",
+      "PRIVATE_ASSIGNMENT",
+      "SUBSCRIPTION",
+      "ROLE",
+      "GATING_DISABLED",
+      "GAFUS",
+      "DENIED"
+    ],
+    "private": "Private course always requires DB user+course assignment even for ADMIN/PARTNER/TRAINER",
+    "paid": "DB currently paid ACTIVE lifetime or unexpired period; role from DB, no JWT role trust",
+    "article": "Exact owner + article ID + unexpired Gafus grant, not global subscriber badge",
+    "fail_closed": "CONTENT_POLICY_READ_PORT_UNBOUND",
+    "rebind": "CONTENT_POLICY_READ_PORT_ALREADY_BOUND"
+  },
+  "open_gates": [
+    {
+      "id": "OWNER_SCOPED_REAL_PG",
+      "requires": "Disposable current-schema PostgreSQL, test users with ADMIN, ordinary paid expired/current subscription, trial, private assignment revoked while session still valid, per-article Gafus grant expiry; no production DB."
+    },
+    {
+      "id": "CROSS_CLIENT_VIDEO",
+      "requires": "Staging API/Web/Mobile with video occurrence route and user without any current paid entitlement; verify server policy owns private/paid decisions, no stale JWT role bypass."
+    },
+    {
+      "id": "FINAL_ARCHITECTURE",
+      "requires": "Remove remaining 28 backwards Core→server edges, run joint 33-stage regression/5-stage chaos and all Web, Mobile, panels, Worker, PostgreSQL, Redis gates on integrated A1/A2/A3. Frozen baseline stays 41 until full pass."
+    }
+  ],
+  "integration": "Compare full SHA256 after. app.ts, contentAccess/index.ts, guard and audits are shared with A2/A3; semantic merge only, no overwrite."
+}

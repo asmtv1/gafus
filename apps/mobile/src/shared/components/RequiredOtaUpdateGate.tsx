@@ -11,6 +11,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { Button } from "@/shared/components/ui";
 import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
+import { ensureOtaInstallationIdentity } from "@/shared/lib/ota/installationIdentity";
+import { trackOtaEvent } from "@/shared/lib/ota/telemetry";
 import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 import { activeOtaRevision, requiredOtaRevision } from "@/shared/lib/otaPolicy";
 import { reportClientError } from "@/shared/lib/tracer";
@@ -276,7 +278,9 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
           await Updates.reloadAsync();
           return;
         }
+        await ensureOtaInstallationIdentity();
         const result = await Updates.checkForUpdateAsync();
+        void trackOtaEvent("CHECKED");
         if (cancelled) return;
         if (!result.isAvailable) {
           throw new Error("Обновление пока недоступно для устройства. Проверьте интернет или обратитесь в поддержку.");
@@ -287,6 +291,7 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
         });
         setPhase("downloading");
         await Updates.fetchUpdateAsync();
+        await trackOtaEvent("DOWNLOADED", "manifest" in result ? result.manifest?.id : undefined, undefined, true);
         if (cancelled) return;
         await AsyncStorage.setItem(key, "reloaded");
         setPhase("installing");
@@ -295,6 +300,7 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setPhase("error");
         setError(cause instanceof Error ? cause.message : "Не удалось скачать обновление. Проверьте интернет и повторите.");
+        void trackOtaEvent("UPDATE_ERROR",undefined,"OTHER");
         reportClientError(cause instanceof Error ? cause : new Error(String(cause)), {
           issueKey: "ForcedOTA", keys: { operation: "download_reload", version: target },
         });

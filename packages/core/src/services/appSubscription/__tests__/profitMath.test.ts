@@ -8,7 +8,7 @@ import {
   samaraDay,
   serverExpenseKopecks,
 } from "../profitMath";
-import { parsePaymentFinance } from "../paymentFinanceService";
+import { parsePaymentFinance } from "@gafus/subscription-payment-server/payment-finance";
 
 describe("profit money and periods", () => {
   it("calculates the agreed example exactly", () => {

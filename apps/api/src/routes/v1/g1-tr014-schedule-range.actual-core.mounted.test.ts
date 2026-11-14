@@ -6,7 +6,7 @@
 import { randomBytes } from "node:crypto";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as PrismaModule from "@gafus/prisma";
-import type { DailyCourseScheduleDto } from "@gafus/core/services/dailyCourse";
+import type { DailyCourseScheduleDto } from "../../modules/daily-course/composition/dailyCourseApplication.js";
 
 const m=vi.hoisted(()=>({
   schedules:vi.fn(),session:vi.fn(),registration:vi.fn(),write:vi.fn(),
@@ -40,11 +40,11 @@ vi.mock("@gafus/prisma",async original=>{
 vi.mock("@gafus/core/services/auth",async original=>({
   ...await original<object>(),isRegistrationCompleted:m.registration,
 }));
-// No vi.mock("@gafus/core/services/dailyCourse").
+// No vi.mock("../../modules/daily-course/composition/dailyCourseApplication.js").
 import { app } from "../../app";
 import { generateAccessToken } from "@gafus/auth/jwt";
 import { getDailyCourseScheduleRange as actualCore }
-  from "@gafus/core/services/dailyCourse";
+  from "../../modules/daily-course/composition/dailyCourseApplication.js";
 
 const PATH="/api/v1/trainer/daily-course/schedule-range";
 const Q="?from=2026-10-20&to=2026-10-24";

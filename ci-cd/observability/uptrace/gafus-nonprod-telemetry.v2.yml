@@ -1,0 +1,84 @@
+# Uptrace YAML v2. Import manually only after account auth is restored.
+# This dashboard is for project 9383, not 9378.
+schema: v2
+name: 'GAFUS: Nonprod Telemetry Delivery'
+description: 'Independent synthetic OTLP and Prometheus canaries, exporter health and durable backlog.'
+tags: [prom, app, logs]
+version: v26.11.13
+setup_link: https://uptrace.dev/ingest/prometheus
+min_interval: 1m
+
+grid_sections:
+  - title: Verified Cloud Ingestion
+    items:
+      - title: OTLP/HTTP synthetic metrics
+        metrics:
+          - gafus_nonprod_canary_delivery as $otlp
+        query:
+          - max($otlp) as otlp_delivery
+      - title: Prometheus Remote Write
+        metrics:
+          - gafus_nonprod_prom_rw_canary as $remote
+        query:
+          - max($remote) as remote_write_delivery
+  - title: API and Worker Diagnostic Logs
+    items:
+      - title: Server log queue backlog
+        metrics:
+          - gafus_server_diagnostic_otlp_queue as $queue
+        query:
+          - max($queue) as diagnostics_pending
+      - title: Server log delivery and loss
+        metrics:
+          - gafus_server_diagnostic_otlp_accepted_total as $accepted
+          - gafus_server_diagnostic_otlp_dropped_total as $dropped
+        query:
+          - perMin(sum($accepted)) as accepted_per_min
+          - perMin(sum($dropped)) as dropped_per_min
+      - title: Server log authentication blocked
+        metrics:
+          - gafus_server_diagnostic_otlp_auth_suspended as $auth
+        query:
+          - max($auth) as auth_suspended
+  - title: Mobile and Browser Durable Spool
+    items:
+      - title: Pending by source
+        metrics:
+          - gafus_mobile_telemetry_service_spool_entries as $queue
+        query:
+          - sum($queue{status="PENDING"}) as pending group by service
+      - title: Dead-letter by source
+        metrics:
+          - gafus_mobile_telemetry_service_spool_entries as $queue
+        query:
+          - sum($queue{status="DEAD"}) as dead group by service
+      - title: Export outcomes
+        metrics:
+          - gafus_mobile_telemetry_service_export_total as $outcomes
+        query:
+          - perMin(sum($outcomes)) as per_min group by service, outcome
+
+# No active alert: a single ad-hoc canary is not a scheduled heartbeat.
+metric_monitors:
+  - key: nonprod_remote_write_unavailable
+    name: 'Nonprod Remote Write missing canary'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_nonprod_prom_rw_canary as $remote
+    query:
+      - max($remote) as delivery
+    min_value: 1
+    num_eval_points: 3
+    absent_points: alert
+  - key: server_otlp_credential_invalid
+    name: 'Server OTLP diagnostic credentials invalid'
+    status: paused
+    type: threshold
+    metrics:
+      - gafus_server_diagnostic_otlp_auth_suspended as $auth
+    query:
+      - max($auth) as suspended
+    max_value: 0
+    num_eval_points: 2
+    absent_points: alert

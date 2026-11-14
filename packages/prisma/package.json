@@ -14,7 +14,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx seed.ts",
     "db:studio": "prisma studio",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "test": "vitest run --root ../.. packages/prisma/tests/chat2OutboxDiagnostics.test.ts"
   },
   "dependencies": {
     "@gafus/logger": "workspace:*",

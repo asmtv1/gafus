@@ -1,3 +1,11 @@
+vi.mock("@gafus/consultation-server/slot-service", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
+vi.mock("@gafus/consultation-server/booking-application", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
 /** AG1 G1 route characterization: real Hono auth/validation, mocked Core, no DB. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -25,15 +33,18 @@ vi.mock("@gafus/core/services/auth", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   isRegistrationCompleted: mocks.isRegistrationCompleted,
 }));
+vi.mock("@gafus/consultation-server/admin-bookings", () => ({ listAdminBookings: mocks.listAdminBookings }));
 vi.mock("@gafus/core/services/consultation", async (importOriginal) => ({
   ...(await importOriginal<object>()),
+  listTrainerBookings: mocks.trainerBookings,
+  confirmBookingByTrainer: mocks.confirmBooking,
+
+  bookSlotWithSubscription: mocks.bookSlot,
+}));
+vi.mock("../../modules/consultations/composition/catalog-schedule.js", () => ({
   resolveTargetTrainerUserIdForStaff: mocks.resolveTarget,
   getTrainerAvailability: mocks.getAvailability,
   setTrainerAvailability: mocks.setAvailability,
-  listTrainerBookings: mocks.trainerBookings,
-  confirmBookingByTrainer: mocks.confirmBooking,
-  listAdminBookings: mocks.listAdminBookings,
-  bookSlotWithSubscription: mocks.bookSlot,
 }));
 
 import {

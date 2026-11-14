@@ -7,10 +7,12 @@ const mocks = vi.hoisted(() => ({
   getTrainingDays: vi.fn(),
 }));
 
-vi.mock("@gafus/core/services/offline", () => ({
+vi.mock("@gafus/course-read-server/offline-application", () => ({
+  getCourseVersion: vi.fn(),
   checkCourseUpdates: vi.fn(),
   downloadFullCourse: mocks.downloadFullCourse,
-  getCourseVersion: vi.fn(),
+}));
+vi.mock("@gafus/core/services/offline", () => ({
 }));
 vi.mock("@gafus/core/services/training", () => ({
   getTrainingDays: mocks.getTrainingDays,

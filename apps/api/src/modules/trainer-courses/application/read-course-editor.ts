@@ -1,7 +1,7 @@
 /** AG1-001/TR012: two existing course READs with original strict projections. */
 import type {
   getCourseDraftWithRelations,
-  getCourseEditorSnapshot,
+  EditorSnapshotResult,
 } from "@gafus/core/services/trainerCourse";
 import type {
   TrainerCourseDraftItem,
@@ -9,7 +9,10 @@ import type {
 } from "../../../../../../packages/types/src/data/trainer-read-contracts";
 
 type DraftReader = typeof getCourseDraftWithRelations;
-type SnapshotReader = typeof getCourseEditorSnapshot;
+type SnapshotReader = (
+  courseId: string,
+  actor: { id: string; role: string },
+) => Promise<EditorSnapshotResult>;
 
 const trainingLevels = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"];
 
@@ -20,7 +23,7 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 function stringField(value: unknown, nonempty = false): string {
-  if (typeof value !== "string" || nonempty && value.length === 0) {
+  if (typeof value !== "string" || (nonempty && value.length === 0)) {
     throw new Error("INVALID_COURSE_DRAFT");
   }
   return value;
@@ -57,7 +60,8 @@ function projectCourseDraft(source: unknown, requestedId: string): TrainerCourse
     if (id !== dayId) throw new Error("MISMATCHED_DRAFT_DAY");
     return {
       id: stringField(link.id, true),
-      dayId, order: positiveInt(link.order),
+      dayId,
+      order: positiveInt(link.order),
       day: { id, title: stringField(day.title) },
     };
   });
@@ -68,7 +72,8 @@ function projectCourseDraft(source: unknown, requestedId: string): TrainerCourse
     const id = stringField(user.id, true);
     if (id !== userId) throw new Error("MISMATCHED_DRAFT_USER");
     return {
-      userId, user: { id, username: stringField(user.username) },
+      userId,
+      user: { id, username: stringField(user.username) },
     };
   });
   const trainingLevel = stringField(raw.trainingLevel);
@@ -88,7 +93,8 @@ function projectCourseDraft(source: unknown, requestedId: string): TrainerCourse
     isPersonalized: booleanField(raw.isPersonalized),
     equipment: stringField(raw.equipment),
     trainingLevel,
-    dayLinks, access,
+    dayLinks,
+    access,
   };
 }
 
@@ -97,7 +103,8 @@ function projectCourseDraft(source: unknown, requestedId: string): TrainerCourse
  * The old /draft is intentionally unchanged; its strict clients reject extras.
  */
 function projectEditorSnapshot(
-  source: unknown, requestedId: string,
+  source: unknown,
+  requestedId: string,
 ): TrainerCourseEditorSnapshotItem {
   const raw = record(source);
   const version = positiveInt(raw.version);
@@ -119,9 +126,12 @@ export function createReadCourseEditorApplication(dependencies: {
       // Existing Core maps missing/foreign and swallowed DB failures to null.
       return source ? projectCourseDraft(source, courseId) : null;
     },
-    async editorSnapshot(courseId: string, actor: Parameters<SnapshotReader>[1]): Promise<
-      Exclude<Awaited<ReturnType<SnapshotReader>>, { status: "found" }> |
-      { status: "found"; data: TrainerCourseEditorSnapshotItem }
+    async editorSnapshot(
+      courseId: string,
+      actor: Parameters<SnapshotReader>[1],
+    ): Promise<
+      | Exclude<Awaited<ReturnType<SnapshotReader>>, { status: "found" }>
+      | { status: "found"; data: TrainerCourseEditorSnapshotItem }
     > {
       // One coherent Core snapshot call, never draft+version subreads.
       const result = await dependencies.readEditorSnapshot(courseId, actor);

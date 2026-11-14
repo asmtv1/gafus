@@ -16,7 +16,7 @@ import { resolve, join, sep } from 'node:path';
 import { createConnection } from 'node:net';
 import { fileURLToPath } from 'node:url';
 
-const projectRoot = '/Users/asmtv1/Desktop/gafus1';
+const projectRoot = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
 const projectCache = join(projectRoot, 'node_modules', '.cache');
 const port = 55439;
 const dbNames = {
@@ -38,17 +38,17 @@ function command(program, args, env = baseEnv, timeout = 120000) {
     cwd: projectRoot, env, encoding: 'utf8', timeout, maxBuffer: 15 * 1024 * 1024,
   });
   if (result.error || result.status !== 0) {
-    const message = [result.stdout, result.stderr].filter(Boolean).join('\n').slice(-6500);
+    const message = [result.stdout?.slice(-3000), result.stderr?.slice(-18000)]
+      .filter(Boolean).join('\n');
     throw new Error(`${program.split('/').pop()} FAILED: ${result.error?.message ?? result.status}\n${message}`);
   }
   return [result.stdout, result.stderr].filter(Boolean).join('\n');
 }
 function assertRoot() {
   if (process.cwd() !== projectRoot || resolve(process.cwd()) !== projectRoot)
-    throw new Error('RUN_ONLY_FROM_GAFUS1_ROOT');
-  if (command('git', ['-C', projectRoot, 'rev-parse', '--show-toplevel']).trim() !== projectRoot ||
-      command('git', ['-C', projectRoot, 'branch', '--show-current']).trim() !== 'main')
-    throw new Error('GAFUS1_MAIN_REQUIRED');
+    throw new Error('RUN_ONLY_FROM_GAFUS_REPOSITORY_ROOT');
+  if (command('git', ['-C', projectRoot, 'rev-parse', '--show-toplevel']).trim() !== projectRoot)
+    throw new Error('GAFUS_REPOSITORY_ROOT_REQUIRED');
   for (const path of [projectRoot, join(projectRoot, 'node_modules'), projectCache]) {
     if (existsSync(path) && lstatSync(path).isSymbolicLink())
       throw new Error('PROJECT_CACHE_SYMLINK_REFUSED');
@@ -114,7 +114,7 @@ try {
     'packages/core/src/services/gallery/gallery.integration.test.ts',
     'packages/core/src/services/feed/feed.integration.test.ts',
     'packages/core/src/services/feed/polls.integration.test.ts',
-    'packages/core/src/services/accountCleanup/accountCleanup.integration.test.ts',
+    'packages/worker/tests/accountCleanup.integration.test.ts',
     '--reporter=dot'], itEnv, 240000));
   console.log('INTEGRATION_TESTS_PASS');
 } catch (error) {

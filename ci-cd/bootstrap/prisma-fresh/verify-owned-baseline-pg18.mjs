@@ -93,9 +93,14 @@ try {
     '--single-transaction','-f',join(here,'fresh-only-precondition.sql'),
     '-f',join(here,'fresh-only-bootstrap.candidate.sql')],{timeout:100000});
   const accepted=installFreshV1({databaseUrl:url,schemaFile,query,applyCandidate,prisma});
-  assert.equal(accepted.recorded,163);
-  assert.equal(query('SELECT count(*) FROM "_prisma_migrations"'),'163');
-  console.log('PASS REAL PRISMA 163 historical checksum-matched rows via migrate resolve; deploy/status 0 pending');
+  assert.equal(accepted.recorded,163,'IMMUTABLE_FRESH_V1_MIGRATION_COUNT');
+  assert(accepted.forwardApplied>=0,'POST_V1_FORWARD_COUNT_INVALID');
+  assert.equal(accepted.total,accepted.recorded+accepted.forwardApplied,
+    'FORWARDS_MUST_NOT_BE_SILENTLY_PRE_RESOLVED');
+  assert.equal(Number(query('SELECT count(*) FROM "_prisma_migrations"')),accepted.total,
+    'APPLIED_MIGRATION_LEDGER_MUST_INCLUDE_FORWARDS');
+  console.log('PASS REAL PRISMA frozen v1 163 historical SHA rows + '+
+    accepted.forwardApplied+' normal forward migrations via migrate deploy/status');
   // Prisma schema cannot express two preserved historical extra indexes.
   // They are the ONLY allowed diff here; don't apply these suggested drops.
   const drift=prisma(['migrate','diff','--from-url',url,
@@ -123,10 +128,12 @@ try {
   assert(migrated.includes(next), 'FORWARD_PRISMA_MIGRATE_DEPLOY_NOT_APPLIED');
   assert.equal(query('SELECT "note" FROM "BootstrapHistoryForwardProbe" WHERE "id"=1'),
     'synthetic-post-baseline');
-  assert.equal(query('SELECT count(*) FROM "_prisma_migrations"'),'164');
+  assert.equal(Number(query('SELECT count(*) FROM "_prisma_migrations"')),accepted.total+1,
+    'SYNTHETIC_FORWARD_MUST_INCREMENT_LEDGER_BY_ONE');
   const status=prisma(['migrate','status','--schema',schemaFile]);
   assert(/up to date/i.test(status), 'FORWARD_PRISMA_MIGRATE_STATUS_NOT_UP_TO_DATE');
-  console.log('PASS REAL future migration deployed 164/164, status up-to-date, synthetic data present');
+  console.log('PASS REAL future migration deployed '+(accepted.total+1)+
+    '/'+(accepted.total+1)+', status up-to-date, synthetic data present');
   // Re-running the installer against an existing baseline (or any DB with
   // ownership data) must refuse BEFORE changing SQL or migration journal.
   const before=query('SELECT count(*) FROM "_prisma_migrations"');
@@ -144,7 +151,8 @@ try {
     prisma:()=>{throw Error('RESOLVE_FORBIDDEN');}}),/FRESH_ONLY_DATABASE_NOT_EMPTY/);
   assert.equal(query('SELECT "id" FROM "DoNotAlterUserData"',existing),'7');
   assert.equal(query('SELECT to_regclass(\'public."_prisma_migrations"\') IS NULL',existing),'t');
-  console.log('PASS baseline refuses replay and populated DB; user data and 164-row migration ledger intact');
+  console.log('PASS baseline refuses replay and populated DB; user data and '+
+    (accepted.total+1)+'-row migration ledger intact');
   console.log('PASS Option A fresh PG18 + actual Prisma migration history: local-owned only; no prod/data/history touched');
 } finally {
   const status=existsSync(data) ? run(exe('pg_ctl'),['-D',data,'status'],

@@ -3,7 +3,8 @@
  * Cloud video workers are restricted to optional 360p, never image cleanup.
  */
 import type {prisma} from '@gafus/prisma';
-import {createFeedMaintenance,createFeedStorageJobs,createCurrentFeedMaintenanceRuntime,listDueFeedCleanupJobs} from '@gafus/core/services/feed';
+import {createFeedMaintenance,createFeedStorageJobs} from '@gafus/core/services/feed';
+import {createCurrentFeedMaintenanceRuntime,listDueFeedCleanupJobs} from '@gafus/feed-server/runtime-services';
 import {assertFeedObjectKey,createFeedJanitorObjects,type FeedJanitorObjects} from '@gafus/feed-storage';
 
 type Jobs=Pick<ReturnType<typeof createFeedStorageJobs>,'claim'|'complete'|'fail'>;

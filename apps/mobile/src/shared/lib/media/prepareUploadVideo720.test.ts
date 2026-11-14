@@ -1,7 +1,9 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { Platform } from "react-native";
 
+const expoRuntime = vi.hoisted(() => ({ appOwnership: "standalone" }));
 const files = vi.hoisted(() => ({ sizes: new Map<string, number>(), deleted: [] as string[] }));
+vi.mock("expo-constants", () => ({ default: expoRuntime }));
 vi.mock("react-native-compressor", () => ({
   Video: { compress: vi.fn(), cancelCompression: vi.fn() },
 }));
@@ -18,6 +20,7 @@ const originalPlatform = Platform.OS;
 beforeEach(() => {
   process.env.EXPO_PUBLIC_CLIENT_VIDEO_720 = "true";
   Platform.OS = "ios";
+  expoRuntime.appOwnership = "standalone";
   files.sizes.clear(); files.deleted.length = 0;
 });
 afterEach(() => {
@@ -141,5 +144,21 @@ describe("single phone 720p MP4 for Moments and Chat2", () => {
     }, async () => target, () => false);
     expect(prepared).toBeNull();
     expect(files.deleted).toEqual([target]);
+  });
+});
+
+
+describe("Expo Go graceful degradation", () => {
+  it("disables native compression instead of importing an unavailable bridge", async () => {
+    expoRuntime.appOwnership = "expo";
+    const onFailure = vi.fn();
+    const result = await prepareUploadVideo720(
+      { uri: "file:///clip.mov", width: 1920, height: 1080 },
+      undefined,
+      () => false,
+      onFailure,
+    );
+    expect(result).toBeNull();
+    expect(onFailure).toHaveBeenCalledWith("VIDEO720_DISABLED");
   });
 });

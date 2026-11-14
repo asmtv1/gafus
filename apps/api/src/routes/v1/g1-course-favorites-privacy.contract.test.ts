@@ -8,6 +8,12 @@ const m = vi.hoisted(() => ({
   remove: vi.fn(),
   toggle: vi.fn(),
 }));
+vi.mock("@gafus/course-server/favorites",()=>({
+  getFavoritesCourses:(actorId:string)=>m.favorites(actorId),
+  addFavoriteCourse:m.add,
+  removeFavoriteCourse:m.remove,
+  toggleFavoriteCourse:m.toggle,
+}));
 vi.mock("@gafus/core/services/course", () => ({
   getFavoritesCourses: m.favorites,
   addFavoriteCourse: m.add,

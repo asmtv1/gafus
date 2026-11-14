@@ -15,18 +15,17 @@ import {
   requireCourseStepOperationAccess,
   syncUserCourseStatusFromDays,
   validateTheoryStepForCompletion,
-  withOnlineStepBinding,
 } from "@gafus/core/services/training";
+import { withOnlineStepBinding } from "@gafus/course-server/online-step-binding";
 import {
-  requirePremiumOrRewardedAccessForVideoUrl,
   SubscriptionOrCreditsRequiredError,
 } from "@gafus/core/services/rewardedCredits";
+import { requirePremiumOrRewardedAccessForVideoUrl } from "../../modules/rewarded-credits/composition/gafus-access.js";
 import {
   checkVideoAccess,
-  getProgress,
   getVideoManifestInfo,
-  saveProgress,
-} from "@gafus/core/services/video";
+} from "../../modules/video/composition/video-access.js";
+import { getProgress, saveProgress } from "@gafus/course-server/video-progress";
 import {
   createStepNotificationForStepStart,
   getDayFromDayOnCourseId,
@@ -38,7 +37,7 @@ import {
   resumeBoundStepNotification,
   resetBoundStepNotification,
   type BoundStepNotification,
-} from "@gafus/core/services/notifications";
+} from "@gafus/notifications-server";
 import { createWebLogger } from "@gafus/logger";
 import {
   downloadFileFromCDN,
@@ -73,8 +72,11 @@ function trainingVideoApiUrl(c: Context): string {
     const host = c.req.header("host")?.toLowerCase();
     // The isolated trainer Vite shell also reverse-proxies /api/v1 on 5175.
     // Keep HLS segments same-origin so browsers do not require cross-origin credentials.
-    return ["127.0.0.1:5173", "localhost:5173", "127.0.0.1:5175", "localhost:5175"]
-      .includes(host ?? "") ? "" : "http://127.0.0.1:3001";
+    return ["127.0.0.1:5173", "localhost:5173", "127.0.0.1:5175", "localhost:5175"].includes(
+      host ?? "",
+    )
+      ? ""
+      : "http://127.0.0.1:3001";
   }
   return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "https://api.gafus.ru";
 }

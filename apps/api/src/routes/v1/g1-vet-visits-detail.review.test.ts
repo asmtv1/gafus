@@ -3,13 +3,23 @@ import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 const { detail } = vi.hoisted(() => ({ detail: vi.fn() }));
-vi.mock("@gafus/prisma", () => ({ prisma: { user: { findUnique: async () => ({
-  sessionsRevokedAt: null, registrationPending: false, role: "USER",
-}) } } }));
+vi.mock("@gafus/prisma", () => ({
+  prisma: {
+    user: {
+      findUnique: async () => ({
+        sessionsRevokedAt: null,
+        registrationPending: false,
+        role: "USER",
+      }),
+    },
+  },
+}));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: async () => true }));
-vi.mock("../../../../../packages/core/src/services/pets/g1VetVisitDetailRead.review.js", () => ({
+vi.mock("@gafus/pets-server/vet-visit-detail", () => ({
   getOwnVetVisitDetail: detail,
-  VetVisitDetailNotFoundError: class VetVisitDetailNotFoundError extends Error { status = 404; },
+  VetVisitDetailNotFoundError: class VetVisitDetailNotFoundError extends Error {
+    status = 404;
+  },
 }));
 import { generateAccessToken } from "@gafus/auth/jwt";
 import { authMiddleware } from "../../middleware/auth";
@@ -18,11 +28,13 @@ const origin = "http://local.test";
 const path = "/api/v1/pets/pet-A/vet-visits/visit-A";
 const h = new Hono();
 h.use("/api/v1/pets/*", async (c, next) => {
-  c.header("Cache-Control", "private, no-store"); await next();
+  c.header("Cache-Control", "private, no-store");
+  await next();
 });
 h.use("/api/v1/pets/*", authMiddleware);
 h.route("/api/v1/pets", vetVisitDetailReviewRoutes);
-let a = ""; let b = "";
+let a = "";
+let b = "";
 beforeAll(async () => {
   process.env.JWT_SECRET = randomBytes(48).toString("hex");
   a = await generateAccessToken({ id: "owner-A", username: "a", role: "USER" });
@@ -32,24 +44,28 @@ beforeEach(() => {
   vi.clearAllMocks();
   detail.mockImplementation(async (id: string) => {
     if (id === "owner-A") return { id: "visit-A", petId: "pet-A", attachments: [] };
-    const { VetVisitDetailNotFoundError } = await import(
-      "../../../../../packages/core/src/services/pets/g1VetVisitDetailRead.review.js"
-    );
+    const { VetVisitDetailNotFoundError } = await import("@gafus/pets-server/vet-visit-detail");
     throw new VetVisitDetailNotFoundError();
   });
 });
-const get = (token: string, url = path, cookie = false) => h.request(origin + url, {
-  headers: cookie ? { cookie: `gafus_access=${token}` } : { authorization: `Bearer ${token}` },
-});
+const get = (token: string, url = path, cookie = false) =>
+  h.request(origin + url, {
+    headers: cookie ? { cookie: `gafus_access=${token}` } : { authorization: `Bearer ${token}` },
+  });
 describe("AG1 Hono private VetVisits detail GET review", () => {
   it("H01 signed owner DTO response no-store, no medical keys/URLs", async () => {
     const res = await get(a);
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toContain("no-store");
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(await res.json()).toEqual({ success: true, data: {
-      id: "visit-A", petId: "pet-A", attachments: [],
-    } });
+    expect(await res.json()).toEqual({
+      success: true,
+      data: {
+        id: "visit-A",
+        petId: "pet-A",
+        attachments: [],
+      },
+    });
     expect(detail).toHaveBeenCalledWith("owner-A", "pet-A", "visit-A");
   });
   it("H02 other owner same path gets masked 404, no target medical fields", async () => {

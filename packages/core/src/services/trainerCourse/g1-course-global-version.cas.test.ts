@@ -16,6 +16,18 @@ vi.mock("../training/trainingContentRevision",()=>({
   publishCourseContentChange:m.publish,
 }));
 import {readCourseNameVersion,updateCourseNameVersioned} from "./courseVersionService";
+import {
+  readCourseVersionRows,
+  writeCourseNameVersionRows,
+  setCourseLogoVersionRows,
+} from "@gafus/course-progress-server/course-version-rows";
+import { registerCourseVersionRowsPort } from "./courseVersionService";
+registerCourseVersionRowsPort({
+  readCourseVersionRows,
+  writeCourseNameVersionRows,
+  setCourseLogoVersionRows,
+});
+
 const A={id:"trainerA",role:"TRAINER"};
 const B={id:"trainerB",role:"TRAINER"};
 const ADMIN={id:"adminZ",role:"ADMIN"};

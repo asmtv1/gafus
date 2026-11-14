@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -40,7 +41,7 @@ const Prisma = require("@prisma/client").PrismaClient as new(args: {
     db = new Prisma({ datasources: { db: { url: dbUrl } } });
     const signer = createGalleryStorageFromEnv(env);
     objects = createGalleryObjectStore(galleryStorageConfigFromEnv(env));
-    service = createGalleryService({ db, storage: { ...signer, head: objects.head } });
+    service = createGalleryService({ enqueueDeletedMediaPurge,  db, storage: { ...signer, head: objects.head } });
     const internal: GalleryInternalClient = {
       claimUpload: (id) => service.claimUpload({ uploadId: id }),
       completeUpload: (input) => service.completeUpload(input),

@@ -29,7 +29,7 @@ export async function insertSeedCourseDaysVersioned(
     // despite any number of inserted child links.
     for (const courseId of courseIds) {
       const count = await tx.$executeRaw`
-        UPDATE "Course" SET "updatedAt" = CURRENT_TIMESTAMP
+        UPDATE "Course" SET "updatedAt" = timezone('UTC', CURRENT_TIMESTAMP)
         WHERE "id" = ${courseId}
       `;
       if (count !== 1) throw Error("SEED_COURSE_NOT_FOUND");

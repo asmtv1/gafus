@@ -3,7 +3,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import {
   calculateCurrentStreak,
   calculateLongestStreak,
-} from "./calculateStreaks";
+} from "@gafus/achievements-server/calculateStreaks";
 
 describe("calculateCurrentStreak", () => {
   beforeEach(() => {
@@ -32,11 +32,7 @@ describe("calculateCurrentStreak", () => {
 
   it("returns 3 for today + yesterday + day before", () => {
     vi.setSystemTime(new Date("2025-03-15"));
-    const dates = [
-      new Date("2025-03-15"),
-      new Date("2025-03-14"),
-      new Date("2025-03-13"),
-    ];
+    const dates = [new Date("2025-03-15"), new Date("2025-03-14"), new Date("2025-03-13")];
     expect(calculateCurrentStreak(dates)).toBe(3);
   });
 
@@ -60,10 +56,7 @@ describe("calculateCurrentStreak", () => {
 
   it("counts duplicate dates as one day", () => {
     vi.setSystemTime(new Date("2025-03-15"));
-    const dates = [
-      new Date("2025-03-15T09:00:00"),
-      new Date("2025-03-15T18:00:00"),
-    ];
+    const dates = [new Date("2025-03-15T09:00:00"), new Date("2025-03-15T18:00:00")];
     expect(calculateCurrentStreak(dates)).toBe(1);
   });
 });
@@ -79,11 +72,7 @@ describe("calculateLongestStreak", () => {
   });
 
   it("returns 3 for three consecutive dates", () => {
-    const dates = [
-      new Date("2025-03-13"),
-      new Date("2025-03-14"),
-      new Date("2025-03-15"),
-    ];
+    const dates = [new Date("2025-03-13"), new Date("2025-03-14"), new Date("2025-03-15")];
     expect(calculateLongestStreak(dates)).toBe(3);
   });
 
@@ -102,20 +91,12 @@ describe("calculateLongestStreak", () => {
   });
 
   it("returns 1 when all same date", () => {
-    const dates = [
-      new Date("2025-03-15"),
-      new Date("2025-03-15"),
-      new Date("2025-03-15"),
-    ];
+    const dates = [new Date("2025-03-15"), new Date("2025-03-15"), new Date("2025-03-15")];
     expect(calculateLongestStreak(dates)).toBe(1);
   });
 
   it("returns 1 for non-consecutive dates", () => {
-    const dates = [
-      new Date("2025-03-10"),
-      new Date("2025-03-12"),
-      new Date("2025-03-14"),
-    ];
+    const dates = [new Date("2025-03-10"), new Date("2025-03-12"), new Date("2025-03-14")];
     expect(calculateLongestStreak(dates)).toBe(1);
   });
 });

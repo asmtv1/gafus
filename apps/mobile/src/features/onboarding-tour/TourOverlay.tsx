@@ -261,7 +261,7 @@ function buildBackdropPieces({
 
 const styles = StyleSheet.create({
   root: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 1000,
   },
   backdropPiece: {

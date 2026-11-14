@@ -1,0 +1,71 @@
+{
+  "name": "@gafus/pets-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./weight": {
+      "types": "./dist/weightService.d.ts",
+      "default": "./dist/weightService.js"
+    },
+    "./pet-reads": {
+      "types": "./dist/petReadProjections.d.ts",
+      "default": "./dist/petReadProjections.js"
+    },
+    "./vet-visit-detail": {
+      "types": "./dist/vet-visit-detail.d.ts",
+      "default": "./dist/vet-visit-detail.js"
+    },
+    "./prevention-reminder-rows": {
+      "types": "./dist/prevention-reminder-rows.d.ts",
+      "default": "./dist/prevention-reminder-rows.js"
+    },
+    "./pet-media-deletion-outbox": {
+      "types": "./dist/petMediaDeletionOutbox.d.ts",
+      "default": "./dist/petMediaDeletionOutbox.js"
+    },
+    "./pet-media-deletion-sql": {
+      "types": "./dist/petMediaDeletionSql.d.ts",
+      "default": "./dist/petMediaDeletionSql.js"
+    },
+    "./pet-media-deletion-default": {
+      "types": "./dist/petMediaDeletionDefaultDb.d.ts",
+      "default": "./dist/petMediaDeletionDefaultDb.js"
+    },
+    "./vet-visit-write-rows": {
+      "types": "./dist/vet-visit-write-rows.d.ts",
+      "default": "./dist/vet-visit-write-rows.js"
+    },
+    "./prevention-rows": {
+      "types": "./dist/preventionRows.d.ts",
+      "default": "./dist/preventionRows.js"
+    },
+    "./pet-rows": {
+      "types": "./dist/petRows.d.ts",
+      "default": "./dist/petRows.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "@gafus/pets-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "@types/node": "20.4.8",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  }
+}

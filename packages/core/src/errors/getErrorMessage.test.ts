@@ -18,6 +18,7 @@ import {
 const MockKnownError = vi.hoisted(() => {
   return class extends Error {
     code: string;
+    clientVersion = "6.10.1";
     meta?: Record<string, unknown>;
 
     constructor(message: string, opts: { code: string; meta?: Record<string, unknown> }) {
@@ -31,6 +32,7 @@ const MockKnownError = vi.hoisted(() => {
 
 const MockValidationError = vi.hoisted(() => {
   return class extends Error {
+    clientVersion = "6.10.1";
     constructor(message?: string) {
       super(message ?? "Validation error");
       this.name = "PrismaClientValidationError";

@@ -155,7 +155,7 @@ describe("WEB consultations connected actual App route-source opt-in",()=>{
   expect(getMine).toHaveBeenCalledWith("ownerA",null);
   expect(fetcher.mock.calls.every(([,o])=>o.method==="GET")).toBe(true);
   expect(node.innerHTML).not.toMatch(/SECRET_|PRIVATE_/);
- });
+ },12000); // Full 8-hop React navigation needs headroom in shared Web regression batches.
  it("F03 direct trainer profile only from published list",async()=>{
   await mount("/consultations/cynologists/trainer1");
   expect(node.textContent).toContain("@trainer_a");

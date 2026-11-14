@@ -26,7 +26,12 @@ vi.mock("./trainingContentRevision", () => ({
 const previousFlag = process.env.ENABLE_COURSE_CACHE;
 
 async function createProcessCache() {
+  // Each simulated process has its own module registry and must compose
+  // its own DB read adapter after reset, as API startup does in production.
   vi.resetModules();
+  const { registerTrainingDayContentReadPort } = await import("./trainingDayContentReadPort");
+  const { readTrainingDayContent } = await import("@gafus/course-read-server");
+  registerTrainingDayContentReadPort({ readTrainingDayContent });
   const module = await import("./trainingDayContent");
   return module.getTrainingDayContent;
 }

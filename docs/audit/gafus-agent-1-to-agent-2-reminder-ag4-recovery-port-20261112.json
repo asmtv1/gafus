@@ -1,0 +1,232 @@
+{
+  "schema": "gafus-a1-a2-handoff/v1",
+  "created_utc": "2026-11-12T05:57:55.081253+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "reminder-ag4-recovery-port",
+  "edges_before": 18,
+  "edges_after": 17,
+  "frozen_ratchet": {
+    "baseline": 41,
+    "resolved": 24,
+    "new": 0
+  },
+  "historical": {
+    "start": 142,
+    "removed": 125
+  },
+  "files": [
+    {
+      "path": "apps/api/src/modules/reminders/composition/install-ag4-review-rows.review.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "96b8705fc2d9fe248f2a4da489240853ab3572abcbd75f89e226c3700e816f34",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/reminders/composition/install-ag4-review-rows.review.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "4c5485e52884a7981abf4dd36356fe0e8135f68709c9573f92153bbfe5f98e3c",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-reminder-mixed-core-source-boundary.contract.test.ts",
+      "status": "M",
+      "sha256_before": "d400f5e3e8b1b5d98d415bfc08976346abe377f518cdbb9cd49b2e3085a61dd8",
+      "sha256_after_current": "47112812bb62eb1a1422b9ed14d7998530d33b99131e77b3118fbe063b98b4b7",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/apps/api/src/routes/v1/g1-reminder-mixed-core-source-boundary.contract.test.ts"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-reminder-packaged-core-review-gate.contract.test.ts",
+      "status": "M",
+      "sha256_before": "574e94869f055f56b1d8936ca97a71483494874e6527af6331016f7dac8813a2",
+      "sha256_after_current": "b39f12f68f5ab93016cbb7b8f46e88ff4349a5680ffb2dde94b3afa56f7d9898",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/apps/api/src/routes/v1/g1-reminder-packaged-core-review-gate.contract.test.ts"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-reminder-receipt-migration-history.review.test.ts",
+      "status": "M",
+      "sha256_before": "a3a194aa15b108997568eda6d526d23fec5f7afe438a2f37f0ee460a4f193afd",
+      "sha256_after_current": "336dc35d179fb3e714f40297dba3c0b601e341c0c9a8d677a7ff78e56840cfc7",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/apps/api/src/routes/v1/g1-reminder-receipt-migration-history.review.test.ts"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-reminders-v2-unmounted.review.ts",
+      "status": "M",
+      "sha256_before": "9ae2f4ab5eaf389df3eb19befdfca5870099c3ddd4ccbf219b3adfd36a01af9a",
+      "sha256_after_current": "af6cbb08b3101f46e71a08f7ff2358dc54f479d875ffd38e1356b83b33d103e7",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/apps/api/src/routes/v1/g1-reminders-v2-unmounted.review.ts"
+    },
+    {
+      "path": "apps/api/src/routes/v1/reminders.ts",
+      "status": "M",
+      "sha256_before": "14df238ff93eaa5c036495f3c436a506f4da58d0f07be65d99b0d1b43f8b19c3",
+      "sha256_after_current": "02d7e8d4fea25f16b369c25b1aa664cd979f5e48dbbf59503da31b79d3f5f69b",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/apps/api/src/routes/v1/reminders.ts"
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "f2ecdfdb968d5f063df06d5842215f57cf603345ce9e4c79c0d40aa1d1a3d905",
+      "sha256_after_current": "e8d7d4fdc797ae98a3f53622ba00b7f71b555501cc068cebd177d0f826dd2591",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "982e591d74893e9946bc2a6a73a9f0fc28772e853178b136d571f8bafd2112a3",
+      "sha256_after_current": "313bf69627a42518363c394dc4a1c9f52b06f92007c6aa98f866ce163808f965",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/reminders/g1ReminderExpiryPIIRedaction.review.test.ts",
+      "status": "M",
+      "sha256_before": "fa0a16fc41db03ed137b4d0513e38ba8376fd9c495b20990bac8811b737ba985",
+      "sha256_after_current": "3471bd30246ddf4a2b9a08f640f4a2b936067dc4765deacfbadd281b378b6516",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/packages/core/src/services/reminders/g1ReminderExpiryPIIRedaction.review.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.test.ts",
+      "status": "M",
+      "sha256_before": "893b79a55a81de84ebf0b09259441d845f0df4e9f5f0ff0cf3aa02a81605aa56",
+      "sha256_after_current": "fe2150353f3e7c90275bbf459bf6e215812e7fe66aee330d0bba4305008864eb",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts",
+      "status": "M",
+      "sha256_before": "5e7146e2d9da452f6202d8f632fab1905ab75ab80d2df94dcd950f5b51a07129",
+      "sha256_after_current": "afcb063c06a0cdffb2044132138dc6f1da5d886765c43ab70bf783a0aba180ed",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts"
+    },
+    {
+      "path": "packages/core/src/services/reminders/index.ts",
+      "status": "M",
+      "sha256_before": "6a4690f159bb9f449172d99ed9f4340777e10b4a3dc8f5e07c7b1f1a744d14c6",
+      "sha256_after_current": "73444884e719be7ea90f655373226ded493d8b4868cf456649ddaef89aa483e8",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/packages/core/src/services/reminders/index.ts"
+    },
+    {
+      "path": "packages/core/src/services/reminders/reminderAG4ReviewPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "eeb8b63a5ee844efeb5843dff14232de7badc604c44ea8a04cd02d47efea7234",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/reminders/reminderAG4ReviewPort.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "28d0b5b64c66c245f736518a2639dc6289ab8ddbd374c5fa5fccc1be4924d305",
+      "backup_before": null
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "a961a014a8afe1f73722bd9f149279cc9a6c898622c41c056edaf2ca180f1821",
+      "sha256_after_current": "38900d5710ff5d2206e7db807d8074ed0ae79780ab80a2b51521562e5be74b3b",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "AG4 37 preexisting Core review and expiry/PII",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": 37,
+      "tests_skipped": null,
+      "log": "/tmp/a1-ag4-existing-target.log"
+    },
+    {
+      "name": "AG4 3 new Core receipt transaction port tests",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": 3,
+      "tests_skipped": null,
+      "log": "/tmp/a1-ag4-new-core-tests.log"
+    },
+    {
+      "name": "AG4 18 targeted API source/compiled route and SQL composer tests",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": 18,
+      "tests_skipped": null,
+      "log": "/tmp/a1-ag4-recovered-api-target.log"
+    },
+    {
+      "name": "Full Core after recovery",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": 2133,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ag4-recovered-core-full.log"
+    },
+    {
+      "name": "Full API after recovery",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": 2761,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ag4-recovered-api-full.log"
+    },
+    {
+      "name": "Core TypeScript",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ag4-recovered-core-types.log"
+    },
+    {
+      "name": "Core rebuilt package",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ag4-recovered-core-build.log"
+    },
+    {
+      "name": "API TypeScript",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ag4-recovered-api-types.log"
+    },
+    {
+      "name": "Identity-write adapter TypeScript",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-ag4-recovered-identity-types.log"
+    },
+    {
+      "name": "Architecture boundaries and no route activation",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-ag4-recovered-boundaries.log"
+    }
+  ],
+  "sha_basis": "Fresh prechange snapshot of shared uncommitted working tree, final SHA256 computed and verified now; NEVER reuse older A2 shared-file hashes.",
+  "prechange_backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-ag4-review-port-prechange",
+  "public_contract_invariants": [
+    "`g1ReminderMutationReceiptAG4.review.ts` больше не импортирует SQL: owner lock, receipt, cap=5, reminder create и commit сохраняются в одном PostgreSQL Tx через `ReminderAG4ReviewRowsPort`.",
+    "Существующий keyed `POST /api/v1/reminders` уже использовал AG4; его `reminders.ts` регистрирует порт через опубликованный `@gafus/core/services/reminders`. Ранее был 500 из-за несовпадения source Core / dist Core; исправлено без изменения бизнес-логики.",
+    "Новый кандидат `g1-reminders-v2-unmounted.review.ts` остаётся немонтированным, новые маршруты и миграции отсутствуют.",
+    "Три устаревших исходных asserts обновлены с прямого Core→server импорта на проверку порта и SQL composition; три runtime failures исправлены настоящим подключением compiled Core.",
+    "Незарегистрированный порт отказывает `REMINDER_AG4_REVIEW_PORT_UNBOUND`, горячая подмена запрещена; PII не попадает в неожиданные 500."
+  ],
+  "external_gates": [
+    "Real disposable PostgreSQL: competing keyed/keyless owner reminder CREATE cap 5, rollback on insert failure, idempotency replay after expiry, receipt privacy & TTL. Mock-only checks do not prove this gate.",
+    "Integration of existing reminder route API under the real QA auth/session; separate unmounted AG4 candidate must not be exposed before authorization.",
+    "Remove 17 remaining Core→server dependencies, then run combined A1/A2/A3 33-stage architecture and 5-stage chaos, Worker/panels/Web/Mobile/PG/Redis acceptance before editing frozen baseline JSON."
+  ],
+  "no_commit_merge_push_deploy": true,
+  "frozen_baseline_json_modified": false,
+  "handoff": "A2 must compare all final SHA256 after before integrating. Shared app.ts, guards and audit files require semantic merging; never overwrite concurrent streams. Port, API installer and tests are an atomic patch."
+}

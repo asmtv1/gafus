@@ -1,8 +1,10 @@
 import type { GalleryDb, GalleryStoragePort, GalleryTx, GalleryObjectMetadata } from "./ports";
+import type { EnqueueDeletedMediaPurge } from "../mediaDelivery/purgeQueue";
 import { GalleryError } from "./errors";
 export interface GalleryContext {
   db: GalleryDb;
   storage: GalleryStoragePort;
+  enqueueDeletedMediaPurge: EnqueueDeletedMediaPurge<GalleryTx, "gallery">;
   now: () => Date;
 }
 export function requireGalleryEnabled(ctx: GalleryContext) {

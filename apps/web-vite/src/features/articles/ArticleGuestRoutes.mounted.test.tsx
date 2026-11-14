@@ -26,7 +26,13 @@ async function mount(path:string){
   await act(async()=>root.render(<QueryClientProvider client={client}>
     <App/>
   </QueryClientProvider>));
-  await act(async()=>new Promise(done=>setTimeout(done,30)));
+  // Lazy landing chunks can resolve after the route has already redirected.
+  // Poll through React's async commit instead of relying on a fixed 30 ms delay.
+  await vi.waitFor(async () => {
+    await act(async () => { await Promise.resolve(); });
+    expect(window.location.pathname).toBe("/");
+    expect(host.querySelector('[data-ui-parity="legacy-landing"]')).not.toBeNull();
+  }, { timeout: 3000, interval: 25 });
 }
 describe("Next article routes are private, never anonymous browsing",()=>{
   it.each(["/articles","/articles/%D1%83%D1%87%D0%B5%D0%B1%D0%BD%D1%8B%D0%B9"])(

@@ -1,7 +1,8 @@
 import { connection, FEED_PROCESSING_QUEUE_NAME } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
-import { Worker, type Job } from "bullmq";
+import { Worker, UnrecoverableError, type Job } from "bullmq";
 import { createCloudruFeedPoolDispatcher } from "./cloudru-media-dispatcher";
+import { safeCloudruWakeFailure } from "./cloudru-trigger-error-policy.js";
 
 const logger = createWorkerLogger("feed-processing-trigger");
 interface FeedJob {
@@ -35,10 +36,12 @@ export function startFeedProcessingTriggerWorker(): void {
     async (job: Job<FeedJob>) => {
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidPattern.test(job.data.uploadId))
-        throw new Error("INVALID_FEED_UPLOAD_ID");
+        throw new UnrecoverableError("INVALID_FEED_UPLOAD_ID");
       if (job.data.kind !== "video")
-        throw new Error("RETIRED_FEED_PHOTO_JOB");
-      const result = await video();
+        throw new UnrecoverableError("RETIRED_FEED_PHOTO_JOB");
+      let result;
+      try { result = await video(); }
+      catch (error) { throw safeCloudruWakeFailure(error); }
       if (result.dispatched !== 1) throw new Error("FEED_PROCESS_TRIGGER_NOT_DISPATCHED");
     },
     {
@@ -46,7 +49,7 @@ export function startFeedProcessingTriggerWorker(): void {
       concurrency: 1,
       // Up to two Cloud.ru launches per second; preserve serial dispatch
       // and Core's authoritative claims/leases to avoid duplicate processing.
-      // BullMQ retries temporary provider errors with exponential backoff.
+      // BullMQ retries IAM and explicit rejects; an unknown :execute ACK is terminal for the immediate wake.
       limiter: { max: 1, duration: 500 },
       removeOnComplete: { count: 100 },
       removeOnFail: { count: 500 },

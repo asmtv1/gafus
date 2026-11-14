@@ -1,2 +1,2 @@
-/** Compatibility adapter: domain behavior lives in @gafus/core. */
-export * from "@gafus/core/services/reengagement";
+/** Re-engagement infrastructure adapter; Core contains no persistence here. */
+export * from "./infra/metrics";

@@ -4,7 +4,7 @@ import {
 } from "@gafus/types";
 import { apiClient } from "./client";
 import { postClientWebp, type SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
-import { prepareUploadWebpVariants, type PreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
+import { prepareUploadWebpVariants, sanitizePreparedWebpVariant, type PreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
 import { PhotoUploadStageError, type PhotoUploadStage } from "@/shared/lib/media/photoUploadStage";
 const transport: QuestionsTransport = async <T>(
   path: string,
@@ -42,8 +42,14 @@ export async function uploadClientQuestionsPhoto(
     source, { small: 360, medium: 1440 },
   ).catch(error => { throw new PhotoUploadStageError("webp", error); });
   let reservationId: string | undefined;
-  let stage: PhotoUploadStage = "reserve";
+  let stage: PhotoUploadStage = "webp";
   try {
+    // Question drafts may have been prepared before the WebP ICC fix.
+    // Strip metadata before requesting signed S3 fields. A rejected or
+    // incomplete sanitization must not make a reservation or upload anything.
+    await sanitizePreparedWebpVariant(versions.small);
+    await sanitizePreparedWebpVariant(versions.medium);
+    stage = "reserve";
     const reservation = await apiClient<{ id: string; upload: SignedClientPhotoPost;
       smallUpload: SignedClientPhotoPost }>("/api/v1/questions/photos/client-reservations", {
       method: "POST", body: { mediumBytes: versions.medium.bytes },

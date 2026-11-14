@@ -54,6 +54,38 @@
       "env": {
         "JAVA_TOOL_OPTIONS": "-Djdk.tls.client.protocols=TLSv1.2 -Dhttps.protocols=TLSv1.2"
       }
+    },
+    "sdk57-testflight": {
+      "channel": "preview",
+      "environment": "preview",
+      "distribution": "store",
+      "autoIncrement": false,
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "APP_ENV": "preview",
+        "GAFUS_OTA_TRANSPORT": "self-hosted",
+        "EXPO_PUBLIC_TELEMETRY_ENABLED": "true",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.gafus.ru"
+      }
+    },
+    "sdk57-android-internal": {
+      "channel": "preview",
+      "environment": "preview",
+      "distribution": "store",
+      "autoIncrement": false,
+      "android": {
+        "buildType": "app-bundle",
+        "credentialsSource": "local"
+      },
+      "env": {
+        "APP_ENV": "preview",
+        "GAFUS_OTA_TRANSPORT": "self-hosted",
+        "ORG_GRADLE_PROJECT_android.minSdkVersion": "24",
+        "EXPO_PUBLIC_TELEMETRY_ENABLED": "true",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.gafus.ru"
+      }
     }
   },
   "submit": {

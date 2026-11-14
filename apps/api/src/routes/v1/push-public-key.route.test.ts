@@ -7,13 +7,12 @@ vi.mock("@gafus/logger",()=>({
   createWebLogger:()=>({info:vi.fn(),warn:vi.fn(),error:vi.fn()}),
 }));
 vi.mock("@gafus/prisma",()=>({
-  prisma:{user:{findUnique:async()=>({sessionsRevokedAt:null,registrationPending:false})}},
+  prisma:{user:{findUnique:async()=>({
+    sessionsRevokedAt:null,registrationPending:false,role:"USER",
+  })}},
 }));
 vi.mock("@gafus/core/services/auth",()=>({isRegistrationCompleted:async()=>true}));
-vi.mock("@gafus/core/services/auth/identityReadService",()=>({
-  sessionIsCurrent:async()=>true,
-}));
-vi.mock("../../../../../packages/core/src/services/subscriptions/pushSubscriptionService.js",()=>({
+vi.mock("@gafus/notifications-server/push-subscriptions",()=>({
   savePushSubscription:vi.fn(),
   PushEndpointOwnerConflictError:class extends Error{},
   PushSessionStaleError:class extends Error{},

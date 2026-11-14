@@ -7,6 +7,18 @@ on:
         description: Exact commit SHA of a fully built release
         required: true
         type: string
+      release_manifest_b64:
+        description: Verified release-images.json from one successful SHA/run/attempt
+        required: true
+        type: string
+      release_run_id:
+        description: Original CI run ID which published these seven digests
+        required: true
+        type: string
+      release_run_attempt:
+        description: Attempt of that CI run, not the deploy-only attempt
+        required: true
+        type: string
       app_only:
         description: Deploy application and migrations only; leave existing Cloud.ru Jobs and CDN settings untouched
         required: false
@@ -30,6 +42,16 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      # Applies equally to automatic CI/CD and manual Deploy Only.
+      # Never enable production Uptrace during an unrelated app rollout.
+      - name: Verify Uptrace release contract and unmodified legacy monitoring
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/observability/check-workflow-release-gates.mjs
+          node --test scripts/observability/check-workflow-release-gates.test.mjs
+          test ! -e ci-cd/docker/prometheus/config.uptrace-live.alloy
+
       - name: Verify Chat2 + functional release readiness without touching providers
         env:
           CHAT2_LEGACY_RETIRE_ENABLED: ${{ vars.CHAT2_LEGACY_RETIRE_ENABLED }}
@@ -130,9 +152,27 @@ jobs:
           FEED_CDN_BROWSER_CACHE_24H_VERIFIED: ${{ vars.FEED_CDN_BROWSER_CACHE_24H_VERIFIED || 'false' }}
         run: node infra/cloudru/beget-production-smoke.mjs --feed-only
 
+      - name: Fail closed on unverified immutable release manifest before SSH
+        env:
+          GAFUS_RELEASE_MANIFEST_B64: ${{ inputs.release_manifest_b64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GAFUS_RELEASE_MANIFEST_B64" || { echo RELEASE_MANIFEST_MISSING; exit 1; }
+          printf '%s' "$GAFUS_RELEASE_MANIFEST_B64" | base64 -d > "$RUNNER_TEMP/release-images.json"
+          node ci-cd/scripts/release-image-manifest.mjs verify \
+            --manifest "$RUNNER_TEMP/release-images.json" \
+            --sourceSha '${{ inputs.release_sha }}' \
+            --runId '${{ inputs.release_run_id }}' \
+            --runAttempt '${{ inputs.release_run_attempt }}'
+
       - name: Deploy to production server
         uses: appleboy/ssh-action@v1.0.3
         env:
+          GAFUS_RELEASE_MANIFEST_B64: ${{ inputs.release_manifest_b64 }}
+          GAFUS_RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          GAFUS_RELEASE_RUN_ATTEMPT: ${{ inputs.release_run_attempt }}
+          GAFUS_RELEASE_SHA: ${{ inputs.release_sha }}
           DEPLOY_SCRIPT_1: |2+
             set -eo pipefail
             echo "🚀 Starting production deployment..."
@@ -142,6 +182,35 @@ jobs:
             RELEASE_BACKUP_DIR="/root/gafus-release-backups/${{ github.run_id }}-${{ github.run_attempt }}"
             # Child cutover commands must share this release backup and compose paths.
             export DEPLOY_ROOT COMPOSE_PROD RELEASE_BACKUP_DIR
+            # Before git reset, maintenance or database writes, reject any
+            # missing/mixed digest, run, architecture or unapproved repository.
+            python3 - <<'PY_RELEASE_MANIFEST'
+            import os, base64, json, re
+            from collections import Counter
+            names=['web','trainer-panel','admin-panel','api','worker','bull-board','prisma']
+            expected={key:'ghcr.io/asmtv1/gafus-'+key for key in names}
+            data=base64.b64decode(os.environ['GAFUS_RELEASE_MANIFEST_B64'],validate=True)
+            assert len(data)<32768,'MANIFEST_TOO_LARGE'
+            m=json.loads(data)
+            assert set(m)=={'schemaVersion','sourceSha','runId','runAttempt','images'},'MANIFEST_SCHEMA'
+            assert m['schemaVersion']==1,'MANIFEST_VERSION'
+            assert m['sourceSha']==os.environ['GAFUS_RELEASE_SHA'],'MANIFEST_SHA'
+            assert m['runId']==os.environ['GAFUS_RELEASE_RUN_ID'],'MANIFEST_RUN'
+            assert m['runAttempt']==os.environ['GAFUS_RELEASE_RUN_ATTEMPT'],'MANIFEST_ATTEMPT'
+            assert isinstance(m['images'],dict) and set(m['images'])==set(names),'MANIFEST_SEVEN'
+            for key,prefix in expected.items():
+                value=m['images'][key]
+                assert isinstance(value,str) and re.fullmatch(re.escape(prefix)+r'@sha256:[0-9a-f]{64}',value),'MANIFEST_DIGEST_'+key
+            print('REMOTE_IMMUTABLE_RELEASE_MANIFEST_VERIFIED')
+            PY_RELEASE_MANIFEST
+            release_ref() {
+              python3 - "$1" <<'PY_RELEASE_REF'
+            import sys,json,base64,os
+            key=sys.argv[1]
+            manifest=json.loads(base64.b64decode(os.environ['GAFUS_RELEASE_MANIFEST_B64'],validate=True))
+            print(manifest['images'][key.removeprefix('gafus-')])
+            PY_RELEASE_REF
+            }
             APP_MUTATED=false
             CUTOVER_SCRIPT="$DEPLOY_ROOT/ci-cd/scripts/production-schema-cutover.sh"
             MAINTENANCE_GATE="$DEPLOY_ROOT/ci-cd/nginx/conf.d/.release-maintenance"
@@ -313,6 +382,20 @@ jobs:
               exit 1
             fi
 
+            # Snapshot this verified control workflow's migration guard outside
+            # the deployment tree before checking out the release SHA. Older
+            # rollback targets may lack the new `preflight` cutover mode.
+            CONTROL_SHA="${{ github.sha }}"
+            if ! git show "$CONTROL_SHA:ci-cd/scripts/production-schema-cutover.sh" \
+              > "$RELEASE_BACKUP_DIR/control-schema-cutover.sh" ||
+               ! git show "$CONTROL_SHA:ci-cd/scripts/verify-production-migration-ledger.py" \
+              > "$RELEASE_BACKUP_DIR/control-migration-ledger.py"; then
+              echo 'BLOCKED: current control SHA lacks verified migration guard' >&2
+              exit 1
+            fi
+            chmod 600 "$RELEASE_BACKUP_DIR/control-schema-cutover.sh" \
+              "$RELEASE_BACKUP_DIR/control-migration-ledger.py"
+
             if [ "${{ inputs.app_only }}" = "true" ]; then
               # The approved image SHA may be an ancestor of the control-only
               # workflow commit, but must never be an unrelated/stale branch.
@@ -333,6 +416,23 @@ jobs:
               echo "❌ Failed to clean working directory"
               exit 1
             fi
+
+            # Database ledger must exactly match immutable migration.sql bytes
+            # before image pulls, Compose updates, maintenance or any DB write.
+            # Current production's nonstandard/manual checksums intentionally
+            # veto deployment until the owner reconciles the historical ledger.
+            GAFUS_MIGRATION_LEDGER_VERIFIER_PATH="$RELEASE_BACKUP_DIR/control-migration-ledger.py" \
+              bash "$RELEASE_BACKUP_DIR/control-schema-cutover.sh" preflight || {
+              echo "BLOCKED: production migration ledger differs from checked-out release SHA" >&2
+              # The release SHA was checked out to validate its own SQL files;
+              # restore the previous mounted checkout before leaving old
+              # containers running. Backup remains outside the Git tree.
+              git reset --hard "$(cat "$RELEASE_BACKUP_DIR/previous.sha")" || {
+                echo "CRITICAL: failed to restore previous checkout after ledger veto" >&2
+                exit 1
+              }
+              exit 1
+            }
 
             if ! docker exec gafus-nginx nginx -t; then
               echo "BLOCKED: prospective nginx config fails preflight; reverting mounted config."
@@ -489,6 +589,12 @@ jobs:
               echo "FEED_CDN_BROWSER_CACHE_24H_VERIFIED=${{ vars.FEED_CDN_BROWSER_CACHE_24H_VERIFIED || 'false' }}"
               echo "CDN_HEALTH_MONITOR_ENABLED=true"
 
+              # Signed mobile OTA assets are served directly from Cloud.ru S3.
+              # Empty delivery environment disables client updates until native release approval.
+              echo "MOBILE_OTA_ASSET_ORIGIN=https://global.s3.cloud.ru/gafus-ota-updates"
+              echo "MOBILE_OTA_CI_CALLBACK_TOKEN=${{ secrets.MOBILE_OTA_CI_CALLBACK_TOKEN }}"
+              echo "MOBILE_OTA_DELIVERY_ENV=${{ vars.MOBILE_OTA_DELIVERY_ENV }}"
+              echo "MOBILE_OTA_INSTALLATION_HASH_KEY=${{ secrets.MOBILE_OTA_INSTALLATION_HASH_KEY }}"
               echo "CLOUDRU_S3_ENDPOINT=https://s3.cloud.ru"
               echo "CLOUDRU_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
               echo "CLOUDRU_S3_SECRET_ACCESS_KEY=${{ secrets.CLOUDRU_S3_SECRET_ACCESS_KEY }}"
@@ -816,7 +922,8 @@ jobs:
 
             pull_image() {
               local image="$1"
-              local reference="ghcr.io/asmtv1/$image:sha-${{ inputs.release_sha }}"
+              local reference
+              reference="$(release_ref "$image")"
               for attempt in 1 2 3; do
                 echo "📥 Pulling $image (attempt $attempt/3)..."
                 if timeout 15m docker pull "$reference"; then
@@ -847,7 +954,14 @@ jobs:
             # Compose uses :latest locally. Pin EVERY release to the same SHA:
             # only after all immutable images are fetched, retag them for Compose.
             for image in "${images[@]}"; do
-              docker tag "ghcr.io/asmtv1/$image:sha-${{ inputs.release_sha }}" "ghcr.io/asmtv1/$image:latest"
+              immutable_ref="$(release_ref "$image")"
+              test "$(docker image inspect --format '{{.Architecture}}' "$immutable_ref")" = amd64 || {
+                echo "RELEASE_IMAGE_ARCHITECTURE_MISMATCH:$image" >&2; exit 1;
+              }
+              # Compatibility tags remain local aliases only, derived from the
+              # exact digest verified in the CI smoke receipt, never registry :latest.
+              docker tag "$immutable_ref" "ghcr.io/asmtv1/$image:sha-${{ inputs.release_sha }}"
+              docker tag "$immutable_ref" "ghcr.io/asmtv1/$image:latest"
             done
 
             # Remove only stopped, unused resources after all required images are present.
@@ -982,5 +1096,6 @@ jobs:
           key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
           port: ${{ inputs.app_only && '22' || secrets.SERVER_PORT }}
           command_timeout: 60m
+          envs: GAFUS_RELEASE_MANIFEST_B64,GAFUS_RELEASE_RUN_ID,GAFUS_RELEASE_RUN_ATTEMPT,GAFUS_RELEASE_SHA
           # Keep each interpolated scalar below GitHub's 21,000-character expression limit.
           script: ${{ format('{0}{1}{2}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}

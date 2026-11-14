@@ -1,0 +1,1100 @@
+{
+  "policy": "/Users/asmtv1/Desktop/gafus-agent2-observability/docs/audit/gafus-agents-integration-preflight-policy-20261112-r37-lock-verified.json",
+  "candidate": null,
+  "kind": "gafus/integration-preflight-result/v1",
+  "verdict": "FAIL",
+  "counts": {
+    "PASS": 208,
+    "FAIL": 6,
+    "BLOCKED": 3
+  },
+  "checks": [
+    {
+      "id": "POLICY_SCHEMA",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "PAYMENT_MANIFEST_SHA",
+      "status": "PASS",
+      "detail": "87d0fbedf7ab2692637cbeed6fcf819b865f23c70f92094e4f5dd905a728a362"
+    },
+    {
+      "id": "AGENT3_MANIFEST_SHA",
+      "status": "PASS",
+      "detail": "b98783d54906caeb0e0f9c86861863a9b38b464cc0cb39bed29a5da5166fe3d7"
+    },
+    {
+      "id": "PAYMENT_MANIFEST_CONTENT",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A3_MANIFEST_CONTENT",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R37_THREE_BATCHES",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_BATCH_SHA:payment",
+      "status": "PASS",
+      "detail": "87d0fbedf7ab2692637cbeed6fcf819b865f23c70f92094e4f5dd905a728a362"
+    },
+    {
+      "id": "A1_BATCH_FILES:payment",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_BATCH_SHA:reminder",
+      "status": "PASS",
+      "detail": "44405745affa7196c746db547ca1190fc53dfb2ec9ebf003dd9b3aa8cac50fba"
+    },
+    {
+      "id": "A1_BATCH_FILES:reminder",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_BATCH_SHA:flags_access",
+      "status": "PASS",
+      "detail": "f3f19b3543366102f46e85aab92d15b11a1cd8bcb51dc4b05bfa5920a086769a"
+    },
+    {
+      "id": "A1_BATCH_FILES:flags_access",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_R37_INTERMEDIATE_RATCHET",
+      "status": "PASS",
+      "detail": "R37 is a partial ratchet; must not impersonate the final A1 registry"
+    },
+    {
+      "id": "A1_R37_COMPLETE_DECISIONS",
+      "status": "PASS",
+      "detail": "51 manifest records collapse to 49 unique paths; every path needs a decision"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/paymentService.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/paymentService.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/index.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/index.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/paymentService.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/paymentService.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/paymentService.realpg.archqa.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/paymentService.realpg.archqa.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/subscription-payment-server/src/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/subscription-payment-server/src/appleJws.archqa.acceptance.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/subscription-payment-server/src/appleJws.archqa.acceptance.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/subscription-payment-server/src/appleJws.archqa.acceptance.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/app-subscription/composition/payment-transitions.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/app-subscription/composition/payment-transitions.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/app-subscription.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/app-subscription.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/payment-provider-webhooks.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/payment-provider-webhooks.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/app-subscription.route.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/app-subscription.route.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/payment-provider-webhooks.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/payment-provider-webhooks.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/admin-users.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/admin-users.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/admin-users.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/admin-users.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/worker/src/composition/app-subscription-payment.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/worker/src/composition/app-subscription-payment.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/worker/src/cron-scheduler.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/worker/src/cron-scheduler.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/worker/src/cron-scheduler.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/worker/src/cron-scheduler.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/worker/src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/worker/src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/reminders/composition/create-receipt-review.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/reminders/composition/create-receipt-review.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/g1-reminder-create-lookup.review.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/g1-reminder-create-lookup.review.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/g1-reminder-create-lookup.review.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/g1-reminder-create-lookup.review.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "FAIL",
+      "detail": "audit-only, pinned source, not copied to runtime"
+    },
+    {
+      "id": "A1_DECISION:docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "FAIL",
+      "detail": "audit-only, pinned source, not copied to runtime"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/app.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/app.ts",
+      "status": "FAIL",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/app-feature-flags/composition/install-core-flags.contract.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/app-feature-flags/composition/install-core-flags.contract.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/app-feature-flags/composition/install-core-flags.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/app-feature-flags/composition/install-core-flags.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.contract.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.contract.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/modules/app-subscription/composition/install-core-subscription-access.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:apps/api/src/routes/v1/g1-subscription-readonly.contract.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:apps/api/src/routes/v1/g1-subscription-readonly.contract.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/package.json",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/package.json",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appFeatureFlags/appFeatureFlagsPort.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appFeatureFlags/appFeatureFlagsPort.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appFeatureFlags/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appFeatureFlags/index.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appFeatureFlags/index.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/accessService.facade.g1.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/accessService.facade.g1.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/accessService.readBaseline.g1.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/accessService.readBaseline.g1.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/accessService.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/accessService.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/__tests__/cynologistEntitlements.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/__tests__/cynologistEntitlements.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/accessPort.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/accessPort.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/accessService.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/accessService.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/appSubscription/g1-achievements-snapshot-access-source.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/appSubscription/g1-achievements-snapshot-access-source.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/core/src/services/consultation/bookingService.test.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/core/src/services/consultation/bookingService.test.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/feature-flags-server/package.json",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/feature-flags-server/package.json",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/feature-flags-server/src/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/feature-flags-server/src/appFeatureFlagsService.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/types/src/contracts/mobileReleaseErrors.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/types/src/contracts/mobileReleaseErrors.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:packages/types/src/index.ts",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:packages/types/src/index.ts",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:pnpm-lock.yaml",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:pnpm-lock.yaml",
+      "status": "PASS",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_DECISION:scripts/check-core-server-boundary.mjs",
+      "status": "PASS",
+      "detail": "missing/incorrect integration classification, SHA or source batch"
+    },
+    {
+      "id": "A1_SOURCE_FINAL_SHA:scripts/check-core-server-boundary.mjs",
+      "status": "FAIL",
+      "detail": "A1 current after-SHA must match latest manifest"
+    },
+    {
+      "id": "A1_COMPANION_EXCLUSIONS",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-reminder-review-ports-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-reminder-review-ports-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.md",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_EXCLUDED_COMPANION_SHA:docs/audit/gafus-agent-1-to-agent-2-featureflags-subscription-ports-20261112.json",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_PRIOR_INVENTORY_SHA",
+      "status": "PASS",
+      "detail": "pinned inventory used to detect unmanifested new A1 files"
+    },
+    {
+      "id": "A1_SOURCE_DIRTY_INVENTORY_AVAILABLE",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_NEW_FILES_ACCOUNTED",
+      "status": "FAIL",
+      "detail": "newDirty=33, unaccounted=apps/api/src/modules/auth/composition/install-registration-context.ts,apps/api/src/modules/rewarded-credits/composition/install-core-settings.contract.test.ts,apps/api/src/modules/rewarded-credits/composition/install-core-settings.ts,apps/api/src/modules/trainer-courses/composition/install-core-version-rows.contract.test.ts,apps/api/src/modules/trainer-courses/composition/install-core-version-rows.ts,docs/audit/gafus-agent-1-to-agent-2-course-version-port-20261112.json,docs/audit/gafus-agent-1-to-agent-2-course-version-port-20261112.md,docs/audit/gafus-agent-1-to-agent-2-rewarded-settings-port-20261112.json,docs/audit/gafus-agent-1-to-agent-2-rewarded-settings-port-20261112.md,packages/core/src/services/rewardedCredits/settingsPort.test.ts,packages/core/src/services/rewardedCredits/settingsService.test.ts,packages/core/src/services/trainerCourse/courseVersionPort.test.ts,packages/core/src/services/trainerCourse/g1-course-global-version.cas.test.ts,packages/core/src/services/trainerCourse/g1-fullschema-course-version-work-stage.real-pg.test.ts"
+    },
+    {
+      "id": "A1_DIRTY_PATH_SET_SHA",
+      "status": "FAIL",
+      "detail": "new/removed A1 dirty source paths require a refreshed policy and file classification"
+    },
+    {
+      "id": "A1_R37_EXPLICIT_INTEGRATION_APPROVAL",
+      "status": "BLOCKED",
+      "detail": "Await separate permission; no branch creation/merge/push"
+    },
+    {
+      "id": "A1_FINAL_REGISTRY_PIN",
+      "status": "BLOCKED",
+      "detail": "No approved final A1 architecture registry. Payment batch / prior results.tsv are insufficient."
+    },
+    {
+      "id": "LOCK_PROOF_EVIDENCE_SHA",
+      "status": "PASS",
+      "detail": "expected pinned JSON evidence"
+    },
+    {
+      "id": "LOCK_PROOF_EVIDENCE_CONTENT",
+      "status": "PASS",
+      "detail": "two identical offline-only regenerations; provisional, NOT final lock approval"
+    },
+    {
+      "id": "LOCK_PROOF_SNAPSHOT_88_FILES",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:.npmrc",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/admin-panel/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/api/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/bull-board/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/feed-cloud/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/gallery-cloud/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/mobile/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/trainer-panel/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:apps/web-vite/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/achievements-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/admin-reengagement-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/admin-rewarded-ads-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/analytics/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/article-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/auth/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/cdn-upload/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/chat-media-quality/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/chat-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/consent-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/consultation-query-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/consultation-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/consultation-shared/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/consultation-write-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/core-client/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/core/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/course-progress-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/course-read-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/course-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/csrf/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/entitlements-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/error-handling/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/exam-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/feature-flags-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/feed-cloud/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/feed-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/feed-storage/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/gafus-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/gallery-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/gallery-storage/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/identity-write-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/logger/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/mailer/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/media-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/media-shared/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/mobile-intro-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/notifications-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/npd/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/pets-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/pets-shared/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/prisma/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/prisma/schema.prisma",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/questions-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/questions-shared/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/questions-write-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/queues/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/react-query/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/reengagement/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/statistics/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-finance-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-payment-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-read-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-shared/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-trial-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/subscription-write-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/tracking-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/trainer-ai-server/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/types/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/ui-components/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/video-access/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/webpush/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:packages/worker/package.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/@voximplant__react-native-calls@2.0.0.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/expo-location@55.1.15.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/expo-modules-core@3.0.29.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/expo-modules-core@55.0.27.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/expo-widgets@55.0.20.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-android-widget@0.26.0.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-compressor@1.16.0.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-reanimated@4.1.6.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-reanimated@4.2.1.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-screens@4.16.0.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native-worklets@0.5.1.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:patches/react-native@0.81.5.patch",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:pnpm-lock.yaml",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:pnpm-workspace.yaml",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:scripts/architecture-workspace-cycles.json",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "LOCK_PROOF_SOURCE_SHA:scripts/check-workspace-graph.mjs",
+      "status": "PASS",
+      "detail": "re-pin proof if A1 manifest, patch, workspace config or source lock changes"
+    },
+    {
+      "id": "CANDIDATE_COPY",
+      "status": "BLOCKED",
+      "detail": "No candidate provided; no writes performed."
+    }
+  ],
+  "noMutation": true,
+  "warning": "Read-only preflight. Passing this does not authorize commit, merge, push, production, Cloud.ru, CDN, 33/5/18 regression or stage acceptance."
+}

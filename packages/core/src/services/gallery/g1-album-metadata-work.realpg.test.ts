@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 /** Gallery album metadata Core + permanent local WORK PG18; zero provider I/O. */
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -28,7 +29,7 @@ const storage: GalleryStoragePort = {
     throw Error("NO_REAL_CDN_PROVIDER");
   }),
 };
-const gallery = createGalleryService({ db: prisma, storage });
+const gallery = createGalleryService({ enqueueDeletedMediaPurge,  db: prisma, storage });
 async function cleanup() {
   await prisma.galleryStorageJob.deleteMany({ where: { ownerId: { in: users } } });
   for (let i = 0; i < users.length; i++) {

@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import { createMockLogger } from "../../test/test-utils";
-import { getAchievementStats } from "./statsService";
+import { getAchievementStats } from "@gafus/achievements-server/statsService";
 
 const mockUserCourseFindMany = vi.fn();
 const mockUserTrainingFindMany = vi.fn();
@@ -81,18 +81,14 @@ describe("getAchievementStats", () => {
   });
 
   it("computes overallProgress from completed days and total days", async () => {
-    mockUserCourseFindMany.mockResolvedValue([
-      { courseId: "c1", status: "IN_PROGRESS" },
-    ]);
+    mockUserCourseFindMany.mockResolvedValue([{ courseId: "c1", status: "IN_PROGRESS" }]);
     mockUserTrainingFindMany
       .mockResolvedValueOnce([
         { dayOnCourse: { courseId: "c1" } },
         { dayOnCourse: { courseId: "c1" } },
       ])
       .mockResolvedValue([]);
-    mockDayOnCourseGroupBy.mockResolvedValue([
-      { courseId: "c1", _count: 4 },
-    ]);
+    mockDayOnCourseGroupBy.mockResolvedValue([{ courseId: "c1", _count: 4 }]);
 
     const result = await getAchievementStats("user-1");
 

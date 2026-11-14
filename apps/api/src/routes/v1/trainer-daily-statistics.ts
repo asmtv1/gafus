@@ -7,7 +7,7 @@ import {
   type DailyCourseActor,
   type DailyCourseScheduleDto,
   type DailyCourseScheduleStatisticsDto,
-} from "@gafus/core/services/dailyCourse";
+} from "../../modules/daily-course/composition/dailyCourseApplication.js";
 
 type Result = { schedule: DailyCourseScheduleDto[];
   selectedScheduleId: string | null; statistics: DailyCourseScheduleStatisticsDto | null };

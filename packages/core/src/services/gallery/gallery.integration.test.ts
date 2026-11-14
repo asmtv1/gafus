@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -46,11 +47,20 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
         fields: { key, expires: expiresAt.toISOString() },
       })),
       head: vi.fn(async (key) => objects.get(key) ?? null),
+      signClientThumb: async ({ sourceKey }) => ({
+        url: "https://bucket.test",
+        fields: { key: sourceKey.replace(/source\.webp$/, "thumb.webp") },
+      }),
+      publishClientPhoto: async ({ thumbKey, fullKey }) => {
+        objects.set(thumbKey, { etag: "thumb", bytes: 120, contentType: "image/webp" });
+        objects.set(fullKey, { etag: "full", bytes: 900, contentType: "image/webp" });
+        return { width: 1200, height: 800 };
+      },
       signCdn: vi.fn(
         async ({ key, expiresAt }) => `https://cdn.test/${key}?expires=${expiresAt.toISOString()}`,
       ),
     };
-    service = createGalleryService({ db: db!, storage, now: () => new Date(at) });
+    service = createGalleryService({ enqueueDeletedMediaPurge,  db: db!, storage, now: () => new Date(at) });
   });
   afterEach(async () => {
     // Only the two fixture users and their jobs, never unscoped deletes/truncate/reset.
@@ -76,22 +86,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     objects.set(upload.sourceKey, { etag: "source-v1", bytes: 1234, contentType: "image/jpeg" });
     const claim = (await service.claimUpload({ uploadId: dto.uploadId }))!;
     expect(claim).not.toBeNull();
-    // Explicitly emulate a pre-cutover V1 attempt for existing legacy
-    // publish/move-copy recovery scenarios. The currently issued claims
-    // use direct V2 keys; keep both paths covered until migration.
-    return { dto, upload, claim: await legacyClaim(claim, upload.photoId, dto.albumId) };
-  }
-  async function legacyClaim(
-    claim: NonNullable<Awaited<ReturnType<ReturnType<typeof createGalleryService>["claimUpload"]>>>,
-    photoId: string,
-    albumId: string,
-  ) {
-    const staged = galleryAttemptKeys(owner, albumId, claim.uploadId, claim.attemptToken);
-    await db!.galleryUpload.update({
-      where: { id: claim.uploadId },
-      data: { stagedThumbKey: staged.thumbKey, stagedFullKey: staged.fullKey },
-    });
-    return { ...claim, ...staged };
+    return { dto, upload, claim };
   }
   function copy(claim: GalleryStorageJobClaim) {
     expect(claim.writeMode).toBe("create-if-absent");
@@ -102,47 +97,40 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     });
   }
   async function publish(result: Awaited<ReturnType<typeof processing>>) {
-    let { claim } = result;
-    if (claim.thumbKey === galleryPhotoV2Keys(owner, claim.photoId).thumbKey) {
-      claim = await legacyClaim(claim, claim.photoId, result.dto.albumId);
-    }
-    objects.set(claim.thumbKey, {
-      etag: `thumb-${claim.photoId}`,
-      bytes: 300,
-      contentType: "image/webp",
-    });
-    objects.set(claim.fullKey, {
-      etag: `full-${claim.photoId}`,
-      bytes: 900,
-      contentType: "image/webp",
-    });
+    const { claim } = result;
+    const thumb = { etag: '"' + "a".repeat(32) + '"', bytes: 300, contentType: "image/webp" as const };
+    const full = { etag: '"' + "b".repeat(32) + '"', bytes: 900, contentType: "image/webp" as const };
+    objects.set(claim.thumbKey, thumb);
+    objects.set(claim.fullKey, full);
     const callback = {
       uploadId: claim.uploadId,
       attemptToken: claim.attemptToken,
       sourceETag: claim.sourceETag,
       width: 1200,
       height: 800,
+      manifest: {
+        thumb: { ...thumb, width: 480, height: 320 },
+        full: { ...full, width: 1200, height: 800 },
+      },
     };
-    expect(await service.completeUpload(callback)).toEqual({
-      accepted: true,
-      status: "processing",
-    });
-    const job = (await service.claimStorageJobs({ limit: 50 })).find(
-      (j) => j.kind === "publish" && j.sourceKeys[0] === claim.thumbKey,
-    )!;
-    expect(job).toBeDefined();
-    copy(job);
-    expect(
-      await service.completeStorageJob({ jobId: job.jobId, attemptToken: job.attemptToken }),
-    ).toEqual({ accepted: true, status: "done" });
+    expect(await service.completeUpload(callback)).toEqual({ accepted: true, status: "ready" });
     return {
       ...result,
       callback,
-      job,
       photo: await db!.galleryPhoto.findUniqueOrThrow({ where: { id: claim.photoId } }),
     };
   }
   const ready = async (albumId?: string) => publish(await processing(albumId));
+
+  async function readyLegacyPhoto() {
+    const result = await ready();
+    // Album-bound keys still exist for historical photos and require a copy on move.
+    const keys = galleryPhotoKeys(owner, result.photo.albumId, result.photo.id);
+    objects.set(keys.thumbKey, objects.get(result.photo.thumbKey!)!);
+    objects.set(keys.fullKey, objects.get(result.photo.fullKey!)!);
+    const photo = await db!.galleryPhoto.update({ where: { id: result.photo.id }, data: keys });
+    return { ...result, photo };
+  }
 
   it("V2 real PostgreSQL READY validates two final HEADs, skips publish, and moves without S3 copy", async () => {
     const album = await service.createAlbum(owner, { name: "V2 source" });
@@ -523,15 +511,11 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     const r = await ready();
     expect(await service.claimUpload({ uploadId: r.upload.id })).toBeNull();
     expect(await service.completeUpload(r.callback)).toEqual({ accepted: true, status: "ready" });
-    await expect(service.completeUpload({ ...r.callback, width: 999 })).rejects.toMatchObject({
-      code: "CALLBACK_CONFLICT",
-    });
+    expect(await service.completeUpload({ ...r.callback, width: 999 }))
+      .toEqual({ accepted: false, status: "ready" });
     expect(
       await service.completeUpload({ ...r.callback, attemptToken: randomUUID() }),
     ).toMatchObject({ accepted: false });
-    expect(
-      await service.completeStorageJob({ jobId: r.job.jobId, attemptToken: r.job.attemptToken }),
-    ).toEqual({ accepted: true, status: "done" });
     expect(
       await service.failUpload({
         uploadId: r.upload.id,
@@ -542,7 +526,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     ).toMatchObject({ accepted: false });
     expect(
       await db!.galleryStorageJob.count({ where: { uploadId: r.upload.id, kind: "publish" } }),
-    ).toBe(1);
+    ).toBe(0);
     expect(await db!.galleryPhoto.findUnique({ where: { id: r.photo.id } })).toEqual(r.photo);
   });
   it("active lease crossing original reservation keeps slot and permits valid publication", async () => {
@@ -563,31 +547,33 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     await publish({ dto, upload, claim });
     expect((await service.listAlbums(owner, { username })).usedSlots).toBe(200);
   });
-  it("active publication lease crossing its current deadline keeps quota protected", async () => {
-    const album = await service.createAlbum(owner, { name: "Publish lease" });
+  it("retires a staged legacy publish without consuming the available quota", async () => {
+    const album = await service.createAlbum(owner, { name: "Legacy staged photo" });
     await seed199(album.id);
     const r = await processing(album.id);
-    objects.set(r.claim.thumbKey, { etag: "thumb", bytes: 100, contentType: "image/webp" });
-    objects.set(r.claim.fullKey, { etag: "full", bytes: 300, contentType: "image/webp" });
-    await service.completeUpload({
+    const staged = galleryAttemptKeys(owner, album.id, r.upload.id, r.claim.attemptToken);
+    await db!.galleryUpload.update({
+      where: { id: r.upload.id },
+      data: { stagedThumbKey: staged.thumbKey, stagedFullKey: staged.fullKey },
+    });
+    objects.set(staged.thumbKey, { etag: "thumb", bytes: 100, contentType: "image/webp" });
+    objects.set(staged.fullKey, { etag: "full", bytes: 300, contentType: "image/webp" });
+    expect(await service.completeUpload({
       uploadId: r.upload.id,
       attemptToken: r.claim.attemptToken,
       sourceETag: r.claim.sourceETag,
       width: 100,
       height: 100,
-    });
-    advance(899_000);
-    const job = (await service.claimStorageJobs({ limit: 50 })).find((j) => j.kind === "publish")!;
-    advance(2000);
+    })).toEqual({ accepted: true, status: "processing" });
+    expect((await service.claimStorageJobs({ limit: 50 })).some(job => job.kind === "publish"))
+      .toBe(false);
+    advance(901_000);
     await service.maintenance();
-    expect((await service.listAlbums(owner, { username })).usedSlots).toBe(200);
-    await expect(service.reserveUpload(owner, input(album.id))).rejects.toMatchObject({
-      code: "QUOTA_EXCEEDED",
+    expect((await service.listAlbums(owner, { username })).usedSlots).toBe(199);
+    expect((await service.getUpload(owner, r.upload.id)).status).not.toBe("ready");
+    await expect(service.reserveUpload(owner, input(album.id))).resolves.toMatchObject({
+      status: "reserved",
     });
-    copy(job);
-    expect(
-      await service.completeStorageJob({ jobId: job.jobId, attemptToken: job.attemptToken }),
-    ).toMatchObject({ accepted: true });
   });
   it("source rewritten after READY is removed by final timer cleanup after POST expiry", async () => {
     const r = await ready();
@@ -612,28 +598,30 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     expect(objects.has(r.upload.sourceKey)).toBe(false);
     expect(objects.has(r.photo.thumbKey!)).toBe(true);
   });
-  it("processing attempts are bounded and superseded callback cannot publish", async () => {
+  it("processing attempts are bounded and superseded callbacks cannot publish", async () => {
     const r = await processing();
-    advance(120_001);
-    await service.maintenance();
+    const failAttempt = (attemptToken: string) => service.failUpload({
+      uploadId: r.upload.id,
+      attemptToken,
+      errorCode: "TEMPORARY",
+      retryable: true,
+    });
+    await expect(failAttempt(r.claim.attemptToken)).resolves.toMatchObject({ status: "uploaded" });
+    advance(2_001);
     const second = (await service.claimUpload({ uploadId: r.upload.id }))!;
     expect(second.attemptToken).not.toBe(r.claim.attemptToken);
-    expect(
-      await service.completeUpload({
-        uploadId: r.upload.id,
-        attemptToken: r.claim.attemptToken,
-        sourceETag: r.claim.sourceETag,
-        width: 100,
-        height: 100,
-      }),
-    ).toMatchObject({ accepted: false });
-    advance(120_001);
-    await service.maintenance();
-    expect(await service.claimUpload({ uploadId: r.upload.id })).not.toBeNull();
-    advance(120_001);
-    await service.maintenance();
+    expect(await service.completeUpload({
+      uploadId: r.upload.id,
+      attemptToken: r.claim.attemptToken,
+      sourceETag: r.claim.sourceETag,
+      width: 100,
+      height: 100,
+    })).toMatchObject({ accepted: false });
+    await expect(failAttempt(second.attemptToken)).resolves.toMatchObject({ status: "uploaded" });
+    advance(4_001);
+    const third = (await service.claimUpload({ uploadId: r.upload.id }))!;
+    await expect(failAttempt(third.attemptToken)).resolves.toMatchObject({ status: "failed" });
     expect(await service.claimUpload({ uploadId: r.upload.id })).toBeNull();
-    expect((await service.getUpload(owner, r.upload.id)).status).toBe("failed");
     expect((await service.listAlbums(owner, { username })).usedSlots).toBe(0);
   });
   it("maintenance never promotes reserved uploads to a deleted Cloud photo processor", async () => {
@@ -684,7 +672,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     expect(final.availableAt.getTime()).toBeGreaterThanOrEqual(r.upload.postExpiresAt.getTime());
   });
   it("failed move preserves source; cover requires READY in same album; deleted destination cancels", async () => {
-    const r = await ready(),
+    const r = await readyLegacyPhoto(),
       target = await service.createAlbum(owner, { name: "Target" }),
       pending = await service.reserveUpload(owner, input(target.id));
     for (const photoId of [pending.photo!.id, r.photo.id])
@@ -732,7 +720,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     expect((await service.getPhoto(owner, r.photo.id)).albumId).toBe(r.photo.albumId);
   });
   it("move back cannot recreate keys while an old cleanup is in flight", async () => {
-    const r = await ready(),
+    const r = await readyLegacyPhoto(),
       target = await service.createAlbum(owner, { name: "Move" }),
       moved = await service.movePhoto(owner, r.photo.id, {
         albumId: target.id,
@@ -779,7 +767,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     ).toBe(false);
   });
   it("account cleanup survives cascade, invalidates callbacks, remains callable disabled", async () => {
-    const r = await ready(),
+    const r = await readyLegacyPhoto(),
       active = await processing(r.dto.albumId),
       target = await service.createAlbum(owner, { name: "Target" }),
       moved = await service.movePhoto(owner, r.photo.id, {
@@ -914,7 +902,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     ).toEqual({ accepted: true, status: "done" });
     expect(objects.has(upload.sourceKey)).toBe(false);
   });
-  it("immutable source ETag across processing retries and idempotent fresh user retry", async () => {
+  it("rejects changed sources and reserves at most one manual WebP retry", async () => {
     const r = await processing();
     await service.failUpload({
       uploadId: r.upload.id,
@@ -926,14 +914,24 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     objects.set(r.claim.sourceKey, { etag: "v2", bytes: 50, contentType: "image/jpeg" });
     expect(await service.claimUpload({ uploadId: r.upload.id })).toBeNull();
     expect((await service.getUpload(owner, r.upload.id)).status).toBe("failed");
-    const request = { clientRequestId: randomUUID() },
-      retry = await service.retryUpload(owner, r.upload.id, request);
-    expect(await service.retryUpload(owner, r.upload.id, request)).toEqual(retry);
-    expect(retry.photo!.id).not.toBe(r.claim.photoId);
-    expect(retry.postFields!.key).not.toBe(r.claim.sourceKey);
-    await expect(
-      service.retryUpload(owner, r.upload.id, { clientRequestId: randomUUID() }),
-    ).rejects.toMatchObject({ code: "REQUEST_CONFLICT" });
+    await expect(service.retryUpload(owner, r.upload.id, { clientRequestId: randomUUID() }))
+      .rejects.toMatchObject({ code: "CLIENT_PHOTO_REQUIRED" });
+
+    const webp = await service.reserveClientUpload(owner, {
+      ...input(r.dto.albumId), filename: "photo.webp", declaredMime: "image/webp",
+    });
+    const row = await db!.galleryUpload.findUniqueOrThrow({ where: { id: webp.uploadId } });
+    await db!.galleryUpload.update({
+      where: { id: webp.uploadId },
+      data: { status: "failed", errorCode: "CLIENT_PHOTO_FAILED" },
+    });
+    const request = { clientRequestId: randomUUID() };
+    const retry = await service.retryUpload(owner, webp.uploadId, request);
+    expect(await service.retryUpload(owner, webp.uploadId, request)).toEqual(retry);
+    expect(retry.photo!.id).not.toBe(row.photoId);
+    expect(retry.postFields!.key).not.toBe(row.sourceKey);
+    await expect(service.retryUpload(owner, webp.uploadId, { clientRequestId: randomUUID() }))
+      .rejects.toMatchObject({ code: "REQUEST_CONFLICT" });
   });
   it("disabled empty wrapper + errors, each owner account must exist", async () => {
     const album = await service.createAlbum(owner, { name: "Enabled" });

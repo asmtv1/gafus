@@ -69,3 +69,8 @@ describe("AG1 Vet history list existing Core SELECT-only contract", () => {
     expect(m.write).not.toHaveBeenCalled();
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalVetVisitRowsPort from "@gafus/pets-server/vet-visit-write-rows";
+import { registerVetVisitRowsPort } from "./vetVisitRowsPort";
+registerVetVisitRowsPort({ ...originalVetVisitRowsPort, isVetVisitDbError: (error): error is originalVetVisitRowsPort.VetVisitDbError => error instanceof originalVetVisitRowsPort.VetVisitDbError });

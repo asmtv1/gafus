@@ -10,22 +10,43 @@ import { consultationMskDayKey } from "./consultationMskFormat";
 const owner = "admin5_only_trainer";
 const cynId = "admin5_only_cyno";
 const dbUrl = "postgresql://asmtv1@127.0.0.1:55695/gafus_admin5_isolated";
-vi.mock("./cynologistService", () => ({
-  ensureConsultationCynologistRow: vi.fn(async () => cynId),
-}));
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ info: vi.fn(), success: vi.fn(), warn: vi.fn(), error: vi.fn() }),
 }));
 import {
+  applyTrainerScheduleChange,
+  hasTrainerScheduleOwnership,
+  readCynologistDayOffDates,
+  readTrainerSchedule,
+} from "@gafus/consultation-query-server/schedule-rows";
+import { createConsultationAvailabilityService } from "./availabilityService";
+import {
+  getAvailableSlots,
+  getTrainerEditableSlotsImpl as getTrainerEditableSlots,
+  rebuildSlotsForCynologistInTransaction,
+} from "@gafus/consultation-server/slot-service";
+
+const {
   addDayOff,
   addSlotException,
   getTrainerAvailability,
-  getTrainerEditableSlots,
   removeDayOff,
   removeSlotException,
   setTrainerAvailability,
-} from "./availabilityService";
-import { getAvailableSlots } from "./slotService";
+} = createConsultationAvailabilityService({
+  ensureConsultationCynologistRow: async () => cynId,
+  hasTrainerScheduleOwnership,
+  readCynologistDayOffDates,
+  readTrainerSchedule,
+  async applyScheduleChange(trainerId, cynologistId, change) {
+    await applyTrainerScheduleChange(trainerId, cynologistId, change, (tx, id, days) => {
+      const from = new Date();
+      const to = new Date(from.getTime() + days * 86_400_000);
+      return rebuildSlotsForCynologistInTransaction(tx, id, from, to);
+    });
+    return "OK";
+  },
+});
 
 const rule = (startTime = "10:00", endTime = "11:00", isWorkingDay = true) => ({
   weekday: 1,

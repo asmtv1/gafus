@@ -56,7 +56,7 @@ vi.mock("./passwordReset",()=>({resetPasswordByToken:vi.fn()}));
 vi.mock("./registerUserWithCredentials",()=>({registerUserWithCredentials:vi.fn()}));
 import {prisma} from "@gafus/prisma";
 import {setPassword,changePassword} from "./authService";
-import {sessionIsCurrent} from "./identityReadService";
+import {sessionIsCurrent} from "@gafus/auth/jwt";
 const db=prisma as PrismaClient;
 (supplied?describe:describe.skip)("W1 G02 / AG4 real isolated PG14, real bcrypt, fake mail",()=>{
  let owner="",foreign="";

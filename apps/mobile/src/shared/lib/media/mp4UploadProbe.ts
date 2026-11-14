@@ -102,7 +102,7 @@ function sampleTable(reader: Mp4RangeReader, box: Box, track: Track): void {
     }
   }
 }
-function trackInfo(reader: Mp4RangeReader, trak: Box): Track {
+function trackInfo(reader: Mp4RangeReader, trak: Box): Track | null {
   const track:Track={kind:'',codec:'',width:0,height:0,timescale:0,samples:0,ticks:0,maxFps:0,bytes:0,rotated:false};
   const tkhd=required(reader,trak,'tkhd');
   // Rotation is kept only if the affine matrix is the default identity.
@@ -116,6 +116,10 @@ function trackInfo(reader: Mp4RangeReader, trak: Box): Track {
   const hdlr=required(reader,mdia,'hdlr');
   const handler=read(reader,hdlr.content,12);
   track.kind=ascii(handler,8,4);
+  // iOS media files may include timed metadata, text or timecode tracks.
+  // Those have different sample entries (or no video/audio sample table).
+  // Ignore them while continuing to validate all actual video/audio tracks.
+  if (track.kind !== 'vide' && track.kind !== 'soun') return null;
   const mdhd=required(reader,mdia,'mdhd');
   const meta=read(reader,mdhd.content,mdhd.end-mdhd.content>48?48:mdhd.end-mdhd.content);
   track.timescale=uint(meta,meta[0]===1?20:12);
@@ -125,32 +129,34 @@ function trackInfo(reader: Mp4RangeReader, trak: Box): Track {
   return track;
 }
 
-export function inspectMp4Upload(reader: Mp4RangeReader): MobileMp4Probe | null {
+export function inspectMp4Upload(reader: Mp4RangeReader, onReject?: (reason: string) => void): MobileMp4Probe | null {
+  const reject = (reason: string): null => { onReject?.(reason); return null; };
   try {
-    if(!Number.isSafeInteger(reader.size)||reader.size<256||reader.size>200*1024*1024)return null;
+    if(!Number.isSafeInteger(reader.size)||reader.size<256||reader.size>200*1024*1024)return reject("INVALID_STRUCTURE");
     const root=scan(reader,0,reader.size);
-    if(root[0]?.type!=='ftyp'||root.some(box=>box.type==='moof'))return null;
+    if(root[0]?.type!=='ftyp'||root.some(box=>box.type==='moof'))return reject("NOT_NONFRAGMENTED_MP4");
     const brand=ascii(read(reader,root[0].content,4),0,4);
-    if(!['isom','iso2','iso6','mp41','mp42','avc1','M4V ','MSNV'].includes(brand))return null;
+    if(!['isom','iso2','iso4','iso5','iso6','mp41','mp42','avc1','M4V ','MSNV'].includes(brand))return reject('MP4_BRAND_UNSUPPORTED');
     const moov=root.find(box=>box.type==='moov');
     const mediaBytes=root.filter(box=>box.type==='mdat').reduce((sum,box)=>sum+box.end-box.content,0);
-    if(!moov || mediaBytes<=0)return null;
+    if(!moov || mediaBytes<=0)return reject("MP4_MOOV_OR_MDAT_MISSING");
     const all=scan(reader,moov.content,moov.end).filter(box=>box.type==='trak')
-      .map(box=>trackInfo(reader,box));
+      .map(box=>trackInfo(reader,box)).filter((track):track is Track=>track!==null);
     const videos=all.filter(track=>track.kind==='vide');
     const audios=all.filter(track=>track.kind==='soun');
-    if(videos.length!==1||audios.length>1||all.length!==videos.length+audios.length)return null;
+    if(videos.length!==1||audios.length>1)return reject(`MP4_TRACK_COUNT_V${videos.length}_A${audios.length}`);
     const v=videos[0]!,a=audios[0];
-    if(!['avc1','avc3'].includes(v.codec)||(a&&a.codec!=='mp4a'))return null;
+    if(!['avc1','avc3'].includes(v.codec)||(a&&a.codec!=='mp4a'))return reject(`MP4_CODECS_V${v.codec.replace(/[^a-zA-Z0-9]/g, '')}_A${(a?.codec ?? 'none').replace(/[^a-zA-Z0-9]/g, '')}`);
     if(!v.width||!v.height||v.samples<2||v.ticks<=0||v.bytes<=0 ||
-      v.bytes+(a?.bytes??0)>mediaBytes)return null;
+      v.bytes+(a?.bytes??0)>mediaBytes)return reject("MP4_SAMPLE_BYTES");
     const seconds=v.ticks/v.timescale;
     return {videoCodec:'h264',audioCodec:a?'aac':null,width:v.width,height:v.height,
       fpsMax:v.maxFps,fpsAverage:v.samples/seconds,seconds,videoBitrate:v.bytes*8/seconds,
       audioBitrate:a?a.bytes*8/(a.ticks/a.timescale):0,rotated:v.rotated};
-  }catch{return null;}
+  }catch(error){return reject(error instanceof Error ? error.message : "MP4_PARSE_ERROR");}
 }
 
+/** A rotated track matrix is valid iOS MP4 orientation metadata. */
 export function canReuseMobile720(input: MobileMp4Probe | null): boolean {
   return mobile720Compatible(input) && input!.videoBitrate<=1_900_000 && input!.audioBitrate<=128_000;
 }

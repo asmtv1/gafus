@@ -1,0 +1,83 @@
+{
+  "name": "@gafus/mobile-ota-server",
+  "version": "1.7.3",
+  "private": true,
+  "type": "module",
+  "sideEffects": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./contracts": {
+      "types": "./dist/contracts.d.ts",
+      "default": "./dist/contracts.js"
+    },
+    "./ci-registration": {
+      "types": "./dist/ci-registration.d.ts",
+      "default": "./dist/ci-registration.js"
+    },
+    "./deployment-commands": {
+      "types": "./dist/deployment-commands.d.ts",
+      "default": "./dist/deployment-commands.js"
+    },
+    "./native-release-admin": {
+      "types": "./dist/native-release-admin.d.ts",
+      "default": "./dist/native-release-admin.js"
+    },
+    "./patch-commands": {
+      "types": "./dist/patch-commands.d.ts",
+      "default": "./dist/patch-commands.js"
+    },
+    "./queries": {
+      "types": "./dist/queries.d.ts",
+      "default": "./dist/queries.js"
+    },
+    "./repository": {
+      "types": "./dist/repository.d.ts",
+      "default": "./dist/repository.js"
+    },
+    "./rollout-policy": {
+      "types": "./dist/rollout-policy.d.ts",
+      "default": "./dist/rollout-policy.js"
+    },
+    "./telemetry": {
+      "types": "./dist/telemetry.d.ts",
+      "default": "./dist/telemetry.js"
+    },
+    "./diagnostics-contracts": {
+      "types": "./dist/diagnostics-contracts.d.ts",
+      "default": "./dist/diagnostics-contracts.js"
+    },
+    "./diagnostics-repository": {
+      "types": "./dist/diagnostics-repository.d.ts",
+      "default": "./dist/diagnostics-repository.js"
+    },
+    "./diagnostics-observe-repository": {
+      "types": "./dist/diagnostics-observe-repository.d.ts",
+      "default": "./dist/diagnostics-observe-repository.js"
+    },
+    "./diagnostics-spool-repository": {
+      "types": "./dist/diagnostics-spool-repository.d.ts",
+      "default": "./dist/diagnostics-spool-repository.js"
+    },
+    "./diagnostics-web-repository": {
+      "types": "./dist/diagnostics-web-repository.d.ts",
+      "default": "./dist/diagnostics-web-repository.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test:realpg:isolated": "vitest run --config vitest.realpg.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "zod": "^4.6.7",
+    "@gafus/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "^4.0.17"
+  }
+}

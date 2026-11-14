@@ -1,4 +1,3 @@
-import { prisma } from "@gafus/prisma";
 
 import {
   APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
@@ -13,7 +12,32 @@ import type {
   RewardedPlatformSettingsDto,
 } from "./types";
 
-const SETTINGS_KEY = "default";
+/** Persistence-only settings reader/writer, bound by a composition root.
+ * Core owns input validation, default row policy and iOS feature resolution.
+ * An unbound port raises an error rather than enabling demo placements or
+ * accepting a mutation that cannot reach durable storage.
+ */
+export interface RewardedSettingsPorts {
+  readRewardedAdSettingsRow(): Promise<RewardedAdSettingsDto | null>;
+  writeRewardedAdSettingsRow(
+    settings: RewardedAdSettingsDto,
+    actorId?: string | null,
+  ): Promise<RewardedAdSettingsDto>;
+}
+let installedRewardedSettingsPort: Readonly<RewardedSettingsPorts> | null = null;
+
+export function registerRewardedSettingsPort(port: RewardedSettingsPorts): void {
+  if (installedRewardedSettingsPort !== null && installedRewardedSettingsPort !== port) {
+    throw new Error("REWARDED_SETTINGS_PORT_ALREADY_BOUND");
+  }
+  installedRewardedSettingsPort = port;
+}
+
+function requireRewardedSettingsPort(): Readonly<RewardedSettingsPorts> {
+  if (!installedRewardedSettingsPort) throw new Error("REWARDED_SETTINGS_PORT_UNBOUND");
+  return installedRewardedSettingsPort;
+}
+
 const MAX_PLACEMENT_ID_LENGTH = 256;
 
 type SettingsUpdateInput = Partial<RewardedAdSettingsDto>;
@@ -79,9 +103,7 @@ function validateEnabledPlatforms(settings: RewardedAdSettingsDto): void {
 }
 
 export async function getRewardedAdSettings(): Promise<RewardedAdSettingsDto> {
-  const row = await prisma.rewardedAdSettings.findUnique({
-    where: { key: SETTINGS_KEY },
-  });
+  const row = await requireRewardedSettingsPort().readRewardedAdSettingsRow();
   return mapSettingsRow(row);
 }
 
@@ -106,15 +128,7 @@ export async function updateRewardedAdSettings(
 
   validateEnabledPlatforms(next);
 
-  const data = {
-    ...next,
-    updatedById: actorId ?? null,
-  };
-  const saved = await prisma.rewardedAdSettings.upsert({
-    where: { key: SETTINGS_KEY },
-    create: { key: SETTINGS_KEY, ...data },
-    update: data,
-  });
+  const saved = await requireRewardedSettingsPort().writeRewardedAdSettingsRow(next, actorId);
 
   return mapSettingsRow(saved);
 }

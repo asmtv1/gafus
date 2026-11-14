@@ -304,7 +304,9 @@ describe("AG3 V101 registered Hono ↔ actual Mobile veterinary list/detail read
     ]);
     expect(JSON.stringify(result)).not.toContain("SYNTHETIC_PRIVATE_STORAGE_MARKER");
     expect(vetHistoryCacheForActor(result, actor, "pet-X")?.kind).toBe("ready");
-    expect(m.vet).toHaveBeenCalledExactlyOnceWith(expect.any(Request), "pet-X", owners.A.id, []);
+    expect(m.vet).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Request), "pet-X", owners.A.id, [], expect.any(Function),
+    );
     expect(m.wire[0]).toMatchObject({
       status: 200,
       path: "/api/v1/pets/pet-X/vet-visits",
@@ -322,9 +324,9 @@ describe("AG3 V101 registered Hono ↔ actual Mobile veterinary list/detail read
       scope: { ownerId: owners.A.id, authEpoch: "E1", petId: "pet-X", visitId: "visit-X" },
     });
     expect(vetDetailCacheForActor(result, actor, "pet-X", "visit-X")?.kind).toBe("ready");
-    expect(m.vet).toHaveBeenCalledExactlyOnceWith(expect.any(Request), "pet-X", owners.A.id, [
-      "visit-X",
-    ]);
+    expect(m.vet).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Request), "pet-X", owners.A.id, ["visit-X"], expect.any(Function),
+    );
     expect(m.wire[0]).toMatchObject({
       status: 200,
       path: "/api/v1/pets/pet-X/vet-visits/visit-X",

@@ -1,3 +1,8 @@
+// This route now binds the occurrence-specific read adapter at composition,
+// while the original Core error mock preserves the historical HTTP response.
+vi.mock("../../modules/rewarded-credits/composition/gafus-access.js", () => ({
+  requirePremiumOrRewardedAccessForUserStep: m.premium,
+}));
 /** AG1-LEARN-032: private exam result/submit/upload response and error boundaries. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -5,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({
   result: vi.fn(), submit: vi.fn(), upload: vi.fn(), premium: vi.fn(), logError: vi.fn(),
 }));
-vi.mock("@gafus/core/services/exam", () => ({
+vi.mock("@gafus/exam-server/exam-service", () => ({
   getExamResult: m.result,
   submitExamResult: m.submit,
   uploadExamVideoFile: m.upload,

@@ -24,11 +24,18 @@ vi.mock("@gafus/core/services/cynologistChat", () => ({
   startChat: m.start, sendChatMessage: m.send, manageChatReaction: m.reaction,
   manageOwnChatMessage: m.action, acceptChatWebhook: vi.fn(),
 }));
-vi.mock("@gafus/core/services/cynologistChat/upload", () => ({ deleteChatAttachment: m.delUpload }));
+// Dispatch imports private chat functions from its new server-owned module.
+vi.mock("../../../../../packages/chat-server/dist/service.js", () => ({
+  getChatState: m.state, listChatDialogs: m.dialogs, getChatSession: m.session,
+  startChat: m.start, sendChatMessage: m.send,
+}));
+vi.mock("../../../../../packages/chat-server/dist/reactions.js", () => ({ manageChatReaction: m.reaction }));
+vi.mock("../../../../../packages/chat-server/dist/messageManagement.js", () => ({ manageOwnChatMessage: m.action }));
+vi.mock("../../../../../packages/chat-server/dist/upload-service.js", () => ({ deleteChatAttachment: m.delUpload }));
 // Intentionally mocked: real upload.ts uses Busboy and writes temporary files.
 vi.mock("@gafus/chat-server/upload", () => ({ uploadChatAttachmentRequest: m.upload }));
 // Separate module mock for source-relative upload.js imported by real dispatcher.
-vi.mock("../../../../../packages/chat-server/src/upload.js", () => ({ uploadChatAttachmentRequest: m.upload }));
+vi.mock("../../../../../packages/chat-server/dist/upload.js", () => ({ uploadChatAttachmentRequest: m.upload }));
 import { authMiddleware } from "../../middleware/auth";
 import { cynologistChatRoutes } from "./cynologist-chat";
 import { ChatError } from "@gafus/core/services/cynologistChat";

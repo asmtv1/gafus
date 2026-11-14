@@ -5,80 +5,17 @@
  */
 
 import { estimateDayDurations } from "../../utils/training";
-import { prisma } from "@gafus/prisma";
-import type { Prisma } from "@gafus/prisma";
 import { setCourseLogoVersioned } from "../trainerCourse/courseVersionService";
 import type { CourseVersionActor } from "../trainerCourse/courseVersionService";
 import { createWebLogger } from "@gafus/logger";
 import { TrainingStatus } from "@gafus/types";
 import type { ActionResult, CourseWithProgressData } from "@gafus/types";
 import { resolveCourseEntitlement } from "../contentAccess/policy";
+import { requireCatalogReadPort } from "./catalogReadPort";
 
 const _logger = createWebLogger("course-service");
 
 // ========== Get Courses With Progress ==========
-
-const courseSelect = {
-  id: true,
-  name: true,
-  type: true,
-  description: true,
-  shortDesc: true,
-  duration: true,
-  logoImg: true,
-  isPrivate: true,
-  isPaid: true,
-  avgRating: true,
-  trainingLevel: true,
-  equipment: true,
-  createdAt: true,
-  updatedAt: true,
-  author: {
-    select: {
-      username: true,
-      profile: { select: { avatarUrl: true } },
-    },
-  },
-  reviews: {
-    select: {
-      rating: true,
-      comment: true,
-      createdAt: true,
-      user: {
-        select: {
-          username: true,
-          profile: { select: { avatarUrl: true } },
-        },
-      },
-    },
-  },
-  _count: {
-    select: {
-      userCourses: {
-        where: { status: { in: [TrainingStatus.IN_PROGRESS, TrainingStatus.COMPLETED] } },
-      },
-    },
-  },
-  dayLinks: {
-    select: {
-      id: true,
-      order: true,
-      day: {
-        select: {
-          id: true,
-          title: true,
-          stepLinks: {
-            select: {
-              id: true,
-              order: true,
-              step: { select: { title: true } },
-            },
-          },
-        },
-      },
-    },
-  },
-} satisfies Prisma.CourseSelect;
 
 /**
  * Получает курсы, доступные пользователю для отображения на /courses:
@@ -86,22 +23,7 @@ const courseSelect = {
  * - приватные только если у пользователя есть запись в CourseAccess.
  */
 export async function getCoursesWithProgress(userId?: string): Promise<CourseWithProgressData[]> {
-  const allCourses = await prisma.course.findMany({
-    select: {
-      ...courseSelect,
-      // The catalog only needs the current viewer's entitlement. Selecting all
-      // CourseAccess rows leaks member identifiers and scales with every buyer.
-      // Membership is personal. Do not select or serialize other users' favorite rows.
-      favoritedBy: {
-        where: { userId: userId ?? "" },
-        select: { userId: true },
-      },
-      access: {
-        where: { userId: userId ?? "" },
-        select: { userId: true },
-      },
-    },
-  });
+  const allCourses = await requireCatalogReadPort().readCatalogCourseRows(userId);
 
   // Фильтруем курсы для отображения на /courses:
   // 1. Публичные платные курсы показываем всем (чтобы можно было купить)
@@ -111,24 +33,15 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
     // Приватные курсы только с доступом в CourseAccess
     if (course.isPrivate) {
       if (!userId) return false;
-      return course.access.length > 0;
+      // Do not trust an overbroad Persistence projection: a foreign user's
+      // CourseAccess row must never make a private course visible.
+      return course.access.some((access) => access.userId === userId);
     }
     // Публичные курсы (платные и бесплатные) показываем всем
     return true;
   });
 
-  const userCourses = userId
-    ? await prisma.userCourse.findMany({
-        where: { userId },
-        select: {
-          courseId: true,
-          status: true,
-          startedAt: true,
-          completedAt: true,
-        },
-      })
-    : [];
-
+  const userCourses = await requireCatalogReadPort().readCatalogProgressRows(userId);
   // Index progress once; keep the first row for each course as Array.find did.
   const userCourseByCourseId = new Map<string, (typeof userCourses)[number]>();
   for (const userCourse of userCourses) {
@@ -137,12 +50,7 @@ export async function getCoursesWithProgress(userId?: string): Promise<CourseWit
     }
   }
 
-  const userFavorites = userId
-    ? await prisma.favoriteCourse.findMany({
-        where: { userId },
-        select: { courseId: true },
-      })
-    : [];
+  const userFavorites = await requireCatalogReadPort().readCatalogFavoriteRows(userId);
   const favoriteCourseIds = new Set(userFavorites.map((f: { courseId: string }) => f.courseId));
 
   const paidCourseEntitlement = await resolveCourseEntitlement(
@@ -226,10 +134,7 @@ export async function checkCourseAccess(
   courseType: string,
   userId?: string,
 ): Promise<{ hasAccess: boolean }> {
-  const course = await prisma.course.findUnique({
-    where: { type: courseType },
-    select: { id: true, isPrivate: true, isPaid: true },
-  });
+  const course = await requireCatalogReadPort().readCourseAccessByType(courseType);
   return { hasAccess: (await resolveCourseEntitlement(course, userId)).allowed };
 }
 
@@ -238,10 +143,7 @@ export async function checkCourseAccessById(
   courseId: string,
   userId?: string,
 ): Promise<{ hasAccess: boolean }> {
-  const course = await prisma.course.findUnique({
-    where: { id: courseId },
-    select: { id: true, isPrivate: true, isPaid: true },
-  });
+  const course = await requireCatalogReadPort().readCourseAccessById(courseId);
   return { hasAccess: (await resolveCourseEntitlement(course, userId)).allowed };
 }
 
@@ -251,23 +153,7 @@ export async function checkCourseAccessById(
  * Получает базовые метаданные курса для Open Graph
  */
 export async function getCourseMetadata(courseType: string) {
-  const course = await prisma.course.findFirst({
-    where: { type: courseType },
-    select: {
-      id: true,
-      name: true,
-      shortDesc: true,
-      logoImg: true,
-      description: true,
-      isPaid: true,
-      isPrivate: true,
-      videoUrl: true,
-      equipment: true,
-      trainingLevel: true,
-    },
-  });
-
-  return course;
+  return requireCatalogReadPort().readCourseMetadataRow(courseType);
 }
 
 /**
@@ -277,23 +163,7 @@ export async function getCourseMetadata(courseType: string) {
 export async function getCourseOutline(
   courseType: string,
 ): Promise<{ id: string; title: string; order: number; type: string; equipment: string; estimatedDuration: number; theoryMinutes: number }[]> {
-  const course = await prisma.course.findFirst({
-    where: { type: courseType },
-    select: {
-      dayLinks: {
-        orderBy: { order: "asc" },
-        select: {
-          id: true,
-          order: true,
-          day: { select: { title: true, type: true, equipment: true,
-            stepLinks: { select: { step: { select: {
-              type: true, durationSec: true, estimatedDurationSec: true,
-            } } } },
-          } },
-        },
-      },
-    },
-  });
+  const course = await requireCatalogReadPort().readCourseOutlineRow(courseType);
   if (!course) return [];
   return course.dayLinks.map((link) => {
     const duration = estimateDayDurations(link.day.stepLinks.map(item => item.step));

@@ -66,4 +66,14 @@ pnpm --filter @gafus/prisma exec prisma db push --schema schema.prisma --skip-ge
 echo 'ISOLATED_PG_SCHEMA=READY'
 pnpm --filter @gafus/api exec vitest run src/routes/v1/agent3-pet-weight-pg-acceptance.test.ts --maxWorkers=1 > /tmp/gafus-agent3-weight-realpg-vitest-20261030.log 2>&1 || { echo 'BLOCKER: REAL_PG_ACCEPTANCE_FAILED'; tail -70 /tmp/gafus-agent3-weight-realpg-vitest-20261030.log; exit 18; }
 echo 'REAL_PG_ACCEPTANCE_PASS=YES'
+# Same disposable PostgreSQL cluster; verify simultaneous DIFFERENT and SAME
+# entry deletion as well as owner-locked cross-account denial on the new adapter.
+pnpm --filter @gafus/pets-server exec vitest run src/weightService.real-pg.test.ts --maxWorkers=1 > /tmp/gafus-agent3-weight-concurrent-realpg-20261107.log 2>&1 || {
+  echo 'BLOCKER: PETS_CONCURRENT_REAL_PG_FAILED'
+  tail -70 /tmp/gafus-agent3-weight-concurrent-realpg-20261107.log
+  exit 22
+}
+echo 'PETS_OWNER_LOCK_CONCURRENCY_REAL_PG_PASS=YES'
+grep -E '(Test Files|Tests)' /tmp/gafus-agent3-weight-concurrent-realpg-20261107.log | tail -3
+
 tail -18 /tmp/gafus-agent3-weight-realpg-vitest-20261030.log

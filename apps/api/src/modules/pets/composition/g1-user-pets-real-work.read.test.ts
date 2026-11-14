@@ -33,7 +33,7 @@ vi.mock("../../../../../../packages/core/src/services/cynologistChat/authorRole"
 
 import { prisma } from "@gafus/prisma";
 import { createReadProfileApplication } from "../../user/application/read-profile";
-import { getPetWeightHistory } from "../../../../../../packages/core/src/services/pets/petWeightService";
+import { getPetWeightHistory } from "@gafus/pets-server/weight";
 import { readPetsApplication as petApp } from "./read-pets";
 import { getUserProfileForApi } from "../../../../../../packages/core/src/services/user/profileService";
 

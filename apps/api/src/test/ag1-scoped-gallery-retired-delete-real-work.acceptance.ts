@@ -67,7 +67,7 @@ async function main(){
  assert(jobs.some(j=>j.availableAt>now),"POST_EXPIRY_FUTURE_REDELETE_GUARD");
  pass("ORIGINAL_HONO_SOFT_DELETE_DURABLE_IMMEDIATE_PLUS_FUTURE_CLEANUP");
  phase="source-core-exact-delete-lease";
- const coreModule=await import("../../../../packages/core/src/services/gallery/"+"runtimeService.ts");
+ const coreModule=await import("@gafus/gallery-server/runtime-service");
  const service=coreModule.createCurrentGalleryService(createGalleryStorageFromEnv());
  const job=immediate[0]!;
  const foreign=await service.claimStorageJobs({limit:1,exactDelete:{jobId:job.id,ownerId:"not_owned_user"}});

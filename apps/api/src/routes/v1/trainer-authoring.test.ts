@@ -75,7 +75,7 @@ describe("trainer authoring API source parity, no production DB / no real writes
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual({ success: true, data: { id: "new-day" } });
     expect(ports.countOwnedSteps).toHaveBeenCalledWith(day.stepIds, "trainer-A", false);
-    expect(ports.createDay).toHaveBeenCalledWith({ ...day, authorId: "trainer-A" });
+    expect(ports.createDay).toHaveBeenCalledWith({ ...day, authorId: "trainer-A" }, { id: "trainer-A", role: "TRAINER" });
     expect((await post("days", { ...day, authorId: "someone-else" })).status).toBe(400);
   });
   it("rejects foreign/missing IDs and mixed-owner joins with no writes", async () => {
@@ -94,7 +94,7 @@ describe("trainer authoring API source parity, no production DB / no real writes
     const selected = ["step-A", "step-B", "step-A", "step-B"];
     expect((await post("days", { ...day, stepIds: selected })).status).toBe(201);
     expect(ports.countOwnedSteps).toHaveBeenCalledWith(["step-A", "step-B"], "trainer-A", false);
-    expect(ports.createDay).toHaveBeenCalledWith({ ...day, stepIds: selected, authorId: "trainer-A" });
+    expect(ports.createDay).toHaveBeenCalledWith({ ...day, stepIds: selected, authorId: "trainer-A" }, { id: "trainer-A", role: "TRAINER" });
     vi.mocked(ports.countOwnedSteps).mockResolvedValueOnce(1);
     expect((await post("days", { ...day, stepIds: selected })).status).toBe(404);
     expect(ports.createDay).toHaveBeenCalledTimes(1);

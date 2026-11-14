@@ -5,7 +5,7 @@ import {
   getPartnerProfile,
   getPartnerDashboard,
   requestPartnerPayout,
-} from "@gafus/core/services/appSubscription";
+} from "@gafus/subscription-payment-server/partner";
 
 export const partnersRoutes = new Hono();
 

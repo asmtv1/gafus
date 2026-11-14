@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@gafus/prisma";
-import { markPartnerBalancePaidAdmin } from "../adminPartnerService";
-import { requestPartnerPayout } from "../partnerService";
+import { markPartnerBalancePaidAdmin } from "@gafus/subscription-write-server";
+import { requestPartnerPayout } from "@gafus/subscription-payment-server/partner";
 
 const isolated = process.env.GAFUS_ISOLATED_TEST_DB === "1" &&
   (process.env.DATABASE_URL ?? "").includes("/gafus_refactor_concurrency");

@@ -2,7 +2,22 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 const { mockDbNull } = vi.hoisted(() => ({ mockDbNull: Symbol("DbNull") }));
 
-import { deleteUserAccount, requestAccountDeletionCode } from "./deleteUserAccount";
+import { createAccountDeletionService } from "./deleteUserAccount";
+import {
+  readAccountDeletionPreflightRow,
+  readAccountDeletionActorRow,
+  readAccountDeletionAuthoredCounts,
+  readAccountDeletionRequestedAt,
+  readAccountDeletionChallenge,
+  replaceAccountDeletionChallenge,
+  deleteAccountAndPersistCleanup,
+  deletionPrismaRequestErrorCode,
+} from "@gafus/identity-write-server/account-deletion-rows";
+import { insertAccountMediaCleanupSnapshotsTx } from "@gafus/identity-write-server/account-cleanup-records";
+import { createAccountStorageCleanup } from "../accountCleanup/enqueue";
+import { enqueueGalleryAccountCleanup } from "../gallery/accountCleanup";
+import { enqueueFeedAccountCleanup } from "../feed/cleanup";
+import { DUAL_PROVIDER_CLEANUP_MARKER } from "@gafus/cdn-upload";
 
 const mockAccountDeletionFindFirst = vi.fn();
 const mockAccountDeletionDeleteMany = vi.fn();
@@ -71,6 +86,30 @@ vi.mock("@gafus/logger", () => ({
     success: vi.fn(),
   }),
 }));
+
+// The test assembles the same server adapters as API composition, without
+// reintroducing persistence imports into the actual Core module.
+const enqueueAccountStorageCleanup = createAccountStorageCleanup({
+  readIntent: () => ({
+    dualGallery: process.env.GALLERY_DUAL_PROVIDER_CLEANUP === "true",
+    dualFeed: process.env.FEED_DUAL_PROVIDER_CLEANUP === "true",
+    dualProviderMarker: DUAL_PROVIDER_CLEANUP_MARKER,
+  }),
+  insertSnapshot: insertAccountMediaCleanupSnapshotsTx,
+  enqueueGallery: enqueueGalleryAccountCleanup,
+  enqueueFeed: enqueueFeedAccountCleanup,
+});
+const { deleteUserAccount, requestAccountDeletionCode } = createAccountDeletionService({
+  readAccountDeletionPreflightRow,
+  readAccountDeletionActorRow,
+  readAccountDeletionAuthoredCounts,
+  readAccountDeletionRequestedAt,
+  readAccountDeletionChallenge,
+  replaceAccountDeletionChallenge,
+  deleteAccountAndPersistCleanup: (userId, role, hadEmail, at) =>
+    deleteAccountAndPersistCleanup(userId, role, hadEmail, at, enqueueAccountStorageCleanup),
+  deletionPrismaRequestErrorCode,
+});
 
 describe("deleteUserAccount", () => {
   beforeEach(() => {

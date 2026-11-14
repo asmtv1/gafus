@@ -1,0 +1,3335 @@
+{
+  "schema": "gafus/integration-triage/v1",
+  "recordedAtUtc": "2026-11-12T00:30:02.829457+00:00",
+  "inventoryObservedAt": "2026-11-12T00:29:54.539726+00:00",
+  "noGitHistoryMutation": true,
+  "sourceSnapshotConsistentWithInventory": true,
+  "changedDuringTriagePaths": [],
+  "a3ManifestRead": true,
+  "a3ManifestCapturedAt": "2026-11-12T03:37:59+04:00",
+  "a3ManifestSourceRoot": "/Users/asmtv1/Desktop/gafus-refactor",
+  "previous99Now101AdditionalCandidates": [
+    "docs/audit/core-server-bulk-progress-20261111.md",
+    "docs/audit/core-server-facade-baseline.json"
+  ],
+  "counts": {
+    "differentContent": 108,
+    "deleteVsPresent": 5,
+    "matchedAutoWithoutConflict": 1324,
+    "deletedIdentically": 206,
+    "a2Overlap": 16,
+    "classifications": {
+      "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS": 87,
+      "MANUAL_BOTH_ADDED": 17,
+      "AUTO_REUSE_A1_VERIFIED_A3_FINAL_HUNK": 4,
+      "MANUAL_DELETE_VS_PRESENT": 5
+    }
+  },
+  "differentFiles": [
+    {
+      "path": "apps/api/src/middleware/error-handler.ts",
+      "kind": "different-content",
+      "category": "security/boundaries",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "pnpm check:core-boundaries; API dependency-architecture; error-handler tests; owner deny before SQL",
+      "sha256": {
+        "A1": "0aa1b517df3140582342c309435f6a571e3772b021ab40aae280e8e9d2deb3d2",
+        "A3": "09e06f95753fb0fd79301be4fc39f9da66b8d2cb53e46607d14188d935f392ee",
+        "base": "2f84e1b64793aac1d942cd268adb42b762b5dcf5e780420ad54964544f511ae8"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 6,
+        "A3": 6
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/modules/architecture/dependency-architecture.test.ts",
+      "kind": "different-content",
+      "category": "security/boundaries",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "pnpm check:core-boundaries; API dependency-architecture; error-handler tests; owner deny before SQL",
+      "sha256": {
+        "A1": "02a4d36fe737171f5e97012846c0d6177da54c6702e76ff5d2fa0981581c1d3a",
+        "A3": "14c6a5844d73a5673594f5dcedbdabb0a8756876ba577b33c2f64e7bcc2cacf5",
+        "base": "750b54d1d91a696555603df1d05103d7929f98fe9dedfcb759200c558c0515f9"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 40,
+        "A3": 36
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/modules/consultations/application/list-cynologists.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "e0b5e077d49cb6027e76f3cc8d2ecf74a105774be5b1c37a24ac7de500ed7140",
+        "A3": "3678b99a94054a2429ebe618f62ad666695bf41fd39e3a53d4aee9348beaf509",
+        "base": "e4e6fcbedd09e1f6668de7c54198a1d8fe98281801edbd13514c2857d9e913e2"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/modules/consultations/composition/catalog-schedule.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "9a3f6502f109b7f4c25548756ce667f02a6f6ca96e1e308c4c8eb9ddd9dbab2e",
+        "A3": "6a6c29c97340e1c893ba85a3b452fcb410f854a00572f7671470d86e0e91b28d",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/modules/consultations/composition/list-cynologists.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "1807834332e7623ea89cec640f59afac6e3f1be84959a8897bee034d938f44dd",
+        "A3": "63db714a602b1a3d79aa300bab6168ccf9f7d9c16f979aec3d0c764ddb179c0b",
+        "base": "12f4f0c8204fd37fb259e6cff014b371e794ad647e1d05f73e0de0b24437886a"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/modules/learner-daily/composition/day-and-step-commands.ts",
+      "kind": "different-content",
+      "category": "courses/progress",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core dailyCourse/userCourse/userProgress + course-progress-server + API mounted/isolated PG",
+      "sha256": {
+        "A1": "42283d84f75d2ac2ad0f3e88a05f2c00ba2dcc263f8e2f30833fb2b62edb71e2",
+        "A3": "35ed8267c4e76898bce81ef30ff6c23c6bb2b4cdde4823ae7577a766372ac5fe",
+        "base": "4b8740ac371053c900e623b31d527e2fefd18a4fbd5a7fca6a3435e519a7a9fc"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/modules/learner-daily/composition/read-today-daily-course.ts",
+      "kind": "different-content",
+      "category": "courses/progress",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core dailyCourse/userCourse/userProgress + course-progress-server + API mounted/isolated PG",
+      "sha256": {
+        "A1": "4a309d8a0f07e2e538b5d0f60b642a9b8ff27b0f1330261654ea417e66bf7221",
+        "A3": "9778ffbbc0cf679c899394f1bf2e32c8cb31a913e64bbde3afb27c3773d3f55e",
+        "base": "030b4c302d0e7576cd60d99d32f15b00a074041df7180e9f52f073537e8680e9"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/modules/operation-read-spans-extra.contract.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "a4863044a876794df22ac60f27e96f7403e267223c5bc4d7c1cecff480b9d0d6",
+        "A3": "064ca2e6cf09a7c6745e612fd8f46e5fd34164ed850bce4c03320436b1aa2638",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P2"
+    },
+    {
+      "path": "apps/api/src/modules/operation-read-spans.contract.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "93a2feffbae58f4b8129e2ff8a5e60da7567c28680ee306e9e2813961a63775d",
+        "A3": "eb3c164097716fa8f782af8a1847172e74fa2a00923dc3b7fb2990b79c24a79e",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P2"
+    },
+    {
+      "path": "apps/api/src/modules/operation-write-spans.contract.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "32cfdff3071530298f5ee237272935719be9c0d7e72994e0c909a769bfb13b64",
+        "A3": "e161b0038f1f5b5405482b8f23bca479432cf19fac5eab32317a670171f43a0c",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P2"
+    },
+    {
+      "path": "apps/api/src/modules/trainer-daily/composition/read-trainer-daily.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "e31eb5bbf5541cc61338af0311155cbd3794bd0f2c6bf02f0094efacf759a1c1",
+        "A3": "9bef0c30f340a23c2dde6f111f9a918f45745a698d05e93ee922f88005f51ee1",
+        "base": "13794d371e4b2ec49a9833afc511dc48320a506ccde74eb21f3046c593705005"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-analytics.test.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "cc22d0f9cb9d1307c8ee89320e9c0fd6c3bbdecd1f888cb2708ffe783b855e9f",
+        "A3": "2f5d2c570e328157089f6550ccd4d6af463dcc703430c57f78b8a055391ac344",
+        "base": "141cb7ab5d1adec1e935dbbd6c1e1e17a8c0449bb5388ca100e2edf0a076db75"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 10,
+        "A3": 10
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-analytics.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "4435edc2675a926f669d5b676b45869642a04dc2673f438f796f3a9b55c59658",
+        "A3": "b93ca68e26b6f77759b2d10dd1d0dd99ff8b3a1d76f75444d1418aa5d9e23fae",
+        "base": "e5cec79d4a9414684847cd9bac78822a08cdf09c701116364405ad5ebc86f8ac"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 10,
+        "A3": 10
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-broadcasts.test.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "a51c327e69af628fc5f1e53f81b6a14b052ad0a15598324445015ab58361d1b2",
+        "A3": "34b606be148ef8a42c528e6de307d2327a488c6be1cdf6a95d60d8acdfefc8d7",
+        "base": "d966130050658371c9b5736f8c73a58768b1bb6a89fe46db56550144ea97dc7d"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-broadcasts.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "27c78edcaeb76f324973af35df0a7715bbb0a418e5bd0e471f761e70b763157a",
+        "A3": "3f8104896325640084f5777bae88a37938c17fcfab3a6735dae5b4f0afc80b37",
+        "base": "3bc92ac887dbf4ab9c16aa633081ee99709c635cecde8380dda0009b9b43c93c"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-cache.test.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "3c27be556c066da3136a82561773e3e82b8ec424e56577e16bf620f4dc62ac83",
+        "A3": "37561bb36752545f66d0a2e8844ccee39293e70c4efc47afdde673f673d25092",
+        "base": "0b362e97ab7696080050dcd2832a928b195c517acf61794b7024578ee1461bba"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-cache.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "1fdb23a5c912e1e442cf0121c98ceabd5647ae61fefd753e2bd2bb91a6075d94",
+        "A3": "ed054e87ca2b4890e2f398c3ffe5783e52d08303643a1ae9302ac3d4f1c7b71f",
+        "base": "737eefef549b5cf3298f3418860dc796dece558b7e67740f89127d097a718fbc"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-consultation-schedules.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "02312b96c026f2e58f007dd1220cac0aa4ff44ef97b8df695372ca9a6a758f23",
+        "A3": "62105a3574a05ffabebe0910684fb7cfd5422e66cf05ca9e1d5f993b105270be",
+        "base": "3a1e61c32adeb7ef7a74da8d593af54c860acba2ee7eb96321af681cf0c05a41"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 4,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-consultation-schedules.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "b1307ac8f1b9334976bc7d1d5e309266fe7bfad8b919742d88656aeb300a9e31",
+        "A3": "75a9797d010f19f2b5ebfb3e6ae19e41049ee80b08c4cc1265de8de6013825a9",
+        "base": "8df378cc45cdee8348f07808e7be6f602aafc39e7c3fac717cfab4fde87250bc"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-feature-flags.test.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "1f1c225004df0cc6de6f0c22145c0bf6d23b9e98973444dc300622298b2397c2",
+        "A3": "9f37b46092d5cb72692edf3f019d0d747079f84324a3428ac9c5c931e8155dcd",
+        "base": "543d5f5ce00215b2b1ac7eb61fe4a0cd6767f2cfa05666cd965142c200a0f61f"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-feature-flags.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "7b25543509c27834e2974736c229b0d99a225e00dd92c56460ee2937d0148e07",
+        "A3": "da89bbfcc8776e24bee618c870338a8ba9416680fb40f1c9e13ac4f4dcfc52c3",
+        "base": "7d34841db66c0f034698e1fa6ca94c82f995d6a53c68fd91699e066a0b715b0c"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 8,
+        "A3": 7
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-mail.test.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "d1975c4bd49386d3a120a2a03a9843243169804bde8fea75f46b6de40dcf8b27",
+        "A3": "2e2eb47e606b36c12e9664c1ed208f84fc3939c6d92f98b0bcf65a62170bcd12",
+        "base": "5ae4f53813f5ae131bcb9a29520e0c32235331debbd75e326cea18e9b3822206"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-mail.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "6f4e250de72df3190bec9c04373fc26d06a27c15ea706700cc320ffb2572d296",
+        "A3": "fa72e32f9dbfb59e029ab72cf58337547654fbda5441b1234f2277ffa7bf78db",
+        "base": "80f2d15c44e0a736711f60c808a003e9241e29987c297fe5f8376740d770d82b"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-profit.test.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "ac0a2ba5789f21b155faf70f82482f07d8c07386476def78c28b91e6aec81c77",
+        "A3": "2195b087cc425176a07288e7f4f19a24c22c20dbbbe962868d83860156a74809",
+        "base": "f7dc620df1ab24d2ae3b3e1c3db305cb71a0680cd7ed2f53b418589a56761ce4"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-profit.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "590a7dd144ad8927bc9c17575c4236ec3df62c0a049f904c141d4aff08131315",
+        "A3": "5cc786552cb2c9f6edf904d217a7bb09236282906bc65330045b573b12c82a1d",
+        "base": "bea47cc874da565a3cb8c5fd97816e48682057e31b715f9773dc7a0b6e6f607b"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-settings.test.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "4d3c130dadeed1d56da58573bc70f5a9a4248a31c23b580ae50e0fde506f3a7f",
+        "A3": "d54cc9832f2c276fab7827ba8da9100dfb9abcd59b2092df61cf3abf9a3f438a",
+        "base": "74ea72ecaab5bb654fe31faf53cb82ab3e85656f066e89369282d00c69a90de7"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-settings.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "a13b798ae5e2be9b5e769e6f6a76278fd8d3764152724ab424b38e64d21ac697",
+        "A3": "415a05a6e4b70dcc9adc5c24cba1d9fc0987bb8b34b1eb549a6fc02c1aaa166a",
+        "base": "3ed253a6e2da66a41227472d127020fc9d347c33dca4108d6bd022842ac3b9fc"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-subscriptions.test.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "5cfca0dd77d480dfee599ab60b13a55262d3b18e3b286a0505c30d72fad1a792",
+        "A3": "46c18a3c27511be2d15d9d6192f9a550c654702e028ec3e2844b4b5bb9a2525a",
+        "base": "132aed6281d26aba9a97bf637c5d1ee86f36a480b1038eeac867ed0085d6e973"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 4,
+        "A3": 4
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-subscriptions.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "0c273ec31183fdda01000825cd5313a4702a8c5b5e162acea7ecb0406eecc869",
+        "A3": "e948eea69d0ca5926000aea310c596a952cb7c101259f85b2345819c9d602d84",
+        "base": "99586dc40958172a84f988b4375f68f3bf420ffa909fe432ee5aca70e7ccd1f5"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 5,
+        "A3": 4
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-users.test.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "0db0794e379dd3972eba48586fdeaac933f6ab29a9ab1924907826f70d7feb68",
+        "A3": "68813e96a88dfd810f659a6caf30b8a453d9e3d80a5abd6379714c7650bd6e18",
+        "base": "7d1258bcfd3945650474eb1aee15e759543af047d661bc7323d4fda28fbf8b2e"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 4,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-users.ts",
+      "kind": "different-content",
+      "category": "admin/routes",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "pnpm --filter @gafus/api typecheck; admin mounted route/ACL real PG; admin-panel tests",
+      "sha256": {
+        "A1": "096d6820490e5d11e81f5f100b286e61205f27485adc6781cf3cf202d2d3c348",
+        "A3": "6613025de0e3fc90f8cee286674e769292bf6f3cb670d5616957382c41050b03",
+        "base": "a03644107a5dda55ef6b0f4cee736af18457b2c02d319ce35f9d52b62738e984"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 4,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/app-subscription.route.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "8217a2e9b078bbd2166fadce0a626c0bc1219bc1d3110ac99a58b7bf09a126b4",
+        "A3": "e1bb9941c2bef760a7b4a7c826a5bc404c60cf099e2e1028dc1b33155309ecb0",
+        "base": "01d5f19ddd585a232fdcd8e917ed432721edc2dc0f312d100e24dfd0248c34f5"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 7,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/app-subscription.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "17c67d024170c2ad31daf4be66db8a6db6c4d1301c32067db5a8dd6cb9a3a39b",
+        "A3": "a15b57509ecdf620bc1ea4b1a19060a3a0a1b7b76c4e7abcee38a33b5a5bdb96",
+        "base": "13b1967ef686493c63e8fad26415ff8c1c9c6cae485393684c34aed757285276"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 7,
+        "A3": 4
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/consultations.route.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "29f359b7a930045f6ee6c19b4b5ba5023042ab03c7fc15f2f30e9b041b13fa92",
+        "A3": "873e23bbd90f5e87724372368c8c1c7635637a9eeaee7d36c8b647e399ce40f0",
+        "base": "baa260c29ce7590733c964ea036b5153f1258706c2f8614b2a583a2d992620b0"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 6,
+        "A3": 4
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/consultations.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "20e5d1e527e6d284a411facbaac685c26dac77960447e88c4a0f55699d6b5801",
+        "A3": "776149895621e75b0e542fd5eff8fd6da101032ec8897fd0f474c119cc4784ea",
+        "base": "30efc390a01de35b4bafd543933544e2d6b4e75b2a324809f8f3fc06f7b8c39a"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 9,
+        "A3": 9
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/exam.read-result.application.contract.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "17def44d4773d2edf357050bdd44922f44290c0ff7398c0c43d2460f78b6186a",
+        "A3": "c7c6a38375627da8be47d2b01290ecd151db7e83ae9f96999d395e0c2b05ba48",
+        "base": "eac1d40be10efcb8b0d3670aae388d1d080d3c4564b2f5aa88032fe8063c6c32"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/exam.route.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "fca1731dbafbb91fd9368409ff24dc4b04143dd6465938f8b1bcb2d1d257399c",
+        "A3": "20c96312a768bf2b1a2b86747a7473e0ade77122b3c2e989e3a01990986ab516",
+        "base": "624fb6bc3ea13279f8c8256d1062f0fb37a3598a90ca40693db4ecc39df86871"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/exam.submit-application.contract.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "77cdbe8ce0727a23a2437bb85308baadc6fe024ecc50f7d772f1ec328aaf1325",
+        "A3": "b28ccd003997a05288b0ff36da1df37e43e3631bfc8b12177d9b993176545710",
+        "base": "c68a3e03ad6d6a3cb1e0a6debc07fdb037db1d1e1f850d615afa6379b4fb1913"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/exam.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "69fe3a88a26d5ab924acfcfefd627ad6b314f3851f53f9a7c39d2d115c184d11",
+        "A3": "a085a564f10f5035fde72f3b55e9ff2a27d02f537634a65919f39e59dd8c0ab9",
+        "base": "b0cd0668b380c7b6700fbec01f393b4d07695e63be1e9e60565945edbb76aab6"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-ag1-001-consultation-catalog.actual-core.mounted.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "6f6a5f25f082bcf7f28b5ba78a3c1befa4757fdff8740e12c2779a2f9b253560",
+        "A3": "c52d0e4f328c7ea5ad43dbc72e4c5b8d1e9d23712a9b7b1a6ae56a9a550581e6",
+        "base": "9d23f8910c106ab653f24f6b09fe695a2f643be77b0aa2f5c9fa5b22da408c5b"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-ag3-offline-progress-prevention.contract.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "0f4c0d9e2ec7747dda90ec552bd6391c1b2880ca1bd00f59a7a6b2e983d37b13",
+        "A3": "387801b6af820eee85f069eeb3ab249d21bb8e8f68784d2f92cead9a5b8852d6",
+        "base": "ed9fb02224a388c24c4fd96d24c3f91a1955b077b4af4791cb4e629230e8318a"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 4,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-consultations.contract.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "f61d030d89f4542033ac7c24ed2c2c223afdb0db97ec50c3fbb48694deeeeed7",
+        "A3": "8af6d0ae5b3ea82b547e6b0a12a97ebe2d598215c99d4458d771d68817c14bdf",
+        "base": "c34870c94af4bb331e4ea4a92aa31c011de95287476a00e931fe6c1a88904e4e"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 4,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-diary-get-real-pg.mounted.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "98a8ffbf5d0ecafb3edec78ecec8a37dd247f9886f0fe438472487978452175d",
+        "A3": "3b861c97b822ab1861334352adf124efc5ccf66b296de7546c3490964c8a00cc",
+        "base": "b4c6977240a65be40df59d4b1b34b1abb4b45eaa0b0c214a20795d7873ad019e"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-exam-private-contract.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "837923555c8fe92189f93a112e70ba097b55c5a85ca0fc51d097d15d61996235",
+        "A3": "96cfb080417986b31ad709e059fa5d7d1b16aff1d0f485734bfe03ada8f9a3be",
+        "base": "9bcd152069591bec2e6f3ca328c12388dcd57b92004e404261adb03e6fabe6c9"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-moderator-staff-policy.route.test.ts",
+      "kind": "different-content",
+      "category": "security/boundaries",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "pnpm check:core-boundaries; API dependency-architecture; error-handler tests; owner deny before SQL",
+      "sha256": {
+        "A1": "578eea38e8b2f8d2b12a808829d263812f8695694ee6eaf03cd7d95fb916f796",
+        "A3": "bd253aba0a13caa8228dceb8b62d2c10b1eb8c43a92e2f563458655bdafd50a5",
+        "base": "ba960b5a348eb19748bbc9bc9ae57d275718c45690e81ee919d46c9ea937b106"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 6,
+        "A3": 5
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-off021-postcommit-ack-boundary.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "98ccd1e61b97dff11b00bebca85fc63336b32689928ca76e2ba0585fbe645194",
+        "A3": "842bc17bfdb8f66065b0c7dadc34ed1f9dfd77784f5d83b4e205f536ca5c5e8f",
+        "base": "bd7960456ca7288aaabb236740ab59c6abdeb2a0a91e9bc0599c3ff0ec0a3034"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-p0-ag2-consultations.contract.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "16266f2558074c979d766949149fd0cf1d2747cdc3ffde0e01b21c70271f581c",
+        "A3": "22444bbb273728bc905f48cfdcac3eee0b15c043b2147e52fa99ffd10da0eccf",
+        "base": "e385c5aca08cb174588de5e519107ec45862d4574e49b84e44fac13bd69f0236"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 5,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-panel-staff-dto.contract.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "558d3bca08fd387aece1fdc64967b66990a7e464f6f9283fd2081901f022c082",
+        "A3": "363fe8e8f12a29216633b876dbd3eee501a2367e7bcf864b1582bdc163494e3f",
+        "base": "15756f7c470a9d7cd4bca8abfd255cb112cc03a5362ec2a09b601d4d85c7ca96"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 4,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-reminder-create-lookup.review.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "4dc6b659b3cd90d5ecd11e68d09650ba489a9d4c239e946fcac1dddcdee2157f",
+        "A3": "70ecd853fb5f10f54a0667c570797be4c249e50aa6661dc123dbbcf9e929931a",
+        "base": "db937d887d58a53a6e6825a1f005ec94ff0b4539ceb3ed208454fa98d2f44a34"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 7,
+        "A3": 7
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-survey-private-contract.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "284da7bd5b9f1e48314012bc1f089d2da693d66e83e9181e2d03015586a7c0d5",
+        "A3": "25539a1f2550302b090d009fb0983252368bac39c4608f7ba81b891a9f1e963c",
+        "base": "0e2f845ee501bca595f3d107a59d16966e8827b3b25ed4517a3baa72b2307c86"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 11,
+        "A3": 10
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/training.route.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "fd2627291d53e50b47bcfabf6008f82098ea03e7f550f0eef7f550a3d11e3672",
+        "A3": "55ccbd56fd511ffbabf2ef751b3789a669186f0baaf72dfa1c662b48ff37372a",
+        "base": "63ab2fccdf03f2f1efa26bac27c43548cc1e2345f7bc54f90b59e034ce63e904"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 6,
+        "A3": 5
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/training.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "121b0af47f9b3ca7f7899216ed3976d7093a617cfb7690ebf299b622957f9dfe",
+        "A3": "5b014965a071d5c5fb1707a3b75b38de4bdd220efd346fd09471868ba48d3df2",
+        "base": "84ee82ea35594002f0691c399d9d6126a4531813f065fb0c03bd52be775c722b"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 8,
+        "A3": 6
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/training.validation.test.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "8bc2bb9ade0d0fdb79cf09a16d33a766bcdfbbbe09307c5b6788e3c9f14352d8",
+        "A3": "9e2c9f1cca05d470734d917848372ee15101fddfb51d851c76005e456eafca4a",
+        "base": "f39278f5fd0febe10c54a3314eee15f2de5e6a980ec99c7330128cd2c4f74f6a"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 7,
+        "A3": 6
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/src/routes/v1/user.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "b43d121bb6e48fd84787dcd888167ec859807f4ee9a33fe07e7475218cd7aae1",
+        "A3": "4e0254415ca428d9dd3f4e416eb6a529e9507ef2dbb054e1e10a9f26ff8b7e10",
+        "base": "164260ab09acb23f1ea6bc0dd23e8efaee1d16e623fab0c277f2bb66555876d6"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "apps/api/vitest.config.ts",
+      "kind": "different-content",
+      "category": "api/ports",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "d2dcdf5b6c3c272dd82cf0c58ff96c954ef8602f0e5a4682038897729cca20ef",
+        "A3": "eb5604274ddd7019c5b1312087ecd32c863ab09212cfc457244df1ad487e3620",
+        "base": "daabd3ada3cf3d92083f40daeee2305ebe94cd3d37a386a8b0bab8901abf53f1"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 6,
+        "A3": 5
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "kind": "different-content",
+      "category": "audit/evidence",
+      "preferredSource": "A1-evidence-source",
+      "sourceReason": "verify most recent evidence; no false baseline change",
+      "requiredVerification": "verify SHA/run IDs, no unsupported PASS; baseline lock and frozen risk inventory",
+      "sha256": {
+        "A1": "db3557d6d79576370117ccac65ed0b834c3c0da054c32dff4cf75971a4b2cee6",
+        "A3": "8bf47ac4dd36a58d38316ac7b2928b3ac9428789c8db4c178e8a98dd4aeacac9",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P2"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "kind": "different-content",
+      "category": "audit/evidence",
+      "preferredSource": "A1-evidence-source",
+      "sourceReason": "verify most recent evidence; no false baseline change",
+      "requiredVerification": "verify SHA/run IDs, no unsupported PASS; baseline lock and frozen risk inventory",
+      "sha256": {
+        "A1": "899de9459a8d138e04b37e70a36d67bb2c5e82b5c8c8e65d64e0dd51cbb29fa0",
+        "A3": "22157f9c1788357f0f9c02e2cd7b689f6b8d27e18e797b71ab93f9a5c6f11e93",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P2"
+    },
+    {
+      "path": "docs/audit/core-server-facade-baseline.json",
+      "kind": "different-content",
+      "category": "audit/evidence",
+      "preferredSource": "A1-evidence-source",
+      "sourceReason": "verify most recent evidence; no false baseline change",
+      "requiredVerification": "verify SHA/run IDs, no unsupported PASS; baseline lock and frozen risk inventory",
+      "sha256": {
+        "A1": "bdfd656a6e778d6fa165ea5b3abce4ca730676c0222a9fd730414e3e1f047fb2",
+        "A3": "58326201d4996861fe510147ec98100e91f50407991b6168c04e39b4d578be4c",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P2"
+    },
+    {
+      "path": "docs/audit/gafus-agent-3-implementation-receipt-20261111.md",
+      "kind": "different-content",
+      "category": "audit/evidence",
+      "preferredSource": "A1-with-verified-A3-final-file",
+      "sourceReason": "Agent3 final manifest SHA equals shared A1 file; A3 worktree is stale here",
+      "requiredVerification": "verify SHA/run IDs, no unsupported PASS; baseline lock and frozen risk inventory",
+      "sha256": {
+        "A1": "6b0d0df95fc9e4a28ef16c7bc05f69ea3d2e469e0b1e745fb1061181a3d8a7ad",
+        "A3": "0cd7c863d1e5a1e5c7dfe34919f493b91973792dc7e7dab1579a8f65794e6b59",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": "owned",
+      "A3ManifestSHAEqualToCommonTreeA1": true,
+      "A3ManifestSHAEqualToA3Worktree": false,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "classification": "AUTO_REUSE_A1_VERIFIED_A3_FINAL_HUNK",
+      "risk": "P2",
+      "hunkRelationship": "Agent3 final already present in shared A1 tree"
+    },
+    {
+      "path": "packages/consultation-server/package.json",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-with-verified-A3-final-file",
+      "sourceReason": "Agent3 final manifest SHA equals shared A1 file; A3 worktree is stale here",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "781d600816947bc2a46631201d970c156a3081ef30acb832e4becc5d870db76b",
+        "A3": "3f00b166adbb31367240974c22223c55e6c734e29711212050b28f66df14a52c",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": "readonly",
+      "A3ManifestSHAEqualToCommonTreeA1": true,
+      "A3ManifestSHAEqualToA3Worktree": false,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "classification": "AUTO_REUSE_A1_VERIFIED_A3_FINAL_HUNK",
+      "risk": "P1",
+      "hunkRelationship": "Agent3 final already present in shared A1 tree"
+    },
+    {
+      "path": "packages/consultation-write-server/src/service.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "c5b2b84f9a8d0fcd7f7606969a44898be36d04760bae1e1f22ca6b475716b695",
+        "A3": "4a75dc119d8f4891fc7f3069ec673963c290b28b735ad4f006d0d49b83342c30",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/package.json",
+      "kind": "different-content",
+      "category": "package/exports",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "2186ed8b53513f13daea04988f74d03514a2ad6b08855af28b6f152a0936dd0c",
+        "A3": "36fdd03ba763d82537947ffd30de1a46d6a3297615ab34e09590f3e22b404984",
+        "base": "7b85396d7931f2e05443e0f79b156fb9df738b6cf31b857b70b8b1b819f3fc85"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 20,
+        "A3": 19
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/accountCleanup/enqueue.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "1a11c83ea42ca100e69023db8865b234ad93918c5aa77e824dcdcc78b703c97b",
+        "A3": "8162b66ed5068da8300de3c759bb32f4ab0e10d4a41f113253291dc1368029cc",
+        "base": "829bef09d1219ac4d0d299be56bf7f7c5f11ef24939f81647eae7d5f17b4788b"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/adminUser/adminUserService.test.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "0a0b65e60685bd71c907bc7a3c457e43843f597c4abdd56c696fb3f5c12b4628",
+        "A3": "4dd4ef87f08716d756e331148334c7d1b2a9b4de7633ebedf1b2274294db70fd",
+        "base": "46c5f944723f5bfc6e724025c644498413a6301495d7bbab5d8cc43d93dbe659"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 4,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/adminUser/adminUserService.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "52b8ec2af1e1c0b6565f7b5af5ae701452790da8b217a6c9b3968cddefa4c08e",
+        "A3": "3778ee921f25e465c1d3e562b75391fd339a59755e5418ab7afebfc9c824ef01",
+        "base": "b429332d2b2b5d60fca3059d2c2b286851f5c380497f946a13d5297b1e01924a"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 22,
+        "A3": 13
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/__tests__/paymentService.test.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "ad813c73d46b0ee9532f291eb2b5b27c7d0e0021f5cd5ea9e8d3036d01c6328e",
+        "A3": "b4ec75e6c92f198b5747fed2b904bb5cea62aca2bcfe72b20648aa0ef696b150",
+        "base": "0eea99f5bade694a5a7f2b514f25b7e75a1cf92bb9c55fdf353aef5e04f73dc5"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 53,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/index.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "356953d2cf4ed339d08597b104e3090774389e936cf94038437efb192126e77b",
+        "A3": "363a33f952583ed346c52386d9cabbb5176d15cf5daab4e2149c1243eb07984d",
+        "base": "df2cc09cafadf3f338e3756880922bfe3c6ed43cfd131542f7e18fdfcd563d54"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 13,
+        "A3": 15
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/paymentService.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "19ca950044f69f46aaaf696a8c612926c937a806f68448050a076fc134ed3db8",
+        "A3": "3febc1395d9625f7559e3349e84b295c23a04e67cff55f34ca49efa0709a19c1",
+        "base": "02ea1092aa9569fa7db841f93b8add1519f12c6d8d645358882465077129c51c"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/consultation/admin5ScheduleRealPG.integration.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "7648fa400f1d50da1189fa93a81a235a249202ec42c5544d42d7d14cb73e02ca",
+        "A3": "8e77ad21112ce93852c00d288927db55033a1f63e3e81c1a12024b812039e273",
+        "base": "52951aa4532a96691ae2ee4773a5e058da854ebe600cca80a64733df90987700"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 4,
+        "A3": 4
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/consultation/bookingEligibility.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "514c9fa9b710853fbfb61bce799e29411101776f0d73bfca62846dc5b2befa23",
+        "A3": "98e50b9653adc029a037718932b625ef5bee0acaa6c376e36ed84a5ac9844dc6",
+        "base": "ca7f29358aec2298c40cb802403603848fc015aa665d3910814584bc030a5f28"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 5,
+        "A3": 6
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/consultation/bookingLimits.integration.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "4413878ed4560212bd8a87329c49ccb2067f0b83c8550127a74550ca9725a1d6",
+        "A3": "c2d8bf34e06ba95567c5c720c4fd5e1606f27d35eaed520a19fd04c91bcfbe38",
+        "base": "b137e5662e19537c04e5fa724beeddec0aa85622b21ce922a73c40eddd5f8bd5"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/consultation/bookingService.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "c0765476e716ba6f2138d825e2899d2fad7a721d7d01a4872c81f1879f38a357",
+        "A3": "2a5b72ba9f6ef5d4d13a69789e28d11858bae2342ee0d89cca529afc04fcfac7",
+        "base": "1f2c7381b751eecab8184862ef227e3d062e609da0ff6087325590a1cd551339"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 35,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/consultation/g1-consultation-mail-enqueue-recovery.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "b5f23e41e705690d59cde6b8999f8dfd4677b93ca128755a41f33835bff40997",
+        "A3": "8f5dae150c98bf6f0c481454896c6a5b3c7a1d03571f9c5f6f3de1390574591e",
+        "base": "c2db305c19767c2783495f5ac34ab7e5bca8ab356b168dac9196ef012f4fc97a"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/consultation/g1-moderator-core-deny.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "5964348c0061de22c1d9dc5c3a53077fbc903b221e39ebec3c04b9facd8c4718",
+        "A3": "1a665c1266a28dc5043e0fbf74ad3e2560a1ecd2ecdce41afe5abf6dceb80966",
+        "base": "24f8380c19e58f62ba531bd365234fb811f1560ff8e6b1759187bd98a9989355"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/consultation/g1BookingRealPG.integration.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "b183d204a0063a8399e5665414a779c230996511a940582169761756c8d9b4dd",
+        "A3": "7dcc30e8562cd50204e85e4e151bb1b765adce9af9616105589edf30d81827bd",
+        "base": "bfd96ba9288ffd9490b63d13e6e716b7212966eb1ebc559dee3a7af387c7d11e"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/consultation/index.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "460554a5b139875c90ff6f22664fb4db8177372a4f9ec06d14f1234991816f81",
+        "A3": "58d27f6b9b39fcefd049872dd5ff4c8520cd5718654b76b4238559ce520f9987",
+        "base": "e0d49aa5ee972064667b6baf0855c3bdf815a21a51997f5ceb21847e95d97308"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/consultation/trainerTransitionsWorkRealPg20261027.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "06c59e20db72d9b10a6c51dc56a58825f4ac42f6c5a6c6cc5ba39eee36f0d9fc",
+        "A3": "0cbecf25a04cb9375fc17c9a694de64fe6f250017fc66a0031f67259d6f1349f",
+        "base": "983902109e294a72dd898b6897925f056d0270a41b41276026b96fbce76c2736"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/consultation/types.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "936abcbc891aae1c47e76cf9f8d0faae408809c45ecab29fd33fa07fc720a133",
+        "A3": "11aba14781d0cf3dfb2b1d701b0786adfb8e74314ab65678d0e05a07226d388f",
+        "base": "d8ef4b48a34ea319470fcd99414fa924026852582dcc8261804cc3f7c15ec6b6"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 5,
+        "A3": 4
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/course/index.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "2fb3aa49c547be59790459c0aad42e1fb9d7ebdd16cd8c5772654a5d0cbc8b8e",
+        "A3": "9921485414c2ae72ce4ead517bc24126da4bdb9634e7425a45c76ddd419617f6",
+        "base": "89bdbf618d85499074421b8e32d3b9598212f4b588d38a0e5cee3b7f80abce20"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/dailyCourse/dailyCourseCleanupScope.ts",
+      "kind": "different-content",
+      "category": "courses/progress",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core dailyCourse/userCourse/userProgress + course-progress-server + API mounted/isolated PG",
+      "sha256": {
+        "A1": "7b160a3ce2fc6924bed3522109a3d76157f4bb47d89fe06e29186e52044398d4",
+        "A3": "b772bcbcb3a10a29a88b7602958b888c94bf05e88da5f77fc7ee600b8e8b0103",
+        "base": "bb28e76f6a364e33ba560ad3f582f12fcf19bf05bd6c86fc60c9b26911f52bb4"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 8,
+        "A3": 8
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/core/src/services/feed/index.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "84f84427a0a30a7ed53927184f8567e4258f91838ec72d2f6c7e271efa15c9cd",
+        "A3": "b373fd5778c13ff82530e01e980957196fcfe9fbad3f09ea4575fb4b86c32f0a",
+        "base": "c37c97ff342ffab58b0e395b2bcbc4be4904116e9b496b829ad6c3db357fe8d8"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 4,
+        "A3": 4
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/gafus/g1-offline-training-reward-boundary.test.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "e387c345bb35b8935c54201e27ce8423be8704be1d013c58551b58f34c79e5c1",
+        "A3": "f91c237b8b9dbd8b54734818df1eef51cbc55ad5936d3a270fced82d889b5eab",
+        "base": "caeaa1130b903883ce7d3fc8b49561a7cb610faa881e54a824466f98b53f6afb"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/gafus/types.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "cde0c8efd471ada0d57cacd728be6cdc03fa4f22f41491e025ea54ceb209bcc8",
+        "A3": "492e14d9f156386bf7d11cc1841f4a8f537acc0514ea535b7b034c1cdc6197f3",
+        "base": "e5b00a7446b50ea1498f197b6ba8f60f5a37196ebd00f04a70711e75e3094290"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/gafus/walletService.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "531d4303af986e49a90ab19cefeca43e917dbb8770c1310f674fffb9411e1059",
+        "A3": "177a825dc795aed54857001435dad521a2e548f272962a4ebd2403e83890843e",
+        "base": "f78bf60ad9361af4bbd0d87b518d8f1f43f24349b852c02bae58bd57c9415518"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 9,
+        "A3": 9
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "073fff926ff6754ebdc30c8d88534c808597d5fc6138c8ae9d3fb80ad588ef62",
+        "A3": "566ec6b46ef50d33ae220917d05e57e5d3a6bd970229a86d3f3f4cff19789fe6",
+        "base": "8bed9f7c3a13316f9f31a34c1d1f5bbd40c60ed4e59afea1db872b9650c1148a"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 13,
+        "A3": 10
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/accessService.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "14a16ba972529d7bd0d29e0c62da430b88c2098f56c7516ad2a555f82279d2c8",
+        "A3": "e009029874186962d982f82c32972398becdadff36dd1e6152b92b6f11b16624",
+        "base": "0c79bc782342763cd8928b2d3ed21120407fa8ca4533107a355e0427c00d5399"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 18,
+        "A3": 13
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/gafusInterop.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "cc8b27286601fb1562dd09e6bcdc93eb83610cd4fabfaaad3bc196a18278e499",
+        "A3": "35ddad79289385edb2f68f6be1b28626c39f00e65c709d2df987aed2b5420dbd",
+        "base": "5a8dcf8afd03f5381af496aa420c370cdd5d86d833b451bf3a485529e96863ea"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/index.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "0d09c90b0b6fe246345cd89eac2e71a33ccb9aae315eb2211599dcfd7cadd119",
+        "A3": "6d6c47874288ae7c0117fc73a3f9db3bd39fb257eeb63f714ac56e39f3fab7cf",
+        "base": "000a1976aca18460df8b42eb4fcf9aa9d2c660e0be3b4c317146fa4412d90784"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 2,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/trainerCourseNameOnlyService.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "5abd551d25848ecb346b285b4072071b16b98b14d562e584db0804486fc3a599",
+        "A3": "230f6b07a3b3424365d67c9c45bcbee6c87710086d142413ba991f51f60c1343",
+        "base": "9902e31c49b2bc8dd3669a9a81bd7bb490a92793340e2dac976c2dd0e25e08ab"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 8,
+        "A3": 3
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/user/deleteUserAccount.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "a0590e26cc2493f55edad73ffa533eebc4743476b852ba1ee8753b526bbabe39",
+        "A3": "fb2ee2625f37075ef43a6e00b05b78d16cccf76a90d031a07bf1da8d3607e0c7",
+        "base": "ebfef61e94f0238987ba3f4523b8e6e389eb6b5dd4b5879c1d09dfb8756ca976"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 20,
+        "A3": 14
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/user/index.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "9f7db98516900b082e119b0bc3c017867a059243132688f1ab11601c6671da56",
+        "A3": "ba9fd54fcd29d7cee54346f696cc18c33e871255b359161ae45bff048cafc8f5",
+        "base": "525802d5ddabbb855ad3d9c049d9da4d1aa89835d9a2052b373e67c3b2319868"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/core/src/services/user/userCourseService.ports.test.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "3413c140f611781dfdbd981567d1763dd18fa1f0585636c0d28444b1bfb95b31",
+        "A3": "d5cd088104bd5199c6a211975e075a1996df346d0605313a0c4a3d7e6deacea5",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P2"
+    },
+    {
+      "path": "packages/core/src/services/user/userCourseService.ts",
+      "kind": "different-content",
+      "category": "core/policy",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "affected package typecheck/build + targeted test; final 33/5/18 on one candidate",
+      "sha256": {
+        "A1": "13e38b364a46f496c43b5e56cff5acfbf443264e8e9ffa4231ae1d8c68873123",
+        "A3": "b601bb816c6621470a5275cb7ab07177e273c6a755476b8ea86893646b7cbd55",
+        "base": "c8f31b115b961bc4183a6c87dfe2b4cb120155536d4ecfcd3809b10025e3a819"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 11,
+        "A3": 7
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/course-progress-server/package.json",
+      "kind": "different-content",
+      "category": "courses/progress",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core dailyCourse/userCourse/userProgress + course-progress-server + API mounted/isolated PG",
+      "sha256": {
+        "A1": "e250254890e7873d75bf2741c5acffdfdfaee00492678de4563c37e3d00b25e0",
+        "A3": "d4d5aa1a6aa9fb12a637acd82c7308cba97ee7e2a7e13a5b1c8d5f301aa17d6c",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/course-progress-server/src/index.ts",
+      "kind": "different-content",
+      "category": "courses/progress",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core dailyCourse/userCourse/userProgress + course-progress-server + API mounted/isolated PG",
+      "sha256": {
+        "A1": "daa05271778b392d4968eb7464eeb3d3f450c423c3b299fa177ec67dbbb442ea",
+        "A3": "32db959db86b9de980c775b8a2f875c718ea299acb237f84166db07300e5e628",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P1"
+    },
+    {
+      "path": "packages/types/src/index.ts",
+      "kind": "different-content",
+      "category": "shared-contracts",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "pnpm --filter @gafus/types build; affected Core/API/Worker typecheck; DTO contract tests",
+      "sha256": {
+        "A1": "bf98e16bdb6195efd38127a8cf42ec4f18997e6e0236cdccfeec4c4581d5c91c",
+        "A3": "0030734f1bc6287b30363307983652680efc30a754ba6c95996c2573e47134d5",
+        "base": "1f016068165f5ff0345f279ecbab987a0bf186b0e0e587da5f949a3f7b6a0660"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 1,
+        "A3": 1
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/worker/src/cron-scheduler.test.ts",
+      "kind": "different-content",
+      "category": "worker/cron",
+      "preferredSource": "A3-worker-with-A1-contract-review",
+      "sourceReason": "A3 owns Worker but A1 owns consultation ports and Core dependencies",
+      "requiredVerification": "pnpm --filter @gafus/worker typecheck; cron/consultation reminder tests; A3 PG/Redis outbox",
+      "sha256": {
+        "A1": "ac3ef75d316c8448e2e5131acb889e7284dbfd31602b32de5086dd765f04d120",
+        "A3": "35ed32e9b43582487aae9f8299aef106be306854fd18e3f2b770f50094afb048",
+        "base": "c64ff6d0a21f637807e8bb072df737e591d4b724595b74fffb5b30bfbbec478d"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 3,
+        "A3": 2
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/worker/src/cron-scheduler.ts",
+      "kind": "different-content",
+      "category": "worker/cron",
+      "preferredSource": "A3-worker-with-A1-contract-review",
+      "sourceReason": "A3 owns Worker but A1 owns consultation ports and Core dependencies",
+      "requiredVerification": "pnpm --filter @gafus/worker typecheck; cron/consultation reminder tests; A3 PG/Redis outbox",
+      "sha256": {
+        "A1": "44e38f79fd9382cc9d7d3e7c95cf7e971ca8041d37c1aea456dedf5afca29acd",
+        "A3": "6a9a6c63d272ac466ed30c8bf37fa4a46bc9b79c0cc219af0ddb27f3ac97fa0d",
+        "base": "2b4872cf52941a6d4272edf120baa6ae04cf3395a2f70ca258971773268c29ee"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 7,
+        "A3": 7
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/worker/src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "9659a9ee16f87094d3369c8f82898a1014ef32bf75d920d9b14ddecc9d715114",
+        "A3": "423361db2733fe55945c51ddb9ed678db241d0dd472d13dd4419838fee047048",
+        "base": "7648c621da00a169c1cd5f15923cfe6d7395df1371e0a64d7bcfc8b4dda3614b"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 9,
+        "A3": 8
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "packages/worker/tsconfig.json",
+      "kind": "different-content",
+      "category": "worker/cron",
+      "preferredSource": "A1-with-verified-A3-final-file",
+      "sourceReason": "Agent3 final manifest SHA equals shared A1 file; A3 worktree is stale here",
+      "requiredVerification": "pnpm --filter @gafus/worker typecheck; pnpm check:core-boundaries; consultation reminder/cron tests",
+      "sha256": {
+        "A1": "c4093dc102bf73013a642c5a51b1ad596ec03d5c1cbe43b4a283dd6c7d5d8b20",
+        "A3": "74c18e6be5835c3b2d25cc7b29c865a876cd36f4aa590de73476915272078d45",
+        "base": "941a4d2e0466dd6c0249ac07378375dcd101d408c57d8f2da7bdbc550a383668"
+      },
+      "A3ManifestScope": "shared",
+      "A3ManifestSHAEqualToCommonTreeA1": true,
+      "A3ManifestSHAEqualToA3Worktree": false,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "classification": "AUTO_REUSE_A1_VERIFIED_A3_FINAL_HUNK",
+      "risk": "P1",
+      "hunkRelationship": "Agent3 final already present in shared A1 tree"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "kind": "different-content",
+      "category": "dependency/schema",
+      "preferredSource": "regenerate-after-consensus",
+      "sourceReason": "never take lockfile wholesale from either agent",
+      "requiredVerification": "pnpm install --frozen-lockfile; pnpm check:core-boundaries; pnpm typecheck",
+      "sha256": {
+        "A1": "75bbecbb00658fb56817c800fb55b9b323a9a8359f6cb1193e1e7125d4a94a7f",
+        "A3": "64d8cc4e62baa6e4f0f7beba5d0b9441c4b59e4909a969b79b5e607ecfdd0f23",
+        "base": "b5e653ac8f7484e54e9a6860667dc666f571c46b34cfcd4a8557a9199b62aa6a"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": true,
+      "hunkRelationship": "overlap",
+      "baseEditCounts": {
+        "A1": 84,
+        "A3": 81
+      },
+      "classification": "MANUAL_SEMANTIC_OR_OVERLAPPING_HUNKS",
+      "risk": "P0"
+    },
+    {
+      "path": "scripts/check-architecture-layers.mjs",
+      "kind": "different-content",
+      "category": "security/boundaries",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "pnpm check:core-boundaries; API dependency-architecture; error-handler tests; owner deny before SQL",
+      "sha256": {
+        "A1": "9c9078d29f0eedcb6440cf418c6eacb543fe1067822269795cbeb5b15105f96b",
+        "A3": "3b81d13585ae76ca641edb42deb39b62c521b17844bfda0c4f751bd42463de15",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P1"
+    },
+    {
+      "path": "scripts/check-architecture-layers.test.mjs",
+      "kind": "different-content",
+      "category": "security/boundaries",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "pnpm check:core-boundaries; API dependency-architecture; error-handler tests; owner deny before SQL",
+      "sha256": {
+        "A1": "2bb768825e662421b6066dbba8d8fc7b59510f0b795e3659eb33cc9518e995b7",
+        "A3": "8877900a5de563ec529c2577a15f1f73d4f0753d332c0e8ffb26d49ee35c59c3",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P1"
+    },
+    {
+      "path": "scripts/check-core-server-facades.mjs",
+      "kind": "different-content",
+      "category": "security/boundaries",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "pnpm check:core-boundaries; API dependency-architecture; error-handler tests; owner deny before SQL",
+      "sha256": {
+        "A1": "f2dea706b411d8a204c6a2fc619b38f9514b14eb31af423df28833235e53e4e1",
+        "A3": "07af16ce4ab9ed24c0f27297819a81b8aaebaba79f8bb04c5760666541d6f2e7",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P1"
+    },
+    {
+      "path": "scripts/check-core-server-facades.test.mjs",
+      "kind": "different-content",
+      "category": "security/boundaries",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "pnpm check:core-boundaries; API dependency-architecture; error-handler tests; owner deny before SQL",
+      "sha256": {
+        "A1": "5184469d667dab7d653626526c11b5e61468beb34bd9e3140a2a08c8610501b7",
+        "A3": "b0682f3372cf292a875ef2aac107c978e144a0c690274c27c4066ed73e8c6ea6",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P1"
+    },
+    {
+      "path": "scripts/qa/account-cleanup-snapshot-isolated-pg.smoke.ts",
+      "kind": "different-content",
+      "category": "qa/scripts",
+      "preferredSource": "A1-with-verified-A3-final-file",
+      "sourceReason": "Agent3 final manifest SHA equals shared A1 file; A3 worktree is stale here",
+      "requiredVerification": "bash scripts/qa/account-cleanup-snapshot-isolated-pg.sh; owner rollback/lease/foreign scope",
+      "sha256": {
+        "A1": "3c7aaf5ef42642039765ff15d48473492015ac9f5b363209748c8cb71852b397",
+        "A3": "c6d47683216cf597c9a6654f8dbee7ad859c8b4793d2243e3863604f82a03bdc",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": "shared",
+      "A3ManifestSHAEqualToCommonTreeA1": true,
+      "A3ManifestSHAEqualToA3Worktree": false,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "classification": "AUTO_REUSE_A1_VERIFIED_A3_FINAL_HUNK",
+      "risk": "P2",
+      "hunkRelationship": "Agent3 final already present in shared A1 tree"
+    },
+    {
+      "path": "scripts/qa/consultation-eligibility-isolated-pg.smoke.ts",
+      "kind": "different-content",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-baseline-with-A3-hunk-review",
+      "sourceReason": "A1 owns Core→ports, policy and app composition; preserve A3 QA/security fixes",
+      "requiredVerification": "Core bookingService + slotService + moderator deny tests; API consultations mounted; isolated PG transaction/CAS",
+      "sha256": {
+        "A1": "6cb5a892e80b030a8b45336f94be64cfce809d0addb4779cdf4b184da77ab09e",
+        "A3": "7a4238648c6db561f89f1853820c5e6c1ad4c3e340eafebbbe6601550084841c",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P1"
+    },
+    {
+      "path": "scripts/qa/web-vite-chunked-regression.mjs",
+      "kind": "different-content",
+      "category": "qa/scripts",
+      "preferredSource": "A1-baseline-with-A3-review",
+      "sourceReason": "A1 is current architecture baseline; capture any A3-only fix",
+      "requiredVerification": "bash -n (shell) / node --check (JS); affected isolated smoke; no external resources",
+      "sha256": {
+        "A1": "431657042950182693cdc7ed9c849b37292e362944f70c0cfff776413b502c96",
+        "A3": "afb1dd828c0ae52afb1339e19fb5282edb54953a0ce1e6c46bec7a9c6e5a8527",
+        "base": "ABSENT"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": false
+      },
+      "baseExists": false,
+      "hunkRelationship": "both added (no tracked base)",
+      "classification": "MANUAL_BOTH_ADDED",
+      "risk": "P2"
+    }
+  ],
+  "deleteVsPresent": [
+    {
+      "path": "packages/core/src/services/accountCleanup/index.ts",
+      "kind": "delete-vs-present",
+      "category": "core/policy",
+      "preferredSource": "A1-keep-until-entrypoint-verified",
+      "sourceReason": "A1 kept accountCleanup index; removing it may break current ports/exports",
+      "requiredVerification": "pnpm check:core-boundaries; pnpm --filter @gafus/core typecheck; pnpm --filter @gafus/api typecheck; targeted owner/ACL/rollback test",
+      "sha256": {
+        "A1": "bcff616dede9b9fdb766c5e9b9656c58b8c838edf780c185074006c20363b6af",
+        "A3": "ABSENT",
+        "base": "eb522de3ba53fe4a7f39c3e015587480bed164860b597c3074b65e158916128e"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": false,
+        "A3": true
+      },
+      "baseExists": true,
+      "classification": "MANUAL_DELETE_VS_PRESENT",
+      "risk": "P0-core-exports",
+      "hunkRelationship": "removed in one worktree but present in other"
+    },
+    {
+      "path": "packages/core/src/services/consultation/bookingService.ts",
+      "kind": "delete-vs-present",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-deletion-with-port-verification",
+      "sourceReason": "A1 moved Core→server, do not reintroduce stale facade from A3",
+      "requiredVerification": "pnpm check:core-boundaries; pnpm --filter @gafus/core typecheck; pnpm --filter @gafus/api typecheck; targeted owner/ACL/rollback test",
+      "sha256": {
+        "A1": "ABSENT",
+        "A3": "cf2ee75c0df39ca65ab79bc4aba65660fd5da9ac44eb9068748c82220b118e62",
+        "base": "9cc1ab0974ef5250def6851c28bee768995d5b43e3c3c3dae4895ee4fc3e7208"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": true,
+        "A3": false
+      },
+      "baseExists": true,
+      "classification": "MANUAL_DELETE_VS_PRESENT",
+      "risk": "P0-core-exports",
+      "hunkRelationship": "removed in one worktree but present in other"
+    },
+    {
+      "path": "packages/core/src/services/consultation/slotService.ts",
+      "kind": "delete-vs-present",
+      "category": "consultation/transactions",
+      "preferredSource": "A1-deletion-with-port-verification",
+      "sourceReason": "A1 moved Core→server, do not reintroduce stale facade from A3",
+      "requiredVerification": "pnpm check:core-boundaries; pnpm --filter @gafus/core typecheck; pnpm --filter @gafus/api typecheck; targeted owner/ACL/rollback test",
+      "sha256": {
+        "A1": "ABSENT",
+        "A3": "f1f16a6786e85b24b1ce3cb4b3e8ff22f7ac3e89932a5f34c3620d0b05d6397a",
+        "base": "337794344817bf844e55cc783ad631ca6b25fbf5e2c092b369f72aec8b5a3a30"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": true,
+        "A3": false
+      },
+      "baseExists": true,
+      "classification": "MANUAL_DELETE_VS_PRESENT",
+      "risk": "P0-core-exports",
+      "hunkRelationship": "removed in one worktree but present in other"
+    },
+    {
+      "path": "packages/core/src/services/dailyCourse/dailyCourseService.ts",
+      "kind": "delete-vs-present",
+      "category": "courses/progress",
+      "preferredSource": "A1-deletion-with-port-verification",
+      "sourceReason": "A1 moved Core→server, do not reintroduce stale facade from A3",
+      "requiredVerification": "pnpm check:core-boundaries; pnpm --filter @gafus/core typecheck; pnpm --filter @gafus/api typecheck; targeted owner/ACL/rollback test",
+      "sha256": {
+        "A1": "ABSENT",
+        "A3": "944894b5f383ef6e9b8dbc8f1958b08a120612af8b52cbf2118a8f949a0f2aa6",
+        "base": "b428c872a6fed99905d2a205be5fa62ecf52482760d7bc15cc0d35638fc48073"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": true,
+        "A3": false
+      },
+      "baseExists": true,
+      "classification": "MANUAL_DELETE_VS_PRESENT",
+      "risk": "P0-core-exports",
+      "hunkRelationship": "removed in one worktree but present in other"
+    },
+    {
+      "path": "packages/core/src/services/user/userProgressService.ts",
+      "kind": "delete-vs-present",
+      "category": "courses/progress",
+      "preferredSource": "A1-deletion-with-port-verification",
+      "sourceReason": "A1 moved Core→server, do not reintroduce stale facade from A3",
+      "requiredVerification": "pnpm check:core-boundaries; pnpm --filter @gafus/core typecheck; pnpm --filter @gafus/api typecheck; targeted owner/ACL/rollback test",
+      "sha256": {
+        "A1": "ABSENT",
+        "A3": "f5ac96f414a5d58d841ade81f7a89bbd2abe6ba6759a7e9e12df8e64b3286bcb",
+        "base": "bd38c077520498e059c010b876948fe7a346ae7ca9377a1e74e6cd329422b8a3"
+      },
+      "A3ManifestScope": null,
+      "A3ManifestSHAEqualToCommonTreeA1": null,
+      "A3ManifestSHAEqualToA3Worktree": null,
+      "sourceFileMissing": {
+        "A1": true,
+        "A3": false
+      },
+      "baseExists": true,
+      "classification": "MANUAL_DELETE_VS_PRESENT",
+      "risk": "P0-core-exports",
+      "hunkRelationship": "removed in one worktree but present in other"
+    }
+  ],
+  "a2Prioritized": [
+    {
+      "path": "apps/api/src/lib/operation-observability.ts",
+      "priority": "P0",
+      "status": "A1_A3_MATCH_A2_DIFF",
+      "preferredSource": "A2 runtime telemetry + A1 API composition",
+      "requiredVerification": "Reconcile HTTP operationId, route labels, private /internal/metrics, real PG pool wait, no secrets",
+      "sha256": {
+        "A1": "37b9ca546103b8a22799cfc728799599393bd1466dc6dba1595f98134c4c6e7b",
+        "A3": "37b9ca546103b8a22799cfc728799599393bd1466dc6dba1595f98134c4c6e7b",
+        "A2Committed": "2e49911720b7ed53d6c79847d79842ee6cbf66355d0d60ec27cea89b9e4276d2",
+        "A2Working": "2e49911720b7ed53d6c79847d79842ee6cbf66355d0d60ec27cea89b9e4276d2"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": true
+    },
+    {
+      "path": "ci-cd/docker/prometheus/config.alloy",
+      "priority": "P0",
+      "status": "A1_A3_MATCH_A2_DIFF",
+      "preferredSource": "A2 low-cardinality allowlist + existing monitoring",
+      "requiredVerification": "Metrics target/auth, separate media/outbox scrape, source freshness, no secret in config",
+      "sha256": {
+        "A1": "b3d563aad61b3508a4aaf62ce3016d1ddf9095c969174f29c6cc02b064c05b05",
+        "A3": "b3d563aad61b3508a4aaf62ce3016d1ddf9095c969174f29c6cc02b064c05b05",
+        "A2Committed": "0835c811e73524aa9db2c361276fb752f3f461470de81ce410a13c3019ee5163",
+        "A2Working": "0835c811e73524aa9db2c361276fb752f3f461470de81ce410a13c3019ee5163"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": true
+    },
+    {
+      "path": "ci-cd/docker/prometheus/gafus-alerts.yml",
+      "priority": "P0",
+      "status": "A1_A3_MATCH_A2_DIFF",
+      "preferredSource": "A2 alert rules + existing production rules",
+      "requiredVerification": "Alert counts, no duplicate groups, 360p stuck and DLQ firing/resolved, route only test recipient",
+      "sha256": {
+        "A1": "290f6cbbc00861a8d6e8a5c60bef40b35b0df0fa951daeb78fe18e0924ed8f5e",
+        "A3": "290f6cbbc00861a8d6e8a5c60bef40b35b0df0fa951daeb78fe18e0924ed8f5e",
+        "A2Committed": "31405f04f97be3f1dd4663ec23d339907b9c4f243e6936ecf74992b7b6743cea",
+        "A2Working": "31405f04f97be3f1dd4663ec23d339907b9c4f243e6936ecf74992b7b6743cea"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": true
+    },
+    {
+      "path": "packages/logger/src/serverTelemetry.ts",
+      "priority": "P0",
+      "status": "A1_A3_MATCH_A2_DIFF",
+      "preferredSource": "A2 telemetry + A1 logging hooks",
+      "requiredVerification": "Span parent/child, sanitized JSON, no payload/SQL/tokens, OTLP failure nonblocking",
+      "sha256": {
+        "A1": "99c57f750945bef986b1567343254ff09222795a15b9073553cc8cf7337bd2bd",
+        "A3": "99c57f750945bef986b1567343254ff09222795a15b9073553cc8cf7337bd2bd",
+        "A2Committed": "645b7d59b6d7edf93fd40a188c47cffc6f18dbd6381d8dd7604ce9f035890142",
+        "A2Working": "645b7d59b6d7edf93fd40a188c47cffc6f18dbd6381d8dd7604ce9f035890142"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": true
+    },
+    {
+      "path": "packages/prisma/schema.prisma",
+      "priority": "P0",
+      "status": "A1_A3_MATCH_A2_DIFF",
+      "preferredSource": "A1 Prisma model + A2 metrics hunk",
+      "requiredVerification": "Prisma previewFeatures metrics, preserve A3 outbox schema, generate, typecheck, migration safety",
+      "sha256": {
+        "A1": "309d51a18f02ceea136cf35c913677e35fa04df3fef01e9f5212d35263871e62",
+        "A3": "309d51a18f02ceea136cf35c913677e35fa04df3fef01e9f5212d35263871e62",
+        "A2Committed": "394807900daf41830279681ed578d80dbc462388884e6bca0ba619c1cf3247c7",
+        "A2Working": "409d03078b161b9bdd8f5b073dbc24d76de4d8eb294706e6834477db86faa9df"
+      },
+      "A2WorkingDiffersFromCommitted": true,
+      "criticalReview": true
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "priority": "P0",
+      "status": "REGENERATE_NO_DIRECT_COPY",
+      "preferredSource": "regenerate after package manifests agreed",
+      "requiredVerification": "Never select full source. One lock resolution; frozen install after approval",
+      "sha256": {
+        "A1": "75bbecbb00658fb56817c800fb55b9b323a9a8359f6cb1193e1e7125d4a94a7f",
+        "A3": "64d8cc4e62baa6e4f0f7beba5d0b9441c4b59e4909a969b79b5e607ecfdd0f23",
+        "A2Committed": "8bd2ad9028d5361daefa25846e2ac402287270d7fa161c8396a77c170f30ef0c",
+        "A2Working": "8bd2ad9028d5361daefa25846e2ac402287270d7fa161c8396a77c170f30ef0c"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": true
+    },
+    {
+      "path": "apps/api/src/lib/operation-observability.test.ts",
+      "priority": "P1",
+      "status": "AUTO_IDENTICAL_A1_A3_A2_COMMITTED",
+      "preferredSource": "identical if SHA matches; otherwise combine asserts",
+      "requiredVerification": "API operation contract tests, auth and label cardinality",
+      "sha256": {
+        "A1": "6b8f39601c60af1485d5533ffd07bc2bc4f560751be2013b63cbcfae92570d7a",
+        "A3": "6b8f39601c60af1485d5533ffd07bc2bc4f560751be2013b63cbcfae92570d7a",
+        "A2Committed": "6b8f39601c60af1485d5533ffd07bc2bc4f560751be2013b63cbcfae92570d7a",
+        "A2Working": "6b8f39601c60af1485d5533ffd07bc2bc4f560751be2013b63cbcfae92570d7a"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": false
+    },
+    {
+      "path": "ci-cd/docker/grafana/dashboards/gafus-api-latency.json",
+      "priority": "P1",
+      "status": "A1_A3_MATCH_A2_DIFF",
+      "preferredSource": "A2 latency dashboard with A1 API metrics",
+      "requiredVerification": "Validate JSON/data sources; HTTP p95/p99 and Prisma pool wait",
+      "sha256": {
+        "A1": "67d9dedcf5a487a5b476ba9b3ab73293d131d163b00cc3955c86c26984e134e4",
+        "A3": "67d9dedcf5a487a5b476ba9b3ab73293d131d163b00cc3955c86c26984e134e4",
+        "A2Committed": "18ce7306df898a0661be23fbad1746414549a6050a78c83bb59110b3e68641b2",
+        "A2Working": "18ce7306df898a0661be23fbad1746414549a6050a78c83bb59110b3e68641b2"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": false
+    },
+    {
+      "path": "ci-cd/docker/grafana/dashboards/gafus-media-chat.json",
+      "priority": "P1",
+      "status": "AUTO_IDENTICAL_A1_A3_A2_COMMITTED",
+      "preferredSource": "A2 media/chat dashboards + A3 job metrics",
+      "requiredVerification": "Panels source, 360p, outbox, DLQ; no unbounded labels",
+      "sha256": {
+        "A1": "9e95a599699be69c854ff6b7d9a0c353516e5b1a2d85325d4140ac08e36684f6",
+        "A3": "9e95a599699be69c854ff6b7d9a0c353516e5b1a2d85325d4140ac08e36684f6",
+        "A2Committed": "9e95a599699be69c854ff6b7d9a0c353516e5b1a2d85325d4140ac08e36684f6",
+        "A2Working": "9e95a599699be69c854ff6b7d9a0c353516e5b1a2d85325d4140ac08e36684f6"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": false
+    },
+    {
+      "path": "ci-cd/docker/grafana/dashboards/gafus-operations-reliability.json",
+      "priority": "P1",
+      "status": "AUTO_IDENTICAL_A1_A3_A2_COMMITTED",
+      "preferredSource": "A2 operation view + A3 outbox transitions",
+      "requiredVerification": "Rate/drain/DLQ and service health, no phantom metrics",
+      "sha256": {
+        "A1": "38f4f0b24d553c82b8353c76ce8984b5c1469555c613796f3700b22aa76e4759",
+        "A3": "38f4f0b24d553c82b8353c76ce8984b5c1469555c613796f3700b22aa76e4759",
+        "A2Committed": "38f4f0b24d553c82b8353c76ce8984b5c1469555c613796f3700b22aa76e4759",
+        "A2Working": "38f4f0b24d553c82b8353c76ce8984b5c1469555c613796f3700b22aa76e4759"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": false
+    },
+    {
+      "path": "ci-cd/docker/prometheus/gafus-alerts.promtool.test.yml",
+      "priority": "P1",
+      "status": "AUTO_IDENTICAL_A1_A3_A2_COMMITTED",
+      "preferredSource": "A2 + existing promtool fixtures",
+      "requiredVerification": "Official promtool test rules; Alertmanager isolated webhook",
+      "sha256": {
+        "A1": "6e4e8b4dd61d416ee53c95aabdd5ea6bdcd318606f5b87e8d69e43d192301479",
+        "A3": "6e4e8b4dd61d416ee53c95aabdd5ea6bdcd318606f5b87e8d69e43d192301479",
+        "A2Committed": "6e4e8b4dd61d416ee53c95aabdd5ea6bdcd318606f5b87e8d69e43d192301479",
+        "A2Working": "6e4e8b4dd61d416ee53c95aabdd5ea6bdcd318606f5b87e8d69e43d192301479"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": false
+    },
+    {
+      "path": "ci-cd/docker/prometheus/health-monitoring.contract.test.mjs",
+      "priority": "P1",
+      "status": "A1_A3_MATCH_A2_DIFF",
+      "preferredSource": "A2 monitoring contract + existing checks",
+      "requiredVerification": "Node contract; Prometheus syntax, scrape and labels",
+      "sha256": {
+        "A1": "d7abb0e48116bc5f4742e7e0b15aab29ec9f66fa51b0fdd4fd51dd9ddb4a0ee8",
+        "A3": "d7abb0e48116bc5f4742e7e0b15aab29ec9f66fa51b0fdd4fd51dd9ddb4a0ee8",
+        "A2Committed": "381148f8207ee65c3a7a7569c31b677696c43bb86ebce4267fdd936673e6d893",
+        "A2Working": "381148f8207ee65c3a7a7569c31b677696c43bb86ebce4267fdd936673e6d893"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": false
+    },
+    {
+      "path": "packages/logger/package.json",
+      "priority": "P1",
+      "status": "AUTO_IDENTICAL_A1_A3_A2_COMMITTED",
+      "preferredSource": "identical if SHA matches A1/A2; otherwise review",
+      "requiredVerification": "OTel dependency versions, frozen lockfile, logger build",
+      "sha256": {
+        "A1": "37b8cb9fb3e7fd73d1d5cb2c6d68210342d0cfd779c92860134ac887de491180",
+        "A3": "37b8cb9fb3e7fd73d1d5cb2c6d68210342d0cfd779c92860134ac887de491180",
+        "A2Committed": "37b8cb9fb3e7fd73d1d5cb2c6d68210342d0cfd779c92860134ac887de491180",
+        "A2Working": "37b8cb9fb3e7fd73d1d5cb2c6d68210342d0cfd779c92860134ac887de491180"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": false
+    },
+    {
+      "path": "scripts/qa/otel-local-collector.test.mjs",
+      "priority": "P1",
+      "status": "A1_A3_MATCH_A2_DIFF",
+      "preferredSource": "A2 OTLP fixture",
+      "requiredVerification": "Traceparent/operationId, collector down fail open",
+      "sha256": {
+        "A1": "885294aae682d80d9021bd771eab5a8de3d3b0c0bf5bb5da6e1df27831e603df",
+        "A3": "885294aae682d80d9021bd771eab5a8de3d3b0c0bf5bb5da6e1df27831e603df",
+        "A2Committed": "fd0bddefc2107e6060a5f32382be55049212f989ea0ff4965b827e6469b6db25",
+        "A2Working": "fd0bddefc2107e6060a5f32382be55049212f989ea0ff4965b827e6469b6db25"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": false
+    },
+    {
+      "path": "scripts/qa/prometheus-alertmanager-isolated.sh",
+      "priority": "P1",
+      "status": "A1_A3_MATCH_A2_DIFF",
+      "preferredSource": "A2 local alert harness",
+      "requiredVerification": "Actual Prometheus/Alertmanager if installed; no production webhook",
+      "sha256": {
+        "A1": "5afa0bdfbe7995a9bb7eb99b7a6a74468bf972a51c446b72da3ae71fbf229695",
+        "A3": "5afa0bdfbe7995a9bb7eb99b7a6a74468bf972a51c446b72da3ae71fbf229695",
+        "A2Committed": "eb461e13e25f1025bb90f3f916f632f583d370258d4431fbd609c133e8905a81",
+        "A2Working": "eb461e13e25f1025bb90f3f916f632f583d370258d4431fbd609c133e8905a81"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": false
+    },
+    {
+      "path": "docs/audit/gafus-agent-2-observability-20261111.md",
+      "priority": "P2",
+      "status": "A1_A3_MATCH_A2_DIFF",
+      "preferredSource": "A2 source, retain A1/A3 historical observations",
+      "requiredVerification": "Check run evidence and PENDING, do not promote local to staging",
+      "sha256": {
+        "A1": "d3bd3da637aa8d0744467cd0c4351a6f94135f58ff18a84544be564d8c6d128b",
+        "A3": "d3bd3da637aa8d0744467cd0c4351a6f94135f58ff18a84544be564d8c6d128b",
+        "A2Committed": "d2b58b530c9c45efdeea84c89c7f355f3705d80703363d3117d1547450f76e8c",
+        "A2Working": "d2b58b530c9c45efdeea84c89c7f355f3705d80703363d3117d1547450f76e8c"
+      },
+      "A2WorkingDiffersFromCommitted": false,
+      "criticalReview": false
+    }
+  ],
+  "safeDisjointNote": "Base-hunk disjoint is a suggestion only; manual policy/contract review mandatory"
+}

@@ -8,11 +8,11 @@ import {
   pauseBoundStepNotification,
   resumeBoundStepNotification,
   resetBoundStepNotification,
-} from "./stepNotificationService.ts";
+} from "@gafus/notifications-server/stepNotificationService";
 import {
   getEligiblePushNotificationJob,
   getPushNotificationForDelivery,
-} from "./pushWorkerService.ts";
+} from "@gafus/notifications-server/pushWorkerService";
 
 const sink = vi.hoisted(() => ({ add: vi.fn(), remove: vi.fn() }));
 vi.mock("@gafus/queues", () => ({ pushQueue: { add: sink.add, remove: sink.remove } }));

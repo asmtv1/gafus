@@ -3,8 +3,34 @@ import { randomBytes } from "node:crypto";
 import { beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@gafus/prisma";
 import { lockGafusUser } from "./locking";
+import { registerGafusLockPort } from "./locking";
+import { lockGafusUser as dbLockGafusUser, withGafusUserLock as dbWithGafusUserLock } from "@gafus/gafus-server/wallet-lock";
+registerGafusLockPort({ lockGafusUser: dbLockGafusUser, withGafusUserLock: dbWithGafusUserLock });
+
 import { changeGafusBalanceTx, getGafusBalance } from "./walletService";
+// Compose the original SQL repository into the Core domain port. Synthetic
+// fixtures still own their Prisma TransactionClient and no new DB is opened.
+import { registerGafusLedgerRowsPort } from "./gafusLedgerPort";
+import {
+  ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
+  appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
+} from "@gafus/gafus-server/wallet-records";
+registerGafusLedgerRowsPort({
+  ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
+  appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
+});
+
 import { unlockContentWithGafus } from "./accessGrantService";
+import { registerGafusUnlockRowsPort } from "./gafusUnlockPort";
+import {
+  withGafusUnlockTransaction,
+  readGafusUnlockReplayTx,
+  insertGafusUnlockGrantTx,
+} from "@gafus/gafus-server/unlock-records";
+registerGafusUnlockRowsPort({
+  withGafusUnlockTransaction, readGafusUnlockReplayTx, insertGafusUnlockGrantTx,
+});
+
 import {
   hasActiveGafusCourseStepAccess,
   resolveCourseStepAccessTx,
@@ -12,7 +38,18 @@ import {
 } from "../contentAccess";
 import { resolveArticleEntitlement } from "../contentAccess/policy";
 import { requireCourseStepOperationAccess, updateStepAndDay } from "../training/trainingService.ts";
-import { requirePremiumOrRewardedAccessForVideoUrl } from "../rewardedCredits/accessService.ts";
+import { createGafusRewardedAccessService } from "../rewardedCredits/accessService.ts";
+import { createGafusInteropService } from "../rewardedCredits/gafusInterop.ts";
+import {
+  readGafusUserStepOccurrence, readGafusVideoOccurrences,
+} from "@gafus/course-read-server/gafus-entitlement-reads";
+const { requirePremiumOrRewardedAccessForVideoUrl } = createGafusRewardedAccessService(
+  createGafusInteropService({
+    readUserStepOccurrence: readGafusUserStepOccurrence,
+    readVideoOccurrences: readGafusVideoOccurrences,
+    hasActiveCourseStepGrant: hasActiveGafusCourseStepAccess,
+  }),
+);
 
 const run = process.env.GAFUS_PARITY_ISOLATED_DB === "1" ? describe : describe.skip;
 const key = randomBytes(5).toString("hex");

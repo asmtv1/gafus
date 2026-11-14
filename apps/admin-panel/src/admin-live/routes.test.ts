@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { adminSections, matchAdminRoute, maySeeRoute } from "./routes";
 
 describe("isolated live admin navigation", () => {
-  it("mounts all 19 requested legacy pages with unique paths and distinct API endpoints", () => {
-    expect(adminSections).toHaveLength(19);
-    expect(new Set(adminSections.map((x) => x.path)).size).toBe(19);
-    expect(new Set(adminSections.map((x) => x.key)).size).toBe(19);
+  it("mounts all 20 requested current admin pages with unique paths and distinct API endpoints", () => {
+    expect(adminSections).toHaveLength(20);
+    expect(new Set(adminSections.map((x) => x.path)).size).toBe(20);
+    expect(new Set(adminSections.map((x) => x.key)).size).toBe(20);
     expect(adminSections.every((x) => x.path.startsWith("/main-panel/"))).toBe(true);
     expect(adminSections.every((x) => x.api.startsWith("/api/v1/"))).toBe(true);
     expect(adminSections.map((x) => x.key)).toEqual([
@@ -18,6 +18,7 @@ describe("isolated live admin navigation", () => {
       "admin",
       "partners",
       "profit",
+      "mobile-ota",
       "feature-flags",
       "broadcasts",
       "reengagement",
@@ -37,6 +38,15 @@ describe("isolated live admin navigation", () => {
     expect(maySeeRoute(section, "ADMIN")).toBe(true);
     expect(maySeeRoute(section, "USER")).toBe(false);
     expect(maySeeRoute(section, null)).toBe(false);
+  });
+
+  it("requires an administrator for mobile OTA release management", () => {
+    const ota=matchAdminRoute("/main-panel/mobile-ota");
+    expect(ota?.key).toBe("mobile-ota");
+    expect(ota?.api).toBe("/api/v1/admin/mobile-ota/deployments");
+    expect(ota && maySeeRoute(ota,"ADMIN")).toBe(true);
+    expect(ota && maySeeRoute(ota,"MODERATOR")).toBe(false);
+    expect(ota && maySeeRoute(ota,"USER")).toBe(false);
   });
 
   it("restores direct Next deep links for partner details", () => {

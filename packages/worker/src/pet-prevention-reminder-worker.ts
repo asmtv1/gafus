@@ -1,6 +1,11 @@
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { checkAndSendPetPreventionReminders } from "@gafus/core/services/petPrevention";
+import { createImmediatePushNotification } from "@gafus/notifications-server/stepNotificationService";
+import {
+  readDuePetPreventionReminders,
+  acknowledgePetPreventionQueuedTimes,
+} from "@gafus/pets-server/prevention-reminder-rows";
 import { Worker } from "bullmq";
 import type { Job } from "bullmq";
 
@@ -14,7 +19,11 @@ export function startPetPreventionReminderWorker() {
 
       logger.info("🐕 Запуск проверки напоминаний о профилактике");
 
-      const { sent, errors } = await checkAndSendPetPreventionReminders();
+      const { sent, errors } = await checkAndSendPetPreventionReminders({
+        enqueue: createImmediatePushNotification,
+        readDue: readDuePetPreventionReminders,
+        acknowledge: acknowledgePetPreventionQueuedTimes,
+      });
 
       logger.success("✅ Проверка напоминаний завершена", { sent, errors });
     },

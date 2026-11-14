@@ -1,0 +1,234 @@
+{
+  "schema_version": "gafus-agent-1-to-agent-2-handoff/v1",
+  "created_utc": "2026-11-12T01:29:07.297133+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "git_head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "rewarded-ad-settings-persistence-port",
+  "start_edge_count": 37,
+  "end_edge_count": 36,
+  "frozen_ratchet": {
+    "baseline": 41,
+    "resolved": 5,
+    "new_violations": 0
+  },
+  "historical_baseline": 142,
+  "historical_removed": 106,
+  "touches_existing_A2_A3_application_code": false,
+  "shared_API_startup_file": true,
+  "production_route_changed": false,
+  "commit_merge_push_deploy": false,
+  "baseline_json_edited": false,
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "change_type": "M",
+      "sha256_before": "0cccaf1fdfb5bf4b5a8b7c130713695153e7d10816b743e1568c685163d48c4c",
+      "sha256_after": "ce11980a76910f83c3ffe9dcc9dbcd8b16d2c02cd497beed6b9fa3f75a647651",
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-settings-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/rewarded-credits/composition/install-core-settings.contract.test.ts",
+      "change_type": "A",
+      "sha256_before": null,
+      "sha256_after": "c74b74439ac6847867b812720ed5f03669a44640f4b8a509d4bf4f56f199aedc",
+      "prechange_backup": null
+    },
+    {
+      "path": "apps/api/src/modules/rewarded-credits/composition/install-core-settings.ts",
+      "change_type": "A",
+      "sha256_before": null,
+      "sha256_after": "95c7a4c428f631727ed0de4c2c4f7f9352ba20d4908c02f026d2caca3640edf0",
+      "prechange_backup": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "change_type": "M",
+      "sha256_before": "6a03dd8ae9ccb6b01c3dc702a58b8ca03c3eaf6205dca610c8736312201adba2",
+      "sha256_after": "0689e305ef8e9d26316208eba81beb0e3947b9472d6a5224ef5ba17ec5e243b1",
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-settings-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "change_type": "M",
+      "sha256_before": "74ef2ce1ec72353e32d53e618c8ceab0ee92306ec0f745b637169e0fb0d64662",
+      "sha256_after": "0c508534989946246174b1ddc63b56c2db1e9f3f8d53939cefc85b94119328f9",
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-settings-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/settingsPort.test.ts",
+      "change_type": "A",
+      "sha256_before": null,
+      "sha256_after": "1619a5ab43f46268ba474bc088953ef56abf0c5d46cf4a4f9672b5ac2585c754",
+      "prechange_backup": null
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/settingsService.test.ts",
+      "change_type": "M",
+      "sha256_before": "f3815f7c4fcc2fd52338ac10159a7ccac9d8aa9a96f3d9806da5dd70b80ee578",
+      "sha256_after": "37e7f37ea9550cddc46311ebb2a7f9089daa15ef7f8d66ca2e651878190fb690",
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-settings-port-prechange/packages/core/src/services/rewardedCredits/settingsService.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/settingsService.ts",
+      "change_type": "M",
+      "sha256_before": "1eb26136cd7ddff00789f256998b5f1b219aea58259e35a76c5be7bf5b6111f0",
+      "sha256_after": "499b031f5c2ab4552bb8eea418f7a806b1513de5d90f91b9958d57f2b58bdc07",
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-settings-port-prechange/packages/core/src/services/rewardedCredits/settingsService.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "change_type": "M",
+      "sha256_before": "c4a4f84c9f14d5d2263d070ebc485c944aad7789ee6fdcfb7dd26158e8380c9e",
+      "sha256_after": "d85c6e3c810c85e79236f244e26a68151dfcbdfba92fd72501cca93d9b82c3a8",
+      "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-settings-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Full Core unit/contract suite",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2062,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-settings-core-full.log"
+    },
+    {
+      "name": "Full API route/contract suite",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2742,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-settings-api-full.log"
+    },
+    {
+      "name": "Core rewarded policy / ad / wallet regressions",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/rewardedCredits/settingsService.test.ts src/services/rewardedCredits/adSessionService.test.ts src/services/rewardedCredits/walletService.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 38,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-reward-settings-core-tests.log"
+    },
+    {
+      "name": "Core fail-closed port + public error regressions",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/rewardedCredits/settingsPort.test.ts src/services/rewardedCredits/settingsService.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 16,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-reward-settings-core-port-tests.log"
+    },
+    {
+      "name": "API composition preserves public DTO and actorId",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/rewarded-credits/composition/install-core-settings.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-reward-settings-api-port-tests.log"
+    },
+    {
+      "name": "Architecture boundaries",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-reward-settings-boundaries.log"
+    },
+    {
+      "name": "Core TS",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-reward-settings-core-ts.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-reward-settings-core-build.log"
+    },
+    {
+      "name": "API TS",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-reward-settings-api-typecheck.log"
+    },
+    {
+      "name": "Gafus Persistence TS",
+      "command": "pnpm --filter @gafus/gafus-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-reward-settings-server-typecheck.log"
+    },
+    {
+      "name": "Worker TS",
+      "command": "pnpm --filter @gafus/worker typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-settings-worker-typecheck.log"
+    },
+    {
+      "name": "Workspace graph",
+      "command": "node scripts/check-workspace-graph.mjs",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-settings-workspace-graph.log"
+    },
+    {
+      "name": "AST facade ratchet",
+      "command": "node scripts/check-core-server-facades.mjs",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-settings-facades.log"
+    }
+  ],
+  "public_contracts": {
+    "read": {
+      "name": "getRewardedAdSettings",
+      "unchanged_missing_row": "androidEnabled=false,iosEnabled=false,dailyAdLimit=1,testMode=true"
+    },
+    "update": {
+      "name": "updateRewardedAdSettings",
+      "unchanged_errors": [
+        "dailyAdLimit must be an integer between 0 and 100",
+        "placement id is required before enabling production rewarded ads",
+        "placement id is too long"
+      ],
+      "unchanged_actor": "actorId passed into SQL upsert as before"
+    },
+    "platform": {
+      "name": "resolveRewardedPlatformSettings",
+      "unchanged": "iOS version-profile flag via existing core appFeatureFlags, Android independent, no change to public DTO"
+    },
+    "missing_adapter": "REWARDED_SETTINGS_PORT_UNBOUND (fail closed)",
+    "reconfiguration": "REWARDED_SETTINGS_PORT_ALREADY_BOUND (reject)"
+  },
+  "remaining_gates": [
+    {
+      "id": "PERSISTENCE_LIVE_POSTGRES",
+      "requires": "Disposable PostgreSQL schema with RewardedAdSettings row, actor audit FK, failed write rollback and read-after-write; not production credentials."
+    },
+    {
+      "id": "APP_BOOT_INTEGRATION",
+      "requires": "Shared A1/A2/A3 final application candidate with installed port before all Hono routes; check prod-style bundler startup and build after agent integration; NOT authorized now."
+    },
+    {
+      "id": "REWARD_AD_PROVIDER",
+      "requires": "Staging-only reward ads provider placement IDs, approved platform/released-vs-review iOS sandbox and consent verification. No live ads or production provider calls."
+    },
+    {
+      "id": "FULL_ARCHITECTURE",
+      "requires": "Remove remaining 36 Core→server imports, then run 33-stage final architecture regression and 5-stage chaos, all Web/Mobile/Worker/trainer/admin/PG/Redis gates on shared candidate. Baseline JSON remains frozen until full pass."
+    }
+  ],
+  "backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-settings-port-prechange",
+  "integration_instructions": "Compare SHA-256 after for all 9 paths to currently shared worktree. Shared apps/api/src/app.ts must be merged semantically; never overwrite other agents. Move Core port, API install, tests, guard as a group. No merge/push by A1."
+}

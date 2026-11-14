@@ -1,4 +1,3 @@
-import { prisma } from "@gafus/prisma";
 import type { GafusTx } from "../gafus/types";
 import { getAppFeatureFlagEnabled, APP_FEATURE_APP_SUBSCRIPTION_GATING } from "../appFeatureFlags";
 
@@ -202,6 +201,32 @@ export async function resolveArticleAccessTx(
   return resolveEntitlementTx(tx, userId, target, now);
 }
 
+/** Occurrence authorization runs against the same Persistence client for
+ * the target and its grant/entitlement. Core provides both callbacks and never
+ * trusts a global step ID, media key, or a client-reported course assignment.
+ * Unbound composition must deny access rather than skip owner checks.
+ */
+export interface CourseOccurrenceReadsPort {
+  readActiveCourseStepGafusGrant(
+    input: {userId:string;dayOnCourseId:string;stepOnDayId:string;now?:Date},
+    resolveTarget: (tx:GafusTx,dayOnCourseId:string,stepOnDayId:string)=>Promise<CourseStepTarget|null>,
+  ):Promise<boolean>;
+  readAllowedVideoCourseStepAccess(
+    input:{userId:string;dayOnCourseId:string;stepOnDayId:string;now:Date},
+    resolveTarget:(tx:GafusTx,dayOnCourseId:string,stepOnDayId:string)=>Promise<CourseStepTarget|null>,
+    resolveAccess:(tx:GafusTx,userId:string,target:CourseStepTarget,now:Date)=>Promise<{allowed:boolean}>,
+  ):Promise<boolean>;
+}
+let occurrenceReads:Readonly<CourseOccurrenceReadsPort>|null=null;
+export function registerCourseOccurrenceReadsPort(port:CourseOccurrenceReadsPort):void{
+  if (occurrenceReads!==null && occurrenceReads!==port) throw new Error("COURSE_OCCURRENCE_READ_PORT_ALREADY_BOUND");
+  occurrenceReads=port;
+}
+function requireCourseOccurrenceReadsPort():Readonly<CourseOccurrenceReadsPort>{
+  if (!occurrenceReads) throw new Error("COURSE_OCCURRENCE_READ_PORT_UNBOUND");
+  return occurrenceReads;
+}
+
 /** Course-occurrence-specific access. Never grant based on stepOnDayId alone. */
 export async function hasActiveGafusCourseStepAccess(input: {
   userId: string;
@@ -209,35 +234,23 @@ export async function hasActiveGafusCourseStepAccess(input: {
   stepOnDayId: string;
   now?: Date;
 }): Promise<boolean> {
-  const target = await resolveCourseStepTargetTx(prisma, input.dayOnCourseId, input.stepOnDayId);
-  if (!target || target.isPrivate || !target.monetized) return false;
-  const now = input.now ?? new Date();
-  const access = await prisma.gafusTargetAccess.findFirst({
-    where: {
-      userId: input.userId,
-      targetType: "COURSE_STEP",
-      targetKey: target.targetKey,
-      expiresAt: { gt: now },
-    },
-    select: { id: true },
-  });
-  if (access) return true;
+  return requireCourseOccurrenceReadsPort().readActiveCourseStepGafusGrant(input, resolveCourseStepTargetTx);
+}
 
-  // An entire guide is purchased with one Gafus. Training detail, progress
-  // writes, exams, and video access must recognize that same shared grant.
-  const guide = await prisma.course.findFirst({
-    where: { id: target.courseId, guideContent: { not: "" } },
-    select: { id: true },
-  });
-  if (!guide) return false;
-  const guideAccess = await prisma.gafusTargetAccess.findFirst({
-    where: {
-      userId: input.userId,
-      targetType: "MINI_GUIDE",
-      targetKey: `mini-guide:${target.courseId}`,
-      expiresAt: { gt: now },
-    },
-    select: { id: true },
-  });
-  return Boolean(guideAccess);
+/** Course read composition injects this existing entitlement policy into persistence. */
+export { resolveCourseEntitlement } from "./policy";
+export { registerContentPolicyReadPort } from "./policy";
+export type { ContentPolicyReadPort } from "./policy";
+
+/** Video manifest access uses this same canonical course/step entitlement path.
+ * The video adapter only provides occurrence projections; authorization stays
+ * here and must never be inferred from a global Step, trainer ID or media key.
+ */
+export async function hasAllowedVideoCourseStepAccess(
+  userId:string,dayOnCourseId:string,stepOnDayId:string,now:Date,
+):Promise<boolean>{
+ return requireCourseOccurrenceReadsPort().readAllowedVideoCourseStepAccess(
+   {userId, dayOnCourseId, stepOnDayId, now},
+   resolveCourseStepTargetTx, resolveCourseStepAccessTx,
+ );
 }

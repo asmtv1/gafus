@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FeedDb } from "./ports";
 import { createFeedStorageJobs } from "./jobs";
@@ -70,7 +71,7 @@ function mockDb(options: {
       updateMany: updates,
     },
   } as unknown as FeedDb;
-  return { worker: createFeedStorageJobs({ db, now: () => now }), db, tx, updates, mediaUpdate, published };
+  return { worker: createFeedStorageJobs({ enqueueDeletedMediaPurge,  db, now: () => now }), db, tx, updates, mediaUpdate, published };
 }
 afterEach(() => vi.unstubAllEnvs());
 describe("feed processing job lease and fencing", () => {
@@ -314,6 +315,16 @@ describe("feed processing job lease and fencing", () => {
       data: { status: "completed", attemptToken: null, leaseUntil: null },
     }));
   });
+  it("fails closed before ACK when the injected CDN purge writer rejects inside the DB transaction", async () => {
+    const key = "media/v2/asset_1/v1/image/l.webp";
+    const { db, updates } = mockDb({ kind: "delete_keys", sourceKeys: [key] });
+    const rejected = vi.fn(async () => { throw new Error("PURGE_DB_DOWN"); });
+    const worker = createFeedStorageJobs({ db, enqueueDeletedMediaPurge: rejected });
+    await expect(worker.complete(job.id, job.attemptToken)).rejects.toThrow("PURGE_DB_DOWN");
+    expect(rejected).toHaveBeenCalledWith(expect.anything(), "feed", job.id, [key]);
+    // A preceding lease heartbeat is allowed; the final durable ACK is not.
+    expect(updates.mock.calls.every(([input]) => input.data?.status !== "completed")).toBe(true);
+  });
   it("never terminalises private object deletion after the fifth failed attempt", async () => {
     const { worker, tx, updates } = mockDb({ kind: "delete_keys", attempts: 5 });
     expect(await worker.claim(1)).toHaveLength(1);
@@ -351,7 +362,7 @@ describe("feed processing job lease and fencing", () => {
     const head = vi.fn(async (key: string) => ({
       etag: `etag-${key}`, bytes: 512, contentType: "image/webp",
     }));
-    const worker = createFeedStorageJobs({ db, now: () => now, storage: { head } });
+    const worker = createFeedStorageJobs({ enqueueDeletedMediaPurge,  db, now: () => now, storage: { head } });
     expect(await worker.complete(job.id, job.attemptToken, output)).toEqual({ accepted: true });
     expect(head.mock.calls.map(([key]) => key).sort()).toEqual(
       [output.smallKey, output.thumbKey, output.fullKey].sort(),
@@ -363,7 +374,7 @@ describe("feed processing job lease and fencing", () => {
       const { db, mediaUpdate } = mockDb();
       const head = vi.fn(async (key: string) => key === output.fullKey ? variant :
         { etag: "ok", bytes: 512, contentType: "image/webp" });
-      const worker = createFeedStorageJobs({ db, now: () => now, storage: { head } });
+      const worker = createFeedStorageJobs({ enqueueDeletedMediaPurge,  db, now: () => now, storage: { head } });
       await expect(worker.complete(job.id, job.attemptToken, output))
         .rejects.toThrow("Вариант медиа не подтверждён в S3");
       expect(mediaUpdate).not.toHaveBeenCalled();

@@ -69,6 +69,32 @@ vi.mock("@gafus/logger",()=>({createWebLogger:()=>({info:vi.fn(),warn:vi.fn(),er
 vi.mock("./transactionalAuthMail",()=>({getPublicWebBaseUrl:()=>"https://synthetic.invalid",sendEmailChangeConfirmEmail:m.mail,sendPasswordResetLinkEmail:vi.fn()}));
 import {prisma} from "@gafus/prisma";
 import { requestEmailChange,confirmEmailChangeByToken } from "./emailAccountFlows";
+import { registerEmailAccountRowsPort } from "./emailAccountFlows";
+import {
+  readPasswordResetRequestUser,
+  claimPasswordResetEmailToken,
+  rollbackFailedPasswordResetEmailToken,
+  retireOlderPasswordResetEmailTokens,
+  readEmailChangeAccount,
+  readEmailOwner,
+  stageEmailChange,
+  rollbackUndeliveredEmailChange,
+  retireOlderEmailChangeTokens,
+  consumeEmailChangeConfirmation,
+} from "@gafus/identity-write-server/email-account-rows";
+registerEmailAccountRowsPort({
+  readPasswordResetRequestUser,
+  claimPasswordResetEmailToken,
+  rollbackFailedPasswordResetEmailToken,
+  retireOlderPasswordResetEmailTokens,
+  readEmailChangeAccount,
+  readEmailOwner,
+  stageEmailChange,
+  rollbackUndeliveredEmailChange,
+  retireOlderEmailChangeTokens,
+  consumeEmailChangeConfirmation,
+});
+
 const db=prisma as PrismaClient;
 (url?describe:describe.skip)("W1 isolated PG14 email-change source integration, fake email",()=>{
  let owner="",foreign="";let ownerEmail="",foreignEmail="";

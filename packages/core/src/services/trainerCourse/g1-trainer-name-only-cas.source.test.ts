@@ -31,7 +31,17 @@ vi.mock("../training/trainingDayContent", () => ({
 vi.mock("../training/trainingContentRevision", () => ({
   publishCourseContentChange: m.publish,
 }));
-import { updateTrainerCourseNameOnly } from "./trainerCourseNameOnlyService";
+import { createTrainerCourseNameOnlyService } from "./trainerCourseNameOnlyService";
+import { writeCourseNameObservedCas, readCourseObservedRevision } from
+  "@gafus/course-progress-server/course-version-rows";
+import { invalidateCourseContentCache } from "../training/trainingDayContent";
+import { publishCourseContentChange } from "../training/trainingContentRevision";
+const { updateTrainerCourseNameOnly } = createTrainerCourseNameOnlyService({
+  writeObservedCas: writeCourseNameObservedCas,
+  readObservedRevision: readCourseObservedRevision,
+  invalidateCache: invalidateCourseContentCache,
+  publishContentChange: publishCourseContentChange,
+});
 
 const BASE = new Date("2026-10-22T10:02:03.123Z");
 const CODE = "PRIVATE_DB_TOKEN_COURSE_OWNER_EMAIL";

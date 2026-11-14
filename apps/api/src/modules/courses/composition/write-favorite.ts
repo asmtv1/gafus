@@ -3,7 +3,7 @@ import {
   addFavoriteCourse,
   removeFavoriteCourse,
   toggleFavoriteCourse,
-} from "@gafus/core/services/course";
+} from "@gafus/course-server/favorites";
 import { createWriteFavoriteApplication } from "../application/write-favorite.js";
 
 export const writeFavoriteApplication = createWriteFavoriteApplication({

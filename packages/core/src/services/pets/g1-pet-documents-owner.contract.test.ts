@@ -157,3 +157,8 @@ describe("AG1 G1 private document authorization in real Core", () => {
       .toBeLessThan(m.documentDelete.mock.invocationCallOrder[0]!);
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
+import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
+registerPetRowsPort(originalPetRowsPort as PetRowsPort);

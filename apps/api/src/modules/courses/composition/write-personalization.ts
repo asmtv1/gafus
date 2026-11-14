@@ -1,5 +1,5 @@
-/** Defer the existing personalization Core write until the HTTP command. */
-import { saveCoursePersonalization } from "@gafus/core/services/course";
+/** Defer the existing personalization write adapter until the HTTP command. */
+import { saveCoursePersonalization } from "@gafus/course-server/personalization";
 import { createWriteCoursePersonalizationApplication } from "../application/write-personalization.js";
 
 export const writeCoursePersonalizationApplication = createWriteCoursePersonalizationApplication({

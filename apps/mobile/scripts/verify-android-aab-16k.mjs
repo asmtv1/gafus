@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Run this on the NEW 1.7.3 production AAB before submitting to Google Play. */
+/** Run this on the NEW 1.7.4 production AAB before submitting to Google Play. */
 import { resolve } from 'node:path';
 import { inspectAabNativeLibraries } from './android-aab-16k.mjs';
 try {

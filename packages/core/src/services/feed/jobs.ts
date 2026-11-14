@@ -1,7 +1,7 @@
 import { activateFeedPostRevisionTx } from "./publish";
 import { randomUUID } from "node:crypto";
-import { enqueueDeletedMediaPurge } from "../mediaDelivery/purgeQueue";
-import type { FeedDb, FeedStoragePort } from "./ports";
+import type { EnqueueDeletedMediaPurge } from "../mediaDelivery/purgeQueue";
+import type { FeedDb, FeedTx, FeedStoragePort } from "./ports";
 import { feedPossibleOutputKeys } from "./cleanup";
 import { FeedError } from "./errors";
 
@@ -90,8 +90,9 @@ function assertOutput(job: FeedStorageJobClaim, output: FeedAssetOutput) {
  * operations, then report only the leased job ID and attempt token. Old attempts fail closed.
  * No S3 object operations or secrets are performed by this module.
  */
-export function createFeedStorageJobs({ db, now = () => new Date(), storage }: {
+export function createFeedStorageJobs({ db, now = () => new Date(), storage, enqueueDeletedMediaPurge }: {
   db: FeedDb; now?: () => Date;
+  enqueueDeletedMediaPurge: EnqueueDeletedMediaPurge<FeedTx, "feed">;
   /** Core runtime must independently HEAD every rendition before READY. */
   storage?: Pick<FeedStoragePort, "head">;
 }) {

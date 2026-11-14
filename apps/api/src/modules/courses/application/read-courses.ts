@@ -5,13 +5,13 @@
  */
 import type {
   getCoursesWithProgress,
-  getFavoritesCourses,
   getCourseMetadata,
-  getCourseReviews,
 } from "@gafus/core/services/course";
+import type {getCourseReviews} from "@gafus/course-server/reviews";
+import type {getFavoritesCourses} from "@gafus/course-server/favorites";
 
 type CatalogReader = typeof getCoursesWithProgress;
-type FavoritesReader = typeof getFavoritesCourses;
+type FavoritesReader = (userId:string)=>ReturnType<typeof getFavoritesCourses>;
 type MetadataReader = typeof getCourseMetadata;
 type ReviewsReader = typeof getCourseReviews;
 

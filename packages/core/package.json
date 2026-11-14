@@ -29,13 +29,17 @@
       "types": "./dist/core/src/services/course/index.d.ts",
       "default": "./dist/core/src/services/course/index.js"
     },
-    "./services/dailyCourse": {
-      "types": "./dist/core/src/services/dailyCourse/index.d.ts",
-      "default": "./dist/core/src/services/dailyCourse/index.js"
+    "./services/course/publicOutlinePolicy": {
+      "types": "./dist/core/src/services/course/publicOutlinePolicy.d.ts",
+      "default": "./dist/core/src/services/course/publicOutlinePolicy.js"
     },
     "./services/accountCleanup": {
       "types": "./dist/core/src/services/accountCleanup/index.d.ts",
       "default": "./dist/core/src/services/accountCleanup/index.js"
+    },
+    "./services/dailyCourse": {
+      "types": "./dist/core/src/services/dailyCourse/index.d.ts",
+      "default": "./dist/core/src/services/dailyCourse/index.js"
     },
     "./services/user": {
       "types": "./dist/core/src/services/user/index.d.ts",
@@ -45,21 +49,9 @@
       "types": "./dist/core/src/services/auth/index.d.ts",
       "default": "./dist/core/src/services/auth/index.js"
     },
-    "./services/notifications": {
-      "types": "./dist/core/src/services/notifications/index.d.ts",
-      "default": "./dist/core/src/services/notifications/index.js"
-    },
     "./services/subscriptions": {
       "types": "./dist/core/src/services/subscriptions/index.d.ts",
       "default": "./dist/core/src/services/subscriptions/index.js"
-    },
-    "./services/tracking": {
-      "types": "./dist/core/src/services/tracking/index.d.ts",
-      "default": "./dist/core/src/services/tracking/index.js"
-    },
-    "./services/achievements": {
-      "types": "./dist/core/src/services/achievements/index.d.ts",
-      "default": "./dist/core/src/services/achievements/index.js"
     },
     "./services/pets": {
       "types": "./dist/core/src/services/pets/index.d.ts",
@@ -80,10 +72,6 @@
     "./services/training/trainingService": {
       "types": "./dist/core/src/services/training/trainingService.d.ts",
       "default": "./dist/core/src/services/training/trainingService.js"
-    },
-    "./services/exam": {
-      "types": "./dist/core/src/services/exam/index.d.ts",
-      "default": "./dist/core/src/services/exam/index.js"
     },
     "./services/notes": {
       "types": "./dist/core/src/services/notes/index.d.ts",
@@ -149,30 +137,6 @@
       "types": "./dist/core/src/services/adminUser/index.d.ts",
       "default": "./dist/core/src/services/adminUser/index.js"
     },
-    "./services/systemHealth": {
-      "types": "./dist/core/src/services/systemHealth/index.d.ts",
-      "default": "./dist/core/src/services/systemHealth/index.js"
-    },
-    "./services/adminReengagement": {
-      "types": "./dist/core/src/services/adminReengagement/index.d.ts",
-      "default": "./dist/core/src/services/adminReengagement/index.js"
-    },
-    "./services/adminRewardedAds": {
-      "types": "./dist/core/src/services/adminRewardedAds/index.d.ts",
-      "default": "./dist/core/src/services/adminRewardedAds/index.js"
-    },
-    "./services/mobileIntro": {
-      "types": "./dist/core/src/services/mobileIntro/index.d.ts",
-      "default": "./dist/core/src/services/mobileIntro/index.js"
-    },
-    "./services/walks": {
-      "types": "./dist/core/src/services/walks/index.d.ts",
-      "default": "./dist/core/src/services/walks/index.js"
-    },
-    "./services/videoPlaybackQuality": {
-      "types": "./dist/core/src/services/videoPlaybackQuality/index.d.ts",
-      "default": "./dist/core/src/services/videoPlaybackQuality/index.js"
-    },
     "./services/adminStorage": {
       "types": "./dist/core/src/services/adminStorage/index.d.ts",
       "default": "./dist/core/src/services/adminStorage/index.js"
@@ -180,10 +144,6 @@
     "./services/adminBroadcast": {
       "types": "./dist/core/src/services/adminBroadcast/index.d.ts",
       "default": "./dist/core/src/services/adminBroadcast/index.js"
-    },
-    "./services/appFeatureFlags": {
-      "types": "./dist/core/src/services/appFeatureFlags/index.d.ts",
-      "default": "./dist/core/src/services/appFeatureFlags/index.js"
     },
     "./services/appSubscription": {
       "types": "./dist/core/src/services/appSubscription/index.d.ts",
@@ -196,10 +156,6 @@
     "./services/survey": {
       "types": "./dist/core/src/services/survey/index.d.ts",
       "default": "./dist/core/src/services/survey/index.js"
-    },
-    "./services/consent": {
-      "types": "./dist/core/src/services/consent/index.d.ts",
-      "default": "./dist/core/src/services/consent/index.js"
     },
     "./services/consultation": {
       "types": "./dist/core/src/services/consultation/index.d.ts",
@@ -216,10 +172,6 @@
     "./services/consultation/bookingService": {
       "types": "./dist/core/src/services/consultation/bookingService.d.ts",
       "default": "./dist/core/src/services/consultation/bookingService.js"
-    },
-    "./services/consultation/adminBookingQueries": {
-      "types": "./dist/core/src/services/consultation/adminBookingQueries.d.ts",
-      "default": "./dist/core/src/services/consultation/adminBookingQueries.js"
     },
     "./services/consultation/consultationMskFormat": {
       "types": "./dist/core/src/services/consultation/consultationMskFormat.d.ts",
@@ -289,9 +241,9 @@
       "types": "./dist/core/src/services/cynologistChat/index.d.ts",
       "default": "./dist/core/src/services/cynologistChat/index.js"
     },
-    "./services/cynologistChat/upload": {
-      "types": "./dist/core/src/services/cynologistChat/upload.d.ts",
-      "default": "./dist/core/src/services/cynologistChat/upload.js"
+    "./services/cynologistChat/stream": {
+      "types": "./dist/core/src/services/cynologistChat/stream.d.ts",
+      "default": "./dist/core/src/services/cynologistChat/stream.js"
     },
     "./services/questions": {
       "types": "./dist/core/src/services/questions/index.d.ts",
@@ -321,29 +273,53 @@
       "types": "./dist/core/src/services/auth/passwordReset.d.ts",
       "default": "./dist/core/src/services/auth/passwordReset.js"
     },
-    "./services/auth/identityReadService": {
-      "types": "./dist/core/src/services/auth/identityReadService.d.ts",
-      "default": "./dist/core/src/services/auth/identityReadService.js"
-    },
-    "./services/auth/vkGrant": {
-      "types": "./dist/core/src/services/auth/vkGrant.d.ts",
-      "default": "./dist/core/src/services/auth/vkGrant.js"
-    },
     "./services/mediaDelivery": {
       "types": "./dist/core/src/services/mediaDelivery/index.d.ts",
       "default": "./dist/core/src/services/mediaDelivery/index.js"
     },
-    "./services/systemHealth/mediaProcessingMetrics": {
-      "types": "./dist/core/src/services/systemHealth/mediaProcessingMetrics.d.ts",
-      "default": "./dist/core/src/services/systemHealth/mediaProcessingMetrics.js"
-    },
-    "./services/systemHealth/mailDeliveryMonitor": {
-      "types": "./dist/core/src/services/systemHealth/mailDeliveryMonitor.d.ts",
-      "default": "./dist/core/src/services/systemHealth/mailDeliveryMonitor.js"
-    },
     "./services/mediaDelivery/purgeWorker": {
       "types": "./dist/core/src/services/mediaDelivery/purgeWorker.d.ts",
       "default": "./dist/core/src/services/mediaDelivery/purgeWorker.js"
+    },
+    "./services/appSubscription/renewalPolicy": {
+      "types": "./dist/core/src/services/appSubscription/renewalPolicy.d.ts",
+      "default": "./dist/core/src/services/appSubscription/renewalPolicy.js"
+    },
+    "./services/feed/smart-ml": {
+      "types": "./dist/core/src/services/feed/smart-ml.d.ts",
+      "default": "./dist/core/src/services/feed/smart-ml.js"
+    },
+    "./services/feed/smart-retention": {
+      "types": "./dist/core/src/services/feed/smart-retention.d.ts",
+      "default": "./dist/core/src/services/feed/smart-retention.js"
+    },
+    "./services/consultation/transactional-mail": {
+      "types": "./dist/core/src/services/consultation/consultationTransactionalMail.d.ts",
+      "default": "./dist/core/src/services/consultation/consultationTransactionalMail.js"
+    },
+    "./services/video-position-policy": {
+      "types": "./dist/core/src/services/video/positionPolicy.d.ts",
+      "default": "./dist/core/src/services/video/positionPolicy.js"
+    },
+    "./services/appFeatureFlags": {
+      "types": "./dist/core/src/services/appFeatureFlags/index.d.ts",
+      "default": "./dist/core/src/services/appFeatureFlags/index.js"
+    },
+    "./services/trainerAI": {
+      "types": "./dist/core/src/services/trainerAI/index.d.ts",
+      "default": "./dist/core/src/services/trainerAI/index.js"
+    },
+    "./services/consultation/availabilityService": {
+      "types": "./dist/core/src/services/consultation/availabilityService.d.ts",
+      "default": "./dist/core/src/services/consultation/availabilityService.js"
+    },
+    "./services/consultation/slotService": {
+      "types": "./dist/core/src/services/consultation/slotService.d.ts",
+      "default": "./dist/core/src/services/consultation/slotService.js"
+    },
+    "./services/training/cache-publication": {
+      "types": "./dist/core/src/services/training/cachePublication.d.ts",
+      "default": "./dist/core/src/services/training/cachePublication.js"
     }
   },
   "main": "./dist/core/src/index.js",
@@ -365,7 +341,6 @@
     "@gafus/consultation-shared": "workspace:*",
     "@gafus/logger": "workspace:*",
     "@gafus/mailer": "workspace:*",
-    "@gafus/prisma": "workspace:*",
     "@gafus/queues": "workspace:*",
     "@gafus/types": "workspace:*",
     "@gafus/video-access": "workspace:*",
@@ -382,17 +357,32 @@
     "validator": "^13.15.26",
     "zod": "^3.24.1",
     "@gafus/core-client": "workspace:*",
-    "@gafus/achievements-server": "workspace:*",
     "@gafus/consent-server": "workspace:*",
-    "@gafus/mobile-intro-server": "workspace:*",
     "@gafus/notifications-server": "workspace:*",
-    "@gafus/feature-flags-server": "workspace:*",
-    "@gafus/admin-rewarded-ads-server": "workspace:*",
-    "@gafus/tracking-server": "workspace:*",
-    "@gafus/admin-reengagement-server": "workspace:*",
-    "@gafus/subscription-read-server": "workspace:*"
+    "@gafus/article-server": "workspace:*",
+    "@gafus/gafus-server": "workspace:*",
+    "@gafus/entitlements-server": "workspace:*",
+    "@gafus/media-server": "workspace:*",
+    "@gafus/pets-server": "workspace:*",
+    "@gafus/course-read-server": "workspace:*",
+    "@gafus/trainer-ai-server": "workspace:*",
+    "@gafus/course-progress-server": "workspace:*",
+    "@gafus/identity-write-server": "workspace:*",
+    "@gafus/consultation-query-server": "workspace:*",
+    "@gafus/subscription-finance-server": "workspace:*",
+    "decimal.js": "10.6.0",
+    "@gafus/exam-server": "workspace:*",
+    "@gafus/consultation-write-server": "workspace:*",
+    "@gafus/subscription-payment-server": "workspace:*",
+    "@gafus/subscription-shared": "workspace:*",
+    "@gafus/questions-shared": "workspace:*",
+    "@gafus/pets-shared": "workspace:*",
+    "@gafus/media-shared": "workspace:*"
   },
   "devDependencies": {
+    "@gafus/subscription-read-server": "workspace:*",
+    "@gafus/feature-flags-server": "workspace:*",
+    "@gafus/prisma": "workspace:*",
     "@types/bcryptjs": "^2.4.6",
     "@types/luxon": "^3.7.1",
     "@types/node": "20.4.8",
@@ -402,6 +392,11 @@
     "rimraf": "5.0.1",
     "ts-add-js-extension": "^1.6.6",
     "typescript": "5.8.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.17",
+    "@gafus/achievements-server": "workspace:*",
+    "@gafus/admin-reengagement-server": "workspace:*",
+    "@gafus/admin-rewarded-ads-server": "workspace:*",
+    "@gafus/tracking-server": "workspace:*",
+    "@gafus/questions-write-server": "workspace:*"
   }
 }

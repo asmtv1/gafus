@@ -7,6 +7,8 @@ export type ShutdownTasks = {
   closeHttp: (onClosed: (error?: Error) => void) => void;
   disconnectDatabase: () => Promise<void>;
   quitRedis: () => Promise<unknown>;
+  // Best-effort error trace flush. Export failure never changes business exit.
+  flushTelemetry?: () => Promise<void>;
   logInfo: (message: string) => void;
   logError: (message: string) => void;
   exit: (code: 0 | 1) => void;
@@ -78,6 +80,10 @@ export function createGracefulShutdown(tasks: ShutdownTasks) {
         cleanup("Redis", tasks.quitRedis),
       ]);
       if (dbClosed && redisClosed) reportInfo("Database and Redis connections closed");
+      if (tasks.flushTelemetry) {
+        try { await tasks.flushTelemetry(); }
+        catch { reportInfo("Telemetry flush incomplete"); }
+      }
     } finally {
       clearTimeout(forceExitTimeout);
       exitOnce(failed ? 1 : 0);

@@ -1,0 +1,375 @@
+{
+  "schemaVersion": 1,
+  "status": "draft-awaiting-first-real-ingest",
+  "project": "GAFUS Production",
+  "prometheusProjectId": "9378",
+  "privacy": {
+    "forbiddenLabels": [
+      "user_id",
+      "device_id",
+      "email",
+      "raw_url",
+      "query",
+      "ip",
+      "jwt",
+      "trace_id"
+    ],
+    "environment": "production"
+  },
+  "panels": [
+    {
+      "id": "overview",
+      "title": "GAFUS overview",
+      "queries": [
+        {
+          "id": "service-availability",
+          "promql": "min by (service) (probe_success)",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "api-5xx",
+          "promql": "sum(rate(http_requests_total{status_class=\"5xx\"}[5m]))",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "worker-backlog",
+          "promql": "max(gafus_chat2_outbox_oldest_age_seconds)",
+          "status": "requires-series-validation"
+        }
+      ]
+    },
+    {
+      "id": "mobile-ios",
+      "title": "Mobile iOS",
+      "queries": [
+        {
+          "id": "mobile-delivery",
+          "promql": "sum by (outcome) (rate(gafus_mobile_telemetry_export_total[5m]))",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "pending-events",
+          "promql": "gafus_mobile_telemetry_queued_entries{environment=\"production\"}",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "priority-backlog",
+          "promql": "gafus_mobile_telemetry_auth_suspended{environment=\"production\"}",
+          "status": "requires-series-validation"
+        }
+      ]
+    },
+    {
+      "id": "mobile-android",
+      "title": "Mobile Android",
+      "queries": [
+        {
+          "id": "mobile-export",
+          "promql": "sum by (outcome) (rate(gafus_mobile_telemetry_export_total[5m]))",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "missing-exit-data",
+          "promql": "gafus_mobile_telemetry_dead_entries{environment=\"production\"}",
+          "status": "requires-series-validation"
+        }
+      ]
+    },
+    {
+      "id": "web-panels",
+      "title": "Web and panels",
+      "queries": [
+        {
+          "id": "web-requests",
+          "promql": "sum by (service) (rate(http_requests_total[5m]))",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "http-failures",
+          "promql": "sum by (status_class) (rate(http_requests_total[5m]))",
+          "status": "requires-series-validation"
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "title": "API",
+      "queries": [
+        {
+          "id": "request-rate",
+          "promql": "sum by (route, method) (rate(http_requests_total[5m]))",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "request-p95",
+          "promql": "histogram_quantile(0.95, sum by (le,route) (rate(http_request_duration_seconds_bucket[5m])))",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "db-query-p95",
+          "promql": "histogram_quantile(0.95,sum by (le) (rate(db_query_duration_seconds_bucket[5m])))",
+          "status": "requires-series-validation"
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "title": "Worker",
+      "queries": [
+        {
+          "id": "oldest-outbox",
+          "promql": "max by (queue) (gafus_chat2_outbox_oldest_age_seconds)",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "dead-letters",
+          "promql": "sum(gafus_chat2_outbox_dead_letters)",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "retry-rate",
+          "promql": "sum(rate(job_attempts_total[5m]))",
+          "status": "requires-series-validation"
+        }
+      ]
+    },
+    {
+      "id": "postgres-redis",
+      "title": "PostgreSQL and Redis",
+      "queries": [
+        {
+          "id": "postgres-up",
+          "promql": "pg_up",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "redis-up",
+          "promql": "redis_up",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "pg-connections",
+          "promql": "sum(pg_stat_activity_count)",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "redis-evictions",
+          "promql": "rate(redis_evicted_keys_total[5m])",
+          "status": "requires-series-validation"
+        }
+      ]
+    },
+    {
+      "id": "vps",
+      "title": "VPS and Docker",
+      "queries": [
+        {
+          "id": "cpu-utilization",
+          "promql": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "ram-utilization",
+          "promql": "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "root-disk-available",
+          "promql": "node_filesystem_avail_bytes{mountpoint=\"/\"}",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "inode-free",
+          "promql": "node_filesystem_files_free{mountpoint=\"/\"}",
+          "status": "requires-series-validation"
+        }
+      ]
+    },
+    {
+      "id": "release-errors",
+      "title": "Errors by release",
+      "queries": [
+        {
+          "id": "failure-per-release",
+          "promql": "sum by (service,version) (rate(gafus_http_requests_total{status_class=\"5xx\"}[5m]))",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "mobile-terminal",
+          "promql": "sum(rate(gafus_mobile_telemetry_export_total{outcome=\"dead\"}[5m]))",
+          "status": "requires-series-validation"
+        }
+      ]
+    },
+    {
+      "id": "native-crashes",
+      "title": "Native crashes",
+      "queries": [
+        {
+          "id": "pending-native",
+          "promql": "gafus_mobile_telemetry_queued_entries",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "native-dlq",
+          "promql": "gafus_mobile_telemetry_dead_entries",
+          "status": "requires-series-validation"
+        }
+      ]
+    },
+    {
+      "id": "user-operations",
+      "title": "User operations",
+      "queries": [
+        {
+          "id": "media-failure",
+          "promql": "sum by (pipeline) (rate(gafus_media_failed_tasks[5m]))",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "worker-mail-backlog",
+          "promql": "gafus_mail_stalled_pending",
+          "status": "requires-series-validation"
+        }
+      ]
+    },
+    {
+      "id": "media-cdn",
+      "title": "Media CDN Cloud.ru",
+      "queries": [
+        {
+          "id": "media-stalled",
+          "promql": "gafus_media_stalled_processing",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "media-failed",
+          "promql": "gafus_media_failed_tasks",
+          "status": "requires-series-validation"
+        },
+        {
+          "id": "edge-probes",
+          "promql": "min by (service) (probe_success)",
+          "status": "requires-series-validation"
+        }
+      ]
+    }
+  ],
+  "alerts": [
+    {
+      "id": "service-unavailable",
+      "expr": "min by (service) (probe_success) == 0",
+      "forMinutes": 3,
+      "severity": "critical",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "worker-silent",
+      "expr": "min(probe_success{service=\"worker\"}) == 0",
+      "forMinutes": 2,
+      "severity": "critical",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "api-5xx",
+      "expr": "sum(rate(http_requests_total{status_class=\"5xx\"}[5m])) / clamp_min(sum(rate(http_requests_total[5m])),1) > 0.02",
+      "forMinutes": 5,
+      "severity": "warning",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "pg-down",
+      "expr": "pg_up == 0",
+      "forMinutes": 2,
+      "severity": "critical",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "redis-down",
+      "expr": "redis_up == 0",
+      "forMinutes": 2,
+      "severity": "critical",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "worker-oldest",
+      "expr": "max(gafus_chat2_outbox_oldest_age_seconds) > 300",
+      "forMinutes": 10,
+      "severity": "warning",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "mobile-export-auth",
+      "expr": "gafus_mobile_telemetry_auth_suspended == 1",
+      "forMinutes": 1,
+      "severity": "critical",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "telemetry-dead-entries",
+      "expr": "increase(gafus_mobile_telemetry_export_total{outcome=\"dead\"}[5m]) > 0",
+      "forMinutes": 5,
+      "severity": "warning",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "memory-pressure",
+      "expr": "node_memory_MemAvailable_bytes < 314572800",
+      "forMinutes": 10,
+      "severity": "warning",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "disk-pressure",
+      "expr": "node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"} < 0.15",
+      "forMinutes": 10,
+      "severity": "warning",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "media-failure",
+      "expr": "increase(gafus_media_failed_tasks[10m]) > 0",
+      "forMinutes": 10,
+      "severity": "warning",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "dead-letters",
+      "expr": "increase(gafus_chat2_outbox_dead_letters[5m]) > 0",
+      "forMinutes": 5,
+      "severity": "critical",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "backup-stale",
+      "expr": "time() - gafus_database_backup_last_success_timestamp_seconds > 93600",
+      "forMinutes": 10,
+      "severity": "warning",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "mobile-queue-backlog",
+      "expr": "max(gafus_mobile_telemetry_queued_entries) > 1000",
+      "forMinutes": 5,
+      "severity": "warning",
+      "status": "requires-Nonprod-test"
+    },
+    {
+      "id": "uptrace-collector-up",
+      "expr": "up{job=\"grafana-alloy\"} == 0",
+      "forMinutes": 5,
+      "severity": "critical",
+      "status": "requires-Nonprod-test"
+    }
+  ],
+  "mobileOnCallAliases": [
+    "gafus_web_up",
+    "gafus_api_up",
+    "gafus_worker_up",
+    "gafus_bull_board_up",
+    "gafus_postgres_up",
+    "gafus_cpu_percent",
+    "gafus_ram_percent",
+    "gafus_disk_free_percent"
+  ]
+}

@@ -1,9 +1,7 @@
 /**
  * Fixture для тестов пользователей
  */
-import type { User } from "@gafus/prisma";
-
-export function createUserFixture(overrides?: Partial<User>): Partial<User> {
+function defaultUserFixture() {
   return {
     id: "test-user-id",
     username: "testuser",
@@ -12,6 +10,11 @@ export function createUserFixture(overrides?: Partial<User>): Partial<User> {
     role: "USER",
     createdAt: new Date("2024-01-01"),
     updatedAt: new Date("2024-01-01"),
-    ...overrides,
   };
+}
+
+type UserFixture = ReturnType<typeof defaultUserFixture>;
+
+export function createUserFixture(overrides?: Partial<UserFixture>): Partial<UserFixture> {
+  return { ...defaultUserFixture(), ...overrides };
 }

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getAppSubscriptionAdminDashboard,
   updateDefaultAppSubscriptionSettings,
-} from "../adminService";
+} from "@gafus/subscription-finance-server/admin-application";
 
 const mockSubscriptionFindMany = vi.fn();
 const mockPaymentFindMany = vi.fn();

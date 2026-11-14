@@ -1,0 +1,168 @@
+{
+  "schema": "gafus-a1-a2-handoff/v1",
+  "created_utc": "2026-11-12T07:53:24.415321+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "admin-trainer-course-ports",
+  "edges_before": 14,
+  "edges_after": 12,
+  "frozen_ratchet": {
+    "baseline": 41,
+    "resolved": 29,
+    "new": 0
+  },
+  "historical": {
+    "start": 142,
+    "removed": 130
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_after_current": "ca55f5f99581375bada07effc773c4a304d811a04971e31e1d9a8d70246aeb89"
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-admin-rows.ts",
+      "status": "??",
+      "sha256_after_current": "c60c9cc43387c3a6546f9c7c8ee260696410e15e3f77b826c92eb62baf393209"
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-admin-rows.contract.test.ts",
+      "status": "??",
+      "sha256_after_current": "6926dbddc28aeaeee71761ceecda82c4dcf51a4b91a2a59652a1165785370287"
+    },
+    {
+      "path": "apps/api/src/modules/trainer-courses/composition/install-trainer-course-rows.ts",
+      "status": "??",
+      "sha256_after_current": "86337975b932d347f44891e5f6e7ead1371e75781c0258e9e0afec239434b1df"
+    },
+    {
+      "path": "apps/api/src/modules/trainer-courses/composition/install-trainer-course-rows.contract.test.ts",
+      "status": "??",
+      "sha256_after_current": "346feb4c86e45ac26122ed6f8b79c937801117e837dd2f59c580389ba936b932"
+    },
+    {
+      "path": "packages/core/src/services/adminGafus/index.ts",
+      "status": "M",
+      "sha256_after_current": "3107076fc1e132a6af707dee4f3e5f7e6052c2ac452c6d80e8e880bd93d9439a"
+    },
+    {
+      "path": "packages/core/src/services/adminGafus/index.test.ts",
+      "status": "M",
+      "sha256_after_current": "51b041dd1b47da5eeeba4be78f180c9848bcff80708932d14606df4ce881256d"
+    },
+    {
+      "path": "packages/core/src/services/adminGafus/g1-admin-roles.test.ts",
+      "status": "M",
+      "sha256_after_current": "1aa089574ba3d486809547be1c2a05b8d97b5c2c33bed180ebdb40b241c6f72c"
+    },
+    {
+      "path": "packages/core/src/services/adminGafus/adminRows.realpg.test.ts",
+      "status": "??",
+      "sha256_after_current": "64c1b5bd34aaafee0b0d6c80920291d62fc4b188e7dc14aba1b60bc59fd40092"
+    },
+    {
+      "path": "packages/core/src/services/adminGafus/adminRowsPort.ts",
+      "status": "??",
+      "sha256_after_current": "0d412eedcd6dc59b86bec5d2d341fffecec7ad5c3f3c1dfbd06c11f3e6ae3783"
+    },
+    {
+      "path": "packages/core/src/services/adminGafus/adminRowsPort.test.ts",
+      "status": "??",
+      "sha256_after_current": "65fb72d5e41527e36caa32f2dac88ad1acbb4b3cb60dabe937109484eff370f6"
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/trainerCourseService.ts",
+      "status": "M",
+      "sha256_after_current": "20b277cfd77232d013feb86bf73634a21c4be91a74675f33eb321db7799f78d6"
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/trainerCourseService.test.ts",
+      "status": "M",
+      "sha256_after_current": "9000e865ed0d43d4588268c74ed671ae4794c4f68fc3ebe7d0ad8d930208f10d"
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/g1-trainer-course-draft-error-privacy.source.test.ts",
+      "status": "M",
+      "sha256_after_current": "8b725a19461d83d73d79cf6489bba2ab0933fefa60e7edbe6495fd49832e4b13"
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/trainerCourseRowsPort.ts",
+      "status": "??",
+      "sha256_after_current": "1c130d9b9b7a543ff3f8a9367a340517c238fcfd1b9f4c5b108c0bf868e61709"
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/trainerCourseRowsPort.test.ts",
+      "status": "??",
+      "sha256_after_current": "640049033acb9689d4f7cf01cdc7902f2eca57acd8cc94da6f79309c0400b6d8"
+    },
+    {
+      "path": "packages/core/src/services/trainerCourse/index.ts",
+      "status": "M",
+      "sha256_after_current": "8c0404cb531e1a7474ab21cf3af36b854f4c07476fcbc8f18e7606c1a5406754"
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "??",
+      "sha256_after_current": "c4ce9308a80e73141b0fde799d01e4bdb5f74273e5591f63f12823d38537d7fa"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "??",
+      "sha256_after_current": "55b5a9a5a0da8df0ed0dad7bea6628c51b4c320d3e9d716d517b3168d6a56a69"
+    }
+  ],
+  "confirmed": [
+    {
+      "check": "Core TS + built package + API TS",
+      "status": "PASS",
+      "job_id": "5b8b49fc7def1a8d7df5064b17e80298ea9ca3aee0aa6b7d"
+    },
+    {
+      "check": "Core all tests, 136 skipped",
+      "status": "PASS",
+      "job_id": "6323a9d27752ddcf9e5cb2c599b2508e7225beaf09b6699c"
+    },
+    {
+      "check": "API all tests, 2767 pass/266 skipped",
+      "status": "PASS",
+      "job_id": "6323a9d27752ddcf9e5cb2c599b2508e7225beaf09b6699c"
+    },
+    {
+      "check": "Core admin (13), trainer (24), privacy (2) targeted",
+      "status": "PASS"
+    },
+    {
+      "check": "API admin routes (26) + two compositions (2)",
+      "status": "PASS"
+    },
+    {
+      "check": "Architecture core boundaries, 26 assertions",
+      "status": "PASS"
+    },
+    {
+      "check": "Workspace graph, 0 cycles",
+      "status": "PASS"
+    },
+    {
+      "check": "AST facade inventory 12 remaining/0 new",
+      "status": "PASS"
+    },
+    {
+      "check": "Gafus server TS + course-progress server TS + API production bundle build",
+      "status": "PASS",
+      "job_id": "db72799e5ebf4f649b2b7b74f637290c1d14935cf6e4f784"
+    }
+  ],
+  "pending": [
+    "real disposable PG admin fraud CAS + concurrent settings and wallet",
+    "real disposable PG trainer Course.version CAS + rollback",
+    "real-PG/Redis disabled suites",
+    "joint A1/A2/A3 33-stage regression and five-stage chaos",
+    "18/18 cross-agent matrix, cloud/edge/observability/staging acceptance"
+  ],
+  "notes": [
+    "Existing untracked/modified workspace files were not reset; sha256_after_current only, no unverified pre-change SHA.",
+    "No frozen baseline update, no merge/commit/push/deploy."
+  ]
+}

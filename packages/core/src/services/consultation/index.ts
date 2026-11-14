@@ -8,22 +8,9 @@ export * from "./errors";
 export * from "./validation";
 export * from "./types";
 export * from "./permissions";
-export * from "./adminBookingQueries";
+
 export * from "./cynologistService";
 export * from "./availabilityService";
-export * from "./slotService";
-export * from "./voximplantService";
-export * from "./notificationService";
-export * from "./bookingService";
 export { sendConsultationEmailFromLog } from "./consultationTransactionalMail";
 
 export * from "./bookingEligibility";
-
-export {
-  processConsultationEmailLog,
-  reconcileConsultationEmailLog,
-} from "./consultationEmailDelivery";
-export type { ConsultationMailOutcome } from "./consultationEmailDelivery";
-
-export { lookupOwnConsultationBookingByKey } from "./bookingIdempotencyReadback";
-export type { BookingIdempotencyReadback } from "./bookingIdempotencyReadback";

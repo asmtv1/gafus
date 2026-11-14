@@ -1,3 +1,8 @@
+// This route now binds the occurrence-specific read adapter at composition,
+// while the original Core error mock preserves the historical HTTP response.
+vi.mock("../../modules/rewarded-credits/composition/gafus-access.js", () => ({
+  requirePremiumOrRewardedAccessForVideoUrl: blocked,
+}));
 /** LEARN032/G3: registered Hono diary GET → real Core/Prisma PG18 → canonical JSON. */
 import { Hono } from "hono";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -18,13 +23,15 @@ vi.mock("@gafus/core/services/rewardedCredits", () => ({
   requirePremiumOrRewardedAccessForVideoUrl: blocked,
   SubscriptionOrCreditsRequiredError: class SubscriptionOrCreditsRequiredError extends Error {},
 }));
-vi.mock("@gafus/core/services/video", () => ({
+vi.mock("../../modules/video/composition/video-access.js", () => ({
   checkVideoAccess: blocked,
   getProgress: blocked,
   getVideoManifestInfo: blocked,
   saveProgress: blocked,
 }));
-vi.mock("@gafus/core/services/notifications", () => ({
+vi.mock("@gafus/course-server/video-progress", () => ({ getProgress: blocked, saveProgress: blocked }));
+
+vi.mock("@gafus/notifications-server", () => ({
   createStepNotificationForStepStart: blocked,
   getDayFromDayOnCourseId: blocked,
   pauseStepNotification: blocked,

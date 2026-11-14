@@ -1,0 +1,216 @@
+{
+  "schema": "gafus-a1-a2-catalog-read-port/v1",
+  "created_utc": "2026-11-12T04:28:07.275380+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "owner-scoped-catalog-seven-query-projections",
+  "edges_before": 25,
+  "edges_after": 24,
+  "ratchet": {
+    "frozen": 41,
+    "resolved": 17,
+    "new": 0
+  },
+  "historical": {
+    "start": 142,
+    "removed": 118
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "52932825b7b06cee24d06a3367dbd1c2cec5cb1a147fa471b37504374cde3824",
+      "sha256_after_current": "9d721c057fe2b12007bb402805f1b869f163bf57abcc73382df2372dc90e90e4",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-catalog-read-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/courses/composition/install-catalog-read.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "242d2c232e022b2070d7645513e1f6617be9cb4456eda3d27d509b098e95d4c0",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/courses/composition/install-catalog-read.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "6f93db4facf89ff78ea85c10098726c54e9ed43cda6135e1a75dd5d52b101624",
+      "backup_before": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "2ed534c67d0c4b92b1be0be44adf23438267cebb492837f36a35aca048a83270",
+      "sha256_after_current": "b7deb3562a06fcadc21c066201630860277231d74be92b0b35bd2064c323469f",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-catalog-read-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "5aada74a00eb278098c0db4ef1b86454653a978db092ef7aabce1029532d6c0b",
+      "sha256_after_current": "13464844c7fb5ee5e74afcb1901b87beb05d817c54d559c11484c3ecf2c38183",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-catalog-read-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/course/catalogReadPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "d11e8cf6cb89caf3657675402f6a3da8c07b47e807c797c585714828e9eac773",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/course/catalogReadPort.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "8eb649861fa5f626fc850be352d2631382327e94aec7be5da14e4e45779a8f21",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/course/courseService.test.ts",
+      "status": "M",
+      "sha256_before": "1d3390202c628074531d493f4baf5cb8ce59de06f263e929f211478e51414e94",
+      "sha256_after_current": "3698c94ac7e46b8e1a4118a52350d7a83b4875674e1701b81b08dc1e21e63aee",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-catalog-read-port-prechange/packages/core/src/services/course/courseService.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/course/courseService.ts",
+      "status": "M",
+      "sha256_before": "14361bf7c14e4daf85104b7efaae81bdc2e5d51e3caf6939582dd5f00f600d51",
+      "sha256_after_current": "4eb33c094c7bab45727ecc7e0c191ca6d37722af1bb72d8143d604ee185f2381",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-catalog-read-port-prechange/packages/core/src/services/course/courseService.ts"
+    },
+    {
+      "path": "packages/core/src/services/course/g1-course-favorites-private-work-read.test.ts",
+      "status": "M",
+      "sha256_before": "b9ee18688d3885ae1f784633327949ad8751ad6a52de66e64f7626b6a16c8bb8",
+      "sha256_after_current": "faecbd4c9d5f37b01734d9f7050686b008645af910da0bd4db24a5a05370633b",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-catalog-read-port-prechange/packages/core/src/services/course/g1-course-favorites-private-work-read.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/course/index.ts",
+      "status": "M",
+      "sha256_before": "2fb3aa49c547be59790459c0aad42e1fb9d7ebdd16cd8c5772654a5d0cbc8b8e",
+      "sha256_after_current": "2310dc2c6e2bc1666b5dec7301b3ba94886ca5af1f5af8f299ef56e4dfbe08c8",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-catalog-read-port-prechange/packages/core/src/services/course/index.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "2c77bf214697a13b2f9eac013fea59fdff3542499a571ed6fc45d3ff2bf9cb87",
+      "sha256_after_current": "0eb19e8c4083da9474a4b898d726fb1fb20d3fee3ff763e70147781ea72e7bb2",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-catalog-read-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Core existing catalog + new owner ACL",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/course/catalogReadPort.test.ts src/services/course/courseService.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 27,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-catalog-new-core-tests-v2.log"
+    },
+    {
+      "name": "API catalog SQL composition",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/courses/composition/install-catalog-read.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-catalog-api-contract.log"
+    },
+    {
+      "name": "Full Core",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2111,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-catalog-core-full.log"
+    },
+    {
+      "name": "Full API",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2754,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-catalog-api-full.log"
+    },
+    {
+      "name": "Core TS",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-catalog-core-types-final.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-catalog-core-build-v3.log"
+    },
+    {
+      "name": "API TS",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-catalog-api-types-final.log"
+    },
+    {
+      "name": "Course adapter TS",
+      "command": "pnpm --filter @gafus/course-read-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-catalog-course-read-types.log"
+    },
+    {
+      "name": "Workspace dependency DAG",
+      "command": "node scripts/check-workspace-graph.mjs",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-catalog-workspace-graph.log"
+    },
+    {
+      "name": "Architecture boundaries",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-course-catalog-boundaries.log"
+    }
+  ],
+  "prechange_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/course-catalog-read-port-prechange",
+  "hash_basis": "Fresh before snapshot captured immediately before this group, final SHA256 computed at handoff in current uncommitted working tree, NOT previous A2 snapshots",
+  "no_merge_commit_push_or_deploy": true,
+  "frozen_baseline_edited": false,
+  "public_contract": {
+    "private": "Exact userId membership required even on overfetched SQL adapter",
+    "favorites": "Only requesting owner IDs may survive output, never another user",
+    "progress": "Only viewer progress and empty legacy userCourses wire",
+    "metadata": "Same nullable values, course outline, ordering and estimated durations",
+    "paid": "Core resolveCourseEntitlement controls paid access; no fallback on unknown course",
+    "errors": "COURSE_CATALOG_READ_PORT_UNBOUND (fail-closed); COURSE_CATALOG_READ_PORT_ALREADY_BOUND (hot swap denied)",
+    "version_logo": "Unchanged CAS and Russian public error codes"
+  },
+  "diagnostics": "First API typecheck found Prisma.TrainingStatus incompatible with shared public enum; narrowed DB projection status to string, Core explicitly converts to public TrainingStatus. First targeted test failed due stale nested `access: [{user:{id}}]` fixture while authoritative SQL selects `access: [{userId}]`. Corrected fixture, then all tests passed.",
+  "external_blockers": [
+    {
+      "id": "REAL_PG_CATALOG_READ",
+      "requires": "Dedicated pre-populated read-only PostgreSQL with pg role locked to local test DB, owner/outsider memberships/favorites, private and public course, viewer progress. Opt-in real work PG18 fixture is not available in unit runs; verify zero foreign IDs and query cost."
+    },
+    {
+      "id": "WEB_MOBILE_WIRE",
+      "requires": "Integrated A1/A2/A3 API + Web/Mobile staging to compare anonymous 11-field catalog, authenticated CourseWithProgressData, metadata, private course visibility and paid access."
+    },
+    {
+      "id": "FINAL_ARCHITECTURE",
+      "requires": "Remove 24 remaining Core→server edges and run the combined 33-stage regression +5-stage chaos, Web/Mobile/Worker/panels/PG/Redis acceptance before adjusting frozen baseline 41."
+    }
+  ],
+  "integration": "A2: Compare current final SHA256 before patch; semantically merge shared app.ts, course/index.ts, guard, inventory instead of overwriting. Do not accept this group without matching API installer, Core port, tests and architecture guard."
+}

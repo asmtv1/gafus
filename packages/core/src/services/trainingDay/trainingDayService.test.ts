@@ -6,6 +6,17 @@ import {
   deleteDays,
   getVisibleDays,
 } from "./trainingDayService";
+// Bind original atomic SQL rows against this test's mocked Prisma client.
+import { registerTrainingDayRowsPort } from "./trainingDayRowsPort";
+import {
+  readTrainingDayForEdit, insertTrainingDay, replaceTrainingDay,
+  deleteTrainingDayRows, listVisibleTrainingDays,
+} from "@gafus/course-progress-server/training-day-rows";
+registerTrainingDayRowsPort({
+  readTrainingDayForEdit, insertTrainingDay, replaceTrainingDay,
+  deleteTrainingDayRows, listVisibleTrainingDays,
+});
+
 
 const invalidateDays = vi.hoisted(() => vi.fn());
 vi.mock("../training/trainingDayContent", () => ({

@@ -1,0 +1,136 @@
+# SDK57 only. Does not sign, upload, publish, enroll devices, touch stores or
+# modify the existing SDK55/EAS signed OTA pipeline.
+name: GAFUS SDK57 native and telemetry QA (no release)
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Reviewed candidate SHA on origin/main
+        required: true
+        type: string
+      qa_update_id:
+        description: Synthetic UUID for offline source-map inventory (not published)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: gafus-sdk57-qa-${{ inputs.source_sha }}
+  cancel-in-progress: false
+jobs:
+  sdk57-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      CI: 'true'
+      NODE_ENV: test
+      # No S3 upload can be triggered by a QA-only workflow.
+      SYMBOLS_UPLOAD_EXECUTE: '0'
+      GAFUS_TELEMETRY_INGEST_ENABLED: 'false'
+      EXPO_PUBLIC_TELEMETRY_ENABLED: 'false'
+      EXPO_PUBLIC_API_BASE_URL: 'https://api.gafus.ru'
+      EXPO_PUBLIC_CHAT2_API_ORIGIN: 'https://api.gafus.ru'
+    steps:
+      - name: Checkout exact reviewed source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate SHA, SDK57 runtime and immutable candidate identity
+        shell: bash
+        env:
+          REQUESTED_SHA: ${{ inputs.source_sha }}
+          QA_UPDATE_ID: ${{ inputs.qa_update_id }}
+        run: |
+          set -euo pipefail
+          [[ "$REQUESTED_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 14
+          [[ "$QA_UPDATE_ID" =~ ^[a-f0-9-]{36}$ ]] || exit 15
+          test "$(git rev-parse HEAD)" = "$REQUESTED_SHA"
+          git merge-base --is-ancestor "$REQUESTED_SHA" origin/main
+          test -z "$(git status --porcelain)"
+          node --version
+          # This gate is checked again after setting Node 22.
+          test "$(node -p "require('./apps/mobile/app.json').expo.version")" = '1.8.0'
+          test "$(node -p "require('./apps/mobile/package.json').dependencies.expo")" = '57.0.33'
+
+      - name: Setup Node 22.23.5 (SDK57), pinned separately from SDK55
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.23.5'
+
+      - name: Install pnpm and frozen monorepo snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@10.12.4 --activate
+          pnpm install --frozen-lockfile
+
+      - name: Build mobile workspace packages and verify native release contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec turbo run build --filter=@gafus/core-client --filter=@gafus/chat-media-quality \
+            --filter=@gafus/analytics --filter=@gafus/consultation-shared --filter=@gafus/prisma
+          pnpm --dir apps/mobile exec expo install --check
+          node apps/mobile/scripts/verify-native-release.mjs
+          node apps/mobile/scripts/verify-ios-payment-graph.mjs
+          pnpm --filter @gafus/mobile typecheck
+
+      - name: Run targeted SDK57 JS/telemetry/OTA regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @gafus/mobile exec vitest run --config vitest.config.ts \
+            src/shared/lib/telemetry src/shared/lib/otaPolicy.test.ts src/shared/lib/tracer
+          node --test apps/mobile/plugins/*.test.cjs
+          node --test apps/mobile/scripts/prepare-sdk57-private-symbols.test.mjs
+          node --test scripts/observability/uptrace-nonprod-acceptance.test.mjs
+          node --test scripts/observability/uptrace-ack-gateway.test.mjs
+          node --test scripts/observability/uptrace-isolated-alloy.test.mjs
+          node --test scripts/observability/upload-private-web-sourcemaps.test.mjs
+          node --test apps/mobile/scripts/sdk57-dom-webview-native-compat.test.mjs
+          pnpm --filter @gafus/api exec vitest run --config vitest.config.ts \
+            src/modules/mobile-telemetry/ingest.test.ts
+          pnpm --filter @gafus/worker exec vitest run --config vitest.config.ts \
+            src/mobile-telemetry-export.test.ts
+
+      - name: Generate both Hermes bundles and private map inventories
+        shell: bash
+        env:
+          NODE_ENV: production
+          REQUESTED_SHA: ${{ inputs.source_sha }}
+          QA_UPDATE_ID: ${{ inputs.qa_update_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p .qa/sdk57
+          pnpm --dir apps/mobile exec expo export --platform ios --source-maps external \
+            --output-dir "$GITHUB_WORKSPACE/.qa/sdk57/export-ios"
+          pnpm --dir apps/mobile exec expo export --platform android --source-maps external \
+            --output-dir "$GITHUB_WORKSPACE/.qa/sdk57/export-android"
+          node scripts/qa/verify-sdk57-bundles.mjs > .qa/sdk57/release-graph-proof.json
+          node apps/mobile/scripts/verify-ios-payment-export.mjs .qa/sdk57/export-ios
+          node apps/mobile/scripts/prepare-sdk57-private-symbols.mjs "$GITHUB_WORKSPACE" \
+            "$GITHUB_WORKSPACE/.qa/sdk57/export-ios" "$GITHUB_WORKSPACE/.qa/sdk57/private-symbols-ios" \
+            ios preview 1.8.0 "$REQUESTED_SHA" "$QA_UPDATE_ID" 1
+          node apps/mobile/scripts/prepare-sdk57-private-symbols.mjs "$GITHUB_WORKSPACE" \
+            "$GITHUB_WORKSPACE/.qa/sdk57/export-android" "$GITHUB_WORKSPACE/.qa/sdk57/private-symbols-android" \
+            android preview 1.8.0 "$REQUESTED_SHA" "$QA_UPDATE_ID" 1
+          node packages/cdn-upload/scripts/upload-mobile-private-symbols.mjs \
+            --directory .qa/sdk57/private-symbols-ios
+          node packages/cdn-upload/scripts/upload-mobile-private-symbols.mjs \
+            --directory .qa/sdk57/private-symbols-android
+          test -z "$(git status --porcelain)"
+
+      - name: Keep non-secret QA evidence for code review only
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk57-qa-${{ inputs.source_sha }}
+          path: |
+            .qa/sdk57/release-graph-proof.json
+            .qa/sdk57/private-symbols-ios/private-symbol-manifest.json
+            .qa/sdk57/private-symbols-android/private-symbol-manifest.json
+          retention-days: 7
+          if-no-files-found: error

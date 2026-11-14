@@ -16,8 +16,8 @@ vi.mock("expo-iap", () => ({
   finishTransaction: (...args: unknown[]) => m.finish(...args),
 }));
 vi.mock("@/shared/lib/tracer", () => ({ reportClientError: (...a: unknown[]) => m.log(...a) }));
-vi.mock("../api/appSubscriptionApi", () => ({
-  appSubscriptionApi: { verifyAppleSubscription: (...a: unknown[]) => m.verify(...a) },
+vi.mock("../api/appSubscriptionAppleApi", () => ({
+  appSubscriptionAppleApi: { verifyAppleSubscription: (...a: unknown[]) => m.verify(...a) },
 }));
 import { runAppleAppSubscriptionPurchase } from "./appleAppSubscriptionPurchase";
 const TOKEN = "b713906f-c774-41d9-84ae-1585fb13f232";

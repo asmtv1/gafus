@@ -19,13 +19,15 @@ const denied = vi.hoisted(() => ({
     throw Error("UNUSED_VIDEO_ACCESS_BOUNDARY");
   }),
 }));
-vi.mock("@gafus/core/services/video", () => ({
+vi.mock("../../modules/video/composition/video-access.js", () => ({
   checkVideoAccess: denied.video,
   getProgress: denied.video,
   getVideoManifestInfo: denied.video,
   saveProgress: denied.video,
 }));
-vi.mock("@gafus/core/services/notifications", () => ({
+vi.mock("@gafus/course-server/video-progress", () => ({ getProgress: denied.video, saveProgress: denied.video }));
+
+vi.mock("@gafus/notifications-server", () => ({
   createStepNotificationForStepStart: denied.notify,
   getDayFromDayOnCourseId: denied.notify,
   pauseStepNotification: denied.notify,

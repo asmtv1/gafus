@@ -26,6 +26,10 @@ vi.mock("@gafus/core/services/gafus", () => ({
   },
 }));
 import { authMiddleware } from "../../middleware/auth";
+vi.mock("@gafus/course-server/mini-guides", () => ({
+  listGafusMiniGuides: vi.fn(),
+  getAuthorizedMiniGuideContent: vi.fn(),
+}));
 import { gafusRoutes } from "./gafus";
 
 const validBody = {

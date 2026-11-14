@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({
   manipulate: vi.fn(),
   sizes: new Map<string, number>(),
+  contents: new Map<string, Uint8Array>(),
+  writes: [] as Array<{ uri: string; bytes: Uint8Array }>,
   removed: [] as string[],
 }));
 vi.mock("expo-image-manipulator", () => ({
@@ -13,14 +15,27 @@ vi.mock("expo-file-system", () => ({
   File: class {
     constructor(readonly uri: string) {}
     get size() { return mock.sizes.get(this.uri) ?? 0; }
+    async bytes() {
+      return mock.contents.get(this.uri) ?? new Uint8Array([
+        82,73,70,70, 22,0,0,0, 87,69,66,80, // RIFF WEBP
+        86,80,56,88, 10,0,0,0, 0,0,0,0,0,0,0,0,0,0, // VP8X clean
+      ]);
+    }
+    write(bytes: Uint8Array) {
+      mock.contents.set(this.uri, bytes);
+      mock.sizes.set(this.uri, bytes.length);
+      mock.writes.push({ uri: this.uri, bytes });
+    }
     delete() { mock.removed.push(this.uri); }
   },
 }));
-import { prepareUploadWebp, prepareUploadWebpVariants } from "./prepareUploadWebp";
+import { prepareUploadWebp, prepareUploadWebpVariants, sanitizePreparedWebpVariant } from "./prepareUploadWebp";
 
 beforeEach(() => {
   mock.manipulate.mockReset();
   mock.sizes.clear();
+  mock.contents.clear();
+  mock.writes.length = 0;
   mock.removed.length = 0;
 });
 describe("native client-only WebP encoding", () => {
@@ -62,6 +77,31 @@ describe("native client-only WebP encoding", () => {
     expect(renditions.small.height).toBe(360);
     expect(renditions.medium.height).toBe(1440);
     renditions.small.dispose();renditions.medium.dispose();
+  });
+  it("removes native Android ICCP metadata before declaring WebP bytes to S3", async () => {
+    const uri = "file:///tmp/android-icc.webp";
+    const icc = new Uint8Array([
+      82,73,70,70, 48,0,0,0, 87,69,66,80,
+      86,80,56,88, 10,0,0,0, 32,0,0,0,0,0,0,0,0,0,
+      73,67,67,80, 3,0,0,0, 9,8,7,0,
+      86,80,56,32, 6,0,0,0, 1,2,3,4,5,6,
+    ]);
+    mock.manipulate.mockResolvedValueOnce({ uri, width: 270, height: 480 });
+    mock.contents.set(uri, icc);
+    mock.sizes.set(uri, icc.length);
+    const result = await prepareUploadWebp({
+      uri: "file:///orig/android.jpg", width: 270, height: 480,
+    }, 720);
+    expect(result.bytes).toBe(44);
+    expect(mock.writes).toHaveLength(1);
+    expect(mock.writes[0]?.bytes[20]).toBe(0); // VP8X ICC flag removed
+    expect(mock.writes[0]?.bytes).toEqual(new Uint8Array([
+      ...icc.slice(0, 4), 36,0,0,0, ...icc.slice(8, 20),
+      0, ...icc.slice(21, 30), ...icc.slice(42),
+    ]));
+    expect(await sanitizePreparedWebpVariant(result)).toBe(false);
+    result.dispose();
+    expect(mock.removed).toEqual([uri]);
   });
   it("encodes without enlarging an image already smaller than target edge", async () => {
     mock.manipulate.mockResolvedValueOnce({ uri: "file:///tmp/tiny.webp", width: 250, height: 180 });

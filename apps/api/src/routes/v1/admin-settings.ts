@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod/v3";
-import { readAdminActorRole } from "@gafus/core/services/adminUser";
+import { readAdminActorRole } from "../../modules/admin-users/composition/service.js";
 import {
   getDefaultAppSubscriptionSettings,
   updateDefaultAppSubscriptionSettings,
-} from "@gafus/core/services/appSubscription";
+} from "@gafus/subscription-finance-server/admin-application";
 import { requireRole } from "../../middleware/auth.js";
 
 export const adminSettingsRoutes = new Hono();

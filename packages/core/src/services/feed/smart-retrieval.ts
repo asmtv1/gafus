@@ -1,4 +1,3 @@
-import type { Prisma } from "@gafus/prisma";
 import type { FeedDb } from "./ports";
 import { normalizeSmartText, normalizeSmartBreed } from "./smart-ranking";
 
@@ -98,13 +97,13 @@ export async function retrieveSmartCandidates(
     ...viewed.map(row => row.post.authorId),
   ])].filter(id => id !== viewerId).slice(0, 100);
   const since = new Date(at.getTime() - 30 * 86_400_000);
-  const hard: Prisma.FeedPostWhereInput = {
+  const hard = {
     status: "published", deletedAt: null, moderationState: "visible",
     publishedAt: { gte: since, lte: at },
     feedback: { none: { userId: viewerId, kind: "not_interested" } },
     author: { feedSubscribers: { none: { userId: viewerId, hidden: true } } },
-  };
-  const recent: Prisma.FeedPostWhereInput = {
+  } as const;
+  const recent = {
     ...hard, publishedAt: { gte: new Date(at.getTime() - 14 * 86_400_000), lte: at },
   };
   const allSources = await Promise.all([

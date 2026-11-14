@@ -22,7 +22,7 @@ vi.mock("@gafus/cdn-upload", () => ({
   uploadBufferToCDN: forbiddenMedia,
 }));
 // Dynamic import is only in POST/review write execution, never in the target GET.
-vi.mock("../../../../../packages/core/src/services/notifications/immediatePushService", () => ({
+vi.mock("@gafus/notifications-server/immediatePushService", () => ({
   sendImmediatePushNotification: forbiddenPush,
 }));
 import { trainerExamSummaryRoutes } from "./trainer-exam-summary";

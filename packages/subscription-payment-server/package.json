@@ -1,0 +1,70 @@
+{
+  "name": "@gafus/subscription-payment-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./service": {
+      "types": "./dist/paymentService.d.ts",
+      "default": "./dist/paymentService.js"
+    },
+    "./payment-pure": {
+      "types": "./dist/paymentPure.d.ts",
+      "default": "./dist/paymentPure.js"
+    },
+    "./apple-environment": {
+      "types": "./dist/appleEnvironment.d.ts",
+      "default": "./dist/appleEnvironment.js"
+    },
+    "./plans": {
+      "types": "./dist/plans.d.ts",
+      "default": "./dist/plans.js"
+    },
+    "./promo-code": {
+      "types": "./dist/promoCode.d.ts",
+      "default": "./dist/promoCode.js"
+    },
+    "./payment-finance": {
+      "types": "./dist/paymentFinanceService.d.ts",
+      "default": "./dist/paymentFinanceService.js"
+    },
+    "./partner": {
+      "types": "./dist/partnerService.d.ts",
+      "default": "./dist/partnerService.js"
+    },
+    "./profit-math": {
+      "types": "./dist/profitMath.d.ts",
+      "default": "./dist/profitMath.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/types": "workspace:*",
+    "@gafus/logger": "workspace:*",
+    "@gafus/subscription-finance-server": "workspace:*",
+    "@gafus/subscription-trial-server": "workspace:*",
+    "@gafus/subscription-read-server": "workspace:*",
+    "@gafus/feature-flags-server": "workspace:*",
+    "@apple/app-store-server-library": "^3.0.0",
+    "decimal.js": "10.6.0",
+    "@gafus/subscription-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "@types/node": "20.4.8",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  }
+}

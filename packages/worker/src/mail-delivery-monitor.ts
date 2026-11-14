@@ -1,1 +1,1 @@
-export * from "@gafus/core/services/systemHealth/mailDeliveryMonitor";
+export * from "@gafus/statistics/mail-monitoring";

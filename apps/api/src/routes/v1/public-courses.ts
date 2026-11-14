@@ -18,7 +18,7 @@ publicCoursesRoutes.get("/", async (c) => {
     // Registering the anonymous route must not load the entire Course Core barrel.
     // Load the existing real producer only for an actual GET, retaining the same
     // Prisma whitelist, errors and cache headers. No alternate producer is added.
-    const { getPublicCoursesCatalog } = await import("@gafus/core/services/course");
+    const { getPublicCoursesCatalog } = await import("@gafus/course-server/public-catalog");
     const publicCatalog: PublicCourseCatalogItem[] = await getPublicCoursesCatalog();
     return c.json(
       { success: true, data: publicCatalog } satisfies PublicCourseCatalogResponse,

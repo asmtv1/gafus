@@ -1,0 +1,50 @@
+{
+  "policy": "/Users/asmtv1/Desktop/gafus-agent2-observability/docs/audit/gafus-agents-integration-preflight-policy-20261112.json",
+  "candidate": null,
+  "kind": "gafus/integration-preflight-result/v1",
+  "verdict": "BLOCKED",
+  "counts": {
+    "PASS": 5,
+    "FAIL": 0,
+    "BLOCKED": 2
+  },
+  "checks": [
+    {
+      "id": "POLICY_SCHEMA",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "PAYMENT_MANIFEST_SHA",
+      "status": "PASS",
+      "detail": "87d0fbedf7ab2692637cbeed6fcf819b865f23c70f92094e4f5dd905a728a362"
+    },
+    {
+      "id": "AGENT3_MANIFEST_SHA",
+      "status": "PASS",
+      "detail": "b98783d54906caeb0e0f9c86861863a9b38b464cc0cb39bed29a5da5166fe3d7"
+    },
+    {
+      "id": "PAYMENT_MANIFEST_CONTENT",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A3_MANIFEST_CONTENT",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "id": "A1_FINAL_REGISTRY_PIN",
+      "status": "BLOCKED",
+      "detail": "No approved final A1 architecture registry. Payment batch / prior results.tsv are insufficient."
+    },
+    {
+      "id": "CANDIDATE_COPY",
+      "status": "BLOCKED",
+      "detail": "No candidate provided; no writes performed."
+    }
+  ],
+  "noMutation": true,
+  "warning": "Read-only preflight. Passing this does not authorize commit, merge, push, production, Cloud.ru, CDN, 33/5/18 regression or stage acceptance."
+}

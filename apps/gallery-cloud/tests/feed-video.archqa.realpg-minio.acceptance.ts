@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 /** Real Feed V2 Core draft/PG lease + real VIDEO Cloud Worker and local MinIO.
  * The S3 port is an isolated, allowlisted injected adapter: production
  * createFeedCloudObjects pins specific ports and is intentionally untouched.
@@ -71,7 +72,7 @@ const storage = {
   },
 };
 const feed = createFeedService({ db, storage, enabled: () => true });
-const jobs = createFeedStorageJobs({ db, storage });
+const jobs = createFeedStorageJobs({ enqueueDeletedMediaPurge,  db, storage });
 const objects = {
   async download(key: string, destination: string, maxBytes: number, signal: AbortSignal, etag?: string) {
     assertFeedObjectKey(key);

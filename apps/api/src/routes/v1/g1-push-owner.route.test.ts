@@ -13,7 +13,7 @@ vi.mock("@gafus/prisma", () => ({
   }) } },
 }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: async () => true }));
-vi.mock("../../../../../packages/core/src/services/subscriptions/pushSubscriptionService.js", () => ({
+vi.mock("@gafus/notifications-server/push-subscriptions", () => ({
   savePushSubscription: save,
   PushEndpointOwnerConflictError: class PushEndpointOwnerConflictError extends Error {
     code = "PUSH_ENDPOINT_OWNER_CONFLICT";
@@ -69,7 +69,7 @@ describe("NOTIF050 signed JWT Hono session ownership", () => {
 
   it("H03 foreign-owner conflict maps to deterministic 409, no secret", async () => {
     const { PushEndpointOwnerConflictError } = await import(
-      "../../../../../packages/core/src/services/subscriptions/pushSubscriptionService.js"
+      "@gafus/notifications-server/push-subscriptions"
     );
     save.mockRejectedValueOnce(new PushEndpointOwnerConflictError());
     const res = await post({ endpoint, keys });
@@ -80,7 +80,7 @@ describe("NOTIF050 signed JWT Hono session ownership", () => {
 
   it("H04 post-auth stale session maps to 401 and no client epoch fallback", async () => {
     const { PushSessionStaleError } = await import(
-      "../../../../../packages/core/src/services/subscriptions/pushSubscriptionService.js"
+      "@gafus/notifications-server/push-subscriptions"
     );
     save.mockRejectedValueOnce(new PushSessionStaleError());
     const res = await post({ endpoint, keys });

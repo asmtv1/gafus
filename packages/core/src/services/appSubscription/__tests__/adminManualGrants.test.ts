@@ -15,7 +15,7 @@ import {
   adminGrantPaidUntil,
   adminGrantLifetime,
   adminClearManualGrant,
-} from "../adminService";
+} from "@gafus/subscription-finance-server/admin-application";
 
 beforeEach(() => {
   vi.clearAllMocks();

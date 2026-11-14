@@ -15,12 +15,14 @@ vi.mock("@gafus/logger", () => ({
   sanitizeZodErrorForLogMeta: log.sanitize,
 }));
 
+import { ServiceError, ValidationError, AuthorizationError, NotFoundError, ConflictError } from "@gafus/core/errors";
 import { errorHandler } from "./error-handler";
 
 function appWithError(error: Error) {
-  const app = new Hono<{ Variables: { requestId: string } }>();
+  const app = new Hono<{ Variables: { requestId: string; operationId: string } }>();
   app.use("*", async (c, next) => {
     c.set("requestId", "request-g1-003");
+    c.set("operationId", "operation-g1-003");
     await next();
   });
   app.get("/error/:privateId", () => { throw error; });
@@ -30,6 +32,66 @@ function appWithError(error: Error) {
 
 describe("AG1-003 Hono central 400/500 and sanitized logging", () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it.each([
+    [new ValidationError("secret e-mail user@example.invalid"), 400, "VALIDATION_ERROR"],
+    [new AuthorizationError("secret Bearer TOKEN"), 403, "AUTHORIZATION_ERROR"],
+    [new NotFoundError("profile", "secret-user-123"), 404, "NOT_FOUND"],
+    [new ConflictError("secret transaction conflict ID"), 409, "CONFLICT"],
+  ] as const)("maps deliberate domain errors to safe HTTP %s", async (error, status, code) => {
+    const response = await appWithError(error).request("/error/PRIVATE_ID");
+    const result = await response.json();
+    expect(response.status).toBe(status);
+    expect(result).toMatchObject({ success: false, code, requestId: "request-g1-003" });
+    const visible = JSON.stringify(result);
+    expect(visible).not.toContain("secret");
+    expect(visible).not.toContain("PRIVATE_ID");
+    expect(JSON.stringify(log.error.mock.calls)).not.toContain("secret");
+  });
+
+  it.each([
+    ["UNAUTHORIZED", 401],
+    ["FORBIDDEN", 403],
+    ["NOT_FOUND", 404],
+    ["CONFLICT", 409],
+    ["VALIDATION_ERROR", 400],
+    ["RATE_LIMITED", 429],
+    ["DEPENDENCY_UNAVAILABLE", 503],
+  ] as const)("keeps Application error %s safe with its specified HTTP status", async (code, status) => {
+    const privateValue = "PRIVATE_APPLICATION_SECRET_123";
+    const response = await appWithError(new ServiceError(privateValue, code, status))
+      .request("/error/PRIVATE_PATH_IDENTIFIER");
+    expect(response.status).toBe(status);
+    expect(await response.json()).toMatchObject({
+      success: false, code, requestId: "request-g1-003",
+    });
+    expect(JSON.stringify(log.error.mock.calls)).not.toContain(privateValue);
+    expect(JSON.stringify(log.error.mock.calls)).not.toContain("PRIVATE_PATH_IDENTIFIER");
+  });
+
+  it.each([
+    ["UNAUTHORIZED", 403],
+    ["RATE_LIMITED", 500],
+    ["DEPENDENCY_UNAVAILABLE", 200],
+    ["INTERNAL_ERROR", 500],
+  ] as const)("does not publish malformed or internal error %s with status %d", async (code, status) => {
+    const privateValue = "PRIVATE_BACKEND_ERROR_VALUE_123";
+    const response = await appWithError(new ServiceError(privateValue, code, status))
+      .request("/error/PRIVATE_PATH_IDENTIFIER");
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      success: false, code: "INTERNAL_SERVER_ERROR", requestId: "request-g1-003",
+    });
+    expect(JSON.stringify(log.error.mock.calls)).not.toContain(privateValue);
+  });
+
+  it("rejects arbitrary ServiceError status/code combinations as generic 500", async () => {
+    const forged = new ServiceError("Private signed token", "NOT_FOUND", 500);
+    const response = await appWithError(forged).request("/error/private-id");
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    expect(JSON.stringify(log.error.mock.calls)).not.toContain("Private signed token");
+  });
 
   it("never maps a non-Zod provider validation-message failure to 400", async () => {
     const privateValue = "PRIVATE_VALIDATION_FAILURE_ORIGIN_AUTH_SECRET";
@@ -46,7 +108,11 @@ describe("AG1-003 Hono central 400/500 and sanitized logging", () => {
     expect(JSON.stringify(log.error.mock.calls)).not.toContain(privateValue);
     expect(JSON.stringify(log.error.mock.calls)).not.toContain("PRIVATE_PATH_IDENTIFIER");
     expect(JSON.stringify(log.error.mock.calls)).not.toContain("STACK_API_TOKEN");
-    expect(log.error).toHaveBeenCalledTimes(1);
+    expect(log.error).toHaveBeenCalledExactlyOnceWith(
+      "Unhandled internal error",
+      undefined,
+      expect.objectContaining({ requestId: "request-g1-003", operationId: "operation-g1-003" }),
+    );
   });
 
   it("maps a real ZodError to 400 without logging sensitive input", async () => {

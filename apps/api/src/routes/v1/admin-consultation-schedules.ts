@@ -1,20 +1,22 @@
 import type { AuthRole } from "@gafus/auth";
 import { Hono, type Context } from "hono";
 import { z } from "zod/v3";
-import { readAdminActorRole } from "@gafus/core/services/adminUser";
+import { readAdminActorRole } from "../../modules/admin-users/composition/service.js";
+import {
+  dayOffInputSchema,
+  slotExceptionInputSchema,
+  trainerAvailabilityInputSchema,
+} from "@gafus/core/services/consultation";
 import {
   addDayOff,
   addSlotException,
-  dayOffInputSchema,
   getTrainerAvailability,
   getTrainerEditableSlots,
   removeDayOff,
   removeSlotException,
   resolveTargetTrainerUserIdForStaff,
   setTrainerAvailability,
-  slotExceptionInputSchema,
-  trainerAvailabilityInputSchema,
-} from "@gafus/core/services/consultation";
+} from "../../modules/consultations/composition/catalog-schedule.js";
 import { requireRole } from "../../middleware/auth.js";
 
 /** Dedicated admin schedule vertical, parity with legacy Next staff management. */

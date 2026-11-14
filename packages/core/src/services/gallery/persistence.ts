@@ -1,14 +1,18 @@
 import { randomUUID } from "node:crypto";
-import type { Prisma } from "@gafus/prisma";
+import type {
+  GalleryAlbumRow,
+  GalleryPhotoRow,
+  GalleryUploadRow,
+  GalleryJobRow,
+  GalleryPhotoWhere,
+} from "@gafus/media-shared/media-db-ports";
 import type { GalleryTx } from "./ports";
 import { GalleryError } from "./errors";
-import { GALLERY_LIMITS as L } from "../../../../types/src/gallery";
-export type AlbumRow = Prisma.GalleryAlbumGetPayload<{
-  include: { owner: { select: { username: true } } };
-}>;
-export type PhotoRow = Prisma.GalleryPhotoGetPayload<Record<string, never>>;
-export type UploadRow = Prisma.GalleryUploadGetPayload<{ include: { photo: true } }>;
-export type JobRow = Prisma.GalleryStorageJobGetPayload<Record<string, never>>;
+import { GALLERY_LIMITS as L } from "@gafus/types";
+export type AlbumRow = GalleryAlbumRow;
+export type PhotoRow = GalleryPhotoRow;
+export type UploadRow = GalleryUploadRow;
+export type JobRow = GalleryJobRow;
 export const alive = { deletedAt: null } as const;
 export const published = { status: { in: ["ready", "moving"] as ("ready" | "moving")[] } };
 export async function lockGalleryOwner(tx: GalleryTx, ownerId: string) {
@@ -52,7 +56,7 @@ export async function uploadFor(tx: GalleryTx, actorId: string, id: string): Pro
   await albumFor(tx, actorId, row.photo.albumId, true);
   return row;
 }
-export function occupiedWhere(ownerId: string, at: Date): Prisma.GalleryPhotoWhereInput {
+export function occupiedWhere(ownerId: string, at: Date): GalleryPhotoWhere {
   return {
     ownerId,
     ...alive,
@@ -97,7 +101,12 @@ export async function enqueueDelete(
 export function afterLease(at: Date, lease: Date | null) {
   return new Date(Math.max(at.getTime(), lease?.getTime() ?? 0) + 60_000);
 }
-export async function uploadCleanup(tx: GalleryTx, upload: UploadRow, at: Date, publishedKeys: string[] = []) {
+export async function uploadCleanup(
+  tx: GalleryTx,
+  upload: UploadRow,
+  at: Date,
+  publishedKeys: string[] = [],
+) {
   await enqueueDelete(tx, upload.ownerId, [upload.sourceKey], at, `source-now:${upload.id}`);
   // Keep a second durable task until POST expiry: a client can rewrite the source after READY.
   await enqueueDelete(

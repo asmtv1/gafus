@@ -8,12 +8,13 @@
     "build": "node scripts/build.mjs",
     "package:linux": "node scripts/package-linux.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --config vitest.config.ts"
+    "test": "vitest run --config vitest.config.ts --maxWorkers=1 --fileParallelism=false"
   },
   "dependencies": {
     "@gafus/core": "workspace:*",
     "@gafus/gallery-storage": "workspace:*",
-    "sharp": "0.35.5"
+    "sharp": "0.35.5",
+    "@gafus/media-server": "workspace:*"
   },
   "optionalDependencies": {
     "@img/sharp-linux-x64": "0.35.5",

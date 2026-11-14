@@ -61,3 +61,8 @@ describe("TrainerStepEdit DTO", () => {
     expect(result?.checklist[0]?.correctAnswer).toBe(0);
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalTrainerStepRowsPort from "@gafus/course-progress-server/trainer-step-rows";
+import { registerTrainerStepRowsPort, type TrainerStepRowsPort } from "./trainerStepRowsPort";
+registerTrainerStepRowsPort(originalTrainerStepRowsPort as TrainerStepRowsPort);

@@ -13,18 +13,18 @@ describe("Chat2 Mobile video preview parity with Web", () => {
     expect(preview).toContain("Обрабатываем видео…");
     expect(preview).toContain("media?.renditions?.poster");
     expect(preview).toContain("source={{ uri: poster }}");
-    expect(preview).toContain("!everPlayed && !playing && (poster || thumbnail?.url === url)");
+    expect(preview).toContain("!everPlayed && !playing && (poster || thumbnail)");
     expect(preview).toContain("<ExpoImage source={thumbnail.frame}");
-    expect(player).toContain("player.generateThumbnailsAsync(0, { maxWidth: 440, maxHeight: 440 })");
+    expect(player).toContain("() => player.generateThumbnailsAsync(0, { maxWidth: 440, maxHeight: 440 })");
     expect(preview).not.toContain("▶ {file.name}");
   });
 
   it("mounts a paused MP4 player, and only starts after Play", () => {
-    const setup = player.slice(player.indexOf("const player = useVideoPlayer("), player.indexOf("useEffect(() => {"));
-    expect(setup).toContain("instance.pause()");
-    expect(setup).not.toContain("instance.play()");
-    expect(player).toContain("onPlayingChange(isPlaying)");
-    expect(player).toContain('player.addListener("playToEnd", onPlaybackEnd)');
+    const setup = player.slice(player.indexOf("const player = createVideoPlayer("), player.indexOf("const source = new SerializedVideoSource(player)"));
+    expect(setup).toContain("player.pause()");
+    expect(setup).not.toContain("player.play()");
+    expect(player).toContain("latest.current.onPlayingChange(isPlaying)");
+    expect(player).toContain('player.addListener("playToEnd", () => latest.current.onPlaybackEnd())');
     expect(player).toContain('surfaceType={Platform.OS === "android" ? "textureView" : undefined}');
     expect(preview).toContain("<SocialVideoControls player={controlPlayer} playing={playing}");
     expect(preview).toContain("playVideoFromBeginningIfEnded(playerRef.current, playbackEnded.current)");
@@ -44,8 +44,20 @@ describe("Chat2 Mobile video preview parity with Web", () => {
     expect(preview).toContain("playVideoFromBeginningIfEnded(playerRef.current, playbackEnded.current)");
     expect(preview).toContain("playbackEnded.current = true;");
     expect(preview).toContain("setPlaying(false);");
-    expect(player).toContain("onPlayingChange(isPlaying)");
+    expect(player).toContain("latest.current.onPlayingChange(isPlaying)");
     expect(player).toContain("nativeControls={false}");
+  });
+
+  it("keeps one native player during quality switching and serializes native operations", () => {
+    expect(preview).toContain("<NativeChat2VideoPlayer url={url}");
+    expect(preview).not.toContain("<NativeChat2VideoPlayer key={url}");
+    expect(player).toContain("createVideoPlayer({ uri: firstUrl.current");
+    expect(player).not.toContain("useVideoPlayer(");
+    expect(player).toContain("owned.source.replace({ uri: url");
+    expect(player).toContain("source.dispose()");
+    expect(player).toContain("owned.source.perform(");
+    expect(player).toContain("seekOnReady.current = { url, time: seekTo, resume: resumeOnReady }");
+    expect(player).toContain("if (pendingSeek.resume) player.play()");
   });
 
   it("renders settings gear inside the video instead of a permanent quality toolbar",()=>{

@@ -1,7 +1,7 @@
 import {describe,it,expect,vi,afterEach} from "vitest";
 import {enqueuePetMediaDeletionIntent,consumePetMediaUploadReservation,
   createPetMediaDeletionSqlPort,claimOnePetMediaDeletion,petMediaOutboxEnabled,
-} from "./petMediaDeletionSql";
+} from "@gafus/pets-server/pet-media-deletion-sql";
 const owner="owner_A",pet="pet_A";
 const locator="cloudru:documents:documents/uploads/users/owner_A/pets/pet_A/documents/a.pdf";
 const mock=(value=1)=>({$executeRaw:vi.fn(async()=>value)});

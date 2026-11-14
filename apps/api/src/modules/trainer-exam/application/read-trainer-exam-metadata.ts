@@ -1,9 +1,9 @@
-/** AG1-001: existing Trainer Exam summary/pending READ, with exact safe projections. */
-import type { getExamResults, getPendingExamResults } from "@gafus/core/services/exam";
-
-type ExamResultsReader = typeof getExamResults;
-type PendingExamResultsReader = typeof getPendingExamResults;
-
+type ExamResultsReader = (
+  actorUserId: string,
+  options: { hideCompleted: boolean },
+  isAdmin: boolean,
+) => Promise<unknown>;
+type PendingExamResultsReader = (actorUserId: string, isAdmin: boolean) => Promise<unknown>;
 
 function invalidSource(): never {
   throw new Error("TRAINER_EXAM_SUMMARY_SOURCE_INVALID");

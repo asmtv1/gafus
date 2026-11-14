@@ -1,14 +1,12 @@
 import bcrypt from "bcryptjs";
 
-import { ConsentType, Prisma, prisma, RegistrationChannel } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 import {
   authRegisterBodySchema,
   coreRegisterConsentPayloadSchema,
 } from "../../validation/authRegisterSchema";
-import { attributePartnerReferralIfCurrentPartnerInTransaction } from "../appSubscription/partnerService";
-import { createCompletedConsentLogsInTransaction, type CreateConsentLogsParams } from "../consent";
+import type { CreateConsentLogsParams } from "@gafus/types";
 import {
   fingerprintRegistrationAttempt,
   getOrCreateRegistrationEmailAttemptInTransaction,
@@ -20,6 +18,53 @@ import { parseAppSubscriptionPromoCode } from "../appSubscription/promoCode";
 import { canRegisterEmailDomain } from "./registerEmailDomainDns";
 
 const logger = createWebLogger("register-user-credentials");
+
+/** Credential registration is a single transaction including user,
+ * consents, referral and idempotency receipt. The Core callback sees an
+ * existing transaction token; it MUST NOT open a second DB connection.
+ * Server decides UNIQUE targets (P2002), Core maps the public errors.
+ */
+type CredentialRegistrationTx = Parameters<typeof getOrCreateRegistrationEmailAttemptInTransaction>[0];
+type RegistrationChannel = "WEB" | "IOS" | "ANDROID" | "UNKNOWN";
+const REGISTRATION_UNKNOWN_CHANNEL: RegistrationChannel = "UNKNOWN";
+const REGISTRATION_CONSENT_TYPES = ["PERSONAL_DATA", "PRIVACY_POLICY", "DATA_DISTRIBUTION"] as const;
+
+export interface CredentialRegistrationPort {
+  withRegistrationTransaction<T>(
+    action: (tx: CredentialRegistrationTx) => Promise<T>,
+    options?: { maxWait?: number; timeout?: number },
+  ): Promise<T>;
+  readCredentialRegistrationReplayUserTx(
+    tx: CredentialRegistrationTx, userId: string,
+  ): Promise<{ id: string; password: string } | null>;
+  insertCredentialRegistrationUserTx(
+    tx: CredentialRegistrationTx,
+    input: { username: string; email: string; passwordHash: string; registrationChannel: RegistrationChannel },
+  ): Promise<{ id: string }>;
+  markCredentialRegistrationAttemptSucceededTx(
+    tx: CredentialRegistrationTx, attemptId: string, userId: string,
+  ): Promise<unknown>;
+  registrationUniqueErrorTargets(error: unknown): string[] | null;
+  createCompletedConsentLogsInTransaction(
+    tx: CredentialRegistrationTx, params: CreateConsentLogsParams,
+  ): Promise<void>;
+  attributePartnerReferralIfCurrentPartnerInTransaction(
+    tx: CredentialRegistrationTx, userId: string, promoCode: string,
+  ): Promise<unknown>;
+}
+let installedCredentialRegistrationPort: Readonly<CredentialRegistrationPort> | null = null;
+export function registerCredentialRegistrationPort(port: CredentialRegistrationPort): void {
+  if (installedCredentialRegistrationPort !== null && installedCredentialRegistrationPort !== port) {
+    throw new Error("CREDENTIAL_REGISTRATION_PORT_ALREADY_BOUND");
+  }
+  installedCredentialRegistrationPort = port;
+}
+function requireCredentialRegistrationPort(): Readonly<CredentialRegistrationPort> {
+  if (!installedCredentialRegistrationPort) throw new Error("CREDENTIAL_REGISTRATION_PORT_UNBOUND");
+  return installedCredentialRegistrationPort;
+}
+
+
 
 const BCRYPT_ROUNDS = 12;
 
@@ -71,7 +116,7 @@ export async function registerUserWithCredentials(
 
   const { name: normalizedUsername, email: normalizedEmail, password } = parsed.data;
   const registrationChannel =
-    input.registrationChannel ?? RegistrationChannel.UNKNOWN;
+    input.registrationChannel ?? REGISTRATION_UNKNOWN_CHANNEL;
   const registrationContext = input.registrationContext;
   if (!registrationContext) {
     return {
@@ -112,13 +157,14 @@ export async function registerUserWithCredentials(
     promoCode: parsedPromo?.normalizedCode ?? null,
     consent: {
       ...parsedConsent.data,
-      versions: Object.fromEntries(Object.values(ConsentType).map((type) => [type, registrationContext.consentVersions?.[type]])),
+      versions: Object.fromEntries(REGISTRATION_CONSENT_TYPES.map((type) => [type, registrationContext.consentVersions?.[type]])),
       defaultVersion: registrationContext.defaultVersion,
     },
   });
 
+  const port = requireCredentialRegistrationPort();
   try {
-    const outcome = await prisma.$transaction(async (tx) => {
+    const outcome = await port.withRegistrationTransaction(async (tx) => {
       const attempt = await getOrCreateRegistrationEmailAttemptInTransaction(tx, {
         tempSessionId: registrationContext.tempSessionId,
         dataFingerprint: fingerprint,
@@ -127,24 +173,13 @@ export async function registerUserWithCredentials(
         if (!attempt.userId || attempt.result !== "SUCCEEDED") {
           throw new Error("Completed registration attempt has no successful user");
         }
-        const replayUser = await tx.user.findUnique({
-          where: { id: attempt.userId },
-          select: { id: true, password: true },
-        });
+        const replayUser = await port.readCredentialRegistrationReplayUserTx(tx, attempt.userId);
         if (!replayUser) throw new Error("Completed registration user is missing");
         return { kind: "replay" as const, user: replayUser };
       }
-      const created = await tx.user.create({
-        data: {
-        username: normalizedUsername,
-        email: normalizedEmail,
-        phone: null,
-        password: hashedPassword,
-        passwordSetAt: new Date(),
-        registrationChannel,
-        profile: { create: {} },
-        },
-        select: { id: true },
+      const created = await port.insertCredentialRegistrationUserTx(tx, {
+        username: normalizedUsername, email: normalizedEmail,
+        passwordHash: hashedPassword, registrationChannel,
       });
       if (parsedPromo) {
         const promoCode = await saveRegistrationPromoCodeInTransaction(tx, {
@@ -152,23 +187,20 @@ export async function registerUserWithCredentials(
           rawCode: parsedPromo.normalizedCode,
         });
         if (promoCode) {
-          await attributePartnerReferralIfCurrentPartnerInTransaction(
+          await port.attributePartnerReferralIfCurrentPartnerInTransaction(
             tx,
             created.id,
             promoCode.normalizedCode,
           );
         }
       }
-      await createCompletedConsentLogsInTransaction(tx, {
+      await port.createCompletedConsentLogsInTransaction(tx, {
         ...registrationContext,
         userId: created.id,
         consentPayload: parsedConsent.data,
         formData: { ...registrationContext.formData, name: normalizedUsername, email: normalizedEmail },
       });
-      await tx.registrationEmailAttempt.update({
-        where: { id: attempt.id },
-        data: { result: "SUCCEEDED", userId: created.id, completedAt: new Date() },
-      });
+      await port.markCredentialRegistrationAttemptSucceededTx(tx, attempt.id, created.id);
       return { kind: "created" as const, user: { ...created, password: hashedPassword } };
     }, { maxWait: 5000, timeout: 10000 });
     if (outcome.kind === "replay" && !(await bcrypt.compare(password, outcome.user.password))) {
@@ -185,14 +217,13 @@ export async function registerUserWithCredentials(
         return { ok: false, code: "ATTEMPT_MISMATCH", messageRu: "Данные регистрации не совпадают с исходной попыткой" };
       }
     }
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      const targets = error.meta?.target as string[] | string | undefined;
-      const targetList = Array.isArray(targets) ? targets : targets ? [targets] : [];
+    const targetList = port.registrationUniqueErrorTargets(error);
+    if (targetList !== null) {
       const isEmail = targetList.some((t) => String(t).includes("email"));
       const isUsername = targetList.some((t) => String(t).includes("username"));
       logger.warn("Конфликт уникальности при регистрации", {
         targetList,
-        code: error.code,
+        code: "P2002",
       });
       if (isEmail) {
         return {

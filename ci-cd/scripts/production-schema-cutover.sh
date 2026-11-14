@@ -55,8 +55,22 @@ check_health() {
   echo "ERROR: $app did not become healthy" >&2
   return 1
 }
+# Check the actual database migration ledger against this exact checked-out SHA
+# BEFORE serving 503, touching markers, stopping writers or taking a backup.
+# `docker exec psql` is SELECT-only; `python3` only hashes local SQL files.
+verify_migration_ledger() {
+  docker exec gafus-postgres psql -U gafus -d gafus -X -q -A -t \
+    -F $'\t' -v ON_ERROR_STOP=1 \
+    -c "SELECT migration_name, checksum, CASE WHEN rolled_back_at IS NOT NULL THEN 'rolled_back' WHEN finished_at IS NOT NULL THEN 'applied' ELSE 'failed' END FROM \"_prisma_migrations\" ORDER BY migration_name" \
+    | python3 "${GAFUS_MIGRATION_LEDGER_VERIFIER_PATH:-$root/ci-cd/scripts/verify-production-migration-ledger.py}" \
+        "$root/packages/prisma/migrations"
+}
 case "$mode" in
+  preflight)
+    verify_migration_ledger
+    ;;
   prepare)
+    verify_migration_ledger
     [[ ! -e "$migration_marker" ]] || { echo 'Migration already started in this release; abort' >&2; exit 1; }
     [[ ! -f "$gate" ]] || { echo 'Previous maintenance marker exists; manual intervention required' >&2; exit 1; }
     # Existing nginx bind mount exposes the updated config without recreation.

@@ -5,7 +5,6 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
-import { prisma } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
 
 import { coreRegisterEmailSchema } from "../../validation/registerEmailDomain";
@@ -17,6 +16,47 @@ import {
 } from "./transactionalAuthMail";
 
 const logger = createWebLogger("email-account-flows");
+
+/** SQL remains in identity-write-server: single-use token transactions,
+ * owner row locks, CAS throttle/rollback and provider ACK ordering.
+ * Core owns anti-enumeration, token hash, public errors and email delivery.
+ */
+export interface EmailAccountRowsPort {
+  readPasswordResetRequestUser(email: string): Promise<{
+    id: string; email: string | null; passwordResetRequestedAt: Date | null;
+  } | null>;
+  claimPasswordResetEmailToken(input: {
+    userId: string; tokenHash: string; expiresAt: Date; requestedAt: Date; throttleMs: number;
+  }): Promise<boolean>;
+  rollbackFailedPasswordResetEmailToken(input: {
+    userId: string; tokenHash: string; requestedAt: Date; previousRequestedAt: Date | null;
+  }): Promise<unknown>;
+  retireOlderPasswordResetEmailTokens(userId: string, deliveredTokenHash: string): Promise<unknown>;
+  readEmailChangeAccount(userId: string): Promise<{
+    email: string | null; password: string; passwordSetAt: Date | null;
+  } | null>;
+  readEmailOwner(email: string): Promise<{ id: string } | null>;
+  stageEmailChange(input: {
+    userId: string; newEmail: string; token: string; expiresAt: Date;
+    expectedPassword: string; expectedPasswordSetAt: Date | null;
+  }): Promise<Date>;
+  rollbackUndeliveredEmailChange(userId: string, token: string): Promise<unknown>;
+  retireOlderEmailChangeTokens(userId: string, token: string, stagedAt: Date): Promise<unknown>;
+  consumeEmailChangeConfirmation(token: string): Promise<string | null | undefined>;
+}
+let installedEmailAccountRowsPort: Readonly<EmailAccountRowsPort> | null = null;
+export function registerEmailAccountRowsPort(port: EmailAccountRowsPort): void {
+  if (installedEmailAccountRowsPort !== null && installedEmailAccountRowsPort !== port) {
+    throw new Error("EMAIL_ACCOUNT_ROWS_PORT_ALREADY_BOUND");
+  }
+  installedEmailAccountRowsPort = port;
+}
+function requireEmailAccountRowsPort(): Readonly<EmailAccountRowsPort> {
+  if (!installedEmailAccountRowsPort) throw new Error("EMAIL_ACCOUNT_ROWS_PORT_UNBOUND");
+  return installedEmailAccountRowsPort;
+}
+
+
 
 const PASSWORD_RESET_THROTTLE_MS = 120_000;
 const PASSWORD_RESET_TOKEN_HOURS = 1;
@@ -36,10 +76,7 @@ export async function sendPasswordResetRequestByEmail(rawEmail: string): Promise
   }
   const email = parsed.data;
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true, email: true, passwordResetRequestedAt: true },
-  });
+  const user = await requireEmailAccountRowsPort().readPasswordResetRequestUser(email);
 
   if (!user?.email) {
     logger.info("Сброс пароля: пользователь с email не найден", {});
@@ -61,23 +98,9 @@ export async function sendPasswordResetRequestByEmail(rawEmail: string): Promise
   // Keep previously delivered links usable until the new message is accepted.
   // Claim the throttle atomically to stop concurrent requests from racing.
   const requestedAt = new Date(now);
-  const claimed = await prisma.$transaction(async (tx) => {
-    const claim = await tx.user.updateMany({
-      where: {
-        id: user.id,
-        OR: [
-          { passwordResetRequestedAt: null },
-          { passwordResetRequestedAt: { lte: new Date(now - PASSWORD_RESET_THROTTLE_MS) } },
-        ],
-      },
-      data: { passwordResetRequestedAt: requestedAt },
-    });
-    if (claim.count !== 1) return false;
-    // Do not delete a previously delivered token before this one is accepted.
-    await tx.passwordResetToken.create({
-      data: { userId: user.id, token: tokenHash, expiresAt },
-    });
-    return true;
+  const claimed = await requireEmailAccountRowsPort().claimPasswordResetEmailToken({
+    userId: user.id, tokenHash, expiresAt, requestedAt,
+    throttleMs: PASSWORD_RESET_THROTTLE_MS,
   });
   if (!claimed) return;
 
@@ -87,12 +110,9 @@ export async function sendPasswordResetRequestByEmail(rawEmail: string): Promise
   } catch (error) {
     // A failed provider request must neither invalidate the older link nor
     // impose a 2-minute cooldown. Never remove a newer concurrent request.
-    await prisma.$transaction(async (tx) => {
-      await tx.passwordResetToken.deleteMany({ where: { userId: user.id, token: tokenHash } });
-      await tx.user.updateMany({
-        where: { id: user.id, passwordResetRequestedAt: requestedAt },
-        data: { passwordResetRequestedAt: user.passwordResetRequestedAt },
-      });
+    await requireEmailAccountRowsPort().rollbackFailedPasswordResetEmailToken({
+      userId: user.id, tokenHash, requestedAt,
+      previousRequestedAt: user.passwordResetRequestedAt,
     }).catch((rollbackError) => {
       logger.error("Password reset delivery cleanup unavailable", rollbackError as Error);
     });
@@ -100,11 +120,7 @@ export async function sendPasswordResetRequestByEmail(rawEmail: string): Promise
   }
   // Only after accepted delivery invalidate the older links. Failure to clean
   // up is safer than invalidating the newly delivered link.
-  await prisma.$transaction(async tx => {
-    await tx.passwordResetToken.deleteMany({
-      where: { userId: user.id, token: { not: tokenHash } },
-    });
-  }).catch((error) => {
+  await requireEmailAccountRowsPort().retireOlderPasswordResetEmailTokens(user.id, tokenHash).catch((error) => {
     logger.error("Password reset old-token cleanup unavailable", error as Error);
   });
 }
@@ -121,10 +137,7 @@ export async function requestEmailChange(
   }
   const newEmail = parsed.data;
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true, password: true, passwordSetAt: true },
-  });
+  const user = await requireEmailAccountRowsPort().readEmailChangeAccount(userId);
   if (!user) throw new Error("Пользователь не найден");
   if (user.passwordSetAt != null &&
       (!currentPassword || !(await bcrypt.compare(currentPassword, user.password)))) {
@@ -134,9 +147,7 @@ export async function requestEmailChange(
     throw new Error("Этот email уже указан в профиле");
   }
 
-  const taken = await prisma.user.findUnique({
-    where: { email: newEmail }, select: { id: true },
-  });
+  const taken = await requireEmailAccountRowsPort().readEmailOwner(newEmail);
   if (taken) throw new Error("Этот email уже занят");
 
   const token = crypto.randomBytes(32).toString("base64url");
@@ -146,61 +157,22 @@ export async function requestEmailChange(
   // Stage before sending: a delivered link is never missing solely because
   // the database failed AFTER provider acceptance. Keep the prior link active
   // during delivery and remove ONLY the staged token on delivery failure.
-  const stagedAt = await prisma.$transaction(async (tx) => {
-    const locked = await tx.$queryRaw<{ id: string }[]>`
-      SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE
-    `;
-    if (locked.length !== 1) throw new Error("Пользователь не найден");
-    const current = await tx.user.findUnique({
-      where: { id: userId }, select: { email: true, password: true, passwordSetAt: true },
-    });
-    if (current?.email?.toLowerCase() === newEmail) {
-      throw new Error("Этот email уже указан в профиле");
-    }
-    if (!current || current.password !== user.password ||
-        current.passwordSetAt?.getTime() !== user.passwordSetAt?.getTime()) {
-      throw new Error("Неверный текущий пароль");
-    }
-    const conflict = await tx.user.findUnique({ where: { email: newEmail }, select: { id: true } });
-    if (conflict && conflict.id !== userId) throw new Error("Этот email уже занят");
-    // A rapid sequential request can have the same millisecond timestamp as
-    // the prior row. Random-token lexical ordering cannot define issuance
-    // order: it can leave a previously delivered link active. The owner row
-    // lock serializes this read and makes each staged timestamp monotonic.
-    const latest = await tx.emailChangeToken.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: { createdAt: true },
-    });
-    const createdAt = new Date(Math.max(
-      Date.now(),
-      (latest?.createdAt.getTime() ?? 0) + 1,
-    ));
-    const staged = await tx.emailChangeToken.create({
-      data: { userId, newEmail, token, expiresAt, createdAt },
-    });
-    return staged.createdAt;
+  const stagedAt = await requireEmailAccountRowsPort().stageEmailChange({
+    userId, newEmail, token, expiresAt,
+    expectedPassword: user.password,
+    expectedPasswordSetAt: user.passwordSetAt,
   });
 
   try {
     await sendEmailChangeConfirmEmail(newEmail, confirmUrl);
   } catch (error) {
-    await prisma.$transaction(async tx => {
-      await tx.emailChangeToken.deleteMany({ where: { userId, token } });
-    }).catch((cleanupError) => {
+    await requireEmailAccountRowsPort().rollbackUndeliveredEmailChange(userId, token).catch((cleanupError) => {
       logger.error("Email change delivery cleanup unavailable", cleanupError as Error);
     });
     throw error;
   }
   // One active delivered request per owner. Never delete the new token.
-  await prisma.$transaction(async tx => {
-    await tx.emailChangeToken.deleteMany({
-      where: { userId, OR: [
-        { createdAt: { lt: stagedAt } },
-        { createdAt: stagedAt, token: { lt: token } },
-      ] },
-    });
-  }).catch((error) => {
+  await requireEmailAccountRowsPort().retireOlderEmailChangeTokens(userId, token, stagedAt).catch((error) => {
     logger.error("Email change old-token cleanup unavailable", error as Error);
   });
 }
@@ -214,41 +186,7 @@ export async function confirmEmailChangeByToken(rawToken: string): Promise<void>
   }
 
   try {
-    const previousEmail = await prisma.$transaction(async (tx) => {
-      const seen = await tx.emailChangeToken.findUnique({ where: { token } });
-      if (!seen) throw new Error("Ссылка недействительна или устарела");
-
-      // The token read alone is not an ownership lock. Competing confirmations
-      // can both read the same row and both ACK unless we serialize on User.
-      await tx.$queryRaw<{ id: string }[]>`
-        SELECT "id" FROM "User" WHERE "id" = ${seen.userId} FOR UPDATE
-      `;
-      // READ COMMITTED: after acquiring the lock, re-read token existence and
-      // expiry. First confirm may already have consumed/deleted the row.
-      const row = await tx.emailChangeToken.findUnique({ where: { token } });
-      if (!row || row.expiresAt <= new Date()) {
-        throw new Error("Ссылка недействительна или устарела");
-      }
-
-      const conflict = await tx.user.findUnique({
-        where: { email: row.newEmail },
-        select: { id: true },
-      });
-      if (conflict && conflict.id !== row.userId) {
-        throw new Error("Этот email уже занят");
-      }
-
-      const previous = await tx.user.findUnique({
-        where: { id: row.userId }, select: { email: true },
-      });
-      await tx.user.update({
-        where: { id: row.userId },
-        data: { email: row.newEmail },
-        select: { email: true },
-      });
-      await tx.emailChangeToken.deleteMany({ where: { userId: row.userId } });
-      return previous?.email;
-    });
+    const previousEmail = await requireEmailAccountRowsPort().consumeEmailChangeConfirmation(token);
     if (previousEmail?.trim()) {
       await sendEmailChangedNoticeEmail(previousEmail).catch((error) => {
         logger.error("Email change old-address notice unavailable", error as Error);

@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import { resolve } from "node:path";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -7,6 +8,7 @@ import {
   versionNameForUpdateId,
 } from "./upload-apptracer-sourcemaps.mjs";
 import { withCompiledOtaRevision } from "./ota-revision-release.mjs";
+import { resolveEasUpdateTarget } from "./native-release-contract.mjs";
 
 const appRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -62,16 +64,18 @@ async function main() {
   const easArgs = revisionArg >= 0
     ? argv.filter((_, index) => index !== revisionArg && index !== revisionArg + 1)
     : argv;
-  const isProduction = easArgs.includes("production");
+  const target = resolveEasUpdateTarget(easArgs);
+  const isProduction = target.channel === "production";
+  const appVersion = JSON.parse(fs.readFileSync(resolve(appRoot, "app.json"), "utf8")).expo.version;
   if (revisionArg >= 0 && (revisionArg + 1 >= argv.length || !/^[1-9]\d*$/.test(argv[revisionArg + 1]))) {
     throw new Error("OTA_REVISION_INVALID: --ota-revision must be a positive integer");
   }
   if (isProduction && (!revision || !/^[1-9]\d*$/.test(revision) || !Number.isSafeInteger(Number(revision)))) {
-    throw new Error("OTA_REVISION_REQUIRED: pass --ota-revision 1 to publish 1.7.3-ota.1");
+    throw new Error(`OTA_REVISION_REQUIRED: pass --ota-revision 1 to publish ${appVersion}-ota.1`);
   }
   if (isProduction) {
     process.env.EXPO_PUBLIC_OTA_REVISION = revision;
-    console.log(`[OTA] Publishing 1.7.3-ota.${revision} (runtime 1.7.3)`);
+    console.log(`[OTA] Publishing ${appVersion}-ota.${revision} (runtime ${appVersion})`);
   }
   // Production OTA is forbidden until both NEW store binaries have been
   // published with exactly this appVersion runtime. No SDK-wide fallback.
@@ -103,9 +107,9 @@ async function main() {
       "OTA_PRODUCTION_CHAT_ORIGIN_MISSING: set EAS production EXPO_PUBLIC_CHAT2_API_ORIGIN=https://api.gafus.ru before publishing",
     );
   }
-  if (isProduction && process.env.EXPO_PUBLIC_APP_VERSION !== "1.7.3") {
+  if (isProduction && process.env.EXPO_PUBLIC_APP_VERSION !== appVersion) {
     throw new Error(
-      "OTA_PRODUCTION_APP_VERSION_MISMATCH: set EAS production EXPO_PUBLIC_APP_VERSION=1.7.3 before publishing",
+      `OTA_PRODUCTION_APP_VERSION_MISMATCH: set EAS production EXPO_PUBLIC_APP_VERSION=${appVersion} before publishing`,
     );
   }
   const output = isProduction

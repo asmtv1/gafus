@@ -3,7 +3,7 @@ import {
   getPartnerAdminBalanceDetail,
   listPartnerAdminBalances,
   markPartnerBalancePaidAdmin,
-} from "@gafus/core/services/appSubscription";
+} from "@gafus/subscription-write-server";
 
 import { requireRole } from "../../middleware/auth.js";
 

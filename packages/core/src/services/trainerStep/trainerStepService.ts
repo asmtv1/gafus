@@ -3,8 +3,28 @@
  * Чистая логика без Next.js и CDN; app отвечает за сессию, CDN и revalidate.
  */
 
-import { prisma } from "@gafus/prisma";
-import { Prisma } from "@gafus/prisma";
+import {
+  readTrainerVideoRows,
+  readTrainerStepForEdit,
+  readTrainerStepMediaRow,
+  readTrainerStepImageRow,
+  readTrainerStepDeletionRows,
+  readVisibleTrainerSteps,
+  createTrainerStepRecord,
+  updateTrainerStepRecord,
+  updateTrainerStepImageRow,
+  deleteLegacyTrainerStepRows,
+  deleteOwnedTrainerStepRows,
+  readTrainerTemplateForDisplay,
+  readTrainerTemplateForCreation,
+  readPublicTrainerStepTemplates,
+  searchPublicTrainerStepTemplates,
+  readPublicTrainerStepCategories,
+  createStepFromTemplateRow,
+  deleteTrainerTemplateRow,
+  createTrainerTemplateRow,
+  createTrainerStepCategoryRow,
+} from "./trainerStepRowsPort";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import { handlePrismaError } from "@gafus/core/errors";
@@ -29,52 +49,39 @@ async function ownsSelectedLibraryVideos(urls: string[] | undefined, actorId: st
   const selected = new Map<string, string>();
   for (const raw of urls) {
     let url: URL;
-    try { url = new URL(raw); } catch { return false; }
+    try {
+      url = new URL(raw);
+    } catch {
+      return false;
+    }
     if (url.protocol !== "https:" || url.username || url.password) return false;
     if (url.hostname !== "gafus-media.storage.yandexcloud.net") continue;
     if (url.search || url.hash || url.port) return false;
-    const match = /^\/uploads\/trainers\/([A-Za-z0-9_-]{1,128})\/videocourses\/([A-Za-z0-9_-]{1,128})\/(?:original\.[a-zA-Z0-9]{2,8}|hls\/[A-Za-z0-9._-]{1,128}\.m3u8)$/.exec(url.pathname);
+    const match =
+      /^\/uploads\/trainers\/([A-Za-z0-9_-]{1,128})\/videocourses\/([A-Za-z0-9_-]{1,128})\/(?:original\.[a-zA-Z0-9]{2,8}|hls\/[A-Za-z0-9._-]{1,128}\.m3u8)$/.exec(
+        url.pathname,
+      );
     if (!match || match[1] !== actorId || selected.has(match[2]!)) return false;
     selected.set(match[2]!, raw);
   }
   if (!selected.size) return true;
-  const owned = await prisma.trainerVideo.findMany({
-    where: { id: { in: [...selected.keys()] }, trainerId: actorId,
-      transcodingStatus: "COMPLETED" },
-    select: { id: true, relativePath: true, hlsManifestPath: true },
-  });
-  return owned.length === selected.size && owned.every(video =>
-    video.hlsManifestPath &&
-    selected.get(video.id) ===
-      `https://gafus-media.storage.yandexcloud.net/${video.relativePath}`);
+  const owned = await readTrainerVideoRows([...selected.keys()], actorId);
+  return (
+    owned.length === selected.size &&
+    owned.every(
+      (video) =>
+        video.hlsManifestPath &&
+        selected.get(video.id) ===
+          `https://gafus-media.storage.yandexcloud.net/${video.relativePath}`,
+    )
+  );
 }
-
 
 /** Return only the validated data needed by the trainer edit form. */
 export type TrainerStepMutationActor = { id: string; role: "TRAINER" | "ADMIN" };
 
 export async function getStepForEdit(id: string, actor?: TrainerStepMutationActor) {
-  const step = await prisma.step.findUnique({
-    where: { id, ...(actor?.role === "TRAINER" ? { authorId: actor.id } : {}) },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      durationSec: true,
-      estimatedDurationSec: true,
-      videoUrl: true,
-      videoUrls: true,
-      type: true,
-      imageUrls: true,
-      pdfUrls: true,
-      checklist: true,
-      requiresVideoReport: true,
-      requiresWrittenFeedback: true,
-      hasTestQuestions: true,
-      isDailyCourse: true,
-      surveySlug: true,
-    },
-  });
+  const step = await readTrainerStepForEdit(id, actor);
   if (!step) return null;
   const parsedChecklist = checklistSchema.safeParse(step.checklist);
   return {
@@ -98,7 +105,7 @@ export async function getStepForEdit(id: string, actor?: TrainerStepMutationActo
 }
 
 export async function getTrainerStepMediaState(id: string) {
-  return prisma.step.findUnique({ where: { id }, select: { imageUrls: true } });
+  return readTrainerStepMediaRow(id);
 }
 
 /** Результат успешного удаления шагов (imageUrls для удаления из CDN в app) */
@@ -112,89 +119,51 @@ export interface CreateStepFromTemplateResult extends ActionResult {
 }
 
 /** Селект для видимых шагов (как в getVisibleSteps) */
-const visibleStepsSelect = {
-  id: true,
-  title: true,
-  description: true,
-  durationSec: true,
-  estimatedDurationSec: true,
-  type: true,
-  videoUrl: true,
-  videoUrls: true,
-  imageUrls: true,
-  pdfUrls: true,
-  checklist: true,
-  surveySlug: true,
-  isDailyCourse: true,
-  authorId: true,
-  createdAt: true,
-  updatedAt: true,
-  author: {
-    select: {
-      username: true,
-      profile: { select: { fullName: true } },
-    },
-  },
-  stepLinks: {
-    include: {
-      day: {
-        include: {
-          dayLinks: {
-            include: {
-              course: {
-                select: { id: true, name: true, shortDesc: true, logoImg: true },
-              },
-            },
-          },
-        },
-      },
-    },
-  },
-} as const;
 
 /**
  * Создание шага. Принимает id (UUID от app) и imageUrls (готовые CDN URL).
  */
-export async function createStep(
-  input: CreateStepInput,
-  authorId: string,
-): Promise<ActionResult> {
+export async function createStep(input: CreateStepInput, authorId: string): Promise<ActionResult> {
   try {
     if (!(await ownsSelectedLibraryVideos(input.videoUrls, authorId)))
       return { success: false, error: "FORBIDDEN_VIDEO" };
     const checklistValue =
       input.hasTestQuestions && input.checklist && input.checklist.length > 0
         ? input.checklist
-        : Prisma.JsonNull;
+        : null;
 
-    await prisma.step.create({
-      data: {
-        id: input.id,
-        title: input.title,
-        description: input.description,
-        durationSec: input.durationSec,
-        estimatedDurationSec: input.estimatedDurationSec ?? null,
-        type: input.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | "SURVEY",
-        videoUrl:
-          ["TRAINING", "THEORY", "PRACTICE", "EXAMINATION"].includes(input.type)
-            ? input.videoUrl || null
-            : null,
-        videoUrls: ["TRAINING", "THEORY", "PRACTICE", "EXAMINATION"].includes(input.type)
-          ? (input.videoUrls ?? (input.videoUrl ? [input.videoUrl] : [])) : [],
-        imageUrls: input.imageUrls ?? [],
-        pdfUrls:
-          input.type === "TRAINING" || input.type === "THEORY" || input.type === "PRACTICE"
-            ? input.pdfUrls ?? []
-            : [],
-        checklist: checklistValue,
-        requiresVideoReport: input.type === "EXAMINATION" ? input.requiresVideoReport : false,
-        requiresWrittenFeedback:
-          input.type === "EXAMINATION" ? input.requiresWrittenFeedback : false,
-        hasTestQuestions: input.type === "EXAMINATION" ? input.hasTestQuestions : false,
-        surveySlug: input.type === "SURVEY" ? input.surveySlug : null,
-        isDailyCourse: input.isDailyCourse,
-        authorId,
-      },
+    await createTrainerStepRecord({
+      id: input.id,
+      title: input.title,
+      description: input.description,
+      durationSec: input.durationSec,
+      estimatedDurationSec: input.estimatedDurationSec ?? null,
+      type: input.type as
+        | "TRAINING"
+        | "EXAMINATION"
+        | "THEORY"
+        | "BREAK"
+        | "PRACTICE"
+        | "DIARY"
+        | "SURVEY",
+      videoUrl: ["TRAINING", "THEORY", "PRACTICE", "EXAMINATION"].includes(input.type)
+        ? input.videoUrl || null
+        : null,
+      videoUrls: ["TRAINING", "THEORY", "PRACTICE", "EXAMINATION"].includes(input.type)
+        ? (input.videoUrls ?? (input.videoUrl ? [input.videoUrl] : []))
+        : [],
+      imageUrls: input.imageUrls ?? [],
+      pdfUrls:
+        input.type === "TRAINING" || input.type === "THEORY" || input.type === "PRACTICE"
+          ? (input.pdfUrls ?? [])
+          : [],
+      checklist: checklistValue,
+      requiresVideoReport: input.type === "EXAMINATION" ? input.requiresVideoReport : false,
+      requiresWrittenFeedback: input.type === "EXAMINATION" ? input.requiresWrittenFeedback : false,
+      hasTestQuestions: input.type === "EXAMINATION" ? input.hasTestQuestions : false,
+      surveySlug: input.type === "SURVEY" ? input.surveySlug : null,
+      isDailyCourse: input.isDailyCourse,
+      authorId,
     });
 
     logger.info("Шаг создан", { stepId: input.id, authorId });
@@ -205,9 +174,7 @@ export async function createStep(
         handlePrismaError(error, "Шаг");
       } catch (serviceError) {
         const msg =
-          serviceError instanceof Error
-            ? serviceError.message
-            : "Ошибка при создании шага";
+          serviceError instanceof Error ? serviceError.message : "Ошибка при создании шага";
         return { success: false, error: msg };
       }
     }
@@ -230,32 +197,41 @@ export async function updateStep(
   actor?: TrainerStepMutationActor,
 ): Promise<ActionResult> {
   try {
-    if (input.videoUrls && (!actor ||
-        !(await ownsSelectedLibraryVideos(input.videoUrls, actor.id))))
+    if (
+      input.videoUrls &&
+      (!actor || !(await ownsSelectedLibraryVideos(input.videoUrls, actor.id)))
+    )
       return { success: false, error: "FORBIDDEN_VIDEO" };
     const checklistValue =
       input.hasTestQuestions && input.checklist && input.checklist.length > 0
         ? input.checklist
-        : Prisma.JsonNull;
+        : null;
 
-    await prisma.step.update({
-      where: { id: input.id, ...(actor?.role === "TRAINER" ? { authorId: actor.id } : {}) },
-      data: {
+    await updateTrainerStepRecord(
+      { id: input.id, ...(actor?.role === "TRAINER" ? { authorId: actor.id } : {}) },
+      {
         title: input.title,
         description: input.description,
         durationSec: input.durationSec ?? null,
         estimatedDurationSec: input.estimatedDurationSec ?? null,
-        type: input.type as "TRAINING" | "EXAMINATION" | "THEORY" | "BREAK" | "PRACTICE" | "DIARY" | "SURVEY",
-        videoUrl:
-          ["TRAINING", "THEORY", "PRACTICE", "EXAMINATION"].includes(input.type)
-            ? input.videoUrl || null
-            : null,
+        type: input.type as
+          | "TRAINING"
+          | "EXAMINATION"
+          | "THEORY"
+          | "BREAK"
+          | "PRACTICE"
+          | "DIARY"
+          | "SURVEY",
+        videoUrl: ["TRAINING", "THEORY", "PRACTICE", "EXAMINATION"].includes(input.type)
+          ? input.videoUrl || null
+          : null,
         videoUrls: ["TRAINING", "THEORY", "PRACTICE", "EXAMINATION"].includes(input.type)
-          ? (input.videoUrls ?? (input.videoUrl ? [input.videoUrl] : [])) : [],
+          ? (input.videoUrls ?? (input.videoUrl ? [input.videoUrl] : []))
+          : [],
         imageUrls: input.imageUrls ?? [],
         pdfUrls:
           input.type === "TRAINING" || input.type === "THEORY" || input.type === "PRACTICE"
-            ? input.pdfUrls ?? []
+            ? (input.pdfUrls ?? [])
             : [],
         checklist: checklistValue,
         requiresVideoReport: input.type === "EXAMINATION" ? input.requiresVideoReport : false,
@@ -265,7 +241,7 @@ export async function updateStep(
         surveySlug: input.type === "SURVEY" ? input.surveySlug : null,
         isDailyCourse: input.isDailyCourse,
       },
-    });
+    );
 
     invalidateStepsContentCache([input.id]);
     await publishCourseContentChange();
@@ -277,9 +253,7 @@ export async function updateStep(
         handlePrismaError(error, "Шаг");
       } catch (serviceError) {
         const msg =
-          serviceError instanceof Error
-            ? serviceError.message
-            : "Ошибка при обновлении шага";
+          serviceError instanceof Error ? serviceError.message : "Ошибка при обновлении шага";
         return { success: false, error: msg };
       }
     }
@@ -304,29 +278,20 @@ export async function deleteSteps(
       // The new Hono surface must check all IDs AND delete them atomically.
       const uniqueIds = [...new Set(input.stepIds)];
       if (uniqueIds.length !== input.stepIds.length) return { success: false };
-      const where = { id: { in: uniqueIds },
-        ...(actor.role === "TRAINER" ? { authorId: actor.id } : {}) };
-      const removed = await prisma.$transaction(async (tx) => {
-        const targets = await tx.step.findMany({
-          where, select: { id: true, imageUrls: true },
-        });
-        if (targets.length !== uniqueIds.length) throw Error("STEP_NOT_FOUND");
-        const outcome = await tx.step.deleteMany({ where });
-        if (outcome.count !== uniqueIds.length) throw Error("STEP_DELETE_RACE");
-        return targets;
-      });
+      const where = {
+        id: { in: uniqueIds },
+        ...(actor.role === "TRAINER" ? { authorId: actor.id } : {}),
+      };
+      const removed = await deleteOwnedTrainerStepRows(where, uniqueIds);
       invalidateStepsContentCache(uniqueIds);
       await publishCourseContentChange();
-      return { success: true, imageUrls: removed.flatMap(row => row.imageUrls) };
+      return { success: true, imageUrls: removed.flatMap((row) => row.imageUrls) };
     }
-    const stepsToDelete = await prisma.step.findMany({
-      where: { id: { in: input.stepIds } },
-      select: { id: true, imageUrls: true },
-    });
+    const stepsToDelete = await readTrainerStepDeletionRows(input.stepIds);
 
     const allImageUrls = stepsToDelete.flatMap((s) => s.imageUrls);
 
-    await prisma.step.deleteMany({ where: { id: { in: input.stepIds } } });
+    await deleteLegacyTrainerStepRows(input.stepIds);
 
     invalidateStepsContentCache(input.stepIds);
     await publishCourseContentChange();
@@ -352,28 +317,16 @@ export async function getVisibleSteps(
   options: { isDailyCourse?: boolean } = {},
 ) {
   const isDailyCourse = options.isDailyCourse ?? false;
-  const where = isAdminOrModerator
-    ? { isDailyCourse }
-    : { authorId: authorId!, isDailyCourse };
-  return prisma.step.findMany({
-    where,
-    select: visibleStepsSelect,
-    orderBy: { createdAt: "desc" },
-  });
+  const where = isAdminOrModerator ? { isDailyCourse } : { authorId: authorId!, isDailyCourse };
+  return readVisibleTrainerSteps(where);
 }
 
 /**
  * Удаление одного URL из imageUrls шага (для deleteStepImageServerAction).
  */
-export async function removeStepImageUrl(
-  stepId: string,
-  imageUrl: string,
-): Promise<ActionResult> {
+export async function removeStepImageUrl(stepId: string, imageUrl: string): Promise<ActionResult> {
   try {
-    const step = await prisma.step.findUnique({
-      where: { id: stepId },
-      select: { imageUrls: true },
-    });
+    const step = await readTrainerStepImageRow(stepId);
     if (!step) {
       return { success: false, error: "Шаг не найден" };
     }
@@ -381,10 +334,7 @@ export async function removeStepImageUrl(
     if (nextUrls.length === step.imageUrls.length) {
       return { success: true };
     }
-    await prisma.step.update({
-      where: { id: stepId },
-      data: { imageUrls: nextUrls },
-    });
+    await updateTrainerStepImageRow(stepId, nextUrls);
     invalidateStepsContentCache([stepId]);
     await publishCourseContentChange();
     logger.info("Изображение шага удалено из записи", { stepId });
@@ -395,8 +345,7 @@ export async function removeStepImageUrl(
     });
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Не удалось обновить шаг",
+      error: error instanceof Error ? error.message : "Не удалось обновить шаг",
     };
   }
 }
@@ -425,56 +374,19 @@ export interface StepTemplateWithCategory {
   createdAt: Date;
 }
 
-export async function getStepTemplates(
-  categoryId?: string,
-): Promise<StepTemplateWithCategory[]> {
-  const templates = await prisma.stepTemplate.findMany({
-    where: {
-      isPublic: true,
-      ...(categoryId ? { categoryId } : {}),
-    },
-    include: {
-      category: { select: { id: true, name: true, icon: true } },
-      author: { select: { id: true, username: true } },
-    },
-    orderBy: [{ usageCount: "desc" }, { createdAt: "desc" }],
-  });
+export async function getStepTemplates(categoryId?: string): Promise<StepTemplateWithCategory[]> {
+  const templates = await readPublicTrainerStepTemplates(categoryId);
   return templates.map((t) => ({ ...t, type: t.type as string }));
 }
 
-export async function getStepTemplateById(
-  id: string,
-): Promise<StepTemplateWithCategory | null> {
-  const template = await prisma.stepTemplate.findUnique({
-    where: { id },
-    include: {
-      category: { select: { id: true, name: true, icon: true } },
-      author: { select: { id: true, username: true } },
-    },
-  });
+export async function getStepTemplateById(id: string): Promise<StepTemplateWithCategory | null> {
+  const template = await readTrainerTemplateForDisplay(id);
   if (!template) return null;
   return { ...template, type: template.type as string };
 }
 
-export async function searchStepTemplates(
-  query: string,
-): Promise<StepTemplateWithCategory[]> {
-  const templates = await prisma.stepTemplate.findMany({
-    where: {
-      isPublic: true,
-      OR: [
-        { title: { contains: query, mode: "insensitive" } },
-        { description: { contains: query, mode: "insensitive" } },
-        { tags: { has: query.toLowerCase() } },
-      ],
-    },
-    include: {
-      category: { select: { id: true, name: true, icon: true } },
-      author: { select: { id: true, username: true } },
-    },
-    orderBy: { usageCount: "desc" },
-    take: 20,
-  });
+export async function searchStepTemplates(query: string): Promise<StepTemplateWithCategory[]> {
+  const templates = await searchPublicTrainerStepTemplates(query);
   return templates.map((t) => ({ ...t, type: t.type as string }));
 }
 
@@ -488,16 +400,7 @@ export interface StepCategoryWithCount {
 }
 
 export async function getStepCategories(): Promise<StepCategoryWithCount[]> {
-  const categories = await prisma.stepCategory.findMany({
-    include: {
-      _count: {
-        select: {
-          templates: { where: { isPublic: true } },
-        },
-      },
-    },
-    orderBy: { order: "asc" },
-  });
+  const categories = await readPublicTrainerStepCategories();
   return categories.map((c) => ({
     id: c.id,
     name: c.name,
@@ -515,9 +418,7 @@ export async function createStepFromTemplate(
   input: CreateStepFromTemplateInput,
 ): Promise<CreateStepFromTemplateResult> {
   try {
-    const template = await prisma.stepTemplate.findUnique({
-      where: { id: input.templateId },
-    });
+    const template = await readTrainerTemplateForCreation(input.templateId);
     if (!template) {
       return { success: false, error: "Шаблон не найден" };
     }
@@ -525,30 +426,9 @@ export async function createStepFromTemplate(
       return { success: false, error: "Доступ к этому шаблону запрещен" };
     }
 
-    const step = await prisma.$transaction(async (tx) => {
-      const created = await tx.step.create({
-        data: {
-          title: template.title,
-          description: template.description,
-          durationSec: template.durationSec,
-          estimatedDurationSec: template.estimatedDurationSec,
-          type: template.type,
-          imageUrls: template.imageUrls,
-          pdfUrls: template.pdfUrls,
-          videoUrl: template.videoUrl,
-          checklist: template.checklist ?? undefined,
-          requiresVideoReport: template.requiresVideoReport,
-          requiresWrittenFeedback: template.requiresWrittenFeedback,
-          hasTestQuestions: template.hasTestQuestions,
-          surveySlug: template.surveySlug,
-          authorId: input.authorId,
-        },
-      });
-      await tx.stepTemplate.update({
-        where: { id: input.templateId },
-        data: { usageCount: { increment: 1 } },
-      });
-      return created;
+    const step = await createStepFromTemplateRow(template, {
+      templateId: input.templateId,
+      authorId: input.authorId,
     });
 
     logger.info("Шаг создан из шаблона", {
@@ -563,20 +443,15 @@ export async function createStepFromTemplate(
     });
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Не удалось создать шаг из шаблона",
+      error: error instanceof Error ? error.message : "Не удалось создать шаг из шаблона",
     };
   }
 }
 
 /** Удаление шаблона (ADMIN — проверка в app). */
-export async function deleteStepTemplate(
-  templateId: string,
-): Promise<ActionResult> {
+export async function deleteStepTemplate(templateId: string): Promise<ActionResult> {
   try {
-    await prisma.stepTemplate.delete({ where: { id: templateId } });
+    await deleteTrainerTemplateRow(templateId);
     logger.info("Шаблон удалён", { templateId });
     return { success: true };
   } catch (error) {
@@ -585,9 +460,7 @@ export async function deleteStepTemplate(
         handlePrismaError(error, "Шаблон");
       } catch (serviceError) {
         const msg =
-          serviceError instanceof Error
-            ? serviceError.message
-            : "Не удалось удалить шаблон";
+          serviceError instanceof Error ? serviceError.message : "Не удалось удалить шаблон";
         return { success: false, error: msg };
       }
     }
@@ -611,19 +484,7 @@ export async function createStepTemplate(data: {
   authorId: string;
 }): Promise<ActionResult & { templateId?: string }> {
   try {
-    const template = await prisma.stepTemplate.create({
-      data: {
-        title: data.title,
-        description: data.description,
-        durationSec: data.durationSec,
-        type: data.type as "TRAINING" | "EXAMINATION",
-        categoryId: data.categoryId || undefined,
-        tags: data.tags,
-        videoUrl: data.videoUrl,
-        authorId: data.authorId,
-        isPublic: true,
-      },
-    });
+    const template = await createTrainerTemplateRow(data);
     logger.info("Шаблон создан", { templateId: template.id });
     return { success: true, templateId: template.id };
   } catch (error) {
@@ -632,9 +493,7 @@ export async function createStepTemplate(data: {
         handlePrismaError(error, "Шаблон");
       } catch (serviceError) {
         const msg =
-          serviceError instanceof Error
-            ? serviceError.message
-            : "Не удалось создать шаблон";
+          serviceError instanceof Error ? serviceError.message : "Не удалось создать шаблон";
         return { success: false, error: msg };
       }
     }
@@ -654,14 +513,7 @@ export async function createStepCategory(data: {
   order: number;
 }): Promise<ActionResult> {
   try {
-    await prisma.stepCategory.create({
-      data: {
-        name: data.name,
-        description: data.description,
-        icon: data.icon,
-        order: data.order,
-      },
-    });
+    await createTrainerStepCategoryRow(data);
     logger.info("Категория шаблонов создана", { name: data.name });
     return { success: true };
   } catch (error) {
@@ -670,17 +522,14 @@ export async function createStepCategory(data: {
         handlePrismaError(error, "Категория");
       } catch (serviceError) {
         const msg =
-          serviceError instanceof Error
-            ? serviceError.message
-            : "Не удалось создать категорию";
+          serviceError instanceof Error ? serviceError.message : "Не удалось создать категорию";
         return { success: false, error: msg };
       }
     }
     logger.error("Ошибка при создании категории", error as Error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Не удалось создать категорию",
+      error: error instanceof Error ? error.message : "Не удалось создать категорию",
     };
   }
 }

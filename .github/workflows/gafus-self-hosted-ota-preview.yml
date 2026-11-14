@@ -1,0 +1,344 @@
+# Protected, explicitly requested preview only. No production deployment.
+# Native binary, runtime and signing certificate MUST have been registered and
+# confirmed on physical devices in GAFUS before this workflow can build.
+name: GAFUS signed self-hosted OTA preview
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact, reviewed Git commit on origin/main (40-char SHA)
+        required: true
+        type: string
+      native_release_id:
+        description: Previously verified native binary UUID
+        required: true
+        type: string
+      platform:
+        description: Platform of the verified native binary
+        required: true
+        type: choice
+        options:
+          - ios
+          - android
+      runtime_version:
+        description: Exact native runtime version (not SDK version)
+        required: true
+        type: string
+      revision:
+        description: Unique positive revision within native platform/channel/runtime
+        required: true
+        type: string
+      update_id:
+        description: Stable Expo update UUID for retry/idempotency
+        required: true
+        type: string
+      operation_id:
+        description: Stable, unique CI operation ID for safe retries
+        required: true
+        type: string
+      created_at:
+        description: Stable UTC ISO timestamp for this update (e.g. 2026-11-12T12:00:00.000Z)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gafus-ota-preview-${{ inputs.native_release_id }}-${{ inputs.platform }}
+  cancel-in-progress: false
+
+jobs:
+  signed-preview:
+    runs-on: ubuntu-latest
+    # Must be protected in repository settings: maintainers and approvals only.
+    environment: ota-preview
+    timeout-minutes: 50
+    env:
+      CI: 'true'
+      GAFUS_OTA_TARGET_PLATFORM: ${{ inputs.platform }}
+      OTA_SOURCE_SHA: ${{ inputs.source_sha }}
+      OTA_RUNTIME: ${{ inputs.runtime_version }}
+      OTA_PLATFORM: ${{ inputs.platform }}
+      OTA_REVISION: ${{ inputs.revision }}
+      OTA_UPDATE_ID: ${{ inputs.update_id }}
+      OTA_OPERATION_ID: ${{ inputs.operation_id }}
+      OTA_CREATED_AT: ${{ inputs.created_at }}
+      OTA_NATIVE_ID: ${{ inputs.native_release_id }}
+      OTA_S3_REGION: ${{ vars.OTA_S3_REGION }}
+      OTA_S3_TENANT_ID: ${{ vars.OTA_S3_TENANT_ID }}
+      OTA_PUBLIC_ASSET_ORIGIN: ${{ vars.OTA_PUBLIC_ASSET_ORIGIN }}
+      APP_ENV: preview
+      # Public values embedded into preview JS. Missing values fail export.
+      EXPO_PUBLIC_API_BASE_URL: ${{ vars.OTA_PREVIEW_API_BASE_URL }}
+      EXPO_PUBLIC_CHAT2_API_ORIGIN: ${{ vars.OTA_PREVIEW_CHAT2_API_ORIGIN }}
+      EXPO_PUBLIC_ENABLE_TRACER: 'true'
+      EXPO_PUBLIC_TRACER_APP_TOKEN_JS: ${{ vars.OTA_PREVIEW_TRACER_APP_TOKEN_JS }}
+      EXPO_PUBLIC_TRACER_APP_TOKEN_IOS: ${{ vars.OTA_PREVIEW_TRACER_APP_TOKEN_IOS }}
+      EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID: ${{ vars.OTA_PREVIEW_TRACER_APP_TOKEN_ANDROID }}
+      EXPO_PUBLIC_OTA_REVISION: ${{ inputs.revision }}
+    steps:
+      - name: Checkout exact source snapshot
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Verify approved commit and fully typed target inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$OTA_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 12
+          [[ "$OTA_NATIVE_ID" =~ ^[0-9a-f-]{36}$ ]] || exit 13
+          [[ "$OTA_UPDATE_ID" =~ ^[0-9a-f-]{36}$ ]] || exit 14
+          [[ "$OTA_OPERATION_ID" =~ ^[A-Za-z0-9_-]{16,120}$ ]] || exit 15
+          [[ "$OTA_REVISION" =~ ^[1-9][0-9]*$ ]] || exit 16
+          [[ "$OTA_RUNTIME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 17
+          [[ "$OTA_CREATED_AT" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T ]] || exit 18
+          [[ "$(git rev-parse HEAD)" == "$OTA_SOURCE_SHA" ]] || exit 19
+          git merge-base --is-ancestor "$OTA_SOURCE_SHA" origin/main
+          [[ -z "$(git status --porcelain)" ]] || exit 20
+
+      - name: Fail fast if the preview signing, S3 and callback configuration is incomplete
+        shell: bash
+        # Only boolean presence indicators reach this preflight step; raw secrets
+        # remain scoped to their actual signing, upload and callback steps.
+        env:
+          HAS_OTA_S3_ENDPOINT: ${{ secrets.OTA_S3_ENDPOINT != '' }}
+          HAS_OTA_S3_BUCKET: ${{ secrets.OTA_S3_BUCKET != '' }}
+          HAS_OTA_S3_ACCESS_KEY: ${{ secrets.OTA_S3_ACCESS_KEY != '' }}
+          HAS_OTA_S3_SECRET_KEY: ${{ secrets.OTA_S3_SECRET_KEY != '' }}
+          HAS_OTA_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.OTA_SIGNING_PRIVATE_KEY_PEM != '' }}
+          HAS_MOBILE_OTA_API_ORIGIN: ${{ secrets.MOBILE_OTA_API_ORIGIN != '' }}
+          HAS_MOBILE_OTA_CI_CALLBACK_TOKEN: ${{ secrets.MOBILE_OTA_CI_CALLBACK_TOKEN != '' }}
+          HAS_TRACER_SOURCEMAP_TOKEN_MOBILE: ${{ secrets.TRACER_SOURCEMAP_TOKEN_MOBILE != '' }}
+        run: |
+          set -euo pipefail
+          for name in OTA_S3_ENDPOINT OTA_S3_BUCKET OTA_S3_ACCESS_KEY OTA_S3_SECRET_KEY \
+            OTA_SIGNING_PRIVATE_KEY_PEM MOBILE_OTA_API_ORIGIN MOBILE_OTA_CI_CALLBACK_TOKEN \
+            TRACER_SOURCEMAP_TOKEN_MOBILE; do
+            indicator="HAS_${name}"
+            if [[ "${!indicator:-false}" != 'true' ]]; then
+              echo "::error::Missing required Actions secret: ${name}"
+              exit 24
+            fi
+          done
+          for name in OTA_S3_REGION OTA_S3_TENANT_ID OTA_PUBLIC_ASSET_ORIGIN EXPO_PUBLIC_API_BASE_URL \
+            EXPO_PUBLIC_CHAT2_API_ORIGIN EXPO_PUBLIC_TRACER_APP_TOKEN_JS \
+            EXPO_PUBLIC_TRACER_APP_TOKEN_IOS EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Missing required Actions variable: ${name}"
+              exit 25
+            fi
+          done
+          [[ "$OTA_PUBLIC_ASSET_ORIGIN" == 'https://global.s3.cloud.ru/gafus-ota-updates' ]] || {
+            echo '::error::Unexpected public OTA asset origin (Cloud.ru S3 bucket required)'
+            exit 26
+          }
+
+      - name: Setup exact Node version
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.23.5'
+
+      - name: Install pinned pnpm and frozen monorepo dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@10.12.4 --activate
+          pnpm install --frozen-lockfile
+
+      - name: Resolve approved native trust profile from GAFUS
+        shell: bash
+        env:
+          MOBILE_OTA_API_ORIGIN: ${{ secrets.MOBILE_OTA_API_ORIGIN }}
+          MOBILE_OTA_CI_CALLBACK_TOKEN: ${{ secrets.MOBILE_OTA_CI_CALLBACK_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ota-native" apps/mobile/.ota-certs
+          node apps/mobile/scripts/fetch-self-hosted-native-release.mjs \
+            "$OTA_NATIVE_ID" preview "$OTA_PLATFORM" "$OTA_RUNTIME" "$RUNNER_TEMP/ota-native"
+          # A verified API descriptor is not sufficient on its own. The native
+          # binary must contain our exact source-pinned RSA trust anchor and
+          # must target the same non-production API as the export.
+          node apps/mobile/scripts/verify-ota-preview-native-trust.mjs \
+            "$RUNNER_TEMP/ota-native/native.json"
+          cp "$RUNNER_TEMP/ota-native/native-cert.pem" apps/mobile/.ota-certs/native.pem
+          chmod 600 apps/mobile/.ota-certs/native.pem
+          echo "GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR=$RUNNER_TEMP/ota-native/native.json" >> "$GITHUB_ENV"
+          echo "GAFUS_OTA_NATIVE_CERTIFICATE=.ota-certs/native.pem" >> "$GITHUB_ENV"
+          test "$(node -p "require('./apps/mobile/app.json').expo.version")" = "$OTA_RUNTIME"
+          test "$(node -p "require('./apps/mobile/package.json').version")" = "$OTA_RUNTIME"
+
+      - name: Compare native source fingerprint against the verified binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node apps/mobile/scripts/native-source-fingerprint.mjs \
+            "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ota-native/native.json" \
+            > "$RUNNER_TEMP/ota-fingerprint.json"
+          ACTUAL="$(node -p "require(process.env.RUNNER_TEMP+'/ota-fingerprint.json').fingerprint")"
+          EXPECTED="$(node -p "require(process.env.RUNNER_TEMP+'/ota-native/native.json').nativeFingerprint")"
+          test "$ACTUAL" = "$EXPECTED" || { echo 'NATIVE_FINGERPRINT_MISMATCH'; exit 22; }
+
+      - name: Run architecture, Mobile typecheck and payment contract suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm check:core-boundaries
+          pnpm --filter @gafus/mobile typecheck
+          pnpm --filter @gafus/mobile exec vitest run \
+            src/features/app-subscription/lib/appleAppSubscriptionPurchase.test.ts \
+            src/features/app-subscription/lib/appleAppSubscriptionPurchase.g1-boundary.test.ts
+          if [[ "$OTA_PLATFORM" == ios ]]; then
+            node apps/mobile/scripts/verify-ios-payment-graph.mjs
+          fi
+
+      - name: Create an ephemeral, revision-embedded Hermes export and source maps
+        shell: bash
+        env:
+          GAFUS_OTA_TRANSPORT: self-hosted
+        run: |
+          set -euo pipefail
+          export EXPO_PUBLIC_APP_VERSION
+          EXPO_PUBLIC_APP_VERSION="$(node apps/mobile/scripts/self-hosted-ota-public-env.mjs --version "$OTA_UPDATE_ID")"
+          node apps/mobile/scripts/self-hosted-ota-public-env.mjs
+          echo "EXPO_PUBLIC_APP_VERSION=$EXPO_PUBLIC_APP_VERSION" >> "$GITHUB_ENV"
+          node apps/mobile/scripts/export-self-hosted-ota.mjs \
+            "$OTA_PLATFORM" "$OTA_REVISION" "$RUNNER_TEMP/ota-export" "$RUNNER_TEMP/ota-public-config.json"
+          if [[ "$OTA_PLATFORM" == ios ]]; then
+            node apps/mobile/scripts/verify-ios-payment-export.mjs "$RUNNER_TEMP/ota-export"
+          fi
+          test "$(git rev-parse HEAD)" = "$OTA_SOURCE_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Prepare signed immutable manifest for this preview binary
+        shell: bash
+        env:
+          OTA_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.OTA_SIGNING_PRIVATE_KEY_PEM }}
+        run: |
+          set -euo pipefail
+          test -n "$OTA_SIGNING_PRIVATE_KEY_PEM"
+          umask 077  # Signing private key must never exist with world-readable permissions.
+          printf '%s\n' "$OTA_SIGNING_PRIVATE_KEY_PEM" > "$RUNNER_TEMP/ota-signing-private.pem"
+          chmod 600 "$RUNNER_TEMP/ota-signing-private.pem"
+          trap 'rm -f "$RUNNER_TEMP/ota-signing-private.pem"' EXIT
+          export OTA_NATIVE_FINGERPRINT
+          OTA_NATIVE_FINGERPRINT="$(node -p "require(process.env.GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR).nativeFingerprint")"
+          export OTA_KEY_ID
+          OTA_KEY_ID="$(node -p "require(process.env.GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR).signingKeyId")"
+          test -n "$OTA_PUBLIC_ASSET_ORIGIN" || { echo "MISSING_OTA_PUBLIC_ASSET_ORIGIN"; exit 23; }
+          export OTA_ASSET_BASE="${OTA_PUBLIC_ASSET_ORIGIN%/}/ota/preview/gafus/$OTA_RUNTIME/$OTA_PLATFORM/assets/"
+          node apps/mobile/scripts/prepare-self-hosted-ota.mjs \
+            --export-root "$RUNNER_TEMP/ota-export" \
+            --expo-config "$RUNNER_TEMP/ota-public-config.json" \
+            --native-release "$RUNNER_TEMP/ota-native/native.json" \
+            --private-key "$RUNNER_TEMP/ota-signing-private.pem" \
+            --certificate "$RUNNER_TEMP/ota-native/native-cert.pem" \
+            --asset-base "$OTA_ASSET_BASE" --update-id "$OTA_UPDATE_ID" \
+            --created-at "$OTA_CREATED_AT" --revision "$OTA_REVISION" \
+            --source-sha "$OTA_SOURCE_SHA" --native-fingerprint "$OTA_NATIVE_FINGERPRINT" \
+            --environment preview --platform "$OTA_PLATFORM" --channel preview \
+            --runtime "$OTA_RUNTIME" --signing-key-id "$OTA_KEY_ID" \
+            --output-dir "$RUNNER_TEMP/ota-artifact" --repo-root "$GITHUB_WORKSPACE"
+          rm -f "$RUNNER_TEMP/ota-signing-private.pem"
+
+      - name: Upload immutable assets to preview S3 and verify public S3 readback
+        shell: bash
+        env:
+          OTA_UPLOAD_EXECUTE: '1'
+          OTA_S3_ENDPOINT: ${{ secrets.OTA_S3_ENDPOINT }}
+          OTA_S3_BUCKET: ${{ secrets.OTA_S3_BUCKET }}
+          OTA_S3_ACCESS_KEY: ${{ secrets.OTA_S3_ACCESS_KEY }}
+          OTA_S3_SECRET_KEY: ${{ secrets.OTA_S3_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          # Cloud.ru credentials use tenant-id:key-id. Accept a raw Key ID secret
+          # or an already-prefixed ID, but refuse a mismatched tenant.
+          [[ "$OTA_S3_TENANT_ID" =~ ^[0-9a-f]{8}-[0-9a-f-]{27}$ ]] || exit 27
+          if [[ "$OTA_S3_ACCESS_KEY" != *:* ]]; then
+            [[ "$OTA_S3_ACCESS_KEY" =~ ^[A-Za-z0-9_-]{16,64}$ ]] || exit 28
+            OTA_S3_ACCESS_KEY="$OTA_S3_TENANT_ID:$OTA_S3_ACCESS_KEY"
+          elif [[ "${OTA_S3_ACCESS_KEY%%:*}" != "$OTA_S3_TENANT_ID" ]]; then
+            echo '::error::Cloud.ru S3 tenant ID does not match this project'
+            exit 29
+          fi
+          export OTA_S3_ACCESS_KEY
+          export OTA_S3_PREFIX="ota/preview/gafus/$OTA_RUNTIME/$OTA_PLATFORM/assets"
+          export OTA_ASSET_BASE="${OTA_PUBLIC_ASSET_ORIGIN%/}/$OTA_S3_PREFIX/"
+          node packages/cdn-upload/scripts/upload-mobile-ota-assets.mjs \
+            --directory "$RUNNER_TEMP/ota-artifact"
+
+      - name: Upload private source maps to AppTracer using exact update ID
+        shell: bash
+        env:
+          TRACER_SOURCEMAP_TOKEN_MOBILE: ${{ secrets.TRACER_SOURCEMAP_TOKEN_MOBILE }}
+        run: |
+          set -euo pipefail
+          export TRACER_SOURCEMAP_VERSION_NAME="$EXPO_PUBLIC_APP_VERSION"
+          test "$TRACER_SOURCEMAP_VERSION_NAME" = "$(node apps/mobile/scripts/self-hosted-ota-public-env.mjs --version "$OTA_UPDATE_ID")"
+          node apps/mobile/scripts/upload-apptracer-sourcemaps.mjs "$RUNNER_TEMP/ota-export"
+          echo "GAFUS_OTA_APPTRACER_REF=$TRACER_SOURCEMAP_VERSION_NAME" >> "$GITHUB_ENV"
+
+      # Expo/Hermes OTA source maps must be immutable and PRIVATE.
+      # The fingerprint/registered native-release guard has already run;
+      # unlike a JS-only SDK57 QA job this lane can prove binary identity.
+      # No automatic upload without a protected repo variable and a
+      # dedicated S3 bucket that is NOT the public OTA or Feed bucket.
+      - name: Prepare and verify SDK57 private maps for approved Uptrace preview
+        if: ${{ vars.GAFUS_SYMBOLS_PREVIEW_APPROVED == 'true' }}
+        shell: bash
+        env:
+          SYMBOLS_UPLOAD_EXECUTE: '0'
+        run: |
+          set -euo pipefail
+          node apps/mobile/scripts/prepare-sdk57-private-symbols.mjs             "$GITHUB_WORKSPACE" "$RUNNER_TEMP/ota-export"             "$RUNNER_TEMP/ota-uptrace-private-symbols"             "$OTA_PLATFORM" preview "$OTA_RUNTIME" "$OTA_SOURCE_SHA"             "$OTA_UPDATE_ID" "$OTA_REVISION"
+          node packages/cdn-upload/scripts/upload-mobile-private-symbols.mjs             --directory "$RUNNER_TEMP/ota-uptrace-private-symbols"
+          test "$(git rev-parse HEAD)" = "$OTA_SOURCE_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Upload SDK57 maps to immutable private S3 (protected preview only)
+        if: ${{ vars.GAFUS_SYMBOLS_PREVIEW_APPROVED == 'true' }}
+        shell: bash
+        env:
+          CI: 'true'
+          SYMBOLS_NATIVE_RELEASE_VERIFIED: 'true'
+          SYMBOLS_UPLOAD_EXECUTE: '1'
+          GAFUS_SYMBOLS_PREVIEW_APPROVED: 'true'
+          SYMBOLS_S3_BUCKET: ${{ secrets.SYMBOLS_S3_BUCKET }}
+          SYMBOLS_S3_ENDPOINT: ${{ secrets.SYMBOLS_S3_ENDPOINT }}
+          SYMBOLS_S3_REGION: ${{ vars.SYMBOLS_S3_REGION || 'ru-central-1' }}
+          SYMBOLS_S3_ACCESS_KEY: ${{ secrets.SYMBOLS_S3_ACCESS_KEY }}
+          SYMBOLS_S3_SECRET_KEY: ${{ secrets.SYMBOLS_S3_SECRET_KEY }}
+          OTA_S3_BUCKET: ${{ secrets.OTA_S3_BUCKET }}
+        run: |
+          set -euo pipefail
+          node packages/cdn-upload/scripts/upload-mobile-private-symbols.mjs             --directory "$RUNNER_TEMP/ota-uptrace-private-symbols"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const dir=process.env.RUNNER_TEMP+"/ota-uptrace-private-symbols";
+            const m=JSON.parse(readFileSync(dir+"/private-symbol-manifest.json"));
+            const e=JSON.parse(readFileSync(dir+"/private-symbol-delivery-evidence.json"));
+            if(e.state!=="IMMUTABLE_PRIVATE_SYMBOLS_VERIFIED"||
+               e.updateId!==process.env.OTA_UPDATE_ID||
+               e.sourceSha!==process.env.OTA_SOURCE_SHA||
+               e.platform!==process.env.OTA_PLATFORM||
+               m.updateId!==e.updateId||m.sourceSha!==e.sourceSha||
+               e.report.length<2||!e.report.every(item=>item.verified))
+              process.exit(4);
+            console.log("PRIVATE_SDK57_SYMBOL_UPLOAD_VERIFIED");
+          '
+
+      - name: Register verified signed preview release as READY (never auto-publish)
+        shell: bash
+        env:
+          MOBILE_OTA_API_ORIGIN: ${{ secrets.MOBILE_OTA_API_ORIGIN }}
+          MOBILE_OTA_CI_CALLBACK_TOKEN: ${{ secrets.MOBILE_OTA_CI_CALLBACK_TOKEN }}
+          GAFUS_OTA_BUILD_ATTEMPT: ${{ github.run_attempt }}
+          GAFUS_OTA_CI_RUN_ID: ${{ github.run_id }}
+          GAFUS_OTA_OPERATION_ID: ${{ inputs.operation_id }}
+        run: |
+          set -euo pipefail
+          node apps/mobile/scripts/submit-self-hosted-ota-result.mjs "$RUNNER_TEMP/ota-artifact"

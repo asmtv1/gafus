@@ -29,7 +29,7 @@ vi.mock("@gafus/core/services/auth",async original=>({
 // NO Core statistics/Prisma/client/JWT mock.
 import {app} from "../../app";
 import {generateAccessToken} from "@gafus/auth/jwt";
-import {getStepStatistics} from "@gafus/core/services/statistics";
+import {getStepStatistics} from "@gafus/statistics";
 
 const prefix="ag1_steps136_"+randomBytes(4).toString("hex")+"_";
 const id=(name:string)=>prefix+name;

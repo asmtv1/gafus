@@ -4,7 +4,7 @@ import {
   rateCourse,
   updateCourseReview,
   deleteCourseReview,
-} from "@gafus/core/services/course";
+} from "@gafus/course-server/reviews";
 import { createWriteReviewsApplication } from "../application/write-reviews.js";
 
 export const writeReviewsApplication = createWriteReviewsApplication({

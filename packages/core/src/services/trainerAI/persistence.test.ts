@@ -1,54 +1,45 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createTrainerAIService } from "./index";
 
-const db = vi.hoisted(() => ({
-  lock: vi.fn(),
-  findActor: vi.fn(),
-  insert: vi.fn(),
-  transaction: vi.fn(),
-}));
-vi.mock("@gafus/prisma", () => ({
-  prisma: {
-    $transaction: db.transaction,
-  },
-}));
+const adapter = { save: vi.fn() };
+const service = createTrainerAIService({
+  readTrainerAIActorRole: vi.fn(),
+  readTrainerAIStreamConfig: vi.fn(),
+  readTrainerAISettingsSummary: vi.fn(),
+  readTrainerAIHistoryRows: vi.fn(),
+  clearTrainerAIHistoryAuthorized: vi.fn(),
+  saveTrainerAIExchangeAuthorized: adapter.save,
+});
+beforeEach(() => {
+  vi.clearAllMocks();
+  adapter.save.mockResolvedValue({ id: "message-2" });
+});
 
-import { saveTrainerAIExchange } from "./index";
-
-describe("trainer AI persistence in core", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    db.findActor.mockResolvedValue({ role: "TRAINER" });
-    db.insert.mockResolvedValue({ id: "message-2" });
-    db.transaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) =>
-      cb({
-        $queryRaw: db.lock,
-        user: { findUnique: db.findActor },
-        trainerAIChat: { create: db.insert },
+describe("Trainer AI Core delegates atomic messages under staff-role policy", () => {
+  it("forwards exact trainer and roles to the transaction port", async () => {
+    const payload = {
+      trainerId: "staff-1",
+      content: "Вопрос",
+      reply: "Ответ",
+      model: "example",
+      tokensUsed: 123,
+    };
+    expect(await service.saveTrainerAIExchange(payload)).toEqual({ id: "message-2" });
+    expect(adapter.save).toHaveBeenCalledExactlyOnceWith(payload, [
+      "TRAINER",
+      "ADMIN",
+      "MODERATOR",
+    ]);
+  });
+  it("propagates revoked role and never fabricates success", async () => {
+    adapter.save.mockRejectedValueOnce(new Error("FORBIDDEN"));
+    await expect(
+      service.saveTrainerAIExchange({
+        trainerId: "not-staff",
+        content: "a",
+        reply: "b",
+        model: "x",
       }),
-    );
-  });
-
-  it("verifies the current role under the same transaction lock", async () => {
-    db.findActor.mockResolvedValue({ role: "USER" });
-    await expect(saveTrainerAIExchange({
-      trainerId: "u1", content: "Вопрос", reply: "Ответ", model: "example",
-    })).rejects.toThrow("FORBIDDEN");
-    expect(db.lock).toHaveBeenCalledOnce();
-    expect(db.insert).not.toHaveBeenCalled();
-  });
-
-  it("persists a user-and-assistant pair inside one transaction", async () => {
-    await saveTrainerAIExchange({
-      trainerId: "u1", content: "Вопрос", reply: "Ответ",
-      model: "example", tokensUsed: 123,
-    });
-    expect(db.transaction).toHaveBeenCalledOnce();
-    expect(db.insert).toHaveBeenCalledTimes(2);
-    expect(db.insert.mock.calls[0][0]).toMatchObject({
-      data: { trainerId: "u1", role: "user", content: "Вопрос" },
-    });
-    expect(db.insert.mock.calls[1][0]).toMatchObject({
-      data: { trainerId: "u1", role: "assistant", content: "Ответ", tokensUsed: 123 },
-    });
+    ).rejects.toThrow("FORBIDDEN");
   });
 });

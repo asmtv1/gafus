@@ -1,7 +1,9 @@
 /** AG1-001: student notes READ is a single injected existing Core port. */
 import type { getStudentNotes } from "@gafus/core/services/notes";
 
-type StudentNotesReader = typeof getStudentNotes;
+type StudentNotesReader = (
+  studentId: string, options?: { throwOnError?: boolean },
+) => ReturnType<typeof getStudentNotes>;
 
 export function createReadStudentNotesApplication(dependencies: {
   readNotes: StudentNotesReader;

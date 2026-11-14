@@ -6,8 +6,26 @@
  * COURSE_CACHE_SYNC_ENABLED remains a deployment switch. Readers also require
  * REDIS_URL for compatibility, although hot reads do not access Redis.
  */
-import { prisma } from "@gafus/prisma";
 import { recordCourseCacheEvent } from "./trainingContentMetrics";
+
+/** PostgreSQL content revision reader, supplied by API composition.
+ * The absence/failure of the reader must bypass cache (null) rather than
+ * trusting revision 0, stale Redis or an unconfirmed trainer mutation.
+ */
+export interface CourseContentRevisionReadPort {
+  readDurableCourseContentRevision(): Promise<string | null>;
+}
+let durableRevisionReadPort: Readonly<CourseContentRevisionReadPort> | null = null;
+export function registerCourseContentRevisionReadPort(port: CourseContentRevisionReadPort): void {
+  if (durableRevisionReadPort !== null && durableRevisionReadPort !== port) {
+    throw new Error("COURSE_CONTENT_REVISION_PORT_ALREADY_BOUND");
+  }
+  durableRevisionReadPort = port;
+}
+function requireCourseContentRevisionReadPort(): Readonly<CourseContentRevisionReadPort> {
+  if (!durableRevisionReadPort) throw new Error("COURSE_CONTENT_REVISION_PORT_UNBOUND");
+  return durableRevisionReadPort;
+}
 
 // Redis outages must not emit a log line for every user reading a lesson.
 const READ_WARNING_INTERVAL_MS = 30_000;
@@ -50,13 +68,7 @@ export async function getSharedCourseContentRevision(): Promise<string | null> {
  */
 export async function getVerifiedCourseContentRevision(): Promise<string | null> {
   try {
-    const rows = await prisma.$queryRaw<{ revision: bigint }[]>`
-      SELECT "revision" FROM "CourseContentRevision" WHERE "id" = 1
-    `;
-    if (rows.length !== 1 || typeof rows[0]?.revision !== "bigint") {
-      throw new Error("COURSE_CACHE_DURABLE_REVISION_MISSING");
-    }
-    return rows[0].revision.toString();
+    return await requireCourseContentRevisionReadPort().readDurableCourseContentRevision();
   } catch (error) {
     recordCourseCacheEvent("dbRevisionFailure");
     if (Date.now() - lastReadWarningAt >= READ_WARNING_INTERVAL_MS) {

@@ -74,9 +74,10 @@ function json(method: string, path: string, body?: unknown) {
 function fileUpload(path: string, type: string) {
   const form = new FormData();
   // Photo path validates MIME signature and current ownership BEFORE calling Core.
-  const contents = type === "image/jpeg"
-    ? new Uint8Array([0xff, 0xd8, 0xff, 0x00])
-    : new TextEncoder().encode("fixture");
+  const contents =
+    type === "image/jpeg"
+      ? new Uint8Array([0xff, 0xd8, 0xff, 0x00])
+      : new TextEncoder().encode("fixture");
   form.append("file", new Blob([contents], { type }), "synthetic-file");
   return app().request(path, { method: "POST", body: form });
 }
@@ -149,7 +150,11 @@ describe("AG1 pet routes and signed document metadata: private error logging (Co
       success: true,
       data: [{ id: "pet-A", birthDate: "2020-02-03T00:00:00.000Z" }],
     });
-    expect(m.list).toHaveBeenCalledExactlyOnceWith("actor-A", { throwOnError: true });
+    expect(m.list).toHaveBeenCalledExactlyOnceWith(
+      "actor-A",
+      { throwOnError: true },
+      expect.any(Function),
+    );
     expect(m.logger).not.toHaveBeenCalled();
   });
 
@@ -163,7 +168,7 @@ describe("AG1 pet routes and signed document metadata: private error logging (Co
       success: true,
       data: { id: "pet-A", birthDate: "2020-02-03T00:00:00.000Z" },
     });
-    expect(m.get).toHaveBeenCalledExactlyOnceWith("pet-A", "actor-A");
+    expect(m.get).toHaveBeenCalledExactlyOnceWith("pet-A", "actor-A", expect.any(Function));
     expect(m.logger).not.toHaveBeenCalled();
   });
 
@@ -173,7 +178,7 @@ describe("AG1 pet routes and signed document metadata: private error logging (Co
     expect(response.status).toBe(404);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(await response.json()).toEqual({ success: false, error: "Питомец не найден" });
-    expect(m.get).toHaveBeenCalledExactlyOnceWith("pet-A", "actor-A");
+    expect(m.get).toHaveBeenCalledExactlyOnceWith("pet-A", "actor-A", expect.any(Function));
     expect(m.logger).not.toHaveBeenCalled();
   });
 

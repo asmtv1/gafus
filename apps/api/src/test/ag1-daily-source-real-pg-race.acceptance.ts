@@ -5,7 +5,7 @@ import {randomBytes} from 'node:crypto';
 import {realpathSync} from 'node:fs';
 import bcrypt from 'bcryptjs';
 import {prisma} from '@gafus/prisma';
-import {updateDailyCourseStepAndDay} from '../../../../packages/core/src/services/dailyCourse/dailyCourseService';
+import {updateDailyCourseStepAndDay} from '../modules/daily-course/composition/dailyCourseApplication.js';
 const ROOT='/Users/asmtv1/Desktop/gafus-refactor';
 const prefix='ag1_race_core_daily_'+randomBytes(5).toString('hex');
 const owned:{author?:string;learner?:string;foreign?:string;bundle?:string;step?:string;link?:string;schedule?:string}={};

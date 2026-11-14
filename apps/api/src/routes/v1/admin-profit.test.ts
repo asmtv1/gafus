@@ -5,8 +5,8 @@ const f = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.reg }));
-vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: f.role }));
-vi.mock("@gafus/core/services/appSubscription", () => ({
+vi.mock("../../modules/admin-users/composition/service.js", () => ({ readAdminActorRole: f.role }));
+vi.mock("@gafus/subscription-finance-server/profit-application", () => ({
   getProfitDashboard: f.read, saveProfitVideoExpense: f.save, cancelProfitVideoExpense: f.cancel,
 }));
 import { authMiddleware } from "../../middleware/auth";

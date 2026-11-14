@@ -3,20 +3,8 @@
  * Общая логика для API (mobile) и web.
  */
 
-import type { Achievement } from "@gafus/types";
-
-export interface AchievementStats {
-  totalCourses: number;
-  completedCourses: number;
-  inProgressCourses: number;
-  totalCompletedDays: number;
-  totalDays: number;
-  overallProgress: number;
-  totalTrainingTime: number;
-  averageCourseProgress: number;
-  longestStreak: number;
-  currentStreak: number;
-}
+import type { Achievement, AchievementStats } from "@gafus/types";
+export type { AchievementStats } from "@gafus/types";
 
 const ACHIEVEMENTS_CONFIG = [
   {

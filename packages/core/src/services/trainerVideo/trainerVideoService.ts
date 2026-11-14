@@ -3,13 +3,17 @@
  * Чистая логика без Next.js и CDN; app отвечает за сессию, CDN и revalidate.
  */
 
-import { prisma } from "@gafus/prisma";
+import type {
+  TrainerVideoPersistencePort,
+  TrainerVideoStatus as TranscodingStatus,
+} from "./persistencePort";
+export type { TrainerVideoPersistencePort } from "./persistencePort";
 import { extractVideoIdFromCdnUrl } from "@gafus/cdn-upload";
 import { createWebLogger } from "@gafus/logger";
 import { getVideoAccessService, VIDEO_PLAYBACK_TOKEN_TTL_MINUTES } from "@gafus/video-access";
 import type { ActionResult } from "@gafus/types";
 import type { TrainerVideoDto } from "@gafus/types";
-import type { TranscodingStatus } from "@gafus/prisma";
+
 import { handlePrismaError, ServiceError } from "@gafus/core/errors";
 import { invalidateStepsContentCache } from "../training/trainingDayContent";
 import { publishCourseContentChange } from "../training/trainingContentRevision";
@@ -65,27 +69,11 @@ export interface VideoStatusResult {
  * Регистрирует видео тренера после загрузки на CDN.
  */
 export async function registerTrainerVideo(
+  repo: TrainerVideoPersistencePort,
   input: RegisterTrainerVideoInput,
 ): Promise<ActionResult & { data?: TrainerVideoDto }> {
   try {
-    const { id, durationSec = null, fileSize, ...rest } = input;
-
-    const video = await prisma.trainerVideo.create({
-      data: {
-        ...(id ? { id } : {}),
-        ...rest,
-        fileSize: BigInt(fileSize),
-        durationSec,
-      },
-      include: {
-        trainer: {
-          select: {
-            username: true,
-            profile: { select: { fullName: true } },
-          },
-        },
-      },
-    });
+    const video = await repo.createTrainerVideoRow(input);
 
     const dto: TrainerVideoDto = {
       id: video.id,
@@ -130,37 +118,24 @@ export async function registerTrainerVideo(
 
 /** Помечает зарегистрированное видео ошибкой, если задача не попала в очередь обработки. */
 export async function markTrainerVideoTranscodingFailed(
+  repo: TrainerVideoPersistencePort,
   videoId: string,
   errorMessage: string,
 ): Promise<void> {
-  await prisma.trainerVideo.update({
-    where: { id: videoId },
-    data: {
-      transcodingStatus: "FAILED",
-      transcodingError: errorMessage,
-    },
-  });
+  await repo.markTrainerVideoTranscodingFailedRow(videoId, errorMessage);
 }
 
 /**
  * Возвращает данные для удаления видео из CDN. App вызывает CDN delete, затем deleteTrainerVideoRecord.
  */
 export async function getDeletePayload(
+  repo: TrainerVideoPersistencePort,
   videoId: string,
   requesterId: string,
   requesterRole: string,
 ): Promise<ActionResult & { data?: GetDeletePayloadResult }> {
   try {
-    const video = await prisma.trainerVideo.findUnique({
-      where: { id: videoId },
-      select: {
-        id: true,
-        trainerId: true,
-        relativePath: true,
-        hlsManifestPath: true,
-        originalName: true,
-      },
-    });
+    const video = await repo.readTrainerVideoDeleteRow(videoId);
 
     if (!video) {
       return { success: false, error: "Видео не найдено" };
@@ -213,37 +188,22 @@ export async function getDeletePayload(
  * Вызывать после успешного удаления файлов из CDN в app.
  */
 export async function deleteTrainerVideoRecord(
+  repo: TrainerVideoPersistencePort,
   videoId: string,
   fullCdnUrl: string | null,
 ): Promise<ActionResult> {
   try {
     if (fullCdnUrl) {
-      const affectedVideoSteps = {
-        OR: [{ videoUrl: { contains: videoId } }, { videoUrl: fullCdnUrl }],
-      };
       // Capture IDs before updating videoUrl so every reused step can be
       // invalidated even if subsequent video-record cleanup fails.
-      const affectedSteps = await prisma.step.findMany({
-        where: affectedVideoSteps,
-        select: { id: true },
-      });
-      await prisma.step.updateMany({
-        where: affectedVideoSteps,
-        data: { videoUrl: null },
-      });
-      invalidateStepsContentCache(affectedSteps.map((step) => step.id));
+      const affectedSteps = await repo.clearTrainerStepVideoReferences(videoId, fullCdnUrl);
+
+      invalidateStepsContentCache(affectedSteps);
       if (affectedSteps.length > 0) await publishCourseContentChange();
-      await prisma.stepTemplate.updateMany({
-        where: {
-          OR: [{ videoUrl: { contains: videoId } }, { videoUrl: fullCdnUrl }],
-        },
-        data: { videoUrl: null },
-      });
+      await repo.clearTrainerTemplateVideoReferences(videoId, fullCdnUrl);
     }
 
-    await prisma.trainerVideo.delete({
-      where: { id: videoId },
-    });
+    await repo.deleteTrainerVideoRow(videoId);
 
     logger.success("Запись видео удалена из БД", { videoId });
     return { success: true };
@@ -265,15 +225,13 @@ export async function deleteTrainerVideoRecord(
  * Обновляет отображаемое название видео.
  */
 export async function updateTrainerVideoName(
+  repo: TrainerVideoPersistencePort,
   videoId: string,
   trainerId: string,
   displayName: string | null,
 ): Promise<ActionResult> {
   try {
-    const video = await prisma.trainerVideo.findUnique({
-      where: { id: videoId },
-      select: { id: true, trainerId: true },
-    });
+    const video = await repo.readTrainerVideoOwnerRow(videoId);
 
     if (!video) {
       return { success: false, error: "Видео не найдено" };
@@ -288,10 +246,8 @@ export async function updateTrainerVideoName(
       return { success: false, error: "Недостаточно прав для редактирования этого видео" };
     }
 
-    await prisma.trainerVideo.update({
-      where: { id: videoId },
-      data: { displayName },
-    });
+    if (!(await repo.renameTrainerVideoForOwner(videoId, trainerId, displayName)))
+      return { success: false, error: "Видео не найдено" };
 
     logger.success("Название видео обновлено", { videoId });
     return { success: true };
@@ -315,23 +271,11 @@ export async function updateTrainerVideoName(
  * Возвращает список видео тренера (для тренера — только свои, для ADMIN — все).
  */
 export async function getTrainerVideos(
+  repo: TrainerVideoPersistencePort,
   trainerId: string,
   options: { forAdmin?: boolean } = {},
 ): Promise<TrainerVideoDto[]> {
-  const where = options.forAdmin ? undefined : { trainerId };
-
-  const videos = await prisma.trainerVideo.findMany({
-    where,
-    include: {
-      trainer: {
-        select: {
-          username: true,
-          profile: { select: { fullName: true } },
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const videos = await repo.readTrainerVideosRows(trainerId, Boolean(options.forAdmin));
 
   return videos.map((video) => ({
     id: video.id,
@@ -378,6 +322,7 @@ export function getSignedVideoToken(
  * Возвращает статусы транскодирования для нескольких видео.
  */
 export async function getMultipleVideoStatuses(
+  repo: TrainerVideoPersistencePort,
   videoIds: string[],
 ): Promise<ActionResult & { data?: VideoStatusResult[] }> {
   if (videoIds.length === 0) {
@@ -385,17 +330,7 @@ export async function getMultipleVideoStatuses(
   }
 
   try {
-    const videos = await prisma.trainerVideo.findMany({
-      where: { id: { in: videoIds } },
-      select: {
-        id: true,
-        transcodingStatus: true,
-        transcodingError: true,
-        hlsManifestPath: true,
-        thumbnailPath: true,
-        durationSec: true,
-      },
-    });
+    const videos = await repo.readTrainerVideoStatusRows(videoIds);
 
     return {
       success: true,
@@ -434,6 +369,7 @@ export interface VideoMetadata {
  * Для CDN — извлекает videoId и ищет по id; для внешних URL — возвращает isExternal: true.
  */
 export async function getVideoMetadataByUrl(
+  repo: TrainerVideoPersistencePort,
   videoUrl: string | null | undefined,
 ): Promise<VideoMetadata> {
   if (!videoUrl) {
@@ -450,10 +386,7 @@ export async function getVideoMetadataByUrl(
     return { thumbnailPath: null, videoId: null, transcodingStatus: null, isExternal: false };
   }
   try {
-    const video = await prisma.trainerVideo.findUnique({
-      where: { id: videoId },
-      select: { id: true, thumbnailPath: true, transcodingStatus: true },
-    });
+    const video = await repo.readTrainerVideoMetadataRow(videoId);
     if (!video) {
       return { thumbnailPath: null, videoId: null, transcodingStatus: null, isExternal: false };
     }
@@ -472,7 +405,10 @@ export async function getVideoMetadataByUrl(
 /**
  * Получает videoId, hlsManifestPath, thumbnailPath для скачивания HLS.
  */
-export async function getVideoIdAndPathsFromUrl(videoUrl: string): Promise<{
+export async function getVideoIdAndPathsFromUrl(
+  repo: TrainerVideoPersistencePort,
+  videoUrl: string,
+): Promise<{
   success: boolean;
   videoId?: string;
   hlsManifestPath?: string;
@@ -485,10 +421,7 @@ export async function getVideoIdAndPathsFromUrl(videoUrl: string): Promise<{
     const videoId = extractVideoIdFromCdnUrl(videoUrl);
     if (!videoId) return { success: false, error: "Не удалось извлечь videoId из URL" };
 
-    const video = await prisma.trainerVideo.findUnique({
-      where: { id: videoId },
-      select: { transcodingStatus: true, hlsManifestPath: true, thumbnailPath: true },
-    });
+    const video = await repo.readTrainerVideoManifestRow(videoId);
     if (!video) {
       logger.warn("Видео не найдено в БД", { videoId });
       return { success: false, error: "Видео не найдено" };
@@ -517,11 +450,9 @@ export async function getVideoIdAndPathsFromUrl(videoUrl: string): Promise<{
  * Web вызывает getSignedVideoUrl после проверки — сессия и headers остаются в web.
  */
 export async function getVideoForPlaybackCheck(
+  repo: TrainerVideoPersistencePort,
   videoId: string,
 ): Promise<{ transcodingStatus: string } | null> {
-  const video = await prisma.trainerVideo.findUnique({
-    where: { id: videoId },
-    select: { transcodingStatus: true },
-  });
+  const video = await repo.readTrainerVideoPlaybackRow(videoId);
   return video;
 }

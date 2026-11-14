@@ -22,12 +22,14 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
 }));
 vi.mock("./s3Upload", () => ({ postChat2FileToS3: vi.fn(async () => undefined) }));
 vi.mock("@/shared/lib/media/prepareVideoPosterWebp", () => ({
+  sanitizeVideoPosterWebp: vi.fn(async () => 150),
   prepareVideoPosterWebp: vi.fn(async () => ({
     uri: "file:///poster.webp", width: 480, height: 270, bytes: 150,
     mime: "image/webp", dispose: vi.fn(),
   })),
 }));
 vi.mock("@/shared/lib/media/prepareUploadWebp", () => ({
+  sanitizePreparedWebpVariant: vi.fn(async () => false),
   prepareUploadWebpVariants: vi.fn(async () => ({
     small: {uri:"file:///small.webp",bytes:120,mime:"image/webp",width:360,height:240,dispose:vi.fn()},
     medium:{uri:"file:///full.webp",bytes:240,mime:"image/webp",width:1440,height:960,dispose:vi.fn()},
@@ -37,8 +39,8 @@ vi.mock("@/shared/lib/media/directPhotoUpload", () => ({
   postClientWebp: vi.fn(async () => undefined),
 }));
 import { postChat2FileToS3 } from "./s3Upload";
-import { prepareVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWebp";
-import { prepareUploadWebpVariants } from "@/shared/lib/media/prepareUploadWebp";
+import { prepareVideoPosterWebp, sanitizeVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWebp";
+import { prepareUploadWebpVariants, sanitizePreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
 import { postClientWebp } from "@/shared/lib/media/directPhotoUpload";
 import { chat2 } from "./api";
 
@@ -172,6 +174,79 @@ describe("Native Chat2 isolated API and direct-profile messaging", () => {
     expect(mediumDispose).not.toHaveBeenCalled();
   });
 
+  it("rechecks old Android draft WebPs BEFORE Chat2 reserve with correct new byte count", async () => {
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://api.gafus.ru");
+    const mediaId="00000000-0000-4000-8000-000000000000";
+    const preparedVariants = {
+      small: {uri:"file:///old-s.webp", bytes:6464, mime:"image/webp" as const,
+        width:162, height:360, dispose:vi.fn()},
+      medium: {uri:"file:///old-m.webp",bytes:15476,mime:"image/webp" as const,
+        width:324,height:720,dispose:vi.fn()},
+    };
+    vi.mocked(sanitizePreparedWebpVariant).mockImplementation(async variant => {
+      if (variant === preparedVariants.small) variant.bytes=5936;
+      if (variant === preparedVariants.medium) variant.bytes=14948;
+      return true;
+    });
+    const upload={method:"POST",url:"https://s3.cloud.ru/example",fields:{key:"photo.webp"}};
+    mock.apiClient.mockResolvedValueOnce({success:true,data:{mediaId,upload,smallUpload:upload}})
+      .mockResolvedValueOnce({success:true,data:{mediaId,status:"READY"}})
+      .mockResolvedValueOnce({success:true,data:{id:"photo",kind:"image"}});
+    await chat2.upload("room_1", {uri:preparedVariants.medium.uri,
+      name:"photo.webp",mime:"image/webp",size:15476,width:324,height:720,preparedVariants});
+    expect(vi.mocked(sanitizePreparedWebpVariant).mock.calls.map(([v])=>v.uri)).toEqual([
+      "file:///old-s.webp","file:///old-m.webp",
+    ]);
+    const reserve=mock.apiClient.mock.calls[0]?.[1]?.body;
+    expect(reserve).toMatchObject({bytes:14948,mime:"image/webp"});
+    const uploads=vi.mocked(postClientWebp).mock.calls.map(([,v])=>v.bytes);
+    expect(uploads).toEqual([5936,14948]);
+    expect(preparedVariants.small.dispose).not.toHaveBeenCalled();
+    expect(preparedVariants.medium.dispose).not.toHaveBeenCalled();
+  });
+
+  it("does not reserve or send a Chat2 photo if cached WebP cleanup fails", async () => {
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://api.gafus.ru");
+    vi.mocked(sanitizePreparedWebpVariant).mockRejectedValueOnce(new Error("broken RIFF"));
+    const variants={
+      small:{uri:"file:///old-s.webp",bytes:120,width:360,height:240,mime:"image/webp" as const,dispose:vi.fn()},
+      medium:{uri:"file:///old-m.webp",bytes:240,width:1440,height:960,mime:"image/webp" as const,dispose:vi.fn()},
+    };
+    await expect(chat2.upload("room_1",{uri:variants.medium.uri,name:"photo.webp",
+      mime:"image/webp",size:240,width:1440,height:960,preparedVariants:variants}))
+      .rejects.toThrow("broken RIFF");
+    expect(mock.apiClient).not.toHaveBeenCalled();
+    expect(postClientWebp).not.toHaveBeenCalled();
+  });
+
+  it("keeps Chat2 temporary WebPs until BOTH S3 POSTs settle after one failure", async () => {
+    vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://api.gafus.ru");
+    const mediaId = "00000000-0000-4000-8000-000000000001";
+    const smallDispose = vi.fn(), mediumDispose = vi.fn();
+    vi.mocked(prepareUploadWebpVariants).mockResolvedValueOnce({
+      small: {uri:"file:///small.webp",mime:"image/webp",width:360,height:240,bytes:120,dispose:smallDispose},
+      medium: {uri:"file:///medium.webp",mime:"image/webp",width:1440,height:960,bytes:240,dispose:mediumDispose},
+    });
+    const upload={method:"POST",url:"https://s3.cloud.ru/example",fields:{key:"source.webp"}};
+    mock.apiClient.mockResolvedValueOnce({success:true,data:{mediaId,upload,smallUpload:upload}});
+    let release!: () => void;
+    const pending=new Promise<void>(resolve=>{release=resolve;});
+    vi.mocked(postClientWebp).mockRejectedValueOnce(Error("S3 small failed"))
+      .mockImplementationOnce(()=>pending);
+    const result=chat2.upload("room_1",{uri:"file:///photo.jpg",name:"photo.jpg",
+      mime:"image/jpeg",size:1200,width:1440,height:960});
+    await vi.waitFor(()=>expect(postClientWebp).toHaveBeenCalledTimes(2));
+    await Promise.resolve();
+    expect(smallDispose).not.toHaveBeenCalled();
+    expect(mediumDispose).not.toHaveBeenCalled();
+    expect(mock.apiClient).toHaveBeenCalledTimes(1);
+    release();
+    await expect(result).rejects.toThrow("S3 small failed");
+    expect(smallDispose).toHaveBeenCalledOnce();
+    expect(mediumDispose).toHaveBeenCalledOnce();
+    expect(mock.apiClient).toHaveBeenCalledTimes(1);
+  });
+
   it("uploads an already encoded video and its prebuilt cover only on explicit send", async () => {
     vi.stubEnv("EXPO_PUBLIC_CHAT2_API_ORIGIN", "https://api.gafus.ru");
     const mediaId="00000000-0000-4000-8000-000000000007";
@@ -197,6 +272,7 @@ describe("Native Chat2 isolated API and direct-profile messaging", () => {
     })).resolves.toEqual(attachment);
     expect(vi.mocked(prepareVideoPosterWebp)).not.toHaveBeenCalled();
     expect(postChat2FileToS3).toHaveBeenCalledTimes(1);
+    expect(sanitizeVideoPosterWebp).toHaveBeenCalledWith("file:///preencoded-poster.webp");
     expect(vi.mocked(postClientWebp).mock.calls[0]?.[1]).toBe(preparedPoster);
     expect(dispose).not.toHaveBeenCalled();
     expect(mock.apiClient.mock.calls.map(([path])=>path)).toEqual([

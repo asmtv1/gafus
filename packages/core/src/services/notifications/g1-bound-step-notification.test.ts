@@ -43,7 +43,7 @@ import {
   pauseBoundStepNotification,
   resumeBoundStepNotification,
   resetBoundStepNotification,
-} from "./stepNotificationService";
+} from "@gafus/notifications-server/stepNotificationService";
 
 const bound = { dayOnCourseId: "dayoc1", stepOnDayId: "occB", stepId: "stepB" };
 function fixtureLinks() {
@@ -74,9 +74,16 @@ describe("bound StepNotification uses immutable occurrence, mock queue sink", ()
     m.remove.mockResolvedValue(undefined);
     m.findFirst.mockResolvedValue(null);
     m.findUnique.mockResolvedValue({
-      id: "notification-b", userId: "learner", dayOnCourseId: "dayoc1",
-      stepOnDayId: "occB", originalStepId: "stepB", type: "step",
-      sent: false, paused: false, jobId: null, endTs: Math.floor(Date.now() / 1000) + 19,
+      id: "notification-b",
+      userId: "learner",
+      dayOnCourseId: "dayoc1",
+      stepOnDayId: "occB",
+      originalStepId: "stepB",
+      type: "step",
+      sent: false,
+      paused: false,
+      jobId: null,
+      endTs: Math.floor(Date.now() / 1000) + 19,
       remainingSec: 19,
     });
     m.queryRaw.mockResolvedValue([{ id: "notification-b" }]);
@@ -196,26 +203,49 @@ describe("bound StepNotification uses immutable occurrence, mock queue sink", ()
   });
 
   it("resume uses stored seconds, does not manufacture a missing notification", async () => {
-    await resumeBoundStepNotification("learner", bound);
-    expect(m.add).not.toHaveBeenCalled();
+    // Queue delay is derived from whole-second Unix timestamps. Freeze only
+    // Date: crossing a real clock second during the async reconciliation can
+    // otherwise change the expected 19s delay to 18s (a false regression).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const fixedNow = new Date("2026-11-10T12:00:00.000Z");
+      vi.setSystemTime(fixedNow);
+      m.findUnique.mockResolvedValue({
+        id: "notification-b",
+        userId: "learner",
+        dayOnCourseId: "dayoc1",
+        stepOnDayId: "occB",
+        originalStepId: "stepB",
+        type: "step",
+        sent: false,
+        paused: false,
+        jobId: null,
+        endTs: Math.floor(fixedNow.getTime() / 1000) + 19,
+        remainingSec: 19,
+      });
+      await resumeBoundStepNotification("learner", bound);
+      expect(m.add).not.toHaveBeenCalled();
 
-    m.findFirst.mockResolvedValue({
-      id: "notification-b",
-      jobId: null,
-      paused: true,
-      remainingSec: 19,
-    });
-    await resumeBoundStepNotification("learner", bound);
-    expect(m.add).toHaveBeenCalledWith(
-      "push",
-      { notificationId: "notification-b" },
-      expect.objectContaining({ delay: 19_000 }),
-    );
-    expect(m.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ paused: true, jobId: null, stepOnDayId: "occB" }),
-        data: expect.objectContaining({ paused: false, endTs: expect.any(Number) }),
-      }),
-    );
+      m.findFirst.mockResolvedValue({
+        id: "notification-b",
+        jobId: null,
+        paused: true,
+        remainingSec: 19,
+      });
+      await resumeBoundStepNotification("learner", bound);
+      expect(m.add).toHaveBeenCalledWith(
+        "push",
+        { notificationId: "notification-b" },
+        expect.objectContaining({ delay: 19_000 }),
+      );
+      expect(m.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ paused: true, jobId: null, stepOnDayId: "occB" }),
+          data: expect.objectContaining({ paused: false, endTs: expect.any(Number) }),
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

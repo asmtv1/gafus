@@ -4,9 +4,12 @@ import { getChatDisplayRole } from "../cynologistChat/authorRole";
  * Profile Service - бизнес-логика работы с профилем пользователя
  */
 
-import { prisma } from "@gafus/prisma";
+import {
+  requireProfileRowsPort,
+  type ProfileEditFields,
+  type ProfileEditCreateFields,
+} from "./profileRowsPort";
 import { createWebLogger } from "@gafus/logger";
-import type { Prisma } from "@gafus/prisma";
 import type { PublicProfile, UserWithTrainings } from "@gafus/types";
 import { TrainingStatus } from "@gafus/types";
 import {
@@ -32,9 +35,7 @@ async function avatarUrlForProfile(value: string | null): Promise<string | null>
  * Получает профиль пользователя по ID
  */
 export async function getUserProfile(userId: string) {
-  const profile = await prisma.userProfile.findUnique({
-    where: { userId },
-  });
+  const profile = await requireProfileRowsPort().readUserProfileRow(userId);
   return profile;
 }
 
@@ -57,8 +58,8 @@ export async function updateUserProfile(userId: string, data: NormalizedProfileD
   // An omitted field means "leave it untouched", not "clear it". This is
   // critical for Mobile and the new Vite editor, which send PATCH-like updates
   // via this long-standing PUT API. Explicit empty strings still clear fields.
-  const updateData: Prisma.UserProfileUpdateInput = {};
-  const createData: Prisma.UserProfileCreateInput = {
+  const updateData: ProfileEditFields = {};
+  const createData: ProfileEditCreateFields = {
     user: { connect: { id: userId } },
   };
 
@@ -82,11 +83,7 @@ export async function updateUserProfile(userId: string, data: NormalizedProfileD
     }
   }
 
-  const result = await prisma.userProfile.upsert({
-    where: { userId },
-    update: updateData,
-    create: createData,
-  });
+  const result = await requireProfileRowsPort().upsertProfileFields(userId, updateData, createData);
 
   return result;
 }
@@ -95,10 +92,7 @@ export async function updateUserProfile(userId: string, data: NormalizedProfileD
  * Проверяет существование пользователя по ID
  */
 export async function existsUser(userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true },
-  });
+  const user = await requireProfileRowsPort().readProfileActorExists(userId);
   return !!user;
 }
 
@@ -106,10 +100,7 @@ export async function existsUser(userId: string): Promise<boolean> {
  * Получает userId по username (для fallback при несоответствии session.id)
  */
 export async function getUserIdByUsername(username: string): Promise<string | null> {
-  const user = await prisma.user.findUnique({
-    where: { username },
-    select: { id: true },
-  });
+  const user = await requireProfileRowsPort().readUserIdByUsernameRow(username);
   return user?.id ?? null;
 }
 
@@ -121,68 +112,7 @@ export async function getUserIdByUsername(username: string): Promise<string | nu
 export async function getPublicProfile(username: string): Promise<PublicProfile | null> {
   if (!username) throw new Error("username is required");
 
-  const user = await prisma.user.findFirst({
-    // Old questions API only provides the stable author ID.
-    where: { OR: [{ username }, { id: username }] },
-    select: {
-      id: true,
-      username: true,
-      role: true,
-      profile: {
-        select: {
-          fullName: true,
-          city: true,
-          birthDate: true,
-          about: true,
-          telegram: true,
-          instagram: true,
-          website: true,
-          avatarUrl: true,
-        },
-      },
-      diplomas: {
-        orderBy: { issuedAt: "desc" },
-        select: {
-          id: true,
-          title: true,
-          issuedBy: true,
-          issuedAt: true,
-          url: true,
-        },
-      },
-      pets: {
-        where: { showInProfile: true },
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          name: true,
-          type: true,
-          breed: true,
-          birthDate: true,
-          photoUrl: true,
-        },
-      },
-      authoredCourses: {
-        where: {
-          showInProfile: true,
-        },
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          name: true,
-          type: true,
-          logoImg: true,
-          shortDesc: true,
-          duration: true,
-          isPrivate: true,
-          isPaid: true,
-          avgRating: true,
-          updatedAt: true,
-          trainingLevel: true,
-        },
-      },
-    },
-  });
+  const user = await requireProfileRowsPort().readPublicProfileRow(username);
 
   if (!user) return null;
 
@@ -220,7 +150,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
           avatarUrl: await avatarUrlForProfile(user.profile.avatarUrl),
         }
       : null,
-    chatRole: await getChatDisplayRole(user),
+    chatRole: await getChatDisplayRole(user, (id, at) => requireProfileRowsPort().readPaidChatDisplayEntitlement(id, at)),
     courses,
     diplomas: user.diplomas
       .filter((d) => d.issuedAt !== null)
@@ -251,7 +181,8 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
  */
 export async function updateAvatar(userId: string, file: File): Promise<string> {
   const originalExt = file.name.split(".").pop();
-  const ext = process.env.GAFUS_ISOLATED_NONPROD_S3 !== undefined ? originalExt?.toLowerCase() : originalExt;
+  const ext =
+    process.env.GAFUS_ISOLATED_NONPROD_S3 !== undefined ? originalExt?.toLowerCase() : originalExt;
   if (!ext) throw new Error("Не удалось определить расширение файла");
 
   const relativePath = getUserAvatarPath(userId, randomUUID(), ext);
@@ -260,22 +191,7 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
   let oldAvatarUrl: string | null = null;
 
   try {
-    oldAvatarUrl = await prisma.$transaction(async (tx) => {
-      const owners = await tx.$queryRaw<
-        { id: string }[]
-      >`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
-      if (!owners.length) throw new Error("Пользователь не найден");
-      const previous = await tx.userProfile.findUnique({
-        where: { userId },
-        select: { avatarUrl: true },
-      });
-      await tx.userProfile.upsert({
-        where: { userId },
-        update: { avatarUrl },
-        create: { userId, avatarUrl },
-      });
-      return previous?.avatarUrl ?? null;
-    });
+    oldAvatarUrl = await requireProfileRowsPort().replaceProfileAvatarRow(userId, avatarUrl);
   } catch (error) {
     // Failed database commit: avoid leaking the newly uploaded object.
     try {
@@ -289,12 +205,32 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
     throw error;
   }
 
-  // Old content is removed only after the new URL is durably committed.
+  // A persisted URL is not authority to delete an arbitrary CDN object. Old
+  // accounts may contain legacy or externally hosted avatars: retain them
+  // rather than deleting another user's private media by a forged path.
+  // The isolated development S3 location is deliberately a non-URL marker.
   if (oldAvatarUrl && oldAvatarUrl !== avatarUrl) {
-    try {
-      await deleteFileFromCDN(getRelativePathFromCDNUrl(oldAvatarUrl));
-    } catch {
-      logger.error("Не удалось удалить старый аватар", new Error("USER_AVATAR_OLD_DELETE_FAILED"));
+    const priorKey = getRelativePathFromCDNUrl(oldAvatarUrl);
+    const ownerPrefix = `users/${userId}/avatar/`;
+    const isOwnObject =
+      (priorKey.startsWith(ownerPrefix) && priorKey.length > ownerPrefix.length) ||
+      (priorKey.startsWith(`isodev-avatar:documents/uploads/${ownerPrefix}`) &&
+        priorKey.length > `isodev-avatar:documents/uploads/${ownerPrefix}`.length);
+    if (
+      isOwnObject &&
+      !priorKey.includes("..") &&
+      !priorKey.includes("?") &&
+      !priorKey.includes("#") &&
+      !priorKey.includes("\\")
+    ) {
+      try {
+        await deleteFileFromCDN(priorKey);
+      } catch {
+        logger.error(
+          "Не удалось удалить старый аватар",
+          new Error("USER_AVATAR_OLD_DELETE_FAILED"),
+        );
+      }
     }
   }
 
@@ -308,50 +244,7 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
  * Получает пользователя с тренировками и курсами для API/веб.
  */
 export async function getUserWithTrainings(userId: string): Promise<UserWithTrainings | null> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      username: true,
-      phone: true,
-      email: true,
-      accounts: {
-        where: { provider: "vk" },
-        select: { id: true },
-      },
-      userTrainings: {
-        orderBy: { dayOnCourse: { order: "asc" } },
-        select: {
-          status: true,
-          dayOnCourse: {
-            select: {
-              order: true,
-              day: {
-                select: { id: true, title: true, type: true },
-              },
-              course: {
-                select: { id: true, name: true },
-              },
-            },
-          },
-        },
-      },
-      userCourses: {
-        select: {
-          courseId: true,
-          startedAt: true,
-          completedAt: true,
-          course: {
-            select: {
-              id: true,
-              name: true,
-              dayLinks: { select: { id: true } },
-            },
-          },
-        },
-      },
-    },
-  });
+  const user = await requireProfileRowsPort().readUserWithTrainingsRow(userId);
 
   if (!user) return null;
 
@@ -413,34 +306,7 @@ export interface UserProfileForApi {
  * Получает профиль пользователя для API (GET /profile).
  */
 export async function getUserProfileForApi(userId: string): Promise<UserProfileForApi | null> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      username: true,
-      phone: true,
-      email: true,
-      role: true,
-      passwordSetAt: true,
-      onboardingTourCompletedAt: true,
-      accounts: {
-        where: { provider: "vk" },
-        select: { id: true },
-      },
-      profile: {
-        select: {
-          fullName: true,
-          city: true,
-          about: true,
-          telegram: true,
-          instagram: true,
-          website: true,
-          birthDate: true,
-          avatarUrl: true,
-        },
-      },
-    },
-  });
+  const user = await requireProfileRowsPort().readUserProfileForApiRow(userId);
   if (!user) return null;
   const hasVkLinked = (user.accounts?.length ?? 0) > 0;
   const { passwordSetAt, onboardingTourCompletedAt, accounts: _accounts, ...userRest } = user;
@@ -469,10 +335,7 @@ export interface OnboardingTourStatusDto {
 }
 
 export async function getOnboardingTourStatus(userId: string): Promise<OnboardingTourStatusDto> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { onboardingTourCompletedAt: true },
-  });
+  const user = await requireProfileRowsPort().readOnboardingTourStatusRow(userId);
   const completedAt = user?.onboardingTourCompletedAt ?? null;
   return {
     hasSeenV1: completedAt !== null,
@@ -481,13 +344,7 @@ export async function getOnboardingTourStatus(userId: string): Promise<Onboardin
 }
 
 export async function markOnboardingTourSeen(userId: string): Promise<OnboardingTourStatusDto> {
-  const updated = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      onboardingTourCompletedAt: new Date(),
-    },
-    select: { onboardingTourCompletedAt: true },
-  });
+  const updated = await requireProfileRowsPort().markOnboardingTourSeenRow(userId);
 
   return {
     hasSeenV1: true,

@@ -1,3 +1,11 @@
+vi.mock("@gafus/consultation-server/slot-service", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
+vi.mock("@gafus/consultation-server/booking-application", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConsultationBookingNotIncludedError } from "@gafus/core/services/consultation";
@@ -23,26 +31,32 @@ const { consultationMocks } = vi.hoisted(() => ({
   },
 }));
 
+vi.mock("@gafus/consultation-server/vox", () => ({
+    prepareConsultationCall: consultationMocks.prepareConsultationCall,
+    signConsultationOneTimeKey: consultationMocks.signConsultationOneTimeKey,
+    createConsultationCallAdmission: consultationMocks.createConsultationCallAdmission,
+}));
 vi.mock("@gafus/core/services/consultation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@gafus/core/services/consultation")>();
   return {
     ...actual,
-    getConsultationBookingEligibility: consultationMocks.getConsultationBookingEligibility,
-    requireConsultationBookingEligibility: consultationMocks.requireConsultationBookingEligibility,
     getAvailableSlots: consultationMocks.getAvailableSlots,
     getCalendarSlots: consultationMocks.getCalendarSlots,
-    getCynologistDayOffDates: consultationMocks.getCynologistDayOffDates,
     requireConsultationSlotsSubscriptionAccess:
       consultationMocks.requireConsultationSlotsSubscriptionAccess,
     requireConsultationBookingSubscriptionAccess:
       consultationMocks.requireConsultationBookingSubscriptionAccess,
     verifyConsultationSlotFreeForCynologist:
       consultationMocks.verifyConsultationSlotFreeForCynologist,
-    prepareConsultationCall: consultationMocks.prepareConsultationCall,
-    signConsultationOneTimeKey: consultationMocks.signConsultationOneTimeKey,
-    createConsultationCallAdmission: consultationMocks.createConsultationCallAdmission,
   };
 });
+vi.mock("../../modules/consultations/composition/booking-eligibility.js", () => ({
+  getConsultationBookingEligibility: consultationMocks.getConsultationBookingEligibility,
+  requireConsultationBookingEligibility: consultationMocks.requireConsultationBookingEligibility,
+}));
+vi.mock("../../modules/consultations/composition/catalog-schedule.js", () => ({
+  getCynologistDayOffDates: consultationMocks.getCynologistDayOffDates,
+}));
 
 function createTestApp() {
   const app = new Hono();

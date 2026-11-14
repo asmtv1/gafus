@@ -1,7 +1,9 @@
-/** AG1-001/LEARN032: existing Core exam submit, entitlement remains in Hono. */
-import type { submitExamResult } from "@gafus/core/services/exam";
+import type { ExamSubmissionData } from "@gafus/types";
 
-type SubmitExamResult = typeof submitExamResult;
+type SubmitExamResult = (
+  actorUserId: string,
+  data: ExamSubmissionData,
+) => Promise<{ success: boolean; examResultId: string }>;
 
 export function createWriteExamSubmitApplication(dependencies: { submit: SubmitExamResult }) {
   return {

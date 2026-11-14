@@ -6,7 +6,18 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
-import { prisma, RegistrationChannel } from "@gafus/prisma";
+import {
+  readVkUserEmail,
+  readVkEmailOwner,
+  updateVkUserEmail,
+  readDetailedVkAccount,
+  readVkUsernameCollision,
+  upsertLinkedVkProfile,
+  createPendingVkAccount,
+  readVkLinkedAccountOwner,
+  linkVkAccountAndMergeProfile,
+} from "./vkAuthRowsPort";
+import { RegistrationChannel } from "./authRowsPort";
 import { createWebLogger } from "@gafus/logger";
 import { isRegisterEmailWithValidDomain } from "../../validation/registerEmailDomain";
 import { transliterate } from "../../utils/transliterate";
@@ -85,23 +96,14 @@ function sanitizeVkEmailForUser(raw: unknown): string | null {
 /**
  * Заполняет User.email из VK, если поле пустое и адрес свободен (не перезаписываем существующий).
  */
-export async function trySetUserEmailFromVk(
-  userId: string,
-  rawEmail: unknown,
-): Promise<void> {
+export async function trySetUserEmailFromVk(userId: string, rawEmail: unknown): Promise<void> {
   const normalized = sanitizeVkEmailForUser(rawEmail);
   if (!normalized) return;
 
-  const current = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true },
-  });
+  const current = await readVkUserEmail(userId);
   if (current?.email?.trim()) return;
 
-  const owner = await prisma.user.findUnique({
-    where: { email: normalized },
-    select: { id: true },
-  });
+  const owner = await readVkEmailOwner(normalized);
   if (owner && owner.id !== userId) {
     logger.warn("VK: email уже привязан к другому пользователю, пропуск", {
       userId,
@@ -110,10 +112,7 @@ export async function trySetUserEmailFromVk(
   }
 
   try {
-    await prisma.user.update({
-      where: { id: userId },
-      data: { email: normalized },
-    });
+    await updateVkUserEmail(userId, normalized);
   } catch (error) {
     const code =
       error && typeof error === "object" && "code" in error
@@ -208,8 +207,7 @@ export async function fetchVkProfile(params: {
     first_name: fromGet?.first_name ?? info.first_name,
     last_name: fromGet?.last_name ?? info.last_name,
     avatar: fromGet?.photo_200 ?? info.avatar,
-    birthday:
-      (fromGet?.bdate?.includes(".") ? fromGet.bdate : undefined) ?? info.birthday,
+    birthday: (fromGet?.bdate?.includes(".") ? fromGet.bdate : undefined) ?? info.birthday,
     email: info.email,
   };
 }
@@ -291,9 +289,7 @@ export async function exchangeVkCodeAndGetUser(
   return findOrCreateVkUser(vkProfile, vkProfile.id, params.registrationChannel);
 }
 
-export async function exchangeVkCodeForProfile(
-  params: ExchangeVkCodeParams,
-): Promise<VkProfile> {
+export async function exchangeVkCodeForProfile(params: ExchangeVkCodeParams): Promise<VkProfile> {
   const { access_token, user_id } = await exchangeVkCodeForToken(params);
 
   return fetchVkProfile({
@@ -336,23 +332,7 @@ export async function findOrCreateVkUser(
   const birthDate = parseVkBirthday(vkProfile.birthday);
   const avatarUrl = sanitizeAvatarUrl(vkProfile.avatar);
 
-  const account = await prisma.account.findUnique({
-    where: {
-      provider_providerAccountId: { provider: "vk", providerAccountId },
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          username: true,
-          role: true,
-          phone: true,
-          registrationPending: true,
-          profile: { select: { fullName: true, birthDate: true, avatarUrl: true } },
-        },
-      },
-    },
-  });
+  const account = await readDetailedVkAccount(providerAccountId);
 
   if (account) {
     const profile = account.user.profile;
@@ -367,16 +347,7 @@ export async function findOrCreateVkUser(
       updateData.birthDate = birthDate;
     }
 
-    await prisma.userProfile.upsert({
-      where: { userId: account.userId },
-      create: {
-        userId: account.userId,
-        avatarUrl,
-        fullName,
-        birthDate,
-      },
-      update: updateData,
-    });
+    await upsertLinkedVkProfile(account.userId, { fullName, birthDate, avatarUrl }, updateData);
     await trySetUserEmailFromVk(account.userId, vkProfile.email);
     return {
       user: {
@@ -396,11 +367,11 @@ export async function findOrCreateVkUser(
     providerAccountId,
   );
   let suffix = 0;
-  let existing = await prisma.user.findFirst({ where: { username } });
+  let existing = await readVkUsernameCollision(username);
   while (existing) {
     suffix += 1;
     username = `${username.replace(/_?\d+$/, "")}_${suffix}`;
-    existing = await prisma.user.findFirst({ where: { username } });
+    existing = await readVkUsernameCollision(username);
   }
 
   const password = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 12);
@@ -409,10 +380,7 @@ export async function findOrCreateVkUser(
   const normalizedVkEmail = sanitizeVkEmailForUser(vkProfile.email);
   let emailForCreate: string | undefined;
   if (normalizedVkEmail) {
-    const emailOwner = await prisma.user.findUnique({
-      where: { email: normalizedVkEmail },
-      select: { id: true },
-    });
+    const emailOwner = await readVkEmailOwner(normalizedVkEmail);
     if (emailOwner) {
       logger.warn("VK: email из профиля уже занят, регистрация без поля email", {
         providerAccountId,
@@ -423,53 +391,34 @@ export async function findOrCreateVkUser(
   }
 
   async function createPendingUser() {
-    return prisma.$transaction(async (tx) => {
-      // Lock an existing account if a concurrent callback won the race before
-      // attempting any create; never continue a transaction after P2002.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`vk:${providerAccountId}`}, 0))`;
-      const linked = await tx.account.findUnique({
-        where: { provider_providerAccountId: { provider: "vk", providerAccountId } },
-        include: { user: { select: { id: true, username: true, role: true, phone: true, registrationPending: true } } },
-      });
-      if (linked) return { user: linked.user, created: false };
-      const u = await tx.user.create({
-      data: {
-        username,
-        phone,
-        password,
-        passwordSetAt: null,
-        registrationChannel,
-        registrationPending: true,
-        ...(emailForCreate ? { email: emailForCreate } : {}),
-      },
-      });
-    await tx.userProfile.create({
-      data: {
-        userId: u.id,
-        avatarUrl,
-        fullName,
-        birthDate,
-      },
-    });
-    await tx.account.create({
-      data: {
-        userId: u.id,
-        type: "oauth",
-        provider: "vk",
-        providerAccountId,
-      },
-    });
-      return { user: u, created: true };
-    });
+    return createPendingVkAccount(
+      username,
+      phone,
+      password,
+      registrationChannel,
+      emailForCreate,
+      providerAccountId,
+      { fullName, birthDate, avatarUrl },
+    );
   }
 
-  let created: { user: { id: string; username: string; role: string; phone?: string | null; registrationPending?: boolean }; created: boolean };
+  let created: {
+    user: {
+      id: string;
+      username: string;
+      role: string;
+      phone?: string | null;
+      registrationPending?: boolean;
+    };
+    created: boolean;
+  };
   try {
     created = await createPendingUser();
   } catch (error) {
     // A unique collision (e.g. email/username from an unrelated request) aborts
     // its transaction. Start a new transaction instead of querying in it.
-    const isUnique = error instanceof Error && "code" in error && (error as { code?: string }).code === "P2002";
+    const isUnique =
+      error instanceof Error && "code" in error && (error as { code?: string }).code === "P2002";
     if (!isUnique) throw error;
     username = `${username.slice(0, Math.max(1, 100 - 9))}_${crypto.randomInt(100000, 999999)}`;
     // If a simultaneous account claimed the VK email, a retry must not reuse
@@ -479,7 +428,11 @@ export async function findOrCreateVkUser(
   }
   const { user } = created;
 
-  if (created.created) logger.success("findOrCreateVkUser: pending user created", { userId: user.id, username: user.username });
+  if (created.created)
+    logger.success("findOrCreateVkUser: pending user created", {
+      userId: user.id,
+      username: user.username,
+    });
 
   return {
     user: { id: user.id, username: user.username, role: user.role },
@@ -498,12 +451,7 @@ export async function linkVkToUser(
 ): Promise<{ success: true } | { success: false; error: string }> {
   const providerAccountId = vkProfile.id;
 
-  const existingAccount = await prisma.account.findUnique({
-    where: {
-      provider_providerAccountId: { provider: "vk", providerAccountId },
-    },
-    select: { userId: true },
-  });
+  const existingAccount = await readVkLinkedAccountOwner(providerAccountId);
 
   if (existingAccount && existingAccount.userId !== userId) {
     return { success: false, error: "Этот аккаунт VK уже привязан к другому пользователю" };
@@ -514,44 +462,13 @@ export async function linkVkToUser(
   }
 
   try {
-    await prisma.$transaction(async (tx) => {
-      await tx.account.create({
-        data: {
-          userId,
-          type: "oauth",
-          provider: "vk",
-          providerAccountId,
-        },
-      });
-
-      const fullName = sanitizeFullName(vkProfile.first_name, vkProfile.last_name);
-      const birthDate = parseVkBirthday(vkProfile.birthday);
-      const avatarUrl = sanitizeAvatarUrl(vkProfile.avatar);
-
-      const existingProfile = await tx.userProfile.findUnique({
-        where: { userId },
-        select: { fullName: true, birthDate: true, avatarUrl: true },
-      });
-
-      const updateData: Record<string, unknown> = {};
-      if (!existingProfile?.fullName && fullName) updateData.fullName = fullName;
-      if (!existingProfile?.birthDate && birthDate) updateData.birthDate = birthDate;
-      if (!existingProfile?.avatarUrl && avatarUrl) updateData.avatarUrl = avatarUrl;
-
-      if (Object.keys(updateData).length > 0 || !existingProfile) {
-        await tx.userProfile.upsert({
-          where: { userId },
-          create: { userId, fullName, birthDate, avatarUrl },
-          update: updateData,
-        });
-      }
+    await linkVkAccountAndMergeProfile(userId, providerAccountId, {
+      fullName: sanitizeFullName(vkProfile.first_name, vkProfile.last_name),
+      birthDate: parseVkBirthday(vkProfile.birthday),
+      avatarUrl: sanitizeAvatarUrl(vkProfile.avatar),
     });
   } catch (error) {
-    if (
-      error instanceof Error &&
-      "code" in error &&
-      (error as { code: string }).code === "P2002"
-    ) {
+    if (error instanceof Error && "code" in error && (error as { code: string }).code === "P2002") {
       return { success: false, error: "Этот аккаунт VK уже привязан к другому пользователю" };
     }
     throw error;

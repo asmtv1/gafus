@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { createHash } from "node:crypto";
 import { connection } from "@gafus/queues";
 import { z } from "zod/v3";
-import { readAdminActorRole } from "@gafus/core/services/adminUser";
-import { sendBroadcastPush, countBroadcastSubscriptionRows } from "@gafus/core/services/adminBroadcast";
+import { readAdminActorRole } from "../../modules/admin-users/composition/service.js";
+import { sendBroadcastPush, countBroadcastSubscriptionRows } from "@gafus/notifications-server/adminBroadcastService";
 import { requireRole } from "../../middleware/auth.js";
 
 /** Admin-only deliberate push broadcasts; never fire on route read or preview. */

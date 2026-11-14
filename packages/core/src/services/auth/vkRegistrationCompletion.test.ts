@@ -15,10 +15,51 @@ vi.mock("@gafus/prisma", () => ({
   Prisma: { sql: (parts: TemplateStringsArray) => parts.join("") },
   ConsentLogStatus: { COMPLETED: "COMPLETED" },
 }));
-vi.mock("../appSubscription/partnerService", () => ({ attributePartnerReferralIfCurrentPartnerInTransaction: vi.fn() }));
-vi.mock("../consent/consentService", () => ({ createCompletedConsentLogsInTransaction: vi.fn() }));
+vi.mock("@gafus/subscription-payment-server/partner", () => ({ attributePartnerReferralIfCurrentPartnerInTransaction: vi.fn() }));
+vi.mock("@gafus/consent-server/consentService", () => ({ createCompletedConsentLogsInTransaction: vi.fn() }));
 
 import { completeVkRegistration } from "./vkRegistrationCompletion";
+// The production owner-scoped SQL rows are still called, but are now bound
+// through the Core transaction port; mocks keep the same Prisma Tx in-process.
+import { registerRegistrationContractRowsPort } from "./registrationContracts";
+import * as registrationRows from "@gafus/identity-write-server/registration-contract-rows";
+const asServerTx = (tx: unknown): registrationRows.RegistrationContractDbTx =>
+  tx as registrationRows.RegistrationContractDbTx;
+registerRegistrationContractRowsPort({
+  withRegistrationTransaction: (action, options) =>
+    registrationRows.withRegistrationTransaction(tx => action(tx), options),
+  readRegistrationPromoRowTx: (tx, code) => registrationRows.readRegistrationPromoRowTx(asServerTx(tx), code),
+  saveRegistrationPromoRowTx: (tx, userId, promoId) => registrationRows.saveRegistrationPromoRowTx(asServerTx(tx), userId, promoId),
+  lockRegistrationEmailAttemptTx: (tx, id) => registrationRows.lockRegistrationEmailAttemptTx(asServerTx(tx), id),
+  readRegistrationEmailAttemptTx: (tx, id) => registrationRows.readRegistrationEmailAttemptTx(asServerTx(tx), id),
+  insertRegistrationEmailAttemptTx: (tx, input) => registrationRows.insertRegistrationEmailAttemptTx(asServerTx(tx), input),
+  finishRegistrationEmailAttemptTx: (tx, id, input) => registrationRows.finishRegistrationEmailAttemptTx(asServerTx(tx), id, input),
+  insertVkRegistrationContextTx: (tx, input) => registrationRows.insertVkRegistrationContextTx(asServerTx(tx), input),
+  claimVkRegistrationContextUserTx: (tx, input) => registrationRows.claimVkRegistrationContextUserTx(asServerTx(tx), input),
+  insertVkLoginGrantTx: (tx, input) => registrationRows.insertVkLoginGrantTx(asServerTx(tx), input),
+  consumeVkLoginGrantRowTx: (tx, input) => registrationRows.consumeVkLoginGrantRowTx(asServerTx(tx), input),
+});
+
+import { registerVkCompletionPort } from "./vkRegistrationCompletion";
+import {
+  completedConsentLogStatus,
+  withLockedVkCompletion,
+  revokePriorVkCompletionLoginGrantsTx,
+  completePendingVkRegistrationUserTx,
+  markVkRegistrationContextCompletedTx,
+  createCompletedConsentLogsInTransaction,
+  attributePartnerReferralIfCurrentPartnerInTransaction,
+} from "@gafus/identity-write-server/vk-completion-rows";
+registerVkCompletionPort({
+  withLockedVkCompletion,
+  revokePriorVkCompletionLoginGrantsTx,
+  completePendingVkRegistrationUserTx,
+  markVkRegistrationContextCompletedTx,
+  createCompletedConsentLogsInTransaction: (tx, params) =>
+    createCompletedConsentLogsInTransaction(tx, params, completedConsentLogStatus),
+  attributePartnerReferralIfCurrentPartnerInTransaction,
+});
+
 
 const consent = {
   tempSessionId: "consent-1",

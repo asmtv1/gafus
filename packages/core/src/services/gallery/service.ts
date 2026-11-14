@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { GALLERY_LIMITS as L } from "../../../../types/src/gallery";
+import { GALLERY_LIMITS as L } from "@gafus/types";
 import type {
   GalleryAlbumCreateInput,
   GalleryAlbumUpdateInput,
@@ -15,6 +15,7 @@ import type {
   GalleryMoveDto,
 } from "@gafus/types";
 import type { GalleryDb, GalleryStoragePort, GalleryTx } from "./ports";
+import type { EnqueueDeletedMediaPurge } from "../mediaDelivery/purgeQueue";
 import { GalleryError } from "./errors";
 import * as s from "./schemas";
 import { galleryPhotoKeys, galleryPhotoV2Keys, gallerySourceKey } from "./keys";
@@ -42,14 +43,16 @@ import { createGalleryWorkerOperations } from "./worker";
 export interface CreateGalleryServiceInput {
   db: GalleryDb;
   storage: GalleryStoragePort;
+  enqueueDeletedMediaPurge: EnqueueDeletedMediaPurge<GalleryTx, "gallery">;
   now?: () => Date;
 }
 export function createGalleryService({
   db,
   storage,
+  enqueueDeletedMediaPurge,
   now = () => new Date(),
 }: CreateGalleryServiceInput) {
-  const ctx: GalleryContext = { db, storage, now };
+  const ctx: GalleryContext = { db, storage, enqueueDeletedMediaPurge, now };
   const parseId = (id: string) => s.galleryParse(s.galleryIdSchema, id);
   async function ownerRequest<T>(actorId: string, fn: (tx: GalleryTx) => Promise<T>) {
     requireGalleryEnabled(ctx);

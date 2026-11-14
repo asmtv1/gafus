@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { describe, expect, it, vi } from "vitest";
 import { createTrainerExamManageRoutes, type TrainerExamManagePorts } from "./trainer-exam-manage";
-import type { ExamResultWithDetails } from "@gafus/core/services/exam";
+import type { ExamResultWithDetails } from "@gafus/exam-server/exam-service";
 
 const fixture = {
   id: "result-1",

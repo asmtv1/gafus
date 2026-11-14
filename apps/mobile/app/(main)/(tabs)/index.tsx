@@ -531,7 +531,7 @@ export function CoursesScreenContent({ showFavoritesUI = false }:
     // The old absolute-fill poster scaled incorrectly under Android's tab bar.
     return (
       <TexturedSafeAreaView style={styles.container} edges={[]}>
-        <StatusBar style="dark" translucent backgroundColor="transparent" />
+        <StatusBar style="dark" />
         <View style={styles.catalogLoading}>
           <ActivityIndicator color={COLORS.primary} size="large" />
           <Text style={styles.catalogLoadingText}>Загружаем курсы…</Text>
@@ -542,7 +542,7 @@ export function CoursesScreenContent({ showFavoritesUI = false }:
 
   return (
     <TexturedSafeAreaView style={styles.container} edges={[]}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       {error ? (
         <View style={styles.errorContainer}>
           {listHeader}
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.992 }],
   },
   tourTargetFill: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   dailyCourseHeader: {
     flexDirection: "row",

@@ -1,3 +1,8 @@
+// This route now binds the occurrence-specific read adapter at composition,
+// while the original Core error mock preserves the historical HTTP response.
+vi.mock("../../modules/rewarded-credits/composition/gafus-access.js", () => ({
+  requirePremiumOrRewardedAccessForVideoUrl: vi.fn(),
+}));
 /** OFF-021 AG1 actual Hono POST handler after-commit ACK boundary.
  * Real routes/Zod, injected Core/JWT-side principal; no DB/JWT signature or native replay.
  * Does NOT exercise the proposed v2 protocol. No production side effects.
@@ -11,12 +16,14 @@ vi.mock("@gafus/core/services/training",()=>({
  getTrainingDays:vi.fn(),getTrainingDayWithMonetizedSteps:vi.fn(),requireCourseStepOperationAccess:m.access,
  syncUserCourseStatusFromDays:m.sync,updateStepAndDay:m.mutate,validateTheoryStepForCompletion:m.theory,
 }));
-vi.mock("@gafus/core/services/dailyCourse",()=>({getDailyCourseDayWithUserSteps:vi.fn(),getTodayDailyCourse:vi.fn(),updateDailyCourseStepAndDay:vi.fn()}));
-vi.mock("@gafus/core/services/diary",()=>({getDiaryEntries:vi.fn(),saveDiaryEntry:vi.fn()}));
+vi.mock("../../modules/daily-course/composition/dailyCourseApplication.js",()=>({getDailyCourseDayWithUserSteps:vi.fn(),getTodayDailyCourse:vi.fn(),updateDailyCourseStepAndDay:vi.fn()}));
+vi.mock("../../modules/training/composition/diary-rows",()=>({getDiaryEntries:vi.fn(),saveDiaryEntry:vi.fn()}));
 vi.mock("@gafus/core/services/course",()=>({checkCourseAccess:vi.fn()}));
 vi.mock("@gafus/core/services/rewardedCredits",()=>({SubscriptionOrCreditsRequiredError:class extends Error{},requirePremiumOrRewardedAccessForVideoUrl:vi.fn()}));
-vi.mock("@gafus/core/services/video",()=>({getProgress:vi.fn(),checkVideoAccess:vi.fn(),getVideoManifestInfo:vi.fn(),saveProgress:vi.fn()}));
-vi.mock("@gafus/core/services/notifications",()=>({createStepNotificationForStepStart:m.notify,getDayFromDayOnCourseId:m.getDay,pauseStepNotification:vi.fn(),resetStepNotification:m.resetNotify,resumeStepNotification:vi.fn()}));
+vi.mock("../../modules/video/composition/video-access.js",()=>({getProgress:vi.fn(),checkVideoAccess:vi.fn(),getVideoManifestInfo:vi.fn(),saveProgress:vi.fn()}));
+vi.mock("@gafus/course-server/video-progress", () => ({ getProgress: vi.fn(), saveProgress: vi.fn() }));
+
+vi.mock("@gafus/notifications-server",()=>({createStepNotificationForStepStart:m.notify,getDayFromDayOnCourseId:m.getDay,pauseStepNotification:vi.fn(),resetStepNotification:m.resetNotify,resumeStepNotification:vi.fn()}));
 vi.mock("@gafus/logger",()=>({createWebLogger:()=>({error:vi.fn(),warn:vi.fn(),info:vi.fn()})}));
 vi.mock("@gafus/cdn-upload",()=>({downloadFileFromCDN:vi.fn(),extractVideoIdFromCdnUrl:vi.fn(),getSignedDownloadUrl:vi.fn(),streamFileFromCDN:vi.fn()}));
 vi.mock("@gafus/video-access",()=>({VIDEO_PLAYBACK_TOKEN_TTL_MINUTES:720,getVideoAccessService:vi.fn()}));

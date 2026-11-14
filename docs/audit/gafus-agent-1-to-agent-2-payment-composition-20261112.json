@@ -1,0 +1,229 @@
+{
+  "kind": "gafus-agent-1-to-agent-2-handoff/v1",
+  "generated_utc": "2026-11-12T00:10:52.549733+00:00",
+  "repo_path": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head_at_creation": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "baseline_is_prechange_worktree_not_git_head": true,
+  "group": "app-subscription-payment-server-composition",
+  "facades_before": 41,
+  "facades_after": 40,
+  "facades_resolved_in_group": 1,
+  "new_forbidden_facades": 0,
+  "ratchet_frozen_baseline_modified_by_agent1": false,
+  "no_commit_no_merge_no_push_no_production": true,
+  "files": [
+    {
+      "path": "packages/core/src/services/appSubscription/paymentService.ts",
+      "status": "M",
+      "sha256_before": "3febc1395d9625f7559e3349e84b295c23a04e67cff55f34ca49efa0709a19c1",
+      "sha256_after": "19ca950044f69f46aaaf696a8c612926c937a806f68448050a076fc134ed3db8",
+      "purpose": "Retired runtime Core factory; no provider/SQL adapter import."
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/index.ts",
+      "status": "M",
+      "sha256_before": "363a33f952583ed346c52386d9cabbb5176d15cf5daab4e2149c1243eb07984d",
+      "sha256_after": "356953d2cf4ed339d08597b104e3090774389e936cf94038437efb192126e77b",
+      "purpose": "Removed payment transition reexports; domain contracts and promo policy remain."
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/__tests__/paymentService.test.ts",
+      "status": "M",
+      "sha256_before": "b4ec75e6c92f198b5747fed2b904bb5cea62aca2bcfe72b20648aa0ef696b150",
+      "sha256_after": "ad813c73d46b0ee9532f291eb2b5b27c7d0e0021f5cd5ea9e8d3036d01c6328e",
+      "purpose": "50 payment invariants now instantiate the exact server factory via test-only ports."
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/__tests__/paymentService.realpg.archqa.test.ts",
+      "status": "M",
+      "sha256_before": "e1955f2326176729fe91ea527a7ffc13002230a53480dd12064f0bbbfc62f3f7",
+      "sha256_after": "3faf9850fb89adf7fc81ce1899bfc44427a1529e3121e2ffcb336d513e97da45",
+      "purpose": "Disposable-PG acceptance uses server factory, retains strict opt-in guard."
+    },
+    {
+      "path": "packages/core/src/services/appSubscription/appleJws.archqa.acceptance.ts",
+      "status": "D",
+      "sha256_before": "a611956526004cff593d095d9cda0615396b04b30eb8a5aaf49af27c3b3154e5",
+      "sha256_after": null,
+      "purpose": "Moved synthetic JWS acceptance out of Core production source."
+    },
+    {
+      "path": "packages/subscription-payment-server/src/appleJws.archqa.acceptance.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "4103ce29a6656c64cc744bcfa99b8bbcc8ba5c2959fa165a32986c5b7602a075",
+      "purpose": "Retains synthetic JWS/CA verification and untrusted-chain rejection; test-only ports."
+    },
+    {
+      "path": "packages/subscription-payment-server/src/appleJws.archqa.acceptance.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "ded3f87dd10a74934a53a1ce148065ab8fbfcbba26623d479d563b0b77d42747",
+      "purpose": "Registers JWS acceptance with server package Vitest."
+    },
+    {
+      "path": "apps/api/src/modules/app-subscription/composition/payment-transitions.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "756db331dac5c8c1bc1b938fe5af67a9241f109c5cad98d748ad7084abd3d6ad",
+      "purpose": "Binds server payment factory to Core promo-policy ports once for API."
+    },
+    {
+      "path": "apps/api/src/routes/v1/app-subscription.ts",
+      "status": "M",
+      "sha256_before": "a15b57509ecdf620bc1ea4b1a19060a3a0a1b7b76c4e7abcee38a33b5a5bdb96",
+      "sha256_after": "17c67d024170c2ad31daf4be66db8a6db6c4d1301c32067db5a8dd6cb9a3a39b",
+      "purpose": "Checkout/cancel/Apple handlers now use API composition; offer/access still Core."
+    },
+    {
+      "path": "apps/api/src/routes/v1/payment-provider-webhooks.ts",
+      "status": "M",
+      "sha256_before": "228feae96c8e77dfaa9ae208bc6d795b47ce0c7d97448a3d4cac77e474dfd3fa",
+      "sha256_after": "2181fa0c1bf695677340f05018bf8d48c899461728dbc5b22efdb80eb16a77d6",
+      "purpose": "Provider IP/signature route now uses shared API payment composition."
+    },
+    {
+      "path": "apps/api/src/routes/v1/app-subscription.route.test.ts",
+      "status": "M",
+      "sha256_before": "e1bb9941c2bef760a7b4a7c826a5bc404c60cf099e2e1028dc1b33155309ecb0",
+      "sha256_after": "8217a2e9b078bbd2166fadce0a626c0bc1219bc1d3110ac99a58b7bf09a126b4",
+      "purpose": "Split domain Core mock from provider composition; no stale Core payment exports."
+    },
+    {
+      "path": "apps/api/src/routes/v1/payment-provider-webhooks.test.ts",
+      "status": "M",
+      "sha256_before": "b139b493c972b26652e136ba0c1d829e63a93a1c9f34c47cac130825fbb48d1d",
+      "sha256_after": "d8985254073965e6beba32d8e4b91019d69aa82a6af3222f90cde7c9af3734bf",
+      "purpose": "Mocks payment composition instead of Core reexport."
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-users.ts",
+      "status": "M",
+      "sha256_before": "d6e3718aea67f3e0e5e579d078ec05248fec57f562b6f7d1a63a18d43af7bfe1",
+      "sha256_after": "096d6820490e5d11e81f5f100b286e61205f27485adc6781cf3cf202d2d3c348",
+      "purpose": "Admin cancellation uses the same API payment composition."
+    },
+    {
+      "path": "apps/api/src/routes/v1/admin-users.test.ts",
+      "status": "M",
+      "sha256_before": "c2ab3158c64aa1dc4d94760d726e05b6953c80acfee35baed28be72ff5d77295",
+      "sha256_after": "0db0794e379dd3972eba48586fdeaac933f6ab29a9ab1924907826f70d7feb68",
+      "purpose": "Admin mutation test mocks payment composition."
+    },
+    {
+      "path": "packages/worker/src/composition/app-subscription-payment.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after": "0283325a2e079dbb7c30fda43d326ec712c2fd686ffd0ac7bb4f9cf42f0059ed",
+      "purpose": "Binds independent worker-process server payment factory to identical Core promo ports."
+    },
+    {
+      "path": "packages/worker/src/cron-scheduler.ts",
+      "status": "M",
+      "sha256_before": "3a121f97da08a8d024b5532487802dee99e54a17e662da7ca0325635a7f715ca",
+      "sha256_after": "44e38f79fd9382cc9d7d3e7c95cf7e971ca8041d37c1aea456dedf5afca29acd",
+      "purpose": "Payment reconcile jobs invoke Worker composition rather than Core factory."
+    },
+    {
+      "path": "packages/worker/src/cron-scheduler.test.ts",
+      "status": "M",
+      "sha256_before": "666ca3d5765abd4e46afaf6193c1efe901b03d976e86def34f2b12833646d790",
+      "sha256_after": "ac3ef75d316c8448e2e5131acb889e7284dbfd31602b32de5086dd765f04d120",
+      "purpose": "Cron payment mocks target Worker composition."
+    },
+    {
+      "path": "packages/worker/src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts",
+      "status": "M",
+      "sha256_before": "8a5cdaac966831d8e66cbe8aae6232377b71bb1fd2d6d6cb35bc58fe6a17d051",
+      "sha256_after": "9659a9ee16f87094d3369c8f82898a1014ef32bf75d920d9b14ddecc9d715114",
+      "purpose": "Cross-module cron source mocks target Worker composition."
+    }
+  ],
+  "backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/payment-composition-prechange",
+  "validation": [
+    {
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-payment-final-boundaries.log"
+    },
+    {
+      "command": "node scripts/check-workspace-graph.mjs",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-payment-final-workspace-graph.log"
+    },
+    {
+      "command": "pnpm --filter @gafus/subscription-payment-server typecheck",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-payment-final-server-ts.log"
+    },
+    {
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-payment-final-core-ts.log"
+    },
+    {
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-payment-final-api-ts.log"
+    },
+    {
+      "command": "pnpm --filter @gafus/worker typecheck",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-payment-final-worker-ts.log"
+    },
+    {
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-payment-core-build.log"
+    },
+    {
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/appSubscription/__tests__/paymentService.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 50,
+      "log": "/tmp/a1-pmt-core-tests.log"
+    },
+    {
+      "command": "pnpm --filter @gafus/api exec vitest run src/routes/v1/app-subscription.route.test.ts src/routes/v1/payment-provider-webhooks.test.ts src/routes/v1/admin-users.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 134,
+      "log": "/tmp/a1-payment-api-architecture-final.log"
+    },
+    {
+      "command": "pnpm --filter @gafus/worker exec vitest run src/cron-scheduler.test.ts src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 13,
+      "log": "/tmp/a1-payment-worker-cron-tests.log"
+    },
+    {
+      "command": "pnpm --filter @gafus/subscription-payment-server test",
+      "status": "PASS",
+      "tests_passed": 5,
+      "log": "/tmp/a1-pmt-server-synthetic-tests.log"
+    },
+    {
+      "command": "node scripts/check-core-server-facades.mjs",
+      "status": "PASS",
+      "output": "Core server-adapter facades: 40 remaining, 1 resolved, 0 new",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-payment-final-facades.log"
+    }
+  ],
+  "acceptance_blockers": [
+    {
+      "id": "ARCHQA_REALPG",
+      "needs": "Dedicated disposable local PostgreSQL current schema, loopback DATABASE_URL, GAFUS_ARCHQA_REALPG=1, GAFUS_ARCHQA_DB_NAME matching archqa_schema_<12 hex>; no live production database; execute guarded paymentService.realpg.archqa.test.ts concurrency/rollback."
+    },
+    {
+      "id": "PROVIDER_YOOKASSA_TEST",
+      "needs": "Approved isolated YooKassa test-shop credentials, protected callback endpoint behind trusted proxy, test-provider signature/IP and synthetic/non-real charge to validate webhook/reconciliation paths."
+    },
+    {
+      "id": "PROVIDER_APPLE_SANDBOX",
+      "needs": "Approved Apple App Store Connect sandbox signing/notification configuration, valid test app bundle and signed sandbox transaction, whitelisted staged callback and App Store Server API credentials. Synthetic JWS CA tests already passed locally; external sandbox not tested."
+    },
+    {
+      "id": "INTEGRATED_CANDIDATE",
+      "needs": "All agent streams finalized, integrated candidate and sufficient disk reserve (recommended at least 12 GiB); then complete 33-stage regression and 5-stage chaos, all client/worker/panel checks, before any baseline ratchet or release."
+    }
+  ]
+}

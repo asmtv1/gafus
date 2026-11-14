@@ -14,23 +14,57 @@ if (process.cwd() !== root) {
 const path = (r) => resolve(root, r);
 const read = (r) => readFileSync(path(r), "utf8");
 const sha = (r) => createHash("sha256").update(readFileSync(path(r))).digest("hex");
-const contract = JSON.parse(read("apps/api/g1-reminder-idempotency-review-v1/AG1_REMINDER_P0_PACKAGED_ENTRYPOINT_CREATE_AND_LOOKUP_CONTRACT.v2.json"));
-const required = contract.afterReviewSHA256;
-for (const [file, expected] of Object.entries(required)) {
-  if (sha(file) !== expected) {
+// Archived AG1 SHA fixture is provenance of the original source review; it
+// predates extracting legacy keyless SQL to notifications-server. Never falsely
+// demand that 2026-10 source SHA still match current implementation. The live
+// source/export assertions below replace that obsolete fingerprint for this gate.
+const requiredSource = [
+  "apps/api/src/routes/v1/reminders.ts",
+  "packages/core/src/services/reminders/index.ts",
+  "packages/notifications-server/src/training-reminder-application.ts",
+  "packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts",
+  "packages/notifications-server/src/training-reminder-storage.ts",
+  "packages/identity-write-server/src/reminderReviewRows.ts",
+];
+for (const file of requiredSource) {
+  if (!existsSync(path(file))) {
     process.stderr.write("AG1_PACKAGE_GATE_SOURCE_PATCH_NOT_APPLIED " + file + "\n");
     process.exit(78);
   }
 }
+const legacyApplicationSource = read("packages/notifications-server/src/training-reminder-application.ts");
+const ownerStorageSource = read("packages/notifications-server/src/training-reminder-storage.ts");
+const keyedSource = read("packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts");
+const keyedRowsSource = read("packages/identity-write-server/src/reminderReviewRows.ts");
+const indexSource = read("packages/core/src/services/reminders/index.ts");
+const routeSource = read("apps/api/src/routes/v1/reminders.ts");
+if (!legacyApplicationSource.includes('./training-reminder-storage.js') ||
+    !legacyApplicationSource.includes('createTrainingReminderRow(') ||
+    legacyApplicationSource.includes('from "@gafus/prisma"') ||
+    !indexSource.includes('g1ReminderMutationReceiptAG4.review') ||
+    !routeSource.includes('@gafus/core/services/reminders') ||
+    !routeSource.includes('@gafus/notifications-server/training-reminder-application') ||
+    !keyedSource.includes('@gafus/identity-write-server/reminder-review-rows') ||
+    !ownerStorageSource.includes('AND "registrationPending" = false FOR UPDATE') ||
+    !keyedRowsSource.includes('AND "registrationPending" = false FOR UPDATE') ||
+    !ownerStorageSource.includes('tx.reminder.count') ||
+    !keyedRowsSource.includes('tx.reminder.count') ||
+    !ownerStorageSource.includes('tx.reminder.create') ||
+    !keyedRowsSource.includes('tx.reminder.create')) {
+  process.stderr.write("AG1_PACKAGE_GATE_SOURCE_PATCH_NOT_APPLIED current owner-lock contract\n");
+  process.exit(78);
+}
 const packageEntry = "packages/core/dist/core/src/services/reminders/index.js";
-const legacy = "packages/core/dist/core/src/services/reminders/reminderService.js";
+const legacy = "packages/notifications-server/dist/training-reminder-application.js";
 const receipt = "packages/core/dist/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.js";
+const storage = "packages/notifications-server/dist/training-reminder-storage.js";
+const keyedRows = "packages/identity-write-server/dist/reminderReviewRows.js";
 const packageJson = JSON.parse(read("packages/core/package.json"));
 if (packageJson.exports["./services/reminders"]?.default !== "./dist/core/src/services/reminders/index.js") {
   process.stderr.write("AG1_PACKAGE_GATE_CORE_EXPORT_CHANGED\n");
   process.exit(78);
 }
-for (const file of [packageEntry, legacy, receipt]) {
+for (const file of [packageEntry, legacy, receipt, storage, keyedRows]) {
   if (!existsSync(path(file))) {
     process.stderr.write("AG1_PACKAGE_GATE_MISSING_COMPILED_FILE " + file + "\n");
     process.exit(78);
@@ -39,12 +73,17 @@ for (const file of [packageEntry, legacy, receipt]) {
 const entryJs = read(packageEntry);
 const legacyJs = read(legacy);
 const receiptJs = read(receipt);
+const storageJs = read(storage);
+const keyedRowsJs = read(keyedRows);
 if (!entryJs.includes("g1ReminderMutationReceiptAG4.review.js") ||
-    !entryJs.includes("reminderService.js") ||
-    !legacyJs.includes("FOR UPDATE") ||
-    !legacyJs.includes("$transaction(") ||
-    !receiptJs.includes("FOR UPDATE") ||
-    !receiptJs.includes("$transaction(")) {
+    !legacyJs.includes('./training-reminder-storage.js') ||
+    !storageJs.includes("FOR UPDATE") ||
+    !storageJs.includes("$transaction(") ||
+    !storageJs.includes('tx.reminder.count') ||
+    !storageJs.includes('tx.reminder.create') ||
+    !keyedRowsJs.includes("FOR UPDATE") ||
+    !receiptJs.includes("@gafus/identity-write-server/reminder-review-rows") ||
+    !keyedRowsJs.includes("$transaction(")) {
   process.stderr.write("AG1_PACKAGE_GATE_CORE_DIST_NOT_REBUILT_OR_NOT_LOCKED\n");
   process.exit(78);
 }
@@ -56,10 +95,22 @@ if (relative(path(packageEntry), actual) !== "") {
 }
 // Dynamic import is SAFE only after verifying all compiled module source/exports.
 const compiled = await import(entry);
-for (const name of ["createReminder", "createReminderAG4", "lookupReminderAG4",
+for (const name of ["createReminderAG4", "lookupReminderAG4",
   "ReminderCapError", "ReminderConflictError", "ReminderUnknownError"]) {
   if (typeof compiled[name] !== "function") {
     process.stderr.write("AG1_PACKAGE_GATE_MISSING_CORE_EXPORT " + name + "\n");
+    process.exit(78);
+  }
+}
+const legacyEntry = import.meta.resolve("@gafus/notifications-server/training-reminder-application");
+if (relative(path(legacy), fileURLToPath(legacyEntry)) !== "") {
+  process.stderr.write("AG1_PACKAGE_GATE_WRONG_NOTIFICATIONS_NODE_RESOLUTION\n");
+  process.exit(78);
+}
+const legacyCompiled = await import(legacyEntry);
+for (const name of ["getReminders", "createReminder", "updateReminder", "deleteReminder"]) {
+  if (typeof legacyCompiled[name] !== "function") {
+    process.stderr.write("AG1_PACKAGE_GATE_MISSING_NOTIFICATIONS_EXPORT " + name + "\n");
     process.exit(78);
   }
 }
@@ -69,7 +120,7 @@ if (!existsSync(path(apiDist))) {
   process.exit(78);
 }
 const compiledApi = read(apiDist);
-if (compiledApi.includes("packages/core/src/services/reminders/reminderService.js") ||
+if (compiledApi.includes("packages/notifications-server/src/training-reminder-application.js") ||
     compiledApi.includes("packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.js")) {
   process.stderr.write("AG1_PACKAGE_GATE_API_BUNDLES_UNSAFE_DIRECT_SOURCE\n");
   process.exit(78);
@@ -77,7 +128,7 @@ if (compiledApi.includes("packages/core/src/services/reminders/reminderService.j
 const out = {
   state: "PASS_PACKAGED_RUNTIME_NO_SQL",
   sourceRouteSHA: sha("apps/api/src/routes/v1/reminders.ts"),
-  packageIndexSHA: sha(packageEntry), legacySHA: sha(legacy), receiptSHA: sha(receipt),
+  packageIndexSHA: sha(packageEntry), legacySHA: sha(legacy), storageSHA: sha(storage), receiptSHA: sha(receipt), keyedRowsSHA: sha(keyedRows),
   apiDistSHA: sha(apiDist),
   realSql: "NOT_RUN", wroteFiles: false,
 };

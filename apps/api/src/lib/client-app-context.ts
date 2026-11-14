@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 
-import type { ClientAppContext } from "@gafus/core/services/appFeatureFlags";
+import type { ClientAppContext } from "@gafus/feature-flags-server";
 
 const SEMANTIC_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 

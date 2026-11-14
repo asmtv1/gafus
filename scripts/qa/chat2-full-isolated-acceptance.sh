@@ -4,7 +4,7 @@
 set -euo pipefail
 ROOT=/Users/asmtv1/Desktop/gafus-refactor
 [[ "${PWD:A}" == "$ROOT" && "$(git rev-parse --show-toplevel)" == "$ROOT" ]] || { echo CHAT2_FULL_WRONG_ROOT; exit 2; }
-for p in 55445 56339 58339 58341 58342; do
+for p in 55445 56339 58339 58341 58342 58343; do
   if lsof -nP -iTCP:$p -sTCP:LISTEN | grep -q LISTEN; then echo "CHAT2_FULL_PORT_OCCUPIED:$p"; exit 2; fi
 done
 for bin in initdb pg_ctl redis-server psql python3; do command -v "$bin" >/dev/null || { echo "CHAT2_FULL_PREREQUISITE_MISSING:$bin"; exit 2; }; done
@@ -37,11 +37,17 @@ from pathlib import Path
 root=Path(sys.argv[1]); source=Path('infra/chat2/centrifugo.json')
 data=json.loads(source.read_text())
 data['engine']['redis']['address']='redis://127.0.0.1:56339'
+# Local broker must call this test-owned Hono; never host.docker.internal/prod.
+data['channel']['proxy']['subscribe']['endpoint']='http://127.0.0.1:58341/internal/chat2/chat2-subscribe'
 data['health']={'enabled':True}
 (root/'centrifugo.json').write_text(json.dumps(data))
 PY
 export CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY="$(openssl rand -hex 32)"
 export CENTRIFUGO_HTTP_API_KEY="$(openssl rand -hex 32)"
+# Broker-only subscribe proxy uses an independent generated key.
+export CHAT2_SUBSCRIBE_PROXY_ENABLED=true
+export CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET="$(openssl rand -hex 32)"
+export CENTRIFUGO_VAR_CHAT2_PROXY_SHARED_SECRET="$CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET"
 "$BROKER" -c "$WORK/centrifugo.json" --http_server.address 127.0.0.1 --http_server.port 58339 > "$WORK/broker.log" 2>&1 &
 broker_pid=$!
 # Broker and Redis may need a few hundred ms to bind; never race E2E tests.

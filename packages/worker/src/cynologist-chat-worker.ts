@@ -1,6 +1,6 @@
 import { Worker } from "bullmq";
 import { connection, cynologistChatQueue } from "@gafus/queues";
-import { processChatEvent, processChatSweep } from "@gafus/core/services/cynologistChat";
+import { processChatEvent, processChatSweep } from "@gafus/chat-server";
 import { createWorkerLogger } from "@gafus/logger";
 const logger = createWorkerLogger("cynologist-chat");
 export async function startCynologistChatWorker() {

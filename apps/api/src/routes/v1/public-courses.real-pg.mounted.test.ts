@@ -6,15 +6,15 @@ import type { PublicCourseCatalogItem } from "../../../../../packages/types/src/
 
 // Isolate unrelated Core barrel imports, NOT the target original Core function:
 // the real publicCatalogService and its original Prisma query execute unmocked.
-vi.mock("@gafus/core/services/course", async () => ({
+vi.mock("@gafus/course-server/public-catalog", async () => ({
   getPublicCoursesCatalog: (
-    await import("../../../../../packages/core/src/services/course/publicCatalogService")
+    await import("../../../../../packages/course-server/src/publicCatalogService")
   ).getPublicCoursesCatalog,
 }));
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ error: vi.fn(), info: vi.fn(), warn: vi.fn(), success: vi.fn() }),
 }));
-import { getPublicCoursesCatalog } from "../../../../../packages/core/src/services/course/publicCatalogService";
+import { getPublicCoursesCatalog } from "../../../../../packages/course-server/src/publicCatalogService";
 import { publicCoursesRoutes } from "./public-courses";
 
 const db = "gafus_refactor_publiccatalog_ag1_20261024";

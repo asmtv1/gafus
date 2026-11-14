@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod/v3";
-import { FEED_REPORT_REASONS } from "../../../../types/src/feed";
+import { FEED_REPORT_REASONS } from "@gafus/types";
 import { FeedError } from "./errors";
 import { feedIdSchema, feedListSchema, feedParse } from "./schemas";
 import type { FeedDb, FeedTx } from "./ports";

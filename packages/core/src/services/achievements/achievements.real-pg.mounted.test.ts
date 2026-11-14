@@ -3,8 +3,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@gafus/prisma";
 import type { AchievementDataWire } from "@gafus/types";
 import { createReadAchievementsApplication } from "../../../../../apps/api/src/modules/achievements/application/read-achievements";
-import { getUserTrainingDates } from "./datesService";
-import { getAchievementStats } from "./statsService";
+import { getUserTrainingDates } from "@gafus/achievements-server/datesService";
+import { getAchievementStats } from "@gafus/achievements-server/statsService";
 
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), success: vi.fn() }),

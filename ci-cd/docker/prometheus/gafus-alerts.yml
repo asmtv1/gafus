@@ -47,6 +47,30 @@ groups:
         annotations:
           summary: "Durable mail delivery queue has stalled items"
 
+      # Legacy Questions object-delete outbox: no owner/path labels.
+      # Worker exports zero-valued gauges while opt-in is disabled.
+      - alert: GafusQuestionsLegacyDeletionDeadLetters
+        expr: gafus_questions_legacy_delete_failed > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Questions legacy photo cleanup has terminal deletion failures"
+      - alert: GafusQuestionsLegacyDeletionStalled
+        expr: gafus_questions_legacy_delete_oldest_age_seconds > 3600
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Questions legacy photo delete outbox is over one hour old"
+      - alert: GafusQuestionsLegacyDeletionMetricsMissing
+        expr: absent(gafus_questions_legacy_delete_enabled)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Questions legacy delete metrics are missing from the Worker"
+
       - alert: GafusMediaLeaseStalled
         expr: gafus_media_stalled_processing > 0
         for: 5m
@@ -100,3 +124,82 @@ groups:
           severity: critical
         annotations:
           summary: "Last remotely verified PostgreSQL backup is older than 36 hours"
+
+      - alert: GafusChat2OutboxOldestPending
+        expr: gafus_chat2_outbox_oldest_age_seconds > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Oldest Chat2 outbox event is older than five minutes"
+      - alert: GafusChat2DispatchRetryStorm
+        # Gate on both absolute volume and retry share to avoid low-volume noise.
+        expr: >-
+          sum(increase(job_attempts_total{job_type="chat2_outbox",outcome="retry"}[10m])) > 20
+          and
+          (
+            sum(increase(job_attempts_total{job_type="chat2_outbox",outcome="retry"}[10m]))
+            /
+            clamp_min(sum(increase(job_attempts_total{job_type="chat2_outbox"}[10m])), 1)
+          ) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GAFUS Chat2 outbox has sustained excessive dispatch retries"
+      - alert: GafusChat2OutboxDeadLetters
+        expr: gafus_chat2_outbox_dead_letters > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Chat2 outbox dead letters need an admin review"
+      - alert: GafusChat2OutboxMetricsMissing
+        expr: absent(gafus_chat2_outbox_pending)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Chat2 outbox metrics are not exported by the worker"
+      - alert: GafusApi5xxElevated
+        expr: (sum(rate(http_requests_total{status="5xx"}[5m])) / clamp_min(sum(rate(http_requests_total[5m])), 0.001) > 0.05) and (sum(increase(http_requests_total[5m])) >= 100)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API 5xx ratio above 5% for ten minutes"
+      - alert: GafusApiP95High
+        expr: (histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 1.5) and (sum(increase(http_requests_total[5m])) >= 100)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency above 1.5 seconds under meaningful traffic"
+      - alert: GafusWorkerNoSuccessWithBacklog
+        expr: (gafus_chat2_outbox_pending > 0) and on() (sum(rate(job_attempts_total{job_type="chat2_outbox",outcome="delivered"}[10m])) == 0)
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Chat2 has queued events but no successful dispatches for ten minutes"
+      - alert: GafusWorkerAttemptMetricsMissing
+        expr: absent(job_attempts_total)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Worker attempt metrics are missing"
+      - alert: GafusPostgresConnectionsHigh
+        expr: (sum(pg_stat_activity_count) / clamp_min(max(pg_settings_max_connections), 1) > 0.85) and (max(pg_settings_max_connections) > 0)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL connections exceed 85% of configured maximum"
+      - alert: GafusApiMetricsMissing
+        expr: (up{job="api-operations"} == 0) or absent(up{job="api-operations"})
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API operations metrics endpoint is not being scraped"

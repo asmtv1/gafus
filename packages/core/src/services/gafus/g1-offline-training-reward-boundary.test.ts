@@ -7,6 +7,21 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { GafusTx } from "./types";
 import { awardActivityTx, awardBonusTx } from "./rewardService";
+// Compose the original SQL repository into the Core domain port. Synthetic
+// fixtures still own their Prisma TransactionClient and no new DB is opened.
+import { registerGafusLedgerRowsPort } from "./gafusLedgerPort";
+import {
+  ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
+  appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
+} from "@gafus/gafus-server/wallet-records";
+registerGafusLedgerRowsPort({
+  ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
+  appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
+});
+
+import { registerGafusLockPort } from "./locking";
+import { lockGafusUser, withGafusUserLock } from "@gafus/gafus-server/wallet-lock";
+registerGafusLockPort({ lockGafusUser, withGafusUserLock });
 import { DEFAULT_GAFUS_SETTINGS } from "./settingsService";
 
 const core = (relative: string) =>
@@ -88,10 +103,21 @@ describe("AG1 OFF021 existing training vs earning boundary (NO real DB)",()=>{
     expect(span).not.toMatch(/awardActivityTx|awardBonusTx|changeGafusBalanceTx|grantRewardedCreditsToWallet|gafusRewardEvent/);
   });
   it("RW04 actual Core step/daily complete state transitions never directly write Gafus wallets/events",()=>{
-    const training=core("../training/trainingService.ts");
-    const daily=core("../dailyCourse/dailyCourseService.ts");
-    const step=section(training,"export async function updateStepAndDay(","export async function syncUserCourseStatusFromDays(");
-    const day=section(daily,"export async function updateDailyCourseStepAndDay(","export async function getDailyCourseScheduleStatistics(");
+    const trainingCore=core("../training/trainingService.ts");
+    const dailyComposition=core("../../../../../apps/api/src/modules/daily-course/composition/dailyCourseApplication.ts");
+    // Core must delegate the public APIs to the real compiled server package.
+    // Inspect the implementation, not the thin façade, so a future accidental
+    // Gafus wallet write during a completion still fails closed.
+    expect(trainingCore).toContain('registerTrainingServicePort');
+    const trainingApiComposer=core("../../../../../apps/api/src/modules/training/composition/install-training-service.ts");
+    expect(trainingApiComposer).toContain('@gafus/course-progress-server/training-service');
+    expect(dailyComposition).toContain('@gafus/course-progress-server/daily-course-service');
+    expect(trainingCore).toMatch(/export const updateStepAndDay:/);
+    expect(dailyComposition).toMatch(/updateDailyCourseStepAndDay,/);
+    const training=core("../../../../course-progress-server/src/trainingService.ts");
+    const daily=core("../../../../course-progress-server/src/dailyCourseService.ts");
+    const step=section(training,"async function updateStepAndDay(","async function syncUserCourseStatusFromDays(");
+    const day=section(daily,"async function updateDailyCourseStepAndDay(","async function getDailyCourseScheduleStatistics(");
     for(const s of [step,day]){
       expect(s).toContain("stepJustCompleted");
       expect(s).not.toMatch(/awardActivityTx|awardBonusTx|gafusRewardEvent|gafusTransaction|gafusWallet|grantRewardedCreditsToWallet/);

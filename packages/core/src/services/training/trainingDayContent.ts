@@ -4,67 +4,17 @@
  * Access is checked by the caller on EVERY read, even when this content is cached.
  * The short-lived, per-process cache is OFF unless ENABLE_COURSE_CACHE=true.
  */
-import { prisma, type Prisma } from "@gafus/prisma";
+import { requireTrainingDayContentReadPort } from "./trainingDayContentReadPort";
 import {
   courseContentSyncEnabled,
   getVerifiedCourseContentRevision,
 } from "./trainingContentRevision";
 import { observeCourseContentDbRead, recordCourseCacheEvent } from "./trainingContentMetrics";
 
-const trainingDayContentSelect = {
-  id: true,
-  order: true,
-  courseId: true,
-  course: {
-    select: {
-      duration: true,
-      isPersonalized: true,
-    },
-  },
-  day: {
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      type: true,
-      showCoursePathExport: true,
-      stepLinks: {
-        orderBy: { order: "asc" },
-        select: {
-          id: true,
-          order: true,
-          step: {
-            select: {
-              id: true,
-              title: true,
-              description: true,
-              durationSec: true,
-              estimatedDurationSec: true,
-              videoUrl: true,
-              videoUrls: true,
-              imageUrls: true,
-              pdfUrls: true,
-              type: true,
-              checklist: true,
-              requiresVideoReport: true,
-              requiresWrittenFeedback: true,
-              hasTestQuestions: true,
-              surveySlug: true,
-            },
-          },
-        },
-      },
-    },
-  },
-} satisfies Prisma.DayOnCourseSelect;
-
 export async function loadTrainingDayContent(courseType: string, dayOnCourseId: string) {
   const started = performance.now();
   try {
-    return await prisma.dayOnCourse.findFirst({
-      where: { id: dayOnCourseId, course: { type: courseType } },
-      select: trainingDayContentSelect,
-    });
+    return await requireTrainingDayContentReadPort().readTrainingDayContent(courseType, dayOnCourseId);
   } catch (error) {
     recordCourseCacheEvent("dbError");
     throw error;

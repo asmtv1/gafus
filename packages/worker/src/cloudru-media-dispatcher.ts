@@ -1,3 +1,5 @@
+import { startCorrelatedSpan, markServerSpanError } from "@gafus/logger/server-telemetry";
+
 /**
  * Trigger only Feed/Chat VIDEO Cloud.ru Jobs. All photo/image Jobs are retired.
  * Core owns all durable claims/leases; overlapping Cloud invocations are idempotent.
@@ -31,14 +33,25 @@ export function safeCloudruDispatchError(error: unknown): Error {
 async function requestCloudru(
   http: HttpFetch, url: string, init: RequestInit, phase: "IAM" | "EXECUTION",
 ): Promise<Response> {
+  const span = startCorrelatedSpan({
+    name: phase === "IAM" ? "cloudru.iam.request" : "cloudru.job.execute",
+    service: "gafus-worker", kind: "client",
+    attributes: { "peer.service": "cloudru", "gafus.cloudru.phase": phase },
+  });
   try {
-    return await http(url, init);
+    const response = await http(url, init);
+    span.setAttribute("http.response.status_code", response.status);
+    if (!response.ok) markServerSpanError(span, "CLOUDRU_HTTP_ERROR");
+    return response;
   } catch (error) {
+    markServerSpanError(span, "CLOUDRU_REQUEST_FAILED");
     const e = error as { name?: string; cause?: { code?: string } } | null;
     const code = e?.name === "TimeoutError" || e?.name === "AbortError"
       ? "TIMEOUT" : e?.cause?.code;
     const known = ["EAI_AGAIN", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET", "ECONNREFUSED"];
     throw new Error(`CLOUDRU_JOB_${phase}_NETWORK_${code && known.includes(code) ? code : code === "TIMEOUT" ? code : "UNAVAILABLE"}`);
+  } finally {
+    span.end();
   }
 }
 export function createCloudruMediaDispatcher(

@@ -14,6 +14,12 @@ vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: mocks.verifyAccessToken }
 vi.mock("@gafus/core/services/auth", () => ({
   isRegistrationCompleted: mocks.isRegistrationCompleted,
 }));
+vi.mock("@gafus/course-server/favorites",()=>({
+  getFavoritesCourses:vi.fn(),
+  addFavoriteCourse:mocks.addFavoriteCourse,
+  removeFavoriteCourse:mocks.removeFavoriteCourse,
+  toggleFavoriteCourse:mocks.toggleFavoriteCourse,
+}));
 vi.mock("@gafus/core/services/course", () => ({
   getCoursesWithProgress: mocks.getCoursesWithProgress,
   addFavoriteCourse: mocks.addFavoriteCourse,

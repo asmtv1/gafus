@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 /** Original signed Hono -> WORK PG -> local MinIO -> existing Sharp feed-cloud worker -> original Hono READY. */
 import { randomBytes, randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
@@ -101,7 +102,7 @@ async function main(){
  // Core claim(...,"video") EXCLUDES photo and cleanup jobs. Never touch them.
  ensure(videoDue.length===1&&videoDue[0]?.ownerId===owner.id&&videoDue[0]?.uploadId===uploadId,
    "NO_FOREIGN_VIDEO_JOB_BEFORE_CLAIM");
- const jobs=createFeedStorageJobs({db:prisma});
+ const jobs=createFeedStorageJobs({ enqueueDeletedMediaPurge, db:prisma});
  const claimed=await jobs.claim(1,"video");
  ensure(claimed.length===1&&claimed[0]?.ownerId===owner.id&&claimed[0]?.uploadId===uploadId&&claimed[0]?.kind==="publish_video","CLAIM_ONLY_OWN_VIDEO_JOB");
  const core={

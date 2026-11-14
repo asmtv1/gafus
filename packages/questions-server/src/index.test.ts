@@ -1,11 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 const core = vi.hoisted(() => ({ listQuestions: vi.fn(), createQuestion: vi.fn(), setQuestionHeart: vi.fn() }));
-vi.mock("@gafus/core/services/questions", () => ({
+vi.mock("./service.js", () => ({
   ...core,
   QuestionError: class extends Error { constructor(public code: string, message: string, public status: number) { super(message); } },
   questionHttpError: vi.fn(),
-  deleteUnusedQuestionPhoto: vi.fn(), getQuestionModeration: vi.fn(), moderateQuestionReport: vi.fn(), unblockQuestionsUser: vi.fn(),
+
 }));
+const moderation = vi.hoisted(() => ({ get: vi.fn(), act: vi.fn(), unblock: vi.fn() }));
+vi.mock("./moderation.js", () => ({
+  getQuestionModeration: moderation.get,
+  moderateQuestionReport: moderation.act,
+  unblockQuestionsUser: moderation.unblock,
+}));
+vi.mock("./photos.js",()=>({deleteUnusedQuestionPhoto:vi.fn()}));
 import { dispatchQuestionsRequest } from "./index";
 describe("questions HTTP decoding", () => {
   it("passes query data and the authenticated actor to core", async () => {
@@ -30,6 +37,19 @@ describe("questions HTTP decoding", () => {
     await expect(dispatchQuestionsRequest("account-1",
       new Request("https://example.test/questions/photos",{method:"POST",body:form}),
       "photos")).rejects.toMatchObject({status:410,code:"PHOTO_UPLOAD_V2_REQUIRED"});
+  });
+  it("routes moderation with the authenticated actor and keeps it outside Core", async () => {
+    await dispatchQuestionsRequest("admin-user", new Request("https://example.test/questions/moderation?page=2"), "moderation");
+    expect(moderation.get).toHaveBeenCalledWith("admin-user", 2);
+    const payload = { reportId: "report-A", action: "hide", reason: "Спам" };
+    await dispatchQuestionsRequest("admin-user", new Request("https://example.test/questions/moderation", {
+      method: "POST", body: JSON.stringify(payload),
+    }), "moderation");
+    expect(moderation.act).toHaveBeenCalledWith("admin-user", payload);
+    await dispatchQuestionsRequest("admin-user", new Request("https://example.test/questions/moderation/blocks/user-B", {
+      method: "DELETE",
+    }), "moderation/blocks/user-B");
+    expect(moderation.unblock).toHaveBeenCalledWith("admin-user", "user-B");
   });
   it("returns 404 for unsupported routes and methods", async () => {
     await expect(dispatchQuestionsRequest("account-1", new Request("https://example.test/questions", { method: "PUT" }), "")).rejects.toMatchObject({ status: 404 });

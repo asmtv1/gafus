@@ -1,0 +1,219 @@
+# Agent 2 isolated PromQL/SLO tests. Synthetic series; not staging evidence.
+rule_files:
+  - gafus-alerts.yml
+evaluation_interval: 1m
+tests:
+  - name: small_sample_must_not_trigger_api_5xx
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{method="GET",route="/health",status="2xx"}'
+        values: '0+1x30'
+      - series: 'http_requests_total{method="GET",route="/health",status="5xx"}'
+        values: '0+1x30'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: GafusApi5xxElevated
+        exp_alerts: []
+  - name: meaningful_sustained_api_5xx_triggers
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{method="GET",route="/health",status="2xx"}'
+        values: '0+80x30'
+      - series: 'http_requests_total{method="GET",route="/health",status="5xx"}'
+        values: '0+20x30'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: GafusApi5xxElevated
+        exp_alerts: []
+      - eval_time: 13m
+        alertname: GafusApi5xxElevated
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "API 5xx ratio above 5% for ten minutes"
+  - name: slow_api_p95_at_high_volume_triggers
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{method="GET",route="/health",status="2xx"}'
+        values: '0+100x30'
+      - series: 'http_request_duration_seconds_bucket{method="GET",route="/health",status="2xx",le="0.5"}'
+        values: '0+0x30'
+      - series: 'http_request_duration_seconds_bucket{method="GET",route="/health",status="2xx",le="1"}'
+        values: '0+1x30'
+      - series: 'http_request_duration_seconds_bucket{method="GET",route="/health",status="2xx",le="2.5"}'
+        values: '0+100x30'
+      - series: 'http_request_duration_seconds_bucket{method="GET",route="/health",status="2xx",le="+Inf"}'
+        values: '0+100x30'
+    alert_rule_test:
+      - eval_time: 13m
+        alertname: GafusApiP95High
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "API p95 latency above 1.5 seconds under meaningful traffic"
+  - name: chat2_pending_without_deliveries_triggers
+    interval: 1m
+    input_series:
+      - series: 'gafus_chat2_outbox_pending'
+        values: '7+0x30'
+      - series: 'job_attempts_total{job_type="chat2_outbox",outcome="delivered"}'
+        values: '0+0x30'
+      - series: 'job_attempts_total{job_type="chat2_outbox",outcome="retry"}'
+        values: '0+5x30'
+    alert_rule_test:
+      - eval_time: 13m
+        alertname: GafusWorkerNoSuccessWithBacklog
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "Chat2 has queued events but no successful dispatches for ten minutes"
+  - name: postgres_connections_capacity_exceeded
+    interval: 1m
+    input_series:
+      - series: 'pg_stat_activity_count{datname="gafus",state="active"}'
+        values: '90+0x30'
+      - series: 'pg_settings_max_connections'
+        values: '100+0x30'
+    alert_rule_test:
+      - eval_time: 13m
+        alertname: GafusPostgresConnectionsHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "PostgreSQL connections exceed 85% of configured maximum"
+  - name: api_metrics_scrape_missing_and_recovered
+    interval: 1m
+    input_series:
+      - series: 'up{job="api-operations"}'
+        values: '0+0x14 1+0x16'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: GafusApiMetricsMissing
+        exp_alerts:
+          - exp_labels:
+              job: api-operations
+              severity: warning
+            exp_annotations:
+              summary: "API operations metrics endpoint is not being scraped"
+      - eval_time: 20m
+        alertname: GafusApiMetricsMissing
+        exp_alerts: []
+  - name: stuck_360p_media_fires_and_resolves
+    interval: 1m
+    input_series:
+      - series: 'gafus_media_stalled_processing{pipeline="chat2"}'
+        values: '1+0x10 0+0x15'
+    alert_rule_test:
+      - eval_time: 7m
+        alertname: GafusMediaLeaseStalled
+        exp_alerts:
+          - exp_labels:
+              pipeline: chat2
+              severity: warning
+            exp_annotations:
+              summary: "GAFUS chat2 media processing has expired leases"
+      - eval_time: 16m
+        alertname: GafusMediaLeaseStalled
+        exp_alerts: []
+  - name: retry_storm_fires_and_resolves
+    interval: 1m
+    input_series:
+      - series: 'job_attempts_total{job_type="chat2_outbox",outcome="retry"}'
+        values: '0+5x19 95+0x17'
+      - series: 'job_attempts_total{job_type="chat2_outbox",outcome="delivered"}'
+        values: '0+5x19 95+5x17'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: GafusChat2DispatchRetryStorm
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "GAFUS Chat2 outbox has sustained excessive dispatch retries"
+      - eval_time: 31m
+        alertname: GafusChat2DispatchRetryStorm
+        exp_alerts: []
+  - name: small_retry_sample_is_not_storm
+    interval: 1m
+    input_series:
+      - series: 'job_attempts_total{job_type="chat2_outbox",outcome="retry"}'
+        values: '0+1x30'
+      - series: 'job_attempts_total{job_type="chat2_outbox",outcome="delivered"}'
+        values: '0+10x30'
+    alert_rule_test:
+      - eval_time: 19m
+        alertname: GafusChat2DispatchRetryStorm
+        exp_alerts: []
+  - name: missing_worker_attempts_alarm
+    interval: 1m
+    input_series:
+      - series: 'unrelated_worker_process_up'
+        values: '1+0x22'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: GafusWorkerAttemptMetricsMissing
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: GafusWorkerAttemptMetricsMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "Worker attempt metrics are missing"
+  - name: worker_attempts_present_no_alarm
+    interval: 1m
+    input_series:
+      - series: 'job_attempts_total{job_type="chat2_outbox",outcome="delivered"}'
+        values: '0+1x22'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: GafusWorkerAttemptMetricsMissing
+        exp_alerts: []
+  - name: database_redis_and_http_critical_dependencies_down_then_recovered
+    interval: 1m
+    input_series:
+      - series: 'pg_up{job="postgres-exporter"}'
+        values: '0+0x5 1+0x22'
+      - series: 'redis_up{job="redis-exporter"}'
+        values: '0+0x5 1+0x22'
+      - series: 'probe_success{job="services-health",service="api"}'
+        values: '0+0x5 1+0x22'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: GafusPostgresUnavailable
+        exp_alerts:
+          - exp_labels:
+              job: postgres-exporter
+              severity: critical
+            exp_annotations:
+              summary: "GAFUS PostgreSQL exporter reports unavailable database"
+      - eval_time: 3m
+        alertname: GafusRedisUnavailable
+        exp_alerts:
+          - exp_labels:
+              job: redis-exporter
+              severity: critical
+            exp_annotations:
+              summary: "GAFUS Redis exporter reports unavailable Redis"
+      - eval_time: 3m
+        alertname: GafusHttpServiceDown
+        exp_alerts:
+          - exp_labels:
+              job: services-health
+              service: api
+              severity: critical
+            exp_annotations:
+              summary: "GAFUS health probe failed for api"
+      - eval_time: 8m
+        alertname: GafusPostgresUnavailable
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: GafusRedisUnavailable
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: GafusHttpServiceDown
+        exp_alerts: []

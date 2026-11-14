@@ -1,0 +1,195 @@
+{
+  "schema": "gafus-a1-a2-handoff/v1",
+  "created_utc": "2026-11-12T05:20:29.466170+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "rewarded-access-read-port",
+  "edges_before": 19,
+  "edges_after": 18,
+  "frozen_ratchet": {
+    "baseline": 41,
+    "resolved": 23,
+    "new": 0
+  },
+  "historical": {
+    "start": 142,
+    "removed": 124
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "964aaa01f1a6ee6f6eb7d75e2dba58fca57affb1b856a41b9e66ac4530aa5878",
+      "sha256_after_current": "906430c29923f6bd1745d6a95fa5f20f3db2f10dd4498de534354530c587e241",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-access-read-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/rewarded-credits/composition/install-access-reads.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "891eaa76ac8b938664ed154b95f97ab2ba296a80cbf40291b6a08fba5b70f63a",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/rewarded-credits/composition/install-access-reads.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "9709ae3ec3762f5f06a2252a8f6a3fb24e34b8b5c565e78cea4939e6ab9ee109",
+      "backup_before": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "3b9497b5bd801b15b689a1b47b86313aa7f984fb288ce3fc6e1277650941df0b",
+      "sha256_after_current": "f2ecdfdb968d5f063df06d5842215f57cf603345ce9e4c79c0d40aa1d1a3d905",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-access-read-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "6a6f02c291066f964a020c10fff6f583a3ee4f9642fb01bf297460d88e918845",
+      "sha256_after_current": "982e591d74893e9946bc2a6a73a9f0fc28772e853178b136d571f8bafd2112a3",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-access-read-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/accessService.test.ts",
+      "status": "M",
+      "sha256_before": "12286b3af6b567f2fc92706f152043e7a0067a2eec47b8903d54de003c919b1f",
+      "sha256_after_current": "7a53491937775f5cda1e0200ab164b9ced9e51ca9a407de5acade65dd4d42ee4",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-access-read-port-prechange/packages/core/src/services/rewardedCredits/accessService.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/accessService.ts",
+      "status": "M",
+      "sha256_before": "14a16ba972529d7bd0d29e0c62da430b88c2098f56c7516ad2a555f82279d2c8",
+      "sha256_after_current": "16c51390b3eeb33e450ddea11cf38c1fdb52ca0467756e07ee36bcca798f73da",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-access-read-port-prechange/packages/core/src/services/rewardedCredits/accessService.ts"
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/index.ts",
+      "status": "M",
+      "sha256_before": "8e0680b5ce91acbf30b803fda55cc479a7fe9f900c186be32f77f9a405e3229e",
+      "sha256_after_current": "cbe0aa6ed529acc33326ca579b67cafa695f3a6de5984d25d955c75aad4da570",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-access-read-port-prechange/packages/core/src/services/rewardedCredits/index.ts"
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/rewardedAccessReadPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "3cd23e27acc40013173d72b4b32d5801da46aeb5046aa9291094dc11c6c987d2",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/rewardedAccessReadPort.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "38e13523ba3aa5cf85bd3d2dff56f450cc5765472ad79229c10e4fceeb95d1bd",
+      "backup_before": null
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "d1184ab171c94b7c48d6efb98520d05c00157f81096ef9d9a11bfab1dc58cc95",
+      "sha256_after_current": "a961a014a8afe1f73722bd9f149279cc9a6c898622c41c056edaf2ca180f1821",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-access-read-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Existing Core owner/paid/video policies",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": 16,
+      "tests_skipped": null,
+      "log": "/tmp/a1-rewarded-access-existing-tests.log"
+    },
+    {
+      "name": "Core missing SQL port, target scope and rebind",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": 3,
+      "tests_skipped": null,
+      "log": "/tmp/a1-rewarded-access-new-core-tests.log"
+    },
+    {
+      "name": "API owner SQL composition",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": null,
+      "log": "/tmp/a1-rewarded-access-api-contract.log"
+    },
+    {
+      "name": "Full Core",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": 2130,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-access-core-full.log"
+    },
+    {
+      "name": "Full API",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": 2760,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-access-api-full.log"
+    },
+    {
+      "name": "Core typecheck",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-access-core-types.log"
+    },
+    {
+      "name": "Core build",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-rewarded-access-core-build-v3.log"
+    },
+    {
+      "name": "API typecheck",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-access-api-types.log"
+    },
+    {
+      "name": "Entitlements adapter typecheck",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-access-server-types.log"
+    },
+    {
+      "name": "Architecture boundaries",
+      "command": null,
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-rewarded-access-boundaries.log"
+    }
+  ],
+  "sha_basis": "Fresh prechange snapshot of shared uncommitted working tree, final SHA256 computed and verified now; NEVER reuse older A2 shared-file hashes.",
+  "prechange_backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-access-read-port-prechange",
+  "public_contract_invariants": [
+    "Десять typed owner-scoped SQL SELECT перенесены из Core в `RewardedAccessReadPort` и API composition до Hono.",
+    "Core сохраняет платные/приватные курсы, private assignment, точные day/step/URL occurrences, роль, подписку и Gafus-грант без global media обхода.",
+    "Unbound port `REWARDED_ACCESS_READ_PORT_UNBOUND` отказывает, hot-swap `REWARDED_ACCESS_READ_PORT_ALREADY_BOUND` запрещён. Nullable notification URL соответствует реальному Prisma SELECT."
+  ],
+  "external_gates": [
+    "Disposable PG with owner/outsider UserTraining, private CourseAccess revoked, paid video tied to two day occurrences, expired Gafus grant; prove no cross-owner access.",
+    "Web/Mobile staging paid video and step notifications with real JWT, role and subscription; no production credentials.",
+    "Remove 18 remaining reverse edges; combined A1/A2/A3 33-stage architecture final + 5-stage chaos, Worker/panels/PG/Redis client gates before frozen ratchet."
+  ],
+  "no_commit_merge_push_deploy": true,
+  "frozen_baseline_json_modified": false,
+  "handoff": "A2 must compare all final SHA256 after before integrating. Shared app.ts, guards and audit files require semantic merging; never overwrite concurrent streams. Port, API installer and tests are an atomic patch."
+}

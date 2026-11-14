@@ -13,23 +13,17 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@gafus/core/services/systemHealth/mediaProcessingMetrics": [
-        "../core/src/services/systemHealth/mediaProcessingMetrics.ts"
+      "@gafus/media-server/purge-repository": [
+        "../media-server/dist/mediaCdnPurgeRepository.d.ts"
       ],
-      "@gafus/core/services/systemHealth/mailDeliveryMonitor": [
-        "../core/src/services/systemHealth/mailDeliveryMonitor.ts"
+      "@gafus/media-server/trainer-transcoding": [
+        "../media-server/dist/trainerTranscoding.d.ts"
       ],
       "@gafus/core/services/mediaDelivery/purgeWorker": [
         "../core/src/services/mediaDelivery/purgeWorker.ts"
       ],
-      "@gafus/core/services/accountCleanup": [
-        "../../packages/core/src/services/accountCleanup/index.ts"
-      ],
       "@gafus/core/services/pets": [
         "../../packages/core/src/services/pets/index.ts"
-      ],
-      "@gafus/core/services/questions": [
-        "../../packages/core/src/services/questions/index.ts"
       ],
       "@gafus/core/services/gallery": [
         "../../packages/core/src/services/gallery/index.ts"
@@ -54,9 +48,6 @@
       ],
       "@gafus/core/services/exam": [
         "../../packages/core/src/services/exam/index.ts"
-      ],
-      "@gafus/core/services/systemHealth": [
-        "../../packages/core/src/services/systemHealth/index.ts"
       ],
       "@gafus/core/services/gafus": [
         "../../packages/core/src/services/gafus/index.ts"
@@ -93,6 +84,315 @@
       ],
       "@gafus/feed-storage": [
         "../feed-storage/dist/index.d.ts"
+      ],
+      "@gafus/statistics/mail-monitoring": [
+        "../statistics/dist/mail-monitoring.d.ts"
+      ],
+      "@gafus/statistics/database-health": [
+        "../statistics/dist/database-health.d.ts"
+      ],
+      "@gafus/feed-server/smart-persistence": [
+        "../feed-server/dist/smart-persistence.d.ts"
+      ],
+      "@gafus/feed-server/retired-photo-queue": [
+        "../feed-server/dist/retiredPhotoQueue.d.ts"
+      ],
+      "@gafus/questions-server/notifications": [
+        "../questions-server/dist/notifications.d.ts"
+      ],
+      "@gafus/feed-server/runtime-services": [
+        "../feed-server/dist/runtimeServices.d.ts"
+      ],
+      "@gafus/feed-server/background-operations": [
+        "../feed-server/dist/backgroundOperations.d.ts"
+      ],
+      "@gafus/exam-server/cleanup": [
+        "../exam-server/dist/cleanupService.d.ts"
+      ],
+      "@gafus/gallery-server/runtime-service": [
+        "../gallery-server/dist/runtimeService.d.ts"
+      ],
+      "@gafus/questions-server/photos": [
+        "../questions-server/dist/photos.d.ts"
+      ],
+      "@gafus/consultation-server/booking-application": [
+        "../consultation-server/dist/bookingApplication.d.ts"
+      ],
+      "@gafus/consultation-server/mail-delivery": [
+        "../consultation-server/dist/consultationEmailDelivery.d.ts"
+      ],
+      "@gafus/core/services/consultation/transactional-mail": [
+        "../../packages/core/src/services/consultation/consultationTransactionalMail.ts"
+      ],
+      "@gafus/notifications-server/gafus-delivery": [
+        "../notifications-server/dist/gafus-delivery.d.ts"
+      ],
+      "@gafus/notifications-server/training-reminder-delivery": [
+        "../notifications-server/dist/training-reminder-delivery.d.ts"
+      ],
+      "@gafus/article-server": [
+        "../article-server/dist/index.d.ts"
+      ],
+      "@gafus/article-server/likes": [
+        "../article-server/dist/articleLikes.d.ts"
+      ],
+      "@gafus/gafus-server/activity-read": [
+        "../gafus-server/dist/activityRead.d.ts"
+      ],
+      "@gafus/gafus-server/settings-read": [
+        "../gafus-server/dist/settingsRead.d.ts"
+      ],
+      "@gafus/entitlements-server/policy-reads": [
+        "../entitlements-server/dist/policyReads.d.ts"
+      ],
+      "@gafus/media-server/question-photo-task": [
+        "../media-server/dist/questionPhotoTaskRead.d.ts"
+      ],
+      "@gafus/course-read-server/course-path-read": [
+        "../course-read-server/dist/coursePathRead.d.ts"
+      ],
+      "@gafus/pets-server/pet-reads": [
+        "../pets-server/dist/petReadProjections.d.ts"
+      ],
+      "@gafus/trainer-ai-server/persistence": [
+        "../trainer-ai-server/dist/persistence.d.ts"
+      ],
+      "@gafus/course-read-server/content-revision": [
+        "../course-read-server/dist/durableContentRevision.d.ts"
+      ],
+      "@gafus/gafus-server/wallet-lock": [
+        "../gafus-server/dist/walletLock.d.ts"
+      ],
+      "@gafus/course-progress-server/completion": [
+        "../course-progress-server/dist/completion.d.ts"
+      ],
+      "@gafus/identity-write-server/password-reset": [
+        "../identity-write-server/dist/passwordReset.d.ts"
+      ],
+      "@gafus/consultation-query-server/booking-eligibility": [
+        "../consultation-query-server/dist/bookingEligibility.d.ts"
+      ],
+      "@gafus/subscription-finance-server/payment-finance": [
+        "../subscription-finance-server/dist/paymentFinance.d.ts"
+      ],
+      "@gafus/course-read-server/editor-snapshot": [
+        "../course-read-server/dist/editorSnapshot.d.ts"
+      ],
+      "@gafus/subscription-trial-server/trial-usage": [
+        "../subscription-trial-server/dist/trialUsage.d.ts"
+      ],
+      "@gafus/notifications-server/consultation-email-outbox": [
+        "../notifications-server/dist/consultation-email-outbox.d.ts"
+      ],
+      "@gafus/media-server/deleted-media-purge": [
+        "../media-server/dist/deletedMediaPurge.d.ts"
+      ],
+      "@gafus/media-server/question-v2-cleanup": [
+        "../media-server/dist/questionV2Cleanup.d.ts"
+      ],
+      "@gafus/pets-server/vet-visit-detail": [
+        "../pets-server/dist/vet-visit-detail.d.ts"
+      ],
+      "@gafus/course-read-server/gafus-entitlement-reads": [
+        "../course-read-server/dist/gafus-entitlement-reads.d.ts"
+      ],
+      "@gafus/notifications-server/reminder-expiry-redaction": [
+        "../notifications-server/dist/reminder-expiry-redaction.d.ts"
+      ],
+      "@gafus/course-server/course-delete-versioned": [
+        "../course-server/dist/course-delete-versioned.d.ts"
+      ],
+      "@gafus/gafus-server/rewarded-settings": [
+        "../gafus-server/dist/rewardedSettings.d.ts"
+      ],
+      "@gafus/subscription-finance-server/npd-operation-persistence": [
+        "../subscription-finance-server/dist/npd-operation-persistence.d.ts"
+      ],
+      "@gafus/course-progress-server/course-version-rows": [
+        "../course-progress-server/dist/courseVersionRows.d.ts"
+      ],
+      "@gafus/course-read-server/video-access-read": [
+        "../course-read-server/dist/videoAccessRead.d.ts"
+      ],
+      "@gafus/notifications-server/training-reminder-storage": [
+        "../notifications-server/dist/training-reminder-storage.d.ts"
+      ],
+      "@gafus/gafus-server/wallet-records": [
+        "../gafus-server/dist/walletRecords.d.ts"
+      ],
+      "@gafus/course-progress-server/diary-entries": [
+        "../course-progress-server/dist/diary-entries.d.ts"
+      ],
+      "@gafus/gafus-server/legacy-import-records": [
+        "../gafus-server/dist/legacy-import-records.d.ts"
+      ],
+      "@gafus/pets-server/prevention-reminder-rows": [
+        "../pets-server/dist/prevention-reminder-rows.d.ts"
+      ],
+      "@gafus/subscription-finance-server/npd-receipts": [
+        "../subscription-finance-server/dist/npd-receipts.d.ts"
+      ],
+      "@gafus/subscription-finance-server/profit-reconciliation-rows": [
+        "../subscription-finance-server/dist/profit-reconciliation-rows.d.ts"
+      ],
+      "@gafus/identity-write-server/registration-context-reads": [
+        "../identity-write-server/dist/registration-context-reads.d.ts"
+      ],
+      "@gafus/gafus-server/unlock-records": [
+        "../gafus-server/dist/unlock-records.d.ts"
+      ],
+      "@gafus/identity-write-server/vk-completion-rows": [
+        "../identity-write-server/dist/vk-completion-rows.d.ts"
+      ],
+      "@gafus/identity-write-server/account-cleanup-records": [
+        "../identity-write-server/dist/account-cleanup-records.d.ts"
+      ],
+      "@gafus/identity-write-server/account-cleanup-worker-rows": [
+        "../identity-write-server/dist/account-cleanup-worker-rows.d.ts"
+      ],
+      "@gafus/consultation-query-server/cynologist-catalog-rows": [
+        "../consultation-query-server/dist/cynologist-catalog-rows.d.ts"
+      ],
+      "@gafus/consultation-query-server/schedule-rows": [
+        "../consultation-query-server/dist/schedule-rows.d.ts"
+      ],
+      "@gafus/identity-write-server/registration-contract-rows": [
+        "../identity-write-server/dist/registration-contract-rows.d.ts"
+      ],
+      "@gafus/pets-server/pet-media-deletion-outbox": [
+        "../pets-server/dist/petMediaDeletionOutbox.d.ts"
+      ],
+      "@gafus/pets-server/pet-media-deletion-sql": [
+        "../pets-server/dist/petMediaDeletionSql.d.ts"
+      ],
+      "@gafus/pets-server/pet-media-deletion-default": [
+        "../pets-server/dist/petMediaDeletionDefaultDb.d.ts"
+      ],
+      "@gafus/pets-server/vet-visit-write-rows": [
+        "../pets-server/dist/vet-visit-write-rows.d.ts"
+      ],
+      "@gafus/article-server/article-rows": [
+        "../article-server/dist/articleRows.d.ts"
+      ],
+      "@gafus/subscription-finance-server/promo-code-rows": [
+        "../subscription-finance-server/dist/promoCodeRows.d.ts"
+      ],
+      "@gafus/subscription-finance-server/profit-dashboard-rows": [
+        "../subscription-finance-server/dist/profit-dashboard-rows.d.ts"
+      ],
+      "@gafus/subscription-finance-server/profit-video-rows": [
+        "../subscription-finance-server/dist/profit-video-rows.d.ts"
+      ],
+      "@gafus/gafus-server/admin-rows": [
+        "../gafus-server/dist/admin-rows.d.ts"
+      ],
+      "@gafus/media-server/trainer-video-rows": [
+        "../media-server/dist/trainerVideoRows.d.ts"
+      ],
+      "@gafus/subscription-finance-server/partner-rows": [
+        "../subscription-finance-server/dist/partnerRows.d.ts"
+      ],
+      "@gafus/consultation-query-server/slot-rows": [
+        "../consultation-query-server/dist/slotRows.d.ts"
+      ],
+      "@gafus/pets-server/prevention-rows": [
+        "../pets-server/dist/preventionRows.d.ts"
+      ],
+      "@gafus/identity-write-server/account-deletion-rows": [
+        "../identity-write-server/dist/accountDeletionRows.d.ts"
+      ],
+      "@gafus/gafus-server/rewarded-wallet-rows": [
+        "../gafus-server/dist/rewardedWalletRows.d.ts"
+      ],
+      "@gafus/identity-write-server/auth-rows": [
+        "../identity-write-server/dist/authRows.d.ts"
+      ],
+      "@gafus/identity-write-server/vk-auth-rows": [
+        "../identity-write-server/dist/vkAuthRows.d.ts"
+      ],
+      "@gafus/course-progress-server/trainer-course-rows": [
+        "../course-progress-server/dist/trainerCourseRows.d.ts"
+      ],
+      "@gafus/gafus-server/rewarded-ad-rows": [
+        "../gafus-server/dist/rewardedAdRows.d.ts"
+      ],
+      "@gafus/course-progress-server/offline-video-rows": [
+        "../course-progress-server/dist/offlineVideoRows.d.ts"
+      ],
+      "@gafus/course-progress-server/offline-mutation-rows": [
+        "../course-progress-server/dist/offlineMutationRows.d.ts"
+      ],
+      "@gafus/course-progress-server/trainer-step-rows": [
+        "../course-progress-server/dist/trainerStepRows.d.ts"
+      ],
+      "@gafus/identity-write-server/reminder-review-rows": [
+        "../identity-write-server/dist/reminderReviewRows.d.ts"
+      ],
+      "@gafus/subscription-finance-server/admin-rows": [
+        "../subscription-finance-server/dist/adminRows.d.ts"
+      ],
+      "@gafus/media-server/media-db-ports": [
+        "../media-server/dist/mediaDbPorts.d.ts"
+      ],
+      "@gafus/media-server/feed-ranked-rows": [
+        "../media-server/dist/feedRankedRows.d.ts"
+      ],
+      "@gafus/pets-server/pet-rows": [
+        "../pets-server/dist/petRows.d.ts"
+      ],
+      "@gafus/exam-server/exam-service": [
+        "../exam-server/dist/examService.d.ts"
+      ],
+      "@gafus/exam-server/retention-policy": [
+        "../exam-server/dist/retentionPolicy.d.ts"
+      ],
+      "@gafus/questions-write-server/service": [
+        "../questions-write-server/dist/service.d.ts"
+      ],
+      "@gafus/questions-write-server/errors": [
+        "../questions-write-server/dist/errors.d.ts"
+      ],
+      "@gafus/questions-write-server/schemas": [
+        "../questions-write-server/dist/schemas.d.ts"
+      ],
+      "@gafus/course-progress-server/training-service": [
+        "../course-progress-server/dist/trainingService.d.ts"
+      ],
+      "@gafus/course-progress-server/daily-course-service": [
+        "../course-progress-server/dist/dailyCourseService.d.ts"
+      ],
+      "@gafus/consultation-write-server/service": [
+        "../consultation-write-server/dist/service.d.ts"
+      ],
+      "@gafus/consultation-write-server/validation": [
+        "../consultation-write-server/dist/validation.d.ts"
+      ],
+      "@gafus/subscription-payment-server/service": [
+        "../subscription-payment-server/dist/paymentService.d.ts"
+      ],
+      "@gafus/subscription-payment-server/payment-pure": [
+        "../subscription-payment-server/dist/paymentPure.d.ts"
+      ],
+      "@gafus/subscription-payment-server/apple-environment": [
+        "../subscription-payment-server/dist/appleEnvironment.d.ts"
+      ],
+      "@gafus/subscription-payment-server/plans": [
+        "../subscription-payment-server/dist/plans.d.ts"
+      ],
+      "@gafus/subscription-payment-server/promo-code": [
+        "../subscription-payment-server/dist/promoCode.d.ts"
+      ],
+      "@gafus/subscription-payment-server/payment-finance": [
+        "../subscription-payment-server/dist/paymentFinanceService.d.ts"
+      ],
+      "@gafus/subscription-payment-server/partner": [
+        "../subscription-payment-server/dist/partnerService.d.ts"
+      ],
+      "@gafus/subscription-payment-server/profit-math": [
+        "../subscription-payment-server/dist/profitMath.d.ts"
+      ],
+      "@gafus/mobile-ota-server/diagnostics-spool-repository": [
+        "../mobile-ota-server/dist/diagnostics-spool-repository.d.ts"
       ]
     }
   },

@@ -3,7 +3,7 @@
  * fence, representing PostgreSQL advisory_xact_lock + cleanup row FOR UPDATE.
  */
 import { describe, expect, it, vi } from "vitest";
-import { createPetMediaDeletionSqlPort } from "./petMediaDeletionSql";
+import { createPetMediaDeletionSqlPort } from "@gafus/pets-server/pet-media-deletion-sql";
 import { runClaimedPetMediaDeletion, petMediaDedupeKey,
   type PetMediaIntent } from "./petMediaDeletionOutbox";
 const owner="owner_A";

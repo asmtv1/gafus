@@ -51,7 +51,7 @@ vi.mock("@gafus/prisma",async()=>{
 vi.mock("@gafus/logger",()=>({createWebLogger:()=>({info:vi.fn(),warn:vi.fn(),error:vi.fn(),success:vi.fn()})}));
 import {prisma} from "@gafus/prisma";
 import {upsertPreventionEntriesBatch} from "./petPreventionService";
-import {sessionIsCurrent} from "../auth/identityReadService";
+import {sessionIsCurrent} from "@gafus/auth/jwt";
 const db=prisma as PrismaClient;
 const e=(clientId:string,productName="Original")=>({clientId,type:"VACCINATION" as const,performedAt:new Date("2026-10-16T12:00:00.000Z"),productName,reminderEnabled:false});
 (supplied?describe:describe.skip)("AG4 native isolated PostgreSQL14 actual SQL Core owner/dedup/retry/rollback",()=>{

@@ -1,0 +1,59 @@
+# Standalone LOCAL-ONLY observability stack; never included in production Compose.
+name: gafus-tracing-local
+services:
+  tempo:
+    image: grafana/tempo:2.7.2
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "127.0.0.1:3200:3200"
+    restart: unless-stopped
+    logging:
+      driver: local
+      options: {max-size: "5m", max-file: "3"}
+    networks: [tracing]
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.135.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+      - "127.0.0.1:13133:13133"
+    depends_on:
+      tempo:
+        condition: service_started
+    restart: unless-stopped
+    logging:
+      driver: local
+      options: {max-size: "5m", max-file: "3"}
+    networks: [tracing]
+  grafana:
+    image: grafana/grafana:11.6.1
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-datasource.yaml:/etc/grafana/provisioning/datasources/gafus-tracing.yaml:ro
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GAFUS_TRACING_PASSWORD:-gafus-local-dev-only}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    ports:
+      - "127.0.0.1:3031:3000"
+    depends_on:
+      tempo:
+        condition: service_started
+    restart: unless-stopped
+    logging:
+      driver: local
+      options: {max-size: "5m", max-file: "3"}
+    networks: [tracing]
+networks:
+  tracing:
+    internal: false
+volumes:
+  tempo-data:
+  grafana-data:

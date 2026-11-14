@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
-import { getReengagementMetrics } from "./adminReengagementService";
+import { getReengagementMetrics } from "@gafus/admin-reengagement-server";
 
 const mockCampaignCount = vi.fn();
 const mockNotificationCount = vi.fn();

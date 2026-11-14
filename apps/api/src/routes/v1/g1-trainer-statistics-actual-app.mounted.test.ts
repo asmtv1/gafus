@@ -6,7 +6,7 @@
 import { randomBytes } from "node:crypto";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as PrismaModule from "@gafus/prisma";
-import type * as StatisticsModule from "@gafus/core/services/statistics";
+import type * as StatisticsModule from "@gafus/statistics";
 
 const m = vi.hoisted(() => ({
   findUser: vi.fn(), completed: vi.fn(),
@@ -40,7 +40,7 @@ vi.mock("@gafus/prisma", async (importOriginal) => {
 vi.mock("@gafus/core/services/auth", async (importOriginal) => ({
   ...await importOriginal<object>(), isRegistrationCompleted: m.completed,
 }));
-vi.mock("@gafus/core/services/statistics", async (importOriginal) => ({
+vi.mock("@gafus/statistics", async (importOriginal) => ({
   ...await importOriginal<typeof StatisticsModule>(),
   getCourseStatistics: m.courses, getStepStatistics: m.steps,
 }));

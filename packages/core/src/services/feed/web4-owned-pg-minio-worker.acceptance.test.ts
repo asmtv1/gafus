@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 import { describe, it, expect, vi } from "vitest";
 // The real HTTP dispatcher is injected with own PG services; never connect
 // to shared Redis as a side effect of importing @gafus/feed-server.
@@ -114,7 +115,7 @@ type Provider = ReturnType<typeof createFeedStorage>;
       await expect(route(reader, `/posts/${postId}`)).rejects.toMatchObject({ status: 404 });
       await expect(route(reader, `/posts/${postId}/editor`)).rejects.toMatchObject({ status: 404 });
       await expect(feed.get(reader, postId)).rejects.toMatchObject({ status: 404 });
-      const jobs = createFeedStorageJobs({ db });
+      const jobs = createFeedStorageJobs({ enqueueDeletedMediaPurge,  db });
       const claim = await jobs.claim(1, "photo");
       expect(claim).toHaveLength(1);
       expect(claim[0]).toMatchObject({ ownerId: owner, postId, mediaId,
@@ -186,7 +187,7 @@ type Provider = ReturnType<typeof createFeedStorage>;
       // Model the signed-POST/lease safety window passing, then execute the
       // EXISTING durable cleanup jobs with the real S3 deleting worker.
       // This is our exclusive empty DB; no foreign queue entries can be claimed.
-      const due = createFeedStorageJobs({ db,
+      const due = createFeedStorageJobs({ enqueueDeletedMediaPurge,  db,
         now: () => new Date(Date.now() + 2 * 60 * 60_000) });
       const cleanupClaims = await due.claim(20, "photo");
       expect(cleanupClaims.some(job => job.kind === "delete_keys")).toBe(true);

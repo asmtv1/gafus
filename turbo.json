@@ -14,6 +14,10 @@
     "NEXT_PUBLIC_APP_URL",
     "NEXT_PUBLIC_YM_COUNTER_ID",
     "NEXT_PUBLIC_GAFUS_ANALYTICS_DEBUG",
+    "GAFUS_PRIVATE_MAPS_ENABLED",
+    "GAFUS_PRIVATE_MAPS_DIR",
+    "GAFUS_RELEASE_SHA",
+    "VITE_GAFUS_BUILD_ID",
     "CI"
   ],
   "tasks": {
@@ -109,8 +113,9 @@
       "dependsOn": ["build"]
     },
     "prisma:generate": {
-      "outputs": ["../../node_modules/.prisma/**"],
-      "inputs": ["prisma/schema.prisma", "package.json"]
+      "cache": false,
+      "outputs": [],
+      "inputs": ["schema.prisma", "package.json"]
     }
   }
 }

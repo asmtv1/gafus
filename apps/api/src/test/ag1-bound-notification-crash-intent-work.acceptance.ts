@@ -6,7 +6,7 @@ import {realpathSync} from 'node:fs';
 import {prisma} from '@gafus/prisma';
 import {pushQueue,connection} from '@gafus/queues';
 import {updateStepAndDay} from '../../../../packages/core/src/services/training/trainingService';
-import {reconcileBoundNotificationIntentById,reconcilePendingBoundNotificationIntents,pauseBoundStepNotification,resumeBoundStepNotification,resetBoundStepNotification} from '../../../../packages/core/src/services/notifications/stepNotificationService';
+import {reconcileBoundNotificationIntentById,reconcilePendingBoundNotificationIntents,pauseBoundStepNotification,resumeBoundStepNotification,resetBoundStepNotification} from '@gafus/notifications-server/stepNotificationService';
 const root='/Users/asmtv1/Desktop/gafus-refactor';
 const prefix='ag1_notify_crash_'+randomBytes(6).toString('hex');
 let phase='PRECHECK';

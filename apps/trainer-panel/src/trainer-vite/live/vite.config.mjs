@@ -16,7 +16,8 @@ export default defineConfig(({ command, isPreview }) => {
   return {
     root: import.meta.dirname,
     oxc: { jsx: { runtime: "automatic" } },
-    build: { outDir: "dist", emptyOutDir: true },
+    build: { outDir: "dist", emptyOutDir: true,
+      sourcemap: process.env.GAFUS_PRIVATE_MAPS_ENABLED === "true" ? "hidden" : false },
     preview: { host: "127.0.0.1", port: 4183, strictPort: true, proxy: {} },
     server: {
       host: "127.0.0.1", port: 5173, strictPort: true,

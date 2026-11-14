@@ -1,0 +1,117 @@
+{
+  "kind": "gafus/integration-preflight-policy/v1",
+  "sourceRoots": {
+    "agent1": "/Users/asmtv1/Desktop/gafus-refactor",
+    "agent2": "/Users/asmtv1/Desktop/gafus-agent2-observability",
+    "agent3": "/Users/asmtv1/Desktop/gafus-agent3-worker"
+  },
+  "pinnedSourceManifests": {
+    "payment": {
+      "path": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-1-to-agent-2-payment-composition-20261112.json",
+      "sha256": "87d0fbedf7ab2692637cbeed6fcf819b865f23c70f92094e4f5dd905a728a362",
+      "expectedKind": "gafus-agent-1-to-agent-2-handoff/v1",
+      "expectedCount": 18
+    },
+    "agent3": {
+      "path": "/Users/asmtv1/Desktop/gafus-refactor/docs/audit/gafus-agent-3-final-local-handoff-20261112.json",
+      "sha256": "b98783d54906caeb0e0f9c86861863a9b38b464cc0cb39bed29a5da5166fe3d7",
+      "expectedSchema": "gafus/agent3-final-local-handoff/v1",
+      "expectedCount": 39
+    }
+  },
+  "p0": {
+    "requiredPaths": [
+      "apps/api/src/lib/operation-observability.ts",
+      "packages/logger/src/serverTelemetry.ts",
+      "ci-cd/docker/prometheus/config.alloy",
+      "ci-cd/docker/prometheus/gafus-alerts.yml",
+      "packages/prisma/schema.prisma",
+      "pnpm-lock.yaml"
+    ],
+    "integratedContentApprovedSha256": {
+      "apps/api/src/lib/operation-observability.ts": [
+        "2e49911720b7ed53d6c79847d79842ee6cbf66355d0d60ec27cea89b9e4276d2"
+      ],
+      "packages/logger/src/serverTelemetry.ts": [
+        "645b7d59b6d7edf93fd40a188c47cffc6f18dbd6381d8dd7604ce9f035890142"
+      ],
+      "ci-cd/docker/prometheus/config.alloy": [
+        "0835c811e73524aa9db2c361276fb752f3f461470de81ce410a13c3019ee5163"
+      ],
+      "ci-cd/docker/prometheus/gafus-alerts.yml": [
+        "31405f04f97be3f1dd4663ec23d339907b9c4f243e6936ecf74992b7b6743cea"
+      ]
+    },
+    "agent2CommittedSha256": {
+      "apps/api/src/lib/operation-observability.ts": "2e49911720b7ed53d6c79847d79842ee6cbf66355d0d60ec27cea89b9e4276d2",
+      "packages/logger/src/serverTelemetry.ts": "645b7d59b6d7edf93fd40a188c47cffc6f18dbd6381d8dd7604ce9f035890142",
+      "ci-cd/docker/prometheus/config.alloy": "0835c811e73524aa9db2c361276fb752f3f461470de81ce410a13c3019ee5163",
+      "ci-cd/docker/prometheus/gafus-alerts.yml": "31405f04f97be3f1dd4663ec23d339907b9c4f243e6936ecf74992b7b6743cea",
+      "packages/prisma/schema.prisma": "394807900daf41830279681ed578d80dbc462388884e6bca0ba619c1cf3247c7",
+      "pnpm-lock.yaml": "8bd2ad9028d5361daefa25846e2ac402287270d7fa161c8396a77c170f30ef0c"
+    }
+  },
+  "schema": {
+    "path": "packages/prisma/schema.prisma",
+    "baselineA1WithoutMetricsSha256": "309d51a18f02ceea136cf35c913677e35fa04df3fef01e9f5212d35263871e62",
+    "requiredFeature": "metrics",
+    "requiredModels": [
+      "AppSubscription",
+      "AppSubscriptionPayment",
+      "AppSubscriptionPromoCode",
+      "AppSubscriptionEvent",
+      "AppSubscriptionFinanceRefund",
+      "QuestionLegacyPhotoDeletion",
+      "Chat2OutboxEvent"
+    ],
+    "requiredChat2OutboxFields": [
+      "claimToken",
+      "operationId",
+      "traceId",
+      "lastErrorCode",
+      "deadLetteredAt"
+    ],
+    "requiredChat2OutboxIndex": "@@index([deadLetteredAt, deliveredAt, createdAt])"
+  },
+  "lockfile": {
+    "path": "pnpm-lock.yaml",
+    "knownStaleSha256": [
+      "8bd2ad9028d5361daefa25846e2ac402287270d7fa161c8396a77c170f30ef0c"
+    ],
+    "approvedCandidateSha256": [],
+    "observedA1SnapshotSha256": "624b19a770adc0f941e68cd189f7f19c62e4ec07eb5366066d3ca8169a95f9f8",
+    "requiredImporters": [
+      ".",
+      "apps/api",
+      "apps/mobile",
+      "packages/worker",
+      "packages/subscription-payment-server"
+    ],
+    "requirePaymentWorkspaceConsumers": [
+      "apps/api",
+      "packages/worker"
+    ],
+    "requiredPatches": {
+      "patches/expo-modules-core@55.0.27.patch": {
+        "sha256": "e1dd0bf3d90f86a1f30109b54192f71f9814ace00c00badff4f307ffd1308d33",
+        "lockKey": "expo-modules-core@55.0.27"
+      },
+      "patches/react-native-reanimated@4.2.1.patch": {
+        "sha256": "bd4600248541277689069d2d8bfe0cfda949f8e344f6a3a6b534c3b19618d6c0",
+        "lockKey": "react-native-reanimated@4.2.1"
+      },
+      "patches/react-native-compressor@1.16.0.patch": {
+        "sha256": "792d480104bf8b6d8f873d2ee366edd838840a703723bbb1f3770006379caffb",
+        "lockKey": "react-native-compressor@1.16.0"
+      }
+    }
+  },
+  "finalArchitecture": {
+    "manifestPath": null,
+    "approvedManifestSha256": null,
+    "required": true,
+    "note": "BLOCKED: final A1 registry not delivered; never auto-fill from a partial payment manifest or 33-gate TSV"
+  },
+  "readyForIntegration": false,
+  "rule": "Only after FINAL A1 registry, approved refreshed source+candidate lock SHA, and all checks PASS"
+}

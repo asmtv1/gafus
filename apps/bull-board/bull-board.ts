@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import express from "express";
+import { bullTelemetryConfig, injectBullTelemetry } from "./src/telemetry-page.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,6 +21,40 @@ const { createBullBoardLogger } = await import("@gafus/logger");
 const logger = createBullBoardLogger("bull-board");
 
 const app = express();
+const bullTelemetry = bullTelemetryConfig(process.env);
+// Opt-in only: protected operator HTML remains unchanged without a verified
+// release, and third-party Bull Board JS/EJS sources are never patched.
+if (bullTelemetry) {
+  app.get("/admin/queues/gafus-diagnostics.js", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    const bundle = path.join(__dirname,
+      __filename.endsWith(".ts") ? "dist/gafus-diagnostics.js" : "gafus-diagnostics.js");
+    res.type("application/javascript").sendFile(bundle);
+  });
+  app.use("/admin/queues", (req, res, next) => {
+    if (req.method !== "GET") return next();
+    const upstream = res.render.bind(res);
+    res.render = ((name: string, locals?: Record<string,unknown>) => {
+      if (name !== "index") {
+        upstream(name, locals);
+        return res;
+      }
+      upstream(name, locals, (error, html) => {
+        if (error) return next(error);
+        try {
+          res.type("html").send(injectBullTelemetry(html, bullTelemetry));
+        } catch {
+          // A third-party UI update must never serve an unreviewed injected
+          // page. Fail closed rather than corrupt operator credentials.
+          res.status(503).type("text/plain").send("BULL_UI_TELEMETRY_TEMPLATE_INCOMPATIBLE");
+        }
+      });
+      return res;
+    }) as typeof res.render;
+    next();
+  });
+}
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath("/admin/queues");
 

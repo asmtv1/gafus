@@ -1,3 +1,4 @@
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 /**
  * Explicit disposable-local-PostgreSQL acceptance. Never open DATABASE_URL
  * unless the test operator supplied the tightly scoped Gallery test URL.
@@ -41,13 +42,13 @@ const db=url?new Client({datasources:{db:{url}}}):null;
    head:vi.fn(async key=>objects.get(key)??null),
    signCdn:vi.fn(async({key})=>"https://cdn.invalid/"+key),
   };
-  service=createGalleryService({db:db!,storage,now:()=>new Date(now)});
+  service=createGalleryService({ enqueueDeletedMediaPurge, db:db!,storage,now:()=>new Date(now)});
  });
  afterEach(async()=>{
   await db!.galleryStorageJob.deleteMany({where:{ownerId:owner}});
   await db!.user.delete({where:{id:owner}});
  });
- afterAll(async()=>{await db?.$disconnect()});
+ afterAll(async()=>{await db?.$disconnect();});
  const reserve=async()=>service.reserveClientUpload(owner,{
   filename:"prepared.webp",declaredMime:"image/webp",declaredBytes:500,
   clientRequestId:randomUUID(),

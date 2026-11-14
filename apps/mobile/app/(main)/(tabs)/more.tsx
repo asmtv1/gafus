@@ -113,7 +113,7 @@ function ActorMoreScreen({ owner, epoch }: { owner: string | null; epoch: string
 
   return (
     <TexturedSafeAreaView style={{ flex: 1 }} edges={[]}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.content}>
         <Image
           source={require("../../../assets/images/menu-header.webp")}

@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import { z } from "zod/v3";
-import { listCompletedDogWalks, syncCompletedDogWalks, syncDogWalkTrackPoints, listDogWalkTrackPoints, listDeletedDogWalkIds, deleteDogWalk } from "@gafus/core/services/walks";
+import { listCompletedDogWalks, syncCompletedDogWalks, syncDogWalkTrackPoints, listDogWalkTrackPoints, listDeletedDogWalkIds, deleteDogWalk } from "@gafus/tracking-server/walks";
 
 export const walksRoutes = new Hono();
 walksRoutes.use("*", async (c, next) => {

@@ -1,17 +1,10 @@
-/**
- * AG1-001: compose two existing independent Core reads for a consultation
- * catalog: publicly listed cynologists + this authenticated actor's eligibility.
- * Core remains the sole source of both business and DB invariants.
- */
-import type {
-  getConsultationBookingEligibility,
-  listListedCynologists,
-} from "@gafus/core/services/consultation";
+/** Public catalog and booking eligibility for the authenticated actor. */
+import type { ListedCynologistCardDto, ConsultationBookingEligibility } from "@gafus/core/services/consultation";
 
-export type ListListedCynologistsPort = typeof listListedCynologists;
+export type ListListedCynologistsPort = () => Promise<ListedCynologistCardDto[]>;
 export type ConsultationBookingEligibilityPort = (
   actorUserId: string,
-) => ReturnType<typeof getConsultationBookingEligibility>;
+) => Promise<ConsultationBookingEligibility>;
 
 export function createListCynologistsApplication(deps: {
   listListedCynologists: ListListedCynologistsPort;

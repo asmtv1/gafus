@@ -1281,7 +1281,7 @@ function AccordionStepComponent({
                 onDismiss={() => setImageViewerOpen(false)}>
                 <Image
                   source={{ uri: item }}
-                  style={StyleSheet.absoluteFillObject}
+                  style={StyleSheet.absoluteFill}
                   contentFit="contain"
                 />
               </SwipeDismissMedia>

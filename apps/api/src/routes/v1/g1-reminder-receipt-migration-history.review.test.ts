@@ -3,10 +3,13 @@ import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 const root = new URL("../../../../../", import.meta.url);
 const read = (path: string) => readFileSync(new URL(path, root), "utf8");
-const ddl = read("apps/api/src/test/fixtures/reminder-review/AG1_REMINDER_RECEIPT_PRISMA_ADDITIVE_MIGRATION.AG4_REVIEW_ONLY_20261018.sql");
+const ddl = read(
+  "apps/api/src/test/fixtures/reminder-review/AG1_REMINDER_RECEIPT_PRISMA_ADDITIVE_MIGRATION.AG4_REVIEW_ONLY_20261018.sql",
+);
 const schema = read("packages/prisma/schema.prisma");
 const folders = readdirSync(new URL("packages/prisma/migrations/", root), { withFileTypes: true })
-  .filter((e) => e.isDirectory()).map((e) => e.name);
+  .filter((e) => e.isDirectory())
+  .map((e) => e.name);
 const modelStart = schema.indexOf("model ReminderMutationReceipt {");
 const model = schema.slice(modelStart, schema.indexOf("\n}\n", modelStart) + 2);
 describe("Reminder receipt additive migration compatibility (review only)", () => {
@@ -18,12 +21,23 @@ describe("Reminder receipt additive migration compatibility (review only)", () =
     expect(schema).toContain("reminderMutationReceipts         ReminderMutationReceipt[]");
   });
   it("M02 candidate DDL all 9 columns and expected defaults", () => {
-    for (const key of ["ownerUserId", "operationKey", "operationKind", "fingerprint", "state",
-      "reminderId", "responseJson", "expiresAt", "createdAt"]) {
-      expect(model).toContain(key); expect(ddl).toContain(`"${key}"`);
+    for (const key of [
+      "ownerUserId",
+      "operationKey",
+      "operationKind",
+      "fingerprint",
+      "state",
+      "reminderId",
+      "responseJson",
+      "expiresAt",
+      "createdAt",
+    ]) {
+      expect(model).toContain(key);
+      expect(ddl).toContain(`"${key}"`);
     }
     expect(ddl).toContain('"operationKey" VARCHAR(36) NOT NULL');
-    expect(ddl).toContain("DEFAULT 'CREATE'"); expect(ddl).toContain("DEFAULT 'PENDING'");
+    expect(ddl).toContain("DEFAULT 'CREATE'");
+    expect(ddl).toContain("DEFAULT 'PENDING'");
     expect(ddl).toContain('"responseJson" JSONB');
     expect(ddl).toContain('"expiresAt" TIMESTAMP(3) NOT NULL');
   });
@@ -35,7 +49,10 @@ describe("Reminder receipt additive migration compatibility (review only)", () =
     expect(ddl).not.toMatch(/FOREIGN KEY\s*\(\s*"reminderId"/i);
   });
   it("M04 additive only; no data mutation or idempotent drift-masking", () => {
-    const sql = ddl.split("\n").map((s) => s.replace(/--.*$/, "")).join("\n");
+    const sql = ddl
+      .split("\n")
+      .map((s) => s.replace(/--.*$/, ""))
+      .join("\n");
     expect(sql).toContain('CREATE TABLE "ReminderMutationReceipt"');
     expect(sql).not.toMatch(/\b(DROP|TRUNCATE)\s+TABLE\b/i);
     expect(sql).not.toMatch(/\bDELETE\s+FROM\b|\bUPDATE\s+"|\bINSERT\s+INTO\b|\bRENAME\s+TO\b/i);
@@ -47,21 +64,31 @@ describe("Reminder receipt additive migration compatibility (review only)", () =
     const migrationName = "20261018110000_reminder_mutation_receipt";
     expect(folders).toContain(migrationName);
     const ddlOwners = folders.filter((folder) =>
-      read(`packages/prisma/migrations/${folder}/migration.sql`)
-        .includes('CREATE TABLE "ReminderMutationReceipt"'));
+      read(`packages/prisma/migrations/${folder}/migration.sql`).includes(
+        'CREATE TABLE "ReminderMutationReceipt"',
+      ),
+    );
     expect(ddlOwners).toEqual([migrationName]);
     expect(read(`packages/prisma/migrations/${migrationName}/migration.sql`)).toBe(ddl);
-    expect(read("packages/prisma/migrations/migration_lock.toml"))
-      .toContain('provider = "postgresql"');
+    expect(read("packages/prisma/migrations/migration_lock.toml")).toContain(
+      'provider = "postgresql"',
+    );
     expect(folders.length).toBeGreaterThanOrEqual(140);
   });
   it("M06 Core raw SQL matches schema and locks same owner", () => {
-    const core = read("packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts");
-    expect(core).toContain('INSERT INTO "ReminderMutationReceipt"');
-    expect(core).toContain('UPDATE "ReminderMutationReceipt" SET "state"');
-    expect(core).toContain('AND "registrationPending" = false FOR UPDATE');
-    expect(core).toContain('"ownerUserId" = ${owner}');
-    expect(core).toContain('"operationKey" = ${key}');
+    const core = read(
+      "packages/core/src/services/reminders/g1ReminderMutationReceiptAG4.review.ts",
+    );
+    const rows = read("packages/identity-write-server/src/reminderReviewRows.ts");
+    expect(core).toContain("requireReminderAG4ReviewRowsPort()");
+    expect(core).not.toContain("@gafus/identity-write-server/reminder-review-rows");
+    const composer=read("apps/api/src/modules/reminders/composition/install-ag4-review-rows.review.ts");
+    expect(composer).toContain("@gafus/identity-write-server/reminder-review-rows");
+    expect(rows).toContain('INSERT INTO "ReminderMutationReceipt"');
+    expect(rows).toContain('UPDATE "ReminderMutationReceipt" SET "state"');
+    expect(rows).toContain('AND "registrationPending" = false FOR UPDATE');
+    expect(rows).toContain('"ownerUserId" = ${ownerId}');
+    expect(rows).toContain('"operationKey" = ${key}');
     expect(ddl).toContain('"ownerUserId" TEXT NOT NULL');
   });
 });

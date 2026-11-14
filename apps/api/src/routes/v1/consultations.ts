@@ -2,6 +2,10 @@
  * Консультации с кинологом (mobile + паритет с web Route Handlers).
  */
 import type { AuthRole } from "@gafus/auth";
+import { listAdminBookings } from "@gafus/consultation-server/admin-bookings";
+import {
+  prepareConsultationCall, createConsultationCallAdmission, signConsultationOneTimeKey,
+} from "@gafus/consultation-server/vox";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
@@ -14,44 +18,47 @@ import {
   ConsultationNotFoundError,
   ConsultationSlotTakenError,
   ConsultationVideoUnavailableError,
-  prepareConsultationCall,
-  createConsultationCallAdmission,
-  signConsultationOneTimeKey,
   adminListedCynologistsInputSchema,
-  adminSetListedCynologists,
-  addDayOff,
-  addSlotException,
-  bookSlotWithSubscription,
   bookSlotInputSchema,
   cancelBookingBodySchema,
+  cursorPaginationSchema,
+  dayOffInputSchema,
+  getSlotsQuerySchema,
+  slotExceptionInputSchema,
+  trainerAvailabilityInputSchema,
+} from "@gafus/core/services/consultation";
+import {
+  bookSlotWithSubscription,
   cancelBookingByUser,
   completeBookingByTrainer,
   confirmBookingByTrainer,
-  cursorPaginationSchema,
-  dayOffInputSchema,
-  getAvailableSlots,
-  getConsultationBookingEligibility,
-  requireConsultationBookingEligibility,
-  getCalendarSlots,
-  getCynologistDayOffDates,
-  getSlotsQuerySchema,
-  getTrainerAvailability,
   requireConsultationSlotsSubscriptionAccess,
   requireConsultationBookingSubscriptionAccess,
-  listAdminBookings,
-  listAllTrainersForAdmin,
   listClientBookings,
   listTrainerBookings,
   markBookingNoShowByTrainer,
   rejectBookingByTrainer,
+} from "@gafus/consultation-server/booking-application";
+import {
+  getAvailableSlots,
+  getCalendarSlots,
+  verifyConsultationSlotFreeForCynologist,
+} from "@gafus/consultation-server/slot-service";
+import {
+  adminSetListedCynologists,
+  addDayOff,
+  addSlotException,
+  getCynologistDayOffDates,
+  getTrainerAvailability,
+  listAllTrainersForAdmin,
   removeDayOff,
   removeSlotException,
   resolveTargetTrainerUserIdForStaff,
   setTrainerAvailability,
-  slotExceptionInputSchema,
-  verifyConsultationSlotFreeForCynologist,
-  trainerAvailabilityInputSchema,
-} from "@gafus/core/services/consultation";
+} from "../../modules/consultations/composition/catalog-schedule.js";
+import {
+  getConsultationBookingEligibility, requireConsultationBookingEligibility,
+} from "../../modules/consultations/composition/booking-eligibility.js";
 import { SubscriptionRequiredError } from "@gafus/core/services/appSubscription";
 import { createWebLogger, isZodErrorLike, sanitizeZodErrorForLogMeta } from "@gafus/logger";
 
@@ -177,7 +184,7 @@ function handleConsultationError(c: Context, error: unknown) {
   if (isZodErrorLike(error)) {
     logger.error("consultations route", undefined, sanitizeZodErrorForLogMeta(error));
   } else {
-    logger.error("consultations route", error instanceof Error ? error : new Error(String(error)));
+    logger.error("CONSULTATION_ROUTE_UNEXPECTED_FAILURE", new Error("CONSULTATION_ROUTE_UNEXPECTED_FAILURE"));
   }
   return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
 }

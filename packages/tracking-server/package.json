@@ -5,12 +5,28 @@
   "sideEffects": true,
   "type": "module",
   "types": "./dist/index.d.ts",
-  "typesVersions": { "*": { "trackingService": ["dist/trackingService.d.ts"] } },
+  "typesVersions": {
+    "*": {
+      "trackingService": [
+        "dist/trackingService.d.ts"
+      ],
+      "walks": [
+        "dist/walks.d.ts"
+      ]
+    }
+  },
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
     "./trackingService": {
       "types": "./dist/trackingService.d.ts",
       "default": "./dist/trackingService.js"
+    },
+    "./walks": {
+      "types": "./dist/walks.d.ts",
+      "default": "./dist/walks.js"
     }
   },
   "scripts": {

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMobileAppPublicConfig = vi.hoisted(() => vi.fn());
 
-vi.mock("@gafus/core/services/appFeatureFlags", () => ({
+vi.mock("@gafus/feature-flags-server", () => ({
   getMobileAppPublicConfig,
 }));
 

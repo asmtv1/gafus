@@ -1,3 +1,11 @@
+vi.mock("@gafus/consultation-server/slot-service", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
+vi.mock("@gafus/consultation-server/booking-application", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
 /** G1-PANEL-CONS-001: real 14 Hono methods, Core/service mocked.
  * No database, queue, remote, payments or shared test fixtures.
  */
@@ -17,16 +25,22 @@ vi.mock("@gafus/auth/jwt", async original => ({
 vi.mock("@gafus/core/services/auth", async original => ({
   ...(await original<object>()), isRegistrationCompleted: m.registration,
 }));
+vi.mock("@gafus/consultation-server/admin-bookings", () => ({ listAdminBookings: m.adminBookings }));
 vi.mock("@gafus/core/services/consultation", async original => ({
   ...(await original<object>()),
-  resolveTargetTrainerUserIdForStaff: m.target,
   listTrainerBookings: m.bookings,
   confirmBookingByTrainer: m.confirm, completeBookingByTrainer: m.complete,
   markBookingNoShowByTrainer: m.noShow, rejectBookingByTrainer: m.reject,
-  getTrainerAvailability: m.availability, setTrainerAvailability: m.setAvailability,
-  addDayOff: m.dayOff, removeDayOff: m.removeDay,
-  addSlotException: m.exception, removeSlotException: m.removeException,
-  listAllTrainersForAdmin: m.adminTrainers, listAdminBookings: m.adminBookings,
+}));
+vi.mock("../../modules/consultations/composition/catalog-schedule.js", () => ({
+  resolveTargetTrainerUserIdForStaff: m.target,
+  getTrainerAvailability: m.availability,
+  setTrainerAvailability: m.setAvailability,
+  addDayOff: m.dayOff,
+  removeDayOff: m.removeDay,
+  addSlotException: m.exception,
+  removeSlotException: m.removeException,
+  listAllTrainersForAdmin: m.adminTrainers,
   adminSetListedCynologists: m.adminListed,
 }));
 import {

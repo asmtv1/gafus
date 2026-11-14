@@ -27,6 +27,13 @@ vi.mock("../../../../packages/core/src/services/training/trainingDayContent",()=
 vi.mock("../../../../packages/core/src/services/training/trainingContentRevision",()=>({
  publishCourseContentChange:m.publish,
 }));
+// Core no longer reads Prisma directly. Mock the SQL adapter boundary only;
+// leave real Core owner/ADMIN decisions, DTO projection and fail-closed writes intact.
+vi.mock("../../../../packages/core/src/services/trainerCourse/trainerCourseRowsPort", async (original) => ({
+ ...(await original<Record<string, unknown>>()),
+ readCourseRowAuthor: (id: string) => m.find({where:{id}}),
+ readCourseDraftRow: (id: string) => m.find({where:{id}}),
+}));
 const core="../../../../packages/core/src/services/trainerCourse/trainerCourseService";
 const {updateCourse,trainerCanEditCourse,getCourseDraftWithRelations}=
  await vi.importActual<{

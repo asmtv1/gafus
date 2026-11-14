@@ -16,7 +16,7 @@ vi.mock("@gafus/prisma", () => ({ prisma: {
   $transaction: m.transaction,
 } }));
 
-import { getAppSubscriptionAccess } from "../accessService";
+import { getAppSubscriptionAccess } from "@gafus/subscription-read-server";
 
 const now = new Date("2026-10-30T08:00:00.000Z");
 const later = new Date("2026-11-30T08:00:00.000Z");

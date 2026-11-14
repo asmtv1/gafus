@@ -38,7 +38,7 @@ vi.mock("@gafus/reengagement", () => ({
   recordDailyMetrics: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("@gafus/core/services/appSubscription", () => ({
+vi.mock("./composition/app-subscription-payment", () => ({
   reconcileStaleYookassaPendingAppSubscriptions: mockReconcileStaleYookassaPendingAppSubscriptions,
 }));
 
@@ -75,14 +75,15 @@ vi.mock("./app-subscription-renewal-reminders", () => ({
 }));
 
 const mockReconcileConsultationEmailLog = vi.fn().mockResolvedValue("sent");
-vi.mock("@gafus/core/services/consultation", () => ({
-  reconcileConsultationEmailLog: (...args: unknown[]) =>
-    mockReconcileConsultationEmailLog(...args),
+vi.mock("@gafus/consultation-server/booking-application", () => ({
   reconcileMissedConsultationReminders: vi.fn().mockResolvedValue({
     checked: 0,
     triggered30m: 0,
     triggeredStart: 0,
   }),
+}));
+vi.mock("@gafus/consultation-server/mail-delivery", () => ({
+  reconcileConsultationEmailLog: (...args: unknown[]) => mockReconcileConsultationEmailLog(...args),
 }));
 
 describe("cron-scheduler", () => {

@@ -3,7 +3,7 @@
  */
 import { Hono } from "hono";
 
-import { getMobileAppPublicConfig } from "@gafus/core/services/appFeatureFlags";
+import { getMobileAppPublicConfig } from "@gafus/feature-flags-server";
 import { createWebLogger } from "@gafus/logger";
 import { getClientAppContext } from "../../lib/client-app-context.js";
 

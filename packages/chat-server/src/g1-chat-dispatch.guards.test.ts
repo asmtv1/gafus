@@ -6,7 +6,7 @@ const m = vi.hoisted(() => ({
   communitySession: vi.fn(), privateSession: vi.fn(),
   dialogs: vi.fn(), moderation: vi.fn(), overview: vi.fn(),
   reaction: vi.fn(), ownAction: vi.fn(), start: vi.fn(),
-  upload: vi.fn(), deleteAttachment: vi.fn(),
+  upload: vi.fn(), deleteAttachment: vi.fn(), persist: vi.fn(),
 }));
 vi.mock("@gafus/queues", () => ({ connection: { eval: m.rate } }));
 vi.mock("@gafus/core/services/cynologistChat", () => ({
@@ -21,10 +21,24 @@ vi.mock("@gafus/core/services/cynologistChat", () => ({
   communityModerationOverview: m.overview, moderateCommunityChat: m.moderation,
   startChat: m.start,
 }));
-vi.mock("@gafus/core/services/cynologistChat/upload", () => ({
+vi.mock("./service.js", () => ({
+  getChatState: m.state, getChatSession: m.privateSession,
+  listChatDialogs: m.dialogs, sendChatMessage: m.privateSend, startChat: m.start,
+}));
+vi.mock("./community.js", () => ({
+  getCommunityChatState: m.communityState,
+  getCommunityChatSession: m.communitySession,
+  sendCommunityChatMessage: m.communitySend,
+  communityModerationOverview: m.overview,
+  moderateCommunityChat: m.moderation,
+}));
+vi.mock("./reactions.js", () => ({ manageChatReaction: m.reaction }));
+vi.mock("./messageManagement.js", () => ({ manageOwnChatMessage: m.ownAction }));
+vi.mock("./upload-service.js", () => ({
   deleteChatAttachment: m.deleteAttachment,
 }));
 vi.mock("./upload.js", () => ({ uploadChatAttachmentRequest: m.upload }));
+vi.mock("./message-tombstone.js", () => ({ persistChatMessageDeletion: m.persist }));
 import { chatHttpError, dispatchChatRequest } from "./index";
 function call(action: string, method = "GET", body?: string, community = false, query = "") {
   return dispatchChatRequest("actor-A", new Request(`http://local.test/chat${query}`, {
@@ -78,6 +92,17 @@ describe("G1 chat dispatcher negative contracts", () => {
     expect(m.privateSend).toHaveBeenCalledWith("actor-A", { text: "hello" }, "private-A");
     expect(m.reaction).toHaveBeenCalledWith(
       "actor-A", { messageId: "msg-A" }, "private-A", false,
+    );
+  });
+  it("injects the durable tombstone port into own-message actions", async () => {
+    const input = { action: "delete", messageId: "msg-A" };
+    await call("message-actions", "POST", JSON.stringify(input), false, "?chatId=private-A");
+    expect(m.ownAction).toHaveBeenCalledWith(
+      "actor-A", input, "private-A", false, m.persist,
+    );
+    await call("message-actions", "POST", JSON.stringify(input), true);
+    expect(m.ownAction).toHaveBeenLastCalledWith(
+      "actor-A", input, undefined, true, m.persist,
     );
   });
   it("rejects oversized message body before Core", async () => {

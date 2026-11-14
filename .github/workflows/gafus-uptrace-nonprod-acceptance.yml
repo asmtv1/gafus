@@ -1,0 +1,100 @@
+# Strictly manual, reviewed, secret-bearing *Nonprod* Cloud acceptance.
+# This workflow NEVER runs from pull_request, push, or production deployment.
+# Environment "gafus-uptrace-nonprod" must require GitHub reviewer approval.
+name: GAFUS Uptrace Nonprod cloud acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: 'Exact approved commit on origin/main (40 lowercase hex)'
+        type: string
+        required: true
+      confirmation:
+        description: 'Type exactly: gafus-uptrace-nonprod-9383'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gafus-uptrace-nonprod-manual
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    environment: gafus-uptrace-nonprod
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      GAFUS_TELEMETRY_ENVIRONMENT: preview
+      GAFUS_OBSERVABILITY_PROJECT_ID: '9383'
+      # Production approval is explicitly forbidden in a Nonprod workflow.
+      GAFUS_TELEMETRY_PRODUCTION_APPROVED: 'false'
+    steps:
+      - name: Checkout reviewed immutable SHA without persisted credentials
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Fail closed without protected Nonprod approval and main SHA
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EXPLICIT_APPROVAL: ${{ vars.GAFUS_UPTRACE_NONPROD_CI_APPROVED }}
+          BRANCH_NAME: ${{ github.ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$EXPLICIT_APPROVAL" = 'true'
+          test "$BRANCH_NAME" = 'refs/heads/main'
+          test "$CONFIRMATION" = 'gafus-uptrace-nonprod-9383'
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+          test -z "$(git status --porcelain)"
+          test "$GAFUS_TELEMETRY_ENVIRONMENT" = 'preview'
+          test "$GAFUS_TELEMETRY_PRODUCTION_APPROVED" = 'false'
+
+      - name: Node 24 with no dependency installation and no private artifacts
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Verify synthetic-only Nonprod readback contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/observability/uptrace-nonprod-canary.test.mjs scripts/observability/uptrace-nonprod-acceptance.test.mjs scripts/observability/uptrace-nonprod-remote-write.test.mjs
+          node scripts/observability/check-workflow-release-gates.mjs
+
+      - name: Install two Nonprod-only tokens in private temporary files
+        shell: bash
+        env:
+          NONPROD_DSN: ${{ secrets.UPTRACE_NONPROD_INGEST_DSN }}
+          NONPROD_VIEWER_TOKEN: ${{ secrets.UPTRACE_NONPROD_VIEWER_TOKEN }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$NONPROD_DSN"
+          test -n "$NONPROD_VIEWER_TOKEN"
+          install -d -m 700 "$HOME/.config/gafus-observability"
+          printf '%s\n' "$NONPROD_DSN" > "$HOME/.config/gafus-observability/uptrace-nonprod-ingest.dsn"
+          printf '%s\n' "$NONPROD_VIEWER_TOKEN" > "$HOME/.config/gafus-observability/uptrace-read.token"
+          chmod 600 "$HOME/.config/gafus-observability/uptrace-nonprod-ingest.dsn" "$HOME/.config/gafus-observability/uptrace-read.token"
+
+      - name: Synthetic OTLP + Prometheus Cloud acceptance with fresh Viewer readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/observability/uptrace-nonprod-acceptance.mjs
+
+      - name: Erase only this job's temporary Nonprod tokens
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$HOME/.config/gafus-observability/uptrace-nonprod-ingest.dsn" "$HOME/.config/gafus-observability/uptrace-read.token"

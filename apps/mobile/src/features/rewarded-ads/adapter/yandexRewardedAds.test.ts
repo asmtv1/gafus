@@ -52,7 +52,7 @@ vi.mock("yandex-mobile-ads/src/rewarded/RewardedAdLoader", () => ({
   },
 }));
 
-import { showYandexRewardedAd } from "./yandexRewardedAds";
+import { showYandexRewardedAd } from "./yandexRewardedAdsNative";
 
 describe("showYandexRewardedAd", () => {
   beforeEach(() => {

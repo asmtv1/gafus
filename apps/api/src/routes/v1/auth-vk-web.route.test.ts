@@ -6,6 +6,10 @@ const mock = vi.hoisted(() => ({
   complete: vi.fn(), grant: vi.fn(), summary: vi.fn(), refreshSession: vi.fn(),
   assertCompleted: vi.fn(), access: vi.fn(), refresh: vi.fn(),
 }));
+vi.mock("@gafus/auth", async original => ({
+  ...await original<object>(),
+  consumeVkIdOneTimeUser: mock.grant,
+}));
 vi.mock("@gafus/core/services/auth", async original => ({
   ...await original<object>(),
   createVkRegistrationContextWithPromo: mock.createContext,
@@ -13,7 +17,6 @@ vi.mock("@gafus/core/services/auth", async original => ({
   exchangeVkCodeAndGetUser: mock.exchange,
   claimVkRegistrationContextUser: mock.claim,
   completeVkRegistration: mock.complete,
-  consumeVkIdOneTimeUser: mock.grant,
   getVkConsentContextSummary: mock.summary,
   createRefreshSession: mock.refreshSession,
 }));

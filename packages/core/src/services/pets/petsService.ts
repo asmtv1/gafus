@@ -5,7 +5,35 @@ import { parseBirthDateCreateWire, parseBirthDateEditWire } from "../common/birt
  */
 import { createHash, randomUUID } from "crypto";
 
-import { prisma } from "@gafus/prisma";
+import {
+  withPetSqlTx,
+  findCommittedPetReceipt,
+  claimPetCreationReceipt,
+  createPetWithAwards,
+  findOwnedPet,
+  existsOwnedPet,
+  readOwnedPetPhoto,
+  lockPetOwner,
+  updateOwnedPetWithAwards,
+  updateOwnedPetPhoto,
+  listOwnedPetDocuments,
+  readAllUserPetDocumentRows,
+  findOwnedPetDocument,
+  findOwnedPetDocumentForDownload,
+  findPetDocumentByUrl,
+  countOwnedPetDocuments,
+  createOwnedPetDocument,
+  deletePetDocumentRow,
+  renamePetDocumentRow,
+  readOwnedPetDocumentUrls,
+  deleteOwnedPetRow,
+  type PetType,
+  type PetProfilePatch,
+  type PetWithAwards,
+  enqueuePetMediaDeletionIntent,
+  consumePetMediaUploadReservation,
+  petMediaOutboxEnabled,
+} from "./petRowsPort";
 import {
   deleteFileFromCDN,
   getPetDocumentPath,
@@ -27,11 +55,8 @@ import {
   type PetDocumentDto,
 } from "@gafus/types";
 
-import type { PetType, Prisma } from "@gafus/prisma";
 import { enqueuePetVetCleanup, lockVetPet } from "./petVetVisitService";
 import { replaceOwnerPetPhoto } from "./petPhotoUpdateCoordinator";
-import { enqueuePetMediaDeletionIntent, consumePetMediaUploadReservation,
-  petMediaOutboxEnabled } from "./petMediaDeletionSql";
 
 const logger = createWebLogger("core-pets");
 
@@ -221,7 +246,6 @@ const CREATE_PET_CANONICAL_FIELDS = [
   "notes",
 ] as const;
 
-type PetWithAwards = Prisma.PetGetPayload<{ include: { awards: true } }>;
 type PetCreateReceipt = {
   payloadHash: string;
   petId: string;
@@ -309,12 +333,7 @@ async function loadCommittedPetCreate(
   clientRequestId: string,
   expectedHash: string,
 ): Promise<PetWithAwards> {
-  const rows = await prisma.$queryRawUnsafe<PetCreateReceipt[]>(
-    `SELECT "payloadHash", "petId", "responseJson" FROM "PetCreateReceipt"
-       WHERE "ownerId"=$1 AND "clientRequestId"=$2::uuid LIMIT 1`,
-    userId,
-    clientRequestId,
-  );
+  const rows = await findCommittedPetReceipt(userId, clientRequestId);
   const saved = rows[0];
   if (!saved) throw new PetCreateIdempotencyError("PET_CREATE_RESULT_UNCONFIRMED");
   if (saved.payloadHash !== expectedHash) {
@@ -322,10 +341,7 @@ async function loadCommittedPetCreate(
   }
   // Tombstone semantics: retaining the receipt must not recreate a deleted Pet
   // or misreport a successful new create after deletion.
-  const existingPet = await prisma.pet.findFirst({
-    where: { id: saved.petId, ownerId: userId },
-    select: { id: true },
-  });
+  const existingPet = await existsOwnedPet(userId, saved.petId);
   if (!existingPet) {
     throw new PetCreateIdempotencyError("PET_CREATE_RESULT_UNAVAILABLE");
   }
@@ -369,8 +385,7 @@ export async function createPet(userId: string, data: CreatePetInput): Promise<P
   // A caller-supplied managed photo URL bypasses UUID candidate reservation
   // and permits a second owner's Pet row to race another owner's S3 cleanup.
   // Keep the original create API when the not-yet-deployed outbox is disabled.
-  if (petMediaOutboxEnabled() && data.photoUrl)
-    throw new PetMediaDirectPhotoUrlDeniedError();
+  if (petMediaOutboxEnabled() && data.photoUrl) throw new PetMediaDirectPhotoUrlDeniedError();
   const clientRequestId = data.clientRequestId?.toLowerCase();
   try {
     // Before either legacy create or keyed transaction / receipt claim.
@@ -380,37 +395,26 @@ export async function createPet(userId: string, data: CreatePetInput): Promise<P
     assertPetCreateWeight(data.weightKg);
     if (!clientRequestId) {
       // Keep the legacy no-key path byte-compatible and non-idempotent.
-      return await prisma.pet.create({
-        data: petCreateFields(userId, data, birthDate),
-        include: { awards: true },
-      });
+      return await createPetWithAwards(petCreateFields(userId, data, birthDate));
     }
     if (!CREATE_PET_REQUEST_UUID_V4.test(clientRequestId)) {
       throw new PetCreateIdempotencyError("INVALID_CLIENT_REQUEST_ID");
     }
     const payloadHash = canonicalPetCreateHash(data);
     try {
-      return await prisma.$transaction(
+      return await withPetSqlTx(
         async (tx) => {
-          const pet = await tx.pet.create({
-            data: petCreateFields(userId, data, birthDate),
-            include: { awards: true },
-          });
+          const pet = await createPetWithAwards(petCreateFields(userId, data, birthDate), tx);
           const responseJson = JSON.stringify({ success: true, data: pet });
           // The unique claim is inserted AFTER Pet creation, but IN THE SAME
           // transaction. A lost race throws, rolling back the loser's Pet.
-          const claimed = await tx.$queryRawUnsafe<{ petId: string }[]>(
-            `INSERT INTO "PetCreateReceipt"
-            ("ownerId", "clientRequestId", "payloadHash", "petId", "responseStatus", "responseJson")
-            VALUES ($1, $2::uuid, $3, $4, 201, $5::jsonb)
-            ON CONFLICT ("ownerId", "clientRequestId") DO NOTHING
-            RETURNING "petId"`,
-            userId,
+          const claimed = await claimPetCreationReceipt(tx, {
+            ownerId: userId,
             clientRequestId,
             payloadHash,
-            pet.id,
+            petId: pet.id,
             responseJson,
-          );
+          });
           if (claimed.length !== 1) throw new ExistingPetCreateReceipt();
           return pet;
         },
@@ -443,12 +447,7 @@ export class PetWeightUpdateUnsupportedError extends Error {
  */
 export async function updatePet(petId: string, userId: string, data: UpdatePetInput) {
   // Проверяем, что питомец принадлежит пользователю
-  const existingPet = await prisma.pet.findFirst({
-    where: {
-      id: petId,
-      ownerId: userId,
-    },
-  });
+  const existingPet = await findOwnedPet(userId, petId);
 
   if (!existingPet) {
     return null;
@@ -462,7 +461,7 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
   if (guardedPhotoChange && data.photoUrl && data.photoUrl !== existingPet.photoUrl)
     throw new PetMediaDirectPhotoUrlDeniedError();
 
-  const updateData: Prisma.PetUpdateInput = {};
+  const updateData: PetProfilePatch = {};
 
   if (data.showInProfile !== undefined) updateData.showInProfile = data.showInProfile;
 
@@ -478,28 +477,26 @@ export async function updatePet(petId: string, userId: string, data: UpdatePetIn
   if (data.notes !== undefined) updateData.notes = data.notes ?? null;
 
   try {
-    const pet = await prisma.$transaction(async (tx) => {
+    const pet = await withPetSqlTx(async (tx) => {
       if (guardedPhotoChange) {
         // Serialize direct photo clearing with photo upload, Pet deletion and
         // account deletion using the existing owner User lock.
-        const owner = await tx.$queryRaw<{ id: string }[]>`
-          SELECT "id" FROM "User" WHERE "id"=${userId} FOR UPDATE`;
+        const owner = await lockPetOwner(tx, userId);
         if (!owner.length) return null;
-        const current = await tx.pet.findFirst({
-          where: { id: petId, ownerId: userId }, select: { photoUrl: true },
-        });
+        const current = await readOwnedPetPhoto(userId, petId, tx);
         if (!current) return null;
         if (data.photoUrl && data.photoUrl !== current.photoUrl)
           throw new PetMediaDirectPhotoUrlDeniedError();
         if (!data.photoUrl && current.photoUrl)
-          await enqueuePetMediaDeletionIntent(tx, userId, petId,
-            current.photoUrl, "photo-replaced");
+          await enqueuePetMediaDeletionIntent(
+            tx,
+            userId,
+            petId,
+            current.photoUrl,
+            "photo-replaced",
+          );
       }
-      const updated = await tx.pet.update({
-        where: { id: petId, ownerId: userId },
-        data: updateData,
-        include: { awards: true },
-      });
+      const updated = await updateOwnedPetWithAwards(tx, userId, petId, updateData);
       return updated;
     });
 
@@ -524,69 +521,85 @@ export async function updatePetPhoto(petId: string, userId: string, file: File):
   if (!file.size || file.size > 2 * 1024 * 1024) {
     throw new Error("Недопустимый размер фотографии питомца");
   }
-  if (({ jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
-    webp: "image/webp", gif: "image/gif" } as Record<string, string>)[extension] !== file.type) {
+  if (
+    (
+      {
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        webp: "image/webp",
+        gif: "image/gif",
+      } as Record<string, string>
+    )[extension] !== file.type
+  ) {
     throw new Error("Недопустимый формат фотографии питомца");
   }
   const relativePath = getPetPhotoPath(userId, petId, randomUUID(), extension);
-  const candidateLocator = process.env.GAFUS_ISOLATED_NONPROD_S3 !== undefined
-    ? isolatedAvatarLocationFromOwnPath(relativePath) : relativePath;
+  const candidateLocator =
+    process.env.GAFUS_ISOLATED_NONPROD_S3 !== undefined
+      ? isolatedAvatarLocationFromOwnPath(relativePath)
+      : relativePath;
   return replaceOwnerPetPhoto({
     candidatePath: relativePath,
     // Deny foreign/nonexistent pet before touching S3. Recheck after a
     // concurrent delete under the per-user row lock in the actual SQL write.
     checkOwner: async () => {
       if (petMediaOutboxEnabled()) {
-        await prisma.$transaction(async tx => {
-          await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
-          const own = await tx.pet.findFirst({
-            where: { id: petId, ownerId: userId }, select: { id: true },
-          });
+        await withPetSqlTx(async (tx) => {
+          await lockPetOwner(tx, userId);
+          const own = await existsOwnedPet(userId, petId, tx);
           if (!own) throw new Error("Питомец не найден или не принадлежит пользователю");
-          await enqueuePetMediaDeletionIntent(tx, userId, petId, candidateLocator,
-            "candidate", new Date(Date.now() + 24 * 60 * 60 * 1000));
+          await enqueuePetMediaDeletionIntent(
+            tx,
+            userId,
+            petId,
+            candidateLocator,
+            "candidate",
+            new Date(Date.now() + 24 * 60 * 60 * 1000),
+          );
         });
         return;
       }
-      const own = await prisma.pet.findFirst({
-        where: { id: petId, ownerId: userId }, select: { id: true },
-      });
+      const own = await existsOwnedPet(userId, petId);
       if (!own) throw new Error("Питомец не найден или не принадлежит пользователю");
     },
     upload: () => uploadFileToCDN(file, relativePath),
-    writeOwnerPhoto: (location) => prisma.$transaction(async (tx) => {
-      const owners = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
-      if (!owners.length) throw new Error("Пользователь не найден");
-      const pet = await tx.pet.findFirst({
-        where: { id: petId, ownerId: userId }, select: { photoUrl: true },
-      });
-      if (!pet) throw new Error("Питомец не найден или не принадлежит пользователю");
-      if (petMediaOutboxEnabled()) {
-        if (location !== candidateLocator)
-          throw new Error("PET_MEDIA_CANDIDATE_LOCATION_MISMATCH");
-        await consumePetMediaUploadReservation(tx, userId, candidateLocator);
-        if (pet.photoUrl && pet.photoUrl !== location)
-          await enqueuePetMediaDeletionIntent(tx, userId, petId,
-            pet.photoUrl, "photo-replaced");
-      }
-      await tx.pet.update({
-        where: { id: petId, ownerId: userId }, data: { photoUrl: location },
-      });
-      return pet.photoUrl;
-    }, { timeout: 90_000 }),
-    readOwnerPhoto: async () => (await prisma.pet.findFirst({
-      where: { id: petId, ownerId: userId }, select: { photoUrl: true },
-    }))?.photoUrl,
+    writeOwnerPhoto: (location) =>
+      withPetSqlTx(
+        async (tx) => {
+          const owners = await lockPetOwner(tx, userId);
+          if (!owners.length) throw new Error("Пользователь не найден");
+          const pet = await readOwnedPetPhoto(userId, petId, tx);
+          if (!pet) throw new Error("Питомец не найден или не принадлежит пользователю");
+          if (petMediaOutboxEnabled()) {
+            if (location !== candidateLocator)
+              throw new Error("PET_MEDIA_CANDIDATE_LOCATION_MISMATCH");
+            await consumePetMediaUploadReservation(tx, userId, candidateLocator);
+            if (pet.photoUrl && pet.photoUrl !== location)
+              await enqueuePetMediaDeletionIntent(
+                tx,
+                userId,
+                petId,
+                pet.photoUrl,
+                "photo-replaced",
+              );
+          }
+          await updateOwnedPetPhoto(tx, userId, petId, location);
+          return pet.photoUrl;
+        },
+        { timeout: 90_000 },
+      ),
+    readOwnerPhoto: async () => (await readOwnedPetPhoto(userId, petId))?.photoUrl,
     deleteStorageObject: async (location) => {
       // Pre-upload candidate or old-photo cleanup is already reserved in SQL.
       // Never perform an unfenced direct DELETE while outbox mode is active.
-      if (!petMediaOutboxEnabled())
-        await deleteFileFromCDN(getRelativePathFromCDNUrl(location));
+      if (!petMediaOutboxEnabled()) await deleteFileFromCDN(getRelativePathFromCDNUrl(location));
     },
-    onCleanupFailure: (phase) => logger.error(
-      phase === "previous" ? "PET_OLD_PHOTO_DELETE_FAILED" : "PET_CANDIDATE_CLEANUP_FAILED",
-      new Error("PET_PHOTO_MEDIA_CLEANUP_FAILED"),
-    ),
+    onCleanupFailure: (phase) =>
+      logger.error(
+        phase === "previous" ? "PET_OLD_PHOTO_DELETE_FAILED" : "PET_CANDIDATE_CLEANUP_FAILED",
+        new Error("PET_PHOTO_MEDIA_CLEANUP_FAILED"),
+      ),
   });
 }
 
@@ -594,18 +607,12 @@ export async function updatePetPhoto(petId: string, userId: string, file: File):
  * Получить документы питомца
  */
 export async function listPetDocuments(petId: string, userId: string): Promise<PetDocumentDto[]> {
-  const pet = await prisma.pet.findFirst({
-    where: { id: petId, ownerId: userId },
-    select: { id: true },
-  });
+  const pet = await existsOwnedPet(userId, petId);
   if (!pet) {
     throw new Error("Питомец не найден");
   }
 
-  const documents = await prisma.petDocument.findMany({
-    where: { petId, ownerId: userId },
-    orderBy: [{ createdAt: "desc" }],
-  });
+  const documents = await listOwnedPetDocuments(userId, petId);
   return Promise.all(documents.map((doc) => presentPetDocumentDto(toPetDocumentDto(doc))));
 }
 
@@ -614,10 +621,7 @@ export async function listPetDocuments(petId: string, userId: string): Promise<P
  */
 export async function listUserPetDocuments(userId: string): Promise<PetDocumentDto[]> {
   try {
-    const documents = await prisma.petDocument.findMany({
-      where: { ownerId: userId },
-      orderBy: [{ createdAt: "desc" }],
-    });
+    const documents = await readAllUserPetDocumentRows(userId);
     return Promise.all(documents.map((doc) => presentPetDocumentDto(toPetDocumentDto(doc))));
   } catch (error) {
     if (isPetDocumentTableMissingError(error)) {
@@ -641,10 +645,7 @@ export async function uploadPetDocument(
   validatePetDocumentFile(file);
   // Never upload to a provider for an unauthenticated or foreign pet. The same
   // permission and quota are rechecked inside a short serializable owner lock.
-  const authorizedPet = await prisma.pet.findFirst({
-    where: { id: petId, ownerId: userId },
-    select: { id: true },
-  });
+  const authorizedPet = await existsOwnedPet(userId, petId);
   if (!authorizedPet) throw new Error("Питомец не найден");
 
   const ext = getDocumentExtension(file);
@@ -656,47 +657,41 @@ export async function uploadPetDocument(
     : relativePath;
   let uploadedUrl: string | undefined;
   if (petMediaOutboxEnabled()) {
-    await prisma.$transaction(async tx => {
-      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
-      const owned = await tx.pet.findFirst({
-        where: { id: petId, ownerId: userId }, select: { id: true },
-      });
+    await withPetSqlTx(async (tx) => {
+      await lockPetOwner(tx, userId);
+      const owned = await existsOwnedPet(userId, petId, tx);
       if (!owned) throw new Error("Питомец не найден");
-      await enqueuePetMediaDeletionIntent(tx, userId, petId, attempted,
-        "candidate", new Date(Date.now() + 24 * 60 * 60 * 1000));
+      await enqueuePetMediaDeletionIntent(
+        tx,
+        userId,
+        petId,
+        attempted,
+        "candidate",
+        new Date(Date.now() + 24 * 60 * 60 * 1000),
+      );
     });
   }
   try {
     uploadedUrl = await uploadFileToCDN(file, relativePath);
     if (petMediaOutboxEnabled() && uploadedUrl !== attempted)
       throw new Error("PET_DOCUMENT_CANDIDATE_LOCATION_MISMATCH");
-    const result = await prisma.$transaction(
+    const result = await withPetSqlTx(
       async (tx) => {
-        const owners = await tx.$queryRaw<
-          { id: string }[]
-        >`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+        const owners = await lockPetOwner(tx, userId);
         if (!owners.length) throw new Error("Пользователь не найден");
-        const pet = await tx.pet.findFirst({
-          where: { id: petId, ownerId: userId },
-          select: { id: true },
-        });
+        const pet = await existsOwnedPet(userId, petId, tx);
         if (!pet) throw new Error("Питомец не найден");
-        const documentsCount = await tx.petDocument.count({
-          where: { petId, ownerId: userId },
-        });
+        const documentsCount = await countOwnedPetDocuments(tx, userId, petId);
         if (documentsCount >= PET_DOCUMENTS_MAX_PER_PET)
           throw new Error("Достигнут лимит документов питомца");
-        if (petMediaOutboxEnabled())
-          await consumePetMediaUploadReservation(tx, userId, attempted);
-        return tx.petDocument.create({
-          data: {
-            petId,
-            ownerId: userId,
-            name: file.name,
-            mimeType: file.type,
-            sizeBytes: file.size,
-            url: uploadedUrl!,
-          },
+        if (petMediaOutboxEnabled()) await consumePetMediaUploadReservation(tx, userId, attempted);
+        return createOwnedPetDocument(tx, {
+          petId,
+          ownerId: userId,
+          name: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          url: uploadedUrl!,
         });
       },
       { timeout: 10_000 },
@@ -709,10 +704,7 @@ export async function uploadPetDocument(
     // returning a marker. A transient DB failure must never delete committed data.
     const candidate = uploadedUrl ?? attempted;
     try {
-      const committed = await prisma.petDocument.findFirst({
-        where: { url: candidate, petId, ownerId: userId },
-        select: { id: true },
-      });
+      const committed = await findPetDocumentByUrl(userId, petId, candidate);
       if (!committed && !petMediaOutboxEnabled())
         await deleteFileFromCDN(getRelativePathFromCDNUrl(candidate));
     } catch {
@@ -735,21 +727,16 @@ export async function deletePetDocument(
   petId?: string,
 ): Promise<boolean> {
   if (petMediaOutboxEnabled()) {
-    return prisma.$transaction(async tx => {
-      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
-      const doc = await tx.petDocument.findFirst({
-        where: { id: documentId, ownerId: userId, ...(petId ? { petId } : {}) },
-      });
+    return withPetSqlTx(async (tx) => {
+      await lockPetOwner(tx, userId);
+      const doc = await findOwnedPetDocument(userId, documentId, petId, tx);
       if (!doc) return false;
-      await enqueuePetMediaDeletionIntent(tx, userId, doc.petId,
-        doc.url, "document-delete");
-      await tx.petDocument.delete({ where: { id: documentId } });
+      await enqueuePetMediaDeletionIntent(tx, userId, doc.petId, doc.url, "document-delete");
+      await deletePetDocumentRow(documentId, tx);
       return true;
     });
   }
-  const existingDocument = await prisma.petDocument.findFirst({
-    where: { id: documentId, ownerId: userId, ...(petId ? { petId } : {}) },
-  });
+  const existingDocument = await findOwnedPetDocument(userId, documentId, petId);
   if (!existingDocument) {
     return false;
   }
@@ -766,9 +753,7 @@ export async function deletePetDocument(
     if (parsePrivateMediaLocation(existingDocument.url)) throw error;
   }
 
-  await prisma.petDocument.delete({
-    where: { id: documentId },
-  });
+  await deletePetDocumentRow(documentId);
   return true;
 }
 
@@ -786,9 +771,7 @@ export async function renamePetDocument(
     throw new Error("Название документа не может быть пустым");
   }
 
-  const existingDocument = await prisma.petDocument.findFirst({
-    where: { id: documentId, ownerId: userId, ...(petId ? { petId } : {}) },
-  });
+  const existingDocument = await findOwnedPetDocument(userId, documentId, petId);
   if (!existingDocument) {
     return null;
   }
@@ -799,10 +782,7 @@ export async function renamePetDocument(
     existingDocument.mimeType,
   );
 
-  const updatedDocument = await prisma.petDocument.update({
-    where: { id: documentId },
-    data: { name: nextFileName },
-  });
+  const updatedDocument = await renamePetDocumentRow(documentId, nextFileName);
   return presentPetDocumentDto(toPetDocumentDto(updatedDocument));
 }
 
@@ -814,9 +794,7 @@ export async function getPetDocumentById(
   userId: string,
   petId?: string,
 ): Promise<PetDocumentDto | null> {
-  const document = await prisma.petDocument.findFirst({
-    where: { id: documentId, ownerId: userId, ...(petId ? { petId } : {}) },
-  });
+  const document = await findOwnedPetDocument(userId, documentId, petId);
   if (!document) {
     return null;
   }
@@ -839,16 +817,7 @@ export async function preparePetDocumentDownload(
   userId: string,
   petId?: string,
 ): Promise<PetDocumentDownloadPayload | null> {
-  const document = await prisma.petDocument.findFirst({
-    where: { id: documentId, ownerId: userId, ...(petId ? { petId } : {}) },
-    select: {
-      id: true,
-      name: true,
-      mimeType: true,
-      sizeBytes: true,
-      url: true,
-    },
-  });
+  const document = await findOwnedPetDocumentForDownload(userId, documentId, petId);
   if (!document) {
     return null;
   }
@@ -871,28 +840,24 @@ export async function preparePetDocumentDownload(
 export async function deletePet(petId: string, userId: string): Promise<boolean> {
   let committed: { photoUrl: string | null; documents: string[] } | null;
   try {
-    committed = await prisma.$transaction(async (tx) => {
+    committed = await withPetSqlTx(async (tx) => {
       // Serialize photo updates, owner deletion and Vet cleanup through the
       // same owner lock. Foreign/nonexistent IDs never reach media deletion.
-      const owners = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+      const owners = await lockPetOwner(tx, userId);
       if (!owners.length) return null;
-      const pet = await tx.pet.findFirst({
-        where: { id: petId, ownerId: userId }, select: { photoUrl: true },
-      });
+      const pet = await readOwnedPetPhoto(userId, petId, tx);
       if (!pet) return null;
-      const documents = await tx.petDocument.findMany({
-        where: { petId, ownerId: userId }, select: { url: true },
-      });
+      const documents = await readOwnedPetDocumentUrls(tx, userId, petId);
       await lockVetPet(tx, petId, userId);
       await enqueuePetVetCleanup(tx, petId, userId);
       if (petMediaOutboxEnabled()) {
-        const locations = [pet.photoUrl, ...documents.map(doc => doc.url)].filter(
+        const locations = [pet.photoUrl, ...documents.map((doc) => doc.url)].filter(
           (location): location is string => typeof location === "string" && !!location,
         );
         for (const location of new Set(locations))
           await enqueuePetMediaDeletionIntent(tx, userId, petId, location, "pet-delete");
       }
-      await tx.pet.delete({ where: { id: petId, ownerId: userId } });
+      await deleteOwnedPetRow(tx, userId, petId);
       return { photoUrl: pet.photoUrl, documents: documents.map((doc) => doc.url) };
     });
   } catch {
@@ -915,8 +880,10 @@ export async function deletePet(petId: string, userId: string): Promise<boolean>
     try {
       await deleteFileFromCDN(getRelativePathFromCDNUrl(location));
     } catch {
-      logger.error("PET_MEDIA_POSTCOMMIT_CLEANUP_FAILED",
-        new Error("PET_MEDIA_POSTCOMMIT_CLEANUP_FAILED"));
+      logger.error(
+        "PET_MEDIA_POSTCOMMIT_CLEANUP_FAILED",
+        new Error("PET_MEDIA_POSTCOMMIT_CLEANUP_FAILED"),
+      );
     }
   }
   return true;

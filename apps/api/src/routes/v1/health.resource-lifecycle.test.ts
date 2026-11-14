@@ -8,7 +8,7 @@ const m = vi.hoisted(() => ({
   metricsAuth: vi.fn(),
   metrics: vi.fn(),
 }));
-vi.mock("@gafus/core/services/systemHealth", () => ({ checkCoreDatabaseReady: m.database }));
+vi.mock("@gafus/statistics/database-health", () => ({ checkCoreDatabaseReady: m.database }));
 vi.mock("@gafus/queues", () => ({ connection: { ping: m.redis } }));
 vi.mock("@gafus/core/services/training", () => ({
   canReadCourseCacheMetrics: m.metricsAuth,

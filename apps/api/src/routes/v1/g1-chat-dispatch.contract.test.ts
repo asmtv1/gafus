@@ -14,9 +14,7 @@ vi.mock("@gafus/core/services/auth", () => ({
 }));
 vi.mock("@gafus/chat-server", async importOriginal => ({
   ...(await importOriginal<object>()), dispatchChatRequest: mock.dispatchChatRequest,
-}));
-vi.mock("@gafus/core/services/cynologistChat", async importOriginal => ({
-  ...(await importOriginal<object>()), acceptChatWebhook: mock.acceptChatWebhook,
+  acceptChatWebhook: mock.acceptChatWebhook,
 }));
 
 import { ChatError } from "@gafus/core/services/cynologistChat";

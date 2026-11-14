@@ -13,7 +13,7 @@ vi.mock("@gafus/queues",()=>({connection:{}}));
 vi.mock("bullmq",()=>({
   Worker: class { on(...args:unknown[]){mocks.workerOn(...args);return this;} },
 }));
-vi.mock("@gafus/core/services/notifications",()=>({
+vi.mock("@gafus/notifications-server",()=>({
   getPushNotificationForDelivery:vi.fn(),getUserPushSubscriptionsForDelivery:vi.fn(),
   deleteInvalidPushEndpoint:vi.fn(),recordPushNotificationDelivery:vi.fn(),
   getEligiblePushNotificationJob:vi.fn(),

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/build-diagnostics.mjs",
     "dev": "PORT=3004 tsx bull-board.ts",
     "start": "PORT=3004 tsx bull-board.ts",
     "typecheck": "tsc --noEmit"
@@ -14,11 +14,13 @@
     "@bull-board/express": "^6.10.1",
     "@gafus/logger": "workspace:*",
     "@gafus/queues": "workspace:*",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "@gafus/error-handling": "workspace:*"
   },
   "devDependencies": {
     "@gafus/queues": "workspace:*",
     "@types/express": "^4.17.21",
-    "tsx": "^4.20.3"
+    "tsx": "^4.20.3",
+    "esbuild": "0.27.2"
   }
 }

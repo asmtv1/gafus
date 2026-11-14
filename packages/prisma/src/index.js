@@ -8,4 +8,6 @@ export { prisma, default as prismaClient } from "./client";
 export function isPrismaUniqueConstraintError(error) {
     return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
+// Durable Chat2 outbox diagnostics live in the persistence boundary, not HTTP.
+export { listChatOutboxDeadLetters, retryChatOutboxDeadLetter } from "./chat2OutboxDiagnostics";
 //# sourceMappingURL=index.js.map

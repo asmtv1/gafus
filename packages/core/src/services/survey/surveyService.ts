@@ -1,4 +1,7 @@
-import { prisma } from "@gafus/prisma";
+import type {
+  SurveyPersistencePort,
+  SurveyResponseRow,
+} from "./surveyPersistencePort";
 import { createWebLogger } from "@gafus/logger";
 import type {
   SurveyAnswerValue,
@@ -6,20 +9,13 @@ import type {
   SurveyResponseDto,
   SurveyTemplate,
 } from "@gafus/types";
-import { TrainingStatus, calculateDayStatusFromStatuses } from "@gafus/types";
+import { calculateDayStatusFromStatuses } from "@gafus/types";
 
 import { checkCourseAccessById } from "../course";
 import { findSurveyTemplate } from "./templates";
 
 const logger = createWebLogger("survey-service");
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
-const db = prisma as typeof prisma & {
-  surveyResponse: {
-    findUnique: (args: unknown) => Promise<SurveyResponseRow | null>;
-    findMany: (args: unknown) => Promise<SurveyResponseRow[]>;
-  };
-};
-
 export interface SubmitSurveyResponseInput {
   courseId: string;
   stepId: string;
@@ -35,43 +31,6 @@ export interface SubmitSurveyResponseResult {
   error?: string;
   code?: string;
 }
-
-type SurveyResponseRow = {
-  id: string;
-  userId: string;
-  courseId: string;
-  stepId: string;
-  petId: string | null;
-  surveySlug: string;
-  surveyFamilySlug: string;
-  phase: "INITIAL" | "FINAL";
-  surveyVersion: number;
-  answers: unknown;
-  submittedAt: Date;
-  createdAt?: Date;
-  updatedAt?: Date;
-};
-
-type TxClient = {
-  $queryRaw: <T = unknown>(strings: TemplateStringsArray, ...values: unknown[]) => Promise<T>;
-  surveyResponse: {
-    findUnique: (args: {
-      where: { userId_stepId: { userId: string; stepId: string } };
-    }) => Promise<SurveyResponseRow | null>;
-    create: (args: unknown) => Promise<SurveyResponseRow>;
-    update: (args: unknown) => Promise<SurveyResponseRow>;
-  };
-  userStep: {
-    update: (args: unknown) => Promise<unknown>;
-    findMany: (args: {
-      where: { userTrainingId: string };
-      select: { status: true };
-    }) => Promise<{ status: TrainingStatus }[]>;
-  };
-  userTraining: {
-    update: (args: unknown) => Promise<unknown>;
-  };
-};
 
 function getEditableUntil(submittedAt: Date): Date {
   return new Date(submittedAt.getTime() + EDIT_WINDOW_MS);
@@ -138,17 +97,17 @@ export function getSurveyTemplate(slug: string): SurveyTemplate | null {
 }
 
 export async function getSurveyResponse(
+  persistence: SurveyPersistencePort,
   userId: string,
   stepId: string,
 ): Promise<SurveyResponseDto | null> {
-  const row = await db.surveyResponse.findUnique({
-    where: { userId_stepId: { userId, stepId } },
-  });
+  const row = await persistence.readSurveyResponseRow(userId, stepId);
 
   return row ? toDto(row) : null;
 }
 
 async function validateSurveyStep(
+  persistence: SurveyPersistencePort,
   userId: string,
   input: SubmitSurveyResponseInput,
 ): Promise<
@@ -172,32 +131,12 @@ async function validateSurveyStep(
     return { ok: false, error: "Нет доступа к курсу", code: "COURSE_ACCESS_DENIED" };
   }
 
-  const step = await prisma.step.findFirst({
-    where: { id: input.stepId },
-    select: { id: true, type: true, surveySlug: true },
-  } as never);
+  const step = await persistence.readSurveyStepRow(input.stepId);
   if (!step || step.type !== "SURVEY" || step.surveySlug !== input.surveySlug) {
     return { ok: false, error: "Шаг не является анкетой", code: "INVALID_SURVEY_STEP" };
   }
 
-  const userStep = await prisma.userStep.findFirst({
-    where: {
-      id: input.userStepId,
-      userTraining: {
-        userId,
-        dayOnCourse: { courseId: input.courseId },
-      },
-    },
-    // A user can have multiple physical steps in a course. Binding only
-    // UserTraining.courseId lets a SURVEY mark another THEORY/EXAM step as
-    // completed. Read the exact physical StepOnDay and its training day.
-    select: {
-      id: true,
-      userTrainingId: true,
-      stepOnDay: { select: { stepId: true, dayId: true } },
-      userTraining: { select: { dayOnCourse: { select: { dayId: true } } } },
-    },
-  });
+  const userStep = await persistence.readOwnedSurveyUserStepRow(userId, input.courseId, input.userStepId);
   if (!userStep || userStep.stepOnDay.stepId !== input.stepId ||
       userStep.stepOnDay.dayId !== userStep.userTraining.dayOnCourse.dayId) {
     // Do not disclose whether an unrelated owned UserStep exists.
@@ -207,83 +146,31 @@ async function validateSurveyStep(
   return { ok: true, template, userTrainingId: userStep.userTrainingId };
 }
 
-async function completeSurveyStep(tx: TxClient, userStepId: string, userTrainingId: string) {
-  await tx.userStep.update({
-    where: { id: userStepId },
-    data: { status: TrainingStatus.COMPLETED },
-  });
-
-  // Read our own uncommitted userStep completion on the SAME transaction.
-  const userSteps = await tx.userStep.findMany({
-    where: { userTrainingId },
-    select: { status: true },
-  });
-  const statuses = userSteps.map((step) => step.status);
-  const nextStatus =
-    statuses.length > 0 ? calculateDayStatusFromStatuses(statuses) : TrainingStatus.COMPLETED;
-
-  await tx.userTraining.update({
-    where: { id: userTrainingId },
-    data: { status: nextStatus },
-  });
-}
-
 export async function submitSurveyResponse(
+  persistence: SurveyPersistencePort,
   userId: string,
   input: SubmitSurveyResponseInput,
 ): Promise<SubmitSurveyResponseResult> {
   try {
-    const validation = await validateSurveyStep(userId, input);
+    const validation = await validateSurveyStep(persistence, userId, input);
     if (!validation.ok) {
       return { success: false, error: validation.error, code: validation.code };
     }
 
-    const outcome = await (
-      prisma.$transaction as unknown as <T>(callback: (tx: TxClient) => Promise<T>) => Promise<T>
-    )(async (tx) => {
-      // Serialize competing Survey submissions for the same user/day BEFORE any
-      // response or step mutation, so each later status read sees committed siblings.
-      // Locking only this parent row lets unrelated days proceed independently.
-      const parent = await tx.$queryRaw<{ id: string }[]>`
-        SELECT "id" FROM public."UserTraining"
-        WHERE "id" = ${validation.userTrainingId} FOR UPDATE
-      `;
-      if (parent.length !== 1) throw new Error("USER_TRAINING_NOT_FOUND");
-
-      // Resolve create-vs-edit and the existing 24h rule AFTER acquiring the
-      // parent lock: neither a concurrent create nor lock wait may stale them.
-      const existing = await tx.surveyResponse.findUnique({
-        where: { userId_stepId: { userId, stepId: input.stepId } },
-      });
-      if (existing && !canEditResponse(existing.submittedAt)) {
-        return { kind: "expired" as const, response: existing };
-      }
-
-      const saved = existing
-        ? await tx.surveyResponse.update({
-            where: { id: existing.id },
-            data: {
-              answers: input.answers,
-              petId: input.petId ?? null,
-            },
-          })
-        : await tx.surveyResponse.create({
-            data: {
-              userId,
-              courseId: input.courseId,
-              stepId: input.stepId,
-              petId: input.petId ?? null,
-              surveySlug: validation.template.slug,
-              surveyFamilySlug: validation.template.familySlug,
-              phase: validation.template.phase,
-              surveyVersion: validation.template.version,
-              answers: input.answers,
-              submittedAt: new Date(),
-            },
-          });
-
-      await completeSurveyStep(tx, input.userStepId, validation.userTrainingId);
-      return { kind: "saved" as const, response: saved };
+    const outcome = await persistence.writeSurveyResponseRows({
+      userId, courseId: input.courseId, stepId: input.stepId,
+      userStepId: input.userStepId, userTrainingId: validation.userTrainingId,
+      petId: input.petId, answers: input.answers,
+      surveySlug: validation.template.slug,
+      surveyFamilySlug: validation.template.familySlug,
+      phase: validation.template.phase, surveyVersion: validation.template.version,
+    }, canEditResponse, statuses => {
+      const next = calculateDayStatusFromStatuses(statuses);
+      // The broader domain enum includes PAUSED, which is not a persisted
+      // Prisma TrainingStatus. Never write an unsupported state.
+      if (!["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "RESET"].includes(next))
+        throw new Error("SURVEY_UNSUPPORTED_TRAINING_STATUS");
+      return next as (typeof statuses)[number];
     });
 
     if (outcome.kind === "expired") {
@@ -306,14 +193,12 @@ export async function submitSurveyResponse(
 }
 
 export async function getSurveyComparison(
+  persistence: SurveyPersistencePort,
   userId: string,
   courseId: string,
   familySlug: string,
 ): Promise<SurveyComparisonDto | null> {
-  const rows = await db.surveyResponse.findMany({
-    where: { userId, courseId, surveyFamilySlug: familySlug },
-    orderBy: { submittedAt: "asc" },
-  });
+  const rows = await persistence.readSurveyComparisonRows(userId, courseId, familySlug);
 
   const initial = rows.find((row) => row.phase === "INITIAL");
   const final = rows.find((row) => row.phase === "FINAL");

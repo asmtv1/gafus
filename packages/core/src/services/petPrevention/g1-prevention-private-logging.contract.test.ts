@@ -58,3 +58,8 @@ describe("AG1 Core prevention service: sensitive medical failure logging (no SQL
     assertNoPrivateLogs();
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalPreventionRowsPort from "@gafus/pets-server/prevention-rows";
+import { registerPreventionRowsPort, type PreventionRowsPort } from "./preventionRowsPort";
+registerPreventionRowsPort(originalPreventionRowsPort as PreventionRowsPort);

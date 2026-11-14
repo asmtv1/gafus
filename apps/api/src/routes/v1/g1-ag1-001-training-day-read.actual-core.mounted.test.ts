@@ -44,17 +44,21 @@ vi.mock("@hono-rate-limiter/redis", () => ({
 // Core barrels import queues in unrelated modules. No real constructor/enqueue.
 vi.mock("@gafus/queues", () => {
   const mockQueue = { add: m.queueAdd, remove: m.mutation, getJob: m.mutation };
+  // Explicitly expose the inert Redis port required by feed-server at import time.
+  // This mounted read test must never create a live Redis client.
   return new Proxy(
-    {},
+    { connection: { get: vi.fn(), set: vi.fn() } },
     {
-      get: (_target, key) =>
-        typeof key === "string"
-          ? key.endsWith("_JOB_ID")
-            ? (id: string) => "mock-" + id
-            : key.startsWith("remove")
-              ? m.mutation
-              : mockQueue
-          : undefined,
+      get: (target, key) =>
+        key === "connection"
+          ? target.connection
+          : typeof key === "string"
+            ? key.endsWith("_JOB_ID")
+              ? (id: string) => "mock-" + id
+              : key.startsWith("remove")
+                ? m.mutation
+                : mockQueue
+            : undefined,
     },
   );
 });
@@ -183,9 +187,11 @@ beforeEach(() => {
   m.keys.length = 0;
   m.throttle = false;
   m.registration.mockResolvedValue(true);
-  m.session.mockImplementation(async ({where}:{where:{id:string}}) => {
-    const matched=Object.values(users).find((candidate)=>candidate.id===where.id);
-    return matched ? {sessionsRevokedAt:null,registrationPending:false,role:matched.role} : null;
+  m.session.mockImplementation(async ({ where }: { where: { id: string } }) => {
+    const matched = Object.values(users).find((candidate) => candidate.id === where.id);
+    return matched
+      ? { sessionsRevokedAt: null, registrationPending: false, role: matched.role }
+      : null;
   });
   m.policy.mockImplementation(async (q: { where: { type: string } }) => {
     m.reads.push("policy:" + q.where.type);

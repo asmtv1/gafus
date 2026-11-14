@@ -1,0 +1,252 @@
+{
+  "schema": "gafus-a1-a2-gafus-wallet-ledger/v1",
+  "timestamp_utc": "2026-11-12T04:54:26.714246+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "cluster": "owner-wallet-atomic-balance-ledger-rows-port",
+  "edges_before": 22,
+  "edges_after": 21,
+  "ratchet": {
+    "frozen": 41,
+    "resolved": 20,
+    "new": 0
+  },
+  "historical": {
+    "initial": 142,
+    "retired": 121
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "c05e895faae2c7d953ab431f3bb3fd13d242da2026cab320e5b5bf5d18085657",
+      "sha256_after_current": "77731cac58ed2033ee0dcefdb03b21cdf92f5a30cc943cc0a3c789daaf6f66d2",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-ledger-rows.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "0db471e83f7b420788065a3872732cc380b1f84b0e583dd6ccf8b27ba07c945c",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-ledger-rows.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "2ce02780b6b72a795a213fcc2f9a1d0bc51543ded059df6c0e5e402bf45b5fa5",
+      "backup_before": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "6c94d8f3e49baab758aa95c2b5e02445cc07d29eca131b6eed58c58df3295a2d",
+      "sha256_after_current": "4ba238eaa5527d37c885e5b5fef8d27aac32856205130859e39fdc5ee4558f22",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "14a8f4431d4be6e60602026720860fde8aff025c96a530e31d155da2afa303bb",
+      "sha256_after_current": "ba6b07c36fd8836e65d9aef70af1dcd074bc437bfff8518904f2552526d2629d",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/gafus/admin2GafusConcurrency.postgres.test.ts",
+      "status": "M",
+      "sha256_before": "93a8c5ecf55343d1caeb5678fd2a23601dce0de2de4414f8d8eb84222bf1b3ad",
+      "sha256_after_current": "72aee7eb673d43360866ee1b45833973f33bc70df0abf7e2d6af8485ffdf6fa0",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/packages/core/src/services/gafus/admin2GafusConcurrency.postgres.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/g1-offline-training-reward-boundary.test.ts",
+      "status": "M",
+      "sha256_before": "ce089a407098014a8815b7672514a7869b640e3690a9675234a735006ab63f2f",
+      "sha256_after_current": "6003c962bbbce0b76843ae363d51c4ae0b504162134792006a653b6a6832c320",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/packages/core/src/services/gafus/g1-offline-training-reward-boundary.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/g1-wallet-readonly-status-history.audit.test.ts",
+      "status": "M",
+      "sha256_before": "eead5c6d518b875da1bded15d5f194f2089435fe2ad08c0f15b1eddb45f05ae2",
+      "sha256_after_current": "87bc3a58580d1290a5ec16a3aefc4852677120b5a929c27494e7f9f91d558a21",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/packages/core/src/services/gafus/g1-wallet-readonly-status-history.audit.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/gafus-content-parity.isolatedpg.test.ts",
+      "status": "M",
+      "sha256_before": "ab291c4f25574238168922ffb6ec2e387c7b16ce6cca3244a9dcba3db31300cc",
+      "sha256_after_current": "e013a2c28e744bbab9a07e100c838a7324f3475fdf49feb20b8fd581257fd198",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/packages/core/src/services/gafus/gafus-content-parity.isolatedpg.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/gafus.postgres.test.ts",
+      "status": "M",
+      "sha256_before": "7b9dc2087c3505fa19bea0a2ee608e85f7e24b6f96493ebe8d257765fa38b7a1",
+      "sha256_after_current": "9888bbd6d199007b0d9d1c5858a25b73b24b8155c134dc47bc399976075321a4",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/packages/core/src/services/gafus/gafus.postgres.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/gafusLedgerPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "39252a2392ff57302669d0658732b2801e50c4e37a215280c9e57216d89209b3",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/gafus/gafusLedgerPort.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "a4b2ec914d1f8e64274e86893b04ad6aefdd4ea5764a084a2fe7c0a85f488078",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/gafus/index.ts",
+      "status": "M",
+      "sha256_before": "2c46363cc4516579bb4bb702aff958f92317d14f70352353932ef25cdef8af42",
+      "sha256_after_current": "bd3f1375bab0353f35d802f1bef1b987967319cc92ff0ae3ee0ebb80d41809bd",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/packages/core/src/services/gafus/index.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/rewardService.test.ts",
+      "status": "M",
+      "sha256_before": "b925340bcc8eb029a0125fcdb5e4c1b716ad4a0978be20d2a8289def311e4ff9",
+      "sha256_after_current": "409f95b9be48bade0d6ce7da62e6914344584fdacb4d1ad2e65010d63cf9c449",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/packages/core/src/services/gafus/rewardService.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/walletService.test.ts",
+      "status": "M",
+      "sha256_before": "d21bf6ac5cec8eb9679512179d6f7e4abe91f4eb7d63e0dfade7076c65547250",
+      "sha256_after_current": "d11f7caeab2022be86a5f0f1a37992563859b03a9f339de735541bb0f63f7feb",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/packages/core/src/services/gafus/walletService.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/walletService.ts",
+      "status": "M",
+      "sha256_before": "531d4303af986e49a90ab19cefeca43e917dbb8770c1310f674fffb9411e1059",
+      "sha256_after_current": "ce73dc3dc8aa0038350b7880ac8be1f0b2e67cb849cff89bf19f8a474f121b0c",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/packages/core/src/services/gafus/walletService.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "8dd475ca00cb12dd1f98a595339eaffaccb5dee622e16f1ffd1f978330ba16be",
+      "sha256_after_current": "e6958593913eff78ae2fc3d17c2be2a4ae2db9e938d07ecb04a0b89dc58cb568",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Core existing wallet/reward/status+history",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/gafus/walletService.test.ts src/services/gafus/rewardService.test.ts src/services/gafus/g1-offline-training-reward-boundary.test.ts src/services/gafus/g1-wallet-readonly-status-history.audit.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 20,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-gafus-ledger-core-target.log"
+    },
+    {
+      "name": "Core new ledger port invariants",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/gafus/gafusLedgerPort.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 3,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-gafus-ledger-new-core-tests.log"
+    },
+    {
+      "name": "API owner-scoped wallet SQL composition",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/gafus/composition/install-ledger-rows.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-gafus-ledger-api-contract.log"
+    },
+    {
+      "name": "Full Core",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2121,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-ledger-core-full.log"
+    },
+    {
+      "name": "Full API",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2757,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-ledger-api-full.log"
+    },
+    {
+      "name": "Core TS",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-ledger-core-types-final.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-gafus-ledger-core-build.log"
+    },
+    {
+      "name": "API TS",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-ledger-api-types-final.log"
+    },
+    {
+      "name": "Gafus server TS",
+      "command": "pnpm --filter @gafus/gafus-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-ledger-server-types.log"
+    },
+    {
+      "name": "Architecture boundary",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-gafus-ledger-boundaries.log"
+    }
+  ],
+  "before_backup": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-wallet-ledger-port-prechange",
+  "sha_basis": "Fresh byte snapshot before this group, after SHA256 freshly computed from current shared uncommitted worktree; no old A2 shared SHA reused.",
+  "public_contract": {
+    "errors": [
+      "GAFUS_IDEMPOTENCY_CONFLICT",
+      "GAFUS_INSUFFICIENT_BALANCE",
+      "GAFUS_INVALID_AMOUNT"
+    ],
+    "transaction": "Caller retains exact same PG advisory-locked GafusTx; repository keeps atomic updateMany with balance>=spend and unique idempotencyKey; replay must never double-spend",
+    "reads": "strict owner-scoped wallet balance and descending cursor ledger history, 9-field public API shape unchanged",
+    "port_unbound": "GAFUS_LEDGER_PORT_UNBOUND",
+    "port_rebind": "GAFUS_LEDGER_PORT_ALREADY_BOUND"
+  },
+  "external_blockers": [
+    {
+      "id": "WALLET_LEDGER_REAL_PG",
+      "requires": "Disposable full-schema local PostgreSQL, concurrent independent transactions for same user grant/spend, advisory lock receipt and balance>=debit CAS, replay of idempotency key with same and changed amount, rollback on insert failure. No production DB."
+    },
+    {
+      "id": "HISTORY_OWNER_STAGING",
+      "requires": "Staging API with authenticated owner A/B, history pagination and cursor/expires, ensure no cross-owner userId rows or additional fields on public 9-field JSON."
+    },
+    {
+      "id": "FINAL_ARCH",
+      "requires": "21 remaining Core→server edges, combined A1/A2/A3 33-stage architecture regression + 5-stage chaos + Web/Mobile/Worker/panels/PG/Redis integration before touching frozen baseline."
+    }
+  ],
+  "frozen_baseline_edited": false,
+  "no_git_commit_merge_push_deploy": true,
+  "A2_integration": "Check every full sha256_after_current before applying. Treat apps/api/src/app.ts, scripts guard and both audit docs as shared; semantic merge only. Port and installer and tests inseparable."
+}

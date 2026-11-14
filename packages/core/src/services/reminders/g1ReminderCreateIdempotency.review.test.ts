@@ -66,10 +66,25 @@ vi.mock("@gafus/prisma", () => ({
 }));
 
 import {
-  assertReminderCreateKey, canonicalReminderDraft, createReminderWithReceipt,
-  lookupOwnReminderCreateReceipt, reminderPayloadFingerprint,
+  assertReminderCreateKey, canonicalReminderDraft, createReminderCreateReviewUseCase,
+  reminderPayloadFingerprint,
   ReminderIdempotencyConflictError, ReminderIdempotencyInvalidError, ReminderLimitError,
 } from "./g1ReminderCreateIdempotency.review";
+import {
+  withAG1ReminderCreateTx, readAG1ReminderReceipt, countAG1Reminders,
+  createAG1Reminder, storeAG1ReminderReceipt, lookupAG1ReminderReceipt,
+} from "@gafus/identity-write-server/reminder-review-rows";
+
+const { createReminderWithReceipt, lookupOwnReminderCreateReceipt } =
+  createReminderCreateReviewUseCase({
+    withOwnerTransaction: withAG1ReminderCreateTx,
+    readReceipt: readAG1ReminderReceipt,
+    countOwnerReminders: countAG1Reminders,
+    createOwnerReminder: createAG1Reminder,
+    storeReceipt: storeAG1ReminderReceipt,
+    lookupReceipt: lookupAG1ReminderReceipt,
+  });
+
 const key = (n: number) => `00000000-0000-4000-8000-${n.toString().padStart(12, "0")}`;
 const draft = { name: "Walk", reminderTime: "09:15", reminderDays: "3,1,1", timezone: "Europe/Moscow" };
 

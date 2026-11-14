@@ -1,0 +1,12 @@
+{
+  "label": "local-only Hono route + actual disposable PostgreSQL, test-injected actor (NOT JWT)",
+  "total": 400,
+  "concurrency": 12,
+  "warmup": 80,
+  "p50Ms": 7.48,
+  "p95Ms": 10.21,
+  "p99Ms": 11.94,
+  "maxMs": 14.05,
+  "totalMs": 257.41,
+  "rps": 1553.97
+}

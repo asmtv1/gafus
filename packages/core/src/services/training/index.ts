@@ -16,8 +16,14 @@ export const {
   checkDayAccess,
 } = trainingService;
 export type { StepOperation } from "./trainingService";
+export { registerTrainingServicePort, getCoreTrainingDependencies } from "./trainingService";
 
 export { getCourseCacheMetricsSnapshot, canReadCourseCacheMetrics } from "./trainingContentMetrics";
+export { registerCourseContentRevisionReadPort, getVerifiedCourseContentRevision } from "./trainingContentRevision";
+export type { CourseContentRevisionReadPort } from "./trainingContentRevision";
+export { registerTrainingDayContentReadPort } from "./trainingDayContentReadPort";
+export type { TrainingDayContentReadPort } from "./trainingDayContentReadPort";
 
-export { withOnlineStepBinding } from "./onlineStepBinding";
-export { refreshCourseContentRevision } from "./cacheRevisionService";
+export { onlineStepOccurrencesMatch, projectOnlineStepBinding } from "./onlineStepBinding";
+
+export type { TrainingServiceApi } from "./trainingServiceContract";

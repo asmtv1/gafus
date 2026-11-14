@@ -5,11 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const core = vi.hoisted(() => ({
   getArticles: vi.fn(),
   getArticleBySlugForMonetizedAccess: vi.fn(),
-  toggleArticleLikeWithMonetizedAccess: vi.fn(),
   incrementArticleView: vi.fn(),
 }));
 
-vi.mock("@gafus/core/services/article", () => core);
+vi.mock("../../modules/articles/composition/article-rows.js", () => core);
+vi.mock("../../modules/articles/composition/article-like.js", () => ({
+  toggleArticleLikeWithMonetizedAccess: vi.fn(),
+}));
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ error: vi.fn() }),
 }));

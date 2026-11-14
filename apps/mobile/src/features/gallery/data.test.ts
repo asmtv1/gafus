@@ -8,7 +8,7 @@ const randomUUID = vi.hoisted(() =>
     .mockReturnValueOnce("550e8400-e29b-41d4-a716-446655440002"),
 );
 vi.mock("expo-crypto", () => ({ randomUUID }));
-vi.mock("@react-navigation/native", () => ({ useIsFocused: () => true }));
+vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 vi.mock("@/shared/lib/api/gallery", () => ({ galleryApi: {} }));
 vi.mock("@/shared/stores/authStore", () => ({ useAuthStore: vi.fn() }));
 vi.mock("./session", () => ({ registerGalleryClient: vi.fn() }));

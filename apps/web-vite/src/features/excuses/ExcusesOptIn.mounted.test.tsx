@@ -64,8 +64,12 @@ describe("WEB-URL-051 public Next-only POST /api/excuses synthetic opt-in",()=>{
   expect(host.textContent).not.toContain("Генератор отмазок (макет)");
   await act(async()=>{window.history.pushState(null,"","/courses");
     window.dispatchEvent(new PopStateEvent("popstate"));});await tick();
-  // App has no guest course scenario: unauthorized route shows landing/login.
-  expect(host.textContent).toContain("Начать заниматься");
+  // Redirected public home is React.lazy. Do not fail on its temporary
+  // loading placeholder when this scenario follows a cold module import.
+  await vi.waitFor(async()=>{
+   await act(async()=>{await Promise.resolve();});
+   expect(host.textContent).toContain("Начать заниматься");
+  },{timeout:6000,interval:40});
   expect(host.querySelector('a[href="/login"]')).not.toBeNull();
   expect(host.textContent).not.toContain("Генератор отмазок (макет)");
   expect(generate).not.toHaveBeenCalled();

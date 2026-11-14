@@ -59,20 +59,115 @@ test('CI bare pnpm build --filter cannot bypass the mandatory job gate',()=>{
     assert.doesNotMatch(src,/\bpnpm build --filter(=|\s)/);
   }
 });
-test('runtime image validation keeps frozen 9/49 mandatory and extends to manifest-discovered subscription-read exports',()=>{
+test('runtime image validation keeps 9/49 immutable legacy and separately verifies API 34/208, Worker 33/198 runtime graphs',()=>{
   const verify=read('ci-cd/docker/check-runtime-package-exports.mjs');
   for(const name of ['core-client','achievements','consent','mobile-intro','notifications','feature-flags','admin-rewarded-ads','tracking','admin-reengagement','subscription-read-server'])
     assert.match(verify,new RegExp(name));
   assert.match(verify,/legacyPackages\.length !== 9 \|\| legacyExportsChecked !== 49/);
-  assert.match(verify,/packages\.length !== 10 \|\| exportsChecked !== 51/);
+  assert.match(verify,/exportsChecked !== 198/);
+  assert.match(verify,/exportsChecked !== 208/);
   assert.match(verify,/if \(legacyPackages\.includes\(name\)\) legacyExportsChecked\+\+/);
-  const required = ['core-client','achievements-server','consent-server','mobile-intro-server','notifications-server','feature-flags-server','admin-rewarded-ads-server','tracking-server','admin-reengagement-server','subscription-read-server'];
+  const required = ['core-client','achievements-server','consent-server','mobile-intro-server','notifications-server','feature-flags-server','admin-rewarded-ads-server','tracking-server','admin-reengagement-server','subscription-read-server','subscription-write-server','statistics','logger','feed-server','questions-server','consultation-server','exam-server','gallery-server','course-server','pets-server','media-server','article-server','gafus-server','entitlements-server','course-read-server','trainer-ai-server','course-progress-server','identity-write-server','consultation-query-server','subscription-finance-server','subscription-trial-server','questions-write-server','consultation-write-server','subscription-payment-server'];
   const latestExportCount = required.reduce((sum, pkg) =>
     sum + Object.keys(JSON.parse(read(`packages/${pkg}/package.json`)).exports).length, 0);
   const legacyExportCount = required.slice(0,9).reduce((sum,pkg)=>
     sum + Object.keys(JSON.parse(read(`packages/${pkg}/package.json`)).exports)
-      .filter(key => pkg !== "core-client" || key !== "./chat2/realtime-subscription").length,0);
+      .filter(key => !(pkg === "core-client" && key === "./chat2/realtime-subscription") &&
+        !(pkg === "tracking-server" && key === "./walks") &&
+        !(pkg === "notifications-server" && key === "./trainingReminderClaims") &&
+        !(pkg === "notifications-server" && key === "./adminBroadcastService") &&
+        !(pkg === "notifications-server" && key === "./push-subscriptions") &&
+        !(pkg === "notifications-server" && key === "./gafus-delivery") &&
+        !(pkg === "notifications-server" && key === "./training-reminder-delivery") &&
+        !(pkg === "notifications-server" && key === "./consultation-email-outbox") &&
+        !(pkg === "notifications-server" && key === "./reminder-expiry-redaction") &&
+        !(pkg === "notifications-server" && key === "./training-reminder-storage")).length,0);
   assert.equal(legacyExportCount,49,'frozen legacy exports must not regress');
+  assert.equal(latestExportCount,208,'all combined 208 compiled runtime entrypoints must remain required');
+  assert.match(verify,/RUNTIME_TRAINING_REMINDER_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_TRAINING_REMINDER_DELIVERY_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_ADMIN_BROADCAST_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_PUSH_SUBSCRIPTIONS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_GAFUS_DELIVERY_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_GAFUS_REACTION_PROGRESS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_SMART_FEED_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_PLATFORM_STATS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_STAFF_SEARCH_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_QUESTION_NOTIFICATIONS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_WORKER_CHAT_SERVER_EXPORT_MISSING/);
+  assert.match(read('packages/worker/package.json'),/"@gafus\/chat-server": "workspace:\*"/);
+  assert.match(read('ci-cd/docker/Dockerfile-worker-optimized'),/import\('@gafus\/chat-server'\)/);
+  assert.match(verify,/RUNTIME_RETIRED_FEED_PHOTO_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_TRAINER_EDITOR_COUNTS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_TRAINER_VIDEO_PLAYBACK_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_FEED_RUNTIME_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_FEED_BACKGROUND_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_CONSULTATION_ADMIN_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_CONSULTATION_READBACK_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_CONSULTATION_VOX_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_EXAM_CLEANUP_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_GALLERY_RUNTIME_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_GALLERY_RECOVERY_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_QUESTIONS_PHOTOS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_PUBLIC_CATALOG_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_PERSONALIZATION_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_REVIEWS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_FAVORITES_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_MINI_GUIDES_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_CACHE_REVISION_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_ONLINE_STEP_BINDING_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_CONSULTATION_MAIL_DELIVERY_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_PETS_WEIGHT_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_DOG_WALKS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_MEDIA_PURGE_REPOSITORY_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_TRAINER_TRANSCODING_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_VIDEO_PROGRESS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_ARTICLE_LIKES_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_GAFUS_ACTIVITY_READ_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_GAFUS_SETTINGS_READ_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_POLICY_READS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_QUESTION_PHOTO_TASK_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_PET_READ_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_PATH_READ_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_TRAINER_AI_PERSISTENCE_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_CONTENT_REVISION_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_GAFUS_WALLET_LOCK_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_PROGRESS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_PASSWORD_RESET_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_CONSULTATION_ELIGIBILITY_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_PAYMENT_FINANCE_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_EDITOR_SNAPSHOT_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_SUBSCRIPTION_TRIAL_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_CONSULTATION_EMAIL_OUTBOX_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_DELETED_MEDIA_PURGE_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_QUESTION_V2_CLEANUP_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_NPD_OPERATION_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_VET_VISIT_DETAIL_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_GAFUS_ENTITLEMENT_READS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_REMINDER_EXPIRY_REDACTION_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_DELETE_VERSIONED_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_REWARDED_SETTINGS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_COURSE_VERSION_ROWS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_VIDEO_ACCESS_READ_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_TRAINING_REMINDER_STORAGE_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_GAFUS_WALLET_RECORDS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_DIARY_ENTRIES_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_LEGACY_IMPORT_RECORDS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_PREVENTION_REMINDER_ROWS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_NPD_RECEIPTS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_PROFIT_RECONCILIATION_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_REGISTRATION_CONTEXT_READS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_GAFUS_UNLOCK_RECORDS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_VK_COMPLETION_ROWS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_ACCOUNT_CLEANUP_RECORDS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_ACCOUNT_CLEANUP_WORKER_ROWS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_CYNOLOGIST_CATALOG_ROWS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_CONSULTATION_SCHEDULE_ROWS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_REGISTRATION_CONTRACT_ROWS_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_PET_MEDIA_OUTBOX_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_PET_MEDIA_SQL_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_PET_MEDIA_DEFAULT_DB_EXPORT_MISSING/);
+  assert.match(verify,/RUNTIME_VET_VISIT_WRITE_ROWS_EXPORT_MISSING/);
   assert.ok(latestExportCount>legacyExportCount,'extracted subscription-read package must contribute compiled exports');
   assert.match(verify,/assertFile\(jsPath/);
   assert.match(verify,/assertFile\(resolve\(moduleDir, types\)/);

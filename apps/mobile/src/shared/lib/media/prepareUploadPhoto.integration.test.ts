@@ -20,7 +20,8 @@ describe("all four mobile photo upload paths share the pre-S3 optimizer", () => 
     const src = read("../../../features/chat2/Chat2RoomScreen.tsx");
     expect(src).toContain("if (kind === \"image\") {");
     expect(src).toContain("prepared = await prepareUploadPhoto(source);");
-    expect(src).toContain("uri:f.uri, sourcePhoto:f, uploading:true");
+    expect(src).toContain("sourcePhoto: photo, uploading: true");
+    expect(src).toContain("uri: photo.uri");
     expect(src).toContain("prepared?.dispose();");
     expect(src).toContain("size: prepared.bytes");
   });

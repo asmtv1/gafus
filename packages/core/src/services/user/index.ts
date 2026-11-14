@@ -1,6 +1,5 @@
 export * from "./deleteUserAccount";
 export * from "./profileService";
-export * from "./platformStats";
-export * from "./searchService";
-export * from "./userProgressService";
+export { registerProfileRowsPort } from "./profileRowsPort";
+export type { ProfileRowsPort } from "./profileRowsPort";
 export * from "./userCourseService";

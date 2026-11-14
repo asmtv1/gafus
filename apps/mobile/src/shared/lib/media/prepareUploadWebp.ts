@@ -2,6 +2,7 @@ import { SaveFormat } from "expo-image-manipulator";
 import { encodeUploadImage } from "./encodeUploadImage";
 import { File } from "expo-file-system";
 import type { UploadPhotoSource } from "./prepareUploadPhoto";
+import { stripWebpMetadata } from "./stripWebpMetadata";
 
 export interface PreparedWebpVariant {
   uri: string;
@@ -11,6 +12,27 @@ export interface PreparedWebpVariant {
   mime: "image/webp";
   dispose: () => void;
 }
+/** Strip Android ImageManipulator's embedded ICC profile (and other RIFF
+ * metadata) without decoding the WebP again or changing pixel content.
+ *
+ * Returns true when cached bytes changed. Call before server reservation:
+ * declaredBytes must match the exact cleaned S3 object byte count.
+ */
+export async function sanitizePreparedWebpVariant(
+  variant: PreparedWebpVariant,
+): Promise<boolean> {
+  const file = new File(variant.uri);
+  const original = await file.bytes();
+  const clean = stripWebpMetadata(original);
+  if (clean === original) return false;
+  file.write(clean);
+  const written = new File(variant.uri).size;
+  if (written !== clean.byteLength || written < 12 || written > 1_750_000)
+    throw new Error("CLIENT_WEBP_METADATA_WRITE_FAILED");
+  variant.bytes = written;
+  return true;
+}
+
 /** Native iOS and Android both have Expo WebP encoders. No server transcode. */
 export async function prepareUploadWebp(source: UploadPhotoSource, maxEdge: number): Promise<PreparedWebpVariant> {
   if (!Number.isSafeInteger(maxEdge) || maxEdge < 1 || maxEdge > 1920)
@@ -56,8 +78,14 @@ export async function prepareUploadWebp(source: UploadPhotoSource, maxEdge: numb
     if (!bytes || bytes > 1_750_000 || !result.width || !result.height ||
         Math.max(result.width, result.height) > maxEdge || result.uri === source.uri)
       throw new Error("Не удалось подготовить WebP-версию фото");
-    return { uri: result.uri, width: result.width, height: result.height,
-      bytes, mime: "image/webp", dispose };
+    const variant: PreparedWebpVariant = {
+      uri: result.uri, width: result.width, height: result.height,
+      bytes, mime: "image/webp", dispose,
+    };
+    // The server's WebP verification forbids ICC/EXIF/XMP. Android's native
+    // encoder injects ICCP even when the input JPEG has no metadata.
+    await sanitizePreparedWebpVariant(variant);
+    return variant;
   } catch (error) {
     dispose();
     throw error;

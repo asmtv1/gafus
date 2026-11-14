@@ -7,7 +7,7 @@
 import { randomBytes } from "node:crypto";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type * as PrismaModule from "@gafus/prisma";
-import type { DailyCourseCandidateDto } from "@gafus/core/services/dailyCourse";
+import type { DailyCourseCandidateDto } from "../../modules/daily-course/composition/dailyCourseApplication.js";
 
 const m=vi.hoisted(()=>({
   find:vi.fn(),session:vi.fn(),registration:vi.fn(),write:vi.fn(),
@@ -46,7 +46,7 @@ vi.mock("@gafus/core/services/auth",async original=>({
 import { app } from "../../app";
 import { generateAccessToken } from "@gafus/auth/jwt";
 import { getDailyCourseCandidates as actualCore }
-  from "@gafus/core/services/dailyCourse";
+  from "../../modules/daily-course/composition/dailyCourseApplication.js";
 
 const PATH="/api/v1/trainer/daily-course/candidates";
 const SECRET="AG1_PRIVATE_EMAIL_HLS_PAYMENT_STUDENT_PROGRESS";

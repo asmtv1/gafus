@@ -1,4 +1,4 @@
-import { listExamVideosEligibleForCleanup, markExpiredExamVideoDeleted } from "@gafus/core/services/exam";
+import { listExamVideosEligibleForCleanup, markExpiredExamVideoDeleted } from "@gafus/exam-server/cleanup";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";
 import { deleteFileFromCDN } from "@gafus/cdn-upload";

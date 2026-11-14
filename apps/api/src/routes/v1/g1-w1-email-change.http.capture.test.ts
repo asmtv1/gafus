@@ -19,7 +19,7 @@ vi.mock("@gafus/core/services/auth",()=>({
  isRegistrationCompleted:m.registration, requestEmailChange:m.request,confirmEmailChangeByToken:m.confirm,
  REGISTRATION_CHANNEL:{WEB:"WEB",IOS:"IOS",ANDROID:"ANDROID"},
 }));
-vi.mock("@gafus/core/services/appFeatureFlags",()=>({APP_FEATURE_MOBILE_VK_LOGIN_IOS:"mobile_vk_login_ios",getMobileFeatureFlagEnabled:vi.fn()}));
+vi.mock("@gafus/feature-flags-server",()=>({APP_FEATURE_MOBILE_VK_LOGIN_IOS:"mobile_vk_login_ios",getMobileFeatureFlagEnabled:vi.fn()}));
 vi.mock("@gafus/logger",()=>({createWebLogger:()=>({info:vi.fn(),error:vi.fn(),warn:vi.fn(),debug:vi.fn()})}));
 import { authRoutes } from "./auth";
 const BASE="/api/v1/auth",CAPTURE="/Users/asmtv1/Desktop/gafus-refactor/apps/api/.w1-email-ag1-isolated-20261017/captures";

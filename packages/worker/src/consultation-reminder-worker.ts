@@ -1,4 +1,4 @@
-import { processConsultationReminder } from "@gafus/core/services/consultation";
+import { processConsultationReminder } from "@gafus/consultation-server/booking-application";
 import type { ConsultationReminderKind } from "@gafus/queues";
 import { connection } from "@gafus/queues";
 import { createWorkerLogger } from "@gafus/logger";

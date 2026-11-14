@@ -4,10 +4,14 @@ import { describe, expect, it } from "vitest";
 import { getAppSubscriptionAccess as viaCore, getCynologistEntitlements as viaCoreRights } from "../accessService";
 import { getAppSubscriptionAccess as viaServer, getCynologistEntitlements as viaServerRights } from "@gafus/subscription-read-server";
 
-describe("Core appSubscription compatibility forwarding", () => {
-  it("reexports exactly the new server implementation, including legacy relative import", () => {
-    expect(viaCore).toBe(viaServer);
-    expect(viaCoreRights).toBe(viaServerRights);
+describe("Core appSubscription injected read port", () => {
+  it("has an explicit fail-closed port, not a server implementation reexport", () => {
+    expect(viaCore).not.toBe(viaServer);
+    expect(viaCoreRights).not.toBe(viaServerRights);
+    const source = readFileSync(new URL("../accessService.ts", import.meta.url), "utf8");
+    expect(source).not.toContain('from "@gafus/subscription-read-server"');
+    expect(source).toContain("SUBSCRIPTION_ACCESS_PORT_UNBOUND");
+    expect(source).toContain("registerSubscriptionAccessPort");
   });
   it("preserves the established public barrel and two Core export paths", () => {
     const index = readFileSync(new URL("../index.ts", import.meta.url), "utf8");

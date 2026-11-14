@@ -116,7 +116,7 @@ beforeEach(()=>{
 it("registered Hono GET under REAL signed USER A JWT: Core owner and strict failure, no-store",async()=>{
  const r=await result("A");
  expect(r.status).toBe(200);privateHeaders(r);
- expect(m.pets).toHaveBeenCalledExactlyOnceWith(owners.A.id,{throwOnError:true});
+ expect(m.pets).toHaveBeenCalledExactlyOnceWith(owners.A.id,{throwOnError:true},expect.any(Function));
  const raw=await r.json();
  const rows=projectReadForOwner(raw,owners.A.id);
  expect(rows).toMatchObject([{id:"pet_owner_A",name:"Собака pet_owner_A",type:"DOG"}]);
@@ -132,14 +132,15 @@ it("signed USER B gets B only after A; raw response never contains A medical not
  expect(projectReadForOwner(raw,owners.B.id)).toMatchObject([{id:"pet_owner_B"}]);
  expect(JSON.stringify(raw)).not.toContain("pet_owner_A");
  expect(m.pets.mock.calls).toEqual([
-  [owners.A.id,{throwOnError:true}],[owners.B.id,{throwOnError:true}],
+  [owners.A.id,{throwOnError:true},expect.any(Function)],
+  [owners.B.id,{throwOnError:true},expect.any(Function)],
  ]);
 });
 it("ADMIN does NOT impersonate USER A: same JWT owner-only list returns real empty200",async()=>{
  const r=await result("ADMIN");
  expect(r.status).toBe(200);privateHeaders(r);
  expect(await r.json()).toEqual({success:true,data:[]});
- expect(m.pets).toHaveBeenCalledExactlyOnceWith(owners.ADMIN.id,{throwOnError:true});
+ expect(m.pets).toHaveBeenCalledExactlyOnceWith(owners.ADMIN.id,{throwOnError:true},expect.any(Function));
 });
 it("guest/malformed bearer blocked 401 before Core, private headers preserved",async()=>{
  for(const header of [undefined,"Bearer invalid.jwt"]){
@@ -164,7 +165,7 @@ it("actual Core list error 500 must not be projected as [] by Hono",async()=>{
  const body=await r.text();
  expect(body).not.toContain(PII);
  expect(body).not.toContain("data\":[]");
- expect(m.pets).toHaveBeenCalledWith(owners.A.id,{throwOnError:true});
+ expect(m.pets).toHaveBeenCalledWith(owners.A.id,{throwOnError:true},expect.any(Function));
 });
 it("valid no-pet user is 200 [], distinct from Core failure",async()=>{
  m.pets.mockResolvedValueOnce([]);

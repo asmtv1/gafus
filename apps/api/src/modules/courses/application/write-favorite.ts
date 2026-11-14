@@ -3,7 +3,7 @@ import type {
   addFavoriteCourse,
   removeFavoriteCourse,
   toggleFavoriteCourse,
-} from "@gafus/core/services/course";
+} from "@gafus/course-server/favorites";
 
 type FavoriteAction = "add" | "remove" | "toggle";
 

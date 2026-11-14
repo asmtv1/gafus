@@ -1,0 +1,45 @@
+{
+  "name": "@gafus/consultation-write-server",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./service": {
+      "types": "./dist/service.d.ts",
+      "default": "./dist/service.js"
+    },
+    "./validation": {
+      "types": "./dist/validation.d.ts",
+      "default": "./dist/validation.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/prisma": "workspace:*",
+    "@gafus/consultation-shared": "workspace:*",
+    "@gafus/consultation-query-server": "workspace:*",
+    "@gafus/notifications-server": "workspace:*",
+    "@gafus/queues": "workspace:*",
+    "@gafus/logger": "workspace:*",
+    "luxon": "^3.6.1",
+    "zod": "^3.25.56"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "@types/node": "20.4.8",
+    "@types/luxon": "^3.6.2",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  }
+}

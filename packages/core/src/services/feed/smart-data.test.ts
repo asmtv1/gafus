@@ -31,22 +31,26 @@ function createDb() {
     feedComment: { findMany: vi.fn().mockResolvedValue([]) },
     feedBookmark: { findMany: vi.fn().mockResolvedValue([]) },
   } as unknown as FeedDb;
-  return { db, now, findPosts, findUsers };
+  const readStats = vi.fn().mockResolvedValue([
+    { postId: "post_local", reactions: 0, uniqueCommenters: 0, bookmarks: 0, impressions: 0 },
+    { postId: "post_other", reactions: 0, uniqueCommenters: 0, bookmarks: 0, impressions: 0 },
+  ]);
+  return { db, now, findPosts, findUsers, readStats };
 }
 
 describe("smart feed server retrieval and privacy", () => {
   it("boosts matching city and pets without excluding other cities", async () => {
-    const { db, now } = createDb();
+    const { db, now, readStats } = createDb();
     const ranked = await rankSmartCandidates(db, "viewer", now,
-      { useCity: true, usePets: true, useBehavior: false, exploration: false });
+      { useCity: true, usePets: true, useBehavior: false, exploration: false }, readStats);
     expect(ranked.map(post => post.id)).toEqual(["post_local", "post_other"]);
     expect(ranked[0]?.score).toBeGreaterThan(ranked[1]!.score);
     expect(ranked[0]?.reason).toBe("similar_pet");
   });
   it("requests published visible posts and only publicly shown author pets", async () => {
-    const { db, now, findPosts, findUsers } = createDb();
+    const { db, now, findPosts, findUsers, readStats } = createDb();
     await rankSmartCandidates(db, "viewer", now,
-      { useCity: true, usePets: true, useBehavior: true, exploration: false });
+      { useCity: true, usePets: true, useBehavior: true, exploration: false }, readStats);
     expect(findPosts).toHaveBeenCalledWith(expect.objectContaining({
       take: 400,
       where: expect.objectContaining({
@@ -62,11 +66,11 @@ describe("smart feed server retrieval and privacy", () => {
     }));
   });
   it("respects opt-outs and does not use old signals after reset", async () => {
-    const { db, now } = createDb();
+    const { db, now, readStats } = createDb();
     await rankSmartCandidates(db, "viewer", now, {
       useCity: false, usePets: false, useBehavior: false, exploration: false,
       historyResetAt: new Date("2026-10-10T10:00:00.000Z"),
-    });
+    }, readStats);
     expect(db.feedPostReaction.findMany).not.toHaveBeenCalled();
     expect(db.feedPostView.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({

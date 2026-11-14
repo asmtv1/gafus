@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import {
   AppleTokenOwnerUnavailableError,
   initializeAppleTokenForAuthenticatedOwner,
-} from "@gafus/core/services/appSubscription";
+} from "@gafus/subscription-write-server";
 
 export const appleTokenInitializationReviewRoutes = new Hono();
 

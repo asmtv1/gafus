@@ -37,7 +37,7 @@ vi.mock("@/shared/lib/api/gallery", () => ({
   galleryTransport: (...args: unknown[]) => m.fetch(...args),
   galleryApi: { setCover: vi.fn(), deleteAlbum: vi.fn() },
 }));
-vi.mock("@react-navigation/native", () => ({ useIsFocused: () => true }));
+vi.mock("expo-router/react-navigation", () => ({ useIsFocused: () => true }));
 vi.mock("expo-crypto", () => ({ randomUUID: () => "fake" }));
 vi.mock("expo-image", () => ({ Image: () => null }));
 vi.mock("expo-status-bar", () => ({ StatusBar: () => null }));
@@ -351,6 +351,31 @@ describe("actual GalleryAlbumsScreen -> GalleryAlbumScreen -> fullscreen handler
     await vi.waitFor(() => expect(host.textContent).toContain("Ошибка загрузки галереи"));
     expect(host.textContent).not.toContain("В альбоме пока нет фотографий");
     expect(host.textContent).not.toContain("secret signed token");
+  });
+  it("already cached album list never displays owner A after actor epoch changes", async () => {
+    await draw();
+    await vi.waitFor(() => expect(host.textContent).toContain("Публичный альбом"));
+    m.owner = "B";
+    m.epoch = "E2";
+    m.authed = false;
+    // The mock store has no subscription. Explicitly render the auth event
+    // that production Zustand subscribers receive on logout.
+    await draw();
+    expect(host.textContent).not.toContain("Публичный альбом");
+  });
+  it("already cached photo and album metadata are hidden on epoch revocation", async () => {
+    m.route = "detail";
+    await draw();
+    await vi.waitFor(() => expect(host.textContent).toContain("Photo"));
+    await vi.waitFor(() =>
+      expect(host.querySelector('button[aria-label="Пёсик"]')).not.toBeNull());
+    m.owner = "B";
+    m.epoch = "E2";
+    m.authed = false;
+    await draw();
+    expect(host.textContent).not.toContain("Photo");
+    expect(host.textContent).not.toContain("Публичный альбом");
+    expect(host.querySelector('button[aria-label="Пёсик"]')).toBeNull();
   });
   it("logout during pending album list request cannot show prior account album", async () => {
     const d = deferred<ReturnType<typeof list>>();

@@ -1,0 +1,188 @@
+{
+  "schema": "gafus-a1-a2-handoff/v1",
+  "created_utc": "2026-11-12T06:26:08.613501+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "rewarded-wallet-port",
+  "edges_before": 16,
+  "edges_after": 15,
+  "frozen_ratchet": {
+    "baseline": 41,
+    "resolved": 26,
+    "new": 0
+  },
+  "historical": {
+    "start": 142,
+    "removed": 127
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "906430c29923f6bd1745d6a95fa5f20f3db2f10dd4498de534354530c587e241",
+      "sha256_after_current": "abd3f91b7bd221f67ecf82c5ac19854516a860d463e8cf7bdf320e0757687581",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-wallet-atomic-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/rewarded-credits/composition/install-wallet-rows.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "cfc66e5cd32f26033edb0bf0a5176dec983cb20ec6744ea57b36a97b42bfb365",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/rewarded-credits/composition/install-wallet-rows.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "aea1387446be6bf4e81b2a43363d80907d9df733f2d4774c982d203fbb9ee54f",
+      "backup_before": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "048505b33e4e4ab13af4195c56d4fcd6abde144810758c62d23b116e4426fafd",
+      "sha256_after_current": "584ee7ac715437c2dfd3b00b6fc2da797c953509e4488192be6f6a2ddd960d3d",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-wallet-atomic-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "29c01ce931b79e1ff64f293c79397fddb5713a63aa1c55908aba003a5309f8eb",
+      "sha256_after_current": "673c7e40f76e3d0bf6f469739cbe8cc3aaefad6c5de1046de93029a0c8f6ac5a",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-wallet-atomic-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/index.ts",
+      "status": "M",
+      "sha256_before": "cbe0aa6ed529acc33326ca579b67cafa695f3a6de5984d25d955c75aad4da570",
+      "sha256_after_current": "2906689565a278348cbbda7ddc0a08fe27d49e694130b85b1b6e63ac19f61a3c",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-wallet-atomic-port-prechange/packages/core/src/services/rewardedCredits/index.ts"
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/rewardedWalletPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "3d8f6b5fdf61f11f42c947c171f311b469f918f91d8944a6e45215b119e957f9",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/rewardedWalletPort.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "e9cd63c34a802516adc49c37b0e9a9e6adeaac0f9b717545e2d3bddebbaacf6b",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/walletService.test.ts",
+      "status": "M",
+      "sha256_before": "d092ca12b284a20aa370b7dc9d2dfa32515baa7a61c251be9dd7424ae5d1e6df",
+      "sha256_after_current": "6f971ac78825f2953b1c84b4dcdb201c7fc1fbbe5e98cd95818302322c33918f",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-wallet-atomic-port-prechange/packages/core/src/services/rewardedCredits/walletService.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/rewardedCredits/walletService.ts",
+      "status": "M",
+      "sha256_before": "8cd3e9515d503294387b452f743f111a0af33997d034a7e1828ed88287bb799c",
+      "sha256_after_current": "c72b792d4aedeb13fddd8ff130a2a0d32472587f83d14e92ca890bf3941683ac",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-wallet-atomic-port-prechange/packages/core/src/services/rewardedCredits/walletService.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "60692f05147722b67a9332d7a8cf96979353b1773dba69afa97cc57ea2b41f63",
+      "sha256_after_current": "d75c23378953d415d7bac7d191a45c029833d0d95fcb2b7caab0a548ecbe8c58",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-wallet-atomic-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Core nine existing and four new wallet/lock/replay tests",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/rewardedCredits/rewardedWalletPort.test.ts src/services/rewardedCredits/walletService.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 13,
+      "tests_skipped": null,
+      "log": "/tmp/a1-rewarded-wallet-core-target.log"
+    },
+    {
+      "name": "API owner advisory SQL composition",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/rewarded-credits/composition/install-wallet-rows.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": null,
+      "log": "/tmp/a1-rewarded-wallet-api-contract-v2.log"
+    },
+    {
+      "name": "Full Core",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2143,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-wallet-core-full.log"
+    },
+    {
+      "name": "Full API",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2764,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-wallet-api-full.log"
+    },
+    {
+      "name": "Core TypeScript",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-wallet-core-types-final.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-wallet-core-build-final.log"
+    },
+    {
+      "name": "API TypeScript",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-wallet-api-types-final.log"
+    },
+    {
+      "name": "Gafus server SQL TypeScript",
+      "command": "pnpm --filter @gafus/gafus-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-rewarded-wallet-server-types-final.log"
+    },
+    {
+      "name": "Architecture guard and no new Prisma reachability",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-rewarded-wallet-boundaries.log"
+    }
+  ],
+  "sha_basis": "Fresh prechange snapshot of shared uncommitted working tree, final SHA256 computed and verified now; NEVER reuse older A2 shared-file hashes.",
+  "prechange_backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/rewarded-wallet-atomic-port-prechange",
+  "public_contract_invariants": [
+    "Core rewardedCredits/walletService.ts no longer imports gafus-server/rewarded-wallet-rows. All seven SQL methods are behind RewardedWalletPort; Core receives a branded opaque transaction token, not a Prisma API.",
+    "Same server PostgreSQL advisory transaction lock `rewarded:${userId}` gates EARN, SPEND and REFUND; original UNIQUE idempotencyKey and wallet row updates remain in server, no nested transaction.",
+    "Core preserves Moscow daily reset, wallet cap, pendingRefundCredits reconciliation, Premium bypass, reward provider/session ownership and original RewardedBalanceFullError/RewardedCreditsRequiredError contracts.",
+    "Unavailable SQL binding fails closed REWARDED_WALLET_PORT_UNBOUND and hot rebind is rejected REWARDED_WALLET_PORT_ALREADY_BOUND; API composer installed before routes."
+  ],
+  "external_gates": [
+    "Disposable real PostgreSQL concurrency: same-owner EARN and SPEND race, double idempotency key, immediate balance cap/negative spend, deferred refund overflow and release lock validation.",
+    "Staging real subscription Premium switch during ad completion and receipt/replay; verify no double grant or debit, no production provider calls.",
+    "Eliminate 15 remaining Core→server dependencies; then combined A1/A2/A3 33-stage architecture full regression and five-stage chaos plus Worker/panels/Web/Mobile/PG/Redis acceptance before baseline update."
+  ],
+  "no_commit_merge_push_deploy": true,
+  "frozen_baseline_json_modified": false,
+  "handoff": "A2 must compare all final SHA256 after before integrating. Shared app.ts, guards and audit files require semantic merging; never overwrite concurrent streams. Port, API installer and tests are an atomic patch."
+}

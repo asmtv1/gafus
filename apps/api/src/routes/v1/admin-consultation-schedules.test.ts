@@ -1,3 +1,11 @@
+vi.mock("@gafus/consultation-server/slot-service", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
+vi.mock("@gafus/consultation-server/booking-application", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const f = vi.hoisted(() => ({
@@ -7,14 +15,10 @@ const f = vi.hoisted(() => ({
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: f.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: f.reg }));
-vi.mock("@gafus/core/services/adminUser", () => ({ readAdminActorRole: f.dbRole }));
+vi.mock("../../modules/admin-users/composition/service.js", () => ({ readAdminActorRole: f.dbRole }));
 vi.mock("@gafus/core/services/consultation", async () => {
   const { z } = await import("zod/v3");
   return {
-    resolveTargetTrainerUserIdForStaff: f.target,
-    getTrainerAvailability: f.availability, getTrainerEditableSlots: f.editable,
-    setTrainerAvailability: f.set, addDayOff: f.dayAdd, removeDayOff: f.dayRemove,
-    addSlotException: f.exceptionAdd, removeSlotException: f.exceptionRemove,
     trainerAvailabilityInputSchema: z.object({ rules: z.array(z.object({ weekday: z.number() })) }),
     dayOffInputSchema: z.object({
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), reason: z.string().optional(),
@@ -26,6 +30,16 @@ vi.mock("@gafus/core/services/consultation", async () => {
     }).refine(x => new Date(x.endAt).getTime() > new Date(x.startAt).getTime()),
   };
 });
+vi.mock("../../modules/consultations/composition/catalog-schedule.js", () => ({
+  resolveTargetTrainerUserIdForStaff: f.target,
+  getTrainerAvailability: f.availability,
+  getTrainerEditableSlots: f.editable,
+  setTrainerAvailability: f.set,
+  addDayOff: f.dayAdd,
+  removeDayOff: f.dayRemove,
+  addSlotException: f.exceptionAdd,
+  removeSlotException: f.exceptionRemove,
+}));
 import { authMiddleware } from "../../middleware/auth";
 import { adminConsultationScheduleRoutes } from "./admin-consultation-schedules";
 const base = "/api/v1/admin/consultations/schedules";

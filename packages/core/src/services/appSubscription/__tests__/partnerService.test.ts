@@ -41,7 +41,7 @@ import {
   recordPartnerCommissionForPayment,
   requestPartnerPayout,
   reversePartnerCommissionForRefund,
-} from "../partnerService";
+} from "@gafus/subscription-payment-server/partner";
 
 describe("partner commission ledger", () => {
   const tx = {

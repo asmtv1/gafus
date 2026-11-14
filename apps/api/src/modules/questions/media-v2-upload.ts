@@ -2,7 +2,8 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "@gafus/prisma";
 import { questionsPhotoDailyLimitReached } from "@gafus/core/services/mediaDelivery";
-import { questionActor, QuestionError, scheduleQuestionsV2Cleanup } from "@gafus/core/services/questions";
+import { questionActor, QuestionError } from "@gafus/questions-server/service";
+import { scheduleQuestionsV2Cleanup } from "@gafus/media-server/question-v2-cleanup";
 import { questionsV2PresignedPost, questionsV2Head, questionsV2Delivery,
   questionsV2Marker, questionsV2ClientSmallPost, questionsV2FinishClientWebp } from "@gafus/cdn-upload";
 import { questionsV2CheckSource, questionsV2SourceKey, questionsV2FinalKeys, questionsV2ValidateManifest,

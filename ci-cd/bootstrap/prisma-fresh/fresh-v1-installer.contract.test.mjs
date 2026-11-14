@@ -42,6 +42,19 @@ const query=sql=>{
   if(sql.includes('count(*) FROM "_prisma_migrations"'))return '163';
   throw Error(`UNMOCKED_QUERY:${sql.slice(0,60)}`);
 };
+test('versioned baseline E2E tracks all forward migrations in ledger instead of frozen 163 count',()=>{
+  const source=readFileSync(join(here,'verify-owned-baseline-pg18.mjs'),'utf8');
+  assert.match(source,/accepted\.recorded\+accepted\.forwardApplied/);
+  assert.match(source,/Number\(query\('SELECT count\(\*\) FROM "_prisma_migrations"'\)\),accepted\.total/);
+  assert.match(source,/accepted\.total\+1/);
+  assert.doesNotMatch(source,/query\('SELECT count\(\*\) FROM "_prisma_migrations"'\),'163'/);
+});
+test('historical review verifier compares immutable v1 snapshot, never mutable current Prisma schema',()=>{
+  const source=readFileSync(join(here,'verify-owned-local-pg18.mjs'),'utf8');
+  assert.match(source,/const schema = join\(here, 'schema\.v1\.prisma'\)/);
+  assert.match(source,/verifyFreshV1Source\(\)/);
+  assert.doesNotMatch(source,/const schema = join\(root, 'packages\/prisma\/schema\.prisma'\)/);
+});
 test('frozen source manifest is 163 exact checksums; no historical SQL mutation',()=>{
   assert.equal(FRESH_V1_MIGRATION_COUNT,163);
   assert.deepEqual(verifyFreshV1Source(),names);

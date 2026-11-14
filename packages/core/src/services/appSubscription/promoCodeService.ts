@@ -1,9 +1,9 @@
-import {
-  Prisma,
-  prisma,
-  type AppSubscriptionPromoCode,
-  type AppSubscriptionPromoCodeEventType,
-} from "@gafus/prisma";
+import { requireSubscriptionPromoPort } from "./promoCodePort";
+import type {
+  PromoCodeRecord as AppSubscriptionPromoCode,
+  PromoCodeEventType as AppSubscriptionPromoCodeEventType,
+  PromoCodeRecordsTransaction,
+} from "./promoCodePort";
 
 import {
   APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
@@ -64,11 +64,6 @@ export type AppSubscriptionPromoCodeOfferState = {
   eligible: boolean;
 };
 
-type PromoCodeTransactionClient = Pick<
-  Prisma.TransactionClient,
-  "appSubscriptionPromoCode" | "appSubscriptionPromoCodeEvent"
->;
-
 type PromoCodeEventSnapshot = Pick<
   AppSubscriptionPromoCode,
   "id" | "discountPercent" | "isActive" | "revision"
@@ -96,15 +91,7 @@ function requireDiscountPercent(value: unknown): number {
 }
 
 export async function isAppSubscriptionPromoCodeEligible(userId: string): Promise<boolean> {
-  const priorSuccessfulPayment = await prisma.appSubscriptionPayment.findFirst({
-    where: {
-      userId,
-      provider: "YOOKASSA",
-      OR: [{ status: { in: ["SUCCEEDED", "REFUNDED"] } }, { succeededAt: { not: null } }],
-    },
-    select: { id: true },
-  });
-  return priorSuccessfulPayment === null;
+  return !(await requireSubscriptionPromoPort().userHasSuccessfulPromoBlockingPayment(userId));
 }
 
 export async function isAppSubscriptionPromoCodeEntryEnabled(
@@ -146,10 +133,8 @@ export async function previewAppSubscriptionPromoCode(params: {
   const [entryEnabled, eligible, settings, promoCode] = await Promise.all([
     isAppSubscriptionPromoCodeEntryEnabled(params.clientContext),
     isAppSubscriptionPromoCodeEligible(params.userId),
-    prisma.appSubscriptionSettings.findUnique({ where: { key: "default" } }),
-    prisma.appSubscriptionPromoCode.findUnique({
-      where: { normalizedCode: identity.normalizedCode },
-    }),
+    requireSubscriptionPromoPort().readPromoSettingsRow(),
+    requireSubscriptionPromoPort().readPromoCodeByNormalizedCode(identity.normalizedCode),
   ]);
 
   if (!entryEnabled) {
@@ -206,19 +191,11 @@ function eventSnapshot(params: {
   };
 }
 
-async function inPromoCodeTransaction<T>(
-  operation: (tx: PromoCodeTransactionClient) => Promise<T>,
-): Promise<T> {
-  return prisma.$transaction(operation, {
-    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-  });
-}
-
 async function findMutablePromoCode(
-  tx: PromoCodeTransactionClient,
+  tx: PromoCodeRecordsTransaction,
   id: string,
 ): Promise<AppSubscriptionPromoCode> {
-  const promoCode = await tx.appSubscriptionPromoCode.findUnique({ where: { id } });
+  const promoCode = await tx.find(id);
   if (!promoCode) {
     throw new AppSubscriptionPromoCodeDomainError("PROMO_CODE_NOT_FOUND", "Промокод не найден");
   }
@@ -241,30 +218,20 @@ export async function createAppSubscriptionPromoCode(params: {
   const discountPercent = requireDiscountPercent(params.discountPercent);
 
   try {
-    return await inPromoCodeTransaction(async (tx) => {
-      const promoCode = await tx.appSubscriptionPromoCode.create({
-        data: {
-          ...identity,
-          discountPercent,
-          isActive: params.isActive,
-          revision: 1,
-          createdById: params.actorId,
-          updatedById: params.actorId,
-        },
+    return await requireSubscriptionPromoPort().withPromoCodeRecordsTransaction(async (tx) => {
+      const promoCode = await tx.create({
+        ...identity,
+        discountPercent,
+        isActive: params.isActive,
+        actorId: params.actorId,
       });
 
-      await tx.appSubscriptionPromoCodeEvent.create({
-        data: eventSnapshot({
-          promoCode,
-          actorId: params.actorId,
-          type: "CREATED",
-        }),
-      });
+      await tx.appendEvent(eventSnapshot({ promoCode, actorId: params.actorId, type: "CREATED" }));
 
       return promoCode;
     });
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    if (requireSubscriptionPromoPort().isUniquePromoCodeError(error)) {
       throw new AppSubscriptionPromoCodeDomainError(
         "PROMO_CODE_DUPLICATE",
         "Промокод с таким кодом уже существует, включая архивные",
@@ -285,7 +252,7 @@ export async function updateAppSubscriptionPromoCode(params: {
       ? undefined
       : requireDiscountPercent(params.discountPercent);
 
-  return inPromoCodeTransaction(async (tx) => {
+  return requireSubscriptionPromoPort().withPromoCodeRecordsTransaction(async (tx) => {
     const current = await findMutablePromoCode(tx, params.id);
     const discountChanged =
       requestedDiscount !== undefined && requestedDiscount !== current.discountPercent;
@@ -293,14 +260,10 @@ export async function updateAppSubscriptionPromoCode(params: {
 
     if (!discountChanged && !activeChanged) return current;
 
-    const promoCode = await tx.appSubscriptionPromoCode.update({
-      where: { id: current.id },
-      data: {
-        discountPercent: discountChanged ? requestedDiscount : undefined,
-        isActive: activeChanged ? params.isActive : undefined,
-        revision: { increment: 1 },
-        updatedById: params.actorId,
-      },
+    const promoCode = await tx.update(current.id, {
+      discountPercent: discountChanged ? requestedDiscount : undefined,
+      isActive: activeChanged ? params.isActive : undefined,
+      actorId: params.actorId,
     });
 
     const events = [];
@@ -323,7 +286,7 @@ export async function updateAppSubscriptionPromoCode(params: {
       );
     }
 
-    await tx.appSubscriptionPromoCodeEvent.createMany({ data: events });
+    await tx.appendEvents(events);
     return promoCode;
   });
 }
@@ -335,16 +298,12 @@ export async function archiveAppSubscriptionPromoCode(params: {
 }): Promise<AppSubscriptionPromoCode> {
   const archivedAt = params.archivedAt ?? new Date();
 
-  return inPromoCodeTransaction(async (tx) => {
+  return requireSubscriptionPromoPort().withPromoCodeRecordsTransaction(async (tx) => {
     const current = await findMutablePromoCode(tx, params.id);
-    const promoCode = await tx.appSubscriptionPromoCode.update({
-      where: { id: current.id },
-      data: {
-        isActive: false,
-        archivedAt,
-        revision: { increment: 1 },
-        updatedById: params.actorId,
-      },
+    const promoCode = await tx.update(current.id, {
+      isActive: false,
+      archivedAt,
+      actorId: params.actorId,
     });
 
     const events = [];
@@ -367,7 +326,7 @@ export async function archiveAppSubscriptionPromoCode(params: {
       }),
     );
 
-    await tx.appSubscriptionPromoCodeEvent.createMany({ data: events });
+    await tx.appendEvents(events);
     return promoCode;
   });
 }

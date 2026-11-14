@@ -2,7 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@gafus/prisma";
 import { readTrainerExamMetadataApplication } from "../../../../../apps/api/src/modules/trainer-exam/composition/read-trainer-exam-metadata";
-import { getPendingExamCount } from "./examService";
+import { getPendingExamCount } from "@gafus/exam-server/exam-service";
 
 const forbiddenMedia = vi.hoisted(() =>
   vi.fn(() => {
@@ -20,7 +20,7 @@ vi.mock("@gafus/cdn-upload", () => ({
   getRelativePathFromCDNUrl: forbiddenMedia,
   uploadBufferToCDN: forbiddenMedia,
 }));
-vi.mock("../notifications/immediatePushService", () => ({
+vi.mock("@gafus/notifications-server/immediatePushService", () => ({
   sendImmediatePushNotification: forbiddenPush,
 }));
 

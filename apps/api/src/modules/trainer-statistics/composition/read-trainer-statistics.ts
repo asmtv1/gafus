@@ -1,5 +1,5 @@
 /** AG1-001: lazy Core getters and unchanged strict statistics projectors. */
-import { getCourseStatistics, getStepStatistics } from "@gafus/core/services/statistics";
+import { getCourseStatistics, getStepStatistics } from "@gafus/statistics";
 import {
   projectCourseStatisticsForTrainer,
   projectStepStatisticsForTrainer,

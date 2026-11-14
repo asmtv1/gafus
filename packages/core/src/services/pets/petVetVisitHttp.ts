@@ -1,5 +1,9 @@
 import { ZodError } from "zod/v3";
-import { getOwnVetVisitDetail, VetVisitDetailNotFoundError } from "./g1VetVisitDetailRead.review";
+import {
+  getOwnVetVisitDetail,
+  VetVisitDetailNotFoundError,
+  type VetVisitDetailReadPort,
+} from "./g1VetVisitDetailRead.review";
 import { createWebLogger } from "@gafus/logger";
 import { VET_VISIT_MAX_FILE_BYTES } from "@gafus/types";
 import {
@@ -69,6 +73,7 @@ export async function handlePetVetVisitRequest(
   petId: string,
   ownerId: string,
   parts: string[],
+  readDetail?: VetVisitDetailReadPort,
 ) {
   try {
     const method = request.method;
@@ -85,17 +90,24 @@ export async function handlePetVetVisitRequest(
       if (new URL(request.url).search) {
         return json({ success: false, code: "VET_VISIT_NOT_FOUND" }, 404);
       }
-      data = await getOwnVetVisitDetail(ownerId, petId, visitId!);
-    }
-    else if ((!parts.length && method === "POST") || (parts.length === 1 && method === "PUT")) {
+      if (!readDetail) throw new Error("VET_VISIT_DETAIL_PORT_MISSING");
+      data = await getOwnVetVisitDetail(ownerId, petId, visitId!, readDetail);
+    } else if ((!parts.length && method === "POST") || (parts.length === 1 && method === "PUT")) {
       let body: unknown;
       try {
         body = await (await limitedBody(request, 150_000)).json();
       } catch (e) {
         if (e instanceof VetVisitError) throw e;
         // Parsing failed before any Core transaction; keep details off the wire.
-        return json({ success: false, code: "VET_VISIT_INVALID_JSON",
-          error: "Некорректный JSON", fieldErrors: { body: "INVALID_JSON" } }, 400);
+        return json(
+          {
+            success: false,
+            code: "VET_VISIT_INVALID_JSON",
+            error: "Некорректный JSON",
+            fieldErrors: { body: "INVALID_JSON" },
+          },
+          400,
+        );
       }
       data = await savePetVetVisit(petId, ownerId, body, visitId);
     } else if (parts.length === 1 && method === "DELETE")
@@ -141,18 +153,34 @@ export async function handlePetVetVisitRequest(
     if (error instanceof VetVisitError) {
       if (error.status === 404) {
         // Never reveal whether the pet, visit or attachment exists to another owner.
-        return json({ success: false, code: "VET_VISIT_NOT_FOUND",
-          error: "Запись не найдена" }, 404);
+        return json(
+          { success: false, code: "VET_VISIT_NOT_FOUND", error: "Запись не найдена" },
+          404,
+        );
       }
       if (error.status === 400) {
-        return json({ success: false, code: "VET_VISIT_VALIDATION_ERROR",
-          error: error.message, fieldErrors: { body: "INVALID_VALUE" } }, 400);
+        return json(
+          {
+            success: false,
+            code: "VET_VISIT_VALIDATION_ERROR",
+            error: error.message,
+            fieldErrors: { body: "INVALID_VALUE" },
+          },
+          400,
+        );
       }
       return json({ success: false, error: error.message }, error.status);
     }
     if (error instanceof ZodError)
-      return json({ success: false, code: "VET_VISIT_VALIDATION_ERROR",
-        error: "Некорректные поля", fieldErrors: vetVisitFieldErrors(error) }, 400);
+      return json(
+        {
+          success: false,
+          code: "VET_VISIT_VALIDATION_ERROR",
+          error: "Некорректные поля",
+          fieldErrors: vetVisitFieldErrors(error),
+        },
+        400,
+      );
     logger.error(
       "Не удалось выполнить действие с посещением врача",
       new Error("VET_VISIT_REQUEST_FAILED"),

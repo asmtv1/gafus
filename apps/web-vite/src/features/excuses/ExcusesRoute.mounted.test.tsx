@@ -18,12 +18,20 @@ let host:HTMLDivElement,root:Root,cache:QueryClient,fixture:ExcuseFixture;
 let generate:ReturnType<typeof vi.fn<ExcuseFixture["generate"]>>;
 let network:ReturnType<typeof vi.fn>;
 const tick=async()=>act(async()=>{await new Promise(done=>setTimeout(done,25));});
+// Suspense/lazy routes can commit on a later React scheduler tick under full-suite
+// CPU load. Await the actual UI state, not an arbitrary one-tick delay.
+async function waitForUI(isReady:()=>boolean){
+ for(let attempt=0;attempt<60&&!isReady();attempt++)await tick();
+ expect(isReady()).toBe(true);
+}
 async function mount(path="/otmazki",enabled=true,withFixture=true){
  window.history.replaceState(null,"",path);
  await act(async()=>root.render(<QueryClientProvider client={cache}>
   <App showExcusesOptIn={enabled}
    excusesSyntheticFixture={withFixture?fixture:undefined}/>
  </QueryClientProvider>));await tick();
+ if(path==="/otmazki"&&enabled&&withFixture)
+  await waitForUI(()=>host.querySelector(".excuses-panel")!==null);
 }
 async function click(label:string){
  const found=[...host.querySelectorAll<HTMLButtonElement>("button")]
@@ -127,6 +135,7 @@ describe("WEB-URL-051 /otmazki public App opt-in only",()=>{
   await mount();await click("Сгенерировать");await click("Назад");
   expect(location.pathname).toBe("/");
   await act(async()=>d.resolve(response()));await tick();
+  await waitForUI(()=>host.querySelector(".excuses-panel")===null);
   expect(host.textContent).not.toContain(text);
   expect(host.querySelector(".excuses-panel")).toBeNull();
  });

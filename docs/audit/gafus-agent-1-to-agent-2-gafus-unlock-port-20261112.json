@@ -1,0 +1,218 @@
+{
+  "schema": "gafus-a1-a2-atomic-unlock-port/v1",
+  "timestamp_utc": "2026-11-12T05:04:30.783815+00:00",
+  "repo": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "git_head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "gafus-single-advisory-transaction-debit-and-content-grant",
+  "edges_before": 21,
+  "edges_after": 20,
+  "ratchet": {
+    "frozen": 41,
+    "resolved": 21,
+    "new": 0
+  },
+  "historical": {
+    "initial": 142,
+    "removed": 122
+  },
+  "files": [
+    {
+      "path": "apps/api/src/app.ts",
+      "status": "M",
+      "sha256_before": "77731cac58ed2033ee0dcefdb03b21cdf92f5a30cc943cc0a3c789daaf6f66d2",
+      "sha256_after_current": "7f8108b385e140b51c07e50231ae5f269aa07b73f50c63a312cd9ce9cbdbec84",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-unlock-grant-port-prechange/apps/api/src/app.ts"
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-unlock-rows.contract.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "593815c82450d7ff0bb02355caaae0f15611f8ebcab23bb0ad74fb9d60818654",
+      "backup_before": null
+    },
+    {
+      "path": "apps/api/src/modules/gafus/composition/install-unlock-rows.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "f6b99676835ac27db2fd99175cbf4a647bc954232842bf3c92d96f1841f6380d",
+      "backup_before": null
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "status": "M",
+      "sha256_before": "4ba238eaa5527d37c885e5b5fef8d27aac32856205130859e39fdc5ee4558f22",
+      "sha256_after_current": "e343be1634992a2dea27b5e20a7d4cf6907929c6100e7fd3fd170479a16e116f",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-unlock-grant-port-prechange/docs/audit/core-server-adapter-risk-inventory-20261111.md"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "status": "M",
+      "sha256_before": "ba6b07c36fd8836e65d9aef70af1dcd074bc437bfff8518904f2552526d2629d",
+      "sha256_after_current": "09fa7612a8e757aa6522567f67ec5b07b0008c8f8b453877b7a8aad30f9dff44",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-unlock-grant-port-prechange/docs/audit/core-server-bulk-progress-20261111.md"
+    },
+    {
+      "path": "packages/core/src/services/gafus/accessGrantService.test.ts",
+      "status": "M",
+      "sha256_before": "5eb6d654f5d3510dd6e4c5ddd5c59b47679237c580911c06570aefc91546bbe5",
+      "sha256_after_current": "1f129a4797026c6904fd51b62a9fede0de00588c71bc7135cf1a6fb25271d9b8",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-unlock-grant-port-prechange/packages/core/src/services/gafus/accessGrantService.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/accessGrantService.ts",
+      "status": "M",
+      "sha256_before": "a2e6e39984168df2a50a93021c0f4c02ef3500ce37c1f136c50a7e72cd4ba102",
+      "sha256_after_current": "6e294f0019c09f048e60a3755653af222d54869326e5a253159626d5869d7059",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-unlock-grant-port-prechange/packages/core/src/services/gafus/accessGrantService.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/gafus-content-parity.isolatedpg.test.ts",
+      "status": "M",
+      "sha256_before": "e013a2c28e744bbab9a07e100c838a7324f3475fdf49feb20b8fd581257fd198",
+      "sha256_after_current": "388070f409eff372bebe03cc0c1a34e81a25a7073554f3df980ff58539b099e0",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-unlock-grant-port-prechange/packages/core/src/services/gafus/gafus-content-parity.isolatedpg.test.ts"
+    },
+    {
+      "path": "packages/core/src/services/gafus/gafusUnlockPort.test.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "062b9705dba4ecbe331164f30723bf3344ea59f468510154ac26b3724b462f15",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/gafus/gafusUnlockPort.ts",
+      "status": "A",
+      "sha256_before": null,
+      "sha256_after_current": "6bc6361f3d1a011ef81b42bb86da9270fdfbc01a73d73187493f0b72813d1c43",
+      "backup_before": null
+    },
+    {
+      "path": "packages/core/src/services/gafus/index.ts",
+      "status": "M",
+      "sha256_before": "bd3f1375bab0353f35d802f1bef1b987967319cc92ff0ae3ee0ebb80d41809bd",
+      "sha256_after_current": "45f427efe5bd39f86d6a3a51e44c86b84b323c70be63c1811167a23ba6ea71ce",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-unlock-grant-port-prechange/packages/core/src/services/gafus/index.ts"
+    },
+    {
+      "path": "scripts/check-core-server-boundary.mjs",
+      "status": "M",
+      "sha256_before": "e6958593913eff78ae2fc3d17c2be2a4ae2db9e938d07ecb04a0b89dc58cb568",
+      "sha256_after_current": "cad038aa50f65e4c7a34fbdeb67b55620d5ff60134fc7aff82cc9f05e1b3112b",
+      "backup_before": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-unlock-grant-port-prechange/scripts/check-core-server-boundary.mjs"
+    }
+  ],
+  "checks": [
+    {
+      "name": "Core existing Gafus unlock replay+expiry",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/gafus/accessGrantService.test.ts src/services/gafus/gafus-content-parity.isolatedpg.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 8,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-gafus-unlock-existing-target.log"
+    },
+    {
+      "name": "Core fail-closed and same Tx target unlock",
+      "command": "pnpm --filter @gafus/core exec vitest run src/services/gafus/gafusUnlockPort.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 3,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-gafus-unlock-port-core.log"
+    },
+    {
+      "name": "API server SQL unlock composition",
+      "command": "pnpm --filter @gafus/api exec vitest run src/modules/gafus/composition/install-unlock-rows.contract.test.ts --config vitest.config.ts",
+      "status": "PASS",
+      "tests_passed": 1,
+      "tests_skipped": 0,
+      "log": "/tmp/a1-gafus-unlock-api-contract-v2.log"
+    },
+    {
+      "name": "Core full",
+      "command": "pnpm --filter @gafus/core test",
+      "status": "PASS",
+      "tests_passed": 2124,
+      "tests_skipped": 136,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-unlock-core-full-v2.log"
+    },
+    {
+      "name": "API full",
+      "command": "pnpm --filter @gafus/api test",
+      "status": "PASS",
+      "tests_passed": 2758,
+      "tests_skipped": 266,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-unlock-api-full-v2.log"
+    },
+    {
+      "name": "Core types",
+      "command": "pnpm --filter @gafus/core typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-unlock-core-types.log"
+    },
+    {
+      "name": "Core build",
+      "command": "pnpm --filter @gafus/core build",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-gafus-unlock-core-build-v2.log"
+    },
+    {
+      "name": "API types",
+      "command": "pnpm --filter @gafus/api typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-gafus-unlock-api-types-v2.log"
+    },
+    {
+      "name": "Gafus SQL adapter types",
+      "command": "pnpm --filter @gafus/gafus-server typecheck",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-gafus-unlock-server-types-v2.log"
+    },
+    {
+      "name": "Architecture boundaries",
+      "command": "pnpm check:core-boundaries",
+      "status": "PASS",
+      "tests_passed": null,
+      "tests_skipped": null,
+      "log": "/tmp/a1-gafus-unlock-boundaries-v2.log"
+    }
+  ],
+  "backup_root": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/gafus-unlock-grant-port-prechange",
+  "hash_basis": "Fresh snapshot before this group; after sha256 recalculated from current shared uncommitted worktree, not old shared A2 hashes.",
+  "public_contract": {
+    "atomicity": "Single DB transaction user advisory wallet lock, global idempotency replay, debit and grant insert; maxWait=10s timeout=30s unchanged",
+    "replay": "Same user and target required; expired replay never renews entitlement",
+    "errors": [
+      "GAFUS_IDEMPOTENCY_CONFLICT",
+      "GAFUS_INSUFFICIENT_BALANCE",
+      "GAFUS_TARGET_NOT_ELIGIBLE",
+      "GAFUS_DISABLED"
+    ],
+    "fail_closed": "GAFUS_UNLOCK_PORT_UNBOUND",
+    "rebind": "GAFUS_UNLOCK_PORT_ALREADY_BOUND"
+  },
+  "no_git_commit_merge_push_deploy": true,
+  "baseline_json_changed": false,
+  "open_gates": [
+    {
+      "id": "PG_UNLOCK_RACE",
+      "requires": "Disposable full-schema localhost PostgreSQL, concurrent same-key and different-key Gafus requests under actual advisory user lock; assert debit+grant one transaction, rollback both on failure, idempotency not renewed after expiration."
+    },
+    {
+      "id": "CROSS_CLIENT_ENTITLEMENT",
+      "requires": "Staging API/Web/Mobile user with private vs paid and unassigned step, trial vs 7-day Gafus grant, two course occurrences for same Step; verify exact owner and target ACL before media play."
+    },
+    {
+      "id": "FINAL_ARCH",
+      "requires": "20 remaining Core→server edges, combined A1/A2/A3 33-stage architecture final and five-stage chaos plus PG/Redis/Worker/panels/Web/Mobile gates before frozen baseline update."
+    }
+  ],
+  "integration": "A2 compare fresh SHA256 after; semantically combine shared app.ts/guard/audits/Core index. Review-only nonproduction acceptance separate."
+}

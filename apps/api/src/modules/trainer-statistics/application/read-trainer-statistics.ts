@@ -1,14 +1,9 @@
 /** AG1-001: two existing aggregate statistics reads, after Hono access resolution. */
-import type {
-  getCourseStatistics,
-  getStepStatistics,
-} from "@gafus/core/services/statistics";
-
 type StatisticsScope = { userId: string; isElevated: boolean };
 
 export function createReadTrainerStatisticsApplication<CourseData, StepData>(dependencies: {
-  readCourses: typeof getCourseStatistics;
-  readSteps: typeof getStepStatistics;
+  readCourses: (userId: string, isElevated: boolean) => Promise<unknown>;
+  readSteps: (userId: string, isElevated: boolean) => Promise<unknown>;
   projectCourses: (raw: unknown) => CourseData;
   projectSteps: (raw: unknown) => StepData;
 }) {

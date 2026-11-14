@@ -1,0 +1,119 @@
+// GAFUS NONPROD only: a fully isolated local collector graph.
+// No production Redis/PG/API/Worker targets, no Yandex remote_write,
+// no host filesystem log tailing, no cloud credentials in source.
+// Run only with a private project-9383 DSN and --storage.path on a 0700 volume.
+prometheus.relabel "allow_canary" {
+  rule {
+    source_labels = ["__name__"]
+    regex = "gafus_nonprod_alloy_probe"
+    action = "keep"
+  }
+  rule {
+    action = "labelkeep"
+    regex = "__name__|job|instance|environment"
+  }
+  forward_to = [prometheus.remote_write.nonprod.receiver]
+}
+
+prometheus.scrape "local_canary" {
+  targets = [{
+    __address__ = "127.0.0.1:59241",
+    job = "gafus-nonprod-alloy",
+    instance = "synthetic-local",
+  }]
+  scrape_interval = "5s"
+  scrape_timeout = "2s"
+  forward_to = [prometheus.relabel.allow_canary.receiver]
+}
+
+prometheus.remote_write "nonprod" {
+  endpoint {
+    url = "https://api.uptrace.dev/api/v1/prometheus/write"
+    headers = {"uptrace-dsn" = sys.env("GAFUS_NONPROD_UPTRACE_DSN")}
+    queue_config {
+      max_shards = 1
+      capacity = 250
+      max_samples_per_send = 100
+      batch_send_deadline = "5s"
+      retry_on_http_429 = true
+    }
+  }
+  wal {
+    min_keepalive_time = "5m"
+    max_keepalive_time = "2h"
+    truncate_frequency = "1h"
+  }
+  external_labels = {
+    environment = "preview",
+    cluster = "gafus-nonprod-isolated",
+  }
+}
+
+otelcol.storage.file "nonprod" {
+  fsync = true
+  directory_permissions = "0700"
+  compaction {
+    on_start = true
+    cleanup_on_start = true
+    on_rebound = true
+    rebound_needed_threshold_mib = 32
+    rebound_trigger_threshold_mib = 8
+  }
+}
+
+otelcol.receiver.otlp "nonprod" {
+  http {
+    endpoint = "127.0.0.1:54318"
+    max_request_body_size = "512KiB"
+    read_header_timeout = "3s"
+    read_timeout = "10s"
+    write_timeout = "10s"
+  }
+  output {
+    traces = [otelcol.processor.memory_limiter.nonprod.input]
+    logs = [otelcol.processor.memory_limiter.nonprod.input]
+    metrics = [otelcol.processor.memory_limiter.nonprod.input]
+  }
+}
+
+otelcol.processor.memory_limiter "nonprod" {
+  check_interval = "1s"
+  limit = "128MiB"
+  spike_limit = "32MiB"
+  output {
+    traces = [otelcol.processor.batch.nonprod.input]
+    logs = [otelcol.processor.batch.nonprod.input]
+    metrics = [otelcol.processor.batch.nonprod.input]
+  }
+}
+
+otelcol.processor.batch "nonprod" {
+  timeout = "1s"
+  send_batch_size = 32
+  send_batch_max_size = 96
+  output {
+    traces = [otelcol.exporter.otlphttp.nonprod.input]
+    logs = [otelcol.exporter.otlphttp.nonprod.input]
+    metrics = [otelcol.exporter.otlphttp.nonprod.input]
+  }
+}
+
+otelcol.exporter.otlphttp "nonprod" {
+  client {
+    endpoint = "https://api.uptrace.dev"
+    headers = {"uptrace-dsn" = sys.env("GAFUS_NONPROD_UPTRACE_DSN")}
+  }
+  retry_on_failure {
+    enabled = true
+    initial_interval = "1s"
+    max_interval = "30s"
+    max_elapsed_time = "30m"
+  }
+  sending_queue {
+    enabled = true
+    num_consumers = 1
+    queue_size = 128
+    block_on_overflow = true
+    storage = otelcol.storage.file.nonprod.handler
+  }
+}

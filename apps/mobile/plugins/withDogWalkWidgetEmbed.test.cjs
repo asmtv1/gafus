@@ -51,3 +51,12 @@ test('rejects missing app PlugIns destination', () => {
   project.hash.project.objects.PBXCopyFilesBuildPhase.COPY.dstSubfolderSpec = 10;
   assert.throws(() => ensureDogWalkWidgetEmbedded(project), /PlugIns/);
 });
+
+test('expo-widgets is registered after embedding fix so its Xcode mod executes first', () => {
+  // Expo withMod invokes the most recently registered mod first.
+  const plugins = require('../app.json').expo.plugins;
+  const name = plugin => Array.isArray(plugin) ? plugin[0] : plugin;
+  const order = plugins.map(name);
+  assert.ok(order.indexOf('./plugins/withDogWalkWidgetEmbed') >= 0);
+  assert.ok(order.indexOf('expo-widgets') > order.indexOf('./plugins/withDogWalkWidgetEmbed'));
+});

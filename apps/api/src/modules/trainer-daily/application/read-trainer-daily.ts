@@ -1,10 +1,5 @@
 /** AG1-001/TR014: four approved daily-course READ projections with injected Core ports. */
-import type {
-  getDailyCourseBundles,
-  getDailyCourseBundleStepCandidates,
-  getDailyCourseScheduleRange,
-  getDailyCourseCandidates,
-} from "@gafus/core/services/dailyCourse";
+import type { createDailyCourseService } from "@gafus/course-progress-server/daily-course-service";
 import type {
   TrainerDailyBundleItem,
   TrainerDailyBundleStepCandidateItem,
@@ -12,10 +7,10 @@ import type {
   TrainerDailyCandidateItem,
 } from "../../../../../../packages/types/src/data/trainer-read-contracts";
 
-type BundlesReader = typeof getDailyCourseBundles;
-type BundleStepCandidatesReader = typeof getDailyCourseBundleStepCandidates;
-type ScheduleRangeReader = typeof getDailyCourseScheduleRange;
-type CandidatesReader = typeof getDailyCourseCandidates;
+type BundlesReader = ReturnType<typeof createDailyCourseService>["getDailyCourseBundles"];
+type BundleStepCandidatesReader = ReturnType<typeof createDailyCourseService>["getDailyCourseBundleStepCandidates"];
+type ScheduleRangeReader = ReturnType<typeof createDailyCourseService>["getDailyCourseScheduleRange"];
+type CandidatesReader = ReturnType<typeof createDailyCourseService>["getDailyCourseCandidates"];
 type Actor = Parameters<BundlesReader>[0];
 type Range = Parameters<ScheduleRangeReader>[1];
 

@@ -3,10 +3,10 @@ import { Hono } from "hono";
 import { z } from "zod/v3";
 import {
   getExamResults,
-  reviewExamResult,
+  reviewExamResultWithPush as reviewExamResult,
   type ExamResultWithDetails,
   type ReviewExamResultData,
-} from "@gafus/core/services/exam";
+} from "@gafus/exam-server/exam-service";
 
 type Reviewer = { id: string; role: string };
 export interface TrainerExamManagePorts {

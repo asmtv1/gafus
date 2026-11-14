@@ -57,7 +57,7 @@ export function GalleryAlbumsScreen() {
     albums.data?.pages.flatMap((page) => page.items.map((item) => publicGalleryAlbum(item))) ?? [];
   return (
     <SafeAreaView edges={[]} style={s.screen}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       <FlatList
         data={items}
         numColumns={2}
@@ -175,7 +175,7 @@ export function GalleryAlbumScreen() {
   const ownerHint = param(params.username) ?? username;
   const foreground = useForeground();
   const router = useRouter();
-  const album = useQuery({
+  const albumQuery = useQuery({
     queryKey: [...galleryKeys.album(viewer, ownerHint, albumId), "metadata"],
     queryFn: async () => {
       if (!actor || !sameGalleryActor(actor)) throw new Error("GALLERY_SESSION_CHANGED");
@@ -188,8 +188,14 @@ export function GalleryAlbumScreen() {
     staleTime: 0,
     retry: false,
   });
+  // Suppress stale private metadata while the auth-store epoch changes:
+  // transport checks alone cannot mask already-cached React Query data.
+  const album = {
+    ...albumQuery,
+    data: actor && sameGalleryActor(actor) ? albumQuery.data : undefined,
+  };
   const owner = album.data?.ownerUsername ?? ownerHint;
-  const photos = useInfiniteQuery({
+  const photosQuery = useInfiniteQuery({
     queryKey: [...galleryKeys.album(viewer, owner, albumId), "photos"],
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
@@ -214,6 +220,10 @@ export function GalleryAlbumScreen() {
         ? 5000
         : false,
   });
+  const photos = {
+    ...photosQuery,
+    data: actor && sameGalleryActor(actor) ? photosQuery.data : undefined,
+  };
   const photoExpiryDelay = galleryExpiryDelay(photos.data?.pages.flatMap((p) => p.items) ?? []);
   const refetchPhotos = photos.refetch;
   const refetchAlbum = album.refetch;
@@ -399,7 +409,7 @@ export function GalleryAlbumScreen() {
   };
   return (
     <SafeAreaView edges={["bottom", "left", "right"]} style={s.screen}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[styles.albumNavigation, { paddingTop: insets.top + 8 }]}>
         <AppBackButton onPress={backToAlbums} />

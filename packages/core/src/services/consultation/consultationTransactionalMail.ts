@@ -1,8 +1,7 @@
 /**
  * Письма по консультациям: тот же HTML-шаблон, что «Подтвердите email» (логотип, CTA, подпись).
  */
-import type { ConsultationEmailType, ConsultationPetGender } from "@gafus/prisma";
-import { prisma } from "@gafus/prisma";
+import type { ConsultationEmailType, ConsultationPetGender } from "@gafus/consultation-shared";
 import { createWebLogger } from "@gafus/logger";
 import type { TransactionalMailDisposition } from "@gafus/mailer";
 
@@ -96,7 +95,7 @@ function slotMskLine(booking: { slot: { startAt: Date; endAt: Date } }): string 
   );
 }
 
-type BookingForMail = {
+export type BookingForMail = {
   id: string;
   clientOwnerName: string | null;
   clientPhone: string | null;
@@ -183,29 +182,16 @@ function trainerInbriefBlockHtml(b: BookingForMail): string {
   ].join("");
 }
 
-async function loadBookingForLog(logId: string): Promise<BookingForMail> {
-  const log = await prisma.consultationEmailLog.findUnique({
-    where: { id: logId },
-    include: {
-      booking: {
-        include: {
-          client: { select: { email: true, username: true } },
-          cynologist: {
-            include: {
-              user: {
-                select: {
-                  email: true,
-                  username: true,
-                  profile: { select: { fullName: true } },
-                },
-              },
-            },
-          },
-          slot: true,
-        },
-      },
-    },
-  });
+/** Read a single owner-scoped outbox projection. SQL stays in consultation-query-server. */
+export type ConsultationMailReadPort = (
+  logId: string,
+) => Promise<{ booking: BookingForMail | null } | null>;
+
+async function loadBookingForLog(
+  logId: string,
+  readBooking: ConsultationMailReadPort,
+): Promise<BookingForMail> {
+  const log = await readBooking(logId);
   if (!log?.booking) {
     throw new Error("booking not found for email log");
   }
@@ -302,7 +288,9 @@ function buildPayload(
         "",
         `Время: ${slotLine}.`,
         "",
-        joinUrl ? `Ссылка на встречу:\n${joinUrl}` : "Ссылка на встречу появится в личном кабинете в разделе «Мои консультации».",
+        joinUrl
+          ? `Ссылка на встречу:\n${joinUrl}`
+          : "Ссылка на встречу появится в личном кабинете в разделе «Мои консультации».",
         "",
         "Пожалуйста, заранее проверьте камеру, микрофон и стабильность интернета. Постарайтесь не опаздывать — встреча начинается в запланированное время.",
         "",
@@ -321,10 +309,15 @@ function buildPayload(
         ),
       ];
       if (joinUrl) {
-        blocksHtml.push(ctaButtonHtml(joinUrl, "Открыть видеовстречу"), plainLinkFallbackHtml(joinUrl));
+        blocksHtml.push(
+          ctaButtonHtml(joinUrl, "Открыть видеовстречу"),
+          plainLinkFallbackHtml(joinUrl),
+        );
       } else {
         blocksHtml.push(
-          paragraphHtml("Ссылка на встречу появится в личном кабинете в разделе «Мои консультации» на сайте «Гафус»."),
+          paragraphHtml(
+            "Ссылка на встречу появится в личном кабинете в разделе «Мои консультации» на сайте «Гафус».",
+          ),
         );
       }
       return { text, blocksHtml };
@@ -354,7 +347,9 @@ function buildPayload(
         paragraphHtml(`Время слота (московское): ${slotEsc}.`),
         paragraphHtml("Кратко по заявке. Телефон, данные питомца и прочее смотрите в панели:"),
         trainerInbriefBlockHtml(b),
-        paragraphHtml("Откройте панель, чтобы подтвердить или отклонить заявку и увидеть полные данные."),
+        paragraphHtml(
+          "Откройте панель, чтобы подтвердить или отклонить заявку и увидеть полные данные.",
+        ),
         ctaButtonHtml(panelUrl, "Перейти к заявкам"),
         plainLinkFallbackHtml(panelUrl),
       ];
@@ -389,7 +384,10 @@ function buildPayload(
         paragraphHtml(`Время: ${slotEsc}.`),
       ];
       if (joinUrl) {
-        blocksHtml.push(ctaButtonHtml(joinUrl, "Открыть видеовстречу"), plainLinkFallbackHtml(joinUrl));
+        blocksHtml.push(
+          ctaButtonHtml(joinUrl, "Открыть видеовстречу"),
+          plainLinkFallbackHtml(joinUrl),
+        );
       }
       blocksHtml.push(
         paragraphHtml(
@@ -462,7 +460,9 @@ function buildPayload(
           paragraphHtml("К сожалению, кинолог отменил эту заявку на консультацию."),
           paragraphHtml(`Ранее было выбрано время: ${slotEsc}.`),
           ...reasonHtmlBlock,
-          paragraphHtml("Когда вам будет удобно, вы можете снова выбрать кинолога и подходящий слот — нажмите кнопку ниже."),
+          paragraphHtml(
+            "Когда вам будет удобно, вы можете снова выбрать кинолога и подходящий слот — нажмите кнопку ниже.",
+          ),
           ctaButtonHtml(catalogUrl, "Консультации на сайте"),
           plainLinkFallbackHtml(catalogUrl),
         ],
@@ -492,7 +492,9 @@ function buildPayload(
               `Клиент ${clientNameEsc} отменил подтверждённую консультацию. Слот снова доступен для новой записи.`,
             ),
             paragraphHtml(`Плановое время: ${slotEsc}.`),
-            paragraphHtml("Перейдите в панель — актуальные заявки и ссылка на Телемост, если оформите новую встречу."),
+            paragraphHtml(
+              "Перейдите в панель — актуальные заявки и ссылка на Телемост, если оформите новую встречу.",
+            ),
             ctaButtonHtml(panelUrl, "Перейти к заявкам"),
             plainLinkFallbackHtml(panelUrl),
           ],
@@ -579,17 +581,11 @@ function buildPayload(
         ),
       ];
       if (joinUrl) {
-        blocks.push(
-          ctaButtonHtml(joinUrl, "Открыть видеовстречу"),
-          plainLinkFallbackHtml(joinUrl),
-        );
+        blocks.push(ctaButtonHtml(joinUrl, "Открыть видеовстречу"), plainLinkFallbackHtml(joinUrl));
       } else {
         blocks.push(paragraphHtml("Ссылка на встречу в разделе «Мои консультации» на сайте."));
       }
-      blocks.push(
-        ctaButtonHtml(myUrl, "Мои консультации"),
-        plainLinkFallbackHtml(myUrl),
-      );
+      blocks.push(ctaButtonHtml(myUrl, "Мои консультации"), plainLinkFallbackHtml(myUrl));
       return { text, blocksHtml: blocks };
     }
     case "TRAINER_CONSULTATION_REMINDER_30M": {
@@ -609,18 +605,13 @@ function buildPayload(
         .join("\n");
       const blocks: string[] = [
         paragraphHtml("Здравствуйте!"),
-        paragraphHtml(
-          `Напоминание: встреча с клиентом ${clientNameEsc}. Время: ${slotEsc}.`,
-        ),
+        paragraphHtml(`Напоминание: встреча с клиентом ${clientNameEsc}. Время: ${slotEsc}.`),
         paragraphHtml("Проверьте оборудование и зайдите в комнату заранее."),
       ];
       if (joinUrl) {
         blocks.push(ctaButtonHtml(joinUrl, "Открыть видеовстречу"), plainLinkFallbackHtml(joinUrl));
       }
-      blocks.push(
-        ctaButtonHtml(panelUrl, "Панель заявок"),
-        plainLinkFallbackHtml(panelUrl),
-      );
+      blocks.push(ctaButtonHtml(panelUrl, "Панель заявок"), plainLinkFallbackHtml(panelUrl));
       return { text, blocksHtml: blocks };
     }
     case "CLIENT_CONSULTATION_START": {
@@ -690,8 +681,9 @@ function buildPayload(
 export async function sendConsultationEmailFromLog(
   emailLogId: string,
   type: ConsultationEmailType,
+  readBooking: ConsultationMailReadPort,
 ): Promise<TransactionalMailDisposition> {
-  const b = await loadBookingForLog(emailLogId);
+  const b = await loadBookingForLog(emailLogId, readBooking);
   const to = recipientForType(b, type);
   if (!to) {
     throw new Error("Получатель без email");
@@ -705,11 +697,16 @@ export async function sendConsultationEmailFromLog(
   const { text, blocksHtml } = buildPayload(type, b);
 
   try {
-    const isTimeCritical = type === "CLIENT_CONSULTATION_REMINDER_30M" ||
+    const isTimeCritical =
+      type === "CLIENT_CONSULTATION_REMINDER_30M" ||
       type === "TRAINER_CONSULTATION_REMINDER_30M" ||
       type === "CLIENT_CONSULTATION_START";
     return await sendTransactionalEmailWithLayoutDisposition({
-      to, subject, text, blocksHtml, deliveryKey: `consultation-${emailLogId}`,
+      to,
+      subject,
+      text,
+      blocksHtml,
+      deliveryKey: `consultation-${emailLogId}`,
       category: "consultation",
       maxQueueAgeMs: isTimeCritical ? 10 * 60_000 : 4 * 60 * 60_000,
     });

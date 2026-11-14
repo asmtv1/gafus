@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     opacity: 0.94,
   },
   gradientArtwork: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   buttonOnGradient: {
     alignSelf: "stretch",

@@ -9,6 +9,7 @@ import { getSessionUuid } from "./sessionUuid";
 import { getTracerJsConfig } from "./tracerConfig";
 import type { ClientErrorData, TracerPayloadItem } from "./types";
 import { uploadTracerBatch } from "./tracerUpload";
+import { enqueueMobileTelemetryError } from "../telemetry/mobileTelemetryClient";
 
 const SEVERITY_TO_API: Record<string, TracerPayloadItem["severity"]> = {
   fatal: "FATAL",
@@ -62,6 +63,24 @@ export async function reportClientErrorAndWait(
   error: unknown,
   data?: ClientErrorData,
 ): Promise<void> {
+  // SDK 57 verified-preview transport is mutually exclusive with legacy
+  // AppTracer: never send the same diagnostic to two vendors.
+  // Missing release attestation fails closed instead of leaking a fallback.
+  if (process.env.EXPO_PUBLIC_TELEMETRY_ENABLED === "true") {
+    // Issue keys are caller-controlled. Only constant, audited categories may
+    // enter Uptrace; never serialize a dynamic key that could be a secret/URL.
+    const known: Record<string, string> = {
+      GlobalJsError: 'JS_UNHANDLED', ScreenOrientation: 'SCREEN_ORIENTATION',
+      SplashScreen: 'SPLASH_SCREEN', FontLoad: 'FONT_LOAD',
+    };
+    const code = data?.issueKey ? known[data.issueKey] : undefined;
+    await enqueueMobileTelemetryError(error, {
+      fatal: data?.severity === "fatal",
+      kind: data?.issueKey === "GlobalJsError" && data.severity === "fatal" ? "js_fatal" : "js_handled",
+      ...(code && /^[A-Z][A-Z0-9_]{0,63}$/.test(code) ? { errorCode: code } : {}),
+    });
+    return;
+  }
   const config = getTracerJsConfig();
   if (!config) {
     throw new Error("AppTracer JS отключён или appToken JS-проекта отсутствует в сборке");

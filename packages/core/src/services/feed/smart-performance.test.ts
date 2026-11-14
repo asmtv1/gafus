@@ -6,7 +6,7 @@ import { calculateSmartFeedScore, rerankSmartFeed } from "./smart-ranking";
 import { smartRedisTimeout } from "./smart-redis";
 import { SMART_ML_FEATURES, scoreSmartMl, type SmartMlModel } from "./smart-ml";
 
-vi.mock("@gafus/queues", () => ({ connection: { status: "end" } }));
+
 afterEach(() => vi.unstubAllEnvs());
 
 const sample = {
@@ -25,6 +25,7 @@ describe("smart feed resilience and local CPU load", () => {
     const service = createFeedService({
       db, enabled: () => true,
       storage: { enabled: true } as never,
+      smartSessionCache: { status: "end", get: vi.fn(), set: vi.fn() },
     });
     vi.stubEnv("FEED_SMART_ENABLED", "false");
     const disabled = await service.list("viewer_1", { sort: "smart", pageSize: 10 });

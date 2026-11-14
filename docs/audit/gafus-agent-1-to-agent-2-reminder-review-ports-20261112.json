@@ -1,0 +1,126 @@
+{
+  "kind": "gafus-ag1-handoff-to-ag2/v1",
+  "created_utc": "2026-11-12T00:29:53.122521+00:00",
+  "working_tree": "/Users/asmtv1/Desktop/gafus-refactor",
+  "branch": "main",
+  "head": "0dcd18c13c8d567d543d1981b18d3caa52b16503",
+  "group": "review-only-ag1-reminder-create-lookup-ports",
+  "facades_before_this_group": 40,
+  "facades_after_this_group": 39,
+  "frozen_ratchet_base": 41,
+  "ratchet_resolved": 2,
+  "ratchet_new": 0,
+  "historical_baseline": 142,
+  "historical_resolved": 103,
+  "preserve_preexisting_uncommitted_edits": true,
+  "commit_merge_push_deploy": false,
+  "production_route_activated": false,
+  "frozen_baseline_json_edited": false,
+  "files": [
+    {
+      "path": "packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.ts",
+      "change": "M",
+      "sha256_before": "566ec6b46ef50d33ae220917d05e57e5d3a6bd970229a86d3f3f4cff19789fe6",
+      "sha256_after": "073fff926ff6754ebdc30c8d88534c808597d5fc6138c8ae9d3fb80ad588ef62",
+      "description": "Core policy factory accepts six explicit persistence ports; no server imports"
+    },
+    {
+      "path": "packages/core/src/services/reminders/g1ReminderCreateIdempotency.review.test.ts",
+      "change": "M",
+      "sha256_before": "91a757c1f050bc40c3f11c3e0774b585182854ac06e15dbade26e52378b9deef",
+      "sha256_after": "f175ddfef0163fa996001d78175a425894acd4e092999c2c09ac87e413f5cf1e",
+      "description": "Original transactional SQL mock connected via use-case factory"
+    },
+    {
+      "path": "apps/api/src/modules/reminders/composition/create-receipt-review.ts",
+      "change": "A",
+      "sha256_before": null,
+      "sha256_after": "94da00991d2c2e22552a4ecce88c8eec6cc334c7322bad6bee38cc3c8f33278c",
+      "description": "Review-only API composition binds original owner-locked server transaction"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-reminder-create-lookup.review.ts",
+      "change": "M",
+      "sha256_before": "21a1885ec2c82a6b5109d10f73f071cbba226104ff9285993d2d9f7176140aca",
+      "sha256_after": "55b197d4d3a7b99934cda284fe0169bd852f31dbf9c60bfb22eb88598698403f",
+      "description": "Review Hono owner receipt lookup uses API composition"
+    },
+    {
+      "path": "apps/api/src/routes/v1/g1-reminder-create-lookup.review.test.ts",
+      "change": "M",
+      "sha256_before": "70ecd853fb5f10f54a0667c570797be4c249e50aa6661dc123dbbcf9e929931a",
+      "sha256_after": "4dc6b659b3cd90d5ecd11e68d09650ba489a9d4c239e946fcac1dddcdee2157f",
+      "description": "Owner, Origin, privacy and error mocks target composition"
+    },
+    {
+      "path": "docs/audit/core-server-adapter-risk-inventory-20261111.md",
+      "change": "M",
+      "sha256_before": "1787fcd40e5061c70902b3dc475da33da99ad002562846fd1668b559327c335b",
+      "sha256_after": "db3557d6d79576370117ccac65ed0b834c3c0da054c32dff4cf75971a4b2cee6",
+      "description": "Central inventory: 39 remaining / 103 historically retired, AG1 edge retired"
+    },
+    {
+      "path": "docs/audit/core-server-bulk-progress-20261111.md",
+      "change": "M",
+      "sha256_before": "d6832baf16a21bc0ee99ff96dcbabe52c71124aab52460f0901db343f615b002",
+      "sha256_after": "899de9459a8d138e04b37e70a36d67bb2c5e82b5c8c8e65d64e0dd51cbb29fa0",
+      "description": "Append AG1 review transfer and open acceptance gates"
+    }
+  ],
+  "prechange_backup_directory": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/reminder-review-port-prechange",
+  "checks": [
+    {
+      "check": "core types",
+      "status": "PASS",
+      "log": "/tmp/a1-reminder-review-core-ts.log"
+    },
+    {
+      "check": "core build",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-reminder-review-core-build.log"
+    },
+    {
+      "check": "api types",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-reminder-review-api-typecheck.log"
+    },
+    {
+      "check": "core tests 11",
+      "status": "PASS",
+      "log": "/tmp/a1-reminder-review-core-test.log"
+    },
+    {
+      "check": "api and architecture tests 91",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-reminder-review-api-tests.log"
+    },
+    {
+      "check": "architecture boundaries",
+      "status": "PASS",
+      "log": "/Users/asmtv1/Library/Logs/gafus-refactor-regression/a1-arch-20261112/a1-reminder-review-boundaries.log"
+    },
+    {
+      "check": "node scripts/check-core-server-facades.mjs",
+      "status": "PASS",
+      "result": "39 remaining, 2 resolved, 0 new"
+    }
+  ],
+  "open_acceptance_gates": [
+    {
+      "gate": "AG1_SCHEMA_PG",
+      "requirements": "Explicit disposable PostgreSQL, original AG1 receipt schema migration/unique owner-key DDL and AG4 approval; replay under concurrent processes, rollback and lost ACK not yet verified on real PG."
+    },
+    {
+      "gate": "AG4_REVIEW",
+      "requirements": "AG4 source review has its own separate ReminderMutationReceipt contract and package-build gates; do not silently combine or mount AG1 into live reminder routes."
+    },
+    {
+      "gate": "ACTIVATION",
+      "requirements": "Permission to enable only on isolated API with authenticated owner, CSRF/Origin and rate-limit verification; current candidate is not mounted."
+    },
+    {
+      "gate": "FULL_CANDIDATE",
+      "requirements": "Joint A1/A2/A3 finalized worktree plus full 33-stage architecture and 5-stage chaos, Worker/Web/Mobile/panels, before changing baseline or deployment."
+    }
+  ]
+}

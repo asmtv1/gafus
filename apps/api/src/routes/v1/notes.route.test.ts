@@ -5,7 +5,8 @@ const { getStudentNotesMock } = vi.hoisted(() => ({
   getStudentNotesMock: vi.fn(),
 }));
 
-vi.mock("@gafus/core/services/notes", () => ({
+// Mock the public composition port, not the Core function that now takes a persistence port.
+vi.mock("../../modules/student-notes/composition/notes-rows.js", () => ({
   getStudentNotes: getStudentNotesMock,
 }));
 

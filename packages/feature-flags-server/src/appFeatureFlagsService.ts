@@ -1,4 +1,5 @@
 import { prisma } from "@gafus/prisma";
+import { MobileReleaseControlConflictError, RetiredRewardedAdsReadOnlyError } from "@gafus/types";
 
 /** Вход и привязка VK на iOS в мобильном приложении. */
 export const APP_FEATURE_MOBILE_VK_LOGIN_IOS = "mobile_vk_login_ios";
@@ -6,9 +7,17 @@ export const APP_FEATURE_MOBILE_VK_LOGIN_IOS = "mobile_vk_login_ios";
 export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT = "mobile_ios_ru_card_payment_hint";
 /** Кнопка оплаты картой РФ на iOS paywall. */
 export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT = "mobile_ios_ru_card_payment";
+
 /** Промокоды Premium на iOS. Не влияет на доступность самой оплаты через ЮKassa. */
 export const APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES =
   "mobile_ios_subscription_promo_codes";
+/** Legacy DTO keys remain, but retired iOS checkout controls never enable purchases. */
+const RETIRED_IOS_PAYMENT_KEYS = new Set([
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
+  APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
+  APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
+]);
+
 /** Rewarded-реклама на iOS. */
 export const APP_FEATURE_MOBILE_REWARDED_ADS_IOS = "mobile_rewarded_ads_ios";
 /** Включает автоматический показ paywall подписки в клиентах. */
@@ -78,22 +87,7 @@ export type UpdateMobileReleaseControlInput = Omit<
   "updatedAt" | "updatedBy"
 >;
 
-export class RetiredRewardedAdsReadOnlyError extends Error {
-  readonly code = "RETIRED_REWARDED_ADS_READ_ONLY";
-  constructor() {
-    super("Архив вознаграждаемой рекламы закрыт для изменений");
-    this.name = "RetiredRewardedAdsReadOnlyError";
-  }
-}
-
-export class MobileReleaseControlConflictError extends Error {
-  readonly code = "STALE_CONFIG";
-
-  constructor() {
-    super("Настройки уже изменены в другой вкладке. Обновите страницу.");
-    this.name = "MobileReleaseControlConflictError";
-  }
-}
+export { MobileReleaseControlConflictError, RetiredRewardedAdsReadOnlyError } from "@gafus/types";
 
 function getConfiguredVersion(value: string | undefined): string {
   const version = value?.trim();
@@ -137,6 +131,7 @@ function flagsToValues(
 ): MobileVersionedFeatureValues {
   const map = new Map(rows.map((row) => [row.key, row]));
   const value = (key: string): boolean => {
+    if (RETIRED_IOS_PAYMENT_KEYS.has(key)) return false;
     const defaults = MOBILE_FLAG_DEFAULTS[key] ?? { released: false, review: false };
     const row = map.get(key);
     if (profile === "REVIEW") {
@@ -164,9 +159,9 @@ function releasedFlagFromRows(
 function featureValuesByKey(values: MobileVersionedFeatureValues): Record<string, boolean> {
   return {
     [APP_FEATURE_MOBILE_VK_LOGIN_IOS]: values.vkLogin,
-    [APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT]: values.iosRuCardPayment,
-    [APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES]: values.subscriptionPromoCodes,
-    [APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT]: values.iosRuCardPaymentHint,
+    [APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT]: false, // v1 compatibility: retired and immutable
+    [APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES]: false, // v1 compatibility: retired and immutable
+    [APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT]: false, // v1 compatibility: retired and immutable
     [APP_FEATURE_MOBILE_REWARDED_ADS_IOS]: values.rewardedAds,
   };
 }
@@ -218,6 +213,7 @@ export async function getMobileFeatureFlagEnabled(
   defaultEnabled = false,
   defaultReviewEnabled = false,
 ): Promise<boolean> {
+  if (RETIRED_IOS_PAYMENT_KEYS.has(key)) return false;
   const [row, policy] = await Promise.all([
     prisma.appFeatureFlag.findUnique({
       where: { key },

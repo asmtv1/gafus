@@ -627,7 +627,7 @@ describe.skipIf(!enabled)("real isolated Chat2 realtime E2E", () => {
     expect(job?.data).toMatchObject({ notificationId: fakeJobId });
     expect(
       await (
-        await import("@gafus/core/services/notifications")
+        await import("@gafus/notifications-server")
       ).getEligiblePushNotificationJob(fakeJobId, fakeJobId),
     ).toMatchObject({ id: fakeJobId });
     // Running the outbox twice cannot duplicate the push receipt or job.

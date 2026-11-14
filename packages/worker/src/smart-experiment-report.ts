@@ -15,7 +15,7 @@ async function main() {
   }
   process.env.DATABASE_URL = url;
   const { prisma } = await import("@gafus/prisma");
-  const { getSmartExperimentReport } = await import("@gafus/core/services/feed");
+  const { getSmartExperimentReport } = await import("@gafus/feed-server/smart-persistence");
   try {
     const report = await getSmartExperimentReport(prisma);
     process.stdout.write(JSON.stringify(report, null, 2) + "\n");

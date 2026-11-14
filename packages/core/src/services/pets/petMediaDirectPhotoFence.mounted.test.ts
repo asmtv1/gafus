@@ -7,7 +7,7 @@ const m=vi.hoisted(()=>({
 vi.mock("@gafus/prisma",()=>({prisma:{
   pet:{findFirst:m.find,create:m.create},$transaction:m.transaction,
 }}));
-vi.mock("./petMediaDeletionSql",()=>({
+vi.mock("@gafus/pets-server/pet-media-deletion-sql",()=>({
   petMediaOutboxEnabled:()=>process.env.PET_MEDIA_DELETION_OUTBOX_ENABLED==="true",
   enqueuePetMediaDeletionIntent:m.intent,
   consumePetMediaUploadReservation:vi.fn(),
@@ -131,3 +131,9 @@ describe("WEB2 generic Pet photo URL writes vs gated media outbox",()=>{
     expect(m.update).not.toHaveBeenCalled();
   });
 });
+
+// AG1 TEST-ONLY ORIGINAL SERVER ROW COMPOSITION
+import * as originalPetRowsPort from "@gafus/pets-server/pet-rows";
+import { registerPetRowsPort, type PetRowsPort } from "./petRowsPort";
+import * as originalMediaOutboxAdapter from "@gafus/pets-server/pet-media-deletion-sql";
+registerPetRowsPort({ ...originalPetRowsPort, ...(originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent && { enqueuePetMediaDeletionIntent: originalMediaOutboxAdapter.enqueuePetMediaDeletionIntent }), ...(originalMediaOutboxAdapter.consumePetMediaUploadReservation && { consumePetMediaUploadReservation: originalMediaOutboxAdapter.consumePetMediaUploadReservation }), ...(originalMediaOutboxAdapter.petMediaOutboxEnabled && { petMediaOutboxEnabled: originalMediaOutboxAdapter.petMediaOutboxEnabled }) } as PetRowsPort);

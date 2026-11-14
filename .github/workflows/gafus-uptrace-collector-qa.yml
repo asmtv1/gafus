@@ -1,0 +1,101 @@
+# Optional, on-demand integration tests of the actual Grafana Alloy binary.
+# No production, Uptrace, S3, database or other vendor credentials required.
+# Never scheduled on a PR/push: macOS runners are expensive.
+name: GAFUS Uptrace collector offline fault injection
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: '40-character reviewed main source SHA'
+        required: true
+        type: string
+      confirmation:
+        description: 'Type: gafus-collector-offline-qa'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gafus-uptrace-offline-alloy
+  cancel-in-progress: false
+
+jobs:
+  collector-qa:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 50
+    env:
+      CI: 'true'
+      GAFUS_TELEMETRY_ENVIRONMENT: preview
+      GAFUS_TELEMETRY_PRODUCTION_APPROVED: 'false'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - name: Checkout reviewed main source, no persisted token
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fail closed on source, branch and manual confirmation
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$CONFIRMATION" = 'gafus-collector-offline-qa'
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+          test -z "$(git status --porcelain)"
+
+      - name: Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Install Grafana Alloy and validate isolated component graphs
+        shell: bash
+        run: |
+          set -euo pipefail
+          brew install grafana-alloy
+          alloy --version
+          # The container-only graph uses file-mounted secrets, unavailable
+          # on this zero-credential CI runner. Syntax check without activation.
+          alloy fmt ci-cd/observability/uptrace/alloy.nonprod-sidecar.alloy >/dev/null
+          GAFUS_NONPROD_ACK_GATEWAY_TOKEN=SYNTHETIC_OFFLINE_TEST_TOKEN \
+            alloy validate --stability.level=public-preview \
+            ci-cd/observability/uptrace/alloy.nonprod-ack-gateway.alloy
+          GAFUS_NONPROD_UPTRACE_DSN=SYNTHETIC_OFFLINE_TEST_DSN \
+            alloy validate --stability.level=public-preview \
+            ci-cd/observability/uptrace/alloy.nonprod-isolated.alloy
+
+      - name: Test ACK gateway and privacy contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/observability/uptrace-ack-gateway.test.mjs
+          node --test scripts/observability/uptrace-nonprod-sidecar-preflight.test.mjs
+          node --test scripts/observability/uptrace-isolated-alloy.test.mjs
+          node scripts/observability/check-workflow-release-gates.mjs
+
+      - name: Force STOP and durable replay after 401, 403, 429 and 503
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/observability/uptrace-alloy-queue-restart.mjs 401 --shield
+          node scripts/observability/uptrace-alloy-queue-restart.mjs 403 --shield
+          node scripts/observability/uptrace-alloy-queue-restart.mjs 429
+          node scripts/observability/uptrace-alloy-queue-restart.mjs 503
+          # The test owns only seven localhost ports; it must clean them up.
+          for port in 54318 54319 52999 55242 55243 59241; do
+            if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+              echo "TEST_PORT_NOT_RELEASED:$port"; exit 1
+            fi
+          done
+          echo GAFUS_UPTRACE_ALLOY_FAULT_INJECTION_PASS

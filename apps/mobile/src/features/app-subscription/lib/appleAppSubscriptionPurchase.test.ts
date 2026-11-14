@@ -18,8 +18,8 @@ vi.mock("@/shared/lib/tracer", () => ({
   reportClientError: vi.fn(),
 }));
 
-vi.mock("../api/appSubscriptionApi", () => ({
-  appSubscriptionApi: {
+vi.mock("../api/appSubscriptionAppleApi", () => ({
+  appSubscriptionAppleApi: {
     verifyAppleSubscription: (...args: unknown[]) => verifyAppleSubscriptionMock(...args),
   },
 }));

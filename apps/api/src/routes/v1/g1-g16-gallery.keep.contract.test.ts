@@ -44,7 +44,7 @@ const mocks = vi.hoisted(() => ({ service: vi.fn(), enqueue: vi.fn() }));
 vi.mock("@gafus/core/services/gallery", async () => {
   const schema = await import("../../../../../packages/core/src/services/gallery/schemas");
   const { GalleryError } = await import("../../../../../packages/core/src/services/gallery/errors");
-  return { ...schema, GalleryError, createCurrentGalleryService: () => ({}) };
+  return { ...schema, GalleryError,  };
 });
 vi.mock("@gafus/queues", () => ({
   connection: { status: "disconnected" },
@@ -67,6 +67,9 @@ const injectedService = new Proxy(
         mocks.service(method, ...args),
   },
 );
+vi.mock("../../../../../packages/gallery-server/src/runtimeService.js", () => ({
+  createCurrentGalleryService: () => ({}),
+}));
 vi.mock("@gafus/gallery-server", async () => {
   const dispatch = await import("../../../../../packages/gallery-server/src/index");
   return {

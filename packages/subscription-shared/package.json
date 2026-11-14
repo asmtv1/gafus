@@ -1,0 +1,70 @@
+{
+  "name": "@gafus/subscription-shared",
+  "version": "1.7.3",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./appleEnvironment": {
+      "types": "./dist/appleEnvironment.d.ts",
+      "default": "./dist/appleEnvironment.js"
+    },
+    "./paymentPure": {
+      "types": "./dist/paymentPure.d.ts",
+      "default": "./dist/paymentPure.js"
+    },
+    "./plans": {
+      "types": "./dist/plans.d.ts",
+      "default": "./dist/plans.js"
+    },
+    "./profitMath": {
+      "types": "./dist/profitMath.d.ts",
+      "default": "./dist/profitMath.js"
+    },
+    "./promoCode": {
+      "types": "./dist/promoCode.d.ts",
+      "default": "./dist/promoCode.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc && ts-add-js-extension --dir dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@gafus/types": "workspace:*",
+    "@apple/app-store-server-library": "^3.0.0",
+    "decimal.js": "10.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.4.8",
+    "typescript": "5.8.3",
+    "ts-add-js-extension": "^1.6.6",
+    "vitest": "4.1.0"
+  },
+  "typesVersions": {
+    "*": {
+      "appleEnvironment": [
+        "dist/appleEnvironment.d.ts"
+      ],
+      "paymentPure": [
+        "dist/paymentPure.d.ts"
+      ],
+      "plans": [
+        "dist/plans.d.ts"
+      ],
+      "profitMath": [
+        "dist/profitMath.d.ts"
+      ],
+      "promoCode": [
+        "dist/promoCode.d.ts"
+      ]
+    }
+  }
+}

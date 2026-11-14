@@ -10,6 +10,20 @@ const m = vi.hoisted(() => ({
   reviewDelete: vi.fn(), rate: vi.fn(), log: vi.fn(),
 }));
 
+vi.mock("@gafus/course-server/favorites",()=>({
+  getFavoritesCourses:(actorId:string)=>m.favorites(actorId),
+  addFavoriteCourse:m.favoriteAdd,
+  removeFavoriteCourse:m.favoriteRemove,
+  toggleFavoriteCourse:m.toggle,
+}));
+vi.mock("@gafus/course-server/reviews",()=>({
+  getCourseReviews:m.reviews,createCourseReview:m.reviewCreate,
+  updateCourseReview:m.reviewUpdate,deleteCourseReview:m.reviewDelete,
+  rateCourse:m.rate,
+}));
+vi.mock("@gafus/course-server/personalization",()=>({
+  saveCoursePersonalization:m.personal,
+}));
 vi.mock("@gafus/core/services/course", () => ({
   getCoursesWithProgress: m.list,
   checkCourseAccess: m.access,

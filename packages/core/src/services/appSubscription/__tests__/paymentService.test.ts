@@ -1,5 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as PrismaPackage from "@gafus/prisma";
+/** Test-only composition keeps SQL/provider mocks identical to the prior Core facade. */
+async function createPaymentTestService() {
+  const { createPaymentService } = await import("@gafus/subscription-payment-server/service");
+  const {
+    AppSubscriptionPromoCodeDomainError,
+    isAppSubscriptionPromoCodeEntryEnabled,
+  } = await import("../promoCodeService");
+  return createPaymentService({
+    AppSubscriptionPromoCodeDomainError,
+    isAppSubscriptionPromoCodeEntryEnabled,
+  });
+}
+
 
 const mockEventCreate = vi.fn();
 const mockEventFindFirst = vi.fn();
@@ -25,6 +38,7 @@ const mockSettingsFindUnique = vi.fn();
 const mockTrialFindFirst = vi.fn();
 const mockTrialFindUnique = vi.fn();
 const mockTrialUpsert = vi.fn();
+const mockTrialAdvisoryLock = vi.fn().mockResolvedValue([{acquired:1}]);
 const mockTransaction = vi.fn();
 const mockUserFindUnique = vi.fn();
 const mockGetAllSubscriptionStatuses = vi.fn();
@@ -183,6 +197,9 @@ describe("app subscription payment service", () => {
     });
     mockTransaction.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
+        // This is the same transaction-level card-fingerprint advisory lock
+        // used by the independent trial persistence adapter.
+        $queryRaw: (...args: unknown[]) => mockTrialAdvisoryLock(...args),
         $executeRawUnsafe: vi.fn().mockResolvedValue(0),
         appSubscriptionPayment: {
           create: mockPaymentCreate,
@@ -221,7 +238,7 @@ describe("app subscription payment service", () => {
   });
 
   it("requires an email before creating a YooKassa checkout", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockUserFindUnique.mockResolvedValueOnce({ email: "   " });
 
     await expect(
@@ -240,7 +257,7 @@ describe("app subscription payment service", () => {
   });
 
   it("freezes a valid promo snapshot under the start lock", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockPromoFindUnique.mockResolvedValueOnce({
       id: "promo-1",
       code: "Kisa",
@@ -297,7 +314,7 @@ describe("app subscription payment service", () => {
 
   it("completes previewed promo checkout through a verified YooKassa webhook without recalculation", async () => {
     const { handleYookassaAppSubscriptionWebhook, startYookassaAppSubscriptionPayment } =
-      await import("../paymentService");
+      await createPaymentTestService();
     const frozenPayment = {
       id: "pay-promo-flow",
       idempotenceKey: "promo-flow-key",
@@ -399,7 +416,7 @@ describe("app subscription payment service", () => {
   });
 
   it("rejects a webhook amount that differs from the frozen discounted snapshot", async () => {
-    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    const { handleYookassaAppSubscriptionWebhook } = await createPaymentTestService();
     mockPaymentFindUnique.mockResolvedValueOnce({
       id: "pay-discounted",
       userId: "user-1",
@@ -449,7 +466,7 @@ describe("app subscription payment service", () => {
   });
 
   it("requires a fresh preview when promo revision changed", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockPromoFindUnique.mockResolvedValueOnce({
       id: "promo-1",
       code: "Kisa",
@@ -475,7 +492,7 @@ describe("app subscription payment service", () => {
   });
 
   it("reuses the saved URL only for an identical pending checkout snapshot", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockPaymentFindFirst.mockResolvedValueOnce({
       id: "pay-pending",
       subscriptionId: "sub-pending",
@@ -521,7 +538,7 @@ describe("app subscription payment service", () => {
   });
 
   it("reuses a frozen promo checkout after the promo was changed", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockPaymentFindFirst.mockResolvedValueOnce({
       id: "pay-pending-promo",
       subscriptionId: "sub-pending-promo",
@@ -569,7 +586,7 @@ describe("app subscription payment service", () => {
   });
 
   it("blocks a different checkout while an initial payment is pending", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockPaymentFindFirst.mockResolvedValueOnce({
       id: "pay-pending",
       subscriptionId: "sub-pending",
@@ -595,7 +612,7 @@ describe("app subscription payment service", () => {
   });
 
   it("serializes concurrent starts so only one initial payment is created", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     let pendingPayment: Record<string, unknown> | null = null;
     const lockedPaymentFindFirst = vi.fn(async () => pendingPayment);
     const lockedPaymentCreate = vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
@@ -673,7 +690,7 @@ describe("app subscription payment service", () => {
   });
 
   it("allows a fresh promo checkout after the failed initial request is recorded", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockPromoFindUnique.mockResolvedValue({
       id: "promo-retry",
       code: "RETRY",
@@ -728,7 +745,7 @@ describe("app subscription payment service", () => {
   });
 
   it("rejects YooKassa start when planCode is missing", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     vi.stubGlobal("fetch", vi.fn());
 
     const result = await startYookassaAppSubscriptionPayment({
@@ -747,7 +764,7 @@ describe("app subscription payment service", () => {
   });
 
   it("rejects YooKassa start for disabled plans", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     vi.stubGlobal("fetch", vi.fn());
     mockSettingsFindUnique.mockResolvedValue({
       weeklyEnabled: true,
@@ -779,7 +796,7 @@ describe("app subscription payment service", () => {
   });
 
   it("rejects the removed weekly YooKassa plan in the core service", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockSettingsFindUnique.mockResolvedValue({
       yookassaWeeklyPriceRub: 200,
       currency: "RUB",
@@ -818,7 +835,7 @@ describe("app subscription payment service", () => {
   });
 
   it("starts the monthly plan as an immediate YooKassa payment", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockSettingsFindUnique.mockResolvedValue({
       weeklyEnabled: true,
       monthlyEnabled: true,
@@ -883,7 +900,7 @@ describe("app subscription payment service", () => {
   });
 
   it("restarts an expired active YooKassa subscription instead of reporting its old card as saved", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-expired",
       status: "ACTIVE",
@@ -950,7 +967,7 @@ describe("app subscription payment service", () => {
   });
 
   it("activates a three day YooKassa trial when payment method becomes active", async () => {
-    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    const { handleYookassaAppSubscriptionWebhook } = await createPaymentTestService();
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-1",
       userId: "user-1",
@@ -1026,7 +1043,7 @@ describe("app subscription payment service", () => {
   });
 
   it("activates a three day trial for a saved SBP payment method", async () => {
-    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    const { handleYookassaAppSubscriptionWebhook } = await createPaymentTestService();
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-sbp",
       userId: "user-1",
@@ -1089,7 +1106,7 @@ describe("app subscription payment service", () => {
   });
 
   it("does not activate a YooKassa trial when another account already used the same card fingerprint", async () => {
-    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    const { handleYookassaAppSubscriptionWebhook } = await createPaymentTestService();
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-2",
       userId: "user-2",
@@ -1158,6 +1175,8 @@ describe("app subscription payment service", () => {
     expect(mockSubscriptionUpdate).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: "ACTIVE" }) }),
     );
+    expect(mockTrialAdvisoryLock).toHaveBeenCalledTimes(1);
+    expect(mockTrialAdvisoryLock.mock.invocationCallOrder[0]).toBeLessThan(mockTrialFindFirst.mock.invocationCallOrder[0]);
     expect(mockTrialUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId_provider: { userId: "user-2", provider: "YOOKASSA" } },
@@ -1175,7 +1194,7 @@ describe("app subscription payment service", () => {
   });
 
   it("starts a paid YooKassa payment instead of a new trial after trial was used", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockTrialFindUnique.mockResolvedValue({ id: "trial-1" });
     mockSettingsFindUnique.mockResolvedValue({
       yookassaWeeklyPriceRub: 200,
@@ -1255,7 +1274,7 @@ describe("app subscription payment service", () => {
   });
 
   it("starts a paid monthly YooKassa payment with a stored 30 day period", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockTrialFindUnique.mockResolvedValue({ id: "trial-1" });
     mockSettingsFindUnique.mockResolvedValue({
       weeklyEnabled: true,
@@ -1325,7 +1344,7 @@ describe("app subscription payment service", () => {
   });
 
   it("blocks a new checkout when an active subscriber tries to restore autopay", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     mockTrialFindUnique.mockResolvedValue({ id: "trial-1" });
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-active",
@@ -1361,7 +1380,7 @@ describe("app subscription payment service", () => {
   });
 
   it.each(["INITIAL", "RENEWAL"] as const)("activates %s with payment terms and preserves the renewal agreement", async (kind) => {
-    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    const { handleYookassaAppSubscriptionWebhook } = await createPaymentTestService();
     mockSettingsFindUnique.mockResolvedValue({
       weeklyEnabled: true,
       monthlyEnabled: true,
@@ -1456,7 +1475,7 @@ describe("app subscription payment service", () => {
   });
 
   it("serializes YooKassa subscription start lookup and creation under a user-scoped transaction lock", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     const txSubscriptionFindFirst = vi.fn().mockResolvedValue(null);
     const txSubscriptionCreate = vi.fn().mockResolvedValue({ id: "sub-locked" });
     const txExecuteRawUnsafe = vi.fn().mockResolvedValue(0);
@@ -1503,7 +1522,7 @@ describe("app subscription payment service", () => {
   });
 
   it("reuses an existing pending YooKassa setup subscription under the provider uniqueness constraint", async () => {
-    const { startYookassaAppSubscriptionPayment } = await import("../paymentService");
+    const { startYookassaAppSubscriptionPayment } = await createPaymentTestService();
     const txSubscriptionFindFirst = vi.fn().mockResolvedValue({
       id: "sub-pending",
       status: "PENDING",
@@ -1576,7 +1595,7 @@ describe("app subscription payment service", () => {
   });
 
   it("reconciles a pending YooKassa subscription when saved payment method is already active", async () => {
-    const { reconcilePendingYookassaAppSubscription } = await import("../paymentService");
+    const { reconcilePendingYookassaAppSubscription } = await createPaymentTestService();
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-1",
       userId: "user-1",
@@ -1640,7 +1659,7 @@ describe("app subscription payment service", () => {
   });
 
   it("expires a pending YooKassa subscription during user reconciliation after setup deadline", async () => {
-    const { reconcilePendingYookassaAppSubscription } = await import("../paymentService");
+    const { reconcilePendingYookassaAppSubscription } = await createPaymentTestService();
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-1",
       userId: "user-1",
@@ -1685,7 +1704,7 @@ describe("app subscription payment service", () => {
   });
 
   it("does not expire a pending YooKassa subscription during user reconciliation on transient provider failure", async () => {
-    const { reconcilePendingYookassaAppSubscription } = await import("../paymentService");
+    const { reconcilePendingYookassaAppSubscription } = await createPaymentTestService();
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-1",
       userId: "user-1",
@@ -1717,7 +1736,7 @@ describe("app subscription payment service", () => {
   });
 
   it("keeps current paid period when an active user binds a new YooKassa card", async () => {
-    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    const { handleYookassaAppSubscriptionWebhook } = await createPaymentTestService();
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-1",
       userId: "user-1",
@@ -1768,7 +1787,7 @@ describe("app subscription payment service", () => {
   });
 
   it("rejects YooKassa payment method activation when provider metadata is absent", async () => {
-    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    const { handleYookassaAppSubscriptionWebhook } = await createPaymentTestService();
     mockSubscriptionFindFirst.mockResolvedValue({
       id: "sub-1",
       userId: "user-1",
@@ -1808,7 +1827,7 @@ describe("app subscription payment service", () => {
   });
 
   it("rejects Apple subscription verification when appAccountToken is missing", async () => {
-    const { verifyAppleAppSubscription } = await import("../paymentService");
+    const { verifyAppleAppSubscription } = await createPaymentTestService();
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "account-token-1" });
     verifyAndDecodeTransaction.mockResolvedValue({
       type: "Auto-Renewable Subscription",
@@ -1832,7 +1851,7 @@ describe("app subscription payment service", () => {
   });
 
   it("fails closed when Apple product id is not configured", async () => {
-    const { verifyAppleAppSubscription } = await import("../paymentService");
+    const { verifyAppleAppSubscription } = await createPaymentTestService();
     mockSettingsFindUnique.mockResolvedValue(null);
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "account-token-1" });
     verifyAndDecodeTransaction.mockResolvedValue({
@@ -1858,7 +1877,7 @@ describe("app subscription payment service", () => {
   });
 
   it("records but rejects inactive Apple subscription transactions", async () => {
-    const { verifyAppleAppSubscription } = await import("../paymentService");
+    const { verifyAppleAppSubscription } = await createPaymentTestService();
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "account-token-1" });
     verifyAndDecodeTransaction.mockResolvedValue({
       type: "Auto-Renewable Subscription",
@@ -1891,7 +1910,7 @@ describe("app subscription payment service", () => {
 
   it("records Apple subscription price as the transaction amount", async () => {
     freezeAppleActiveSubscriptionTime();
-    const { verifyAppleAppSubscription } = await import("../paymentService");
+    const { verifyAppleAppSubscription } = await createPaymentTestService();
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "account-token-1" });
     verifyAndDecodeTransaction.mockResolvedValue({
       type: "Auto-Renewable Subscription",
@@ -1925,7 +1944,7 @@ describe("app subscription payment service", () => {
 
   it("maps Apple monthly product id to a monthly subscription plan", async () => {
     freezeAppleActiveSubscriptionTime();
-    const { verifyAppleAppSubscription } = await import("../paymentService");
+    const { verifyAppleAppSubscription } = await createPaymentTestService();
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "account-token-1" });
     mockSettingsFindUnique.mockResolvedValue({
       weeklyEnabled: true,
@@ -1979,7 +1998,7 @@ describe("app subscription payment service", () => {
 
   it("creates a separate Apple subscription for the verifying user when the original transaction was used by another account", async () => {
     freezeAppleActiveSubscriptionTime();
-    const { verifyAppleAppSubscription } = await import("../paymentService");
+    const { verifyAppleAppSubscription } = await createPaymentTestService();
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "new-account-token" });
     mockSubscriptionFindFirst.mockImplementation(
       async (args: { where?: Record<string, unknown> }) => {
@@ -2034,7 +2053,7 @@ describe("app subscription payment service", () => {
   });
 
   it("rejects a zero-price Apple trial when the original transaction already used a trial on another account", async () => {
-    const { verifyAppleAppSubscription } = await import("../paymentService");
+    const { verifyAppleAppSubscription } = await createPaymentTestService();
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "new-account-token" });
     mockPaymentFindFirst.mockResolvedValue({ id: "trial-pay-old", userId: "old-user" });
     verifyAndDecodeTransaction.mockResolvedValue({
@@ -2077,7 +2096,7 @@ describe("app subscription payment service", () => {
 
   it("syncs Apple subscription status and records a renewal from App Store Server API", async () => {
     freezeAppleActiveSubscriptionTime();
-    const { syncAppleAppSubscriptionFromServer } = await import("../paymentService");
+    const { syncAppleAppSubscriptionFromServer } = await createPaymentTestService();
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");
     vi.stubEnv(
@@ -2159,7 +2178,7 @@ describe("app subscription payment service", () => {
 
   it("syncs Apple subscription from a renewal-only server notification", async () => {
     freezeAppleActiveSubscriptionTime();
-    const { handleAppleAppSubscriptionNotification } = await import("../paymentService");
+    const { handleAppleAppSubscriptionNotification } = await createPaymentTestService();
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");
     vi.stubEnv(
@@ -2226,7 +2245,7 @@ describe("app subscription payment service", () => {
 
   it("uses appAccountToken from Apple notification transactions to verify the correct user", async () => {
     freezeAppleActiveSubscriptionTime();
-    const { handleAppleAppSubscriptionNotification } = await import("../paymentService");
+    const { handleAppleAppSubscriptionNotification } = await createPaymentTestService();
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");
     vi.stubEnv(
@@ -2288,7 +2307,7 @@ describe("app subscription payment service", () => {
 
   it("reconciles active Apple subscriptions from the server in batches", async () => {
     freezeAppleActiveSubscriptionTime();
-    const { reconcileAppleAppSubscriptionsFromServer } = await import("../paymentService");
+    const { reconcileAppleAppSubscriptionsFromServer } = await createPaymentTestService();
     vi.stubEnv("APPLE_ISSUER_ID", "issuer-id");
     vi.stubEnv("APPLE_KEY_ID", "key-id");
     vi.stubEnv(
@@ -2370,7 +2389,7 @@ describe("app subscription payment service", () => {
   });
 
   it("does not treat an already recorded inactive Apple transaction as verified", async () => {
-    const { verifyAppleAppSubscription } = await import("../paymentService");
+    const { verifyAppleAppSubscription } = await createPaymentTestService();
     mockUserFindUnique.mockResolvedValue({ appleAppAccountToken: "account-token-1" });
     mockPaymentFindUnique.mockResolvedValue({
       id: "pay-expired",
@@ -2399,7 +2418,7 @@ describe("app subscription payment service", () => {
   });
 
   it("reconciles stale pending YooKassa subscriptions by activating provider-active methods", async () => {
-    const { reconcileStaleYookassaPendingAppSubscriptions } = await import("../paymentService");
+    const { reconcileStaleYookassaPendingAppSubscriptions } = await createPaymentTestService();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
     mockSubscriptionFindMany.mockResolvedValue([
@@ -2464,7 +2483,7 @@ describe("app subscription payment service", () => {
   });
 
   it("expires stale pending YooKassa subscriptions when provider method is not active", async () => {
-    const { reconcileStaleYookassaPendingAppSubscriptions } = await import("../paymentService");
+    const { reconcileStaleYookassaPendingAppSubscriptions } = await createPaymentTestService();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-30T10:00:00.000Z"));
     mockSubscriptionFindMany.mockResolvedValue([
@@ -2512,7 +2531,7 @@ describe("app subscription payment service", () => {
   });
 
   it("defers stale pending YooKassa reconciliation when provider check fails transiently", async () => {
-    const { reconcileStaleYookassaPendingAppSubscriptions } = await import("../paymentService");
+    const { reconcileStaleYookassaPendingAppSubscriptions } = await createPaymentTestService();
     mockSubscriptionFindMany.mockResolvedValue([
       {
         id: "sub-1",
@@ -2545,7 +2564,7 @@ describe("app subscription payment service", () => {
   });
 
   it("expires stale pending YooKassa subscriptions when provider method is not found", async () => {
-    const { reconcileStaleYookassaPendingAppSubscriptions } = await import("../paymentService");
+    const { reconcileStaleYookassaPendingAppSubscriptions } = await createPaymentTestService();
     mockSubscriptionFindMany.mockResolvedValue([
       {
         id: "sub-1",
@@ -2587,7 +2606,7 @@ describe("app subscription payment service", () => {
   });
 
   it("does not activate YooKassa subscription when provider payment is not succeeded", async () => {
-    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    const { handleYookassaAppSubscriptionWebhook } = await createPaymentTestService();
     mockPaymentFindUnique.mockResolvedValue({
       id: "local-pay-1",
       userId: "user-1",
@@ -2635,7 +2654,7 @@ describe("app subscription payment service", () => {
   });
 
   it("enriches an already succeeded payment without repeating subscription or partner writes", async () => {
-    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    const { handleYookassaAppSubscriptionWebhook } = await createPaymentTestService();
     mockPaymentFindUnique.mockResolvedValue({
       id: "local-pay-1", userId: "user-1", status: "SUCCEEDED", amount: 200, currency: "RUB",
     });
@@ -2657,7 +2676,7 @@ describe("app subscription payment service", () => {
   });
 
   it("rejects enrichment from another provider payment even when its amount matches", async () => {
-    const { handleYookassaAppSubscriptionWebhook } = await import("../paymentService");
+    const { handleYookassaAppSubscriptionWebhook } = await createPaymentTestService();
     mockPaymentFindUnique.mockResolvedValue({
       id: "local-pay-1", userId: "user-1", status: "SUCCEEDED", amount: 200, currency: "RUB",
     });
@@ -2671,7 +2690,7 @@ describe("app subscription payment service", () => {
   });
 
   it("rejects Apple transaction when appAccountToken belongs to another user", async () => {
-    const { verifyAppleAppSubscription } = await import("../paymentService");
+    const { verifyAppleAppSubscription } = await createPaymentTestService();
     verifyAndDecodeTransaction.mockResolvedValue({
       type: "Auto-Renewable Subscription",
       transactionId: "tx-1",

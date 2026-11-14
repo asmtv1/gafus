@@ -1,5 +1,5 @@
 import { z } from "zod/v3";
-import { GALLERY_LIMITS as L, GALLERY_MIME_TYPES } from "../../../../types/src/gallery";
+import { GALLERY_LIMITS as L, GALLERY_MIME_TYPES } from "@gafus/types";
 import { GalleryError } from "./errors";
 export const galleryIdSchema = z
   .string()

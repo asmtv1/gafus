@@ -1,12 +1,30 @@
 import { createHash, randomBytes } from "node:crypto";
 
-import { prisma, type Prisma, type RewardedAdSessionStatus } from "@gafus/prisma";
+import {
+  countRewardedDayRows,
+  existsPublicRewardedArticle,
+  existsPublicRewardedStep,
+  findActiveRewardedAccess,
+  findBlockingAdSession,
+  createAdSessionRow,
+  findRewardedAdSessionRow,
+  withRewardedDailyLock,
+  readShownRewardedEvent,
+  readDailyRewardedSettings,
+  appendRewardedAdEvent,
+  markAdSessionRewarded,
+  markAdSessionNonRewardedStatus,
+  findRewardedGrantBySession,
+  markAdSessionExpired,
+  withRewardedAccessLock,
+  createRewardedAccessGrant,
+  markAdSessionGranted,
+  type AdSessionTx,
+  type RewardedAdSessionStatus,
+} from "./rewardedAdRowsPort";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 
-import {
-  REWARDED_AD_SESSION_TTL_MINUTES,
-  REWARDED_DAILY_LIMIT_TIMEZONE,
-} from "./constants";
+import { REWARDED_AD_SESSION_TTL_MINUTES, REWARDED_DAILY_LIMIT_TIMEZONE } from "./constants";
 import {
   RewardedAdSessionError,
   RewardedAdsDisabledError,
@@ -20,7 +38,8 @@ export const REWARDED_ACCESS_DURATION_DAYS = 7;
 const REWARDED_ACCESS_DURATION_MS = REWARDED_ACCESS_DURATION_DAYS * 24 * 60 * 60 * 1000;
 
 /** Enable only after the Gafus app release has reached users. */
-const legacyRewardedAdSessionsDisabled = () => process.env.GAFUS_LEGACY_REWARDED_DISABLED === "true";
+const legacyRewardedAdSessionsDisabled = () =>
+  process.env.GAFUS_LEGACY_REWARDED_DISABLED === "true";
 
 export type RewardedAccessTargetType = "ARTICLE" | "COURSE_STEP";
 export type RewardedAccessTarget = {
@@ -31,11 +50,7 @@ export type RewardedAccessTarget = {
 export type RewardedAdStatusDto = {
   settings: { platformEnabled: boolean; testMode: boolean };
   canWatchAd: boolean;
-  canWatchAdReason:
-    | "OK"
-    | "PLATFORM_DISABLED"
-    | "TARGET_ALREADY_ACTIVE"
-    | "DAILY_LIMIT_REACHED";
+  canWatchAdReason: "OK" | "PLATFORM_DISABLED" | "TARGET_ALREADY_ACTIVE" | "DAILY_LIMIT_REACHED";
   target: RewardedAccessTarget & { unlocked: boolean; expiresAt: string | null };
 };
 
@@ -98,38 +113,20 @@ function getMoscowDayRange(now: Date): { start: Date; end: Date } {
 }
 
 async function countRewardsForMoscowDay(
-  client: Pick<Prisma.TransactionClient, "rewardedAdSession">,
+  client: AdSessionTx | undefined,
   userId: string,
   now: Date,
 ): Promise<number> {
   const { start, end } = getMoscowDayRange(now);
-  return client.rewardedAdSession.count({
-    where: {
-      userId,
-      rewardedAt: { gte: start, lt: end },
-    },
-  });
+  return countRewardedDayRows(userId, start, end, client);
 }
 
 async function assertTargetExists(target: RewardedAccessTarget): Promise<void> {
   if (target.targetType === "ARTICLE") {
-    const article = await prisma.article.findFirst({
-      where: { id: target.targetId, visibility: "PUBLIC" },
-      select: { id: true },
-    });
+    const article = await existsPublicRewardedArticle(target.targetId);
     if (article) return;
   } else {
-    const stepLink = await prisma.stepOnDay.findFirst({
-      where: {
-        id: target.targetId,
-        day: {
-          dayLinks: {
-            some: { course: { isPaid: false, isPrivate: false } },
-          },
-        },
-      },
-      select: { id: true },
-    });
+    const stepLink = await existsPublicRewardedStep(target.targetId);
     if (stepLink) return;
   }
   throw new RewardedAdSessionError(
@@ -145,15 +142,7 @@ async function findActiveTargetAccess(input: {
 }) {
   // platform is the source of the grant for audit. An entitlement follows the
   // account between Android and iOS, but is never accepted by web access checks.
-  return prisma.rewardedTargetAccess.findFirst({
-    where: {
-      userId: input.userId,
-      targetType: input.target.targetType,
-      targetId: input.target.targetId,
-      expiresAt: { gt: input.now },
-    },
-    orderBy: { expiresAt: "desc" },
-  });
+  return findActiveRewardedAccess(input.userId, input.target, input.now);
 }
 
 export async function getRewardedAdStatus(input: {
@@ -167,10 +156,10 @@ export async function getRewardedAdStatus(input: {
   const [platformSettings, access, rewardsToday] = await Promise.all([
     resolveRewardedPlatformSettings(input.platform, input.clientContext),
     findActiveTargetAccess({ userId: input.userId, target: input.target, now }),
-    countRewardsForMoscowDay(prisma, input.userId, now),
+    countRewardsForMoscowDay(undefined, input.userId, now),
   ]);
   const canWatchAdReason: RewardedAdStatusDto["canWatchAdReason"] =
-    (legacyRewardedAdSessionsDisabled() || !platformSettings.platformEnabled)
+    legacyRewardedAdSessionsDisabled() || !platformSettings.platformEnabled
       ? "PLATFORM_DISABLED"
       : access
         ? "TARGET_ALREADY_ACTIVE"
@@ -221,21 +210,18 @@ export async function createRewardedAdSession(input: {
     throw new RewardedAdSessionError("TARGET_ALREADY_ACTIVE", "Материал уже открыт по рекламе");
   }
 
-  const rewardsToday = await countRewardsForMoscowDay(prisma, input.userId, now);
+  const rewardsToday = await countRewardsForMoscowDay(undefined, input.userId, now);
   if (rewardsToday >= platformSettings.dailyAdLimit) {
     throw new RewardedDailyLimitReachedError();
   }
 
-  const existing = await prisma.rewardedAdSession.findFirst({
-    where: {
-      userId: input.userId,
-      platform: input.platform,
-      status: { in: [...BLOCKING_SESSION_STATUSES] },
-      expiresAt: { gt: now },
-      targetType: input.target.targetType,
-      targetId: input.target.targetId,
-    },
-  });
+  const existing = await findBlockingAdSession(
+    input.userId,
+    input.platform,
+    input.target,
+    BLOCKING_SESSION_STATUSES,
+    now,
+  );
   if (existing) {
     throw new RewardedAdSessionError(
       "REWARDED_SESSION_ALREADY_GRANTED",
@@ -245,17 +231,13 @@ export async function createRewardedAdSession(input: {
 
   const requestNonce = randomBytes(32).toString("hex");
   const expiresAt = new Date(now.getTime() + REWARDED_AD_SESSION_TTL_MINUTES * 60 * 1000);
-  const session = await prisma.rewardedAdSession.create({
-    data: {
-      userId: input.userId,
-      platform: input.platform,
-      provider: "YANDEX",
-      placementId: platformSettings.placementId,
-      requestNonceHash: hashNonce(requestNonce),
-      expiresAt,
-      targetType: input.target.targetType,
-      targetId: input.target.targetId,
-    },
+  const session = await createAdSessionRow({
+    userId: input.userId,
+    platform: input.platform,
+    placementId: platformSettings.placementId,
+    requestNonceHash: hashNonce(requestNonce),
+    expiresAt,
+    target: input.target,
   });
 
   return {
@@ -278,14 +260,8 @@ export async function recordRewardedAdEvent(input: {
 }): Promise<void> {
   const now = input.now ?? new Date();
   if (input.eventType === "REWARDED") {
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRawUnsafe(
-        "SELECT pg_advisory_xact_lock(hashtext($1))",
-        `rewarded-daily-limit:${input.userId}`,
-      );
-      const session = await tx.rewardedAdSession.findUnique({
-        where: { id: input.sessionId },
-      });
+    await withRewardedDailyLock(input.userId, async (tx) => {
+      const session = await findRewardedAdSessionRow(input.sessionId, tx);
       if (!session || session.userId !== input.userId) {
         throw new RewardedAdSessionError(
           "REWARDED_SESSION_NOT_FOUND",
@@ -298,10 +274,7 @@ export async function recordRewardedAdEvent(input: {
         return;
       }
       if (session.status === "DISMISSED") {
-        const shownEvent = await tx.rewardedAdEvent.findFirst({
-          where: { sessionId: session.id, eventType: "SHOWN" },
-          select: { id: true },
-        });
+        const shownEvent = await readShownRewardedEvent(tx, session.id);
         if (!shownEvent) {
           assertValidLifecycleTransition(session.status, input.eventType);
         }
@@ -309,57 +282,43 @@ export async function recordRewardedAdEvent(input: {
         assertValidLifecycleTransition(session.status, input.eventType);
       }
 
-      const settings = await tx.rewardedAdSettings.findUnique({
-        where: { key: "default" },
-        select: { dailyAdLimit: true },
-      });
+      const settings = await readDailyRewardedSettings(tx);
       const dailyAdLimit = settings?.dailyAdLimit ?? 1;
       const rewardsToday = await countRewardsForMoscowDay(tx, input.userId, now);
       if (rewardsToday >= dailyAdLimit) {
         throw new RewardedDailyLimitReachedError();
       }
 
-      await tx.rewardedAdEvent.create({
-        data: {
-          sessionId: input.sessionId,
-          eventType: input.eventType,
-          payload: input.payload as Prisma.InputJsonValue | undefined,
-        },
-      });
-      await tx.rewardedAdSession.update({
-        where: { id: input.sessionId },
-        data: { status: "REWARDED", rewardedAt: now },
-      });
+      await appendRewardedAdEvent(
+        { sessionId: input.sessionId, eventType: input.eventType, payload: input.payload },
+        tx,
+      );
+      await markAdSessionRewarded(tx, input.sessionId, now);
     });
     return;
   }
 
-  const session = await prisma.rewardedAdSession.findUnique({
-    where: { id: input.sessionId },
-  });
+  const session = await findRewardedAdSessionRow(input.sessionId);
   if (!session || session.userId !== input.userId) {
     throw new RewardedAdSessionError("REWARDED_SESSION_NOT_FOUND", "Rewarded ad session not found");
   }
   assertValidLifecycleTransition(session.status, input.eventType);
 
-  await prisma.rewardedAdEvent.create({
-    data: {
-      sessionId: input.sessionId,
-      eventType: input.eventType,
-      payload: input.payload as Prisma.InputJsonValue | undefined,
-    },
+  await appendRewardedAdEvent({
+    sessionId: input.sessionId,
+    eventType: input.eventType,
+    payload: input.payload,
   });
 
   const nextStatus = mapEventToStatus(input.eventType);
   if (shouldMoveStatusForward(session.status, nextStatus)) {
     // A late DISMISSED/FAILED request must not overwrite a concurrently accepted reward.
-    await prisma.rewardedAdSession.updateMany({
-      where: { id: input.sessionId, status: session.status, rewardedAt: null },
-      data: {
-        status: nextStatus,
-        errorCode: input.eventType === "FAILED" ? "CLIENT_EVENT_FAILED" : undefined,
-      },
-    });
+    await markAdSessionNonRewardedStatus(
+      input.sessionId,
+      session.status,
+      nextStatus,
+      input.eventType === "FAILED",
+    );
   }
 }
 
@@ -371,9 +330,7 @@ export async function grantRewardedTargetAccess(input: {
   now?: Date;
 }): Promise<RewardedAccessGrantResultDto> {
   const now = input.now ?? new Date();
-  const session = await prisma.rewardedAdSession.findUnique({
-    where: { id: input.sessionId },
-  });
+  const session = await findRewardedAdSessionRow(input.sessionId);
   if (!session || session.userId !== input.userId) {
     throw new RewardedAdSessionError("REWARDED_SESSION_NOT_FOUND", "Rewarded ad session not found");
   }
@@ -390,9 +347,7 @@ export async function grantRewardedTargetAccess(input: {
     targetId: session.targetId,
   };
 
-  const existingGrant = await prisma.rewardedTargetAccess.findUnique({
-    where: { sessionId: session.id },
-  });
+  const existingGrant = await findRewardedGrantBySession(session.id);
   if (existingGrant) {
     return {
       accessId: existingGrant.id,
@@ -402,10 +357,7 @@ export async function grantRewardedTargetAccess(input: {
     };
   }
   if (session.expiresAt <= now) {
-    await prisma.rewardedAdSession.update({
-      where: { id: session.id },
-      data: { status: "EXPIRED" },
-    });
+    await markAdSessionExpired(session.id);
     throw new RewardedAdSessionError("REWARDED_SESSION_EXPIRED", "Rewarded ad session expired");
   }
   if (session.requestNonceHash !== hashNonce(input.requestNonce)) {
@@ -424,14 +376,8 @@ export async function grantRewardedTargetAccess(input: {
     );
   }
 
-  return prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(
-      "SELECT pg_advisory_xact_lock(hashtext($1))",
-      `rewarded-access:${input.userId}:${target.targetType}:${target.targetId}`,
-    );
-    const replay = await tx.rewardedTargetAccess.findUnique({
-      where: { sessionId: session.id },
-    });
+  return withRewardedAccessLock(input.userId, target, async (tx) => {
+    const replay = await findRewardedGrantBySession(session.id, tx);
     if (replay) {
       return {
         accessId: replay.id,
@@ -441,24 +387,13 @@ export async function grantRewardedTargetAccess(input: {
       };
     }
 
-    const activeAccess = await tx.rewardedTargetAccess.findFirst({
-      where: {
-        userId: input.userId,
-        targetType: target.targetType,
-        targetId: target.targetId,
-        expiresAt: { gt: now },
-      },
-      orderBy: { expiresAt: "desc" },
-    });
+    const activeAccess = await findActiveRewardedAccess(input.userId, target, now, tx);
     if (activeAccess) {
-      await tx.rewardedAdSession.update({
-        where: { id: session.id },
-        data: {
-          status: "GRANTED",
-          providerPayload: input.providerPayload as Prisma.InputJsonValue | undefined,
-          rewardedAt: session.rewardedAt ?? now,
-          grantedAt: now,
-        },
+      await markAdSessionGranted(tx, {
+        sessionId: session.id,
+        providerPayload: input.providerPayload,
+        rewardedAt: session.rewardedAt ?? now,
+        grantedAt: now,
       });
       return {
         accessId: activeAccess.id,
@@ -469,26 +404,19 @@ export async function grantRewardedTargetAccess(input: {
     }
 
     const expiresAt = new Date(now.getTime() + REWARDED_ACCESS_DURATION_MS);
-    const access = await tx.rewardedTargetAccess.create({
-      data: {
-        userId: input.userId,
-        targetType: target.targetType,
-        targetId: target.targetId,
-        source: "REWARDED_AD",
-        platform: session.platform,
-        sessionId: session.id,
-        grantedAt: now,
-        expiresAt,
-      },
+    const access = await createRewardedAccessGrant(tx, {
+      userId: input.userId,
+      target,
+      platform: session.platform,
+      sessionId: session.id,
+      now,
+      expiresAt,
     });
-    await tx.rewardedAdSession.update({
-      where: { id: session.id },
-      data: {
-        status: "GRANTED",
-        providerPayload: input.providerPayload as Prisma.InputJsonValue | undefined,
-        rewardedAt: session.rewardedAt ?? now,
-        grantedAt: now,
-      },
+    await markAdSessionGranted(tx, {
+      sessionId: session.id,
+      providerPayload: input.providerPayload,
+      rewardedAt: session.rewardedAt ?? now,
+      grantedAt: now,
     });
 
     return {

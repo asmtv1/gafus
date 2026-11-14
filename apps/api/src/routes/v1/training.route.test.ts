@@ -1,3 +1,6 @@
+vi.mock("../../modules/rewarded-credits/composition/gafus-access.js", () => ({
+  requirePremiumOrRewardedAccessForVideoUrl: vi.fn(),
+}));
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -66,7 +69,7 @@ vi.mock("@gafus/core/services/rewardedCredits", () => ({
   },
 }));
 
-vi.mock("@gafus/core/services/diary", () => ({
+vi.mock("../../modules/training/composition/diary-rows", () => ({
   getDiaryEntries: getDiaryEntriesMock,
   saveDiaryEntry: saveDiaryEntryMock,
 }));
@@ -75,7 +78,7 @@ vi.mock("@gafus/core/services/course", () => ({
   checkCourseAccess: checkCourseAccessMock,
 }));
 
-vi.mock("@gafus/core/services/appFeatureFlags", () => ({
+vi.mock("@gafus/feature-flags-server", () => ({
   APP_FEATURE_APP_SUBSCRIPTION_GATING: "app_subscription_gating_enabled",
   getAppFeatureFlagEnabled: getAppFeatureFlagEnabledMock,
 }));
@@ -84,14 +87,16 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
   getAppSubscriptionAccess: getAppSubscriptionAccessMock,
 }));
 
-vi.mock("@gafus/core/services/video", () => ({
+vi.mock("../../modules/video/composition/video-access.js", () => ({
   checkVideoAccess: vi.fn(),
   getProgress: vi.fn(),
   getVideoManifestInfo: vi.fn(),
   saveProgress: vi.fn(),
 }));
+vi.mock("@gafus/course-server/video-progress", () => ({ getProgress: vi.fn(), saveProgress: vi.fn() }));
 
-vi.mock("@gafus/core/services/notifications", () => ({
+
+vi.mock("@gafus/notifications-server", () => ({
   createStepNotificationForStepStart: createStepNotificationForStepStartMock,
   createBoundStepNotificationForStart: createBoundStepNotificationForStartMock,
   pauseBoundStepNotification: pauseBoundStepNotificationMock,

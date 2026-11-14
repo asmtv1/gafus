@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import {Prisma} from "@gafus/prisma"; // Test-only parity oracle, not application runtime.
 
 import {
   calculateAppSubscriptionPromoPrice,
@@ -34,7 +35,7 @@ describe("app subscription promo code domain", () => {
     },
   );
 
-  it("calculates with Prisma.Decimal and ROUND_HALF_UP to two decimal places", () => {
+  it("calculates with decimal.js precision and ROUND_HALF_UP to two decimal places", () => {
     const onePercent = calculateAppSubscriptionPromoPrice("2500.00", 1);
     const fiftyPercent = calculateAppSubscriptionPromoPrice("2500.00", 50);
     const halfKopeck = calculateAppSubscriptionPromoPrice("0.05", 10);
@@ -43,6 +44,18 @@ describe("app subscription promo code domain", () => {
     expect(onePercent.discountedPrice.toFixed(2)).toBe("2475.00");
     expect(fiftyPercent.discountedPrice.toFixed(2)).toBe("1250.00");
     expect(halfKopeck.discountedPrice.toFixed(2)).toBe("0.05");
+  });
+
+  it("matches Prisma.Decimal production billing rounding across kopeck boundaries",()=>{
+    for(const kopecks of [0,1,2,3,5,7,10,49,99,100,1001,2355,249900,500001,99999999]){
+      for(const percent of [1,2,5,10,17,33,49,50]){
+        const value=(kopecks/100).toFixed(2);
+        const expected=new Prisma.Decimal(value).mul(100-percent).div(100).toDecimalPlaces(2,Prisma.Decimal.ROUND_HALF_UP);
+        const actual=calculateAppSubscriptionPromoPrice(value,percent);
+        expect(actual.discountedPrice.toFixed(2)).toBe(expected.toFixed(2));
+        expect(actual.originalPrice.toFixed(2)).toBe(new Prisma.Decimal(value).toFixed(2));
+      }
+    }
   });
 
   it("rejects invalid calculation inputs", () => {

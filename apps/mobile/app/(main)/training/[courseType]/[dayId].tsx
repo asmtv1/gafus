@@ -1047,7 +1047,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   webViewOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: COLORS.surface,
   },
   webViewFlex: {

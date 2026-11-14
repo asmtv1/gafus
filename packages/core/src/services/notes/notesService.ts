@@ -4,11 +4,10 @@
  * Этот модуль содержит чистую бизнес-логику без Next.js специфики.
  */
 
-import { prisma } from "@gafus/prisma";
+import type { NotesPersistencePort } from "./notesPersistencePort";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import { getErrorMessage, handlePrismaError } from "@gafus/core/errors";
-import { createImmediatePushNotification } from "@gafus/core/services/notifications";
 import type {
   CreateTrainerNoteInput,
   UpdateTrainerNoteInput,
@@ -22,6 +21,15 @@ const STUDENT_NOTE_PUSH = {
   body: "Тренер добавил вам заметку",
   url: "/profile",
 } as const;
+
+/** Outbound notification capability supplied by the outer API composition.
+ * Domain policy selects recipients and copy; Core never imports a push adapter. */
+export type TrainerNotePushPort = (message: {
+  userId: string;
+  title: string;
+  body: string;
+  url: string;
+}) => Promise<unknown>;
 
 /** Результат пагинированного списка */
 export interface PagerResult<T> {
@@ -81,22 +89,22 @@ export interface StudentNote {
   createdAt: Date | string;
 }
 
-async function notifyStudentsAboutVisibleNote(studentIds: string[]): Promise<void> {
+async function notifyStudentsAboutVisibleNote(studentIds: string[], send: TrainerNotePushPort): Promise<void> {
   const uniqueStudentIds = [...new Set(studentIds)];
 
   await Promise.all(
     uniqueStudentIds.map(async (studentId) => {
       try {
-        await createImmediatePushNotification({
+        await send({
           userId: studentId,
           title: STUDENT_NOTE_PUSH.title,
           body: STUDENT_NOTE_PUSH.body,
           url: STUDENT_NOTE_PUSH.url,
         });
-      } catch (error) {
-        logger.error("Ошибка при создании push-уведомления о заметке", error as Error, {
-          studentId,
-        });
+      } catch {
+        // Provider exceptions can embed notification tokens or private actor IDs.
+        // Existing best-effort behavior: a saved note is not rolled back by push.
+        logger.warn("Trainer note push enqueue failed");
       }
     }),
   );
@@ -119,57 +127,12 @@ function getVisibleEntryContents(
  * @returns Массив заметок с видимыми записями
  */
 export async function getStudentNotes(
+  persistence: NotesPersistencePort,
   studentId: string,
   options: { throwOnError?: boolean } = {},
 ): Promise<StudentNote[]> {
   try {
-    const notes = await prisma.trainerNote.findMany({
-      where: {
-        students: {
-          some: {
-            studentId: studentId,
-          },
-        },
-        entries: {
-          some: {
-            isVisibleToStudent: true,
-          },
-        },
-      },
-      select: {
-        id: true,
-        title: true,
-        tags: true,
-        createdAt: true,
-        trainer: {
-          select: {
-            id: true,
-            username: true,
-            profile: {
-              select: {
-                fullName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-        entries: {
-          where: {
-            isVisibleToStudent: true, // Только видимые записи
-          },
-          select: {
-            id: true,
-            content: true,
-            order: true,
-            isVisibleToStudent: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-          orderBy: { order: "asc" },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const notes = await persistence.readStudentNoteRows(studentId);
 
     return notes as StudentNote[];
   } catch {
@@ -188,14 +151,14 @@ export async function getStudentNotes(
  * Создание заметки тренера. Проверяет: все studentIds — USER, не совпадают с trainerId.
  */
 export async function createTrainerNote(
+  persistence: NotesPersistencePort,
   input: CreateTrainerNoteInput,
   trainerId: string,
+  sendNotification: TrainerNotePushPort,
 ): Promise<ActionResult> {
+  if (typeof sendNotification !== "function") throw new Error("NOTE_PUSH_PORT_REQUIRED");
   try {
-    const students = await prisma.user.findMany({
-      where: { id: { in: input.studentIds } },
-      select: { id: true, role: true },
-    });
+    const students = await persistence.readTrainerNoteStudentRoles(input.studentIds);
     if (students.length !== input.studentIds.length) {
       return { success: false, error: "Один или несколько учеников не найдены" };
     }
@@ -207,28 +170,10 @@ export async function createTrainerNote(
       return { success: false, error: "Нельзя создавать заметки самому себе" };
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.trainerNote.create({
-        data: {
-          trainerId,
-          title: input.title ?? null,
-          tags: input.tags ?? [],
-          students: {
-            create: input.studentIds.map((studentId) => ({ studentId })),
-          },
-          entries: {
-            create: input.entries.map((entry, index) => ({
-              content: entry.content,
-              order: entry.order ?? index,
-              isVisibleToStudent: entry.isVisibleToStudent ?? false,
-            })),
-          },
-        },
-      });
-    });
+    await persistence.createTrainerNoteRows(input, trainerId);
 
     if (input.entries.some((entry) => entry.isVisibleToStudent === true)) {
-      await notifyStudentsAboutVisibleNote(input.studentIds);
+      await notifyStudentsAboutVisibleNote(input.studentIds, sendNotification);
     }
 
     logger.info("Заметка создана", { trainerId, studentIds: input.studentIds });
@@ -256,20 +201,15 @@ export async function createTrainerNote(
  * Обновление заметки. Проверяет права (владелец или ADMIN). При обновлении studentIds — та же валидация.
  */
 export async function updateTrainerNote(
+  persistence: NotesPersistencePort,
   input: UpdateTrainerNoteInput,
   trainerId: string,
   isAdmin: boolean,
+  sendNotification: TrainerNotePushPort,
 ): Promise<ActionResult> {
+  if (typeof sendNotification !== "function") throw new Error("NOTE_PUSH_PORT_REQUIRED");
   try {
-    const note = await prisma.trainerNote.findUnique({
-      where: { id: input.id },
-      select: {
-        id: true,
-        trainerId: true,
-        students: { select: { studentId: true } },
-        entries: { select: { content: true, isVisibleToStudent: true } },
-      },
-    });
+    const note = await persistence.readTrainerNoteForUpdate(input.id);
     if (!note) {
       return { success: false, error: "Заметка не найдена" };
     }
@@ -278,10 +218,7 @@ export async function updateTrainerNote(
     }
 
     if (input.studentIds !== undefined) {
-      const students = await prisma.user.findMany({
-        where: { id: { in: input.studentIds } },
-        select: { id: true, role: true },
-      });
+      const students = await persistence.readTrainerNoteStudentRoles(input.studentIds);
       if (students.length !== input.studentIds.length) {
         return { success: false, error: "Один или несколько учеников не найдены" };
       }
@@ -321,12 +258,7 @@ export async function updateTrainerNote(
       };
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.trainerNote.update({
-        where: { id: input.id },
-        data: updateData,
-      });
-    });
+    await persistence.updateTrainerNoteRows(input.id, updateData, trainerId, isAdmin);
 
     const previousStudentIds = note.students.map((student) => student.studentId);
     const nextStudentIds = input.studentIds ?? previousStudentIds;
@@ -352,7 +284,7 @@ export async function updateTrainerNote(
     }
 
     if (studentIdsToNotify.size > 0) {
-      await notifyStudentsAboutVisibleNote([...studentIdsToNotify]);
+      await notifyStudentsAboutVisibleNote([...studentIdsToNotify], sendNotification);
     }
 
     logger.info("Заметка обновлена", { noteId: input.id, trainerId });
@@ -380,15 +312,13 @@ export async function updateTrainerNote(
  * Удаление заметки. Проверяет права (владелец или ADMIN).
  */
 export async function deleteTrainerNote(
+  persistence: NotesPersistencePort,
   input: DeleteTrainerNoteInput,
   trainerId: string,
   isAdmin: boolean,
 ): Promise<ActionResult> {
   try {
-    const note = await prisma.trainerNote.findUnique({
-      where: { id: input.id },
-      select: { id: true, trainerId: true },
-    });
+    const note = await persistence.readTrainerNoteForDelete(input.id);
     if (!note) {
       return { success: false, error: "Заметка уже удалена" };
     }
@@ -396,7 +326,7 @@ export async function deleteTrainerNote(
       return { success: false, error: "Недостаточно прав доступа" };
     }
 
-    await prisma.trainerNote.delete({ where: { id: input.id } });
+    await persistence.deleteTrainerNoteRows(input.id, trainerId, isAdmin);
     logger.info("Заметка удалена", { noteId: input.id, trainerId });
     return { success: true };
   } catch (error) {
@@ -423,55 +353,11 @@ export async function deleteTrainerNote(
  * @param query - page, pageSize, tags?, studentId?, trainerId? (null для ADMIN — все заметки)
  */
 export async function getTrainerNotes(
+  persistence: NotesPersistencePort,
   query: NotesQueryInput,
 ): Promise<PagerResult<TrainerNoteDto>> {
-  const { page, pageSize, tags, studentId, trainerId } = query;
-  const where = {
-    ...(trainerId != null && { trainerId }),
-    ...(studentId && {
-      students: { some: { studentId } },
-    }),
-    ...(tags && tags.length > 0 && { tags: { hasSome: tags } }),
-  };
-
-  const [notes, total] = await Promise.all([
-    prisma.trainerNote.findMany({
-      where,
-      select: {
-        id: true,
-        trainerId: true,
-        title: true,
-        tags: true,
-        createdAt: true,
-        entries: {
-          select: {
-            id: true,
-            content: true,
-            order: true,
-            isVisibleToStudent: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-          orderBy: { order: "asc" },
-        },
-        students: {
-          select: {
-            student: {
-              select: {
-                id: true,
-                username: true,
-                profile: { select: { fullName: true, avatarUrl: true } },
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: page * pageSize,
-      take: pageSize,
-    }),
-    prisma.trainerNote.count({ where }),
-  ]);
+  const { page, pageSize } = query;
+  const { notes, total } = await persistence.readTrainerNoteRows(query);
 
   const transformedNotes: TrainerNoteDto[] = notes.map((n) => ({
     id: n.id,

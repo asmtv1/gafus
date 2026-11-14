@@ -11,12 +11,15 @@ export {
   getMobileAppPublicConfig,
   getMobileFeatureFlagEnabled,
   getMobileReleaseControl,
+  registerAppFeatureFlagsPort,
   resolveMobileFeatureProfile,
   setAppFeatureFlagEnabled,
   updateMobileReleaseControl,
 } from "./appFeatureFlagsService";
 export type {
   ClientAppContext,
+  AppFeatureFlagsPorts,
+  MobileAppPublicConfig,
   MobileFeatureProfile,
   MobileReleaseControlDto,
   MobileVersionedFeatureValues,

@@ -10,14 +10,14 @@ const prohibited = vi.hoisted(() =>
 );
 // These modules are unrelated to Question LIST; fail closed if invoked and do
 // not evaluate protected CDN signing, media or reward module dependencies.
-vi.mock("./presentPhoto", () => ({ presentQuestionPhotoUrl: prohibited }));
+vi.mock("@gafus/media-server/question-photo-presenter", () => ({ presentQuestionPhotoUrl: prohibited }));
 vi.mock("../gafus/rewardService", () => ({
   awardActivityTx: prohibited,
   awardBonusTx: prohibited,
 }));
 
 import { prisma } from "@gafus/prisma";
-import { listQuestions } from "./service";
+import { listQuestions } from "@gafus/questions-server/service";
 
 const assertSafe = (ok: boolean, code: string) => {
   if (!ok) throw Error(code);

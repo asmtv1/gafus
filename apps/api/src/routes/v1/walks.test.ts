@@ -9,7 +9,7 @@ const mocked = vi.hoisted(() => ({
   listDeleted:vi.fn(),
   deleteWalk:vi.fn(),
 }));
-vi.mock("@gafus/core/services/walks", () => ({
+vi.mock("@gafus/tracking-server/walks", () => ({
   listCompletedDogWalks: mocked.list,
   syncCompletedDogWalks: mocked.sync,
   syncDogWalkTrackPoints: mocked.syncPoints,

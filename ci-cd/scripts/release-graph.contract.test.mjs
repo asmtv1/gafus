@@ -72,7 +72,13 @@ test('Cloud media CI gate runs actual Feed/Chat2/Questions Vitest instead of a p
   assert.equal(restore?.with?.key, '${{ needs.prepare-deps.outputs.cache-key }}-deps');
   assert.match(restore?.with?.path ?? '', /packages\/\*\/dist/);
   const verify = cloud.steps.find(x => x.name === 'Verify media workspace dependencies are built (blocking)');
-  assert.match(verify?.run ?? '', /MEDIA_WORKSPACE_BUILD_CACHE_MISSING/);
+  const rebuild = cloud.steps.find(x => x.name === 'Build media runtime and its workspace dependencies after cache miss');
+  assert.equal(rebuild?.if, "steps.media-workspace-cache.outputs.cache-hit != 'true'",
+    'CLOUD_RUNTIME_CACHE_MISS_MUST_REBUILD');
+  assert.match(rebuild?.run ?? '', /turbo run build.*--filter=@gafus\/feed-cloud-runtime\.\.\./,
+    'CLOUD_RUNTIME_CACHE_MISS_MUST_BUILD_TRANSITIVE_DEPENDENCIES');
+  assert.doesNotMatch(verify?.run ?? '', /MEDIA_WORKSPACE_BUILD_CACHE_MISSING/);
+
   assert.match(verify?.run ?? '', /MEDIA_WORKSPACE_PACKAGE_NOT_BUILT/);
   const provision = cloud.steps.findIndex(x => x.name === 'Provision FFmpeg/libx264 for real media tests (blocking)');
   const gateIndex = cloud.steps.findIndex(x => x.name === 'Cloud media runtime unit contracts (blocking)');
@@ -87,4 +93,90 @@ test('Cloud media CI gate runs actual Feed/Chat2/Questions Vitest instead of a p
     'CLOUD_RUNTIME_TEST_GATE_MISSING_OR_NOOP');
   assert(needs('deploy-production').includes('cloudru-media-contracts'),
     'CLOUD_RUNTIME_TEST_MUST_BLOCK_DEPLOY');
+});
+
+test('all public Vite SPA Docker images normalize runner-private file modes for unprivileged Nginx', () => {
+  for (const component of ['web', 'trainer-panel', 'admin-panel']) {
+    const source = readFileSync(`ci-cd/docker/Dockerfile-${component}-optimized`, 'utf8');
+    const copy = source.indexOf('COPY apps/');
+    const permissionFix = source.indexOf('RUN chmod -R a+rX /usr/share/nginx/html');
+    assert(copy !== -1 && permissionFix > copy,
+      `STATIC_NGINX_ASSET_NOT_WORLD_READABLE:${component}`);
+    assert(permissionFix < source.indexOf('EXPOSE '),
+      `STATIC_NGINX_PERMISSION_FIX_AFTER_RUNTIME:${component}`);
+  }
+});
+
+test('image matrix PR smoke is read-only and full gates precede production publish', () => {
+  const job = jobs['build-images'];
+  const publish = job.steps.find(s=>s.name?.startsWith('Build and push'));
+  assert(publish?.with?.push && publish.with.push.includes("github.ref == 'refs/heads/main'"),
+    'PR_CANNOT_PUBLISH_IMAGES');
+  assert.equal(publish.with.load, "${{ github.event_name == 'pull_request' }}",
+    'PR_MUST_LOAD_LOCAL_IMAGES_FOR_SMOKE');
+  assert.equal(job.permissions.contents,'read','PR_BUILD_MUST_HAVE_READ_ONLY_PERMISSION');
+  for (const dependency of ['security','build-apps','observability-contracts','cloudru-media-contracts','cutover-preflight']) {
+    assert(needs('build-images').includes(dependency),`RELEASE_BUILD_BYPASS:${dependency}`);
+    assert(job.if.includes(`needs.${dependency}.result == 'success'`),
+      `RELEASE_BUILD_GATE_NOT_STRICT:${dependency}`);
+  }
+  const manifest = jobs['release-images-manifest'];
+  assert.deepEqual(needs('release-images-manifest'), ['build-images']);
+  assert(needs('deploy-production').includes('release-images-manifest'));
+  assert(jobs['deploy-production'].if.includes("needs.release-images-manifest.result == 'success'"));
+  assert(manifest.steps.some(s=>s.name?.includes('Refuse partial, duplicate, cross-SHA/run')));
+  assert(job.steps.some(s=>s.name?.includes('runtime exports and immutable Linux AMD64 image')));
+});
+
+test('PR into main cannot bypass Cloud media gate before local image smoke', () => {
+  const media=jobs['cloudru-media-contracts'];
+  const images=jobs['build-images'];
+  assert.match(media.if,/github.event_name == 'pull_request' && github.base_ref == 'main'/,
+    'PR_MAIN_MEDIA_GATE_SKIPPED');
+  assert.match(images.if,
+    /needs.observability-contracts.result == 'success' &&\s+needs.cloudru-media-contracts.result == 'success' &&\s+\(github.event_name == 'pull_request' \|\|\s+needs.cutover-preflight.result == 'success'\)/,
+    'PR_MAIN_IMAGE_SMOKE_WITHOUT_MEDIA_GATE');
+  // A skipped or failed prerequisite must not be hidden behind the PR branch.
+  assert.doesNotMatch(images.if,
+    /github.event_name == 'pull_request' \|\|\s*\(needs.cloudru-media-contracts.result/,
+    'PR_MAIN_MEDIA_GATE_BYPASS');
+});
+
+test('Vite public bits compile exactly once with sealed private maps, then transfer to Docker by SHA', () => {
+  const app=jobs['build-apps'];
+  const compile=app.steps.find(s=>s.name==='Build, test, typecheck apps');
+  const privateVerify=app.steps.find(s=>s.name==='Verify the three sealed private Vite source-map manifests');
+  const publicPack=app.steps.find(s=>s.name==='Pack and verify SHA-scoped public Vite release artifacts');
+  const privateArchive=app.steps.find(s=>s.name?.startsWith('Upload immutable private Web release maps from build-apps'));
+  const publicUpload=app.steps.find(s=>s.name?.startsWith('Upload public Vite release artifacts'));
+  assert.equal(compile.env.GAFUS_PRIVATE_MAPS_ENABLED,'true');
+  assert.equal(compile.env.GAFUS_RELEASE_SHA,'${{ github.sha }}');
+  assert.equal(compile.env.VITE_GAFUS_BUILD_ID,'${{ github.sha }}');
+  assert(compile.run.includes('--concurrency=1') && compile.run.includes('github.base_ref'),
+    'PR_MAIN_MUST_BUILD_ALL_VITE_DIST_BEFORE_DOCKER');
+  assert(privateVerify && privateVerify.run.includes('upload-private-web-sourcemaps.mjs'));
+  assert(publicPack && publicPack.run.includes('vite-release-dist-artifacts.mjs pack'));
+  assert(privateArchive && privateArchive.if.includes("github.event_name == 'push'") &&
+    privateArchive.if.includes('vars.GAFUS_WEB_SYMBOLS_PRODUCTION_APPROVED'),
+    'PRIVATE_MAPS_MUST_NOT_UPLOAD_ON_PR');
+  assert(!publicUpload.with['include-hidden-files'], 'PUBLIC_DIST_MUST_NOT_COPY_RAW_HIDDEN_PATHS');
+  assert(publicUpload.with.name.includes('github.sha') && publicUpload.with.name.includes('github.run_attempt'),
+    'DIST_ARTIFACT_MUST_BIND_SHA_AND_ATTEMPT');
+  const idx=name=>app.steps.findIndex(s=>s.name===name);
+  assert(idx(compile.name)<idx(privateVerify.name)&&
+    idx(privateVerify.name)<idx(publicPack.name)&&
+    idx(publicPack.name)<idx(privateArchive.name)&&
+    idx(privateArchive.name)<idx(publicUpload.name));
+  const imageSteps=jobs['build-images'].steps;
+  const fetch=imageSteps.find(s=>s.name==='Download same-SHA public Vite release artifact');
+  const restore=imageSteps.find(s=>s.name==='Restore and verify exact public Vite dist from build-apps');
+  assert(fetch?.with?.name===publicUpload.with.name,'MISMATCHED_DIST_ARTIFACT_IDENTITY');
+  assert(restore?.run.includes('vite-release-dist-artifacts.mjs restore'));
+  assert(restore.run.includes('verify-gafus-app-links.mjs'), 'WEB_APP_LINKS_MUST_SURVIVE_TAR');
+  assert(!imageSteps.some(s=>s.name==='Compile Vite SPA before packaging into Nginx image'),
+    'SECOND_VITE_REBUILD_FORBIDDEN');
+  assert(imageSteps.indexOf(restore)<imageSteps.findIndex(s=>s.name?.startsWith('Build and push')));
+  const turbo=JSON.parse(readFileSync('turbo.json','utf8'));
+  for(const key of ['GAFUS_PRIVATE_MAPS_ENABLED','GAFUS_PRIVATE_MAPS_DIR','GAFUS_RELEASE_SHA','VITE_GAFUS_BUILD_ID'])
+    assert(turbo.globalEnv.includes(key),`TURBO_STRICT_ENV_LOSES_RELEASE_ID:${key}`);
 });

@@ -1,7 +1,15 @@
 /**
  * Article Service — бизнес-логика статей.
  */
-import { prisma } from "@gafus/prisma";
+import type { ArticleReadPort, ArticleStoredListRow } from "./articleReadPort";
+export type { ArticleReadPort, ArticleStoredListRow } from "./articleReadPort";
+/** Bound by the API composition; server SQL re-checks author on every mutation. */
+export type ArticleOwnedChanges = Partial<Omit<CreateArticleSchemaInput, "id">>;
+export interface ArticleOwnerWritesPort {
+  getArticleAuthorId(id: string): Promise<string | null>;
+  updateOwnedArticle(id: string, userId: string, changes: ArticleOwnedChanges): Promise<boolean>;
+  deleteOwnedArticle(id: string, userId: string): Promise<boolean>;
+}
 import { sanitizeArticleHtml } from "./sanitizeArticleHtml";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
@@ -12,38 +20,8 @@ import { resolveArticleEntitlement } from "../contentAccess/policy";
 
 const logger = createWebLogger("article-service");
 
-const articleListSelect = {
-  id: true,
-  title: true,
-  slug: true,
-  authorId: true,
-  contentType: true,
-  visibility: true,
-  videoUrl: true,
-  logoImg: true,
-  imageUrls: true,
-  viewCount: true,
-  description: true,
-  createdAt: true,
-  updatedAt: true,
-  author: {
-    select: {
-      id: true,
-      username: true,
-      profile: { select: { avatarUrl: true } },
-    },
-  },
-  _count: {
-    select: { articleLikes: true },
-  },
-} as const;
-
-type ArticleListRow = Awaited<
-  ReturnType<typeof prisma.article.findMany<{ select: typeof articleListSelect }>>
->[number];
-
 function mapToListDto(
-  row: ArticleListRow & { articleLikes?: { userId: string }[]; access?: { userId: string }[] },
+  row: ArticleStoredListRow & { access?: { userId: string }[] },
   userId?: string,
 ): ArticleListDto {
   const hasAccess = (row.access?.length ?? 0) > 0;
@@ -79,40 +57,31 @@ export type GetArticlesResult =
   | { success: false; error: string };
 
 export async function getArticles(
-  userId?: string, take = 50, skip = 0, authorId?: string,
+  rowsPort: ArticleReadPort,
+  userId?: string,
+  take = 50,
+  skip = 0,
+  authorId?: string,
 ): Promise<GetArticlesResult> {
   try {
-    const rows = await prisma.article.findMany({
-      where: authorId ? { authorId } : undefined,
-      select: {
-        ...articleListSelect,
-        articleLikes: { where: { userId: userId ?? "" }, select: { userId: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take, skip,
-    });
+    const rows = await rowsPort.readArticleCatalogRows(userId, take, skip, authorId);
     // An individual Gafus grant must also unlock the corresponding catalog
     // card. Query all relevant keys at once rather than N per-article checks.
     const subscribed = (await resolveArticleEntitlement("", userId)).allowed;
-    const grants = !subscribed && userId && rows.length
-      ? await prisma.gafusTargetAccess.findMany({
-          where: {
-            userId, targetType: "ARTICLE",
-            targetKey: { in: rows.map(row => `article:${row.id}`) },
-            expiresAt: { gt: new Date() },
-          },
-          select: { targetKey: true },
-        })
-      : [];
-    const unlocked = new Set(grants.map(grant => grant.targetKey));
+    const grants =
+      !subscribed && userId && rows.length ? await rowsPort.readArticleGrantRows(userId, rows) : [];
+    const unlocked = new Set(grants.map((grant) => grant.targetKey));
     return {
       success: true,
-      data: rows.map(row =>
-        mapToListDto({
-          ...row,
-          access: subscribed || unlocked.has(`article:${row.id}`)
-            ? [{ userId: userId ?? "" }] : [],
-        }, userId),
+      data: rows.map((row) =>
+        mapToListDto(
+          {
+            ...row,
+            access:
+              subscribed || unlocked.has(`article:${row.id}`) ? [{ userId: userId ?? "" }] : [],
+          },
+          userId,
+        ),
       ),
     };
   } catch (error) {
@@ -126,33 +95,34 @@ export type GetArticleBySlugResult =
   | { success: false; error: string };
 
 export async function getArticleBySlug(
-  slug: string, userId?: string,
+  rowsPort: ArticleReadPort,
+  slug: string,
+  userId?: string,
 ): Promise<GetArticleBySlugResult> {
-  return getArticleBySlugForMonetizedAccess({ slug, userId, platform: "WEB_DESKTOP" });
+  return getArticleBySlugForMonetizedAccess(rowsPort, { slug, userId, platform: "WEB_DESKTOP" });
 }
 
 /** Single server-side paywall for both Web and Mobile, including direct links. */
-export async function getArticleBySlugForMonetizedAccess(input: {
-  slug: string;
-  userId?: string;
-  platform: MonetizedAccessPlatform;
-}): Promise<GetArticleBySlugResult> {
+export async function getArticleBySlugForMonetizedAccess(
+  rowsPort: ArticleReadPort,
+  input: {
+    slug: string;
+    userId?: string;
+    platform: MonetizedAccessPlatform;
+  },
+): Promise<GetArticleBySlugResult> {
   try {
-    const row = await prisma.article.findUnique({
-      where: { slug: input.slug },
-      select: {
-        ...articleListSelect,
-        content: true,
-        articleLikes: { where: { userId: input.userId ?? "" }, select: { userId: true } },
-      },
-    });
+    const row = await rowsPort.readArticleDetailRow(input.slug, input.userId);
     if (!row) return { success: false, error: "Статья не найдена" };
     const access = await resolveArticleEntitlement(row.id, input.userId, input.platform);
     const dto: ArticleDetailDto = {
-      ...mapToListDto({
-        ...row,
-        access: access.allowed ? [{ userId: input.userId ?? "" }] : [],
-      }, input.userId),
+      ...mapToListDto(
+        {
+          ...row,
+          access: access.allowed ? [{ userId: input.userId ?? "" }] : [],
+        },
+        input.userId,
+      ),
       hasAccess: access.allowed,
       // Unlike a catalog teaser, a locked article detail exposes no paid media.
       videoUrl: access.allowed ? row.videoUrl : null,
@@ -160,9 +130,11 @@ export async function getArticleBySlugForMonetizedAccess(input: {
       content: access.allowed ? sanitizeArticleHtml(row.content) : null,
       monetization: {
         locked: !access.allowed,
-        ...(!access.allowed ? {
-          target: { targetType: "ARTICLE" as const, targetId: row.id },
-        } : {}),
+        ...(!access.allowed
+          ? {
+              target: { targetType: "ARTICLE" as const, targetId: row.id },
+            }
+          : {}),
       },
     };
     return { success: true, data: dto };
@@ -177,25 +149,12 @@ export type GetArticleForEditResult =
   | { success: false; error: string };
 
 export async function getArticleForEdit(
+  rowsPort: ArticleReadPort,
   id: string,
   userId: string,
 ): Promise<GetArticleForEditResult> {
   try {
-    const row = await prisma.article.findUnique({
-      where: { id },
-      select: {
-        title: true,
-        contentType: true,
-        content: true,
-        visibility: true,
-        videoUrl: true,
-        logoImg: true,
-        imageUrls: true,
-        slug: true,
-        authorId: true,
-        description: true,
-      },
-    });
+    const row = await rowsPort.readArticleForEditRow(id);
 
     if (!row) {
       return { success: false, error: "Статья не найдена" };
@@ -227,6 +186,7 @@ export type CreateArticleResult =
   | { success: false; error: string };
 
 export async function createArticle(
+  rowsPort: ArticleReadPort,
   input: Record<string, unknown>,
   userId: string,
 ): Promise<CreateArticleResult> {
@@ -240,20 +200,18 @@ export async function createArticle(
     }
 
     const data = parsed.data;
-    const article = await prisma.article.create({
-      data: {
-        ...(data.id && { id: data.id }),
-        authorId: userId,
-        title: data.title,
-        contentType: data.contentType,
-        content: sanitizeArticleHtml(data.content),
-        visibility: data.visibility,
-        videoUrl: data.videoUrl ?? null,
-        logoImg: data.logoImg ?? "",
-        imageUrls: data.imageUrls ?? [],
-        slug: data.slug,
-        description: data.description ?? "",
-      },
+    const article = await rowsPort.createArticleRow({
+      ...(data.id && { id: data.id }),
+      authorId: userId,
+      title: data.title,
+      contentType: data.contentType,
+      content: sanitizeArticleHtml(data.content),
+      visibility: data.visibility,
+      videoUrl: data.videoUrl ?? null,
+      logoImg: data.logoImg ?? "",
+      imageUrls: data.imageUrls ?? [],
+      slug: data.slug,
+      description: data.description ?? "",
     });
 
     return { success: true, data: { id: article.id, slug: article.slug } };
@@ -267,17 +225,15 @@ export async function updateArticle(
   id: string,
   input: Record<string, unknown>,
   userId: string,
+  ownerWrites: ArticleOwnerWritesPort,
 ): Promise<ActionResult> {
   try {
-    const article = await prisma.article.findUnique({
-      where: { id },
-      select: { authorId: true },
-    });
+    const authorId = await ownerWrites.getArticleAuthorId(id);
 
-    if (!article) {
+    if (!authorId) {
       return { success: false, error: "Статья не найдена" };
     }
-    if (article.authorId !== userId) {
+    if (authorId !== userId) {
       return { success: false, error: "Нет прав на редактирование" };
     }
 
@@ -290,20 +246,18 @@ export async function updateArticle(
     }
 
     const data = parsed.data;
-    await prisma.article.update({
-      where: { id },
-      data: {
-        ...(data.title !== undefined && { title: data.title }),
-        ...(data.contentType !== undefined && { contentType: data.contentType }),
-        ...(data.content !== undefined && { content: sanitizeArticleHtml(data.content) }),
-        ...(data.visibility !== undefined && { visibility: data.visibility }),
-        ...(data.videoUrl !== undefined && { videoUrl: data.videoUrl }),
-        ...(data.logoImg !== undefined && { logoImg: data.logoImg }),
-        ...(data.imageUrls !== undefined && { imageUrls: data.imageUrls }),
-        ...(data.slug !== undefined && { slug: data.slug }),
-        ...(data.description !== undefined && { description: data.description }),
-      },
+    const updated = await ownerWrites.updateOwnedArticle(id, userId, {
+      ...(data.title !== undefined && { title: data.title }),
+      ...(data.contentType !== undefined && { contentType: data.contentType }),
+      ...(data.content !== undefined && { content: sanitizeArticleHtml(data.content) }),
+      ...(data.visibility !== undefined && { visibility: data.visibility }),
+      ...(data.videoUrl !== undefined && { videoUrl: data.videoUrl }),
+      ...(data.logoImg !== undefined && { logoImg: data.logoImg }),
+      ...(data.imageUrls !== undefined && { imageUrls: data.imageUrls }),
+      ...(data.slug !== undefined && { slug: data.slug }),
+      ...(data.description !== undefined && { description: data.description }),
     });
+    if (!updated) return { success: false, error: "Нет прав на редактирование" };
 
     return { success: true };
   } catch (error) {
@@ -334,14 +288,12 @@ function normalizeGuestVisitorKey(key: string | null | undefined): string | null
  * Повторные заходы обновляют только lastViewedAt у ArticleViewer.
  */
 export async function incrementArticleView(
+  rowsPort: ArticleReadPort,
   slug: string,
   options?: IncrementArticleViewOptions,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const article = await prisma.article.findUnique({
-      where: { slug },
-      select: { id: true },
-    });
+    const article = await rowsPort.readArticleIdBySlug(slug);
     if (!article) {
       return { success: true };
     }
@@ -349,45 +301,7 @@ export async function incrementArticleView(
     const userId = options?.viewerUserId?.trim() || null;
     const guestKey = normalizeGuestVisitorKey(options?.guestVisitorKey);
 
-    await prisma.$transaction(async (tx) => {
-      const articleId = article.id;
-
-      if (userId) {
-        const created = await tx.articleViewer.createMany({
-          data: { articleId, userId },
-          skipDuplicates: true,
-        });
-        if (created.count === 0) {
-          await tx.articleViewer.update({
-            where: { articleId_userId: { articleId, userId } },
-            data: { lastViewedAt: new Date() },
-          });
-          return;
-        }
-        await tx.article.update({
-          where: { id: articleId },
-          data: { viewCount: { increment: 1 } },
-        });
-        return;
-      }
-
-      if (guestKey) {
-        const created = await tx.articleGuestView.createMany({
-          data: { articleId, visitorKey: guestKey },
-          skipDuplicates: true,
-        });
-        if (created.count === 0) {
-          return;
-        }
-        await tx.article.update({
-          where: { id: articleId },
-          data: { viewCount: { increment: 1 } },
-        });
-        return;
-      }
-
-      // Без userId и без ключа гостя счётчик не меняем
-    });
+    await rowsPort.recordArticleViewRow(article.id, userId, guestKey);
 
     return { success: true };
   } catch (error) {
@@ -404,28 +318,12 @@ export type GetArticleViewersResult =
  * Список пользователей, открывавших статью (только для автора статьи).
  */
 export async function getArticleViewersForAuthor(
+  rowsPort: ArticleReadPort,
   articleId: string,
   authorId: string,
 ): Promise<GetArticleViewersResult> {
   try {
-    const article = await prisma.article.findFirst({
-      where: { id: articleId, authorId },
-      select: {
-        viewers: {
-          orderBy: { lastViewedAt: "desc" },
-          select: {
-            lastViewedAt: true,
-            user: {
-              select: {
-                id: true,
-                username: true,
-                profile: { select: { fullName: true } },
-              },
-            },
-          },
-        },
-      },
-    });
+    const article = await rowsPort.readArticleViewersForAuthorRow(articleId, authorId);
 
     if (!article) {
       return { success: false, error: "Статья не найдена или нет доступа" };
@@ -447,22 +345,24 @@ export async function getArticleViewersForAuthor(
 
 export type DeleteArticleResult = ActionResult & { trainerId?: string };
 
-export async function deleteArticle(id: string, userId: string): Promise<DeleteArticleResult> {
+export async function deleteArticle(
+  id: string,
+  userId: string,
+  ownerWrites: ArticleOwnerWritesPort,
+): Promise<DeleteArticleResult> {
   try {
-    const article = await prisma.article.findUnique({
-      where: { id },
-      select: { authorId: true },
-    });
+    const authorId = await ownerWrites.getArticleAuthorId(id);
 
-    if (!article) {
+    if (!authorId) {
       return { success: false, error: "Статья не найдена" };
     }
-    if (article.authorId !== userId) {
+    if (authorId !== userId) {
       return { success: false, error: "Нет прав на удаление" };
     }
 
-    await prisma.article.delete({ where: { id } });
-    return { success: true, trainerId: article.authorId };
+    if (!(await ownerWrites.deleteOwnedArticle(id, userId)))
+      return { success: false, error: "Нет прав на удаление" };
+    return { success: true, trainerId: authorId };
   } catch (error) {
     logger.error("Ошибка deleteArticle", error as Error);
     return { success: false, error: "Не удалось удалить статью" };

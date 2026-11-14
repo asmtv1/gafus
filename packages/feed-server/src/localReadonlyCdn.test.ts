@@ -1,8 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync, openSync, writeSync, closeSync, unlinkSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { createFeedStorageFromEnv } from "@gafus/feed-storage";
 
-const file = "/Users/asmtv1/Desktop/gafus-refactor/.local-pg-scratch/live-media-cdn-readonly.json";
+// Never borrow another checkout's operator signing material during QA.
+function qaWorkspaceRoot(): string {
+  let current = process.cwd();
+  while (!existsSync(join(current, "pnpm-workspace.yaml"))) {
+    const parent = dirname(current);
+    if (parent === current) throw Error("ISOLATED_WORKSPACE_NOT_FOUND");
+    current = parent;
+  }
+  return current;
+}
+const file = join(qaWorkspaceRoot(), ".local-pg-scratch/live-media-cdn-readonly.json");
 const env = {
   NODE_ENV: "development", GAFUS_LOCAL_ISOLATED_API: "1", GAFUS_LOCAL_READONLY_CDN: "enabled",
   GAFUS_ISOLATED_NONPROD_S3: "enabled", GAFUS_ISOLATED_S3_ENDPOINT: "http://127.0.0.1:9000",
@@ -25,7 +36,11 @@ describe("readonly live feed CDN", () => {
     const media = createFeedStorageFromEnv(env);
     const signed = await media.signCdn({ key: `${base}/poster.webp`, expiresAt: new Date(Date.now() + 100_000) });
     expect(new URL(signed).origin).toBe("https://quepraquiecebquomiel.begetcdn.cloud");
-    expect(new URL(signed).pathname).toMatch(/^\/md5\([A-Za-z0-9_-]+,\d+\)\/media\//);
+    // Current Beget edge uses query-signature dialect, never retired path-based signing.
+    const signedUrl = new URL(signed);
+    expect(signedUrl.pathname).toBe("/"+base+"/poster.webp");
+    expect(signedUrl.searchParams.get("md5")).toMatch(/^[A-Za-z0-9_-]{22}$/);
+    expect(signedUrl.searchParams.get("expires")).toMatch(/^\d{10}$/);
     const mp4 = await media.signCdn({
       key: `media/v2/${"m".repeat(26)}/v1/video/360.mp4`,
       expiresAt: new Date(Date.now() + 100_000),

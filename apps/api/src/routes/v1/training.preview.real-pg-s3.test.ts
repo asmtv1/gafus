@@ -1,3 +1,8 @@
+// This route now binds the occurrence-specific read adapter at composition,
+// while the original Core error mock preserves the historical HTTP response.
+vi.mock("../../modules/rewarded-credits/composition/gafus-access.js", () => ({
+  requirePremiumOrRewardedAccessForVideoUrl: vi.fn(),
+}));
 /**
  * Opt-in genuine Hono → Core Prisma/isolated PG18 ACL → signed MinIO GET.
  * Nothing connects to shared/production DB, Cloud.ru, Yandex or Beget.

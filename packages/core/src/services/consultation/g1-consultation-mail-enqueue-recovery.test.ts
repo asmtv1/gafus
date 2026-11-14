@@ -32,7 +32,7 @@ vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ info: m.info, warn: m.warn, error: vi.fn() }),
 }));
 
-import { enqueueConsultationEmail } from "./notificationService";
+import { enqueueConsultationEmail } from "@gafus/consultation-server/booking-application";
 
 const FIRST = ConsultationEmailType.CLIENT_BOOKING_RECEIVED;
 const SECOND = ConsultationEmailType.TRAINER_CONFIRM_REQUEST;

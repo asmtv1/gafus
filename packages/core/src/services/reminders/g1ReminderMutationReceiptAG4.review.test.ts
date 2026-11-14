@@ -79,7 +79,25 @@ import {
   normalizeDraft, validateKey, ReminderConflictError, ReminderUnknownError,
   ReminderInvalidError, ReminderCapError,
  } from "./g1ReminderMutationReceiptAG4.review";
-import { createReminder } from "./reminderService";
+// Source-review-only SQL composition for mock transaction fixtures; this
+// is not a production route activation or a DB schema migration.
+import { registerReminderAG4ReviewRowsPort } from "./reminderAG4ReviewPort";
+import * as rows from "@gafus/identity-write-server/reminder-review-rows";
+const asTx = (opaque: unknown): rows.ReminderReviewTx => opaque as rows.ReminderReviewTx;
+registerReminderAG4ReviewRowsPort({
+  withAG4ReminderCreateTx: (fn) => rows.withAG4ReminderCreateTx(tx => fn(tx)),
+  lockAG4ReminderOwner: (tx, owner) => rows.lockAG4ReminderOwner(asTx(tx), owner),
+  readAG4ReminderReceipt: (tx, owner, key) => rows.readAG4ReminderReceipt(asTx(tx), owner, key),
+  checkOwnerTrainingReminder: (owner, id, tx) => rows.checkOwnerTrainingReminder(owner, id, tx === undefined ? undefined : asTx(tx)),
+  beginAG4ReminderReceipt: (tx, owner, key, fingerprint, expires) => rows.beginAG4ReminderReceipt(asTx(tx), owner, key, fingerprint, expires),
+  countAG4TrainingReminders: (tx, owner) => rows.countAG4TrainingReminders(asTx(tx), owner),
+  createAG4Reminder: (tx, owner, draft) => rows.createAG4Reminder(asTx(tx), owner, draft),
+  commitAG4ReminderReceipt: (tx, owner, key, reminder, response) => rows.commitAG4ReminderReceipt(asTx(tx), owner, key, reminder, response),
+  readAG4ReminderReceiptForLookup: rows.readAG4ReminderReceiptForLookup,
+  isReminderUniqueConstraintError: rows.isReminderUniqueConstraintError,
+});
+
+import { createReminder } from "@gafus/notifications-server/training-reminder-application";
 const key = (id: number) => `00000000-0000-4000-8000-${id.toString().padStart(12, "0")}`;
 const input = { name: " Walk ", reminderTime: "09:00", reminderDays: "3,1,1" };
 beforeEach(() => {

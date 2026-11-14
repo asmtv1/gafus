@@ -1,6 +1,16 @@
 /** User-visible local retry guidance, distinct from an unavailable server job. */
 export function videoRetryMessage(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (/FEED_VIDEO_STALE_PREPARATION/i.test(raw))
+    return "Видео подготовлено в другом экземпляре черновика. Обновите экран публикации и повторите отправку — исходный файл сохранён.";
+  if (/FEED_VIDEO_RESERVE_FAILED|FEED_VIDEO_POSTER_SIGN_FAILED|FEED_VIDEO_COMPLETE_FAILED/i.test(raw))
+    return "Сервер не подтвердил подготовку видеопубликации. Повторите попытку стрелкой. (" + raw + ")";
+  if (/FEED_VIDEO_POSTER_UPLOAD_FAILED/i.test(raw))
+    return "Не удалось отправить обложку видео в S3. Повторите попытку стрелкой. (" + raw + ")";
+  if (/FEED_VIDEO_VIDEO_UPLOAD_FAILED/i.test(raw))
+    return "Не удалось отправить подготовленное MP4 в S3. Повторите попытку стрелкой. (" + raw + ")";
+  if (/FEED_VIDEO_PREPARE_FAILED/i.test(raw))
+    return "Ошибка локальной подготовки видео после конвертации. Повторите попытку стрелкой. (" + raw + ")";
   if (/VIDEO720_DIMENSIONS|VIDEO720_INVALID_MP4/i.test(raw))
     return "Не удалось подготовить совместимый MP4. Попробуйте другое видео или сохраните его как MP4 (H.264, до 30 кадров/с) и нажмите круглую стрелку.";
   if (/VIDEO720_FILE_TOO_LARGE/i.test(raw))

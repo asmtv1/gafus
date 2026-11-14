@@ -2,8 +2,9 @@
  * Requires AG4-approved additive schema and separate realPG validation.
  * Never import this module into the live offline v2 router under SOURCE_ONLY grant.
  */
-import { randomUUID } from "node:crypto";
-import { prisma, Prisma } from "@gafus/prisma";
+import {
+  requireOfflineVideoSqlPort,
+} from "./offlineVideoSqlPort";
 import { z } from "zod/v3";
 import {
   authorizeVideoOccurrenceV3,
@@ -51,20 +52,7 @@ const forbidden = (code: VideoPositionV3Error["code"]): never => {
 function normalize(ownerId: string, validated: VideoPositionInput) {
   return canonicalOccurrenceV3(ownerId, validated);
 }
-type StoredReceipt = {
-  method: string;
-  operation: string;
-  resourceKey: string;
-  payloadHash: string;
-  state: string;
-  responseStatus: number | null;
-  responseBody: VideoPositionReceipt | null;
-};
-type Revision = {
-  revision: bigint;
-  videoLastPositionSec: number | null;
-  videoRecordedAt: Date | null;
-};
+
 
 /**
  * All mutation effects (event claim -> resource lock/CAS -> persisted ACK)
@@ -89,102 +77,87 @@ export async function submitVideoPositionV2Proposal(input: {
   const now = new Date();
   if (Date.parse(recordedAt) > now.getTime() + MAX_FUTURE_SKEW_MS)
     forbidden("FUTURE_VIDEO_TIMESTAMP");
-  const response = await prisma.$transaction(
-    async (tx) => {
-      // Access checked even on a duplicate receipt, so revoked video entitlement
-      // cannot leak the prior ACK/result. Require video-course-step correspondence.
-      const access = await authorizeVideoOccurrenceV3(tx, ownerId, parsed, now);
-      if (access === "NOT_FOUND") forbidden("VIDEO_NOT_FOUND");
-      if (access !== "ALLOWED") forbidden("VIDEO_ACCESS_DENIED");
+  const response = await requireOfflineVideoSqlPort().withOfflineVideoSqlTransaction(async (tx) => {
+    // Access checked even on a duplicate receipt, so revoked video entitlement
+    // cannot leak the prior ACK/result. Require video-course-step correspondence.
+    const access = await authorizeVideoOccurrenceV3(tx, ownerId, parsed, now);
+    if (access === "NOT_FOUND") forbidden("VIDEO_NOT_FOUND");
+    if (access !== "ALLOWED") forbidden("VIDEO_ACCESS_DENIED");
 
-      // Event claim uses UNIQUE(ownerId,eventId) with conflict waiting for
-      // in-flight commit. PostgreSQL READ COMMITTED gives fresh snapshot on retry.
-      const claim = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
-      INSERT INTO "OfflineMutationReceipt"
-        ("id","ownerId","eventId","method","operation","resourceKey","payloadHash","state")
-      VALUES (CAST(${randomUUID()} AS uuid),${ownerId},CAST(${parsed.eventId} AS uuid),
-        'POST','video.position',${resourceKey},${payloadHash},'RESERVED')
-      ON CONFLICT ("ownerId","eventId") DO NOTHING RETURNING "id"
-    `);
-      if (claim.length === 0) {
-        const stored = await tx.$queryRaw<StoredReceipt[]>(Prisma.sql`
-        SELECT "method","operation","resourceKey","payloadHash","state","responseStatus","responseBody"
-        FROM "OfflineMutationReceipt" WHERE "ownerId"=${ownerId}
-          AND "eventId"=CAST(${parsed.eventId} AS uuid)
-      `);
-        const row = stored[0];
-        if (!row) forbidden("VIDEO_POSITION_JOURNAL_UNAVAILABLE");
-        if (
-          row.method !== "POST" ||
-          row.operation !== "video.position" ||
-          row.resourceKey !== resourceKey ||
-          row.payloadHash !== payloadHash
-        )
-          forbidden("IDEMPOTENCY_KEY_CONFLICT");
-        if (
-          row.state !== "COMMITTED" ||
-          row.responseStatus !== 200 ||
-          !row.responseBody?.ack ||
-          row.responseBody.ack.eventId !== parsed.eventId
-        )
-          forbidden("VIDEO_POSITION_JOURNAL_UNAVAILABLE");
-        return { success: true as const, ack: { ...row.responseBody!.ack, replayed: true } };
-      }
-      // An insert-if-absent revision row permits exact FOR UPDATE serialization
-      // of competing DIFFERENT eventIds on this same owner+resource.
-      await tx.$executeRaw(Prisma.sql`
-      INSERT INTO "OfflineResourceRevision" ("ownerId","resourceKey","revision")
-      VALUES (${ownerId},${resourceKey},0)
-      ON CONFLICT ("ownerId","resourceKey") DO NOTHING
-    `);
-      const revisions = await tx.$queryRaw<Revision[]>(Prisma.sql`
-      SELECT "revision","videoLastPositionSec","videoRecordedAt"
-      FROM "OfflineResourceRevision"
-      WHERE "ownerId"=${ownerId} AND "resourceKey"=${resourceKey} FOR UPDATE
-    `);
-      const before = revisions[0];
-      if (!before) forbidden("VIDEO_POSITION_JOURNAL_UNAVAILABLE");
-      // Record time never determines position monotonicity; backwards seek with a
-      // NEW revision is valid. Stale clock/revision is an explicit 409.
+    // Event claim uses UNIQUE(ownerId,eventId) with conflict waiting for
+    // in-flight commit. PostgreSQL READ COMMITTED gives fresh snapshot on retry.
+    const claim = await requireOfflineVideoSqlPort().claimOfflineVideoReceipt(
+      tx,
+      ownerId,
+      parsed.eventId,
+      resourceKey,
+      payloadHash,
+    );
+    if (claim.length === 0) {
+      const stored = await requireOfflineVideoSqlPort().findOfflineVideoStoredReceipt(
+        tx,
+        ownerId,
+        parsed.eventId,
+      );
+      const row = stored[0];
+      if (!row) forbidden("VIDEO_POSITION_JOURNAL_UNAVAILABLE");
       if (
-        before.revision >= MAX_REVISION ||
-        before.revision !== BigInt(parsed.expectedRevision) ||
-        (before.videoRecordedAt && new Date(recordedAt) <= before.videoRecordedAt)
+        row.method !== "POST" ||
+        row.operation !== "video.position" ||
+        row.resourceKey !== resourceKey ||
+        row.payloadHash !== payloadHash
       )
-        forbidden("STALE_VIDEO_REVISION");
-      const next = before.revision + 1n;
-      const updated = await tx.$executeRaw(Prisma.sql`
-      UPDATE "OfflineResourceRevision" SET
-        "revision"=${next},"videoLastPositionSec"=${parsed.positionSec},
-        "videoRecordedAt"=CAST(${recordedAt} AS timestamptz)
-      WHERE "ownerId"=${ownerId} AND "resourceKey"=${resourceKey}
-        AND "revision"=${before.revision}
-    `);
-      if (updated !== 1) forbidden("STALE_VIDEO_REVISION");
-      const ack: VideoPositionReceipt = {
-        success: true,
-        ack: {
-          protocol: 2,
-          eventId: parsed.eventId,
-          operation: "video.position",
-          state: "COMMITTED",
-          replayed: false,
-          serverRevision: String(next),
-          result: { videoId: parsed.videoId, positionSec: parsed.positionSec, recordedAt },
-        },
-      };
-      const committed = await tx.$executeRaw(Prisma.sql`
-      UPDATE "OfflineMutationReceipt" SET "state"='COMMITTED',"revision"=${next},
-        "responseStatus"=200,"responseBody"=CAST(${JSON.stringify(ack)} AS jsonb),
-        "committedAt"=CURRENT_TIMESTAMP
-      WHERE "id"=CAST(${claim[0]!.id} AS uuid) AND "ownerId"=${ownerId}
-        AND "state"='RESERVED'
-    `);
-      if (committed !== 1) forbidden("VIDEO_POSITION_JOURNAL_UNAVAILABLE");
-      return ack;
-    },
-    { timeout: 10000 },
-  );
+        forbidden("IDEMPOTENCY_KEY_CONFLICT");
+      if (
+        row.state !== "COMMITTED" ||
+        row.responseStatus !== 200 ||
+        !row.responseBody?.ack ||
+        row.responseBody.ack.eventId !== parsed.eventId
+      )
+        forbidden("VIDEO_POSITION_JOURNAL_UNAVAILABLE");
+      return { success: true as const, ack: { ...row.responseBody!.ack, replayed: true } };
+    }
+    // An insert-if-absent revision row permits exact FOR UPDATE serialization
+    // of competing DIFFERENT eventIds on this same owner+resource.
+    await requireOfflineVideoSqlPort().reserveOfflineVideoRevision(tx, ownerId, resourceKey);
+    const revisions = await requireOfflineVideoSqlPort().readOfflineVideoRevision(tx, ownerId, resourceKey);
+    const before = revisions[0];
+    if (!before) forbidden("VIDEO_POSITION_JOURNAL_UNAVAILABLE");
+    // Record time never determines position monotonicity; backwards seek with a
+    // NEW revision is valid. Stale clock/revision is an explicit 409.
+    if (
+      before.revision >= MAX_REVISION ||
+      before.revision !== BigInt(parsed.expectedRevision) ||
+      (before.videoRecordedAt && new Date(recordedAt) <= before.videoRecordedAt)
+    )
+      forbidden("STALE_VIDEO_REVISION");
+    const next = before.revision + 1n;
+    const updated = await requireOfflineVideoSqlPort().advanceOfflineVideoRevision(
+      tx,
+      ownerId,
+      resourceKey,
+      before.revision,
+      next,
+      parsed.positionSec,
+      recordedAt,
+    );
+    if (updated !== 1) forbidden("STALE_VIDEO_REVISION");
+    const ack: VideoPositionReceipt = {
+      success: true,
+      ack: {
+        protocol: 2,
+        eventId: parsed.eventId,
+        operation: "video.position",
+        state: "COMMITTED",
+        replayed: false,
+        serverRevision: String(next),
+        result: { videoId: parsed.videoId, positionSec: parsed.positionSec, recordedAt },
+      },
+    };
+    const committed = await requireOfflineVideoSqlPort().commitOfflineVideoReceipt(tx, ownerId, claim[0]!.id, next, ack);
+    if (committed !== 1) forbidden("VIDEO_POSITION_JOURNAL_UNAVAILABLE");
+    return ack;
+  });
   return response;
 }
 

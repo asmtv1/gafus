@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getExamResult, reviewExamResult, submitExamResult } from "./examService";
+import { getExamResult, reviewExamResultWithPush as reviewExamResult, submitExamResult } from "@gafus/exam-server/exam-service";
 
 const mocks = vi.hoisted(() => ({
   userStepFindFirst: vi.fn(),
@@ -61,7 +61,7 @@ vi.mock("@gafus/cdn-upload", () => ({
   uploadBufferToCDN: vi.fn(),
 }));
 
-vi.mock("../notifications/immediatePushService", () => ({
+vi.mock("@gafus/notifications-server/immediatePushService", () => ({
   sendImmediatePushNotification: vi.fn().mockResolvedValue({ success: true }),
 }));
 

@@ -1,6 +1,6 @@
 import { enqueueFeedPostCleanup, feedPossibleOutputKeys } from "./cleanup";
 import type { FeedDb } from "./ports";
-import { FEED_LIMITS } from "../../../../types/src/feed";
+import { FEED_LIMITS } from "@gafus/types";
 
 /** Cleanup is intentionally independent from FEED_ENABLED and its processor-ready flag. */
 export function createFeedMaintenance({ db, now = () => new Date() }: {

@@ -3,13 +3,13 @@ export * from "./errors";
 export * from "./locking";
 export * from "./settingsService";
 export * from "./walletService";
+export { registerGafusLedgerRowsPort } from "./gafusLedgerPort";
+export type { GafusLedgerRowsPort } from "./gafusLedgerPort";
 export * from "./antiAbuseService";
 export * from "./rewardService";
 export * from "./statusService";
 export * from "./accessGrantService";
+export { registerGafusUnlockRowsPort, requireGafusUnlockRowsPort } from "./gafusUnlockPort";
+export type { GafusUnlockRowsPort } from "./gafusUnlockPort";
 export * from "./reactionRewardService";
-export * from "./miniGuideService";
 export * from "./legacyImportService";
-export * from "./reactionProgressService";
-
-export * from "./notificationDeliveryService";

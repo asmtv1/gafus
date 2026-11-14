@@ -38,7 +38,7 @@ vi.mock("@gafus/core/services/auth",async original=>({
 // Intentionally ACTUAL getExamResults from @gafus/core/services/exam.
 import {app} from "../../app";
 import {generateAccessToken} from "@gafus/auth/jwt";
-import {getExamResults as actualCore} from "@gafus/core/services/exam";
+import {getExamResults as actualCore} from "@gafus/exam-server/exam-service";
 
 const PATH="/api/v1/trainer/exam-results/summary";
 const PRIVATE="AG1_SENTINEL_PRIVATE_STUDENT_EMAIL_MEDIA_TEST_ANSWERS";

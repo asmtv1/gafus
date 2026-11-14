@@ -8,7 +8,7 @@ import { Hono } from 'hono';
 import { internalGalleryRoutes } from './routes/internal/gallery.js';
 import { internalFeedRoutes } from './routes/internal/feed.js';
 import { connection as redis } from '@gafus/queues';
-import { checkCoreDatabaseReady } from '@gafus/core/services/systemHealth';
+import { checkCoreDatabaseReady } from '@gafus/statistics/database-health';
 if (process.env.GAFUS_MEDIA_CORE_STAGE_ONLY !== 'isolated-localhost' ||
     !process.env.DATABASE_URL?.includes('@127.0.0.1:55448/gafus_media_stage') ||
     !process.env.REDIS_URL?.includes('@127.0.0.1:56389') ||

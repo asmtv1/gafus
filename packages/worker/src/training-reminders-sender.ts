@@ -1,3 +1,5 @@
+import { listActiveTrainingReminderCandidates, getTrainingReminderPushSubscriptions,
+  removeInvalidTrainingReminderEndpoints } from "@gafus/notifications-server/trainingReminderClaims";
 /**
  * Отправка напоминаний о тренировках
  * Проверяет настройки пользователей и отправляет push-уведомления
@@ -10,16 +12,18 @@ import {
   sendExpoPushNotifications,
   sendRustorePushNotifications,
 } from "@gafus/webpush";
-import {
-  shouldSendTrainingReminder,
-  claimDailyTrainingReminderDelivery,
-  acknowledgeDailyTrainingReminderDelivery,
-  releaseDailyTrainingReminderDelivery,
-  listRetryableTrainingReminderCandidates,
-  listActiveTrainingReminderCandidates,
-  getTrainingReminderPushSubscriptions,
-  removeInvalidTrainingReminderEndpoints,
+import { shouldSendTrainingReminder, trainingReminderLocalDayKey,
+  getTrainingReminderLocalTime, trainingReminderAlreadySentToday,
 } from "@gafus/core/services/reminders";
+import { createTrainingReminderDeliveryRepository } from
+  "@gafus/notifications-server/training-reminder-delivery";
+const { claimDailyTrainingReminderDelivery, acknowledgeDailyTrainingReminderDelivery,
+  releaseDailyTrainingReminderDelivery, listRetryableTrainingReminderCandidates,
+} = createTrainingReminderDeliveryRepository({
+  localDayKey: trainingReminderLocalDayKey,
+  localTime: getTrainingReminderLocalTime,
+  alreadySentToday: trainingReminderAlreadySentToday,
+});
 
 const logger = createWorkerLogger("training-reminders-sender");
 

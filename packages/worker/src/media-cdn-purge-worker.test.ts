@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { processOneMediaCdnPurge, type EdgePurgeDeps, type EdgePurgeJob } from "./media-cdn-purge-worker";
+import { processOneMediaCdnPurge, verifyEdgePurgeJob, type EdgePurgeDeps, type EdgePurgeJob } from "./media-cdn-purge-worker";
 // Feed V2 purges only immutable final objects. Legacy /posts/... paths must
 // stay rejected by the production safety validator.
 const path = "/media/v2/media123/v1/image/l.webp";
@@ -80,5 +80,25 @@ describe("separately leased Beget purge worker", () => {
     x.claim.mockResolvedValue(undefined);
     expect(await processOneMediaCdnPurge(x.deps)).toBe("empty");
     expect(x.begin).not.toHaveBeenCalled();
+  });
+});
+
+describe("Beget delivery validator: only published immutable media",()=>{
+  it("accepts exact Gallery V2 public photo renditions and rejects uploads",()=>{
+    const job:EdgePurgeJob={
+      id:"gallery:v2-delete-job",scope:"gallery",
+      paths:["/gallery/owner/media/photo/v2/thumb.webp",
+        "/gallery/owner/media/photo/v2/full.webp"],
+      purgeOperations:[],attempts:1,
+      attemptToken:"11111111-1111-4111-8111-111111111111",
+    };
+    expect(()=>verifyEdgePurgeJob(job)).not.toThrow();
+    for(const invalid of ["/gallery/owner/media/photo/v2/source.jpg",
+      "/gallery/owner/media/photo/v2/full.webp/child",
+      "/gallery/other/media/../photo/v2/full.webp",
+      "/posts/owner/post/incoming/u/source.jpg"]){
+      expect(()=>verifyEdgePurgeJob({...job,paths:[invalid]}))
+        .toThrow("MEDIA_PURGE_JOB_UNTRUSTED");
+    }
   });
 });

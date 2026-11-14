@@ -26,14 +26,24 @@ vi.mock("@gafus/core/services/cynologistChat", () => ({
   communityModerationOverview: vi.fn(), moderateCommunityChat: vi.fn(),
   getCommunityChatSession: vi.fn(),
 }));
-vi.mock("@gafus/core/services/cynologistChat/upload", () => ({
+vi.mock("../../../../../packages/chat-server/dist/service.js", () => ({
+  sendChatMessage: m.send, getChatState: m.state,
+  startChat: vi.fn(), getChatSession: vi.fn(), listChatDialogs: vi.fn(),
+}));
+vi.mock("../../../../../packages/chat-server/dist/community.js", () => ({
+  sendCommunityChatMessage: m.communitySend, getCommunityChatState: m.state,
+  getCommunityChatSession: vi.fn(), communityModerationOverview: vi.fn(), moderateCommunityChat: vi.fn(),
+}));
+vi.mock("../../../../../packages/chat-server/dist/reactions.js", () => ({ manageChatReaction: vi.fn() }));
+vi.mock("../../../../../packages/chat-server/dist/messageManagement.js", () => ({ manageOwnChatMessage: vi.fn() }));
+vi.mock("../../../../../packages/chat-server/dist/upload-service.js", () => ({
   deleteChatAttachment: vi.fn(),
 }));
-vi.mock("../../../../../packages/chat-server/src/upload.js", () => ({
+vi.mock("../../../../../packages/chat-server/dist/upload.js", () => ({
   uploadChatAttachmentRequest: vi.fn(),
 }));
 import { connection } from "@gafus/queues";
-import { dispatchChatRequest } from "../../../../../packages/chat-server/src/index.js";
+import { dispatchChatRequest } from "../../../../../packages/chat-server/dist/index.js";
 const suite = enabled ? describe : describe.skip;
 async function send(actor: string, community: boolean) {
   return dispatchChatRequest(actor, new Request("http://local.test/api/v1/chat", {

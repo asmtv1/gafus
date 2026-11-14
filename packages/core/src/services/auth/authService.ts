@@ -10,14 +10,37 @@ import parsePhoneNumberFromString from "libphonenumber-js";
 import { z } from "zod/v3";
 
 import { resetPasswordByToken } from "./passwordReset";
-import { prisma, type RegistrationChannel } from "@gafus/prisma";
+import {
+  readAuthUsernameChangeActor,
+  readAuthUsernameCandidate,
+  updateAuthUsername,
+  readAuthCurrentUsername,
+  readAuthUsernameOwner,
+  readAuthUserSummary,
+  readLoginCredentials,
+  readAuthRegistrationPending,
+  createAuthRefreshToken,
+  readAuthRefreshToken,
+  rotateAuthRefreshToken,
+  revokeAuthRefreshToken,
+  revokeAllAuthSessions,
+  readAuthVkPhone,
+  readAuthPhoneOwnerExcluding,
+  updateAuthVkPhone,
+  readAuthPasswordSetAt,
+  setAuthPasswordOnce,
+  readAuthNotificationEmail,
+  readAuthPasswordForChange,
+  changeAuthPasswordCAS,
+  type RegistrationChannel,
+} from "./authRowsPort";
 import { createWebLogger } from "@gafus/logger";
 
 import {
   registerUserWithCredentials,
   type RegisterCredentialsConflictCode,
 } from "./registerUserWithCredentials";
-import type { CreateConsentLogsParams } from "../consent";
+import type { CreateConsentLogsParams } from "@gafus/types";
 import {
   sendPasswordChangedNoticeEmail,
   sendUsernameChangedNoticeEmail,
@@ -93,10 +116,7 @@ export async function registerUserService(
     registrationContext,
   });
   if (!result.ok) {
-    const maskedCodes: RegisterCredentialsConflictCode[] = [
-      "USERNAME_TAKEN",
-      "EMAIL_TAKEN",
-    ];
+    const maskedCodes: RegisterCredentialsConflictCode[] = ["USERNAME_TAKEN", "EMAIL_TAKEN"];
     if (maskedCodes.includes(result.code)) {
       return { error: REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE };
     }
@@ -133,10 +153,7 @@ export async function changeUsername(userId: string, newUsername: string): Promi
     throw new Error("Логин: минимум 3 символа, только латиница, цифры и _");
   }
 
-  const currentUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, username: true, email: true },
-  });
+  const currentUser = await readAuthUsernameChangeActor(userId);
 
   if (!currentUser) {
     throw new Error("Пользователь не найден");
@@ -146,18 +163,13 @@ export async function changeUsername(userId: string, newUsername: string): Promi
     return;
   }
 
-  const existing = await prisma.user.findUnique({
-    where: { username: normalized },
-  });
+  const existing = await readAuthUsernameCandidate(normalized);
   if (existing) {
     throw new Error("Логин уже занят");
   }
 
   try {
-    await prisma.user.update({
-      where: { id: userId },
-      data: { username: normalized },
-    });
+    await updateAuthUsername(userId, normalized);
   } catch (error) {
     const prismaError = error as { code?: string };
     if (prismaError.code === "P2002") {
@@ -198,17 +210,11 @@ export async function isUsernameAvailable(
   }
 
   if (currentUserId) {
-    const currentUser = await prisma.user.findUnique({
-      where: { id: currentUserId },
-      select: { username: true },
-    });
+    const currentUser = await readAuthCurrentUsername(currentUserId);
     if (currentUser?.username === normalized) return true;
   }
 
-  const existing = await prisma.user.findUnique({
-    where: { username: normalized },
-    select: { id: true },
-  });
+  const existing = await readAuthUsernameOwner(normalized);
 
   return !existing || existing.id === currentUserId;
 }
@@ -221,10 +227,7 @@ export async function isUsernameAvailable(
 export async function getAuthUserById(
   userId: string,
 ): Promise<{ id: string; username: string; role: string; phone: string | null } | null> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, username: true, role: true, phone: true },
-  });
+  const user = await readAuthUserSummary(userId);
   return user;
 }
 
@@ -236,10 +239,7 @@ export async function validateCredentials(
   password: string,
 ): Promise<ValidateCredentialsSuccess | ValidateCredentialsFailure> {
   const normalized = username.toLowerCase().trim();
-  const user = await prisma.user.findUnique({
-    where: { username: normalized },
-    select: { id: true, username: true, role: true, password: true, registrationPending: true },
-  });
+  const user = await readLoginCredentials(normalized);
   if (!user || user.registrationPending) return { success: false };
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return { success: false };
@@ -256,19 +256,9 @@ export async function createRefreshSession(
   tokenHash: string,
   metadata: RefreshSessionMetadata,
 ): Promise<void> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { registrationPending: true } });
+  const user = await readAuthRegistrationPending(userId);
   if (!user || user.registrationPending) throw new Error("Registration is not completed");
-  await prisma.refreshToken.create({
-    data: {
-      id: tokenId,
-      userId,
-      tokenHash,
-      deviceId: metadata.deviceId ?? null,
-      userAgent: metadata.userAgent ?? null,
-      ipAddress: metadata.ipAddress ?? null,
-      expiresAt: metadata.expiresAt,
-    },
-  });
+  await createAuthRefreshToken(userId, tokenId, tokenHash, metadata);
 }
 
 /**
@@ -277,10 +267,7 @@ export async function createRefreshSession(
 export async function validateRefreshToken(
   tokenHash: string,
 ): Promise<ValidateRefreshSuccess | ValidateRefreshFailure> {
-  const stored = await prisma.refreshToken.findUnique({
-    where: { tokenHash },
-    include: { user: { select: { id: true, username: true, role: true, registrationPending: true } } },
-  });
+  const stored = await readAuthRefreshToken(tokenHash);
   if (!stored) return { valid: false, reason: "not_found" };
   if (stored.revokedAt) {
     // A competing refresh can observe the just-rotated token. Reject without
@@ -306,7 +293,10 @@ export async function validateRefreshToken(
  * Атомарно отзывает старый токен и создаёт новый (rotation).
  */
 export class RefreshRotationConflictError extends Error {
-  constructor() { super("Refresh token already consumed or expired"); this.name = "RefreshRotationConflictError"; }
+  constructor() {
+    super("Refresh token already consumed or expired");
+    this.name = "RefreshRotationConflictError";
+  }
 }
 
 export async function rotateRefreshToken(
@@ -316,51 +306,29 @@ export async function rotateRefreshToken(
   newTokenId: string,
   metadata: RefreshSessionMetadata,
 ): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({ where: { id: userId }, select: { registrationPending: true } });
-    if (!user || user.registrationPending) throw new Error("Registration is not completed");
-    const consumed = await tx.refreshToken.updateMany({
-      where: { tokenHash: oldTokenHash, userId, revokedAt: null, expiresAt: { gt: new Date() } },
-      data: { revokedAt: new Date() },
-    });
-    if (consumed.count !== 1) throw new RefreshRotationConflictError();
-    await tx.refreshToken.create({
-      data: {
-        id: newTokenId,
-        userId,
-        tokenHash: newTokenHash,
-        deviceId: metadata.deviceId ?? null,
-        userAgent: metadata.userAgent ?? null,
-        ipAddress: metadata.ipAddress ?? null,
-        expiresAt: metadata.expiresAt,
-      },
-    });
-  });
+  const rotated = await rotateAuthRefreshToken(
+    oldTokenHash,
+    userId,
+    newTokenHash,
+    newTokenId,
+    metadata,
+  );
+  if (rotated === "REGISTRATION_PENDING") throw new Error("Registration is not completed");
+  if (rotated === "CONFLICT") throw new RefreshRotationConflictError();
 }
 
 /**
  * Отзывает refresh-токен по хешу.
  */
 export async function revokeRefreshToken(tokenHash: string): Promise<void> {
-  await prisma.refreshToken.updateMany({
-    where: { tokenHash },
-    data: { revokedAt: new Date() },
-  });
+  await revokeAuthRefreshToken(tokenHash);
 }
 
 /**
  * Отзывает все refresh-токены пользователя.
  */
 export async function revokeAllUserTokens(userId: string): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const at = new Date();
-    // A compromise revokes both stored refresh tokens AND existing access JWTs.
-    await tx.user.update({ where: { id: userId }, data: { sessionsRevokedAt: at } });
-    await tx.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: at },
-    });
-  });
+  await revokeAllAuthSessions(userId);
 }
 
 // ========== VK-only: setVkPhone, setPassword, changePassword ==========
@@ -369,10 +337,7 @@ export async function revokeAllUserTokens(userId: string): Promise<void> {
  * Установка номера телефона для VK-пользователя (phone = "vk_...").
  */
 export async function setVkPhone(userId: string, phone: string): Promise<void> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { phone: true },
-  });
+  const user = await readAuthVkPhone(userId);
   if (!user) throw new Error("Пользователь не найден");
   if (!user.phone?.startsWith("vk_")) {
     throw new Error("Смена номера недоступна через этот метод");
@@ -384,15 +349,10 @@ export async function setVkPhone(userId: string, phone: string): Promise<void> {
   }
   const formatted = parsed.format("E.164");
 
-  const existing = await prisma.user.findFirst({
-    where: { phone: formatted, NOT: { id: userId } },
-  });
+  const existing = await readAuthPhoneOwnerExcluding(userId, formatted);
   if (existing) throw new Error("Номер телефона уже занят");
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: { phone: formatted },
-  });
+  await updateAuthVkPhone(userId, formatted);
   logger.success("vkPhone set", { userId });
 }
 
@@ -400,10 +360,7 @@ export async function setVkPhone(userId: string, phone: string): Promise<void> {
  * Установка пароля для VK-only пользователя (passwordSetAt === null).
  */
 export async function setPassword(userId: string, newPassword: string): Promise<void> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { passwordSetAt: true },
-  });
+  const user = await readAuthPasswordSetAt(userId);
   if (!user) throw new Error("Пользователь не найден");
   if (user.passwordSetAt !== null) {
     throw new Error("Пароль уже установлен, используйте смену пароля");
@@ -411,28 +368,11 @@ export async function setPassword(userId: string, newPassword: string): Promise<
 
   newPasswordSchema.parse(newPassword);
   const hash = await bcrypt.hash(newPassword, 12);
-  await prisma.$transaction(async (tx) => {
-    const at = new Date();
-    // Concurrent set-password requests must not both overwrite credentials.
-    const updated = await tx.user.updateMany({
-      where: { id: userId, passwordSetAt: null },
-      data: { password: hash, passwordSetAt: at, sessionsRevokedAt: at },
-    });
-    if (updated.count !== 1) {
-      throw new Error("Пароль уже установлен, используйте смену пароля");
-    }
-    // JWT checks sessionsRevokedAt; DB refresh rows must be revoked atomically.
-    await tx.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: at },
-    });
-  });
+  if (!(await setAuthPasswordOnce(userId, hash)))
+    throw new Error("Пароль уже установлен, используйте смену пароля");
   logger.success("setPassword completed", { userId });
 
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true },
-  });
+  const u = await readAuthNotificationEmail(userId);
   if (u?.email?.trim()) {
     await sendPasswordChangedNoticeEmail(u.email).catch((err) =>
       logger.error(
@@ -452,10 +392,7 @@ export async function changePassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<void> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { password: true, passwordSetAt: true },
-  });
+  const user = await readAuthPasswordForChange(userId);
   if (!user) throw new Error("Пользователь не найден");
   if (user.passwordSetAt === null) {
     throw new Error("Сначала установите пароль");
@@ -466,26 +403,11 @@ export async function changePassword(
 
   newPasswordSchema.parse(newPassword);
   const hash = await bcrypt.hash(newPassword, 12);
-  await prisma.$transaction(async (tx) => {
-    const at = new Date();
-    // Compare-and-swap prevents a stale concurrent current-password check
-    // from overwriting a newly changed password or double-ACKing a retry.
-    const updated = await tx.user.updateMany({
-      where: { id: userId, password: user.password, passwordSetAt: { not: null } },
-      data: { password: hash, passwordSetAt: at, sessionsRevokedAt: at },
-    });
-    if (updated.count !== 1) throw new Error("Неверный текущий пароль");
-    await tx.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: at },
-    });
-  });
+  if (!(await changeAuthPasswordCAS(userId, user.password, hash)))
+    throw new Error("Неверный текущий пароль");
   logger.success("changePassword completed", { userId });
 
-  const u = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { email: true },
-  });
+  const u = await readAuthNotificationEmail(userId);
   if (u?.email?.trim()) {
     await sendPasswordChangedNoticeEmail(u.email).catch((err) =>
       logger.error(

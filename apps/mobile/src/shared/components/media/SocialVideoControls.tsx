@@ -26,7 +26,8 @@ export function SocialVideoControls({ player, playing, onToggle, qualityControl,
 
   useEffect(() => {
     if (!player) { setPosition(0); setDuration(0); return; }
-    const previousInterval = player.timeUpdateEventInterval;
+    // The owning useVideoPlayer hook disposes this native SharedObject on unmount.
+    // Never restore a native property in cleanup: iOS may already have disposed it.
     player.timeUpdateEventInterval = 0.2;
     const sample = (seconds?: number) => {
       if (!scrubbing.current) setPosition(Number.isFinite(seconds) ? seconds! : player.currentTime);
@@ -37,7 +38,6 @@ export function SocialVideoControls({ player, playing, onToggle, qualityControl,
     const status = player.addListener("statusChange", () => sample());
     return () => {
       time.remove(); status.remove();
-      player.timeUpdateEventInterval = previousInterval;
     };
   }, [player]);
 
@@ -120,8 +120,8 @@ export function SocialVideoControls({ player, playing, onToggle, qualityControl,
 }
 
 const styles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, justifyContent: "flex-end" },
-  tapArea: { ...StyleSheet.absoluteFillObject, bottom: 62,
+  overlay: { ...StyleSheet.absoluteFill, justifyContent: "flex-end" },
+  tapArea: { ...StyleSheet.absoluteFill, bottom: 62,
     alignItems: "center", justifyContent: "center" },
   centerPlay: { width: 58, height: 58, borderRadius: 29,
     backgroundColor: "#00000079", alignItems: "center", justifyContent: "center" },

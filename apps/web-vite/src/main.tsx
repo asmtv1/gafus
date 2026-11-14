@@ -1,3 +1,12 @@
+import { startBrowserTelemetry } from "@gafus/error-handling/browser";
+import { ErrorBoundary } from "@gafus/error-handling";
+// Opt-in immutable release mapping; no backend secret or DSN in browser code.
+startBrowserTelemetry({
+  service: "gafus-web",
+  appVersion: import.meta.env.VITE_GAFUS_APP_VERSION || "1.7.3",
+  build: import.meta.env.VITE_GAFUS_BUILD_ID || "",
+  enabled: import.meta.env.VITE_GAFUS_TELEMETRY_ENABLED === "true",
+});
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -44,7 +53,7 @@ if (
   createRoot(root).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
-        <App showGalleryOptIn />
+        <ErrorBoundary config={{ appName: "gafus-web", logToConsole: false }}><App showGalleryOptIn /></ErrorBoundary>
         <NextCookieConsent />
       </QueryClientProvider>
     </StrictMode>,

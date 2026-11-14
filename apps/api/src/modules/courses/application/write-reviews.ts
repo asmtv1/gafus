@@ -4,7 +4,7 @@ import type {
   rateCourse,
   updateCourseReview,
   deleteCourseReview,
-} from "@gafus/core/services/course";
+} from "@gafus/course-server/reviews";
 
 type ReviewResult = Awaited<ReturnType<typeof createCourseReview>>;
 

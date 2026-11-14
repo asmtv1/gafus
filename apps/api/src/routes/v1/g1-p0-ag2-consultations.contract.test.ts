@@ -1,3 +1,11 @@
+vi.mock("@gafus/consultation-server/slot-service", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
+vi.mock("@gafus/consultation-server/booking-application", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  ...(await import("@gafus/core/services/consultation")),
+}));
 /** AG1/AG2 P0 G11-G13: real Hono route, auth, validation and error mapper;
  * consultation Core + rate limit mocked, NO Redis/Prisma/provider network.
  */
@@ -17,16 +25,17 @@ vi.mock("@gafus/core/services/auth", async original => ({
 }));
 vi.mock("@gafus/core/services/consultation", async original => ({
   ...(await original<object>()),
-  listListedCynologists: m.list,
-  getConsultationBookingEligibility: m.eligibility,
   requireConsultationSlotsSubscriptionAccess: m.slotsAccess,
   requireConsultationBookingSubscriptionAccess: m.bookingAccess,
-  requireConsultationBookingEligibility: m.bookingEligibility,
   getAvailableSlots: m.slots, getCalendarSlots: m.calendar,
-  getCynologistDayOffDates: m.days,
   verifyConsultationSlotFreeForCynologist: m.verify,
   bookSlotWithSubscription: m.book, listClientBookings: m.my,
   cancelBookingByUser: m.cancel,
+}));
+vi.mock("../../modules/consultations/composition/booking-eligibility.js",()=>({ getConsultationBookingEligibility: m.eligibility, requireConsultationBookingEligibility:m.bookingEligibility }));
+vi.mock("../../modules/consultations/composition/catalog-schedule.js", () => ({
+  listListedCynologists: m.list,
+  getCynologistDayOffDates: m.days,
 }));
 vi.mock("../../middleware/rate-limit.js", async original => ({
   ...(await original<object>()),

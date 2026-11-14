@@ -467,6 +467,27 @@ describe("actual mounted ImagePicker -> prepare -> reserve -> storage -> commit 
     expect(uploadCalls("/client-complete")).toHaveLength(1);
     expect(host.textContent).not.toContain("PRIVATE");
   });
+  it("waits for both gallery signed WebP POSTs before disposing local files on failure",async()=>{
+    const thumbDispose=vi.fn(), fullDispose=vi.fn();
+    vi.mocked(prepareUploadWebpVariants).mockResolvedValueOnce({
+      thumb:{uri:"file:///temp/thumb.webp",mime:"image/webp",width:100,height:100,bytes:200,dispose:thumbDispose},
+      full:{uri:"file:///temp/full.webp",mime:"image/webp",width:100,height:100,bytes:200,dispose:fullDispose},
+    });
+    const pending=deferred<{ok:boolean}>();
+    m.storage.mockRejectedValueOnce(new Error("S3 first failed"))
+      .mockReturnValueOnce(pending.promise);
+    await mounted();
+    await pick();
+    await vi.waitFor(()=>expect(m.storage).toHaveBeenCalledTimes(2));
+    await Promise.resolve();
+    expect(thumbDispose).not.toHaveBeenCalled();
+    expect(fullDispose).not.toHaveBeenCalled();
+    expect(uploadCalls("/client-complete")).toHaveLength(0);
+    await act(async()=>{pending.resolve({ok:true});await pending.promise;});
+    await vi.waitFor(()=>expect(thumbDispose).toHaveBeenCalledOnce());
+    expect(fullDispose).toHaveBeenCalledOnce();
+    expect(uploadCalls("/client-complete")).toHaveLength(0);
+  });
   it("S3 POST accepted before signed token expiry still confirms while reservation is valid", async () => {
     const base = Date.now();
     const pending = deferred<{ ok: boolean }>();

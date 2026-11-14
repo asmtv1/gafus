@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import React, { Component } from "react";
 
 import { reportClientError } from "../lib/reportClientError";
+import { reportBrowserDiagnostic } from "../browserTelemetry";
 
 export interface ErrorBoundaryConfig {
   appName: string;
@@ -77,15 +78,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     this.setState({ errorInfo: enhancedErrorInfo });
 
+    // Canonical browser diagnostics keeps only safe function frames; no URL,
+    // user ID, session ID, user agent or component props are exported.
+    reportBrowserDiagnostic(error, "react_error", "WEB_REACT_RENDER");
+    // Legacy tracer remains behind its existing flag during parity, but
+    // no longer receives raw route/query and user identity as extra fields.
     reportClientError(error, {
       severity: "error",
-      userId: enhancedErrorInfo.userId,
-      issueKey: `error-boundary:${this.config.appName}`,
-      keys: {
-        url: enhancedErrorInfo.url,
-        component: enhancedErrorInfo.errorBoundaryName ?? "unknown",
-        appName: enhancedErrorInfo.appName,
-      },
+      issueKey: "react-render",
+      keys: { component: "ErrorBoundary" },
     });
 
     if (

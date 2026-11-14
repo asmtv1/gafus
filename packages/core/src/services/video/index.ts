@@ -1,2 +1,2 @@
-export * from "./videoProgressService";
+export * from "./positionPolicy";
 export * from "./videoAccessService";

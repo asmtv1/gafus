@@ -1,10 +1,6 @@
 import bcryptjs from "bcryptjs";
-import { enqueueAccountStorageCleanup } from "../accountCleanup/enqueue";
 
-import { prisma } from "@gafus/prisma";
-import type { UserRole } from "@gafus/prisma";
 import { createWebLogger } from "@gafus/logger";
-import { bindPartnerPromoCodeInTransaction } from "../appSubscription/partnerService";
 
 import { handlePrismaError } from "../../errors/prismaErrorHandler";
 import { ServiceError } from "../../errors/ServiceError";
@@ -14,82 +10,87 @@ import type {
   AdminUserDeleteResult,
   AdminUserUpdateResult,
   UpdateUserAdminInput,
+  AdminUserRole,
 } from "./types";
 
 const logger = createWebLogger("admin-user-service");
 
 const BCRYPT_SALT_ROUNDS = 10;
 
+/** Port-typed application policy. Database locks, transaction, partner CAS and
+ * account cleanup outbox remain in the server adapters passed by composition.
+ */
+export interface AdminUserPorts {
+  readAdminUserRoles: (
+    actorId: string, targetId: string,
+  ) => Promise<{ actorRole: AdminUserRole | null; targetRole: AdminUserRole | null }>;
+  readAdminUserRole: (actorId: string) => Promise<AdminUserRole | null>;
+  readAdminUserListRows: () => Promise<AdminUserRow[]>;
+  updateAdminUserRows: (
+    userId: string,
+    input: {
+      username?: string;
+      email?: string | null;
+      phone?: string;
+      role?: AdminUserRole;
+      passwordHash?: string;
+      partnerPromoCodeId?: string;
+    },
+    actorId: string | undefined,
+    authorize: (actorRole: AdminUserRole | null, targetRole: AdminUserRole | null) => void,
+  ) => Promise<void>;
+  deleteAdminUserRows: (
+    userId: string, actorId: string,
+    authorize: (actorRole: AdminUserRole | null, targetRole: AdminUserRole | null) => void,
+  ) => Promise<void>;
+}
+
+export function createAdminUserService(ports: AdminUserPorts) {
+  const {
+    readAdminUserRoles, readAdminUserRole, readAdminUserListRows,
+    updateAdminUserRows, deleteAdminUserRows,
+  } = ports;
+
 /** Read-time ACL projection for admin HTTP handlers; writes are rechecked under row locks. */
-export async function checkAdminUserMutationAccess(
+async function checkAdminUserMutationAccess(
   actorId: string,
   targetId: string,
   changesRole: boolean,
 ): Promise<"FORBIDDEN" | "USER_NOT_FOUND" | null> {
-  const [actor, target] = await Promise.all([
-    prisma.user.findUnique({ where: { id: actorId }, select: { role: true } }),
-    prisma.user.findUnique({ where: { id: targetId }, select: { role: true } }),
-  ]);
-  if (!actor || (actor.role !== "ADMIN" && actor.role !== "MODERATOR")) return "FORBIDDEN";
-  if (!target) return "USER_NOT_FOUND";
+  const { actorRole, targetRole } = await readAdminUserRoles(actorId, targetId);
+  if (!actorRole || (actorRole !== "ADMIN" && actorRole !== "MODERATOR")) return "FORBIDDEN";
+  if (!targetRole) return "USER_NOT_FOUND";
   if (
-    actor.role === "MODERATOR" &&
-    (changesRole || ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(target.role))
+    actorRole === "MODERATOR" &&
+    (changesRole || ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(targetRole))
   )
     return "FORBIDDEN";
   return null;
 }
 
 /** Always read the current DB role, never trust the role embedded in an old JWT. */
-export async function readAdminActorRole(actorId: string): Promise<UserRole | null> {
-  const actor = await prisma.user.findUnique({
-    where: { id: actorId },
-    select: { role: true },
-  });
-  return actor?.role ?? null;
+async function readAdminActorRole(actorId: string): Promise<AdminUserRole | null> {
+  return readAdminUserRole(actorId);
 }
 
 /** Central partner-permission policy; apps supply identity, core reads DB roles. */
-export async function partnerChangeRequiresAdmin(
+async function partnerChangeRequiresAdmin(
   actorId: string,
   userId: string,
   input: Pick<UpdateUserAdminInput, "role" | "partnerPromoCodeId">,
 ): Promise<boolean> {
   if (input.partnerPromoCodeId === undefined && input.role === undefined) return false;
-  const [actor, target] = await Promise.all([
-    prisma.user.findUnique({ where: { id: actorId }, select: { role: true } }),
-    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
-  ]);
+  const { actorRole, targetRole } = await readAdminUserRoles(actorId, userId);
   const changesPartnerRole =
     input.role !== undefined &&
-    input.role !== target?.role &&
-    (input.role === "PARTNER" || target?.role === "PARTNER");
-  return (input.partnerPromoCodeId !== undefined || changesPartnerRole) && actor?.role !== "ADMIN";
+    input.role !== targetRole &&
+    (input.role === "PARTNER" || targetRole === "PARTNER");
+  return (input.partnerPromoCodeId !== undefined || changesPartnerRole) && actorRole !== "ADMIN";
 }
 
-export async function getAllUsers(): Promise<AdminUserActionResult> {
+async function getAllUsers(): Promise<AdminUserActionResult> {
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        phone: true,
-        role: true,
-        registrationChannel: true,
-        createdAt: true,
-        profile: { select: { fullName: true, avatarUrl: true } },
-        _count: { select: { pushSubscriptions: true } },
-        savedRegistrationPromoCode: { select: { code: true } },
-        partnerProfile: {
-          select: {
-            promoCodeId: true,
-            promoCode: { select: { id: true, code: true, discountPercent: true } },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const users = await readAdminUserListRows();
     return { success: true, data: users as AdminUserRow[] };
   } catch (error) {
     logger.error("Ошибка при получении пользователей", error as Error);
@@ -97,7 +98,7 @@ export async function getAllUsers(): Promise<AdminUserActionResult> {
   }
 }
 
-export async function updateUserAdmin(
+async function updateUserAdmin(
   userId: string,
   input: UpdateUserAdminInput,
   actorId?: string,
@@ -109,75 +110,34 @@ export async function updateUserAdmin(
         error: "Для назначения партнёра выберите свободный активный промокод",
       };
     }
-    const updateData: {
-      username?: string;
-      email?: string | null;
-      phone?: string;
-      role?: UserRole;
-      password?: string;
-    } = {};
-
-    if (input.username !== undefined) updateData.username = input.username;
-    if (input.email !== undefined) updateData.email = input.email;
-    if (input.phone !== undefined) updateData.phone = input.phone;
-    if (input.role !== undefined) updateData.role = input.role as UserRole;
-    if (input.newPassword && input.newPassword.trim()) {
-      updateData.password = await bcryptjs.hash(input.newPassword, BCRYPT_SALT_ROUNDS);
-    }
-    await prisma.$transaction(async (tx) => {
-      // Authorization must be checked while the actor and target roles are
-      // protected by database row locks, not only in the HTTP adapter.
-      if (actorId) {
-        // Lock actor and target for ALL actor-backed edits, not only role edits.
-        // A revoked moderator must not use a still-valid JWT to change passwords.
-        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" IN (${actorId}, ${userId}) ORDER BY "id" FOR UPDATE`;
-        const [actor, target] = await Promise.all([
-          tx.user.findUnique({ where: { id: actorId }, select: { role: true } }),
-          tx.user.findUnique({ where: { id: userId }, select: { role: true } }),
-        ]);
-        if (!actor || (actor.role !== "ADMIN" && actor.role !== "MODERATOR")) {
-          throw new ServiceError("Недостаточно прав", "FORBIDDEN");
+    const passwordHash = input.newPassword?.trim()
+      ? await bcryptjs.hash(input.newPassword, BCRYPT_SALT_ROUNDS)
+      : undefined;
+    await updateAdminUserRows(userId, {
+      username: input.username, email: input.email, phone: input.phone,
+      role: input.role as AdminUserRole | undefined,
+      passwordHash, partnerPromoCodeId: input.partnerPromoCodeId,
+    }, actorId, (actorRole, targetRole) => {
+        // Roles were read after locking both rows in stable order, not from JWT.
+        if (actorId) {
+          if (actorRole !== "ADMIN" && actorRole !== "MODERATOR")
+            throw new ServiceError("Недостаточно прав", "FORBIDDEN");
+          const partnerChange = input.partnerPromoCodeId !== undefined ||
+            (input.role !== targetRole &&
+              (input.role === "PARTNER" || targetRole === "PARTNER"));
+          if (partnerChange && actorRole !== "ADMIN")
+            throw new ServiceError(
+              "Только администратор может управлять ролью и промокодом партнёра", "FORBIDDEN",
+            );
+          if (actorRole === "MODERATOR" &&
+            (input.role !== undefined || input.partnerPromoCodeId !== undefined ||
+              (targetRole !== null &&
+                ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(targetRole))))
+            throw new ServiceError("Недостаточно прав", "FORBIDDEN");
+        } else if (input.role !== undefined || input.partnerPromoCodeId !== undefined) {
+          throw new ServiceError("Необходима повторная авторизация", "FORBIDDEN");
         }
-        const partnerChange =
-          input.partnerPromoCodeId !== undefined ||
-          (input.role !== target?.role && (input.role === "PARTNER" || target?.role === "PARTNER"));
-        if (partnerChange && actor.role !== "ADMIN") {
-          throw new ServiceError(
-            "Только администратор может управлять ролью и промокодом партнёра",
-            "FORBIDDEN",
-          );
-        }
-        if (
-          actor.role === "MODERATOR" &&
-          (input.role !== undefined ||
-            input.partnerPromoCodeId !== undefined ||
-            (target !== null && ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(target.role)))
-        )
-          throw new ServiceError("Недостаточно прав", "FORBIDDEN");
-      } else if (input.role !== undefined || input.partnerPromoCodeId !== undefined) {
-        throw new ServiceError("Необходима повторная авторизация", "FORBIDDEN");
-      }
-      // Role/password changes must invalidate access AND refresh credentials
-      // atomically with the account edit, including on other devices.
-      const securityChange = input.role !== undefined || updateData.password !== undefined;
-      const revokedAt = securityChange ? new Date() : null;
-      await tx.user.update({
-        where: { id: userId },
-        data: revokedAt ? { ...updateData, sessionsRevokedAt: revokedAt } : updateData,
       });
-      if (revokedAt) {
-        await tx.refreshToken.updateMany({
-          where: { userId, revokedAt: null },
-          data: { revokedAt },
-        });
-      }
-      if (input.partnerPromoCodeId !== undefined) {
-        await bindPartnerPromoCodeInTransaction(tx, {
-          userId,
-          promoCodeId: input.partnerPromoCodeId,
-        });
-      }
-    });
     logger.info("Пользователь обновлён", { userId });
     return { success: true };
   } catch (error) {
@@ -194,7 +154,7 @@ export async function updateUserAdmin(
   }
 }
 
-export async function deleteUserAdmin(
+async function deleteUserAdmin(
   userId: string,
   actorId: string,
 ): Promise<AdminUserDeleteResult> {
@@ -202,23 +162,13 @@ export async function deleteUserAdmin(
     return { success: false, error: "Нельзя удалить самого себя" };
   }
   try {
-    await prisma.$transaction(async (tx) => {
-      // Must check real DB roles under locks before the cascade and cleanup outbox.
-      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" IN (${actorId}, ${userId}) ORDER BY "id" FOR UPDATE`;
-      const [actor, target] = await Promise.all([
-        tx.user.findUnique({ where: { id: actorId }, select: { role: true } }),
-        tx.user.findUnique({ where: { id: userId }, select: { role: true } }),
-      ]);
-      if (
-        !actor ||
-        (actor.role !== "ADMIN" && actor.role !== "MODERATOR") ||
-        (actor.role === "MODERATOR" &&
-          (target === null || ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(target.role)))
-      ) {
+    await deleteAdminUserRows(userId, actorId, (actorRole, targetRole) => {
+      if (!actorRole ||
+        (actorRole !== "ADMIN" && actorRole !== "MODERATOR") ||
+        (actorRole === "MODERATOR" &&
+          (targetRole === null ||
+            ["ADMIN", "MODERATOR", "TRAINER", "PARTNER"].includes(targetRole))))
         throw new ServiceError("Недостаточно прав", "FORBIDDEN");
-      }
-      await enqueueAccountStorageCleanup(tx, userId, new Date());
-      await tx.user.delete({ where: { id: userId } });
     });
     logger.info("Пользователь удалён", { userId, deletedBy: actorId });
     return { success: true };
@@ -234,4 +184,14 @@ export async function deleteUserAdmin(
     }
     return { success: false, error: "Не удалось удалить пользователя" };
   }
+}
+
+  return {
+    checkAdminUserMutationAccess,
+    readAdminActorRole,
+    partnerChangeRequiresAdmin,
+    getAllUsers,
+    updateUserAdmin,
+    deleteUserAdmin,
+  };
 }

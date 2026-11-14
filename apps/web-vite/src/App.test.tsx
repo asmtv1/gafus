@@ -55,7 +55,13 @@ describe("Vite SPA guest flow", () => {
         QueryClientProvider, { client: cache },
         <App showGalleryOptIn />,
       )));
-      await act(async () => { await new Promise(resolve => setTimeout(resolve, 25)); });
+      // React.lazy may load the public landing after the initial suspense
+      // placeholder, especially on a cold Vite transform or loaded machine.
+      // Assert the real landing appears; never treat loading as authorization.
+      await waitForLazyRoute(
+        () => host.querySelector('[data-ui-parity="legacy-landing"]') !== null,
+        "guest landing must finish loading with gallery opt-in enabled",
+      );
       expect(host.querySelector('[data-ui-parity="legacy-landing"]')).not.toBeNull();
       expect(host.textContent).not.toContain("Сессия изменилась");
       expect(host.textContent).not.toContain("Личные данные временно скрыты");

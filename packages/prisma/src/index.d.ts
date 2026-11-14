@@ -47,4 +47,5 @@ export interface DatabaseClient {
 }
 export { prisma, default as prismaClient } from "./client";
 export declare function isPrismaUniqueConstraintError(error: unknown): boolean;
+export { listChatOutboxDeadLetters, retryChatOutboxDeadLetter } from "./chat2OutboxDiagnostics";
 //# sourceMappingURL=index.d.ts.map

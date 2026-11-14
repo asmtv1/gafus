@@ -6,7 +6,7 @@ const m=vi.hoisted(()=>({
 }));
 vi.mock("@gafus/auth/jwt",async orig=>({...(await orig<object>()),verifyAccessToken:m.jwt}));
 vi.mock("@gafus/core/services/auth",async orig=>({...(await orig<object>()),isRegistrationCompleted:m.registration}));
-vi.mock("@gafus/core/services/consultation",async orig=>({...(await orig<object>()),
+vi.mock("@gafus/consultation-server/vox",()=>({
   prepareConsultationCall:m.prepare,createConsultationCallAdmission:m.admission,
   signConsultationOneTimeKey:m.sign,
 }));

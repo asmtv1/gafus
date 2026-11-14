@@ -32,7 +32,7 @@ function GafusPage({ children }: { children: ReactNode }) {
 
   return (
     <TexturedSafeAreaView style={styles.screen} edges={["top"]}>
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <StatusBar style="dark" />
       <View style={styles.pageHeader}>
         <AppBackButton onPress={() => router.back()} />
         <Text style={styles.pageTitle}>Мои Гафусы</Text>
