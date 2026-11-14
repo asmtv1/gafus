@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "purpose": "Single production SHA-pinned, schema-pinned legacy ledger reconciliation without changing migration history or production user data",
+  "normalizedProductionSchemaSha256": "8a90c379e79e6c8977a9d15db8cc0b07ad8fe8ae43ffba66421aa30195b5c2b3",
+  "expectedApplied": 168,
+  "expectedRolledBack": 4,
+  "approvedLegacyChecksumExceptions": {
+    "20241108120000_exam_result_trainer_review": {
+      "recordedProductionChecksum": "8d5e5d7d4193856e6d9e09b1d29be06f45f27ef9ffbc3371d44560722894350d",
+      "candidateSqlSha256": "97dac51e945195a177ec4b4fe7ae43382b42a9de8a8798fe68d8decb96dd7248"
+    },
+    "20251108120000_exam_review_fields": {
+      "recordedProductionChecksum": "6caa3573e27085676870304769728c7aa42315eec3357dfebcb7ee36b209e0e9",
+      "candidateSqlSha256": "9f138f40c90e21271a4acfef521af52d64c4b568b52aa41d882499eec88a8543"
+    },
+    "20251205181534_add_error_log_table": {
+      "recordedProductionChecksum": "20251205181534_add_error_log_table",
+      "candidateSqlSha256": "52832b5f0d911b29a6f518d5cb66a672d57aa133d286e45999da85f072f90fa3"
+    },
+    "20260113163458_add_hls_fields_to_trainer_video": {
+      "recordedProductionChecksum": "",
+      "candidateSqlSha256": "b33373ade850c8ae99d6a7922fe32b4f2a54b7df60c448e9938e54a91e738970"
+    },
+    "20260125204831_add_trainer_ai_missing_fields": {
+      "recordedProductionChecksum": "",
+      "candidateSqlSha256": "8c349de1a3cf4c8e64dd578da63c8effdf72b32921f130123581b509604ae1c1"
+    },
+    "20260308120000_user_training_user_cascade": {
+      "recordedProductionChecksum": "manual",
+      "candidateSqlSha256": "c643c890b646355513ec7056978279cd657d484c13cf50be9ffc2a03a8c2373f"
+    }
+  },
+  "evidence": {
+    "historicalSqlRevision": "ab72291e3922",
+    "dataValidation": "Schema-only PG15 rehearsal of all twelve pending migrations passed; actual production data has NOT been replayed",
+    "ownerApproval": "Explicit 2026-11-15 owner authorization; no claim of native/device or Cloud.ru Job end-to-end QA",
+    "operationalBoundary": "This manifest is only valid against the exact pre-migration schema fingerprint. Future changed production schemas require new review."
+  }
+}

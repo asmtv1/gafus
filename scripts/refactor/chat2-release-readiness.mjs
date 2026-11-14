@@ -315,10 +315,20 @@ export function validateStaticContracts(compose, nginx, broker, edgeNginx) {
   return true;
 }
 
-export function verifyQaStatus(markdown) {
-  // Historical successes do not authorize release. QA status is manually
-  // maintained and is an additional veto, NOT a substitute for live checks.
-  if (markdown.match(/\bREADY=(YES|NO)\b/)?.[1] !== 'YES') FAIL('QA readiness is not YES');
+export function verifyQaStatus(markdown, {releaseSha, ownerApprovedSha} = {}) {
+  // Recorded QA result is never rewritten by owner consent.
+  // A risk-accepted release is permitted only for ONE exact Git commit,
+  // with the owner's explicit and visible signed-off scope in the runbook.
+  const status = markdown.match(/\bREADY=(YES|NO)\b/)?.[1];
+  if (status === 'YES') return true;
+  const exactOwnerRelease =
+    status === 'NO' &&
+    /^[a-f0-9]{40}$/.test(releaseSha ?? '') &&
+    ownerApprovedSha === releaseSha &&
+    markdown.includes('OWNER_RELEASE_CONSENT=RISK_ACCEPTED_20261115') &&
+    markdown.includes('PRODUCTION_VERIFIED=NO');
+  if (!exactOwnerRelease) FAIL('QA readiness is not YES');
+  console.warn('OWNER_RISK_ACCEPTED_RELEASE: QA remains NO; all real migration, image, health and provider gates still apply');
   return true;
 }
 

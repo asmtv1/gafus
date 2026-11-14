@@ -54,6 +54,8 @@ jobs:
 
       - name: Verify Chat2 + functional release readiness without touching providers
         env:
+          GAFUS_RELEASE_SHA: ${{ inputs.release_sha }}
+          GAFUS_OWNER_RELEASE_APPROVED_SHA: ${{ vars.GAFUS_OWNER_RELEASE_APPROVED_SHA }}
           CHAT2_LEGACY_RETIRE_ENABLED: ${{ vars.CHAT2_LEGACY_RETIRE_ENABLED }}
           CHAT2_API_ENABLED: ${{ vars.CHAT2_API_ENABLED }}
           CHAT2_WORKER_ENABLED: ${{ vars.CHAT2_WORKER_ENABLED }}
@@ -70,6 +72,10 @@ jobs:
           CHAT2_MOBILE_ANDROID_MIN_VERSION: ${{ vars.CHAT2_MOBILE_ANDROID_MIN_VERSION || '1.7.3' }}
         run: node scripts/refactor/check-chat2-prod-boundary.mjs --candidate
       - name: Gallery protected S3 redirect gate (read-only, no provider writes)
+        # This is provider cutover approval, not an application-only code upgrade.
+        # In app_only mode current active server CDN values are preserved and
+        # separately guarded by the main CI beget-readonly-preflight job.
+        if: ${{ !inputs.app_only }}
         env:
           GALLERY_CDN_REDIRECT_REQUIRED: "true"
           GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED == 'true' && vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
@@ -173,6 +179,7 @@ jobs:
           GAFUS_RELEASE_RUN_ID: ${{ inputs.release_run_id }}
           GAFUS_RELEASE_RUN_ATTEMPT: ${{ inputs.release_run_attempt }}
           GAFUS_RELEASE_SHA: ${{ inputs.release_sha }}
+          GAFUS_OWNER_RELEASE_APPROVED_SHA: ${{ vars.GAFUS_OWNER_RELEASE_APPROVED_SHA }}
           DEPLOY_SCRIPT_1: |2+
             set -eo pipefail
             echo "🚀 Starting production deployment..."
@@ -1097,6 +1104,6 @@ jobs:
           key: ${{ secrets.GAFUS_SERVER_SSH_KEY }}
           port: ${{ inputs.app_only && '22' || secrets.SERVER_PORT }}
           command_timeout: 60m
-          envs: GAFUS_RELEASE_MANIFEST_B64,GAFUS_RELEASE_RUN_ID,GAFUS_RELEASE_RUN_ATTEMPT,GAFUS_RELEASE_SHA
+          envs: GAFUS_RELEASE_MANIFEST_B64,GAFUS_RELEASE_RUN_ID,GAFUS_RELEASE_RUN_ATTEMPT,GAFUS_RELEASE_SHA,GAFUS_OWNER_RELEASE_APPROVED_SHA
           # Keep each interpolated scalar below GitHub's 21,000-character expression limit.
           script: ${{ format('{0}{1}{2}{3}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_1B, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}

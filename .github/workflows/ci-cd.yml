@@ -578,6 +578,8 @@ jobs:
           package-manager-cache: false
       - name: Fail closed unless Chat2 and functional QA are release-ready
         env:
+          GAFUS_RELEASE_SHA: ${{ github.sha }}
+          GAFUS_OWNER_RELEASE_APPROVED_SHA: ${{ vars.GAFUS_OWNER_RELEASE_APPROVED_SHA }}
           CHAT2_LEGACY_RETIRE_ENABLED: ${{ vars.CHAT2_LEGACY_RETIRE_ENABLED }}
           CHAT2_API_ENABLED: ${{ vars.CHAT2_API_ENABLED }}
           CHAT2_WORKER_ENABLED: ${{ vars.CHAT2_WORKER_ENABLED }}

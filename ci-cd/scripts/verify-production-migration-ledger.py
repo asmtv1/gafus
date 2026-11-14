@@ -7,6 +7,7 @@ The gate makes no DB connection or writes and never prints checksum values.
 from __future__ import annotations
 
 import hashlib
+import json
 import pathlib
 import re
 import sys
@@ -18,7 +19,59 @@ MIGRATION_NAME = re.compile(r"^[0-9]{8}(?:[0-9]{6})?_[A-Za-z0-9_-]+$")
 CHECKSUM = re.compile(r"^[a-f0-9]{64}$")
 
 
-def verify(migrations_dir: pathlib.Path, lines: list[str]) -> tuple[int, int]:
+LEGACY_MANIFEST_NAME = "ci-cd/scripts/approved-legacy-migration-baseline-20261115.json"
+
+
+def approved_legacy_baseline(
+    migrations_dir: pathlib.Path,
+    live_schema_sha256: str | None,
+) -> dict | None:
+    """Permit only the approved six historical anomalies on the *exact* schema.
+
+    No database connections, credentials, mutation or fallback to broad waivers.
+    The caller must derive live_schema_sha256 from a read-only pg_dump --schema-only.
+    An absent or different fingerprint never authorizes an exception.
+    """
+    if live_schema_sha256 is None:
+        return None
+    if not CHECKSUM.fullmatch(live_schema_sha256):
+        raise ValueError("LIVE_SCHEMA_FINGERPRINT_INVALID")
+    path = migrations_dir.resolve().parents[2] / LEGACY_MANIFEST_NAME
+    if not path.is_file() or path.is_symlink():
+        return None
+    manifest = json.loads(path.read_text())
+    if manifest.get("version") != 1:
+        raise ValueError("LEGACY_MANIFEST_VERSION_INVALID")
+    if manifest.get("normalizedProductionSchemaSha256") != live_schema_sha256:
+        return None
+    if manifest.get("expectedApplied") != 168 or manifest.get("expectedRolledBack") != 4:
+        raise ValueError("LEGACY_MANIFEST_HISTORY_COUNT_INVALID")
+    entries = manifest.get("approvedLegacyChecksumExceptions")
+    if not isinstance(entries, dict) or len(entries) != 6:
+        raise ValueError("LEGACY_MANIFEST_EXCEPTIONS_INVALID")
+    for name, entry in entries.items():
+        if not MIGRATION_NAME.fullmatch(name) or not isinstance(entry, dict):
+            raise ValueError("LEGACY_MANIFEST_ENTRY_INVALID")
+        source_sha = entry.get("candidateSqlSha256")
+        recorded = entry.get("recordedProductionChecksum")
+        if not CHECKSUM.fullmatch(str(source_sha)) or not isinstance(recorded, str):
+            raise ValueError("LEGACY_MANIFEST_SHA_INVALID")
+        if not (CHECKSUM.fullmatch(recorded) or recorded in ("", "manual", name)):
+            raise ValueError("LEGACY_MANIFEST_RECORDED_VALUE_INVALID")
+    return manifest
+
+
+def legacy_exception_matches(
+    manifest: dict | None, name: str, checksum: str, candidate_sha: str
+) -> bool:
+    if manifest is None:
+        return False
+    rule = manifest["approvedLegacyChecksumExceptions"].get(name)
+    return bool(rule and rule.get("recordedProductionChecksum") == checksum
+                and rule.get("candidateSqlSha256") == candidate_sha)
+
+
+def verify(migrations_dir: pathlib.Path, lines: list[str], live_schema_sha256: str | None = None) -> tuple[int, int]:
     if not migrations_dir.is_dir():
         raise ValueError("MIGRATION_SOURCE_MISSING")
     source_files = {
@@ -28,6 +81,8 @@ def verify(migrations_dir: pathlib.Path, lines: list[str]) -> tuple[int, int]:
     }
     if len(source_files) < MIN_PRODUCTION_APPLIED:
         raise ValueError("MIGRATION_SOURCE_INCOMPLETE")
+    manifest = approved_legacy_baseline(migrations_dir, live_schema_sha256)
+    approved_exceptions: set[str] = set()
     applied: set[str] = set()
     rolled_back = 0
     errors: list[str] = []
@@ -55,29 +110,43 @@ def verify(migrations_dir: pathlib.Path, lines: list[str]) -> tuple[int, int]:
         if name not in source_files:
             errors.append(f"REMOTE_ONLY_MIGRATION:{name}")
             continue
-        if not CHECKSUM.fullmatch(checksum):
-            errors.append(f"NONSTANDARD_MIGRATION_CHECKSUM:{name}")
-            continue
         path = source_files[name]
         if not path.is_file() or path.is_symlink():
             errors.append(f"MIGRATION_SQL_MISSING:{name}")
             continue
         actual = hashlib.sha256(path.read_bytes()).hexdigest()
-        if actual != checksum:
+        if CHECKSUM.fullmatch(checksum) and actual == checksum:
+            continue
+        if legacy_exception_matches(manifest, name, checksum, actual):
+            approved_exceptions.add(name)
+            continue
+        if not CHECKSUM.fullmatch(checksum):
+            errors.append(f"NONSTANDARD_MIGRATION_CHECKSUM:{name}")
+        else:
             errors.append(f"MIGRATION_SHA_MISMATCH:{name}")
     if len(applied) < MIN_PRODUCTION_APPLIED:
         errors.append(f"APPLIED_MIGRATION_COUNT_TOO_LOW:{len(applied)}")
+    if approved_exceptions:
+        expected = set(manifest["approvedLegacyChecksumExceptions"]) if manifest else set()
+        if (approved_exceptions != expected or len(applied) != 168
+                or rolled_back != 4 or len(source_files) != 180):
+            errors.append("LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE")
     if errors:
         raise ValueError(";".join(errors))
+    if approved_exceptions:
+        print("LEGACY_SCHEMA_ATTESTED_EXCEPTIONS:6:old-ledger-kept-unaltered")
     return len(applied), len(source_files) - len(applied)
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("USAGE: verify-production-migration-ledger.py /path/to/prisma/migrations < psql.tsv", file=sys.stderr)
+    if len(sys.argv) not in (2, 3):
+        print("USAGE: verify-production-migration-ledger.py /path/to/prisma/migrations [live-schema-sha256] < psql.tsv", file=sys.stderr)
         return 2
     try:
-        applied, pending = verify(pathlib.Path(sys.argv[1]), sys.stdin.readlines())
+        live_schema_sha256 = sys.argv[2] if len(sys.argv) == 3 else None
+        applied, pending = verify(
+            pathlib.Path(sys.argv[1]), sys.stdin.readlines(), live_schema_sha256
+        )
     except (ValueError, OSError) as exc:
         print(f"PRODUCTION_MIGRATION_LEDGER_VETO:{exc}", file=sys.stderr)
         return 1

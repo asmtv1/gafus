@@ -46,6 +46,67 @@ test('fail closed on checksum mismatch, manual checksum, duplicate, remote-only,
   deny(orig.slice(0,161), 'APPLIED_MIGRATION_COUNT_TOO_LOW');
   deny([], 'MIGRATION_LEDGER_EMPTY');
 });
+test('approved legacy checksum exceptions need exact schema, all six historical rows and unmodified SQL', () => {
+  const base=mkdtempSync(join(tmpdir(),'gafus-legacy-ledger-attestation-'));
+  try {
+    const dirs=join(base,'packages/prisma/migrations');
+    const manifestDir=join(base,'ci-cd/scripts');
+    mkdirSync(dirs,{recursive:true});
+    mkdirSync(manifestDir,{recursive:true});
+    const manifest=JSON.parse(readFileSync('ci-cd/scripts/approved-legacy-migration-baseline-20261115.json','utf8'));
+    writeFileSync(join(manifestDir,'approved-legacy-migration-baseline-20261115.json'),
+      JSON.stringify(manifest));
+    const rows=[];
+    for(let i=0;i<162;i++){
+      const name=`20200101000000_synthetic_${String(i).padStart(3,'0')}`;
+      const sql=`CREATE TABLE ledger_synthetic_${i} (id INTEGER);\n`;
+      mkdirSync(join(dirs,name));
+      writeFileSync(join(dirs,name,'migration.sql'),sql);
+      rows.push([name,createHash('sha256').update(sql).digest('hex'),'applied']);
+    }
+    const approved=Object.entries(manifest.approvedLegacyChecksumExceptions);
+    for(const [name,rule] of approved){
+      const dir=join(dirs,name);mkdirSync(dir);
+      const actual=readFileSync(join('packages/prisma/migrations',name,'migration.sql'));
+      writeFileSync(join(dir,'migration.sql'),actual);
+      assert.equal(createHash('sha256').update(actual).digest('hex'),rule.candidateSqlSha256);
+      rows.push([name,rule.recordedProductionChecksum,'applied']);
+    }
+    for(let i=0;i<12;i++){
+      const name=`20270101000000_future_${String(i).padStart(2,'0')}`;
+      const dir=join(dirs,name);mkdirSync(dir);
+      writeFileSync(join(dir,'migration.sql'),`SELECT ${i};\n`);
+      if(i<4)rows.push([name,'0'.repeat(64),'rolled_back']);
+    }
+    const runApproved=(data,fingerprint=manifest.normalizedProductionSchemaSha256)=>
+      spawnSync('python3',[program,dirs,...(fingerprint===null?[]:[fingerprint])],{
+        input:data.map(x=>x.join('\t')).join('\n')+'\n',encoding:'utf8',timeout:15_000,
+      });
+    const pass=runApproved(rows);
+    assert.equal(pass.status,0,pass.stderr);
+    assert.match(pass.stdout,/LEGACY_SCHEMA_ATTESTED_EXCEPTIONS:6/);
+    assert.match(pass.stdout,/applied=168:pending=12/);
+    for(const bad of [runApproved(rows,null),runApproved(rows,'a'.repeat(64))]){
+      assert.equal(bad.status,1,'missing/changed schema must veto');
+      assert.match(bad.stderr,/NONSTANDARD_MIGRATION_CHECKSUM|MIGRATION_SHA_MISMATCH/);
+    }
+    const altered=rows.map(x=>[...x]);
+    altered[162][1]='f'.repeat(64);
+    const tamperedLedger=runApproved(altered);
+    assert.equal(tamperedLedger.status,1);
+    assert.match(tamperedLedger.stderr,/MIGRATION_SHA_MISMATCH/);
+    const altered2=rows.map(x=>[...x]);
+    altered2[0][1]='f'.repeat(64);
+    assert.match(runApproved(altered2).stderr,/MIGRATION_SHA_MISMATCH/);
+    const partlyRepaired=rows.map(x=>[...x]);
+    partlyRepaired[162][1]=approved[0][1].candidateSqlSha256;
+    assert.match(runApproved(partlyRepaired).stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/);
+    const target=join(dirs,approved[1][0],'migration.sql');
+    writeFileSync(target,readFileSync(target,'utf8')+'-- tampered\n');
+    assert.equal(runApproved(rows).status,1,'modified candidate SQL must veto even with pinned live schema');
+  } finally {rmSync(base,{recursive:true,force:true});}
+});
+
 test('canonical cutover and reusable workflow require pre-mutation ledger gate',()=>{
   const cutover=readFileSync('ci-cd/scripts/production-schema-cutover.sh','utf8');
   const workflow=readFileSync('.github/workflows/production-deploy-reusable.yml','utf8');

@@ -24,7 +24,10 @@ try {
   if (process.argv.includes('--candidate')) {
     // Intended CI values only. Never presented as live destination readiness.
     validateCutoverConfig(process.env);
-    verifyQaStatus(read('docs/qa/CURRENT_RELEASE_STATUS.md'));
+    verifyQaStatus(read('docs/qa/CURRENT_RELEASE_STATUS.md'), {
+      releaseSha: process.env.GAFUS_RELEASE_SHA,
+      ownerApprovedSha: process.env.GAFUS_OWNER_RELEASE_APPROVED_SHA,
+    });
     console.log('Chat2 intended configuration + QA PASS (candidate only; broker live unverified)');
   } else if (process.argv.includes('--release')) {
     const i = process.argv.indexOf('--destination-env');
@@ -35,7 +38,10 @@ try {
       throw Error('CHAT2_RELEASE_BLOCKED: only the actual target Compose .env is accepted');
     const env = readDestinationEnv(destination);
     validateCutoverConfig(env);
-    verifyQaStatus(read('docs/qa/CURRENT_RELEASE_STATUS.md'));
+    verifyQaStatus(read('docs/qa/CURRENT_RELEASE_STATUS.md'), {
+      releaseSha: process.env.GAFUS_RELEASE_SHA,
+      ownerApprovedSha: process.env.GAFUS_OWNER_RELEASE_APPROVED_SHA,
+    });
     verifyLiveDestination(env, composeFile);
     await probePublicWebsocketUpgrade(env.CHAT2_PUBLIC_WS_URL);
     console.log('Chat2 cutover PASS: target config + QA veto + LIVE API/worker/broker health + public WSS upgrade');

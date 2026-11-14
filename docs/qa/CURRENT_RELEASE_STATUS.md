@@ -2,6 +2,23 @@
 
 **READY=NO · PRODUCTION_VERIFIED=NO · DEPLOYED=NO · STORE_RELEASE=OWNER**
 
+**OWNER_RELEASE_CONSENT=RISK_ACCEPTED_20261115** — 15.11.2026 владелец
+явно разрешил production-релиз и активацию функций с принятием оставшихся
+операционных рисков. Это **не превращает READY=NO в результат пройденных
+E2E**: перенос production-данных в QA не выполнен (операция заблокирована);
+подтверждены только неизменённая production схема, привязанный к SHA
+legacy ledger, 12 миграций на изолированном PostgreSQL 15 **без данных**,
+Github CI security/build/observability/media и сделанный до переключения
+pg_dump -Fc backup. Реальные iOS/Android signed cold-start, Apple review,
+Cloud.ru Jobs end-to-end, пользовательские транзакции и rollback со
+схемой после обновления остаются непроверенными до runtime acceptance.
+Предоставленное владельцем разрешение применимо **только к явно указанному
+SHA через GAFUS_OWNER_RELEASE_APPROVED_SHA**; отсутствующее либо
+несовпадающее разрешение запрещает деплой. Проверки GitHub, schema drift,
+реальной конфигурации и здоровья prod сохраняются и не заменяются согласием.
+Не включать флаги внешней iOS-оплаты в обход App Store review.
+
+
 **14.11.2026, кандидат перед push в `main`:** изолированный checkout `codex/gafus-release-candidate-20261114`, база `0aec3b1ffd7bd523db7732db59254afe1349a5d7` (сверено с GitHub), текущий локальный SHA см. через `git rev-parse HEAD`. Исходный `/Users/asmtv1/Desktop/gafus-refactor` не изменялся в процессе QA, push/merge/production mutation/Store release не выполнялись.
 
 **Локальные PASS:** frozen install, audit без high/critical, полный lint, `turbo test --force` **117/117 задач, 13 501 тест PASS / 566 SKIP / 0 FAIL** (неподнятые внешние и real-PG условия учитываются отдельно), исходный Gallery Cloud timeout устранён сериализацией файлов теста. TypeScript, source boundaries и frozen PG bootstrap проходили предыдущие проверки того же набора исходников. 67 source-only CI/rollout contracts, `actionlint`, ShellCheck, проверка остановки cutover при отказах — PASS. Docker Linux/AMD64: собраны и прошли проверки runtime семь основных ролей (Web, Trainer, Admin, API, Worker, Bull Board, Prisma); API имеет 38 пакетов / 232 exports, Worker 37 / 222. Feed Worker image отдельно прошёл. Chat2 video image также собран для Linux/AMD64; offline smoke проверил JavaScript, Sharp и реальное FFmpeg H.264-кодирование. Cloud.ru Job с реальным S3 не запускался. Предыдущий текущий production SHA `bd49e5137...`, семь immutable GHCR digest доступны через read-only `docker manifest inspect` на VPS; это подтверждает наличие образов, но не совместимость rollback после миграций.

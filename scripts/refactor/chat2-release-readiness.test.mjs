@@ -83,6 +83,27 @@ test('historical READY=YES cannot override first QA READY=NO', () => {
   assert.throws(() => verifyQaStatus('READY=NO\nold READY=YES'), /QA readiness/);
   assert.equal(verifyQaStatus('READY=YES\nold READY=NO'), true);
 });
+test('owner release consent allows only one exact SHA without falsifying READY=NO', () => {
+  const sha='b'.repeat(40), wrong='c'.repeat(40);
+  const doc=readFileSync(new URL('../../docs/qa/CURRENT_RELEASE_STATUS.md',import.meta.url),'utf8');
+  assert.match(doc,/READY=NO/);
+  assert.match(doc,/OWNER_RELEASE_CONSENT=RISK_ACCEPTED_20261115/);
+  assert.equal(verifyQaStatus(doc,{releaseSha:sha,ownerApprovedSha:sha}),true);
+  for(const params of [
+    {},
+    {releaseSha:sha,ownerApprovedSha:wrong},
+    {releaseSha:wrong,ownerApprovedSha:sha},
+    {releaseSha:'not-a-full-SHA',ownerApprovedSha:'not-a-full-SHA'},
+  ]) assert.throws(()=>verifyQaStatus(doc,params),/QA readiness is not YES/);
+  assert.throws(()=>verifyQaStatus('READY=NO\nPRODUCTION_VERIFIED=NO',{releaseSha:sha,ownerApprovedSha:sha}),/QA readiness is not YES/);
+  const prod=readFileSync(new URL('../../.github/workflows/production-deploy-reusable.yml',import.meta.url),'utf8');
+  const ci=readFileSync(new URL('../../.github/workflows/ci-cd.yml',import.meta.url),'utf8');
+  assert.match(ci,/GAFUS_OWNER_RELEASE_APPROVED_SHA: \$\{\{ vars.GAFUS_OWNER_RELEASE_APPROVED_SHA \}\}/);
+  assert.match(ci,/GAFUS_RELEASE_SHA: \$\{\{ github.sha \}\}/);
+  assert.match(prod,/GAFUS_OWNER_RELEASE_APPROVED_SHA: \$\{\{ vars.GAFUS_OWNER_RELEASE_APPROVED_SHA \}\}/);
+  assert.match(prod,/envs: GAFUS_RELEASE_MANIFEST_B64,GAFUS_RELEASE_RUN_ID,GAFUS_RELEASE_RUN_ATTEMPT,GAFUS_RELEASE_SHA,GAFUS_OWNER_RELEASE_APPROVED_SHA/);
+});
+
 test('real static Compose/nginx/broker contract is present', () => {
   const root = new URL('../../', import.meta.url);
   const read = name => readFileSync(new URL(name, root), 'utf8');

@@ -59,11 +59,21 @@ check_health() {
 # BEFORE serving 503, touching markers, stopping writers or taking a backup.
 # `docker exec psql` is SELECT-only; `python3` only hashes local SQL files.
 verify_migration_ledger() {
+  # The PostgreSQL 15 plain dump contains a random psql \restrict nonce per call.
+  # Normalize ONLY those two nonce directives before pinning all schema objects.
+  # Schema-only never copies user rows; unknown schema/ledger changes veto release.
+  local live_schema_sha256
+  live_schema_sha256="$(
+    docker exec gafus-postgres pg_dump -U gafus -d gafus \
+      --schema-only --no-owner --no-privileges \
+      | python3 -c 'import sys,hashlib; b=b"".join(line for line in sys.stdin.buffer if not line.startswith((bytes([92])+b"restrict ",bytes([92])+b"unrestrict "))); print(hashlib.sha256(b).hexdigest())'
+  )"
+  [[ "$live_schema_sha256" =~ ^[a-f0-9]{64}$ ]] || { echo 'INVALID_LIVE_SCHEMA_FINGERPRINT' >&2; return 1; }
   docker exec gafus-postgres psql -U gafus -d gafus -X -q -A -t \
     -F $'\t' -v ON_ERROR_STOP=1 \
     -c "SELECT migration_name, checksum, CASE WHEN rolled_back_at IS NOT NULL THEN 'rolled_back' WHEN finished_at IS NOT NULL THEN 'applied' ELSE 'failed' END FROM \"_prisma_migrations\" ORDER BY migration_name" \
     | python3 "${GAFUS_MIGRATION_LEDGER_VERIFIER_PATH:-$root/ci-cd/scripts/verify-production-migration-ledger.py}" \
-        "$root/packages/prisma/migrations"
+        "$root/packages/prisma/migrations" "$live_schema_sha256"
 }
 case "$mode" in
   preflight)
