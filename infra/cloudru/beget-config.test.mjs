@@ -10,9 +10,10 @@ const compose = yaml.parse(readFileSync('ci-cd/docker/docker-compose.prod.yml', 
 const deploy = Object.values(workflow.jobs).flatMap(job => job.steps || [])
   .find(step => step.name === 'Deploy to production server');
 assert.ok(deploy, 'Production deployment workflow missing');
-const scripts = ['DEPLOY_SCRIPT_1', 'DEPLOY_SCRIPT_2', 'DEPLOY_SCRIPT_3']
+const scripts = ['DEPLOY_SCRIPT_1', 'DEPLOY_SCRIPT_1B', 'DEPLOY_SCRIPT_2', 'DEPLOY_SCRIPT_3']
   .map(part => deploy.env[part]);
-const script = scripts.join('\n');
+assert.ok(scripts.every(part => typeof part === 'string'), 'All SSH script fragments must exist');
+const script = scripts.join('');
 
 describe('existing production CDN secret reuse', () => {
   it('never demands newly rotated Beget signing secrets', () => {
