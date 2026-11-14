@@ -49,6 +49,11 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/observability/check-workflow-release-gates.mjs
+          # The deploy runner has no workspace install. Only the workflow test needs YAML.
+          check_dir="$RUNNER_TEMP/gafus-release-check"
+          npm install --prefix "$check_dir" --no-save --ignore-scripts --no-audit --no-fund yaml@2.8.2
+          mkdir -p node_modules
+          ln -s "$check_dir/node_modules/yaml" node_modules/yaml
           node --test scripts/observability/check-workflow-release-gates.test.mjs
           test ! -e ci-cd/docker/prometheus/config.uptrace-live.alloy
 
