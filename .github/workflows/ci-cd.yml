@@ -111,14 +111,13 @@ jobs:
             echo 'REQUIRED_PARALLEL_PACKAGE_BUILD_FAILED' >&2
             exit 1
           fi
-          # Prisma depends on Logger. Auth depends on Core's password reset declarations.
+          # Prisma depends on Logger.
           (cd packages/prisma && pnpm build)
           # mailer до core (TypeScript резолвит dist/index.d.ts у @gafus/mailer)
           (cd packages/mailer && pnpm build)
-          (cd packages/core && pnpm build)
-          (cd packages/auth && pnpm build)
-          # остальные пакеты через turbo
-          pnpm exec turbo run build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access --filter=!@gafus/mailer --filter=!@gafus/core-client
+          # Core needs declarations from domain packages. Turbo builds those
+          # before Core, and Core before Auth's password reset wrappers.
+          pnpm exec turbo run build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/video-access --filter=!@gafus/mailer --filter=!@gafus/core-client
 
       - name: Cache build artifacts
         uses: actions/cache@v5

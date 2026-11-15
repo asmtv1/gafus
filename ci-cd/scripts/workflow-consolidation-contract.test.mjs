@@ -223,7 +223,7 @@ test('dependency validation is blocking (cannot echo and continue)', () => {
 test('core-client is built before Core to prevent cached CDN transport drift', () => {
  const ci=read('ci-cd');
  const dependency=ci.indexOf('cd packages/core-client && pnpm build');
- const dependent=ci.indexOf('cd packages/core && pnpm build');
+ const dependent=ci.indexOf('pnpm exec turbo run build --filter=@gafus/*');
  assert(dependency > 0 && dependent > dependency, 'Core cannot load a stale core-client/dist');
  assert(ci.includes('--filter=!@gafus/core-client'), 'Do not rebuild Core dependency out of order');
 });
@@ -231,5 +231,8 @@ test('core-client is built before Core to prevent cached CDN transport drift', (
 test('Core is built before Auth in the clean dependency build', () => {
  const step=parse('ci-cd').jobs['prepare-deps'].steps.find(step=>step.name==='Build packages');
  assert.match(step.run,/^set -euo pipefail\n/);
- assert.match(step.run,/\(cd packages\/core && pnpm build\)\n\(cd packages\/auth && pnpm build\)/);
+ assert.match(step.run,/pnpm exec turbo run build --filter=@gafus\/\*/);
+ assert.doesNotMatch(step.run,/cd packages\/(core|auth) && pnpm build|--filter=!@gafus\/(core|auth)(\s|$)/);
+ assert.equal(JSON.parse(readFileSync('packages/auth/package.json')).dependencies['@gafus/core'], 'workspace:*');
+ assert(JSON.parse(readFileSync('turbo.json')).tasks.build.dependsOn.includes('^build'));
 });
