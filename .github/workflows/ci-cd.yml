@@ -182,7 +182,7 @@ jobs:
           node --test scripts/qa/otel-local-collector.test.mjs scripts/qa/uptrace-alloy-candidate.test.mjs scripts/qa/browser-telemetry.test.mjs
           node --test apps/mobile/scripts/native-crash-uptrace-config.test.cjs
           pnpm --filter @gafus/mobile exec vitest run src/shared/lib/telemetry/nativeCrashCapture.test.ts
-          pnpm exec tsx --test packages/types/src/contracts/nativeCrashFrames.test.ts
+          pnpm --filter @gafus/types test src/contracts/nativeCrashFrames.test.ts
           node --test apps/mobile/scripts/prepare-sdk57-private-symbols.test.mjs
           node --test packages/cdn-upload/scripts/upload-mobile-private-symbols.test.mjs
           node scripts/observability/check-workflow-release-gates.mjs

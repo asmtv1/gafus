@@ -5,13 +5,11 @@ const {
   getItemAsyncMock,
   reportClientErrorMock,
   setItemAsyncMock,
-  breadcrumbMock,
 } = vi.hoisted(() => ({
   deleteItemAsyncMock: vi.fn(),
   getItemAsyncMock: vi.fn(),
   reportClientErrorMock: vi.fn(),
   setItemAsyncMock: vi.fn(),
-  breadcrumbMock: vi.fn(),
 }));
 
 vi.mock("expo-secure-store", () => ({
@@ -34,7 +32,6 @@ vi.mock("@/shared/config", () => ({
 }));
 
 vi.mock("@/shared/lib/error-reporting", () => ({
-  addTracerBreadcrumb: breadcrumbMock,
   reportClientError: reportClientErrorMock,
 }));
 
@@ -403,17 +400,16 @@ describe("AG3 V45 private vet endpoint telemetry redaction", () => {
     vi.clearAllMocks();
     getItemAsyncMock.mockResolvedValue("access-token");
   });
-  it("metadata-only read breadcrumb never contains private pet or visit ID", async () => {
+  it("expected visit-not-found response is returned without reporting private request metadata", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(makeResponse(404, { success: false, code: "VET_VISIT_NOT_FOUND" })),
     );
-    await apiClient("/api/v1/pets/petPRIVATE/vet-visits/visitPRIVATE");
-    expect(JSON.stringify(breadcrumbMock.mock.calls)).not.toContain("petPRIVATE");
-    expect(JSON.stringify(breadcrumbMock.mock.calls)).not.toContain("visitPRIVATE");
-    expect(JSON.stringify(breadcrumbMock.mock.calls)).toContain(":petId");
+    const response = await apiClient("/api/v1/pets/petPRIVATE/vet-visits/visitPRIVATE");
+    expect(response.code).toBe("VET_VISIT_NOT_FOUND");
+    expect(reportClientErrorMock).not.toHaveBeenCalled();
   });
-  it("invalid server JSON cannot leak medical response preview into tracer or returned error", async () => {
+  it("invalid server JSON reports a redacted endpoint without leaking the medical response", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -428,11 +424,21 @@ describe("AG3 V45 private vet endpoint telemetry redaction", () => {
       body: {},
     });
     expect(response.code).toBe("INVALID_RESPONSE");
+    expect(reportClientErrorMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        keys: {
+          endpoint: "/api/v1/pets/:petId/vet-visits",
+          httpStatus: "500",
+          invalidBody: "1",
+        },
+      }),
+    );
     expect(JSON.stringify(reportClientErrorMock.mock.calls)).not.toContain(
       "PRIVATE_DIAGNOSIS_TOKEN",
     );
     expect(JSON.stringify(reportClientErrorMock.mock.calls)).not.toContain("petPRIVATE");
-    expect(JSON.stringify(breadcrumbMock.mock.calls)).not.toContain("petPRIVATE");
+    expect(JSON.stringify(reportClientErrorMock.mock.calls)).not.toContain("visitPRIVATE");
     expect(JSON.stringify(response)).not.toContain("PRIVATE_DIAGNOSIS_TOKEN");
   });
 });

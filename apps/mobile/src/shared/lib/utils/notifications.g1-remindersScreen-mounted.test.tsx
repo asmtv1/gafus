@@ -200,8 +200,8 @@ vi.mock("@/shared/lib/api/user", () => ({
   },
 }));
 vi.mock("@/shared/lib/error-reporting/mobileTelemetrySelfTest", () => ({
-  canSendMobileTracerSelfTest: () => false,
-  sendMobileTracerSelfTest: vi.fn(),
+  canSendMobileTelemetrySelfTest: () => false,
+  sendMobileTelemetrySelfTest: vi.fn(),
 }));
 vi.mock("@gafus/types", () => ({ USER_EMAIL_MISSING_HINT: "нет email" }));
 vi.mock("@/shared/lib/api", () => ({
