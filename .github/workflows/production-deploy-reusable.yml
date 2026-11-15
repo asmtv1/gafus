@@ -519,6 +519,8 @@ jobs:
                 fi
             fi
 
+            # Fail before touching the existing .env when production telemetry is not provisioned.
+              test -n "${{ secrets.UPTRACE_PRODUCTION_INGEST_DSN }}" || { echo "UPTRACE_PRODUCTION_SECRET_REQUIRED"; exit 1; }
             # Create .env file from GitHub Secrets
             echo "🔐 Creating .env file from GitHub Secrets..."
             {
@@ -527,6 +529,21 @@ jobs:
               echo "POSTGRES_USER=gafus"
               echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}"
               echo "DATABASE_URL=postgresql://gafus:${{ secrets.POSTGRES_PASSWORD }}@postgres:5432/gafus"
+              echo ""
+              # Scoped ingest credential is server-only; clients never see it.
+              echo "# Uptrace production observability"
+              echo "UPTRACE_DSN=${{ secrets.UPTRACE_PRODUCTION_INGEST_DSN }}"
+              echo "GAFUS_UPTRACE_INGEST_DSN=${{ secrets.UPTRACE_PRODUCTION_INGEST_DSN }}"
+              echo "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://api.uptrace.dev/v1/traces"
+              echo "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=https://api.uptrace.dev/v1/logs"
+              echo "OTEL_TRACES_SAMPLER_ARG=0.05"
+              echo "GAFUS_TELEMETRY_ENVIRONMENT=production"
+              echo "GAFUS_TELEMETRY_PRODUCTION_APPROVED=true"
+              echo "GAFUS_UPTRACE_LOGS_ENABLED=true"
+              echo "GAFUS_TELEMETRY_INGEST_ENABLED=true"
+              echo "GAFUS_TELEMETRY_EXPORT_ENABLED=true"
+              echo "GAFUS_TELEMETRY_WEB_INGEST_ENABLED=true"
+              echo 'GAFUS_WEB_TELEMETRY_RELEASES={"gafus-web":[{"appVersion":"1.7.3","build":"${{ inputs.release_sha }}"}],"gafus-admin-panel":[{"appVersion":"1.7.3","build":"${{ inputs.release_sha }}"}],"gafus-trainer-panel":[{"appVersion":"1.7.3","build":"${{ inputs.release_sha }}"}],"gafus-bull-board":[{"appVersion":"1.7.3","build":"${{ inputs.release_sha }}"}]}'
               echo ""
               echo "# Redis"
               echo "REDIS_URL=redis://redis:6379"

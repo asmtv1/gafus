@@ -7,10 +7,19 @@ const read = name => readFileSync(new URL(name, root), 'utf8');
 const prod = read('ci-cd/docker/prometheus/config.alloy');
 const candidate = read('ci-cd/docker/prometheus/config.uptrace-canary.alloy');
 
-test('production Alloy stays on original Yandex pipeline', () => {
+test('production Alloy keeps Yandex and enables a filtered Uptrace remote_write', () => {
   assert.match(prod, /prometheus\.remote_write "yc"/);
-  assert.doesNotMatch(prod, /prometheus\.remote_write "uptrace"/);
+  assert.match(prod, /prometheus\.remote_write "uptrace"/);
+  assert.match(prod, /sys\.env\("YC_MONITORING_API_KEY"\)/);
+  assert.match(prod, /sys\.env\("GAFUS_UPTRACE_INGEST_DSN"\)/);
+  assert.match(prod, /action = "labelkeep"/);
+  assert.match(prod, /environment = "production", cluster = "gafus"/);
+  assert.match(prod, /prometheus\.scrape "worker_telemetry_uptrace"/);
+  assert.match(prod, /prometheus\.scrape "redis_exporter_uptrace"/);
   assert.doesNotMatch(prod, /otelcol\.receiver\.otlp/);
+  const safeLabels = prod.match(/action = "labelkeep"[\s\S]*?forward_to =/);
+  assert.ok(safeLabels);
+  assert.doesNotMatch(safeLabels[0], /user_id|device_id|session_id|email|ip_address/);
 });
 
 test('uptrace candidate preserves Yandex while separating signal routes', () => {
@@ -31,8 +40,10 @@ test('uptrace candidate preserves Yandex while separating signal routes', () => 
   assert.ok((candidate.match(/prometheus\.relabel\.uptrace_allowlist\.receiver/g) ?? []).length >= 6);
 });
 
-test('only a separate candidate changes, never a live config rename', () => {
-  assert.ok(candidate.length > prod.length);
-  assert.ok(candidate.includes(prod.slice(0, 100)));
+test('nonprod candidate remains separate from production without credential literals', () => {
+  assert.match(candidate, /NONPROD CANARY ONLY/);
+  assert.match(candidate, /environment = "preview", cluster = "gafus-nonprod"/);
+  assert.match(prod, /environment = "production", cluster = "gafus"/);
+  assert.doesNotMatch(prod, /uptrace-dsn"\s*=\s*"[a-zA-Z0-9]{15,}"/);
   assert.doesNotMatch(candidate, /authorization\s*=\s*"Bearer [a-zA-Z0-9]{15,}"/);
 });

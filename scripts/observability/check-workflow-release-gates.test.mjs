@@ -106,6 +106,6 @@ test('reusable SSH deployment script remains below GitHub scalar limit and byte-
  assert.equal(remote.with.script,
   "${{ format('{0}{1}{2}{3}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_1B, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}");
  assert.equal(createHash('sha256').update(fragments.join(''),'utf8').digest('hex'),
-  '6b448a778aa9b7137f6050308ff1079a7af72131a59dd2fe1864e75507885813',
+  '6760f90ebdc01bd1b5c9cd23acf60d99256b522f7c99f469583b65a20f5916c5',
   'split must reproduce exactly the previously reviewed production script');
 });

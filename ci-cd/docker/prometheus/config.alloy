@@ -39,7 +39,7 @@ prometheus.scrape "node_exporter" {
     job         = "node-exporter",
   }]
   scrape_interval = "60s"
-  forward_to      = [prometheus.relabel.yc_allowlist.receiver]
+  forward_to      = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
 }
 
 prometheus.scrape "postgres_exporter" {
@@ -49,7 +49,7 @@ prometheus.scrape "postgres_exporter" {
     job         = "postgres-exporter",
   }]
   scrape_interval = "60s"
-  forward_to      = [prometheus.relabel.yc_allowlist.receiver]
+  forward_to      = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
 }
 
 // Health checks для сервисов через blackbox-exporter
@@ -65,7 +65,7 @@ prometheus.scrape "services_health" {
   metrics_path    = "/probe"
   params          = { module = ["http_2xx"] }
   scrape_interval = "60s"
-  forward_to      = [prometheus.relabel.yc_allowlist.receiver]
+  forward_to      = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
 
   clustering {
     enabled = false
@@ -83,7 +83,7 @@ prometheus.scrape "worker_mail" {
   }]
   metrics_path    = "/metrics/mail"
   scrape_interval = "60s"
-  forward_to      = [prometheus.relabel.yc_allowlist.receiver]
+  forward_to      = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
 }
 
 // Durable media status gauges, scraped separately from mail and subscriptions.
@@ -96,7 +96,7 @@ prometheus.scrape "worker_media" {
   }]
   metrics_path    = "/metrics/media"
   scrape_interval = "60s"
-  forward_to      = [prometheus.relabel.yc_allowlist.receiver]
+  forward_to      = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
 }
 
 
@@ -115,5 +115,56 @@ prometheus.scrape "api_operations" {
     type        = "Bearer"
     credentials = sys.env("API_METRICS_KEY")
   }
-  forward_to = [prometheus.relabel.yc_allowlist.receiver]
+  forward_to = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
+}
+
+// Uptrace metrics run alongside Yandex; fixed-label privacy filter and durable WAL.
+prometheus.relabel "uptrace_allowlist" {
+  rule {
+    source_labels = ["__name__"]
+    regex = "probe_success|pg_up|redis_up|up|gafus_(mobile_telemetry|server_diagnostic_otlp|media|mail|chat2_outbox|http|queue|database_backup|questions_legacy_delete)_[a-zA-Z0-9_]+|http_requests_total|http_request_duration_seconds_(bucket|sum|count)|http_inflight_requests|node_cpu_seconds_total|node_memory_(MemTotal|MemAvailable)_bytes|node_filesystem_(avail|size)_bytes|pg_stat_activity_count|pg_settings_max_connections|job_(attempts|failures)_total|job_duration_seconds_(bucket|sum|count)|db_(query_duration|pool_wait)_seconds_(bucket|sum|count)"
+    action = "keep"
+  }
+  // Replace URL-valued blackbox instance label with bounded service alias.
+  rule {
+    source_labels = ["service"]
+    regex = "([a-z][a-z0-9-]{1,48})"
+    target_label = "instance"
+    replacement = "$1"
+    action = "replace"
+  }
+  // Drop *all* labels except audited, bounded infrastructure/operation keys.
+  // This applies to every scrape and protects against future accidental
+  // dynamic user/device/request labels being added by a producer.
+  rule {
+    action = "labelkeep"
+    regex = "__name__|job|instance|cluster|environment|service|status|status_class|method|route|le|cpu|mode|mountpoint|fstype|device|state|pipeline|task_type|outcome|phase|queue|source|error_class|dependency|resource|operation|role"
+  }
+  forward_to = [prometheus.remote_write.uptrace.receiver]
+}
+prometheus.remote_write "uptrace" {
+  endpoint {
+    url = "https://api.uptrace.dev/api/v1/prometheus/write"
+    headers = {"uptrace-dsn" = sys.env("GAFUS_UPTRACE_INGEST_DSN")}
+    queue_config {
+      max_shards = 2
+      capacity = 5000
+      max_samples_per_send = 1000
+      batch_send_deadline = "15s"
+      retry_on_http_429 = true
+    }
+  }
+  external_labels = {environment = "production", cluster = "gafus"}
+}
+
+prometheus.scrape "redis_exporter_uptrace" {
+  targets = [{ __address__ = "redis-exporter:9121", instance = "gafus-redis", job = "redis-exporter" }]
+  scrape_interval = "60s"
+  forward_to = [prometheus.relabel.uptrace_allowlist.receiver]
+}
+prometheus.scrape "worker_telemetry_uptrace" {
+  targets = [{ __address__ = "worker:3003", instance = "gafus-worker-telemetry", job = "worker-telemetry" }]
+  metrics_path = "/metrics/mobile-telemetry"
+  scrape_interval = "60s"
+  forward_to = [prometheus.relabel.uptrace_allowlist.receiver]
 }
