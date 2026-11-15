@@ -1,4 +1,487 @@
-r production by default after migration deploy.
+services:
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: gafus-postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-gafus}
+      - POSTGRES_USER=${POSTGRES_USER:-gafus}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Убрали открытые порты - доступ только внутри Docker сети
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gafus -d gafus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: gafus-redis
+    # Убрали открытые порты - доступ только внутри Docker сети
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Web Application
+  web:
+    image: ghcr.io/asmtv1/gafus-web:latest
+    container_name: gafus-web
+    # DNS over TCP: production UDP DNS queries time out.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    dns_opt:
+      - use-vc
+    # Static Vite/Nginx image: no server credentials or runtime database access.
+    # Static Web does not mount Apple signing keys or other secrets.
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://web:3000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    depends_on:
+      - api
+  trainer-panel:
+    image: ghcr.io/asmtv1/gafus-trainer-panel:latest
+    container_name: gafus-trainer-panel
+    # Static Vite/Nginx image: no server credentials or runtime database access.
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://trainer-panel:3001/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    depends_on:
+      - api
+  admin-panel:
+    image: ghcr.io/asmtv1/gafus-admin-panel:latest
+    container_name: gafus-admin-panel
+    # Static Vite/Nginx image: no server credentials or runtime database access.
+    restart: unless-stopped
+    depends_on:
+      - api
+  prisma:
+    image: ghcr.io/asmtv1/gafus-prisma:latest
+    container_name: gafus-prisma
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+  # Optional Chat 2.0 websocket broker. Runs ONLY when COMPOSE_PROFILES=chat2.
+  # Its HTTP API stays on the private Docker network; public websocket passes
+  # through the Web Nginx proxy with Centrifugo's origin validation.
+  chat2-centrifugo:
+    profiles: [chat2]
+    image: centrifugo/centrifugo:v6.9.7
+    restart: unless-stopped
+    command: ["centrifugo", "-c", "/centrifugo/config.json"]
+    volumes:
+      - ../../infra/chat2/centrifugo.prod.json:/centrifugo/config.json:ro
+    environment:
+      - CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY=${CHAT2_CENTRIFUGO_TOKEN_SECRET:-}
+      # A distinct NO-ISSUER key prevents old room JWTs from bypassing readGate.
+      # No API or client is permitted to mint subscription tokens with this key.
+      - CENTRIFUGO_CLIENT_SUBSCRIPTION_TOKEN_HMAC_SECRET_KEY=${CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET:-}
+      # Centrifugo v6.9.7 interpolates CENTRIFUGO_VAR_ variables in static_headers.
+      - CENTRIFUGO_VAR_CHAT2_PROXY_SHARED_SECRET=${CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET:-}
+      - CENTRIFUGO_HTTP_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Worker
+  worker:
+    image: ghcr.io/asmtv1/gafus-worker:latest
+    container_name: gafus-worker
+    # DNS over TCP: production UDP DNS queries time out.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    dns_opt:
+      - use-vc
+    environment:
+      - GAFUS_TELEMETRY_ENVIRONMENT=${GAFUS_TELEMETRY_ENVIRONMENT:-}
+      - GAFUS_TELEMETRY_PRODUCTION_APPROVED=${GAFUS_TELEMETRY_PRODUCTION_APPROVED:-}
+      - UPTRACE_DSN=${UPTRACE_DSN:-}
+      - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-}
+      - GAFUS_UPTRACE_LOGS_ENABLED=${GAFUS_UPTRACE_LOGS_ENABLED:-}
+      - GAFUS_TELEMETRY_EXPORT_ENABLED=${GAFUS_TELEMETRY_EXPORT_ENABLED:-}
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-0.1}
+      - CHAT2_WORKER_ENABLED=${CHAT2_WORKER_ENABLED:-disabled}
+      - CHAT2_CENTRIFUGO_HTTP_API=${CHAT2_CENTRIFUGO_HTTP_API:-http://chat2-centrifugo:8000/api/publish}
+      - CHAT2_CENTRIFUGO_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}
+      - CLOUDRU_MEDIA_JOBS_ENABLED=${CLOUDRU_MEDIA_JOBS_ENABLED:-false}
+      # Both Gallery slots and all Feed V2 workers are activated together.
+      - FEED_CLOUDRU_REFRACTOR_VERIFIED=${FEED_CLOUDRU_REFRACTOR_VERIFIED:-false}
+      # Chat2 V2 uses its independent scoped Cloud.ru project and HMAC.
+      - CHAT2_V2_CORE_ENABLED=${CHAT2_V2_CORE_ENABLED:-false}
+      - CHAT2_V2_MEDIA_ENABLED=${CHAT2_V2_MEDIA_ENABLED:-false}
+      - CHAT2_PROCESSOR_READY=${CHAT2_PROCESSOR_READY:-false}
+      - CHAT2_CLOUDRU_PROJECT_VERIFIED=${CHAT2_CLOUDRU_PROJECT_VERIFIED:-false}
+      - CHAT2_CLOUDRU_PROJECT_ID=${CHAT2_CLOUDRU_PROJECT_ID:-}
+      - CHAT2_CLOUDRU_KEY_ID=${CHAT2_CLOUDRU_KEY_ID:-}
+      - CHAT2_CLOUDRU_KEY_SECRET=${CHAT2_CLOUDRU_KEY_SECRET:-}
+      - CHAT2_INTERNAL_HMAC_SECRET=${CHAT2_INTERNAL_HMAC_SECRET:-}
+      - CHAT2_S3_ENDPOINT=${CHAT2_S3_ENDPOINT:-https://s3.cloud.ru}
+      - CHAT2_S3_BUCKET=${CHAT2_S3_BUCKET:-gafus-chat2-media-2026}
+      # Only public, finalized Chat2 WebP/MP4; Hono still authorizes media discovery.
+      - CHAT2_V2_CDN_BASE_URL=${CHAT2_V2_CDN_BASE_URL:-}
+      - CHAT2_S3_ACCESS_KEY_ID=${CHAT2_S3_ACCESS_KEY_ID:-}
+      - CHAT2_S3_SECRET_ACCESS_KEY=${CHAT2_S3_SECRET_ACCESS_KEY:-}
+      # Questions Photo V2 remains OFF until a compatible production Hono API,
+      # a matching HMAC secret and Cloud.ru public S3 have independent acceptance.
+      - QUESTIONS_V2_MEDIA_ENABLED=${QUESTIONS_V2_MEDIA_ENABLED:-false}
+      - QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED=${QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED:-false}
+      - QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED=${QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED:-false}
+      - QUESTIONS_V2_INTERNAL_BASE_URL=${QUESTIONS_V2_INTERNAL_BASE_URL:-https://api.gafus.ru/}
+      - QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME=${QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME:-api.gafus.ru}
+      - QUESTIONS_V2_INTERNAL_HMAC_SECRET=${QUESTIONS_V2_INTERNAL_HMAC_SECRET:-}
+      - QUESTIONS_V2_S3_ENDPOINT=${QUESTIONS_V2_S3_ENDPOINT:-https://s3.cloud.ru}
+      - QUESTIONS_V2_S3_BUCKET=${QUESTIONS_V2_S3_BUCKET:-gafus-questions-public}
+      - QUESTIONS_V2_S3_REGION=${QUESTIONS_V2_S3_REGION:-ru-central-1}
+      - QUESTIONS_V2_S3_ACCESS_KEY_ID=${QUESTIONS_V2_S3_ACCESS_KEY_ID:-}
+      - QUESTIONS_V2_S3_SECRET_ACCESS_KEY=${QUESTIONS_V2_S3_SECRET_ACCESS_KEY:-}
+      - CLOUDRU_PROJECT_ID=${CLOUDRU_PROJECT_ID:-}
+      - CLOUDRU_KEY_ID=${CLOUDRU_KEY_ID:-}
+      - CLOUDRU_KEY_SECRET=${CLOUDRU_KEY_SECRET:-}
+      - CLOUDRU_USER_MEDIA_ENABLED=${CLOUDRU_USER_MEDIA_ENABLED:-false}
+      - CLOUDRU_S3_ENDPOINT=${CLOUDRU_S3_ENDPOINT:-https://s3.cloud.ru}
+      - CLOUDRU_S3_ACCESS_KEY_ID=${CLOUDRU_S3_ACCESS_KEY_ID:-}
+      - CLOUDRU_S3_SECRET_ACCESS_KEY=${CLOUDRU_S3_SECRET_ACCESS_KEY:-}
+      - CLOUDRU_DOCUMENTS_BUCKET=${CLOUDRU_DOCUMENTS_BUCKET:-}
+      - CLOUDRU_QUESTIONS_BUCKET=${CLOUDRU_QUESTIONS_BUCKET:-}
+      - CLOUDRU_DOCUMENTS_BUCKET_VERSIONING=${CLOUDRU_DOCUMENTS_BUCKET_VERSIONING:-}
+      - CLOUDRU_QUESTIONS_BUCKET_VERSIONING=${CLOUDRU_QUESTIONS_BUCKET_VERSIONING:-}
+      - ACCOUNT_STORAGE_CLEANUP_ENABLED=${ACCOUNT_STORAGE_CLEANUP_ENABLED:-true}
+      # Beget API is for verified exact-path erasure, never a public client secret.
+      - BEGET_CDN_API_TOKEN=${BEGET_CDN_API_TOKEN:-}
+      - GALLERY_BEGET_CDN_SERVICE_ID=${GALLERY_BEGET_CDN_SERVICE_ID:-}
+      - FEED_BEGET_CDN_SERVICE_ID=${FEED_BEGET_CDN_SERVICE_ID:-}
+      - BEGET_CDN_PURGE_API_VERIFIED=${BEGET_CDN_PURGE_API_VERIFIED:-false}
+      - BEGET_CDN_CACHE_KEY_VERIFIED=${BEGET_CDN_CACHE_KEY_VERIFIED:-false}
+      - BEGET_CDN_PURGE_PROPAGATION_VERIFIED=${BEGET_CDN_PURGE_PROPAGATION_VERIFIED:-false}
+      - MEDIA_CDN_PURGE_WORKER_ENABLED=${MEDIA_CDN_PURGE_WORKER_ENABLED:-false}
+      - CDN_CLEANUP_SERVICE_ACCOUNT_KEY=${CDN_CLEANUP_SERVICE_ACCOUNT_KEY:-}
+      - PUBLIC_CDN_RESOURCE_IDS=${PUBLIC_CDN_RESOURCE_IDS:-}
+      - GALLERY_CDN_RESOURCE_IDS=${GALLERY_CDN_RESOURCE_IDS:-}
+      - FEED_CDN_RESOURCE_IDS=${FEED_CDN_RESOURCE_IDS:-}
+      - GALLERY_BUCKET_PUBLIC=false
+      - GALLERY_BUCKET=${GALLERY_BUCKET:-gafus-gallery-private}
+      - GALLERY_S3_ENDPOINT=${GALLERY_S3_ENDPOINT:-https://s3.cloud.ru}
+      - GALLERY_S3_ACCESS_KEY_ID=${GALLERY_S3_ACCESS_KEY_ID:-}
+      - GALLERY_S3_SECRET_ACCESS_KEY=${GALLERY_S3_SECRET_ACCESS_KEY:-}
+      - GALLERY_LOCAL_STORAGE_JANITOR_ENABLED=${GALLERY_LOCAL_STORAGE_JANITOR_ENABLED:-true}
+      - FEED_RETIRED_PHOTO_QUEUE_SWEEP_ENABLED=${FEED_RETIRED_PHOTO_QUEUE_SWEEP_ENABLED:-true}
+      - GALLERY_CDN_BASE_URL=${GALLERY_CDN_BASE_URL:-https://fupiquafifeswu.begetcdn.cloud}
+      - GALLERY_CDN_PROVIDER=${GALLERY_CDN_PROVIDER:-beget}
+      # Gallery CDN -> API 307 -> private S3. Disabled by default.
+      - GALLERY_CDN_ORIGIN_ROUTE_ENABLED=${GALLERY_CDN_ORIGIN_ROUTE_ENABLED:-false}
+      - GALLERY_CDN_REDIRECT_ENABLED=${GALLERY_CDN_REDIRECT_ENABLED:-false}
+      - GALLERY_CDN_REDIRECT_SIGNING_SECRET=${GALLERY_CDN_REDIRECT_SIGNING_SECRET:-}
+      - GALLERY_CDN_REDIRECT_ORIGIN_SECRET=${GALLERY_CDN_REDIRECT_ORIGIN_SECRET:-}
+      - GALLERY_CDN_CACHEABLE_FINAL_ENABLED=${GALLERY_CDN_CACHEABLE_FINAL_ENABLED:-false}
+      - GALLERY_CDN_EDGE_TOKEN_VERIFIED=${GALLERY_CDN_EDGE_TOKEN_VERIFIED:-false}
+      - GALLERY_MEDIA_FALLBACK_ENABLED=${GALLERY_MEDIA_FALLBACK_ENABLED:-false}
+      - FEED_ENABLED=${FEED_ENABLED:-false}
+      - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
+      # Smart feed is enabled for production by default after migration deploy.
+      # Existing FEED_ENABLED / FEED_PROCESSOR_READY remain independent safeguards.
+      - FEED_SMART_ENABLED=${FEED_SMART_ENABLED:-true}
+      - FEED_SMART_STATS_ENABLED=${FEED_SMART_STATS_ENABLED:-true}
+      - FEED_SMART_DIAGNOSTICS=${FEED_SMART_DIAGNOSTICS:-true}
+      - FEED_SMART_MULTI_SOURCE_ENABLED=${FEED_SMART_MULTI_SOURCE_ENABLED:-true}
+      - FEED_SMART_AFFINITY_ENABLED=${FEED_SMART_AFFINITY_ENABLED:-true}
+      - FEED_SMART_EVENTS_ENABLED=${FEED_SMART_EVENTS_ENABLED:-true}
+      - FEED_SMART_EXPOSURE_TOKENS_REQUIRED=${FEED_SMART_EXPOSURE_TOKENS_REQUIRED:-true}
+      - FEED_SMART_MONITOR_ENABLED=${FEED_SMART_MONITOR_ENABLED:-true}
+      - FEED_SMART_ML_TRAIN_ENABLED=${FEED_SMART_ML_TRAIN_ENABLED:-true}
+      - FEED_SMART_ML_ENABLED=${FEED_SMART_ML_ENABLED:-true}
+      # 100% treatment so everyone receives the new feed; not a valid A/B comparison.
+      - FEED_SMART_AB_ENABLED=${FEED_SMART_AB_ENABLED:-true}
+      - FEED_SMART_AB_PERCENT=${FEED_SMART_AB_PERCENT:-100}
+      - FEED_SMART_AB_TREATMENT_PERCENT=${FEED_SMART_AB_TREATMENT_PERCENT:-100}
+      - FEED_SMART_SHADOW_ENABLED=${FEED_SMART_SHADOW_ENABLED:-true}
+      - FEED_SMART_SHADOW_PERCENT=${FEED_SMART_SHADOW_PERCENT:-1}
+      - FEED_BUCKET_PUBLIC=false
+      - FEED_BUCKET=${FEED_BUCKET:-gafus-feed-private}
+      - FEED_S3_ENDPOINT=${FEED_S3_ENDPOINT:-https://s3.cloud.ru}
+      - FEED_S3_ACCESS_KEY_ID=${FEED_S3_ACCESS_KEY_ID:-}
+      - FEED_S3_SECRET_ACCESS_KEY=${FEED_S3_SECRET_ACCESS_KEY:-}
+      - FEED_LOCAL_STORAGE_JANITOR_ENABLED=${FEED_LOCAL_STORAGE_JANITOR_ENABLED:-true}
+      - FEED_CDN_BASE_URL=${FEED_CDN_BASE_URL:-https://quepraquiecebquomiel.begetcdn.cloud}
+      - FEED_CDN_PROVIDER=${FEED_CDN_PROVIDER:-beget}
+      - FEED_CDN_EDGE_TOKEN_VERIFIED=${FEED_CDN_EDGE_TOKEN_VERIFIED:-false}
+      - FEED_MEDIA_FALLBACK_ENABLED=${FEED_MEDIA_FALLBACK_ENABLED:-false}
+      - FEED_CDN_SECRET=${FEED_CDN_SECRET:-}
+      - FEED_INTERNAL_HMAC_SECRET=${FEED_INTERNAL_HMAC_SECRET:-}
+      - FEED_MAINTENANCE_ENABLED=${FEED_MAINTENANCE_ENABLED:-false}
+      - FEED_PUSH_ENABLED=${FEED_PUSH_ENABLED:-false}
+      - CYNOLOGIST_CHAT_ENABLED=${CYNOLOGIST_CHAT_ENABLED:-false}
+      - COMMUNITY_CHAT_ENABLED=${COMMUNITY_CHAT_ENABLED:-false}
+      - CYNOLOGIST_CHAT_TRAINER_USER_ID=${CYNOLOGIST_CHAT_TRAINER_USER_ID:-cmhq7qk2s0000nn01jr2ptnil}
+      - STREAM_API_KEY=${STREAM_API_KEY:-}
+      - STREAM_API_SECRET=${STREAM_API_SECRET:-}
+      - NODE_ENV=production
+      - WORKER_HEALTH_PORT=3003
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - VAPID_SUBJECT=${VAPID_SUBJECT:-mailto:admin@gafus.ru}
+      # ЮKassa (автопродления подписок)
+      - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
+      - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+      # Apple App Store Server API (синхронизация подписок)
+      - APPLE_BUNDLE_ID=${APPLE_BUNDLE_ID:-}
+      - APPLE_APP_ID=${APPLE_APP_ID:-}
+      - APPLE_USE_SANDBOX=${APPLE_USE_SANDBOX:-false}
+      - APPLE_ISSUER_ID=${APPLE_ISSUER_ID:-}
+      - APPLE_KEY_ID=${APPLE_KEY_ID:-}
+      - APPLE_PRIVATE_KEY_PATH=${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}
+      # Yandex Cloud CDN credentials (необходимы для транскодирования видео)
+      - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
+      - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
+      # Включаем транспорты для гарантированной записи логов в stdout
+      - PINO_USE_WORKER_TRANSPORTS=true
+      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
+      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
+      # SMTP / Yandex 360 (фоновые задачи с @gafus/mailer / почтой)
+      - MAIL_PROVIDER=${MAIL_PROVIDER:-resend}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}
+      - MAIL_OUTBOX_ENABLED=${MAIL_OUTBOX_ENABLED:-false}
+      - MAIL_OUTBOX_ENCRYPTION_KEY=${MAIL_OUTBOX_ENCRYPTION_KEY:-}
+      - MAIL_REPLY_TO=${MAIL_REPLY_TO:-api@gafus.ru}
+      - RESEND_FROM=${RESEND_FROM:-notifications@notify.gafus.ru}
+      - SMTP_HOST=${SMTP_HOST:-smtp.yandex.ru}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_SECURE=${SMTP_SECURE:-true}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - MAIL_FROM=${MAIL_FROM:-api@gafus.ru}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-Гафус}
+      # НПД: только worker/bootstrap. По умолчанию внешний процессинг выключен.
+      - NPD_PROCESSING_ENABLED=${NPD_PROCESSING_ENABLED:-false}
+      - NPD_TOKEN_ENCRYPTION_KEY=${NPD_TOKEN_ENCRYPTION_KEY}
+      - NPD_API_BASE_URL=${NPD_API_BASE_URL:-https://lknpd.nalog.ru/api/v1}
+      - NPD_BATCH_SIZE=${NPD_BATCH_SIZE:-20}
+      - NPD_REQUEST_TIMEOUT_MS=${NPD_REQUEST_TIMEOUT_MS:-10000}
+      - NPD_RECEIPT_EMAIL_BATCH_SIZE=${NPD_RECEIPT_EMAIL_BATCH_SIZE:-20}
+      - NPD_RECEIPT_EMAIL_ENABLED=${NPD_RECEIPT_EMAIL_ENABLED:-true}
+    volumes:
+      - ${APPLE_PRIVATE_KEY_HOST_PATH:-/opt/gafus/secrets/AuthKey_FZ3FFU78RN.p8}:${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "0.8" # Максимум 0.8 CPU ядра (на сервере только 1 CPU)
+          memory: 2G # Максимум 2GB памяти
+        reservations:
+          cpus: "0.2" # Минимум 0.2 CPU ядра
+          memory: 512M # Минимум 512MB памяти
+    restart: unless-stopped
+    # localhost → ::1 на Alpine, Node слушает 0.0.0.0:3003 — wget к localhost даёт Connection refused
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - postgres
+      - redis
+
+  # Bull Board
+  bull-board:
+    image: ghcr.io/asmtv1/gafus-bull-board:latest
+    container_name: gafus-bull-board
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - REDIS_URL=redis://redis:6379
+      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
+      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
+      - GAFUS_TELEMETRY_ENVIRONMENT=${GAFUS_TELEMETRY_ENVIRONMENT:-}
+      - GAFUS_TELEMETRY_PRODUCTION_APPROVED=${GAFUS_TELEMETRY_PRODUCTION_APPROVED:-false}
+      - GAFUS_BULL_BOARD_TELEMETRY_ENABLED=${GAFUS_BULL_BOARD_TELEMETRY_ENABLED:-false}
+      - GAFUS_BULL_BOARD_APP_VERSION=${GAFUS_BULL_BOARD_APP_VERSION:-}
+      - GAFUS_RELEASE_SHA=${GAFUS_RELEASE_SHA:-}
+    # Убрали открытые порты - доступ только через Nginx
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # API Service
+  api:
+    image: ghcr.io/asmtv1/gafus-api:latest
+    container_name: gafus-api
+    # DNS over TCP: production UDP DNS queries time out.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    dns_opt:
+      - use-vc
+    environment:
+      # Chat 2.0 is disabled until its websocket broker, worker, and scoped media
+      # have passed independent release gates. Never silently fall back to Stream.
+      # Read-only API metrics are disabled unless a private key is provided.
+      - API_METRICS_KEY=${API_METRICS_KEY:-}
+      - GAFUS_TELEMETRY_ENVIRONMENT=${GAFUS_TELEMETRY_ENVIRONMENT:-}
+      - GAFUS_TELEMETRY_PRODUCTION_APPROVED=${GAFUS_TELEMETRY_PRODUCTION_APPROVED:-}
+      - UPTRACE_DSN=${UPTRACE_DSN:-}
+      - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-}
+      - GAFUS_UPTRACE_LOGS_ENABLED=${GAFUS_UPTRACE_LOGS_ENABLED:-}
+      - GAFUS_TELEMETRY_INGEST_ENABLED=${GAFUS_TELEMETRY_INGEST_ENABLED:-}
+      - GAFUS_TELEMETRY_WEB_INGEST_ENABLED=${GAFUS_TELEMETRY_WEB_INGEST_ENABLED:-}
+      - GAFUS_WEB_TELEMETRY_RELEASES=${GAFUS_WEB_TELEMETRY_RELEASES:-}
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      - OTEL_TRACES_SAMPLER_ARG=${OTEL_TRACES_SAMPLER_ARG:-0.1}
+      - CHAT2_LEGACY_RETIRE_ENABLED=${CHAT2_LEGACY_RETIRE_ENABLED:-disabled}
+      - CHAT2_API_ENABLED=${CHAT2_API_ENABLED:-disabled}
+      # The API must know the worker is enabled before retiring the legacy chat.
+      - CHAT2_WORKER_ENABLED=${CHAT2_WORKER_ENABLED:-disabled}
+      - CHAT2_PUBLIC_WS_URL=${CHAT2_PUBLIC_WS_URL:-}
+      - CHAT2_CENTRIFUGO_TOKEN_SECRET=${CHAT2_CENTRIFUGO_TOKEN_SECRET:-}
+      - CHAT2_CENTRIFUGO_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}
+      # Old room token support is removed: fail closed until proxy-only broker is ready.
+      - CHAT2_SUBSCRIBE_PROXY_ENABLED=${CHAT2_SUBSCRIBE_PROXY_ENABLED:-false}
+      - CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET=${CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET:-}
+      - CHAT2_MOBILE_IOS_MIN_VERSION=${CHAT2_MOBILE_IOS_MIN_VERSION:-1.7.3}
+      - CHAT2_MOBILE_ANDROID_MIN_VERSION=${CHAT2_MOBILE_ANDROID_MIN_VERSION:-1.7.3}
+      - CHAT2_CENTRIFUGO_HTTP_API=${CHAT2_CENTRIFUGO_HTTP_API:-http://chat2-centrifugo:8000/api/publish}
+      - CHAT2_PRIVATE_MEDIA_ENABLED=${CHAT2_PRIVATE_MEDIA_ENABLED:-disabled}
+      # Voximplant server-only video consultation credentials (GitHub Actions Secrets).
+      - VOXIMPLANT_ACCOUNT_ID=${VOXIMPLANT_ACCOUNT_ID:?VOXIMPLANT_ACCOUNT_ID is required}
+      - VOXIMPLANT_APPLICATION_ID=${VOXIMPLANT_APPLICATION_ID:?VOXIMPLANT_APPLICATION_ID is required}
+      - VOXIMPLANT_ACCOUNT_NAME=${VOXIMPLANT_ACCOUNT_NAME:?VOXIMPLANT_ACCOUNT_NAME is required}
+      - VOXIMPLANT_APPLICATION_NAME=${VOXIMPLANT_APPLICATION_NAME:?VOXIMPLANT_APPLICATION_NAME is required}
+      - VOXIMPLANT_KEY_ID=${VOXIMPLANT_KEY_ID:?VOXIMPLANT_KEY_ID is required}
+      - VOXIMPLANT_PRIVATE_KEY_BASE64=${VOXIMPLANT_PRIVATE_KEY_BASE64:?VOXIMPLANT_PRIVATE_KEY_BASE64 is required}
+      - VOXIMPLANT_CREDENTIAL_SECRET=${VOXIMPLANT_CREDENTIAL_SECRET:?VOXIMPLANT_CREDENTIAL_SECRET is required}
+      - VOXIMPLANT_ADMISSION_SECRET=${VOXIMPLANT_ADMISSION_SECRET:?VOXIMPLANT_ADMISSION_SECRET is required}
+      # Signed OTA: immutable assets via Cloud.ru S3, without CDN.
+      # Callback, manifest and telemetry are disabled unless explicitly configured.
+      - MOBILE_OTA_ASSET_ORIGIN=${MOBILE_OTA_ASSET_ORIGIN:-https://global.s3.cloud.ru/gafus-ota-updates}
+      - MOBILE_OTA_CI_CALLBACK_TOKEN=${MOBILE_OTA_CI_CALLBACK_TOKEN:-}
+      - MOBILE_OTA_DELIVERY_ENV=${MOBILE_OTA_DELIVERY_ENV:-}
+      - MOBILE_OTA_INSTALLATION_HASH_KEY=${MOBILE_OTA_INSTALLATION_HASH_KEY:-}
+      - CLOUDRU_USER_MEDIA_ENABLED=${CLOUDRU_USER_MEDIA_ENABLED:-false}
+      - CLOUDRU_S3_ENDPOINT=${CLOUDRU_S3_ENDPOINT:-https://s3.cloud.ru}
+      - CLOUDRU_S3_ACCESS_KEY_ID=${CLOUDRU_S3_ACCESS_KEY_ID:-}
+      - CLOUDRU_S3_SECRET_ACCESS_KEY=${CLOUDRU_S3_SECRET_ACCESS_KEY:-}
+      - CLOUDRU_DOCUMENTS_BUCKET=${CLOUDRU_DOCUMENTS_BUCKET:-}
+      - CLOUDRU_QUESTIONS_BUCKET=${CLOUDRU_QUESTIONS_BUCKET:-}
+      - CLOUDRU_DOCUMENTS_BUCKET_VERSIONING=${CLOUDRU_DOCUMENTS_BUCKET_VERSIONING:-}
+      - CLOUDRU_QUESTIONS_BUCKET_VERSIONING=${CLOUDRU_QUESTIONS_BUCKET_VERSIONING:-}
+      - CYNOLOGIST_CHAT_ENABLED=${CYNOLOGIST_CHAT_ENABLED:-false}
+      - COMMUNITY_CHAT_ENABLED=${COMMUNITY_CHAT_ENABLED:-false}
+      - CYNOLOGIST_CHAT_TRAINER_USER_ID=${CYNOLOGIST_CHAT_TRAINER_USER_ID:-cmhq7qk2s0000nn01jr2ptnil}
+      - STREAM_API_KEY=${STREAM_API_KEY:-}
+      - STREAM_API_SECRET=${STREAM_API_SECRET:-}
+      - NODE_ENV=production
+      - API_PORT=3001
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - COURSE_CACHE_SYNC_ENABLED=${COURSE_CACHE_SYNC_ENABLED:-true}
+      - COURSE_CACHE_METRICS_TOKEN=${COURSE_CACHE_METRICS_TOKEN:-}
+      - ENABLE_COURSE_CACHE=${ENABLE_COURSE_CACHE:-true}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      # ЮKassa (платежи через API)
+      - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
+      - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+      # Apple IAP (верификация покупки курса на iOS)
+      - APPLE_BUNDLE_ID=${APPLE_BUNDLE_ID:-}
+      - APPLE_APP_ID=${APPLE_APP_ID:-}
+      - APPLE_USE_SANDBOX=${APPLE_USE_SANDBOX:-false}
+      - APPLE_ISSUER_ID=${APPLE_ISSUER_ID:-}
+      - APPLE_KEY_ID=${APPLE_KEY_ID:-}
+      - APPLE_PRIVATE_KEY_PATH=${APPLE_PRIVATE_KEY_PATH:-/run/secrets/apple_app_store_connect_api_key.p8}
+      # База web URL для return_url платежей
+      - WEB_APP_URL=${WEB_APP_URL}
+      # HLS Video Protection
+      - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
+      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
+      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
+      # Yandex Cloud Object Storage (для загрузки манифестов и сегментов)
+      - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
+      - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
+      # Gallery DEV enabled by user request; deploy only after DB migration/cloud readiness.
+      - GALLERY_ENABLED=true
+      - GALLERY_BUCKET_PUBLIC=false
+      - GALLERY_BUCKET=${GALLERY_BUCKET:-gafus-gallery-private}
+      - GALLERY_S3_ENDPOINT=${GALLERY_S3_ENDPOINT:-https://s3.cloud.ru}
+      - GALLERY_S3_ACCESS_KEY_ID=${GALLERY_DEV_WEB_S3_ACCESS_KEY_ID:-}
+      - GALLERY_S3_SECRET_ACCESS_KEY=${GALLERY_DEV_WEB_S3_SECRET_ACCESS_KEY:-}
+      - GALLERY_CDN_BASE_URL=${GALLERY_CDN_BASE_URL:-https://fupiquafifeswu.begetcdn.cloud}
+      - GALLERY_CDN_PROVIDER=${GALLERY_CDN_PROVIDER:-beget}
+      - GALLERY_CDN_EDGE_TOKEN_VERIFIED=${GALLERY_CDN_EDGE_TOKEN_VERIFIED:-false}
+      - GALLERY_MEDIA_FALLBACK_ENABLED=${GALLERY_MEDIA_FALLBACK_ENABLED:-false}
+      # Gallery CDN -> API 307 -> private S3. Disabled by default.
+      - GALLERY_CDN_ORIGIN_ROUTE_ENABLED=${GALLERY_CDN_ORIGIN_ROUTE_ENABLED:-false}
+      - GALLERY_CDN_REDIRECT_ENABLED=${GALLERY_CDN_REDIRECT_ENABLED:-false}
+      - GALLERY_CDN_REDIRECT_SIGNING_SECRET=${GALLERY_CDN_REDIRECT_SIGNING_SECRET:-}
+      - GALLERY_CDN_REDIRECT_ORIGIN_SECRET=${GALLERY_CDN_REDIRECT_ORIGIN_SECRET:-}
+      - GALLERY_CDN_CACHEABLE_FINAL_ENABLED=${GALLERY_CDN_CACHEABLE_FINAL_ENABLED:-false}
+      - GALLERY_INTERNAL_BASE_URL=https://api.gafus.ru
+      - GALLERY_INTERNAL_HMAC_SECRET=${GALLERY_DEV_INTERNAL_HMAC_SECRET:-}
+      - FEED_ENABLED=${FEED_ENABLED:-false}
+      - FEED_PROCESSOR_READY=${FEED_PROCESSOR_READY:-false}
+      # Upload confirmations must enqueue immediate Cloud.ru processing.
+      - CLOUDRU_MEDIA_JOBS_ENABLED=${CLOUDRU_MEDIA_JOBS_ENABLED:-false}
+      # Both Gallery slots and all Feed V2 workers are activated together.
+      - FEED_CLOUDRU_REFRACTOR_VERIFIED=${FEED_CLOUDRU_REFRACTOR_VERIFIED:-false}
+      # Chat2 V2 uses its independent scoped Cloud.ru project and HMAC.
+      - CHAT2_V2_CORE_ENABLED=${CHAT2_V2_CORE_ENABLED:-false}
+      - CHAT2_V2_MEDIA_ENABLED=${CHAT2_V2_MEDIA_ENABLED:-false}
+      - CHAT2_PROCESSOR_READY=${CHAT2_PROCESSOR_READY:-false}
+      - CHAT2_CLOUDRU_PROJECT_VERIFIED=${CHAT2_CLOUDRU_PROJECT_VERIFIED:-false}
+      - CHAT2_CLOUDRU_PROJECT_ID=${CHAT2_CLOUDRU_PROJECT_ID:-}
+      - CHAT2_CLOUDRU_KEY_ID=${CHAT2_CLOUDRU_KEY_ID:-}
+      - CHAT2_CLOUDRU_KEY_SECRET=${CHAT2_CLOUDRU_KEY_SECRET:-}
+      - CHAT2_INTERNAL_HMAC_SECRET=${CHAT2_INTERNAL_HMAC_SECRET:-}
+      - CHAT2_S3_ENDPOINT=${CHAT2_S3_ENDPOINT:-https://s3.cloud.ru}
+      - CHAT2_S3_BUCKET=${CHAT2_S3_BUCKET:-gafus-chat2-media-2026}
+      - CHAT2_S3_ACCESS_KEY_ID=${CHAT2_S3_ACCESS_KEY_ID:-}
+      - CHAT2_S3_SECRET_ACCESS_KEY=${CHAT2_S3_SECRET_ACCESS_KEY:-}
+      # Questions Photo V2 remains OFF until a compatible production Hono API,
+      # a matching HMAC secret and Cloud.ru public S3 have independent acceptance.
+      - QUESTIONS_V2_MEDIA_ENABLED=${QUESTIONS_V2_MEDIA_ENABLED:-false}
+      - QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED=${QUESTIONS_V2_PUBLIC_BUCKET_VERIFIED:-false}
+      - QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED=${QUESTIONS_V2_INTERNAL_REFRACTOR_VERIFIED:-false}
+      - QUESTIONS_V2_INTERNAL_BASE_URL=${QUESTIONS_V2_INTERNAL_BASE_URL:-https://api.gafus.ru/}
+      - QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME=${QUESTIONS_V2_INTERNAL_ALLOWED_HOSTNAME:-api.gafus.ru}
+      - QUESTIONS_V2_INTERNAL_HMAC_SECRET=${QUESTIONS_V2_INTERNAL_HMAC_SECRET:-}
+      - QUESTIONS_V2_S3_ENDPOINT=${QUESTIONS_V2_S3_ENDPOINT:-https://s3.cloud.ru}
+      - QUESTIONS_V2_S3_BUCKET=${QUESTIONS_V2_S3_BUCKET:-gafus-questions-public}
+      - QUESTIONS_V2_S3_REGION=${QUESTIONS_V2_S3_REGION:-ru-central-1}
+      - QUESTIONS_V2_S3_ACCESS_KEY_ID=${QUESTIONS_V2_S3_ACCESS_KEY_ID:-}
+      - QUESTIONS_V2_S3_SECRET_ACCESS_KEY=${QUESTIONS_V2_S3_SECRET_ACCESS_KEY:-}
+      # Smart feed is enabled for production by default after migration deploy.
       # Existing FEED_ENABLED / FEED_PROCESSOR_READY remain independent safeguards.
       - FEED_SMART_ENABLED=${FEED_SMART_ENABLED:-true}
       - FEED_SMART_STATS_ENABLED=${FEED_SMART_STATS_ENABLED:-true}

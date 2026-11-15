@@ -1,4 +1,967 @@
-   GALLERY_CDN_BASE_URL: https://fupiquafifeswu.begetcdn.cloud
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# CI for different refs may run independently; all main deployments serialize.
+concurrency:
+  group: ${{ github.ref == 'refs/heads/main' && 'gafus-production-deploy' || format('gafus-workflow-{0}', github.ref) }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: asmtv1
+
+jobs:
+  # Prepare dependencies - shared job for all other jobs
+  prepare-deps:
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+      pnpm-cache-key: ${{ steps.pnpm-cache-key.outputs.key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Generate cache keys
+        id: cache-key
+        run: |
+          echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('packages/**/src/**', 'apps/**/src/**') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate pnpm cache key
+        id: pnpm-cache-key
+        run: echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Install pnpm
+        run: |
+          npm install --global pnpm@10.12.4
+          test "$(pnpm --version)" = "10.12.4"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v5
+        with:
+          path: ~/.pnpm-store
+          key: ${{ steps.pnpm-cache-key.outputs.key }}
+          restore-keys: |
+            ${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store
+
+      - name: Install dependencies with optimizations
+        run: |
+          # Устанавливаем зависимости с оптимизациями
+          pnpm config set store-dir ~/.pnpm-store
+          pnpm config set verify-store-integrity true
+          pnpm config set auto-install-peers true
+          pnpm config set dedupe-peer-dependents false
+
+          # Устанавливаем только production зависимости для CI
+          pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Validate dependencies
+        run: |
+          echo "🔍 Validating dependencies..."
+          pnpm list --depth=0 --json > /dev/null
+          echo "✅ Dependencies validated"
+
+      # Source-only, cache-independent fail-closed contract before ANY workspace builds.
+      - name: Enforce Core package and browser/server boundaries before dependency builds (blocking)
+        run: pnpm check:core-boundaries
+
+      - name: Generate Prisma Client
+        run: |
+          cd packages/prisma
+          # Temporarily disable prisma-erd-generator in CI to avoid Chromium sandbox issues
+          cp schema.prisma schema.prisma.bak
+          awk 'BEGIN{skip=0} /^generator erd \{/{skip=1} skip && /^\}/{skip=0; next} !skip {print}' schema.prisma > schema.tmp && mv schema.tmp schema.prisma
+          pnpm db:generate
+          mv schema.prisma.bak schema.prisma
+
+      - name: Build packages
+        run: |
+          # logger первым (зависимости: types, queues, cdn-upload, prisma)
+          cd packages/logger && pnpm build && cd ../..
+          # Types: build before the required real NodeNext/declaration and contract tests.
+          # Fail-closed: Types test is synchronous, not a backgrounded subshell.
+          cd packages/types && pnpm build && cd ../..
+          pnpm --filter @gafus/types test
+          # Core media-delivery reexports resolve core-client/dist at runtime.
+          # Build that dependency first; otherwise cache restores can run old
+          # CDN failover code in otherwise green Core tests and builds.
+          cd packages/core-client && pnpm build && cd ../..
+          # Keep parallelism without Bash's fail-open bare `wait` (which can
+          # return success even when one of the children failed).
+          (cd packages/queues && pnpm build) & queues_pid=$!
+          (cd packages/cdn-upload && pnpm build) & cdn_pid=$!
+          (cd packages/video-access && pnpm build) & video_pid=$!
+          parallel_failed=0
+          wait "$queues_pid" || parallel_failed=1
+          wait "$cdn_pid" || parallel_failed=1
+          wait "$video_pid" || parallel_failed=1
+          if [ "$parallel_failed" -ne 0 ]; then
+            echo 'REQUIRED_PARALLEL_PACKAGE_BUILD_FAILED' >&2
+            exit 1
+          fi
+          # prisma (зависит от logger), затем auth, core
+          cd packages/prisma && pnpm build && cd ../..
+          cd packages/auth && pnpm build && cd ../..
+          # mailer до core (TypeScript резолвит dist/index.d.ts у @gafus/mailer)
+          cd packages/mailer && pnpm build && cd ../..
+          cd packages/core && pnpm build && cd ../..
+          # остальные пакеты через turbo
+          pnpm exec turbo run build --filter=@gafus/* --filter=!@gafus/prisma --filter=!@gafus/logger --filter=!@gafus/core --filter=!@gafus/types --filter=!@gafus/queues --filter=!@gafus/cdn-upload --filter=!@gafus/auth --filter=!@gafus/video-access --filter=!@gafus/mailer --filter=!@gafus/core-client
+
+      - name: Cache build artifacts
+        uses: actions/cache@v5
+        with:
+          path: |
+            node_modules
+            packages/*/dist
+            packages/*/.prisma
+            ~/.pnpm-store
+          key: ${{ steps.cache-key.outputs.key }}-deps
+          restore-keys: |
+            ${{ hashFiles('**/pnpm-lock.yaml') }}-deps
+
+  # Mandatory, secret-free Uptrace source gate on every PR/push. Without it
+  # production deploy cannot proceed; it never sends data to Uptrace.
+  observability-contracts:
+    runs-on: ubuntu-latest
+    needs: prepare-deps
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout exact workflow source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm 10.12.4
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+
+      - name: Setup Node 24 for Uptrace source-only acceptance
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Restore prepared dependency snapshot
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            node_modules
+            packages/*/dist
+            packages/*/.prisma
+            ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
+
+      - name: Ensure frozen dependencies and telemetry SDK build
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter @gafus/prisma db:generate
+          pnpm --filter @gafus/logger build
+          pnpm --filter @gafus/mobile-ota-server build
+
+      - name: Verify observability/ACK gateway and source map contracts (no secrets)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test scripts/observability/*.test.mjs packages/logger/tests/*.test.mjs
+          node --test scripts/qa/otel-local-collector.test.mjs scripts/qa/uptrace-alloy-candidate.test.mjs scripts/qa/browser-telemetry.test.mjs
+          node --test apps/mobile/scripts/observe-preview-config.test.cjs
+          node --test apps/mobile/scripts/prepare-sdk57-private-symbols.test.mjs
+          node --test packages/cdn-upload/scripts/upload-mobile-private-symbols.test.mjs
+          node scripts/observability/check-workflow-release-gates.mjs
+
+      - name: Verify API/Worker preview ingress, budgets and safe export
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @gafus/api exec vitest run --config vitest.config.ts src/modules/mobile-telemetry/observe-metrics.test.ts src/modules/mobile-telemetry/observe-normalizer.test.ts src/routes/v1/mobile-observe-preview.test.ts src/routes/v1/web-telemetry.test.ts
+          pnpm --filter @gafus/worker exec vitest run --config vitest.config.ts src/mobile-telemetry-export.test.ts
+          pnpm --filter @gafus/api typecheck
+          pnpm --filter @gafus/worker typecheck
+
+  # Security and code quality checks - runs in parallel with build-apps
+  security:
+    runs-on: ubuntu-latest
+    needs: prepare-deps
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gafus_ci
+          POSTGRES_PASSWORD: gafus_ci_disposable
+          POSTGRES_DB: gafus_fresh
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gafus_ci -d gafus_fresh"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            node_modules
+            packages/*/dist
+            packages/*/.prisma
+            ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Install pnpm
+        run: |
+          npm install --global pnpm@10.12.4
+          test "$(pnpm --version)" = "10.12.4"
+
+      - name: Restore pnpm store cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.pnpm-cache-key }}
+          restore-keys: |
+            ${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store
+
+      - name: Install dependencies (optimized)
+        run: |
+          pnpm config set store-dir ~/.pnpm-store
+          pnpm config set verify-store-integrity true
+          pnpm config set auto-install-peers true
+          pnpm config set dedupe-peer-dependents false
+
+          # Установка с предпочтением кэша, но с возможностью загрузки из сети
+          pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Run security audit
+        run: pnpm audit --audit-level high
+
+      - name: Run Web ESLint (blocking)
+        run: pnpm --filter @gafus/web-vite lint
+
+      - name: Enforce core ownership of Prisma access
+        run: |
+          node scripts/check-app-prisma-boundary.mjs --self-test
+          node scripts/check-app-prisma-boundary.mjs
+
+      - name: Guard Worker Prisma boundary
+        run: node scripts/check-worker-prisma-boundary.mjs
+
+      - name: Guard source-locked fresh-only SQL and all 163 historical migrations
+        run: |
+          node ci-cd/bootstrap/prisma-fresh/review-gate.mjs
+          node ci-cd/bootstrap/prisma-fresh/apply-new-empty-db.mjs --check
+          node --test ci-cd/bootstrap/prisma-fresh/option-a.contract.test.mjs
+
+      - name: Verify production course caching is automatic and migration-safe
+        run: node --test ci-cd/scripts/course-cache-production-contract.test.mjs
+
+      - name: Bootstrap NEW isolated CI PostgreSQL with SQL and official Prisma baseline
+        env:
+          DATABASE_URL: postgresql://gafus_ci:gafus_ci_disposable@localhost:5432/gafus_fresh
+          GAFUS_FRESH_BOOTSTRAP_CONFIRM: gafus_fresh
+          # Narrow permission for this job's disposable Docker PostgreSQL only.
+          GAFUS_FRESH_CI_POSTGRES_SERVICE: github-actions-disposable-postgres-16
+        run: |
+          bash packages/prisma/scripts/bootstrap-fresh-postgres.sh
+          test "$(psql "$DATABASE_URL" -Atc 'SELECT count(*) FROM "_prisma_migrations"')" -ge 163
+          test "$(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_constraint WHERE contype='c' AND connamespace='public'::regnamespace")" -ge 65
+          test "$(psql "$DATABASE_URL" -Atc 'SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal')" -ge 12
+          # Two reviewed historical raw indexes are deliberately richer than schema.prisma.
+          # apply-new-empty-db.mjs checks their exact SQL diff; never DROP them to force --exit-code=0.
+          pnpm --filter @gafus/prisma exec prisma migrate status
+
+      - name: Guard safe Feed poll rollout before production deploy
+        run: node --test ci-cd/scripts/feed-poll-release-contract.test.mjs
+
+      - name: Verify poll migration against populated isolated PostgreSQL
+        # No staging server exists. Fail CI before any production deployment.
+        # Runner PostgreSQL service is ephemeral; never use application DATABASE_URL.
+        env:
+          POLL_TEST_DATABASE_URL: postgresql://gafus_ci:gafus_ci_disposable@127.0.0.1:5432/gafus_poll_ci_migration
+        run: python3 packages/prisma/scripts/test-feed-polls-ci.py
+
+      - name: Verify Web and Mobile poll composer and voting UX
+        run: |
+          pnpm --filter @gafus/web-vite exec vitest run src/features/moments/MomentPoll.test.tsx src/features/moments/MomentComposer.unifiedPoll.test.tsx
+          pnpm --filter @gafus/mobile exec vitest run --config vitest.config.ts src/features/feed/FeedPollComposer.test.tsx src/features/feed/FeedPollCard.test.tsx
+          pnpm --filter @gafus/core exec vitest run --config vitest.config.ts src/services/feed/publication-client.test.ts
+          pnpm exec vitest run packages/feed-server/src/index.test.ts
+
+      - name: Guard legacy domain adapters against direct Prisma
+        run: node scripts/check-domain-package-prisma-boundary.mjs
+
+      - name: Check workspace dependency cycles
+        run: node scripts/check-workspace-graph.mjs
+
+      # Option A: source-only and deterministic; no cluster, DB credentials,
+      # production migration history, or apply permissions on this CI lane.
+      - name: Verify GAFUS fresh-only Prisma baseline source (blocking)
+        run: |
+          node ci-cd/bootstrap/prisma-fresh/fresh-v1-source-gate.mjs
+          node --check ci-cd/bootstrap/prisma-fresh/install-fresh-v1-owned-local.mjs
+          node --check ci-cd/bootstrap/prisma-fresh/verify-owned-baseline-pg18.mjs
+          node --test ci-cd/bootstrap/prisma-fresh/fresh-v1-installer.contract.test.mjs
+
+      - name: Guard Linux API/Worker runtime workspace dependencies before Docker build
+        run: node --test ci-cd/scripts/runtime-workspace-dependencies.contract.test.mjs
+
+      - name: Verify production schema preflight rejects checksum drift before maintenance
+        run: |
+          node --test ci-cd/scripts/verify-production-migration-ledger.test.mjs
+          bash ci-cd/scripts/production-schema-cutover.test.sh
+
+      - name: Guard Mobile against core server imports
+        run: node scripts/check-mobile-core-boundary.mjs
+      # Source-only: native SDK/runtime compatibility is part of every future
+      # iOS/Android binary release, and MUST NOT silently revert to sdkVersion.
+      - name: Verify new Mobile native runtime, gesture and OTA release contract (blocking)
+        run: |
+          node apps/mobile/scripts/verify-native-release.mjs
+          node --test apps/mobile/scripts/native-release-contract.test.mjs
+          node --test apps/mobile/scripts/android-aab-16k.test.mjs
+          node --test apps/mobile/scripts/android-aab-compressor.test.mjs
+          node --test apps/mobile/scripts/verify-android-aab-app-links.test.mjs
+      - name: Verify iOS Universal Links and Android App Links associations (blocking)
+        run: |
+          node scripts/qa/verify-gafus-app-links.mjs
+          node --test scripts/qa/gafus-app-links-contract.test.mjs
+          node --test scripts/qa/gafus-app-links-live.test.mjs
+      - name: Guard Web against core server imports
+        run: node scripts/check-web-core-boundary.mjs
+      - name: Check Chat2 broker and websocket release wiring
+        run: node scripts/refactor/check-chat2-prod-boundary.mjs
+      # Source-only first-install lane: synthetic values, NO SSH, DB, providers,
+      # image pulls, or production cutover. Does not require QA READY=YES.
+      - name: Check Chat2 first-install staged source without deploy (blocking)
+        env:
+          COMPOSE_PROFILES: chat2
+          CHAT2_LEGACY_RETIRE_ENABLED: disabled
+          CHAT2_API_ENABLED: enabled
+          CHAT2_WORKER_ENABLED: enabled
+          CHAT2_PRIVATE_MEDIA_ENABLED: enabled
+          CHAT2_PUBLIC_WS_URL: wss://gafus.ru/connection/websocket
+          CHAT2_CENTRIFUGO_HTTP_API: http://chat2-centrifugo:8000/api/publish
+          CHAT2_SUBSCRIBE_PROXY_ENABLED: 'true'
+        run: |
+          CHAT2_CENTRIFUGO_TOKEN_SECRET="$(openssl rand -hex 32)"
+          export CHAT2_CENTRIFUGO_TOKEN_SECRET
+          CHAT2_CENTRIFUGO_API_KEY="$(openssl rand -hex 24)"
+          export CHAT2_CENTRIFUGO_API_KEY
+          CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET="$(openssl rand -hex 32)"
+          export CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET
+          CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET="$(openssl rand -hex 32)"
+          export CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET
+          node scripts/refactor/check-chat2-prod-boundary.mjs --staged
+      - name: Guard Cloud media Docker Sharp version
+        run: node scripts/qa/check-media-docker-sharp-version.mjs
+      - name: Release inventory and secret index gate
+        run: node scripts/refactor/check-release-index.mjs
+
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: HEAD~1
+
+  # Build and test all apps - runs in parallel with security
+  # Turborepo remote cache (30-50% быстрее при повторных сборках):
+  # 1. npx turbo login && npx turbo link
+  # 2. GitHub: Secrets → TURBO_TOKEN, Variables → TURBO_TEAM
+  build-apps:
+    runs-on: ubuntu-latest
+    needs: prepare-deps
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+      # Совпадает с образом web: счётчик Метрики в клиентской сборке
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # нужен для --filter='...[origin/main]'
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            node_modules
+            packages/*/dist
+            packages/*/.prisma
+            ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Install pnpm
+        run: |
+          npm install --global pnpm@10.12.4
+          test "$(pnpm --version)" = "10.12.4"
+
+      - name: Restore pnpm store cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.pnpm-cache-key }}
+          restore-keys: |
+            ${{ hashFiles('**/pnpm-lock.yaml') }}-pnpm-store
+
+      - name: Install dependencies (optimized)
+        run: |
+          pnpm config set store-dir ~/.pnpm-store
+          pnpm config set verify-store-integrity true
+          pnpm config set auto-install-peers true
+          pnpm config set dedupe-peer-dependents false
+
+          # Установка с предпочтением кэша, но с возможностью загрузки из сети
+          pnpm install --frozen-lockfile --prefer-offline
+
+      # Direct pnpm turbo commands below bypass root build/test/typecheck aliases.
+      # Source-only boundary validation must run in every build-apps job,
+      # regardless of restored caches or Git branch / changed-app filters.
+      - name: Enforce Core package and browser/server boundaries (blocking)
+        run: pnpm check:core-boundaries
+
+      - name: Build, test, typecheck apps
+        env:
+          # The three public SPA trees and their private maps MUST be compiled
+          # exactly once with the same SHA. Docker only packages these bytes.
+          GAFUS_PRIVATE_MAPS_ENABLED: 'true'
+          GAFUS_PRIVATE_MAPS_DIR: ${{ runner.temp }}/gafus-private-vite-maps
+          GAFUS_RELEASE_SHA: ${{ github.sha }}
+          VITE_GAFUS_BUILD_ID: ${{ github.sha }}
+          VITE_GAFUS_TELEMETRY_ENABLED: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$GAFUS_PRIVATE_MAPS_DIR"
+          chmod 700 "$GAFUS_PRIVATE_MAPS_DIR"
+          # Main and PRs targeting main both prove all seven Docker images.
+          # Develop uses a lighter changed-app lane, without Docker publishing.
+          if { [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event_name }}" = "push" ]; } ||
+             { [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; }; then
+            # CI runners have limited cores/RAM. Running four full Vitest suites
+            # alongside their builds/typechecks starves jsdom timers and causes
+            # false 5s hook/test timeouts. Preserve every check, serialize tasks.
+            pnpm turbo run build test typecheck --concurrency=1 --filter='./apps/web-vite' --filter='./apps/trainer-panel' --filter='./apps/admin-panel' --filter='./apps/api'
+          else
+            pnpm turbo run build test typecheck --filter='./apps/*...[origin/main]'
+          fi
+
+      - name: Verify generated shared-types declarations match runtime exports
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: node scripts/qa/check-types-artifact-exports.mjs
+
+      # Same build-apps runner owns the compiled JS and the private maps.
+      # Restore downstream via tar, not an independent second Vite build.
+      - name: Verify the three sealed private Vite source-map manifests
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'pull_request' && github.base_ref == 'main')
+        env:
+          GAFUS_PRIVATE_MAPS_DIR: ${{ runner.temp }}/gafus-private-vite-maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          for service in gafus-web gafus-admin-panel gafus-trainer-panel; do
+            private_dir="$GAFUS_PRIVATE_MAPS_DIR/$service/$GITHUB_SHA/$GITHUB_SHA"
+            node scripts/observability/upload-private-web-sourcemaps.mjs --directory "$private_dir"
+          done
+
+      - name: Pack and verify SHA-scoped public Vite release artifacts
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'pull_request' && github.base_ref == 'main')
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/qa/verify-gafus-app-links.mjs --dist apps/web-vite/dist
+          mkdir -p "$RUNNER_TEMP/gafus-public-vite-dist"
+          node scripts/qa/vite-release-dist-artifacts.mjs pack \
+            --sha "$GITHUB_SHA" --workspace "$GITHUB_WORKSPACE" \
+            --dir "$RUNNER_TEMP/gafus-public-vite-dist"
+
+      # Explicit protected opt-in; otherwise maps remain private only on runner.
+      - name: Upload immutable private Web release maps from build-apps (approved only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.GAFUS_WEB_SYMBOLS_PRODUCTION_APPROVED == 'true'
+        env:
+          CI: 'true'
+          GAFUS_TELEMETRY_ENVIRONMENT: production
+          GAFUS_WEB_SYMBOLS_PRODUCTION_APPROVED: 'true'
+          GAFUS_WEB_SYMBOLS_VERIFIED_BUILD: 'true'
+          GAFUS_WEB_SYMBOLS_EXECUTE: 'true'
+          GAFUS_RELEASE_SHA: ${{ github.sha }}
+          VITE_GAFUS_BUILD_ID: ${{ github.sha }}
+          GAFUS_PRIVATE_MAPS_DIR: ${{ runner.temp }}/gafus-private-vite-maps
+          GAFUS_WEB_SYMBOLS_BUCKET: ${{ secrets.GAFUS_WEB_SYMBOLS_BUCKET }}
+          GAFUS_WEB_SYMBOLS_S3_ENDPOINT: https://s3.cloud.ru
+          GAFUS_WEB_SYMBOLS_ACCESS_KEY: ${{ secrets.GAFUS_WEB_SYMBOLS_ACCESS_KEY }}
+          GAFUS_WEB_SYMBOLS_SECRET_KEY: ${{ secrets.GAFUS_WEB_SYMBOLS_SECRET_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for service in gafus-web gafus-admin-panel gafus-trainer-panel; do
+            private_dir="$GAFUS_PRIVATE_MAPS_DIR/$service/$GAFUS_RELEASE_SHA/$VITE_GAFUS_BUILD_ID"
+            node scripts/observability/upload-private-web-sourcemaps.mjs --directory "$private_dir"
+          done
+
+      - name: Upload public Vite release artifacts for exactly this CI attempt
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'pull_request' && github.base_ref == 'main')
+        uses: actions/upload-artifact@v4
+        with:
+          name: vite-public-dists-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gafus-public-vite-dist/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Mobile typecheck and unit tests (blocking)
+        run: |
+          pnpm --filter @gafus/mobile typecheck
+          pnpm --filter @gafus/mobile test
+
+      - name: Mobile Android/iOS Metro export (blocking, no publishing)
+        env:
+          NODE_ENV: production
+          EXPO_OFFLINE: "1"
+        run: |
+          pnpm --filter @gafus/mobile exec expo export --platform android --output-dir "$RUNNER_TEMP/gafus-metro-android"
+          pnpm --filter @gafus/mobile exec expo export --platform ios --output-dir "$RUNNER_TEMP/gafus-metro-ios"
+
+      - name: Cache app build
+        uses: actions/cache@v5
+        with:
+          path: |
+            apps/web-vite/dist
+            apps/trainer-panel/src/trainer-vite/live/dist
+            apps/admin-panel/dist
+            apps/api/dist
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-all-apps-build
+          restore-keys: |
+            ${{ needs.prepare-deps.outputs.cache-key }}-all-apps-build
+
+  # Build worker packages for Docker - REMOVED (using multi-stage build)
+  # Mobile: typecheck и unit-тесты проходят в build-apps; native Expo-сборки выполняются отдельно.
+
+  # QA gate: application deploy never modifies Cloud.ru Jobs or S3.
+  cutover-preflight:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [security, build-apps]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          # Preflight runs only Node scripts; pnpm is not installed in this job.
+          # setup-node v5 otherwise attempts automatic pnpm caching and fails.
+          package-manager-cache: false
+      - name: Fail closed unless Chat2 and functional QA are release-ready
+        env:
+          GAFUS_RELEASE_SHA: ${{ github.sha }}
+          GAFUS_OWNER_RELEASE_APPROVED_SHA: ${{ vars.GAFUS_OWNER_RELEASE_APPROVED_SHA }}
+          CHAT2_LEGACY_RETIRE_ENABLED: ${{ vars.CHAT2_LEGACY_RETIRE_ENABLED }}
+          CHAT2_API_ENABLED: ${{ vars.CHAT2_API_ENABLED }}
+          CHAT2_WORKER_ENABLED: ${{ vars.CHAT2_WORKER_ENABLED }}
+          CHAT2_PRIVATE_MEDIA_ENABLED: ${{ vars.CHAT2_PRIVATE_MEDIA_ENABLED }}
+          CHAT2_PUBLIC_WS_URL: ${{ vars.CHAT2_PUBLIC_WS_URL }}
+          CHAT2_CENTRIFUGO_HTTP_API: http://chat2-centrifugo:8000/api/publish
+          COMPOSE_PROFILES: chat2
+          CHAT2_CENTRIFUGO_TOKEN_SECRET: ${{ secrets.CHAT2_CENTRIFUGO_TOKEN_SECRET }}
+          CHAT2_CENTRIFUGO_API_KEY: ${{ secrets.CHAT2_CENTRIFUGO_API_KEY }}
+          CHAT2_SUBSCRIBE_PROXY_ENABLED: 'true'
+          CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET: ${{ secrets.CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET }}
+          CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET: ${{ secrets.CHAT2_CENTRIFUGO_SUBSCRIPTION_SECRET }}
+          # Chat2 Mobile policy must never be blank after a production deploy.
+          CHAT2_MOBILE_IOS_MIN_VERSION: ${{ vars.CHAT2_MOBILE_IOS_MIN_VERSION || '1.7.3' }}
+          CHAT2_MOBILE_ANDROID_MIN_VERSION: ${{ vars.CHAT2_MOBILE_ANDROID_MIN_VERSION || '1.7.3' }}
+        run: node scripts/refactor/check-chat2-prod-boundary.mjs --candidate
+
+  # Prepare Docker build context
+  prepare-docker:
+    needs: [security, build-apps]
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'pull_request' && github.base_ref == 'main')
+    runs-on: ubuntu-latest
+    outputs:
+      docker-cache-key: ${{ steps.docker-cache-key.outputs.key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Generate Docker cache key
+        id: docker-cache-key
+        run: echo "key=${{ hashFiles('**/pnpm-lock.yaml') }}-${{ hashFiles('**/Dockerfile*') }}-docker" >> "$GITHUB_OUTPUT"
+
+      # The previous Next.js base cache stage no longer exists.
+      # Static Vite images are compiled independently in build-images.
+
+  # Build all Docker images in parallel
+  build-images:
+    # A failed Uptrace privacy/transport contract must block image publishing,
+    # not merely the later production SSH cutover.
+    # Release builds start only after blocking CI checks; PRs never publish.
+    # `always()` is needed because production-only preflights are skipped for PRs.
+    needs: [prepare-docker, security, build-apps, observability-contracts, cloudru-media-contracts, cutover-preflight]
+    if: >-
+      ${{ always() &&
+          ((github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+           (github.event_name == 'pull_request' && github.base_ref == 'main')) &&
+          needs.prepare-docker.result == 'success' &&
+          needs.security.result == 'success' &&
+          needs.build-apps.result == 'success' &&
+          needs.observability-contracts.result == 'success' &&
+          needs.cloudru-media-contracts.result == 'success' &&
+          (github.event_name == 'pull_request' ||
+           needs.cutover-preflight.result == 'success') }}
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - { name: "web", file: "Dockerfile-web-optimized", tag: "gafus-web" }
+          - {
+              name: "trainer-panel",
+              file: "Dockerfile-trainer-panel-optimized",
+              tag: "gafus-trainer-panel",
+            }
+          - {
+              name: "admin-panel",
+              file: "Dockerfile-admin-panel-optimized",
+              tag: "gafus-admin-panel",
+            }
+          - { name: "api", file: "Dockerfile-api-optimized", tag: "gafus-api" }
+          - { name: "worker", file: "Dockerfile-worker-optimized", tag: "gafus-worker" }
+          - { name: "bull-board", file: "Dockerfile-bull-board-optimized", tag: "gafus-bull-board" }
+          - { name: "prisma", file: "Dockerfile-prisma-optimized", tag: "gafus-prisma" }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node to verify immutable Vite release artifacts
+        if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Download same-SHA public Vite release artifact
+        if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
+        uses: actions/download-artifact@v4
+        with:
+          name: vite-public-dists-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gafus-public-vite-dist
+      - name: Restore and verify exact public Vite dist from build-apps
+        if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/qa/vite-release-dist-artifacts.mjs restore \
+            --sha "$GITHUB_SHA" --workspace "$GITHUB_WORKSPACE" \
+            --dir "$RUNNER_TEMP/gafus-public-vite-dist" \
+            --component '${{ matrix.image.name }}'
+          if [ '${{ matrix.image.name }}' = web ]; then
+            node scripts/qa/verify-gafus-app-links.mjs --dist apps/web-vite/dist
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build and push ${{ matrix.image.name }} image
+        id: release-image-build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ci-cd/docker/${{ matrix.image.file }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          # :latest stays on the last approved registry release. A candidate
+          # cannot replace a mutable public pointer before its smoke passes.
+          # Production uses the checked digest and creates its local :latest alias.
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}:sha-${{ github.sha }}
+          # web: только GHA cache (без registry) — актуальный код, локальный кэш слоёв
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Verify runtime exports and immutable Linux AMD64 image (blocking)
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.release-image-build.outputs.digest }}
+          IMAGE_COMPONENT: ${{ matrix.image.name }}
+          IMAGE_REPOSITORY: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}
+        run: |
+          set -euo pipefail
+          ref="$IMAGE_REPOSITORY:sha-$GITHUB_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo IMAGE_DIGEST_NOT_PROVEN; exit 1; }
+            ref="$IMAGE_REPOSITORY@$IMAGE_DIGEST"
+            docker pull "$ref"
+          fi
+          arch="$(docker image inspect --format '{{.Architecture}}' "$ref")"
+          test "$arch" = amd64 || { echo IMAGE_ARCHITECTURE_INVALID; exit 1; }
+          case "$IMAGE_COMPONENT" in
+            api|worker)
+              docker run --rm --network none --entrypoint node "$ref" /app/check-runtime-package-exports.mjs "$IMAGE_COMPONENT" ;;
+            web|trainer-panel|admin-panel)
+              # A syntactically valid Nginx config can still serve HTTP 403
+              # when the tar runner wrote index.html with umask 077. Exercise
+              # the real worker process on an offline Docker network.
+              name="gafus-rc-smoke-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$IMAGE_COMPONENT"
+              port=3000
+              case "$IMAGE_COMPONENT" in
+                trainer-panel) port=3001 ;;
+                admin-panel) port=3006 ;;
+              esac
+              docker run --rm --network none --entrypoint nginx "$ref" -t
+              docker run -d --network none --name "$name" --entrypoint nginx "$ref" -g 'daemon off;'
+              trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+              for attempt in 1 2 3 4 5 6; do
+                echo "HTTP_SMOKE_ATTEMPT:$IMAGE_COMPONENT:$attempt"
+                if docker exec "$name" wget -qO- "http://127.0.0.1:$port/healthz" >/dev/null; then break; fi
+                sleep 1
+              done
+              docker exec "$name" wget -qO- "http://127.0.0.1:$port/healthz" >/dev/null
+              docker exec "$name" wget -qO- "http://127.0.0.1:$port/index.html" | grep -qi '<html'
+              if [ "$IMAGE_COMPONENT" = web ]; then
+                docker exec "$name" wget -qO- "http://127.0.0.1:$port/.well-known/assetlinks.json" >/dev/null
+                docker exec "$name" wget -qO- "http://127.0.0.1:$port/.well-known/apple-app-site-association" >/dev/null
+              fi
+              docker rm -f "$name" >/dev/null 2>&1
+              trap - EXIT ;;
+            bull-board|prisma)
+              docker run --rm --network none --entrypoint node "$ref" --version ;;
+            *) echo IMAGE_COMPONENT_UNKNOWN >&2; exit 1 ;;
+          esac
+          echo "IMAGE_RUNTIME_SMOKE_PASSED:$IMAGE_COMPONENT"
+
+      - name: Create SHA/run/attempt image receipt after smoke
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.release-image-build.outputs.digest }}
+          IMAGE_COMPONENT: ${{ matrix.image.name }}
+          IMAGE_REPOSITORY: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.image.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/gafus-image-entry"
+          node ci-cd/scripts/release-image-manifest.mjs entry \
+            --component "$IMAGE_COMPONENT" --repository "$IMAGE_REPOSITORY" \
+            --digest "$IMAGE_DIGEST" --platform linux/amd64 --smoke passed \
+            --sourceSha "$GITHUB_SHA" --runId "$GITHUB_RUN_ID" \
+            --runAttempt "$GITHUB_RUN_ATTEMPT" \
+            --out "$RUNNER_TEMP/gafus-image-entry/$IMAGE_COMPONENT.json"
+      - name: Upload immutable image receipt for current attempt
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-receipt-${{ matrix.image.name }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gafus-image-entry/${{ matrix.image.name }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  release-images-manifest:
+    needs: [build-images]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      manifest_b64: ${{ steps.manifest.outputs.payload }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: image-receipt-*-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gafus-image-receipts
+          merge-multiple: true
+      - name: Refuse partial, duplicate, cross-SHA/run or failed smoke
+        id: manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/release-images.json"
+          node ci-cd/scripts/release-image-manifest.mjs aggregate \
+            --dir "$RUNNER_TEMP/gafus-image-receipts" \
+            --sourceSha "$GITHUB_SHA" --runId "$GITHUB_RUN_ID" \
+            --runAttempt "$GITHUB_RUN_ATTEMPT" --out "$output"
+          node ci-cd/scripts/release-image-manifest.mjs verify \
+            --manifest "$output" --checksum "$output.sha256" \
+            --sourceSha "$GITHUB_SHA" --runId "$GITHUB_RUN_ID" \
+            --runAttempt "$GITHUB_RUN_ATTEMPT"
+          echo "payload=$(base64 -w 0 "$output")" >> "$GITHUB_OUTPUT"
+      - name: Store verified release manifest for explicit redeploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-images-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/release-images.json
+            ${{ runner.temp }}/release-images.json.sha256
+          if-no-files-found: error
+          retention-days: 90
+
+  cloudru-media-contracts:
+    # Feed/Chat2 video and client-photo contracts import compiled workspace package entry points.
+    # PRs into main must run the same media gates; skipping these is not a
+    # permitted shortcut before local image smoke (no publication on PR).
+    needs: prepare-deps
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'pull_request' && github.base_ref == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: pnpm
+      - name: Restore compiled workspace dependencies
+        id: media-workspace-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            node_modules
+            packages/*/dist
+            packages/*/.prisma
+            ~/.pnpm-store
+          key: ${{ needs.prepare-deps.outputs.cache-key }}-deps
+      - run: pnpm install --frozen-lockfile
+      - name: Build media runtime and its workspace dependencies after cache miss
+        if: steps.media-workspace-cache.outputs.cache-hit != 'true'
+        run: |
+          # A cache entry is an optimization, never a release prerequisite.
+          # Compile the same dependency graph on a brand-new GitHub runner.
+          pnpm exec turbo run build --concurrency=1 --filter=@gafus/feed-cloud-runtime...
+      - name: Verify media workspace dependencies are built (blocking)
+        run: |
+          for package in feed-cloud feed-storage cdn-upload logger; do
+            test -f "packages/$package/dist/index.js" || { echo "MEDIA_WORKSPACE_PACKAGE_NOT_BUILT:$package" >&2; exit 1; }
+          done
+      - name: Production deploy workflow contract
+        run: node --test ci-cd/scripts/deploy-only-contract.test.mjs ci-cd/scripts/workflow-consolidation-contract.test.mjs ci-cd/scripts/release-graph.contract.test.mjs ci-cd/scripts/workspace-dependency-graph.contract.test.mjs ci-cd/docker/prometheus/health-monitoring.contract.test.mjs ci-cd/scripts/backup-to-yandex.test.mjs ci-cd/scripts/emit-verified-backup-metric.test.mjs infra/cloudru/production-job-image-config.test.mjs
+      - name: Enforce client WebP/720p and only four active Cloud video Jobs (blocking)
+        run: |
+          node ci-cd/scripts/media-pipeline-guard.mjs
+          node --test ci-cd/scripts/media-pipeline-guard.test.mjs
+          node --test ci-cd/scripts/verify-cloudru-manifests.test.mjs
+          node --test scripts/qa/cloud-photo-jobs-retired.test.mjs
+      - name: Offline Cloud.ru media acceptance and production release safety tests
+        run: pnpm test:cloudru-media
+      # The media suite executes REAL FFmpeg/libx264 transcoding. Hosted Linux
+      # runner images do not guarantee ffmpeg in PATH; provision it explicitly
+      # instead of skipping the video test or relying on image preinstalls.
+      - name: Provision FFmpeg/libx264 for real media tests (blocking)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+          command -v ffmpeg
+          command -v ffprobe
+          # Do not grep -q/head under pipefail: early pipe close can SIGPIPE ffmpeg.
+          ffmpeg -hide_banner -encoders 2>/dev/null | grep 'libx264'
+          ffmpeg -hide_banner -version
+      # Real Vitest suite, not a pnpm --filter no-op: any media-unit failure
+      # blocks cloudru-media-contracts and therefore deploy-production.
+      - name: Cloud media runtime unit contracts (blocking)
+        run: pnpm --filter @gafus/feed-cloud-runtime test
+      - name: Reject Yandex CDN release routes and verify fail-closed Beget gating
+        run: node --test infra/cloudru/beget-config.test.mjs infra/cloudru/beget-release-readiness.test.mjs infra/cloudru/gallery-redirect-release-gate.test.mjs
+      - name: Cloud.ru registry publication retry acceptance tests
+        run: node --test ci-cd/scripts/cloudru-publish-retry.test.mjs
+      - name: Cloud.ru scheduled processing contract
+        run: pnpm --filter @gafus/worker exec vitest run src/cloudru-media-dispatcher.test.ts
+
+  # Detect a *real source change* to Beget provider configuration. Ordinary
+  # UI/API releases do not depend on the Beget management API being online.
+  beget-provider-change-detect:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      provider_required: ${{ steps.detect.outputs.provider_required }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Detect CDN provider configuration changes (fail closed)
+        id: detect
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: node ci-cd/scripts/beget-provider-change-detect.mjs "$BEFORE_SHA" "$GITHUB_SHA"
+
+  # Ordinary app releases require only local release approvals and signature
+  # configuration; live Beget provider AND CDN checks are conditional on an
+  # actual provider configuration change. Independent daily/manual audit probes
+  # both APIs and delivery without blocking unrelated application changes.
+  beget-readonly-preflight:
+    needs: [security, build-apps, cloudru-media-contracts, beget-provider-change-detect]
+    # Release safety does NOT depend on Beget's control-plane for ordinary code changes.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 12
+    env:
+      GAFUS_MEDIA_CDN_TARGET: ${{ vars.GAFUS_MEDIA_CDN_TARGET }}
+      BEGET_CDN_RELEASE_CONFIRM: ${{ vars.BEGET_CDN_RELEASE_CONFIRM }}
+      BEGET_CDN_PURGE_API_VERIFIED: ${{ vars.BEGET_CDN_PURGE_API_VERIFIED }}
+      BEGET_CDN_CACHE_KEY_VERIFIED: ${{ vars.BEGET_CDN_CACHE_KEY_VERIFIED }}
+      BEGET_CDN_PURGE_PROPAGATION_VERIFIED: ${{ vars.BEGET_CDN_PURGE_PROPAGATION_VERIFIED }}
+      BEGET_CDN_LIVE_SMOKE_VERIFIED: ${{ vars.BEGET_CDN_LIVE_SMOKE_VERIFIED }}
+      GALLERY_BEGET_CDN_SERVICE_ID: ${{ vars.GALLERY_BEGET_CDN_SERVICE_ID }}
+      GALLERY_CDN_REDIRECT_RELEASE_APPROVED: ${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED || 'false' }}
+      GALLERY_CDN_ORIGIN_ROUTE_ENABLED: ${{ vars.GALLERY_CDN_ORIGIN_ROUTE_ENABLED || 'false' }}
+      GALLERY_CDN_REDIRECT_ENABLED: ${{ vars.GALLERY_CDN_VIEWER_CUTOVER_APPROVED == 'true' && vars.GALLERY_CDN_REDIRECT_ENABLED || 'false' }}
+      GALLERY_CDN_EDGE_TOKEN_VERIFIED: ${{ vars.GALLERY_CDN_EDGE_TOKEN_VERIFIED || 'false' }}
+      GALLERY_CDN_CACHEABLE_FINAL_ENABLED: ${{ vars.GALLERY_CDN_CACHEABLE_FINAL_ENABLED || 'false' }}
+      GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED: ${{ vars.GALLERY_CDN_REDIRECT_S3_SMOKE_VERIFIED || 'false' }}
+      GALLERY_CDN_BROWSER_CACHE_VERIFIED: ${{ vars.GALLERY_CDN_BROWSER_CACHE_VERIFIED || 'false' }}
+      GALLERY_CDN_METADATA_MIGRATED: ${{ vars.GALLERY_CDN_METADATA_MIGRATED || 'false' }}
+      GALLERY_CDN_BASE_URL: https://fupiquafifeswu.begetcdn.cloud
       GALLERY_CDN_REDIRECT_REQUIRED: "true"
       GALLERY_CDN_REDIRECT_SIGNING_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_SIGNING_SECRET }}
       GALLERY_CDN_REDIRECT_ORIGIN_SECRET: ${{ secrets.GALLERY_CDN_REDIRECT_ORIGIN_SECRET }}
