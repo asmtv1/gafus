@@ -9,7 +9,7 @@ import { Loading } from "@/shared/components/ui";
 import { COLORS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { trackEvent } from "@/shared/lib/analytics";
 import { gafusApi } from "@/shared/lib/api/gafus";
 import type { GafusMiniGuideDto } from "@gafus/types";

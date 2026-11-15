@@ -17,7 +17,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
 vi.mock("@/shared/lib/api/pet-vet-visits", () => ({
   petVetVisitsApi: { detailResponse: m.read, editResponse: m.put },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 import { editVetVisitAndReadback } from "./vetVisitEdit";
 import { verifiedVetActor } from "./vetVisitsRead";
 const original = () => ({

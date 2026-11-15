@@ -39,11 +39,11 @@ import {
   ownProfileQueryOptions,
 } from "@/features/profile/ownProfileRead";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { reportClientError, reportClientErrorAndWait } from "@/shared/lib/tracer";
+import { reportClientError, reportClientErrorAndWait } from "@/shared/lib/error-reporting";
 import {
-  canSendMobileTracerSelfTest,
-  sendMobileTracerSelfTest,
-} from "@/shared/lib/tracer/mobileTracerSelfTest";
+  canSendMobileTelemetrySelfTest,
+  sendMobileTelemetrySelfTest,
+} from "@/shared/lib/error-reporting/mobileTelemetrySelfTest";
 import {
   getVerifiedPushActor,
   isSameVerifiedPushActor,
@@ -629,8 +629,8 @@ export default function ProfileScreen() {
   const trainerCourses = !trainerCoursesLoading && !trainerCoursesFailed &&
     Array.isArray(trainerProfileData?.data?.courses)
     ? trainerProfileData.data.courses : [];
-  const canShowTracerSelfTest = canSendMobileTracerSelfTest(profileUser);
-  const [tracerSelfTestPending, setTracerSelfTestPending] = useState(false);
+  const canShowTelemetrySelfTest = canSendMobileTelemetrySelfTest(profileUser);
+  const [telemetrySelfTestPending, setTelemetrySelfTestPending] = useState(false);
 
   const roleColor = getRoleColor(profileUser?.role);
 
@@ -669,19 +669,19 @@ export default function ProfileScreen() {
     startOnboardingTour();
   };
 
-  const handleTracerSelfTest = async () => {
-    if (tracerSelfTestPending) return;
-    trackProfileClick("mobile-tracer-self-test");
-    setTracerSelfTestPending(true);
-    /* eslint-disable @gafus/require-client-catch-tracer -- AppTracer self-test failures cannot be reported through AppTracer without recursion */
+  const handleTelemetrySelfTest = async () => {
+    if (telemetrySelfTestPending) return;
+    trackProfileClick("mobile-telemetry-self-test");
+    setTelemetrySelfTestPending(true);
+    /* eslint-disable @gafus/require-client-catch-tracer -- telemetry self-test failures should not recurse */
     try {
-      await sendMobileTracerSelfTest(reportClientErrorAndWait);
-      Alert.alert("AppTracer", "Тестовая JS-ошибка принята AppTracer.");
+      await sendMobileTelemetrySelfTest(reportClientErrorAndWait);
+      Alert.alert("Диагностика", "Тестовая JS-ошибка сохранена в локальную очередь отправки.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Неизвестная ошибка отправки";
-      Alert.alert("AppTracer", `Не удалось отправить тестовую ошибку: ${message}`);
+      Alert.alert("Диагностика", `Не удалось сохранить тестовую ошибку: ${message}`);
     } finally {
-      setTracerSelfTestPending(false);
+      setTelemetrySelfTestPending(false);
     }
     /* eslint-enable @gafus/require-client-catch-tracer */
   };
@@ -1039,17 +1039,17 @@ export default function ProfileScreen() {
               <MaterialCommunityIcons name="chevron-right" size={22} color={COLORS.primary} />
             </Pressable>
 
-            {canShowTracerSelfTest ? (
+            {canShowTelemetrySelfTest ? (
               <Pressable
                 style={styles.remindersCard}
-                onPress={handleTracerSelfTest}
-                disabled={tracerSelfTestPending}
+                onPress={handleTelemetrySelfTest}
+                disabled={telemetrySelfTestPending}
               >
                 <MaterialCommunityIcons name="bug-check-outline" size={22} color={COLORS.primary} />
                 <View style={styles.remindersCardContent}>
-                  <Text style={styles.remindersCardTitle}>Проверить AppTracer</Text>
+                  <Text style={styles.remindersCardTitle}>Проверить отправку ошибок</Text>
                   <Text style={styles.remindersCardSubtitle}>
-                    {tracerSelfTestPending ? "Отправка…" : "Отправить тестовую JS-ошибку"}
+                    {telemetrySelfTestPending ? "Отправка…" : "Отправить тестовую JS-ошибку"}
                   </Text>
                 </View>
                 <MaterialCommunityIcons name="send-outline" size={20} color={COLORS.primary} />

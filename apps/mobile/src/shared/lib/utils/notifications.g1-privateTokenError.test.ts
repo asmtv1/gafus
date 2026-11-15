@@ -35,7 +35,7 @@ vi.mock("@/shared/stores/authStore", () => ({
 vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
   newOnlyV2NativeQueues: { getVerifiedBinding: () => null },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: m.trace }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: m.trace }));
 import { registerForPushNotifications, savePushToken } from "./notifications";
 let errorSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {

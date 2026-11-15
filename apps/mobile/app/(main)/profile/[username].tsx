@@ -16,7 +16,7 @@ import { Loading } from "@/shared/components/ui";
 import { userApi, type PublicProfileCourse } from "@/shared/lib/api/user";
 import { chat2 } from "@/features/chat2/api";
 import { coursesApi } from "@/shared/lib/api/courses";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";

@@ -261,8 +261,6 @@ services:
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
       # Включаем транспорты для гарантированной записи логов в stdout
       - PINO_USE_WORKER_TRANSPORTS=true
-      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
-      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
       # SMTP / Yandex 360 (фоновые задачи с @gafus/mailer / почтой)
       - MAIL_PROVIDER=${MAIL_PROVIDER:-resend}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
@@ -316,8 +314,6 @@ services:
       - NODE_ENV=production
       - PORT=3002
       - REDIS_URL=redis://redis:6379
-      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
-      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
       - GAFUS_TELEMETRY_ENVIRONMENT=${GAFUS_TELEMETRY_ENVIRONMENT:-}
       - GAFUS_TELEMETRY_PRODUCTION_APPROVED=${GAFUS_TELEMETRY_PRODUCTION_APPROVED:-false}
       - GAFUS_BULL_BOARD_TELEMETRY_ENABLED=${GAFUS_BULL_BOARD_TELEMETRY_ENABLED:-false}
@@ -356,6 +352,7 @@ services:
       - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-}
       - GAFUS_UPTRACE_LOGS_ENABLED=${GAFUS_UPTRACE_LOGS_ENABLED:-}
       - GAFUS_TELEMETRY_INGEST_ENABLED=${GAFUS_TELEMETRY_INGEST_ENABLED:-}
+      - GAFUS_OBSERVE_NATIVE_INGEST_ENABLED=${GAFUS_OBSERVE_NATIVE_INGEST_ENABLED:-false}
       - GAFUS_TELEMETRY_WEB_INGEST_ENABLED=${GAFUS_TELEMETRY_WEB_INGEST_ENABLED:-}
       - GAFUS_WEB_TELEMETRY_RELEASES=${GAFUS_WEB_TELEMETRY_RELEASES:-}
       - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
@@ -384,10 +381,11 @@ services:
       - VOXIMPLANT_CREDENTIAL_SECRET=${VOXIMPLANT_CREDENTIAL_SECRET:?VOXIMPLANT_CREDENTIAL_SECRET is required}
       - VOXIMPLANT_ADMISSION_SECRET=${VOXIMPLANT_ADMISSION_SECRET:?VOXIMPLANT_ADMISSION_SECRET is required}
       # Signed OTA: immutable assets via Cloud.ru S3, without CDN.
-      # Callback, manifest and telemetry are disabled unless explicitly configured.
+      # Delivery endpoint is enabled, but only verified and explicitly published
+      # signed native-runtime-matched updates can be delivered.
       - MOBILE_OTA_ASSET_ORIGIN=${MOBILE_OTA_ASSET_ORIGIN:-https://global.s3.cloud.ru/gafus-ota-updates}
       - MOBILE_OTA_CI_CALLBACK_TOKEN=${MOBILE_OTA_CI_CALLBACK_TOKEN:-}
-      - MOBILE_OTA_DELIVERY_ENV=${MOBILE_OTA_DELIVERY_ENV:-}
+      - MOBILE_OTA_DELIVERY_ENV=${MOBILE_OTA_DELIVERY_ENV:-production}
       - MOBILE_OTA_INSTALLATION_HASH_KEY=${MOBILE_OTA_INSTALLATION_HASH_KEY:-}
       - CLOUDRU_USER_MEDIA_ENABLED=${CLOUDRU_USER_MEDIA_ENABLED:-false}
       - CLOUDRU_S3_ENDPOINT=${CLOUDRU_S3_ENDPOINT:-https://s3.cloud.ru}
@@ -425,8 +423,6 @@ services:
       - WEB_APP_URL=${WEB_APP_URL}
       # HLS Video Protection
       - VIDEO_ACCESS_SECRET=${VIDEO_ACCESS_SECRET}
-      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
-      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
       # Yandex Cloud Object Storage (для загрузки манифестов и сегментов)
       - YC_ACCESS_KEY_ID=${YC_ACCESS_KEY_ID}
       - YC_SECRET_ACCESS_KEY=${YC_SECRET_ACCESS_KEY}
@@ -646,7 +642,7 @@ services:
       - ./blackbox:/etc/blackbox_exporter
     restart: unless-stopped
 
-  # Grafana Alloy — сбор метрик и remote_write в Yandex Monitoring
+  # Grafana Alloy — Uptrace-only metrics collector
   grafana-alloy:
     image: grafana/alloy:v1.8.2
     container_name: gafus-alloy
@@ -657,7 +653,6 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      - YC_MONITORING_API_KEY=${YC_MONITORING_API_KEY}
       - API_METRICS_KEY=${API_METRICS_KEY:-}
       - GAFUS_UPTRACE_INGEST_DSN=${GAFUS_UPTRACE_INGEST_DSN:-}
     restart: unless-stopped
@@ -676,23 +671,6 @@ services:
       - postgres-exporter
       - blackbox-exporter
 
-  # Синхронизирует метрики из Prometheus workspace в нативный Yandex Monitoring.
-  # Это нужно для ChartWidget в мобильном приложении Yandex Cloud
-  # (MultiSourceChartWidget с PrometheusTarget не поддерживается мобильным клиентом).
-  yandex-metrics-sync:
-    image: python:3.12-alpine
-    container_name: gafus-yandex-metrics-sync
-    command: >
-      sh -c "while true; do python /scripts/sync-metrics-to-yandex-native.py; sleep 60; done"
-    volumes:
-      - ../../scripts/sync-metrics-to-yandex-native.py:/scripts/sync-metrics-to-yandex-native.py:ro
-    environment:
-      - YC_MONITORING_API_KEY=${YC_MONITORING_API_KEY}
-      - YC_FOLDER_ID=b1g0vbm2pvav4oqc4ds9
-      - YC_PROMETHEUS_WORKSPACE_ID=monj8dpjri8u0bbqvq71
-    restart: unless-stopped
-    depends_on:
-      - grafana-alloy
 
 volumes:
   gafus_alloy_data:

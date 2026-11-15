@@ -31,7 +31,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
     getVerifiedBinding: () => ({ principalId: m.owner, authEpoch: m.epoch }),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/lib/api", () => ({
   parsePetKind: (v: string) => (v === "CAT" ? "CAT" : "DOG"),
   petsApi: { getById: m.read, update: m.update },

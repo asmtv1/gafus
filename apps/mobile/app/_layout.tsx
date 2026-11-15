@@ -14,14 +14,10 @@ import { AuthProvider, QueryProvider, ThemeProvider } from "@/shared/providers";
 import { AnalyticsNavigationListener } from "@/shared/components/AnalyticsNavigationListener";
 import { getOrCreateMobileAnalyticsId } from "@/shared/lib/analytics-id";
 import {
-  initializeMobileJsTracer,
   installGlobalJsErrorHandler,
   reportClientError,
-  setTracerNetworkContext,
-  setTracerUser,
-} from "@/shared/lib/tracer";
+} from "@/shared/lib/error-reporting";
 import { ErrorBoundary, OfflineIndicator, RequiredAppUpdateGate } from "@/shared/components";
-import { useNetworkStatus } from "@/shared/hooks/useNetworkStatus";
 import { RequiredOtaUpdateGate } from "@/shared/components/RequiredOtaUpdateGate";
 import { useRoleAwareScreenCapture } from "@/shared/hooks/useRoleAwareScreenCapture";
 import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
@@ -33,9 +29,11 @@ import { warmUpYandexMobileAds } from "@/features/rewarded-ads";
 import { WalkWidgetSessionSync } from "@/features/walk/WalkWidgetSessionSync";
 
 import { startMobileTelemetryUploadWorker } from "@/shared/lib/telemetry/mobileTelemetryClient";
+import { startNativeCrashCapture } from "@/shared/lib/telemetry/nativeCrashCapture";
 
-// Initialize before React mounts so startup and provider errors are captured.
-initializeMobileJsTracer();
+// Expo Observe native lifecycle recorder is active before JS; configure its
+// GAFUS-only dispatch path before installing our separate JS error handler.
+startNativeCrashCapture();
 installGlobalJsErrorHandler();
 
 function SyncProgressOnReconnect() {
@@ -62,26 +60,6 @@ function AnalyticsBootstrap() {
       });
     })();
   }, [authLoading]);
-
-  return null;
-}
-
-function TracerRuntimeContext() {
-  const userId = useAuthStore((state) => state.user?.id);
-  const { connectionType, isConnected, isInternetReachable, isOffline } = useNetworkStatus();
-
-  useEffect(() => {
-    setTracerUser(userId);
-  }, [userId]);
-
-  useEffect(() => {
-    setTracerNetworkContext({
-      connectionType,
-      isConnected,
-      isInternetReachable,
-      isOffline,
-    });
-  }, [connectionType, isConnected, isInternetReachable, isOffline]);
 
   return null;
 }
@@ -187,7 +165,6 @@ export default function RootLayout() {
                         <AnalyticsNavigationListener />
                         <ChatPushNavigation />
                         <AnalyticsBootstrap />
-                        <TracerRuntimeContext />
                         <OfflineIndicator />
                         <SyncProgressOnReconnect />
                         <SyncPreventionOnReconnect />

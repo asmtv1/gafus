@@ -9,6 +9,34 @@ const event=()=>({schemaVersion:1,eventId:'b6b9dc0d-7e53-4da4-8f20-910fd3520be6'
 });
 const row=()=>({eventId:event().eventId,environment:'preview',service:'gafus-mobile-android',payload:event(),attempts:0});
 describe('SDK57 sanitized OTLP logs exporter',()=>{
+ it('delivers sanitized iOS/Android native crashes to Uptrace OTLP as fatal logs',async()=>{
+  for (const platform of ['ios','android'] as const) {
+    const native={...event(),platform,kind:'native_crash',severity:'FATAL',
+      appVersion:'1.7.5',build:'175',runtime:'1.7.5',channel:'production',
+      errorCode:'NATIVE_CRASH',exceptionType:platform==='ios'?'SIGSEGV':'RuntimeException',
+      stack:platform==='ios'? 'applicationDidBecomeActive (Gafus + 19160)'
+        :'at ru.gafus.MainActivity.onCreate(MainActivity.kt:27)',
+      traceparent:undefined,
+    };
+    const r={...row(),environment:'production',service:`gafus-mobile-${platform}`,payload:native};
+    const payload=JSON.stringify(buildMobileOtlpLog(r));
+    expect(payload).toContain('native_crash');
+    expect(payload).toContain('NATIVE_CRASH');
+    expect(payload).toContain('FATAL');
+    expect(payload).toContain(`gafus-mobile-${platform}`);
+    expect(payload).toContain(platform==='ios'?'Gafus!applicationDidBecomeActive+0x4ad8':
+      'ru.gafus.MainActivity.onCreate');
+    expect(payload).not.toContain('MainActivity.kt:27');
+    const mock=vi.fn(async()=>new Response('{}',{status:200,headers:{'content-type':'application/json'}}));
+    expect(await exportMobileTelemetryEvent(r,{
+      endpoint:'https://api.uptrace.dev/v1/logs',dsn:'TEST-SECRET-DSN',
+      fetchFn:mock as unknown as typeof fetch,
+    })).toEqual({kind:'exported'});
+    const req=mock.mock.calls[0]?.[1] as unknown as RequestInit|undefined;
+    expect(req?.headers).toMatchObject({'uptrace-dsn':'TEST-SECRET-DSN'});
+    expect(req?.body).not.toContain('TEST-SECRET-DSN');
+  }
+ });
  it('exports only safe release attributes and function offsets, never raw error messages',()=>{
   const encoded=JSON.stringify(buildMobileOtlpLog(row()));
   expect(encoded).toContain('gafus-mobile-android');

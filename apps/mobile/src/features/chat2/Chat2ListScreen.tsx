@@ -17,7 +17,7 @@ import * as ImagePicker from "expo-image-picker";
 import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
 import { useFocusEffect, useRouter, type Href } from "expo-router";
 import { useAuthStore } from "@/shared/stores";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { TexturedSafeAreaView } from "@/shared/components/TexturedSafeAreaView";
 import { Chat2StaffQueue } from "./Chat2StaffQueue";

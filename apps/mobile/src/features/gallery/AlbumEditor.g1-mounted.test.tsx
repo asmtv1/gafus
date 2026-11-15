@@ -40,7 +40,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
 vi.mock("@/shared/lib/api/gallery", () => ({
   galleryTransport: (...args: unknown[]) => m.wire(...args),
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: m.trace }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: m.trace }));
 vi.mock("./data", () => ({
   galleryError: () => "Не удалось загрузить галерею",
   galleryKeys: {

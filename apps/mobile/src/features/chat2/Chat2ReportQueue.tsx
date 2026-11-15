@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, Pressable, Text, View, StyleSheet } from "react-native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { chat2, type Chat2Report } from "./api";
 
 /** Opens only from moderator room settings. API enforces group membership and role. */

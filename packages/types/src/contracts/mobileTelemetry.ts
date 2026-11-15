@@ -80,6 +80,23 @@ export function sanitizeMobileStack(value: unknown): string | undefined {
       frames.push(`at ${fnName(java[1]!)} (native:${Number(java[2])})`);
       continue;
     }
+    // iOS MetricKit: "applicationDidBecomeActive (Gafus + 19160)" or
+    // "Gafus + 19160". Keep only audited binary/symbol tokens + relative
+    // offsets, never raw PC addresses, source paths or exception messages.
+    const iosNamed = /^([A-Za-z_$][A-Za-z\d_.$<>-]{0,99}) \(([A-Za-z\d_.-]{1,64}) \+ (\d{1,10})\)$/.exec(line);
+    if(iosNamed){
+      frames.push(`${iosNamed[2]}!${fnName(iosNamed[1]!)}+0x${Number(iosNamed[3]).toString(16)}`);
+      continue;
+    }
+    const iosOffset=/(?:^|\()([A-Za-z\d_.-]{1,64}) \+ (\d{1,10})\)?$/.exec(line);
+    if(iosOffset){
+      frames.push(`${iosOffset[1]}+0x${Number(iosOffset[2]).toString(16)}`);
+      continue;
+    }
+    // Android historical exit diagnostics may provide a bare class method.
+    // Only static Java namespaces are accepted, no user-controlled paths.
+    const bareJvm=/^(?:(?:com|io|java|javax|android|androidx|kotlin|expo|org|ru)\.)[A-Za-z\d_.$<>-]{3,130}$/.exec(line);
+    if(bareJvm){frames.push(`at ${fnName(line)} (native)`);continue;}
     // Native symbolic offsets, module and symbol only: libfoo.so!function+0x123.
     const native = /^([a-zA-Z\d_.-]{1,64})!([a-zA-Z\d_.$<>-]{1,100})\+0x([a-f\d]{1,16})$/i.exec(line);
     if (native) {

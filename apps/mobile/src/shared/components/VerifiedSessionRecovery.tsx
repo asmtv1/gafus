@@ -6,7 +6,7 @@ import { Loading } from "@/shared/components/ui/Loading";
 import { TexturedSafeAreaView } from "@/shared/components/TexturedSafeAreaView";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { useNetworkStatusStore } from "@/shared/stores/networkStatusStore";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 const STARTUP_GRACE_MS = 5000;
 

@@ -15,7 +15,7 @@ vi.mock("expo-iap", () => ({
   requestPurchase: (...args: unknown[]) => m.request(...args),
   finishTransaction: (...args: unknown[]) => m.finish(...args),
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: (...a: unknown[]) => m.log(...a) }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: (...a: unknown[]) => m.log(...a) }));
 vi.mock("../api/appSubscriptionAppleApi", () => ({
   appSubscriptionAppleApi: { verifyAppleSubscription: (...a: unknown[]) => m.verify(...a) },
 }));

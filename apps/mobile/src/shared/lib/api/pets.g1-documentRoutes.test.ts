@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("expo-secure-store", () => ({ getItemAsync: mocks.token }));
 vi.mock("@/shared/config", () => ({ API_BASE_URL: "https://fixture.invalid" }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: mocks.reportClientError }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocks.reportClientError }));
 vi.mock("./client", () => ({
   apiClient: mocks.regular,
   apiClientMultipart: mocks.multipart,

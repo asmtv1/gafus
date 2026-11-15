@@ -4,7 +4,7 @@ import { useTimerStore } from "@/shared/stores/timerStore";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { readOwnRestoredTimer } from "@/shared/lib/offline/newOnlyV2TimerRestore";
 import { useAuthStore } from "@/shared/stores/authStore";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import type { NewOnlyV2Queues } from "@/shared/lib/offline/newOnlyV2Queues";
 
 type Queue = Pick<NewOnlyV2Queues, "getVerifiedBinding" | "getPending">;

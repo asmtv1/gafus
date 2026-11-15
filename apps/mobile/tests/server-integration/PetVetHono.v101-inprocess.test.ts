@@ -90,7 +90,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
         : null,
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.reporter(...args),
   addTracerBreadcrumb: vi.fn(),
 }));

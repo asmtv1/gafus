@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { allowScreenCaptureAsync, preventScreenCaptureAsync } from "expo-screen-capture";
 
 import { canCaptureAppScreen } from "@/shared/lib/security/screenCapturePolicy";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useAuthStore } from "@/shared/stores/authStore";
 
 const SCREEN_CAPTURE_KEY = "gafus-global-screen-protection";

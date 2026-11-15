@@ -50,7 +50,7 @@ import { WebView } from "react-native-webview";
 import { getOfflineVideoPosterUri, getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
 import { getVideoIdFromUrl } from "@/shared/lib/utils/videoUrl";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/shared/config";
 import { WEB, styles, STEP_STATUS_CONFIG } from "./AccordionStep.presentation";

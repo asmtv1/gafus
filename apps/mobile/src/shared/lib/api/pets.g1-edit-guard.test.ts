@@ -5,7 +5,7 @@ vi.mock("./client", () => ({
   apiClient: (...args: unknown[]) => transport(...args),
   apiClientMultipart: vi.fn(),
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 import { petsApi } from "./pets";
 beforeEach(() => {
   vi.stubGlobal("__DEV__", false);

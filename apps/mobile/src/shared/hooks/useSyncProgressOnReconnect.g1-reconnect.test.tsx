@@ -40,7 +40,7 @@ vi.mock("@/shared/stores/authStore", () => {
     }),
   };
 });
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: mocks.reportClientError,
 }));
 

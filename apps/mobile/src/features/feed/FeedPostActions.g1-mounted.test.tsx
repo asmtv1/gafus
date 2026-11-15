@@ -64,7 +64,7 @@ vi.mock("@tanstack/react-query", () => ({
 vi.mock("@gafus/types", () => ({
   FEED_REPORT_REASONS: { spam: "Спам", abuse: "Оскорбление" },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/config", () => ({
   COLORS: {
     primary: "#455",
@@ -100,7 +100,7 @@ vi.mock("@/shared/components/gestures/SwipeDismissHandle", () => ({
   SwipeDismissHandle: () => null,
 }));
 import { FeedPostActions, FeedReportButton } from "./FeedPostActions";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import type { FeedPostDto } from "@gafus/types";
 const fixtureUser = (id: string) => ({
   id,

@@ -5,7 +5,7 @@ import { CdnImage } from "@/shared/components/media/CdnImage";
 import { Button } from "@/shared/components";
 import { COLORS, FONTS } from "@/shared/config";
 import { feedApi } from "@/shared/lib/api/feed";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 function votesLabel(count: number) {
   const remainder = count % 100;

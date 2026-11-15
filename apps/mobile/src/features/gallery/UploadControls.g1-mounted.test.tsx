@@ -43,7 +43,7 @@ vi.mock("@/shared/lib/media/directPhotoUpload", () => ({
 vi.mock("@/shared/lib/api/gallery", () => ({
   galleryTransport: (...args: unknown[]) => m.api(...args),
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: m.tracer }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: m.tracer }));
 vi.mock("expo-image-picker", () => ({
   requestMediaLibraryPermissionsAsync: (...a: unknown[]) => m.permission(...a),
   launchImageLibraryAsync: (...a: unknown[]) => m.picker(...a),

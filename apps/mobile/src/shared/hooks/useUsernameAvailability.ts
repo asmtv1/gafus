@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { userApi } from "@/shared/lib/api/user";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 type AvailabilityStatus = "idle" | "checking" | "available" | "taken";
 

@@ -16,7 +16,7 @@ execFileSync("openssl",["req","-new","-x509","-key",keyPath,"-out",certPath,"-da
 const certHash=crypto.createHash("sha256").update(fs.readFileSync(certPath)).digest("hex");
 const descriptor={
   id:"9f15a56e-8fe0-4b5c-bc67-6980d7446322",environment:"preview",platform:"ios",
-  channel:"preview",runtimeVersion:"1.7.5",signingKeyId:"preview-main",appVersion:"1.7.5",
+  channel:"preview",runtimeVersion:"1.7.5",signingKeyId:"preview-main",appVersion:"1.7.5",buildNumber:"175",
   updateUrl:"https://preview.gafus.ru/ota/manifest",certificateSha256:certHash,
   nativeFingerprint:"b".repeat(64),
 };

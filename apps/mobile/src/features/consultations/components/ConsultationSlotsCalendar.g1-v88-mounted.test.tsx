@@ -44,7 +44,7 @@ vi.mock("@/shared/lib/api", () => ({
   },
   isSubscriptionRequiredCode: (code: string) => code === "SUBSCRIPTION_REQUIRED",
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.tracer(...args),
 }));
 vi.mock("@/shared/lib/utils/haptics", () => ({ hapticFeedback: { medium: () => m.haptic() } }));

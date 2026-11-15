@@ -72,10 +72,7 @@ jobs:
       # Public values embedded into preview JS. Missing values fail export.
       EXPO_PUBLIC_API_BASE_URL: ${{ vars.OTA_PREVIEW_API_BASE_URL }}
       EXPO_PUBLIC_CHAT2_API_ORIGIN: ${{ vars.OTA_PREVIEW_CHAT2_API_ORIGIN }}
-      EXPO_PUBLIC_ENABLE_TRACER: 'true'
-      EXPO_PUBLIC_TRACER_APP_TOKEN_JS: ${{ vars.OTA_PREVIEW_TRACER_APP_TOKEN_JS }}
-      EXPO_PUBLIC_TRACER_APP_TOKEN_IOS: ${{ vars.OTA_PREVIEW_TRACER_APP_TOKEN_IOS }}
-      EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID: ${{ vars.OTA_PREVIEW_TRACER_APP_TOKEN_ANDROID }}
+      EXPO_PUBLIC_TELEMETRY_ENABLED: 'true'
       EXPO_PUBLIC_OTA_REVISION: ${{ inputs.revision }}
     steps:
       - name: Checkout exact source snapshot
@@ -112,12 +109,15 @@ jobs:
           HAS_OTA_SIGNING_PRIVATE_KEY_PEM: ${{ secrets.OTA_SIGNING_PRIVATE_KEY_PEM != '' }}
           HAS_MOBILE_OTA_API_ORIGIN: ${{ secrets.MOBILE_OTA_API_ORIGIN != '' }}
           HAS_MOBILE_OTA_CI_CALLBACK_TOKEN: ${{ secrets.MOBILE_OTA_CI_CALLBACK_TOKEN != '' }}
-          HAS_TRACER_SOURCEMAP_TOKEN_MOBILE: ${{ secrets.TRACER_SOURCEMAP_TOKEN_MOBILE != '' }}
+          HAS_SYMBOLS_S3_BUCKET: ${{ secrets.SYMBOLS_S3_BUCKET != '' }}
+          HAS_SYMBOLS_S3_ENDPOINT: ${{ secrets.SYMBOLS_S3_ENDPOINT != '' }}
+          HAS_SYMBOLS_S3_ACCESS_KEY: ${{ secrets.SYMBOLS_S3_ACCESS_KEY != '' }}
+          HAS_SYMBOLS_S3_SECRET_KEY: ${{ secrets.SYMBOLS_S3_SECRET_KEY != '' }}
         run: |
           set -euo pipefail
           for name in OTA_S3_ENDPOINT OTA_S3_BUCKET OTA_S3_ACCESS_KEY OTA_S3_SECRET_KEY \
             OTA_SIGNING_PRIVATE_KEY_PEM MOBILE_OTA_API_ORIGIN MOBILE_OTA_CI_CALLBACK_TOKEN \
-            TRACER_SOURCEMAP_TOKEN_MOBILE; do
+            SYMBOLS_S3_BUCKET SYMBOLS_S3_ENDPOINT SYMBOLS_S3_ACCESS_KEY SYMBOLS_S3_SECRET_KEY; do
             indicator="HAS_${name}"
             if [[ "${!indicator:-false}" != 'true' ]]; then
               echo "::error::Missing required Actions secret: ${name}"
@@ -125,13 +125,16 @@ jobs:
             fi
           done
           for name in OTA_S3_REGION OTA_S3_TENANT_ID OTA_PUBLIC_ASSET_ORIGIN EXPO_PUBLIC_API_BASE_URL \
-            EXPO_PUBLIC_CHAT2_API_ORIGIN EXPO_PUBLIC_TRACER_APP_TOKEN_JS \
-            EXPO_PUBLIC_TRACER_APP_TOKEN_IOS EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID; do
+            EXPO_PUBLIC_CHAT2_API_ORIGIN EXPO_PUBLIC_TELEMETRY_ENABLED; do
             if [[ -z "${!name:-}" ]]; then
               echo "::error::Missing required Actions variable: ${name}"
               exit 25
             fi
           done
+          [[ '${{ vars.GAFUS_SYMBOLS_PREVIEW_APPROVED }}' == 'true' ]] || {
+            echo '::error::Private symbol delivery is not approved for preview'
+            exit 27
+          }
           [[ "$OTA_PUBLIC_ASSET_ORIGIN" == 'https://global.s3.cloud.ru/gafus-ota-updates' ]] || {
             echo '::error::Unexpected public OTA asset origin (Cloud.ru S3 bucket required)'
             exit 26
@@ -271,24 +274,12 @@ jobs:
           node packages/cdn-upload/scripts/upload-mobile-ota-assets.mjs \
             --directory "$RUNNER_TEMP/ota-artifact"
 
-      - name: Upload private source maps to AppTracer using exact update ID
-        shell: bash
-        env:
-          TRACER_SOURCEMAP_TOKEN_MOBILE: ${{ secrets.TRACER_SOURCEMAP_TOKEN_MOBILE }}
-        run: |
-          set -euo pipefail
-          export TRACER_SOURCEMAP_VERSION_NAME="$EXPO_PUBLIC_APP_VERSION"
-          test "$TRACER_SOURCEMAP_VERSION_NAME" = "$(node apps/mobile/scripts/self-hosted-ota-public-env.mjs --version "$OTA_UPDATE_ID")"
-          node apps/mobile/scripts/upload-apptracer-sourcemaps.mjs "$RUNNER_TEMP/ota-export"
-          echo "GAFUS_OTA_APPTRACER_REF=$TRACER_SOURCEMAP_VERSION_NAME" >> "$GITHUB_ENV"
-
       # Expo/Hermes OTA source maps must be immutable and PRIVATE.
       # The fingerprint/registered native-release guard has already run;
       # unlike a JS-only SDK57 QA job this lane can prove binary identity.
       # No automatic upload without a protected repo variable and a
       # dedicated S3 bucket that is NOT the public OTA or Feed bucket.
       - name: Prepare and verify SDK57 private maps for approved Uptrace preview
-        if: ${{ vars.GAFUS_SYMBOLS_PREVIEW_APPROVED == 'true' }}
         shell: bash
         env:
           SYMBOLS_UPLOAD_EXECUTE: '0'
@@ -300,6 +291,8 @@ jobs:
           test -z "$(git status --porcelain)"
 
       - name: Upload SDK57 maps to immutable private S3 (protected preview only)
+        # Explicit separate approval: source-map upload and READY registration
+        # must not silently become enabled by a standard preview dispatch.
         if: ${{ vars.GAFUS_SYMBOLS_PREVIEW_APPROVED == 'true' }}
         shell: bash
         env:
@@ -330,6 +323,9 @@ jobs:
               process.exit(4);
             console.log("PRIVATE_SDK57_SYMBOL_UPLOAD_VERIFIED");
           '
+          symbol_sha="$(node -p "require(process.env.RUNNER_TEMP+'/ota-uptrace-private-symbols/private-symbol-delivery-evidence.json').manifestSha256")"
+          [[ "$symbol_sha" =~ ^[a-f0-9]{64}$ ]]
+          echo "GAFUS_OTA_SYMBOLS_REF=symbols-s3:$symbol_sha" >> "$GITHUB_ENV"
 
       - name: Register verified signed preview release as READY (never auto-publish)
         shell: bash

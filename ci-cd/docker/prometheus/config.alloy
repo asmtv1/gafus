@@ -1,37 +1,4 @@
-prometheus.remote_write "yc" {
-  endpoint {
-    url = "https://monitoring.api.cloud.yandex.net/prometheus/workspaces/monj8dpjri8u0bbqvq71/api/v1/write"
-
-    bearer_token = sys.env("YC_MONITORING_API_KEY")
-
-    queue_config {
-      max_samples_per_send = 2000
-      batch_send_deadline  = "60s"
-      min_backoff          = "100ms"
-      max_backoff          = "60s"
-    }
-
-    metadata_config {
-      send = false
-    }
-  }
-
-  external_labels = {
-    cluster     = "gafus",
-    environment = "production",
-  }
-}
-
 // В Yandex только: health (probe_success, pg_up), CPU/RAM/диск с node-exporter.
-prometheus.relabel "yc_allowlist" {
-  rule {
-    source_labels = ["__name__"]
-    regex         = "probe_success|pg_up|redis_up|gafus_database_backup_last_success_timestamp_seconds|up|gafus_media_(stalled_processing|failed_tasks)|gafus_chat2_outbox_(pending|leased|dead_letters|oldest_age_seconds)|gafus_questions_legacy_delete_(enabled|pending|processing|failed|oldest_age_seconds)|job_attempts_total|job_failures_total|job_duration_seconds_(bucket|sum|count)|db_query_duration_seconds_(bucket|sum|count)|db_pool_wait_seconds_(bucket|sum|count)|db_pool_wait_metrics_fresh|pg_stat_activity_count|pg_settings_max_connections|http_requests_total|http_request_duration_seconds_(bucket|sum|count)|http_inflight_requests|node_cpu_seconds_total|node_memory_MemTotal_bytes|node_memory_MemAvailable_bytes|node_memory_MemFree_bytes|node_memory_Buffers_bytes|node_memory_Cached_bytes|node_memory_SReclaimable_bytes|node_filesystem_avail_bytes|node_filesystem_size_bytes|gafus_mail_(stalled_pending|unresolved_unknown|expired_unknown|recent_failed|delivery_failures_24h|queue_failed|queue_expired|queue_stalled)"
-    action        = "keep"
-  }
-  forward_to = [prometheus.remote_write.yc.receiver]
-}
-
 prometheus.scrape "node_exporter" {
   targets = [{
     __address__ = "host.docker.internal:9100",
@@ -39,7 +6,7 @@ prometheus.scrape "node_exporter" {
     job         = "node-exporter",
   }]
   scrape_interval = "60s"
-  forward_to      = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
+  forward_to      = [prometheus.relabel.uptrace_allowlist.receiver]
 }
 
 prometheus.scrape "postgres_exporter" {
@@ -49,10 +16,10 @@ prometheus.scrape "postgres_exporter" {
     job         = "postgres-exporter",
   }]
   scrape_interval = "60s"
-  forward_to      = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
+  forward_to      = [prometheus.relabel.uptrace_allowlist.receiver]
 }
 
-// Health checks для сервисов через blackbox-exporter
+// Health checks через blackbox-exporter
 prometheus.scrape "services_health" {
   targets = [
     { __address__ = "blackbox-exporter:9115", __param_target = "http://web:3000/healthz", instance = "http://web:3000/healthz", service = "web-app", job = "services-health" },
@@ -65,7 +32,7 @@ prometheus.scrape "services_health" {
   metrics_path    = "/probe"
   params          = { module = ["http_2xx"] }
   scrape_interval = "60s"
-  forward_to      = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
+  forward_to      = [prometheus.relabel.uptrace_allowlist.receiver]
 
   clustering {
     enabled = false
@@ -83,7 +50,7 @@ prometheus.scrape "worker_mail" {
   }]
   metrics_path    = "/metrics/mail"
   scrape_interval = "60s"
-  forward_to      = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
+  forward_to      = [prometheus.relabel.uptrace_allowlist.receiver]
 }
 
 // Durable media status gauges, scraped separately from mail and subscriptions.
@@ -96,7 +63,7 @@ prometheus.scrape "worker_media" {
   }]
   metrics_path    = "/metrics/media"
   scrape_interval = "60s"
-  forward_to      = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
+  forward_to      = [prometheus.relabel.uptrace_allowlist.receiver]
 }
 
 
@@ -115,14 +82,14 @@ prometheus.scrape "api_operations" {
     type        = "Bearer"
     credentials = sys.env("API_METRICS_KEY")
   }
-  forward_to = [prometheus.relabel.yc_allowlist.receiver, prometheus.relabel.uptrace_allowlist.receiver]
+  forward_to = [prometheus.relabel.uptrace_allowlist.receiver]
 }
 
-// Uptrace metrics run alongside Yandex; fixed-label privacy filter and durable WAL.
+// Uptrace-only metrics with fixed-label privacy filter and durable WAL.
 prometheus.relabel "uptrace_allowlist" {
   rule {
     source_labels = ["__name__"]
-    regex = "probe_success|pg_up|redis_up|up|gafus_(mobile_telemetry|server_diagnostic_otlp|media|mail|chat2_outbox|http|queue|database_backup|questions_legacy_delete)_[a-zA-Z0-9_]+|http_requests_total|http_request_duration_seconds_(bucket|sum|count)|http_inflight_requests|node_cpu_seconds_total|node_memory_(MemTotal|MemAvailable)_bytes|node_filesystem_(avail|size)_bytes|pg_stat_activity_count|pg_settings_max_connections|job_(attempts|failures)_total|job_duration_seconds_(bucket|sum|count)|db_(query_duration|pool_wait)_seconds_(bucket|sum|count)"
+    regex = "probe_success|pg_up|redis_up|up|gafus_(mobile_telemetry|server_diagnostic_otlp|media|mail|chat2_outbox|http|queue|database_backup|questions_legacy_delete)_[a-zA-Z0-9_]+|http_requests_total|http_request_duration_seconds_(bucket|sum|count)|http_inflight_requests|node_cpu_seconds_total|node_memory_(MemTotal|MemAvailable|MemFree|Buffers|Cached|SReclaimable)_bytes|node_filesystem_(avail|size)_bytes|pg_stat_activity_count|pg_settings_max_connections|job_(attempts|failures)_total|job_duration_seconds_(bucket|sum|count)|db_(query_duration|pool_wait)_seconds_(bucket|sum|count)|db_pool_wait_metrics_fresh"
     action = "keep"
   }
   // Replace URL-valued blackbox instance label with bounded service alias.

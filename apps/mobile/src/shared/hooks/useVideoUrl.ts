@@ -1,4 +1,4 @@
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { trainingApi } from "@/shared/lib/api/training";
 import { resolveVideoUrlResponse } from "./videoUrlResponse";

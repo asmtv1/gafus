@@ -18,7 +18,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: reportClientErrorMock,
 }));
 

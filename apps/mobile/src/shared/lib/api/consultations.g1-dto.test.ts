@@ -10,7 +10,7 @@ vi.mock("react-native", () => ({ Platform: { OS: "android" } }));
 vi.mock("@/shared/config", () => ({
   API_BASE_URL: "https://fixture.invalid", NETWORK_TIMEOUTS: { request: 20_000 },
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   addTracerBreadcrumb: vi.fn(), reportClientError: vi.fn(),
 }));
 vi.mock("./subscriptionRequired", () => ({

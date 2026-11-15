@@ -3,7 +3,7 @@
  * is NOT proof of real device durability; independent AG4/provider evidence is mandatory.
  */
 import type { PushActor } from "@/shared/lib/utils/pushRegistrationOwner";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import type { V49AG4MockStore, V49AG4Record } from "./reminderV49AG4Compat.review";
 
 /** Abstract transactional file slot, NOT a POSIX file implementation.

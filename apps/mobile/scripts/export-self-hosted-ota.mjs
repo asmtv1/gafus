@@ -37,8 +37,8 @@ async function main() {
     const config=JSON.parse(configJson);
     if (config.updates?.url===undefined ||
         config.extra?.otaTransport!=="self-hosted" || config.version===undefined ||
-        config.extra?.otaTracerVersion!==process.env.EXPO_PUBLIC_APP_VERSION)
-      throw Error("EXPORTED_NATIVE_PROFILE_OR_TRACER_VERSION_MISMATCH");
+        config.extra?.otaReleaseVersion!==process.env.EXPO_PUBLIC_APP_VERSION)
+      throw Error("EXPORTED_NATIVE_PROFILE_OR_RELEASE_VERSION_MISMATCH");
     fs.writeFileSync(configFile,JSON.stringify(config,null,2),{flag:"wx",mode:0o600});
   });
   if (execFileSync("git",["status","--porcelain"],{cwd:repoRoot,encoding:"utf8"}).trim())

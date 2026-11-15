@@ -22,7 +22,7 @@ import { galleryError, galleryKeys, useAlbums, useGalleryContext } from "./data"
 import { publicGalleryAlbum, sameGalleryActor } from "./privateRead";
 import { saveAlbumAndReadback } from "./albumMutation";
 import { useAuthStore } from "@/shared/stores/authStore";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { UploadControls } from "./uploads";
 import { styles as s } from "./styles";
 

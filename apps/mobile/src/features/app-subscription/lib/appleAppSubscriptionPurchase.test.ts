@@ -14,7 +14,7 @@ vi.mock("expo-iap", () => ({
   requestPurchase: (...args: unknown[]) => requestPurchaseMock(...args),
 }));
 
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: vi.fn(),
 }));
 

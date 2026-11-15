@@ -31,7 +31,7 @@ vi.mock("@/shared/hooks/useNetworkStatus", () => ({ useIsOffline: () => mock.off
 vi.mock("@/shared/lib/api/training", () => ({
   trainingApi: { getVideoProgress: mock.getRemote, saveVideoProgress: mock.saveRemote },
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...a: unknown[]) => mock.report(...a),
 }));
 vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({

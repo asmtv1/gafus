@@ -155,7 +155,7 @@ vi.mock("@/shared/lib/api", () => ({
     cancelBooking: (bookingId: string) => m.cancel(bookingId),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: (...a: unknown[]) => m.trace(...a) }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: (...a: unknown[]) => m.trace(...a) }));
 vi.mock("@/shared/lib/utils/haptics", () => ({
   hapticFeedback: { light: vi.fn(), medium: vi.fn() },
 }));

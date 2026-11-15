@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({ transport: vi.fn(), trace: vi.fn() }));
 vi.mock("expo-secure-store", () => ({ getItemAsync: vi.fn() }));
 vi.mock("./client", () => ({ apiClient: m.transport, apiClientMultipart: vi.fn() }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: (...a: unknown[]) => m.trace(...a) }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: (...a: unknown[]) => m.trace(...a) }));
 import { petsApi } from "./pets";
 beforeEach(() => {
   vi.stubGlobal("__DEV__", false);

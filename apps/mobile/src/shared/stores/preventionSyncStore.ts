@@ -5,7 +5,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { petsApi } from "@/shared/lib/api/pets";
 import { zustandStorage } from "./storage";
 import { singleFlight } from "./singleFlight";

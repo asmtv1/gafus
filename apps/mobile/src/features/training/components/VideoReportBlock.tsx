@@ -8,7 +8,7 @@ import { COLORS, SPACING } from "@/shared/config";
 import { Button, Loading } from "@/shared/components/ui";
 import { VideoPlayer } from "@/shared/components/VideoPlayer";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 const MAX_RECORDING_SEC = 120;
 const MAX_CLIENT_BYTES = 50 * 1024 * 1024;

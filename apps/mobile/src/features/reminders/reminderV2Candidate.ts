@@ -4,7 +4,7 @@
 import type { ApiResponse } from "@/shared/lib/api/client";
 import type { Reminder, ReminderPayload } from "@/shared/lib/api/reminders";
 import type { PushActor } from "@/shared/lib/utils/pushRegistrationOwner";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;

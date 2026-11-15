@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";
 import * as ImagePicker from "expo-image-picker";
 import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";

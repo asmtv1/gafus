@@ -6,7 +6,7 @@ const mocks=vi.hoisted(()=>({
   photo:vi.fn(),variants:vi.fn(),sanitizeWebp:vi.fn(),signed:vi.fn(),post:vi.fn(),
   cover:vi.fn(),sanitize:vi.fn(),sent:vi.fn(),dispose:vi.fn(),coverDispose:vi.fn(),
 }));
-vi.mock("@/shared/lib/tracer",()=>({reportClientError:vi.fn()}));
+vi.mock("@/shared/lib/error-reporting",()=>({reportClientError:vi.fn()}));
 vi.mock("expo-crypto",()=>({randomUUID:()=>"video-uuid"}));
 vi.mock("expo-image-picker",()=>({}));
 vi.mock("expo-camera",()=>({Camera:{}}));

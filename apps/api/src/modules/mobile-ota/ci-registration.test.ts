@@ -47,8 +47,8 @@ function signedCandidate(overrideAssetUrl: string = asset.immutableUrl) {
     manifestBase64:bytes.toString("base64"),
     signatureHeader:`sig="${signature.toString("base64")}", keyid="preview-main", alg="rsa-v1_5-sha256"`,
     artifacts:[{...asset,immutableUrl:overrideAssetUrl}],
-    checks:{unit:true,mobileTypecheck:true,nativeCompatibility:true,iosPaymentGraph:true,appTracer:true} as const,
-    appTracerRef:"tracer:preview-1234",
+    checks:{unit:true,mobileTypecheck:true,nativeCompatibility:true,iosPaymentGraph:true,privateSymbols:true} as const,
+    symbolsRef:"symbols-s3:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
   };
   return { raw, manifest, bytes };
 }
@@ -61,7 +61,7 @@ describe("signed OTA CI result verification", () => {
       id:randomUUID(),nativeReleaseId:candidate.nativeReleaseId,
       updateId:candidate.updateId,revision:candidate.revision,sourceSha:candidate.sourceSha,
       signatureHeader:candidate.signatureHeader,manifestBody:bytes,
-      appTracerRef:candidate.appTracerRef,ciRunId:candidate.ciRunId,
+      symbolsRef:candidate.symbolsRef,ciRunId:candidate.ciRunId,
       checks:{...candidate.checks},state:"READY",
     };
     const savedAssets: StoredOtaArtifact[] = [{
@@ -71,7 +71,7 @@ describe("signed OTA CI result verification", () => {
     expect(matchesStoredOtaCiReplay(saved,savedAssets,{...candidate,buildAttempt:2},bytes)).toBe(true);
     for (const modified of [
       {...candidate,nativeReleaseId:randomUUID()},
-      {...candidate,appTracerRef:"different-trace"},
+      {...candidate,symbolsRef:"symbols-s3:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
       {...candidate,ciRunId:"another-workflow"},
       {...candidate,sourceSha:"c".repeat(40)},
       {...candidate,signatureHeader:candidate.signatureHeader+"tampered"},
@@ -153,11 +153,11 @@ describe("signed OTA CI result verification", () => {
     expect(()=>validateSignedOtaCiResult(native,{...raw,revision:8},"https://cdn.test"))
       .toThrow("MANIFEST_NATIVE_RUNTIME_MISMATCH");
   });
-  it("rejects failed iOS graph and missing AppTracer result", () => {
+  it("rejects failed iOS graph and missing private symbols result", () => {
     const {raw}=signedCandidate();
     expect(()=>validateSignedOtaCiResult(native,{...raw,checks:{...raw.checks,iosPaymentGraph:false}},"https://cdn.test"))
       .toThrow("REQUIRED_CI_CHECK_MISSING");
-    expect(()=>ciSignedReleaseSchema.parse({...raw,checks:{...raw.checks,appTracer:false}}))
+    expect(()=>ciSignedReleaseSchema.parse({...raw,checks:{...raw.checks,privateSymbols:false}}))
       .toThrow();
   });
   it("rejects substituted CDN host, artifact hash and duplicate assets", () => {

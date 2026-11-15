@@ -71,7 +71,7 @@ vi.mock("@/shared/lib/api/consultations", () => ({
     trainerTransition: (...args: unknown[]) => m.transition(...args),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.trace(...args),
 }));
 import TrainerScreen from "../../../../app/(main)/consultations/trainer";

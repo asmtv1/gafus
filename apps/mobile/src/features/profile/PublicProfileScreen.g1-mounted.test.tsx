@@ -51,7 +51,7 @@ vi.mock("@/shared/lib/api/courses", () => ({ coursesApi: { checkAccess: m.access
 vi.mock("@/features/chat2/api", () => ({
   chat2: { directByUsername: m.direct },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/lib/utils/mobileImageVariant", () => ({
   getCourseLogoVariantCandidates: () => [],
 }));

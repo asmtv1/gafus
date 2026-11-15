@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Text } from "react-native-paper";
 import { TexturedSafeAreaView } from "@/shared/components";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { COLORS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { loadWalkJournal, saveWalkJournal, type WalkJournal } from "@/features/walk/walkStorage";

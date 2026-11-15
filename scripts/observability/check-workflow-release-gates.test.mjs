@@ -55,7 +55,7 @@ test('manual single-container cannot publish before Uptrace preflight',()=>{
 test('manual Deploy Only cannot bypass reusable production source gate',()=>{
  const inputs=originals();
  inputs.reusable=inputs.reusable.replace(
-  '- name: Verify Uptrace release contract and unmodified legacy monitoring',
+  '- name: Verify Uptrace production release contract',
   '- name: Verify Uptrace DISABLED');
  assert.throws(()=>auditWorkflowReleaseGates(inputs),/REUSABLE_MISSING_UPTRACE_GUARD/);
 });
@@ -106,6 +106,11 @@ test('reusable SSH deployment script remains below GitHub scalar limit and byte-
  assert.equal(remote.with.script,
   "${{ format('{0}{1}{2}{3}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_1B, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}");
  assert.equal(createHash('sha256').update(fragments.join(''),'utf8').digest('hex'),
-  '293c8a9c61dd565a791f194cbf122c429249a5604408cbc2c3c9b1121d2ac1f0',
-  'split must reproduce exactly the previously reviewed production script');
+  '4b5f83bff94db9d8054272af81a4167c5d084c4a20f71e0139d101b139b73339',
+  'split must reproduce exactly the reviewed production script with signed OTA gate');
+ const remoteScript=fragments.join('');
+ const otaCheck=remoteScript.indexOf('MOBILE_OTA_PRODUCTION_MANIFEST_ENABLED');
+ const maintenanceOpen=remoteScript.indexOf('bash \"$CUTOVER_SCRIPT\" open');
+ assert(otaCheck!==-1 && maintenanceOpen!==-1 && otaCheck<maintenanceOpen,
+  'signed OTA validation must succeed before lifting production maintenance');
 });

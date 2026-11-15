@@ -83,7 +83,7 @@ vi.mock("@/shared/lib/api", () => ({
     incrementView: (...v: unknown[]) => m.views(...v),
     toggleLike: (...v: unknown[]) => m.likes(...v) },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: (...v: unknown[]) => m.trace(...v) }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: (...v: unknown[]) => m.trace(...v) }));
 vi.mock("@/shared/lib/articles/wrapArticleHtml", () => ({
   wrapArticleHtml: vi.fn(),
   ARTICLE_HEIGHT_MSG: "HEIGHT",

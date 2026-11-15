@@ -15,7 +15,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
       m.authenticated ? { principalId: m.owner, authEpoch: m.epoch } : null,
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("./pets", () => ({ petsApi: { getAll: (...args: unknown[]) => m.getAll(...args) } }));
 vi.mock("./notes", () => ({ notesApi: { getStudentNotes: vi.fn() } }));
 vi.mock("./subscriptions", () => ({ subscriptionsApi: { postPushDeviceStatus: vi.fn() } }));

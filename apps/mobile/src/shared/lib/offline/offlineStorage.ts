@@ -4,7 +4,7 @@
  */
 import * as FileSystem from "expo-file-system/legacy";
 import type { FullCourseData } from "@/shared/lib/api/offline";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { getVideoIdFromUrl } from "@/shared/lib/utils/videoUrl";
 
 const OFFLINE_DIR = "offline";

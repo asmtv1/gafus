@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { FeedPostDto } from "@gafus/types";
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { feedDeletePostGuarded } from "@/shared/lib/api/feed";
 import { FeedPostActions } from "./FeedPostActions";
 

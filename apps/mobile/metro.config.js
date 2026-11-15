@@ -4,8 +4,7 @@ const path = require("path");
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, "../..");
 
-// AppTracer source maps are uploaded after each EAS update by
-// scripts/upload-apptracer-sourcemaps.mjs.
+// SDK57 source maps are stored in private S3 by the signed OTA publisher.
 const config = getDefaultConfig(projectRoot);
 
 // expo-sqlite uses a bundled WebAssembly file for web/server route evaluation.

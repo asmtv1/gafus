@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { Button, Input } from "@/shared/components/ui";
 import { authApi } from "@/shared/lib/api/auth";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING } from "@/shared/config";
 

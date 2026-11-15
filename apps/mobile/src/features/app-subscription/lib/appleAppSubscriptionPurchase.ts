@@ -7,7 +7,7 @@ import {
 } from "expo-iap";
 import type { Purchase } from "expo-iap";
 
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { appSubscriptionAppleApi } from "../api/appSubscriptionAppleApi";
 import { getApplePurchaseReadiness } from "./applePurchaseReadiness";
 

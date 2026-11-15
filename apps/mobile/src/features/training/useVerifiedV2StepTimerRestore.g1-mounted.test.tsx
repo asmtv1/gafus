@@ -21,7 +21,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({ newOnlyV2NativeQueues: 
 vi.mock("@/shared/stores/authStore", () => ({
   useAuthStore: { getState: () => ({ user: null }) },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 const base = 1792252800000;
 const C1 = "clg0v5dte000008mf2dkq239x",
   D1 = "clg0v5dte000108mf8bgq229x",

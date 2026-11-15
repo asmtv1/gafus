@@ -3,7 +3,7 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Alert } from "react-native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { getPoll, votePoll, changePollVote, cancelPollVote } = vi.hoisted(() => ({
   getPoll: vi.fn(), votePoll: vi.fn(), changePollVote: vi.fn(), cancelPollVote: vi.fn(),
@@ -69,7 +69,7 @@ vi.mock("@/shared/components", () => ({
     disabled?: boolean;
   }) => <button onClick={onPress} disabled={disabled}>{label}</button>,
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/components/media/CdnImage", () => ({
   CdnImage: ({ style }: { style: { width: number; height: number } }) => (
     <div data-thumbnail-width={style.width} data-thumbnail-height={style.height} />

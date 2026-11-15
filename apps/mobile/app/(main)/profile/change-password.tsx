@@ -10,7 +10,7 @@ import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { BORDER_RADIUS, COLORS, SPACING } from "@/shared/config";
 import { Button, Card, Input } from "@/shared/components/ui";
 import { authApi } from "@/shared/lib/api/auth";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 
 const PASSWORD_MIN_LENGTH = 8;

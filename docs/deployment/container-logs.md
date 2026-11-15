@@ -33,4 +33,4 @@ docker logs --since 1h gafus-web
 
 ## Ошибки
 
-Серверные ошибки (`logger.error()`, `logger.fatal()` с Error) автоматически отправляются в Tracer (apptracer.ru).
+Серверные ошибки (`logger.error()`, `logger.fatal()` с Error) направляются через защищённый диагностический канал OTLP в Uptrace; локальные Docker logs сохраняются.

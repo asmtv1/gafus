@@ -9,7 +9,7 @@ import type { ConsentPayload } from "@/shared/constants/consent";
 import { authApi, type User } from "@/shared/lib/api";
 import type { UpdatedUserProfile } from "@/shared/lib/api/user";
 import { identifyUser, resetAnalyticsUser } from "@/shared/lib/analytics";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 
 import { setGetUserId } from "./getUserId";

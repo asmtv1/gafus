@@ -21,7 +21,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
     getVerifiedBinding: () => ({ principalId: m.owner, authEpoch: m.epoch }),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/lib/api/pet-vet-visits", () => ({
   petVetVisitsApi: { createResponse: m.create, detailResponse: m.detail },
 }));

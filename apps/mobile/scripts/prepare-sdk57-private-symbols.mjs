@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** SDK57 Hermes maps are private release artifacts, NEVER public OTA assets.
  * OFFLINE preparation only. A verified, immutable private-bucket uploader is
- * separate and disabled by default. No AppTracer/Uptrace network calls here. */
+ * separate and disabled by default. No external telemetry network calls here. */
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -16,7 +16,7 @@ export function buildPrivateSymbolArchive(input){
   const {repoRoot,exportRoot,outputDir,platform,environment,runtime,sourceSha,updateId,revision}=input;
   ensure(['ios','android'].includes(platform),'PLATFORM_INVALID');
   ensure(['preview','production'].includes(environment),'ENV_INVALID');
-  ensure(runtime==='1.8.0','RUNTIME_NOT_SDK57');
+  ensure(/^\d+\.\d+\.\d+$/.test(runtime) && runtime!=='1.7.4','RUNTIME_NOT_SDK57');
   ensure(SHA.test(sourceSha),'SOURCE_SHA_INVALID');
   ensure(UUID.test(updateId),'UPDATE_ID_INVALID');
   ensure(REV.test(String(revision)),'REVISION_INVALID');

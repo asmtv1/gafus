@@ -11,7 +11,7 @@ import { Button, Loading } from "@/shared/components/ui";
 import { coursesApi, type CourseReview } from "@/shared/lib/api/courses";
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 
 // Форматирование даты

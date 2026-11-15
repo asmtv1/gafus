@@ -30,7 +30,7 @@ import { UploadControls } from "./uploads";
 import { PhotoViewer } from "./viewer";
 import { PhotoActionsMenu } from "./PhotoActionsMenu";
 import { styles as s } from "./styles";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { deleteAlbumAndConfirm } from "./albumDelete";
 import { setAlbumCoverAndReadback } from "./albumMutation";
 import { useAuthStore } from "@/shared/stores/authStore";

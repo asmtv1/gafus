@@ -10,7 +10,7 @@ import { IconButton, Text } from "react-native-paper";
 
 import { COLORS, SPACING } from "@/shared/config";
 import { Button } from "@/shared/components/ui";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import {
   canLoadHlsQualityVariants,
   parseHlsQualityVariants,

@@ -33,11 +33,11 @@ export function validateNativeReleaseContract({ expo, mobilePackage, eas, env = 
     'MOBILE_STORE_BUNDLE_IDENTIFIER_CHANGED');
   // SDK57 keeps the full-bleed startup poster on tall displays. Older SDK55
   // release profiles retain their previous contain policy.
-  const splashMode=compareStoreVersions(expo.version ?? '', '1.8.0')>=0?'cover':'contain';
+  const splashMode=/^57\./.test(mobilePackage.dependencies?.expo ?? '')?'cover':'contain';
   requireCheck(expo.splash?.resizeMode===splashMode && expo.ios?.splash?.resizeMode===splashMode,
     'MOBILE_SPLASH_MUST_FIT_SCREEN');
   const plugins=(expo.plugins ?? []).map(p=>typeof p==='string'?p:p?.[0]);
-  for(const key of ['expo-video','expo-image-picker','expo-notifications','expo-secure-store','./plugins/withAppTracerNative']) {
+  for(const key of ['expo-video','expo-image-picker','expo-notifications','expo-secure-store']) {
     requireCheck(plugins.includes(key),`MOBILE_REQUIRED_NATIVE_PLUGIN_MISSING:${key}`);
   }
   for(const key of ['react-native-compressor','react-native-gesture-handler',

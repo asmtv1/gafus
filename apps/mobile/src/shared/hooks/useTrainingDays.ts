@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { trainingApi, type TrainingDaysResponse } from "@/shared/lib/api";
 import { useStepStore, useTrainingStore } from "@/shared/stores";
 import type { ApiResponse } from "@/shared/lib/api/client";

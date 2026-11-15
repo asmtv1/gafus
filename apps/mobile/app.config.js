@@ -86,8 +86,8 @@ const vkIntentFilters = vkClientIdAndroid
     ]
   : [];
 
-const { withObservePreviewExperiment } = require('./scripts/observe-preview-config.cjs');
-module.exports = ({ config }) => withObservePreviewExperiment(applyNativeSelfHostedProfile({
+const { withGafusNativeCrashCapture } = require('./scripts/native-crash-uptrace-config.cjs');
+module.exports = ({ config }) => withGafusNativeCrashCapture(applyNativeSelfHostedProfile({
   ...config,
   scheme: resolveSchemes(config),
   ios: {
@@ -107,13 +107,8 @@ module.exports = ({ config }) => withObservePreviewExperiment(applyNativeSelfHos
     // Dynamic process.env[key] reads are not reliable in a release Hermes bundle,
     // so preserve the exact signed OTA source-map version in Expo manifest extra.
     ...(process.env.GAFUS_OTA_TRANSPORT === "self-hosted"
-      ? { otaTracerVersion: process.env.EXPO_PUBLIC_APP_VERSION }
+      ? { otaReleaseVersion: process.env.EXPO_PUBLIC_APP_VERSION }
       : {}),
-    enableTracer: process.env.EXPO_PUBLIC_ENABLE_TRACER === "true",
-    tracerAppToken: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN,
-    tracerAppTokenJs: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN_JS,
-    tracerAppTokenIos: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN_IOS,
-    tracerAppTokenAndroid: process.env.EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID,
     vkClientId: process.env.VK_CLIENT_ID ?? "",
     vkClientIdIos: process.env.VK_CLIENT_ID_IOS ?? "",
     vkClientIdAndroid: process.env.VK_CLIENT_ID_ANDROID ?? "",

@@ -13,7 +13,7 @@ vi.mock("@/shared/stores/authStore", () => ({
 vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
   newOnlyV2NativeQueues: { getVerifiedBinding: () => null },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/lib/utils/notifications", () => ({
   getCurrentDeviceTokens: m.tokens,
   isSameVerifiedPushActor: (a: { ownerId: string; authEpoch: string } | null) =>

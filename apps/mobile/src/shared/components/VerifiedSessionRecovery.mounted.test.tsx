@@ -45,7 +45,7 @@ vi.mock("@/shared/stores/networkStatusStore", () => ({
   useNetworkStatusStore: (selector: (value: { isOffline: boolean }) => boolean) =>
     selector({ isOffline: mocks.offline }),
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 import { VerifiedSessionRecovery } from "./VerifiedSessionRecovery";
 
 let root: Root;

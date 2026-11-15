@@ -12,7 +12,7 @@ import { COLORS } from "@/shared/config";
 import { galleryUploadForActor } from "./uploadScopedApi";
 import { sameGalleryActor, type GalleryActor } from "./privateRead";
 import { useAuthStore } from "@/shared/stores/authStore";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { galleryError, galleryKeys, requestId, useForeground, useGalleryContext } from "./data";
 import {
   canDismissUploadTask,

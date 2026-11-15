@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useIsOffline } from "./useNetworkStatus";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { usePreventionSyncStore } from "@/shared/stores/preventionSyncStore";
 import { canDispatchOwnerlessLegacyOfflineQueue } from "@/shared/stores/legacyOfflineReplayQuarantine";
 

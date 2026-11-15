@@ -1,6 +1,6 @@
 import { galleryTransport } from "@/shared/lib/api/gallery";
 import { sameGalleryActor, type GalleryActor, privateGalleryReads } from "./privateRead";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 export type AlbumDeleteOutcome = "confirmed" | "unknown" | "rejected" | "stale";
 /** One DELETE followed by guarded GET. Only server NOT_FOUND proves deletion. */
 export async function deleteAlbumAndConfirm({

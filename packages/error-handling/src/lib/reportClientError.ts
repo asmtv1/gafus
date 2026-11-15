@@ -1,3 +1,5 @@
+import { reportBrowserDiagnostic } from "../browserTelemetry";
+
 export interface ClientErrorData {
   userId?: string;
   issueKey?: string;
@@ -5,17 +7,9 @@ export interface ClientErrorData {
   keys?: Record<string, string | number | boolean>;
 }
 
-declare global {
-  interface Window {
-    __gafusReportError?: (error: unknown, data?: ClientErrorData) => void;
-  }
-}
-
-/**
- * Отправляет ошибку в Tracer через bridge, установленный TracerProvider.
- * No-op если bridge недоступен (dev без TOKEN, SSR).
- */
-export function reportClientError(error: unknown, data?: ClientErrorData): void {
+/** Errors reach the same-origin, anonymous GAFUS browser telemetry collector.
+ * Caller metadata is intentionally ignored: it may contain PII or signed URLs. */
+export function reportClientError(error: unknown, _data?: ClientErrorData): void {
   if (typeof window === "undefined") return;
-  window.__gafusReportError?.(error, data);
+  reportBrowserDiagnostic(error, "react_error", "WEB_REACT_RENDER");
 }

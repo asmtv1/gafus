@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import * as Updates from "expo-updates";
 
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { ensureOtaInstallationIdentity } from "@/shared/lib/ota/installationIdentity";
 import { trackOtaEvent, trackOtaLaunch } from "@/shared/lib/ota/telemetry";
 

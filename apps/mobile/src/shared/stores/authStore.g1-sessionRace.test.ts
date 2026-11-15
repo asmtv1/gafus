@@ -41,7 +41,7 @@ vi.mock("@/shared/lib/analytics", () => ({
   identifyUser: mocks.identifyUser,
   resetAnalyticsUser: mocks.resetAnalyticsUser,
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: mocks.reportError }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocks.reportError }));
 vi.mock("./resetAll", () => ({ resetUserStores: mocks.resetUserStores }));
 vi.mock("./galleryCleanupBridge", () => ({ clearRegisteredGallerySession: mocks.clearGallery }));
 vi.mock("@/shared/lib/api/mobile-intro", () => ({

@@ -17,7 +17,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
   },
 }));
 vi.mock("@/shared/lib/api/gallery", () => ({ galleryTransport: m.wire }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: m.trace }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: m.trace }));
 import { deleteAlbumAndConfirm } from "./albumDelete";
 const params = () => ({
   actor: { ownerId: "A", authEpoch: "E1" },

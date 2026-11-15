@@ -42,7 +42,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   default: { getItem: vi.fn(), setItem: vi.fn() },
 }));
 vi.mock("@/shared/lib/api", () => ({ subscriptionsApi: { savePushSubscription: m.save } }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: m.trace }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: m.trace }));
 vi.mock("@/shared/stores/authStore", () => ({
   useAuthStore: {
     getState: () => ({

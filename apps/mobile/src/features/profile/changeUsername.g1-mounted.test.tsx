@@ -44,7 +44,7 @@ vi.mock("@/shared/lib/api/user", () => ({
 vi.mock("@/shared/hooks", () => ({
   useUsernameAvailability: () => ({ status: "available" }),
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.error(...args),
 }));
 vi.mock("@/shared/lib/utils/haptics", () => ({

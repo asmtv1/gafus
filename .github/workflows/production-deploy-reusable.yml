@@ -44,7 +44,7 @@ jobs:
           package-manager-cache: false
       # Applies equally to automatic CI/CD and manual Deploy Only.
       # Never enable production Uptrace during an unrelated app rollout.
-      - name: Verify Uptrace release contract and unmodified legacy monitoring
+      - name: Verify Uptrace production release contract
         shell: bash
         run: |
           set -euo pipefail
@@ -76,6 +76,16 @@ jobs:
           CHAT2_MOBILE_IOS_MIN_VERSION: ${{ vars.CHAT2_MOBILE_IOS_MIN_VERSION || '1.7.3' }}
           CHAT2_MOBILE_ANDROID_MIN_VERSION: ${{ vars.CHAT2_MOBILE_ANDROID_MIN_VERSION || '1.7.3' }}
         run: node scripts/refactor/check-chat2-prod-boundary.mjs --candidate
+      - name: Require OTA delivery credentials before production rollout
+        shell: bash
+        env:
+          HAS_OTA_CALLBACK: ${{ secrets.MOBILE_OTA_CI_CALLBACK_TOKEN != '' }}
+          HAS_OTA_INSTALL_HASH: ${{ secrets.MOBILE_OTA_INSTALLATION_HASH_KEY != '' }}
+        run: |
+          set -euo pipefail
+          [[ "$HAS_OTA_CALLBACK" == 'true' ]] || { echo 'MOBILE_OTA_CALLBACK_SECRET_REQUIRED'; exit 1; }
+          [[ "$HAS_OTA_INSTALL_HASH" == 'true' ]] || { echo 'MOBILE_OTA_INSTALL_HASH_SECRET_REQUIRED'; exit 1; }
+
       - name: Gallery protected S3 redirect gate (read-only, no provider writes)
         # This is provider cutover approval, not an application-only code upgrade.
         # In app_only mode current active server CDN values are preserved and
@@ -541,6 +551,7 @@ jobs:
               echo "GAFUS_TELEMETRY_PRODUCTION_APPROVED=true"
               echo "GAFUS_UPTRACE_LOGS_ENABLED=true"
               echo "GAFUS_TELEMETRY_INGEST_ENABLED=true"
+              echo "GAFUS_OBSERVE_NATIVE_INGEST_ENABLED=true"
               echo "GAFUS_TELEMETRY_EXPORT_ENABLED=true"
               echo "GAFUS_TELEMETRY_WEB_INGEST_ENABLED=true"
               echo "GAFUS_BULL_BOARD_TELEMETRY_ENABLED=true"
@@ -561,9 +572,7 @@ jobs:
               echo "# URLs приложений"
               echo "NEXTAUTH_URL=https://gafus.ru"
               echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
-              echo "NEXT_PUBLIC_TRACER_APP_TOKEN=${{ secrets.NEXT_PUBLIC_TRACER_APP_TOKEN }}"
               echo "NEXT_PUBLIC_APP_VERSION=1.7.3"
-              echo "NEXT_PUBLIC_ENABLE_TRACER=true"
               echo "WEB_APP_URL=${{ vars.WEB_APP_URL || 'https://gafus.ru' }}"
               echo ""
               echo "# Cookie домен"
@@ -623,10 +632,11 @@ jobs:
               echo "CDN_HEALTH_MONITOR_ENABLED=true"
 
               # Signed mobile OTA assets are served directly from Cloud.ru S3.
-              # Empty delivery environment disables client updates until native release approval.
+              # Hono serves the production signed OTA protocol; missing or unapproved
+              # releases still produce no-update. No automatic rollout on push.
               echo "MOBILE_OTA_ASSET_ORIGIN=https://global.s3.cloud.ru/gafus-ota-updates"
               echo "MOBILE_OTA_CI_CALLBACK_TOKEN=${{ secrets.MOBILE_OTA_CI_CALLBACK_TOKEN }}"
-              echo "MOBILE_OTA_DELIVERY_ENV=${{ vars.MOBILE_OTA_DELIVERY_ENV }}"
+              echo "MOBILE_OTA_DELIVERY_ENV=production"
               echo "MOBILE_OTA_INSTALLATION_HASH_KEY=${{ secrets.MOBILE_OTA_INSTALLATION_HASH_KEY }}"
               echo "CLOUDRU_S3_ENDPOINT=https://s3.cloud.ru"
               echo "CLOUDRU_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
@@ -739,10 +749,6 @@ jobs:
               echo ""
               echo "# CSRF защита"
               echo "CSRF_STRICT=false"
-              echo ""
-              echo "# Yandex Cloud Monitoring"
-              echo "YC_MONITORING_WORKSPACE_ID=${{ secrets.YC_MONITORING_WORKSPACE_ID }}"
-              echo "YC_MONITORING_API_KEY=${{ secrets.YC_MONITORING_API_KEY }}"
               echo ""
               echo "# OpenRouter AI API"
               echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}"
@@ -1028,7 +1034,16 @@ jobs:
 
             # Monitoring has no consultation schema dependency.
             docker-compose -f "$COMPOSE_PROD" up -d --no-deps --force-recreate \
-              grafana-alloy yandex-metrics-sync node-exporter postgres-exporter redis-exporter blackbox-exporter
+              grafana-alloy node-exporter postgres-exporter redis-exporter blackbox-exporter
+
+            # Retire only the known standalone Yandex Monitoring importer.
+            # Existing Compose containers survive service deletion unless
+            # explicitly stopped; do not touch backups, S3 or analytics.
+            if docker ps -a --format '{{.Names}}' | grep -Fxq 'gafus-yandex-metrics-sync'; then
+              docker stop --time 20 gafus-yandex-metrics-sync
+              docker rm gafus-yandex-metrics-sync
+              echo 'YANDEX_MONITORING_IMPORTER_RETIRED'
+            fi
 
             # Keep the HTTPS configuration and the maintenance gate active.
             # Do not temporarily replace HTTPS with an HTTP-only config while
@@ -1080,6 +1095,22 @@ jobs:
                   }
                 }
                 console.log("CHAT2_MOBILE_ROUTE_VERIFIED");
+              })().catch(error => { console.error(error.message); process.exit(1); });
+            '
+            # Signed self-hosted OTA must be mounted and enabled before opening
+            # the edge. A missing route or disabled env fails the deploy.
+            docker exec gafus-api node -e '
+              (async () => {
+                if (process.env.MOBILE_OTA_DELIVERY_ENV !== "production" ||
+                    (process.env.MOBILE_OTA_CI_CALLBACK_TOKEN || "").length < 32 ||
+                    (process.env.MOBILE_OTA_INSTALLATION_HASH_KEY || "").length < 32)
+                  throw Error("MOBILE_OTA_PRODUCTION_NOT_CONFIGURED");
+                const response = await fetch("http://127.0.0.1:3001/ota/manifest", {
+                  signal: AbortSignal.timeout(5000),
+                });
+                if (response.status !== 406)
+                  throw Error(`MOBILE_OTA_MANIFEST_NOT_MOUNTED_${response.status}`);
+                console.log("MOBILE_OTA_PRODUCTION_MANIFEST_ENABLED");
               })().catch(error => { console.error(error.message); process.exit(1); });
             '
             # The gate opens only now: no old process can observe the

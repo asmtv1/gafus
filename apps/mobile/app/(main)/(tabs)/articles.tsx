@@ -19,7 +19,7 @@ import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 const ARTICLE_COVER_PLACEHOLDER_DELAY_MS = 140;
 /** Сколько обложек префетчим в фоне (ускорение без привязки к снятию оверлея). */

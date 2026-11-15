@@ -23,12 +23,8 @@ REDIS_URL=redis://localhost:6379
 LOG_LEVEL=debug
 ENABLE_CONSOLE_LOGS=true
 
-# Tracer (клиентские и серверные ошибки)
-NEXT_PUBLIC_TRACER_APP_TOKEN=
-TRACER_APP_TOKEN=              # для серверных приложений (fallback: NEXT_PUBLIC_TRACER_APP_TOKEN)
-TRACER_SERVER_ENABLED=        # "true" — включить отправку серверных ошибок в dev
-NEXT_PUBLIC_APP_VERSION=1.5.5
-NEXT_PUBLIC_ENABLE_TRACER=true
+# Клиентская диагностика: GAFUS telemetry → Uptrace
+EXPO_PUBLIC_TELEMETRY_ENABLED=true
 
 # Безопасность (менее строгие настройки)
 NEXTAUTH_SECRET=development-secret-key
@@ -52,10 +48,8 @@ REDIS_URL=redis://staging-redis:6379
 LOG_LEVEL=info
 ENABLE_CONSOLE_LOGS=true
 
-# Tracer
-NEXT_PUBLIC_TRACER_APP_TOKEN=
-NEXT_PUBLIC_APP_VERSION=1.5.5
-NEXT_PUBLIC_ENABLE_TRACER=true
+# Клиентская диагностика: GAFUS telemetry → Uptrace
+EXPO_PUBLIC_TELEMETRY_ENABLED=true
 
 # Безопасность
 NEXTAUTH_SECRET=staging-secret-key-change-in-production
@@ -79,12 +73,8 @@ REDIS_URL=redis://prod-redis:6379
 LOG_LEVEL=warn
 ENABLE_CONSOLE_LOGS=false
 
-# Tracer (ошибки — клиентские и серверные)
-NEXT_PUBLIC_TRACER_APP_TOKEN=your-tracer-app-token
-TRACER_APP_TOKEN=your-tracer-app-token   # для серверных приложений (worker, api и др.)
-TRACER_SERVER_ENABLED=                   # в prod не нужен (по умолчанию включено)
-NEXT_PUBLIC_APP_VERSION=1.5.5
-NEXT_PUBLIC_ENABLE_TRACER=true
+# Клиентская диагностика: GAFUS telemetry → Uptrace
+EXPO_PUBLIC_TELEMETRY_ENABLED=true
 
 # Безопасность (строгие настройки)
 NEXTAUTH_SECRET=very-secure-production-secret-key-64-chars-long
@@ -294,11 +284,8 @@ LOG_LEVEL=warn  # debug, info, warn, error
 LOG_FORMAT=json  # json, pretty
 LOG_ENABLE_COLORS=false  # только для development
 
-# Tracer (клиентские ошибки)
-NEXT_PUBLIC_TRACER_APP_TOKEN=
-NEXT_PUBLIC_APP_VERSION=1.5.5
-NEXT_PUBLIC_ENABLE_TRACER=false
-ERROR_SAMPLE_RATE=1.0  # процент ошибок для отправки (0.0-1.0)
+# Клиентская диагностика: GAFUS telemetry → Uptrace
+EXPO_PUBLIC_TELEMETRY_ENABLED=true
 
 # Логирование в файлы
 LOG_FILE_ENABLED=true
@@ -318,9 +305,8 @@ ANALYTICS_TRACKING_ID=your-tracking-id
 PERFORMANCE_MONITORING_ENABLED=true
 PERFORMANCE_SAMPLE_RATE=0.1  # 10% запросов
 
-# Yandex Cloud Monitoring (production — Alloy → remote_write)
-YC_MONITORING_WORKSPACE_ID=     # ID workspace в Yandex Cloud
-YC_MONITORING_API_KEY=          # API-ключ сервисного аккаунта (monitoring.editor)
+# Метрики: Grafana Alloy → Uptrace Cloud (без Yandex Monitoring)
+GAFUS_UPTRACE_INGEST_DSN=
 
 # Worker (health endpoint для мониторинга)
 WORKER_HEALTH_PORT=3003         # Порт HTTP /health (по умолчанию 3003)
@@ -331,7 +317,7 @@ PET_PREVENTION_DEWORMING_DAYS=90     # Глистогонка
 PET_PREVENTION_TICKS_FLEAS_DAYS=30   # Клещи/блохи
 ```
 
-Метрики в production: Grafana Alloy → Yandex Monitoring. См. [Yandex Monitoring](../monitoring/yandex-monitoring.md).
+Метрики в production: Grafana Alloy → Uptrace Cloud. См. [Мониторинг](../monitoring/README.md).
 
 ## 🔧 Оптимизация
 

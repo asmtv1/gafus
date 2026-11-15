@@ -15,7 +15,7 @@ import {
   useTourTargets,
   type TourTargetRect,
 } from "@/shared/lib/tour-targets";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useAuthStore } from "@/shared/stores";
 import {
   getMobileOnboardingTourSteps,

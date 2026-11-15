@@ -18,7 +18,7 @@ import { z } from "zod/v3";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { authApi } from "@/shared/lib/api/auth";
 import { useAuthStore } from "@/shared/stores";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { Button } from "@/shared/components/ui";
 

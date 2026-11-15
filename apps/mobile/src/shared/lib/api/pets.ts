@@ -4,7 +4,7 @@ import {
   isValidOwnedPetWeightId, parseOwnedPetWeightHistoryData,
 } from "@gafus/types";
 
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 import { apiClient, apiClientMultipart, type ApiResponse } from "./client";
 

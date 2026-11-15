@@ -21,7 +21,7 @@ import { formatWalkDistance, isWalkRunning } from "@/features/walk/walkModel";
 import { getWalkWeekOverview } from "@/features/walk/walkOverview";
 import { loadWalkJournal, type WalkJournal } from "@/features/walk/walkStorage";
 import { syncDogWalkHistory } from "@/features/walk/walkSync";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 const CHART_HEIGHT = 76;
 const HISTORY_LIMIT = 5;

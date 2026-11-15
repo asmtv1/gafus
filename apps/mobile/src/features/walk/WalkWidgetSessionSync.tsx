@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { WALK_WIDGET_OWNER_KEY } from "./androidWalkWidgetActions";
 import * as Notifications from "expo-notifications";
 import { useAuthStore } from "@/shared/stores/authStore";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { loadWalkJournal } from "./walkStorage";
 import { publishWalkWidgetSnapshot } from "./walkWidgetSnapshot";
 import { syncWalkNotifications } from "./walkNotifications";

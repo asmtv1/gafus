@@ -24,7 +24,7 @@ import { getStepContent, trainingApi } from "@/shared/lib/api";
 import { WEB_BASE } from "@/shared/lib/utils/alerts";
 import type { DiaryEntry } from "@/shared/lib/api/training";
 import { getDayTitle } from "@/shared/lib/training/dayTypes";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { trackEvent } from "@/shared/lib/analytics";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { useAuthStore } from "@/shared/stores/authStore";

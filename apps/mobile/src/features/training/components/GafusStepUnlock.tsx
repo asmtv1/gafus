@@ -6,7 +6,7 @@ import { Button, Loading } from "@/shared/components/ui";
 import { COLORS, SPACING } from "@/shared/config";
 import { gafusApi } from "@/shared/lib/api/gafus";
 import { useAuthStore } from "@/shared/stores";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { trackEvent } from "@/shared/lib/analytics";
 
 type Props = {

@@ -40,7 +40,7 @@ vi.mock("@/shared/stores/authStore", () => ({
     { getState: () => mocks.auth },
   ),
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: mocks.reportError }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocks.reportError }));
 
 import { useSyncProgressOnReconnect } from "./useSyncProgressOnReconnect";
 

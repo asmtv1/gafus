@@ -43,7 +43,7 @@ vi.mock("@/shared/stores/authStore", () => ({
     }),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: mocked.report }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocked.report }));
 vi.mock("expo-notifications", () => ({ getPermissionsAsync: mocked.notificationPermissions }));
 vi.mock("./walkNotifications", () => ({ syncWalkNotifications: mocked.notify }));
 vi.mock("./walkStorage", () => ({ loadWalkJournal: mocked.load, saveWalkJournal: mocked.save }));

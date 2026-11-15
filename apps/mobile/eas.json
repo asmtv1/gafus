@@ -86,6 +86,46 @@
         "EXPO_PUBLIC_TELEMETRY_ENABLED": "true",
         "EXPO_PUBLIC_API_BASE_URL": "https://api.gafus.ru"
       }
+    },
+    "ota-175-android-internal": {
+      "channel": "production",
+      "environment": "production",
+      "distribution": "internal",
+      "autoIncrement": false,
+      "android": {
+        "buildType": "apk",
+        "credentialsSource": "local"
+      },
+      "env": {
+        "APP_ENV": "production",
+        "GAFUS_OTA_TRANSPORT": "self-hosted",
+        "GAFUS_OTA_LOCAL_DEVICE_TEST": "true",
+        "EXPO_PUBLIC_TELEMETRY_ENABLED": "true",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.gafus.ru",
+        "EXPO_PUBLIC_CHAT2_API_ORIGIN": "https://api.gafus.ru",
+        "GAFUS_OTA_TARGET_PLATFORM": "android",
+        "ORG_GRADLE_PROJECT_android.minSdkVersion": "24",
+        "EXPO_PUBLIC_APP_VERSION": "1.7.5"
+      }
+    },
+    "ota-175-ios-internal": {
+      "channel": "production",
+      "environment": "production",
+      "distribution": "internal",
+      "autoIncrement": false,
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "APP_ENV": "production",
+        "GAFUS_OTA_TRANSPORT": "self-hosted",
+        "GAFUS_OTA_LOCAL_DEVICE_TEST": "true",
+        "EXPO_PUBLIC_TELEMETRY_ENABLED": "true",
+        "EXPO_PUBLIC_API_BASE_URL": "https://api.gafus.ru",
+        "EXPO_PUBLIC_CHAT2_API_ORIGIN": "https://api.gafus.ru",
+        "GAFUS_OTA_TARGET_PLATFORM": "ios",
+        "EXPO_PUBLIC_APP_VERSION": "1.7.5"
+      }
     }
   },
   "submit": {

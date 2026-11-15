@@ -26,7 +26,7 @@ import {
   feedReportGuarded,
 } from "@/shared/lib/api/feed";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";
 
 function Sheet({

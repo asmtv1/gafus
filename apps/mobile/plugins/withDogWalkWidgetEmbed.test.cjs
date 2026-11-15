@@ -5,7 +5,7 @@ const { ensureDogWalkWidgetEmbedded } = require('./withDogWalkWidgetEmbed');
 function fixture() {
   const main = { name: 'Gafus', buildPhases: [
     {value:'RES',comment:'Resources'},
-    {value:'TRACE',comment:'[AppTracer] Upload dSYM'},
+    {value:'DSYM',comment:'Generate debug symbols'},
     { value: 'COPY', comment: 'Embed Foundation Extensions' },
   ] };
   return {
@@ -32,7 +32,7 @@ test('the app embeds the WidgetKit target with copy+codesign on clean prebuild',
   const copy = project.hash.project.objects.PBXCopyFilesBuildPhase.COPY;
   assert.equal(copy.files.length, 1);
   assert.deepEqual(project.hash.project.objects.PBXNativeTarget.MAIN.buildPhases.map(ref=>ref.value),
-    ['RES','COPY','TRACE']);
+    ['RES','COPY','DSYM']);
   assert.equal(project.hash.project.objects.PBXBuildFile[copy.files[0].value].fileRef, 'PRODUCT');
   assert.deepEqual(project.hash.project.objects.PBXBuildFile[copy.files[0].value].settings.ATTRIBUTES,
     ['RemoveHeadersOnCopy','CodeSignOnCopy']);

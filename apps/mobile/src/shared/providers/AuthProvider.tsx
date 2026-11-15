@@ -4,7 +4,7 @@ import { AppState } from "react-native";
 
 import { useQueryClient } from "@tanstack/react-query";
 
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useAuthStore, useCourseStore, useStepStore } from "@/shared/stores";
 import { favoritesQueryOptions } from "@/shared/lib/api/favoritesQuery";
 import { resetUserStores } from "@/shared/stores/resetAll";

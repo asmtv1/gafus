@@ -29,7 +29,7 @@ import {
 } from "@/features/consultations";
 import { Button, Input } from "@/shared/components/ui";
 import { consultationsApi, isSubscriptionRequiredCode } from "@/shared/lib/api";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
 import { useAuthStore } from "@/shared/stores/authStore";

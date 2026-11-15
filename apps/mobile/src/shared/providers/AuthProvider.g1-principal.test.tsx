@@ -53,7 +53,7 @@ vi.mock("@/shared/lib/api/favoritesQuery", () => ({
   },
 }));
 vi.mock("@/shared/lib/api/mobile-intro", () => ({ flushMobileIntroEvents: vi.fn() }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: mocks.reportClientError }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocks.reportClientError }));
 vi.mock("@/shared/components/ui/Loading", () => ({ Loading: () => null }));
 
 import { AuthProvider } from "./AuthProvider";

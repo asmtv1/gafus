@@ -5,7 +5,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { zustandStorage } from "./storage";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { deleteCourseData } from "@/shared/lib/offline/offlineStorage";
 import {
   downloadCourseForOffline,

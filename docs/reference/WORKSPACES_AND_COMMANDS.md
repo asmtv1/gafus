@@ -9,7 +9,7 @@
 | [`apps/bull-board`](../../apps/bull-board) | `@gafus/bull-board` | `build`, `dev`, `start`, `typecheck` |
 | [`apps/feed-cloud`](../../apps/feed-cloud) | `@gafus/feed-cloud-runtime` | `build`, `build:chat2-job`, `build:questions-photo-job`, `typecheck`, `start`, `package:origin` |
 | [`apps/gallery-cloud`](../../apps/gallery-cloud) | `@gafus/gallery-cloud` | `build`, `package:linux`, `typecheck`, `test`, `benchmark`, `smoke` |
-| [`apps/mobile`](../../apps/mobile) | `@gafus/mobile` | `android`, `android:release`, `postinstall`, `ios`, `ios:release`, `lint`, `lint:fix`, `start`, `test`, `tracer:sourcemaps`, `typecheck`, `update:ota:preview`, `update:ota:production`, `web` |
+| [`apps/mobile`](../../apps/mobile) | `@gafus/mobile` | `android`, `android:release`, `postinstall`, `ios`, `ios:release`, `lint`, `lint:fix`, `start`, `test`, `typecheck`, `web` |
 | [`apps/trainer-panel`](../../apps/trainer-panel) | `@gafus/trainer-panel` | `build`, `dev`, `start`, `typecheck`, `lint`, `test` |
 | [`apps/web-vite`](../../apps/web-vite) | `@gafus/web-vite` | `dev`, `build`, `typecheck`, `lint`, `test`, `test:preview`, `test:visual`, `test:visual:update` |
 | [`packages/analytics`](../../packages/analytics) | `@gafus/analytics` | `build`, `clean`, `test`, `test:watch`, `typecheck` |

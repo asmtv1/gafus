@@ -1,6 +1,6 @@
 {
   "name": "@gafus/mobile",
-  "version": "1.8.0",
+  "version": "1.7.5",
   "private": true,
   "main": "./widget-entry.ts",
   "scripts": {
@@ -20,11 +20,12 @@
     "start:dev-client": "expo start --dev-client",
     "start:go": "expo start --go",
     "test": "vitest run --config vitest.config.ts",
-    "tracer:sourcemaps": "eas env:exec production 'node ./scripts/upload-apptracer-sourcemaps.mjs'",
     "typecheck": "tsc --noEmit",
-    "update:ota:preview": "eas env:exec preview 'node ./scripts/publish-update-with-apptracer.mjs --channel preview --environment preview'",
-    "update:ota:production": "eas env:exec production 'node ./scripts/publish-update-with-apptracer.mjs --channel production --environment production'",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:ota:android:local": "node ./scripts/build-ota-175-local.mjs android",
+    "build:ota:ios:local": "node ./scripts/build-ota-175-local.mjs ios",
+    "check:ota:android:local": "node ./scripts/build-ota-175-local.mjs android --check",
+    "check:ota:ios:local": "node ./scripts/build-ota-175-local.mjs ios --check"
   },
   "dependencies": {
     "@appmetrica/react-native-analytics": "^3.6.0",
@@ -72,6 +73,7 @@
     "expo-linking": "~57.0.14",
     "expo-location": "~57.0.23",
     "expo-notifications": "~57.0.25",
+    "expo-observe": "~57.0.28",
     "expo-router": "~57.0.31",
     "expo-screen-capture": "~57.0.4",
     "expo-screen-orientation": "~57.0.3",
@@ -108,7 +110,6 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
-    "@apptracer/sourcemap": "^1.1.12",
     "@babel/core": "^7.26.0",
     "@gafus/core": "workspace:*",
     "@types/react": "19.2.18",

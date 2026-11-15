@@ -21,7 +21,7 @@ const rules: Record<string, ReadNode> = {
     pure: ["validateWeightHistory"],
     runtime: [
       "@/shared/stores/authStore",
-      "@/shared/lib/tracer",
+      "@/shared/lib/error-reporting",
       "@/shared/lib/offline/newOnlyV2Native",
       "@/shared/lib/api/pets",
     ],

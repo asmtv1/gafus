@@ -44,10 +44,8 @@ function ensureDogWalkWidgetEmbedded(project) {
     changed = true;
   }
 
-  // The default Expo 55 extension phase is placed after an AppTracer dSYM
-  // script. This causes an Xcode new-build-system cycle:
-  // copy .appex -> AppTracer dSYM -> Info.plist -> copy .appex.
-  // Embed after app Resources, before Bundle scripts and dSYM generation.
+  // Place the extension copy immediately after app Resources, before any
+  // extra bundling/symbol tasks, avoiding an Xcode build dependency cycle.
   const resources = objects.PBXResourcesBuildPhase ?? {};
   const resourcesRef = appPhases.find(ref => resources[ref.value]);
   const before = appPhases.indexOf(copyRef);

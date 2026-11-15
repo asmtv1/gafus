@@ -51,7 +51,7 @@ vi.mock("@/shared/lib/utils/haptics", () => ({
   },
 }));
 vi.mock("@/shared/lib/analytics", () => ({ trackEvent: (...a: unknown[]) => m.track(...a) }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/config", () => ({
   BORDER_RADIUS: { lg: 6, xl: 10 },
   COLORS: {

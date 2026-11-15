@@ -45,8 +45,8 @@ function makeCandidate() {
     signatureHeader:`sig="${signature.toString("base64")}", keyid="qa-replay", alg="rsa-v1_5-sha256"`,
     artifacts:[{key:assetKey,immutableUrl:assetUrl,sha256:artifactSha,
       mimeType:"application/javascript",sizeBytes:artifactBytes.length,cdnVerified:true,s3Verified:true}],
-    checks:{unit:true,mobileTypecheck:true,nativeCompatibility:true,iosPaymentGraph:true,appTracer:true},
-    appTracerRef:"apptracer:ota-replay-qa",
+    checks:{unit:true,mobileTypecheck:true,nativeCompatibility:true,iosPaymentGraph:true,privateSymbols:true},
+    symbolsRef:"symbols-s3:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   });
 }
 let releaseId:string|null=null;
@@ -90,16 +90,16 @@ suite("CI callback idempotency on migrated isolated PostgreSQL",()=>{
   it("rejects changed receipt identity or artifact metadata without mutating READY",async()=>{
     const input=makeCandidate();
     for (const changed of [
-      {...input,appTracerRef:"apptracer:replacement"},
+      {...input,symbolsRef:"symbols-s3:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
       {...input,ciRunId:"different-run-5678"},
       {...input,artifacts:[{...input.artifacts[0],sizeBytes:input.artifacts[0].sizeBytes+1}]},
     ]) {
       await expect(registerVerifiedOtaCiResult(changed,"https://cdn.example.test"))
         .rejects.toMatchObject({code:"OPERATION_REPLAY_CONFLICT"});
     }
-    const rows=await prisma.$queryRaw<{state:string;appTracerRef:string}[]>`
-      SELECT state,"appTracerRef" FROM "MobileOtaRelease" WHERE id=${releaseId}::uuid
+    const rows=await prisma.$queryRaw<{state:string;symbolsRef:string}[]>`
+      SELECT state,"symbolsRef" FROM "MobileOtaRelease" WHERE id=${releaseId}::uuid
     `;
-    expect(rows).toEqual([{state:"READY",appTracerRef:input.appTracerRef}]);
+    expect(rows).toEqual([{state:"READY",symbolsRef:input.symbolsRef}]);
   });
 });

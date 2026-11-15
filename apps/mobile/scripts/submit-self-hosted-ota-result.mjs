@@ -14,7 +14,7 @@ function required(name) {
   return value;
 }
 export function prepareVerifiedCiResult({directory,ciRunId,operationId,buildAttempt=1,
-  appTracerRef,checks}) {
+  symbolsRef,checks}) {
   const info=JSON.parse(fs.readFileSync(path.join(directory,"release-metadata.json"),"utf8"));
   const proof=JSON.parse(fs.readFileSync(path.join(directory,"delivery-evidence.json"),"utf8"));
   const bytes=fs.readFileSync(path.join(directory,"manifest.json"));
@@ -41,14 +41,15 @@ export function prepareVerifiedCiResult({directory,ciRunId,operationId,buildAtte
     return {key:a.immutableFile,immutableUrl:url,sha256:a.sha256,
       mimeType:a.contentType,sizeBytes:a.sizeBytes,cdnVerified:true,s3Verified:true};
   });
-  if (!Number.isSafeInteger(buildAttempt) || buildAttempt<1 || !ciRunId || !operationId || !appTracerRef ||
-      !checks || ![checks.unit,checks.mobileTypecheck,checks.nativeCompatibility,checks.appTracer].every(x=>x===true) ||
+  if (!Number.isSafeInteger(buildAttempt) || buildAttempt<1 || !ciRunId || !operationId || !symbolsRef ||
+      !checks || ![checks.unit,checks.mobileTypecheck,checks.nativeCompatibility].every(x=>x===true) ||
+      !(checks.privateSymbols===true && /^symbols-s3:[a-f0-9]{64}$/.test(symbolsRef)) ||
       (info.platform==='ios' && checks.iosPaymentGraph!==true))
     throw Error("OTA_CI_REQUIRED_CHECKS_MISSING");
   return {operationId,nativeReleaseId:info.nativeReleaseId,updateId:info.updateId,
     sourceSha:info.sourceSha,revision:info.revision,buildAttempt,ciRunId,
     manifestBase64:bytes.toString("base64"),signatureHeader:info.signatureHeader,
-    artifacts,checks,appTracerRef};
+    artifacts,checks,symbolsRef};
 }
 async function main() {
   if (process.argv.length!==3) throw Error("USAGE: submit-self-hosted-ota-result.mjs <artifact-dir>");
@@ -60,9 +61,10 @@ async function main() {
   const payload=prepareVerifiedCiResult({directory,
     ciRunId:required("GAFUS_OTA_CI_RUN_ID"), operationId:required("GAFUS_OTA_OPERATION_ID"),
     buildAttempt:Number(process.env.GAFUS_OTA_BUILD_ATTEMPT||"1"),
-    appTracerRef:required("GAFUS_OTA_APPTRACER_REF"),
+    symbolsRef:required("GAFUS_OTA_SYMBOLS_REF"),
     checks:{unit:true,mobileTypecheck:true,nativeCompatibility:true,
-      iosPaymentGraph:info.platform==='ios',appTracer:true},
+      iosPaymentGraph:info.platform==='ios',
+      privateSymbols:true},
   });
   const origin=new URL(required("MOBILE_OTA_API_ORIGIN"));
   if (origin.protocol!=="https:" || origin.pathname!=="/" || origin.search || origin.hash)

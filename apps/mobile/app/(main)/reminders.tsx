@@ -22,7 +22,7 @@ import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
 import { remindersApi, type Reminder, type ReminderPayload, type ReminderUpdatePayload } from "@/shared/lib/api";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { trackEvent } from "@/shared/lib/analytics";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import {
   getPushPermissionStatus,
   getVerifiedPushActor,

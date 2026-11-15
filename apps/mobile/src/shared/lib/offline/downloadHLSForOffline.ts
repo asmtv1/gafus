@@ -5,7 +5,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 
 import { trainingApi } from "@/shared/lib/api";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { selectHighestBandwidthVariant } from "./hlsOfflineManifest";
 import { assertSafeOfflineSegment } from "./offlineStorage";
 import { throwIfOfflineDownloadAborted } from "./downloadAbort";

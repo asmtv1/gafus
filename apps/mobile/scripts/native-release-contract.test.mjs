@@ -22,7 +22,7 @@ test('SDK57 startup poster is full bleed; SDK55 legacy policy remains unchanged'
   assert(!check().includes('MOBILE_SPLASH_MUST_FIT_SCREEN'));
   assert(check({expo:{...good.expo,splash:{...good.expo.splash,resizeMode:'contain'}}})
     .includes('MOBILE_SPLASH_MUST_FIT_SCREEN'));
-  assert(!check({expo:{...good.expo,version:'1.7.4',
+  assert(!check({mobilePackage:{...good.mobilePackage,dependencies:{...good.mobilePackage.dependencies,expo:'~55.0.0'}},expo:{...good.expo,version:'1.7.4',
     splash:{...good.expo.splash,resizeMode:'contain'},
     ios:{...good.expo.ios,splash:{...good.expo.ios.splash,resizeMode:'contain'}}}})
     .includes('MOBILE_SPLASH_MUST_FIT_SCREEN'));

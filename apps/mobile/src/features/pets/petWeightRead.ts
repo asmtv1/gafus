@@ -1,6 +1,6 @@
 /** Strict source-only read projection for current private pet weight history. */
 import { useAuthStore } from "@/shared/stores/authStore";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { petWeightApi, type PetWeightEntry, type PetWeightHistory } from "@/shared/lib/api/pets";
 export type WeightReadActor = { ownerId: string; authEpoch: string };

@@ -16,7 +16,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 
 vi.mock("@/shared/lib/offline/offlineStorage", () => ({
   deleteCourseData: deleteCourseDataMock,

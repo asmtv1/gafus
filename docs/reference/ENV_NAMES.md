@@ -139,7 +139,7 @@
 | `APPLE_PRIVATE_KEY` | [`packages/core/src/services/appSubscription/paymentService.ts`](../../packages/core/src/services/appSubscription/paymentService.ts) |
 | `APPLE_PRIVATE_KEY_PATH` | [`packages/core/src/services/appSubscription/paymentService.ts`](../../packages/core/src/services/appSubscription/paymentService.ts) |
 | `APPLE_USE_SANDBOX` | [`packages/core/src/services/appSubscription/paymentService.ts`](../../packages/core/src/services/appSubscription/paymentService.ts) |
-| `APP_ENV` | [`apps/mobile/app.config.js`](../../apps/mobile/app.config.js), [`apps/mobile/plugins/withAppTracerNative.js`](../../apps/mobile/plugins/withAppTracerNative.js) |
+| `APP_ENV` | [`apps/mobile/app.config.js`](../../apps/mobile/app.config.js) |
 | `APP_SUBSCRIPTION_CARD_FINGERPRINT_SECRET` | [`packages/core/src/services/appSubscription/paymentService.ts`](../../packages/core/src/services/appSubscription/paymentService.ts) |
 | `BEGET_CDN_API_TOKEN` | [`infra/cloudru/beget-release-readiness.mjs`](../../infra/cloudru/beget-release-readiness.mjs), [`packages/cdn-upload/src/begetCdnPurge.test.ts`](../../packages/cdn-upload/src/begetCdnPurge.test.ts) |
 | `BEGET_CDN_CACHE_KEY_VERIFIED` | [`packages/cdn-upload/src/begetCdnPurge.test.ts`](../../packages/cdn-upload/src/begetCdnPurge.test.ts) |
@@ -212,10 +212,6 @@
 | `EXPO_PUBLIC_REWARDED_ADS_ANDROID_PLACEMENT_ID` | [`apps/mobile/app.config.js`](../../apps/mobile/app.config.js) |
 | `EXPO_PUBLIC_REWARDED_ADS_IOS_PLACEMENT_ID` | [`apps/mobile/app.config.js`](../../apps/mobile/app.config.js) |
 | `EXPO_PUBLIC_REWARDED_ADS_TEST_MODE` | [`apps/mobile/app.config.js`](../../apps/mobile/app.config.js) |
-| `EXPO_PUBLIC_TRACER_APP_TOKEN` | [`apps/mobile/app.config.js`](../../apps/mobile/app.config.js) |
-| `EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID` | [`apps/mobile/app.config.js`](../../apps/mobile/app.config.js) |
-| `EXPO_PUBLIC_TRACER_APP_TOKEN_IOS` | [`apps/mobile/app.config.js`](../../apps/mobile/app.config.js) |
-| `EXPO_PUBLIC_TRACER_APP_TOKEN_JS` | [`apps/mobile/app.config.js`](../../apps/mobile/app.config.js) |
 | `EXPO_PUBLIC_YM_MOBILE_API_KEY` | [`apps/mobile/app.config.js`](../../apps/mobile/app.config.js) |
 | `EXPO_PUBLIC_YM_MOBILE_ENABLED` | [`apps/mobile/app.config.js`](../../apps/mobile/app.config.js) |
 | `FEED_BEGET_CDN_SERVICE_ID` | [`packages/cdn-upload/src/begetCdnPurge.test.ts`](../../packages/cdn-upload/src/begetCdnPurge.test.ts) |
@@ -419,7 +415,6 @@
 | `GITHUB_REF` | [`infra/cloudru/beget-release-readiness.mjs`](../../infra/cloudru/beget-release-readiness.mjs) |
 | `GITHUB_SHA` | [`scripts/refactor/ci033-architecture-report.mjs`](../../scripts/refactor/ci033-architecture-report.mjs) |
 | `HOME` | [`.github/skills/impeccable/scripts/hook-lib.mjs`](../../.github/skills/impeccable/scripts/hook-lib.mjs), [`infra/cloudru/beget-synthetic-acceptance.test.mjs`](../../infra/cloudru/beget-synthetic-acceptance.test.mjs) |
-| `HOSTNAME` | [`packages/logger/src/tracerServer.ts`](../../packages/logger/src/tracerServer.ts) |
 | `IMPECCABLE_API_TIMEOUT` | [`.github/skills/impeccable/scripts/concept-seed.mjs`](../../.github/skills/impeccable/scripts/concept-seed.mjs) |
 | `IMPECCABLE_API_URL` | [`.github/skills/impeccable/scripts/concept-seed.mjs`](../../.github/skills/impeccable/scripts/concept-seed.mjs) |
 | `IMPECCABLE_CARD_BASE` | [`.github/skills/impeccable/scripts/concept-seed.mjs`](../../.github/skills/impeccable/scripts/concept-seed.mjs) |
@@ -464,11 +459,8 @@
 | `NEXTAUTH_URL` | [`apps/api/src/routes/v1/app-subscription.route.test.ts`](../../apps/api/src/routes/v1/app-subscription.route.test.ts), [`apps/api/src/routes/v1/app-subscription.ts`](../../apps/api/src/routes/v1/app-subscription.ts) |
 | `NEXT_PUBLIC_API_URL` | [`apps/api/src/routes/v1/training.ts`](../../apps/api/src/routes/v1/training.ts) |
 | `NEXT_PUBLIC_APP_URL` | [`apps/api/src/routes/v1/app-subscription.route.test.ts`](../../apps/api/src/routes/v1/app-subscription.route.test.ts), [`apps/api/src/routes/v1/app-subscription.ts`](../../apps/api/src/routes/v1/app-subscription.ts) |
-| `NEXT_PUBLIC_APP_VERSION` | [`packages/logger/src/tracerServer.ts`](../../packages/logger/src/tracerServer.ts), [`packages/ui-components/src/TracerProvider.tsx`](../../packages/ui-components/src/TracerProvider.tsx) |
-| `NEXT_PUBLIC_ENABLE_TRACER` | [`packages/ui-components/src/TracerProvider.tsx`](../../packages/ui-components/src/TracerProvider.tsx) |
 | `NEXT_PUBLIC_GAFUS_ANALYTICS_DEBUG` | [`packages/analytics/src/client.ts`](../../packages/analytics/src/client.ts) |
 | `NEXT_PUBLIC_SITE_URL` | [`packages/core/src/services/mail/publicWebBaseUrl.ts`](../../packages/core/src/services/mail/publicWebBaseUrl.ts) |
-| `NEXT_PUBLIC_TRACER_APP_TOKEN` | [`packages/logger/src/tracerServer.ts`](../../packages/logger/src/tracerServer.ts), [`packages/ui-components/src/TracerProvider.tsx`](../../packages/ui-components/src/TracerProvider.tsx) |
 | `NEXT_PUBLIC_TRAINER_PANEL_URL` | [`packages/core/src/services/consultation/consultationTransactionalMail.ts`](../../packages/core/src/services/consultation/consultationTransactionalMail.ts) |
 | `NEXT_PUBLIC_WEB_APP_URL` | [`apps/api/src/routes/v1/app-subscription.route.test.ts`](../../apps/api/src/routes/v1/app-subscription.route.test.ts), [`apps/api/src/routes/v1/app-subscription.ts`](../../apps/api/src/routes/v1/app-subscription.ts) |
 | `NEXT_PUBLIC_YM_COUNTER_ID` | [`packages/analytics/src/client.ts`](../../packages/analytics/src/client.ts) |
@@ -522,11 +514,6 @@
 | `STREAM_API_SECRET` | [`apps/api/src/routes/v1/web5-chat-isolated-work-stream.integration.test.ts`](../../apps/api/src/routes/v1/web5-chat-isolated-work-stream.integration.test.ts), [`packages/core/src/services/cynologistChat/stream.ts`](../../packages/core/src/services/cynologistChat/stream.ts), [`scripts/check-cynologist-chat-live.mjs`](../../scripts/check-cynologist-chat-live.mjs) (ещё 3) |
 | `TEST_DATABASE_URL` | [`packages/core/src/services/auth/registerUserWithCredentials.integration.test.ts`](../../packages/core/src/services/auth/registerUserWithCredentials.integration.test.ts) |
 | `TMPDIR` | [`apps/api/src/routes/v1/g1-ag1-g03-username.privacy-error-delta.test.ts`](../../apps/api/src/routes/v1/g1-ag1-g03-username.privacy-error-delta.test.ts), [`apps/api/src/routes/v1/g1-ag1-g03-username.producer.contract.test.ts`](../../apps/api/src/routes/v1/g1-ag1-g03-username.producer.contract.test.ts), [`apps/api/src/routes/v1/g1-ag2-w1-fourpost.auth-cookie-origin.contract.test.ts`](../../apps/api/src/routes/v1/g1-ag2-w1-fourpost.auth-cookie-origin.contract.test.ts) (ещё 19) |
-| `TRACER_APP_TOKEN` | [`packages/logger/src/tracerServer.ts`](../../packages/logger/src/tracerServer.ts) |
-| `TRACER_SERVER_ENABLED` | [`packages/logger/src/tracerServer.ts`](../../packages/logger/src/tracerServer.ts) |
-| `TRACER_SOURCEMAP_TOKEN_MOBILE` | [`apps/mobile/scripts/publish-update-with-apptracer.mjs`](../../apps/mobile/scripts/publish-update-with-apptracer.mjs), [`apps/mobile/scripts/upload-apptracer-sourcemaps.mjs`](../../apps/mobile/scripts/upload-apptracer-sourcemaps.mjs) |
-| `TRACER_SOURCEMAP_VERSION_CODE` | [`apps/mobile/scripts/upload-apptracer-sourcemaps.mjs`](../../apps/mobile/scripts/upload-apptracer-sourcemaps.mjs) |
-| `TRACER_SOURCEMAP_VERSION_NAME` | [`apps/mobile/scripts/upload-apptracer-sourcemaps.mjs`](../../apps/mobile/scripts/upload-apptracer-sourcemaps.mjs) |
 | `TRAINER_PANEL_URL` | [`packages/core/src/services/consultation/consultationTransactionalMail.ts`](../../packages/core/src/services/consultation/consultationTransactionalMail.ts) |
 | `TRANSACTIONAL_EMAIL_LOGO_PATH` | [`packages/core/src/services/mail/transactionalEmailLayout.ts`](../../packages/core/src/services/mail/transactionalEmailLayout.ts) |
 | `TZ` | [`apps/web-vite/src/features/profile/StudentNotesDates.test.ts`](../../apps/web-vite/src/features/profile/StudentNotesDates.test.ts), [`packages/core/src/services/achievements/achievements.real-pg.mounted.test.ts`](../../packages/core/src/services/achievements/achievements.real-pg.mounted.test.ts) |

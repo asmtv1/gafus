@@ -1,5 +1,5 @@
 import { readPersistedWalkJournal, writePersistedWalkJournal } from './walkGpsStorage';
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { normalizeWalk, type DogWalk, type WalkTimerMode } from "./walkModel";
 
 export interface WalkJournal {

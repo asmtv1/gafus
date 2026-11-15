@@ -20,7 +20,7 @@ vi.mock("@/shared/stores/authStore", () => ({
     }),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("./walkStorage", () => ({ loadWalkJournal: mocked.load, saveWalkJournal: mocked.save }));
 vi.mock('./walkGpsStorage',()=>({
   getGpsSyncCursor:vi.fn(async()=>0),

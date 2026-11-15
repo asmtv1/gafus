@@ -29,7 +29,7 @@ import { COLORS, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { questionsApi } from "@/shared/lib/api/questions";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { QPhotoPicker, st } from "./ui";
 import { validateQuestionDraft } from "./questionFormValidation";
 function Form({ initial }: { initial?: QuestionDetailDto }) {

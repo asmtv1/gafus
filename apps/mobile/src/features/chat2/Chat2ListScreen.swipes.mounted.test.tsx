@@ -62,7 +62,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
     getVerifiedBinding: () => ({ principalId: m.owner, authEpoch: m.epoch }),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: (...args: unknown[]) => m.report(...args) }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: (...args: unknown[]) => m.report(...args) }));
 vi.mock("@/shared/components/TexturedSafeAreaView", async () => {
   const R = await import("react");
   return { TexturedSafeAreaView: ({ children }: { children: React.ReactNode }) =>

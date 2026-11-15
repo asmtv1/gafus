@@ -23,7 +23,7 @@ export async function listNativeOtaReleases(): Promise<unknown[]> {
 export async function listMobileOtaReleases(): Promise<unknown[]> {
   return prisma.$queryRaw<unknown[]>`
       SELECT r.id, r.platform, r.environment, r.channel, r."runtimeVersion", r."sourceSha",
-        r.revision, r."updateId", r.state, r."signingKeyId", n."nativeFingerprint", r."appTracerRef",
+        r.revision, r."updateId", r.state, r."signingKeyId", n."nativeFingerprint", r."symbolsRef",
         r."createdAt", r."readyAt",
         COUNT(a.id)::int AS "assetCount", COALESCE(SUM(a."sizeBytes"), 0)::text AS "totalBytes",
         COALESCE(BOOL_AND(a.verified), false) AS "assetsVerified"

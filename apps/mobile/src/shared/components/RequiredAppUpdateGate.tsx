@@ -9,7 +9,7 @@ import { BORDER_RADIUS, COLORS, FONTS, SPACING } from "@/shared/config";
 import { Button } from "@/shared/components/ui";
 import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 import { isAppUpdateRequired } from "@/shared/lib/app-version";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 interface RequiredAppUpdateGateProps {
   children: ReactNode;

@@ -1,7 +1,7 @@
 /** AG3 V46 — mock-only, owner verified, metadata-only veterinary visit delete. */
 import type { PetVetVisit } from "@gafus/types";
 import { petVetVisitsApi } from "@/shared/lib/api/pet-vet-visits";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { publicOwnVetVisit, sameVetActor, validVetId, type VetReadActor } from "./vetVisitsRead";
 
 export type VetDeleteOutcome =

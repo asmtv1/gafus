@@ -12,7 +12,7 @@ import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
 import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
 import { photoFailureCode } from "@/shared/lib/media/photoRetryMessage";
 import { PhotoUploadStageError, logPhotoUploadFailure, type PhotoUploadStage } from "@/shared/lib/media/photoUploadStage";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { prepareUploadWebpVariants, sanitizePreparedWebpVariant, type PreparedWebpVariant } from "@/shared/lib/media/prepareUploadWebp";
 import { postClientWebp, type SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
 import { feedTransport } from "@/shared/lib/api/feed";

@@ -1,13 +1,8 @@
-/**
- * Build Android locally without putting AppTracer credentials in eas.json.
- * The native config plugin needs all four tokens during the early EAS config
- * evaluation, where Expo deliberately disables automatic .env loading.
- */
+/** Local Android production build. Native release checks run before Gradle. */
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse } from "dotenv";
 
 const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = resolve(mobileRoot, "../..");
@@ -18,20 +13,6 @@ const preflight = spawnSync(process.execPath,
   { cwd: mobileRoot, stdio: "inherit" });
 if (preflight.error) throw preflight.error;
 if (preflight.status !== 0) throw Error("MOBILE_NATIVE_RELEASE_PREFLIGHT_FAILED");
-const required = [
-  "EXPO_PUBLIC_TRACER_APP_TOKEN_ANDROID",
-  "TRACER_PLUGIN_TOKEN_ANDROID",
-  "EXPO_PUBLIC_TRACER_APP_TOKEN_IOS",
-  "TRACER_PLUGIN_TOKEN_IOS",
-];
-
-let local = {};
-try {
-  local = parse(readFileSync(resolve(repoRoot, ".env")));
-} catch (error) {
-  if (error.code !== "ENOENT") throw error;
-}
-
 const env = { ...process.env };
 // Homebrew JDK 17 is keg-only on macOS: /usr/bin/java may be a stub even
 // when a valid JDK is installed. EAS local runs Gradle in a child process.
@@ -54,14 +35,6 @@ for (const key of Object.keys(env)) {
     delete env[key];
   }
 }
-for (const key of required) {
-  const value = env[key]?.trim() || local[key]?.trim();
-  if (!value) {
-    throw new Error(`Missing ${key}: set it in your environment or in the ignored repo-root .env`);
-  }
-  env[key] = value;
-}
-
 const [mode, ...extraArgs] = process.argv.slice(2);
 if (mode === "--verify-cli") {
   const result = spawnSync("npx", ["--yes", "eas-cli@27.4.1", "--version"], {
@@ -92,7 +65,7 @@ if (mode === "--verify-cli") {
     process.stderr.write(result.stderr || "Expo production config validation failed\n");
     process.exit(result.status || 1);
   }
-  console.log("PASS: production Expo config resolves with AppTracer tokens");
+  console.log("PASS: production Expo config validates without vendor tokens");
 } else {
   const forwarded = mode ? [mode, ...extraArgs] : [];
   const buildStartedAt = Date.now();

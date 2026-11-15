@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { feedApi, feedDeletePostGuarded } from "@/shared/lib/api/feed";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { COLORS, FONTS } from "@/shared/config";
 
 /** Delete a failed local publication or a draft/failed post recovered from the server. */

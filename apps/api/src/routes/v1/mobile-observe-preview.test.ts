@@ -13,7 +13,7 @@ const payload=()=>({resourceLogs:[{resource:{attributes:[
   timeUnixNano:(BigInt(Date.now())*1_000_000n).toString(),severityNumber:21,
   body:{stringValue:'secret@example.com user private'},
   attributes:[attr('session.id','secret-user-session'),attr('exception.type','TypeError'),
-  attr('event.name','native.crash'),attr('exception.stacktrace','Error: private@example.com\n at UI (https://example.com/a?token=123:12:15)')],
+  attr('event.name','native.exception'),attr('expo.error.source','nativeCrash'),attr('exception.stacktrace','Error: private@example.com\n at UI (https://example.com/a?token=123:12:15)')],
  }]}]}]});
 const env={GAFUS_OBSERVE_EXPERIMENT_INGEST_ENABLED:'true',
  GAFUS_TELEMETRY_ENVIRONMENT:'preview',GAFUS_OBSERVE_EXPERIMENT_PROJECT_ID:P};
@@ -84,5 +84,27 @@ describe('Observe preview bounded OTLP ingress',()=>{
   expect((await app.request(`/${P}/v1/metrics`,{method:'POST'})).status).toBe(501);
   const encoded=await app.request(`/${P}/v1/logs`,{method:'POST',headers:{'content-type':'application/json','content-encoding':'gzip'},body:'x'});
   expect(encoded.status).toBe(415);
+ });
+ it('production native crashes require independent approval and verified release storage',async()=>{
+  const {repo}=make();
+  const prodEnv={GAFUS_TELEMETRY_ENVIRONMENT:'production',
+    GAFUS_TELEMETRY_PRODUCTION_APPROVED:'true',
+    GAFUS_TELEMETRY_INGEST_ENABLED:'true',
+    GAFUS_OBSERVE_NATIVE_INGEST_ENABLED:'true'};
+  const native=payload();
+  native.resourceLogs[0]!.resource.attributes[5]!.value.stringValue='production';
+  const payloadBody=JSON.stringify(native);
+  const req={method:'POST',headers:{'content-type':'application/json'},body:payloadBody};
+  const disabled=createObservePreviewRoutes({repo,env:{...prodEnv,GAFUS_TELEMETRY_PRODUCTION_APPROVED:'false'}});
+  expect((await disabled.request(`/${P}/v1/logs`,req)).status).toBe(503);
+  const accepted=createObservePreviewRoutes({repo,env:prodEnv,gate:new TelemetryIngressRateGate(20,20)});
+  expect((await accepted.request(`/${P}/v1/logs`,req)).status).toBe(200);
+  expect(repo.store).toHaveBeenCalledOnce();
+  const calls=(repo.store as ReturnType<typeof vi.fn>).mock.calls;
+  expect((calls[0] as unknown as [Array<{kind:string}>])?.[0]?.[0]?.kind).toBe('native_crash');
+  expect(JSON.stringify(calls)).not.toMatch(/secret@example.com|secret-user-session/);
+  const mismatched=await accepted.request(`/${P}/v1/logs`,{
+    method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload())});
+  expect(mismatched.status).toBe(403);
  });
 });

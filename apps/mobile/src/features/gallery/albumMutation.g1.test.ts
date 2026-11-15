@@ -21,7 +21,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
   },
 }));
 vi.mock("@/shared/lib/api/gallery", () => ({ galleryTransport: m.wire }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 import { albumChangedFields, saveAlbumAndReadback, setAlbumCoverAndReadback } from "./albumMutation";
 const album = () => ({
   id: "album1",

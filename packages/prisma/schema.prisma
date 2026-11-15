@@ -4393,7 +4393,7 @@ model MobileOtaRelease {
   signingKeyId       String   @db.VarChar(64)
   state              String   @default("DRAFT") @db.VarChar(28)
   checks             Json     @default("{}")
-  appTracerRef       String?  @db.VarChar(256)
+  symbolsRef         String?  @db.VarChar(256)
   operationId        String?  @unique @db.VarChar(120)
   buildAttempt       Int      @default(1)
   ciRunId            String?  @db.VarChar(100)

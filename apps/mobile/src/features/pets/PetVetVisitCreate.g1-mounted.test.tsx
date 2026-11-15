@@ -75,7 +75,7 @@ vi.mock("@/shared/lib/api/pet-vet-visits", () => ({
 vi.mock("@/shared/lib/api/pets", () => ({
   petsApi: { getById: (...args: unknown[]) => m.pet(...args) },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("expo-router", async () => {
   const R = await import("react");
   const Screen = () => null;

@@ -1,5 +1,5 @@
 import type { createGalleryClient, GalleryUploadDto, GalleryUploadInput } from "@gafus/types";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { photoFailureCode } from "@/shared/lib/media/photoRetryMessage";
 import {
   galleryRequests,

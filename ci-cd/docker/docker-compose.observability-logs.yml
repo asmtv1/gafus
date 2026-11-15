@@ -49,5 +49,3 @@ services:
     logging: *a2-infrastructure-logging
   grafana-alloy:
     logging: *a2-infrastructure-logging
-  yandex-metrics-sync:
-    logging: *a2-infrastructure-logging

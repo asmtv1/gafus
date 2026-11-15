@@ -67,7 +67,7 @@ vi.mock("@/shared/lib/api/feed", () => ({
   feedPostReactionGuarded: (...a: unknown[]) => m.guardedReaction(...a),
   feedDeletePostGuarded: (...a: unknown[]) => m.deletion(...a),
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: (...a: unknown[]) => m.tracer(...a) }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: (...a: unknown[]) => m.tracer(...a) }));
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({ invalidateQueries: m.invalidate }),
   useQuery: vi.fn(),

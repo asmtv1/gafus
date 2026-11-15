@@ -131,7 +131,7 @@ vi.mock("@/features/onboarding-tour", () => ({
     selector: (s: { isActive: boolean; currentStepId: null }) => unknown,
   ) => selector({ isActive: false, currentStepId: null }),
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.trace(...args),
 }));
 vi.mock("@/shared/config", () => ({

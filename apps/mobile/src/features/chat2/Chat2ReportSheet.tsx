@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";
 import { chat2 } from "./api";
 const olive = "#748650";

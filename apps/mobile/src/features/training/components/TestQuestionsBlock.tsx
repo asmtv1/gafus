@@ -6,7 +6,7 @@ import { COLORS, SPACING } from "@/shared/config";
 import { Button, Loading } from "@/shared/components/ui";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { canRetakeRejectedExam } from "../lib/examRetake";
 
 const TEST_PASS_THRESHOLD_RATIO = 0.5;

@@ -101,7 +101,7 @@ export function auditWorkflowReleaseGates(workflows){
   ota.includes('SYMBOLS_S3_ACCESS_KEY:'),
   'OTA_UNVERIFIED_SYMBOLS');
  const reusableGate=position(reusable,
-   '- name: Verify Uptrace release contract and unmodified legacy monitoring',
+   '- name: Verify Uptrace production release contract',
    'REUSABLE_MISSING_UPTRACE_GUARD');
  const sshCutover=position(reusable,
    '- name: Deploy to production server',

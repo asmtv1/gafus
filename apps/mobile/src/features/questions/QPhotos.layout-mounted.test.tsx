@@ -76,7 +76,7 @@ vi.mock("@/shared/lib/media/photoUploadStage",()=>({
   PhotoUploadStageError:class extends Error {},
   logPhotoUploadFailure:vi.fn(),photoStageDiagnostic:vi.fn(),
 }));
-vi.mock("@/shared/lib/tracer",()=>({reportClientError:vi.fn()}));
+vi.mock("@/shared/lib/error-reporting",()=>({reportClientError:vi.fn()}));
 vi.mock("./questionPhotoCdnFallback",()=>({allowQuestionsS3Fallback:vi.fn()}));
 vi.mock("./photoDisplay",()=>({questionPhotoTerminalNotice:()=>null}));
 vi.mock("./profileLink",()=>({questionAuthorProfileIdentifier:()=>null}));

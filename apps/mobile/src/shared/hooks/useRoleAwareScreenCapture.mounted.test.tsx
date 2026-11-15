@@ -39,7 +39,7 @@ vi.mock("expo-screen-capture", () => ({
   preventScreenCaptureAsync: mocks.prevent,
   allowScreenCaptureAsync: mocks.allow,
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: mocks.report }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocks.report }));
 
 import { useRoleAwareScreenCapture } from "./useRoleAwareScreenCapture";
 

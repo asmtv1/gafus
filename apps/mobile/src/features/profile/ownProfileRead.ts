@@ -5,7 +5,7 @@
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { userApi } from "@/shared/lib/api/user";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import type { User } from "@/shared/lib/api/auth";
 
 export type OwnProfileActor = { ownerId: string; authEpoch: string };

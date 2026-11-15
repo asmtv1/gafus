@@ -65,7 +65,7 @@ import { PendingPreventionReadStatus } from "@/features/pets/PendingPreventionRe
 import { usePreventionOfflineSave } from "@/features/pets/usePreventionOfflineSave";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { useAuthStore } from "@/shared/stores/authStore";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import type {
   CreatePreventionEntryData,

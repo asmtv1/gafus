@@ -120,7 +120,7 @@ describe("OTA admin mounted HTTP boundaries", () => {
     });
     expect(unsafe.status).toBe(400);
     const scripts=await request("/patches","POST",{
-      ...definition,allowedPaths:["apps/mobile/scripts/publish-update-with-apptracer.mjs"],
+      ...definition,allowedPaths:["apps/mobile/scripts/obsolete-ota-publisher.mjs"],
     });
     expect(scripts.status).toBe(400);
     expect(mocked.registerPatch).toHaveBeenCalledTimes(1);

@@ -19,7 +19,7 @@ import {
 import { getDailyCourseStoreCourseId } from "@/shared/lib/api";
 import { useDayStepStatuses, useStepStore, useTimerStore, useTrainingStore } from "@/shared/stores";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { useDailyCompletionLifecycle } from "@/features/training/useDailyCompletionLifecycle";
 import { useVerifiedOnlineCompletion } from "@/features/training/useVerifiedOnlineCompletion";

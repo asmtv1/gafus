@@ -1,5 +1,6 @@
-/** Native Expo Observe SDK57 preview OTLP/JSON endpoint.
- * No production enable path; normalized errors only. Never forward raw OTLP. */
+/** Native Expo Observe SDK57 iOS/Android OTLP/JSON endpoint.
+ * Accepts ONLY native crashes from a verified release. No raw OTLP or device
+ * attributes reach Uptrace; the durable spool is the only downstream path. */
 import { Hono } from 'hono';
 import { decodeBoundedJson } from './mobile-telemetry.js';
 import { normalizeObserveLogs, InvalidObservePayload } from '../../modules/mobile-telemetry/observe-normalizer.js';
@@ -30,17 +31,25 @@ export function createObservePreviewRoutes(options:{
     c.header('X-Content-Type-Options','nosniff');
     await next();
   });
-  const allowed=(projectId:string)=>
-    env.GAFUS_OBSERVE_EXPERIMENT_INGEST_ENABLED==='true' &&
-    env.GAFUS_TELEMETRY_ENVIRONMENT==='preview' &&
-    env.GAFUS_OBSERVE_EXPERIMENT_PROJECT_ID===PROJECT_ID &&
-    projectId===PROJECT_ID;
+  const allowed=(projectId:string)=> {
+    if(projectId!==PROJECT_ID)return false;
+    if(env.GAFUS_TELEMETRY_ENVIRONMENT==='production')
+      return env.GAFUS_OBSERVE_NATIVE_INGEST_ENABLED==='true' &&
+        env.GAFUS_TELEMETRY_PRODUCTION_APPROVED==='true' &&
+        env.GAFUS_TELEMETRY_INGEST_ENABLED==='true';
+    if(env.GAFUS_TELEMETRY_ENVIRONMENT==='preview')
+      return env.GAFUS_OBSERVE_EXPERIMENT_INGEST_ENABLED==='true' &&
+        env.GAFUS_OBSERVE_EXPERIMENT_PROJECT_ID===PROJECT_ID;
+    return false;
+  };
   app.post('/:projectId/v1/logs',async c=>{
-    if(!allowed(c.req.param('projectId')))return c.json({error:'OBSERVE_PREVIEW_DISABLED'},503);
+    if(!allowed(c.req.param('projectId')))return c.json({error:'OBSERVE_NATIVE_DISABLED'},503);
     if(!ingress.consume(null))return c.json({error:'OBSERVE_RATE_LIMIT'},429);
     try{
       const raw=await decodeBoundedJson(c.req.raw,256*1024);
       const normalized=normalizeObserveLogs(raw);
+      if(normalized.scopes.some(scope=>scope.environment!==env.GAFUS_TELEMETRY_ENVIRONMENT))
+        return c.json({error:'OBSERVE_ENVIRONMENT_MISMATCH'},403);
       if(normalized.events.length)await repo.store(normalized.events,normalized.scopes);
       // A success-with-partial rejection is understood by Expo Observe's
       // native dispatcher, allowing its cursor to advance safely.
@@ -57,19 +66,24 @@ export function createObservePreviewRoutes(options:{
       return c.json({error:'OBSERVE_STORAGE_UNAVAILABLE'},503);
     }
   });
-  // Preview only. Explicit metric allowlist, native release verified in Core,
-  // 64 KiB body budget, no dynamic attributes, no Uptrace token in clients.
-  // Device-side Observe retries on 503 and receives success only after a
-  // full upstream OTLP acknowledgement.
+  // Expo Observe sends startup metrics as well as native crashes. This
+  // route discards production metrics after strict shape/release checks,
+  // leaving Alloy as the sole metrics producer. The preview metric canary
+  // keeps its existing private upstream-ACK and quota requirements.
   app.post('/:projectId/v1/metrics',async c=>{
-    if(!allowed(c.req.param('projectId')))return c.json({error:'OBSERVE_PREVIEW_DISABLED'},503);
-    if(env.GAFUS_OBSERVE_METRICS_ENABLED!=='true')
+    if(!allowed(c.req.param('projectId')))return c.json({error:'OBSERVE_NATIVE_DISABLED'},503);
+    if(env.GAFUS_TELEMETRY_ENVIRONMENT!=='production' &&
+       env.GAFUS_OBSERVE_METRICS_ENABLED!=='true')
       return c.json({error:'OBSERVE_METRICS_NOT_ENABLED'},501);
     if(!ingress.consume(null))return c.json({error:'OBSERVE_RATE_LIMIT'},429);
     try{
       const raw=await decodeBoundedJson(c.req.raw,64*1024);
       const normalized=normalizeObserveMetrics(raw);
+      if(normalized.scopes.some(scope=>scope.environment!==env.GAFUS_TELEMETRY_ENVIRONMENT))
+        return c.json({error:'OBSERVE_ENVIRONMENT_MISMATCH'},403);
       await verify(normalized.scopes);
+      if(env.GAFUS_TELEMETRY_ENVIRONMENT==='production')
+        return c.json({},200); // Explicitly discard redundant startup metrics.
       await reserveMetricQuota(normalized.metricPoints,Buffer.byteLength(JSON.stringify(normalized.payload)));
       const sent=await sendMetrics(normalized);
       if(!sent.ok)return c.json({error:sent.errorCode??'OBSERVE_METRICS_UPSTREAM_FAILURE'},503);

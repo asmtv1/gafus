@@ -57,7 +57,7 @@ vi.mock("@/shared/lib/analytics", () => ({
   resetAnalyticsUser: resetAnalyticsUserMock,
 }));
 
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: vi.fn(),
 }));
 

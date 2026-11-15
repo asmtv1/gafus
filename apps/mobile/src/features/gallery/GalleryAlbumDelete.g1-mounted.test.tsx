@@ -32,7 +32,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
     getVerifiedBinding: () => (m.authed ? { principalId: m.owner, authEpoch: m.epoch } : null),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/lib/api/gallery", () => ({
   galleryTransport: (...args: unknown[]) => m.fetch(...args),
   galleryApi: { setCover: vi.fn(), deleteAlbum: vi.fn() },

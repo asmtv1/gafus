@@ -18,7 +18,7 @@ import { z } from "zod/v3";
 import { trackEvent } from "@/shared/lib/analytics";
 import { useAuthStore } from "@/shared/stores";
 import { useLayout } from "@/shared/hooks";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 

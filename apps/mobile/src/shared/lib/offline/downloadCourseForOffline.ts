@@ -2,7 +2,7 @@
  * Скачивание одного курса целиком: API → meta → HLS-видео → изображения и PDF.
  * Проверка места на диске, отмена через AbortSignal, при ошибке — откат (deleteCourseData).
  */
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import * as FileSystem from "expo-file-system/legacy";
 import { offlineApi, type FullCourseData } from "@/shared/lib/api/offline";
 import { getVideoIdFromUrl } from "@/shared/lib/utils/videoUrl";

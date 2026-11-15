@@ -19,7 +19,7 @@ import { Loading, TexturedSafeAreaView } from "@/shared/components";
 import { Button } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
 import { consultationCancelGuarded } from "@/features/consultations";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";

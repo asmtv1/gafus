@@ -1,6 +1,6 @@
 import { apiClient } from "@/shared/lib/api/client";
 import { useAuthStore } from "@/shared/stores/authStore";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { canUseDogWalkHistory } from "./walkAccess";
 import { estimatedWalkMeters, normalizeWalk, walkDurationSeconds, type DogWalk } from "./walkModel";
 import { loadWalkJournal, saveWalkJournal, type WalkJournal } from "./walkStorage";

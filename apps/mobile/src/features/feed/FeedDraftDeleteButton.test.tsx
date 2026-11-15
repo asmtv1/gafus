@@ -34,7 +34,7 @@ vi.mock("@/shared/lib/api/feed", () => ({
   feedDeletePostGuarded: (...a: unknown[]) => m.deletion(...a),
 }));
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ invalidateQueries: m.invalidate }) }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: m.tracer }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: m.tracer }));
 vi.mock("@/shared/config", () => ({
   COLORS: { error: "#b00", text: "#111" }, FONTS: { montserratMedium: "fixture" },
 }));

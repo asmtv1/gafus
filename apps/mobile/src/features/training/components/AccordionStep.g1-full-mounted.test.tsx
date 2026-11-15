@@ -112,7 +112,7 @@ vi.mock("@/shared/lib/offline/offlineStorage", () => ({
 }));
 vi.mock("@/shared/lib/utils/videoUrl", () => ({ getVideoIdFromUrl: () => null }));
 vi.mock("@/shared/lib/utils/resolveImageUrl", () => ({ resolveImageUrl: () => null }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...a: unknown[]) => m.reported(...a),
 }));
 vi.mock("@/shared/lib/utils/haptics", () => ({

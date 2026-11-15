@@ -6,7 +6,7 @@ vi.mock('./walkGpsStorage',()=>({
    state.values.set(ownerId,value);
  }),
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 
 import { finishWalk, pauseWalk, resumeWalk, startWalk } from "./walkModel";
 import { emptyWalkJournal, loadWalkJournal, saveWalkJournal } from "./walkStorage";

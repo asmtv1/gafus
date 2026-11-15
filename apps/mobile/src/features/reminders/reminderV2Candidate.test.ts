@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { reportClientError } from "@/shared/lib/tracer";
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+import { reportClientError } from "@/shared/lib/error-reporting";
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 import {
   createReminderV2ReviewCandidate,
   type ImmutableReminderV2Post,

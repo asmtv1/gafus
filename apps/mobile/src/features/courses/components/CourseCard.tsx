@@ -12,7 +12,7 @@ import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { SPACING, FONTS, COLORS, API_BASE_URL } from "@/shared/config";
 import { Button } from "@/shared/components/ui";
 import { useOfflineStore } from "@/shared/stores";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { offlineApi } from "@/shared/lib/api/offline";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { getCourseStartedUsersCount, type Course, type CourseListItem } from "@/shared/lib/api";

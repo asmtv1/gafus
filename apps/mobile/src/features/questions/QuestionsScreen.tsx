@@ -22,7 +22,7 @@ import { Button } from "@/shared/components/ui/Button";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { questionsApi } from "@/shared/lib/api/questions";
 import { QAuthor, QButton, QStatus, st } from "./ui";
 function countWord(count: number, forms: [string, string, string]) {

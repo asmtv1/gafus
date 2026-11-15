@@ -1,5 +1,5 @@
 import type { ApiResponse } from "@/shared/lib/api/client";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 import { showYandexRewardedAd } from "../adapter/yandexRewardedAds";
 import {

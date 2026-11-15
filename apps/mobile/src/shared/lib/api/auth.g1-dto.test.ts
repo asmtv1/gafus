@@ -8,7 +8,7 @@ vi.mock("@/shared/config", () => ({
   API_BASE_URL: "https://fixture.invalid",
   NETWORK_TIMEOUTS: { request: 20_000 },
 }));
-vi.mock("@/shared/lib/tracer", () => tracer);
+vi.mock("@/shared/lib/error-reporting", () => tracer);
 
 import { authApi } from "./auth";
 

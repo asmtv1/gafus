@@ -23,7 +23,7 @@ test('logger bridge reports only safe error classes, never secret stack/message'
 test('existing UnifiedLogger.error/fatal reach the bridge with no raw metadata',()=>{
  const rows=[];
  installServerErrorSink(row=>rows.push(row));
- // Legacy stdout/AppTracer logging stays unchanged, but we must not
+ // Production stdout logging stays unchanged, but we must not
  // include raw message, stack, meta or user ID in the NEW OTLP bridge.
  const logger=new UnifiedLogger({
    appName:'web',environment:'test',level:'debug',enableConsole:false,

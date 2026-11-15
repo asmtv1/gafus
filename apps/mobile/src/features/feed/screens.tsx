@@ -28,7 +28,7 @@ import { useAuthStore } from "@/shared/stores";
 import { Button } from "@/shared/components";
 import { feedApi, feedEditCommentGuarded, feedDeleteCommentGuarded, feedCommentReactionGuarded, feedPostReactionGuarded, feedCreateCommentGuarded, feedSaveRevisionGuarded, feedPublishPostGuarded } from "@/shared/lib/api/feed";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { pickFeedMedia, pickFeedPollOptionPhoto, uploadPickedFeedMedia, checkFeedPickedMedia, releaseFeedPickedMedia, feedAssetForPublication, type FeedPickedMedia } from "./uploads";
 import { FeedVideo, stopFeedVideoOutsidePosts } from "./FeedVideo";
 import { mobileFeedTelemetry } from "./telemetry";

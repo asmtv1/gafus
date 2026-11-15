@@ -5,7 +5,7 @@ import type { FeedPersonalizationSettings } from "@gafus/types";
 import { COLORS, FONTS } from "@/shared/config";
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { feedApi } from "@/shared/lib/api/feed";
 import { Loading } from "@/shared/components";
 

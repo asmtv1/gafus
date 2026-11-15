@@ -23,7 +23,7 @@ import { useAuthStore } from "@/shared/stores";
 import { authApi } from "@/shared/lib/api";
 import { useLayout } from "@/shared/hooks";
 import { getOtaRuntimeFingerprintText } from "@/shared/lib/otaRuntimeFingerprint";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { CONSENT_DOCUMENT_URLS, type ConsentPayload } from "@/shared/constants/consent";

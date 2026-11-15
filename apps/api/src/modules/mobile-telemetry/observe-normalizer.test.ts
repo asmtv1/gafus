@@ -12,11 +12,11 @@ const input=()=>({resourceLogs:[{resource:{attributes:[
  timeUnixNano:(BigInt(Date.now())*1_000_000n).toString(),severityNumber:21,
  body:{stringValue:'secret@example.com; bearer SecretJWT'},
  attributes:[attr('session.id','random-session-uuid'),attr('exception.type','TypeError'),
- attr('event.name','app.crash'),
+ attr('event.name','native.exception'),attr('expo.error.source','nativeCrash'),
  attr('exception.stacktrace','Error: secret@example.com\n at Videos.play (https://api.example/path?token=secret:101:22)'),
  attr('user.email','secret@example.com')],
  }]}]}]});
-describe('Expo Observe native SDK57 OTLP preview normalizer',()=>{
+describe('Expo Observe SDK57 native-crash OTLP normalizer',()=>{
  it('scrubs unauthorized metadata, bodies, device ID, and preserves bounded stack',()=>{
   const data=normalizeObserveLogs(input());
   expect(data.events).toHaveLength(1);
@@ -35,7 +35,9 @@ describe('Expo Observe native SDK57 OTLP preview normalizer',()=>{
   const wrong=input();wrong.resourceLogs[0]!.resource.attributes[1]!.value.stringValue='55.0.32';
   expect(()=>normalizeObserveLogs(wrong)).toThrow('OBSERVE_SDK_NOT_57');
   const prod=input();prod.resourceLogs[0]!.resource.attributes[5]!.value.stringValue='production';
-  expect(()=>normalizeObserveLogs(prod)).toThrow('OBSERVE_RELEASE_METADATA_REQUIRED');
+  expect(normalizeObserveLogs(prod).scopes[0]?.environment).toBe('production');
+  const unknown=input();unknown.resourceLogs[0]!.resource.attributes[5]!.value.stringValue='development';
+  expect(()=>normalizeObserveLogs(unknown)).toThrow('OBSERVE_RELEASE_METADATA_REQUIRED');
  });
  it('drops nonerror log payload and rejects unsupported scope',()=>{
   const raw=input();raw.resourceLogs[0]!.scopeLogs[0]!.logRecords[0]!.severityNumber=9;
@@ -43,5 +45,26 @@ describe('Expo Observe native SDK57 OTLP preview normalizer',()=>{
   expect(normalized.rejectedLogCount).toBe(1);
   const bad=input();bad.resourceLogs[0]!.scopeLogs[0]!.scope.name='untrusted';
   expect(()=>normalizeObserveLogs(bad)).toThrow('OBSERVE_UNEXPECTED_SCOPE');
+ });
+ it('does not impersonate native crash using JavaScript or forged event names',()=>{
+  const js=input();
+  const attrs=js.resourceLogs[0]!.scopeLogs[0]!.logRecords[0]!.attributes;
+  attrs[2]!.value.stringValue='js.exception';
+  attrs[3]!.value.stringValue='jsGlobalHandler';
+  const result=normalizeObserveLogs(js);
+  expect(result.events).toHaveLength(0);
+  expect(result.rejectedLogCount).toBe(1);
+  const fake=input();fake.resourceLogs[0]!.scopeLogs[0]!.logRecords[0]!.attributes[3]!.value.stringValue='unknown';
+  expect(normalizeObserveLogs(fake).events).toHaveLength(0);
+ });
+ it('preserves production native crash identity but no user/session payload',()=>{
+  const raw=input();raw.resourceLogs[0]!.resource.attributes[5]!.value.stringValue='production';
+  raw.resourceLogs[0]!.resource.attributes.push(attr('expo.environment','production'));
+  const data=normalizeObserveLogs(raw);
+  expect(data.events[0]?.kind).toBe('native_crash');
+  expect(data.events[0]?.severity).toBe('FATAL');
+  expect(data.events[0]?.errorCode).toBe('NATIVE_CRASH');
+  expect(data.scopes[0]?.environment).toBe('production');
+  expect(JSON.stringify(data)).not.toMatch(/SECRET|example.com|user.id/);
  });
 });

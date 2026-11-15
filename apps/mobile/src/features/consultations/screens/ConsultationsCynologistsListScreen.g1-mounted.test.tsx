@@ -139,7 +139,7 @@ vi.mock("@/shared/components/ui", async () => {
   };
 });
 vi.mock("@/shared/lib/api", () => ({ consultationsApi: { listCynologists: vi.fn() } }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: (...v: unknown[]) => m.trace(...v) }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: (...v: unknown[]) => m.trace(...v) }));
 vi.mock("@/shared/lib/utils/haptics", () => ({
   hapticFeedback: { medium: () => m.haptic(), light: () => m.haptic() },
 }));

@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Text } from "react-native-paper";
 import { TexturedSafeAreaView } from "@/shared/components";
 import { COLORS, FONTS } from "@/shared/config";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useAuthStore } from "@/shared/stores/authStore";
 import {
   countdownRemainingSeconds,

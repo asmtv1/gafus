@@ -15,7 +15,7 @@ vi.mock("expo-file-system/legacy", () => ({
 vi.mock("@/shared/lib/api", () => ({
   trainingApi: { getVideoUrl: getVideoUrlMock },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 
 import { downloadHLSForOffline } from "./downloadHLSForOffline";
 

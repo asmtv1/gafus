@@ -18,7 +18,7 @@ const KEY_SET=new Set([
   'expo.app.build_number','expo.app.updates.channel',
   'expo.app.updates.runtime_version','expo.app.updates.id','expo.app.update_id',
   'expo.environment','service.name','session.id','event.name',
-  'exception.type','exception.stacktrace','exception.message',
+  'exception.type','exception.stacktrace','exception.message','expo.error.source',
 ]);
 type SafeValue=string|number|boolean;
 const isObj=(v:unknown):v is Record<string,unknown> => !!v&&typeof v==='object'&&!Array.isArray(v);
@@ -63,17 +63,12 @@ function safeExceptionType(attrs:Record<string,string>):string|undefined {
   const type=attrs['exception.type'];
   return type&&/^[a-zA-Z_$][a-zA-Z\d_.$<>-]{0,99}$/.test(type)?type:undefined;
 }
-function classifyKind(eventName:string|undefined):MobileTelemetryEventV1['kind'] {
-  if(eventName && /^(?:app\.crash|exception\.native|expo\.crash|native\.crash)/i.test(eventName))return 'native_crash';
-  if(eventName && /^(?:js\.fatal|javascript\.fatal|exception\.js_unhandled)/i.test(eventName))return 'js_fatal';
-  return 'js_handled'; // Unknown events aren't falsely labeled as native crashes.
-}
-function codeFromEventName(eventName:string|undefined):string {
-  if(!eventName)return 'OBSERVE_ERROR';
-  if(/crash/i.test(eventName))return 'OBSERVE_CRASH';
-  if(/exception/i.test(eventName))return 'OBSERVE_EXCEPTION';
-  if(/error/i.test(eventName))return 'OBSERVE_ERROR';
-  return 'OBSERVE_LOG';
+/** Exactly the SDK57 native crash contract (expo-app-metrics 57.0.24).
+ * Handled/unhandled JS reports belong to the separately rate-gated mobile
+ * telemetry channel, so never misclassify a JS event as a native crash. */
+function isNativeCrash(attrs:Record<string,string>):boolean {
+  return attrs['event.name']==='native.exception' &&
+    attrs['expo.error.source']==='nativeCrash';
 }
 export function scopeFromResource(resource:Record<string,unknown>):ObserveReleaseScope {
   const attrs=attributesToMap(resource.attributes);
@@ -88,10 +83,11 @@ export function scopeFromResource(resource:Record<string,unknown>):ObserveReleas
   const channel=attrs['expo.app.updates.channel'];
   if(!appVersion || !APP_VERSION.test(appVersion)||!build||!/^[a-zA-Z\d_.-]{1,40}$/.test(build)||
     !runtime||!SAFE_KEY.test(runtime)||!channel||!/^[a-zA-Z\d_.-]{1,48}$/.test(channel)||
-    channel!=='preview')throw new InvalidObservePayload('OBSERVE_RELEASE_METADATA_REQUIRED');
-  if(attrs['expo.environment'] && attrs['expo.environment']!=='preview')
+    !['preview','production'].includes(channel))throw new InvalidObservePayload('OBSERVE_RELEASE_METADATA_REQUIRED');
+  const environment=channel as 'preview'|'production';
+  if(attrs['expo.environment'] && attrs['expo.environment']!==environment)
     throw new InvalidObservePayload('OBSERVE_ENVIRONMENT_INVALID');
-  return {platform,appVersion,build,runtime,channel,environment:'preview'};
+  return {platform,appVersion,build,runtime,channel,environment};
 }
 
 /** Strict parser: even when sender supplies profile images, GPS, chat texts,
@@ -121,11 +117,14 @@ export function normalizeObserveLogs(raw:unknown):NormalizedObserveBatch {
         // Non-error Observe logs are dropped on purpose; mobile handled
         // telemetry has a separate direct path and no duplicate dispatcher.
         const severity=Number(record.severityNumber??0);
-        if(!Number.isFinite(severity)||severity<17){rejectedLogCount++;continue;}
+        // Only genuine fatal native.exception reports are accepted.
+        // Expo Observe also forwards JavaScript errors; those are duplicates
+        // of our privacy-constrained JS telemetry and must be discarded.
+        if(!Number.isFinite(severity)||severity<21){rejectedLogCount++;continue;}
         const occurredAt=normalizeTime(record.timeUnixNano);
         if(!occurredAt){rejectedLogCount++;continue;}
         const props=attributesToMap(record.attributes);
-        const traceparent=undefined; // no untrusted trace baggage from public native endpoint
+        if(!isNativeCrash(props)){rejectedLogCount++;continue;}
         const stack=sanitizeMobileStack(props['exception.stacktrace']);
         const osVersion=(attributesToMap(item.resource.attributes)['os.version']??'').match(/^\d{1,3}(?:\.\d{1,3}){0,2}/)?.[0];
         const appStartId=deterministicUUID(`${scope.platform}:${props['session.id']??record.timeUnixNano}`);
@@ -137,13 +136,12 @@ export function normalizeObserveLogs(raw:unknown):NormalizedObserveBatch {
         try{
           const event=parseMobileTelemetryEvent({
             schemaVersion:1,eventId,platform:scope.platform,
-            kind:classifyKind(props['event.name']),severity:severity>=21?'FATAL':'ERROR',
+            kind:'native_crash',severity:'FATAL',
             occurredAt,appVersion:scope.appVersion,build:scope.build,
             runtime:scope.runtime,channel:scope.channel,updateId:safeUpdateId,appStartId,
             ...(stack?{stack}:{}),...(osVersion?{osVersion}:{}),
             ...(safeExceptionType(props)?{exceptionType:safeExceptionType(props)}:{}),
-            errorCode:codeFromEventName(props['event.name']),
-            ...(traceparent?{traceparent}:{}),
+            errorCode:'NATIVE_CRASH',
           });
           events.push(event);
         }catch{rejectedLogCount++;}

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GalleryUploadDto } from "@gafus/types";
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("expo-image", () => ({
   Image: {
     clearMemoryCache: vi.fn().mockResolvedValue(undefined),

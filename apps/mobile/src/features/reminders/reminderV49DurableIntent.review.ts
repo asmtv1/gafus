@@ -4,7 +4,7 @@
 import type { Reminder, ReminderPayload } from "@/shared/lib/api/reminders";
 import type { PushActor } from "@/shared/lib/utils/pushRegistrationOwner";
 import type { ApiResponse } from "@/shared/lib/api/client";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import {
   createReminderV2ReviewCandidate,
   type ImmutableReminderV2Post,

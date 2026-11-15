@@ -36,9 +36,10 @@ export const ciSignedReleaseSchema = z.object({
     mobileTypecheck: z.literal(true),
     nativeCompatibility: z.literal(true),
     iosPaymentGraph: z.boolean(),
-    appTracer: z.literal(true),
+    // Only audited, immutable source maps in the private S3 bucket qualify.
+    privateSymbols: z.literal(true),
   }).strict(),
-  appTracerRef: z.string().min(4).max(256),
+  symbolsRef: z.string().min(4).max(256),
 }).strict();
 export type SignedOtaCiResult = z.infer<typeof ciSignedReleaseSchema>;
 export class MobileOtaCiError extends Error {
@@ -67,7 +68,9 @@ export function validateSignedOtaCiResult(
       native.platform !== "ios" && native.platform !== "android")
     throw new MobileOtaCiError("UNVERIFIED_NATIVE_RELEASE");
   if (result.checks.nativeCompatibility !== true || result.checks.unit !== true ||
-      result.checks.mobileTypecheck !== true || result.checks.appTracer !== true ||
+      result.checks.mobileTypecheck !== true ||
+      !(result.checks.privateSymbols === true &&
+        /^symbols-s3:[a-f0-9]{64}$/.test(result.symbolsRef)) ||
       (native.platform === "ios" && !result.checks.iosPaymentGraph))
     throw new MobileOtaCiError("REQUIRED_CI_CHECK_MISSING");
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(native.signingKeyId))
@@ -148,7 +151,7 @@ export type StoredOtaCiReplay = {
   sourceSha: string;
   signatureHeader: string;
   manifestBody: Uint8Array;
-  appTracerRef: string;
+  symbolsRef: string;
   ciRunId: string;
   state: string;
   checks: SignedOtaCiResult["checks"];
@@ -173,7 +176,7 @@ export function matchesStoredOtaCiReplay(
       old.revision !== requested.revision ||
       old.sourceSha !== requested.sourceSha ||
       old.signatureHeader !== requested.signatureHeader ||
-      old.appTracerRef !== requested.appTracerRef ||
+      old.symbolsRef !== requested.symbolsRef ||
       old.ciRunId !== requested.ciRunId ||
       old.state !== "READY" ||
       !Buffer.from(old.manifestBody).equals(Buffer.from(signedBody))) return false;
@@ -204,7 +207,7 @@ export async function registerVerifiedOtaCiResult(result: SignedOtaCiResult,
     const verified = validateSignedOtaCiResult(native, result, cdnOrigin);
     const existing = await tx.$queryRaw<StoredOtaCiReplay[]>`
       SELECT id, "nativeReleaseId", "updateId", revision, "sourceSha", "signatureHeader",
-        "manifestBody", "appTracerRef", "ciRunId", state, checks
+        "manifestBody", "symbolsRef", "ciRunId", state, checks
       FROM "MobileOtaRelease" WHERE "operationId"=${result.operationId}
     `;
     if (existing[0]) {
@@ -223,12 +226,12 @@ export async function registerVerifiedOtaCiResult(result: SignedOtaCiResult,
       INSERT INTO "MobileOtaRelease"
         (id, "nativeReleaseId", "appId", platform, environment, channel, "runtimeVersion",
          "sourceSha", revision, "updateId", "manifestBody", "signatureHeader", "signingKeyId",
-         state, checks, "appTracerRef", "operationId", "buildAttempt", "ciRunId", "createdAt", "readyAt")
+         state, checks, "symbolsRef", "operationId", "buildAttempt", "ciRunId", "createdAt", "readyAt")
       VALUES (${releaseId}::uuid, ${native.id}::uuid, ${native.appId}, ${native.platform},
         ${native.environment}, ${native.channel}, ${native.runtimeVersion}, ${result.sourceSha},
         ${result.revision}, ${result.updateId}::uuid, ${verified.manifestBody},
         ${result.signatureHeader}, ${native.signingKeyId}, 'READY', ${checks}::jsonb,
-        ${result.appTracerRef}, ${result.operationId}, ${result.buildAttempt}, ${result.ciRunId},
+        ${result.symbolsRef}, ${result.operationId}, ${result.buildAttempt}, ${result.ciRunId},
         ${verified.createdAt}, NOW())
     `;
     for (const item of result.artifacts) {

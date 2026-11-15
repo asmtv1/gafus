@@ -93,7 +93,7 @@ vi.mock("@/shared/lib/api", () => ({ surveyApi: {
   submit: (...args: unknown[]) => mock.submitted(...args),
 } }));
 vi.mock("@/shared/lib/utils/haptics", () => ({ hapticFeedback: { selection: vi.fn(), success: vi.fn() } }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/lib/api/exam", () => ({ examApi: {
   getResult: (...args: unknown[]) => mock.examGet(...args),
   submit: (...args: unknown[]) => mock.examSubmit(...args),

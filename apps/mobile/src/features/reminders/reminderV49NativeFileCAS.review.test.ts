@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 import { createReminderV49AG4Review, type V49AG4Record } from "./reminderV49AG4Compat.review";
 import {
   disabledAsyncStorageReminderCAS,

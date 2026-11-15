@@ -48,7 +48,7 @@ import {
 import { Centrifuge } from "centrifuge";
 import { chat2SubscriptionForConnection, chat2SubscriptionTransportOptions } from "@gafus/core-client/chat2/realtime-subscription";
 import { useAuthStore } from "@/shared/stores";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { TexturedSafeAreaView } from "@/shared/components/TexturedSafeAreaView";
 import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";

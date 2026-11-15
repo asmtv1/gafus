@@ -11,7 +11,7 @@ import { WebView } from "react-native-webview";
 import Markdown from "@/features/articles/ArticleMarkdown";
 
 import { articlesApi } from "@/shared/lib/api";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import {
   wrapArticleHtml,
   ARTICLE_HEIGHT_MSG,

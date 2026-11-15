@@ -14,7 +14,7 @@ import {
 } from "@/shared/lib/api/achievementsQuery";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { openAppSubscriptionPaywall } from "@/features/app-subscription";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { type CourseListItem } from "@/shared/lib/api";
 import type { AchievementWire } from "@gafus/types";
 import { COLORS, SPACING, FONTS } from "@/shared/config";

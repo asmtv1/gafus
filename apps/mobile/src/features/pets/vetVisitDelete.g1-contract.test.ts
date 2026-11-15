@@ -23,7 +23,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
 vi.mock("@/shared/lib/api/pet-vet-visits", () => ({
   petVetVisitsApi: { detailResponse: m.detail, deleteResponse: m.del },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 import { deleteVetVisitAndReadback } from "./vetVisitDelete";
 import { verifiedVetActor } from "./vetVisitsRead";
 const own = () => ({

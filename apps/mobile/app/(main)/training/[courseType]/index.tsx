@@ -29,7 +29,7 @@ import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { DAY_TYPE_LABELS } from "@/shared/lib/training/dayTypes";
 import { showLockedDayAlert } from "@/shared/lib/utils/alerts";
 import { CourseDescription } from "@/features/training";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { trackEvent } from "@/shared/lib/analytics";
 import { useAppSubscriptionStatus } from "@/features/app-subscription";
 

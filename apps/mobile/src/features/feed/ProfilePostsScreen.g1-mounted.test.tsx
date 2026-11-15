@@ -36,7 +36,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
     getVerifiedBinding: () => (m.authed ? { principalId: m.owner, authEpoch: m.epoch } : null),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: (...a: unknown[]) => m.trace(...a) }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: (...a: unknown[]) => m.trace(...a) }));
 vi.mock("@/shared/lib/api/feed", () => ({
   feedApi: { status: vi.fn(), listProfilePosts: vi.fn() },
 }));

@@ -24,7 +24,7 @@ import {
 import { AppBackButton, Loading, MascotSpinner, TexturedSafeAreaView } from "@/shared/components";
 import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { COLORS, FONTS } from "@/shared/config";
 import { questionsApi } from "@/shared/lib/api/questions";
 import { QAuthor, QBody, QButton, QInput, QPhotoPicker, QPhotos, QStatus, st } from "./ui";

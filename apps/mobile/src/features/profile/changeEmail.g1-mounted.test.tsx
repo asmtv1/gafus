@@ -37,7 +37,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
 vi.mock("@/shared/lib/api/user", () => ({
   userApi: { requestEmailChange: (...args: unknown[]) => m.mail(...args) },
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.tracer(...args),
 }));
 vi.mock("@/shared/lib/utils/haptics", () => ({

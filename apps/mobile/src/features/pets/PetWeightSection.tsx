@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { COLORS, FONTS } from "@/shared/config";
 import { Button } from "@/shared/components/ui/Button";
 import { petWeightApi, type PetWeightEntry } from "@/shared/lib/api/pets";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import {
   verifiedWeightActor,
   currentWeightActor,

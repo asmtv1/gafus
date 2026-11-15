@@ -141,8 +141,8 @@ suite("fully signed OTA preview delivery on isolated PostgreSQL and mocked Cloud
       artifacts:prepared.inventory.map(item=>({key:item.immutableFile,
         immutableUrl:`${cdnBase}${item.immutableFile}`,sha256:item.sha256,
         mimeType:item.contentType,sizeBytes:item.sizeBytes,s3Verified:true,cdnVerified:true})),
-      checks:{unit:true,mobileTypecheck:true,nativeCompatibility:true,iosPaymentGraph:true,appTracer:true},
-      appTracerRef:"test-e2e-apptracer-run",};
+      checks:{unit:true,mobileTypecheck:true,nativeCompatibility:true,iosPaymentGraph:true,privateSymbols:true},
+      symbolsRef:"symbols-s3:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",};
     const result=await registerVerifiedOtaCiResult(candidate,"https://cdn.test");
     releaseId=result.releaseId;
     expect(result.replayed).toBe(false);

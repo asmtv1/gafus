@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS, SPACING } from "@/shared/config";
 import { Button, Loading } from "@/shared/components/ui";
 import { examApi, type ExamResultData } from "@/shared/lib/api/exam";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 const MIN_FEEDBACK_LENGTH = 10;
 const UNKNOWN_WRITTEN_WRITE =

@@ -46,7 +46,7 @@ import { TexturedSafeAreaView } from "@/shared/components";
 import { useAuthStore } from "@/shared/stores";
 import { petsApi } from "@/shared/lib/api/pets";
 import { petVetVisitsApi as api, type VetLocalFile } from "@/shared/lib/api/pet-vet-visits";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { createVetVisitAndReadback } from "./vetVisitCreate";
 import { editVetVisitAndReadback } from "./vetVisitEdit";
 import { deleteVetVisitAndReadback } from "./vetVisitDelete";

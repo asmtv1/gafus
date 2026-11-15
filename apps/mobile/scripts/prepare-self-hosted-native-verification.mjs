@@ -7,9 +7,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {PREVIEW_SIGNING_KEY_ID} from './verify-ota-preview-native-trust.mjs';
+import {PRODUCTION_SIGNING_KEY_ID} from './prepare-self-hosted-native-build.mjs';
 
-const PINNED_CERT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),
+const PREVIEW_CERT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),
   '../ota-public-certificates/gafus-preview-20261114.cert.txt');
+const PRODUCTION_CERT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),
+  '../ota-public-certificates/gafus-production-20261115.cert.txt');
 const SHA40=/^[0-9a-f]{40}$/;
 const SHA64=/^[0-9a-f]{64}$/;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -39,22 +42,25 @@ export async function hashNativePackage(filename,platform) {
 }
 export async function prepareNativeVerification({native,evidence,packageFile}) {
   required(native&&UUID.test(native.id)&&native.verified===false&&
-    native.environment==='preview'&&native.channel==='preview'&&
-    ['ios','android'].includes(native.platform)&&native.signingKeyId===PREVIEW_SIGNING_KEY_ID&&
+    ['preview','production'].includes(native.environment)&&
+    native.channel===native.environment&&
+    ['ios','android'].includes(native.platform)&&
+    native.signingKeyId===(native.environment==='production'?PRODUCTION_SIGNING_KEY_ID:PREVIEW_SIGNING_KEY_ID)&&
     native.bundleId==='ru.gafus.app'&&native.appId==='gafus'&&
     native.runtimeVersion===native.appVersion&&
     /^\d+\.\d+\.\d+$/.test(native.appVersion)&&
+    (native.environment!=='production'||native.appVersion==='1.7.5')&&
     SHA40.test(native.sourceSha)&&SHA64.test(native.nativeFingerprint),
     'UNTRUSTED_NATIVE_DESCRIPTOR');
-  const cert=fs.readFileSync(PINNED_CERT,'utf8');
+  const cert=fs.readFileSync(native.environment==='production'?PRODUCTION_CERT:PREVIEW_CERT,'utf8');
   required(native.certificatePem===cert&&
     native.certificateSha256===crypto.createHash('sha256').update(cert).digest('hex'),
     'UNPINNED_NATIVE_CERTIFICATE');
   let updateOrigin;
   try {updateOrigin=new URL(native.updateUrl);}catch{required(false,'UNTRUSTED_NATIVE_MANIFEST_ORIGIN');}
   required(updateOrigin.protocol==='https:'&&
-    updateOrigin.hostname.endsWith('.gafus.ru')&&
-    updateOrigin.hostname!=='api.gafus.ru'&&
+    (native.environment==='production'?updateOrigin.hostname==='gafus.ru':
+      updateOrigin.hostname.endsWith('.gafus.ru')&&updateOrigin.hostname!=='api.gafus.ru')&&
     !updateOrigin.username&&!updateOrigin.password&&!updateOrigin.port&&
     updateOrigin.pathname==='/ota/manifest'&&!updateOrigin.search&&!updateOrigin.hash,
     'UNTRUSTED_NATIVE_MANIFEST_ORIGIN');

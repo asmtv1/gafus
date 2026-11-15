@@ -13,7 +13,7 @@ vi.mock("@/shared/lib/offline/offlineStorage", () => ({
       throw Error("unsafe");
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: (...a: unknown[]) => m.trace(...a) }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: (...a: unknown[]) => m.trace(...a) }));
 vi.mock("expo-router", () => ({ useRouter: () => ({ push: (...a: unknown[]) => m.push(...a) }) }));
 vi.mock("@expo/vector-icons", () => ({ MaterialCommunityIcons: () => null }));
 vi.mock("@/shared/config", () => ({

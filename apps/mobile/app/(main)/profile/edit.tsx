@@ -32,7 +32,7 @@ import {
   changedProfileFields,
   exactProfileReadbackMatches,
 } from "@/features/profile/profile-edit-changed-fields";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 const editProfileSchema = z.object({
   fullName: z.string().trim().max(120),

@@ -7,10 +7,10 @@ const read = name => readFileSync(new URL(name, root), 'utf8');
 const prod = read('ci-cd/docker/prometheus/config.alloy');
 const candidate = read('ci-cd/docker/prometheus/config.uptrace-canary.alloy');
 
-test('production Alloy keeps Yandex and enables a filtered Uptrace remote_write', () => {
-  assert.match(prod, /prometheus\.remote_write "yc"/);
+test('production Alloy exports exclusively filtered Uptrace metrics', () => {
+  assert.doesNotMatch(prod, /prometheus\.remote_write "yc"/);
   assert.match(prod, /prometheus\.remote_write "uptrace"/);
-  assert.match(prod, /sys\.env\("YC_MONITORING_API_KEY"\)/);
+  assert.doesNotMatch(prod, /YC_MONITORING_API_KEY/);
   assert.match(prod, /sys\.env\("GAFUS_UPTRACE_INGEST_DSN"\)/);
   assert.match(prod, /action = "labelkeep"/);
   assert.match(prod, /environment = "production", cluster = "gafus"/);
@@ -22,8 +22,8 @@ test('production Alloy keeps Yandex and enables a filtered Uptrace remote_write'
   assert.doesNotMatch(safeLabels[0], /user_id|device_id|session_id|email|ip_address/);
 });
 
-test('uptrace candidate preserves Yandex while separating signal routes', () => {
-  assert.match(candidate, /prometheus\.remote_write "yc"/);
+test('uptrace candidate isolates both signals without a legacy metrics sink', () => {
+  assert.doesNotMatch(candidate, /prometheus\.remote_write "yc"/);
   assert.match(candidate, /prometheus\.remote_write "uptrace"/);
   assert.match(candidate, /otelcol\.receiver\.otlp "gafus"/);
   assert.match(candidate, /otelcol\.processor\.memory_limiter "gafus"/);

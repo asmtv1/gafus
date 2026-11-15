@@ -2,7 +2,7 @@ import { isPairedProductionChat2Origin } from "./chat2ProductionOrigin";
 import * as SecureStore from "expo-secure-store";
 
 import { API_BASE_URL, NETWORK_TIMEOUTS } from "@/shared/config";
-import { addTracerBreadcrumb, reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { isAbortError } from "./abortError";
 import { getMobileClientHeaders } from "./client-context";
 import {
@@ -435,23 +435,11 @@ async function apiClientWithRefreshLimit<T>(
   const requestStartedAt = Date.now();
   const safeEndpoint = traceEndpoint(endpoint);
   const sensitive = vetEndpoint(endpoint) || endpoint === "/api/v1/auth/change-password";
-  addTracerBreadcrumb("api", `${method} ${safeEndpoint}`, { method, endpoint: safeEndpoint });
 
   try {
     if (requestGuard && !requestGuard(token))
       return { success: false, code: "G05_SESSION_CHANGED", error: "Сессия изменилась" };
     const response = await fetchWithTimeout(`${chat2OnlyBaseUrl(endpoint, chat2Origin)}${endpoint}`, config, timeoutMs);
-    addTracerBreadcrumb(
-      "api",
-      `${method} ${safeEndpoint} → ${response.status}`,
-      {
-        method,
-        endpoint: safeEndpoint,
-        status: response.status,
-        durationMs: Date.now() - requestStartedAt,
-      },
-      response.ok ? "info" : "warning",
-    );
 
     // Auto-refresh при 401
     if (response.status === 401 && !skipAuth && !alreadyRefreshed && !skipAuthRefreshReplay) {
@@ -517,12 +505,6 @@ async function apiClientWithRefreshLimit<T>(
 
     return data as ApiResponse<T>;
   } catch (error) {
-    addTracerBreadcrumb(
-      "api",
-      `${method} ${safeEndpoint} failed`,
-      { method, endpoint, durationMs: Date.now() - requestStartedAt },
-      "error",
-    );
     reportClientError(
       sensitive
         ? new Error(
@@ -563,7 +545,6 @@ export async function apiClientMultipart<T>(
   const requestStartedAt = Date.now();
   const safeEndpoint = traceEndpoint(endpoint);
   const sensitive = vetEndpoint(endpoint);
-  addTracerBreadcrumb("api", `POST ${safeEndpoint}`, { method: "POST", endpoint: safeEndpoint });
 
   const doFetch = async (): Promise<Response> => {
     const token = await SecureStore.getItemAsync("auth_token");
@@ -582,17 +563,6 @@ export async function apiClientMultipart<T>(
 
   try {
     let response = await doFetch();
-    addTracerBreadcrumb(
-      "api",
-      `POST ${safeEndpoint} → ${response.status}`,
-      {
-        method: "POST",
-        endpoint: safeEndpoint,
-        status: response.status,
-        durationMs: Date.now() - requestStartedAt,
-      },
-      response.ok ? "info" : "warning",
-    );
     if (response.status === 401) {
       const refreshResult = await refreshAccessToken();
       if (refreshResult.success) {
@@ -630,12 +600,6 @@ export async function apiClientMultipart<T>(
 
     return data as ApiResponse<T>;
   } catch (error) {
-    addTracerBreadcrumb(
-      "api",
-      `POST ${safeEndpoint} failed`,
-      { method: "POST", endpoint, durationMs: Date.now() - requestStartedAt },
-      "error",
-    );
     reportClientError(sensitive ? new Error("VET_MULTIPART_FAILED") : error, {
       issueKey: "ApiClientMultipart",
       keys: { endpoint: safeEndpoint },

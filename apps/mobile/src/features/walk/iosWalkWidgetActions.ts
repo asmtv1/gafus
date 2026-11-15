@@ -5,7 +5,7 @@ import { Pedometer } from "expo-sensors";
 import * as Notifications from "expo-notifications";
 import { requireNativeModule, type NativeModule } from "expo";
 import { Platform } from "react-native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useAuthStore } from "@/shared/stores/authStore";
 import {
   finishWalk,

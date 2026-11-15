@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
-import { reportClientError } from "@/shared/lib/tracer";
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
+import { reportClientError } from "@/shared/lib/error-reporting";
 import {
   createReminderV49AG4Review,
   type V49AG4MockStore,

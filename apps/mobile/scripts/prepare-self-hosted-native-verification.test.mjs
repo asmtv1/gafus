@@ -70,3 +70,21 @@ test('hash detects payload modifications and checks Android package extensions',
   const android=path.join(root,'signed.apk');fs.copyFileSync(binary,android);
   assert.equal(await hashNativePackage(android,'android'),await hashNativePackage(binary,'ios'));
 });
+test('production 1.7.5 Android APK and iOS IPA require real human device attestation',async()=>{
+  const prodCert=fs.readFileSync(new URL('../ota-public-certificates/gafus-production-20261115.cert.txt',import.meta.url),'utf8');
+  for(const platform of ['android','ios']) {
+    const descriptor={...native,environment:'production',channel:'production',platform,
+      signingKeyId:'gafus-production-20261115',appVersion:'1.7.5',runtimeVersion:'1.7.5',
+      certificatePem:prodCert,certificateSha256:crypto.createHash('sha256').update(prodCert).digest('hex'),
+      updateUrl:'https://gafus.ru/ota/manifest'};
+    const packageFile=platform==='ios'?binary:path.join(root,'native-prod.apk');
+    if(platform==='android')fs.copyFileSync(binary,packageFile);
+    const result=await prepareNativeVerification({native:descriptor,evidence,packageFile});
+    assert.equal(result.action,'VERIFY');
+    assert.match(result.evidence.nativeArtifactSha256,/^[a-f0-9]{64}$/);
+    await assert.rejects(()=>prepareNativeVerification({native:descriptor,
+      evidence:{...evidence,physicalDeviceVerified:false},packageFile}),/EXPLICIT_HUMAN_QA_EVIDENCE_REQUIRED/);
+    await assert.rejects(()=>prepareNativeVerification({native:{...descriptor,appVersion:'1.8.0'},
+      evidence,packageFile}),/UNTRUSTED_NATIVE_DESCRIPTOR/);
+  }
+});

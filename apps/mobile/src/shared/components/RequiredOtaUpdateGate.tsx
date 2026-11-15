@@ -15,7 +15,7 @@ import { ensureOtaInstallationIdentity } from "@/shared/lib/ota/installationIden
 import { trackOtaEvent } from "@/shared/lib/ota/telemetry";
 import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 import { activeOtaRevision, requiredOtaRevision } from "@/shared/lib/otaPolicy";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { formatOtaMegabytes, getOtaMainBundleBytes } from "@/shared/lib/otaDownloadSize";
 
 type Phase = "checking" | "downloading" | "installing" | "error";

@@ -3,7 +3,7 @@ import type { PushActor } from "@/shared/lib/utils/pushRegistrationOwner";
 
 import { useAuthStore } from "@/shared/stores/authStore";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import type { ApiResponse } from "./client";
 import { validatedPetsForActor } from "./petsReadValidation";
 export { validatedPetsForActor } from "./petsReadValidation";

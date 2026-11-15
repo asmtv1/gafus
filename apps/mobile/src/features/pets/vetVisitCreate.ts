@@ -3,7 +3,7 @@
 import type { PetVetVisit, PetVetVisitInput } from "@gafus/types";
 import { petVetVisitsApi } from "@/shared/lib/api/pet-vet-visits";
 import { parseVetVisitDate } from "./vetVisitDate";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { vetPrecommitRejection, type VetFieldErrors } from "./vetVisitMutationValidation";
 import { publicOwnVetVisit, sameVetActor, validVetId, type VetReadActor } from "./vetVisitsRead";
 

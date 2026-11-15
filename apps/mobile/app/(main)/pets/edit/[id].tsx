@@ -25,7 +25,7 @@ import {
 } from "@/shared/lib/api";
 import { formatIsoBirthDateToDdMmYyyy } from "@/shared/lib/utils/birthDateInput";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { getPetEditChanges, matchesPetEditReadback } from "@/features/pets/pet-edit-changed-fields";

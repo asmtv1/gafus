@@ -4,7 +4,7 @@
  * и показывает 404. Возвращаем /(auth)/welcome чтобы остаться на auth экране;
  * useVkLogin обрабатывает redirect через Linking.
  */
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { nativePathForVerifiedGafusUrl } from "@/shared/lib/links/verifiedAppLinks";
 
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {

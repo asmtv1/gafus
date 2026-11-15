@@ -35,7 +35,7 @@ vi.mock("@/shared/lib/api/user", () => ({
     getProfile: (...args: unknown[]) => m.getProfile(...args),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.trace(...args),
 }));
 vi.mock("@/shared/lib/utils/haptics", () => ({

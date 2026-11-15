@@ -42,7 +42,7 @@ vi.mock("@/shared/stores/authStore", () => {
     ),
   };
 });
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: mocks.report }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocks.report }));
 
 import { useSyncProgressOnReconnect } from "./useSyncProgressOnReconnect";
 import { usePreventionSyncOnReconnect } from "./usePreventionSyncOnReconnect";

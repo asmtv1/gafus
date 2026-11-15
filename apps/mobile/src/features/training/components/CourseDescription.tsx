@@ -8,7 +8,7 @@ import { useVideoProgress, useVideoUrl } from "@/shared/hooks";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { getOfflineVideoPosterUri, getOfflineVideoUri } from "@/shared/lib/offline/offlineStorage";
 import { getVideoIdFromUrl } from "@/shared/lib/utils/videoUrl";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { getEmbeddedVideoInfo } from "@gafus/core-client/utils/video";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 

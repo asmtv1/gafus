@@ -4,7 +4,7 @@ import { Text } from "react-native-paper";
 import { useFocusEffect, useRouter } from "expo-router";
 import type { ConsultationBookingDto } from "@gafus/consultation-shared";
 import { consultationsApi } from "@/shared/lib/api/consultations";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 

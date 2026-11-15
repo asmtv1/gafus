@@ -30,7 +30,7 @@ export class MobileTelemetryIngestError extends Error {
 
 export type ObserveReleaseScope={
   platform:'ios'|'android';appVersion:string;build:string;
-  runtime:string;channel:string;environment:'preview';
+  runtime:string;channel:string;environment:TelemetryEnvironment;
 };
 
 export class ObservePreviewStoreError extends Error {

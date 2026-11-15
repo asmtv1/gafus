@@ -34,7 +34,7 @@ vi.mock("@/shared/lib/api", () => ({
   authApi: { login: mocks.login, logout: mocks.logout, getProfile: mocks.getProfile },
 }));
 vi.mock("@/shared/lib/analytics", () => ({ identifyUser: vi.fn(), resetAnalyticsUser: vi.fn() }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: mocks.reportError }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocks.reportError }));
 vi.mock("./resetAll", () => ({ resetUserStores: mocks.resetUserStores }));
 vi.mock("./galleryCleanupBridge", () => ({ clearRegisteredGallerySession: vi.fn() }));
 vi.mock("@/shared/lib/api/mobile-intro", () => ({ trackMobileIntroAuthOutcome: vi.fn() }));

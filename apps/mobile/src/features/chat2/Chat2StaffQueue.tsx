@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, Pressable, Text, View, StyleSheet } from "react-native";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { chat2, type StaffChat2Report } from "./api";
 
 /** Staff-only native queue; only server current ADMIN/MODERATOR role authorizes the data. */

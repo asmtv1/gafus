@@ -141,7 +141,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
   },
 }));
 vi.mock("@/shared/hooks/useNetworkStatus", () => ({ useIsOffline: () => m.offline }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...values: unknown[]) => m.report(...values),
 }));
 vi.mock("@/shared/lib/api/courses", () => ({

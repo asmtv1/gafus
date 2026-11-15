@@ -43,7 +43,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
   },
 }));
 vi.mock("@/shared/lib/api", () => ({ userApi: { getProfile: m.get, updateProfile: m.put } }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/config", () => ({
   BORDER_RADIUS: { md: 6 },
   COLORS: { disabled: "#aaa", background: "#fff", error: "#f00" },

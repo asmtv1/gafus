@@ -9,7 +9,7 @@ const { Map, Camera, GeoJSONSource, Layer, UserLocation } = nativeMap ??
   ({} as typeof import("@maplibre/maplibre-react-native"));
 import { allGpsPoints, type StoredGpsPoint } from "./walkGpsStorage";
 import { toWalkGeoJson } from "./walkRouteGeoJson";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { apiClient } from "@/shared/lib/api/client";
 
 // One configurable map source. Self-hosted CDN tiles are explicitly out of scope.

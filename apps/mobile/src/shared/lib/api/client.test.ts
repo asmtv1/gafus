@@ -33,7 +33,7 @@ vi.mock("@/shared/config", () => ({
   NETWORK_TIMEOUTS: { request: 20_000 },
 }));
 
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   addTracerBreadcrumb: breadcrumbMock,
   reportClientError: reportClientErrorMock,
 }));

@@ -15,8 +15,8 @@ const cert=fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)
   '../ota-public-certificates/gafus-preview-20261114.cert.txt'),'utf8');
 run(['init','--quiet']);run(['config','user.name','Native QA']);run(['config','user.email','native-qa@example.invalid']);
 write('pnpm-lock.yaml','lockfileVersion: "9.0"\n');
-write('apps/mobile/app.json',JSON.stringify({expo:{version:'1.8.0',runtimeVersion:{policy:'appVersion'}}}));
-write('apps/mobile/package.json',JSON.stringify({version:'1.8.0'}));
+write('apps/mobile/app.json',JSON.stringify({expo:{version:'1.7.5',runtimeVersion:{policy:'appVersion'}}}));
+write('apps/mobile/package.json',JSON.stringify({version:'1.7.5'}));
 for(const n of ['app.config.js','eas.json','metro.config.js','babel.config.js','expo-env.d.ts'])
   write(`apps/mobile/${n}`,`// immutable native source ${n}\n`);
 write('apps/mobile/plugins/example.cjs','module.exports = {};\n');
@@ -31,7 +31,7 @@ const nativeId=crypto.randomUUID();
 after(()=>fs.rmSync(root,{recursive:true,force:true}));
 test('prepare creates an admin-registerable native record WITHOUT impossible prebuild IPA SHA',()=>{
   const result=make();const c=result.candidate;
-  assert.equal(c.runtimeVersion,'1.8.0');
+  assert.equal(c.runtimeVersion,'1.7.5');
   assert.equal(c.verified,undefined);
   assert.equal(c.provenance.nativeArtifactSha256,undefined);
   assert.equal(c.certificatePem,cert);
@@ -51,13 +51,14 @@ test('finalize requires server-issued ID and reproduces same native fingerprint'
   write('apps/mobile/.ota-certs/preview.pem',cert);
   const descriptorPath=path.join(root,'native.json');
   fs.writeFileSync(descriptorPath,JSON.stringify(native));
-  const config={version:'1.8.0',runtimeVersion:{policy:'appVersion'},updates:{}};
+  const config={version:'1.7.5',runtimeVersion:{policy:'appVersion'},updates:{}};
   const applied=applyNativeSelfHostedProfile(config,{appRoot:path.join(root,'apps/mobile'),
     environment:{GAFUS_OTA_TRANSPORT:'self-hosted',GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR:descriptorPath,
       GAFUS_OTA_NATIVE_CERTIFICATE:'.ota-certs/preview.pem',GAFUS_OTA_TARGET_PLATFORM:'ios'}});
   assert.equal(applied.updates.codeSigningMetadata.keyid,'gafus-preview-20261114');
   assert.equal(applied.extra.otaNativeReleaseId,nativeId);
   assert.equal(applied.updates.checkAutomatically,'NEVER');
+  assert.equal(applied.ios.buildNumber,'187');
   fs.rmSync(path.join(root,'apps/mobile/.ota-certs'),{recursive:true});
   fs.unlinkSync(descriptorPath);
 });
@@ -81,4 +82,38 @@ test('finalize refuses changed candidate and refuses unrelated signing certifica
   assert.throws(()=>finalizeNativeBuild({root,candidate:{...candidate,sourceSha:'a'.repeat(40)},nativeId,certificatePem:cert}),/SOURCE_SHA_MISMATCH/);
   assert.throws(()=>finalizeNativeBuild({root,candidate:{...candidate,nativeFingerprint:'b'.repeat(64)},nativeId,certificatePem:cert}),/CANDIDATE_CHANGED/);
   assert.throws(()=>finalizeNativeBuild({root,candidate,nativeId,certificatePem:cert+'\n'}),/UNTRUSTED_CANDIDATE/);
+});
+
+test('production 1.7.5 signed internal Android and iOS binaries use distinct native trust',()=>{
+  const prodPem=fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)),
+    '../ota-public-certificates/gafus-production-20261115.cert.txt'),'utf8');
+  for(const platform of ['ios','android']){
+    const prodCfg={...cfg,environment:'production',platform,apiOrigin:'https://gafus.ru',
+      operationId:`build-production-ota-${platform}-0001`};
+    const candidate=prepareNativeCandidate({root,config:prodCfg,certificatePem:prodPem}).candidate;
+    const desc=finalizeNativeBuild({root,candidate,nativeId:crypto.randomUUID(),certificatePem:prodPem});
+    assert.equal(desc.runtimeVersion,'1.7.5');
+    assert.equal(desc.channel,'production');
+    assert.equal(desc.signingKeyId,'gafus-production-20261115');
+    assert.equal(desc.updateUrl,'https://gafus.ru/ota/manifest');
+    write('apps/mobile/.ota-certs/prod.pem',prodPem);
+    const descriptorPath=path.join(root,`native-prod-${platform}.json`);
+    fs.writeFileSync(descriptorPath,JSON.stringify(desc));
+    const config={version:'1.7.5',runtimeVersion:{policy:'appVersion'},updates:{}};
+    const environment={APP_ENV:'production',GAFUS_OTA_TRANSPORT:'self-hosted',
+      GAFUS_OTA_LOCAL_DEVICE_TEST:'true',GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR:descriptorPath,
+      GAFUS_OTA_NATIVE_CERTIFICATE:'.ota-certs/prod.pem',GAFUS_OTA_TARGET_PLATFORM:platform};
+    const expo=applyNativeSelfHostedProfile(config,{appRoot:path.join(root,'apps/mobile'),environment});
+    assert.equal(expo.updates.url,desc.updateUrl);
+    assert.equal(expo.updates.codeSigningMetadata.keyid,'gafus-production-20261115');
+    assert.equal(expo.updates.checkAutomatically,'NEVER');
+    if(platform==='android') assert.equal(expo.android.versionCode,187);
+    else assert.equal(expo.ios.buildNumber,'187');
+    assert.throws(()=>applyNativeSelfHostedProfile(config,{appRoot:path.join(root,'apps/mobile'),
+      environment:{...environment,GAFUS_OTA_LOCAL_DEVICE_TEST:'false'}}),/PRODUCTION_REQUIRES_APPROVED_CI/);
+    assert.throws(()=>applyNativeSelfHostedProfile(config,{appRoot:path.join(root,'apps/mobile'),
+      environment:{...environment,GAFUS_OTA_LOCAL_DEVICE_TEST:'false',GAFUS_OTA_PRODUCTION_APPROVED:'true'}}),/PRODUCTION_REQUIRES_APPROVED_CI/);
+    fs.unlinkSync(descriptorPath);
+    fs.rmSync(path.join(root,'apps/mobile/.ota-certs'),{recursive:true});
+  }
 });

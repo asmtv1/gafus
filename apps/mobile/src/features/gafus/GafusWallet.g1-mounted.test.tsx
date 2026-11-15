@@ -50,7 +50,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
     getVerifiedBinding: () => (m.authed ? { principalId: m.owner, authEpoch: m.epoch } : null),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: (...v: unknown[]) => m.trace(...v) }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: (...v: unknown[]) => m.trace(...v) }));
 vi.mock("@/shared/lib/api/gafus", () => ({
   gafusApi: { status: vi.fn(), history: (...v: unknown[]) => m.historyPage(...v) },
 }));

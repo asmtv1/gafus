@@ -127,7 +127,7 @@ vi.mock("@/shared/lib/api", () => ({
     cancelBooking: vi.fn(),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/lib/utils/haptics", () => ({
   hapticFeedback: { light: vi.fn(), medium: vi.fn() },
 }));

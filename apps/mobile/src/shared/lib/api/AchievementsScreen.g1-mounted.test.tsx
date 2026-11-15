@@ -44,7 +44,7 @@ vi.mock("@/shared/lib/api/achievements", () => ({
 vi.mock("@/shared/lib/api/courses", () => ({
   coursesApi: { getAll: (...args: unknown[]) => m.courses(...args) },
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.trace(...args),
 }));
 vi.mock("@/features/app-subscription", () => ({

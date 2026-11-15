@@ -38,7 +38,7 @@ https://global.s3.cloud.ru/gafus-ota-updates/ota/preview/gafus/<runtime>/<ios|an
 
 В GitHub создан отдельный environment `ota-preview` с **ограничением разрешённых веток только `main`**. Попытка включить required reviewers и wait timer отклонена GitHub API (HTTP 422: правила не поддерживаются текущим тарифом для этого приватного репозитория). Поэтому необходимы ручной запуск `workflow_dispatch`, обязательная проверка исходного SHA и отдельное действие администратора для публикации; **не считать environment защищённым approval gate**. Preflight останавливает job до установки зависимостей, если нужные секреты или переменные ещё не заданы, не показывая значения секретов в логах.
 
-Также существуют независимые обязательные секреты подписи, AppTracer и callback в GAFUS (`OTA_SIGNING_PRIVATE_KEY_PEM`, `TRACER_SOURCEMAP_TOKEN_MOBILE`, `MOBILE_OTA_API_ORIGIN`, `MOBILE_OTA_CI_CALLBACK_TOKEN`) и env-переменные preview bundle (`OTA_PREVIEW_*`, `EXPO_PUBLIC_*`). Их не надо заменять S3-ключами. В API необходимо задать `MOBILE_OTA_ASSET_ORIGIN=https://global.s3.cloud.ru/gafus-ota-updates` (старое имя `MOBILE_OTA_CDN_ORIGIN` оставлено как fallback для несовместимых деплоев), а callback — только под отдельным секретным bearer-токеном.
+Для публикации обязательны подписывающий ключ, защищённые callback credentials, точный runtime/OTA update ID и подтверждённые private source maps в отдельном S3 bucket. Публичный OTA S3 не предназначен для хранения карт и приватных символов.
 
 ## Безопасный порядок запуска
 
@@ -57,7 +57,6 @@ https://global.s3.cloud.ru/gafus-ota-updates/ota/preview/gafus/<runtime>/<ios|an
 
 ## Исторический checkpoint до ввода S3-ключей (14 ноября 2026, устарел)
 
-- GitHub Actions `asmtv1/gafus`: заданы `OTA_PUBLIC_ASSET_ORIGIN`, `OTA_S3_REGION`, `OTA_S3_ENDPOINT` и `OTA_S3_BUCKET`; **`OTA_S3_ACCESS_KEY` и `OTA_S3_SECRET_KEY` отсутствуют**. Не заданы материалы подписи и переменные preview API/AppTracer. CI callback-токены настроены отдельно для production (repo secret) и `ota-preview` (environment secret). Запуск остановится на fail-fast preflight.
 - Временный S3 access key от 14.11.2026 **отозван после восстановления консоли Cloud.ru**: после повторного удаления в разделе аккаунта отображается «Ключей доступа пока нет». Сервисный аккаунт оставлен **активным**, но сейчас у него нет действующих ключей доступа. Перед первой реальной OTA-публикацией создайте новый S3 access key и сразу поместите его ID и Secret напрямую в защищённые GitHub Actions Secrets. Не передавайте эти значения через чат, консольные логи или Git-репозиторий.
 - Аккаунт `gafus-ota-s3-publisher` имеет только `s3e.editor`/`s3e.viewer` на `gafus-ota-updates`. Пока ключи CI отсутствуют, подписанная S3-публикация не проверена. Проверен только UI upload и независимый анонимный GET.
 - Smoke-test: 51-байтовый объект создан в Cloud.ru, публичный GET ответил `200` с совпадением SHA-256, анонимный PUT и DELETE — `403`, после удаления тестового объекта GET — `404`. Ни одного OTA-релиза в бакет не загружено.
@@ -89,10 +88,10 @@ https://global.s3.cloud.ru/gafus-ota-updates/ota/preview/gafus/<runtime>/<ios|an
 ## Невыполненные обязательные release-gates
 
 - **Preview API:** должен быть отдельный HTTPS origin, не `gafus.ru` и не `api.gafus.ru`, со своим проверенным окружением и сервером для `/ota/manifest`, `/api/v1/internal/mobile-ota/...`. На момент live-проверки `preview-api.gafus.ru`, `api-preview.gafus.ru`, `staging.gafus.ru` не имеют A-записей. Нельзя подменять origin production API ради обхода проверок.
-- **GitHub Actions:** не заданы `MOBILE_OTA_API_ORIGIN`, `TRACER_SOURCEMAP_TOKEN_MOBILE`, `OTA_PREVIEW_API_BASE_URL`, `OTA_PREVIEW_CHAT2_API_ORIGIN`, `OTA_PREVIEW_TRACER_APP_TOKEN_JS`, `OTA_PREVIEW_TRACER_APP_TOKEN_IOS` и `OTA_PREVIEW_TRACER_APP_TOKEN_ANDROID`. Точное состояние проверить в репозитории перед релизом. До их появления строгий preflight специально отказывает, даже если S3 и signing теперь работают.
+- **GitHub Actions:** проверить защищённые environment secrets OTA и SYMBOLS, endpoint preview API и утверждённую подпись перед manual workflow.
 - **Проверенная нативная поставка:** после выделения preview API нужен отдельный native IPA/APK/AAB SDK57 `1.8.0`, встроенный `nativeReleaseId`, сертификат, fingerprint от чистого Git snapshot; затем на **физическом** iOS/Android проверить установку, cold/background/update/rollback, и лишь после этого зарегистрировать verification evidence. Тестовый `expo config` не заменяет эти операции. Никакие App Store/TestFlight/Google Play версии не затронуты.
 - **Исходники и production:** `main` локально расходится с `origin/main` и содержит порядка 1800 изменений разных агентов, включая общий Prisma/API/lockfile. Публикация текущего worktree через общий `git add .`, merge или push включила бы чужую незавершённую работу. Нужна отдельная согласованная интеграция OTA-изменений. Server API образ до неё без новых OTA-route/environment; production OTA не включать. Независимое production telemetry/callback Secret присутствует, но `MOBILE_OTA_DELIVERY_ENV` не установлен.
-- **Source maps:** исторически workflow требует AppTracer upload и может дополнительно загружать приватные символы SDK57 в другой S3 bucket только при `GAFUS_SYMBOLS_PREVIEW_APPROVED=true`. Не подменять мониторинг пустыми доказательствами и не загружать приватные source maps в публичный OTA bucket; согласовать с отдельной миграцией в Uptrace Cloud.
+- **Source maps:** обязательно загружаются в приватный Cloud.ru S3 bucket с проверенным sha256; publish запрещён при отсутствии `GAFUS_OTA_SYMBOLS_REF` и защищённого approval.
 
 
 ## Безопасная локальная подготовка нового preview native-бинарника (без отправки в Store)
@@ -165,4 +164,4 @@ node apps/mobile/scripts/prepare-self-hosted-native-verification.mjs \
   Следующий офлайн-шаг `buildSignedOtaArtifact` и `verifyAndWriteLocalPreview` проверен на **реальном** `metadata.json` и реальных байтах Metro: каждый ассет пересчитан по SHA-256, выпущены неизменяемые filenames и RSA-подписанный манифест, затем результат сверен по байтам. Использовался **только одноразовый RSA-ключ тестирования**, созданный и уничтоженный в `/tmp`; он не соответствует закреплённому native trust anchor и **не предназначен для установки или публикации**. GitHub production/preview signing secret не покидал GitHub.
 - Все source maps, временные тестовые ключи и signed offline assets удалены после проверки. Подкаталог `apps/mobile/.ota-certs/` также удалён. Это **dry-run текущего локального дерева**, не доказательство чистого релизного SHA или успешной физической установки.
 
-До настоящего preview OTA остаются релизные зависимости: существующий preview HTTPS API и независимый preview database/Redis, безопасная интеграция OTA source в Git, AppTracer/Uptrace-контракт загрузки maps, фактический проверенный IPA/APK/AAB. Ни один из этих недоступных извне gates не подменён фиктивными успешными значениями. `MOBILE_OTA_DELIVERY_ENV` в production остаётся выключенным.
+До preview OTA обязательны отдельный preview API и database, точный native runtime, private S3 maps и проверенные IPA/APK/AAB. Не подменять fail-closed проверки.

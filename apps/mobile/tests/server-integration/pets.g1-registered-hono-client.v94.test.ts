@@ -93,7 +93,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
       m.authenticated ? { principalId: m.owner, authEpoch: m.epoch } : null,
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.reporter(...args),
   addTracerBreadcrumb: vi.fn(),
 }));

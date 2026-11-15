@@ -195,7 +195,7 @@ vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
     getVerifiedBinding: () => ({ principalId: "u", authEpoch: "nav-epoch" }),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 // Navigation isolation: owner-edit/delete behavior has its own V81 mounted suite.
 vi.mock("./FeedPostOwnerActions", () => ({
   FeedPostOwnerActions: () => (

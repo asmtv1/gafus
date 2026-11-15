@@ -8,7 +8,7 @@ vi.mock("expo-application", () => ({ nativeApplicationVersion: "1.7.0" }));
 vi.mock("@/shared/config", () => ({
   API_BASE_URL: "https://api.test", NETWORK_TIMEOUTS: { request: 20_000 },
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: errorReport, addTracerBreadcrumb: vi.fn(),
 }));
 import { authApi } from "./auth";

@@ -16,7 +16,7 @@ import { useAuthStore } from "@/shared/stores";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { Button } from "@/shared/components/ui";
 import { consultationsApi } from "@/shared/lib/api";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 import { resolveImageUrl } from "@/shared/lib/utils/resolveImageUrl";
 import { trackEvent } from "@/shared/lib/analytics";

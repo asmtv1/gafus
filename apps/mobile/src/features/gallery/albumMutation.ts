@@ -4,7 +4,7 @@ import type {
   GalleryAlbumUpdateInput,
 } from "@gafus/types";
 import { galleryTransport } from "@/shared/lib/api/gallery";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import {
   privateGalleryReads,
   publicGalleryAlbum,

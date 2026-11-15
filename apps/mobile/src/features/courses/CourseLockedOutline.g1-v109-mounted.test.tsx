@@ -133,7 +133,7 @@ vi.mock("@/shared/lib/utils/haptics", () => ({
 }));
 vi.mock("@/shared/lib/utils/alerts", () => ({ showLockedDayAlert: vi.fn() }));
 vi.mock("@/shared/lib/analytics", () => ({ trackEvent: vi.fn() }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.trace(...args),
 }));
 vi.mock("@/shared/components/ui", async () => {

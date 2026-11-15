@@ -20,7 +20,13 @@ function applyNativeSelfHostedProfile(config, { environment = process.env,
       !ID.test(descriptor.signingKeyId || "") || !SHA256.test(descriptor.certificateSha256 || "") ||
       !SHA256.test(descriptor.nativeFingerprint || ""))
     throw Error("SELF_HOSTED_NATIVE_DESCRIPTOR_INVALID");
-  if (descriptor.environment === "production" &&
+  // A registered, signed production-channel binary may be built for a physical
+  // device without CI only with an explicit internal-only testing guard.
+  // No store binary or OTA publication inherits this exception.
+  const localDeviceTest = environment.GAFUS_OTA_LOCAL_DEVICE_TEST === "true" &&
+    descriptor.distribution === "internal" && descriptor.channel === "production" &&
+    environment.APP_ENV === "production";
+  if (descriptor.environment === "production" && !localDeviceTest &&
       (environment.CI !== "true" || environment.GAFUS_OTA_PRODUCTION_APPROVED !== "true"))
     throw Error("SELF_HOSTED_PRODUCTION_REQUIRES_APPROVED_CI");
   if (descriptor.appVersion !== config.version || config.runtimeVersion?.policy !== "appVersion")
@@ -43,8 +49,20 @@ function applyNativeSelfHostedProfile(config, { environment = process.env,
       (descriptor.environment === "production" && parsed.hostname !== "gafus.ru") ||
       (descriptor.environment === "preview" && parsed.hostname === "gafus.ru"))
     throw Error("SELF_HOSTED_NATIVE_OTA_ENDPOINT_INVALID");
+  // Embed the registered *native* build number. EAS remote version source
+  // ignores these values, so internal 1.7.5 builds must use local Expo release
+  // tooling or independently verify the resulting APK/IPA version after EAS.
+  if (!/^[1-9]\d{0,9}$/.test(String(descriptor.buildNumber??'')) ||
+      !Number.isSafeInteger(Number(descriptor.buildNumber)) ||
+      Number(descriptor.buildNumber)>2100000000)
+    throw Error("SELF_HOSTED_NATIVE_BUILD_NUMBER_INVALID");
   return {
     ...config,
+    ...(descriptor.platform==='android' ? {
+      android:{...config.android,versionCode:Number(descriptor.buildNumber)},
+    } : {
+      ios:{...config.ios,buildNumber:String(descriptor.buildNumber)},
+    }),
     updates: {
       ...config.updates,
       url: descriptor.updateUrl,

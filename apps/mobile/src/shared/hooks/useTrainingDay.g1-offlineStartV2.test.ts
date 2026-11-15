@@ -22,7 +22,7 @@ vi.mock("@/shared/lib/offline/offlineStorage", () => ({ getCourseMeta: vi.fn() }
 vi.mock("@/shared/lib/offline/mapOfflineMetaToTraining", () => ({
   mapMetaToTrainingDayResponse: vi.fn(),
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 import { useStartStep } from "./useTrainingDay";
 const input = {
   courseId: "clg0v5dte000008mf2dkq239x",

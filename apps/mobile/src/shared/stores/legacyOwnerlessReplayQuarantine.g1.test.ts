@@ -17,7 +17,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
     removeItem: mock.removeItem,
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: mock.reporter }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mock.reporter }));
 vi.mock("@/shared/lib/api", () => ({
   dailyCourseApi: {
     startStep: mock.training,

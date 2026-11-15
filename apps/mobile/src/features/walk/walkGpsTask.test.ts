@@ -45,7 +45,7 @@ vi.mock("./walkGpsStorage", () => ({
   readGpsMotionPolicy: mocked.getMotion,
   saveGpsMotionPolicy: mocked.setMotion,
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: mocked.report }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocked.report }));
 import {
   DOG_WALK_GPS_TASK,
   requestWalkGpsPermissions,

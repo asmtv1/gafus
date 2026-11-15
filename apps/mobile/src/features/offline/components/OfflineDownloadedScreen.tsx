@@ -8,7 +8,7 @@ import { COLORS, SPACING, FONTS } from "@/shared/config";
 import { Loading } from "@/shared/components/ui";
 import { getOfflineCourseTypes, getCourseMeta } from "@/shared/lib/offline";
 import { assertSafeOfflineSegment } from "@/shared/lib/offline/offlineStorage";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 interface OfflineCourseItem {
   courseType: string;

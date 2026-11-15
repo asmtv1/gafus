@@ -28,7 +28,7 @@ import { apiClient } from "@/shared/lib/api/client";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import type { TodayDailyCourseResponse } from "@/shared/lib/api";
 import { coursesCatalogQueryOptions } from "@/shared/lib/api/coursesQuery";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { CourseCard, CourseSearch, CourseFilters } from "@/features/courses";
 import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { OfflineDownloadedScreen } from "@/features/offline";

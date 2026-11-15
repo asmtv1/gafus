@@ -31,7 +31,7 @@ vi.mock("@/shared/lib/offline/offlineStorage", () => ({ getCourseMeta: vi.fn() }
 vi.mock("@/shared/lib/offline/mapOfflineMetaToTraining", () => ({
   mapMetaToTrainingDayResponse: vi.fn(),
 }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 vi.mock("@/shared/lib/offline/newOnlyV2Native", () => ({
   newOnlyV2NativeQueues: {
     enqueue: mocks.enqueue,

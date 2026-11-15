@@ -9,7 +9,7 @@ const m = vi.hoisted(() => ({
   error: vi.fn(),
   trace: vi.fn(),
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.trace(...args),
 }));
 vi.mock("@/shared/config", () => ({

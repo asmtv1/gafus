@@ -8,7 +8,7 @@ import * as WebBrowser from "expo-web-browser";
 import { VK_ID_OAUTH_SCOPE } from "@gafus/core-client/auth/vk-auth-constants";
 
 import { authApi } from "@/shared/lib/api/auth";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { hapticFeedback } from "@/shared/lib/utils/haptics";
 
 function bytesToBase64Url(arr: Uint8Array): string {

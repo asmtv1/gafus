@@ -16,7 +16,7 @@ import {
   WALK_GPS_INTERVALS,
   type WalkGpsMode,
 } from "./walkAdaptiveGps";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 
 export const DOG_WALK_GPS_TASK = "gafus.dogwalk.gps.v1";
 

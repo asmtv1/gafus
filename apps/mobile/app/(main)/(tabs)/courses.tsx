@@ -13,7 +13,7 @@ import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { useIsOffline } from "@/shared/hooks/useNetworkStatus";
 import { apiClient } from "@/shared/lib/api/client";
 import type { Course } from "@/shared/lib/api/courses";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { CourseCard } from "@/features/courses";
 import { OfflineDownloadedScreen } from "@/features/offline";
 import { COLORS, SPACING, FONTS } from "@/shared/config";

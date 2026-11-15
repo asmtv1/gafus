@@ -5,7 +5,7 @@ vi.mock("./client", () => ({
   apiClient: (...args: unknown[]) => m.api(...args),
   apiClientMultipart: vi.fn(),
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: (...args: unknown[]) => m.tracer(...args),
 }));
 import { petWeightApi } from "./pets";

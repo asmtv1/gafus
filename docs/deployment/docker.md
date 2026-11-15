@@ -369,8 +369,6 @@ services:
       - NODE_ENV=production
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - PORT=3002
-      - TRACER_APP_TOKEN=${TRACER_APP_TOKEN:-${NEXT_PUBLIC_TRACER_APP_TOKEN}}
-      - TRACER_SERVER_ENABLED=${TRACER_SERVER_ENABLED:-}
     ports:
       # В production compose порт наружу не публикуется; доступ идёт через Nginx.
       # Для локальной отладки можно временно открыть "3004:3002".
@@ -655,7 +653,7 @@ docker logs gafus-web
 docker logs -f gafus-web
 ```
 
-См. [Просмотр логов контейнеров](./container-logs.md). Ошибки — в Tracer (docs/monitoring/tracer.md).
+См. [Просмотр логов контейнеров](./container-logs.md). Ошибки — в Uptrace (docs/monitoring/README.md).
 
 ### Метрики
 
@@ -672,7 +670,7 @@ docker system prune -a
 
 Метрики приложения собираются Grafana Alloy и отправляются в Yandex Cloud Monitoring.
 Локальный Prometheus — только для docker-compose.local (разработка).
-См. [Yandex Monitoring](../monitoring/yandex-monitoring.md).
+См. [Uptrace Monitoring](../monitoring/README.md).
 
 ---
 

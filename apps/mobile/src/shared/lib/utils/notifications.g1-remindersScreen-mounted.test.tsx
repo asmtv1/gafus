@@ -113,7 +113,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
     setItem: vi.fn().mockResolvedValue(undefined),
   },
 }));
-vi.mock("@/shared/lib/tracer", () => ({
+vi.mock("@/shared/lib/error-reporting", () => ({
   reportClientError: m.trace,
   reportClientErrorAndWait: vi.fn(),
 }));
@@ -199,7 +199,7 @@ vi.mock("@/shared/lib/api/user", () => ({
     }),
   },
 }));
-vi.mock("@/shared/lib/tracer/mobileTracerSelfTest", () => ({
+vi.mock("@/shared/lib/error-reporting/mobileTelemetrySelfTest", () => ({
   canSendMobileTracerSelfTest: () => false,
   sendMobileTracerSelfTest: vi.fn(),
 }));

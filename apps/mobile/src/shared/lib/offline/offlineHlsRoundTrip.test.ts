@@ -26,7 +26,7 @@ vi.mock("expo-file-system/legacy", () => ({
 }));
 vi.mock("@/shared/lib/api/offline", () => ({ offlineApi: { downloadCourse } }));
 vi.mock("@/shared/lib/api", () => ({ trainingApi: { getVideoUrl } }));
-vi.mock("@/shared/lib/tracer", () => ({ reportClientError: vi.fn() }));
+vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: vi.fn() }));
 
 import { downloadCourseForOffline } from "./downloadCourseForOffline";
 import { getOfflineVideoUri } from "./offlineStorage";

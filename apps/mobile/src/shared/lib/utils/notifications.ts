@@ -3,7 +3,7 @@ import { Platform, NativeModules } from "react-native";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { subscriptionsApi } from "@/shared/lib/api";
-import { reportClientError } from "@/shared/lib/tracer";
+import { reportClientError } from "@/shared/lib/error-reporting";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { createPushRegistrationCoordinator, type PushActor } from "./pushRegistrationOwner";
