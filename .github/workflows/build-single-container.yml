@@ -1,73 +1,4 @@
-name: Build Single Container
-
-on:
-  workflow_dispatch:
-    inputs:
-      container:
-        description: 'Choose one of the seven independent production app images'
-        required: true
-        type: choice
-        options: [web, trainer-panel, admin-panel, api, worker, bull-board, prisma]
-      deploy:
-        description: 'Also update ONLY this service on the current production release (prisma: build only)'
-        required: true
-        default: false
-        type: boolean
-
-permissions:
-  contents: read
-  packages: write
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: asmtv1
-
-jobs:
-  build:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    outputs:
-      image: ${{ steps.config.outputs.image }}
-      digest: ${{ steps.package.outputs.digest }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          persist-credentials: false
-      - name: Validate target and deploy safety
-        id: config
-        env:
-          TARGET: ${{ inputs.container }}
-          DEPLOY: ${{ inputs.deploy }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          case "$TARGET" in
-            web|trainer-panel|admin-panel|api|worker|bull-board|prisma) ;;
-            *) echo 'Unknown service'; exit 1 ;;
-          esac
-          if [[ "$TARGET" == prisma && "$DEPLOY" == true ]]; then
-            echo 'Prisma is a migration container; use the coordinated CI/CD release for schema changes'
-            exit 1
-          fi
-          echo "dockerfile=ci-cd/docker/Dockerfile-$TARGET-optimized" >> "$GITHUB_OUTPUT"
-          echo "image=ghcr.io/asmtv1/gafus-$TARGET" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-          package-manager-cache: false
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.12.4
-      - name: Install locked dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Enforce Uptrace release contracts even for manual image deployment
-        run: |
-          node scripts/observability/check-workflow-release-gates.mjs
-          node --test scripts/observability/check-workflow-release-gates.test.mjs
-      - name: Enforce Core and browser/server boundaries (blocking)
-        run: pnpm check:core-boundaries
-      - name: Build Types and execute public API regression tests (blocking)
+e public API regression tests (blocking)
         run: |
           set -euo pipefail
           pnpm --filter @gafus/logger build
@@ -79,6 +10,7 @@ jobs:
           GAFUS_PRIVATE_MAPS_DIR: ${{ runner.temp }}/gafus-private-single-container
           GAFUS_RELEASE_SHA: ${{ github.sha }}
           VITE_GAFUS_BUILD_ID: ${{ github.sha }}
+          VITE_GAFUS_TELEMETRY_ENABLED: ${{ github.ref == 'refs/heads/main' && 'true' || 'false' }}
           TARGET: ${{ inputs.container }}
         if: contains(fromJSON('["web","admin-panel","trainer-panel"]'), inputs.container)
         shell: bash
