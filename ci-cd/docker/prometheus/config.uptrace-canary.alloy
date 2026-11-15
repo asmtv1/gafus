@@ -3,7 +3,7 @@
 prometheus.relabel "uptrace_allowlist" {
   rule {
     source_labels = ["__name__"]
-    regex = "probe_success|pg_up|redis_up|up|gafus_(mobile_telemetry|server_diagnostic_otlp|media|mail|chat2_outbox|http|queue|database_backup|questions_legacy_delete)_[a-zA-Z0-9_]+|http_requests_total|http_request_duration_seconds_(bucket|sum|count)|http_inflight_requests|node_cpu_seconds_total|node_memory_(MemTotal|MemAvailable)_bytes|node_filesystem_(avail|size)_bytes|pg_stat_activity_count|pg_settings_max_connections|job_(attempts|failures)_total|job_duration_seconds_(bucket|sum|count)|db_(query_duration|pool_wait)_seconds_(bucket|sum|count)"
+    regex = "probe_success|pg_up|redis_up|up|gafus_(mobile_telemetry|server_diagnostic_otlp|media|mail|chat2_outbox|http|queue|database_backup|questions_legacy_delete)_[a-zA-Z0-9_]+|http_requests_total|http_request_duration_seconds_(bucket|sum|count)|http_inflight_requests|node_cpu_seconds_total|node_memory_(MemTotal|MemAvailable)_bytes|node_filesystem_(avail|size)_bytes|pg_stat_activity_count|pg_settings_max_connections|redis_memory_used_bytes|dependency_errors_total|job_(attempts|failures)_total|job_duration_seconds_(bucket|sum|count)|db_(query_duration|pool_wait)_seconds_(bucket|sum|count)|db_pool_wait_metrics_fresh"
     action = "keep"
   }
   // Replace URL-valued blackbox instance label with bounded service alias.
@@ -19,7 +19,7 @@ prometheus.relabel "uptrace_allowlist" {
   // dynamic user/device/request labels being added by a producer.
   rule {
     action = "labelkeep"
-    regex = "__name__|job|instance|cluster|environment|service|status|status_class|method|route|le|cpu|mode|mountpoint|fstype|device|state|pipeline|task_type|outcome|phase|queue|source|error_class|dependency|resource|operation|role"
+    regex = "__name__|job|instance|cluster|environment|service|status|status_class|method|route|le|cpu|mode|mountpoint|fstype|device|state|pipeline|task_type|job_type|outcome|class|phase|queue|source|error_class|dependency|resource|operation|role"
   }
   forward_to = [prometheus.remote_write.uptrace.receiver]
 }
@@ -80,7 +80,6 @@ prometheus.scrape "redis_exporter_uptrace" {
   forward_to = [prometheus.relabel.uptrace_allowlist.receiver]
 }
 
-// В Yandex только: health (probe_success, pg_up), CPU/RAM/диск с node-exporter.
 prometheus.scrape "node_exporter" {
   targets = [{
     __address__ = "host.docker.internal:9100",

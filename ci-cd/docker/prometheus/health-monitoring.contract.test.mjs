@@ -6,6 +6,14 @@ import YAML from 'yaml';
 const load = (name) => readFileSync(new URL(name, import.meta.url), 'utf8');
 const prometheus = YAML.parse(load('prometheus.yml'));
 const alloy = load('config.alloy');
+const uptraceRules = alloy.split('prometheus.relabel "uptrace_allowlist" {')[1]
+  .split('prometheus.remote_write "uptrace" {')[0];
+const exportedMetrics = new RegExp(
+  '^(?:' + uptraceRules.match(/source_labels = \["__name__"\]\s+regex = "([^"]+)"/)[1] + ')$',
+);
+const exportedLabels = new RegExp(
+  '^(?:' + uptraceRules.match(/action = "labelkeep"\s+regex = "([^"]+)"/)[1] + ')$',
+);
 const alerts = YAML.parse(load('gafus-alerts.yml'));
 const probe = prometheus.scrape_configs.find(job => job.job_name === 'services-health');
 
@@ -52,14 +60,15 @@ test('alerts are valid Prometheus rules and refer only to actual monitored metri
   assert(rules.some(rule => rule.expr.includes('probe_success')));
   assert(rules.some(rule => rule.expr.includes('redis_up')));
   assert(rules.some(rule => rule.expr.includes('gafus_mail_queue_failed')));
-  assert(alloy.includes('redis_up'));
-  assert(alloy.includes('gafus_database_backup_last_success_timestamp_seconds'));
+  assert(exportedMetrics.test('redis_up'));
+  assert(exportedMetrics.test('gafus_database_backup_last_success_timestamp_seconds'));
   assert(rules.some(rule => rule.alert === 'GafusBackupMissing'));
   assert(rules.some(rule => rule.alert === 'GafusBackupStale'));
   const localCompose = load('../docker-compose.local.yml');
   assert(localCompose.includes('--collector.textfile.directory=/backup-metrics'));
   assert(localCompose.includes('./prometheus/local-backup-metrics:/backup-metrics:ro'));
-  assert(alloy.includes('gafus_media_(stalled_processing|failed_tasks)'));
+  for (const suffix of ['stalled_processing', 'failed_tasks'])
+    assert(exportedMetrics.test('gafus_media_' + suffix));
   assert(alloy.includes('prometheus.scrape "api_operations"'));
   assert(alloy.includes('metrics_path    = "/internal/metrics"'));
   assert(alloy.includes('credentials = sys.env("API_METRICS_KEY")'));
@@ -68,9 +77,11 @@ test('alerts are valid Prometheus rules and refer only to actual monitored metri
   assert.match(compose, /grafana-alloy:[\s\S]*?- API_METRICS_KEY=\$\{API_METRICS_KEY:-\}/);
   assert.match(compose, /worker:[\s\S]*?- OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=\$\{OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-\}/);
 
-  assert(alloy.includes('gafus_chat2_outbox_(pending|leased|dead_letters|oldest_age_seconds)'));
+  for (const suffix of ['pending', 'leased', 'dead_letters', 'oldest_age_seconds'])
+    assert(exportedMetrics.test('gafus_chat2_outbox_' + suffix));
   assert(rules.some(rule => rule.alert === 'GafusChat2OutboxDeadLetters'));
-  assert(alloy.includes('gafus_questions_legacy_delete_(enabled|pending|processing|failed|oldest_age_seconds)'));
+  for (const suffix of ['enabled', 'pending', 'processing', 'failed', 'oldest_age_seconds'])
+    assert(exportedMetrics.test('gafus_questions_legacy_delete_' + suffix));
   for (const [name, expression] of [
     ['GafusQuestionsLegacyDeletionDeadLetters', 'gafus_questions_legacy_delete_failed > 0'],
     ['GafusQuestionsLegacyDeletionStalled', 'gafus_questions_legacy_delete_oldest_age_seconds > 3600'],
@@ -97,9 +108,11 @@ test('alerts are valid Prometheus rules and refer only to actual monitored metri
 
 test('Chat2 execution metrics remain scraped, bounded and visible on dashboard', () => {
   for (const family of ['job_attempts_total', 'job_failures_total',
-    'job_duration_seconds_(bucket|sum|count)']) {
-    assert(alloy.includes(family), 'Alloy must forward '+family);
+    'job_duration_seconds_bucket', 'job_duration_seconds_sum', 'job_duration_seconds_count']) {
+    assert(exportedMetrics.test(family), 'Alloy must forward '+family);
   }
+  for (const label of ['job_type', 'outcome', 'class'])
+    assert(exportedLabels.test(label), 'Alloy must preserve Chat2 alert and dashboard label ' + label);
   const worker = load('../../../packages/worker/src/chat2-outbox-worker.ts');
   const metrics = load('../../../packages/worker/src/chat2-outbox-metrics.ts');
   assert(worker.includes('chat2OutboxExecutionMetrics.record('));
@@ -137,11 +150,12 @@ test('Agent 2 SLO and dependency alerts use bounded exported metrics', () => {
     'GafusPostgresConnectionsHigh', 'GafusApiMetricsMissing',
   ]) assert(byName(name)?.for && byName(name).labels?.severity, name);
   for (const metric of [
-    'http_requests_total', 'http_request_duration_seconds_(bucket|sum|count)',
-    'job_attempts_total', 'db_query_duration_seconds_(bucket|sum|count)',
-    'db_pool_wait_seconds_(bucket|sum|count)', 'db_pool_wait_metrics_fresh',
+    'http_requests_total', 'http_request_duration_seconds_bucket',
+    'job_attempts_total', 'db_query_duration_seconds_bucket',
+    'db_pool_wait_seconds_bucket', 'db_pool_wait_metrics_fresh',
     'pg_stat_activity_count', 'pg_settings_max_connections',
-  ]) assert(alloy.includes(metric), 'Alloy is missing source: ' + metric);
+    'redis_memory_used_bytes', 'dependency_errors_total',
+  ]) assert(exportedMetrics.test(metric), 'Alloy is missing source: ' + metric);
   assert(byName('GafusApi5xxElevated').expr.includes('>= 100'),
     '5xx ratio without traffic floor is noisy at low volume');
   assert(byName('GafusApiP95High').expr.includes('>= 100'),
@@ -184,7 +198,8 @@ test('actual Prisma pool-wait metric requires engine preview, guarded scrape and
   assert(middleware.includes('refreshPoolWaitMetrics()'));
   assert(middleware.includes('invalidatePrismaPoolWaitHistogram()'));
   assert(!telemetry.includes('db_pool_wait_seconds{userId='));
-  assert(alloy.includes('db_pool_wait_seconds_(bucket|sum|count)'));
+  for (const suffix of ['bucket', 'sum', 'count'])
+    assert(exportedMetrics.test('db_pool_wait_seconds_' + suffix));
 });
 
 test('expanded synthetic alert suites include all required API, Worker, media and dependency cases', () => {

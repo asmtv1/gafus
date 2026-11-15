@@ -16,7 +16,7 @@ test('primary workflows, independent Beget audit/backup and internal workflows',
   'ci-cd.yml','cloudru-media-images.yml',
   'daily-backup.yml','deploy-only.yml','feed-video-job-rollout.yml',
   'feed-worker-image-release.yml','gafus-private-symbols-s3-acceptance.yml',
-  'gafus-sdk57-qa.yml','gafus-self-hosted-ota-preview.yml',
+  'gafus-sdk57-qa.yml','gafus-self-hosted-ota-preview.yml','gafus-self-hosted-ota-production.yml',
   'gafus-uptrace-collector-qa.yml','gafus-uptrace-nonprod-acceptance.yml',
   'infrastructure-jobs.yml',
   'production-deploy-reusable.yml','production-job-release-reusable.yml'
@@ -46,6 +46,9 @@ test('primary workflows, independent Beget audit/backup and internal workflows',
    assert.equal(qa.on.push, undefined, name+' must not run on pushes');
    assert.equal(qa.on.pull_request, undefined, name+' must not run on PRs');
  }
+ const otaProduction=parse('gafus-self-hosted-ota-production');
+ assert.deepEqual(Object.keys(otaProduction.on), ['workflow_dispatch']);
+ assert.equal(otaProduction.jobs['signed-production'].environment,'ota-production');
  assert(parse('daily-backup').on.schedule?.length);
  assert(Object.hasOwn(parse('daily-backup').on,'workflow_dispatch'));
 });
@@ -223,4 +226,10 @@ test('core-client is built before Core to prevent cached CDN transport drift', (
  const dependent=ci.indexOf('cd packages/core && pnpm build');
  assert(dependency > 0 && dependent > dependency, 'Core cannot load a stale core-client/dist');
  assert(ci.includes('--filter=!@gafus/core-client'), 'Do not rebuild Core dependency out of order');
+});
+
+test('Core is built before Auth in the clean dependency build', () => {
+ const step=parse('ci-cd').jobs['prepare-deps'].steps.find(step=>step.name==='Build packages');
+ assert.match(step.run,/^set -euo pipefail\n/);
+ assert.match(step.run,/\(cd packages\/core && pnpm build\)\n\(cd packages\/auth && pnpm build\)/);
 });

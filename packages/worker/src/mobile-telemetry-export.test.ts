@@ -27,12 +27,12 @@ describe('SDK57 sanitized OTLP logs exporter',()=>{
     expect(payload).toContain(platform==='ios'?'Gafus!applicationDidBecomeActive+0x4ad8':
       'ru.gafus.MainActivity.onCreate');
     expect(payload).not.toContain('MainActivity.kt:27');
-    const mock=vi.fn(async()=>new Response('{}',{status:200,headers:{'content-type':'application/json'}}));
+    const mock=vi.fn<typeof fetch>(async()=>new Response('{}',{status:200,headers:{'content-type':'application/json'}}));
     expect(await exportMobileTelemetryEvent(r,{
       endpoint:'https://api.uptrace.dev/v1/logs',dsn:'TEST-SECRET-DSN',
-      fetchFn:mock as unknown as typeof fetch,
+      fetchFn:mock,
     })).toEqual({kind:'exported'});
-    const req=mock.mock.calls[0]?.[1] as unknown as RequestInit|undefined;
+    const req=mock.mock.calls[0]?.[1];
     expect(req?.headers).toMatchObject({'uptrace-dsn':'TEST-SECRET-DSN'});
     expect(req?.body).not.toContain('TEST-SECRET-DSN');
   }
