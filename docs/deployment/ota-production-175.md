@@ -53,6 +53,32 @@ Set up a separate GitHub Actions environment **`ota-production`**, restricted to
 
 Production RSA-3072 private signing key on Mac: `$HOME/.config/gafus/ota/production-20261115-private.pem` (mode 0600). **Transfer its contents directly into the scoped GitHub environment secret `OTA_SIGNING_PRIVATE_KEY_PEM`. NEVER put in git, chat, app bundle or regular repo variables.** Public X.509 certificate in `apps/mobile/ota-public-certificates/gafus-production-20261115.cert.txt`, signing key ID `gafus-production-20261115`. The separate preview signing key must not be reused.
 
+## Android 17502 certificate incident — 16 November 2026
+
+The real Galaxy A53 accepted the internal Android `1.7.5` build `17502`, but
+`expo-updates` 57 rejected the first tester-only signed manifest with
+`UpdateCodeSigningError`. Android's `CertificateChain.kt:40` requires **X509v3
+Key Usage: Digital Signature** and **Extended Key Usage: Code Signing** on the
+embedded self-signed certificate. The original production certificate had
+neither, and was issued as `CA:TRUE`; basic RSA/signature checks alone do not
+verify compatibility with Expo. The old tester-only deployment was paused and
+the Android 17502 native registry verification was revoked.
+
+The production certificate at the same public filename has been reissued as a
+self-signed `CA:FALSE` code-signing certificate **using the existing production
+private RSA key**. The signing key ID remains `gafus-production-20261115`;
+private keys and GitHub signing secrets are unchanged. New production native
+candidates and build **17503 or higher** must embed this corrected certificate,
+and be registered and physically verified anew. It is **not possible to repair
+the already-installed 17502 certificate using OTA**. The new certificate
+produces a different native fingerprint and isolated deployment; the old
+17502 OTA release must not be reactivated. The `verify-expo-ota-code-signing-cert`
+preflight now rejects a certificate lacking Expo's mandatory X.509 usages.
+
+Always test *actual manifest verification on a physical device* before rolling
+out to any non-tester audience. A successful CI signature check or S3 readback
+alone does not prove Expo accepts a certificate embedded in the APK/IPA.
+
 ## Quick path for internal 1.7.5 builds (recommended)
 
 After **committing AND pushing** the final native source to `origin/main` (the working tree must be clean), run on the Mac:

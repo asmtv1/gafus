@@ -13,6 +13,7 @@ import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {computeNativeSourceFingerprint} from './native-source-fingerprint.mjs';
 import {PREVIEW_SIGNING_KEY_ID} from './verify-ota-preview-native-trust.mjs';
+import {assertExpoOtaCodeSigningCertificate} from './verify-expo-ota-code-signing-cert.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../..');
 const PINNED_CERT=path.join(ROOT,
@@ -70,6 +71,10 @@ export function prepareNativeCandidate({root,config,certificatePem}) {
   requireCondition(cert.publicKey.asymmetricKeyType==='rsa'&&
     (cert.publicKey.asymmetricKeyDetails?.modulusLength??0)>=2048&&
     Date.parse(cert.validTo)>Date.now()+30*86400_000,'CERTIFICATE_UNUSABLE');
+  if(environment==='production') {
+    try{assertExpoOtaCodeSigningCertificate(certificatePem);}
+    catch{throw Error('OTA_PREVIEW_BUILD_CERTIFICATE_NOT_EXPO_CODE_SIGNING');}
+  }
   const certificateSha256=crypto.createHash('sha256').update(certificatePem).digest('hex');
   const channel=environment;
   const signingKeyId=environment==='production'?PRODUCTION_SIGNING_KEY_ID:PREVIEW_SIGNING_KEY_ID;

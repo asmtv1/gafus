@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {PRODUCTION_SIGNING_KEY_ID} from './prepare-self-hosted-native-build.mjs';
+import {assertExpoOtaCodeSigningCertificate} from './verify-expo-ota-code-signing-cert.mjs';
 
 export const PRODUCTION_CERT_PATH=path.resolve(path.dirname(fileURLToPath(import.meta.url)),
   '../ota-public-certificates/gafus-production-20261115.cert.txt');
@@ -32,6 +33,8 @@ export function verifyProductionNativeTrust({native,sourceSha,runtime,platform,c
      (cert.publicKey.asymmetricKeyDetails?.modulusLength??0)<3072 ||
      Date.parse(cert.validFrom)>now || Date.parse(cert.validTo)<now+30*86400_000)
     fail('CERTIFICATE_EXPIRED_OR_WEAK');
+  try{assertExpoOtaCodeSigningCertificate(pinned);}
+  catch{fail('CERTIFICATE_NOT_EXPO_CODE_SIGNING');}
   return {state:'OTA_PRODUCTION_NATIVE_TRUST_PINNED',nativeReleaseId:native.id,
     platform,runtime,signingKeyId:PRODUCTION_SIGNING_KEY_ID,
     certificateSha256:native.certificateSha256};
