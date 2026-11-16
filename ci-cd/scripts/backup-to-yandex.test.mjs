@@ -23,13 +23,24 @@ function mockRun(mode){
   '    if [ "$GAFUS_MOCK_MODE" = quota ]; then echo "Storage quota exceeded" >&2; exit 22; fi',
   '    printf "%s" \x27{"href":"https://uploader.disk.yandex.net/test"}\x27',
   '    ;;',
+  '  *webdav.yandex.ru*)',
+  '    if [ "$GAFUS_MOCK_MODE" = webdavok ] || [ "$GAFUS_MOCK_MODE" = webdavcorrupt ]; then',
+  '      while [ "$#" -gt 0 ]; do',
+  '        if [ "$1" = --output ]; then shift; cp "$GAFUS_MOCK_DIR/uploaded" "$1"; if [ "$GAFUS_MOCK_MODE" = webdavcorrupt ]; then printf x >> "$1"; fi; break; fi',
+  '        shift',
+  '      done',
+  '      printf 200',
+  '    else printf 403; fi',
+  '    ;;',
   '  *--upload-file*)',
   '    while [ "$#" -gt 0 ]; do',
-  '      if [ "$1" = --upload-file ]; then shift; wc -c < "$1" > "$GAFUS_MOCK_DIR/size"; break; fi',
+  '      if [ "$1" = --upload-file ]; then shift; wc -c < "$1" > "$GAFUS_MOCK_DIR/size"; cp "$1" "$GAFUS_MOCK_DIR/uploaded"; break; fi',
   '      shift',
   '    done',
+  '    if [ "$GAFUS_MOCK_MODE" = put403 ]; then printf 403; else printf 201; fi',
   '    ;;',
   '  *resources*)',
+  '    if [ "$GAFUS_MOCK_MODE" = metadata403 ] || [ "$GAFUS_MOCK_MODE" = webdavok ] || [ "$GAFUS_MOCK_MODE" = webdavcorrupt ]; then echo "Forbidden" >&2; exit 22; fi',
   '    size=$(cat "$GAFUS_MOCK_DIR/size")',
   '    if [ "$GAFUS_MOCK_MODE" = mismatch ]; then size=$((size + 1)); fi',
   '    printf \x27{"type":"file","size":%s}\x27 "$size"',
@@ -82,4 +93,39 @@ test('remote metadata size mismatch must never publish last-success metric',()=>
  assert.match(failed.stderr+failed.stdout,/YANDEX_BACKUP_SIZE_MISMATCH/);
  assert.equal(failed.metric,null);
  assert.match(failed.requests,/--upload-file/);
+});
+
+
+test('rejected upload PUT is not mistaken for a verified remote backup',()=>{
+ const rejected=mockRun('put403');
+ assert.notEqual(rejected.status,0);
+ assert.match(rejected.stderr+rejected.stdout,/YANDEX_UPLOAD_PUT_REJECTED_HTTP_403/);
+ assert.match(rejected.requests,/--upload-file/);
+ assert.equal(rejected.metric,null);
+});
+
+
+test('metadata GET denial leaves uploaded backup unverified',()=>{
+ const rejected=mockRun('metadata403');
+ assert.notEqual(rejected.status,0);
+ assert.match(rejected.stderr,/YANDEX_WEBDAV_READBACK_HTTP_403/);
+ assert.match(rejected.requests,/--upload-file/);
+ assert.equal(rejected.metric,null);
+});
+
+
+test('WebDAV full remote readback verifies after REST metadata 403',()=>{
+ const ok=mockRun('webdavok');
+ assert.equal(ok.status,0,ok.stderr+'\n'+ok.stdout);
+ assert.match(ok.stdout,/YANDEX_WEBDAV_READBACK_VERIFIED/);
+ assert.match(ok.stdout,/BACKUP_VERIFIED_REMOTE/);
+ assert.match(ok.metric??'',/gafus_database_backup_last_success_timestamp_seconds \d+/);
+ assert.match(ok.requests,/webdav.yandex.ru/);
+});
+
+test('WebDAV readback with corrupted bytes must fail without marking success',()=>{
+ const bad=mockRun('webdavcorrupt');
+ assert.notEqual(bad.status,0);
+ assert.match(bad.stderr,/YANDEX_WEBDAV_READBACK_CONTENT_MISMATCH/);
+ assert.equal(bad.metric,null);
 });
