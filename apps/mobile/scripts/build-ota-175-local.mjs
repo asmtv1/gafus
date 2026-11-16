@@ -69,7 +69,13 @@ export function assertGeneratedNativeOta(platform,plan,root=mobileRoot) {
     required(nativePlist.EXUpdatesRequestHeaders?.['x-gafus-native-fingerprint']===plan.nativeFingerprint &&
       nativePlist.EXUpdatesRequestHeaders?.['expo-channel-name']==='production','IOS_FINGERPRINT');
     required(nativePlist.EXUpdatesCodeSigningCertificate===fs.readFileSync(path.join(root,'.ota-certs/native.pem'),'utf8'),'IOS_CERTIFICATE');
-    required(xcode.includes(`CURRENT_PROJECT_VERSION = ${plan.buildNumber};`),'IOS_BUILD_NUMBER');
+    required(info.CFBundleVersion===plan.buildNumber,'IOS_INFO_BUILD_NUMBER');
+    // The main target has Debug+Release settings. The Widget extension may
+    // also use this build number; only those main settings count for QA.
+    const mainBuildValues=[...xcode.matchAll(/CURRENT_PROJECT_VERSION = (\d+);[\s\S]*?PRODUCT_BUNDLE_IDENTIFIER = "ru\.gafus\.app";/g)]
+      .map(m=>m[1]);
+    required(mainBuildValues.length===2 && mainBuildValues.every(v=>v===plan.buildNumber),
+      'IOS_BUILD_NUMBER');
   } else if(platform==='android') {
     const manifest=fs.readFileSync(path.join(root,'android/app/src/main/AndroidManifest.xml'),'utf8');
     const strings=fs.readFileSync(path.join(root,'android/app/src/main/res/values/strings.xml'),'utf8');

@@ -80,6 +80,8 @@ pnpm ota:175:build ios
 pnpm ota:175:build android
 ```
 
+iOS local prebuild also uses `plugins/withIosOtaBuildNumber.js` to synchronize the Gafus Xcode target `CURRENT_PROJECT_VERSION` (Debug and Release) with the signed build number; without it Expo left the target at `1` while `Info.plist` contained the correct version. The strict native validator checks both target values and `Info.plist`.
+
 The `build` command re-applies signed Expo native config via `expo prebuild --no-install` and refuses to compile if generated iOS/Android points at the old Expo Updates URL, wrong runtime, missing RSA certificate or mismatched build number. These **local device** builds do not submit to App Store, TestFlight or Google Play. After a real signed IPA/APK has been built and tested on a physical device, use the independent native verification flow below and only then publish a signed JS-only OTA via the manual GitHub workflow. Simply installing a build does not activate OTA delivery.
 
 **No direct EAS `production` build / ordinary `expo run:*` for this OTA test.** If `main` changes in any way after generating candidates, prepare and register new candidates from the final clean pushed SHA instead of reusing stale descriptors. The default internal build number is `17501`; pass a different unused integer to `pnpm ota:175:prepare <buildNumber>` if already allocated.

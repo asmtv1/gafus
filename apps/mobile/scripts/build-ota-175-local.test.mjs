@@ -18,12 +18,13 @@ test('iOS 1.7.5 embeds signed production manifest, runtime, headers and build nu
   const f=fixture();
   try {
     f.write('.ota-certs/native.pem',cert);
-    f.write('ios/Gafus/Info.plist',plist.build({CFBundleShortVersionString:'1.7.5'}));
+    f.write('ios/Gafus/Info.plist',plist.build({CFBundleShortVersionString:'1.7.5',CFBundleVersion:plan.buildNumber}));
     const config={EXUpdatesRuntimeVersion:'1.7.5',EXUpdatesURL:'https://gafus.ru/ota/manifest',
       EXUpdatesCheckOnLaunch:'NEVER',EXUpdatesCodeSigningMetadata:{keyid:plan.signingKeyId,alg:'rsa-v1_5-sha256'},
       EXUpdatesCodeSigningCertificate:cert,EXUpdatesRequestHeaders:{'x-gafus-native-fingerprint':plan.nativeFingerprint,'expo-channel-name':'production'}};
     f.write('ios/Gafus/Supporting/Expo.plist',plist.build(config));
-    f.write('ios/Gafus.xcodeproj/project.pbxproj','CURRENT_PROJECT_VERSION = 17501;');
+    f.write('ios/Gafus.xcodeproj/project.pbxproj',
+      'CURRENT_PROJECT_VERSION = 17501;\nPRODUCT_BUNDLE_IDENTIFIER = "ru.gafus.app";\n'.repeat(2));
     assert.doesNotThrow(()=>assertGeneratedNativeOta('ios',plan,f.root));
     config.EXUpdatesURL='https://u.expo.dev/legacy';
     f.write('ios/Gafus/Supporting/Expo.plist',plist.build(config));

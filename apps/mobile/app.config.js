@@ -87,7 +87,8 @@ const vkIntentFilters = vkClientIdAndroid
   : [];
 
 const { withGafusNativeCrashCapture } = require('./scripts/native-crash-uptrace-config.cjs');
-module.exports = ({ config }) => withGafusNativeCrashCapture(applyNativeSelfHostedProfile({
+const withIosOtaBuildNumber = require('./plugins/withIosOtaBuildNumber');
+module.exports = ({ config }) => withGafusNativeCrashCapture(withIosOtaBuildNumber(applyNativeSelfHostedProfile({
   ...config,
   scheme: resolveSchemes(config),
   ios: {
@@ -120,4 +121,4 @@ module.exports = ({ config }) => withGafusNativeCrashCapture(applyNativeSelfHost
     rewardedAdsTestMode: process.env.EXPO_PUBLIC_REWARDED_ADS_TEST_MODE === "true",
     analyticsDebug: process.env.EXPO_PUBLIC_GAFUS_ANALYTICS_DEBUG === "1",
   },
-}));
+})));
