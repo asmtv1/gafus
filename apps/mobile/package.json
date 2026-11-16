@@ -25,7 +25,11 @@
     "build:ota:android:local": "node ./scripts/build-ota-175-local.mjs android",
     "build:ota:ios:local": "node ./scripts/build-ota-175-local.mjs ios",
     "check:ota:android:local": "node ./scripts/build-ota-175-local.mjs android --check",
-    "check:ota:ios:local": "node ./scripts/build-ota-175-local.mjs ios --check"
+    "check:ota:ios:local": "node ./scripts/build-ota-175-local.mjs ios --check",
+    "ota:175:prepare": "node ./scripts/setup-ota-175-device.mjs prepare",
+    "ota:175:finalize": "node ./scripts/setup-ota-175-device.mjs finalize",
+    "ota:175:check": "node ./scripts/setup-ota-175-device.mjs check",
+    "ota:175:build": "node ./scripts/setup-ota-175-device.mjs build"
   },
   "dependencies": {
     "@appmetrica/react-native-analytics": "^3.6.0",

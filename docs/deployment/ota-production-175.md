@@ -12,6 +12,37 @@ Set up a separate GitHub Actions environment **`ota-production`**, restricted to
 
 Production RSA-3072 private signing key on Mac: `$HOME/.config/gafus/ota/production-20261115-private.pem` (mode 0600). **Transfer its contents directly into the scoped GitHub environment secret `OTA_SIGNING_PRIVATE_KEY_PEM`. NEVER put in git, chat, app bundle or regular repo variables.** Public X.509 certificate in `apps/mobile/ota-public-certificates/gafus-production-20261115.cert.txt`, signing key ID `gafus-production-20261115`. The separate preview signing key must not be reused.
 
+## Quick path for internal 1.7.5 builds (recommended)
+
+After **committing AND pushing** the final native source to `origin/main` (the working tree must be clean), run on the Mac:
+
+```bash
+cd /Users/asmtv1/Desktop/gafus-refactor/apps/mobile
+pnpm ota:175:prepare
+```
+
+This generates *two* validated, idempotent native registration candidates under `~/.config/gafus/ota/native-175/<commit SHA>/` and stages the public certificate. Neither action publishes OTA or uploads a binary. Open the authenticated admin panel **Мобильные релизы → Нативные сборки** and paste the contents of `ios-candidate.json` and `android-candidate.json` into **Регистрация нативной поставки**, registering each separately. Save each returned `nativeReleaseId` UUID. Both registrations remain UNVERIFIED.
+
+Then finalize each native descriptor with the **actual** server-issued UUIDs:
+
+```bash
+pnpm ota:175:finalize ios <IOS_SERVER_ISSUED_NATIVE_RELEASE_UUID>
+pnpm ota:175:finalize android <ANDROID_SERVER_ISSUED_NATIVE_RELEASE_UUID>
+pnpm ota:175:check ios
+pnpm ota:175:check android
+```
+
+The registered descriptors can now be used for physical-device builds with **no environment-variable copying**:
+
+```bash
+pnpm ota:175:build ios
+pnpm ota:175:build android
+```
+
+The `build` command re-applies signed Expo native config via `expo prebuild --no-install` and refuses to compile if generated iOS/Android points at the old Expo Updates URL, wrong runtime, missing RSA certificate or mismatched build number. These **local device** builds do not submit to App Store, TestFlight or Google Play. After a real signed IPA/APK has been built and tested on a physical device, use the independent native verification flow below and only then publish a signed JS-only OTA via the manual GitHub workflow. Simply installing a build does not activate OTA delivery.
+
+**No direct EAS `production` build / ordinary `expo run:*` for this OTA test.** If `main` changes in any way after generating candidates, prepare and register new candidates from the final clean pushed SHA instead of reusing stale descriptors. The default internal build number is `17501`; pass a different unused integer to `pnpm ota:175:prepare <buildNumber>` if already allocated.
+
 ## First native binary 1.7.5 (repeat for both platforms)
 
 After pushing a clean source SHA, write outside git `/tmp/gafus-ota-175-android-config.json`:
@@ -57,7 +88,7 @@ pnpm check:ota:android:local
 pnpm build:ota:android:local
 ```
 
-For iOS change descriptor path/`GAFUS_OTA_TARGET_PLATFORM` and call `pnpm check:ota:ios:local` then `pnpm build:ota:ios:local`; iOS requires provisioning. **Do not call EAS Build directly for these 1.7.5 profiles** without independently confirming the resulting build number: the repo-wide EAS `cli.appVersionSource=remote` causes EAS to ignore local `ios.buildNumber`/`android.versionCode` (source: https://docs.expo.dev/build-reference/app-versions/). The local wrapper uses `expo run:android --variant release` or `expo run:ios --configuration Release`, avoiding the remote version override. The profile and native descriptor stamp the precise `buildNumber` into the generated native config. For Android find the resulting release APK under `apps/mobile/android/app/build/outputs/`; for iOS the device install is not a signed `.ipa` archive, so make and distribute a matching signed `.ipa` archive before running the verification helper. The generic `production` EAS build profile is **not** the self-hosted OTA binary.
+For iOS change descriptor path/`GAFUS_OTA_TARGET_PLATFORM` and call `pnpm check:ota:ios:local` then `pnpm build:ota:ios:local`; iOS requires provisioning. **Do not call EAS Build directly for these 1.7.5 profiles** without independently confirming the resulting build number: the repo-wide EAS `cli.appVersionSource=remote` causes EAS to ignore local `ios.buildNumber`/`android.versionCode` (source: https://docs.expo.dev/build-reference/app-versions/). The local wrapper uses `expo run:android --variant release` or `expo run:ios --configuration Release`, avoiding the remote version override. The profile and native descriptor stamp the precise `buildNumber` into the generated native config. The local build wrapper now reruns `expo prebuild --no-install --platform <ios|android>` before compiling and **fails closed** if the generated native runtime, signed manifest URL, release number, channel, certificate, or fingerprint differ from the descriptor. Do not bypass the wrapper with direct `expo run:ios`, `expo run:android`, or a generic EAS `production` build: existing ignored `ios/` and `android/` folders may still contain an older OTA URL. For Android find the resulting release APK under `apps/mobile/android/app/build/outputs/`; for iOS the device install is not a signed `.ipa` archive, so make and distribute a matching signed `.ipa` archive before running the verification helper. The generic `production` EAS build profile is **not** the self-hosted OTA binary.
 
 On a real device validate install/distribution, cold launch, background/foreground and update checks. Put *truthful* `physicalDeviceVerified:true`, `distributionVerified:true`, unique `operationId`, `reason` (at least 16 chars), and meaningful `reference` into separate JSON evidence. The helper hashes the real signed IPA/APK:
 

@@ -11,6 +11,8 @@ const require=createRequire(import.meta.url);
 const mobileRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const repoRoot=path.resolve(mobileRoot,'../..');
 const profile=require('./self-hosted-native-profile.cjs');
+const plist=require('@expo/plist').default;
+const OTA_URL='https://gafus.ru/ota/manifest';
 export function validate175DeviceBuild(platform,env,repo=repoRoot) {
   if(!['android','ios'].includes(platform)) throw Error('OTA_175_TARGET_INVALID');
   const root=path.join(repo,'apps/mobile');
@@ -47,9 +49,46 @@ export function validate175DeviceBuild(platform,env,repo=repoRoot) {
     throw Error('OTA_175_NATIVE_RUNTIME_CODE_SIGNING_OR_BUILD_VERSION_MISMATCH');
   return {profile:configName,appVersion:'1.7.5',platform,sourceSha:current,
     buildNumber:native.buildNumber,nativeReleaseId:native.id,
-    signingKeyId:native.signingKeyId,environment:{...merged,
+    signingKeyId:native.signingKeyId,nativeFingerprint:native.nativeFingerprint,environment:{...merged,
       GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR:descriptorFile,
       GAFUS_OTA_NATIVE_CERTIFICATE:env.GAFUS_OTA_NATIVE_CERTIFICATE||'.ota-certs/native.pem'}};
+}
+/** Refuse to build against a stale ignored ios/android directory from an older Expo release. */
+export function assertGeneratedNativeOta(platform,plan,root=mobileRoot) {
+  const required=(ok,label)=>{if(!ok)throw Error(`OTA_175_NATIVE_PREBUILD_${label}_MISMATCH`);};
+  if(platform==='ios') {
+    const nativePlist=plist.parse(fs.readFileSync(path.join(root,'ios/Gafus/Supporting/Expo.plist'),'utf8'));
+    const info=plist.parse(fs.readFileSync(path.join(root,'ios/Gafus/Info.plist'),'utf8'));
+    const xcode=fs.readFileSync(path.join(root,'ios/Gafus.xcodeproj/project.pbxproj'),'utf8');
+    required(info.CFBundleShortVersionString==='1.7.5','IOS_VERSION');
+    required(nativePlist.EXUpdatesRuntimeVersion==='1.7.5','IOS_RUNTIME');
+    required(nativePlist.EXUpdatesURL===OTA_URL,'IOS_ENDPOINT');
+    required(nativePlist.EXUpdatesCheckOnLaunch==='NEVER','IOS_MANUAL_CHECK');
+    required(nativePlist.EXUpdatesCodeSigningMetadata?.keyid===plan.signingKeyId &&
+      nativePlist.EXUpdatesCodeSigningMetadata?.alg==='rsa-v1_5-sha256','IOS_SIGNING_KEY');
+    required(nativePlist.EXUpdatesRequestHeaders?.['x-gafus-native-fingerprint']===plan.nativeFingerprint &&
+      nativePlist.EXUpdatesRequestHeaders?.['expo-channel-name']==='production','IOS_FINGERPRINT');
+    required(nativePlist.EXUpdatesCodeSigningCertificate===fs.readFileSync(path.join(root,'.ota-certs/native.pem'),'utf8'),'IOS_CERTIFICATE');
+    required(xcode.includes(`CURRENT_PROJECT_VERSION = ${plan.buildNumber};`),'IOS_BUILD_NUMBER');
+  } else if(platform==='android') {
+    const manifest=fs.readFileSync(path.join(root,'android/app/src/main/AndroidManifest.xml'),'utf8');
+    const strings=fs.readFileSync(path.join(root,'android/app/src/main/res/values/strings.xml'),'utf8');
+    const gradle=fs.readFileSync(path.join(root,'android/app/build.gradle'),'utf8');
+    const meta=(key)=>{
+      const name=`expo.modules.updates.${key}`;
+      const tag=manifest.match(/<meta-data\b[^>]+\/>/g)?.find(t=>t.includes(`android:name="${name}"`));
+      return tag?.match(/android:value="([^"]*)"/)?.[1];
+    };
+    required(/<string name="expo_runtime_version">1\.7\.5<\/string>/.test(strings),'ANDROID_RUNTIME');
+    required(/versionName\s+["']1\.7\.5["']/.test(gradle),'ANDROID_VERSION');
+    required(new RegExp(`versionCode\\s+${plan.buildNumber}(?!\\d)`).test(gradle),'ANDROID_BUILD_NUMBER');
+    required(meta('EXPO_UPDATE_URL')===OTA_URL,'ANDROID_ENDPOINT');
+    required(meta('EXPO_UPDATES_CHECK_ON_LAUNCH')==='NEVER','ANDROID_MANUAL_CHECK');
+    required(meta('CODE_SIGNING_METADATA')?.includes(plan.signingKeyId),'ANDROID_SIGNING_KEY');
+    required(meta('UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY')?.includes(plan.nativeFingerprint) &&
+      meta('UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY')?.includes('production'),'ANDROID_FINGERPRINT');
+    required(meta('CODE_SIGNING_CERTIFICATE')?.includes('BEGIN CERTIFICATE'),'ANDROID_CERTIFICATE');
+  } else throw Error('OTA_175_TARGET_INVALID');
 }
 function main(){
   const [platform,mode]=process.argv.slice(2);
@@ -60,6 +99,13 @@ function main(){
     platform:plan.platform,appVersion:plan.appVersion,buildNumber:plan.buildNumber,
     nativeReleaseId:plan.nativeReleaseId,sourceSha:plan.sourceSha}));
   if(mode==='--check')return;
+  // `expo run:*` alone reuses ignored native folders and may silently embed
+  // an old Expo OTA URL/runtime. Apply the signed config before every build.
+  const prebuild=spawnSync('pnpm',['exec','expo','prebuild','--platform',platform,'--no-install'],
+    {cwd:mobileRoot,env:plan.environment,stdio:'inherit'});
+  if(prebuild.error)throw prebuild.error;
+  if(prebuild.status!==0)throw Error(`OTA_175_NATIVE_PREBUILD_FAILED_${prebuild.status}`);
+  assertGeneratedNativeOta(platform,plan);
   const argv=platform==='android' ? ['exec','expo','run:android','--device','--variant','release'] :
     ['exec','expo','run:ios','--device','--configuration','Release'];
   const child=spawnSync('pnpm',argv,{cwd:mobileRoot,env:plan.environment,stdio:'inherit'});
