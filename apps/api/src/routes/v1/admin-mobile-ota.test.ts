@@ -163,6 +163,18 @@ describe("OTA admin mounted HTTP boundaries", () => {
     ]) expect((await request(`/deployments/${deploymentId}/rollout`,"POST",value)).status).toBe(400);
     expect(mocked.update).not.toHaveBeenCalled();
   });
+  it("registers zero-percent publication for authenticated testers only, but never allows a zero-percent rollout",async()=>{
+    const limited={...payload,rolloutPercent:0};
+    const published=await request(`/deployments/${deploymentId}/publish`,"POST",limited);
+    expect(published.status).toBe(200);
+    expect(mocked.update).toHaveBeenLastCalledWith({deploymentId,actorId:"admin-1",action:"PUBLISH",...limited});
+    mocked.update.mockClear();
+    const rejected=await request(`/deployments/${deploymentId}/rollout`,"POST",{
+      ...limited,releaseId:undefined,
+    });
+    expect(rejected.status).toBe(400);
+    expect(mocked.update).not.toHaveBeenCalled();
+  });
   it("requires typed immutable idempotent publish command", async () => {
     const r = await request(`/deployments/${deploymentId}/publish`, "POST", payload);
     expect(r.status).toBe(200);

@@ -1,3 +1,4 @@
+import {issueOtaTesterGrant} from "@gafus/mobile-ota-server/tester-access";
 import { describe, expect, it, vi } from "vitest";
 import { createOtaManifestRoutes, type OtaManifestRepository } from "./manifest-protocol";
 
@@ -33,6 +34,23 @@ function harness(result: "release" | "empty" | "bad-signature" | "error" = "rele
   return { findPublishedManifest, request: (headers = standardHeaders) => app.request("http://localhost/manifest", { headers }) };
 }
 
+describe("signed account-tester eligibility in the anonymous manifest protocol",()=>{
+  it("only passes testerAllowed on valid short-lived account-bound HMAC token",async()=>{
+    const secret="gafus-test-secret-longer-than-thirty-two-characters";
+    const installation="7ba9c3db-d4b1-4cff-8d60-ce424d1706d5";
+    const token=issueOtaTesterGrant({userId:"trusted-admin-id",username:"admin",installationId:installation,platform:"ios",runtimeVersion:"1.7.5",nativeFingerprint:"b".repeat(64)},secret)!;
+    const read=vi.fn<OtaManifestRepository["findPublishedManifest"]>(async()=>null);
+    const app=createOtaManifestRoutes({findPublishedManifest:read},{appId:"gafus",environment:"production",testerSecret:secret});
+    const request=async(extra:string)=>app.request("http://localhost/manifest",{headers:{...standardHeaders,
+      "expo-extra-params":`gafus-installation-id="${installation}", gafus-tester-grant="${extra}"`}});
+    expect((await request(token)).status).toBe(204);
+    expect(read).toHaveBeenLastCalledWith(expect.objectContaining({testerAllowed:true,installationId:installation}));
+    await request(token.slice(0,-3)+"bad");
+    expect(read).toHaveBeenLastCalledWith(expect.objectContaining({testerAllowed:false}));
+    await app.request("http://localhost/manifest",{headers:standardHeaders});
+    expect(read).toHaveBeenLastCalledWith(expect.objectContaining({testerAllowed:false}));
+  });
+});
 describe("signed self-hosted Expo protocol", () => {
   it("serves immutable signed bytes and matches channel/runtime/cert", async () => {
     const { request, findPublishedManifest } = harness();

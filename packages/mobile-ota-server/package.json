@@ -43,6 +43,10 @@
       "types": "./dist/telemetry.d.ts",
       "default": "./dist/telemetry.js"
     },
+    "./tester-access": {
+      "types": "./dist/tester-access.d.ts",
+      "default": "./dist/tester-access.js"
+    },
     "./diagnostics-contracts": {
       "types": "./dist/diagnostics-contracts.d.ts",
       "default": "./dist/diagnostics-contracts.js"

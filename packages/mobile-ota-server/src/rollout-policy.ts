@@ -32,3 +32,13 @@ export function installationInOtaCohort(
   const bucket = digest.readUInt32BE(0) % 10_000;
   return bucket < percent * 100;
 }
+
+/** A verified tester always sees the active revision; otherwise use the stable
+ * deterministic installation cohort. Zero means *only* named testers.
+ */
+export function otaRolloutIncludesInstallation(
+  deploymentId: string, installationId: string | null, percent: number, verifiedTester: boolean,
+): boolean {
+  if (percent === 0) return verifiedTester;
+  return verifiedTester || installationInOtaCohort(deploymentId,installationId,percent);
+}

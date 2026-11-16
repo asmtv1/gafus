@@ -209,14 +209,14 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
       setBusy(false);
     }
   };
-  const mutate = async (deployment: Deployment, action: "pause" | "publish" | "rollout", releaseId?: string, rolloutPercent?: 1 | 10 | 50 | 100) => {
+  const mutate = async (deployment: Deployment, action: "pause" | "publish" | "rollout", releaseId?: string, rolloutPercent?: 0 | 1 | 10 | 50 | 100) => {
     if (writeLock.current) return;
     const reason = window.prompt(
       action === "pause"
         ? `Причина паузы ${deployment.platform}/${deployment.channel}/${deployment.runtimeVersion} (от 8 символов):`
         : action === "rollout"
           ? `Причина расширения OTA до ${rolloutPercent}% (от 8 символов):`
-          : `Причина публикации ${deployment.platform}/${deployment.channel}/${deployment.runtimeVersion}, update ${releaseId} на ${rolloutPercent ?? 100}% (от 8 символов):`,
+          : `Причина публикации ${deployment.platform}/${deployment.channel}/${deployment.runtimeVersion}, update ${releaseId} для ${rolloutPercent===0 ? "только admin/asmtv1" : `${rolloutPercent ?? 100}% пользователей`} (от 8 символов):`,
     )?.trim();
     if (!reason || reason.length < 8) return;
     if (!window.confirm(
@@ -235,7 +235,7 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
           expectedVersion: deployment.rowVersion,
           reason,
           ...(releaseId ? { releaseId } : {}),
-          ...(rolloutPercent ? { rolloutPercent } : {}),
+          ...(rolloutPercent !== undefined ? { rolloutPercent } : {}),
         },
       });
       await load("deployments");
@@ -291,7 +291,7 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
           <div className="content-card" key={d.id}>
             <h3>{d.platform} · {d.environment} · {d.channel}</h3>
             <p>Runtime: {d.runtimeVersion}. Ключ: {d.signingKeyId}. Ревизия: {d.rowVersion}. Native SHA: {shortSha(d.nativeFingerprint)}.</p>
-            <p>Активный релиз: {shortSha(d.activeReleaseId)} · {d.paused ? "Пауза" : `Выдача ${d.rolloutPercent}%`}</p>
+            <p>Активный релиз: {shortSha(d.activeReleaseId)} · {d.paused ? "Пауза" : d.rolloutPercent === 0 ? "Только admin и asmtv1" : `Выдача ${d.rolloutPercent}%`}</p>
             {!d.paused && <button className="secondary" disabled={busy}
               onClick={() => void mutate(d, "pause")}>Приостановить выдачу</button>}
             {!d.paused && d.activeReleaseId && d.rolloutPercent < 100 && (
@@ -308,6 +308,10 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
               {candidates.map((r) => (
                 <div key={r.id} className="filter-toolbar">
                   <button disabled={busy}
+                    onClick={() => void mutate(d, "publish", r.id, 0)}>
+                    Только admin/asmtv1 · #{r.revision}
+                  </button>
+                  <button className="secondary" disabled={busy}
                     onClick={() => void mutate(d, "publish", r.id, 1)}>
                     Опубликовать #{r.revision} на 1% · {shortSha(r.updateId)}
                   </button>

@@ -136,6 +136,7 @@ import { adminCacheRoutes } from "./routes/v1/admin-cache.js";
 import { consultationsRoutes } from "./routes/v1/consultations.js";
 import { appSubscriptionRoutes } from "./routes/v1/app-subscription.js";
 import { mobileOtaRoutes } from "./routes/mobile-ota.js";
+import { mobileOtaTesterRoutes } from "./routes/v1/mobile-ota-tester.js";
 import { mobileOtaTelemetryRoutes } from "./routes/mobile-ota-telemetry.js";
 import { mobileTelemetryRoutes } from "./routes/v1/mobile-telemetry.js";
 import { webTelemetryRoutes } from "./routes/v1/web-telemetry.js";
@@ -240,6 +241,10 @@ const adminFlagsPrivate = async (c: Context, next: () => Promise<void>) => {
 app.use("/api/v1/admin/feature-flags", adminFlagsPrivate, authMiddleware, apiRateLimiter);
 app.use("/api/v1/admin/feature-flags/*", adminFlagsPrivate, authMiddleware, apiRateLimiter);
 app.route("/api/v1/admin/feature-flags", adminFeatureFlagsRoutes);
+
+// Only signed-in accounts can request short-lived OTA tester grants.
+app.use("/api/v1/mobile-ota-tester/*", authMiddleware, apiRateLimiter);
+app.route("/api/v1/mobile-ota-tester", mobileOtaTesterRoutes);
 
 // Signed OTA operations: auth/role guard + optimistic version + audited SQL transaction.
 app.use("/api/v1/admin/mobile-ota/*", authMiddleware, apiRateLimiter);

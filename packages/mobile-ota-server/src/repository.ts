@@ -1,7 +1,7 @@
 /** Read-only SQL adapter. Reads only READY, artifact-verified immutable updates. */
 import { prisma } from "@gafus/prisma";
 import type { OtaLookup, OtaManifestRepository, OtaManifestRow } from "./contracts.js";
-import { installationInOtaCohort } from "./rollout-policy.js";
+import { otaRolloutIncludesInstallation } from "./rollout-policy.js";
 
 export const mobileOtaManifestRepository: OtaManifestRepository = {
   async findPublishedManifest(key: OtaLookup): Promise<OtaManifestRow | null> {
@@ -27,7 +27,7 @@ export const mobileOtaManifestRepository: OtaManifestRepository = {
         AND d."signingKeyId" = ${key.keyId}
         AND d."nativeFingerprint" = ${key.nativeFingerprint}
         AND d.paused = false
-        AND d."rolloutPercent" BETWEEN 1 AND 100
+        AND d."rolloutPercent" BETWEEN 0 AND 100
         AND r.state = 'READY'
         AND r."signingKeyId" = d."signingKeyId"
         AND r."runtimeVersion" = d."runtimeVersion"
@@ -53,7 +53,8 @@ export const mobileOtaManifestRepository: OtaManifestRepository = {
     `;
     const first = rows[0];
     if (!first) return null;
-    const included = installationInOtaCohort(first.deploymentId, key.installationId ?? null, first.rolloutPercent);
+    const included = otaRolloutIncludesInstallation(first.deploymentId, key.installationId ?? null,
+      first.rolloutPercent, key.testerAllowed === true);
     const selected = rows.find(row => row.releaseKind === (included ? "active" : "previous"));
     if (!selected) return null;
     return { manifestBody: selected.manifestBody, signatureHeader: selected.signatureHeader, updateId: selected.updateId };

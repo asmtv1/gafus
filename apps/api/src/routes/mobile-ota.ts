@@ -5,4 +5,5 @@ import { mobileOtaManifestRepository } from "../modules/mobile-ota/repository.js
 export const mobileOtaRoutes = createOtaManifestRoutes(mobileOtaManifestRepository, {
   appId: "gafus",
   environment: process.env.MOBILE_OTA_DELIVERY_ENV,
+  testerSecret: process.env.MOBILE_OTA_INSTALLATION_HASH_KEY,
 });

@@ -2,6 +2,47 @@
 
 Updated 2026-11-15. Expo SDK 57, `appVersion=runtimeVersion=1.7.5` on BOTH platforms. Uses signed self-hosted Expo updates through GAFUS API + Cloud.ru S3. This is not Expo EAS Update. Never reuse a native binary for a different runtime.
 
+## Private OTA preview for `admin` and `asmtv1` (1.7.5)
+
+**Do not ship a 1.7.5 native binary built before this entitlement code is included.**
+The signed self-hosted binary must contain `refreshOtaTesterGrant()` so account-specific
+rollout works on both iOS and Android. Existing EAS or older binaries are unaffected.
+
+1. Build/register/verify an actual signed 1.7.5 binary per platform as described below.
+   Run the manually approved signed OTA CI workflow; the release must be READY with
+   verified assets, and the OTA deployment must be created from a verified native binary.
+2. In the admin panel **Мобильные релизы → Публикации**, select the READY revision and
+   click **«Только admin/asmtv1»**. This is a **0% public rollout**, but NOT a paused
+   deployment: the anonymous manifest route serves the active revision only when it
+   verifies a short-lived HMAC tester grant. All other installs stay on the previously
+   published stable revision (or their embedded app if no prior OTA exists).
+3. Sign in as exactly `admin` or `asmtv1` in GAFUS on a physical device. The app sends
+   its installation UUID, platform, runtime and native fingerprint to the protected
+   `POST /api/v1/mobile-ota-tester/grant` endpoint using its normal account JWT.
+   The API checks the **current DB User.username**, never client-supplied username/role,
+   then returns a 15-minute signed grant. Before each OTA check (launch and foreground)
+   the app clears any previous grant and requests a new one; the manifest verifies HMAC,
+   expiration, device UUID, platform, runtime and fingerprint. No extra secret is needed:
+   the server derives a domain-separated HMAC key from the existing private
+   `MOBILE_OTA_INSTALLATION_HASH_KEY`. Neither accounts nor grant tokens are sent to S3.
+4. After physical QA of **both** platforms, click **«Расширить до 1% / 10% / 50% / 100%»**
+   in the same deployment. The same signed OTA release is reused, no new native build
+   is required. Testers remain included throughout the rollout. Manual **Пауза** stops
+   new manifest delivery; it does NOT remotely undo an update already applied.
+
+**Do not enable the global required-OTA feature flag while the revision is tester-only**:
+ordinary accounts cannot fetch it and a mandatory update gate would block them.
+Wait until the relevant platform is rolled out to 100% before setting a global
+mandatory revision.
+
+**Important:** OTA updates the **installed application**, not an account sandbox.
+A tester who installs an OTA then logs in with a different account on that device
+will keep the already loaded JS revision until a later eligible update or reinstall.
+A tester-only rollout limits who may *fetch the new revision*, not access to downloaded
+code or behavior on a device that already has it. Test on separate physical devices
+if account isolation matters. During a network/auth outage, new tester grants fail
+closed, while previously published stable OTA remains available to ordinary clients.
+
 ## Production deployment when `main` is pushed
 
 The existing approved production deployment must install the new API, Prisma migrations and edge Nginx configuration. In `.github/workflows/production-deploy-reusable.yml` it sets `MOBILE_OTA_DELIVERY_ENV=production`, verifies live API `/ota/manifest` (expects HTTP 406 without Expo headers), and refuses to proceed without both 32+-character production Secrets `MOBILE_OTA_CI_CALLBACK_TOKEN`, `MOBILE_OTA_INSTALLATION_HASH_KEY`. `MOBILE_OTA_ASSET_ORIGIN` remains `https://global.s3.cloud.ru/gafus-ota-updates`. Signed manifest endpoint `https://gafus.ru/ota/manifest` and device telemetry `/ota/telemetry` are routed by edge Nginx to Hono, not to SPA.

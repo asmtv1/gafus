@@ -9,6 +9,8 @@ export type OtaLookup = Readonly<{
   keyId: string;
   nativeFingerprint: string;
   installationId?: string | null;
+  /** Verified server-side HMAC grant, never a client-declared account name. */
+  testerAllowed?: boolean;
 }>;
 export type OtaManifestRow = Readonly<{
   manifestBody: Uint8Array;

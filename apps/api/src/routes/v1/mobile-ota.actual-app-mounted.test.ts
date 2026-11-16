@@ -30,6 +30,14 @@ describe('signed OTA is mounted in real Hono app but fail-closed by default',()=
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({code:'OTA_CI_CALLBACK_DISABLED'});
   });
+  it('does not issue a personal tester grant without JWT in the actual mounted API',async()=>{
+    const response=await app.request('http://localhost/api/v1/mobile-ota-tester/grant',{
+      method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({installationId:'7ba9c3db-d4b1-4cff-8d60-ce424d1706d5',
+        platform:'ios',runtimeVersion:'1.7.5',nativeFingerprint:'b'.repeat(64)}),
+    });
+    expect(response.status).toBe(401);
+  });
   it('does not expose administrator OTA release registry to unauthenticated caller',async()=>{
     const response=await app.request('http://localhost/api/v1/admin/mobile-ota/deployments');
     expect([401,403]).toContain(response.status);

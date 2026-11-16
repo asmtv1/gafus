@@ -2,6 +2,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { parseOtaInstallationId } from "@gafus/mobile-ota-server/rollout-policy";
+import { parseOtaTesterGrant, verifyOtaTesterGrant } from "@gafus/mobile-ota-server/tester-access";
 
 import type { OtaLookup, OtaManifestRepository, OtaManifestRow } from "@gafus/mobile-ota-server/contracts";
 export type { OtaLookup, OtaManifestRepository, OtaManifestRow } from "@gafus/mobile-ota-server/contracts";
@@ -35,7 +36,7 @@ function commonHeaders(c: Context, channel?: string): void {
  */
 export function createOtaManifestRoutes(
   repository: OtaManifestRepository,
-  config: Readonly<{ appId: string; environment?: string }>,
+  config: Readonly<{ appId: string; environment?: string; testerSecret?: string }>,
 ) {
   const routes = new Hono();
   routes.get("/manifest", async (c) => {
@@ -73,6 +74,10 @@ export function createOtaManifestRoutes(
         keyId,
         nativeFingerprint: nativeFingerprint.toLowerCase(),
         installationId: parseOtaInstallationId(c.req.header("expo-extra-params")),
+        ...(config.testerSecret ? {testerAllowed: verifyOtaTesterGrant(
+          parseOtaTesterGrant(c.req.header("expo-extra-params")),
+          parseOtaInstallationId(c.req.header("expo-extra-params")), config.testerSecret,
+          {platform,runtimeVersion,nativeFingerprint})} : {}),
       });
       if (!manifest) {
         // Expo v1 permits an empty 204 only when the client accepts multipart.

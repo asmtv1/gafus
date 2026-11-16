@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { Button } from "@/shared/components/ui";
 import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
-import { ensureOtaInstallationIdentity } from "@/shared/lib/ota/installationIdentity";
+import { refreshOtaTesterGrant } from "@/shared/lib/ota/installationIdentity";
 import { trackOtaEvent } from "@/shared/lib/ota/telemetry";
 import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 import { activeOtaRevision, requiredOtaRevision } from "@/shared/lib/otaPolicy";
@@ -278,7 +278,7 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
           await Updates.reloadAsync();
           return;
         }
-        await ensureOtaInstallationIdentity();
+        await refreshOtaTesterGrant();
         const result = await Updates.checkForUpdateAsync();
         void trackOtaEvent("CHECKED");
         if (cancelled) return;

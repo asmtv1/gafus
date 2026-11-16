@@ -23,7 +23,7 @@ const actionInput = z.object({
   expectedVersion: z.number().int().positive(),
   reason: z.string().trim().min(8).max(512),
   releaseId: UUID.optional(),
-  rolloutPercent: z.union([z.literal(1),z.literal(10),z.literal(50),z.literal(100)]).optional(),
+  rolloutPercent: z.union([z.literal(0),z.literal(1),z.literal(10),z.literal(50),z.literal(100)]).optional(),
 }).strict();
 
 export const adminMobileOtaRoutes = new Hono();

@@ -146,7 +146,7 @@ export async function updateMobileOtaDeployment(input: {
     if (publish && !input.releaseId) throw new MobileOtaDeploymentError("UNVERIFIED_RELEASE");
     if (input.action === "PAUSE" && (input.releaseId || input.rolloutPercent !== undefined) ||
         rollout && (input.releaseId || !validOtaPercent(input.rolloutPercent)) ||
-        publish && !validOtaPercent(input.rolloutPercent ?? 100))
+        publish && input.rolloutPercent !== 0 && !validOtaPercent(input.rolloutPercent ?? 100))
       throw new MobileOtaDeploymentError("INVALID_ROLLOUT");
     if (rollout) {
       if (deployment.paused || !deployment.activeReleaseId ||
