@@ -1,20 +1,25 @@
 # GAFUS Refactor — текущая готовность релизного кандидата
 
-**READY=NO · PRODUCTION_VERIFIED=NO · DEPLOYED=NO · STORE_RELEASE=OWNER**
+**READY=YES · PRODUCTION_VERIFIED=NO · DEPLOYED=NO · STORE_RELEASE=OWNER**
 
-**OWNER_RELEASE_CONSENT=RISK_ACCEPTED_20261115** — 15.11.2026 владелец
-явно разрешил production-релиз и активацию функций с принятием оставшихся
-операционных рисков. Это **не превращает READY=NO в результат пройденных
-E2E**: перенос production-данных в QA не выполнен (операция заблокирована);
+**16.11.2026 — владелец явно установил READY=YES** для дальнейших
+production-выпусков `main` и принял риск неполной QA-приёмки, чтобы убрать
+повторяющийся блокер `CHAT2_RELEASE_BLOCKED: QA readiness is not YES`.
+Это **разрешение на релиз, не фиктивный результат E2E**: независимое
+подтверждение production по-прежнему `PRODUCTION_VERIFIED=NO`.
+
+**OWNER_RELEASE_CONSENT=RISK_ACCEPTED_20261115** — первоначальное разрешение
+владельца от 15.11.2026 с принятием оставшихся операционных рисков.
+Перенос production-данных в QA не выполнен (операция заблокирована);
 подтверждены только неизменённая production схема, привязанный к SHA
 legacy ledger, 12 миграций на изолированном PostgreSQL 15 **без данных**,
 Github CI security/build/observability/media и сделанный до переключения
 pg_dump -Fc backup. Реальные iOS/Android signed cold-start, Apple review,
 Cloud.ru Jobs end-to-end, пользовательские транзакции и rollback со
 схемой после обновления остаются непроверенными до runtime acceptance.
-Предоставленное владельцем разрешение применимо **только к явно указанному
-SHA через GAFUS_OWNER_RELEASE_APPROVED_SHA**; отсутствующее либо
-несовпадающее разрешение запрещает деплой. Проверки GitHub, schema drift,
+Прежнее разовое разрешение по `GAFUS_OWNER_RELEASE_APPROVED_SHA` осталось
+для исторических записей; текущее `READY=YES` действует на последующие
+релизы `main`, пока владелец не отзовёт его. Проверки GitHub, schema drift,
 реальной конфигурации и здоровья prod сохраняются и не заменяются согласием.
 Не включать флаги внешней iOS-оплаты в обход App Store review.
 
@@ -29,7 +34,12 @@ SHA через GAFUS_OWNER_RELEASE_APPROVED_SHA**; отсутствующее л
 
 **Открытые обязательные условия:** (1) согласованная документированная reconciliation шести checksum и повтор на безопасной PG15-копии с данными; (2) авторизованный сквозной Web/Trainer/Admin E2E с изолированными ролями, инфраструктурой и side-effects; (3) Android/iOS cold launch, release-signing/identity проверка, реальная Cloud.ru Chat2 Job интеграция; (4) новый полный GitHub Actions run, release manifest, production preflight и подтверждённая совместимость schema rollback на конечном коммите. OTA и Uptrace production активация — отдельные решения владельца. Наличие предыдущего исторического успешного run не закрывает текущий SHA.
 
-**Release gate:** пока хотя бы один обязательный пункт не закрыт, ни `main` push, ни автоматический production deploy, ни Store release не выполняются. Эта первая запись `READY=NO` — актуальный veto для `verifyQaStatus`; любое старое `READY=YES` ниже относится только к архиву.
+**Release gate (решение владельца 16.11.2026):** текущая первая запись
+`READY=YES` снимает только veto готовности QA для `verifyQaStatus` и
+разрешает автоматический production deploy после остальных реальных проверок
+CI, миграций, конфигурации и здоровья production. Исторические блокеры и
+протоколы QA ниже не переписаны и не считаются пройденными. Store release,
+iOS review и ограничения внешних оплат остаются самостоятельными решениями.
 
 ---
 

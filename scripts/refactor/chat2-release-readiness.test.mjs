@@ -86,15 +86,20 @@ test('historical READY=YES cannot override first QA READY=NO', () => {
 test('owner release consent allows only one exact SHA without falsifying READY=NO', () => {
   const sha='b'.repeat(40), wrong='c'.repeat(40);
   const doc=readFileSync(new URL('../../docs/qa/CURRENT_RELEASE_STATUS.md',import.meta.url),'utf8');
-  assert.match(doc,/READY=NO/);
+  assert.match(doc,/^# [^\n]+\n\n\*\*READY=YES · PRODUCTION_VERIFIED=NO/m);
   assert.match(doc,/OWNER_RELEASE_CONSENT=RISK_ACCEPTED_20261115/);
-  assert.equal(verifyQaStatus(doc,{releaseSha:sha,ownerApprovedSha:sha}),true);
+  // Explicit owner release approval is global from 16.11.2026; QA E2E is
+  // still not claimed as verified, and the historical SHA-scoped exception
+  // remains covered separately by synthetic READY=NO fixtures.
+  assert.equal(verifyQaStatus(doc),true);
+  const riskAccepted='READY=NO\nOWNER_RELEASE_CONSENT=RISK_ACCEPTED_20261115\nPRODUCTION_VERIFIED=NO';
+  assert.equal(verifyQaStatus(riskAccepted,{releaseSha:sha,ownerApprovedSha:sha}),true);
   for(const params of [
     {},
     {releaseSha:sha,ownerApprovedSha:wrong},
     {releaseSha:wrong,ownerApprovedSha:sha},
     {releaseSha:'not-a-full-SHA',ownerApprovedSha:'not-a-full-SHA'},
-  ]) assert.throws(()=>verifyQaStatus(doc,params),/QA readiness is not YES/);
+  ]) assert.throws(()=>verifyQaStatus(riskAccepted,params),/QA readiness is not YES/);
   assert.throws(()=>verifyQaStatus('READY=NO\nPRODUCTION_VERIFIED=NO',{releaseSha:sha,ownerApprovedSha:sha}),/QA readiness is not YES/);
   const prod=readFileSync(new URL('../../.github/workflows/production-deploy-reusable.yml',import.meta.url),'utf8');
   const ci=readFileSync(new URL('../../.github/workflows/ci-cd.yml',import.meta.url),'utf8');
