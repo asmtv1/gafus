@@ -22,6 +22,7 @@ const permittedInfrastructure = new Set([
   "packages/mobile-ota-server/src/patch-commands.ts", // private source-only restoration definitions and draft applications
   "packages/mobile-ota-server/src/queries.ts", // bounded administrative OTA/private CI projections
   "packages/mobile-ota-server/src/repository.ts", // read-only exact runtime+native fingerprint signed manifest lookup
+  "packages/mobile-ota-server/src/tester-grant-service.ts", // DB-verified named OTA tester principal; short-lived signed grant issuance
   "packages/mobile-ota-server/src/telemetry.ts", // hashed pseudonymous OTA lifecycle events, bounded reads and 30-day cleanup
   "packages/mobile-ota-server/src/diagnostics-repository.ts", // isolated mobile diagnostic grant/quota and durable spool transactional adapter
   "packages/mobile-ota-server/src/diagnostics-observe-repository.ts", // verified Expo Observe native release scope and durable dedup adapter

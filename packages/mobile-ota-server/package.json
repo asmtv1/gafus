@@ -43,6 +43,10 @@
       "types": "./dist/telemetry.d.ts",
       "default": "./dist/telemetry.js"
     },
+    "./tester-grant-service": {
+      "types": "./dist/tester-grant-service.d.ts",
+      "default": "./dist/tester-grant-service.js"
+    },
     "./tester-access": {
       "types": "./dist/tester-access.d.ts",
       "default": "./dist/tester-access.js"

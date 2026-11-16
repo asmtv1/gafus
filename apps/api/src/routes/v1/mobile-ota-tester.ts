@@ -1,8 +1,7 @@
 /** Authenticated grant issuance; never trust usernames or roles in the request body. */
 import { Hono } from 'hono';
 import { z } from 'zod/v3';
-import { prisma } from '@gafus/prisma';
-import { issueOtaTesterGrant, OTA_TESTER_ACCOUNTS } from '@gafus/mobile-ota-server/tester-access';
+import { issueRegisteredTesterGrant } from '@gafus/mobile-ota-server/tester-grant-service';
 
 const input=z.object({
   installationId:z.string().uuid(),
@@ -22,14 +21,10 @@ mobileOtaTesterRoutes.post('/grant',async(c)=>{
   if(!parsed.success) return c.json({success:false,code:'INVALID_INSTALLATION_ID'},400);
   const userId=c.get('user').id;
   try {
-    const user=await prisma.user.findUnique({where:{id:userId},select:{username:true}});
-    if(!user || !OTA_TESTER_ACCOUNTS.some(name=>name===user.username))
-      return c.json({success:false,code:'OTA_NOT_TESTER'},403);
-    const token=issueOtaTesterGrant({userId,username:user.username,
-      installationId:parsed.data.installationId,platform:parsed.data.platform,
-      runtimeVersion:parsed.data.runtimeVersion,nativeFingerprint:parsed.data.nativeFingerprint},
+    const result=await issueRegisteredTesterGrant(userId,parsed.data,
       process.env.MOBILE_OTA_INSTALLATION_HASH_KEY??'');
-    if(!token) return c.json({success:false,code:'OTA_GRANT_UNAVAILABLE'},503);
-    return c.json({success:true,data:{token,expiresInSeconds:900}});
+    if(result.status==='not_tester')return c.json({success:false,code:'OTA_NOT_TESTER'},403);
+    if(result.status!=='granted')return c.json({success:false,code:'OTA_GRANT_UNAVAILABLE'},503);
+    return c.json({success:true,data:{token:result.token,expiresInSeconds:result.expiresInSeconds}});
   }catch {return c.json({success:false,code:'OTA_GRANT_UNAVAILABLE'},503);}
 });
