@@ -54,8 +54,6 @@ test('approved legacy checksum exceptions need exact schema, all six historical 
     mkdirSync(dirs,{recursive:true});
     mkdirSync(manifestDir,{recursive:true});
     const manifest=JSON.parse(readFileSync('ci-cd/scripts/approved-legacy-migration-baseline-20261115.json','utf8'));
-    writeFileSync(join(manifestDir,'approved-legacy-migration-baseline-20261115.json'),
-      JSON.stringify(manifest));
     const rows=[];
     for(let i=0;i<162;i++){
       const name=`20200101000000_synthetic_${String(i).padStart(3,'0')}`;
@@ -78,14 +76,28 @@ test('approved legacy checksum exceptions need exact schema, all six historical 
       writeFileSync(join(dir,'migration.sql'),`SELECT ${i};\n`);
       if(i<4)rows.push([name,'0'.repeat(64),'rolled_back']);
     }
-    const runApproved=(data,fingerprint=manifest.normalizedProductionSchemaSha256)=>
-      spawnSync('python3',[program,dirs,...(fingerprint===null?[]:[fingerprint])],{
+    const fingerprint = Object.keys(manifest.schemaCheckpoints)[0];
+    manifest.schemaCheckpoints = {
+      [fingerprint]: {
+        expectedApplied: 168,
+        expectedRolledBack: 4,
+        expectedSources: 180,
+        ledgerSha256: createHash('sha256').update(rows.map(row => row.join('\t') + '\n').sort().join('')).digest('hex'),
+      },
+    };
+    writeFileSync(join(manifestDir,'approved-legacy-migration-baseline-20261115.json'),
+      JSON.stringify(manifest));
+    const runApproved=(data,schema=fingerprint)=>
+      spawnSync('python3',[program,dirs,...(schema===null?[]:[schema])],{
         input:data.map(x=>x.join('\t')).join('\n')+'\n',encoding:'utf8',timeout:15_000,
       });
     const pass=runApproved(rows);
     assert.equal(pass.status,0,pass.stderr);
     assert.match(pass.stdout,/LEGACY_SCHEMA_ATTESTED_EXCEPTIONS:6/);
     assert.match(pass.stdout,/applied=168:pending=12/);
+    assert.equal(runApproved([...rows].reverse()).status,0,'ledger order must not affect the checkpoint');
+    const changedRollback = rows.map(row => row[2] === 'rolled_back' ? [row[0], '1'.repeat(64), row[2]] : row);
+    assert.match(runApproved(changedRollback).stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/);
     for(const bad of [runApproved(rows,null),runApproved(rows,'a'.repeat(64))]){
       assert.equal(bad.status,1,'missing/changed schema must veto');
       assert.match(bad.stderr,/NONSTANDARD_MIGRATION_CHECKSUM|MIGRATION_SHA_MISMATCH/);

@@ -25,7 +25,7 @@ LEGACY_MANIFEST_NAME = "ci-cd/scripts/approved-legacy-migration-baseline-2026111
 def approved_legacy_baseline(
     migrations_dir: pathlib.Path,
     live_schema_sha256: str | None,
-) -> dict | None:
+) -> tuple[dict, dict] | None:
     """Permit only the approved six historical anomalies on the *exact* schema.
 
     No database connections, credentials, mutation or fallback to broad waivers.
@@ -40,12 +40,20 @@ def approved_legacy_baseline(
     if not path.is_file() or path.is_symlink():
         return None
     manifest = json.loads(path.read_text())
-    if manifest.get("version") != 1:
+    if manifest.get("version") != 2:
         raise ValueError("LEGACY_MANIFEST_VERSION_INVALID")
-    if manifest.get("normalizedProductionSchemaSha256") != live_schema_sha256:
+    checkpoints = manifest.get("schemaCheckpoints")
+    if not isinstance(checkpoints, dict):
+        raise ValueError("LEGACY_MANIFEST_CHECKPOINTS_INVALID")
+    if live_schema_sha256 not in checkpoints:
         return None
-    if manifest.get("expectedApplied") != 168 or manifest.get("expectedRolledBack") != 4:
-        raise ValueError("LEGACY_MANIFEST_HISTORY_COUNT_INVALID")
+    checkpoint = checkpoints[live_schema_sha256]
+    if (not isinstance(checkpoint, dict)
+            or not CHECKSUM.fullmatch(str(checkpoint.get("ledgerSha256")))
+            or any(type(checkpoint.get(key)) is not int or checkpoint[key] < 0
+                   for key in ("expectedApplied", "expectedRolledBack", "expectedSources"))
+            or not MIN_PRODUCTION_APPLIED <= checkpoint["expectedApplied"] <= checkpoint["expectedSources"]):
+        raise ValueError("LEGACY_MANIFEST_CHECKPOINT_INVALID")
     entries = manifest.get("approvedLegacyChecksumExceptions")
     if not isinstance(entries, dict) or len(entries) != 6:
         raise ValueError("LEGACY_MANIFEST_EXCEPTIONS_INVALID")
@@ -58,15 +66,13 @@ def approved_legacy_baseline(
             raise ValueError("LEGACY_MANIFEST_SHA_INVALID")
         if not (CHECKSUM.fullmatch(recorded) or recorded in ("", "manual", name)):
             raise ValueError("LEGACY_MANIFEST_RECORDED_VALUE_INVALID")
-    return manifest
+    return entries, checkpoint
 
 
 def legacy_exception_matches(
-    manifest: dict | None, name: str, checksum: str, candidate_sha: str
+    exceptions: dict, name: str, checksum: str, candidate_sha: str
 ) -> bool:
-    if manifest is None:
-        return False
-    rule = manifest["approvedLegacyChecksumExceptions"].get(name)
+    rule = exceptions.get(name)
     return bool(rule and rule.get("recordedProductionChecksum") == checksum
                 and rule.get("candidateSqlSha256") == candidate_sha)
 
@@ -81,7 +87,8 @@ def verify(migrations_dir: pathlib.Path, lines: list[str], live_schema_sha256: s
     }
     if len(source_files) < MIN_PRODUCTION_APPLIED:
         raise ValueError("MIGRATION_SOURCE_INCOMPLETE")
-    manifest = approved_legacy_baseline(migrations_dir, live_schema_sha256)
+    baseline = approved_legacy_baseline(migrations_dir, live_schema_sha256)
+    exceptions, checkpoint = baseline if baseline else ({}, {})
     approved_exceptions: set[str] = set()
     applied: set[str] = set()
     rolled_back = 0
@@ -117,7 +124,7 @@ def verify(migrations_dir: pathlib.Path, lines: list[str], live_schema_sha256: s
         actual = hashlib.sha256(path.read_bytes()).hexdigest()
         if CHECKSUM.fullmatch(checksum) and actual == checksum:
             continue
-        if legacy_exception_matches(manifest, name, checksum, actual):
+        if legacy_exception_matches(exceptions, name, checksum, actual):
             approved_exceptions.add(name)
             continue
         if not CHECKSUM.fullmatch(checksum):
@@ -127,9 +134,12 @@ def verify(migrations_dir: pathlib.Path, lines: list[str], live_schema_sha256: s
     if len(applied) < MIN_PRODUCTION_APPLIED:
         errors.append(f"APPLIED_MIGRATION_COUNT_TOO_LOW:{len(applied)}")
     if approved_exceptions:
-        expected = set(manifest["approvedLegacyChecksumExceptions"]) if manifest else set()
-        if (approved_exceptions != expected or len(applied) != 168
-                or rolled_back != 4 or len(source_files) != 180):
+        canonical_ledger = "".join(row + "\n" for row in sorted(line.rstrip("\n") for line in lines))
+        if (approved_exceptions != set(exceptions)
+                or len(applied) != checkpoint["expectedApplied"]
+                or rolled_back != checkpoint["expectedRolledBack"]
+                or len(source_files) != checkpoint["expectedSources"]
+                or hashlib.sha256(canonical_ledger.encode("utf-8")).hexdigest() != checkpoint["ledgerSha256"]):
             errors.append("LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE")
     if errors:
         raise ValueError(";".join(errors))

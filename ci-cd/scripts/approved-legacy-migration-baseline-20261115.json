@@ -1,9 +1,20 @@
 {
-  "version": 1,
-  "purpose": "Single production SHA-pinned, schema-pinned legacy ledger reconciliation without changing migration history or production user data",
-  "normalizedProductionSchemaSha256": "8a90c379e79e6c8977a9d15db8cc0b07ad8fe8ae43ffba66421aa30195b5c2b3",
-  "expectedApplied": 168,
-  "expectedRolledBack": 4,
+  "version": 2,
+  "purpose": "Permit the six reviewed historical exceptions only at exact production schema and migration ledger checkpoints",
+  "schemaCheckpoints": {
+    "d3b4b3972f883a3bb2b6ed4daef4c2dc2b7c074cf5dd7ecd93e6eaab075cf2d4": {
+      "ledgerSha256": "c3c9f2ba3e18e7d2035b64d28a7642cfae2f232b61c5efe89ea13e8f4287ee05",
+      "expectedApplied": 180,
+      "expectedRolledBack": 4,
+      "expectedSources": 181
+    },
+    "58989b48f1a51db4b1d034d5e8a9058e9347a67aa2d5e812136c83c3c297cb18": {
+      "ledgerSha256": "3fa250a9a6f8419e069aef4c9d5fb1d48e7e11290af5f1ba397ce7cc6c238d01",
+      "expectedApplied": 181,
+      "expectedRolledBack": 4,
+      "expectedSources": 181
+    }
+  },
   "approvedLegacyChecksumExceptions": {
     "20241108120000_exam_result_trainer_review": {
       "recordedProductionChecksum": "8d5e5d7d4193856e6d9e09b1d29be06f45f27ef9ffbc3371d44560722894350d",
@@ -32,8 +43,10 @@
   },
   "evidence": {
     "historicalSqlRevision": "ab72291e3922",
-    "dataValidation": "Schema-only PG15 rehearsal of all twelve pending migrations passed; actual production data has NOT been replayed",
+    "previousSchemaSha256": "8a90c379e79e6c8977a9d15db8cc0b07ad8fe8ae43ffba66421aa30195b5c2b3",
+    "previousDeployment": "GitHub Actions 43653988909, attempt 1",
+    "schemaValidation": "Restored only the schema from the previous deployment backup on PostgreSQL 15.18. Replayed the 12 applied migrations and matched the live schema with the same 15 CHECK expression formatting changes introduced by backup restore. Applied the OTA rename in isolation and verified it changes only that column name.",
     "ownerApproval": "Explicit 2026-11-15 owner authorization; no claim of native/device or Cloud.ru Job end-to-end QA",
-    "operationalBoundary": "This manifest is only valid against the exact pre-migration schema fingerprint. Future changed production schemas require new review."
+    "operationalBoundary": "Before or after the OTA rename, the live schema and full sorted ledger must both match a listed checkpoint. Other states require new review. The rehearsal used no production rows."
   }
 }
