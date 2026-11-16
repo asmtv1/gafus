@@ -96,6 +96,30 @@ export function assertGeneratedNativeOta(platform,plan,root=mobileRoot) {
     required(meta('CODE_SIGNING_CERTIFICATE')?.includes('BEGIN CERTIFICATE'),'ANDROID_CERTIFICATE');
   } else throw Error('OTA_175_TARGET_INVALID');
 }
+/** Expo Constants reads assets/app.config on the first (embedded) launch. The
+ * AndroidManifest alone is insufficient: without the same OTA extra fields,
+ * the client never requests a named-tester grant for 0% OTA releases.
+ */
+export function assertEmbeddedAndroidOtaConfig(config,plan) {
+  const required=(ok,label)=>{if(!ok)throw Error(`OTA_175_ANDROID_EMBEDDED_${label}_MISMATCH`);};
+  required(config?.version==='1.7.5','VERSION');
+  required(config?.updates?.url===OTA_URL,'ENDPOINT');
+  required(config?.extra?.otaTransport==='self-hosted','TRANSPORT');
+  required(config?.extra?.otaEnvironment==='production','ENVIRONMENT');
+  required(config?.extra?.otaChannel==='production','CHANNEL');
+  required(config?.extra?.otaNativeFingerprint===plan.nativeFingerprint,'FINGERPRINT');
+  required(config?.extra?.otaNativeReleaseId===plan.nativeReleaseId,'NATIVE_RELEASE');
+  required(config?.android?.versionCode===Number(plan.buildNumber),'BUILD_NUMBER');
+}
+export function assertBuiltAndroidOtaApk(apkFile,plan) {
+  if(!fs.existsSync(apkFile)) throw Error('OTA_175_ANDROID_RELEASE_APK_MISSING');
+  let config;
+  try {
+    const raw=execFileSync('unzip',['-p',apkFile,'assets/app.config'],{maxBuffer:4*1024*1024});
+    config=JSON.parse(raw.toString('utf8'));
+  } catch {throw Error('OTA_175_ANDROID_EMBEDDED_CONFIG_UNREADABLE');}
+  assertEmbeddedAndroidOtaConfig(config,plan);
+}
 function main(){
   const [platform,mode]=process.argv.slice(2);
   if(!['android','ios'].includes(platform) || (mode && mode!=='--check'))
@@ -112,11 +136,27 @@ function main(){
   if(prebuild.error)throw prebuild.error;
   if(prebuild.status!==0)throw Error(`OTA_175_NATIVE_PREBUILD_FAILED_${prebuild.status}`);
   assertGeneratedNativeOta(platform,plan);
-  const argv=platform==='android' ? ['exec','expo','run:android','--device','--variant','release'] :
-    ['exec','expo','run:ios','--device','--configuration','Release'];
-  const child=spawnSync('pnpm',argv,{cwd:mobileRoot,env:plan.environment,stdio:'inherit'});
-  if(child.error)throw child.error;
-  if(child.status!==0) throw Error(`OTA_175_NATIVE_DEVICE_BUILD_FAILED_${child.status}`);
+  if(platform==='android') {
+    // Gradle's long-lived daemon can retain an earlier generic Expo config.
+    // Build from the same verified environment in an isolated Gradle process,
+    // then inspect the ACTUAL APK before installing it over user data.
+    const built=spawnSync('./gradlew',[':app:assembleRelease','--no-daemon','--console=plain'],
+      {cwd:path.join(mobileRoot,'android'),env:plan.environment,stdio:'inherit'});
+    if(built.error)throw built.error;
+    if(built.status!==0)throw Error(`OTA_175_NATIVE_DEVICE_BUILD_FAILED_${built.status}`);
+    const apkFile=path.join(mobileRoot,'android/app/build/outputs/apk/release/app-release.apk');
+    assertBuiltAndroidOtaApk(apkFile,plan);
+    console.log('OTA_175_ANDROID_APK_EMBEDDED_SELF_HOSTED_CONFIG_VERIFIED');
+    // -r preserves installed application data; never uninstall the old build.
+    const installed=spawnSync('adb',['-d','install','-r',apkFile],{env:plan.environment,stdio:'inherit'});
+    if(installed.error)throw installed.error;
+    if(installed.status!==0)throw Error(`OTA_175_ANDROID_DEVICE_INSTALL_FAILED_${installed.status}`);
+  } else {
+    const child=spawnSync('pnpm',['exec','expo','run:ios','--device','--configuration','Release'],
+      {cwd:mobileRoot,env:plan.environment,stdio:'inherit'});
+    if(child.error)throw child.error;
+    if(child.status!==0)throw Error(`OTA_175_NATIVE_DEVICE_BUILD_FAILED_${child.status}`);
+  }
   console.log('OTA_175_NATIVE_BUILD_COMPLETED_REQUIRES_REAL_DEVICE_VERIFICATION');
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
