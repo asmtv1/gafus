@@ -27,6 +27,20 @@ test('private map plan uses immutable keys, never public OTA or CDN keys',t=>{
  assert(p.records.every(r=>!r.key.startsWith('ota/')));
  assert(p.records[0].sha256===x.hash);
 });
+test('private source map identity pins production to verified OTA runtime 1.7.5', t=>{
+ const x=fixture(t), manifest=path.join(x.root,'private-symbol-manifest.json');
+ const m=JSON.parse(fs.readFileSync(manifest,'utf8'));
+ m.environment='production';m.platform='android';m.runtimeVersion='1.7.5';
+ fs.writeFileSync(manifest,JSON.stringify(m),{mode:0o600});
+ const plan=planPrivateSymbolUpload(x.root);
+ assert.equal(plan.runtime,'1.7.5');
+ assert.equal(plan.environment,'production');
+ assert(plan.records.every(r=>r.key.startsWith('symbols/production/gafus/1.7.5/android/')));
+ for(const [environment,runtime] of [['production','1.8.0'],['preview','1.7.5'],['production','1.7.4']]){
+  fs.writeFileSync(manifest,JSON.stringify({...m,environment,runtimeVersion:runtime}),{mode:0o600});
+  assert.throws(()=>planPrivateSymbolUpload(x.root),/SYMBOLS_IDENTITY_INVALID/);
+ }
+});
 test('tampered map fails before attempting S3',t=>{
  const x=fixture(t);fs.appendFileSync(path.join(x.root,x.hash+'.map'),'secret');
  assert.throws(()=>planPrivateSymbolUpload(x.root),/MAP_CHANGED/);

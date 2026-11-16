@@ -31,7 +31,8 @@ export function planPrivateSymbolUpload(directory){
   let m;try{m=JSON.parse(bytes.toString('utf8'));}catch{fail('MANIFEST_INVALID_JSON');}
   if(m.schemaVersion!==1||m.private!==true||m.retentionClass!=='release-symbols'||
      !['preview','production'].includes(m.environment)||!['ios','android'].includes(m.platform)||
-     m.runtimeVersion!=='1.8.0'||!UUID.test(m.updateId)||!SOURCE.test(m.sourceSha)||
+     (m.environment==='production' ? m.runtimeVersion!=='1.7.5' : m.runtimeVersion!=='1.8.0')||
+     !UUID.test(m.updateId)||!SOURCE.test(m.sourceSha)||
      !Number.isSafeInteger(m.revision)||m.revision<1||
      !Array.isArray(m.maps)||m.maps.length<1||m.maps.length>8)fail('IDENTITY_INVALID');
   const prefix=`symbols/${m.environment}/gafus/${m.runtimeVersion}/${m.platform}/${m.updateId}`;
