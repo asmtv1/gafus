@@ -189,6 +189,15 @@ jobs:
           EXPECTED="$(node -p "require(process.env.RUNNER_TEMP+'/ota-native/native.json').nativeFingerprint")"
           test "$ACTUAL" = "$EXPECTED" || { echo 'NATIVE_FINGERPRINT_MISMATCH'; exit 22; }
 
+      - name: Build Prisma and Core declarations needed by Mobile integration typecheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Mobile server-integration type-only imports resolve emitted .d.ts in
+          # @gafus/prisma and @gafus/core. A fresh OTA runner has no package dist.
+          pnpm --filter @gafus/prisma db:generate
+          pnpm exec turbo run build --filter='@gafus/core...'
+
       - name: Run architecture, Mobile typecheck and payment contract suite
         shell: bash
         run: |
