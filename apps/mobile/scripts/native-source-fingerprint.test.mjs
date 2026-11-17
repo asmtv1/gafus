@@ -11,7 +11,8 @@ run(["init","--quiet"]);
 run(["config","user.name","QA"]);run(["config","user.email","qa@example.invalid"]);
 const tracked=["pnpm-lock.yaml","apps/mobile/app.json","apps/mobile/app.config.js",
   "apps/mobile/eas.json","apps/mobile/package.json","apps/mobile/metro.config.js",
-  "apps/mobile/babel.config.js","apps/mobile/ios/Podfile","apps/mobile/src/screen.tsx"];
+  "apps/mobile/babel.config.js","apps/mobile/scripts/self-hosted-native-profile.cjs",
+  "apps/mobile/ios/Podfile","apps/mobile/src/screen.tsx"];
 for(const file of tracked){fs.mkdirSync(path.dirname(path.join(root,file)),{recursive:true});fs.writeFileSync(path.join(root,file),`before ${file}\n`);}
 run(["add","."]);run(["commit","--quiet","-m","baseline"]);
 const native={platform:"ios",environment:"preview",channel:"preview",runtimeVersion:"1.7.5",
@@ -22,7 +23,7 @@ test("reproducible fingerprint on exact source and native profile",()=>{
   const first=computeNativeSourceFingerprint(root,native);
   const again=computeNativeSourceFingerprint(root,native);
   assert.deepEqual(first,again);assert.match(first.fingerprint,/^[a-f0-9]{64}$/);
-  assert.equal(first.fileCount,8);
+  assert.equal(first.fileCount,9);
 });
 test("JS-only changes do not modify native fingerprint",()=>{
   const first=computeNativeSourceFingerprint(root,native);
@@ -42,6 +43,18 @@ test("untracked native Expo config plugin changes the fingerprint before commit"
     assert.notEqual(computeNativeSourceFingerprint(root,native).fingerprint,candidate.fingerprint);
   }finally {fs.rmSync(file,{force:true});}
   assert.equal(computeNativeSourceFingerprint(root,native).fingerprint,base.fingerprint);
+});
+test("self-hosted OTA native timeout profile drift changes native fingerprint",()=>{
+  const baseline=computeNativeSourceFingerprint(root,native);
+  const file=path.join(root,"apps/mobile/scripts/self-hosted-native-profile.cjs");
+  const before=fs.readFileSync(file);
+  try {
+    fs.writeFileSync(file,"module.exports={androidOtaTimeoutMs:60000};\n");
+    const changed=computeNativeSourceFingerprint(root,native);
+    assert.notEqual(changed.fingerprint,baseline.fingerprint);
+    assert.equal(changed.fileCount,baseline.fileCount);
+  }finally{fs.writeFileSync(file,before);}
+  assert.equal(computeNativeSourceFingerprint(root,native).fingerprint,baseline.fingerprint);
 });
 test("untracked JS-only source does not change native fingerprint",()=>{
   const baseline=computeNativeSourceFingerprint(root,native);

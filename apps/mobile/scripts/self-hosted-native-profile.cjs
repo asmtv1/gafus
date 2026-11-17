@@ -65,6 +65,10 @@ function applyNativeSelfHostedProfile(config, { environment = process.env,
     }),
     updates: {
       ...config.updates,
+      // Expo SDK 57 reuses launchWaitMs as OkHttp's connect/read timeout for
+      // manual asset downloads. Keep the native automatic check disabled.
+      // Android devices on slower or VPN connections need more than 10 seconds.
+      ...(descriptor.platform === "android" ? { fallbackToCacheTimeout: 60_000 } : {}),
       url: descriptor.updateUrl,
       codeSigningCertificate: `./.ota-certs/${path.basename(certificate)}`,
       codeSigningMetadata: { keyid: descriptor.signingKeyId, alg: "rsa-v1_5-sha256" },

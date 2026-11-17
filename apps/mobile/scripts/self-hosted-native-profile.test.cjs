@@ -36,9 +36,21 @@ test("preview native profile switches only explicit verified target and certific
   assert.equal(result.updates.codeSigningCertificate,"./.ota-certs/preview.pem");
   assert.equal(result.updates.requestHeaders["expo-channel-name"],"preview");
   assert.equal(result.updates.checkAutomatically,"NEVER");
+  assert.equal(result.updates.fallbackToCacheTimeout,undefined); // iOS untouched
   assert.equal(result.updates.requestHeaders["x-gafus-native-fingerprint"],descriptor.nativeFingerprint);
   assert.equal(result.extra.keep,true);
   assert.equal(result.extra.otaNativeFingerprint,descriptor.nativeFingerprint);
+});
+test("Android self-hosted production and preview use 60-second native OTA asset read timeout",()=>{
+  const android={...descriptor,platform:"android"};
+  fs.writeFileSync(descriptorPath,JSON.stringify(android));
+  try {
+    const result=applyNativeSelfHostedProfile(base,{environment:{...env,GAFUS_OTA_TARGET_PLATFORM:"android"},appRoot:dir});
+    assert.equal(result.updates.fallbackToCacheTimeout,60_000);
+    assert.equal(result.updates.checkAutomatically,"NEVER");
+    assert.equal(result.android.versionCode,175);
+    assert.equal(base.updates.fallbackToCacheTimeout,undefined);
+  }finally{fs.writeFileSync(descriptorPath,JSON.stringify(descriptor));}
 });
 test("legacy native version and mismatched target are never reused",()=>{
   assert.throws(()=>applyNativeSelfHostedProfile({...base,version:"1.7.4"},{environment:env,appRoot:dir}),/SELF_HOSTED_NATIVE_APP_VERSION_RUNTIME_MISMATCH/);

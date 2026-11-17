@@ -8,6 +8,8 @@ const nativeFiles = new Set([
   "pnpm-lock.yaml", "apps/mobile/app.json", "apps/mobile/app.config.js",
   "apps/mobile/eas.json", "apps/mobile/package.json", "apps/mobile/metro.config.js",
   "apps/mobile/babel.config.js", "apps/mobile/expo-env.d.ts",
+  // Generated AndroidManifest/Expo.plist depends on this code; it is native input.
+  "apps/mobile/scripts/self-hosted-native-profile.cjs",
 ]);
 const nativePrefixes = ["apps/mobile/ios/", "apps/mobile/android/",
   "apps/mobile/modules/", "apps/mobile/plugins/", "apps/mobile/native/"];
@@ -24,6 +26,7 @@ export function computeNativeSourceFingerprint(repositoryRoot, nativeProfile) {
   const paths=["pnpm-lock.yaml","apps/mobile/app.json","apps/mobile/app.config.js",
     "apps/mobile/eas.json","apps/mobile/package.json","apps/mobile/metro.config.js",
     "apps/mobile/babel.config.js","apps/mobile/expo-env.d.ts",
+    "apps/mobile/scripts/self-hosted-native-profile.cjs",
     ...nativePrefixes.map(p=>p.slice(0,-1))];
   // The fingerprint must reflect the actual local build input. `--cached`
   // alone omits brand-new native config plugins before git add/commit.

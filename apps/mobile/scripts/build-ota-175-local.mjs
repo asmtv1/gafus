@@ -90,6 +90,7 @@ export function assertGeneratedNativeOta(platform,plan,root=mobileRoot) {
     required(new RegExp(`versionCode\\s+${plan.buildNumber}(?!\\d)`).test(gradle),'ANDROID_BUILD_NUMBER');
     required(meta('EXPO_UPDATE_URL')===OTA_URL,'ANDROID_ENDPOINT');
     required(meta('EXPO_UPDATES_CHECK_ON_LAUNCH')==='NEVER','ANDROID_MANUAL_CHECK');
+    required(meta('EXPO_UPDATES_LAUNCH_WAIT_MS')==='60000','ANDROID_OTA_NETWORK_TIMEOUT');
     required(meta('CODE_SIGNING_METADATA')?.includes(plan.signingKeyId),'ANDROID_SIGNING_KEY');
     required(meta('UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY')?.includes(plan.nativeFingerprint) &&
       meta('UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY')?.includes('production'),'ANDROID_FINGERPRINT');
@@ -104,6 +105,7 @@ export function assertEmbeddedAndroidOtaConfig(config,plan) {
   const required=(ok,label)=>{if(!ok)throw Error(`OTA_175_ANDROID_EMBEDDED_${label}_MISMATCH`);};
   required(config?.version==='1.7.5','VERSION');
   required(config?.updates?.url===OTA_URL,'ENDPOINT');
+  required(config?.updates?.fallbackToCacheTimeout===60000,'NETWORK_TIMEOUT');
   required(config?.extra?.otaTransport==='self-hosted','TRANSPORT');
   required(config?.extra?.otaEnvironment==='production','ENVIRONMENT');
   required(config?.extra?.otaChannel==='production','CHANNEL');
