@@ -4567,7 +4567,7 @@ model MobileOtaMandatoryPolicy {
   version        String?  @db.VarChar(100)
   revision       Int      @default(1)
   updatedById    String?
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime @default(now()) @updatedAt
 
   @@id([platform, runtimeVersion])
 }

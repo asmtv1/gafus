@@ -118,3 +118,16 @@ test('v1 baseline stays frozen when a later Prisma migration and model are appen
     rmSync(temp, { recursive: true, force: true });
   }
 });
+
+test('mandatory OTA SQL timestamp default matches Prisma and only two reviewed index drops remain', () => {
+  const sql=read('packages/prisma/migrations/20261118101500_per_platform_mobile_ota_mandatory/migration.sql');
+  const schema=read('packages/prisma/schema.prisma');
+  const block=/model MobileOtaMandatoryPolicy \{([\s\S]*?)\n\}/.exec(schema);
+  assert(block,'MANDATORY_OTA_MODEL_REQUIRED');
+  assert.match(sql, /"updatedAt"\s+TIMESTAMP\(3\)\s+NOT NULL DEFAULT CURRENT_TIMESTAMP/);
+  assert.match(block[1], /updatedAt\s+DateTime\s+@default\(now\(\)\)\s+@updatedAt/);
+  assert.match(apply, /PetDocument_petId_ownerId_idx/);
+  assert.match(apply, /AppSubscriptionPayment_subscriptionId_status_succeededAt_idx/);
+  assert.match(apply, /statements\.length === 2/);
+  assert.match(apply, /UNREVIEWED_PRISMA_SCHEMA_DRIFT/);
+});
