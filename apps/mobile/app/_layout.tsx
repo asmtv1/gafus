@@ -158,8 +158,8 @@ export default function RootLayout() {
             <QueryProvider>
               <ThemeProvider>
                 <RequiredAppUpdateGate>
-                  <RequiredOtaUpdateGate>
-                    <AuthProvider>
+                  <AuthProvider>
+                    <RequiredOtaUpdateGate>
                       <View style={styles.container}>
                         <WalkWidgetSessionSync />
                         <AnalyticsNavigationListener />
@@ -174,8 +174,8 @@ export default function RootLayout() {
                         </Stack>
                       </View>
                       <StatusBar style="auto" />
-                    </AuthProvider>
-                  </RequiredOtaUpdateGate>
+                    </RequiredOtaUpdateGate>
+                  </AuthProvider>
                 </RequiredAppUpdateGate>
               </ThemeProvider>
             </QueryProvider>

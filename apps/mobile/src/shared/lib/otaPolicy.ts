@@ -1,7 +1,12 @@
 import type { MobileAppPublicConfig } from "./api/public-config";
 import { OTA_COMPILED_REVISION } from "./otaRevision.generated";
 
-export const OTA_BASE_VERSION = "1.7.3";
+export const OTA_BASE_VERSION = "1.7.5";
+
+/** While rollout is 0%, only the two authenticated QA accounts can be forced. */
+export function eligibleForMandatoryTesterOta(username: string | null | undefined, authenticated: boolean): boolean {
+  return authenticated && (username === "admin" || username === "asmtv1");
+}
 
 /** OTA revisions are independent of store versions and native build numbers. */
 export function activeOtaRevision(): number {
@@ -17,9 +22,10 @@ export function requiredOtaRevision(
     runtimeVersion: string | null;
     channel: string | null;
     currentRevision: number;
+    testerEligible: boolean;
   },
 ): number | null {
-  if (!policy?.required || !policy.version || policy.channel !== "production") return null;
+  if (!context.testerEligible || !policy?.required || !policy.version || policy.channel !== "production") return null;
   if (context.platform !== "ios" && context.platform !== "android") return null;
   if (policy.platform !== "all" && policy.platform !== context.platform) return null;
   if (context.channel !== policy.channel) return null;

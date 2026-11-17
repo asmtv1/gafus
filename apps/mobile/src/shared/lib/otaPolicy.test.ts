@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { activeOtaRevision, requiredOtaRevision } from "./otaPolicy";
+import { activeOtaRevision, eligibleForMandatoryTesterOta, requiredOtaRevision } from "./otaPolicy";
 
-const policy = { required: true, version: "1.7.3-ota.2", platform: "all" as const, channel: "production" as const };
-const context = { platform: "android", nativeVersion: "1.7.3", runtimeVersion: "1.7.3", channel: "production", currentRevision: 0 };
-describe("forced OTA gate 1.7.3", () => {
-  it("embeds revision zero in native 1.7.3 and optional OTA by default", () => {
+const policy = { required: true, version: "1.7.5-ota.2", platform: "all" as const, channel: "production" as const };
+const context = { platform: "android", nativeVersion: "1.7.5", runtimeVersion: "1.7.5", channel: "production", currentRevision: 0, testerEligible: true };
+describe("forced OTA gate 1.7.5", () => {
+  it("embeds revision zero in native 1.7.5 and optional OTA by default", () => {
     expect(activeOtaRevision()).toBe(0);
+  });
+  it("only authenticated eligible testers may be blocked while OTA rollout is 0%", () => {
+    expect(eligibleForMandatoryTesterOta("admin", true)).toBe(true);
+    expect(eligibleForMandatoryTesterOta("asmtv1", true)).toBe(true);
+    for (const name of ["other", "Admin", ""]) {
+      expect(eligibleForMandatoryTesterOta(name, true)).toBe(false);
+    }
+    expect(eligibleForMandatoryTesterOta("admin", false)).toBe(false);
+    expect(requiredOtaRevision(policy, { ...context, testerEligible: false })).toBeNull();
   });
   it("blocks an old OTA revision on the matching production runtime", () => {
     expect(requiredOtaRevision(policy, context)).toBe(2);
@@ -25,6 +34,6 @@ describe("forced OTA gate 1.7.3", () => {
   });
   it("ignores invalid or future native baselines", () => {
     expect(requiredOtaRevision({ ...policy, version: "invalid" }, context)).toBeNull();
-    expect(requiredOtaRevision({ ...policy, version: "1.7.4-ota.2" }, { ...context, nativeVersion: "1.7.4", runtimeVersion: "1.7.4" })).toBeNull();
+    expect(requiredOtaRevision({ ...policy, version: "1.7.6-ota.2" }, { ...context, nativeVersion: "1.7.6", runtimeVersion: "1.7.6" })).toBeNull();
   });
 });

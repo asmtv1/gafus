@@ -14,7 +14,8 @@ import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
 import { refreshOtaTesterGrant } from "@/shared/lib/ota/installationIdentity";
 import { trackOtaEvent } from "@/shared/lib/ota/telemetry";
 import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
-import { activeOtaRevision, requiredOtaRevision } from "@/shared/lib/otaPolicy";
+import { useAuthStore } from "@/shared/stores/authStore";
+import { activeOtaRevision, eligibleForMandatoryTesterOta, requiredOtaRevision } from "@/shared/lib/otaPolicy";
 import { reportClientError } from "@/shared/lib/error-reporting";
 import { formatOtaMegabytes, getOtaMainBundleBytes } from "@/shared/lib/otaDownloadSize";
 
@@ -62,12 +63,13 @@ function ForceOtaScreen({ version, phase, error, progress, mainBundleBytes, retr
       >
         <View style={styles.card}>
           <View style={styles.versionPill}>
-            <Text style={styles.versionPillText}>ОБНОВЛЕНИЕ {version}</Text>
+            <Text style={styles.versionPillText}>{phase === "checking" ? "ПРОВЕРКА ОБНОВЛЕНИЙ" : "ОБЯЗАТЕЛЬНОЕ ОБНОВЛЕНИЕ"} {version}</Text>
           </View>
           <Text style={styles.title}>Гафус становится лучше!</Text>
           <Text style={styles.description}>
-            Загружаем новую версию приложения. После установки Гафус
-            перезапустится, а ваши данные останутся на месте.
+            {phase === "checking"
+              ? "Проверяем, требуется ли обновление перед запуском приложения."
+              : "Для продолжения работы необходимо скачать обновление. После установки Гафус перезапустится, а ваши данные останутся на месте."}
           </Text>
 
           {phase === "error" ? (
@@ -240,18 +242,27 @@ const styles = StyleSheet.create({
 /** Kept separate from RequiredAppUpdateGate: native Store force-update is untouched. */
 export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
   const configQuery = useMobileAppPublicConfig();
+  const testerEligible = useAuthStore(s => eligibleForMandatoryTesterOta(
+    s.user?.username, s.isAuthenticated && !s.isLoading && !!s.verifiedSessionEpoch,
+  ));
   const updatesState = Updates.useUpdates();
-  const requiredRevision = !__DEV__ && Updates.isEnabled
+  // API clients can resolve HTTP failures as {success:false} instead of
+  // rejecting; neither a stale nor an unsuccessful response may bypass the gate.
+  const policyValid = configQuery.isSuccess && configQuery.data?.success === true &&
+    configQuery.data.data?.ota?.channel === "production";
+  const requiredRevision = testerEligible && policyValid && !__DEV__ && Updates.isEnabled
     ? requiredOtaRevision(configQuery.data?.data?.ota, {
       platform: Platform.OS,
       nativeVersion: Application.nativeApplicationVersion,
       runtimeVersion: Updates.runtimeVersion,
       channel: Updates.channel,
       currentRevision: activeOtaRevision(),
+      testerEligible,
     }) : null;
 
   // Preserve existing background OTA behavior whenever mandatory gate is off.
-  useOtaAutoApply((!!configQuery.data?.data || configQuery.isError) && requiredRevision === null);
+  // Never run a competing optional check while a mandatory policy decision is pending.
+  useOtaAutoApply(!testerEligible || (policyValid && requiredRevision === null));
   const [attempt, setAttempt] = useState(0);
   const [phase, setPhase] = useState<Phase>("checking");
   const [error, setError] = useState<string | null>(null);
@@ -312,6 +323,16 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requiredRevision, target, attempt]);
 
+  // For signed-in testers, do not paint navigation before the mandatory policy
+  // is known: an initial blank/stale query otherwise lets them use the app.
+  if (testerEligible && !__DEV__ && Updates.isEnabled && !policyValid) {
+    return <ForceOtaScreen
+      version={"1.7.5"} phase={configQuery.isError || configQuery.isSuccess ? "error" : "checking"}
+      error={configQuery.isError || configQuery.isSuccess ? "Не удалось проверить обязательные обновления. Проверьте интернет и повторите." : null}
+      mainBundleBytes={undefined}
+      retry={() => void configQuery.refetch()}
+    />;
+  }
   if (requiredRevision === null || !target) return children;
   return (
     <ForceOtaScreen
