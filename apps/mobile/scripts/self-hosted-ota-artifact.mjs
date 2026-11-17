@@ -68,6 +68,16 @@ export function buildSignedOtaArtifact({
     publicExpoConfig.version === native.appVersion, "EXPO_CONFIG_NATIVE_VERSION_MISMATCH");
   must(publicExpoConfig.updates?.url === native.updateUrl,
     "EXPO_CONFIG_NATIVE_ENDPOINT_MISMATCH");
+  // expo-router requires a scheme in the OTA's embedded expoClient metadata.
+  // Missing scheme is only discovered after the native download, as a JS fatal error.
+  const schemes = Array.isArray(publicExpoConfig.scheme)
+    ? publicExpoConfig.scheme : [publicExpoConfig.scheme];
+  must(schemes.some(value => typeof value === "string" && value.trim()),
+    "EXPO_CONFIG_SCHEME_REQUIRED");
+  // iOS expo-updates rejects signatures from certificates without this EKU.
+  const codeSigningUsage = new crypto.X509Certificate(certificatePem).keyUsage;
+  must(codeSigningUsage?.includes("1.3.6.1.5.5.7.3.3"),
+    "OTA_CERTIFICATE_CODE_SIGNING_EKU_REQUIRED");
   must(!Object.prototype.hasOwnProperty.call(publicExpoConfig, "privateKey") &&
     !Object.prototype.hasOwnProperty.call(publicExpoConfig, "credentials"), "EXPO_CONFIG_PRIVATE_CONTENT");
   must(metadata && metadata.bundler === "metro", "INVALID_EXPO_EXPORT_METADATA");

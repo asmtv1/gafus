@@ -264,7 +264,11 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           reportClientError(error, { issueKey: "AuthLogin" });
           console.error("Login error:", error);
-          return { success: false, error: "Ошибка подключения к серверу" };
+          const keychainError = (error as { code?: string } | null)?.code === "ERR_KEY_CHAIN" ||
+            (error instanceof Error && error.message.includes("KeyChainException"));
+          return { success: false, error: keychainError
+            ? "Не удалось сохранить данные входа в защищённом хранилище устройства"
+            : "Ошибка подключения к серверу" };
         }
       },
 

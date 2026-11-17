@@ -1035,7 +1035,7 @@ importers:
     dependencies:
       '@appmetrica/react-native-analytics':
         specifier: ^3.6.0
-        version: 3.6.0(react-native@0.83.10(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.18)(react@19.2.0))(react@19.2.0)
+        version: 3.6.0(react-native@0.86.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       '@gafus/types':
         specifier: workspace:*
         version: link:../types
@@ -1053,11 +1053,11 @@ importers:
         specifier: 19.2.18
         version: 19.2.18
       react:
-        specifier: 19.2.0
-        version: 19.2.0
+        specifier: 19.2.3
+        version: 19.2.3
       react-native:
-        specifier: 0.83.10
-        version: 0.83.10(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.18)(react@19.2.0)
+        specifier: 0.86.3
+        version: 0.86.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.18)(react@19.2.3)
       rimraf:
         specifier: ^5.0.1
         version: 5.0.1

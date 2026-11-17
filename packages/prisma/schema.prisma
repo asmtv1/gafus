@@ -4557,3 +4557,30 @@ model MobileTelemetryDailyQuota {
 
   @@id([environment, day])
 }
+
+/// Independent mandatory signed-OTA revision per platform and native runtime (>=1.7.5).
+/// A missing row means no mandatory OTA for that platform/runtime.
+model MobileOtaMandatoryPolicy {
+  platform       String   @db.VarChar(12)
+  runtimeVersion String   @db.VarChar(100)
+  required       Boolean  @default(false)
+  version        String?  @db.VarChar(100)
+  revision       Int      @default(1)
+  updatedById    String?
+  updatedAt      DateTime @updatedAt
+
+  @@id([platform, runtimeVersion])
+}
+
+model MobileOtaMandatoryPolicyAudit {
+  operationId      String   @id @db.VarChar(120)
+  platform         String   @db.VarChar(12)
+  runtimeVersion   String   @db.VarChar(100)
+  previousRevision Int
+  revision         Int
+  required         Boolean
+  version          String?  @db.VarChar(100)
+  actorId          String
+  reason           String   @db.VarChar(512)
+  createdAt        DateTime @default(now())
+}

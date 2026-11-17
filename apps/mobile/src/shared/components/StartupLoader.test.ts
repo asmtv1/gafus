@@ -9,24 +9,32 @@ const rootLayout = readFileSync(resolve(mobileRoot, "app/_layout.tsx"), "utf8");
 const courses = readFileSync(resolve(mobileRoot, "app/(main)/(tabs)/index.tsx"), "utf8");
 const app = JSON.parse(readFileSync(resolve(mobileRoot, "app.json"), "utf8")) as {
   expo: {
-    splash: { image: string; resizeMode: string };
-    ios: { splash: { image: string; resizeMode: string } };
     plugins: unknown[];
   };
 };
 
 describe("mobile start screen uses one bundled static poster", () => {
   it("fills tall screens without blue letterboxing", () => {
-    expect(app.expo.splash.image).toBe("./assets/images/startup-splash.png");
-    expect(app.expo.ios.splash.image).toBe("./assets/images/startup-splash.png");
+    // SDK 57 rejects legacy expo.splash / ios.splash / android.splash.
+    // Full-bleed native startup is configured entirely by expo-splash-screen.
+    expect(app.expo).not.toHaveProperty("splash");
+    expect(app.expo).not.toHaveProperty("ios.splash");
+    expect(app.expo).not.toHaveProperty("android.splash");
     expect(startup).toContain('require("../../../assets/images/startup-splash.png")');
-    expect(app.expo.splash.resizeMode).toBe("cover");
-    expect(app.expo.ios.splash.resizeMode).toBe("cover");
     const splashPlugin = app.expo.plugins.find(
       (plugin): plugin is [string, Record<string, unknown>] =>
         Array.isArray(plugin) && plugin[0] === "expo-splash-screen",
     );
-    expect(splashPlugin?.[1]).toMatchObject({ ios: { resizeMode: "cover" } });
+    expect(splashPlugin?.[1]).toMatchObject({
+      image: "./assets/images/startup-splash.png",
+      resizeMode: "cover",
+      backgroundColor: "#B5E5EB",
+      ios: {
+        image: "./assets/images/startup-splash.png",
+        resizeMode: "cover",
+        enableFullScreenImage_legacy: true,
+      },
+    });
     expect(startup).toContain('resizeMode="cover"');
     expect(startup).not.toContain('resizeMode="contain"');
     expect(startup).toContain("onLoad={() => setImageLoaded(true)}");

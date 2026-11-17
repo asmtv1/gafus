@@ -13,7 +13,7 @@ function applyNativeSelfHostedProfile(config, { environment = process.env,
   const file = environment.GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR;
   const certificatePath = environment.GAFUS_OTA_NATIVE_CERTIFICATE;
   if (!file || !certificatePath) throw Error("SELF_HOSTED_NATIVE_DESCRIPTOR_AND_CERT_REQUIRED");
-  const descriptor = JSON.parse(fs.readFileSync(file, "utf8"));
+  const descriptor = JSON.parse(fs.readFileSync(path.resolve(appRoot,file), "utf8"));
   if (!["preview", "production"].includes(descriptor.environment) ||
       !["ios", "android"].includes(descriptor.platform) ||
       !ID.test(descriptor.channel || "") || !ID.test(descriptor.runtimeVersion || "") ||
@@ -22,11 +22,20 @@ function applyNativeSelfHostedProfile(config, { environment = process.env,
     throw Error("SELF_HOSTED_NATIVE_DESCRIPTOR_INVALID");
   // A registered, signed production-channel binary may be built for a physical
   // device without CI only with an explicit internal-only testing guard.
-  // No store binary or OTA publication inherits this exception.
+  // Store builds have a separately guarded opt-in below; OTA publication is forbidden.
   const localDeviceTest = environment.GAFUS_OTA_LOCAL_DEVICE_TEST === "true" &&
     descriptor.distribution === "internal" && descriptor.channel === "production" &&
     environment.APP_ENV === "production";
-  if (descriptor.environment === "production" && !localDeviceTest &&
+  // Explicit local opt-in permits a signed Store IPA to be compiled before
+  // verification. It does NOT permit OTA publication. The separate Store CLI
+  // checks the registered descriptor, clean pushed commit and EAS build number.
+  const localStoreBuild = environment.GAFUS_OTA_LOCAL_STORE_BUILD === "true" &&
+    environment.GAFUS_OTA_LOCAL_DEVICE_TEST !== "true" &&
+    descriptor.distribution === "app-store" && descriptor.platform === "ios" &&
+    environment.GAFUS_OTA_TARGET_PLATFORM === "ios" &&
+    descriptor.environment === "production" && descriptor.channel === "production" &&
+    environment.APP_ENV === "production" && descriptor.verified === false;
+  if (descriptor.environment === "production" && !localDeviceTest && !localStoreBuild &&
       (environment.CI !== "true" || environment.GAFUS_OTA_PRODUCTION_APPROVED !== "true"))
     throw Error("SELF_HOSTED_PRODUCTION_REQUIRES_APPROVED_CI");
   if (descriptor.appVersion !== config.version || config.runtimeVersion?.policy !== "appVersion")

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocked = vi.hoisted(() => ({
   verify: vi.fn(), completed: vi.fn(), readRole: vi.fn(),
-  list: vi.fn(), update: vi.fn(), create: vi.fn(), registerPatch: vi.fn(), applyPatch: vi.fn(), listPatchApplications: vi.fn(),
+  listMandatory: vi.fn(), updateMandatory: vi.fn(), list: vi.fn(), update: vi.fn(), create: vi.fn(), registerPatch: vi.fn(), applyPatch: vi.fn(), listPatchApplications: vi.fn(),
 }));
 vi.mock("@gafus/auth/jwt", () => ({ verifyAccessToken: mocked.verify }));
 vi.mock("@gafus/core/services/auth", () => ({ isRegistrationCompleted: mocked.completed }));
@@ -22,6 +22,13 @@ vi.mock("../../modules/mobile-ota/patch-commands.js", async (importOriginal) => 
   registerSourcePatchApplication: mocked.applyPatch,
   listSourcePatchApplications: mocked.listPatchApplications,
 }));
+vi.mock("@gafus/mobile-ota-server/mandatory-control", () => ({
+  listMandatoryOtaControls: mocked.listMandatory,
+  updateMandatoryOtaControl: mocked.updateMandatory,
+  MandatoryControlError: class MandatoryControlError extends Error {
+    constructor(public code: string) {super(code);}
+  },
+}));
 vi.mock("@gafus/prisma", () => ({ prisma: { $queryRaw: vi.fn() } }));
 import { authMiddleware } from "../../middleware/auth";
 import { adminMobileOtaRoutes } from "./admin-mobile-ota";
@@ -34,7 +41,7 @@ function app() {
 }
 const deploymentId = "8a115d1a-a21a-4317-ab79-ed656a01e055";
 const releaseId = "97b6dd04-f4a5-4bd4-a556-6aa83e25d34e";
-function request(uri: string, method: "GET" | "POST" = "GET", body?: object, authenticated = true) {
+function request(uri: string, method: "GET" | "POST" | "PUT" = "GET", body?: object, authenticated = true) {
   return app().request("https://gafus.test"+path+uri, {
     method, headers: {
       ...(authenticated ? { authorization: "Bearer example" } : {}),
@@ -50,10 +57,37 @@ beforeEach(() => {
   mocked.completed.mockResolvedValue(true);
   mocked.readRole.mockResolvedValue("ADMIN");
   mocked.list.mockResolvedValue([{ id: deploymentId, rowVersion: 3, paused: true }]);
+  mocked.listMandatory.mockResolvedValue([{platform:"android",runtimeVersion:"1.7.5",version:"1.7.5-ota.6",required:true,revision:1}]);
+  mocked.updateMandatory.mockResolvedValue({platform:"ios",runtimeVersion:"1.7.5",version:"1.7.5-ota.2",required:true,revision:1});
   mocked.update.mockResolvedValue({ id: deploymentId, version: 4, paused: false, replayed: false });
   mocked.create.mockResolvedValue({ id: deploymentId, version: 1, paused: true, replayed: false });
   mocked.registerPatch.mockResolvedValue({id:"9e31a365-1aa2-4a99-a99d-698ede5c5075",state:"PRIVATE_SOURCE_ONLY",replayed:false});
   mocked.applyPatch.mockResolvedValue({id:"a10f5492-31e2-4382-8af2-d09d265f5b0e",state:"DRAFT",replayed:false});
+});
+describe("per-platform mandatory admin boundaries",()=>{
+  const change={platform:"ios",runtimeVersion:"1.7.5",required:true,version:"1.7.5-ota.2",
+    expectedRevision:0,operationId:"ios-mandatory-20261118-01",reason:"Device and signed delivery verified"};
+  it("blocks unauthorized or demoted admins",async()=>{
+    expect((await request("/mandatory-policies","GET",undefined,false)).status).toBe(401);
+    mocked.readRole.mockResolvedValue("MODERATOR");
+    expect((await request("/mandatory-policies","PUT",change)).status).toBe(403);
+    expect(mocked.updateMandatory).not.toHaveBeenCalled();
+  });
+  it("reads independent controls and writes exactly one native/platform selection",async()=>{
+    const read=await request("/mandatory-policies");
+    expect((await read.json()).data).toEqual([expect.objectContaining({platform:"android",version:"1.7.5-ota.6"})]);
+    const write=await request("/mandatory-policies","PUT",change);
+    expect(write.status).toBe(200);
+    expect(mocked.updateMandatory).toHaveBeenCalledWith({...change,actorId:"admin-1"});
+    await expect(write.json()).resolves.toMatchObject({success:true,data:{platform:"ios",revision:1}});
+  });
+  it("rejects unsafe command bodies before server policy writes",async()=>{
+    for (const bad of [{...change,runtimeVersion:"1.7.4/../"},{...change,reason:"x"},
+      {...change,platform:"all"},{...change,required:"true"},{...change,operationId:"x"}]) {
+      expect((await request("/mandatory-policies","PUT",bad)).status).toBe(400);
+    }
+    expect(mocked.updateMandatory).not.toHaveBeenCalled();
+  });
 });
 describe("OTA admin mounted HTTP boundaries", () => {
   it("blocks unauthenticated reads before any registry call", async () => {

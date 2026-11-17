@@ -12,11 +12,6 @@
       }
     },
     "icon": "./assets/images/icon512.png",
-    "splash": {
-      "image": "./assets/images/startup-splash.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#B5E5EB"
-    },
     "androidStatusBar": {
       "backgroundColor": "#B5E5EB",
       "translucent": false
@@ -34,18 +29,13 @@
         "NSMotionUsageDescription": "Подсчёт шагов нужен для отображения шагов и примерного расстояния во время прогулки с собакой."
       },
       "appleTeamId": "PJQ8PP666S",
-      "splash": {
-        "image": "./assets/images/startup-splash.png",
-        "resizeMode": "cover",
-        "backgroundColor": "#B5E5EB"
+      "entitlements": {
+        "keychain-access-groups": ["$(AppIdentifierPrefix)ru.gafus.app"]
       }
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": true,
-      "splash": {
-        "backgroundColor": "#B5E5EB"
-      },
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon-foreground.png",

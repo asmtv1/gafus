@@ -33,9 +33,20 @@ export function validateNativeReleaseContract({ expo, mobilePackage, eas, env = 
     'MOBILE_STORE_BUNDLE_IDENTIFIER_CHANGED');
   // SDK57 keeps the full-bleed startup poster on tall displays. Older SDK55
   // release profiles retain their previous contain policy.
-  const splashMode=/^57\./.test(mobilePackage.dependencies?.expo ?? '')?'cover':'contain';
-  requireCheck(expo.splash?.resizeMode===splashMode && expo.ios?.splash?.resizeMode===splashMode,
-    'MOBILE_SPLASH_MUST_FIT_SCREEN');
+  const sdk57=/^57\./.test(mobilePackage.dependencies?.expo ?? '');
+  // Expo SDK 57 accepts splash configuration only via the expo-splash-screen
+  // config plugin. Deprecated splash/ios.splash/android.splash fail Expo Doctor.
+  const splashPlugin=expo.plugins?.find(p=>Array.isArray(p) && p[0]==='expo-splash-screen');
+  const splashConfig=splashPlugin?.[1];
+  const splashValid=sdk57 ? (
+    !expo.splash && !expo.ios?.splash && !expo.android?.splash &&
+    splashConfig?.resizeMode==='cover' && splashConfig?.ios?.resizeMode==='cover' &&
+    splashConfig?.ios?.enableFullScreenImage_legacy===true &&
+    splashConfig?.image==='./assets/images/startup-splash.png' &&
+    splashConfig?.ios?.image==='./assets/images/startup-splash.png' &&
+    splashConfig?.backgroundColor==='#B5E5EB'
+  ) : (expo.splash?.resizeMode==='contain' && expo.ios?.splash?.resizeMode==='contain');
+  requireCheck(splashValid,'MOBILE_SPLASH_MUST_FIT_SCREEN');
   const plugins=(expo.plugins ?? []).map(p=>typeof p==='string'?p:p?.[0]);
   for(const key of ['expo-video','expo-image-picker','expo-notifications','expo-secure-store']) {
     requireCheck(plugins.includes(key),`MOBILE_REQUIRED_NATIVE_PLUGIN_MISSING:${key}`);

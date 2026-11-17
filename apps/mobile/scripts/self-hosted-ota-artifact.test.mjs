@@ -19,12 +19,14 @@ const keyFile = path.join(root,"key.pem");
 const certFile = path.join(root,"cert.pem");
 const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
 fs.writeFileSync(keyFile,privateKey.export({type:"pkcs1",format:"pem"}), {mode: 0o600});
-execFileSync("openssl", ["req", "-new", "-x509", "-key", keyFile, "-out", certFile, "-days", "1", "-subj", "/CN=gafus-ota-local-qa"], {stdio:"ignore"});
+execFileSync("openssl", ["req", "-new", "-x509", "-key", keyFile, "-out", certFile, "-days", "1", "-subj", "/CN=gafus-ota-local-qa", "-addext", "extendedKeyUsage=codeSigning"],
+  {stdio:"ignore"});
 const certPem = fs.readFileSync(certFile,"utf8");
 const privateKeyPem = fs.readFileSync(keyFile,"utf8");
 const nativeFingerprint = "d".repeat(64);
 const sourceSha = "a".repeat(40);
-const cfg = { version: "1.7.5", updates: { url: "https://preview.gafus.ru/ota/manifest" } };
+const cfg = { version: "1.7.5", scheme: ["gafus"],
+  updates: { url: "https://preview.gafus.ru/ota/manifest" } };
 const metadata = { bundler:"metro", version:0, fileMetadata:{ios:{bundle:"bundles/index.ios.hbc",assets:[{path:"assets/test",ext:"png"}]}}};
 const native = {
   id:"87290d96-ea7d-4411-8463-8e57e8add5ec", verified:true, appVersion:"1.7.5",
@@ -85,4 +87,27 @@ test("certificate and private key must match; no signed release on wrong signer"
 test("rejects insecure CDN and invalid update UUID", () => {
   assert.throws(() => buildSignedOtaArtifact({...input,publicCdnBase:"http://cdn.test/"}),/INSECURE_CDN_URL/);
   assert.throws(() => buildSignedOtaArtifact({...input,updateId:"fake"}),/INVALID_SOURCE_RELEASE_METADATA/);
+});
+
+
+test("rejects missing Expo Router scheme before signing and uploading", () => {
+  const noScheme = {...cfg};
+  delete noScheme.scheme;
+  assert.throws(() => buildSignedOtaArtifact({...input,publicExpoConfig:noScheme}),
+    /EXPO_CONFIG_SCHEME_REQUIRED/);
+  assert.throws(() => buildSignedOtaArtifact({
+    ...input,publicExpoConfig:{...cfg,scheme:[]},
+  }), /EXPO_CONFIG_SCHEME_REQUIRED/);
+});
+
+test("rejects a valid RSA signer without required codeSigning certificate EKU", () => {
+  const certWithoutEkuFile = path.join(root,"cert-without-code-signing-eku.pem");
+  execFileSync("openssl", ["req","-new","-x509","-key",keyFile,
+    "-out",certWithoutEkuFile,"-days","1","-subj","/CN=gafus-invalid-ota-test"],
+    {stdio:"ignore"});
+  const withoutEku = fs.readFileSync(certWithoutEkuFile,"utf8");
+  assert.throws(() => buildSignedOtaArtifact({
+    ...input,certificatePem:withoutEku,
+    native:{...native,certificateSha256:hashHex(Buffer.from(withoutEku))},
+  }), /OTA_CERTIFICATE_CODE_SIGNING_EKU_REQUIRED/);
 });

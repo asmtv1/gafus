@@ -494,3 +494,31 @@ describe("offline native logout revocation", () => {
     expect(authApiMock.logout).toHaveBeenCalledWith("old-refresh");
   });
 });
+
+
+describe("login secure storage error classification", () => {
+  beforeEach(() => {
+    vi.stubGlobal("__DEV__", false);
+    vi.clearAllMocks();
+    getItemAsyncMock.mockResolvedValue(null);
+    useAuthStore.setState({ user: null, isAuthenticated: false, isLoading: false });
+  });
+
+  it("distinguishes secure Keychain entitlement failure from network failure", async () => {
+    authApiMock.login.mockResolvedValueOnce({
+      success: true, data: { accessToken: "fake-access", refreshToken: "fake-refresh" },
+    });
+    const keychainError = Object.assign(new Error("KeyChainException: missing entitlement"), {
+      code: "ERR_KEY_CHAIN",
+    });
+    setItemAsyncMock.mockImplementation(async (key: string) => {
+      if (key === "auth_token") throw keychainError;
+    });
+
+    const result = await useAuthStore.getState().login("qa-user", "fake-password");
+    expect(result).toMatchObject({ success: false });
+    expect(result.error).toContain("защищённом хранилище");
+    expect(result.error).not.toContain("подключения к серверу");
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+});

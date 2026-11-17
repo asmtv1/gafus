@@ -14,6 +14,12 @@ test('both iOS and Android native build versions are fixed to OTA 1.7.5 runtime'
   assert.deepEqual(expo.runtimeVersion,{policy:'appVersion'});
   assert.equal(json('apps/mobile/package.json').dependencies.expo,'57.0.33');
 });
+test('iOS SecureStore requires a predictable Keychain group across native rebuilds',()=>{
+  const expo=json('apps/mobile/app.json').expo;
+  assert.equal(expo.ios.bundleIdentifier,'ru.gafus.app');
+  assert.deepEqual(expo.ios.entitlements?.['keychain-access-groups'],
+    ['$(AppIdentifierPrefix)ru.gafus.app']);
+});
 test('new signed OTA physical-device test profiles never fall back to EAS or Expo Go',()=>{
   const b=json('apps/mobile/eas.json').build;
   for(const [platform,name] of [['android','ota-175-android-internal'],['ios','ota-175-ios-internal']]) {

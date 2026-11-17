@@ -5,8 +5,7 @@ import { issueRegisteredTesterGrant } from '@gafus/mobile-ota-server/tester-gran
 import { isRegisteredOtaTester } from '@gafus/mobile-ota-server/tester-grant-service';
 import { getVerifiedNativeOtaSigningKeyId, resolvePublishedOtaSelection } from '@gafus/mobile-ota-server/repository';
 import { resolveMandatoryOtaPolicy } from '@gafus/mobile-ota-server/mandatory-policy';
-import { getMobileAppPublicConfig } from '@gafus/feature-flags-server';
-import { getClientAppContext } from '../../lib/client-app-context.js';
+import { getMandatoryOtaControl, supportsMandatoryOta } from '@gafus/mobile-ota-server/mandatory-control';
 
 const input=z.object({
   installationId:z.string().uuid(),
@@ -47,7 +46,11 @@ mobileOtaTesterRoutes.post('/mandatory-policy', async(c) => {
   if (!parsed.success) return c.json({success:false,code:'OTA_INVALID_CONTEXT'},400);
   const {installationId,platform,runtimeVersion,nativeFingerprint}=parsed.data;
   try {
-    const policy=(await getMobileAppPublicConfig(getClientAppContext(c))).ota;
+    // Exact platform + native runtime. No shared Android/iOS required flag.
+    // Versions before 1.7.5 cannot be forced by the new signed-OTA policy.
+    if (!supportsMandatoryOta(runtimeVersion))
+      return c.json({success:true,data:{required:false,version:null,selectedRevision:null}});
+    const policy=await getMandatoryOtaControl(platform,runtimeVersion);
     // Only query rollouts if a matching, explicit, native-compatible mandatory
     // policy exists. Optional updates still use the normal background path.
     let selectedRevision: number | null = null;

@@ -79,6 +79,8 @@ Always test *actual manifest verification on a physical device* before rolling
 out to any non-tester audience. A successful CI signature check or S3 readback
 alone does not prove Expo accepts a certificate embedded in the APK/IPA.
 
+For **iOS 1.7.5 App Store/TestFlight with our self-hosted OTA**, use the separate [Store-specific guide](./ios-175-self-hosted-ota-store.md), not the internal device flow or the generic EAS `production` profile.
+
 ## Quick path for internal 1.7.5 builds (recommended)
 
 After **committing AND pushing** the final native source to `origin/main` (the working tree must be clean), run on the Mac:

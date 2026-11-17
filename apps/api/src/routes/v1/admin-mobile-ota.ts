@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { listMandatoryOtaControls, updateMandatoryOtaControl, MandatoryControlError } from "@gafus/mobile-ota-server/mandatory-control";
 import { listOtaTelemetrySummaries } from "@gafus/mobile-ota-server/telemetry";
 import { listNativeOtaAudit, listNativeOtaReleases, listMobileOtaReleases, listMobileOtaPatchDefinitions, listMobileOtaAudit } from "../../modules/mobile-ota/queries.js";
 import { patchDefinitionSchema, patchApplicationSchema, MobileOtaPatchError,
@@ -38,6 +39,34 @@ adminMobileOtaRoutes.use("*", async (c, next) => {
     return c.json({ success: false, code: "FORBIDDEN" }, 403);
   await next();
 });
+/** Dedicated per-platform and per-native-runtime mandatory OTA controls for 1.7.5+.
+ * Auth, server-side role recheck, CAS revision and deployment evidence are mandatory. */
+const mandatoryControlInput = z.object({
+  platform:z.enum(['ios','android']),
+  runtimeVersion:z.string().regex(/^\d+\.\d+\.\d+$/),
+  required:z.boolean(),
+  version:z.string().max(100).nullable(),
+  expectedRevision:z.number().int().nonnegative(),
+  operationId:z.string().min(16).max(120).regex(/^[A-Za-z0-9_-]+$/),
+  reason:z.string().trim().min(8).max(512),
+}).strict();
+adminMobileOtaRoutes.get("/mandatory-policies",async(c)=>{
+  try {return c.json({success:true,data:await listMandatoryOtaControls()});}
+  catch {return c.json({success:false,code:"MANDATORY_POLICY_UNAVAILABLE"},503);}
+});
+adminMobileOtaRoutes.put("/mandatory-policies",async(c)=>{
+  const parsed=mandatoryControlInput.safeParse(await c.req.json().catch(()=>null));
+  if(!parsed.success) return c.json({success:false,code:"MANDATORY_COMMAND_INVALID"},400);
+  try {
+    const result=await updateMandatoryOtaControl({...parsed.data,actorId:c.get("user").id});
+    return c.json({success:true,data:result});
+  }catch(error){
+    if(error instanceof MandatoryControlError)
+      return c.json({success:false,code:error.code},error.code==="FORBIDDEN"?403:409);
+    return c.json({success:false,code:"MANDATORY_POLICY_UNAVAILABLE"},503);
+  }
+});
+
 adminMobileOtaRoutes.get("/deployments", async (c) => {
   try {
     return c.json({ success: true, data: await listMobileOtaDeployments() });

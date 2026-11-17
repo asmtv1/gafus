@@ -29,7 +29,12 @@
     "ota:175:prepare": "node ./scripts/setup-ota-175-device.mjs prepare",
     "ota:175:finalize": "node ./scripts/setup-ota-175-device.mjs finalize",
     "ota:175:check": "node ./scripts/setup-ota-175-device.mjs check",
-    "ota:175:build": "node ./scripts/setup-ota-175-device.mjs build"
+    "ota:175:build": "node ./scripts/setup-ota-175-device.mjs build",
+    "ota:175:ios:store:prepare": "node ./scripts/ota-175-ios-store.mjs prepare",
+    "ota:175:ios:store:finalize": "node ./scripts/ota-175-ios-store.mjs finalize",
+    "ota:175:ios:store:check": "node ./scripts/ota-175-ios-store.mjs check",
+    "ota:175:ios:store:build": "node ./scripts/ota-175-ios-store.mjs build",
+    "ota:175:ios:store:verify-ipa": "node ./scripts/ota-175-ios-store.mjs verify-ipa"
   },
   "dependencies": {
     "@appmetrica/react-native-analytics": "^3.6.0",

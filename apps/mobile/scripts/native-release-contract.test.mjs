@@ -18,13 +18,22 @@ test('SDK-wide OTA runtime is forbidden after native compressor/gestures change'
       .includes('MOBILE_OTA_RUNTIME_MUST_BE_APP_VERSION_NOT_SDK_VERSION'));
   }
 });
-test('SDK57 startup poster is full bleed; SDK55 legacy policy remains unchanged',()=>{
+test('SDK57 splash uses plugin-only full bleed; SDK55 legacy policy remains unchanged',()=>{
   assert(!check().includes('MOBILE_SPLASH_MUST_FIT_SCREEN'));
-  assert(check({expo:{...good.expo,splash:{...good.expo.splash,resizeMode:'contain'}}})
+  assert(check({expo:{...good.expo,splash:{resizeMode:'contain'}}})
     .includes('MOBILE_SPLASH_MUST_FIT_SCREEN'));
+  for(const patch of [
+    p=>({...p,resizeMode:'contain'}),
+    p=>({...p,ios:{...p.ios,resizeMode:'contain'}}),
+    p=>({...p,ios:{...p.ios,enableFullScreenImage_legacy:false}}),
+  ]){
+    const plugins=good.expo.plugins.map(p=>Array.isArray(p)&&p[0]==='expo-splash-screen' ?
+      ['expo-splash-screen',patch(p[1])] : p);
+    assert(check({expo:{...good.expo,plugins}}).includes('MOBILE_SPLASH_MUST_FIT_SCREEN'));
+  }
   assert(!check({mobilePackage:{...good.mobilePackage,dependencies:{...good.mobilePackage.dependencies,expo:'~55.0.0'}},expo:{...good.expo,version:'1.7.4',
-    splash:{...good.expo.splash,resizeMode:'contain'},
-    ios:{...good.expo.ios,splash:{...good.expo.ios.splash,resizeMode:'contain'}}}})
+    splash:{resizeMode:'contain'},
+    ios:{...good.expo.ios,splash:{resizeMode:'contain'}}}})
     .includes('MOBILE_SPLASH_MUST_FIT_SCREEN'));
 });
 test('we cannot silently reuse old native store version or mismatched package',()=>{

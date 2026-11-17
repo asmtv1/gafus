@@ -39,11 +39,14 @@ type TelemetrySummary = {
   updateId:string|null;event:string;failureCode:string|null;
   events:number;installations:number;lastReportedAt:string;
 };
-type Tab = "deployments" | "native-releases" | "releases" | "patches" | "patch-applications" | "audit" | "telemetry";
+type MandatoryControl = { platform: "ios" | "android"; runtimeVersion: string; required: boolean;
+  version: string | null; revision: number; updatedAt: string };
+type Tab = "deployments" | "native-releases" | "releases" | "mandatory-policies" | "patches" | "patch-applications" | "audit" | "telemetry";
 const TABS: { key: Tab; title: string }[] = [
   { key: "deployments", title: "Публикации" },
   { key: "native-releases", title: "Нативные сборки" },
   { key: "releases", title: "OTA-релизы" },
+  { key: "mandatory-policies", title: "Обязательное OTA iOS / Android" },
   { key: "patches", title: "Исходные патчи" },
   { key: "patch-applications", title: "Проверки патчей" },
   { key: "audit", title: "История" },
@@ -64,6 +67,9 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
   const [busy, setBusy] = useState(false);
   const [patchManifestJson, setPatchManifestJson] = useState("");
   const [nativeManifestJson, setNativeManifestJson] = useState("");
+  const [mandatoryPlatform, setMandatoryPlatform] = useState<"ios" | "android">("ios");
+  const [mandatoryRuntime, setMandatoryRuntime] = useState("1.7.5");
+  const [mandatoryVersion, setMandatoryVersion] = useState("1.7.5-ota.1");
   const writeLock = useRef(false);
   const load = useCallback(async (selected: Tab) => {
     try {
@@ -90,6 +96,37 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
       .then((result) => { if (Array.isArray(result)) setNativeReleases(result); })
       .catch(() => undefined);
   }, []);
+  const changeMandatory = async (required: boolean) => {
+    if (writeLock.current) return;
+    const current=(rows as MandatoryControl[]).find(row=>row.platform===mandatoryPlatform &&
+      row.runtimeVersion===mandatoryRuntime);
+    const version=mandatoryVersion.trim()||null;
+    const revision=required ? version : (current?.version ?? version);
+    if (required && (!version || !/^\d+\.\d+\.\d+-ota\.[1-9]\d*$/.test(version) ||
+       !version.startsWith(`${mandatoryRuntime}-ota.`))) {
+      setError("Укажите подписанную ревизию той же нативной версии, например 1.7.5-ota.2");return;
+    }
+    const reason=window.prompt(`Причина ${required ? "включения" : "отключения"} обязательной OTA для ${mandatoryPlatform}/${mandatoryRuntime} (от 8 символов):`)?.trim();
+    if(!reason || reason.length<8) return;
+    if(!window.confirm(`${required ? "Включить блокировку до обновления" : "Отключить обязательность"} только для ${mandatoryPlatform}/${mandatoryRuntime}?\nТекущая ревизия политики: ${current?.revision ?? 0}.\nДругая платформа не изменится.\nСервер не разрешит включение без подтверждённой READY OTA.`))return;
+    writeLock.current=true;setBusy(true);setError(null);setMessage(null);
+    const operationId=crypto.randomUUID();
+    try{
+      await requestAdmin(`${ENDPOINT}/mandatory-policies`,{method:"PUT",body:{
+        platform:mandatoryPlatform,runtimeVersion:mandatoryRuntime,required,
+        version:revision,expectedRevision:current?.revision??0,operationId,reason,
+      }});
+      const updated=await requestAdmin<MandatoryControl[]>(`${ENDPOINT}/mandatory-policies`);
+      const expected=updated.find(item=>item.platform===mandatoryPlatform && item.runtimeVersion===mandatoryRuntime);
+      if(!expected || expected.revision!==(current?.revision??0)+1 || expected.required!==required || expected.version!==revision)
+        throw Error("Сервер не подтвердил состояние после записи");
+      setRows(updated);
+      setMessage(`${mandatoryPlatform}/${mandatoryRuntime}: ${required ? "обязательная OTA включена" : "обязательная OTA отключена"}; другой платформы изменения не коснулись.`);
+    }catch(error){
+      setError(`${error instanceof Error?error.message:"Ошибка записи"}. Проверьте реестр перед повтором. Операция: ${operationId}`);
+      try{await load("mandatory-policies");}catch{}
+    }finally{writeLock.current=false;setBusy(false);}
+  };
   const registerNative = async () => {
     if(writeLock.current || !nativeManifestJson.trim()) return;
     let input: Record<string,unknown>;
@@ -267,6 +304,30 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
       {error && <p role="alert" className="error">{error}</p>}
       {message && <p role="status">{message}</p>}
       {rows.length === 0 && <p className="note">Для этого раздела ещё нет зарегистрированных записей.</p>}
+      {tab === "mandatory-policies" && <div className="content-card">
+        <h3>Независимая обязательная OTA, начиная с 1.7.5</h3>
+        <p className="note">iOS и Android управляются отдельно. Включение допускается только при проверенном нативном билде и активном подписанном READY-релизе соответствующего runtime. При 0% охвата блокировка действует лишь на тестовые установки, которым доступна подписанная ревизия.</p>
+        {(rows as MandatoryControl[]).map(item=><p key={`${item.platform}/${item.runtimeVersion}`}>
+          <strong>{item.platform} · {item.runtimeVersion}</strong> — {item.required?`обязательно ${item.version}`:"не обязательно"} · политика #{item.revision}
+        </p>)}
+        <div className="filter-toolbar">
+          <label>Платформа
+            <select value={mandatoryPlatform} disabled={busy} onChange={e=>setMandatoryPlatform(e.target.value as "ios"|"android")}>
+              <option value="ios">iOS</option><option value="android">Android</option>
+            </select>
+          </label>
+          <label>Нативный runtime
+            <input aria-label="Runtime обязательного OTA" value={mandatoryRuntime} disabled={busy} onChange={e=>setMandatoryRuntime(e.target.value)} placeholder="1.7.5" />
+          </label>
+          <label>Минимальная подписанная ревизия
+            <input aria-label="Версия обязательного OTA" value={mandatoryVersion} disabled={busy} onChange={e=>setMandatoryVersion(e.target.value)} placeholder="1.7.5-ota.2" />
+          </label>
+        </div>
+        <div className="filter-toolbar">
+          <button disabled={busy} onClick={()=>void changeMandatory(true)}>Сделать OTA обязательной</button>
+          <button className="secondary" disabled={busy} onClick={()=>void changeMandatory(false)}>Отключить обязательность</button>
+        </div>
+      </div>}
       {tab === "deployments" && nativeReleases.filter((native) => native.verified &&
         !deployments.some((d) => d.appId === "gafus" && d.platform === native.platform &&
           d.environment === native.environment && d.channel === native.channel &&

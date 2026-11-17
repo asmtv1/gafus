@@ -49,7 +49,7 @@ export function prepareNativeCandidate({root,config,certificatePem}) {
   requireCondition(['preview','production'].includes(environment),'INVALID_ENVIRONMENT');
   requireCondition(['ios','android'].includes(p.platform),'INVALID_PLATFORM');
   requireCondition((p.platform==='ios' && ['internal','testflight',
-      ...(environment==='production'?['store']:[])].includes(p.distribution)) ||
+      ...(environment==='production'?['app-store']:[])].includes(p.distribution)) ||
     (p.platform==='android' && ['internal',
       ...(environment==='production'?['store']:[])].includes(p.distribution)),'INVALID_DISTRIBUTION');
   requireCondition(/^\d{1,20}$/.test(p.buildNumber??''),'INVALID_BUILD_NUMBER');

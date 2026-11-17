@@ -74,6 +74,10 @@
     "./diagnostics-web-repository": {
       "types": "./dist/diagnostics-web-repository.d.ts",
       "default": "./dist/diagnostics-web-repository.js"
+    },
+    "./mandatory-control": {
+      "types": "./dist/mandatory-control.d.ts",
+      "default": "./dist/mandatory-control.js"
     }
   },
   "scripts": {

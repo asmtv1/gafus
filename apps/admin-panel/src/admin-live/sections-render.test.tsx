@@ -12,6 +12,7 @@ import { MobileIntroPanel } from "./MobileIntroPanel";
 import { SubscriptionPanel } from "./SubscriptionPanels";
 import { Cynologists, Bookings } from "./Consultations";
 import { TrainerPicker } from "./ScheduleEditor";
+import { MobileReleasesPanel } from "./MobileReleasesPanel";
 
 const noop = () => undefined;
 const noKey = () => undefined;
@@ -308,13 +309,13 @@ describe("18 isolated Vite Admin section server DTO rendering", () => {
       "trainers-schedules",
     ]);
   });
-  it("shows the independent force-OTA controls on the mobile feature flags page", () => {
-    const html = renderToStaticMarkup(sections.find(([key]) => key === "feature-flags")![1]);
-    expect(html).toContain("OTA-обновления");
-    expect(html).toContain("Обязательное OTA-обновление");
-    expect(html).toContain("1.7.3-ota.1");
-    expect(html).toContain("Только Android");
-    expect(html).toContain("Только iOS");
+  it("keeps legacy OTA read-only and exposes independent iOS/Android controls under mobile releases", () => {
+    const flags = renderToStaticMarkup(sections.find(([key]) => key === "feature-flags")![1]);
+    expect(flags).toContain("Наследуемый общий OTA-переключатель (только чтение)");
+    expect(flags).toContain("1.7.5");
+    const releases = renderToStaticMarkup(<MobileReleasesPanel source={[]} />);
+    expect(releases).toContain("Обязательное OTA iOS / Android");
+    expect(releases).toContain("Мобильные релизы");
   });
 
   it.each(sections)("%s renders a real section for an empty server DTO", (_key, view, text) => {

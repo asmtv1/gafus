@@ -30,7 +30,8 @@ const privateFile=path.join(root,"key.pem"),certFile=path.join(root,"cert.pem");
 const pair=generateKeyPairSync("rsa",{modulusLength:2048});
 fs.writeFileSync(privateFile,pair.privateKey.export({type:"pkcs1",format:"pem"}),{mode:0o600});
 execFileSync("openssl",["req","-new","-x509","-key",privateFile,"-out",certFile,
-  "-days","1","-subj","/CN=gafus-local-e2e"],{stdio:"ignore"});
+  "-days","1","-subj","/CN=gafus-local-e2e", "-addext", "extendedKeyUsage=codeSigning"],
+  {stdio:"ignore"});
 const certPem=fs.readFileSync(certFile,"utf8");
 const privatePem=fs.readFileSync(privateFile,"utf8");
 const hash=(bytes:Uint8Array)=>createHash("sha256").update(bytes).digest("hex");
@@ -39,7 +40,8 @@ const native={id:nativeId,appId,platform:"ios",environment:"preview",channel:"pr
   runtimeVersion:runtime,signingKeyId:keyId,sourceSha,nativeFingerprint:fingerprint,
   certificateSha256:hash(Buffer.from(certPem)),verified:true,
   updateUrl:"https://preview.gafus.test/ota/manifest"};
-const expoConfig={version:runtime,updates:{url:native.updateUrl},extra:{otaTransport:"self-hosted"}};
+const expoConfig={version:runtime,scheme:["gafus"],
+  updates:{url:native.updateUrl},extra:{otaTransport:"self-hosted"}};
 const metro={bundler:"metro",fileMetadata:{ios:{bundle:"bundle/index.ios.hbc",
   assets:[{path:"assets/splash.png",ext:"png"}]}}};
 let releaseId:string|null=null;

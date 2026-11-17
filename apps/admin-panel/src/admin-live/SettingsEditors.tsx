@@ -348,11 +348,12 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
             />
           </label>
         </fieldset>
-        <fieldset disabled={saving || verifyRequired}>
-          <legend>OTA-обновления · приложение 1.7.3</legend>
+        <fieldset disabled>
+          <legend>Наследуемый общий OTA-переключатель (только чтение)</legend>
           <p className="note">
-            Независимо от принудительных обновлений App Store / Google Play.
-            Включайте обязательность только после публикации OTA для нужных платформ.
+            С версии 1.7.5 обязательность iOS и Android настраивается независимо в
+            «Мобильные релизы → Обязательное OTA iOS / Android».
+            Этот старый общий переключатель больше не управляет обязательной OTA 1.7.5+.
           </p>
           <label>
             Минимальная OTA-версия

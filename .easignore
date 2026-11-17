@@ -1,0 +1,322 @@
+# EAS local Store IPA: mirror root and every nested .gitignore; include only public OTA trust files.
+# Dependencies
+node_modules
+.pnpm-store
+
+# Lock files (используем только pnpm)
+package-lock.json
+yarn.lock
+npm-shrinkwrap.json
+
+# Локальные данные контейнеров (ClickHouse и т.п.)
+docker-data/
+
+# PostHog hobby runtime (клон + compose, см. docker/posthog/README.md)
+docker/posthog/runtime/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# GitHub tokens and secrets
+ci-cd/configs/github-token.env
+
+# Build outputs
+dist
+build
+.next
+out
+# Скомпилированные артефакты в core/src (Next.js использует только .ts из src)
+packages/core/src/**/*.js
+packages/core/src/**/*.d.ts
+!packages/core/src/petrovich.d.ts
+packages/core/src/**/*.js.map
+packages/core/src/**/*.d.ts.map
+# types: сборка через tsup в dist/, в src только .ts
+packages/types/src/**/*.js
+packages/types/src/**/*.d.ts
+packages/types/src/**/*.js.map
+packages/types/src/**/*.d.ts.map
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.cursor/
+.agents/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Turbo
+.turbo
+
+# TypeScript
+
+# SSL Certificates
+certbot/
+*.pem
+*.key
+*.crt
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+# Next.js cache
+.next/cache/
+.next/cache/**/*
+
+# Uploads directory (files are stored in CDN)
+packages/public-assets/public/uploads/
+
+# Expo prebuild (CNG) — android/ios генерируются при сборке
+apps/mobile/android
+apps/mobile/ios
+
+# EAS credentials и подписи (секреты)
+apps/mobile/credentials.json
+apps/mobile/credentials/
+apps/mobile/rustore-signing/
+
+# Локальные артефакты мобильных сборок
+apps/mobile/Gafus.app/
+apps/mobile/build-*.tar.gz
+
+# Local production Stream credentials
+/.env.stream-chat-prod
+
+# Local Playwright/QA artifacts (never ship screenshots, browser dumps or reports)
+/.playwright-cli/
+/output/navigation-more/
+/output/playwright/gallery/
+
+/output/playwright/feed/
+
+# Local isolated Web verification build: never commit generated Next.js artifacts
+/apps/web/.next-cloudru-verify/
+
+# Ephemeral production nginx maintenance lock
+ci-cd/nginx/conf.d/.release-maintenance
+
+# Local isolated Next.js verification builds
+/apps/web/.next-*/
+
+# Local Expo / Metro verification artifacts (never publish in release commits)
+/.expo/
+/apps/mobile/.build-validation-*/
+
+# INFRA032 sensitive supplied raw PostgreSQL dump (never commit)
+/gafus dump/
+
+# Generated isolated QA and temporary Vite verification builds
+**/.ag2-tmp/
+**/.design-verify/
+**/.*-build-2026*/
+/apps/web-vite/.ag2-build-*/
+/docs/refactor/agents/
+
+# Pre-merge local-state and generated QA exclusions (2026-10-29)
+/secrets/
+*.p8
+/.env.stream-chat-*
+/.local-*/
+/.ci-report/
+/.ag[0-9]-*/
+**/.ag[0-9]-*/
+**/.g[0-9]-*/
+**/.chat2-verify-*/
+**/.chat2-avatar-verify-*/
+**/.trainer-parity-check-*/
+**/.notes-build-check-*/
+
+# Historical isolated API contract/QA run captures; source remains in apps/api/src
+/apps/api/g[0-9]*/
+/apps/api/w1-*/
+/apps/api/.g[0-9]*/
+/apps/api/.guest-cleanup-private-build-*/
+
+# Ephemeral test runner output, never source or release input.
+**/*.stdout
+**/*.stderr
+**/*.exit
+
+# IDE-generated code counting reports (not project sources)
+/.VSCodeCounter/
+
+# Local architecture QA workdirs (keep tracked root reports)
+/.gafus-refactoring/*/
+
+# Ephemeral SDK 57/Metro QA bundles and outputs, never release source
+/.qa/
+
+# Local release/QA evidence and the pre-merge file backup are never source.
+# Preserve these on disk; exclude only from Git commits.
+/artifacts/
+/.gafus-refactoring/release-candidate-premerge-backup-*.tar.gz
+
+
+# From apps/admin-panel/src/admin-live/.gitignore (scoped to its directory)
+apps/admin-panel/src/admin-live/dist/
+
+# From apps/feed-cloud/.gitignore (scoped to its directory)
+apps/feed-cloud/artifacts/
+
+# From apps/gallery-cloud/.gitignore (scoped to its directory)
+apps/gallery-cloud/dist/
+apps/gallery-cloud/artifacts/
+apps/gallery-cloud/scripts/linux-native/node_modules/
+
+# From apps/mobile/.gitignore (scoped to its directory)
+# Expo
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/web-build/
+# Native builds
+apps/mobile/**/*.apk
+apps/mobile/**/*.aab
+apps/mobile/**/*.ipa
+apps/mobile/**/*.hprof
+apps/mobile/**/*.orig.*
+apps/mobile/**/*.jks
+apps/mobile/**/*.p8
+apps/mobile/**/*.p12
+apps/mobile/**/*.key
+apps/mobile/**/*.mobileprovision
+apps/mobile/**/*.orig.*
+apps/mobile/web-build/
+# Node
+apps/mobile/node_modules/
+# macOS
+apps/mobile/**/.DS_Store
+# Environment
+apps/mobile/**/.env
+apps/mobile/**/.env.local
+apps/mobile/**/.env.*.local
+# TypeScript
+apps/mobile/**/*.tsbuildinfo
+# Testing
+apps/mobile/coverage/
+# EAS
+apps/mobile/.eas/
+# @generated expo-cli sync-2b81b286409207a5da26e14c78851eb30d8ccbdb
+# The following patterns were generated by expo-cli
+apps/mobile/**/expo-env.d.ts
+# @end expo-cli
+# Self-hosted OTA native signing certificates (injected by protected CI)
+apps/mobile/.ota-certs/
+
+# From apps/trainer-panel/.gitignore (scoped to its directory)
+apps/trainer-panel/**/node_modules
+apps/trainer-panel/**/.env
+
+# From apps/trainer-panel/src/trainer-vite/preview/.gitignore (scoped to its directory)
+# Preview-only Vite build output; not for release.
+apps/trainer-panel/src/trainer-vite/preview/dist/
+
+# From docs/archive/agents/.gitignore (scoped to its directory)
+docs/archive/agents/apps/
+
+# From infra/feed/.gitignore (scoped to its directory)
+infra/feed/.terraform/
+infra/feed/.secrets/
+infra/feed/**/*.tfvars
+!infra/feed/**/example.tfvars
+infra/feed/**/*.tfplan
+infra/feed/**/*.tfstate*
+
+# From infra/gallery/.gitignore (scoped to its directory)
+infra/gallery/.terraform/
+infra/gallery/**/*.tfstate*
+infra/gallery/**/*.tfplan
+infra/gallery/**/*.tfvars
+!infra/gallery/**/example.tfvars
+infra/gallery/.secrets/
+infra/gallery/**/crash.log
+
+# From packages/gallery-storage/.gitignore (scoped to its directory)
+packages/gallery-storage/dist/
+packages/gallery-storage/.types/
+
+# From packages/queues/.gitignore (scoped to its directory)
+# tsc не должен коммитить артефакты в src (ломает Next/webpack)
+packages/queues/src/**/*.js
+packages/queues/src/**/*.d.ts
+packages/queues/src/**/*.js.map
+packages/queues/src/**/*.d.ts.map
+
+# From scripts/refactor/local-development-data-inbox/.gitignore (scoped to its directory)
+scripts/refactor/local-development-data-inbox/**/*
+!scripts/refactor/local-development-data-inbox/**/.gitignore
+
+# Only public certificate and admin-issued metadata, not signing credentials.
+!apps/mobile/.ota-certs/
+apps/mobile/.ota-certs/*
+!apps/mobile/.ota-certs/native.pem
+!apps/mobile/.ota-certs/ios-store-native.json
