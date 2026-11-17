@@ -119,6 +119,88 @@ test('approved legacy checksum exceptions need exact schema, all six historical 
   } finally {rmSync(base,{recursive:true,force:true});}
 });
 
+test('new mandatory OTA migration is pinned at the pre-schema and exact post-schema checkpoint', () => {
+  const root=mkdtempSync(join(tmpdir(),'gafus-ota-pending-ledger-'));
+  try {
+    const migrations=join(root,'packages/prisma/migrations');
+    const manifestDir=join(root,'ci-cd/scripts');
+    mkdirSync(migrations,{recursive:true});
+    mkdirSync(manifestDir,{recursive:true});
+    const manifest=JSON.parse(readFileSync('ci-cd/scripts/approved-legacy-migration-baseline-20261115.json','utf8'));
+    const pre='a'.repeat(64), post='b'.repeat(64);
+    const migration='20261118101500_per_platform_mobile_ota_mandatory';
+    const newSql=readFileSync(join('packages/prisma/migrations',migration,'migration.sql'));
+    const pinned=createHash('sha256').update(newSql).digest('hex');
+    const realPre=manifest.schemaCheckpoints['58989b48f1a51db4b1d034d5e8a9058e9347a67aa2d5e812136c83c3c297cb18'];
+    assert.deepEqual(realPre.approvedPendingMigration,{name:migration,sqlSha256:pinned});
+    const realPost=manifest.schemaCheckpoints['f7a0c486a02a1ee905a765182b9f30773c582811ff51e30080e658cdf8e837cd'];
+    assert.equal(realPost.expectedApplied,182);
+    assert.equal(realPost.expectedSources,182);
+    assert.equal(realPost.expectedRolledBack,4);
+
+    const rows=[];
+    for(let i=0;i<175;i++){
+      const name=`20200101000000_synthetic_${String(i).padStart(3,'0')}`;
+      const sql=`SELECT ${i};\n`;
+      const dir=join(migrations,name);mkdirSync(dir);
+      writeFileSync(join(dir,'migration.sql'),sql);
+      rows.push([name,createHash('sha256').update(sql).digest('hex'),'applied']);
+    }
+    for(const [name,rule] of Object.entries(manifest.approvedLegacyChecksumExceptions)){
+      const dir=join(migrations,name);mkdirSync(dir);
+      const sql=readFileSync(join('packages/prisma/migrations',name,'migration.sql'));
+      writeFileSync(join(dir,'migration.sql'),sql);
+      assert.equal(createHash('sha256').update(sql).digest('hex'),rule.candidateSqlSha256);
+      rows.push([name,rule.recordedProductionChecksum,'applied']);
+    }
+    for(let i=0;i<4;i++) rows.push([`20270101000000_rolled_back_${i}`,'0'.repeat(64),'rolled_back']);
+    const digest=items=>createHash('sha256').update(
+      items.map(row=>row.join('\t')+'\n').sort().join('')
+    ).digest('hex');
+    const migrated=[...rows,[migration,pinned,'applied']];
+    manifest.schemaCheckpoints={
+      [pre]:{ledgerSha256:digest(rows),expectedApplied:181,expectedRolledBack:4,
+        expectedSources:181,approvedPendingMigration:{name:migration,sqlSha256:pinned}},
+      [post]:{ledgerSha256:digest(migrated),expectedApplied:182,expectedRolledBack:4,expectedSources:182},
+    };
+    writeFileSync(join(manifestDir,'approved-legacy-migration-baseline-20261115.json'),
+      JSON.stringify(manifest));
+    const runScoped=(data,schema=pre)=>spawnSync('python3',[program,migrations,schema],{
+      input:data.map(row=>row.join('\t')).join('\n')+'\n',encoding:'utf8',timeout:15_000,
+    });
+    assert.equal(runScoped(rows).status,0,'original exact checkpoint must still work');
+    const pendingDir=join(migrations,migration);mkdirSync(pendingDir);
+    writeFileSync(join(pendingDir,'migration.sql'),newSql);
+    const pending=runScoped(rows);
+    assert.equal(pending.status,0,pending.stderr);
+    assert.match(pending.stdout,/applied=181:pending=1/);
+    assert.match(pending.stdout,/LEGACY_SCHEMA_ATTESTED_EXCEPTIONS:6/);
+
+    assert.match(runScoped(migrated).stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/,
+      'migration recorded before schema update must veto');
+    assert.match(runScoped(rows,post).stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/,
+      'new schema but old ledger must veto');
+    const final=runScoped(migrated,post);
+    assert.equal(final.status,0,final.stderr);
+    assert.match(final.stdout,/applied=182:pending=0/);
+
+    writeFileSync(join(pendingDir,'migration.sql'),Buffer.concat([newSql,Buffer.from('-- changed\n')]));
+    assert.match(runScoped(rows).stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/,
+      'even one byte change in pending SQL must veto');
+    writeFileSync(join(pendingDir,'migration.sql'),newSql);
+    const unexpected=join(migrations,'20271212000000_unreviewed');
+    mkdirSync(unexpected);writeFileSync(join(unexpected,'migration.sql'),'SELECT 1;\n');
+    assert.match(runScoped(rows).stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/,
+      'a second unapproved pending migration must veto');
+    rmSync(unexpected,{recursive:true});
+    const drift=runScoped(rows,'c'.repeat(64));
+    assert.equal(drift.status,1,'unknown production schema must veto all six exceptions');
+    assert.match(drift.stderr,/MIGRATION_SHA_MISMATCH|NONSTANDARD_MIGRATION_CHECKSUM/);
+    const rollbackDrift=rows.map(row=>row[2]==='rolled_back'?[row[0],'1'.repeat(64),row[2]]:row);
+    assert.match(runScoped(rollbackDrift).stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/);
+  } finally { rmSync(root,{recursive:true,force:true}); }
+});
+
 test('canonical cutover and reusable workflow require pre-mutation ledger gate',()=>{
   const cutover=readFileSync('ci-cd/scripts/production-schema-cutover.sh','utf8');
   const workflow=readFileSync('.github/workflows/production-deploy-reusable.yml','utf8');

@@ -12,7 +12,17 @@
       "ledgerSha256": "3fa250a9a6f8419e069aef4c9d5fb1d48e7e11290af5f1ba397ce7cc6c238d01",
       "expectedApplied": 181,
       "expectedRolledBack": 4,
-      "expectedSources": 181
+      "expectedSources": 181,
+      "approvedPendingMigration": {
+        "name": "20261118101500_per_platform_mobile_ota_mandatory",
+        "sqlSha256": "d7eb50f0d8c19c255802c4a41906841abba4ddc80016d81c9ecea0f6c3fc1120"
+      }
+    },
+    "f7a0c486a02a1ee905a765182b9f30773c582811ff51e30080e658cdf8e837cd": {
+      "ledgerSha256": "4157fca0cf6c0840f2c608979141cccc69b8aefe95a2e19e274efdc85fed7856",
+      "expectedApplied": 182,
+      "expectedRolledBack": 4,
+      "expectedSources": 182
     }
   },
   "approvedLegacyChecksumExceptions": {
@@ -47,6 +57,7 @@
     "previousDeployment": "GitHub Actions 43653988909, attempt 1",
     "schemaValidation": "Restored only the schema from the previous deployment backup on PostgreSQL 15.18. Replayed the 12 applied migrations and matched the live schema with the same 15 CHECK expression formatting changes introduced by backup restore. Applied the OTA rename in isolation and verified it changes only that column name.",
     "ownerApproval": "Explicit 2026-11-15 owner authorization; no claim of native/device or Cloud.ru Job end-to-end QA",
-    "operationalBoundary": "Before or after the OTA rename, the live schema and full sorted ledger must both match a listed checkpoint. Other states require new review. The rehearsal used no production rows."
+    "operationalBoundary": "Before or after the OTA rename, the live schema and full sorted ledger must both match a listed checkpoint. Other states require new review. The rehearsal used no production rows.",
+    "mandatoryOta20261118": "Pre-migration: exact live schema + unchanged 181-applied/4-rolled-back ledger, one additional pending SQL pinned to name+SHA256. Post-migration: exact predicted PostgreSQL 15.18 schema-only SHA256 and 182-applied/4-rolled-back ledger. Predicted post schema stitched solely two added DDL sections from isolated schema-only PostgreSQL 15.18 rehearsal into unmodified live schema dump; did not copy user rows or alter production. Unexpected schema/ledger changes remain a veto."
   }
 }

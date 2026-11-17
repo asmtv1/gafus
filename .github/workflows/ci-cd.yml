@@ -258,6 +258,9 @@ jobs:
           # Установка с предпочтением кэша, но с возможностью загрузки из сети
           pnpm install --frozen-lockfile --prefer-offline
 
+      - name: Verify vendored picomatch ReDoS mitigation (blocking)
+        run: node --test scripts/qa/picomatch-redos-fork.test.mjs
+
       - name: Run security audit
         run: pnpm audit --audit-level high
 

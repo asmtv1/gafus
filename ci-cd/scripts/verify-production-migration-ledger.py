@@ -54,6 +54,16 @@ def approved_legacy_baseline(
                    for key in ("expectedApplied", "expectedRolledBack", "expectedSources"))
             or not MIN_PRODUCTION_APPLIED <= checkpoint["expectedApplied"] <= checkpoint["expectedSources"]):
         raise ValueError("LEGACY_MANIFEST_CHECKPOINT_INVALID")
+    # A previously approved exact production checkpoint can authorize precisely
+    # one new *pending* migration by name and SQL SHA256. Never approve arbitrary
+    # additional source files or an already-applied migration at the old schema.
+    pending = checkpoint.get("approvedPendingMigration")
+    if pending is not None:
+        if (not isinstance(pending, dict) or set(pending) != {"name", "sqlSha256"}
+                or not MIGRATION_NAME.fullmatch(str(pending.get("name")))
+                or not CHECKSUM.fullmatch(str(pending.get("sqlSha256")))
+                or checkpoint["expectedApplied"] != checkpoint["expectedSources"]):
+            raise ValueError("LEGACY_MANIFEST_PENDING_INVALID")
     entries = manifest.get("approvedLegacyChecksumExceptions")
     if not isinstance(entries, dict) or len(entries) != 6:
         raise ValueError("LEGACY_MANIFEST_EXCEPTIONS_INVALID")
@@ -135,10 +145,21 @@ def verify(migrations_dir: pathlib.Path, lines: list[str], live_schema_sha256: s
         errors.append(f"APPLIED_MIGRATION_COUNT_TOO_LOW:{len(applied)}")
     if approved_exceptions:
         canonical_ledger = "".join(row + "\n" for row in sorted(line.rstrip("\n") for line in lines))
+        expected_sources = checkpoint["expectedSources"]
+        pending = checkpoint.get("approvedPendingMigration")
+        actual_pending = set(source_files) - applied
+        extra_source_approved = False
+        if pending and len(source_files) == expected_sources + 1:
+            name = pending["name"]
+            path = source_files.get(name)
+            if (actual_pending == {name} and path is not None
+                    and path.is_file() and not path.is_symlink()
+                    and hashlib.sha256(path.read_bytes()).hexdigest() == pending["sqlSha256"]):
+                extra_source_approved = True
         if (approved_exceptions != set(exceptions)
                 or len(applied) != checkpoint["expectedApplied"]
                 or rolled_back != checkpoint["expectedRolledBack"]
-                or len(source_files) != checkpoint["expectedSources"]
+                or not (len(source_files) == expected_sources or extra_source_approved)
                 or hashlib.sha256(canonical_ledger.encode("utf-8")).hexdigest() != checkpoint["ledgerSha256"]):
             errors.append("LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE")
     if errors:
