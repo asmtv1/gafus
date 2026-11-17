@@ -19,6 +19,7 @@ const permittedInfrastructure = new Set([
   "packages/mobile-ota-server/src/ci-registration.ts", // verified signed Expo manifest, immutable asset and idempotent CI receipt SQL
   "packages/mobile-ota-server/src/deployment-commands.ts", // version-CAS OTA publish/pause and audited channel creation
   "packages/mobile-ota-server/src/native-release-admin.ts", // native build provenance and verified device trust registry
+  "packages/mobile-ota-server/src/mandatory-control.ts", // version-CAS admin-only iOS/Android mandatory OTA policy and audit persistence
   "packages/mobile-ota-server/src/patch-commands.ts", // private source-only restoration definitions and draft applications
   "packages/mobile-ota-server/src/queries.ts", // bounded administrative OTA/private CI projections
   "packages/mobile-ota-server/src/repository.ts", // read-only exact runtime+native fingerprint signed manifest lookup
