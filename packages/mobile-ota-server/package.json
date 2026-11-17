@@ -35,6 +35,10 @@
       "types": "./dist/repository.d.ts",
       "default": "./dist/repository.js"
     },
+    "./mandatory-policy": {
+      "types": "./dist/mandatory-policy.d.ts",
+      "default": "./dist/mandatory-policy.js"
+    },
     "./rollout-policy": {
       "types": "./dist/rollout-policy.d.ts",
       "default": "./dist/rollout-policy.js"

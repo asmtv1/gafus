@@ -3,17 +3,22 @@ import { prisma } from "@gafus/prisma";
 import type { OtaLookup, OtaManifestRepository, OtaManifestRow } from "./contracts.js";
 import { otaRolloutIncludesInstallation } from "./rollout-policy.js";
 
-export const mobileOtaManifestRepository: OtaManifestRepository = {
-  async findPublishedManifest(key: OtaLookup): Promise<OtaManifestRow | null> {
+/** Shared, single authoritative selection for both signed Expo manifest and
+ * mandatory-gate decisions. The previous release is selected outside a rollout
+ * cohort, so those users can never be locked out by the active rollout. */
+export async function resolvePublishedOtaSelection(key: OtaLookup): Promise<
+  (OtaManifestRow & { revision: number; releaseKind: "active" | "previous" }) | null
+> {
     const rows = await prisma.$queryRaw<{
       manifestBody: Uint8Array;
       signatureHeader: string;
       updateId: string;
+      revision: number;
       deploymentId: string;
       rolloutPercent: number;
       releaseKind: "active" | "previous";
     }[]>`
-      SELECT r."manifestBody", r."signatureHeader", r."updateId",
+      SELECT r."manifestBody", r."signatureHeader", r."updateId", r.revision,
         d.id AS "deploymentId", d."rolloutPercent",
         CASE WHEN r.id = d."activeReleaseId" THEN 'active' ELSE 'previous' END AS "releaseKind"
       FROM "MobileOtaDeployment" AS d
@@ -57,6 +62,36 @@ export const mobileOtaManifestRepository: OtaManifestRepository = {
       first.rolloutPercent, key.testerAllowed === true);
     const selected = rows.find(row => row.releaseKind === (included ? "active" : "previous"));
     if (!selected) return null;
-    return { manifestBody: selected.manifestBody, signatureHeader: selected.signatureHeader, updateId: selected.updateId };
+    return { manifestBody: selected.manifestBody, signatureHeader: selected.signatureHeader,
+      updateId: selected.updateId, revision: selected.revision, releaseKind: selected.releaseKind };
+}
+
+export const mobileOtaManifestRepository: OtaManifestRepository = {
+  async findPublishedManifest(key: OtaLookup): Promise<OtaManifestRow | null> {
+    const selected = await resolvePublishedOtaSelection(key);
+    if (!selected) return null;
+    // Do not leak cohort metadata to Expo's signed manifest protocol.
+    return { manifestBody: selected.manifestBody, signatureHeader: selected.signatureHeader,
+      updateId: selected.updateId };
   },
 };
+
+/** Native key ID is server-owned; Expo strips signing metadata from
+ * JS-visible app.config, so the client must never guess or provide it. */
+export async function getVerifiedNativeOtaSigningKeyId(input: {
+  appId: string; environment: "production" | "preview"; platform: "android" | "ios";
+  runtimeVersion: string; nativeFingerprint: string;
+}): Promise<string | null> {
+  const rows=await prisma.$queryRaw<{signingKeyId:string}[]>`
+    SELECT n."signingKeyId" FROM "MobileNativeRelease" n
+    WHERE n."appId"=${input.appId}
+      AND n.environment=${input.environment}
+      AND n.platform=${input.platform}
+      AND n.channel='production'
+      AND n."runtimeVersion"=${input.runtimeVersion}
+      AND n."nativeFingerprint"=${input.nativeFingerprint}
+      AND n.verified=true
+    LIMIT 1
+  `;
+  return rows[0]?.signingKeyId??null;
+}

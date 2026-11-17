@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
   authenticated: true,
   serverSuccess: true,
   serverReady: true,
+  progress: 0.32,
   required: true,
   version: "1.7.5-ota.6",
   check: vi.fn(),
@@ -45,7 +46,7 @@ vi.mock("@/shared/components/ui", async () => {
 vi.mock("expo-application", () => ({ nativeApplicationVersion: "1.7.5" }));
 vi.mock("expo-updates", () => ({
   isEnabled: true, runtimeVersion: "1.7.5", channel: "production",
-  useUpdates: () => ({ isUpdatePending: false, downloadProgress: 0.32 }),
+  useUpdates: () => ({ isUpdatePending: false, downloadProgress: state.progress }),
   checkForUpdateAsync: state.check, fetchUpdateAsync: state.fetch, reloadAsync: state.reload,
 }));
 vi.mock("@react-native-async-storage/async-storage", () => ({
@@ -53,16 +54,17 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 }));
 vi.mock("@/shared/stores/authStore", () => ({
   useAuthStore: (selector: (s: unknown) => unknown) => selector({
-    user: { username: state.username }, isAuthenticated: state.authenticated,
+    user: { id: "server-verified-actor", username: state.username }, isAuthenticated: state.authenticated,
     isLoading: false, verifiedSessionEpoch: state.authenticated ? "epoch" : null,
   }),
 }));
-vi.mock("@/shared/lib/api/public-config-query", () => ({
-  useMobileAppPublicConfig: () => ({
-    isSuccess: state.serverReady, isError: !state.serverReady,
-    data: state.serverReady ? {
-      success: state.serverSuccess,
-      data: { ota: { required: state.required, version: state.version, platform: "android", channel: "production" } },
+vi.mock("@/shared/lib/ota/mandatoryPolicyQuery", () => ({
+  useMandatoryOtaCohortDecision: () => ({
+    isSuccess: state.serverReady && state.serverSuccess,
+    isError: !state.serverReady || !state.serverSuccess,
+    data: state.serverReady && state.serverSuccess ? {
+      required: state.required, version: state.required ? state.version : null,
+      selectedRevision: state.required ? 6 : 5,
     } : undefined,
     refetch: state.refetch,
   }),
@@ -72,7 +74,9 @@ vi.mock("@/shared/lib/otaPolicy", async (importOriginal) => {
   return { ...actual, activeOtaRevision: () => 5 };
 });
 vi.mock("@/shared/hooks/useOtaAutoApply", () => ({ useOtaAutoApply: state.optionalHook }));
-vi.mock("@/shared/lib/ota/installationIdentity", () => ({ refreshOtaTesterGrant: state.grant }));
+vi.mock("@/shared/lib/ota/installationIdentity", () => ({
+  refreshOtaTesterGrant: state.grant, selfHostedOtaActive: () => true,
+}));
 vi.mock("@/shared/lib/ota/telemetry", () => ({ trackOtaEvent: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/shared/lib/otaDownloadSize", () => ({
   formatOtaMegabytes: (b: number) => String(Math.round(b / 1_000_000)),
@@ -96,6 +100,7 @@ beforeEach(() => {
   state.authenticated = true;
   state.serverSuccess = true;
   state.serverReady = true;
+  state.progress = 0.32;
   state.required = true;
   state.version = "1.7.5-ota.6";
   state.check.mockResolvedValue({ isAvailable: false });
@@ -122,6 +127,16 @@ describe("mandatory 1.7.5 OTA runtime gate", () => {
     expect(state.optionalHook).toHaveBeenCalledWith(false);
     expect(state.grant).toHaveBeenCalledOnce();
   });
+  it("shows resource finalization instead of a frozen 99% during slow asset fetch", async () => {
+    state.progress = 0.99;
+    state.check.mockResolvedValue({ isAvailable: true, manifest: { id: "22222222-2222-4222-8222-222222222222" } });
+    state.fetch.mockImplementation(() => new Promise(() => {}));
+    await render();
+    expect(host.querySelector('[data-testid="main-courses-screen"]')).toBeNull();
+    expect(host.querySelector('[data-testid="ota-finalizing-hint"]')).not.toBeNull();
+    expect(host.textContent).toContain("Завершаем загрузку и проверку ресурсов");
+    expect(host.textContent).not.toContain("99%");
+  });
   it("keeps the main screen blocked while an available OTA is downloading", async () => {
     state.check.mockResolvedValue({ isAvailable: true, manifest: { id: "11111111-1111-4111-8111-111111111111" } });
     state.fetch.mockImplementation(() => new Promise(() => {}));
@@ -143,11 +158,18 @@ describe("mandatory 1.7.5 OTA runtime gate", () => {
     expect(host.querySelector('[data-testid="main-courses-screen"]')).toBeNull();
     expect(state.check).not.toHaveBeenCalled();
   });
-  it("does not lock out non-tester accounts from an OTA rollout of 0%", async () => {
+  it("does not lock out users outside the selected rollout cohort, including at 0%", async () => {
     state.username = "visitor";
+    state.required = false; // server selected revision 5, below required revision 6
     await render();
     expect(host.querySelector('[data-testid="main-courses-screen"]')).not.toBeNull();
     expect(state.check).not.toHaveBeenCalled();
+  });
+  it("blocks an ordinary account when the server selected it for a staged mandatory rollout", async () => {
+    state.username = "visitor";
+    await render();
+    expect(host.querySelector('[data-testid="main-courses-screen"]')).toBeNull();
+    expect(host.textContent).toContain("ОБЯЗАТЕЛЬНОЕ ОБНОВЛЕНИЕ");
   });
   it("unblocks only after the newly compiled revision is current", async () => {
     state.required = false;

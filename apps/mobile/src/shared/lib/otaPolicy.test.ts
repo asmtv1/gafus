@@ -1,20 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { activeOtaRevision, eligibleForMandatoryTesterOta, requiredOtaRevision } from "./otaPolicy";
+import { activeOtaRevision, requiredOtaRevision } from "./otaPolicy";
 
 const policy = { required: true, version: "1.7.5-ota.2", platform: "all" as const, channel: "production" as const };
-const context = { platform: "android", nativeVersion: "1.7.5", runtimeVersion: "1.7.5", channel: "production", currentRevision: 0, testerEligible: true };
+const context = { platform: "android", nativeVersion: "1.7.5", runtimeVersion: "1.7.5", channel: "production", currentRevision: 0, eligible: true };
 describe("forced OTA gate 1.7.5", () => {
   it("embeds revision zero in native 1.7.5 and optional OTA by default", () => {
     expect(activeOtaRevision()).toBe(0);
   });
-  it("only authenticated eligible testers may be blocked while OTA rollout is 0%", () => {
-    expect(eligibleForMandatoryTesterOta("admin", true)).toBe(true);
-    expect(eligibleForMandatoryTesterOta("asmtv1", true)).toBe(true);
-    for (const name of ["other", "Admin", ""]) {
-      expect(eligibleForMandatoryTesterOta(name, true)).toBe(false);
-    }
-    expect(eligibleForMandatoryTesterOta("admin", false)).toBe(false);
-    expect(requiredOtaRevision(policy, { ...context, testerEligible: false })).toBeNull();
+  it("only a server-selected rollout cohort is subject to the mandatory gate", () => {
+    expect(requiredOtaRevision(policy, { ...context, eligible: false })).toBeNull();
+    expect(requiredOtaRevision(policy, { ...context, eligible: true })).toBe(2);
   });
   it("blocks an old OTA revision on the matching production runtime", () => {
     expect(requiredOtaRevision(policy, context)).toBe(2);
@@ -32,8 +27,9 @@ describe("forced OTA gate 1.7.5", () => {
     expect(requiredOtaRevision(policy, { ...context, channel: "preview" })).toBeNull();
     expect(requiredOtaRevision({ ...policy, platform: "ios" }, context)).toBeNull();
   });
-  it("ignores invalid or future native baselines", () => {
+  it("rejects malformed versions and supports newer matching native runtimes", () => {
     expect(requiredOtaRevision({ ...policy, version: "invalid" }, context)).toBeNull();
-    expect(requiredOtaRevision({ ...policy, version: "1.7.6-ota.2" }, { ...context, nativeVersion: "1.7.6", runtimeVersion: "1.7.6" })).toBeNull();
+    expect(requiredOtaRevision({ ...policy, version: "1.7.6-ota.2" }, { ...context, nativeVersion: "1.7.6", runtimeVersion: "1.7.6" })).toBe(2);
+    expect(requiredOtaRevision({ ...policy, version: "1.7.6-ota.2" }, context)).toBeNull();
   });
 });

@@ -23,3 +23,10 @@ export async function issueRegisteredTesterGrant(
   const token=issueOtaTesterGrant({userId:actorId,username:user.username,...request},secret);
   return token ? {status:'granted',token,expiresInSeconds:900} : {status:'unavailable'};
 }
+
+/** Verify the account against DB at request time; client-provided usernames or
+ * roles never authorize a zero-percent tester rollout. */
+export async function isRegisteredOtaTester(actorId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({where: {id: actorId}, select: {username: true}});
+  return isOtaTesterAccount(user?.username);
+}

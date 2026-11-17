@@ -1,14 +1,19 @@
 import { Hono } from 'hono';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { verifyOtaTesterGrant } from '@gafus/mobile-ota-server/tester-access';
-const mocked=vi.hoisted(()=>({user:vi.fn()}));
+const mocked=vi.hoisted(()=>({user:vi.fn(),selected:vi.fn(),publicConfig:vi.fn(),nativeKeyId:vi.fn()}));
 vi.mock('@gafus/prisma',()=>({prisma:{user:{findUnique:mocked.user}}}));
+vi.mock('@gafus/mobile-ota-server/repository',()=>({
+  resolvePublishedOtaSelection:mocked.selected,
+  getVerifiedNativeOtaSigningKeyId:mocked.nativeKeyId,
+}));
+vi.mock('@gafus/feature-flags-server',()=>({getMobileAppPublicConfig:mocked.publicConfig}));
 import {mobileOtaTesterRoutes} from './mobile-ota-tester';
 const secret='test-key-with-at-least-thirty-two-characters-safe';
 const installationId='7ba9c3db-d4b1-4cff-8d60-ce424d1706d5';
 const native={platform:'ios' as const,runtimeVersion:'1.7.5',nativeFingerprint:'b'.repeat(64)};
 const endpoint='/api/v1/mobile-ota-tester';
-function request(body:unknown,authenticated=true){
+function request(body:unknown,authenticated=true,route='grant'){
   const app=new Hono();
   app.use(`${endpoint}/*`,async(c,next)=>{
     if(!authenticated)return c.json({success:false},401);
@@ -16,13 +21,16 @@ function request(body:unknown,authenticated=true){
     await next();
   });
   app.route(endpoint,mobileOtaTesterRoutes);
-  return app.request(`http://localhost${endpoint}/grant`,{method:'POST',
+  return app.request(`http://localhost${endpoint}/${route}`,{method:'POST',
     headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 }
 beforeEach(()=>{
   vi.stubEnv('MOBILE_OTA_DELIVERY_ENV','production');
   vi.stubEnv('MOBILE_OTA_INSTALLATION_HASH_KEY',secret);
   vi.clearAllMocks();
+  mocked.publicConfig.mockResolvedValue({ota:{required:true,version:'1.7.5-ota.6',platform:'android',channel:'production'}});
+  mocked.selected.mockResolvedValue({revision:6});
+  mocked.nativeKeyId.mockResolvedValue('gafus-production-20261115');
 });
 afterEach(()=>vi.unstubAllEnvs());
 describe('authenticated GAFUS OTA tester issuance',()=>{
@@ -52,5 +60,53 @@ describe('authenticated GAFUS OTA tester issuance',()=>{
     vi.stubEnv('MOBILE_OTA_DELIVERY_ENV','production');
     vi.stubEnv('MOBILE_OTA_INSTALLATION_HASH_KEY','short');
     expect((await request({installationId,...native})).status).toBe(503);
+  });
+});
+
+const policyBody={installationId,platform:'android',runtimeVersion:'1.7.5',
+  nativeFingerprint:'b'.repeat(64)};
+describe('mandatory OTA authorization follows signed manifest cohorts',()=>{
+  it('requires an authenticated actor and valid native-signed context',async()=>{
+    expect((await request(policyBody,false,'mandatory-policy')).status).toBe(401);
+    expect((await request({...policyBody,username:'admin'},true,'mandatory-policy')).status).toBe(400);
+    expect(mocked.publicConfig).not.toHaveBeenCalled();
+  });
+  it('keeps ordinary users outside rollout unblocked, even with a globally required OTA',async()=>{
+    mocked.user.mockResolvedValue({username:'ordinary'});
+    mocked.selected.mockResolvedValue(null); // real SQL selector yields no release at 0% if no previous
+    const r=await request(policyBody,true,'mandatory-policy');
+    expect(r.status).toBe(200);
+    expect((await r.json()).data).toEqual({required:false,version:null,selectedRevision:null});
+    expect(mocked.selected).toHaveBeenCalledWith(expect.objectContaining({
+      platform:'android',runtimeVersion:'1.7.5',installationId,
+      nativeFingerprint:'b'.repeat(64),keyId:'gafus-production-20261115',testerAllowed:false,
+    }));
+  });
+  it('only mandates the selected release revision for an entitled tester or rollout cohort',async()=>{
+    mocked.user.mockResolvedValue({username:'admin'});
+    const r=await request(policyBody,true,'mandatory-policy');
+    expect(r.status).toBe(200);
+    expect((await r.json()).data).toEqual({required:true,version:'1.7.5-ota.6',selectedRevision:6});
+    expect(mocked.selected).toHaveBeenCalledWith(expect.objectContaining({testerAllowed:true}));
+  });
+  it('never requires revision 6 from users selected for previous revision 5',async()=>{
+    mocked.user.mockResolvedValue({username:'ordinary'});
+    mocked.selected.mockResolvedValue({revision:5});
+    const r=await request(policyBody,true,'mandatory-policy');
+    expect((await r.json()).data).toEqual({required:false,version:null,selectedRevision:5});
+  });
+  it('does not query rollout if OTA flag is optional',async()=>{
+    mocked.publicConfig.mockResolvedValue({ota:{required:false,version:null,platform:'all',channel:'production'}});
+    const r=await request(policyBody,true,'mandatory-policy');
+    expect((await r.json()).data).toEqual({required:false,version:null,selectedRevision:null});
+    expect(mocked.selected).not.toHaveBeenCalled();
+    expect(mocked.user).not.toHaveBeenCalled();
+  });
+  it('fails closed on registry failure instead of claiming an eligible update',async()=>{
+    mocked.user.mockResolvedValue({username:'admin'});
+    mocked.selected.mockRejectedValue(new Error('database unavailable'));
+    const r=await request(policyBody,true,'mandatory-policy');
+    expect(r.status).toBe(503);
+    expect((await r.json()).code).toBe('OTA_POLICY_UNAVAILABLE');
   });
 });

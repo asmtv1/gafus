@@ -13,11 +13,13 @@ import { Button } from "@/shared/components/ui";
 import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
 import { refreshOtaTesterGrant } from "@/shared/lib/ota/installationIdentity";
 import { trackOtaEvent } from "@/shared/lib/ota/telemetry";
-import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
+import { useMandatoryOtaCohortDecision } from "@/shared/lib/ota/mandatoryPolicyQuery";
+import { selfHostedOtaActive } from "@/shared/lib/ota/installationIdentity";
 import { useAuthStore } from "@/shared/stores/authStore";
-import { activeOtaRevision, eligibleForMandatoryTesterOta, requiredOtaRevision } from "@/shared/lib/otaPolicy";
+import { activeOtaRevision, requiredOtaRevision } from "@/shared/lib/otaPolicy";
 import { reportClientError } from "@/shared/lib/error-reporting";
 import { formatOtaMegabytes, getOtaMainBundleBytes } from "@/shared/lib/otaDownloadSize";
+import { getRequiredOtaProgressPresentation } from "@/shared/lib/otaProgressPresentation";
 
 type Phase = "checking" | "downloading" | "installing" | "error";
 const TRIED_PREFIX = "@gafus/forced-ota-attempt-v1:";
@@ -36,9 +38,7 @@ function ForceOtaScreen({ version, phase, error, progress, mainBundleBytes, retr
 }) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const percent = phase === "downloading" &&
-    typeof progress === "number" && Number.isFinite(progress)
-      ? Math.round(Math.min(1, Math.max(0, progress)) * 100) : null;
+  const progressPresentation = getRequiredOtaProgressPresentation(phase, progress);
   const mb = typeof mainBundleBytes === "number" ? formatOtaMegabytes(mainBundleBytes) : null;
   // Raised above the system gesture area, but still visually in the bottom third.
   const bottomOffset = Math.max(insets.bottom + SPACING.lg, Math.min(height * 0.11, 94));
@@ -46,10 +46,12 @@ function ForceOtaScreen({ version, phase, error, progress, mainBundleBytes, retr
   return (
     <View style={styles.screen} testID="required-ota-screen">
       <Image
-        source={require("../../../assets/images/startup-splash.png")}
-        style={StyleSheet.absoluteFill}
-        resizeMode="contain"
-        accessibilityLabel="Всё у тебя получится!"
+        // Unlike the splash poster this has no artwork/lettering under the card.
+        // Its portrait aspect ratio matches tall Android screens (e.g. A53).
+        source={require("../../../assets/images/sky-background.png")}
+        style={styles.wallpaper}
+        resizeMode="cover"
+        accessibilityLabel="Небесный фон"
       />
       <ScrollView
         style={styles.scroll}
@@ -90,32 +92,33 @@ function ForceOtaScreen({ version, phase, error, progress, mainBundleBytes, retr
                 <Text style={styles.progressLabel}>
                   {phase === "checking" ? "Проверяем обновление…"
                     : phase === "installing" ? "Устанавливаем обновление…"
+                    : progressPresentation.finishing ? "Завершаем загрузку и проверку ресурсов…"
                     : "Загружаем обновление…"}
                 </Text>
-                {percent !== null ? (
-                  <Text style={styles.progressPercent}>{percent}%</Text>
+                {progressPresentation.percent !== null ? (
+                  <Text style={styles.progressPercent}>{progressPresentation.percent}%</Text>
                 ) : (
                   <ActivityIndicator size="small" color={COLORS.primary} />
                 )}
               </View>
 
-              <View
-                style={styles.progressTrack}
-                accessibilityRole="progressbar"
-                accessibilityValue={{
-                  min: 0, max: 100,
-                  now: percent ?? (phase === "installing" ? 100 : 0),
-                }}
-              >
+              {progressPresentation.percent !== null && (
                 <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: (String(phase === "installing" ? 100 : (percent ?? 0)) + "%") as DimensionValue,
-                    },
-                  ]}
-                />
-              </View>
+                  style={styles.progressTrack}
+                  accessibilityRole="progressbar"
+                  accessibilityValue={{ min: 0, max: 100, now: progressPresentation.percent }}
+                >
+                  <View style={[styles.progressFill, {
+                    width: (String(progressPresentation.percent) + "%") as DimensionValue,
+                  }]} />
+                </View>
+              )}
+              {progressPresentation.finishing && (
+                <Text style={styles.installingHint} testID="ota-finalizing-hint">
+                  Основной файл загружен. Дополнительные ресурсы могут загружаться несколько минут.
+                  Не закрывайте приложение — установка продолжится автоматически.
+                </Text>
+              )}
 
               <Text style={styles.downloadSize} testID="ota-download-size">
                 {mb !== null
@@ -139,6 +142,12 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#B5E5EB",
+    overflow: "hidden",
+  },
+  wallpaper: {
+    position: "absolute",
+    top: 0, left: 0,
+    width: "100%", height: "100%",
   },
   scroll: {
     flex: 1,
@@ -241,33 +250,40 @@ const styles = StyleSheet.create({
 
 /** Kept separate from RequiredAppUpdateGate: native Store force-update is untouched. */
 export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
-  const configQuery = useMobileAppPublicConfig();
-  const testerEligible = useAuthStore(s => eligibleForMandatoryTesterOta(
-    s.user?.username, s.isAuthenticated && !s.isLoading && !!s.verifiedSessionEpoch,
-  ));
+  const authSettled = useAuthStore(s =>
+    !s.isLoading && (!s.isAuthenticated || !!s.verifiedSessionEpoch),
+  );
+  const verifiedUserId = useAuthStore(s =>
+    s.isAuthenticated && !s.isLoading && !!s.verifiedSessionEpoch ? s.user?.id ?? null : null,
+  );
+  const isSignedProduction = !__DEV__ && Updates.isEnabled &&
+    Updates.channel === "production" && selfHostedOtaActive();
+  const checkRequired = !!verifiedUserId && isSignedProduction;
+  const policyQuery = useMandatoryOtaCohortDecision(checkRequired, verifiedUserId);
   const updatesState = Updates.useUpdates();
-  // API clients can resolve HTTP failures as {success:false} instead of
-  // rejecting; neither a stale nor an unsuccessful response may bypass the gate.
-  const policyValid = configQuery.isSuccess && configQuery.data?.success === true &&
-    configQuery.data.data?.ota?.channel === "production";
-  const requiredRevision = testerEligible && policyValid && !__DEV__ && Updates.isEnabled
-    ? requiredOtaRevision(configQuery.data?.data?.ota, {
-      platform: Platform.OS,
-      nativeVersion: Application.nativeApplicationVersion,
-      runtimeVersion: Updates.runtimeVersion,
-      channel: Updates.channel,
-      currentRevision: activeOtaRevision(),
-      testerEligible,
-    }) : null;
+  const policy = policyQuery.data;
+  const requiredRevision = checkRequired && policyQuery.isSuccess && policy
+    ? requiredOtaRevision({
+        required: policy.required, version: policy.version,
+        platform: Platform.OS === "ios" ? "ios" : "android", channel: "production",
+      }, {
+        platform: Platform.OS,
+        nativeVersion: Application.nativeApplicationVersion,
+        runtimeVersion: Updates.runtimeVersion,
+        channel: Updates.channel,
+        currentRevision: activeOtaRevision(),
+        eligible: policy.required,
+      }) : null;
 
-  // Preserve existing background OTA behavior whenever mandatory gate is off.
-  // Never run a competing optional check while a mandatory policy decision is pending.
-  useOtaAutoApply(!testerEligible || (policyValid && requiredRevision === null));
+  // A signed-in app cannot start a racing background download before its
+  // authoritative server cohort/policy decision is known.
+  useOtaAutoApply(authSettled && (!checkRequired ||
+    (policyQuery.isSuccess && requiredRevision === null)));
   const [attempt, setAttempt] = useState(0);
   const [phase, setPhase] = useState<Phase>("checking");
   const [error, setError] = useState<string | null>(null);
   const [mainBundleBytes, setMainBundleBytes] = useState<number | null | undefined>(undefined);
-  const target = configQuery.data?.data?.ota?.version;
+  const target = policy?.version;
 
   useEffect(() => {
     if (requiredRevision === null || !target) return;
@@ -323,14 +339,16 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requiredRevision, target, attempt]);
 
-  // For signed-in testers, do not paint navigation before the mandatory policy
-  // is known: an initial blank/stale query otherwise lets them use the app.
-  if (testerEligible && !__DEV__ && Updates.isEnabled && !policyValid) {
+  // Fail closed until a verified principal has an authoritative answer from
+  // the same backend selector serving its signed Expo manifest. This includes
+  // rollout 0% testers and future staged cohorts (1/10/50/100%).
+  if (checkRequired && !policyQuery.isSuccess) {
     return <ForceOtaScreen
-      version={"1.7.5"} phase={configQuery.isError || configQuery.isSuccess ? "error" : "checking"}
-      error={configQuery.isError || configQuery.isSuccess ? "Не удалось проверить обязательные обновления. Проверьте интернет и повторите." : null}
+      version={Application.nativeApplicationVersion ?? "1.7.5"}
+      phase={policyQuery.isError ? "error" : "checking"}
+      error={policyQuery.isError ? "Не удалось проверить обязательные обновления. Проверьте интернет и повторите." : null}
       mainBundleBytes={undefined}
-      retry={() => void configQuery.refetch()}
+      retry={() => void policyQuery.refetch()}
     />;
   }
   if (requiredRevision === null || !target) return children;
