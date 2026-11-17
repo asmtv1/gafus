@@ -7,11 +7,13 @@ const file = readFileSync(
 );
 
 describe("mandatory OTA screen design", () => {
-  it("uses the same complete, uncropped poster as the native splash", () => {
-    expect(file).toContain('require("../../../assets/images/startup-splash.png")');
-    expect(file).toContain('resizeMode="contain"');
-    expect(file).not.toContain('resizeMode="cover"');
-    expect(file).toContain('accessibilityLabel="Всё у тебя получится!"');
+  it("uses separate letter-free full-screen cloud wallpaper, never the busy splash poster", () => {
+    expect(file).toContain('require("../../../assets/images/sky-background.png")');
+    expect(file).toContain('resizeMode="cover"');
+    expect(file).not.toContain('require("../../../assets/images/startup-splash.png")');
+    expect(file).toContain('style={styles.wallpaper}');
+    expect(file).toContain('width: "100%", height: "100%"');
+    expect(file).toContain('accessibilityLabel="Небесный фон"');
   });
 
   it("positions a styled card above the gesture area near the bottom", () => {
@@ -21,11 +23,13 @@ describe("mandatory OTA screen design", () => {
     expect(file).toContain("backgroundColor: \"rgba(250, 247, 238, 0.97)\"");
   });
 
-  it("shows honest MB, percentage, and an individual retry action", () => {
+  it("shows honest MB, a finite download progress and an individual retry action", () => {
     expect(file).toContain('getOtaMainBundleBytes(result.manifest)');
     expect(file).toContain('Основной файл: ');
     expect(file).toContain(' МБ · доп. ресурсы отдельно');
     expect(file).toContain('accessibilityRole="progressbar"');
+    expect(file).toContain('getRequiredOtaProgressPresentation(phase, progress)');
+    expect(file).toContain('Завершаем загрузку и проверку ресурсов…');
     expect(file).toContain('label="Повторить загрузку"');
     expect(file).toContain('Размер файла не предоставлен сервером');
   });
