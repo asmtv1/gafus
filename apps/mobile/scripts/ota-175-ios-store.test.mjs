@@ -34,6 +34,25 @@ test('dedicated Store EAS profile is production only, not internal and never aut
   }
 });
 
+test('iOS widgets CocoaPods uses the same SDK 57 autolinker as Expo, not the hoisted SDK 55 one',()=>{
+  const require=createRequire(import.meta.url);
+  const widgetsRoot=path.dirname(require.resolve('expo-widgets/package.json',{paths:[mobile]}));
+  const widgetPodScript=fs.readFileSync(path.join(widgetsRoot,'scripts/autolinking.rb'),'utf8');
+  const expoPackage=require.resolve('expo/package.json',{paths:[mobile]});
+  const correctAutolinker=require.resolve('expo-modules-autolinking/package.json',{paths:[expoPackage]});
+  assert.equal(require(correctAutolinker).version.split('.')[0],'57');
+  assert.match(widgetPodScript,/require\.resolve\('expo-modules-autolinking\/package\.json', \{ paths: \[require\.resolve\('expo\/package\.json'\)\] \}\)/);
+  const patch=fs.readFileSync(path.join(mobile,'../../patches/expo-widgets@57.0.28.patch'),'utf8');
+  assert.match(patch,/diff --git a\/scripts\/autolinking\.rb b\/scripts\/autolinking\.rb/);
+});
+
+test('Store prepare requires explicit new build number; no reuse of a registered failed candidate',()=>{
+  const result=spawnSync(process.execPath,[path.join(mobile,'scripts/ota-175-ios-store.mjs'),'prepare'],
+    {cwd:mobile,encoding:'utf8'});
+  assert.notEqual(result.status,0);
+  assert.match(result.stderr,/BUILD_NUMBER_REQUIRED/);
+});
+
 test('Store candidate is immutable and matches admin registration trust and build number',()=>{
   const v=native();assert.equal(validateStoreDescriptor(v,sha,pem),v);
   for(const patch of [{verified:true},{distribution:'internal'},{updateUrl:'https://u.expo.dev/123'},

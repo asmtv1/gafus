@@ -263,7 +263,7 @@ function build(){
 }
 function main(){
   const [action,arg]=process.argv.slice(2);
-  if(action==='prepare')prepare(arg??'97');
+  if(action==='prepare'){check(Boolean(arg),'BUILD_NUMBER_REQUIRED');prepare(arg);}
   else if(action==='finalize')finalize(arg);
   else if(action==='check'){const r=checkBuild();console.log(JSON.stringify({state:'READY_FOR_LOCAL_EAS_BUILD',
     version:'1.7.5',buildNumber:r.descriptor.buildNumber,updateUrl:r.descriptor.updateUrl,
