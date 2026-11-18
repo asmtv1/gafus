@@ -160,8 +160,12 @@ test('Vite public bits compile exactly once with sealed private maps, then trans
     privateArchive.if.includes('vars.GAFUS_WEB_SYMBOLS_PRODUCTION_APPROVED'),
     'PRIVATE_MAPS_MUST_NOT_UPLOAD_ON_PR');
   assert(!publicUpload.with['include-hidden-files'], 'PUBLIC_DIST_MUST_NOT_COPY_RAW_HIDDEN_PATHS');
-  assert(publicUpload.with.name.includes('github.sha') && publicUpload.with.name.includes('github.run_attempt'),
-    'DIST_ARTIFACT_MUST_BIND_SHA_AND_ATTEMPT');
+  assert.equal(publicUpload.with.name, 'vite-public-dists-${{ github.sha }}',
+    'DIST_ARTIFACT_MUST_BIND_EXACT_RELEASE_SHA');
+  assert.equal(publicUpload.with.overwrite, true,
+    'DIST_ARTIFACT_MUST_REPLACE_SAME_RUN_SHA_ON_BUILD_APPS_RETRY');
+  assert(!publicUpload.with.name.includes('run_attempt'),
+    'DIST_ARTIFACT_MUST_SURVIVE_FAILED_ONLY_RUN_ATTEMPT');
   const idx=name=>app.steps.findIndex(s=>s.name===name);
   assert(idx(compile.name)<idx(privateVerify.name)&&
     idx(privateVerify.name)<idx(publicPack.name)&&
@@ -171,6 +175,17 @@ test('Vite public bits compile exactly once with sealed private maps, then trans
   const fetch=imageSteps.find(s=>s.name==='Download same-SHA public Vite release artifact');
   const restore=imageSteps.find(s=>s.name==='Restore and verify exact public Vite dist from build-apps');
   assert(fetch?.with?.name===publicUpload.with.name,'MISMATCHED_DIST_ARTIFACT_IDENTITY');
+  assert.equal(fetch.with['run-id'], undefined,
+    'DIST_ARTIFACT_DOWNLOAD_MUST_STAY_WITHIN_SAME_CI_RUN');
+  assert.equal(fetch.with['repository'], undefined,
+    'DIST_ARTIFACT_DOWNLOAD_MUST_STAY_WITHIN_SAME_REPOSITORY');
+  // Regression: on failed-only retries build-apps may have published in attempt
+  // 1 while build-images resumes in attempt 4. Artifact identity must agree.
+  const resolvedName = (template, attempt) => template
+    .replace('${{ github.sha }}', 'a'.repeat(40))
+    .replace('${{ github.run_attempt }}', attempt);
+  assert.equal(resolvedName(publicUpload.with.name, '1'),
+    resolvedName(fetch.with.name, '4'), 'FAILED_ONLY_RETRY_MUST_FIND_PUBLIC_DIST');
   assert(restore?.run.includes('vite-release-dist-artifacts.mjs restore'));
   assert(restore.run.includes('verify-gafus-app-links.mjs'), 'WEB_APP_LINKS_MUST_SURVIVE_TAR');
   assert(!imageSteps.some(s=>s.name==='Compile Vite SPA before packaging into Nginx image'),

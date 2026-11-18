@@ -532,13 +532,18 @@ jobs:
             node scripts/observability/upload-private-web-sourcemaps.mjs --directory "$private_dir"
           done
 
-      - name: Upload public Vite release artifacts for exactly this CI attempt
+      # SHA-scoped inside this workflow run. A failed-only rerun can reuse the
+      # already verified build-apps dist even when github.run_attempt changes.
+      # If build-apps reruns, replace its own prior artifact with the new sealed
+      # dist; Docker still verifies sourceSha and every archive/file digest.
+      - name: Upload public Vite release artifacts for the exact SHA
         if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'pull_request' && github.base_ref == 'main')
         uses: actions/upload-artifact@v4
         with:
-          name: vite-public-dists-${{ github.sha }}-${{ github.run_attempt }}
+          name: vite-public-dists-${{ github.sha }}
           path: ${{ runner.temp }}/gafus-public-vite-dist/
           if-no-files-found: error
+          overwrite: true
           retention-days: 7
 
       - name: Mobile typecheck and unit tests (blocking)
@@ -675,7 +680,7 @@ jobs:
         if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
         uses: actions/download-artifact@v4
         with:
-          name: vite-public-dists-${{ github.sha }}-${{ github.run_attempt }}
+          name: vite-public-dists-${{ github.sha }}
           path: ${{ runner.temp }}/gafus-public-vite-dist
       - name: Restore and verify exact public Vite dist from build-apps
         if: ${{ contains(fromJSON('["web", "admin-panel", "trainer-panel"]'), matrix.image.name) }}
