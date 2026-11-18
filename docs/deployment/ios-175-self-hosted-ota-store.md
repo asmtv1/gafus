@@ -65,6 +65,8 @@ pnpm ota:175:ios:store:build
 pnpm ota:175:ios:store:verify-ipa /ABSOLUTE/PATH/TO/FILE.ipa
 ```
 
+`verify-ipa` проверяет **уже собранный** бинарник по неизменяемому дескриптору в `apps/mobile/.ota-certs`, не требуя совпадения текущего Git HEAD с SHA сборки. Это позволяет повторить проверку подписи, если EAS завершил сборку успешно, но постпроверка скрипта упала. **Не пересобирать IPA только из-за ошибки постпроверки**; сначала исправить валидатор и повторить `verify-ipa`. Команда `build` по-прежнему требует чистый и запушенный SHA зарегистрированного кандидата.
+
 Сертификат OTA — **публичный ключ проверки manifest**, это не Apple Distribution credential. EAS local build должен иметь доступ к аккаунту Expo и валидным Apple Distribution certificate/provisioning для `ru.gafus.app` (профиль Store, не ad hoc). Если credentials недоступны, сборку необходимо остановить; не подменять её internal provisioning.
 
 ## 5. После сборки

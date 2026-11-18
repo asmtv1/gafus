@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {createRequire} from 'node:module';
 import {spawnSync} from 'node:child_process';
-import {validateStoreProfile,validateStoreDescriptor,parseRemoteVersion,verifyIpa,expectedEasIgnore} from './ota-175-ios-store.mjs';
+import {validateStoreProfile,validateStoreDescriptor,parseRemoteVersion,verifyIpa,verifyAppleStoreProvisioningProfile,expectedEasIgnore} from './ota-175-ios-store.mjs';
 import {applyNativeSelfHostedProfile} from './self-hosted-native-profile.cjs';
 const mobile=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const eas=JSON.parse(fs.readFileSync(path.join(mobile,'eas.json')));
@@ -92,6 +92,33 @@ test('read EAS remote version without silently defaulting to local build number'
   assert.equal(parseRemoteVersion('{"buildNumber":"97"}'),'97');
   for(const s of ['','{}','{"buildNumber":17504}','{"buildNumber":"0"}','warning\\n{}'])
     assert.throws(()=>parseRemoteVersion(s),/OTA_175_IOS_STORE_/);
+});
+
+test('App Store provisioning with NSDate and NSData validates without lossy JSON conversion',()=>{
+  const require=createRequire(import.meta.url);
+  const plist=require('@expo/plist').default;
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'gafus-ios-store-profile-test-'));
+  const file=path.join(dir,'provisioning.plist');
+  const original={
+    ExpirationDate:new Date('2030-01-01T00:00:00Z'),
+    DeveloperCertificates:[Buffer.from([1,2,3,4])],
+    Entitlements:{'get-task-allow':false,'application-identifier':'PJQ8PP666S.ru.gafus.app'},
+  };
+  const verify=(data)=>{fs.writeFileSync(file,plist.build(data));verifyAppleStoreProvisioningProfile(file);};
+  try{
+    verify(original);
+    for(const variation of [
+      {ProvisionedDevices:['device-id']},
+      {ProvisionsAllDevices:true},
+      {Entitlements:{...original.Entitlements,'get-task-allow':true}},
+      {Entitlements:{...original.Entitlements,'application-identifier':'PJQ8PP666S.ru.other.app'}},
+      {ExpirationDate:new Date('2020-01-01T00:00:00Z')},
+    ]){
+      assert.throws(()=>verify({...original,...variation}),/IPA_NOT_APP_STORE_DISTRIBUTION/);
+    }
+    fs.writeFileSync(file,'not a plist');
+    assert.throws(()=>verifyAppleStoreProvisioningProfile(file),/IPA_PROVISIONING_PLIST_INVALID/);
+  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 
 test('actual IPA payload plist inspection validates our signed self-hosted OTA metadata without compiling iOS',()=>{

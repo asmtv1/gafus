@@ -184,6 +184,26 @@ function readPlistFromIpa(ipa,entry){
     {encoding:'utf8',maxBuffer:4*1024*1024}));}
   finally{fs.rmSync(dir,{recursive:true,force:true});}
 }
+/** A decoded Apple profile contains NSDate/NSData values that plutil cannot
+ * convert to JSON. Read just the fields needed for Store signature validation.
+ */
+export function verifyAppleStoreProvisioningProfile(profilePath){
+  const lint=spawnSync('/usr/bin/plutil',['-lint',profilePath],{encoding:'utf8'});
+  check(!lint.error && lint.status===0,'IPA_PROVISIONING_PLIST_INVALID');
+  const read=(key)=>{
+    const item=spawnSync('/usr/bin/plutil',['-extract',key,'raw','-o','-',profilePath],
+      {encoding:'utf8',maxBuffer:4*1024*1024});
+    if(item.error)throw item.error;
+    return item.status===0?item.stdout.trim():null;
+  };
+  const expiry=read('ExpirationDate');
+  check(read('ProvisionedDevices')===null && read('ProvisionsAllDevices')!=='true' &&
+    read('Entitlements.get-task-allow')==='false' &&
+    read('Entitlements.application-identifier')==='PJQ8PP666S.ru.gafus.app' &&
+    expiry!==null && Number.isFinite(Date.parse(expiry)) && Date.parse(expiry)>Date.now(),
+    'IPA_NOT_APP_STORE_DISTRIBUTION');
+}
+
 /** Verify actual Apple code signing and that provisioning is App Store, not ad hoc.
  * This runs only after the user builds the IPA; synthetic plist tests opt out.
  */
@@ -204,12 +224,7 @@ function verifyAppleStoreSignature(ipa,infoEntry){
       {maxBuffer:4*1024*1024});
     const profilePath=path.join(tmp,'provisioning.plist');
     fs.writeFileSync(profilePath,profileXml);
-    const profile=JSON.parse(execFileSync('plutil',['-convert','json','-o','-',profilePath],
-      {encoding:'utf8',maxBuffer:4*1024*1024}));
-    check(profile.ProvisionedDevices===undefined && profile.ProvisionsAllDevices!==true &&
-      profile.Entitlements?.['get-task-allow']===false &&
-      profile.Entitlements?.['application-identifier']==='PJQ8PP666S.ru.gafus.app',
-      'IPA_NOT_APP_STORE_DISTRIBUTION');
+    verifyAppleStoreProvisioningProfile(profilePath);
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 }
 
@@ -269,8 +284,14 @@ function main(){
     version:'1.7.5',buildNumber:r.descriptor.buildNumber,updateUrl:r.descriptor.updateUrl,
     note:'EAS remote build number is checked on BUILD, not during offline check'},null,2));}
   else if(action==='build'&&!arg)build();
-  else if(action==='verify-ipa'&&arg){const {descriptor}=checkBuild();
-    console.log(JSON.stringify({state:'STORE_IPA_SIGNING_AND_SELF_HOSTED_OTA_VERIFIED',...verifyIpa(path.resolve(arg),descriptor)},null,2));}
+  else if(action==='verify-ipa'&&arg){
+    // Reverify a built IPA against its original immutable server-issued descriptor.
+    // Unlike the build command, artifact verification must work after later commits.
+    const descriptor=JSON.parse(fs.readFileSync(stagedDescriptor,'utf8'));
+    const certificate=fs.readFileSync(stagedCert,'utf8');
+    validateStoreDescriptor(descriptor,descriptor.sourceSha,certificate);
+    console.log(JSON.stringify({state:'STORE_IPA_SIGNING_AND_SELF_HOSTED_OTA_VERIFIED',
+      ...verifyIpa(path.resolve(arg),descriptor)},null,2));}
   else fail('USAGE_PREPARE_NUMBER_FINALIZE_UUID_CHECK_BUILD_VERIFY_IPA_PATH');
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
