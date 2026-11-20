@@ -106,7 +106,7 @@ export function verifyCurrentMediaPipeline() {
     jobRelease:read('.github/workflows/production-job-release-reusable.yml'),
     manualRelease:read('.github/workflows/infrastructure-jobs.yml'),
     feedWorker:read('apps/feed-cloud/src/worker.ts'),
-    feedService:read('packages/core/src/services/feed/service.ts'),
+    feedService:read('packages/feed-server/src/postRows.ts'),
     chatJobEntry:read('apps/feed-cloud/src/chat2-job-entry.ts'),
     chatProcessor:read('apps/feed-cloud/src/chat2-v2-processor.ts'),
     feedCloudServer:read('apps/feed-cloud/src/server.ts'),

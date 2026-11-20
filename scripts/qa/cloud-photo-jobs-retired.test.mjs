@@ -61,8 +61,16 @@ test('Feed S3 cleanup and historical photo migrations never wake a Cloud video J
  assert(storage.includes("env.NODE_ENV!=='production'"));
  assert(storage.includes("bucket!=='gafus-feed-private'"));
  const jobs=read('packages/feed-server/src/storageJobs.ts');
- assert(jobs.includes('workerType === "video" ? ["primary", "background"]'));
- assert(jobs.includes('workerType !== undefined || exactMedia'));
+ // An exact cleanup request is local-only; Cloud video and exact-media claims
+ // only consider the video tiers and never the S3 cleanup tier.
+ assert(jobs.includes('const tiers = exactCleanup'));
+ assert(jobs.includes('? (["cleanup"] as const)'));
+ assert(jobs.includes(': exactMedia || workerType === "video"'));
+ assert(jobs.includes('? (["primary", "background"] as const)'));
+ assert(jobs.includes(': (["primary", "cleanup", "background"] as const)'));
+ assert(jobs.includes('kind: tier === "cleanup" ? { in: ["delete_keys", "cleanup_source"] } : "publish_video"'));
+ assert(jobs.includes('exactMedia &&'));
+ assert(jobs.includes('row.kind === "publish_video"'));
  const feedInternal=read('packages/feed-server/src/internal.ts');
  assert(feedInternal.includes('workerType: z.literal("video")'));
  assert(!feedInternal.includes('workerType: z.literal("video").optional()'));

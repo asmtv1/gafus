@@ -5,9 +5,9 @@ import type { PrismaClient } from "@gafus/prisma";
 import { createFeedPolls } from "../../../../feed-server/src/pollRows";
 import { createFeedService } from "../../../../feed-server/src/postRows";
 import { activateFeedPostRevisionTx } from "../../../../feed-server/src/publicationRows";
-import { registerGafusLockPort } from "../gafus/locking";
+import { registerGafusLockPort, registerGafusLedgerRowsPort } from "@gafus/core/services/gafus";
 import { lockGafusUser, withGafusUserLock } from "@gafus/gafus-server/wallet-lock";
-import { registerGafusLedgerRowsPort } from "../gafus/gafusLedgerPort";
+
 import {
   ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
   appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
