@@ -4,17 +4,28 @@
  * Access is checked by the caller on EVERY read, even when this content is cached.
  * The short-lived, per-process cache is OFF unless ENABLE_COURSE_CACHE=true.
  */
-import { requireTrainingDayContentReadPort } from "./trainingDayContentReadPort";
+import { requireTrainingDayContentReadPort, type TrainingDayContentReadPort } from "./trainingDayContentReadPort";
+import type { CourseContentRevisionReadPort } from "./trainingContentRevision";
+/** SQL dependencies are supplied by the service owning the learner request.
+ * Neither public content nor committed revision snapshots contain user state. */
+export type TrainingContentReadPorts = {
+  contentRows: TrainingDayContentReadPort;
+  revisionRows: CourseContentRevisionReadPort;
+};
 import {
   courseContentSyncEnabled,
   getVerifiedCourseContentRevision,
 } from "./trainingContentRevision";
 import { observeCourseContentDbRead, recordCourseCacheEvent } from "./trainingContentMetrics";
 
-export async function loadTrainingDayContent(courseType: string, dayOnCourseId: string) {
+export async function loadTrainingDayContent(
+  courseType: string,
+  dayOnCourseId: string,
+  contentRows?: TrainingDayContentReadPort,
+) {
   const started = performance.now();
   try {
-    return await requireTrainingDayContentReadPort().readTrainingDayContent(courseType, dayOnCourseId);
+    return await (contentRows ?? requireTrainingDayContentReadPort()).readTrainingDayContent(courseType, dayOnCourseId);
   } catch (error) {
     recordCourseCacheEvent("dbError");
     throw error;
@@ -47,8 +58,17 @@ let observedRevision: string | null = null;
 let nextProbeId = 0;
 let latestAppliedProbeId = 0;
 
-function keyFor(courseType: string, dayOnCourseId: string): string {
-  return JSON.stringify([courseType, dayOnCourseId]);
+// Two Hono app instances must not accidentally reuse a cached projection
+// from another injected SQL adapter even when their course IDs/revisions match.
+const readerCacheIds = new WeakMap<TrainingDayContentReadPort, number>();
+let lastReaderCacheId = 0;
+function keyFor(courseType: string, dayOnCourseId: string, reader?: TrainingDayContentReadPort): string {
+  let readerId = 0;
+  if (reader) {
+    readerId = readerCacheIds.get(reader) ?? ++lastReaderCacheId;
+    readerCacheIds.set(reader, readerId);
+  }
+  return JSON.stringify([courseType, dayOnCourseId, readerId]);
 }
 
 function enabled(): boolean {
@@ -125,7 +145,9 @@ export function invalidateStepsContentCache(stepIds: readonly string[]): void {
 export async function getTrainingDayContent(
   courseType: string,
   dayOnCourseId: string,
+  contentPorts?: TrainingContentReadPorts,
 ): Promise<TrainingDayContent> {
+  const fetchContent = () => loadTrainingDayContent(courseType, dayOnCourseId, contentPorts?.contentRows);
   // Retain the existing rollout gate. Reader freshness now relies only on
   // PostgreSQL's transactionally maintained version, not on Redis reads.
   if (!enabled() || !courseContentSyncEnabled()) {
@@ -135,7 +157,7 @@ export async function getTrainingDayContent(
       observedRevision = null;
       wasEnabled = false;
     }
-    return loadTrainingDayContent(courseType, dayOnCourseId);
+    return fetchContent();
   }
   wasEnabled = true;
 
@@ -144,11 +166,13 @@ export async function getTrainingDayContent(
   // Version probes can resolve out of order: an older in-flight query must not
   // revert a revision newer requests already observed.
   const probeId = ++nextProbeId;
-  const revision = await getVerifiedCourseContentRevision();
+  const revision = contentPorts
+    ? await getVerifiedCourseContentRevision(contentPorts.revisionRows)
+    : await getVerifiedCourseContentRevision();
   if (probeId < latestAppliedProbeId) {
     if (revision === null || revision !== observedRevision) {
       recordCourseCacheEvent("bypassRevision");
-      return loadTrainingDayContent(courseType, dayOnCourseId);
+      return fetchContent();
     }
   } else {
     latestAppliedProbeId = probeId;
@@ -156,7 +180,7 @@ export async function getTrainingDayContent(
       recordCourseCacheEvent("bypassRevision");
       clearTrainingDayContentCache();
       observedRevision = null;
-      return loadTrainingDayContent(courseType, dayOnCourseId);
+      return fetchContent();
     }
     if (revision !== observedRevision) {
       if (observedRevision !== null) recordCourseCacheEvent("revisionFlush");
@@ -165,7 +189,7 @@ export async function getTrainingDayContent(
     }
   }
 
-  const key = keyFor(courseType, dayOnCourseId);
+  const key = keyFor(courseType, dayOnCourseId, contentPorts?.contentRows);
   try {
     const hit = contentCache.get(key);
     if (hit) {
@@ -185,19 +209,19 @@ export async function getTrainingDayContent(
       return pending;
     }
   } catch {
-    return loadTrainingDayContent(courseType, dayOnCourseId);
+    return fetchContent();
   }
 
   if (pendingLoads.size >= CONTENT_MAX_ENTRIES) {
     recordCourseCacheEvent("bypassOverflow");
     // Bound the number of unrelated concurrent cold misses as well.
-    return loadTrainingDayContent(courseType, dayOnCourseId);
+    return fetchContent();
   }
 
   recordCourseCacheEvent("miss");
   const generation = cacheGeneration;
   const task = Promise.resolve()
-    .then(() => loadTrainingDayContent(courseType, dayOnCourseId))
+    .then(fetchContent)
     .then((content) => {
       // Missing records and results from before an invalidation are never saved.
       if (content && enabled() && generation === cacheGeneration) {

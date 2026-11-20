@@ -62,6 +62,8 @@ export const updateStepAndDay: TrainingServiceApi["updateStepAndDay"] = (...args
   requireTrainingService().updateStepAndDay(...args);
 export const applyStepAndDayTx: TrainingServiceApi["applyStepAndDayTx"] = (...args) =>
   requireTrainingService().applyStepAndDayTx(...args);
+export const applyStepDayAndCourseTx: TrainingServiceApi["applyStepDayAndCourseTx"] = (...args) =>
+  requireTrainingService().applyStepDayAndCourseTx(...args);
 export const syncUserCourseStatusFromDays: TrainingServiceApi["syncUserCourseStatusFromDays"] = (...args) =>
   requireTrainingService().syncUserCourseStatusFromDays(...args);
 export const syncUserCourseStatusFromDaysTx: TrainingServiceApi["syncUserCourseStatusFromDaysTx"] = (...args) =>

@@ -60,13 +60,13 @@ test('Feed S3 cleanup and historical photo migrations never wake a Cloud video J
  const storage=read('packages/feed-storage/src/janitor.ts');
  assert(storage.includes("env.NODE_ENV!=='production'"));
  assert(storage.includes("bucket!=='gafus-feed-private'"));
- const jobs=read('packages/core/src/services/feed/jobs.ts');
+ const jobs=read('packages/feed-server/src/storageJobs.ts');
  assert(jobs.includes('workerType === "video" ? ["primary", "background"]'));
  assert(jobs.includes('workerType !== undefined || exactMedia'));
  const feedInternal=read('packages/feed-server/src/internal.ts');
  assert(feedInternal.includes('workerType: z.literal("video")'));
  assert(!feedInternal.includes('workerType: z.literal("video").optional()'));
- const maintain=read('packages/core/src/services/feed/maintenance.ts');
+ const maintain=read('packages/feed-server/src/maintenance.ts');
  assert(maintain.includes('retireLegacyPhotoJobs'));
  assert(maintain.includes('"publish_photo", "copy_album"'));
  assert(maintain.includes('errorCode: "PHOTO_JOB_RETIRED"'));
@@ -93,7 +93,7 @@ test('Photo entrypoints are always browser/device WebP + client confirmation',()
  assert(routes.includes('"client-reserve"'));
  assert(routes.includes('"client-complete"'));
  assert(!routes.includes('return gallery.confirmUpload(actorId'));
- const feed=read('packages/core/src/services/feed/service.ts');
+ const feed=read('packages/feed-server/src/postRows.ts');
  assert(feed.includes('async completeClientPhoto('));
  assert(feed.includes('async reserveClientRenditions('));
  assert(feed.includes('if (row.declaredMime !== "video/mp4")'));

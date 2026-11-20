@@ -25,11 +25,11 @@ test('reusable app-only release preserves provider configuration and activates V
  const gate=j.steps.find(x=>x.name==='Validate Beget-only production readiness before SSH');
  assert.equal(gate.if,'${{ !inputs.app_only }}');
  const ssh=j.steps.find(x=>x.uses==='appleboy/ssh-action@v1.0.3');
- const script=['DEPLOY_SCRIPT_1','DEPLOY_SCRIPT_2','DEPLOY_SCRIPT_3'].map(x=>ssh.env[x]).join('\n');
+ const script=['DEPLOY_SCRIPT_1','DEPLOY_SCRIPT_1B','DEPLOY_SCRIPT_2','DEPLOY_SCRIPT_3'].map(x=>ssh.env[x]).join('\n');
  assert.match(script,/APP_ONLY_EXISTING_BEGET_PRESERVED_V2_FLAGS_READY/);
  assert.match(script,/APP_ONLY_PREVIOUS_ENV/);
  assert.match(script,/'POSTGRES_PASSWORD', 'DATABASE_URL', 'REDIS_URL'/);
- assert.match(script,/'JWT_SECRET', 'JWT_REFRESH_SECRET', 'NEXTAUTH_SECRET'/);
+ assert.match(script,/'JWT_SECRET', 'JWT_REFRESH_SECRET'/);
  assert.match(script,/CLOUDRU_MEDIA_JOBS_ENABLED':'true'/);
  assert.match(script,/bash "\$CUTOVER_SCRIPT" prepare/);
  assert.match(script,/bash "\$CUTOVER_SCRIPT" migrate/);

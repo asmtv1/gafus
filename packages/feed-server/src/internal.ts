@@ -1,8 +1,9 @@
+import type { createFeedMaintenance } from "./maintenance.js";
 import { createFeedStorageFromEnv } from "@gafus/feed-storage";
 import { z } from "zod/v3";
 import { FEED_LIMITS } from "@gafus/types";
 import { createFeedRequestVerifier, type FeedNonceStore } from "@gafus/feed-cloud";
-import { FeedError, type createFeedStorageJobs, type createFeedMaintenance } from "@gafus/core/services/feed";
+import { FeedError, type FeedStorageJobOperations } from "@gafus/core/services/feed";
 import { createCurrentFeedInternalRuntime } from "./runtimeServices.js";
 import { connection as redis } from "@gafus/queues";
 
@@ -39,7 +40,7 @@ const nonces: FeedNonceStore = {
 interface InternalDependencies {
   key: Uint8Array;
   nonces: FeedNonceStore;
-  jobs: Pick<ReturnType<typeof createFeedStorageJobs>, "claim" | "complete" | "fail" | "renew">;
+  jobs: Pick<FeedStorageJobOperations, "claim" | "complete" | "fail" | "renew">;
   maintenance: Pick<ReturnType<typeof createFeedMaintenance>, "run">;
   recovery?: { run(batchSize: number): Promise<{ recovered: number }> };
   now?: () => number;

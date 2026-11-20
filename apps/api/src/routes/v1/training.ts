@@ -13,7 +13,6 @@ import { zValidator } from "@hono/zod-validator";
 
 import {
   requireCourseStepOperationAccess,
-  syncUserCourseStatusFromDays,
   validateTheoryStepForCompletion,
 } from "@gafus/core/services/training";
 import { withOnlineStepBinding } from "@gafus/course-server/online-step-binding";
@@ -208,7 +207,23 @@ if (process.env.NODE_ENV === "production" && !process.env.VIDEO_ACCESS_SECRET) {
   logger.warn("[training/video/url] Это приведет к ошибке при попытке создать VideoAccessService");
 }
 
-export const trainingRoutes = new Hono();
+/** Route-owned dependencies. Unlike the legacy global Core registrar, each
+ * Hono instance receives its own concrete training service and applications. */
+export type TrainingRoutesPorts = {
+  requireCourseStepOperationAccess: typeof requireCourseStepOperationAccess;
+  validateTheoryStepForCompletion: typeof validateTheoryStepForCompletion;
+  readTrainingDayApplication: typeof readTrainingDayApplication;
+  readTrainingDaysApplication: typeof readTrainingDaysApplication;
+  writeStepProgressApplication: typeof writeStepProgressApplication;
+};
+export function createTrainingRoutes({
+  requireCourseStepOperationAccess,
+  validateTheoryStepForCompletion,
+  readTrainingDayApplication,
+  readTrainingDaysApplication,
+  writeStepProgressApplication,
+}: TrainingRoutesPorts) {
+  const trainingRoutes = new Hono();
 
 const rewardedPlatformSchema = z.enum(["ANDROID", "IOS"]);
 
@@ -464,14 +479,6 @@ trainingRoutes.post("/step/start", zValidator("json", startStepBodySchema), asyn
       },
       binding ? { ...binding, expectedCourseId: courseId } : undefined,
     );
-    try {
-      await syncUserCourseStatusFromDays(user.id, result.courseId);
-    } catch {
-      logger.error(
-        "Error syncing course status after step/start",
-        new Error("TRAINING_STEP_START_SYNC_FAILED"),
-      );
-    }
 
     // Strict isolated WORK fault injection: the REAL Core progress and durable
     // StepNotification SQL intent have committed, but no Redis add was made.
@@ -557,14 +564,6 @@ trainingRoutes.post("/step/pause", zValidator("json", pauseStepBodySchema), asyn
       },
       binding ? { ...binding, expectedCourseId: courseId } : undefined,
     );
-    try {
-      await syncUserCourseStatusFromDays(user.id, result.courseId);
-    } catch {
-      logger.error(
-        "Error syncing course status after step/pause",
-        new Error("TRAINING_STEP_PAUSE_SYNC_FAILED"),
-      );
-    }
 
     // Очищаем job из push-очереди при постановке таймера на паузу
     try {
@@ -634,14 +633,6 @@ trainingRoutes.post("/step/resume", zValidator("json", resumeStepBodySchema), as
       },
       binding ? { ...binding, expectedCourseId: courseId } : undefined,
     );
-    try {
-      await syncUserCourseStatusFromDays(user.id, result.courseId);
-    } catch {
-      logger.error(
-        "Error syncing course status after step/resume",
-        new Error("TRAINING_STEP_RESUME_SYNC_FAILED"),
-      );
-    }
 
     // Возвращаем отложенный push-job в очередь при возобновлении
     try {
@@ -711,14 +702,6 @@ trainingRoutes.post("/step/reset", zValidator("json", resetStepBodySchema), asyn
       },
       binding ? { ...binding, expectedCourseId: courseId } : undefined,
     );
-    try {
-      await syncUserCourseStatusFromDays(user.id, result.courseId);
-    } catch {
-      logger.error(
-        "Error syncing course status after step/reset",
-        new Error("TRAINING_STEP_RESET_SYNC_FAILED"),
-      );
-    }
 
     // Полностью удаляем уведомление и job при рестарте шага
     try {
@@ -804,14 +787,6 @@ trainingRoutes.post(
         },
         binding ? { ...binding, expectedCourseId: courseId } : undefined,
       );
-      try {
-        await syncUserCourseStatusFromDays(user.id, result.courseId);
-      } catch {
-        logger.error(
-          "Error syncing course status after step/complete/practice",
-          new Error("TRAINING_STEP_PRACTICE_SYNC_FAILED"),
-        );
-      }
       if (binding) {
         await resetBoundStepNotification(
           user.id,
@@ -891,7 +866,6 @@ trainingRoutes.post(
         },
         binding ? { ...binding, expectedCourseId: courseId } : undefined,
       );
-      await syncUserCourseStatusFromDays(user.id, result.courseId);
       if (binding) {
         await resetBoundStepNotification(
           user.id,
@@ -1585,4 +1559,17 @@ trainingRoutes.get("/video/:videoId/segment", async (c) => {
       500,
     );
   }
+});
+
+  return trainingRoutes;
+}
+
+// Compatibility export for existing isolated Hono/unit tests. Production
+// app.ts invokes createTrainingRoutes with its own explicit dependencies.
+export const trainingRoutes = createTrainingRoutes({
+  requireCourseStepOperationAccess,
+  validateTheoryStepForCompletion,
+  readTrainingDayApplication,
+  readTrainingDaysApplication,
+  writeStepProgressApplication,
 });

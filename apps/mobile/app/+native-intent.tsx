@@ -1,9 +1,4 @@
-/**
- * Перехват native intents/deep links.
- * VK OAuth возвращает vk{clientId}://vk.ru/... — expo-router пытается навигировать по этому URL
- * и показывает 404. Возвращаем /(auth)/welcome чтобы остаться на auth экране;
- * useVkLogin обрабатывает redirect через Linking.
- */
+/** Verify GAFUS app links; unknown native intents are left to the router. */
 import { reportClientError } from "@/shared/lib/error-reporting";
 import { nativePathForVerifiedGafusUrl } from "@/shared/lib/links/verifiedAppLinks";
 
@@ -12,11 +7,6 @@ export function redirectSystemPath({ path }: { path: string; initial: boolean })
     if (!path || typeof path !== "string") return path;
     const verified = nativePathForVerifiedGafusUrl(path);
     if (verified) return verified;
-    // Intercept only the native VK OAuth callback, never ordinary app URLs
-    // whose path or query happens to mention vk.ru.
-    if (/^vk[0-9]+:\/\/vk\.ru(?:\/blank\.html)?(?:[?#][^\r\n]*)?$/i.test(path)) {
-      return "/(auth)/welcome";
-    }
     return path;
   } catch (error) {
     reportClientError(error instanceof Error ? error : new Error(String(error)), {

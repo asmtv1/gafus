@@ -2,6 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { subscriptionAccessPort } from "../../modules/app-subscription/composition/subscription-access-instance.js";
 const m=vi.hoisted(()=>({flag:vi.fn(),access:vi.fn(),stats:vi.fn(),dates:vi.fn()}));
 vi.mock("@gafus/prisma",()=>({prisma:{user:{findUnique:async()=>({sessionsRevokedAt:null,registrationPending:false, role: "USER",})}}}));
 vi.mock("@gafus/core/services/auth",()=>({isRegistrationCompleted:async()=>true}));
@@ -44,7 +45,7 @@ describe("AG1 Achievements Hono JWT/Next subscription snapshot parity",()=>{
     expect(await res.json()).toMatchObject({success:false,code:"SUBSCRIPTION_REQUIRED"});
     expect(res.headers.get("cache-control")).toContain("no-store");
     expect(m.stats).not.toHaveBeenCalled();expect(m.dates).not.toHaveBeenCalled();
-    expect(m.access).toHaveBeenCalledWith("actor-A");
+    expect(m.access).toHaveBeenCalledWith("actor-A", undefined, subscriptionAccessPort);
   });
   it.each(["PENDING","PAST_DUE","EXPIRED"])("AC02 %s denies",async status=>{
     m.access.mockResolvedValueOnce({hasActiveSubscription:false,status});
@@ -73,7 +74,7 @@ describe("AG1 Achievements Hono JWT/Next subscription snapshot parity",()=>{
   it("AC04 actor B cannot borrow A subscription",async()=>{
     m.access.mockImplementation(async(id:string)=>({hasActiveSubscription:id==="actor-A"}));
     expect((await get("/",jwtB)).status).toBe(403);
-    expect(m.stats).not.toHaveBeenCalled();expect(m.access).toHaveBeenCalledWith("actor-B");
+    expect(m.stats).not.toHaveBeenCalled();expect(m.access).toHaveBeenCalledWith("actor-B", undefined, subscriptionAccessPort);
   });
   it("AC05 absent/invalid JWT stops before snapshot",async()=>{
     expect((await app.request(origin+"/api/v1/achievements")).status).toBe(401);
@@ -83,7 +84,7 @@ describe("AG1 Achievements Hono JWT/Next subscription snapshot parity",()=>{
   it("AC06 cookie GET owner only from token not forged query",async()=>{
     const res=await get("/training-dates?userId=actor-B",jwtA,true);
     expect(res.status).toBe(200);
-    expect(m.access).toHaveBeenCalledWith("actor-A");
+    expect(m.access).toHaveBeenCalledWith("actor-A", undefined, subscriptionAccessPort);
     expect(m.dates).toHaveBeenCalledWith("actor-A");
   });
   it("AC07 flag disabled => skip access like Next",async()=>{

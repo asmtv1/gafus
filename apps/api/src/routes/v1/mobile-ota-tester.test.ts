@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { verifyOtaTesterGrant } from '@gafus/mobile-ota-server/tester-access';
+vi.mock('@gafus/mobile-ota-server/version-selection',()=>({selectVersionUpdate:vi.fn().mockResolvedValue(undefined)}));
 const mocked=vi.hoisted(()=>({user:vi.fn(),selected:vi.fn(),control:vi.fn(),nativeKeyId:vi.fn()}));
 vi.mock('@gafus/prisma',()=>({prisma:{user:{findUnique:mocked.user}}}));
 vi.mock('@gafus/mobile-ota-server/repository',()=>({

@@ -36,6 +36,8 @@ export const verifyNativeInput = z.object({
   reason: z.string().trim().min(16).max(512),
   evidence: z.object({
     nativeArtifactSha256: SHA256,
+    nativeReleaseId: UUID.optional(),
+    embeddedUpdateId: UUID.optional(),
     physicalDeviceVerified: z.boolean(),
     distributionVerified: z.boolean(),
     reference: z.string().min(4).max(256),
@@ -118,22 +120,26 @@ export async function registerNativeCandidate(input: NativeReleaseInput, actorId
 export async function verifyNativeCandidate(id: string, input: VerifyNativeInput, actorId: string) {
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<{
-      id:string;verified:boolean;attestation:{nativeArtifactSha256:string};
+      id:string;verified:boolean;embeddedUpdateId:string|null;attestation:{nativeArtifactSha256:string};
     }[]>`
-      SELECT id,verified,attestation FROM "MobileNativeRelease" WHERE id=${id}::uuid FOR UPDATE
+      SELECT id,verified,"embeddedUpdateId",attestation FROM "MobileNativeRelease" WHERE id=${id}::uuid FOR UPDATE
     `;
     if (!rows[0]) throw new MobileOtaNativeError("NATIVE_RELEASE_NOT_FOUND");
     const previous = await tx.$queryRaw<{id:string;action:string;evidence:{inputSha256:string}}[]>`
       SELECT id,action,evidence FROM "MobileNativeReleaseAuditEvent"
       WHERE "operationId"=${input.operationId} AND "nativeReleaseId"=${id}::uuid
     `;
+    if(input.evidence.nativeReleaseId && input.evidence.nativeReleaseId!==id) throw new MobileOtaNativeError("NATIVE_ARTIFACT_PROOF_MISMATCH");
     const proofSha = sha256(JSON.stringify(input));
     if (previous[0]) {
       if (previous[0].evidence.inputSha256 !== proofSha || previous[0].action !== input.action)
         throw new MobileOtaNativeError("NATIVE_OPERATION_CONFLICT");
       return {nativeReleaseId:id,verified:input.action === "VERIFY",replayed:true};
     }
-    if ((input.action === "VERIFY") === rows[0].verified)
+    const backfill=input.action==="VERIFY" && !rows[0].embeddedUpdateId && !!input.evidence.embeddedUpdateId;
+    if (rows[0].embeddedUpdateId && input.evidence.embeddedUpdateId && rows[0].embeddedUpdateId!==input.evidence.embeddedUpdateId)
+      throw new MobileOtaNativeError("NATIVE_ARTIFACT_PROOF_MISMATCH");
+    if ((input.action === "VERIFY") === rows[0].verified && !backfill)
       throw new MobileOtaNativeError("NATIVE_VERIFICATION_STATE_CONFLICT");
     const registeredHash=rows[0].attestation.nativeArtifactSha256;
     if (registeredHash && registeredHash !== input.evidence.nativeArtifactSha256)
@@ -145,6 +151,7 @@ export async function verifyNativeCandidate(id: string, input: VerifyNativeInput
     // and distribution evidence. A pending candidate is never deliverable.
     await tx.$executeRaw`
       UPDATE "MobileNativeRelease" SET verified=${input.action === "VERIFY"},
+        "embeddedUpdateId"=COALESCE("embeddedUpdateId",${input.action==="VERIFY" ? input.evidence.embeddedUpdateId??null : null}::uuid),
         "verifiedAt"=${input.action === "VERIFY" ? new Date() : null},
         attestation=CASE
           WHEN ${input.action === "VERIFY"} AND NOT (attestation ? 'nativeArtifactSha256')

@@ -3,7 +3,8 @@ import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purg
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {afterAll,afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
-import {createFeedMaintenance,createFeedStorageJobs} from '@gafus/core/services/feed';
+import {createFeedStorageJobs} from '@gafus/feed-server/storage-jobs';
+import {createFeedMaintenance} from '@gafus/feed-server/runtime-services';
 import type {PrismaClient} from '@gafus/prisma';
 import {createFeedLocalMaintenanceTick} from './feed-local-maintenance';
 const uri=process.env.FEED_JANITOR_TEST_DATABASE_URL;

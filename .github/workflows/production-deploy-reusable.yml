@@ -61,7 +61,6 @@ jobs:
         env:
           GAFUS_RELEASE_SHA: ${{ inputs.release_sha }}
           GAFUS_OWNER_RELEASE_APPROVED_SHA: ${{ vars.GAFUS_OWNER_RELEASE_APPROVED_SHA }}
-          CHAT2_LEGACY_RETIRE_ENABLED: ${{ vars.CHAT2_LEGACY_RETIRE_ENABLED }}
           CHAT2_API_ENABLED: ${{ vars.CHAT2_API_ENABLED }}
           CHAT2_WORKER_ENABLED: ${{ vars.CHAT2_WORKER_ENABLED }}
           CHAT2_PRIVATE_MEDIA_ENABLED: ${{ vars.CHAT2_PRIVATE_MEDIA_ENABLED }}
@@ -563,14 +562,12 @@ jobs:
               echo "REDIS_URL=redis://redis:6379"
               echo ""
               echo "# NextAuth секреты"
-              echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}"
               echo ""
               echo "# JWT секреты для API"
               echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
               echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}"
               echo ""
               echo "# URLs приложений"
-              echo "NEXTAUTH_URL=https://gafus.ru"
               echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"
               echo "NEXT_PUBLIC_APP_VERSION=1.7.3"
               echo "WEB_APP_URL=${{ vars.WEB_APP_URL || 'https://gafus.ru' }}"
@@ -780,13 +777,6 @@ jobs:
               echo "NEXT_PUBLIC_CONTACT_FIO=${{ secrets.NEXT_PUBLIC_CONTACT_FIO }}"
               echo "NEXT_PUBLIC_CONTACT_INN=${{ secrets.NEXT_PUBLIC_CONTACT_INN }}"
               echo ""
-              echo "# VK ID авторизация"
-              echo "VK_CLIENT_ID=${{ secrets.VK_CLIENT_ID }}"
-              echo "VK_CLIENT_ID_IOS=${{ secrets.VK_CLIENT_ID_IOS }}"
-              echo "VK_CLIENT_ID_ANDROID=${{ secrets.VK_CLIENT_ID_ANDROID }}"
-              echo "VK_WEB_REDIRECT_URI=${{ vars.VK_WEB_REDIRECT_URI || 'https://gafus.ru/api/auth/callback/vk-id' }}"
-              echo "VK_MOBILE_REDIRECT_URI=${{ vars.VK_MOBILE_REDIRECT_URI || 'gafus://auth/vk' }}"
-              echo ""
               echo "# Transactional email"
               echo "MAIL_PROVIDER=${{ vars.MAIL_PROVIDER || 'resend' }}"
               echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}"
@@ -809,11 +799,8 @@ jobs:
               echo "MAIL_FROM_NAME=${{ vars.MAIL_FROM_NAME || 'Гафус' }}"
               echo "STREAM_API_KEY=${{ secrets.STREAM_API_KEY }}"
               echo "STREAM_API_SECRET=${{ secrets.STREAM_API_SECRET }}"
-              echo "CYNOLOGIST_CHAT_ENABLED=${{ vars.CYNOLOGIST_CHAT_ENABLED || 'false' }}"
-              echo "COMMUNITY_CHAT_ENABLED=${{ vars.COMMUNITY_CHAT_ENABLED || 'false' }}"
               # Intended Chat2 destination values; never inherit a disabled default.
               echo "COMPOSE_PROFILES=chat2"
-              echo "CHAT2_LEGACY_RETIRE_ENABLED=${{ vars.CHAT2_LEGACY_RETIRE_ENABLED }}"
               echo "CHAT2_API_ENABLED=${{ vars.CHAT2_API_ENABLED }}"
               echo "CHAT2_WORKER_ENABLED=${{ vars.CHAT2_WORKER_ENABLED }}"
               echo "CHAT2_PRIVATE_MEDIA_ENABLED=${{ vars.CHAT2_PRIVATE_MEDIA_ENABLED }}"
@@ -862,7 +849,7 @@ jobs:
                 # Existing DB credentials and session-signing keys must match
                 # the running database and cookies; never rotate on cutover.
                 'POSTGRES_PASSWORD', 'DATABASE_URL', 'REDIS_URL',
-                'JWT_SECRET', 'JWT_REFRESH_SECRET', 'NEXTAUTH_SECRET',
+                'JWT_SECRET', 'JWT_REFRESH_SECRET',
             )
             gallery_release_approved = '${{ vars.GALLERY_CDN_REDIRECT_RELEASE_APPROVED }}' == 'true'
             gallery_migration_keys = {
@@ -891,7 +878,6 @@ jobs:
                 'CHAT2_PRIVATE_MEDIA_ENABLED':'enabled',
                 'CHAT2_API_ENABLED':'enabled',
                 'CHAT2_WORKER_ENABLED':'enabled',
-                'CHAT2_LEGACY_RETIRE_ENABLED':'enabled',
             }
             new.update(activated)
             # Do not remove non-secret config present only on the existing

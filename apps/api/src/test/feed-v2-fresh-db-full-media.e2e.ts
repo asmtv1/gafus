@@ -14,9 +14,9 @@ import { createRequire } from "node:module";
 import { S3Client, HeadBucketCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { createFeedStorage } from "@gafus/feed-storage";
 import { isolatedNonprodS3Config } from "@gafus/cdn-upload/isolated-nonprod-s3";
-import { createFeedService } from "../../../../packages/core/src/services/feed/service";
-import { createFeedStorageJobs } from "../../../../packages/core/src/services/feed/jobs";
-import type { FeedDb } from "../../../../packages/core/src/services/feed/ports";
+import { createFeedService } from "../../../../packages/feed-server/src/postRows";
+import { createFeedStorageJobs } from "../../../../packages/feed-server/src/storageJobs";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
 
 const ROOT = "/Users/asmtv1/Desktop/gafus-refactor";
 const SCRATCH = ROOT + "/.local-pg-scratch";

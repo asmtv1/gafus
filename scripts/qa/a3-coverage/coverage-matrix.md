@@ -1,15 +1,15 @@
-# Независимая матрица пост-интеграционной проверки 69 workspace-пакетов
+# Независимая матрица пост-интеграционной проверки 67 workspace-пакетов
 
-Сформировано: 2026-11-12T10:07:00.933Z. Источник: read-only инспекция /Users/asmtv1/Desktop/gafus-refactor. Этот снимок фиксирует **план**, не выполненные тесты. Сборка/тесты в ходе создания матрицы **не запускались**.
+Сформировано: 2026-11-20T11:16:42.428Z. Источник: read-only инспекция /Users/asmtv1/Desktop/gafus-refactor. Этот снимок фиксирует **план**, не выполненные тесты. Сборка/тесты в ходе создания матрицы **не запускались**.
 
 ## Покрытие
 
-- 69 workspace: **57** с тестовым скриптом (26 в основном регрессионном runner, **31** в отдельной обязательной серии); **12** без test-скрипта.
-- Среди 12 пакетов без test-скрипта **5 содержат 29 тестовых файлов**. Они не исключаются: для них требуется адресный direct Vitest запуск. **7** не содержат обнаруженных тестовых файлов; build и typecheck/contract-consumer не равнозначны собственным unit тестам.
+- 67 workspace: **55** с тестовым скриптом (26 в основном регрессионном runner, **29** в отдельной обязательной серии); **12** без test-скрипта.
+- Среди 12 пакетов без test-скрипта **11 содержат 38 тестовых файлов**. Они не исключаются: для них требуется адресный direct Vitest запуск. **1** не содержит обнаруженных тестовых файлов; build и typecheck/contract-consumer не равнозначны собственным unit тестам.
 - Матрица считается корректной только при точном соответствии текущим package.json, текущему architecture runner и списку тестовых файлов. Изменения пакетов после объединения => обновить и проверить матрицу, а не засчитывать старый список.
 - Статус теста **не** определяется историческими квитанциями: для будущей приёмки обязательна новая уникальная сессия, запуск стадий через локальный recorder и verification с frozen source state.
 
-## Все 57 пакетов с `test`
+## Все 55 пакетов с `test`
 
 | Пакет | Этап / gate | Команда | Квитанция |
 |---|---|---|---|
@@ -20,7 +20,6 @@
 | `@gafus/api` | `architecture:test-api` | `pnpm --filter @gafus/api test` | `<RUN_ID>/results.tsv:test-api, test-api.log` |
 | `@gafus/article-server` | `extras:extra-article-server` | `pnpm --filter @gafus/article-server test` | `<RUN_ID>/extras/results.json:@gafus/article-server, extras/article-server-test.log` |
 | `@gafus/auth` | `extras:extra-auth` | `pnpm --filter @gafus/auth test` | `<RUN_ID>/extras/results.json:@gafus/auth, extras/auth-test.log` |
-| `@gafus/chat-server` | `extras:extra-chat-server` | `pnpm --filter @gafus/chat-server test` | `<RUN_ID>/extras/results.json:@gafus/chat-server, extras/chat-server-test.log` |
 | `@gafus/consent-server` | `extras:extra-consent-server` | `pnpm --filter @gafus/consent-server test` | `<RUN_ID>/extras/results.json:@gafus/consent-server, extras/consent-server-test.log` |
 | `@gafus/consultation-query-server` | `architecture:test-consultation-query-server` | `pnpm --filter @gafus/consultation-query-server test` | `<RUN_ID>/results.tsv:test-consultation-query-server, test-consultation-query-server.log` |
 | `@gafus/consultation-server` | `architecture:test-consultation-server` | `pnpm --filter @gafus/consultation-server test` | `<RUN_ID>/results.tsv:test-consultation-server, test-consultation-server.log` |
@@ -31,7 +30,6 @@
 | `@gafus/course-progress-server` | `architecture:test-course-progress-server` | `pnpm --filter @gafus/course-progress-server test` | `<RUN_ID>/results.tsv:test-course-progress-server, test-course-progress-server.log` |
 | `@gafus/course-read-server` | `extras:extra-course-read-server` | `pnpm --filter @gafus/course-read-server test` | `<RUN_ID>/extras/results.json:@gafus/course-read-server, extras/course-read-server-test.log` |
 | `@gafus/course-server` | `extras:extra-course-server` | `pnpm --filter @gafus/course-server test` | `<RUN_ID>/extras/results.json:@gafus/course-server, extras/course-server-test.log` |
-| `@gafus/csrf` | `extras:extra-csrf` | `pnpm --filter @gafus/csrf test` | `<RUN_ID>/extras/results.json:@gafus/csrf, extras/csrf-test.log` |
 | `@gafus/entitlements-server` | `extras:extra-entitlements-server` | `pnpm --filter @gafus/entitlements-server test` | `<RUN_ID>/extras/results.json:@gafus/entitlements-server, extras/entitlements-server-test.log` |
 | `@gafus/exam-server` | `extras:extra-exam-server` | `pnpm --filter @gafus/exam-server test` | `<RUN_ID>/extras/results.json:@gafus/exam-server, extras/exam-server-test.log` |
 | `@gafus/feed-cloud-runtime` | `extras:extra-feed-cloud-runtime` | `pnpm --filter @gafus/feed-cloud-runtime test` | `<RUN_ID>/extras/results.json:@gafus/feed-cloud-runtime, extras/feed-cloud-runtime-test.log` |
@@ -73,24 +71,32 @@
 
 ## 12 пакетов без `test` — не исключать из итогового контроля
 
-| Пакет | Обнаружено тестовых файлов | Причина неучастия в 57 | Обязательная альтернатива | Контракты потребителей |
+| Пакет | Обнаружено тестовых файлов | Причина неучастия в 55 | Обязательная альтернатива | Контракты потребителей |
 |---|---:|---|---|---|
-| `@gafus/admin-rewarded-ads-server` | 0 | Нет `scripts.test` и исходных test/spec файлов; самостоятельное unit-покрытие отсутствует | build, typecheck | Legacy admin rewarded-ads and API contracts; no own tests |
-| `@gafus/bull-board` | 0 | Нет `scripts.test` и исходных test/spec файлов; самостоятельное unit-покрытие отсутствует | build, typecheck | Worker/Bull Board runtime and API health; no own unit test; release build/typecheck gate |
+| `@gafus/admin-rewarded-ads-server` | 1 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 1 файлов | Legacy admin rewarded-ads and API contracts; no own tests |
+| `@gafus/bull-board` | 1 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 1 файлов | Worker/Bull Board runtime and API health; no own unit test; release build/typecheck gate |
 | `@gafus/cdn-upload` | 11 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, lint, direct Vitest 11 файлов | CDN/MinIO/media isolated QA; direct Vitest sources exist but package test script is absent |
 | `@gafus/chat-media-quality` | 2 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 2 файлов | Chat2 and Mobile media player QA; direct Vitest sources exist but no package test script |
-| `@gafus/error-handling` | 0 | Нет `scripts.test` и исходных test/spec файлов; самостоятельное unit-покрытие отсутствует | build, typecheck | Core/HTTP error contracts and boundary suite; no own tests |
-| `@gafus/feature-flags-server` | 0 | Нет `scripts.test` и исходных test/spec файлов; самостоятельное unit-покрытие отсутствует | build, typecheck | Core appFeatureFlagsService.test.ts, API admin-feature-flags/public-mobile; no own tests |
+| `@gafus/error-handling` | 1 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 1 файлов | Core/HTTP error contracts and boundary suite; no own tests |
+| `@gafus/feature-flags-server` | 1 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 1 файлов | Core appFeatureFlagsService.test.ts, API admin-feature-flags/public-mobile; no own tests |
 | `@gafus/feed-cloud` | 8 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 8 файлов | Cloud.ru/media offline suite and Worker; direct Vitest sources exist but no package test script |
 | `@gafus/feed-storage` | 6 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 6 файлов | CDN/MinIO media acceptance; one opt-in functional MinIO suite; no package test script |
 | `@gafus/logger` | 0 | Нет `scripts.test` и исходных test/spec файлов; самостоятельное unit-покрытие отсутствует | build | A2 OTLP/local telemetry contract and API/Worker trace; no own test script or own tests |
+| `@gafus/mobile-ota-server` | 4 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 4 файлов | null |
 | `@gafus/queues` | 2 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 2 файлов | Worker/BullMQ tests; direct Vitest queue suites exist but no package test script |
-| `@gafus/react-query` | 0 | Нет `scripts.test` и исходных test/spec файлов; самостоятельное unit-покрытие отсутствует | build, typecheck | Web/Mobile/Trainer/Admin React tests; no own tests |
-| `@gafus/ui-components` | 0 | Нет `scripts.test` и исходных test/spec файлов; самостоятельное unit-покрытие отсутствует | build, typecheck | Web/Mobile/Trainer/Admin mounted UI suites; no own tests |
+| `@gafus/ui-components` | 1 | Нет `scripts.test`, хотя исходные тесты существуют; это пробел скриптов, не отсутствие тестов | build, typecheck, direct Vitest 1 файлов | Web/Mobile/Trainer/Admin mounted UI suites; no own tests |
 
-## Точные 29 найденных файлов без package test-скрипта
+## Точные 38 найденных файлов без package test-скрипта
 
 Все перечисленные файлы должны учитываться адресным запуском, а не выпадать из матрицы.
+
+**@gafus/admin-rewarded-ads-server (1)**
+
+- `packages/admin-rewarded-ads-server/src/adminRewardedAdsService.test.ts`
+
+**@gafus/bull-board (1)**
+
+- `apps/bull-board/src/telemetry-page.test.ts`
 
 **@gafus/cdn-upload (11)**
 
@@ -110,6 +116,14 @@
 
 - `packages/chat-media-quality/src/index.test.ts`
 - `packages/chat-media-quality/src/video-playback-quality.test.ts`
+
+**@gafus/error-handling (1)**
+
+- `packages/error-handling/src/lib/reportClientError.test.ts`
+
+**@gafus/feature-flags-server (1)**
+
+- `packages/feature-flags-server/src/appFeatureFlagsService.test.ts`
 
 **@gafus/feed-cloud (8)**
 
@@ -131,10 +145,21 @@
 - `packages/feed-storage/src/v2-keys.test.ts`
 - `packages/feed-storage/src/web4-functional-minio.acceptance.test.ts`
 
+**@gafus/mobile-ota-server (4)**
+
+- `packages/mobile-ota-server/src/mandatory-control.test.ts`
+- `packages/mobile-ota-server/src/mandatory-policy.test.ts`
+- `packages/mobile-ota-server/src/repository.selection.test.ts`
+- `packages/mobile-ota-server/src/tester-access.test.ts`
+
 **@gafus/queues (2)**
 
 - `packages/queues/src/chat2-media-processing-queue.test.ts`
 - `packages/queues/src/feed-processing-queue.test.ts`
+
+**@gafus/ui-components (1)**
+
+- `packages/ui-components/src/cookieConsentUtils.test.ts`
 
 ## Воспроизводимая последовательность для одного агента
 
@@ -157,19 +182,19 @@ python3 "$CATALOG/coverage-gate.py" verify --id="$RUN_ID"
 
 - Согласованный и замороженный исходный checkout, pnpm 10.12.4, Node, зависимости установлены. Потребуются PostgreSQL/Redis/MinIO только на отдельных A3/chaos/real-PG этапах, не в package-only проверке.
 - `architecture` включает **принудительную сборку**, 33 gate, Web chunked, Mobile/Admin/Trainer, полный typecheck. **Не запускать параллельно** с `pnpm install`, Prisma generate, любыми Vitest/TypeScript/build и правками исходников.
-- `extras` — ровно 31 прямой `pnpm --filter <pkg> test` последовательно; каждая квитанция содержит package, exit code, время и ссылку на лог.
-- `no-test` — для всех 12 compile/build/typecheck, для 5 пакетов с тестовыми файлами — запуск **всех** файлов непосредственно через root Vitest config. Результат со skipped обязательно фиксируется; opt-in MinIO и ffmpeg могут ограничивать доказательство.
+- `extras` — ровно 29 прямых `pnpm --filter <pkg> test` последовательно; каждая квитанция содержит package, exit code, время и ссылку на лог.
+- `no-test` — для всех 12 compile/build/typecheck, для 11 пакетов с тестовыми файлами — запуск **всех** файлов непосредственно через root Vitest config. Результат со skipped обязательно фиксируется; opt-in MinIO и ffmpeg могут ограничивать доказательство.
 - Для `@gafus/feed-storage` `web4-functional-minio.acceptance.test.ts` без `WEB4_OWN_FUNCTIONAL_S3_TEST=1` штатно пропускается. Для `@gafus/cdn-upload` `clientVideoMp4.test.ts` пропускается без `ffmpeg`. Такие пропуски **не** закрывают соответствующий внешний/реальный сценарий.
-- `verify` проверяет наличие исходной сессии, уникальный run ID, timestamp, 33 главных gate, по одной квитанции на каждый из 31 extras и всех 12 no-test, полный Web `completion.json`, совпадение snapshot и отсутствие пропусков без явного аудита.
+- `verify` проверяет наличие исходной сессии, уникальный run ID, timestamp, 33 главных gate, по одной квитанции на каждый из 29 extras и всех 12 no-test, полный Web `completion.json`, совпадение snapshot и отсутствие пропусков без явного аудита.
 - Gate из `a3-jobs-media-isolated-acceptance.sh`, `a3-merged-worker-dlq-acceptance.sh`, `architecture-chaos-local.sh`, A2 Observability и все 66 isolated-PG сценарии остаются **отдельными** обязательными разделами полной пост-интеграционной приёмки. Эта матрица не заменяет их и не утверждает внешний Cloud.ru/Beget PASS.
 
 ## Инварианты / защита от ложного PASS
 
-1. **57/57** тестируемых пакетов приписаны ровно одному конкретному gate; главный архитектурный runner должен иметь 26 пакетов, остальные 31 только extras.
-2. **12/12** пакетов без test-скрипта должны иметь собственные build/typecheck-квитанции, 5 из них дополнительно покрывают 29 исходных тестов.
+1. **55/55** тестируемых пакетов приписаны ровно одному конкретному gate; главный архитектурный runner должен иметь 26 пакетов, остальные 29 только extras.
+2. **12/12** пакетов без test-скрипта должны иметь собственные build/typecheck-квитанции, 11 из них дополнительно покрывают 38 исходных тестов.
 3. Не принимать package-level `test PASS`, если запуск был не подтверждён в **текущей новой сессии** по неизменному snapshot.
 4. Не принимать всего 33 архитектурных gate без driver exit-code и полного `results.tsv`; Web требует отдельный `completion.json` с учётом каждого найденного файла.
-5. Тестовые пропуски — `SKIP_REVIEW_REQUIRED` до обоснованного решения; они не замещают недостающие unit-тесты у семи пакетов.
+5. Тестовые пропуски — `SKIP_REVIEW_REQUIRED` до обоснованного решения; они не замещают недостающие unit-тесты у одного пакета.
 6. Никаких общего дерева, merge, push, production, внешних сервисов или исторических квитанций при создании этого документа.
 
 
@@ -190,4 +215,4 @@ python3 "$CATALOG/coverage-gate.py" verify --id="$RUN_ID"
 }
 ```
 Количество и имена в `accepted` должны **в точности** совпасть с обнаруженными пропусками: образец 0/0 выше не является одобрением. Команда: `python3 "$CATALOG/coverage-gate.py" verify --id="$RUN_ID" --review-skips=<ПУТЬ_К_НОВОМУ_APPROVAL.json>`.
-Даже после approval итог ограничен формулировкой `PACKAGE_COVERAGE_PASS_WITH_KNOWN_7_NO_UNIT_TEST_GAPS`, а не «полная регрессия проекта».
+Даже после approval итог ограничен формулировкой `PACKAGE_COVERAGE_PASS_WITH_KNOWN_1_NO_UNIT_TEST_GAP`, а не «полная регрессия проекта».

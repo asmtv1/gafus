@@ -1,3 +1,4 @@
+import type { TrainerStepRowsPort } from "@gafus/core/services/trainerStep";
 /**
  * AG4 TR013 frozen CURRENT trainer visible-steps read contract.
  * JWT and limiter run in app.ts before this route; the Core query owns its
@@ -9,9 +10,11 @@
 import { Hono } from "hono";
 import type { TrainerVisibleStepsRead } from
   "../../../../../packages/types/src/data/trainer-read-contracts";
-import { readVisibleStepsApplication } from "../../modules/trainer-steps/composition/read-visible-steps.js";
+import { readVisibleStepsApplication as legacyReadVisibleStepsApplication, createVisibleStepsApplicationForRows } from "../../modules/trainer-steps/composition/read-visible-steps.js";
 
-export const trainerStepsRoutes = new Hono();
+export function createTrainerStepsRoutes(rowsPort?: TrainerStepRowsPort) {
+ const readVisibleStepsApplication = rowsPort ? createVisibleStepsApplicationForRows(rowsPort) : legacyReadVisibleStepsApplication;
+ const trainerStepsRoutes = new Hono();
 
 trainerStepsRoutes.get("/", async c=>{
   const params=c.req.queries();
@@ -43,3 +46,7 @@ trainerStepsRoutes.get("/", async c=>{
     },500);
   }
 });
+
+ return trainerStepsRoutes;
+}
+export const trainerStepsRoutes = createTrainerStepsRoutes();

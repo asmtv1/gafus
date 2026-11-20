@@ -28,6 +28,7 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
 }));
 import { authMiddleware } from "../../middleware/auth";
 import { adminSubscriptionRoutes } from "./admin-subscriptions";
+import { promoCodeSqlPort } from "../../modules/app-subscription/composition/promo-code-rows-instance.js";
 const base = "/api/v1/admin/app-subscriptions";
 function app() {
   const h = new Hono();
@@ -133,7 +134,7 @@ describe("admin premium subscription mutations", () => {
     const payload = { code: "DOG-25", discountPercent: 20, isActive: true };
     const response = await post("/promo-codes", payload);
     expect(response.status).toBe(200);
-    expect(f.promoCreate).toHaveBeenCalledWith({ ...payload, actorId: "actor-1" });
+    expect(f.promoCreate).toHaveBeenCalledWith({ ...payload, actorId: "actor-1" }, promoCodeSqlPort);
   });
 
   it("rejects promo discount over 50% before write", async () => {
@@ -160,10 +161,10 @@ describe("admin premium subscription mutations", () => {
     const update = await post("/promo-codes/promo1", { discountPercent: 15, isActive: false }, "PATCH");
     expect(update.status).toBe(200);
     expect(f.promoUpdate).toHaveBeenCalledWith({ id: "promo1", discountPercent: 15,
-      isActive: false, actorId: "actor-1" });
+      isActive: false, actorId: "actor-1" }, promoCodeSqlPort);
     const archive = await post("/promo-codes/promo1", undefined, "DELETE");
     expect(archive.status).toBe(200);
-    expect(f.promoArchive).toHaveBeenCalledWith({ id: "promo1", actorId: "actor-1" });
+    expect(f.promoArchive).toHaveBeenCalledWith({ id: "promo1", actorId: "actor-1" }, promoCodeSqlPort);
   });
 
   it("maps duplicate promo to conflict with safe code", async () => {

@@ -23,9 +23,7 @@ import {
 } from "@/features/app-subscription";
 import { useMobileOnboardingTourStore } from "@/features/onboarding-tour";
 import { useAuthStore } from "@/shared/stores";
-import { useVkLink } from "@/shared/hooks";
 
-import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 import {
   pushDeviceStatusForActor,
   studentNotesQueryOptions,
@@ -379,7 +377,6 @@ export default function ProfileScreen() {
     () => ownProfileForActor(profileData, actor),
     [profileData, actor],
   );
-  const { data: publicConfigResponse, isFetched: publicConfigFetched } = useMobileAppPublicConfig();
 
   /** После смены email на web стор мог остаться со старым user — подтягиваем GET /profile */
   useFocusEffect(
@@ -568,19 +565,6 @@ export default function ProfileScreen() {
   // Never fall back to a previous session's profile/URL while scoped GET is pending.
   const displayEmail = profileUser?.email?.trim() || "";
   const hasAppPassword = profileUser?.hasAppPassword ?? false;
-  const hasVkLinked = profileUser?.hasVkLinked ?? false;
-  const canLinkVk =
-    Platform.OS !== "ios"
-      ? true
-      : publicConfigFetched && Boolean(publicConfigResponse?.data?.vkLoginEnabledOnIos);
-
-  const { handleVkLink, isVkLinkLoading } = useVkLink({
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-      Alert.alert("Готово", "VK успешно подключён");
-    },
-    onError: (msg) => Alert.alert("Ошибка", msg),
-  });
   const avatarUrl = profile?.avatarUrl?.trim() || null;
   const greetingName = profileUser?.username || "пользователь";
   const avatarCacheKey = avatarUrl
@@ -1155,34 +1139,6 @@ export default function ProfileScreen() {
               </View>
             )}
           </View>
-
-          {!hasVkLinked && canLinkVk ? (
-            <Button
-              label={isVkLinkLoading ? "Подключение..." : "Подключить VK"}
-              buttonColor="#0077FF"
-              textColor="#FFFFFF"
-              labelStyle={{ color: "#FFFFFF" }}
-              gradient={false}
-              icon={({ size }) => <FontAwesome5 name="vk" size={size} color="#FFFFFF" />}
-              loading={isVkLinkLoading}
-              height={48}
-              fontFamily={FONTS.impact}
-              fontWeight="600"
-              fontSize={15}
-              lineHeight={20}
-              horizontalPadding={28}
-              verticalPadding={14}
-              borderRadius={12}
-              style={styles.profileActionButtonLayout}
-              onPress={handleVkLink}
-              disabled={isVkLinkLoading}
-            />
-          ) : hasVkLinked ? (
-            <View style={styles.vkLinkedBadge}>
-              <MaterialCommunityIcons name="check-circle" size={22} color={COLORS.success} />
-              <Text style={styles.vkLinkedBadgeText}>VK подключён</Text>
-            </View>
-          ) : null}
 
           <Text style={styles.groupTitle}>Данные аккаунта</Text>
           <View style={styles.menuGroup}>
@@ -1847,28 +1803,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     marginBottom: SPACING.md,
   },
-  vkLinkedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    backgroundColor: COLORS.cardBackground,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: SPACING.md,
-    marginBottom: SPACING.md,
-    minHeight: 48,
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "#D4C4A8",
-  },
-  vkLinkedBadgeText: {
-    color: "#5A5744",
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: FONTS.montserrat,
-  },
+
   deleteAccountButton: {
     backgroundColor: "rgba(198, 40, 40, 0.08)",
     paddingVertical: 14,

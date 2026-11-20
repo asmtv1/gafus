@@ -12,6 +12,7 @@ import {
   readCourseRowVisibleAfterStale,
   deleteTrainerCourseRowDependencies,
   isCourseVersionNoMatch,
+  type TrainerCourseRowsPort,
 } from "./trainerCourseRowsPort";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
@@ -63,6 +64,7 @@ export function canCreatePaidCourse(_userId: string, role: string, username: str
 export async function createCourse(
   input: CreateTrainerCourseInput,
   authorId: string,
+  rowsPort?: TrainerCourseRowsPort,
 ): Promise<ActionResult & { id?: string }> {
   try {
     const isPrivate = !input.isPublic;
@@ -73,7 +75,7 @@ export async function createCourse(
       order: index + 1,
     }));
 
-    await createTrainerCourseRow(input, authorId, type, isPrivate, dayLinksCreate);
+    await (rowsPort ? rowsPort.createRow(input, authorId, type, isPrivate, dayLinksCreate) : createTrainerCourseRow(input, authorId, type, isPrivate, dayLinksCreate));
 
     logger.info("Курс создан", { courseId: input.id, authorId });
     return { success: true, id: input.id };
@@ -111,6 +113,7 @@ export type CourseFullFormResult = ActionResult & {
 export async function updateCourse(
   input: UpdateTrainerCourseInput,
   actor: CourseVersionActor,
+  rowsPort?: TrainerCourseRowsPort,
 ): Promise<CourseFullFormResult> {
   if (
     !actor ||
@@ -126,18 +129,18 @@ export async function updateCourse(
   try {
     const isPrivate = !input.isPublic;
 
-    nextVersion = await updateTrainerCourseRows(input, actor, isPrivate);
+    nextVersion = await (rowsPort ? rowsPort.updateRows(input, actor, isPrivate) : updateTrainerCourseRows(input, actor, isPrivate));
 
     invalidateCourseContentCache(input.id);
     await publishCourseContentChange();
     logger.info("Курс обновлён", { courseId: input.id });
     return { success: true, version: nextVersion };
   } catch (error) {
-    if (isCourseVersionNoMatch(error)) {
+    if ((rowsPort ? rowsPort.isVersionMismatch(error) : isCourseVersionNoMatch(error))) {
       // No child writes were performed because the conditional UPDATE
       // is the FIRST statement in the transactional mutation.
       try {
-        const existing = await readCourseRowVisibleAfterStale(input.id, actor);
+        const existing = await (rowsPort ? rowsPort.readVisibleAfterStale(input.id, actor) : readCourseRowVisibleAfterStale(input.id, actor));
         return existing.length === 1
           ? { success: false, status: "stale", error: "Версия курса устарела" }
           : { success: false, status: "not_found", error: "Курс не найден" };
@@ -173,15 +176,15 @@ export async function updateCourse(
  * FavoriteCourse, CourseReview, UserCourse, DayOnCourse, Course.
  * Возвращает logoImg для последующего удаления файла из CDN в app.
  */
-export async function deleteCourse(courseId: string): Promise<DeleteCourseResult> {
+export async function deleteCourse(courseId: string, rowsPort?: TrainerCourseRowsPort): Promise<DeleteCourseResult> {
   try {
-    const course = await readCourseRowLogo(courseId);
+    const course = await (rowsPort ? rowsPort.readLogo(courseId) : readCourseRowLogo(courseId));
 
     if (!course) {
       return { success: false, error: "Курс не найден" };
     }
 
-    await deleteTrainerCourseRowDependencies(courseId);
+    await (rowsPort ? rowsPort.deleteDependencies(courseId) : deleteTrainerCourseRowDependencies(courseId));
 
     invalidateCourseContentCache(courseId);
     await publishCourseContentChange();
@@ -212,9 +215,10 @@ export async function trainerCanEditCourse(
   courseId: string,
   trainerId: string,
   options?: { allowAdmin?: boolean },
+  rowsPort?: TrainerCourseRowsPort,
 ): Promise<boolean> {
   try {
-    const course = await readCourseRowAuthor(courseId);
+    const course = await (rowsPort ? rowsPort.readAuthor(courseId) : readCourseRowAuthor(courseId));
     if (!course) return false;
     if (options?.allowAdmin) return true;
     return course.authorId === trainerId;
@@ -232,9 +236,10 @@ export async function getCourseDraftWithRelations(
   courseId: string,
   trainerId: string,
   options?: { allowAdmin?: boolean },
+  rowsPort?: TrainerCourseRowsPort,
 ): Promise<CourseDraftDto | null> {
   try {
-    const course = await readCourseDraftRow(courseId);
+    const course = await (rowsPort ? rowsPort.readDraft(courseId) : readCourseDraftRow(courseId));
 
     if (!course) return null;
     const isAuthor = course.authorId === trainerId;

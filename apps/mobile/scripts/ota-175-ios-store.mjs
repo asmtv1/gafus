@@ -44,8 +44,7 @@ export function validateStoreProfile(eas,app){
     e.GAFUS_OTA_TARGET_PLATFORM==='ios'&&e.EXPO_PUBLIC_APP_VERSION==='1.7.5'&&e.EXPO_PUBLIC_ENABLE_TRACER==='false'&&
     e.EXPO_PUBLIC_API_BASE_URL==='https://api.gafus.ru'&&
     e.EXPO_PUBLIC_CHAT2_API_ORIGIN==='https://api.gafus.ru','STORE_ENV_INVALID');
-  for(const key of ['VK_CLIENT_ID','VK_CLIENT_ID_IOS','VK_CLIENT_ID_ANDROID',
-    'VK_MOBILE_REDIRECT_URI','EXPO_PUBLIC_YM_MOBILE_ENABLED'])
+  for(const key of ['EXPO_PUBLIC_YM_MOBILE_ENABLED'])
     check(e[key]===eas.build?.production?.env?.[key],'STORE_PRODUCTION_AUTH_OR_ADS_ENV_DRIFT');
   check(app.version==='1.7.5'&&app.runtimeVersion?.policy==='appVersion'&&
     app.ios?.bundleIdentifier==='ru.gafus.app','STORE_RUNTIME_OR_BUNDLE_INVALID');

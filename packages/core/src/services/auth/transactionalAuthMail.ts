@@ -152,6 +152,28 @@ export async function sendUsernameChangedNoticeEmail(
 }
 
 export async function sendAccountDeletionCodeEmail(to: string, code: string): Promise<void> {
+  // The ONLY non-SMTP path is a real-PostgreSQL, unique-localhost, disposable
+  // browser acceptance. Never store a code in a public or reused worktree.
+  if (process.env.NODE_ENV === "test" &&
+      process.env.GAFUS_QA_ACCOUNT_DELETE_WEB === "1" &&
+      process.env.GAFUS_LOCAL_ISOLATED_API === "1" &&
+      process.env.API_HOST === "127.0.0.1" &&
+      /^qa_delete_[a-f0-9]{12}@example\.invalid$/.test(to) &&
+      /^[0-9]{6}$/.test(code)) {
+    const db = new URL(process.env.DATABASE_URL ?? "http://invalid");
+    const target = process.env.GAFUS_QA_ACCOUNT_MAIL_FILE ?? "";
+    const run = process.env.GAFUS_QA_ACCOUNT_DELETE_RUN ?? "";
+    if (db.protocol !== "postgresql:" || db.hostname !== "127.0.0.1" ||
+        db.username !== "qahttp" ||
+        !/^\/archqa_delete_[a-f0-9]{12}$/.test(db.pathname) ||
+        !/^[a-f0-9]{12}$/.test(run) ||
+        !/^\/tmp\/gafus-qa-delete-web\.[a-zA-Z0-9]+\/mail\/code\.json$/.test(target)) {
+      throw new Error("DISPOSABLE_QA_MAIL_SINK_PRECONDITION_FAILED");
+    }
+    const {writeFile} = await import("node:fs/promises");
+    await writeFile(target, JSON.stringify({to,code,run})+"\n", {mode:0o600,flag:"wx"});
+    return;
+  }
   assertMailerReady();
   const subject = "Код подтверждения удаления аккаунта — Гафус";
   const text = [

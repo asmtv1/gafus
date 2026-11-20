@@ -1,81 +1,49 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FeedDb } from "./ports";
-import { rankSmartCandidates } from "./smart-data";
-
-function createDb() {
-  const now = new Date("2026-10-10T12:00:00.000Z");
-  const posts = [
-    { id: "post_local", authorId: "author_local", publishedAt: new Date("2026-10-10T11:00:00.000Z") },
-    { id: "post_other", authorId: "author_other", publishedAt: new Date("2026-10-10T11:00:00.000Z") },
-  ];
-  const findPosts = vi.fn().mockResolvedValue(posts);
-  const findUsers = vi.fn().mockResolvedValue([
-    { id: "author_local", profile: { city: "Москва" }, pets: [{ type: "DOG", breed: "Лабрадор" }] },
-    { id: "author_other", profile: { city: "Казань" }, pets: [{ type: "CAT", breed: "Персидская" }] },
-  ]);
-  const db = {
-    feedPost: { findMany: findPosts },
-    user: {
-      findUnique: vi.fn().mockResolvedValue({
-        profile: { city: "МОСКВА" }, pets: [{ type: "DOG", breed: "Лабрадор" }],
-      }),
-      findMany: findUsers,
-    },
-    $queryRaw: vi.fn().mockResolvedValue([
-      { postId: "post_local", reactions: 0, uniqueCommenters: 0, bookmarks: 0 },
-      { postId: "post_other", reactions: 0, uniqueCommenters: 0, bookmarks: 0 },
-    ]),
-    feedPostView: { findMany: vi.fn().mockResolvedValue([]) },
-    feedImpression: { groupBy: vi.fn().mockResolvedValue([]) },
-    feedPostReaction: { findMany: vi.fn().mockResolvedValue([]) },
-    feedComment: { findMany: vi.fn().mockResolvedValue([]) },
-    feedBookmark: { findMany: vi.fn().mockResolvedValue([]) },
-  } as unknown as FeedDb;
-  const readStats = vi.fn().mockResolvedValue([
-    { postId: "post_local", reactions: 0, uniqueCommenters: 0, bookmarks: 0, impressions: 0 },
-    { postId: "post_other", reactions: 0, uniqueCommenters: 0, bookmarks: 0, impressions: 0 },
-  ]);
-  return { db, now, findPosts, findUsers, readStats };
+import { rankSmartCandidates, type SmartRankingSnapshotPort } from "./smart-data";
+const now = new Date("2026-10-10T12:00:00.000Z");
+const posts = [
+  {id:"post_local",authorId:"author_local",publishedAt:new Date("2026-10-10T11:00:00Z")},
+  {id:"post_other",authorId:"author_other",publishedAt:new Date("2026-10-10T11:00:00Z")},
+];
+function createSnapshot() {
+  const readRecent=vi.fn().mockResolvedValue(posts);
+  const readSignals=vi.fn().mockResolvedValue({
+    viewer:{profile:{city:"МОСКВА"},pets:[{type:"DOG",breed:"Лабрадор"}]},
+    authors:[
+      {id:"author_local",profile:{city:"Москва"},pets:[{type:"DOG",breed:"Лабрадор"}]},
+      {id:"author_other",profile:{city:"Казань"},pets:[{type:"CAT",breed:"Персидская"}]},
+    ],
+    seen:[],impressions:[],reactions:[],comments:[],bookmarks:[],views:[],materialized:[],
+  });
+  const readStats=vi.fn().mockResolvedValue(posts.map(post=>({
+    postId:post.id,reactions:0,uniqueCommenters:0,bookmarks:0,impressions:0,
+  })));
+  return {snapshot:{readRecent,readSignals} satisfies SmartRankingSnapshotPort,readRecent,readSignals,readStats};
 }
-
-describe("smart feed server retrieval and privacy", () => {
-  it("boosts matching city and pets without excluding other cities", async () => {
-    const { db, now, readStats } = createDb();
-    const ranked = await rankSmartCandidates(db, "viewer", now,
-      { useCity: true, usePets: true, useBehavior: false, exploration: false }, readStats);
-    expect(ranked.map(post => post.id)).toEqual(["post_local", "post_other"]);
-    expect(ranked[0]?.score).toBeGreaterThan(ranked[1]!.score);
-    expect(ranked[0]?.reason).toBe("similar_pet");
+describe("smart ranking consumes only typed owner-scoped server snapshots",()=>{
+  it("boosts matching city/pets and retains other cities",async()=>{
+    const {snapshot,readStats}=createSnapshot();
+    const result=await rankSmartCandidates(snapshot,"viewer",now,
+      {useCity:true,usePets:true,useBehavior:false,exploration:false},readStats);
+    expect(result.map(post=>post.id)).toEqual(["post_local","post_other"]);
+    expect(result[0]?.score).toBeGreaterThan(result[1]!.score);
+    expect(result[0]?.reason).toBe("similar_pet");
   });
-  it("requests published visible posts and only publicly shown author pets", async () => {
-    const { db, now, findPosts, findUsers, readStats } = createDb();
-    await rankSmartCandidates(db, "viewer", now,
-      { useCity: true, usePets: true, useBehavior: true, exploration: false }, readStats);
-    expect(findPosts).toHaveBeenCalledWith(expect.objectContaining({
-      take: 400,
-      where: expect.objectContaining({
-        status: "published", moderationState: "visible", deletedAt: null,
-        feedback: { none: { userId: "viewer", kind: "not_interested" } },
-        author: { feedSubscribers: { none: { userId: "viewer", hidden: true } } },
-      }),
-    }));
-    expect(findUsers).toHaveBeenCalledWith(expect.objectContaining({
-      select: expect.objectContaining({
-        pets: expect.objectContaining({ where: { showInProfile: true } }),
-      }),
-    }));
+  it("passes only viewer-bounded IDs and behavior flags to SQL provider",async()=>{
+    const {snapshot,readSignals,readStats}=createSnapshot();
+    const cutoff=new Date("2026-10-10T10:00:00Z");
+    await rankSmartCandidates(snapshot,"viewer",now,
+      {useCity:false,usePets:false,useBehavior:false,exploration:false,historyResetAt:cutoff},readStats);
+    expect(readSignals).toHaveBeenCalledExactlyOnceWith("viewer",now,
+      ["post_local","post_other"],["author_local","author_other"],{
+        useBehavior:false,historyResetAt:cutoff,materializedAffinity:false,
+      });
   });
-  it("respects opt-outs and does not use old signals after reset", async () => {
-    const { db, now, readStats } = createDb();
-    await rankSmartCandidates(db, "viewer", now, {
-      useCity: false, usePets: false, useBehavior: false, exploration: false,
-      historyResetAt: new Date("2026-10-10T10:00:00.000Z"),
-    }, readStats);
-    expect(db.feedPostReaction.findMany).not.toHaveBeenCalled();
-    expect(db.feedPostView.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({
-        createdAt: { gte: new Date("2026-10-10T10:00:00.000Z") },
-      }),
-    }));
+  it("fails closed when a required SQL projection fails; never returns fabricated []",async()=>{
+    const {snapshot,readStats}=createSnapshot();
+    snapshot.readSignals.mockRejectedValueOnce(new Error("SQL_UNAVAILABLE"));
+    await expect(rankSmartCandidates(snapshot,"viewer",now,
+      {useCity:true,usePets:true,useBehavior:true,exploration:false},readStats))
+      .rejects.toThrow("SQL_UNAVAILABLE");
   });
 });

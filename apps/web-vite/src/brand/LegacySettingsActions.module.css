@@ -13,35 +13,6 @@
 
 /* Pill-форма: светлый беж, зелёная галочка, скруглённые углы (как на mobile) */
 .successBanner,
-.vkLinkedBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: #f5f0e8;
-  color: #5a5744;
-  padding: 12px 24px;
-  border-radius: 9999px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.successBanner {
-  margin-bottom: 12px;
-}
-
-.vkLinkedBadge {
-  display: inline-flex;
-  max-width: 100%;
-  min-height: 44px;
-  margin-top: 14px;
-  padding: 9px 14px;
-  border: 1px solid #dce5d1;
-  border-radius: 12px;
-  background: #eef2e5;
-  box-sizing: border-box;
-}
-
-
 .successIcon {
   color: #4caf50 !important;
   font-size: 22px !important;

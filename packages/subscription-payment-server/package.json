@@ -42,6 +42,10 @@
     "./profit-math": {
       "types": "./dist/profitMath.d.ts",
       "default": "./dist/profitMath.js"
+    },
+    "./google-play-rows": {
+      "types": "./dist/googlePlayRows.d.ts",
+      "default": "./dist/googlePlayRows.js"
     }
   },
   "scripts": {

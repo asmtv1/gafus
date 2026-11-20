@@ -4,6 +4,7 @@ import {
   VetVisitDetailNotFoundError,
   type VetVisitDetailReadPort,
 } from "./g1VetVisitDetailRead.review";
+import type { VetVisitRowsPort } from "./vetVisitRowsPort";
 import { createWebLogger } from "@gafus/logger";
 import { VET_VISIT_MAX_FILE_BYTES } from "@gafus/types";
 import {
@@ -74,6 +75,7 @@ export async function handlePetVetVisitRequest(
   ownerId: string,
   parts: string[],
   readDetail?: VetVisitDetailReadPort,
+  rows?: VetVisitRowsPort,
 ) {
   try {
     const method = request.method;
@@ -84,7 +86,7 @@ export async function handlePetVetVisitRequest(
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(petId)) {
         return json({ success: false, code: "VET_VISIT_NOT_FOUND" }, 404);
       }
-      data = await listPetVetVisits(petId, ownerId);
+      data = await listPetVetVisits(petId, ownerId, rows);
     } else if (parts.length === 1 && method === "GET") {
       // One shared implementation for both Next and Hono; owner from JWT only.
       if (new URL(request.url).search) {
@@ -109,9 +111,9 @@ export async function handlePetVetVisitRequest(
           400,
         );
       }
-      data = await savePetVetVisit(petId, ownerId, body, visitId);
+      data = await savePetVetVisit(petId, ownerId, body, visitId, rows);
     } else if (parts.length === 1 && method === "DELETE")
-      await deletePetVetVisit(petId, ownerId, visitId!);
+      await deletePetVetVisit(petId, ownerId, visitId!, rows);
     else if (parts.length === 2 && section === "attachments" && method === "POST") {
       let form: FormData;
       try {
@@ -122,9 +124,9 @@ export async function handlePetVetVisitRequest(
       }
       const file = form.get("file");
       if (!file || typeof file === "string") throw new VetVisitError("Выберите файл");
-      data = await addPetVetAttachment(petId, ownerId, visitId!, file);
+      data = await addPetVetAttachment(petId, ownerId, visitId!, file, rows);
     } else if (parts.length === 3 && section === "attachments" && method === "DELETE")
-      await deletePetVetAttachment(petId, ownerId, visitId!, attachmentId!);
+      await deletePetVetAttachment(petId, ownerId, visitId!, attachmentId!, rows);
     else if (
       parts.length === 4 &&
       section === "attachments" &&
@@ -138,6 +140,7 @@ export async function handlePetVetVisitRequest(
         visitId!,
         attachmentId!,
         query.get("variant") ?? "preview",
+        rows,
       );
       if (query.get("redirect") === "1")
         return new Response(null, { status: 302, headers: { ...headers, Location: result.url } });

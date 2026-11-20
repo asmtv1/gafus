@@ -33,14 +33,9 @@ export function isExpoSubscription(subscription: PushSubscriptionJSON): boolean 
   return subscription.keys.p256dh === "expo" || isExpoEndpoint(subscription.endpoint);
 }
 
-export function isRustoreSubscription(subscription: PushSubscriptionJSON): boolean {
-  return subscription.keys.p256dh === "rustore" || subscription.keys.auth === "rustore";
-}
-
 export function partitionPushSubscriptions(subscriptions: SubscriptionLike[]): {
   web: PushSubscriptionJSON[];
   expo: PushSubscriptionJSON[];
-  rustore: PushSubscriptionJSON[];
 } {
   const normalized = subscriptions
     .map((subscription) => {
@@ -52,17 +47,18 @@ export function partitionPushSubscriptions(subscriptions: SubscriptionLike[]): {
 
   const web: PushSubscriptionJSON[] = [];
   const expo: PushSubscriptionJSON[] = [];
-  const rustore: PushSubscriptionJSON[] = [];
 
   for (const subscription of normalized) {
-    if (isRustoreSubscription(subscription)) {
-      rustore.push(subscription);
-    } else if (isExpoSubscription(subscription)) {
+    // Legacy RuStore tokens must never be misrouted into browser Web Push.
+    if (subscription.keys.p256dh === "rustore" || subscription.keys.auth === "rustore") {
+      continue;
+    }
+    if (isExpoSubscription(subscription)) {
       expo.push(subscription);
     } else {
       web.push(subscription);
     }
   }
 
-  return { web, expo, rustore };
+  return { web, expo };
 }

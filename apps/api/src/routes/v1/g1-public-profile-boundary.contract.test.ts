@@ -7,6 +7,7 @@ vi.mock("../../modules/user/composition/account-deletion.js", () => ({
 /** AG1-USER-020: anonymous public profile must expose only public DTO fields. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { profileRows } from "../../modules/user/composition/profile-rows-instance.js";
 
 const m = vi.hoisted(() => ({ publicProfile: vi.fn(), verify: vi.fn() }));
 vi.mock("@gafus/core/services/user", async () => {
@@ -96,7 +97,7 @@ describe("AG1-USER-020 exact public GET boundary: guest/A/B, no PII or entitleme
       "id", "issuedAt", "issuedBy", "title", "url",
     ]);
     expect(JSON.stringify(data)).not.toContain(PRIVATE);
-    expect(m.publicProfile).toHaveBeenCalledExactlyOnceWith("target");
+    expect(m.publicProfile).toHaveBeenCalledExactlyOnceWith("target", profileRows);
     expect(m.verify).not.toHaveBeenCalled();
   });
 
@@ -109,7 +110,7 @@ describe("AG1-USER-020 exact public GET boundary: guest/A/B, no PII or entitleme
     const response = await res.json();
     expect(response.data.username).toBe("B");
     expect(JSON.stringify(response)).not.toContain(PRIVATE);
-    expect(m.publicProfile).toHaveBeenCalledWith("B");
+    expect(m.publicProfile).toHaveBeenCalledWith("B", profileRows);
   });
 
   it("not found 404 preserves existing anonymous contract", async () => {

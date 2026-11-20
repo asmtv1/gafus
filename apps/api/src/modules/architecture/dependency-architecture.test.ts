@@ -446,7 +446,65 @@ function approvedReadCall(body:ts.ConciseBody, requiredStage?:string):ts.CallExp
   return callback.body;
 }
 
-function objectBinding(node:ts.Expression,key:string,allowStrictStudentNotes=false,allowFavoritesPolicyPort=false,allowPetsReadPort=false,requiredStage?:string):string|null {
+/** Exact allowlist for per-route SQL composition. An explicit factory must
+ * be imported by its route and must forward the same actor arguments in BOTH
+ * branches; never allow a body-provided identity or unscoped DB operation. */
+const explicitReadPortCompositions: Readonly<Record<string,{factory:string;portType:string}>> = {
+  preventionJournalApplication:{factory:"createPreventionJournalApplicationForRows",portType:"PreventionRowsPort"},
+  readVisibleDaysApplication:{factory:"createReadVisibleDaysApplicationForRows",portType:"TrainingDayRowsPort"},
+  readVisibleStepsApplication:{factory:"createVisibleStepsApplicationForRows",portType:"TrainerStepRowsPort"},
+  readPublicTemplatesApplication:{factory:"createPublicTemplatesApplicationForRows",portType:"TrainerStepRowsPort"},
+};
+function explicitlyComposedReadPort(
+  source:ts.SourceFile,entry:Wiring,
+):boolean {
+  const expected=explicitReadPortCompositions[entry.exportName];
+  if(!expected)return false;
+  const installed=source.statements.find(n=>ts.isFunctionDeclaration(n) &&
+    n.name?.text===expected.factory) as ts.FunctionDeclaration|undefined;
+  if(!installed || installed.parameters.length!==1 ||
+     installed.parameters[0]?.name.getText(source)!=="rowsPort" ||
+     !installed.parameters[0].questionToken ||
+     !installed.parameters[0].type ||
+     installed.parameters[0].type.getText(source)!==expected.portType ||
+     !installed.body)return false;
+  const ret=installed.body.statements.find(ts.isReturnStatement)?.expression;
+  if(!ret || !ts.isCallExpression(ret) ||
+     !ts.isIdentifier(ret.expression) || ret.expression.text!==entry.factory ||
+     ret.arguments.length!==1 || !ts.isObjectLiteralExpression(ret.arguments[0]))return false;
+  for(const [portName,coreName] of Object.entries(entry.ports)){
+    const prop=ret.arguments[0].properties.find(p=>ts.isPropertyAssignment(p) &&
+      (ts.isIdentifier(p.name)||ts.isStringLiteral(p.name)) && p.name.text===portName);
+    if(!prop || !ts.isPropertyAssignment(prop) ||
+       !ts.isArrowFunction(prop.initializer))return false;
+    const fn=prop.initializer;
+    const stage=APPROVED_CORRELATED_STAGES[entry.module]?.[portName];
+    if(!stage || !ts.isCallExpression(fn.body) ||
+       !ts.isIdentifier(fn.body.expression) || fn.body.expression.text!=="withCorrelatedUseCase" ||
+       fn.body.arguments.length!==2 ||
+       !ts.isStringLiteral(fn.body.arguments[0]) || fn.body.arguments[0].text!==stage)return false;
+    const closure=fn.body.arguments[1];
+    if(!ts.isArrowFunction(closure) || closure.parameters.length!==0 ||
+       !ts.isConditionalExpression(closure.body) ||
+       !ts.isIdentifier(closure.body.condition) || closure.body.condition.text!=="rowsPort")return false;
+    const conditional=closure.body;
+    if(!ts.isCallExpression(conditional.whenTrue) ||
+       !ts.isCallExpression(conditional.whenFalse) ||
+       !ts.isIdentifier(conditional.whenTrue.expression) ||
+       !ts.isIdentifier(conditional.whenFalse.expression) ||
+       conditional.whenTrue.expression.text!==coreName ||
+       conditional.whenFalse.expression.text!==coreName)return false;
+    const params=fn.parameters.map(p=>ts.isIdentifier(p.name)?p.name.text:null);
+    const expectedLegacy=conditional.whenFalse.arguments.map(a=>ts.isIdentifier(a)?a.text:null);
+    const expectedWithPort=conditional.whenTrue.arguments.map(a=>ts.isIdentifier(a)?a.text:null);
+    if(params.some(p=>p===null) ||
+       JSON.stringify(expectedLegacy)!==JSON.stringify(params) ||
+       JSON.stringify(expectedWithPort)!==JSON.stringify([...params,"rowsPort"]))return false;
+  }
+  return true;
+}
+
+function objectBinding(node:ts.Expression,key:string,allowStrictStudentNotes=false,allowFavoritesPolicyPort=false,allowPetsReadPort=false,requiredStage?:string,allowProfileRows=false):string|null {
   if(!ts.isObjectLiteralExpression(node)) return null;
   for(const prop of node.properties) {
     if(ts.isShorthandPropertyAssignment(prop) && prop.name.text===key)
@@ -481,6 +539,18 @@ function objectBinding(node:ts.Expression,key:string,allowStrictStudentNotes=fal
          call.arguments.length===arrow.parameters.length &&
          call.arguments.every((arg,i)=>ts.isIdentifier(arg) &&
            arg.text===(arrow.parameters[i].name as ts.Identifier).text)) {
+        return call.expression.text;
+      }
+      // Profile calls must receive the exact API-owned scoped SQL adapter.
+      // Never accept a client-controlled or differently named extra argument.
+      if(allowProfileRows && ts.isCallExpression(call) &&
+         ts.isIdentifier(call.expression) &&
+         arrow.parameters.every(p=>ts.isIdentifier(p.name)) &&
+         call.arguments.length===arrow.parameters.length+1 &&
+         call.arguments.slice(0,-1).every((arg,i)=>ts.isIdentifier(arg) &&
+           arg.text===(arrow.parameters[i].name as ts.Identifier).text) &&
+         ts.isIdentifier(call.arguments[call.arguments.length-1]) &&
+         (call.arguments[call.arguments.length-1] as ts.Identifier).text==="profileRows") {
         return call.expression.text;
       }
       // The only approved extra Application argument is the explicit
@@ -706,11 +776,14 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
       errors.push("composition missing application factory "+entry.factory);
     }
     const binding=exportedBindings(root).get(entry.exportName);
+    const explicit = explicitlyComposedReadPort(root,entry);
+    const approvedFactory = explicitReadPortCompositions[entry.exportName]?.factory;
     if(!binding || !ts.isCallExpression(binding) ||
       !ts.isIdentifier(binding.expression) ||
-      binding.expression.text!==entry.factory || !binding.arguments[0]){
+      !(binding.expression.text===entry.factory && binding.arguments[0] ||
+        explicit && binding.expression.text===approvedFactory)){
       errors.push("composition wrong factory "+entry.exportName);
-    } else {
+    } else if(!explicit) {
       for(const [portName,coreName] of Object.entries(entry.ports)){
         const strictNotesPort=entry.exportName==="readStudentNotesApplication" &&
           portName==="readNotes" && coreName==="getStudentNotes";
@@ -718,12 +791,22 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
           portName==="favorites" && coreName==="getFavoritesCourses";
         const strictPetReadPort=entry.exportName==="readPetsApplication" &&
           (portName==="readList" || portName==="readDetail");
+        const profileBindings: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+          "modules/user/composition/profile.ts": {loadProfile:"getUserProfileForApi", persist:"updateUserProfile"},
+          "modules/user/composition/onboarding-tour.ts": {readStatus:"getOnboardingTourStatus", markSeen:"markOnboardingTourSeen"},
+          "modules/user/composition/read-public-profile.ts": {loadPublicProfile:"getPublicProfile"},
+        };
+        const allowProfileRows=profileBindings[entry.module]?.[portName]===coreName;
+        if(allowProfileRows && !sourceImports.some(i=>i.runtime &&
+            i.specifier==="./profile-rows-instance.js" &&
+            i.names.length===1 && i.names[0]==="profileRows"))
+          errors.push("profile composition missing exact scoped SQL adapter "+entry.exportName);
         const requiredStage=APPROVED_CORRELATED_STAGES[entry.module]?.[portName];
         if(requiredStage && !sourceImports.some(i=>i.runtime &&
             i.specifier==="../../../lib/operation-observability.js" &&
             i.names.length===1 && i.names[0]==="withCorrelatedUseCase"))
           errors.push("composition missing approved correlation helper "+entry.module);
-        if(objectBinding(binding.arguments[0],portName,strictNotesPort,strictCourseFavoritesPort,strictPetReadPort,requiredStage)!==coreName)
+        if(objectBinding(binding.arguments[0],portName,strictNotesPort,strictCourseFavoritesPort,strictPetReadPort,requiredStage,allowProfileRows)!==coreName)
           errors.push("composition wrong Core binding "+entry.exportName+"."+portName);
         if(entry.repository){
           if(!hasRouteImport(root,entry.repository,coreName,sources,entry.module))
@@ -760,7 +843,12 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
       if(importsIn(route).some(i=>i.specifier==="@gafus/prisma"))
         errors.push("registered Hono route cannot import Prisma "+entry.route);
     }
-    if(!hasRouteImport(route,entry.module,entry.exportName,sources,entry.route))
+    const factoryName=explicitReadPortCompositions[entry.exportName]?.factory;
+    const factoryWired=explicit && factoryName &&
+      hasRouteImport(route,entry.module,factoryName,sources,entry.route) &&
+      route.getFullText().includes(factoryName+"(rowsPort)") &&
+      /\browsPort\s*\?/.test(route.getFullText());
+    if(!hasRouteImport(route,entry.module,entry.exportName,sources,entry.route) && !factoryWired)
       errors.push("route not wired through composition "+entry.exportName);
     if(importsIn(route).some(i=>i.runtime && i.specifier.startsWith(".") &&
       resolveLocal(entry.route,i.specifier,sources)===entry.application))
@@ -773,6 +861,18 @@ function assess(sources:Sources,wiring:readonly Wiring[]):string[] {
     if(!root)continue;
     const allowed=new Set(wiring.filter(w=>w.module===composition)
       .flatMap(w=>Object.values(w.ports)));
+    for(const entry of wiring.filter(w=>w.module===composition)) {
+      const approved=explicitReadPortCompositions[entry.exportName];
+      if(approved && explicitlyComposedReadPort(root,entry)) {
+        // This is a type-only named import within a mixed value import.
+        const decl=root.statements.filter(ts.isImportDeclaration).find(n=>
+          n.moduleSpecifier.getText(root).includes("@gafus/core/services/"));
+        const clause=decl?.importClause?.namedBindings;
+        if(clause && ts.isNamedImports(clause) &&
+           clause.elements.some(el=>el.name.text===approved.portType && el.isTypeOnly))
+          allowed.add(approved.portType);
+      }
+    }
     if(composition==="modules/courses/composition/read-courses.ts"){
       // Only this composition may inject the real Core paywall policy.
       // This is not permission for arbitrary Core imports in Course adapters.
@@ -1265,8 +1365,14 @@ describe("AG1-001 actual API application/composition architecture gate",()=>{
   it("rejects wrong actual composition binding, using in-memory altered graph",()=>{
     const s=actualSources();
     s["modules/user/composition/profile.ts"]=s["modules/user/composition/profile.ts"]
-      .replace("loadProfile: getUserProfileForApi","loadProfile: updateUserProfile");
+      .replace("getUserProfileForApi(userId, profileRows)","updateUserProfile(userId, profileRows)");
     expect(assess(s,WIRINGS).some(e=>e.includes("wrong Core binding"))).toBe(true);
+  });
+  it("rejects a noncanonical profile reader injected into a Core DTO", () => {
+    const s = actualSources();
+    s["modules/user/composition/profile.ts"] = s["modules/user/composition/profile.ts"]
+      .replace("getUserProfileForApi(userId, profileRows)", "getUserProfileForApi(userId, attackerRows)");
+    expect(assess(s, WIRINGS).some(e=>e.includes("wrong Core binding readProfileApplication.loadProfile"))).toBe(true);
   });
   it("rejects unrelated Core business import from a composition root",()=>{
     const s=actualSources();

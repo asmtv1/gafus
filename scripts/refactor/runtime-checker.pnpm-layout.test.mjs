@@ -43,6 +43,8 @@ const newOnlineStepBindingExport = './online-step-binding';
 const newConsultationMailDeliveryExport = './mail-delivery';
 const newPetsWeightExport = './weight';
 assert.ok(manifestFor('core-client').exports[newChat2Export], 'new Chat2 client export is mandatory');
+assert.ok(manifestFor('core-client').exports['./chat2/send-attempt'], 'Chat2 send attempt export is mandatory');
+assert.ok(manifestFor('notifications-server').exports['./chat-outbox-diagnostics'], 'Chat2 outbox diagnostics export is mandatory');
 assert.ok(manifestFor('notifications-server').exports[newReminderExport], 'isolated reminder export is mandatory');
 assert.ok(manifestFor('notifications-server').exports[newReminderDeliveryExport], 'daily reminder DB lease/acknowledgement must have compiled infrastructure export');
 assert.ok(manifestFor('notifications-server').exports[newAdminBroadcastExport], 'admin broadcast export is mandatory');
@@ -83,8 +85,8 @@ assert.ok(manifestFor('gafus-server').exports['./activity-read'], 'actor-bounded
 assert.ok(manifestFor('gafus-server').exports['./settings-read'], 'Gafus policy settings read must be compiled');
 assert.ok(manifestFor('entitlements-server').exports['./policy-reads'], 'paid content ACL read must be compiled');
 assert.ok(manifestFor('media-server').exports['./question-photo-task'], 'photo rendition task projection must be compiled');
-assert.equal(legacyPackageNames.reduce((n,pkg)=>n+Object.keys(manifestFor(pkg).exports).length,0)-10,
-  49, 'frozen nine-package exports must remain 49 excluding 10 approved new subpaths');
+assert.equal(legacyPackageNames.reduce((n,pkg)=>n+Object.keys(manifestFor(pkg).exports).length,0)-13,
+  48, 'frozen nine-package exports must remain 48 excluding 13 approved new subpaths');
 const write=(p,content)=>{mkdirSync(dirname(p),{recursive:true});writeFileSync(p,content);};
 const perform=(mode,corrupt)=>{
   const dir=mkdtempSync(join(tmpdir(),'gafus-agent2-runtime-layout-'));
@@ -94,18 +96,6 @@ const perform=(mode,corrupt)=>{
     write(join(physical,'core/package.json'),JSON.stringify({name:'@gafus/core',type:'module'}));
     mkdirSync(join(dir,'node_modules/@gafus'),{recursive:true});
     symlinkSync('../.pnpm/@gafus+core@file+fixture/node_modules/@gafus/core',join(dir,'node_modules/@gafus/core'),'dir');
-    // The Chat worker imports this package directly; the deploy closure must
-    // include its compiled webhook processor, not just the Core chat barrel.
-    const chatManifest=manifestFor('chat-server');
-    write(join(physical,'chat-server/package.json'),JSON.stringify(chatManifest));
-    for(const info of Object.values(chatManifest.exports)) {
-      write(join(physical,'chat-server',info.default),'export {};');
-      write(join(physical,'chat-server',info.types),'export {};');
-    }
-    write(join(physical,'chat-server/dist/notifications.js'),'export {};');
-    write(join(physical,'chat-server/dist/notifications.d.ts'),'export {};');
-    symlinkSync('../.pnpm/@gafus+core@file+fixture/node_modules/@gafus/chat-server',
-      join(dir,'node_modules/@gafus/chat-server'),'dir');
     for (const pkg of packageNames) {
       const manifest=manifestFor(pkg);
       const folder=join(physical,pkg);
@@ -393,12 +383,6 @@ const perform=(mode,corrupt)=>{
       const manifest=manifestFor('core-client');
       delete manifest.exports[newChat2Export];
       write(join(folder,'package.json'),JSON.stringify(manifest));
-    } else if (corrupt==='worker-chat-link-missing') {
-      unlinkSync(join(dir,'node_modules/@gafus/chat-server'));
-    } else if (corrupt==='worker-chat-notifications-js-missing') {
-      unlinkSync(join(physical,'chat-server/dist/notifications.js'));
-    } else if (corrupt==='worker-chat-root-dts-missing') {
-      unlinkSync(join(physical,'chat-server/dist/index.d.ts'));
     } else if (corrupt==='legacy-export-removed') {
       // Attempted coverage reduction must fail even when remaining exports
       // all resolve, and cannot be hidden by extra new-domain exports.
@@ -444,21 +428,10 @@ test('production guard must resolve a newly added nested exported JS AND declara
   assert.notEqual(run.status,0);
   assert.match(run.stderr,/RUNTIME_PACKAGE_MISSING:@gafus\/subscription-read-server\/qa-missing-nested-dts compiled declarations/);
 });
-test('worker fails closed when the direct chat-server runtime dependency or webhook processor is absent',()=>{
-  for(const [corrupt,expected] of [
-    ['worker-chat-link-missing',/RUNTIME_PACKAGE_MISSING:@gafus\/chat-server direct worker dependency manifest/],
-    ['worker-chat-notifications-js-missing',/RUNTIME_PACKAGE_MISSING:@gafus\/chat-server \.\/dist\/notifications\.js compiled runtime/],
-    ['worker-chat-root-dts-missing',/RUNTIME_PACKAGE_MISSING:@gafus\/chat-server \.\/dist\/index\.d\.ts compiled runtime/],
-  ]) {
-    const result=perform('worker',corrupt);
-    assert.notEqual(result.status,0,`expected fail-closed for ${corrupt}`);
-    assert.match(result.stderr,expected,`${corrupt}: ${result.stderr}`);
-  }
-});
-test('original nine-package 49-export baseline may never be silently reduced',()=>{
+test('original nine-package 48-export baseline may never be silently reduced',()=>{
   const run=perform('worker','legacy-export-removed');
   assert.notEqual(run.status,0);
-  assert.match(run.stderr,/RUNTIME_LEGACY_PACKAGE_EXPORT_COVERAGE_CHANGED:packages=9:exports=48/);
+  assert.match(run.stderr,/RUNTIME_LEGACY_PACKAGE_EXPORT_COVERAGE_CHANGED:packages=9:exports=47/);
 });
 
 test('production guard fails closed when new nested exported JS is missing despite a declaration',()=>{
@@ -467,13 +440,13 @@ test('production guard fails closed when new nested exported JS is missing despi
   assert.match(run.stderr,/RUNTIME_PACKAGE_MISSING:@gafus\/subscription-read-server\/qa-missing-nested-js compiled JS/);
 });
 
-test('exact API 38/223 and Worker 37/213 deny extra new export despite both compiled targets',()=>{
+test('exact API 38/234 and Worker 37/224 deny extra new export despite both compiled targets',()=>{
   const run=perform('api','extracted-export-extra');
   assert.notEqual(run.status,0);
-  assert.match(run.stderr,/RUNTIME_POSTSUBSCRIPTION_EXPORT_COVERAGE_CHANGED:packages=38:exports=224/);
+  assert.match(run.stderr,/RUNTIME_POSTSUBSCRIPTION_EXPORT_COVERAGE_CHANGED:packages=38:exports=235/);
 });
 
-test('approved new Chat2 client mode is required without weakening 49 old exports',()=>{
+test('approved new Chat2 client mode is required without weakening 48 old exports',()=>{
   const run=perform('api','chat2-export-removed');
   assert.notEqual(run.status,0);
   assert.match(run.stderr,/RUNTIME_CHAT2_CLIENT_EXPORT_MISSING/);
@@ -844,7 +817,6 @@ const requiredNewPorts = [
   ['identity-write-server','account-deletion-rows','RUNTIME_ACCOUNT_DELETION_ROWS_EXPORT_MISSING'],
   ['gafus-server','rewarded-wallet-rows','RUNTIME_REWARDED_WALLET_ROWS_EXPORT_MISSING'],
   ['identity-write-server','auth-rows','RUNTIME_AUTH_ROWS_EXPORT_MISSING'],
-  ['identity-write-server','vk-auth-rows','RUNTIME_VK_AUTH_ROWS_EXPORT_MISSING'],
   ['course-progress-server','trainer-course-rows','RUNTIME_TRAINER_COURSE_ROWS_EXPORT_MISSING'],
   ['gafus-server','rewarded-ad-rows','RUNTIME_REWARDED_AD_ROWS_EXPORT_MISSING'],
   ['course-progress-server','offline-video-rows','RUNTIME_OFFLINE_VIDEO_ROWS_EXPORT_MISSING'],
@@ -910,7 +882,6 @@ const requiredNewPorts = [
   ['subscription-finance-server','profit-reconciliation-rows','RUNTIME_PROFIT_RECONCILIATION_EXPORT_MISSING'],
   ['identity-write-server','registration-context-reads','RUNTIME_REGISTRATION_CONTEXT_READS_EXPORT_MISSING'],
   ['gafus-server','unlock-records','RUNTIME_GAFUS_UNLOCK_RECORDS_EXPORT_MISSING'],
-  ['identity-write-server','vk-completion-rows','RUNTIME_VK_COMPLETION_ROWS_EXPORT_MISSING'],
   ['identity-write-server','account-cleanup-records','RUNTIME_ACCOUNT_CLEANUP_RECORDS_EXPORT_MISSING'],
   ['identity-write-server','account-cleanup-worker-rows','RUNTIME_ACCOUNT_CLEANUP_WORKER_ROWS_EXPORT_MISSING'],
   ['consultation-query-server','cynologist-catalog-rows','RUNTIME_CYNOLOGIST_CATALOG_ROWS_EXPORT_MISSING'],

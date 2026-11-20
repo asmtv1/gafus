@@ -3,7 +3,6 @@ let epochCounter = 0;
 
 const mocks = vi.hoisted(() => ({
   platform: { OS: "android" },
-  nativeModules: { RustorePush: { getToken: vi.fn() } },
   device: { isDevice: true },
   constants: {
     appOwnership: "standalone",
@@ -22,7 +21,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("react-native", () => ({
   Platform: mocks.platform,
-  NativeModules: mocks.nativeModules,
 }));
 vi.mock("expo-device", () => ({
   get isDevice() {
@@ -71,95 +69,59 @@ describe("AG3-NOTIF-050 push registration fallback", () => {
     mocks.getPermissionsAsync.mockResolvedValue({ status: "granted" });
     mocks.requestPermissionsAsync.mockResolvedValue({ status: "granted" });
     mocks.getExpoPushTokenAsync.mockResolvedValue({ data: "expo-device-token" });
-    mocks.nativeModules.RustorePush.getToken.mockResolvedValue("rustore-device-token");
     mocks.savePushSubscription.mockResolvedValue({ success: true });
   });
 
-  it("registers RuStore on Android when Expo permission lookup fails", async () => {
+  it("does not register on Android when Expo permission lookup fails", async () => {
     mocks.getPermissionsAsync.mockRejectedValue(new Error("Expo permissions bridge unavailable"));
-
-    await expect(setupPushNotifications()).resolves.toBe(true);
-    expect(mocks.nativeModules.RustorePush.getToken).toHaveBeenCalledOnce();
-    expect(mocks.savePushSubscription).toHaveBeenCalledExactlyOnceWith(
-      {
-        endpoint: "rustore-device-token",
-        keys: { p256dh: "rustore", auth: "rustore" },
-      },
-      expect.any(Function),
-    );
+    await expect(setupPushNotifications()).resolves.toBe(false);
+    expect(mocks.savePushSubscription).not.toHaveBeenCalled();
     expect(mocks.reportClientError).toHaveBeenCalledWith(
-      expect.any(Error),
-      expect.objectContaining({
-        issueKey: "PushNotifications",
-        keys: { operation: "register_expo_push" },
+      expect.any(Error), expect.objectContaining({
+        issueKey: "PushNotifications", keys: { operation: "register_expo_push" },
       }),
     );
   });
 
-  it("registers RuStore when requesting Expo permission fails", async () => {
+  it("does not register when requesting Expo permission fails", async () => {
     mocks.getPermissionsAsync.mockResolvedValue({ status: "undetermined" });
     mocks.requestPermissionsAsync.mockRejectedValue(new Error("Native prompt unavailable"));
+    await expect(setupPushNotifications()).resolves.toBe(false);
+    expect(mocks.savePushSubscription).not.toHaveBeenCalled();
+  });
 
+  it("does not register when notification setup throws", async () => {
+    mocks.setNotificationHandler.mockImplementation(() => { throw new Error("Notifications setup failed"); });
+    await expect(setupPushNotifications()).resolves.toBe(false);
+    expect(mocks.savePushSubscription).not.toHaveBeenCalled();
+  });
+
+  it("registers exactly one Expo token on Android", async () => {
     await expect(setupPushNotifications()).resolves.toBe(true);
     expect(mocks.savePushSubscription).toHaveBeenCalledExactlyOnceWith(
-      {
-        endpoint: "rustore-device-token",
-        keys: { p256dh: "rustore", auth: "rustore" },
-      },
+      { endpoint: "expo-device-token", keys: { p256dh: "expo", auth: "expo" } },
       expect.any(Function),
     );
   });
 
-  it("continues RuStore when the Expo notification handler throws", async () => {
-    mocks.setNotificationHandler.mockImplementation(() => {
-      throw new Error("Notifications setup failed");
-    });
-
-    await expect(setupPushNotifications()).resolves.toBe(true);
-    expect(mocks.nativeModules.RustorePush.getToken).toHaveBeenCalledOnce();
-    expect(mocks.savePushSubscription).toHaveBeenCalledOnce();
-  });
-
-  it("registers both Expo and RuStore when available on Android", async () => {
-    await expect(setupPushNotifications()).resolves.toBe(true);
-    expect(mocks.savePushSubscription).toHaveBeenCalledTimes(2);
-    expect(mocks.savePushSubscription).toHaveBeenCalledWith(
-      {
-        endpoint: "expo-device-token",
-        keys: { p256dh: "expo", auth: "expo" },
-      },
-      expect.any(Function),
-    );
-    expect(mocks.savePushSubscription).toHaveBeenCalledWith(
-      {
-        endpoint: "rustore-device-token",
-        keys: { p256dh: "rustore", auth: "rustore" },
-      },
-      expect.any(Function),
-    );
-  });
-
-  it("does not register RuStore on iOS when Expo provider fails", async () => {
+  it("does not register on iOS when Expo provider fails", async () => {
     mocks.platform.OS = "ios";
     mocks.getPermissionsAsync.mockRejectedValue(new Error("Permission bridge unavailable"));
 
     await expect(setupPushNotifications()).resolves.toBe(false);
-    expect(mocks.nativeModules.RustorePush.getToken).not.toHaveBeenCalled();
     expect(mocks.savePushSubscription).not.toHaveBeenCalled();
   });
 
   it("does not register native push providers in Expo Go", async () => {
     mocks.constants.appOwnership = "expo";
     await expect(setupPushNotifications()).resolves.toBe(false);
-    expect(mocks.nativeModules.RustorePush.getToken).not.toHaveBeenCalled();
     expect(mocks.getPermissionsAsync).not.toHaveBeenCalled();
     expect(mocks.savePushSubscription).not.toHaveBeenCalled();
   });
 
-  it("does not register RuStore on an Android simulator", async () => {
+  it("does not register on an Android simulator", async () => {
     mocks.device.isDevice = false;
     await expect(setupPushNotifications()).resolves.toBe(false);
-    expect(mocks.nativeModules.RustorePush.getToken).not.toHaveBeenCalled();
     expect(mocks.savePushSubscription).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:unit": "node ../../scripts/qa/workspace-gap-advisory.mjs --run --package @gafus/bull-board",
     "build": "tsc -p tsconfig.json && node scripts/build-diagnostics.mjs",
     "dev": "PORT=3004 tsx bull-board.ts",
     "start": "PORT=3004 tsx bull-board.ts",

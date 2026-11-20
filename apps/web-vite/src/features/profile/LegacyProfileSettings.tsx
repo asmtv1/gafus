@@ -74,9 +74,6 @@ export function LegacyProfileSettings({profile}: {profile?:ProfileOverview}) {
             <NextProfileIcon name="tour"/><span>Повторить экскурсию</span>
             <span aria-hidden="true">›</span>
           </button>
-          {profile?.hasVkLinked && <div className={source.vkLinkedBadge}>
-            <NextProfileIcon name="login"/><span>VK подключён</span>
-          </div>}
         </Group>
       </div>
       <div className={source.settingsColumn}>

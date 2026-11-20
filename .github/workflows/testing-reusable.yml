@@ -1,0 +1,413 @@
+name: GAFUS Testing (informational)
+# New test profiles are informational; existing release gates remain untouched.
+# Real web E2E is advisory until CI runner parity and fault injection are confirmed.
+on:
+  workflow_call:
+    inputs:
+      profile:
+        required: false
+        type: string
+        default: ci
+      execute:
+        required: false
+        type: boolean
+        default: false
+      base:
+        required: false
+        type: string
+        default: ''
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Profile to plan
+        type: choice
+        options: [ci, unit, web-vite, native-preflight, integration, e2e-web, e2e-mobile, full]
+        default: ci
+        required: true
+jobs:
+  testing-plan-observe:
+    name: Test inventory, plan and report contract (non-release)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      # test-system.mjs now imports the YAML-backed native preflight contract.
+      # The advisory plan job must install that dependency on a fresh runner.
+      - name: Install locked dependencies for test plan and contracts
+        run: pnpm install --frozen-lockfile
+      - name: Verify result contract (includes missed and skipped checks)
+        id: contract
+        continue-on-error: true
+        run: pnpm test:system:contract
+      - name: Build reproducible test plan
+        id: planning
+        continue-on-error: true
+        env:
+          PROFILE: ${{ inputs.profile || 'ci' }}
+          BASE: ${{ inputs.base || '' }}
+        run: |
+          set -euo pipefail
+          args=(plan --profile "$PROFILE" --plan-only)
+          if [[ -n "$BASE" ]]; then args+=(--base "$BASE"); fi
+          node scripts/qa/test-system.mjs "${args[@]}"
+      - name: Summarize advisory status (never a release approval)
+        if: always()
+        env:
+          CONTRACT: ${{ steps.contract.outcome }}
+          PLANNING: ${{ steps.planning.outcome }}
+        run: |
+          echo "Test refactor trial: contract=$CONTRACT; plan=$PLANNING" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$CONTRACT" != success || "$PLANNING" != success ]]; then
+            echo "::warning::Test-system trial has incomplete checks. It is NOT a release approval."
+          fi
+      - name: Upload informational plan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testing-observe-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .qa/testing/**/plan.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  testing-web-e2e-advisory:
+    name: Fresh real-browser E2E (informational; never release gate)
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && (inputs.profile == 'e2e-web' || inputs.profile == 'full'))
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install locked workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build real API/Web dependency graph and generate Prisma client
+        run: |
+          pnpm --filter @gafus/prisma prisma:generate
+          pnpm exec turbo run build --filter='@gafus/api^...' --filter='@gafus/web-vite^...'
+      - name: Prepare disposable CI Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run real Hono + Vite + PostgreSQL/Redis + fresh-login Playwright E2E
+        id: web_e2e
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          GAFUS_WEB_E2E_AUTOMATED: '1'
+        run: pnpm test:e2e:web --scenario training.complete
+      - name: Publish advisory outcome without approving release
+        if: always()
+        env:
+          OUTCOME: ${{ steps.web_e2e.outcome }}
+        run: |
+          echo "Browser E2E outcome: $OUTCOME (advisory only, not a release approval)" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$OUTCOME" != success ]]; then
+            echo "::warning::Fresh-browser E2E incomplete or failed; release gates unchanged."
+          fi
+      - name: Upload nonsecret diagnostic receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fresh-web-e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .qa/testing/qa-*/plan.json
+            .qa/testing/qa-*/summary.json
+            .qa/testing/qa-*/summary.md
+            .qa/testing/web-e2e-*/verified.json
+            .qa/testing/web-e2e-*/playwright-raw.json
+            .qa/testing/qa-*/tasks/**/training-web.json
+            .qa/testing/qa-*/tasks/**/receipt.json
+            .qa/testing/web-e2e-*/playwright-artifacts/
+            .qa/testing/web-e2e-*/api.log
+            .qa/testing/web-e2e-*/web.log
+          if-no-files-found: warn
+          retention-days: 7
+
+  testing-web-vite-advisory:
+    name: Full web-vite regression (informational; not a release gate)
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && (inputs.profile == 'web-vite' || inputs.profile == 'full'))
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install locked workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build web-vite dependency graph
+        run: pnpm exec turbo run build --filter='@gafus/web-vite^...'
+      - name: Verify exact source test inventory, named groups and gated skips
+        run: |
+          node scripts/qa/web-vite-group-inventory.mjs check
+          pnpm test:system:contract
+      - name: Run full web-vite regression in isolated Vitest processes
+        id: regression
+        continue-on-error: true
+        timeout-minutes: 45
+        env:
+          CI: 'true'
+        run: pnpm test:web-vite
+      - name: Publish advisory outcome (not release approval)
+        if: always()
+        env:
+          OUTCOME: ${{ steps.regression.outcome }}
+        run: |
+          echo "web-vite full regression: $OUTCOME (advisory, not release approval)" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$OUTCOME" != success ]]; then
+            echo "::warning::web-vite regression incomplete or failed; release gates unchanged."
+          fi
+      - name: Upload named test report and per-group duration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-vite-advisory-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .qa/testing/qa-*/plan.json
+            .qa/testing/qa-*/summary.json
+            .qa/testing/qa-*/summary.md
+            .qa/testing/qa-*/tasks/**/receipt.json
+            .qa/testing/qa-*/tasks/**/tests.json
+            .qa/testing/qa-*/tasks/**/group-profile.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  testing-native-preflight-advisory:
+    name: Maestro device-free preflight (manual, informational, intentionally incomplete)
+    # Never part of the release/deploy gate. Only a manually selected profile.
+    if: github.event_name == 'workflow_dispatch' && inputs.profile == 'native-preflight'
+    runs-on: macos-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install locked JS dependencies for flow parser
+        run: pnpm install --frozen-lockfile
+      - name: Install pinned Maestro CLI (no simulator or app)
+        run: |
+          curl -fsSL --retry 3 https://get.maestro.mobile.dev -o "$RUNNER_TEMP/maestro-install.sh"
+          MAESTRO_VERSION=2.12.1 bash "$RUNNER_TEMP/maestro-install.sh"
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+      - name: Validate all flows and tools (never claim a device PASS)
+        id: native_preflight
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true'
+        run: pnpm test:mobile:preflight
+      - name: Publish explicit incomplete advisory status
+        if: always()
+        env:
+          OUTCOME: ${{ steps.native_preflight.outcome }}
+        run: |
+          echo "Native preflight: $OUTCOME; device acceptance remains INCOMPLETE without signed QA builds, physical devices and real OTA revision receipts." >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::Device-free Maestro preflight is informational. An exit code 2 is expected until physical native QA evidence exists."
+      - name: Upload device-free structured receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-maestro-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .qa/testing/qa-*/plan.json
+            .qa/testing/qa-*/summary.json
+            .qa/testing/qa-*/summary.md
+            .qa/testing/qa-*/tasks/**/receipt.json
+            .qa/testing/qa-*/tasks/**/native-preflight.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  testing-shard-plan:
+    if: inputs.execute || (github.event_name == 'workflow_dispatch' && inputs.profile == 'full')
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    outputs:
+      run_id: ${{ steps.plan.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - id: plan
+        env:
+          PROFILE: ${{ inputs.profile || 'full' }}
+        run: |
+          run_id="qa-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          node scripts/qa/test-system.mjs plan --run-id "$run_id" --profile "$PROFILE"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: testing-shard-plan-${{ github.run_attempt }}
+          include-hidden-files: true
+          path: .qa/testing/${{ steps.plan.outputs.run_id }}/plan.json
+          if-no-files-found: error
+
+  testing-shards:
+    needs: testing-shard-plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            runner: ubuntu-latest
+          - platform: android
+            runner: ubuntu-latest
+          - platform: ios
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    continue-on-error: true
+    env:
+      RUN_ID: ${{ needs.testing-shard-plan.outputs.run_id }}
+      TEST_PLATFORM: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: pnpm
+      - uses: actions/download-artifact@v4
+        with:
+          name: testing-shard-plan-${{ github.run_attempt }}
+          path: .qa/testing/${{ env.RUN_ID }}
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma Client
+        if: matrix.platform == 'linux'
+        continue-on-error: true
+        run: pnpm --filter @gafus/prisma prisma:generate
+      - name: Prepare Linux workspace dependencies
+        if: matrix.platform == 'linux'
+        continue-on-error: true
+        run: pnpm exec turbo run build --filter='@gafus/api...' --filter='@gafus/worker...' --filter='@gafus/web-vite...'
+      - name: Prepare Linux Chromium
+        if: matrix.platform == 'linux'
+        continue-on-error: true
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Execute tasks assigned to this platform
+        shell: bash
+        run: |
+          plan=".qa/testing/$RUN_ID/plan.json"
+          jq -r --arg platform "$TEST_PLATFORM" '
+            .tasks[] | select(if $platform == "linux" then
+              .platform != "android" and .platform != "ios"
+            else .platform == $platform end) | .id
+          ' "$plan" > "$RUNNER_TEMP/testing-tasks"
+          status=0
+          while IFS= read -r task; do
+            node scripts/qa/test-system.mjs run --plan "$plan" --task "$task" || {
+              code=$?
+              if (( code > status )); then status=$code; fi
+            }
+          done < "$RUNNER_TEMP/testing-tasks"
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: testing-task-results-${{ matrix.platform }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          path: .qa/testing/${{ env.RUN_ID }}/tasks/
+          if-no-files-found: warn
+          retention-days: 14
+
+  testing-shard-report:
+    if: always() && needs.testing-shard-plan.result != 'skipped'
+    needs: [testing-shard-plan, testing-shards]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      RUN_ID: ${{ needs.testing-shard-plan.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: testing-shard-plan-${{ github.run_attempt }}
+          path: .qa/testing/${{ env.RUN_ID }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: testing-task-results-*-${{ github.run_attempt }}
+          merge-multiple: true
+          path: .qa/testing/${{ env.RUN_ID }}/tasks
+        continue-on-error: true
+      - run: pnpm install --frozen-lockfile
+      - name: Reconcile the plan and every required receipt
+        run: node scripts/qa/test-system.mjs report --run-id "$RUN_ID"
+      - name: Publish advisory status
+        if: always()
+        shell: bash
+        run: |
+          summary=".qa/testing/$RUN_ID/summary.md"
+          if [[ -f "$summary" && -n "$RUN_ID" ]]; then
+            cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Test report incomplete: planning or aggregation did not finish." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always() && env.RUN_ID != ''
+        with:
+          name: testing-release-report-${{ github.run_attempt }}
+          include-hidden-files: true
+          path: |
+            .qa/testing/${{ env.RUN_ID }}/plan.json
+            .qa/testing/${{ env.RUN_ID }}/summary.json
+          if-no-files-found: warn

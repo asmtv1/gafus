@@ -33,10 +33,7 @@ import {
   confirmEmailChangeByToken,
   isUsernameAvailable,
   createRefreshSession,
-  exchangeVkCodeAndGetUser,
-  exchangeVkCodeForProfile,
   getAuthUserById,
-  linkVkToUser,
   REGISTER_CREDENTIALS_CONFLICT_PUBLIC_MESSAGE,
   registerUserService,
   requestEmailChange,
@@ -48,24 +45,17 @@ import {
   RefreshRotationConflictError,
   sendPasswordResetRequestByEmail,
   setPassword,
-  setVkPhone,
   validateCredentials,
   validateRefreshToken,
-  claimVkRegistrationContextUser,
-  completeVkRegistration,
-  createVkRegistrationContextWithPromo,
   previewRegistrationPromoCode,
-  getVkConsentContextSummary,
-  getVkPendingRegistrationUsername,
-  REGISTRATION_CHANNEL,
 } from "@gafus/core/services/auth";
-import {
-  APP_FEATURE_MOBILE_VK_LOGIN_IOS,
-  getMobileFeatureFlagEnabled,
-} from "@gafus/feature-flags-server";
 import { createWebLogger } from "@gafus/logger";
-import { getClientAppContext } from "../../lib/client-app-context.js";
+import { passwordResetPort } from "../../modules/auth/composition/password-reset-instance.js";
+import { emailAccountRows } from "../../modules/auth/composition/email-account-rows-instance.js";
 import { authMiddleware } from "../../middleware/auth.js";
+import { registrationContextPort } from "../../modules/auth/composition/registration-context-instance.js";
+import { credentialRegistrationPort } from "../../modules/auth/composition/credential-registration-instance.js";
+import { registrationContractRows } from "../../modules/auth/composition/registration-contract-rows-instance.js";
 import {
   clearBrowserSession,
   getBrowserRefreshToken,
@@ -140,22 +130,6 @@ const usernameAvailableQuerySchema = z.object({
     .regex(USERNAME_AVAILABILITY_ALLOWED_CHARACTERS, "Логин: латиница, цифры, _"),
 });
 
-const vkIdSchema = z.object({
-  code: z.string().min(1),
-  code_verifier: z.string().min(43).max(128),
-  device_id: z.string().min(1),
-  state: z.string().min(32),
-  platform: z.enum(["ios", "android"]).optional(),
-  // Selection is validated and stored in the durable context, never attributed
-  // until consent completion.
-  promoCode: z.string().trim().min(1).max(64).optional(),
-});
-const vkPhoneSetSchema = z.object({
-  phone: z
-    .string()
-    .min(1, "Номер телефона обязателен")
-    .regex(/^\+\d{10,15}$/, "Некорректный формат номера (ожидается E.164, пример: +79001234567)"),
-});
 const registrationPromoPreviewSchema = z.object({ promoCode: z.string().trim().min(1).max(64) });
 const setPasswordApiSchema = z.object({
   newPassword: z
@@ -272,6 +246,8 @@ authRoutes.post(
           userAgent,
           defaultVersion: CONSENT_VERSION,
         },
+        credentialRegistrationPort,
+        registrationContractRows,
       );
 
       if ("error" in result) {
@@ -348,7 +324,7 @@ authRoutes.post(
   zValidator("json", registrationPromoPreviewSchema),
   async (c) => {
     try {
-      const promo = await previewRegistrationPromoCode(c.req.valid("json").promoCode);
+      const promo = await previewRegistrationPromoCode(c.req.valid("json").promoCode, registrationContextPort, registrationContractRows);
       return c.json({ success: true, data: { code: promo!.normalizedCode } });
     } catch (error) {
       const code = error instanceof Error && "code" in error ? String(error.code) : "PROMO_INVALID";
@@ -544,7 +520,7 @@ authRoutes.post(
   async (c) => {
     try {
       const { email } = c.req.valid("json");
-      await sendPasswordResetRequestByEmail(email);
+      await sendPasswordResetRequestByEmail(email, emailAccountRows);
       return c.json({ success: true, message: PASSWORD_RESET_REQUEST_MESSAGE });
     } catch (error) {
       logger.error("Password reset request error", error as Error);
@@ -568,7 +544,7 @@ authRoutes.post(
   async (c) => {
     try {
       const { token, password } = c.req.valid("json");
-      await resetPassword(token, password);
+      await resetPassword(token, password, passwordResetPort);
       return c.json({ success: true });
     } catch (error) {
       logger.error("Reset password error", error as Error);
@@ -598,7 +574,7 @@ authRoutes.post(
   async (c) => {
     try {
       const { newEmail, currentPassword } = c.req.valid("json");
-      await requestEmailChange(c.get("user").id, newEmail, currentPassword);
+      await requestEmailChange(c.get("user").id, newEmail, currentPassword, emailAccountRows);
       return c.json({ success: true });
     } catch (error) {
       // Validation/domain conflicts keep the previously observed 400 envelope.
@@ -640,7 +616,7 @@ authRoutes.post(
   async (c) => {
     try {
       const { token } = c.req.valid("json");
-      await confirmEmailChangeByToken(token);
+      await confirmEmailChangeByToken(token, emailAccountRows);
       return c.json({ success: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "";
@@ -670,363 +646,16 @@ authRoutes.post(
   },
 );
 
-const vkConsentSchema = z.object({
-  contextToken: z.string().min(32, "Контекст обязателен").optional(),
-  vkConsentToken: z.string().min(32, "Контекст обязателен").optional(), // legacy field name for current clients
-  state: z.string().min(32, "Состояние авторизации обязательно"),
-  tempSessionId: z.string().uuid().optional(),
-  // Kept for clients that display the field on consent. Attribution has
-  // already happened in the account-creation transaction, if applicable.
-  promoCode: z.string().trim().min(1).max(64).optional(),
-  consentPayload: z.object({
-    acceptPersonalData: z.literal(true, {
-      errorMap: () => ({ message: "Необходимо принять согласие на обработку данных" }),
-    }),
-    acceptPrivacyPolicy: z.literal(true, {
-      errorMap: () => ({ message: "Необходимо принять политику конфиденциальности" }),
-    }),
-    acceptDataDistribution: z.literal(true, {
-      errorMap: () => ({ message: "Необходимо принять согласие на размещение данных" }),
-    }),
-  }),
-});
-
-// Context inspection intentionally returns no account data. It lets a mobile
-// consent screen restore the server-saved promo after a restart.
-authRoutes.get("/vk-consent/:contextToken", async (c) => {
-  const state = c.req.query("state");
-  if (!state)
-    return c.json(
-      { success: false, code: "CONTEXT_INVALID", error: "Контекст VK не найден. Повторите вход." },
-      400,
-    );
-  const context = await getVkConsentContextSummary(c.req.param("contextToken"), state);
-  if (!context)
-    return c.json(
-      {
-        success: false,
-        code: "CONTEXT_EXPIRED",
-        error: "Время подтверждения истекло. Повторите вход через VK.",
-      },
-      400,
-    );
-  return c.json({
-    success: true,
-    data: {
-      savedPromoCode: context.selectedPromoCodeValue,
-      completed: Boolean(context.completedAt),
-    },
-  });
-});
-
-// POST /api/v1/auth/vk — вход через VK ID (mobile, PKCE)
-authRoutes.post(
-  "/vk",
-  bodyLimit({ maxSize: 5 * 1024 }),
-  zValidator("json", vkIdSchema),
-  async (c) => {
-    try {
-      const clientContext = getClientAppContext(c);
-      if (
-        clientContext.platform === "ios" &&
-        !(await getMobileFeatureFlagEnabled(
-          APP_FEATURE_MOBILE_VK_LOGIN_IOS,
-          clientContext,
-          false,
-          false,
-        ))
-      ) {
-        return c.json(
-          {
-            success: false,
-            error: "Вход через VK недоступен в этой версии",
-            code: "FEATURE_DISABLED",
-          },
-          403,
-        );
-      }
-      const { code, code_verifier, device_id, state, platform, promoCode } = c.req.valid("json");
-      const ip =
-        c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? c.req.header("x-real-ip") ?? "";
-
-      const clientId =
-        platform === "ios"
-          ? (process.env.VK_CLIENT_ID_IOS ?? process.env.VK_CLIENT_ID ?? "")
-          : platform === "android"
-            ? (process.env.VK_CLIENT_ID_ANDROID ?? process.env.VK_CLIENT_ID ?? "")
-            : (process.env.VK_CLIENT_ID ?? "");
-
-      const vkRegistrationChannel =
-        platform === "ios"
-          ? REGISTRATION_CHANNEL.IOS
-          : platform === "android"
-            ? REGISTRATION_CHANNEL.ANDROID
-            : REGISTRATION_CHANNEL.UNKNOWN;
-
-      // Create and validate the durable consent context before consuming the
-      // single-use VK OAuth code.  Previously an invalid promo or a database
-      // error after findOrCreateVkUser() could leave a new user permanently
-      // registrationPending without a context token with which to finish.
-      const contextToken = crypto.randomBytes(32).toString("base64url");
-      await createVkRegistrationContextWithPromo({
-        contextToken,
-        state,
-        codeVerifier: code_verifier,
-        promoCode,
-      });
-
-      const result = await exchangeVkCodeAndGetUser({
-        code,
-        codeVerifier: code_verifier,
-        deviceId: device_id,
-        state,
-        redirectUri: `vk${clientId}://vk.ru/blank.html`,
-        clientId,
-        registrationChannel: vkRegistrationChannel,
-        promoCode,
-      });
-
-      const { user, needsPhone, isNewUser } = result;
-
-      if (result.requiresConsent) {
-        await claimVkRegistrationContextUser({ contextToken, state, userId: user.id });
-        logger.info("VK ID new user, needs consent", { userId: user.id });
-        return c.json({
-          success: true,
-          data: {
-            needsConsent: true,
-            vkConsentToken: contextToken,
-            contextToken,
-            savedPromoCode: promoCode?.trim().toUpperCase() ?? null,
-            user: { id: user.id, username: user.username, role: user.role },
-          },
-        });
-      }
-
-      const authUser = {
-        id: user.id,
-        username: user.username,
-        role: user.role as "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER",
-      };
-      await assertCompletedUser(user.id);
-      const tokenId = crypto.randomUUID();
-      const accessToken = await generateAccessToken(authUser, tokenId);
-      const refreshToken = await generateRefreshToken(user.id, tokenId);
-      const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-
-      await createRefreshSession(user.id, tokenId, tokenHash, {
-        ipAddress: ip,
-        userAgent: c.req.header("user-agent"),
-        expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS),
-      });
-
-      logger.info("VK ID auth success", { userId: user.id });
-
-      return c.json({
-        success: true,
-        data: {
-          user: { id: user.id, username: user.username, role: user.role },
-          accessToken,
-          refreshToken,
-          needsPhone,
-        },
-      });
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "";
-      if (msg.includes("VK token exchange failed") || msg.includes("VK profile fetch failed")) {
-        logger.warn("VK ID auth failed", { error: msg });
-        return c.json({ success: false, error: "Не удалось получить токен VK ID" }, 400);
-      }
-      logger.error("VK ID auth error", error as Error);
-      return c.json({ success: false, error: "Ошибка авторизации VK ID" }, 500);
-    }
-  },
-);
-
-// POST /api/v1/auth/vk-consent — согласия для новых VK-пользователей (mobile)
-authRoutes.post(
-  "/vk-consent",
-  bodyLimit({ maxSize: 5 * 1024 }),
-  zValidator("json", vkConsentSchema),
-  async (c) => {
-    try {
-      const {
-        contextToken: directContextToken,
-        vkConsentToken,
-        state,
-        consentPayload,
-        promoCode,
-        tempSessionId,
-      } = c.req.valid("json");
-      const contextToken = directContextToken ?? vkConsentToken;
-      if (!contextToken)
-        return c.json(
-          {
-            success: false,
-            code: "CONTEXT_INVALID",
-            error: "Контекст VK не найден. Повторите вход.",
-          },
-          400,
-        );
-      const ip =
-        c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ?? c.req.header("x-real-ip") ?? "";
-      const userAgent = c.req.header("user-agent");
-      const pendingUsername = await getVkPendingRegistrationUsername(contextToken, state);
-      if (!pendingUsername)
-        return c.json(
-          {
-            success: false,
-            code: "CONTEXT_EXPIRED",
-            error: "Время подтверждения истекло. Повторите вход через VK.",
-          },
-          400,
-        );
-
-      const completion = await completeVkRegistration({
-        contextToken,
-        state,
-        promoCode,
-        consent: {
-          tempSessionId: tempSessionId ?? crypto.randomUUID(),
-          consentPayload,
-          formData: { name: pendingUsername },
-          ipAddress: ip,
-          userAgent: userAgent ?? undefined,
-          defaultVersion: CONSENT_VERSION,
-        },
-        transport: "MOBILE",
-      });
-      const user = await getAuthUserById(completion.user.id);
-      if (!user) return c.json({ success: false, error: "Пользователь не найден" }, 400);
-
-      const authUser = {
-        id: user.id,
-        username: user.username,
-        role: user.role as "USER" | "PARTNER" | "ADMIN" | "MODERATOR" | "TRAINER",
-      };
-      await assertCompletedUser(user.id);
-      const tokenId = crypto.randomUUID();
-      const accessToken = await generateAccessToken(authUser, tokenId);
-      const refreshToken = await generateRefreshToken(user.id, tokenId);
-      const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-
-      await createRefreshSession(user.id, tokenId, tokenHash, {
-        ipAddress: ip,
-        userAgent: userAgent ?? undefined,
-        expiresAt: new Date(Date.now() + REFRESH_EXPIRES_MS),
-      });
-
-      logger.info("VK consent completed", { userId: user.id });
-
-      return c.json({
-        success: true,
-        data: {
-          user: { id: user.id, username: user.username, role: user.role },
-          accessToken,
-          refreshToken,
-          needsPhone: user.phone?.startsWith("vk_") ?? false,
-        },
-      });
-    } catch (error) {
-      logger.error("VK consent error", error as Error);
-      return c.json(
-        { success: false, error: "Не удалось сохранить согласия. Попробуйте снова." },
-        500,
-      );
-    }
-  },
-);
-
-// POST /api/v1/auth/vk-phone-set (требует JWT)
-authRoutes.post(
-  "/vk-phone-set",
-  authMiddleware,
-  bodyLimit({ maxSize: 1024 }),
-  zValidator("json", vkPhoneSetSchema),
-  async (c) => {
-    try {
-      const { phone } = c.req.valid("json");
-      const userId = c.get("user").id;
-      await setVkPhone(userId, phone);
-      return c.json({ success: true });
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "";
-      const safeMessages = [
-        "Пользователь не найден",
-        "Смена номера недоступна через этот метод",
-        "Неверный формат номера телефона",
-      ];
-      return c.json(
-        { success: false, error: safeMessages.includes(msg) ? msg : "Не удалось установить номер" },
-        400,
-      );
-    }
-  },
-);
-
-// POST /api/v1/auth/vk-link — привязка VK аккаунта (mobile, PKCE, требует JWT)
-authRoutes.post(
-  "/vk-link",
-  authMiddleware,
-  bodyLimit({ maxSize: 5 * 1024 }),
-  zValidator("json", vkIdSchema),
-  async (c) => {
-    try {
-      const clientContext = getClientAppContext(c);
-      if (
-        clientContext.platform === "ios" &&
-        !(await getMobileFeatureFlagEnabled(
-          APP_FEATURE_MOBILE_VK_LOGIN_IOS,
-          clientContext,
-          false,
-          false,
-        ))
-      ) {
-        return c.json(
-          {
-            success: false,
-            error: "Подключение VK недоступно в этой версии",
-            code: "FEATURE_DISABLED",
-          },
-          403,
-        );
-      }
-      const { code, code_verifier, device_id, state, platform } = c.req.valid("json");
-      const user = c.get("user");
-
-      const clientId =
-        platform === "ios"
-          ? (process.env.VK_CLIENT_ID_IOS ?? process.env.VK_CLIENT_ID ?? "")
-          : platform === "android"
-            ? (process.env.VK_CLIENT_ID_ANDROID ?? process.env.VK_CLIENT_ID ?? "")
-            : (process.env.VK_CLIENT_ID ?? "");
-
-      const vkProfile = await exchangeVkCodeForProfile({
-        code,
-        codeVerifier: code_verifier,
-        deviceId: device_id,
-        state,
-        redirectUri: `vk${clientId}://vk.ru/blank.html`,
-        clientId,
-      });
-      const result = await linkVkToUser(user.id, vkProfile);
-      if (!result.success) {
-        return c.json({ success: false, error: result.error }, 400);
-      }
-
-      logger.info("VK link success via API", { userId: user.id });
-      return c.json({ success: true });
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "";
-      if (msg.includes("VK token exchange failed") || msg.includes("VK profile fetch failed")) {
-        logger.warn("VK link failed", { error: msg });
-        return c.json({ success: false, error: "Не удалось получить токен VK ID" }, 400);
-      }
-      logger.error("VK link error", error as Error);
-      return c.json({ success: false, error: "Ошибка привязки VK" }, 500);
-    }
-  },
-);
+// Older mobile builds must not silently retry an OAuth flow that was removed.
+const vkRetiredResponse = (c: import("hono").Context) =>
+  c.json({
+    success: false,
+    code: "VK_AUTH_RETIRED",
+    error: "Вход через VK больше не поддерживается. Восстановите пароль по email или обратитесь в поддержку GAFUS.",
+  }, 410);
+for (const path of ["/vk", "/vk-consent", "/vk-consent/:contextToken", "/vk-phone-set", "/vk-link"]) {
+  authRoutes.all(path, vkRetiredResponse);
+}
 
 // W1 G02 password mutations are sensitive even on unauthenticated/invalid
 // requests: pre-auth middleware ensures early 401/403/validation cannot cache.
@@ -1036,7 +665,7 @@ const passwordPrivateResponse: import("hono").MiddlewareHandler = async (c, next
   await next();
 };
 
-// POST /api/v1/auth/set-password (authenticated VK-only account).
+// POST /api/v1/auth/set-password (authenticated account with no password).
 authRoutes.post(
   "/set-password",
   passwordPrivateResponse,

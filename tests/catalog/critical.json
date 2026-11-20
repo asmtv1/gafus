@@ -1,0 +1,374 @@
+{
+  "schema": 1,
+  "scenarios": [
+    {
+      "id": "training.complete",
+      "owner": "@gafus/course-progress-server",
+      "workspaces": [
+        "@gafus/core",
+        "@gafus/course-progress-server",
+        "@gafus/api",
+        "@gafus/web-vite"
+      ],
+      "profiles": [
+        "pr-affected",
+        "main",
+        "nightly"
+      ],
+      "requiredChecks": [
+        "training.complete.unit",
+        "training.complete.pg",
+        "training.complete.web"
+      ]
+    },
+    {
+      "id": "mobile.ota",
+      "owner": "@gafus/mobile",
+      "workspaces": [
+        "@gafus/mobile",
+        "@gafus/mobile-ota-server",
+        "@gafus/api"
+      ],
+      "profiles": [
+        "nightly"
+      ],
+      "requiredChecks": [
+        "mobile.ota.pg",
+        "mobile.ota.android",
+        "mobile.ota.ios"
+      ]
+    },
+    {
+      "id": "mobile.training",
+      "owner": "@gafus/mobile",
+      "workspaces": [
+        "@gafus/mobile",
+        "@gafus/api",
+        "@gafus/course-progress-server"
+      ],
+      "profiles": [
+        "nightly"
+      ],
+      "requiredChecks": [
+        "mobile.training.android",
+        "mobile.training.ios"
+      ]
+    },
+    {
+      "id": "payment.lifecycle",
+      "owner": "@gafus/subscription-payment-server",
+      "workspaces": [
+        "@gafus/subscription-payment-server",
+        "@gafus/core",
+        "@gafus/prisma",
+        "@gafus/api"
+      ],
+      "profiles": [
+        "pr-affected",
+        "main",
+        "nightly"
+      ],
+      "requiredChecks": [
+        "payment.lifecycle.checkout-ui",
+        "payment.lifecycle.pg",
+        "payment.lifecycle.web",
+        "payment.lifecycle.apple-sandbox"
+      ]
+    },
+    {
+      "id": "chat.delivery",
+      "owner": "@gafus/chat-server",
+      "workspaces": [
+        "@gafus/chat-server",
+        "@gafus/core-client",
+        "@gafus/api",
+        "@gafus/mobile"
+      ],
+      "profiles": [
+        "pr-affected",
+        "main",
+        "nightly"
+      ],
+      "requiredChecks": [
+        "chat.delivery.photo-ui",
+        "chat.delivery.unit",
+        "chat.delivery.pg",
+        "chat.delivery.mobile.android",
+        "chat.delivery.mobile.ios"
+      ]
+    },
+    {
+      "id": "feed.order",
+      "owner": "@gafus/feed-server",
+      "workspaces": [
+        "@gafus/feed-server",
+        "@gafus/core"
+      ],
+      "profiles": [
+        "pr-affected",
+        "main",
+        "nightly"
+      ],
+      "requiredChecks": [
+        "feed.order.pg",
+        "feed.order.web"
+      ]
+    },
+    {
+      "id": "account.delete",
+      "owner": "@gafus/identity-write-server",
+      "workspaces": [
+        "@gafus/identity-write-server",
+        "@gafus/api",
+        "@gafus/prisma"
+      ],
+      "profiles": [
+        "pr-affected",
+        "main",
+        "nightly"
+      ],
+      "requiredChecks": [
+        "account.delete.pg",
+        "account.delete.web"
+      ]
+    },
+    {
+      "id": "security.authorization",
+      "owner": "@gafus/auth",
+      "workspaces": [
+        "@gafus/auth",
+        "@gafus/api",
+        "@gafus/entitlements-server",
+        "@gafus/course-server"
+      ],
+      "profiles": [
+        "pr-affected",
+        "main",
+        "nightly"
+      ],
+      "requiredChecks": [
+        "security.authorization.session-unit",
+        "security.authorization.http",
+        "security.authorization.roles-web"
+      ]
+    },
+    {
+      "id": "payment.failures",
+      "owner": "@gafus/core",
+      "workspaces": [
+        "@gafus/core",
+        "@gafus/subscription-payment-server",
+        "@gafus/prisma"
+      ],
+      "profiles": [
+        "advisory",
+        "faults"
+      ],
+      "requiredChecks": [
+        "payment.failures.pg"
+      ]
+    },
+    {
+      "id": "worker.failures",
+      "owner": "@gafus/worker",
+      "workspaces": [
+        "@gafus/worker",
+        "@gafus/media-server",
+        "@gafus/prisma"
+      ],
+      "profiles": [
+        "advisory",
+        "faults"
+      ],
+      "requiredChecks": [
+        "worker.failures.pg"
+      ]
+    },
+    {
+      "id": "coverage.payment",
+      "owner": "@gafus/subscription-payment-server",
+      "workspaces": [
+        "@gafus/core",
+        "@gafus/subscription-payment-server",
+        "@gafus/prisma"
+      ],
+      "profiles": [
+        "advisory",
+        "coverage-risk"
+      ],
+      "requiredChecks": [
+        "coverage.payment.pg"
+      ]
+    },
+    {
+      "id": "coverage.worker",
+      "owner": "@gafus/worker",
+      "workspaces": [
+        "@gafus/worker",
+        "@gafus/media-server",
+        "@gafus/prisma"
+      ],
+      "profiles": [
+        "advisory",
+        "coverage-risk"
+      ],
+      "requiredChecks": [
+        "coverage.worker.pg"
+      ]
+    },
+    {
+      "id": "worker.redis-recovery",
+      "owner": "@gafus/worker",
+      "workspaces": [
+        "@gafus/worker",
+        "@gafus/media-server",
+        "@gafus/prisma"
+      ],
+      "profiles": [
+        "advisory",
+        "recovery"
+      ],
+      "requiredChecks": [
+        "worker.redis-recovery.pg-redis"
+      ]
+    },
+    {
+      "id": "api.authenticated-http",
+      "owner": "@gafus/api",
+      "workspaces": [
+        "@gafus/api",
+        "@gafus/auth",
+        "@gafus/core",
+        "@gafus/prisma"
+      ],
+      "profiles": [
+        "advisory",
+        "api-acceptance"
+      ],
+      "requiredChecks": [
+        "api.authenticated-http.pg"
+      ]
+    },
+    {
+      "id": "api.browser-cookie-session",
+      "owner": "@gafus/api",
+      "workspaces": [
+        "@gafus/api",
+        "@gafus/auth",
+        "@gafus/core",
+        "@gafus/prisma"
+      ],
+      "profiles": [
+        "advisory",
+        "browser-cookie"
+      ],
+      "requiredChecks": [
+        "api.browser-cookie.chrome-pg-redis"
+      ]
+    },
+    {
+      "id": "api.account-delete-real-web",
+      "owner": "@gafus/api",
+      "workspaces": [
+        "@gafus/web-vite",
+        "@gafus/api",
+        "@gafus/core",
+        "@gafus/prisma"
+      ],
+      "profiles": [
+        "advisory",
+        "account-delete-web"
+      ],
+      "requiredChecks": [
+        "api.account-delete.real-web-hono-sql"
+      ]
+    },
+    {
+      "id": "api.account-cleanup.fake-storage-worker",
+      "owner": "@gafus/worker",
+      "workspaces": [
+        "@gafus/worker",
+        "@gafus/api",
+        "@gafus/prisma",
+        "@gafus/core"
+      ],
+      "profiles": [
+        "advisory",
+        "account-cleanup-worker"
+      ],
+      "requiredChecks": [
+        "api.account-cleanup.fake-storage-worker"
+      ]
+    },
+    {
+      "id": "schema.fresh",
+      "owner": "@gafus/prisma",
+      "workspaces": [
+        "@gafus/prisma"
+      ],
+      "profiles": [
+        "nightly"
+      ],
+      "requiredChecks": [
+        "schema.fresh.pg15",
+        "schema.fresh.pg18"
+      ]
+    },
+    {
+      "id": "infrastructure.contracts",
+      "owner": "qa/infrastructure",
+      "workspaces": [],
+      "profiles": [
+        "nightly"
+      ],
+      "requiredChecks": [
+        "infrastructure.contracts.python"
+      ]
+    },
+    {
+      "id": "staff.actions",
+      "owner": "@gafus/api",
+      "workspaces": [
+        "@gafus/api",
+        "@gafus/trainer-panel",
+        "@gafus/admin-panel"
+      ],
+      "profiles": [
+        "pr-affected",
+        "nightly"
+      ],
+      "requiredChecks": [
+        "staff.actions.trainer-http",
+        "staff.actions.admin-http"
+      ]
+    },
+    {
+      "id": "training.offline",
+      "owner": "@gafus/api",
+      "workspaces": [
+        "@gafus/api",
+        "@gafus/mobile",
+        "@gafus/course-progress-server"
+      ],
+      "profiles": [
+        "pr-affected",
+        "nightly"
+      ],
+      "requiredChecks": [
+        "training.offline.journal-http"
+      ]
+    },
+    {
+      "id": "legacy.matrix",
+      "owner": "qa/infrastructure",
+      "workspaces": [],
+      "profiles": [
+        "legacy"
+      ],
+      "requiredChecks": [
+        "legacy.matrix.regression",
+        "legacy.matrix.faults"
+      ]
+    }
+  ]
+}

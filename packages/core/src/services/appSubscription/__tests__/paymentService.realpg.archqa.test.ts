@@ -56,7 +56,46 @@ const paymentObject = (id = providerId) => ({
       ? { kind: "app_subscription", localPaymentId: racePaymentId, userId: raceUserId, planCode: "WEEKLY" }
       : eventMetadata(),
 });
+// Extra IDs exist only in this disposable PG suite; never resolve external URLs.
+const injectedPayments = new Map<string, ReturnType<typeof paymentObject>>();
+const injectedRefunds = new Map<string, {
+  paymentId:string; amount?:string; currency?:string; status?:string;
+}>();
+const failPaymentOnce = new Set<string>();
+const failRefundOnce = new Set<string>();
+const pendingForCoverage = async () => {
+  const unique=randomUUID().replaceAll('-','');
+  const user=await prisma.user.create({data:{username:`qa_webhook_risk_${unique}`,password:'disposable',role:'USER'}});
+  const payment=await prisma.appSubscriptionPayment.create({data:{
+    userId:user.id,provider:'YOOKASSA',kind:'INITIAL',planCode:'WEEKLY',
+    status:'PENDING',amount:'200.00',currency:'RUB',idempotenceKey:`qa:risk:${unique}`,
+    periodStart:new Date('2026-11-01T11:00:00Z'),periodEnd:new Date('2026-11-08T11:00:00Z'),
+  }});
+  const provider=`qa-risk-payment-${unique}`;
+  const metadata={kind:'app_subscription',localPaymentId:payment.id,userId:user.id,planCode:'WEEKLY'};
+  const fixture={...paymentObject(),id:provider,metadata};
+  injectedPayments.set(provider,fixture);
+  const input={event:'payment.succeeded',yookassaPaymentId:provider,
+    providerEventKey:`payment.succeeded:${provider}`,metadata,
+    shopId:'qa-fake-shop',secretKey:'qa-fake-secret'};
+  return {user,payment,provider,metadata,fixture,input};
+};
+
 const remote = vi.fn(async (url: unknown) => {
+  const requested=String(url);
+  for(const [id,fixture] of injectedPayments){
+    if(requested!==`https://api.yookassa.ru/v3/payments/${id}`)continue;
+    if(failPaymentOnce.delete(id))throw Error('QA_INJECTED_PROVIDER_PAYMENT_TIMEOUT');
+    return new Response(JSON.stringify(fixture),{status:200,headers:{'content-type':'application/json'}});
+  }
+  for(const [id,fixture] of injectedRefunds){
+    if(requested!==`https://api.yookassa.ru/v3/refunds/${id}`)continue;
+    if(failRefundOnce.delete(id))throw Error('QA_INJECTED_PROVIDER_REFUND_TIMEOUT');
+    return new Response(JSON.stringify({id,status:fixture.status??'succeeded',payment_id:fixture.paymentId,
+      amount:{value:fixture.amount??'200.00',currency:fixture.currency??'RUB'},
+      created_at:'2026-11-09T11:05:00Z'}),
+      {status:200,headers:{'content-type':'application/json'}});
+  }
   const str = String(url);
   if (str === `https://api.yookassa.ru/v3/refunds/${refundId}`) {
     return new Response(JSON.stringify({ id: refundId, status: "succeeded",
@@ -210,6 +249,227 @@ describe("real Core YooKassa webhook replay against disposable current-schema Po
     expect(await prisma.appSubscriptionEvent.count({ where: { providerEventKey: key } })).toBe(1);
     expect(await prisma.appSubscriptionPayment.findUniqueOrThrow({ where: { id: racePaymentId } }))
       .toMatchObject({ status: "SUCCEEDED", yookassaPaymentId: raceProviderId });
+  });
+
+  it("provider timeout before first entitlement is retried without duplicate grant or receipt", async () => {
+    const suffix=randomUUID().replaceAll('-','');
+    const testUser=await prisma.user.create({data:{username:`qa_fault_pay_${suffix}`,password:'qa-only',role:'USER'}});
+    const payment=await prisma.appSubscriptionPayment.create({data:{
+      userId:testUser.id,provider:'YOOKASSA',kind:'INITIAL',planCode:'WEEKLY',
+      status:'PENDING',amount:'200.00',currency:'RUB',idempotenceKey:`qa:fault:${suffix}`,
+      periodStart:new Date('2026-11-01T11:00:00Z'),periodEnd:new Date('2026-11-08T11:00:00Z'),
+    }});
+    const provider=`qa-fault-payment-${suffix}`;
+    injectedPayments.set(provider,{
+      ...paymentObject(),id:provider,metadata:{kind:'app_subscription',
+        localPaymentId:payment.id,userId:testUser.id,planCode:'WEEKLY'},
+    });
+    failPaymentOnce.add(provider);
+    const key=`payment.succeeded:${provider}`;
+    const event={event:'payment.succeeded',yookassaPaymentId:provider,providerEventKey:key,
+      metadata:{kind:'app_subscription',localPaymentId:payment.id,userId:testUser.id,planCode:'WEEKLY'},
+      shopId:'qa-fake-shop',secretKey:'qa-fake-secret'};
+    await expect(handleYookassaAppSubscriptionWebhook(event)).rejects.toThrow('QA_INJECTED_PROVIDER_PAYMENT_TIMEOUT');
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('PENDING');
+    expect(await prisma.appSubscription.count({where:{userId:testUser.id}})).toBe(0);
+    expect(await prisma.appSubscriptionEvent.count({where:{providerEventKey:key,processingStatus:'PROCESSED'}})).toBe(0);
+    const retries=await Promise.allSettled([
+      handleYookassaAppSubscriptionWebhook(event),handleYookassaAppSubscriptionWebhook(event),
+    ]);
+    expect(retries).toHaveLength(2);
+    expect(retries.every(result=>result.status==='fulfilled')).toBe(true);
+    expect(await prisma.appSubscription.count({where:{userId:testUser.id}})).toBe(1);
+    expect(await prisma.appSubscriptionEvent.count({where:{providerEventKey:key}})).toBe(1);
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('SUCCEEDED');
+  });
+
+  it("refund verification outage preserves access until one verified refund is committed", async () => {
+    const suffix=randomUUID().replaceAll('-','');
+    const testUser=await prisma.user.create({data:{username:`qa_fault_refund_${suffix}`,password:'qa-only',role:'USER'}});
+    const payment=await prisma.appSubscriptionPayment.create({data:{
+      userId:testUser.id,provider:'YOOKASSA',kind:'INITIAL',planCode:'WEEKLY',
+      status:'PENDING',amount:'200.00',currency:'RUB',idempotenceKey:`qa:refund-fault:${suffix}`,
+      periodStart:new Date('2026-11-01T11:00:00Z'),periodEnd:new Date('2026-11-08T11:00:00Z'),
+    }});
+    const provider=`qa-fault-refund-pay-${suffix}`;
+    const metadata={kind:'app_subscription',localPaymentId:payment.id,userId:testUser.id,planCode:'WEEKLY'};
+    injectedPayments.set(provider,{...paymentObject(),id:provider,metadata});
+    const initial={event:'payment.succeeded',yookassaPaymentId:provider,
+      providerEventKey:`payment.succeeded:${provider}`,metadata,shopId:'qa-fake-shop',secretKey:'qa-fake-secret'};
+    await handleYookassaAppSubscriptionWebhook(initial);
+    const afterGrant=await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}});
+    expect(afterGrant.subscriptionId).toBeTruthy();
+    const refund=`qa-fault-refund-${suffix}`;
+    injectedRefunds.set(refund,{paymentId:provider});failRefundOnce.add(refund);
+    const key=`refund.succeeded:${refund}`;
+    const event={event:'refund.succeeded',yookassaPaymentId:provider,yookassaRefundId:refund,
+      providerEventKey:key,shopId:'qa-fake-shop',secretKey:'qa-fake-secret'};
+    await expect(handleYookassaAppSubscriptionWebhook(event)).rejects.toThrow('QA_INJECTED_PROVIDER_REFUND_TIMEOUT');
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('SUCCEEDED');
+    expect((await prisma.appSubscription.findUniqueOrThrow({where:{id:afterGrant.subscriptionId!}})).status).toBe('ACTIVE');
+    expect(await prisma.appSubscriptionFinanceRefund.count({where:{paymentId:payment.id}})).toBe(0);
+    await handleYookassaAppSubscriptionWebhook(event);
+    await handleYookassaAppSubscriptionWebhook(event);
+    expect(await prisma.appSubscriptionFinanceRefund.count({where:{paymentId:payment.id,providerRefundId:refund}})).toBe(1);
+    expect(await prisma.appSubscriptionEvent.count({where:{providerEventKey:key}})).toBe(1);
+    expect((await prisma.appSubscription.findUniqueOrThrow({where:{id:afterGrant.subscriptionId!}})).status).toBe('CANCELED');
+  });
+
+  it("unconfirmed provider payment rejects grant, then verified replay grants exactly once",async()=>{
+    const {user,payment,provider,fixture,input}=await pendingForCoverage();
+    injectedPayments.set(provider,{...fixture,status:'pending',paid:false});
+    await expect(handleYookassaAppSubscriptionWebhook(input)).rejects.toThrow('YooKassa payment is not confirmed');
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('PENDING');
+    expect(await prisma.appSubscription.count({where:{userId:user.id}})).toBe(0);
+    expect(await prisma.appSubscriptionEvent.findUniqueOrThrow({where:{providerEventKey:input.providerEventKey}}))
+      .toMatchObject({processingStatus:'FAILED'});
+    injectedPayments.set(provider,fixture);
+    const replays=await Promise.all([handleYookassaAppSubscriptionWebhook(input),handleYookassaAppSubscriptionWebhook(input)]);
+    expect(replays).toEqual([{userId:user.id},{userId:user.id}]);
+    expect(await prisma.appSubscription.count({where:{userId:user.id,status:'ACTIVE'}})).toBe(1);
+    expect(await prisma.appSubscriptionEvent.count({where:{providerEventKey:input.providerEventKey}})).toBe(1);
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('SUCCEEDED');
+  });
+
+  it("wrong provider amount is rejected without a grant and retry uses immutable checkout amount",async()=>{
+    const {user,payment,provider,fixture,input}=await pendingForCoverage();
+    injectedPayments.set(provider,{...fixture,amount:{value:'199.00',currency:'RUB'}});
+    await expect(handleYookassaAppSubscriptionWebhook(input)).rejects.toThrow('YooKassa payment amount mismatch');
+    expect(await prisma.appSubscription.count({where:{userId:user.id}})).toBe(0);
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('PENDING');
+    injectedPayments.set(provider,fixture);
+    expect(await handleYookassaAppSubscriptionWebhook(input)).toEqual({userId:user.id});
+    expect(await handleYookassaAppSubscriptionWebhook(input)).toEqual({userId:user.id});
+    expect(await prisma.appSubscription.count({where:{userId:user.id}})).toBe(1);
+    const final=await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}});
+    expect(final.status).toBe('SUCCEEDED');
+    expect(final.amount?.toString()).toBe('200');
+    expect(await prisma.appSubscriptionEvent.count({where:{providerEventKey:input.providerEventKey}})).toBe(1);
+  });
+
+  it("cross-account provider metadata cannot grant entitlement even with valid incoming webhook metadata",async()=>{
+    const {user,payment,provider,fixture,input}=await pendingForCoverage();
+    injectedPayments.set(provider,{...fixture,metadata:{...fixture.metadata,userId:'qa-other-account'}});
+    await expect(handleYookassaAppSubscriptionWebhook(input)).rejects.toThrow('YooKassa payment metadata userId mismatch');
+    expect(await prisma.appSubscription.count({where:{userId:user.id}})).toBe(0);
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('PENDING');
+    injectedPayments.set(provider,fixture);
+    expect(await handleYookassaAppSubscriptionWebhook(input)).toEqual({userId:user.id});
+    expect(await handleYookassaAppSubscriptionWebhook(input)).toEqual({userId:user.id});
+    expect(await prisma.appSubscription.count({where:{userId:user.id}})).toBe(1);
+    expect(await prisma.appSubscriptionEvent.count({where:{providerEventKey:input.providerEventKey}})).toBe(1);
+  });
+
+  it("verified payment cancellation and repeated cancel webhook never create access or duplicate event",async()=>{
+    const {user,payment,provider,fixture,input}=await pendingForCoverage();
+    const canceled={...fixture,status:'canceled',paid:false};
+    injectedPayments.set(provider,canceled);
+    const event={...input,event:'payment.canceled',providerEventKey:`payment.canceled:${provider}`};
+    expect(await handleYookassaAppSubscriptionWebhook(event)).toEqual({userId:user.id});
+    expect(await handleYookassaAppSubscriptionWebhook(event)).toEqual({userId:user.id});
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('CANCELED');
+    expect(await prisma.appSubscription.count({where:{userId:user.id}})).toBe(0);
+    expect(await prisma.appSubscriptionEvent.count({where:{providerEventKey:event.providerEventKey}})).toBe(1);
+    expect(await prisma.appSubscriptionEvent.findUniqueOrThrow({where:{providerEventKey:event.providerEventKey}}))
+      .toMatchObject({processingStatus:'PROCESSED'});
+  });
+
+  it("unknown local payment reference is ignored without granting or claiming an event processed",async()=>{
+    const key=`payment.succeeded:qa-unknown-${randomUUID()}`;
+    const countBefore=await prisma.appSubscription.count();
+    const requestCount=remote.mock.calls.length;
+    const result=await handleYookassaAppSubscriptionWebhook({
+      event:'payment.succeeded',yookassaPaymentId:'qa-unknown-'+randomUUID(),
+      providerEventKey:key,metadata:{kind:'app_subscription',localPaymentId:'qa-unowned-'+randomUUID()},
+      shopId:'qa-fake-shop',secretKey:'qa-fake-secret',
+    });
+    expect(result).toEqual({userId:null});
+    expect(remote.mock.calls.length).toBe(requestCount);
+    expect(await prisma.appSubscription.count()).toBe(countBefore);
+    expect(await prisma.appSubscriptionEvent.count({where:{providerEventKey:key}})).toBe(1);
+    expect(await prisma.appSubscriptionEvent.findUniqueOrThrow({where:{providerEventKey:key}}))
+      .toMatchObject({processingStatus:'RECEIVED'});
+  });
+
+  it("unverified cancel webhook fails closed until a provider-confirmed cancellation is replayed",async()=>{
+    const {user,payment,provider,fixture,input}=await pendingForCoverage();
+    const cancel={...input,event:'payment.canceled',providerEventKey:`payment.canceled:${provider}`};
+    await expect(handleYookassaAppSubscriptionWebhook(cancel)).rejects.toThrow('YooKassa payment is not canceled');
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('PENDING');
+    expect(await prisma.appSubscriptionEvent.findUniqueOrThrow({where:{providerEventKey:cancel.providerEventKey}}))
+      .toMatchObject({processingStatus:'FAILED'});
+    expect(await prisma.appSubscription.count({where:{userId:user.id}})).toBe(0);
+    injectedPayments.set(provider,{...fixture,status:'canceled',paid:false});
+    expect(await handleYookassaAppSubscriptionWebhook(cancel)).toEqual({userId:user.id});
+    expect(await handleYookassaAppSubscriptionWebhook(cancel)).toEqual({userId:user.id});
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('CANCELED');
+    expect(await prisma.appSubscriptionEvent.count({where:{providerEventKey:cancel.providerEventKey}})).toBe(1);
+  });
+
+  it("mismatched refund payment reference cannot reverse entitlement and corrected replay reverses once",async()=>{
+    const {user,payment,provider,input}=await pendingForCoverage();
+    await handleYookassaAppSubscriptionWebhook(input);
+    const subscription=(await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).subscriptionId!;
+    const refund=`qa-refund-reference-${randomUUID()}`;
+    injectedRefunds.set(refund,{paymentId:`qa-wrong-payment-${randomUUID()}`});
+    const evt={event:'refund.succeeded',yookassaPaymentId:provider,yookassaRefundId:refund,
+      providerEventKey:`refund.succeeded:${refund}`,shopId:'qa-fake-shop',secretKey:'qa-fake-secret'};
+    await expect(handleYookassaAppSubscriptionWebhook(evt)).rejects.toThrow('YooKassa refund payment id mismatch');
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('SUCCEEDED');
+    expect((await prisma.appSubscription.findUniqueOrThrow({where:{id:subscription}})).status).toBe('ACTIVE');
+    expect(await prisma.appSubscriptionFinanceRefund.count({where:{paymentId:payment.id}})).toBe(0);
+    expect(await prisma.appSubscriptionEvent.findUniqueOrThrow({where:{providerEventKey:evt.providerEventKey}}))
+      .not.toMatchObject({processingStatus:'PROCESSED'});
+    injectedRefunds.set(refund,{paymentId:provider});
+    expect(await handleYookassaAppSubscriptionWebhook(evt)).toEqual({userId:user.id});
+    expect(await handleYookassaAppSubscriptionWebhook(evt)).toEqual({userId:user.id});
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('REFUNDED');
+    expect(await prisma.appSubscriptionFinanceRefund.count({where:{paymentId:payment.id,providerRefundId:refund}})).toBe(1);
+    expect(await prisma.appSubscriptionEvent.count({where:{providerEventKey:evt.providerEventKey}})).toBe(1);
+  });
+
+  it("partial verified refund records one finance reversal without canceling paid subscription",async()=>{
+    const {user,payment,provider,input}=await pendingForCoverage();
+    await handleYookassaAppSubscriptionWebhook(input);
+    const subscription=(await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).subscriptionId!;
+    const refund=`qa-partial-refund-${randomUUID()}`;
+    injectedRefunds.set(refund,{paymentId:provider,amount:'50.00'});
+    const evt={event:'refund.succeeded',yookassaPaymentId:provider,yookassaRefundId:refund,
+      providerEventKey:`refund.succeeded:${refund}`,shopId:'qa-fake-shop',secretKey:'qa-fake-secret'};
+    expect(await handleYookassaAppSubscriptionWebhook(evt)).toEqual({userId:user.id});
+    expect(await handleYookassaAppSubscriptionWebhook(evt)).toEqual({userId:user.id});
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('SUCCEEDED');
+    expect((await prisma.appSubscription.findUniqueOrThrow({where:{id:subscription}})).status).toBe('ACTIVE');
+    expect(await prisma.appSubscriptionFinanceRefund.count({where:{paymentId:payment.id,providerRefundId:refund}})).toBe(1);
+    expect(await prisma.appSubscriptionEvent.findUniqueOrThrow({where:{providerEventKey:evt.providerEventKey}}))
+      .toMatchObject({processingStatus:'PROCESSED',lastProcessingError:'PARTIAL_REFUND_NOT_FISCALIZED'});
+  });
+
+  it("late full refund of an older payment leaves a newer succeeded period active",async()=>{
+    const {user,payment,provider,input}=await pendingForCoverage();
+    await handleYookassaAppSubscriptionWebhook(input);
+    const first=await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}});
+    const laterEnd=new Date('2026-11-15T11:00:00Z');
+    await prisma.appSubscriptionPayment.create({data:{
+      userId:user.id,subscriptionId:first.subscriptionId!,provider:'YOOKASSA',kind:'RENEWAL',planCode:'WEEKLY',
+      status:'SUCCEEDED',amount:'200.00',currency:'RUB',
+      idempotenceKey:`qa:newer:${randomUUID()}`,yookassaPaymentId:`qa-newer-${randomUUID()}`,
+      periodStart:first.periodEnd,periodEnd:laterEnd,
+    }});
+    await prisma.appSubscription.update({where:{id:first.subscriptionId!},
+      data:{currentPeriodStart:first.periodEnd,currentPeriodEnd:laterEnd}});
+    const refund=`qa-late-refund-${randomUUID()}`;
+    injectedRefunds.set(refund,{paymentId:provider});
+    const evt={event:'refund.succeeded',yookassaPaymentId:provider,yookassaRefundId:refund,
+      providerEventKey:`refund.succeeded:${refund}`,shopId:'qa-fake-shop',secretKey:'qa-fake-secret'};
+    expect(await handleYookassaAppSubscriptionWebhook(evt)).toEqual({userId:user.id});
+    expect(await handleYookassaAppSubscriptionWebhook(evt)).toEqual({userId:user.id});
+    expect((await prisma.appSubscriptionPayment.findUniqueOrThrow({where:{id:payment.id}})).status).toBe('REFUNDED');
+    expect((await prisma.appSubscription.findUniqueOrThrow({where:{id:first.subscriptionId!}})))
+      .toMatchObject({status:'ACTIVE',currentPeriodEnd:laterEnd});
+    expect(await prisma.appSubscriptionPayment.count({where:{userId:user.id,status:'SUCCEEDED'}})).toBe(1);
+    expect(await prisma.appSubscriptionFinanceRefund.count({where:{paymentId:payment.id,providerRefundId:refund}})).toBe(1);
+    expect(await prisma.appSubscriptionEvent.count({where:{providerEventKey:evt.providerEventKey}})).toBe(1);
   });
 
   it("full verified refund is idempotent, persists finance refund and cannot regrant access", async () => {

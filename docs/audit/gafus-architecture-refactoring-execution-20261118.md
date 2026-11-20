@@ -1,0 +1,122 @@
+# GAFUS — исполнение плана архитектурного рефакторинга 18.11.2026
+
+> **Оценка результата: в процессе, не 9,5/10 и не 10/10.** Это рабочая карта выполненных изменений и остаточных критериев, а не акт приёмки в продакшене. Зафиксированы изменения **локального незакоммиченного** дерева `/Users/asmtv1/Desktop/gafus-refactor`, исходный HEAD `04052d616fa72f8edd2ad49f496f5c744c710fed`, ветка `main`. Пуша и деплоя нет. Сохранены исходные пользовательские изменения OTA и платежей.
+
+## Состояние этапов исходного плана
+
+| Этап | Статус | Доказательство / остаток |
+|---|---|---|
+| 0. Исходное состояние | **Зафиксировано** | 70 проектов / 0 циклов. Базовые HTTP и оплата: 122+50 тестов. Git HEAD указан выше. |
+| 1. Core import ratchet | **Локально выполнено** | `docs/audit/core-server-facade-baseline-legacy-20261118.json` хранит историю 41 исключения. Текущая база содержит 0 исключений. Скрипт требует удаления устаревших исключений и отвергает новый запрещённый импорт; отрицательные тесты пройдены. |
+| 2. OTA SQL separation | **Локально выполнено и проверено на PostgreSQL** | `version-publication.ts` / `version-selection.ts` — правила; `version-publication-repository.ts` / `version-selection-repository.ts` — SQL. Операция публикации: единая SERIALIZABLE транзакция с advisory lock, replay по operationId и bounded retry при PG `40001`/`40P01`; сохранена двухшаговая семантика STOP/RECOVER. `scripts/qa/ota-version-publication-isolated-pg.sh`: 27 passed, 7 диагностических skipped. Продакшен-сценарии/подписанные физические OTA не проверены. |
+| 3. Атомарный прогресс | **Локально выполнено и проверено на PostgreSQL** | `applyStepDayAndCourseTx` записывает UserStep, UserTraining, UserCourse внутри одной транзакции; offline journal использует ту же операцию. `scripts/qa/training-atomic-isolated-pg.sh`: 3 passed (SQL rollback на сбое UserCourse, параллельные команды, повтор после потерянного ACK). Hono route suite 84 passed, проверены 2 независимых injection instance. Прогон на старой версии мобильного клиента ещё открыт. |
+| 4. Платежи | **Частично** | Выделены `appleProvider.ts`, `yookassaProvider.ts`, `appleSubscriptionState.ts`, `subscriptionTransitions.ts`. `paymentService.ts` всё ещё содержит множество переходов платежей, webhook, комиссий/финансов и прав; полного разделения одного владельца состояния нет. Disposable PG `scripts/qa/payment-archqa-isolated-pg.sh`: 6 YooKassa + 4 Apple + 3 перехода cancel/expire passed. `subscriptionTransitions.ts` теперь владеет отменой автопродления и CAS-защитой от stale `PENDING` expiry, не обнуляя уже оплаченный период. Карта переходов в `payment-state-transition-matrix-20261118.md`. Гонка webhook ↔ Worker с аварией в конкретном промежутке и тестовые внешние Apple/YooKassa provider callbacks — OPEN. |
+| 5. Явные зависимости API | **Частично (12/34 удалено)** | На 19.11 осталось **22 из исходных 34** глобальных `install-*` импортов API. v20: `profile-rows-instance.ts` явно внедрён в собственный/публичный профиль, обновление, onboarding и аватар. Legacy installer оставлен как test-only shim. Проверены две независимые реализации, отсутствие неявного binding, owner-scope Hono и отрицательный тест подмены SQL-адаптера. Предыдущие training, occurrence, pet prevention и trainer/admin срезы сохранены. `check-api-composition-installs.mjs` запрещает возвращать retired installers. |
+| 6. Независимость Feed от Prisma | **Частично** | Production chronological page перенесена в `feed-server/src/chronologicalRows.ts` и зарегистрирована как `readChronologicalRows` в `runtimeServices.ts`; три unit/contract теста пройдены, плюс **4/4 real PostgreSQL parity-теста** (`scripts/qa/feed-chronological-isolated-pg.sh`): одинаковые ACL/закладки/курсор, статистика `pg_stat_statements` = по 1 SQL-запросу для старой и новой реализации при `pageSize=1` и `pageSize=9` (только хронологическая выборка). Кроме этого, 3/3 отдельные теста SQL-порта настроек персонализации на disposable PostgreSQL (`smartPreferencesRows.realpg.test.ts`) и unit-тест портов ретенции; SQL перенесён в `feed-server/src/smartPreferencesRows.ts` и `smartRetentionRows.ts`. По последнему ratchet-измерению в Core Feed остаются **21** `FeedDb`, **27** `FeedTx`, **321** прямое обращение к делегатам и **21** raw SQL usage (27 production modules). Это **не** соответствует требованию убрать знание БД/таблиц из Core. `check-core-feed-persistence-ratchet.mjs` запрещает рост; baseline — `feed-persistence-baseline-20261118.json`. |
+| 7. Общий retry Chat2 | **Общий код Web/Mobile выполнен; реальные устройства открыты** | `core-client/src/chat2/sendAttempt.ts` учитывает actor, room, text, reply, ordered attachment IDs и сохраняет clientMessageId до ACK. Web/Mobile подключены; 3 общих, 73 Web, 80 Mobile тестов прошли. Бэкенд дублирует/валидирует `clientMessageId`. Плюс 3/3 real PostgreSQL теста фактического сервиса `sendMessage`: параллельные попытки/один durable outbox, replay lost ACK, cross-room/cross-actor, новый текст с новым ключом. Испытание реального разрыва сети на Android и iOS и сверка двух разных устройств — OPEN. |
+| 8. Общая приёмка | **v19 локально 33/33 PASS; v20: 31 PASS / 1 FAIL; итоговая приёмка НЕ выполнена** | v20: production build, Core/API/Worker/server/Web/Mobile/Trainer/Admin PASS (Core 2169, API 2889, Web 3146, Mobile 2783); финальный `types` завершился exit 2 из-за гонки генерации Prisma и typecheck. Поэтому **v20 не полный PASS**. После добавления Turbo зависимости `typecheck → prisma:generate` отдельный `pnpm typecheck` прошёл **125/125, exit 0, 8 cached**. CI/staging/реальные устройства и этапы 4–6 остаются незакрытыми. |
+
+### Дополнительно выполнено 19 ноября (после восстановленной v10)
+
+- **Gafus Admin:** явно созданный SQL порт `admin-rows-instance.ts`; обе фабрики HTTP маршрутов получают свой порт, тест 2 независимых экземпляров прошёл. Старый `install-admin-rows.ts` сохранён лишь как тестовый shim.
+- **Trainer Days:** собственный `training-day-rows-instance.ts` внедрён в read, authoring, edit и delete Hono маршруты. Исходный implicit boot исключён. Core/API typecheck и адресные тесты пройдены, архитектурный guard проверяет все четыре пути.
+- **Trainer Steps:** `trainer-step-rows-instance.ts` подаётся в Core и HTTP маршруты чтения, создания, изменения, удаления и публичных шаблонов; 17 тестов Core, 21 тест API и тест двух экземпляров пройдены. Регистратор убран только из production `app.ts`.
+- **Pet Prevention:** `prevention-rows-instance.ts` явно внедрён в профилактический journal + API и офлайн V2. Unit Core и 21 HTTP-тест OFF021 прошли, сохранены авторизация владельца и атомарный SQL путь. Legacy compatibility exports остаются.
+- **Feed SQL:** Core `smart-preferences.ts` и `smart-retention.ts` больше не знают `FeedDb`; `feed-server` содержит конкретные SQL проекции. Core: 21 `FeedDb`, 27 `FeedTx`, 321 прямое обращение к делегатам, 21 raw SQL. Это **незакрытый этап**, особенно `service.ts`, `social.ts`, `polls.ts`, `jobs.ts`, `maintenance.ts`.
+- Исторический статус: на том промежуточном этапе полного прогона ещё не было; позднее получен единый локальный PASS v19 (см. ниже). CI/staging и реальная проверка OTA/устройств по-прежнему не выполнены. Коммит до полной приёмки не разрешён.
+
+### Дополнительно 19 ноября: CAS курса и Recommendation SQL (последний локальный этап)
+
+- **Стабилизация v11:** устранены изменения аргументов моков/AST-composition guard после явного DI, семь ранее падавших API-тестовых файлов успешно перепроверены: **183/183 PASS**; `source-mock-only` полный конструктор маршрутов остаётся экспортом верхнего уровня.
+- **Course.version:** серверная SQL CAS-реализация перенесена из глобального `install-core-version-rows` в `course-version-rows-instance.ts` и инжектируется `createTrainerCoursesRoutes(courseVersionRowsPort, trainerCourseRows)`. Сохранены проверка автора, `expectedVersion`, один атомарный SQL CAS и обработка `stale` без ложного успеха. Отдельные тесты: **5 Core + 144 API PASS**, проверка двух независимых инстансов.
+- **Trainer Course SQL:** отдельный `trainer-course-rows-instance.ts` инжектирован в создание, редактирование, владельческое чтение черновика и full-form редактор, без глобального инсталлятора в production `app.ts`. **25 Core + 100 API PASS**, тест двух независимых владельцев.
+- **Smart Retrieval:** пять источников `recent/local/pet/affinity/trending` теперь выбираются на стороне `feed-server/src/smartRetrievalRows.ts`. Core объединяет только видимые снимки. Тесты 6 Core + 3 feed-server и отдельная проверка ACL на disposable PostgreSQL PASS.
+- **Smart Ranking:** SQL получения основной выборки, авторских публичных питомцев, просмотров, поведенческих сигналов и материализованного affinity перемещён в `feed-server/src/smartRankingRows.ts`. Сервис Core потребляет `SmartRankingSnapshotPort`, а production injects его из `runtimeServices.ts`. **6 Core + 6 feed-server tests, 9 isolated PG tests PASS**, snapshot не раскрывает внутренних Prisma типов; выключенные сигналы не запрашиваются.
+- **Архитектурные счётчики после этого среза:** 26/34 глобальных установщиков остаются; Core Feed: `FeedDb=21`, `FeedTx=27`, `delegates=321`, `rawSQL=21` (27 производственных модулей). Требования 0/0/0/0 не выполнены, staging/device/prod не проверены.
+- Внутренний диагностический адаптер оплаты `paymentService.coverage.realpg.cover.mjs` перенесён из Core пакета в `scripts/qa`, сохранив относительные цели импорта; тест запрета cross-package-relative import проходит.
+
+### Проверки после рефакторинга 19.11 — повторные прогоны v13–v16
+
+- **Полная регрессия `architecture-20261119-final-v13`: неполный PASS.** Архитектура, граф 70 проектов/0 циклов, runtime, 62/62 production build, Core (2165 PASS/136 skipped), API (2885 PASS/266 skipped), Worker (268 PASS/22 skipped) и все серверные test gates получили PASS. Общий запуск **завершился с exit 1** на Web-пакете 10: один процесс Vitest не стартовал (`Failed to start forks worker`, `Timeout waiting for worker to respond`) при 156 успешных тестах в этом пакете. Нельзя записывать весь v13 как прошедший.
+- **Полная Web-регрессия `architecture-20261119-web-v14`: PASS**, квитанция `completion.json` подтверждает 34/34 пакета, все 303 обнаруженных файла учтены (302 passed, 1 skipped), **3145 PASS / 6 skipped**. `ExcusesRoute.mounted.test.tsx` (12/12 PASS отдельно) включён в fresh-process isolated group, без исключения из общего охвата. Исправление в `scripts/qa/web-vite-chunked-regression.mjs`.
+- **QA false-green исправлен:** `scripts/qa/training-atomic-isolated-pg.sh` на macOS Bash 3.2 с `set -u` завершался **exit 0 без запуска теста**, когда пустой `${extra[@]}` приводил к `unbound variable`. Лаунчер теперь ветвится по наличию JSON-репорта и печатает `TRAINING_ATOMIC_REAL_PG_RUN_PASS` только после exit 0 Vitest. `architecture-chaos-local.sh` запрещает PASS для атомарного прогона без файла теста и этого маркера. Позитивный реальный PostgreSQL: **3/3 PASS**, позитивный JSON-репорт проверен; отрицательный тест с относительным именем репорта возвращает отказ без маркера.
+- **Повторный изолированный chaos `architecture-chaos-20261119-v15`: 10/10 PASS**. Включены Chat2 outbox, multiprocess recovery после потерянного broker ACK, BullMQ/Redis, phase F, восстановление backup, реальный атомарный учебный прогресс, платежи, OTA, Feed и Chat2 lost-ACK/idempotency. Все тестовые БД создавались на loopback в собственных временных каталогах. Старый `v14` был формально PASS, но **не засчитывается** из-за ложного отчёта атомарного шага.
+- **Контракты панели тренера:** тесты интеграции Hono/UI обновлены на обязательный четвёртый SQL-порт для черновика, третий CAS-порт и порт шаблонов/шагов, сохранив точные actor/ACL/expectedVersion. Повторно **726/726 PASS**. **Mobile 2783 PASS / 1 skipped**, **Admin Panel 249/249 PASS**.
+- **Общий `pnpm typecheck`: 125/125 задач PASS**. `check-api-composition-installs`, `check-core-feed-persistence-ratchet`, `check-core-server-boundary`, `git diff --check` — PASS.
+- **Исторический статус на v16:** единого полного прогона тогда ещё не было; позднее локальные v17 и v19 завершились exit 0 на незакоммиченном дереве. Этапы 4–6, release/staging/device QA и CI одного итогового SHA остаются открытыми. **Не коммитить, не пушить и не развёртывать** до окончательной приёмки.
+
+### 19 ноября: полные локальные прогоны v17, v19 и промежуточный DI v18
+
+- **`architecture-20261119-final-v17`: 33/33 PASS**, exit 0. Полная production-сборка, Core/API/Worker, Web/Mobile/Trainer/Admin и typecheck. Это контрольная точка незакоммиченного рабочего дерева, не релизный SHA.
+- **v18 — явный SQL DI контента курса:** из production `app.ts` убраны `install-content-revision-read` и `install-day-content-read`; `sql-training-instance.ts` явно передаёт SQL-адаптер контента и авторитетной ревизии в Core. Кэш изолирует экземпляры читателей и не подтверждает данные без проверки ревизии. Core **2168 passed / 136 skipped**, API **2886 passed / 266 skipped**, Course Progress Server **47 passed / 23 skipped**, TypeScript **125/125 PASS**, архитектурные guards PASS. Это не отдельная единая регрессия; после v18 было **24/34** global installers.
+- **v19 — доступ к конкретному шагу курса:** `install-occurrence-reads` удалён из production `app.ts`; `occurrence-reads-instance.ts` предоставляет явный `CourseOccurrenceReadsPort` для Training, Video и Gafus rewarded access. Core принимает явный порт, без него сохраняет fail-closed legacy-поведение. Legacy installer остался лишь как test compatibility shim. Проверены **4/4 Core** и **3/3 адресных API** теста, независимость двух экземпляров, точный actor/day/step и вызов канонических `resolveCourseStepTargetTx`/`resolveCourseStepAccessTx` внутри SQL-адаптера.
+- **`architecture-20261119-final-v19`: полный PASS 33/33, exit 0.** `results.tsv` содержит только PASS. Сборка **62/62** production задач, Web **3146 passed / 6 skipped**, 34/34 чанка и все 303 файла учтены, Mobile **2783 passed / 1 skipped**, все серверные тесты, Trainer/Admin, TypeScript **125/125** (0 cached), whitespace PASS. Логи: `$HOME/Library/Logs/gafus-refactor-regression/architecture-20261119-final-v19/`.
+- **Остаток:** **23/34** global API registrations; Core Feed **FeedDb=21 / FeedTx=27 / delegates=321 / rawSQL=21**. Платёжные переходы, CI финального SHA, staging, обратная совместимость старых выпущенных клиентов и реальный Android/iOS OTA ещё не закрыты. Все результаты локальны на незакоммиченном дереве с исходным HEAD `04052d616`; не было коммита, push или деплоя.
+
+### 19 ноября: v20 profile DI и исправление гонки Prisma typecheck
+
+- **Этап 5:** глобальный `install-profile-rows` убран из production `apps/api/src/app.ts`. `profile-rows-instance.ts` с типизированным SQL-портом явно используется в собственном и публичном профиле, onboarding и avatar CDN compensation. Старый импорт остался только для тестовой совместимости. На двух экземплярах подтверждена изоляция; Hono и AST-тесты проверяют точного владельца и запрещают подмену адаптера. **12/34** глобальных установщиков устранено; осталось **22/34**.
+- **`architecture-20261119-final-v20`: 31 PASS / 1 FAIL (exit 2).** Production build, backend, Web **3146 passed / 6 skipped** (303/303 source files), Core **2169 passed / 136 skipped**, API **2889 passed / 266 skipped**, Mobile **2783 passed / 1 skipped**, Worker, Trainer Panel и Admin Panel прошли. Финальный gate `types` упал: `@gafus/prisma` обнаружил отсутствующие типы `@prisma/client` во время конкурентной Prisma generation. Этот запуск **нельзя обозначать единым PASS**. Логи: `$HOME/Library/Logs/gafus-refactor-regression/architecture-20261119-final-v20/`.
+- **Причина и исправление:** Turborepo мог запускать `@gafus/prisma#typecheck` одновременно с генерацией клиента при sibling build. В `turbo.json` задача `typecheck` теперь зависит от `prisma:generate` в дополнение к `^build`. В `ci-cd/scripts/workspace-dependency-graph.contract.test.mjs` добавлен инвариант и два негативных in-memory кейса. Реальный `turbo run typecheck --dry=json` подтверждает ребро `@gafus/prisma#typecheck → @gafus/prisma#prisma:generate`. Отдельный повтор `pnpm typecheck` **125/125 PASS (8 cached), exit 0**, лог `/tmp/gafus-v20-prisma-barrier-all-types.log`.
+- **Остаток:** 22 глобальные регистрации, Feed ORM ratchet, payment split и итоговая приёмка с CI, staging и устройствами; коммита, push и деплоя не было.
+
+### 19 ноября: продолжение после v20, состояние v23–v25
+
+- **v23:** предыдущая полная регрессия Core — **2171 passed / 136 skipped**, API — **2894 passed / 266 skipped**. Ошибки ветеринарных контрактов исправлены до этого продолжения. Это результаты ранее выполненных тестов, а не нового запуска.
+- **v24:** после внедрения явных зависимостей подписки пройдены адресные проверки и typecheck API. Отмеченные перед передачей задачи 18/34 регистраций — исторический промежуточный показатель; к моменту фактической инвентаризации осталось **16/34**, устранено 18.
+- **Инвентаризация перед новой регрессией:** ветка `main`, HEAD `04052d616`, рабочее дерево 363 записи `git status --porcelain` на момент снимка (число впоследствии изменилось); ни stash, ни сброс, ни commit/push/deploy не выполнялись. Контрольный локальный снимок сохранён в `$HOME/Library/Logs/gafus-architecture-safe-snapshot-20261119-v25/`: `tracked.patch`, `untracked.tar`, `status.txt`, `head.txt`.
+- **Architecture ratchets:** `API_COMPOSITION_RATCHET_PASS 16/34`; `FEED_PERSISTENCE_RATCHET_PASS` с **FeedDb=19, FeedTx=27, delegates=313, rawSQL=20** в 27 production-модулях. В обоих случаях *PASS ratchet* означает лишь отсутствие регресса относительно предела, а не выполнение целевого 0.
+- **`arch-20261119-v25`: 33/33 PASS, exit 0** на предшествовавшем переносу Feed Maintenance дереве. Архитектурный gate — PASS; workspace graph — **70 проектов/0 циклов**; production build **62/62 PASS (0 cached)**, Core **2176 PASS/136 skipped**, API **2895 PASS/266 skipped**, Web **3146 PASS/6 skipped**, typecheck **125/125 PASS**. Подтверждено 33 строками `results.tsv`; это локальная регрессия **до** последующих переносов, не одноимённая регрессия после них.
+- **Открытые критерии:** этапы 4 (единый владелец платежного состояния, повторные/неупорядоченные callbacks и recovery), 5 (16 ещё не удалённых globals), 6 (вышеуказанные SQL/ORM счётчики) и 8 (CI того же SHA, staging с тестовыми провайдерами, старые клиенты, физические iOS/Android и подписанный OTA). Наличие успешной локальной сборки не закрывает эти пункты.
+
+### 19 ноября: перенос Feed Maintenance в серверный пакет (v26)
+
+- Перенесены `maintenance.ts`, `maintenance.test.ts` и `photoJobRetirement.test.ts` из `@gafus/core` в `@gafus/feed-server`; код SQL-транзакций, CAS, ревизий и отложенной очистки не переписан. `runtimeServices`, `backgroundOperations`, `internal.ts` и Worker перенастроены на серверного владельца. Core оставляет только необходимые пока совместимые функции `enqueueFeedPostCleanup` и `feedPossibleOutputKeys`; это **переходная зависимость**, а не конечное разделение.
+- После переноса ratchet: **FeedDb=15, FeedTx=27, delegates=281, rawSQL=18** в 26 production-модулях Core. Порог исходного `maintenance.ts` в baseline установлен на ноль, чтобы нельзя было вернуть туда SQL-долг. API: **14/34** глобальных установщиков остаются (20 удалены, включая параллельные работы на том же дереве).
+- Целевая проверка `@gafus/core build` и `@gafus/feed-server build`, тесты `@gafus/feed-server` и `@gafus/worker`, typecheck Worker, `pnpm check:core-boundaries` — **PASS, exit 0**, отдельное подтверждение `FEED_MAINTENANCE_RELOCATION_PASS`. Это не полная общая регрессия после v26.
+- Ничего не закоммичено, не отправлено и не развернуто. CI, staging с провайдерами, совместимость выпущенных клиентов и физические Android/iOS остаются открытыми.
+
+### 19 ноября: явный SQL DI для регистрации (v27)
+
+- В production `apps/api/src/app.ts` сняты три side-effect installer-импорта: `install-registration-context`, `install-credential-registration`, `install-registration-contract-rows`. Вместо них `registration-context-instance.ts`, `credential-registration-instance.ts`, `registration-contract-rows-instance.ts` экспортируют типизированные SQL-порты и явно передают их в Hono auth, регистрацию и публичный promo-preview.
+- `@gafus/core` теперь принимает явно переданные порты в `isRegistrationCompleted`, `previewRegistrationPromoCode`, `registerUserWithCredentials`, `registerUserService` и глубже внутри SQL-транзакции `registrationContracts`. Старые global-регистраторы сохранены для совместимости тестов/непереведённых потребителей, но **больше не инициализируются в production API**. Существующие правила не допускают неявного нового владельца транзакции. Добавлены тесты двух независимых портов SQL и отсутствия silent binding.
+- Последний `API_COMPOSITION_RATCHET_PASS`: **11/34** legacy global installers остаются, **23/34** retired. Это промежуточный результат, не выполнение этапа 5.
+- Core сборка, четыре адресных Core-спека, Core тест двух независимых инстансов registration-row (5/5), API typecheck, маршрутные API-тесты — **PASS**. После исправления тестовых ожиданий изменившихся сигнатур полный `pnpm --filter @gafus/api test` — **2892 passed / 266 skipped**, 301 файлов passed, 23 skipped, exit 0. В ответах регистрации не изменены HTTP-коды, DNS-текст, проверка Origin и маскирование внутренних SQL-ошибок.
+- Feed после v26 всё ещё `FeedDb=15`, `FeedTx=27`, `delegates=281`, `rawSQL=18`, целевое требование 0 не выполнено. Платёжный раздел и CI/staging/физические устройства остаются OPEN. Нет коммита/push/deploy.
+
+## Команды и источники проверки
+
+```bash
+node scripts/check-api-composition-installs.mjs
+node scripts/check-core-feed-persistence-ratchet.mjs
+pnpm check:core-boundaries
+bash scripts/qa/architecture-chaos-local.sh architecture-chaos-20261118-v2
+bash scripts/qa/training-atomic-isolated-pg.sh
+bash scripts/qa/payment-archqa-isolated-pg.sh
+bash scripts/qa/ota-version-publication-isolated-pg.sh
+bash scripts/qa/feed-chronological-isolated-pg.sh
+bash scripts/qa/chat2-send-isolated-pg.sh
+bash scripts/qa/architecture-final-regression.sh architecture-20261119-final-v13  # backend PASS, Web FAIL
+bash scripts/qa/architecture-final-regression.sh architecture-20261119-final-v17  # 33/33 PASS
+bash scripts/qa/architecture-final-regression.sh architecture-20261119-final-v19  # 33/33 PASS
+bash scripts/qa/architecture-final-regression.sh architecture-20261119-final-v20  # 31 PASS; types FAIL
+pnpm typecheck  # separate PASS after Prisma generation barrier
+node scripts/qa/web-vite-chunked-regression.mjs --run-id=architecture-20261119-web-v14
+bash scripts/qa/architecture-chaos-local.sh architecture-chaos-20261119-v15
+pnpm --filter @gafus/mobile test
+pnpm --filter @gafus/trainer-panel test
+pnpm --filter @gafus/admin-panel test
+pnpm typecheck
+```
+
+Локальная среда: macOS arm64, Node v20.20.2, pnpm 10.12.4, disposable PostgreSQL 18. Каждый изолированный скрипт создаёт собственную БД на случайном loopback-порту, применяет схему Prisma `db push`, запускает тесты и останавливает/удаляет ресурсы. Локальные логи находятся в `$HOME/Library/Logs/gafus-refactor-regression/architecture-20261118-final-v7/` и `.../architecture-chaos-20261118-v2/`. GitHub CI не запускался.
+
+## Необходимые условия окончательной приёмки
+
+1. **11 оставшихся API global registrars → 0:** перенести оставшихся потребителей на factories и явные параметры; выполнить тест двух экземпляров сервисов и холодного импорта после каждого удаления.
+2. **Core FeedDb/FeedTx и SQL → 0:** вытеснить ORM-shaped type ports и таблицы из Core feed-модулей, а не только chronological list; сохранить ACL, DTO, транзакции, ключевую пагинацию, сортировки, N+1 пределы и media signing.
+3. **Payment split завершить:** один владелец всех entitlement/renewal/refund переходов, повторов/сверки в API и Worker, audit event, комиссии/финансы; реальные тестовые провайдеры, падение после provider ACK и до SQL.
+4. **Совместимость:** старая сборка API со свежей схемой и хотя бы один реально выпущенный Web/Android/iOS клиент, реальный replay lost ACK и обязательный подписанный OTA с восстановлением.
+5. **Релизные ворота:** полный локальный набор на фиксированном и неизменном git SHA, зеленый штатный GitHub Actions CI **того же SHA**, затем staging QA с тестовыми провайдерами и физическими Android/iOS. Только после этого можно обсуждать 9,5/10 или 10/10.
+
+Нет оснований считать эту программу полностью завершённой или выпускать эти локальные незакоммиченные изменения в прод без закрытия пунктов 1–5.

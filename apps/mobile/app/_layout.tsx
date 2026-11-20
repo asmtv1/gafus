@@ -18,6 +18,7 @@ import {
   reportClientError,
 } from "@/shared/lib/error-reporting";
 import { ErrorBoundary, OfflineIndicator, RequiredAppUpdateGate } from "@/shared/components";
+import { QaRuntimeIdentity } from "@/shared/components/QaRuntimeIdentity";
 import { RequiredOtaUpdateGate } from "@/shared/components/RequiredOtaUpdateGate";
 import { useRoleAwareScreenCapture } from "@/shared/hooks/useRoleAwareScreenCapture";
 import { useSyncProgressOnReconnect } from "@/shared/hooks/useSyncProgressOnReconnect";
@@ -172,6 +173,7 @@ export default function RootLayout() {
                           <Stack.Screen name="(auth)" />
                           <Stack.Screen name="(main)" />
                         </Stack>
+                        <QaRuntimeIdentity />
                       </View>
                       <StatusBar style="auto" />
                     </RequiredOtaUpdateGate>

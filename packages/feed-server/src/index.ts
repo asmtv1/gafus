@@ -1,3 +1,6 @@
+import type { FeedService } from "./postRows.js";
+import type { FeedSocialService } from "./socialRows.js";
+import type { FeedPollService } from "./pollRows.js";
 import {
   hasSmartFeedActor, getSmartFeedTelemetryPreference,
   eligibleSmartImpressionPostIds, recordSmartFeedImpressions,
@@ -10,7 +13,7 @@ import { FeedError, feedParse, feedListSchema, feedPostListSchema, feedReactionL
   smartImpressionsSchema, smartRankingEventsSchema, smartRedisTimeout, smartFeedbackSchema, isSmartMlVector, verifySmartExposure,
  } from "@gafus/core/services/feed";
 import { createCurrentFeedRuntime } from "./runtimeServices.js";
-import type { FeedService, FeedSocialService, FeedPollService, createFeedPreferences } from "@gafus/core/services/feed";
+import type { createFeedPreferences } from "@gafus/core/services/feed";
 import { createFeedStorageFromEnv, signFeedCloudruFallback } from "@gafus/feed-storage";
 
 export const FEED_MAX_BODY_BYTES = 65_536;

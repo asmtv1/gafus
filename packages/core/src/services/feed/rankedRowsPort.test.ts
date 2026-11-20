@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { createFeedService } from "./service";
-import type { FeedDb, FeedStoragePort } from "./ports";
+import { createFeedService } from "../../../../feed-server/src/postRows";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
+import type { FeedStoragePort } from "./ports";
 
 function fixture(
   readRankedFeedRows?: Parameters<typeof createFeedService>[0]["readRankedFeedRows"],

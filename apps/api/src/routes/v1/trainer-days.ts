@@ -6,10 +6,13 @@
 import { Hono } from "hono";
 import type { TrainerVisibleDaysRead } from
   "../../../../../packages/types/src/data/trainer-read-contracts";
-import { readVisibleDaysApplication } from "../../modules/trainer-days/composition/read-visible-days.js";
+import { readVisibleDaysApplication as legacyReadVisibleDaysApplication, createReadVisibleDaysApplicationForRows } from "../../modules/trainer-days/composition/read-visible-days.js";
+import type { TrainingDayRowsPort } from "@gafus/core/services/trainingDay";
 export type { VisibleDayDto } from "../../modules/trainer-days/application/read-visible-days.js";
 
-export const trainerDaysRoutes = new Hono();
+export function createTrainerDaysRoutes(rowsPort?: TrainingDayRowsPort) {
+  const readVisibleDaysApplication = rowsPort ? createReadVisibleDaysApplicationForRows(rowsPort) : legacyReadVisibleDaysApplication;
+  const trainerDaysRoutes = new Hono();
 
 trainerDaysRoutes.get("/", async c => {
   if (Object.keys(c.req.queries()).length !== 0 || c.req.raw.body !== null) {
@@ -38,3 +41,8 @@ trainerDaysRoutes.get("/", async c => {
     }, 500);
   }
 });
+
+  return trainerDaysRoutes;
+}
+// Legacy tests keep their existing import; production supplies rows explicitly.
+export const trainerDaysRoutes = createTrainerDaysRoutes();

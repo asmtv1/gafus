@@ -4,7 +4,6 @@ const mocks = vi.hoisted(() => ({
   login: vi.fn(),
   getProfile: vi.fn(),
   logout: vi.fn(),
-  getVkConsentContext: vi.fn(),
   secureGet: vi.fn(),
   secureSet: vi.fn(),
   secureDelete: vi.fn(),
@@ -34,7 +33,6 @@ vi.mock("@/shared/lib/api", () => ({
     login: mocks.login,
     getProfile: mocks.getProfile,
     logout: mocks.logout,
-    getVkConsentContext: mocks.getVkConsentContext,
   },
 }));
 vi.mock("@/shared/lib/analytics", () => ({
@@ -86,8 +84,6 @@ describe("AG3-AUTH-010 login fences startup checkAuth after a principal switch",
       isLoading: false,
       isAuthenticated: false,
       verifiedSessionEpoch: null,
-      pendingVkPhone: false,
-      pendingVkConsent: false,
     });
     mocks.login.mockResolvedValue({
       success: true,

@@ -100,6 +100,11 @@ if (mode === "--verify-cli") {
   if (!candidates.length) {
     throw Error("MOBILE_NEW_AAB_NOT_FOUND: provide --output and verify a fresh AAB before store upload");
   }
+  const payment = spawnSync(process.execPath,
+    [resolve(mobileRoot, "scripts/verify-android-payment-aab.mjs"), candidates[0]],
+    { cwd: mobileRoot, stdio: "inherit" });
+  if (payment.error) throw payment.error;
+  if (payment.status !== 0) throw Error("MOBILE_ANDROID_AAB_PAYMENT_CHECK_FAILED");
   const verifyAab = spawnSync(process.execPath,
     [resolve(mobileRoot, "scripts/verify-android-aab-16k.mjs"), candidates[0]],
     { cwd: mobileRoot, stdio: "inherit" });

@@ -7,6 +7,5 @@ export * from "./service";
 export * from "./types";
 export * from "./partitionPushSubscriptions";
 export * from "./expoPush";
-export * from "./rustorePush";
 
 export default webpush;

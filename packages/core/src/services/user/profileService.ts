@@ -1,11 +1,12 @@
 import { parseBirthDateEditWire } from "../common/birthDateValidation";
-import { getChatDisplayRole } from "../cynologistChat/authorRole";
+import { getChatDisplayRole } from "./chatDisplayRole";
 /**
  * Profile Service - бизнес-логика работы с профилем пользователя
  */
 
 import {
   requireProfileRowsPort,
+  type ProfileRowsPort,
   type ProfileEditFields,
   type ProfileEditCreateFields,
 } from "./profileRowsPort";
@@ -34,8 +35,8 @@ async function avatarUrlForProfile(value: string | null): Promise<string | null>
 /**
  * Получает профиль пользователя по ID
  */
-export async function getUserProfile(userId: string) {
-  const profile = await requireProfileRowsPort().readUserProfileRow(userId);
+export async function getUserProfile(userId: string, rows?: ProfileRowsPort) {
+  const profile = await (rows ?? requireProfileRowsPort()).readUserProfileRow(userId);
   return profile;
 }
 
@@ -54,7 +55,7 @@ interface NormalizedProfileData {
 /**
  * Обновляет или создаёт профиль пользователя
  */
-export async function updateUserProfile(userId: string, data: NormalizedProfileData) {
+export async function updateUserProfile(userId: string, data: NormalizedProfileData, rows?: ProfileRowsPort) {
   // An omitted field means "leave it untouched", not "clear it". This is
   // critical for Mobile and the new Vite editor, which send PATCH-like updates
   // via this long-standing PUT API. Explicit empty strings still clear fields.
@@ -83,7 +84,7 @@ export async function updateUserProfile(userId: string, data: NormalizedProfileD
     }
   }
 
-  const result = await requireProfileRowsPort().upsertProfileFields(userId, updateData, createData);
+  const result = await (rows ?? requireProfileRowsPort()).upsertProfileFields(userId, updateData, createData);
 
   return result;
 }
@@ -91,16 +92,16 @@ export async function updateUserProfile(userId: string, data: NormalizedProfileD
 /**
  * Проверяет существование пользователя по ID
  */
-export async function existsUser(userId: string): Promise<boolean> {
-  const user = await requireProfileRowsPort().readProfileActorExists(userId);
+export async function existsUser(userId: string, rows?: ProfileRowsPort): Promise<boolean> {
+  const user = await (rows ?? requireProfileRowsPort()).readProfileActorExists(userId);
   return !!user;
 }
 
 /**
  * Получает userId по username (для fallback при несоответствии session.id)
  */
-export async function getUserIdByUsername(username: string): Promise<string | null> {
-  const user = await requireProfileRowsPort().readUserIdByUsernameRow(username);
+export async function getUserIdByUsername(username: string, rows?: ProfileRowsPort): Promise<string | null> {
+  const user = await (rows ?? requireProfileRowsPort()).readUserIdByUsernameRow(username);
   return user?.id ?? null;
 }
 
@@ -109,10 +110,10 @@ export async function getUserIdByUsername(username: string): Promise<string | nu
 /**
  * Получает публичный профиль пользователя по username
  */
-export async function getPublicProfile(username: string): Promise<PublicProfile | null> {
+export async function getPublicProfile(username: string, rows?: ProfileRowsPort): Promise<PublicProfile | null> {
   if (!username) throw new Error("username is required");
 
-  const user = await requireProfileRowsPort().readPublicProfileRow(username);
+  const user = await (rows ?? requireProfileRowsPort()).readPublicProfileRow(username);
 
   if (!user) return null;
 
@@ -150,7 +151,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
           avatarUrl: await avatarUrlForProfile(user.profile.avatarUrl),
         }
       : null,
-    chatRole: await getChatDisplayRole(user, (id, at) => requireProfileRowsPort().readPaidChatDisplayEntitlement(id, at)),
+    chatRole: await getChatDisplayRole(user, (id, at) => (rows ?? requireProfileRowsPort()).readPaidChatDisplayEntitlement(id, at)),
     courses,
     diplomas: user.diplomas
       .filter((d) => d.issuedAt !== null)
@@ -179,7 +180,7 @@ export async function getPublicProfile(username: string): Promise<PublicProfile 
 /**
  * Обновляет аватар пользователя
  */
-export async function updateAvatar(userId: string, file: File): Promise<string> {
+export async function updateAvatar(userId: string, file: File, rows?: ProfileRowsPort): Promise<string> {
   const originalExt = file.name.split(".").pop();
   const ext =
     process.env.GAFUS_ISOLATED_NONPROD_S3 !== undefined ? originalExt?.toLowerCase() : originalExt;
@@ -191,7 +192,7 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
   let oldAvatarUrl: string | null = null;
 
   try {
-    oldAvatarUrl = await requireProfileRowsPort().replaceProfileAvatarRow(userId, avatarUrl);
+    oldAvatarUrl = await (rows ?? requireProfileRowsPort()).replaceProfileAvatarRow(userId, avatarUrl);
   } catch (error) {
     // Failed database commit: avoid leaking the newly uploaded object.
     try {
@@ -243,8 +244,8 @@ export async function updateAvatar(userId: string, file: File): Promise<string> 
 /**
  * Получает пользователя с тренировками и курсами для API/веб.
  */
-export async function getUserWithTrainings(userId: string): Promise<UserWithTrainings | null> {
-  const user = await requireProfileRowsPort().readUserWithTrainingsRow(userId);
+export async function getUserWithTrainings(userId: string, rows?: ProfileRowsPort): Promise<UserWithTrainings | null> {
+  const user = await (rows ?? requireProfileRowsPort()).readUserWithTrainingsRow(userId);
 
   if (!user) return null;
 
@@ -274,7 +275,6 @@ export async function getUserWithTrainings(userId: string): Promise<UserWithTrai
     username: user.username,
     phone: user.phone,
     email: user.email,
-    hasVkLinked: (user.accounts?.length ?? 0) > 0,
     courses,
   };
 }
@@ -288,7 +288,6 @@ export interface UserProfileForApi {
   role: string;
   /** true, если у пользователя установлен прикладной пароль (passwordSetAt !== null) */
   hasAppPassword: boolean;
-  hasVkLinked: boolean;
   onboardingTourCompletedAt: string | null;
   profile: {
     fullName: string | null;
@@ -305,16 +304,14 @@ export interface UserProfileForApi {
 /**
  * Получает профиль пользователя для API (GET /profile).
  */
-export async function getUserProfileForApi(userId: string): Promise<UserProfileForApi | null> {
-  const user = await requireProfileRowsPort().readUserProfileForApiRow(userId);
+export async function getUserProfileForApi(userId: string, rows?: ProfileRowsPort): Promise<UserProfileForApi | null> {
+  const user = await (rows ?? requireProfileRowsPort()).readUserProfileForApiRow(userId);
   if (!user) return null;
-  const hasVkLinked = (user.accounts?.length ?? 0) > 0;
   const { passwordSetAt, onboardingTourCompletedAt, accounts: _accounts, ...userRest } = user;
   const p = user.profile;
   return {
     ...userRest,
     hasAppPassword: passwordSetAt !== null,
-    hasVkLinked,
     onboardingTourCompletedAt: onboardingTourCompletedAt?.toISOString() ?? null,
     profile: {
       fullName: p?.fullName ?? null,
@@ -334,8 +331,8 @@ export interface OnboardingTourStatusDto {
   completedAt: string | null;
 }
 
-export async function getOnboardingTourStatus(userId: string): Promise<OnboardingTourStatusDto> {
-  const user = await requireProfileRowsPort().readOnboardingTourStatusRow(userId);
+export async function getOnboardingTourStatus(userId: string, rows?: ProfileRowsPort): Promise<OnboardingTourStatusDto> {
+  const user = await (rows ?? requireProfileRowsPort()).readOnboardingTourStatusRow(userId);
   const completedAt = user?.onboardingTourCompletedAt ?? null;
   return {
     hasSeenV1: completedAt !== null,
@@ -343,8 +340,8 @@ export async function getOnboardingTourStatus(userId: string): Promise<Onboardin
   };
 }
 
-export async function markOnboardingTourSeen(userId: string): Promise<OnboardingTourStatusDto> {
-  const updated = await requireProfileRowsPort().markOnboardingTourSeenRow(userId);
+export async function markOnboardingTourSeen(userId: string, rows?: ProfileRowsPort): Promise<OnboardingTourStatusDto> {
+  const updated = await (rows ?? requireProfileRowsPort()).markOnboardingTourSeenRow(userId);
 
   return {
     hasSeenV1: true,

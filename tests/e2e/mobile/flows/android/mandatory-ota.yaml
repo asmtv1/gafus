@@ -1,0 +1,15 @@
+# Precondition: test-only required OTA assigned to this build/account, no legacy prod release.
+appId: ru.gafus.app
+name: GAFUS Android QA - mandatory OTA cannot be bypassed
+---
+- launchApp:
+    clearState: false
+- assertVisible:
+    id: "required-ota-screen"
+- pressKey: back
+- assertVisible:
+    id: "required-ota-screen"
+- stopApp
+- launchApp
+- assertVisible:
+    id: "required-ota-screen"

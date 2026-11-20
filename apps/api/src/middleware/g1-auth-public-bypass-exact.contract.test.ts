@@ -91,6 +91,9 @@ describe("AG1-SEC-080 exact public auth exceptions", () => {
     expect(result.status).toBe(200);
     expect(await result.json()).toEqual({ success: true, user: "test-user" });
     expect(auth.verify).toHaveBeenCalledWith("valid-token");
-    expect(auth.completed).toHaveBeenCalledWith("test-user");
+    expect(auth.completed).toHaveBeenCalledWith("test-user", expect.objectContaining({
+      readIsRegistrationCompleted: expect.any(Function),
+      withRegistrationTransaction: expect.any(Function),
+    }));
   });
 });

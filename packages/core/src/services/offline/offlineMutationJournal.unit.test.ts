@@ -96,8 +96,12 @@ vi.mock("@gafus/prisma", () => ({
   },
 }));
 vi.mock("../training/trainingService", () => ({
-  applyStepAndDayTx: m.apply,
-  syncUserCourseStatusFromDaysTx: m.sync,
+  // Simulate the ONE shared training use case within the journal transaction.
+  applyStepDayAndCourseTx: async (...args: unknown[]) => {
+    const progress = await m.apply(...args);
+    await m.sync(args[0], args[1], progress.courseId);
+    return progress;
+  },
 }));
 import {
   submitNewOfflinePracticeMutation,

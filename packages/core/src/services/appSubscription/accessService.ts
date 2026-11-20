@@ -32,13 +32,13 @@ function requireAccessPort(): Readonly<SubscriptionAccessPorts> {
 }
 
 export async function getAppSubscriptionAccess(
-  userId: string, now: Date = new Date(),
+  userId: string, now: Date = new Date(), ports?: SubscriptionAccessPorts,
 ): Promise<AppSubscriptionStatusDto> {
-  return requireAccessPort().getAppSubscriptionAccess(userId, now);
+  return (ports ?? requireAccessPort()).getAppSubscriptionAccess(userId, now);
 }
 
 export async function getCynologistEntitlements(
-  userId: string, now: Date = new Date(),
+  userId: string, now: Date = new Date(), ports?: SubscriptionAccessPorts,
 ): Promise<CynologistEntitlements> {
-  return requireAccessPort().getCynologistEntitlements(userId, now);
+  return (ports ?? requireAccessPort()).getCynologistEntitlements(userId, now);
 }

@@ -1,23 +1,14 @@
 import { Loading } from "../ui";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useCurrentUser, useLogin, useLogout } from "./useAuth";
 import { ApiError } from "../api/client";
 import { RegisterPanel } from "./RegisterPanel";
-import { LandingVkEntry } from "../../brand/LandingVkEntry";
-import {VkConsentOptIn} from "../../features/vk-consent/VkConsentOptIn";
-import type {VkConsentWire} from "../../features/vk-consent/vkConsentSource";
 import { navigate, RouteLink, useRoutePath } from "../router/location";
 import { SecondaryButton } from "../ui";
 import { PasswordVisibilityField } from "./PasswordVisibilityField";
 import "../../brand/auth-next-parity.css";
 
-export function AuthPanel({showVkConsentOptIn=false,
-  vkConsentSyntheticTransport,vkContextToken,vkState}:{
-  showVkConsentOptIn?:boolean;
-  vkConsentSyntheticTransport?:VkConsentWire;
-  vkContextToken?:string;
-  vkState?:string;
-}={}) {
+export function AuthPanel() {
   const route = useRoutePath();
   const current = useCurrentUser();
   const login = useLogin();
@@ -25,6 +16,13 @@ export function AuthPanel({showVkConsentOptIn=false,
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [registering, setRegistering] = useState(false);
+
+  // QueryClient.clear() on explicit login can discard a per-mutate onSuccess
+  // observer before its navigation callback runs. An authenticated login page
+  // must still land on courses, including after a quick cache invalidation.
+  useEffect(() => {
+    if (route === "/login" && current.isSuccess && current.data) navigate("/courses");
+  }, [route, current.isSuccess, current.data]);
 
   if (current.isPending) return <Loading message="Проверяем сессию…" />;
   if (current.isError) return <p role="alert">{
@@ -91,10 +89,6 @@ export function AuthPanel({showVkConsentOptIn=false,
         </button>
         {login.isError && <p role="alert">Вход недоступен: {login.error.message}</p>}
       </form>
-      <div className="gafus-auth-vk-entry"><LandingVkEntry /></div>
-      <VkConsentOptIn enabled={showVkConsentOptIn}
-        contextToken={vkContextToken} state={vkState}
-        transport={vkConsentSyntheticTransport}/>
       <p className="note gafus-dev-note">Локальный тестовый интерфейс.</p>
     </section>
   );

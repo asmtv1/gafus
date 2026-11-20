@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockSchedule = vi.fn();
 const mockOperationalError = vi.fn();
@@ -86,6 +86,14 @@ vi.mock("@gafus/consultation-server/mail-delivery", () => ({
   reconcileConsultationEmailLog: (...args: unknown[]) => mockReconcileConsultationEmailLog(...args),
 }));
 
+// Mocks are initialized by module evaluation. Preload the full Worker graph
+// once in a setup hook, before timed assertions; a cold dynamic import within
+// the first test could time out and leak mock calls into subsequent tests.
+let startCronJobs: typeof import("./cron-scheduler").startCronJobs;
+beforeAll(async () => {
+  ({ startCronJobs } = await import("./cron-scheduler"));
+}, 60_000);
+
 describe("cron-scheduler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -94,7 +102,6 @@ describe("cron-scheduler", () => {
 
   describe("startCronJobs", () => {
     it("регистрирует 10 базовых cron задач с очисткой аккаунта по умолчанию", async () => {
-      const { startCronJobs } = await import("./cron-scheduler");
 
       startCronJobs();
 
@@ -103,7 +110,6 @@ describe("cron-scheduler", () => {
 
     it("keeps an explicit emergency OFF switch for account cleanup without disabling mail", async () => {
       vi.stubEnv("ACCOUNT_STORAGE_CLEANUP_ENABLED", "false");
-      const { startCronJobs } = await import("./cron-scheduler");
       startCronJobs();
       expect(mockSchedule).toHaveBeenCalledTimes(9);
       expect(mockSchedule.mock.calls.some(call => call[0] === "* * * * *")).toBe(true);
@@ -111,20 +117,17 @@ describe("cron-scheduler", () => {
 
     it("registers account cleanup when explicitly enabled", async () => {
       vi.stubEnv("ACCOUNT_STORAGE_CLEANUP_ENABLED", "true");
-      const { startCronJobs } = await import("./cron-scheduler");
       startCronJobs();
       expect(mockSchedule).toHaveBeenCalledTimes(10);
     });
 
     it("rejects malformed cleanup flag rather than unexpectedly enabling erasure", async () => {
       vi.stubEnv("ACCOUNT_STORAGE_CLEANUP_ENABLED", "maybe");
-      const { startCronJobs } = await import("./cron-scheduler");
       startCronJobs();
       expect(mockSchedule).toHaveBeenCalledTimes(9);
     });
 
     it("runs the deferred email outbox every minute", async () => {
-      const { startCronJobs } = await import("./cron-scheduler");
       startCronJobs();
       const due = mockSchedule.mock.calls.find((call) => call[0] === "* * * * *" && call[2]?.timezone === "UTC");
       expect(due).toBeDefined();
@@ -142,7 +145,6 @@ describe("cron-scheduler", () => {
     });
 
     it("WORK070 stranded callback failure emits sanitized operational manual-review alert", async () => {
-      const { startCronJobs } = await import("./cron-scheduler");
       const PRIVATE = "PRIVATE_PROVIDER_RECIPIENT_SECRET_STACK";
       mockProcessMailOutbox.mockResolvedValueOnce({
         processed: 1, sent: 1, reconciliationFailures: 1,
@@ -161,7 +163,6 @@ describe("cron-scheduler", () => {
     });
 
     it("terminal outbox with queued Core conflict is escalated, not silently accepted", async () => {
-      const { startCronJobs } = await import("./cron-scheduler");
       mockReconcileConsultationEmailLog.mockResolvedValueOnce("queued");
       startCronJobs();
       const due = mockSchedule.mock.calls.find((call) =>
@@ -176,7 +177,6 @@ describe("cron-scheduler", () => {
     });
 
     it("checks unresolved mail every 15 minutes", async () => {
-      const { startCronJobs } = await import("./cron-scheduler");
       startCronJobs();
       const mailCron = mockSchedule.mock.calls.find((call) => call[0] === "3,18,33,48 * * * *");
       expect(mailCron).toBeDefined();
@@ -185,7 +185,6 @@ describe("cron-scheduler", () => {
     });
 
     it("запускает reconciliation pending app subscription в cron подписок", async () => {
-      const { startCronJobs } = await import("./cron-scheduler");
 
       startCronJobs();
       const subscriptionCron = mockSchedule.mock.calls.find((call) => call[0] === "*/15 * * * *");

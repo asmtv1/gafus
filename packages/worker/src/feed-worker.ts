@@ -1,6 +1,6 @@
 import { runFeedBackgroundOperations, getFeedPushSubscriptions } from "@gafus/feed-server/background-operations";
-import type { FeedNotificationDelivery } from "@gafus/core/services/feed";
-import { PushNotificationService, partitionPushSubscriptions, sendExpoPushNotifications, sendRustorePushNotifications } from "@gafus/webpush";
+import type { FeedNotificationDelivery } from "@gafus/feed-server/background-operations";
+import { PushNotificationService, partitionPushSubscriptions, sendExpoPushNotifications } from "@gafus/webpush";
 let running = false;
 let web: ReturnType<typeof PushNotificationService.fromEnvironment> | undefined;
 export const feedPushDelivery: FeedNotificationDelivery = {
@@ -24,10 +24,6 @@ export const feedPushDelivery: FeedNotificationDelivery = {
       failures += result.failureCount;
     }
     if (parts.expo.length) failures += (await sendExpoPushNotifications(parts.expo, payload)).temporaryFailureCount;
-    if (parts.rustore.length) {
-      if (!process.env.RUSTORE_PUSH_SERVICE_TOKEN || !process.env.RUSTORE_PROJECT_ID) throw new Error("FEED_PUSH_UNAVAILABLE");
-      failures += (await sendRustorePushNotifications(parts.rustore, payload)).temporaryFailureCount;
-    }
     if (failures) throw new Error("FEED_PUSH_RETRY");
   },
 };

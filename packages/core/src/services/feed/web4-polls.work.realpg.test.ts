@@ -2,7 +2,7 @@
 import {randomUUID} from 'node:crypto';
 import {afterAll,afterEach,beforeAll,beforeEach,describe,expect,it} from 'vitest';
 import {prisma} from '@gafus/prisma';
-import {createFeedPolls} from './polls';
+import {createFeedPolls} from '../../../../feed-server/src/pollRows';
 const active=process.env.WEB4_REAL_WORK_PG==='1'?describe:describe.skip;
 const db=prisma;
 const expected='/gafus_refactor_real_work_20261024';

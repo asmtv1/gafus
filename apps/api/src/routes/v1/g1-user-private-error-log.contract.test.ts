@@ -24,6 +24,7 @@ vi.mock("@gafus/core/services/user", async () => {
 });
 vi.mock("@gafus/logger", () => ({ createWebLogger: () => ({ error: m.log }) }));
 import { userRoutes } from "./user";
+import { profileRows } from "../../modules/user/composition/profile-rows-instance.js";
 const ACTOR = "SYNTHETIC_PRIVATE_OWNER_USER_ID";
 const CANARY = "SYNTHETIC_PROFILE_ACCOUNT_TOKEN_DO_NOT_LOG";
 const BASE = "/api/v1/user";
@@ -74,7 +75,7 @@ describe("mounted user route error log privacy; Core synthetic only", () => {
     const response = await request(`${BASE}/onboarding-tour`);
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true, data: status });
-    expect(m.tour).toHaveBeenCalledExactlyOnceWith(ACTOR);
+    expect(m.tour).toHaveBeenCalledExactlyOnceWith(ACTOR, profileRows);
     expect(m.seen).not.toHaveBeenCalled();
     expect(m.log).not.toHaveBeenCalled();
   });
@@ -85,7 +86,7 @@ describe("mounted user route error log privacy; Core synthetic only", () => {
     const response = await request(`${BASE}/onboarding-tour`);
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true, data: status });
-    expect(m.tour).toHaveBeenCalledExactlyOnceWith(ACTOR);
+    expect(m.tour).toHaveBeenCalledExactlyOnceWith(ACTOR, profileRows);
     expect(m.seen).not.toHaveBeenCalled();
   });
 
@@ -95,7 +96,7 @@ describe("mounted user route error log privacy; Core synthetic only", () => {
     const response = await request(`${BASE}/onboarding-tour/complete`, "POST");
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ success: true, data: status });
-    expect(m.seen).toHaveBeenCalledExactlyOnceWith(ACTOR);
+    expect(m.seen).toHaveBeenCalledExactlyOnceWith(ACTOR, profileRows);
     expect(m.tour).not.toHaveBeenCalled();
     expect(m.log).not.toHaveBeenCalled();
   });
@@ -110,7 +111,7 @@ describe("mounted user route error log privacy; Core synthetic only", () => {
     expect(responseB.status).toBe(200);
     await expect(responseA.json()).resolves.toEqual({ success: true, data: first });
     await expect(responseB.json()).resolves.toEqual({ success: true, data: second });
-    expect(m.seen.mock.calls).toEqual([[ACTOR], [ACTOR]]);
+    expect(m.seen.mock.calls).toEqual([[ACTOR, profileRows], [ACTOR, profileRows]]);
     expect(m.tour).not.toHaveBeenCalled();
     expect(m.log).not.toHaveBeenCalled();
   });

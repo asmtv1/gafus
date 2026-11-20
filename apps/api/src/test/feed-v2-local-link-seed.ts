@@ -7,7 +7,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@gafus/prisma";
 import { createFeedStorage } from "@gafus/feed-storage";
 import { isolatedNonprodS3Config } from "@gafus/cdn-upload/isolated-nonprod-s3";
-import { createFeedService } from "@gafus/core/services/feed";
+import { createFeedService } from "../../../../packages/feed-server/src/postRows";
 import { S3Client, HeadBucketCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 const ROOT="/Users/asmtv1/Desktop/gafus-refactor";
 const D=ROOT+"/.local-pg-scratch/feed-media-local-link-20261028";

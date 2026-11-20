@@ -5,18 +5,15 @@ alwaysApply: true
 # Security Best Practices
 
 ## Authentication
-- Use NextAuth.js for authentication
-- Import: `import { getServerSession } from "next-auth"`
-- Check session in Server Actions and API routes
-- Use role-based access control (RBAC)
+- API uses Hono and `@gafus/auth/jwt` for short-lived JWT access tokens and refresh sessions, not NextAuth.
+- Browser clients use HttpOnly SameSite cookies; mobile clients use explicit Bearer tokens.
+- Enforce role-based access control in API/route composition, never through untrusted client roles.
 
-## Authorization
-Для проверки только факта входа в apps/web используй `getCurrentUserId()` из `@shared/utils/getCurrentUserId`. Для проверки роли — `getServerSession(authOptions)` и `authOptions` из `@gafus/auth`:
-
-## CSRF Protection
-- Use `@gafus/csrf` package
-- Validate CSRF tokens in mutations
-- Token automatically included in forms
+## Authorization and CSRF
+- Every browser cookie mutation (`POST`, `PUT`, `PATCH`, `DELETE`) must pass strict trusted-Origin validation in the API (`apps/api/src/lib/browser-auth.ts`).
+- Keep the Web browser Origin allowlist exact (`apps/api/src/middleware/cors.ts`), never enable wildcard cookie credentials.
+- Native Bearer requests remain separately authenticated and must not require a browser Origin.
+- Test the enforcement with `apps/api/src/middleware/cookie-origin-security.matrix.test.ts`.
 
 ## Input Validation
 - Always validate with Zod schemas

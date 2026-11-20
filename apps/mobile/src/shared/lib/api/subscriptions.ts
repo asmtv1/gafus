@@ -19,7 +19,7 @@ export interface PushSubscriptionDeviceStatus {
  */
 export const subscriptionsApi = {
   /**
-   * Есть ли на сервере подписка с одним из endpoint'ов этого устройства (Expo / RuStore).
+   * Есть ли на сервере подписка с одним из endpoint'ов этого устройства (Expo).
    * Пустой массив → determined: false.
    */
   postPushDeviceStatus: async (

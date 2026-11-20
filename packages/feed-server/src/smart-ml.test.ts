@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FeedDb } from "@gafus/core/services/feed";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
 import {
   isSmartMlModel, isSmartMlVector, predictSmartMl, scoreSmartMl,
   smartMlPassesOfflineGate, smartRocAuc, toSmartMlVector, trainSmartMl,

@@ -117,18 +117,16 @@ export CHAT2_CENTRIFUGO_TOKEN_SECRET="$CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY"
 export JWT_SECRET="$(openssl rand -hex 32)" JWT_REFRESH_SECRET="$(openssl rand -hex 32)"
 local_db='postgresql://asmtv1@db:5432/agent2_oci_runtime_qa?schema=public'
 # Real Worker image CMD, no --entrypoint override; the real Chat2 outbox poll is enabled.
-legacy_cutover=disabled
 private_media=disabled
 if [[ "${GAFUS_AGENT2_OCI_REAL_MESSAGE_FLOW:-0}" == 1 ]];then
   # This enables the REAL fail-closed readiness check; all media/provider
   # credentials remain absent and app has no route to external services.
-  legacy_cutover=enabled
   private_media=enabled
 fi
 docker run --pull=never -d --rm --network "$net" --network-alias worker --name "$worker" \
   -e NODE_ENV=production -e DATABASE_URL="$local_db" -e REDIS_URL='redis://redis:6379' \
   -e WORKER_HEALTH_PORT=3003 -e CHAT2_WORKER_ENABLED=enabled -e CHAT2_API_ENABLED=enabled \
-  -e CHAT2_LEGACY_RETIRE_ENABLED="$legacy_cutover" -e CHAT2_PRIVATE_MEDIA_ENABLED=disabled \
+  -e CHAT2_PRIVATE_MEDIA_ENABLED=disabled \
   -e CHAT2_CENTRIFUGO_HTTP_API='http://chat2-centrifugo:8000/api/publish' \
   -e CHAT2_CENTRIFUGO_API_KEY -e CHAT2_CENTRIFUGO_TOKEN_SECRET -e JWT_SECRET -e JWT_REFRESH_SECRET \
   -e CLOUDRU_MEDIA_JOBS_ENABLED=false -e CDN_HEALTH_MONITOR_ENABLED=false \
@@ -138,7 +136,7 @@ docker run --pull=never -d --rm --network "$net" --network-alias worker --name "
 docker run --pull=never -d --rm --network "$net" --network-alias api --name "$api" \
   -e NODE_ENV=production -e DATABASE_URL="$local_db" -e REDIS_URL='redis://redis:6379' \
   -e API_PORT=3001 -e API_HOST=0.0.0.0 -e CHAT2_WORKER_ENABLED=enabled \
-  -e CHAT2_API_ENABLED=enabled -e CHAT2_LEGACY_RETIRE_ENABLED="$legacy_cutover" \
+  -e CHAT2_API_ENABLED=enabled \
   -e CHAT2_PRIVATE_MEDIA_ENABLED="$private_media" -e CHAT2_PUBLIC_WS_URL='wss://gafus.ru/connection/websocket' \
   -e CHAT2_CENTRIFUGO_HTTP_API='http://chat2-centrifugo:8000/api/publish' \
   -e CHAT2_CENTRIFUGO_API_KEY -e CHAT2_CENTRIFUGO_TOKEN_SECRET -e JWT_SECRET -e JWT_REFRESH_SECRET \
@@ -174,10 +172,8 @@ for n in {1..32};do
 done
 # Denial contract, no key must return 404 even when actual worker is ready.
 docker exec "$worker" node -e "fetch('http://127.0.0.1:3003/internal/chat2/ready',{signal:AbortSignal.timeout(1600)}).then(r=>{console.log('AGENT2_WORKER_CHAT2_NO_KEY_STATUS_'+r.status);process.exit(r.status===404?0:1)}).catch(()=>process.exit(2))"
-# With cutover disabled the API MUST stay 503 despite healthy worker.
-if [[ "$legacy_cutover" == disabled ]];then
-  docker exec "$api" node -e "fetch('http://127.0.0.1:3001/api/v1/cynologist-chat',{signal:AbortSignal.timeout(1600)}).then(r=>{console.log('AGENT2_API_STAGED_LEGACY_STATUS_'+r.status);process.exit(r.status===503?0:1)}).catch(()=>process.exit(2))"
-fi
+# Retired Chat1 endpoints are not mounted, regardless of broker readiness.
+docker exec "$api" node -e "fetch('http://127.0.0.1:3001/api/v1/cynologist-chat',{signal:AbortSignal.timeout(1600)}).then(r=>{console.log('AGENT2_API_CHAT1_ABSENT_STATUS_'+r.status);process.exit(r.status===404?0:1)}).catch(()=>process.exit(2))"
 if [[ "$api_ready" != 1 || "$worker_ready" != 1 ]];then
   echo "AGENT2_OCI_SERVICE_READY_BLOCKER api_ready=$api_ready worker_chat2_ready=$worker_ready"
   for own in "$worker" "$api";do docker logs --tail 8 "$own" 2>&1 | sed -E 's#postgresql://[^ ]+#<redacted>#g;s#(TOKEN|SECRET|PASSWORD|KEY)=[^ ]+#<redacted>#g' | cut -c1-180 || true;done

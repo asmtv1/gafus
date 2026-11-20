@@ -502,8 +502,6 @@
 | `RESEND_FROM` | [`packages/mailer/src/env.ts`](../../packages/mailer/src/env.ts) |
 | `RESEND_WEBHOOK_SECRET` | [`packages/mailer/src/webhook.ts`](../../packages/mailer/src/webhook.ts) |
 | `RUNNER_TEMP` | [`infra/cloudru/production-cdn-release.mjs`](../../infra/cloudru/production-cdn-release.mjs) |
-| `RUSTORE_PROJECT_ID` | [`packages/webpush/src/rustorePush.ts`](../../packages/webpush/src/rustorePush.ts), [`packages/worker/src/feed-worker.ts`](../../packages/worker/src/feed-worker.ts) |
-| `RUSTORE_PUSH_SERVICE_TOKEN` | [`packages/webpush/src/rustorePush.ts`](../../packages/webpush/src/rustorePush.ts), [`packages/worker/src/feed-worker.ts`](../../packages/worker/src/feed-worker.ts) |
 | `SMTP_HOST` | [`packages/mailer/src/env.test.ts`](../../packages/mailer/src/env.test.ts), [`packages/mailer/src/env.ts`](../../packages/mailer/src/env.ts) |
 | `SMTP_PASS` | [`packages/mailer/src/env.ts`](../../packages/mailer/src/env.ts) |
 | `SMTP_PORT` | [`packages/mailer/src/env.test.ts`](../../packages/mailer/src/env.test.ts), [`packages/mailer/src/env.ts`](../../packages/mailer/src/env.ts) |

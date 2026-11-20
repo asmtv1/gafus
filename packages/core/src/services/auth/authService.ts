@@ -1,3 +1,5 @@
+import type { RegistrationContractRowsPort } from "./registrationContractRowsPort";
+import type { CredentialRegistrationPort } from "./registerUserWithCredentials";
 /**
  * Auth Service - бизнес-логика аутентификации
  *
@@ -9,7 +11,7 @@ import bcrypt from "bcryptjs";
 import parsePhoneNumberFromString from "libphonenumber-js";
 import { z } from "zod/v3";
 
-import { resetPasswordByToken } from "./passwordReset";
+import { resetPasswordByToken, type PasswordResetPorts } from "./passwordReset";
 import {
   readAuthUsernameChangeActor,
   readAuthUsernameCandidate,
@@ -105,6 +107,8 @@ export async function registerUserService(
   registrationChannel?: RegistrationChannel,
   promoCode?: string,
   registrationContext?: CreateConsentLogsParams,
+  registrationRows?: CredentialRegistrationPort,
+  contractRows?: RegistrationContractRowsPort,
 ): Promise<{ success: true; userId: string } | { error: string }> {
   logger.info("Registering new user (email)");
   const result = await registerUserWithCredentials({
@@ -114,7 +118,7 @@ export async function registerUserService(
     registrationChannel,
     promoCode,
     registrationContext,
-  });
+  }, registrationRows, contractRows);
   if (!result.ok) {
     const maskedCodes: RegisterCredentialsConflictCode[] = ["USERNAME_TAKEN", "EMAIL_TAKEN"];
     if (maskedCodes.includes(result.code)) {
@@ -131,9 +135,9 @@ export async function registerUserService(
 /**
  * Сбрасывает пароль по токену
  */
-export async function resetPassword(token: string, password: string): Promise<void> {
+export async function resetPassword(token: string, password: string, ports?: PasswordResetPorts): Promise<void> {
   logger.info("Resetting password");
-  await resetPasswordByToken(token, password);
+  await resetPasswordByToken(token, password, ports);
 }
 
 const USERNAME_MIN_LENGTH = 3;

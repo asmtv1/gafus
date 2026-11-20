@@ -15,6 +15,7 @@ import {
   adminQueueNpdReconciliation,
 } from "@gafus/subscription-finance-server/admin-application";
 import { requireRole } from "../../middleware/auth.js";
+import { promoCodeSqlPort } from "../../modules/app-subscription/composition/promo-code-rows-instance.js";
 
 export const adminSubscriptionRoutes = new Hono();
 adminSubscriptionRoutes.use("*", async (c, next) => {
@@ -119,7 +120,7 @@ adminSubscriptionRoutes.post("/promo-codes", requireRole("ADMIN"), async c => {
   try {
     const actorId = c.get("user").id;
     if (!(await currentAdmin(actorId))) return c.json({ success: false, code: "FORBIDDEN" }, 403);
-    const data = await createAppSubscriptionPromoCode({ ...parsed.data, actorId });
+    const data = await createAppSubscriptionPromoCode({ ...parsed.data, actorId }, promoCodeSqlPort);
     return c.json({ success: true, data });
   } catch (error) {
     const mapped = promoError(error);
@@ -135,7 +136,7 @@ adminSubscriptionRoutes.patch("/promo-codes/:id", requireRole("ADMIN"), async c 
   try {
     const actorId = c.get("user").id;
     if (!(await currentAdmin(actorId))) return c.json({ success: false, code: "FORBIDDEN" }, 403);
-    const data = await updateAppSubscriptionPromoCode({ id: codeId, ...parsed.data, actorId });
+    const data = await updateAppSubscriptionPromoCode({ id: codeId, ...parsed.data, actorId }, promoCodeSqlPort);
     return c.json({ success: true, data });
   } catch (error) {
     const mapped = promoError(error);
@@ -149,7 +150,7 @@ adminSubscriptionRoutes.delete("/promo-codes/:id", requireRole("ADMIN"), async c
   try {
     const actorId = c.get("user").id;
     if (!(await currentAdmin(actorId))) return c.json({ success: false, code: "FORBIDDEN" }, 403);
-    const data = await archiveAppSubscriptionPromoCode({ id: codeId, actorId });
+    const data = await archiveAppSubscriptionPromoCode({ id: codeId, actorId }, promoCodeSqlPort);
     return c.json({ success: true, data });
   } catch (error) {
     const mapped = promoError(error);

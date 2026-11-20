@@ -5,12 +5,21 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, mkdtempSync, mkdirSync, cpSync, appendFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { allowsFreshPostgresEndpoint } from './postgres-network-policy.mjs';
+import { allowsFreshPostgresEndpoint, allowsFreshPostgresVersion } from './postgres-network-policy.mjs';
 const read = path => readFileSync(path, 'utf8');
 const apply = read('ci-cd/bootstrap/prisma-fresh/apply-new-empty-db.mjs');
 const verifier = read('ci-cd/bootstrap/prisma-fresh/verify-option-a-pg18.mjs');
 const script = read('packages/prisma/scripts/bootstrap-fresh-postgres.sh');
 const workflow = read('.github/workflows/ci-cd.yml');
+
+test('fresh-only SQL version guard supports validated PG15-18 and rejects PG14/19', () => {
+  for (const version of ['150000','150020','160016','170000','180007'])
+    assert.equal(allowsFreshPostgresVersion(version), true, version);
+  for (const version of ['140025','149999','190000','not-a-version',null,undefined])
+    assert.equal(allowsFreshPostgresVersion(version), false, String(version));
+  assert.match(apply, /allowsFreshPostgresVersion\(version\)/);
+  assert.match(apply, /TESTED_POSTGRES_15_TO_18_ONLY/);
+});
 
 test('only the exact GitHub Actions disposable Docker service may use a bridge address', () => {
   const valid = {

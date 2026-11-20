@@ -112,6 +112,26 @@ jobs:
           [[ "$verified" == true ]] || { echo 'RELEASE_IMAGES_OR_QA_NOT_VERIFIED'; exit 1; }
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "Verified immutable digests and successful main CI for $sha; no rebuild or Cloud.ru mutation"
+      - name: Read test system report for the selected release (advisory)
+        if: steps.release.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ steps.release.outputs.sha }}
+          TEST_RUN_ID: ${{ steps.release.outputs.run_id }}
+          TEST_RUN_ATTEMPT: ${{ steps.release.outputs.run_attempt }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/advisory-release-test"
+          if gh run download "$TEST_RUN_ID" --name "testing-release-report-$TEST_RUN_ATTEMPT" --dir "$dir" &&
+             node scripts/qa/verify-release-report.mjs "$dir" "$EXPECTED_SHA"; then
+            echo "Full test report matches the selected release SHA." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::Full advisory test report unavailable, incomplete or mismatched."
+            echo "Full advisory test report unavailable, incomplete or mismatched." >> "$GITHUB_STEP_SUMMARY"
+            exit 2
+          fi
 
   preflight-cdn:
     needs: validate-release

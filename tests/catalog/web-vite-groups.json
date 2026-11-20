@@ -1,0 +1,561 @@
+{
+  "schema": 1,
+  "source": "apps/web-vite/src/**/*.{test,spec}.{js,jsx,ts,tsx,cjs,mjs,cts,mts}",
+  "legacyCommand": "node --test vite.config.test.mjs && vitest run src --maxWorkers=1",
+  "groupFingerprint": "efd7e3a0adf2f1b6bf7d7536cc4859275157d8ace117d3f5e0856b2d80b6befe",
+  "groups": [
+    {
+      "id": "vite-config",
+      "mode": "node",
+      "files": [
+        "vite.config.test.mjs"
+      ]
+    },
+    {
+      "id": "app-01",
+      "mode": "vitest",
+      "files": [
+        "src/App.test.tsx"
+      ]
+    },
+    {
+      "id": "brand-01",
+      "mode": "vitest",
+      "files": [
+        "src/brand/GafusHeader.chatNav.mounted.test.tsx",
+        "src/brand/GafusHeader.icons.mounted.test.tsx",
+        "src/brand/GafusHeader.remindersNav.mounted.test.tsx",
+        "src/brand/GafusHeader.trainerPanel.mounted.test.tsx"
+      ]
+    },
+    {
+      "id": "feature-account-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/account/EmailConfirmPage.s1.privacy.lifecycle.test.tsx",
+        "src/features/account/UsernameChangePage.g03.test.tsx",
+        "src/features/account/accountApi.test.ts",
+        "src/features/account/accountPages.test.tsx",
+        "src/features/account/g04OptInHarness.test.tsx",
+        "src/features/account/usernameApi.test.ts"
+      ]
+    },
+    {
+      "id": "feature-achievements-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/achievements/AchievementsOptIn.mounted.test.tsx",
+        "src/features/achievements/AchievementsRouteEntitlement.mounted.test.tsx",
+        "src/features/achievements/achievementsApi.test.ts",
+        "src/features/achievements/achievementsEntitlement.test.ts"
+      ]
+    },
+    {
+      "id": "feature-articles-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/articles/ArticleCatalog.like.mounted.test.tsx",
+        "src/features/articles/ArticleCatalog.parity.mounted.test.tsx",
+        "src/features/articles/ArticleCatalog.test.tsx",
+        "src/features/articles/ArticleDetails.actions.mounted.test.tsx",
+        "src/features/articles/ArticleDetails.notFound.test.tsx",
+        "src/features/articles/ArticleDetails.revalidation.mounted.test.tsx",
+        "src/features/articles/ArticleDetails.test.tsx",
+        "src/features/articles/ArticleEmbeddedPaywall.mounted.test.tsx",
+        "src/features/articles/ArticleEmbeddedPaywall.recheck.mounted.test.tsx",
+        "src/features/articles/ArticleGuest.mounted.test.tsx",
+        "src/features/articles/articleApi.guest.test.ts",
+        "src/features/articles/articleApi.parity.test.ts"
+      ]
+    },
+    {
+      "id": "feature-articles-02",
+      "mode": "vitest",
+      "files": [
+        "src/features/articles/articleApi.test.ts"
+      ]
+    },
+    {
+      "id": "feature-chats-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/chats/Chat2Messenger.layout.mounted.test.tsx",
+        "src/features/chats/Chat2Messenger.lightbox-close.test.ts",
+        "src/features/chats/Chat2Messenger.palette.test.ts",
+        "src/features/chats/Chat2Messenger.viewport.test.ts",
+        "src/features/chats/Chat2StaffQueue.test.tsx",
+        "src/features/chats/chat2-attachment-upload.test.ts",
+        "src/features/chats/chat2-compose-route.test.tsx",
+        "src/features/chats/chat2-direct-timeout.test.ts",
+        "src/features/chats/messageReactions.test.ts"
+      ]
+    },
+    {
+      "id": "feature-commerce-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/commerce/SubscriptionCheckout.mounted.test.tsx",
+        "src/features/commerce/SubscriptionReadPanel.optIn.test.tsx",
+        "src/features/commerce/checkoutApi.test.ts",
+        "src/features/commerce/subscriptionReadMock.test.ts"
+      ]
+    },
+    {
+      "id": "feature-consultations-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/consultations/ConsultationBookingMockForm.optIn.test.tsx",
+        "src/features/consultations/ConsultationPublicTrainerProfile.mounted.test.tsx",
+        "src/features/consultations/ConsultationReadOnlyPanel.optIn.test.tsx",
+        "src/features/consultations/ConsultationSlotsCalendar.mounted.test.tsx",
+        "src/features/consultations/bookingSourceMock.test.ts",
+        "src/features/consultations/consultationLiveApi.test.ts",
+        "src/features/consultations/consultationReadApi.test.ts"
+      ]
+    },
+    {
+      "id": "feature-courses-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/courses/CourseCatalog.accessParity.test.tsx",
+        "src/features/courses/CourseCatalog.filters.mounted.test.tsx",
+        "src/features/courses/CourseCatalog.test.tsx",
+        "src/features/courses/CourseOverview.accessParity.test.tsx",
+        "src/features/courses/CourseOverview.connectedNavigation.mounted.test.tsx",
+        "src/features/courses/CourseOverview.test.tsx",
+        "src/features/courses/CoursesDirectRoute.mounted.test.tsx",
+        "src/features/courses/FavoritesDeepLink.test.tsx",
+        "src/features/courses/PublicHomeRoute.mounted.test.tsx",
+        "src/features/courses/courseApi.favoriteAckParity.test.ts",
+        "src/features/courses/courseApi.test.ts",
+        "src/features/courses/courseCatalogFilters.test.ts"
+      ]
+    },
+    {
+      "id": "feature-daily-course-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/daily-course/DailyBoundProgress.mounted.test.tsx",
+        "src/features/daily-course/DailyCourseConnectedRoute.mounted.test.tsx",
+        "src/features/daily-course/DailyCoursePanel.optIn.test.tsx",
+        "src/features/daily-course/DailyCourseRevalidation.mounted.test.tsx",
+        "src/features/daily-course/dailyBoundProgressApi.test.ts",
+        "src/features/daily-course/dailyCourseApi.test.ts"
+      ]
+    },
+    {
+      "id": "feature-excuses-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/excuses/ExcusesOptIn.mounted.test.tsx",
+        "src/features/excuses/ExcusesRoute.mounted.test.tsx",
+        "src/features/excuses/excuseSourceMock.test.ts"
+      ]
+    },
+    {
+      "id": "feature-gafus-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/gafus/GuidesOptIn.mounted.test.tsx",
+        "src/features/gafus/GuidesRoute.mounted.test.tsx",
+        "src/features/gafus/WalletConnectedPanel.mounted.test.tsx",
+        "src/features/gafus/WalletOptIn.mounted.test.tsx",
+        "src/features/gafus/WalletRoute.mounted.test.tsx",
+        "src/features/gafus/guidesReadApi.test.ts",
+        "src/features/gafus/walletReadApi.test.ts"
+      ]
+    },
+    {
+      "id": "feature-gallery-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/gallery/GalleryAlbumCatalog.vkLayout.mounted.test.tsx",
+        "src/features/gallery/GalleryAlbums.nextControls.mounted.test.tsx",
+        "src/features/gallery/GalleryAlbums.optIn.test.tsx",
+        "src/features/gallery/GalleryAlbums.ownerPhotoModal.test.tsx",
+        "src/features/gallery/GalleryImageFallback.test.tsx",
+        "src/features/gallery/GalleryManage.mounted.test.tsx",
+        "src/features/gallery/GalleryPetsConnectedFlow.mounted.test.tsx",
+        "src/features/gallery/GalleryPhotoMove.connected.mounted.test.tsx",
+        "src/features/gallery/GalleryRevalidation.mounted.test.tsx",
+        "src/features/gallery/GalleryUpload.unknownAck.mounted.test.tsx",
+        "src/features/gallery/GalleryUploadQueue.mounted.test.tsx",
+        "src/features/gallery/PublicGalleryView.mounted.test.tsx"
+      ]
+    },
+    {
+      "id": "feature-gallery-02",
+      "mode": "vitest",
+      "files": [
+        "src/features/gallery/galleryApi.test.ts",
+        "src/features/gallery/galleryMutations.test.ts"
+      ]
+    },
+    {
+      "id": "feature-moments-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/moments/FeedCdnImage.test.tsx",
+        "src/features/moments/FeedNotificationsRoute.mounted.test.tsx",
+        "src/features/moments/FeedV2Media.test.tsx",
+        "src/features/moments/HiddenAuthorsAppRoute.mounted.test.tsx",
+        "src/features/moments/HiddenAuthorsOptIn.mounted.test.tsx",
+        "src/features/moments/MomentActions.compact.test.tsx",
+        "src/features/moments/MomentAlbumPhotoPicker.test.tsx",
+        "src/features/moments/MomentAuthorAvatar.mounted.test.tsx",
+        "src/features/moments/MomentCommentAvatar.mounted.test.tsx",
+        "src/features/moments/MomentCommentReport.test.tsx",
+        "src/features/moments/MomentComments.photo-retry.test.tsx",
+        "src/features/moments/MomentComments.test.tsx"
+      ]
+    },
+    {
+      "id": "feature-moments-02",
+      "mode": "vitest",
+      "files": [
+        "src/features/moments/MomentComposer.albumOneAction.test.tsx",
+        "src/features/moments/MomentComposer.pollImageOneAction.test.tsx",
+        "src/features/moments/MomentComposer.pollOnly.mounted.test.tsx",
+        "src/features/moments/MomentComposer.published.test.tsx",
+        "src/features/moments/MomentComposer.test.tsx",
+        "src/features/moments/MomentComposer.unifiedMedia.test.tsx",
+        "src/features/moments/MomentComposer.unifiedPoll.test.tsx",
+        "src/features/moments/MomentDeepLink.test.tsx",
+        "src/features/moments/MomentDraftPoll.test.tsx",
+        "src/features/moments/MomentDrafts.pagination.test.tsx",
+        "src/features/moments/MomentEditPublishedText.test.tsx",
+        "src/features/moments/MomentInlinePoll.images.test.tsx"
+      ]
+    },
+    {
+      "id": "feature-moments-03",
+      "mode": "vitest",
+      "files": [
+        "src/features/moments/MomentLegacyEditRoute.mounted.test.tsx",
+        "src/features/moments/MomentLocalMediaPreview.mounted.test.tsx",
+        "src/features/moments/MomentLocalMediaPreview.photo-retry.test.tsx",
+        "src/features/moments/MomentMediaGallery.test.tsx",
+        "src/features/moments/MomentMediaReorder.test.tsx",
+        "src/features/moments/MomentNested.test.tsx",
+        "src/features/moments/MomentPendingPosts.test.tsx",
+        "src/features/moments/MomentPhotoUpload.test.tsx",
+        "src/features/moments/MomentPoll.manualClose.mounted.test.tsx",
+        "src/features/moments/MomentPoll.test.tsx",
+        "src/features/moments/MomentPostMenu.live.test.tsx",
+        "src/features/moments/MomentSummary.lazyPoll.error.test.tsx"
+      ]
+    },
+    {
+      "id": "feature-moments-04",
+      "mode": "vitest",
+      "files": [
+        "src/features/moments/MomentSummary.lazyPoll.test.tsx",
+        "src/features/moments/MomentSummary.pollInline.test.tsx",
+        "src/features/moments/MomentVideo.mounted.test.tsx",
+        "src/features/moments/MomentsCatalog.autoPublish.test.tsx",
+        "src/features/moments/MomentsCatalog.revalidation.test.tsx",
+        "src/features/moments/MomentsCatalog.test.tsx",
+        "src/features/moments/MomentsNotificationsOptIn.mounted.test.tsx",
+        "src/features/moments/MomentsOwnerRead.revalidation.test.tsx",
+        "src/features/moments/MomentsProfile.test.tsx",
+        "src/features/moments/MomentsPublicAuthorParity.mounted.test.tsx",
+        "src/features/moments/MomentsSaved.accessPagination.test.tsx",
+        "src/features/moments/MomentsSaved.revalidation.test.tsx"
+      ]
+    },
+    {
+      "id": "feature-moments-05",
+      "mode": "vitest",
+      "files": [
+        "src/features/moments/MomentsSaved.test.tsx",
+        "src/features/moments/PostDetailOptIn.mounted.test.tsx",
+        "src/features/moments/WEB4SocialMutations.live.test.tsx",
+        "src/features/moments/feedMediaTransfer.globalSlots.test.ts",
+        "src/features/moments/feedMediaTransfer.test.ts",
+        "src/features/moments/hiddenAuthorsReadApi.test.ts",
+        "src/features/moments/momentComposerApi.test.ts",
+        "src/features/moments/momentDraftPollApi.test.ts",
+        "src/features/moments/momentMedia.test.ts",
+        "src/features/moments/momentPollImages.test.tsx",
+        "src/features/moments/momentPollOptionUpload.test.ts",
+        "src/features/moments/momentPublishedEditor.test.ts"
+      ]
+    },
+    {
+      "id": "feature-moments-06",
+      "mode": "vitest",
+      "files": [
+        "src/features/moments/momentUploadPool.test.ts",
+        "src/features/moments/momentsApi.test.ts",
+        "src/features/moments/notificationsReadApi.test.ts",
+        "src/features/moments/postDetailReadApi.test.ts"
+      ]
+    },
+    {
+      "id": "feature-partner-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/partner/PartnerOptIn.mounted.test.tsx",
+        "src/features/partner/PartnerRoute.mounted.test.tsx",
+        "src/features/partner/partnerReadApi.test.ts"
+      ]
+    },
+    {
+      "id": "feature-pets-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/pets/PetActions.connected.mounted.test.tsx",
+        "src/features/pets/PetAvatarConnected.mounted.test.tsx",
+        "src/features/pets/PetCollection.expansion.mounted.test.tsx",
+        "src/features/pets/PetCollection.test.tsx",
+        "src/features/pets/PetCreateConnectedPage.mounted.test.tsx",
+        "src/features/pets/PetDeleteConnected.mounted.test.tsx",
+        "src/features/pets/PetDetails.test.tsx",
+        "src/features/pets/PetDocuments.mounted.test.tsx",
+        "src/features/pets/PetEditOptIn.mounted.test.tsx",
+        "src/features/pets/PetOwnerDisplayParity.test.tsx",
+        "src/features/pets/PetPrevention.mounted.test.tsx",
+        "src/features/pets/PetProfileVisibilityConnected.mounted.test.tsx"
+      ]
+    },
+    {
+      "id": "feature-pets-02",
+      "mode": "vitest",
+      "files": [
+        "src/features/pets/PetRevalidation.mounted.test.tsx",
+        "src/features/pets/PetVetVisitsConnected.mounted.test.tsx",
+        "src/features/pets/PetVetVisitsDeepLink.test.tsx",
+        "src/features/pets/PetWeightChart.mounted.test.tsx",
+        "src/features/pets/VetVisitsHonoConnected.mounted.test.tsx",
+        "src/features/pets/VetVisitsReadOptIn.mounted.test.tsx",
+        "src/features/pets/g05WebRealConsumer.real.test.ts",
+        "src/features/pets/g05WebRealConsumerAdapter.integration.test.ts",
+        "src/features/pets/petApi.test.ts",
+        "src/features/pets/petCreateS1.handlerParity.test.tsx",
+        "src/features/pets/petCreateS1.mountedCookieTransport.test.tsx",
+        "src/features/pets/petCreateS1.test.tsx"
+      ]
+    },
+    {
+      "id": "feature-pets-03",
+      "mode": "vitest",
+      "files": [
+        "src/features/pets/petEditSourceMock.test.ts",
+        "src/features/pets/petListCountSync.test.ts",
+        "src/features/pets/petPhotoUrl.test.ts",
+        "src/features/pets/petVetVisitDomain.test.ts",
+        "src/features/pets/vetVisitsHonoReadConsumer.test.ts",
+        "src/features/pets/vetVisitsSourceMock.test.ts"
+      ]
+    },
+    {
+      "id": "feature-profile-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/profile/AccountDeleteConnected.mounted.test.tsx",
+        "src/features/profile/AccountDeleteOptIn.mounted.test.tsx",
+        "src/features/profile/EmbeddedProfileActivity.mounted.test.tsx",
+        "src/features/profile/LegacyNotificationStatus.mounted.test.tsx",
+        "src/features/profile/LegacyNotificationStatus.pushEnroll.mounted.test.tsx",
+        "src/features/profile/LegacyPremiumConnectedCard.mounted.test.tsx",
+        "src/features/profile/LogoutAllSessionsAction.mounted.test.tsx",
+        "src/features/profile/NextCookieConsent.mounted.test.tsx",
+        "src/features/profile/NextTourHost.mounted.test.tsx",
+        "src/features/profile/ProfileBioDeepLink.test.tsx",
+        "src/features/profile/ProfileConnected.mounted.test.tsx",
+        "src/features/profile/ProfileOverview.test.tsx"
+      ]
+    },
+    {
+      "id": "feature-profile-02",
+      "mode": "vitest",
+      "files": [
+        "src/features/profile/ProfileRevalidation.mounted.test.tsx",
+        "src/features/profile/PublicProfileRoute.mounted.test.tsx",
+        "src/features/profile/RemindersConnectedPage.mounted.test.tsx",
+        "src/features/profile/RemindersCreate.mounted.test.tsx",
+        "src/features/profile/RemindersOptIn.mounted.test.tsx",
+        "src/features/profile/RemindersReadOnlyAppRoute.mounted.test.tsx",
+        "src/features/profile/RemindersV2Candidate.mounted.test.tsx",
+        "src/features/profile/StudentNotesDates.test.ts",
+        "src/features/profile/StudentNotesPanel.mounted.test.tsx",
+        "src/features/profile/accountDeleteReview.test.ts",
+        "src/features/profile/browserPushEnrollment.test.ts",
+        "src/features/profile/profileApi.test.ts"
+      ]
+    },
+    {
+      "id": "feature-profile-03",
+      "mode": "vitest",
+      "files": [
+        "src/features/profile/pushOnlyRetirement.test.ts",
+        "src/features/profile/pushOnlyWorker.test.ts",
+        "src/features/profile/reminderV2DurableSourceMock.test.ts",
+        "src/features/profile/reminderV2IndexedDbReview.test.ts",
+        "src/features/profile/reminderV2SourceCandidate.test.ts",
+        "src/features/profile/remindersSourceMock.test.ts",
+        "src/features/profile/studentNotesApi.source.test.ts"
+      ]
+    },
+    {
+      "id": "feature-questions-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/questions/AnswerActionBar.test.tsx",
+        "src/features/questions/AnswerHeart.ackIntegrity.test.tsx",
+        "src/features/questions/AnswerOwnerControls.test.tsx",
+        "src/features/questions/MyQuestionsPanel.mounted.test.tsx",
+        "src/features/questions/NextQuestionPreview.parity.test.tsx",
+        "src/features/questions/QuestionCatalog.filtersParity.test.tsx",
+        "src/features/questions/QuestionCatalog.paginationAccess.test.tsx",
+        "src/features/questions/QuestionCatalog.test.tsx",
+        "src/features/questions/QuestionCreate.accessLifecycle.test.tsx",
+        "src/features/questions/QuestionCreate.test.tsx",
+        "src/features/questions/QuestionDetails.revalidation.test.tsx",
+        "src/features/questions/QuestionEditDeepLink.test.tsx"
+      ]
+    },
+    {
+      "id": "feature-questions-02",
+      "mode": "vitest",
+      "files": [
+        "src/features/questions/QuestionOwnerControls.test.tsx",
+        "src/features/questions/QuestionPhotoGallery.test.tsx",
+        "src/features/questions/QuestionPhotoPicker.test.tsx",
+        "src/features/questions/QuestionReport.lifecycle.test.tsx",
+        "src/features/questions/QuestionReport.test.tsx",
+        "src/features/questions/QuestionThreadReplies.revalidation.test.tsx",
+        "src/features/questions/QuestionThreadReplies.test.tsx",
+        "src/features/questions/questionApi.catalogProjection.test.ts",
+        "src/features/questions/questionApi.test.ts",
+        "src/features/questions/questionMedia.test.ts",
+        "src/features/questions/questionPhotoCdnFallback.test.ts",
+        "src/features/questions/questionPhotoRead.test.ts"
+      ]
+    },
+    {
+      "id": "feature-training-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/training/CourseReviewsRoute.mounted.test.tsx",
+        "src/features/training/CourseShareButton.test.tsx",
+        "src/features/training/PaidTrainingPreview.mounted.test.tsx",
+        "src/features/training/PaidTrainingRoutes.mounted.test.tsx",
+        "src/features/training/StepMarkdownNextParity.mounted.test.tsx",
+        "src/features/training/TrainingCourseActions.mounted.test.tsx",
+        "src/features/training/TrainingDailyConnectedFlow.mounted.test.tsx",
+        "src/features/training/TrainingDayViewer.optIn.test.tsx",
+        "src/features/training/TrainingExamStep.mounted.test.tsx",
+        "src/features/training/TrainingIndex.optIn.test.tsx",
+        "src/features/training/TrainingPersonalization.mounted.test.tsx",
+        "src/features/training/TrainingProgressConnected.mounted.test.tsx"
+      ]
+    },
+    {
+      "id": "feature-training-02",
+      "mode": "vitest",
+      "files": [
+        "src/features/training/TrainingRevalidation.mounted.test.tsx",
+        "src/features/training/TrainingStepImage.mounted.test.tsx",
+        "src/features/training/TrainingStepUnlock.mounted.test.tsx",
+        "src/features/training/TrainingStepVideo.mounted.test.tsx",
+        "src/features/training/TrainingSurveyStep.mounted.test.tsx",
+        "src/features/training/courseReviewsApi.test.ts",
+        "src/features/training/paidCourseOutlineApi.test.ts",
+        "src/features/training/trainingDayApi.test.ts",
+        "src/features/training/trainingDaysApi.test.ts",
+        "src/features/training/trainingExamApi.test.ts",
+        "src/features/training/trainingGlobalTimer.mounted.test.ts",
+        "src/features/training/trainingProgressConnectedApi.test.ts"
+      ]
+    },
+    {
+      "id": "feature-training-03",
+      "mode": "vitest",
+      "files": [
+        "src/features/training/trainingStepClock.test.ts",
+        "src/features/training/trainingStepMutationLease.test.ts",
+        "src/features/training/trainingVideoProgressApi.test.ts"
+      ]
+    },
+    {
+      "id": "feature-walks-01",
+      "mode": "vitest",
+      "files": [
+        "src/features/walks/WalksConnectedPage.mounted.test.tsx"
+      ]
+    },
+    {
+      "id": "shared-01",
+      "mode": "vitest",
+      "files": [
+        "src/shared/api/client.refresh.test.ts",
+        "src/shared/auth/AuthPanel.test.tsx",
+        "src/shared/auth/ConnectedFlowSessionBoundary.mounted.test.tsx",
+        "src/shared/auth/PasswordRecovery.test.tsx",
+        "src/shared/auth/RegisterPanel.test.tsx",
+        "src/shared/auth/authApi.test.ts",
+        "src/shared/auth/passwordRecoveryApi.test.ts",
+        "src/shared/auth/registerApi.test.ts",
+        "src/shared/auth/registrationSession.test.ts",
+        "src/shared/media/browserPhotoUpload.test.ts",
+        "src/shared/media/browserPhotoWebp.test.ts",
+        "src/shared/media/browserVideo720.test.ts"
+      ]
+    },
+    {
+      "id": "shared-02",
+      "mode": "vitest",
+      "files": [
+        "src/shared/media/browserVideoPoster.test.ts",
+        "src/shared/media/photoRetryMessage.test.ts",
+        "src/shared/media/videoPlaybackPolicy.test.ts",
+        "src/shared/media/videoQualityTelemetry.test.ts",
+        "src/shared/media/videoRetryMessage.test.ts",
+        "src/shared/pwa-retirement/retireLegacyPwa.test.ts",
+        "src/shared/router/RouteQueryState.test.tsx",
+        "src/shared/router/legacy-inventory.test.tsx",
+        "src/shared/router/legacy-route-compat.test.tsx",
+        "src/shared/router/location.test.tsx",
+        "src/shared/ui/BackButton.test.tsx",
+        "src/shared/ui/Buttons.test.tsx"
+      ]
+    },
+    {
+      "id": "shared-03",
+      "mode": "vitest",
+      "files": [
+        "src/shared/ui/Loading.test.tsx",
+        "src/shared/ui/SelectChevron.test.tsx"
+      ]
+    },
+    {
+      "id": "isolated-article-guest-routes",
+      "mode": "vitest",
+      "files": [
+        "src/features/articles/ArticleGuestRoutes.mounted.test.tsx"
+      ]
+    },
+    {
+      "id": "isolated-consultations-flow",
+      "mode": "vitest",
+      "files": [
+        "src/features/consultations/ConsultationsConnectedFlow.mounted.test.tsx"
+      ]
+    },
+    {
+      "id": "isolated-consultations-live",
+      "mode": "vitest",
+      "files": [
+        "src/features/consultations/ConsultationsLivePage.mounted.test.tsx"
+      ]
+    },
+    {
+      "id": "isolated-auth-principal",
+      "mode": "vitest",
+      "files": [
+        "src/shared/auth/PrincipalIsolation.test.tsx"
+      ]
+    }
+  ]
+}

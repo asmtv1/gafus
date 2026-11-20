@@ -3,7 +3,7 @@
  * Чистая логика без Next.js; app отвечает за сессию и revalidate.
  */
 
-import { requireTrainingDayRowsPort } from "./trainingDayRowsPort";
+import { requireTrainingDayRowsPort, type TrainingDayRowsPort } from "./trainingDayRowsPort";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
 import { handlePrismaError } from "@gafus/core/errors";
@@ -19,8 +19,8 @@ const logger = createWebLogger("training-day");
 
 export type TrainingDayMutationActor = { id: string; role: "TRAINER" | "ADMIN" };
 
-export async function getTrainingDayForEdit(id: string, actor?: TrainingDayMutationActor) {
-  return requireTrainingDayRowsPort().readTrainingDayForEdit(id, actor);
+export async function getTrainingDayForEdit(id: string, actor?: TrainingDayMutationActor, rowsPort?: TrainingDayRowsPort) {
+  return (rowsPort ?? requireTrainingDayRowsPort()).readTrainingDayForEdit(id, actor);
 }
 
 /** Результат удаления дней (courseIds для инвалидации кэша в app) */
@@ -35,9 +35,10 @@ export interface DeleteDaysResult extends ActionResult {
 export async function createTrainingDay(
   input: CreateTrainingDayInput,
   actor?: TrainingDayMutationActor,
+  rowsPort?: TrainingDayRowsPort,
 ): Promise<ActionResult & { dayId?: string }> {
   try {
-    const day = await requireTrainingDayRowsPort().insertTrainingDay(input, actor);
+    const day = await (rowsPort ?? requireTrainingDayRowsPort()).insertTrainingDay(input, actor);
     logger.info("Тренировочный день создан", { dayId: day.id, authorId: input.authorId });
     return { success: true, dayId: day.id };
   } catch (error) {
@@ -69,9 +70,10 @@ export async function createTrainingDay(
 export async function updateTrainingDay(
   input: UpdateTrainingDayInput,
   actor?: TrainingDayMutationActor,
+  rowsPort?: TrainingDayRowsPort,
 ): Promise<ActionResult> {
   try {
-    await requireTrainingDayRowsPort().replaceTrainingDay(input, actor);
+    await (rowsPort ?? requireTrainingDayRowsPort()).replaceTrainingDay(input, actor);
     invalidateTrainingDaysContentCache([input.id]);
     await publishCourseContentChange();
     logger.info("Тренировочный день обновлён", { dayId: input.id });
@@ -106,9 +108,10 @@ export async function updateTrainingDay(
 export async function deleteDays(
   input: DeleteDaysInput,
   actor?: TrainingDayMutationActor,
+  rowsPort?: TrainingDayRowsPort,
 ): Promise<DeleteDaysResult> {
   try {
-    const deleted = await requireTrainingDayRowsPort().deleteTrainingDayRows(input.dayIds, actor);
+    const deleted = await (rowsPort ?? requireTrainingDayRowsPort()).deleteTrainingDayRows(input.dayIds, actor);
     if (!deleted) return { success: false };
     invalidateTrainingDaysContentCache(deleted.deletedDayIds);
     await publishCourseContentChange();
@@ -136,6 +139,7 @@ export async function deleteDays(
 export async function getVisibleDays(
   authorId: string | null,
   isAdminOrModerator: boolean,
+  rowsPort?: TrainingDayRowsPort,
 ) {
-  return requireTrainingDayRowsPort().listVisibleTrainingDays(authorId, isAdminOrModerator);
+  return (rowsPort ?? requireTrainingDayRowsPort()).listVisibleTrainingDays(authorId, isAdminOrModerator);
 }

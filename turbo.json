@@ -5,7 +5,12 @@
     ".env",
     ".env.local",
     ".env.development",
-    ".env.production"
+    ".env.production",
+    "tests/config/vitest/**",
+    "tests/support/**",
+    "tests/catalog/**",
+    "scripts/qa/test-system.mjs",
+    "scripts/qa/test-inventory.mjs"
   ],
   "globalEnv": [
     "NODE_ENV",
@@ -25,8 +30,16 @@
       "cache": false
     },
     "build": {
-      "dependsOn": ["^build", "prisma:generate"],
-      "outputs": [".next/**", "dist/**", "build/**", "coverage/**"],
+      "dependsOn": [
+        "^build",
+        "prisma:generate"
+      ],
+      "outputs": [
+        ".next/**",
+        "dist/**",
+        "build/**",
+        "coverage/**"
+      ],
       "inputs": [
         "src/**",
         "public/**",
@@ -42,8 +55,16 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "dependsOn": ["prisma:generate"],
-      "inputs": ["src/**", "public/**", "package.json", "tsconfig*.json", "next.config.*"]
+      "dependsOn": [
+        "prisma:generate"
+      ],
+      "inputs": [
+        "src/**",
+        "public/**",
+        "package.json",
+        "tsconfig*.json",
+        "next.config.*"
+      ]
     },
     "lint": {
       "outputs": [],
@@ -67,26 +88,54 @@
     },
     "typecheck": {
       "outputs": [],
-      "dependsOn": ["^build"],
-      "inputs": ["src/**", "types/**", "tsconfig*.json", "package.json"]
+      "dependsOn": [
+        "^build",
+        "prisma:generate"
+      ],
+      "inputs": [
+        "src/**",
+        "types/**",
+        "tsconfig*.json",
+        "package.json"
+      ]
     },
     "test": {
-      "dependsOn": ["^build"],
-      "outputs": ["coverage/**", "junit.xml"],
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "coverage/**",
+        "junit.xml"
+      ],
       "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/tests/config/**",
+        "$TURBO_ROOT$/tests/support/**",
+        "$TURBO_ROOT$/tests/catalog/**",
+        "$TURBO_ROOT$/scripts/qa/**",
         "src/**",
         "tests/**",
         "test/**",
         "**/*.{test,spec}.{js,ts,tsx}",
         "vitest.config.*",
+        "vite.config.*",
         "jest.config.*",
         "package.json"
       ]
     },
     "test:coverage": {
-      "dependsOn": ["^build"],
-      "outputs": ["coverage/**"],
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "coverage/**"
+      ],
       "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/tests/config/**",
+        "$TURBO_ROOT$/tests/support/**",
+        "$TURBO_ROOT$/tests/catalog/**",
+        "$TURBO_ROOT$/scripts/qa/**",
         "src/**",
         "tests/**",
         "test/**",
@@ -97,7 +146,9 @@
     },
     "test:watch": {
       "cache": false,
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "inputs": [
         "src/**",
         "tests/**",
@@ -110,12 +161,17 @@
     "start": {
       "cache": false,
       "persistent": true,
-      "dependsOn": ["build"]
+      "dependsOn": [
+        "build"
+      ]
     },
     "prisma:generate": {
       "cache": false,
       "outputs": [],
-      "inputs": ["schema.prisma", "package.json"]
+      "inputs": [
+        "schema.prisma",
+        "package.json"
+      ]
     }
   }
 }

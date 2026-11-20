@@ -14,7 +14,6 @@ export default defineConfig({
     "@gafus/prisma",
     "@gafus/auth",
     "@gafus/core",
-    "@gafus/chat-server",
     "@gafus/questions-server",
     "@gafus/gallery-server",
     "@gafus/logger",

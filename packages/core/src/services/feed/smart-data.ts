@@ -1,93 +1,67 @@
-import type { FeedDb } from "./ports";
-import { retrieveSmartCandidates } from "./smart-retrieval";
+import { retrieveSmartCandidates, type SmartRetrievalPort } from "./smart-retrieval";
 import { scoreSmartMl, toSmartMlVector, type SmartMlModel } from "./smart-ml";
 import {
   calculateSmartFeedScore, jaccardSimilarity, normalizeSmartText, normalizeSmartBreed,
   rerankSmartFeed, smartAffinity, smartExploration,
   type RankedSmartPost, type SmartFeedSignals,
 } from "./smart-ranking";
+import type { SmartPostProjection } from "./smart-retrieval";
+
+export type SmartSignalPet = { type: string; breed: string | null };
+export type SmartSignalProfile = { city: string | null } | null;
+export type SmartSignalAuthor = { id: string; profile: SmartSignalProfile; pets: SmartSignalPet[] };
+export type SmartSignalEvent = { createdAt: Date; post: { authorId: string } };
+export type SmartSignalContext = {
+  viewer: { profile: SmartSignalProfile; pets: SmartSignalPet[] } | null;
+  authors: SmartSignalAuthor[];
+  seen: {postId:string}[];
+  impressions: {postId:string}[];
+  reactions: SmartSignalEvent[];
+  comments: SmartSignalEvent[];
+  bookmarks: SmartSignalEvent[];
+  views: SmartSignalEvent[];
+  materialized: {authorId:string;score:number}[];
+};
+export interface SmartRankingSnapshotPort {
+  readRecent(viewerId:string,at:Date):Promise<SmartPostProjection[]>;
+  readSignals(viewerId:string,at:Date,postIds:readonly string[],authorIds:readonly string[],
+    options:{useBehavior:boolean;historyResetAt?:Date|null;materializedAffinity:boolean}):Promise<SmartSignalContext>;
+}
 
 export type SmartFeedPostStats = {
-  postId: string;
-  reactions: number;
-  uniqueCommenters: number;
-  bookmarks: number;
-  impressions: number;
+  postId: string; reactions: number; uniqueCommenters: number;
+  bookmarks: number; impressions: number;
 };
-
-/** SQL is owned and executed by feed-server. Core only accepts a bounded snapshot. */
+/** SQL stats projection from feed-server, never a Core query. */
 export type SmartFeedStatsReader = (postIds: readonly string[], at: Date) => Promise<SmartFeedPostStats[]>;
 
-/**
- * Build a bounded, server-only recommendation snapshot.
- * Uses only visible posts and pets the authors chose to show in their profiles.
- */
+/** Pure ranking over owner- and visibility-scoped server projections. */
 export async function rankSmartCandidates(
-  db: FeedDb, viewerId: string, at: Date,
+  snapshotPort:SmartRankingSnapshotPort,viewerId:string,at:Date,
   preferences: {
-    useCity: boolean; usePets: boolean; useBehavior: boolean; exploration: boolean;
-    historyResetAt?: Date | null;
-    multiSource?: boolean;
-    mlModel?: SmartMlModel | null;
+    useCity:boolean;usePets:boolean;useBehavior:boolean;exploration:boolean;
+    historyResetAt?:Date|null;multiSource?:boolean;mlModel?:SmartMlModel|null;
   },
-  readSmartFeedPostStats: SmartFeedStatsReader,
-): Promise<RankedSmartPost[]> {
-  const since = preferences.historyResetAt;
-  const recentlySeenSince = new Date(Math.max(
-    at.getTime() - 7 * 86_400_000, since?.getTime() ?? 0,
-  ));
-  const posts = preferences.multiSource ? await retrieveSmartCandidates(db, viewerId, at, preferences) : await db.feedPost.findMany({
-    where: {
-      status: "published", deletedAt: null, moderationState: "visible",
-      publishedAt: { gte: new Date(at.getTime() - 14 * 86_400_000) },
-      feedback: { none: { userId: viewerId, kind: "not_interested" } },
-      author: { feedSubscribers: { none: { userId: viewerId, hidden: true } } },
-    },
-    orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
-    take: 400,
-    select: { id: true, authorId: true, publishedAt: true },
-  });
+  readSmartFeedPostStats:SmartFeedStatsReader,
+  smartRetrievalPort?:SmartRetrievalPort,
+):Promise<RankedSmartPost[]> {
+  if (preferences.multiSource && !smartRetrievalPort)
+    throw new Error("SMART_RETRIEVAL_PORT_UNBOUND");
+  const posts = preferences.multiSource
+    ? await retrieveSmartCandidates(smartRetrievalPort!,viewerId,at,preferences)
+    : await snapshotPort.readRecent(viewerId,at);
   if (!posts.length) return [];
-  const postIds = posts.map(post => post.id);
-  const authorIds = [...new Set(posts.map(post => post.authorId))];
-  const [viewer, authors, stats, seen, impressions, reactions, comments, bookmarks, views] = await Promise.all([
-    db.user.findUnique({ where: { id: viewerId }, select: {
-      profile: { select: { city: true } }, pets: { select: { type: true, breed: true } },
-    } }),
-    db.user.findMany({ where: { id: { in: authorIds } }, select: {
-      id: true, profile: { select: { city: true } },
-      pets: { where: { showInProfile: true }, select: { type: true, breed: true } },
-    } }),
-    readSmartFeedPostStats(postIds, at),
-    db.feedPostView.findMany({ where: { userId: viewerId,
-      postId: { in: postIds }, createdAt: { gte: recentlySeenSince },
-    }, select: { postId: true } }),
-    db.feedImpression.groupBy({ by: ["postId"], where: {
-      userId: viewerId, postId: { in: postIds },
-      occurredAt: { gte: recentlySeenSince },
-    } }),
-    preferences.useBehavior ? db.feedPostReaction.findMany({ where: {
-      userId: viewerId, post: { authorId: { in: authorIds } },
-      ...(since ? { createdAt: { gte: since } } : {}),
-    }, select: { createdAt: true, post: { select: { authorId: true } } },
-    orderBy: { createdAt: "desc" }, take: 1500 }) : Promise.resolve([]),
-    preferences.useBehavior ? db.feedComment.findMany({ where: {
-      authorId: viewerId, deletedAt: null, moderationState: "visible",
-      post: { authorId: { in: authorIds } },
-      ...(since ? { createdAt: { gte: since } } : {}),
-    }, select: { createdAt: true, post: { select: { authorId: true } } },
-    orderBy: { createdAt: "desc" }, take: 1500 }) : Promise.resolve([]),
-    preferences.useBehavior ? db.feedBookmark.findMany({ where: {
-      userId: viewerId, post: { authorId: { in: authorIds } },
-      ...(since ? { createdAt: { gte: since } } : {}),
-    }, select: { createdAt: true, post: { select: { authorId: true } } },
-    orderBy: { createdAt: "desc" }, take: 1500 }) : Promise.resolve([]),
-    preferences.useBehavior ? db.feedPostView.findMany({ where: {
-      userId: viewerId, post: { authorId: { in: authorIds } },
-      ...(since ? { createdAt: { gte: since } } : {}),
-    }, select: { createdAt: true, post: { select: { authorId: true } } },
-    orderBy: { createdAt: "desc" }, take: 1500 }) : Promise.resolve([]),
+  const postIds=posts.map(post=>post.id);
+  const authorIds=[...new Set(posts.map(post=>post.authorId))];
+  const [context,stats]=await Promise.all([
+    snapshotPort.readSignals(viewerId,at,postIds,authorIds,{
+      useBehavior:preferences.useBehavior,
+      historyResetAt:preferences.historyResetAt,
+      materializedAffinity:preferences.useBehavior && process.env.FEED_SMART_AFFINITY_ENABLED === "true",
+    }),
+    readSmartFeedPostStats(postIds,at),
   ]);
+  const {viewer,authors,seen,impressions,reactions,comments,bookmarks,views,materialized}=context;
   const viewerCity = normalizeSmartText(viewer?.profile?.city);
   const viewerTypes = new Set((viewer?.pets ?? []).map(p => p.type));
   const viewerBreeds = new Set((viewer?.pets ?? []).map(p => normalizeSmartBreed(p.breed)).filter((v): v is string => !!v));
@@ -106,13 +80,6 @@ export async function rankSmartCandidates(
   for (const bookmark of bookmarks) weightEvent(bookmark.post.authorId, bookmark.createdAt, 3);
   for (const view of views) weightEvent(view.post.authorId, view.createdAt, 0.2);
   if (preferences.useBehavior && process.env.FEED_SMART_AFFINITY_ENABLED === "true") {
-    const materialized = await db.feedUserAuthorAffinity.findMany({
-      where: {
-        userId: viewerId, authorId: { in: authorIds },
-        updatedAt: { gte: new Date(Math.max(at.getTime() - 30 * 60_000, since?.getTime() ?? 0)) },
-      },
-      select: { authorId: true, score: true },
-    });
     for (const row of materialized) {
       if (row.authorId !== viewerId && Number.isFinite(row.score)) {
         rawAffinity.set(row.authorId, Math.max(rawAffinity.get(row.authorId) ?? 0, row.score));

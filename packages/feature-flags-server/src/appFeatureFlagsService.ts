@@ -1,73 +1,36 @@
 import { prisma } from "@gafus/prisma";
 import { MobileReleaseControlConflictError, RetiredRewardedAdsReadOnlyError } from "@gafus/types";
 
-/** Вход и привязка VK на iOS в мобильном приложении. */
-export const APP_FEATURE_MOBILE_VK_LOGIN_IOS = "mobile_vk_login_ios";
-/** Подсказка про оплату картами РФ на iOS в карточках платных курсов. */
+/** Historical iOS external-checkout controls: permanently disabled. */
 export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT = "mobile_ios_ru_card_payment_hint";
-/** Кнопка оплаты картой РФ на iOS paywall. */
 export const APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT = "mobile_ios_ru_card_payment";
-
-/** Промокоды Premium на iOS. Не влияет на доступность самой оплаты через ЮKassa. */
-export const APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES =
-  "mobile_ios_subscription_promo_codes";
-/** Legacy DTO keys remain, but retired iOS checkout controls never enable purchases. */
+export const APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES = "mobile_ios_subscription_promo_codes";
 const RETIRED_IOS_PAYMENT_KEYS = new Set([
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
   APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
 ]);
-
-/** Rewarded-реклама на iOS. */
 export const APP_FEATURE_MOBILE_REWARDED_ADS_IOS = "mobile_rewarded_ads_ios";
-/** Включает автоматический показ paywall подписки в клиентах. */
 export const APP_FEATURE_APP_SUBSCRIPTION_PAYWALL = "app_subscription_paywall_enabled";
-/** Включает server-side блокировку платных действий без подписки. */
 export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enabled";
 
 const RELEASE_POLICY_KEY = "default";
 const REWARDED_SETTINGS_KEY = "default";
-const CURRENT_MOBILE_VERSION = "1.7.2"; // Store gate unchanged; OTA 1.7.3 is independent.
+const CURRENT_MOBILE_VERSION = "1.7.2";
 const DEFAULT_IOS_STORE_URL = "https://apps.apple.com/ru/app/gafus/id6760964612";
 const DEFAULT_ANDROID_STORE_URL = "https://www.rustore.ru/catalog/app/ru.gafus.app";
 const SEMANTIC_VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 const OTA_VERSION_PATTERN = /^\d+\.\d+\.\d+-ota\.[1-9]\d*$/;
-
-const MOBILE_FLAG_DEFAULTS: Record<string, { released: boolean; review: boolean }> = {
-  [APP_FEATURE_MOBILE_VK_LOGIN_IOS]: { released: false, review: false },
-  [APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT]: { released: false, review: false },
-  [APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES]: { released: false, review: false },
-  [APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT]: { released: false, review: false },
-  [APP_FEATURE_MOBILE_REWARDED_ADS_IOS]: { released: false, review: false },
-};
-
-const MOBILE_VERSIONED_KEYS = Object.keys(MOBILE_FLAG_DEFAULTS);
 
 export type ClientAppContext = {
   platform: "ios" | "android" | "unknown";
   version: string | null;
 };
 
-export type MobileFeatureProfile = "RELEASED" | "REVIEW";
-
-export type MobileVersionedFeatureValues = {
-  vkLogin: boolean;
-  iosRuCardPayment: boolean;
-  subscriptionPromoCodes: boolean;
-  iosRuCardPaymentHint: boolean;
-  rewardedAds: boolean;
-};
-
 export type MobileReleaseControlDto = {
   revision: number;
-  iosReviewVersion: string | null;
   ota: { required: boolean; version: string | null; platform: "all" | "ios" | "android" };
-  released: MobileVersionedFeatureValues;
-  review: MobileVersionedFeatureValues;
-  global: {
-    appSubscriptionPaywall: boolean;
-    appSubscriptionGating: boolean;
-  };
+  global: { appSubscriptionPaywall: boolean; appSubscriptionGating: boolean };
   rewardedAds: {
     androidEnabled: boolean;
     dailyAdLimit: number;
@@ -76,17 +39,10 @@ export type MobileReleaseControlDto = {
     testMode: boolean;
   };
   updatedAt: string | null;
-  updatedBy: {
-    id: string;
-    username: string;
-  } | null;
+  updatedBy: { id: string; username: string } | null;
 };
 
-export type UpdateMobileReleaseControlInput = Omit<
-  MobileReleaseControlDto,
-  "updatedAt" | "updatedBy"
->;
-
+export type UpdateMobileReleaseControlInput = Omit<MobileReleaseControlDto, "updatedAt" | "updatedBy">;
 export { MobileReleaseControlConflictError, RetiredRewardedAdsReadOnlyError } from "@gafus/types";
 
 function getConfiguredVersion(value: string | undefined): string {
@@ -99,16 +55,6 @@ function getConfiguredStoreUrl(value: string | undefined, fallback: string): str
   return url?.startsWith("https://") ? url : fallback;
 }
 
-function normalizeReviewVersion(value: string | null): string | null {
-  const normalized = value?.trim() ?? "";
-  if (!normalized) return null;
-  if (!SEMANTIC_VERSION_PATTERN.test(normalized)) {
-    throw new Error("Версия iOS должна быть в формате 1.7.0");
-  }
-  return normalized;
-}
-
-/** Version must match the immutable runtime's app version; invalid admin config never publishes. */
 export function normalizeOtaControl(
   value: MobileReleaseControlDto["ota"],
 ): MobileReleaseControlDto["ota"] {
@@ -125,109 +71,29 @@ export function normalizeOtaControl(
   return { required: value.required, version, platform: value.platform };
 }
 
-function flagsToValues(
-  rows: { key: string; enabled: boolean; reviewEnabled: boolean | null }[],
-  profile: MobileFeatureProfile,
-): MobileVersionedFeatureValues {
-  const map = new Map(rows.map((row) => [row.key, row]));
-  const value = (key: string): boolean => {
-    if (RETIRED_IOS_PAYMENT_KEYS.has(key)) return false;
-    const defaults = MOBILE_FLAG_DEFAULTS[key] ?? { released: false, review: false };
-    const row = map.get(key);
-    if (profile === "REVIEW") {
-      return row?.reviewEnabled ?? defaults.review;
-    }
-    return row?.enabled ?? defaults.released;
-  };
-  return {
-    vkLogin: value(APP_FEATURE_MOBILE_VK_LOGIN_IOS),
-    iosRuCardPayment: value(APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT),
-    subscriptionPromoCodes: value(APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES),
-    iosRuCardPaymentHint: value(APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT),
-    rewardedAds: value(APP_FEATURE_MOBILE_REWARDED_ADS_IOS),
-  };
-}
-
-function releasedFlagFromRows(
+function enabledFromRows(
   rows: { key: string; enabled: boolean }[],
   key: string,
-  defaultEnabled: boolean,
+  fallback: boolean,
 ): boolean {
-  return rows.find((row) => row.key === key)?.enabled ?? defaultEnabled;
+  return rows.find((row) => row.key === key)?.enabled ?? fallback;
 }
 
-function featureValuesByKey(values: MobileVersionedFeatureValues): Record<string, boolean> {
-  return {
-    [APP_FEATURE_MOBILE_VK_LOGIN_IOS]: values.vkLogin,
-    [APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT]: false, // v1 compatibility: retired and immutable
-    [APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES]: false, // v1 compatibility: retired and immutable
-    [APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT]: false, // v1 compatibility: retired and immutable
-    [APP_FEATURE_MOBILE_REWARDED_ADS_IOS]: values.rewardedAds,
-  };
-}
-
-export function resolveMobileFeatureProfile(
-  context: ClientAppContext,
-  iosReviewVersion: string | null,
-): MobileFeatureProfile {
-  if (
-    context.platform === "ios" &&
-    context.version !== null &&
-    SEMANTIC_VERSION_PATTERN.test(context.version) &&
-    iosReviewVersion !== null &&
-    context.version === iosReviewVersion
-  ) {
-    return "REVIEW";
-  }
-  return "RELEASED";
-}
-
-/**
- * Читает глобальный булев флаг. Если записи нет — defaultEnabled.
- */
-export async function getAppFeatureFlagEnabled(
-  key: string,
-  defaultEnabled = false,
-): Promise<boolean> {
-  const row = await prisma.appFeatureFlag.findUnique({
-    where: { key },
-    select: { enabled: true },
-  });
+/** One identical flag value for every platform/version, never a review profile. */
+export async function getAppFeatureFlagEnabled(key: string, defaultEnabled = false): Promise<boolean> {
+  const row = await prisma.appFeatureFlag.findUnique({ where: { key }, select: { enabled: true } });
   return row?.enabled ?? defaultEnabled;
 }
 
-/**
- * Создаёт или обновляет глобальное/released-значение флага.
- */
 export async function setAppFeatureFlagEnabled(key: string, enabled: boolean): Promise<void> {
-  await prisma.appFeatureFlag.upsert({
-    where: { key },
-    create: { key, enabled },
-    update: { enabled },
-  });
+  await prisma.appFeatureFlag.upsert({ where: { key }, create: { key, enabled }, update: { enabled } });
 }
 
 export async function getMobileFeatureFlagEnabled(
-  key: string,
-  context: ClientAppContext,
-  defaultEnabled = false,
-  defaultReviewEnabled = false,
+  key: string, _context: ClientAppContext, defaultEnabled = false,
 ): Promise<boolean> {
   if (RETIRED_IOS_PAYMENT_KEYS.has(key)) return false;
-  const [row, policy] = await Promise.all([
-    prisma.appFeatureFlag.findUnique({
-      where: { key },
-      select: { enabled: true, reviewEnabled: true },
-    }),
-    prisma.mobileAppReleasePolicy.findUnique({
-      where: { key: RELEASE_POLICY_KEY },
-      select: { iosReviewVersion: true },
-    }),
-  ]);
-  const profile = resolveMobileFeatureProfile(context, policy?.iosReviewVersion ?? null);
-  return profile === "REVIEW"
-    ? (row?.reviewEnabled ?? defaultReviewEnabled)
-    : (row?.enabled ?? defaultEnabled);
+  return getAppFeatureFlagEnabled(key, defaultEnabled);
 }
 
 export async function getMobileReleaseControl(): Promise<MobileReleaseControlDto> {
@@ -235,46 +101,28 @@ export async function getMobileReleaseControl(): Promise<MobileReleaseControlDto
     prisma.mobileAppReleasePolicy.findUnique({
       where: { key: RELEASE_POLICY_KEY },
       select: {
-        iosReviewVersion: true,
         otaRequired: true, otaVersion: true, otaPlatform: true,
-        revision: true,
-        updatedAt: true,
+        revision: true, updatedAt: true,
         updatedBy: { select: { id: true, username: true } },
       },
     }),
     prisma.appFeatureFlag.findMany({
-      where: {
-        key: {
-          in: [
-            ...MOBILE_VERSIONED_KEYS,
-            APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
-            APP_FEATURE_APP_SUBSCRIPTION_GATING,
-          ],
-        },
-      },
-      select: { key: true, enabled: true, reviewEnabled: true },
+      where: { key: { in: [APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, APP_FEATURE_APP_SUBSCRIPTION_GATING] } },
+      select: { key: true, enabled: true },
     }),
     prisma.rewardedAdSettings.findUnique({ where: { key: REWARDED_SETTINGS_KEY } }),
   ]);
-
   return {
     revision: policy?.revision ?? 1,
-    iosReviewVersion: policy?.iosReviewVersion ?? null,
     ota: {
       required: policy?.otaRequired ?? false,
       version: policy?.otaVersion ?? null,
       platform: policy?.otaPlatform === "ios" || policy?.otaPlatform === "android"
         ? policy.otaPlatform : "all",
     },
-    released: flagsToValues(rows, "RELEASED"),
-    review: flagsToValues(rows, "REVIEW"),
     global: {
-      appSubscriptionPaywall: releasedFlagFromRows(
-        rows,
-        APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
-        true,
-      ),
-      appSubscriptionGating: releasedFlagFromRows(rows, APP_FEATURE_APP_SUBSCRIPTION_GATING, true),
+      appSubscriptionPaywall: enabledFromRows(rows, APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, true),
+      appSubscriptionGating: enabledFromRows(rows, APP_FEATURE_APP_SUBSCRIPTION_GATING, true),
     },
     rewardedAds: {
       androidEnabled: rewarded?.androidEnabled ?? false,
@@ -289,35 +137,22 @@ export async function getMobileReleaseControl(): Promise<MobileReleaseControlDto
 }
 
 export async function updateMobileReleaseControl(
-  input: UpdateMobileReleaseControlInput,
-  actorId: string,
+  input: UpdateMobileReleaseControlInput, actorId: string,
 ): Promise<MobileReleaseControlDto> {
-  const iosReviewVersion = normalizeReviewVersion(input.iosReviewVersion);
   const ota = normalizeOtaControl(input.ota);
-  // The historical ad subsystem is retired. Neither Vite nor legacy Next action
-  // may change it or stamp its audit columns during unrelated flag updates.
   const archived = await getMobileReleaseControl();
-  if (input.released.rewardedAds !== archived.released.rewardedAds ||
-    input.review.rewardedAds !== archived.review.rewardedAds ||
-    Object.keys(input.rewardedAds).some(key =>
-      input.rewardedAds[key as keyof typeof input.rewardedAds] !==
-      archived.rewardedAds[key as keyof typeof archived.rewardedAds])) {
-    throw new RetiredRewardedAdsReadOnlyError();
-  }
-  const releasedByKey = featureValuesByKey(input.released);
-  const reviewByKey = featureValuesByKey(input.review);
+  if (Object.keys(input.rewardedAds).some(key =>
+    input.rewardedAds[key as keyof typeof input.rewardedAds] !==
+    archived.rewardedAds[key as keyof typeof archived.rewardedAds]
+  )) throw new RetiredRewardedAdsReadOnlyError();
 
   await prisma.$transaction(async (tx) => {
-    // Serialize release updates against concurrent admin role revocation.
-    // A JWT that was ADMIN earlier is not authority to write release flags now.
     await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${actorId} FOR UPDATE`;
     const actor = await tx.user.findUnique({ where: { id: actorId }, select: { role: true } });
     if (actor?.role !== "ADMIN") throw new Error("FORBIDDEN");
-
-    const policyUpdate = await tx.mobileAppReleasePolicy.updateMany({
+    const updated = await tx.mobileAppReleasePolicy.updateMany({
       where: { key: RELEASE_POLICY_KEY, revision: input.revision },
       data: {
-        iosReviewVersion,
         otaRequired: ota.required,
         otaVersion: ota.version,
         otaPlatform: ota.platform,
@@ -325,123 +160,46 @@ export async function updateMobileReleaseControl(
         updatedById: actorId,
       },
     });
-    if (policyUpdate.count !== 1) {
-      throw new MobileReleaseControlConflictError();
-    }
-
-    await Promise.all(
-      MOBILE_VERSIONED_KEYS.filter(key => key !== APP_FEATURE_MOBILE_REWARDED_ADS_IOS)
-        .map((key) =>
-        tx.appFeatureFlag.upsert({
-          where: { key },
-          create: {
-            key,
-            enabled: releasedByKey[key] ?? false,
-            reviewEnabled: reviewByKey[key] ?? false,
-          },
-          update: {
-            enabled: releasedByKey[key] ?? false,
-            reviewEnabled: reviewByKey[key] ?? false,
-          },
-        }),
-      ),
-    );
-
+    if (updated.count !== 1) throw new MobileReleaseControlConflictError();
     await Promise.all([
       tx.appFeatureFlag.upsert({
         where: { key: APP_FEATURE_APP_SUBSCRIPTION_PAYWALL },
-        create: {
-          key: APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
-          enabled: input.global.appSubscriptionPaywall,
-        },
+        create: { key: APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, enabled: input.global.appSubscriptionPaywall },
         update: { enabled: input.global.appSubscriptionPaywall },
       }),
       tx.appFeatureFlag.upsert({
         where: { key: APP_FEATURE_APP_SUBSCRIPTION_GATING },
-        create: {
-          key: APP_FEATURE_APP_SUBSCRIPTION_GATING,
-          enabled: input.global.appSubscriptionGating,
-        },
+        create: { key: APP_FEATURE_APP_SUBSCRIPTION_GATING, enabled: input.global.appSubscriptionGating },
         update: { enabled: input.global.appSubscriptionGating },
       }),
     ]);
   });
-
   return getMobileReleaseControl();
 }
 
-/**
- * Публичные настройки мобильного клиента для конкретной версии.
- */
 export async function getMobileAppPublicConfig(
   context: ClientAppContext = { platform: "unknown", version: null },
-): Promise<{
-  vkLoginEnabledOnIos: boolean;
-  appSubscriptionPaywallEnabled: boolean;
-  appSubscriptionGatingEnabled: boolean;
-  iosRuCardPaymentEnabled: boolean;
-  iosRuCardPaymentHintEnabled: boolean;
-  resolvedFeatureProfile: MobileFeatureProfile;
-  resolvedClientVersion: string | null;
-  ota: { required: boolean; version: string | null; platform: "all" | "ios" | "android"; channel: "production" };
-  minimumSupportedVersion: {
-    ios: string;
-    android: string;
-  };
-  storeUrl: {
-    ios: string;
-    android: string;
-  };
-}> {
+) {
   const [policy, rows] = await Promise.all([
     prisma.mobileAppReleasePolicy.findUnique({
       where: { key: RELEASE_POLICY_KEY },
-      select: { iosReviewVersion: true, otaRequired: true, otaVersion: true, otaPlatform: true },
+      select: { otaRequired: true, otaVersion: true, otaPlatform: true },
     }),
     prisma.appFeatureFlag.findMany({
-      where: {
-        key: {
-          in: [
-            ...MOBILE_VERSIONED_KEYS,
-            APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
-            APP_FEATURE_APP_SUBSCRIPTION_GATING,
-          ],
-        },
-      },
-      select: { key: true, enabled: true, reviewEnabled: true },
+      where: { key: { in: [APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, APP_FEATURE_APP_SUBSCRIPTION_GATING] } },
+      select: { key: true, enabled: true },
     }),
   ]);
-
-  const resolvedFeatureProfile = resolveMobileFeatureProfile(
-    context,
-    policy?.iosReviewVersion ?? null,
-  );
-  const mobileFlags = flagsToValues(rows, resolvedFeatureProfile);
-  const appSubscriptionPaywallEnabled = releasedFlagFromRows(
-    rows,
-    APP_FEATURE_APP_SUBSCRIPTION_PAYWALL,
-    true,
-  );
-  const appSubscriptionGatingEnabled = releasedFlagFromRows(
-    rows,
-    APP_FEATURE_APP_SUBSCRIPTION_GATING,
-    true,
-  );
-
   return {
-    vkLoginEnabledOnIos: mobileFlags.vkLogin,
-    appSubscriptionPaywallEnabled,
-    appSubscriptionGatingEnabled,
-    iosRuCardPaymentEnabled: mobileFlags.iosRuCardPayment,
-    iosRuCardPaymentHintEnabled: mobileFlags.iosRuCardPaymentHint,
-    resolvedFeatureProfile,
+    appSubscriptionPaywallEnabled: enabledFromRows(rows, APP_FEATURE_APP_SUBSCRIPTION_PAYWALL, true),
+    appSubscriptionGatingEnabled: enabledFromRows(rows, APP_FEATURE_APP_SUBSCRIPTION_GATING, true),
     resolvedClientVersion: context.version,
     ota: {
       required: policy?.otaRequired ?? false,
       version: policy?.otaVersion ?? null,
-      platform: policy?.otaPlatform === "ios" || policy?.otaPlatform === "android"
-        ? policy.otaPlatform : "all",
-      channel: "production",
+      platform: (policy?.otaPlatform === "ios" || policy?.otaPlatform === "android"
+        ? policy.otaPlatform : "all") as "ios" | "android" | "all",
+      channel: "production" as const,
     },
     minimumSupportedVersion: {
       ios: getConfiguredVersion(process.env.MOBILE_IOS_MIN_VERSION),
@@ -449,10 +207,7 @@ export async function getMobileAppPublicConfig(
     },
     storeUrl: {
       ios: getConfiguredStoreUrl(process.env.MOBILE_IOS_STORE_URL, DEFAULT_IOS_STORE_URL),
-      android: getConfiguredStoreUrl(
-        process.env.MOBILE_ANDROID_STORE_URL,
-        DEFAULT_ANDROID_STORE_URL,
-      ),
+      android: getConfiguredStoreUrl(process.env.MOBILE_ANDROID_STORE_URL, DEFAULT_ANDROID_STORE_URL),
     },
   };
 }

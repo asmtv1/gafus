@@ -4,8 +4,6 @@
  */
 export type RegistrationContractDbTx = unknown;
 export type RegistrationContractChannel = "WEB" | "IOS" | "ANDROID" | "UNKNOWN";
-export type RegistrationContractVkPurpose = "REGISTER" | "LOGIN" | "LINK_ACCOUNT";
-export type RegistrationContractLoginPurpose = "LOGIN" | "REGISTRATION_CONSENT";
 export type RegistrationPromoDbRow = {
   id: string; code: string; normalizedCode: string; discountPercent: number; revision: number;
 };
@@ -14,9 +12,6 @@ export type RegistrationEmailAttemptRow = {
   id: string; userId: string | null; tempSessionId: string; dataFingerprint: string;
   completedAt: Date | null;
   result: "SUCCEEDED" | "USERNAME_TAKEN" | "EMAIL_TAKEN" | "VALIDATION_ERROR" | null;
-};
-export type RegistrationVkLoginGrantRow = {
-  id: string; userId: string; purpose: RegistrationContractLoginPurpose; registrationContextId: string | null;
 };
 export interface RegistrationContractRowsPort {
   withRegistrationTransaction<T>(
@@ -33,21 +28,7 @@ export interface RegistrationContractRowsPort {
   finishRegistrationEmailAttemptTx(tx: RegistrationContractDbTx, id: string, input: {
     result: "SUCCEEDED" | "USERNAME_TAKEN" | "EMAIL_TAKEN" | "VALIDATION_ERROR"; userId?: string;
   }): Promise<RegistrationEmailAttemptRow>;
-  insertVkRegistrationContextTx(tx: RegistrationContractDbTx, input: {
-    contextTokenHash: string; stateHash: string; codeVerifier: string;
-    purpose: RegistrationContractVkPurpose; selectedPromoCodeId?: string | null;
-    selectedPromoCodeValue?: string | null; userId?: string | null; expiresAt: Date;
-  }): Promise<{id: string}>;
-  claimVkRegistrationContextUserTx(tx: RegistrationContractDbTx, input: {
-    contextTokenHash: string; stateHash: string; purpose: RegistrationContractVkPurpose; userId: string; now: Date;
-  }): Promise<{count: number}>;
-  insertVkLoginGrantTx(tx: RegistrationContractDbTx, input: {
-    tokenHash: string; userId: string; purpose: RegistrationContractLoginPurpose;
-    reissuedFromId?: string; registrationContextId?: string; expiresAt: Date;
-  }): Promise<RegistrationVkLoginGrantRow>;
-  consumeVkLoginGrantRowTx(tx: RegistrationContractDbTx, input: {
-    tokenHash: string; purpose: RegistrationContractLoginPurpose; requireConsent?: boolean; now: Date;
-  }): Promise<RegistrationVkLoginGrantRow | null>;
+
 }
 let bound: Readonly<RegistrationContractRowsPort> | null = null;
 export function registerRegistrationContractRowsPort(port: RegistrationContractRowsPort): void {

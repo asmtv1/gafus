@@ -160,9 +160,9 @@ describe("TR013 frozen mounted GET /api/v1/trainer/steps signed JWT",()=>{
       safe(body);noWrites();
     }
     expect(m.read.mock.calls).toEqual([
-      [actors.A.id,false,{isDailyCourse:false}],
-      [actors.B.id,false,{isDailyCourse:false}],
-      [actors.A.id,false,{isDailyCourse:false}],
+      [actors.A.id,false,{isDailyCourse:false},expect.objectContaining({readVisibleTrainerSteps:expect.any(Function)})],
+      [actors.B.id,false,{isDailyCourse:false},expect.objectContaining({readVisibleTrainerSteps:expect.any(Function)})],
+      [actors.A.id,false,{isDailyCourse:false},expect.objectContaining({readVisibleTrainerSteps:expect.any(Function)})],
     ]);
   });
   it.each(["ADMIN","MOD"] as const)(
@@ -177,6 +177,7 @@ describe("TR013 frozen mounted GET /api/v1/trainer/steps signed JWT",()=>{
         .toEqual(new Set([actors.A.id,actors.B.id]));
       expect(m.read).toHaveBeenCalledExactlyOnceWith(
         actors[who].id,true,{isDailyCourse:false},
+        expect.objectContaining({readVisibleTrainerSteps:expect.any(Function)}),
       );
       safe(body);noWrites();
     },
@@ -193,6 +194,7 @@ describe("TR013 frozen mounted GET /api/v1/trainer/steps signed JWT",()=>{
         .toBe(true);
       expect(m.read).toHaveBeenCalledExactlyOnceWith(
         actors[who].id,elevated,{isDailyCourse:true},
+        expect.objectContaining({readVisibleTrainerSteps:expect.any(Function)}),
       );
       safe(body);noWrites();
     },
@@ -265,6 +267,7 @@ describe("TR013 frozen mounted GET /api/v1/trainer/steps signed JWT",()=>{
     expect(await r.json()).toEqual({success:true,data:[]});
     expect(m.read).toHaveBeenCalledExactlyOnceWith(
       actors.B.id,false,{isDailyCourse:false},
+      expect.objectContaining({readVisibleTrainerSteps:expect.any(Function)}),
     );
     noWrites();
   });

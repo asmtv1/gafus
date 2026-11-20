@@ -30,6 +30,35 @@ describe("Course.version Persistence port preserves CAS and results", () => {
     expect(sideEffects.invalidate).not.toHaveBeenCalled();
     expect(sideEffects.publish).not.toHaveBeenCalled();
   });
+  it("uses independent explicit ports without a global registrar for two API instances", async () => {
+    const c = await import("./courseVersionService");
+    const first = adapter();
+    const second = adapter();
+    first.readCourseVersionRows.mockResolvedValue([{ id:"course-A", name:"A", version:1 }]);
+    second.readCourseVersionRows.mockResolvedValue([{ id:"course-A", name:"B", version:1 }]);
+    const a = await c.readCourseNameVersion("course-A", actor, first);
+    const b = await c.readCourseNameVersion("course-A", actor, second);
+    const again = await c.readCourseNameVersion("course-A", actor, first);
+    expect([a,b,again]).toEqual([
+      {status:"found",data:{id:"course-A",name:"A",version:1}},
+      {status:"found",data:{id:"course-A",name:"B",version:1}},
+      {status:"found",data:{id:"course-A",name:"A",version:1}},
+    ]);
+    expect(first.readCourseVersionRows).toHaveBeenCalledTimes(2);
+    expect(second.readCourseVersionRows).toHaveBeenCalledTimes(1);
+    await expect(c.updateCourseNameVersioned(
+      {courseId:"course-A",name:"new",expectedVersion:1},actor,second,
+    )).resolves.toMatchObject({status:"updated"});
+    expect(first.writeCourseNameVersionRows).not.toHaveBeenCalled();
+    expect(second.writeCourseNameVersionRows).toHaveBeenCalledExactlyOnceWith(
+      {courseId:"course-A",name:"new",expectedVersion:1},actor,
+    );
+    await expect(c.setCourseLogoVersioned(
+      {courseId:"course-A",logoUrl:"new",expectedVersion:1},actor,first,
+    )).resolves.toMatchObject({status:"updated"});
+    expect(first.setCourseLogoVersionRows).toHaveBeenCalledTimes(1);
+    expect(second.setCourseLogoVersionRows).not.toHaveBeenCalled();
+  });
   it("preserves existing INVALID responses before touching SQL", async () => {
     const c = await import("./courseVersionService");
     await expect(c.readCourseNameVersion("invalid space", actor)).resolves.toEqual({ status: "invalid" });

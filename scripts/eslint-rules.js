@@ -273,12 +273,6 @@ module.exports = {
           if (filename.includes("/packages/ui-components/")) {
             return true;
           }
-          if (filename.includes("/packages/csrf/")) {
-            return (
-              filename.includes("/packages/csrf/src/react/") ||
-              filename.endsWith("/packages/csrf/src/store.ts")
-            );
-          }
           if (
             filename.includes("/apps/web/") ||
             filename.includes("/apps/trainer-panel/") ||

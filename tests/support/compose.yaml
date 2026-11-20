@@ -1,0 +1,31 @@
+# Disposable per-run local QA only. Never mount production volumes.
+services:
+  postgres:
+    image: ${QA_PG_IMAGE:-postgres:15.15-alpine}
+    environment:
+      POSTGRES_USER: $QA_PG_USER
+      POSTGRES_PASSWORD: $QA_PG_PASSWORD
+      POSTGRES_DB: $QA_PG_DB
+    ports:
+      - "127.0.0.1::5432"
+    volumes:
+      - pg-data:${QA_PG_VOLUME_TARGET:-/var/lib/postgresql/data}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7.4.2-alpine
+    command: ["sh", "-c", "exec redis-server --appendonly no --save '' --requirepass \"$$QA_REDIS_PASSWORD\""]
+    environment:
+      QA_REDIS_PASSWORD: $QA_REDIS_PASSWORD
+    ports:
+      - "127.0.0.1::6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$QA_REDIS_PASSWORD\" --no-auth-warning ping | grep -qx PONG"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+volumes:
+  pg-data:

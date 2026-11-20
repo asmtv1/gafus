@@ -52,9 +52,7 @@ qa("account self-delete durable transactional ledger on real PG18", () => {
     await prisma.accountDeletionToken.deleteMany({
       where: { userId: { in: [owner, rollbackOwner] } },
     });
-    await prisma.accountDeletionAudit.deleteMany({
-      where: { userId: { in: [owner, rollbackOwner] } },
-    });
+    // The audit is append-only; the entire owned PG cluster is removed by QA teardown.
     await prisma.accountStorageCleanup.deleteMany({
       where: { ownerId: { in: [owner, rollbackOwner] } },
     });
@@ -157,5 +155,24 @@ qa("account self-delete durable transactional ledger on real PG18", () => {
     expect(
       (await prisma.accountDeletionCounter.findUnique({ where: { id: "global" } }))?.totalDeleted,
     ).toBe(1);
+  });
+  it("rejects direct SQL UPDATE DELETE and TRUNCATE against the deletion audit", async () => {
+    const before = await prisma.accountDeletionAudit.findFirstOrThrow({
+      where: { userId: owner },
+    });
+    await expect(
+      prisma.$executeRaw`UPDATE "AccountDeletionAudit" SET "initiatedBy" = 'TAMPERED' WHERE "id" = ${before.id}`,
+    ).rejects.toThrow("ACCOUNT_DELETION_AUDIT_IMMUTABLE");
+    await expect(
+      prisma.$executeRaw`DELETE FROM "AccountDeletionAudit" WHERE "id" = ${before.id}`,
+    ).rejects.toThrow("ACCOUNT_DELETION_AUDIT_IMMUTABLE");
+    await expect(
+      prisma.$executeRaw`TRUNCATE TABLE "AccountDeletionAudit"`,
+    ).rejects.toThrow("ACCOUNT_DELETION_AUDIT_IMMUTABLE");
+    const after = await prisma.accountDeletionAudit.findUniqueOrThrow({
+      where: { id: before.id },
+    });
+    expect(after).toEqual(before);
+    expect(await prisma.accountDeletionAudit.count({ where: { userId: owner } })).toBe(1);
   });
 });

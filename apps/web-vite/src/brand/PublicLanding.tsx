@@ -5,7 +5,6 @@ import button from "./LegacyPrimaryButton.module.css";
 import {LandingMaterialIcon} from "./LandingMaterialIcons";
 import {useEffect,useState} from "react";
 import {apiRequest} from "../shared/api/client";
-import {LandingVkEntry,LandingVkErrorBanner} from "./LandingVkEntry";
 const concerns=["На прогулке контакт быстро теряется","Непонятно, за что взяться сначала",
   "Советы есть. Порядка действий нет","Собака не может оставаться дома одна",
   "Постоянно тянет поводок","Подбирает всё подряд с земли"];
@@ -81,7 +80,6 @@ export function PublicLanding({loadStats=true}: {loadStats?:boolean}={}){
     <Action href="/login" className={styles.navAction}>Войти</Action>
    </nav>
   </header>
-  <LandingVkErrorBanner/>
   <div className={styles.heroLayout}><div className={styles.heroCopy}>
    <div className={styles.sectionIntro}>
     <h1 id="welcome-title"><Heading lines={["ГАФУС -","Уверенность","в каждом шаге!"]}/></h1>
@@ -215,7 +213,6 @@ export function PublicLanding({loadStats=true}: {loadStats?:boolean}={}){
    <div className={styles.authPanel}>
     <p className={styles.browserPrompt}>Или начните в браузере</p>
     <Action href="/register" className={styles.joinAction} large>Начать заниматься</Action>
-    <LandingVkEntry/>
    </div>
   </div>
  </section>

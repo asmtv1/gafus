@@ -12,7 +12,6 @@ import {
   PushNotificationService,
   partitionPushSubscriptions,
   sendExpoPushNotifications,
-  sendRustorePushNotifications,
 } from "@gafus/webpush";
 // Создаем логгеры для разных компонентов
 const notificationLogger = createWorkerLogger("notification-processor");
@@ -67,7 +66,7 @@ const NOTIFICATION_FORMAT = {
 } as const;
 
 // WebPush keys are required for browser delivery, not for importing the
-// generic worker or delivering native Expo/RuStore jobs.
+// generic worker or delivering native Expo jobs.
 let pushService: PushNotificationService | null = null;
 function getWebPushService(): PushNotificationService {
   pushService ??= PushNotificationService.fromEnvironment();
@@ -301,20 +300,6 @@ export class NotificationProcessor {
           temporaryFailureCount: 0,
         };
 
-    const rustoreResults =
-      partitioned.rustore.length > 0 ?
-        await sendRustorePushNotifications(partitioned.rustore, {
-          title: payload.title,
-          body: payload.body,
-          url: payload.data.url,
-        })
-      : {
-          successCount: 0,
-          failureCount: 0,
-          deletedCount: 0,
-          temporaryFailureCount: 0,
-        };
-
     // Обрабатываем неудачные web-подписки
     for (const result of webResults.results) {
       if (!result.success && PushNotificationService.shouldDeleteSubscription(result.error)) {
@@ -329,15 +314,11 @@ export class NotificationProcessor {
       expoFailed: expoResults.failureCount,
       expoDeleted: expoResults.deletedCount,
       expoTemporaryFailed: expoResults.temporaryFailureCount,
-      rustoreSuccess: rustoreResults.successCount,
-      rustoreFailed: rustoreResults.failureCount,
-      rustoreDeleted: rustoreResults.deletedCount,
     });
 
     return {
-      successCount:
-        webResults.successCount + expoResults.successCount + rustoreResults.successCount,
-      failedCount: webResults.failureCount + expoResults.failureCount + rustoreResults.failureCount,
+      successCount: webResults.successCount + expoResults.successCount,
+      failedCount: webResults.failureCount + expoResults.failureCount,
     };
   }
 

@@ -1,3 +1,4 @@
+import type { TrainerCourseRowsPort } from "@gafus/core/services/trainerCourse";
 /**
  * Registered full trainer course editor. Uses the existing atomic Core CAS
  * writer (Course.version + day/access changes in one SQL transaction).
@@ -45,6 +46,14 @@ const production: TrainerFullCoursePorts = {
   countUsers: countExistingCourseUsers,
   countDays: countEditableCourseDays,
 };
+/** Inject the same SQL transaction/owner-CAS port for all full-form writes. */
+export function createProductionTrainerFullCoursePorts(rowsPort: TrainerCourseRowsPort): TrainerFullCoursePorts {
+  return {
+    ...production,
+    update: (input, actor) => updateCourse(input, actor, rowsPort),
+    create: (input, authorId) => createCourse(input, authorId, rowsPort),
+  };
+}
 const BAD = { success: false, code: "BAD_INPUT", error: "Некорректные данные курса" } as const;
 const DENIED = { success: false, code: "FORBIDDEN", error: "Недостаточно прав" } as const;
 const MISSING = { success: false, code: "NOT_FOUND", error: "Курс не найден" } as const;

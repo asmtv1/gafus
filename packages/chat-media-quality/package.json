@@ -6,6 +6,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "scripts": { "build": "tsc", "typecheck": "tsc --noEmit" },
+  "scripts": {
+    "test:unit": "node ../../scripts/qa/workspace-gap-advisory.mjs --run --package @gafus/chat-media-quality", "build": "tsc", "typecheck": "tsc --noEmit" },
   "devDependencies": { "typescript": "5.8.3" }
 }

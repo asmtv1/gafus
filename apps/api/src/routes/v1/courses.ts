@@ -38,7 +38,10 @@ coursesRoutes.get("/", async (c) => {
         },
       },
     );
-  } catch {
+  } catch (error) {
+    if (process.env.GAFUS_QA_FRESH_BROWSER_E2E === "1") {
+      logger.error("Fresh QA catalog diagnostic (never production)", error instanceof Error ? error : new Error(String(error)));
+    }
     logger.error("Error in courses API", new Error("COURSES_LIST_FAILED"));
     return c.json({ success: false, error: "Внутренняя ошибка сервера" }, 500);
   }

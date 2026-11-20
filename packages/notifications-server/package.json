@@ -42,6 +42,9 @@
       ],
       "training-reminder-application": [
         "dist/training-reminder-application.d.ts"
+      ],
+      "chat-outbox-diagnostics": [
+        "dist/chat-outbox-diagnostics.d.ts"
       ]
     }
   },
@@ -97,6 +100,10 @@
     "./training-reminder-application": {
       "types": "./dist/training-reminder-application.d.ts",
       "default": "./dist/training-reminder-application.js"
+    },
+    "./chat-outbox-diagnostics": {
+      "types": "./dist/chat-outbox-diagnostics.d.ts",
+      "default": "./dist/chat-outbox-diagnostics.js"
     }
   },
   "scripts": {

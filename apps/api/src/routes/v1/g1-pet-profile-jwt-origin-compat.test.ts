@@ -2,6 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { profileRows } from "../../modules/user/composition/profile-rows-instance.js";
 const { updatePet, updateProfile } = vi.hoisted(() => ({
   updatePet: vi.fn(), updateProfile: vi.fn(),
 }));
@@ -65,7 +66,7 @@ describe("Pet/profile nullable clear JWT bearer/cookie real Hono contract", () =
     expect(updateProfile).not.toHaveBeenCalled();
     const trusted = await put(profilePath, { city: "" }, a, true, "https://gafus.ru");
     expect(trusted.status).toBe(200);
-    expect(updateProfile).toHaveBeenCalledWith("owner-A", { city: "" });
+    expect(updateProfile).toHaveBeenCalledWith("owner-A", { city: "" }, profileRows);
   });
   it("JWT03 invalid signed token 401, no call to persistence", async () => {
     expect((await put(petPath, { heightCm: null }, "invalid.jwt")).status).toBe(401);

@@ -208,6 +208,24 @@ describe("explicit isolated original API boot boundary (no provider/HTTP executi
     GALLERY_ENABLED: "false",
     FEED_ENABLED: "false",
   });
+  it("allows only one randomly named loopback QA Compose stack, never a shared DB", () => {
+    const token = "abcdef123456";
+    const fresh = {
+      NODE_ENV: "development", API_HOST: "127.0.0.1", API_PORT: "3001",
+      GAFUS_LOCAL_ISOLATED_API: "1", GAFUS_LOCAL_BROWSER_AUTH: "1",
+      GAFUS_QA_FRESH_BROWSER_E2E: "1", GAFUS_QA_PROJECT: "gafusqa" + token,
+      DATABASE_URL: `postgresql://qa${token}:${"a".repeat(48)}@127.0.0.1:55432/gafusqa${token}?schema=public`,
+      REDIS_URL: `redis://:${"b".repeat(48)}@127.0.0.1:55433/0`,
+      GALLERY_ENABLED: "false", FEED_ENABLED: "false",
+    };
+    expect(isolatedLocalApiHostname(fresh)).toBe("127.0.0.1");
+    for (const override of [
+      {NODE_ENV:"production"}, {API_HOST:"0.0.0.0"}, {API_PORT:"3301"},
+      {GAFUS_QA_PROJECT:"gafusqaother"}, {DATABASE_URL:local().DATABASE_URL},
+      {REDIS_URL:"redis://localhost:6379/0"}, {AWS_ACCESS_KEY_ID:"live-key"},
+      {FEED_ENABLED:"true"}, {GAFUS_LOCAL_BROWSER_AUTH:"0"},
+    ]) expect(() => isolatedLocalApiHostname({...fresh,...override})).toThrow("LOCAL_API_ISOLATION_PREFLIGHT_DENIED");
+  });
   it("without explicit grant retains original production listener contract", () => {
     expect(isolatedLocalApiHostname({ NODE_ENV: "production" })).toBeUndefined();
   });

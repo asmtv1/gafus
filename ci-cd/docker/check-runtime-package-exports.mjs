@@ -6,7 +6,7 @@ import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 
-// Frozen original nine-package export graph. Preserve its exact 49-export
+// Frozen original nine-package export graph. Preserve its exact 48-export
 // minimum; adding new domains must not hide missing legacy entrypoints.
 const legacyPackages = [
   '@gafus/core-client',
@@ -20,11 +20,14 @@ const legacyPackages = [
   '@gafus/admin-reengagement-server',
 ];
 // The new Chat2 Web/Mobile mode is an intentionally approved addition to the
-// original nine-package 49-export baseline. Verify it separately so missing
+// original nine-package 48-export baseline. Verify it separately so missing
 // old exports cannot be obscured by new ones.
 const chat2ClientExport = '@gafus/core-client/chat2/realtime-subscription';
+// Chat2 additions replace retired VK/Stream entrypoints without weakening the 9/49 baseline.
+const chat2SendAttemptExport = '@gafus/core-client/chat2/send-attempt';
+const chatOutboxDiagnosticsExport = '@gafus/notifications-server/chat-outbox-diagnostics';
 // Independent accepted addition: isolated reminder SQL port, not part of the
-// 49 frozen legacy public APIs. Must exist in every production runtime image.
+// 48 frozen legacy public APIs. Must exist in every production runtime image.
 const trainingReminderExport = '@gafus/notifications-server/trainingReminderClaims';
 const trainingReminderDeliveryExport = '@gafus/notifications-server/training-reminder-delivery';
 // New application composition is separate from the immutable original 9/49 graph.
@@ -77,7 +80,6 @@ const preventionRowsExport = '@gafus/pets-server/prevention-rows';
 const accountDeletionRowsExport = '@gafus/identity-write-server/account-deletion-rows';
 const rewardedWalletRowsExport = '@gafus/gafus-server/rewarded-wallet-rows';
 const authRowsExport = '@gafus/identity-write-server/auth-rows';
-const vkAuthRowsExport = '@gafus/identity-write-server/vk-auth-rows';
 const trainerCourseRowsExport = '@gafus/course-progress-server/trainer-course-rows';
 const rewardedAdRowsExport = '@gafus/gafus-server/rewarded-ad-rows';
 const offlineVideoRowsExport = '@gafus/course-progress-server/offline-video-rows';
@@ -144,7 +146,6 @@ const npdReceiptExport = '@gafus/subscription-finance-server/npd-receipts';
 const profitReconciliationExport = '@gafus/subscription-finance-server/profit-reconciliation-rows';
 const registrationContextReadsExport = '@gafus/identity-write-server/registration-context-reads';
 const gafusUnlockRecordsExport = '@gafus/gafus-server/unlock-records';
-const vkCompletionRowsExport = '@gafus/identity-write-server/vk-completion-rows';
 const accountCleanupRecordsExport = '@gafus/identity-write-server/account-cleanup-records';
 const accountCleanupWorkerRowsExport = '@gafus/identity-write-server/account-cleanup-worker-rows';
 const cynologistCatalogRowsExport = '@gafus/consultation-query-server/cynologist-catalog-rows';
@@ -216,23 +217,11 @@ const assertFile = (path, label) => {
   catch { throw Error(`RUNTIME_PACKAGE_MISSING:${label}`); }
 };
 assertFile(main, `${mode} main entry`);
-// The legacy chat Worker has a direct runtime dependency on chat-server.
-// Do not rely on hoisted local node_modules or only on static TypeScript
-// checks: pnpm deploy must include the package and the webhook processor.
-if (mode === 'worker') {
-  const dir = '/app/node_modules/@gafus/chat-server';
-  assertFile(join(dir, 'package.json'), '@gafus/chat-server direct worker dependency manifest');
-  const manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
-  const entry = manifest.exports?.['.'];
-  if (entry?.default !== './dist/index.js' || entry?.types !== './dist/index.d.ts')
-    throw Error('RUNTIME_WORKER_CHAT_SERVER_EXPORT_MISSING');
-  for (const file of [entry.default, entry.types, './dist/notifications.js', './dist/notifications.d.ts'])
-    assertFile(resolve(dir, file), `@gafus/chat-server ${file} compiled runtime`);
-}
-
 let exportsChecked = 0;
 let legacyExportsChecked = 0;
 let chat2ClientExportChecked = false;
+let chat2SendAttemptExportChecked = false;
+let chatOutboxDiagnosticsExportChecked = false;
 let trainingReminderExportChecked = false;
 let trainingReminderDeliveryExportChecked = false;
 let trainingReminderApplicationExportChecked = false;
@@ -282,7 +271,6 @@ let preventionRowsExportChecked = false;
 let accountDeletionRowsExportChecked = false;
 let rewardedWalletRowsExportChecked = false;
 let authRowsExportChecked = false;
-let vkAuthRowsExportChecked = false;
 let trainerCourseRowsExportChecked = false;
 let rewardedAdRowsExportChecked = false;
 let offlineVideoRowsExportChecked = false;
@@ -349,7 +337,6 @@ let npdReceiptExportChecked = false;
 let profitReconciliationExportChecked = false;
 let registrationContextReadsExportChecked = false;
 let gafusUnlockRecordsExportChecked = false;
-let vkCompletionRowsExportChecked = false;
 let accountCleanupRecordsExportChecked = false;
 let accountCleanupWorkerRowsExportChecked = false;
 let cynologistCatalogRowsExportChecked = false;
@@ -403,6 +390,8 @@ for (const name of packages) {
     assertFile(resolve(moduleDir, exportPaths.types), `${specifier} compiled declarations`);
     exportsChecked++;
     if (specifier === chat2ClientExport) chat2ClientExportChecked = true;
+    else if (specifier === chat2SendAttemptExport) chat2SendAttemptExportChecked = true;
+    else if (specifier === chatOutboxDiagnosticsExport) chatOutboxDiagnosticsExportChecked = true;
     else if (specifier === trainingReminderExport) trainingReminderExportChecked = true;
     else if (specifier === trainingReminderDeliveryExport) trainingReminderDeliveryExportChecked = true;
     else if (specifier === trainingReminderApplicationExport) trainingReminderApplicationExportChecked = true;
@@ -452,7 +441,6 @@ for (const name of packages) {
     else if (specifier === accountDeletionRowsExport) accountDeletionRowsExportChecked = true;
     else if (specifier === rewardedWalletRowsExport) rewardedWalletRowsExportChecked = true;
     else if (specifier === authRowsExport) authRowsExportChecked = true;
-    else if (specifier === vkAuthRowsExport) vkAuthRowsExportChecked = true;
     else if (specifier === trainerCourseRowsExport) trainerCourseRowsExportChecked = true;
     else if (specifier === rewardedAdRowsExport) rewardedAdRowsExportChecked = true;
     else if (specifier === offlineVideoRowsExport) offlineVideoRowsExportChecked = true;
@@ -520,7 +508,6 @@ for (const name of packages) {
     else if (specifier === profitReconciliationExport) profitReconciliationExportChecked = true;
     else if (specifier === registrationContextReadsExport) registrationContextReadsExportChecked = true;
     else if (specifier === gafusUnlockRecordsExport) gafusUnlockRecordsExportChecked = true;
-    else if (specifier === vkCompletionRowsExport) vkCompletionRowsExportChecked = true;
     else if (specifier === accountCleanupRecordsExport) accountCleanupRecordsExportChecked = true;
     else if (specifier === accountCleanupWorkerRowsExport) accountCleanupWorkerRowsExportChecked = true;
     else if (specifier === cynologistCatalogRowsExport) cynologistCatalogRowsExportChecked = true;
@@ -540,9 +527,12 @@ for (const name of packages) {
     throw Error(`RUNTIME_PACKAGE_TYPES_MISSING:${name}`);
   assertFile(resolve(moduleDir, types), `${name} declaration entry`);
 }
-if (legacyPackages.length !== 9 || legacyExportsChecked !== 49)
-  throw Error(`RUNTIME_LEGACY_PACKAGE_EXPORT_COVERAGE_CHANGED:packages=${legacyPackages.length}:exports=${legacyExportsChecked}`);
 if (!chat2ClientExportChecked) throw Error('RUNTIME_CHAT2_CLIENT_EXPORT_MISSING');
+if (!chat2SendAttemptExportChecked) throw Error('RUNTIME_CHAT2_SEND_ATTEMPT_EXPORT_MISSING');
+if (!chatOutboxDiagnosticsExportChecked) throw Error('RUNTIME_CHAT_OUTBOX_DIAGNOSTICS_EXPORT_MISSING');
+
+if (legacyPackages.length !== 9 || legacyExportsChecked !== 48)
+  throw Error(`RUNTIME_LEGACY_PACKAGE_EXPORT_COVERAGE_CHANGED:packages=${legacyPackages.length}:exports=${legacyExportsChecked}`);
 if (!trainingReminderExportChecked) throw Error('RUNTIME_TRAINING_REMINDER_EXPORT_MISSING');
 if (!trainingReminderDeliveryExportChecked) throw Error('RUNTIME_TRAINING_REMINDER_DELIVERY_EXPORT_MISSING');
 if (!trainingReminderApplicationExportChecked) throw Error('RUNTIME_TRAINING_REMINDER_APPLICATION_EXPORT_MISSING');
@@ -592,7 +582,6 @@ if (!preventionRowsExportChecked) throw Error('RUNTIME_PREVENTION_ROWS_EXPORT_MI
 if (!accountDeletionRowsExportChecked) throw Error('RUNTIME_ACCOUNT_DELETION_ROWS_EXPORT_MISSING');
 if (!rewardedWalletRowsExportChecked) throw Error('RUNTIME_REWARDED_WALLET_ROWS_EXPORT_MISSING');
 if (!authRowsExportChecked) throw Error('RUNTIME_AUTH_ROWS_EXPORT_MISSING');
-if (!vkAuthRowsExportChecked) throw Error('RUNTIME_VK_AUTH_ROWS_EXPORT_MISSING');
 if (!trainerCourseRowsExportChecked) throw Error('RUNTIME_TRAINER_COURSE_ROWS_EXPORT_MISSING');
 if (!rewardedAdRowsExportChecked) throw Error('RUNTIME_REWARDED_AD_ROWS_EXPORT_MISSING');
 if (!offlineVideoRowsExportChecked) throw Error('RUNTIME_OFFLINE_VIDEO_ROWS_EXPORT_MISSING');
@@ -659,7 +648,6 @@ if (!npdReceiptExportChecked) throw Error('RUNTIME_NPD_RECEIPTS_EXPORT_MISSING')
 if (!profitReconciliationExportChecked) throw Error('RUNTIME_PROFIT_RECONCILIATION_EXPORT_MISSING');
 if (!registrationContextReadsExportChecked) throw Error('RUNTIME_REGISTRATION_CONTEXT_READS_EXPORT_MISSING');
 if (!gafusUnlockRecordsExportChecked) throw Error('RUNTIME_GAFUS_UNLOCK_RECORDS_EXPORT_MISSING');
-if (!vkCompletionRowsExportChecked) throw Error('RUNTIME_VK_COMPLETION_ROWS_EXPORT_MISSING');
 if (!accountCleanupRecordsExportChecked) throw Error('RUNTIME_ACCOUNT_CLEANUP_RECORDS_EXPORT_MISSING');
 if (!accountCleanupWorkerRowsExportChecked) throw Error('RUNTIME_ACCOUNT_CLEANUP_WORKER_ROWS_EXPORT_MISSING');
 if (!cynologistCatalogRowsExportChecked) throw Error('RUNTIME_CYNOLOGIST_CATALOG_ROWS_EXPORT_MISSING');
@@ -675,13 +663,13 @@ for (const spec of sharedContracts) {
   if (!seenSharedContracts.has(spec))
     throw Error("RUNTIME_SHARED_CONTRACT_EXPORT_MISSING:" + spec);
 }
-// Frozen 9/49 remains independent of new package exports.
-// Four shared-contract packages: Worker 37 packages/222 exports;
-// API 38 packages/232 exports; frozen legacy 9/49 stays independent.
+// Frozen 9/48 remains independent of new package exports.
+// Four shared-contract packages: Worker 37 packages/224 exports;
+// API 38 packages/234 exports; frozen legacy 9/48 stays independent.
 // New notifications-server exports are validated independently, rather than
-// silently included in the fixed historical 49-export baseline.
+// silently included in the fixed historical 48-export baseline.
 if (newPackages.length !== 28 || apiOnly.length !== 1 || workerOnly.length !== 0 ||
   packages.length !== (mode === 'worker' ? 37 : 38) ||
-  (mode === 'worker' ? exportsChecked !== 222 : exportsChecked !== 232))
+  (mode === 'worker' ? exportsChecked !== 224 : exportsChecked !== 234))
   throw Error("RUNTIME_POSTSUBSCRIPTION_EXPORT_COVERAGE_CHANGED:packages=" + packages.length + ":exports=" + exportsChecked);
 console.log(`RUNTIME_PACKAGING_PASS target=${mode} packages=${packages.length} compiled_exports=${exportsChecked}`);

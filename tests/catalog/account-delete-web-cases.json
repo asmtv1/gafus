@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "cases": [
+    {"name":"owner_login","role":"owner"},
+    {"name":"other_login","role":"other"},
+    {"name":"preflight","role":"owner"},
+    {"name":"request_code","role":"owner"},
+    {"name":"review_locked","role":"owner"},
+    {"name":"review_confirmed","role":"owner"},
+    {"name":"deleted","role":"owner"},
+    {"name":"stale_replay","role":"owner"},
+    {"name":"other_isolated","role":"other"},
+    {"name":"owner_relogin_denied","role":"owner"}
+  ]
+}

@@ -126,7 +126,7 @@ describe("rewarded ad settings", () => {
     });
   });
 
-  it("uses the versioned iOS flag when client context is available", async () => {
+  it("uses the same iOS flag regardless of review status when context is available", async () => {
     settingsRow.value = {
       key: "default",
       androidEnabled: true,
@@ -151,7 +151,6 @@ describe("rewarded ad settings", () => {
       "mobile_rewarded_ads_ios",
       { platform: "ios", version: "1.7.0" },
       true,
-      false,
     );
   });
 

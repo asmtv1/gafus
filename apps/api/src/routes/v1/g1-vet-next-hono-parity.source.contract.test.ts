@@ -39,7 +39,7 @@ describe("Current Vite/Hono Vet visit source transport contract", () => {
   });
   it("V03 shared Core handles list/detail GET and private no-store", () => {
     expect(shared).toContain('!parts.length && method === "GET"');
-    expect(shared).toContain("listPetVetVisits(petId, ownerId)");
+    expect(shared).toContain("listPetVetVisits(petId, ownerId, rows)");
     expect(shared).toContain('parts.length === 1 && method === "GET"');
     expect(shared).toContain("getOwnVetVisitDetail(ownerId, petId, visitId!, readDetail)");
     expect(shared).toContain('"Cache-Control": "private, no-store, max-age=0"');

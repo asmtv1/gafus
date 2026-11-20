@@ -233,8 +233,8 @@ export async function hasActiveGafusCourseStepAccess(input: {
   dayOnCourseId: string;
   stepOnDayId: string;
   now?: Date;
-}): Promise<boolean> {
-  return requireCourseOccurrenceReadsPort().readActiveCourseStepGafusGrant(input, resolveCourseStepTargetTx);
+}, reads?: CourseOccurrenceReadsPort): Promise<boolean> {
+  return (reads ?? requireCourseOccurrenceReadsPort()).readActiveCourseStepGafusGrant(input, resolveCourseStepTargetTx);
 }
 
 /** Course read composition injects this existing entitlement policy into persistence. */
@@ -248,8 +248,9 @@ export type { ContentPolicyReadPort } from "./policy";
  */
 export async function hasAllowedVideoCourseStepAccess(
   userId:string,dayOnCourseId:string,stepOnDayId:string,now:Date,
+  reads?: CourseOccurrenceReadsPort,
 ):Promise<boolean>{
- return requireCourseOccurrenceReadsPort().readAllowedVideoCourseStepAccess(
+ return (reads ?? requireCourseOccurrenceReadsPort()).readAllowedVideoCourseStepAccess(
    {userId, dayOnCourseId, stepOnDayId, now},
    resolveCourseStepTargetTx, resolveCourseStepAccessTx,
  );

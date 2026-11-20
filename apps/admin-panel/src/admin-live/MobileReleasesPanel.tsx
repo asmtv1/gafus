@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import {VersionPublicationForm} from "./VersionPublicationForm";
 import { requestAdmin } from "./api";
 
 type Deployment = {
@@ -174,6 +175,21 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
     } catch(e) {setError(`${e instanceof Error?e.message:"Ошибка статуса"}. Сверьте журнал, ID ${operationId}`);}
     finally {writeLock.current=false;setBusy(false);}
   };
+  const importVerification = async (native:NativeRelease,file:File|undefined) => {
+    if(!file || writeLock.current)return;
+    writeLock.current=true;setBusy(true);setError(null);
+    try{
+      if(file.size>32000)throw Error("Слишком большой файл подтверждения.");
+      const proof=JSON.parse(await file.text());
+      if(proof.action!=="VERIFY" || proof.evidence?.nativeReleaseId!==native.id || !proof.evidence?.embeddedUpdateId)
+        throw Error("Выберите отчёт проверки именно этой сборки с идентификатором встроенного обновления.");
+      if(!window.confirm("Подтвердить проверку на устройстве и канал распространения для "+native.platform+" "+native.appVersion+" ("+native.buildNumber+")?"))return;
+      await requestAdmin(ENDPOINT+"/native-releases/"+native.id+"/verification",{method:"POST",body:proof});
+      await load("native-releases");
+      setMessage("Подтверждение сборки сохранено.");
+    }catch(e){setError(e instanceof Error?e.message:"Не удалось импортировать подтверждение.");}
+    finally{writeLock.current=false;setBusy(false);}
+  };
   const registerPatch = async () => {
     if (writeLock.current || !patchManifestJson.trim()) return;
     let definition: Record<string,unknown>;
@@ -290,6 +306,8 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
   return (
     <section className="content-card">
       <h2>Мобильные релизы</h2>
+      <VersionPublicationForm />
+      <details><summary>Реестр, история и дополнительные настройки</summary>
       <p className="note">Собственный OTA включается только для проверенных нативных поставок и подписанных артефактов. Существующий EAS не переключается отсюда.</p>
       <div className="filter-toolbar" role="tablist" aria-label="Реестр OTA">
         {TABS.map(({ key, title }) => (
@@ -406,6 +424,8 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
           <p>{r.verified ? "Нативная поставка подтверждена" : "Не подтверждена"}</p>
           <p>Артефакт SHA256: {r.attestation?.nativeArtifactSha256 ?? "не указан"}</p>
           <div className="filter-toolbar">
+            <label>Отчёт проверки сборки <input type="file" accept=".json,application/json" disabled={busy}
+              onChange={e=>{const file=e.target.files?.[0];e.target.value="";void importVerification(r,file);}}/></label>
             <button className="secondary" disabled={busy} onClick={()=>void verifyNative(r,r.verified?"REVOKE":"VERIFY")}>
               {r.verified?"Отозвать поставку":"Подтвердить после QA"}
             </button>
@@ -472,6 +492,7 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
           <p>Operation {r.operationId}</p>
         </div>
       ))}
+      </details>
     </section>
   );
 }

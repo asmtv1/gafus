@@ -6,7 +6,6 @@ export {
   authApi,
   type User,
   type LoginResponse,
-  type VkLoginResponse,
   type RegisterData,
 } from "./auth";
 export {

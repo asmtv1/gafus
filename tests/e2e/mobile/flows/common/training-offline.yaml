@@ -1,0 +1,8 @@
+appId: ru.gafus.app
+name: GAFUS QA complete an exercise offline
+---
+- extendedWaitUntil:
+    visible: "Нет подключения к интернету"
+    timeout: 120000
+- tapOn: "Я выполнил"
+- assertVisible: "Упражнение выполнено"

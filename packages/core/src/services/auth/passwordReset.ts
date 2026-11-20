@@ -53,8 +53,8 @@ export class InvalidPasswordResetTokenError extends Error {
 }
 
 /** One atomic state change: password, session revocation, refresh-token revocation, token consumption. */
-export async function resetPasswordByToken(token: string, newPassword: string) {
-  const port = requirePasswordResetPort();
+export async function resetPasswordByToken(token: string, newPassword: string, ports?: PasswordResetPorts) {
+  const port = ports ?? requirePasswordResetPort();
   const hashed = await bcrypt.hash(newPassword, 12);
   const tokenHash = `sha256:${createHash("sha256").update(token).digest("hex")}`;
   let email: string | null;
@@ -71,8 +71,8 @@ export async function resetPasswordByToken(token: string, newPassword: string) {
 }
 
 /** Short-code reset must also revoke old sessions; it grants the same password-changing capability. */
-export async function resetPasswordByShortCode(shortCode: string, newPassword: string) {
-  const port = requirePasswordResetPort();
+export async function resetPasswordByShortCode(shortCode: string, newPassword: string, ports?: PasswordResetPorts) {
+  const port = ports ?? requirePasswordResetPort();
   const hashed = await bcrypt.hash(newPassword, 12);
   let email: string | null;
   try {
@@ -84,6 +84,6 @@ export async function resetPasswordByShortCode(shortCode: string, newPassword: s
   await notifyPasswordReset(email);
 }
 
-export async function getUserPhoneByUsername(username: string) {
-  return requirePasswordResetPort().lookupPhoneByNormalizedUsername(username);
+export async function getUserPhoneByUsername(username: string, ports?: PasswordResetPorts) {
+  return (ports ?? requirePasswordResetPort()).lookupPhoneByNormalizedUsername(username);
 }

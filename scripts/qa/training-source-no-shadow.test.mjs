@@ -28,9 +28,12 @@ test("Core training TS is authoritative, without adjacent emitted JS/declaration
   // by the API composition root, never imported by Core.
   assert.match(source, /registerTrainingServicePort\(/);
   const composer = readFileSync(path.join(root,
-    "apps/api/src/modules/training/composition/install-training-service.ts"), "utf8");
+    "apps/api/src/modules/training/composition/sql-training-instance.ts"), "utf8");
   assert.match(composer, /createTrainingService\(/);
   assert.match(composer, /@gafus\/course-progress-server\/training-service/);
+  const apiApp = readFileSync(path.join(root, "apps/api/src/app.ts"), "utf8");
+  assert.doesNotMatch(apiApp, /import "\.\/modules\/training\/composition\/install-training-service\.js"/);
+  assert.match(apiApp, /sql-training-instance\.js/);
   assert.doesNotMatch(source, /@gafus\/course-progress-server\/training-service/);
   assert.doesNotMatch(source, /from ["']@gafus\/prisma["']/);
   for (const name of [

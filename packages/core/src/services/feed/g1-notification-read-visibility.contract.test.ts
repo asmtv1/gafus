@@ -1,7 +1,7 @@
 /** AG1-COMM050: actual Feed Core notice read/list visibility with mocked DB. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { FeedDb } from "./ports";
-import { createFeedSocial } from "./social";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
+import { createFeedSocial } from "../../../../feed-server/src/socialRows";
 
 const OWNER_A = "ACTOR_A";
 const OWNER_B = "ACTOR_B";

@@ -1,3 +1,5 @@
+import { subscriptionAccessPort } from "../../modules/app-subscription/composition/subscription-access-instance.js";
+import type { PreventionRowsPort } from "@gafus/core/services/petPrevention";
 /**
  * Offline Routes
  * Endpoints для работы с офлайн-данными курсов
@@ -23,7 +25,22 @@ import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-offline");
 
-export const offlineRoutes = new Hono();
+import type { TrainingServiceApi } from "@gafus/core/services/training";
+import type { OfflineMutationRowsPort } from "@gafus/core/services/offline";
+export type OfflineRouteTrainingPort = Pick<TrainingServiceApi,
+  "getTrainingDays" | "requireCourseStepOperationAccess" | "applyStepDayAndCourseTx"> & {
+  /** Supplied by app.ts; compatibility-only callers can omit it temporarily. */
+  journalRows?: OfflineMutationRowsPort;
+  preventionRows?: PreventionRowsPort;
+};
+export function createOfflineRoutes({
+  getTrainingDays,
+  requireCourseStepOperationAccess,
+  applyStepDayAndCourseTx,
+  journalRows,
+  preventionRows,
+}: OfflineRouteTrainingPort) {
+  const offlineRoutes = new Hono();
 
 // ==================== GET /offline/course/version ====================
 // Получить версию курса
@@ -87,7 +104,7 @@ offlineRoutes.get("/course/download", zValidator("query", downloadQuerySchema), 
     const user = c.get("user");
     const { courseType } = c.req.valid("query");
 
-    const subscription = await getAppSubscriptionAccess(user.id);
+    const subscription = await getAppSubscriptionAccess(user.id, undefined, subscriptionAccessPort);
     if (!subscription.hasActiveSubscription) {
       return c.json(
         {
@@ -270,7 +287,7 @@ offlineRoutes.post("/mutations", zValidator("json", v2MutationSchema), async (c)
           performedAt: entry.performedAt.toISOString(),
           reminderOnDate: entry.reminderOnDate?.toISOString() ?? null,
         })),
-      });
+      }, journalRows, preventionRows);
       return c.json(result, 200, v2NoStoreHeaders);
     }
     const rawPlatform = c.req.header("x-rewarded-platform") ?? c.req.header("x-platform");
@@ -286,7 +303,9 @@ offlineRoutes.post("/mutations", zValidator("json", v2MutationSchema), async (c)
     if (typeof journal.submitNewOfflinePracticeMutation !== "function") {
       return c.json({ success: false, code: "JOURNAL_UNAVAILABLE" }, 503, v2NoStoreHeaders);
     }
-    const result = await journal.submitNewOfflinePracticeMutation({ ownerId, ...input });
+    const result = await journal.submitNewOfflinePracticeMutation(
+      { ownerId, ...input }, { applyStepDayAndCourseTx }, journalRows,
+    );
     return c.json(result, 200, v2NoStoreHeaders);
   } catch (error) {
     const failure = v2ErrorResponse(error);
@@ -314,7 +333,7 @@ offlineRoutes.get("/mutations/:eventId", async (c) => {
     if (typeof journal.findNewOfflineMutationReceipt !== "function") {
       return c.json({ success: false, code: "JOURNAL_UNAVAILABLE" }, 503, v2NoStoreHeaders);
     }
-    const response = await journal.findNewOfflineMutationReceipt(c.get("user").id, eventId);
+    const response = await journal.findNewOfflineMutationReceipt(c.get("user").id, eventId, journalRows);
     if (!response) return c.json({ success: false, code: "NOT_FOUND" }, 404, v2NoStoreHeaders);
     return c.json(response, 200, v2NoStoreHeaders);
   } catch (error) {
@@ -326,4 +345,17 @@ offlineRoutes.get("/mutations/:eventId", async (c) => {
       v2NoStoreHeaders,
     );
   }
+});
+
+  return offlineRoutes;
+}
+
+// Compatibility routes for the historic Core registrar until all consumers move.
+export const offlineRoutes = createOfflineRoutes({
+  getTrainingDays: (...args) => getTrainingDays(...args),
+  requireCourseStepOperationAccess: (...args) => requireCourseStepOperationAccess(...args),
+  applyStepDayAndCourseTx: async (...args) => {
+    const legacy = await import("@gafus/core/services/training");
+    return legacy.applyStepDayAndCourseTx(...args);
+  },
 });

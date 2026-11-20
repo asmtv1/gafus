@@ -39,13 +39,7 @@ vi.mock("@gafus/webpush", () => ({
     }),
     shouldDeleteSubscription: () => false,
   },
-  partitionPushSubscriptions: () => ({ web: [], expo: [], rustore: [] }),
-  sendRustorePushNotifications: vi.fn().mockResolvedValue({
-    successCount: 0,
-    failureCount: 0,
-    deletedCount: 0,
-    temporaryFailureCount: 0,
-  }),
+  partitionPushSubscriptions: () => ({ web: [], expo: [] }),
   sendExpoPushNotifications: vi.fn().mockResolvedValue({
     successCount: 0,
     failureCount: 0,

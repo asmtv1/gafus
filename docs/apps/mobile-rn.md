@@ -17,7 +17,6 @@ Technical docs belong in root `docs/`, not in `apps/mobile/docs`. [Chat 2.0 Mobi
 - Zustand
 - Expo Notifications, IAP, Updates, Secure Store, File System, Image Picker, Camera, Video
 - `@gafus/analytics/mobile` + AppMetrica
-- RuStore Push через `react-native-rustore-push`
 
 ## Структура
 

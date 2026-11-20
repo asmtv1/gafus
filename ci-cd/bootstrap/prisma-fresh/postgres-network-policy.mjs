@@ -27,3 +27,11 @@ export function allowsFreshPostgresEndpoint({
     server !== null && client !== null &&
     server[0] === client[0] && server[1] === client[1] && server[2] === client[2];
 }
+
+/** Validated on disposable PostgreSQL 15/16/18 with the reviewed fresh-only
+ * SQL baseline and 184-entry Prisma ledger. PostgreSQL 14 and 19 are not
+ * approved; this never relaxes network, ownership or empty-schema guards. */
+export function allowsFreshPostgresVersion(raw) {
+  const version=Number(raw);
+  return Number.isInteger(version) && version >= 150000 && version < 190000;
+}

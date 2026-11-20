@@ -16,13 +16,7 @@ import { MobileReleasesPanel } from "./MobileReleasesPanel";
 
 const noop = () => undefined;
 const noKey = () => undefined;
-const rflag = {
-  vkLogin: false,
-  iosRuCardPayment: false,
-  subscriptionPromoCodes: false,
-  iosRuCardPaymentHint: false,
-  rewardedAds: false,
-};
+
 const plans = {
   twoWeeksEnabled: false,
   yookassaTwoWeeksPriceRub: 1185,
@@ -181,10 +175,7 @@ const sections = [
     <FeatureFlagsEditor
       source={{
         revision: 1,
-        iosReviewVersion: null,
-        ota: { required: false, version: null, platform: "all" },
-        released: rflag,
-        review: rflag,
+          ota: { required: false, version: null, platform: "all" },
         global: { appSubscriptionPaywall: false, appSubscriptionGating: false },
         rewardedAds: {
           androidEnabled: false,

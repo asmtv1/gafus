@@ -1,6 +1,7 @@
 /** Atomic OTA deployment transitions. No build/sign/network calls inside SQL transactions. */
 import { randomUUID } from "node:crypto";
 import { prisma } from "@gafus/prisma";
+import {versionOwnsScope} from "./version-publication.js";
 import { validOtaPercent } from "./rollout-policy.js";
 
 type Deployment = {
@@ -30,7 +31,7 @@ type Audit = {
   rolloutPercent: number | null;
 };
 export class MobileOtaDeploymentError extends Error {
-  constructor(public readonly code: "NOT_FOUND" | "STALE_VERSION" | "OPERATION_CONFLICT" | "UNVERIFIED_RELEASE" | "ROLLBACK_REQUIRES_NEW_UPDATE" | "DEPLOYMENT_ALREADY_EXISTS" | "INVALID_ROLLOUT" | "ROLLOUT_MUST_INCREASE", message = code) {
+  constructor(public readonly code: "VERSION_PUBLICATION_MANAGED" | "NOT_FOUND" | "STALE_VERSION" | "OPERATION_CONFLICT" | "UNVERIFIED_RELEASE" | "ROLLBACK_REQUIRES_NEW_UPDATE" | "DEPLOYMENT_ALREADY_EXISTS" | "INVALID_ROLLOUT" | "ROLLOUT_MUST_INCREASE", message = code) {
     super(message);
   }
 }
@@ -141,6 +142,8 @@ export async function updateMobileOtaDeployment(input: {
     }
     if (deployment.rowVersion !== input.expectedVersion)
       throw new MobileOtaDeploymentError("STALE_VERSION");
+    if(deployment.appId==="gafus" && deployment.environment==="production" && deployment.channel==="production" &&
+      await versionOwnsScope(tx,deployment)) throw new MobileOtaDeploymentError("VERSION_PUBLICATION_MANAGED");
     const publish = input.action === "PUBLISH";
     const rollout = input.action === "ROLLOUT";
     if (publish && !input.releaseId) throw new MobileOtaDeploymentError("UNVERIFIED_RELEASE");
@@ -166,7 +169,7 @@ export async function updateMobileOtaDeployment(input: {
         SELECT r.id, r."createdAt", n.verified
         FROM "MobileOtaRelease" r
         JOIN "MobileNativeRelease" n ON n.id = r."nativeReleaseId"
-        WHERE r.id = ${input.releaseId}::uuid AND r.state = 'READY'
+        WHERE r.id = ${input.releaseId}::uuid AND r.state = 'READY' AND r."releaseTitle" IS NULL
           AND r."appId" = ${deployment.appId}
           AND r.platform = ${deployment.platform}
           AND r.environment = ${deployment.environment}

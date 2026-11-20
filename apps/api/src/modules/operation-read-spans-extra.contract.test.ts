@@ -1,6 +1,7 @@
 /** Correlated read spans are composition concerns: do not change owner scoping,
  * response mapping, provider errors, or the consultation header lifecycle. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { profileRows } from "./user/composition/profile-rows-instance.js";
 
 const m = vi.hoisted(() => ({
   spans: [] as string[],
@@ -98,7 +99,7 @@ describe("extra critical read span coverage", () => {
     expect(m.spans.join(" ")).not.toMatch(/PRIVATE_USER_ID|PRIVATE_STEP|PUBLIC_USERNAME/);
     expect(m.notes).toHaveBeenCalledWith({ trainerId: actor }, 1, 10);
     expect(m.examResult).toHaveBeenCalledWith(actor, "PRIVATE_STEP");
-    expect(m.publicProfile).toHaveBeenCalledWith("PUBLIC_USERNAME");
+    expect(m.publicProfile).toHaveBeenCalledWith("PUBLIC_USERNAME", profileRows);
   });
 
   it("propagates provider errors rather than turning a private exam failure into a public success", async () => {

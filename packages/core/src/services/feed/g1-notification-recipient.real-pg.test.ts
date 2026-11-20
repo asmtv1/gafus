@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "../../../../prisma/node_modules/@prisma/client";
 import { prisma } from "@gafus/prisma";
-import { createFeedSocial } from "./social";
+import { createFeedSocial } from "../../../../feed-server/src/socialRows";
 
 const marker = randomBytes(6).toString("hex");
 const tag = "ag1notice_" + marker + "_";

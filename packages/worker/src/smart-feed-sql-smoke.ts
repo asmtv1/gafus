@@ -1,4 +1,5 @@
 import { readSmartFeedPostStats } from "@gafus/feed-server/runtime-services";
+import { connection as feedSmokeRedis } from "@gafus/queues";
 export {};
 /**
  * Non-destructive SQL verification, for a disposable migrated test database.
@@ -59,6 +60,10 @@ async function main(): Promise<void> {
       const { randomUUID } = await import("node:crypto");
       const { PetType } = await import("@gafus/prisma");
       const { rankSmartCandidates } = await import("@gafus/core/services/feed");
+      const { createSmartRankingRows, createSmartRetrievalRows } =
+        await import("@gafus/feed-server/smart-persistence");
+      const rankingPort = createSmartRankingRows(tx);
+      const retrievalPort = createSmartRetrievalRows(tx);
       const { refreshSmartAuthorAffinities, getSmartExperimentReport } =
         await import("@gafus/feed-server/smart-persistence");
       const at = new Date();
@@ -152,7 +157,7 @@ async function main(): Promise<void> {
       const options = { useCity: true, usePets: true, useBehavior: false,
         exploration: false, multiSource: true };
       const readSmartStatsInTx = (ids: readonly string[], at: Date) => readSmartFeedPostStats(ids, at, tx);
-      const ranked = await rankSmartCandidates(tx as never, viewer.id, at, options, readSmartStatsInTx);
+      const ranked = await rankSmartCandidates(rankingPort, viewer.id, at, options, readSmartStatsInTx, retrievalPort);
       const localRank = ranked.findIndex(row => row.id === localPost.id);
       const remoteRank = ranked.findIndex(row => row.id === remotePost.id);
       if (localRank < 0 || (remoteRank >= 0 && localRank >= remoteRank)) {
@@ -161,7 +166,7 @@ async function main(): Promise<void> {
       await tx.feedUserPostFeedback.create({ data: {
         userId: viewer.id, postId: remotePost.id, kind: "not_interested",
       } });
-      const filtered = await rankSmartCandidates(tx as never, viewer.id, at, options, readSmartStatsInTx);
+      const filtered = await rankSmartCandidates(rankingPort, viewer.id, at, options, readSmartStatsInTx, retrievalPort);
       if (filtered.some(row => row.id === remotePost.id)) {
         throw new Error("Negative feedback failed to exclude the post");
       }
@@ -170,9 +175,9 @@ async function main(): Promise<void> {
         const measurements: number[] = [];
         for (let i = 0; i < 10; i += 1) {
           const started = performance.now();
-          const page = await rankSmartCandidates(tx as never, viewer.id, at, {
+          const page = await rankSmartCandidates(rankingPort, viewer.id, at, {
             ...options, useBehavior: true,
-          }, readSmartStatsInTx);
+          }, readSmartStatsInTx, retrievalPort);
           if (page.length === 0 || page.length > 200) {
             throw new Error("Unexpected benchmark recommendation count");
           }
@@ -198,6 +203,8 @@ async function main(): Promise<void> {
     if (!succeeded || !(error instanceof Error) || error.message !== rollbackTag) throw error;
   } finally {
     await prisma.$disconnect();
+    // runtime-services imports the shared Redis client; never leave a QA CLI retry loop alive.
+    feedSmokeRedis.disconnect();
   }
   process.stdout.write("Smart feed database SQL verified; transaction rolled back.\n");
 }

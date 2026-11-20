@@ -171,7 +171,7 @@ it("default browser-disabled mounted screen makes zero Hono GET; opt-in uses rea
  expect(host?.textContent).toContain("Первый день");
  expect(host?.textContent).not.toContain(privateCanary);
  expect(host?.textContent).not.toContain("user-a");
- expect(m.course).toHaveBeenCalledExactlyOnceWith("course_A","trainer_A",{allowAdmin:false});
+ expect(m.course).toHaveBeenCalledExactlyOnceWith("course_A","trainer_A",{allowAdmin:false},expect.objectContaining({readDraft:expect.any(Function)}));
  expect(host?.querySelector("form")).toBeNull();
 });
 it("actual JWT A→B→A adapter never returns foreign owner's private data",async()=>{
@@ -182,15 +182,15 @@ it("actual JWT A→B→A adapter never returns foreign owner's private data",asy
   expect(JSON.stringify(dto)).not.toContain(privateCanary);
  }
  expect(m.course.mock.calls).toEqual([
-  ["course_A","trainer_A",{allowAdmin:false}],
-  ["course_B","trainer_B",{allowAdmin:false}],
-  ["course_A","trainer_A",{allowAdmin:false}],
+  ["course_A","trainer_A",{allowAdmin:false},expect.objectContaining({readDraft:expect.any(Function)})],
+  ["course_B","trainer_B",{allowAdmin:false},expect.objectContaining({readDraft:expect.any(Function)})],
+  ["course_A","trainer_A",{allowAdmin:false},expect.objectContaining({readDraft:expect.any(Function)})],
  ]);
 });
 it("signed ADMIN can view foreign trainer draft, never forwards userId/allowAdmin query",async()=>{
  await startDom();await show("ADMIN","course_B");
  expect(host?.textContent).toContain("Course course_B owner trainer_B");
- expect(m.course).toHaveBeenCalledExactlyOnceWith("course_B","admin_1",{allowAdmin:true});
+ expect(m.course).toHaveBeenCalledExactlyOnceWith("course_B","admin_1",{allowAdmin:true},expect.objectContaining({readDraft:expect.any(Function)}));
  expect(m.rateKeys.length).toBeGreaterThan(0);
 });
 it("foreign TRAINER and missing course are the same masked 404 on actual app and mounted UI",async()=>{
@@ -331,8 +331,8 @@ it("mounted actor A→B→A same courseId rejects late first A private Hono resp
  expect(host?.textContent).toContain("Course course_A owner trainer_A");
  expect(host?.textContent).not.toContain("PRIVATE_STALE_ACTOR_B");
  expect(m.course.mock.calls).toEqual([
-  ["course_A","trainer_A",{allowAdmin:false}],
-  ["course_A","trainer_B",{allowAdmin:false}],
-  ["course_A","trainer_A",{allowAdmin:false}],
+  ["course_A","trainer_A",{allowAdmin:false},expect.objectContaining({readDraft:expect.any(Function)})],
+  ["course_A","trainer_B",{allowAdmin:false},expect.objectContaining({readDraft:expect.any(Function)})],
+  ["course_A","trainer_A",{allowAdmin:false},expect.objectContaining({readDraft:expect.any(Function)})],
  ]);
 });

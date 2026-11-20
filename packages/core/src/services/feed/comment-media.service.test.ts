@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FeedDb } from "./ports";
-import { createFeedSocial } from "./social";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
+import { createFeedSocial } from "../../../../feed-server/src/socialRows";
 
 const REQUEST_ID = "550e8400-e29b-41d4-a716-446655440000";
 const now = new Date("2026-10-29T12:00:00Z");

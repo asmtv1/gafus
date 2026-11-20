@@ -1,3 +1,4 @@
+import type { PreventionRowsPort } from "@gafus/core/services/petPrevention";
 import { withCorrelatedUseCase } from "../../../lib/operation-observability.js";
 /** Deferred bindings: real Core writes occur only inside existing HTTP requests. */
 import {
@@ -9,10 +10,13 @@ import {
 } from "@gafus/core/services/petPrevention";
 import { createPreventionJournalApplication } from "../application/journal.js";
 
-export const preventionJournalApplication = createPreventionJournalApplication({
-  list: (userId, petId) => withCorrelatedUseCase("pets.prevention.entries.read", () => getEntriesByPet(userId, petId)),
-  create: (userId, petId, data) => withCorrelatedUseCase("pets.prevention.entry.create", () => createEntry(userId, petId, data)),
-  batch: (userId, petId, entries) => withCorrelatedUseCase("pets.prevention.entries.batch_upsert", () => upsertPreventionEntriesBatch(userId, petId, entries)),
-  update: (userId, petId, entryId, data) => withCorrelatedUseCase("pets.prevention.entry.update", () => updateEntry(userId, petId, entryId, data)),
-  remove: (userId, petId, entryId) => withCorrelatedUseCase("pets.prevention.entry.delete", () => deleteEntry(userId, petId, entryId)),
-});
+export function createPreventionJournalApplicationForRows(rowsPort?: PreventionRowsPort) {
+ return createPreventionJournalApplication({
+  list: (userId, petId) => withCorrelatedUseCase("pets.prevention.entries.read", () => rowsPort ? getEntriesByPet(userId, petId, rowsPort) : getEntriesByPet(userId, petId)),
+  create: (userId, petId, data) => withCorrelatedUseCase("pets.prevention.entry.create", () => rowsPort ? createEntry(userId, petId, data, rowsPort) : createEntry(userId, petId, data)),
+  batch: (userId, petId, entries) => withCorrelatedUseCase("pets.prevention.entries.batch_upsert", () => rowsPort ? upsertPreventionEntriesBatch(userId, petId, entries, rowsPort) : upsertPreventionEntriesBatch(userId, petId, entries)),
+  update: (userId, petId, entryId, data) => withCorrelatedUseCase("pets.prevention.entry.update", () => rowsPort ? updateEntry(userId, petId, entryId, data, rowsPort) : updateEntry(userId, petId, entryId, data)),
+  remove: (userId, petId, entryId) => withCorrelatedUseCase("pets.prevention.entry.delete", () => rowsPort ? deleteEntry(userId, petId, entryId, rowsPort) : deleteEntry(userId, petId, entryId)),
+ });
+}
+export const preventionJournalApplication = createPreventionJournalApplicationForRows();

@@ -11,6 +11,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./storage-jobs": {
+      "types": "./dist/storageJobs.d.ts",
+      "default": "./dist/storageJobs.js"
+    },
+    "./account-cleanup": {
+      "types": "./dist/cleanupRows.d.ts",
+      "default": "./dist/cleanupRows.js"
+    },
     "./smart-persistence": {
       "types": "./dist/smart-persistence.d.ts",
       "default": "./dist/smart-persistence.js"
@@ -45,7 +53,8 @@
     "@gafus/queues": "workspace:*",
     "zod": "^3.25.56",
     "@gafus/feed-storage": "workspace:*",
-    "@gafus/media-server": "workspace:*"
+    "@gafus/media-server": "workspace:*",
+    "@gafus/media-shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "20.4.8",

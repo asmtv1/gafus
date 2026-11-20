@@ -82,7 +82,7 @@ describe("registerUserWithCredentials atomic registration", () => {
   it("creates user, saved ordinary promo, completed linked consents and attempt in one transaction", async () => {
     mocks.savePromo.mockResolvedValue({ normalizedCode: "ORDINARY" });
     await expect(registerUserWithCredentials({ ...input, promoCode: "ordinary" })).resolves.toEqual({ ok: true, userId: "user-1", wasCreated: true });
-    expect(mocks.savePromo).toHaveBeenCalledWith(tx, { userId: "user-1", rawCode: "ORDINARY" });
+    expect(mocks.savePromo).toHaveBeenCalledWith(tx, { userId: "user-1", rawCode: "ORDINARY" }, undefined);
     expect(mocks.attributeReferral).toHaveBeenCalledWith(tx, "user-1", "ORDINARY");
     expect(mocks.createConsents).toHaveBeenCalledWith(tx, expect.objectContaining({ userId: "user-1", tempSessionId: context.tempSessionId }));
     expect(mocks.attemptUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ result: "SUCCEEDED", userId: "user-1" }) }));

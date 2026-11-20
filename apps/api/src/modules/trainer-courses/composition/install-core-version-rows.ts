@@ -1,18 +1,5 @@
-/** Process composition for Course.version CAS and row-locked logo replacement.
- * Both SQL operations and owner checks remain in the Persistence adapter;
- * Core keeps validation, explicit result codes and post-commit cache signals.
- * The installer must run before Hono routes are loaded.
- */
+/** Deprecated compatibility shim for legacy isolated tests. Not imported by
+ * production app.ts: runtime Hono factories receive an explicit typed port. */
 import { registerCourseVersionRowsPort } from "@gafus/core/services/trainerCourse";
-import {
-  readCourseVersionRows,
-  writeCourseNameVersionRows,
-  setCourseLogoVersionRows,
-} from "@gafus/course-progress-server/course-version-rows";
-
-const courseVersionRowsPort = {
-  readCourseVersionRows,
-  writeCourseNameVersionRows,
-  setCourseLogoVersionRows,
-};
+import { courseVersionRowsPort } from "./course-version-rows-instance.js";
 registerCourseVersionRowsPort(courseVersionRowsPort);

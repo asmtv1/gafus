@@ -2,12 +2,12 @@
 import {describe,expect,it,vi} from "vitest";
 const m=vi.hoisted(()=>({gallery:vi.fn(),feed:vi.fn()}));
 vi.mock("../gallery/accountCleanup",()=>({enqueueGalleryAccountCleanup:m.gallery}));
-vi.mock("../feed/cleanup",()=>({enqueueFeedAccountCleanup:m.feed}));
+vi.mock("../../../../feed-server/src/cleanupRows",()=>({enqueueFeedAccountCleanup:m.feed}));
 vi.mock("@gafus/cdn-upload",()=>({DUAL_PROVIDER_CLEANUP_MARKER:"DUAL_PROVIDER_REVIEW"}));
 import {createAccountStorageCleanup} from "./enqueue";
 import {insertAccountMediaCleanupSnapshotsTx} from "@gafus/identity-write-server/account-cleanup-records";
 import {enqueueGalleryAccountCleanup} from "../gallery/accountCleanup";
-import {enqueueFeedAccountCleanup} from "../feed/cleanup";
+import {enqueueFeedAccountCleanup} from "../../../../feed-server/src/cleanupRows";
 const enqueueAccountStorageCleanup=createAccountStorageCleanup({
   readIntent:()=>({dualGallery:false,dualFeed:false,dualProviderMarker:"DUAL_PROVIDER_REVIEW"}),
   insertSnapshot:insertAccountMediaCleanupSnapshotsTx,

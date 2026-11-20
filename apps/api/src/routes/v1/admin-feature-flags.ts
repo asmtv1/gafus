@@ -15,23 +15,9 @@ adminFeatureFlagsRoutes.use("*", async (c, next) => {
   await next();
 });
 
-const features = z
-  .object({
-    vkLogin: z.boolean(),
-    iosRuCardPayment: z.boolean(),
-    subscriptionPromoCodes: z.boolean(),
-    iosRuCardPaymentHint: z.boolean(),
-    rewardedAds: z.boolean(),
-  })
-  .strict();
 const payload = z
   .object({
     revision: z.number().int().positive(),
-    iosReviewVersion: z
-      .string()
-      .trim()
-      .regex(/^\d+\.\d+\.\d+$/)
-      .nullable(),
     ota: z
       .object({
         required: z.boolean(),
@@ -44,8 +30,6 @@ const payload = z
       })
       .strict()
       .refine((v) => !v.required || v.version !== null, "Укажите OTA-версию"),
-    released: features,
-    review: features,
     global: z
       .object({
         appSubscriptionPaywall: z.boolean(),
@@ -96,8 +80,6 @@ adminFeatureFlagsRoutes.put("/", requireRole("ADMIN"), async (c) => {
     // values for legacy clients, but never permit activating or mutating this archive.
     const current = await getMobileReleaseControl();
     if (
-      input.released.rewardedAds !== current.released.rewardedAds ||
-      input.review.rewardedAds !== current.review.rewardedAds ||
       Object.keys(input.rewardedAds).some(
         (key) =>
           input.rewardedAds[key as keyof typeof input.rewardedAds] !==

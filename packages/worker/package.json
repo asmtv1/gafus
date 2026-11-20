@@ -27,8 +27,8 @@
     "profit:sync": "tsx --env-file=../../.env src/profit-finance-sync.ts"
   },
   "dependencies": {
+    "stream-chat": "9.53.0",
     "@apple/app-store-server-library": "^3.0.0",
-    "@gafus/chat-server": "workspace:*",
     "@gafus/cdn-upload": "workspace:*",
     "@gafus/core": "workspace:*",
     "@gafus/logger": "workspace:*",
@@ -75,7 +75,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.23.1",
     "@types/web-push": "3.6.4",
-    "@vitest/coverage-v8": "^4.0.17",
+    "@vitest/coverage-v8": "^4.1.0",
     "rimraf": "5.0.1",
     "tsx": "4.19.0",
     "typescript": "5.8.3",

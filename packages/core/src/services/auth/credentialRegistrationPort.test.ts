@@ -42,6 +42,19 @@ describe("Credential registration is composed only from authoritative transactio
     await expect(c.registerUserWithCredentials(input)).rejects.toThrow("SERVER_TX_ABORT");
     expect(p.withRegistrationTransaction).toHaveBeenCalledTimes(1);
   });
+  it("routes two independent instances to their own transaction without global binding", async () => {
+    const c = await import("./registerUserWithCredentials");
+    const first = noopPort();
+    const second = noopPort();
+    first.withRegistrationTransaction.mockRejectedValueOnce(new Error("FIRST_TRANSACTION_ABORT"));
+    second.withRegistrationTransaction.mockRejectedValueOnce(new Error("SECOND_TRANSACTION_ABORT"));
+    await expect(c.registerUserWithCredentials(input, first)).rejects.toThrow("FIRST_TRANSACTION_ABORT");
+    await expect(c.registerUserWithCredentials(input, second)).rejects.toThrow("SECOND_TRANSACTION_ABORT");
+    expect(first.withRegistrationTransaction).toHaveBeenCalledTimes(1);
+    expect(second.withRegistrationTransaction).toHaveBeenCalledTimes(1);
+    await expect(c.registerUserWithCredentials(input)).rejects.toThrow("CREDENTIAL_REGISTRATION_PORT_UNBOUND");
+  });
+
   it("cannot hot-swap a registration transaction adapter", async () => {
     const c = await import("./registerUserWithCredentials");
     const p = noopPort();c.registerCredentialRegistrationPort(p);c.registerCredentialRegistrationPort(p);

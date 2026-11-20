@@ -23,7 +23,7 @@ describe("Core feature flags are a fail-closed composable port", () => {
       .rejects.toThrow("APP_FEATURE_FLAGS_PORT_UNBOUND");
     await expect(flags.getMobileFeatureFlagEnabled(
       flags.APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
-      { platform: "ios", version: "1.7.3" }, false, false,
+      { platform: "ios", version: "1.7.3" }, false,
     )).rejects.toThrow("APP_FEATURE_FLAGS_PORT_UNBOUND");
     await expect(flags.getMobileReleaseControl())
       .rejects.toThrow("APP_FEATURE_FLAGS_PORT_UNBOUND");
@@ -41,10 +41,10 @@ describe("Core feature flags are a fail-closed composable port", () => {
       "app_subscription_gating_enabled", true,
     );
     await expect(flags.getMobileFeatureFlagEnabled(
-      flags.APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES, context, false, false,
+      flags.APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES, context, false,
     )).resolves.toBe(true);
     expect(adapter.getMobileFeatureFlagEnabled).toHaveBeenCalledExactlyOnceWith(
-      "mobile_ios_subscription_promo_codes", context, false, false,
+      "mobile_ios_subscription_promo_codes", context, false,
     );
     await flags.setAppFeatureFlagEnabled("server_only_toggle", false);
     expect(adapter.setAppFeatureFlagEnabled).toHaveBeenCalledWith("server_only_toggle", false);
@@ -68,39 +68,23 @@ describe("Core feature flags are a fail-closed composable port", () => {
       .toBeInstanceOf(core.MobileReleaseControlConflictError);
   });
 
-  it("preserves all seven authoritative flag keys and profile selection", async () => {
+  it("keeps the six public flags in Core and SQL adapter with no VK or review mode", async () => {
     const core = await import("./appFeatureFlagsService");
     const server = await import("@gafus/feature-flags-server/appFeatureFlagsService");
-    const names = [
+    for (const name of [
       "APP_FEATURE_APP_SUBSCRIPTION_GATING",
       "APP_FEATURE_APP_SUBSCRIPTION_PAYWALL",
       "APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT",
       "APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES",
       "APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT",
       "APP_FEATURE_MOBILE_REWARDED_ADS_IOS",
-      "APP_FEATURE_MOBILE_VK_LOGIN_IOS",
-    ] as const;
-    for (const name of names) expect(core[name]).toBe(server[name]);
-    const contexts = [
-      { platform: "ios" as const, version: "1.7.3" },
-      { platform: "ios" as const, version: "not-semver" },
-      { platform: "android" as const, version: "1.7.3" },
-      { platform: "unknown" as const, version: null },
-    ];
-    for (const context of contexts) {
-      expect(core.resolveMobileFeatureProfile(context, "1.7.3"))
-        .toBe(server.resolveMobileFeatureProfile(context, "1.7.3"));
-    }
+    ] as const) expect(core[name]).toBe(server[name]);
+    expect(core).not.toHaveProperty("resolveMobileFeatureProfile");
+    expect(core).not.toHaveProperty("APP_FEATURE_MOBILE_VK_LOGIN_IOS");
   });
 
   it("preserves exact client version and OTA policy validation", async () => {
     const flags = await import("./appFeatureFlagsService");
-    expect(flags.resolveMobileFeatureProfile({ platform: "ios", version: "1.7.3" }, "1.7.3"))
-      .toBe("REVIEW");
-    expect(flags.resolveMobileFeatureProfile({ platform: "android", version: "1.7.3" }, "1.7.3"))
-      .toBe("RELEASED");
-    expect(flags.resolveMobileFeatureProfile({ platform: "ios", version: "bogus" }, "bogus"))
-      .toBe("RELEASED");
     expect(() => flags.normalizeOtaControl({ required: true, version: null, platform: "all" }))
       .toThrow();
     expect(flags.normalizeOtaControl({ required: true, version: "1.7.3-ota.1", platform: "ios" }))

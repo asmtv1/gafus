@@ -1,6 +1,8 @@
 const RATE_LIMITED_APP_SUBSCRIPTION_MUTATIONS = new Set([
   "/api/v1/app-subscription/yookassa/start",
   "/api/v1/app-subscription/yookassa/cancel",
+  "/api/v1/app-subscription/google/play/prepare",
+  "/api/v1/app-subscription/google/play/verify",
   "/api/v1/app-subscription/apple/verify",
   "/api/v1/app-subscription/apple/restore",
   "/api/v1/app-subscription/apple/token/initialize",

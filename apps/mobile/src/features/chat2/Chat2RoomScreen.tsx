@@ -47,6 +47,7 @@ import {
 } from "@gafus/chat-media-quality";
 import { Centrifuge } from "centrifuge";
 import { chat2SubscriptionForConnection, chat2SubscriptionTransportOptions } from "@gafus/core-client/chat2/realtime-subscription";
+import { reserveChatSendAttempt, type ChatSendAttempt } from "@gafus/core-client/chat2/send-attempt";
 import { useAuthStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/error-reporting";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
@@ -559,18 +560,17 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
         }
       }
       const attachmentIds = confirmed.flatMap(file => file.attachment ? [file.attachment.id] : []);
-      // Reuse the logical ID only when the message's contents and attachments match.
-      const requestId =
-        retry.current?.text === value &&
-        retry.current?.replyToId === reply?.id &&
-        retry.current?.attachmentIds.join("|") === attachmentIds.join("|")
-          ? retry.current.clientMessageId
-          : Crypto.randomUUID();
-      retry.current = {
-        text: value, replyToId: reply?.id, clientMessageId: requestId, attachmentIds,
-      };
-      if (editing) await chat2.edit(id, editing.id, value);
-      else await chat2.send(id, value, requestId, reply?.id, attachmentIds);
+      if (editing) {
+        await chat2.edit(id, editing.id, value);
+      } else {
+        const attempt = reserveChatSendAttempt(
+          retry.current,
+          { actorId: owner, conversationId: id, text: value, replyToId: reply?.id, attachmentIds },
+          () => Crypto.randomUUID(),
+        );
+        retry.current = attempt;
+        await chat2.send(id, value, attempt.clientMessageId, reply?.id, attachmentIds);
+      }
       retry.current = null;
       setText("");
       setReply(null);
@@ -597,12 +597,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
       setPending(false);
     }
   }
-  const retry = useRef<{
-    text: string;
-    replyToId?: string;
-    clientMessageId: string;
-    attachmentIds: string[];
-  } | null>(null);
+  const retry = useRef<ChatSendAttempt | null>(null);
   function replyTo(message: Message) {
     if (message.deletedAt) return;
     setReply(message);

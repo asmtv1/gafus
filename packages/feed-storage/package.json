@@ -17,6 +17,7 @@
     }
   },
   "scripts": {
+    "test:unit": "node ../../scripts/qa/workspace-gap-advisory.mjs --run --package @gafus/feed-storage",
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },

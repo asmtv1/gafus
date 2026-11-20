@@ -4,7 +4,7 @@
  * no API calls, no UUID allocation, no owner identifiers in logs.
  */
 export type PushActor = Readonly<{ ownerId: string; authEpoch: string }>;
-export type PushProvider = "expo" | "rustore";
+export type PushProvider = "expo";
 
 export function createPushRegistrationCoordinator() {
   const pending = new Map<string, Promise<boolean>>();

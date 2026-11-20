@@ -25,13 +25,7 @@ const plans = {
   threeMonthsIntervalDays: 90,
   monthlyAppleProductId: null,
 };
-const flags = {
-  vkLogin: false,
-  iosRuCardPayment: false,
-  subscriptionPromoCodes: false,
-  iosRuCardPaymentHint: false,
-  rewardedAds: false,
-};
+
 const economy = {
   revision: 1,
   economyEnabled: true,
@@ -158,9 +152,7 @@ export function sectionFixture(url) {
   if (url === "/api/v1/admin/feature-flags")
     return {
       revision: 1,
-      iosReviewVersion: null,
-      released: flags,
-      review: flags,
+      ota: { required: false, version: null, platform: "all" },
       global: { appSubscriptionPaywall: false, appSubscriptionGating: false },
       rewardedAds: {
         androidEnabled: false,

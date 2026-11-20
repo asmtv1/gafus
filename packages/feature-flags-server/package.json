@@ -23,6 +23,7 @@
     }
   },
   "scripts": {
+    "test:unit": "node ../../scripts/qa/workspace-gap-advisory.mjs --run --package @gafus/feature-flags-server",
     "build": "tsc && ts-add-js-extension --dir dist",
     "typecheck": "tsc --noEmit"
   },

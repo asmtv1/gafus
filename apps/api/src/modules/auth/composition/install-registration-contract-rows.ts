@@ -9,8 +9,6 @@ import {
   readRegistrationPromoRowTx, saveRegistrationPromoRowTx,
   lockRegistrationEmailAttemptTx, readRegistrationEmailAttemptTx,
   insertRegistrationEmailAttemptTx, finishRegistrationEmailAttemptTx,
-  insertVkRegistrationContextTx, claimVkRegistrationContextUserTx,
-  insertVkLoginGrantTx, consumeVkLoginGrantRowTx,
   type RegistrationContractDbTx,
 } from "@gafus/identity-write-server/registration-contract-rows";
 
@@ -24,9 +22,6 @@ const rows: RegistrationContractRowsPort = {
   readRegistrationEmailAttemptTx: (tx, tempSessionId) => readRegistrationEmailAttemptTx(transaction(tx), tempSessionId),
   insertRegistrationEmailAttemptTx: (tx, input) => insertRegistrationEmailAttemptTx(transaction(tx), input),
   finishRegistrationEmailAttemptTx: (tx, id, input) => finishRegistrationEmailAttemptTx(transaction(tx), id, input),
-  insertVkRegistrationContextTx: (tx, input) => insertVkRegistrationContextTx(transaction(tx), input),
-  claimVkRegistrationContextUserTx: (tx, input) => claimVkRegistrationContextUserTx(transaction(tx), input),
-  insertVkLoginGrantTx: (tx, input) => insertVkLoginGrantTx(transaction(tx), input),
-  consumeVkLoginGrantRowTx: (tx, input) => consumeVkLoginGrantRowTx(transaction(tx), input),
+
 };
 registerRegistrationContractRowsPort(rows);

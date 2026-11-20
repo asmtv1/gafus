@@ -54,16 +54,25 @@ export type NativeTrustRecord = {
   runtimeVersion: string;
   signingKeyId: string;
   nativeFingerprint: string;
+  distribution?: string;
   certificatePem: string | null;
   certificateSha256: string;
   verified: boolean;
 };
 
+const publicationSchema = z.object({
+  title: z.string().trim().min(1).max(100),
+  nativeReleaseId: UUID,
+  nativeFingerprint: HASH,
+  recoveryFor: z.number().int().positive().nullable(),
+  allowsCheckout: z.boolean(),
+}).strict();
+
 export function validateSignedOtaCiResult(
   native: NativeTrustRecord,
   result: SignedOtaCiResult,
   cdnOrigin: string,
-): { manifestBody: Buffer; createdAt: Date } {
+): { manifestBody: Buffer; createdAt: Date; signingExpiresAt: Date; publication: z.infer<typeof publicationSchema> | null } {
   if (!native.verified || !native.certificatePem || native.id !== result.nativeReleaseId ||
       native.platform !== "ios" && native.platform !== "android")
     throw new MobileOtaCiError("UNVERIFIED_NATIVE_RELEASE");
@@ -83,6 +92,7 @@ export function validateSignedOtaCiResult(
   let certificate: crypto.X509Certificate;
   try { certificate = new crypto.X509Certificate(native.certificatePem); }
   catch { throw new MobileOtaCiError("INVALID_NATIVE_CERTIFICATE"); }
+  if (Date.parse(certificate.validFrom)>Date.now()) throw new MobileOtaCiError("CERTIFICATE_NOT_YET_VALID");
   if (Date.parse(certificate.validTo) <= Date.now()) throw new MobileOtaCiError("CERTIFICATE_EXPIRED");
   const manifestBody = Buffer.from(result.manifestBase64, "base64");
   if (manifestBody.length > 1_000_000 || manifestBody.toString("base64") !== result.manifestBase64)
@@ -94,7 +104,7 @@ export function validateSignedOtaCiResult(
   let manifest: {
     id: string; createdAt: string; runtimeVersion: string;
     metadata?: Record<string,string>;
-    extra?: { ota?: { revision?: number } };
+    extra?: { ota?: { revision?: number; publication?: unknown }; expoClient?: {extra?: {otaNativeReleaseId?: string; otaNativeFingerprint?: string}} };
     launchAsset?: { url?: string; hash?: string; contentType?: string };
     assets?: {url?: string;hash?: string;contentType?: string}[];
   };
@@ -109,6 +119,17 @@ export function validateSignedOtaCiResult(
       manifest.extra?.ota?.revision !== result.revision ||
       !Array.isArray(manifest.assets))
     throw new MobileOtaCiError("MANIFEST_NATIVE_RUNTIME_MISMATCH");
+  const raw = manifest.extra?.ota?.publication;
+  const publication = raw === undefined ? null : publicationSchema.safeParse(raw);
+  if (publication && (!publication.success ||
+      publication.data.nativeReleaseId !== native.id ||
+      publication.data.nativeFingerprint !== native.nativeFingerprint ||
+      manifest.extra?.expoClient?.extra?.otaNativeReleaseId !== native.id ||
+      manifest.extra?.expoClient?.extra?.otaNativeFingerprint !== native.nativeFingerprint ||
+      (publication.data.recoveryFor !== null && (publication.data.recoveryFor >= result.revision || publication.data.allowsCheckout)) ||
+      (publication.data.allowsCheckout && (native.distribution !== 'internal' ||
+        (native.platform !== 'android' && (native.platform !== 'ios' || native.runtimeVersion !== '1.7.5'))))))
+    throw new MobileOtaCiError("INVALID_SIGNED_PUBLICATION");
   const expectedAssets = [manifest.launchAsset, ...manifest.assets];
   if (expectedAssets.length !== result.artifacts.length)
     throw new MobileOtaCiError("MANIFEST_ASSET_COUNT_MISMATCH");
@@ -140,7 +161,7 @@ export function validateSignedOtaCiResult(
         asset?.hash !== Buffer.from(item.sha256,"hex").toString("base64url"))
       throw new MobileOtaCiError("INVALID_SIGNED_ASSET");
   }
-  return { manifestBody, createdAt };
+  return { manifestBody, createdAt, signingExpiresAt:new Date(certificate.validTo), publication: publication?.data ?? null };
 }
 
 export type StoredOtaCiReplay = {
@@ -198,7 +219,7 @@ export async function registerVerifiedOtaCiResult(result: SignedOtaCiResult,
   cdnOrigin: string): Promise<{ releaseId: string; replayed: boolean }> {
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<NativeTrustRecord[]>`
-      SELECT id, "appId", platform, environment, channel, "runtimeVersion", "signingKeyId",
+      SELECT id, "appId", platform, environment, distribution, channel, "runtimeVersion", "signingKeyId",
         "nativeFingerprint", "certificatePem", "certificateSha256", verified
       FROM "MobileNativeRelease" WHERE id=${result.nativeReleaseId}::uuid FOR UPDATE
     `;
@@ -226,13 +247,13 @@ export async function registerVerifiedOtaCiResult(result: SignedOtaCiResult,
       INSERT INTO "MobileOtaRelease"
         (id, "nativeReleaseId", "appId", platform, environment, channel, "runtimeVersion",
          "sourceSha", revision, "updateId", "manifestBody", "signatureHeader", "signingKeyId",
-         state, checks, "symbolsRef", "operationId", "buildAttempt", "ciRunId", "createdAt", "readyAt")
+         state, checks, "symbolsRef", "operationId", "buildAttempt", "ciRunId", "createdAt", "readyAt", "signingExpiresAt", "releaseTitle", "recoveryFor", "allowsCheckout")
       VALUES (${releaseId}::uuid, ${native.id}::uuid, ${native.appId}, ${native.platform},
         ${native.environment}, ${native.channel}, ${native.runtimeVersion}, ${result.sourceSha},
         ${result.revision}, ${result.updateId}::uuid, ${verified.manifestBody},
         ${result.signatureHeader}, ${native.signingKeyId}, 'READY', ${checks}::jsonb,
         ${result.symbolsRef}, ${result.operationId}, ${result.buildAttempt}, ${result.ciRunId},
-        ${verified.createdAt}, NOW())
+        ${verified.createdAt}, NOW(), ${verified.signingExpiresAt}, ${verified.publication?.title ?? null}, ${verified.publication?.recoveryFor ?? null}, ${verified.publication?.allowsCheckout ?? false})
     `;
     for (const item of result.artifacts) {
       await tx.$executeRaw`

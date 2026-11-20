@@ -171,9 +171,9 @@ describe("AG4TR012 actual app-mounted GET /trainer/courses/:courseId/draft", () 
       safe(body);
     }
     expect(m.draft.mock.calls).toEqual([
-      ["course_A", "trainer_A", { allowAdmin: false }],
-      ["course_B", "trainer_B", { allowAdmin: false }],
-      ["course_A", "trainer_A", { allowAdmin: false }],
+      ["course_A", "trainer_A", { allowAdmin: false }, expect.objectContaining({readDraft:expect.any(Function)})],
+      ["course_B", "trainer_B", { allowAdmin: false }, expect.objectContaining({readDraft:expect.any(Function)})],
+      ["course_A", "trainer_A", { allowAdmin: false }, expect.objectContaining({readDraft:expect.any(Function)})],
     ]);
   });
   it("max valid ASCII 128-character ID passes untrimmed to Core", async () => {
@@ -185,6 +185,7 @@ describe("AG4TR012 actual app-mounted GET /trainer/courses/:courseId/draft", () 
     expect(body).toMatchObject({ success: true, data: { id } });
     expect(m.draft).toHaveBeenCalledExactlyOnceWith(
       id, "trainer_A", { allowAdmin: false },
+      expect.objectContaining({readDraft:expect.any(Function)}),
     );
   });
   it("ADMIN has allowAdmin only via verified JWT, not input", async () => {
@@ -194,6 +195,7 @@ describe("AG4TR012 actual app-mounted GET /trainer/courses/:courseId/draft", () 
     expect((await r.json()).data.id).toBe("course_B");
     expect(m.draft).toHaveBeenCalledExactlyOnceWith(
       "course_B", "admin_1", { allowAdmin: true },
+      expect.objectContaining({readDraft:expect.any(Function)}),
     );
   });
   it.each([

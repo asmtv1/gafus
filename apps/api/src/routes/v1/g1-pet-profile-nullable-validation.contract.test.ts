@@ -1,6 +1,7 @@
 /** Live Hono handlers, mocked Core, no SQL or production I/O. */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { profileRows } from "../../modules/user/composition/profile-rows-instance.js";
 const { petUpdate, profileUpdate } = vi.hoisted(() => ({
   petUpdate: vi.fn(),
   profileUpdate: vi.fn(),
@@ -141,7 +142,7 @@ describe("AG1 profile nullable/validation Web Mobile contract", () => {
   it("U01 existing empty string clearing preserved", async () => {
     const res = await profile({ city: "", about: "" });
     expect(res.status).toBe(200);
-    expect(profileUpdate).toHaveBeenCalledWith("owner-A", { city: "", about: "" });
+    expect(profileUpdate).toHaveBeenCalledWith("owner-A", { city: "", about: "" }, profileRows);
   });
   it("U02 null not allowed in profile; 400 fieldErrors no Core write", async () => {
     for (const field of ["city", "fullName", "about", "website", "birthDate"]) {
@@ -187,11 +188,11 @@ describe("AG1 profile nullable/validation Web Mobile contract", () => {
     for (const birthDate of ["2020-02-29", "2020-02-29T00:00:00.000Z", ""]) {
       const r = await profile({ birthDate });
       expect(r.status).toBe(200);
-      expect(profileUpdate).toHaveBeenLastCalledWith("owner-A", { birthDate });
+      expect(profileUpdate).toHaveBeenLastCalledWith("owner-A", { birthDate }, profileRows);
     }
   });
   it("U05 spoofed owner ID never reaches Core", async () => {
     expect((await profile({ city: "Самара", userId: "owner-B" })).status).toBe(200);
-    expect(profileUpdate).toHaveBeenCalledWith("owner-A", { city: "Самара" });
+    expect(profileUpdate).toHaveBeenCalledWith("owner-A", { city: "Самара" }, profileRows);
   });
 });

@@ -28,9 +28,6 @@
       "@gafus/core/services/gallery": [
         "../../packages/core/src/services/gallery/index.ts"
       ],
-      "@gafus/core/services/cynologistChat": [
-        "../../packages/core/src/services/cynologistChat/index.ts"
-      ],
       "@gafus/core/services/consent": [
         "../../packages/core/src/services/consent"
       ],
@@ -102,6 +99,12 @@
       ],
       "@gafus/feed-server/runtime-services": [
         "../feed-server/dist/runtimeServices.d.ts"
+      ],
+      "@gafus/feed-server/storage-jobs": [
+        "../feed-server/dist/storageJobs.d.ts"
+      ],
+      "@gafus/feed-server/account-cleanup": [
+        "../feed-server/dist/cleanupRows.d.ts"
       ],
       "@gafus/feed-server/background-operations": [
         "../feed-server/dist/backgroundOperations.d.ts"
@@ -241,9 +244,6 @@
       "@gafus/gafus-server/unlock-records": [
         "../gafus-server/dist/unlock-records.d.ts"
       ],
-      "@gafus/identity-write-server/vk-completion-rows": [
-        "../identity-write-server/dist/vk-completion-rows.d.ts"
-      ],
       "@gafus/identity-write-server/account-cleanup-records": [
         "../identity-write-server/dist/account-cleanup-records.d.ts"
       ],
@@ -306,9 +306,6 @@
       ],
       "@gafus/identity-write-server/auth-rows": [
         "../identity-write-server/dist/authRows.d.ts"
-      ],
-      "@gafus/identity-write-server/vk-auth-rows": [
-        "../identity-write-server/dist/vkAuthRows.d.ts"
       ],
       "@gafus/course-progress-server/trainer-course-rows": [
         "../course-progress-server/dist/trainerCourseRows.d.ts"

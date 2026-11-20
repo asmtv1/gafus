@@ -57,7 +57,7 @@ describe("refactor web same-origin route controls", () => {
   it("accepts only explicit registered routes, rejects lookalikes", () => {
     for (const route of [
       "/", "/courses", "/profile", "/pets", "/articles", "/questions",
-      "/passwordReset", "/reset-password", "/subscription", "/vk-consent", "/questions/new", "/moments", "/moments/saved",
+      "/passwordReset", "/reset-password", "/subscription", "/questions/new", "/moments", "/moments/saved",
       "/moments/new", "/moments/drafts",
     ]) expect(routeForPath(route)).toBe(route);
     expect(routeForPath("/pets/")).toBe("/pets");

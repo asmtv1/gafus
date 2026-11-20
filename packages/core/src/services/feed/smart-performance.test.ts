@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { performance } from "node:perf_hooks";
-import type { FeedDb } from "./ports";
-import { createFeedService } from "./service";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
+import { createFeedService } from "../../../../feed-server/src/postRows";
 import { calculateSmartFeedScore, rerankSmartFeed } from "./smart-ranking";
 import { smartRedisTimeout } from "./smart-redis";
 import { SMART_ML_FEATURES, scoreSmartMl, type SmartMlModel } from "./smart-ml";

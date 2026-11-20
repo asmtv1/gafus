@@ -12,6 +12,7 @@ import {
 } from "@gafus/course-server/mini-guides";
 import { getGafusPostReactionProgress } from "@gafus/feed-server/gafus-reaction-progress";
 import { gafusStatusReadPorts } from "../../modules/gafus/composition/status-ports.js";
+import { unlockRows } from "../../modules/gafus/composition/unlock-rows-instance.js";
 
 export const gafusRoutes = new Hono();
 
@@ -166,7 +167,7 @@ gafusRoutes.post("/unlock", async (c) => {
       userId: c.get("user").id,
       target: body.target,
       clientRequestId: body.clientRequestId,
-    });
+    }, unlockRows);
     return c.json({ success: true, data: result });
   } catch (e) {
     const mapped = errorResponse(e);

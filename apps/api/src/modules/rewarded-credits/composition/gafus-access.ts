@@ -9,11 +9,12 @@ import {
   readGafusUserStepOccurrence, readGafusVideoOccurrences,
 } from "@gafus/course-read-server/gafus-entitlement-reads";
 import { hasActiveGafusCourseStepAccess } from "@gafus/core/services/contentAccess";
+import { occurrenceReadPort } from "../../content-access/composition/occurrence-reads-instance.js";
 
 export const gafusInteropApplication = createGafusInteropService({
   readUserStepOccurrence: readGafusUserStepOccurrence,
   readVideoOccurrences: readGafusVideoOccurrences,
-  hasActiveCourseStepGrant: hasActiveGafusCourseStepAccess,
+  hasActiveCourseStepGrant: (input) => hasActiveGafusCourseStepAccess(input, occurrenceReadPort),
 });
 
 export const {

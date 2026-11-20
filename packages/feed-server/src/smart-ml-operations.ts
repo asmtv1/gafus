@@ -15,6 +15,7 @@ import { refreshSmartFeedStats } from "./smart-aggregation.js";
 import { refreshSmartAuthorAffinities } from "./smart-affinity.js";
 import { getSmartFeedHealth } from "./smart-health.js";
 import { pruneSmartImpressions, pruneSmartRankingEvents } from "@gafus/core/services/feed/smart-retention";
+import { smartRetentionRows } from "./smartRetentionRows.js";
 
 export async function refreshCurrentSmartFeedStats() {
   return refreshSmartFeedStats(prisma);
@@ -27,8 +28,8 @@ export async function getCurrentSmartFeedHealth() {
 }
 export async function pruneCurrentSmartFeedSignals() {
   const [impressions, outcomes] = await Promise.all([
-    pruneSmartImpressions(prisma),
-    pruneSmartRankingEvents(prisma),
+    pruneSmartImpressions(smartRetentionRows),
+    pruneSmartRankingEvents(smartRetentionRows),
   ]);
   return { impressions, outcomes };
 }

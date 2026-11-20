@@ -8,6 +8,8 @@ export type OtaLookup = Readonly<{
   runtimeVersion: string;
   keyId: string;
   nativeFingerprint: string;
+  embeddedUpdateId?: string | null;
+  currentUpdateId?: string | null;
   installationId?: string | null;
   /** Verified server-side HMAC grant, never a client-declared account name. */
   testerAllowed?: boolean;

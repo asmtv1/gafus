@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("@gafus/queues", () => ({ connection: { status: "end" } }));
 afterEach(() => vi.unstubAllEnvs());
 import { dispatchFeedRequest, feedHttpError } from "./index.js";
-import type { FeedService, FeedSocialService } from "@gafus/core/services/feed";
+import type { FeedService } from "./postRows.js";
+import type { FeedSocialService } from "./socialRows.js";
 const actor = "user_123";
 const postId = "post_123";
 function invoke(

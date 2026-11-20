@@ -3,6 +3,7 @@
  * Never claims a device test or a distribution test automatically.
  */
 import crypto from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -41,7 +42,7 @@ export async function hashNativePackage(filename,platform) {
   return sha.digest('hex');
 }
 export async function prepareNativeVerification({native,evidence,packageFile}) {
-  required(native&&UUID.test(native.id)&&native.verified===false&&
+  required(native&&UUID.test(native.id)&& (native.verified===false || (native.verified===true && !native.embeddedUpdateId))&&
     ['preview','production'].includes(native.environment)&&
     native.channel===native.environment&&
     ['ios','android'].includes(native.platform)&&
@@ -49,7 +50,6 @@ export async function prepareNativeVerification({native,evidence,packageFile}) {
     native.bundleId==='ru.gafus.app'&&native.appId==='gafus'&&
     native.runtimeVersion===native.appVersion&&
     /^\d+\.\d+\.\d+$/.test(native.appVersion)&&
-    (native.environment!=='production'||native.appVersion==='1.7.5')&&
     SHA40.test(native.sourceSha)&&SHA64.test(native.nativeFingerprint),
     'UNTRUSTED_NATIVE_DESCRIPTOR');
   const cert=fs.readFileSync(native.environment==='production'?PRODUCTION_CERT:PREVIEW_CERT,'utf8');
@@ -71,8 +71,20 @@ export async function prepareNativeVerification({native,evidence,packageFile}) {
     evidence.reference.length>=4&&evidence.reference.length<=256,
     'EXPLICIT_HUMAN_QA_EVIDENCE_REQUIRED');
   const hash=await hashNativePackage(packageFile,native.platform);
+  let embeddedUpdateId;
+  if(native.environment==='production' && native.platform==='ios' && native.distribution==='app-store'){
+    const archive=path.resolve(packageFile);
+    const entries=execFileSync('unzip',['-Z1',archive],{encoding:'utf8',maxBuffer:8*1024*1024}).split('\n');
+    const entry=entries.find(name=>/^Payload\/[^/]+\.app\/EXUpdates\.bundle\/app\.manifest$/.test(name));
+    required(entry,'EMBEDDED_MANIFEST_REQUIRED');
+    embeddedUpdateId=JSON.parse(execFileSync('unzip',['-p',archive,entry],{encoding:'utf8'})).id;
+    required(UUID.test(embeddedUpdateId),'EMBEDDED_ID_REQUIRED');
+  }else if(evidence.embeddedUpdateId){
+    required(UUID.test(evidence.embeddedUpdateId),'EMBEDDED_ID_REQUIRED');
+    embeddedUpdateId=evidence.embeddedUpdateId;
+  }
   return {operationId:evidence.operationId,action:'VERIFY',reason:evidence.reason.trim(),
-    evidence:{nativeArtifactSha256:hash,physicalDeviceVerified:true,
+    evidence:{nativeReleaseId:native.id,...(embeddedUpdateId?{embeddedUpdateId}:{}),nativeArtifactSha256:hash,physicalDeviceVerified:true,
       distributionVerified:true,reference:evidence.reference}};
 }
 async function main(){

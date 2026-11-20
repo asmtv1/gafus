@@ -241,20 +241,33 @@ LOCAL_UPLOAD_ALLOWED_TYPES=image/jpeg,image/png,image/webp
 
 ### Email настройки
 
-Production-почта отправляется через Яндекс 360 SMTP от имени `Гафус <api@gafus.ru>`. GitHub Secrets должны содержать `SMTP_USER=api@gafus.ru` и `SMTP_PASS=<пароль приложения Яндекс 360>`; пароль основного аккаунта не используется.
+Production-почта по умолчанию отправляется через **Resend HTTPS API** с адреса
+`notifications@notify.gafus.ru`. Перед выпуском проверьте в производственном
+окружении `MAIL_PROVIDER=resend`, `RESEND_API_KEY`, `RESEND_FROM` и отдельный
+`RESEND_WEBHOOK_SECRET`. Секреты передаются через reusable workflow
+`production-deploy-reusable.yml`; успешное принятие Resend не означает доставку.
 
 ```env
-# SMTP / Яндекс 360
-SMTP_HOST=smtp.yandex.ru
-SMTP_PORT=465
-SMTP_SECURE=true
-SMTP_USER=api@gafus.ru
-SMTP_PASS=<yandex-app-password>
-MAIL_FROM=api@gafus.ru
+MAIL_PROVIDER=resend
+RESEND_API_KEY=<secret>
+RESEND_FROM=notifications@notify.gafus.ru
+RESEND_WEBHOOK_SECRET=<webhook-signing-secret>
+MAIL_REPLY_TO=api@gafus.ru
 MAIL_FROM_NAME=Гафус
 ```
 
-Для DNS домена `gafus.ru` production path использует MX `mx.yandex.net.`, DKIM `mail._domainkey` из Яндекс 360 и SPF `v=spf1 include:_spf.yandex.net ~all`. Старые Postfix/OpenDKIM и SMTP.BZ записи не нужны для отправки production-писем.
+**SMTP — явный резервный/локальный транспорт**, а не production default.
+Для переключения установите `MAIL_PROVIDER=smtp` и задайте `SMTP_HOST`,
+`SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`.
+Например, Яндекс 360 использует `smtp.yandex.ru:465` и пароль приложения,
+не пароль основного аккаунта. Фактическое переключение транспорта требует
+отдельного согласования; нельзя незаметно переключать Resend на SMTP при
+отсутствующем ключе.
+
+MX и DKIM Яндекс 360 относятся к получению почты/резервному SMTP.
+Для исходящих писем Resend необходимо отдельно подтвердить `notify.gafus.ru`
+и его DNS-записи у провайдера. Старые Postfix/OpenDKIM не входят в
+production Docker Compose.
 
 ### Push уведомления
 
@@ -269,9 +282,6 @@ PUSH_NOTIFICATIONS_ENABLED=true
 PUSH_BATCH_SIZE=100
 PUSH_RATE_LIMIT_MS=1000  # 1 секунда между батчами
 
-# RuStore Push (Android, устройства без GMS)
-RUSTORE_PUSH_SERVICE_TOKEN=<сервисный токен из RuStore Dev Console>
-RUSTORE_PROJECT_ID=PFFHd5eQK8rkDY9vAAeH4TYv3hlvkyMG
 ```
 
 ## 📊 Мониторинг и логирование

@@ -144,7 +144,6 @@ export async function resolveRewardedPlatformSettings(
           APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
           clientContext,
           settings.iosEnabled,
-          false,
         )
       : settings.iosEnabled;
   const byPlatform: Record<RewardedPlatform, { enabled: boolean; placementId: string | null }> = {

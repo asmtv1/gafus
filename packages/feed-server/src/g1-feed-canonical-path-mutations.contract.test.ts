@@ -1,6 +1,7 @@
 /** AG1-SOC-041: ambiguous empty path segments must not reach mutating Feed Core operations. */
 import { describe, expect, it, vi } from "vitest";
-import type { FeedService, FeedSocialService } from "@gafus/core/services/feed";
+import type { FeedService } from "./postRows.js";
+import type { FeedSocialService } from "./socialRows.js";
 
 vi.mock("@gafus/queues", () => ({ connection: { status: "end" } }));
 import { dispatchFeedRequest } from "./index.js";

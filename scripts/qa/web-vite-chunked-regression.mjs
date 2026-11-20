@@ -16,7 +16,10 @@ const repoSrc=join(appDir,'src');
 const runArg=process.argv.find(x=>x.startsWith('--run-id='));
 const runId=runArg?runArg.slice('--run-id='.length):'manual';
 if(!/^[a-z][a-z0-9-]{0,32}$/.test(runId))throw Error('WEB_QA_RUN_ID_INVALID');
-const artifacts=join(homedir(),`Library/Logs/gafus-refactor-regression/${runId}-web-chunks`);
+const legacyRoot = process.env.GAFUS_LEGACY_QA_OUTPUT_ROOT;
+if (legacyRoot && (!legacyRoot.startsWith(join(process.cwd(),'.qa/testing')+'/') ||
+    !legacyRoot.endsWith('/legacy') || legacyRoot.includes('..'))) throw Error('WEB_QA_ARTIFACT_ROOT_INVALID');
+const artifacts=join(legacyRoot || join(homedir(),'Library/Logs/gafus-refactor-regression'),runId+'-web-chunks');
 const sizeArg=process.argv.find(x=>x.startsWith('--chunk-size='));
 const chunkSize= sizeArg?Number(sizeArg.split('=')[1]):12;
 if(!Number.isInteger(chunkSize)||chunkSize<1||chunkSize>40)throw Error('WEB_CHUNK_SIZE_INVALID');
@@ -34,12 +37,14 @@ if(sourceFiles.length<300)throw Error(`WEB_FULL_TEST_DISCOVERY_UNDERFLOW:${sourc
 // Mount-heavy React suites create suspended lazy resources and large JSDOM
 // trees. Keep them in separate fresh Vitest processes to prevent cross-suite
 // act() overlap and resource contention. They are NEVER skipped or retried.
+// ExcusesRoute timed out starting a fork as batch-10's 12th mount suite
+// during 2026-11-19 v13 on 8 GB macOS; its own 12 tests pass isolated.
 const isolatedTestFiles=new Set([
  'src/features/articles/ArticleGuestRoutes.mounted.test.tsx',
+ 'src/features/excuses/ExcusesRoute.mounted.test.tsx',
  'src/features/consultations/ConsultationsConnectedFlow.mounted.test.tsx',
  'src/features/consultations/ConsultationsLivePage.mounted.test.tsx',
  'src/shared/auth/PrincipalIsolation.test.tsx',
- 'src/shared/auth/VkConsentWeb.test.tsx',
 ]);
 for(const file of isolatedTestFiles)if(!sourceFiles.includes(file))
  throw Error(`WEB_ISOLATED_TEST_MISSING:${file}`);

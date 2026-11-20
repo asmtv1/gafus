@@ -89,6 +89,13 @@ export function compare(current, previous) {
   return { added, removed, domainViolations };
 }
 
+// A resolved exception must disappear in the same change as its last caller.
+// Otherwise this ratchet silently permits re-introducing a removed dependency.
+export function check(current, previous) {
+  const diff = compare(current, previous);
+  return { ...diff, ok: !diff.added.length && !diff.removed && !diff.domainViolations.length };
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const current = inventory();
   if (process.argv.includes("--write-baseline")) {
@@ -103,11 +110,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.log("Frozen Core server-adapter baseline:", current.length);
   } else {
     const baseline = JSON.parse(fs.readFileSync(baselinePath, "utf8"));
-    const diff = compare(current, baseline.imports);
+    const diff = check(current, baseline.imports);
     console.log("Core server-adapter facades:", current.length,
       "remaining,", diff.removed, "resolved,", diff.added.length, "new");
-    if (diff.added.length || diff.domainViolations.length) {
+    if (!diff.ok) {
       console.error(JSON.stringify({
+        staleExceptions: diff.removed,
         new: diff.added,
         forbiddenDomainImports: diff.domainViolations,
       }, null, 2));

@@ -41,6 +41,8 @@ vi.mock("@gafus/auth/jwt", async importOriginal => ({
   assertCompletedUser: mocks.assertCompletedUser,
 }));
 
+import { passwordResetPort } from "../../modules/auth/composition/password-reset-instance.js";
+import { emailAccountRows } from "../../modules/auth/composition/email-account-rows-instance.js";
 import { authRoutes } from "./auth";
 import { authMiddleware } from "../../middleware/auth";
 import {
@@ -245,9 +247,9 @@ describe("MIG-AUTH-010 cookie + bearer interoperability", () => {
       });
     }));
     await requestPasswordReset("person@example.org");
-    expect(mocks.sendPasswordResetRequestByEmail).toHaveBeenCalledWith("person@example.org");
+    expect(mocks.sendPasswordResetRequestByEmail).toHaveBeenCalledWith("person@example.org", emailAccountRows);
     await confirmPasswordReset("a".repeat(40), "Password1");
-    expect(mocks.resetPassword).toHaveBeenCalledWith("a".repeat(40), "Password1");
+    expect(mocks.resetPassword).toHaveBeenCalledWith("a".repeat(40), "Password1", passwordResetPort);
     expect(calls).toEqual([
       "/api/v1/auth/password-reset-request", "/api/v1/auth/reset-password",
     ]);

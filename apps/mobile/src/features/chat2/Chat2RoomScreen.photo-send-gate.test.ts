@@ -29,7 +29,7 @@ describe("Chat 2.0 photo upload consent gate", () => {
   it("uploads only from the send handler, then sends confirmed attachments", () => {
     expect(send).toContain("const attachment = await chat2.upload(id, {");
     expect(send.indexOf("const attachment = await chat2.upload(id, {")).toBeLessThan(
-      send.indexOf("else await chat2.send(id, value, requestId, reply?.id, attachmentIds)"));
+      send.indexOf("await chat2.send(id, value, attempt.clientMessageId, reply?.id, attachmentIds)"));
     expect(send).toContain("if (!file.sourcePhoto) continue;");
     expect(send).toContain("preparedVariants: variants");
     expect(send).toContain("setMedia(previous => previous.map(item =>");

@@ -1,79 +1,84 @@
+"""Regression contracts for the Resend-first mail transport and SMTP fallback.
+
+Keep the legacy discovery filename: these tests replace the obsolete
+"Yandex SMTP is always the primary production provider" assertions after the
+mailer migration, without skipping any infrastructure tests.
+"""
 import pathlib
 import unittest
-
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
-class YandexSmtpInfraTest(unittest.TestCase):
-    def test_prod_compose_uses_yandex_smtp_without_postfix_service(self):
+class MailProviderInfrastructureTest(unittest.TestCase):
+    def test_prod_compose_defaults_to_resend_and_preserves_smtp_fallback_without_postfix(self):
         compose = (ROOT / "ci-cd/docker/docker-compose.prod.yml").read_text()
+        for forbidden in ("\n  postfix:\n", "gafus-postfix", "postfix_opendkim_keys",
+                          "MAIL_ALLOWED_SENDER_DOMAINS", "POSTFIX_"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, compose)
 
-        self.assertNotIn("\n  postfix:\n", compose)
-        self.assertNotIn("gafus-postfix", compose)
-        self.assertNotIn("postfix_opendkim_keys", compose)
-        self.assertNotIn("MAIL_ALLOWED_SENDER_DOMAINS", compose)
-        self.assertNotIn("POSTFIX_", compose)
-
-        expected_defaults = [
+        # API and Worker both require the exact same primary and fallback config.
+        expected = (
+            "MAIL_PROVIDER=${MAIL_PROVIDER:-resend}",
+            "RESEND_API_KEY=${RESEND_API_KEY:-}",
+            "RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}",
+            "RESEND_FROM=${RESEND_FROM:-notifications@notify.gafus.ru}",
+            "MAIL_REPLY_TO=${MAIL_REPLY_TO:-api@gafus.ru}",
             "SMTP_HOST=${SMTP_HOST:-smtp.yandex.ru}",
             "SMTP_PORT=${SMTP_PORT:-465}",
             "SMTP_SECURE=${SMTP_SECURE:-true}",
             "SMTP_USER=${SMTP_USER}",
             "SMTP_PASS=${SMTP_PASS}",
-            "MAIL_FROM=${MAIL_FROM:-api@gafus.ru}",
-            "MAIL_FROM_NAME=${MAIL_FROM_NAME:-Гафус}",
-        ]
-        for default in expected_defaults:
-            with self.subTest(default=default):
-                self.assertEqual(compose.count(f"- {default}"), 3)
+        )
+        for entry in expected:
+            with self.subTest(config=entry):
+                self.assertEqual(compose.count(f"- {entry}"), 2)
 
-    def test_workflows_write_yandex_smtp_env_without_postfix_references(self):
-        workflow_paths = [
-            ROOT / ".github/workflows/ci-cd.yml",
-            ROOT / ".github/workflows/deploy-only.yml",
-            ROOT / ".github/workflows/build-single-container.yml",
-        ]
-
-        for path in workflow_paths:
-            workflow = path.read_text()
-            with self.subTest(workflow=path.name):
-                self.assertIn("# SMTP / Yandex 360", workflow)
-                self.assertIn("SMTP_HOST=${{ vars.SMTP_HOST || 'smtp.yandex.ru' }}", workflow)
-                self.assertIn("SMTP_PORT=${{ vars.SMTP_PORT || '465' }}", workflow)
-                self.assertIn("SMTP_SECURE=${{ vars.SMTP_SECURE || 'true' }}", workflow)
-                self.assertIn("SMTP_USER=${{ secrets.SMTP_USER }}", workflow)
-                self.assertIn("SMTP_PASS=${{ secrets.SMTP_PASS }}", workflow)
-                self.assertIn("MAIL_FROM=${{ vars.MAIL_FROM || 'api@gafus.ru' }}", workflow)
-                self.assertIn("MAIL_FROM_NAME=${{ vars.MAIL_FROM_NAME || 'Гафус' }}", workflow)
-                self.assertNotIn("MAIL_ALLOWED_SENDER_DOMAINS", workflow)
-                self.assertNotIn("POSTFIX_MYHOSTNAME", workflow)
+    def test_reusable_release_workflow_supplies_resend_and_smtp_fallback_secrets(self):
+        release = (ROOT / ".github/workflows/production-deploy-reusable.yml").read_text()
+        expected = (
+            "MAIL_PROVIDER=${{ vars.MAIL_PROVIDER || 'resend' }}",
+            "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}",
+            "RESEND_WEBHOOK_SECRET=${{ secrets.RESEND_WEBHOOK_SECRET }}",
+            "MAIL_OUTBOX_ENCRYPTION_KEY=${{ secrets.MAIL_OUTBOX_ENCRYPTION_KEY }}",
+            "RESEND_FROM=${{ vars.RESEND_FROM || 'notifications@notify.gafus.ru' }}",
+            "SMTP_USER=${{ secrets.SMTP_USER }}",
+            "SMTP_PASS=${{ secrets.SMTP_PASS }}",
+        )
+        for entry in expected:
+            with self.subTest(config=entry):
+                self.assertEqual(release.count(entry), 1)
+        for workflow_name in ("ci-cd.yml", "deploy-only.yml"):
+            with self.subTest(workflow=workflow_name):
+                workflow = (ROOT / ".github/workflows" / workflow_name).read_text()
+                self.assertIn("./.github/workflows/production-deploy-reusable.yml", workflow)
                 self.assertNotIn("gafus-postfix", workflow)
-                self.assertNotIn(" postgres redis postfix", workflow)
 
-    def test_single_container_deploy_updates_smtp_in_existing_env(self):
+    def test_manual_single_container_build_does_not_inject_legacy_smtp_credentials(self):
         workflow = (ROOT / ".github/workflows/build-single-container.yml").read_text()
-
-        for key in [
-            "SMTP_HOST",
-            "SMTP_PORT",
-            "SMTP_SECURE",
-            "SMTP_USER",
-            "SMTP_PASS",
-            "MAIL_FROM",
-            "MAIL_FROM_NAME",
-        ]:
+        self.assertIn("MISSING_PREVIOUS_IMAGE", workflow)
+        self.assertIn("PRODUCTION_SHA_DIFFERS", workflow)
+        # Manual single image deployment must not independently rewrite the
+        # existing server's environment or overwrite transactional-mail secrets.
+        for key in ("SMTP_PASS", "RESEND_API_KEY", "MAIL_PROVIDER"):
             with self.subTest(key=key):
-                self.assertIn(f'ensure_env_var "{key}"', workflow)
+                self.assertNotIn(f'ensure_env_var "{key}"', workflow)
+        self.assertNotIn("gafus-postfix", workflow)
 
-    def test_docs_describe_yandex_360_as_production_smtp(self):
+    def test_docs_identify_resend_as_primary_and_smtp_as_explicit_fallback(self):
         mailer_doc = (ROOT / "docs/packages/mailer.md").read_text()
         deployment_doc = (ROOT / "docs/deployment/configuration.md").read_text()
-
-        self.assertIn("Яндекс 360", mailer_doc)
-        self.assertIn("smtp.yandex.ru", mailer_doc)
+        for doc in (mailer_doc, deployment_doc):
+            with self.subTest(document=doc[:60]):
+                self.assertIn("MAIL_PROVIDER=resend", doc)
+                self.assertIn("RESEND_API_KEY", doc)
+                self.assertIn("RESEND_FROM", doc)
+                self.assertIn("MAIL_PROVIDER=smtp", doc)
+                self.assertIn("SMTP_HOST", doc)
+        self.assertIn("RESEND_WEBHOOK_SECRET", mailer_doc)
         self.assertNotIn("SMTP/Postfix в Docker", mailer_doc)
 
-        self.assertIn("Яндекс 360", deployment_doc)
-        self.assertIn("smtp.yandex.ru", deployment_doc)
-        self.assertNotIn("smtp.gmail.com", deployment_doc)
+
+if __name__ == "__main__":
+    unittest.main()

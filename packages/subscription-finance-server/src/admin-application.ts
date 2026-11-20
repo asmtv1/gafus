@@ -198,7 +198,7 @@ export interface AppSubscriptionAdminDashboardRow {
     phone: string | null;
     fullName: string | null;
   };
-  provider: "YOOKASSA" | "APPLE" | "MANUAL";
+  provider: "YOOKASSA" | "APPLE" | "GOOGLE_PLAY" | "MANUAL";
   status: string;
   isActiveNow: boolean;
   isLifetime: boolean;

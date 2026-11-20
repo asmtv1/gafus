@@ -10,6 +10,7 @@
     "./voximplant-room": { "types": "./dist/VoxConsultationRoom.d.ts", "default": "./dist/VoxConsultationRoom.js" }
   },
   "scripts": {
+    "test:unit": "node ../../scripts/qa/workspace-gap-advisory.mjs --run --package @gafus/ui-components",
     "prebuild": "pnpm clean",
     "build": "tsc -p tsconfig.json",
     "clean": "rimraf dist",

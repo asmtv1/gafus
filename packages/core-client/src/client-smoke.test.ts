@@ -4,7 +4,6 @@ import { publicationPhaseLabel } from './feed/publication-client';
 import { isCdnOutage, parseMediaDeliveryStatus } from './media-delivery/index';
 import { petNameSchema } from './validation/pet';
 import { resolveRegistrationChannelFromBody } from './validation/auth-register';
-import { VK_ID_OAUTH_SCOPE } from './auth/vk-auth-constants';
 
 describe('browser-safe exported contracts', () => {
   it('keeps video and training helpers available without Core', () => {
@@ -23,6 +22,5 @@ describe('browser-safe exported contracts', () => {
   it('keeps registration and pet validation independent of Prisma', () => {
     expect(petNameSchema.safeParse('Шарик').success).toBe(true);
     expect(resolveRegistrationChannelFromBody(undefined)).toBe('UNKNOWN');
-    expect(VK_ID_OAUTH_SCOPE).toBe('email');
   });
 });

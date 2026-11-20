@@ -5,7 +5,7 @@ import {
  readAccessActorRole,hasCurrentPaidSubscription,hasAssignedPrivateCourse,hasActiveGafusArticleAccess,hasPaidChatDisplaySubscription,
 } from "@gafus/entitlements-server/policy-reads";
 import {resolveCourseEntitlement,resolveArticleEntitlement} from "../../packages/core/src/services/contentAccess/policy.js";
-import {getChatDisplayRole} from "../../packages/core/src/services/cynologistChat/authorRole.js";
+import {getChatDisplayRole} from "../../packages/core/src/services/user/chatDisplayRole.js";
 const url=new URL(process.env.DATABASE_URL??"http://invalid");
 if(process.env.GAFUS_LOCAL_ISOLATED_API!=="1" || process.env.GAFUS_ENTITLEMENTS_REAL_PG!=="1" ||
    url.protocol!=="postgresql:" || url.hostname!=="127.0.0.1" ||

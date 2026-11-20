@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { getSmartFeedHealth } from "./smart-health.js";
-import type { FeedDb } from "@gafus/core/services/feed";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
 
 describe("smart feed privacy-safe health counters", () => {
   it("reports aggregate signals without emitting user data", async () => {

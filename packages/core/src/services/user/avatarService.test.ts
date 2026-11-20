@@ -25,7 +25,7 @@ vi.mock("@gafus/cdn-upload", () => ({
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ info: mocks.logInfo, error: mocks.logError }),
 }));
-vi.mock("../cynologistChat/authorRole", () => ({
+vi.mock("./chatDisplayRole", () => ({
   getChatDisplayRole: async () => null,
 }));
 

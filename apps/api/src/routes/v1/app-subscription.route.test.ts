@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { promoCodeSqlPort } from "../../modules/app-subscription/composition/promo-code-rows-instance.js";
 
 const {
   cancelYookassaAppSubscriptionMock,
@@ -81,9 +82,10 @@ describe("app subscription route contracts", () => {
     delete process.env.WEB_APP_URL;
     delete process.env.NEXT_PUBLIC_WEB_APP_URL;
     delete process.env.NEXT_PUBLIC_APP_URL;
-    delete process.env.NEXTAUTH_URL;
     delete process.env.YOOKASSA_SHOP_ID;
     delete process.env.YOOKASSA_SECRET_KEY;
+    delete process.env.ANDROID_LEGACY_YOOKASSA_USER_IDS;
+    delete process.env.ANDROID_LEGACY_YOOKASSA_VERSIONS;
   });
 
   it("blocks YooKassa start for any recognized iOS regardless of legacy flag", async () => {
@@ -196,7 +198,7 @@ describe("app subscription route contracts", () => {
       planCode: "MONTHLY",
       promoCode: " kisa1488 ",
       clientContext: { platform: "android", version: "1.7.0" },
-    });
+    }, promoCodeSqlPort);
   });
 
   it("rejects promo preview from iOS before calling Core", async () => {
@@ -265,7 +267,32 @@ describe("app subscription route contracts", () => {
     });
   });
 
-  it("passes the applied promo snapshot and client context to mobile start", async () => {
+  it("rejects checkout from an unapproved Android account and from mobile bearer requests with no platform", async () => {
+    const app = createAuthenticatedTestApp();
+    try {
+      process.env.ANDROID_LEGACY_YOOKASSA_VERSIONS = "1.7.0";
+      process.env.ANDROID_LEGACY_YOOKASSA_USER_IDS = "another-account";
+      const cases: Record<string, string>[] = [
+        { authorization: "Bearer mock", "x-client-platform": "android", "x-client-version": "1.7.0" },
+        { authorization: "Bearer mock" },
+        { authorization: "Bearer mock", "x-client-platform": "android", "x-client-version": "1.7.5", "x-ota-update": "arbitrary" },
+      ];
+      for (const headers of cases) {
+        const response = await app.request(jsonRequest(
+          "/api/v1/app-subscription/yookassa/start", "POST", { planCode: "MONTHLY" }, headers,
+        ));
+        expect(response.status).toBe(403);
+      }
+      expect(startYookassaAppSubscriptionPaymentMock).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.ANDROID_LEGACY_YOOKASSA_USER_IDS;
+      delete process.env.ANDROID_LEGACY_YOOKASSA_VERSIONS;
+    }
+  });
+
+  it("passes the applied promo snapshot and client context to enrolled legacy Android checkout", async () => {
+    process.env.ANDROID_LEGACY_YOOKASSA_USER_IDS = "user-1";
+    process.env.ANDROID_LEGACY_YOOKASSA_VERSIONS = "1.7.0";
     const app = createAuthenticatedTestApp();
     process.env.WEB_APP_URL = "https://gafus.ru";
     process.env.YOOKASSA_SHOP_ID = "shop";

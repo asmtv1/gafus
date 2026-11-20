@@ -8,7 +8,14 @@ RUN_ID="${1:-architecture-20261111}"
 if [[ ! "$RUN_ID" =~ ^[a-z][a-z0-9-]{0,32}$ ]]; then
   echo "Invalid run id" >&2; exit 2
 fi
-OUT="$HOME/Library/Logs/gafus-refactor-regression/$RUN_ID"
+OUT_ROOT="$HOME/Library/Logs/gafus-refactor-regression"
+if [[ -n "${GAFUS_LEGACY_QA_OUTPUT_ROOT:-}" ]]; then
+  case "$GAFUS_LEGACY_QA_OUTPUT_ROOT" in
+    "$PWD"/.qa/testing/*/legacy) OUT_ROOT="$GAFUS_LEGACY_QA_OUTPUT_ROOT" ;;
+    *) echo "Invalid test-system legacy output directory" >&2; exit 2 ;;
+  esac
+fi
+OUT="$OUT_ROOT/$RUN_ID"
 mkdir -p "$OUT"
 summary="$OUT/results.tsv"
 : > "$summary"

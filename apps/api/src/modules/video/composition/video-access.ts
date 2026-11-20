@@ -11,6 +11,7 @@ import {
   hasPublishedDailyCourseVideo,
 } from "@gafus/course-read-server/video-access-read";
 import { hasAllowedVideoCourseStepAccess } from "@gafus/core/services/contentAccess";
+import { occurrenceReadPort } from "../../content-access/composition/occurrence-reads-instance.js";
 
 export const { checkVideoAccess, getVideoManifestInfo } = createVideoAccessService({
   manifest: readTrainerVideoManifest,
@@ -18,5 +19,6 @@ export const { checkVideoAccess, getVideoManifestInfo } = createVideoAccessServi
   stepOccurrences: readTrainerVideoStepOccurrences,
   dayOccurrences: readVideoCourseDayOccurrences,
   hasPublishedDailyCourseVideo,
-  allowedCourseStep: hasAllowedVideoCourseStepAccess,
+  allowedCourseStep: (userId, dayOnCourseId, stepOnDayId, now) =>
+    hasAllowedVideoCourseStepAccess(userId, dayOnCourseId, stepOnDayId, now, occurrenceReadPort),
 });

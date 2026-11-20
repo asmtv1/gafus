@@ -47,7 +47,7 @@ export async function sendBroadcastPush(
     // Lazy provider import keeps the normal Chat2/health API startup
     // independent of the CJS webpush package's static ESM re-exports.
     const { PushNotificationService, partitionPushSubscriptions,
-      sendExpoPushNotifications, sendRustorePushNotifications } =
+      sendExpoPushNotifications } =
         await import("@gafus/webpush");
     const rows = await prisma.pushSubscription.findMany({
       select: {
@@ -69,7 +69,7 @@ export async function sendBroadcastPush(
     const subscriptionLikes = rows.map((r) => ({ endpoint: r.endpoint, keys: r.keys }));
     const partitioned = partitionPushSubscriptions(subscriptionLikes);
     const totalTargets =
-      partitioned.web.length + partitioned.expo.length + partitioned.rustore.length;
+      partitioned.web.length + partitioned.expo.length;
 
     logger.info(`Найдено подписок: всего записей ${rows.length}, валидных к отправке ${totalTargets}`);
 
@@ -114,20 +114,9 @@ export async function sendBroadcastPush(
       failedCount += expoResult.failureCount;
     }
 
-    if (partitioned.rustore.length > 0) {
-      const rustoreResult = await sendRustorePushNotifications(partitioned.rustore, {
-        title,
-        body,
-        url: linkUrl,
-      });
-      sentCount += rustoreResult.successCount;
-      failedCount += rustoreResult.failureCount;
-    }
-
     logger.success("Массовая рассылка завершена", {
       web: partitioned.web.length,
       expo: partitioned.expo.length,
-      rustore: partitioned.rustore.length,
       sent: sentCount,
       failed: failedCount,
     });

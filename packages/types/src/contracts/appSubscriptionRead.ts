@@ -1,7 +1,7 @@
 /** Browser-safe subscription read DTO; no Prisma or Core imports. */
 export type AppSubscriptionPlanCode = "WEEKLY" | "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS";
 
-export type AppSubscriptionProvider = "YOOKASSA" | "APPLE" | "MANUAL";
+export type AppSubscriptionProvider = "YOOKASSA" | "APPLE" | "GOOGLE_PLAY" | "MANUAL";
 
 export type YookassaTrialUnavailableReason = "CARD_FINGERPRINT_REUSED";
 

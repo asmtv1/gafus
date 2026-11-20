@@ -76,7 +76,7 @@ export const pushSubscriptionDeviceStatusQueryOptions = {
   queryKey: ["push-subscription-device-status"] as const,
   queryFn: async () => {
     const tokens = await getCurrentDeviceTokens();
-    const endpoints = [tokens.expo, tokens.rustore].filter(
+    const endpoints = [tokens.expo].filter(
       (ep): ep is string => typeof ep === "string" && ep.length > 0,
     );
     const res = await subscriptionsApi.postPushDeviceStatus(endpoints);
@@ -101,7 +101,7 @@ export function pushDeviceStatusForActor(actor: PushActor | null) {
       if (!isSameVerifiedPushActor(actor)) throw new Error("PUSH_SESSION_CHANGED");
       const tokens = await getCurrentDeviceTokens();
       if (!isSameVerifiedPushActor(actor)) throw new Error("PUSH_SESSION_CHANGED");
-      const endpoints = [tokens.expo, tokens.rustore].filter(
+      const endpoints = [tokens.expo].filter(
         (ep): ep is string => typeof ep === "string" && ep.length > 0,
       );
       const res = await subscriptionsApi.postPushDeviceStatus(endpoints, () =>

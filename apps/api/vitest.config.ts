@@ -14,6 +14,7 @@ export default defineConfig({
     exclude: [
       "src/**/*real-pg*.test.ts",
       "src/**/*realpg*.test.ts",
+      "__tests__/**/*realpg*.test.ts",
       "src/**/*real-prisma-pg*.test.ts",
       "src/**/*real-work*.test.ts",
       // Full real S3/PG/Redis/CDN and Chat2/WS acceptances are intentionally

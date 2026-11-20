@@ -10,7 +10,6 @@ export const ROUTES = [
   "/passwordReset",
   "/reset-password",
   "/subscription",
-  "/vk-consent",
   "/questions/new",
   "/moments",
   "/moments/saved",
@@ -55,7 +54,7 @@ export type RoutePath =
   | `/cynologist-chats/${string}`
   | `/chats/${string}`;
 /** Historic notification target for an assigned trainer's private dialog.
- * The Hono GET /cynologist-chat?chatId=... is the access decision. */
+ * Chat2 authorization is enforced by its dedicated Hono routes, not by the old Stream endpoint. */
 export function chatDialogIdFromPath(path: string): string | null {
   const result = /^\/cynologist-chats\/([A-Za-z0-9_-]{1,128})$/.exec(path);
   return result?.[1] ?? null;

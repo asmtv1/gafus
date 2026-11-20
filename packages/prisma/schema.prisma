@@ -379,6 +379,7 @@ model User {
   username                         String                           @unique
   email                            String?                          @unique
   phone                            String?                          @unique
+  googlePlayAccountId String? @unique @db.VarChar(64)
   appleAppAccountToken             String?                          @unique @db.VarChar(36)
   password                         String
   passwordSetAt                    DateTime?
@@ -459,9 +460,6 @@ model User {
   savedRegistrationPromoCodeId     String?
   savedRegistrationPromoCode       AppSubscriptionPromoCode?       @relation("UserSavedRegistrationPromoCode", fields: [savedRegistrationPromoCodeId], references: [id], onDelete: SetNull)
   registrationEmailAttempts        RegistrationEmailAttempt[]
-  vkRegistrationContexts           VkRegistrationContext[]          @relation("VkRegistrationContextUser")
-  vkRegistrationResults            VkRegistrationContext[]          @relation("VkRegistrationContextResultUser")
-  vkLoginGrants                    VkLoginGrant[]
   rewardedCreditWallet             RewardedCreditWallet?
   gafusWallet                      GafusWallet?
   gafusTransactions                GafusTransaction[]
@@ -473,7 +471,6 @@ model User {
   gafusAdminAudits                  GafusAdminAudit[]              @relation("GafusAdminAuditActor")
   rewardedAdSessions               RewardedAdSession[]
   rewardedTargetAccesses           RewardedTargetAccess[]
-  vkIdOneTimeLogins                VkIdOneTimeLogin[]
   rewardedCreditTransactions       RewardedCreditTransaction[]
   updatedRewardedAdSettings        RewardedAdSettings[]
   updatedMobileAppReleasePolicies  MobileAppReleasePolicy[]         @relation("MobileAppReleasePolicyUpdatedBy")
@@ -1292,6 +1289,10 @@ model AppSubscription {
   renewalEmailThreeDaysSentForPeriodEnd DateTime?
   appleOriginalTransactionId      String?
   appleProductId                  String?
+  googlePlayPurchaseToken         String? @unique
+  googlePlaySupersededAt          DateTime?
+  googlePlayCheckedAt             DateTime?
+  googlePlayReplacesTokenHash     String? @db.VarChar(64)
 
   manualGrantedById String?
   manualGrantedBy   User?   @relation("ManualAppSubscriptionGrantedBy", fields: [manualGrantedById], references: [id], onDelete: SetNull)
@@ -1310,6 +1311,8 @@ model AppSubscription {
   @@index([provider, status, cancelAtPeriodEnd, currentPeriodEnd])
   @@index([planCode])
   @@index([appleOriginalTransactionId])
+  @@index([provider, googlePlayCheckedAt])
+  @@index([googlePlayReplacesTokenHash])
 }
 
 model AppSubscriptionTrial {
@@ -1466,23 +1469,6 @@ model PartnerPayout {
   @@index([partnerId, status, requestedAt])
 }
 
-/// Short-lived server-side context for the VK callback → consent → NextAuth flow.
-/// The opaque token itself never reaches the database; only its SHA-256 digest does.
-model VkIdOneTimeLogin {
-  id String @id @default(cuid())
-  tokenHash String @unique @db.VarChar(64)
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  requiresConsent Boolean @default(false)
-  consentCompletedAt DateTime?
-  consumedAt DateTime?
-  createdAt DateTime @default(now())
-
-  @@index([userId, expiresAt])
-  @@index([expiresAt])
-}
-
 /// Idempotency record for credential registration. Password is deliberately absent:
 /// a retry must verify it independently against the resulting user account.
 model RegistrationEmailAttempt {
@@ -1498,58 +1484,6 @@ model RegistrationEmailAttempt {
 
   @@index([dataFingerprint])
   @@index([userId])
-}
-
-/// Server-side OAuth/registration state. The browser sees only an opaque token;
-/// state is verified by hash and the PKCE verifier never enters a URL or cookie.
-model VkRegistrationContext {
-  id String @id @default(cuid())
-  contextTokenHash String @unique @db.VarChar(64)
-  stateHash String @unique @db.VarChar(64)
-  codeVerifier String @db.VarChar(128)
-  purpose VkRegistrationContextPurpose
-  expiresAt DateTime
-  selectedPromoCodeId String?
-  /// Normalized selection survives promo deletion so completion can reject it.
-  selectedPromoCodeValue String? @db.VarChar(128)
-  selectedPromoCode AppSubscriptionPromoCode? @relation("VkRegistrationContextSelectedPromoCode", fields: [selectedPromoCodeId], references: [id], onDelete: SetNull)
-  userId String?
-  user User? @relation("VkRegistrationContextUser", fields: [userId], references: [id], onDelete: SetNull)
-  resultUserId String?
-  resultUser User? @relation("VkRegistrationContextResultUser", fields: [resultUserId], references: [id], onDelete: SetNull)
-  loginGrants VkLoginGrant[]
-  completionFingerprint String? @db.VarChar(64)
-  completedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([expiresAt])
-  @@index([userId, expiresAt])
-  @@index([resultUserId])
-  @@index([completionFingerprint])
-  @@index([selectedPromoCodeId])
-}
-
-/// Replacement for legacy VkIdOneTimeLogin tokens. Each opaque grant is hashed,
-/// short-lived and consumed atomically; reissue creates a different row/token.
-model VkLoginGrant {
-  id String @id @default(cuid())
-  tokenHash String @unique @db.VarChar(64)
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  purpose VkLoginGrantPurpose
-  expiresAt DateTime
-  consentCompletedAt DateTime?
-  consumedAt DateTime?
-  reissuedFromId String?
-  registrationContextId String?
-  registrationContext VkRegistrationContext? @relation(fields: [registrationContextId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-
-  @@index([userId, expiresAt])
-  @@index([expiresAt])
-  @@index([reissuedFromId])
-  @@index([registrationContextId])
 }
 
 model NpdConnection {
@@ -1681,7 +1615,6 @@ model AppSubscriptionPromoCode {
   payments AppSubscriptionPayment[]
   partnerProfile PartnerProfile? @relation("PartnerProfilePromoCode")
   savedForRegistrationBy User[] @relation("UserSavedRegistrationPromoCode")
-  vkRegistrationContexts VkRegistrationContext[] @relation("VkRegistrationContextSelectedPromoCode")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2319,17 +2252,6 @@ enum RegistrationEmailAttemptResult {
   VALIDATION_ERROR
 }
 
-enum VkRegistrationContextPurpose {
-  REGISTER
-  LOGIN
-  LINK_ACCOUNT
-}
-
-enum VkLoginGrantPurpose {
-  LOGIN
-  REGISTRATION_CONSENT
-}
-
 enum PetType {
   DOG
   CAT
@@ -2374,6 +2296,7 @@ enum AppSubscriptionProvider {
   YOOKASSA
   APPLE
   MANUAL
+  GOOGLE_PLAY
 }
 
 enum AppSubscriptionPlanCode {
@@ -2595,14 +2518,12 @@ model ArticleGuestView {
 model AppFeatureFlag {
   key           String   @id @db.VarChar(64)
   enabled       Boolean  @default(false)
-  reviewEnabled Boolean?
   updatedAt     DateTime @updatedAt
 }
 
-/// Управляет точной iOS-версией, которая должна получать review-профиль фича-флагов.
+/// Legacy OTA settings and revision audit; no review-specific policies.
 model MobileAppReleasePolicy {
   key              String   @id @default("default") @db.VarChar(32)
-  iosReviewVersion String?  @db.VarChar(32)
   otaRequired      Boolean  @default(false)
   otaVersion       String?  @db.VarChar(48)
   otaPlatform      String   @default("all") @db.VarChar(16)
@@ -4405,8 +4326,38 @@ model MobileOtaRelease {
   activeIn           MobileOtaDeployment[] @relation("ActiveMobileOta")
   previousIn         MobileOtaDeployment[] @relation("PreviousMobileOta")
 
-  @@unique([appId, platform, environment, channel, runtimeVersion, revision], map: "mobile_ota_revision_unique")
+  signingExpiresAt   DateTime?
+  releaseTitle       String? @db.VarChar(100)
+  recoveryFor        Int?
+  allowsCheckout     Boolean @default(false)
+
+  @@unique([nativeReleaseId, revision], map: "mobile_ota_native_revision_unique")
   @@index([platform, environment, channel, runtimeVersion, state])
+}
+
+model MobileOtaPublication {
+  platform        String @db.VarChar(12)
+  runtimeVersion  String @db.VarChar(100)
+  sequence        Int
+  operationId     String @unique @db.Uuid
+  commandHash     String @db.VarChar(64)
+  actorId         String
+  action          String
+  public          Boolean
+  required        Boolean
+  revision        Int
+  title           String @db.VarChar(100)
+  releaseIds      String[] @db.Uuid
+  createdAt       DateTime @default(now())
+  @@id([platform, runtimeVersion, sequence])
+}
+
+model MobileOtaInstallationObservation {
+  identity        String @id @db.VarChar(64)
+  nativeReleaseId String @db.Uuid
+  currentUpdateId String? @db.Uuid
+  observedAt      DateTime @default(now())
+  @@index([observedAt], map: "ota_observation_age")
 }
 
 model MobileOtaArtifact {

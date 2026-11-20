@@ -1,0 +1,8 @@
+{"schema":1,"cases":[
+ "transactional_three_scope_enqueue",
+ "fake_storage_sweep_and_cdn_checkpoint",
+ "queued_cdn_ack_to_sql_done",
+ "idempotent_worker_rerun",
+ "foreign_user_and_audit_unchanged",
+ "redis_isolated_and_sql_queue_fenced"
+]}

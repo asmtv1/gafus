@@ -26,6 +26,7 @@ const isolatedConfig = mergeConfig(apiUnitConfig, defineConfig({
     include: [
       "src/**/*real-pg*.test.ts",
       "src/**/*realpg*.test.ts",
+      "__tests__/**/*realpg*.test.ts",
       "src/**/*real-prisma-pg*.test.ts",
       "src/**/*real-work*.test.ts",
     ],

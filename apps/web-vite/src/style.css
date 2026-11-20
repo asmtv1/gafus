@@ -746,18 +746,6 @@ button:disabled { opacity: 0.65; cursor: default; }
 @media(max-width:440px){.post-detail-readonly header{flex-direction:column;
  align-items:stretch}}
 
-/* WEB-URL-004 guest-only VK consent mock, no live credentials */
-.vk-consent-panel{min-width:0;max-width:100%;border:1px solid #d9e4d6;
- background:#fff;border-radius:.75rem;padding:.9rem;overflow-wrap:anywhere}
-.vk-consent-panel header{display:flex;gap:.65rem;align-items:center;
- justify-content:space-between;flex-wrap:wrap}
-.vk-consent-panel form{display:grid;gap:.85rem}
-.vk-consent-row{display:flex;gap:.6rem;align-items:flex-start;min-width:0}
-.vk-consent-row input{flex:0 0 auto;margin-top:.3rem}
-.vk-consent-entry{margin:.8rem 0}
-@media(max-width:440px){.vk-consent-panel header{flex-direction:column;
- align-items:stretch}}
-
 /* WEB-URL-028 owner-only partner read status and referral dashboard */
 .partner-panel{min-width:0;max-width:100%;background:#fff;
  border:1px solid #dbe4d8;border-radius:.8rem;padding:.85rem;

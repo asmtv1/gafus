@@ -7,7 +7,8 @@
  */
 import { realpathSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
-import { createFeedStorageJobs } from "../../packages/core/src/services/feed/jobs";
+import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
+import { createFeedStorageJobs } from "../../packages/feed-server/src/storageJobs";
 import { createFeedStorage } from "../../packages/feed-storage/src/storage";
 import { isolatedNonprodS3Config } from "../../packages/cdn-upload/src/isolatedNonprodS3";
 import { createFeedCloudObjects } from "../../apps/feed-cloud/src/objects";
@@ -44,7 +45,7 @@ const db = new PrismaClient();
 const storage = createFeedStorage({
   enabled: true, isolatedNonprod: true, ...config, cdnBaseUrl: "", cdnSecret: "",
 });
-const jobs = createFeedStorageJobs({ db, storage });
+const jobs = createFeedStorageJobs({ db, storage, enqueueDeletedMediaPurge });
 const worker = createFeedCloudWorker({
   core: {
     claimJobs: (size, kind) => jobs.claim(size, kind),

@@ -1,9 +1,5 @@
-/** Bind the authoritative transactionally updated PostgreSQL course content
- * revision. Redis publication remains a best-effort hint, never the truth.
- * The Core reader fails closed to direct uncached reads on DB failure.
- */
+/** Backwards-compatible registrar for isolated legacy tests only. The API
+ * composition root uses `training-content-rows-instance` directly. */
 import { registerCourseContentRevisionReadPort } from "@gafus/core/services/training";
-import { readDurableCourseContentRevision } from "@gafus/course-read-server/content-revision";
-
-const contentRevisionReadPort = { readDurableCourseContentRevision };
+import { contentRevisionReadPort } from "./training-content-rows-instance.js";
 registerCourseContentRevisionReadPort(contentRevisionReadPort);

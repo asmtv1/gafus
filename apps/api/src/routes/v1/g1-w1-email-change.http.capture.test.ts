@@ -21,6 +21,7 @@ vi.mock("@gafus/core/services/auth",()=>({
 }));
 vi.mock("@gafus/feature-flags-server",()=>({APP_FEATURE_MOBILE_VK_LOGIN_IOS:"mobile_vk_login_ios",getMobileFeatureFlagEnabled:vi.fn()}));
 vi.mock("@gafus/logger",()=>({createWebLogger:()=>({info:vi.fn(),error:vi.fn(),warn:vi.fn(),debug:vi.fn()})}));
+import { emailAccountRows } from "../../modules/auth/composition/email-account-rows-instance.js";
 import { authRoutes } from "./auth";
 const BASE="/api/v1/auth",CAPTURE="/Users/asmtv1/Desktop/gafus-refactor/apps/api/.w1-email-ag1-isolated-20261017/captures";
 const enabled=process.env.W1_CAPTURE_DIR===CAPTURE&&process.env.TMPDIR?.startsWith("/Users/asmtv1/Desktop/gafus-refactor/apps/api/.w1-email-ag1-isolated-20261017/tmp/");
@@ -80,12 +81,12 @@ const mail="fresh@sample.test";
   const x=await hit({route:"request",body:{newEmail:mail}});expect(x.response.status).toBe(200);expect(x.response.json).toEqual({success:true});expect(m.pending.size).toBe(1);expect(m.mailCount).toBe(1);expect(m.users.get("A")).toBe("a@sample.test");await save("EC-01",[x]);
  });
  it("EC-02 guest receives 401, no Core side effects",async()=>{const x=await hit({route:"request",actor:"guest",body:{newEmail:mail}});expect(x.response.status).toBe(401);expect(m.request).not.toHaveBeenCalled();await save("EC-02",[x],["Observe rather than invent no-store"]);});
- it("EC-03 extra claimed userId B must not displace JWT principal A",async()=>{const x=await hit({route:"request",body:{newEmail:mail,userId:"B",role:"ADMIN"}});expect(x.response.status).toBe(200);expect(m.request).toHaveBeenCalledWith("A",mail);expect(m.users.get("B")).toBe("b@sample.test");await save("EC-03",[x],["Zod object strips unknown ownership fields"]);});
+ it("EC-03 extra claimed userId B must not displace JWT principal A",async()=>{const x=await hit({route:"request",body:{newEmail:mail,userId:"B",role:"ADMIN"}});expect(x.response.status).toBe(200);expect(m.request).toHaveBeenCalledWith("A",mail,undefined,emailAccountRows);expect(m.users.get("B")).toBe("b@sample.test");await save("EC-03",[x],["Zod object strips unknown ownership fields"]);});
  it("EC-04 empty, non-FQDN, malformed JSON, wrong MIME, oversized HTTP request",async()=>{
   const xs=await Promise.all([{route:"request",body:{newEmail:""}},{route:"request",body:{newEmail:"test@invalid"}},{route:"request",raw:"{broken"},{route:"request",raw:JSON.stringify({newEmail:mail}),type:"text/plain"},{route:"request",body:{newEmail:"x".repeat(1400)+"@example.com"}}].map(a=>hit(a as Op)));
   expect(xs.every(x=>x.response.status>=400)).toBe(true);expect(m.request).not.toHaveBeenCalled();await save("EC-04",xs,["Observe 400/413/415 from real Hono; MX DNS not asserted"]);
  });
- it("EC-05 current case-insensitive email conflict",async()=>{const x=await hit({route:"request",body:{newEmail:"  A@SAMPLE.TEST  "}});expect(x.response.status).toBe(400);expect(m.request).toHaveBeenCalledWith("A","a@sample.test");expect(m.pending.size).toBe(0);await save("EC-05",[x]);});
+ it("EC-05 current case-insensitive email conflict",async()=>{const x=await hit({route:"request",body:{newEmail:"  A@SAMPLE.TEST  "}});expect(x.response.status).toBe(400);expect(m.request).toHaveBeenCalledWith("A","a@sample.test",undefined,emailAccountRows);expect(m.pending.size).toBe(0);await save("EC-05",[x]);});
  it("EC-06 another user holds target: actual Hono 400 not guessed 409",async()=>{const x=await hit({route:"request",body:{newEmail:"b@sample.test"}});expect(x.response.status).toBe(400);expect(JSON.stringify(x.response.json)).not.toContain('"B"');await save("EC-06",[x]);});
  it("EC-07 sequential request replacement simulated in fake Core",async()=>{const a=await hit({route:"request",body:{newEmail:mail}});const first=m.latest.get("A")!;const b=await hit({route:"request",body:{newEmail:"last@sample.test"}});expect(m.pending.has(first)).toBe(false);expect(m.pending.size).toBe(1);expect(m.mailCount).toBe(2);await save("EC-07",[a,b],["DB/mailer modeled, no real transaction evidence"]);});
  it("EC-08 concurrency with fake Core cannot establish DB uniqueness",async()=>{const x=await Promise.all([hit({route:"request",body:{newEmail:"one@sample.test"}}),hit({route:"request",body:{newEmail:"two@sample.test"}})]);expect(x.every(a=>a.response.status===200)).toBe(true);await save("EC-08",x,["Fake Core serial in-memory; PostgreSQL race UNPROVEN; two mail attempts observed in model"]);});

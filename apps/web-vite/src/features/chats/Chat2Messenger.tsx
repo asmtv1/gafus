@@ -12,6 +12,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import { CHAT2_EMOJIS, updateChat2ReactionSummary } from "./messageReactions";
+import { reserveChatSendAttempt, type ChatSendAttempt } from "@gafus/core-client/chat2/send-attempt";
 import { Centrifuge } from "centrifuge";
 import {
   chat2SubscriptionForConnection,
@@ -948,7 +949,7 @@ function Chat2Room({
   const [reportReason, setReportReason] = useState<"SPAM" | "ABUSE" | "OTHER">("SPAM");
   const [reportComment, setReportComment] = useState("");
   const [reportNotice, setReportNotice] = useState("");
-  const pendingSend = useRef<{ fingerprint: string; clientMessageId: string } | null>(null);
+  const pendingSend = useRef<ChatSendAttempt | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [edit, setEdit] = useState<Chat2Message | null>(null);
@@ -1351,12 +1352,13 @@ function Chat2Room({
         item.attachment ? [item.attachment.id] : [],
       );
       const quoted = reply?.id;
-      const fingerprint = JSON.stringify([id, text, quoted ?? null, attachmentIds]);
-      const clientMessageId =
-        pendingSend.current?.fingerprint === fingerprint
-          ? pendingSend.current.clientMessageId
-          : crypto.randomUUID();
-      pendingSend.current = { fingerprint, clientMessageId };
+      const attempt = reserveChatSendAttempt(
+        pendingSend.current,
+        { actorId: ownerId, conversationId: id, text, replyToId: quoted, attachmentIds },
+        () => crypto.randomUUID(),
+      );
+      pendingSend.current = attempt;
+      const clientMessageId = attempt.clientMessageId;
       await chat2Api.send(id, {
         text,
         clientMessageId,

@@ -37,7 +37,7 @@ const actor = JSON.parse(actorJson) as { id: string };
 check(actor?.id && /^[A-Za-z0-9_-]{1,128}$/.test(actor.id), "LOCAL_ACTOR");
 process.env.DATABASE_URL = raw;
 const [{ prisma }, { createFeedService }] = await Promise.all([
-  import("@gafus/prisma"), import("../../../../packages/core/src/services/feed/service"),
+  import("@gafus/prisma"), import("../../../../packages/feed-server/src/postRows"),
 ]);
 try {
   // Fail closed for any sign operation; all preserved legacy keys must simply be omitted.

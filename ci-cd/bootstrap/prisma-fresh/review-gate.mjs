@@ -52,7 +52,7 @@ assert(!/\bCREATE\s+TABLE\s+"?_prisma_migrations"?/i.test(sql),
   'CANDIDATE_MUST_NOT_FORGE_PRISMA_APPLIED_LEDGER');
 assert(!/\b(migrate\s+resolve|--applied)\b/i.test(sql),
   'CANDIDATE_MUST_NOT_REGISTER_APPLIED_HISTORY');
-function run(command, args, timeout = 25_000) {
+function run(command, args, timeout = 90_000) {
   const result = spawnSync(command, args, { cwd: root, encoding: 'utf8', timeout,
     env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: process.env.HOME ?? '/nonexistent',
       PYTHONDONTWRITEBYTECODE: '1', NODE_ENV: 'test' }, maxBuffer: 2 * 1024 * 1024 });

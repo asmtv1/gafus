@@ -11,7 +11,6 @@ export type ProfileOverview = {
   /** Owner-only Hono projection, never shared via the public profile. */
   email?: string | null;
   hasAppPassword?: boolean;
-  hasVkLinked?: boolean;
   profile: {
     fullName: string | null;
     city: string | null;
@@ -86,8 +85,6 @@ export async function getMyProfile(): Promise<ProfileOverview> {
     ...(ownerEmail !== undefined ? { email: ownerEmail } : {}),
     ...(typeof user.hasAppPassword === "boolean"
       ? {hasAppPassword:user.hasAppPassword} : {}),
-    ...(typeof user.hasVkLinked === "boolean"
-      ? {hasVkLinked:user.hasVkLinked} : {}),
     profile: {
       fullName: profile.fullName,
       city: profile.city,

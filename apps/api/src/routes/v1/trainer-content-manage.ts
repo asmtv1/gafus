@@ -1,3 +1,5 @@
+import type { TrainerStepRowsPort } from "@gafus/core/services/trainerStep";
+import type { TrainingDayRowsPort } from "@gafus/core/services/trainingDay";
 /**
  * Owner-scoped step/day editor endpoints. Existing Core owns the business
  * mutations/cache revisions; Hono supplies authenticated actor and strict DTOs.
@@ -112,6 +114,25 @@ const production: TrainerContentPorts = {
     countSteps: countEditableDaySteps,
   },
 };
+
+/** Production uses a per-route typed day SQL port instead of the legacy
+ * module-level registration. The step port stays unchanged until migrated. */
+export function createProductionTrainerContentPorts(dayRows: TrainingDayRowsPort, stepRows?: TrainerStepRowsPort): TrainerContentPorts {
+  return {
+    ...production,
+    step: {
+      read: (id, who) => getStepForEdit(id, who, stepRows),
+      update: (input, who) => updateStep(input, who, stepRows),
+      remove: (input, who) => deleteSteps(input, who, stepRows),
+    },
+    day: {
+      ...production.day,
+      read: (id, who) => getTrainingDayForEdit(id, who, dayRows),
+      update: (input, who) => updateTrainingDay(input, who, dayRows),
+      remove: (input, who) => deleteDays(input, who, dayRows),
+    },
+  };
+}
 
 // Batch routes have the same all-or-nothing owner fencing as single deletion.
 // All ID authorization and the actual deletion are atomic in Core.

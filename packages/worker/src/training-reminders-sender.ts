@@ -10,7 +10,6 @@ import { PushNotificationService } from "@gafus/webpush";
 import {
   partitionPushSubscriptions,
   sendExpoPushNotifications,
-  sendRustorePushNotifications,
 } from "@gafus/webpush";
 import { shouldSendTrainingReminder, trainingReminderLocalDayKey,
   getTrainingReminderLocalTime, trainingReminderAlreadySentToday,
@@ -33,7 +32,7 @@ interface SendResult {
   errors: number;
 }
 
-// Native Expo/RuStore deliveries do not require WebPush VAPID credentials.
+// Native Expo deliveries do not require WebPush VAPID credentials.
 // Do not make the entire worker bootstrap fail just because browser push is
 // unconfigured in an isolated development environment.
 let webPushService: PushNotificationService | null = null;
@@ -80,7 +79,7 @@ async function sendReminderToUser(
         webResults = await getWebPushService().sendNotifications(partitioned.web, payload);
       } catch (error) {
         // Browser-push configuration or transport failures must not suppress
-        // the independent Expo/RuStore transport. No endpoint is removed on
+        // the independent Expo transport. No endpoint is removed on
         // ambiguous failures; only provider-confirmed invalid ones are purged.
         logger.error("Не удалось отправить WebPush", error as Error);
         webResults.failureCount = partitioned.web.length;
@@ -107,19 +106,10 @@ async function sendReminderToUser(
         })
       : { successCount: 0, failureCount: 0, deletedCount: 0, temporaryFailureCount: 0 };
 
-    const rustoreResults =
-      partitioned.rustore.length > 0 ?
-        await sendRustorePushNotifications(partitioned.rustore, {
-          title: "Напоминание о тренировке",
-          body: reminderName,
-          url: "/courses",
-        })
-      : { successCount: 0, failureCount: 0, deletedCount: 0, temporaryFailureCount: 0 };
-
     const successCount =
-      webResults.successCount + expoResults.successCount + rustoreResults.successCount;
+      webResults.successCount + expoResults.successCount;
     const failureCount =
-      webResults.failureCount + expoResults.failureCount + rustoreResults.failureCount;
+      webResults.failureCount + expoResults.failureCount;
 
     if (successCount > 0) {
       logger.success("Напоминание отправлено", {
@@ -129,8 +119,6 @@ async function sendReminderToUser(
         webFailureCount: webResults.failureCount,
         expoSuccessCount: expoResults.successCount,
         expoFailureCount: expoResults.failureCount,
-        rustoreSuccessCount: rustoreResults.successCount,
-        rustoreFailureCount: rustoreResults.failureCount,
       });
       return { success: true };
     } else {

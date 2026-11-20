@@ -2,6 +2,7 @@
  * The old single MobileAppReleasePolicy OTA switch must never control SDK57 clients.
  */
 import { prisma } from "@gafus/prisma";
+import {versionOwnsScope} from "./version-publication.js";
 import type { MandatoryOtaPolicy } from "./mandatory-policy.js";
 
 export type OtaPlatform = "ios" | "android";
@@ -94,6 +95,7 @@ export async function updateMandatoryOtaControl(input: UpdateMandatoryControl): 
       if (!saved[0] || saved[0].revision < item.revision) throw new MandatoryControlError("MANDATORY_STATE_CONFLICT");
       return saved[0];
     }
+    if(await versionOwnsScope(tx,input))throw new MandatoryControlError("VERSION_PUBLICATION_MANAGED");
     if (input.required) {
       const publishable = await tx.$queryRaw<{id:string}[]>`
         SELECT d.id FROM "MobileOtaDeployment" d

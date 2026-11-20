@@ -1,0 +1,12 @@
+appId: ru.gafus.app
+name: GAFUS QA completion survives reconnect and restart
+---
+- extendedWaitUntil:
+    notVisible: "Нет подключения к интернету"
+    timeout: 120000
+- stopApp
+- launchApp
+- openLink: ${QA_TRAINING_LINK}
+- tapOn: ${QA_STEP_TITLE}
+- assertVisible: "Упражнение выполнено"
+- assertNotVisible: "Я выполнил"

@@ -23,7 +23,8 @@ vi.mock("@gafus/prisma", async importOriginal => ({
 const prisma = database;
 
 import { dispatchFeedRequest } from "./index.js";
-import type { FeedService, FeedSocialService } from "@gafus/core/services/feed";
+import type { FeedService } from "./postRows.js";
+import type { FeedSocialService } from "./socialRows.js";
 
 const owner = "viewer_1";
 const sessionId = "123e4567-e89b-42d3-a456-426614174000";

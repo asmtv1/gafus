@@ -1,0 +1,753 @@
+import { ensureFeedPublishingAllowed } from "./preferenceRows.js";
+import { randomUUID } from "node:crypto";
+import type {
+  FeedCommentDto,
+  FeedCommentPageDto,
+  FeedCommentInput,
+  FeedCommentEditInput,
+  FeedListQuery,
+  FeedReaction,
+  FeedReactionUserPageDto,
+  FeedNotificationDto,
+  FeedNotificationPageDto,
+} from "@gafus/types";
+import { FEED_LIMITS as L } from "@gafus/types";
+import {
+  FeedError,
+  createFeedCommentRenderer,
+  kindToReaction,
+  feedPersonDto as userDto,
+  assertFeedCommentEditable,
+  assertFeedCommentRemovable,
+  createFeedReactionCommands,
+  type FeedReactionCommands,
+  encodeFeedSocialCursor as cursor,
+  decodeFeedSocialCursor as decodeCursor,
+  type FeedStoragePort,
+} from "@gafus/core/services/feed";
+import { feedReactionToKind } from "@gafus/core/services/feed";
+import {
+  lockGafusPostReactionTx,
+  advanceGafusReactionMilestonesTx,
+  type GafusTx,
+} from "@gafus/core/services/gafus";
+import type { FeedDb, FeedTx } from "@gafus/media-shared/media-db-ports";
+import * as s from "@gafus/core/services/feed";
+const profile = {
+  id: true,
+  username: true,
+  profile: { select: { fullName: true, avatarUrl: true } },
+} as const;
+const commentInclude = { author: { select: profile } } as const;
+export function createFeedSocial({
+  db,
+  storage,
+  now = () => new Date(),
+  enabled = () => false,
+}: {
+  db: FeedDb;
+  storage?: Pick<FeedStoragePort, "signCdn" | "longLivedUrls">;
+  now?: () => Date;
+  enabled?: () => boolean;
+}) {
+  async function auth(actorId: string) {
+    if (!enabled()) throw new FeedError("FEED_DISABLED", undefined, 503);
+    if (
+      !s.feedIdSchema.safeParse(actorId).success ||
+      !(await db.user.findUnique({ where: { id: actorId }, select: { id: true } }))
+    ) {
+      throw new FeedError("UNAUTHENTICATED", undefined, 401);
+    }
+  }
+  const transaction = <T>(fn: (tx: FeedTx) => Promise<T>) =>
+    db.$transaction(fn, { maxWait: 10_000, timeout: 30_000 });
+  async function readablePost(tx: Pick<FeedTx, "feedPost">, id: string) {
+    const post = await tx.feedPost.findFirst({
+      where: { id, status: "published", deletedAt: null, moderationState: "visible" },
+    });
+    if (!post) throw new FeedError("NOT_FOUND", undefined, 404);
+    return post;
+  }
+  async function readableComment(tx: FeedTx, id: string) {
+    const row = await tx.feedComment.findUnique({ where: { id }, include: { post: true } });
+    if (
+      !row ||
+      row.deletedAt ||
+      row.moderationState !== "visible" ||
+      row.post.moderationState !== "visible" ||
+      row.post.deletedAt ||
+      row.post.status !== "published"
+    )
+      throw new FeedError("NOT_FOUND", undefined, 404);
+    return row;
+  }
+  const commentDto = createFeedCommentRenderer(
+    {
+      async readCommentActivity(actorId, ids, addressedIds) {
+        const [counts, mine, replies, addressed] = await Promise.all([
+          db.feedCommentReaction.groupBy({
+            by: ["commentId", "kind"],
+            where: { commentId: { in: ids } },
+            _count: { _all: true },
+          }),
+          db.feedCommentReaction.findMany({
+            where: { commentId: { in: ids }, userId: actorId },
+            select: { commentId: true, kind: true },
+          }),
+          db.feedComment.groupBy({
+            by: ["rootId"],
+            where: { rootId: { in: ids } },
+            _count: { _all: true },
+          }),
+          db.feedComment.findMany({
+            where: { id: { in: addressedIds } },
+            select: { id: true, author: { select: profile } },
+          }),
+        ]);
+        return {
+          counts: counts.map((row) => ({
+            commentId: row.commentId,
+            kind: row.kind,
+            count: row._count._all,
+          })),
+          mine,
+          replies: replies.map((row) => ({ rootId: row.rootId, count: row._count._all })),
+          addressed,
+        };
+      },
+      async readCommentMedia(ids) {
+        const mediaRows = await db.feedCommentMedia.findMany({
+          where: { commentId: { in: ids } },
+          orderBy: { position: "asc" },
+          include: { media: true },
+        });
+        return mediaRows;
+      },
+    },
+    now,
+    storage,
+  );
+
+  async function notification(
+    tx: FeedTx,
+    recipientId: string,
+    postId: string,
+    commentId: string | null,
+    kind: "comment" | "reply",
+    actorId: string,
+    at: Date,
+  ) {
+    if (recipientId === actorId) return;
+    const record = await tx.feedNotification.create({
+      data: { recipientId, postId, commentId, kind, actorIds: [actorId], createdAt: at },
+    });
+    await tx.feedNotificationOutbox.create({
+      data: { id: randomUUID(), notificationId: record.id, recipientId, availableAt: at },
+    });
+  }
+  async function groupedReaction(
+    tx: FeedTx,
+    recipientId: string,
+    postId: string,
+    commentId: string | null,
+    kind: "post_reaction" | "comment_reaction",
+    actorId: string,
+    reaction: keyof typeof kindToReaction,
+    at: Date,
+  ) {
+    if (recipientId === actorId) return;
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${recipientId} FOR UPDATE`;
+    const groupKey = `${recipientId}:${kind}:${commentId ?? postId}`;
+    const open = await tx.feedNotification.findFirst({
+      where: {
+        recipientId,
+        groupKey,
+        createdAt: { gte: new Date(at.getTime() - L.reactionBatchSeconds * 1000) },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (open) {
+      await tx.feedNotification.update({
+        where: { id: open.id },
+        data: {
+          actorIds: [...new Set([...open.actorIds, actorId])],
+          reaction,
+        },
+      });
+    } else {
+      const record = await tx.feedNotification.create({
+        data: {
+          recipientId,
+          postId,
+          commentId,
+          kind,
+          groupKey,
+          actorIds: [actorId],
+          reaction,
+          createdAt: at,
+        },
+      });
+      await tx.feedNotificationOutbox.create({
+        data: {
+          id: randomUUID(),
+          notificationId: record.id,
+          recipientId,
+          availableAt: new Date(at.getTime() + L.reactionBatchSeconds * 1000),
+        },
+      });
+    }
+  }
+  const reactionCommands: FeedReactionCommands = {
+    async setPostReaction(actorId, postId, kind) {
+      await transaction(async (tx) => {
+        await lockGafusPostReactionTx(tx as unknown as GafusTx, postId);
+        const post = await readablePost(tx, postId);
+        const at = now();
+        const old = await tx.feedPostReaction.findUnique({
+          where: { postId_userId: { postId, userId: actorId } },
+        });
+        if (old?.kind !== kind) {
+          await tx.feedPostReaction.upsert({
+            where: { postId_userId: { postId, userId: actorId } },
+            create: { postId, userId: actorId, kind },
+            update: { kind },
+          });
+          if (!old)
+            await groupedReaction(
+              tx,
+              post.authorId,
+              postId,
+              null,
+              "post_reaction",
+              actorId,
+              kind,
+              at,
+            );
+        }
+        await advanceGafusReactionMilestonesTx(tx as unknown as GafusTx, {
+          postId,
+          authorId: post.authorId,
+          at,
+        });
+      });
+    },
+    async removePostReaction(actorId, postId) {
+      await transaction(async (tx) => {
+        await lockGafusPostReactionTx(tx as unknown as GafusTx, postId);
+        const post = await readablePost(tx, postId);
+        await tx.feedPostReaction.deleteMany({ where: { postId, userId: actorId } });
+        await advanceGafusReactionMilestonesTx(tx as unknown as GafusTx, {
+          postId,
+          authorId: post.authorId,
+          at: now(),
+        });
+      });
+    },
+    async setCommentReaction(actorId, commentId, kind) {
+      await transaction(async (tx) => {
+        const comment = await readableComment(tx, commentId);
+        const old = await tx.feedCommentReaction.findUnique({
+          where: { commentId_userId: { commentId, userId: actorId } },
+        });
+        if (old?.kind !== kind) {
+          await tx.feedCommentReaction.upsert({
+            where: { commentId_userId: { commentId, userId: actorId } },
+            create: { commentId, userId: actorId, kind },
+            update: { kind },
+          });
+          if (!old)
+            await groupedReaction(
+              tx,
+              comment.authorId,
+              comment.postId,
+              commentId,
+              "comment_reaction",
+              actorId,
+              kind,
+              now(),
+            );
+        }
+      });
+    },
+    async removeCommentReaction(actorId, commentId) {
+      await transaction(async (tx) => {
+        await readableComment(tx, commentId);
+        await tx.feedCommentReaction.deleteMany({ where: { commentId, userId: actorId } });
+      });
+    },
+  };
+  const api = {
+    ...createFeedReactionCommands(reactionCommands, auth),
+    async getComment(actorId: string, id: string): Promise<FeedCommentDto> {
+      await auth(actorId);
+      const commentId = s.feedParse(s.feedIdSchema, id);
+      const row = await db.feedComment.findUnique({
+        where: { id: commentId },
+        include: commentInclude,
+      });
+      if (!row || row.deletedAt || row.moderationState !== "visible")
+        throw new FeedError("NOT_FOUND", undefined, 404);
+      const post = await readablePost(db, row.postId);
+      return (await commentDto(actorId, [row], post.authorId))[0]!;
+    },
+    async listComments(
+      actorId: string,
+      postId: string,
+      input: FeedListQuery = {},
+    ): Promise<FeedCommentPageDto> {
+      await auth(actorId);
+      const q = s.feedParse(s.feedListSchema, input);
+      const c = decodeCursor(q.cursor);
+      const post = await db.feedPost.findFirst({
+        where: { id: postId, status: "published", deletedAt: null, moderationState: "visible" },
+      });
+      if (!post) throw new FeedError("NOT_FOUND", undefined, 404);
+      const rows = await db.feedComment.findMany({
+        where: {
+          postId,
+          rootId: null,
+          ...(c
+            ? {
+                OR: [
+                  { createdAt: { gt: c.createdAt } },
+                  { createdAt: c.createdAt, id: { gt: c.id } },
+                ],
+              }
+            : {}),
+        },
+        include: commentInclude,
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        take: q.pageSize + 1,
+      });
+      const page = rows.slice(0, q.pageSize);
+      return {
+        items: await commentDto(actorId, page, post.authorId),
+        nextCursor: rows.length > q.pageSize ? cursor(page[page.length - 1]!) : null,
+        serverNow: now().toISOString(),
+      };
+    },
+    async listReplies(
+      actorId: string,
+      rootId: string,
+      input: FeedListQuery = {},
+    ): Promise<FeedCommentPageDto> {
+      await auth(actorId);
+      const q = s.feedParse(s.feedListSchema, input),
+        c = decodeCursor(q.cursor);
+      const root = await db.feedComment.findUnique({
+        where: { id: rootId },
+        include: { post: true },
+      });
+      if (
+        !root ||
+        root.rootId ||
+        root.post.moderationState !== "visible" ||
+        root.post.deletedAt ||
+        root.post.status !== "published"
+      )
+        throw new FeedError("NOT_FOUND", undefined, 404);
+      const rows = await db.feedComment.findMany({
+        where: {
+          rootId,
+          ...(c
+            ? {
+                OR: [
+                  { createdAt: { gt: c.createdAt } },
+                  { createdAt: c.createdAt, id: { gt: c.id } },
+                ],
+              }
+            : {}),
+        },
+        include: commentInclude,
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        take: q.pageSize + 1,
+      });
+      const page = rows.slice(0, q.pageSize);
+      return {
+        items: await commentDto(actorId, page, root.post.authorId),
+        nextCursor: rows.length > q.pageSize ? cursor(page[page.length - 1]!) : null,
+        serverNow: now().toISOString(),
+      };
+    },
+    async createComment(
+      actorId: string,
+      postId: string,
+      input: FeedCommentInput,
+    ): Promise<FeedCommentDto> {
+      await auth(actorId);
+      const value = s.feedParse(s.feedCommentSchema, input);
+      const id = await transaction(async (tx) => {
+        await ensureFeedPublishingAllowed(tx, actorId);
+        const post = await readablePost(tx, postId);
+        const prior = await tx.feedComment.findUnique({
+          where: {
+            authorId_clientRequestId: { authorId: actorId, clientRequestId: value.clientRequestId },
+          },
+        });
+        if (prior) {
+          const saved = await tx.feedCommentMedia.findMany({
+            where: { commentId: prior.id },
+            orderBy: { position: "asc" },
+            select: { mediaId: true },
+          });
+          if (
+            prior.postId !== postId ||
+            prior.text !== value.text ||
+            prior.replyToId !== (value.replyToId ?? null) ||
+            JSON.stringify(saved.map((item) => item.mediaId)) !==
+              JSON.stringify(value.mediaIds ?? [])
+          ) {
+            throw new FeedError("VERSION_CONFLICT", undefined, 409);
+          }
+          return prior.id;
+        }
+        const mediaIds = value.mediaIds ?? [];
+        if (mediaIds.length) {
+          // Serialize with orphan collection before attaching assets.
+          for (const mediaId of [...mediaIds].sort()) {
+            await tx.$queryRaw`SELECT "id" FROM "FeedUpload" WHERE "mediaId" = ${mediaId} FOR UPDATE`;
+          }
+          const valid = await tx.feedMediaAsset.findMany({
+            where: {
+              id: { in: mediaIds },
+              postId,
+              ownerId: actorId,
+              status: { in: ["uploaded", "processing", "ready"] },
+              upload: {
+                is: { purpose: "comment", status: { in: ["uploaded", "processing", "ready"] } },
+              },
+              commentAttachments: { none: {} },
+            },
+            select: { id: true, kind: true },
+          });
+          if (
+            valid.length !== mediaIds.length ||
+            valid.filter((item) => item.kind === "video").length > L.maxVideos
+          ) {
+            throw new FeedError("VALIDATION_ERROR", "Недоступные вложения комментария", 422);
+          }
+        }
+        let rootId: string | null = null,
+          replyRecipient: string | null = null;
+        if (value.replyToId) {
+          const target = await tx.feedComment.findFirst({
+            where: { id: value.replyToId, postId, deletedAt: null, moderationState: "visible" },
+          });
+          if (!target) throw new FeedError("NOT_FOUND", "Комментарий для ответа недоступен", 404);
+          rootId = target.rootId ?? target.id;
+          replyRecipient = target.authorId;
+        }
+        const at = now(),
+          newId = randomUUID();
+        await tx.feedComment.create({
+          data: {
+            id: newId,
+            postId,
+            authorId: actorId,
+            clientRequestId: value.clientRequestId,
+            text: value.text,
+            rootId,
+            replyToId: value.replyToId ?? null,
+            createdAt: at,
+          },
+        });
+        if (mediaIds.length)
+          await tx.feedCommentMedia.createMany({
+            data: mediaIds.map((mediaId, position) => ({ mediaId, position, commentId: newId })),
+          });
+        const targets = new Set([post.authorId, ...(replyRecipient ? [replyRecipient] : [])]);
+        for (const recipient of targets) {
+          if (recipient === actorId) continue;
+          await notification(
+            tx,
+            recipient,
+            postId,
+            newId,
+            replyRecipient === recipient ? "reply" : "comment",
+            actorId,
+            at,
+          );
+        }
+        return newId;
+      });
+      const row = await db.feedComment.findUnique({ where: { id }, include: commentInclude });
+      const post = await db.feedPost.findUnique({ where: { id: postId } });
+      if (!row || !post) throw new FeedError("NOT_FOUND", undefined, 404);
+      return (await commentDto(actorId, [row], post.authorId))[0]!;
+    },
+    async editComment(
+      actorId: string,
+      id: string,
+      input: FeedCommentEditInput,
+    ): Promise<FeedCommentDto> {
+      await auth(actorId);
+      const value = s.feedParse(s.feedCommentEditSchema, input);
+      const { row, post } = await transaction(async (tx) => {
+        await ensureFeedPublishingAllowed(tx, actorId);
+        const comment = await readableComment(tx, id);
+        assertFeedCommentEditable(comment, actorId, now);
+        // The conditional update does not allow a simultaneous delete to be overwritten.
+        const changed = await tx.feedComment.updateMany({
+          where: { id, deletedAt: null, moderationState: "visible" },
+          data: { text: value.text, editedAt: now() },
+        });
+        if (!changed.count) throw new FeedError("NOT_FOUND", undefined, 404);
+        const latest = await tx.feedComment.findUniqueOrThrow({
+          where: { id },
+          include: commentInclude,
+        });
+        const owner = await tx.feedPost.findUniqueOrThrow({ where: { id: comment.postId } });
+        return { row: latest, post: owner };
+      });
+      return (await commentDto(actorId, [row], post.authorId))[0]!;
+    },
+    async deleteComment(actorId: string, id: string) {
+      await auth(actorId);
+      return transaction(async (tx) => {
+        const comment = await readableComment(tx, id);
+        const post = await readablePost(tx, comment.postId);
+        assertFeedCommentRemovable(comment.authorId, post.authorId, actorId);
+        const at = now();
+        await tx.feedComment.updateMany({
+          where: { id, deletedAt: null },
+          data: { deletedAt: at, text: "" },
+        });
+        await tx.feedCommentReaction.deleteMany({ where: { commentId: id } });
+        // Delete only the comment's assets, never the parent post.
+        const attachments = await tx.feedCommentMedia.findMany({
+          where: { commentId: id },
+          include: { media: { include: { upload: true } } },
+        });
+        if (attachments.length)
+          await tx.feedMediaAsset.updateMany({
+            where: { id: { in: attachments.map((item) => item.mediaId) } },
+            data: { status: "cancelled" },
+          });
+        for (const item of attachments) {
+          const media = item.media;
+          const prefix = "media/v2/" + media.id + "/v1/";
+          const keys = [
+            media.upload?.sourceKey,
+            media.smallKey,
+            media.thumbKey,
+            media.fullKey,
+            media.posterKey,
+            ...media.mp4Keys,
+            prefix + "image/s.webp",
+            prefix + "image/m.webp",
+            prefix + "image/l.webp",
+            prefix + "poster.webp",
+            prefix + "video/360.mp4",
+            prefix + "video/720.mp4",
+          ].filter((key): key is string => !!key);
+          const reservationEnd = media.upload
+            ? Math.max(
+                media.upload.postExpiresAt.getTime(),
+                media.upload.reservationExpiresAt.getTime(),
+                media.upload.leaseUntil?.getTime() ?? 0,
+              )
+            : 0;
+          await tx.feedStorageJob.upsert({
+            where: { dedupeKey: "feed-comment-delete:" + id + ":" + media.id },
+            create: {
+              dedupeKey: "feed-comment-delete:" + id + ":" + media.id,
+              ownerId: media.ownerId,
+              postId: media.postId,
+              mediaId: media.id,
+              kind: "delete_keys",
+              sourceKeys: [...new Set(keys)],
+              availableAt: new Date(Math.max(at.getTime(), reservationEnd) + 60_000),
+            },
+            update: {},
+          });
+        }
+        return { id };
+      });
+    },
+    async reactions(
+      actorId: string,
+      target: { postId?: string; commentId?: string },
+      query: FeedListQuery & { reaction?: FeedReaction } = {},
+    ): Promise<FeedReactionUserPageDto> {
+      await auth(actorId);
+      const q = s.feedParse(s.feedReactionListSchema, query);
+      const c = decodeCursor(q.cursor);
+      const where = target.postId
+        ? { postId: target.postId }
+        : target.commentId
+          ? { commentId: target.commentId }
+          : null;
+      if (!where) throw new FeedError("VALIDATION_ERROR", undefined, 400);
+      if (target.postId) {
+        const post = await db.feedPost.findFirst({
+          where: { id: target.postId, deletedAt: null, status: "published" },
+        });
+        if (!post) throw new FeedError("NOT_FOUND", undefined, 404);
+      } else {
+        const comment = await db.feedComment.findUnique({
+          where: { id: target.commentId },
+          include: { post: true },
+        });
+        if (
+          !comment ||
+          comment.deletedAt ||
+          comment.moderationState !== "visible" ||
+          comment.post.moderationState !== "visible" ||
+          comment.post.deletedAt ||
+          comment.post.status !== "published"
+        )
+          throw new FeedError("NOT_FOUND", undefined, 404);
+      }
+      const kind = q.reaction ? feedReactionToKind[q.reaction] : undefined;
+      const relation = { user: { select: profile } } as const;
+      const conditions = {
+        ...(kind ? { kind } : {}),
+        ...(c
+          ? {
+              OR: [
+                { createdAt: { gt: c.createdAt } },
+                { createdAt: c.createdAt, id: { gt: c.id } },
+              ],
+            }
+          : {}),
+      };
+      const rows = target.postId
+        ? await db.feedPostReaction.findMany({
+            where: { ...conditions, postId: target.postId },
+            include: relation,
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            take: q.pageSize + 1,
+          })
+        : await db.feedCommentReaction.findMany({
+            where: { ...conditions, commentId: target.commentId },
+            include: relation,
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            take: q.pageSize + 1,
+          });
+      const page = rows.slice(0, q.pageSize);
+      const counts = target.postId
+        ? await db.feedPostReaction.groupBy({
+            by: ["kind"],
+            where: { postId: target.postId },
+            _count: { _all: true },
+          })
+        : await db.feedCommentReaction.groupBy({
+            by: ["kind"],
+            where: { commentId: target.commentId },
+            _count: { _all: true },
+          });
+      return {
+        items: page.map((row) => ({
+          user: userDto(row.user),
+          reaction: kindToReaction[row.kind],
+          reactedAt: row.createdAt.toISOString(),
+        })),
+        nextCursor: rows.length > q.pageSize ? cursor(page[page.length - 1]!) : null,
+        counts: counts.map((item) => ({
+          emoji: kindToReaction[item.kind],
+          count: item._count._all,
+        })),
+        serverNow: now().toISOString(),
+      };
+    },
+    async recordView(actorId: string, postId: string) {
+      await auth(actorId);
+      return transaction(async (tx) => {
+        const post = await readablePost(tx, postId);
+        if (post.authorId === actorId)
+          return { counted: false, viewCount: await tx.feedPostView.count({ where: { postId } }) };
+        const result = await tx.feedPostView.createMany({
+          data: [{ postId, userId: actorId }],
+          skipDuplicates: true,
+        });
+        return {
+          counted: result.count > 0,
+          viewCount: await tx.feedPostView.count({ where: { postId } }),
+        };
+      });
+    },
+    async listNotifications(
+      actorId: string,
+      input: FeedListQuery = {},
+    ): Promise<FeedNotificationPageDto> {
+      await auth(actorId);
+      const q = s.feedParse(s.feedListSchema, input),
+        c = decodeCursor(q.cursor);
+      const rows = await db.feedNotification.findMany({
+        where: {
+          recipientId: actorId,
+          kind: { not: "author_post" },
+          ...(c
+            ? {
+                OR: [
+                  { createdAt: { lt: c.createdAt } },
+                  { createdAt: c.createdAt, id: { lt: c.id } },
+                ],
+              }
+            : {}),
+        },
+        include: { post: { select: { status: true, deletedAt: true, moderationState: true } } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: q.pageSize + 1,
+      });
+      const page = rows.slice(0, q.pageSize);
+      const actorIds = [...new Set(page.flatMap((row) => row.actorIds))];
+      const authors = await db.user.findMany({ where: { id: { in: actorIds } }, select: profile });
+      const users = new Map(authors.map((user) => [user.id, userDto(user)]));
+      const items: FeedNotificationDto[] = page.map((row) => ({
+        id: row.id,
+        kind: row.kind,
+        postId: row.postId,
+        commentId: row.commentId,
+        actors: row.actorIds.flatMap((id) => (users.get(id) ? [users.get(id)!] : [])),
+        reaction: row.reaction ? kindToReaction[row.reaction] : null,
+        actorCount: row.actorIds.length,
+        createdAt: row.createdAt.toISOString(),
+        readAt: row.readAt?.toISOString() ?? null,
+        targetAvailable:
+          row.post.status === "published" &&
+          !row.post.deletedAt &&
+          row.post.moderationState === "visible",
+      }));
+      return {
+        items,
+        nextCursor: rows.length > q.pageSize ? cursor(page[page.length - 1]!) : null,
+        serverNow: now().toISOString(),
+      };
+    },
+    async unreadCount(actorId: string) {
+      await auth(actorId);
+      return {
+        count: await db.feedNotification.count({
+          where: { recipientId: actorId, kind: { not: "author_post" }, readAt: null },
+        }),
+      };
+    },
+    async markNotificationRead(actorId: string, notificationId: string) {
+      await auth(actorId);
+      // author_post is push-only: never visible in list/unread or individually read.
+      const visibleNotice = {
+        id: notificationId,
+        recipientId: actorId,
+        kind: { not: "author_post" },
+      } as const;
+      await db.feedNotification.updateMany({
+        where: { ...visibleNotice, readAt: null },
+        data: { readAt: now() },
+      });
+      const row = await db.feedNotification.findFirst({ where: visibleNotice });
+      if (!row) throw new FeedError("NOT_FOUND", undefined, 404);
+      return { id: row.id, readAt: row.readAt?.toISOString() ?? now().toISOString() };
+    },
+    async markAllNotificationsRead(actorId: string) {
+      await auth(actorId);
+      const changed = await db.feedNotification.updateMany({
+        where: { recipientId: actorId, kind: { not: "author_post" }, readAt: null },
+        data: { readAt: now() },
+      });
+      return { count: changed.count };
+    },
+  };
+  return api;
+}
+export type FeedSocialService = ReturnType<typeof createFeedSocial>;

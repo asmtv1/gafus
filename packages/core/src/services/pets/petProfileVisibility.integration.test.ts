@@ -24,7 +24,7 @@ vi.mock("@gafus/cdn-upload", () => ({
   getUserAvatarPath: vi.fn(),
 }));
 vi.mock("./petVetVisitService", () => ({ enqueuePetVetCleanup: vi.fn(), lockVetPet: vi.fn() }));
-vi.mock("../cynologistChat/authorRole", () => ({
+vi.mock("../user/chatDisplayRole", () => ({
   getChatDisplayRole: vi.fn().mockResolvedValue(null),
 }));
 

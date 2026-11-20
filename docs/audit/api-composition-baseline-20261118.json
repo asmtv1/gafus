@@ -1,0 +1,791 @@
+{
+  "revision": "04052d616",
+  "created": "2026-11-18",
+  "installers": [
+    {
+      "installation": "apps/api/src/modules/app-feature-flags/composition/install-core-flags.ts",
+      "owner": "app-feature-flags",
+      "registrations": [
+        "registerAppFeatureFlagsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/appFeatureFlags"
+      ],
+      "providers": [
+        "@gafus/feature-flags-server/appFeatureFlagsService"
+      ],
+      "directConsumers": []
+    },
+    {
+      "installation": "apps/api/src/modules/app-subscription/composition/install-core-subscription-access.ts",
+      "owner": "app-subscription",
+      "registrations": [
+        "registerSubscriptionAccessPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/appSubscription"
+      ],
+      "providers": [
+        "@gafus/subscription-read-server"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/app-subscription/composition/install-promo-code-rows.ts",
+        "apps/api/src/modules/app-subscription/composition/payment-transitions.ts",
+        "apps/api/src/modules/app-subscription/composition/read-offer.ts",
+        "apps/api/src/modules/chat2/service.ts",
+        "apps/api/src/routes/v1/achievements.ts",
+        "apps/api/src/routes/v1/admin-subscriptions.ts",
+        "apps/api/src/routes/v1/app-subscription.ts",
+        "apps/api/src/routes/v1/consultations.ts",
+        "apps/api/src/routes/v1/offline.ts",
+        "packages/worker/src/app-subscription-renewals.ts",
+        "packages/worker/src/composition/app-subscription-payment.ts",
+        "packages/worker/src/npd-worker.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/app-subscription/composition/install-promo-code-rows.ts",
+      "owner": "app-subscription",
+      "registrations": [
+        "registerSubscriptionPromoPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/appSubscription"
+      ],
+      "providers": [
+        "@gafus/subscription-finance-server/promo-code-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/app-subscription/composition/install-core-subscription-access.ts",
+        "apps/api/src/modules/app-subscription/composition/payment-transitions.ts",
+        "apps/api/src/modules/app-subscription/composition/read-offer.ts",
+        "apps/api/src/modules/chat2/service.ts",
+        "apps/api/src/routes/v1/achievements.ts",
+        "apps/api/src/routes/v1/admin-subscriptions.ts",
+        "apps/api/src/routes/v1/app-subscription.ts",
+        "apps/api/src/routes/v1/consultations.ts",
+        "apps/api/src/routes/v1/offline.ts",
+        "packages/worker/src/app-subscription-renewals.ts",
+        "packages/worker/src/composition/app-subscription-payment.ts",
+        "packages/worker/src/npd-worker.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/auth/composition/install-core-auth-rows.ts",
+      "owner": "auth",
+      "registrations": [
+        "registerAuthRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/auth"
+      ],
+      "providers": [
+        "@gafus/identity-write-server/auth-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/middleware/auth.ts",
+        "apps/api/src/modules/auth/composition/install-core-vk-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-credential-registration.ts",
+        "apps/api/src/modules/auth/composition/install-email-account-rows.ts",
+        "apps/api/src/modules/auth/composition/install-password-reset.ts",
+        "apps/api/src/modules/auth/composition/install-registration-context.ts",
+        "apps/api/src/modules/auth/composition/install-registration-contract-rows.ts",
+        "apps/api/src/modules/auth/composition/install-vk-completion.ts",
+        "apps/api/src/routes/v1/auth-vk-web.ts",
+        "apps/api/src/routes/v1/auth.ts",
+        "apps/api/src/test/ag1-consultations-simultaneous-slot-original-http-work.acceptance.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/auth/composition/install-core-vk-auth-rows.ts",
+      "owner": "auth",
+      "registrations": [
+        "registerVkAuthRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/auth"
+      ],
+      "providers": [
+        "@gafus/identity-write-server/vk-auth-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/middleware/auth.ts",
+        "apps/api/src/modules/auth/composition/install-core-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-credential-registration.ts",
+        "apps/api/src/modules/auth/composition/install-email-account-rows.ts",
+        "apps/api/src/modules/auth/composition/install-password-reset.ts",
+        "apps/api/src/modules/auth/composition/install-registration-context.ts",
+        "apps/api/src/modules/auth/composition/install-registration-contract-rows.ts",
+        "apps/api/src/modules/auth/composition/install-vk-completion.ts",
+        "apps/api/src/routes/v1/auth-vk-web.ts",
+        "apps/api/src/routes/v1/auth.ts",
+        "apps/api/src/test/ag1-consultations-simultaneous-slot-original-http-work.acceptance.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/auth/composition/install-credential-registration.ts",
+      "owner": "auth",
+      "registrations": [
+        "registerCredentialRegistrationPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/auth"
+      ],
+      "providers": [
+        "@gafus/identity-write-server/registration-contract-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/middleware/auth.ts",
+        "apps/api/src/modules/auth/composition/install-core-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-core-vk-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-email-account-rows.ts",
+        "apps/api/src/modules/auth/composition/install-password-reset.ts",
+        "apps/api/src/modules/auth/composition/install-registration-context.ts",
+        "apps/api/src/modules/auth/composition/install-registration-contract-rows.ts",
+        "apps/api/src/modules/auth/composition/install-vk-completion.ts",
+        "apps/api/src/routes/v1/auth-vk-web.ts",
+        "apps/api/src/routes/v1/auth.ts",
+        "apps/api/src/test/ag1-consultations-simultaneous-slot-original-http-work.acceptance.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/auth/composition/install-email-account-rows.ts",
+      "owner": "auth",
+      "registrations": [
+        "registerEmailAccountRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/auth"
+      ],
+      "providers": [
+        "@gafus/identity-write-server/email-account-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/middleware/auth.ts",
+        "apps/api/src/modules/auth/composition/install-core-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-core-vk-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-credential-registration.ts",
+        "apps/api/src/modules/auth/composition/install-password-reset.ts",
+        "apps/api/src/modules/auth/composition/install-registration-context.ts",
+        "apps/api/src/modules/auth/composition/install-registration-contract-rows.ts",
+        "apps/api/src/modules/auth/composition/install-vk-completion.ts",
+        "apps/api/src/routes/v1/auth-vk-web.ts",
+        "apps/api/src/routes/v1/auth.ts",
+        "apps/api/src/test/ag1-consultations-simultaneous-slot-original-http-work.acceptance.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/auth/composition/install-password-reset.ts",
+      "owner": "auth",
+      "registrations": [
+        "registerPasswordResetPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/auth"
+      ],
+      "providers": [
+        "@gafus/identity-write-server/password-reset"
+      ],
+      "directConsumers": [
+        "apps/api/src/middleware/auth.ts",
+        "apps/api/src/modules/auth/composition/install-core-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-core-vk-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-credential-registration.ts",
+        "apps/api/src/modules/auth/composition/install-email-account-rows.ts",
+        "apps/api/src/modules/auth/composition/install-registration-context.ts",
+        "apps/api/src/modules/auth/composition/install-registration-contract-rows.ts",
+        "apps/api/src/modules/auth/composition/install-vk-completion.ts",
+        "apps/api/src/routes/v1/auth-vk-web.ts",
+        "apps/api/src/routes/v1/auth.ts",
+        "apps/api/src/test/ag1-consultations-simultaneous-slot-original-http-work.acceptance.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/auth/composition/install-registration-context.ts",
+      "owner": "auth",
+      "registrations": [
+        "registerRegistrationContextPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/auth"
+      ],
+      "providers": [
+        "@gafus/identity-write-server/registration-context-reads"
+      ],
+      "directConsumers": [
+        "apps/api/src/middleware/auth.ts",
+        "apps/api/src/modules/auth/composition/install-core-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-core-vk-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-credential-registration.ts",
+        "apps/api/src/modules/auth/composition/install-email-account-rows.ts",
+        "apps/api/src/modules/auth/composition/install-password-reset.ts",
+        "apps/api/src/modules/auth/composition/install-registration-contract-rows.ts",
+        "apps/api/src/modules/auth/composition/install-vk-completion.ts",
+        "apps/api/src/routes/v1/auth-vk-web.ts",
+        "apps/api/src/routes/v1/auth.ts",
+        "apps/api/src/test/ag1-consultations-simultaneous-slot-original-http-work.acceptance.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/auth/composition/install-registration-contract-rows.ts",
+      "owner": "auth",
+      "registrations": [
+        "registerRegistrationContractRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/auth"
+      ],
+      "providers": [
+        "@gafus/identity-write-server/registration-contract-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/middleware/auth.ts",
+        "apps/api/src/modules/auth/composition/install-core-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-core-vk-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-credential-registration.ts",
+        "apps/api/src/modules/auth/composition/install-email-account-rows.ts",
+        "apps/api/src/modules/auth/composition/install-password-reset.ts",
+        "apps/api/src/modules/auth/composition/install-registration-context.ts",
+        "apps/api/src/modules/auth/composition/install-vk-completion.ts",
+        "apps/api/src/routes/v1/auth-vk-web.ts",
+        "apps/api/src/routes/v1/auth.ts",
+        "apps/api/src/test/ag1-consultations-simultaneous-slot-original-http-work.acceptance.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/auth/composition/install-vk-completion.ts",
+      "owner": "auth",
+      "registrations": [
+        "registerVkCompletionPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/auth"
+      ],
+      "providers": [
+        "@gafus/identity-write-server/vk-completion-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/middleware/auth.ts",
+        "apps/api/src/modules/auth/composition/install-core-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-core-vk-auth-rows.ts",
+        "apps/api/src/modules/auth/composition/install-credential-registration.ts",
+        "apps/api/src/modules/auth/composition/install-email-account-rows.ts",
+        "apps/api/src/modules/auth/composition/install-password-reset.ts",
+        "apps/api/src/modules/auth/composition/install-registration-context.ts",
+        "apps/api/src/modules/auth/composition/install-registration-contract-rows.ts",
+        "apps/api/src/routes/v1/auth-vk-web.ts",
+        "apps/api/src/routes/v1/auth.ts",
+        "apps/api/src/test/ag1-consultations-simultaneous-slot-original-http-work.acceptance.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/content-access/composition/install-occurrence-reads.ts",
+      "owner": "content-access",
+      "registrations": [
+        "registerCourseOccurrenceReadsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/contentAccess"
+      ],
+      "providers": [
+        "@gafus/entitlements-server"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/content-access/composition/install-policy-reads.ts",
+        "apps/api/src/modules/courses/composition/read-courses.ts",
+        "apps/api/src/modules/rewarded-credits/composition/gafus-access.ts",
+        "apps/api/src/modules/video/composition/video-access.ts",
+        "packages/course-server/src/miniGuideService.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/content-access/composition/install-policy-reads.ts",
+      "owner": "content-access",
+      "registrations": [
+        "registerContentPolicyReadPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/contentAccess"
+      ],
+      "providers": [
+        "@gafus/entitlements-server/policy-reads"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/content-access/composition/install-occurrence-reads.ts",
+        "apps/api/src/modules/courses/composition/read-courses.ts",
+        "apps/api/src/modules/rewarded-credits/composition/gafus-access.ts",
+        "apps/api/src/modules/video/composition/video-access.ts",
+        "packages/course-server/src/miniGuideService.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/courses/composition/install-catalog-read.ts",
+      "owner": "courses",
+      "registrations": [
+        "registerCatalogReadPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/course"
+      ],
+      "providers": [
+        "@gafus/course-read-server/legacy-catalog-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/chat2/service.ts",
+        "apps/api/src/modules/courses/application/read-access.ts",
+        "apps/api/src/modules/courses/application/read-courses.ts",
+        "apps/api/src/modules/courses/application/read-public-outline.ts",
+        "apps/api/src/modules/courses/composition/read-access.ts",
+        "apps/api/src/modules/courses/composition/read-courses.ts",
+        "apps/api/src/modules/courses/composition/read-public-outline.ts",
+        "apps/api/src/modules/training/application/read-training-day.ts",
+        "apps/api/src/modules/training/composition/read-training-day.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/gafus/composition/install-admin-rows.ts",
+      "owner": "gafus",
+      "registrations": [
+        "registerGafusAdminRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/adminGafus"
+      ],
+      "providers": [
+        "@gafus/gafus-server/admin-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/routes/v1/admin-gafus-operations.ts",
+        "apps/api/src/routes/v1/gafus-admin.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/gafus/composition/install-ledger-rows.ts",
+      "owner": "gafus",
+      "registrations": [
+        "registerGafusLedgerRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/gafus"
+      ],
+      "providers": [
+        "@gafus/gafus-server/wallet-records"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/gafus/composition/install-unlock-rows.ts",
+        "apps/api/src/modules/gafus/composition/install-wallet-lock.ts",
+        "apps/api/src/modules/gafus/composition/legacy-import.ts",
+        "apps/api/src/modules/gafus/composition/status-ports.ts",
+        "apps/api/src/routes/v1/gafus.ts",
+        "packages/course-server/src/miniGuideService.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/gafus/composition/install-unlock-rows.ts",
+      "owner": "gafus",
+      "registrations": [
+        "registerGafusUnlockRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/gafus"
+      ],
+      "providers": [
+        "@gafus/gafus-server/unlock-records"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/gafus/composition/install-ledger-rows.ts",
+        "apps/api/src/modules/gafus/composition/install-wallet-lock.ts",
+        "apps/api/src/modules/gafus/composition/legacy-import.ts",
+        "apps/api/src/modules/gafus/composition/status-ports.ts",
+        "apps/api/src/routes/v1/gafus.ts",
+        "packages/course-server/src/miniGuideService.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/gafus/composition/install-wallet-lock.ts",
+      "owner": "gafus",
+      "registrations": [
+        "registerGafusLockPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/gafus"
+      ],
+      "providers": [
+        "@gafus/gafus-server/wallet-lock"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/gafus/composition/install-ledger-rows.ts",
+        "apps/api/src/modules/gafus/composition/install-unlock-rows.ts",
+        "apps/api/src/modules/gafus/composition/legacy-import.ts",
+        "apps/api/src/modules/gafus/composition/status-ports.ts",
+        "apps/api/src/routes/v1/gafus.ts",
+        "packages/course-server/src/miniGuideService.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/offline/composition/install-offline-mutation-rows.ts",
+      "owner": "offline",
+      "registrations": [
+        "registerOfflineMutationRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/offline"
+      ],
+      "providers": [
+        "@gafus/course-progress-server/offline-mutation-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/offline/composition/install-video-position-v3-review.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/pet-prevention/composition/install-prevention-rows.ts",
+      "owner": "pet-prevention",
+      "registrations": [
+        "registerPreventionRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/petPrevention"
+      ],
+      "providers": [
+        "@gafus/pets-server/prevention-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/pet-prevention/application/journal.ts",
+        "apps/api/src/modules/pet-prevention/composition/journal.ts",
+        "apps/api/src/routes/v1/offline.ts",
+        "apps/api/src/routes/v1/pet-prevention.ts",
+        "packages/worker/src/pet-prevention-reminder-worker.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/pets/composition/install-pet-rows.ts",
+      "owner": "pets",
+      "registrations": [
+        "registerPetRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/pets"
+      ],
+      "providers": [
+        "@gafus/pets-server/pet-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/pets/composition/install-vet-visit-rows.ts",
+        "apps/api/src/routes/v1/pet-vet-visits.ts",
+        "apps/api/src/routes/v1/pets.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/pets/composition/install-vet-visit-rows.ts",
+      "owner": "pets",
+      "registrations": [
+        "registerVetVisitRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/pets"
+      ],
+      "providers": [
+        "@gafus/pets-server/vet-visit-write-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/pets/composition/install-pet-rows.ts",
+        "apps/api/src/routes/v1/pet-vet-visits.ts",
+        "apps/api/src/routes/v1/pets.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/rewarded-credits/composition/install-access-reads.ts",
+      "owner": "rewarded-credits",
+      "registrations": [
+        "registerRewardedAccessReadPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/rewardedCredits"
+      ],
+      "providers": [
+        "@gafus/entitlements-server/rewarded-access-reads"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/articles/composition/article-rows.ts",
+        "apps/api/src/modules/rewarded-credits/composition/gafus-access.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-ad-session-rows.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-core-settings.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-wallet-rows.ts",
+        "apps/api/src/routes/v1/articles.ts",
+        "apps/api/src/routes/v1/exam.ts",
+        "apps/api/src/routes/v1/rewarded-ads.ts",
+        "apps/api/src/routes/v1/surveys.ts",
+        "apps/api/src/routes/v1/training.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/rewarded-credits/composition/install-ad-session-rows.ts",
+      "owner": "rewarded-credits",
+      "registrations": [
+        "registerRewardedAdRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/rewardedCredits"
+      ],
+      "providers": [
+        "@gafus/gafus-server/rewarded-ad-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/articles/composition/article-rows.ts",
+        "apps/api/src/modules/rewarded-credits/composition/gafus-access.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-access-reads.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-core-settings.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-wallet-rows.ts",
+        "apps/api/src/routes/v1/articles.ts",
+        "apps/api/src/routes/v1/exam.ts",
+        "apps/api/src/routes/v1/rewarded-ads.ts",
+        "apps/api/src/routes/v1/surveys.ts",
+        "apps/api/src/routes/v1/training.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/rewarded-credits/composition/install-core-settings.ts",
+      "owner": "rewarded-credits",
+      "registrations": [
+        "registerRewardedSettingsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/rewardedCredits"
+      ],
+      "providers": [
+        "@gafus/gafus-server/rewarded-settings"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/articles/composition/article-rows.ts",
+        "apps/api/src/modules/rewarded-credits/composition/gafus-access.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-access-reads.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-ad-session-rows.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-wallet-rows.ts",
+        "apps/api/src/routes/v1/articles.ts",
+        "apps/api/src/routes/v1/exam.ts",
+        "apps/api/src/routes/v1/rewarded-ads.ts",
+        "apps/api/src/routes/v1/surveys.ts",
+        "apps/api/src/routes/v1/training.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/rewarded-credits/composition/install-wallet-rows.ts",
+      "owner": "rewarded-credits",
+      "registrations": [
+        "registerRewardedWalletPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/rewardedCredits"
+      ],
+      "providers": [
+        "@gafus/gafus-server/rewarded-wallet-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/articles/composition/article-rows.ts",
+        "apps/api/src/modules/rewarded-credits/composition/gafus-access.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-access-reads.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-ad-session-rows.ts",
+        "apps/api/src/modules/rewarded-credits/composition/install-core-settings.ts",
+        "apps/api/src/routes/v1/articles.ts",
+        "apps/api/src/routes/v1/exam.ts",
+        "apps/api/src/routes/v1/rewarded-ads.ts",
+        "apps/api/src/routes/v1/surveys.ts",
+        "apps/api/src/routes/v1/training.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/trainer-courses/composition/install-core-version-rows.ts",
+      "owner": "trainer-courses",
+      "registrations": [
+        "registerCourseVersionRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/trainerCourse"
+      ],
+      "providers": [
+        "@gafus/course-progress-server/course-version-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/trainer-courses/application/read-course-editor.ts",
+        "apps/api/src/modules/trainer-courses/composition/editor-snapshot-port.ts",
+        "apps/api/src/modules/trainer-courses/composition/install-trainer-course-rows.ts",
+        "apps/api/src/modules/trainer-courses/composition/read-course-editor.ts",
+        "apps/api/src/routes/v1/trainer-authoring.ts",
+        "apps/api/src/routes/v1/trainer-course-full-manage.ts",
+        "apps/api/src/routes/v1/trainer-courses.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/trainer-courses/composition/install-trainer-course-rows.ts",
+      "owner": "trainer-courses",
+      "registrations": [
+        "registerTrainerCourseRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/trainerCourse"
+      ],
+      "providers": [
+        "@gafus/course-progress-server/trainer-course-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/trainer-courses/application/read-course-editor.ts",
+        "apps/api/src/modules/trainer-courses/composition/editor-snapshot-port.ts",
+        "apps/api/src/modules/trainer-courses/composition/install-core-version-rows.ts",
+        "apps/api/src/modules/trainer-courses/composition/read-course-editor.ts",
+        "apps/api/src/routes/v1/trainer-authoring.ts",
+        "apps/api/src/routes/v1/trainer-course-full-manage.ts",
+        "apps/api/src/routes/v1/trainer-courses.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/trainer-days/composition/install-training-day-rows.ts",
+      "owner": "trainer-days",
+      "registrations": [
+        "registerTrainingDayRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/trainingDay"
+      ],
+      "providers": [
+        "@gafus/course-progress-server/training-day-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/trainer-days/application/read-visible-days.ts",
+        "apps/api/src/modules/trainer-days/composition/read-visible-days.ts",
+        "apps/api/src/routes/v1/trainer-authoring.ts",
+        "apps/api/src/routes/v1/trainer-content-manage.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/trainer-steps/composition/install-trainer-step-rows.ts",
+      "owner": "trainer-steps",
+      "registrations": [
+        "registerTrainerStepRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/trainerStep"
+      ],
+      "providers": [
+        "@gafus/course-progress-server/trainer-step-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/trainer-steps/application/read-visible-steps.ts",
+        "apps/api/src/modules/trainer-steps/composition/read-visible-steps.ts",
+        "apps/api/src/modules/trainer-templates/application/read-public-templates.ts",
+        "apps/api/src/modules/trainer-templates/composition/read-public-templates.ts",
+        "apps/api/src/routes/v1/trainer-authoring.ts",
+        "apps/api/src/routes/v1/trainer-content-manage.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/training/composition/install-content-revision-read.ts",
+      "owner": "training",
+      "registrations": [
+        "registerCourseContentRevisionReadPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/training"
+      ],
+      "providers": [
+        "@gafus/course-read-server/content-revision"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/training/application/read-training-day.ts",
+        "apps/api/src/modules/training/application/read-training-days.ts",
+        "apps/api/src/modules/training/application/write-step-progress.ts",
+        "apps/api/src/modules/training/composition/install-day-content-read.ts",
+        "apps/api/src/modules/training/composition/install-training-service.ts",
+        "apps/api/src/modules/training/composition/read-training-day.ts",
+        "apps/api/src/modules/training/composition/read-training-days.ts",
+        "apps/api/src/modules/training/composition/write-step-progress.ts",
+        "apps/api/src/routes/v1/admin-cache.ts",
+        "apps/api/src/routes/v1/health.ts",
+        "apps/api/src/routes/v1/offline.ts",
+        "apps/api/src/routes/v1/training.ts",
+        "packages/course-server/src/onlineStepBindingService.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/training/composition/install-day-content-read.ts",
+      "owner": "training",
+      "registrations": [
+        "registerTrainingDayContentReadPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/training"
+      ],
+      "providers": [
+        "@gafus/course-read-server"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/training/application/read-training-day.ts",
+        "apps/api/src/modules/training/application/read-training-days.ts",
+        "apps/api/src/modules/training/application/write-step-progress.ts",
+        "apps/api/src/modules/training/composition/install-content-revision-read.ts",
+        "apps/api/src/modules/training/composition/install-training-service.ts",
+        "apps/api/src/modules/training/composition/read-training-day.ts",
+        "apps/api/src/modules/training/composition/read-training-days.ts",
+        "apps/api/src/modules/training/composition/write-step-progress.ts",
+        "apps/api/src/routes/v1/admin-cache.ts",
+        "apps/api/src/routes/v1/health.ts",
+        "apps/api/src/routes/v1/offline.ts",
+        "apps/api/src/routes/v1/training.ts",
+        "packages/course-server/src/onlineStepBindingService.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/training/composition/install-training-service.ts",
+      "owner": "training",
+      "registrations": [
+        "registerTrainingServicePort"
+      ],
+      "contracts": [
+        "@gafus/core/services/training"
+      ],
+      "providers": [
+        "@gafus/course-progress-server/training-service"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/training/application/read-training-day.ts",
+        "apps/api/src/modules/training/application/read-training-days.ts",
+        "apps/api/src/modules/training/application/write-step-progress.ts",
+        "apps/api/src/modules/training/composition/install-content-revision-read.ts",
+        "apps/api/src/modules/training/composition/install-day-content-read.ts",
+        "apps/api/src/modules/training/composition/read-training-day.ts",
+        "apps/api/src/modules/training/composition/read-training-days.ts",
+        "apps/api/src/modules/training/composition/write-step-progress.ts",
+        "apps/api/src/routes/v1/admin-cache.ts",
+        "apps/api/src/routes/v1/health.ts",
+        "apps/api/src/routes/v1/offline.ts",
+        "apps/api/src/routes/v1/training.ts",
+        "packages/course-server/src/onlineStepBindingService.ts"
+      ]
+    },
+    {
+      "installation": "apps/api/src/modules/user/composition/install-profile-rows.ts",
+      "owner": "user",
+      "registrations": [
+        "registerProfileRowsPort"
+      ],
+      "contracts": [
+        "@gafus/core/services/user"
+      ],
+      "providers": [
+        "@gafus/identity-write-server/profile-rows"
+      ],
+      "directConsumers": [
+        "apps/api/src/modules/user/application/onboarding-tour.ts",
+        "apps/api/src/modules/user/application/read-profile.ts",
+        "apps/api/src/modules/user/application/read-public-profile.ts",
+        "apps/api/src/modules/user/application/update-profile.ts",
+        "apps/api/src/modules/user/composition/account-deletion.ts",
+        "apps/api/src/modules/user/composition/course-completion.ts",
+        "apps/api/src/modules/user/composition/onboarding-tour.ts",
+        "apps/api/src/modules/user/composition/profile.ts",
+        "apps/api/src/modules/user/composition/read-public-profile.ts",
+        "apps/api/src/routes/v1/user.ts"
+      ]
+    }
+  ]
+}

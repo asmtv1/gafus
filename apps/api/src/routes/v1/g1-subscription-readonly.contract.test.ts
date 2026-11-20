@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { subscriptionAccessPort } from "../../modules/app-subscription/composition/subscription-access-instance.js";
 
 const { access, offer, reconcile } = vi.hoisted(() => ({
   access: vi.fn(),
@@ -50,7 +51,7 @@ describe("G1 subscription snapshot: no write/provider during GET", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     await expect(response.json()).resolves.toEqual({ success: true, data: snapshot });
-    expect(access).toHaveBeenCalledExactlyOnceWith("owner-a");
+    expect(access).toHaveBeenCalledExactlyOnceWith("owner-a", undefined, subscriptionAccessPort);
     expect(reconcile).not.toHaveBeenCalled();
   });
 
@@ -62,7 +63,7 @@ describe("G1 subscription snapshot: no write/provider during GET", () => {
     const response = await appFor("owner-b").request("http://localhost/api/v1/app-subscription/status");
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(access).toHaveBeenCalledWith("owner-b");
+    expect(access).toHaveBeenCalledWith("owner-b", undefined, subscriptionAccessPort);
     expect(reconcile).not.toHaveBeenCalled();
   });
 

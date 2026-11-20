@@ -15,7 +15,6 @@
   "dependencies": {
     "@gafus/auth": "workspace:*",
     "@gafus/cdn-upload": "workspace:*",
-    "@gafus/chat-server": "workspace:*",
     "@gafus/core": "workspace:*",
     "@gafus/feed-cloud": "workspace:*",
     "@gafus/feed-server": "workspace:*",

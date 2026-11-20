@@ -30,6 +30,7 @@
     }
   },
   "scripts": {
+    "test:unit": "node ../../scripts/qa/workspace-gap-advisory.mjs --run --package @gafus/cdn-upload",
     "build": "tsc",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"

@@ -1,4 +1,5 @@
 /** Authenticated grant issuance; never trust usernames or roles in the request body. */
+import {selectVersionUpdate} from '@gafus/mobile-ota-server/version-selection';
 import { Hono } from 'hono';
 import { z } from 'zod/v3';
 import { issueRegisteredTesterGrant } from '@gafus/mobile-ota-server/tester-grant-service';
@@ -37,7 +38,7 @@ mobileOtaTesterRoutes.post('/grant',async(c)=>{
  * A global "required" flag alone may NEVER lock out users assigned to the
  * previous release (or zero-percent non-testers). This route is authenticated.
  */
-const mandatoryInput = input;
+const mandatoryInput = input.extend({nativeReleaseId:z.string().uuid().optional()});
 
 mobileOtaTesterRoutes.post('/mandatory-policy', async(c) => {
   if (process.env.MOBILE_OTA_DELIVERY_ENV !== 'production')
@@ -50,6 +51,9 @@ mobileOtaTesterRoutes.post('/mandatory-policy', async(c) => {
     // Versions before 1.7.5 cannot be forced by the new signed-OTA policy.
     if (!supportsMandatoryOta(runtimeVersion))
       return c.json({success:true,data:{required:false,version:null,selectedRevision:null}});
+    const managed=await selectVersionUpdate({...parsed.data,nativeFingerprint:nativeFingerprint.toLowerCase()},"policy",c.get("user").id);
+    if(managed!==undefined) return c.json({success:true,data:{required:managed?.required??false,
+      version:managed?.required ? runtimeVersion+"-ota."+managed.revision : null,selectedRevision:managed?.revision??null}});
     const policy=await getMandatoryOtaControl(platform,runtimeVersion);
     // Only query rollouts if a matching, explicit, native-compatible mandatory
     // policy exists. Optional updates still use the normal background path.

@@ -18,7 +18,7 @@ export function verifyProductionNativeTrust({native,sourceSha,runtime,platform,c
      native.appId!=='gafus' || native.bundleId!=='ru.gafus.app' ||
      native.environment!=='production' || native.channel!=='production' ||
      native.platform!==platform || !['android','ios'].includes(platform) ||
-     native.runtimeVersion!==runtime || native.appVersion!==runtime || runtime!=='1.7.5' ||
+     native.runtimeVersion!==runtime || native.appVersion!==runtime || !/^\d+\.\d+\.\d+$/.test(runtime) ||
      !SHA40.test(sourceSha) || !SHA40.test(native.sourceSha) ||
      !SHA64.test(native.nativeFingerprint) ||
      native.updateUrl!=='https://gafus.ru/ota/manifest' ||

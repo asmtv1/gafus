@@ -194,7 +194,6 @@ Archived material is historical, not a source of current implementation instruct
 - [profit.md](./features/profit.md)
 - [questions.md](./features/questions.md)
 - [registration-handoff.md](./features/registration-handoff.md)
-- [rustore-push.md](./features/rustore-push.md)
 - [shared-day-progress.md](./features/shared-day-progress.md)
 - [smart-moments-e2e-validation.md](./features/smart-moments-e2e-validation.md)
 - [smart-moments-feed.md](./features/smart-moments-feed.md)

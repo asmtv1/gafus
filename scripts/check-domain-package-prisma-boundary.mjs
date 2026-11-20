@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const legacyAdapters = [
   "mobile-ota-server", // owned signed release registry persistence, no API/Core ORM
-  "reengagement", "statistics", "feed-server", "chat-server", "gallery-server",
+  "reengagement", "statistics", "feed-server", "gallery-server",
   "auth", "mailer", "webpush", "notifications-server", "questions-server", "questions-write-server", "consultation-server", "consultation-write-server", "exam-server", "course-server", "course-read-server", "course-progress-server", "identity-write-server", "consultation-query-server", "subscription-finance-server", "subscription-payment-server", "subscription-trial-server", "trainer-ai-server",
   "pets-server", "tracking-server", "media-server", "article-server", "gafus-server", "entitlements-server",
   "subscription-read-server", "subscription-write-server",
@@ -16,6 +16,8 @@ const legacyAdapters = [
 // direct persistence until their transport contracts are redesigned; no additional
 // module can start importing the database without failing CI.
 const permittedInfrastructure = new Set([
+  "packages/mobile-ota-server/src/version-publication-repository.ts", // serializable platform/version publication lock, replay and immutable audit append
+  "packages/mobile-ota-server/src/version-selection-repository.ts", // observed native installation and exact signed version lookup
   "packages/mobile-ota-server/src/ci-registration.ts", // verified signed Expo manifest, immutable asset and idempotent CI receipt SQL
   "packages/mobile-ota-server/src/deployment-commands.ts", // version-CAS OTA publish/pause and audited channel creation
   "packages/mobile-ota-server/src/native-release-admin.ts", // native build provenance and verified device trust registry
@@ -75,7 +77,7 @@ const permittedInfrastructure = new Set([
   "packages/notifications-server/src/pushSubscriptionService.ts", // signed-session, locked owner endpoint CAS
   "packages/notifications-server/src/stepNotificationService.ts", // existing step notification repository
   "packages/auth/src/identityReadService.ts", // session revocation, actor role, and password credential reads
-  "packages/auth/src/vkGrant.ts", // single-use hashed login grant with transactional consume
+  "packages/notifications-server/src/chat-outbox-diagnostics.ts", // server-only Chat2 dead-letter diagnostics and retry, never API-owned ORM
   "packages/notifications-server/src/adminBroadcastService.ts", // explicit-admin broadcast database read and invalid-token prune
   "packages/notifications-server/src/trainingReminderClaims.ts",
   "packages/notifications-server/src/training-reminder-delivery.ts", // owner/day scoped lease and durable training reminder ACK // conditional reminder and push-subscription repository
@@ -89,6 +91,11 @@ const permittedInfrastructure = new Set([
   "packages/feed-server/src/smart-ml-operations.ts", // bounded smart feed SQL/model persistence
   "packages/gallery-server/src/runtimeService.ts", // concrete Gallery Prisma and storage port binding
   "packages/gallery-server/src/recovery.ts", // bounded Cloud wake-up due query
+  "packages/feed-server/src/smartPreferencesRows.ts", // actor-scoped feed personalization SQL and single-transaction reset
+  "packages/feed-server/src/smartRetentionRows.ts", // bounded smart telemetry retention SQL, never deletes public posts
+  "packages/feed-server/src/smartRetrievalRows.ts", // viewer-scoped multi-source candidate query with hard ACL filters
+  "packages/feed-server/src/smartRankingRows.ts", // viewer-scoped single-source and smart affinity SQL projection
+  "packages/feed-server/src/chronologicalRows.ts", // viewer-scoped chronological feed page SQL/keyset projection
   "packages/feed-server/src/runtimeServices.ts", // concrete S3/DB production feed composition
   "packages/feed-server/src/backgroundOperations.ts", // feed maintenance and private push read adapter
   "packages/feed-server/src/retiredPhotoQueue.ts", // one-way terminal cleanup of retired photo queue
@@ -138,6 +145,9 @@ const permittedInfrastructure = new Set([
   "packages/subscription-finance-server/src/profit-video-rows.ts", // atomic actor-checked expense CAS and audit snapshots
   "packages/subscription-finance-server/src/partnerRows.ts", // locked partner binding, referral and payout ledger persistence
   "packages/subscription-finance-server/src/adminRows.ts", // NPD dashboard, subscription admin snapshots and serializable manual grants
+  "packages/subscription-payment-server/src/googlePlayRows.ts", // owner-locked Google Play token/renewal SQL; API transport never imports Prisma runtime
+  "packages/subscription-payment-server/src/appleSubscriptionState.ts", // verified Apple Server API state persistence under subscription row lock
+  "packages/subscription-payment-server/src/subscriptionTransitions.ts", // atomic verified YooKassa trial binding and entitlement persistence
   "packages/subscription-payment-server/src/paymentService.ts", // provider-authenticated purchase/refund state transitions and locked subscription SQL
   "packages/consultation-query-server/src/bookingEligibility.ts",
   "packages/consultation-query-server/src/consultationMailRead.ts", // booking-only mail projection; no recipient or transport policy
@@ -145,12 +155,10 @@ const permittedInfrastructure = new Set([
   "packages/consultation-query-server/src/schedule-rows.ts", // role-locked schedule transaction with same-tx materialized slot rebuild // owner-role-locked trainer listing and idempotent schedule row // exact client-scoped active/completed booking projection and booking lock
   "packages/consultation-query-server/src/slotRows.ts", // serialized slot horizon materialization and admission SQL
   "packages/identity-write-server/src/registration-context-reads.ts",
-  "packages/identity-write-server/src/registration-contract-rows.ts", // hashed VK login CAS and registration email idempotency under caller tx // hashed VK registration lookup and transaction forwarding
-  "packages/identity-write-server/src/vk-completion-rows.ts", // lock-scoped registration completion, result replay and grant invalidation
+  "packages/identity-write-server/src/registration-contract-rows.ts", // registration email idempotency under caller transaction
   "packages/identity-write-server/src/account-cleanup-worker-rows.ts", // SKIP LOCKED lease and token-fenced owner cleanup retry/checkpoints
   "packages/identity-write-server/src/accountDeletionRows.ts", // same-transaction self-delete cleanup, audit counters and challenge persistence
   "packages/identity-write-server/src/authRows.ts", // authentication user projections and CAS refresh/token/password session transactions
-  "packages/identity-write-server/src/vkAuthRows.ts", // VK OAuth user/account/profile transactional identity lock and email scoping
   "packages/identity-write-server/src/reminderReviewRows.ts", // AG1/AG4 source-only reminder receipt transaction and owner-fenced persistence
   "packages/identity-write-server/src/passwordReset.ts", // single-use reset receipt, role-session revocation SQL transaction
   "packages/identity-write-server/src/emailAccountRows.ts", // owner-locked email token creation, delivery rollback and single-use CAS confirmation
@@ -196,11 +204,6 @@ const permittedInfrastructure = new Set([
   "packages/questions-server/src/notifications.ts", // bounded question-notification repair queue
   "packages/questions-server/src/moderation.ts", // locked admin-role recheck, target serialization and same-tx photo outbox
   "packages/questions-write-server/src/service.ts", // question publication, moderation, photos, rewards and owner-scoped SQL transactions
-  "packages/chat-server/src/service.ts", // actor-owned private chat, idempotent operations, membership, Stream permissions
-  "packages/chat-server/src/community.ts", // actor-gated public chat CRUD, bans and staff-only moderation with Stream CID validation
-  "packages/chat-server/src/message-tombstone.ts", // delete tombstone persisted before external Stream hard-delete
-  "packages/chat-server/src/notifications.ts", // webhook inbox, idempotent push and swept attachments with owner gates
-  "packages/chat-server/src/upload-service.ts", // actor-scoped channel/file insert and remote upload cleanup
   "packages/feed-server/src/smartStats.ts", // bounded, parameterized read-only stats snapshot; caller supplies an already ACL-filtered list
   "packages/feed-server/src/adminModeration.ts", // moderation ACL and Prisma-backed state transitions
   "packages/mailer/src/send-transactional-mail.ts", // persisted provider acceptance readback
@@ -209,7 +212,6 @@ const permittedInfrastructure = new Set([
   "packages/mailer/src/webhook.ts",      // verified provider event journal
   "packages/webpush/src/db.ts",          // legacy subscription adapter
   "packages/webpush/src/expoPush.ts",    // provider invalid-endpoint cleanup
-  "packages/webpush/src/rustorePush.ts", // provider invalid-endpoint cleanup
 ]);
 const observedExceptions = new Set();
 const errors = [];

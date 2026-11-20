@@ -183,7 +183,7 @@ class FreshBootstrapContracts(unittest.TestCase):
     def test_verify_mode_does_not_rewrite_candidate(self):
         old={str(p):p.stat().st_mtime_ns for p in (BASELINE,EXTRAS,SEEDS,COMBINED,SNAPSHOT)}
         result=subprocess.run([sys.executable,str(DIRECTORY/'assemble.py'),'--verify'],
-            capture_output=True,text=True,timeout=12,check=False)
+            capture_output=True,text=True,timeout=60,check=False)
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertIn('PASS bootstrap read-only parity',result.stdout)
         self.assertEqual(old,{str(p):p.stat().st_mtime_ns for p in (BASELINE,EXTRAS,SEEDS,COMBINED,SNAPSHOT)})

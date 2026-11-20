@@ -1,8 +1,8 @@
 /** In-memory transactional Prisma port: no database, provider, or HTTP listener. */
 import { describe, expect, it } from "vitest";
 import { Prisma } from "@gafus/prisma";
-import type { FeedDb } from "./ports";
-import { createFeedPolls } from "./polls";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
+import { createFeedPolls } from "../../../../feed-server/src/pollRows";
 
 type VoteState = { voted: boolean; choices: string[]; updatedAt: Date | null };
 

@@ -1,5 +1,5 @@
 import { Prisma } from "@gafus/prisma";
-import type { FeedDb } from "@gafus/core/services/feed";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
 import {
   isSmartMlVector, smartMlPassesOfflineGate, trainSmartMl,
   type SmartMlTrainingRow,

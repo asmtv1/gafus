@@ -96,6 +96,43 @@ export function isolatedLocalApiHostname(env: NodeJS.ProcessEnv): string | undef
   const fail = (): never => {
     throw new Error("LOCAL_API_ISOLATION_PREFLIGHT_DENIED");
   };
+  // Fresh browser E2E: opt-in, one-use Compose database/Redis, never an
+  // existing Refactor WORK snapshot or a production/staging connection.
+  // The seed/runner supplies these names from a single random token.
+  if (env.GAFUS_QA_FRESH_BROWSER_E2E === "1") {
+    let db: URL, redis: URL;
+    try {
+      db = new URL(env.DATABASE_URL ?? "");
+      redis = new URL(env.REDIS_URL ?? "");
+    } catch { return fail(); }
+    const qaWebPort = env.GAFUS_QA_WEB_PORT;
+    const qaApiPort = env.API_PORT ?? "";
+    const validPort = (value: string) =>
+      /^[1-9][0-9]{3,4}$/.test(value) && Number(value) >= 1024 && Number(value) <= 65535;
+    const expectedPorts = qaWebPort === undefined ? qaApiPort === "3001" :
+      validPort(qaApiPort) && validPort(qaWebPort) && qaApiPort !== qaWebPort;
+    const project = env.GAFUS_QA_PROJECT ?? "";
+    const expectedUser = project.replace(/^gafusqa/, "qa");
+    const forbidden = /^(?:YOOKASSA_|RESEND_|SMTP_|MAIL_|APNS_|FCM_|FIREBASE_|RUSTORE_|AWS_|S3_|CLOUDRU_|CLOUD_RU_|YANDEX_|VK_|TELEGRAM_|BEGET_|PAYMENT_|WEBHOOK_)/;
+    if (
+      env.NODE_ENV !== "development" || env.API_HOST !== "127.0.0.1" ||
+      !expectedPorts || env.GAFUS_LOCAL_BROWSER_AUTH !== "1" ||
+      !/^gafusqa[a-f0-9]{12}$/.test(project) ||
+      db.protocol !== "postgresql:" || db.hostname !== "127.0.0.1" ||
+      db.pathname !== "/" + project || db.username !== expectedUser ||
+      !/^[a-f0-9]{48}$/.test(db.password) ||
+      !/^\d{4,5}$/.test(db.port) || Number(db.port) < 1024 ||
+      db.search !== "?schema=public" || db.hash ||
+      redis.protocol !== "redis:" || redis.hostname !== "127.0.0.1" ||
+      redis.username || redis.pathname !== "/0" ||
+      !/^[a-f0-9]{48}$/.test(redis.password) ||
+      !/^\d{4,5}$/.test(redis.port) || redis.search || redis.hash ||
+      env.GALLERY_ENABLED === "true" || env.FEED_ENABLED === "true" ||
+      env.CDN_HEALTH_MONITOR_ENABLED === "true" ||
+      Object.keys(env).some(k => forbidden.test(k) && Boolean(env[k]))
+    ) fail();
+    return "127.0.0.1";
+  }
   const originalLocalPort = env.API_PORT === "3001";
   // Chat2-only local manual testing shares the exact restricted Refactor WORK
   // snapshot/JWT signer with 3001, never another DB, host or deployment.

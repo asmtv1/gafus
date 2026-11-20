@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { FeedDb } from "./ports";
-import { createFeedService } from "./service";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
+import { createFeedService } from "../../../../feed-server/src/postRows";
 
 const redisSet = vi.fn().mockResolvedValue("OK");
 

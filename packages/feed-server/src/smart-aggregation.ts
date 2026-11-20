@@ -1,5 +1,5 @@
 import { Prisma } from "@gafus/prisma";
-import type { FeedDb } from "@gafus/core/services/feed";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
 
 /** Refresh a bounded moving window; never run unbounded COUNTs over all history. */
 export async function refreshSmartFeedStats(db: FeedDb, limit = 1200): Promise<number> {

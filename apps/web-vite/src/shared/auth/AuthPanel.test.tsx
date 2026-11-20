@@ -30,6 +30,7 @@ afterEach(async () => {
   container.remove();
   client.clear();
   vi.unstubAllGlobals();
+  window.history.replaceState({}, "", "/");
 });
 
 async function mount() {
@@ -87,6 +88,14 @@ describe("GAFUS Vite auth UI", () => {
     expect(client.getQueryData(["user", "profile", "old-account"])).toBeUndefined();
     expect(container.querySelector<HTMLInputElement>("#login-password")).toBeNull();
     expect(JSON.stringify(fake.mock.calls)).not.toContain("Bearer");
+  });
+
+  it("redirects an authenticated /login screen even if the mutate callback was lost", async () => {
+    window.history.replaceState({}, "", "/login");
+    client.setQueryData(CURRENT_USER_QUERY_KEY, user);
+    vi.stubGlobal("fetch", vi.fn());
+    await mount();
+    expect(window.location.pathname).toBe("/courses");
   });
 
   it("shows authenticated identity without touching localStorage", async () => {

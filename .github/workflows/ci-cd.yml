@@ -16,6 +16,18 @@ env:
   IMAGE_NAME: asmtv1
 
 jobs:
+  # Informational test-system pilot. Not a release gate until E2E and
+  # integration parity are demonstrated; existing deploy requirements unchanged.
+  testing-advisory:
+    if: github.event_name == 'pull_request' || (github.ref == 'refs/heads/main' && vars.GAFUS_TEST_MAIN_ADVISORY == 'true')
+    uses: ./.github/workflows/testing-reusable.yml
+    with:
+      base: ${{ github.event.pull_request.base.sha }}
+      profile: ${{ github.event_name == 'push' && 'full' || 'ci' }}
+      execute: ${{ github.event_name == 'push' }}
+    permissions:
+      contents: read
+
   # Prepare dependencies - shared job for all other jobs
   prepare-deps:
     runs-on: ubuntu-latest
@@ -364,7 +376,6 @@ jobs:
       - name: Check Chat2 first-install staged source without deploy (blocking)
         env:
           COMPOSE_PROFILES: chat2
-          CHAT2_LEGACY_RETIRE_ENABLED: disabled
           CHAT2_API_ENABLED: enabled
           CHAT2_WORKER_ENABLED: enabled
           CHAT2_PRIVATE_MEDIA_ENABLED: enabled
@@ -592,7 +603,6 @@ jobs:
         env:
           GAFUS_RELEASE_SHA: ${{ github.sha }}
           GAFUS_OWNER_RELEASE_APPROVED_SHA: ${{ vars.GAFUS_OWNER_RELEASE_APPROVED_SHA }}
-          CHAT2_LEGACY_RETIRE_ENABLED: ${{ vars.CHAT2_LEGACY_RETIRE_ENABLED }}
           CHAT2_API_ENABLED: ${{ vars.CHAT2_API_ENABLED }}
           CHAT2_WORKER_ENABLED: ${{ vars.CHAT2_WORKER_ENABLED }}
           CHAT2_PRIVATE_MEDIA_ENABLED: ${{ vars.CHAT2_PRIVATE_MEDIA_ENABLED }}

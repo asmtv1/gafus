@@ -1,5 +1,5 @@
 import {describe,expect,it,vi} from "vitest";
-import {createFeedService} from "./service";
+import {createFeedService} from "../../../../feed-server/src/postRows";
 
 function harness(options:{mime?:string; failCopy?:boolean}={}){
   const source="posts/user1/post1/incoming/upload1/source.mp4";

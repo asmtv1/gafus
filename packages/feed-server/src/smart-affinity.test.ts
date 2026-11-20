@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FeedDb } from "@gafus/core/services/feed";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
 import { refreshSmartAuthorAffinities } from "./smart-affinity.js";
 
 describe("decayed author affinity aggregation", () => {

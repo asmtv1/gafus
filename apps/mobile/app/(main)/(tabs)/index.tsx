@@ -42,7 +42,6 @@ import {
 } from "@/shared/utils/courseFilters";
 import { getCourseLogoVariantCandidates } from "@/shared/lib/utils/mobileImageVariant";
 import { COLORS, FONTS, SPACING, API_BASE_URL } from "@/shared/config";
-import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
 
 const LOGO_PREFETCH_LIMIT = 12;
 const INITIAL_COURSE_RENDER_BATCH_SIZE = 5;
@@ -183,7 +182,6 @@ export function CoursesScreenContent({ showFavoritesUI = false }:
   const refreshingRef = useRef(false);
   const mounted = useRef(true);
   const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
-  const { data: publicConfigResponse, isFetched: publicConfigFetched } = useMobileAppPublicConfig();
   const username = useAuthStore((s) => s.user?.username ?? null);
   const principalId = useAuthStore((s) =>
     s.isAuthenticated && !s.isLoading ? (s.user?.id ?? null) : null,
@@ -211,15 +209,9 @@ export function CoursesScreenContent({ showFavoritesUI = false }:
       mounted.current = false;
     };
   }, []);
-  const isTestUser = username?.toLowerCase() === "testuser";
 
   const { data, isLoading, error, refetch } = useQuery(coursesCatalogQueryOptions);
   const { data: dailyCourseData, refetch: refetchDailyCourse } = useTodayDailyCourse();
-
-  const iosRuCardPaymentHintEnabled = Boolean(
-    publicConfigResponse?.data?.iosRuCardPaymentHintEnabled,
-  );
-  const iosConfigLoaded = Platform.OS !== "ios" || publicConfigFetched;
 
   const catalogReady = !isLoading && !error;
   usePrefetchOtherTabsAfterCourses({ catalogReady });
@@ -420,9 +412,7 @@ export function CoursesScreenContent({ showFavoritesUI = false }:
             isFavorite={courseIsFavorite}
             onToggleFavorite={() => void handleToggleFavorite(item.id, courseIsFavorite)}
             disabled={pending || unknown}
-            showIosRuCardPaymentHint={
-              Platform.OS === "ios" && iosConfigLoaded && iosRuCardPaymentHintEnabled && !isTestUser
-            }
+            showIosRuCardPaymentHint={false}
             tourTargetId={index === 0 ? "courses-list" : undefined}
           />
           {showFavoritesUI && <Pressable
@@ -448,9 +438,6 @@ export function CoursesScreenContent({ showFavoritesUI = false }:
     [
       favoritesSet,
       handleToggleFavorite,
-      isTestUser,
-      iosConfigLoaded,
-      iosRuCardPaymentHintEnabled,
       pendingIdsSet,
       unknownIds,
       confirmed,

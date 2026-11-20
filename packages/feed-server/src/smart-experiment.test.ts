@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { assignSmartExperiment } from "@gafus/core/services/feed";
 import { getSmartExperimentReport, wilson95 } from "./smart-experiment-report.js";
-import type { FeedDb } from "@gafus/core/services/feed";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
 
 describe("smart feed user-level experiment", () => {
   it("does not enroll users unless enabled and percent is valid", () => {

@@ -1,5 +1,7 @@
 import {describe,expect,it,vi} from "vitest";
-import type {FeedService,FeedSocialService,FeedPollService} from "@gafus/core/services/feed";
+import type { FeedService } from "./postRows.js";
+import type { FeedSocialService } from "./socialRows.js";
+import type { FeedPollService } from "./pollRows.js";
 vi.mock("@gafus/queues",()=>({connection:{status:"end"}}));
 import {dispatchFeedRequest} from "./index.js";
 const actor="user_A",post="post_A";

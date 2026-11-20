@@ -1,0 +1,1282 @@
+{
+  "schema": 1,
+  "checks": [
+    {
+      "id": "training.complete.unit",
+      "owner": "@gafus/core",
+      "profiles": [
+        "unit",
+        "ci",
+        "full"
+      ],
+      "workspaces": [
+        "@gafus/core",
+        "@gafus/course-progress-server"
+      ],
+      "cwd": "packages/core",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.config.ts",
+        "src/utils/training.test.ts",
+        "--reporter=json",
+        "--outputFile={report}"
+      ],
+      "format": "vitest-json",
+      "expectedCases": [
+        "calculateDayStatus returns COMPLETED when all steps completed",
+        "calculateCourseStatus returns COMPLETED when all days completed",
+        "calculateCourseStatusFromDayStatuses returns COMPLETED when all days completed and count matches"
+      ],
+      "resource": "node",
+      "platform": "node",
+      "scenario": "training.complete",
+      "part": "training-status",
+      "kind": "unit",
+      "status": "ready",
+      "resources": [
+        "node"
+      ]
+    },
+    {
+      "id": "training.complete.pg",
+      "owner": "@gafus/course-progress-server",
+      "profiles": [
+        "integration",
+        "ci",
+        "full"
+      ],
+      "workspaces": [
+        "@gafus/course-progress-server",
+        "@gafus/prisma",
+        "@gafus/api"
+      ],
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/training-atomic-isolated-pg.sh"
+      ],
+      "format": "vitest-console",
+      "expectedCases": [
+        "rolls back UserStep and UserTraining when UserCourse reconciliation fails",
+        "serializes two clients completing the same bound step; an ignored response does not duplicate the completion",
+        "commits the course completion exactly once across two concurrent step completions"
+      ],
+      "resource": "disposable-postgres18",
+      "platform": "node",
+      "prerequisites": [
+        "initdb",
+        "pg_ctl",
+        "createdb"
+      ],
+      "scenario": "training.complete",
+      "part": "isolated-pg",
+      "kind": "integration",
+      "status": "ready",
+      "resources": [
+        "disposable-postgres18"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH"
+    },
+    {
+      "id": "training.complete.web",
+      "owner": "@gafus/web-vite",
+      "profiles": [
+        "e2e-web",
+        "ci",
+        "full"
+      ],
+      "workspaces": [
+        "@gafus/web-vite",
+        "@gafus/api",
+        "@gafus/course-progress-server"
+      ],
+      "cwd": ".",
+      "command": [
+        "node",
+        "tests/support/test-env.mjs",
+        "with-functional",
+        "--",
+        "node",
+        "scripts/qa/web-e2e-stand.mjs"
+      ],
+      "format": "vitest-json",
+      "resource": "prepared-real-api-and-browser",
+      "platform": "web",
+      "prerequisites": [],
+      "note": "Headless Playwright Test by default. GAFUS_WEB_E2E_AUTOMATED=0 selects the retained manual Chrome route. Headless runs produce exact Playwright JSON and disposable PostgreSQL readback.",
+      "scenario": "training.complete",
+      "part": "learner-ui",
+      "kind": "e2e:web",
+      "status": "ready",
+      "resources": [
+        "isolated-compose-postgres-redis",
+        "real-hono-api",
+        "vite",
+        "playwright-chromium"
+      ],
+      "expectedCases": [
+        "learner completes training after fresh session"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH"
+    },
+    {
+      "id": "mobile.ota.android",
+      "scenario": "mobile.ota",
+      "owner": "@gafus/mobile",
+      "kind": "e2e:mobile",
+      "part": "native-ota",
+      "platform": "android",
+      "profiles": [
+        "e2e-mobile",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [
+        "signed-qa-binary",
+        "android-device",
+        "isolated-qa-api",
+        "maestro",
+        "python3"
+      ],
+      "cwd": ".",
+      "command": [
+        "node",
+        "scripts/qa/mobile-maestro-run.mjs",
+        "android",
+        "ota"
+      ],
+      "reportEnv": "GAFUS_MOBILE_REPORT_PATH",
+      "expectedCases": [
+        "GAFUS QA runtime identity after relaunch",
+        "GAFUS QA - login and session",
+        "GAFUS Android QA - mandatory OTA cannot be bypassed",
+        "GAFUS QA runtime identity after relaunch (installed)",
+        "GAFUS QA runtime identity after relaunch (recovery)"
+      ],
+      "timeoutMs": 900000
+    },
+    {
+      "id": "mobile.ota.ios",
+      "scenario": "mobile.ota",
+      "owner": "@gafus/mobile",
+      "kind": "e2e:mobile",
+      "part": "native-ota",
+      "platform": "ios",
+      "profiles": [
+        "e2e-mobile",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [
+        "signed-qa-binary",
+        "ios-device",
+        "isolated-qa-api",
+        "maestro",
+        "python3"
+      ],
+      "cwd": ".",
+      "command": [
+        "node",
+        "scripts/qa/mobile-maestro-run.mjs",
+        "ios",
+        "ota"
+      ],
+      "reportEnv": "GAFUS_MOBILE_REPORT_PATH",
+      "expectedCases": [
+        "GAFUS QA runtime identity after relaunch",
+        "GAFUS QA - login and session",
+        "GAFUS iOS QA - mandatory OTA survives relaunch",
+        "GAFUS QA runtime identity after relaunch (installed)",
+        "GAFUS QA runtime identity after relaunch (recovery)"
+      ],
+      "timeoutMs": 900000
+    },
+    {
+      "id": "mobile.training.android",
+      "scenario": "mobile.training",
+      "owner": "@gafus/mobile",
+      "kind": "e2e:mobile",
+      "part": "native-training",
+      "platform": "android",
+      "profiles": [
+        "e2e-mobile",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [
+        "signed-qa-binary",
+        "android-device",
+        "isolated-qa-api",
+        "maestro",
+        "python3"
+      ],
+      "cwd": ".",
+      "command": [
+        "node",
+        "scripts/qa/mobile-maestro-run.mjs",
+        "android",
+        "training"
+      ],
+      "reportEnv": "GAFUS_MOBILE_REPORT_PATH",
+      "expectedCases": [
+        "GAFUS QA runtime identity after relaunch",
+        "GAFUS QA - login and session",
+        "GAFUS QA open a cached training",
+        "GAFUS QA complete an exercise offline",
+        "GAFUS QA completion survives reconnect and restart"
+      ],
+      "timeoutMs": 900000
+    },
+    {
+      "id": "mobile.training.ios",
+      "scenario": "mobile.training",
+      "owner": "@gafus/mobile",
+      "kind": "e2e:mobile",
+      "part": "native-training",
+      "platform": "ios",
+      "profiles": [
+        "e2e-mobile",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [
+        "signed-qa-binary",
+        "ios-device",
+        "isolated-qa-api",
+        "maestro",
+        "python3"
+      ],
+      "cwd": ".",
+      "command": [
+        "node",
+        "scripts/qa/mobile-maestro-run.mjs",
+        "ios",
+        "training"
+      ],
+      "reportEnv": "GAFUS_MOBILE_REPORT_PATH",
+      "expectedCases": [
+        "GAFUS QA runtime identity after relaunch",
+        "GAFUS QA - login and session",
+        "GAFUS QA open a cached training",
+        "GAFUS QA complete an exercise offline",
+        "GAFUS QA completion survives reconnect and restart"
+      ],
+      "timeoutMs": 900000
+    },
+    {
+      "id": "payment.lifecycle.pg",
+      "scenario": "payment.lifecycle",
+      "owner": "@gafus/subscription-payment-server",
+      "kind": "integration",
+      "part": "isolated-pg",
+      "platform": "node",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/payment-archqa-isolated-pg.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "a sequential replay yields one durable processed event, no duplicate subscription",
+        "two concurrent initial payment callbacks commit one ACTIVE grant and one event",
+        "full verified refund is idempotent, persists finance refund and cannot regrant access",
+        "concurrent verified callbacks for one transaction commit exactly one payment and event",
+        "older revoked notification does not override a later successful period"
+      ],
+      "resources": [
+        "isolated-postgres18"
+      ],
+      "profiles": [
+        "integration",
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "mobile.ota.pg",
+      "scenario": "mobile.ota",
+      "owner": "@gafus/mobile-ota-server",
+      "kind": "integration",
+      "part": "isolated-pg",
+      "platform": "node",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/ota-version-publication-isolated-pg.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "requires every verified target, promotes only the tested set, stops checkout before recovery and isolates versions",
+        "refuses delivery before upload, CI approval and explicit admin publication",
+        "expands rollout to 100%, then pauses without deleting release or assets"
+      ],
+      "resources": [
+        "isolated-postgres18"
+      ],
+      "profiles": [
+        "integration",
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "chat.delivery.pg",
+      "scenario": "chat.delivery",
+      "owner": "@gafus/chat-server",
+      "kind": "integration",
+      "part": "isolated-pg",
+      "platform": "node",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/chat2-send-isolated-pg.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "concurrent same-key sends commit one message, one outbox and one sequence",
+        "changed same-key payload is rejected without writing; intentional subsequent same text has a new identity",
+        "same client ID is scoped by actor and room, never replayed across principals"
+      ],
+      "resources": [
+        "isolated-postgres18"
+      ],
+      "profiles": [
+        "integration",
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "feed.order.pg",
+      "scenario": "feed.order",
+      "owner": "@gafus/feed-server",
+      "kind": "integration",
+      "part": "isolated-pg",
+      "platform": "node",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/feed-chronological-isolated-pg.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "matches original projection for both viewers and bookmark ACLs",
+        "preserves equal-timestamp keyset order without duplicates across page sizes"
+      ],
+      "resources": [
+        "isolated-postgres18"
+      ],
+      "profiles": [
+        "integration",
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "chat.delivery.unit",
+      "scenario": "chat.delivery",
+      "owner": "@gafus/core-client",
+      "kind": "unit",
+      "part": "retry-state",
+      "platform": "node",
+      "cwd": "packages/core-client",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.config.ts",
+        "src/chat2/sendAttempt.test.ts",
+        "--reporter=json",
+        "--outputFile={report}"
+      ],
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "reuses ID after lost response or repeated tap, and keeps successful sequential messages distinct",
+        "keeps already-uploaded attachment identity stable across retry and protects snapshot from mutations"
+      ],
+      "resources": [
+        "node"
+      ],
+      "profiles": [
+        "unit",
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "account.delete.pg",
+      "scenario": "account.delete",
+      "owner": "@gafus/identity-write-server",
+      "kind": "integration",
+      "part": "disposable-account-deletion-pg18",
+      "platform": "node",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/account-deletion-rows-isolated-pg.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "retrieves only minimal self-delete fields and counts authored content",
+        "persists and replaces the owner's single-use email challenge in one transaction",
+        "failed durable cleanup callback rolls back token, revocation and all rows",
+        "commits cleanup record and deletion audit atomically before account cascade",
+        "rejects direct SQL UPDATE DELETE and TRUNCATE against the deletion audit"
+      ],
+      "resources": [
+        "isolated-postgres18"
+      ],
+      "profiles": [
+        "integration",
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "security.authorization.session-unit",
+      "scenario": "security.authorization",
+      "owner": "@gafus/auth",
+      "kind": "unit",
+      "part": "session-policy",
+      "platform": "node",
+      "cwd": "packages/auth",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.config.ts",
+        "src/sessionPolicy.test.ts",
+        "--reporter=json",
+        "--outputFile={report}"
+      ],
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "accepts a current access JWT bound to an active refresh session",
+        "rejects an old administrator token immediately after role demotion",
+        "rejects a revoked, expired or cross-user session",
+        "rejects malformed session id and global credential revocation"
+      ],
+      "resources": [
+        "node"
+      ],
+      "profiles": [
+        "unit",
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "security.authorization.http",
+      "scenario": "security.authorization",
+      "owner": "@gafus/api",
+      "kind": "integration",
+      "part": "actual-hono-router",
+      "platform": "node",
+      "cwd": "apps/api",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.config.ts",
+        "src/routes/v1/g1-course-access-private-boundary.mounted.test.ts",
+        "--reporter=json",
+        "--outputFile={report}"
+      ],
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "A→B→A same Hono returns user-scoped entitlement, no-store",
+        "byId is preferred when both courseType and courseId supplied",
+        "Core failure 500 is not cached and never leaks raw provider entitlement",
+        "no authentication stays 401 without entitlement call"
+      ],
+      "resources": [
+        "node"
+      ],
+      "profiles": [
+        "integration",
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "payment.lifecycle.web",
+      "scenario": "payment.lifecycle",
+      "owner": "@gafus/subscription-payment-server",
+      "kind": "e2e:web",
+      "part": "pending-user-receipt",
+      "platform": "web",
+      "cwd": ".",
+      "command": null,
+      "format": "missing",
+      "status": "requires-disposable-app-provider-session",
+      "expectedCases": [
+        "purchase+relogin actual gated content"
+      ],
+      "resources": [
+        "unprovisioned-test-runtime"
+      ],
+      "profiles": [
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "payment.lifecycle.apple-sandbox",
+      "scenario": "payment.lifecycle",
+      "owner": "@gafus/subscription-payment-server",
+      "kind": "external-provider",
+      "part": "pending-user-receipt",
+      "platform": "apple",
+      "cwd": ".",
+      "command": null,
+      "format": "missing",
+      "status": "requires-disposable-app-provider-session",
+      "expectedCases": [
+        "sandbox purchase restoration and revised entitlement"
+      ],
+      "resources": [
+        "unprovisioned-test-runtime"
+      ],
+      "profiles": [
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "chat.delivery.mobile.android",
+      "scenario": "chat.delivery",
+      "owner": "@gafus/chat-server",
+      "kind": "e2e:mobile",
+      "part": "pending-user-receipt",
+      "platform": "android",
+      "cwd": ".",
+      "command": null,
+      "format": "missing",
+      "status": "requires-disposable-app-provider-session",
+      "expectedCases": [
+        "offline retry and one visible message after receiver relogin"
+      ],
+      "resources": [
+        "unprovisioned-test-runtime"
+      ],
+      "profiles": [
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "chat.delivery.mobile.ios",
+      "scenario": "chat.delivery",
+      "owner": "@gafus/chat-server",
+      "kind": "e2e:mobile",
+      "part": "pending-user-receipt",
+      "platform": "ios",
+      "cwd": ".",
+      "command": null,
+      "format": "missing",
+      "status": "requires-disposable-app-provider-session",
+      "expectedCases": [
+        "offline retry and one visible message after receiver relogin"
+      ],
+      "resources": [
+        "unprovisioned-test-runtime"
+      ],
+      "profiles": [
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "feed.order.web",
+      "scenario": "feed.order",
+      "owner": "@gafus/feed-server",
+      "kind": "e2e:web",
+      "part": "pending-user-receipt",
+      "platform": "web",
+      "cwd": ".",
+      "command": null,
+      "format": "missing",
+      "status": "requires-disposable-app-provider-session",
+      "expectedCases": [
+        "chronological order after new browser session"
+      ],
+      "resources": [
+        "unprovisioned-test-runtime"
+      ],
+      "profiles": [
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "account.delete.web",
+      "scenario": "account.delete",
+      "owner": "@gafus/identity-write-server",
+      "kind": "e2e:web",
+      "part": "pending-user-receipt",
+      "platform": "web",
+      "cwd": ".",
+      "command": null,
+      "format": "missing",
+      "status": "requires-disposable-app-provider-session",
+      "expectedCases": [
+        "owner delete and refusal for other account"
+      ],
+      "resources": [
+        "unprovisioned-test-runtime"
+      ],
+      "profiles": [
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "security.authorization.roles-web",
+      "scenario": "security.authorization",
+      "owner": "@gafus/auth",
+      "kind": "e2e:web",
+      "part": "pending-user-receipt",
+      "platform": "web",
+      "cwd": ".",
+      "command": null,
+      "format": "missing",
+      "status": "requires-disposable-app-provider-session",
+      "expectedCases": [
+        "real learner trainer admin action and denial"
+      ],
+      "resources": [
+        "unprovisioned-test-runtime"
+      ],
+      "profiles": [
+        "ci",
+        "full"
+      ]
+    },
+    {
+      "id": "payment.failures.pg",
+      "scenario": "payment.failures",
+      "owner": "@gafus/core",
+      "kind": "faults",
+      "part": "provider-retry-refund",
+      "platform": "node",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/payment-archqa-isolated-pg.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "provider timeout before first entitlement is retried without duplicate grant or receipt",
+        "refund verification outage preserves access until one verified refund is committed"
+      ],
+      "resources": [
+        "disposable-postgres18",
+        "synthetic-yookassa-provider"
+      ],
+      "profiles": [
+        "faults"
+      ]
+    },
+    {
+      "id": "worker.failures.pg",
+      "scenario": "worker.failures",
+      "owner": "@gafus/worker",
+      "kind": "faults",
+      "part": "outbox-fencing-retry",
+      "platform": "node",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/media-cdn-purge-isolated-pg.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "worker provider failure keeps durable job pending without acknowledgement or leaking details",
+        "worker crash after SQL checkpoint reclaims lease without submitting a duplicate provider operation",
+        "two concurrent worker passes have one SQL lease and one irreversible provider submission"
+      ],
+      "resources": [
+        "disposable-postgres18",
+        "synthetic-beget-purge-provider"
+      ],
+      "profiles": [
+        "faults"
+      ]
+    },
+    {
+      "id": "coverage.payment.pg",
+      "scenario": "coverage.payment",
+      "owner": "@gafus/subscription-payment-server",
+      "kind": "coverage-risk",
+      "riskDomain": "payment",
+      "coverageSources": [
+        "packages/subscription-payment-server/src/paymentService.ts",
+        "packages/subscription-payment-server/src/appleSubscriptionState.ts",
+        "packages/subscription-payment-server/src/subscriptionTransitions.ts"
+      ],
+      "part": "source-lines-branches",
+      "platform": "node",
+      "cwd": ".",
+      "command": [
+        "node",
+        "scripts/qa/coverage-risk-run.mjs",
+        "payment",
+        "{report}"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "provider timeout before first entitlement is retried without duplicate grant or receipt",
+        "refund verification outage preserves access until one verified refund is committed",
+        "unconfirmed provider payment rejects grant, then verified replay grants exactly once",
+        "wrong provider amount is rejected without a grant and retry uses immutable checkout amount",
+        "cross-account provider metadata cannot grant entitlement even with valid incoming webhook metadata",
+        "verified payment cancellation and repeated cancel webhook never create access or duplicate event",
+        "unknown local payment reference is ignored without granting or claiming an event processed",
+        "unverified cancel webhook fails closed until a provider-confirmed cancellation is replayed",
+        "mismatched refund payment reference cannot reverse entitlement and corrected replay reverses once",
+        "partial verified refund records one finance reversal without canceling paid subscription",
+        "late full refund of an older payment leaves a newer succeeded period active",
+        "trial activation on pending subscription grants a bounded period and one durable receipt",
+        "binding active paid period keeps existing entitlement and never creates a second trial",
+        "a card fingerprint previously used by another owner denies trial without granting access",
+        "two simultaneous card bindings yield one trial grant and one denied trial",
+        "failed activation of unknown subscription rolls back a trial receipt",
+        "cancellation and stale expiry never alter Apple, already expired or canceled entitlements"
+      ],
+      "resources": [
+        "isolated-postgres18-db-push",
+        "synthetic-providers",
+        "vitest-v8-source-coverage"
+      ],
+      "profiles": [
+        "coverage-risk"
+      ],
+      "timeoutMs": 480000
+    },
+    {
+      "id": "coverage.worker.pg",
+      "scenario": "coverage.worker",
+      "owner": "@gafus/worker",
+      "kind": "coverage-risk",
+      "riskDomain": "worker",
+      "coverageSources": [
+        "packages/worker/src/media-cdn-purge-worker.ts"
+      ],
+      "part": "source-lines-branches",
+      "platform": "node",
+      "cwd": ".",
+      "command": [
+        "node",
+        "scripts/qa/coverage-risk-run.mjs",
+        "worker",
+        "{report}"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "vitest-json",
+      "status": "ready",
+      "expectedCases": [
+        "worker provider failure keeps durable job pending without acknowledgement or leaking details",
+        "worker crash after SQL checkpoint reclaims lease without submitting a duplicate provider operation",
+        "two concurrent worker passes have one SQL lease and one irreversible provider submission"
+      ],
+      "resources": [
+        "isolated-postgres18-db-push",
+        "synthetic-providers",
+        "vitest-v8-source-coverage"
+      ],
+      "profiles": [
+        "coverage-risk"
+      ],
+      "timeoutMs": 480000
+    },
+    {
+      "id": "worker.redis-recovery.pg-redis",
+      "scenario": "worker.redis-recovery",
+      "owner": "@gafus/worker",
+      "kind": "recovery",
+      "platform": "node",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/worker-redis-recovery-isolated.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "qa-real-process-evidence-json",
+      "status": "ready",
+      "timeoutMs": 180000,
+      "expectedCases": [
+        "Redis outage during active BullMQ job reconnects and completes from SQL checkpoint",
+        "SIGKILL of owned Worker after durable checkpoint causes BullMQ stalled reclaim without resubmission",
+        "duplicate enqueue and stale SQL lease cannot trigger second provider submission"
+      ],
+      "resources": [
+        "owned-loopback-postgresql18-db-push",
+        "owned-loopback-redis-aof",
+        "owned-child-bullmq-worker",
+        "synthetic-provider-fsynced-ledger"
+      ],
+      "profiles": [
+        "recovery"
+      ]
+    },
+    {
+      "id": "api.authenticated-http.pg",
+      "scenario": "api.authenticated-http",
+      "owner": "@gafus/api",
+      "kind": "api-acceptance",
+      "platform": "node",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/api-authenticated-http-isolated.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "qa-http-sql-json",
+      "status": "ready",
+      "timeoutMs": 180000,
+      "expectedCases": [
+        "Anonymous and invalid bearer are denied by identity, private day, profile and admin API",
+        "Invalid password returns HTTP 401 without SQL refresh session",
+        "Four authenticated HTTP logins create distinct JWTs and four SQL refresh sessions",
+        "Authenticated me and profile responses identify only the request owner",
+        "Assigned private training day is HTTP 200; foreign learner is HTTP 403 without SQL progress",
+        "USER denied trainer/admin, TRAINER allowed own days only, ADMIN permitted protected user list",
+        "Foreign learner POST is denied; assigned learner POST persists exactly one bound SQL progress row",
+        "Logout revokes refresh SQL session, denies bound access JWT, and rejects immediate refresh replay as HTTP 409",
+        "Fresh login then logout-all invalidates bearer and every owner SQL refresh row but not another user"
+      ],
+      "resources": [
+        "owned-loopback-postgresql18-db-push",
+        "owned-loopback-redis",
+        "real-hono-tcp-loopback",
+        "synthetic-authenticated-actors",
+        "real-sql-auth-training-state"
+      ],
+      "profiles": [
+        "api-acceptance"
+      ]
+    },
+    {
+      "id": "api.browser-cookie.chrome-pg-redis",
+      "scenario": "api.browser-cookie-session",
+      "owner": "@gafus/api",
+      "kind": "browser-cookie",
+      "platform": "chrome-extension",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/api-browser-cookie-isolated.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "qa-chrome-cookie-http-sql-json",
+      "status": "ready",
+      "timeoutMs": 600000,
+      "expectedCases": [
+        "a_login",
+        "b_login",
+        "c_login",
+        "a_refresh",
+        "a_logout",
+        "c_after_single",
+        "b_after_single",
+        "a_relogin",
+        "a_logout_all",
+        "c_after_all",
+        "b_unaffected",
+        "c_cleanup",
+        "b_cleanup"
+      ],
+      "resources": [
+        "existing-user-chrome-extension-owned-tabs-only",
+        "owned-loopback-postgresql18-db-push",
+        "owned-loopback-redis",
+        "owned-hono-tcp",
+        "three-unique-qa-localhost-cookie-origins",
+        "real-original-browser-cookie-jwt-routes",
+        "sql-session-revocation-evidence"
+      ],
+      "profiles": [
+        "browser-cookie"
+      ]
+    },
+    {
+      "id": "api.account-delete.real-web-hono-sql",
+      "scenario": "api.account-delete-real-web",
+      "owner": "@gafus/api",
+      "kind": "account-delete-web",
+      "platform": "existing-chrome-extension",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/api-account-delete-web-isolated.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "qa-web-hono-postgres-delete-json",
+      "status": "ready",
+      "timeoutMs": 900000,
+      "expectedCases": [
+        "owner_login",
+        "other_login",
+        "preflight",
+        "request_code",
+        "review_locked",
+        "review_confirmed",
+        "deleted",
+        "stale_replay",
+        "other_isolated",
+        "owner_relogin_denied"
+      ],
+      "profiles": [
+        "account-delete-web"
+      ],
+      "resources": [
+        "original-vite-web-ui",
+        "original-hono-account-delete-api",
+        "own-PostgreSQL18",
+        "own-Redis",
+        "test-only-local-email-sink",
+        "existing-Chrome-two-owned-tabs",
+        "durable-account-deletion-audit"
+      ]
+    },
+    {
+      "id": "api.account-cleanup.fake-storage-worker",
+      "scenario": "api.account-cleanup.fake-storage-worker",
+      "owner": "@gafus/worker",
+      "kind": "account-cleanup-worker",
+      "platform": "isolated-pg18-redis-fake-storage",
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/account-cleanup-fake-storage-isolated.sh"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "format": "vitest-json",
+      "status": "ready",
+      "timeoutMs": 480000,
+      "expectedCases": [
+        "transactional_three_scope_enqueue",
+        "fake_storage_sweep_and_cdn_checkpoint",
+        "queued_cdn_ack_to_sql_done",
+        "idempotent_worker_rerun",
+        "foreign_user_and_audit_unchanged",
+        "redis_isolated_and_sql_queue_fenced"
+      ],
+      "profiles": [
+        "account-cleanup-worker"
+      ],
+      "resources": [
+        "real-PostgreSQL18",
+        "real-Redis",
+        "original-Worker",
+        "durable-SQL-queue",
+        "fake-in-memory-object-storage",
+        "fake-CDN-purge",
+        "real-transactional-delete-synthetic"
+      ]
+    },
+    {
+      "id": "schema.fresh.pg15",
+      "scenario": "schema.fresh",
+      "owner": "@gafus/prisma",
+      "kind": "integration",
+      "part": "fresh-bootstrap-pg15",
+      "platform": "node",
+      "profiles": [
+        "integration",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [
+        "postgresql-15-local-binaries",
+        "generated-prisma-client"
+      ],
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/prisma-fresh-chain-isolated-pg15.sh"
+      ],
+      "expectedCases": []
+    },
+    {
+      "id": "schema.fresh.pg18",
+      "scenario": "schema.fresh",
+      "owner": "@gafus/prisma",
+      "kind": "integration",
+      "part": "fresh-bootstrap-pg18",
+      "platform": "node",
+      "profiles": [
+        "integration",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [
+        "postgresql-18-local-binaries",
+        "generated-prisma-client"
+      ],
+      "cwd": ".",
+      "command": [
+        "bash",
+        "scripts/qa/prisma-fresh-chain-isolated-pg18.sh"
+      ],
+      "expectedCases": []
+    },
+    {
+      "id": "infrastructure.contracts.python",
+      "scenario": "infrastructure.contracts",
+      "owner": "qa/infrastructure",
+      "kind": "integration",
+      "part": "python-unittest",
+      "platform": "node",
+      "profiles": [
+        "integration",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [
+        "python3"
+      ],
+      "cwd": ".",
+      "command": [
+        "python3",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "test_*.py"
+      ],
+      "expectedCases": []
+    },
+    {
+      "id": "staff.actions.trainer-http",
+      "scenario": "staff.actions",
+      "owner": "@gafus/api",
+      "kind": "unit",
+      "part": "trainer-http",
+      "platform": "node",
+      "profiles": [
+        "unit",
+        "ci",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [],
+      "cwd": "apps/api",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "src/routes/v1/trainer-course-full-manage.test.ts",
+        "--reporter=json",
+        "--outputFile={report}"
+      ],
+      "reportEnv": "VITEST_REPORT_PATH",
+      "expectedCases": [
+        "accepts own free course full form with ordered days and version increment",
+        "rejects adding foreign day, stale version and hides missing courses"
+      ]
+    },
+    {
+      "id": "staff.actions.admin-http",
+      "scenario": "staff.actions",
+      "owner": "@gafus/api",
+      "kind": "unit",
+      "part": "admin-http",
+      "platform": "node",
+      "profiles": [
+        "unit",
+        "ci",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [],
+      "cwd": "apps/api",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "src/routes/v1/admin-subscriptions.test.ts",
+        "--reporter=json",
+        "--outputFile={report}"
+      ],
+      "reportEnv": "VITEST_REPORT_PATH",
+      "expectedCases": [
+        "creates promo code through Core with current ADMIN role",
+        "rejects stale admin on promo create",
+        "rejects moderator promo mutations before Core"
+      ]
+    },
+    {
+      "id": "training.offline.journal-http",
+      "scenario": "training.offline",
+      "owner": "@gafus/api",
+      "kind": "unit",
+      "part": "journal-http",
+      "platform": "node",
+      "profiles": [
+        "unit",
+        "ci",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [],
+      "cwd": "apps/api",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "src/routes/v1/g1-off021-v2-journal.http.test.ts",
+        "--reporter=json",
+        "--outputFile={report}"
+      ],
+      "reportEnv": "VITEST_REPORT_PATH",
+      "expectedCases": [
+        "V2H01 success returns correlated ACK and private no-store, authenticated synthetic user used",
+        "V2H08 journal key conflict 409 without ACK",
+        "V2H10 GET owner-scoped current principal and replayed stored ACK"
+      ]
+    },
+    {
+      "id": "payment.lifecycle.checkout-ui",
+      "scenario": "payment.lifecycle",
+      "owner": "@gafus/web-vite",
+      "kind": "unit",
+      "part": "checkout-ui",
+      "platform": "node",
+      "profiles": [
+        "unit",
+        "ci",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [],
+      "cwd": "apps/web-vite",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "src/features/commerce/SubscriptionCheckout.mounted.test.tsx",
+        "--reporter=json",
+        "--outputFile={report}"
+      ],
+      "reportEnv": "VITEST_REPORT_PATH",
+      "expectedCases": [
+        "renders server-priced tariff, no charge on render or selection",
+        "a paid return checks Core status, never creates another payment"
+      ]
+    },
+    {
+      "id": "chat.delivery.photo-ui",
+      "scenario": "chat.delivery",
+      "owner": "@gafus/web-vite",
+      "kind": "unit",
+      "part": "photo-ui",
+      "platform": "node",
+      "profiles": [
+        "unit",
+        "ci",
+        "full"
+      ],
+      "status": "ready",
+      "resources": [],
+      "cwd": "apps/web-vite",
+      "command": [
+        "pnpm",
+        "exec",
+        "vitest",
+        "run",
+        "src/features/chats/Chat2Messenger.layout.mounted.test.tsx",
+        "--reporter=json",
+        "--outputFile={report}"
+      ],
+      "reportEnv": "VITEST_REPORT_PATH",
+      "expectedCases": [
+        "opens and closes the photo viewer through its accessible close button"
+      ]
+    },
+    {
+      "id": "legacy.matrix.regression",
+      "scenario": "legacy.matrix",
+      "owner": "qa/infrastructure",
+      "kind": "legacy",
+      "part": "regression",
+      "platform": "node",
+      "profiles": [
+        "legacy"
+      ],
+      "status": "ready",
+      "resources": [
+        "legacy-isolated-runner-toolchain"
+      ],
+      "cwd": ".",
+      "command": [
+        "node",
+        "scripts/qa/run-legacy-matrix.mjs",
+        "regression"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "expectedCases": [],
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "legacy.matrix.faults",
+      "scenario": "legacy.matrix",
+      "owner": "qa/infrastructure",
+      "kind": "legacy",
+      "part": "faults",
+      "platform": "node",
+      "profiles": [
+        "legacy"
+      ],
+      "status": "ready",
+      "resources": [
+        "legacy-isolated-runner-toolchain"
+      ],
+      "cwd": ".",
+      "command": [
+        "node",
+        "scripts/qa/run-legacy-matrix.mjs",
+        "faults"
+      ],
+      "reportEnv": "GAFUS_TEST_REPORT_PATH",
+      "expectedCases": [],
+      "timeoutMs": 3600000
+    }
+  ]
+}

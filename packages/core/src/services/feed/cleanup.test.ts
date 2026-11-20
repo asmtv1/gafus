@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FeedTx } from "./ports";
-import { enqueueFeedAccountCleanup, enqueueFeedPostCleanup, feedPossibleOutputKeys } from "./cleanup";
+import type { FeedTx } from "@gafus/media-shared/media-db-ports";
+import { enqueueFeedAccountCleanup, enqueueFeedPostCleanup } from "../../../../feed-server/src/cleanupRows";
+import { feedPossibleOutputKeys } from "./cleanup";
 
 describe("feed post S3 cleanup", () => {
   it("queues all post media, original uploads and potential unrecorded video outputs", async () => {

@@ -5,7 +5,7 @@ vi.mock("../../modules/rewarded-credits/composition/gafus-access.js", () => ({
 }));
 /** OFF-021 AG1 actual Hono POST handler after-commit ACK boundary.
  * Real routes/Zod, injected Core/JWT-side principal; no DB/JWT signature or native replay.
- * Does NOT exercise the proposed v2 protocol. No production side effects.
+ * Does NOT exercise a durable v2 event receipt. No production side effects.
  */
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -46,25 +46,28 @@ async function send(id:string,path:string,input:unknown=body,key?:string):Promis
 }
 function archive(id:string,rows:Observation[],note:string){if(!captureEnabled)return;mkdirSync(CAP,{recursive:true});writeFileSync(join(CAP,id+".json"),JSON.stringify({id,provenance:"REAL_HONO_ROUTES_ZOD__MOCKED_CORE_AND_AUTH__NO_PG_NO_NATIVE",actualSQL:false,existingV2Protocol:false,note,observations:rows},null,2)+"\n",{flag:"wx"});}
 beforeEach(()=>{vi.clearAllMocks();m.access.mockResolvedValue({courseId:COURSE,courseType:"synthetic"});m.mutate.mockResolvedValue({courseId:COURSE,allCompleted:true,stepJustCompleted:true});m.sync.mockResolvedValue(undefined);m.theory.mockResolvedValue({valid:true});m.notify.mockResolvedValue(undefined);m.getDay.mockResolvedValue("synthetic-day");m.resetNotify.mockResolvedValue(undefined);});
-describe("OFF021 after-commit HTTP receipt gap: existing server only",()=>{
- it("PC01 practice Core resolves, course sync throws, server still returns 200 without event ACK",async()=>{
-  m.sync.mockRejectedValueOnce(Error("SYNTHETIC_AFTER_COMMIT_COURSE_SYNC_FAILURE"));
+describe("OFF021 HTTP atomic transaction and post-commit receipt boundary",()=>{
+ it("PC01 practice transaction failure before commit returns 500 without ACK",async()=>{
+  m.mutate.mockRejectedValueOnce(Error("SYNTHETIC_ATOMIC_COURSE_SYNC_FAILURE"));
   const r=await send("PC01","/step/complete/practice");
-  expect(r.response.status).toBe(200);expect(r.response.body).toEqual({success:true});expect(r.response.hasDurableAck).toBe(false);
-  expect(r.calls).toMatchObject({mutation:1,sync:1});archive("PC01",[r],"After Core promise (actual PG commit NOT tested here), failing course sync swallowed and 200");
+  expect(r.response.status).toBe(500);expect(r.response.body).toEqual({success:false,error:"Внутренняя ошибка сервера"});
+  expect(r.response.hasDurableAck).toBe(false);
+  expect(r.calls).toMatchObject({mutation:1,sync:0});archive("PC01",[r],"Atomic service fails before commit; SQL rollback checked separately");
  });
- it("PC02 theory Core resolves, course sync throws, returns 500 after completed Core promise",async()=>{
-  m.sync.mockRejectedValueOnce(Error("SYNTHETIC_AFTER_COMMIT_COURSE_SYNC_FAILURE"));
+ it("PC02 theory transaction failure before commit returns 500 without ACK",async()=>{
+  m.mutate.mockRejectedValueOnce(Error("SYNTHETIC_ATOMIC_COURSE_SYNC_FAILURE"));
   const r=await send("PC02","/step/complete/theory");
-  expect(r.response.status).toBe(500);expect(r.response.body).toEqual({success:false,error:"Внутренняя ошибка сервера"});expect(r.response.hasDurableAck).toBe(false);
-  expect(r.calls).toMatchObject({mutation:1,sync:1});archive("PC02",[r],"500 after Core resolved, therefore 500 != proof no step commit");
+  expect(r.response.status).toBe(500);expect(r.response.body).toEqual({success:false,error:"Внутренняя ошибка сервера"});
+  expect(r.response.hasDurableAck).toBe(false);
+  expect(r.calls).toMatchObject({mutation:1,sync:0});archive("PC02",[r],"The theory handler uses the same atomic transaction as practice");
  });
- it("PC03 theory same request after after-Core 500 dispatches Core again, no stable replay receipt",async()=>{
-  m.sync.mockRejectedValueOnce(Error("SYNTHETIC_AFTER_COMMIT_COURSE_SYNC_FAILURE"));
+ it("PC03 retry after failed atomic transaction executes the operation again",async()=>{
+  m.mutate.mockRejectedValueOnce(Error("SYNTHETIC_ATOMIC_COURSE_SYNC_FAILURE"));
   const a=await send("PC03a","/step/complete/theory");
   const b=await send("PC03b","/step/complete/theory");
   expect([a.response.status,b.response.status]).toEqual([500,200]);expect(m.mutate).toHaveBeenCalledTimes(2);
-  expect(a.response.hasDurableAck).toBe(false);expect(b.response.hasDurableAck).toBe(false);archive("PC03",[a,b],"Same logical retry reruns Core, not exactly-once");
+  expect(m.sync).not.toHaveBeenCalled();
+  expect(a.response.hasDurableAck).toBe(false);expect(b.response.hasDurableAck).toBe(false);archive("PC03",[a,b],"Failed atomic write is retried; HTTP requests themselves have no durable ACK");
  });
  it("PC04 unsolicited Idempotency-Key same POST twice does not dedupe practice",async()=>{
   const key="514acd7f-3e91-42d1-8409-05dd8cc82911";

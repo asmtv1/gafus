@@ -1,0 +1,10 @@
+/** Preserve PostgreSQL transaction boundaries, advisory locks, audit trail and
+ * fraud review CAS. The Core policy receives a typed, explicitly provided transactional port. */
+import { type GafusAdminRowsPort } from "@gafus/core/services/adminGafus";
+import { withGafusAdminRows } from "@gafus/gafus-server/admin-rows";
+
+export const adminRows: GafusAdminRowsPort = {
+  withTransaction(operation, options) {
+    return withGafusAdminRows((rows) => operation(rows as unknown as Parameters<typeof operation>[0]), options);
+  },
+};

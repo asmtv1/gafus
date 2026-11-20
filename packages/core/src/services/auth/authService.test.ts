@@ -120,13 +120,13 @@ describe("registerUserService", () => {
 
     const result = await registerUserService("ivan", "ivan@example.com", "Password1x", undefined, "PARTNER1");
 
-    expect(mockRegisterUserWithCredentials).toHaveBeenCalledWith({
+    expect(mockRegisterUserWithCredentials).toHaveBeenCalledWith(expect.objectContaining({
       username: "ivan",
       email: "ivan@example.com",
       password: "Password1x",
       registrationChannel: undefined,
       promoCode: "PARTNER1",
-    });
+    }), undefined, undefined);
     expect(mockSendWelcomeEmailAfterRegistration).toHaveBeenCalledWith("ivan@example.com");
     expect(result).toEqual({ success: true, userId: "user-1" });
   });
@@ -162,7 +162,12 @@ describe("resetPassword", () => {
 
   it("resetPassword вызывает resetPasswordByToken", async () => {
     await resetPassword("tok", validNewPassword);
-    expect(mockResetPasswordByToken).toHaveBeenCalledWith("tok", validNewPassword);
+    expect(mockResetPasswordByToken).toHaveBeenCalledWith("tok", validNewPassword, undefined);
+  });
+  it("forwards explicit password-reset port to the reset service without replacing it", async () => {
+    const ports = {} as NonNullable<Parameters<typeof resetPassword>[2]>;
+    await resetPassword("tok", validNewPassword, ports);
+    expect(mockResetPasswordByToken).toHaveBeenCalledExactlyOnceWith("tok", validNewPassword, ports);
   });
 });
 

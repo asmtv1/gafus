@@ -64,7 +64,6 @@ export function prepareNativeCandidate({root,config,certificatePem}) {
   const pkg=JSON.parse(fs.readFileSync(path.join(root,'apps/mobile/package.json'),'utf8'));
   const runtime=app.version;
   requireCondition(/^\d+\.\d+\.\d+$/.test(runtime)&&runtime!=='1.7.4'&&
-    (environment!=='production'||runtime==='1.7.5')&&
     runtime===pkg.version&&app.runtimeVersion?.policy==='appVersion',
     'APP_RUNTIME_INCOMPATIBLE');
   let cert;try{cert=new crypto.X509Certificate(certificatePem);}catch{throw Error('OTA_PREVIEW_BUILD_BAD_CERTIFICATE');}

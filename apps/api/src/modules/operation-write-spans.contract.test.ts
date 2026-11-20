@@ -1,6 +1,7 @@
 /** Correlated mutation spans must preserve all command parameters, including
  * the optional owner-bound idempotency binding, without logging payloads. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { profileRows } from "./user/composition/profile-rows-instance.js";
 
 const m = vi.hoisted(() => ({
   spans: [] as string[],
@@ -72,7 +73,7 @@ describe("critical write spans preserve Core command boundaries", () => {
     expect(m.trainingStep.mock.calls[0]).toHaveLength(4);
     expect(m.trainingStep.mock.calls[1]).toEqual([owner, "course-day", 3, "COMPLETE", binding]);
     expect(m.batch).toHaveBeenCalledWith(owner, "pet-id", [draft]);
-    expect(m.seen).toHaveBeenCalledExactlyOnceWith(owner);
+    expect(m.seen).toHaveBeenCalledExactlyOnceWith(owner, profileRows);
   });
   it("never acknowledges a failed Core mutation as a successful write", async () => {
     const error = new Error("DB_TRANSACTION_ROLLED_BACK");

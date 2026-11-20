@@ -16,7 +16,6 @@ const {
     login: vi.fn(),
     logout: vi.fn(),
     register: vi.fn(),
-    submitVkConsent: vi.fn(),
   },
   deleteItemAsyncMock: vi.fn(),
   getItemAsyncMock: vi.fn(),
@@ -89,7 +88,7 @@ describe("authStore profile update", () => {
   };
 
   it("updates profile fields while preserving account identity and flags", () => {
-    const user = { ...persistedUser, hasAppPassword: true, hasVkLinked: true };
+    const user = { ...persistedUser, hasAppPassword: true };
     useAuthStore.setState({ user });
 
     useAuthStore.getState().setUserProfile(profile);
@@ -120,12 +119,6 @@ describe("authStore checkAuth", () => {
       isLoading: false,
       isAuthenticated: false,
       verifiedSessionEpoch: null,
-      pendingVkPhone: false,
-      pendingVkConsent: false,
-      vkConsentToken: null,
-      vkConsentState: null,
-      vkConsentTempSessionId: null,
-      vkConsentPromoCode: null,
     });
   });
 
@@ -224,7 +217,6 @@ describe("authStore checkAuth", () => {
       user: persistedUser,
       isAuthenticated: true,
       isLoading: false,
-      pendingVkPhone: false,
     });
     expect(identifyUserMock).toHaveBeenCalledWith("user-1");
     expect(deleteItemAsyncMock).not.toHaveBeenCalled();
@@ -265,7 +257,6 @@ describe("authStore checkAuth", () => {
       user: null,
       isAuthenticated: false,
       isLoading: false,
-      pendingVkPhone: false,
     });
     expect(deleteItemAsyncMock).toHaveBeenCalledWith("auth_token");
     expect(deleteItemAsyncMock).toHaveBeenCalledWith("refresh_token");
@@ -281,12 +272,6 @@ describe("authStore registration promo code", () => {
       user: null,
       isLoading: false,
       isAuthenticated: false,
-      pendingVkPhone: false,
-      pendingVkConsent: false,
-      vkConsentToken: null,
-      vkConsentState: null,
-      vkConsentTempSessionId: null,
-      vkConsentPromoCode: null,
     });
   });
 
@@ -315,145 +300,6 @@ describe("authStore registration promo code", () => {
       "IOS",
       "  WELCOME  ",
     );
-  });
-
-  it("sends the promo code together with VK consents", async () => {
-    authApiMock.submitVkConsent.mockResolvedValueOnce({
-      success: true,
-      data: {
-        user: { id: "user-1", username: "vk-user", role: "USER" },
-        accessToken: "access",
-        refreshToken: "refresh",
-        needsPhone: false,
-      },
-    });
-    authApiMock.getProfile.mockResolvedValueOnce({ success: true, data: persistedUser });
-    useAuthStore.setState({
-      vkConsentToken: "vk-consent-token",
-      vkConsentState: "oauth-state",
-      vkConsentTempSessionId: "6f1c97b2-11c5-47ec-a634-1f5879500b4a",
-      vkConsentExpiresAt: Date.now() + 60_000,
-      pendingVkConsent: true,
-    });
-
-    const consentPayload = {
-      acceptPersonalData: true,
-      acceptPrivacyPolicy: true,
-      acceptDataDistribution: true,
-    };
-    const result = await useAuthStore.getState().submitVkConsentComplete(consentPayload, "WELCOME");
-
-    expect(result).toEqual({ success: true });
-    expect(authApiMock.submitVkConsent).toHaveBeenCalledWith(
-      "vk-consent-token",
-      "oauth-state",
-      "6f1c97b2-11c5-47ec-a634-1f5879500b4a",
-      consentPayload,
-      "WELCOME",
-    );
-  });
-
-  it("keeps a VK pending user unauthenticated and stores only the resumable context", async () => {
-    authApiMock.loginViaVk.mockResolvedValueOnce({
-      success: true,
-      data: {
-        needsConsent: true,
-        contextToken: "opaque-context",
-        savedPromoCode: "WELCOME",
-        user: { id: "pending-user", username: "vk-user", role: "USER" },
-      },
-    });
-
-    const result = await useAuthStore.getState().loginViaVk({
-      code: "provider-code",
-      code_verifier: "verifier",
-      device_id: "device",
-      state: "oauth-state",
-      promoCode: "WELCOME",
-    });
-
-    expect(result).toEqual({ success: true, needsConsent: true });
-    expect(useAuthStore.getState()).toMatchObject({
-      isAuthenticated: false,
-      pendingVkConsent: true,
-      vkConsentToken: "opaque-context",
-      vkConsentState: "oauth-state",
-      vkConsentPromoCode: "WELCOME",
-    });
-    expect(setItemAsyncMock).toHaveBeenCalledWith(
-      "vk_registration_context",
-      expect.stringContaining('"contextToken":"opaque-context"'),
-    );
-    expect(setItemAsyncMock).not.toHaveBeenCalledWith("auth_token", expect.anything());
-  });
-
-  it("keeps VK context on a transient consent failure, but clears an expired context", async () => {
-    useAuthStore.setState({
-      pendingVkConsent: true,
-      vkConsentToken: "opaque-context",
-      vkConsentState: "oauth-state",
-      vkConsentTempSessionId: "stable-session",
-      vkConsentPromoCode: "WELCOME",
-      vkConsentExpiresAt: Date.now() + 60_000,
-    });
-    const consentPayload = {
-      acceptPersonalData: true,
-      acceptPrivacyPolicy: true,
-      acceptDataDistribution: true,
-    };
-    authApiMock.submitVkConsent.mockResolvedValueOnce({
-      success: false,
-      error: "Ошибка подключения к серверу",
-      code: "NETWORK_ERROR",
-    });
-
-    const transient = await useAuthStore.getState().submitVkConsentComplete(consentPayload, "EDITED");
-    expect(transient).toMatchObject({ success: false, code: "NETWORK_ERROR" });
-    expect(useAuthStore.getState()).toMatchObject({ pendingVkConsent: true, vkConsentToken: "opaque-context" });
-
-    authApiMock.submitVkConsent.mockResolvedValueOnce({
-      success: false,
-      error: "Сессия истекла",
-      code: "CONTEXT_EXPIRED",
-    });
-    const expired = await useAuthStore.getState().submitVkConsentComplete(consentPayload, "EDITED");
-    expect(expired).toMatchObject({ success: false, code: "CONTEXT_EXPIRED" });
-    expect(useAuthStore.getState()).toMatchObject({
-      user: null,
-      isAuthenticated: false,
-      pendingVkConsent: false,
-      vkConsentToken: null,
-      vkConsentPromoCode: null,
-    });
-    expect(deleteItemAsyncMock).toHaveBeenCalledWith("vk_registration_context");
-  });
-
-  it("persists the latest edited VK promo code while its context is still valid", async () => {
-    useAuthStore.setState({
-      pendingVkConsent: true,
-      vkConsentToken: "opaque-context",
-      vkConsentState: "oauth-state",
-      vkConsentTempSessionId: "stable-session",
-      vkConsentPromoCode: "OLD",
-      vkConsentExpiresAt: Date.now() + 60_000,
-    });
-
-    await useAuthStore.getState().updateVkConsentPromoCode("  EDITED  ");
-
-    expect(useAuthStore.getState().vkConsentPromoCode).toBe("EDITED");
-    expect(setItemAsyncMock).toHaveBeenCalledWith(
-      "vk_registration_context",
-      expect.stringContaining('"promoCode":"EDITED"'),
-    );
-  });
-});
-
-
-describe("offline native logout revocation", () => {
-  beforeEach(() => {
-    vi.stubGlobal("__DEV__", false);
-    vi.clearAllMocks();
-    useAuthStore.setState({ user: persistedUser, isAuthenticated: true, isLoading: false });
   });
 
   it("signs out locally but securely keeps a failed server revocation for retry", async () => {

@@ -1,4 +1,4 @@
-import { requireSubscriptionPromoPort } from "./promoCodePort";
+import { requireSubscriptionPromoPort, type SubscriptionPromoPort } from "./promoCodePort";
 import type {
   PromoCodeRecord as AppSubscriptionPromoCode,
   PromoCodeEventType as AppSubscriptionPromoCodeEventType,
@@ -90,8 +90,8 @@ function requireDiscountPercent(value: unknown): number {
   return value;
 }
 
-export async function isAppSubscriptionPromoCodeEligible(userId: string): Promise<boolean> {
-  return !(await requireSubscriptionPromoPort().userHasSuccessfulPromoBlockingPayment(userId));
+export async function isAppSubscriptionPromoCodeEligible(userId: string, ports?: SubscriptionPromoPort): Promise<boolean> {
+  return !(await (ports ?? requireSubscriptionPromoPort()).userHasSuccessfulPromoBlockingPayment(userId));
 }
 
 export async function isAppSubscriptionPromoCodeEntryEnabled(
@@ -102,17 +102,16 @@ export async function isAppSubscriptionPromoCodeEntryEnabled(
     APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
     clientContext,
     false,
-    false,
   );
 }
 
 export async function getAppSubscriptionPromoCodeOfferState(params: {
   userId: string;
   clientContext?: ClientAppContext;
-}): Promise<AppSubscriptionPromoCodeOfferState> {
+}, ports?: SubscriptionPromoPort): Promise<AppSubscriptionPromoCodeOfferState> {
   const [entryEnabled, eligible] = await Promise.all([
     isAppSubscriptionPromoCodeEntryEnabled(params.clientContext),
-    isAppSubscriptionPromoCodeEligible(params.userId),
+    isAppSubscriptionPromoCodeEligible(params.userId, ports),
   ]);
   return { entryEnabled, eligible };
 }
@@ -122,7 +121,7 @@ export async function previewAppSubscriptionPromoCode(params: {
   planCode: unknown;
   promoCode: unknown;
   clientContext?: ClientAppContext;
-}): Promise<AppSubscriptionPromoCodePreview> {
+}, ports?: SubscriptionPromoPort): Promise<AppSubscriptionPromoCodePreview> {
   if (!isPromoEligibleAppSubscriptionPlanCode(params.planCode)) {
     throw new AppSubscriptionPromoCodeDomainError(
       "PROMO_PLAN_NOT_ELIGIBLE",
@@ -132,9 +131,9 @@ export async function previewAppSubscriptionPromoCode(params: {
   const identity = requirePromoCodeIdentity(params.promoCode);
   const [entryEnabled, eligible, settings, promoCode] = await Promise.all([
     isAppSubscriptionPromoCodeEntryEnabled(params.clientContext),
-    isAppSubscriptionPromoCodeEligible(params.userId),
-    requireSubscriptionPromoPort().readPromoSettingsRow(),
-    requireSubscriptionPromoPort().readPromoCodeByNormalizedCode(identity.normalizedCode),
+    isAppSubscriptionPromoCodeEligible(params.userId, ports),
+    (ports ?? requireSubscriptionPromoPort()).readPromoSettingsRow(),
+    (ports ?? requireSubscriptionPromoPort()).readPromoCodeByNormalizedCode(identity.normalizedCode),
   ]);
 
   if (!entryEnabled) {
@@ -213,12 +212,12 @@ export async function createAppSubscriptionPromoCode(params: {
   discountPercent: unknown;
   isActive: boolean;
   actorId: string;
-}): Promise<AppSubscriptionPromoCode> {
+}, ports?: SubscriptionPromoPort): Promise<AppSubscriptionPromoCode> {
   const identity = requirePromoCodeIdentity(params.code);
   const discountPercent = requireDiscountPercent(params.discountPercent);
 
   try {
-    return await requireSubscriptionPromoPort().withPromoCodeRecordsTransaction(async (tx) => {
+    return await (ports ?? requireSubscriptionPromoPort()).withPromoCodeRecordsTransaction(async (tx) => {
       const promoCode = await tx.create({
         ...identity,
         discountPercent,
@@ -231,7 +230,7 @@ export async function createAppSubscriptionPromoCode(params: {
       return promoCode;
     });
   } catch (error) {
-    if (requireSubscriptionPromoPort().isUniquePromoCodeError(error)) {
+    if ((ports ?? requireSubscriptionPromoPort()).isUniquePromoCodeError(error)) {
       throw new AppSubscriptionPromoCodeDomainError(
         "PROMO_CODE_DUPLICATE",
         "Промокод с таким кодом уже существует, включая архивные",
@@ -246,13 +245,13 @@ export async function updateAppSubscriptionPromoCode(params: {
   discountPercent?: unknown;
   isActive?: boolean;
   actorId: string;
-}): Promise<AppSubscriptionPromoCode> {
+}, ports?: SubscriptionPromoPort): Promise<AppSubscriptionPromoCode> {
   const requestedDiscount =
     params.discountPercent === undefined
       ? undefined
       : requireDiscountPercent(params.discountPercent);
 
-  return requireSubscriptionPromoPort().withPromoCodeRecordsTransaction(async (tx) => {
+  return (ports ?? requireSubscriptionPromoPort()).withPromoCodeRecordsTransaction(async (tx) => {
     const current = await findMutablePromoCode(tx, params.id);
     const discountChanged =
       requestedDiscount !== undefined && requestedDiscount !== current.discountPercent;
@@ -295,10 +294,10 @@ export async function archiveAppSubscriptionPromoCode(params: {
   id: string;
   actorId: string;
   archivedAt?: Date;
-}): Promise<AppSubscriptionPromoCode> {
+}, ports?: SubscriptionPromoPort): Promise<AppSubscriptionPromoCode> {
   const archivedAt = params.archivedAt ?? new Date();
 
-  return requireSubscriptionPromoPort().withPromoCodeRecordsTransaction(async (tx) => {
+  return (ports ?? requireSubscriptionPromoPort()).withPromoCodeRecordsTransaction(async (tx) => {
     const current = await findMutablePromoCode(tx, params.id);
     const promoCode = await tx.update(current.id, {
       isActive: false,

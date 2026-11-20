@@ -32,8 +32,6 @@
       "@gafus/error-handling/*": ["packages/error-handling/src/*"],
       "@gafus/auth": ["packages/auth/src/index.ts"],
       "@gafus/auth/*": ["packages/auth/src/*"],
-      "@gafus/csrf": ["packages/csrf/src/index.ts"],
-      "@gafus/csrf/*": ["packages/csrf/src/*"],
       "@gafus/ui-components": ["packages/ui-components/src/index.ts"],
       "@gafus/ui-components/*": ["packages/ui-components/src/*"],
       "@gafus/ui-components/": ["packages/ui-components/src/"],

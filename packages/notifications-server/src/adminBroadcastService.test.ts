@@ -8,7 +8,6 @@ const mockSendNotifications = vi.fn();
 const mockShouldDeleteSubscription = vi.fn();
 const mockPartitionPushSubscriptions = vi.fn();
 const mockSendExpoPushNotifications = vi.fn();
-const mockSendRustorePushNotifications = vi.fn();
 const mockLoggerError = vi.fn();
 
 vi.mock("@gafus/prisma", () => ({
@@ -38,7 +37,6 @@ vi.mock("@gafus/webpush", () => ({
   },
   partitionPushSubscriptions: (...args: unknown[]) => mockPartitionPushSubscriptions(...args),
   sendExpoPushNotifications: (...args: unknown[]) => mockSendExpoPushNotifications(...args),
-  sendRustorePushNotifications: (...args: unknown[]) => mockSendRustorePushNotifications(...args),
 }));
 
 describe("sendBroadcastPush", () => {
@@ -51,16 +49,9 @@ describe("sendBroadcastPush", () => {
           return { endpoint: s.endpoint, keys };
         }),
         expo: [],
-        rustore: [],
       }),
     );
     mockSendExpoPushNotifications.mockResolvedValue({
-      successCount: 0,
-      failureCount: 0,
-      deletedCount: 0,
-      temporaryFailureCount: 0,
-    });
-    mockSendRustorePushNotifications.mockResolvedValue({
       successCount: 0,
       failureCount: 0,
       deletedCount: 0,
@@ -111,7 +102,6 @@ describe("sendBroadcastPush", () => {
     mockPartitionPushSubscriptions.mockReturnValue({
       web: [{ endpoint: "https://push.example.com/1", keys: { p256dh: "key1", auth: "auth1" } }],
       expo: [],
-      rustore: [],
     });
     mockSendNotifications.mockResolvedValue({
       successCount: 1,
@@ -128,7 +118,6 @@ describe("sendBroadcastPush", () => {
     expect(result.failedCount).toBe(0);
     expect(mockSendNotifications).toHaveBeenCalled();
     expect(mockSendExpoPushNotifications).not.toHaveBeenCalled();
-    expect(mockSendRustorePushNotifications).not.toHaveBeenCalled();
   });
 
   it("deletes invalid subscriptions when shouldDeleteSubscription returns true", async () => {
@@ -142,7 +131,6 @@ describe("sendBroadcastPush", () => {
     mockPartitionPushSubscriptions.mockReturnValue({
       web: [{ endpoint: "https://invalid.example.com/1", keys: { p256dh: "k", auth: "a" } }],
       expo: [],
-      rustore: [],
     });
     mockSendNotifications.mockResolvedValue({
       successCount: 0,

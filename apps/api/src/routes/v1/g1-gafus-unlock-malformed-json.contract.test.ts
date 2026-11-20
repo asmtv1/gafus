@@ -31,6 +31,7 @@ vi.mock("@gafus/course-server/mini-guides", () => ({
   getAuthorizedMiniGuideContent: vi.fn(),
 }));
 import { gafusRoutes } from "./gafus";
+import { unlockRows } from "../../modules/gafus/composition/unlock-rows-instance.js";
 
 const validBody = {
   clientRequestId: "g1-gafus-request-0001",
@@ -118,21 +119,21 @@ describe("G1 Web/Mobile Gafus unlock malformed JSON/auth/RBAC contract", () => {
     const r = await post(JSON.stringify(validBody));
     expect(r.status).toBe(200);
     expect(fake.unlock).toHaveBeenCalledOnce();
-    expect(fake.unlock).toHaveBeenCalledWith({
+    expect(fake.unlock).toHaveBeenCalledExactlyOnceWith({
       userId: "owner-from-token",
       clientRequestId: validBody.clientRequestId,
       target: validBody.target,
-    });
+    }, unlockRows);
   });
   it("ARTICLE target is accepted only with authenticated owner and exact articleId", async () => {
     const target = { type: "ARTICLE", articleId: "paid-article-1" };
     const body = { clientRequestId: "article-gafus-0001", target };
     const result = await post(JSON.stringify(body));
     expect(result.status).toBe(200);
-    expect(fake.unlock).toHaveBeenCalledWith({
+    expect(fake.unlock).toHaveBeenCalledExactlyOnceWith({
       userId: "owner-from-token", target,
       clientRequestId: "article-gafus-0001",
-    });
+    }, unlockRows);
     const forged = await post(JSON.stringify({
       ...body, target: { ...target, cost: 0 },
     }));

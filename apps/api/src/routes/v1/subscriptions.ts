@@ -78,7 +78,7 @@ const deviceStatusSchema = z
           });
         }
       } catch {
-        // RuStore и другие не-URL токены
+        // Expo and other native push tokens may be opaque, non-URL strings
       }
     });
   });

@@ -27,7 +27,7 @@ vi.mock("../../../../../../packages/core/src/services/pets/petVetVisitService", 
   enqueuePetVetCleanup: blocked,
   lockVetPet: blocked,
 }));
-vi.mock("../../../../../../packages/core/src/services/cynologistChat/authorRole", () => ({
+vi.mock("../../../../../../packages/core/src/services/user/chatDisplayRole", () => ({
   getChatDisplayRole: blocked,
 }));
 

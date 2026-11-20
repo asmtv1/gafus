@@ -10,7 +10,7 @@ export type AppSubscriptionStatusDto = {
   isTrial: boolean;
   trialEndsAt: string | null;
   isLifetime: boolean;
-  provider: "YOOKASSA" | "APPLE" | "MANUAL" | null;
+  provider: "YOOKASSA" | "APPLE" | "GOOGLE_PLAY" | "MANUAL" | null;
   planCode: AppSubscriptionPlanCode | null;
   status:
     | "ACTIVE"
@@ -61,6 +61,7 @@ export type AppSubscriptionOfferDto = {
   applePlan: AppSubscriptionPlanOfferDto | null;
   appleAppAccountToken: string | null;
   iosRuCardPaymentEnabled: boolean;
+  androidQaCardPaymentEnabled?: boolean;
   promoCode: {
     entryEnabled: boolean;
     eligible: boolean;

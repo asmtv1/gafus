@@ -52,7 +52,7 @@ describe("Actual shared Next/Hono transport GET list is already implemented", ()
     expect(res.headers.get("cache-control")).toBe("private, no-store, max-age=0");
     expect(res.headers.get("x-content-type-options")).toBe("nosniff");
     expect((await res.json()).data).toMatchObject([{ id: "visit-A", petId: "pet-A" }]);
-    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-A");
+    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-A", undefined);
     expect(m.save).not.toHaveBeenCalled();
   });
   it("T02 owned pet with no visits returns success and []", async () => {
@@ -68,12 +68,12 @@ describe("Actual shared Next/Hono transport GET list is already implemented", ()
     expect(res.status).toBe(404);
     expect(await res.text()).not.toContain("SYNTHETIC_TEST_CLINICAL");
     expect(res.headers.get("cache-control")).toContain("no-store");
-    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-B");
+    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-B", undefined);
   });
   it("T04 forged owner query never influences verified actor parameter", async () => {
     const res = await handlePetVetVisitRequest(req("?ownerId=owner-B"), "pet-A", "owner-A", []);
     expect(res.status).toBe(200);
-    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-A");
+    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-A", undefined);
   });
   it("T05 approved shared dispatcher GET detail 200, owner-bound, metadata only", async () => {
     const res = await handlePetVetVisitRequest(req("/visit-A"), "pet-A", "owner-A", ["visit-A"]);

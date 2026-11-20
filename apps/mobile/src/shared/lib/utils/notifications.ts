@@ -1,5 +1,5 @@
 import * as Device from "expo-device";
-import { Platform, NativeModules } from "react-native";
+import { Platform } from "react-native";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { subscriptionsApi } from "@/shared/lib/api";
@@ -156,59 +156,12 @@ export async function registerForPushNotifications(
 
     return !isCurrent || isCurrent() ? tokenData.data : null;
   } catch {
-    // Сбой Expo не должен блокировать независимый RuStore Push на Android.
     // SDK exceptions can include the private device endpoint; report only a fixed code.
     reportClientError(new Error("EXPO_PUSH_REGISTRATION_FAILED"), {
       issueKey: "PushNotifications",
       keys: { operation: "register_expo_push" },
     });
     return null;
-  }
-}
-
-/**
- * Пытается зарегистрировать RuStore Push (только Android).
- * @returns true если токен получен и сохранён на API
- */
-async function tryRegisterRustorePush(
-  actor: PushActor,
-  isCurrent: () => boolean,
-): Promise<boolean> {
-  if (Platform.OS !== "android") return false;
-  if (Constants.appOwnership === "expo") return false; // Expo Go не содержит RuStore SDK
-  if (!Device.isDevice || !isCurrent()) return false; // Не отправлять чужой/старый token
-  try {
-    let RustorePush = NativeModules.RustorePush;
-    if (!RustorePush) {
-      const mod = await import("react-native-rustore-push");
-      RustorePush = mod.default ?? (mod as { RustorePush?: unknown }).RustorePush;
-    }
-    const getToken =
-      (RustorePush as { getToken?: () => Promise<string> })?.getToken ??
-      (RustorePush as { getPushToken?: () => Promise<string> })?.getPushToken;
-    if (typeof getToken !== "function") return false;
-    const token = await getToken();
-    if (typeof token !== "string" || !isCurrent()) return false;
-    return pushRegistrationCoordinator.registerToken(
-      actor,
-      "rustore",
-      token,
-      isCurrent,
-      async (endpoint, requestGuard) => {
-        const result = await subscriptionsApi.savePushSubscription(
-          { endpoint, keys: { p256dh: "rustore", auth: "rustore" } },
-          requestGuard,
-        );
-        return result.success;
-      },
-    );
-  } catch {
-    // RuStore native errors can contain private device endpoints.
-    reportClientError(new Error("RUSTORE_PUSH_REGISTRATION_FAILED"), {
-      issueKey: "PushNotifications",
-      keys: { operation: "register_rustore_push" },
-    });
-    return false;
   }
 }
 
@@ -236,8 +189,8 @@ export async function savePushToken(token: string, requestGuard?: () => boolean)
  * Возвращает токены текущего устройства без запроса разрешений.
  * Используется при отключении пушей — удаляем только текущее устройство.
  */
-export async function getCurrentDeviceTokens(): Promise<{ expo?: string; rustore?: string }> {
-  const tokens: { expo?: string; rustore?: string } = {};
+export async function getCurrentDeviceTokens(): Promise<{ expo?: string }> {
+  const tokens: { expo?: string } = {};
 
   if (Constants.appOwnership === "expo") return tokens;
   if (!Device.isDevice) return tokens;
@@ -255,11 +208,10 @@ export async function getCurrentDeviceTokens(): Promise<{ expo?: string; rustore
           if (tokenData.data) tokens.expo = tokenData.data;
         }
       } catch {
-        // Токен Expo недоступен — продолжаем с другими провайдерами.
+        // Expo token unavailable; do not claim this device is subscribed.
       }
     }
   } catch (error) {
-    // Сбой Expo permissions не должен мешать отзыву RuStore токена на Android.
     reportClientError(error instanceof Error ? error : new Error(String(error)), {
       severity: "warning",
       issueKey: "PushNotifications",
@@ -267,32 +219,9 @@ export async function getCurrentDeviceTokens(): Promise<{ expo?: string; rustore
     });
   }
 
-  if (Platform.OS === "android") {
-    try {
-      let RustorePush = NativeModules.RustorePush;
-      if (!RustorePush) {
-        const mod = await import("react-native-rustore-push");
-        RustorePush = mod.default ?? (mod as { RustorePush?: unknown }).RustorePush;
-      }
-      const getToken =
-        (RustorePush as { getToken?: () => Promise<string> })?.getToken ??
-        (RustorePush as { getPushToken?: () => Promise<string> })?.getPushToken;
-      if (typeof getToken === "function") {
-        const token = await getToken();
-        if (token && typeof token === "string") tokens.rustore = token;
-      }
-    } catch {
-      // RuStore недоступен — продолжаем
-    }
-  }
-
   return tokens;
 }
 
-/**
- * Полная регистрация: получить токен и сохранить на сервере.
- * На Android без FCM Expo может не выдать токен — тогда достаточно успешного RuStore.
- */
 /**
  * Unregister ONLY current device tokens using the existing owner-scoped DELETE.
  * Never infer success from missing token, timeout, network error or session change.
@@ -312,7 +241,7 @@ export async function unregisterCurrentDevicePushNotifications(options?: {
       if (!isCurrent()) return false;
       const endpoints = [
         ...new Set(
-          [tokens.expo, tokens.rustore].filter(
+          [tokens.expo].filter(
             (token): token is string => typeof token === "string" && token.length > 0,
           ),
         ),
@@ -355,10 +284,7 @@ export async function setupPushNotifications(options?: {
           )
         : false;
       if (!isCurrent()) return false;
-      // Expo and RuStore are independent; a failed Expo token does not suppress RuStore.
-      const rustoreSaved =
-        Platform.OS === "android" ? await tryRegisterRustorePush(captured, isCurrent) : false;
-      return isCurrent() && (expoSaved || rustoreSaved);
+      return isCurrent() && expoSaved;
     },
   );
 }

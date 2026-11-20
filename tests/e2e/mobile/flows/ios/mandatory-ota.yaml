@@ -1,0 +1,12 @@
+# Precondition: test-only required OTA assigned to iOS QA build/account.
+appId: ru.gafus.app
+name: GAFUS iOS QA - mandatory OTA survives relaunch
+---
+- launchApp:
+    clearState: false
+- assertVisible:
+    id: "required-ota-screen"
+- stopApp
+- launchApp
+- assertVisible:
+    id: "required-ota-screen"

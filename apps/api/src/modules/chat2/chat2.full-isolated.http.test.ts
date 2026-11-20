@@ -116,10 +116,7 @@ describe('real isolated Hono → PostgreSQL outbox worker → signed Centrifugo 
     expect([200,201]).toContain(invited.status);
     expect((await json(await fetchAuth(memberJwt,`/${room}/messages`))).status).toBe(200);
   });
-  it('retains legacy 503 until actual authenticated worker heartbeat exists',async()=>{
-    expect((await fetch('http://127.0.0.1:58341/api/v1/cynologist-chat')).status).toBe(503);
-    process.env.CHAT2_LEGACY_RETIRE_ENABLED='enabled';
-    expect((await fetch('http://127.0.0.1:58341/api/v1/cynologist-chat')).status).toBe(503);
+  it('starts the authenticated Chat2 outbox worker without any Chat1 dependency',async()=>{
     stop=startChat2OutboxWorker();
     console.log('CUTOVER_CHECK_BEGIN_WORKER');
     await waitFor(async()=>{
@@ -135,7 +132,7 @@ describe('real isolated Hono → PostgreSQL outbox worker → signed Centrifugo 
     });
     const legacy=await fetch('http://127.0.0.1:58341/api/v1/cynologist-chat');
     console.log('CUTOVER_COMPONENT_STATUS',readyApi.status,readyBroker.status,legacy.status);
-    await waitFor(async()=>(await fetch('http://127.0.0.1:58341/api/v1/cynologist-chat')).status===410);
+    expect(legacy.status).toBe(404);
   });
   it('delivers actual authorized message via outbox to signed websocket; readback and retry are idempotent',async()=>{
     const connect=await json(await fetchAuth(memberJwt,'/realtime/connect'));

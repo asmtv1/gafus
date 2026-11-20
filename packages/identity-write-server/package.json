@@ -27,10 +27,6 @@
       "types": "./dist/registration-context-reads.d.ts",
       "default": "./dist/registration-context-reads.js"
     },
-    "./vk-completion-rows": {
-      "types": "./dist/vk-completion-rows.d.ts",
-      "default": "./dist/vk-completion-rows.js"
-    },
     "./account-cleanup-records": {
       "types": "./dist/account-cleanup-records.d.ts",
       "default": "./dist/account-cleanup-records.js"
@@ -58,10 +54,6 @@
     "./auth-rows": {
       "types": "./dist/authRows.d.ts",
       "default": "./dist/authRows.js"
-    },
-    "./vk-auth-rows": {
-      "types": "./dist/vkAuthRows.d.ts",
-      "default": "./dist/vkAuthRows.js"
     },
     "./reminder-review-rows": {
       "types": "./dist/reminderReviewRows.d.ts",

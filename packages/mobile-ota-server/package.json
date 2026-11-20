@@ -7,6 +7,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
+    "./version-publication": {"types":"./dist/version-publication.d.ts","default":"./dist/version-publication.js"},
+    "./version-selection": {"types":"./dist/version-selection.d.ts","default":"./dist/version-selection.js"},
     "./contracts": {
       "types": "./dist/contracts.d.ts",
       "default": "./dist/contracts.js"
@@ -81,6 +83,7 @@
     }
   },
   "scripts": {
+    "test:unit": "node ../../scripts/qa/workspace-gap-advisory.mjs --run --package @gafus/mobile-ota-server",
     "build": "tsc && ts-add-js-extension --dir dist",
     "typecheck": "tsc --noEmit",
     "test:realpg:isolated": "vitest run --config vitest.realpg.config.ts"

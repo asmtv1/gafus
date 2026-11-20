@@ -28,7 +28,8 @@ export async function fetchMandatoryOtaCohortDecision(): Promise<MandatoryOtaCoh
   const result = await apiClient<MandatoryOtaCohortDecision>(
     "/api/v1/mobile-ota-tester/mandatory-policy", {
       method: "POST", timeoutMs: 10_000, skipAuthRefreshReplay: true,
-      body: { installationId, platform: Platform.OS, runtimeVersion, nativeFingerprint },
+      body: { installationId, platform: Platform.OS, runtimeVersion, nativeFingerprint,
+        nativeReleaseId: Constants.expoConfig?.extra?.otaNativeReleaseId },
     },
   );
   const policy = result.data;
@@ -48,6 +49,7 @@ export function useMandatoryOtaCohortDecision(enabled: boolean, userId: string |
     queryKey: ["mandatory-ota-rollout-cohort", userId, Platform.OS, Updates.runtimeVersion,
       Constants.expoConfig?.extra?.otaNativeFingerprint],
     queryFn: fetchMandatoryOtaCohortDecision,
+    networkMode: "always",
     enabled: enabled && !!userId,
     retry: 1,
     staleTime: 15_000,

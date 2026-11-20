@@ -22,7 +22,7 @@ function parseExpectedSignature(value: string | undefined): string | null {
 
 function commonHeaders(c: Context, channel?: string): void {
   c.header("Cache-Control", "private, no-store");
-  c.header("Vary", "expo-protocol-version, expo-platform, expo-runtime-version, expo-channel-name, expo-expect-signature, x-gafus-native-fingerprint, expo-extra-params, Accept");
+  c.header("Vary", "expo-protocol-version, expo-platform, expo-runtime-version, expo-channel-name, expo-expect-signature, x-gafus-native-fingerprint, expo-extra-params, expo-embedded-update-id, expo-current-update-id, Accept");
   c.header("expo-protocol-version", "1");
   c.header("expo-sfv-version", "0");
   // Empty SFV dictionaries are legal; only named values enter filters.
@@ -73,6 +73,8 @@ export function createOtaManifestRoutes(
         channel,
         keyId,
         nativeFingerprint: nativeFingerprint.toLowerCase(),
+        ...(c.req.header("expo-embedded-update-id") ? {embeddedUpdateId:c.req.header("expo-embedded-update-id")} : {}),
+        ...(c.req.header("expo-current-update-id") ? {currentUpdateId:c.req.header("expo-current-update-id")} : {}),
         installationId: parseOtaInstallationId(c.req.header("expo-extra-params")),
         ...(config.testerSecret ? {testerAllowed: verifyOtaTesterGrant(
           parseOtaTesterGrant(c.req.header("expo-extra-params")),

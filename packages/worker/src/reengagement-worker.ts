@@ -15,7 +15,6 @@ import {
 import {
   partitionPushSubscriptions,
   sendExpoPushNotifications,
-  sendRustorePushNotifications,
 } from "@gafus/webpush";
 import {
   getCampaignData,
@@ -38,7 +37,7 @@ const logger = createWorkerLogger("reengagement-worker");
  */
 class ReengagementWorker {
   private worker: Worker;
-  // WebPush credentials are optional for an Expo/RuStore-only installation.
+  // WebPush credentials are optional for an Expo-only installation.
   // Never load VAPID at import/startup and block the entire cron scheduler.
   private pushService: PushNotificationService | null = null;
 
@@ -196,7 +195,6 @@ class ReengagementWorker {
         subscriptionsCount: subscriptions.length,
         webSubscriptionsCount: partitioned.web.length,
         expoSubscriptionsCount: partitioned.expo.length,
-        rustoreSubscriptionsCount: partitioned.rustore.length,
       });
 
       // Recheck immediately before external providers. Opt-out / completion may
@@ -209,7 +207,7 @@ class ReengagementWorker {
       }
 
       // Web Push is independent of native transports. If VAPID is absent
-      // or the WebPush provider fails, still try every Expo/RuStore recipient.
+      // or the WebPush provider fails, still try every Expo recipient.
       // An ambiguous failure MUST NOT delete endpoints.
       let webFailure = false;
       let webResult: {
@@ -242,23 +240,9 @@ class ReengagementWorker {
             temporaryFailureCount: 0,
           };
 
-      const rustoreResult =
-        partitioned.rustore.length > 0 ?
-          await sendRustorePushNotifications(partitioned.rustore, {
-            title: personalizedMessage.title,
-            body: personalizedMessage.body,
-            url: personalizedMessage.url ?? "/",
-          })
-        : {
-            successCount: 0,
-            failureCount: 0,
-            deletedCount: 0,
-            temporaryFailureCount: 0,
-          };
-
       // A WebPush-only job with unavailable credentials cannot be falsely
       // marked dispatched; let BullMQ retry once a valid VAPID config exists.
-      if (webFailure && expoResult.successCount + rustoreResult.successCount === 0) {
+      if (webFailure && expoResult.successCount === 0) {
         throw new Error("REENGAGEMENT_WEBPUSH_UNAVAILABLE");
       }
 
@@ -268,8 +252,6 @@ class ReengagementWorker {
         webFailed: webResult.failureCount,
         expoSent: expoResult.successCount,
         expoFailed: expoResult.failureCount,
-        rustoreSent: rustoreResult.successCount,
-        rustoreFailed: rustoreResult.failureCount,
       });
 
       // 10. Обработать неудачные web-подписки
@@ -287,8 +269,8 @@ class ReengagementWorker {
       await updateCampaignAfterSend(
         campaignId,
         notificationId,
-        webResult.successCount + expoResult.successCount + rustoreResult.successCount,
-        webResult.failureCount + expoResult.failureCount + rustoreResult.failureCount,
+        webResult.successCount + expoResult.successCount ,
+        webResult.failureCount + expoResult.failureCount ,
       );
 
       logger.success("Re-engagement задача завершена", {
@@ -296,8 +278,8 @@ class ReengagementWorker {
         campaignId,
         userId,
         level,
-        sent: webResult.successCount + expoResult.successCount + rustoreResult.successCount,
-        failed: webResult.failureCount + expoResult.failureCount + rustoreResult.failureCount,
+        sent: webResult.successCount + expoResult.successCount ,
+        failed: webResult.failureCount + expoResult.failureCount ,
       });
     } catch (error) {
       logger.error("Ошибка обработки re-engagement задачи", error as Error, {

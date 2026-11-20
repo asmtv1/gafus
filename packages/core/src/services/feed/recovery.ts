@@ -1,63 +1,48 @@
-import type { FeedDb, FeedStoragePort } from "./ports";
-/** Restore missed client completion/events using registered uploads, never an object key from an event. */
-export function createFeedUploadRecovery(input: { db: FeedDb; storage: Pick<FeedStoragePort, "head">; now?: () => Date }) {
+import type { FeedStoragePort } from "./ports";
+
+/** Scalar DTO: Core is deliberately unaware of FeedUpload/Prisma models. */
+export interface FeedRecoveryCandidate {
+  id: string;
+  ownerId: string;
+  postId: string;
+  mediaId: string;
+  sourceKey: string;
+  declaredBytes: number;
+  declaredMime: string;
+}
+
+/** The server owns the entire serializable, row-locked transition to a Job.
+ * Staging markers and ownership are rechecked under the same FeedPost lock.
+ */
+export interface FeedUploadRecoveryRowsPort {
+  findReservedUploads(at: Date, limit: number): Promise<readonly FeedRecoveryCandidate[]>;
+  rotateReservedUpload(id: string, at: Date): Promise<void>;
+  confirmVerifiedSource(upload: FeedRecoveryCandidate, etag: string, now: () => Date): Promise<boolean>;
+}
+
+/** Recover missed client events from the persisted upload, never event-supplied object keys. */
+export function createFeedUploadRecovery(input: {
+  rows: FeedUploadRecoveryRowsPort;
+  storage: Pick<FeedStoragePort, "head">;
+  now?: () => Date;
+}) {
   const now = input.now ?? (() => new Date());
   return {
     async run(batchSize = 20) {
-      if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 20) throw new Error("INVALID_FEED_BATCH_SIZE");
-      const at = now();
-      const uploads = await input.db.feedUpload.findMany({
-        where: { status: "reserved", reservationExpiresAt: { gt: at },
-          declaredMime: { in: ["video/mp4", "video/quicktime", "video/webm"] } },
-        orderBy: [{ updatedAt: "asc" }, { id: "asc" }], take: batchSize,
-      });
+      if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 20)
+        throw new Error("INVALID_FEED_BATCH_SIZE");
+      const uploads = await input.rows.findReservedUploads(now(), batchSize);
       let recovered = 0;
       for (const upload of uploads) {
         let metadata: Awaited<ReturnType<FeedStoragePort["head"]>>;
         try { metadata = await input.storage.head(upload.sourceKey); }
         catch { continue; }
         if (!metadata || metadata.bytes !== upload.declaredBytes || metadata.contentType !== upload.declaredMime) {
-          // Rotate the bounded scan so an unfinished early upload cannot starve later ones.
-          await input.db.feedUpload.updateMany({ where: { id: upload.id, status: "reserved" }, data: { updatedAt: now() } });
+          // Rotate the bounded scan so unfinished uploads cannot starve later ones.
+          await input.rows.rotateReservedUpload(upload.id, now());
           continue;
         }
-        await input.db.$transaction(async tx => {
-          await tx.$queryRaw`SELECT "id" FROM "FeedPost" WHERE "id" = ${upload.postId} FOR UPDATE`;
-          const post = await tx.feedPost.findFirst({ where: { id: upload.postId, authorId: upload.ownerId, deletedAt: null } });
-          if (!post) return;
-          // A staged WebP poster identifies the current device-first 720p flow.
-          // It is exclusively completed by POST /uploads/:id/complete. Auto-claiming
-          // it here races that request and turns RESERVED into UPLOADED, leaving
-          // the client's immediate READY confirmation with VERSION_CONFLICT.
-          // Recheck under the same FeedPost lock used by poster sign/complete.
-          if (upload.declaredMime === "video/mp4") {
-            const staged = await tx.feedStorageJob.findUnique({
-              where: { dedupeKey: `feed-client-video-staging:${upload.id}` },
-              select: { id: true },
-            });
-            if (staged) {
-              // Do not let 20 in-progress client-first MP4 reservations starve
-              // genuinely legacy recovery candidates behind the bounded scan.
-              await tx.feedUpload.updateMany({
-                where: { id: upload.id, status: "reserved" },
-                data: { updatedAt: now() },
-              });
-              return;
-            }
-          }
-          const changed = await tx.feedUpload.updateMany({
-            where: { id: upload.id, status: "reserved", reservationExpiresAt: { gt: now() } },
-            data: { status: "uploaded", sourceETag: metadata.etag },
-          });
-          if (changed.count !== 1) return;
-          await tx.feedMediaAsset.updateMany({ where: { id: upload.mediaId, status: "reserved" }, data: { status: "uploaded" } });
-          await tx.feedStorageJob.upsert({ where: { dedupeKey: `feed-process:${upload.id}` },
-            create: { dedupeKey: `feed-process:${upload.id}`, ownerId: upload.ownerId, postId: upload.postId,
-              uploadId: upload.id, mediaId: upload.mediaId, sourceKeys: [upload.sourceKey],
-              kind: "publish_video", availableAt: now() }, update: {},
-          });
-          recovered++;
-        });
+        if (await input.rows.confirmVerifiedSource(upload, metadata.etag, now)) recovered++;
       }
       return { recovered };
     },

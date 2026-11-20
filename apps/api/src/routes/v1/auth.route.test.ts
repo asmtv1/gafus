@@ -1,13 +1,6 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getMobileFeatureFlagEnabledMock = vi.hoisted(() => vi.fn());
-
-vi.mock("@gafus/feature-flags-server", () => ({
-  APP_FEATURE_MOBILE_VK_LOGIN_IOS: "mobile_vk_login_ios",
-  getMobileFeatureFlagEnabled: getMobileFeatureFlagEnabledMock,
-}));
-
 const registerMock = vi.hoisted(() => vi.fn());
 vi.mock("@gafus/core/services/auth", async (importOriginal) => ({
   ...await importOriginal<object>(),
@@ -26,7 +19,6 @@ function createTestApp() {
 describe("auth route contracts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getMobileFeatureFlagEnabledMock.mockResolvedValue(true);
   });
 
   it.each(["WEB", "IOS", "ANDROID"])("preserves DNS rejection text for %s direct API", async (registrationChannel) => {
@@ -39,7 +31,12 @@ describe("auth route contracts", () => {
     }));
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ success: false, error });
-    expect(registerMock).toHaveBeenCalledWith("new_user", "new@qwe.ru", "Password1x", registrationChannel, undefined, expect.objectContaining({ consentPayload: expect.any(Object) }));
+    expect(registerMock).toHaveBeenCalledWith(
+      "new_user", "new@qwe.ru", "Password1x", registrationChannel, undefined,
+      expect.objectContaining({ consentPayload: expect.any(Object) }),
+      expect.objectContaining({ withRegistrationTransaction: expect.any(Function) }),
+      expect.objectContaining({ readRegistrationPromoRowTx: expect.any(Function) }),
+    );
   });
 
   it("never reflects internal registration errors to unauthenticated clients", async () => {
@@ -83,29 +80,20 @@ describe("auth route contracts", () => {
     expect(response.status).toBe(400);
   });
 
-  it("blocks VK login for a disabled iOS review profile", async () => {
-    const app = createTestApp();
-    getMobileFeatureFlagEnabledMock.mockResolvedValueOnce(false);
-    const response = await app.request(
-      jsonRequest(
-        "/api/v1/auth/vk",
-        "POST",
-        {
-          code: "vk-code",
-          code_verifier: "v".repeat(43),
-          device_id: "device-1",
-          state: "s".repeat(32),
-          platform: "ios",
-        },
-        {
-          "x-client-platform": "ios",
-          "x-client-version": "1.7.0",
-        },
-      ),
+  it.each([
+    ["/vk", "POST"],
+    ["/vk-consent", "POST"],
+    ["/vk-link", "POST"],
+    ["/vk-phone-set", "POST"],
+    ["/vk-consent/old-token", "GET"],
+  ])("retires %s with a stable recovery hint, not OAuth", async (route, method) => {
+    const response = await createTestApp().request(
+      jsonRequest(`/api/v1/auth${route}`, method, method === "GET" ? undefined : {}),
     );
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toMatchObject({
-      code: "FEATURE_DISABLED",
-    });
+    expect(response.status).toBe(410);
+    const body = await response.json();
+    expect(body).toMatchObject({ success: false, code: "VK_AUTH_RETIRED" });
+    expect(body.error).toContain("Восстановите пароль");
+    expect(JSON.stringify(body)).not.toContain("code_verifier");
   });
 });

@@ -26,6 +26,7 @@ const mockPaymentUpdateMany = vi.fn();
 const mockSubscriptionUpdateMany = vi.fn();
 const mockPaymentCreate = vi.fn();
 const mockSubscriptionFindFirst = vi.fn();
+const mockSubscriptionFindUniqueOrThrow = vi.fn();
 const mockSubscriptionFindMany = vi.fn();
 const mockSubscriptionCreate = vi.fn();
 const mockSubscriptionUpdate = vi.fn();
@@ -159,6 +160,11 @@ describe("app subscription payment service", () => {
     mockReferralCreateMany.mockResolvedValue({ count: 1 });
     mockCommissionCreate.mockResolvedValue({ id: "commission-1" });
     mockSubscriptionFindFirst.mockResolvedValue(null);
+    // The extracted Apple state adapter compares a locked prior period before
+    // accepting a new verified JWS. Preserve the same PG read in unit fixtures.
+    mockSubscriptionFindUniqueOrThrow.mockResolvedValue({
+      status: "PENDING", currentPeriodStart: null, currentPeriodEnd: null,
+    });
     mockSubscriptionFindMany.mockResolvedValue([]);
     mockSubscriptionCreate.mockImplementation(
       async ({ data }: { data?: Record<string, unknown> }) => ({
@@ -221,6 +227,7 @@ describe("app subscription payment service", () => {
         appSubscription: {
           create: mockSubscriptionCreate,
           findFirst: mockSubscriptionFindFirst,
+          findUniqueOrThrow: mockSubscriptionFindUniqueOrThrow,
           update: mockSubscriptionUpdate,
           updateMany: mockSubscriptionUpdateMany,
           updateMany: mockSubscriptionUpdateMany,
@@ -1691,8 +1698,10 @@ describe("app subscription payment service", () => {
     });
 
     expect(result).toEqual({ activated: false });
-    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
-      where: { id: "sub-1" },
+    // A stale reconciliation must update only a still-PENDING YooKassa row;
+    // it cannot overwrite a concurrent successful provider activation.
+    expect(mockSubscriptionUpdateMany).toHaveBeenCalledWith({
+      where: { id: "sub-1", provider: "YOOKASSA", status: "PENDING" },
       data: {
         status: "EXPIRED",
         pendingExpiresAt: null,
@@ -2518,8 +2527,10 @@ describe("app subscription payment service", () => {
     });
 
     expect(result).toEqual({ checked: 1, activated: 0, expired: 1, deferred: 0 });
-    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
-      where: { id: "sub-1" },
+    // A stale reconciliation must update only a still-PENDING YooKassa row;
+    // it cannot overwrite a concurrent successful provider activation.
+    expect(mockSubscriptionUpdateMany).toHaveBeenCalledWith({
+      where: { id: "sub-1", provider: "YOOKASSA", status: "PENDING" },
       data: {
         status: "EXPIRED",
         pendingExpiresAt: null,
@@ -2593,8 +2604,10 @@ describe("app subscription payment service", () => {
     });
 
     expect(result).toEqual({ checked: 1, activated: 0, expired: 1, deferred: 0 });
-    expect(mockSubscriptionUpdate).toHaveBeenCalledWith({
-      where: { id: "sub-1" },
+    // A stale reconciliation must update only a still-PENDING YooKassa row;
+    // it cannot overwrite a concurrent successful provider activation.
+    expect(mockSubscriptionUpdateMany).toHaveBeenCalledWith({
+      where: { id: "sub-1", provider: "YOOKASSA", status: "PENDING" },
       data: {
         status: "EXPIRED",
         pendingExpiresAt: null,

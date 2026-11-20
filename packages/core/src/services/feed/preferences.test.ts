@@ -1,6 +1,7 @@
+import { createFeedPreferenceOperations, ensureFeedPublishingAllowed, enqueueFeedAuthorPush } from "../../../../feed-server/src/preferenceRows";
 import { describe, expect, it, vi } from "vitest";
-import type { FeedDb, FeedTx } from "./ports";
-import { assertFeedPublishingAllowed, createFeedPreferences, enqueueFeedAuthorPush, feedReportSchema, feedPreferenceSchema } from "./preferences";
+import type { FeedDb, FeedTx } from "@gafus/media-shared/media-db-ports";
+import { createFeedPreferences, feedReportSchema, feedPreferenceSchema } from "./preferences";
 function setup(role = "USER") {
   const tx = {
     $queryRaw: vi.fn(async () => []),
@@ -15,7 +16,7 @@ function setup(role = "USER") {
     feedNotification: { createMany: vi.fn() }, feedNotificationOutbox: { createMany: vi.fn() },
   };
   const db = { ...tx, $transaction: async (fn: (arg: typeof tx) => unknown) => fn(tx) } as unknown as FeedDb;
-  return { tx, db, service: createFeedPreferences({ db, enabled: () => true }) };
+  return { tx, db, service: createFeedPreferences({ operations: createFeedPreferenceOperations(db), enabled: () => true }) };
 }
 describe("feed preferences and moderation", () => {
   it("rejects unknown report reasons and oversized evidence comments", () => {
@@ -112,6 +113,6 @@ describe("feed preferences and moderation", () => {
   });
   it("blocks publishing at the service boundary", async () => {
     const db = { user: { findUnique: async () => ({ feedPublishingBlocked: true }) } } as unknown as FeedTx;
-    await expect(assertFeedPublishingAllowed(db, "author")).rejects.toMatchObject({ status: 403 });
+    await expect(ensureFeedPublishingAllowed(db, "author")).rejects.toMatchObject({ status: 403 });
   });
 });

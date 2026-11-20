@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({ image: vi.fn(), file: vi.fn(), channel: vi.fn() }));
-vi.mock("@gafus/core/services/cynologistChat", () => ({ streamServer: () => ({ channel: mock.channel }) }));
+vi.mock("stream-chat", () => ({ StreamChat: { getInstance: () => ({ channel: mock.channel }) } }));
 import { deleteAccountStreamFiles } from "./accountCleanupStream";
 const value = JSON.stringify({
   url: "https://us.stream-io-cdn.com/image.jpg?Expires=123",
@@ -9,10 +9,12 @@ const value = JSON.stringify({
   channelId: "general",
 });
 beforeEach(() => {
+  vi.stubEnv("STREAM_API_KEY", "test");
+  vi.stubEnv("STREAM_API_SECRET", "test-secret");
   vi.resetAllMocks();
   mock.channel.mockReturnValue({ deleteImage: mock.image, deleteFile: mock.file });
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 it("deletes via the saved channel and verifies that the old CDN URL is gone", async () => {
   const head = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
   vi.stubGlobal("fetch", head);

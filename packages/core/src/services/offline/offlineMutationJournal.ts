@@ -7,22 +7,9 @@
  * monotonic revision + persisted response are ONE actual Prisma transaction.
  */
 import { createHash, randomUUID } from "node:crypto";
-import {
-  withOfflineMutationTx,
-  claimPracticeReceipt,
-  findPracticeReceipt,
-  incrementPracticeRevision,
-  commitPracticeReceipt,
-  lookupOfflineMutationReceipt,
-  lockOwnedPreventionPet,
-  claimPreventionReceipt,
-  findPreventionReceipt,
-  findPreventionBoundClient,
-  readPreventionClientRow,
-  persistPreventionClientBinding,
-  incrementPreventionRevision,
-  commitPreventionReceipt,
-} from "./offlineMutationRowsPort";
+import * as legacyRows from "./offlineMutationRowsPort";
+import type { OfflineMutationRowsPort } from "./offlineMutationRowsPort";
+import type { PreventionRowsPort } from "../petPrevention/preventionRowsPort";
 import { batchRequestSchema, type BatchEntryInput } from "../petPrevention/schemas";
 
 export type JournalOperation = "training.complete.practice";
@@ -114,9 +101,18 @@ function parseCommittedReceipt(row: Receipt, input: NewOfflinePracticeMutation):
   return { success: true, ack: { ...(row.responseBody.ack as JournalAck), replayed: true } };
 }
 
+/** The supplied training port is used by the API-owned offline route.
+ * The legacy one-argument entrypoint remains for existing callers until the
+ * remainder of the Core composition registrars have been migrated. */
 export async function submitNewOfflinePracticeMutation(
   input: NewOfflinePracticeMutation,
+  training?: Pick<import("../training/trainingServiceContract").TrainingServiceApi, "applyStepDayAndCourseTx">,
+  rowsPort?: OfflineMutationRowsPort,
 ): Promise<JournalResponse> {
+  // Production supplies a per-API-instance SQL adapter; the compatibility
+  // default is only for historic test/old entrypoints until they migrate.
+  const { withOfflineMutationTx, claimPracticeReceipt, findPracticeReceipt,
+    incrementPracticeRevision, commitPracticeReceipt } = rowsPort ?? legacyRows;
   const fingerprint = mutationHash(input);
   const resource = operationResource(input);
   try {
@@ -140,11 +136,9 @@ export async function submitNewOfflinePracticeMutation(
       // Defer trainingService evaluation until after the offline/core import graph
       // is initialized. The static dependency participates in Core's existing
       // offline->course->training ESM cycle under real runtime, not only Vitest.
-      // Both funcs still execute inside THIS tx; no nested SQL transaction.
-      const { applyStepAndDayTx, syncUserCourseStatusFromDaysTx } = await import(
-        "../training/trainingService"
-      );
-      const progress = await applyStepAndDayTx(
+      // The shared atomic use case runs inside THIS tx; no nested SQL transaction.
+      const mutation = training ?? await import("../training/trainingService");
+      const progress = await mutation.applyStepDayAndCourseTx(
         tx,
         input.ownerId,
         input.dayOnCourseId,
@@ -152,9 +146,6 @@ export async function submitNewOfflinePracticeMutation(
         { type: "complete" },
       );
       if (progress.courseId !== input.courseId) throw new Error("COURSE_DAY_MISMATCH");
-      // Unlike old theory 500 / practice swallowed post-commit sync, v2 keeps
-      // this consistent within the same PG transaction; any failure rolls back.
-      await syncUserCourseStatusFromDaysTx(tx, input.ownerId, progress.courseId);
 
       const revision = await incrementPracticeRevision(tx, input.ownerId, resource);
       if (!revision[0]) throw new OfflineMutationJournalError("JOURNAL_UNAVAILABLE");
@@ -192,7 +183,9 @@ export async function submitNewOfflinePracticeMutation(
 export async function findNewOfflineMutationReceipt(
   ownerId: string,
   eventId: string,
+  rowsPort?: OfflineMutationRowsPort,
 ): Promise<JournalResponse | PreventionJournalResponse | null> {
+  const { lookupOfflineMutationReceipt } = rowsPort ?? legacyRows;
   try {
     const rows = await lookupOfflineMutationReceipt<Pick<Receipt, "state" | "responseBody">>(
       ownerId,
@@ -289,7 +282,13 @@ function preventionHash(value: unknown): string {
  */
 export async function submitNewOfflinePreventionBatch(
   input: NewOfflinePreventionBatch,
+  rowsPort?: OfflineMutationRowsPort,
+  preventionRows?: PreventionRowsPort,
 ): Promise<PreventionJournalResponse> {
+  const { withOfflineMutationTx, lockOwnedPreventionPet, claimPreventionReceipt,
+    findPreventionReceipt, findPreventionBoundClient, readPreventionClientRow,
+    persistPreventionClientBinding, incrementPreventionRevision,
+    commitPreventionReceipt } = rowsPort ?? legacyRows;
   const seenClient = new Set<string>();
   const seenItemEvent = new Set<string>();
   if (
@@ -393,6 +392,7 @@ export async function submitNewOfflinePreventionBatch(
           input.ownerId,
           input.petId,
           entries[index]!,
+          preventionRows,
         );
         await persistPreventionClientBinding(
           tx,

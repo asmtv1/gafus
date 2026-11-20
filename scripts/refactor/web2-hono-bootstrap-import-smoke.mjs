@@ -30,10 +30,10 @@ const checks = [
     command: process.execPath,
     args: ["--input-type=module", "-e", `
       import { PushNotificationService, partitionPushSubscriptions,
-        sendExpoPushNotifications, sendRustorePushNotifications } from "@gafus/webpush";
+        sendExpoPushNotifications } from "@gafus/webpush";
       import { sendBroadcastPush } from "@gafus/core/services/adminBroadcast";
       for (const fn of [PushNotificationService, partitionPushSubscriptions,
-        sendExpoPushNotifications, sendRustorePushNotifications, sendBroadcastPush]) {
+        sendExpoPushNotifications, sendBroadcastPush]) {
         if (typeof fn !== "function") throw Error("WEB2_MISSING_NAMED_EXPORT");
       }
       console.log("WEB2_WEBPUSH_CORE_NODE_EXPORTS_PASS");

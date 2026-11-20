@@ -1,7 +1,7 @@
 /** Read-only local media acceptance: owner-visible comment DTO and signed WebP delivery. */
 import { realpathSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
-import { createFeedSocial } from "../../packages/core/src/services/feed/social";
+import { createFeedSocial } from "../../packages/feed-server/src/socialRows";
 import { createFeedStorage } from "../../packages/feed-storage/src/storage";
 import { isolatedNonprodS3Config } from "../../packages/cdn-upload/src/isolatedNonprodS3";
 const e = process.env;

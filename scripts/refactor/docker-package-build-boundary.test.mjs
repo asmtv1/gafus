@@ -59,13 +59,13 @@ test('CI bare pnpm build --filter cannot bypass the mandatory job gate',()=>{
     assert.doesNotMatch(src,/\bpnpm build --filter(=|\s)/);
   }
 });
-test('runtime image validation keeps 9/49 immutable legacy and separately verifies API 34/208, Worker 33/198 runtime graphs',()=>{
+test('runtime image validation keeps 9/48 active baseline and separately verifies API 38/234, Worker 37/224 runtime graphs',()=>{
   const verify=read('ci-cd/docker/check-runtime-package-exports.mjs');
   for(const name of ['core-client','achievements','consent','mobile-intro','notifications','feature-flags','admin-rewarded-ads','tracking','admin-reengagement','subscription-read-server'])
     assert.match(verify,new RegExp(name));
-  assert.match(verify,/legacyPackages\.length !== 9 \|\| legacyExportsChecked !== 49/);
-  assert.match(verify,/exportsChecked !== 198/);
-  assert.match(verify,/exportsChecked !== 208/);
+  assert.match(verify,/legacyPackages\.length !== 9 \|\| legacyExportsChecked !== 48/);
+  assert.match(verify,/exportsChecked !== 224/);
+  assert.match(verify,/exportsChecked !== 234/);
   assert.match(verify,/if \(legacyPackages\.includes\(name\)\) legacyExportsChecked\+\+/);
   const required = ['core-client','achievements-server','consent-server','mobile-intro-server','notifications-server','feature-flags-server','admin-rewarded-ads-server','tracking-server','admin-reengagement-server','subscription-read-server','subscription-write-server','statistics','logger','feed-server','questions-server','consultation-server','exam-server','gallery-server','course-server','pets-server','media-server','article-server','gafus-server','entitlements-server','course-read-server','trainer-ai-server','course-progress-server','identity-write-server','consultation-query-server','subscription-finance-server','subscription-trial-server','questions-write-server','consultation-write-server','subscription-payment-server'];
   const latestExportCount = required.reduce((sum, pkg) =>
@@ -73,6 +73,9 @@ test('runtime image validation keeps 9/49 immutable legacy and separately verifi
   const legacyExportCount = required.slice(0,9).reduce((sum,pkg)=>
     sum + Object.keys(JSON.parse(read(`packages/${pkg}/package.json`)).exports)
       .filter(key => !(pkg === "core-client" && key === "./chat2/realtime-subscription") &&
+        !(pkg === "core-client" && key === "./chat2/send-attempt") &&
+        !(pkg === "notifications-server" && key === "./chat-outbox-diagnostics") &&
+        !(pkg === "notifications-server" && key === "./training-reminder-application") &&
         !(pkg === "tracking-server" && key === "./walks") &&
         !(pkg === "notifications-server" && key === "./trainingReminderClaims") &&
         !(pkg === "notifications-server" && key === "./adminBroadcastService") &&
@@ -82,8 +85,8 @@ test('runtime image validation keeps 9/49 immutable legacy and separately verifi
         !(pkg === "notifications-server" && key === "./consultation-email-outbox") &&
         !(pkg === "notifications-server" && key === "./reminder-expiry-redaction") &&
         !(pkg === "notifications-server" && key === "./training-reminder-storage")).length,0);
-  assert.equal(legacyExportCount,49,'frozen legacy exports must not regress');
-  assert.equal(latestExportCount,208,'all combined 208 compiled runtime entrypoints must remain required');
+  assert.equal(legacyExportCount,48,'active API baseline exports must not regress');
+  assert.equal(latestExportCount,219,'all combined 219 compiled runtime entrypoints must remain required');
   assert.match(verify,/RUNTIME_TRAINING_REMINDER_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_TRAINING_REMINDER_DELIVERY_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_ADMIN_BROADCAST_EXPORT_MISSING/);
@@ -94,9 +97,8 @@ test('runtime image validation keeps 9/49 immutable legacy and separately verifi
   assert.match(verify,/RUNTIME_PLATFORM_STATS_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_STAFF_SEARCH_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_QUESTION_NOTIFICATIONS_EXPORT_MISSING/);
-  assert.match(verify,/RUNTIME_WORKER_CHAT_SERVER_EXPORT_MISSING/);
-  assert.match(read('packages/worker/package.json'),/"@gafus\/chat-server": "workspace:\*"/);
-  assert.match(read('ci-cd/docker/Dockerfile-worker-optimized'),/import\('@gafus\/chat-server'\)/);
+  assert.doesNotMatch(read('packages/worker/package.json'),/"@gafus\/chat-server"/);
+  assert.doesNotMatch(read('ci-cd/docker/Dockerfile-worker-optimized'),/import\('@gafus\/chat-server'\)/);
   assert.match(verify,/RUNTIME_RETIRED_FEED_PHOTO_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_TRAINER_EDITOR_COUNTS_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_TRAINER_VIDEO_PLAYBACK_EXPORT_MISSING/);
@@ -158,7 +160,6 @@ test('runtime image validation keeps 9/49 immutable legacy and separately verifi
   assert.match(verify,/RUNTIME_PROFIT_RECONCILIATION_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_REGISTRATION_CONTEXT_READS_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_GAFUS_UNLOCK_RECORDS_EXPORT_MISSING/);
-  assert.match(verify,/RUNTIME_VK_COMPLETION_ROWS_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_ACCOUNT_CLEANUP_RECORDS_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_ACCOUNT_CLEANUP_WORKER_ROWS_EXPORT_MISSING/);
   assert.match(verify,/RUNTIME_CYNOLOGIST_CATALOG_ROWS_EXPORT_MISSING/);

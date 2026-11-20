@@ -1,3 +1,4 @@
+import {previewVersionPublication,publishVersionUpdate,PublicationError} from "@gafus/mobile-ota-server/version-publication";
 import { Hono } from "hono";
 import { listMandatoryOtaControls, updateMandatoryOtaControl, MandatoryControlError } from "@gafus/mobile-ota-server/mandatory-control";
 import { listOtaTelemetrySummaries } from "@gafus/mobile-ota-server/telemetry";
@@ -38,6 +39,20 @@ adminMobileOtaRoutes.use("*", async (c, next) => {
   if ((await readAdminActorRole(c.get("user").id)) !== "ADMIN")
     return c.json({ success: false, code: "FORBIDDEN" }, 403);
   await next();
+});
+const versionScope = z.object({platform:z.enum(["ios","android"]),runtimeVersion:z.string().max(32).regex(/^\d+\.\d+\.\d+$/)});
+adminMobileOtaRoutes.get("/version-publication/:platform/:runtimeVersion",async c=>{
+  const scope=versionScope.safeParse(c.req.param());
+  if(!scope.success)return c.json({success:false,error:"Укажите платформу и точную версию приложения."},400);
+  return c.json({success:true,data:await previewVersionPublication(scope.data)});
+});
+const publishInput=versionScope.extend({action:z.enum(["TEST","ALL","RECOVER"]),required:z.boolean(),
+  key:z.string().regex(/^[a-f0-9]{64}$/).nullable(),token:z.string().regex(/^[a-f0-9]{64}$/),operationId:UUID}).strict();
+adminMobileOtaRoutes.post("/version-publication",async c=>{
+  const input=publishInput.safeParse(await c.req.json().catch(()=>null));
+  if(!input.success)return c.json({success:false,error:"Проверьте параметры выпуска."},400);
+  try{return c.json({success:true,data:await publishVersionUpdate({...input.data,actorId:c.get("user").id})});}
+  catch(e){return c.json({success:false,error:e instanceof PublicationError?e.message:"Не удалось завершить выпуск. Обновите проверку."},409);}
 });
 /** Dedicated per-platform and per-native-runtime mandatory OTA controls for 1.7.5+.
  * Auth, server-side role recheck, CAS revision and deployment evidence are mandatory. */

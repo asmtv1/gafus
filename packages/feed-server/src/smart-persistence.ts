@@ -10,3 +10,7 @@ export {
   refreshCurrentSmartFeedStats, refreshCurrentSmartAuthorAffinities,
   getCurrentSmartFeedHealth, pruneCurrentSmartFeedSignals,
 } from "./smart-ml-operations.js";
+
+// Transaction-scoped production SQL ports, also used by isolated rollback smoke.
+export { createSmartRankingRows } from "./smartRankingRows.js";
+export { createSmartRetrievalRows } from "./smartRetrievalRows.js";

@@ -50,3 +50,27 @@ test('workspace runtime DAG contains no cycles or unresolved workspace package n
   for(const name of projects.keys())visit(name);
   assert.equal(closed.size,projects.size);
 });
+
+// A typecheck and a sibling package build can start simultaneously. Both
+// must wait for the same Prisma generator rather than checking half-written
+// @prisma/client declarations while prisma generate is replacing them.
+function hasPrismaGenerationBarrier(config) {
+  const tasks=config.tasks;
+  const generator=workspace().get('@gafus/prisma')?.pkg.scripts?.['prisma:generate'];
+  return Boolean(generator &&
+    tasks['prisma:generate']?.cache===false &&
+    tasks.build?.dependsOn?.includes('prisma:generate') &&
+    tasks.typecheck?.dependsOn?.includes('^build') &&
+    tasks.typecheck?.dependsOn?.includes('prisma:generate'));
+}
+
+test('turbo typecheck waits for Prisma client generation, even alongside sibling builds', () => {
+  const config=JSON.parse(readFileSync('turbo.json','utf8'));
+  assert.equal(hasPrismaGenerationBarrier(config),true);
+  assert.equal(hasPrismaGenerationBarrier({tasks:{...config.tasks,
+    typecheck:{...config.tasks.typecheck, dependsOn:['^build']}}}),false,
+  'removing the barrier must make the test red');
+  assert.equal(hasPrismaGenerationBarrier({tasks:{...config.tasks,
+    build:{...config.tasks.build, dependsOn:['^build']}}}),false,
+  'build must not race typecheck via a separate generator');
+});

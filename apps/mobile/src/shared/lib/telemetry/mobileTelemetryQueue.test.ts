@@ -4,7 +4,8 @@ import {
   emptyTelemetryQueue, enqueueTelemetryEvent, nextTelemetryBatch, applyTelemetryAck,
   trimTelemetryQueue, normalizeTelemetryQueue, telemetryRetryMs, TELEMETRY_MAX_EVENTS,
 } from './mobileTelemetryQueue';
-const now = Date.UTC(2026,10,13,12);
+// Keep fixtures inside the parser's seven-day ingestion window.
+const now = Date.now();
 const uuid=(i:number)=>`a0e85460-2534-4e2b-a70a-${i.toString(16).padStart(12,'0')}`;
 const event=(i:number,severity:MobileTelemetryEventV1['severity']='ERROR'):MobileTelemetryEventV1 => ({
   schemaVersion:1,eventId:uuid(i),appStartId:uuid(100000),platform:'ios',kind:'js_handled',severity,
@@ -20,10 +21,24 @@ describe('durable telemetry queue policy',()=>{
     expect(applyTelemetryAck(s,{durable:false})).toEqual(s);
   });
   it('retains fatal while dropping lower priority when capacity reached',()=>{
-    let s=enqueueTelemetryEvent(emptyTelemetryQueue(),{...event(0,'FATAL'),kind:'js_fatal'},now);
-    for(let i=1;i<=TELEMETRY_MAX_EVENTS+3;i++)s=enqueueTelemetryEvent(s,event(i,'INFO'),now);
+    // Build a validated, nearly full persisted queue once. Re-enqueuing 503
+    // times repeatedly reparses all prior events (O(n²)), exercising only
+    // validation work rather than the priority eviction under test.
+    const fatalEvent={...event(0,'FATAL'),kind:'js_fatal' as const};
+    let s=normalizeTelemetryQueue({
+      schemaVersion:1,dropped:0,entries:[
+        {event:fatalEvent,enqueuedAt:now,attempts:0},
+        ...Array.from({length:TELEMETRY_MAX_EVENTS-1},(_,i)=>({
+          event:event(i+1,'INFO'),enqueuedAt:now,attempts:0,
+        })),
+      ],
+    },now);
     expect(s.entries).toHaveLength(TELEMETRY_MAX_EVENTS);
-    expect(s.entries[0]?.event.kind).toBe('js_fatal');expect(s.dropped).toBe(4);
+    for(let i=TELEMETRY_MAX_EVENTS;i<=TELEMETRY_MAX_EVENTS+3;i++)
+      s=enqueueTelemetryEvent(s,event(i,'INFO'),now);
+    expect(s.entries).toHaveLength(TELEMETRY_MAX_EVENTS);
+    expect(s.entries[0]?.event.kind).toBe('js_fatal');
+    expect(s.dropped).toBe(4);
   });
   it('revalidates persisted event allowlist before sending after app restart',()=>{
     const storage={schemaVersion:1 as const,dropped:0,entries:[

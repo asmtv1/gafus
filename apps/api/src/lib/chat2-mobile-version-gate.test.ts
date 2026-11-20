@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { checkChat2MobileVersion as gate } from './chat2-mobile-version-gate';
-const config = { iosMinimum:'1.7.3',androidMinimum:'1.8.0' };
+const config = { iosMinimum:'1.7.3',androidMinimum:'1.7.3' };
 describe('proxy-only Chat2 rejects old Mobile before authorization or room token requests',()=>{
   it.each([
     ['ios','1.7.2'],['android','1.7.2'],['ios','0.0.1'],
-    ['android','1.7.99'],['ios',undefined],['ios','future'],
+    ['android','1.7.0'],['ios',undefined],['ios','future'],
   ])('requires published upgrade for old/malformed %s %s',(platform,version)=>{
     expect(gate({...config,platform,version})).toEqual({
       allowed:false,status:426,code:'CHAT2_MOBILE_UPDATE_REQUIRED',
     });
   });
   it.each([
-    ['ios','1.7.3'],['ios','2.0.0'],['android','1.8.0'],['android','1.9.0'],
+    ['ios','1.7.3'],['android','1.7.3'],['ios','1.7.5'],['android','1.7.5'],
   ])('allows published new mobile version %s %s',(platform,version)=>{
     expect(gate({...config,platform,version})).toEqual({allowed:true});
   });

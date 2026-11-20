@@ -12,9 +12,9 @@ import { S3Client, CreateBucketCommand, DeleteBucketCommand, DeleteObjectCommand
   ListObjectsV2Command, HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { isolatedNonprodS3Config } from "@gafus/cdn-upload/isolated-nonprod-s3";
 import { createFeedStorage } from "@gafus/feed-storage";
-import { createFeedService } from "./service";
-import { createFeedStorageJobs } from "./jobs";
-import type { FeedDb } from "./ports";
+import { createFeedService } from "../../../../feed-server/src/postRows";
+import { createFeedStorageJobs } from "../../../../feed-server/src/storageJobs";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
 const ROOT = "/Users/asmtv1/Desktop/gafus-refactor";
 const SCRATCH = `${ROOT}/.local-pg-scratch/web4-functional-pg18-20261026`;
 const DB_URL = "postgresql://asmtv1@127.0.0.1:55946/feed_test";

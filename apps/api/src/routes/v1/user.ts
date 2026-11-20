@@ -9,6 +9,7 @@ import { zValidator } from "@hono/zod-validator";
 import { profileEditValidationError } from "./g1-field-validation";
 
 import { deleteUserAccountBodySchema, updateAvatar } from "@gafus/core/services/user";
+import { profileRows } from "../../modules/user/composition/profile-rows-instance.js";
 import {
   deleteUserAccount, requestAccountDeletionCode, readAccountDeletionPreflight,
 } from "../../modules/user/composition/account-deletion.js";
@@ -294,7 +295,7 @@ userRoutes.post("/avatar", async (c) => {
       return c.json({ success: false, error: "Файл слишком большой. Максимум 5 МБ" }, 400);
     }
 
-    const avatarUrl = await updateAvatar(user.id, file as File);
+    const avatarUrl = await updateAvatar(user.id, file as File, profileRows);
     return c.json({ success: true, data: { avatarUrl } });
   } catch {
     logger.error("Error uploading avatar", new Error("USER_AVATAR_UPLOAD_FAILED"));

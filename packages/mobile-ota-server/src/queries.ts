@@ -48,7 +48,11 @@ export async function listMobileOtaAudit(): Promise<unknown[]> {
         d.platform, d.environment, d.channel, d."runtimeVersion"
       FROM "MobileOtaAuditEvent" a
       JOIN "MobileOtaDeployment" d ON d.id = a."deploymentId"
-      ORDER BY a."createdAt" DESC LIMIT 100
+      UNION ALL
+      SELECT p."operationId",p.action,p."operationId"::text,p."actorId",p.title,
+        p.sequence-1,p.sequence,NULL::uuid,p."createdAt",p.platform,'production','production',p."runtimeVersion"
+      FROM "MobileOtaPublication" p
+      ORDER BY "createdAt" DESC LIMIT 100
     `;
 }
 

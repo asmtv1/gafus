@@ -30,9 +30,19 @@ export default defineConfig(({ command, isPreview }) => {
     throw new Error("Unsafe isolated Questions QA browser mode");
   // Keep the existing remote/credential/URL denial in BOTH dev modes.
   const localMock = dev ? assertSafeDevApiBaseUrl(process.env.VITE_API_BASE_URL) : undefined;
+  const freshBrowser = dev && requestedMode === "local-hono" &&
+    process.env.GAFUS_QA_FRESH_BROWSER_E2E === "1" &&
+    /^gafusqa[a-f0-9]{12}$/.test(process.env.GAFUS_QA_PROJECT ?? "") &&
+    process.env.GAFUS_QA_WEB_PORT !== undefined;
+  const qaPort = (value) => {
+    if (!/^[1-9][0-9]{3,4}$/.test(value ?? "") || Number(value) < 1024 || Number(value) > 65535) {
+      throw new Error("Invalid browser QA loopback port");
+    }
+    return Number(value);
+  };
   const devApiTarget = localMock
     ? requestedMode === "local-hono"
-      ? (questionsQa ? "http://127.0.0.1:3002" :
+      ? (freshBrowser ? "http://127.0.0.1:" + qaPort(process.env.API_PORT) : questionsQa ? "http://127.0.0.1:3002" :
          allGallery ? "http://127.0.0.1:3601" : "http://127.0.0.1:3001")
       : localMock
     : undefined;
@@ -60,7 +70,7 @@ export default defineConfig(({ command, isPreview }) => {
     preview: { host: "127.0.0.1", port: 4175, strictPort: true, proxy: {} },
     server: {
       host: "127.0.0.1",
-      port: questionsQa ? 5507 : 5173,
+      port: freshBrowser ? qaPort(process.env.GAFUS_QA_WEB_PORT) : questionsQa ? 5507 : 5173,
       strictPort: true,
       ...(devApiTarget
         ? {

@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   fromEnv: vi.fn(() => {throw new Error("synthetic missing VAPID");}),
   expo: vi.fn(async()=>({successCount:1,failureCount:0,deletedCount:0,temporaryFailureCount:0})),
-  rustore: vi.fn(async()=>({successCount:1,failureCount:0,deletedCount:0,temporaryFailureCount:0})),
   workerOn: vi.fn(),
 }));
 vi.mock("@gafus/logger",()=>({
@@ -23,10 +22,8 @@ vi.mock("@gafus/webpush",()=>({
   partitionPushSubscriptions:(items:{keys:{p256dh:string}}[])=>({
     web:items.filter(item=>item.keys.p256dh==="web"),
     expo:items.filter(item=>item.keys.p256dh==="expo"),
-    rustore:items.filter(item=>item.keys.p256dh==="rustore"),
   }),
   sendExpoPushNotifications:()=>mocks.expo(),
-  sendRustorePushNotifications:()=>mocks.rustore(),
 }));
 
 describe("generic push-worker startup and native transport without VAPID",()=>{

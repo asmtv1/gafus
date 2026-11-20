@@ -9,14 +9,14 @@ export default defineConfig({
     setupFiles: [],
     include: [
       "characterization-tests/**/*.test.ts",
-      "apps/web/src/**/*.{test,spec}.ts",
+      "apps/web-vite/src/**/*.{test,spec}.ts",
       "packages/**/*.test.ts",
     ],
     exclude: ["**/node_modules/**", "**/dist/**", "**/.next/**", "**/coverage/**"],
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "apps/web/src"),
+      "@": path.resolve(__dirname, "apps/web-vite/src"),
       "@gafus/*": path.resolve(__dirname, "packages/*"),
     },
   },

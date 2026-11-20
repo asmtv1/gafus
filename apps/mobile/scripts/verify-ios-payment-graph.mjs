@@ -5,6 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
+import {internalCheckoutProfile} from "./ota-payment-profile.mjs";
+const internal=internalCheckoutProfile();
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const entry = process.argv.find((arg) => arg.startsWith("--entry="))?.slice(8) ??
   path.join(root, "src/features/app-subscription/components/AppSubscriptionPaywall.ios.tsx");
@@ -68,9 +70,11 @@ function walk(file) {
   }
 }
 walk(entry);
+const containsCard=[...visited].some(file=>file.endsWith("/InternalCardCheckout.tsx"));
+if(containsCard!==internal) violations.push("Checkout content differs from the verified distribution profile");
 if (violations.length) {
   process.stderr.write(`iOS payment graph has forbidden modules:\n${violations.join("\n")}\n`);
   process.exitCode = 1;
 } else {
-  console.log(`iOS payment graph PASS: ${visited.size} local runtime modules, no YooKassa checkout.`);
+  console.log(`iOS payment graph PASS: ${visited.size} local runtime modules, profile verified.`);
 }

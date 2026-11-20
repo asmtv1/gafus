@@ -1,0 +1,16 @@
+appId: ru.gafus.app
+name: GAFUS QA runtime identity after relaunch
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: ${QA_RUNTIME_ID}
+    timeout: 120000
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: ${QA_RUNTIME_ID}
+    timeout: 120000
+- assertNotVisible:
+    id: required-ota-screen

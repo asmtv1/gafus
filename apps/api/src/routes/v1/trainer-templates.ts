@@ -1,3 +1,4 @@
+import type { TrainerStepRowsPort } from "@gafus/core/services/trainerStep";
 /**
  * AG4(v5) TR013 frozen read-only public template list for authenticated panel.
  * Existing Core owns isPublic/category filtering and DB order; this route
@@ -6,9 +7,11 @@
 import { Hono } from "hono";
 import type { TrainerPublicStepTemplatesRead } from
   "../../../../../packages/types/src/data/trainer-read-contracts";
-import { readPublicTemplatesApplication } from "../../modules/trainer-templates/composition/read-public-templates.js";
+import { readPublicTemplatesApplication as legacyReadPublicTemplatesApplication, createPublicTemplatesApplicationForRows } from "../../modules/trainer-templates/composition/read-public-templates.js";
 
-export const trainerTemplatesRoutes = new Hono();
+export function createTrainerTemplatesRoutes(rowsPort?: TrainerStepRowsPort) {
+ const readPublicTemplatesApplication = rowsPort ? createPublicTemplatesApplicationForRows(rowsPort) : legacyReadPublicTemplatesApplication;
+ const trainerTemplatesRoutes = new Hono();
 
 trainerTemplatesRoutes.get("/", async c => {
   const query = c.req.queries();
@@ -38,3 +41,7 @@ trainerTemplatesRoutes.get("/", async c => {
     }, 500);
   }
 });
+
+ return trainerTemplatesRoutes;
+}
+export const trainerTemplatesRoutes = createTrainerTemplatesRoutes();

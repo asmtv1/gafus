@@ -24,7 +24,11 @@ async function main(){
     `;
     const expired=Number(before[0]?.expired??0n);
     if(options[0]==="--dry-run")console.log(JSON.stringify({action:"DRY_RUN",wouldDelete:expired}));
-    else {const removed=await pruneOtaTelemetry();console.log(JSON.stringify({action:"PRUNED",removed}));}
+    else {
+      const removed=await pruneOtaTelemetry();
+      const observations=await prisma.$executeRaw`DELETE FROM "MobileOtaInstallationObservation" WHERE "observedAt"<now()-interval '1 day'`;
+      console.log(JSON.stringify({action:"PRUNED",removed,observations}));
+    }
   } finally {await prisma.$disconnect();}
 }
 main().catch(error=>{console.error(error instanceof Error?error.message:String(error));process.exitCode=1;});

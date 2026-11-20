@@ -469,35 +469,6 @@ describe("Vite SPA guest flow", () => {
     }finally{await act(async()=>root.unmount());cache.clear();host.remove();}
   });
 
-  it("VK authorization fails closed if start request is unauthorized",async()=>{
-    (globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
-    const fetched:string[]=[];
-    vi.stubGlobal("fetch",vi.fn(async(path:string)=>{
-      fetched.push(path);
-      return new Response(JSON.stringify({success:false,error:"Unauthorized"}),{status:401});
-    }));
-    const host=document.createElement("div");document.body.append(host);
-    const root=createRoot(host);
-    const cache=new QueryClient({defaultOptions:{queries:{retry:false}}});
-    try{
-      await act(async()=>root.render(createElement(
-        QueryClientProvider,{client:cache},createElement(App),
-      )));
-      for(let i=0;i<40&&!host.querySelector('[data-ui-parity="legacy-landing"]');i++)
-        await act(async()=>{await new Promise(resolve=>setTimeout(resolve,15));});
-      const control=[...host.querySelectorAll<HTMLButtonElement>("button")]
-        .find(x=>x.textContent?.includes("Войти через VK"));
-      expect(control).toBeDefined();
-      await act(async()=>control?.click());
-      // No OAuth redirect on unsuccessful start; never leave the app for
-      // arbitrary untrusted endpoints. The UI reports a safe retry message.
-      expect(host.textContent).toContain("Вход через VK временно недоступен");
-      expect(host.querySelector('a[href="/login"]')).not.toBeNull();
-      expect(fetched).toContain("/api/v1/auth/vk-web/start");
-      expect(window.location.pathname).toBe("/");
-    }finally{await act(async()=>root.unmount());cache.clear();host.remove();}
-  });
-
   it("verified signed-in / redirects to /courses without ever mounting a home catalog", async () => {
     (globalThis as {IS_REACT_ACT_ENVIRONMENT?:boolean}).IS_REACT_ACT_ENVIRONMENT=true;
     const fetched:string[]=[];

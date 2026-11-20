@@ -728,6 +728,34 @@ describe("Chat2 GAFUS header and quick actions", () => {
     expect(scenario.sent).toHaveBeenCalledTimes(1);
     expect(preprocessing.video).toHaveBeenCalledTimes(2);
   });
+  it("opens and closes the photo viewer through its accessible close button", async () => {
+    scenario.timeline = [{
+      id: "photo-message", conversationId: "direct-room", sequence: "1",
+      authorId: "local-test-owner", clientMessageId: "test-photo", text: "",
+      replyToId: null, createdAt: "2026-10-29T12:00:00Z", editedAt: null, deletedAt: null,
+      attachments: [{ id: "qa-photo", name: "qa.webp", kind: "image", mime: "image/webp", bytes: 256 }],
+    }];
+    scenario.mediaUrl.mockResolvedValue({
+      url: "https://cdn.test/qa.webp", mime: "image/webp", name: "qa.webp", expiresIn: 900,
+    });
+    await render();
+    const { navigate } = await import("../../shared/router/location");
+    await act(async () => navigate("/chats/direct-room"));
+    const thumbnail = () => host.querySelector('img[alt="qa.webp"]')?.closest("button");
+    // `not.toBeNull()` accepts undefined; a missing image must not pass the
+    // readiness check and leave this click as a silent no-op.
+    await vi.waitFor(() => expect(thumbnail()).toBeInstanceOf(HTMLButtonElement));
+    await act(async () => thumbnail()!.click());
+    await vi.waitFor(() => expect(scenario.mediaUrl).toHaveBeenCalledTimes(2));
+
+    const dialog = '[role="dialog"][aria-label="Просмотр фотографии"]';
+    await vi.waitFor(() => expect(document.querySelector(dialog)).not.toBeNull());
+    const close = document.querySelector<HTMLButtonElement>(dialog + ' button[aria-label="Закрыть просмотр"]');
+    expect(close?.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    await act(async () => close?.click());
+    expect(document.querySelector(dialog)).toBeNull();
+  });
+
   it("keeps a recoverable video preview when the first signed URL request fails", async () => {
     scenario.timeline = [
       {
@@ -1075,5 +1103,60 @@ describe("Chat2 GAFUS header and quick actions", () => {
     expect(scenario.cynologist).not.toHaveBeenCalled();
     expect(host.querySelector('button[aria-pressed="true"]')?.textContent).toContain("Кинолог");
     expect(host.querySelectorAll('button[class*="chatRow"]')).toHaveLength(1);
+  });
+});
+
+describe("Chat2 send retry on mounted web composer", () => {
+  it("keeps clientMessageId across a lost HTTP response, ignores a double-submit, then generates a fresh ID for the next equal text", async () => {
+    const accepted = new Map<string, unknown>();
+    let firstResponseLost = true;
+    scenario.sent.mockImplementation(async (_id: string, draft: {text: string;clientMessageId: string}) => {
+      const seen = accepted.get(draft.clientMessageId);
+      const message = seen ?? {
+        id: "server-message-" + (accepted.size + 1),
+        conversationId: "direct-room", sequence: String(accepted.size + 1),
+        authorId: "local-test-owner", clientMessageId: draft.clientMessageId,
+        text: draft.text, replyToId: null, createdAt: "2026-11-18T12:00:00.000Z",
+        editedAt: null, deletedAt: null, attachments: [],
+      };
+      accepted.set(draft.clientMessageId, message);
+      if (firstResponseLost) {
+        firstResponseLost = false;
+        throw new Error("connection interrupted after server commit");
+      }
+      scenario.timeline = [...accepted.values()];
+      return message;
+    });
+    await render();
+    const { navigate } = await import("../../shared/router/location");
+    await act(async () => navigate("/chats/direct-room"));
+    await vi.waitFor(() => expect(host.querySelector('textarea[aria-label="Текст сообщения"]')).not.toBeNull());
+    const writeText = async (text: string) => {
+      const area = host.querySelector<HTMLTextAreaElement>('textarea[aria-label="Текст сообщения"]')!;
+      const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")?.set;
+      await act(async () => {
+        set?.call(area,text);
+        area.dispatchEvent(new Event("input",{bubbles:true}));
+      });
+    };
+    const submit = async () => {
+      const area = host.querySelector<HTMLTextAreaElement>('textarea[aria-label="Текст сообщения"]')!;
+      await act(async () => area.form?.dispatchEvent(new Event("submit",{bubbles:true,cancelable:true})));
+    };
+    await writeText("retry after lost response");
+    await submit();
+    expect(scenario.sent).toHaveBeenCalledTimes(1);
+    expect(accepted.size).toBe(1);
+    expect(host.querySelector<HTMLTextAreaElement>('textarea[aria-label="Текст сообщения"]')?.value).toBe("retry after lost response");
+    await submit();
+    expect(scenario.sent).toHaveBeenCalledTimes(2);
+    expect(scenario.sent.mock.calls[0]?.[1].clientMessageId).toBe(scenario.sent.mock.calls[1]?.[1].clientMessageId);
+    expect(accepted.size).toBe(1);
+    expect(host.querySelector<HTMLTextAreaElement>('textarea[aria-label="Текст сообщения"]')?.value).toBe("");
+    await writeText("retry after lost response");
+    await submit();
+    expect(scenario.sent).toHaveBeenCalledTimes(3);
+    expect(scenario.sent.mock.calls[2]?.[1].clientMessageId).not.toBe(scenario.sent.mock.calls[1]?.[1].clientMessageId);
+    expect(accepted.size).toBe(2);
   });
 });

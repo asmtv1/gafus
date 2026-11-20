@@ -42,6 +42,7 @@ vi.mock("@gafus/core/services/pets", async () => {
 import { generateAccessToken } from "@gafus/auth/jwt";
 import { authMiddleware } from "../../middleware/auth";
 import { petVetVisitRoutes } from "./pet-vet-visits";
+import { vetVisitRows } from "../../modules/pets/composition/vet-visit-rows-instance.js";
 const app = new Hono();
 app.use("/api/v1/pets/*", authMiddleware);
 app.route("/api/v1/pets", petVetVisitRoutes);
@@ -72,7 +73,7 @@ describe("Actual AG1 shared Vet Core dispatcher reached via mounted Hono JWT rou
     expect(r.status).toBe(200);
     expect(r.headers.get("cache-control")).toContain("no-store");
     expect((await r.json()).data).toEqual([{ id: "visit-A", petId: "pet-A", attachments: [] }]);
-    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-A");
+    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-A", vetVisitRows);
   });
   it("M02 empty owned history 200 []", async () => {
     m.list.mockResolvedValueOnce([]);
@@ -88,7 +89,7 @@ describe("Actual AG1 shared Vet Core dispatcher reached via mounted Hono JWT rou
     const r = await get("", b);
     expect(r.status).toBe(404);
     expect(await r.json()).toEqual({ success: false, code: "VET_VISIT_NOT_FOUND" });
-    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-B");
+    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-B", vetVisitRows);
   });
   it("M04 detail A 200, actual Core dispatcher verifies owner forwarded", async () => {
     const r = await get("/visit-A");
@@ -105,7 +106,7 @@ describe("Actual AG1 shared Vet Core dispatcher reached via mounted Hono JWT rou
   });
   it("M06 forged owner query on list ignored; on detail forbidden", async () => {
     expect((await get("?ownerId=owner-B")).status).toBe(200);
-    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-A");
+    expect(m.list).toHaveBeenCalledWith("pet-A", "owner-A", vetVisitRows);
     const r = await get("/visit-A?ownerId=owner-B");
     expect(r.status).toBe(404);
     expect(m.detail).not.toHaveBeenCalled();

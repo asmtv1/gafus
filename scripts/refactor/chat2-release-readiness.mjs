@@ -46,8 +46,6 @@ export function validateCutoverConfig(env, stage = false) {
   for (const key of ['CHAT2_API_ENABLED', 'CHAT2_WORKER_ENABLED', 'CHAT2_PRIVATE_MEDIA_ENABLED']) {
     if (env[key] !== 'enabled') FAIL(`${key} must be enabled in destination`);
   }
-  if (env.CHAT2_LEGACY_RETIRE_ENABLED !== (stage ? 'disabled' : 'enabled'))
-    FAIL(`CHAT2_LEGACY_RETIRE_ENABLED must be ${stage ? 'disabled during staging' : 'enabled for cutover'}`);
   if (!env.COMPOSE_PROFILES?.split(/[\s,]+/).includes('chat2'))
     FAIL('destination COMPOSE_PROFILES must start the chat2 broker');
   if (!expectedWs.has(env.CHAT2_PUBLIC_WS_URL)) FAIL('destination websocket URL is not approved');
@@ -100,7 +98,7 @@ export function verifyLiveDestination(env, composeFile) {
   const worker = inspect('gafus-worker');
   const apiEnv = liveEnv(api);
   const workerEnv = liveEnv(worker);
-  for (const key of ['CHAT2_LEGACY_RETIRE_ENABLED', 'CHAT2_API_ENABLED', 'CHAT2_PRIVATE_MEDIA_ENABLED', 'CHAT2_PUBLIC_WS_URL',
+  for (const key of ['CHAT2_API_ENABLED', 'CHAT2_PRIVATE_MEDIA_ENABLED', 'CHAT2_PUBLIC_WS_URL',
     'CHAT2_CENTRIFUGO_HTTP_API']) {
     if (apiEnv[key] !== env[key]) FAIL(`running API differs from destination: ${key}`);
   }
@@ -231,7 +229,7 @@ export async function probePublicWebsocketUpgrade(wsUrl, request = httpsRequest)
 }
 
 export function validateStaticContracts(compose, nginx, broker, edgeNginx) {
-  for (const key of ['CHAT2_LEGACY_RETIRE_ENABLED=', 'CHAT2_API_ENABLED=', 'CHAT2_WORKER_ENABLED=', 'CHAT2_PRIVATE_MEDIA_ENABLED=',
+  for (const key of ['CHAT2_API_ENABLED=', 'CHAT2_WORKER_ENABLED=', 'CHAT2_PRIVATE_MEDIA_ENABLED=',
     'CHAT2_PUBLIC_WS_URL=', 'CHAT2_CENTRIFUGO_HTTP_API=', 'CHAT2_CENTRIFUGO_API_KEY=',
     'CHAT2_CENTRIFUGO_TOKEN_SECRET=', 'CHAT2_SUBSCRIBE_PROXY_ENABLED=',
     'CHAT2_SUBSCRIBE_PROXY_SHARED_SECRET=']) {
@@ -265,14 +263,13 @@ export function validateStaticContracts(compose, nginx, broker, edgeNginx) {
       !/proxy_cache\s+off;/.test(edgeSocket))
     FAIL('ACTIVE edge nginx Chat2 websocket route missing or cannot start without broker');
   // Production Compose names, private origins and health ports must agree
-  // with both hard-coded API retirement checks and the worker HTTP server.
+  // with the live Chat2 API and Worker health endpoints.
   const service = name => compose.match(new RegExp(`^  ${name}:\\s*\\n([\\s\\S]*?)(?=^  [a-z][a-z0-9-]*:|$(?![\\s\\S]))`, 'm'))?.[1] ?? '';
   const api = service('api');
   const worker = service('worker');
   const centrifugo = service('chat2-centrifugo');
   if (!api.includes('API_PORT=3001') || !worker.includes('WORKER_HEALTH_PORT=3003') ||
       !api.includes('CHAT2_WORKER_ENABLED=') ||
-      !api.includes('CHAT2_LEGACY_RETIRE_ENABLED=${CHAT2_LEGACY_RETIRE_ENABLED:-disabled}') ||
       !api.includes('CHAT2_CENTRIFUGO_HTTP_API=') ||
       !worker.includes('CHAT2_CENTRIFUGO_HTTP_API=') ||
       !worker.includes('CHAT2_CENTRIFUGO_API_KEY=') ||

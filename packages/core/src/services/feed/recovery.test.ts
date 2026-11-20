@@ -1,53 +1,52 @@
 import { describe, expect, it, vi } from "vitest";
-import { createFeedUploadRecovery } from "./recovery";
-import type { FeedDb } from "./ports";
+import { createFeedUploadRecovery, type FeedRecoveryCandidate } from "./recovery";
 const at = new Date("2026-10-09T12:00:00Z");
-function setup(options: { missing?: boolean; deleted?: boolean; claimed?: boolean; failure?: boolean;
-  clientStaged?: boolean } = {}) {
-  const upload = { id: "upload", ownerId: "owner", postId: "post", mediaId: "media", sourceKey: "posts/owner/post/incoming/upload/source.mp4",
-    declaredBytes: 100, declaredMime: "video/mp4" };
+const upload: FeedRecoveryCandidate = {
+  id: "upload", ownerId: "owner", postId: "post", mediaId: "media",
+  sourceKey: "posts/owner/post/incoming/upload/source.mp4",
+  declaredBytes: 100, declaredMime: "video/mp4",
+};
+function setup(options: { missing?: boolean; mismatch?: boolean; claimed?: boolean; failure?: boolean } = {}) {
   const head = vi.fn(async () => {
     if (options.failure) throw new Error("storage unavailable");
-    return options.missing ? null : { etag: "etag", bytes: 100, contentType: "video/mp4" };
+    return options.missing ? null : { etag: "etag", bytes: options.mismatch ? 50 : 100, contentType: "video/mp4" };
   });
-  const jobs = vi.fn(async () => ({}));
-  const changed = vi.fn(async () => ({ count: options.claimed ? 0 : 1 }));
-  const tx = { $queryRaw: vi.fn(async () => [{ id: "post" }]),
-    feedPost: { findFirst: vi.fn(async () => options.deleted ? null : { id: "post" }) },
-    feedUpload: { updateMany: changed }, feedMediaAsset: { updateMany: vi.fn(async () => ({ count: 1 })) },
-    feedStorageJob: { upsert: jobs,
-      findUnique: vi.fn(async () => options.clientStaged ? { id: "signed-poster" } : null) } };
-  const touch = vi.fn(async () => ({ count: 1 }));
-  const db = { feedUpload: { findMany: vi.fn(async () => [upload]), updateMany: touch },
-    $transaction: vi.fn(async (callback: (tx: typeof tx) => Promise<unknown>) => callback(tx)) } as unknown as FeedDb;
-  return { recovery: createFeedUploadRecovery({ db, storage: { head }, now: () => at }), jobs, touch, tx };
+  const findReservedUploads = vi.fn(async () => [upload]);
+  const rotateReservedUpload = vi.fn(async () => {});
+  const confirmVerifiedSource = vi.fn(async () => !options.claimed);
+  const recovery = createFeedUploadRecovery({ rows: {
+    findReservedUploads, rotateReservedUpload, confirmVerifiedSource,
+  }, storage: { head }, now: () => at });
+  return { recovery, head, findReservedUploads, rotateReservedUpload, confirmVerifiedSource };
 }
-describe("feed upload recovery", () => {
-  it("turns a verified registered source into exactly one processing job", async () => {
-    const { recovery, jobs, tx } = setup();
-    expect(await recovery.run()).toEqual({ recovered: 1 });
-    expect(tx.feedUpload.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "uploaded", sourceETag: "etag" } }));
-    expect(jobs).toHaveBeenCalledWith(expect.objectContaining({ where: { dedupeKey: "feed-process:upload" } }));
+describe("feed upload recovery policy separated from SQL", () => {
+  it("checks registered source HEAD and creates no process job outside the SQL port", async () => {
+    const x = setup();
+    expect(await x.recovery.run()).toEqual({ recovered: 1 });
+    expect(x.findReservedUploads).toHaveBeenCalledExactlyOnceWith(at, 20);
+    expect(x.head).toHaveBeenCalledExactlyOnceWith(upload.sourceKey);
+    expect(x.confirmVerifiedSource).toHaveBeenCalledExactlyOnceWith(upload, "etag", expect.any(Function));
   });
-  it("never steals a verified MP4 with a client-first poster staging marker", async () => {
-    const { recovery, jobs, tx } = setup({ clientStaged: true });
-    expect(await recovery.run()).toEqual({ recovered: 0 });
-    expect(tx.feedStorageJob.findUnique).toHaveBeenCalledWith({
-      where: { dedupeKey: "feed-client-video-staging:upload" }, select: { id: true },
-    });
-    expect(tx.feedUpload.updateMany).toHaveBeenCalledExactlyOnceWith({
-      where: { id: "upload", status: "reserved" },
-      data: { updatedAt: at },
-    });
-    expect(jobs).not.toHaveBeenCalled();
+  it("does not count a fenced, deleted or already claimed candidate", async () => {
+    const x = setup({ claimed: true });
+    expect(await x.recovery.run()).toEqual({ recovered: 0 });
+    expect(x.rotateReservedUpload).not.toHaveBeenCalled();
   });
-  it("rotates missing objects without scheduling processing", async () => {
-    const { recovery, jobs, touch } = setup({ missing: true });
-    expect(await recovery.run()).toEqual({ recovered: 0 });
-    expect(touch).toHaveBeenCalled(); expect(jobs).not.toHaveBeenCalled();
+  it.each([{ missing: true }, { mismatch: true }])("rotates unverified source %s without claiming", async options => {
+    const x = setup(options);
+    expect(await x.recovery.run()).toEqual({ recovered: 0 });
+    expect(x.rotateReservedUpload).toHaveBeenCalledExactlyOnceWith("upload", at);
+    expect(x.confirmVerifiedSource).not.toHaveBeenCalled();
   });
-  it.each([{ deleted: true }, { claimed: true }, { failure: true }])("does not revive invalid uploads %s", async options => {
-    const { recovery, jobs } = setup(options);
-    expect(await recovery.run()).toEqual({ recovered: 0 }); expect(jobs).not.toHaveBeenCalled();
+  it("storage failures do not claim or rotate a candidate", async () => {
+    const x = setup({ failure: true });
+    expect(await x.recovery.run()).toEqual({ recovered: 0 });
+    expect(x.confirmVerifiedSource).not.toHaveBeenCalled();
+    expect(x.rotateReservedUpload).not.toHaveBeenCalled();
+  });
+  it.each([0, -1, 21, 1.2])("rejects out-of-range batch %s before reading SQL", async limit => {
+    const x = setup();
+    await expect(x.recovery.run(limit)).rejects.toThrow("INVALID_FEED_BATCH_SIZE");
+    expect(x.findReservedUploads).not.toHaveBeenCalled();
   });
 });

@@ -23,10 +23,10 @@ describe("API composition binds Core feature flag read to server once", () => {
     expect(mock.global).toHaveBeenCalledWith("app_subscription_gating_enabled", true);
     const context = { platform: "ios" as const, version: "1.7.3" };
     await expect(flags.getMobileFeatureFlagEnabled(
-      flags.APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT, context, false, false,
+      flags.APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT, context, false,
     )).resolves.toBe(true);
     expect(mock.mobile).toHaveBeenCalledWith(
-      "mobile_ios_ru_card_payment", context, false, false,
+      "mobile_ios_ru_card_payment", context, false,
     );
   });
 });

@@ -1,5 +1,7 @@
+import { subscriptionAccessPort } from "../../modules/app-subscription/composition/subscription-access-instance.js";
 import { getAppSubscriptionOffer } from "../../modules/app-subscription/composition/read-offer.js";
 import { Hono, type Context } from "hono";
+import { promoCodeSqlPort } from "../../modules/app-subscription/composition/promo-code-rows-instance.js";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod/v3";
 import {
@@ -16,6 +18,29 @@ import {
 } from "../../modules/app-subscription/composition/payment-transitions.js";
 import { createWebLogger } from "@gafus/logger";
 import { getClientAppContext } from "../../lib/client-app-context.js";
+
+import { GooglePlayError } from "../../modules/app-subscription/google-play-client.js";
+import { prepareGooglePlay, syncGooglePlayPurchase } from "../../modules/app-subscription/google-play-service.js";
+import {allowsAndroidQaCheckout, allowsVersionCheckout} from "@gafus/mobile-ota-server/version-selection";
+function iosCheckout(c:Context,version:string|null){
+  return allowsVersionCheckout(c.get("user").id,version,c.req.header("x-ota-installation"),
+    c.req.header("x-ota-fingerprint"),c.req.header("x-ota-update"));
+}
+
+function androidQaCheckout(c: Context, version: string | null) {
+  if (!process.env.MOBILE_OTA_ANDROID_QA_YOOKASSA_SHOP_ID ||
+      process.env.MOBILE_OTA_ANDROID_QA_YOOKASSA_SHOP_ID !== process.env.YOOKASSA_SHOP_ID) return false;
+  return allowsAndroidQaCheckout(c.get("user").id, version, c.req.header("x-ota-installation"),
+    c.req.header("x-ota-fingerprint"), c.req.header("x-ota-update"));
+}
+
+function legacyAndroidCheckout(userId: string, version: string | null) {
+  // The client version is a compatibility hint. The explicit owner enrolment is
+  // server-side because old binaries cannot provide a trustworthy build identity.
+  const owners = (process.env.ANDROID_LEGACY_YOOKASSA_USER_IDS ?? "").split(",");
+  const versions = (process.env.ANDROID_LEGACY_YOOKASSA_VERSIONS ?? "").split(",");
+  return !!version && owners.includes(userId) && versions.includes(version);
+}
 
 const logger = createWebLogger("api-app-subscription");
 export const appSubscriptionRoutes = new Hono();
@@ -98,7 +123,7 @@ appSubscriptionRoutes.get("/status", async (c) => {
     const user = c.get("user");
     // Snapshot only: payment reconciliation is a write/provider operation and is
     // scheduled by the existing worker, never triggered by reading the paywall.
-    const data = await getAppSubscriptionAccess(user.id);
+    const data = await getAppSubscriptionAccess(user.id, undefined, subscriptionAccessPort);
     return c.json({ success: true, data });
   } catch (error) {
     logger.error("GET /status error", error as Error);
@@ -116,9 +141,11 @@ appSubscriptionRoutes.get("/offer", async (c) => {
     return c.json({
       success: true,
       data: clientContext.platform === "ios"
-        ? { ...data, iosRuCardPaymentEnabled: false,
+        ? { ...data, iosRuCardPaymentEnabled: await iosCheckout(c,clientContext.version),
             promoCode: { ...data.promoCode, entryEnabled: false, eligible: false } }
-        : data,
+        : clientContext.platform === "android" && c.req.header("x-ota-update")
+          ? { ...data, androidQaCardPaymentEnabled: await androidQaCheckout(c, clientContext.version) }
+          : data,
     });
   } catch (error) {
     logger.error("GET /offer error", error as Error);
@@ -146,7 +173,7 @@ appSubscriptionRoutes.post("/promo-code/preview", async (c) => {
       planCode: parsed.data.planCode,
       promoCode: parsed.data.promoCode,
       clientContext: getClientAppContext(c),
-    });
+    }, promoCodeSqlPort);
     return c.json({ success: true, data });
   } catch (error) {
     if (error instanceof AppSubscriptionPromoCodeDomainError) {
@@ -164,9 +191,14 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
   try {
     const user = c.get("user");
     const clientContext = getClientAppContext(c);
-    // No new YooKassa checkout from any recognized iOS client, regardless of
-    // review/released profile or previously persisted feature-flag values.
-    if (clientContext.platform === "ios") {
+    const platform = clientContext.platform;
+    const qa = platform === "android" && !!c.req.header("x-ota-update");
+    const checkoutAllowed = platform === "ios" ? await iosCheckout(c, clientContext.version)
+      : qa ? await androidQaCheckout(c, clientContext.version)
+      : platform === "android" ? legacyAndroidCheckout(user.id, clientContext.version)
+      // Browser checkout uses the authenticated cookie transport and origin checks.
+      : !c.req.header("authorization");
+    if (!checkoutAllowed) {
       return c.json(
         {
           success: false,
@@ -194,8 +226,7 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
     const originRaw =
       process.env.WEB_APP_URL ??
       process.env.NEXT_PUBLIC_WEB_APP_URL ??
-      process.env.NEXT_PUBLIC_APP_URL ??
-      process.env.NEXTAUTH_URL;
+      process.env.NEXT_PUBLIC_APP_URL;
     if (!originRaw) {
       return c.json(
         { success: false, error: "Платежи недоступны", code: "CONFIG_WEB_APP_URL" },
@@ -216,7 +247,7 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
       secretKey,
       planCode: parsed.data.planCode,
       promoCode: parsed.data.promoCode,
-      returnPath: parsed.data.returnPath,
+      returnPath: platform === "ios" || qa ? "/subscription-return.html" : parsed.data.returnPath,
       clientContext,
     });
     if (!data.success) {
@@ -253,6 +284,35 @@ appSubscriptionRoutes.post("/yookassa/cancel", async (c) => {
     }
     logger.error("POST /yookassa/cancel error", error as Error);
     return c.json({ success: false, error: "Внутренняя ошибка" }, 500);
+  }
+});
+
+function googleError(c: Context, error: unknown) {
+  if (error instanceof GooglePlayError && error.code !== "UNAVAILABLE") {
+    return c.json({ success: false, error: "Покупка Google Play не подтверждена", code: error.code }, 422);
+  }
+  // Provider exceptions can contain a URL with the purchase token.
+  logger.warn("Google Play subscription operation unavailable");
+  return c.json({ success: false, error: "Google Play временно недоступен", code: "UNAVAILABLE" }, 503);
+}
+
+appSubscriptionRoutes.post("/google/play/prepare", async (c) => {
+  try {
+    const data = await prepareGooglePlay(c.get("user").id);
+    return c.json({ success: true, data });
+  } catch (error) {
+    return googleError(c, error);
+  }
+});
+
+appSubscriptionRoutes.post("/google/play/verify", zValidator("json", z.object({
+  purchaseToken: z.string().min(1).max(4096),
+})), async (c) => {
+  try {
+    const data = await syncGooglePlayPurchase(c.req.valid("json").purchaseToken, c.get("user").id);
+    return c.json({ success: true, data });
+  } catch (error) {
+    return googleError(c, error);
   }
 });
 

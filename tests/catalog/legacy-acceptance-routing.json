@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "rows": [
+    {"id":1,"local":["pnpm check:core-boundaries","pnpm test:api-acceptance"],"remaining":"Mounted HTTP coverage across P0 and P1–P2 on the candidate."},
+    {"id":2,"local":["pnpm test:api"],"remaining":"One named cross-client HTTP error and retry report for the complete matrix."},
+    {"id":3,"local":["pnpm test:legacy"],"remaining":"Negative fixture receipts and actual PR CI for the candidate."},
+    {"id":4,"local":["pnpm test:legacy"],"remaining":"Verify rollback, outbox and provider observations together."},
+    {"id":5,"local":["pnpm test:legacy","pnpm test:recovery"],"remaining":"Verify commit and outbox on independent connections after restart."},
+    {"id":6,"local":["pnpm test:legacy","pnpm test:recovery"],"remaining":"Provider-side confirmation on the QA job environment."},
+    {"id":7,"local":["pnpm test:legacy","pnpm test:recovery"],"remaining":"Real QA Cloud Job crash after ACK and evidence of a single effect."},
+    {"id":8,"local":["pnpm test:recovery"],"remaining":"Full heartbeat, fence and takeover assertions for real handlers."},
+    {"id":9,"local":["pnpm test:faults"],"remaining":"Operator retry, forbidden role, DLQ and replay on the supported queue."},
+    {"id":10,"local":["pnpm test:legacy","pnpm test:recovery"],"remaining":"Recovery of the real QA Cloud Job dependency."},
+    {"id":11,"local":["pnpm test:web-vite"],"remaining":"Browser playback across real QA job delay and final variant availability."},
+    {"id":12,"local":["pnpm test:legacy","pnpm test:faults"],"remaining":"QA Job callback and object-store inventory after retries."},
+    {"id":13,"local":["pnpm test:legacy","pnpm test:faults"],"remaining":"Real reconciler against QA storage and Job state."},
+    {"id":14,"local":["pnpm test:integration --scenario chat.delivery"],"remaining":"End-to-end WebSocket delivery and isolation between two senders."},
+    {"id":15,"local":["pnpm test:integration --scenario payment.lifecycle"],"remaining":"Named scenario for the complete economic event, including insufficient balance and manual replay."},
+    {"id":16,"local":[],"remaining":"Deployed QA OTLP/searchable trace across Hono, Worker, Cloud Job and callback."},
+    {"id":17,"local":[],"remaining":"QA Alertmanager route and receiver receipts for firing and resolved."},
+    {"id":18,"local":[],"remaining":"QA Beget/CDN/MinIO ACL and allowed fallback source observations."}
+  ]
+}

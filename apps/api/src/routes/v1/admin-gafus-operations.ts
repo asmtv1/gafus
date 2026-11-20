@@ -1,3 +1,4 @@
+import type { GafusAdminRowsPort } from "@gafus/core/services/adminGafus";
 import { Hono } from "hono";
 import { z } from "zod/v3";
 import {
@@ -8,7 +9,8 @@ import { legacyGafusImportApplication } from "../../modules/gafus/composition/le
 import { requireRole } from "../../middleware/auth.js";
 
 /** Completes legacy Next admin Gafus fraud and operator-only import actions. */
-export const adminGafusOperationsRoutes = new Hono();
+export function createAdminGafusOperationsRoutes(rowsPort?: GafusAdminRowsPort) {
+const adminGafusOperationsRoutes = new Hono();
 adminGafusOperationsRoutes.use("*", async (c, next) => {
   c.header("Cache-Control", "private, no-store");
   c.header("Referrer-Policy", "no-referrer");
@@ -53,9 +55,11 @@ adminGafusOperationsRoutes.get("/fraud", requireRole("ADMIN"), async c => {
     .safeParse(c.req.query("status") ?? "OPEN");
   if (!status.success) return c.json({ success: false, code: "INVALID_STATUS" }, 400);
   try {
-    const data = await listGafusFraudSignalsAdmin({
+    const data = await (rowsPort ? listGafusFraudSignalsAdmin({
       actorId: c.get("user").id, status: status.data,
-    });
+    }, rowsPort) : listGafusFraudSignalsAdmin({
+      actorId: c.get("user").id, status: status.data,
+    }));
     return c.json({ success: true, data });
   } catch (error) {
     const mapped = coreError(error);
@@ -69,13 +73,19 @@ adminGafusOperationsRoutes.post("/fraud/:signalId/review", requireRole("ADMIN"),
   const parsed = fraudReview.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ success: false, code: "INVALID_REVIEW" }, 400);
   try {
-    const data = await reviewGafusFraudSignalAdmin({
+    const data = await (rowsPort ? reviewGafusFraudSignalAdmin({
       actorId: c.get("user").id,
       signalId,
       action: parsed.data.action,
       reason: parsed.data.reason,
       requestedReversal: parsed.data.action === "CONFIRM" ? parsed.data.requestedReversal : 0,
-    });
+    }, rowsPort) : reviewGafusFraudSignalAdmin({
+      actorId: c.get("user").id,
+      signalId,
+      action: parsed.data.action,
+      reason: parsed.data.reason,
+      requestedReversal: parsed.data.action === "CONFIRM" ? parsed.data.requestedReversal : 0,
+    }));
     return c.json({ success: true, data });
   } catch (error) {
     const mapped = coreError(error);
@@ -108,3 +118,9 @@ adminGafusOperationsRoutes.post("/legacy/import", requireRole("ADMIN"), async c 
     return c.json({ success: false, code: mapped.code }, mapped.status);
   }
 });
+
+  return adminGafusOperationsRoutes;
+}
+
+/** Source-level compatibility for existing route tests. Production uses the factory. */
+export const adminGafusOperationsRoutes = createAdminGafusOperationsRoutes();

@@ -1,3 +1,4 @@
+import { subscriptionAccessPort } from "../app-subscription/composition/subscription-access-instance.js";
 /** Chat 2.0: durable actor-scoped operations; never trust client role or channel ID. */
 import { prisma, Prisma } from "@gafus/prisma";
 import { getOutboxCorrelation } from "../../lib/operation-observability.js";
@@ -167,7 +168,7 @@ export async function readGate(userId: string, conversationId: string) {
 export async function writeGate(userId: string, id: string) {
   const m = await readGate(userId, id);
   if (m.conversation.kind === "CYNOLOGIST" && m.conversation.createdById === userId) {
-    if (!(await getCynologistEntitlements(userId)).canUseCynologistChat)
+    if (!(await getCynologistEntitlements(userId, undefined, subscriptionAccessPort)).canUseCynologistChat)
       return fail("SUBSCRIPTION_REQUIRED", 403, "Продлите тариф, чтобы писать кинологу");
     // Direct POSTs/attachments must repair stale rooms too, even if the client
     // never loaded the chat list. Otherwise a valid subscription can reach the
@@ -418,7 +419,7 @@ async function alignCynologistMembers(ownerId: string, roomId: string, specialis
 }
 
 export async function openCynologist(userId: string) {
-  if (!(await getCynologistEntitlements(userId)).canUseCynologistChat)
+  if (!(await getCynologistEntitlements(userId, undefined, subscriptionAccessPort)).canUseCynologistChat)
     return fail("SUBSCRIPTION_REQUIRED", 403, "Чат с кинологом недоступен по тарифу");
   const trainer = await prisma.user.findFirst({
     where: { role: "TRAINER", accountDeletionRequestedAt: null, ...reservedCynologist },

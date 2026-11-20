@@ -172,7 +172,7 @@ describe("AG4 actual opt-in UI -> ACTUAL registered Hono app.request, mocked Cor
   const select=host.querySelector("select")!;
   await act(async()=>{select.value="daily";select.dispatchEvent(new Event("change",{bubbles:true}));});await flush();
   expect(host.textContent).toContain("Title A-daily");expect(host.textContent).not.toContain("Title A-late");
-  expect(m.read).toHaveBeenLastCalledWith(actors.A.id,false,{isDailyCourse:true});
+  expect(m.read).toHaveBeenLastCalledWith(actors.A.id,false,{isDailyCourse:true},expect.objectContaining({readVisibleTrainerSteps:expect.any(Function)}));
  });
  it("shows empty and generic error and manual GET retry without write",async()=>{
   await mount({visibleStepsTransport:async()=>({status:200,headers:{"cache-control":"private, no-store"},body:{success:true,data:[]}})});
@@ -231,7 +231,7 @@ describe("AG4 actual opt-in UI -> ACTUAL registered Hono app.request, mocked Cor
   const select=host.querySelector("select")!;
   await act(async()=>{select.value="dogs";select.dispatchEvent(new Event("change",{bubbles:true}));});await flush();
   expect(host.textContent).toContain("Template one");expect(host.textContent).not.toContain("Template two");
-  expect(m.templates).toHaveBeenLastCalledWith("dogs");expect(m.write).not.toHaveBeenCalled();
+  expect(m.templates).toHaveBeenLastCalledWith("dogs",expect.objectContaining({readPublicTrainerStepTemplates:expect.any(Function)}));expect(m.write).not.toHaveBeenCalled();
  });
 
 });

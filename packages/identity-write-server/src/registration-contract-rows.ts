@@ -4,7 +4,7 @@
  * registrationPending condition on one-time login grant consumption.
  */
 import {Prisma,type ConsentType,type RegistrationChannel,type AppSubscriptionPromoCode,
- type VkLoginGrantPurpose,type VkRegistrationContextPurpose} from '@gafus/prisma';
+} from '@gafus/prisma';
 import {withRegistrationTransaction} from './registration-context-reads';
 
 /** Static schema-checked wire literals: no eager Prisma enum runtime imports.
@@ -38,8 +38,6 @@ export function markCredentialRegistrationAttemptSucceededTx(tx:RegistrationCont
 }
 
 export type RegistrationContractChannel=RegistrationChannel;
-export type RegistrationContractVkPurpose=VkRegistrationContextPurpose;
-export type RegistrationContractLoginPurpose=VkLoginGrantPurpose;
 export type RegistrationPromoDbRow=Pick<AppSubscriptionPromoCode,
  'id'|'code'|'normalizedCode'|'discountPercent'|'revision'>;
 
@@ -71,56 +69,6 @@ export async function finishRegistrationEmailAttemptTx(tx:RegistrationContractDb
  return tx.registrationEmailAttempt.update({
   where:{id},data:{result:params.result,userId:params.userId??null,completedAt:new Date()},
  });
-}
-export async function insertVkRegistrationContextTx(tx:RegistrationContractDbTx,params:{
- contextTokenHash:string;stateHash:string;codeVerifier:string;
- purpose:VkRegistrationContextPurpose;selectedPromoCodeId?:string|null;
- selectedPromoCodeValue?:string|null;userId?:string|null;expiresAt:Date;
-}){
- return tx.vkRegistrationContext.create({data:{
-  contextTokenHash:params.contextTokenHash,stateHash:params.stateHash,
-  codeVerifier:params.codeVerifier,purpose:params.purpose,
-  selectedPromoCodeId:params.selectedPromoCodeId??null,
-  selectedPromoCodeValue:params.selectedPromoCodeValue??null,
-  userId:params.userId??null,expiresAt:params.expiresAt,
- }});
-}
-export async function claimVkRegistrationContextUserTx(tx:RegistrationContractDbTx,params:{
- contextTokenHash:string;stateHash:string;purpose:VkRegistrationContextPurpose;
- userId:string;now:Date,
-}){
- return tx.vkRegistrationContext.updateMany({
-  where:{contextTokenHash:params.contextTokenHash,stateHash:params.stateHash,
-   purpose:params.purpose,expiresAt:{gt:params.now},completedAt:null,
-   OR:[{userId:null},{userId:params.userId}]},
-  data:{userId:params.userId},
- });
-}
-export async function insertVkLoginGrantTx(tx:RegistrationContractDbTx,params:{
- tokenHash:string;userId:string;purpose:VkLoginGrantPurpose;
- reissuedFromId?:string;registrationContextId?:string;expiresAt:Date;
-}){
- return tx.vkLoginGrant.create({data:params});
-}
-/** Returns null on replay, stale grant, revoked consent, or pending user;
- * callers convert this to an identical public contract error. A consumed token
- * can never turn a registrationPending account into an authenticated session.
- */
-export async function consumeVkLoginGrantRowTx(tx:RegistrationContractDbTx,params:{
- tokenHash:string;purpose:VkLoginGrantPurpose;requireConsent?:boolean;now:Date;
-}){
- const grant=await tx.vkLoginGrant.findFirst({where:{
-  tokenHash:params.tokenHash,purpose:params.purpose,expiresAt:{gt:params.now},consumedAt:null,
- }});
- if(!grant||(params.requireConsent&&!grant.consentCompletedAt))return null;
- const updated=await tx.vkLoginGrant.updateMany({
-  where:{id:grant.id,expiresAt:{gt:params.now},consumedAt:null,
-   ...(params.requireConsent?{consentCompletedAt:{not:null}}:{}),
-   user:{registrationPending:false},
-  },
-  data:{consumedAt:params.now},
- });
- return updated.count===1?grant:null;
 }
 export {withRegistrationTransaction};
 

@@ -1,12 +1,8 @@
 import { apiClient, type ApiResponse } from "./client";
 
 export interface MobileAppPublicConfig {
-  vkLoginEnabledOnIos: boolean;
   appSubscriptionPaywallEnabled: boolean;
   appSubscriptionGatingEnabled: boolean;
-  iosRuCardPaymentEnabled: boolean;
-  iosRuCardPaymentHintEnabled: boolean;
-  resolvedFeatureProfile?: "RELEASED" | "REVIEW";
   resolvedClientVersion?: string | null;
   ota?: {
     required: boolean;

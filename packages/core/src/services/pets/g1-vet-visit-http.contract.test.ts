@@ -41,34 +41,34 @@ describe("G1 Core pet vet transport: method/owner/body bounds", () => {
     expect(await r.json()).toEqual({ success: true, data: [{ id: "visit-A" }] });
     expect(r.headers.get("cache-control")).toContain("no-store");
     expect(r.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(m.list).toHaveBeenCalledWith("pet-A", "actor-A");
+    expect(m.list).toHaveBeenCalledWith("pet-A", "actor-A", undefined);
   });
   it("POST passes raw JSON to real Core service with authenticated owner", async () => {
     const input = { visitedOn: "2026-10-15", specialty: "Терапевт", ownerId: "forged" };
     const r = await call("POST", [], JSON.stringify(input));
     expect(r.status).toBe(201);
-    expect(m.save).toHaveBeenCalledWith("pet-A", "actor-A", input, undefined);
+    expect(m.save).toHaveBeenCalledWith("pet-A", "actor-A", input, undefined, undefined);
   });
   it("PUT existing visit forwards visit id and owner; no resource mix-up", async () => {
     const r = await call("PUT", ["visit-B"], '{"clinic":"test"}');
     expect(r.status).toBe(200);
-    expect(m.save).toHaveBeenCalledWith("pet-A", "actor-A", { clinic: "test" }, "visit-B");
+    expect(m.save).toHaveBeenCalledWith("pet-A", "actor-A", { clinic: "test" }, "visit-B", undefined);
   });
   it("DELETE visit does not accept different owner from body", async () => {
     const r = await call("DELETE", ["visit-B"]);
     expect(r.status).toBe(200);
-    expect(m.deleteVisit).toHaveBeenCalledWith("pet-A", "actor-A", "visit-B");
+    expect(m.deleteVisit).toHaveBeenCalledWith("pet-A", "actor-A", "visit-B", undefined);
     expect(await r.json()).toEqual({ success: true });
   });
   it("DELETE attachment scopes pet, visit, attachment and owner", async () => {
     const r = await call("DELETE", ["visit-B", "attachments", "attachment-C"]);
     expect(r.status).toBe(200);
-    expect(m.deleteAttachment).toHaveBeenCalledWith("pet-A", "actor-A", "visit-B", "attachment-C");
+    expect(m.deleteAttachment).toHaveBeenCalledWith("pet-A", "actor-A", "visit-B", "attachment-C", undefined);
   });
   it("GET media returns signed URL only from Core-scoped read", async () => {
     const r = await call("GET", ["visit-B", "attachments", "att-C", "media"]);
     expect(r.status).toBe(200);
-    expect(m.media).toHaveBeenCalledWith("pet-A", "actor-A", "visit-B", "att-C", "preview");
+    expect(m.media).toHaveBeenCalledWith("pet-A", "actor-A", "visit-B", "att-C", "preview", undefined);
     expect(await r.json()).toMatchObject({ success: true, data: { variant: "preview" } });
   });
   it("GET media redirects with private no-store and unchanged Core URL", async () => {
@@ -77,7 +77,7 @@ describe("G1 Core pet vet transport: method/owner/body bounds", () => {
     expect(r.status).toBe(302);
     expect(r.headers.get("location")).toBe("https://signed.invalid/preview");
     expect(r.headers.get("cache-control")).toContain("no-store");
-    expect(m.media).toHaveBeenCalledWith("pet-A", "actor-A", "visit-B", "att-C", "full");
+    expect(m.media).toHaveBeenCalledWith("pet-A", "actor-A", "visit-B", "att-C", "full", undefined);
   });
   it("unsupported action path or method returns 404 before service calls", async () => {
     const r = await call("PATCH", ["visit-B"]);

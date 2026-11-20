@@ -66,7 +66,6 @@ export REDIS_URL='redis://127.0.0.1:56339'
 export NODE_ENV=test API_HOST=127.0.0.1 API_PORT=58341
 export WORKER_HEALTH_PORT=58342 CHAT2_LOCAL_WORKER_PORT=58342 GAFUS_CHAT2_FULL_ISOLATED_ACCEPTANCE=1
 export CHAT2_API_ENABLED=enabled CHAT2_WORKER_ENABLED=enabled CHAT2_PRIVATE_MEDIA_ENABLED=enabled
-export CHAT2_LEGACY_RETIRE_ENABLED=disabled
 export CHAT2_PUBLIC_WS_URL='ws://127.0.0.1:58339/connection/websocket'
 export CHAT2_CENTRIFUGO_HTTP_API='http://127.0.0.1:58339/api/publish'
 export CHAT2_CENTRIFUGO_TOKEN_SECRET="$CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY"
@@ -84,4 +83,4 @@ if ! (cd apps/api && ./node_modules/.bin/vitest run --config vitest.chat2-full-i
   exit 1
 fi
 grep -E '(Test Files|Tests)' "$WORK/test.log" | tail -3
-printf 'CHAT2_FULL_REAL_ISOLATED_PASS: verified registered Hono/auth, PG outbox, worker, broker, websocket, ACL, idempotency, legacy 503/410\n'
+printf 'CHAT2_FULL_REAL_ISOLATED_PASS: verified registered Hono/auth, PG outbox, worker, broker, websocket, ACL, idempotency, Chat1 routes 404\n'

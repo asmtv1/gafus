@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "cases": [
+    {"step":"a_login","host":"a","http":[["GET","/auth/me",401],["POST","/auth/login",200],["GET","/auth/me",200]],"sql":{"aTotal":1,"aActive":1,"bTotal":0,"bActive":0,"aRevocation":false},"cookie":"active","bound":"a"},
+    {"step":"b_login","host":"b","http":[["GET","/auth/me",401],["POST","/auth/login",200],["GET","/auth/me",200]],"sql":{"aTotal":1,"aActive":1,"bTotal":1,"bActive":1,"aRevocation":false},"cookie":"active","bound":"b"},
+    {"step":"c_login","host":"c","http":[["GET","/auth/me",401],["POST","/auth/login",200],["GET","/auth/me",200]],"sql":{"aTotal":2,"aActive":2,"bTotal":1,"bActive":1,"aRevocation":false},"cookie":"active","bound":"a"},
+    {"step":"a_refresh","host":"a","http":[["POST","/auth/refresh",200],["GET","/auth/me",200]],"sql":{"aTotal":3,"aActive":2,"bTotal":1,"bActive":1,"aRevocation":false},"cookie":"active","bound":"a"},
+    {"step":"a_logout","host":"a","http":[["POST","/auth/logout",200],["GET","/auth/me",401]],"sql":{"aTotal":3,"aActive":1,"bTotal":1,"bActive":1,"aRevocation":false},"cookie":"none","bound":null},
+    {"step":"c_after_single","host":"c","http":[["GET","/auth/me",200]],"sql":{"aTotal":3,"aActive":1,"bTotal":1,"bActive":1,"aRevocation":false},"cookie":"active","bound":"a"},
+    {"step":"b_after_single","host":"b","http":[["GET","/auth/me",200]],"sql":{"aTotal":3,"aActive":1,"bTotal":1,"bActive":1,"aRevocation":false},"cookie":"active","bound":"b"},
+    {"step":"a_relogin","host":"a","http":[["POST","/auth/login",200],["GET","/auth/me",200]],"sql":{"aTotal":4,"aActive":2,"bTotal":1,"bActive":1,"aRevocation":false},"cookie":"active","bound":"a"},
+    {"step":"a_logout_all","host":"a","http":[["POST","/auth/logout-all",200],["GET","/auth/me",401]],"sql":{"aTotal":4,"aActive":0,"bTotal":1,"bActive":1,"aRevocation":true},"cookie":"none","bound":null},
+    {"step":"c_after_all","host":"c","http":[["GET","/auth/me",401],["POST","/auth/refresh",401],["GET","/auth/me",401]],"sql":{"aTotal":4,"aActive":0,"bTotal":1,"bActive":1,"aRevocation":true},"cookie":"revoked","bound":"a"},
+    {"step":"b_unaffected","host":"b","http":[["GET","/auth/me",200],["POST","/auth/refresh",200],["GET","/auth/me",200]],"sql":{"aTotal":4,"aActive":0,"bTotal":2,"bActive":1,"aRevocation":true},"cookie":"active","bound":"b"},
+    {"step":"c_cleanup","host":"c","http":[["POST","/auth/logout",200],["GET","/auth/me",401]],"sql":{"aTotal":4,"aActive":0,"bTotal":2,"bActive":1,"aRevocation":true},"cookie":"none","bound":null},
+    {"step":"b_cleanup","host":"b","http":[["POST","/auth/logout",200],["GET","/auth/me",401]],"sql":{"aTotal":4,"aActive":0,"bTotal":2,"bActive":0,"aRevocation":true},"cookie":"none","bound":null}
+  ]
+}

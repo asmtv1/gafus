@@ -107,9 +107,6 @@ const PasswordResetConfirm = lazy(() =>
     default: module.PasswordResetConfirm,
   })),
 );
-const VkConsentWeb = lazy(() =>
-  import("./shared/auth/VkConsentWeb").then((module) => ({ default: module.VkConsentWeb })),
-);
 const ExcusesOptIn = lazy(() =>
   import("./features/excuses/ExcusesOptIn").then((module) => ({ default: module.ExcusesOptIn })),
 );
@@ -1252,8 +1249,6 @@ function AppRouter({
       return <MainView route={path} />;
     case "/profile/confirm-email":
       return <EmailConfirmPage />;
-    case "/vk-consent":
-      return <VkConsentWeb />;
     case "/passwordReset":
       return (
         <main className="shell gafus-reset-screen" data-app-background="auth">
@@ -1718,7 +1713,6 @@ const NEXT_PUBLIC_WEB_ROUTES = new Set<RoutePath>([
   "/",
   "/login",
   "/register",
-  "/vk-consent",
   "/passwordReset",
   "/reset-password",
   "/profile/confirm-email",

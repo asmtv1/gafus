@@ -1,12 +1,19 @@
+import { createFeedPreferenceOperations } from "../../../../feed-server/src/preferenceRows";
 import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
-import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@gafus/prisma";
-import { createFeedService } from "./service";
+import { createFeedService } from "../../../../feed-server/src/postRows";
 import { readRankedFeedRows } from "@gafus/media-server/feed-ranked-rows";
 import { createFeedPreferences } from "./preferences";
-import { createFeedSocial } from "./social";
-import { enqueueFeedAccountCleanup } from "./cleanup";
+import { createFeedSocial } from "../../../../feed-server/src/socialRows";
+import { enqueueFeedAccountCleanup } from "../../../../feed-server/src/cleanupRows";
+import { registerGafusLockPort, registerGafusLedgerRowsPort, type GafusLockPort, type GafusLedgerRowsPort } from "@gafus/core/services/gafus";
+import { lockGafusUser, withGafusUserLock } from "@gafus/gafus-server/wallet-lock";
+import {
+  ensureWalletRow, findLedgerEntry, updateWalletBalanceRow,
+  appendLedgerEntry, readWalletBalanceRow, readWalletLedgerRows,
+} from "@gafus/gafus-server/wallet-records";
 import type { FeedStoragePort } from "./ports";
 
 // Never infer a database from the application's environment or reset shared schemas.
@@ -26,6 +33,22 @@ const Client = require("@prisma/client").PrismaClient as new (args: {
 }) => PrismaClient;
 const db = url ? new Client({ datasources: { db: { url } } }) : null;
 (url ? describe : describe.skip)("feed / real PostgreSQL", () => {
+  // Compose the real SQL wallet adapters for publication rewards. All writes
+  // share the feed transaction; no in-memory ledger or bypassed reward hook.
+  beforeAll(() => {
+    registerGafusLockPort({
+      lockGafusUser: lockGafusUser as unknown as GafusLockPort["lockGafusUser"],
+      withGafusUserLock: withGafusUserLock as unknown as GafusLockPort["withGafusUserLock"],
+    });
+    registerGafusLedgerRowsPort({
+      ensureWalletRow: ensureWalletRow as unknown as GafusLedgerRowsPort["ensureWalletRow"],
+      findLedgerEntry: findLedgerEntry as unknown as GafusLedgerRowsPort["findLedgerEntry"],
+      updateWalletBalanceRow: updateWalletBalanceRow as unknown as GafusLedgerRowsPort["updateWalletBalanceRow"],
+      appendLedgerEntry: appendLedgerEntry as unknown as GafusLedgerRowsPort["appendLedgerEntry"],
+      readWalletBalanceRow,
+      readWalletLedgerRows,
+    });
+  });
   let owner: string, reader: string, stranger: string, at: Date;
   let posts: ReturnType<typeof createFeedService>, social: ReturnType<typeof createFeedSocial>;
   const objects = new Map<string, { etag: string; bytes: number; contentType: string }>();
@@ -159,7 +182,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     }
   });
   it("hides current/future posts for one reader while preserving profiles, links and bookmarks", async () => {
-    const prefs = createFeedPreferences({ db: db!, enabled: () => true });
+    const prefs = createFeedPreferences({ operations: createFeedPreferenceOperations(db!), enabled: () => true });
     const post = await publish();
     await prefs.bookmark(reader, post.id, true);
     await prefs.preference(reader, owner, { hidden: true });
@@ -179,7 +202,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     );
   });
   it("keeps evidence after editing, suppresses hidden post interactions and restores it", async () => {
-    const prefs = createFeedPreferences({ db: db!, enabled: () => true });
+    const prefs = createFeedPreferences({ operations: createFeedPreferenceOperations(db!), enabled: () => true });
     const post = await publish("До редактирования");
     const report = await prefs.report(reader, "post", post.id, { reason: "spam" });
     expect(await prefs.report(reader, "post", post.id, { reason: "other" })).toEqual(report);
@@ -211,7 +234,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     expect((await posts.get(reader, post.id)).moderationState).toBe("visible");
   });
   it("moderates comments without exposing hidden text and supports publishing bans", async () => {
-    const prefs = createFeedPreferences({ db: db!, enabled: () => true });
+    const prefs = createFeedPreferences({ operations: createFeedPreferenceOperations(db!), enabled: () => true });
     const post = await publish();
     const comment = await social.createComment(reader, post.id, {
       text: "Спам в комментарии",
@@ -237,7 +260,7 @@ const db = url ? new Client({ datasources: { db: { url } } }) : null;
     expect((await social.getComment(owner, comment.id)).text).toBe("Спам в комментарии");
   });
   it("keeps author subscriptions push-only and does not push edits", async () => {
-    const prefs = createFeedPreferences({ db: db!, enabled: () => true });
+    const prefs = createFeedPreferences({ operations: createFeedPreferenceOperations(db!), enabled: () => true });
     await prefs.preference(reader, owner, { notify: true });
     const post = await publish();
     expect(

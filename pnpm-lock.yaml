@@ -141,6 +141,9 @@ importers:
       '@eslint/js':
         specifier: 9.39.2
         version: 9.39.2
+      '@playwright/test':
+        specifier: 1.58.2
+        version: 1.58.2
       '@tanstack/query-sync-storage-persister':
         specifier: ^5.85.9
         version: 5.90.22
@@ -159,6 +162,9 @@ importers:
       '@types/web-push':
         specifier: 3.6.4
         version: 3.6.4
+      '@vitest/coverage-v8':
+        specifier: 4.1.0
+        version: 4.1.0(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.19.0)(yaml@2.8.2)))
       eslint:
         specifier: 9.39.2
         version: 9.39.2(jiti@2.6.1)
@@ -183,6 +189,15 @@ importers:
       globals:
         specifier: 15.15.0
         version: 15.15.0
+      istanbul-lib-coverage:
+        specifier: 3.2.2
+        version: 3.2.2
+      istanbul-lib-report:
+        specifier: 3.0.1
+        version: 3.0.1
+      istanbul-reports:
+        specifier: 3.2.0
+        version: 3.2.0
       nodemon:
         specifier: ^3.1.14
         version: 3.1.14
@@ -216,6 +231,9 @@ importers:
       vitest:
         specifier: 4.1.0
         version: 4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.19.0)(yaml@2.8.2))
+      yaml:
+        specifier: 2.8.2
+        version: 2.8.2
       zod-to-json-schema:
         specifier: ^3.24.6
         version: 3.25.1(zod@4.6.7)
@@ -298,9 +316,6 @@ importers:
       '@gafus/cdn-upload':
         specifier: workspace:*
         version: link:../../packages/cdn-upload
-      '@gafus/chat-server':
-        specifier: workspace:*
-        version: link:../../packages/chat-server
       '@gafus/consultation-query-server':
         specifier: workspace:*
         version: link:../../packages/consultation-query-server
@@ -750,9 +765,6 @@ importers:
       react-native-reanimated:
         specifier: 4.5.1
         version: 4.5.1(react-native-worklets@0.10.1(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
-      react-native-rustore-push:
-        specifier: ^0.9.2
-        version: 0.9.2(react-native@0.86.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       react-native-safe-area-context:
         specifier: ~5.7.0
         version: 5.7.0(react-native@0.86.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
@@ -1163,46 +1175,6 @@ importers:
         specifier: 5.8.3
         version: 5.8.3
 
-  packages/chat-server:
-    dependencies:
-      '@gafus/consultation-shared':
-        specifier: workspace:*
-        version: link:../consultation-shared
-      '@gafus/core':
-        specifier: workspace:*
-        version: link:../core
-      '@gafus/prisma':
-        specifier: workspace:*
-        version: link:../prisma
-      '@gafus/queues':
-        specifier: workspace:*
-        version: link:../queues
-      '@gafus/subscription-read-server':
-        specifier: workspace:*
-        version: link:../subscription-read-server
-      busboy:
-        specifier: ^1.6.0
-        version: 1.6.0
-      file-type:
-        specifier: 20.5.0
-        version: 20.5.0
-      zod:
-        specifier: ^4.6.7
-        version: 4.6.7
-    devDependencies:
-      '@types/busboy':
-        specifier: ^1.5.4
-        version: 1.5.4
-      '@types/node':
-        specifier: 20.4.8
-        version: 20.4.8
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-      vitest:
-        specifier: 4.1.0
-        version: 4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2))
-
   packages/consent-server:
     dependencies:
       '@gafus/logger':
@@ -1471,9 +1443,6 @@ importers:
       sanitize-html:
         specifier: ^2.17.7
         version: 2.17.7
-      stream-chat:
-        specifier: 9.53.0
-        version: 9.53.0
       validator:
         specifier: ^13.15.26
         version: 13.15.26
@@ -1521,8 +1490,8 @@ importers:
         specifier: ^13.15.10
         version: 13.15.10
       '@vitest/coverage-v8':
-        specifier: ^4.0.17
-        version: 4.0.18(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)))
+        specifier: ^4.1.0
+        version: 4.1.0(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)))
       rimraf:
         specifier: 5.0.1
         version: 5.0.1
@@ -1554,6 +1523,9 @@ importers:
       '@types/validator':
         specifier: ^13.15.10
         version: 13.15.10
+      '@vitest/coverage-v8':
+        specifier: 4.1.0
+        version: 4.1.0(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)))
       ts-add-js-extension:
         specifier: ^1.6.6
         version: 1.6.6
@@ -1647,46 +1619,6 @@ importers:
       vitest:
         specifier: 4.1.0
         version: 4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2))
-
-  packages/csrf:
-    dependencies:
-      '@gafus/error-handling':
-        specifier: workspace:*
-        version: link:../error-handling
-      '@gafus/logger':
-        specifier: workspace:*
-        version: link:../logger
-      react:
-        specifier: 19.2.1
-        version: 19.2.1
-      react-dom:
-        specifier: 19.2.1
-        version: 19.2.1(react@19.2.1)
-      zustand:
-        specifier: 4.5.0
-        version: 4.5.0(@types/react@19.1.9)(immer@10.2.0)(react@19.2.1)
-    devDependencies:
-      '@types/node':
-        specifier: ^20.4.8
-        version: 20.19.30
-      '@types/react':
-        specifier: 19.1.9
-        version: 19.1.9
-      '@types/react-dom':
-        specifier: 19.1.7
-        version: 19.1.7(@types/react@19.1.9)
-      '@vitest/coverage-v8':
-        specifier: ^4.0.17
-        version: 4.0.18(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.19.30)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.19.30)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)))
-      rimraf:
-        specifier: ^5.0.1
-        version: 5.0.1
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
-      vitest:
-        specifier: 4.1.0
-        version: 4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.19.30)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.19.30)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2))
 
   packages/entitlements-server:
     dependencies:
@@ -1805,6 +1737,9 @@ importers:
       '@gafus/media-server':
         specifier: workspace:*
         version: link:../media-server
+      '@gafus/media-shared':
+        specifier: workspace:*
+        version: link:../media-shared
       '@gafus/prisma':
         specifier: workspace:*
         version: link:../prisma
@@ -2359,46 +2294,6 @@ importers:
         specifier: 5.8.3
         version: 5.8.3
 
-  packages/react-query:
-    dependencies:
-      '@gafus/logger':
-        specifier: workspace:*
-        version: link:../logger
-      '@tanstack/query-sync-storage-persister':
-        specifier: ^5.85.9
-        version: 5.90.22
-      '@tanstack/react-query':
-        specifier: ^5.85.9
-        version: 5.90.20(react@19.2.1)
-      '@tanstack/react-query-devtools':
-        specifier: ^5.85.9
-        version: 5.91.3(@tanstack/react-query@5.90.20(react@19.2.1))(react@19.2.1)
-      '@tanstack/react-query-persist-client':
-        specifier: ^5.85.9
-        version: 5.90.22(@tanstack/react-query@5.90.20(react@19.2.1))(react@19.2.1)
-      react:
-        specifier: 19.2.1
-        version: 19.2.1
-      react-dom:
-        specifier: 19.2.1
-        version: 19.2.1(react@19.2.1)
-    devDependencies:
-      '@types/node':
-        specifier: 20.4.8
-        version: 20.4.8
-      '@types/react':
-        specifier: 19.1.9
-        version: 19.1.9
-      '@types/react-dom':
-        specifier: 19.1.7
-        version: 19.1.7(@types/react@19.1.9)
-      rimraf:
-        specifier: 5.0.1
-        version: 5.0.1
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
-
   packages/reengagement:
     dependencies:
       '@gafus/core':
@@ -2820,9 +2715,6 @@ importers:
       '@gafus/cdn-upload':
         specifier: workspace:*
         version: link:../cdn-upload
-      '@gafus/chat-server':
-        specifier: workspace:*
-        version: link:../chat-server
       '@gafus/consent-server':
         specifier: workspace:*
         version: link:../consent-server
@@ -2928,6 +2820,9 @@ importers:
       pg:
         specifier: ^8.23.0
         version: 8.23.0
+      stream-chat:
+        specifier: 9.53.0
+        version: 9.53.0
       web-push:
         specifier: 3.6.6
         version: 3.6.6
@@ -2945,8 +2840,8 @@ importers:
         specifier: 3.6.4
         version: 3.6.4
       '@vitest/coverage-v8':
-        specifier: ^4.0.17
-        version: 4.0.18(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.19.0)(yaml@2.8.2)))
+        specifier: ^4.1.0
+        version: 4.1.0(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.19.0)(yaml@2.8.2)))
       rimraf:
         specifier: 5.0.1
         version: 5.0.1
@@ -4960,6 +4855,11 @@ packages:
     resolution: {integrity: sha512-QNqXyfVS2wm9hweSYD2O7F0G06uurj9kZ96TRQE5Y9hU7+tgdZwIkbAKc5Ocy1HxEY2kuDQa6cQ1WRs/O5LFKA==}
     engines: {node: ^12.20.0 || ^14.18.0 || >=16.0.0}
 
+  '@playwright/test@1.58.2':
+    resolution: {integrity: sha512-akea+6bHYBBfA9uQqSYmlJXn61cTa+jbO87xVLCWbTqbWadRVmhxlXATaOjOgcBaWU4ePo0wB41KMFv3o35IXA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   '@popperjs/core@2.11.8':
     resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
 
@@ -5906,9 +5806,6 @@ packages:
   '@types/body-parser@1.19.6':
     resolution: {integrity: sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==}
 
-  '@types/busboy@1.5.4':
-    resolution: {integrity: sha512-kG7WrUuAKK0NoyxfQHsVE6j1m01s6kMma64E+OZenQABMQyTJop1DumUWcLwAQ2JzpefU7PDYoRDKl8uZosFjw==}
-
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
 
@@ -6248,6 +6145,15 @@ packages:
       '@vitest/browser':
         optional: true
 
+  '@vitest/coverage-v8@4.1.0':
+    resolution: {integrity: sha512-nDWulKeik2bL2Va/Wl4x7DLuTKAXa906iRFooIRPR+huHkcvp9QDkPQ2RJdmjOFrqOqvNfoSQLF68deE3xC3CQ==}
+    peerDependencies:
+      '@vitest/browser': 4.1.0
+      vitest: 4.1.0
+    peerDependenciesMeta:
+      '@vitest/browser':
+        optional: true
+
   '@vitest/expect@4.1.0':
     resolution: {integrity: sha512-EIxG7k4wlWweuCLG9Y5InKFwpMEOyrMb6ZJ1ihYu02LVj/bzUwn2VMU+13PinsjRW75XnITeFrQBMH5+dLvCDA==}
 
@@ -6453,6 +6359,9 @@ packages:
 
   ast-v8-to-istanbul@0.3.11:
     resolution: {integrity: sha512-Qya9fkoofMjCBNVdWINMjB5KZvkYfaO9/anwkWnjxibpWUxo5iHl2sOdP7/uAqaRuUYuoo8rDwnbaaKVFxoUvw==}
+
+  ast-v8-to-istanbul@1.0.8:
+    resolution: {integrity: sha512-lPdpagk13ANXV+HClJEpCZM7kUsl5XcvgqKzZhaj6Ve1ZFICcY2sGhAN1n1vT0tML6EclT7bfVgTxqL57Gkpow==}
 
   async-function@1.0.0:
     resolution: {integrity: sha512-hsU18Ae8CDTR6Kgu9DYf0EbCr/a5iGL0rytQDobUcdpYOKokk8LEjVphnXkDkgpi0wYVsqrXuP0bZxJaTqdgoA==}
@@ -6666,10 +6575,6 @@ packages:
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
     peerDependencies:
       esbuild: '>=0.25.0'
-
-  busboy@1.6.0:
-    resolution: {integrity: sha512-8SFQbg/0hQ9xy3UNTB0YEnsNBbWfhf7RtnzpL7TkBiTBRfrQ9Fxcnz7VJsleJpyp6rVLvXiuORqjlHi5q+PYuA==}
-    engines: {node: '>=10.16.0'}
 
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
@@ -8016,6 +7921,11 @@ packages:
 
   fs.realpath@1.0.0:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
+
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
 
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
@@ -9607,6 +9517,16 @@ packages:
   pkg-types@1.3.1:
     resolution: {integrity: sha512-/Jm5M4RvtBFVkKWRu2BLUTNP8/M2a+UwuAX+ae4770q1qVGtfjG+WTCupoZixokjmHiry8uI+dlY8KXYV5HVVQ==}
 
+  playwright-core@1.58.2:
+    resolution: {integrity: sha512-yZkEtftgwS8CsfYo7nm0KE8jsvm6i/PTgVtB8DL726wNf6H2IMsDuxCpJj59KDaxCtSnrWan2AeDqM7JBaultg==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.58.2:
+    resolution: {integrity: sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   plist@3.1.0:
     resolution: {integrity: sha512-uysumyrvkUX0rX/dEVqt8gC3sTBzd4zoWfLeS29nb53imdaXVvLINYXTI2GNqzaMuvacNx4uJQ8+b3zXR0pkgQ==}
     engines: {node: '>=10.4.0'}
@@ -9964,13 +9884,6 @@ packages:
       react: '*'
       react-native: 0.83 - 0.86
       react-native-worklets: 0.10.x
-
-  react-native-rustore-push@0.9.2:
-    resolution: {integrity: sha512-LhtNZ74Ey/MJJ3doXLh0myIijij0nX0UC0oUvf9D8vMaPgj3kQ1AgLI6v73HiWGPTHHVopgyEHR4RCj/EiBnAg==}
-    engines: {node: '>= 18.0.0'}
-    peerDependencies:
-      react: '*'
-      react-native: '*'
 
   react-native-safe-area-context@5.7.0:
     resolution: {integrity: sha512-/9/MtQz8ODphjsLdZ+GZAIcC/RtoqW9EeShf7Uvnfgm/pzYrJ75y3PV/J1wuAV1T5Dye5ygq4EAW20RoBq0ABQ==}
@@ -10503,10 +10416,6 @@ packages:
     resolution: {integrity: sha512-nhNOETirVBq+1fboxYi0ycOUKHOdSlKUd7mvv3nLSmNSKpZuVZYKHzvMXkRkZPOb0z4rCHcpQv8+U+0XLB9i2w==}
     engines: {node: '>=18'}
 
-  streamsearch@1.1.0:
-    resolution: {integrity: sha512-Mcc5wHehp9aXz1ax6bZUyY5afg9u2rv5cqQI3mRrYkGC8rW2hM02jWuwjtL++LS5qinSyhj2QfLyNsuc+VsExg==}
-    engines: {node: '>=10.0.0'}
-
   strict-uri-encode@2.0.0:
     resolution: {integrity: sha512-QwiXZgpRcKkhTj2Scnn++4PKtWsH0kpzZ62L2R6c/LUVYv7hVnZqcg2+sMuT6R7Jusu1vviK/MFsu6kNJfWlEQ==}
     engines: {node: '>=4'}
@@ -10995,11 +10904,6 @@ packages:
       '@types/react':
         optional: true
 
-  use-sync-external-store@1.2.0:
-    resolution: {integrity: sha512-eEgnFxGQ1Ife9bzYs6VLi8/4X6CObHMw9Qr9tPY43iKwsPw8xE8+EFsf/2cFZ5S3esXgpWgtSCtLNS41F+sKPA==}
-    peerDependencies:
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0
-
   use-sync-external-store@1.6.0:
     resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
     peerDependencies:
@@ -11335,21 +11239,6 @@ packages:
 
   zod@4.6.7:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
-
-  zustand@4.5.0:
-    resolution: {integrity: sha512-zlVFqS5TQ21nwijjhJlx4f9iGrXSL0o/+Dpy4txAP22miJ8Ti6c1Ol1RLNN98BMib83lmDH/2KmLwaNXpjrO1A==}
-    engines: {node: '>=12.7.0'}
-    peerDependencies:
-      '@types/react': '>=16.8'
-      immer: '>=9.0.6'
-      react: '>=16.8'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      immer:
-        optional: true
-      react:
-        optional: true
 
   zustand@5.0.7:
     resolution: {integrity: sha512-Ot6uqHDW/O2VdYsKLLU8GQu8sCOM1LcoE8RwvLv9uuRT9s6SOHCKs0ZEOhxg+I1Ld+A1Q5lwx+UlKXXUoCZITg==}
@@ -14263,6 +14152,10 @@ snapshots:
 
   '@pkgr/core@0.2.9': {}
 
+  '@playwright/test@1.58.2':
+    dependencies:
+      playwright: 1.58.2
+
   '@popperjs/core@2.11.8': {}
 
   '@posthog/core@1.27.7':
@@ -15486,23 +15379,11 @@ snapshots:
       '@tanstack/query-core': 5.90.20
       '@tanstack/query-persist-client-core': 5.91.19
 
-  '@tanstack/react-query-devtools@5.91.3(@tanstack/react-query@5.90.20(react@19.2.1))(react@19.2.1)':
-    dependencies:
-      '@tanstack/query-devtools': 5.93.0
-      '@tanstack/react-query': 5.90.20(react@19.2.1)
-      react: 19.2.1
-
   '@tanstack/react-query-devtools@5.91.3(@tanstack/react-query@5.90.20(react@19.2.3))(react@19.2.3)':
     dependencies:
       '@tanstack/query-devtools': 5.93.0
       '@tanstack/react-query': 5.90.20(react@19.2.3)
       react: 19.2.3
-
-  '@tanstack/react-query-persist-client@5.90.22(@tanstack/react-query@5.90.20(react@19.2.1))(react@19.2.1)':
-    dependencies:
-      '@tanstack/query-persist-client-core': 5.91.19
-      '@tanstack/react-query': 5.90.20(react@19.2.1)
-      react: 19.2.1
 
   '@tanstack/react-query-persist-client@5.90.22(@tanstack/react-query@5.90.20(react@19.2.3))(react@19.2.3)':
     dependencies:
@@ -15586,10 +15467,6 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 20.19.30
-
-  '@types/busboy@1.5.4':
-    dependencies:
       '@types/node': 20.19.30
 
   '@types/chai@5.2.3':
@@ -15956,20 +15833,6 @@ snapshots:
       tinyrainbow: 3.0.3
       vitest: 4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.19.30)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.19.30)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2))
 
-  '@vitest/coverage-v8@4.0.18(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.19.0)(yaml@2.8.2)))':
-    dependencies:
-      '@bcoe/v8-coverage': 1.0.2
-      '@vitest/utils': 4.0.18
-      ast-v8-to-istanbul: 0.3.11
-      istanbul-lib-coverage: 3.2.2
-      istanbul-lib-report: 3.0.1
-      istanbul-reports: 3.2.0
-      magicast: 0.5.2
-      obug: 2.1.1
-      std-env: 3.10.0
-      tinyrainbow: 3.0.3
-      vitest: 4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.19.0)(yaml@2.8.2))
-
   '@vitest/coverage-v8@4.0.18(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)))':
     dependencies:
       '@bcoe/v8-coverage': 1.0.2
@@ -15995,6 +15858,48 @@ snapshots:
       magicast: 0.5.2
       obug: 2.1.1
       std-env: 3.10.0
+      tinyrainbow: 3.0.3
+      vitest: 4.1.0(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2))
+
+  '@vitest/coverage-v8@4.1.0(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.19.0)(yaml@2.8.2)))':
+    dependencies:
+      '@bcoe/v8-coverage': 1.0.2
+      '@vitest/utils': 4.1.0
+      ast-v8-to-istanbul: 1.0.8
+      istanbul-lib-coverage: 3.2.2
+      istanbul-lib-report: 3.0.1
+      istanbul-reports: 3.2.0
+      magicast: 0.5.2
+      obug: 2.1.1
+      std-env: 4.3.0
+      tinyrainbow: 3.0.3
+      vitest: 4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.19.0)(yaml@2.8.2))
+
+  '@vitest/coverage-v8@4.1.0(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)))':
+    dependencies:
+      '@bcoe/v8-coverage': 1.0.2
+      '@vitest/utils': 4.1.0
+      ast-v8-to-istanbul: 1.0.8
+      istanbul-lib-coverage: 3.2.2
+      istanbul-lib-report: 3.0.1
+      istanbul-reports: 3.2.0
+      magicast: 0.5.2
+      obug: 2.1.1
+      std-env: 4.3.0
+      tinyrainbow: 3.0.3
+      vitest: 4.1.0(@opentelemetry/api@1.9.0)(@types/node@20.4.8)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@20.4.8)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2))
+
+  '@vitest/coverage-v8@4.1.0(vitest@4.1.0(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2)))':
+    dependencies:
+      '@bcoe/v8-coverage': 1.0.2
+      '@vitest/utils': 4.1.0
+      ast-v8-to-istanbul: 1.0.8
+      istanbul-lib-coverage: 3.2.2
+      istanbul-lib-report: 3.0.1
+      istanbul-reports: 3.2.0
+      magicast: 0.5.2
+      obug: 2.1.1
+      std-env: 4.3.0
       tinyrainbow: 3.0.3
       vitest: 4.1.0(@opentelemetry/api@1.9.0)(@types/node@25.6.0)(jsdom@28.1.0(@noble/hashes@1.8.0))(vite@8.1.6(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.2))
 
@@ -16267,6 +16172,12 @@ snapshots:
   assertion-error@2.0.1: {}
 
   ast-v8-to-istanbul@0.3.11:
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      estree-walker: 3.0.3
+      js-tokens: 10.0.0
+
+  ast-v8-to-istanbul@1.0.8:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       estree-walker: 3.0.3
@@ -16570,10 +16481,6 @@ snapshots:
     dependencies:
       esbuild: 0.27.2
       load-tsconfig: 0.2.5
-
-  busboy@1.6.0:
-    dependencies:
-      streamsearch: 1.1.0
 
   bytes@3.1.2: {}
 
@@ -18301,6 +18208,9 @@ snapshots:
 
   fs.realpath@1.0.0: {}
 
+  fsevents@2.3.2:
+    optional: true
+
   fsevents@2.3.3:
     optional: true
 
@@ -19143,7 +19053,7 @@ snapshots:
 
   magicast@0.5.2:
     dependencies:
-      '@babel/parser': 7.29.0
+      '@babel/parser': 7.29.9
       '@babel/types': 7.29.8
       source-map-js: 1.2.2
 
@@ -20522,6 +20432,14 @@ snapshots:
       mlly: 1.8.0
       pathe: 2.0.3
 
+  playwright-core@1.58.2: {}
+
+  playwright@1.58.2:
+    dependencies:
+      playwright-core: 1.58.2
+    optionalDependencies:
+      fsevents: 2.3.2
+
   plist@3.1.0:
     dependencies:
       '@xmldom/xmldom': 0.8.15
@@ -20875,11 +20793,6 @@ snapshots:
       react-native-worklets: 0.7.4(@babel/core@7.29.0)(react-native@0.86.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.2.3))(react@19.2.3)
       semver: 7.8.5
     optional: true
-
-  react-native-rustore-push@0.9.2(react-native@0.86.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3):
-    dependencies:
-      react: 19.2.3
-      react-native: 0.86.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.18)(react@19.2.3)
 
   react-native-safe-area-context@5.7.0(react-native@0.86.3(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.2.3))(react@19.2.3):
     dependencies:
@@ -21751,8 +21664,6 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  streamsearch@1.1.0: {}
-
   strict-uri-encode@2.0.0: {}
 
   string-width@4.2.3:
@@ -22337,10 +22248,6 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
-  use-sync-external-store@1.2.0(react@19.2.1):
-    dependencies:
-      react: 19.2.1
-
   use-sync-external-store@1.6.0(react@19.2.3):
     dependencies:
       react: 19.2.3
@@ -22840,14 +22747,6 @@ snapshots:
       zod: 4.6.7
 
   zod@4.6.7: {}
-
-  zustand@4.5.0(@types/react@19.1.9)(immer@10.2.0)(react@19.2.1):
-    dependencies:
-      use-sync-external-store: 1.2.0(react@19.2.1)
-    optionalDependencies:
-      '@types/react': 19.1.9
-      immer: 10.2.0
-      react: 19.2.1
 
   zustand@5.0.7(@types/react@19.2.18)(immer@10.2.0)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3)):
     optionalDependencies:

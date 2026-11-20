@@ -1,4 +1,4 @@
-import { requireGafusUnlockRowsPort } from "./gafusUnlockPort";
+import { requireGafusUnlockRowsPort, type GafusUnlockRowsPort } from "./gafusUnlockPort";
 import { GafusError } from "./errors";
 import { getGafusSettingsTx } from "./settingsService";
 import { changeGafusBalanceTx, ensureGafusWalletTx } from "./walletService";
@@ -32,12 +32,13 @@ export async function unlockContentWithGafus(input: {
   target: GafusUnlockTarget;
   clientRequestId: string;
   now?: Date;
-}): Promise<GafusUnlockResult> {
+}, unlockRows?: GafusUnlockRowsPort): Promise<GafusUnlockResult> {
   validateUnlockInput(input);
+  const rows = unlockRows ?? requireGafusUnlockRowsPort();
   const now = input.now ?? new Date();
   const idempotencyKey = `gafus:unlock:${input.userId}:${input.clientRequestId}`;
 
-  return requireGafusUnlockRowsPort().withGafusUnlockTransaction(input.userId,async tx => {
+  return rows.withGafusUnlockTransaction(input.userId,async tx => {
     const requestedTarget = input.target.type === "COURSE_STEP"
       ? await resolveCourseStepTargetTx(tx, input.target.dayOnCourseId, input.target.stepOnDayId)
       : input.target.type === "MINI_GUIDE"
@@ -50,7 +51,7 @@ export async function unlockContentWithGafus(input: {
     if (!target) {
       throw new GafusError("GAFUS_TARGET_NOT_ELIGIBLE", "Content not found");
     }
-    const prior = await requireGafusUnlockRowsPort().readGafusUnlockReplayTx(tx,idempotencyKey);
+    const prior = await rows.readGafusUnlockReplayTx(tx,idempotencyKey);
     if (prior) {
       if (prior.userId !== input.userId || prior.kind !== "SPEND"
         || prior.targetType !== target.type || prior.targetKey !== target.targetKey) {
@@ -94,7 +95,7 @@ export async function unlockContentWithGafus(input: {
       settingsRevision: settings.revision,
     });
     const expiresAt = new Date(now.getTime() + settings.accessDurationSeconds * 1000);
-    await requireGafusUnlockRowsPort().insertGafusUnlockGrantTx(tx,{
+    await rows.insertGafusUnlockGrantTx(tx,{
       userId: input.userId,
       targetType: target.type,
       targetKey: target.targetKey,
@@ -116,30 +117,30 @@ export async function unlockContentWithGafus(input: {
 export async function unlockCourseStepWithGafus(input: {
   userId: string; dayOnCourseId: string; stepOnDayId: string;
   clientRequestId: string; now?: Date;
-}) {
+}, unlockRows?: GafusUnlockRowsPort) {
   return unlockContentWithGafus({
     userId: input.userId, clientRequestId: input.clientRequestId,
     target: { type: "COURSE_STEP", dayOnCourseId: input.dayOnCourseId, stepOnDayId: input.stepOnDayId },
     now: input.now,
-  });
+  }, unlockRows);
 }
 
 export async function unlockArticleWithGafus(input: {
   userId: string; articleId: string; clientRequestId: string; now?: Date;
-}) {
+}, unlockRows?: GafusUnlockRowsPort) {
   return unlockContentWithGafus({
     userId: input.userId, clientRequestId: input.clientRequestId,
     target: { type: "ARTICLE", articleId: input.articleId },
     now: input.now,
-  });
+  }, unlockRows);
 }
 
 export async function unlockMiniGuideWithGafus(input: {
   userId: string; courseId: string; clientRequestId: string; now?: Date;
-}) {
+}, unlockRows?: GafusUnlockRowsPort) {
   return unlockContentWithGafus({
     userId: input.userId, clientRequestId: input.clientRequestId,
     target: { type: "MINI_GUIDE", courseId: input.courseId },
     now: input.now,
-  });
+  }, unlockRows);
 }

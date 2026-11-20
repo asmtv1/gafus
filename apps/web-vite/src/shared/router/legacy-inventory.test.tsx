@@ -27,8 +27,8 @@ describe("AG2-G1-001: static inventory and existing Vite router, no parity claim
     }
   });
 
-  it("recognizes current 27 static Vite paths without claiming feature parity", () => {
-    expect(ROUTES).toHaveLength(27);
+  it("recognizes current 26 static Vite paths without claiming feature parity", () => {
+    expect(ROUTES).toHaveLength(26);
     expect(ROUTES).toContain("/cynologist-chat");
     for (const path of ROUTES) expect(routeForPath(path)).toBe(path);
     for (const page of inventory.pages.filter(page =>
@@ -110,7 +110,7 @@ describe("AG2-G1-001: static inventory and existing Vite router, no parity claim
       .toBe("/consultations/call/booking-1");
     expect(routeForPath("/login")).toBe("/login");
     expect(routeForPath("/register")).toBe("/register");
-    expect(routeForPath("/vk-consent")).toBe("/vk-consent");
+    expect(routeForPath("/vk-consent")).toBeNull();
     expect(routeForPath("/feed/hidden-authors")).toBe("/feed/hidden-authors");
     expect(routeForPath("/feed/notifications")).toBe("/feed/notifications");
     expect(routeForPath("/moments")).toBe("/moments");

@@ -1,5 +1,4 @@
 import { Redirect, type Href } from "expo-router";
-import { useShallow } from "zustand/react/shallow";
 
 import { useAuthStore } from "@/shared/stores";
 import { readMobileIntroState } from "@/shared/lib/mobile-intro-state";
@@ -12,13 +11,7 @@ import { useEffect, useState } from "react";
  */
 export default function Index() {
   const [introFinished, setIntroFinished] = useState<boolean | null>(null);
-  const { isAuthenticated, pendingVkPhone, pendingVkConsent } = useAuthStore(
-    useShallow((s) => ({
-      isAuthenticated: s.isAuthenticated,
-      pendingVkPhone: s.pendingVkPhone,
-      pendingVkConsent: s.pendingVkConsent,
-    })),
-  );
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   useEffect(() => {
     let active = true;
@@ -36,11 +29,9 @@ export default function Index() {
     return () => { active = false; };
   }, []);
 
-  if (introFinished === false && !isAuthenticated && !pendingVkConsent && !pendingVkPhone) return <Redirect href={"/(auth)/intro" as Href} />;
+  if (introFinished === false && !isAuthenticated) return <Redirect href={"/(auth)/intro" as Href} />;
 
   if (isAuthenticated) return <Redirect href="/(main)/(tabs)" />;
-  if (pendingVkConsent) return <Redirect href="/vk-consent" />;
-  if (pendingVkPhone) return <Redirect href="/vk-set-phone" />;
   if (introFinished === null) return null;
   return <Redirect href="/welcome" />;
 }

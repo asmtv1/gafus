@@ -52,8 +52,8 @@ test('CI exercises migrations and real PostgreSQL poll end-to-end before deployi
 test('poll migration remains additive and polls use Feed availability without a second flag', () => {
   const sql = read('../../packages/prisma/migrations/20261014000000_feed_polls/migration.sql');
   const runtime = read('../../packages/feed-server/src/runtimeServices.ts');
-  const publish = read('../../packages/core/src/services/feed/publish.ts');
-  const dto = read('../../packages/core/src/services/feed/service.ts');
+  const publish = read('../../packages/feed-server/src/publicationRows.ts');
+  const dto = read('../../packages/feed-server/src/postRows.ts');
   assert.match(sql, /CREATE TABLE "FeedPoll"/);
   assert.match(sql, /CREATE TABLE "FeedPollOption"/);
   assert.match(sql, /CREATE TABLE "FeedPollVote"/);

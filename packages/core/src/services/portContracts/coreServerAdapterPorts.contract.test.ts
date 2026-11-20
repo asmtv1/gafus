@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 
 const cases = [
   { label: "AUTH_ROWS", load: () => import("../auth/authRowsPort"), register: "registerAuthRowsPort", call: "readAuthUsernameChangeActor" },
-  { label: "VK_AUTH_ROWS", load: () => import("../auth/vkAuthRowsPort"), register: "registerVkAuthRowsPort", call: "readVkUserEmail" },
   { label: "OFFLINE_MUTATION_ROWS", load: () => import("../offline/offlineMutationRowsPort"), register: "registerOfflineMutationRowsPort", call: "withOfflineMutationTx" },
   { label: "PREVENTION_ROWS", load: () => import("../petPrevention/preventionRowsPort"), register: "registerPreventionRowsPort", call: "readOwnedPreventionPet" },
   { label: "PET_ROWS", load: () => import("../pets/petRowsPort"), register: "registerPetRowsPort", call: "withPetSqlTx" },

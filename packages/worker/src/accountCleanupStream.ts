@@ -1,4 +1,12 @@
-import { streamServer } from "@gafus/core/services/cynologistChat";
+import { StreamChat } from "stream-chat";
+
+/** Data-erasure only. This is NOT a Chat 1.0 runtime or compatibility endpoint. */
+function streamErasureClient() {
+  const key = process.env.STREAM_API_KEY;
+  const secret = process.env.STREAM_API_SECRET;
+  if (!key || !secret) throw new Error("STREAM_ERASURE_CREDENTIALS_MISSING");
+  return StreamChat.getInstance(key, secret);
+}
 
 /** Channel identity and URL snapshots survive local chat/attachment cascades. */
 export async function deleteAccountStreamFiles(values: string[]) {
@@ -20,7 +28,7 @@ export async function deleteAccountStreamFiles(values: string[]) {
       !["image", "video"].includes(file.kind)
     )
       throw new Error("CLEANUP_UNSAFE_STREAM_FILE");
-    const channel = streamServer().channel(file.channelType, file.channelId);
+    const channel = streamErasureClient().channel(file.channelType, file.channelId);
     try {
       await (file.kind === "image" ? channel.deleteImage(file.url) : channel.deleteFile(file.url));
     } catch (error) {

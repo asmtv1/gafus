@@ -67,7 +67,7 @@ run payment-server-jws-synthetic pnpm --filter @gafus/subscription-payment-serve
 run payment-api-and-auth pnpm --filter @gafus/api exec vitest run src/routes/v1/app-subscription.route.test.ts src/routes/v1/payment-provider-webhooks.test.ts src/routes/v1/admin-users.test.ts src/modules/architecture/dependency-architecture.test.ts --config vitest.config.ts
 run payment-worker-cron pnpm --filter @gafus/worker exec vitest run src/cron-scheduler.test.ts src/g1-consultation-outbox-core-cron-crossmodule.mock.test.ts --config vitest.config.ts
 run core-server-facade-ratchet node scripts/check-core-server-facades.mjs
-run web-auth-targeted pnpm --filter @gafus/web-vite exec vitest run src/shared/auth/PrincipalIsolation.test.tsx src/shared/auth/VkConsentWeb.test.tsx --reporter=dot
+run web-auth-targeted pnpm --filter @gafus/web-vite exec vitest run src/shared/auth/PrincipalIsolation.test.tsx src/shared/auth/AuthPanel.test.tsx --reporter=dot
 run a2-local-gates env A2_OBS_WITH_DB_RESTORE=1 A2_OBS_WITH_OTEL_BENCH=1 bash scripts/qa/observability-agent2-local-gates.sh
 run a3-media-isolated bash scripts/qa/a3-jobs-media-isolated-acceptance.sh "a3-$RUN_ID"
 # Performance on a shared localhost is not release A/B. Record failure and

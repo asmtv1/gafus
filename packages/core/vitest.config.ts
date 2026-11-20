@@ -11,7 +11,7 @@ export default defineConfig({
     // server/role/port. Never run them with the default unit test environment;
     // do not weaken the per-test DB isolation assertions.
     exclude: [
-      "**/node_modules/**", "**/dist/**",
+      "**/node_modules/**", "**/dist/**", "**/.next/**",
       "**/*real-pg*.test.ts", "**/*realpg*.test.ts", "**/*isolatedpg*.test.ts",
       "**/*private-work*.test.ts", "**/*permanent-work*.test.ts",
       "**/*prisma-alias.proof.test.ts", "**/*prisma-real-alias.proof.test.ts",

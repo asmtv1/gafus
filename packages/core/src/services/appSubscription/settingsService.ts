@@ -34,7 +34,6 @@ export function createSubscriptionOfferReader(ports: SubscriptionOfferPorts) {
         APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT,
         clientContext,
         false,
-        false,
       ),
       ports.readPromoCodeState({ userId, clientContext }),
     ]);

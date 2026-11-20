@@ -121,7 +121,7 @@ describe('AG4 mounted TR012 editor -> injected fetch -> ACTUAL registered Hono s
   expect(m.cas).toHaveBeenCalledTimes(2);expect((host.querySelectorAll('button')[0] as HTMLButtonElement).disabled).toBe(true);
   await click('Обновить данные');expect(host.textContent).toContain('Версия: 5');expect((host.querySelector('input') as HTMLInputElement).value).toBe('Preserve mine');
   expect(m.cas).toHaveBeenCalledTimes(2);await click('Сохранить');expect(host.textContent).toContain('Версия: 6');
-  expect(m.cas).toHaveBeenLastCalledWith({courseId:'course1',name:'Preserve mine',expectedVersion:5},{id:actors.A.id,role:'TRAINER'});
+  expect(m.cas).toHaveBeenLastCalledWith({courseId:'course1',name:'Preserve mine',expectedVersion:5},{id:actors.A.id,role:'TRAINER'},expect.objectContaining({readCourseVersionRows:expect.any(Function),writeCourseNameVersionRows:expect.any(Function)}));
   expect(m.mutation).not.toHaveBeenCalled();
  });
  it('server forbids moderator and session retirement hides private version without writes',async()=>{

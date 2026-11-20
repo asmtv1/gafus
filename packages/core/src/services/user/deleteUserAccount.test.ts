@@ -16,7 +16,7 @@ import {
 import { insertAccountMediaCleanupSnapshotsTx } from "@gafus/identity-write-server/account-cleanup-records";
 import { createAccountStorageCleanup } from "../accountCleanup/enqueue";
 import { enqueueGalleryAccountCleanup } from "../gallery/accountCleanup";
-import { enqueueFeedAccountCleanup } from "../feed/cleanup";
+import { enqueueFeedAccountCleanup } from "../../../../feed-server/src/cleanupRows";
 import { DUAL_PROVIDER_CLEANUP_MARKER } from "@gafus/cdn-upload";
 
 const mockAccountDeletionFindFirst = vi.fn();

@@ -81,7 +81,7 @@ async function main(){
  const job=jobs[0];
  pass("ORIGINAL_HONO_DELETE_CREATES_EXACT_OWN_RETIRED_QUEUE_JOB");
  phase="exact-core-job-claim";
- const module=await import("../../../../packages/core/src/services/feed/"+"jobs.ts");
+ const module=await import("../../../../packages/feed-server/src/"+"storageJobs.ts");
  const coreJobs=module.createFeedStorageJobs({ enqueueDeletedMediaPurge, db:prisma});
  const wrong=await coreJobs.claim(1,"photo",{jobId:job.id,ownerId:"not_this_actor",kind:"delete_keys"});
  assert(wrong.length===0&&

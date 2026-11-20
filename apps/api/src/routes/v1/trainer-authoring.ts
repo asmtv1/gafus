@@ -1,3 +1,5 @@
+import type { TrainerCourseRowsPort } from "@gafus/core/services/trainerCourse";
+import type { TrainerStepRowsPort } from "@gafus/core/services/trainerStep";
 /**
  * Refactor trainer authoring bridge. No Next server actions and no client-supplied
  * authorId. Reuses existing validated Core writes, never writes to Main.
@@ -25,6 +27,7 @@ import {
   createTrainingDay as createTrainingDayCore,
   createTrainingDaySchema,
   type CreateTrainingDayInput,
+  type TrainingDayRowsPort,
 } from "@gafus/core/services/trainingDay";
 
 const staffRoles = new Set(["TRAINER", "ADMIN"]);
@@ -122,6 +125,18 @@ export const productionAuthoringPorts: TrainerAuthoringPorts = {
   createDay: (input, actor) => createTrainingDayCore(input, actor),
   countOwnedSteps: countOwnedTrainingSteps,
 };
+
+/** Production app composition: avoid the legacy Core global registry for days. */
+export function createProductionAuthoringPorts(dayRows: TrainingDayRowsPort, stepRows?: TrainerStepRowsPort, courseRows?: TrainerCourseRowsPort): TrainerAuthoringPorts {
+  return {
+    ...productionAuthoringPorts,
+    createCourse: (input, ownerId) => courseRows
+      ? createCourseCore(input, ownerId, courseRows)
+      : createCourseCore(input, ownerId),
+    createStep: (input, ownerId) => createStepCore(input, ownerId, stepRows),
+    createDay: (input, actor) => createTrainingDayCore(input, actor, dayRows),
+  };
+}
 
 const bad = { success: false, code: "BAD_INPUT", error: "Некорректные данные" } as const;
 const denied = { success: false, code: "FORBIDDEN", error: "Недостаточно прав" } as const;

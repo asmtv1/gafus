@@ -1,35 +1,19 @@
-import { useState } from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Snackbar, Text } from "react-native-paper";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Text } from "react-native-paper";
+import { useRouter } from "expo-router";
 import { TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Image } from "expo-image";
-import { FontAwesome5 } from "@expo/vector-icons";
 
 import { Button } from "@/shared/components/ui";
 import { COLORS, SPACING, FONTS } from "@/shared/config";
-import { useLayout, useVkLogin } from "@/shared/hooks";
-import { useMobileAppPublicConfig } from "@/shared/lib/api/public-config-query";
+import { useLayout } from "@/shared/hooks";
 
 /**
  * Welcome страница (Landing) - точное соответствие веб-версии
  */
 export default function WelcomeScreen() {
   const router = useRouter();
-  const promoCodeParam = useLocalSearchParams<{ promoCode?: string | string[] }>().promoCode;
-  const selectedPromoCode = typeof promoCodeParam === "string" ? promoCodeParam : undefined;
   const layout = useLayout();
-  const [snackbar, setSnackbar] = useState({ visible: false, message: "" });
-  const { data: publicConfigResponse, isFetched: publicConfigFetched } = useMobileAppPublicConfig();
-  const { handleVkLogin, isVkLoading } = useVkLogin({
-    onError: (msg) => setSnackbar({ visible: true, message: msg }),
-  });
-
-  // Только iOS: кнопка VK зависит от флага с бэка. Android, web и остальные — всегда показываем VK.
-  const showVkButton =
-    Platform.OS !== "ios"
-      ? true
-      : publicConfigFetched && Boolean(publicConfigResponse?.data?.vkLoginEnabledOnIos);
 
   const imgW = layout.contentWidth(SPACING.md * 4);
   const titleSize = layout.moderateScale(88, 0.35);
@@ -80,31 +64,6 @@ export default function WelcomeScreen() {
             onPress={() => router.push("/register")}
             style={[styles.button, styles.registerButton]}
           />
-          {showVkButton ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.vkButton,
-                pressed && styles.vkButtonPressed,
-                isVkLoading && styles.vkButtonDisabled,
-              ]}
-              onPress={() => void handleVkLogin(selectedPromoCode)}
-              disabled={isVkLoading}
-              accessibilityRole="button"
-              accessibilityLabel="Регистрация и вход через VK"
-              accessibilityState={{ disabled: isVkLoading, busy: isVkLoading }}
-            >
-              {isVkLoading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <View style={styles.vkLogoSurface}>
-                  <FontAwesome5 name="vk" size={20} color="#0077FF" />
-                </View>
-              )}
-              <Text style={styles.vkButtonText} numberOfLines={1} adjustsFontSizeToFit>
-                {isVkLoading ? "Загрузка..." : "Регистрация и вход через VK"}
-              </Text>
-            </Pressable>
-          ) : null}
         </View>
 
       </ScrollView>
@@ -123,17 +82,6 @@ export default function WelcomeScreen() {
         Умные пошаговые тренировки, отдых и обучение — всё в одном месте.
       </Text>
 
-      <Snackbar
-        visible={snackbar.visible}
-        onDismiss={() => setSnackbar({ visible: false, message: "" })}
-        duration={3000}
-        action={{
-          label: "OK",
-          onPress: () => setSnackbar({ visible: false, message: "" }),
-        }}
-      >
-        {snackbar.message}
-      </Snackbar>
     </SafeAreaView>
   );
 }
@@ -194,44 +142,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(99, 97, 40, 0.42)",
     boxShadow: "0 7px 12px rgba(53, 52, 16, 0.22)",
     elevation: 7,
-  },
-  vkButton: {
-    width: "100%",
-    minHeight: 54,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    paddingHorizontal: 18,
-    borderRadius: 18,
-    borderCurve: "continuous",
-    backgroundColor: "#0077FF",
-    boxShadow: "0 7px 12px rgba(0, 77, 166, 0.28)",
-    elevation: 7,
-  },
-  vkButtonPressed: {
-    backgroundColor: "#0067E0",
-    boxShadow: "0 2px 4px rgba(0, 77, 166, 0.22)",
-    elevation: 2,
-    transform: [{ translateY: 4 }, { scale: 0.99 }],
-  },
-  vkButtonDisabled: {
-    opacity: 0.58,
-  },
-  vkLogoSurface: {
-    width: 30,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
-  },
-  vkButtonText: {
-    flexShrink: 1,
-    fontSize: 14,
-    lineHeight: 19,
-    fontFamily: FONTS.montserratBold,
-    color: "#FFFFFF",
   },
   subtitle: {
     position: "absolute",

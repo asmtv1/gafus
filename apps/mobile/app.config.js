@@ -11,8 +11,6 @@ const { applyNativeSelfHostedProfile } = require("./scripts/self-hosted-native-p
 load(path.resolve(__dirname), { force: true });
 load(path.resolve(__dirname, "../.."), { force: true });
 
-const vkClientIdAndroid = process.env.VK_CLIENT_ID_ANDROID ?? "";
-const vkClientIdIos = process.env.VK_CLIENT_ID_IOS ?? "";
 const productionApiBaseUrl = "https://api.gafus.ru";
 const yandexSkAdNetworkIdentifiers = ["zq492l623r.skadnetwork"];
 
@@ -58,46 +56,13 @@ function withYandexSkAdNetworkItems(infoPlist = {}) {
   };
 }
 
-/** Схемы deep link: gafus + vk{id} для OAuth VK ID (iOS требует регистрации в Info.plist). */
-function resolveSchemes(baseConfig) {
-  const base = baseConfig.scheme ?? "gafus";
-  const list = Array.isArray(base) ? [...base] : [base];
-  const out = list.filter(Boolean);
-  if (vkClientIdIos && !out.includes(`vk${vkClientIdIos}`)) {
-    out.push(`vk${vkClientIdIos}`);
-  }
-  return out.length === 1 ? out[0] : out;
-}
-
-const vkIntentFilters = vkClientIdAndroid
-  ? [
-      {
-        action: "VIEW",
-        data: [
-          { scheme: `vk${vkClientIdAndroid}`, host: "vk.ru" },
-          {
-            scheme: `vk${vkClientIdAndroid}`,
-            host: "vk.ru",
-            pathPrefix: "/blank.html",
-          },
-        ],
-        category: ["BROWSABLE", "DEFAULT"],
-      },
-    ]
-  : [];
-
 const { withGafusNativeCrashCapture } = require('./scripts/native-crash-uptrace-config.cjs');
 const withIosOtaBuildNumber = require('./plugins/withIosOtaBuildNumber');
 module.exports = ({ config }) => withGafusNativeCrashCapture(withIosOtaBuildNumber(applyNativeSelfHostedProfile({
   ...config,
-  scheme: resolveSchemes(config),
   ios: {
     ...config.ios,
     infoPlist: withYandexSkAdNetworkItems(config.ios?.infoPlist),
-  },
-  android: {
-    ...config.android,
-    intentFilters: [...(config.android?.intentFilters ?? []), ...vkIntentFilters],
   },
   extra: {
     ...config.extra,
@@ -110,10 +75,6 @@ module.exports = ({ config }) => withGafusNativeCrashCapture(withIosOtaBuildNumb
     ...(process.env.GAFUS_OTA_TRANSPORT === "self-hosted"
       ? { otaReleaseVersion: process.env.EXPO_PUBLIC_APP_VERSION }
       : {}),
-    vkClientId: process.env.VK_CLIENT_ID ?? "",
-    vkClientIdIos: process.env.VK_CLIENT_ID_IOS ?? "",
-    vkClientIdAndroid: process.env.VK_CLIENT_ID_ANDROID ?? "",
-    vkMobileRedirectUri: process.env.VK_MOBILE_REDIRECT_URI ?? "gafus://auth/vk",
     ymMobileApiKey: process.env.EXPO_PUBLIC_YM_MOBILE_API_KEY ?? "",
     ymMobileEnabled: process.env.EXPO_PUBLIC_YM_MOBILE_ENABLED === "true",
     rewardedAdsAndroidPlacementId: process.env.EXPO_PUBLIC_REWARDED_ADS_ANDROID_PLACEMENT_ID ?? "",

@@ -178,9 +178,6 @@
     "apps/api/src/routes/v1/training.preview.real-pg-s3.test.ts": [
       "import { prisma } from \"@gafus/prisma\";"
     ],
-    "apps/api/src/routes/v1/web5-chat-isolated-work-stream.integration.test.ts": [
-      "import {prisma} from \"@gafus/prisma\";"
-    ],
     "apps/api/src/test/account-delete-playwright-work-20261026.acceptance.ts": [
       "import { prisma } from '@gafus/prisma';"
     ],
@@ -225,9 +222,6 @@
     ],
     "apps/api/src/test/ag1-bound-notification-restart-original-http-work.acceptance.ts": [
       "import {prisma} from '@gafus/prisma';"
-    ],
-    "apps/api/src/test/ag1-chat-read-work-http.acceptance.ts": [
-      "import { prisma } from \"@gafus/prisma\";"
     ],
     "apps/api/src/test/ag1-consultations-browser-lease.retire.ts": [
       "import { prisma } from \"@gafus/prisma\";"

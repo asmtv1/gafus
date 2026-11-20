@@ -185,34 +185,24 @@ export function PricingEditor({
   );
 }
 
-const featureKeys = [
-  ["vkLogin", "Вход ВКонтакте"],
-] as const;
 function featureDraft(source: Record<string, unknown>): Record<string, unknown> {
-  const { revision, iosReviewVersion, ota, released, review, global, rewardedAds } = source;
-  return { revision, iosReviewVersion, ota, released, review, global, rewardedAds };
+  const { revision, ota, global, rewardedAds } = source;
+  return { revision, ota, global, rewardedAds };
 }
 function validFeatureControl(value: unknown): value is Record<string, unknown> {
-  if (!isRecord(value) || !Number.isSafeInteger(value.revision) ||
-    !(Number(value.revision) > 0) ||
-    !(value.iosReviewVersion === null || typeof value.iosReviewVersion === "string")) return false;
-  if (!["released", "review", "global", "rewardedAds", "ota"].every(key => isRecord(value[key]))) return false;
+  if (!isRecord(value) || !Number.isSafeInteger(value.revision) || Number(value.revision) <= 0) return false;
+  if (!["global", "rewardedAds", "ota"].every(key => isRecord(value[key]))) return false;
   const ota = value.ota as Record<string, unknown>;
-  if (typeof ota.required !== "boolean" ||
-    !(ota.version === null || typeof ota.version === "string") ||
-    !["all", "ios", "android"].includes(String(ota.platform))) return false;
-  const profiles = ["released", "review"];
-  return profiles.every(profile =>
-    ["vkLogin", "iosRuCardPayment", "subscriptionPromoCodes", "iosRuCardPaymentHint", "rewardedAds"]
-      .every(flag => typeof (value[profile] as Record<string, unknown>)[flag] === "boolean")) &&
+  return typeof ota.required === "boolean" &&
+    (ota.version === null || typeof ota.version === "string") &&
+    ["all", "ios", "android"].includes(String(ota.platform)) &&
     ["appSubscriptionPaywall", "appSubscriptionGating"]
       .every(flag => typeof (value.global as Record<string, unknown>)[flag] === "boolean");
 }
 export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSaved: () => void }) {
   const [draft, setDraft] = useState<Record<string, unknown>>(() => {
     if (!isRecord(source)) return {};
-    const { revision, iosReviewVersion, ota, released, review, global, rewardedAds } = source;
-    return { revision, iosReviewVersion, ota, released, review, global, rewardedAds };
+    return featureDraft(source);
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -221,8 +211,6 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
   const writeLock = useRef(false);
   if (
     !isRecord(source) ||
-    !isRecord(draft.released) ||
-    !isRecord(draft.review) ||
     !isRecord(draft.global) ||
     !isRecord(draft.rewardedAds) ||
     !isRecord(draft.ota)
@@ -258,10 +246,9 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
       if (!validFeatureControl(actual)) throw new Error("Некорректный ответ feature-flags");
       const submitted = draft;
       if (Number(actual.revision) <= Number(submitted.revision) ||
-        actual.iosReviewVersion !== submitted.iosReviewVersion ||
         !Object.entries(submitted.ota as Record<string, unknown>).every(([key, value]) =>
           (actual.ota as Record<string, unknown>)[key] === value) ||
-        !["released", "review", "global"].every((group) =>
+        !["global"].every((group) =>
           Object.entries(submitted[group] as Record<string, unknown>).every(([key, value]) =>
             (actual[group] as Record<string, unknown>)[key] === value))) {
         throw new Error("Настройки изменились при сохранении. Перечитайте сервер.");
@@ -307,21 +294,6 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
         Ревизия: {String(draft.revision)}. Изменения со старой ревизией отклоняются (409).
       </p>
       <div className="operation-grid">
-        {(["released", "review"] as const).map((profile) => (
-          <fieldset key={profile} disabled={saving || verifyRequired}>
-            <legend>{profile === "released" ? "Публичный релиз" : "Режим ревью"}</legend>
-            {featureKeys.map(([key, title]) => (
-              <label className="check" key={key}>
-                <input
-                  type="checkbox"
-                  checked={(draft[profile] as Record<string, unknown>)[key] === true}
-                  onChange={(e) => updateGroup(profile, key, e.target.checked)}
-                />
-                {title}
-              </label>
-            ))}
-          </fieldset>
-        ))}
         <fieldset disabled={saving || verifyRequired}>
           <legend>Глобальные настройки</legend>
           {(["appSubscriptionPaywall", "appSubscriptionGating"] as const).map((key) => (
@@ -334,19 +306,6 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
               {key}
             </label>
           ))}
-          <label>
-            Версия ревью iOS
-            <input
-              placeholder="1.7.3"
-              value={String(draft.iosReviewVersion ?? "")}
-              onChange={(e) =>
-                setDraft((old) => ({
-                  ...old,
-                  iosReviewVersion: e.target.value || null,
-                }))
-              }
-            />
-          </label>
         </fieldset>
         <fieldset disabled>
           <legend>Наследуемый общий OTA-переключатель (только чтение)</legend>

@@ -53,7 +53,7 @@ common_env=(
  -e DATABASE_URL='postgresql://asmtv1@host.docker.internal:55448/agent2_oci_qa'
  -e REDIS_URL='redis://host.docker.internal:56343'
  -e CHAT2_API_ENABLED=disabled -e CHAT2_WORKER_ENABLED=disabled
- -e CHAT2_PRIVATE_MEDIA_ENABLED=disabled -e CHAT2_LEGACY_RETIRE_ENABLED=disabled
+ -e CHAT2_PRIVATE_MEDIA_ENABLED=disabled
  -e FEED_ENABLED=false -e GALLERY_ENABLED=false
  -e MAIL_OUTBOX_ENABLED=false -e CLOUDRU_MEDIA_JOBS_ENABLED=false
  -e CDN_HEALTH_MONITOR_ENABLED=false -e COURSE_CACHE_SYNC_ENABLED=false

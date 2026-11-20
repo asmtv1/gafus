@@ -24,6 +24,7 @@ import {
   deleteTrainerTemplateRow,
   createTrainerTemplateRow,
   createTrainerStepCategoryRow,
+  type TrainerStepRowsPort,
 } from "./trainerStepRowsPort";
 import { createWebLogger } from "@gafus/logger";
 import type { ActionResult } from "@gafus/types";
@@ -44,7 +45,7 @@ const logger = createWebLogger("trainer-step");
  * Authenticate the owner AND the exact storage object before attachment.
  * External https links continue to work as before (the learner player handles them).
  */
-async function ownsSelectedLibraryVideos(urls: string[] | undefined, actorId: string) {
+async function ownsSelectedLibraryVideos(urls: string[] | undefined, actorId: string, rowsPort?: TrainerStepRowsPort) {
   if (!urls?.length) return true;
   const selected = new Map<string, string>();
   for (const raw of urls) {
@@ -65,7 +66,7 @@ async function ownsSelectedLibraryVideos(urls: string[] | undefined, actorId: st
     selected.set(match[2]!, raw);
   }
   if (!selected.size) return true;
-  const owned = await readTrainerVideoRows([...selected.keys()], actorId);
+  const owned = await (rowsPort?.readTrainerVideoRows ?? readTrainerVideoRows)([...selected.keys()], actorId);
   return (
     owned.length === selected.size &&
     owned.every(
@@ -80,8 +81,8 @@ async function ownsSelectedLibraryVideos(urls: string[] | undefined, actorId: st
 /** Return only the validated data needed by the trainer edit form. */
 export type TrainerStepMutationActor = { id: string; role: "TRAINER" | "ADMIN" };
 
-export async function getStepForEdit(id: string, actor?: TrainerStepMutationActor) {
-  const step = await readTrainerStepForEdit(id, actor);
+export async function getStepForEdit(id: string, actor?: TrainerStepMutationActor, rowsPort?: TrainerStepRowsPort) {
+  const step = await (rowsPort?.readTrainerStepForEdit ?? readTrainerStepForEdit)(id, actor);
   if (!step) return null;
   const parsedChecklist = checklistSchema.safeParse(step.checklist);
   return {
@@ -104,8 +105,8 @@ export async function getStepForEdit(id: string, actor?: TrainerStepMutationActo
   };
 }
 
-export async function getTrainerStepMediaState(id: string) {
-  return readTrainerStepMediaRow(id);
+export async function getTrainerStepMediaState(id: string, rowsPort?: TrainerStepRowsPort) {
+  return (rowsPort?.readTrainerStepMediaRow ?? readTrainerStepMediaRow)(id);
 }
 
 /** Результат успешного удаления шагов (imageUrls для удаления из CDN в app) */
@@ -123,16 +124,16 @@ export interface CreateStepFromTemplateResult extends ActionResult {
 /**
  * Создание шага. Принимает id (UUID от app) и imageUrls (готовые CDN URL).
  */
-export async function createStep(input: CreateStepInput, authorId: string): Promise<ActionResult> {
+export async function createStep(input: CreateStepInput, authorId: string, rowsPort?: TrainerStepRowsPort): Promise<ActionResult> {
   try {
-    if (!(await ownsSelectedLibraryVideos(input.videoUrls, authorId)))
+    if (!(await ownsSelectedLibraryVideos(input.videoUrls, authorId, rowsPort)))
       return { success: false, error: "FORBIDDEN_VIDEO" };
     const checklistValue =
       input.hasTestQuestions && input.checklist && input.checklist.length > 0
         ? input.checklist
         : null;
 
-    await createTrainerStepRecord({
+    await (rowsPort?.createTrainerStepRecord ?? createTrainerStepRecord)({
       id: input.id,
       title: input.title,
       description: input.description,
@@ -195,11 +196,12 @@ export async function createStep(input: CreateStepInput, authorId: string): Prom
 export async function updateStep(
   input: UpdateStepInput,
   actor?: TrainerStepMutationActor,
+  rowsPort?: TrainerStepRowsPort,
 ): Promise<ActionResult> {
   try {
     if (
       input.videoUrls &&
-      (!actor || !(await ownsSelectedLibraryVideos(input.videoUrls, actor.id)))
+      (!actor || !(await ownsSelectedLibraryVideos(input.videoUrls, actor.id, rowsPort)))
     )
       return { success: false, error: "FORBIDDEN_VIDEO" };
     const checklistValue =
@@ -207,7 +209,7 @@ export async function updateStep(
         ? input.checklist
         : null;
 
-    await updateTrainerStepRecord(
+    await (rowsPort?.updateTrainerStepRecord ?? updateTrainerStepRecord)(
       { id: input.id, ...(actor?.role === "TRAINER" ? { authorId: actor.id } : {}) },
       {
         title: input.title,
@@ -271,6 +273,7 @@ export async function updateStep(
 export async function deleteSteps(
   input: DeleteStepsInput,
   actor?: TrainerStepMutationActor,
+  rowsPort?: TrainerStepRowsPort,
 ): Promise<DeleteStepsResult> {
   try {
     if (actor) {
@@ -282,16 +285,16 @@ export async function deleteSteps(
         id: { in: uniqueIds },
         ...(actor.role === "TRAINER" ? { authorId: actor.id } : {}),
       };
-      const removed = await deleteOwnedTrainerStepRows(where, uniqueIds);
+      const removed = await (rowsPort?.deleteOwnedTrainerStepRows ?? deleteOwnedTrainerStepRows)(where, uniqueIds);
       invalidateStepsContentCache(uniqueIds);
       await publishCourseContentChange();
       return { success: true, imageUrls: removed.flatMap((row) => row.imageUrls) };
     }
-    const stepsToDelete = await readTrainerStepDeletionRows(input.stepIds);
+    const stepsToDelete = await (rowsPort?.readTrainerStepDeletionRows ?? readTrainerStepDeletionRows)(input.stepIds);
 
     const allImageUrls = stepsToDelete.flatMap((s) => s.imageUrls);
 
-    await deleteLegacyTrainerStepRows(input.stepIds);
+    await (rowsPort?.deleteLegacyTrainerStepRows ?? deleteLegacyTrainerStepRows)(input.stepIds);
 
     invalidateStepsContentCache(input.stepIds);
     await publishCourseContentChange();
@@ -315,18 +318,19 @@ export async function getVisibleSteps(
   authorId: string | null,
   isAdminOrModerator: boolean,
   options: { isDailyCourse?: boolean } = {},
+  rowsPort?: TrainerStepRowsPort,
 ) {
   const isDailyCourse = options.isDailyCourse ?? false;
   const where = isAdminOrModerator ? { isDailyCourse } : { authorId: authorId!, isDailyCourse };
-  return readVisibleTrainerSteps(where);
+  return (rowsPort?.readVisibleTrainerSteps ?? readVisibleTrainerSteps)(where);
 }
 
 /**
  * Удаление одного URL из imageUrls шага (для deleteStepImageServerAction).
  */
-export async function removeStepImageUrl(stepId: string, imageUrl: string): Promise<ActionResult> {
+export async function removeStepImageUrl(stepId: string, imageUrl: string, rowsPort?: TrainerStepRowsPort): Promise<ActionResult> {
   try {
-    const step = await readTrainerStepImageRow(stepId);
+    const step = await (rowsPort?.readTrainerStepImageRow ?? readTrainerStepImageRow)(stepId);
     if (!step) {
       return { success: false, error: "Шаг не найден" };
     }
@@ -334,7 +338,7 @@ export async function removeStepImageUrl(stepId: string, imageUrl: string): Prom
     if (nextUrls.length === step.imageUrls.length) {
       return { success: true };
     }
-    await updateTrainerStepImageRow(stepId, nextUrls);
+    await (rowsPort?.updateTrainerStepImageRow ?? updateTrainerStepImageRow)(stepId, nextUrls);
     invalidateStepsContentCache([stepId]);
     await publishCourseContentChange();
     logger.info("Изображение шага удалено из записи", { stepId });
@@ -374,19 +378,19 @@ export interface StepTemplateWithCategory {
   createdAt: Date;
 }
 
-export async function getStepTemplates(categoryId?: string): Promise<StepTemplateWithCategory[]> {
-  const templates = await readPublicTrainerStepTemplates(categoryId);
+export async function getStepTemplates(categoryId?: string, rowsPort?: TrainerStepRowsPort): Promise<StepTemplateWithCategory[]> {
+  const templates = await (rowsPort?.readPublicTrainerStepTemplates ?? readPublicTrainerStepTemplates)(categoryId);
   return templates.map((t) => ({ ...t, type: t.type as string }));
 }
 
-export async function getStepTemplateById(id: string): Promise<StepTemplateWithCategory | null> {
-  const template = await readTrainerTemplateForDisplay(id);
+export async function getStepTemplateById(id: string, rowsPort?: TrainerStepRowsPort): Promise<StepTemplateWithCategory | null> {
+  const template = await (rowsPort?.readTrainerTemplateForDisplay ?? readTrainerTemplateForDisplay)(id);
   if (!template) return null;
   return { ...template, type: template.type as string };
 }
 
-export async function searchStepTemplates(query: string): Promise<StepTemplateWithCategory[]> {
-  const templates = await searchPublicTrainerStepTemplates(query);
+export async function searchStepTemplates(query: string, rowsPort?: TrainerStepRowsPort): Promise<StepTemplateWithCategory[]> {
+  const templates = await (rowsPort?.searchPublicTrainerStepTemplates ?? searchPublicTrainerStepTemplates)(query);
   return templates.map((t) => ({ ...t, type: t.type as string }));
 }
 
@@ -399,8 +403,8 @@ export interface StepCategoryWithCount {
   templateCount: number;
 }
 
-export async function getStepCategories(): Promise<StepCategoryWithCount[]> {
-  const categories = await readPublicTrainerStepCategories();
+export async function getStepCategories(rowsPort?: TrainerStepRowsPort): Promise<StepCategoryWithCount[]> {
+  const categories = await (rowsPort?.readPublicTrainerStepCategories ?? readPublicTrainerStepCategories)();
   return categories.map((c) => ({
     id: c.id,
     name: c.name,
@@ -416,9 +420,10 @@ export async function getStepCategories(): Promise<StepCategoryWithCount[]> {
  */
 export async function createStepFromTemplate(
   input: CreateStepFromTemplateInput,
+  rowsPort?: TrainerStepRowsPort,
 ): Promise<CreateStepFromTemplateResult> {
   try {
-    const template = await readTrainerTemplateForCreation(input.templateId);
+    const template = await (rowsPort?.readTrainerTemplateForCreation ?? readTrainerTemplateForCreation)(input.templateId);
     if (!template) {
       return { success: false, error: "Шаблон не найден" };
     }
@@ -426,7 +431,7 @@ export async function createStepFromTemplate(
       return { success: false, error: "Доступ к этому шаблону запрещен" };
     }
 
-    const step = await createStepFromTemplateRow(template, {
+    const step = await (rowsPort?.createStepFromTemplateRow ?? createStepFromTemplateRow)(template, {
       templateId: input.templateId,
       authorId: input.authorId,
     });
@@ -449,9 +454,9 @@ export async function createStepFromTemplate(
 }
 
 /** Удаление шаблона (ADMIN — проверка в app). */
-export async function deleteStepTemplate(templateId: string): Promise<ActionResult> {
+export async function deleteStepTemplate(templateId: string, rowsPort?: TrainerStepRowsPort): Promise<ActionResult> {
   try {
-    await deleteTrainerTemplateRow(templateId);
+    await (rowsPort?.deleteTrainerTemplateRow ?? deleteTrainerTemplateRow)(templateId);
     logger.info("Шаблон удалён", { templateId });
     return { success: true };
   } catch (error) {
@@ -482,9 +487,9 @@ export async function createStepTemplate(data: {
   tags: string[];
   videoUrl: string | null;
   authorId: string;
-}): Promise<ActionResult & { templateId?: string }> {
+}, rowsPort?: TrainerStepRowsPort): Promise<ActionResult & { templateId?: string }> {
   try {
-    const template = await createTrainerTemplateRow(data);
+    const template = await (rowsPort?.createTrainerTemplateRow ?? createTrainerTemplateRow)(data);
     logger.info("Шаблон создан", { templateId: template.id });
     return { success: true, templateId: template.id };
   } catch (error) {
@@ -511,9 +516,9 @@ export async function createStepCategory(data: {
   description: string | null;
   icon: string | null;
   order: number;
-}): Promise<ActionResult> {
+}, rowsPort?: TrainerStepRowsPort): Promise<ActionResult> {
   try {
-    await createTrainerStepCategoryRow(data);
+    await (rowsPort?.createTrainerStepCategoryRow ?? createTrainerStepCategoryRow)(data);
     logger.info("Категория шаблонов создана", { name: data.name });
     return { success: true };
   } catch (error) {

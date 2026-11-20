@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { inventory, compare } from "./check-core-server-facades.mjs";
+import { inventory, compare, check } from "./check-core-server-facades.mjs";
 
 describe("ratcheted server-adapter Core facade imports", () => {
   it("finds imports and reexports while excluding tests and unrelated packages", () => {
@@ -30,6 +30,35 @@ describe("ratcheted server-adapter Core facade imports", () => {
       assert.equal(compare(found.slice(0, 1), found).removed, 1);
     } finally {
       fs.rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it("fails on an empty fixture while a stale exception remains", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "gafus-core-empty-ratchet-"));
+    try {
+      const target = path.join(root, "packages/core/src/services/empty.ts");
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, "export const empty = true;\n");
+      const old = [{ file: "packages/core/src/services/empty.ts", import: "@gafus/gafus-server" }];
+      const result = check(inventory(root), old);
+      assert.equal(result.ok, false);
+      assert.equal(result.removed, 1);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("fails when a removed server import reappears without an exception", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "gafus-core-return-ratchet-"));
+    try {
+      const target = path.join(root, "packages/core/src/services/removed.ts");
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.writeFileSync(target, 'import "@gafus/gafus-server";\n');
+      const result = check(inventory(root), []);
+      assert.equal(result.ok, false);
+      assert.equal(result.added.length, 1);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 

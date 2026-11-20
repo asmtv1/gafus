@@ -1,5 +1,3 @@
-import type { FeedDb, FeedTx } from "@gafus/media-shared/media-db-ports";
-export type { FeedDb, FeedTx };
 export interface FeedStoragePort {
   enabled: boolean;
   /** Set only for verified public 24h Beget delivery with durable purge. */

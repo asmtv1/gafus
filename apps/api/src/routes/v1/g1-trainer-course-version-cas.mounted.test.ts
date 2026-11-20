@@ -90,7 +90,10 @@ describe("AG1 trainer Course.version private read + name-only CAS registered JWT
       });
       expect(m.read).toHaveBeenCalledExactlyOnceWith("course1",{
         id:actors[who].id,role:actors[who].role,
-      });
+      }, expect.objectContaining({
+        readCourseVersionRows:expect.any(Function),
+        writeCourseNameVersionRows:expect.any(Function),
+      }));
       noWrites();
     });
   it("TRAINER can edit name at exact expectedVersion with server-owned identity",async()=>{
@@ -101,7 +104,10 @@ describe("AG1 trainer Course.version private read + name-only CAS registered JWT
     });
     expect(m.cas).toHaveBeenCalledExactlyOnceWith({
       courseId:"course1",name:"Changed",expectedVersion:3,
-    },{id:actors.A.id,role:"TRAINER"});
+    },{id:actors.A.id,role:"TRAINER"}, expect.objectContaining({
+      readCourseVersionRows:expect.any(Function),
+      writeCourseNameVersionRows:expect.any(Function),
+    }));
     noWrites();
   });
   it("stale CAS yields 409 and never false success",async()=>{

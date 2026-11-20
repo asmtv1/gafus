@@ -69,18 +69,72 @@ export function isIsolatedRefactorBrowserOrigin(origin: string): boolean {
     process.env.GAFUS_QUESTIONS_ISOLATED_QA === "1" &&
     process.env.QUESTIONS_V2_S3_ENDPOINT === "http://127.0.0.1:9000" &&
     process.env.QUESTIONS_V2_S3_BUCKET === "gafus-refactor-questions-test";
-  return (normalLocal || chat2Manual || isolatedGallery || web1IsolatedAlt || web4Isolated || chat2MediaQa || questionsQa) &&
+  const qaPort = process.env.GAFUS_QA_WEB_PORT ?? "";
+  const freshBrowser = process.env.GAFUS_QA_FRESH_BROWSER_E2E === "1" &&
+    /^gafusqa[a-f0-9]{12}$/.test(process.env.GAFUS_QA_PROJECT ?? "") &&
+    /^[1-9][0-9]{3,4}$/.test(qaPort) && Number(qaPort) >= 1024 && Number(qaPort) <= 65535 &&
+    origin === `http://127.0.0.1:${qaPort}`;
+  return (freshBrowser || normalLocal || chat2Manual || isolatedGallery || web1IsolatedAlt || web4Isolated || chat2MediaQa || questionsQa) &&
     process.env.NODE_ENV === "development" &&
     process.env.GAFUS_LOCAL_ISOLATED_API === "1" &&
     process.env.GAFUS_LOCAL_BROWSER_AUTH === "1" &&
     process.env.API_HOST === "127.0.0.1";
 }
 
+/** Strictly disposable browser-cookie QA only.  No wildcard localhost access in dev/prod. */
+export function isIsolatedQaCookieOrigin(origin: string): boolean {
+  if (process.env.NODE_ENV !== "test" ||
+      process.env.GAFUS_QA_COOKIE_BROWSER_ACCEPTANCE !== "1" ||
+      process.env.GAFUS_LOCAL_ISOLATED_API !== "1" ||
+      process.env.API_HOST !== "127.0.0.1" ||
+      process.env.FEED_ENABLED !== "false" ||
+      process.env.GALLERY_ENABLED !== "false") return false;
+  const run = process.env.GAFUS_QA_COOKIE_RUN ?? "";
+  const port = process.env.GAFUS_QA_COOKIE_PORT ?? "";
+  if (!/^[a-f0-9]{12}$/.test(run) || !/^[1-9][0-9]{3,4}$/.test(port) ||
+      Number(port) > 65535) return false;
+  if (!["a", "b", "c"].some(role =>
+      origin === `http://qa-${role}-${run}.localhost:${port}`)) return false;
+  try {
+    const pg = new URL(process.env.DATABASE_URL ?? "");
+    const redis = new URL(process.env.REDIS_URL ?? "");
+    return pg.protocol === "postgresql:" && pg.hostname === "127.0.0.1" &&
+      pg.username === "qahttp" && /^\/archqa_cookie_[a-f0-9]{12}$/.test(pg.pathname) &&
+      redis.protocol === "redis:" && redis.hostname === "127.0.0.1" &&
+      redis.pathname === "/0" && Number(redis.port) >= 1024 &&
+      Number(pg.port) >= 1024 && Number(pg.port) !== Number(redis.port);
+  } catch { return false; }
+}
+
+/** Disposable real-Web account deletion origin; never production/development. */
+export function isIsolatedQaDeleteWebOrigin(origin: string): boolean {
+  if (process.env.NODE_ENV !== "test" ||
+      process.env.GAFUS_QA_ACCOUNT_DELETE_WEB !== "1" ||
+      process.env.GAFUS_LOCAL_ISOLATED_API !== "1" ||
+      process.env.API_HOST !== "127.0.0.1" ||
+      process.env.FEED_ENABLED !== "false" ||
+      process.env.GALLERY_ENABLED !== "false") return false;
+  const run=process.env.GAFUS_QA_ACCOUNT_DELETE_RUN ?? "";
+  const port=process.env.GAFUS_QA_ACCOUNT_DELETE_WEB_PORT ?? "";
+  if(!/^[a-f0-9]{12}$/.test(run)||!/^[1-9][0-9]{3,4}$/.test(port)||Number(port)>65535) return false;
+  if(!["owner","other"].some(role=>origin===`http://qa-delete-${role}-${run}.localhost:${port}`)) return false;
+  try {
+    const db=new URL(process.env.DATABASE_URL ?? "");
+    const redis=new URL(process.env.REDIS_URL ?? "");
+    return db.protocol==="postgresql:" && db.hostname==="127.0.0.1" &&
+      db.username==="qahttp" && /^\/archqa_delete_[a-f0-9]{12}$/.test(db.pathname) &&
+      redis.protocol==="redis:" && redis.hostname==="127.0.0.1" &&
+      redis.pathname==="/0" && Number(db.port)>=1024 && Number(redis.port)>=1024 &&
+      Number(db.port)!==Number(redis.port);
+  } catch {return false;}
+}
+
 /**
  * Проверка origin через функцию (поддержка regex для Expo)
  */
 const checkOrigin = (origin: string): string | null => {
-  if (isIsolatedRefactorBrowserOrigin(origin)) return origin;
+  if (isIsolatedRefactorBrowserOrigin(origin) || isIsolatedQaCookieOrigin(origin) ||
+      isIsolatedQaDeleteWebOrigin(origin)) return origin;
   // Точные совпадения
   if (ALLOWED_ORIGINS.includes(origin)) return origin;
 

@@ -1,3 +1,4 @@
+import type { PreventionRowsPort } from "@gafus/core/services/petPrevention";
 /**
  * Pet Prevention Routes
  * API для журнала профилактики питомца (прививки, глистогонка, клещи/блохи)
@@ -11,12 +12,16 @@ import {
   updateEntrySchema,
   batchRequestSchema,
 } from "@gafus/core/services/petPrevention";
-import { preventionJournalApplication } from "../../modules/pet-prevention/composition/journal.js";
+import { preventionJournalApplication as legacyPreventionJournalApplication, createPreventionJournalApplicationForRows } from "../../modules/pet-prevention/composition/journal.js";
 import { createWebLogger } from "@gafus/logger";
 
 const logger = createWebLogger("api-pet-prevention");
 
-export const petPreventionRoutes = new Hono();
+export function createPetPreventionRoutes(rowsPort?: PreventionRowsPort) {
+ const preventionJournalApplication = rowsPort
+    ? createPreventionJournalApplicationForRows(rowsPort)
+    : legacyPreventionJournalApplication;
+ const petPreventionRoutes = new Hono();
 
 // GET /:petId/prevention — список записей
 petPreventionRoutes.get("/:petId/prevention", async (c) => {
@@ -132,3 +137,7 @@ petPreventionRoutes.delete("/:petId/prevention/:entryId", async (c) => {
     return c.json({ success: false, error: "Не удалось удалить запись" }, 500);
   }
 });
+
+ return petPreventionRoutes;
+}
+export const petPreventionRoutes = createPetPreventionRoutes();

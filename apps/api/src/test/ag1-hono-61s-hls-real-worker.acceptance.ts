@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import bcrypt from "bcryptjs";
 import { DeleteObjectCommand, HeadObjectCommand, GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { prisma } from "@gafus/prisma";
-import { createFeedStorageJobs } from "@gafus/core/services/feed";
+import { createFeedStorageJobs } from "@gafus/feed-server/storage-jobs";
 import { createFeedStorageFromEnv } from "@gafus/feed-storage";
 import { isolatedNonprodS3Config } from "@gafus/cdn-upload/isolated-nonprod-s3";
 const ROOT="/Users/asmtv1/Desktop/gafus-refactor";

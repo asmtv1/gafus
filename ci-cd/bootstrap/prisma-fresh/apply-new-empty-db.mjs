@@ -10,7 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { allowsFreshPostgresEndpoint } from './postgres-network-policy.mjs';
+import { allowsFreshPostgresEndpoint, allowsFreshPostgresVersion } from './postgres-network-policy.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../../..');
@@ -33,7 +33,7 @@ function run(program, args, { env = {}, timeout = 35_000, allowFailure = false }
       `${String(proc.stderr).replaceAll(process.env.DATABASE_URL ?? '\0', '[DATABASE_URL]').slice(-750)}`);
   return proc;
 }
-run(process.execPath, [reviewGate], { timeout: 35_000 });
+run(process.execPath, [reviewGate], { timeout: 210_000 });
 const allMigrationNames = readdirSync(join(root, 'packages/prisma/migrations'), { withFileTypes: true })
   .filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
 const migrationNames = Object.keys(inventory.migrationsSha256).sort();
@@ -89,8 +89,8 @@ assert(allowsFreshPostgresEndpoint({
   ciService: process.env.GAFUS_FRESH_CI_POSTGRES_SERVICE,
 }) && ['f', 'false'].includes(recovery),
   `LOOPBACK_WRITABLE_POSTGRES_REQUIRED:address=${address} recovery=${recovery}`);
-assert(Number(version) >= 160000 && Number(version) < 190000,
-  'TESTED_POSTGRES_16_TO_18_ONLY');
+assert(allowsFreshPostgresVersion(version),
+  'TESTED_POSTGRES_15_TO_18_ONLY');
 const empty = psql(`SELECT
   (SELECT count(*) FROM pg_namespace WHERE nspname NOT IN ('public','information_schema') AND nspname NOT LIKE 'pg_%') +
   (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public') +

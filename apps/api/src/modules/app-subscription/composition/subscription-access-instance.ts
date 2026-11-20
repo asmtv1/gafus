@@ -1,0 +1,13 @@
+/** Process composition for the read-only owner/role/period entitlement port.
+ * Keep writes/reconciliation in separate provider Application flows.
+ */
+import type { SubscriptionAccessPorts } from "@gafus/core/services/appSubscription";
+import {
+  getAppSubscriptionAccess,
+  getCynologistEntitlements,
+} from "@gafus/subscription-read-server";
+
+export const subscriptionAccessPort: SubscriptionAccessPorts = {
+  getAppSubscriptionAccess,
+  getCynologistEntitlements,
+};

@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@gafus/prisma";
-import { createFeedPolls } from "./polls";
+import { createFeedPolls } from "../../../../feed-server/src/pollRows";
 
 const expectedDb = "gafus_refactor_poll_tx_ag1_20261024";
 const expectedData =

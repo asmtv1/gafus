@@ -7,7 +7,7 @@
     "android": "expo run:android",
     "android:release": "expo run:android --device --variant release",
     "build:android:production:local": "node ./scripts/build-android-production-local.mjs",
-    "verify:native-release": "node ./scripts/verify-native-release.mjs",
+    "verify:native-release": "node ./scripts/verify-no-vk-auth.mjs && node ./scripts/verify-native-release.mjs",
     "verify:android-aab-16k": "node ./scripts/verify-android-aab-16k.mjs",
     "verify:android-aab-compressor": "node ./scripts/verify-android-aab-compressor.mjs",
     "verify:android-aab-app-links": "node ./scripts/verify-android-aab-app-links.mjs",
@@ -19,7 +19,8 @@
     "start": "expo start",
     "start:dev-client": "expo start --dev-client",
     "start:go": "expo start --go",
-    "test": "vitest run --config vitest.config.ts",
+    "test": "node ./scripts/verify-no-vk-auth.mjs && vitest run --config vitest.config.ts",
+    "verify:no-vk-auth": "node ./scripts/verify-no-vk-auth.mjs",
     "typecheck": "tsc --noEmit",
     "web": "expo start --web",
     "build:ota:android:local": "node ./scripts/build-ota-175-local.mjs android",
@@ -106,7 +107,6 @@
     "react-native-markdown-display": "^7.0.2",
     "react-native-paper": "^5.12.5",
     "react-native-reanimated": "4.5.1",
-    "react-native-rustore-push": "^0.9.2",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
@@ -142,6 +142,9 @@
     },
     "autolinking": {
       "android": {
+        "exclude": [
+          "yookassa-payments"
+        ],
         "buildFromSource": [
           "expo-location"
         ]

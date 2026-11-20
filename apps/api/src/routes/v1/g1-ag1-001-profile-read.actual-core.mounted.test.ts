@@ -71,7 +71,7 @@ const users:Record<string,Record<string,unknown>>={
 const profileA={
   id:"read_owner_A",username:"owner_a",role:"USER",
   phone:"+70000000001",email:"owner_a@example.invalid",
-  hasAppPassword:true,hasVkLinked:true,
+  hasAppPassword:true,
   onboardingTourCompletedAt:"2026-10-01T12:00:00.000Z",
   profile:{
     fullName:"Анна",city:"Москва",about:"Привет",
@@ -82,7 +82,7 @@ const profileA={
 const profileB={
   id:"read_owner_B",username:"owner_b",role:"USER",
   phone:null,email:"owner_b@example.invalid",
-  hasAppPassword:false,hasVkLinked:false,
+  hasAppPassword:false,
   onboardingTourCompletedAt:null,
   profile:{
     fullName:null,city:null,about:null,telegram:null,

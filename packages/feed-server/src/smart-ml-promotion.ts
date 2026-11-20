@@ -1,5 +1,5 @@
 import { Prisma } from "@gafus/prisma";
-import type { FeedDb } from "@gafus/core/services/feed";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
 import { isSmartMlModel, smartMlPassesOfflineGate } from "@gafus/core/services/feed/smart-ml";
 
 /** Explicit manual promotion after offline evaluation, never a training side-effect. */

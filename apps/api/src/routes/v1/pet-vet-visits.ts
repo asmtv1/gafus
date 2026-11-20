@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { handlePetVetVisitRequest } from "@gafus/core/services/pets";
 import { getOwnVetVisitDetail } from "../../modules/pets/composition/vet-visit-read.js";
+import { vetVisitRows } from "../../modules/pets/composition/vet-visit-rows-instance.js";
 
 export const petVetVisitRoutes = new Hono();
 petVetVisitRoutes.all("/:petId/vet-visits", (c) =>
@@ -10,6 +11,7 @@ petVetVisitRoutes.all("/:petId/vet-visits", (c) =>
     c.get("user").id,
     [],
     getOwnVetVisitDetail,
+    vetVisitRows,
   ),
 );
 petVetVisitRoutes.all("/:petId/vet-visits/*", (c) => {
@@ -20,5 +22,6 @@ petVetVisitRoutes.all("/:petId/vet-visits/*", (c) => {
     c.get("user").id,
     suffix.split("/").filter(Boolean),
     getOwnVetVisitDetail,
+    vetVisitRows,
   );
 });

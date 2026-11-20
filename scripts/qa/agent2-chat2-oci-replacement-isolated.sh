@@ -62,7 +62,7 @@ common=( -e NODE_ENV=production
   -e DATABASE_URL='postgresql://asmtv1@host.docker.internal:55449/agent2_chat2_oci_qa'
   -e REDIS_URL='redis://host.docker.internal:56344'
   -e CHAT2_API_ENABLED=enabled -e CHAT2_WORKER_ENABLED=enabled
-  -e CHAT2_PRIVATE_MEDIA_ENABLED=enabled -e CHAT2_LEGACY_RETIRE_ENABLED=enabled
+  -e CHAT2_PRIVATE_MEDIA_ENABLED=enabled
   -e CHAT2_PUBLIC_WS_URL=wss://gafus.ru/connection/websocket
   -e CHAT2_CENTRIFUGO_HTTP_API=http://chat2-centrifugo:8000/api/publish
   -e CHAT2_CENTRIFUGO_TOKEN_SECRET="$CENTRIFUGO_CLIENT_TOKEN_HMAC_SECRET_KEY"
@@ -96,10 +96,10 @@ for i in {1..55};do
 done
 if [[ "$api_ready" != 1 ]];then echo CHAT2_OCI_API_READY_FAILED;docker logs --tail 18 "$api" 2>&1 | cut -c1-165;exit 1;fi
 legacy_status="$(docker exec "$api" node -e "fetch('http://127.0.0.1:3001/api/v1/cynologist-chat',{signal:AbortSignal.timeout(4500)}).then(r=>console.log(r.status)).catch(()=>process.exit(5))")"
-[[ "$legacy_status" == 410 ]] || { echo "CHAT2_OCI_LEGACY_NOT_READY_STATUS:$legacy_status"; exit 1; }
+[[ "$legacy_status" == 404 ]] || { echo "CHAT2_OCI_CHAT1_ROUTE_STILL_MOUNTED:$legacy_status"; exit 1; }
 # No user records created: guest access is still rejected for Chat2 Hono routes.
 chat_status="$(docker exec "$api" node -e "fetch('http://127.0.0.1:3001/api/v1/chats',{signal:AbortSignal.timeout(4500)}).then(r=>console.log(r.status)).catch(()=>process.exit(5))")"
 [[ "$chat_status" == 401 ]] || { echo "CHAT2_OCI_GUEST_ACL_CHANGED:$chat_status"; exit 1; }
 if { docker logs "$worker" 2>&1; docker logs "$api" 2>&1; } | grep -Eiq 'ERR_MODULE_NOT_FOUND|Cannot find module|ERR_PACKAGE_PATH_NOT_EXPORTED';then echo CHAT2_OCI_UNRESOLVED_MODULE_IMPORT;exit 1;fi
 printf 'CHAT2_OCI_SEPARATE_REAL_API_WORKER_PG_REDIS_BROKER_PASS\n'
-printf 'CHAT2_OCI_WORKER_AUTH_POLL_200_API_READY_200_LEGACY_410_GUEST_401\n'
+printf 'CHAT2_OCI_WORKER_AUTH_POLL_200_API_READY_200_CHAT1_404_GUEST_401\n'

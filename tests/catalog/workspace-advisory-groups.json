@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "groups": [
+    {
+      "name": "@gafus/admin-rewarded-ads-server",
+      "kind": "vitest",
+      "minCases": 3,
+      "files": [
+        "packages/admin-rewarded-ads-server/src/adminRewardedAdsService.test.ts"
+      ]
+    },
+    {
+      "name": "@gafus/bull-board",
+      "kind": "tsx",
+      "minCases": 7,
+      "files": [
+        "apps/bull-board/src/telemetry-page.test.ts"
+      ]
+    },
+    {
+      "name": "@gafus/cdn-upload",
+      "kind": "vitest",
+      "minCases": 9,
+      "files": [
+        "packages/cdn-upload/src/begetCdnPurge.test.ts"
+      ]
+    },
+    {
+      "name": "@gafus/chat-media-quality",
+      "kind": "vitest",
+      "minCases": 21,
+      "files": [
+        "packages/chat-media-quality/src/index.test.ts",
+        "packages/chat-media-quality/src/video-playback-quality.test.ts"
+      ]
+    },
+    {
+      "name": "@gafus/error-handling",
+      "kind": "vitest",
+      "minCases": 2,
+      "files": [
+        "packages/error-handling/src/lib/reportClientError.test.ts"
+      ]
+    },
+    {
+      "name": "@gafus/feature-flags-server",
+      "kind": "vitest",
+      "minCases": 3,
+      "files": [
+        "packages/feature-flags-server/src/appFeatureFlagsService.test.ts"
+      ]
+    },
+    {
+      "name": "@gafus/feed-cloud",
+      "kind": "vitest",
+      "minCases": 5,
+      "files": [
+        "packages/feed-cloud/src/hmac.test.ts"
+      ]
+    },
+    {
+      "name": "@gafus/feed-storage",
+      "kind": "vitest",
+      "minCases": 5,
+      "files": [
+        "packages/feed-storage/src/keys.test.ts",
+        "packages/feed-storage/src/v2-keys.test.ts"
+      ]
+    },
+    {
+      "name": "@gafus/logger",
+      "kind": "node",
+      "minCases": 13,
+      "files": [
+        "packages/logger/tests/diagnosticSink.test.mjs",
+        "packages/logger/tests/serverDiagnosticOtlp.test.mjs"
+      ]
+    },
+    {
+      "name": "@gafus/mobile-ota-server",
+      "kind": "vitest",
+      "minCases": 6,
+      "files": [
+        "packages/mobile-ota-server/src/mandatory-control.test.ts",
+        "packages/mobile-ota-server/src/mandatory-policy.test.ts"
+      ]
+    },
+    {
+      "name": "@gafus/react-query",
+      "kind": "vitest",
+      "minCases": 1,
+      "files": [
+        "packages/react-query/src/constants.test.ts"
+      ]
+    },
+    {
+      "name": "@gafus/ui-components",
+      "kind": "vitest",
+      "minCases": 3,
+      "files": [
+        "packages/ui-components/src/cookieConsentUtils.test.ts"
+      ]
+    },
+    {
+      "name": "@gafus/queues",
+      "kind": "vitest",
+      "minCases": 6,
+      "files": [
+        "packages/queues/src/chat2-media-processing-queue.test.ts",
+        "packages/queues/src/feed-processing-queue.test.ts"
+      ]
+    }
+  ]
+}

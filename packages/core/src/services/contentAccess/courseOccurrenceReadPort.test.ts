@@ -28,6 +28,26 @@ describe("Course occurrence Gafus + video policy port", () => {
       {...input,now},c.resolveCourseStepTargetTx,c.resolveCourseStepAccessTx,
     );
   });
+  it("isolates explicit readers with identical IDs without a global binder", async () => {
+    const c = await import("./index");
+    const grant = adapter();
+    grant.readActiveCourseStepGafusGrant.mockResolvedValue(true);
+    grant.readAllowedVideoCourseStepAccess.mockResolvedValue(true);
+    const deny = adapter();
+    const now = new Date("2026-11-19T12:00:00Z");
+    await expect(c.hasActiveGafusCourseStepAccess({...input, now}, grant)).resolves.toBe(true);
+    await expect(c.hasActiveGafusCourseStepAccess({...input, now}, deny)).resolves.toBe(false);
+    await expect(c.hasAllowedVideoCourseStepAccess(input.userId, input.dayOnCourseId, input.stepOnDayId, now, grant)).resolves.toBe(true);
+    await expect(c.hasAllowedVideoCourseStepAccess(input.userId, input.dayOnCourseId, input.stepOnDayId, now, deny)).resolves.toBe(false);
+    expect(grant.readActiveCourseStepGafusGrant).toHaveBeenCalledWith(
+      {...input, now}, c.resolveCourseStepTargetTx,
+    );
+    expect(deny.readAllowedVideoCourseStepAccess).toHaveBeenCalledWith(
+      {...input, now}, c.resolveCourseStepTargetTx, c.resolveCourseStepAccessTx,
+    );
+    await expect(c.hasActiveGafusCourseStepAccess(input))
+      .rejects.toThrow("COURSE_OCCURRENCE_READ_PORT_UNBOUND");
+  });
   it("prohibits hot replacement of a process-bound occurrence reader", async () => {
     const c=await import("./index");const p=adapter();
     c.registerCourseOccurrenceReadsPort(p);c.registerCourseOccurrenceReadsPort(p);

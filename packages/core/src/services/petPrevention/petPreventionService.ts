@@ -18,6 +18,7 @@ import {
   createPreventionRowTx,
   updateOwnedPreventionRowTx,
   type PreventionTx,
+  type PreventionRowsPort,
 } from "./preventionRowsPort";
 import { createWebLogger } from "@gafus/logger";
 import {
@@ -124,10 +125,11 @@ export async function createEntry(
   userId: string,
   petId: string,
   data: unknown,
+  rowsPort?: PreventionRowsPort,
 ): Promise<CreateEntryResult> {
   try {
     const validated = createEntrySchema.parse(data);
-    const pet = await readOwnedPreventionPet(userId, petId);
+    const pet = await (rowsPort?.readOwnedPreventionPet ?? readOwnedPreventionPet)(userId, petId);
     if (!pet) {
       return { success: false, error: "Питомец не найден" };
     }
@@ -142,7 +144,7 @@ export async function createEntry(
       reminderTimes: validated.reminderTimes,
     });
 
-    const entry = await createPreventionRow({
+    const entry = await (rowsPort?.createPreventionRow ?? createPreventionRow)({
       petId,
       ownerId: userId,
       type: validated.type,
@@ -186,10 +188,11 @@ export async function updateEntry(
   petId: string,
   entryId: string,
   data: unknown,
+  rowsPort?: PreventionRowsPort,
 ): Promise<CreateEntryResult> {
   try {
     const validated = updateEntrySchema.parse(data);
-    const existing = await readOwnedPreventionEntryForUpdate(userId, petId, entryId);
+    const existing = await (rowsPort?.readOwnedPreventionEntryForUpdate ?? readOwnedPreventionEntryForUpdate)(userId, petId, entryId);
     if (!existing) {
       return { success: false, error: "Запись не найдена" };
     }
@@ -235,7 +238,7 @@ export async function updateEntry(
     const lastNotifiedForRemindAt =
       prevRemind === nextRemind ? existing.lastNotifiedForRemindAt : null;
 
-    const entry = await updateOwnedPreventionRow(
+    const entry = await (rowsPort?.updateOwnedPreventionRow ?? updateOwnedPreventionRow)(
       userId,
       petId,
       entryId,
@@ -282,13 +285,14 @@ export async function deleteEntry(
   userId: string,
   petId: string,
   entryId: string,
+  rowsPort?: PreventionRowsPort,
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    const existing = await readOwnedPreventionEntryId(userId, petId, entryId);
+    const existing = await (rowsPort?.readOwnedPreventionEntryId ?? readOwnedPreventionEntryId)(userId, petId, entryId);
     if (!existing) {
       return { success: false, error: "Запись не найдена" };
     }
-    await deleteOwnedPreventionRow(userId, petId, entryId);
+    await (rowsPort?.deleteOwnedPreventionRow ?? deleteOwnedPreventionRow)(userId, petId, entryId);
     return { success: true };
   } catch (error) {
     const ctx = { entryId, petId, userId };
@@ -313,13 +317,13 @@ export async function deleteEntry(
 /**
  * Получение записей профилактики по питомцу
  */
-export async function getEntriesByPet(userId: string, petId: string): Promise<GetEntriesResult> {
+export async function getEntriesByPet(userId: string, petId: string, rowsPort?: PreventionRowsPort): Promise<GetEntriesResult> {
   try {
-    const pet = await readOwnedPreventionPet(userId, petId);
+    const pet = await (rowsPort?.readOwnedPreventionPet ?? readOwnedPreventionPet)(userId, petId);
     if (!pet) {
       return { success: false, error: "Питомец не найден" };
     }
-    const entries = await readPreventionRowsByPet(userId, petId);
+    const entries = await (rowsPort?.readPreventionRowsByPet ?? readPreventionRowsByPet)(userId, petId);
     return { success: true, data: entries };
   } catch (error) {
     const ctx = { petId, userId };
@@ -347,19 +351,20 @@ export async function getEntriesByPet(userId: string, petId: string): Promise<Ge
 export async function getEntriesByPets(
   userId: string,
   petIds: string[],
+  rowsPort?: PreventionRowsPort,
 ): Promise<GetEntriesByPetsResult> {
   try {
     if (petIds.length === 0) {
       return { success: true, data: {} };
     }
 
-    const ownedPets = await readOwnedPreventionPetIds(userId, petIds);
+    const ownedPets = await (rowsPort?.readOwnedPreventionPetIds ?? readOwnedPreventionPetIds)(userId, petIds);
     const ownedPetIds = new Set(ownedPets.map((pet) => pet.id));
     if (ownedPetIds.size === 0) {
       return { success: true, data: {} };
     }
 
-    const entries = await readPreventionRowsByPets(userId, Array.from(ownedPetIds));
+    const entries = await (rowsPort?.readPreventionRowsByPets ?? readPreventionRowsByPets)(userId, Array.from(ownedPetIds));
 
     const grouped: Record<string, EntrySelect[]> = {};
     for (const entry of entries) {
@@ -440,9 +445,10 @@ export async function createNewPreventionEntryTx(
   userId: string,
   petId: string,
   entry: BatchEntryInput,
+  rowsPort?: PreventionRowsPort,
 ): Promise<{ id: string }> {
   const computed = batchEntryToComputed(entry);
-  return createPreventionRowTx(tx, {
+  return (rowsPort?.createPreventionRowTx ?? createPreventionRowTx)(tx, {
     petId,
     ownerId: userId,
     type: entry.type,
@@ -467,10 +473,11 @@ export async function upsertPreventionEntriesBatch(
   userId: string,
   petId: string,
   entries: BatchEntryInput[],
+  rowsPort?: PreventionRowsPort,
 ): Promise<BatchResult> {
   try {
     const parsed = batchRequestSchema.parse({ entries });
-    const pet = await readOwnedPreventionPet(userId, petId);
+    const pet = await (rowsPort?.readOwnedPreventionPet ?? readOwnedPreventionPet)(userId, petId);
     if (!pet) {
       return { success: false, error: "Питомец не найден" };
     }
@@ -478,17 +485,17 @@ export async function upsertPreventionEntriesBatch(
     let created = 0;
     let updated = 0;
 
-    await withPreventionTransaction(async (tx) => {
+    await (rowsPort?.withPreventionTransaction ?? withPreventionTransaction)(async (tx) => {
       for (const entry of parsed.entries) {
         const computed = batchEntryToComputed(entry);
-        const existing = await readExistingPreventionClientRow(tx, petId, entry.clientId);
+        const existing = await (rowsPort?.readExistingPreventionClientRow ?? readExistingPreventionClientRow)(tx, petId, entry.clientId);
         if (existing) {
           const prevRemind = existing.remindAt ? utcDayStart(existing.remindAt).getTime() : null;
           const nextRemind = computed.remindAt ? utcDayStart(computed.remindAt).getTime() : null;
           const lastNotifiedForRemindAt =
             prevRemind === nextRemind ? existing.lastNotifiedForRemindAt : null;
 
-          await updateOwnedPreventionRowTx(
+          await (rowsPort?.updateOwnedPreventionRowTx ?? updateOwnedPreventionRowTx)(
             tx,
             userId,
             petId,
@@ -510,7 +517,7 @@ export async function upsertPreventionEntriesBatch(
           );
           updated += 1;
         } else {
-          await createPreventionRowTx(tx, {
+          await (rowsPort?.createPreventionRowTx ?? createPreventionRowTx)(tx, {
             petId,
             ownerId: userId,
             type: entry.type,

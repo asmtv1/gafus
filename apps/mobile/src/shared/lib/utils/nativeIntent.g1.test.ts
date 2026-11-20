@@ -6,14 +6,14 @@ import { redirectSystemPath } from "../../../../app/+native-intent";
 
 const redirect = (path: string) => redirectSystemPath({ path, initial: true });
 
-describe("AG3-NOTIF-050 native VK OAuth deep-link routing", () => {
+describe("native links cannot restart retired VK authorization", () => {
   it.each([
     "vk54804685://vk.ru/blank.html?code=ok&state=abc",
     "vk123://vk.ru?payload=android",
     "vk123://vk.ru/blank.html#complete",
     "VK123://VK.RU/blank.html?code=ok",
-  ])("routes genuine VK OAuth callback to auth welcome: %s", (path) => {
-    expect(redirect(path)).toBe("/(auth)/welcome");
+   ])("does not special-case unsupported VK callback: %s", (path) => {
+    expect(redirect(path)).toBe(path);
   });
 
   it.each([

@@ -38,10 +38,11 @@ describe("owner-scoped user profile SQL read/write port",()=>{
     }));port.registerProfileRowsPort(db);
     const result=await svc.getUserProfileForApi("owner-A");
     expect(db.readUserProfileForApiRow).toHaveBeenCalledExactlyOnceWith("owner-A");
-    expect(result).toMatchObject({id:"owner-A",hasAppPassword:true,hasVkLinked:true,
+    expect(result).toMatchObject({id:"owner-A",hasAppPassword:true,
       onboardingTourCompletedAt:"2026-11-01T09:30:00.000Z",
       profile:{city:"Самара",birthDate:"2000-02-29"}});
     expect(result).not.toHaveProperty("accounts");
+    expect(result).not.toHaveProperty("hasVkLinked");
     expect(result).not.toHaveProperty("passwordSetAt");
     expect(result).not.toHaveProperty("profile.cityKey");
   });

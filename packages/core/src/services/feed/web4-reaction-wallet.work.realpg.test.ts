@@ -2,8 +2,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@gafus/prisma";
-import { createFeedService } from "./service";
-import { createFeedSocial } from "./social";
+import { createFeedService } from "../../../../feed-server/src/postRows";
+import { createFeedSocial } from "../../../../feed-server/src/socialRows";
 import type { FeedStoragePort } from "./ports";
 
 const active = process.env.WEB4_REACTION_WORK_PG === "1" ? describe : describe.skip;

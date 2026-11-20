@@ -1,12 +1,16 @@
 import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { FeedDb } from "./ports";
-import { createFeedStorageJobs } from "./jobs";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
+import { createFeedStorageJobs } from "../../../../feed-server/src/storageJobs";
 
-// Gafus wallet events are covered by their own transactional tests.
-// This job-lease unit fixture intentionally mocks the economy tables.
-vi.mock("../gafus/reactionRewardService", () => ({
-  registerGafusPostPublicationTx: vi.fn(async () => undefined),
+// Wallet economics is tested separately; this unit suite verifies that the
+// publication hook is reached with the SAME transaction as the media ACK.
+const gafusPublication = vi.hoisted(() => ({
+  register: vi.fn(async () => undefined),
+}));
+vi.mock("@gafus/core/services/gafus", async (importActual) => ({
+  ...(await importActual<typeof import("@gafus/core/services/gafus")>()),
+  registerGafusPostPublicationTx: gafusPublication.register,
 }));
 
 const now = new Date("2026-10-09T11:00:00.000Z");
@@ -73,7 +77,7 @@ function mockDb(options: {
   } as unknown as FeedDb;
   return { worker: createFeedStorageJobs({ enqueueDeletedMediaPurge,  db, now: () => now }), db, tx, updates, mediaUpdate, published };
 }
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => { vi.unstubAllEnvs(); gafusPublication.register.mockClear(); });
 describe("feed processing job lease and fencing", () => {
   it("publishes verified 720p+poster and schedules the durable 360p enhancement", async () => {
     const x=mockDb({kind:"publish_video",pending:false});
@@ -263,6 +267,11 @@ describe("feed processing job lease and fencing", () => {
       data: expect.objectContaining({ status: "published", activeRevisionId: "revision_1" }),
     }));
     expect(tx.feedPostRevision.update).toHaveBeenCalled();
+    expect(gafusPublication.register).toHaveBeenCalledExactlyOnceWith(
+      tx,
+      expect.objectContaining({ id: "post_1", authorId: "alice", publishedAt: null }),
+      expect.objectContaining({ hasPublishedMedia: true }),
+    );
     expect(updates).toHaveBeenLastCalledWith(expect.objectContaining({
       data: { status: "completed", attemptToken: null, leaseUntil: null },
     }));

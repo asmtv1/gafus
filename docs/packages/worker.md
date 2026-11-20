@@ -59,7 +59,7 @@ processJob("image-processing", "resize", async (job) => {
 | Consent Log Cleanup | consent-log-cleanup | 02:00 MSK | Удаление orphaned FAILED ConsentLog старше 90 дней |
 | Pet Prevention Reminder | pet-prevention-reminder | 09:00 MSK | Push-напоминания о профилактике питомца (прививки, глистогонка, клещи/блохи) |
 | Re-engagement | reengagement | cron | Re-engagement письма |
-| Push | push | — | Push (Web/VAPID, Expo/FCM, RuStore) |
+| Push | push | — | Push (Web/VAPID, Expo/FCM) |
 | Video Transcoding | video-transcoding | — | Транскодирование видео |
 
 ## 🔧 API

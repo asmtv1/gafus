@@ -15,7 +15,7 @@ vi.mock("@gafus/core/services/gallery", () => ({
     m.calls.push({ method: "gallery", tx, owner, at });
   },
 }));
-vi.mock("@gafus/core/services/feed", () => ({
+vi.mock("@gafus/feed-server/account-cleanup", () => ({
   enqueueFeedAccountCleanup: async (tx: unknown, owner: string, at: Date) => {
     m.calls.push({ method: "feed", tx, owner, at });
   },

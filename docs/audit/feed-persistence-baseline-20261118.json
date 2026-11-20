@@ -1,0 +1,168 @@
+{
+  "commit": "04052d616",
+  "description": "Migration snapshot after the first chronological-page SQL port",
+  "files": {
+    "cleanup.ts": {
+      "FeedDb": 0,
+      "FeedTx": 3,
+      "delegates": 5,
+      "rawSQL": 4
+    },
+    "clientPhotoStageKeys.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "errors.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "index.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "jobs.ts": {
+      "FeedDb": 4,
+      "FeedTx": 2,
+      "delegates": 35,
+      "rawSQL": 4
+    },
+    "maintenance.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "media-urls.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "outbox.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "polls.ts": {
+      "FeedDb": 2,
+      "FeedTx": 3,
+      "delegates": 37,
+      "rawSQL": 2
+    },
+    "ports.ts": {
+      "FeedDb": 2,
+      "FeedTx": 2,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "preferences.ts": {
+      "FeedDb": 2,
+      "FeedTx": 3,
+      "delegates": 28,
+      "rawSQL": 4
+    },
+    "publication-client.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "publish.ts": {
+      "FeedDb": 0,
+      "FeedTx": 2,
+      "delegates": 3,
+      "rawSQL": 0
+    },
+    "ranking.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "recovery.ts": {
+      "FeedDb": 2,
+      "FeedTx": 0,
+      "delegates": 8,
+      "rawSQL": 1
+    },
+    "schemas.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "service.ts": {
+      "FeedDb": 3,
+      "FeedTx": 6,
+      "delegates": 119,
+      "rawSQL": 2
+    },
+    "smart-data.ts": {
+      "FeedDb": 2,
+      "FeedTx": 0,
+      "delegates": 10,
+      "rawSQL": 0
+    },
+    "smart-experiment.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "smart-exposure.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "smart-ml.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "smart-preferences.ts": {
+      "FeedDb": 2,
+      "FeedTx": 0,
+      "delegates": 8,
+      "rawSQL": 0
+    },
+    "smart-ranking.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "smart-redis.ts": {
+      "FeedDb": 0,
+      "FeedTx": 0,
+      "delegates": 0,
+      "rawSQL": 0
+    },
+    "smart-retention.ts": {
+      "FeedDb": 3,
+      "FeedTx": 0,
+      "delegates": 4,
+      "rawSQL": 0
+    },
+    "smart-retrieval.ts": {
+      "FeedDb": 2,
+      "FeedTx": 0,
+      "delegates": 11,
+      "rawSQL": 0
+    },
+    "social.ts": {
+      "FeedDb": 2,
+      "FeedTx": 6,
+      "delegates": 54,
+      "rawSQL": 2
+    }
+  }
+}

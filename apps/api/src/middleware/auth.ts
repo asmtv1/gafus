@@ -4,7 +4,8 @@
  */
 import { createMiddleware } from "hono/factory";
 import { verifyAccessToken, type AuthUser } from "@gafus/auth/jwt";
-import { isRegistrationCompleted } from "@gafus/core/services/auth";
+import { isRegistrationCompleted, type RegistrationContextPorts } from "@gafus/core/services/auth";
+import { registrationContextPort } from "../modules/auth/composition/registration-context-instance.js";
 import { getBrowserAccessToken, isTrustedBrowserOrigin } from "../lib/browser-auth.js";
 
 declare module "hono" {
@@ -17,19 +18,11 @@ declare module "hono" {
  * Middleware для проверки JWT токена
  * Пропускает маршруты для HLS видео (manifest и segment), которые используют токен из query
  */
-export const authMiddleware = createMiddleware(async (c, next) => {
+export function createAuthMiddleware(registration: RegistrationContextPorts) {
+  return createMiddleware(async (c, next) => {
   const path = c.req.path;
-  // A private chat may be rejected before its no-store route runs.
-  // Limit this response shape change to the exact private Chat subtree.
-  const privateChatAuth =
-    path === "/api/v1/cynologist-chat" || path.startsWith("/api/v1/cynologist-chat/");
-  const unauthorized = (message: string) => {
-    if (privateChatAuth) {
-      c.header("Cache-Control", "no-store");
-      return c.json({ success: false, code: "UNAUTHORIZED", error: message }, 401);
-    }
-    return c.json({ success: false, error: message }, 401);
-  };
+  const unauthorized = (message: string) =>
+    c.json({ success: false, error: message }, 401);
 
   // Public access is read-only and limited to exact URLs. Substring matching
   // would silently skip JWT for private sibling/future descendant routes.
@@ -82,18 +75,21 @@ export const authMiddleware = createMiddleware(async (c, next) => {
     return unauthorized("Недействительный токен");
   }
 
-  // A JWT predating a failed/incomplete VK registration must not authorize a
-  // provisional account. This is deliberately checked on every protected API
-  // request, not just at token creation.
-  if (!(await isRegistrationCompleted(user.id))) {
-    // This rejection happens before the Chat dispatcher can set its headers.
-    if (privateChatAuth) c.header("Cache-Control", "no-store");
-    return c.json({ success: false, code: "REGISTRATION_PENDING", error: "Завершите регистрацию через VK ID" }, 401);
+  // A token issued before registration was finalized must not authorize a
+  // provisional account. Recheck on every protected API request and prevent
+  // caches from storing the rejected response for any protected route.
+  if (!(await isRegistrationCompleted(user.id, registration))) {
+    c.header("Cache-Control", "no-store");
+    return c.json({ success: false, code: "REGISTRATION_PENDING", error: "Завершите регистрацию" }, 401);
   }
 
   c.set("user", user);
   await next();
-});
+  });
+}
+
+/** Production uses a concrete SQL adapter, not a Core global registry. */
+export const authMiddleware = createAuthMiddleware(registrationContextPort);
 
 /**
  * Middleware для проверки ролей

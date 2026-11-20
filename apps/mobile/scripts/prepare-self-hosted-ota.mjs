@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
+import {internalCheckoutProfile} from "./ota-payment-profile.mjs";
 import { buildSignedOtaArtifact, verifyAndWriteLocalPreview } from "./self-hosted-ota-artifact.mjs";
 
 const options = {};
@@ -51,6 +52,16 @@ new crypto.X509Certificate(fs.readFileSync(options.certificate));
 const release = JSON.parse(fs.readFileSync(options["native-release"], "utf8"));
 const metadata = JSON.parse(fs.readFileSync(path.join(options["export-root"], "metadata.json"), "utf8"));
 const expoConfig = JSON.parse(fs.readFileSync(options["expo-config"], "utf8"));
+if(options.environment==="production" && process.env.OTA_RELEASE_TITLE &&
+  (!process.env.OTA_RELEASE_TITLE.trim() || process.env.OTA_RELEASE_TITLE.trim().length>100 ||
+    (process.env.OTA_RECOVERY_FOR && (!/^[1-9]\d*$/.test(process.env.OTA_RECOVERY_FOR) ||
+     Number(process.env.OTA_RECOVERY_FOR)>=Number(options.revision)))))throw Error("INVALID_PUBLICATION_METADATA");
+const allowsCheckout = internalCheckoutProfile();
+if (allowsCheckout && (!process.env.OTA_RELEASE_TITLE || options.platform !== process.env.OTA_PLATFORM ||
+    options.runtime !== process.env.OTA_RUNTIME ||
+    fs.realpathSync(options["native-release"]) !== fs.realpathSync(process.env.GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR))) {
+  throw new Error("PAYMENT_PROFILE_NATIVE_RELEASE_MISMATCH");
+}
 const artifact = buildSignedOtaArtifact({
   exportRoot: options["export-root"], metadata, publicExpoConfig: expoConfig,
   native: release, platform: options.platform, environment: options.environment,
@@ -59,6 +70,11 @@ const artifact = buildSignedOtaArtifact({
   signingKeyId: options["signing-key-id"], publicCdnBase: options["asset-base"] ?? options["cdn-base"],
   updateId: options["update-id"], createdAt: options["created-at"],
   revision: Number(options.revision),
+  publication: process.env.OTA_RELEASE_TITLE ? {
+    title: process.env.OTA_RELEASE_TITLE.trim(),
+    recoveryFor: process.env.OTA_RECOVERY_FOR ? Number(process.env.OTA_RECOVERY_FOR) : null,
+    allowsCheckout,
+  } : undefined,
   privateKeyPem: fs.readFileSync(options["private-key"], "utf8"),
   certificatePem: fs.readFileSync(options.certificate, "utf8"),
 });

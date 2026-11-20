@@ -1,6 +1,7 @@
 import { prisma } from "@gafus/prisma";
-import { createFeedMaintenance, createFeedNotificationOutbox,
-  type FeedNotificationDelivery } from "@gafus/core/services/feed";
+import { createFeedMaintenance } from "./maintenance.js";
+import { createFeedNotificationOutbox, type FeedNotificationDelivery } from "./notificationOutbox.js";
+export type { FeedNotificationDelivery } from "./notificationOutbox.js";
 
 /** Domain jobs/outbox policy stays in Core; concrete Prisma binding belongs to feed-server. */
 export async function runFeedBackgroundOperations(

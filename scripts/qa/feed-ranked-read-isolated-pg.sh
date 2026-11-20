@@ -1,5 +1,5 @@
 #!/bin/bash
-# Isolated PostgreSQL 18 regression of Core ranked-feed read port and server SQL.
+# Isolated PostgreSQL 18 regression of Feed persistence: posts, moderation, media, wallet rewards and ranked reads.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
@@ -25,8 +25,9 @@ export FEED_TEST_DATABASE_URL="$DATABASE_URL"
 export NODE_ENV=test
 (cd packages/prisma && pnpm exec prisma db push --skip-generate > "$DIR/schema.log" 2>&1) || { tail -65 "$DIR/schema.log"; exit 1; }
 export NODE_OPTIONS="${NODE_OPTIONS:-} --require $ROOT/scripts/qa/block-nonlocal-network.cjs"
-# The source file also contains unrelated legacy photo/HLS scenarios that no
-# longer match V2 media schemas; this is intentionally the *ranked-read* gate.
+# Run all 19 integration scenarios by default, including V2 media and real
+# same-transaction GAFUS wallet adapter. A regex override supports focused QA.
+TEST_PATTERN="${FEED_RANKED_TEST_PATTERN:-.*}"
 pnpm --filter @gafus/core exec vitest run src/services/feed/feed.integration.test.ts --maxWorkers=1 \
-  -t 'orders the full feed by newest, reactions or visible comments with paginated cursors|returns an author badge role only for administrator and trainer posts'
+  -t "$TEST_PATTERN"
 printf 'FEED_RANKED_PG_PASS: ranked owner visibility, cursor ordering, reactions and visible comments\n'

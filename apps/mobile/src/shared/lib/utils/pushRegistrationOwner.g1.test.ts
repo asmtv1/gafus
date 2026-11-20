@@ -72,7 +72,7 @@ describe("AG3 NOTIF050 push owner+epoch coordinator", () => {
     const save = vi.fn(async () => true);
     const run = async (actor: typeof A1) =>
       coordinator.run(actor, current, live, async (a, check) =>
-        coordinator.registerToken(a, "rustore", "same-device-token", check, save),
+        coordinator.registerToken(a, "expo", "same-device-token", check, save),
       );
     expect(await run(A1)).toBe(true);
     active = B1;

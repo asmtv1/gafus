@@ -31,7 +31,6 @@
 - React Native Paper `^5.12.5`.
 - FlashList `^2.0.2`.
 - Expo IAP, Notifications, Updates, Secure Store, File System, Image Picker, Video.
-- RuStore Push через `react-native-rustore-push`.
 - AppMetrica через `@appmetrica/react-native-analytics`.
 
 ## API/backend
@@ -55,7 +54,7 @@
 - `@gafus/core` - доменная бизнес-логика.
 - `@gafus/prisma` - Prisma client/schema/migrations.
 - `@gafus/queues` - BullMQ queue instances.
-- `@gafus/webpush` - Web Push, Expo Push, RuStore Push.
+- `@gafus/webpush` - Web Push, Expo Push.
 - `@gafus/cdn-upload` - S3-compatible object storage upload.
 - `@gafus/mailer` - transactional SMTP mail через Nodemailer 7.
 - `@gafus/analytics` - web/mobile analytics adapters.
@@ -70,7 +69,6 @@
 - S3-compatible Object Storage / CDN.
 - Web Push VAPID.
 - Expo Push.
-- RuStore Push.
 - Yandex 360 SMTP transactional email via `@gafus/mailer`.
 - Voximplant for consultations (Web and trainer panel use embedded conference client).
 - Yandex Metrica/AppMetrica analytics.

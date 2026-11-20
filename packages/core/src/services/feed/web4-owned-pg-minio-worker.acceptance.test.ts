@@ -1,3 +1,4 @@
+import { createFeedPreferenceOperations } from "../../../../feed-server/src/preferenceRows";
 import { enqueueDeletedMediaPurge } from "@gafus/media-server/deleted-media-purge";
 import { describe, it, expect, vi } from "vitest";
 // The real HTTP dispatcher is injected with own PG services; never connect
@@ -13,12 +14,12 @@ import {
 } from "@aws-sdk/client-s3";
 import { isolatedNonprodS3Config } from "@gafus/cdn-upload/isolated-nonprod-s3";
 import { createFeedStorage } from "@gafus/feed-storage";
-import { createFeedService } from "./service";
-import { createFeedStorageJobs } from "./jobs";
-import { createFeedPolls } from "./polls";
-import { createFeedSocial } from "./social";
+import { createFeedService } from "../../../../feed-server/src/postRows";
+import { createFeedStorageJobs } from "../../../../feed-server/src/storageJobs";
+import { createFeedPolls } from "../../../../feed-server/src/pollRows";
+import { createFeedSocial } from "../../../../feed-server/src/socialRows";
 import { createFeedPreferences } from "./preferences";
-import type { FeedDb } from "./ports";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
 
 const ROOT = "/Users/asmtv1/Desktop/gafus-refactor";
 const SCRATCH = `${ROOT}/.local-pg-scratch/web4-functional-pg18-20261026`;
@@ -65,7 +66,7 @@ type Provider = ReturnType<typeof createFeedStorage>;
       const feed = createFeedService({ db, storage, enabled: () => true });
       const polls = createFeedPolls({ db, storage, enabled: () => true });
       const social = createFeedSocial({ db, enabled: () => true });
-      const preferences = createFeedPreferences({ db, enabled: () => true });
+      const preferences = createFeedPreferences({ operations: createFeedPreferenceOperations(db), enabled: () => true });
       // Original Hono feed route dispatcher; inject ONLY this fresh local DB,
       // never boot global API (its security preflight pins shared WORK PG).
       const { dispatchFeedRequest } = await import("../../../../../packages/feed-server/src/index.ts");

@@ -5,7 +5,6 @@ const state = vi.hoisted(() => ({
   fromEnv: vi.fn(() => {throw Error("TEST_NO_VAPID");}),
   typeList: [] as string[],
   expo: vi.fn(),
-  rustore: vi.fn(),
   web: vi.fn(),
   recorded: vi.fn(),
   deleteEndpoints: vi.fn(),
@@ -34,10 +33,8 @@ vi.mock("@gafus/webpush", () => ({
   partitionPushSubscriptions: (subs: { keys: { p256dh: string } }[]) => ({
     web: subs.filter(x => x.keys.p256dh === "web"),
     expo: subs.filter(x => x.keys.p256dh === "expo"),
-    rustore: subs.filter(x => x.keys.p256dh === "rustore"),
   }),
   sendExpoPushNotifications: (...args: unknown[]) => state.expo(...args),
-  sendRustorePushNotifications: (...args: unknown[]) => state.rustore(...args),
 }));
 vi.mock("@gafus/reengagement", () => ({
 
@@ -80,7 +77,6 @@ beforeEach(() => {
     successCount: 1, failureCount: 0, deletedCount: 0, temporaryFailureCount: 0,
   };
   state.expo.mockResolvedValue(delivered);
-  state.rustore.mockResolvedValue(delivered);
   state.recorded.mockResolvedValue(undefined);
   state.exit.mockImplementation(() => {throw Error("WORKER_MUST_NOT_EXIT");});
   vi.spyOn(process, "exit").mockImplementation(state.exit as never);
@@ -105,17 +101,16 @@ describe("reengagement worker startup/transport safety with no VAPID", () => {
     await expect(startupAndSend()).rejects.toThrow("REENGAGEMENT_WEBPUSH_UNAVAILABLE");
     expect(state.fromEnv).toHaveBeenCalledOnce();
     expect(state.expo).not.toHaveBeenCalled();
-    expect(state.rustore).not.toHaveBeenCalled();
     expect(state.recorded).not.toHaveBeenCalled();
     expect(state.deleteEndpoints).not.toHaveBeenCalled();
   });
 
-  it("a WebPush configuration error must not suppress an independent RuStore send", async () => {
-    state.typeList = ["web", "rustore"];
+  it("a WebPush configuration error must not suppress an independent Expo send", async () => {
+    state.typeList = ["web", "expo"];
     await startupAndSend();
     expect(state.exit).not.toHaveBeenCalled();
     expect(state.fromEnv).toHaveBeenCalledOnce();
-    expect(state.rustore).toHaveBeenCalledOnce();
+    expect(state.expo).toHaveBeenCalledOnce();
     expect(state.deleteEndpoints).not.toHaveBeenCalled();
     expect(state.recorded).toHaveBeenCalledWith(
       "synthetic-campaign", "synthetic-notification", 1, 1,

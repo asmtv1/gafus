@@ -9,7 +9,6 @@ const m = vi.hoisted(() => ({
   signedIn: true,
   loading: false,
   platform: { OS: "android" },
-  native: { RustorePush: { getToken: vi.fn() } },
   device: { isDevice: true },
   constants: {
     appOwnership: "standalone",
@@ -23,7 +22,7 @@ const m = vi.hoisted(() => ({
   save: vi.fn(),
   trace: vi.fn(),
 }));
-vi.mock("react-native", () => ({ Platform: m.platform, NativeModules: m.native }));
+vi.mock("react-native", () => ({ Platform: m.platform }));
 vi.mock("expo-device", () => ({
   get isDevice() {
     return m.device.isDevice;
@@ -98,7 +97,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   inFlight.length = 0;
   m.expo.mockReset();
-  m.native.RustorePush.getToken.mockReset();
   m.save.mockReset();
   m.owner = "A";
   m.epoch = "E" + ++counter;
@@ -109,7 +107,6 @@ beforeEach(() => {
   m.constants.appOwnership = "standalone";
   m.permissions.mockResolvedValue({ status: "granted" });
   m.expo.mockResolvedValue({ data: "expo-device-token" });
-  m.native.RustorePush.getToken.mockResolvedValue("rustore-device-token");
   m.save.mockImplementation(async (_data: unknown, guard: () => boolean) => ({ success: guard() }));
   host = document.createElement("div");
   document.body.append(host);
@@ -164,19 +161,7 @@ describe("mounted push SDK to API actor guard, synthetic only", () => {
     expect(m.save).toHaveBeenCalledTimes(1);
     expect(m.save.mock.calls[0][0]).toMatchObject({ endpoint: "expo-device-token" });
   });
-  it("RuStore token fetched after switching account cannot POST", async () => {
-    m.expo.mockResolvedValue({ data: "" });
-    const d = delay<string>();
-    m.native.RustorePush.getToken.mockReturnValueOnce(d.promise);
-    await mount();
-    await click();
-    await vi.waitFor(() => expect(m.native.RustorePush.getToken).toHaveBeenCalledTimes(1));
-    m.owner = "B";
-    m.epoch = "B-NEW";
-    await act(async () => d.resolve("secret-rustore-A"));
-    await flush();
-    expect(m.save).not.toHaveBeenCalled();
-  });
+
   it("rapid duplicate effect single-flight, token rotation and repeat dedup", async () => {
     m.platform.OS = "ios";
     const d = delay<{ data: string }>();
@@ -210,9 +195,8 @@ describe("mounted push SDK to API actor guard, synthetic only", () => {
     await click();
     expect(m.save).toHaveBeenCalledTimes(2);
   });
-  it("RuStore error containing device secret is sanitized before telemetry", async () => {
-    m.expo.mockResolvedValue({ data: "" });
-    m.native.RustorePush.getToken.mockRejectedValueOnce(new Error("secret-device-token-123"));
+  it("Expo token errors cannot leak device secrets into telemetry", async () => {
+    m.expo.mockRejectedValueOnce(new Error("secret-device-token-123"));
     await mount();
     await click();
     const logged = m.trace.mock.calls

@@ -1302,7 +1302,7 @@ export function createTrainingService({
     stepId: string;
   }> {
     return prisma.$transaction(
-      (tx: Tx) => applyStepAndDayTx(tx, userId, dayOnCourseId, stepIndex, operation, binding),
+      (tx: Tx) => applyStepDayAndCourseTx(tx, userId, dayOnCourseId, stepIndex, operation, binding),
       { timeout: 10000 },
     );
   }
@@ -1675,6 +1675,31 @@ export function createTrainingService({
     };
   }
 
+  /** Shared atomic mutation for online steps and the offline replay journal.
+   * Roll back step, day AND course together if reconciliation fails. */
+  async function applyStepDayAndCourseTx(
+    tx: Tx,
+    userId: string,
+    dayOnCourseId: string,
+    stepIndex: number,
+    operation: StepOperation,
+    binding?: StepOccurrenceBinding,
+  ) {
+    // Serialize all steps of the same learner/course BEFORE reading progress.
+    // Without this lock two different days may each observe the other's
+    // uncommitted state and leave UserCourse IN_PROGRESS after both commit.
+    const ownerCourse = await tx.dayOnCourse.findUnique({
+      where: { id: dayOnCourseId }, select: { courseId: true },
+    });
+    if (!ownerCourse) throw new Error("DayOnCourse or day not found");
+    await tx.$queryRaw<{ locked: string }[]>`
+      SELECT pg_advisory_xact_lock(hashtext(${`training-course:${userId}:${ownerCourse.courseId}`}))::text AS locked
+    `;
+    const result = await applyStepAndDayTx(tx, userId, dayOnCourseId, stepIndex, operation, binding);
+    await syncUserCourseStatusFromDaysTx(tx, userId, result.courseId);
+    return result;
+  }
+
   /**
    * Пересчитывает статус курса по статусам дней (UserTraining) и обновляет UserCourse.
    * Вызывать после любого обновления шага/дня (в т.ч. RESET).
@@ -1759,6 +1784,7 @@ export function createTrainingService({
     checkDayAccess,
     updateStepAndDay,
     applyStepAndDayTx,
+    applyStepDayAndCourseTx,
     syncUserCourseStatusFromDays,
     syncUserCourseStatusFromDaysTx,
   };

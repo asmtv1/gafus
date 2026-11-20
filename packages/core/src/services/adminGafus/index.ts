@@ -1,4 +1,4 @@
-import { withGafusAdminRows, type GafusAdminRows } from "./adminRowsPort";
+import { withGafusAdminRows, type GafusAdminRows, type GafusAdminRowsPort } from "./adminRowsPort";
 export { registerGafusAdminRowsPort } from "./adminRowsPort";
 export type { GafusAdminRowsPort } from "./adminRowsPort";
 import { getGafusSettingsTx, DEFAULT_GAFUS_SETTINGS } from "../gafus/settingsService";
@@ -6,6 +6,16 @@ import { lockGafusUser } from "../gafus/locking";
 import { changeGafusBalanceTx } from "../gafus/walletService";
 import { GafusError } from "../gafus/errors";
 import type { GafusSettingsConfig } from "../gafus/types";
+
+/** Per-application transaction dependency. Historic single-argument exports are
+ * retained for clients using the legacy boot shim; the production HTTP routes
+ * ALWAYS supply an explicit port. No global registry is read in that path. */
+function withAdminRows<T>(port: GafusAdminRowsPort | undefined,
+  operation: (rows: GafusAdminRows) => Promise<T>,
+  options?: { maxWait: number; timeout: number },
+): Promise<T> {
+  return port ? port.withTransaction(operation, options) : withGafusAdminRows(operation, options);
+}
 
 type MutableSetting = Exclude<keyof GafusSettingsConfig, "revision">;
 const keys: readonly MutableSetting[] = [
@@ -63,13 +73,13 @@ export async function updateGafusSettingsAdmin(input: {
   expectedRevision: number;
   patch: Partial<Omit<GafusSettingsConfig, "revision">>;
   reason: string;
-}) {
+}, rowsPort?: GafusAdminRowsPort) {
   if (input.reason.trim().length < 5) throw new Error("REASON_REQUIRED");
   const unsupported = Object.keys(input.patch).filter(
     (key) => !keys.includes(key as MutableSetting),
   );
   if (unsupported.length) throw new Error("INVALID_SETTINGS_KEYS");
-  return withGafusAdminRows(
+  return withAdminRows(rowsPort,
     async (tx) => {
       await requireAdminTx(tx, input.actorId);
       await tx.lockSettings();
@@ -101,13 +111,13 @@ export async function adjustGafusBalanceAdmin(input: {
   delta: number;
   requestId: string;
   reason: string;
-}) {
+}, rowsPort?: GafusAdminRowsPort) {
   if (!input.reason.trim() || input.reason.trim().length < 5) throw new Error("REASON_REQUIRED");
   if (!Number.isSafeInteger(input.delta) || Math.abs(input.delta) > 10000 || input.delta === 0) {
     throw new GafusError("GAFUS_INVALID_AMOUNT", "Invalid admin balance adjustment");
   }
   if (!/^[a-zA-Z0-9_-]{8,128}$/.test(input.requestId)) throw new Error("INVALID_REQUEST_ID");
-  return withGafusAdminRows(
+  return withAdminRows(rowsPort,
     async (tx) => {
       await requireAdminTx(tx, input.actorId);
       await lockGafusUser(tx.rawTx, input.userId);
@@ -151,8 +161,8 @@ export async function adjustGafusBalanceAdmin(input: {
   );
 }
 
-export async function getGafusAdminDashboard(actorId: string) {
-  return withGafusAdminRows(async (tx) => {
+export async function getGafusAdminDashboard(actorId: string, rowsPort?: GafusAdminRowsPort) {
+  return withAdminRows(rowsPort,async (tx) => {
     await requireAdminTx(tx, actorId);
     const [settings, balances, transactions, fraudOpen] = await Promise.all([
       getGafusSettingsTx(tx.rawTx),
@@ -171,8 +181,8 @@ export async function getGafusAdminDashboard(actorId: string) {
 export async function listGafusFraudSignalsAdmin(input: {
   actorId: string;
   status?: "OPEN" | "RESOLVED" | "DISMISSED";
-}) {
-  return withGafusAdminRows(async (tx) => {
+}, rowsPort?: GafusAdminRowsPort) {
+  return withAdminRows(rowsPort,async (tx) => {
     await requireAdminTx(tx, input.actorId);
     return tx.listFraudSignals(input.status);
   });
@@ -188,7 +198,7 @@ export async function reviewGafusFraudSignalAdmin(input: {
   action: "DISMISS" | "CONFIRM";
   requestedReversal?: number;
   reason: string;
-}) {
+}, rowsPort?: GafusAdminRowsPort) {
   const reason = input.reason.trim();
   if (reason.length < 5 || reason.length > 1000) throw new Error("REASON_REQUIRED");
   if (
@@ -199,7 +209,7 @@ export async function reviewGafusFraudSignalAdmin(input: {
   ) {
     throw new Error("INVALID_REVERSAL");
   }
-  return withGafusAdminRows(
+  return withAdminRows(rowsPort,
     async (tx) => {
       await requireAdminTx(tx, input.actorId);
       const signal = await tx.findFraudSignal(input.signalId);

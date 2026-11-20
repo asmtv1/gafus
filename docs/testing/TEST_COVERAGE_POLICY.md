@@ -32,3 +32,14 @@ Changes in these areas require tests in the same PR:
 - [ ] I did not replace service tests with UI-only tests.
 - [ ] I covered unauthorized and validation-failure paths for changed routes.
 - [ ] I ran the narrow test command for changed code.
+
+### Сводное покрытие
+
+`pnpm test:coverage` использует существующие конфигурации Vitest для Core, Core Client,
+Course Progress, API, Web Vite, Mobile и пакетов прежнего coverage. V8 строит карты
+исходников, Istanbul объединяет результаты по каноническим путям. В каталоге
+`.qa/testing/coverage-*` сохраняются исходные JSON по группам, общий JSON, LCOV,
+HTML, выполненные группы и суммарные линии и ветви. Для Web Vite используются
+отдельные процессы и общий include исходников для первого шарда, чтобы учитывать
+неимпортированные файлы. `pnpm test:coverage:legacy` сохраняет прежние пакетные проверки.
+В отчёте указывайте охваченные пакеты и уровень, на котором собраны результаты.

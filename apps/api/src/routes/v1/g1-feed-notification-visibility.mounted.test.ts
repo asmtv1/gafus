@@ -6,8 +6,8 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 // Test source directly: package @gafus/core export can point at stale dist
 // while AG1 agents work without shared rebuilds.
-import type { FeedDb } from "../../../../../packages/core/src/services/feed/ports";
-import { createFeedSocial } from "../../../../../packages/core/src/services/feed/social";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
+import { createFeedSocial } from "../../../../../packages/feed-server/src/socialRows";
 
 const m = vi.hoisted(() => ({
   jwt: vi.fn(), dispatch: vi.fn(),

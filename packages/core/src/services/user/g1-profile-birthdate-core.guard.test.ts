@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const db = vi.hoisted(() => ({ upsert: vi.fn() }));
 vi.mock("@gafus/prisma", () => ({ prisma: { userProfile: { upsert: db.upsert } } }));
 vi.mock("@gafus/logger", () => ({ createWebLogger: () => ({ info: vi.fn(), error: vi.fn() }) }));
-vi.mock("../cynologistChat/authorRole", () => ({ getChatDisplayRole: async () => null }));
+vi.mock("./chatDisplayRole", () => ({ getChatDisplayRole: async () => null }));
 import { updateUserProfile } from "./profileService";
 // Bind unchanged identity-write SQL projections against the existing synthetic
 // Prisma test rows; production composition runs before Hono routes.

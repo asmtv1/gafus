@@ -15,10 +15,10 @@ vi.mock("@gafus/media-server/feed-ranked-rows", () => ({
 vi.mock("./smartStats.js", () => ({
   readSmartFeedPostStats: p.smart,
 }));
+vi.mock("./postRows.js", () => ({ createFeedService: p.feedService }));
+vi.mock("./socialRows.js", () => ({ createFeedSocial: vi.fn() }));
+vi.mock("./pollRows.js", () => ({ createFeedPolls: vi.fn() }));
 vi.mock("@gafus/core/services/feed", () => ({
-  createFeedService: p.feedService,
-  createFeedSocial: vi.fn(),
-  createFeedPolls: vi.fn(),
   createFeedPreferences: vi.fn(),
   createSmartFeedPreferences: vi.fn(),
   createFeedStorageJobs: vi.fn(),

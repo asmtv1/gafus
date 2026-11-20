@@ -341,10 +341,7 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 24,
-            "extraMavenRepos": [
-              "https://nexus-external.rustore.ru/repository/maven-rustore-exposed/"
-            ]
+            "minSdkVersion": 24
           }
         }
       ],
@@ -397,6 +394,7 @@
         }
       ],
       "expo-iap",
+      "./plugins/withGooglePlayBilling",
       "./plugins/withDogWalkWidgetEmbed",
       [
         "expo-widgets",

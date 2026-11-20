@@ -99,4 +99,67 @@ suite("Beget edge purge SQL: lease/retry/ACK on disposable PostgreSQL", () => {
     expect((await prisma.mediaCdnPurge.findUniqueOrThrow({where:{id}})).status)
       .toBe("done");
   });
+  it("worker provider failure keeps durable job pending without acknowledgement or leaking details",async()=>{
+    const repo=createMediaCdnPurgeDependencies();
+    let submitCalls=0;
+    const providerBegin=vi.fn(async(_scope:string,_paths:string[],_prior:string[],checkpoint:(operations:string[])=>Promise<void>)=>{
+      submitCalls++;
+      if(submitCalls===1)throw Error('QA_SECRET_PROVIDER_FAILURE_DO_NOT_PERSIST');
+      await checkpoint(['beget:qa-purge-retry']);
+      return ['beget:qa-purge-retry'];
+    });
+    const providerDone=vi.fn(async()=>true);
+    const deps={...repo,begin:providerBegin as never,done:providerDone as never};
+    expect(await processOneMediaCdnPurge(deps)).toBe('pending');
+    const first=await prisma.mediaCdnPurge.findUniqueOrThrow({where:{id}});
+    expect(first).toMatchObject({status:'pending',attempts:1,errorCode:'MEDIA_PURGE_RETRY'});
+    expect(JSON.stringify(first)).not.toContain('QA_SECRET_PROVIDER_FAILURE_DO_NOT_PERSIST');
+    expect(providerDone).not.toHaveBeenCalled();
+    expect(await processOneMediaCdnPurge(deps)).toBe('empty');
+    expect(submitCalls).toBe(1);
+    await prisma.mediaCdnPurge.update({where:{id},data:{availableAt:new Date(Date.now()-1000)}});
+    expect(await processOneMediaCdnPurge(deps)).toBe('done');
+    expect(submitCalls).toBe(2);
+    expect(providerDone).toHaveBeenCalledOnce();
+    expect((await prisma.mediaCdnPurge.findUniqueOrThrow({where:{id}}))).toMatchObject({status:'done',attempts:2,paths:[]});
+  });
+
+  it("worker crash after SQL checkpoint reclaims lease without submitting a duplicate provider operation",async()=>{
+    const repo=createMediaCdnPurgeDependencies();
+    const stale=(await repo.claim(randomUUID()))!;
+    expect(stale.id).toBe(id);
+    await repo.checkpoint(stale,['beget:qa-already-submitted']);
+    const stored=await prisma.mediaCdnPurge.findUniqueOrThrow({where:{id}});
+    expect(stored.purgeOperations).toEqual(['beget:qa-already-submitted']);
+    // Simulate a process death between durable checkpoint and ACK: no complete()/retry().
+    await prisma.mediaCdnPurge.update({where:{id},data:{leaseUntil:new Date(Date.now()-1000)}});
+    let createdNewOperation=0;
+    const begin=vi.fn(async(_scope:string,_paths:string[],previous:string[])=>{
+      expect(previous).toEqual(['beget:qa-already-submitted']);
+      if(previous.length===0){createdNewOperation++;throw Error('QA_DUPLICATE_PUBLISH_ATTEMPT');}
+      return previous;
+    });
+    const done=vi.fn(async()=>true);
+    expect(await processOneMediaCdnPurge({...repo,begin:begin as never,done:done as never})).toBe('done');
+    expect(createdNewOperation).toBe(0);
+    expect(begin).toHaveBeenCalledOnce();expect(done).toHaveBeenCalledOnce();
+    await expect(repo.complete(stale)).rejects.toThrow('MEDIA_PURGE_LEASE_LOST');
+    expect((await prisma.mediaCdnPurge.findUniqueOrThrow({where:{id}}))).toMatchObject({status:'done',paths:[],purgeOperations:[],attempts:2});
+  });
+
+  it("two concurrent worker passes have one SQL lease and one irreversible provider submission",async()=>{
+    const repo=createMediaCdnPurgeDependencies();
+    const begin=vi.fn(async(_scope:string,_paths:string[],_previous:string[],checkpoint:(ops:string[])=>Promise<void>)=>{
+      await checkpoint(['beget:qa-concurrent']);
+      return ['beget:qa-concurrent'];
+    });
+    const done=vi.fn(async()=>true);
+    const deps={...repo,begin:begin as never,done:done as never};
+    const outcomes=await Promise.all([processOneMediaCdnPurge(deps),processOneMediaCdnPurge(deps)]);
+    expect(outcomes.sort()).toEqual(['done','empty']);
+    expect(begin).toHaveBeenCalledOnce();expect(done).toHaveBeenCalledOnce();
+    expect((await prisma.mediaCdnPurge.findUniqueOrThrow({where:{id}}))).toMatchObject({status:'done',attempts:1,paths:[]});
+    expect(await processOneMediaCdnPurge(deps)).toBe('empty');
+    expect(begin).toHaveBeenCalledOnce();
+  });
 });

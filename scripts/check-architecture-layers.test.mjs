@@ -72,3 +72,22 @@ it("Prisma generator cannot restore a stale client from an external pnpm store",
   assert(generate.inputs.includes("schema.prisma"), "real packages/prisma/schema.prisma must invalidate build");
   assert(!generate.inputs.includes("prisma/schema.prisma"), "outdated relative path is not the schema");
 });
+
+
+// The boundary applies to config entrypoints too: importing a sibling QA tree
+// from a package config must fail rather than bypassing the production ratchet.
+it("rejects cross-package relative imports in package Vitest configurations", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gafus-vitest-boundary-"));
+  try {
+    const file = path.join(root, "packages", "example", "vitest.config.ts");
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, 'import { unitExclude } from "../../tests/config/vitest/shared";');
+    assert(audit(root).some(({ rule, file }) =>
+      rule === "cross-package-relative" && file === "packages/example/vitest.config.ts"));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+  const liveRoot = path.resolve(import.meta.dirname, "..");
+  assert(!audit(liveRoot).some(({ rule, file }) =>
+    rule === "cross-package-relative" && file === "packages/core/vitest.config.ts"));
+});

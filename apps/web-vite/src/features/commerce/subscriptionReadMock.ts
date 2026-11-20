@@ -12,7 +12,7 @@ export type SubscriptionStatus={
   activeUntil:string|null;
   nextChargeAt:string|null;
   cancelAtPeriodEnd:boolean;
-  provider:"YOOKASSA"|"APPLE"|"MANUAL"|null;
+  provider:"YOOKASSA"|"APPLE"|"GOOGLE_PLAY"|"MANUAL"|null;
   planCode:"WEEKLY"|"TWO_WEEKS"|"MONTHLY"|"THREE_MONTHS"|null;
   status:"ACTIVE"|"PENDING"|"PAST_DUE"|"CANCELED"|"EXPIRED"|
     "REFUNDED"|"REVOKED"|null;
@@ -53,7 +53,7 @@ function parseStatus(raw:unknown):SubscriptionStatus{
     !bool(d.cancelAtPeriodEnd)||
     !(d.activeUntil===null||date(d.activeUntil))||
     !(d.nextChargeAt===null||date(d.nextChargeAt))||
-    !(d.provider===null||["YOOKASSA","APPLE","MANUAL"].includes(String(d.provider)))||
+    !(d.provider===null||["YOOKASSA","APPLE","GOOGLE_PLAY","MANUAL"].includes(String(d.provider)))||
     !(d.planCode===null||["WEEKLY",...planValues].includes(String(d.planCode)))||
     !(d.status===null||statusValues.includes(d.status as typeof statusValues[number]))||
     (d.hasActiveSubscription&&d.status!=="ACTIVE")||

@@ -59,7 +59,7 @@ function requireMeta({ native, platform, environment, runtimeVersion, channel, s
 export function buildSignedOtaArtifact({
   exportRoot, metadata, publicExpoConfig, native, platform, environment,
   runtimeVersion, channel, sourceSha, signingKeyId, publicCdnBase,
-  updateId, createdAt, revision, certificatePem, privateKeyPem, nativeFingerprint,
+  updateId, createdAt, revision, certificatePem, privateKeyPem, nativeFingerprint, publication,
 }) {
   requireMeta({ native, platform, environment, runtimeVersion, channel,
     sourceSha, signingKeyId, publicCdnBase, updateId, createdAt, revision, certificatePem,
@@ -128,7 +128,7 @@ export function buildSignedOtaArtifact({
     launchAsset,
     assets,
     metadata: { channel, environment, sourceSha },
-    extra: { expoClient: publicExpoConfig, ota: { revision } },
+    extra: { expoClient: publicExpoConfig, ota: { revision, ...(publication ? { publication: { ...publication, nativeReleaseId: native.id, nativeFingerprint } } : {}) } },
   };
   const manifestBytes = Buffer.from(JSON.stringify(manifest));
   // RSA-PKCS1v1.5 with SHA-256 matches expo-updates codeSigningMetadata.

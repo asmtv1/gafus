@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const mocked = vi.hoisted(() => ({ state: vi.fn(), count: vi.fn() }));
+const mocked = vi.hoisted(() => ({ state: vi.fn(), count: vi.fn(), subscriptions: vi.fn(), deleteSubscriptions: vi.fn() }));
 vi.mock('@gafus/prisma', () => ({ prisma: {
   reengagementCampaign: { findUnique: mocked.state },
   reengagementNotification: { count: mocked.count },
+  pushSubscription: { findMany: mocked.subscriptions, deleteMany: mocked.deleteSubscriptions },
 } }));
-import { isReengagementDispatchAllowed } from './workerQueries';
+import {
+  isReengagementDispatchAllowed, getReengagementCampaignState,
+  getReengagementPushSubscriptions, deleteInvalidReengagementPushEndpoints,
+} from './workerQueries';
 
 const allowed = {
   userId: 'learner-1', isActive: true, returned: false, unsubscribed: false,
@@ -77,5 +81,43 @@ describe('reengagement dispatch permission at send time', () => {
   it('fails closed if the database cannot verify eligibility', async () => {
     mocked.state.mockRejectedValue(new Error('test db unavailable'));
     await expect(isReengagementDispatchAllowed('camp-1', 'learner-1', 2)).rejects.toThrow();
+  });
+});
+
+
+describe('reengagement worker persistence adapters', () => {
+  it('reads only the campaign state needed for fail-closed dispatch', async () => {
+    const result = { isActive: true, returned: false, unsubscribed: false };
+    mocked.state.mockResolvedValueOnce(result);
+    await expect(getReengagementCampaignState('camp-2')).resolves.toEqual(result);
+    expect(mocked.state).toHaveBeenCalledExactlyOnceWith({
+      where: { id: 'camp-2' },
+      select: { isActive: true, returned: true, unsubscribed: true },
+    });
+  });
+  it('selects only the target user subscriptions and needed push credentials', async () => {
+    const rows = [{ endpoint: 'https://push.example.test/a', keys: { p256dh: 'public', auth: 'key' } }];
+    mocked.subscriptions.mockResolvedValueOnce(rows);
+    await expect(getReengagementPushSubscriptions('learner-2')).resolves.toEqual(rows);
+    expect(mocked.subscriptions).toHaveBeenCalledExactlyOnceWith({
+      where: { userId: 'learner-2' },
+      select: { endpoint: true, keys: true },
+    });
+  });
+  it('never issues a broad delete for an empty list of invalid endpoints', async () => {
+    await expect(deleteInvalidReengagementPushEndpoints([])).resolves.toBe(0);
+    expect(mocked.deleteSubscriptions).not.toHaveBeenCalled();
+  });
+  it('deletes only explicitly invalid endpoints and reports actual count', async () => {
+    mocked.deleteSubscriptions.mockResolvedValueOnce({ count: 2 });
+    const endpoints = ['https://push.example.test/stale-1', 'https://push.example.test/stale-2'];
+    await expect(deleteInvalidReengagementPushEndpoints(endpoints)).resolves.toBe(2);
+    expect(mocked.deleteSubscriptions).toHaveBeenCalledExactlyOnceWith({
+      where: { endpoint: { in: endpoints } },
+    });
+  });
+  it('propagates storage errors rather than pretending dispatch state was checked', async () => {
+    mocked.state.mockRejectedValueOnce(new Error('storage unavailable'));
+    await expect(getReengagementCampaignState('camp-3')).rejects.toThrow('storage unavailable');
   });
 });

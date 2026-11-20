@@ -132,6 +132,14 @@ export type TrainingServiceApi = {
         stepOnDayId: string;
         stepId: string;
     }>;
+    applyStepDayAndCourseTx: (tx: unknown, userId: string, dayOnCourseId: string, stepIndex: number, operation: StepOperation, binding?: StepOccurrenceBinding) => Promise<{
+        courseId: string;
+        allCompleted: boolean;
+        stepJustCompleted: boolean;
+        stepJustStarted: boolean;
+        stepOnDayId: string;
+        stepId: string;
+    }>;
     syncUserCourseStatusFromDays: (userId: string, courseId: string) => Promise<void>;
     syncUserCourseStatusFromDaysTx: (tx: unknown, userId: string, courseId: string) => Promise<void>;
 };

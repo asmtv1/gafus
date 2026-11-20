@@ -70,8 +70,6 @@ const consent = raw === "accepted" || raw === "declined" ? raw : null;
 
 | Prop | Тип | По умолчанию | Описание |
 |------|-----|--------------|----------|
-| `showVkLogin` | `boolean` | `false` | Показать кнопку «Войти через VK ID» |
-| `onVkLogin` | `() => void \| Promise<void>` | — | Обработчик клика (вызов Server Action, иначе кнопка скрыта) |
 | `allowedRoles` | `string[]` | `[]` | Ограничение по ролям (trainer-panel) |
 | `redirectPath` | `string` | `"/"` | Редирект после успешного входа |
 

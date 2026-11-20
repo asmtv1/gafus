@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "date": "2026-11-19",
+  "kind": "local-dirty-worktree-measured-baseline-not-release-threshold",
+  "head": "04052d616fa72f8edd2ad49f496f5c744c710fed",
+  "providerMode": "synthetic-provider",
+  "dbMode": "disposable-postgres18-with-prisma-db-push",
+  "targets": {
+    "payment": {
+      "groups": {
+        "core": [
+          "packages/subscription-payment-server/src/paymentService.ts"
+        ],
+        "subscriptions": [
+          "packages/subscription-payment-server/src/appleSubscriptionState.ts",
+          "packages/subscription-payment-server/src/subscriptionTransitions.ts"
+        ]
+      },
+      "unmeasured": [
+        "packages/subscription-payment-server/src/yookassaProvider.ts",
+        "packages/subscription-payment-server/src/appleProvider.ts",
+        "packages/subscription-payment-server/src/paymentFinanceService.ts",
+        "apps/api/src/routes/v1/payment-provider-webhooks.ts",
+        "external YooKassa/Apple provider transport"
+      ]
+    },
+    "worker": {
+      "groups": {
+        "worker": [
+          "packages/worker/src/media-cdn-purge-worker.ts"
+        ]
+      },
+      "unmeasured": [
+        "packages/media-server/src/mediaCdnPurgeRepository.ts (SQL repository exercised via dist, not separately attributable to TS in this profile)",
+        "packages/worker/src/chat2-outbox-worker.ts",
+        "packages/worker/src/accountCleanupWorker.ts",
+        "packages/worker/src/feed-worker.ts",
+        "Redis/BullMQ restart paths and real CDN provider transport"
+      ]
+    }
+  },
+  "sources": {
+    "packages/subscription-payment-server/src/paymentService.ts": {
+      "lines": {
+        "total": 547,
+        "covered": 86
+      },
+      "branches": {
+        "total": 539,
+        "covered": 72
+      },
+      "sourceSha256": "c7b957da014b2e6210b15613013d5b294a9d1eec50f72eb9ab4d50716411c32c"
+    },
+    "packages/subscription-payment-server/src/appleSubscriptionState.ts": {
+      "lines": {
+        "total": 20,
+        "covered": 17
+      },
+      "branches": {
+        "total": 53,
+        "covered": 41
+      },
+      "sourceSha256": "5ca6c1222a5d82549e531f8633622b92b2c10d7c1c5819dc73944bf20bf20073"
+    },
+    "packages/subscription-payment-server/src/subscriptionTransitions.ts": {
+      "lines": {
+        "total": 19,
+        "covered": 2
+      },
+      "branches": {
+        "total": 27,
+        "covered": 0
+      },
+      "sourceSha256": "16d037cf44cbc938939d5bde900c55ec98139de0a4327550e58d646d2683e688"
+    },
+    "packages/worker/src/media-cdn-purge-worker.ts": {
+      "lines": {
+        "total": 37,
+        "covered": 21
+      },
+      "branches": {
+        "total": 35,
+        "covered": 20
+      },
+      "sourceSha256": "d6fb7ea0a05c9844013f32852a6222c3a2b966f58cd8f8b7f492a99214f62f15"
+    }
+  },
+  "runnerVersions": {
+    "payment": {
+      "vitest": "4.1.0",
+      "coverageV8": "4.1.0"
+    },
+    "worker": {
+      "vitest": "4.1.0",
+      "coverageV8": "4.1.0"
+    }
+  },
+  "provenance": "fresh disposable PG18 source snapshot after matching Vitest/coverage-v8 versions; local dirty worktree, not release threshold"
+}

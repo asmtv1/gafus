@@ -1,3 +1,4 @@
+import { subscriptionAccessPort } from "../../modules/app-subscription/composition/subscription-access-instance.js";
 /**
  * Achievements Routes
  * Endpoints для работы с достижениями
@@ -29,7 +30,7 @@ achievementsRoutes.use("*", async (c, next) => {
     const gated = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true);
     if (gated) {
       // SELECT-only snapshot: NEVER reconcile YooKassa/Apple/payments on GET.
-      const access = await getAppSubscriptionAccess(owner);
+      const access = await getAppSubscriptionAccess(owner, undefined, subscriptionAccessPort);
       if (!access.hasActiveSubscription) {
         return c.json(
           {

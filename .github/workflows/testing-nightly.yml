@@ -1,0 +1,13 @@
+name: Nightly Test Profiles (informational)
+on:
+  schedule:
+    - cron: '15 2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-profile-plan:
+    uses: ./.github/workflows/testing-reusable.yml
+    with:
+      profile: full
+      execute: true

@@ -475,18 +475,6 @@ async function apiClientWithRefreshLimit<T>(
     if (!response.ok) {
       const code = extractHttpErrorCode(data);
       if (
-        typeof __DEV__ !== "undefined" &&
-        __DEV__ &&
-        endpoint === "/api/v1/app-subscription/yookassa/start"
-      ) {
-        console.log("[apiClient] app-subscription/yookassa/start non-ok", {
-          status: response.status,
-          statusText: response.statusText,
-          code,
-          data,
-        });
-      }
-      if (
         shouldNotifySubscriptionRequired({
           httpStatus: response.status,
           code,

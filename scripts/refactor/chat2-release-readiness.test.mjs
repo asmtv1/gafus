@@ -7,7 +7,7 @@ import { validateCutoverConfig, parseDestinationEnv, validateStaticContracts,
   verifyQaStatus, probePublicWebsocketUpgrade, verifyMobileForcedUpdate } from './chat2-release-readiness.mjs';
 
 const ready = Object.freeze({
-  COMPOSE_PROFILES: 'chat2', CHAT2_LEGACY_RETIRE_ENABLED: 'enabled', CHAT2_API_ENABLED: 'enabled', CHAT2_WORKER_ENABLED: 'enabled',
+  COMPOSE_PROFILES: 'chat2', CHAT2_API_ENABLED: 'enabled', CHAT2_WORKER_ENABLED: 'enabled',
   CHAT2_PRIVATE_MEDIA_ENABLED: 'enabled',
   CHAT2_PUBLIC_WS_URL: 'wss://gafus.ru/connection/websocket',
   CHAT2_CENTRIFUGO_HTTP_API: 'http://chat2-centrifugo:8000/api/publish',
@@ -24,11 +24,8 @@ test('ready INTENDED destination configuration passes configuration validation o
   assert.equal(validateCutoverConfig(ready), true);
   assert.equal(validateCutoverConfig(parseDestinationEnv(Object.entries(ready).map(([k,v]) => `${k}=${v}`).join('\n'))), true);
 });
-test('staged first-install configuration never authorizes legacy 410', () => {
-  const staged = { ...ready, CHAT2_LEGACY_RETIRE_ENABLED: 'disabled' };
-  assert.equal(validateCutoverConfig(staged, true), true);
-  assert.throws(() => validateCutoverConfig(staged), /LEGACY_RETIRE/);
-  assert.throws(() => validateCutoverConfig(ready, true), /LEGACY_RETIRE/);
+test('staged first-install still enforces Chat2 and broker configuration', () => {
+  assert.equal(validateCutoverConfig(ready, true), true);
 });
 test('disabled destination fails closed', () => {
   for (const key of ['CHAT2_API_ENABLED','CHAT2_WORKER_ENABLED','CHAT2_PRIVATE_MEDIA_ENABLED']) {
@@ -181,7 +178,6 @@ test('active production edge nginx and private worker/broker names are REQUIRED,
   for(const altered of [
     compose.replace('WORKER_HEALTH_PORT=3003','WORKER_HEALTH_PORT=9003'),
     compose.replace('API_PORT=3001','API_PORT=4301'),
-    compose.replace('CHAT2_LEGACY_RETIRE_ENABLED=${CHAT2_LEGACY_RETIRE_ENABLED:-disabled}', 'CHAT2_LEGACY_RETIRE_ENABLED=enabled'),
     compose.replace('CENTRIFUGO_HTTP_API_KEY=${CHAT2_CENTRIFUGO_API_KEY:-}', 'CENTRIFUGO_HTTP_API_KEY=disabled'),
   ]) assert.throws(()=>check(altered,edge),/Compose|Chat2/);
   assert.throws(()=>check(compose.replace('../nginx/conf.d:/etc/nginx/conf.d:ro','/other/path:/etc/nginx/conf.d:ro')),
@@ -195,7 +191,7 @@ test('main CI has a real source-only staged lane; production still fails closed 
   const lane = ci.match(/      - name: Check Chat2 first-install staged source without deploy \(blocking\)([\s\S]*?)(?=\n      - name:|\n  [a-z-]+:|$)/)?.[1];
   assert.ok(lane,'source-only staged lane must run in normal CI');
   for(const line of [
-    'COMPOSE_PROFILES: chat2', 'CHAT2_LEGACY_RETIRE_ENABLED: disabled',
+    'COMPOSE_PROFILES: chat2',
     'CHAT2_API_ENABLED: enabled','CHAT2_WORKER_ENABLED: enabled',
     'CHAT2_PRIVATE_MEDIA_ENABLED: enabled',
     'CHAT2_PUBLIC_WS_URL: wss://gafus.ru/connection/websocket',

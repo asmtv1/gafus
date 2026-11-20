@@ -1,0 +1,19 @@
+# Operates only on an installed disposable QA build. Credentials are synthetic, supplied as env.
+appId: ru.gafus.app
+name: GAFUS QA - login and session
+---
+- launchApp:
+    clearState: true
+- tapOn: "Войти"
+- tapOn:
+    id: "username-input"
+- inputText: ${QA_USERNAME}
+- tapOn:
+    id: "password-input"
+- inputText: ${QA_PASSWORD}
+- tapOn:
+    id: "login-button"
+- assertVisible: "Курсы"
+- stopApp
+- launchApp
+- assertVisible: "Курсы"

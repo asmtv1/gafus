@@ -7,7 +7,7 @@ vi.mock("@gafus/prisma", () => ({
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ info: vi.fn(), error: vi.fn() }),
 }));
-vi.mock("../cynologistChat/authorRole", () => ({
+vi.mock("./chatDisplayRole", () => ({
   getChatDisplayRole: m.displayRole,
 }));
 import { getPublicProfile } from "./profileService";

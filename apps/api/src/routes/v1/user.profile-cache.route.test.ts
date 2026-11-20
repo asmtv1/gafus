@@ -6,6 +6,7 @@ vi.mock("../../modules/user/composition/account-deletion.js", () => ({
 }));
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { profileRows } from "../../modules/user/composition/profile-rows-instance.js";
 
 const { getProfile, updateProfile } = vi.hoisted(() => ({
   getProfile: vi.fn(),
@@ -55,7 +56,7 @@ describe("Hono own profile and Vite consumer", () => {
     const response = await api().request("/api/v1/user/profile");
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
-    expect(getProfile).toHaveBeenCalledWith(user.id);
+    expect(getProfile).toHaveBeenCalledWith(user.id, profileRows);
     await expect(response.json()).resolves.toMatchObject({ success: true, data: profile });
   });
 
@@ -87,7 +88,7 @@ describe("Hono own profile and Vite consumer", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(updateProfile).toHaveBeenCalledWith(user.id, {
       fullName: "Новое имя", city: "", about: "",
-    });
+    }, profileRows);
     await expect(response.json()).resolves.toMatchObject({
       success: true, data: { userId: user.id, fullName: "Новое имя" },
     });
@@ -101,7 +102,7 @@ describe("Hono own profile and Vite consumer", () => {
       body: JSON.stringify({ city: "Казань" }),
     });
     expect(response.status).toBe(200);
-    expect(updateProfile).toHaveBeenCalledWith(user.id, { city: "Казань" });
+    expect(updateProfile).toHaveBeenCalledWith(user.id, { city: "Казань" }, profileRows);
   });
 
   it("Vite PUT uses the existing guarded Hono endpoint without optimistic updates", async () => {
@@ -118,7 +119,7 @@ describe("Hono own profile and Vite consumer", () => {
     })).resolves.toBeUndefined();
     expect(updateProfile).toHaveBeenCalledWith(user.id, {
       fullName: "Обновлено", city: "Казань", about: "",
-    });
+    }, profileRows);
   });
 
   it("not found returns an error, not a fallback identity", async () => {

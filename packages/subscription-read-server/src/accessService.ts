@@ -113,7 +113,8 @@ async function getBaseAppSubscriptionAccess(
     hasSavedPaymentMethod,
     paymentMethodLast4: active.yookassaPaymentMethodLast4 ?? null,
     paymentMethodTitle:
-      active.provider === "APPLE" ? "Apple" : (active.yookassaPaymentMethodTitle ?? null),
+      active.provider === "APPLE" ? "Apple" :
+        active.provider === "GOOGLE_PLAY" ? "Google Play" : (active.yookassaPaymentMethodTitle ?? null),
     nextChargeAt,
     yookassaTrialAvailable: false,
     yookassaTrialDays: 0,

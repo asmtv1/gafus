@@ -199,7 +199,7 @@ describe("AG4 TR013 registered GET /api/v1/trainer/templates frozen producer", (
       expect(body.data[3].type).toBe("THEORY");
       expect(body.data[0].category.icon).toBeNull();
       checkPublicList(r, body.data);
-      expect(m.templates).toHaveBeenCalledExactlyOnceWith(undefined);
+      expect(m.templates).toHaveBeenCalledExactlyOnceWith(undefined, expect.objectContaining({readPublicTrainerStepTemplates: expect.any(Function)}));
       expect(m.visibleSteps).not.toHaveBeenCalled();
       noWrite();
     },
@@ -212,7 +212,7 @@ describe("AG4 TR013 registered GET /api/v1/trainer/templates frozen producer", (
       expect(body.data.map((x: { id: string }) => x.id))
         .toEqual(["A-newer", "A-older"]);
       checkPublicList(r, body.data, TRAINING);
-      expect(m.templates).toHaveBeenCalledExactlyOnceWith(TRAINING);
+      expect(m.templates).toHaveBeenCalledExactlyOnceWith(TRAINING, expect.objectContaining({readPublicTrainerStepTemplates: expect.any(Function)}));
       noWrite();
     },
   );
@@ -223,7 +223,7 @@ describe("AG4 TR013 registered GET /api/v1/trainer/templates frozen producer", (
       const body = await r.json();
       expect(body.data.map((x: { id: string }) => x.id))
         .toEqual(["B-popular", "A-newer", "A-older", "B-null-category"]);
-      expect(m.templates).toHaveBeenCalledExactlyOnceWith(undefined);
+      expect(m.templates).toHaveBeenCalledExactlyOnceWith(undefined, expect.objectContaining({readPublicTrainerStepTemplates: expect.any(Function)}));
       checkPublicList(r, body.data);
       noWrite();
     },
@@ -232,7 +232,7 @@ describe("AG4 TR013 registered GET /api/v1/trainer/templates frozen producer", (
     const r = await request("B", "?categoryId=not-found");
     expect(r.status).toBe(200); privateHeaders(r);
     expect(await r.json()).toEqual({ success: true, data: [] });
-    expect(m.templates).toHaveBeenCalledExactlyOnceWith("not-found");
+    expect(m.templates).toHaveBeenCalledExactlyOnceWith("not-found", expect.objectContaining({readPublicTrainerStepTemplates: expect.any(Function)}));
     noWrite();
   });
   it("category encoding decoded once; no invented category normalization", async () => {
@@ -240,7 +240,7 @@ describe("AG4 TR013 registered GET /api/v1/trainer/templates frozen producer", (
     const r = await request("A", "?categoryId=" + encodeURIComponent(category));
     expect(r.status).toBe(200); privateHeaders(r);
     expect(await r.json()).toEqual({ success: true, data: [] });
-    expect(m.templates).toHaveBeenCalledExactlyOnceWith(category);
+    expect(m.templates).toHaveBeenCalledExactlyOnceWith(category, expect.objectContaining({readPublicTrainerStepTemplates: expect.any(Function)}));
     noWrite();
   });
   it.each(["USER", "PARTNER"] as const)(
@@ -300,7 +300,7 @@ describe("AG4 TR013 registered GET /api/v1/trainer/templates frozen producer", (
     const r = await request("A");
     expect(r.status).toBe(200); privateHeaders(r);
     expect(await r.json()).toEqual({ success: true, data: [] });
-    expect(m.templates).toHaveBeenCalledExactlyOnceWith(undefined);
+    expect(m.templates).toHaveBeenCalledExactlyOnceWith(undefined, expect.objectContaining({readPublicTrainerStepTemplates: expect.any(Function)}));
     noWrite();
   });
   it("Core storage failure becomes generic 500, no false [] or raw provider error", async () => {

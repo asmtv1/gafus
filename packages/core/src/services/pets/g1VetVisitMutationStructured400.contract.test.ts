@@ -51,7 +51,7 @@ describe("VetVisits mutation structured errors RED/GREEN, no SQL or providers",(
     const raw=await res.text();
     expect(JSON.parse(raw)).toMatchObject({success:false,code:"VET_VISIT_NOT_FOUND"});
     expect(raw).not.toContain("SYNTHETIC_PRIVATE_PET_ID");
-    expect(m.save).toHaveBeenCalledWith("pet-A","owner-B",{},"visit-A");
+    expect(m.save).toHaveBeenCalledWith("pet-A","owner-B",{},"visit-A",undefined);
   });
   it("V04 owner foreign delete is masked as 404, no deletion permitted",async()=>{
     const { VetVisitError }=await import("./petVetVisitService");
@@ -59,7 +59,7 @@ describe("VetVisits mutation structured errors RED/GREEN, no SQL or providers",(
     const res=await call("DELETE",null,"/visit-A","owner-B");
     expect(res.status).toBe(404);
     expect(await res.json()).toMatchObject({success:false,code:"VET_VISIT_NOT_FOUND"});
-    expect(m.remove).toHaveBeenCalledWith("pet-A","owner-B","visit-A");
+    expect(m.remove).toHaveBeenCalledWith("pet-A","owner-B","visit-A",undefined);
   });
   it("V05 legacy static validation messages preserved on 400",async()=>{
     const { VetVisitError }=await import("./petVetVisitService");

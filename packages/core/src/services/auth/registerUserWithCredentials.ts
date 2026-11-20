@@ -1,3 +1,4 @@
+import type { RegistrationContractRowsPort } from "./registrationContractRowsPort";
 import bcrypt from "bcryptjs";
 
 import { createWebLogger } from "@gafus/logger";
@@ -96,6 +97,8 @@ export type RegisterUserWithCredentialsInput = {
  */
 export async function registerUserWithCredentials(
   input: RegisterUserWithCredentialsInput,
+  registrationRows?: CredentialRegistrationPort,
+  contractRows?: RegistrationContractRowsPort,
 ): Promise<RegisterUserWithCredentialsResult> {
   const parsed = authRegisterBodySchema
     .pick({ name: true, email: true, password: true })
@@ -162,13 +165,13 @@ export async function registerUserWithCredentials(
     },
   });
 
-  const port = requireCredentialRegistrationPort();
+  const port = registrationRows ?? requireCredentialRegistrationPort();
   try {
     const outcome = await port.withRegistrationTransaction(async (tx) => {
       const attempt = await getOrCreateRegistrationEmailAttemptInTransaction(tx, {
         tempSessionId: registrationContext.tempSessionId,
         dataFingerprint: fingerprint,
-      });
+      }, contractRows);
       if (attempt.completedAt) {
         if (!attempt.userId || attempt.result !== "SUCCEEDED") {
           throw new Error("Completed registration attempt has no successful user");
@@ -185,7 +188,7 @@ export async function registerUserWithCredentials(
         const promoCode = await saveRegistrationPromoCodeInTransaction(tx, {
           userId: created.id,
           rawCode: parsedPromo.normalizedCode,
-        });
+        }, contractRows);
         if (promoCode) {
           await port.attributePartnerReferralIfCurrentPartnerInTransaction(
             tx,

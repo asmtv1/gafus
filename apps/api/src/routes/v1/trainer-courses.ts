@@ -1,3 +1,4 @@
+import type { TrainerCourseRowsPort } from "@gafus/core/services/trainerCourse";
 /**
  * TR012 registered editor READ and name-only CAS remain unchanged.
  * COURSE031 full-form POST/PUT are SOURCE/MOCK ONLY and default OFF.
@@ -24,12 +25,18 @@ import type {
 import {
   readCourseNameVersion,
   updateCourseNameVersioned,
+  type CourseVersionRowsPort,
 } from "@gafus/core/services/trainerCourse";
-import { readCourseEditorApplication } from "../../modules/trainer-courses/composition/read-course-editor.js";
+import { readCourseEditorApplication, createReadCourseEditorApplicationForRows } from "../../modules/trainer-courses/composition/read-course-editor.js";
 
-export const trainerCoursesRoutes = new Hono();
-
+/** Inject a distinct owner-scoped Course.version adapter for each app instance.
+ * Missing rowsPort is retained solely for older mocked route entrypoints. */
 const courseIdPattern = /^[A-Za-z0-9_-]{1,128}$/;
+export function createTrainerCoursesRoutes(rowsPort?: CourseVersionRowsPort, courseRows?: TrainerCourseRowsPort) {
+const boundCourseEditorApplication = courseRows
+  ? createReadCourseEditorApplicationForRows(courseRows)
+  : readCourseEditorApplication;
+const trainerCoursesRoutes = new Hono();
 // Explicit malformed empty parameter; Hono does not match //draft to :courseId.
 trainerCoursesRoutes.get("//draft", (c) =>
   c.json(
@@ -71,7 +78,7 @@ trainerCoursesRoutes.get("/:courseId/draft", async (c) => {
     );
   }
   try {
-    const draft = await readCourseEditorApplication.draft(courseId, actor.id, {
+    const draft = await boundCourseEditorApplication.draft(courseId, actor.id, {
       allowAdmin: actor.role === "ADMIN",
     });
     if (!draft) {
@@ -120,7 +127,7 @@ trainerCoursesRoutes.get("/:courseId/editor-snapshot", async (c) => {
       403,
     );
   try {
-    const result = await readCourseEditorApplication.editorSnapshot(courseId, {
+    const result = await boundCourseEditorApplication.editorSnapshot(courseId, {
       id: actor.id,
       role: actor.role,
     });
@@ -191,7 +198,10 @@ trainerCoursesRoutes.get("/:courseId/version", async (c) => {
   const user = c.get("user");
   if (user.role !== "TRAINER" && user.role !== "ADMIN")
     return c.json({ success: false, code: "FORBIDDEN", error: "Недостаточно прав" }, 403);
-  const result = await readCourseNameVersion(courseId, { id: user.id, role: user.role });
+  const versionActor = { id: user.id, role: user.role };
+  const result = rowsPort
+    ? await readCourseNameVersion(courseId, versionActor, rowsPort)
+    : await readCourseNameVersion(courseId, versionActor);
   if (result.status === "found")
     return c.json({ success: true, data: result.data } satisfies TrainerCourseVersionRead);
   if (result.status === "not_found")
@@ -229,14 +239,11 @@ trainerCoursesRoutes.patch("/:courseId/name", async (c) => {
     input.expectedVersion > 2147483647
   )
     return c.json(invalidVersionQuery, 400);
-  const result = await updateCourseNameVersioned(
-    {
-      courseId,
-      name: input.name,
-      expectedVersion: input.expectedVersion,
-    },
-    { id: user.id, role: user.role },
-  );
+  const versionInput = { courseId, name: input.name, expectedVersion: input.expectedVersion };
+  const versionActor = { id: user.id, role: user.role };
+  const result = rowsPort
+    ? await updateCourseNameVersioned(versionInput, versionActor, rowsPort)
+    : await updateCourseNameVersioned(versionInput, versionActor);
   if (result.status === "updated")
     return c.json({ success: true, data: result.data } satisfies TrainerCourseVersionRead);
   if (result.status === "stale")
@@ -252,6 +259,12 @@ trainerCoursesRoutes.patch("/:courseId/name", async (c) => {
  * No production composition ever provides real Core create/update functions.
  * To exercise the route, isolated tests must inject all mocked Core ports.
  */
+// Keep the registered old mock-only full-form route, but do not bind live
+// full-form writes in the production application.
+trainerCoursesRoutes.route("/", createTrainerCourseFormSourceMockRoutes());
+return trainerCoursesRoutes;
+}
+
 type CourseFormMockPorts = {
   create: typeof createCourse;
   update: typeof updateCourse;
@@ -444,5 +457,5 @@ export function createTrainerCourseFormSourceMockRoutes(optIn?: MockWriteOptIn) 
   return routes;
 }
 
-// Real app gets only fail-closed handlers; real Core writers are NOT wired here.
-trainerCoursesRoutes.route("/", createTrainerCourseFormSourceMockRoutes());
+/** Legacy source/test compatibility, never used by production app.ts. */
+export const trainerCoursesRoutes = createTrainerCoursesRoutes();

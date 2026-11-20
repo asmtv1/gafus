@@ -130,7 +130,7 @@ vi.mock("@gafus/video-access", () => ({
 
 import { authMiddleware } from "../../middleware/auth";
 import { jsonRequest } from "../../test/route-test-utils";
-import { trainingRoutes } from "./training";
+import { trainingRoutes, createTrainingRoutes, type TrainingRoutesPorts } from "./training";
 
 function createTestApp() {
   const app = new Hono();
@@ -196,11 +196,46 @@ describe("training route contracts", () => {
     validateTheoryStepForCompletionMock.mockResolvedValue({ valid: true });
   });
 
+  it("two independently created training Hono routers use only their own injected mutation ports", async () => {
+    const writeA = vi.fn().mockResolvedValue({ courseId: STEP_COURSE });
+    const writeB = vi.fn().mockResolvedValue({ courseId: STEP_COURSE });
+    const create = (execute: typeof writeA) => {
+      const ports = {
+        requireCourseStepOperationAccess: vi.fn().mockResolvedValue(null),
+        validateTheoryStepForCompletion: vi.fn().mockResolvedValue({ valid: true }),
+        readTrainingDaysApplication: { execute: vi.fn() },
+        readTrainingDayApplication: { execute: vi.fn() },
+        writeStepProgressApplication: { execute },
+      } as unknown as TrainingRoutesPorts;
+      const app = new Hono();
+      app.use("/api/v1/training/*", async (c, next) => {
+        c.set("user", { id: STEP_ACTOR, username: "student", role: "USER" });
+        await next();
+      });
+      app.route("/api/v1/training", createTrainingRoutes(ports));
+      return app;
+    };
+    const appA = create(writeA);
+    const appB = create(writeB);
+    for (const app of [appA, appB, appA]) {
+      const response = await app.request(jsonRequest(
+        "/api/v1/training/step/complete/practice", "POST", stepBody(),
+      ));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ success: true });
+    }
+    expect(writeA).toHaveBeenCalledTimes(2);
+    expect(writeB).toHaveBeenCalledTimes(1);
+    // Global fallback was never used by these independent application instances.
+    expect(updateStepAndDayMock).not.toHaveBeenCalled();
+    expect(requireCourseStepOperationAccessMock).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["start", "start", { durationSec: 37 }, { type: "start", remainingSec: 37 }, false],
     ["theory", "complete/theory", {}, { type: "complete" }, true],
   ] as const)(
-    "AG1-LEARN032 step port %s keeps guard-update-effects order",
+    "AG1-LEARN032 step port %s keeps guard-atomic-write-effects order",
     async (_name, path, extra, operation, isTheory) => {
       const calls: string[] = [];
       requireCourseStepOperationAccessMock.mockImplementationOnce(async () => {
@@ -216,16 +251,13 @@ describe("training route contracts", () => {
         calls.push("update");
         return { courseId: STEP_COURSE };
       });
-      syncUserCourseStatusFromDaysMock.mockImplementationOnce(async () => {
-        calls.push("sync");
-      });
       const res = await createAuthenticatedTestApp().request(
         jsonRequest(`/api/v1/training/step/${path}`, "POST", stepBody(extra)),
       );
       expect(res.status).toBe(200);
       await expect(res.json()).resolves.toEqual({ success: true });
       expect(calls).toEqual(
-        isTheory ? ["access", "theory-validation", "update", "sync"] : ["access", "update", "sync"],
+        isTheory ? ["access", "theory-validation", "update"] : ["access", "update"],
       );
       expect(updateStepAndDayMock).toHaveBeenCalledExactlyOnceWith(
         STEP_ACTOR,
@@ -233,10 +265,7 @@ describe("training route contracts", () => {
         2,
         operation,
       );
-      expect(syncUserCourseStatusFromDaysMock).toHaveBeenCalledExactlyOnceWith(
-        STEP_ACTOR,
-        STEP_COURSE,
-      );
+      expect(syncUserCourseStatusFromDaysMock).not.toHaveBeenCalled();
       expect(logErrorMock).not.toHaveBeenCalled();
     },
   );
@@ -388,9 +417,7 @@ describe("training route contracts", () => {
     expect(updateStepAndDayMock).toHaveBeenNthCalledWith(2, STEP_ACTOR, STEP_DAY, 2, {
       type: "resume",
     });
-    expect(syncUserCourseStatusFromDaysMock).toHaveBeenCalledTimes(2);
-    expect(syncUserCourseStatusFromDaysMock).toHaveBeenNthCalledWith(1, STEP_ACTOR, STEP_COURSE);
-    expect(syncUserCourseStatusFromDaysMock).toHaveBeenNthCalledWith(2, STEP_ACTOR, STEP_COURSE);
+    expect(syncUserCourseStatusFromDaysMock).not.toHaveBeenCalled();
     // Downstream Core, notifications and queue remain mocked; no real POST/SQL.
   });
 
@@ -472,7 +499,7 @@ describe("training route contracts", () => {
       expect(logErrorMock).not.toHaveBeenCalled();
     });
 
-    it.each(stepOperations)("$name success preserves exact mutation + sync", async (op) => {
+    it.each(stepOperations)("$name success preserves exact atomic mutation", async (op) => {
       updateStepAndDayMock.mockResolvedValueOnce({ courseId: STEP_COURSE });
       const res = await createAuthenticatedTestApp().request(
         jsonRequest("/api/v1/training/step/" + op.path, "POST", stepBody(op.extra)),
@@ -489,42 +516,25 @@ describe("training route contracts", () => {
             ? { type: "pause", remainingSec: 70 }
             : { type: op.type },
       );
-      expect(syncUserCourseStatusFromDaysMock).toHaveBeenCalledExactlyOnceWith(
-        STEP_ACTOR,
-        STEP_COURSE,
-      );
+      expect(syncUserCourseStatusFromDaysMock).not.toHaveBeenCalled();
       expect(logErrorMock).not.toHaveBeenCalled();
     });
 
-    it.each(stepOperations.filter((op) => op.name !== "theory complete"))(
-      "$name sync failure is nonfatal and does not log provider error",
+    it.each(stepOperations)(
+      "$name reconciliation failure rolls back the atomic write and returns 500",
       async (op) => {
-        updateStepAndDayMock.mockResolvedValueOnce({ courseId: STEP_COURSE });
-        syncUserCourseStatusFromDaysMock.mockRejectedValueOnce(privateFailure());
+        // The core server transaction rejects before commit; HTTP never triggers effects.
+        updateStepAndDayMock.mockRejectedValueOnce(privateFailure());
         const res = await createAuthenticatedTestApp().request(
           jsonRequest("/api/v1/training/step/" + op.path, "POST", stepBody(op.extra)),
         );
-        expect(res.status).toBe(200);
-        expect(await res.json()).toEqual({ success: true });
+        expect(res.status).toBe(500);
+        expect(await res.json()).toEqual({ success: false, error: "Внутренняя ошибка сервера" });
+        expect(syncUserCourseStatusFromDaysMock).not.toHaveBeenCalled();
         expect(logErrorMock).toHaveBeenCalledTimes(1);
         expect(loggedErrorsText()).not.toContain(PRIVATE_STEP_CANARY);
       },
     );
-
-    it("theory complete sync failure stays 500 with sanitized log", async () => {
-      updateStepAndDayMock.mockResolvedValueOnce({ courseId: STEP_COURSE });
-      syncUserCourseStatusFromDaysMock.mockRejectedValueOnce(privateFailure());
-      const res = await createAuthenticatedTestApp().request(
-        jsonRequest("/api/v1/training/step/complete/theory", "POST", stepBody()),
-      );
-      expect(res.status).toBe(500);
-      expect(await res.json()).toEqual({
-        success: false,
-        error: "Внутренняя ошибка сервера",
-      });
-      expect(logErrorMock).toHaveBeenCalledTimes(1);
-      expect(loggedErrorsText()).not.toContain(PRIVATE_STEP_CANARY);
-    });
 
     it("start fire-and-forget notify failure keeps success and redacts logger actor", async () => {
       updateStepAndDayMock.mockResolvedValueOnce({ courseId: STEP_COURSE });
@@ -578,19 +588,14 @@ describe("training route contracts", () => {
       expect(syncUserCourseStatusFromDaysMock).not.toHaveBeenCalled();
       expect(resetStepNotificationMock).not.toHaveBeenCalled();
     });
-    it("sync error is best effort and must not log raw provider stack", async () => {
-      updateStepAndDayMock.mockResolvedValueOnce({ courseId: STEP_COURSE });
-      syncUserCourseStatusFromDaysMock.mockRejectedValueOnce(privateFailure());
+    it("atomic reconciliation failure never schedules a notification", async () => {
+      updateStepAndDayMock.mockRejectedValueOnce(privateFailure());
       const res = await call();
-      expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ success: true });
-      expect(logErrorMock).toHaveBeenCalledTimes(1);
+      expect(res.status).toBe(500);
+      expect(await res.json()).toEqual({ success: false, error: "Внутренняя ошибка сервера" });
+      expect(syncUserCourseStatusFromDaysMock).not.toHaveBeenCalled();
+      expect(resetStepNotificationMock).not.toHaveBeenCalled();
       expect(loggedErrorsText()).not.toContain(PRIVATE_STEP_CANARY);
-      expect(resetStepNotificationMock).toHaveBeenCalledExactlyOnceWith(
-        STEP_ACTOR,
-        "fixture-day",
-        2,
-      );
     });
     it("reset notification error remains nonfatal and redacts identifiers", async () => {
       updateStepAndDayMock.mockResolvedValueOnce({ courseId: STEP_COURSE });
@@ -611,10 +616,7 @@ describe("training route contracts", () => {
       expect(updateStepAndDayMock).toHaveBeenCalledExactlyOnceWith(STEP_ACTOR, STEP_DAY, 2, {
         type: "reset",
       });
-      expect(syncUserCourseStatusFromDaysMock).toHaveBeenCalledExactlyOnceWith(
-        STEP_ACTOR,
-        STEP_COURSE,
-      );
+      expect(syncUserCourseStatusFromDaysMock).not.toHaveBeenCalled();
       expect(resetStepNotificationMock).toHaveBeenCalledExactlyOnceWith(
         STEP_ACTOR,
         "fixture-day",
@@ -875,10 +877,9 @@ describe("training route contracts", () => {
     expect(response.status).toBe(401);
   });
 
-  it("starts a step, syncs course status, and schedules timeout notification", async () => {
+  it("starts a step atomically and schedules timeout notification", async () => {
     const app = createAuthenticatedTestApp();
     updateStepAndDayMock.mockResolvedValueOnce({ courseId: "course-1" });
-    syncUserCourseStatusFromDaysMock.mockResolvedValueOnce(undefined);
     createStepNotificationForStepStartMock.mockResolvedValueOnce(undefined);
 
     const response = await app.request(
@@ -896,7 +897,7 @@ describe("training route contracts", () => {
       type: "start",
       remainingSec: 90,
     });
-    expect(syncUserCourseStatusFromDaysMock).toHaveBeenCalledWith("user-1", "course-1");
+    expect(syncUserCourseStatusFromDaysMock).not.toHaveBeenCalled();
     expect(createStepNotificationForStepStartMock).toHaveBeenCalledWith(
       "user-1",
       "clwdayoc0000000000000001",
@@ -1072,5 +1073,34 @@ describe("training route contracts", () => {
       code: "SUBSCRIPTION_OR_CREDITS_REQUIRED",
     });
     expect(updateStepAndDayMock).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("training Hono explicit dependencies", () => {
+  it("creates two independent route instances without a global service registration", async () => {
+    const make = (marker: string) => {
+      const ownRead = vi.fn().mockResolvedValue({ marker });
+      const routes = createTrainingRoutes({
+        requireCourseStepOperationAccess: requireCourseStepOperationAccessMock,
+        validateTheoryStepForCompletion: validateTheoryStepForCompletionMock,
+        readTrainingDaysApplication: { execute: ownRead } as unknown as TrainingRoutesPorts["readTrainingDaysApplication"],
+        readTrainingDayApplication: { execute: vi.fn() } as unknown as TrainingRoutesPorts["readTrainingDayApplication"],
+        writeStepProgressApplication: { execute: vi.fn() } as unknown as TrainingRoutesPorts["writeStepProgressApplication"],
+      });
+      const app = new Hono();
+      app.use("/api/v1/training/*", async (c,next) => {
+        c.set("user", { id: "independent-owner", role: "USER", username: "test" });
+        await next();
+      });
+      app.route("/api/v1/training", routes);
+      return { app, ownRead };
+    };
+    const a = make("first-instance"), b = make("second-instance");
+    expect(await (await a.app.request("/api/v1/training/days")).json()).toEqual({success:true,data:{marker:"first-instance"}});
+    expect(await (await b.app.request("/api/v1/training/days")).json()).toEqual({success:true,data:{marker:"second-instance"}});
+    expect(a.ownRead).toHaveBeenCalledTimes(1);
+    expect(b.ownRead).toHaveBeenCalledTimes(1);
+    expect(a.ownRead).not.toBe(b.ownRead);
   });
 });

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
-import { createFeedService } from "./service";
-import type { FeedDb, FeedStoragePort } from "./ports";
+import { createFeedService } from "../../../../feed-server/src/postRows";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
+import type { FeedStoragePort } from "./ports";
 
 /** No real database or storage: validate the transactional cleanup schedule. */
 describe("Feed S3 upload cancellation cleanup", () => {

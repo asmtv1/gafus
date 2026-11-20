@@ -4,6 +4,8 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import {
   ALLOWED_BROWSER_ORIGINS,
   isIsolatedRefactorBrowserOrigin,
+  isIsolatedQaCookieOrigin,
+  isIsolatedQaDeleteWebOrigin,
 } from "../middleware/cors.js";
 
 const ACCESS_COOKIE = "gafus_access";
@@ -24,6 +26,14 @@ const cookieOptions = {
  * pre-existing gallery-only preview. Production and ordinary dev stay Secure.
  */
 function cookieSecure(c: Context): boolean {
+  // Only a disposable PG/Redis QA origin is allowed to set host-only HTTP test cookies.
+  // Normal production/development always retains the original cookie policy.
+  const qaOrigin = c.req.header("origin") ?? "";
+  if (isIsolatedQaDeleteWebOrigin(qaOrigin)) return false;
+  if (isIsolatedQaCookieOrigin(qaOrigin)) {
+    const url = new URL(c.req.url);
+    if (url.origin === qaOrigin) return false;
+  }
   const strictLoopback = process.env.NODE_ENV === "development" &&
     process.env.GAFUS_LOCAL_ISOLATED_API === "1" &&
     process.env.GAFUS_LOCAL_BROWSER_AUTH === "1" &&
@@ -58,7 +68,8 @@ export function isBrowserCookieMode(c: Context): boolean {
 export function isTrustedBrowserOrigin(c: Context): boolean {
   const origin = c.req.header("origin");
   return origin !== undefined &&
-    (ALLOWED_BROWSER_ORIGINS.has(origin) || isIsolatedRefactorBrowserOrigin(origin));
+    (ALLOWED_BROWSER_ORIGINS.has(origin) || isIsolatedRefactorBrowserOrigin(origin) ||
+     isIsolatedQaCookieOrigin(origin) || isIsolatedQaDeleteWebOrigin(origin));
 }
 
 export function getBrowserAccessToken(c: Context): string | undefined {

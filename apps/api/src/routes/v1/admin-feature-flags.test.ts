@@ -36,14 +36,9 @@ function req(method: string, body?: unknown, authenticated = true) {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 }
-const values = {
-  vkLogin: false, iosRuCardPayment: false, subscriptionPromoCodes: true,
-  iosRuCardPaymentHint: false, rewardedAds: false,
-};
 const body = {
-  revision: 3, iosReviewVersion: "1.7.0",
+  revision: 3,
   ota: { required: false, version: null, platform: "all" },
-  released: values, review: values,
   global: { appSubscriptionPaywall: true, appSubscriptionGating: true },
   rewardedAds: {
     androidEnabled: false, dailyAdLimit: 3,
@@ -125,11 +120,10 @@ describe("admin mobile release flags", () => {
     expect(fake.write).not.toHaveBeenCalled();
   });
 
-  it("refuses to reactivate the retired ad system for either iOS profile", async () => {
-    const changed = { ...body, released: { ...body.released, rewardedAds: true } };
-    const response = await req("PUT", changed);
-    expect(response.status).toBe(409);
-    expect((await response.json()).code).toBe("RETIRED_REWARDED_ADS_READ_ONLY");
+  it("rejects old review profile values", async () => {
+    const response = await req("PUT", { ...body, iosReviewVersion: "1.7.5",
+      review: { vkLogin: true } });
+    expect(response.status).toBe(400);
     expect(fake.write).not.toHaveBeenCalled();
   });
   it("refuses to mutate archived Android ad settings", async () => {

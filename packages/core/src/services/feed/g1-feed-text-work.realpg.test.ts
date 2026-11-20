@@ -1,9 +1,10 @@
+import { createFeedPreferenceOperations } from "../../../../feed-server/src/preferenceRows";
 /** Explicit opted-in local WORK PG18 Core feed; no HTTP/storage or live providers. */
 import { randomBytes, randomUUID } from "node:crypto";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@gafus/prisma";
-import { createFeedService } from "./service";
-import { createFeedSocial } from "./social";
+import { createFeedService } from "../../../../feed-server/src/postRows";
+import { createFeedSocial } from "../../../../feed-server/src/socialRows";
 import { createFeedPreferences } from "./preferences";
 import type { FeedStoragePort } from "./ports";
 
@@ -23,7 +24,7 @@ const storage: FeedStoragePort = {
 };
 const posts = createFeedService({ db: prisma, storage, enabled: () => true });
 const social = createFeedSocial({ db: prisma, enabled: () => true });
-const prefs = createFeedPreferences({ db: prisma, enabled: () => true });
+const prefs = createFeedPreferences({ operations: createFeedPreferenceOperations(prisma), enabled: () => true });
 let author = "",
   reader = "",
   stranger = "",

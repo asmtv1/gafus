@@ -92,7 +92,10 @@ describe("AG1 OFF021 existing training vs earning boundary (NO real DB)",()=>{
     const source=core("../../../../../apps/api/src/routes/v1/training.ts");
     const span=section(source,'trainingRoutes.post(\n  "/step/complete/practice",', "const postDiaryBodySchema");
     expect(span).toContain("await writeStepProgressApplication.execute(");
-    expect(span).toContain("await syncUserCourseStatusFromDays(");
+    // Course reconciliation now happens inside the single training DB transaction.
+    expect(span).not.toContain("await syncUserCourseStatusFromDays(");
+    const training=core("../../../../course-progress-server/src/trainingService.ts");
+    expect(training).toContain("await syncUserCourseStatusFromDaysTx(tx, userId, result.courseId)");
     expect(span).not.toMatch(/awardActivityTx|awardBonusTx|changeGafusBalanceTx|grantRewardedCreditsToWallet|gafusRewardEvent/);
     expect(span).toContain("return c.json({ success: true })");
   });
@@ -109,7 +112,7 @@ describe("AG1 OFF021 existing training vs earning boundary (NO real DB)",()=>{
     // Inspect the implementation, not the thin façade, so a future accidental
     // Gafus wallet write during a completion still fails closed.
     expect(trainingCore).toContain('registerTrainingServicePort');
-    const trainingApiComposer=core("../../../../../apps/api/src/modules/training/composition/install-training-service.ts");
+    const trainingApiComposer=core("../../../../../apps/api/src/modules/training/composition/sql-training-instance.ts");
     expect(trainingApiComposer).toContain('@gafus/course-progress-server/training-service');
     expect(dailyComposition).toContain('@gafus/course-progress-server/daily-course-service');
     expect(trainingCore).toMatch(/export const updateStepAndDay:/);

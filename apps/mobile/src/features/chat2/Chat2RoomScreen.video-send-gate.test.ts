@@ -24,7 +24,7 @@ describe("Chat2 native video S3 consent gate",()=>{
     expect(send).toContain("const attachment = await chat2.upload(id, {");
     expect(send).toContain("uri: prepared.uri");
     expect(send).toContain("preparedPoster: poster");
-    expect(send).toContain("else await chat2.send(id, value, requestId, reply?.id, attachmentIds)");
+    expect(send).toContain("await chat2.send(id, value, attempt.clientMessageId, reply?.id, attachmentIds)");
     expect(send).toContain("preparedVideos.current.clear()");
     expect(source).toContain("preparedVideos.current.get(file.localId)?.dispose()");
     expect(source).toContain("for (const prepared of videoDrafts.values()) prepared.dispose()");

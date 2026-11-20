@@ -85,10 +85,9 @@ vi.mock("@gafus/webpush", () => ({
   partitionPushSubscriptions: (subscriptions:{endpoint:string}[]) => {
     if (subscriptions.some(item=>item.endpoint!==fake.endpoint))
       throw Error("DENIED: foreign push subscription");
-    return {web:subscriptions,expo:[],rustore:[]};
+    return {web:subscriptions,expo:[]};
   },
   sendExpoPushNotifications: () => { throw Error("DENIED: external Expo provider"); },
-  sendRustorePushNotifications: () => { throw Error("DENIED: external RuStore provider"); },
 }));
 vi.mock("@gafus/logger", () => ({createWorkerLogger:()=>({
   info:vi.fn(),warn:vi.fn(),error:vi.fn(),success:vi.fn(),

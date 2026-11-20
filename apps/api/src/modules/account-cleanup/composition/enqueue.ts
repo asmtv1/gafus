@@ -4,7 +4,7 @@
  */
 import { createAccountStorageCleanup } from "@gafus/core/services/accountCleanup";
 import { insertAccountMediaCleanupSnapshotsTx } from "@gafus/identity-write-server/account-cleanup-records";
-import { enqueueFeedAccountCleanup } from "@gafus/core/services/feed";
+import { enqueueFeedAccountCleanup } from "@gafus/feed-server/account-cleanup";
 import { enqueueGalleryAccountCleanup } from "@gafus/core/services/gallery";
 import { DUAL_PROVIDER_CLEANUP_MARKER } from "@gafus/cdn-upload";
 

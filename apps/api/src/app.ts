@@ -1,43 +1,33 @@
 import "./modules/app-feature-flags/composition/install-core-flags.js";
-import "./modules/app-subscription/composition/install-core-subscription-access.js";
 import "./modules/rewarded-credits/composition/install-core-settings.js";
-import "./modules/trainer-courses/composition/install-core-version-rows.js";
 import "./modules/auth/composition/install-registration-context.js";
-import "./modules/auth/composition/install-password-reset.js";
-import "./modules/auth/composition/install-email-account-rows.js";
-import "./modules/auth/composition/install-vk-completion.js";
 import "./modules/auth/composition/install-credential-registration.js";
 import "./modules/auth/composition/install-registration-contract-rows.js";
+
+
+
 import "./modules/content-access/composition/install-policy-reads.js";
-import "./modules/content-access/composition/install-occurrence-reads.js";
 import "./modules/gafus/composition/install-wallet-lock.js";
-import "./modules/training/composition/install-content-revision-read.js";
 import "./modules/courses/composition/install-catalog-read.js";
-import "./modules/training/composition/install-day-content-read.js";
-import "./modules/app-subscription/composition/install-promo-code-rows.js";
 import "./modules/gafus/composition/install-ledger-rows.js";
-import "./modules/gafus/composition/install-unlock-rows.js";
-import "./modules/trainer-days/composition/install-training-day-rows.js";
+
 import "./modules/rewarded-credits/composition/install-access-reads.js";
 import "./modules/rewarded-credits/composition/install-wallet-rows.js";
-import "./modules/user/composition/install-profile-rows.js";
-import "./modules/gafus/composition/install-admin-rows.js";
-import "./modules/trainer-courses/composition/install-trainer-course-rows.js";
-import "./modules/training/composition/install-training-service.js";
+
+
 import "./modules/auth/composition/install-core-auth-rows.js";
-import "./modules/auth/composition/install-core-vk-auth-rows.js";
-import "./modules/offline/composition/install-offline-mutation-rows.js";
-import "./modules/pet-prevention/composition/install-prevention-rows.js";
+
+
 import "./modules/pets/composition/install-pet-rows.js";
-import "./modules/pets/composition/install-vet-visit-rows.js";
 import "./modules/rewarded-credits/composition/install-ad-session-rows.js";
-import "./modules/trainer-steps/composition/install-trainer-step-rows.js";
+
 import { internalFeedRoutes } from "./routes/internal/feed.js";
 import { internalChat2MediaJobRoutes } from "./routes/internal/chat2-media-jobs.js";
 import { internalQuestionsMediaJobRoutes } from "./routes/internal/questions-media-jobs.js";
 import { questionsRoutes } from "./routes/v1/questions.js";
 import { gafusRoutes } from "./routes/v1/gafus.js";
-import { gafusAdminRoutes } from "./routes/v1/gafus-admin.js";
+import { createGafusAdminRoutes } from "./routes/v1/gafus-admin.js";
+import { adminRows } from "./modules/gafus/composition/admin-rows-instance.js";
 import { galleryRoutes } from "./routes/v1/gallery.js";
 import { galleryCdnRedirectResponse } from "@gafus/gallery-server";
 import { feedRoutes } from "./routes/v1/feed.js";
@@ -68,47 +58,53 @@ import {
   usernameAvailableRateLimiter,
 } from "./middleware/rate-limit.js";
 import { healthRoutes } from "./routes/v1/health.js";
-import { chat2CanRetireLegacy } from "./lib/chat2-legacy-retirement.js";
 import { authRoutes, usernamePrivateResponse } from "./routes/v1/auth.js";
-import { webVkRoutes } from "./routes/v1/auth-vk-web.js";
 import { userRoutes } from "./routes/v1/user.js";
 import { articlesRoutes } from "./routes/v1/articles.js";
 import { coursesRoutes } from "./routes/v1/courses.js";
 import { trainerStatisticsRoutes } from "./routes/v1/trainer-statistics.js";
-import { trainerCoursesRoutes } from "./routes/v1/trainer-courses.js";
-import { trainerStepsRoutes } from "./routes/v1/trainer-steps.js";
-import { trainerAuthoringRoutes } from "./routes/v1/trainer-authoring.js";
-import { trainerTemplatesRoutes } from "./routes/v1/trainer-templates.js";
+import { createTrainerCoursesRoutes } from "./routes/v1/trainer-courses.js";
+import { courseVersionRowsPort } from "./modules/trainer-courses/composition/course-version-rows-instance.js";
+import { trainerCourseRows } from "./modules/trainer-courses/composition/trainer-course-rows-instance.js";
+import { createTrainerStepsRoutes } from "./routes/v1/trainer-steps.js";
+import { createTrainerAuthoringRoutes, createProductionAuthoringPorts } from "./routes/v1/trainer-authoring.js";
+import { trainingDayRows } from "./modules/trainer-days/composition/training-day-rows-instance.js";
+import { trainerStepRows } from "./modules/trainer-steps/composition/trainer-step-rows-instance.js";
+import { createTrainerTemplatesRoutes } from "./routes/v1/trainer-templates.js";
 import { trainerDailyBundlesRoutes } from "./routes/v1/trainer-daily-bundles.js";
 import { trainerDailyStatisticsRoutes } from "./routes/v1/trainer-daily-statistics.js";
 import { trainerDailyManageRoutes } from "./routes/v1/trainer-daily-manage.js";
 import { trainerDailyImportRoutes } from "./routes/v1/trainer-daily-import.js";
-import { trainerDaysRoutes } from "./routes/v1/trainer-days.js";
+import { createTrainerDaysRoutes } from "./routes/v1/trainer-days.js";
 import { trainerExamSummaryRoutes } from "./routes/v1/trainer-exam-summary.js";
 import { trainerExamManageRoutes } from "./routes/v1/trainer-exam-manage.js";
 import { trainerNotesSummaryRoutes } from "./routes/v1/trainer-notes-summary.js";
 import { trainerNotesManageRoutes } from "./routes/v1/trainer-notes-manage.js";
-import { trainerStepManageRoutes, trainerDayManageRoutes } from "./routes/v1/trainer-content-manage.js";
-import { trainerFullCourseRoutes } from "./routes/v1/trainer-course-full-manage.js";
+import { createTrainerStepManageRoutes, createTrainerDayManageRoutes, createProductionTrainerContentPorts } from "./routes/v1/trainer-content-manage.js";
+import { createTrainerFullCourseRoutes, createProductionTrainerFullCoursePorts } from "./routes/v1/trainer-course-full-manage.js";
 import { trainerVideosManageRoutes } from "./routes/v1/trainer-videos-manage.js";
 import { trainerArticlesOwnSummaryRoutes } from "./routes/v1/trainer-articles-own-summary.js";
 import { trainerArticlesManageRoutes } from "./routes/v1/trainer-articles-manage.js";
 import { trainerVideosMetadataRoutes } from "./routes/v1/trainer-videos-metadata.js";
 import { trainerVideosCatalogRoutes } from "./routes/v1/trainer-videos-catalog.js";
 import { petsRoutes } from "./routes/v1/pets.js";
-import { petPreventionRoutes } from "./routes/v1/pet-prevention.js";
+import { createPetPreventionRoutes } from "./routes/v1/pet-prevention.js";
 import { petVetVisitRoutes } from "./routes/v1/pet-vet-visits.js";
-import { trainingRoutes } from "./routes/v1/training.js";
+import { createApiTrainingRoutes } from "./modules/training/composition/create-training-routes.js";
+import { sqlTraining } from "./modules/training/composition/sql-training-instance.js";
 import { dailyCourseRoutes } from "./routes/v1/daily-course.js";
 import { examRoutes } from "./routes/v1/exam.js";
 import { surveysRoutes } from "./routes/v1/surveys.js";
-import { offlineRoutes } from "./routes/v1/offline.js";
+import { createOfflineRoutes } from "./routes/v1/offline.js";
+import { offlineMutationRows } from "./modules/offline/composition/offline-mutation-rows-instance.js";
+import { preventionRows } from "./modules/pet-prevention/composition/prevention-rows-instance.js";
 import { achievementsRoutes } from "./routes/v1/achievements.js";
 import { subscriptionsRoutes } from "./routes/v1/subscriptions.js";
 import { notesRoutes } from "./routes/v1/notes.js";
 import { remindersRoutes } from "./routes/v1/reminders.js";
 import { walksRoutes } from "./routes/v1/walks.js";
 import { paymentsRoutes } from "./routes/v1/payments.js";
+import { googlePlayNotifications } from "./routes/v1/google-play-notifications.js";
 import { paymentProviderWebhooks } from "./routes/v1/payment-provider-webhooks.js";
 import { publicMobileRoutes } from "./routes/v1/public-mobile.js";
 import { publicPaidCourseOutlineRoutes } from "./routes/v1/public-paid-course-outline.js";
@@ -130,7 +126,7 @@ import { adminSubscriptionRoutes } from "./routes/v1/admin-subscriptions.js";
 import { adminBroadcastRoutes } from "./routes/v1/admin-broadcasts.js";
 import { adminSettingsRoutes } from "./routes/v1/admin-settings.js";
 import { adminConsultationScheduleRoutes } from "./routes/v1/admin-consultation-schedules.js";
-import { adminGafusOperationsRoutes } from "./routes/v1/admin-gafus-operations.js";
+import { createAdminGafusOperationsRoutes } from "./routes/v1/admin-gafus-operations.js";
 import { adminReengagementTriggerRoutes } from "./routes/v1/admin-reengagement-trigger.js";
 import { adminCacheRoutes } from "./routes/v1/admin-cache.js";
 import { consultationsRoutes } from "./routes/v1/consultations.js";
@@ -362,7 +358,7 @@ const adminGafusPrivate = async (c: Context, next: () => Promise<void>) => {
   c.header("Cache-Control", "private, no-store");
 };
 app.use("/api/v1/admin/gafus-operations/*", adminGafusPrivate, authMiddleware, apiRateLimiter);
-app.route("/api/v1/admin/gafus-operations", adminGafusOperationsRoutes);
+app.route("/api/v1/admin/gafus-operations", createAdminGafusOperationsRoutes(adminRows));
 
 // Auth routes (rate limited) — GET username-available получает мягкий лимит
 // G03 private response headers must precede the Redis limiter (including 429).
@@ -377,7 +373,13 @@ app.use("/api/v1/auth/*", (c, next) => {
   // 10 attempts / 15 minutes quota, independent of refresh/logout traffic.
   return authRateLimiter(c, next);
 });
-app.route("/api/v1/auth/vk-web", webVkRoutes);
+app.all("/api/v1/auth/vk-web/*", (c) =>
+  c.json({
+    success: false,
+    code: "VK_AUTH_RETIRED",
+    error: "Вход через VK больше не поддерживается. Восстановите пароль по email или обратитесь в поддержку GAFUS.",
+  }, 410),
+);
 app.route("/api/v1/auth", authRoutes);
 
 app.use("/api/v1/mobile-intro/events", apiRateLimiter);
@@ -385,21 +387,6 @@ app.use("/api/v1/mobile-intro/auth-outcome", authMiddleware, apiRateLimiter);
 app.use("/api/v1/mobile-intro/admin/*", authMiddleware, apiRateLimiter);
 app.route("/api/v1/mobile-intro", mobileIntroRoutes);
 
-// Old Stream chat endpoints are intentionally retired. Never fall back to
-// the old provider or mutate legacy conversations during the Chat2 cutover.
-const retiredChat = async (c: Context) => {
-  c.header("Cache-Control", "no-store");
-  if (!(await chat2CanRetireLegacy()))
-    return c.json({ success: false, code: "CHAT2_CUTOVER_NOT_READY",
-      error: "Сообщения временно недоступны" }, 503);
-  return c.json({ success: false, code: "LEGACY_CHAT_RETIRED",
-    error: "Используйте Сообщения (Chat 2.0)" }, 410);
-};
-for (const route of ["/api/v1/cynologist-chat", "/api/v1/community-chat",
-  "/api/v1/stream-chat/webhook"]) {
-  app.all(route, retiredChat);
-  app.all(`${route}/*`, retiredChat);
-}
 // Chat 2.0 remains dark by default until the isolated Refactor environment is configured.
 // Never accidentally expose a partially migrated messenger in another deployment.
 const chat2Gate = async (c: Context, next: () => Promise<void>) => {
@@ -438,7 +425,7 @@ const ownerPrivateRead = async (c: Context, next: () => Promise<void>) => {
 app.use("/api/v1/gafus", ownerPrivateRead, authMiddleware, apiRateLimiter);
 app.use("/api/v1/gafus/*", ownerPrivateRead, authMiddleware, apiRateLimiter);
 app.route("/api/v1/gafus", gafusRoutes);
-app.route("/api/v1/gafus/admin", gafusAdminRoutes);
+app.route("/api/v1/gafus/admin", createGafusAdminRoutes(adminRows));
 const galleryNoStore = async (c: Context, next: () => Promise<void>) => {
   c.header("Cache-Control", "no-store");
   await next();
@@ -525,8 +512,8 @@ app.use("/api/v1/trainer/courses/*", async (c, next) => {
   c.header("Referrer-Policy", "no-referrer");
 });
 app.use("/api/v1/trainer/courses/*", authMiddleware, apiRateLimiter);
-app.route("/api/v1/trainer/courses", trainerCoursesRoutes);
-app.route("/api/v1/trainer/courses/manage", trainerFullCourseRoutes);
+app.route("/api/v1/trainer/courses", createTrainerCoursesRoutes(courseVersionRowsPort, trainerCourseRows));
+app.route("/api/v1/trainer/courses/manage", createTrainerFullCourseRoutes(createProductionTrainerFullCoursePorts(trainerCourseRows)));
 
 // AG4-approved scoped TR018: private even on pre-auth 401 and early Redis 429.
 // Limiter remains the existing shared API limiter; JWT actor is server verified.
@@ -571,14 +558,14 @@ app.use("/api/v1/trainer/steps", trainerStepsPrivateRead);
 app.use("/api/v1/trainer/steps/*", trainerStepsPrivateRead);
 app.use("/api/v1/trainer/steps", authMiddleware, apiRateLimiter);
 app.use("/api/v1/trainer/steps/*", authMiddleware, apiRateLimiter);
-app.route("/api/v1/trainer/steps", trainerStepsRoutes);
-app.route("/api/v1/trainer/steps/manage", trainerStepManageRoutes);
+app.route("/api/v1/trainer/steps", createTrainerStepsRoutes(trainerStepRows));
+app.route("/api/v1/trainer/steps/manage", createTrainerStepManageRoutes(createProductionTrainerContentPorts(trainingDayRows, trainerStepRows)));
 
 // Trainer form POSTs: same private/JWT/rate boundary as legacy trainer reads.
 // Never trust an author ID in a JSON payload, deny moderator writes.
 app.use("/api/v1/trainer/authoring/*", trainerStepsPrivateRead);
 app.use("/api/v1/trainer/authoring/*", authMiddleware, apiRateLimiter);
-app.route("/api/v1/trainer/authoring", trainerAuthoringRoutes);
+app.route("/api/v1/trainer/authoring", createTrainerAuthoringRoutes(createProductionAuthoringPorts(trainingDayRows, trainerStepRows, trainerCourseRows)));
 
 // AG4(v5) TR013: only public-template GET, still trainer-panel authenticated.
 // Identical response privacy and early 401/429 normalization as visible steps.
@@ -586,7 +573,7 @@ app.use("/api/v1/trainer/templates", trainerStepsPrivateRead);
 app.use("/api/v1/trainer/templates/*", trainerStepsPrivateRead);
 app.use("/api/v1/trainer/templates", authMiddleware, apiRateLimiter);
 app.use("/api/v1/trainer/templates/*", authMiddleware, apiRateLimiter);
-app.route("/api/v1/trainer/templates", trainerTemplatesRoutes);
+app.route("/api/v1/trainer/templates", createTrainerTemplatesRoutes(trainerStepRows));
 
 // AG4 TR014 frozen single read; reuse existing private 401/429 normalization.
 // Authenticated JWT actor is the only source of author/elevated privileges.
@@ -621,8 +608,8 @@ app.use("/api/v1/trainer/days", trainerStepsPrivateRead);
 app.use("/api/v1/trainer/days/*", trainerStepsPrivateRead);
 app.use("/api/v1/trainer/days", authMiddleware, apiRateLimiter);
 app.use("/api/v1/trainer/days/*", authMiddleware, apiRateLimiter);
-app.route("/api/v1/trainer/days", trainerDaysRoutes);
-app.route("/api/v1/trainer/days/manage", trainerDayManageRoutes);
+app.route("/api/v1/trainer/days", createTrainerDaysRoutes(trainingDayRows));
+app.route("/api/v1/trainer/days/manage", createTrainerDayManageRoutes(createProductionTrainerContentPorts(trainingDayRows, trainerStepRows)));
 
 // AG1 cont137: PRIVACY BEFORE auth and limiter, one trainer exam SUMMARY GET.
 app.use("/api/v1/trainer/exam-results/summary", trainerStepsPrivateRead);
@@ -680,14 +667,14 @@ app.route("/api/v1/trainer/videos/manage", trainerVideosManageRoutes);
 app.use("/api/v1/pets/*", ownerPrivateRead, apiRateLimiter);
 app.use("/api/v1/pets/*", authMiddleware);
 app.route("/api/v1/pets", petsRoutes);
-app.route("/api/v1/pets", petPreventionRoutes);
+app.route("/api/v1/pets", createPetPreventionRoutes(preventionRows));
 app.route("/api/v1/pets", petVetVisitRoutes);
 
 // Training routes - большинство требуют JWT
 // authMiddleware пропускает маршруты /video/:videoId/manifest и /video/:videoId/segment
 app.use("/api/v1/training/*", apiRateLimiter);
 app.use("/api/v1/training/*", authMiddleware);
-app.route("/api/v1/training", trainingRoutes);
+app.route("/api/v1/training", createApiTrainingRoutes(sqlTraining));
 
 app.use("/api/v1/daily-course/*", apiRateLimiter);
 app.use("/api/v1/daily-course/*", authMiddleware);
@@ -703,7 +690,16 @@ app.route("/api/v1/surveys", surveysRoutes);
 
 app.use("/api/v1/offline/*", apiRateLimiter);
 app.use("/api/v1/offline/*", authMiddleware);
-app.route("/api/v1/offline", offlineRoutes);
+// Core's transaction port uses opaque `unknown`; SQL implementation owns the
+// precise Prisma.TransactionClient, passed through without coercion at runtime.
+app.route("/api/v1/offline", createOfflineRoutes({
+  journalRows: offlineMutationRows,
+  preventionRows,
+  getTrainingDays: sqlTraining.getTrainingDays,
+  requireCourseStepOperationAccess: sqlTraining.requireCourseStepOperationAccess,
+  applyStepDayAndCourseTx: sqlTraining.applyStepDayAndCourseTx as unknown as
+    import("./routes/v1/offline.js").OfflineRouteTrainingPort["applyStepDayAndCourseTx"],
+}));
 
 // AG1 Achievements privacy review only: before limiter/JWT 401/429.
 // Existing Redis limiter remains unchanged: do not bypass it in production.
@@ -784,6 +780,7 @@ app.use("/api/v1/app-subscription/*", (c, next) => {
   return next();
 });
 app.route("/api/v1/app-subscription", appSubscriptionRoutes);
+app.route("/api/v1/google-play", googlePlayNotifications);
 // AG4 Phase A: opt-in Apple init, legacy GET /offer unchanged.
 app.route("/api/v1/app-subscription", appleTokenInitializationReviewRoutes);
 

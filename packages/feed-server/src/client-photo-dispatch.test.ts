@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { dispatchFeedRequest } from "./index.js";
-import type { FeedService } from "@gafus/core/services/feed";
+import type { FeedService } from "./postRows.js";
 
 const upload = "8dc418f6-97da-42be-ab73-b3c172c95ccd";
 const request = (route: string) => new Request(`https://x${route}`, {

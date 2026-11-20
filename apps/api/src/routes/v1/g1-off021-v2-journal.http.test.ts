@@ -43,7 +43,7 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
 vi.mock("@gafus/logger", () => ({
   createWebLogger: () => ({ error: vi.fn(), info: vi.fn(), warn: vi.fn() }),
 }));
-import { offlineRoutes } from "./offline";
+import { offlineRoutes, createOfflineRoutes } from "./offline";
 import { OfflineMutationJournalError } from "@gafus/core/services/offline";
 const EVENT = "514acd7f-3e91-42d1-8409-05dd8cc82911";
 const BODY = {
@@ -149,8 +149,44 @@ describe("OFF021 NEW-only v2 safe Hono adapter current implementation", () => {
     expect(m.access).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "A", dayOnCourseId: BODY.dayOnCourseId }),
     );
-    expect(m.send).toHaveBeenCalledWith(expect.objectContaining({ ownerId: "A", eventId: EVENT }));
+    expect(m.send).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId: "A", eventId: EVENT }),
+      expect.objectContaining({ applyStepDayAndCourseTx: expect.any(Function) }),
+      undefined, // legacy compatibility router; production injects the SQL journal port
+    );
   });
+  it("two independent offline routers pass distinct persisted journal ports without global registrars", async () => {
+    const rowsA = { marker: "A" } as never;
+    const rowsB = { marker: "B" } as never;
+    function createApp(rows: never) {
+      const instance = new Hono();
+      instance.use("/api/v1/offline/*", async (c, next) => {
+        c.set("user", { id: "A", username: "synthetic", role: "USER" });
+        await next();
+      });
+      instance.route("/api/v1/offline", createOfflineRoutes({
+        getTrainingDays: vi.fn(),
+        requireCourseStepOperationAccess: m.access,
+        applyStepDayAndCourseTx: vi.fn(),
+        journalRows: rows,
+      }));
+      return instance;
+    }
+    const first = createApp(rowsA);
+    const second = createApp(rowsB);
+    for (const instance of [first, second, first]) {
+      const response = await instance.request("http://test.local/api/v1/offline/mutations", {
+        method: "POST",
+        headers: { "x-gafus-sync-protocol": "2", "idempotency-key": EVENT,
+          "content-type": "application/json" },
+        body: JSON.stringify(BODY),
+      });
+      expect(response.status).toBe(200);
+    }
+    expect(m.send.mock.calls.map(args => args[2])).toEqual([rowsA, rowsB, rowsA]);
+    expect(m.send).toHaveBeenCalledTimes(3);
+  });
+
   it("V2H02 missing protocol 400 before authorizing or applying mutation", async () => {
     const r = await post(BODY, { "x-gafus-sync-protocol": "" });
     expect(r.status).toBe(400);
@@ -213,7 +249,7 @@ describe("OFF021 NEW-only v2 safe Hono adapter current implementation", () => {
     const r = await request("GET", `/mutations/${EVENT}`, undefined, { "x-synthetic-owner": "B" });
     expect(r.status).toBe(200);
     expect(r.body).toEqual(ACK);
-    expect(m.lookup).toHaveBeenCalledWith("B", EVENT);
+    expect(m.lookup).toHaveBeenCalledWith("B", EVENT, undefined);
   });
   it("V2H11 GET wrong event/missing protocol/unknown ID 400/400/404 and no-store", async () => {
     const a = await request("GET", "/mutations/wrong");
@@ -259,6 +295,8 @@ describe("OFF021 NEW-only v2 safe Hono adapter current implementation", () => {
           }),
         ]),
       }),
+      undefined,
+      undefined,
     );
     expect(m.send).not.toHaveBeenCalled();
   });

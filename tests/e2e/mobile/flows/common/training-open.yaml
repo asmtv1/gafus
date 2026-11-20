@@ -1,0 +1,6 @@
+appId: ru.gafus.app
+name: GAFUS QA open a cached training
+---
+- openLink: ${QA_TRAINING_LINK}
+- tapOn: ${QA_STEP_TITLE}
+- assertVisible: "Я выполнил"

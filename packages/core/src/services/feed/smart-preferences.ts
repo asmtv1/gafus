@@ -1,6 +1,5 @@
 import { z } from "zod/v3";
 import { FEED_LIMITS } from "@gafus/types";
-import type { FeedDb } from "./ports";
 import { FeedError } from "./errors";
 import { feedParse } from "./schemas";
 
@@ -42,48 +41,35 @@ const defaults = {
   enabled: true, useCity: true, usePets: true, useBehavior: true, exploration: true,
 };
 
-export function createSmartFeedPreferences(db: FeedDb) {
+/** SQL-independent application contract. Feed-server is the sole owner of
+ * the Prisma projection and atomic reset of derived personalization data. */
+export type SmartPreferenceValues = { enabled:boolean;useCity:boolean;usePets:boolean;useBehavior:boolean;exploration:boolean };
+export interface SmartFeedPreferencesPort {
+  actorExists(actorId: string): Promise<boolean>;
+  read(actorId: string): Promise<SmartPreferenceValues | null>;
+  patch(actorId: string, value: Partial<SmartPreferenceValues>, defaults: SmartPreferenceValues): Promise<SmartPreferenceValues>;
+  /** One database transaction; never erase bookmarks or durable reactions. */
+  resetDerived(actorId: string, at: Date, defaults: SmartPreferenceValues): Promise<void>;
+}
+
+export function createSmartFeedPreferences(port: SmartFeedPreferencesPort) {
   async function assertActor(actorId: string) {
-    const user = await db.user.findUnique({ where: { id: actorId }, select: { id: true } });
-    if (!user) throw new FeedError("UNAUTHENTICATED", undefined, 401);
+    if (!(await port.actorExists(actorId))) throw new FeedError("UNAUTHENTICATED", undefined, 401);
   }
   return {
     async get(actorId: string) {
       await assertActor(actorId);
-      const value = await db.feedPersonalizationPreference.findUnique({ where: { userId: actorId } });
-      return value ? {
-        enabled: value.enabled, useCity: value.useCity, usePets: value.usePets,
-        useBehavior: value.useBehavior, exploration: value.exploration,
-      } : defaults;
+      return (await port.read(actorId)) ?? defaults;
     },
     async patch(actorId: string, input: unknown) {
       await assertActor(actorId);
       const update = feedParse(smartPreferenceSchema, input);
-      const value = await db.feedPersonalizationPreference.upsert({
-        where: { userId: actorId },
-        create: { userId: actorId, ...defaults, ...update },
-        update,
-      });
-      return {
-        enabled: value.enabled, useCity: value.useCity, usePets: value.usePets,
-        useBehavior: value.useBehavior, exploration: value.exploration,
-      };
+      return port.patch(actorId, update, defaults);
     },
     async reset(actorId: string) {
       await assertActor(actorId);
       const at = new Date();
-      await db.$transaction(async tx => {
-        await tx.feedPersonalizationPreference.upsert({
-          where: { userId: actorId },
-          create: { userId: actorId, ...defaults, historyResetAt: at },
-          update: { historyResetAt: at },
-        });
-        // Keep real reactions, bookmarks, comments and lifetime view counts.
-        await tx.feedUserAuthorAffinity.deleteMany({ where: { userId: actorId } });
-        await tx.feedRankingEvent.deleteMany({ where: { userId: actorId } });
-        await tx.feedImpression.deleteMany({ where: { userId: actorId } });
-        await tx.feedUserPostFeedback.deleteMany({ where: { userId: actorId } });
-      });
+      await port.resetDerived(actorId, at, defaults);
       return { reset: true, resetAt: at.toISOString() };
     },
   };

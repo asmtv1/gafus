@@ -5,19 +5,11 @@
 import { registerRegistrationContextPort } from "@gafus/core/services/auth";
 import {
   withRegistrationTransaction,
-  readValidVkRegistrationContext,
-  readVkRegistrationConsentContext,
-  readVkRegistrationPendingUsername,
   readIsRegistrationCompleted,
-  readVkLinkedAccountUsername,
 } from "@gafus/identity-write-server/registration-context-reads";
 
 const registrationContextPort = {
   withRegistrationTransaction,
-  readValidVkRegistrationContext,
-  readVkRegistrationConsentContext,
-  readVkRegistrationPendingUsername,
   readIsRegistrationCompleted,
-  readVkLinkedAccountUsername,
 };
 registerRegistrationContextPort(registrationContextPort);

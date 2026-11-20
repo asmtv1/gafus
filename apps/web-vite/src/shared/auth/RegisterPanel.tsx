@@ -8,7 +8,6 @@ import { clearRegistrationAttempt, registrationAttemptId } from "./registrationS
 import { recordExplicitLogin } from "./useAuth";
 import { navigate } from "../router/location";
 import {PrimaryButton} from "../ui";
-import { LandingVkEntry } from "../../brand/LandingVkEntry";
 import { PasswordVisibilityField } from "./PasswordVisibilityField";
 import { suggestRegisterEmailDomain } from "@gafus/core-client/validation/email-domain-suggestion";
 
@@ -227,7 +226,6 @@ export function RegisterPanel({ onCancel }: { onCancel: () => void }) {
           Войти
         </button>
       </form>
-      <LandingVkEntry />
     </section>
   );
 }

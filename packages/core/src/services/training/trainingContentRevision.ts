@@ -66,9 +66,11 @@ export async function getSharedCourseContentRevision(): Promise<string | null> {
  * Every cache reuse still verifies this committed revision. A missing row
  * or database error fails closed to direct Prisma content reads.
  */
-export async function getVerifiedCourseContentRevision(): Promise<string | null> {
+export async function getVerifiedCourseContentRevision(
+  explicitReadPort?: CourseContentRevisionReadPort,
+): Promise<string | null> {
   try {
-    return await requireCourseContentRevisionReadPort().readDurableCourseContentRevision();
+    return await (explicitReadPort ?? requireCourseContentRevisionReadPort()).readDurableCourseContentRevision();
   } catch (error) {
     recordCourseCacheEvent("dbRevisionFailure");
     if (Date.now() - lastReadWarningAt >= READ_WARNING_INTERVAL_MS) {

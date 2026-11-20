@@ -1,6 +1,7 @@
 /** Read-only SQL adapter. Reads only READY, artifact-verified immutable updates. */
 import { prisma } from "@gafus/prisma";
 import type { OtaLookup, OtaManifestRepository, OtaManifestRow } from "./contracts.js";
+import { selectVersionUpdate } from "./version-selection.js";
 import { otaRolloutIncludesInstallation } from "./rollout-policy.js";
 
 /** Shared, single authoritative selection for both signed Expo manifest and
@@ -68,7 +69,9 @@ export async function resolvePublishedOtaSelection(key: OtaLookup): Promise<
 
 export const mobileOtaManifestRepository: OtaManifestRepository = {
   async findPublishedManifest(key: OtaLookup): Promise<OtaManifestRow | null> {
-    const selected = await resolvePublishedOtaSelection(key);
+    const managed = key.appId==="gafus" && key.environment==="production" && key.channel==="production"
+      ? await selectVersionUpdate(key,"manifest") : undefined;
+    const selected = managed === undefined ? await resolvePublishedOtaSelection(key) : managed;
     if (!selected) return null;
     // Do not leak cohort metadata to Expo's signed manifest protocol.
     return { manifestBody: selected.manifestBody, signatureHeader: selected.signatureHeader,

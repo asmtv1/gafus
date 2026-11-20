@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { FeedDb } from "./ports";
-import { createFeedPolls } from "./polls";
+import type { FeedDb } from "@gafus/media-shared/media-db-ports";
+import { createFeedPolls } from "../../../../feed-server/src/pollRows";
 
 const postId = "post_1", owner = "author_1", other = "reader_1";
 const saved = {

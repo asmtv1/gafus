@@ -19,11 +19,8 @@ describe("GET /mobile-app", () => {
 
   it("returns the mobile version policy without authentication", async () => {
     getMobileAppPublicConfig.mockResolvedValue({
-      vkLoginEnabledOnIos: false,
       appSubscriptionPaywallEnabled: true,
       appSubscriptionGatingEnabled: true,
-      iosRuCardPaymentEnabled: false,
-      iosRuCardPaymentHintEnabled: false,
       minimumSupportedVersion: { ios: "1.7.0", android: "1.7.0" },
       storeUrl: {
         ios: "https://apps.apple.com/ru/app/gafus/id6760964612",

@@ -28,7 +28,6 @@ export interface UserWithTrainings {
   phone: string | null;
   email: string | null;
   courses: UserCourseInfo[];
-  hasVkLinked?: boolean;
 }
 
 /** Only these pet fields may be returned to profile visitors. */

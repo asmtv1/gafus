@@ -60,11 +60,12 @@ function isDbRow(row: unknown): row is VersionedName {
 /** Private GET version + name; owner checked within SQL predicate. */
 export async function readCourseNameVersion(
   courseId: string, actor: CourseVersionActor,
+  rowsPort?: CourseVersionRowsPort,
 ): Promise<CourseVersionResult> {
   if (!idPattern.test(courseId) || !validActor(actor))
     return { status: "invalid" };
   try {
-    const rows = await requireCourseVersionRowsPort().readCourseVersionRows(courseId, actor);
+    const rows = await (rowsPort ?? requireCourseVersionRowsPort()).readCourseVersionRows(courseId, actor);
     if (rows.length === 0) return { status: "not_found" };
     if (rows.length !== 1 || !isDbRow(rows[0]))
       return { status: "unknown" };
@@ -83,6 +84,7 @@ export async function readCourseNameVersion(
 export async function updateCourseNameVersioned(
   input: { courseId: string; name: string; expectedVersion: number },
   actor: CourseVersionActor,
+  rowsPort?: CourseVersionRowsPort,
 ): Promise<CourseVersionResult> {
   if (!input || !idPattern.test(input.courseId) ||
       typeof input.name !== "string" || input.name.length < 1 ||
@@ -91,13 +93,13 @@ export async function updateCourseNameVersioned(
     return { status: "invalid" };
   let rows: VersionedName[];
   try {
-    rows = await requireCourseVersionRowsPort().writeCourseNameVersionRows(input, actor);
+    rows = await (rowsPort ?? requireCourseVersionRowsPort()).writeCourseNameVersionRows(input, actor);
   } catch {
     logger.error("COURSE_VERSION_WRITE_UNKNOWN");
     return { status: "unknown" };
   }
   if (rows.length === 0) {
-    const lookup = await readCourseNameVersion(input.courseId, actor);
+    const lookup = await readCourseNameVersion(input.courseId, actor, rowsPort);
     if (lookup.status === "found") return { status: "stale" };
     return lookup.status === "not_found"
       ? { status: "not_found" } : { status: "unknown" };
@@ -133,13 +135,14 @@ export type CourseLogoVersionResult =
 export async function setCourseLogoVersioned(
   input: { courseId: string; logoUrl: string; expectedVersion: number },
   actor: CourseVersionActor,
+  rowsPort?: CourseVersionRowsPort,
 ): Promise<CourseLogoVersionResult> {
   if (!input || !idPattern.test(input.courseId) ||
       !validActor(actor) || !isVersion(input.expectedVersion) ||
       typeof input.logoUrl !== "string" || input.logoUrl.length > 2000)
     return { status: "invalid" };
   try {
-    return await requireCourseVersionRowsPort().setCourseLogoVersionRows(input,actor);
+    return await (rowsPort ?? requireCourseVersionRowsPort()).setCourseLogoVersionRows(input,actor);
   } catch {
     logger.error("COURSE_LOGO_VERSION_UNKNOWN");
     return { status: "unknown" };

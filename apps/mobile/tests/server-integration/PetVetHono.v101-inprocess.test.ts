@@ -306,6 +306,10 @@ describe("AG3 V101 registered Hono ↔ actual Mobile veterinary list/detail read
     expect(vetHistoryCacheForActor(result, actor, "pet-X")?.kind).toBe("ready");
     expect(m.vet).toHaveBeenCalledExactlyOnceWith(
       expect.any(Request), "pet-X", owners.A.id, [], expect.any(Function),
+      expect.objectContaining({
+        listOwnPetVetRows: expect.any(Function),
+        requireOwnPetVetVisit: expect.any(Function),
+      }),
     );
     expect(m.wire[0]).toMatchObject({
       status: 200,
@@ -326,6 +330,10 @@ describe("AG3 V101 registered Hono ↔ actual Mobile veterinary list/detail read
     expect(vetDetailCacheForActor(result, actor, "pet-X", "visit-X")?.kind).toBe("ready");
     expect(m.vet).toHaveBeenCalledExactlyOnceWith(
       expect.any(Request), "pet-X", owners.A.id, ["visit-X"], expect.any(Function),
+      expect.objectContaining({
+        listOwnPetVetRows: expect.any(Function),
+        requireOwnPetVetVisit: expect.any(Function),
+      }),
     );
     expect(m.wire[0]).toMatchObject({
       status: 200,

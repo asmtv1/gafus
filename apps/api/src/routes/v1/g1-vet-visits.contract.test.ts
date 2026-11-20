@@ -12,6 +12,7 @@ vi.mock("@gafus/core/services/pets", () => ({ handlePetVetVisitRequest: m.handle
 import { authMiddleware } from "../../middleware/auth";
 import { petVetVisitRoutes } from "./pet-vet-visits";
 import { getOwnVetVisitDetail as exactScopedReader } from "../../modules/pets/composition/vet-visit-read.js";
+import { vetVisitRows } from "../../modules/pets/composition/vet-visit-rows-instance.js";
 const root = "http://local.test/api/v1/pets/pet-A/vet-visits";
 function app() {
   const h = new Hono();
@@ -60,6 +61,7 @@ describe("G1 pet vet wildcard to Core transport boundary", () => {
       "actor-A",
       [],
       exactScopedReader,
+      vetVisitRows,
     );
   });
   it("POST new visit delegates original method and raw body", async () => {
@@ -78,6 +80,7 @@ describe("G1 pet vet wildcard to Core transport boundary", () => {
       "actor-A",
       ["visit-A"],
       exactScopedReader,
+      vetVisitRows,
     );
   });
   it("nested media carries all four path segments and unchanged query", async () => {

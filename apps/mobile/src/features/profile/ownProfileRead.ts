@@ -56,8 +56,7 @@ export function validatedOwnProfile(value: unknown, actor: OwnProfileActor): Use
     !roles.has(row.role as User["role"]) ||
     !optionalText(row.email) ||
     !optionalText(row.phone) ||
-    (row.hasAppPassword !== undefined && typeof row.hasAppPassword !== "boolean") ||
-    (row.hasVkLinked !== undefined && typeof row.hasVkLinked !== "boolean")
+    (row.hasAppPassword !== undefined && typeof row.hasAppPassword !== "boolean")
   )
     throw new Error("OWN_PROFILE_INVALID");
   let profile: User["profile"] = undefined;
@@ -85,7 +84,6 @@ export function validatedOwnProfile(value: unknown, actor: OwnProfileActor): Use
     email: (row.email as string | null | undefined) ?? null,
     phone: (row.phone as string | null | undefined) ?? null,
     ...(row.hasAppPassword !== undefined ? { hasAppPassword: row.hasAppPassword as boolean } : {}),
-    ...(row.hasVkLinked !== undefined ? { hasVkLinked: row.hasVkLinked as boolean } : {}),
     ...(profile !== undefined ? { profile } : {}),
   };
 }

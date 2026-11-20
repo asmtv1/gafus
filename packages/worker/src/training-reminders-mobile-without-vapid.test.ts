@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
-  types: [] as ("expo" | "web" | "rustore")[],
+  types: [] as ("expo" | "web")[],
   initWeb: vi.fn(() => { throw Error("Synthetic missing WebPush VAPID"); }),
   sendExpo: vi.fn(),
-  sendRustore: vi.fn(),
   claim: vi.fn(), ack: vi.fn(), release: vi.fn(),
 }));
 
@@ -31,8 +30,7 @@ vi.mock("@gafus/notifications-server/trainingReminderClaims", () => ({
     timezone: "Europe/Samara", reminderTime: "15:00", reminderDays: null, lastSentAt: null,
   }],
   getTrainingReminderPushSubscriptions: async () => state.types.map(type => ({
-    endpoint: type === "web" ? "https://example.invalid/web-test" :
-      type === "expo" ? "ExpoPushToken[synthetic]" : "synthetic-rustore-token",
+    endpoint: type === "web" ? "https://example.invalid/web-test" : "ExpoPushToken[synthetic]",
     keys: {p256dh: type, auth: type},
   })),
   removeInvalidTrainingReminderEndpoints: vi.fn(),
@@ -45,24 +43,19 @@ vi.mock("@gafus/webpush", () => ({
   partitionPushSubscriptions: (subs: {endpoint:string;keys:{p256dh:string;auth:string}}[]) => ({
     web: subs.filter(row => row.keys.p256dh === "web"),
     expo: subs.filter(row => row.keys.p256dh === "expo"),
-    rustore: subs.filter(row => row.keys.p256dh === "rustore"),
   }),
   sendExpoPushNotifications: (...args: unknown[]) => state.sendExpo(...args),
-  sendRustorePushNotifications: (...args: unknown[]) => state.sendRustore(...args),
 }));
 
 import { sendTrainingReminders } from "./training-reminders-sender";
 
 beforeEach(() => {
   state.types=[];
-  state.initWeb.mockClear(); state.sendExpo.mockReset(); state.sendRustore.mockReset();
+  state.initWeb.mockClear(); state.sendExpo.mockReset();
   state.claim.mockReset().mockResolvedValue("fake-lease");
   state.ack.mockReset().mockResolvedValue(true);
   state.release.mockReset().mockResolvedValue(true);
   state.sendExpo.mockResolvedValue({
-    successCount: 1, failureCount: 0, deletedCount: 0, temporaryFailureCount: 0,
-  });
-  state.sendRustore.mockResolvedValue({
     successCount: 1, failureCount: 0, deletedCount: 0, temporaryFailureCount: 0,
   });
 });
@@ -76,13 +69,7 @@ describe("training reminder device transport isolation with NO external provider
     expect(state.ack).toHaveBeenCalledTimes(1);
     expect(state.release).not.toHaveBeenCalled();
   });
-  it("Rustore-only gets ACK without WebPush initialization", async () => {
-    state.types=["rustore"];
-    expect(await sendTrainingReminders()).toEqual({sent:1,skipped:0,errors:0});
-    expect(state.initWeb).not.toHaveBeenCalled();
-    expect(state.sendRustore).toHaveBeenCalledTimes(1);
-    expect(state.ack).toHaveBeenCalledTimes(1);
-  });
+
   it("web failure cannot suppress independent Expo send", async () => {
     state.types=["web","expo"];
     expect(await sendTrainingReminders()).toEqual({sent:1,skipped:0,errors:0});

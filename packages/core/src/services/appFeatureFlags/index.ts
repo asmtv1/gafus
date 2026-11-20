@@ -5,14 +5,12 @@ export {
   APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
   APP_FEATURE_MOBILE_IOS_RU_CARD_PAYMENT_HINT,
   APP_FEATURE_MOBILE_REWARDED_ADS_IOS,
-  APP_FEATURE_MOBILE_VK_LOGIN_IOS,
   MobileReleaseControlConflictError,
   getAppFeatureFlagEnabled,
   getMobileAppPublicConfig,
   getMobileFeatureFlagEnabled,
   getMobileReleaseControl,
   registerAppFeatureFlagsPort,
-  resolveMobileFeatureProfile,
   setAppFeatureFlagEnabled,
   updateMobileReleaseControl,
 } from "./appFeatureFlagsService";
@@ -20,8 +18,6 @@ export type {
   ClientAppContext,
   AppFeatureFlagsPorts,
   MobileAppPublicConfig,
-  MobileFeatureProfile,
   MobileReleaseControlDto,
-  MobileVersionedFeatureValues,
   UpdateMobileReleaseControlInput,
 } from "./appFeatureFlagsService";

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { otaRolloutIncludesInstallation } from "./rollout-policy";
 import { mobileOtaManifestRepository, resolvePublishedOtaSelection } from "./repository";
+vi.mock("./version-selection",()=>({selectVersionUpdate:vi.fn().mockResolvedValue(undefined)}));
 const mocks=vi.hoisted(()=>({query:vi.fn()}));
 vi.mock("@gafus/prisma",()=>({prisma:{$queryRaw:mocks.query}}));
 

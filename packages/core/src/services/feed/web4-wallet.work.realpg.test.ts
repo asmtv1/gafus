@@ -2,7 +2,7 @@
 import {randomUUID} from "node:crypto";
 import {afterAll,beforeAll,describe,expect,it} from "vitest";
 import {prisma} from "@gafus/prisma";
-import {createFeedService} from "./service";
+import {createFeedService} from "../../../../feed-server/src/postRows";
 import {createQuestionService} from "@gafus/questions-write-server/service";
 import {awardActivityTx,awardBonusTx} from "../gafus/rewardService";
 const {createQuestion,createQuestionAnswer}=createQuestionService({awardActivityTx,awardBonusTx});
