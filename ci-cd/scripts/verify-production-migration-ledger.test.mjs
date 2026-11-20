@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, renameSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -198,6 +198,84 @@ test('new mandatory OTA migration is pinned at the pre-schema and exact post-sch
     assert.match(drift.stderr,/MIGRATION_SHA_MISMATCH|NONSTANDARD_MIGRATION_CHECKSUM/);
     const rollbackDrift=rows.map(row=>row[2]==='rolled_back'?[row[0],'1'.repeat(64),row[2]]:row);
     assert.match(runScoped(rollbackDrift).stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/);
+  } finally { rmSync(root,{recursive:true,force:true}); }
+});
+
+test('four individually SHA-pinned pending migrations require the exact approved production baseline',()=>{
+  const root=mkdtempSync(join(tmpdir(),'gafus-four-pending-ledger-'));
+  try {
+    const migrations=join(root,'packages/prisma/migrations');
+    const manifestDir=join(root,'ci-cd/scripts');
+    mkdirSync(migrations,{recursive:true});
+    mkdirSync(manifestDir,{recursive:true});
+    const manifest=JSON.parse(readFileSync('ci-cd/scripts/approved-legacy-migration-baseline-20261115.json','utf8'));
+    const prodSha='f7a0c486a02a1ee905a765182b9f30773c582811ff51e30080e658cdf8e837cd';
+    const real=manifest.schemaCheckpoints[prodSha];
+    const pinned=real.approvedPendingMigrations;
+    assert.equal(real.expectedApplied,182);
+    assert.equal(real.expectedSources,182);
+    assert.equal(pinned.length,4);
+    assert.deepEqual(pinned.map(item=>item.name),[
+      '20261118160000_version_ota_publication',
+      '20261118201500_remove_vk_review_profiles',
+      '20261119121000_account_deletion_audit_immutable',
+      '20261120120000_google_play_subscriptions',
+    ]);
+    for(const item of pinned){
+      const contents=readFileSync(join('packages/prisma/migrations',item.name,'migration.sql'));
+      assert.equal(createHash('sha256').update(contents).digest('hex'),item.sqlSha256);
+      const dir=join(migrations,item.name);mkdirSync(dir);
+      writeFileSync(join(dir,'migration.sql'),contents);
+    }
+    const rows=[];
+    for(let i=0;i<176;i++){
+      const name=`20200101000000_synthetic_${String(i).padStart(3,'0')}`;
+      const sql=`SELECT ${i};\n`;
+      const dir=join(migrations,name);mkdirSync(dir);
+      writeFileSync(join(dir,'migration.sql'),sql);
+      rows.push([name,createHash('sha256').update(sql).digest('hex'),'applied']);
+    }
+    for(const [name,rule] of Object.entries(manifest.approvedLegacyChecksumExceptions)){
+      const dir=join(migrations,name);mkdirSync(dir);
+      const sql=readFileSync(join('packages/prisma/migrations',name,'migration.sql'));
+      writeFileSync(join(dir,'migration.sql'),sql);
+      rows.push([name,rule.recordedProductionChecksum,'applied']);
+    }
+    for(let i=0;i<4;i++)rows.push([`20270101000000_rolled_back_${i}`,'0'.repeat(64),'rolled_back']);
+    const digest=input=>createHash('sha256').update(input.map(row=>row.join('\t')+'\n').sort().join('')).digest('hex');
+    const pre='a'.repeat(64);
+    real.ledgerSha256=digest(rows);
+    manifest.schemaCheckpoints={ [pre]:real };
+    const manifestPath=join(manifestDir,'approved-legacy-migration-baseline-20261115.json');
+    writeFileSync(manifestPath,JSON.stringify(manifest));
+    const run=(data=rows,hash=pre)=>spawnSync('python3',[program,migrations,hash],{
+      input:data.map(row=>row.join('\t')).join('\n')+'\n',encoding:'utf8',timeout:15_000,
+    });
+    const accepted=run();
+    assert.equal(accepted.status,0,accepted.stderr);
+    assert.match(accepted.stdout,/applied=182:pending=4/);
+    assert.match(accepted.stdout,/LEGACY_SCHEMA_ATTESTED_EXCEPTIONS:6/);
+    assert.equal(run(rows,'b'.repeat(64)).status,1,'unknown live schema must veto');
+    assert.equal(run(rows.map((row,i)=>i===0?[row[0],'f'.repeat(64),row[2]]:row)).status,1,
+      'different historical ledger must veto');
+    const first=pinned[0].name;
+    const original=readFileSync(join(migrations,first,'migration.sql'));
+    writeFileSync(join(migrations,first,'migration.sql'),Buffer.concat([original,Buffer.from('-- changed\n')]));
+    assert.match(run().stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/);
+    writeFileSync(join(migrations,first,'migration.sql'),original);
+    const extra=join(migrations,'20271212000000_unreviewed');
+    mkdirSync(extra);writeFileSync(join(extra,'migration.sql'),'SELECT 1;\n');
+    assert.match(run().stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/);
+    rmSync(extra,{recursive:true});
+    const missing=join(migrations,pinned[1].name);
+    renameSync(missing,missing+'.disabled');
+    assert.match(run().stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/);
+    renameSync(missing+'.disabled',missing);
+    const premature=[...rows,[first,pinned[0].sqlSha256,'applied']];
+    assert.match(run(premature).stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/);
+    manifest.schemaCheckpoints[pre].approvedPendingMigrations.push(pinned[0]);
+    writeFileSync(manifestPath,JSON.stringify(manifest));
+    assert.match(run().stderr,/LEGACY_MANIFEST_PENDING_INVALID/,'duplicate approval must veto');
   } finally { rmSync(root,{recursive:true,force:true}); }
 });
 

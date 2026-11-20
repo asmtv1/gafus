@@ -54,15 +54,25 @@ def approved_legacy_baseline(
                    for key in ("expectedApplied", "expectedRolledBack", "expectedSources"))
             or not MIN_PRODUCTION_APPLIED <= checkpoint["expectedApplied"] <= checkpoint["expectedSources"]):
         raise ValueError("LEGACY_MANIFEST_CHECKPOINT_INVALID")
-    # A previously approved exact production checkpoint can authorize precisely
-    # one new *pending* migration by name and SQL SHA256. Never approve arbitrary
-    # additional source files or an already-applied migration at the old schema.
+    # Pending SQL is authorized ONLY at an exact live-schema + complete ledger
+    # checkpoint, by full migration name and immutable SQL SHA256. The original
+    # single-migration checkpoint stays backward compatible; later approvals may
+    # enumerate a *fixed* batch without allowing arbitrary new migrations.
     pending = checkpoint.get("approvedPendingMigration")
-    if pending is not None:
-        if (not isinstance(pending, dict) or set(pending) != {"name", "sqlSha256"}
-                or not MIGRATION_NAME.fullmatch(str(pending.get("name")))
-                or not CHECKSUM.fullmatch(str(pending.get("sqlSha256")))
-                or checkpoint["expectedApplied"] != checkpoint["expectedSources"]):
+    batch = checkpoint.get("approvedPendingMigrations")
+    if pending is not None and batch is not None:
+        raise ValueError("LEGACY_MANIFEST_PENDING_CONFLICT")
+    approved_pending = [pending] if pending is not None else (batch or [])
+    if (batch is not None and (not isinstance(batch, list) or not 1 <= len(batch) <= 8)):
+        raise ValueError("LEGACY_MANIFEST_PENDING_BATCH_INVALID")
+    if approved_pending:
+        if (checkpoint["expectedApplied"] != checkpoint["expectedSources"]
+                or any(not isinstance(item, dict)
+                       or set(item) != {"name", "sqlSha256"}
+                       or not MIGRATION_NAME.fullmatch(str(item.get("name")))
+                       or not CHECKSUM.fullmatch(str(item.get("sqlSha256")))
+                       for item in approved_pending)
+                or len({item["name"] for item in approved_pending}) != len(approved_pending)):
             raise ValueError("LEGACY_MANIFEST_PENDING_INVALID")
     entries = manifest.get("approvedLegacyChecksumExceptions")
     if not isinstance(entries, dict) or len(entries) != 6:
@@ -147,15 +157,17 @@ def verify(migrations_dir: pathlib.Path, lines: list[str], live_schema_sha256: s
         canonical_ledger = "".join(row + "\n" for row in sorted(line.rstrip("\n") for line in lines))
         expected_sources = checkpoint["expectedSources"]
         pending = checkpoint.get("approvedPendingMigration")
+        approved_pending = ([pending] if pending is not None
+                            else checkpoint.get("approvedPendingMigrations", []))
         actual_pending = set(source_files) - applied
-        extra_source_approved = False
-        if pending and len(source_files) == expected_sources + 1:
-            name = pending["name"]
-            path = source_files.get(name)
-            if (actual_pending == {name} and path is not None
+        extra_source_approved = bool(approved_pending) and (
+            len(source_files) == expected_sources + len(approved_pending)
+            and actual_pending == {item["name"] for item in approved_pending}
+            and all((path := source_files.get(item["name"])) is not None
                     and path.is_file() and not path.is_symlink()
-                    and hashlib.sha256(path.read_bytes()).hexdigest() == pending["sqlSha256"]):
-                extra_source_approved = True
+                    and hashlib.sha256(path.read_bytes()).hexdigest() == item["sqlSha256"]
+                    for item in approved_pending)
+        )
         if (approved_exceptions != set(exceptions)
                 or len(applied) != checkpoint["expectedApplied"]
                 or rolled_back != checkpoint["expectedRolledBack"]

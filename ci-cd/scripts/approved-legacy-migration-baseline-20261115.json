@@ -22,7 +22,25 @@
       "ledgerSha256": "4157fca0cf6c0840f2c608979141cccc69b8aefe95a2e19e274efdc85fed7856",
       "expectedApplied": 182,
       "expectedRolledBack": 4,
-      "expectedSources": 182
+      "expectedSources": 182,
+      "approvedPendingMigrations": [
+        {
+          "name": "20261118160000_version_ota_publication",
+          "sqlSha256": "73a3b43d9d973a1d59390670f9fa6542ae703cb7ad0f79c0ca8d7d360d4b39df"
+        },
+        {
+          "name": "20261118201500_remove_vk_review_profiles",
+          "sqlSha256": "a802b4a8b42a7ec7bc1da0dfe38df330619791dfe59c464e2af5c8ce87a7d151"
+        },
+        {
+          "name": "20261119121000_account_deletion_audit_immutable",
+          "sqlSha256": "7ecd548a57332674e3bb18588cb275da108fba7b2a7d63e20af545334939b5b6"
+        },
+        {
+          "name": "20261120120000_google_play_subscriptions",
+          "sqlSha256": "bbb17426a8554b9bc4a0bd963710ca0cd486a0fa38ee21dbd3dd842857cf2019"
+        }
+      ]
     }
   },
   "approvedLegacyChecksumExceptions": {
@@ -58,6 +76,7 @@
     "schemaValidation": "Restored only the schema from the previous deployment backup on PostgreSQL 15.18. Replayed the 12 applied migrations and matched the live schema with the same 15 CHECK expression formatting changes introduced by backup restore. Applied the OTA rename in isolation and verified it changes only that column name.",
     "ownerApproval": "Explicit 2026-11-15 owner authorization; no claim of native/device or Cloud.ru Job end-to-end QA",
     "operationalBoundary": "Before or after the OTA rename, the live schema and full sorted ledger must both match a listed checkpoint. Other states require new review. The rehearsal used no production rows.",
-    "mandatoryOta20261118": "Pre-migration: exact live schema + unchanged 181-applied/4-rolled-back ledger, one additional pending SQL pinned to name+SHA256. Post-migration: exact predicted PostgreSQL 15.18 schema-only SHA256 and 182-applied/4-rolled-back ledger. Predicted post schema stitched solely two added DDL sections from isolated schema-only PostgreSQL 15.18 rehearsal into unmodified live schema dump; did not copy user rows or alter production. Unexpected schema/ledger changes remain a veto."
+    "mandatoryOta20261118": "Pre-migration: exact live schema + unchanged 181-applied/4-rolled-back ledger, one additional pending SQL pinned to name+SHA256. Post-migration: exact predicted PostgreSQL 15.18 schema-only SHA256 and 182-applied/4-rolled-back ledger. Predicted post schema stitched solely two added DDL sections from isolated schema-only PostgreSQL 15.18 rehearsal into unmodified live schema dump; did not copy user rows or alter production. Unexpected schema/ledger changes remain a veto.",
+    "nextFourPendingMigrations20261120": "Read-only production PostgreSQL check 2026-11-20: schema SHA256 f7a0c486a02a1ee905a765182b9f30773c582811ff51e30080e658cdf8e837cd; sorted 186-row ledger SHA256 4157fca0cf6c0840f2c608979141cccc69b8aefe95a2e19e274efdc85fed7856 (182 applied, 4 rolled back). Exactly four new pending SQL files must match the pinned names and bytes. Approval does not allow additional files, ledger changes, or a changed live schema; the post-migration schema requires separate attestation."
   }
 }
