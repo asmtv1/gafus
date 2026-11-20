@@ -149,7 +149,7 @@ test('missing mandatory Worker legacy package fails before slow Docker build', (
 });
 
 
-test('runtime image coverage counts match every current package export and preserve frozen 9/49', () => {
+test('runtime image coverage counts match every current package export and preserve baseline 9/48', () => {
   const projects = workspace();
   const legacy = verifierArray('legacyPackages');
   assert.equal(legacy.length, 9);
@@ -170,14 +170,14 @@ test('runtime image coverage counts match every current package export and prese
       if (!explicit.has(spec)) historicalCount++;
     }
   }
-  assert.equal(historicalCount, 49, 'FROZEN_LEGACY_9_49_CHANGED_OR_NEW_EXPORT_NOT_REGISTERED');
-  assert.match(runtimeVerifierText, /legacyExportsChecked !== 49/, 'FROZEN_LEGACY_GUARD_REMOVED');
+  assert.equal(historicalCount, 48, 'LEGACY_9_48_CHANGED_OR_NEW_EXPORT_NOT_REGISTERED');
+  assert.match(runtimeVerifierText, /legacyExportsChecked !== 48/, 'LEGACY_EXPORT_GUARD_REMOVED');
   assert.match(runtimeVerifierText, /if \(!trainingReminderApplicationExportChecked\)/,
     'NEW_REMINDER_APPLICATION_EXPORT_NOT_ENFORCED');
   for (const mode of ['api', 'worker']) {
     const actualCount = requiredByRuntime[mode].reduce((total, name) =>
       total + Object.keys(projects.get(name).exports ?? {}).length, 0);
-    const expected = mode === 'worker' ? 222 : 232;
+    const expected = mode === 'worker' ? 224 : 234;
     assert.equal(actualCount, expected, `RUNTIME_EXPORT_COVERAGE_DRIFT:${mode}`);
     assert(runtimeVerifierText.includes(`exportsChecked !== ${expected}`),
       `DOCKER_RUNTIME_EXPORT_COUNT_STALE:${mode}`);

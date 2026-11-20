@@ -88,6 +88,10 @@ test("F07 paths only AG4 fixed synthetic IDs",()=>{
  assert.equal(authorizedPaths(fixture).detail,"/api/v1/feed/posts/"+fixture.visiblePostId);
  assert.throws(()=>authorizedPaths({...fixture,hiddenPostId:"../../path"}));
 });
+test("F08 source pin targets actual Feed persistence after refactor",()=>{
+ assert(PINNED.includes("packages/feed-server/src/postRows.ts"));
+ assert(!PINNED.includes("packages/core/src/services/feed/service.ts"));
+});
 test("F08 active grant absent must reject; source pin list nonempty",()=>{
  assert.ok(PINNED.length>=10);
  assert.throws(()=>validateGrant({kind:"AG4_AG2_FEED_AUTHOR_REAL_GET_EXCLUSIVE_GRANT_V1",

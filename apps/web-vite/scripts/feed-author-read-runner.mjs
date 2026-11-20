@@ -31,7 +31,7 @@ export const PINNED=[
  "apps/web-vite/migration/AG2_WEB_URL024_PUBLIC_AUTHOR_PARITY_EVIDENCE_20261018.json",
  "apps/api/src/routes/v1/feed.ts",
  "packages/feed-server/src/index.ts",
- "packages/core/src/services/feed/service.ts",
+ "packages/feed-server/src/postRows.ts",
  "packages/core/src/services/feed/social.ts",
 ];
 function assert(condition){if(!condition)throw Error("AG2_FEED_READ_DENIED");}
