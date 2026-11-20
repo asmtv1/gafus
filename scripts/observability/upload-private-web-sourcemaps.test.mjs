@@ -62,6 +62,7 @@ test('malicious traversal and public-bucket config fail before ANY network',asyn
 test('upload is immutable and verifies both HEAD and GET of each object',async t=>{
  const x=await fixture(t),plan=await planWebSymbolUpload(x.root);
  const objects=new Map();
+ let firstPut=true;
  const client={async send(command,{abortSignal}){
   assert.ok(abortSignal instanceof AbortSignal);
   const req=command.input;
@@ -73,6 +74,11 @@ test('upload is immutable and verifies both HEAD and GET of each object',async t
      $metadata:{httpStatusCode:412},
     });
     objects.set(req.Key,{data:Buffer.from(req.Body),mime:req.ContentType,metadata:req.Metadata});
+    if(firstPut){
+     firstPut=false;
+     // The server committed the write but the client missed the response.
+     throw Object.assign(new Error('timed out'),{name:'TimeoutError'});
+    }
     return {};
   }
   const old=objects.get(req.Key);
@@ -85,6 +91,7 @@ test('upload is immutable and verifies both HEAD and GET of each object',async t
  }};
  const report=await uploadPrivateWebSymbols(client,'gafus-private-symbols-qa',plan,'preview');
  assert.equal(report.length,2);
+ assert.equal(report.find(r=>r.key.endsWith('/assets/index.abc.js.map')).written,false);
  assert.ok(report.every(r=>r.verified&&r.key.startsWith('symbols/preview/web/gafus-web/')));
  assert.ok(report.some(r=>r.key.endsWith('/manifest.json')));
  assert.ok(report.some(r=>r.key.endsWith('/assets/index.abc.js.map')));
@@ -94,14 +101,17 @@ test('upload is immutable and verifies both HEAD and GET of each object',async t
 
 test('a failed object readback reports a safe reason and leaves the manifest unpublished',async t=>{
  const x=await fixture(t),plan=await planWebSymbolUpload(x.root);
+ let reads=0;
  const client={async send(command){
   assert.ok(!command.input.Key.endsWith('/manifest.json'));
   if(command instanceof PutObjectCommand)return {};
   if(command instanceof HeadObjectCommand)return {
    ContentLength:x.bytes.length,ContentType:'application/json',Metadata:{sha256:sha(x.bytes)},
   };
+  reads++;
   throw Object.assign(new Error('remote error with request details'),{$metadata:{httpStatusCode:503}});
  }};
  await assert.rejects(uploadPrivateWebSymbols(client,'gafus-private-symbols-qa',plan,'preview'),
    {message:'SYMBOLS_S3_GET_HTTP_503'});
+ assert.equal(reads,3);
 });

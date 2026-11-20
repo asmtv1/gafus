@@ -10,6 +10,7 @@ import {createHash} from 'node:crypto';
 import {readFile,lstat,realpath,writeFile} from 'node:fs/promises';
 import {join,resolve,relative,sep,isAbsolute} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {setTimeout as delay} from 'node:timers/promises';
 import {S3Client,PutObjectCommand,HeadObjectCommand,GetObjectCommand} from '@aws-sdk/client-s3';
 
 const sha=b=>createHash('sha256').update(b).digest('hex');
@@ -19,7 +20,9 @@ const BUILD=/^[a-zA-Z0-9_.-]{8,40}$/;
 const SERVICES=new Set(['gafus-web','gafus-admin-panel','gafus-trainer-panel']);
 const MAX_MAP=64*1024*1024,MAX_COUNT=500;
 const UPLOAD_CONCURRENCY=4;
-const S3_REQUEST_TIMEOUT_MS=30_000;
+const S3_REQUEST_TIMEOUT_MS={PUT:90_000,HEAD:20_000,GET:60_000};
+const S3_ATTEMPTS=3;
+const RETRYABLE_TRANSPORT_ERRORS=new Set(['ECONNRESET','EPIPE','ETIMEDOUT','EAI_AGAIN']);
 const allowedRelative=(p)=>typeof p==='string'&&p.endsWith('.js.map')&&
   p.length<=256&&!isAbsolute(p)&&!p.startsWith('./')&&
   !p.split('/').some(part=>part===''||part==='.'||part==='..'||part.startsWith('.'))&&
@@ -109,16 +112,23 @@ export function verifyWebSymbolUploadConfig(plan,env=process.env){
 }
 
 async function requestS3(client,command,operation,readResponse=response=>response){
- const abortSignal=AbortSignal.timeout(S3_REQUEST_TIMEOUT_MS);
- try{
-  return await readResponse(await client.send(command,{abortSignal}));
- }catch(error){
-  if(operation==='PUT'&&(error?.$metadata?.httpStatusCode===412||error?.name==='PreconditionFailed'))
-   return null;
-  const status=error?.$metadata?.httpStatusCode;
-  const reason=abortSignal.aborted?'TIMEOUT':
-   Number.isInteger(status)&&status>=400&&status<=599?`HTTP_${status}`:'TRANSPORT_ERROR';
-  fail(`SYMBOLS_S3_${operation}_${reason}`);
+ for(let attempt=1;attempt<=S3_ATTEMPTS;attempt++){
+  const abortSignal=AbortSignal.timeout(S3_REQUEST_TIMEOUT_MS[operation]);
+  try{
+   return await readResponse(await client.send(command,{abortSignal}));
+  }catch(error){
+   const status=error?.$metadata?.httpStatusCode;
+   if(operation==='PUT'&&(status===412||error?.name==='PreconditionFailed'))return null;
+   const timedOut=abortSignal.aborted||error?.name==='TimeoutError';
+   const retryable=timedOut||RETRYABLE_TRANSPORT_ERRORS.has(error?.code)||
+    status===408||status===429||(status>=500&&status<=599);
+   const reason=timedOut?'TIMEOUT':
+    Number.isInteger(status)&&status>=400&&status<=599?`HTTP_${status}`:'TRANSPORT_ERROR';
+   const code=`SYMBOLS_S3_${operation}_${reason}`;
+   if(!retryable||attempt===S3_ATTEMPTS)fail(code);
+   console.warn(`PRIVATE_WEB_SYMBOLS_RETRY: ${code} (attempt ${attempt}/${S3_ATTEMPTS})`);
+   await delay(500*attempt);
+  }
  }
 }
 
@@ -169,7 +179,8 @@ async function main(){
  }
  const settings=verifyWebSymbolUploadConfig(plan);
  const client=new S3Client({endpoint:settings.endpoint,region:'ru-central-1',
-   forcePathStyle:true,maxAttempts:2,
+   forcePathStyle:true,maxAttempts:1,
+   requestHandler:{connectionTimeout:10_000},
    requestChecksumCalculation:'WHEN_REQUIRED',responseChecksumValidation:'WHEN_REQUIRED',
    credentials:{accessKeyId:settings.accessKey,secretAccessKey:settings.secretKey}});
  try{
