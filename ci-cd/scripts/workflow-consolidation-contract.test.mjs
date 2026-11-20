@@ -19,7 +19,8 @@ test('primary workflows, independent Beget audit/backup and internal workflows',
   'gafus-sdk57-qa.yml','gafus-self-hosted-ota-preview.yml','gafus-self-hosted-ota-production.yml',
   'gafus-uptrace-collector-qa.yml','gafus-uptrace-nonprod-acceptance.yml',
   'infrastructure-jobs.yml',
-  'production-deploy-reusable.yml','production-job-release-reusable.yml'
+  'production-deploy-reusable.yml','production-job-release-reusable.yml',
+  'testing-nightly.yml','testing-reusable.yml'
  ]);
  const primary=['build-single-container','ci-cd','deploy-only','infrastructure-jobs'];
  for(const name of primary) assert(parse(name).on.workflow_dispatch || parse(name).on.push,name);

@@ -1107,10 +1107,15 @@ describe("Chat2 GAFUS header and quick actions", () => {
 });
 
 describe("Chat2 send retry on mounted web composer", () => {
-  it("keeps clientMessageId across a lost HTTP response, ignores a double-submit, then generates a fresh ID for the next equal text", async () => {
+  it(
+    "keeps clientMessageId across a lost HTTP response, ignores a double-submit, " +
+      "then generates a fresh ID for the next equal text",
+    async () => {
     const accepted = new Map<string, unknown>();
     let firstResponseLost = true;
-    scenario.sent.mockImplementation(async (_id: string, draft: {text: string;clientMessageId: string}) => {
+    scenario.sent.mockImplementation(async (
+      _id: string, draft: {text: string;clientMessageId: string},
+    ) => {
       const seen = accepted.get(draft.clientMessageId);
       const message = seen ?? {
         id: "server-message-" + (accepted.size + 1),
@@ -1147,16 +1152,22 @@ describe("Chat2 send retry on mounted web composer", () => {
     await submit();
     expect(scenario.sent).toHaveBeenCalledTimes(1);
     expect(accepted.size).toBe(1);
-    expect(host.querySelector<HTMLTextAreaElement>('textarea[aria-label="Текст сообщения"]')?.value).toBe("retry after lost response");
+    expect(host.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Текст сообщения"]',
+    )?.value).toBe("retry after lost response");
     await submit();
     expect(scenario.sent).toHaveBeenCalledTimes(2);
-    expect(scenario.sent.mock.calls[0]?.[1].clientMessageId).toBe(scenario.sent.mock.calls[1]?.[1].clientMessageId);
+    expect(scenario.sent.mock.calls[0]?.[1].clientMessageId).toBe(
+      scenario.sent.mock.calls[1]?.[1].clientMessageId,
+    );
     expect(accepted.size).toBe(1);
     expect(host.querySelector<HTMLTextAreaElement>('textarea[aria-label="Текст сообщения"]')?.value).toBe("");
     await writeText("retry after lost response");
     await submit();
     expect(scenario.sent).toHaveBeenCalledTimes(3);
-    expect(scenario.sent.mock.calls[2]?.[1].clientMessageId).not.toBe(scenario.sent.mock.calls[1]?.[1].clientMessageId);
+    expect(scenario.sent.mock.calls[2]?.[1].clientMessageId).not.toBe(
+      scenario.sent.mock.calls[1]?.[1].clientMessageId,
+    );
     expect(accepted.size).toBe(2);
   });
 });
