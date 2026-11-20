@@ -11,6 +11,8 @@ type Choice = {
   tested: boolean;
   newer: boolean;
   expanded: boolean;
+  checkout: boolean;
+  nativeIds: string[];
   recoveryFor: number | null;
 };
 type Preview = {
@@ -24,6 +26,8 @@ type Preview = {
     public: boolean;
     required: boolean;
     action: string;
+    key: string | null;
+    nativeIds: string[];
   } | null;
 };
 /** Treat a missing update list as empty, and fail closed for malformed metadata. */
@@ -50,17 +54,37 @@ export function normalizeVersionPreview(raw: unknown): Preview {
 }
 
 const endpoint = "/api/v1/admin/mobile-ota/version-publication";
-export function VersionPublicationForm() {
+type NativeBuild = {
+  id: string;
+  platform: string;
+  runtimeVersion: string;
+  buildNumber: string;
+  distribution: string;
+  environment: string;
+  channel: string;
+  verified: boolean;
+};
+
+export function VersionPublicationForm({ nativeReleases }: { nativeReleases: NativeBuild[] }) {
   const [platform, setPlatform] = useState("ios");
-  const [version, setVersion] = useState("1.7.5");
+  const [nativeId, setNativeId] = useState("");
+  const builds = nativeReleases.filter(
+    (build) =>
+      build.platform === platform &&
+      build.environment === "production" &&
+      build.channel === "production" &&
+      build.verified,
+  );
+  const native = builds.find((build) => build.id === nativeId);
+  const version = native?.runtimeVersion ?? "";
   const [choice, setChoice] = useState("");
-  const [required, setRequired] = useState(true);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [reload, setReload] = useState(0);
   const [busy, setBusy] = useState(false);
   const locked = useRef(false);
   const [message, setMessage] = useState("");
   const scope = platform + "/" + version;
+  const selection = scope + "/" + nativeId;
   const [loaded, setLoaded] = useState("");
   useEffect(() => {
     const controller = new AbortController();
@@ -72,51 +96,63 @@ export function VersionPublicationForm() {
           if (controller.signal.aborted) return;
           const p = normalizeVersionPreview(raw);
           setPreview(p);
-          setLoaded(scope);
+          setLoaded(selection);
+          const choices = p.choices.filter(
+            (c) =>
+              (c.recoveryFor === null || c.key === p.active?.key) &&
+              c.nativeIds?.includes(nativeId),
+          );
           setChoice((old) =>
-            p.choices.some((c) => c.key === old)
+            choices.some((c) => c.key === old)
               ? old
-              : (p.choices.find((c) => c.recoveryFor === null)?.key ?? ""),
+              : (choices.find((c) => c.key === p.active?.key)?.key ?? choices[0]?.key ?? ""),
           );
         })
         .catch((e) => {
           if (!controller.signal.aborted) setMessage(e.message);
         });
     return () => controller.abort();
-  }, [version, scope, reload]);
-  const p = scope === loaded ? preview : null;
-  const selected = p?.choices.find((c) => c.key === choice);
+  }, [version, scope, selection, nativeId, reload]);
+  const p = selection === loaded ? preview : null;
+  const choices =
+    p?.choices.filter(
+      (c) => (c.recoveryFor === null || c.key === p.active?.key) && c.nativeIds?.includes(nativeId),
+    ) ?? [];
+  const selected = choices.find((c) => c.key === choice);
+  const activeContainsBuild =
+    !!selected && p?.active?.key === selected.key && p.active.nativeIds?.includes(nativeId);
+  const checkoutLabel = (c: Choice) =>
+    !c.checkout
+      ? "Обычная оплата"
+      : platform === "ios"
+        ? "ЮKassa для внутренних сборок"
+        : "Тестовая ЮKassa";
   const recovery = p?.choices
     .filter((c) => c.recoveryFor === p.active?.revision && c.complete && c.newer)
     .at(-1);
   const pending = !!p?.active && ["TEST", "STOP"].includes(p.active.action);
-  async function publish(action: "TEST" | "ALL" | "RECOVER") {
+  async function submit(action: "TEST" | "ALL" | "RECOVER" | "MANDATORY", required = false) {
     if (!p || locked.current) return;
     const audience =
-      action === "ALL" || (action === "RECOVER" && p.active?.public)
+      action === "ALL" || ((action === "RECOVER" || action === "MANDATORY") && p.active?.public)
         ? "всем пользователям"
         : "только admin и asmtv1";
     const target = action === "RECOVER" ? recovery : selected;
     const description = target
       ? target.title + " · ревизия " + target.revision
       : "безопасный пакет ещё не готов";
+    const operation =
+      action === "MANDATORY"
+        ? required
+          ? "Сделать обязательным опубликованный OTA"
+          : "Отключить обязательность OTA"
+        : action === "RECOVER"
+          ? "Остановить новые платежи и откатить выпуск"
+          : "Выпустить обновление";
+    const update = action === "MANDATORY" ? `${version}-ota.${p.active?.revision}` : description;
     if (
       !window.confirm(
-        (action === "RECOVER"
-          ? "Остановить новые платежи и откатить выпуск"
-          : "Выпустить обновление") +
-          " для " +
-          platform +
-          " " +
-          version +
-          "?\n" +
-          description +
-          "\nАудитория — " +
-          audience +
-          "\n" +
-          (required || action === "RECOVER"
-            ? "Обязательное обновление"
-            : "Необязательное обновление"),
+        `${operation} для ${platform} ${version}?\n${update}\nАудитория — ${audience}.`,
       )
     )
       return;
@@ -129,7 +165,7 @@ export function VersionPublicationForm() {
         body: {
           platform,
           runtimeVersion: version,
-          key: action === "RECOVER" ? null : choice,
+          key: action === "RECOVER" || (action === "MANDATORY" && !required) ? null : choice,
           action,
           required,
           token: p.token,
@@ -139,7 +175,11 @@ export function VersionPublicationForm() {
       setMessage(
         action === "RECOVER"
           ? "Безопасная ревизия опубликована."
-          : "Обновление выпущено " + audience + ".",
+          : action === "MANDATORY"
+            ? required
+              ? "Обязательное обновление включено."
+              : "Обязательное обновление отключено."
+            : "Обновление выпущено " + audience + ".",
       );
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Не удалось завершить операцию.");
@@ -161,6 +201,7 @@ export function VersionPublicationForm() {
             disabled={busy}
             onChange={(e) => {
               setPlatform(e.target.value);
+              setNativeId("");
               setMessage("");
             }}
           >
@@ -169,47 +210,48 @@ export function VersionPublicationForm() {
           </select>
         </label>
         <label>
-          Версия приложения
-          <input
-            value={version}
+          Подтверждённая нативная сборка
+          <select
+            value={native?.id ?? ""}
             disabled={busy}
-            placeholder="1.7.5"
             onChange={(e) => {
-              setVersion(e.target.value.trim());
+              setNativeId(e.target.value);
               setMessage("");
             }}
-          />
-        </label>
-        <label>
-          OTA-обновление
-          <select value={choice} disabled={busy || !p} onChange={(e) => setChoice(e.target.value)}>
-            {!p?.choices.some((c) => c.recoveryFor === null) && (
-              <option value="">Нет подготовленных обновлений</option>
-            )}
-            {p?.choices
-              .filter((c) => c.recoveryFor === null)
-              .map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.title} · ревизия {c.revision}
-                </option>
-              ))}
+          >
+            <option value="">
+              {builds.length ? "Выберите сборку" : "Нет подтверждённых сборок"}
+            </option>
+            {builds.map((build) => (
+              <option value={build.id} key={build.id}>
+                {build.runtimeVersion} · сборка {build.buildNumber} · {build.distribution}
+              </option>
+            ))}
           </select>
         </label>
         <label>
-          <input
-            type="checkbox"
-            checked={required}
-            disabled={busy}
-            onChange={(e) => setRequired(e.target.checked)}
-          />
-          Обязательное обновление
+          Подписанная OTA-ревизия
+          <select
+            value={selected?.key ?? ""}
+            disabled={busy || !choices.length}
+            onChange={(e) => setChoice(e.target.value)}
+          >
+            {!choices.length && <option value="">Нет подписанных ревизий для сборки</option>}
+            {choices.map((c) => (
+              <option key={c.key} value={c.key}>
+                {version}-ota.{c.revision} · {c.title} · {checkoutLabel(c)}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
       {p && (
         <p>
-          Зарегистрировано сборок — {p.total}, подтверждено — {p.verified}. Текущая ревизия —{" "}
+          Зарегистрировано сборок — {p.total}, подтверждено — {p.verified}. Опубликованная ревизия —{" "}
           {p.active?.revision ?? "нет"}.
           {p.active && " Аудитория — " + (p.active.public ? "все" : "admin и asmtv1") + "."}
+          {p.active &&
+            (p.active.required ? " Обязательное обновление." : " Необязательное обновление.")}
           {p.active?.action === "STOP" && " Новые платежи остановлены, ожидается откат."}
         </p>
       )}
@@ -232,22 +274,40 @@ export function VersionPublicationForm() {
       <div className="filter-toolbar">
         <button
           disabled={
-            busy || !selected?.complete || (!selected.expanded && (!selected.newer || pending))
+            busy ||
+            !selected?.complete ||
+            selected.recoveryFor !== null ||
+            (!selected.expanded && (!selected.newer || pending))
           }
-          onClick={() => void publish("TEST")}
+          onClick={() => void submit("TEST")}
         >
           Выпустить тестерам
         </button>
         <button
-          disabled={busy || !selected?.tested || !selected.complete}
-          onClick={() => void publish("ALL")}
+          disabled={busy || !selected?.tested || !selected.complete || selected.checkout}
+          onClick={() => void submit("ALL")}
         >
           Выпустить всем
         </button>
         <button
+          disabled={
+            busy || !activeContainsBuild || p?.active?.required || p?.active?.action === "STOP"
+          }
+          onClick={() => void submit("MANDATORY", true)}
+        >
+          Сделать OTA обязательной
+        </button>
+        <button
+          className="secondary"
+          disabled={busy || !p?.active?.required || p.active.action === "STOP"}
+          onClick={() => void submit("MANDATORY")}
+        >
+          Отключить обязательность
+        </button>
+        <button
           className="secondary"
           disabled={busy || !p?.active || p.active.action === "RECOVER"}
-          onClick={() => void publish("RECOVER")}
+          onClick={() => void submit("RECOVER")}
         >
           Откатить
         </button>

@@ -11,7 +11,7 @@ const doc=YAML.parseDocument(content,{uniqueKeys:true});
 const wf=doc.toJS(), job=wf.jobs['signed-production'];
 const steps=job.steps, names=steps.map(s=>s.name);
 const step=name=>steps.find(s=>s.name.includes(name));
-test('OTA production 1.7.5 release is manually dispatched from owner main with production trust',()=>{
+test('OTA production release is manually dispatched from owner main with production trust',()=>{
   assert.equal(doc.errors.length,0);
   assert.ok(wf.on.workflow_dispatch);
   assert.equal(job.environment,'ota-production');
@@ -22,7 +22,11 @@ test('OTA production 1.7.5 release is manually dispatched from owner main with p
   assert.equal(job.env.EXPO_PUBLIC_TELEMETRY_ENABLED,'true');
   assert.equal(job.env.EXPO_PUBLIC_API_BASE_URL,'https://api.gafus.ru');
   assert.equal(job.env.GAFUS_OTA_TRANSPORT,'self-hosted');
-  assert.match(step('fully typed target')?.run??'',/"1\.7\.5"/);
+  assert.equal(wf.on.workflow_dispatch.inputs.runtime_version.required,false);
+  assert.equal(wf.on.workflow_dispatch.inputs.payment_content.default,'standard');
+  assert.match(step('Resolve verified production native trust')?.run??'',/jq -er '\.runtimeVersion'/);
+  assert.match(step('fully typed target')?.run??'',/OTA_EXPECTED_RUNTIME/);
+  assert.deepEqual(Object.keys(wf.on), ['workflow_dispatch']);
 });
 test('release pins true production RSA native trust and immutable S3 asset prefix',()=>{
   assert.match(step('Resolve verified production native trust')?.run??'',/verify-ota-production-native-trust\.mjs/);

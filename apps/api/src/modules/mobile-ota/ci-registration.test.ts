@@ -32,20 +32,36 @@ const asset = {
   cdnVerified:true as const, s3Verified:true as const,
 };
 const sourceSha = "b".repeat(40);
-function signedCandidate(overrideAssetUrl: string = asset.immutableUrl) {
+function signedCandidate(
+  overrideAssetUrl: string = asset.immutableUrl,
+  target = native,
+  checkout = false,
+) {
   const manifest = {
-    id:randomUUID(),createdAt:"2026-11-12T17:30:00.000Z",runtimeVersion:"1.7.5",
+    id:randomUUID(),createdAt:"2026-11-12T17:30:00.000Z",runtimeVersion:target.runtimeVersion,
     launchAsset: {url:overrideAssetUrl,hash:Buffer.from(artifactSha,"hex").toString("base64url"),
       key:"e".repeat(32),contentType:asset.mimeType}, assets:[],
-    metadata:{channel:"preview",environment:"preview",sourceSha},extra:{ota:{revision:7}},
+    metadata:{channel:target.channel,environment:target.environment,sourceSha},
+    extra: checkout ? {
+      ota: { revision: 7, publication: {
+        title: "Internal checkout",
+        nativeReleaseId: target.id,
+        nativeFingerprint: target.nativeFingerprint,
+        recoveryFor: null,
+        allowsCheckout: true,
+      } },
+      expoClient: { extra: {
+        otaNativeReleaseId: target.id, otaNativeFingerprint: target.nativeFingerprint,
+      } },
+    } : { ota: { revision: 7 } },
   };
   const bytes = Buffer.from(JSON.stringify(manifest));
   const signature = sign("RSA-SHA256",bytes,{key:privateKey,padding:constants.RSA_PKCS1_PADDING});
   const raw = {
-    operationId:`qa-build-${randomUUID()}`,nativeReleaseId:native.id,updateId:manifest.id,
+    operationId:`qa-build-${randomUUID()}`,nativeReleaseId:target.id,updateId:manifest.id,
     sourceSha,revision:7,buildAttempt:1,ciRunId:"workflow-1234",
     manifestBase64:bytes.toString("base64"),
-    signatureHeader:`sig="${signature.toString("base64")}", keyid="preview-main", alg="rsa-v1_5-sha256"`,
+    signatureHeader:`sig="${signature.toString("base64")}", keyid="${target.signingKeyId}", alg="rsa-v1_5-sha256"`,
     artifacts:[{...asset,immutableUrl:overrideAssetUrl}],
     checks:{unit:true,mobileTypecheck:true,nativeCompatibility:true,iosPaymentGraph:true,privateSymbols:true} as const,
     symbolsRef:"symbols-s3:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
@@ -95,6 +111,30 @@ describe("signed OTA CI result verification", () => {
     const validated=validateSignedOtaCiResult(native,parsed,"https://cdn.test");
     expect(validated.manifestBody).toEqual(bytes);
     expect(validated.createdAt.toISOString()).toBe("2026-11-12T17:30:00.000Z");
+  });
+  it("registers signed internal iOS checkout for a future runtime and denies other builds", () => {
+    const target = {
+      ...native,
+      environment: "production",
+      channel: "production",
+      distribution: "internal",
+      runtimeVersion: "1.7.6",
+      embeddedUpdateId: randomUUID(),
+    };
+    const { raw } = signedCandidate(
+      `https://cdn.test/ota/production/gafus/1.7.6/ios/assets/${key}`, target, true,
+    );
+    expect(validateSignedOtaCiResult(target, raw, "https://cdn.test").publication)
+      .toMatchObject({ allowsCheckout: true, nativeReleaseId: target.id });
+    for (const override of [
+      { distribution: "app-store" }, { embeddedUpdateId: null },
+      { nativeFingerprint: "b".repeat(64) },
+    ]) {
+      expect(() => validateSignedOtaCiResult({ ...target, ...override }, raw, "https://cdn.test"))
+        .toThrow("INVALID_SIGNED_PUBLICATION");
+    }
+    expect(() => validateSignedOtaCiResult({ ...target, runtimeVersion: "1.7.5" }, raw, "https://cdn.test"))
+      .toThrow("MANIFEST_NATIVE_RUNTIME_MISMATCH");
   });
   it("accepts signed immutable assets directly from the specified Cloud.ru S3 bucket", () => {
     const s3Base = "https://global.s3.cloud.ru/gafus-ota-updates";

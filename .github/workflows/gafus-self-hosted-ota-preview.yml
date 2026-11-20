@@ -73,7 +73,7 @@ jobs:
       EXPO_PUBLIC_API_BASE_URL: ${{ vars.OTA_PREVIEW_API_BASE_URL }}
       EXPO_PUBLIC_CHAT2_API_ORIGIN: ${{ vars.OTA_PREVIEW_CHAT2_API_ORIGIN }}
       EXPO_PUBLIC_TELEMETRY_ENABLED: 'true'
-      EXPO_PUBLIC_OTA_REVISION: ${{ inputs.revision }}
+      OTA_PAYMENT_CONTENT: standard
     steps:
       - name: Checkout exact source snapshot
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

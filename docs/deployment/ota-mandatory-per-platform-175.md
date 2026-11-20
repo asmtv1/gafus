@@ -13,6 +13,12 @@ For example, both records can coexist:
 
 A native `1.7.6` can have its own policy and signing-compatible release; no `1.7.5` bundle is delivered to `1.7.6`. **Runtimes below `1.7.5` do not participate in this mandatory policy.** The old legacy config fields remain in the database for backward compatibility but are read-only in Admin; they do not authorize mandatory SDK57 OTA.
 
+## Version-scoped publication
+
+For a release registered by CI with a release title, use **Mobile releases → Release by app version**. Select the platform and verified native build. Its registered runtime determines the scope. The list shows signed revisions available to that build. Publish the revision first, then enable its mandatory policy with a separate action. The server checks the current publication and its signed assets again. The legacy mandatory policy tab remains available for deployment-managed revisions.
+
+See [the multi-runtime payment OTA handoff](../payments/ota-yookassa-runtime-handoff-20261120.md) for supported profiles and the test matrix.
+
 ## Release semantics — important non-bypass requirements
 
 - An authenticated installation cannot be blocked merely because the `required` flag is true. The server resolves the **exact same selected verified signed manifest** as its OTA endpoint for that installation, platform, runtime, fingerprint, signing key and rollout/tester entitlement.

@@ -82,7 +82,7 @@ export function InternalCardCheckout({
     if (!sameOwner()) return;
     if (!result.success && result.code === "FEATURE_DISABLED") {
       await offer.refetch();
-      report("Оплата недоступна для этой версии.");
+      if (sameOwner()) report("Оплата недоступна для этой версии.");
       return;
     }
     if (
@@ -135,3 +135,5 @@ export function InternalCardCheckout({
     </View>
   );
 }
+
+export { InternalCardCheckout as OptionalCardCheckout };

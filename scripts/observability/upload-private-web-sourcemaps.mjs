@@ -18,6 +18,8 @@ const RELEASE=/^[a-f0-9]{40}$/i;
 const BUILD=/^[a-zA-Z0-9_.-]{8,40}$/;
 const SERVICES=new Set(['gafus-web','gafus-admin-panel','gafus-trainer-panel']);
 const MAX_MAP=64*1024*1024,MAX_COUNT=500;
+const UPLOAD_CONCURRENCY=4;
+const S3_REQUEST_TIMEOUT_MS=30_000;
 const allowedRelative=(p)=>typeof p==='string'&&p.endsWith('.js.map')&&
   p.length<=256&&!isAbsolute(p)&&!p.startsWith('./')&&
   !p.split('/').some(part=>part===''||part==='.'||part==='..'||part.startsWith('.'))&&
@@ -106,38 +108,51 @@ export function verifyWebSymbolUploadConfig(plan,env=process.env){
  return {environment,bucket,endpoint,accessKey,secretKey};
 }
 
+async function requestS3(client,command,operation,readResponse=response=>response){
+ const abortSignal=AbortSignal.timeout(S3_REQUEST_TIMEOUT_MS);
+ try{
+  return await readResponse(await client.send(command,{abortSignal}));
+ }catch(error){
+  if(operation==='PUT'&&(error?.$metadata?.httpStatusCode===412||error?.name==='PreconditionFailed'))
+   return null;
+  const status=error?.$metadata?.httpStatusCode;
+  const reason=abortSignal.aborted?'TIMEOUT':
+   Number.isInteger(status)&&status>=400&&status<=599?`HTTP_${status}`:'TRANSPORT_ERROR';
+  fail(`SYMBOLS_S3_${operation}_${reason}`);
+ }
+}
+
 async function verifyUpload(client,bucket,key,bytes,mime){
  const digest=sha(bytes);
- let written=false;
- try{
-  await client.send(new PutObjectCommand({
+ const put=await requestS3(client,new PutObjectCommand({
    Bucket:bucket,Key:key,Body:bytes,ContentType:mime,
    ContentLength:bytes.length,CacheControl:'private, max-age=31536000, immutable',
    Metadata:{sha256:digest},IfNoneMatch:'*',
-  }));
-  written=true;
- }catch(error){
-  if(!(error&&typeof error==='object'&&
-       (error.$metadata?.httpStatusCode===412||error.name==='PreconditionFailed')))
-    throw error;
- }
- const head=await client.send(new HeadObjectCommand({Bucket:bucket,Key:key}));
+ }), 'PUT');
+ const head=await requestS3(client,new HeadObjectCommand({Bucket:bucket,Key:key}),'HEAD');
  if(head.ContentLength!==bytes.length||head.Metadata?.sha256!==digest||
    head.ContentType!==mime)fail('SYMBOLS_HEAD_CHECK_FAILED');
- const get=await client.send(new GetObjectCommand({Bucket:bucket,Key:key}));
- const read=Buffer.from(await get.Body.transformToByteArray());
+ const read=await requestS3(client,new GetObjectCommand({Bucket:bucket,Key:key}),'GET',
+   async response=>Buffer.from(await response.Body.transformToByteArray()));
  if(sha(read)!==digest||read.length!==bytes.length)
    fail('SYMBOLS_GET_READBACK_FAILED');
- return {key,sha256:digest,verified:true,written};
+ return {key,sha256:digest,verified:true,written:put!==null};
 }
 export async function uploadPrivateWebSymbols(client,bucket,plan,environment){
  const prefix='symbols/'+environment+'/web/'+plan.manifest.service+'/'+
    plan.manifest.releaseSha+'/'+plan.manifest.build+'/';
  const receipts=[];
- for(const record of plan.records){
-  const bytes=await readFile(record.file);
-  if(sha(bytes)!==record.sha256)fail('SYMBOLS_CHANGED_DURING_UPLOAD');
-  receipts.push(await verifyUpload(client,bucket,prefix+record.path,bytes,'application/json'));
+ for(let index=0;index<plan.records.length;index+=UPLOAD_CONCURRENCY){
+  const batch=plan.records.slice(index,index+UPLOAD_CONCURRENCY);
+  const results=await Promise.allSettled(batch.map(async record=>{
+   const bytes=await readFile(record.file);
+   if(sha(bytes)!==record.sha256)fail('SYMBOLS_CHANGED_DURING_UPLOAD');
+   return verifyUpload(client,bucket,prefix+record.path,bytes,'application/json');
+  }));
+  for(const result of results){
+   if(result.status==='rejected')throw result.reason;
+   receipts.push(result.value);
+  }
  }
  receipts.push(await verifyUpload(client,bucket,prefix+'manifest.json',
    plan.manifestBytes,'application/json'));
@@ -155,6 +170,7 @@ async function main(){
  const settings=verifyWebSymbolUploadConfig(plan);
  const client=new S3Client({endpoint:settings.endpoint,region:'ru-central-1',
    forcePathStyle:true,maxAttempts:2,
+   requestChecksumCalculation:'WHEN_REQUIRED',responseChecksumValidation:'WHEN_REQUIRED',
    credentials:{accessKeyId:settings.accessKey,secretAccessKey:settings.secretKey}});
  try{
   const receipt=await uploadPrivateWebSymbols(client,settings.bucket,plan,settings.environment);
@@ -170,4 +186,9 @@ async function main(){
  }finally{client.destroy();}
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)
-  main().catch(()=>{console.error('PRIVATE_WEB_SYMBOLS_UPLOAD_BLOCKED');process.exitCode=4;});
+  main().catch(error=>{
+   const reason=/^(?:PRIVATE_[A-Z0-9_]+|SYMBOLS_[A-Z0-9_]+)$/.test(error?.message)
+     ? error.message : 'UNEXPECTED_ERROR';
+   console.error(`PRIVATE_WEB_SYMBOLS_UPLOAD_BLOCKED: ${reason}`);
+   process.exitCode=4;
+  });

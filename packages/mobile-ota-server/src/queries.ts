@@ -49,9 +49,16 @@ export async function listMobileOtaAudit(): Promise<unknown[]> {
       FROM "MobileOtaAuditEvent" a
       JOIN "MobileOtaDeployment" d ON d.id = a."deploymentId"
       UNION ALL
-      SELECT p."operationId",p.action,p."operationId"::text,p."actorId",p.title,
+      SELECT p."operationId",
+        CASE WHEN prior.action=p.action AND prior."releaseIds"=p."releaseIds"
+          AND prior.public=p.public AND prior.required<>p.required
+          THEN CASE WHEN p.required THEN 'REQUIRE' ELSE 'UNREQUIRE' END
+          ELSE p.action END,
+        p."operationId"::text,p."actorId",p.title,
         p.sequence-1,p.sequence,NULL::uuid,p."createdAt",p.platform,'production','production',p."runtimeVersion"
-      FROM "MobileOtaPublication" p
+      FROM "MobileOtaPublication" p LEFT JOIN "MobileOtaPublication" prior
+        ON prior.platform=p.platform AND prior."runtimeVersion"=p."runtimeVersion"
+        AND prior.sequence=p.sequence-1
       ORDER BY "createdAt" DESC LIMIT 100
     `;
 }
@@ -61,13 +68,13 @@ export type CiNativeDescriptor = {
   distribution: string; bundleId: string; appVersion: string; buildNumber: string;
   runtimeVersion: string; channel: string; updateUrl: string; signingKeyId: string;
   certificateSha256: string; certificatePem: string | null;
-  nativeFingerprint: string; sourceSha: string; verified: boolean;
+  nativeFingerprint: string; sourceSha: string; verified: boolean; embeddedUpdateId: string | null;
 };
 export async function getNativeOtaDescriptorForCi(id: string): Promise<CiNativeDescriptor | null> {
   const rows = await prisma.$queryRaw<CiNativeDescriptor[]>`
     SELECT id, "appId", platform, environment, distribution, "bundleId", "appVersion",
         "buildNumber", "runtimeVersion", channel, "updateUrl", "signingKeyId", "certificateSha256",
-        "certificatePem", "nativeFingerprint", "sourceSha", verified
+        "certificatePem", "nativeFingerprint", "sourceSha", verified, "embeddedUpdateId"
       FROM "MobileNativeRelease" WHERE id=${id}::uuid
   `;
   return rows[0] ?? null;

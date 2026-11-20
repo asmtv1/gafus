@@ -21,7 +21,7 @@ export async function versionOwnsScope(
 }
 export type Publication = {
   sequence: number;
-  action: string;
+  action: "TEST" | "ALL" | "RECOVER" | "STOP";
   public: boolean;
   required: boolean;
   revision: number;

@@ -62,15 +62,19 @@ export async function selectVersionUpdate(
   return row.matched ? (row as Choice) : null;
 }
 
-export async function allowsAndroidQaCheckout(
+async function allowsInternalCheckout(
+  platform: OtaPlatform,
   actorId: string,
   version: string | null,
   installationId: string | undefined,
   fingerprint: string | undefined,
   updateId: string | undefined,
 ) {
+  const enabled = platform === "ios"
+    ? process.env.MOBILE_OTA_IOS_YOOKASSA_ENABLED
+    : process.env.MOBILE_OTA_ANDROID_QA_YOOKASSA_ENABLED;
   if (
-    process.env.MOBILE_OTA_ANDROID_QA_YOOKASSA_ENABLED !== "true" ||
+    enabled !== "true" ||
     process.env.MOBILE_OTA_DELIVERY_ENV !== "production" ||
     !version || !/^\d+\.\d+\.\d+$/.test(version) ||
     !installationId || !uuid.test(installationId) ||
@@ -78,36 +82,20 @@ export async function allowsAndroidQaCheckout(
     !updateId || !uuid.test(updateId)
   ) return false;
   const selected = await selectVersionUpdate(
-    { platform: "android", runtimeVersion: version, installationId, nativeFingerprint: fingerprint },
+    { platform, runtimeVersion: version, installationId, nativeFingerprint: fingerprint },
     "policy",
     actorId,
   );
   return !!selected?.allowsCheckout && selected.running === true && selected.updateId === updateId;
 }
 
-export async function allowsVersionCheckout(
-  actorId: string,
-  version: string | null,
-  installationId: string | undefined,
-  fingerprint: string | undefined,
-  updateId: string | undefined,
+export function allowsAndroidQaCheckout(
+  ...args: [actorId: string, version: string | null, installationId: string | undefined,
+    fingerprint: string | undefined, updateId: string | undefined]
 ) {
-  if (
-    process.env.MOBILE_OTA_IOS_YOOKASSA_ENABLED !== "true" ||
-    process.env.MOBILE_OTA_DELIVERY_ENV !== "production" ||
-    version !== "1.7.5" ||
-    !installationId ||
-    !uuid.test(installationId) ||
-    !fingerprint ||
-    !/^[a-f0-9]{64}$/.test(fingerprint) ||
-    !updateId ||
-    !uuid.test(updateId)
-  )
-    return false;
-  const selected = await selectVersionUpdate(
-    { platform: "ios", runtimeVersion: version, installationId, nativeFingerprint: fingerprint },
-    "policy",
-    actorId,
-  );
-  return !!selected?.allowsCheckout && selected.running === true && selected.updateId === updateId;
+  return allowsInternalCheckout("android", ...args);
+}
+
+export function allowsVersionCheckout(...args: Parameters<typeof allowsAndroidQaCheckout>) {
+  return allowsInternalCheckout("ios", ...args);
 }

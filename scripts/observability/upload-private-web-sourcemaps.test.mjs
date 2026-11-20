@@ -62,12 +62,16 @@ test('malicious traversal and public-bucket config fail before ANY network',asyn
 test('upload is immutable and verifies both HEAD and GET of each object',async t=>{
  const x=await fixture(t),plan=await planWebSymbolUpload(x.root);
  const objects=new Map();
- const client={async send(command){
+ const client={async send(command,{abortSignal}){
+  assert.ok(abortSignal instanceof AbortSignal);
   const req=command.input;
   if(command instanceof PutObjectCommand) {
     assert.equal(req.ACL,undefined);
     assert.equal(req.IfNoneMatch,'*');
     assert.equal(req.CacheControl,'private, max-age=31536000, immutable');
+    if(objects.has(req.Key))throw Object.assign(new Error('already exists'),{
+     $metadata:{httpStatusCode:412},
+    });
     objects.set(req.Key,{data:Buffer.from(req.Body),mime:req.ContentType,metadata:req.Metadata});
     return {};
   }
@@ -84,4 +88,20 @@ test('upload is immutable and verifies both HEAD and GET of each object',async t
  assert.ok(report.every(r=>r.verified&&r.key.startsWith('symbols/preview/web/gafus-web/')));
  assert.ok(report.some(r=>r.key.endsWith('/manifest.json')));
  assert.ok(report.some(r=>r.key.endsWith('/assets/index.abc.js.map')));
+ const retry=await uploadPrivateWebSymbols(client,'gafus-private-symbols-qa',plan,'preview');
+ assert.ok(retry.every(r=>r.verified&&!r.written));
+});
+
+test('a failed object readback reports a safe reason and leaves the manifest unpublished',async t=>{
+ const x=await fixture(t),plan=await planWebSymbolUpload(x.root);
+ const client={async send(command){
+  assert.ok(!command.input.Key.endsWith('/manifest.json'));
+  if(command instanceof PutObjectCommand)return {};
+  if(command instanceof HeadObjectCommand)return {
+   ContentLength:x.bytes.length,ContentType:'application/json',Metadata:{sha256:sha(x.bytes)},
+  };
+  throw Object.assign(new Error('remote error with request details'),{$metadata:{httpStatusCode:503}});
+ }};
+ await assert.rejects(uploadPrivateWebSymbols(client,'gafus-private-symbols-qa',plan,'preview'),
+   {message:'SYMBOLS_S3_GET_HTTP_503'});
 });

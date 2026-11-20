@@ -13,7 +13,7 @@ const expected = {
   'expo-router':'57.0.31','expo-modules-core':'57.0.26','react-native-worklets':'0.10.1',
 };
 const fail=(message)=>{throw Error('SDK57_RELEASE_GRAPH_FAILED:'+message);};
-if(mobile.version!==config.version || config.runtimeVersion?.policy!=='appVersion' || config.version!=='1.7.5')fail('RUNTIME');
+if(mobile.version!==config.version || config.runtimeVersion?.policy!=='appVersion' || !/^\d+\.\d+\.\d+$/.test(config.version))fail('RUNTIME');
 if(root.dependencies?.['react-native']!==expected['react-native'] ||
    root.dependencies?.react!==expected.react)fail('ROOT_PEERS');
 if(mobile.dependencies?.['@react-navigation/native'])fail('ROUTER_DIRECT_DEPENDENCY');

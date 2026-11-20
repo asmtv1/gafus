@@ -306,7 +306,7 @@ export function MobileReleasesPanel({ source }: { source: unknown }) {
   return (
     <section className="content-card">
       <h2>Мобильные релизы</h2>
-      <VersionPublicationForm />
+      <VersionPublicationForm nativeReleases={nativeReleases} />
       <details><summary>Реестр, история и дополнительные настройки</summary>
       <p className="note">Собственный OTA включается только для проверенных нативных поставок и подписанных артефактов. Существующий EAS не переключается отсюда.</p>
       <div className="filter-toolbar" role="tablist" aria-label="Реестр OTA">

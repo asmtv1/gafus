@@ -8,7 +8,8 @@ const UUID=/^[a-f\d]{8}-[a-f\d]{4}-[1-8][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$
 export function validateCiNativeDescriptor(value, { nativeId, environment, platform, runtime } = {}) {
   if (!value || value.id!==nativeId || value.verified!==true ||
       value.environment!==environment || value.platform!==platform ||
-      value.runtimeVersion!==runtime || value.appVersion!==runtime ||
+      !/^\d+\.\d+\.\d+$/.test(value.runtimeVersion ?? "") ||
+      (runtime && value.runtimeVersion!==runtime) || value.appVersion!==value.runtimeVersion ||
       !/^https:\/\//.test(value.updateUrl) ||
       !/^[a-f\d]{64}$/.test(value.nativeFingerprint) ||
       !/^[a-f\d]{40}$/.test(value.sourceSha) ||

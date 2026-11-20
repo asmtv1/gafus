@@ -22,7 +22,7 @@ export async function recordVersionObservation(c: Context, identity: string, emb
 export async function readVersionCandidate(c: Context, source: "manifest" | "policy", tester: boolean, identity: string | null, embedded: string | null): Promise<(Partial<Choice> & {matched: boolean}) | undefined> {
   const [row] = await prisma.$queryRaw<(Partial<Choice> & { matched: boolean })[]>`
     SELECT r.id IS NOT NULL AS matched,r."manifestBody",r."signatureHeader",r."updateId",r.revision,p.required,
-       r."allowsCheckout" AND (p.platform<>'android' OR (p.action='TEST' AND NOT p.public AND ${tester})) AND p.action<>'STOP' AND latest.action<>'STOP' AND r.distribution='internal' AS "allowsCheckout",
+       r."allowsCheckout" AND p.action='TEST' AND NOT p.public AND ${tester} AND latest.action<>'STOP' AND r.distribution='internal' AS "allowsCheckout",
        r.running FROM (SELECT * FROM "MobileOtaPublication" WHERE platform=${c.platform}
          AND "runtimeVersion"=${c.runtimeVersion} AND (public OR ${tester}) ORDER BY sequence DESC LIMIT 1) p
     JOIN LATERAL (SELECT action FROM "MobileOtaPublication" WHERE platform=p.platform AND "runtimeVersion"=p."runtimeVersion"

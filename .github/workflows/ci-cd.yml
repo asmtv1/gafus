@@ -522,6 +522,7 @@ jobs:
       # Explicit protected opt-in; otherwise maps remain private only on runner.
       - name: Upload immutable private Web release maps from build-apps (approved only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.GAFUS_WEB_SYMBOLS_PRODUCTION_APPROVED == 'true'
+        timeout-minutes: 20
         env:
           CI: 'true'
           GAFUS_TELEMETRY_ENVIRONMENT: production

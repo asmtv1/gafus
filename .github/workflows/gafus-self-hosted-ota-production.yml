@@ -1,4 +1,4 @@
-# Explicitly requested signed OTA 1.7.5 production release. MANUAL, READY only.
+# Explicitly requested signed OTA for a verified native runtime. MANUAL, READY only.
 # Native binary, runtime and signing certificate MUST have been registered and
 # confirmed on physical devices in GAFUS before this workflow can build.
 name: GAFUS signed self-hosted OTA production
@@ -34,8 +34,8 @@ on:
           - ios
           - android
       runtime_version:
-        description: Exact native runtime version (not SDK version)
-        required: true
+        description: Optional expected runtime of the selected native build
+        required: false
         type: string
       revision:
         description: Unique positive revision within native platform/channel/runtime
@@ -77,7 +77,7 @@ jobs:
       OTA_RECOVERY_FOR: ${{ inputs.recovery_for }}
       OTA_PAYMENT_CONTENT: ${{ inputs.payment_content }}
       OTA_SOURCE_SHA: ${{ inputs.source_sha }}
-      OTA_RUNTIME: ${{ inputs.runtime_version }}
+      OTA_EXPECTED_RUNTIME: ${{ inputs.runtime_version }}
       OTA_PLATFORM: ${{ inputs.platform }}
       OTA_REVISION: ${{ inputs.revision }}
       OTA_UPDATE_ID: ${{ inputs.update_id }}
@@ -93,7 +93,6 @@ jobs:
       EXPO_PUBLIC_API_BASE_URL: https://api.gafus.ru
       EXPO_PUBLIC_CHAT2_API_ORIGIN: https://api.gafus.ru
       EXPO_PUBLIC_TELEMETRY_ENABLED: 'true'
-      EXPO_PUBLIC_OTA_REVISION: ${{ inputs.revision }}
     steps:
       - name: Checkout exact source snapshot
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -111,7 +110,7 @@ jobs:
           [[ "$OTA_UPDATE_ID" =~ ^[0-9a-f-]{36}$ ]] || exit 14
           [[ "$OTA_OPERATION_ID" =~ ^[A-Za-z0-9_-]{16,120}$ ]] || exit 15
           [[ "$OTA_REVISION" =~ ^[1-9][0-9]*$ ]] || exit 16
-          [[ "$OTA_RUNTIME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 17
+          [[ -z "$OTA_EXPECTED_RUNTIME" || "$OTA_EXPECTED_RUNTIME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 17
           [[ -n "$OTA_RELEASE_TITLE" && ${#OTA_RELEASE_TITLE} -le 100 ]] || exit 17
           [[ -z "$OTA_RECOVERY_FOR" || "$OTA_RECOVERY_FOR" =~ ^[1-9][0-9]*$ ]] || exit 17
           [[ -z "$OTA_RECOVERY_FOR" || "$OTA_PAYMENT_CONTENT" == standard ]] || exit 17
@@ -180,12 +179,15 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/ota-native" apps/mobile/.ota-certs
           node apps/mobile/scripts/fetch-self-hosted-native-release.mjs \
-            "$OTA_NATIVE_ID" production "$OTA_PLATFORM" "$OTA_RUNTIME" "$RUNNER_TEMP/ota-native"
-          # A verified API descriptor is not sufficient on its own. The native
-          # binary must contain our exact source-pinned RSA trust anchor and
-          # must target the same non-production API as the export.
+            "$OTA_NATIVE_ID" production "$OTA_PLATFORM" "$OTA_EXPECTED_RUNTIME" "$RUNNER_TEMP/ota-native"
+          export OTA_RUNTIME GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR
+          GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR="$RUNNER_TEMP/ota-native/native.json"
+          OTA_RUNTIME="$(jq -er '.runtimeVersion' "$GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR")"
+          echo "OTA_RUNTIME=$OTA_RUNTIME" >> "$GITHUB_ENV"
+          # Check the source-pinned RSA trust anchor and the selected payment profile.
           node apps/mobile/scripts/verify-ota-production-native-trust.mjs \
-            "$RUNNER_TEMP/ota-native/native.json"
+            "$GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR"
+          node --input-type=module -e 'import { paymentProfile } from "./apps/mobile/scripts/ota-payment-profile.mjs"; console.log(paymentProfile());'
           # Native source must be an ancestor, while this release may contain
           # JS-only changes. The next step proves the native fingerprint unchanged.
           native_sha="$(node -p "require(process.env.RUNNER_TEMP+'/ota-native/native.json').sourceSha")"
@@ -263,9 +265,6 @@ jobs:
           echo "EXPO_PUBLIC_APP_VERSION=$EXPO_PUBLIC_APP_VERSION" >> "$GITHUB_ENV"
           node apps/mobile/scripts/export-self-hosted-ota.mjs \
             "$OTA_PLATFORM" "$OTA_REVISION" "$RUNNER_TEMP/ota-export" "$RUNNER_TEMP/ota-public-config.json"
-          if [[ "$OTA_PLATFORM" == ios ]]; then
-            node apps/mobile/scripts/verify-ios-payment-export.mjs "$RUNNER_TEMP/ota-export"
-          fi
           test "$(git rev-parse HEAD)" = "$OTA_SOURCE_SHA"
           test -z "$(git status --porcelain)"
 

@@ -1,6 +1,13 @@
 import { createHash } from "node:crypto";
-import { withVersionPublicationTransaction, versionPublicationReader } from "./version-publication-repository.js";
-import type { VersionPublicationReader, Publication, BuildRow } from "./version-publication-repository.js";
+import {
+  withVersionPublicationTransaction,
+  versionPublicationReader,
+} from "./version-publication-repository.js";
+import type {
+  VersionPublicationReader,
+  Publication,
+  BuildRow,
+} from "./version-publication-repository.js";
 export { versionOwnsScope } from "./version-publication-repository.js";
 
 export type VersionScope = { platform: "ios" | "android"; runtimeVersion: string };
@@ -20,12 +27,15 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
     group.push(row);
     groups.set(key, group);
   }
+  const activeRows = rows.filter((row) => row.id && active?.releaseIds.includes(row.id));
+  const priorNatives = new Set(activeRows.map((row) => row.nativeId));
   const choices = [...groups]
     .map(([key, group]) => {
       const first = group[0]!;
-      const priorNatives = new Set(
-        rows.filter((r) => r.id && active?.releaseIds.includes(r.id)).map((r) => r.nativeId),
-      );
+      const recoveryPublished =
+        active?.action === "RECOVER" &&
+        active.revision === first.revision &&
+        group.some((row) => active.releaseIds.includes(row.id!));
       const targets = new Set(
         rows
           .filter(
@@ -33,7 +43,8 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
               r.verified &&
               (!first.checkout || r.distribution === "internal") &&
               (first.recoveryFor === null ||
-                (active?.revision === first.recoveryFor && priorNatives.has(r.nativeId))),
+                ((active?.revision === first.recoveryFor || recoveryPublished) &&
+                  priorNatives.has(r.nativeId))),
           )
           .map((r) => r.nativeId),
       );
@@ -52,6 +63,7 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
         recoveryFor: first.recoveryFor,
         checkout: first.checkout,
         ids,
+        nativeIds: ready.map((r) => r.nativeId),
         compatible: ids.length,
         excluded: total - ids.length,
         complete: ids.length > 0 && ids.length === targets.size,
@@ -68,15 +80,20 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
     .sort((a, b) => b.revision - a.revision);
   return {
     active: active ?? null,
+    activeNativeIds: activeRows.map((row) => row.nativeId),
     total,
     verified,
     choices,
+    activeChoice: choices.find(
+      (choice) =>
+        active?.releaseIds.length && active.releaseIds.every((id) => choice.ids.includes(id)),
+    ),
     token: digest([scope.platform, scope.runtimeVersion, rows, active]),
   };
 }
 
 export type PublishInput = VersionScope & {
-  action: "TEST" | "ALL" | "RECOVER";
+  action: "TEST" | "ALL" | "RECOVER" | "MANDATORY";
   token: string;
   key: string | null;
   required: boolean;
@@ -95,84 +112,103 @@ function stopId(id: string) {
 }
 async function transition(input: PublishInput, stop: boolean) {
   return withVersionPublicationTransaction(input, async (tx) => {
-      const operationId = stop ? stopId(input.operationId) : input.operationId;
-      const hash = digest([
-        input.platform,
-        input.runtimeVersion,
-        input.action,
-        input.key,
-        input.token,
-        input.required,
-        input.actorId,
-      ]);
-      const replay = await tx.findOperation(operationId);
-      if (replay) {
-        if (replay.commandHash !== hash)
-          throw new PublicationError("Идентификатор операции уже использован.");
-        return replay.sequence;
-      }
-      const s = await snapshot(tx, input);
-      const current = s.active;
-      const ownStop =
-        current?.operationId === stopId(input.operationId) && current.action === "STOP";
-      if (s.token !== input.token && !(ownStop && !stop && input.action === "RECOVER"))
-        throw new PublicationError("Реестр изменился. Обновите предварительную проверку.");
-      const action = stop ? "STOP" : input.action;
-      let next: Pick<Publication, "public" | "required" | "revision" | "title" | "releaseIds">;
-      if (stop) {
-        if (!current || current.action === "RECOVER")
-          throw new PublicationError("Нет активного выпуска для отката.");
-        if (current.action === "STOP") return current.sequence;
-        next = current;
-      } else {
-        const c =
+    const operationId = stop ? stopId(input.operationId) : input.operationId;
+    const hash = digest([
+      input.platform,
+      input.runtimeVersion,
+      input.action,
+      input.key,
+      input.token,
+      input.required,
+      input.actorId,
+    ]);
+    const replay = await tx.findOperation(operationId);
+    if (replay) {
+      if (replay.commandHash !== hash)
+        throw new PublicationError("Идентификатор операции уже использован.");
+      return replay.sequence;
+    }
+    const s = await snapshot(tx, input);
+    const current = s.active;
+    const ownStop = current?.operationId === stopId(input.operationId) && current.action === "STOP";
+    if (s.token !== input.token && !(ownStop && !stop && input.action === "RECOVER"))
+      throw new PublicationError("Реестр изменился. Обновите предварительную проверку.");
+    let action: Publication["action"];
+    let next: Pick<Publication, "public" | "required" | "revision" | "title" | "releaseIds">;
+    if (stop) {
+      action = "STOP";
+      if (!current || current.action === "RECOVER")
+        throw new PublicationError("Нет активного выпуска для отката.");
+      if (current.action === "STOP") return current.sequence;
+      next = current;
+    } else if (input.action === "MANDATORY") {
+      if (!current || current.action === "STOP")
+        throw new PublicationError("Сначала опубликуйте совместимое подписанное обновление.");
+      if (
+        input.required &&
+        (!s.activeChoice ||
+          s.activeChoice.key !== input.key ||
+          (s.activeChoice.checkout && current.public))
+      )
+        throw new PublicationError(
+          "Выберите опубликованную ревизию со всеми доступными подписанными пакетами.",
+        );
+      if (current.required === input.required)
+        throw new PublicationError("У опубликованного обновления уже задана эта обязательность.");
+      action = current.action;
+      next = { ...current, required: input.required };
+    } else {
+      action = input.action;
+      const c =
+        input.action === "RECOVER"
+          ? s.choices
+              .filter((c) => c.recoveryFor === current?.revision && c.complete && c.newer)
+              .at(-1)
+          : s.choices.find((c) => c.key === input.key && c.recoveryFor === null);
+      if (!c?.complete)
+        throw new PublicationError(
           input.action === "RECOVER"
-            ? s.choices
-                .filter((c) => c.recoveryFor === current?.revision && c.complete && c.newer)
-                .at(-1)
-            : s.choices.find((c) => c.key === input.key && c.recoveryFor === null);
-        if (!c?.complete)
-          throw new PublicationError(
-            input.action === "RECOVER"
-              ? "Новые платежи остановлены. Нужен подписанный пакет отката для всех подтверждённых сборок."
-              : "Для каждой подтверждённой сборки нужен совместимый подписанный пакет.",
-          );
-        if (input.platform === "android" && c.checkout && input.action === "ALL")
-          throw new PublicationError("Android-пакет с тестовой оплатой доступен только тестерам.");
-        if (input.action === "ALL" && !c.tested)
-          throw new PublicationError("Сначала выпустите этот набор тестерам.");
-        if (input.action !== "ALL" && !c.newer && !(input.action === "TEST" && c.expanded))
-          throw new PublicationError("Нужна следующая ревизия с более поздней датой.");
-        if (
-          input.action === "TEST" &&
-          (current?.action === "STOP" || (current?.action === "TEST" && !c.expanded))
-        )
-          throw new PublicationError("Завершите текущий тестовый выпуск или откат.");
-        if (input.action === "RECOVER" && current?.action !== "STOP")
-          throw new PublicationError("Текущий выпуск изменился.");
-        next = {
-          revision: c.revision,
-          title: c.title,
-          releaseIds: c.ids,
-          public: input.action === "ALL" || (input.action === "RECOVER" && !!current?.public),
-          required: input.action === "RECOVER" || input.required,
-        };
-      }
-      const sequence = (current?.sequence ?? 0) + 1;
-      await tx.append({
-        ...next,
-        platform: input.platform,
-        runtimeVersion: input.runtimeVersion,
-        sequence,
-        operationId,
-        commandHash: hash,
-        actorId: input.actorId,
-        action,
-      });
-      return sequence;
+            ? "Новые платежи остановлены. Нужен подписанный пакет отката для всех подтверждённых сборок."
+            : "Для каждой подтверждённой сборки нужен совместимый подписанный пакет.",
+        );
+      if (c.checkout && input.action === "ALL")
+        throw new PublicationError("Пакет с внутренней оплатой доступен только тестерам.");
+      if (input.action === "ALL" && !c.tested)
+        throw new PublicationError("Сначала выпустите этот набор тестерам.");
+      if (input.action !== "ALL" && !c.newer && !(input.action === "TEST" && c.expanded))
+        throw new PublicationError("Нужна следующая ревизия с более поздней датой.");
+      if (
+        input.action === "TEST" &&
+        (current?.action === "STOP" || (current?.action === "TEST" && !c.expanded))
+      )
+        throw new PublicationError("Завершите текущий тестовый выпуск или откат.");
+      if (input.action === "RECOVER" && current?.action !== "STOP")
+        throw new PublicationError("Текущий выпуск изменился.");
+      next = {
+        revision: c.revision,
+        title: c.title,
+        releaseIds: c.ids,
+        public: input.action === "ALL" || (input.action === "RECOVER" && !!current?.public),
+        required: false,
+      };
+    }
+    const sequence = (current?.sequence ?? 0) + 1;
+    await tx.append({
+      ...next,
+      platform: input.platform,
+      runtimeVersion: input.runtimeVersion,
+      sequence,
+      operationId,
+      commandHash: hash,
+      actorId: input.actorId,
+      action,
+    });
+    return sequence;
   });
 }
 export async function publishVersionUpdate(input: PublishInput) {
+  if (input.action !== "MANDATORY" && input.required)
+    throw new PublicationError("Обязательность назначается отдельным действием после публикации.");
   if (input.action === "RECOVER") await transition(input, true);
   return { sequence: await transition(input, false) };
 }
@@ -180,13 +216,17 @@ export async function publishVersionUpdate(input: PublishInput) {
 export async function previewVersionPublication(scope: VersionScope) {
   const s = await snapshot(versionPublicationReader, scope);
   return {
-    ...s,
+    total: s.total,
+    verified: s.verified,
+    token: s.token,
     active: s.active && {
       title: s.active.title,
       revision: s.active.revision,
       action: s.active.action,
       public: s.active.public,
       required: s.active.required,
+      key: s.activeChoice?.key ?? null,
+      nativeIds: s.activeNativeIds,
     },
     choices: s.choices.map(({ ids, ...choice }) => choice),
   };

@@ -46,7 +46,7 @@ adminMobileOtaRoutes.get("/version-publication/:platform/:runtimeVersion",async 
   if(!scope.success)return c.json({success:false,error:"Укажите платформу и точную версию приложения."},400);
   return c.json({success:true,data:await previewVersionPublication(scope.data)});
 });
-const publishInput=versionScope.extend({action:z.enum(["TEST","ALL","RECOVER"]),required:z.boolean(),
+const publishInput=versionScope.extend({action:z.enum(["TEST","ALL","RECOVER","MANDATORY"]),required:z.boolean(),
   key:z.string().regex(/^[a-f0-9]{64}$/).nullable(),token:z.string().regex(/^[a-f0-9]{64}$/),operationId:UUID}).strict();
 adminMobileOtaRoutes.post("/version-publication",async c=>{
   const input=publishInput.safeParse(await c.req.json().catch(()=>null));

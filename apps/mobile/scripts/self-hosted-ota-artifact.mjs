@@ -59,7 +59,7 @@ function requireMeta({ native, platform, environment, runtimeVersion, channel, s
 export function buildSignedOtaArtifact({
   exportRoot, metadata, publicExpoConfig, native, platform, environment,
   runtimeVersion, channel, sourceSha, signingKeyId, publicCdnBase,
-  updateId, createdAt, revision, certificatePem, privateKeyPem, nativeFingerprint, publication,
+  updateId, createdAt, revision, certificatePem, privateKeyPem, nativeFingerprint, publication, requireCompiledRevision = false,
 }) {
   requireMeta({ native, platform, environment, runtimeVersion, channel,
     sourceSha, signingKeyId, publicCdnBase, updateId, createdAt, revision, certificatePem,
@@ -95,6 +95,11 @@ export function buildSignedOtaArtifact({
     seenAssetPaths.add(filePath);
     const file = safeFile(exportRoot, filePath);
     const bytes = fs.readFileSync(file);
+    if (isLaunch && requireCompiledRevision) {
+      const stamps = bytes.toString("latin1").match(/gafus-ota-revision:[1-9]\d*/g) ?? [];
+      must(stamps.length > 0 && stamps.every((stamp) => stamp === `gafus-ota-revision:${revision}`),
+        "OTA_COMPILED_REVISION_MISMATCH");
+    }
     must(bytes.length > 0 && bytes.length < 250_000_000, "INVALID_ASSET_SIZE");
     totalBytes += bytes.length;
     must(totalBytes < 2_000_000_000, "OTA_EXPORT_TOO_LARGE");

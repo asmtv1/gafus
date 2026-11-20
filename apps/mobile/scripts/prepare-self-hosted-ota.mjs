@@ -3,8 +3,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
-import {internalCheckoutProfile} from "./ota-payment-profile.mjs";
+import {paymentProfile} from "./ota-payment-profile.mjs";
 import { buildSignedOtaArtifact, verifyAndWriteLocalPreview } from "./self-hosted-ota-artifact.mjs";
 
 const options = {};
@@ -56,12 +57,26 @@ if(options.environment==="production" && process.env.OTA_RELEASE_TITLE &&
   (!process.env.OTA_RELEASE_TITLE.trim() || process.env.OTA_RELEASE_TITLE.trim().length>100 ||
     (process.env.OTA_RECOVERY_FOR && (!/^[1-9]\d*$/.test(process.env.OTA_RECOVERY_FOR) ||
      Number(process.env.OTA_RECOVERY_FOR)>=Number(options.revision)))))throw Error("INVALID_PUBLICATION_METADATA");
-const allowsCheckout = internalCheckoutProfile();
+if (!["ios", "android"].includes(options.platform)) throw Error("INVALID_OTA_PLATFORM");
+if (expoConfig.extra?.otaTransport !== "self-hosted" ||
+    expoConfig.extra?.otaNativeReleaseId !== release.id ||
+    expoConfig.extra?.otaNativeFingerprint !== release.nativeFingerprint ||
+    expoConfig.extra?.otaEnvironment !== release.environment ||
+    expoConfig.extra?.otaChannel !== release.channel)
+  throw Error("EXPO_CONFIG_NATIVE_TARGET_MISMATCH");
+const profile = paymentProfile();
+const allowsCheckout = profile !== "standard";
 if (allowsCheckout && (!process.env.OTA_RELEASE_TITLE || options.platform !== process.env.OTA_PLATFORM ||
     options.runtime !== process.env.OTA_RUNTIME ||
     fs.realpathSync(options["native-release"]) !== fs.realpathSync(process.env.GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR))) {
   throw new Error("PAYMENT_PROFILE_NATIVE_RELEASE_MISMATCH");
 }
+// Inspect the frozen export again before signing so the signed checkout flag
+// cannot disagree with the JS actually placed in the package.
+execFileSync(process.execPath, [
+  fileURLToPath(new URL(`./verify-${options.platform}-payment-export.mjs`, import.meta.url)),
+  options["export-root"], profile,
+], { stdio: "inherit" });
 const artifact = buildSignedOtaArtifact({
   exportRoot: options["export-root"], metadata, publicExpoConfig: expoConfig,
   native: release, platform: options.platform, environment: options.environment,
@@ -70,6 +85,7 @@ const artifact = buildSignedOtaArtifact({
   signingKeyId: options["signing-key-id"], publicCdnBase: options["asset-base"] ?? options["cdn-base"],
   updateId: options["update-id"], createdAt: options["created-at"],
   revision: Number(options.revision),
+  requireCompiledRevision: true,
   publication: process.env.OTA_RELEASE_TITLE ? {
     title: process.env.OTA_RELEASE_TITLE.trim(),
     recoveryFor: process.env.OTA_RECOVERY_FOR ? Number(process.env.OTA_RECOVERY_FOR) : null,

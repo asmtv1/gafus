@@ -5,8 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
-import {internalCheckoutProfile} from "./ota-payment-profile.mjs";
-const internal=internalCheckoutProfile();
+import { checkoutComponent, paymentProfile } from "./ota-payment-profile.mjs";
+const checkout = checkoutComponent(paymentProfile());
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const entry = process.argv.find((arg) => arg.startsWith("--entry="))?.slice(8) ??
   path.join(root, "src/features/app-subscription/components/AppSubscriptionPaywall.ios.tsx");
@@ -25,6 +25,9 @@ function resolve(from, name) {
   const stem = name.startsWith("@/") ? path.join(root, "src", name.slice(2)) :
     name.startsWith(".") ? path.resolve(path.dirname(from), name) : null;
   if (!stem) return null;
+  if (checkout === "InternalCardCheckout" &&
+      from === path.join(root, "src/features/app-subscription/components/AppSubscriptionPaywall.ios.tsx") &&
+      name === "./OptionalCardCheckout") return path.join(path.dirname(from), `${checkout}.tsx`);
   const candidates = [stem, ...extensions.map((ext) => stem+ext),
     ...extensions.map((ext) => path.join(stem, "index"+ext))];
   return candidates.find((p) => fs.existsSync(p) && fs.statSync(p).isFile()) ?? null;
@@ -71,7 +74,7 @@ function walk(file) {
 }
 walk(entry);
 const containsCard=[...visited].some(file=>file.endsWith("/InternalCardCheckout.tsx"));
-if(containsCard!==internal) violations.push("Checkout content differs from the verified distribution profile");
+if(containsCard!==(checkout === "InternalCardCheckout")) violations.push("Checkout content differs from the verified distribution profile");
 if (violations.length) {
   process.stderr.write(`iOS payment graph has forbidden modules:\n${violations.join("\n")}\n`);
   process.exitCode = 1;

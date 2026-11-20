@@ -55,6 +55,7 @@ export type NativeTrustRecord = {
   signingKeyId: string;
   nativeFingerprint: string;
   distribution?: string;
+  embeddedUpdateId?: string | null;
   certificatePem: string | null;
   certificateSha256: string;
   verified: boolean;
@@ -127,8 +128,10 @@ export function validateSignedOtaCiResult(
       manifest.extra?.expoClient?.extra?.otaNativeReleaseId !== native.id ||
       manifest.extra?.expoClient?.extra?.otaNativeFingerprint !== native.nativeFingerprint ||
       (publication.data.recoveryFor !== null && (publication.data.recoveryFor >= result.revision || publication.data.allowsCheckout)) ||
-      (publication.data.allowsCheckout && (native.distribution !== 'internal' ||
-        (native.platform !== 'android' && (native.platform !== 'ios' || native.runtimeVersion !== '1.7.5'))))))
+      (publication.data.allowsCheckout && (native.distribution !== "internal" ||
+        native.environment !== "production" || native.channel !== "production" ||
+        !UUID.safeParse(native.embeddedUpdateId).success ||
+        !/^\d+\.\d+\.\d+$/.test(native.runtimeVersion)))))
     throw new MobileOtaCiError("INVALID_SIGNED_PUBLICATION");
   const expectedAssets = [manifest.launchAsset, ...manifest.assets];
   if (expectedAssets.length !== result.artifacts.length)
@@ -220,7 +223,7 @@ export async function registerVerifiedOtaCiResult(result: SignedOtaCiResult,
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<NativeTrustRecord[]>`
       SELECT id, "appId", platform, environment, distribution, channel, "runtimeVersion", "signingKeyId",
-        "nativeFingerprint", "certificatePem", "certificateSha256", verified
+        "nativeFingerprint", "certificatePem", "certificateSha256", verified, "embeddedUpdateId"
       FROM "MobileNativeRelease" WHERE id=${result.nativeReleaseId}::uuid FOR UPDATE
     `;
     if (!rows[0]) throw new MobileOtaCiError("NATIVE_RELEASE_NOT_FOUND");

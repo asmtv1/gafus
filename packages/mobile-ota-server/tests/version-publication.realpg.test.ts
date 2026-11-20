@@ -62,9 +62,10 @@ async function command(scope: VersionScope, action: PublishInput["action"]) {
   return {
     ...scope,
     action,
-    key: p.choices.find((c) => c.recoveryFor === null)?.key ?? null,
+    key: action === "MANDATORY" ? (p.active?.key ?? null) :
+      (p.choices.find((c) => c.recoveryFor === null)?.key ?? null),
     token: p.token,
-    required: true,
+    required: action === "MANDATORY",
     operationId: randomUUID(),
     actorId: actor,
   };
@@ -82,7 +83,7 @@ suite("version-scoped OTA lifecycle", () => {
     const scopes = await prisma.$queryRaw<
       { count: number }[]
     >`SELECT count(*)::int AS count FROM "MobileNativeRelease" WHERE
-      "appId"='gafus' AND environment='production' AND (platform='ios' AND "runtimeVersion"='1.7.5' OR platform='android' AND "runtimeVersion"='1.7.6')`;
+      "appId"='gafus' AND environment='production' AND (platform='ios' AND "runtimeVersion" IN ('1.7.5','1.7.6') OR platform='android' AND "runtimeVersion"='1.7.6')`;
     if (scopes[0].count) throw Error("VERSION_TEST_REQUIRES_EMPTY_TARGETS");
     vi.stubEnv(
       "MOBILE_OTA_INSTALLATION_HASH_KEY",
@@ -127,7 +128,7 @@ suite("version-scoped OTA lifecycle", () => {
     expect(await allowsAndroidQaCheckout(tester.id, scope.runtimeVersion, installation, fp, update)).toBe(false);
   });
 
-  it("requires every verified target, promotes only the tested set, stops checkout before recovery and isolates versions", async () => {
+  it("requires signed targets, separates mandatory from publication, and isolates runtimes", async () => {
     const a = await native(ios, "98", fp),
       b = await native(ios, "99", fp),
       c = await native(ios, "100", "c".repeat(64));
@@ -143,9 +144,14 @@ suite("version-scoped OTA lifecycle", () => {
     const second = await release(b, 1, true);
     await expect(publishVersionUpdate(await command(ios, "TEST"))).rejects.toThrow("каждой");
     await release(c, 1, true);
-    await release(d, 1, false);
+    const standard = await release(d, 1, false);
+    const iosNext = { platform: "ios", runtimeVersion: "1.7.6" } as const;
+    const nextNative = await native(iosNext, "17601", fp);
+    const nextUpdate = await release(nextNative, 1, true);
     await expect(publishVersionUpdate(await command(ios, "ALL"))).rejects.toThrow("тестерам");
+    await expect(publishVersionUpdate(await command(ios, "MANDATORY"))).rejects.toThrow("Сначала");
     const test = await command(ios, "TEST");
+    await expect(publishVersionUpdate({ ...test, required: true })).rejects.toThrow("отдельным");
     const [published, replayed] = await Promise.all([
       publishVersionUpdate(test), publishVersionUpdate(test),
     ]);
@@ -160,10 +166,18 @@ suite("version-scoped OTA lifecycle", () => {
     expect(await manifest({ ...a, embeddedUpdateId: randomUUID() }, true)).toBeNull();
     expect(await manifest({ ...a, nativeFingerprint: "f".repeat(64) }, true)).toBeNull();
     expect(await manifest(a)).toBeNull();
-    expect(await selectVersionUpdate(a, "policy", admin.id)).toMatchObject({
-      revision: 1,
-      required: true,
-    });
+    expect(await selectVersionUpdate(a, "policy", admin.id)).toMatchObject({ revision: 1, required: false });
+    const mandatory = await command(ios, "MANDATORY");
+    await prisma.$executeRaw`UPDATE "MobileOtaArtifact" SET verified=false
+      WHERE "releaseId"=(SELECT id FROM "MobileOtaRelease" WHERE "updateId"=${second}::uuid)`;
+    await expect(publishVersionUpdate(mandatory)).rejects.toThrow("изменился");
+    await expect(publishVersionUpdate(await command(ios, "MANDATORY"))).rejects.toThrow("подписанными");
+    await prisma.$executeRaw`UPDATE "MobileOtaArtifact" SET verified=true
+      WHERE "releaseId"=(SELECT id FROM "MobileOtaRelease" WHERE "updateId"=${second}::uuid)`;
+    await publishVersionUpdate(await command(ios, "MANDATORY"));
+    expect(await selectVersionUpdate(a, "policy", admin.id)).toMatchObject({ revision: 1, required: true });
+    await publishVersionUpdate({ ...(await command(ios, "MANDATORY")), required: false, key: null });
+    expect(await selectVersionUpdate(a, "policy", admin.id)).toMatchObject({ required: false });
     expect(await selectVersionUpdate(a, "policy", ordinary.id)).toBeUndefined();
     await selectVersionUpdate({ ...a, testerAllowed: true, currentUpdateId: first }, "manifest");
     expect(await allowsVersionCheckout(admin.id, "1.7.5", installation, fp, first)).toBe(true);
@@ -178,30 +192,30 @@ suite("version-scoped OTA lifecycle", () => {
     await publishVersionUpdate(await command(android, "TEST"));
     expect(await manifest(d, true)).toBeTruthy();
     expect(await manifest({ ...d, runtimeVersion: "1.7.5" }, true)).toBeNull();
-    const promote = await command(ios, "ALL");
-    await prisma.$executeRaw`UPDATE "MobileOtaArtifact" SET verified=false WHERE "releaseId"=(SELECT id FROM "MobileOtaRelease" WHERE "updateId"=${second}::uuid)`;
-    await expect(publishVersionUpdate(promote)).rejects.toThrow("изменился");
-    expect(await manifest(a)).toBeNull();
-    await prisma.$executeRaw`UPDATE "MobileOtaArtifact" SET verified=true WHERE "releaseId"=(SELECT id FROM "MobileOtaRelease" WHERE "updateId"=${second}::uuid)`;
-    await publishVersionUpdate(await command(ios, "ALL"));
-    expect((await manifest(a))?.updateId).toBe(first);
-    await selectVersionUpdate({ ...a, currentUpdateId: first }, "manifest");
-    expect(await allowsVersionCheckout(ordinary.id, "1.7.5", installation, fp, first)).toBe(true);
-    await expect(publishVersionUpdate(await command(ios, "RECOVER"))).rejects.toThrow(
-      "остановлены",
-    );
-    expect(await allowsVersionCheckout(ordinary.id, "1.7.5", installation, fp, first)).toBe(false);
-    expect(await manifest(a)).toBeNull();
+    await publishVersionUpdate(await command(android, "ALL"));
+    expect((await manifest(d))?.updateId).toBe(standard);
+    await expect(publishVersionUpdate(await command(ios, "ALL"))).rejects.toThrow("тестерам");
+    await publishVersionUpdate(await command(iosNext, "TEST"));
+    await selectVersionUpdate({ ...nextNative, testerAllowed: true, currentUpdateId: nextUpdate }, "manifest");
+    expect(await allowsVersionCheckout(admin.id, "1.7.6", installation, fp, nextUpdate)).toBe(true);
+    expect(await allowsVersionCheckout(admin.id, "1.7.6", installation, fp, first)).toBe(false);
+    expect(await allowsVersionCheckout(admin.id, "1.7.5", installation, fp, nextUpdate)).toBe(false);
+    await expect(publishVersionUpdate(await command(ios, "RECOVER"))).rejects.toThrow("остановлены");
+    expect(await allowsVersionCheckout(admin.id, "1.7.5", installation, fp, first)).toBe(false);
+    expect(await manifest(a, true)).toBeNull();
     const safe = await release(a, 2, false, 1);
     await release(b, 2, false, 1);
     await release(c, 2, false, 1);
     await publishVersionUpdate(await command(ios, "RECOVER"));
-    expect((await manifest(a))?.updateId).toBe(safe);
-    expect(await selectVersionUpdate(a, "policy", ordinary.id)).toMatchObject({
+    expect((await manifest(a, true))?.updateId).toBe(safe);
+    expect(await selectVersionUpdate(a, "policy", admin.id)).toMatchObject({
       revision: 2,
-      required: true,
+      required: false,
       allowsCheckout: false,
     });
+    await publishVersionUpdate(await command(ios, "MANDATORY"));
+    expect(await selectVersionUpdate(a, "policy", admin.id)).toMatchObject({ revision: 2, required: true });
+    expect(await allowsVersionCheckout(admin.id, "1.7.6", installation, fp, nextUpdate)).toBe(true);
     expect(await manifest(d, true)).toBeTruthy();
   });
 });

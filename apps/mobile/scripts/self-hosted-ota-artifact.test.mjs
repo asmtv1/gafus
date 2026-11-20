@@ -111,3 +111,18 @@ test("rejects a valid RSA signer without required codeSigning certificate EKU", 
     native:{...native,certificateSha256:hashHex(Buffer.from(withoutEku))},
   }), /OTA_CERTIFICATE_CODE_SIGNING_EKU_REQUIRED/);
 });
+
+test("the release signer checks the revision embedded in the Hermes bundle", () => {
+  const file = path.join(exports, metadata.fileMetadata.ios.bundle);
+  const original = fs.readFileSync(file);
+  const required = { ...input, requireCompiledRevision: true };
+  assert.throws(() => buildSignedOtaArtifact(required), /OTA_COMPILED_REVISION_MISMATCH/);
+  try {
+    fs.writeFileSync(file, Buffer.concat([original, Buffer.from("gafus-ota-revision:12")]));
+    assert.throws(() => buildSignedOtaArtifact(required), /OTA_COMPILED_REVISION_MISMATCH/);
+    fs.writeFileSync(file, Buffer.concat([original, Buffer.from("gafus-ota-revision:1")]));
+    assert.doesNotThrow(() => buildSignedOtaArtifact(required));
+  } finally {
+    fs.writeFileSync(file, original);
+  }
+});
