@@ -111,6 +111,20 @@ button:disabled { opacity: 0.65; cursor: default; }
 .access-tag.locked { color: #995f27; }
 .empty-state { padding: 1.4rem; background: white; border: 1px solid #dce5dc; border-radius: 0.8rem; }
 
+.gafus-app .shell .session-recovery-card {
+  width: min(100%, 32rem);
+  box-sizing: border-box;
+  margin: clamp(1.5rem, 10vh, 6rem) auto 0;
+  padding: clamp(1.25rem, 4vw, 2rem);
+}
+.gafus-app .shell .session-recovery-card h1 {
+  margin: 0 0 0.75rem;
+  font: 700 clamp(1.25rem, 4vw, 1.625rem)/1.25 var(--font-montserrat);
+  text-align: start;
+}
+.session-recovery-card > p { margin: 0 0 1.25rem; }
+.session-recovery-card > p:last-child { margin-bottom: 0; text-align: center; }
+
 .profile-overview {
   background: white;
   border: 1px solid #dce5dc;

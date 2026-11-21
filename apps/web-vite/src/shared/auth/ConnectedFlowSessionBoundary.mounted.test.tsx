@@ -262,6 +262,8 @@ describe("AG2 cross-flow auth boundary actual App",()=>{
   expect(node.textContent).not.toContain("PRIVATE_TRAINER_A");
   expect(cache.getQueryData(["gallery","album","A","ownerA","album_01"]))
    .toBeUndefined();
+  expect(node.querySelector("h1")?.textContent).toBe("Сессия завершилась");
+  expect(node.querySelector('a[href="/login"]')?.textContent).toBe("Войти");
   expect(refresh).toHaveBeenCalledTimes(1);
  });
  it("X06 ambiguous refresh 503 hides private but is NOT treated as successful logout",async()=>{
@@ -273,6 +275,11 @@ describe("AG2 cross-flow auth boundary actual App",()=>{
   });});await tick();
   expect(node.textContent).not.toContain("PRIVATE_ALBUM_DESC");
   expect(node.textContent).toContain("Личные данные скрыты");
+  expect(node.textContent).not.toContain("Пользователь:");
+  expect(node.querySelector('a[href="/login"]')).toBeNull();
+  await click("Повторить проверку");
+  expect(window.location.pathname).toBe("/profile/albums/album_01");
+  expect(node.textContent).toContain("PRIVATE_ALBUM_DESC");
   expect(logout).not.toHaveBeenCalled();
  });
  it("X07 logout pending hides private immediately; ACK leaves cache empty",async()=>{
@@ -414,6 +421,41 @@ describe("AG2 cross-flow auth boundary actual App",()=>{
   await tick();
   expect(node.textContent).toContain("Сессия изменилась");
   expect(node.textContent).not.toContain("PRIVATE_ALBUM_DESC");
+ });
+ it("production training recovers the same lesson after auth cache eviction and cookie refresh",async()=>{
+  const path="/trainings/IMPULSE_CONTROL/link_01";
+  const fetchOther=fetcher.getMockImplementation()!;
+  fetcher.mockImplementation(async(url,options)=>{
+   if(url==="/api/v1/training/days?type=IMPULSE_CONTROL")return json({
+    ...trainingDays(),trainingDays:[first],courseIsPersonalized:false,
+    userCoursePersonalization:null,
+   });
+   if(url==="/api/v1/training/day?courseType=IMPULSE_CONTROL&dayOnCourseId=link_01&createIfMissing=false")
+    return json({...trainingDay(),dayOnCourseId:first.dayOnCourseId,courseId:first.courseId});
+   return fetchOther(url,options);
+  });
+  window.history.replaceState(null,"",path);
+  await act(async()=>root.render(<QueryClientProvider client={cache}>
+    <App showGalleryOptIn />
+  </QueryClientProvider>));
+  for(let i=0;i<12&&!node.textContent?.includes("PRIVATE_STEP_A");i++)await tick();
+  expect(node.textContent).toContain("PRIVATE_STEP_A");
+
+  const renewed=hold<Response>();
+  authMe.mockResolvedValueOnce(json(null,401));
+  refresh.mockReturnValueOnce(renewed.promise);
+  await act(async()=>cache.removeQueries({queryKey:CURRENT_USER_QUERY_KEY,exact:true}));
+  await tick();
+  expect(refresh).toHaveBeenCalledTimes(1);
+  expect(node.textContent).toContain("Проверяем сессию");
+  expect(node.textContent).not.toContain("PRIVATE_STEP_A");
+
+  await act(async()=>renewed.resolve(json(null)));
+  for(let i=0;i<12&&!node.textContent?.includes("PRIVATE_STEP_A");i++)await tick();
+  expect(node.textContent).toContain("PRIVATE_STEP_A");
+  expect(node.textContent).not.toContain("Сессия изменилась");
+  expect(window.location.pathname).toBe(path);
+  expect(logout).not.toHaveBeenCalled();
  });
  it("X10 late album payload after logout cannot render on training URL",async()=>{
   const d=hold<AlbumSummary>();getAlbum.mockReturnValueOnce(d.promise);

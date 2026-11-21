@@ -68,10 +68,12 @@ describe("AG2: legacy Web bookmarks", () => {
   });
 
   it.each(["/feed/notifications", "/feed/hidden-authors"])(
-    "unauthenticated %s protects private owner route without API requests", async path => {
+    "an unavailable session check at %s allows retry and makes no private requests", async path => {
       window.history.replaceState(null, "", path);
       (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-      const fake = vi.fn();
+      const fake = vi.fn(async (_url: string, _options: RequestInit) => new Response(
+        JSON.stringify({success:false,error:"Service unavailable"}),{status:503},
+      ));
       vi.stubGlobal("fetch", fake);
       const host = document.createElement("div");
       document.body.append(host);
@@ -81,27 +83,14 @@ describe("AG2: legacy Web bookmarks", () => {
         await act(async () => root.render(createElement(QueryClientProvider, {
           client: cache,
         }, createElement(App))));
-        // Two independent lazy auth boundaries render asynchronously. Do not
-        // stop as soon as the first one settles: the second still needs a turn.
-        const authMessages = ["Проверяем сессию", "Не удалось получить статус авторизации",
-          "Не удалось проверить авторизацию"];
-        const privacyMessages = ["Личные данные временно скрыты", "Личные данные скрыты"];
-        const includesAny = (variants: string[]) =>
-          variants.some(message => host.textContent?.includes(message));
         for (let i = 0; i < 60; i++) {
-          if (includesAny(authMessages) && includesAny(privacyMessages)) break;
+          if (host.querySelector("h1")?.textContent === "Не удалось проверить авторизацию") break;
           await act(async () => { await new Promise(done => setTimeout(done, 25)); });
         }
-        // An unknown guest session is now fenced BEFORE either private route.
-        // Authorization may settle to an explicit error before this assertion.
-        // Both pending and error renderings must deny access to private data.
-        // ConnectedFlowSessionBoundary and NextProtectedRouteBoundary may
-        // finish independently. Both fail closed, but render different safe
-        // auth-error copy; do not assert a single network timing outcome.
-        expect(includesAny(authMessages)).toBe(true);
-        expect(includesAny(privacyMessages)).toBe(true);
-        expect(host.querySelector('a[href="/login"]')).not.toBeNull();
-        expect(host.textContent).not.toContain("Страница не найдена");
+        expect(host.textContent).toContain("Личные данные скрыты");
+        expect(host.querySelector("button")?.textContent).toBe("Повторить проверку");
+        expect(host.querySelector('a[href="/login"]')).toBeNull();
+        expect(window.location.pathname).toBe(path);
         // The connected session boundary may verify /me, never private route data.
         expect(fake.mock.calls.map(([url]) => url)).toEqual(["/api/v1/auth/me"]);
         expect(fake.mock.calls[0][1]).toMatchObject({

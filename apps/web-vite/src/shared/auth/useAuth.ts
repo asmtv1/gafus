@@ -72,6 +72,7 @@ export function useLogout() {
     onSuccess: () => {
       // Do not retain private user data in TanStack Query memory after logout.
       cache.clear();
+      cache.setQueryData(CURRENT_USER_QUERY_KEY, null);
     },
   });
 }

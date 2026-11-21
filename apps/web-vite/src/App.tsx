@@ -1,4 +1,4 @@
-import { Loading } from "./shared/ui";
+import { Loading, PrimaryButton, PrimaryButtonLink } from "./shared/ui";
 
 import type { SyntheticAchievementTransport } from "./features/achievements/achievementsApi";
 import type { ServerAchievementsEntitlementWire } from "./features/achievements/achievementsEntitlement";
@@ -19,6 +19,8 @@ import { useIsMutating, useMutationState, useQueryClient } from "@tanstack/react
 import {
   CURRENT_USER_QUERY_KEY,
   EXPLICIT_LOGIN_QUERY_KEY,
+  useCurrentUser,
+  useLogout,
   type ExplicitLoginReceipt,
 } from "./shared/auth/useAuth";
 import type { AuthUser } from "./shared/auth/authApi";
@@ -56,8 +58,6 @@ import type { AlbumSummary, AlbumPhoto, GalleryPage } from "./features/gallery/g
 
 import { GafusHeader } from "./brand/GafusHeader";
 import { GafusFooter } from "./brand/GafusFooter";
-
-import { useCurrentUser } from "./shared/auth/useAuth";
 
 import {
   articleSlugFromPath,
@@ -1516,11 +1516,22 @@ function AppRouter({
   }
 }
 
+function SessionRecoveryLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className="gafus-app">
+      <main className="shell" aria-label="Защита сессии связанных разделов">
+        <section className="empty-state session-recovery-card">{children}</section>
+      </main>
+      <GafusFooter />
+    </div>
+  );
+}
+
 /** App-lifetime session boundary. Keep its element mounted across changes
  * in whether a route requires the guard. Only enforce blocking for connected
  * routes. Conditional wrapper mounting replaced AppRouter and its owner tour
  * host on /profile -> /consultations, losing the in-progress original tour.
- * Persistence also avoids resetting the A->B->A/unknown-session fence across
+ * Persistence also avoids resetting the A->B->A fence across
  * ordinary navigation. Hono authorization remains independently mandatory.
  */
 function ConnectedFlowSessionBoundary({
@@ -1534,11 +1545,13 @@ function ConnectedFlowSessionBoundary({
   // Preserve the App-lifetime boundary, but do not fetch private identity on
   // public recovery/confirmation pages where no actor session is required.
   const current = useCurrentUser(enabled);
-  const snapshot = () => cache.getQueryData<AuthUser | null>(CURRENT_USER_QUERY_KEY) ?? null;
-  const first = useRef(snapshot());
+  const refetchSession = current.refetch;
+  const logout = useLogout();
+  const snapshot = () => cache.getQueryData<AuthUser | null>(CURRENT_USER_QUERY_KEY);
+  const first = useRef(snapshot() ?? null);
   const last = useRef(first.current);
-  const seen = useRef(!!first.current);
   const revoked = useRef(false);
+  const needsVerification = useRef(false);
   const revision = useRef(0);
   const id = (user: AuthUser | null) =>
     user &&
@@ -1558,20 +1571,31 @@ function ConnectedFlowSessionBoundary({
           )
         )
           return;
-        const next = snapshot();
-        if (id(next) === id(last.current) && event.type !== "removed") return;
-        // Fresh guest -> first successful login may establish a baseline.
-        // Auth mutations already clear unrelated old private cache.
-        if (!seen.current && !revoked.current && next) {
-          first.current = next;
-          seen.current = true;
-          last.current = next;
-          revision.current++;
-          callback();
+        if (event.type === "removed") {
+          if (first.current) {
+            // Cache eviction is not a logout. Hide private views until the
+            // server confirms the same principal, without losing its baseline.
+            needsVerification.current = true;
+            revision.current++;
+            callback();
+          }
           return;
         }
-        last.current = next;
-        revoked.current = true;
+        const next = snapshot();
+        if (next === undefined) return;
+        const verified = needsVerification.current && (
+          next === null ||
+          (event.type === "updated" && event.action.type === "success" && !event.action.manual)
+        );
+        if (verified) needsVerification.current = false;
+        if (id(next) !== id(last.current)) {
+          // Fresh guest -> first successful login may establish a baseline.
+          if (!first.current && next) first.current = next;
+          else revoked.current = true;
+          last.current = next;
+        } else if (!verified) {
+          return;
+        }
         revision.current++;
         callback();
       }),
@@ -1615,11 +1639,14 @@ function ConnectedFlowSessionBoundary({
     acceptedLogin.current = receiptEpoch;
     first.current = current.data;
     last.current = current.data;
-    seen.current = true;
     revoked.current = false;
+    needsVerification.current = false;
     revision.current++;
     setLoginRecovery((x) => x + 1);
   }, [cache, current.data, current.isSuccess, explicitReceipt, receiptEpoch, loginRecovery]);
+  useEffect(() => {
+    if (enabled && needsVerification.current) void refetchSession({ cancelRefetch: false });
+  }, [enabled, refetchSession, version]);
   const pendingLogout = useIsMutating({ mutationKey: ["auth", "logout"] }) > 0;
   const logoutErrors = useMutationState({
     filters: {
@@ -1636,6 +1663,7 @@ function ConnectedFlowSessionBoundary({
   // including a stale cached A while the 401->refresh->/me chain is pending.
   const blocked =
     revoked.current ||
+    needsVerification.current ||
     pendingLogout ||
     recentLogoutError ||
     current.isFetching ||
@@ -1643,7 +1671,7 @@ function ConnectedFlowSessionBoundary({
     (authPresent &&
       (!first.current ||
         id(first.current) !== id(current.data ?? null) ||
-        id(snapshot()) !== id(current.data ?? null)));
+        id(snapshot() ?? null) !== id(current.data ?? null)));
   useEffect(() => {
     if (!revoked.current) return;
     const privateQuery = (query: { queryKey: readonly unknown[] }) => query.queryKey[0] !== "auth";
@@ -1652,25 +1680,49 @@ function ConnectedFlowSessionBoundary({
       .then(() => cache.removeQueries({ predicate: privateQuery }));
   }, [cache, version]);
   if (!enabled || !blocked) return <>{children}</>;
-  // AuthPanel is a lazy chunk. Without an immediate Suspense boundary, a
-  // revoked A→B→A session can suspend this whole replacement render and React
-  // keeps the old private gallery UI visible until the login chunk resolves.
-  // The protection message must commit synchronously even during that import.
+  if (pendingLogout || current.isFetching) {
+    return (
+      <SessionRecoveryLayout>
+        <Loading message={pendingLogout ? "Завершаем сессию…" : "Проверяем сессию…"} />
+        <p>{pendingLogout ? "Личные данные скрыты." : "Личные данные временно скрыты."}</p>
+      </SessionRecoveryLayout>
+    );
+  }
+  if (current.isSuccess && current.data === null && snapshot() === null) {
+    return (
+      <SessionRecoveryLayout>
+        <h1>Сессия завершилась</h1>
+        <p role="alert">Войдите в аккаунт, чтобы продолжить.</p>
+        <PrimaryButtonLink href="/login">Войти</PrimaryButtonLink>
+      </SessionRecoveryLayout>
+    );
+  }
+  if (recentLogoutError) {
+    return (
+      <SessionRecoveryLayout>
+        <h1>Не удалось выйти</h1>
+        <p role="alert">Личные данные скрыты.</p>
+        <PrimaryButton onClick={() => logout.mutate()}>Повторить выход</PrimaryButton>
+      </SessionRecoveryLayout>
+    );
+  }
+  if (!revoked.current) return <SessionCheckError retry={() => void refetchSession()} />;
   return (
-    <main className="shell" aria-label="Защита сессии связанных разделов">
-      <section role="alert">
-        <p>
-          {current.isFetching
-            ? "Проверяем сессию. Личные данные временно скрыты."
-            : "Сессия изменилась или её состояние неизвестно. Личные данные скрыты."}
-        </p>
-        <p>Для нового просмотра личных разделов откройте приложение заново.</p>
-      </section>
-      <Suspense fallback={<Loading message="Загружаем форму входа…" />}>
-        <AuthPanel />
-      </Suspense>
-      <RouteLink to="/login">Войти</RouteLink>
-    </main>
+    <SessionRecoveryLayout>
+      <h1>Сессия изменилась</h1>
+      <p role="alert">Личные данные скрыты. Обновите раздел, чтобы продолжить.</p>
+      <PrimaryButton onClick={() => window.location.reload()}>Обновить раздел</PrimaryButton>
+    </SessionRecoveryLayout>
+  );
+}
+
+function SessionCheckError({ retry }: { retry: () => void }) {
+  return (
+    <SessionRecoveryLayout>
+      <h1>Не удалось проверить авторизацию</h1>
+      <p role="alert">Личные данные скрыты. Проверьте соединение и повторите попытку.</p>
+      <PrimaryButton onClick={retry}>Повторить проверку</PrimaryButton>
+    </SessionRecoveryLayout>
   );
 }
 
@@ -1741,11 +1793,14 @@ function NextProtectedRouteBoundary({ children }: { children: ReactNode }) {
     window.dispatchEvent(new PopStateEvent("popstate"));
   }, [guest]);
   if (guest) return null;
+  if (current.isError && !current.isFetching) {
+    return <SessionCheckError retry={() => void current.refetch()} />;
+  }
   if (!current.isSuccess || current.isFetching || !current.data) {
     return (
-      <main className="shell" role="status">
-        {current.isError ? "Не удалось проверить авторизацию." : "Проверяем сессию…"}
-      </main>
+      <SessionRecoveryLayout>
+        <Loading message="Проверяем сессию…" />
+      </SessionRecoveryLayout>
     );
   }
   return <>{children}</>;
@@ -1863,7 +1918,9 @@ export function App(props: Parameters<typeof AppRouter>[0] = {}) {
       {/* Keep the principal boundary mounted even when the route changes to
         public login/recovery. Otherwise A→B→A can reset the revocation fence
         and reveal previously cached A-owned content after returning. */}
-      <ConnectedFlowSessionBoundary enabled={connected}>
+      <ConnectedFlowSessionBoundary
+        enabled={connected && !(currentPath && NEXT_PUBLIC_WEB_ROUTES.has(currentPath))}
+      >
         <NextGuestRouteBoundary route={currentPath}>
           <DeferredReadRoute loading="Загружаем страницу…">
             <AppRouter {...props} />
