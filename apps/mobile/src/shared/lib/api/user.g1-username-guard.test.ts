@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({ request: vi.fn(), multipart: vi.fn() }));
 vi.mock("./client", () => ({ apiClient: m.request, apiClientMultipart: m.multipart }));
-vi.mock("expo-secure-store", () => ({ getItemAsync: vi.fn(), setItemAsync: vi.fn() }));
+vi.mock("expo-secure-store", () => ({
+  getItemAsync: vi.fn(),
+  setItemAsync: vi.fn(),
+  deleteItemAsync: vi.fn(),
+}));
 
 import { userApi } from "./user";
 

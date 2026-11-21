@@ -5,7 +5,11 @@ const mocks = vi.hoisted(() => ({
   multipart: vi.fn(),
 }));
 
-vi.mock("expo-secure-store", () => ({ getItemAsync: vi.fn() }));
+vi.mock("expo-secure-store", () => ({
+  getItemAsync: vi.fn(),
+  setItemAsync: vi.fn(),
+  deleteItemAsync: vi.fn(),
+}));
 vi.mock("./client", () => ({
   apiClient: mocks.client,
   apiClientMultipart: mocks.multipart,

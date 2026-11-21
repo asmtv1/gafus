@@ -1,7 +1,11 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 const m = vi.hoisted(() => ({ request: vi.fn(), multipart: vi.fn() }));
 vi.mock("./client", () => ({ apiClient: m.request, apiClientMultipart: m.multipart }));
-vi.mock("expo-secure-store", () => ({ getItemAsync: vi.fn(), setItemAsync: vi.fn() }));
+vi.mock("expo-secure-store", () => ({
+  getItemAsync: vi.fn(),
+  setItemAsync: vi.fn(),
+  deleteItemAsync: vi.fn(),
+}));
 import { userApi } from "./user";
 beforeEach(() => vi.clearAllMocks());
 describe("AG3 V47 existing Hono email request adapter", () => {

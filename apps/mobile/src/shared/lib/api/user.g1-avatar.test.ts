@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("expo-secure-store", () => ({
   getItemAsync: mocks.secureToken,
+  setItemAsync: vi.fn(),
+  deleteItemAsync: vi.fn(),
 }));
 vi.mock("./client", () => ({
   apiClient: mocks.regular,

@@ -4,7 +4,11 @@ vi.mock("./client",()=>({
   apiClient:(...args:unknown[])=>m.client(...args),
   apiClientMultipart:(...args:unknown[])=>m.multipart(...args),
 }));
-vi.mock("expo-secure-store",()=>({getItemAsync:vi.fn()}));
+vi.mock("expo-secure-store", () => ({
+  getItemAsync: vi.fn(),
+  setItemAsync: vi.fn(),
+  deleteItemAsync: vi.fn(),
+}));
 import {userApi} from "./user";
 afterEach(()=>vi.resetAllMocks());
 describe("original registered user deletion Mobile transport",()=>{
