@@ -51,7 +51,7 @@ export function prepareNativeCandidate({root,config,certificatePem}) {
   requireCondition((p.platform==='ios' && ['internal','testflight',
       ...(environment==='production'?['app-store']:[])].includes(p.distribution)) ||
     (p.platform==='android' && ['internal',
-      ...(environment==='production'?['store']:[])].includes(p.distribution)),'INVALID_DISTRIBUTION');
+      ...(environment==='production'?['google-play','rustore']:[])].includes(p.distribution)),'INVALID_DISTRIBUTION');
   requireCondition(/^\d{1,20}$/.test(p.buildNumber??''),'INVALID_BUILD_NUMBER');
   requireCondition(OP_ID.test(p.operationId??''),'INVALID_OPERATION_ID');
   requireCondition(typeof p.ciRunId==='string'&&p.ciRunId.length>=2&&p.ciRunId.length<=100,

@@ -117,3 +117,30 @@ test('production 1.7.5 signed internal Android and iOS binaries use distinct nat
     fs.rmSync(path.join(root,'apps/mobile/.ota-certs'),{recursive:true});
   }
 });
+
+test('Google Play Store native registration matches production API and never enables OTA publishing',()=>{
+  const prodPem=fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)),
+    '../ota-public-certificates/gafus-production-20261115.cert.txt'),'utf8');
+  const config={...cfg,environment:'production',platform:'android',distribution:'google-play',
+    apiOrigin:'https://gafus.ru',operationId:'build-production-google-play-store-0001'};
+  const candidate=prepareNativeCandidate({root,config,certificatePem:prodPem}).candidate;
+  assert.equal(candidate.distribution,'google-play');
+  assert.throws(()=>prepareNativeCandidate({root,config:{...config,distribution:'store'},
+    certificatePem:prodPem}),/INVALID_DISTRIBUTION/);
+  const desc=finalizeNativeBuild({root,candidate,nativeId:crypto.randomUUID(),certificatePem:prodPem});
+  write('apps/mobile/.ota-certs/prod.pem',prodPem);
+  fs.writeFileSync(path.join(root,'android-play.json'),JSON.stringify(desc));
+  const environment={APP_ENV:'production',GAFUS_OTA_TRANSPORT:'self-hosted',
+    GAFUS_OTA_LOCAL_STORE_BUILD:'true',GAFUS_OTA_TARGET_PLATFORM:'android',
+    GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR:'../../android-play.json',
+    GAFUS_OTA_NATIVE_CERTIFICATE:'.ota-certs/prod.pem'};
+  const expo=applyNativeSelfHostedProfile({version:'1.7.5',runtimeVersion:{policy:'appVersion'}},
+    {appRoot:path.join(root,'apps/mobile'),environment});
+  assert.equal(expo.android.versionCode,187);
+  assert.equal(expo.updates.checkAutomatically,'NEVER');
+  assert.throws(()=>applyNativeSelfHostedProfile({version:'1.7.5',runtimeVersion:{policy:'appVersion'}},
+    {appRoot:path.join(root,'apps/mobile'),environment:{...environment,GAFUS_OTA_LOCAL_STORE_BUILD:'false'}}),
+    /PRODUCTION_REQUIRES_APPROVED_CI/);
+  fs.rmSync(path.join(root,'apps/mobile/.ota-certs'),{recursive:true});
+  fs.unlinkSync(path.join(root,'android-play.json'));
+});

@@ -32,7 +32,7 @@ function applyNativeSelfHostedProfile(config, { environment = process.env,
   const localStoreBuild = environment.GAFUS_OTA_LOCAL_STORE_BUILD === "true" &&
     environment.GAFUS_OTA_LOCAL_DEVICE_TEST !== "true" &&
     ((descriptor.distribution === "app-store" && descriptor.platform === "ios") ||
-      (descriptor.distribution === "store" && descriptor.platform === "android")) &&
+      (["google-play","rustore"].includes(descriptor.distribution) && descriptor.platform === "android")) &&
     environment.GAFUS_OTA_TARGET_PLATFORM === descriptor.platform &&
     descriptor.environment === "production" && descriptor.channel === "production" &&
     environment.APP_ENV === "production" && descriptor.verified === false;
