@@ -111,6 +111,8 @@ prometheus.relabel "uptrace_allowlist" {
 prometheus.remote_write "uptrace" {
   endpoint {
     url = "https://api.uptrace.dev/api/v1/prometheus/write"
+    // Avoid broken HTTP/2 connections on the production Uptrace egress path.
+    enable_http2 = false
     headers = {"uptrace-dsn" = sys.env("GAFUS_UPTRACE_INGEST_DSN")}
     queue_config {
       max_shards = 2

@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
   authenticated: true,
   serverSuccess: true,
   serverReady: true,
+  cachedPolicy: false,
   progress: 0.32,
   required: true,
   version: "1.7.5-ota.6",
@@ -61,8 +62,8 @@ vi.mock("@/shared/stores/authStore", () => ({
 vi.mock("@/shared/lib/ota/mandatoryPolicyQuery", () => ({
   useMandatoryOtaCohortDecision: () => ({
     isSuccess: state.serverReady && state.serverSuccess,
-    isError: !state.serverReady || !state.serverSuccess,
-    data: state.serverReady && state.serverSuccess ? {
+    isError: state.serverReady && !state.serverSuccess,
+    data: (state.serverReady && state.serverSuccess) || state.cachedPolicy ? {
       required: state.required, version: state.required ? state.version : null,
       selectedRevision: state.required ? 6 : 5,
     } : undefined,
@@ -100,6 +101,7 @@ beforeEach(() => {
   state.authenticated = true;
   state.serverSuccess = true;
   state.serverReady = true;
+  state.cachedPolicy = false;
   state.progress = 0.32;
   state.required = true;
   state.version = "1.7.5-ota.6";
@@ -127,6 +129,18 @@ describe("mandatory 1.7.5 OTA runtime gate", () => {
     expect(state.optionalHook).toHaveBeenCalledWith(false);
     expect(state.grant).toHaveBeenCalledOnce();
   });
+  it("retry button starts another OTA check and immediately shows checking instead of the old error", async () => {
+    await render();
+    expect(state.check).toHaveBeenCalledTimes(1);
+    state.check.mockImplementation(() => new Promise(() => {}));
+    const button = Array.from(host.querySelectorAll("button")).find(el =>
+      el.textContent?.includes("Повторить загрузку"));
+    expect(button).toBeDefined();
+    await act(async () => { button?.click(); });
+    expect(state.check).toHaveBeenCalledTimes(2);
+    expect(host.textContent).toContain("Проверяем обновление");
+    expect(host.textContent).not.toContain("Обновление пока недоступно");
+  });
   it("shows resource finalization instead of a frozen 99% during slow asset fetch", async () => {
     state.progress = 0.99;
     state.check.mockResolvedValue({ isAvailable: true, manifest: { id: "22222222-2222-4222-8222-222222222222" } });
@@ -146,17 +160,24 @@ describe("mandatory 1.7.5 OTA runtime gate", () => {
     expect(host.textContent).toContain("Загружаем обновление");
     expect(state.reload).not.toHaveBeenCalled();
   });
-  it("fails closed when mandatory policy request or its response fails", async () => {
+  it("does not lock out a valid native release after a transient mandatory-policy failure", async () => {
     state.serverReady = false;
     await render();
     expect(host.querySelector('[data-testid="main-courses-screen"]')).toBeNull();
-    expect(host.textContent).toContain("Не удалось проверить обязательные обновления");
+    expect(host.querySelector('[data-testid="required-ota-screen"]')).not.toBeNull();
     expect(state.check).not.toHaveBeenCalled();
     state.serverReady = true;
     state.serverSuccess = false;
     await render();
+    expect(host.querySelector('[data-testid="main-courses-screen"]')).not.toBeNull();
+    expect(state.optionalHook).toHaveBeenCalledWith(false);
+  });
+  it("still blocks when a previously confirmed mandatory revision is cached", async () => {
+    state.serverSuccess = false;
+    state.cachedPolicy = true;
+    await render();
+    expect(host.querySelector('[data-testid="required-ota-screen"]')).not.toBeNull();
     expect(host.querySelector('[data-testid="main-courses-screen"]')).toBeNull();
-    expect(state.check).not.toHaveBeenCalled();
   });
   it("does not lock out users outside the selected rollout cohort, including at 0%", async () => {
     state.username = "visitor";

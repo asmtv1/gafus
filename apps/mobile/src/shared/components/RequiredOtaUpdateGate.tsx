@@ -262,7 +262,7 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
   const policyQuery = useMandatoryOtaCohortDecision(checkRequired, verifiedUserId);
   const updatesState = Updates.useUpdates();
   const policy = policyQuery.data;
-  const requiredRevision = checkRequired && policyQuery.isSuccess && policy
+  const requiredRevision = checkRequired && policy && (policyQuery.isSuccess || policyQuery.isError)
     ? requiredOtaRevision({
         required: policy.required, version: policy.version,
         platform: Platform.OS === "ios" ? "ios" : "android", channel: "production",
@@ -339,16 +339,17 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requiredRevision, target, attempt]);
 
-  // Fail closed until a verified principal has an authoritative answer from
-  // the same backend selector serving its signed Expo manifest. This includes
-  // rollout 0% testers and future staged cohorts (1/10/50/100%).
-  if (checkRequired && !policyQuery.isSuccess) {
+  // Keep the loading gate while the policy is pending. An actual policy error
+  // without a confirmed mandatory revision must not lock out a valid app.
+  // A cached confirmed mandatory revision still blocks below, including on error.
+  // Native minimum-version enforcement is handled by RequiredAppUpdateGate.
+  if (checkRequired && !policyQuery.isSuccess && !policyQuery.isError) {
     return <ForceOtaScreen
       version={Application.nativeApplicationVersion ?? "1.7.5"}
-      phase={policyQuery.isError ? "error" : "checking"}
-      error={policyQuery.isError ? "Не удалось проверить обязательные обновления. Проверьте интернет и повторите." : null}
+      phase="checking"
+      error={null}
       mainBundleBytes={undefined}
-      retry={() => void policyQuery.refetch()}
+      retry={() => { void policyQuery.refetch(); }}
     />;
   }
   if (requiredRevision === null || !target) return children;
@@ -357,7 +358,12 @@ export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
       version={target} phase={phase} error={error}
       progress={updatesState.downloadProgress}
       mainBundleBytes={mainBundleBytes}
-      retry={() => { setAttempt(current => current + 1); }}
+      retry={() => {
+        // Reflect the tap immediately, even when a second network request is slow.
+        setError(null);
+        setPhase("checking");
+        setAttempt(current => current + 1);
+      }}
     />
   );
 }

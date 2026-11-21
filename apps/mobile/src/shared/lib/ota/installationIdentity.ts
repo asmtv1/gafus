@@ -46,7 +46,8 @@ export async function refreshOtaTesterGrant(): Promise<void> {
   // Clear the previous account's token BEFORE any network request. Fail closed.
   await Updates.setExtraParamAsync("gafus-tester-grant", null);
   const state = useAuthStore.getState();
-  const principal = state.isAuthenticated && !state.isLoading ? state.user?.id : null;
+  const epoch = state.verifiedSessionEpoch;
+  const principal = state.isAuthenticated && !state.isLoading && !!epoch ? state.user?.id : null;
   const nativeFingerprint = Constants.expoConfig?.extra?.otaNativeFingerprint;
   const runtimeVersion = Updates.runtimeVersion;
   if (!installationId || !principal || (Platform.OS !== "ios" && Platform.OS !== "android") ||
@@ -55,17 +56,20 @@ export async function refreshOtaTesterGrant(): Promise<void> {
   try {
     const response = await apiClient<{token:string}>("/api/v1/mobile-ota-tester/grant", {
       method:"POST",body:{installationId,platform:Platform.OS,runtimeVersion,nativeFingerprint},
-      skipAuthRefreshReplay:true,
+      // Grant issuance is idempotent; replay after JWT refresh, but not account switch.
       requestGuard: () => useAuthStore.getState().isAuthenticated &&
+        useAuthStore.getState().verifiedSessionEpoch === epoch &&
         useAuthStore.getState().user?.id === principal,
     });
     if (!response.success || !response.data?.token ||
       !/^v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(response.data.token)) return;
     if (!useAuthStore.getState().isAuthenticated ||
+        useAuthStore.getState().verifiedSessionEpoch !== epoch ||
         useAuthStore.getState().user?.id !== principal) return;
     await Updates.setExtraParamAsync("gafus-tester-grant", response.data.token);
     // If logout raced with native parameter persistence, clear it again.
     if (!useAuthStore.getState().isAuthenticated ||
+        useAuthStore.getState().verifiedSessionEpoch !== epoch ||
         useAuthStore.getState().user?.id !== principal)
       await Updates.setExtraParamAsync("gafus-tester-grant", null);
   } catch {

@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 
 import { apiClient } from "@/shared/lib/api/client";
 import { ensureOtaInstallationIdentity } from "@/shared/lib/ota/installationIdentity";
+import { useAuthStore } from "@/shared/stores/authStore";
 
 export type MandatoryOtaCohortDecision = {
   required: boolean;
@@ -15,7 +16,10 @@ export type MandatoryOtaCohortDecision = {
 /** The backend uses the *same* native fingerprint, signed-manifest and stable
  * rollout cohort as the Expo OTA endpoint. Never authorize a required update
  * by username or by a global flag alone. */
-export async function fetchMandatoryOtaCohortDecision(): Promise<MandatoryOtaCohortDecision> {
+export async function fetchMandatoryOtaCohortDecision(
+  userId?: string,
+): Promise<MandatoryOtaCohortDecision> {
+  const sessionEpoch = userId ? useAuthStore.getState().verifiedSessionEpoch : null;
   const installationId = await ensureOtaInstallationIdentity();
   const nativeFingerprint = Constants.expoConfig?.extra?.otaNativeFingerprint;
   const runtimeVersion = Updates.runtimeVersion;
@@ -27,11 +31,22 @@ export async function fetchMandatoryOtaCohortDecision(): Promise<MandatoryOtaCoh
   }
   const result = await apiClient<MandatoryOtaCohortDecision>(
     "/api/v1/mobile-ota-tester/mandatory-policy", {
-      method: "POST", timeoutMs: 10_000, skipAuthRefreshReplay: true,
+      method: "POST", timeoutMs: 10_000,
+      // Safe to replay after refreshing an expired JWT, but never across account changes.
+      ...(userId ? { requestGuard: () => {
+        const state = useAuthStore.getState();
+        return state.isAuthenticated && !state.isLoading && !!sessionEpoch &&
+          state.verifiedSessionEpoch === sessionEpoch && state.user?.id === userId;
+      } } : {}),
       body: { installationId, platform: Platform.OS, runtimeVersion, nativeFingerprint,
         nativeReleaseId: Constants.expoConfig?.extra?.otaNativeReleaseId },
     },
   );
+  if (!result.success && result.code === "SESSION_EXPIRED" && userId && sessionEpoch) {
+    const state = useAuthStore.getState();
+    if (state.isAuthenticated && state.user?.id === userId &&
+        state.verifiedSessionEpoch === sessionEpoch) state.handleSessionExpired();
+  }
   const policy = result.data;
   if (!result.success || !policy || typeof policy.required !== "boolean" ||
       !(policy.version === null || typeof policy.version === "string") ||
@@ -48,7 +63,7 @@ export function useMandatoryOtaCohortDecision(enabled: boolean, userId: string |
   return useQuery({
     queryKey: ["mandatory-ota-rollout-cohort", userId, Platform.OS, Updates.runtimeVersion,
       Constants.expoConfig?.extra?.otaNativeFingerprint],
-    queryFn: fetchMandatoryOtaCohortDecision,
+    queryFn: () => fetchMandatoryOtaCohortDecision(userId ?? undefined),
     networkMode: "always",
     enabled: enabled && !!userId,
     retry: 1,

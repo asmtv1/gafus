@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const stub = vi.hoisted(() => ({
   active: true, existing: null as string | null,
   get: vi.fn(), set: vi.fn(), param: vi.fn(), random: vi.fn(), api: vi.fn(),
-  authorized:false, principal:"u1", busy:false,
+  authorized:false, principal:"u1", busy:false, epoch:"epoch-1",
 }));
 vi.mock("expo-constants", () => ({default:{expoConfig:{extra:{otaNativeFingerprint:"b".repeat(64),get otaTransport(){return stub.active?"self-hosted":"eas";}}}}}));
 vi.mock("expo-updates", () => ({isEnabled:true,runtimeVersion:"1.7.5",setExtraParamAsync: (...a:unknown[])=>stub.param(...a)}));
@@ -11,7 +11,7 @@ vi.mock("expo-crypto", () => ({randomUUID:()=>stub.random()}));
 vi.mock("react-native",()=>({Platform:{OS:"ios"}}));
 vi.mock("@/shared/lib/api/client",()=>({apiClient:(...args:unknown[])=>stub.api(...args)}));
 vi.mock("@/shared/stores/authStore",()=>({useAuthStore:{getState:()=>({
-  isAuthenticated:stub.authorized,isLoading:stub.busy,
+  isAuthenticated:stub.authorized,isLoading:stub.busy,verifiedSessionEpoch:stub.epoch,
   user:stub.authorized?{id:stub.principal}:null,
 })}}));
 describe("persistent installation cohort before native OTA request",()=>{
@@ -52,7 +52,7 @@ describe("signed account tester grant on physical OTA checks",()=>{
   const token=`v1.ABCD.${"A".repeat(43)}`;
   beforeEach(()=>{
     vi.resetModules();vi.clearAllMocks();
-    stub.active=true;stub.authorized=false;stub.busy=false;stub.principal="u1";
+    stub.active=true;stub.authorized=false;stub.busy=false;stub.principal="u1";stub.epoch="epoch-1";
     stub.get.mockResolvedValue(installationId);
     stub.param.mockResolvedValue(undefined);
     stub.api.mockResolvedValue({success:true,data:{token}});
@@ -68,11 +68,14 @@ describe("signed account tester grant on physical OTA checks",()=>{
     const {refreshOtaTesterGrant}=await import("./installationIdentity");
     await refreshOtaTesterGrant();
     expect(stub.api).toHaveBeenCalledWith("/api/v1/mobile-ota-tester/grant",expect.objectContaining({
-      method:"POST",body:{installationId,platform:"ios",runtimeVersion:"1.7.5",nativeFingerprint:"b".repeat(64)},skipAuthRefreshReplay:true,
+      method:"POST",body:{installationId,platform:"ios",runtimeVersion:"1.7.5",nativeFingerprint:"b".repeat(64)},requestGuard:expect.any(Function),
     }));
+    expect(stub.api.mock.calls[0]?.[1]?.skipAuthRefreshReplay).toBeUndefined();
     const requestGuard=stub.api.mock.calls[0]?.[1]?.requestGuard;
     expect(requestGuard()).toBe(true);
     stub.principal="other";
+    expect(requestGuard()).toBe(false);
+    stub.principal="u1";stub.epoch="epoch-2";
     expect(requestGuard()).toBe(false);
     expect(stub.param).toHaveBeenLastCalledWith("gafus-tester-grant",token);
   });

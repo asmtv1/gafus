@@ -4,6 +4,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { AppState, Platform } from 'react-native';
+import { mayUploadMobileTelemetry } from './mobileTelemetryDeviceEligibility';
 import * as Crypto from 'expo-crypto';
 import * as Application from 'expo-application';
 import * as Device from 'expo-device';
@@ -44,7 +45,9 @@ const readQueue = async ():Promise<TelemetryQueueState> => {
 const writeQueue=(value:TelemetryQueueState)=>AsyncStorage.setItem(STORAGE_KEY,JSON.stringify(value));
 
 function getTransportConfig():TransportConfig|null {
-  if (!FLAG || (Platform.OS!=='ios' && Platform.OS!=='android'))return null;
+  // Ad-hoc simulator/emulator builds are not registered trusted native releases.
+  // Never weaken the server grant verification just to accept development traffic.
+  if (!mayUploadMobileTelemetry(FLAG, Device.isDevice, Platform.OS))return null;
   const extra=Constants.expoConfig?.extra as Record<string,unknown>|undefined;
   const transport=extra?.otaTransport;
   const environment=extra?.otaEnvironment;
