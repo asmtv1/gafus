@@ -3,7 +3,7 @@
  * offline file paths, API calls or ACK/dequeue operations are imported.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as SecureStore from "expo-secure-store";
+import { authTokenStorage as SecureStore } from "@/shared/lib/authTokenStorage";
 import * as Crypto from "expo-crypto";
 
 import { createNewOnlyV2Queues } from "./newOnlyV2Queues";

@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+import { authTokenStorage as SecureStore } from "@/shared/lib/authTokenStorage";
 
 // Each credential occupies a separate encrypted SecureStore record. A single
 // JSON list can exceed platform SecureStore's per-value size limit.
