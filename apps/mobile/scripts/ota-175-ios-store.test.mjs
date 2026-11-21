@@ -22,7 +22,9 @@ const native=()=>({id:crypto.randomUUID(),appId:'gafus',platform:'ios',distribut
   sourceSha:sha,verified:false});
 
 test('dedicated Store EAS profile is production only, not internal and never auto increments',()=>{
-  assert.equal(validateStoreProfile(eas,app).distribution,'store');
+  // Historical iOS 1.7.5 release profile must remain guarded even after Android 1.7.6.
+  const ios175 = {...app,version:'1.7.5'};
+  assert.equal(validateStoreProfile(eas,ios175).distribution,'store');
   for(const mod of [
     (e)=>{e.build['ota-175-ios-store'].distribution='internal'},
     (e)=>{e.build['ota-175-ios-store'].autoIncrement=true},
@@ -30,7 +32,7 @@ test('dedicated Store EAS profile is production only, not internal and never aut
     (e)=>{e.cli.appVersionSource='local'},
     (e)=>{e.build['ota-175-ios-store'].env.GAFUS_OTA_LOCAL_DEVICE_TEST='true'}]){
     const e=structuredClone(eas);mod(e);
-    assert.throws(()=>validateStoreProfile(e,app),/OTA_175_IOS_STORE_/);
+    assert.throws(()=>validateStoreProfile(e,ios175),/OTA_175_IOS_STORE_/);
   }
 });
 

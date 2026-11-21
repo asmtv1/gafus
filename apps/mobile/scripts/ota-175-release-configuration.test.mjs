@@ -7,10 +7,11 @@ import YAML from 'yaml';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../..');
 const read=filename=>fs.readFileSync(path.join(root,filename),'utf8');
 const json=filename=>JSON.parse(read(filename));
-test('both iOS and Android native build versions are fixed to OTA 1.7.5 runtime',()=>{
+test('current app runtime follows the new 1.7.6 store version',()=>{
   const expo=json('apps/mobile/app.json').expo;
-  assert.equal(expo.version,'1.7.5');
-  assert.equal(json('apps/mobile/package.json').version,'1.7.5');
+  assert.equal(expo.version,'1.7.6');
+  assert.equal(json('apps/mobile/package.json').version,'1.7.6');
+  assert.equal(expo.android.versionCode,17601);
   assert.deepEqual(expo.runtimeVersion,{policy:'appVersion'});
   assert.equal(json('apps/mobile/package.json').dependencies.expo,'57.0.33');
 });

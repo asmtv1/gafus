@@ -326,3 +326,4 @@ scripts/refactor/local-development-data-inbox/**/*
 apps/mobile/.ota-certs/*
 !apps/mobile/.ota-certs/native.pem
 !apps/mobile/.ota-certs/ios-store-native.json
+!apps/mobile/.ota-certs/android-store-native.json

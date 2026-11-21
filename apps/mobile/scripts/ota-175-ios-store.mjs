@@ -111,7 +111,7 @@ export function expectedEasIgnore(){
   }
   expected+='\n# Only public certificate and admin-issued metadata, not signing credentials.\n'+
     '!apps/mobile/.ota-certs/\napps/mobile/.ota-certs/*\n'+
-    '!apps/mobile/.ota-certs/native.pem\n!apps/mobile/.ota-certs/ios-store-native.json\n';
+    '!apps/mobile/.ota-certs/native.pem\n!apps/mobile/.ota-certs/ios-store-native.json\n!apps/mobile/.ota-certs/android-store-native.json\n';
   return expected;
 }
 function assertEasArchiveRules(){

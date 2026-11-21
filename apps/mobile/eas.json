@@ -123,6 +123,22 @@
         "EXPO_PUBLIC_APP_VERSION": "1.7.5"
       }
     },
+    "ota-176-android-store": {
+      "extends": "production-local",
+      "distribution": "store",
+      "autoIncrement": false,
+      "android": { "buildType": "app-bundle", "credentialsSource": "local" },
+      "env": {
+        "GAFUS_OTA_TRANSPORT": "self-hosted",
+        "GAFUS_OTA_LOCAL_STORE_BUILD": "true",
+        "GAFUS_OTA_TARGET_PLATFORM": "android",
+        "GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR": ".ota-certs/android-store-native.json",
+        "GAFUS_OTA_NATIVE_CERTIFICATE": ".ota-certs/native.pem",
+        "EXPO_PUBLIC_APP_VERSION": "1.7.6",
+        "EXPO_PUBLIC_TELEMETRY_ENABLED": "true",
+        "EXPO_PUBLIC_ENABLE_TRACER": "false"
+      }
+    },
     "ota-175-ios-store": {
       "channel": "production",
       "environment": "production",

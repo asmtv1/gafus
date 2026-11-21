@@ -31,8 +31,9 @@ function applyNativeSelfHostedProfile(config, { environment = process.env,
   // checks the registered descriptor, clean pushed commit and EAS build number.
   const localStoreBuild = environment.GAFUS_OTA_LOCAL_STORE_BUILD === "true" &&
     environment.GAFUS_OTA_LOCAL_DEVICE_TEST !== "true" &&
-    descriptor.distribution === "app-store" && descriptor.platform === "ios" &&
-    environment.GAFUS_OTA_TARGET_PLATFORM === "ios" &&
+    ((descriptor.distribution === "app-store" && descriptor.platform === "ios") ||
+      (descriptor.distribution === "store" && descriptor.platform === "android")) &&
+    environment.GAFUS_OTA_TARGET_PLATFORM === descriptor.platform &&
     descriptor.environment === "production" && descriptor.channel === "production" &&
     environment.APP_ENV === "production" && descriptor.verified === false;
   if (descriptor.environment === "production" && !localDeviceTest && !localStoreBuild &&
