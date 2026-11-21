@@ -19,10 +19,11 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
-import * as ImagePicker from "expo-image-picker";
+import type * as ImagePicker from "expo-image-picker";
 import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
 import { prepareUploadWebpVariants } from "@/shared/lib/media/prepareUploadWebp";
 import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
+import { pickMedia } from "@/shared/lib/media/mediaPicker";
 import { photoRetryMessage, photoFailureCode } from "@/shared/lib/media/photoRetryMessage";
 import { prepareVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWebp";
 import { prepareUploadVideo720, type PreparedUploadVideo720,
@@ -399,7 +400,7 @@ function Chat2RoomOwned({ id, owner, epoch }: { id: string; owner: string; epoch
         width?: number; height?: number } | null = null;
       let previewUri: string | undefined;
       if (kind === "image" || kind === "video") {
-        const selection = await ImagePicker.launchImageLibraryAsync({
+        const selection = await pickMedia({
           mediaTypes: kind === "video" ? ["videos"] : ["images"],
           // Image bytes are encoded once by the shared JPEG 0.8 / 1920px path.
           quality: 1,

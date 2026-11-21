@@ -3,7 +3,7 @@ import { Alert, AppState, Linking, Pressable, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Text } from "react-native-paper";
 import { Image } from "expo-image";
-import * as ImagePicker from "expo-image-picker";
+import type * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
 import { useQuery } from "@tanstack/react-query";
 import { GALLERY_LIMITS, type GalleryUploadDto } from "@gafus/types";
@@ -32,6 +32,7 @@ import { photoRetryMessage } from "@/shared/lib/media/photoRetryMessage";
 import { postClientWebp, type SignedClientPhotoPost } from "@/shared/lib/media/directPhotoUpload";
 import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
 import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
+import { MediaPickerError, pickMedia } from "@/shared/lib/media/mediaPicker";
 
 function detectedMime(file: File): "image/jpeg" | "image/png" | "image/webp" | null {
   const handle = file.open();
@@ -607,20 +608,18 @@ export function UploadControls({
       if (usable && remembered) {
         assets=[remembered.asset];
       } else {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!sdkValid()) return;
-        if (!permission.granted) {
-          Alert.alert("Доступ к фотографиям", "Разрешите доступ к фото в настройках телефона.", [
-            { text: "Отмена", style: "cancel" },
-            { text: "Настройки", onPress: () => { if (validTask()) void Linking.openSettings(); } },
-          ]);
-          return;
-        }
-        if (!sdkValid()) return;
-        const result = await ImagePicker.launchImageLibraryAsync({
+        const result = await pickMedia({
           mediaTypes: ["images"], allowsMultipleSelection: !retryId,
           selectionLimit: retryId ? 1 : Math.max(1, 200 - usedSlots),quality: 1,
           ...iosCompatiblePhotoPicker(),
+        }, {
+          canLaunch: sdkValid,
+          onPermissionDenied: () => {
+            Alert.alert("Доступ к фотографиям", "Разрешите доступ к фото в настройках телефона.", [
+              { text: "Отмена", style: "cancel" },
+              { text: "Настройки", onPress: () => { if (validTask()) void Linking.openSettings(); } },
+            ]);
+          },
         });
         if (result.canceled || !result.assets.length || !sdkValid()) return;
         assets=result.assets;
@@ -666,7 +665,7 @@ export function UploadControls({
         issueKey: "GalleryUploadControls",
         keys: { operation: "pick_and_prepare" },
       });
-      if (validTask()) setError(galleryError(e));
+      if (validTask()) setError(e instanceof MediaPickerError ? e.message : galleryError(e));
     } finally {
       pickInFlight.current = false;
       if (mounted.current) setBusy(false);

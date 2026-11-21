@@ -81,7 +81,7 @@ module.exports = function withDogWalkBackgroundSteps(config) {
     if (!providerXml.includes('@layout/rn_widget') && !providerXml.includes('@layout/gafus_walk_widget')) {
       throw new Error("DogWalk: unexpected widget initial layout");
     }
-    fs.writeFileSync(providerInfo, providerXml.replace('@layout/rn_widget', '@layout/gafus_walk_widget'));
+    fs.writeFileSync(providerInfo, providerXml.replace('@layout/rn_widget', '@layout/gafus_walk_widget').replace('android:resizeMode="none"', 'android:resizeMode="vertical"'));
     return mod;
   }]);
 };

@@ -1,3 +1,5 @@
+import type { SubscriptionAccessPorts } from "../appSubscription";
+
 /** Read-only, owner-scoped paid content and video occurrence projections.
  * Persistence must not infer a grant from a raw URL/global Step. Core retains
  * private assignment, active subscription, Gafus eligibility and public error.
@@ -18,6 +20,9 @@ export type RewardedVideoOccurrenceRow = {
   day: { stepLinks: StepOccurrence[] };
 };
 export interface RewardedAccessReadPort {
+  getAppSubscriptionAccess(
+    ...args: Parameters<SubscriptionAccessPorts["getAppSubscriptionAccess"]>
+  ): Promise<{ hasActiveSubscription: boolean }>;
   readOwnedCourseDayRewardedSteps(userId: string, dayOnCourseId: string): Promise<{day:{stepLinks:StepOccurrence[]}} | null>;
   readOwnedRewardedUserStep(userId: string, userStepId: string): Promise<RewardedUserStepRow | null>;
   readRewardedPrivateCourseAssignment(userId: string, courseId: string): Promise<{courseId:string} | null>;

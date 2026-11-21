@@ -48,9 +48,9 @@ vi.mock("./walkGpsStorage", () => ({
 vi.mock("@/shared/lib/error-reporting", () => ({ reportClientError: mocked.report }));
 import {
   DOG_WALK_GPS_TASK,
-  requestWalkGpsPermissions,
   startWalkGps,
   stopWalkGps,
+  stopAllWalkGps,
   adaptWalkGpsToMotion,
 } from "./walkGpsTask";
 const owner = "own-user";
@@ -108,7 +108,6 @@ describe("Expo TaskManager GPS background lifecycle", () => {
   });
   it("never starts GPS without foreground + background permission", async () => {
     mocked.bg.mockResolvedValue({ granted: false });
-    expect(await requestWalkGpsPermissions()).toBe(false);
     expect(await startWalkGps(owner, walk)).toBe(false);
     expect(mocked.activate).not.toHaveBeenCalled();
     expect(mocked.start).not.toHaveBeenCalled();
@@ -135,6 +134,52 @@ describe("Expo TaskManager GPS background lifecycle", () => {
     mocked.already.mockResolvedValue(true);
     expect(await startWalkGps(owner, walk)).toBe(true);
     expect(mocked.start).not.toHaveBeenCalled();
+  });
+  it("serializes concurrent restoration and permission completion for the same walk", async () => {
+    mocked.activate.mockImplementation(async () => {
+      mocked.active.mockResolvedValue({ ownerId: owner, walkId: walk });
+    });
+    mocked.start.mockImplementation(async () => mocked.already.mockResolvedValue(true));
+    expect(await Promise.all([startWalkGps(owner, walk), startWalkGps(owner, walk)])).toEqual([
+      true,
+      true,
+    ]);
+    expect(mocked.start).toHaveBeenCalledTimes(1);
+    expect(mocked.activate).toHaveBeenCalledTimes(1);
+  });
+  it("deactivates only the current walk after revocation and leaves its saved track alone", async () => {
+    mocked.bg.mockResolvedValue({ granted: false });
+    mocked.active.mockResolvedValue({ ownerId: owner, walkId: walk });
+    mocked.already.mockResolvedValue(true);
+    mocked.deactivate.mockImplementation(async () => mocked.active.mockResolvedValue(null));
+    expect(await startWalkGps("other-user", walk)).toBe(false);
+    expect(mocked.deactivate).not.toHaveBeenCalled();
+    expect(mocked.stop).not.toHaveBeenCalled();
+    expect(await startWalkGps(owner, walk)).toBe(false);
+    expect(mocked.deactivate).toHaveBeenCalledWith(owner, walk);
+    expect(mocked.stop).toHaveBeenCalledWith(DOG_WALK_GPS_TASK);
+    expect(await startWalkGps(owner, walk)).toBe(false);
+    expect(mocked.stop).toHaveBeenCalledTimes(1);
+    expect(mocked.start).not.toHaveBeenCalled();
+  });
+  it("shuts down a pending native start that loses its verified owner", async () => {
+    let current = true;
+    mocked.start.mockImplementation(async () => {
+      current = false;
+      mocked.already.mockResolvedValue(true);
+    });
+    expect(await startWalkGps(owner, walk, false, () => current)).toBe(false);
+    expect(mocked.deactivate).toHaveBeenCalledWith(owner, walk);
+    expect(mocked.stop).toHaveBeenCalledWith(DOG_WALK_GPS_TASK);
+  });
+  it("cleans up the native task on sign-out only while the sign-out is current", async () => {
+    mocked.already.mockResolvedValue(true);
+    await stopAllWalkGps(() => false);
+    expect(mocked.deactivateAll).not.toHaveBeenCalled();
+    expect(mocked.stop).not.toHaveBeenCalled();
+    await stopAllWalkGps(() => true);
+    expect(mocked.deactivateAll).toHaveBeenCalledOnce();
+    expect(mocked.stop).toHaveBeenCalledWith(DOG_WALK_GPS_TASK);
   });
   it("ensures pause persists before stopping native updates", async () => {
     await stopWalkGps(owner, walk);

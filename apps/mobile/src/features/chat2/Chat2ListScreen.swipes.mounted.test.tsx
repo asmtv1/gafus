@@ -6,6 +6,8 @@ const m = vi.hoisted(() => ({
   owner: "owner-A", epoch: "epoch-A",
   list: vi.fn(), read: vi.fn(), mute: vi.fn(), push: vi.fn(),
   report: vi.fn(), scrollToEnd: vi.fn(),
+  picker: vi.fn(), mediaPermission: vi.fn(),
+  setAvatar: vi.fn(),
   keyboardListener: null as (() => void) | null,
   keyboardUnsubscribe: vi.fn(),
 }));
@@ -29,6 +31,7 @@ vi.mock("react-native", async () => {
       return { remove: m.keyboardUnsubscribe };
     } },
     View: node("div"), TouchableOpacity: node("button"),
+    Pressable: node("button"), Modal: node("section"),
     Text: node("span"), TextInput: (props: {
       placeholder?: string; placeholderTextColor?: string;
       accessibilityLabel?: string; onFocus?: () => void; onBlur?: () => void;
@@ -40,13 +43,16 @@ vi.mock("react-native", async () => {
       "data-text-color": props.style?.color,
       onFocus: props.onFocus, onBlur: props.onBlur,
     }),
-    Image: () => null, ActivityIndicator: () => null,
+    Image: () => null, ActivityIndicator: () => null, Platform: { OS: "android" },
     Alert: { alert: vi.fn() }, StyleSheet: { create: (x: unknown) => x },
     RefreshControl: ({ onRefresh }: { onRefresh: () => void }) =>
       R.createElement("button", { onClick: onRefresh, "data-testid": "refresh" }, "Обновить"),
   };
 });
-vi.mock("expo-image-picker", () => ({ launchImageLibraryAsync: vi.fn() }));
+vi.mock("expo-image-picker", () => ({
+  launchImageLibraryAsync: m.picker, requestMediaLibraryPermissionsAsync: m.mediaPermission,
+}));
+vi.mock("expo-file-system", () => ({ File: class { size = 512; } }));
 vi.mock("expo-router", async () => {
   const R = await import("react");
   return { useRouter: () => ({ push: m.push }),
@@ -78,6 +84,8 @@ vi.mock("./Chat2SwipeRow", async () => {
 });
 vi.mock("./Chat2ListNavigation", () => ({ Chat2ListNavigation: () => null }));
 vi.mock("./Chat2StaffQueue", () => ({ Chat2StaffQueue: () => null }));
+vi.mock("./Chat2ReportQueue", () => ({ Chat2ReportQueue: () => null }));
+vi.mock("@/shared/components/gestures/SwipeDismissHandle", () => ({ SwipeDismissHandle: () => null }));
 vi.mock("./Chat2Avatar", async () => {
   const R = await import("react");
   return { Chat2Avatar: ({ children }: { children: React.ReactNode }) =>
@@ -89,9 +97,12 @@ vi.mock("./api", () => ({
     list: (...args: unknown[]) => m.list(...args),
     read: (...args: unknown[]) => m.read(...args),
     mute: (...args: unknown[]) => m.mute(...args),
+    setAvatar: m.setAvatar,
   },
 }));
 import Chat2ListScreen from "./Chat2ListScreen";
+import { Chat2SettingsSheet } from "./Chat2SettingsSheet";
+import type { Conversation } from "./api";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let host: HTMLDivElement, root: Root;
 beforeEach(() => {
@@ -138,6 +149,41 @@ describe("mounted Chat2 list swipe actions and pull to refresh", () => {
 });
 
 describe("mounted Chat2 search and group keyboard", () => {
+  it("selects the new group avatar without Android library access", async () => {
+    m.picker.mockResolvedValueOnce({ canceled: false, assets: [
+      { uri: "file:///avatar.jpg", type: "image", width: 64, height: 64 },
+    ] });
+    await act(async () => root.render(<Chat2ListScreen />));
+    await click("Создать групповой чат");
+    await click("Выбрать аватарку группы");
+    expect(m.mediaPermission).not.toHaveBeenCalled();
+    expect(m.picker).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      mediaTypes: ["images"], legacy: false,
+    }));
+    expect(host.querySelector('[aria-label="Убрать выбранную аватарку"]')).not.toBeNull();
+  });
+  it("passes a selected Android group avatar to the existing settings upload", async () => {
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    m.setAvatar.mockResolvedValueOnce(undefined);
+    m.picker.mockResolvedValueOnce({ canceled: false, assets: [
+      { uri: "file:///avatar.png", type: "image", width: 64, height: 64 },
+    ] });
+    const room: Conversation = {
+      id: "room-1", kind: "GROUP", role: "OWNER", name: "Группа",
+      description: null, visibility: "PRIVATE", members: [],
+      lastSequence: "0", unreadCount: 0, lastMessage: null,
+    };
+    await act(async () => root.render(<Chat2SettingsSheet
+      open room={room} id="room-1" owner="owner-A" onRefresh={onRefresh}
+      onClose={vi.fn()} onLeave={vi.fn()}
+    />));
+    await click("Выбрать аватарку группы");
+    expect(m.mediaPermission).not.toHaveBeenCalled();
+    expect(m.setAvatar).toHaveBeenCalledExactlyOnceWith("room-1", {
+      uri: "file:///avatar.png", name: "avatar.png", mime: "image/png", size: 512,
+    });
+    expect(onRefresh).toHaveBeenCalledOnce();
+  });
   it("shows black text for both chat search and user search", async () => {
     await act(async () => root.render(<Chat2ListScreen />));
     const search = () => host.querySelector<HTMLInputElement>('input[aria-label="Поиск"]');

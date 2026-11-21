@@ -78,12 +78,13 @@ public final class DogWalkWidgetRenderer {
         for (int id : ids) {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.gafus_walk_widget);
             views.setTextViewText(R.id.gafus_walk_title,
-                "🐕 Прогулка · " + (countdown ? "обратный" : "обычный"));
+                active ? (running ? "● Активная" : "Ⅱ На паузе") : "○ Не начата");
             views.setChronometerCountDown(R.id.gafus_walk_chronometer, countdown);
             views.setChronometer(R.id.gafus_walk_chronometer, base, null,
                 running && (!countdown || snapshot.optLong("displayEndMs", now) > now));
             views.setTextViewText(R.id.gafus_walk_metrics,
-                "🐾 " + steps + " шагов · ≈ " + meters);
+                "🐾 " + steps + " шагов");
+            views.setTextViewText(R.id.gafus_walk_distance, "📍 " + meters);
             views.setViewVisibility(R.id.gafus_walk_warning,
                 snapshot.optBoolean("incomplete", false) ? View.VISIBLE : View.GONE);
             views.setTextViewText(R.id.gafus_walk_start, active && !running ? "▶ Дальше" : "▶ Старт");

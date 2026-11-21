@@ -7,7 +7,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SwipeDismissMedia } from "@/shared/components/media/SwipeDismissMedia";
-import * as ImagePicker from "expo-image-picker";
+import type * as ImagePicker from "expo-image-picker";
 import * as Crypto from "expo-crypto";
 import { prepareUploadWebpVariants } from "@/shared/lib/media/prepareUploadWebp";
 import type { PreparedQuestionPhotoVariants } from "@/shared/lib/api/questions";
@@ -17,6 +17,7 @@ import { uploadClientQuestionsPhoto, discardQuestionPhoto } from "@/shared/lib/a
 import { classifyQuestionNativePhoto } from "./photoSource";
 import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
 import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
+import { pickMedia } from "@/shared/lib/media/mediaPicker";
 import { photoRetryMessage, photoFailureCode } from "@/shared/lib/media/photoRetryMessage";
 import { PhotoUploadStageError, logPhotoUploadFailure, photoStageDiagnostic } from "@/shared/lib/media/photoUploadStage";
 import { questionPhotoReadIdentity } from "./photoReadIdentity";
@@ -617,17 +618,14 @@ export function QPhotoPicker({
     setError("");
     setBusy(true);
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert("Доступ к фото", "Разрешите доступ к библиотеке в настройках телефона.");
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const result = await pickMedia({
         mediaTypes: ["images"],
         allowsMultipleSelection: true,
         selectionLimit: QUESTION_LIMITS.photos - photosRef.current.length - failedPhotos.length,
         quality: 1,
         ...iosCompatiblePhotoPicker(),
+      }, {
+        onPermissionDenied: () => Alert.alert("Доступ к фото", "Разрешите доступ к библиотеке в настройках телефона."),
       });
       if (result.canceled) return;
       if (result.assets.length + photosRef.current.length + failedPhotos.length > QUESTION_LIMITS.photos) {

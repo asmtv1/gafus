@@ -11,6 +11,14 @@ describe("Android walk widget is a native and directly actionable home-screen ca
     expect(xml).toContain('android:layout_height="match_parent"');
     expect(xml).toContain('android:background="@drawable/gafus_walk_card"');
     expect(xml).toContain("@+id/gafus_walk_chronometer");
+    expect(xml).toContain("@drawable/gafus_walk_timer");
+    expect(xml).toContain("@+id/gafus_walk_distance");
+    expect(xml).not.toContain("@drawable/gafus_walk_dog");
+    expect(xml).not.toContain("@+id/gafus_walk_status");
+    // AppWidget RemoteViews rejects the base android.view.View at runtime on Samsung One UI.
+    expect(xml).not.toMatch(/<View(?:\s|>)/);
+    expect(xml).not.toContain('android:layout_width="1dp"');
+    expect(xml).toContain('android:layout_marginTop="6dp"');
     expect(xml.match(/@\+id\/gafus_walk_metrics/g)).toHaveLength(1);
     for (const name of ["start", "pause", "finish"]) {
       expect(xml).toContain(`@+id/gafus_walk_${name}`);
@@ -46,7 +54,10 @@ describe("Android walk widget is a native and directly actionable home-screen ca
     expect(plugin).toContain("gafus_walk_widget");
     expect(plugin).toContain('native/android-walk/src/ru/gafus/app/widget/DogWalk.java');
     expect(plugin).toContain('for (const folder of ["layout", "drawable"])');
-    expect(native("src/ru/gafus/app/widget/DogWalk.java")).toContain("DogWalkWidgetRenderer.update");
+    const provider = native("src/ru/gafus/app/widget/DogWalk.java");
+    expect(provider).toContain("DogWalkWidgetRenderer.update");
+    expect(provider).not.toContain("super.onUpdate(context, manager, ids)");
+    expect(provider).not.toContain("super.onAppWidgetOptionsChanged(context, manager, id, options)");
     expect(native("src/ru/gafus/app/walk/DogWalkStepModule.java")).toContain("publishWidget(");
   });
 });

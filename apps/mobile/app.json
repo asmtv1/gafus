@@ -42,7 +42,7 @@
         "backgroundColor": "#dad3c1"
       },
       "package": "ru.gafus.app",
-      "versionCode": 17601,
+      "versionCode": 17602,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -297,6 +297,10 @@
       ],
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
@@ -342,13 +346,16 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
           },
           "ios": {
             "enableSceneSupport": true
           }
         }
       ],
+      "./plugins/withAndroidReleaseOptimization",
       "./plugins/withAndroidTabletSupport",
       "./plugins/withMinSdkFromGradleProps",
       "./plugins/withIosAppMetrica516Compatibility",
@@ -426,9 +433,9 @@
               "label": "Прогулка с собакой",
               "description": "Время, шаги, метры: старт, пауза, конец",
               "minWidth": "250dp",
-              "minHeight": "150dp",
+              "minHeight": "65dp",
               "targetCellWidth": 4,
-              "targetCellHeight": 3,
+              "targetCellHeight": 1,
               "updatePeriodMillis": 1800000
             }
           ]

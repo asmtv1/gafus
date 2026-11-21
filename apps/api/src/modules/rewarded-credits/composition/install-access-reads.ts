@@ -9,8 +9,10 @@ import {
   readActiveLegacyRewardedGrant, readRewardedViewerRole,
   readRewardedCourseVideoOccurrences, readPendingRewardedStepNotificationUrl,
 } from "@gafus/entitlements-server/rewarded-access-reads";
+import { subscriptionAccessPort } from "../../app-subscription/composition/subscription-access-instance.js";
 
 const rewardedAccessReader: RewardedAccessReadPort = {
+  getAppSubscriptionAccess: subscriptionAccessPort.getAppSubscriptionAccess,
   readOwnedCourseDayRewardedSteps, readOwnedRewardedUserStep,
   readRewardedPrivateCourseAssignment, readOwnedDailyRewardedUserStep,
   readPublishedDailyRewardedVideo, readOwnedRewardedVideoStep,

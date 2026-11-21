@@ -3,13 +3,15 @@
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { dexHasMappedClass, readAabR8Mapping } from './android-aab-r8.mjs';
 export function dexHasNativeCompressor(buffers, mapping='') {
   // The canonical native package used by react-native-compressor 1.16.0.
   const present=buffers.some(b=>b.includes(Buffer.from('Lcom/reactnativecompressor/CompressorModule;')) ||
     b.includes(Buffer.from('Lcom/reactnativecompressor/CompressorPackage;')) ||
     b.includes(Buffer.from('com/reactnativecompressor/CompressorModule')));
   // With R8, the class name may be obfuscated; mapping is emitted by AGP.
-  return present || /^com\.reactnativecompressor\.(CompressorModule|CompressorPackage)\s+->/m.test(mapping);
+  return present || dexHasMappedClass(buffers, mapping,
+    /^com\.reactnativecompressor\.(CompressorModule|CompressorPackage)$/);
 }
 export function inspectAabNativeCompressor(path) {
   if(!existsSync(path)|| !/\.aab$/i.test(path)) throw Error('ANDROID_AAB_PATH_REQUIRED');
@@ -19,8 +21,7 @@ export function inspectAabNativeCompressor(path) {
   if(!dex.length) throw Error('ANDROID_AAB_DEX_MISSING');
   const buffers=dex.map(e=>execFileSync('unzip',['-p',path,e],{
     timeout:20000,maxBuffer:120*1024*1024}));
-  const map=entries.find(e=>/^(base\/)?BUNDLE-METADATA\/com\.android\.tools\.build\.obfuscation\/proguard\.map$/.test(e));
-  const mapping=map?execFileSync('unzip',['-p',path,map],{
-    encoding:'utf8',timeout:20000,maxBuffer:40*1024*1024}):'';
+  const mapping=readAabR8Mapping(entries, (entry)=>execFileSync('unzip',['-p',path,entry],{
+    timeout:20000,maxBuffer:128*1024*1024}));
   return { passed:dexHasNativeCompressor(buffers,mapping), scanned:dex.length };
 }

@@ -49,7 +49,9 @@ import {
 } from "@/features/walk/androidBackgroundSteps";
 import { canUseDogWalkHistory } from "@/features/walk/walkAccess";
 import { gpsWalkMeters } from "@/features/walk/walkGpsStorage";
-import { startWalkGps, stopWalkGps, requestWalkGpsPermissions } from "@/features/walk/walkGpsTask";
+import { startWalkGps, stopWalkGps } from "@/features/walk/walkGpsTask";
+import { WalkLocationDisclosure } from "@/features/walk/location-permissions/WalkLocationDisclosure";
+import { useWalkLocationPermissionFlow } from "@/features/walk/location-permissions/useWalkLocationPermissionFlow";
 import { WalkRouteMap } from "@/features/walk/WalkRouteMap";
 import { syncDogWalkHistory, reportWalkSyncIssue } from "@/features/walk/walkSync";
 import {
@@ -67,6 +69,10 @@ export default function DogWalkScreen() {
   const owner = useAuthStore((s) =>
     s.isAuthenticated && !s.isLoading && s.verifiedSessionEpoch ? (s.user?.id ?? null) : null,
   );
+  const sessionEpoch = useAuthStore((s) => s.verifiedSessionEpoch);
+  const { disclosure, answerDisclosure, requestPermissions } =
+    useWalkLocationPermissionFlow(owner, sessionEpoch);
+  const [gpsStatus, setGpsStatus] = useState<{ segment: string; recording: boolean } | null>(null);
   const [ready, setReady] = useState(false);
   const [journal, setJournal] = useState<WalkJournal>(emptyWalkJournal);
   const journalRef = useRef(journal);
@@ -86,6 +92,7 @@ export default function DogWalkScreen() {
     journalRef.current = emptyWalkJournal();
     setJournal(journalRef.current);
     setReady(false);
+    setGpsStatus(null);
     if (!owner) return;
     let cancelled = false;
     void loadWalkJournal(owner)
@@ -132,12 +139,6 @@ export default function DogWalkScreen() {
         setJournal(loaded);
         setMinutesDraft(String(loaded.preference.countdownMinutes));
         setReady(true);
-        if (loaded.active?.clientId && isWalkRunning(loaded.active)) {
-          // Recover an existing walk after a normal process restart, without prompting.
-          void startWalkGps(owner, loaded.active.clientId).catch((error) =>
-            reportClientError(error, { issueKey: "DogWalkGpsRestore" }),
-          );
-        }
         void publishWalkWidgetSnapshot(
           loaded.active ?? loaded.completed[0] ?? null,
           Date.now(),
@@ -152,38 +153,7 @@ export default function DogWalkScreen() {
     return () => {
       cancelled = true;
     };
-  }, [owner]);
-
-  // Widget actions can modify the same phone journal while the app is on the
-  // launcher. Rehydrate on foreground before rendering stale running state.
-  useEffect(() => {
-    if (!owner || !ready) return;
-    let disposed = false;
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state !== "active" || busyRef.current) return;
-      void (async () => {
-        await saves.current.catch(() => undefined);
-        const latest = await loadWalkJournal(owner);
-        if (disposed || ownerRef.current !== owner || busyRef.current) return;
-        const previous = journalRef.current;
-        if (
-          previous.active?.clientId === latest.active?.clientId &&
-          previous.active?.runningSinceMs === latest.active?.runningSinceMs &&
-          previous.active?.steps === latest.active?.steps &&
-          previous.completed[0]?.finishedAtMs === latest.completed[0]?.finishedAtMs
-        )
-          return;
-        journalRef.current = latest;
-        setJournal(latest);
-      })().catch((error: unknown) =>
-        reportClientError(error, { issueKey: "DogWalkWidgetForegroundRefresh" }),
-      );
-    });
-    return () => {
-      disposed = true;
-      sub.remove();
-    };
-  }, [owner, ready]);
+  }, [owner, sessionEpoch]);
 
   const updateJournal = useCallback(
     (transform: (current: WalkJournal) => WalkJournal) => {
@@ -426,35 +396,92 @@ export default function DogWalkScreen() {
   );
 
   const ensureGpsTracking = useCallback(
-    async (actor: string, walk: DogWalk, askPermission: boolean) => {
-      if (!walk.clientId) return;
-      await saves.current.catch(() => undefined);
-      if (ownerRef.current !== actor || saveFailure.current) return;
+    async (
+      actor: string,
+      walk: DogWalk,
+      askPermission: boolean,
+      isScreenCurrent: () => boolean = () => true,
+    ) => {
+      const walkId = walk.clientId;
+      if (!walkId) return;
+      const segment = `${actor}:${sessionEpoch}:${walkId}:${walk.runningSinceMs}`;
+      const isCurrent = () => {
+        const auth = useAuthStore.getState();
+        const current = journalRef.current.active;
+        return (
+          auth.isAuthenticated &&
+          !auth.isLoading &&
+          auth.user?.id === actor &&
+          auth.verifiedSessionEpoch === sessionEpoch &&
+          current?.clientId === walkId &&
+          current.runningSinceMs === walk.runningSinceMs &&
+          isWalkRunning(current)
+        );
+      };
+      await saves.current;
+      const isActionCurrent = () => isScreenCurrent() && isCurrent();
+      if (!isActionCurrent() || saveFailure.current) return;
+      let recording = false;
       try {
-        if (askPermission && !(await requestWalkGpsPermissions())) {
-          setNotice(
-            "Маршрут GPS выключен. Разрешите геолокацию «Всегда» в настройках телефона, чтобы записывать прогулку в фоне. Таймер и шаги продолжают работать.",
-          );
-          return;
+        if ((!askPermission || (await requestPermissions(isActionCurrent))) && isActionCurrent()) {
+          recording = await startWalkGps(actor, walkId, false, isCurrent);
         }
-        const started = await startWalkGps(actor, walk.clientId);
-        if (ownerRef.current !== actor) return;
-        if (started)
-          updateActive((current) =>
-            current.clientId === walk.clientId && !current.gpsEnabled
-              ? { ...current, gpsEnabled: true }
-              : current,
-          );
-        else if (askPermission)
-          setNotice("GPS недоступен, но прогулка продолжает записываться по времени и шагам.");
       } catch (error) {
         reportClientError(error, { issueKey: "DogWalkGpsStart" });
-        if (ownerRef.current === actor)
-          setNotice("Не удалось включить GPS. Прогулка сохранена, но маршрут может быть неполным.");
+      }
+      if (!isActionCurrent()) return;
+      setGpsStatus({ segment, recording });
+      if (recording) {
+        updateActive((current) =>
+          current.clientId === walkId && !current.gpsEnabled
+            ? { ...current, gpsEnabled: true }
+            : current,
+        );
       }
     },
-    [updateActive],
+    [requestPermissions, sessionEpoch, updateActive],
   );
+
+  // A launcher widget may have changed the local journal. Reload it before
+  // restoring an existing GPS session or handling a return from settings.
+  useEffect(() => {
+    if (!ready || !owner) return;
+    let disposed = false;
+    const isScreenCurrent = () => !disposed && ownerRef.current === owner && !busyRef.current;
+    const restore = async () => {
+      if (!isScreenCurrent() || AppState.currentState !== "active") return;
+      await saves.current;
+      const latest = await loadWalkJournal(owner);
+      if (!isScreenCurrent()) return;
+      const previous = journalRef.current;
+      const walk = latest.active;
+      if (
+        previous.active?.clientId !== walk?.clientId ||
+        previous.active?.runningSinceMs !== walk?.runningSinceMs ||
+        previous.active?.steps !== walk?.steps ||
+        previous.active?.gpsEnabled !== walk?.gpsEnabled ||
+        previous.completed[0]?.finishedAtMs !== latest.completed[0]?.finishedAtMs
+      ) {
+        journalRef.current = latest;
+        setJournal(latest);
+      }
+      if (walk?.clientId && walk.gpsEnabled && isWalkRunning(walk)) {
+        await ensureGpsTracking(owner, walk, false, isScreenCurrent);
+      }
+    };
+    const refresh = () =>
+      void restore().catch((error: unknown) =>
+        reportClientError(error, { issueKey: "DogWalkGpsRestore" }),
+      );
+    refresh();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refresh();
+    });
+    return () => {
+      disposed = true;
+      subscription.remove();
+    };
+  }, [ready, owner, ensureGpsTracking]);
 
   useEffect(() => {
     if (!ready || !owner || !journal.active?.clientId) return;
@@ -483,13 +510,15 @@ export default function DogWalkScreen() {
   }, [ready, owner, journal.active?.clientId, updateActive]);
 
   const performAction = useCallback(
-    async (request: WalkAction) => {
+    async (request: WalkAction | "enableGps", fromWidget = false) => {
       if (!ready || !owner || ownerRef.current !== owner || busyRef.current) return;
       busyRef.current = true;
       setBusy(true);
       try {
         const current = journalRef.current.active;
-        if (request === "start") {
+        if (request === "enableGps") {
+          if (current && isWalkRunning(current)) await ensureGpsTracking(owner, current, true);
+        } else if (request === "start") {
           if (current && isWalkRunning(current)) return;
           let notificationsGranted = false;
           try {
@@ -512,8 +541,10 @@ export default function DogWalkScreen() {
                 : state,
             );
             await ensureAndroidTracking(owner, resumed);
-            await ensureGpsTracking(owner, resumed, true);
             await notify(owner, resumed, notificationsGranted);
+            if (resumed.gpsEnabled || Platform.OS !== "android") {
+              await ensureGpsTracking(owner, resumed, Platform.OS !== "android" && !fromWidget);
+            }
             return;
           }
           let incompleteSteps = false;
@@ -555,10 +586,11 @@ export default function DogWalkScreen() {
           };
           updateJournal((state) => (state.active ? state : { ...state, active: walk }));
           await ensureAndroidTracking(owner, walk);
-          await ensureGpsTracking(owner, walk, true);
           await notify(owner, walk, notificationsGranted);
+          await ensureGpsTracking(owner, walk, !fromWidget);
         } else if (current) {
           if (request === "pause" && !isWalkRunning(current)) return;
+          setGpsStatus(null);
           const now = Date.now();
           if (current.clientId) {
             try {
@@ -631,7 +663,7 @@ export default function DogWalkScreen() {
     }
     if (handledLink.current) return;
     handledLink.current = true;
-    void performAction(action).finally(() => router.setParams({ action: "" }));
+    void performAction(action, true).finally(() => router.setParams({ action: "" }));
   }, [ready, action, performAction, router]);
 
   const setMode = useCallback(
@@ -669,9 +701,14 @@ export default function DogWalkScreen() {
       ? Math.max(1, Math.min(240, Number.parseInt(minutesDraft, 10) || 30)) * 60
       : 0;
   const today = totalTodayWalks(journal.completed, nowMs);
+  const gpsSegment = `${owner}:${sessionEpoch}:${active?.clientId}:${active?.runningSinceMs}`;
+  const gpsRecording = running && gpsStatus?.segment === gpsSegment && gpsStatus.recording;
 
   return (
     <TexturedSafeAreaView style={styles.page}>
+      {disclosure ? (
+        <WalkLocationDisclosure details={disclosure} onDecision={answerDisclosure} />
+      ) : null}
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.topBar}>
           <Pressable
@@ -810,21 +847,24 @@ export default function DogWalkScreen() {
           )}
         </View>
         {active?.clientId && active.gpsEnabled ? (
-          <WalkRouteMap ownerId={owner ?? ""} walkId={active.clientId} />
+          <WalkRouteMap ownerId={owner ?? ""} walkId={active.clientId} live={gpsRecording} localOnly />
         ) : null}
-        {active && running && !active.gpsEnabled && owner ? (
+        {active && running && !gpsRecording && owner ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Включить GPS-маршрут прогулки"
             disabled={busy}
             style={styles.gpsRetry}
-            onPress={() => {
-              void ensureGpsTracking(owner, active, true);
-            }}
+            onPress={() => void performAction("enableGps")}
           >
             <MaterialCommunityIcons name="crosshairs-gps" size={20} color={COLORS.primaryDark} />
             <Text style={styles.gpsRetryText}>Включить GPS-маршрут</Text>
           </Pressable>
+        ) : null}
+        {running && gpsStatus?.segment === gpsSegment && !gpsStatus.recording ? (
+          <Text style={styles.warning}>
+            Маршрут выключен. Таймер и подсчёт шагов продолжают работать.
+          </Text>
         ) : null}
         {notice ? <Text style={styles.warning}>{notice}</Text> : null}
         {selected?.incompleteSteps ? (

@@ -9,7 +9,6 @@ import type {
   RewardedTargetInput,
 } from "./types";
 import { APP_FEATURE_APP_SUBSCRIPTION_GATING, getAppFeatureFlagEnabled } from "../appFeatureFlags";
-import { getAppSubscriptionAccess } from "../appSubscription";
 
 const REWARDED_MONETIZED_STEP_TYPES = new Set([
   "TRAINING",
@@ -40,7 +39,7 @@ async function requirePremiumFallback(input: { userId: string; now?: Date }): Pr
   const gatingEnabled = await getAppFeatureFlagEnabled(APP_FEATURE_APP_SUBSCRIPTION_GATING, true);
   if (!gatingEnabled) return null;
 
-  const subscription = await getAppSubscriptionAccess(input.userId, input.now);
+  const subscription = await requireRewardedAccessReadPort().getAppSubscriptionAccess(input.userId, input.now);
   if (subscription.hasActiveSubscription) return null;
 
   throw new SubscriptionOrCreditsRequiredError();
@@ -152,7 +151,7 @@ export async function getPremiumOrRewardedAccess(input: {
     };
   }
 
-  const subscription = await getAppSubscriptionAccess(input.userId, input.now);
+  const subscription = await requireRewardedAccessReadPort().getAppSubscriptionAccess(input.userId, input.now);
   if (subscription.hasActiveSubscription) {
     return {
       allowed: true,

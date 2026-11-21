@@ -5,11 +5,16 @@ const mocks=vi.hoisted(()=>({
   prepare:vi.fn(),poster:vi.fn(),reserve:vi.fn(),complete:vi.fn(),
   photo:vi.fn(),variants:vi.fn(),sanitizeWebp:vi.fn(),signed:vi.fn(),post:vi.fn(),
   cover:vi.fn(),sanitize:vi.fn(),sent:vi.fn(),dispose:vi.fn(),coverDispose:vi.fn(),
+  picker:vi.fn(),mediaPermission:vi.fn(),camera:vi.fn(),cameraPermission:vi.fn(),microphone:vi.fn(),
 }));
 vi.mock("@/shared/lib/error-reporting",()=>({reportClientError:vi.fn()}));
 vi.mock("expo-crypto",()=>({randomUUID:()=>"video-uuid"}));
-vi.mock("expo-image-picker",()=>({}));
-vi.mock("expo-camera",()=>({Camera:{}}));
+vi.mock("react-native",()=>({Platform:{OS:"android"}}));
+vi.mock("expo-image-picker",()=>({
+  launchImageLibraryAsync:mocks.picker,requestMediaLibraryPermissionsAsync:mocks.mediaPermission,
+  launchCameraAsync:mocks.camera,requestCameraPermissionsAsync:mocks.cameraPermission,
+}));
+vi.mock("expo-camera",()=>({Camera:{requestMicrophonePermissionsAsync:mocks.microphone}}));
 vi.mock("expo-file-system",()=>({File:class {
   uri:string;exists=true;size:number;
   constructor(uri:string){this.uri=uri;this.size=uri.includes("compressed")?1300:2200;}
@@ -29,6 +34,7 @@ vi.mock("@/shared/lib/api/feed",()=>({feedApi:{reserveUpload:mocks.reserve,compl
   feedTransport:mocks.signed}));
 
 import { prepareFeedPickedMedia, ensureFeedVideoPrepared, uploadPickedFeedMedia, releaseFeedPickedMedia, feedAssetForPublication } from "./uploads";
+import { pickFeedMedia, pickFeedPollOptionPhoto } from "./uploads";
 
 beforeEach(()=>{
   Object.values(mocks).forEach(value=>value.mockReset());
@@ -73,6 +79,42 @@ describe("Android Feed photo ICC metadata cleanup and retry safety", () => {
       .mockResolvedValueOnce({ status: "ready", mediaId: "media-1" });
     return source;
   }
+  it("takes mixed Android selections through existing photo and video preparation", async () => {
+    const photo = photoResult();
+    mocks.picker.mockResolvedValue({ canceled: false, assets: [photo, {
+      uri: "file:///video.mp4", type: "video", mimeType: "video/mp4", width: 1280, height: 720,
+    }] });
+    mocks.prepare.mockResolvedValue({
+      uri: "file:///compressed.mp4", bytes: 1300, mime: "video/mp4", dispose: mocks.dispose,
+    });
+    const picked = await pickFeedMedia("library");
+    expect(mocks.mediaPermission).not.toHaveBeenCalled();
+    expect(mocks.picker).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      mediaTypes: ["images", "videos"], allowsMultipleSelection: true, selectionLimit: 10,
+    }));
+    expect(picked.map(item => item.kind)).toEqual(["photo", "video"]);
+    await ensureFeedVideoPrepared(picked[1]);
+    expect(picked[0].mime).toBe("image/webp");
+    expect(picked[1].uri).toBe("file:///compressed.mp4");
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    picked.forEach(releaseFeedPickedMedia);
+  });
+  it("handles poll selection cancellation and keeps the camera permission path separate", async () => {
+    const canceled = { canceled: true, assets: null };
+    mocks.picker.mockResolvedValue(canceled);
+    await expect(pickFeedPollOptionPhoto()).resolves.toBeNull();
+    expect(mocks.picker).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      mediaTypes: ["images"], allowsMultipleSelection: false,
+    }));
+    mocks.cameraPermission.mockResolvedValue({ granted: true });
+    mocks.microphone.mockResolvedValue({ granted: true });
+    mocks.camera.mockResolvedValue(canceled);
+    await expect(pickFeedMedia("camera-video")).resolves.toEqual([]);
+    expect(mocks.mediaPermission).not.toHaveBeenCalled();
+    expect(mocks.cameraPermission).toHaveBeenCalledOnce();
+    expect(mocks.microphone).toHaveBeenCalledOnce();
+    expect(mocks.camera).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ mediaTypes: ["videos"] }));
+  });
   it("uses the original requestId for clean newly prepared WebP photos", async () => {
     const picked = await prepareFeedPickedMedia(photoResult() as never);
     picked.requestId = "existing-photo-request-id";

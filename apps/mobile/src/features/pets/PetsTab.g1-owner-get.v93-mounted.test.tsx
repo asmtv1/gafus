@@ -23,6 +23,9 @@ const m = vi.hoisted(() => ({
   queryApi: vi.fn(),
   track: vi.fn(),
   tour: vi.fn(),
+  platform: "ios",
+  picker: vi.fn(),
+  mediaPermission: vi.fn(),
 }));
 vi.mock("@/shared/stores/authStore", () => {
   const state = () => ({
@@ -165,7 +168,7 @@ vi.mock("react-native", async () => {
       R.createElement("button", { "aria-label": accessibilityLabel, onClick: onPress }, children),
     Share: { share: vi.fn() },
     InteractionManager: { runAfterInteractions: () => ({ cancel: vi.fn() }) },
-    Platform: { OS: "ios" },
+    Platform: { get OS() { return m.platform; } },
     StyleSheet: { create: (styles: unknown) => styles, absoluteFill: {}, absoluteFillObject: {} },
   };
 });
@@ -191,11 +194,15 @@ vi.mock("@/shared/components/ui", async () => {
       label,
       onPress,
       disabled,
+      accessibilityLabel,
     }: {
       label: string;
       onPress?: () => void;
       disabled?: boolean;
-    }) => R.createElement("button", { onClick: onPress, disabled, "aria-label": label }, label),
+      accessibilityLabel?: string;
+    }) => R.createElement("button", {
+      onClick: onPress, disabled, "aria-label": accessibilityLabel ?? label,
+    }, label),
     Input: () => R.createElement("input", { readOnly: true }),
     Card: () => null,
   };
@@ -230,8 +237,8 @@ vi.mock("expo-linear-gradient", async () => {
   };
 });
 vi.mock("expo-image-picker", () => ({
-  requestMediaLibraryPermissionsAsync: vi.fn(),
-  launchImageLibraryAsync: vi.fn(),
+  requestMediaLibraryPermissionsAsync: m.mediaPermission,
+  launchImageLibraryAsync: m.picker,
 }));
 vi.mock("expo-file-system/legacy", () => ({}));
 vi.mock("@expo/vector-icons", () => ({ MaterialCommunityIcons: () => null }));
@@ -311,6 +318,9 @@ beforeEach(() => {
   m.owner = "A";
   m.epoch = "E1";
   m.authed = true;
+  m.platform = "ios";
+  m.picker.mockReset();
+  m.mediaPermission.mockReset();
   m.focus = null;
   m.api.mockReset().mockResolvedValue(data([pet()]));
   m.deletePet.mockReset().mockResolvedValue({ success: true });
@@ -340,6 +350,30 @@ afterEach(async () => {
   host.remove();
 });
 describe("V93 actual PetsTab GET list / owner epoch read-only", () => {
+  it("uses the Android system picker for pet photos and document images", async () => {
+    m.platform = "android";
+    m.picker.mockResolvedValue({ canceled: true, assets: null });
+    await mount();
+    const click = async (label: string) => {
+      const button = await vi.waitFor(() => {
+        const node = host.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`);
+        if (!node) throw new Error(`Missing control ${label}`);
+        return node;
+      });
+      await act(async () => button.click());
+    };
+    await click("Изменить фотографию питомца Бим");
+    await click("Подробнее о питомце Бим");
+    await click("Добавить документ");
+    expect(m.mediaPermission).not.toHaveBeenCalled();
+    expect(m.picker).toHaveBeenCalledTimes(2);
+    expect(m.picker).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      mediaTypes: ["images"], allowsEditing: true, legacy: false,
+    }));
+    expect(m.picker).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      mediaTypes: ["images"], allowsEditing: false, legacy: false,
+    }));
+  });
   it("guest issues zero GET and cannot display cached private pet", async () => {
     m.authed = false;
     client.setQueryData(petsQueryOptions.queryKey, { success: true, data: [pet()] });

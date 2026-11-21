@@ -16,9 +16,19 @@ import {
   WALK_GPS_INTERVALS,
   type WalkGpsMode,
 } from "./walkAdaptiveGps";
+import { hasWalkLocationAccess } from "./location-permissions/walkLocationPermissionFlow";
 import { reportClientError } from "@/shared/lib/error-reporting";
 
 export const DOG_WALK_GPS_TASK = "gafus.dogwalk.gps.v1";
+
+let gpsOperation: Promise<unknown> = Promise.resolve();
+
+function runGpsOperation<T>(operation: () => Promise<T>): Promise<T> {
+  // Foreground restoration, permission completion and widget actions use one native task.
+  const next = gpsOperation.catch(() => undefined).then(operation);
+  gpsOperation = next;
+  return next;
+}
 
 // Imported by widget-entry.ts before expo-router/entry, including headless launches.
 TaskManager.defineTask(DOG_WALK_GPS_TASK, async ({ data, error }) => {
@@ -89,82 +99,102 @@ export async function adaptWalkGpsToMotion(
     speed: number | null;
   }[],
 ): Promise<void> {
-  const active = await activeGpsSession();
-  if (!active || !fixes.length) return;
-  const before = await readGpsMotionPolicy(active.ownerId, active.walkId);
-  const now = Math.max(...fixes.map((p) => p.timestamp));
-  const next = advanceWalkGpsPolicy(before, detectWalkGpsMode(fixes), now);
-  if (next.mode === before.mode) {
-    if (next.candidate !== before.candidate || next.candidateSinceMs !== before.candidateSinceMs) {
-      await saveGpsMotionPolicy(active.ownerId, active.walkId, next);
+  return runGpsOperation(async () => {
+    const active = await activeGpsSession();
+    if (!active || !fixes.length) return;
+    const before = await readGpsMotionPolicy(active.ownerId, active.walkId);
+    const now = Math.max(...fixes.map((p) => p.timestamp));
+    const next = advanceWalkGpsPolicy(before, detectWalkGpsMode(fixes), now);
+    if (next.mode === before.mode) {
+      if (
+        next.candidate !== before.candidate ||
+        next.candidateSinceMs !== before.candidateSinceMs
+      ) {
+        await saveGpsMotionPolicy(active.ownerId, active.walkId, next);
+      }
+      return;
     }
-    return;
-  }
-  // Pause and stop persist before shutting down native GPS. Never restart an inactive walk.
-  const latest = await activeGpsSession();
-  if (latest?.ownerId !== active.ownerId || latest.walkId !== active.walkId) return;
-  if (!(await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK))) return;
-  await Location.startLocationUpdatesAsync(DOG_WALK_GPS_TASK, gpsTaskOptions(next.mode));
-  await saveGpsMotionPolicy(active.ownerId, active.walkId, next);
-  const stillActive = await activeGpsSession();
-  if (!stillActive && (await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK))) {
-    await Location.stopLocationUpdatesAsync(DOG_WALK_GPS_TASK);
-  }
-}
-
-export async function requestWalkGpsPermissions(): Promise<boolean> {
-  const enabled = await Location.hasServicesEnabledAsync();
-  if (!enabled) return false;
-  const fg = await Location.requestForegroundPermissionsAsync();
-  if (!fg.granted) return false;
-  const bg = await Location.requestBackgroundPermissionsAsync();
-  return bg.granted;
+    // Pause and stop persist before shutting down native GPS. Never restart an inactive walk.
+    const latest = await activeGpsSession();
+    if (latest?.ownerId !== active.ownerId || latest.walkId !== active.walkId) return;
+    if (!(await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK))) return;
+    await Location.startLocationUpdatesAsync(DOG_WALK_GPS_TASK, gpsTaskOptions(next.mode));
+    await saveGpsMotionPolicy(active.ownerId, active.walkId, next);
+    const stillActive = await activeGpsSession();
+    if (!stillActive && (await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK))) {
+      await Location.stopLocationUpdatesAsync(DOG_WALK_GPS_TASK);
+    }
+  });
 }
 
 /** The widget may start this only if permissions have already been granted. */
-export async function startWalkGps(
+export function startWalkGps(
   ownerId: string,
   walkId: string,
   widgetInitiated = false,
+  isCurrent: () => boolean = () => true,
 ): Promise<boolean> {
-  if (!(await Location.hasServicesEnabledAsync())) return false;
-  const foreground = await Location.getForegroundPermissionsAsync();
-  const background = await Location.getBackgroundPermissionsAsync();
-  if (!foreground.granted || !background.granted) return false;
-  const wasActive = await activeGpsSession();
-  const alreadyRegistered = await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK);
-  // Keep the existing task if this is an idempotent retry for the same walk.
-  if (wasActive?.ownerId === ownerId && wasActive.walkId === walkId && alreadyRegistered)
-    return true;
-  if (alreadyRegistered) await Location.stopLocationUpdatesAsync(DOG_WALK_GPS_TASK);
-  // An OS-killed task resumed after a gap must not connect unrelated coordinates.
-  if (!alreadyRegistered && wasActive?.ownerId === ownerId && wasActive.walkId === walkId) {
-    await deactivateGpsSession(ownerId, walkId);
-  }
-  await activateGpsSession(ownerId, walkId);
-  try {
-    await Location.startLocationUpdatesAsync(
-      DOG_WALK_GPS_TASK,
-      gpsTaskOptions("walking", widgetInitiated),
-    );
-    return true;
-  } catch (error) {
-    await deactivateGpsSession(ownerId, walkId);
-    reportClientError(error, { issueKey: "DogWalkGpsTaskRegistration" });
-    throw error;
-  }
+  return runGpsOperation(async () => {
+    if (!isCurrent()) return false;
+    const allowed = await hasWalkLocationAccess();
+    const wasActive = await activeGpsSession();
+    if (!isCurrent()) return false;
+    const sameWalk = wasActive?.ownerId === ownerId && wasActive.walkId === walkId;
+    if (!allowed) {
+      // Keep the recorded points and distance when Android revokes access.
+      if (sameWalk) await stopGpsSession(ownerId, walkId);
+      return false;
+    }
+
+    const alreadyRegistered = await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK);
+    if (!isCurrent()) return false;
+    if (sameWalk && alreadyRegistered) return true;
+    if (alreadyRegistered) await Location.stopLocationUpdatesAsync(DOG_WALK_GPS_TASK);
+    // An OS-killed task resumed after a gap must not connect unrelated coordinates.
+    if (sameWalk) await deactivateGpsSession(ownerId, walkId);
+    if (!isCurrent()) return false;
+    await activateGpsSession(ownerId, walkId);
+    try {
+      if (!isCurrent()) {
+        await stopGpsSession(ownerId, walkId);
+        return false;
+      }
+      await Location.startLocationUpdatesAsync(
+        DOG_WALK_GPS_TASK,
+        gpsTaskOptions("walking", widgetInitiated),
+      );
+      if (isCurrent()) return true;
+      await stopGpsSession(ownerId, walkId);
+      return false;
+    } catch (error) {
+      await deactivateGpsSession(ownerId, walkId);
+      reportClientError(error, { issueKey: "DogWalkGpsTaskRegistration" });
+      throw error;
+    }
+  });
 }
-export async function stopWalkGps(ownerId: string, walkId: string): Promise<void> {
+
+async function stopGpsSession(ownerId: string, walkId: string): Promise<void> {
   // Commit the stop before awaiting the OS: late batches must not append to a paused walk.
   await deactivateGpsSession(ownerId, walkId);
-  const other = await activeGpsSession();
-  if (!other && (await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK))) {
+  if (
+    !(await activeGpsSession()) &&
+    (await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK))
+  ) {
     await Location.stopLocationUpdatesAsync(DOG_WALK_GPS_TASK);
   }
 }
-export async function stopAllWalkGps(): Promise<void> {
-  await deactivateAllGpsSessions();
-  if (await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK)) {
-    await Location.stopLocationUpdatesAsync(DOG_WALK_GPS_TASK);
-  }
+
+export function stopWalkGps(ownerId: string, walkId: string): Promise<void> {
+  return runGpsOperation(() => stopGpsSession(ownerId, walkId));
+}
+
+export function stopAllWalkGps(isCurrent: () => boolean): Promise<void> {
+  return runGpsOperation(async () => {
+    if (!isCurrent()) return;
+    await deactivateAllGpsSessions();
+    if (await Location.hasStartedLocationUpdatesAsync(DOG_WALK_GPS_TASK)) {
+      await Location.stopLocationUpdatesAsync(DOG_WALK_GPS_TASK);
+    }
+  });
 }

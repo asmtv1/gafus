@@ -17,7 +17,7 @@ import {
 } from "./androidBackgroundSteps";
 import { isWalkRunning } from "./walkModel";
 import { activeGpsSession } from "./walkGpsStorage";
-import { stopAllWalkGps, startWalkGps } from "./walkGpsTask";
+import { stopAllWalkGps, stopWalkGps, startWalkGps } from "./walkGpsTask";
 import {
   processPendingIosWalkCommands,
   setVerifiedIosWalkWidgetOwner,
@@ -56,17 +56,24 @@ export function WalkWidgetSessionSync() {
         }
       }
       const journal = ownerId ? await loadWalkJournal(ownerId) : null;
+      const isCurrent = () => {
+        const auth = useAuthStore.getState();
+        return !cancelled && !auth.isLoading && auth.verifiedSessionEpoch === verified &&
+          (auth.isAuthenticated ? auth.user?.id ?? null : null) === ownerId;
+      };
+      if (!isCurrent()) return;
       // OS location task must not keep recording a signed-out or switched account.
       try {
         const gps = await activeGpsSession();
-        if (
-          gps &&
-          (!ownerId ||
-            gps.ownerId !== ownerId ||
+        if (!ownerId) {
+          await stopAllWalkGps(isCurrent);
+        } else if (
+          isCurrent() && gps &&
+          (gps.ownerId !== ownerId ||
             gps.walkId !== journal?.active?.clientId ||
             !isWalkRunning(journal?.active ?? null))
         ) {
-          await stopAllWalkGps();
+          await stopWalkGps(gps.ownerId, gps.walkId);
         }
       } catch (error) {
         reportClientError(error, { issueKey: "DogWalkGpsOwnerGuard" });
@@ -75,14 +82,15 @@ export function WalkWidgetSessionSync() {
       // to the app foreground after an OS process/service restart. Never ask
       // for new permissions outside a deliberate user action.
       if (
-        !cancelled &&
+        isCurrent() &&
+        AppState.currentState === "active" &&
         ownerId &&
         journal?.active?.clientId &&
         journal.active.gpsEnabled &&
         isWalkRunning(journal.active)
       ) {
         try {
-          await startWalkGps(ownerId, journal.active.clientId);
+          await startWalkGps(ownerId, journal.active.clientId, false, isCurrent);
         } catch (error) {
           reportClientError(error, { issueKey: "DogWalkGpsForegroundRestore" });
         }

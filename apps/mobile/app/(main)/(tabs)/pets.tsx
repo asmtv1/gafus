@@ -18,7 +18,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import * as ImagePicker from "expo-image-picker";
+import { MediaPickerError, pickMedia } from "@/shared/lib/media/mediaPicker";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -335,17 +335,23 @@ function PetDocumentsSection({ pet }: PetDocumentsSectionProps) {
   });
 
   const handlePickDocument = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Доступ", "Нужен доступ к галерее для выбора документа");
+    let result;
+    try {
+      result = await pickMedia({
+        mediaTypes: ["images"],
+        allowsEditing: false,
+        quality: 1,
+      }, {
+        onPermissionDenied: () => Alert.alert("Доступ", "Нужен доступ к галерее для выбора документа"),
+      });
+    } catch (error) {
+      reportClientError(error, {
+        issueKey: "PetsScreen",
+        keys: { operation: "pick_pet_document", petId: pet.id },
+      });
+      Alert.alert("Ошибка", error instanceof MediaPickerError ? error.message : "Не удалось выбрать документ");
       return;
     }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: false,
-      quality: 1,
-    });
     if (result.canceled || !result.assets[0]) {
       return;
     }
@@ -1537,15 +1543,12 @@ function ActorPetsTabScreen({actor}: {actor: PetsReadActor}) {
   const pickImageAndUploadPetPhoto = async (petId: string) => {
     trackPetsClick("pet-photo-upload-click");
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Доступ", "Нужен доступ к фото для загрузки");
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const result = await pickMedia({
         mediaTypes: ["images"],
         allowsEditing: true,
         quality: 0.8,
+      }, {
+        onPermissionDenied: () => Alert.alert("Доступ", "Нужен доступ к фото для загрузки"),
       });
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
@@ -1567,7 +1570,7 @@ function ActorPetsTabScreen({actor}: {actor: PetsReadActor}) {
         issueKey: "PetsScreen",
         keys: { operation: "pick_pet_photo" },
       });
-      Alert.alert("Ошибка", "Не удалось выбрать фото");
+      Alert.alert("Ошибка", err instanceof MediaPickerError ? err.message : "Не удалось выбрать фото");
     }
   };
 

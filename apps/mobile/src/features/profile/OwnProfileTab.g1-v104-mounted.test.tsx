@@ -45,6 +45,9 @@ const m = vi.hoisted(() => ({
   editOpen: false,
   profilePut: vi.fn(),
   profileSaved: vi.fn(),
+  platform: "ios",
+  picker: vi.fn(),
+  mediaPermission: vi.fn(),
   studentNotesRows: [] as {
     id: string;
     title?: string | null;
@@ -85,7 +88,7 @@ vi.mock("react-native", () => ({
         }),
   KeyboardAvoidingView: (p: Record<string, unknown>) => dom("div", p),
   Modal: (p: Record<string, unknown>) => (p.visible ? dom("section", p) : null),
-  Platform: { OS: "ios" },
+  Platform: { get OS() { return m.platform; } },
   NativeModules: {},
   Alert: { alert: m.alert },
   Linking: { openSettings: vi.fn(), openURL: vi.fn() },
@@ -111,8 +114,8 @@ vi.mock("expo-image", () => ({
     createElement("div", { "data-image-uri": p.source?.uri ?? "" }),
 }));
 vi.mock("expo-image-picker", () => ({
-  requestMediaLibraryPermissionsAsync: vi.fn(),
-  launchImageLibraryAsync: vi.fn(),
+  requestMediaLibraryPermissionsAsync: m.mediaPermission,
+  launchImageLibraryAsync: m.picker,
 }));
 vi.mock("expo-linear-gradient", () => ({
   LinearGradient: (p: Record<string, unknown>) => dom("div", p),
@@ -386,6 +389,25 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 describe("V104 actual own ProfileScreen / GET /user/profile owner cache", () => {
+  it("keeps square avatar cropping without requesting Android gallery access", async () => {
+    m.platform = "android";
+    m.picker.mockReset().mockResolvedValueOnce({ canceled: true, assets: null });
+    m.mediaPermission.mockReset();
+    try {
+      await mount();
+      await vi.waitFor(() => expect(host.textContent).toContain("OWN_BIO"));
+      const avatar = host.querySelector('[data-image-uri="https://cdn.test/own.png"]');
+      const control = avatar?.closest("button");
+      expect(control).not.toBeNull();
+      await act(async () => control?.click());
+      expect(m.mediaPermission).not.toHaveBeenCalled();
+      expect(m.picker).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        mediaTypes: ["images"], allowsEditing: true, aspect: [1, 1], legacy: false,
+      }));
+    } finally {
+      m.platform = "ios";
+    }
+  });
   it("preseeded foreign A-key Profile GET must not render private B biography or call setUser(B)", async () => {
     client.setQueryData(["user-profile"], {
       success: true,

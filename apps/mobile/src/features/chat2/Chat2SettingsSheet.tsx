@@ -12,8 +12,8 @@ import {
 } from "react-native";
 import { reportClientError } from "@/shared/lib/error-reporting";
 import { SwipeDismissHandle } from "@/shared/components/gestures/SwipeDismissHandle";
-import * as ImagePicker from "expo-image-picker";
 import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
+import { pickMedia } from "@/shared/lib/media/mediaPicker";
 import { chat2, type ChatUser, type Conversation, type Member } from "./api";
 import { Chat2ReportQueue } from "./Chat2ReportQueue";
 
@@ -56,7 +56,7 @@ export function Chat2SettingsSheet({
   async function pickGroupAvatar() {
     if (busy) return;
     try {
-      const selection = await ImagePicker.launchImageLibraryAsync({
+      const selection = await pickMedia({
         mediaTypes: ["images"], quality: 0.85, allowsMultipleSelection: false,
         ...iosCompatiblePhotoPicker(),
       });

@@ -11,7 +11,7 @@ test('current app runtime follows the new 1.7.6 store version',()=>{
   const expo=json('apps/mobile/app.json').expo;
   assert.equal(expo.version,'1.7.6');
   assert.equal(json('apps/mobile/package.json').version,'1.7.6');
-  assert.equal(expo.android.versionCode,17601);
+  assert.equal(expo.android.versionCode,17602);
   assert.deepEqual(expo.runtimeVersion,{policy:'appVersion'});
   assert.equal(json('apps/mobile/package.json').dependencies.expo,'57.0.33');
 });

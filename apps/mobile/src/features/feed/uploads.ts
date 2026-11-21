@@ -10,6 +10,7 @@ import { prepareUploadVideo720, type PreparedUploadVideo720 } from "@/shared/lib
 import { prepareVideoPosterWebp, sanitizeVideoPosterWebp } from "@/shared/lib/media/prepareVideoPosterWebp";
 import { prepareUploadPhoto } from "@/shared/lib/media/prepareUploadPhoto";
 import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
+import { pickMedia } from "@/shared/lib/media/mediaPicker";
 import { photoFailureCode } from "@/shared/lib/media/photoRetryMessage";
 import { PhotoUploadStageError, logPhotoUploadFailure, type PhotoUploadStage } from "@/shared/lib/media/photoUploadStage";
 import { reportClientError } from "@/shared/lib/error-reporting";
@@ -195,23 +196,21 @@ export function checkFeedPickedMedia(items: readonly FeedPickedMedia[]) {
   }
 }
 export async function pickFeedMedia(source: "camera-photo" | "camera-video" | "library"): Promise<FeedPickedMedia[]> {
-  const permission = source === "library"
-    ? await ImagePicker.requestMediaLibraryPermissionsAsync()
-    : await ImagePicker.requestCameraPermissionsAsync();
-  if (!permission.granted) {
-    throw new Error(source === "library"
-      ? "Разрешите доступ к выбранным фото в настройках приложения."
-      : "Разрешите доступ к камере в настройках приложения.");
-  }
-  if (source === "camera-video") {
-    const microphone = await Camera.requestMicrophonePermissionsAsync();
-    if (!microphone.granted) throw new Error("Для записи видео разрешите доступ к микрофону в настройках приложения.");
+  if (source !== "library") {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) throw new Error("Разрешите доступ к камере в настройках приложения.");
+    if (source === "camera-video") {
+      const microphone = await Camera.requestMicrophonePermissionsAsync();
+      if (!microphone.granted) throw new Error("Для записи видео разрешите доступ к микрофону в настройках приложения.");
+    }
   }
   const request = source === "library"
-    ? await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images", "videos"], allowsMultipleSelection: true, selectionLimit: 10,
+    ? await pickMedia({
+      mediaTypes: ["images", "videos"], allowsMultipleSelection: true, selectionLimit: FEED_LIMITS.maxAttachments,
       quality: 1, videoMaxDuration: FEED_LIMITS.videoSeconds,
       ...iosCompatiblePhotoPicker(),
+    }, {
+      onPermissionDenied: () => { throw new Error("Разрешите доступ к выбранным фото в настройках приложения."); },
     })
     : await ImagePicker.launchCameraAsync({
       mediaTypes: source === "camera-photo" ? ["images"] : ["videos"], quality: 1,
@@ -230,11 +229,11 @@ export async function pickFeedMedia(source: "camera-photo" | "camera-video" | "l
 }
 /** Select a single photo for a poll option (never a video or an album post). */
 export async function pickFeedPollOptionPhoto(): Promise<FeedPickedMedia | null> {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) throw new Error("Разрешите доступ к фото в настройках приложения.");
-  const result = await ImagePicker.launchImageLibraryAsync({
+  const result = await pickMedia({
     mediaTypes: ["images"], allowsMultipleSelection: false, quality: 1,
     ...iosCompatiblePhotoPicker(),
+  }, {
+    onPermissionDenied: () => { throw new Error("Разрешите доступ к фото в настройках приложения."); },
   });
   if (result.canceled || !result.assets[0]) return null;
   const photo = await prepareFeedPickedMedia(result.assets[0]);

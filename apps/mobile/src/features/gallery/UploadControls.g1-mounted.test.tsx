@@ -15,6 +15,7 @@ const m = vi.hoisted(() => ({
   tracer: vi.fn(),
   next: 0,
   background: false,
+  platform: "android",
 }));
 vi.mock("@/shared/stores/authStore", () => ({
   useAuthStore: {
@@ -118,7 +119,7 @@ vi.mock("react-native", async () => {
   return {
     View: Box,
     Pressable,
-    Platform: { OS: "android" },
+    Platform: { get OS() { return m.platform; } },
     Linking: { openSettings: vi.fn() },
     Alert: { alert: vi.fn() },
     AppState: {
@@ -231,6 +232,7 @@ beforeEach(() => {
   m.username = "alice";
   m.next = 0;
   m.background = false;
+  m.platform = "android";
   useGallerySession.setState({ tasks: [], epoch: 0 });
   m.manipulate.mockResolvedValue({ uri: "file:///temp/optimized.jpg", width: 100, height: 100 });
   m.permission.mockResolvedValue({ granted: true });
@@ -295,8 +297,10 @@ describe("actual mounted ImagePicker -> prepare -> reserve -> storage -> commit 
     await mounted();
     await pick();
     await reached("processing");
-    expect(m.permission).toHaveBeenCalledOnce();
-    expect(m.picker).toHaveBeenCalledOnce();
+    expect(m.permission).not.toHaveBeenCalled();
+    expect(m.picker).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      mediaTypes: ["images"], allowsMultipleSelection: true, legacy: false,
+    }));
     expect(m.manipulate).toHaveBeenCalledWith("file:///test.jpg", [],
       { format: "jpeg", compress: 0.8 });
     expect(uploadCalls("client-reserve")).toHaveLength(1);
@@ -350,7 +354,8 @@ describe("actual mounted ImagePicker -> prepare -> reserve -> storage -> commit 
     expect(m.picker).toHaveBeenCalledOnce();
     expect(uploadCalls("client-reserve")).toHaveLength(1);
   });
-  it("owner A->B->A newer epoch after media permission prevents picker and API", async () => {
+  it("on iOS a newer auth epoch after media permission prevents picker and API", async () => {
+    m.platform = "ios";
     const p = deferred<{ granted: boolean }>();
     m.permission.mockReturnValueOnce(p.promise);
     await mounted();
@@ -363,6 +368,21 @@ describe("actual mounted ImagePicker -> prepare -> reserve -> storage -> commit 
     await act(async () => p.resolve({ granted: true }));
     expect(m.picker).not.toHaveBeenCalled();
     expect(m.api).not.toHaveBeenCalled();
+  });
+  it("discards an Android selection after the auth epoch changes", async () => {
+    const picker = deferred<unknown>();
+    m.picker.mockReturnValueOnce(picker.promise);
+    await mounted();
+    await pick();
+    await vi.waitFor(() => expect(m.picker).toHaveBeenCalledOnce());
+    m.epoch = "E2";
+    await act(async () => picker.resolve({
+      canceled: false,
+      assets: [{ uri: "file:///test.jpg", width: 100, height: 100, type: "image" }],
+    }));
+    expect(m.permission).not.toHaveBeenCalled();
+    expect(m.api).not.toHaveBeenCalled();
+    expect(m.storage).not.toHaveBeenCalled();
   });
   it("unmount during pending picker discards late photo without SDK File/storage/HTTP", async () => {
     const p = deferred<unknown>();

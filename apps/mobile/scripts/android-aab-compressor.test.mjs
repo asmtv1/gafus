@@ -10,4 +10,5 @@ test('supports an obfuscated release AAB only when Gradle provides exact R8 mapp
   const b=[Buffer.from('Lx/y/A;')];
   assert.equal(dexHasNativeCompressor(b,'com.reactnativecompressor.CompressorModule -> x.y.A:\n'),true);
   assert.equal(dexHasNativeCompressor(b,'com.other.FakeCompressorModule -> x.y.A:\n'),false);
+  assert.equal(dexHasNativeCompressor(b,'com.reactnativecompressor.CompressorModule -> x.y.B:\n'),false);
 });

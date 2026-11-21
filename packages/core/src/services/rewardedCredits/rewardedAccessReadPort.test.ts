@@ -4,12 +4,10 @@ vi.mock("../appFeatureFlags",()=>({
   APP_FEATURE_APP_SUBSCRIPTION_GATING:"app_subscription_gating_enabled",
   getAppFeatureFlagEnabled:flags.enabled,
 }));
-vi.mock("../appSubscription",()=>({
-  getAppSubscriptionAccess:vi.fn(async()=>({hasActiveSubscription:false})),
-}));
 beforeEach(()=>{vi.resetModules();vi.clearAllMocks();flags.enabled.mockResolvedValue(true);});
 function port() {
  return {
+  getAppSubscriptionAccess:vi.fn(async()=>({hasActiveSubscription:false})),
   readOwnedCourseDayRewardedSteps:vi.fn(async()=>null),
   readOwnedRewardedUserStep:vi.fn(async()=>null),
   readRewardedPrivateCourseAssignment:vi.fn(async()=>null),

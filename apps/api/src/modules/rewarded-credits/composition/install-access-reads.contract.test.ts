@@ -3,6 +3,20 @@ const sql=vi.hoisted(()=>({
   role:vi.fn(async(_owner:string)=>({role:"USER"})),
   grant:vi.fn(async(_owner:string,_type:string,_id:string)=>null),
 }));
+vi.mock("@gafus/subscription-read-server", () => ({
+  getAppSubscriptionAccess: vi.fn(async (userId: string) => ({
+    hasActiveSubscription: userId === "subscribed-user",
+  })),
+  getCynologistEntitlements: vi.fn(),
+}));
+vi.mock("@gafus/feature-flags-server/appFeatureFlagsService", () => ({
+  getAppFeatureFlagEnabled: vi.fn(async () => true),
+  getMobileFeatureFlagEnabled: vi.fn(),
+  getMobileReleaseControl: vi.fn(),
+  getMobileAppPublicConfig: vi.fn(),
+  setAppFeatureFlagEnabled: vi.fn(),
+  updateMobileReleaseControl: vi.fn(),
+}));
 vi.mock("@gafus/entitlements-server/rewarded-access-reads",()=>({
   readOwnedCourseDayRewardedSteps:vi.fn(),
   readOwnedRewardedUserStep:vi.fn(),
@@ -16,6 +30,20 @@ vi.mock("@gafus/entitlements-server/rewarded-access-reads",()=>({
   readPendingRewardedStepNotificationUrl:vi.fn(),
 }));
 describe("API rewarded course/video SQL read composition",()=>{
+  it("uses the account subscription for paid course steps", async () => {
+    const core = await import("@gafus/core/services/rewardedCredits");
+    await import("../../app-feature-flags/composition/install-core-flags");
+    await import("./install-access-reads");
+    const step = {
+      platform: "ANDROID",
+      target: { targetType: "COURSE_STEP", targetId: "step-1" },
+    } as const;
+    await expect(core.getPremiumOrRewardedAccess({ ...step, userId: "subscribed-user" }))
+      .resolves.toMatchObject({ allowed: true, source: "PREMIUM" });
+    await expect(core.getPremiumOrRewardedAccess({ ...step, userId: "unsubscribed-user" }))
+      .rejects.toBeInstanceOf(core.SubscriptionOrCreditsRequiredError);
+  });
+
   it("passes owner and exact target to SQL without invented authorization",async()=>{
     const core=await import("@gafus/core/services/rewardedCredits");
     await import("./install-access-reads");

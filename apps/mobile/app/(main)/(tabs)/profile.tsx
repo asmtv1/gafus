@@ -5,7 +5,7 @@ import { FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { Image } from "expo-image";
-import * as ImagePicker from "expo-image-picker";
+import { MediaPickerError, pickMedia } from "@/shared/lib/media/mediaPicker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter, type Href } from "expo-router";
 import { useShallow } from "zustand/react/shallow";
@@ -675,16 +675,13 @@ export default function ProfileScreen() {
 
   const pickImageAndUploadAvatar = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Доступ", "Нужен доступ к фото для смены аватара");
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
+      const result = await pickMedia({
         mediaTypes: ["images"],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+      }, {
+        onPermissionDenied: () => Alert.alert("Доступ", "Нужен доступ к фото для смены аватара"),
       });
       if (result.canceled || !result.assets[0]) return;
       const asset = result.assets[0];
@@ -705,7 +702,7 @@ export default function ProfileScreen() {
         issueKey: "ProfileScreen",
         keys: { operation: "pick_avatar" },
       });
-      Alert.alert("Ошибка", "Не удалось выбрать фото");
+      Alert.alert("Ошибка", err instanceof MediaPickerError ? err.message : "Не удалось выбрать фото");
     }
   };
 

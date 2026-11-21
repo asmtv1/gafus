@@ -13,8 +13,8 @@ import {
   Alert,
   Image,
 } from "react-native";
-import * as ImagePicker from "expo-image-picker";
 import { iosCompatiblePhotoPicker } from "@/shared/lib/media/iosCompatiblePhotoPicker";
+import { MediaPickerError, pickMedia } from "@/shared/lib/media/mediaPicker";
 import { useFocusEffect, useRouter, type Href } from "expo-router";
 import { useAuthStore } from "@/shared/stores";
 import { reportClientError } from "@/shared/lib/error-reporting";
@@ -91,7 +91,7 @@ function Chat2ListOwned({ owner, epoch }: { owner: string; epoch: string }) {
   const [avatar, setAvatar] = useState<{ uri: string; name: string; mime: string; size: number } | null>(null);
   async function pickAvatar() {
     try {
-      const selection = await ImagePicker.launchImageLibraryAsync({
+      const selection = await pickMedia({
         mediaTypes: ["images"], quality: 0.85, allowsMultipleSelection: false,
         ...iosCompatiblePhotoPicker(),
       });
@@ -105,11 +105,11 @@ function Chat2ListOwned({ owner, epoch }: { owner: string; epoch: string }) {
           asset.size < 10 || asset.size > 5 * 1024 * 1024)
         return setError("Аватарка: JPG, PNG или WebP до 5 МБ");
       setError(""); setAvatar(asset);
-    } catch {
+    } catch (error) {
       reportClientError(new Error("CHAT2_AVATAR_PICK_FAILED"), {
         issueKey: "Chat2List", keys: { operation: "pickAvatar" },
       });
-      setError("Не удалось выбрать фотографию");
+      setError(error instanceof MediaPickerError ? error.message : "Не удалось выбрать фотографию");
     }
   }
   const [name, setName] = useState(""),

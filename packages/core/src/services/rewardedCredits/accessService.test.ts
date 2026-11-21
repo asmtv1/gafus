@@ -183,12 +183,6 @@ vi.mock("../appFeatureFlags", () => ({
   getAppFeatureFlagEnabled: vi.fn().mockResolvedValue(true),
 }));
 
-vi.mock("../appSubscription", () => ({
-  getAppSubscriptionAccess: vi.fn(() =>
-    Promise.resolve({ hasActiveSubscription: state.hasPremium }),
-  ),
-}));
-
 vi.mock("../contentAccess", () => ({
   hasActiveGafusCourseStepAccess: vi.fn(async () => state.gafusUnlocked),
 }));
@@ -210,6 +204,7 @@ import {
   readRewardedCourseVideoOccurrences, readPendingRewardedStepNotificationUrl,
 } from "@gafus/entitlements-server/rewarded-access-reads";
 registerRewardedAccessReadPort({
+  getAppSubscriptionAccess: async () => ({ hasActiveSubscription: state.hasPremium }),
   readOwnedCourseDayRewardedSteps, readOwnedRewardedUserStep,
   readRewardedPrivateCourseAssignment, readOwnedDailyRewardedUserStep,
   readPublishedDailyRewardedVideo, readOwnedRewardedVideoStep,

@@ -5,6 +5,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 
 const media = vi.hoisted(() => ({
   loaded: new Map<string, (e: {source:{width:number;height:number}})=>void>(),
+  picker: vi.fn(), permission: vi.fn(),
 }));
 vi.mock("react-native", async () => {
   const R = await import("react");
@@ -35,6 +36,7 @@ vi.mock("react-native", async () => {
     FlatList: ()=>null,
     Linking:{openURL:vi.fn()},
     Alert:{alert:vi.fn()},
+    Platform:{OS:"android"},
     Modal:()=>null,
     useWindowDimensions:()=>({width:390,height:844}),
     PixelRatio:{get:()=>3},
@@ -56,7 +58,9 @@ vi.mock("expo-status-bar",()=>({StatusBar:()=>null}));
 vi.mock("react-native-safe-area-context",()=>({SafeAreaView:()=>null,SafeAreaProvider:()=>null}));
 vi.mock("react-native-gesture-handler",()=>({GestureHandlerRootView:()=>null}));
 vi.mock("@/shared/components/media/SwipeDismissMedia",()=>({SwipeDismissMedia:()=>null}));
-vi.mock("expo-image-picker",()=>({}));
+vi.mock("expo-image-picker",()=>({
+  launchImageLibraryAsync:media.picker,requestMediaLibraryPermissionsAsync:media.permission,
+}));
 vi.mock("expo-router",()=>({useRouter:()=>({push:vi.fn()}),Link:()=>null}));
 vi.mock("expo-crypto",()=>({randomUUID:()=>"mock-id"}));
 vi.mock("@/shared/config",()=>({COLORS:{primary:"green",text:"black",textSecondary:"gray"},FONTS:{
@@ -80,7 +84,7 @@ vi.mock("@/shared/lib/error-reporting",()=>({reportClientError:vi.fn()}));
 vi.mock("./questionPhotoCdnFallback",()=>({allowQuestionsS3Fallback:vi.fn()}));
 vi.mock("./photoDisplay",()=>({questionPhotoTerminalNotice:()=>null}));
 vi.mock("./profileLink",()=>({questionAuthorProfileIdentifier:()=>null}));
-import { QPhotos } from "./ui";
+import { QPhotoPicker, QPhotos } from "./ui";
 let host: HTMLDivElement, root: Root;
 const photo=(id:string)=>({id,url:"https://cdn.example/"+id+".webp",
   smallUrl:"https://cdn.example/"+id+".webp",status:"READY" as const});
@@ -92,8 +96,27 @@ async function loaded(id:string,width:number,height:number){
 beforeEach(()=>{
   (globalThis as typeof globalThis & {IS_REACT_ACT_ENVIRONMENT:boolean}).IS_REACT_ACT_ENVIRONMENT = true;
   media.loaded.clear();
+  media.picker.mockReset();
+  media.permission.mockReset();
   host=document.createElement("div");document.body.appendChild(host);
   root=createRoot(host);
+});
+it("opens a bounded question and answer photo picker without a gallery grant", async () => {
+  media.picker.mockResolvedValue({ canceled: true, assets: null });
+  const onChange = vi.fn();
+  const onBusy = vi.fn();
+  await act(async () => root.render(
+    <QPhotoPicker compact photos={[photo("existing")]} onChange={onChange} onBusy={onBusy} />,
+  ));
+  const button = host.querySelector<HTMLButtonElement>('[aria-label="Добавить фото"]');
+  expect(button).not.toBeNull();
+  await act(async () => button?.click());
+  expect(media.permission).not.toHaveBeenCalled();
+  expect(media.picker).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    mediaTypes: ["images"], allowsMultipleSelection: true, selectionLimit: 4, legacy: false,
+  }));
+  expect(onChange).not.toHaveBeenCalled();
+  expect(onBusy).toHaveBeenLastCalledWith(false);
 });
 afterEach(async()=>{
   await act(async()=>root.unmount());

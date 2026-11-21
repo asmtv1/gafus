@@ -22,10 +22,12 @@ export function WalkRouteMap({
   ownerId,
   walkId,
   live = true,
+  localOnly = false,
 }: {
   ownerId: string;
   walkId: string;
   live?: boolean;
+  localOnly?: boolean;
 }) {
   const [points, setPoints] = useState<StoredGpsPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ export function WalkRouteMap({
     const refresh = async () => {
       try {
         let next = await allGpsPoints(ownerId, walkId);
-        if (!live && next.length === 0) {
+        if (!live && !localOnly && next.length === 0) {
           // A walk recorded on another phone lives only in owner-scoped PostgreSQL.
           const received: StoredGpsPoint[] = [];
           let after = 0;
@@ -77,7 +79,7 @@ export function WalkRouteMap({
       cancelled = true;
       if (interval) clearInterval(interval);
     };
-  }, [ownerId, walkId, live, retry]);
+  }, [ownerId, walkId, live, localOnly, retry]);
   const accepted = useMemo(() => points.filter((p) => p.accepted), [points]);
   const last = accepted[accepted.length - 1];
   const lastReceived = points[points.length - 1];
