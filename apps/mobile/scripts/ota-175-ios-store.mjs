@@ -237,6 +237,13 @@ export function verifyIpa(ipa,d,{metadataOnly=false}={}){
   const i=readPlistFromIpa(ipa,info),e=readPlistFromIpa(ipa,expo);
   check(i.CFBundleIdentifier==='ru.gafus.app'&&i.CFBundleShortVersionString==='1.7.5'&&
     String(i.CFBundleVersion)===d.buildNumber,'IPA_STORE_VERSION_MISMATCH');
+  // Xcode 27 / iOS 27 kills legacy UIApplicationDelegate binaries at launch.
+  // The actual signed IPA must declare the Expo SDK 57 scene delegate.
+  const scenes=i.UIApplicationSceneManifest;
+  check(scenes?.UIApplicationSupportsMultipleScenes===false&&
+    scenes?.UISceneConfigurations?.UIWindowSceneSessionRoleApplication?.some(
+      scene=>scene.UISceneDelegateClassName==='EXExpoAppSceneDelegate'),
+    'IPA_IOS27_SCENE_LIFECYCLE_REQUIRED');
   check(e.EXUpdatesRuntimeVersion==='1.7.5'&&e.EXUpdatesURL===d.updateUrl&&
     e.EXUpdatesCheckOnLaunch==='NEVER'&&
     e.EXUpdatesRequestHeaders?.['expo-channel-name']==='production'&&

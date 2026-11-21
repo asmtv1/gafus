@@ -127,8 +127,14 @@ test('actual IPA payload plist inspection validates our signed self-hosted OTA m
   const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'gafus-store-ipa-fixture-'));
   try{
     const appDir=path.join(tmp,'Payload','Gafus.app');fs.mkdirSync(appDir,{recursive:true});
-    fs.writeFileSync(path.join(appDir,'Info.plist'),plist.build({
-      CFBundleIdentifier:'ru.gafus.app',CFBundleShortVersionString:'1.7.5',CFBundleVersion:'97'}));
+    const infoPath=path.join(appDir,'Info.plist');
+    const sceneManifest={UIApplicationSupportsMultipleScenes:false,
+      UISceneConfigurations:{UIWindowSceneSessionRoleApplication:[{
+        UISceneConfigurationName:'Default Configuration',
+        UISceneDelegateClassName:'EXExpoAppSceneDelegate'}]}};
+    fs.writeFileSync(infoPath,plist.build({
+      CFBundleIdentifier:'ru.gafus.app',CFBundleShortVersionString:'1.7.5',CFBundleVersion:'97',
+      UIApplicationSceneManifest:sceneManifest}));
     const d=native();
     fs.writeFileSync(path.join(appDir,'Expo.plist'),plist.build({
       EXUpdatesRuntimeVersion:'1.7.5',EXUpdatesURL:'https://gafus.ru/ota/manifest',
@@ -146,6 +152,14 @@ test('actual IPA payload plist inspection validates our signed self-hosted OTA m
     assert.equal(result.otaUrl,'https://gafus.ru/ota/manifest');
     assert.match(result.sha256,/^[a-f0-9]{64}$/);
     assert.throws(()=>verifyIpa(ipa,d),/IPA_APPLE_CODESIGN_INVALID/);
+    // Apple rejected build 98 on both iPhone/iPad for missing scene lifecycle.
+    // A legacy Store IPA must fail verification before any attempt to submit it.
+    fs.writeFileSync(infoPath,plist.build({CFBundleIdentifier:'ru.gafus.app',
+      CFBundleShortVersionString:'1.7.5',CFBundleVersion:'97'}));
+    const legacyIpa=path.join(tmp,'legacy.ipa');
+    assert.equal(spawnSync('zip',['-0','-q','-r',legacyIpa,'Payload'],{cwd:tmp}).status,0);
+    assert.throws(()=>verifyIpa(legacyIpa,d,{metadataOnly:true}),
+      /IPA_IOS27_SCENE_LIFECYCLE_REQUIRED/);
   }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 });
 

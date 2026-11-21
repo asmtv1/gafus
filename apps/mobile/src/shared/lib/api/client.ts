@@ -1,5 +1,5 @@
 import { isPairedProductionChat2Origin } from "./chat2ProductionOrigin";
-import * as SecureStore from "expo-secure-store";
+import { authTokenStorage as SecureStore } from "@/shared/lib/authTokenStorage";
 
 import { API_BASE_URL, NETWORK_TIMEOUTS } from "@/shared/config";
 import { reportClientError } from "@/shared/lib/error-reporting";

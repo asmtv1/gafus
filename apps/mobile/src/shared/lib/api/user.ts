@@ -1,5 +1,5 @@
 import { parseUsernameAvailabilityData } from "@gafus/types";
-import * as SecureStore from "expo-secure-store";
+import { authTokenStorage as SecureStore } from "@/shared/lib/authTokenStorage";
 import type { PublicPet } from "@gafus/types";
 
 import { apiClient, apiClientMultipart, type ApiResponse } from "./client";

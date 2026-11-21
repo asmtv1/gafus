@@ -1,5 +1,5 @@
 import { clearRegisteredGallerySession } from "./galleryCleanupBridge";
-import * as SecureStore from "expo-secure-store";
+import { authTokenStorage as SecureStore } from "@/shared/lib/authTokenStorage";
 import { Platform } from "react-native";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
