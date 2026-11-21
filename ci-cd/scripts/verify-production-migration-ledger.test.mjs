@@ -201,7 +201,7 @@ test('new mandatory OTA migration is pinned at the pre-schema and exact post-sch
   } finally { rmSync(root,{recursive:true,force:true}); }
 });
 
-test('four individually SHA-pinned pending migrations require the exact approved production baseline',()=>{
+test('four SHA-pinned migrations require exact pre- and post-migration production checkpoints',()=>{
   const root=mkdtempSync(join(tmpdir(),'gafus-four-pending-ledger-'));
   try {
     const migrations=join(root,'packages/prisma/migrations');
@@ -211,10 +211,17 @@ test('four individually SHA-pinned pending migrations require the exact approved
     const manifest=JSON.parse(readFileSync('ci-cd/scripts/approved-legacy-migration-baseline-20261115.json','utf8'));
     const prodSha='f7a0c486a02a1ee905a765182b9f30773c582811ff51e30080e658cdf8e837cd';
     const real=manifest.schemaCheckpoints[prodSha];
+    const prodAfterSha='eceee5fa0ca9ed7ac3d6dfbc44f30cfd29b772662c534f142e29178ffe12aa42';
+    const realAfter=manifest.schemaCheckpoints[prodAfterSha];
     const pinned=real.approvedPendingMigrations;
     assert.equal(real.expectedApplied,182);
     assert.equal(real.expectedSources,182);
     assert.equal(pinned.length,4);
+    assert.equal(realAfter.expectedApplied,real.expectedApplied+pinned.length);
+    assert.equal(realAfter.expectedSources,realAfter.expectedApplied);
+    assert.equal(realAfter.expectedRolledBack,real.expectedRolledBack);
+    assert.equal(realAfter.approvedPendingMigration,undefined);
+    assert.equal(realAfter.approvedPendingMigrations,undefined);
     assert.deepEqual(pinned.map(item=>item.name),[
       '20261118160000_version_ota_publication',
       '20261118201500_remove_vk_review_profiles',
@@ -244,8 +251,11 @@ test('four individually SHA-pinned pending migrations require the exact approved
     for(let i=0;i<4;i++)rows.push([`20270101000000_rolled_back_${i}`,'0'.repeat(64),'rolled_back']);
     const digest=input=>createHash('sha256').update(input.map(row=>row.join('\t')+'\n').sort().join('')).digest('hex');
     const pre='a'.repeat(64);
+    const post='b'.repeat(64);
+    const appliedRows=[...rows,...pinned.map(({name,sqlSha256})=>[name,sqlSha256,'applied'])];
     real.ledgerSha256=digest(rows);
-    manifest.schemaCheckpoints={ [pre]:real };
+    realAfter.ledgerSha256=digest(appliedRows);
+    manifest.schemaCheckpoints={ [pre]:real, [post]:realAfter };
     const manifestPath=join(manifestDir,'approved-legacy-migration-baseline-20261115.json');
     writeFileSync(manifestPath,JSON.stringify(manifest));
     const run=(data=rows,hash=pre)=>spawnSync('python3',[program,migrations,hash],{
@@ -255,9 +265,13 @@ test('four individually SHA-pinned pending migrations require the exact approved
     assert.equal(accepted.status,0,accepted.stderr);
     assert.match(accepted.stdout,/applied=182:pending=4/);
     assert.match(accepted.stdout,/LEGACY_SCHEMA_ATTESTED_EXCEPTIONS:6/);
-    assert.equal(run(rows,'b'.repeat(64)).status,1,'unknown live schema must veto');
+    assert.equal(run(rows,'c'.repeat(64)).status,1,'unknown live schema must veto');
     assert.equal(run(rows.map((row,i)=>i===0?[row[0],'f'.repeat(64),row[2]]:row)).status,1,
       'different historical ledger must veto');
+    const after=run(appliedRows,post);
+    assert.equal(after.status,0,after.stderr);
+    assert.match(after.stdout,/applied=186:pending=0/);
+    assert.equal(run(rows,post).status,1,'post-migration schema must reject the preceding ledger');
     const first=pinned[0].name;
     const original=readFileSync(join(migrations,first,'migration.sql'));
     writeFileSync(join(migrations,first,'migration.sql'),Buffer.concat([original,Buffer.from('-- changed\n')]));
@@ -266,6 +280,7 @@ test('four individually SHA-pinned pending migrations require the exact approved
     const extra=join(migrations,'20271212000000_unreviewed');
     mkdirSync(extra);writeFileSync(join(extra,'migration.sql'),'SELECT 1;\n');
     assert.match(run().stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/);
+    assert.match(run(appliedRows,post).stderr,/LEGACY_APPROVAL_NOT_EXACT_PRODUCTION_BASELINE/);
     rmSync(extra,{recursive:true});
     const missing=join(migrations,pinned[1].name);
     renameSync(missing,missing+'.disabled');

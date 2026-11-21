@@ -41,6 +41,12 @@
           "sqlSha256": "bbb17426a8554b9bc4a0bd963710ca0cd486a0fa38ee21dbd3dd842857cf2019"
         }
       ]
+    },
+    "eceee5fa0ca9ed7ac3d6dfbc44f30cfd29b772662c534f142e29178ffe12aa42": {
+      "ledgerSha256": "ab671c55b705417f01f8001ed6b50530552853e7a08cacf3d8048ff1851da8dd",
+      "expectedApplied": 186,
+      "expectedRolledBack": 4,
+      "expectedSources": 186
     }
   },
   "approvedLegacyChecksumExceptions": {
@@ -77,6 +83,7 @@
     "ownerApproval": "Explicit 2026-11-15 owner authorization; no claim of native/device or Cloud.ru Job end-to-end QA",
     "operationalBoundary": "Before or after the OTA rename, the live schema and full sorted ledger must both match a listed checkpoint. Other states require new review. The rehearsal used no production rows.",
     "mandatoryOta20261118": "Pre-migration: exact live schema + unchanged 181-applied/4-rolled-back ledger, one additional pending SQL pinned to name+SHA256. Post-migration: exact predicted PostgreSQL 15.18 schema-only SHA256 and 182-applied/4-rolled-back ledger. Predicted post schema stitched solely two added DDL sections from isolated schema-only PostgreSQL 15.18 rehearsal into unmodified live schema dump; did not copy user rows or alter production. Unexpected schema/ledger changes remain a veto.",
-    "nextFourPendingMigrations20261120": "Read-only production PostgreSQL check 2026-11-20: schema SHA256 f7a0c486a02a1ee905a765182b9f30773c582811ff51e30080e658cdf8e837cd; sorted 186-row ledger SHA256 4157fca0cf6c0840f2c608979141cccc69b8aefe95a2e19e274efdc85fed7856 (182 applied, 4 rolled back). Exactly four new pending SQL files must match the pinned names and bytes. Approval does not allow additional files, ledger changes, or a changed live schema; the post-migration schema requires separate attestation."
+    "nextFourPendingMigrations20261120": "Read-only production PostgreSQL check 2026-11-20: schema SHA256 f7a0c486a02a1ee905a765182b9f30773c582811ff51e30080e658cdf8e837cd; sorted 186-row ledger SHA256 4157fca0cf6c0840f2c608979141cccc69b8aefe95a2e19e274efdc85fed7856 (182 applied, 4 rolled back). Exactly four new pending SQL files must match the pinned names and bytes.",
+    "fourMigrationsApplied20261121": "Replayed the four pinned SQL files against the schema-only restore of the writer-free backup from GitHub Actions 44798658441, attempt 1. Separately restored the current production schema in the same isolated PostgreSQL 15.18 instance. Both normalized schema dumps matched SHA256 7f3586cb87e2d55b70ed868e58243bde06d750d04bda2bc60cda5b812989293c. The live ledger matched the preceding checkpoint plus exactly the four pinned SQL checksums. No production rows were restored and the production database was read-only."
   }
 }
