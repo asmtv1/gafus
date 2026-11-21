@@ -7,7 +7,7 @@ export function useMobileAppPublicConfig() {
     queryKey: ["mobile-public-config"],
     queryFn: fetchMobileAppPublicConfig,
     staleTime: 60_000,
-    // Catch admin's new mandatory OTA flag even while the app remains open.
+    // Keep the native minimum version and subscription settings current.
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });

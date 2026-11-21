@@ -93,6 +93,12 @@ function fenceV2OnSignOut(): void {
 
 let authCheckPromise: Promise<void> | null = null;
 let authSessionGeneration = 0;
+let settledCredentialGeneration = 0;
+
+/** Fences requests while login or registration is replacing stored credentials. */
+export function getSettledAuthSessionGeneration(): number | null {
+  return settledCredentialGeneration === authSessionGeneration ? authSessionGeneration : null;
+}
 async function waitForAuthHydration(): Promise<void> {
   if (useAuthStore.persist.hasHydrated()) return;
 
@@ -138,7 +144,7 @@ export const useAuthStore = create<AuthStore>()(
           if (__DEV__) console.log("[authStore] tokens received");
 
           // A verified new login fences a still-pending startup checkAuth.
-          authSessionGeneration += 1;
+          const generation = ++authSessionGeneration;
           resetUserStores();
           await SecureStore.setItemAsync("auth_token", accessToken);
           await SecureStore.setItemAsync("refresh_token", refreshToken);
@@ -155,6 +161,8 @@ export const useAuthStore = create<AuthStore>()(
             console.log("[authStore] profile", { id: user.id });
           }
 
+          if (generation !== authSessionGeneration) return { success: false, error: "Сессия изменилась" };
+          settledCredentialGeneration = generation;
           set({
             user,
             isAuthenticated: true,
@@ -210,12 +218,15 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const { accessToken, refreshToken } = response.data;
+          const generation = ++authSessionGeneration;
 
           resetUserStores();
           await SecureStore.setItemAsync("auth_token", accessToken);
           await SecureStore.setItemAsync("refresh_token", refreshToken);
 
           await beginV2AfterVerifiedProfile(response.data.user.id);
+          if (generation !== authSessionGeneration) return { success: false, error: "Сессия изменилась" };
+          settledCredentialGeneration = generation;
           set({
             user: response.data.user,
             isAuthenticated: true,
@@ -246,6 +257,7 @@ export const useAuthStore = create<AuthStore>()(
        */
       logout: async () => {
         const generation = ++authSessionGeneration;
+        settledCredentialGeneration = generation;
         fenceV2OnSignOut();
         clearRegisteredGallerySession();
         // Deauthenticate the UI immediately. Waiting for a disconnected API
@@ -355,6 +367,7 @@ export const useAuthStore = create<AuthStore>()(
               );
               if (generation !== authSessionGeneration) return;
 
+              settledCredentialGeneration = generation;
               set({
                 user: userData,
                 isAuthenticated: true,
@@ -408,7 +421,7 @@ export const useAuthStore = create<AuthStore>()(
        * Вызывается когда сессия истекла (refresh не удался)
        */
       handleSessionExpired: () => {
-        authSessionGeneration += 1;
+        settledCredentialGeneration = ++authSessionGeneration;
         fenceV2OnSignOut();
         clearRegisteredGallerySession();
         resetUserStores();

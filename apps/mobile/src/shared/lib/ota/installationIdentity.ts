@@ -5,7 +5,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Updates from "expo-updates";
 import { Platform } from "react-native";
 import { apiClient } from "@/shared/lib/api/client";
-import { useAuthStore } from "@/shared/stores/authStore";
+import { captureOtaSession, type OtaSession } from "./session";
 
 const KEY = "gafus_ota_installation_id_v1";
 const UUID = /^[a-f\d]{8}-[a-f\d]{4}-[1-8][a-f\d]{3}-[89ab][a-f\d]{3}-[a-f\d]{12}$/i;
@@ -40,38 +40,30 @@ export function ensureOtaInstallationIdentity(): Promise<string | null> {
  * A stale token must never survive logout, account switch or refresh failure.
  * The server checks the actual JWT principal and DB username, not this client.
  */
-export async function refreshOtaTesterGrant(): Promise<void> {
+export async function refreshOtaTesterGrant(
+  session: OtaSession | null = captureOtaSession(),
+): Promise<void> {
   if (!selfHostedOtaActive() || !Updates.isEnabled) return;
   const installationId = await ensureOtaInstallationIdentity();
   // Clear the previous account's token BEFORE any network request. Fail closed.
   await Updates.setExtraParamAsync("gafus-tester-grant", null);
-  const state = useAuthStore.getState();
-  const epoch = state.verifiedSessionEpoch;
-  const principal = state.isAuthenticated && !state.isLoading && !!epoch ? state.user?.id : null;
   const nativeFingerprint = Constants.expoConfig?.extra?.otaNativeFingerprint;
   const runtimeVersion = Updates.runtimeVersion;
-  if (!installationId || !principal || (Platform.OS !== "ios" && Platform.OS !== "android") ||
+  if (!installationId || !session?.userId || !session.isCurrent() || (Platform.OS !== "ios" && Platform.OS !== "android") ||
     typeof nativeFingerprint !== "string" || !/^[a-f0-9]{64}$/i.test(nativeFingerprint) ||
     typeof runtimeVersion !== "string" || !/^\d+\.\d+\.\d+$/.test(runtimeVersion)) return;
   try {
     const response = await apiClient<{token:string}>("/api/v1/mobile-ota-tester/grant", {
       method:"POST",body:{installationId,platform:Platform.OS,runtimeVersion,nativeFingerprint},
       // Grant issuance is idempotent; replay after JWT refresh, but not account switch.
-      requestGuard: () => useAuthStore.getState().isAuthenticated &&
-        useAuthStore.getState().verifiedSessionEpoch === epoch &&
-        useAuthStore.getState().user?.id === principal,
+      requestGuard: session.isCurrent,
     });
     if (!response.success || !response.data?.token ||
       !/^v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(response.data.token)) return;
-    if (!useAuthStore.getState().isAuthenticated ||
-        useAuthStore.getState().verifiedSessionEpoch !== epoch ||
-        useAuthStore.getState().user?.id !== principal) return;
+    if (!session.isCurrent()) return;
     await Updates.setExtraParamAsync("gafus-tester-grant", response.data.token);
     // If logout raced with native parameter persistence, clear it again.
-    if (!useAuthStore.getState().isAuthenticated ||
-        useAuthStore.getState().verifiedSessionEpoch !== epoch ||
-        useAuthStore.getState().user?.id !== principal)
-      await Updates.setExtraParamAsync("gafus-tester-grant", null);
+    if (!session.isCurrent()) await Updates.setExtraParamAsync("gafus-tester-grant", null);
   } catch {
     // The stable OTA rollout remains available; no tester grant on failure.
   }

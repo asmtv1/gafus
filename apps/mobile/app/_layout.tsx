@@ -159,8 +159,8 @@ export default function RootLayout() {
             <QueryProvider>
               <ThemeProvider>
                 <RequiredAppUpdateGate>
-                  <AuthProvider>
-                    <RequiredOtaUpdateGate>
+                  <RequiredOtaUpdateGate>
+                    <AuthProvider>
                       <View style={styles.container}>
                         <WalkWidgetSessionSync />
                         <AnalyticsNavigationListener />
@@ -176,8 +176,8 @@ export default function RootLayout() {
                         <QaRuntimeIdentity />
                       </View>
                       <StatusBar style="auto" />
-                    </RequiredOtaUpdateGate>
-                  </AuthProvider>
+                    </AuthProvider>
+                  </RequiredOtaUpdateGate>
                 </RequiredAppUpdateGate>
               </ThemeProvider>
             </QueryProvider>

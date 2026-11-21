@@ -10,7 +10,7 @@ vi.mock("expo-secure-store", () => ({getItemAsync:(...a:unknown[])=>stub.get(...
 vi.mock("expo-crypto", () => ({randomUUID:()=>stub.random()}));
 vi.mock("react-native",()=>({Platform:{OS:"ios"}}));
 vi.mock("@/shared/lib/api/client",()=>({apiClient:(...args:unknown[])=>stub.api(...args)}));
-vi.mock("@/shared/stores/authStore",()=>({useAuthStore:{getState:()=>({
+vi.mock("@/shared/stores/authStore",()=>({getSettledAuthSessionGeneration:()=>1,useAuthStore:{getState:()=>({
   isAuthenticated:stub.authorized,isLoading:stub.busy,verifiedSessionEpoch:stub.epoch,
   user:stub.authorized?{id:stub.principal}:null,
 })}}));

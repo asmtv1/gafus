@@ -45,7 +45,8 @@ type RefreshAccessTokenFailureCode =
   | "REFRESH_REJECTED"
   | "NETWORK_ERROR"
   | "REQUEST_TIMEOUT"
-  | "AUTH_REFRESH_UNAVAILABLE";
+  | "AUTH_REFRESH_UNAVAILABLE"
+  | "G05_SESSION_CHANGED";
 type RefreshAccessTokenResult =
   | { success: true }
   | { success: false; code: RefreshAccessTokenFailureCode };
@@ -258,9 +259,14 @@ function isNetworkRequestError(error: unknown): boolean {
   );
 }
 
+function getSessionChangedError(): ApiResponse<never> {
+  return { success: false, code: "G05_SESSION_CHANGED", error: "Сессия изменилась" };
+}
+
 function getRefreshFailureResponse(
   result: Exclude<RefreshAccessTokenResult, { success: true }>,
 ): ApiResponse<never> {
+  if (result.code === "G05_SESSION_CHANGED") return getSessionChangedError();
   if (result.code === "REQUEST_TIMEOUT") {
     return getAbortTimeoutError();
   }
@@ -284,7 +290,7 @@ function getRefreshFailureResponse(
 /**
  * Обновляет access token используя refresh token
  */
-async function refreshAccessToken(): Promise<RefreshAccessTokenResult> {
+async function refreshAccessToken(isCurrent = () => true): Promise<RefreshAccessTokenResult> {
   // Если уже идёт refresh — ждём его результат
   if (isRefreshing && refreshPromise) {
     return refreshPromise;
@@ -294,6 +300,7 @@ async function refreshAccessToken(): Promise<RefreshAccessTokenResult> {
   refreshPromise = (async () => {
     try {
       const refreshToken = await SecureStore.getItemAsync("refresh_token");
+      if (!isCurrent()) return { success: false, code: "G05_SESSION_CHANGED" };
       if (!refreshToken) return { success: false, code: "NO_REFRESH_TOKEN" };
 
       const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/auth/refresh`, {
@@ -305,10 +312,15 @@ async function refreshAccessToken(): Promise<RefreshAccessTokenResult> {
         body: JSON.stringify({ refreshToken }),
       });
 
+      const canUpdateCredentials = async () =>
+        await SecureStore.getItemAsync("refresh_token") === refreshToken && isCurrent();
+
       if (!response.ok) {
         if (response.status === 400 || response.status === 401 || response.status === 403) {
-          // Refresh rejected by API — this is a real expired/invalid session.
+          // Refresh rejected by API — only clear the credentials it used.
+          if (!(await canUpdateCredentials())) return { success: false, code: "G05_SESSION_CHANGED" };
           await SecureStore.deleteItemAsync("auth_token");
+          if (!isCurrent()) return { success: false, code: "G05_SESSION_CHANGED" };
           await SecureStore.deleteItemAsync("refresh_token");
           return { success: false, code: "REFRESH_REJECTED" };
         }
@@ -332,7 +344,9 @@ async function refreshAccessToken(): Promise<RefreshAccessTokenResult> {
             typeof refreshToken === "string" &&
             refreshToken.trim().length > 0
           ) {
+            if (!(await canUpdateCredentials())) return { success: false, code: "G05_SESSION_CHANGED" };
             await SecureStore.setItemAsync("auth_token", accessToken);
+            if (!isCurrent()) return { success: false, code: "G05_SESSION_CHANGED" };
             await SecureStore.setItemAsync("refresh_token", refreshToken);
             return { success: true };
           }
@@ -413,8 +427,7 @@ async function apiClientWithRefreshLimit<T>(
   } = options;
 
   const token = skipAuth ? null : await SecureStore.getItemAsync("auth_token");
-  if (requestGuard && !requestGuard(token))
-    return { success: false, code: "G05_SESSION_CHANGED", error: "Сессия изменилась" };
+  if (requestGuard && !requestGuard(token)) return getSessionChangedError();
 
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
@@ -432,21 +445,20 @@ async function apiClientWithRefreshLimit<T>(
     config.body = JSON.stringify(body);
   }
 
-  const requestStartedAt = Date.now();
   const safeEndpoint = traceEndpoint(endpoint);
   const sensitive = vetEndpoint(endpoint) || endpoint === "/api/v1/auth/change-password";
 
   try {
-    if (requestGuard && !requestGuard(token))
-      return { success: false, code: "G05_SESSION_CHANGED", error: "Сессия изменилась" };
+    if (requestGuard && !requestGuard(token)) return getSessionChangedError();
     const response = await fetchWithTimeout(`${chat2OnlyBaseUrl(endpoint, chat2Origin)}${endpoint}`, config, timeoutMs);
 
     // Auto-refresh при 401
     if (response.status === 401 && !skipAuth && !alreadyRefreshed && !skipAuthRefreshReplay) {
-      const refreshResult = await refreshAccessToken();
+      const isCurrent = () => requestGuard?.(token) ?? true;
+      if (!isCurrent()) return getSessionChangedError();
+      const refreshResult = await refreshAccessToken(isCurrent);
+      if (!isCurrent()) return getSessionChangedError();
       if (refreshResult.success) {
-        if (requestGuard && !requestGuard(token))
-          return { success: false, code: "G05_SESSION_CHANGED", error: "Сессия изменилась" };
         // Повторяем запрос с новым токеном
         return apiClientWithRefreshLimit<T>(endpoint, options, true);
       }
@@ -530,7 +542,6 @@ export async function apiClientMultipart<T>(
   buildFormData: () => FormData,
 ): Promise<ApiResponse<T>> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const requestStartedAt = Date.now();
   const safeEndpoint = traceEndpoint(endpoint);
   const sensitive = vetEndpoint(endpoint);
 

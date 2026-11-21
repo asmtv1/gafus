@@ -164,6 +164,68 @@ describe("AG3 G1 native Bearer compatibility", () => {
     expect(deleteItemAsyncMock).not.toHaveBeenCalled();
   });
 
+  it("replays an OTA policy request once with the renewed JWT for the same session", async () => {
+    let storedAccessToken = "expired-access";
+    getItemAsyncMock.mockImplementation(async (key: string) =>
+      key === "auth_token" ? storedAccessToken : "native-refresh");
+    setItemAsyncMock.mockImplementation(async (key: string, value: string) => {
+      if (key === "auth_token") storedAccessToken = value;
+    });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(makeResponse(401))
+      .mockResolvedValueOnce(makeResponse(200, {
+        success: true, data: { accessToken: "new-access", refreshToken: "new-refresh" },
+      }))
+      .mockResolvedValueOnce(makeResponse(200, { success: true, data: { required: false } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const path = "/api/v1/mobile-ota-tester/mandatory-policy";
+
+    await expect(apiClient(path, { method: "POST", requestGuard: () => true }))
+      .resolves.toMatchObject({ success: true, data: { required: false } });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "https://api.test" + path,
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer expired-access" }) }));
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "https://api.test" + path,
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer new-access" }) }));
+  });
+
+  it.each([200, 401])("ignores an OTA refresh response (%s) after the credential generation changes", async (status) => {
+    let sessionCurrent = true;
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(makeResponse(401))
+      .mockImplementationOnce(async () => {
+        sessionCurrent = false;
+        return makeResponse(status, {
+          success: status === 200, data: { accessToken: "stale-access", refreshToken: "stale-refresh" },
+        });
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(apiClient("/api/v1/mobile-ota-tester/grant", {
+      method: "POST", requestGuard: () => sessionCurrent,
+    })).resolves.toMatchObject({ success: false, code: "G05_SESSION_CHANGED" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(setItemAsyncMock).not.toHaveBeenCalled();
+    expect(deleteItemAsyncMock).not.toHaveBeenCalled();
+  });
+
+  it("does not refresh for an OTA 401 that arrives after logout", async () => {
+    let sessionCurrent = true;
+    const fetchMock = vi.fn(async () => {
+      sessionCurrent = false;
+      return makeResponse(401);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(apiClient("/api/v1/mobile-ota-tester/mandatory-policy", {
+      method: "POST", requestGuard: () => sessionCurrent,
+    })).resolves.toMatchObject({ success: false, code: "G05_SESSION_CHANGED" });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it("a transient 503 on refresh never removes native credentials", async () => {
     vi.stubGlobal(
       "fetch",

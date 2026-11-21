@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Application from "expo-application";
 import * as Updates from "expo-updates";
@@ -10,11 +10,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS, FONTS, SPACING } from "@/shared/config";
 import { Button } from "@/shared/components/ui";
-import { useOtaAutoApply } from "@/shared/hooks/useOtaAutoApply";
-import { refreshOtaTesterGrant } from "@/shared/lib/ota/installationIdentity";
-import { trackOtaEvent } from "@/shared/lib/ota/telemetry";
-import { useMandatoryOtaCohortDecision } from "@/shared/lib/ota/mandatoryPolicyQuery";
-import { selfHostedOtaActive } from "@/shared/lib/ota/installationIdentity";
+import { useOtaCheckOnOpen } from "@/shared/hooks/useOtaCheckOnOpen";
+import { refreshOtaTesterGrant, selfHostedOtaActive } from "@/shared/lib/ota/installationIdentity";
+import { fetchMandatoryOtaCohortDecision } from "@/shared/lib/ota/mandatoryPolicyQuery";
+import { captureOtaSession, type OtaSession } from "@/shared/lib/ota/session";
+import { trackOtaEvent, trackOtaLaunch } from "@/shared/lib/ota/telemetry";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { activeOtaRevision, requiredOtaRevision } from "@/shared/lib/otaPolicy";
 import { reportClientError } from "@/shared/lib/error-reporting";
@@ -248,122 +248,160 @@ const styles = StyleSheet.create({
   },
 });
 
-/** Kept separate from RequiredAppUpdateGate: native Store force-update is untouched. */
-export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
-  const authSettled = useAuthStore(s =>
-    !s.isLoading && (!s.isAuthenticated || !!s.verifiedSessionEpoch),
-  );
-  const verifiedUserId = useAuthStore(s =>
-    s.isAuthenticated && !s.isLoading && !!s.verifiedSessionEpoch ? s.user?.id ?? null : null,
-  );
-  const isSignedProduction = !__DEV__ && Updates.isEnabled &&
-    Updates.channel === "production" && selfHostedOtaActive();
-  const checkRequired = !!verifiedUserId && isSignedProduction;
-  const policyQuery = useMandatoryOtaCohortDecision(checkRequired, verifiedUserId);
-  const updatesState = Updates.useUpdates();
-  const policy = policyQuery.data;
-  const requiredRevision = checkRequired && policy && (policyQuery.isSuccess || policyQuery.isError)
-    ? requiredOtaRevision({
-        required: policy.required, version: policy.version,
-        platform: Platform.OS === "ios" ? "ios" : "android", channel: "production",
-      }, {
-        platform: Platform.OS,
-        nativeVersion: Application.nativeApplicationVersion,
-        runtimeVersion: Updates.runtimeVersion,
-        channel: Updates.channel,
-        currentRevision: activeOtaRevision(),
-        eligible: policy.required,
-      }) : null;
+type ConfirmedOta = { userId: string; epoch: string; generation: number; version: string };
 
-  // A signed-in app cannot start a racing background download before its
-  // authoritative server cohort/policy decision is known.
-  useOtaAutoApply(authSettled && (!checkRequired ||
-    (policyQuery.isSuccess && requiredRevision === null)));
-  const [attempt, setAttempt] = useState(0);
+let inFlight: { session: OtaSession; promise: Promise<void> } | undefined;
+
+function runOtaCheck(session: OtaSession, check: () => Promise<void>): Promise<void> {
+  if (inFlight) {
+    if (
+      inFlight.session.generation === session.generation &&
+      inFlight.session.epoch === session.epoch &&
+      inFlight.session.userId === session.userId
+    ) {
+      return inFlight.promise;
+    }
+    return inFlight.promise.then(() => runOtaCheck(session, check));
+  }
+
+  const promise = Promise.resolve().then(check).finally(() => { inFlight = undefined; });
+  inFlight = { session, promise };
+  return promise;
+}
+
+export function RequiredOtaUpdateGate({ children }: { children: ReactNode }) {
+  const authScope = useAuthStore(s => {
+    if (s.isLoading) return null;
+    if (!s.isAuthenticated) return "guest";
+    return s.verifiedSessionEpoch;
+  });
+  const userId = useAuthStore(s => s.isAuthenticated ? s.user?.id : null);
+  const epoch = useAuthStore(s => s.verifiedSessionEpoch);
+  const [confirmed, setConfirmed] = useState<ConfirmedOta | null>(null);
   const [phase, setPhase] = useState<Phase>("checking");
   const [error, setError] = useState<string | null>(null);
   const [mainBundleBytes, setMainBundleBytes] = useState<number | null | undefined>(undefined);
-  const target = policy?.version;
+  const mounted = useRef(false);
+  const updatesState = Updates.useUpdates();
+  const enabled = !__DEV__ && Updates.isEnabled;
+  const target = confirmed && confirmed.userId === userId && confirmed.epoch === epoch
+    ? confirmed.version : null;
 
   useEffect(() => {
-    if (requiredRevision === null || !target) return;
-    let cancelled = false;
-    const key = `${TRIED_PREFIX}${Platform.OS}:${target}`;
-    const run = async () => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+
+  function requestCheck(manual = false): boolean {
+    const session = captureOtaSession();
+    if (!session) return false;
+    const isCurrent = () => mounted.current && session.isCurrent();
+    const confirmedVersion = confirmed && confirmed.userId === session.userId &&
+      confirmed.epoch === session.epoch && confirmed.generation === session.generation
+      ? confirmed.version : null;
+    if (manual && !confirmedVersion) return false;
+
+    void runOtaCheck(session, async () => {
+      if (!isCurrent()) return;
+      void trackOtaLaunch();
+
       setPhase("checking");
       setError(null);
       setMainBundleBytes(undefined);
+
+      let requiredTarget = confirmedVersion;
+      let updateId: string | undefined;
+      let finished = false;
+      let failure: "CHECK_FAILED" | "FETCH_FAILED" | "RELOAD_FAILED" = "CHECK_FAILED";
       try {
-        // Avoid indefinite reload cycles if the published bundle is still below the policy.
-        if (attempt === 0 && await AsyncStorage.getItem(key) === "reloaded") {
+        if (!manual && session.userId && session.epoch &&
+            Updates.channel === "production" && selfHostedOtaActive()) {
+          const policy = await fetchMandatoryOtaCohortDecision(session);
+          if (!isCurrent()) return;
+          const revision = requiredOtaRevision({
+            required: policy.required, version: policy.version,
+            platform: Platform.OS === "ios" ? "ios" : "android", channel: "production",
+          }, {
+            platform: Platform.OS,
+            nativeVersion: Application.nativeApplicationVersion,
+            runtimeVersion: Updates.runtimeVersion,
+            channel: Updates.channel,
+            currentRevision: activeOtaRevision(),
+            eligible: policy.required,
+          });
+          requiredTarget = revision === null ? null : policy.version;
+          setConfirmed(requiredTarget ? {
+            userId: session.userId, epoch: session.epoch,
+            generation: session.generation, version: requiredTarget,
+          } : null);
+        }
+
+        const key = requiredTarget ? `${TRIED_PREFIX}${Platform.OS}:${requiredTarget}` : null;
+        // Avoid a reload loop if the bundle remains below the required revision.
+        if (key && !manual && await AsyncStorage.getItem(key) === "reloaded") {
           throw new Error("Загруженная версия не соответствует требуемой. Попробуйте повторить позже.");
         }
-        if (updatesState.isUpdatePending) {
-          await AsyncStorage.setItem(key, "reloaded");
-          if (cancelled) return;
-          setPhase("installing");
-          await Updates.reloadAsync();
+
+        if (!isCurrent()) return;
+        await refreshOtaTesterGrant(session);
+        if (!isCurrent()) return;
+        const result = await Updates.checkForUpdateAsync();
+        if (!isCurrent()) return;
+        void trackOtaEvent("CHECKED");
+        if (!result.isAvailable) {
+          if (key) throw new Error("Обновление пока недоступно для устройства. Проверьте интернет или обратитесь в поддержку.");
           return;
         }
-        await refreshOtaTesterGrant();
-        const result = await Updates.checkForUpdateAsync();
-        void trackOtaEvent("CHECKED");
-        if (cancelled) return;
-        if (!result.isAvailable) {
-          throw new Error("Обновление пока недоступно для устройства. Проверьте интернет или обратитесь в поддержку.");
+
+        updateId = result.manifest?.id;
+        if (key) {
+          // HEAD is optional; never wait for it before starting the OTA download.
+          void getOtaMainBundleBytes(result.manifest).then(bytes => {
+            if (!finished && isCurrent()) setMainBundleBytes(bytes);
+          });
+          setPhase("downloading");
         }
-        // HEAD is optional; never wait for it before starting the OTA download.
-        void getOtaMainBundleBytes(result.manifest).then(bytes => {
-          if (!cancelled) setMainBundleBytes(bytes);
-        });
-        setPhase("downloading");
+        failure = "FETCH_FAILED";
         await Updates.fetchUpdateAsync();
-        await trackOtaEvent("DOWNLOADED", "manifest" in result ? result.manifest?.id : undefined, undefined, true);
-        if (cancelled) return;
-        await AsyncStorage.setItem(key, "reloaded");
-        setPhase("installing");
+        if (!isCurrent()) return;
+        await trackOtaEvent("DOWNLOADED", updateId, undefined, true);
+        if (!isCurrent()) return;
+        if (key) {
+          await AsyncStorage.setItem(key, "reloaded");
+          if (!isCurrent()) return;
+          setPhase("installing");
+        }
+        failure = "RELOAD_FAILED";
         await Updates.reloadAsync();
       } catch (cause) {
-        if (cancelled) return;
-        setPhase("error");
-        setError(cause instanceof Error ? cause.message : "Не удалось скачать обновление. Проверьте интернет и повторите.");
-        void trackOtaEvent("UPDATE_ERROR",undefined,"OTHER");
-        reportClientError(cause instanceof Error ? cause : new Error(String(cause)), {
-          issueKey: "ForcedOTA", keys: { operation: "download_reload", version: target },
+        if (!isCurrent()) return;
+        const problem = cause instanceof Error ? cause : new Error(String(cause));
+        if (requiredTarget) {
+          setPhase("error");
+          setError(cause instanceof Error ? cause.message : "Не удалось скачать обновление. Проверьте интернет и повторите.");
+        }
+        void trackOtaEvent("UPDATE_ERROR", updateId, failure);
+        reportClientError(problem, {
+          issueKey: requiredTarget ? "ForcedOTA" : "OTAUpdate",
+          keys: { operation: "check_fetch_reload", source: manual ? "manual" : "app_open" },
         });
+      } finally {
+        finished = true;
       }
-    };
-    void run();
-    return () => { cancelled = true; };
-    // Do not rerun on download status notifications from expo-updates.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requiredRevision, target, attempt]);
+    });
 
-  // Keep the loading gate while the policy is pending. An actual policy error
-  // without a confirmed mandatory revision must not lock out a valid app.
-  // A cached confirmed mandatory revision still blocks below, including on error.
-  // Native minimum-version enforcement is handled by RequiredAppUpdateGate.
-  if (checkRequired && !policyQuery.isSuccess && !policyQuery.isError) {
-    return <ForceOtaScreen
-      version={Application.nativeApplicationVersion ?? "1.7.5"}
-      phase="checking"
-      error={null}
-      mainBundleBytes={undefined}
-      retry={() => { void policyQuery.refetch(); }}
-    />;
+    return true;
   }
-  if (requiredRevision === null || !target) return children;
+
+  useOtaCheckOnOpen(enabled, authScope, requestCheck);
+
+  if (!target) return children;
   return (
     <ForceOtaScreen
       version={target} phase={phase} error={error}
       progress={updatesState.downloadProgress}
       mainBundleBytes={mainBundleBytes}
-      retry={() => {
-        // Reflect the tap immediately, even when a second network request is slow.
-        setError(null);
-        setPhase("checking");
-        setAttempt(current => current + 1);
-      }}
+      retry={() => { requestCheck(true); }}
     />
   );
 }

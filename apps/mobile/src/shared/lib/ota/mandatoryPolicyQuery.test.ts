@@ -13,11 +13,13 @@ vi.mock("@/shared/lib/ota/installationIdentity", () => ({
   ensureOtaInstallationIdentity: vi.fn().mockResolvedValue("00000000-0000-4000-8000-000000000002"),
 }));
 vi.mock("@/shared/lib/api/client", () => ({ apiClient: state.api }));
-vi.mock("@/shared/stores/authStore", () => ({ useAuthStore: {
+vi.mock("@/shared/stores/authStore", () => ({ getSettledAuthSessionGeneration: () => 1, useAuthStore: {
   getState: () => ({ isAuthenticated: state.authenticated, isLoading: state.loading,
     verifiedSessionEpoch: state.verified ? state.epoch : null, user: { id: state.userId },
     handleSessionExpired: state.handleExpired }),
 } }));
+
+import { captureOtaSession } from "./session";
 
 describe("authenticated mandatory OTA policy", () => {
   beforeEach(() => {
@@ -32,7 +34,7 @@ describe("authenticated mandatory OTA policy", () => {
   });
   it("permits a single safe replay after JWT refresh, never after account switch", async () => {
     const { fetchMandatoryOtaCohortDecision } = await import("./mandatoryPolicyQuery");
-    const result = await fetchMandatoryOtaCohortDecision("account-1");
+    const result = await fetchMandatoryOtaCohortDecision(captureOtaSession()!);
     expect(result.required).toBe(false);
     const [url, options] = state.api.mock.calls[0]!;
     expect(url).toBe("/api/v1/mobile-ota-tester/mandatory-policy");
@@ -49,12 +51,12 @@ describe("authenticated mandatory OTA policy", () => {
   it("invalidates only the matching expired session", async () => {
     const { fetchMandatoryOtaCohortDecision } = await import("./mandatoryPolicyQuery");
     state.api.mockResolvedValue({success:false,code:"SESSION_EXPIRED"});
-    await expect(fetchMandatoryOtaCohortDecision("account-1")).rejects.toThrow();
+    await expect(fetchMandatoryOtaCohortDecision(captureOtaSession()!)).rejects.toThrow();
     expect(state.handleExpired).toHaveBeenCalledOnce();
     state.handleExpired.mockClear();
     state.api.mockImplementation(async () => { state.epoch="epoch-2";
       return {success:false,code:"SESSION_EXPIRED"}; });
-    await expect(fetchMandatoryOtaCohortDecision("account-1")).rejects.toThrow();
+    await expect(fetchMandatoryOtaCohortDecision(captureOtaSession()!)).rejects.toThrow();
     expect(state.handleExpired).not.toHaveBeenCalled();
   });
 });
