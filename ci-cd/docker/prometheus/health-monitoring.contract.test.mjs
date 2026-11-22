@@ -72,6 +72,12 @@ test('alerts are valid Prometheus rules and refer only to actual monitored metri
   assert(alloy.includes('prometheus.scrape "api_operations"'));
   assert(alloy.includes('metrics_path    = "/internal/metrics"'));
   assert(alloy.includes('credentials = sys.env("API_METRICS_KEY")'));
+  const releaseWorkflow = load('../../../.github/workflows/production-deploy-reusable.yml');
+  assert(releaseWorkflow.includes('python3 ci-cd/scripts/provision-api-metrics-key.py'),
+    'Production deployment must preserve the authenticated API metrics scrape key');
+  assert(releaseWorkflow.indexOf('provision-api-metrics-key.py') <
+    releaseWorkflow.indexOf('# Set secure permissions for .env file'),
+  'API metrics key must be provisioned before release env verification');
   const compose = load('../docker-compose.prod.yml');
   assert.match(compose, /api:[\s\S]*?- API_METRICS_KEY=\$\{API_METRICS_KEY:-\}/);
   assert.match(compose, /grafana-alloy:[\s\S]*?- API_METRICS_KEY=\$\{API_METRICS_KEY:-\}/);

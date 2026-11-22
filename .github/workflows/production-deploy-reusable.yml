@@ -904,6 +904,13 @@ jobs:
             PY_APP_ONLY_ENV
             fi
 
+            # Always keep a stable, private API metrics credential across full
+            # and app-only releases. The .env above is regenerated from GitHub
+            # Secrets, so an existing server-only API_METRICS_KEY would otherwise
+            # disappear and silently break Alloy's authorized scrape.
+            python3 ci-cd/scripts/provision-api-metrics-key.py \
+              ci-cd/docker/.env "$RELEASE_BACKUP_DIR/previous.env"
+
             # Set secure permissions for .env file
             chmod 600 ci-cd/docker/.env
             echo "✅ .env file created with secure permissions"
