@@ -135,14 +135,19 @@ appSubscriptionRoutes.get("/offer", async (c) => {
   try {
     const user = c.get("user");
     const clientContext = getClientAppContext(c);
-    const data = await getAppSubscriptionOffer(user.id, clientContext);
-    // Retain the v1 DTO shape for old clients without allowing retired iOS checkout flags.
-    // This is a compatibility projection only; the offer read must never mutate state.
+    const signedIosCheckout = clientContext.platform === "ios"
+      && await iosCheckout(c, clientContext.version);
+    const verifiedContext = signedIosCheckout
+      ? { ...clientContext, verifiedIosYookassaPromo: true as const }
+      : clientContext;
+    const data = await getAppSubscriptionOffer(user.id, verifiedContext);
+    // Promo entry is only unlocked by verified, running, signed YooKassa OTA.
+    // Ordinary StoreKit and legacy iOS binaries keep their promo UI disabled.
     return c.json({
       success: true,
       data: clientContext.platform === "ios"
-        ? { ...data, iosRuCardPaymentEnabled: await iosCheckout(c,clientContext.version),
-            promoCode: { ...data.promoCode, entryEnabled: false, eligible: false } }
+        ? { ...data, iosRuCardPaymentEnabled: signedIosCheckout,
+            promoCode: signedIosCheckout ? data.promoCode : { ...data.promoCode, entryEnabled: false, eligible: false } }
         : clientContext.platform === "android" && c.req.header("x-ota-update")
           ? { ...data, androidQaCardPaymentEnabled: await androidQaCheckout(c, clientContext.version) }
           : data,
@@ -156,8 +161,11 @@ appSubscriptionRoutes.get("/offer", async (c) => {
 appSubscriptionRoutes.post("/promo-code/preview", async (c) => {
   try {
     const user = c.get("user");
-    // Promo preview belongs to new YooKassa checkout, not Apple IAP.
-    if (getClientAppContext(c).platform === "ios") {
+    // No promo preview for ordinary iOS/StoreKit; signed YooKassa OTA only.
+    const clientContext = getClientAppContext(c);
+    const signedIosCheckout = clientContext.platform === "ios"
+      && await iosCheckout(c, clientContext.version);
+    if (clientContext.platform === "ios" && !signedIosCheckout) {
       return c.json({ success: false, error: "Промокод для этой оплаты недоступен", code: "FEATURE_DISABLED" }, 403);
     }
     const body = await c.req.json().catch(() => null);
@@ -172,7 +180,9 @@ appSubscriptionRoutes.post("/promo-code/preview", async (c) => {
       userId: user.id,
       planCode: parsed.data.planCode,
       promoCode: parsed.data.promoCode,
-      clientContext: getClientAppContext(c),
+      clientContext: signedIosCheckout
+        ? { ...clientContext, verifiedIosYookassaPromo: true }
+        : clientContext,
     }, promoCodeSqlPort);
     return c.json({ success: true, data });
   } catch (error) {
@@ -240,6 +250,10 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
         500,
       );
     }
+    // Keep the server-created attestation separate from the public client context.
+    const verifiedPaymentContext = platform === "ios" && checkoutAllowed
+      ? { ...clientContext, verifiedIosYookassaPromo: true as const }
+      : clientContext;
     const data = await startYookassaAppSubscriptionPayment({
       userId: user.id,
       origin: originUrl.origin,
@@ -248,7 +262,7 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
       planCode: parsed.data.planCode,
       promoCode: parsed.data.promoCode,
       returnPath: platform === "ios" || qa ? "/subscription-return.html" : parsed.data.returnPath,
-      clientContext,
+      clientContext: verifiedPaymentContext,
     });
     if (!data.success) {
       return c.json(

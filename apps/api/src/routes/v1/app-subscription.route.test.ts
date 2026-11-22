@@ -11,6 +11,7 @@ const {
   startYookassaAppSubscriptionPaymentMock,
   verifyAppleAppSubscriptionMock,
   getMobileFeatureFlagEnabledMock,
+  allowsVersionCheckoutMock,
 } = vi.hoisted(() => ({
   cancelYookassaAppSubscriptionMock: vi.fn(),
   getAppSubscriptionAccessMock: vi.fn(),
@@ -20,6 +21,7 @@ const {
   startYookassaAppSubscriptionPaymentMock: vi.fn(),
   verifyAppleAppSubscriptionMock: vi.fn(),
   getMobileFeatureFlagEnabledMock: vi.fn(),
+  allowsVersionCheckoutMock: vi.fn(),
 }));
 
 vi.mock("../../modules/app-subscription/composition/read-offer.js", () => ({
@@ -46,6 +48,11 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
       super(message);
     }
   },
+}));
+
+vi.mock("@gafus/mobile-ota-server/version-selection",()=>({
+  allowsVersionCheckout:allowsVersionCheckoutMock,
+  allowsAndroidQaCheckout:vi.fn().mockResolvedValue(false),
 }));
 
 vi.mock("@gafus/feature-flags-server", () => ({
@@ -79,6 +86,7 @@ describe("app subscription route contracts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getMobileFeatureFlagEnabledMock.mockResolvedValue(true);
+    allowsVersionCheckoutMock.mockResolvedValue(false);
     delete process.env.WEB_APP_URL;
     delete process.env.NEXT_PUBLIC_WEB_APP_URL;
     delete process.env.NEXT_PUBLIC_APP_URL;
@@ -86,6 +94,73 @@ describe("app subscription route contracts", () => {
     delete process.env.YOOKASSA_SECRET_KEY;
     delete process.env.ANDROID_LEGACY_YOOKASSA_USER_IDS;
     delete process.env.ANDROID_LEGACY_YOOKASSA_VERSIONS;
+  });
+
+  it("keeps promo entry disabled for ordinary iOS even when a legacy feature flag is on",async()=>{
+    const app=createAuthenticatedTestApp();
+    getAppSubscriptionOfferMock.mockResolvedValue({
+      iosRuCardPaymentEnabled:true,promoCode:{entryEnabled:true,eligible:true},yookassaPlans:[],
+    });
+    const res=await app.request(jsonRequest("/api/v1/app-subscription/offer","GET",undefined,{
+      "x-client-platform":"ios","x-client-version":"1.7.5",
+      "x-ota-installation":"untrusted","x-ota-update":"untrusted",
+    }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({success:true,data:{
+      iosRuCardPaymentEnabled:false,promoCode:{entryEnabled:false,eligible:false},
+    }});
+    const preview=await app.request(jsonRequest("/api/v1/app-subscription/promo-code/preview","POST",
+      {planCode:"MONTHLY",promoCode:"GAFUS"},{"x-client-platform":"ios","x-client-version":"1.7.5"}));
+    expect(preview.status).toBe(403);
+    expect(previewAppSubscriptionPromoCodeMock).not.toHaveBeenCalled();
+  });
+
+  it("allows promo offer and preview only for attested running signed YooKassa OTA",async()=>{
+    const app=createAuthenticatedTestApp();
+    allowsVersionCheckoutMock.mockResolvedValue(true);
+    getAppSubscriptionOfferMock.mockResolvedValue({
+      iosRuCardPaymentEnabled:false,promoCode:{entryEnabled:true,eligible:true},yookassaPlans:[],
+    });
+    previewAppSubscriptionPromoCodeMock.mockResolvedValue({code:"GAFUS",revision:3,
+      planCode:"MONTHLY",discountPercent:20,originalPriceRub:1000,discountedPriceRub:800,
+      renewalPriceRub:1000,intervalDays:30,currency:"RUB"});
+    const headers={"x-client-platform":"ios","x-client-version":"1.7.5",
+      "x-ota-installation":"registered","x-ota-fingerprint":"fingerprint","x-ota-update":"signed"};
+    const offer=await app.request(jsonRequest("/api/v1/app-subscription/offer","GET",undefined,headers));
+    expect(offer.status).toBe(200);
+    expect(await offer.json()).toMatchObject({data:{iosRuCardPaymentEnabled:true,
+      promoCode:{entryEnabled:true,eligible:true}}});
+    expect(getAppSubscriptionOfferMock).toHaveBeenCalledWith("user-1",expect.objectContaining({
+      platform:"ios",verifiedIosYookassaPromo:true,
+    }));
+    const preview=await app.request(jsonRequest("/api/v1/app-subscription/promo-code/preview","POST",
+      {planCode:"MONTHLY",promoCode:"GAFUS"},headers));
+    expect(preview.status).toBe(200);
+    expect(await preview.json()).toMatchObject({data:{discountPercent:20,discountedPriceRub:800}});
+    expect(previewAppSubscriptionPromoCodeMock).toHaveBeenCalledWith(expect.objectContaining({
+      userId:"user-1",promoCode:"GAFUS",clientContext:expect.objectContaining({
+        verifiedIosYookassaPromo:true,
+      }),
+    }),promoCodeSqlPort);
+  });
+
+  it("passes signed promo context and frozen quote to YooKassa start",async()=>{
+    const app=createAuthenticatedTestApp();
+    allowsVersionCheckoutMock.mockResolvedValue(true);
+    process.env.WEB_APP_URL="https://gafus.ru";
+    process.env.YOOKASSA_SHOP_ID="shop";
+    process.env.YOOKASSA_SECRET_KEY="secret";
+    startYookassaAppSubscriptionPaymentMock.mockResolvedValue({success:true,
+      localSubscriptionId:"sub",confirmationUrl:"https://example.test/payment"});
+    const response=await app.request(jsonRequest("/api/v1/app-subscription/yookassa/start","POST",
+      {planCode:"MONTHLY",promoCode:{code:"GAFUS",revision:3}},
+      {"x-client-platform":"ios","x-client-version":"1.7.5",
+       "x-ota-installation":"registered","x-ota-fingerprint":"fingerprint","x-ota-update":"signed"}));
+    expect(response.status).toBe(200);
+    expect(startYookassaAppSubscriptionPaymentMock).toHaveBeenCalledWith(expect.objectContaining({
+      promoCode:{code:"GAFUS",revision:3},returnPath:"/subscription-return.html",
+      clientContext:expect.objectContaining({verifiedIosYookassaPromo:true}),
+    }));
   });
 
   it("blocks YooKassa start for any recognized iOS regardless of legacy flag", async () => {

@@ -25,6 +25,8 @@ const OTA_VERSION_PATTERN = /^\d+\.\d+\.\d+-ota\.[1-9]\d*$/;
 export type ClientAppContext = {
   platform: "ios" | "android" | "unknown";
   version: string | null;
+  /** Server-only attestation of the running signed iOS YooKassa OTA; never client-supplied. */
+  verifiedIosYookassaPromo?: boolean;
 };
 
 export type MobileReleaseControlDto = {

@@ -12,6 +12,8 @@ export const APP_FEATURE_APP_SUBSCRIPTION_GATING = "app_subscription_gating_enab
 export type ClientAppContext = {
   platform: "ios" | "android" | "unknown";
   version: string | null;
+  /** Internal server attestation: only an authenticated, running signed iOS YooKassa OTA. Never client-supplied. */
+  verifiedIosYookassaPromo?: boolean;
 };
 export type MobileReleaseControlDto = {
   revision: number;

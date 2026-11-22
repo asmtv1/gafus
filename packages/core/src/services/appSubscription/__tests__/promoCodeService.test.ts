@@ -31,6 +31,7 @@ import {
   archiveAppSubscriptionPromoCode,
   createAppSubscriptionPromoCode,
   isAppSubscriptionPromoCodeEligible,
+  isAppSubscriptionPromoCodeEntryEnabled,
   previewAppSubscriptionPromoCode,
   updateAppSubscriptionPromoCode,
 } from "../promoCodeService";
@@ -111,6 +112,12 @@ describe("app subscription promo code mutations", () => {
   ])("permanently closes eligibility for fixture: %s", async (_name, payment) => {
     mocks.paymentFindFirst.mockResolvedValueOnce(payment);
     await expect(isAppSubscriptionPromoCodeEligible("user-ineligible")).resolves.toBe(false);
+  });
+
+  it("accepts signed-OTA iOS promo without resurrecting the retired global iOS feature flag",async()=>{
+    await expect(isAppSubscriptionPromoCodeEntryEnabled({
+      platform:"ios",version:"1.7.5",verifiedIosYookassaPromo:true,
+    })).resolves.toBe(true);
   });
 
   it("returns backend-owned preview prices", async () => {

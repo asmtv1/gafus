@@ -98,6 +98,9 @@ export async function isAppSubscriptionPromoCodeEntryEnabled(
   clientContext: ClientAppContext = { platform: "unknown", version: null },
 ): Promise<boolean> {
   if (clientContext.platform !== "ios") return true;
+  // The old iOS feature flag remains retired. This server-only permission is
+  // issued only after verifying signed OTA installation + running checkout update.
+  if (clientContext.verifiedIosYookassaPromo === true) return true;
   return getMobileFeatureFlagEnabled(
     APP_FEATURE_MOBILE_IOS_SUBSCRIPTION_PROMO_CODES,
     clientContext,
