@@ -12,8 +12,8 @@ import { FONTS } from "@/shared/config";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { appSubscriptionGoogleApi } from "../api/appSubscriptionGoogleApi";
-import { appSubscriptionApi } from "../api/appSubscriptionApi";
 import { isGooglePlayPaymentPending, isOtherProviderPaymentPending } from "../lib/googlePlayPaywallState";
+import { GOOGLE_PLAY_FULL_SUPPORT_BENEFITS } from "../lib/googlePlayPremiumBenefits";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
 import { loadGooglePlayOffers } from "../lib/googlePlayOffers";
 import { selectGooglePlayPurchaseTokens } from "../lib/googlePlayPurchaseTokens";
@@ -74,18 +74,6 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
     queryFn: () => loadGooglePlayOffers(catalog.data?.plans ?? []),
     retry: false,
   });
-  // Only feature metadata is read from the shared subscription offer.
-  // All prices, periods and purchase tokens come exclusively from Google Play.
-  const benefitsQuery = useQuery({
-    queryKey: ["app-subscription", "google-benefits", ownerId, authEpoch],
-    enabled: Boolean(authEpoch),
-    queryFn: () => appSubscriptionApi.getOffer(sameOwner),
-    staleTime: 5 * 60_000,
-  });
-  const premiumBenefits = benefitsQuery.data?.success
-    ? (benefitsQuery.data.data?.yookassaPlans ?? benefitsQuery.data.data?.plans ?? [])
-      .find((plan) => plan.code === "THREE_MONTHS")
-    : null;
 
   const refresh = useCallback(async () => {
     if (!sameOwner()) return;
@@ -228,18 +216,9 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
                     <Text style={styles.selectedLabel}>Ваш тариф</Text>
                   </View>
                   <View style={styles.benefits}>
-                    <BenefitRow label="Курсы, экзамены и статьи" included />
-                    <BenefitRow label="Документы и напоминания" included />
-                    <BenefitRow label="Скачивание курсов для офлайн-работы"
-                      included={premiumBenefits?.offlineCourseDownloadIncluded ?? true} />
-                    {premiumBenefits ? (
-                      <>
-                        <BenefitRow label="Чат с кинологом" included={Boolean(premiumBenefits.cynologistChatIncluded)} />
-                        <BenefitRow label="Запись к кинологу" included={premiumBenefits.consultationBookingIncluded} />
-                      </>
-                    ) : (
-                      <Text style={styles.cardSubtitle}>Уточняем доступность консультаций с кинологом…</Text>
-                    )}
+                    {GOOGLE_PLAY_FULL_SUPPORT_BENEFITS.map((benefit) => (
+                      <BenefitRow key={benefit} label={benefit} included />
+                    ))}
                   </View>
                 </View>
                 {catalog.isFetching || store.isFetching ? (
@@ -293,7 +272,7 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
                 />
                 {selected ? (
                   <Text style={styles.providerCaption}>
-                    {selected.price} за {selected.period}. Подписка автоматически продлевается,
+                    {selected.price} за {selected.period} Подписка автоматически продлевается,
                     пока вы её не отмените. Оплата и отмена — через Google Play.
                   </Text>
                 ) : null}
