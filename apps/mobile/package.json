@@ -1,6 +1,6 @@
 {
   "name": "@gafus/mobile",
-  "version": "1.7.6",
+  "version": "1.7.5",
   "private": true,
   "main": "./widget-entry.ts",
   "scripts": {
