@@ -21,6 +21,7 @@ import type { AppSubscriptionPlanOfferDto } from "../api/appSubscriptionApi";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
 import { createAppleTokenInitializationAdapter } from "../lib/appleTokenInitializationAdapter";
 import { runAppleAppSubscriptionPurchase } from "../lib/appleAppSubscriptionPurchase";
+import {OptionalCardCheckout} from "./OptionalCardCheckout";
 import { usePaywallStore } from "../store/paywallStore";
 
 function getApplePlan(offer: { applePlan: AppSubscriptionPlanOfferDto | null } | null) {
@@ -246,6 +247,9 @@ export function AppSubscriptionPaywall() {
                 ) : null}
               </View>
             )}
+            {ownerId && authEpoch && !status?.hasActiveSubscription && <OptionalCardCheckout
+              key={ownerId+authEpoch} ownerKey={ownerId+authEpoch} sameOwner={sameOwner} busy={busy}
+              withLock={withLock} refresh={refresh} report={setPendingMessage}/>}
             <Button label="Восстановить покупки" onPress={handleRestore} disabled={busy || !productId || !sameOwner()} />
             <Text style={styles.detail}>Подписки Apple оформляются и управляются через App Store.</Text>
             <Text style={styles.legal} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.appleEula)}>Условия использования Apple</Text>
