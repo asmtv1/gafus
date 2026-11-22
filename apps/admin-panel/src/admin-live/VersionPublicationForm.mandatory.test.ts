@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasSignedPublicCheckoutRecovery } from "./VersionPublicationForm";
+import { canRequirePublicCheckoutFromPreview, hasSignedPublicCheckoutRecovery } from "./VersionPublicationForm";
 
 type Choice = Parameters<typeof hasSignedPublicCheckoutRecovery>[0];
 const choice: Choice = {
@@ -13,6 +13,21 @@ const rollback: Choice = {
 describe("admin mandatory action for public checkout", () => {
   it("is selectable when the approved release has same-native signed recovery", () => {
     expect(hasSignedPublicCheckoutRecovery(choice, [choice, rollback])).toBe(true);
+  });
+  it("sees recovery from the full registry preview even though the release dropdown hides it", () => {
+    const preview: NonNullable<Parameters<typeof canRequirePublicCheckoutFromPreview>[1]> = {
+      total: 7, verified: 1, token: "immutable-review-token",
+      active: { revision: 5, title: "Promo OTA", public: true, required: false,
+        action: "ALL", key: choice.key, nativeIds: choice.nativeIds },
+      choices: [choice, rollback],
+    };
+    // The release dropdown intentionally filters out all recoveryFor!=null entries.
+    const dropdown = preview.choices.filter(c=>c.recoveryFor===null);
+    expect(dropdown).toHaveLength(1);
+    expect(canRequirePublicCheckoutFromPreview(choice, preview, "ios", "1.7.5")).toBe(true);
+    expect(canRequirePublicCheckoutFromPreview(choice, {...preview,choices:dropdown}, "ios", "1.7.5")).toBe(false);
+    expect(canRequirePublicCheckoutFromPreview(choice, preview, "android", "1.7.5")).toBe(false);
+    expect(canRequirePublicCheckoutFromPreview(choice, preview, "ios", "1.7.6")).toBe(false);
   });
   it("disables action with missing, wrong or unverified rollback", () => {
     expect(hasSignedPublicCheckoutRecovery(choice, [choice])).toBe(false);

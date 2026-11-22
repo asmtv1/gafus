@@ -42,6 +42,15 @@ export function hasSignedPublicCheckoutRecovery(selected: Choice, choices: reado
     c.complete && c.newer && c.nativeIds.length===natives.size &&
     c.nativeIds.every((id)=>natives.has(id)));
 }
+/** Publication dropdown deliberately hides recovery revisions, but the
+ * mandatory safety check must inspect the COMPLETE signed registry preview. */
+export function canRequirePublicCheckoutFromPreview(
+  selected: Choice | undefined, preview: Preview | null,
+  platform: string, version: string,
+): boolean {
+  return !!selected && platform === "ios" && version === "1.7.5" &&
+    hasSignedPublicCheckoutRecovery(selected, preview?.choices ?? []);
+}
 /** Treat a missing update list as empty, and fail closed for malformed metadata. */
 export function normalizeVersionPreview(raw: unknown): Preview {
   if (!raw || typeof raw !== "object") {
@@ -308,8 +317,7 @@ export function VersionPublicationForm({ nativeReleases }: { nativeReleases: Nat
           disabled={
             busy || !activeContainsBuild || p?.active?.required || p?.active?.action === "STOP" ||
             (p?.active?.public && selected?.checkout &&
-              !(platform === "ios" && version === "1.7.5" &&
-                hasSignedPublicCheckoutRecovery(selected,choices)))
+              !canRequirePublicCheckoutFromPreview(selected,p,platform,version))
           }
           onClick={() => void submit("MANDATORY", true)}
         >
