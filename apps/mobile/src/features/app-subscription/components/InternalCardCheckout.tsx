@@ -16,14 +16,6 @@ import { appSubscriptionAppleApi } from "../api/appSubscriptionAppleApi";
 import type { AppSubscriptionOfferDto, AppSubscriptionPlanCode, AppSubscriptionPlanOfferDto } from "../api/appSubscriptionApi";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
 import {
-  formatAppSubscriptionPlanPrice,
-  formatPlanPeriod,
-  formatSavingsRub,
-  getYookassaPaymentCaption,
-  getYookassaPrimaryCta,
-  selectDefaultAppSubscriptionPlan,
-} from "../lib/appSubscriptionPresentation";
-import {
   PREMIUM_OFFLINE_BENEFIT,
   PREMIUM_PLAN_BENEFITS,
   Premium172BenefitRow,
@@ -35,6 +27,37 @@ import type { CardCheckoutProps } from "./OptionalCardCheckout";
 /** The exact 1.7.2 card treatment, delivered only in an approved signed iOS OTA. */
 const callback = "gafus://subscription-return";
 const PLAN_ORDER: readonly AppSubscriptionPlanCode[] = ["TWO_WEEKS", "MONTHLY", "THREE_MONTHS"];
+
+// The original 1.7.2 plan formatting is pure. Keep this in the signed checkout
+// module rather than importing the retired mixed-payment presentation graph.
+function formatRub(value: number): string {
+  return `${value.toLocaleString("ru-RU").replace(/\s/g, " ")} ₽`;
+}
+function getYookassaPrimaryCta(priceRub?: number | null): string {
+  return Number.isFinite(priceRub) && Number(priceRub) > 0
+    ? `Оплатить ${formatRub(Number(priceRub))} по СБП` : "Оплатить по СБП";
+}
+function getYookassaPaymentCaption(): string {
+  return "Списание произойдёт при оформлении подписки.";
+}
+function formatPlanPeriod(intervalDays: number | null | undefined): string {
+  if (intervalDays === 14) return "14 дней";
+  if (intervalDays === 30) return "30 дней";
+  if (intervalDays === 90) return "90 дней";
+  return `${intervalDays ?? 0} дн.`;
+}
+function formatAppSubscriptionPlanPrice(plan: AppSubscriptionPlanOfferDto): string {
+  const price=Number(plan.yookassaPriceRub);
+  if (!Number.isFinite(price) || price <= 0) return "—";
+  return `${formatRub(price)}/${plan.intervalDays === 30 ? "месяц" : formatPlanPeriod(plan.intervalDays)}`;
+}
+function formatSavingsRub(savingsRub: number | null | undefined): string | null {
+  const amount=Number(savingsRub);
+  return Number.isFinite(amount) && amount>0 ? `Экономия ${formatRub(amount)}` : null;
+}
+function selectDefaultAppSubscriptionPlan<T extends AppSubscriptionPlanOfferDto>(plans: readonly T[]): T | null {
+  return plans.find((p) => p.code === "MONTHLY") ?? plans[0] ?? null;
+}
 
 function badgeStyle(badge: AppSubscriptionPlanOfferDto["badge"]) {
   if (badge === "POPULAR") return [styles.badgeChip, styles.badgePopular];
