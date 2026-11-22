@@ -67,13 +67,27 @@ test('private source map verification is mandatory; vendor uploads and auto-publ
 test('future production deploys preserve iOS 1.7.5 YooKassa gates from GitHub Environment',()=>{
   const deploy=fs.readFileSync(path.join(root,'.github/workflows/production-deploy-reusable.yml'),'utf8');
   const compose=fs.readFileSync(path.join(root,'ci-cd/docker/docker-compose.prod.yml'),'utf8');
+  const deployDoc=YAML.parseDocument(deploy,{uniqueKeys:true});
+  assert.equal(deployDoc.errors.length,0);
+  const deployStep=deployDoc.toJS().jobs['deploy-production'].steps.find(s=>s.name==='Deploy to production server');
+  assert.ok(deployStep);
   for(const name of ['MOBILE_OTA_IOS_YOOKASSA_ENABLED',
     'MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED',
     'MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED']) {
-    assert.ok(deploy.includes('echo "'+name+'=${{ vars.'+name+" == 'true' && 'true' || 'false' }}"),
-      name+' is missing from regenerated production .env');
+    const declaration='echo "'+name+'=${{ vars.'+name+" == 'true' && 'true' || 'false' }}"+'"';
+    assert.ok(deploy.includes(declaration),name+' is missing a fully quoted production .env declaration');
     assert.ok(compose.includes(name+'=${'+name+':-false}'),
       name+' must be passed to the API container with a fail-closed default');
+  }
+  const fragments=deployStep.env;
+  const shellUnits=[
+    ['DEPLOY_SCRIPT_1',fragments.DEPLOY_SCRIPT_1],
+    ['DEPLOY_SCRIPT_1B + DEPLOY_SCRIPT_2',fragments.DEPLOY_SCRIPT_1B+'\n'+fragments.DEPLOY_SCRIPT_2],
+    ['DEPLOY_SCRIPT_3',fragments.DEPLOY_SCRIPT_3],
+  ];
+  for(const [name,script] of shellUnits) {
+    const child=spawnSync('bash',['-n'],{input:script,encoding:'utf8'});
+    assert.equal(child.status,0,`${name} contains invalid Bash syntax: ${child.stderr}`);
   }
   assert.match(deploy,/\}\s*> ci-cd\/docker\/\.env/);
 });
