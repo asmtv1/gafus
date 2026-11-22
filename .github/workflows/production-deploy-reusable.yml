@@ -566,6 +566,8 @@ jobs:
               echo "# JWT секреты для API"
               echo "JWT_SECRET=${{ secrets.JWT_SECRET }}"
               echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}"
+              echo 'GOOGLE_PLAY_SUBSCRIPTION_PLANS=[{"productId":"gafus_full_support","basePlanId":"monthly","planCode":"THREE_MONTHS"}]'
+              echo "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64=${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64 }}"
               echo ""
               echo "# URLs приложений"
               echo "TRAINER_PANEL_URL=https://trainer-panel.gafus.ru"

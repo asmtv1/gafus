@@ -46,16 +46,29 @@ export class GooglePlayError extends Error {
 let cachedToken: { value: string; validUntil: number } | undefined;
 let tokenRequest: Promise<string> | undefined;
 
+function googlePlayCredentials() {
+  const email = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL;
+  const key = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_PRIVATE_KEY;
+  if (email && key) return { email, key };
+  const encoded = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64;
+  if (!encoded) return null;
+  try {
+    const serviceAccount = z.object({ client_email: z.string().email(), private_key: z.string().min(1) })
+      .parse(JSON.parse(Buffer.from(encoded, "base64").toString("utf8")));
+    return { email: serviceAccount.client_email, key: serviceAccount.private_key };
+  } catch {
+    return null;
+  }
+}
+
 export function googlePlayConfigured() {
-  return Boolean(process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL &&
-    process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_PRIVATE_KEY &&
-    googlePlayPlans().length);
+  return Boolean(googlePlayCredentials() && googlePlayPlans().length);
 }
 
 async function issueToken() {
-  const email = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_PRIVATE_KEY;
-  if (!email || !key) throw new GooglePlayError("UNAVAILABLE");
+  const credentials = googlePlayCredentials();
+  if (!credentials) throw new GooglePlayError("UNAVAILABLE");
+  const { email, key } = credentials;
   const assertion = await new SignJWT({ scope: publisherScope })
     .setProtectedHeader({ alg: "RS256" })
     .setIssuer(email)
