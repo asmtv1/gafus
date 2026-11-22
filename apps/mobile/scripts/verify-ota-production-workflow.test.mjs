@@ -64,6 +64,19 @@ test('private source map verification is mandatory; vendor uploads and auto-publ
   assert.ok(indices.every(n=>n>=0));
   assert.deepEqual(indices,[...indices].sort((a,b)=>a-b));
 });
+test('future production deploys preserve iOS 1.7.5 YooKassa gates from GitHub Environment',()=>{
+  const deploy=fs.readFileSync(path.join(root,'.github/workflows/production-deploy-reusable.yml'),'utf8');
+  const compose=fs.readFileSync(path.join(root,'ci-cd/docker/docker-compose.prod.yml'),'utf8');
+  for(const name of ['MOBILE_OTA_IOS_YOOKASSA_ENABLED',
+    'MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED',
+    'MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED']) {
+    assert.ok(deploy.includes('echo "'+name+'=${{ vars.'+name+" == 'true' && 'true' || 'false' }}"),
+      name+' is missing from regenerated production .env');
+    assert.ok(compose.includes(name+'=${'+name+':-false}'),
+      name+' must be passed to the API container with a fail-closed default');
+  }
+  assert.match(deploy,/\}\s*> ci-cd\/docker\/\.env/);
+});
 test('all production workflow shell steps parse as Bash and referenced scripts exist',()=>{
   for(const s of steps){
     if(!s.run) continue;

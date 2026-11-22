@@ -636,6 +636,11 @@ jobs:
               echo "MOBILE_OTA_ASSET_ORIGIN=https://global.s3.cloud.ru/gafus-ota-updates"
               echo "MOBILE_OTA_CI_CALLBACK_TOKEN=${{ secrets.MOBILE_OTA_CI_CALLBACK_TOKEN }}"
               echo "MOBILE_OTA_DELIVERY_ENV=production"
+              # The production GitHub Environment is the durable source of truth.
+              # Missing or non-true values fail closed; never silently reset active public OTA on deployment.
+              echo "MOBILE_OTA_IOS_YOOKASSA_ENABLED=${{ vars.MOBILE_OTA_IOS_YOOKASSA_ENABLED == 'true' && 'true' || 'false' }}
+              echo "MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED=${{ vars.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED == 'true' && 'true' || 'false' }}
+              echo "MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED=${{ vars.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED == 'true' && 'true' || 'false' }}
               echo "MOBILE_OTA_INSTALLATION_HASH_KEY=${{ secrets.MOBILE_OTA_INSTALLATION_HASH_KEY }}"
               echo "CLOUDRU_S3_ENDPOINT=https://s3.cloud.ru"
               echo "CLOUDRU_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
