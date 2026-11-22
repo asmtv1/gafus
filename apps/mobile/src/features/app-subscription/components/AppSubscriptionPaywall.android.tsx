@@ -276,9 +276,20 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
                   </View>
                 ) : null}
                 <Button
-                  label="Оформить через Google Play"
+                  label={waiting ? "Оформляем..." : "Оформить через Google Play"}
+                  height={56}
+                  fontFamily={FONTS.impact}
+                  fontWeight="400"
+                  fontSize={17}
+                  lineHeight={22}
+                  verticalPadding={0}
+                  borderRadius={20}
+                  animatedPress
+                  loading={waiting}
                   disabled={controlsBusy || hasPendingPayment || !selected || !status || !sameOwner()}
                   onPress={() => void buy()}
+                  accessibilityLabel="Оформить через Google Play"
+                  accessibilityState={{ disabled: controlsBusy || hasPendingPayment || !selected || !status || !sameOwner(), busy: waiting }}
                 />
                 {selected ? (
                   <Text style={styles.providerCaption}>
