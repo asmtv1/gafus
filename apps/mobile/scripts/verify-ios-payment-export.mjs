@@ -20,9 +20,16 @@ export function inspectIosPaymentExport(exportRoot) {
     "yookassaPriceRubCheckout",
   ];
   const hits = blockedStrings.filter((token) => bundle.includes(Buffer.from(token)));
-  if (["internal-yookassa", "ios-public-yookassa"].includes(paymentProfile())) {
-    if(!hits.includes("/yookassa/start") || hits.some(hit=>hit!=="/yookassa/start") ||
-      !bundle.includes(Buffer.from("gafus://subscription-return")))throw Error("IOS_INTERNAL_CHECKOUT_EXPORT_MISMATCH");
+  const profile = paymentProfile();
+  if (["internal-yookassa", "ios-public-yookassa"].includes(profile)) {
+    const permitted = profile === "ios-public-yookassa"
+      ? ["/yookassa/start", "/promo-code/preview"]
+      : ["/yookassa/start"];
+    if(!hits.includes("/yookassa/start") ||
+      (profile === "ios-public-yookassa" && !hits.includes("/promo-code/preview")) ||
+      hits.some(hit=>!permitted.includes(hit)) ||
+      !bundle.includes(Buffer.from("gafus://subscription-return")))
+      throw Error("IOS_INTERNAL_CHECKOUT_EXPORT_MISMATCH");
     return {bundleName,sizeBytes:bundle.length,assetCount:metadata.fileMetadata.ios.assets.length};
   }
   if (hits.length > 0) throw new Error(`IOS_EXPO_CHECKOUT_GRAPH_FORBIDDEN: ${hits.join(", ")}`);
