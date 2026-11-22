@@ -13,6 +13,36 @@ export { versionOwnsScope } from "./version-publication-repository.js";
 
 export type VersionScope = { platform: "ios" | "android"; runtimeVersion: string };
 export class PublicationError extends Error {}
+
+// Mandatory public YooKassa is permitted only for the already approved,
+// verified iOS App Store delivery and when a fully signed StoreKit-only
+// rollback exists for EVERY exact same native installation. No global
+// runtime-only forcing or extrapolation to unverified/older native builds.
+export type MandatoryPublicationChoice = {
+  revision: number;
+  checkout: boolean;
+  complete: boolean;
+  publicAppStoreReady: boolean;
+  nativeIds: string[];
+  recoveryFor: number | null;
+  newer: boolean;
+};
+export function canRequirePublicCheckout(
+  scope: VersionScope,
+  selected: MandatoryPublicationChoice,
+  choices: readonly MandatoryPublicationChoice[],
+  approval: string | undefined,
+): boolean {
+  if (!selected.checkout || !selected.complete || !selected.publicAppStoreReady ||
+      !mayPublishCheckoutToAll(scope, approval) || selected.nativeIds.length===0) return false;
+  const targets = new Set(selected.nativeIds);
+  if (targets.size !== selected.nativeIds.length) return false;
+  return choices.some((candidate) =>
+    candidate.recoveryFor === selected.revision && !candidate.checkout &&
+    candidate.complete && candidate.newer && candidate.nativeIds.length === targets.size &&
+    candidate.nativeIds.every((id) => targets.has(id))
+  );
+}
 const digest = (data: unknown) => createHash("sha256").update(JSON.stringify(data)).digest("hex");
 
 async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
@@ -151,7 +181,9 @@ async function transition(input: PublishInput, stop: boolean) {
         input.required &&
         (!s.activeChoice ||
           s.activeChoice.key !== input.key ||
-          (s.activeChoice.checkout && current.public))
+          (s.activeChoice.checkout && current.public &&
+            !canRequirePublicCheckout(input,s.activeChoice,s.choices,
+              process.env.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED)))
       )
         throw new PublicationError(
           "Выберите опубликованную ревизию со всеми доступными подписанными пакетами.",

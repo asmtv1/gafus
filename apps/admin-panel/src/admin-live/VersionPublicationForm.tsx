@@ -14,6 +14,7 @@ type Choice = {
   checkout: boolean;
   nativeIds: string[];
   recoveryFor: number | null;
+  publicAppStoreReady: boolean;
 };
 type Preview = {
   total: number;
@@ -30,6 +31,17 @@ type Preview = {
     nativeIds: string[];
   } | null;
 };
+/** Keep the UI conservative. Backend revalidates this with an explicit
+ * production approval flag inside the publication transaction. */
+export function hasSignedPublicCheckoutRecovery(selected: Choice, choices: readonly Choice[]): boolean {
+  if (!selected.checkout || !selected.complete || !selected.publicAppStoreReady ||
+      selected.nativeIds.length===0) return false;
+  const natives = new Set(selected.nativeIds);
+  if (natives.size!==selected.nativeIds.length) return false;
+  return choices.some((c) => c.recoveryFor===selected.revision && !c.checkout &&
+    c.complete && c.newer && c.nativeIds.length===natives.size &&
+    c.nativeIds.every((id)=>natives.has(id)));
+}
 /** Treat a missing update list as empty, and fail closed for malformed metadata. */
 export function normalizeVersionPreview(raw: unknown): Preview {
   if (!raw || typeof raw !== "object") {
@@ -295,7 +307,9 @@ export function VersionPublicationForm({ nativeReleases }: { nativeReleases: Nat
         <button
           disabled={
             busy || !activeContainsBuild || p?.active?.required || p?.active?.action === "STOP" ||
-            (p?.active?.public && selected?.checkout)
+            (p?.active?.public && selected?.checkout &&
+              !(platform === "ios" && version === "1.7.5" &&
+                hasSignedPublicCheckoutRecovery(selected,choices)))
           }
           onClick={() => void submit("MANDATORY", true)}
         >

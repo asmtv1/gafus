@@ -79,6 +79,9 @@ test('future production deploys preserve iOS 1.7.5 YooKassa gates from GitHub En
     assert.ok(compose.includes(name+'=${'+name+':-false}'),
       name+' must be passed to the API container with a fail-closed default');
   }
+  assert.ok(deploy.includes('echo "MOBILE_IOS_MIN_VERSION=${{ vars.MOBILE_IOS_MIN_VERSION || \'1.7.2\' }}"'),
+    'iOS minimum version must survive production .env regeneration');
+  assert.ok(compose.includes('MOBILE_IOS_MIN_VERSION=${MOBILE_IOS_MIN_VERSION:-1.7.2}'));
   const fragments=deployStep.env;
   const shellUnits=[
     ['DEPLOY_SCRIPT_1',fragments.DEPLOY_SCRIPT_1],

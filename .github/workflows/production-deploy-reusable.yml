@@ -641,6 +641,9 @@ jobs:
               echo "MOBILE_OTA_IOS_YOOKASSA_ENABLED=${{ vars.MOBILE_OTA_IOS_YOOKASSA_ENABLED == 'true' && 'true' || 'false' }}"
               echo "MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED=${{ vars.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED == 'true' && 'true' || 'false' }}"
               echo "MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED=${{ vars.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED == 'true' && 'true' || 'false' }}"
+              # Store update gate is independent from the signed OTA policy.
+              # Preserve production iOS minimum across deploys; Android is unchanged.
+              echo "MOBILE_IOS_MIN_VERSION=${{ vars.MOBILE_IOS_MIN_VERSION || '1.7.2' }}"
               echo "MOBILE_OTA_INSTALLATION_HASH_KEY=${{ secrets.MOBILE_OTA_INSTALLATION_HASH_KEY }}"
               echo "CLOUDRU_S3_ENDPOINT=https://s3.cloud.ru"
               echo "CLOUDRU_S3_ACCESS_KEY_ID=${{ secrets.CLOUDRU_S3_ACCESS_KEY_ID }}"
