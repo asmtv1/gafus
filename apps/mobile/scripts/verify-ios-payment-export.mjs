@@ -20,7 +20,7 @@ export function inspectIosPaymentExport(exportRoot) {
     "yookassaPriceRubCheckout",
   ];
   const hits = blockedStrings.filter((token) => bundle.includes(Buffer.from(token)));
-  if (paymentProfile() === "internal-yookassa") {
+  if (["internal-yookassa", "ios-public-yookassa"].includes(paymentProfile())) {
     if(!hits.includes("/yookassa/start") || hits.some(hit=>hit!=="/yookassa/start") ||
       !bundle.includes(Buffer.from("gafus://subscription-return")))throw Error("IOS_INTERNAL_CHECKOUT_EXPORT_MISMATCH");
     return {bundleName,sizeBytes:bundle.length,assetCount:metadata.fileMetadata.ios.assets.length};

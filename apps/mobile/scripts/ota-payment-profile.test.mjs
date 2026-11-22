@@ -15,6 +15,23 @@ for (const [platform, profile, component] of [
   ["ios", "internal-yookassa", "InternalCardCheckout"],
   ["android", "android-qa-yookassa", "AndroidQaCardCheckout"],
 ]) {
+  test(`${platform} internal checkout rejects public distributions`, (t) => {
+    const dir = mkdtempSync(join(tmpdir(), "gafus-ota-appstore-profile-"));
+    t.after(() => rmSync(dir, { recursive: true, force: true }));
+    const file = join(dir, "native.json");
+    const native = {
+      id: "native", platform, verified: true, distribution: "app-store",
+      appId: "gafus", bundleId: "ru.gafus.app", environment: "production", channel: "production",
+      nativeFingerprint: "a".repeat(64), signingKeyId: "test",
+      embeddedUpdateId: "1c6522de-7a97-48a3-b04c-1dbf36646239",
+    };
+    const env = { CI: "true", GAFUS_OTA_PRODUCTION_APPROVED: "true", OTA_PAYMENT_CONTENT: profile,
+      GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR: file, OTA_PLATFORM: platform, OTA_NATIVE_ID: "native" };
+    for (const runtime of ["1.7.5", "1.7.6"]) {
+      writeFileSync(file, JSON.stringify({ ...native, runtimeVersion: runtime, appVersion: runtime }));
+      assert.throws(() => paymentProfile({ ...env, OTA_RUNTIME: runtime }), /FORBIDDEN/);
+    }
+  });
   test(`${platform} checkout accepts each verified compatible runtime independently`, (t) => {
     const dir = mkdtempSync(join(tmpdir(), "gafus-ota-payment-profile-"));
     t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -50,3 +67,36 @@ for (const [platform, profile, component] of [
     }
   });
 }
+
+
+test("ios-public-yookassa requires the verified iOS 1.7.5 App Store native", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "gafus-ota-public-profile-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, "native.json");
+  const native = {
+    id: "native", platform: "ios", verified: true, distribution: "app-store",
+    appId: "gafus", bundleId: "ru.gafus.app", environment: "production", channel: "production",
+    nativeFingerprint: "a".repeat(64), signingKeyId: "test",
+    embeddedUpdateId: "1c6522de-7a97-48a3-b04c-1dbf36646239",
+    runtimeVersion: "1.7.5", appVersion: "1.7.5",
+  };
+  const env = {
+    CI: "true", GAFUS_OTA_PRODUCTION_APPROVED: "true", OTA_PAYMENT_CONTENT: "ios-public-yookassa",
+    GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR: file, OTA_PLATFORM: "ios", OTA_RUNTIME: "1.7.5",
+    OTA_NATIVE_ID: "native",
+  };
+  writeFileSync(file, JSON.stringify(native));
+  assert.equal(checkoutComponent(paymentProfile(env)), "InternalCardCheckout");
+  for (const override of [
+    { distribution: "internal" }, { platform: "android" }, { runtimeVersion: "1.7.6", appVersion: "1.7.6" },
+    { verified: false }, { embeddedUpdateId: null }, { nativeFingerprint: "" },
+  ]) {
+    writeFileSync(file, JSON.stringify({ ...native, ...override }));
+    assert.throws(() => paymentProfile(env), /FORBIDDEN/);
+  }
+  writeFileSync(file, JSON.stringify(native));
+  for (const override of [
+    { OTA_RECOVERY_FOR: "1" }, { CI: "false" }, { GAFUS_OTA_PRODUCTION_APPROVED: "false" },
+    { OTA_RUNTIME: "1.7.6" }, { OTA_PLATFORM: "android" },
+  ]) assert.throws(() => paymentProfile({ ...env, ...override }), /FORBIDDEN/);
+});
