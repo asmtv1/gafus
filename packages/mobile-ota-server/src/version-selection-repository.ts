@@ -21,8 +21,11 @@ export async function recordVersionObservation(c: Context, identity: string, emb
 }
 export async function readVersionCandidate(c: Context, source: "manifest" | "policy", tester: boolean, identity: string | null, embedded: string | null): Promise<(Partial<Choice> & {matched: boolean}) | undefined> {
   const [row] = await prisma.$queryRaw<(Partial<Choice> & { matched: boolean })[]>`
-    SELECT r.id IS NOT NULL AS matched,r."manifestBody",r."signatureHeader",r."updateId",r.revision,p.required,
-       r."allowsCheckout" AND p.action='TEST' AND NOT p.public AND ${tester} AND latest.action<>'STOP' AND r.distribution='internal' AS "allowsCheckout",
+    SELECT r.id IS NOT NULL AS matched,r."manifestBody",r."signatureHeader",r."updateId",r.revision,p.required,p.action AS "publicationAction",p.public AS "publishedToAll",
+       r."allowsCheckout" AND latest.action<>'STOP' AND (
+         (p.action='TEST' AND NOT p.public AND ${tester} AND (r.distribution='internal' OR (r.platform='ios' AND r.distribution='app-store' AND r."runtimeVersion"='1.7.5'))) OR
+         (p.action='ALL' AND p.public AND r.platform='ios' AND r."runtimeVersion"='1.7.5' AND r.distribution='app-store')
+       ) AS "allowsCheckout",
        r.running FROM (SELECT * FROM "MobileOtaPublication" WHERE platform=${c.platform}
          AND "runtimeVersion"=${c.runtimeVersion} AND (public OR ${tester}) ORDER BY sequence DESC LIMIT 1) p
     JOIN LATERAL (SELECT action FROM "MobileOtaPublication" WHERE platform=p.platform AND "runtimeVersion"=p."runtimeVersion"

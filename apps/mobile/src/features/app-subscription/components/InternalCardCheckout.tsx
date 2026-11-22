@@ -4,11 +4,12 @@ import * as Browser from "expo-web-browser";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
 import { Text } from "react-native-paper";
-import { View } from "react-native";
+import { Linking, View } from "react-native";
 import { Button } from "@/shared/components/ui";
 import { apiClient } from "@/shared/lib/api/client";
 import { ensureOtaInstallationIdentity } from "@/shared/lib/ota/installationIdentity";
 import { appSubscriptionAppleApi } from "../api/appSubscriptionAppleApi";
+import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
 import type { AppSubscriptionOfferDto, AppSubscriptionPlanCode } from "../api/appSubscriptionApi";
 import type { CardCheckoutProps } from "./OptionalCardCheckout";
 
@@ -114,6 +115,7 @@ export function InternalCardCheckout({
   return (
     <View>
       <Text>Оплата через ЮKassa</Text>
+      {!androidQa && <Text>Отдельная подписка с автоматическим продлением, оформляемая вне App Store. Период и стоимость указаны для каждого тарифа.</Text>}
       {checking ? (
         <Button
           label="Проверить оплату"
@@ -126,11 +128,24 @@ export function InternalCardCheckout({
           .map((plan) => (
             <Button
               key={plan.code}
-              label={plan.title + " · " + plan.yookassaPriceRub + " ₽"}
+              label={`${plan.title} · ${plan.yookassaPriceRub} ₽ / ${plan.intervalDays} дн.`}
               disabled={busy}
               onPress={() => void withLock(() => pay(plan.code))}
             />
           ))
+      )}
+      {!checking && data?.yookassaPlans?.every((p) => !p.enabled) && (
+        <Text>Сейчас нет доступных тарифов ЮKassa.</Text>
+      )}
+      {!androidQa && (
+        <View>
+          <Text onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}>
+            Публичная оферта и правила автопродления
+          </Text>
+          <Text onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}>
+            Политика конфиденциальности
+          </Text>
+        </View>
       )}
     </View>
   );

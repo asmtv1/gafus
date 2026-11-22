@@ -1,4 +1,5 @@
 import { createHmac } from "node:crypto";
+import { mayOfferCheckoutToAudience } from "./checkout-audience.js";
 import { hasVersionPublication, recordVersionObservation, readVersionCandidate } from "./version-selection-repository.js";
 import type { OtaManifestRow, OtaPlatform } from "./contracts.js";
 import { isRegisteredOtaTester } from "./tester-grant-service.js";
@@ -19,6 +20,8 @@ export type Choice = OtaManifestRow & {
   required: boolean;
   allowsCheckout: boolean;
   running: boolean;
+  publicationAction: "TEST" | "ALL" | "RECOVER" | "STOP";
+  publishedToAll: boolean;
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function observationKey(c: Context) {
@@ -86,7 +89,9 @@ async function allowsInternalCheckout(
     "policy",
     actorId,
   );
-  return !!selected?.allowsCheckout && selected.running === true && selected.updateId === updateId;
+  return selected?.updateId === updateId && mayOfferCheckoutToAudience(
+    { platform, runtimeVersion: version }, selected, process.env.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED,
+  );
 }
 
 export function allowsAndroidQaCheckout(

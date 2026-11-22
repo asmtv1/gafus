@@ -91,6 +91,8 @@ suite("version-scoped OTA lifecycle", () => {
     );
     vi.stubEnv("MOBILE_OTA_DELIVERY_ENV", "production");
     vi.stubEnv("MOBILE_OTA_IOS_YOOKASSA_ENABLED", "true");
+    vi.stubEnv("MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED", "false");
+    vi.stubEnv("MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED", "false");
     vi.stubEnv("MOBILE_OTA_ANDROID_QA_YOOKASSA_ENABLED", "true");
   });
   afterAll(async () => {
@@ -148,7 +150,7 @@ suite("version-scoped OTA lifecycle", () => {
     const iosNext = { platform: "ios", runtimeVersion: "1.7.6" } as const;
     const nextNative = await native(iosNext, "17601", fp);
     const nextUpdate = await release(nextNative, 1, true);
-    await expect(publishVersionUpdate(await command(ios, "ALL"))).rejects.toThrow("тестерам");
+    await expect(publishVersionUpdate(await command(ios, "ALL"))).rejects.toThrow("без явного разрешения");
     await expect(publishVersionUpdate(await command(ios, "MANDATORY"))).rejects.toThrow("Сначала");
     const test = await command(ios, "TEST");
     await expect(publishVersionUpdate({ ...test, required: true })).rejects.toThrow("отдельным");
@@ -194,7 +196,7 @@ suite("version-scoped OTA lifecycle", () => {
     expect(await manifest({ ...d, runtimeVersion: "1.7.5" }, true)).toBeNull();
     await publishVersionUpdate(await command(android, "ALL"));
     expect((await manifest(d))?.updateId).toBe(standard);
-    await expect(publishVersionUpdate(await command(ios, "ALL"))).rejects.toThrow("тестерам");
+    await expect(publishVersionUpdate(await command(ios, "ALL"))).rejects.toThrow("без явного разрешения");
     await publishVersionUpdate(await command(iosNext, "TEST"));
     await selectVersionUpdate({ ...nextNative, testerAllowed: true, currentUpdateId: nextUpdate }, "manifest");
     expect(await allowsVersionCheckout(admin.id, "1.7.6", installation, fp, nextUpdate)).toBe(true);
@@ -217,5 +219,27 @@ suite("version-scoped OTA lifecycle", () => {
     expect(await selectVersionUpdate(a, "policy", admin.id)).toMatchObject({ revision: 2, required: true });
     expect(await allowsVersionCheckout(admin.id, "1.7.6", installation, fp, nextUpdate)).toBe(true);
     expect(await manifest(d, true)).toBeTruthy();
+
+    // Public App Store checkout requires the TEST stage and two separate kill-switches.
+    await prisma.$executeRaw`UPDATE "MobileNativeRelease" SET distribution='app-store'
+      WHERE id=ANY(${[a.id, b.id, c.id]}::uuid[])`;
+    const publicUpdate = await release(a, 3, true);
+    await release(b, 3, true);
+    await release(c, 3, true);
+    await publishVersionUpdate(await command(ios, "TEST"));
+    await selectVersionUpdate({ ...a, testerAllowed: true, currentUpdateId: publicUpdate }, "manifest");
+    expect(await allowsVersionCheckout(admin.id, "1.7.5", installation, fp, publicUpdate)).toBe(true);
+    expect(await allowsVersionCheckout(ordinary.id, "1.7.5", installation, fp, publicUpdate)).toBe(false);
+    await expect(publishVersionUpdate(await command(ios, "ALL"))).rejects.toThrow("без явного разрешения");
+    vi.stubEnv("MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED", "true");
+    await publishVersionUpdate(await command(ios, "ALL"));
+    expect((await manifest(a))?.updateId).toBe(publicUpdate);
+    await selectVersionUpdate({ ...a, testerAllowed: false, currentUpdateId: publicUpdate }, "manifest");
+    expect(await allowsVersionCheckout(ordinary.id, "1.7.5", installation, fp, publicUpdate)).toBe(false);
+    vi.stubEnv("MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED", "true");
+    expect(await allowsVersionCheckout(ordinary.id, "1.7.5", installation, fp, publicUpdate)).toBe(true);
+    expect(await allowsVersionCheckout(ordinary.id, "1.7.5", installation, fp, first)).toBe(false);
+    vi.stubEnv("MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED", "false");
+    expect(await allowsVersionCheckout(ordinary.id, "1.7.5", installation, fp, publicUpdate)).toBe(false);
   });
 });

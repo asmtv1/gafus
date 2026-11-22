@@ -124,8 +124,8 @@ export function VersionPublicationForm({ nativeReleases }: { nativeReleases: Nat
   const checkoutLabel = (c: Choice) =>
     !c.checkout
       ? "Обычная оплата"
-      : platform === "ios"
-        ? "ЮKassa для внутренних сборок"
+      : platform === "ios" && version === "1.7.5"
+        ? "ЮKassa — тестовый / публичный профиль"
         : "Тестовая ЮKassa";
   const recovery = p?.choices
     .filter((c) => c.recoveryFor === p.active?.revision && c.complete && c.newer)
@@ -152,7 +152,9 @@ export function VersionPublicationForm({ nativeReleases }: { nativeReleases: Nat
     const update = action === "MANDATORY" ? `${version}-ota.${p.active?.revision}` : description;
     if (
       !window.confirm(
-        `${operation} для ${platform} ${version}?\n${update}\nАудитория — ${audience}.`,
+        `${operation} для ${platform} ${version}?\n${update}\nАудитория — ${audience}.` +
+          (action === "ALL" && target?.checkout ?
+            "\nВНИМАНИЕ: ЮKassa станет доступна всем только при явном разрешении сервера. До подтверждения проверьте StoreKit/App Review, тестовый платёж и пакет отката." : ""),
       )
     )
       return;
@@ -284,14 +286,16 @@ export function VersionPublicationForm({ nativeReleases }: { nativeReleases: Nat
           Выпустить тестерам
         </button>
         <button
-          disabled={busy || !selected?.tested || !selected.complete || selected.checkout}
+          disabled={busy || !selected?.tested || !selected.complete ||
+            (selected.checkout && !(platform === "ios" && version === "1.7.5"))}
           onClick={() => void submit("ALL")}
         >
           Выпустить всем
         </button>
         <button
           disabled={
-            busy || !activeContainsBuild || p?.active?.required || p?.active?.action === "STOP"
+            busy || !activeContainsBuild || p?.active?.required || p?.active?.action === "STOP" ||
+            (p?.active?.public && selected?.checkout)
           }
           onClick={() => void submit("MANDATORY", true)}
         >
