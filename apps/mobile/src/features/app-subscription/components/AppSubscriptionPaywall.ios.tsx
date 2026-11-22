@@ -4,7 +4,7 @@
  * Metro resolves this instead of AppSubscriptionPaywall.tsx for iOS.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Linking, Modal, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Linking, Modal, ScrollView, useWindowDimensions, View } from "react-native";
 import { fetchProducts, getAvailablePurchases, initConnection, restorePurchases } from "expo-iap";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
@@ -21,7 +21,14 @@ import type { AppSubscriptionPlanOfferDto } from "../api/appSubscriptionApi";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
 import { createAppleTokenInitializationAdapter } from "../lib/appleTokenInitializationAdapter";
 import { runAppleAppSubscriptionPurchase } from "../lib/appleAppSubscriptionPurchase";
-import {OptionalCardCheckout} from "./OptionalCardCheckout";
+import { OptionalCardCheckout } from "./OptionalCardCheckout";
+import {
+  PREMIUM_PLAN_BENEFITS,
+  PREMIUM_OFFLINE_BENEFIT,
+  Premium172BenefitRow,
+  premium172Styles as styles,
+  premiumPlanIncludesOffline,
+} from "./Premium172Appearance";
 import { usePaywallStore } from "../store/paywallStore";
 
 function getApplePlan(offer: { applePlan: AppSubscriptionPlanOfferDto | null } | null) {
@@ -48,6 +55,7 @@ const INIT_ERRORS: Record<string, string> = {
 
 export function AppSubscriptionPaywall() {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const queryClient = useQueryClient();
   const close = usePaywallStore((s) => s.close);
   const ownerId = useAuthStore((s) => s.user?.id ?? null);
@@ -219,59 +227,142 @@ export function AppSubscriptionPaywall() {
     <Modal visible animationType="fade" presentationStyle="fullScreen" onRequestClose={close}>
       <StatusBar hidden />
       <SafeAreaView style={styles.screen} edges={["bottom"]}>
-        <ScrollView contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 14, 58) }]}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 14, 58) }]}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.contentInner}>
-            <AppBackButton onPress={close} />
-            <Text style={styles.brand}>GAFUS PREMIUM</Text>
+            <AppBackButton style={styles.backRow} onPress={close} />
+            <View style={styles.header}>
+              <Text style={styles.brand}>GAFUS PREMIUM</Text>
+            </View>
+
             {status?.hasActiveSubscription ? (
-              <View style={styles.card}>
-                <Text style={styles.title}>Premium активен</Text>
-                {status.activeUntil ? <Text>Доступ до {new Date(status.activeUntil).toLocaleDateString("ru-RU")}</Text> : null}
+              <View style={styles.providerSection}>
+                <Text style={styles.sectionTitle}>Premium активен</Text>
+                <View style={styles.appleCard}>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text style={styles.cardTitle}>У вас есть Premium</Text>
+                    {status.activeUntil ? (
+                      <Text style={styles.cardSubtitle}>
+                        Доступ до {new Date(status.activeUntil).toLocaleDateString("ru-RU")}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
                 {status.provider === "YOOKASSA" && !status.cancelAtPeriodEnd ? (
-                  <Button label="Отключить автопродление" onPress={handleCancelExisting} disabled={busy} />
+                  <Button
+                    label="Отключить автопродление"
+                    height={56} fontFamily={FONTS.impact} fontWeight="400"
+                    fontSize={17} lineHeight={22} verticalPadding={0}
+                    borderRadius={20} animatedPress
+                    onPress={handleCancelExisting} disabled={busy}
+                  />
                 ) : null}
                 {status.provider === "APPLE" ? (
-                  <Button label="Управлять в App Store" onPress={() => void Linking.openURL("https://apps.apple.com/account/subscriptions")} />
+                  <Button
+                    label="Управлять в App Store" height={56}
+                    fontFamily={FONTS.impact} fontWeight="400"
+                    fontSize={17} lineHeight={22} verticalPadding={0}
+                    borderRadius={20} animatedPress
+                    onPress={() => void Linking.openURL("https://apps.apple.com/account/subscriptions")}
+                  />
                 ) : null}
               </View>
             ) : (
-              <View style={styles.card}>
-                <Text style={styles.title}>Подписка через App Store</Text>
-                <Text style={styles.detail}>Курсы, экзамены, статьи и дополнительные возможности Premium.</Text>
-                <Text style={styles.price}>{productQuery.data ?? (productQuery.isLoading ? "Получаем цену App Store…" : "Цена недоступна")}</Text>
-                <Button label={busy ? "Проверяем покупку…" : "Оформить через App Store"}
-                  onPress={handlePurchase} disabled={!canPurchase} loading={busy} />
-                {offerQuery.isLoading ? <Text>Загружаем условия подписки…</Text> : null}
-                {offerQuery.isError || (offerQuery.data && !offerQuery.data.success) ? (
-                  <Text style={styles.error}>Не удалось получить предложение. Попробуйте позже.</Text>
+              <>
+                {ownerId && authEpoch ? (
+                  <OptionalCardCheckout
+                    key={ownerId + authEpoch}
+                    ownerKey={ownerId + authEpoch}
+                    sameOwner={sameOwner}
+                    busy={busy}
+                    withLock={withLock}
+                    refresh={refresh}
+                    report={setPendingMessage}
+                  />
                 ) : null}
-              </View>
+
+                {applePlan ? (
+                  <View style={styles.providerSection}>
+                    <Text style={styles.sectionTitle}>App Store</Text>
+                    <View style={styles.appleCard}>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <Text style={styles.cardTitle}>1 месяц</Text>
+                        <Text style={styles.cardSubtitle}>Подписка через Apple</Text>
+                      </View>
+                      <Text style={styles.applePrice}>
+                        {productQuery.data ?? (productQuery.isLoading ? "Получаем цену…" : "Цена недоступна")}
+                      </Text>
+                    </View>
+                    <View style={styles.appleBenefits}>
+                      {PREMIUM_PLAN_BENEFITS.map((benefit) => (
+                        <Premium172BenefitRow key={benefit} label={benefit} included />
+                      ))}
+                      <Premium172BenefitRow
+                        label={PREMIUM_OFFLINE_BENEFIT}
+                        included={premiumPlanIncludesOffline(applePlan)}
+                      />
+                      <Premium172BenefitRow
+                        label="Чат с кинологом"
+                        included={Boolean(applePlan.cynologistChatIncluded)}
+                      />
+                      <Premium172BenefitRow
+                        label="Запись к кинологу"
+                        included={Boolean(applePlan.consultationBookingIncluded)}
+                      />
+                    </View>
+                    <Button
+                      label={busy ? "Проверяем покупку…" : "Оформить через App Store"}
+                      height={56} fontFamily={FONTS.impact} fontWeight="400"
+                      fontSize={17} lineHeight={22} verticalPadding={0}
+                      borderRadius={20} animatedPress
+                      onPress={handlePurchase}
+                      disabled={!canPurchase}
+                      loading={busy}
+                      accessibilityLabel="Оформить Premium через App Store"
+                    />
+                    <Text style={styles.providerCaption}>
+                      Списание и управление подпиской выполняются через App Store.
+                    </Text>
+                  </View>
+                ) : null}
+              </>
             )}
-            {ownerId && authEpoch && !status?.hasActiveSubscription && <OptionalCardCheckout
-              key={ownerId+authEpoch} ownerKey={ownerId+authEpoch} sameOwner={sameOwner} busy={busy}
-              withLock={withLock} refresh={refresh} report={setPendingMessage}/>}
-            <Button label="Восстановить покупки" onPress={handleRestore} disabled={busy || !productId || !sameOwner()} />
-            <Text style={styles.detail}>Подписки Apple оформляются и управляются через App Store.</Text>
-            <Text style={styles.legal} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.appleEula)}>Условия использования Apple</Text>
-            <Text style={styles.legal} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}>Политика конфиденциальности</Text>
-            {pendingMessage ? <Text style={styles.message} accessibilityRole="alert">{pendingMessage}</Text> : null}
+
+            <Button
+              label="Восстановить покупки"
+              height={52} fontFamily={FONTS.montserratBold}
+              onPress={handleRestore}
+              disabled={busy || !productId || !sameOwner()}
+            />
+            <Text style={styles.legalText}>
+              Оформляя подписку, вы принимаете{ " "}
+              <Text style={styles.legalLink} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.appleEula)}>
+                Terms of Use (Apple EULA)
+              </Text>,{ " "}
+              <Text style={styles.legalLink} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}>
+                Оферту
+              </Text>{ " "}и{ " "}
+              <Text style={styles.legalLink} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}>
+                Политику конфиденциальности
+              </Text>.
+            </Text>
+            {pendingMessage ? (
+              <Text style={styles.pendingText} accessibilityRole="alert">{pendingMessage}</Text>
+            ) : null}
+            {offerQuery.isLoading ? (
+              <Text style={styles.muted}>Загружаем условия подписки...</Text>
+            ) : null}
+            {offerQuery.isError || (offerQuery.data && !offerQuery.data.success) ? (
+              <Text style={styles.errorText} accessibilityRole="alert">
+                Не удалось загрузить условия подписки. Попробуйте позже.
+              </Text>
+            ) : null}
+            {width >= 360 ? <View style={styles.bottomSpacer} /> : null}
           </View>
         </ScrollView>
       </SafeAreaView>
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#F6F0DF" },
-  content: { flexGrow: 1, paddingHorizontal: 18, paddingBottom: 28 },
-  contentInner: { width: "100%", maxWidth: 640, alignSelf: "center", gap: 18 },
-  brand: { fontFamily: FONTS.impact, fontSize: 30, color: "#636128", textAlign: "center" },
-  card: { backgroundColor: "#FFFDF5", borderRadius: 22, padding: 22, gap: 16 },
-  title: { fontFamily: FONTS.montserratBold, fontSize: 21, color: "#352E2E" },
-  price: { fontFamily: FONTS.impact, fontSize: 25, color: "#352E2E" },
-  detail: { fontFamily: FONTS.montserrat, fontSize: 14, color: "#756D65" },
-  legal: { fontFamily: FONTS.montserrat, color: "#636128", textDecorationLine: "underline" },
-  error: { color: "#A53D31" },
-  message: { fontFamily: FONTS.montserrat, color: "#352E2E" },
-});

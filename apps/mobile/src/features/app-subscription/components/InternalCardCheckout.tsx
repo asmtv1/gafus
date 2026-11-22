@@ -1,19 +1,51 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import * as Browser from "expo-web-browser";
 import Constants from "expo-constants";
 import * as Updates from "expo-updates";
+import { Linking, Pressable, View } from "react-native";
 import { Text } from "react-native-paper";
-import { Linking, View } from "react-native";
+
+import { FONTS } from "@/shared/config";
 import { Button } from "@/shared/components/ui";
 import { apiClient } from "@/shared/lib/api/client";
 import { ensureOtaInstallationIdentity } from "@/shared/lib/ota/installationIdentity";
 import { appSubscriptionAppleApi } from "../api/appSubscriptionAppleApi";
+import type { AppSubscriptionOfferDto, AppSubscriptionPlanCode, AppSubscriptionPlanOfferDto } from "../api/appSubscriptionApi";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
-import type { AppSubscriptionOfferDto, AppSubscriptionPlanCode } from "../api/appSubscriptionApi";
+import {
+  formatAppSubscriptionPlanPrice,
+  formatPlanPeriod,
+  formatSavingsRub,
+  getYookassaPaymentCaption,
+  getYookassaPrimaryCta,
+  selectDefaultAppSubscriptionPlan,
+} from "../lib/appSubscriptionPresentation";
+import {
+  PREMIUM_OFFLINE_BENEFIT,
+  PREMIUM_PLAN_BENEFITS,
+  Premium172BenefitRow,
+  premium172Styles as styles,
+  premiumPlanIncludesOffline,
+} from "./Premium172Appearance";
 import type { CardCheckoutProps } from "./OptionalCardCheckout";
 
+/** The exact 1.7.2 card treatment, delivered only in an approved signed iOS OTA. */
 const callback = "gafus://subscription-return";
+const PLAN_ORDER: readonly AppSubscriptionPlanCode[] = ["TWO_WEEKS", "MONTHLY", "THREE_MONTHS"];
+
+function badgeStyle(badge: AppSubscriptionPlanOfferDto["badge"]) {
+  if (badge === "POPULAR") return [styles.badgeChip, styles.badgePopular];
+  if (badge === "MAX_SAVINGS") return [styles.badgeChip, styles.badgeSavings];
+  return [styles.badgeChip, styles.badgeTry];
+}
+function badgeLabel(badge: AppSubscriptionPlanOfferDto["badge"]) {
+  if (badge === "POPULAR") return "Популярный";
+  if (badge === "MAX_SAVINGS") return "Максимальная экономия";
+  return "Попробовать";
+}
 async function contextHeaders() {
   return {
     "X-OTA-Installation": (await ensureOtaInstallationIdentity()) ?? "",
@@ -30,6 +62,7 @@ export function InternalCardCheckout({
   report,
   androidQa = false,
 }: CardCheckoutProps & { androidQa?: boolean }) {
+  const [selectedPlanCode, setSelectedPlanCode] = useState<AppSubscriptionPlanCode | null>(null);
   const [checking, setChecking] = useState(false);
   const offer = useQuery({
     queryKey: ["app-subscription", "internal-card", ownerKey],
@@ -42,6 +75,11 @@ export function InternalCardCheckout({
       }),
   });
   const data = offer.data?.success ? offer.data.data : null;
+  const plans = (data?.yookassaPlans ?? [])
+    .filter((plan) => plan.enabled)
+    .slice()
+    .sort((a, b) => PLAN_ORDER.indexOf(a.code) - PLAN_ORDER.indexOf(b.code));
+  const selectedPlan = plans.find((plan) => plan.code === selectedPlanCode) ?? selectDefaultAppSubscriptionPlan(plans);
   if (!sameOwner() || (!checking && !(androidQa ? data?.androidQaCardPaymentEnabled : data?.iosRuCardPaymentEnabled))) return null;
 
   async function checkStatus() {
@@ -87,11 +125,8 @@ export function InternalCardCheckout({
       return;
     }
     if (
-      !result.success &&
-      result.code &&
-      ["PLAN_NOT_AVAILABLE", "SUBSCRIPTION_EMAIL_REQUIRED", "VALIDATION_ERROR"].includes(
-        result.code,
-      )
+      !result.success && result.code &&
+      ["PLAN_NOT_AVAILABLE", "SUBSCRIPTION_EMAIL_REQUIRED", "VALIDATION_ERROR"].includes(result.code)
     ) {
       report(result.error ?? "Не удалось оформить подписку.");
       return;
@@ -112,41 +147,120 @@ export function InternalCardCheckout({
       if (sameOwner()) await checkStatus();
     }
   }
+
   return (
-    <View>
-      <Text>Оплата через ЮKassa</Text>
-      {!androidQa && <Text>Отдельная подписка с автоматическим продлением, оформляемая вне App Store. Период и стоимость указаны для каждого тарифа.</Text>}
+    <View style={styles.providerSection}>
+      <Text style={styles.sectionTitle}>Оплата по СБП</Text>
       {checking ? (
         <Button
-          label="Проверить оплату"
-          disabled={busy}
+          label="Проверить оплату" height={56} fontFamily={FONTS.impact}
+          fontWeight="400" fontSize={17} lineHeight={22} verticalPadding={0}
+          borderRadius={20} animatedPress disabled={busy}
           onPress={() => void withLock(checkStatus)}
         />
       ) : (
-        data?.yookassaPlans
-          .filter((p) => p.enabled)
-          .map((plan) => (
+        <>
+          {plans.length > 0 ? (
+            <View accessibilityRole="radiogroup" accessibilityLabel="Тариф ЮKassa" style={styles.plansList}>
+              {plans.map((plan) => {
+                const selected = selectedPlan?.code === plan.code;
+                const savings = formatSavingsRub(plan.savingsRub);
+                return (
+                  <Pressable
+                    key={plan.code}
+                    style={({ pressed }) => [
+                      styles.planCard,
+                      selected && styles.planCardSelected,
+                      pressed && styles.planCardPressed,
+                    ]}
+                    onPress={() => setSelectedPlanCode(plan.code)}
+                    disabled={busy}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected, checked: selected, disabled: busy }}
+                  >
+                    <View style={styles.planTopRow}>
+                      <View style={styles.planTitleBlock}>
+                        <Text style={styles.cardTitle}>{plan.label ?? plan.title}</Text>
+                        <Text style={styles.cardSubtitle}>{formatPlanPeriod(plan.intervalDays)}</Text>
+                      </View>
+                      {plan.badge ? (
+                        <View style={badgeStyle(plan.badge)}>
+                          <Text style={[
+                            styles.badgeChipText,
+                            plan.badge === "TRY" && styles.badgeTryText,
+                            plan.badge === "MAX_SAVINGS" && styles.badgeSavingsText,
+                          ]}>
+                            {badgeLabel(plan.badge)}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <View style={styles.planPriceBlock}>
+                      <Text style={styles.planPrice}>{formatAppSubscriptionPlanPrice(plan)}</Text>
+                      {savings ? <Text style={styles.savingsText}>{savings}</Text> : null}
+                    </View>
+                    <View style={[styles.selectedRow, selected && styles.selectedRowActive]}>
+                      <View style={[styles.selectionIconSurface, selected && styles.selectionIconSurfaceActive]}>
+                        <MaterialCommunityIcons
+                          name={selected ? "radiobox-marked" : "radiobox-blank"}
+                          size={22} color="#636128"
+                        />
+                      </View>
+                      <Text style={styles.selectedLabel}>{selected ? "Выбрано" : "Выбрать тариф"}</Text>
+                    </View>
+                    <View style={styles.benefits}>
+                      {PREMIUM_PLAN_BENEFITS.map((benefit) => (
+                        <Premium172BenefitRow key={benefit} label={benefit} included />
+                      ))}
+                      <Premium172BenefitRow
+                        label={PREMIUM_OFFLINE_BENEFIT}
+                        included={premiumPlanIncludesOffline(plan)}
+                      />
+                      <Premium172BenefitRow
+                        label="Чат с кинологом"
+                        included={Boolean(plan.cynologistChatIncluded)}
+                      />
+                      <Premium172BenefitRow
+                        label="Запись к кинологу"
+                        included={Boolean(plan.consultationBookingIncluded)}
+                      />
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.pendingText}>Подписка через ЮKassa сейчас недоступна.</Text>
+          )}
+          {selectedPlan ? (
             <Button
-              key={plan.code}
-              label={`${plan.title} · ${plan.yookassaPriceRub} ₽ / ${plan.intervalDays} дн.`}
-              disabled={busy}
-              onPress={() => void withLock(() => pay(plan.code))}
+              label={getYookassaPrimaryCta(selectedPlan.yookassaPriceRub)}
+              icon={() => (
+                <Image
+                  source={require("../../../../assets/images/sbp-logo.svg")}
+                  style={styles.sbpIcon} contentFit="contain" accessible={false}
+                />
+              )}
+              height={56} fontFamily={FONTS.impact} fontWeight="400"
+              fontSize={17} lineHeight={22} verticalPadding={0}
+              borderRadius={20} animatedPress
+              disabled={busy || !sameOwner()}
+              onPress={() => void withLock(() => pay(selectedPlan.code))}
             />
-          ))
+          ) : null}
+        </>
       )}
-      {!checking && data?.yookassaPlans?.every((p) => !p.enabled) && (
-        <Text>Сейчас нет доступных тарифов ЮKassa.</Text>
-      )}
-      {!androidQa && (
-        <View>
-          <Text onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}>
-            Публичная оферта и правила автопродления
-          </Text>
-          <Text onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}>
-            Политика конфиденциальности
-          </Text>
-        </View>
-      )}
+      <Text style={styles.providerCaption}>{getYookassaPaymentCaption()}</Text>
+      <Text style={styles.legalText}>
+        Нажимая кнопку оплаты, вы принимаете{" "}
+        <Text style={styles.legalLink} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}>
+          Оферту
+        </Text>{" "}и{" "}
+        <Text style={styles.legalLink} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}>
+          Политику конфиденциальности
+        </Text>
+        . Подписка продлевается автоматически; способ оплаты сохраняется в ЮKassa для продления.
+      </Text>
     </View>
   );
 }

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { checkoutComponent, paymentProfile } from "./ota-payment-profile.mjs";
 
@@ -99,4 +100,25 @@ test("ios-public-yookassa requires the verified iOS 1.7.5 App Store native", (t)
     { OTA_RECOVERY_FOR: "1" }, { CI: "false" }, { GAFUS_OTA_PRODUCTION_APPROVED: "false" },
     { OTA_RUNTIME: "1.7.6" }, { OTA_PLATFORM: "android" },
   ]) assert.throws(() => paymentProfile({ ...env, ...override }), /FORBIDDEN/);
+});
+
+
+test("iOS 1.7.5 visual checkout reproduces original 1.7.2 premium cards exactly",()=>{
+  const visual=readFileSync(new URL("../src/features/app-subscription/components/Premium172Appearance.tsx",import.meta.url),"utf8");
+  const originalStyleBody=visual.split("export const premium172Styles = StyleSheet.create({")[1];
+  assert.ok(originalStyleBody,"Premium 1.7.2 style sheet is missing");
+  assert.equal(createHash("sha256").update(originalStyleBody).digest("hex"),
+    "9089b897d35086bd72a5d1e514c342f06683afa9c6cb9dc5d668a9a4180bb060",
+    "Original 1.7.2 colors, card radii, shadows, font sizes and promo visuals must remain exact");
+  const checkout=readFileSync(new URL("../src/features/app-subscription/components/InternalCardCheckout.tsx",import.meta.url),"utf8");
+  for(const part of ["styles.planCardSelected", "styles.planPrice", "styles.badgeChip", "styles.benefits",
+    "styles.selectedRow", "getYookassaPrimaryCta", "sbp-logo.svg", "Premium172BenefitRow",
+    "styles.providerCaption", "styles.legalText"])
+    assert.ok(checkout.includes(part),`Lost original Premium presentation element: ${part}`);
+  const paywall=readFileSync(new URL("../src/features/app-subscription/components/AppSubscriptionPaywall.ios.tsx",import.meta.url),"utf8");
+  assert.ok(paywall.indexOf("<OptionalCardCheckout") < paywall.indexOf('>App Store</Text>'),
+    "YooKassa provider must precede the StoreKit provider as in version 1.7.2");
+  assert.ok(paywall.includes("styles.appleCard") && paywall.includes("styles.appleBenefits"));
+  assert.ok(paywall.includes("runAppleAppSubscriptionPurchase") && paywall.includes("createAppleTokenInitializationAdapter"),
+    "Restoring the old appearance must not undo secure StoreKit purchase flow");
 });
