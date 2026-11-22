@@ -122,8 +122,16 @@ jobs:
           # never from an arbitrary unreviewed SHA or another runtime.
           if [[ "$OTA_PLATFORM" == ios && "$OTA_EXPECTED_RUNTIME" == 1.7.5 ]]; then
             [[ "$OTA_PAYMENT_CONTENT" == ios-public-yookassa || "$OTA_PAYMENT_CONTENT" == standard ]] || exit 19
-            git fetch --no-tags origin refs/heads/release/ios-175-yookassa-ota:refs/remotes/origin/release/ios-175-yookassa-ota
-            [[ "$(git rev-parse refs/remotes/origin/release/ios-175-yookassa-ota)" == "$OTA_SOURCE_SHA" ]] || exit 19
+            matched=false
+            for branch in release/ios-175-yookassa-ota release/ios-175-yookassa-ota-99 release/ios-175-yookassa-ota-98 release/ios-175-yookassa-ota-97; do
+              ref="refs/remotes/origin/$branch"
+              git fetch --no-tags origin "refs/heads/$branch:$ref"
+              if [[ "$(git rev-parse "$ref")" == "$OTA_SOURCE_SHA" ]]; then
+                matched=true
+                break
+              fi
+            done
+            [[ "$matched" == true ]] || exit 19
           else
             git merge-base --is-ancestor "$OTA_SOURCE_SHA" origin/main
           fi
