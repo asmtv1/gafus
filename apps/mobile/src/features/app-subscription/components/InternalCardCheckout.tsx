@@ -22,7 +22,7 @@ import {
   shouldBlockYookassaStartForPromo,
   shouldShowSubscriptionPromoCode,
   type PromoCodeUiState,
-} from "../lib/promoCodePresentation";
+} from "./SignedOtaPromoPresentation";
 import {
   PREMIUM_OFFLINE_BENEFIT,
   PREMIUM_PLAN_BENEFITS,
