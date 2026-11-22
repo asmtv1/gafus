@@ -138,6 +138,7 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
   }, [pending, verify, sameOwner, withLock]);
 
   const offers = store.data ?? [];
+  const loadError = catalog.isError || store.isError;
   const selected = offers.find((item) => item.offerToken === selection) ?? offers[0];
   async function buy() {
     if (!selected || !catalog.data || !sameOwner() || dispatched.current || locked.current) return;
@@ -201,7 +202,20 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
                       onPress={() => setSelection(item.offerToken)} />
                   ))}
                   {catalog.isFetching || store.isFetching ? <Text>Загружаем цены Google Play…</Text> : null}
-                  {!catalog.isFetching && !store.isFetching && !offers.length ? <Text>Тарифы Google Play пока недоступны.</Text> : null}
+                  {loadError ? (
+                    <>
+                      <Text accessibilityRole="alert">Не удалось загрузить цену из Google Play. Проверьте подключение и доступность подписки для аккаунта.</Text>
+                      <Button label="Повторить загрузку тарифов" disabled={controlsBusy}
+                        onPress={() => void (catalog.isError ? catalog.refetch() : store.refetch())} />
+                    </>
+                  ) : !catalog.isFetching && !store.isFetching && !offers.length ? (
+                    <>
+                      <Text accessibilityRole="alert">Тариф Google Play недоступен для этого аккаунта или страны.</Text>
+                      <Button label="Повторить загрузку тарифов" disabled={controlsBusy}
+                        onPress={() => void catalog.refetch().then(() => store.refetch())} />
+                    </>
+                  ) : null}
+                  {selected ? <Text style={styles.legal}>Подписка автоматически продлевается по цене {selected.price} каждые {selected.period}, пока вы её не отмените. Управление и отмена — в Google Play.</Text> : null}
                   <Button label="Оформить через Google Play" disabled={controlsBusy || hasPendingPayment || !selected || !status || !sameOwner()}
                     onPress={() => void buy()} />
                 </>
@@ -222,6 +236,7 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
             <Button label="Управлять в Google Play" onPress={() => void Linking.openURL(
               "https://play.google.com/store/account/subscriptions?package=ru.gafus.app",
             ).catch(() => setMessage("Не удалось открыть Google Play."))} />
+            <Text style={styles.legal} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}>Условия использования и оплаты</Text>
             <Text style={styles.legal} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}>Политика конфиденциальности</Text>
             {message ? <Text accessibilityRole="alert">{message}</Text> :
               hasPendingPayment ? <Text accessibilityRole="alert">Ожидаем подтверждения оплаты.</Text> : null}

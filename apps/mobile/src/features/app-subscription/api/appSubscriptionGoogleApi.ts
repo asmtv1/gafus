@@ -2,7 +2,7 @@ import { apiClient } from "@/shared/lib/api/client";
 import type { AppSubscriptionStatusDto } from "./appSubscriptionApi";
 
 const path = "/api/v1/app-subscription";
-export type GooglePlayPlan = { productId: string; basePlanId: string };
+export type GooglePlayPlan = { productId: string; basePlanId: string; planCode: "TWO_WEEKS" | "MONTHLY" | "THREE_MONTHS" };
 
 export const appSubscriptionGoogleApi = {
   getStatus(requestGuard?: () => boolean) {

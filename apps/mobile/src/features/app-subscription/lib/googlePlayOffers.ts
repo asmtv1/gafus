@@ -2,9 +2,11 @@ import { fetchProducts, initConnection } from "expo-iap";
 import type { GooglePlayPlan } from "../api/appSubscriptionGoogleApi";
 
 export async function loadGooglePlayOffers(plans: GooglePlayPlan[]) {
+  const purchasablePlans = plans.filter((plan) => plan.planCode === "THREE_MONTHS");
+  if (!purchasablePlans.length) return [];
   if (!await initConnection()) throw new Error("GOOGLE_PLAY_CONNECTION");
-  const products = await fetchProducts({ type: "subs", skus: [...new Set(plans.map((p) => p.productId))] });
-  return plans.flatMap((plan) => {
+  const products = await fetchProducts({ type: "subs", skus: [...new Set(purchasablePlans.map((p) => p.productId))] });
+  return purchasablePlans.flatMap((plan) => {
     const product = products?.find((item) => item.id === plan.productId && item.type === "subs" && item.platform === "android");
     if (product?.platform !== "android" || product.type !== "subs") return [];
     const offer = product.subscriptionOfferDetailsAndroid?.find((item) =>
