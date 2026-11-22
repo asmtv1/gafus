@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -9,12 +9,20 @@ import { Linking, Pressable, View } from "react-native";
 import { Text } from "react-native-paper";
 
 import { FONTS } from "@/shared/config";
-import { Button } from "@/shared/components/ui";
+import { Button, Input } from "@/shared/components/ui";
 import { apiClient } from "@/shared/lib/api/client";
 import { ensureOtaInstallationIdentity } from "@/shared/lib/ota/installationIdentity";
 import { appSubscriptionAppleApi } from "../api/appSubscriptionAppleApi";
-import type { AppSubscriptionOfferDto, AppSubscriptionPlanCode, AppSubscriptionPlanOfferDto } from "../api/appSubscriptionApi";
+import type { AppSubscriptionOfferDto, AppSubscriptionPlanCode, AppSubscriptionPlanOfferDto, AppSubscriptionPromoCodePreviewDto } from "../api/appSubscriptionApi";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
+import {
+  getPromoCodePricePresentation,
+  getPromoCodeStateMessage,
+  promoCodeStateFromErrorCode,
+  shouldBlockYookassaStartForPromo,
+  shouldShowSubscriptionPromoCode,
+  type PromoCodeUiState,
+} from "../lib/promoCodePresentation";
 import {
   PREMIUM_OFFLINE_BENEFIT,
   PREMIUM_PLAN_BENEFITS,
@@ -87,6 +95,12 @@ export function InternalCardCheckout({
 }: CardCheckoutProps & { androidQa?: boolean }) {
   const [selectedPlanCode, setSelectedPlanCode] = useState<AppSubscriptionPlanCode | null>(null);
   const [checking, setChecking] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoPreview, setPromoPreview] = useState<AppSubscriptionPromoCodePreviewDto | null>(null);
+  const [promoState, setPromoState] = useState<PromoCodeUiState>("idle");
+  const [promoBusy, setPromoBusy] = useState(false);
+  const savedPromoHandled = useRef(false);
+  const promoRequestGeneration = useRef(0);
   const offer = useQuery({
     queryKey: ["app-subscription", "internal-card", ownerKey],
     enabled: sameOwner(),
@@ -103,6 +117,64 @@ export function InternalCardCheckout({
     .slice()
     .sort((a, b) => PLAN_ORDER.indexOf(a.code) - PLAN_ORDER.indexOf(b.code));
   const selectedPlan = plans.find((plan) => plan.code === selectedPlanCode) ?? selectDefaultAppSubscriptionPlan(plans);
+  const promoPlanCode = selectedPlan?.code === "MONTHLY" || selectedPlan?.code === "THREE_MONTHS"
+    ? selectedPlan.code : null;
+  const showPromo = shouldShowSubscriptionPromoCode({
+    canUseYookassa: Boolean(androidQa ? data?.androidQaCardPaymentEnabled : data?.iosRuCardPaymentEnabled) && Boolean(promoPlanCode),
+    entryEnabled: data?.promoCode?.entryEnabled ?? false,
+    eligible: data?.promoCode?.eligible ?? false,
+  });
+  const promoPrice = promoPreview && promoPreview.planCode === promoPlanCode
+    && promoPreview.code.trim().toUpperCase() === promoInput.trim().toUpperCase()
+    ? getPromoCodePricePresentation(promoPreview) : null;
+  const promoError = !["idle", "checking", "applied"].includes(promoState);
+
+  async function applyPromo(raw = promoInput, planCode = promoPlanCode) {
+    if (!showPromo || !planCode || promoBusy || busy || !sameOwner()) return;
+    const promoCode = raw.trim();
+    if (!promoCode) {
+      setPromoPreview(null);
+      setPromoState("idle");
+      return;
+    }
+    const generation = ++promoRequestGeneration.current;
+    setPromoPreview(null);
+    setPromoBusy(true);
+    setPromoState("checking");
+    try {
+      const result = await apiClient<AppSubscriptionPromoCodePreviewDto>(
+        "/api/v1/app-subscription/promo-code/preview", {
+          method: "POST",
+          headers: await contextHeaders(),
+          body: { planCode, promoCode },
+          requestGuard: sameOwner,
+        },
+      );
+      if (!sameOwner() || generation !== promoRequestGeneration.current) return;
+      if (result.success && result.data && result.data.planCode === planCode) {
+        setPromoPreview(result.data);
+        setPromoState("applied");
+      } else {
+        setPromoState(promoCodeStateFromErrorCode(result.code));
+      }
+    } catch {
+      if (sameOwner() && generation === promoRequestGeneration.current) setPromoState("network_error");
+    } finally {
+      if (sameOwner() && generation === promoRequestGeneration.current) setPromoBusy(false);
+    }
+  }
+
+  // Reuse saved registration promo codes, without silently starting payment.
+  useEffect(() => {
+    if (!showPromo || !promoPlanCode || savedPromoHandled.current) return;
+    const saved = data?.savedRegistrationPromoCode;
+    if (!saved || saved.status !== "ACTIVE" || !saved.code.trim()) return;
+    savedPromoHandled.current = true;
+    const code = saved.code.trim();
+    setPromoInput(code);
+    void applyPromo(code, promoPlanCode);
+  }, [showPromo, promoPlanCode, data?.savedRegistrationPromoCode?.code, data?.savedRegistrationPromoCode?.status]);
+
   if (!sameOwner() || (!checking && !(androidQa ? data?.androidQaCardPaymentEnabled : data?.iosRuCardPaymentEnabled))) return null;
 
   async function checkStatus() {
@@ -131,17 +203,32 @@ export function InternalCardCheckout({
   }
 
   async function pay(planCode: AppSubscriptionPlanCode) {
+    const validPromo = showPromo && promoPreview?.planCode === planCode
+      && promoPreview.code.trim().toUpperCase() === promoInput.trim().toUpperCase()
+      ? promoPreview : null;
+    if (showPromo && shouldBlockYookassaStartForPromo({
+      hasPromoText: promoInput.trim().length > 0,
+      hasAppliedPreview: Boolean(validPromo) && promoState === "applied",
+    })) {
+      setPromoState("needs_apply");
+      return;
+    }
     const result = await apiClient<{ confirmationUrl: string }>(
       "/api/v1/app-subscription/yookassa/start",
       {
         method: "POST",
-        body: { planCode },
+        body: { planCode, ...(validPromo ? { promoCode: { code: validPromo.code, revision: validPromo.revision } } : {}) },
         headers: await contextHeaders(),
         requestGuard: sameOwner,
         skipAuthRefreshReplay: true,
       },
     );
     if (!sameOwner()) return;
+    if (!result.success && result.code?.startsWith("PROMO_")) {
+      setPromoPreview(null);
+      setPromoState(promoCodeStateFromErrorCode(result.code));
+      return;
+    }
     if (!result.success && result.code === "FEATURE_DISABLED") {
       await offer.refetch();
       if (sameOwner()) report("Оплата недоступна для этой версии.");
@@ -196,7 +283,16 @@ export function InternalCardCheckout({
                       selected && styles.planCardSelected,
                       pressed && styles.planCardPressed,
                     ]}
-                    onPress={() => setSelectedPlanCode(plan.code)}
+                    onPress={() => {
+                      if (selectedPlan?.code !== plan.code) {
+                        setSelectedPlanCode(plan.code);
+                        ++promoRequestGeneration.current;
+                        setPromoPreview(null);
+                        setPromoBusy(false);
+                        setPromoInput("");
+                        setPromoState("idle");
+                      }
+                    }}
                     disabled={busy}
                     accessibilityRole="radio"
                     accessibilityState={{ selected, checked: selected, disabled: busy }}
@@ -255,9 +351,73 @@ export function InternalCardCheckout({
           ) : (
             <Text style={styles.pendingText}>Подписка через ЮKassa сейчас недоступна.</Text>
           )}
+          {showPromo ? (
+            <View style={[styles.promoCard, promoState === "applied" && styles.promoCardApplied]}
+              accessibilityLabel="Промокод для первого платежа через ЮKassa">
+              {data?.savedRegistrationPromoCode && data.savedRegistrationPromoCode.status !== "ACTIVE" ? (
+                <Text style={[styles.promoMessage, styles.promoErrorMessage]} accessibilityRole="alert">
+                  Сохранённый промокод больше не действует. Примените другой или оставьте поле пустым.
+                </Text>
+              ) : null}
+              <View style={styles.promoHeadingRow}>
+                <Text style={styles.promoTitle}>Промокод</Text>
+                {promoPrice ? (
+                  <View style={styles.promoChip}>
+                    <Text style={styles.promoChipText}>{promoPrice.discount}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Input
+                value={promoInput}
+                label="Промокод"
+                placeholder="Например, GAFUS"
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="done"
+                maxLength={64}
+                disabled={busy || promoBusy}
+                onChangeText={(text) => {
+                  ++promoRequestGeneration.current;
+                  setPromoBusy(false);
+                  setPromoInput(text);
+                  setPromoPreview(null);
+                  setPromoState("idle");
+                }}
+                onSubmitEditing={() => void applyPromo()}
+                accessibilityLabel="Введите промокод"
+                style={styles.promoInput}
+              />
+              {getPromoCodeStateMessage(promoState) ? (
+                <Text style={[styles.promoMessage, promoError && styles.promoErrorMessage]}
+                  accessibilityRole={promoError ? "alert" : "text"}>
+                  {getPromoCodeStateMessage(promoState)}
+                </Text>
+              ) : null}
+              <Button
+                label={promoBusy ? "Проверяем…" : "Применить"}
+                height={47} fontFamily={FONTS.montserratBold}
+                fontSize={14} lineHeight={18} verticalPadding={0}
+                animatedPress loading={promoBusy}
+                disabled={!promoInput.trim() || busy || promoBusy}
+                onPress={() => void applyPromo()}
+              />
+              {promoPrice ? (
+                <View style={styles.promoPriceBlock}
+                  accessible accessibilityLabel={`${promoPrice.firstCharge}. ${promoPrice.nextCharge}. ${promoPrice.legal}`}>
+                  <Text style={styles.promoChargeLabel}>Сейчас спишется</Text>
+                  <View style={styles.promoPriceRow}>
+                    <Text style={styles.promoOriginalPrice}>{promoPrice.originalPrice}</Text>
+                    <Text style={styles.promoDiscountedPrice}>{promoPrice.discounted}</Text>
+                  </View>
+                  <Text style={styles.promoRenewal}>{promoPrice.nextCharge}</Text>
+                  <Text style={styles.promoFirstPaymentNotice}>{promoPrice.legal}</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
           {selectedPlan ? (
             <Button
-              label={getYookassaPrimaryCta(selectedPlan.yookassaPriceRub)}
+              label={promoPrice ? `Оплатить ${promoPrice.discounted} по СБП` : getYookassaPrimaryCta(selectedPlan.yookassaPriceRub)}
               icon={() => (
                 <Image
                   source={require("../../../../assets/images/sbp-logo.svg")}
