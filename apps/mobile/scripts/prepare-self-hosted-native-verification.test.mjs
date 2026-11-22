@@ -34,11 +34,17 @@ test('neither distribution nor physical device verification can be silently inve
     await assert.rejects(()=>prepareNativeVerification({native,evidence:{...evidence,...override},
       packageFile:binary}),/EXPLICIT_HUMAN_QA_EVIDENCE_REQUIRED/);
 });
-test('rejects production release, unknown key, or already-verified candidate',async()=>{
-  for(const override of [{verified:true},{environment:'production'},
+test('rejects conflicting environment, unknown key, or fully-verified candidate',async()=>{
+  for(const override of [{verified:true,embeddedUpdateId:crypto.randomUUID()},{environment:'production'},
     {signingKeyId:'not-our-key'},{id:'invalid'}])
     await assert.rejects(()=>prepareNativeVerification({native:{...native,...override},
       evidence,packageFile:binary}),/UNTRUSTED_NATIVE_DESCRIPTOR/);
+});
+test('permits explicit legacy embedded-ID backfill for a previously verified native',async()=>{
+  const result=await prepareNativeVerification({native:{...native,verified:true,embeddedUpdateId:null},
+    evidence,packageFile:binary});
+  assert.equal(result.action,'VERIFY');
+  assert.equal(result.evidence.nativeArtifactSha256,crypto.createHash('sha256').update(payload).digest('hex'));
 });
 test('rejects replacing trusted native cert, runtime, origin or app id',async()=>{
   for(const override of [{certificatePem:cert+'\n'},
