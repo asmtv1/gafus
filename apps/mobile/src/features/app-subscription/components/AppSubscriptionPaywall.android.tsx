@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Linking, Modal, ScrollView, StyleSheet, View } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ErrorCode, getAvailablePurchases, initConnection, purchaseErrorListener, purchaseUpdatedListener, requestPurchase, type Purchase } from "expo-iap";
 import { StatusBar } from "expo-status-bar";
@@ -11,6 +12,8 @@ import { FONTS } from "@/shared/config";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { appSubscriptionGoogleApi } from "../api/appSubscriptionGoogleApi";
+import { appSubscriptionApi } from "../api/appSubscriptionApi";
+import { isGooglePlayPaymentPending, isOtherProviderPaymentPending } from "../lib/googlePlayPaywallState";
 import { APP_SUBSCRIPTION_LEGAL_LINKS } from "../legal-links";
 import { loadGooglePlayOffers } from "../lib/googlePlayOffers";
 import { selectGooglePlayPurchaseTokens } from "../lib/googlePlayPurchaseTokens";
@@ -34,7 +37,6 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
   const [waiting, setWaiting] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [selection, setSelection] = useState<string>();
   const locked = useRef(false);
   const dispatched = useRef(false);
   const mounted = useRef(true);
@@ -54,7 +56,7 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
     queryKey: ["app-subscription", "status", ownerId, authEpoch],
     enabled: Boolean(authEpoch),
     queryFn: () => appSubscriptionGoogleApi.getStatus(sameOwner),
-    refetchInterval: (query) => pending || query.state.data?.data?.status === "PENDING" ? 15_000 : false,
+    refetchInterval: (query) => isGooglePlayPaymentPending(query.state.data?.data, pending) ? 15_000 : false,
   });
   const catalog = useQuery({
     queryKey: ["app-subscription", "google-catalog", ownerId, authEpoch],
@@ -72,6 +74,18 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
     queryFn: () => loadGooglePlayOffers(catalog.data?.plans ?? []),
     retry: false,
   });
+  // Only feature metadata is read from the shared subscription offer.
+  // All prices, periods and purchase tokens come exclusively from Google Play.
+  const benefitsQuery = useQuery({
+    queryKey: ["app-subscription", "google-benefits", ownerId, authEpoch],
+    enabled: Boolean(authEpoch),
+    queryFn: () => appSubscriptionApi.getOffer(sameOwner),
+    staleTime: 5 * 60_000,
+  });
+  const premiumBenefits = benefitsQuery.data?.success
+    ? (benefitsQuery.data.data?.yookassaPlans ?? benefitsQuery.data.data?.plans ?? [])
+      .find((plan) => plan.code === "THREE_MONTHS")
+    : null;
 
   const refresh = useCallback(async () => {
     if (!sameOwner()) return;
@@ -139,7 +153,7 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
 
   const offers = store.data ?? [];
   const loadError = catalog.isError || store.isError;
-  const selected = offers.find((item) => item.offerToken === selection) ?? offers[0];
+  const selected = offers[0];
   async function buy() {
     if (!selected || !catalog.data || !sameOwner() || dispatched.current || locked.current) return;
     dispatched.current = true;
@@ -165,7 +179,8 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
   const status = statusQuery.data?.success ? statusQuery.data.data : null;
   const active = status?.hasActiveSubscription === true;
   const controlsBusy = busy || waiting;
-  const hasPendingPayment = pending || status?.status === "PENDING";
+  const hasPendingPayment = isGooglePlayPaymentPending(status, pending);
+  const otherPendingPayment = isOtherProviderPaymentPending(status);
   useEffect(() => {
     if (pending && status && status.status !== "PENDING") {
       setPending(false);
@@ -179,67 +194,126 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
         <ScrollView contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + 14, 58) }]}>
           <View style={styles.inner}>
             <AppBackButton onPress={close} />
-            <Text style={styles.brand}>GAFUS PREMIUM</Text>
-            <View style={styles.card}>
-              <Text style={styles.title}>{active ? "Premium активен" : "Подписка через Google Play"}</Text>
-              {active ? (
-                <>
-                  {status.activeUntil ? <Text>Доступ до {new Date(status.activeUntil).toLocaleDateString("ru-RU")}</Text> : null}
-                  {status.provider === "YOOKASSA" && !status.cancelAtPeriodEnd ? (
-                    <Button label="Отключить автопродление" disabled={controlsBusy} onPress={() => void withLock(async () => {
-                      const result = await appSubscriptionGoogleApi.cancelExistingYookassaRenewal(sameOwner);
-                      if (!result.success) throw new Error("CANCEL_RENEWAL");
-                      await refresh();
-                    })} />
-                  ) : null}
-                </>
-              ) : (
-                <>
-                  <Text>Курсы, экзамены, статьи и дополнительные возможности Premium.</Text>
-                  {offers.map((item) => (
-                    <Button key={item.productId + ":" + item.basePlanId} label={item.title + " · " + item.price + " / " + item.period}
-                      variant={selected === item ? "selected" : "outline"} disabled={controlsBusy}
-                      onPress={() => setSelection(item.offerToken)} />
-                  ))}
-                  {catalog.isFetching || store.isFetching ? <Text>Загружаем цены Google Play…</Text> : null}
-                  {loadError ? (
-                    <>
-                      <Text accessibilityRole="alert">Не удалось загрузить цену из Google Play. Проверьте подключение и доступность подписки для аккаунта.</Text>
-                      <Button label="Повторить загрузку тарифов" disabled={controlsBusy}
-                        onPress={() => void (catalog.isError ? catalog.refetch() : store.refetch())} />
-                    </>
-                  ) : !catalog.isFetching && !store.isFetching && !offers.length ? (
-                    <>
-                      <Text accessibilityRole="alert">Тариф Google Play недоступен для этого аккаунта или страны.</Text>
-                      <Button label="Повторить загрузку тарифов" disabled={controlsBusy}
-                        onPress={() => void catalog.refetch().then(() => store.refetch())} />
-                    </>
-                  ) : null}
-                  {selected ? <Text style={styles.legal}>Подписка автоматически продлевается по цене {selected.price} каждые {selected.period}, пока вы её не отмените. Управление и отмена — в Google Play.</Text> : null}
-                  <Button label="Оформить через Google Play" disabled={controlsBusy || hasPendingPayment || !selected || !status || !sameOwner()}
-                    onPress={() => void buy()} />
-                </>
-              )}
+            <View style={styles.header}>
+              <Text style={styles.brand}>GAFUS PREMIUM</Text>
             </View>
+            {active ? (
+              <View style={styles.planCard}>
+                <Text style={styles.sectionTitle}>Premium активен</Text>
+                {status?.activeUntil ? <Text style={styles.cardSubtitle}>Доступ до {new Date(status.activeUntil).toLocaleDateString("ru-RU")}</Text> : null}
+                {status?.provider === "YOOKASSA" && !status.cancelAtPeriodEnd ? (
+                  <Button label="Отключить автопродление" disabled={controlsBusy} onPress={() => void withLock(async () => {
+                    const result = await appSubscriptionGoogleApi.cancelExistingYookassaRenewal(sameOwner);
+                    if (!result.success) throw new Error("CANCEL_RENEWAL");
+                    await refresh();
+                  })} />
+                ) : null}
+              </View>
+            ) : (
+              <View style={styles.providerSection}>
+                <Text style={styles.sectionTitle}>Подписка через Google Play</Text>
+                <View style={[styles.planCard, styles.planCardSelected]}>
+                  <View style={styles.planTopRow}>
+                    <View style={styles.planTitleBlock}>
+                      <Text style={styles.cardTitle}>Полное сопровождение</Text>
+                      <Text style={styles.cardSubtitle}>{selected?.period ?? "1 мес."} · автопродление</Text>
+                    </View>
+                    <View style={styles.badgeChip}>
+                      <Text style={styles.badgeChipText}>Premium</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.planPrice}>{selected?.price ?? "—"}</Text>
+                  <View style={styles.selectedRow}>
+                    <MaterialCommunityIcons name="radiobox-marked" size={23} color="#636128" />
+                    <Text style={styles.selectedLabel}>Ваш тариф</Text>
+                  </View>
+                  <View style={styles.benefits}>
+                    <BenefitRow label="Курсы, экзамены и статьи" included />
+                    <BenefitRow label="Документы и напоминания" included />
+                    <BenefitRow label="Скачивание курсов для офлайн-работы"
+                      included={premiumBenefits?.offlineCourseDownloadIncluded ?? true} />
+                    {premiumBenefits ? (
+                      <>
+                        <BenefitRow label="Чат с кинологом" included={Boolean(premiumBenefits.cynologistChatIncluded)} />
+                        <BenefitRow label="Запись к кинологу" included={premiumBenefits.consultationBookingIncluded} />
+                      </>
+                    ) : (
+                      <Text style={styles.cardSubtitle}>Уточняем доступность консультаций с кинологом…</Text>
+                    )}
+                  </View>
+                </View>
+                {catalog.isFetching || store.isFetching ? (
+                  <Text style={styles.muted}>Загружаем актуальную цену Google Play…</Text>
+                ) : null}
+                {loadError || (!catalog.isFetching && !store.isFetching && !offers.length) ? (
+                  <View style={styles.notice}>
+                    <Text style={styles.errorText} accessibilityRole="alert">
+                      {loadError ? "Не удалось загрузить тариф из Google Play."
+                        : "Google Play не вернул доступное предложение для этого аккаунта или страны."}
+                    </Text>
+                    <Button label="Повторить загрузку" disabled={controlsBusy}
+                      onPress={() => void (catalog.isError || !catalog.data
+                        ? catalog.refetch()
+                        : store.refetch())} />
+                  </View>
+                ) : null}
+                {otherPendingPayment ? (
+                  <Text style={styles.noticeText} accessibilityRole="alert">
+                    У вас есть незавершённая оплата другим способом. Перед новой покупкой убедитесь, что деньги по ней не списались.
+                  </Text>
+                ) : null}
+                {hasPendingPayment ? (
+                  <Text style={styles.noticeText} accessibilityRole="alert">
+                    Google Play ещё подтверждает предыдущую покупку. Повторная оплата временно недоступна.
+                  </Text>
+                ) : null}
+                {statusQuery.isError || (!status && !statusQuery.isFetching) ? (
+                  <View style={styles.notice}>
+                    <Text style={styles.errorText} accessibilityRole="alert">
+                      Не удалось проверить статус подписки.
+                    </Text>
+                    <Button label="Проверить статус" onPress={() => void statusQuery.refetch()} />
+                  </View>
+                ) : null}
+                <Button
+                  label="Оформить через Google Play"
+                  disabled={controlsBusy || hasPendingPayment || !selected || !status || !sameOwner()}
+                  onPress={() => void buy()}
+                />
+                {selected ? (
+                  <Text style={styles.providerCaption}>
+                    {selected.price} за {selected.period}. Подписка автоматически продлевается,
+                    пока вы её не отмените. Оплата и отмена — через Google Play.
+                  </Text>
+                ) : null}
+              </View>
+            )}
             {ownerId && authEpoch && status && !active && !hasPendingPayment ? <OptionalCardCheckout
               ownerKey={ownerId + authEpoch} sameOwner={sameOwner} busy={controlsBusy}
               withLock={withLock} refresh={refresh} report={setMessage} /> : null}
-            <Button label="Восстановить покупки" disabled={busy || !catalog.data || !sameOwner()}
-              onPress={() => {
-                dispatched.current = false;
-                setWaiting(false);
-                void withLock(async () => {
-                  if (!await initConnection() || !sameOwner()) throw new Error("GOOGLE_PLAY_CONNECTION");
-                  await verify(await getAvailablePurchases(), true);
-                });
-              }} />
-            <Button label="Управлять в Google Play" onPress={() => void Linking.openURL(
-              "https://play.google.com/store/account/subscriptions?package=ru.gafus.app",
-            ).catch(() => setMessage("Не удалось открыть Google Play."))} />
-            <Text style={styles.legal} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}>Условия использования и оплаты</Text>
-            <Text style={styles.legal} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}>Политика конфиденциальности</Text>
-            {message ? <Text accessibilityRole="alert">{message}</Text> :
-              hasPendingPayment ? <Text accessibilityRole="alert">Ожидаем подтверждения оплаты.</Text> : null}
+            <View style={styles.secondaryActions}>
+              <Button label="Восстановить покупки" disabled={busy || !catalog.data || !sameOwner()}
+                onPress={() => {
+                  dispatched.current = false;
+                  setWaiting(false);
+                  void withLock(async () => {
+                    if (!await initConnection() || !sameOwner()) throw new Error("GOOGLE_PLAY_CONNECTION");
+                    await verify(await getAvailablePurchases(), true);
+                  });
+                }} />
+              <Button label="Управлять в Google Play" onPress={() => void Linking.openURL(
+                "https://play.google.com/store/account/subscriptions?package=ru.gafus.app",
+              ).catch(() => setMessage("Не удалось открыть Google Play."))} />
+            </View>
+            <View style={styles.legalLinks}>
+              <Text style={styles.legal} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.publicOffer)}>
+                Условия использования и оплаты
+              </Text>
+              <Text style={styles.legal} onPress={() => void Linking.openURL(APP_SUBSCRIPTION_LEGAL_LINKS.privacyPolicy)}>
+                Политика конфиденциальности
+              </Text>
+            </View>
+            {message ? <Text style={styles.noticeText} accessibilityRole="alert">{message}</Text> : null}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -247,12 +321,60 @@ function GooglePlayPaywall({ ownerId, authEpoch }: { ownerId?: string; authEpoch
   );
 }
 
+function BenefitRow({ label, included }: { label: string; included: boolean }) {
+  return (
+    <View style={styles.benefitRow}>
+      <MaterialCommunityIcons
+        name={included ? "check-circle" : "close-circle-outline"}
+        size={19}
+        color={included ? "#636128" : "#8E6256"}
+      />
+      <Text style={[styles.benefitText, !included && styles.benefitTextUnavailable]}>
+        {label}{included ? "" : " — недоступно"}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#F6F0DF" },
   content: { flexGrow: 1, paddingHorizontal: 18, paddingBottom: 28 },
-  inner: { width: "100%", maxWidth: 640, alignSelf: "center", gap: 18 },
-  brand: { fontFamily: FONTS.impact, fontSize: 30, color: "#636128", textAlign: "center" },
-  card: { backgroundColor: "#FFFDF5", borderRadius: 22, padding: 22, gap: 16 },
-  title: { fontFamily: FONTS.montserratBold, fontSize: 21, color: "#352E2E" },
-  legal: { fontFamily: FONTS.montserrat, color: "#636128", textDecorationLine: "underline" },
+  inner: { width: "100%", maxWidth: 640, alignSelf: "center", gap: 14 },
+  header: { alignItems: "center", paddingVertical: 4 },
+  brand: { fontFamily: FONTS.impact, fontSize: 28, lineHeight: 33, color: "#C9A646", textAlign: "center" },
+  providerSection: { gap: 12 },
+  sectionTitle: { fontFamily: FONTS.montserratBold, fontSize: 21, lineHeight: 27, color: "#352E2E" },
+  planCard: {
+    backgroundColor: "#FFFDF5", borderRadius: 24, borderCurve: "continuous",
+    borderWidth: 1, borderColor: "rgba(99, 97, 40, 0.10)", borderTopColor: "rgba(255, 255, 255, 0.96)",
+    padding: 18, gap: 14, boxShadow: "0 8px 14px rgba(53, 52, 16, 0.24)", elevation: 7,
+  },
+  planCardSelected: {
+    borderWidth: 2, borderColor: "#636128", borderTopColor: "#D6AF43", backgroundColor: "#F0F3DF",
+    boxShadow: "0 10px 18px rgba(53, 52, 16, 0.30)", elevation: 9,
+  },
+  planTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
+  planTitleBlock: { flex: 1, gap: 3 },
+  cardTitle: { color: "#352E2E", fontFamily: FONTS.montserratBold, fontSize: 21, lineHeight: 27 },
+  cardSubtitle: { color: "#756D65", fontFamily: FONTS.montserrat, fontSize: 13, lineHeight: 19 },
+  planPrice: { color: "#352E2E", fontFamily: FONTS.impact, fontSize: 30, lineHeight: 35, fontVariant: ["tabular-nums"] },
+  badgeChip: { borderRadius: 15, paddingHorizontal: 12, minHeight: 30, justifyContent: "center", backgroundColor: "#636128" },
+  badgeChipText: { color: "#FFF9EA", fontFamily: FONTS.montserratBold, fontSize: 11 },
+  selectedRow: {
+    alignSelf: "flex-start", minHeight: 38, flexDirection: "row", alignItems: "center", gap: 7,
+    borderRadius: 19, paddingHorizontal: 9, backgroundColor: "rgba(99, 97, 40, 0.12)",
+  },
+  selectedLabel: { color: "#636128", fontFamily: FONTS.montserratMedium, fontSize: 13 },
+  benefits: { borderTopColor: "rgba(99, 97, 40, 0.14)", borderTopWidth: 1, paddingTop: 13, gap: 9 },
+  benefitRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  benefitText: { color: "#352E2E", fontFamily: FONTS.montserrat, fontSize: 13, lineHeight: 19, flexShrink: 1 },
+  benefitTextUnavailable: { color: "#8E6256" },
+  providerCaption: { color: "#756D65", fontFamily: FONTS.montserrat, fontSize: 12, lineHeight: 18 },
+  muted: { color: "#756D65", fontFamily: FONTS.montserrat, fontSize: 13 },
+  notice: { gap: 9 },
+  noticeText: { color: "#756D65", fontFamily: FONTS.montserrat, fontSize: 13, lineHeight: 19 },
+  errorText: { color: "#9B483B", fontFamily: FONTS.montserratMedium, fontSize: 13, lineHeight: 19 },
+  secondaryActions: { gap: 9 },
+  legalLinks: { alignItems: "center", gap: 12, paddingVertical: 4 },
+  legal: { fontFamily: FONTS.montserrat, color: "#636128", textDecorationLine: "underline", fontSize: 13 },
 });
