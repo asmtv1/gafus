@@ -128,10 +128,10 @@ export function validateSignedOtaCiResult(
       manifest.extra?.expoClient?.extra?.otaNativeReleaseId !== native.id ||
       manifest.extra?.expoClient?.extra?.otaNativeFingerprint !== native.nativeFingerprint ||
       (publication.data.recoveryFor !== null && (publication.data.recoveryFor >= result.revision || publication.data.allowsCheckout)) ||
-      (publication.data.allowsCheckout && (native.distribution !== "internal" ||
+      (publication.data.allowsCheckout && !(native.distribution === "internal" || (native.platform === "ios" && native.distribution === "app-store" && native.runtimeVersion === "1.7.5")) ||
         native.environment !== "production" || native.channel !== "production" ||
         !UUID.safeParse(native.embeddedUpdateId).success ||
-        !/^\d+\.\d+\.\d+$/.test(native.runtimeVersion)))))
+        !/^\d+\.\d+\.\d+$/.test(native.runtimeVersion))))
     throw new MobileOtaCiError("INVALID_SIGNED_PUBLICATION");
   const expectedAssets = [manifest.launchAsset, ...manifest.assets];
   if (expectedAssets.length !== result.artifacts.length)

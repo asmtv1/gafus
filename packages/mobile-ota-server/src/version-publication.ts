@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { mayPublishCheckoutToAll } from "./checkout-audience.js";
 import {
   withVersionPublicationTransaction,
   versionPublicationReader,
@@ -41,7 +42,7 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
           .filter(
             (r) =>
               r.verified &&
-              (!first.checkout || r.distribution === "internal") &&
+              (!first.checkout || r.distribution === "internal" || (scope.platform === "ios" && scope.runtimeVersion === "1.7.5" && r.distribution === "app-store")) &&
               (first.recoveryFor === null ||
                 ((active?.revision === first.recoveryFor || recoveryPublished) &&
                   priorNatives.has(r.nativeId))),
@@ -49,6 +50,7 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
           .map((r) => r.nativeId),
       );
       const ready = group.filter((r) => r.ready && targets.has(r.nativeId));
+      const publicAppStoreReady = ready.some((r) => r.distribution === "app-store");
       const ids = ready.map((r) => r.id!);
       const expanded =
         active?.action === "TEST" &&
@@ -62,6 +64,7 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
         revision: first.revision,
         recoveryFor: first.recoveryFor,
         checkout: first.checkout,
+        publicAppStoreReady,
         ids,
         nativeIds: ready.map((r) => r.nativeId),
         compatible: ids.length,
@@ -171,8 +174,14 @@ async function transition(input: PublishInput, stop: boolean) {
             ? "Новые платежи остановлены. Нужен подписанный пакет отката для всех подтверждённых сборок."
             : "Для каждой подтверждённой сборки нужен совместимый подписанный пакет.",
         );
-      if (c.checkout && input.action === "ALL")
-        throw new PublicationError("Пакет с внутренней оплатой доступен только тестерам.");
+      if (c.checkout && input.action === "ALL") {
+        if (input.platform === "ios" && input.runtimeVersion === "1.7.5" && !c.publicAppStoreReady)
+          throw new PublicationError("Для публичной оплаты нужна подписанная и подтверждённая App Store-сборка.");
+        if (input.platform !== "ios" || input.runtimeVersion !== "1.7.5")
+          throw new PublicationError("Пакет с внутренней оплатой доступен только тестерам.");
+        if (!mayPublishCheckoutToAll(input, process.env.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED))
+          throw new PublicationError("Массовая оплата через ЮKassa запрещена без явного разрешения на выпуск.");
+      }
       if (input.action === "ALL" && !c.tested)
         throw new PublicationError("Сначала выпустите этот набор тестерам.");
       if (input.action !== "ALL" && !c.newer && !(input.action === "TEST" && c.expanded))

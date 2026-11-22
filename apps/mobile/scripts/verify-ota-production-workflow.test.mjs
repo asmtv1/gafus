@@ -28,6 +28,15 @@ test('OTA production release is manually dispatched from owner main with product
   assert.match(step('fully typed target')?.run??'',/OTA_EXPECTED_RUNTIME/);
   assert.deepEqual(Object.keys(wf.on), ['workflow_dispatch']);
 });
+test('iOS 1.7.5 release can only use the pinned legacy native-compatible branch',()=>{
+  const run=step('Verify approved commit and fully typed target inputs')?.run ?? '';
+  assert.match(run,/OTA_PLATFORM.*== ios &&.*OTA_EXPECTED_RUNTIME.*== 1\.7\.5/);
+  assert.match(run,/ios-public-yookassa.*standard/);
+  assert.match(run,/refs\/heads\/release\/ios-175-yookassa-ota/);
+  assert.match(run,/git rev-parse refs\/remotes\/origin\/release\/ios-175-yookassa-ota/);
+  assert.match(run,/git merge-base --is-ancestor.*origin\/main/);
+  assert.match(step('Resolve verified production native trust')?.run??'',/git merge-base --is-ancestor "\$native_sha" "\$OTA_SOURCE_SHA"/);
+});
 test('release pins true production RSA native trust and immutable S3 asset prefix',()=>{
   assert.match(step('Resolve verified production native trust')?.run??'',/verify-ota-production-native-trust\.mjs/);
   assert.match(step('Resolve verified production native trust')?.run??'',/" production "/);
