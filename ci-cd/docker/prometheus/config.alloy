@@ -113,9 +113,13 @@ prometheus.remote_write "uptrace" {
     url = "https://api.uptrace.dev/api/v1/prometheus/write"
     // Avoid broken HTTP/2 connections on the production Uptrace egress path.
     enable_http2 = false
+    // Uptrace Cloud occasionally takes longer than the 30s default to accept a batch.
+    // Keep one sender: resharding cancelled an in-flight batch on 2026-11-23.
+    remote_timeout = "90s"
     headers = {"uptrace-dsn" = sys.env("GAFUS_UPTRACE_INGEST_DSN")}
     queue_config {
-      max_shards = 2
+      min_shards = 1
+      max_shards = 1
       capacity = 5000
       max_samples_per_send = 1000
       batch_send_deadline = "15s"
