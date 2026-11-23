@@ -28,7 +28,7 @@ import {
   mobileIntroFilterFromSearch,
   mobileIntroReportUrl,
 } from "./MobileIntroPanel";
-import { AdminCacheSection, AdminStorageSection, MailPanel, StoragePanel } from "./SystemPanels";
+import { AdminCacheSection, MailPanel, StoragePanel } from "./SystemPanels";
 import { ChatOutboxPanel } from "./ChatOutboxPanel";
 import { SubscriptionPanel } from "./SubscriptionPanels";
 import { UsersPanel } from "./UserManagement";
@@ -581,7 +581,6 @@ function Section({
       {section.key === "admin" && (
         <AdminCacheSection canChange={actor.role === "ADMIN" || actor.role === "MODERATOR"} />
       )}
-      {section.key === "admin" && actor.role === "ADMIN" && <AdminStorageSection />}
       {actor.role === "ADMIN" && section.key === "profit" && !loading && !error && data !== undefined && (
         <ProfitExpenses source={data} onSaved={reload} />
       )}
