@@ -11,7 +11,10 @@ describe("public checkout fail-closed policy", () => {
     expect(mayPublishCheckoutToAll(ios, "false")).toBe(false);
     expect(mayPublishCheckoutToAll(ios, "true")).toBe(true);
     expect(mayPublishCheckoutToAll({ platform: "ios", runtimeVersion: "1.7.6" }, "true")).toBe(false);
-    expect(mayPublishCheckoutToAll({ platform: "android", runtimeVersion: "1.7.5" }, "true")).toBe(false);
+    expect(mayPublishCheckoutToAll({ platform: "android", runtimeVersion: "1.7.5" }, undefined)).toBe(false);
+    expect(mayPublishCheckoutToAll({ platform: "android", runtimeVersion: "1.7.5" }, "false")).toBe(false);
+    expect(mayPublishCheckoutToAll({ platform: "android", runtimeVersion: "1.7.5" }, "true")).toBe(true);
+    expect(mayPublishCheckoutToAll({ platform: "android", runtimeVersion: "1.7.6" }, "true")).toBe(false);
   });
   it("keeps TEST independent of public approval", () => {
     expect(mayOfferCheckoutToAudience(ios, internal, undefined)).toBe(true);
@@ -25,6 +28,7 @@ describe("public checkout fail-closed policy", () => {
     expect(mayOfferCheckoutToAudience(ios, { ...published, publicationAction: "RECOVER" }, "true")).toBe(false);
     expect(mayOfferCheckoutToAudience(ios, { ...published, publishedToAll: false }, "true")).toBe(false);
     expect(mayOfferCheckoutToAudience({ platform: "ios", runtimeVersion: "1.7.6" }, published, "true")).toBe(false);
-    expect(mayOfferCheckoutToAudience({ platform: "android", runtimeVersion: "1.7.5" }, published, "true")).toBe(false);
+    expect(mayOfferCheckoutToAudience({ platform: "android", runtimeVersion: "1.7.5" }, published, "true")).toBe(true);
+    expect(mayOfferCheckoutToAudience({ platform: "android", runtimeVersion: "1.7.6" }, published, "true")).toBe(false);
   });
 });

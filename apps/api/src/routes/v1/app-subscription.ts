@@ -21,7 +21,7 @@ import { getClientAppContext } from "../../lib/client-app-context.js";
 
 import { GooglePlayError } from "../../modules/app-subscription/google-play-client.js";
 import { prepareGooglePlay, syncGooglePlayPurchase } from "../../modules/app-subscription/google-play-service.js";
-import {allowsAndroidQaCheckout, allowsVersionCheckout} from "@gafus/mobile-ota-server/version-selection";
+import {allowsAndroidQaCheckout, allowsAndroidRustoreCheckout, allowsVersionCheckout} from "@gafus/mobile-ota-server/version-selection";
 function iosCheckout(c:Context,version:string|null){
   return allowsVersionCheckout(c.get("user").id,version,c.req.header("x-ota-installation"),
     c.req.header("x-ota-fingerprint"),c.req.header("x-ota-update"));
@@ -32,6 +32,12 @@ function androidQaCheckout(c: Context, version: string | null) {
       process.env.MOBILE_OTA_ANDROID_QA_YOOKASSA_SHOP_ID !== process.env.YOOKASSA_SHOP_ID) return false;
   return allowsAndroidQaCheckout(c.get("user").id, version, c.req.header("x-ota-installation"),
     c.req.header("x-ota-fingerprint"), c.req.header("x-ota-update"));
+}
+
+function androidRustoreCheckout(c: Context, version: string | null) {
+  return allowsAndroidRustoreCheckout(c.get("user").id, version,
+    c.req.header("x-ota-installation"), c.req.header("x-ota-fingerprint"),
+    c.req.header("x-ota-update"));
 }
 
 function legacyAndroidCheckout(userId: string, version: string | null) {
@@ -137,6 +143,10 @@ appSubscriptionRoutes.get("/offer", async (c) => {
     const clientContext = getClientAppContext(c);
     const signedIosCheckout = clientContext.platform === "ios"
       && await iosCheckout(c, clientContext.version);
+    const signedRustoreCheckout = clientContext.platform === "android" &&
+      Boolean(c.req.header("x-ota-update")) && await androidRustoreCheckout(c, clientContext.version);
+    const androidQaEnabled = clientContext.platform === "android" &&
+      Boolean(c.req.header("x-ota-update")) && await androidQaCheckout(c, clientContext.version);
     const verifiedContext = signedIosCheckout
       ? { ...clientContext, verifiedIosYookassaPromo: true as const }
       : clientContext;
@@ -149,7 +159,10 @@ appSubscriptionRoutes.get("/offer", async (c) => {
         ? { ...data, iosRuCardPaymentEnabled: signedIosCheckout,
             promoCode: signedIosCheckout ? data.promoCode : { ...data.promoCode, entryEnabled: false, eligible: false } }
         : clientContext.platform === "android" && c.req.header("x-ota-update")
-          ? { ...data, androidQaCardPaymentEnabled: await androidQaCheckout(c, clientContext.version) }
+          ? { ...data, androidQaCardPaymentEnabled: androidQaEnabled,
+              androidRustoreCardPaymentEnabled: signedRustoreCheckout,
+              promoCode: signedRustoreCheckout || androidQaEnabled ? data.promoCode
+                : { ...data.promoCode, entryEnabled: false, eligible: false } }
           : data,
     });
   } catch (error) {
@@ -204,7 +217,8 @@ appSubscriptionRoutes.post("/yookassa/start", async (c) => {
     const platform = clientContext.platform;
     const qa = platform === "android" && !!c.req.header("x-ota-update");
     const checkoutAllowed = platform === "ios" ? await iosCheckout(c, clientContext.version)
-      : qa ? await androidQaCheckout(c, clientContext.version)
+      : qa ? (await androidRustoreCheckout(c, clientContext.version) ||
+          await androidQaCheckout(c, clientContext.version))
       : platform === "android" ? legacyAndroidCheckout(user.id, clientContext.version)
       // Browser checkout uses the authenticated cookie transport and origin checks.
       : !c.req.header("authorization");

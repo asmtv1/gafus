@@ -1,4 +1,4 @@
-/** Signed OTA checkout audience gates. ALL is iOS App Store 1.7.5 only; fail closed. */
+/** Signed OTA checkout audience gates. Public checkout is limited to app-store iOS or RuStore Android 1.7.5. */
 export type CheckoutScope = { platform: "ios" | "android"; runtimeVersion: string };
 export type CheckoutAudience = {
   allowsCheckout: boolean;
@@ -8,7 +8,8 @@ export type CheckoutAudience = {
 };
 
 export function mayPublishCheckoutToAll(scope: CheckoutScope, approval: string | undefined): boolean {
-  return scope.platform === "ios" && scope.runtimeVersion === "1.7.5" && approval === "true";
+  return scope.runtimeVersion === "1.7.5" &&
+    (scope.platform === "ios" || scope.platform === "android") && approval === "true";
 }
 
 export function mayOfferCheckoutToAudience(
