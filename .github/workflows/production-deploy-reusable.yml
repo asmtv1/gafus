@@ -641,6 +641,10 @@ jobs:
               echo "MOBILE_OTA_IOS_YOOKASSA_ENABLED=${{ vars.MOBILE_OTA_IOS_YOOKASSA_ENABLED == 'true' && 'true' || 'false' }}"
               echo "MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED=${{ vars.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED == 'true' && 'true' || 'false' }}"
               echo "MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED=${{ vars.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED == 'true' && 'true' || 'false' }}"
+              # Separate opt-in for RuStore Android 1.7.5; unset defaults to false.
+              echo "MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_ENABLED=${{ vars.MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_ENABLED == 'true' && 'true' || 'false' }}"
+              echo "MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_ENABLED=${{ vars.MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_ENABLED == 'true' && 'true' || 'false' }}"
+              echo "MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_PUBLISH_APPROVED=${{ vars.MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_PUBLISH_APPROVED == 'true' && 'true' || 'false' }}"
               # Store update gate is independent from the signed OTA policy.
               # Preserve production iOS minimum across deploys; Android is unchanged.
               echo "MOBILE_IOS_MIN_VERSION=${{ vars.MOBILE_IOS_MIN_VERSION || '1.7.2' }}"
