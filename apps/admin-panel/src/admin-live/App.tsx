@@ -552,6 +552,7 @@ function Section({
           "bookings",
           "trainers-schedules",
           "feature-flags",
+          "admin",
         ].includes(section.key) && (
           <div className="content-card">
             <DataPanel data={data} title={section.title} />
@@ -568,20 +569,21 @@ function Section({
           onNavigate={onNavigate}
         />
       )}
+      {!error && !loading && data !== undefined && section.key === "admin" && (
+        <PricingEditor
+          key={epoch}
+          source={data}
+          canChange={actor.role === "ADMIN"}
+          // PricingEditor re-reads after save, keeping its success feedback visible.
+          onSaved={() => undefined}
+        />
+      )}
       {section.key === "admin" && (
         <AdminCacheSection canChange={actor.role === "ADMIN" || actor.role === "MODERATOR"} />
       )}
       {section.key === "admin" && actor.role === "ADMIN" && <AdminStorageSection />}
       {actor.role === "ADMIN" && section.key === "profit" && !loading && !error && data !== undefined && (
         <ProfitExpenses source={data} onSaved={reload} />
-      )}
-      {!error && !loading && data !== undefined && section.key === "admin" && (
-        <PricingEditor
-          key={epoch}
-          source={data}
-          canChange={actor.role === "ADMIN"}
-          onSaved={reload}
-        />
       )}
       {!loading && !error && data !== undefined && section.key === "mobile-ota" && (
         <MobileReleasesPanel source={data} />
