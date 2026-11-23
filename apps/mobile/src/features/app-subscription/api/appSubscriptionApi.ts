@@ -62,6 +62,7 @@ export type AppSubscriptionOfferDto = {
   appleAppAccountToken: string | null;
   iosRuCardPaymentEnabled: boolean;
   androidQaCardPaymentEnabled?: boolean;
+  androidRustoreCardPaymentEnabled?: boolean;
   promoCode: {
     entryEnabled: boolean;
     eligible: boolean;

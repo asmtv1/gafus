@@ -6,7 +6,9 @@ import { checkoutComponent, paymentProfile } from "./ota-payment-profile.mjs";
 
 const root = fileURLToPath(new URL("../src/", import.meta.url));
 const components = path.join(root, "features/app-subscription/components");
-const checkout = checkoutComponent(paymentProfile());
+const selectedProfile = paymentProfile();
+const checkout = checkoutComponent(selectedProfile);
+const rustore = selectedProfile === "android-rustore-yookassa";
 const platform = process.env.GAFUS_OTA_TARGET_PLATFORM;
 if (!["ios", "android"].includes(platform) || (checkout && platform !== process.env.OTA_PLATFORM))
   throw Error("OTA_EXPORT_CHECKOUT_CONTEXT_REQUIRED");
@@ -16,6 +18,15 @@ if (!["ios", "android"].includes(platform) || (checkout && platform !== process.
 config.cacheVersion = `gafus-ota-${randomUUID()}`;
 const resolve = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, name, targetPlatform) => {
+  // One signed OTA release replaces ONLY the RuStore payment entrypoint. Never
+  // alter the Google Play binary, its standard OTA, or native billing modules.
+  if (rustore && targetPlatform === "android" &&
+      context.originModulePath === path.join(components, "AppSubscriptionProvider.tsx")) {
+    if (name === "./AppSubscriptionPaywall")
+      return { type: "sourceFile", filePath: path.join(components, "AppSubscriptionPaywall.rustore.tsx") };
+    if (name === "./GooglePlayPurchaseSync")
+      return { type: "sourceFile", filePath: path.join(components, "GooglePlayPurchaseSync.tsx") };
+  }
   if (
     checkout &&
     targetPlatform === platform &&

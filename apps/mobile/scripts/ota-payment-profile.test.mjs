@@ -100,3 +100,37 @@ test("ios-public-yookassa requires the verified iOS 1.7.5 App Store native", (t)
     { OTA_RUNTIME: "1.7.6" }, { OTA_PLATFORM: "android" },
   ]) assert.throws(() => paymentProfile({ ...env, ...override }), /FORBIDDEN/);
 });
+
+test("android-rustore-yookassa is restricted to verified signed RuStore 1.7.5", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "gafus-ota-rustore-profile-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, "native.json");
+  const native = {
+    id: "native", platform: "android", verified: true, distribution: "rustore",
+    appId: "gafus", bundleId: "ru.gafus.app", environment: "production", channel: "production",
+    nativeFingerprint: "a".repeat(64), signingKeyId: "gafus-production-20261115",
+    embeddedUpdateId: "1c6522de-7a97-48a3-b04c-1dbf36646239",
+    runtimeVersion: "1.7.5", appVersion: "1.7.5",
+  };
+  const env = {
+    CI: "true", GAFUS_OTA_PRODUCTION_APPROVED: "true", OTA_PAYMENT_CONTENT: "android-rustore-yookassa",
+    GAFUS_OTA_NATIVE_RELEASE_DESCRIPTOR: file, OTA_PLATFORM: "android", OTA_RUNTIME: "1.7.5",
+    OTA_NATIVE_ID: "native",
+  };
+  writeFileSync(file, JSON.stringify(native));
+  assert.equal(checkoutComponent(paymentProfile(env)), "InternalCardCheckout");
+  for (const override of [
+    { distribution: "google-play" }, { distribution: "internal" }, { distribution: "app-store" },
+    { platform: "ios" }, { runtimeVersion: "1.7.6", appVersion: "1.7.6" },
+    { verified: false }, { embeddedUpdateId: null }, { nativeFingerprint: "" },
+    { channel: "preview" }, { signingKeyId: "" },
+  ]) {
+    writeFileSync(file, JSON.stringify({ ...native, ...override }));
+    assert.throws(() => paymentProfile(env), /FORBIDDEN/);
+  }
+  writeFileSync(file, JSON.stringify(native));
+  for (const override of [
+    { OTA_RECOVERY_FOR: "1" }, { CI: "false" }, { GAFUS_OTA_PRODUCTION_APPROVED: "false" },
+    { OTA_RUNTIME: "1.7.6" }, { OTA_PLATFORM: "ios" }, { OTA_NATIVE_ID: "other" },
+  ]) assert.throws(() => paymentProfile({ ...env, ...override }), /FORBIDDEN/);
+});
