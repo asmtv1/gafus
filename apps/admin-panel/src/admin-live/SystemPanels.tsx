@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { DataTable } from "./DataPanel";
 import { AdminHttpError, requestAdmin } from "./api";
 
 type Stats = Record<string, number>;
@@ -348,15 +347,19 @@ export function AdminCacheSection({ canChange }: { canChange: boolean }) {
     }
   }
   return (
-    <section className="content-card">
-      <h2>Управление кэшем учебного контента</h2>
-      <p className="note">
-        Vite/Hono не использует теги Next.js. Все административные API-ответы отправляются с
-        no-store. Кэш дней курсов имеет общую PostgreSQL-ревизию.
-      </p>
-      {loading && <p role="status">Загружаем метрики кэша…</p>}
-      {error && (
+    <section className="content-card admin-cache-panel">
+      <div className="admin-cache-heading">
         <div>
+          <h2>Данные курсов</h2>
+          <p className="note">
+            Курсы обновляются автоматически. Если изменённые дни или шаги не появляются
+            в приложении, можно запросить обновление общего кэша.
+          </p>
+        </div>
+      </div>
+      {loading && <p role="status" className="note">Проверяем состояние…</p>}
+      {error && (
+        <div className="admin-cache-feedback">
           <p role="alert" className="error">{error}</p>
           <button className="secondary" disabled={loading || saving} onClick={() => {
             setMessage(null);
@@ -366,37 +369,34 @@ export function AdminCacheSection({ canChange }: { canChange: boolean }) {
           </button>
         </div>
       )}
-      {message && (
-        <p role="status" className="success">
-          {message}
-        </p>
-      )}
-      {data !== null && (
-        <DataTable
-          rows={[
-            { key: "Режим", value: "Hono shared course content" },
-            { key: "Источник ревизии", value: "PostgreSQL" },
-          ]}
-          title="Текущая архитектура кэша"
-        />
-      )}
+      {message && <p role="status" className="success">{message}</p>}
       {canChange && (
-        <button
-          disabled={saving || loading || !!error || needsVerify}
-          onClick={() => void refresh()}
-        >
-          {saving ? "Обновляем ревизию…" : "Обновить кэш курсов"}
-        </button>
+        <div className="admin-cache-actions">
+          <button
+            disabled={saving || loading || !!error || needsVerify}
+            onClick={() => void refresh()}
+          >
+            {saving ? "Отправляем запрос…" : "Обновить кэш курсов"}
+          </button>
+          <span className="note">Сервер перечитает данные при следующем обращении. Прогресс пользователей не затрагивается.</span>
+        </div>
       )}
       {needsVerify && (
         <button className="secondary" disabled={saving} onClick={() => void verify()}>
           Проверить сервер перед новым обновлением
         </button>
       )}
-      <p className="note">
-        Это не меняет пользовательский прогресс, подписки, медиаданные или баланс. Старые Next cache
-        tags не инвалидируются через этот endpoint.
-      </p>
+      {data !== null && (
+        <details className="admin-cache-details">
+          <summary>Технические сведения о кэше</summary>
+          <div>
+            <p><strong>Режим:</strong> общий кэш учебного контента через Hono</p>
+            <p><strong>Источник версии:</strong> PostgreSQL</p>
+            <p className="note">
+              Кнопка повышает общую ревизию кэша курсов. Она не удаляет прогресс,
+              подписки, медиаданные или баланс. Старые теги кэша Next.js не используются.
+            </p>
+          </div>
+        </details>
+      )}
     </section>
-  );
-}
