@@ -92,7 +92,8 @@ describe("ADMIN-1 /media and /admin parity", () => {
     await act(async () => root.render(<AdminCacheSection canChange={false} />));
     expect(host.textContent).toContain("Cache offline");
     await click("Перечитать состояние кэша");
-    expect(host.textContent).toContain("Текущая архитектура кэша");
+    expect(host.textContent).toContain("Технические сведения о кэше");
+    expect(host.textContent).not.toContain("Hono shared course content");
     expect(fake.requestAdmin).toHaveBeenCalledTimes(2);
     for (const call of fake.requestAdmin.mock.calls) {
       expect(call[0]).toBe("/api/v1/admin/cache");
