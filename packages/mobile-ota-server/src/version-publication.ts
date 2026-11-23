@@ -53,7 +53,11 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
   const groups = new Map<string, BuildRow[]>();
   for (const row of rows) {
     if (!row.id) continue;
-    const key = digest([row.revision, row.title, row.recoveryFor, row.checkout]);
+    // Android 1.7.5 RuStore checkout must never share a publication
+    // selection group with internal QA or Google Play native releases.
+    const key = digest([row.revision, row.title, row.recoveryFor, row.checkout,
+      scope.platform === "android" && row.checkout && scope.runtimeVersion === "1.7.5"
+        ? row.distribution : null]);
     const group = groups.get(key) ?? [];
     group.push(row);
     groups.set(key, group);
