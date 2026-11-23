@@ -89,7 +89,7 @@ describe("ADMIN-1 Next /admin pricing parity", () => {
 
   it("persists prices once and re-reads a valid Hono server snapshot", async () => {
     fake.requestAdmin.mockResolvedValueOnce({ updated: true });
-    fake.requestAdmin.mockResolvedValueOnce(plans);
+    fake.requestAdmin.mockResolvedValueOnce({ ...plans, twoWeeksEnabled: true });
     await mount(true);
     await changeFirstPlanAvailability();
     await submit();
@@ -103,6 +103,8 @@ describe("ADMIN-1 Next /admin pricing parity", () => {
     );
     expect(saved).toHaveBeenCalledTimes(1);
     expect(host.textContent).toContain("Настройки тарифов сохранены");
+    expect(host.textContent).not.toContain("Есть изменения");
+    expect(host.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
   });
 
   it("does not blindly retry a timed-out PUT and allows only GET verification", async () => {
