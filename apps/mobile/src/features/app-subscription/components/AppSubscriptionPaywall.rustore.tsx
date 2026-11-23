@@ -3,7 +3,7 @@
  * for the verified android-rustore-yookassa payment profile, never for Play.
  * The plan cards and promo UI are the same source as the iOS 1.7.5 YooKassa OTA.
  */
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Modal, ScrollView, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +11,6 @@ import { Text } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppBackButton, TexturedSafeAreaView as SafeAreaView } from "@/shared/components";
 import { Button } from "@/shared/components/ui";
-import { FONTS } from "@/shared/config";
 import { newOnlyV2NativeQueues } from "@/shared/lib/offline/newOnlyV2Native";
 import { useAuthStore } from "@/shared/stores/authStore";
 import { appSubscriptionAppleApi } from "../api/appSubscriptionAppleApi";
@@ -29,11 +28,18 @@ export function AppSubscriptionPaywall() {
   const ownerKey = JSON.stringify([owner, epoch]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const attempt = useRef(0);
   const inFlight = useRef(false);
   const sameOwner = useCallback(() => {
     const live = newOnlyV2NativeQueues.getVerifiedBinding();
     return Boolean(owner && epoch && useAuthStore.getState().user?.id === owner &&
       live?.principalId === owner && live?.authEpoch === epoch);
+  }, [owner, epoch]);
+  useEffect(() => {
+    attempt.current += 1;
+    inFlight.current = false;
+    setBusy(false);
+    setNotice(null);
   }, [owner, epoch]);
   const status = useQuery({
     queryKey: ["app-subscription", "status", owner, epoch],
@@ -53,10 +59,17 @@ export function AppSubscriptionPaywall() {
   const withLock = useCallback(async (operation: () => Promise<void>) => {
     if (!sameOwner() || inFlight.current) return;
     inFlight.current = true;
+    const attemptId = ++attempt.current;
     setBusy(true);
+    setNotice(null);
     try { await operation(); }
     catch { if (sameOwner()) setNotice("Не удалось завершить операцию. Проверьте статус подписки."); }
-    finally { inFlight.current = false; if (sameOwner()) setBusy(false); }
+    finally {
+      if (attempt.current === attemptId) {
+        inFlight.current = false;
+        if (sameOwner()) setBusy(false);
+      }
+    }
   }, [sameOwner]);
   const current = status.data?.success ? status.data.data : null;
   return <Modal visible animationType="fade" presentationStyle="fullScreen" onRequestClose={close}>
@@ -64,10 +77,10 @@ export function AppSubscriptionPaywall() {
     <SafeAreaView style={styles.screen} edges={["bottom"]}>
       <ScrollView contentContainerStyle={[styles.content,{paddingTop:Math.max(insets.top + 14,58)}]}
         keyboardShouldPersistTaps="handled">
-        <View style={{width:"100%", maxWidth:640, alignSelf:"center", gap:18}}>
-          <AppBackButton onPress={close} />
-          <View style={{alignItems:"center", paddingVertical:8}}>
-            <Text style={{fontFamily:FONTS.impact, fontSize:34, color:"#352E2E"}}>GAFUS PREMIUM</Text>
+        <View style={styles.contentInner}>
+          <AppBackButton style={styles.backRow} onPress={close} />
+          <View style={styles.header}>
+            <Text style={styles.brand}>GAFUS PREMIUM</Text>
           </View>
           {!owner || !epoch ? <Text>Войдите в аккаунт, чтобы оформить Premium.</Text>
             : status.isError ? <Button label="Повторить загрузку" onPress={() => void status.refetch()} />
