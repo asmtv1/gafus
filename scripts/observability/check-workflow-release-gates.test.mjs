@@ -105,8 +105,20 @@ test('reusable SSH deployment script remains below GitHub scalar limit and byte-
  });
  assert.equal(remote.with.script,
   "${{ format('{0}{1}{2}{3}', env.DEPLOY_SCRIPT_1, env.DEPLOY_SCRIPT_1B, env.DEPLOY_SCRIPT_2, env.DEPLOY_SCRIPT_3) }}");
+ // Every new RuStore toggle must be explicit in the reviewed remote script,
+ // not inherited from the iOS gate or an unsanitized /root/.env file.
+ for (const name of [
+  'MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_ENABLED',
+  'MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_ENABLED',
+  'MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_PUBLISH_APPROVED',
+ ]) {
+  const expected = `echo "${name}=\${{ vars.${name} == 'true' && 'true' || 'false' }}"`;
+  assert.ok(fragments.join('').includes(expected),
+    `signed RuStore payment toggle ${name} must fail closed in production deploy`);
+ }
+
  assert.equal(createHash('sha256').update(fragments.join(''),'utf8').digest('hex'),
-  '9463e482d7ec7551912db06869849e01f8cbc6906cdc1051c24c0bbdb0332334',
+  '72967b17af3c98ab350ced4427330214f8a7a0ff8859105eb1aa7b9ce243f1fc',
   'split must reproduce exactly the reviewed production script with signed OTA gate');
  const remoteScript=fragments.join('');
  const otaCheck=remoteScript.indexOf('MOBILE_OTA_PRODUCTION_MANIFEST_ENABLED');
