@@ -51,6 +51,9 @@ export function PricingEditor({
   const [draft, setDraft] = useState<Record<string, unknown>>(() =>
     validPricingSettings(source) ? { ...source } : {},
   );
+  const [baseline, setBaseline] = useState<Record<string, unknown>>(() =>
+    validPricingSettings(source) ? { ...source } : {},
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unknownAck, setUnknownAck] = useState(false);
@@ -60,7 +63,7 @@ export function PricingEditor({
     return <p role="alert">Некорректный формат настроек тарифов</p>;
   }
 
-  const changed = Object.keys(source).some((key) => draft[key] !== source[key]);
+  const changed = Object.keys(baseline).some((key) => draft[key] !== baseline[key]);
   const disabled = !canChange || saving || unknownAck;
   const update = (key: string, value: unknown) => {
     setError(null);
@@ -86,6 +89,7 @@ export function PricingEditor({
       const actual = await requestAdmin<unknown>("/api/v1/admin/settings/subscriptions");
       if (!validPricingSettings(actual)) throw new Error("Некорректный ответ тарифов");
       setDraft(actual);
+      setBaseline({ ...actual });
       setUnknownAck(false);
       setSuccess("Настройки тарифов сохранены");
       onSaved();
@@ -108,6 +112,7 @@ export function PricingEditor({
       const actual = await requestAdmin<unknown>("/api/v1/admin/settings/subscriptions");
       if (!validPricingSettings(actual)) throw new Error("Некорректный ответ настроек тарифов");
       setDraft(actual);
+      setBaseline({ ...actual });
       setUnknownAck(false);
       setError(null);
       setSuccess("Тарифы перечитаны с сервера");
@@ -259,6 +264,9 @@ export function FeatureFlagsEditor({
   const [draft, setDraft] = useState<Record<string, unknown>>(() =>
     isRecord(source) ? featureDraft(source) : {},
   );
+  const [baselineGlobal, setBaselineGlobal] = useState<Record<string, unknown>>(() =>
+    isRecord(source) && isRecord(source.global) ? { ...source.global } : {},
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -275,12 +283,12 @@ export function FeatureFlagsEditor({
   }
 
   const globalFlags = draft.global as Record<string, unknown>;
-  const originalGlobal = isRecord(source.global) ? source.global : {};
+
   const archivedAds = draft.rewardedAds as Record<string, unknown>;
   const legacyOta = draft.ota as Record<string, unknown>;
   const updatedBy = isRecord(source.updatedBy) ? source.updatedBy : null;
   const hasChanges = subscriptionFeatures.some(
-    ({ key }) => globalFlags[key] !== originalGlobal[key],
+    ({ key }) => globalFlags[key] !== baselineGlobal[key],
   );
   const updateGroup = (group: string, key: string, value: unknown) => {
     setSaved(null);
@@ -329,6 +337,7 @@ export function FeatureFlagsEditor({
         throw new Error("Настройки изменились при сохранении. Перечитайте сервер.");
       }
       setDraft(featureDraft(actual));
+      setBaselineGlobal({ ...(actual.global as Record<string, unknown>) });
       setVerifyRequired(false);
       setSaved("Настройки сохранены и проверены на сервере");
       onSaved();
@@ -353,6 +362,7 @@ export function FeatureFlagsEditor({
       const actual = await requestAdmin<Record<string, unknown>>("/api/v1/admin/feature-flags");
       if (!validFeatureControl(actual)) throw new Error("Некорректный ответ feature-flags");
       setDraft(featureDraft(actual));
+      setBaselineGlobal({ ...(actual.global as Record<string, unknown>) });
       setVerifyRequired(false);
       setSaved("Текущие значения перечитаны с сервера");
       onSaved();
