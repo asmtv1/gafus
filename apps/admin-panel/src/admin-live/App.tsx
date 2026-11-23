@@ -551,6 +551,7 @@ function Section({
           "consultations",
           "bookings",
           "trainers-schedules",
+          "feature-flags",
         ].includes(section.key) && (
           <div className="content-card">
             <DataPanel data={data} title={section.title} />
@@ -585,19 +586,15 @@ function Section({
       {!loading && !error && data !== undefined && section.key === "mobile-ota" && (
         <MobileReleasesPanel source={data} />
       )}
-      {actor.role === "ADMIN" &&
-        !error &&
-        !loading &&
-        data !== undefined &&
-        section.key === "feature-flags" && (
-          <FeatureFlagsEditor
-            key={epoch}
-            source={data}
-            // This editor already GET-verifies every PUT and updates its own
-            // draft. Parent reload immediately unmounted the success notice.
-            onSaved={() => undefined}
-          />
-        )}
+      {!error && !loading && data !== undefined && section.key === "feature-flags" && (
+        <FeatureFlagsEditor
+          key={epoch}
+          source={data}
+          canChange={actor.role === "ADMIN"}
+          // The editor verifies saves itself; avoid unmounting its success notice.
+          onSaved={() => undefined}
+        />
+      )}
       {(actor.role === "ADMIN" ||
         (actor.role === "MODERATOR" && section.key === "feed-moderation")) &&
         ![
