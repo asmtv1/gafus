@@ -11,6 +11,7 @@ const m = vi.hoisted(() => ({
   refresh: vi.fn(),
   refetch: vi.fn(),
   allowed: true,
+  rustoreAllowed: false,
   promoEnabled: false,
   promoEligible: true,
   promoChange: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("@tanstack/react-query", () => ({
       success: true,
       data: {
         iosRuCardPaymentEnabled: m.allowed,
+        androidRustoreCardPaymentEnabled: m.rustoreAllowed,
         promoCode: {entryEnabled:m.promoEnabled,eligible:m.promoEligible},
         savedRegistrationPromoCode: null,
         yookassaPlans: m.plans,
@@ -68,7 +70,7 @@ vi.mock("@/shared/components/ui", () => ({
 }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root, host: HTMLDivElement;
-function render() {
+function render(androidRustore = false) {
   act(() =>
     root.render(
       createElement(InternalCardCheckout, {
@@ -78,6 +80,7 @@ function render() {
         withLock: (run: () => Promise<void>) => (m.work = run()),
         refresh: m.refresh,
         report: m.report,
+        androidRustore,
       }),
     ),
   );
@@ -94,6 +97,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   m.owner = true;
   m.allowed = true;
+  m.rustoreAllowed = false;
   m.promoEnabled = false;
   m.promoEligible = true;
   m.promoChange = vi.fn();
@@ -112,6 +116,23 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe("internal iOS checkout", () => {
+  it("keeps RuStore YooKassa and promo UI behind its own signed OTA server flag", () => {
+    m.promoEnabled = true;
+    m.allowed = true;
+    m.rustoreAllowed = false;
+    render(true);
+    expect(host.querySelector('input[aria-label="Введите промокод"]')).toBeNull();
+    expect(host.textContent).not.toContain("Оплата по СБП");
+    m.allowed = false;
+    m.rustoreAllowed = true;
+    render(true);
+    expect(host.textContent).toContain("Оплата по СБП");
+    expect(host.querySelector('input[aria-label="Введите промокод"]')).toBeTruthy();
+    m.rustoreAllowed = false;
+    render(true);
+    expect(host.querySelector('input[aria-label="Введите промокод"]')).toBeNull();
+  });
+
   it("reproduces the 1.7.2 cards, pricing, badges and selects the chosen plan", async () => {
     m.plans = [
       {code:"TWO_WEEKS",title:"14 дней",yookassaPriceRub:190,intervalDays:14,enabled:true,badge:"TRY"},
