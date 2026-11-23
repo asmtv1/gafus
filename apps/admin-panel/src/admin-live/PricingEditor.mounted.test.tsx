@@ -42,6 +42,11 @@ async function mount(canChange = true, source: unknown = plans) {
     <PricingEditor source={source} onSaved={saved} canChange={canChange} />,
   ));
 }
+async function changeFirstPlanAvailability() {
+  const toggle = host.querySelector<HTMLInputElement>(".subscription-plan input[type=checkbox]");
+  expect(toggle).not.toBeNull();
+  await act(async () => toggle?.click());
+}
 async function submit() {
   const form = host.querySelector("form");
   expect(form).not.toBeNull();
@@ -58,26 +63,40 @@ async function click(label: string) {
 describe("ADMIN-1 Next /admin pricing parity", () => {
   it("shows original Next plan titles and a read-only form to MODERATOR", async () => {
     await mount(false);
-    expect(host.textContent).toContain("Настройки тарифов Premium");
+    expect(host.textContent).toContain("Тарифы Premium");
+    expect(host.textContent).toContain("Цена, ₽");
+    expect(host.textContent).toContain("Срок доступа, дней");
     expect(host.textContent).toContain("Самостоятельный");
     expect(host.textContent).toContain("Поддержка в чате");
     expect(host.textContent).toContain("Полное сопровождение");
-    expect(host.textContent).toContain("Только ADMIN может изменять");
-    expect(host.querySelector("fieldset")?.disabled).toBe(true);
+    expect(host.textContent).toContain("Изменять тарифы может только администратор");
+    expect(host.querySelector<HTMLInputElement>(".subscription-plan input")?.disabled).toBe(true);
     await submit();
     expect(fake.requestAdmin).not.toHaveBeenCalled();
     expect(globalThis.confirm).not.toHaveBeenCalled();
+  });
+
+  it("does not save unchanged settings and keeps Apple product ID in a collapsed section", async () => {
+    await mount();
+    expect(host.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
+    const details = host.querySelector(".subscription-advanced");
+    expect(details).not.toBeNull();
+    expect(details?.hasAttribute("open")).toBe(false);
+    expect(host.textContent).not.toContain("yookassaTwoWeeksPriceRub");
+    await submit();
+    expect(fake.requestAdmin).not.toHaveBeenCalled();
   });
 
   it("persists prices once and re-reads a valid Hono server snapshot", async () => {
     fake.requestAdmin.mockResolvedValueOnce({ updated: true });
     fake.requestAdmin.mockResolvedValueOnce(plans);
     await mount(true);
+    await changeFirstPlanAvailability();
     await submit();
     expect(fake.requestAdmin).toHaveBeenCalledTimes(2);
     expect(fake.requestAdmin).toHaveBeenNthCalledWith(
       1, "/api/v1/admin/settings/subscriptions",
-      { method: "PUT", body: plans },
+      { method: "PUT", body: { ...plans, twoWeeksEnabled: true } },
     );
     expect(fake.requestAdmin).toHaveBeenNthCalledWith(
       2, "/api/v1/admin/settings/subscriptions",
