@@ -199,41 +199,78 @@ function validFeatureControl(value: unknown): value is Record<string, unknown> {
     ["appSubscriptionPaywall", "appSubscriptionGating"]
       .every(flag => typeof (value.global as Record<string, unknown>)[flag] === "boolean");
 }
-export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSaved: () => void }) {
-  const [draft, setDraft] = useState<Record<string, unknown>>(() => {
-    if (!isRecord(source)) return {};
-    return featureDraft(source);
-  });
+const subscriptionFeatures = [
+  {
+    key: "appSubscriptionPaywall",
+    title: "Экран покупки Premium",
+    description: "Показывать предложение оформить подписку",
+  },
+  {
+    key: "appSubscriptionGating",
+    title: "Ограничение доступа",
+    description: "Закрывать платный контент без активной подписки",
+  },
+] as const;
+
+export function FeatureFlagsEditor({
+  source,
+  onSaved,
+  canChange = true,
+}: {
+  source: unknown;
+  onSaved: () => void;
+  canChange?: boolean;
+}) {
+  const [draft, setDraft] = useState<Record<string, unknown>>(() =>
+    isRecord(source) ? featureDraft(source) : {},
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [verifyRequired, setVerifyRequired] = useState(false);
   const writeLock = useRef(false);
+
   if (
     !isRecord(source) ||
     !isRecord(draft.global) ||
     !isRecord(draft.rewardedAds) ||
     !isRecord(draft.ota)
-  )
-    return <p role="alert">Некорректный формат настроек feature-flags</p>;
-  const updateGroup = (group: string, key: string, value: unknown) =>
+  ) {
+    return <p role="alert">Некорректный формат настроек приложения</p>;
+  }
+
+  const globalFlags = draft.global as Record<string, unknown>;
+  const originalGlobal = isRecord(source.global) ? source.global : {};
+  const archivedAds = draft.rewardedAds as Record<string, unknown>;
+  const legacyOta = draft.ota as Record<string, unknown>;
+  const updatedBy = isRecord(source.updatedBy) ? source.updatedBy : null;
+  const hasChanges = subscriptionFeatures.some(
+    ({ key }) => globalFlags[key] !== originalGlobal[key],
+  );
+  const updateGroup = (group: string, key: string, value: unknown) => {
+    setSaved(null);
+    setError(null);
     setDraft((old) => ({
       ...old,
       [group]: { ...(isRecord(old[group]) ? old[group] : {}), [key]: value },
     }));
+  };
+
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (writeLock.current || verifyRequired) return;
-    const ota = draft.ota as Record<string, unknown>;
-    if (ota.required && (
-      !ota.version || !/^\d+\.\d+\.\d+-ota\.[1-9]\d*$/.test(String(ota.version))
-    )) {
-      setError("Для обязательного OTA укажите опубликованную версию вида 1.7.3-ota.1");
+    if (!canChange || !hasChanges || writeLock.current || verifyRequired) return;
+    if (!validFeatureControl(draft)) {
+      setError("Некорректные настройки приложения. Перечитайте сервер.");
       return;
     }
-    if (!window.confirm(ota.required
-      ? `Включить обязательное OTA ${String(ota.version)} для ${String(ota.platform)}? Убедитесь, что обновление опубликовано и доступно.`
-      : "Опубликовать новые значения feature-flags?")) return;
+    if (legacyOta.required && (
+      !legacyOta.version || !/^\d+\.\d+\.\d+-ota\.[1-9]\d*$/.test(String(legacyOta.version))
+    )) {
+      setError("Некорректная архивная OTA-версия. Перечитайте сервер.");
+      return;
+    }
+    if (!window.confirm("Сохранить изменения настроек подписки в приложении?")) return;
+
     writeLock.current = true;
     setSaving(true);
     setError(null);
@@ -245,17 +282,20 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
       const actual = await requestAdmin<Record<string, unknown>>("/api/v1/admin/feature-flags");
       if (!validFeatureControl(actual)) throw new Error("Некорректный ответ feature-flags");
       const submitted = draft;
-      if (Number(actual.revision) <= Number(submitted.revision) ||
-        !Object.entries(submitted.ota as Record<string, unknown>).every(([key, value]) =>
-          (actual.ota as Record<string, unknown>)[key] === value) ||
-        !["global"].every((group) =>
-          Object.entries(submitted[group] as Record<string, unknown>).every(([key, value]) =>
-            (actual[group] as Record<string, unknown>)[key] === value))) {
+      if (
+        Number(actual.revision) <= Number(submitted.revision) ||
+        !Object.entries(submitted.ota as Record<string, unknown>).every(
+          ([key, value]) => (actual.ota as Record<string, unknown>)[key] === value,
+        ) ||
+        !Object.entries(submitted.global as Record<string, unknown>).every(
+          ([key, value]) => (actual.global as Record<string, unknown>)[key] === value,
+        )
+      ) {
         throw new Error("Настройки изменились при сохранении. Перечитайте сервер.");
       }
       setDraft(featureDraft(actual));
       setVerifyRequired(false);
-      setSaved("Настройки проверены повторным чтением с сервера");
+      setSaved("Настройки сохранены и проверены на сервере");
       onSaved();
     } catch (cause) {
       const definitiveRejection = !acknowledged && cause instanceof AdminHttpError &&
@@ -268,8 +308,9 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
       setSaving(false);
     }
   }
+
   async function verify() {
-    if (writeLock.current) return;
+    if (!canChange || writeLock.current) return;
     writeLock.current = true;
     setSaving(true);
     setError(null);
@@ -287,115 +328,111 @@ export function FeatureFlagsEditor({ source, onSaved }: { source: unknown; onSav
       setSaving(false);
     }
   }
+
   return (
-    <form className="content-card settings-editor" onSubmit={save}>
-      <h2>Флаги мобильного приложения</h2>
-      <p className="note">
-        Ревизия: {String(draft.revision)}. Изменения со старой ревизией отклоняются (409).
-      </p>
-      <div className="operation-grid">
-        <fieldset disabled={saving || verifyRequired}>
-          <legend>Глобальные настройки</legend>
-          {(["appSubscriptionPaywall", "appSubscriptionGating"] as const).map((key) => (
-            <label className="check" key={key}>
-              <input
-                type="checkbox"
-                checked={(draft.global as Record<string, unknown>)[key] === true}
-                onChange={(e) => updateGroup("global", key, e.target.checked)}
-              />
-              {key}
-            </label>
-          ))}
-        </fieldset>
-        <fieldset disabled>
-          <legend>Наследуемый общий OTA-переключатель (только чтение)</legend>
-          <p className="note">
-            С версии 1.7.5 обязательность iOS и Android настраивается независимо в
-            «Мобильные релизы → Обязательное OTA iOS / Android».
-            Этот старый общий переключатель больше не управляет обязательной OTA 1.7.5+.
-          </p>
-          <label>
-            Минимальная OTA-версия
+    <form className="content-card feature-settings" onSubmit={save}>
+      <header className="feature-settings-header">
+        <div>
+          <h2>Настройки приложения</h2>
+          <p className="note">Основные функции GAFUS. Изменения применяются после сохранения.</p>
+        </div>
+        <span className="feature-settings-status" aria-live="polite">
+          {hasChanges ? "Есть изменения" : "Актуально"}
+        </span>
+      </header>
+
+      <section className="feature-settings-group" aria-labelledby="feature-subscriptions">
+        <div className="feature-settings-group-heading">
+          <div>
+            <h3 id="feature-subscriptions">Подписка</h3>
+            <p className="note">Управление доступом к Premium</p>
+          </div>
+        </div>
+        {subscriptionFeatures.map(({ key, title, description }) => (
+          <label className="feature-setting-row" key={key}>
+            <span className="feature-setting-copy">
+              <strong>{title}</strong>
+              <span>{description}</span>
+            </span>
             <input
-              placeholder="1.7.3-ota.1"
-              maxLength={48}
-              value={String((draft.ota as Record<string, unknown>).version ?? "")}
-              onChange={(e) => updateGroup("ota", "version", e.target.value.trim() || null)}
-            />
-          </label>
-          <label>
-            Платформы
-            <select
-              value={String((draft.ota as Record<string, unknown>).platform)}
-              onChange={(e) => updateGroup("ota", "platform", e.target.value)}
-            >
-              <option value="all">iOS и Android</option>
-              <option value="ios">Только iOS</option>
-              <option value="android">Только Android</option>
-            </select>
-          </label>
-          <label className="check">
-            <input
+              className="feature-switch"
               type="checkbox"
-              checked={(draft.ota as Record<string, unknown>).required === true}
-              onChange={(e) => updateGroup("ota", "required", e.target.checked)}
-            />
-            Обязательное OTA-обновление
-          </label>
-          <p className="note">
-            Выключено: OTA применяется как обычно. Включено: старая OTA-ревизия
-            блокируется до успешной установки; при ошибке доступна повторная попытка.
-          </p>
-        </fieldset>
-        <fieldset disabled>
-          <legend>Rewarded Ads (архив, только чтение)</legend>
-          <p className="note">Рекламные гафусы исключены из новой архитектуры. Архивные параметры нельзя изменять или активировать.</p>
-          {(["androidEnabled", "testMode"] as const).map((key) => (
-            <label className="check" key={key}>
-              <input
-                type="checkbox"
-                checked={(draft.rewardedAds as Record<string, unknown>)[key] === true}
-                onChange={(e) => updateGroup("rewardedAds", key, e.target.checked)}
-              />
-              {key}
-            </label>
-          ))}
-          <label>
-            Лимит в день
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="1"
-              value={Number((draft.rewardedAds as Record<string, unknown>).dailyAdLimit ?? 0)}
-              onChange={(e) => updateGroup("rewardedAds", "dailyAdLimit", Number(e.target.value))}
+              aria-label={title}
+              checked={globalFlags[key] === true}
+              disabled={!canChange || saving || verifyRequired}
+              onChange={(e) => updateGroup("global", key, e.target.checked)}
             />
           </label>
-          {(["yandexAndroidPlacementId", "yandexIosPlacementId"] as const).map((key) => (
-            <label key={key}>
-              {key}
-              <input
-                maxLength={256}
-                value={String((draft.rewardedAds as Record<string, unknown>)[key] ?? "")}
-                onChange={(e) => updateGroup("rewardedAds", key, e.target.value || null)}
-              />
-            </label>
-          ))}
-        </fieldset>
-      </div>
-      <button type="submit" disabled={saving || verifyRequired}>
-        {saving ? "Сохранение…" : "Сохранить флаги"}
-      </button>
-      {verifyRequired && (
-        <button type="button" className="secondary" onClick={verify} disabled={saving}>
-          Перечитать флаги перед повтором
-        </button>
-      )}
-      {saved && <p role="status" className="success">{saved}</p>}
-      {error && (
-        <p role="alert" className="error">
-          {error}
+        ))}
+        {!canChange && <p className="note">Изменять настройки может только администратор.</p>}
+      </section>
+
+      <section className="feature-settings-group" aria-labelledby="feature-ota">
+        <div className="feature-settings-group-heading">
+          <div>
+            <h3 id="feature-ota">Обязательные обновления</h3>
+            <p className="note">OTA для iOS и Android настраивается независимо.</p>
+          </div>
+          <a className="feature-settings-link" href="/mobile-ota">Мобильные релизы</a>
+        </div>
+        <p className="feature-settings-description">
+          Управление обязательным OTA перенесено в раздел мобильных релизов.
+          Старый общий переключатель здесь больше не действует для версии 1.7.5 и новее.
         </p>
+      </section>
+
+      <details className="feature-settings-extra">
+        <summary>
+          <span>
+            <strong>Архив рекламы</strong>
+            <small>Рекламные гафусы отключены от новой архитектуры</small>
+          </span>
+          <span className="feature-archive-tag">Только чтение</span>
+        </summary>
+        <div className="feature-settings-extra-body">
+          <p className="note">
+            Эти параметры сохранены для совместимости и не управляют действующими функциями.
+          </p>
+          <dl className="feature-settings-facts">
+            <div><dt>Android-реклама</dt><dd>{archivedAds.androidEnabled ? "Была включена" : "Отключена"}</dd></div>
+            <div><dt>Дневной лимит</dt><dd>{String(archivedAds.dailyAdLimit ?? "—")}</dd></div>
+            <div><dt>Тестовый режим</dt><dd>{archivedAds.testMode ? "Включён" : "Отключён"}</dd></div>
+          </dl>
+        </div>
+      </details>
+
+      <details className="feature-settings-extra feature-settings-technical">
+        <summary>
+          <span><strong>Техническая информация</strong><small>Архивное OTA и сведения о последнем изменении</small></span>
+        </summary>
+        <div className="feature-settings-extra-body">
+          <dl className="feature-settings-facts">
+            <div><dt>Ревизия</dt><dd>{String(draft.revision)}</dd></div>
+            <div><dt>Обновлено</dt><dd>{typeof source.updatedAt === "string" ? new Date(source.updatedAt).toLocaleString("ru-RU") : "—"}</dd></div>
+            <div><dt>Изменил</dt><dd>{updatedBy ? String(updatedBy.username ?? updatedBy.id ?? "—") : "—"}</dd></div>
+            <div><dt>Архивное OTA</dt><dd>{legacyOta.required ? "Обязательное" : "Необязательное"} · {String(legacyOta.version ?? "Без версии")} · {String(legacyOta.platform ?? "all")}</dd></div>
+            <div><dt>Реклама Android ID</dt><dd>{String(archivedAds.yandexAndroidPlacementId ?? "—")}</dd></div>
+            <div><dt>Реклама iOS ID</dt><dd>{String(archivedAds.yandexIosPlacementId ?? "—")}</dd></div>
+          </dl>
+          <p className="note">Ревизия используется сервером для защиты от одновременных изменений.</p>
+        </div>
+      </details>
+
+      {(canChange || saved || error) && (
+        <div className="feature-settings-footer">
+          {canChange && (
+            <button type="submit" disabled={!hasChanges || saving || verifyRequired}>
+              {saving ? "Сохранение…" : "Сохранить изменения"}
+            </button>
+          )}
+          {verifyRequired && canChange && (
+            <button type="button" className="secondary" onClick={() => void verify()} disabled={saving}>
+              Перечитать настройки
+            </button>
+          )}
+          {saved && <p role="status" className="success">{saved}</p>}
+          {error && <p role="alert" className="error">{error}</p>}
+        </div>
       )}
     </form>
   );
