@@ -109,6 +109,7 @@ describe("ADMIN-1 Next /admin pricing parity", () => {
     fake.requestAdmin.mockRejectedValueOnce(new Error("Network ACK lost"));
     fake.requestAdmin.mockResolvedValueOnce(plans);
     await mount(true);
+    await changeFirstPlanAvailability();
     await submit();
     expect(host.textContent).toContain("Результат изменения тарифов неизвестен");
     await submit();
@@ -125,6 +126,7 @@ describe("ADMIN-1 Next /admin pricing parity", () => {
     fake.requestAdmin.mockResolvedValueOnce({ updated: true });
     fake.requestAdmin.mockResolvedValueOnce({ wrong: "snapshot" });
     await mount(true);
+    await changeFirstPlanAvailability();
     await submit();
     expect(host.textContent).toContain("Результат изменения тарифов неизвестен");
     await submit();
