@@ -16,12 +16,12 @@ const exportedLabels = new RegExp(
 );
 const alerts = YAML.parse(load('gafus-alerts.yml'));
 
-test('Uptrace Cloud remote_write uses a single shard and extended timeout on unstable egress', () => {
+test('Uptrace Cloud remote_write uses fixed shards and extended timeout on unstable egress', () => {
   const uptraceBlock = alloy.split('prometheus.remote_write "uptrace" {')[1]
     .split('prometheus.scrape "redis_exporter_uptrace" {')[0];
   assert.match(uptraceBlock, /remote_timeout\s*=\s*"90s"/);
-  assert.match(uptraceBlock, /min_shards\s*=\s*1/);
-  assert.match(uptraceBlock, /max_shards\s*=\s*1/);
+  assert.match(uptraceBlock, /min_shards\s*=\s*2/);
+  assert.match(uptraceBlock, /max_shards\s*=\s*2/);
   assert.match(uptraceBlock, /enable_http2\s*=\s*false/);
   assert.match(uptraceBlock, /retry_on_http_429\s*=\s*true/);
 });

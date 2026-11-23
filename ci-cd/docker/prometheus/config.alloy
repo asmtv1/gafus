@@ -114,12 +114,13 @@ prometheus.remote_write "uptrace" {
     // Avoid broken HTTP/2 connections on the production Uptrace egress path.
     enable_http2 = false
     // Uptrace Cloud occasionally takes longer than the 30s default to accept a batch.
-    // Keep one sender: resharding cancelled an in-flight batch on 2026-11-23.
+    // Fixed senders avoid resharding cancellations while retaining enough
+    // throughput during slow cloud ingestion (one sender built a WAL backlog).
     remote_timeout = "90s"
     headers = {"uptrace-dsn" = sys.env("GAFUS_UPTRACE_INGEST_DSN")}
     queue_config {
-      min_shards = 1
-      max_shards = 1
+      min_shards = 2
+      max_shards = 2
       capacity = 5000
       max_samples_per_send = 1000
       batch_send_deadline = "15s"
