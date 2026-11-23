@@ -84,7 +84,7 @@ jobs:
   testing-web-e2e-advisory:
     name: Fresh real-browser E2E (informational; never release gate)
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && (inputs.profile == 'e2e-web' || inputs.profile == 'full'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: true
     timeout-minutes: 30
     permissions:
@@ -145,7 +145,7 @@ jobs:
   testing-web-vite-advisory:
     name: Full web-vite regression (informational; not a release gate)
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && (inputs.profile == 'web-vite' || inputs.profile == 'full'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: true
     timeout-minutes: 60
     permissions:
@@ -168,6 +168,13 @@ jobs:
         run: |
           node scripts/qa/web-vite-group-inventory.mjs check
           pnpm test:system:contract
+      - name: Ensure trusted lsof executable for kernel-backed process lifecycle tests
+        run: |
+          if [[ ! -x /usr/bin/lsof ]]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq lsof
+          fi
+          test -x /usr/bin/lsof
       - name: Run full web-vite regression in isolated Vitest processes
         id: regression
         continue-on-error: true
