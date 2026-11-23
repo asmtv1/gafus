@@ -33,7 +33,7 @@ export function canRequirePublicCheckout(
   choices: readonly MandatoryPublicationChoice[],
   approval: string | undefined,
 ): boolean {
-  if (!selected.checkout || !selected.complete || !selected.publicAppStoreReady ||
+  if (scope.platform !== "ios" || !selected.checkout || !selected.complete || !selected.publicAppStoreReady ||
       !mayPublishCheckoutToAll(scope, approval) || selected.nativeIds.length===0) return false;
   const targets = new Set(selected.nativeIds);
   if (targets.size !== selected.nativeIds.length) return false;
@@ -53,7 +53,11 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
   const groups = new Map<string, BuildRow[]>();
   for (const row of rows) {
     if (!row.id) continue;
-    const key = digest([row.revision, row.title, row.recoveryFor, row.checkout]);
+    // Android 1.7.5 RuStore checkout must never share a publication
+    // selection group with internal QA or Google Play native releases.
+    const key = digest([row.revision, row.title, row.recoveryFor, row.checkout,
+      scope.platform === "android" && row.checkout && scope.runtimeVersion === "1.7.5"
+        ? row.distribution : null]);
     const group = groups.get(key) ?? [];
     group.push(row);
     groups.set(key, group);
@@ -72,7 +76,9 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
           .filter(
             (r) =>
               r.verified &&
-              (!first.checkout || r.distribution === "internal" || (scope.platform === "ios" && scope.runtimeVersion === "1.7.5" && r.distribution === "app-store")) &&
+              (scope.platform === "android" && first.checkout && first.distribution === "rustore"
+                ? r.distribution === "rustore" :
+                (!first.checkout || r.distribution === "internal" || (scope.platform === "ios" && scope.runtimeVersion === "1.7.5" && r.distribution === "app-store"))) &&
               (first.recoveryFor === null ||
                 ((active?.revision === first.recoveryFor || recoveryPublished) &&
                   priorNatives.has(r.nativeId))),
@@ -81,6 +87,7 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
       );
       const ready = group.filter((r) => r.ready && targets.has(r.nativeId));
       const publicAppStoreReady = ready.some((r) => r.distribution === "app-store");
+      const publicRustoreReady = ready.some((r) => r.distribution === "rustore");
       const ids = ready.map((r) => r.id!);
       const expanded =
         active?.action === "TEST" &&
@@ -95,6 +102,7 @@ async function snapshot(db: VersionPublicationReader, scope: VersionScope) {
         recoveryFor: first.recoveryFor,
         checkout: first.checkout,
         publicAppStoreReady,
+        publicRustoreReady,
         ids,
         nativeIds: ready.map((r) => r.nativeId),
         compatible: ids.length,
@@ -209,9 +217,13 @@ async function transition(input: PublishInput, stop: boolean) {
       if (c.checkout && input.action === "ALL") {
         if (input.platform === "ios" && input.runtimeVersion === "1.7.5" && !c.publicAppStoreReady)
           throw new PublicationError("Для публичной оплаты нужна подписанная и подтверждённая App Store-сборка.");
-        if (input.platform !== "ios" || input.runtimeVersion !== "1.7.5")
+        if (input.platform === "android" && input.runtimeVersion === "1.7.5" && !c.publicRustoreReady)
+          throw new PublicationError("Для публичной оплаты нужна подписанная и подтверждённая RuStore-сборка.");
+        if (input.runtimeVersion !== "1.7.5" || !["ios", "android"].includes(input.platform))
           throw new PublicationError("Пакет с внутренней оплатой доступен только тестерам.");
-        if (!mayPublishCheckoutToAll(input, process.env.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED))
+        if (!mayPublishCheckoutToAll(input, input.platform === "android"
+          ? process.env.MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_PUBLISH_APPROVED
+          : process.env.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_PUBLISH_APPROVED))
           throw new PublicationError("Массовая оплата через ЮKassa запрещена без явного разрешения на выпуск.");
       }
       if (input.action === "ALL" && !c.tested)

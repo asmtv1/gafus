@@ -22,6 +22,7 @@ export type Choice = OtaManifestRow & {
   running: boolean;
   publicationAction: "TEST" | "ALL" | "RECOVER" | "STOP";
   publishedToAll: boolean;
+  distribution?: string;
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function observationKey(c: Context) {
@@ -89,6 +90,13 @@ async function allowsInternalCheckout(
     "policy",
     actorId,
   );
+  // QA permission never authorizes a PUBLIC RuStore release. Its audience
+  // and distribution must remain internal even if an iOS public flag is set.
+  if (platform === "android") {
+    return selected?.updateId === updateId && selected?.distribution === "internal" &&
+      selected.publicationAction === "TEST" && !selected.publishedToAll &&
+      selected.allowsCheckout && selected.running;
+  }
   return selected?.updateId === updateId && mayOfferCheckoutToAudience(
     { platform, runtimeVersion: version }, selected, process.env.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED,
   );
@@ -103,4 +111,26 @@ export function allowsAndroidQaCheckout(
 
 export function allowsVersionCheckout(...args: Parameters<typeof allowsAndroidQaCheckout>) {
   return allowsInternalCheckout("ios", ...args);
+}
+
+/** Public RuStore 1.7.5 has its own explicit deployment permission, separate
+ * from internal Android QA and all Google Play distributions. Release identity
+ * must be observed from a verified binary and the signed OTA must be running.
+ */
+export async function allowsAndroidRustoreCheckout(
+  ...args: Parameters<typeof allowsAndroidQaCheckout>
+) {
+  const [actorId, version, installationId, fingerprint, updateId] = args;
+  if (process.env.MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_ENABLED !== "true" ||
+      process.env.MOBILE_OTA_DELIVERY_ENV !== "production" ||
+      version !== "1.7.5" || !installationId || !uuid.test(installationId) ||
+      !fingerprint || !/^[a-f0-9]{64}$/.test(fingerprint) ||
+      !updateId || !uuid.test(updateId)) return false;
+  const selected = await selectVersionUpdate(
+    { platform:"android", runtimeVersion:version, installationId, nativeFingerprint:fingerprint },
+    "policy", actorId,
+  );
+  return selected?.distribution === "rustore" && selected.updateId === updateId &&
+    mayOfferCheckoutToAudience({platform:"android", runtimeVersion:version}, selected,
+      process.env.MOBILE_OTA_ANDROID_RUSTORE_YOOKASSA_PUBLIC_ENABLED);
 }

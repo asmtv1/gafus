@@ -24,7 +24,7 @@ on:
       payment_content:
         description: Signed checkout content profile
         type: choice
-        options: [standard, internal-yookassa, ios-public-yookassa, android-qa-yookassa]
+        options: [standard, internal-yookassa, ios-public-yookassa, android-qa-yookassa, android-rustore-yookassa]
         default: standard
       platform:
         description: Platform of the verified native binary
@@ -132,6 +132,13 @@ jobs:
               fi
             done
             [[ "$matched" == true ]] || exit 19
+          elif [[ "$OTA_PLATFORM" == android && "$OTA_EXPECTED_RUNTIME" == 1.7.5 ]]; then
+            # The native RuStore 17506 binary is pinned to its own audited
+            # release branch. Never allow an arbitrary SHA or Play build.
+            [[ "$OTA_NATIVE_ID" == cdb6b63e-e7fd-4943-902f-3e6b1507e0f4 ]] || exit 19
+            [[ "$OTA_PAYMENT_CONTENT" == android-rustore-yookassa || "$OTA_PAYMENT_CONTENT" == standard ]] || exit 19
+            git fetch --no-tags origin refs/heads/release/android-rustore-1.7.5-20261123:refs/remotes/origin/release/android-rustore-1.7.5-20261123
+            [[ "$(git rev-parse refs/remotes/origin/release/android-rustore-1.7.5-20261123)" == "$OTA_SOURCE_SHA" ]] || exit 19
           else
             git merge-base --is-ancestor "$OTA_SOURCE_SHA" origin/main
           fi

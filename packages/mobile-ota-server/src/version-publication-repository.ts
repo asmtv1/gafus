@@ -53,7 +53,7 @@ async function inventory(db: Query, scope: VersionScope) {
           AND other."appId"=n."appId" AND other.platform=n.platform AND other.environment=n.environment AND other.channel=n.channel
           AND other."runtimeVersion"=n."runtimeVersion" AND other."nativeFingerprint"=n."nativeFingerprint" AND other."signingKeyId"=n."signingKeyId")
         AND length(r."signatureHeader")>0 AND octet_length(r."manifestBody")>0
-        AND (NOT r."allowsCheckout" OR n.distribution='internal' OR (n.platform='ios' AND n.distribution='app-store' AND n."runtimeVersion"='1.7.5'))
+        AND (NOT r."allowsCheckout" OR n.distribution='internal' OR (n.platform='ios' AND n.distribution='app-store' AND n."runtimeVersion"='1.7.5') OR (n.platform='android' AND n.distribution='rustore' AND n."runtimeVersion"='1.7.5'))
         AND EXISTS(SELECT 1 FROM "MobileOtaArtifact" a WHERE a."releaseId"=r.id)
         AND NOT EXISTS(SELECT 1 FROM "MobileOtaArtifact" a WHERE a."releaseId"=r.id AND NOT a.verified)) AS ready,
       NOT EXISTS(SELECT 1 FROM "MobileOtaRelease" prior WHERE

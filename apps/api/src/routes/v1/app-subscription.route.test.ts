@@ -12,6 +12,7 @@ const {
   verifyAppleAppSubscriptionMock,
   getMobileFeatureFlagEnabledMock,
   allowsVersionCheckoutMock,
+  allowsAndroidRustoreCheckoutMock,
 } = vi.hoisted(() => ({
   cancelYookassaAppSubscriptionMock: vi.fn(),
   getAppSubscriptionAccessMock: vi.fn(),
@@ -22,6 +23,7 @@ const {
   verifyAppleAppSubscriptionMock: vi.fn(),
   getMobileFeatureFlagEnabledMock: vi.fn(),
   allowsVersionCheckoutMock: vi.fn(),
+  allowsAndroidRustoreCheckoutMock: vi.fn(),
 }));
 
 vi.mock("../../modules/app-subscription/composition/read-offer.js", () => ({
@@ -52,6 +54,7 @@ vi.mock("@gafus/core/services/appSubscription", () => ({
 
 vi.mock("@gafus/mobile-ota-server/version-selection",()=>({
   allowsVersionCheckout:allowsVersionCheckoutMock,
+  allowsAndroidRustoreCheckout: allowsAndroidRustoreCheckoutMock,
   allowsAndroidQaCheckout:vi.fn().mockResolvedValue(false),
 }));
 
@@ -87,6 +90,7 @@ describe("app subscription route contracts", () => {
     vi.clearAllMocks();
     getMobileFeatureFlagEnabledMock.mockResolvedValue(true);
     allowsVersionCheckoutMock.mockResolvedValue(false);
+    allowsAndroidRustoreCheckoutMock.mockResolvedValue(false);
     delete process.env.WEB_APP_URL;
     delete process.env.NEXT_PUBLIC_WEB_APP_URL;
     delete process.env.NEXT_PUBLIC_APP_URL;
@@ -94,6 +98,30 @@ describe("app subscription route contracts", () => {
     delete process.env.YOOKASSA_SECRET_KEY;
     delete process.env.ANDROID_LEGACY_YOOKASSA_USER_IDS;
     delete process.env.ANDROID_LEGACY_YOOKASSA_VERSIONS;
+  });
+
+  it("isolates RuStore signed Android 1.7.5 checkout from Google Play and unsigned OTA", async () => {
+    const app = createAuthenticatedTestApp();
+    getAppSubscriptionOfferMock.mockResolvedValue({promoCode:{entryEnabled:true,eligible:true},yookassaPlans:[]});
+    const ordinary = await app.request(jsonRequest("/api/v1/app-subscription/offer", "GET", undefined,
+      {"x-client-platform":"android","x-client-version":"1.7.5"}));
+    expect(ordinary.status).toBe(200);
+    expect(await ordinary.json()).toMatchObject({success:true,data:{promoCode:{entryEnabled:true,eligible:true}}});
+    expect(allowsAndroidRustoreCheckoutMock).not.toHaveBeenCalled();
+    const signedHeaders = {"x-client-platform":"android","x-client-version":"1.7.5",
+      "x-ota-installation":"verified-installation","x-ota-fingerprint":"signed-native",
+      "x-ota-update":"signed-update"};
+    const denied = await app.request(jsonRequest("/api/v1/app-subscription/offer", "GET", undefined,signedHeaders));
+    expect(await denied.json()).toMatchObject({success:true,data:{
+      androidRustoreCardPaymentEnabled:false,promoCode:{entryEnabled:false,eligible:false}}});
+    allowsAndroidRustoreCheckoutMock.mockResolvedValue(true);
+    const allowed = await app.request(jsonRequest("/api/v1/app-subscription/offer", "GET", undefined,signedHeaders));
+    expect(await allowed.json()).toMatchObject({success:true,data:{
+      androidRustoreCardPaymentEnabled:true,promoCode:{entryEnabled:true,eligible:true}}});
+    const playHeaders = { ...signedHeaders,"x-client-version":"1.7.6" };
+    allowsAndroidRustoreCheckoutMock.mockResolvedValue(false);
+    const play = await app.request(jsonRequest("/api/v1/app-subscription/offer", "GET", undefined,playHeaders));
+    expect(await play.json()).toMatchObject({success:true,data:{androidRustoreCardPaymentEnabled:false}});
   });
 
   it("keeps promo entry disabled for ordinary iOS even when a legacy feature flag is on",async()=>{
