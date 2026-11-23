@@ -5,9 +5,27 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const controls = [
-  { key: "twoWeeks", title: "Самостоятельный" },
-  { key: "monthly", title: "Поддержка в чате" },
-  { key: "threeMonths", title: "Полное сопровождение" },
+  {
+    key: "twoWeeks",
+    title: "Самостоятельный",
+    enabled: "twoWeeksEnabled",
+    price: "yookassaTwoWeeksPriceRub",
+    days: "twoWeeksIntervalDays",
+  },
+  {
+    key: "monthly",
+    title: "Поддержка в чате",
+    enabled: "monthlyEnabled",
+    price: "yookassaMonthlyPriceRub",
+    days: "monthlyIntervalDays",
+  },
+  {
+    key: "threeMonths",
+    title: "Полное сопровождение",
+    enabled: "threeMonthsEnabled",
+    price: "yookassaThreeMonthsPriceRub",
+    days: "threeMonthsIntervalDays",
+  },
 ] as const;
 function validPricingSettings(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) return false;
@@ -38,12 +56,20 @@ export function PricingEditor({
   const [unknownAck, setUnknownAck] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const writeLock = useRef(false);
-  if (!validPricingSettings(source))
+  if (!validPricingSettings(source)) {
     return <p role="alert">Некорректный формат настроек тарифов</p>;
-  const update = (key: string, value: unknown) => setDraft((old) => ({ ...old, [key]: value }));
+  }
+
+  const changed = Object.keys(source).some((key) => draft[key] !== source[key]);
+  const disabled = !canChange || saving || unknownAck;
+  const update = (key: string, value: unknown) => {
+    setError(null);
+    setSuccess(null);
+    setDraft((old) => ({ ...old, [key]: value }));
+  };
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (writeLock.current || unknownAck || !canChange) return;
+    if (writeLock.current || unknownAck || !canChange || !changed) return;
     if (!validPricingSettings(draft)) {
       setError("Проверьте цены, периоды и Apple Product ID");
       return;
@@ -94,93 +120,102 @@ export function PricingEditor({
     }
   }
   return (
-    <form className="content-card settings-editor" onSubmit={save}>
-      <h2>Настройки тарифов Premium</h2>
-      <p className="note">
-        ЮKassa: три тарифа; App Store: только месячный. Отключение тарифа останавливает
-        новые продажи, но не продления.
-      </p>
-      <div className="operation-grid">
-        {controls.map(({ key, title }) => (
-          <fieldset key={key} disabled={!canChange || saving || unknownAck}>
-            <legend>{title}</legend>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={draft[`${key}Enabled`] === true}
-                onChange={(e) => update(`${key}Enabled`, e.target.checked)}
-              />
-              Показывать в ЮKassa
-            </label>
-            <label>
-              Цена YooKassa (₽)
-              <input
-                type="number"
-                min="1"
-                max="100000"
-                step="1"
-                required
-                value={Number(
-                  draft[
-                    key === "twoWeeks"
-                      ? "yookassaTwoWeeksPriceRub"
-                      : key === "monthly"
-                        ? "yookassaMonthlyPriceRub"
-                        : "yookassaThreeMonthsPriceRub"
-                  ] ?? 0,
-                )}
-                onChange={(e) =>
-                  update(
-                    key === "twoWeeks"
-                      ? "yookassaTwoWeeksPriceRub"
-                      : key === "monthly"
-                        ? "yookassaMonthlyPriceRub"
-                        : "yookassaThreeMonthsPriceRub",
-                    Number(e.target.value),
-                  )
-                }
-              />
-            </label>
-            <label>
-              Количество дней
-              <input
-                type="number"
-                min="1"
-                max="366"
-                step="1"
-                required
-                value={Number(draft[`${key}IntervalDays`] ?? 30)}
-                onChange={(e) => update(`${key}IntervalDays`, Number(e.target.value))}
-              />
-            </label>
-          </fieldset>
+    <form className="content-card subscription-settings" onSubmit={save}>
+      <header className="subscription-settings-header">
+        <div>
+          <h2>Тарифы Premium</h2>
+          <p className="note">
+            Цены и срок доступа для новых покупок через ЮKassa.
+            Отключение тарифа не отменяет уже оформленные подписки.
+          </p>
+        </div>
+        {changed && <span className="subscription-unsaved">Есть изменения</span>}
+      </header>
+
+      <div className="subscription-plan-list">
+        {controls.map(({ key, title, enabled, price, days }) => (
+          <section className="subscription-plan" key={key} aria-labelledby={`plan-${key}`}>
+            <div className="subscription-plan-head">
+              <div>
+                <h3 id={`plan-${key}`}>{title}</h3>
+                <span className="note">Оплата через ЮKassa</span>
+              </div>
+              <label className="subscription-plan-toggle">
+                <input
+                  type="checkbox"
+                  className="feature-switch"
+                  disabled={disabled}
+                  checked={draft[enabled] === true}
+                  onChange={(e) => update(enabled, e.target.checked)}
+                />
+                <span>{draft[enabled] === true ? "В продаже" : "Не продаётся"}</span>
+              </label>
+            </div>
+            <div className="subscription-plan-fields">
+              <label>
+                Цена, ₽
+                <input
+                  type="number"
+                  min="1"
+                  max="100000"
+                  step="1"
+                  required
+                  disabled={disabled}
+                  value={Number(draft[price] ?? 0)}
+                  onChange={(e) => update(price, Number(e.target.value))}
+                />
+              </label>
+              <label>
+                Срок доступа, дней
+                <input
+                  type="number"
+                  min="1"
+                  max="366"
+                  step="1"
+                  required
+                  disabled={disabled}
+                  value={Number(draft[days] ?? 30)}
+                  onChange={(e) => update(days, Number(e.target.value))}
+                />
+              </label>
+            </div>
+          </section>
         ))}
       </div>
-      <label>
-        Apple Product ID
-        <input
-          disabled={!canChange || saving || unknownAck}
-          maxLength={255}
-          value={String(draft.monthlyAppleProductId ?? "")}
-          onChange={(e) => update("monthlyAppleProductId", e.target.value.trim() || null)}
-        />
-        <span className="note">Используется только App Store для месячного тарифа</span>
-      </label>
-      {!canChange && <p className="note">Только ADMIN может изменять настройки тарифов.</p>}
-      <button disabled={!canChange || saving || unknownAck} type="submit">
-        {saving ? "Сохранение…" : "Сохранить"}
-      </button>
-      {unknownAck && canChange && (
-        <button type="button" className="secondary" disabled={saving} onClick={() => void verify()}>
-          Перечитать тарифы на сервере
-        </button>
-      )}
-      {success && <p role="status" className="success">{success}</p>}
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
+
+      <details className="subscription-advanced">
+        <summary>Настройки App Store <span>Месячная подписка</span></summary>
+        <div className="subscription-advanced-body">
+          <p className="note">
+            Для покупок в App Store используется отдельный продукт. Его ID меняйте
+            только при обновлении настроек магазина.
+          </p>
+          <label>
+            Идентификатор продукта Apple
+            <input
+              disabled={disabled}
+              maxLength={255}
+              value={String(draft.monthlyAppleProductId ?? "")}
+              onChange={(e) => update("monthlyAppleProductId", e.target.value.trim() || null)}
+            />
+          </label>
+        </div>
+      </details>
+
+      <div className="subscription-settings-footer">
+        {canChange ? (
+          <button disabled={disabled || !changed} type="submit">
+            {saving ? "Сохранение…" : "Сохранить изменения"}
+          </button>
+        ) : <p className="note">Изменять тарифы может только администратор.</p>}
+        {unknownAck && canChange && (
+          <button type="button" className="secondary" disabled={saving} onClick={() => void verify()}>
+            Перечитать тарифы на сервере
+          </button>
+        )}
+        {success && <p role="status" className="success">{success}</p>}
+        {error && <p role="alert" className="error">{error}</p>}
+      </div>
     </form>
   );
 }
