@@ -18,6 +18,17 @@ if (!["ios", "android"].includes(platform) || (checkout && platform !== process.
 config.cacheVersion = `gafus-ota-${randomUUID()}`;
 const resolve = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, name, targetPlatform) => {
+  // Replace the platform-specific Google Play subscription API with its
+  // existing generic YooKassa/status API ONLY in verified RuStore 1.7.5 OTA.
+  // Without this, the native `.android.ts` barrel imports Google billing
+  // even after the visible paywall was replaced by the signed RuStore UI.
+  if (rustore && targetPlatform === "android" &&
+      (name === "./api/appSubscriptionApi" || name === "../api/appSubscriptionApi" ||
+        name === "@/features/app-subscription/api/appSubscriptionApi") &&
+      (context.originModulePath.startsWith(path.dirname(components) + path.sep) ||
+        name.startsWith("@/features/app-subscription"))) {
+    return { type: "sourceFile", filePath: path.join(path.dirname(components), "api/appSubscriptionApi.ts") };
+  }
   // One signed OTA release replaces ONLY the RuStore payment entrypoint. Never
   // alter the Google Play binary, its standard OTA, or native billing modules.
   if (rustore && targetPlatform === "android" &&

@@ -24,7 +24,7 @@ if (profile === "android-rustore-yookassa") {
   ];
   for (const pattern of required) if (!has(pattern))
     throw Error(`RUSTORE_175_SIGNED_PAYMENT_MODULE_MISSING_${pattern}`);
-  if (has(/AppSubscriptionPaywall\.android\.tsx$|GooglePlayPurchaseSync\.android\.tsx$|AndroidQaCardCheckout\.tsx$/))
+  if (has(/AppSubscriptionPaywall\.android\.tsx$|GooglePlayPurchaseSync\.android\.tsx$|AndroidQaCardCheckout\.tsx$|appSubscriptionApi\.android\.ts$|appSubscriptionGoogleApi\.ts$/))
     throw Error("RUSTORE_EXPORT_CONTAINS_PLAY_OR_QA_ENTRYPOINT");
   const metadata = JSON.parse(readFileSync(path.join(directory, "metadata.json"), "utf8"));
   const bundle = readFileSync(path.join(directory, metadata.fileMetadata.android.bundle));
