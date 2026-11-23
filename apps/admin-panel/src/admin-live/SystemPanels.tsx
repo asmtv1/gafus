@@ -400,3 +400,5 @@ export function AdminCacheSection({ canChange }: { canChange: boolean }) {
         </details>
       )}
     </section>
+  );
+}
