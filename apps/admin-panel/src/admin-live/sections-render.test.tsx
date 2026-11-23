@@ -163,7 +163,7 @@ const sections = [
     "Почта и алерты",
   ],
   ["media", <StoragePanel data={storage} />, "Управление хранилищем"],
-  ["admin", <PricingEditor source={plans} onSaved={noop} />, "Настройки тарифов Premium"],
+  ["admin", <PricingEditor source={plans} onSaved={noop} />, "Тарифы Premium"],
   [
     "partners",
     <PartnersPanel source={[]} onSaved={noop} initialPartnerId={null} onNavigate={noKey} />,
