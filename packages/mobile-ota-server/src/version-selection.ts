@@ -90,6 +90,13 @@ async function allowsInternalCheckout(
     "policy",
     actorId,
   );
+  // QA permission never authorizes a PUBLIC RuStore release. Its audience
+  // and distribution must remain internal even if an iOS public flag is set.
+  if (platform === "android") {
+    return selected?.updateId === updateId && selected?.distribution === "internal" &&
+      selected.publicationAction === "TEST" && !selected.publishedToAll &&
+      selected.allowsCheckout && selected.running;
+  }
   return selected?.updateId === updateId && mayOfferCheckoutToAudience(
     { platform, runtimeVersion: version }, selected, process.env.MOBILE_OTA_IOS_YOOKASSA_PUBLIC_ENABLED,
   );
